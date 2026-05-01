@@ -12,7 +12,6 @@ export interface TurnStats {
   streamMode: StreamMode;
 }
 
-const SHOW_STATS_AFTER_MS = 3_000;
 
 export class WorkingIndicatorComponent extends Container {
   private spacer: Spacer;
@@ -106,10 +105,11 @@ export class WorkingIndicatorComponent extends Container {
     }
 
     const elapsed = Date.now() - stats.turnStartMs;
-    if (elapsed < SHOW_STATS_AFTER_MS) return null;
-
     this.advanceDisplayedChars(stats.streamedChars);
     const tokens = Math.round(this.displayedChars / 4);
+    if (tokens <= 0) {
+      return theme.muted(`(${formatTurnDuration(elapsed)})`);
+    }
     const arrow = stats.streamMode === 'requesting' ? '↑' : '↓';
     return theme.muted(`(${formatTurnDuration(elapsed)} · ${arrow} ${formatTokensCompact(tokens)} tokens)`);
   }
