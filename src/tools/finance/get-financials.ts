@@ -22,7 +22,7 @@ Intelligent meta-tool for retrieving company financial data. Takes a natural lan
 - Financial metrics and key ratios (P/E ratio, market cap, EPS, dividend yield, enterprise value, ROE, ROA, margins)
 - Historical metrics and trend analysis across multiple periods
 - Analyst estimates and price targets
-- Revenue segment breakdowns
+- Financial segment breakdowns (revenue, margins, etc. by product / geography)
 - Earnings data (EPS/revenue beat-miss, earnings surprises)
 - Multi-company comparisons (pass the full query, it handles routing internally)
 
@@ -55,7 +55,7 @@ function formatSubToolName(name: string): string {
 import { getIncomeStatements, getBalanceSheets, getCashFlowStatements, getAllFinancialStatements } from './fundamentals.js';
 import { getKeyRatios, getHistoricalKeyRatios } from './key-ratios.js';
 import { getAnalystEstimates } from './estimates.js';
-import { getSegmentedRevenues } from './segments.js';
+import { getFinancialSegments } from './segments.js';
 import { getEarnings } from './earnings.js';
 
 // All finance tools available for routing
@@ -72,7 +72,7 @@ const FINANCE_TOOLS: StructuredToolInterface[] = [
   getHistoricalKeyRatios,
   getAnalystEstimates,
   // Other Data
-  getSegmentedRevenues,
+  getFinancialSegments,
 ];
 
 // Create a map for quick tool lookup by name
@@ -136,7 +136,7 @@ export function createGetFinancials(model: string): DynamicStructuredTool {
 - Financial metrics and key ratios (P/E ratio, market cap, EPS, dividend yield, ROE, margins)
 - Historical metrics and trend analysis
 - Analyst estimates and price targets
-- Earnings data and revenue segments`,
+- Earnings data and financial segments`,
     schema: GetFinancialsInputSchema,
     func: async (input, _runManager, config?: RunnableConfig) => {
       const onProgress = config?.metadata?.onProgress as ((msg: string) => void) | undefined;

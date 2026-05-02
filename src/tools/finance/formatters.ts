@@ -228,21 +228,52 @@ export function formatCryptoPrice(data: unknown): string {
   return `${ticker}: ${fmtPrice(d.close ?? d.price)} (H: ${fmtPrice(d.high)} L: ${fmtPrice(d.low)}) Vol: ${fmtNum(d.volume)}`;
 }
 
-export function formatSegmentedRevenues(data: unknown, args?: Rec): string {
+export function formatFinancialSegments(data: unknown, args?: Rec): string {
   const items = Array.isArray(data) ? data : [];
   if (items.length === 0) return 'No segment data available.';
   const ticker = (args?.ticker as string)?.toUpperCase() ?? '';
-  const lines = [`${ticker} Revenue Segments`, ''];
+  const lines = [`${ticker} Financial Segments`, ''];
+
+  const STATEMENTS = ['income_statement', 'balance_sheet', 'cash_flow_statement'] as const;
+
   for (const period of items as Rec[]) {
-    lines.push(`**${fmtDate(period.report_period)}**`);
-    const segments = (period.segments ?? period.revenue_segments) as Rec[] | undefined;
-    if (Array.isArray(segments)) {
-      for (const seg of segments) {
-        lines.push(`- ${seg.label ?? seg.name ?? 'Unknown'}: ${fmtNum(seg.value ?? seg.revenue)}`);
+    const header = period.fiscal_period
+      ? `${fmtDate(period.report_period)} (${period.fiscal_period})`
+      : fmtDate(period.report_period);
+    lines.push(`**${header}**`);
+
+    let wroteAny = false;
+    for (const statementKey of STATEMENTS) {
+      const statement = period[statementKey] as Rec | null | undefined;
+      if (!statement || typeof statement !== 'object') continue;
+
+      for (const [metricName, metricValue] of Object.entries(statement)) {
+        if (!metricValue || typeof metricValue !== 'object') continue;
+        const breakdowns = metricValue as Rec;
+
+        for (const [axisName, axisValue] of Object.entries(breakdowns)) {
+          if (!Array.isArray(axisValue) || axisValue.length === 0) continue;
+          const metricLabel = formatLabel(metricName);
+          const axisLabel = formatLabel(axisName);
+          lines.push(`${metricLabel} · ${axisLabel}:`);
+          for (const entry of axisValue as Rec[]) {
+            const label = entry.label ?? entry.name ?? 'Unknown';
+            lines.push(`- ${label}: ${fmtNum(entry.value ?? entry.revenue)}`);
+          }
+          wroteAny = true;
+        }
       }
     }
+    if (!wroteAny) {
+      lines.push('No segment breakdowns reported.');
+    }
+    lines.push('');
   }
-  return lines.join('\n');
+  return lines.join('\n').trimEnd();
+}
+
+function formatLabel(s: string): string {
+  return s.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }
 
 // ---------------------------------------------------------------------------
@@ -258,7 +289,7 @@ export const FINANCIAL_FORMATTERS: Record<string, (data: unknown, args?: Rec) =>
   get_historical_key_ratios: formatHistoricalKeyRatios,
   get_analyst_estimates: formatAnalystEstimates,
   get_earnings: formatEarnings,
-  get_segmented_revenues: formatSegmentedRevenues,
+  get_financial_segments: formatFinancialSegments,
 };
 
 export const MARKET_DATA_FORMATTERS: Record<string, (data: unknown, args?: Rec) => string> = {
