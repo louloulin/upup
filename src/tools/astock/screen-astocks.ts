@@ -1,6 +1,7 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { z } from 'zod';
 import { getTushareClient } from './tushare-client';
+import { screenStocks } from './screener-client';
 
 export const SCREEN_ASTOCKS_DESCRIPTION = `## screen_astocks
 Screens A-share stocks by basic criteria.
@@ -30,48 +31,76 @@ export const screenAstocks = new DynamicStructuredTool({
   description: SCREEN_ASTOCKS_DESCRIPTION,
   schema: ScreenAStocksSchema,
   async func(input) {
-    if (!process.env.TUSHARE_TOKEN) {
-      return JSON.stringify({
-        error: 'TUSHARE_TOKEN not set. Cannot screen stocks.',
-        hint: 'Get a free token at https://tushare.pro/register',
-      });
-    }
-
-    const client = getTushareClient();
     const limit = input.limit || 50;
 
-    // Get all basic stock info
-    const stocks = await client.stockBasic({
-      list_status: 'L', // Listed
-      market: input.exchange,
-    });
+    // Try Tushare first if token is available
+    if (process.env.TUSHARE_TOKEN) {
+      try {
+        const client = getTushareClient();
 
-    // Apply filters
-    let filtered = stocks;
-    if (input.sector) {
-      filtered = filtered.filter(
-        (s) => (s as Record<string, unknown>).industry?.toString().includes(input.sector!)
-      );
-    }
-    if (input.exchange) {
-      filtered = filtered.filter((s) => {
-        const ts = (s as Record<string, unknown>).ts_code?.toString() || '';
-        if (input.exchange === 'SH') return ts.endsWith('.SH');
-        if (input.exchange === 'SZ') return ts.endsWith('.SZ');
-        if (input.exchange === 'BJ') return ts.endsWith('.BJ');
-        return false;
-      });
+        // Get all basic stock info
+        const stocks = await client.stockBasic({
+          list_status: 'L', // Listed
+          market: input.exchange,
+        });
+
+        // Apply filters
+        let filtered = stocks;
+        if (input.sector) {
+          filtered = filtered.filter(
+            (s) => (s as Record<string, unknown>).industry?.toString().includes(input.sector!)
+          );
+        }
+        if (input.exchange) {
+          filtered = filtered.filter((s) => {
+            const ts = (s as Record<string, unknown>).ts_code?.toString() || '';
+            if (input.exchange === 'SH') return ts.endsWith('.SH');
+            if (input.exchange === 'SZ') return ts.endsWith('.SZ');
+            if (input.exchange === 'BJ') return ts.endsWith('.BJ');
+            return false;
+          });
+        }
+
+        // Limit results
+        filtered = filtered.slice(0, limit);
+
+        return JSON.stringify({
+          source: 'tushare',
+          criteria: input,
+          count: filtered.length,
+          data: filtered,
+          note: 'Market cap and PE filtering requires additional API calls.',
+        });
+      } catch (error: any) {
+        // Check for permission/rate limit errors
+        if (error.message.includes('40203') || error.message.includes('frequency')) {
+          console.warn('Tushare screener limited, trying fallback...');
+          // Fall through to scraping
+        } else {
+          throw error;
+        }
+      }
     }
 
-    // Limit results
-    filtered = filtered.slice(0, limit);
+    // Fallback to scraping
+    try {
+      const { stocks, source } = await screenStocks(input.sector, input.exchange, limit);
+      if (stocks.length > 0) {
+        return JSON.stringify({
+          source,
+          criteria: input,
+          count: stocks.length,
+          data: stocks,
+          note: 'Data from public scraping. Market cap and PE filtering not available.',
+        });
+      }
+    } catch (e) {
+      console.warn('Scraping fallback failed:', e instanceof Error ? e.message : String(e));
+    }
 
     return JSON.stringify({
-      source: 'tushare',
-      criteria: input,
-      count: filtered.length,
-      data: filtered,
-      note: 'Market cap and PE filtering requires additional API calls. Showing stock basic info.',
+      error: 'Unable to screen stocks',
+      hint: 'Set TUSHARE_TOKEN for full functionality, or check network connectivity',
     });
   },
 });
