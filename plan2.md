@@ -1,6 +1,56 @@
 # Dexter A 股支持完整改造计划 (Pure TypeScript)
 
-> 更新: 2026-05-06 | 状态: Phase 1-7 全部完成 ✅ | Enhancements v2/v3/v4 完成 ✅ | **真实验证通过** ✅
+> 更新: 2026-05-07 | 状态: Phase 1-7 完成 ✅ | v2/v3/v4 完成 ✅ | **数据爬取增强** ✅
+
+---
+
+## 十一、增强功能 (Enhancement v5 - 数据爬取)
+
+### v5 新增爬取客户端
+
+| 客户端 | 文件 | 功能 | 状态 |
+|--------|------|------|------|
+| News Scraper | `news-client.ts` | Eastmoney 公告爬取 | ✅ |
+| Screener Scraper | `screener-client.ts` | Eastmoney 行业筛选 | ✅ |
+| Eastmoney API | `realtime-client.ts` | 东方财富行情API | ✅ |
+
+### v5 爬取功能
+
+```
+新闻爬取 (news-client.ts):
+  ├─ fetchEastmoneyNews() - 东方财富公司公告
+  ├─ fetchMarketNews() - 市场新闻
+  └─ fetchStockNews() - 自动多源爬取
+
+行情爬取 (realtime-client.ts):
+  ├─ getTencentQuote() - 腾讯行情 (sh/sz/hk)
+  ├─ getSinaQuote() - 新浪行情
+  └─ getEastmoneyQuote() - 东方财富API
+
+筛选爬取 (screener-client.ts):
+  ├─ fetchStocksByIndustry() - 按行业筛选
+  └─ fetchStocksByExchange() - 按交易所筛选
+```
+
+### v5 容错流程 (完整)
+
+```
+请求 get_astock_news
+  ├─ Tushare announcement API
+  │   ├─ 成功 → 返回公告
+  │   └─ 失败 → 回退到爬取
+  └─ 东方财富爬取
+      ├─ 成功 → 返回公司公告
+      └─ 失败 → 返回市场新闻
+
+请求 screen_astocks
+  ├─ Tushare stock_basic
+  │   ├─ 成功 → 返回股票列表
+  │   └─ 限速 → 回退到爬取
+  └─ 东方财富爬取
+      ├─ 成功 → 返回行业股票
+      └─ 失败 → 返回错误提示
+```
 
 ---
 
@@ -512,6 +562,22 @@ screen_astocks({ sector: "汽车整车" }) → Tushare stock_basic, 63 stocks
 
 **多数据源容错**: Tencent → Sina (2次重试 + 5秒超时)
 **历史K线**: Tushare (2次重试 + 10秒超时)
+
+### v5 数据爬取验证 ✅ PASS (2026-05-07)
+
+| 功能 | 工具 | 结果 | 数据源 |
+|------|------|------|--------|
+| 公司公告爬取 | get_astock_news | 10条公告 | Eastmoney Scraping |
+| 名称搜索 | get_astock_price | ✅ 比亚迪→002594.SZ | resolveNameToCode |
+| 实时行情 | get_astock_price | ¥100.75 | Tencent |
+
+**爬取文件清单**:
+```
+src/tools/astock/
+├── realtime-client.ts   ✅ 腾讯 + 新浪 + 东方财富API
+├── news-client.ts       ✅ 东方财富公告 + 市场新闻
+└── screener-client.ts   ✅ 东方财富行业筛选
+```
 
 ---
 

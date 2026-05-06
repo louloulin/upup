@@ -1,6 +1,6 @@
 /**
  * Pure TypeScript real-time stock data client.
- * Fetches from multiple sources with fallback: Tencent → Sina → Eastmoney
+ * Fetches from multiple sources with fallback: Tencent → Sina → Eastmoney (scraping)
  * No API key required.
  * Features: retry with backoff, timeout handling, multi-source fallback
  */
@@ -228,17 +228,143 @@ function parseSinaData(symbol: string, text: string): RealtimeQuote {
   };
 }
 
+// ==================== Eastmoney push2.eastmoney.com (Scraping) ====================
+
+/**
+ * Fetch real-time quote from Eastmoney (东方财富).
+ * API: https://push2.eastmoney.com/api/qt/stock/get
+ *
+ * Field mapping (Eastmoney uses different indices):
+ * f43: current price (in cents)
+ * f44: high price (in cents)
+ * f45: low price (in cents)
+ * f46: open price (in cents)
+ * f47: yesterday close (NOT previous volume - need correct field)
+ * f48: change amount (in cents)
+ * f49: change percent (already %)
+ * f50: volume (手)
+ * f57: stock code
+ * f58: stock name
+ * f60: amount (元)
+ * f107: amplitude %
+ * f116: total market cap
+ * f117: circulating market cap
+ * f152: turnover rate %
+ */
+export async function getEastmoneyQuote(symbol: string): Promise<RealtimeQuote> {
+  const eastmoneyCode = toEastmoneyCode(symbol);
+  // Request fields: f43=price, f44=high, f45=low, f46=open, f47=yesterdayClose,
+  // f48=change, f49=changePercent, f50=volume, f57=code, f58=name,
+  // f60=amount, f107=amplitude, f116=marketCap, f117=circulatingCap, f152=turnoverRate
+  const url = `https://push2.eastmoney.com/api/qt/stock/get?secid=${eastmoneyCode}&fields=f43,f44,f45,f46,f47,f48,f49,f50,f57,f58,f60,f107,f116,f117,f152`;
+
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const response = await fetchWithTimeout(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+          'Referer': 'https://quote.eastmoney.com',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const json = await response.json();
+      return parseEastmoneyData(symbol, json);
+    } catch (e) {
+      if (attempt >= MAX_RETRIES) throw e;
+      await sleep(RETRY_DELAY_MS * Math.pow(2, attempt));
+    }
+  }
+  throw new Error('Eastmoney fetch failed');
+}
+
+export function toEastmoneyCode(symbol: string): string {
+  // Tencent format to Eastmoney: sh600519 -> 1.600519, sz002594 -> 0.002594, hk00700 -> 116.00700
+  const s = symbol.toLowerCase();
+  if (s.startsWith('sh')) return `1.${s.slice(2)}`;
+  if (s.startsWith('sz')) return `0.${s.slice(2)}`;
+  if (s.startsWith('hk')) return `116.${s.slice(2)}`;
+  if (s.startsWith('bj')) return `8.${s.slice(2)}`;
+  // Default: assume Shanghai
+  return `1.${symbol}`;
+}
+
+interface EastmoneyResponse {
+  data: {
+    f43: number;  // current price (in 0.01 yuan)
+    f44: number;  // high price (in 0.01 yuan)
+    f45: number;  // low price (in 0.01 yuan)
+    f46: number;  // open price (in 0.01 yuan)
+    f47: number;  // yesterday close (in 0.01 yuan) - NOT volume!
+    f48: number;  // change amount (in 0.01 yuan)
+    f49: number;  // change percent (already %)
+    f50: number;  // volume (hand)
+    f57: string;  // stock code
+    f58: string;  // stock name
+    f60: number;  // amount (yuan)
+    f107: number; // amplitude %
+    f116: number; // total market cap
+    f117: number; // circulating market cap
+    f152: number; // turnover rate %
+  };
+}
+
+function parseEastmoneyData(symbol: string, json: EastmoneyResponse): RealtimeQuote {
+  const d = json.data;
+  if (!d) {
+    throw new Error(`Eastmoney no data for ${symbol}`);
+  }
+
+  // All prices are in 0.01 yuan (cents), divide by 100 to get yuan
+  const price = d.f43 / 100;
+  const high = d.f44 / 100;
+  const low = d.f45 / 100;
+  const open = d.f46 / 100;
+  const yesterdayClose = d.f47 / 100; // f47 is yesterday close price
+  const change = d.f48 / 100; // f48 is change amount
+  const changePercent = d.f49; // f49 is already in percent
+
+  const volume = d.f50;  // volume in hand
+  const amount = d.f60;  // amount in yuan
+  const marketCap = d.f116;  // total market cap in yuan
+  const circulatingCap = d.f117;  // circulating market cap in yuan
+
+  return {
+    code: d.f57 || symbol,
+    name: d.f58 || '',
+    price,
+    change: Math.round(change * 100) / 100,
+    changePercent: Math.round(changePercent * 100) / 100,
+    open,
+    high,
+    low,
+    volume,
+    amount,
+    amplitude: d.f107 || d.f152 || 0,
+    pe: 0,
+    priceToBook: 0,
+    marketCap,
+    circulatingCap,
+    timestamp: new Date().toISOString(),
+    source: 'eastmoney',
+  };
+}
+
 // ==================== Main Export ====================
 
 /**
  * Get real-time quote with multi-source fallback.
- * Tries: Tencent → Sina (HK stocks have additional fallbacks via Tencent)
+ * Tries: Tencent → Sina → Eastmoney
  * @param symbol In Tencent format: sh600519, sz000001, hk00700
  */
 export async function getRealtimeQuote(symbol: string): Promise<RealtimeQuote> {
   const sources: Array<{name: string; fn: () => Promise<RealtimeQuote>}> = [
     { name: 'Tencent', fn: () => getTencentQuote(symbol) },
     { name: 'Sina', fn: () => getSinaQuote(symbol) },
+    { name: 'Eastmoney', fn: () => getEastmoneyQuote(symbol) },
   ];
 
   const errors: string[] = [];
@@ -253,38 +379,6 @@ export async function getRealtimeQuote(symbol: string): Promise<RealtimeQuote> {
   }
 
   throw new Error(`All realtime sources failed. Errors: ${errors.join('; ')}`);
-}
-
-/**
- * Convert Tushare format to Tencent format.
- * 600519.SH -> sh600519
- * 000001.SZ -> sz000001
- * 00700.HK -> hk00700
- */
-export function toTencentSymbol(tushareCode: string): string {
-  const [code, market] = tushareCode.split('.');
-  if (market === 'SH' || market === 'SHANGHAI') return `sh${code}`;
-  if (market === 'SZ' || market === 'SHENZHEN') return `sz${code}`;
-  if (market === 'HK' || market === 'HONG KONG') return `hk${code}`;
-  if (market === 'BJ') return `bj${code}`;
-  // Assume A-share
-  if (code.startsWith('6')) return `sh${code}`;
-  return `sz${code}`;
-}
-
-/**
- * Convert Tushare format to Sina format.
- * 600519.SH -> sh600519
- * 000001.SZ -> sz000001
- */
-export function toSinaSymbol(tushareCode: string): string {
-  const [code, market] = tushareCode.split('.');
-  if (market === 'SH') return `sh${code}`;
-  if (market === 'SZ') return `sz${code}`;
-  if (market === 'HK') return `hk${code}`;
-  if (market === 'BJ') return `bj${code}`;
-  if (code.startsWith('6')) return `sh${code}`;
-  return `sz${code}`;
 }
 
 /**

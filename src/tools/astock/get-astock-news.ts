@@ -1,6 +1,7 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { z } from 'zod';
 import { getTushareClient } from './tushare-client';
+import { fetchStockNews, fetchMarketNews } from './news-client';
 import { parseStockCode, resolveNameToCode, searchStockByName } from '../../utils/stock-code';
 
 export const GET_ASTOCK_NEWS_DESCRIPTION = `## get_astock_news
@@ -90,25 +91,51 @@ export const getAStockNews = new DynamicStructuredTool({
         data: announcements,
       });
     } catch (error: any) {
-      // Handle permission/rate limit errors with fallback
-      if (error.message.includes('40203') || error.message.includes('402') || error.message.includes('frequency')) {
+      // Handle permission/rate limit errors with fallback to scraping
+      if (error.message.includes('40203') || error.message.includes('402') ||
+          error.message.includes('frequency') || error.message.includes('Invalid') ||
+          error.message.includes('40101') || error.message.includes('接口')) {
         try {
-          const news = await client.news('sina');
-          return JSON.stringify({
-            source: 'tushare',
-            type: 'market_news_fallback',
-            reason: error.message.includes('frequency') ? 'news_api_rate_limited' : 'announcement_api_no_permission',
-            ts_code: tsCode,
-            count: Math.min(news.length, limit),
-            data: news.slice(0, limit),
-          });
+          // Try scraping from Eastmoney (company announcements)
+          const scrapedNews = await fetchStockNews(tsCode);
+          if (scrapedNews.length > 0) {
+            return JSON.stringify({
+              source: 'scraping',
+              type: 'company_news_scraped',
+              reason: 'tushare_api_unavailable',
+              ts_code: tsCode,
+              count: Math.min(scrapedNews.length, limit),
+              data: scrapedNews.slice(0, limit),
+              note: 'Data scraped from Eastmoney. Some content may be truncated.',
+            });
+          }
         } catch {
-          return JSON.stringify({
-            error: 'News APIs unavailable',
-            details: error.message,
-            suggestion: 'Upgrade Tushare account for higher API limits',
-          });
+          // Scraping also failed
         }
+
+        // Try fetching market news instead
+        try {
+          const marketNews = await fetchMarketNews(limit);
+          if (marketNews.length > 0) {
+            return JSON.stringify({
+              source: 'scraping',
+              type: 'market_news_scraped',
+              reason: 'announcement_api_unavailable',
+              ts_code: tsCode,
+              count: Math.min(marketNews.length, limit),
+              data: marketNews.slice(0, limit),
+              note: 'Showing general market news. Company-specific announcements unavailable.',
+            });
+          }
+        } catch {
+          // All sources failed
+        }
+
+        return JSON.stringify({
+          error: 'News APIs temporarily unavailable',
+          details: error.message,
+          suggestion: 'Try again later, or use web search for latest news about this stock',
+        });
       }
       throw error;
     }
