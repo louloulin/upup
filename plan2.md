@@ -1,6 +1,6 @@
 # Dexter A 股支持完整改造计划 (Pure TypeScript)
 
-> 更新: 2026-05-06 | 状态: Phase 1-7 全部完成 ✅ | Enhancements v2 完成 ✅ | v3 完成 ✅
+> 更新: 2026-05-06 | 状态: Phase 1-7 全部完成 ✅ | Enhancements v2/v3/v4 完成 ✅
 
 ---
 
@@ -27,6 +27,51 @@
 - 思摩尔 (02269.HK)
 - 康希诺 (06185.HK)
 - 平安好医生 (01833.HK)
+
+---
+
+## 十、增强功能 (Enhancement v4 - 容错)
+
+### v4 多数据源容错
+
+| 功能 | 文件 | 说明 | 状态 |
+|------|------|------|------|
+| 重试 + 指数退避 | `tushare-client.ts` | API 调用失败自动重试 2 次 | ✅ |
+| 超时处理 | `tushare-client.ts` | 10 秒超时，避免长时间等待 | ✅ |
+| 重试 + 指数退避 | `realtime-client.ts` | 腾讯/新浪 API 重试 2 次 | ✅ |
+| 超时处理 | `realtime-client.ts` | 5 秒超时 | ✅ |
+| 多源回退 | `realtime-client.ts` | 腾讯 → 新浪，显式回退链 | ✅ |
+| 错误上下文 | `get-astock-price.ts` | 报告 sources_tried 和最后错误 | ✅ |
+
+### v4 容错流程
+
+```
+请求 get_astock_price
+  ↓
+尝试 Tushare (最多 2 次重试)
+  ├─ 成功 → 返回历史K线数据
+  └─ 失败 → 回退到实时源
+            ↓
+          尝试 Tencent (最多 2 次重试)
+            ├─ 成功 → 返回实时行情
+            └─ 失败 → 回退到 Sina
+                      ↓
+                    尝试 Sina (最多 2 次重试)
+                      ├─ 成功 → 返回实时行情
+                      └─ 失败 → 返回错误，包含所有尝试的源信息
+```
+
+### v4 错误响应示例
+
+```json
+{
+  "error": "Failed to fetch price data from all sources",
+  "ts_code": "002594.SZ",
+  "sources_tried": ["Tushare", "Tencent", "Sina"],
+  "last_error": "All realtime sources failed. Errors: Tencent: HTTP 403; Sina: HTTP 403",
+  "suggestion": "Set TUSHARE_TOKEN for historical data access."
+}
+```
 
 ---
 
