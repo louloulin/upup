@@ -498,6 +498,21 @@ screen_astocks({ sector: "汽车整车" }) → Tushare stock_basic, 63 stocks
 **Token 配置**: `.env` 已配置 `TUSHARE_TOKEN`
 **升级建议**: https://tushare.pro/document/1?doc_id=108
 
+### 综合测试验证 ✅ PASS (2026-05-06)
+
+| 工具 | 股票 | 结果 | 数据源 |
+|------|------|------|--------|
+| get_astock_price | 比亚迪 | ¥100.75 (-2.17%) | Tushare |
+| get_astock_price | 贵州茅台 | ¥1375 (-0.71%) | Tushare |
+| get_astock_price | 宁德时代 | ¥460 (+5.5%) | Tushare |
+| get_astock_price | 中国平安 | ¥59.36 (-0.02%) | Tushare |
+| get_sector_data | 比亚迪 | Industry: 汽车整车 | Tushare |
+| get_technical_data | 贵州茅台 | 54 records | Tushare |
+| get_market_structure | 北向资金 | 300 entries | Tushare |
+
+**多数据源容错**: Tencent → Sina (2次重试 + 5秒超时)
+**历史K线**: Tushare (2次重试 + 10秒超时)
+
 ---
 
 ## 八、预期效果
