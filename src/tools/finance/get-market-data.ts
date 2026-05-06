@@ -7,6 +7,9 @@ import { formatToolResult } from '../types.js';
 import { getCurrentDate } from '../../agent/prompts.js';
 import { withTimeout, SUB_TOOL_TIMEOUT_MS } from './utils.js';
 import { MARKET_DATA_FORMATTERS } from './formatters.js';
+import { isAShare, isHKStock, parseStockCode } from '../../utils/stock-code.js';
+import { getAStockPrice } from '../astock/get-astock-price.js';
+import { getAStockNews } from '../astock/get-astock-news.js';
 
 /**
  * Rich description for the get_market_data tool.
@@ -140,6 +143,26 @@ export function createGetMarketData(model: string): DynamicStructuredTool {
     func: async (input, _runManager, config?: RunnableConfig) => {
       const onProgress = config?.metadata?.onProgress as ((msg: string) => void) | undefined;
 
+      // Auto-route A-share/HK stocks to dedicated A-share tools
+      const astockMatch = detectAStockQuery(input.query);
+      if (astockMatch) {
+        onProgress?.('Fetching A-share data...');
+        try {
+          const results: Record<string, unknown> = {};
+          if (astockMatch.needsPrice) {
+            const priceResult = await getAStockPrice.invoke({ code: astockMatch.code });
+            results.price = JSON.parse(typeof priceResult === 'string' ? priceResult : JSON.stringify(priceResult));
+          }
+          if (astockMatch.needsNews) {
+            const newsResult = await getAStockNews.invoke({ code: astockMatch.code });
+            results.news = JSON.parse(typeof newsResult === 'string' ? newsResult : JSON.stringify(newsResult));
+          }
+          return formatToolResult(results, []);
+        } catch (error) {
+          // Fall through to LLM routing if A-share route fails
+        }
+      }
+
       // 1. Call LLM with market data tools bound (native tool calling)
       onProgress?.('Fetching market data...');
       const { response } = await callLlm(input.query, {
@@ -219,4 +242,73 @@ export function createGetMarketData(model: string): DynamicStructuredTool {
       return formatToolResult(combinedData, allUrls);
     },
   });
+}
+
+// ==================== A-Share Auto-Routing ====================
+
+interface AStockQueryResult {
+  code: string;
+  needsPrice: boolean;
+  needsNews: boolean;
+}
+
+/**
+ * Detect if a query mentions A-share or HK stocks and return routing info.
+ * Uses stock-code.ts NAME_MAP to find Chinese company names.
+ */
+function detectAStockQuery(query: string): AStockQueryResult | null {
+  // Import NAME_MAP directly to avoid circular deps
+  const NAME_MAP: Record<string, string> = {
+    '比亚迪': '002594.SZ', '贵州茅台': '600519.SH', '宁德时代': '300750.SZ',
+    '中国平安': '601318.SH', '招商银行': '600036.SH', '美的集团': '000333.SZ',
+    '格力电器': '000651.SZ', '中芯国际': '688981.SH', '海康威视': '002415.SZ',
+    '药明康德': '603259.SH', '隆基绿能': '601012.SH', '伊利股份': '600887.SH',
+    '五粮液': '000858.SZ', '泸州老窖': '000568.SZ', '山西汾酒': '600809.SH',
+    '洋河股份': '002304.SZ', '恒瑞医药': '600276.SH', '中信证券': '600030.SH',
+    '东方财富': '300059.SZ', '迈瑞医疗': '300760.SZ', '海天味业': '603288.SH',
+    '万华化学': '600309.SH', '三一重工': '600031.SH', '中国建筑': '601668.SH',
+    '腾讯控股': '00700.HK', '阿里巴巴': '09988.HK', '美团': '03690.HK',
+    '小米集团': '01810.HK', '京东集团': '09618.HK', '百度集团': '09888.HK',
+    '网易': '09999.HK', '中国移动': '00941.HK', '中国中免': '601888.SH',
+  };
+
+  const lowerQuery = query.toLowerCase();
+
+  // 1. Check for known Chinese company names
+  for (const [name, code] of Object.entries(NAME_MAP)) {
+    if (lowerQuery.includes(name)) {
+      return {
+        code,
+        needsPrice: /price|股价|行情|报价|涨跌|涨了多少|跌了多少/i.test(query),
+        needsNews: /news|新闻|公告|消息|动态|研报|事件/i.test(query),
+      };
+    }
+  }
+
+  // 2. Check for A-share/HK stock code patterns in query
+  const patterns = [
+    /\b(\d{6})\.?(SH|SZ|BJ)\b/gi,        // 002594.SZ, 600519SH
+    /\b(SH|SZ|BJ)(\d{6})\b/gi,           // SH600519
+    /\b(\d{5})\.HK\b/gi,                 // 00700.HK
+    /\bHK(\d{5})\b/gi,                   // HK00700
+  ];
+
+  for (const pattern of patterns) {
+    pattern.lastIndex = 0;
+    const match = pattern.exec(query);
+    if (match) {
+      let code = match[0];
+      // Normalize to tushare format
+      const parsed = parseStockCode(code);
+      if (parsed.market === 'A' || parsed.market === 'HK') {
+        return {
+          code: parsed.tushareFormat,
+          needsPrice: true,
+          needsNews: /news|新闻|公告|消息/i.test(query),
+        };
+      }
+    }
+  }
+
+  return null;
 }

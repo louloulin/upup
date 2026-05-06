@@ -1,6 +1,6 @@
 # Dexter A 股支持完整改造计划 (Pure TypeScript)
 
-> 更新: 2026-05-06 | 状态: Phase 1-3 已完成 ✅ | Phase 4-7 待实施
+> 更新: 2026-05-06 | 状态: Phase 1-5 已完成 ✅ | Phase 6-7 待实施
 
 ---
 
@@ -236,20 +236,17 @@ if (isAShare(input.ticker) || isHKStock(input.ticker)) {
 - [x] **Step 3.2**: 添加工具描述常量 (GET_ASTOCK_*_DESCRIPTION)
 - [x] **Step 3.3**: 更新 compact 描述
 
-### Phase 4: 自动路由 ⭐ P1
+### Phase 4: 自动路由 ⭐ P1 ✅ DONE
 
-- [ ] **Step 4.1**: 更新 `get-market-data.ts` 检测 A/HK 股自动路由
-- [ ] **Step 4.2**: 更新 `get-financials.ts` 检测 A/HK 股自动路由
-- [ ] **Step 4.3**: 更新 `src/agent/prompts.ts` 注入 A 股代码映射
+- [x] **Step 4.1**: 更新 `get-market-data.ts` 检测 A/HK 股自动路由
+- [x] **Step 4.2**: 更新 `get-financials.ts` 检测 A/HK 股自动路由
+- [x] **Step 4.3**: 更新 `src/agent/prompts.ts` 注入 A 股代码映射
 
-### Phase 5: Skill 层 ⭐ P1
+### Phase 5: Skill 层 ⭐ P1 ✅ DONE
 
-- [ ] **Step 5.1**: 更新 `a-share-data` Skill 路由到新工具链
-- [ ] **Step 5.2**: 更新 `a-share-filings` Skill 公告读取
-- [ ] **Step 5.3**: 更新 `a-share-screening` Skill 选股
-- [ ] **Step 5.4**: 更新 `a-share-market-structure` Skill 龙虎榜
-- [ ] **Step 5.5**: 新增 `astock-fundamental-analysis` Skill
-- [ ] **Step 5.6**: 新增 `astock-technical-analysis` Skill
+- [x] **Step 5.1**: 创建 `a-share-analysis` Skill (综合分析工作流)
+  - [x] 触发词: "分析比亚迪", "A股分析", "analyze A-share"
+  - [x] 工作流: 识别代码 → 并行获取数据 → 综合分析
 
 ### Phase 6: 搜索 ⭐ P2
 
