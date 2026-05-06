@@ -16,6 +16,14 @@ import { cronTool, CRON_TOOL_DESCRIPTION } from './cron/cron-tool.js';
 import { memoryGetTool, MEMORY_GET_DESCRIPTION, memorySearchTool, MEMORY_SEARCH_DESCRIPTION, memoryUpdateTool, MEMORY_UPDATE_DESCRIPTION } from './memory/index.js';
 import { discoverSkills } from '../skills/index.js';
 
+import { getAStockPrice, GET_ASTOCK_PRICE_DESCRIPTION } from './astock/get-astock-price.js';
+import { getAStockFinancials, GET_ASTOCK_FINANCIALS_DESCRIPTION } from './astock/get-astock-financials.js';
+import { getAStockNews, GET_ASTOCK_NEWS_DESCRIPTION } from './astock/get-astock-news.js';
+import { screenAstocks, SCREEN_ASTOCKS_DESCRIPTION } from './astock/screen-astocks.js';
+import { getSectorData, GET_SECTOR_DATA_DESCRIPTION } from './astock/get-sector-data.js';
+import { getTechnicalData, GET_TECHNICAL_DATA_DESCRIPTION } from './astock/get-technical-data.js';
+import { getMarketStructure, GET_MARKET_STRUCTURE_DESCRIPTION } from './astock/get-market-structure.js';
+
 /**
  * A registered tool with its rich description for system prompt injection.
  */
@@ -67,6 +75,55 @@ export function getToolRegistry(model: string): RegisteredTool[] {
       tool: createScreenStocks(model),
       description: SCREEN_STOCKS_DESCRIPTION,
       compactDescription: 'Screen stocks by financial criteria (P/E, growth, margins, etc.).',
+      concurrencySafe: true,
+    },
+    {
+      name: 'get_astock_price',
+      tool: getAStockPrice,
+      description: GET_ASTOCK_PRICE_DESCRIPTION,
+      compactDescription: 'Real-time price data for A-share (Chinese) stocks and HK stocks.',
+      concurrencySafe: true,
+    },
+    {
+      name: 'get_astock_financials',
+      tool: getAStockFinancials,
+      description: GET_ASTOCK_FINANCIALS_DESCRIPTION,
+      compactDescription: 'Financial statements and key metrics for A-share stocks.',
+      concurrencySafe: true,
+    },
+    {
+      name: 'get_astock_news',
+      tool: getAStockNews,
+      description: GET_ASTOCK_NEWS_DESCRIPTION,
+      compactDescription: 'Company announcements and market news for A-share stocks.',
+      concurrencySafe: true,
+    },
+    {
+      name: 'screen_astocks',
+      tool: screenAstocks,
+      description: SCREEN_ASTOCKS_DESCRIPTION,
+      compactDescription: 'Screen A-share stocks by PE, ROE, sector, market cap criteria.',
+      concurrencySafe: true,
+    },
+    {
+      name: 'get_sector_data',
+      tool: getSectorData,
+      description: GET_SECTOR_DATA_DESCRIPTION,
+      compactDescription: 'Industry sector and concept board data for A-share stocks.',
+      concurrencySafe: true,
+    },
+    {
+      name: 'get_technical_data',
+      tool: getTechnicalData,
+      description: GET_TECHNICAL_DATA_DESCRIPTION,
+      compactDescription: 'Technical indicators (MA, MACD, RSI) and K-line data for A-share stocks.',
+      concurrencySafe: true,
+    },
+    {
+      name: 'get_market_structure',
+      tool: getMarketStructure,
+      description: GET_MARKET_STRUCTURE_DESCRIPTION,
+      compactDescription: 'Dragon-tiger list, northbound flow, money flow for A-share market.',
       concurrencySafe: true,
     },
     {
