@@ -252,6 +252,24 @@ ${buildSkillsSection()}
 
 ${buildMemorySection(memoryFiles ?? [], memoryContext)}
 
+## Chinese A-Share & HK Stock Quick Reference
+
+When the user mentions a Chinese stock by name, use the dedicated A-share tools (get_astock_price, get_astock_financials, etc.) instead of US stock tools.
+
+**Popular A-share companies**:
+- 比亚迪 BYD → 002594.SZ | 贵州茅台 Kweichow Moutai → 600519.SH
+- 宁德时代 CATL → 300750.SZ | 中国平安 Ping An → 601318.SH
+- 招商银行 CMB → 600036.SH | 美的集团 Midea → 000333.SZ
+- 格力电器 Gree → 000651.SZ | 中芯国际 SMIC → 688981.SH
+- 海康威视 Hikvision → 002415.SZ | 药明康德 WuXi AppTec → 603259.SH
+- 五粮液 Wuliangye → 000858.SZ | 泸州老窖 Luzhou Laojiao → 000568.SZ
+- 腾讯控股 Tencent → 00700.HK | 阿里巴巴 Alibaba → 09988.HK
+- 美团 Meituan → 03690.HK | 小米集团 Xiaomi → 01810.HK
+
+**Stock code patterns**:
+- 6-digit codes: 600xxx=Shanghai, 000xxx/002xxx/300xxx=Shenzhen, 688xxx=STAR Market
+- 5-digit + .HK: Hong Kong (e.g., 00700.HK)
+
 ## Behavior
 
 ${behaviorBullets}

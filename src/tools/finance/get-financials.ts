@@ -7,6 +7,8 @@ import { formatToolResult } from '../types.js';
 import { getCurrentDate } from '../../agent/prompts.js';
 import { withTimeout, SUB_TOOL_TIMEOUT_MS } from './utils.js';
 import { FINANCIAL_FORMATTERS } from './formatters.js';
+import { parseStockCode } from '../../utils/stock-code.js';
+import { getAStockFinancials } from '../astock/get-astock-financials.js';
 
 /**
  * Rich description for the get_financials tool.
@@ -141,6 +143,19 @@ export function createGetFinancials(model: string): DynamicStructuredTool {
     func: async (input, _runManager, config?: RunnableConfig) => {
       const onProgress = config?.metadata?.onProgress as ((msg: string) => void) | undefined;
 
+      // Auto-route A-share/HK stocks to dedicated A-share financials tool
+      const astockMatch = detectAStockFinQuery(input.query);
+      if (astockMatch) {
+        onProgress?.('Fetching A-share financials...');
+        try {
+          const result = await getAStockFinancials.invoke({ code: astockMatch });
+          const parsed = JSON.parse(typeof result === 'string' ? result : JSON.stringify(result));
+          return formatToolResult(parsed, []);
+        } catch {
+          // Fall through to LLM routing if A-share route fails
+        }
+      }
+
       // 1. Call LLM with finance tools bound (native tool calling)
       onProgress?.('Fetching...');
       const { response } = await callLlm(input.query, {
@@ -219,4 +234,56 @@ export function createGetFinancials(model: string): DynamicStructuredTool {
       return formatToolResult(combinedData, allUrls);
     },
   });
+}
+
+// ==================== A-Share Auto-Routing ====================
+
+/**
+ * Detect if a financial query mentions A-share or HK stocks.
+ */
+function detectAStockFinQuery(query: string): string | null {
+  const NAME_MAP: Record<string, string> = {
+    '比亚迪': '002594.SZ', '贵州茅台': '600519.SH', '宁德时代': '300750.SZ',
+    '中国平安': '601318.SH', '招商银行': '600036.SH', '美的集团': '000333.SZ',
+    '格力电器': '000651.SZ', '中芯国际': '688981.SH', '海康威视': '002415.SZ',
+    '药明康德': '603259.SH', '隆基绿能': '601012.SH', '伊利股份': '600887.SH',
+    '五粮液': '000858.SZ', '泸州老窖': '000568.SZ', '山西汾酒': '600809.SH',
+    '洋河股份': '002304.SZ', '恒瑞医药': '600276.SH', '中信证券': '600030.SH',
+    '东方财富': '300059.SZ', '迈瑞医疗': '300760.SZ', '海天味业': '603288.SH',
+    '万华化学': '600309.SH', '三一重工': '600031.SH', '中国建筑': '601668.SH',
+    '腾讯控股': '00700.HK', '阿里巴巴': '09988.HK', '美团': '03690.HK',
+    '小米集团': '01810.HK', '京东集团': '09618.HK', '百度集团': '09888.HK',
+    '网易': '09999.HK', '中国移动': '00941.HK', '中国中免': '601888.SH',
+  };
+
+  const lowerQuery = query.toLowerCase();
+
+  // Check for known Chinese company names
+  for (const [name, code] of Object.entries(NAME_MAP)) {
+    if (lowerQuery.includes(name)) {
+      const parsed = parseStockCode(code);
+      return parsed.tushareFormat;
+    }
+  }
+
+  // Check for A-share/HK stock code patterns
+  const patterns = [
+    /\b(\d{6})\.?(SH|SZ|BJ)\b/gi,
+    /\b(SH|SZ|BJ)(\d{6})\b/gi,
+    /\b(\d{5})\.HK\b/gi,
+    /\bHK(\d{5})\b/gi,
+  ];
+
+  for (const pattern of patterns) {
+    pattern.lastIndex = 0;
+    const match = pattern.exec(query);
+    if (match) {
+      const parsed = parseStockCode(match[0]);
+      if (parsed.market === 'A' || parsed.market === 'HK') {
+        return parsed.tushareFormat;
+      }
+    }
+  }
+
+  return null;
 }
