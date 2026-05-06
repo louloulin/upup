@@ -2,7 +2,7 @@ import { DynamicStructuredTool } from '@langchain/core/tools';
 import { z } from 'zod';
 import { getTushareClient, getToday } from './tushare-client';
 import { getRealtimeQuote, toTencentSymbol } from './realtime-client';
-import { parseStockCode } from '../../utils/stock-code';
+import { parseStockCode, resolveNameToCode, searchStockByName } from '../../utils/stock-code';
 
 export const GET_ASTOCK_PRICE_DESCRIPTION = `## get_astock_price
 Fetches real-time price and K-line data for A-share (Chinese) stocks and HK stocks.
@@ -18,7 +18,7 @@ Fetches real-time price and K-line data for A-share (Chinese) stocks and HK stoc
 **Input**: Stock code in Tushare format (002594.SZ) or 6-digit code.`;
 
 const GetAStockPriceSchema = z.object({
-  code: z.string().describe('A-share stock code in Tushare format (e.g., 002594.SZ, 600519.SH, 300750.SZ) or 6-digit code'),
+  code: z.string().describe('Stock code in Tushare format (e.g., 002594.SZ, 600519.SH, 300750.SZ) or 6-digit code, or company name (e.g., "比亚迪", "腾讯")'),
   period: z.enum(['daily', 'weekly', 'monthly']).optional().describe('K-line period (default: daily)'),
   start_date: z.string().optional().describe('Start date (YYYYMMDD, e.g., 20240101)'),
   end_date: z.string().optional().describe('End date (YYYYMMDD, default: today)'),
@@ -29,8 +29,42 @@ export const getAStockPrice = new DynamicStructuredTool({
   description: GET_ASTOCK_PRICE_DESCRIPTION,
   schema: GetAStockPriceSchema,
   async func(input) {
+    // Resolve company name to stock code if needed
+    let tsCode = input.code.trim();
+
+    // Try parsing as stock code first
     const parsed = parseStockCode(input.code);
-    const tsCode = parsed.tushareFormat;
+    if (parsed.market === 'UNKNOWN' || parsed.market === 'US') {
+      // Not a valid A/HK code, try name search
+      const resolved = resolveNameToCode(input.code);
+      if (resolved) {
+        tsCode = resolved;
+      } else {
+        // Try fuzzy search
+        const matches = searchStockByName(input.code);
+        if (matches.length === 1) {
+          tsCode = matches[0].tushareFormat;
+        } else if (matches.length > 1) {
+          return JSON.stringify({
+            error: 'Multiple matches found',
+            matches: matches.slice(0, 5).map(m => ({
+              code: m.code,
+              name: m.name,
+              ts_code: m.tushareFormat,
+            })),
+            suggestion: 'Please specify the exact stock code',
+          });
+        } else {
+          return JSON.stringify({
+            error: `Stock not found: ${input.code}`,
+            suggestion: 'Try using the 6-digit stock code (e.g., 002594.SZ) or check the spelling',
+          });
+        }
+      }
+    } else {
+      tsCode = parsed.tushareFormat;
+    }
+
     const endDate = input.end_date || getToday();
 
     // Try Tushare first (has historical + today's data)
@@ -70,16 +104,26 @@ export const getAStockPrice = new DynamicStructuredTool({
         }
       } catch (e) {
         // Fall through to realtime
+        console.error('Tushare error:', e);
       }
     }
 
     // Fallback: realtime from Tencent/Sina
-    const tencentSymbol = toTencentSymbol(tsCode);
-    const quote = await getRealtimeQuote(tencentSymbol);
-    return JSON.stringify({
-      source: 'realtime',
-      ts_code: tsCode,
-      data: quote,
-    });
+    try {
+      const tencentSymbol = toTencentSymbol(tsCode);
+      const quote = await getRealtimeQuote(tencentSymbol);
+      return JSON.stringify({
+        source: 'realtime',
+        ts_code: tsCode,
+        data: quote,
+      });
+    } catch (e) {
+      return JSON.stringify({
+        error: 'Failed to fetch price data',
+        ts_code: tsCode,
+        details: e instanceof Error ? e.message : String(e),
+        suggestion: 'TUSHARE_TOKEN may be invalid or APIs are unavailable',
+      });
+    }
   },
 });
