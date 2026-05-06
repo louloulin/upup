@@ -103,8 +103,7 @@ export const getAStockPrice = new DynamicStructuredTool({
           });
         }
       } catch (e) {
-        // Fall through to realtime
-        console.error('Tushare error:', e);
+        console.warn('Tushare fetch failed, falling back to realtime sources:', e instanceof Error ? e.message : String(e));
       }
     }
 
@@ -113,16 +112,20 @@ export const getAStockPrice = new DynamicStructuredTool({
       const tencentSymbol = toTencentSymbol(tsCode);
       const quote = await getRealtimeQuote(tencentSymbol);
       return JSON.stringify({
-        source: 'realtime',
+        source: quote.source,
         ts_code: tsCode,
         data: quote,
       });
     } catch (e) {
+      const errorMsg = e instanceof Error ? e.message : String(e);
       return JSON.stringify({
-        error: 'Failed to fetch price data',
+        error: 'Failed to fetch price data from all sources',
         ts_code: tsCode,
-        details: e instanceof Error ? e.message : String(e),
-        suggestion: 'TUSHARE_TOKEN may be invalid or APIs are unavailable',
+        sources_tried: process.env.TUSHARE_TOKEN ? ['Tushare', 'Tencent', 'Sina'] : ['Tencent', 'Sina'],
+        last_error: errorMsg,
+        suggestion: process.env.TUSHARE_TOKEN
+          ? 'TUSHARE_TOKEN may be invalid or APIs may be temporarily unavailable'
+          : 'Set TUSHARE_TOKEN for historical data access. Real-time sources (Tencent/Sina) may be temporarily unavailable.',
       });
     }
   },
