@@ -69,34 +69,56 @@ export const getAStockFinancials = new DynamicStructuredTool({
       period: input.period,
     };
 
-    const [income, balance, cashflow] = await Promise.all([
-      client.income(params),
-      client.balancesheet(params),
-      client.cashflow(params),
-    ]);
+    try {
+      // Type for error responses
+      type ErrorResult = { error: string };
+      type DataResult = Record<string, unknown>[];
 
-    // Calculate key ratios
-    const latestIncome = income[0] as Record<string, unknown> | undefined;
-    const latestBalance = balance[0] as Record<string, unknown> | undefined;
-    const latestCashflow = cashflow[0] as Record<string, unknown> | undefined;
+      const [incomeResult, balanceResult, cashflowResult]: [DataResult | ErrorResult, DataResult | ErrorResult, DataResult | ErrorResult] = await Promise.all([
+        client.income(params).catch(e => ({ error: e.message } as ErrorResult)),
+        client.balancesheet(params).catch(e => ({ error: e.message } as ErrorResult)),
+        client.cashflow(params).catch(e => ({ error: e.message } as ErrorResult)),
+      ]);
 
-    const result = {
-      source: 'tushare',
-      ts_code: tsCode,
-      income: {
-        count: income.length,
-        latest: latestIncome,
-      },
-      balance_sheet: {
-        count: balance.length,
-        latest: latestBalance,
-      },
-      cashflow: {
-        count: cashflow.length,
-        latest: latestCashflow,
-      },
-    };
+      // Check if any failed due to permission
+      const hasError = (r: DataResult | ErrorResult): r is ErrorResult => 'error' in r;
 
-    return JSON.stringify(result);
+      if (hasError(incomeResult) || hasError(balanceResult) || hasError(cashflowResult)) {
+        // Permission error
+        return JSON.stringify({
+          error: 'Financial statement API requires Tushare Pro permission',
+          ts_code: tsCode,
+          api_status: {
+            income: hasError(incomeResult) ? incomeResult.error : 'ok',
+            balancesheet: hasError(balanceResult) ? balanceResult.error : 'ok',
+            cashflow: hasError(cashflowResult) ? cashflowResult.error : 'ok',
+          },
+          suggestion: 'Upgrade to Tushare Pro for financial statements: https://tushare.pro/document/1?doc_id=108',
+          note: 'Free tier has limited API access. Price and market structure data are still available.',
+        });
+      }
+
+      // Success case
+      const result = {
+        source: 'tushare',
+        ts_code: tsCode,
+        income: {
+          count: incomeResult.length,
+          latest: incomeResult[0],
+        },
+        balance_sheet: {
+          count: balanceResult.length,
+          latest: balanceResult[0],
+        },
+        cashflow: {
+          count: cashflowResult.length,
+          latest: cashflowResult[0],
+        },
+      };
+
+      return JSON.stringify(result);
+    } catch (error: any) {
+      throw error;
+    }
   },
 });

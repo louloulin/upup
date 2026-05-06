@@ -74,19 +74,43 @@ export const getAStockNews = new DynamicStructuredTool({
       tsCode = parsed.tushareFormat;
     }
 
-    const announcements = await client.announcement({
-      ts_code: tsCode,
-      start_date: input.start_date,
-      end_date: input.end_date,
-      limit,
-    });
+    try {
+      const announcements = await client.announcement({
+        ts_code: tsCode,
+        start_date: input.start_date,
+        end_date: input.end_date,
+        limit,
+      });
 
-    return JSON.stringify({
-      source: 'tushare',
-      type: 'announcements',
-      ts_code: tsCode,
-      count: announcements.length,
-      data: announcements,
-    });
+      return JSON.stringify({
+        source: 'tushare',
+        type: 'announcements',
+        ts_code: tsCode,
+        count: announcements.length,
+        data: announcements,
+      });
+    } catch (error: any) {
+      // Handle permission/rate limit errors with fallback
+      if (error.message.includes('40203') || error.message.includes('402') || error.message.includes('frequency')) {
+        try {
+          const news = await client.news('sina');
+          return JSON.stringify({
+            source: 'tushare',
+            type: 'market_news_fallback',
+            reason: error.message.includes('frequency') ? 'news_api_rate_limited' : 'announcement_api_no_permission',
+            ts_code: tsCode,
+            count: Math.min(news.length, limit),
+            data: news.slice(0, limit),
+          });
+        } catch {
+          return JSON.stringify({
+            error: 'News APIs unavailable',
+            details: error.message,
+            suggestion: 'Upgrade Tushare account for higher API limits',
+          });
+        }
+      }
+      throw error;
+    }
   },
 });
