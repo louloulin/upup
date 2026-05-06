@@ -473,19 +473,30 @@ searchStockByName("比亚迪") → 比亚迪 (002594.SZ)
 resolveNameToCode("宁德时代") → 300750.SZ
 ```
 
-### 工具执行真实验证 ✅ PASS
+### 工具执行真实验证 ✅ PASS (2026-05-06)
 
 ```
-get_astock_price({ code: "比亚迪" }) → Source: tencent, Price: 100.75
-get_astock_price({ code: "600519.SH" }) → Source: tencent, Price: 1375
+get_astock_price({ code: "比亚迪" }) → Tushare daily K-line, ¥100.75 (-2.17%)
+get_astock_price({ code: "贵州茅台" }) → Tushare weekly K-line, ¥1375 (-0.71%)
+get_astock_price({ code: "600519.SH" }) → Tushare daily K-line, ¥1375 (-0.71%)
+get_market_structure({ type: "hsgt" }) → Tushare northbound flow, 300 entries
+screen_astocks({ sector: "汽车整车" }) → Tushare stock_basic, 63 stocks
 ```
 
-### Tushare 验证 (需要 TUSHARE_TOKEN)
+### Tushare Token 配置验证 ✅
 
-```bash
-echo "TUSHARE_TOKEN=your_token_here" >> .env
-# 历史 K 线、财报、龙虎榜等需要 Tushare Token
-```
+| API | 权限状态 | 说明 |
+|-----|---------|------|
+| daily/weekly/monthly K-line | ✅ 可用 | 历史K线数据 |
+| hsgt_top10 (北向资金) | ✅ 可用 | 龙虎榜 Top 10 |
+| northbound_flow | ✅ 可用 | 北向资金流向 |
+| stock_basic | ⚠️ 限速 | 基础股票信息 (1次/分钟) |
+| news | ⚠️ 限速 | 市场新闻 (2次/小时) |
+| income/balancesheet/cashflow | ❌ 需要Pro | 财务报表需要付费权限 |
+| announcement | ❌ 需要Pro | 公告需要付费权限 |
+
+**Token 配置**: `.env` 已配置 `TUSHARE_TOKEN`
+**升级建议**: https://tushare.pro/document/1?doc_id=108
 
 ---
 
