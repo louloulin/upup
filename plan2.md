@@ -1,12 +1,12 @@
 # Dexter A 股支持完整改造计划 (Pure TypeScript)
 
-> 更新: 2026-05-06 | 状态: Phase 1-7 全部完成 ✅ | Enhancements v2 完成 ✅
+> 更新: 2026-05-06 | 状态: Phase 1-7 全部完成 ✅ | Enhancements v2 完成 ✅ | v3 完成 ✅
 
 ---
 
 ## 八、增强功能 (Enhancement v2)
 
-### 新增功能
+### v2 新增功能
 
 | 功能 | 文件 | 说明 | 状态 |
 |------|------|------|------|
@@ -15,7 +15,7 @@
 | 错误处理 | `src/tools/astock/get-astock-price.ts` | 多匹配提示 + API失败提示 | ✅ |
 | 名称输入 | `src/tools/astock/get-astock-price.ts` | 支持公司名作为输入参数 | ✅ |
 
-### 公司名映射增强
+### v2 公司名映射增强
 
 新增更多公司:
 - 拼多多 (09961.HK)
@@ -28,12 +28,32 @@
 - 康希诺 (06185.HK)
 - 平安好医生 (01833.HK)
 
-### 名称搜索示例
+---
 
+## 九、增强功能 (Enhancement v3)
+
+### v3 Bug 修复和一致性改进
+
+| 修复项 | 文件 | 说明 | 状态 |
+|--------|------|------|------|
+| 名称搜索一致性 | `get-astock-financials.ts` | 添加 resolveNameToCode + searchStockByName | ✅ |
+| 名称搜索一致性 | `get-astock-news.ts` | 添加 resolveNameToCode + searchStockByName | ✅ |
+| 名称搜索一致性 | `get-technical-data.ts` | 添加 resolveNameToCode + searchStockByName | ✅ |
+| 描述修正 | `get-technical-data.ts` | 修正 MA5/10/20, RSI6/12 (非 MA60/RSI24) | ✅ |
+| Math.random() 移除 | `screen-astocks.ts` | 移除随机排序，改为 slice(0, limit) | ✅ |
+| 描述更新 | `screen-astocks.ts` | PE/市值筛选标记为未实现 | ✅ |
+
+### v3 名称搜索覆盖
+
+所有 7 个工具现在都支持名称搜索:
 ```
-searchStockByName("茅台")     → [{code: "600519", name: "贵州茅台", tushareFormat: "600519.SH"}]
-searchStockByName("腾讯")     → [{code: "00700", name: "腾讯控股"}, {code: "03606", name: "腾讯音乐"}]
-resolveNameToCode("比亚迪")   → "002594.SZ"
+get_astock_price({ code: "比亚迪" })           → 002594.SZ ✅
+get_astock_financials({ code: "贵州茅台" })    → 600519.SH ✅
+get_astock_news({ code: "腾讯" })             → 00700.HK ✅
+screen_astocks({ sector: "白酒" })            → 行业筛选 ✅
+get_sector_data({ code: "比亚迪" })           → 002594.SZ ✅
+get_technical_data({ code: "宁德时代" })      → 300750.SZ ✅
+get_market_structure({ type: "hsgt" })        → 北向资金 ✅
 ```
 
 ---
