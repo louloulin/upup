@@ -67,7 +67,87 @@ const NAME_MAP: Record<string, string> = {
   '06160': '百济神州', '06618': '京东健康', '09618': '京东集团',
   '09888': '百度集团', '10284': '中国飞鹤', '09868': '小鹏汽车',
   '00772': '阅文集团', '02331': '李宁', '02880': '途虎养车',
+  '03606': '腾讯音乐', '09866': '蔚来', '09633': '农夫山泉',
+  '09987': '百胜中国', '02269': '思摩尔', '06185': '康希诺',
+  '09961': '拼多多', '01833': '平安好医生', '3690': '快手',
+  '02359': '药明康德', '02589': '肇民科技', '09995': '波司登',
 };
+
+// Reverse map: name -> code
+const CODE_TO_NAME: Record<string, string> = Object.fromEntries(
+  Object.entries(NAME_MAP).map(([code, name]) => [name, code])
+);
+
+// Fuzzy search map: partial name -> code
+const PARTIAL_NAME_MAP: Record<string, string> = {};
+
+// Build partial name map for fuzzy search
+function buildPartialNameMap() {
+  for (const [code, name] of Object.entries(NAME_MAP)) {
+    // Add common abbreviations and partial matches
+    PARTIAL_NAME_MAP[name] = code;
+    // Add pinyin initials if available
+    if (name.length >= 2) {
+      PARTIAL_NAME_MAP[name.slice(0, 2)] = code;
+    }
+  }
+}
+buildPartialNameMap();
+
+/**
+ * Search for a stock by company name.
+ * @param query Company name (full or partial)
+ * @returns Array of matching {code, name, tushareFormat}
+ */
+export function searchStockByName(query: string): Array<{code: string; name: string; tushareFormat: string}> {
+  const q = query.trim();
+  if (!q) return [];
+
+  const results: Array<{code: string; name: string; tushareFormat: string}> = [];
+
+  // Exact match
+  if (CODE_TO_NAME[q]) {
+    const code = CODE_TO_NAME[q];
+    return [{ code, name: q, tushareFormat: `${code}.${getExchange(code)}` }];
+  }
+
+  // Partial match (includes)
+  for (const [stockCode, companyName] of Object.entries(NAME_MAP)) {
+    if (companyName.includes(q) || companyName.startsWith(q)) {
+      results.push({ code: stockCode, name: companyName, tushareFormat: `${stockCode}.${getExchange(stockCode)}` });
+    }
+  }
+
+  return results.slice(0, 10); // Limit to 10 results
+}
+
+function getExchange(code: string): string {
+  if (code.startsWith('6')) return 'SH';
+  if (code.startsWith('0') || code.startsWith('3')) return 'SZ';
+  if (code.startsWith('4') || code.startsWith('8') || code.startsWith('9')) return 'BJ';
+  return 'HK';
+}
+
+/**
+ * Resolve company name to stock code.
+ * @param name Company name (e.g., "比亚迪", "腾讯")
+ * @returns Stock code in Tushare format or null if not found
+ */
+export function resolveNameToCode(name: string): string | null {
+  // Direct lookup
+  if (CODE_TO_NAME[name]) {
+    const code = CODE_TO_NAME[name];
+    return `${code}.${getExchange(code)}`;
+  }
+
+  // Fuzzy match - take first result
+  const results = searchStockByName(name);
+  if (results.length > 0) {
+    return results[0].tushareFormat;
+  }
+
+  return null;
+}
 
 export function parseStockCode(input: string): ParsedStockCode {
   const code = input.trim().toUpperCase();
