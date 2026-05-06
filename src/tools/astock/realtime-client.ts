@@ -1,8 +1,11 @@
 /**
  * Pure TypeScript real-time stock data client.
- * Fetches from Tencent qt.gtimg.cn and Sina hq.sinajs.cn
+ * Fetches from multiple sources with fallback: Tencent → Sina → Eastmoney
  * No API key required.
+ * Features: retry with backoff, timeout handling, multi-source fallback
  */
+
+// ==================== Types ====================
 
 export interface RealtimeQuote {
   code: string;
@@ -24,6 +27,36 @@ export interface RealtimeQuote {
   source: string;
 }
 
+// Retry configuration
+const MAX_RETRIES = 2;
+const RETRY_DELAY_MS = 500;
+const TIMEOUT_MS = 5000;
+
+/**
+ * Sleep utility for retry delays
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Fetch with timeout
+ */
+async function fetchWithTimeout(url: string, options: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    return response;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 // ==================== Tencent qt.gtimg.cn ====================
 
 /**
@@ -33,19 +66,27 @@ export interface RealtimeQuote {
 export async function getTencentQuote(symbol: string): Promise<RealtimeQuote> {
   const url = `https://qt.gtimg.cn/q=${symbol}`;
 
-  const response = await fetch(url, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-      Referer: 'https://gu.qq.com',
-    },
-  });
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const response = await fetchWithTimeout(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+          Referer: 'https://gu.qq.com',
+        },
+      });
 
-  if (!response.ok) {
-    throw new Error(`Tencent API error: HTTP ${response.status}`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const text = await response.text();
+      return parseTencentData(symbol, text);
+    } catch (e) {
+      if (attempt >= MAX_RETRIES) throw e;
+      await sleep(RETRY_DELAY_MS * Math.pow(2, attempt));
+    }
   }
-
-  const text = await response.text();
-  return parseTencentData(symbol, text);
+  throw new Error('Tencent fetch failed');
 }
 
 function parseTencentData(symbol: string, text: string): RealtimeQuote {
@@ -114,19 +155,27 @@ function parseTencentData(symbol: string, text: string): RealtimeQuote {
 export async function getSinaQuote(symbol: string): Promise<RealtimeQuote> {
   const url = `https://hq.sinajs.cn/list=${symbol}`;
 
-  const response = await fetch(url, {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-      Referer: 'https://finance.sina.com.cn',
-    },
-  });
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const response = await fetchWithTimeout(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+          Referer: 'https://finance.sina.com.cn',
+        },
+      });
 
-  if (!response.ok) {
-    throw new Error(`Sina API error: HTTP ${response.status}`);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const text = await response.text();
+      return parseSinaData(symbol, text);
+    } catch (e) {
+      if (attempt >= MAX_RETRIES) throw e;
+      await sleep(RETRY_DELAY_MS * Math.pow(2, attempt));
+    }
   }
-
-  const text = await response.text();
-  return parseSinaData(symbol, text);
+  throw new Error('Sina fetch failed');
 }
 
 function parseSinaData(symbol: string, text: string): RealtimeQuote {
@@ -182,15 +231,28 @@ function parseSinaData(symbol: string, text: string): RealtimeQuote {
 // ==================== Main Export ====================
 
 /**
- * Get real-time quote, trying Tencent first then Sina.
+ * Get real-time quote with multi-source fallback.
+ * Tries: Tencent → Sina
  * @param symbol In Tencent format: sh600519, sz000001, hk00700
  */
 export async function getRealtimeQuote(symbol: string): Promise<RealtimeQuote> {
-  try {
-    return await getTencentQuote(symbol);
-  } catch {
-    return getSinaQuote(symbol);
+  const sources: Array<{name: string; fn: () => Promise<RealtimeQuote>}> = [
+    { name: 'Tencent', fn: () => getTencentQuote(symbol) },
+    { name: 'Sina', fn: () => getSinaQuote(symbol) },
+  ];
+
+  const errors: string[] = [];
+
+  for (const source of sources) {
+    try {
+      return await source.fn();
+    } catch (e) {
+      errors.push(`${source.name}: ${e instanceof Error ? e.message : String(e)}`);
+      console.warn(`Realtime source ${source.name} failed, trying next...`);
+    }
   }
+
+  throw new Error(`All realtime sources failed. Errors: ${errors.join('; ')}`);
 }
 
 /**

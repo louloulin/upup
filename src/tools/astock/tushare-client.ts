@@ -1,6 +1,7 @@
 /**
  * Pure TypeScript Tushare Pro API client - no Python subprocess.
  * Direct HTTP calls to api.tushare.pro
+ * Features: retry with exponential backoff, timeout handling
  */
 
 export interface TushareResponse {
@@ -14,14 +15,50 @@ export interface TushareResponse {
 
 export interface TushareClientConfig {
   token?: string;
+  maxRetries?: number;
+  timeout?: number;
 }
+
+// Retry configuration
+const DEFAULT_MAX_RETRIES = 2;
+const DEFAULT_TIMEOUT = 10000; // 10 seconds
+const RETRY_DELAY_MS = 1000; // Base delay for exponential backoff
 
 export class TushareClient {
   private token: string;
   private readonly baseUrl = 'http://api.tushare.pro';
+  private maxRetries: number;
+  private timeout: number;
 
   constructor(config: TushareClientConfig = {}) {
     this.token = config.token || process.env.TUSHARE_TOKEN || '';
+    this.maxRetries = config.maxRetries ?? DEFAULT_MAX_RETRIES;
+    this.timeout = config.timeout ?? DEFAULT_TIMEOUT;
+  }
+
+  /**
+   * Sleep utility for retry delays
+   */
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  /**
+   * Fetch with timeout
+   */
+  private async fetchWithTimeout(url: string, options: RequestInit): Promise<Response> {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      });
+      return response;
+    } finally {
+      clearTimeout(timeoutId);
+    }
   }
 
   private async call<T = unknown>(
@@ -40,23 +77,48 @@ export class TushareClient {
       fields: fields?.join(',') || undefined,
     };
 
-    const response = await fetch(this.baseUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
+    let lastError: Error | null = null;
 
-    if (!response.ok) {
-      throw new Error(`Tushare API error: HTTP ${response.status}`);
+    // Retry loop with exponential backoff
+    for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
+      try {
+        const response = await this.fetchWithTimeout(this.baseUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Tushare API error: HTTP ${response.status}`);
+        }
+
+        const result: TushareResponse = await response.json();
+
+        if (result.code !== 0) {
+          throw new Error(`Tushare API error [${result.code}]: ${result.msg}`);
+        }
+
+        return result.data as T;
+      } catch (e) {
+        lastError = e instanceof Error ? e : new Error(String(e));
+
+        // Don't retry on certain errors
+        if (
+          lastError.message.includes('TUSHARE_TOKEN not set') ||
+          lastError.message.includes('API error [') ||
+          attempt >= this.maxRetries
+        ) {
+          throw lastError;
+        }
+
+        // Exponential backoff: 1s, 2s, 4s...
+        const delay = RETRY_DELAY_MS * Math.pow(2, attempt);
+        console.warn(`Tushare API attempt ${attempt + 1} failed, retrying in ${delay}ms...`, lastError.message);
+        await this.sleep(delay);
+      }
     }
 
-    const result: TushareResponse = await response.json();
-
-    if (result.code !== 0) {
-      throw new Error(`Tushare API error [${result.code}]: ${result.msg}`);
-    }
-
-    return result.data as T;
+    throw lastError || new Error('Tushare API call failed after retries');
   }
 
   /** Parse Tushare response into array of objects keyed by field names */
