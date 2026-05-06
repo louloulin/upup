@@ -1,6 +1,6 @@
 # Dexter A 股支持完整改造计划 (Pure TypeScript)
 
-> 更新: 2026-05-06 | 状态: Phase 1-7 全部完成 ✅ | Enhancements v2/v3/v4 完成 ✅
+> 更新: 2026-05-06 | 状态: Phase 1-7 全部完成 ✅ | Enhancements v2/v3/v4 完成 ✅ | **真实验证通过** ✅
 
 ---
 
@@ -419,27 +419,72 @@ scripts/astock-fetch.py            ✅ Python subprocess 已删除
 
 ```bash
 npx tsc --noEmit
-# 0 errors in src/ files (node_modules pre-existing warnings only)
+# 0 errors in src/ files
 ```
 
-### 功能验证 (需要网络访问)
+### bun run dev 启动 ✅ PASS
 
 ```bash
-# 设置 Tushare Token
+bun run dev
+# Dexter v2026.5.2 启动正常
+```
+
+### 工具注册 ✅ PASS
+
+```
+Total tools registered: 24
+A-share related tools: 7
+  ✓ get_astock_price (concurrencySafe: true)
+  ✓ get_astock_financials (concurrencySafe: true)
+  ✓ get_astock_news (concurrencySafe: true)
+  ✓ screen_astocks (concurrencySafe: true)
+  ✓ get_sector_data (concurrencySafe: true)
+  ✓ get_technical_data (concurrencySafe: true)
+  ✓ get_market_structure (concurrencySafe: true)
+```
+
+### Skill 发现 ✅ PASS
+
+```
+Total skills discovered: 3
+  ✓ a-share-analysis
+  ✓ x-research
+  ✓ dcf-valuation
+```
+
+### 实时行情真实验证 ✅ PASS (2026-05-06)
+
+| 股票 | 代码 | 价格 | 涨跌幅 | 数据源 |
+|------|------|------|--------|--------|
+| 贵州茅台 | 600519.SH | ¥1375 | -0.71% | Tencent |
+| 比亚迪 | 002594.SZ | ¥100.75 | -2.17% | Tencent |
+| 腾讯控股 | 00700.HK | HKD 463 | -1.95% | Tencent |
+| 宁德时代 | 300750.SZ | ¥460 | +5.5% | Tencent |
+| 中国平安 | 601318.SH | ¥59.36 | -0.02% | Tencent |
+| 招商银行 | 600036.SH | ¥38 | -0.71% | Tencent |
+| 阿里巴巴 | 09988.HK | HKD 134.2 | +2.29% | Tencent |
+
+### 名称搜索真实验证 ✅ PASS
+
+```
+searchStockByName("茅台")   → 贵州茅台 (600519.SH)
+searchStockByName("腾讯")   → 腾讯控股 (00700.HK), 腾讯音乐 (03606.HK)
+searchStockByName("比亚迪") → 比亚迪 (002594.SZ)
+resolveNameToCode("宁德时代") → 300750.SZ
+```
+
+### 工具执行真实验证 ✅ PASS
+
+```
+get_astock_price({ code: "比亚迪" }) → Source: tencent, Price: 100.75
+get_astock_price({ code: "600519.SH" }) → Source: tencent, Price: 1375
+```
+
+### Tushare 验证 (需要 TUSHARE_TOKEN)
+
+```bash
 echo "TUSHARE_TOKEN=your_token_here" >> .env
-
-# 实时行情测试 (无需 Token)
-npx tsx -e "
-import { getRealtimeQuote, toTencentSymbol } from './src/tools/astock/realtime-client.ts';
-getRealtimeQuote(toTencentSymbol('002594.SZ')).then(console.log);
-"
-
-# Tushare 历史数据测试 (需要 Token)
-npx tsx -e "
-import { TushareClient } from './src/tools/astock/tushare-client.ts';
-const c = new TushareClient({ token: process.env.TUSHARE_TOKEN });
-c.daily({ ts_code: '002594.SZ', trade_date: '20260506' }).then(console.log);
-"
+# 历史 K 线、财报、龙虎榜等需要 Tushare Token
 ```
 
 ---
