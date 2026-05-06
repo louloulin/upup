@@ -232,7 +232,7 @@ function parseSinaData(symbol: string, text: string): RealtimeQuote {
 
 /**
  * Get real-time quote with multi-source fallback.
- * Tries: Tencent → Sina
+ * Tries: Tencent → Sina (HK stocks have additional fallbacks via Tencent)
  * @param symbol In Tencent format: sh600519, sz000001, hk00700
  */
 export async function getRealtimeQuote(symbol: string): Promise<RealtimeQuote> {
@@ -253,6 +253,38 @@ export async function getRealtimeQuote(symbol: string): Promise<RealtimeQuote> {
   }
 
   throw new Error(`All realtime sources failed. Errors: ${errors.join('; ')}`);
+}
+
+/**
+ * Convert Tushare format to Tencent format.
+ * 600519.SH -> sh600519
+ * 000001.SZ -> sz000001
+ * 00700.HK -> hk00700
+ */
+export function toTencentSymbol(tushareCode: string): string {
+  const [code, market] = tushareCode.split('.');
+  if (market === 'SH' || market === 'SHANGHAI') return `sh${code}`;
+  if (market === 'SZ' || market === 'SHENZHEN') return `sz${code}`;
+  if (market === 'HK' || market === 'HONG KONG') return `hk${code}`;
+  if (market === 'BJ') return `bj${code}`;
+  // Assume A-share
+  if (code.startsWith('6')) return `sh${code}`;
+  return `sz${code}`;
+}
+
+/**
+ * Convert Tushare format to Sina format.
+ * 600519.SH -> sh600519
+ * 000001.SZ -> sz000001
+ */
+export function toSinaSymbol(tushareCode: string): string {
+  const [code, market] = tushareCode.split('.');
+  if (market === 'SH') return `sh${code}`;
+  if (market === 'SZ') return `sz${code}`;
+  if (market === 'HK') return `hk${code}`;
+  if (market === 'BJ') return `bj${code}`;
+  if (code.startsWith('6')) return `sh${code}`;
+  return `sz${code}`;
 }
 
 /**
