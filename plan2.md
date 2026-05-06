@@ -1,6 +1,40 @@
 # Dexter A 股支持完整改造计划 (Pure TypeScript)
 
-> 更新: 2026-05-06 | 状态: Phase 1-7 全部完成 ✅
+> 更新: 2026-05-06 | 状态: Phase 1-7 全部完成 ✅ | Enhancements v2 完成 ✅
+
+---
+
+## 八、增强功能 (Enhancement v2)
+
+### 新增功能
+
+| 功能 | 文件 | 说明 | 状态 |
+|------|------|------|------|
+| 公司名称搜索 | `src/utils/stock-code.ts` | `searchStockByName()` 模糊匹配 | ✅ |
+| 名称解析 | `src/utils/stock-code.ts` | `resolveNameToCode()` 公司名→代码 | ✅ |
+| 错误处理 | `src/tools/astock/get-astock-price.ts` | 多匹配提示 + API失败提示 | ✅ |
+| 名称输入 | `src/tools/astock/get-astock-price.ts` | 支持公司名作为输入参数 | ✅ |
+
+### 公司名映射增强
+
+新增更多公司:
+- 拼多多 (09961.HK)
+- 美团 (03690.HK)
+- 蔚来 (09866.HK)
+- 农夫山泉 (09633.HK)
+- 快手 (3690.HK)
+- 百胜中国 (09987.HK)
+- 思摩尔 (02269.HK)
+- 康希诺 (06185.HK)
+- 平安好医生 (01833.HK)
+
+### 名称搜索示例
+
+```
+searchStockByName("茅台")     → [{code: "600519", name: "贵州茅台", tushareFormat: "600519.SH"}]
+searchStockByName("腾讯")     → [{code: "00700", name: "腾讯控股"}, {code: "03606", name: "腾讯音乐"}]
+resolveNameToCode("比亚迪")   → "002594.SZ"
+```
 
 ---
 
