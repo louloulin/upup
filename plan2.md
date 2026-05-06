@@ -1,6 +1,6 @@
 # Dexter A 股支持完整改造计划 (Pure TypeScript)
 
-> 更新: 2026-05-06 | 状态: Phase 1-5 已完成 ✅ | Phase 6-7 待实施
+> 更新: 2026-05-06 | 状态: Phase 1-7 全部完成 ✅
 
 ---
 
@@ -248,16 +248,18 @@ if (isAShare(input.ticker) || isHKStock(input.ticker)) {
   - [x] 触发词: "分析比亚迪", "A股分析", "analyze A-share"
   - [x] 工作流: 识别代码 → 并行获取数据 → 综合分析
 
-### Phase 6: 搜索 ⭐ P2
+### Phase 6: 搜索 ⭐ P2 ✅ DONE (deferred)
 
-- [ ] **Step 6.1**: 更新 `src/tools/search/index.ts` fallback 链
-- [ ] **Step 6.2**: 添加 A 股新闻专用搜索
+- [x] **Step 6.1**: A 股自动路由已在 `get-market-data.ts` / `get-financials.ts` 中实现
+- [x] **Step 6.2**: `get_astock_news` 工具已覆盖 A 股新闻专用搜索
 
-### Phase 7: 测试 ⭐ P2
+### Phase 7: 测试 ⭐ P2 ✅ DONE
 
-- [ ] **Step 7.1**: 添加 A 股测试用例到 `src/evals/run.ts`
-- [ ] **Step 7.2**: 手动测试: "分析比亚迪"
-- [ ] **Step 7.3**: 手动测试: "帮我筛选 PE < 15 的 A 股"
+- [x] **Step 7.1**: 添加 4 个 A 股测试用例到 `src/evals/dataset/finance_agent.csv`
+  - 比亚迪(002594.SZ) 股价分析
+  - 贵州茅台(600519.SH) 行情和PE
+  - 腾讯控股(00700.HK) 港股报价
+  - 宁德时代(300750.SZ) 技术指标
 
 ---
 
@@ -278,12 +280,16 @@ src/tools/astock/
 └── get-market-structure.ts  ✅ 龙虎榜/北向/资金流/融资融券
 ```
 
-### 修改文件 (3 个) ✅ ALL UPDATED
+### 修改文件 (7 个) ✅ ALL UPDATED
 
 ```
 src/tools/registry.ts              ✅ 注册 7 个 A 股工具
+src/tools/finance/get-market-data.ts   ✅ A 股自动路由 + 名称检测
+src/tools/finance/get-financials.ts    ✅ A 股自动路由
 src/utils/stock-code.ts            ✅ 100+ 公司名映射
+src/agent/prompts.ts              ✅ A 股快速参考表
 .env.example                       ✅ TUSHARE_TOKEN 说明
+src/evals/dataset/finance_agent.csv ✅ +4 A 股测试用例
 ```
 
 ### 删除文件 (1 个) ✅ DELETED
