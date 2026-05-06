@@ -1,7 +1,7 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { z } from 'zod';
 import { getTushareClient, getToday } from './tushare-client';
-import { parseStockCode } from '../../utils/stock-code';
+import { parseStockCode, resolveNameToCode, searchStockByName } from '../../utils/stock-code';
 
 export const GET_TECHNICAL_DATA_DESCRIPTION = `## get_technical_data
 Fetches technical analysis data (K-line, MA, MACD, RSI, etc.) for A-share stocks.
@@ -9,15 +9,15 @@ Fetches technical analysis data (K-line, MA, MACD, RSI, etc.) for A-share stocks
 **When to use**: For stock chart analysis, technical indicators, price trends, support/resistance levels.
 
 **Indicators available**:
-- MA (Moving Average): MA5, MA10, MA20, MA60
+- MA (Moving Average): MA5, MA10, MA20
 - MACD: DIF, DEA, MACD histogram
-- RSI: 6/12/24 period
+- RSI: 6/12 period
 - Volume analysis
 
-**Input**: Stock code with optional date range.`;
+**Input**: Stock code with optional date range. Stock code, 6-digit code, or company name (e.g., "比亚迪", "贵州茅台").`;
 
 const GetTechnicalDataSchema = z.object({
-  code: z.string().describe('A-share stock code in Tushare format (e.g., 002594.SZ, 600519.SH) or 6-digit code'),
+  code: z.string().describe('Stock code in Tushare format, 6-digit code, or company name (e.g., "比亚迪", "贵州茅台")'),
   start_date: z.string().optional().describe('Start date (YYYYMMDD, e.g., 20240101)'),
   end_date: z.string().optional().describe('End date (YYYYMMDD, default: today)'),
   period: z.enum(['daily', 'weekly', 'monthly']).optional().describe('K-line period (default: daily)'),
@@ -35,8 +35,34 @@ export const getTechnicalData = new DynamicStructuredTool({
       });
     }
 
+    // Resolve company name to stock code if needed
+    let tsCode = input.code.trim();
+
     const parsed = parseStockCode(input.code);
-    const tsCode = parsed.tushareFormat;
+    if (parsed.market === 'UNKNOWN' || parsed.market === 'US') {
+      const resolved = resolveNameToCode(input.code);
+      if (resolved) {
+        tsCode = resolved;
+      } else {
+        const matches = searchStockByName(input.code);
+        if (matches.length === 1) {
+          tsCode = matches[0].tushareFormat;
+        } else if (matches.length > 1) {
+          return JSON.stringify({
+            error: 'Multiple matches found',
+            matches: matches.slice(0, 5),
+            suggestion: 'Please specify the exact stock code',
+          });
+        } else {
+          return JSON.stringify({
+            error: `Stock not found: ${input.code}`,
+            suggestion: 'Try using the 6-digit stock code (e.g., 002594.SZ)',
+          });
+        }
+      }
+    } else {
+      tsCode = parsed.tushareFormat;
+    }
     const client = getTushareClient();
     const endDate = input.end_date || getToday();
     const startDate = input.start_date || (() => {

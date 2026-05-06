@@ -1,17 +1,17 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { z } from 'zod';
 import { getTushareClient } from './tushare-client';
-import { parseStockCode } from '../../utils/stock-code';
+import { parseStockCode, resolveNameToCode, searchStockByName } from '../../utils/stock-code';
 
 export const GET_ASTOCK_NEWS_DESCRIPTION = `## get_astock_news
 Fetches news and company announcements for A-share stocks.
 
 **When to use**: For company announcements, annual reports, investor relations news, market news related to A-share stocks.
 
-**Input**: Stock code in Tushare format (e.g., 002594.SZ, 600519.SH) or 6-digit code, or 'market' for general market news.`;
+**Input**: Stock code in Tushare format (e.g., 002594.SZ, 600519.SH), 6-digit code, company name (e.g., "比亚迪"), or 'market' for general news.`;
 
 const GetAStockNewsSchema = z.object({
-  code: z.string().optional().describe('A-share stock code in Tushare format (e.g., 002594.SZ, 600519.SH) or 6-digit code. Use "market" for general market news.'),
+  code: z.string().optional().describe('Stock code in Tushare format, 6-digit code, company name (e.g., "比亚迪"), or "market" for general news.'),
   start_date: z.string().optional().describe('Start date (YYYYMMDD)'),
   end_date: z.string().optional().describe('End date (YYYYMMDD)'),
   limit: z.number().optional().describe('Number of results to return (default: 20)'),
@@ -43,9 +43,36 @@ export const getAStockNews = new DynamicStructuredTool({
       });
     }
 
-    // Company announcements
+    // Resolve company name to stock code if needed
+    let tsCode = input.code.trim();
+
+    // Try parsing as stock code first
     const parsed = parseStockCode(input.code);
-    const tsCode = parsed.tushareFormat;
+    if (parsed.market === 'UNKNOWN' || parsed.market === 'US') {
+      // Not a valid A/HK code, try name resolution
+      const resolved = resolveNameToCode(input.code);
+      if (resolved) {
+        tsCode = resolved;
+      } else {
+        const matches = searchStockByName(input.code);
+        if (matches.length === 1) {
+          tsCode = matches[0].tushareFormat;
+        } else if (matches.length > 1) {
+          return JSON.stringify({
+            error: 'Multiple matches found',
+            matches: matches.slice(0, 5),
+            suggestion: 'Please specify the exact stock code',
+          });
+        } else {
+          return JSON.stringify({
+            error: `Stock not found: ${input.code}`,
+            suggestion: 'Try using the 6-digit stock code (e.g., 002594.SZ)',
+          });
+        }
+      }
+    } else {
+      tsCode = parsed.tushareFormat;
+    }
 
     const announcements = await client.announcement({
       ts_code: tsCode,

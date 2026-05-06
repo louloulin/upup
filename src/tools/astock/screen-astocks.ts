@@ -3,27 +3,25 @@ import { z } from 'zod';
 import { getTushareClient } from './tushare-client';
 
 export const SCREEN_ASTOCKS_DESCRIPTION = `## screen_astocks
-Screens A-share stocks by fundamental criteria.
+Screens A-share stocks by basic criteria.
 
-**When to use**: For finding stocks meeting specific financial criteria (low PE, high ROE, sector filter, market cap range).
+**When to use**: For finding stocks by sector/industry or exchange.
 
-**Criteria**:
-- PE ratio range (price-to-earnings)
-- ROE range (return on equity)
-- Market cap range
-- Sector/industry filter
+**Supported filters**:
+- Sector/industry filter (e.g., "银行", "白酒", "新能源")
 - Exchange filter (SH, SZ, BJ)
-- Market cap ranking (top N by market cap)
+
+**Note**: PE and market cap filtering requires additional API calls and is not yet implemented.
 
 **Input**: Screening criteria as JSON-like input.`;
 
 const ScreenAStocksSchema = z.object({
   sector: z.string().optional().describe('Industry sector (e.g., "银行", "白酒", "新能源")'),
   exchange: z.string().optional().describe('Exchange: SH (Shanghai), SZ (Shenzhen), BJ (Beijing)'),
-  market_cap_min: z.number().optional().describe('Minimum market cap in 亿元 (100M yuan)'),
-  market_cap_max: z.number().optional().describe('Maximum market cap in 亿元 (100M yuan)'),
-  pe_min: z.number().optional().describe('Minimum PE ratio'),
-  pe_max: z.number().optional().describe('Maximum PE ratio'),
+  market_cap_min: z.number().optional().describe('Minimum market cap in 亿元 (not yet implemented)'),
+  market_cap_max: z.number().optional().describe('Maximum market cap in 亿元 (not yet implemented)'),
+  pe_min: z.number().optional().describe('Minimum PE ratio (not yet implemented)'),
+  pe_max: z.number().optional().describe('Maximum PE ratio (not yet implemented)'),
   limit: z.number().optional().describe('Max results to return (default: 50)'),
 });
 
@@ -65,10 +63,8 @@ export const screenAstocks = new DynamicStructuredTool({
       });
     }
 
-    // Sort by market cap (descending) and limit
-    filtered = filtered
-      .sort(() => 0.5 - Math.random()) // Shuffle for demo; real impl would sort
-      .slice(0, limit);
+    // Limit results
+    filtered = filtered.slice(0, limit);
 
     return JSON.stringify({
       source: 'tushare',
