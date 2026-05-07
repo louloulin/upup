@@ -15,7 +15,14 @@
     "typecheck": "tsc --noEmit",
     "test": "bun test",
     "test:watch": "bun test --watch",
-    "postinstall": "playwright install chromium"
+    "postinstall": "playwright install chromium",
+    "build": "bun run typecheck",
+    "build:bun": "bun run typecheck && echo '✅ Bun build complete - run: bun start'",
+    "build:node": "bun build src/index.tsx --target=node --outfile=dist/dexter.js --external=dotenv --external=zod && echo '✅ Node.js build complete'",
+    "build:node:win": "bun build src/index.tsx --target=node --outfile=dist/dexter.exe --external=dotenv --external=zod && echo '✅ Windows build complete'",
+    "build:compile": "bun build --compile --target=bun --outfile=dexter src/index.tsx && chmod +x dexter && echo '✅ Binary compile complete - run: ./dexter'",
+    "build:compile:win": "bun build --compile --target=bun --outfile=dexter.exe src/index.tsx && echo '✅ Windows binary compile complete'",
+    "build:all": "bun run build:bun && bun run build:node && bun run build:compile"
   },
   "dependencies": {
     "@langchain/anthropic": "^1.3.25",
@@ -25,6 +32,7 @@
     "@langchain/ollama": "^1.2.6",
     "@langchain/openai": "^1.3.1",
     "@langchain/tavily": "^1.2.0",
+    "@modelcontextprotocol/sdk": "^1.0.0",
     "@mariozechner/pi-tui": "^0.52.12",
     "@mozilla/readability": "^0.6.0",
     "@whiskeysockets/baileys": "7.0.0-rc.9",
