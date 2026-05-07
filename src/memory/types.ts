@@ -51,6 +51,13 @@ export interface MemoryRuntimeConfig {
   temporalDecay: TemporalDecayConfig;
   mmr: MMRConfig;
   indexSessions: boolean;
+  memvidRag?: boolean | {
+    enabled?: boolean;
+    model?: string;
+    mode?: 'auto' | 'lex' | 'sem';
+    k?: number;
+    contextOnly?: boolean;
+  };
 }
 
 // ============================================================================

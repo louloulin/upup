@@ -28,6 +28,8 @@ import type {
   MemoryWriteRequest,
 } from './types.js';
 import { getSetting } from '../utils/config.js';
+import { resolveMemvidRagSettings, type MemvidRagFlag, type ResolvedMemvidRagSettings } from './memvid-rag.js';
+import { getApiKeyNameForProvider } from '../utils/env.js';
 
 // Re-export AI Memory Selector
 export {
@@ -82,6 +84,13 @@ export {
   type MemvidSearchResult,
   type MemvidStats,
 } from './memvid-store.js';
+export {
+  resolveMemvidRagSettings,
+  toMemvidModelSpec,
+  type MemvidRagFlag,
+  type ResolvedMemvidRagSettings,
+} from './memvid-rag.js';
+export { migrateLegacyMemories, inferMemoryType, type MigrationResult } from './migration.js';
 
 // ============================================================================
 // Config
@@ -102,6 +111,7 @@ const DEFAULT_CONFIG: MemoryRuntimeConfig = {
   temporalDecay: { enabled: true, halfLifeDays: 30 },
   mmr: { enabled: true, lambda: 0.7 },
   indexSessions: true,
+  memvidRag: false,
 };
 
 type MemorySettings = {
@@ -112,6 +122,7 @@ type MemorySettings = {
   temporalDecay?: Partial<TemporalDecayConfig>;
   mmr?: Partial<MMRConfig>;
   indexSessions?: boolean;
+  memvidRag?: MemvidRagFlag;
 };
 
 function resolveConfig(): MemoryRuntimeConfig {
@@ -200,6 +211,40 @@ export class MemoryManager {
       return;
     }
     await this.indexer.sync(options);
+  }
+
+  getMemvidRagSettings(): ResolvedMemvidRagSettings {
+    const providerId = getSetting('provider', 'openai') as string;
+    const modelId = getSetting('modelId', 'gpt-5.4') as string;
+    return resolveMemvidRagSettings({
+      flag: this.config.memvidRag,
+      providerId,
+      modelId,
+    });
+  }
+
+  async askMemory(query: string): Promise<string | null> {
+    await this.initialize();
+
+    const rag = this.getMemvidRagSettings();
+    if (!rag.enabled || !rag.supported) {
+      return null;
+    }
+
+    const apiKeyEnvVar = rag.apiKeyEnvVar ?? getApiKeyNameForProvider(rag.providerId);
+    const apiKey = apiKeyEnvVar ? process.env[apiKeyEnvVar] : undefined;
+    if (!apiKey) {
+      return null;
+    }
+
+    const memvidStore = await getMemvidStore();
+    return memvidStore.ask(query, {
+      model: rag.model,
+      apiKey,
+      contextOnly: rag.contextOnly,
+      mode: rag.mode,
+      k: rag.k,
+    });
   }
 
   async search(query: string, options?: MemorySearchOptions): Promise<MemorySearchResult[]> {

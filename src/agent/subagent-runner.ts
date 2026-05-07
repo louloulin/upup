@@ -19,6 +19,7 @@ import type {
 } from './subagent.js';
 import { DEFAULT_SUBAGENT_CONFIG } from './subagent.js';
 import { getTools, getToolConcurrencyMap } from '../tools/registry.js';
+import { info, warn, error as logError, perf } from '../utils/logging/logger.js';
 
 /**
  * Subagent task store for tracking running tasks
@@ -69,7 +70,7 @@ class SubagentEventEmitter {
       try {
         listener(event);
       } catch (error) {
-        console.error('[Subagent] Event listener error:', error);
+        logError('subagent', 'Event listener error', error instanceof Error ? error : undefined);
       }
     });
   }
@@ -91,6 +92,7 @@ export class SubagentRunner {
   private store: SubagentTaskStore;
   private events: SubagentEventEmitter;
   private activeAgents: Map<string, AbortController> = new Map();
+  private readonly DEFAULT_TIMEOUT_MS = 300000; // 5 minutes default
 
   constructor() {
     this.store = new SubagentTaskStore();
@@ -175,7 +177,7 @@ export class SubagentRunner {
 
     // Start execution in background
     this.runInBackground(taskId, config, prompt, context).catch(error => {
-      console.error(`[Subagent] Background task ${taskId} failed:`, error);
+      error('subagent', `Background task ${taskId} failed: ${error instanceof Error ? error.message : String(error)}`);
       this.store.update(taskId, {
         status: 'failed',
         completedAt: new Date(),
@@ -291,7 +293,8 @@ export class SubagentRunner {
   private async executeAgent(
     config: SubagentConfig,
     prompt: string,
-    onToolCall?: (name: string) => void
+    onToolCall?: (name: string) => void,
+    taskId?: string
   ): Promise<string> {
     try {
       // Dynamically import Agent to avoid circular dependency
@@ -299,25 +302,45 @@ export class SubagentRunner {
 
       // Create agent instance with inherited model
       const model = config.model === 'inherit' ? undefined : config.model;
+
+      // Get signal from active agents map if task is running in background
+      let signal: AbortSignal | undefined;
+      if (taskId) {
+        const controller = this.activeAgents.get(taskId);
+        signal = controller?.signal;
+      }
+
+      // Create abort controller with timeout if no external signal
+      const timeoutMs = config.timeoutMs ?? this.DEFAULT_TIMEOUT_MS;
+      const timeoutController = new AbortController();
+      const timeoutId = setTimeout(() => {
+        warn('subagent', `Task ${taskId} timeout after ${timeoutMs}ms`);
+        timeoutController.abort();
+      }, timeoutMs);
+
       const agent = await Agent.create({
         model,
-        signal: undefined, // TODO: Pass signal from context
+        signal: timeoutController.signal,
       });
 
       // Collect results from agent run
       let result = '';
-      for await (const event of agent.run(prompt)) {
-        if (event.type === 'done') {
-          result = event.answer;
-        } else if (event.type === 'tool_result') {
-          if (onToolCall) onToolCall(event.toolName);
+      try {
+        for await (const event of agent.run(prompt)) {
+          if (event.type === 'done') {
+            result = event.answer;
+          } else if (event.type === 'tool_end') {
+            if (onToolCall) onToolCall(event.tool);
+          }
         }
+      } finally {
+        clearTimeout(timeoutId);
       }
 
       return result || 'Agent completed without output';
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      console.error('[SubagentRunner] Agent execution failed:', message);
+      logError('subagent', `Agent execution failed: ${message}`);
       throw new Error(`Subagent execution failed: ${message}`);
     }
   }
@@ -330,6 +353,7 @@ export class SubagentRunner {
   ): Promise<void> {
     const controller = new AbortController();
     this.activeAgents.set(taskId, controller);
+    const startTime = Date.now();
 
     this.store.update(taskId, {
       status: 'running',
@@ -339,15 +363,22 @@ export class SubagentRunner {
     this.emitEvent('started', taskId, {});
 
     try {
-      const result = await this.run(config, prompt, context);
+      const result = await this.executeAgent(config, prompt, undefined, taskId);
+
+      const subagentResult: SubagentResult = {
+        success: true,
+        output: result,
+        toolCalls: 0,
+        duration: Date.now() - startTime,
+      };
 
       this.store.update(taskId, {
-        status: result.success ? 'completed' : 'failed',
+        status: 'completed',
         completedAt: new Date(),
-        result,
+        result: subagentResult,
       });
 
-      this.emitEvent(result.success ? 'completed' : 'failed', taskId, result);
+      this.emitEvent('completed', taskId, subagentResult);
     } catch (error) {
       this.store.update(taskId, {
         status: 'failed',

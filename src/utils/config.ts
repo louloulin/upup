@@ -26,6 +26,13 @@ interface Config {
     embeddingProvider?: 'openai' | 'gemini' | 'ollama' | 'auto';
     embeddingModel?: string;
     maxSessionContextTokens?: number;
+    memvidRag?: boolean | {
+      enabled?: boolean;
+      model?: string;
+      mode?: 'auto' | 'lex' | 'sem';
+      k?: number;
+      contextOnly?: boolean;
+    };
   };
   [key: string]: unknown;
 }

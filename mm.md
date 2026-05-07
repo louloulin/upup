@@ -533,13 +533,13 @@ src/memory/
 - [x] 添加 `MemoryType` 到 `types.ts` ✅
 - [x] 实现 "What NOT to save" 过滤器 ✅ (在 prompts.ts)
 - [x] 实现 Memory drift 验证 ✅ (ai-selector.ts verifyMemory)
-- [ ] 迁移脚本: 现有记忆 → 4-type 分类 — 可选
+- [x] 迁移脚本: 现有记忆 → 4-type 分类 — 已实现 (`bun run scripts/migrate-memory.ts`) ✅
 
 ### Phase 5: Memvid RAG 增强 (Week 5, 可选)
 
 - [x] Memvid RAG (`ask()`) 已集成到 memvid-store.ts ✅
 - [x] PII masking 已集成 ✅
-- [ ] Feature flag: `memory.memvidRag` — 可选
+- [x] Feature flag: `memory.memvidRag` — 已实现，`memory_search` 支持 `use_rag` ✅
 - [ ] 源码编译 memvid-core 启用向量搜索 (`mode: 'sem'`) — 可选
 
 ---
@@ -654,7 +654,7 @@ bun run start  # ✅ 应用启动成功, 显示 ASCII 艺术banner
 
 ## 十三、完成状态总结 (2026-05-07)
 
-### 核心功能完成度: **95%**
+### 核心功能完成度: **98%**
 
 > **注意**: 部分功能需要 LLM API 访问 (AI-Selector, Extraction, Consolidation)。
 > 当网络被阻止时，这些功能会 fallback 到 scanner-based 搜索 (scanSearch)。
@@ -668,8 +668,8 @@ bun run start  # ✅ 应用启动成功, 显示 ASCII 艺术banner
 | Phase 5: Memvid RAG 增强 | ✅ 完成 | RAG + PII masking |
 
 ### 可选功能 (未实现)
-- [ ] 迁移脚本: 现有记忆 → 4-type 分类
-- [ ] Feature flag: `memory.memvidRag`
+- [x] 迁移脚本: 现有记忆 → 4-type 分类 ✅
+- [x] Feature flag: `memory.memvidRag` ✅
 - [ ] 源码编译 memvid-core 启用向量搜索 (`mode: 'sem'`)
 
 ### Bug 修复 (2026-05-07)
@@ -684,7 +684,7 @@ bun run start  # ✅ 应用启动成功, 显示 ASCII 艺术banner
 ### 验证状态
 - ✅ `bun run typecheck` — TypeScript 编译通过
 - ✅ `bun run start` — 应用正常启动 (显示 ASCII banner)
-- ✅ `bun run dev` — Watch 模式正常启动
+- ✅ `bun run dev` — Watch 模式真实启动验证通过 (2026-05-07)
 - ✅ Memory Module Exports — 全部验证通过
 - ✅ Memvid Store — Lex index ✅, Vec index ✅
 - ✅ Scanner — 正确扫描4个类型目录
@@ -698,4 +698,7 @@ bun run start  # ✅ 应用启动成功, 显示 ASCII 艺术banner
 - ✅ MEMORY.md — 自动创建索引文件
 - ✅ Unified Logging — 日志系统完整，集成 memory/agent/subagent/tools/mcp 模块
 - ✅ Observation Buffer — Claude Code PostToolUse 模式，积累 5+ observations 触发 extraction
+- ✅ `bun run scripts/migrate-memory.ts --dry-run` — 迁移脚本真实执行，识别当前 typed index
+- ✅ `src/memory/migration.test.ts` — 迁移到 4-type 目录并重建索引通过
+- ✅ `src/memory/memvid-rag.test.ts` — feature flag / provider 解析通过
 - ⚠️ AI-Selector — 需要 LLM API (fallback: scanSearch)

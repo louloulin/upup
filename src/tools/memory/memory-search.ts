@@ -21,6 +21,7 @@ Semantic search over persistent memory and past conversation transcripts.
 
 const memorySearchSchema = z.object({
   query: z.string().describe('Natural language query for memory recall.'),
+  use_rag: z.boolean().optional().describe('When true and memory.memvidRag is enabled, also synthesize a Memvid RAG answer.'),
 });
 
 export const memorySearchTool = new DynamicStructuredTool({
@@ -39,8 +40,10 @@ export const memorySearchTool = new DynamicStructuredTool({
     }
 
     const results = await manager.search(input.query);
+    const ragAnswer = input.use_rag ? await manager.askMemory(input.query) : null;
     return formatToolResult({
       results,
+      ragAnswer,
     });
   },
 });

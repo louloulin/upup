@@ -178,6 +178,8 @@ export class MemvidStore {
       model?: string;
       apiKey?: string;
       contextOnly?: boolean;
+      mode?: 'auto' | 'lex' | 'sem';
+      k?: number;
     } = {},
   ): Promise<string> {
     const mv = await this.getMv();
@@ -190,7 +192,8 @@ export class MemvidStore {
       model: options.model || 'openai:gpt-4o-mini',
       modelApiKey: options.apiKey,
       contextOnly: options.contextOnly ?? true,
-      k: 10,
+      mode: options.mode ?? 'lex',
+      k: options.k ?? 10,
       snippetChars: 1000,
     });
 
