@@ -2,8 +2,17 @@
  * Source of a skill definition.
  * - builtin: Shipped with Dexter (src/skills/builtin/)
  * - project: Project-level skills (.dexter/skills/)
+ * - user: User-level skills (.claude/skills/)
  */
 export type SkillSource = 'builtin' | 'user' | 'project';
+
+/**
+ * Model selection for skill execution.
+ * - sonnet: Default model for complex analysis
+ * - haiku: Lightweight model for simple data queries
+ * - opus: Heavy model for deep analysis (not implemented)
+ */
+export type SkillModel = 'sonnet' | 'haiku' | 'opus' | 'default';
 
 /**
  * Skill metadata - lightweight info loaded at startup for system prompt injection.
@@ -18,6 +27,12 @@ export interface SkillMetadata {
   path: string;
   /** Where this skill was discovered from */
   source: SkillSource;
+  /** Preferred model for this skill (optional) */
+  model?: SkillModel;
+  /** Whether this skill can be invoked by user via /command */
+  userInvocable?: boolean;
+  /** Hint for argument format */
+  argumentHint?: string;
 }
 
 /**

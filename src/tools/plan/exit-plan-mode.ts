@@ -17,6 +17,7 @@ import {
 import {
   getPlanFromMemory,
   listPlans,
+  planMemory,
 } from './enter-plan-mode.js';
 
 export const EXIT_PLAN_MODE_DESCRIPTION = `

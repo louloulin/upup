@@ -7,6 +7,8 @@ import { browserTool, BROWSER_DESCRIPTION } from './browser/browser.js';
 import { readFileTool, READ_FILE_DESCRIPTION } from './filesystem/read-file.js';
 import { writeFileTool, WRITE_FILE_DESCRIPTION } from './filesystem/write-file.js';
 import { editFileTool, EDIT_FILE_DESCRIPTION } from './filesystem/edit-file.js';
+import { globTool } from './filesystem/glob.js';
+import { grepTool } from './filesystem/grep.js';
 import { GET_FINANCIALS_DESCRIPTION } from './finance/get-financials.js';
 import { GET_MARKET_DATA_DESCRIPTION } from './finance/get-market-data.js';
 import { READ_FILINGS_DESCRIPTION } from './finance/read-filings.js';
@@ -26,6 +28,7 @@ import { getSectorData, GET_SECTOR_DATA_DESCRIPTION } from './astock/get-sector-
 import { getTechnicalData, GET_TECHNICAL_DATA_DESCRIPTION } from './astock/get-technical-data.js';
 import { getMarketStructure, GET_MARKET_STRUCTURE_DESCRIPTION } from './astock/get-market-structure.js';
 import { buildAgentTool, AGENT_TOOL_DESCRIPTION, AGENT_TOOL_COMPACT_DESCRIPTION } from './agent-tool.js';
+import { info, warn } from '../utils/logging/logger.js';
 import {
   createEnterPlanModeTool,
   createExitPlanModeTool,
@@ -33,6 +36,43 @@ import {
   createUpdatePlanStepTool,
   createListPlanStepsTool,
 } from './plan/index.js';
+import {
+  createCalculateVaRTool,
+  createCalculateSharpeTool,
+  createCalculateSortinoTool,
+  createCalculateMaxDrawdownTool,
+  CALCULATE_VAR_DESCRIPTION,
+  CALCULATE_SHARPE_DESCRIPTION,
+  CALCULATE_SORTINO_DESCRIPTION,
+  CALCULATE_MAX_DRAWDOWN_DESCRIPTION,
+} from './quant/index.js';
+import {
+  createAddPositionTool,
+  createUpdatePositionTool,
+  createRemovePositionTool,
+  createGetPortfolioTool,
+  ADD_POSITION_DESCRIPTION,
+  UPDATE_POSITION_DESCRIPTION,
+  REMOVE_POSITION_DESCRIPTION,
+  GET_PORTFOLIO_DESCRIPTION,
+} from './portfolio/index.js';
+import {
+  createWorktreeTool,
+  removeWorktreeTool,
+  listWorktreeTool,
+  CREATE_WORKTREE_DESCRIPTION,
+  REMOVE_WORKTREE_DESCRIPTION,
+  LIST_WORKTREE_DESCRIPTION,
+} from './worktree/index.js';
+import {
+  createListSkillsTool,
+  createSearchSkillsTool,
+  createGetSkillTool,
+  LIST_SKILLS_DESCRIPTION,
+  SEARCH_SKILLS_DESCRIPTION,
+  GET_SKILL_DESCRIPTION,
+} from './discovery/index.js';
+import { researchTools, RESEARCH_TOOLS_DESCRIPTION, ANALYZE_SENTIMENT_DESCRIPTION, DETECT_EVENTS_DESCRIPTION, EXTRACT_ENTITIES_DESCRIPTION } from './research/index.js';
 
 /**
  * A registered tool with its rich description for system prompt injection.
@@ -172,6 +212,20 @@ export function getToolRegistry(model: string): RegisteredTool[] {
       concurrencySafe: false,
     },
     {
+      name: 'glob',
+      tool: globTool,
+      description: `Find files matching a glob pattern. Use this to find all files of a specific type (e.g., "**/*.ts") or files in a directory tree.`,
+      compactDescription: 'Find files by glob pattern (e.g., "**/*.ts", "src/**/*.js").',
+      concurrencySafe: true,
+    },
+    {
+      name: 'grep',
+      tool: grepTool,
+      description: `Search file contents using regular expressions. Use this to find text patterns across files, search for function/variable definitions, or extract matching lines with context.`,
+      compactDescription: 'Search file contents with regex patterns. Supports content, files_with_matches, and count modes.',
+      concurrencySafe: true,
+    },
+    {
       name: 'heartbeat',
       tool: heartbeatTool,
       description: HEARTBEAT_TOOL_DESCRIPTION,
@@ -274,11 +328,11 @@ export function getToolRegistry(model: string): RegisteredTool[] {
     // Log MCP status for debugging
     const status = getMCPStatus(mcpClient);
     if (status.connectedServers > 0) {
-      console.log(`[ToolRegistry] MCP: ${status.connectedServers}/${status.totalServers} servers connected, ${status.totalTools} tools available`);
+      info('tools', `MCP: ${status.connectedServers}/${status.totalServers} servers connected, ${status.totalTools} tools available`);
     }
   } catch (error) {
     // MCP initialization failed, tools will be empty
-    console.log('[ToolRegistry] MCP not configured or initialization failed');
+    info('tools', 'MCP not configured or initialization failed');
   }
 
   // Add AgentTool for spawning subagents
@@ -306,6 +360,148 @@ export function getToolRegistry(model: string): RegisteredTool[] {
       tool,
       description: `Plan mode tool: ${name}`,
       compactDescription: `Structured planning tool for ${name.replace('_', ' ')}`,
+      concurrencySafe: true,
+    });
+  }
+
+  // Add Quantitative Analysis tools
+  tools.push({
+    name: 'calculate_var',
+    tool: createCalculateVaRTool(),
+    description: CALCULATE_VAR_DESCRIPTION,
+    compactDescription: 'Calculate Value at Risk (VaR) for portfolio risk assessment',
+    concurrencySafe: true,
+  });
+
+  tools.push({
+    name: 'calculate_sharpe',
+    tool: createCalculateSharpeTool(),
+    description: CALCULATE_SHARPE_DESCRIPTION,
+    compactDescription: 'Calculate Sharpe Ratio for risk-adjusted return measurement',
+    concurrencySafe: true,
+  });
+
+  tools.push({
+    name: 'calculate_sortino',
+    tool: createCalculateSortinoTool(),
+    description: CALCULATE_SORTINO_DESCRIPTION,
+    compactDescription: 'Calculate Sortino Ratio for downside risk focus',
+    concurrencySafe: true,
+  });
+
+  tools.push({
+    name: 'calculate_max_drawdown',
+    tool: createCalculateMaxDrawdownTool(),
+    description: CALCULATE_MAX_DRAWDOWN_DESCRIPTION,
+    compactDescription: 'Calculate Maximum Drawdown for worst-case loss measurement',
+    concurrencySafe: true,
+  });
+
+  // Add Portfolio Management tools
+  tools.push({
+    name: 'add_position',
+    tool: createAddPositionTool(),
+    description: ADD_POSITION_DESCRIPTION,
+    compactDescription: 'Add a new position to portfolio tracking',
+    concurrencySafe: true,
+  });
+
+  tools.push({
+    name: 'update_position',
+    tool: createUpdatePositionTool(),
+    description: UPDATE_POSITION_DESCRIPTION,
+    compactDescription: 'Update existing position quantity or cost',
+    concurrencySafe: true,
+  });
+
+  tools.push({
+    name: 'remove_position',
+    tool: createRemovePositionTool(),
+    description: REMOVE_POSITION_DESCRIPTION,
+    compactDescription: 'Remove a position from portfolio tracking',
+    concurrencySafe: true,
+  });
+
+  tools.push({
+    name: 'get_portfolio',
+    tool: createGetPortfolioTool(),
+    description: GET_PORTFOLIO_DESCRIPTION,
+    compactDescription: 'Get portfolio positions with P&L calculations',
+    concurrencySafe: true,
+  });
+
+  // Add Worktree tools
+  tools.push({
+    name: 'create_worktree',
+    tool: createWorktreeTool(),
+    description: CREATE_WORKTREE_DESCRIPTION,
+    compactDescription: 'Create a new git worktree for isolated development',
+    concurrencySafe: true,
+  });
+
+  tools.push({
+    name: 'remove_worktree',
+    tool: removeWorktreeTool(),
+    description: REMOVE_WORKTREE_DESCRIPTION,
+    compactDescription: 'Remove a git worktree',
+    concurrencySafe: true,
+  });
+
+  tools.push({
+    name: 'list_worktree',
+    tool: listWorktreeTool(),
+    description: LIST_WORKTREE_DESCRIPTION,
+    compactDescription: 'List all git worktrees in the repository',
+    concurrencySafe: true,
+  });
+
+  // Add Skill Discovery tools
+  tools.push({
+    name: 'list_skills',
+    tool: createListSkillsTool(),
+    description: LIST_SKILLS_DESCRIPTION,
+    compactDescription: 'List all available skills in the system',
+    concurrencySafe: true,
+  });
+
+  tools.push({
+    name: 'search_skills',
+    tool: createSearchSkillsTool(),
+    description: SEARCH_SKILLS_DESCRIPTION,
+    compactDescription: 'Search for skills by keyword',
+    concurrencySafe: true,
+  });
+
+  tools.push({
+    name: 'get_skill',
+    tool: createGetSkillTool(),
+    description: GET_SKILL_DESCRIPTION,
+    compactDescription: 'Get detailed information about a specific skill',
+    concurrencySafe: true,
+  });
+
+  // Add Research tools (Phase 9: 智能投研)
+  for (const researchTool of researchTools) {
+    const toolName = researchTool.name;
+    let compactDescription = '';
+    let description = '';
+
+    if (toolName === 'analyze_sentiment') {
+      compactDescription = 'Analyze sentiment (positive/negative/neutral) of financial text';
+      description = ANALYZE_SENTIMENT_DESCRIPTION;
+    } else if (toolName === 'detect_events') {
+      compactDescription = 'Detect investment events (earnings, M&A, regulatory) from text';
+      description = DETECT_EVENTS_DESCRIPTION;
+    } else if (toolName === 'extract_entities') {
+      compactDescription = 'Extract stock tickers, numbers, and dates from text';
+      description = EXTRACT_ENTITIES_DESCRIPTION;
+    }
+
+    tools.push({
+      name: toolName,
+      tool: researchTool,
+      description,
+      compactDescription,
       concurrencySafe: true,
     });
   }

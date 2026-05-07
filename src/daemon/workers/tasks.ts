@@ -10,6 +10,8 @@ import { loadCronStore, saveCronStore } from '../../cron/store.js';
 import { computeNextRunAtMs } from '../../cron/schedule.js';
 import { executeCronJob } from '../../cron/executor.js';
 import type { CronJob } from '../../cron/types.js';
+import { getDefaultSubagentRunner } from '../../agent/subagent-runner.js';
+import type { SubagentConfig } from '../../agent/subagent.js';
 
 /**
  * Tasks worker kind identifier
@@ -97,7 +99,7 @@ export class TasksWorker implements Worker {
       const jobIndex = store.jobs.findIndex(j => j.id === jobId);
       if (jobIndex !== -1) {
         store.jobs[jobIndex].state.lastRunAtMs = Date.now();
-        store.jobs[jobIndex].state.lastRunStatus = 'success';
+        store.jobs[jobIndex].state.lastRunStatus = 'ok';
         store.jobs[jobIndex].state.consecutiveErrors = 0;
 
         // Compute next run
@@ -159,21 +161,47 @@ export class TasksWorker implements Worker {
    * Execute a background agent task (from Subagent system)
    */
   private async executeBackgroundAgent(task: Task): Promise<TaskResult> {
-    // This would integrate with the SubagentRunner
-    // For now, return a placeholder
-    const { prompt, config } = task.payload as { prompt: string; config: unknown };
+    const { prompt, config } = task.payload as {
+      prompt: string;
+      config: Partial<SubagentConfig>;
+    };
 
     console.log(`[TasksWorker] Background agent task: ${prompt.substring(0, 50)}...`);
 
-    // TODO: Integrate with SubagentRunner for actual execution
-    this.tasksProcessed++;
-    return {
-      success: true,
-      output: {
-        message: 'Background agent task queued for execution',
-        prompt: prompt.substring(0, 100),
-      },
-    };
+    try {
+      const runner = getDefaultSubagentRunner();
+
+      // Run agent asynchronously (non-blocking)
+      const taskId = await runner.runAsync(
+        {
+          type: config.type || 'general',
+          tools: config.tools || '*',
+          maxTurns: config.maxTurns,
+          model: config.model,
+          isolation: config.isolation,
+          cwd: config.cwd,
+        },
+        prompt,
+        undefined // No parent context for daemon tasks
+      );
+
+      this.tasksProcessed++;
+      return {
+        success: true,
+        output: {
+          taskId,
+          message: 'Background agent task started',
+          prompt: prompt.substring(0, 100),
+        },
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.tasksFailed++;
+      return {
+        success: false,
+        error: `Background agent execution failed: ${message}`,
+      };
+    }
   }
 
   /**
@@ -188,15 +216,41 @@ export class TasksWorker implements Worker {
 
     console.log(`[TasksWorker] Scheduled agent task: ${message.substring(0, 50)}...`);
 
-    // TODO: Integrate with Agent for actual execution
-    this.tasksProcessed++;
-    return {
-      success: true,
-      output: {
-        message: 'Scheduled agent task queued for execution',
-        originalMessage: message,
-      },
-    };
+    try {
+      // Import Agent dynamically to avoid circular dependency
+      const { Agent } = await import('../../agent/agent.js');
+
+      // Create agent instance with specified model
+      const agent = await Agent.create({
+        model,
+        modelProvider,
+      });
+
+      // Run agent synchronously
+      let result = '';
+      for await (const event of agent.run(message)) {
+        if (event.type === 'done') {
+          result = event.answer;
+        }
+      }
+
+      this.tasksProcessed++;
+      return {
+        success: true,
+        output: {
+          message: 'Scheduled agent task completed',
+          originalMessage: message,
+          result,
+        },
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.tasksFailed++;
+      return {
+        success: false,
+        error: `Scheduled agent execution failed: ${message}`,
+      };
+    }
   }
 
   /**
