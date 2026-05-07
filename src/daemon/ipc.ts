@@ -210,12 +210,12 @@ export class IPCRouter extends EventEmitter {
     if (msg.method === '__subscribe') {
       const event = msg.params?.event as string;
       if (event) {
-        this.subscribe(event, (ev) => {
+        this.subscribe(event, (ev: IPCMessage) => {
           this.sendToSocket(socket, {
             id: msg.id,
             type: 'event',
             method: event,
-            params: ev,
+            params: ev.params as Record<string, unknown>,
           });
         });
       }
