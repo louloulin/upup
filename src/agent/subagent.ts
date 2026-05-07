@@ -59,6 +59,8 @@ export interface SubagentConfig {
   cwd?: string;
   /** Run in background (non-blocking) */
   runInBackground?: boolean;
+  /** Timeout in milliseconds (default: 300000 = 5 minutes) */
+  timeoutMs?: number;
 }
 
 /**

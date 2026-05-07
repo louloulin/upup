@@ -9,7 +9,8 @@
 
 import { z } from 'zod';
 import { DynamicStructuredTool } from '@langchain/core/tools';
-import { getDefaultSubagentRunner, type SubagentConfig, type SubagentContext } from '../agent/subagent-runner.js';
+import { getDefaultSubagentRunner } from '../agent/subagent-runner.js';
+import type { SubagentConfig, SubagentContext } from '../agent/subagent.js';
 import type { StructuredToolInterface } from '@langchain/core/tools';
 
 /**

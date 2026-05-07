@@ -8,12 +8,14 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
-import type { Client as MCPClientType, Tool as MCPTool } from '@modelcontextprotocol/sdk/types.js';
+import type { Tool as MCPTool } from '@modelcontextprotocol/sdk/types.js';
+import { ToolListChangedNotificationSchema } from '@modelcontextprotocol/sdk/types.js';
 import type { StructuredToolInterface } from '@langchain/core/tools';
-import type { z } from 'zod';
+import { z } from 'zod';
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { info, error as logError } from '../utils/logging/logger.js';
 
 /**
  * MCP Server configuration
@@ -66,7 +68,7 @@ export interface MCPServerConnection {
  * Manages connections to MCP servers and tool discovery
  */
 export class MCPClientManager {
-  private clients: Map<string, MCPClientType> = new Map();
+  private clients: Map<string, any> = new Map();
   private transports: Map<string, any> = new Map();
   private connections: Map<string, MCPServerConnection> = new Map();
   private config: MCPClientConfig;
@@ -84,7 +86,7 @@ export class MCPClientManager {
     const { name, command, args, env, url, autoConnect = true } = serverConfig;
 
     if (this.clients.has(name)) {
-      console.log(`[MCP] Server ${name} already connected`);
+      info('mcp', `Server ${name} already connected`);
       return;
     }
 
@@ -101,10 +103,16 @@ export class MCPClientManager {
 
       if (command) {
         // Stdio transport (local process)
+        const envRecord: Record<string, string> = {};
+        if (env) {
+          for (const [key, value] of Object.entries(env)) {
+            envRecord[key] = value;
+          }
+        }
         transport = new StdioClientTransport({
           command,
           args: args || [],
-          env: env ? { ...process.env, ...env } : undefined,
+          env: Object.keys(envRecord).length > 0 ? envRecord : undefined,
         });
       } else if (url) {
         // SSE transport (remote server)
@@ -121,10 +129,10 @@ export class MCPClientManager {
       this.transports.set(name, transport);
 
       // Set up tool notification handler
-      client.setRequestHandler(
-        { method: 'notifications/tools/list_changed' },
+      client.setNotificationHandler(
+        ToolListChangedNotificationSchema,
         async () => {
-          console.log(`[MCP] Tools changed for server ${name}`);
+          info('mcp', `Tools changed for server ${name}`);
           await this.refreshTools(name);
         }
       );
@@ -133,12 +141,12 @@ export class MCPClientManager {
       await this.refreshTools(name);
 
       this.updateConnectionState(name, 'connected');
-      console.log(`[MCP] Connected to server: ${name}`);
+      info('mcp', `Connected to server: ${name}`);
 
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.updateConnectionState(name, 'error', message);
-      console.error(`[MCP] Failed to connect to ${name}:`, message);
+      logError('mcp', `Failed to connect to ${name}: ${message}`);
       throw error;
     }
   }
@@ -154,7 +162,7 @@ export class MCPClientManager {
       try {
         await client.close();
       } catch (error) {
-        console.error(`[MCP] Error closing ${serverName}:`, error);
+        logError('mcp', `Error closing ${serverName}: ${error instanceof Error ? error.message : String(error)}`);
       }
       this.clients.delete(serverName);
     }
@@ -164,7 +172,7 @@ export class MCPClientManager {
     }
 
     this.updateConnectionState(serverName, 'disconnected');
-    console.log(`[MCP] Disconnected from server: ${serverName}`);
+    info('mcp', `Disconnected from server: ${serverName}`);
   }
 
   /**
@@ -185,7 +193,7 @@ export class MCPClientManager {
     try {
       const toolsResult = await client.request(
         { method: 'tools/list' },
-        { tools: [] as any }
+        { tools: [] }
       );
 
       const connection = this.connections.get(serverName);
@@ -197,7 +205,7 @@ export class MCPClientManager {
       await this.updateLangChainTools(serverName);
 
     } catch (error) {
-      console.error(`[MCP] Failed to refresh tools from ${serverName}:`, error);
+      logError('mcp', `Failed to refresh tools from ${serverName}: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -207,48 +215,41 @@ export class MCPClientManager {
   private mcpToolToLangChainTool(
     mcpTool: MCPTool,
     serverName: string,
-    client: MCPClientType
+    client: any
   ): StructuredToolInterface {
     const toolName = `mcp__${serverName}__${mcpTool.name}`;
     const description = mcpTool.description || `MCP tool: ${mcpTool.name}`;
 
     // Parse input schema
-    let schema: z.ZodType<any> = z.object({});
+    let schema = z.object({});
     if (mcpTool.inputSchema && typeof mcpTool.inputSchema === 'object') {
       const schemaObj = mcpTool.inputSchema as Record<string, any>;
       if (schemaObj.type === 'object' && schemaObj.properties) {
-        const properties: Record<string, z.ZodType<any>> = {};
+        const properties: Record<string, any> = {};
         const required: string[] = schemaObj.required || [];
 
         for (const [key, prop] of Object.entries(schemaObj.properties)) {
           const propObj = prop as Record<string, any>;
-          let zodType: z.ZodType<any>;
 
           switch (propObj.type) {
             case 'string':
-              zodType = z.string();
+              properties[key] = z.string();
               break;
             case 'number':
-              zodType = z.number();
+              properties[key] = z.number();
               break;
             case 'boolean':
-              zodType = z.boolean();
+              properties[key] = z.boolean();
               break;
             case 'array':
-              zodType = z.array(z.any());
+              properties[key] = z.array(z.any());
               break;
             case 'object':
-              zodType = z.record(z.any());
+              properties[key] = z.record(z.string(), z.any());
               break;
             default:
-              zodType = z.any();
+              properties[key] = z.any();
           }
-
-          if (!required.includes(key)) {
-            zodType = zodType.optional();
-          }
-
-          properties[key] = zodType;
         }
 
         schema = z.object(properties);
@@ -378,7 +379,31 @@ export function loadMCPConfig(configPath?: string): MCPClientConfig {
 
   try {
     const content = readFileSync(path, 'utf-8');
-    return JSON.parse(content);
+    const parsed = JSON.parse(content);
+
+    // Handle different config formats
+    // Format 1: MCP official format (servers as object)
+    if (parsed.servers && typeof parsed.servers === 'object' && !Array.isArray(parsed.servers)) {
+      const servers: MCPServerConfig[] = Object.entries(parsed.servers).map(([name, config]) => {
+        const cfg = config as Record<string, unknown>;
+        return {
+          name,
+          command: cfg.command as string,
+          args: cfg.args as string[],
+          env: cfg.env as Record<string, string>,
+          url: cfg.url as string,
+          autoConnect: cfg.autoConnect !== false,
+        };
+      });
+      return { servers };
+    }
+
+    // Format 2: Direct array format
+    if (Array.isArray(parsed.servers)) {
+      return parsed as MCPClientConfig;
+    }
+
+    return { servers: [] };
   } catch {
     // Return empty config if file doesn't exist
     return { servers: [] };
