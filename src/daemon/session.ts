@@ -332,9 +332,9 @@ export class SessionManager {
   // -------------------------------------------------------------------------
 
   /**
-   * Start session
+   * Start/resume a session
    */
-  async start(id: string): Promise<void> {
+  async startSession(id: string): Promise<void> {
     const session = this.sessions.get(id);
     if (!session) throw new Error(`Session not found: ${id}`);
 
