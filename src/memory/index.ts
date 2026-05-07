@@ -1,8 +1,20 @@
+/**
+ * Dexter Memory Manager
+ *
+ * Based on Claude Code's memory system:
+ * - 4-type classification (user, feedback, project, reference)
+ * - AI-Selector primary recall
+ * - Memvid MV2 storage + BM25 search (no embedding API dependency)
+ * - 2-phase extraction (per-turn + consolidation)
+ */
+
 import { MemoryDatabase } from './database.js';
-import { createEmbeddingClient } from './embeddings.js';
 import { MemoryIndexer } from './indexer.js';
-import { hybridSearch } from './search.js';
+import { scanSearch } from './search.js';
 import { MemoryStore } from './store.js';
+import { getMemvidStore } from './memvid-store.js';
+import { ensureMemoryIndex } from './scanner.js';
+import type { MemoryEmbeddingClient } from './types.js';
 import type {
   MemoryReadOptions,
   MemoryReadResult,
@@ -12,8 +24,68 @@ import type {
   MemorySessionContext,
   TemporalDecayConfig,
   MMRConfig,
+  MemoryType,
+  MemoryWriteRequest,
 } from './types.js';
 import { getSetting } from '../utils/config.js';
+
+// Re-export AI Memory Selector
+export {
+  findRelevantMemories,
+  findAndLoadRelevantMemories,
+  verifyMemory,
+  type SelectedMemory,
+  type SelectedMemoryWithContent,
+  type FindRelevantMemoriesOptions,
+} from './ai-selector.js';
+
+// Re-export types
+export { MEMORY_TYPES } from './types.js';
+export type { MemoryType, MemoryWriteRequest } from './types.js';
+
+// Re-export extraction
+export {
+  extractMemories,
+  hasToolCalls,
+  createExtractionHook,
+  type ExtractionResult,
+} from './extraction.js';
+
+// Re-export consolidation
+export {
+  consolidateMemories,
+  shouldConsolidate,
+} from './consolidation.js';
+
+// Re-export scanner
+export {
+  scanMemoryFiles,
+  scanTypedMemoryFiles,
+  filterByType,
+  groupByType,
+  buildManifest,
+  buildTypedManifest,
+  ensureMemoryIndex,
+  type ScannerOptions,
+} from './scanner.js';
+
+// Re-export prompts
+export {
+  EXTRACTION_SYSTEM_PROMPT,
+  CONSOLIDATION_SYSTEM_PROMPT,
+  SELECT_SYSTEM_PROMPT,
+} from './prompts.js';
+
+// Re-export memvid store
+export {
+  getMemvidStore,
+  type MemvidSearchResult,
+  type MemvidStats,
+} from './memvid-store.js';
+
+// ============================================================================
+// Config
+// ============================================================================
 
 const DEFAULT_CONFIG: MemoryRuntimeConfig = {
   enabled: true,
@@ -52,6 +124,10 @@ function resolveConfig(): MemoryRuntimeConfig {
   };
 }
 
+// ============================================================================
+// Memory Manager
+// ============================================================================
+
 export class MemoryManager {
   private static instance: MemoryManager | null = null;
 
@@ -80,10 +156,12 @@ export class MemoryManager {
     }
 
     await this.store.ensureDirectoryExists();
-    const client = createEmbeddingClient({
-      provider: this.config.embeddingProvider,
-      model: this.config.embeddingModel,
-    });
+
+    // Ensure MEMORY.md index exists (creates if not found)
+    await ensureMemoryIndex();
+
+    // Don't create embedding client - use Memvid BM25 instead (no API dependency)
+    const client: MemoryEmbeddingClient | null = null;
 
     try {
       this.db = await MemoryDatabase.create(`${this.store.getMemoryDir()}/index.sqlite`);
@@ -94,26 +172,15 @@ export class MemoryManager {
       return;
     }
 
-    const fingerprint = client ? `${client.provider}:${client.model}` : 'none:none';
-    if (this.db.getProviderFingerprint() !== fingerprint) {
-      this.db.clearEmbeddings();
-      this.db.setProviderFingerprint(fingerprint);
-    }
-
     this.indexer = new MemoryIndexer(this.store, this.db, {
       chunkTokens: this.config.chunkTokens,
       overlapTokens: this.config.chunkOverlapTokens,
       watchDebounceMs: this.config.watchDebounceMs,
-      embeddingClient: client,
+      embeddingClient: client, // null = skip embedding, use Memvid BM25
       indexSessions: this.config.indexSessions,
     });
     this.indexer.startWatching();
-
-    try {
-      await this.indexer.sync({ force: false });
-    } catch (error) {
-      this.initError = error instanceof Error ? error.message : String(error);
-    }
+    // Skip sync - Memvid BM25 doesn't need pre-indexing
   }
 
   isAvailable(): boolean {
@@ -137,31 +204,30 @@ export class MemoryManager {
 
   async search(query: string, options?: MemorySearchOptions): Promise<MemorySearchResult[]> {
     await this.initialize();
-    if (!this.db || !this.indexer) {
-      return [];
-    }
-    if (this.indexer.isDirty()) {
-      await this.indexer.sync();
-    }
 
-    const client = createEmbeddingClient({
-      provider: this.config.embeddingProvider,
-      model: this.config.embeddingModel,
-    });
-    return hybridSearch({
-      db: this.db,
-      embeddingClient: client,
-      query,
-      options,
-      defaults: {
-        maxResults: this.config.maxResults,
-        minScore: this.config.minScore,
-        vectorWeight: this.config.vectorWeight,
-        textWeight: this.config.textWeight,
-      },
-      temporalDecay: this.config.temporalDecay,
-      mmr: this.config.mmr,
-    });
+    // Use Memvid BM25 search directly - no embedding API needed
+    const memvidStore = await getMemvidStore();
+    try {
+      const memvidResults = await memvidStore.search(
+        query,
+        options?.maxResults ?? this.config.maxResults,
+      );
+
+      return memvidResults.map((r: { snippet: string; memory: { filePath: string; mtimeMs: number }; score: number }) => ({
+        snippet: r.snippet,
+        path: r.memory.filePath,
+        startLine: 1,
+        endLine: 1,
+        score: r.score,
+        source: 'keyword' as const,
+        contentSource: 'memory' as const,
+        updatedAt: r.memory.mtimeMs,
+      }));
+    } catch {
+      // Fall back to scan-based search
+      const { scanSearch } = await import('./search.js');
+      return scanSearch(query, { maxResults: options?.maxResults ?? this.config.maxResults });
+    }
   }
 
   async get(options: MemoryReadOptions): Promise<MemoryReadResult> {

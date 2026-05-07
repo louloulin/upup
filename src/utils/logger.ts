@@ -1,12 +1,19 @@
-type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+/**
+ * Logger Adapter - Bridges unified logging to CLI/TUI
+ *
+ * This module provides backward compatibility for components that use the old logger API.
+ * CLI logger does NOT output to console (TUI handles its own output).
+ * Only writes to file via unified logging system.
+ */
 
-interface LogEntry {
-  id: string;
-  level: LogLevel;
-  message: string;
-  timestamp: Date;
-  data?: unknown;
-}
+import { createLogger, type LogLevel, type LogCategory, type LogEntry } from './logging/logger.js';
+
+// Create a silent logger for CLI (no console output, only file)
+const silentLogger = createLogger({
+  enableConsole: false,  // CLI/TUI handles its own output
+  enableFile: true,
+  enableMemory: false,
+});
 
 type LogSubscriber = (logs: LogEntry[]) => void;
 
@@ -19,12 +26,37 @@ class DebugLogger {
     this.subscribers.forEach(fn => fn([...this.logs]));
   }
 
-  private add(level: LogLevel, message: string, data?: unknown) {
+  debug(message: string, data?: unknown) {
+    // Write to file only
+    silentLogger.debug('default', message, data);
+    this.addLog('debug', message, data);
+  }
+
+  info(message: string, data?: unknown) {
+    // Write to file only
+    silentLogger.info('default', message, data);
+    this.addLog('info', message, data);
+  }
+
+  warn(message: string, data?: unknown) {
+    // Write to file only
+    silentLogger.warn('default', message, data);
+    this.addLog('warn', message, data);
+  }
+
+  error(message: string, data?: unknown) {
+    // Write to file only as error
+    silentLogger.error('default', message);
+    this.addLog('error', message, data);
+  }
+
+  private addLog(level: LogLevel, message: string, data?: unknown) {
     const entry: LogEntry = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+      timestamp: new Date().toISOString(),
       level,
+      category: 'default',
       message,
-      timestamp: new Date(),
       data,
     };
     this.logs.push(entry);
@@ -34,25 +66,9 @@ class DebugLogger {
     this.emit();
   }
 
-  debug(message: string, data?: unknown) {
-    this.add('debug', message, data);
-  }
-
-  info(message: string, data?: unknown) {
-    this.add('info', message, data);
-  }
-
-  warn(message: string, data?: unknown) {
-    this.add('warn', message, data);
-  }
-
-  error(message: string, data?: unknown) {
-    this.add('error', message, data);
-  }
-
   subscribe(fn: LogSubscriber): () => void {
     this.subscribers.add(fn);
-    fn([...this.logs]); // Send current logs immediately
+    fn([...this.logs]);
     return () => this.subscribers.delete(fn);
   }
 

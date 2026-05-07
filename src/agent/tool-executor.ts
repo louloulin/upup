@@ -14,6 +14,7 @@ import type {
   ToolStartEvent,
 } from './types.js';
 import type { RunContext } from './run-context.js';
+import { info, warn, perf } from '../utils/logging/logger.js';
 
 type ToolExecutionEvent =
   | ToolStartEvent
@@ -151,6 +152,7 @@ export class AgentToolExecutor {
     }
 
     yield { type: 'tool_start', tool: toolName, args: toolArgs, toolCallId };
+    info('tools', `Tool started: ${toolName}`);
 
     const toolStartTime = Date.now();
 
@@ -180,12 +182,14 @@ export class AgentToolExecutor {
       const duration = Date.now() - toolStartTime;
 
       yield { type: 'tool_end', tool: toolName, args: toolArgs, result, duration, toolCallId };
+      perf('tools', `Tool completed: ${toolName}`, duration);
 
       ctx.scratchpad.recordToolCall(toolName, toolQuery);
       ctx.scratchpad.addToolResult(toolName, toolArgs, result);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       yield { type: 'tool_error', tool: toolName, error: errorMessage, toolCallId };
+      warn('tools', `Tool error: ${toolName} - ${errorMessage}`);
 
       ctx.scratchpad.recordToolCall(toolName, toolQuery);
       ctx.scratchpad.addToolResult(toolName, toolArgs, `Error: ${errorMessage}`);
