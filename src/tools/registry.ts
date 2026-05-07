@@ -15,6 +15,8 @@ import { heartbeatTool, HEARTBEAT_TOOL_DESCRIPTION } from './heartbeat/heartbeat
 import { cronTool, CRON_TOOL_DESCRIPTION } from './cron/cron-tool.js';
 import { memoryGetTool, MEMORY_GET_DESCRIPTION, memorySearchTool, MEMORY_SEARCH_DESCRIPTION, memoryUpdateTool, MEMORY_UPDATE_DESCRIPTION } from './memory/index.js';
 import { discoverSkills } from '../skills/index.js';
+import { getMCPStatus, mcpToolsToRegisteredTools, getMCPToolDescriptions } from '../mcp/index.js';
+import { getDefaultMCPClient } from '../mcp/client.js';
 
 import { getAStockPrice, GET_ASTOCK_PRICE_DESCRIPTION } from './astock/get-astock-price.js';
 import { getAStockFinancials, GET_ASTOCK_FINANCIALS_DESCRIPTION } from './astock/get-astock-financials.js';
@@ -244,6 +246,31 @@ export function getToolRegistry(model: string): RegisteredTool[] {
       compactDescription: 'Invoke a specialized skill workflow (e.g., DCF valuation).',
       concurrencySafe: false,
     });
+  }
+
+  // Add MCP tools from configured servers
+  try {
+    const mcpClient = getDefaultMCPClient();
+    const mcpTools = mcpToolsToRegisteredTools(mcpClient);
+
+    for (const mcpTool of mcpTools) {
+      tools.push({
+        name: mcpTool.name,
+        tool: mcpTool.tool,
+        description: mcpTool.description,
+        compactDescription: mcpTool.compactDescription,
+        concurrencySafe: mcpTool.concurrencySafe,
+      });
+    }
+
+    // Log MCP status for debugging
+    const status = getMCPStatus(mcpClient);
+    if (status.connectedServers > 0) {
+      console.log(`[ToolRegistry] MCP: ${status.connectedServers}/${status.totalServers} servers connected, ${status.totalTools} tools available`);
+    }
+  } catch (error) {
+    // MCP initialization failed, tools will be empty
+    console.log('[ToolRegistry] MCP not configured or initialization failed');
   }
 
   return tools;

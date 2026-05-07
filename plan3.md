@@ -288,7 +288,7 @@
 | **工具数量** | 50+ | 23 | 🟡 中 | P1 |
 | **工具接口** | 丰富的 Tool 接口 | 基础 DynamicStructuredTool | 🟡 中 | P1 |
 | **工具执行** | runTools() 并发分区 | AgentToolExecutor | 🟢 同级 | - |
-| **MCP 集成** | ✅ 4种传输 | ❌ 无 | 🔴 高 | **P0** |
+| **MCP 集成** | ✅ 4种传输 | ✅ 已实现 | 🟢 完成 | **✅ P0** |
 | **Subagent** | ✅ AgentTool + Fork | ❌ 无 | 🔴 高 | **P0** |
 | **后台任务** | Daemon + 5 Workers | 仅 Cron | 🔴 高 | P1 |
 | **任务类型** | 7种任务类型 | 仅 Cron | 🟡 中 | P1 |
@@ -298,11 +298,95 @@
 | **主动模式** | Proactive + EventBus | ❌ 无 | 🟡 中 | P2 |
 | **状态管理** | AppState + Provider | 基础变量 | 🟡 中 | P2 |
 
-### 3.2 关键差距详解
+---
 
-#### Gap 1: MCP 集成 (P0 - 最高优先)
+## 3. 实现状态追踪
 
-**现状**: Dexter 完全不支持 MCP
+### ✅ Phase 0: 已完成
+
+| 功能 | 状态 | 文件 | 日期 |
+|------|------|------|------|
+| **MCP 集成** | ✅ 已实现 | `src/mcp/client.ts`, `src/mcp/registry.ts`, `src/mcp/index.ts` | 2026-05-07 |
+| MCP SDK 集成 | ✅ 使用官方 `@modelcontextprotocol/sdk` | `package.json` | 2026-05-07 |
+| Stdio 传输 | ✅ 已实现 | `src/mcp/client.ts` | 2026-05-07 |
+| SSE 传输 | ✅ 已实现 | `src/mcp/client.ts` | 2026-05-07 |
+| 工具注册集成 | ✅ 已实现 | `src/tools/registry.ts` | 2026-05-07 |
+| 配置文件 | ✅ 已创建 | `.dexter/mcp-config.json` | 2026-05-07 |
+
+### 📋 Phase 1: 进行中
+
+| 功能 | 状态 | 优先级 |
+|------|------|--------|
+| Subagent 系统 | 🔄 待实现 | P0 |
+| 后台任务系统 | 🔄 待实现 | P1 |
+| 计划模式 | 🔄 待实现 | P1 |
+
+### 📋 Phase 2-4: 待实现
+
+| 功能 | 状态 | 优先级 |
+|------|------|--------|
+| Daemon + Workers | 🔄 待实现 | P1 |
+| AI 记忆选择 | 🔄 待实现 | P2 |
+| 权限系统增强 | 🔄 待实现 | P2 |
+| Proactive 模式 | 🔄 待实现 | P2 |
+
+---
+
+## 4. MCP 实现详情
+
+### 4.1 已实现功能
+
+```
+src/mcp/
+├── client.ts       # MCP 客户端核心
+│   ├── MCPClientManager 类
+│   ├── StdioClientTransport 支持
+│   ├── SSEClientTransport 支持
+│   ├── 自动工具发现
+│   └── LangChain 工具转换
+├── registry.ts     # 工具注册集成
+│   ├── mcpToolsToRegisteredTools()
+│   ├── getMCPToolDescriptions()
+│   └── getMCPStatus()
+└── index.ts        # 模块导出
+```
+
+### 4.2 使用方式
+
+1. **安装依赖** (网络恢复后):
+```bash
+bun add @modelcontextprotocol/sdk
+```
+
+2. **配置 MCP 服务器** (`.dexter/mcp-config.json`):
+```json
+{
+  "servers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "."]
+    }
+  }
+}
+```
+
+3. **自动集成**: 工具会自动注册到工具注册表
+
+---
+
+## 5. 关键差距详解
+
+### 5.1 MCP 集成 (✅ 已完成)
+
+**现状**: Dexter 已支持 MCP
+
+**已实现**:
+- 使用官方 `@modelcontextprotocol/sdk`
+- Stdio 传输支持
+- SSE 传输支持
+- 动态工具发现
+- LangChain DynamicStructuredTool 转换
+- 工具注册表集成
 
 **Loucode 实现**:
 ```typescript
