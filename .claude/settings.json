@@ -1,0 +1,23 @@
+{
+  "hooks": {
+    "enabled": true,
+    "directory": ".claude/hooks",
+    "scripts": [
+      {
+        "name": "rate-limit",
+        "path": ".claude/hooks/rate-limit.sh",
+        "description": "Rate limiting for API calls"
+      },
+      {
+        "name": "validate-api-keys",
+        "path": ".claude/hooks/validate-api-keys.sh",
+        "description": "API key validation"
+      },
+      {
+        "name": "cache",
+        "path": ".claude/hooks/cache.sh",
+        "description": "Response caching"
+      }
+    ]
+  }
+}
