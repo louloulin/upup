@@ -4,6 +4,28 @@ import { exaSearch, perplexitySearch, tavilySearch, WEB_SEARCH_DESCRIPTION, xSea
 import { skillTool, SKILL_TOOL_DESCRIPTION } from './skill.js';
 import { webFetchTool, WEB_FETCH_DESCRIPTION } from './fetch/web-fetch.js';
 import { browserTool, BROWSER_DESCRIPTION } from './browser/browser.js';
+
+// Lazy load - avoid importing browser module unless needed
+let browserToolCache: typeof browserTool | null = null;
+let browserToolDescriptionCache: string | null = null;
+let playwrightAvailableCache: boolean | null = null;
+
+/**
+ * Check if playwright is available in the environment.
+ * Uses cached result for performance.
+ */
+async function isPlaywrightAvailable(): Promise<boolean> {
+  if (playwrightAvailableCache !== null) {
+    return playwrightAvailableCache;
+  }
+  try {
+    await import('playwright');
+    playwrightAvailableCache = true;
+  } catch {
+    playwrightAvailableCache = false;
+  }
+  return playwrightAvailableCache;
+}
 import { readFileTool, READ_FILE_DESCRIPTION } from './filesystem/read-file.js';
 import { writeFileTool, WRITE_FILE_DESCRIPTION } from './filesystem/write-file.js';
 import { editFileTool, EDIT_FILE_DESCRIPTION } from './filesystem/edit-file.js';
@@ -97,7 +119,7 @@ export interface RegisteredTool {
  * @param model - The model name (needed for tools that require model-specific configuration)
  * @returns Array of registered tools
  */
-export function getToolRegistry(model: string): RegisteredTool[] {
+export async function getToolRegistry(model: string): Promise<RegisteredTool[]> {
   const tools: RegisteredTool[] = [
     {
       name: 'get_financials',
@@ -183,13 +205,19 @@ export function getToolRegistry(model: string): RegisteredTool[] {
       compactDescription: 'Fetch and extract content from a URL as markdown. Use when you need full article text beyond headlines.',
       concurrencySafe: true,
     },
-    {
-      name: 'browser',
-      tool: browserTool,
-      description: BROWSER_DESCRIPTION,
-      compactDescription: 'JavaScript-rendered pages and interactive navigation. Actions: navigate, snapshot, act, read, close.',
-      concurrencySafe: true,
-    },
+    // Browser tool - conditionally registered only when playwright is available
+    // This prevents errors when playwright is not installed
+    ...(await isPlaywrightAvailable()
+      ? [
+          {
+            name: 'browser' as const,
+            tool: browserTool,
+            description: BROWSER_DESCRIPTION,
+            compactDescription: 'JavaScript-rendered pages and interactive navigation. Actions: navigate, snapshot, act, read, close.',
+            concurrencySafe: true,
+          },
+        ]
+      : []),
     {
       name: 'read_file',
       tool: readFileTool,
@@ -512,8 +540,9 @@ export function getToolRegistry(model: string): RegisteredTool[] {
 /**
  * Build a name → concurrencySafe map for the tool executor.
  */
-export function getToolConcurrencyMap(model: string): Map<string, boolean> {
-  return new Map(getToolRegistry(model).map(t => [t.name, t.concurrencySafe]));
+export async function getToolConcurrencyMap(model: string): Promise<Map<string, boolean>> {
+  const tools = await getToolRegistry(model);
+  return new Map(tools.map(t => [t.name, t.concurrencySafe]));
 }
 
 /**
@@ -522,8 +551,9 @@ export function getToolConcurrencyMap(model: string): Map<string, boolean> {
  * @param model - The model name
  * @returns Array of tool instances
  */
-export function getTools(model: string): StructuredToolInterface[] {
-  return getToolRegistry(model).map((t) => t.tool);
+export async function getTools(model: string): Promise<StructuredToolInterface[]> {
+  const tools = await getToolRegistry(model);
+  return tools.map(t => t.tool);
 }
 
 /**
@@ -538,8 +568,9 @@ export function getTools(model: string): StructuredToolInterface[] {
  * Uses 1-2 sentence descriptions instead of full multi-paragraph ones.
  * The LLM already has full tool schemas via bindTools().
  */
-export function buildCompactToolDescriptions(model: string): string {
-  return getToolRegistry(model)
+export async function buildCompactToolDescriptions(model: string): Promise<string> {
+  const tools = await getToolRegistry(model);
+  return tools
     .map((t) => `- **${t.name}**: ${t.compactDescription}`)
     .join('\n');
 }

@@ -428,7 +428,7 @@ export async function runCli() {
 
           // Tool count
           const { getTools } = await import('./tools/registry.js');
-          const tools = getTools(modelSelection.model);
+          const tools = await getTools(modelSelection.model);
           chatLog.addChild(new Spacer(1));
           chatLog.addChild(new Text(theme.bold('Tools:'), 0, 0));
           chatLog.addChild(new Text(`  Registered: ${tools.length}`, 0, 0));
