@@ -331,11 +331,15 @@
 | TasksWorker | ✅ 已实现 | `src/daemon/workers/tasks.ts` | 2026-05-07 |
 | 模块导出 | ✅ 已实现 | `src/daemon/index.ts` | 2026-05-07 |
 
-### 📋 Phase 1: 进行中
+### ✅ Phase 1: 计划模式 (已完成)
 
-| 功能 | 状态 | 优先级 |
-|------|------|--------|
-| 计划模式 | 🔄 待实现 | P1 |
+| 功能 | 状态 | 文件 | 日期 |
+|------|------|------|------|
+| **PlanContext 类型** | ✅ 已实现 | `src/plan/plan-context.ts` | 2026-05-07 |
+| EnterPlanMode 工具 | ✅ 已实现 | `src/tools/plan/enter-plan-mode.ts` | 2026-05-07 |
+| ExitPlanMode 工具 | ✅ 已实现 | `src/tools/plan/exit-plan-mode.ts` | 2026-05-07 |
+| 计划步骤工具 | ✅ 已实现 | `src/tools/plan/plan-steps.ts` | 2026-05-07 |
+| 工具注册集成 | ✅ 已实现 | `src/tools/registry.ts` | 2026-05-07 |
 
 ### 📋 Phase 2-4: 待实现
 
