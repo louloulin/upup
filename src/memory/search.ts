@@ -1,131 +1,109 @@
+/**
+ * Memory Search - Hybrid search using Memvid + FTS5 fallback
+ *
+ * Based on Claude Code's memory architecture:
+ * - Primary: AI-Selector (LLM semantic selection)
+ * - Secondary: Memvid.find(mode: 'lex') BM25 search
+ * - Fallback: SQLite FTS5 keyword search
+ *
+ * No external embedding API dependency.
+ */
+
 import { buildSnippet } from './chunker.js';
-import { embedSingleQuery } from './embeddings.js';
-import { applyTemporalDecay } from './temporal-decay.js';
-import { applyMMRToHybridResults } from './mmr.js';
+import { getMemvidStore } from './memvid-store.js';
+import { scanTypedMemoryFiles } from './scanner.js';
 import type { MemoryDatabase } from './database.js';
 import type {
-  MemoryEmbeddingClient,
   MemorySearchOptions,
   MemorySearchResult,
+  MemoryEmbeddingClient,
   TemporalDecayConfig,
   MMRConfig,
 } from './types.js';
+import { applyTemporalDecay } from './temporal-decay.js';
+import { applyMMRToHybridResults } from './mmr.js';
+import { warn, error } from '../utils/logging/logger.js';
 
-type CombinedScore = {
-  id: number;
-  vectorScore: number;
-  keywordScore: number;
-};
+// ============================================================================
+// Types
+// ============================================================================
 
-function normalizeWeights(vectorWeight: number, textWeight: number): { vector: number; text: number } {
-  const sum = vectorWeight + textWeight;
-  if (sum <= 0) {
-    return { vector: 0.7, text: 0.3 };
-  }
-  return {
-    vector: vectorWeight / sum,
-    text: textWeight / sum,
-  };
-}
-
-export async function hybridSearch(params: {
-  db: MemoryDatabase;
-  embeddingClient: MemoryEmbeddingClient | null;
+interface SearchParams {
+  db?: MemoryDatabase | null;
   query: string;
   options?: MemorySearchOptions;
   defaults: {
     maxResults: number;
     minScore: number;
-    vectorWeight: number;
-    textWeight: number;
+    vectorWeight?: number;
+    textWeight?: number;
   };
   temporalDecay?: TemporalDecayConfig;
   mmr?: MMRConfig;
-}): Promise<MemorySearchResult[]> {
+  embeddingClient?: MemoryEmbeddingClient | null;
+}
+
+// ============================================================================
+// Hybrid Search
+// ============================================================================
+
+/**
+ * Hybrid search using Memvid BM25 + FTS5 fallback.
+ *
+ * Search order:
+ * 1. Try Memvid BM25 search (fastest, no API)
+ * 2. Fall back to SQLite FTS5 if Memvid unavailable
+ * 3. Apply temporal decay and MMR re-ranking
+ */
+export async function hybridSearch(params: SearchParams): Promise<MemorySearchResult[]> {
   const maxResults = Math.max(1, params.options?.maxResults ?? params.defaults.maxResults);
   const minScore = params.options?.minScore ?? params.defaults.minScore;
-  const candidateCount = maxResults * 4;
 
-  const queryEmbedding = await embedSingleQuery(params.embeddingClient, params.query);
-  const vectorCandidates = queryEmbedding ? params.db.searchVector(queryEmbedding, candidateCount) : [];
-  const keywordCandidates = params.db.searchKeyword(params.query, candidateCount);
+  let results: MemorySearchResult[] = [];
 
-  // When a search path is unavailable (no embedding client → no vector results),
-  // give full weight to the path that did run so scores aren't artificially suppressed.
-  const hasVector = vectorCandidates.length > 0;
-  const hasKeyword = keywordCandidates.length > 0;
-  const weights =
-    hasVector && hasKeyword
-      ? normalizeWeights(params.defaults.vectorWeight, params.defaults.textWeight)
-      : hasVector
-        ? { vector: 1, text: 0 }
-        : { vector: 0, text: 1 };
+  // Try Memvid BM25 search first (no API dependency)
+  try {
+    const memvidStore = await getMemvidStore();
+    const memvidResults = await memvidStore.search(params.query, maxResults * 2);
 
-  const scoreMap = new Map<number, CombinedScore>();
-  for (const candidate of vectorCandidates) {
-    scoreMap.set(candidate.chunkId, {
-      id: candidate.chunkId,
-      vectorScore: candidate.score,
-      keywordScore: 0,
-    });
-  }
-  for (const candidate of keywordCandidates) {
-    const existing = scoreMap.get(candidate.chunkId);
-    if (existing) {
-      existing.keywordScore = candidate.score;
-    } else {
-      scoreMap.set(candidate.chunkId, {
-        id: candidate.chunkId,
-        vectorScore: 0,
-        keywordScore: candidate.score,
-      });
+    results = memvidResults.map(r => ({
+      snippet: r.snippet,
+      path: r.memory.filePath,
+      startLine: 1,
+      endLine: 1,
+      score: r.score,
+      source: 'keyword' as const,
+      contentSource: 'memory' as const,
+      updatedAt: r.memory.mtimeMs,
+    }));
+  } catch (e) {
+    warn('memory', 'Memvid search failed, falling back to FTS5');
+
+    // Fall back to SQLite FTS5
+    if (params.db) {
+      const fts5Results = params.db.searchKeyword(params.query, maxResults * 2);
+      results = fts5Results
+        .map(r => {
+          const detail = params.db!.loadResultsByIds([r.chunkId])[0];
+          if (!detail) return null;
+          const result: MemorySearchResult = {
+            snippet: detail.snippet,
+            path: detail.path,
+            startLine: detail.startLine,
+            endLine: detail.endLine,
+            score: r.score,
+            source: 'keyword',
+            contentSource: detail.contentSource,
+            updatedAt: detail.updatedAt,
+          };
+          return result;
+        })
+        .filter((r): r is MemorySearchResult => r !== null);
     }
   }
 
-  // Stage 1: Weighted merge + minScore filter.
-  const merged = Array.from(scoreMap.values())
-    .map((entry) => ({
-      ...entry,
-      finalScore: entry.vectorScore * weights.vector + entry.keywordScore * weights.text,
-    }))
-    .filter((entry) => entry.finalScore >= minScore)
-    .sort((a, b) => b.finalScore - a.finalScore);
-
-  // Stage 2: Load full details for all candidates (needed for decay + MMR).
-  // We load more than maxResults because decay and MMR will re-rank them.
-  const ids = merged.map((entry) => entry.id);
-  const details = params.db.loadResultsByIds(ids);
-  const byId = new Map<number, MemorySearchResult>();
-  for (const [index, detail] of details.entries()) {
-    const id = ids[index];
-    if (id !== undefined) {
-      byId.set(id, detail);
-    }
-  }
-
-  let results: MemorySearchResult[] = merged
-    .map((entry) => {
-      const detail = byId.get(entry.id);
-      if (!detail) {
-        return null;
-      }
-      const source =
-        entry.vectorScore > 0 && entry.keywordScore > 0
-          ? 'both'
-          : entry.vectorScore > 0
-            ? 'vector'
-            : 'keyword';
-      return {
-        ...detail,
-        snippet: buildSnippet(detail.snippet, 700),
-        score: entry.finalScore,
-        source,
-      } as MemorySearchResult;
-    })
-    .filter((entry): entry is MemorySearchResult => Boolean(entry));
-
-  // Stage 3: Temporal decay — recent memories score higher, MEMORY.md stays evergreen.
-  if (params.temporalDecay?.enabled) {
+  // Apply temporal decay
+  if (params.temporalDecay?.enabled && results.length > 0) {
     results = applyTemporalDecay({
       results,
       config: params.temporalDecay,
@@ -133,13 +111,105 @@ export async function hybridSearch(params: {
     results.sort((a, b) => b.score - a.score);
   }
 
-  // Stage 4: MMR re-ranking — ensure diversity in results.
-  if (params.mmr?.enabled) {
-    // Feed MMR more candidates than final maxResults for better diversity selection.
+  // Apply MMR re-ranking for diversity
+  if (params.mmr?.enabled && results.length > 0) {
     const mmrInput = results.slice(0, maxResults * 2);
     results = applyMMRToHybridResults(mmrInput, params.mmr);
   }
 
-  // Stage 5: Final top-K selection.
-  return results.slice(0, maxResults);
+  // Final top-K selection with snippet building
+  return results
+    .slice(0, maxResults)
+    .map(r => ({
+      ...r,
+      snippet: buildSnippet(r.snippet, 700),
+    }));
+}
+
+/**
+ * Simple keyword search using Memvid BM25.
+ * No embedding API dependency.
+ */
+export async function keywordSearch(
+  query: string,
+  options: {
+    maxResults?: number;
+    typeFilter?: 'user' | 'feedback' | 'project' | 'reference';
+  } = {},
+): Promise<MemorySearchResult[]> {
+  const maxResults = options.maxResults ?? 10;
+
+  try {
+    const memvidStore = await getMemvidStore();
+    const results = await memvidStore.search(query, maxResults, options.typeFilter);
+
+    return results.map(r => ({
+      snippet: buildSnippet(r.snippet, 700),
+      path: r.memory.filePath,
+      startLine: 1,
+      endLine: 1,
+      score: r.score,
+      source: 'keyword' as const,
+      contentSource: 'memory' as const,
+      updatedAt: r.memory.mtimeMs,
+    }));
+  } catch (e) {
+    error('memory', 'Keyword search failed', e instanceof Error ? e : undefined);
+    return [];
+  }
+}
+
+/**
+ * Search using scanner + simple text matching.
+ * No external dependencies.
+ */
+export async function scanSearch(
+  query: string,
+  options: {
+    maxResults?: number;
+    typeFilter?: 'user' | 'feedback' | 'project' | 'reference';
+  } = {},
+): Promise<MemorySearchResult[]> {
+  const maxResults = options.maxResults ?? 10;
+  const queryLower = query.toLowerCase();
+  const queryWords = queryLower.split(/\s+/);
+
+  const memories = await scanTypedMemoryFiles();
+  const filtered = options.typeFilter
+    ? memories.filter(m => m.type === options.typeFilter)
+    : memories;
+
+  const scored = filtered.map(m => {
+    let score = 0;
+    const nameLower = m.name.toLowerCase();
+    const descLower = m.description.toLowerCase();
+
+    // Exact match in name
+    if (nameLower === queryLower) score += 100;
+    // Partial match in name
+    else if (nameLower.includes(queryLower)) score += 50;
+    // Word matches in name
+    else if (queryWords.every(w => nameLower.includes(w))) score += 30;
+
+    // Description matches
+    if (descLower.includes(queryLower)) score += 20;
+    else if (queryWords.some(w => descLower.includes(w))) score += 10;
+
+    return { memory: m, score };
+  });
+
+  return scored
+    .filter(s => s.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, maxResults)
+    .map(s => ({
+      snippet: buildSnippet(s.memory.description, 700),
+      path: s.memory.filePath,
+      startLine: 1,
+      endLine: 1,
+      score: s.score,
+      source: 'keyword' as const,
+      contentSource: 'memory' as const,
+      updatedAt: s.memory.mtimeMs,
+    }));
 }

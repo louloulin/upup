@@ -1,3 +1,23 @@
+// ============================================================================
+// 4-type Memory Classification (Claude Code)
+// ============================================================================
+
+export const MEMORY_TYPES = ['user', 'feedback', 'project', 'reference'] as const;
+export type MemoryType = (typeof MEMORY_TYPES)[number];
+
+export function parseMemoryType(raw: unknown): MemoryType | undefined {
+  if (typeof raw !== 'string') return undefined;
+  return MEMORY_TYPES.find(t => t === raw);
+}
+
+export function isValidMemoryType(type: string): type is MemoryType {
+  return MEMORY_TYPES.includes(type as MemoryType);
+}
+
+// ============================================================================
+// Embedding / Provider Types (legacy, being phased out)
+// ============================================================================
+
 export type EmbeddingProviderId = 'openai' | 'gemini' | 'ollama' | 'auto' | 'none';
 
 export type ContentSource = 'memory' | 'sessions';
@@ -11,6 +31,10 @@ export type MMRConfig = {
   enabled: boolean;
   lambda: number;
 };
+
+// ============================================================================
+// Memory Runtime Configuration
+// ============================================================================
 
 export interface MemoryRuntimeConfig {
   enabled: boolean;
@@ -28,6 +52,40 @@ export interface MemoryRuntimeConfig {
   mmr: MMRConfig;
   indexSessions: boolean;
 }
+
+// ============================================================================
+// Memory File Types (4-type with frontmatter)
+// ============================================================================
+
+export interface MemoryFileMeta {
+  /** File name (relative to memory dir) */
+  filename: string;
+  /** Memory type from frontmatter */
+  type: MemoryType;
+  /** One-line description from frontmatter */
+  description: string;
+  /** Name from frontmatter */
+  name: string;
+  /** Full file path */
+  filePath: string;
+  /** File modification time */
+  mtimeMs: number;
+}
+
+export interface MemoryWriteRequest {
+  /** Memory type */
+  type: MemoryType;
+  /** Short kebab-case name for the file */
+  name: string;
+  /** One-line description for AI selection */
+  description: string;
+  /** Memory body content */
+  content: string;
+}
+
+// ============================================================================
+// Search Types
+// ============================================================================
 
 export interface MemoryChunk {
   id?: number;

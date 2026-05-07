@@ -17,7 +17,10 @@ import { createRunContext, type RunContext } from './run-context.js';
 import { AgentToolExecutor } from './tool-executor.js';
 import { MemoryManager } from '../memory/index.js';
 import { runMemoryFlush, shouldRunMemoryFlush } from '../memory/flush.js';
+import { createExtractionHook, type ExtractionResult } from '../memory/extraction.js';
+import { getObservationBuffer } from '../memory/observation-buffer.js';
 import { resolveProvider } from '../providers.js';
+import { warn, error, info, perf } from '../utils/logging/logger.js';
 
 
 const DEFAULT_MODEL = 'gpt-5.4';
@@ -44,6 +47,7 @@ export class Agent {
   private readonly signal?: AbortSignal;
   private readonly memoryEnabled: boolean;
   private readonly messageQueue?: MessageQueue;
+  private readonly extractionHook: (messages: { role: string; content: string }[], signal?: AbortSignal) => Promise<ExtractionResult[]>;
   private compactionFailures: number = 0;
 
   private constructor(
@@ -67,6 +71,10 @@ export class Agent {
     this.signal = config.signal;
     this.memoryEnabled = config.memoryEnabled ?? true;
     this.messageQueue = config.messageQueue;
+    this.extractionHook = createExtractionHook({
+      minTurnsBetweenExtractions: 5,
+      maxMemoriesPerExtraction: 3,
+    });
   }
 
   static async create(config: AgentConfig = {}): Promise<Agent> {
@@ -105,7 +113,12 @@ export class Agent {
   async *run(query: string, inMemoryHistory?: InMemoryChatHistory): AsyncGenerator<AgentEvent> {
     const startTime = Date.now();
 
+    // Log agent start
+    const queryPreview = query.length > 100 ? query.substring(0, 100) + '...' : query;
+    info('agent', `Agent started: "${queryPreview}"`);
+
     if (this.tools.length === 0) {
+      info('agent', 'No tools available');
       yield { type: 'done', answer: 'No tools available. Please check your API key configuration.', toolCalls: [], iterations: 0, totalTime: Date.now() - startTime };
       return;
     }
@@ -190,7 +203,7 @@ export class Agent {
 
       // No tool calls = final answer
       if (!hasToolCalls(response)) {
-        yield* this.handleDirectResponse(responseText ?? '', ctx);
+        yield* this.handleDirectResponse(responseText ?? '', ctx, messages);
         return;
       }
 
@@ -278,7 +291,9 @@ export class Agent {
   ): AsyncGenerator<StreamProgressEvent, { response: AIMessage; usage?: TokenUsage }> {
     try {
       return yield* this.streamAndAccumulate(messages);
-    } catch {
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      warn('agent', `Streaming failed, falling back to blocking: ${errorMessage}`);
       // Fallback to blocking invoke (handles providers without streaming support)
       return await this.callModelWithMessages(messages);
     }
@@ -290,6 +305,8 @@ export class Agent {
    * 'requesting' before the first chunk, then 'thinking'/'responding'/'tool-input'
    * derived from chunk content shape, then 'tool-use' after stream end if there
    * are tool calls awaiting execution.
+   *
+   * Has a 60-second timeout for first token. If exceeded, falls back to blocking.
    */
   private async *streamAndAccumulate(
     messages: BaseMessage[],
@@ -297,12 +314,23 @@ export class Agent {
     yield { type: 'stream_progress', charDelta: 0, mode: 'requesting' };
 
     let accumulated: AIMessageChunk | null = null;
+    const startTime = Date.now();
+    let gotFirstChunk = false;
 
     for await (const chunk of streamLlmWithMessages(messages, {
       model: this.model,
       tools: this.tools,
       signal: this.signal,
     })) {
+      // Timeout check: if no chunks for 60 seconds, abort and fallback
+      if (!gotFirstChunk) {
+        if (Date.now() - startTime > 60000) {
+          warn('agent', 'Streaming timeout (60s), falling back to blocking');
+          throw new Error('Stream timeout: no chunks received in 60s');
+        }
+      }
+      gotFirstChunk = true;
+
       accumulated = accumulated ? accumulated.concat(chunk) : chunk;
       const { charDelta, mode } = inspectChunkContent(chunk);
       if (charDelta > 0 || mode !== 'responding') {
@@ -367,6 +395,9 @@ export class Agent {
     let denied = false;
     const toolCalls = response.tool_calls!;
 
+    // Get observation buffer for memory extraction (Claude Code PostToolUse pattern)
+    const obsBuffer = getObservationBuffer();
+
     for await (const event of this.toolExecutor.executeAll(response, ctx)) {
       yield event;
 
@@ -376,12 +407,30 @@ export class Agent {
           tool_call_id: event.toolCallId,
           name: event.tool,
         }));
+
+        // Record observation for memory extraction (Claude Code PostToolUse pattern)
+        obsBuffer.recordObservation({
+          timestamp: Date.now(),
+          toolName: event.tool,
+          args: event.args || {},
+          result: event.result,
+          success: true,
+        });
       } else if (event.type === 'tool_error' && event.toolCallId) {
         toolMessageMap.set(event.toolCallId, new ToolMessage({
           content: `Error: ${event.error}`,
           tool_call_id: event.toolCallId,
           name: event.tool,
         }));
+
+        // Record error observation for memory extraction
+        obsBuffer.recordObservation({
+          timestamp: Date.now(),
+          toolName: event.tool,
+          args: {},
+          result: `Error: ${event.error}`,
+          success: false,
+        });
       } else if (event.type === 'tool_denied' && event.toolCallId) {
         toolMessageMap.set(event.toolCallId, new ToolMessage({
           content: 'Tool execution denied by user.',
@@ -431,15 +480,56 @@ export class Agent {
   private async *handleDirectResponse(
     responseText: string,
     ctx: RunContext,
+    messages: BaseMessage[],
   ): AsyncGenerator<AgentEvent, void> {
     const totalTime = Date.now() - ctx.startTime;
+
+    // Trigger per-turn memory extraction (non-blocking, in background)
+    // This runs after the final response when no tool calls were made
+    if (this.memoryEnabled) {
+      // Check observation buffer - if we have enough observations, extract from them
+      const obsBuffer = getObservationBuffer();
+
+      if (obsBuffer.shouldExtract(5)) {
+        // Extract from accumulated observations (Claude Code PostToolUse pattern)
+        const obsMessages = obsBuffer.toMessages();
+        obsBuffer.clear(); // Clear after reading
+        this.extractionHook(obsMessages, this.signal).catch(err => {
+          warn('memory', `Observation-based extraction failed: ${err}`);
+        });
+        info('memory', `Extraction triggered from ${obsMessages.length} observations`);
+      } else {
+        // Fallback: extract from conversation messages
+        const messageData = messages.map(m => ({
+          role: m.getType(),
+          content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
+        }));
+        // Fire and forget - extraction runs in background
+        this.extractionHook(messageData, this.signal).catch(err => {
+          warn('memory', `Per-turn extraction failed: ${err}`);
+        });
+      }
+    }
+
+    const toolCallRecords = ctx.scratchpad.getToolCallRecords();
+    const tokenUsage = ctx.tokenCounter.getUsage();
+
+    // Log agent completion
+    const answerPreview = responseText.length > 100 ? responseText.substring(0, 100) + '...' : responseText;
+    perf('agent', `Agent completed: ${toolCallRecords.length} tools, ${ctx.iteration} iterations, ${totalTime}ms`, totalTime, {
+      toolsUsed: toolCallRecords.map(tc => tc.tool),
+      iterations: ctx.iteration,
+      totalTokens: tokenUsage?.totalTokens,
+      answerPreview,
+    });
+
     yield {
       type: 'done',
       answer: responseText,
-      toolCalls: ctx.scratchpad.getToolCallRecords(),
+      toolCalls: toolCallRecords,
       iterations: ctx.iteration,
       totalTime,
-      tokenUsage: ctx.tokenCounter.getUsage(),
+      tokenUsage,
       tokensPerSecond: ctx.tokenCounter.getTokensPerSecond(totalTime),
     };
   }
