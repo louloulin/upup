@@ -20,7 +20,7 @@
     "build:bun": "bun run typecheck && echo '\u2705 Bun build complete - run: bun start'",
     "build:node": "bun build src/index.tsx --target=node --outfile=dist/dexter.js --external=dotenv --external=zod && echo '\u2705 Node.js build complete'",
     "build:node:win": "bun build src/index.tsx --target=node --outfile=dist/dexter.exe --external=dotenv --external=zod && echo '\u2705 Windows build complete'",
-    "build:compile": "bun build --compile --target=bun --outfile=dexter src/index.tsx --external=playwright --external=playwright-core --external=@playwright/test && chmod +x dexter && echo '\u2705 Binary compile complete - run: ./dexter'",
+    "build:compile": "bun build --compile --target=bun --outfile=dexter src/index.tsx --external=playwright --external=playwright-core && chmod +x dexter && echo '\u2705 Binary compile complete - run: ./dexter'",
     "build:compile:win": "bun build --compile --target=bun --outfile=dexter.exe src/index.tsx && echo '\u2705 Windows binary compile complete'",
     "build:all": "bun run build:bun && bun run build:node && bun run build:compile",
     "build:pkg": "pkg . --targets node18-linux-x64,node18-macos-x64,node18-win-x64 --output dist/dexter-pkg",
