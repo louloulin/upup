@@ -1,11 +1,14 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
-import { chromium, Browser, Page } from 'playwright';
 import { z } from 'zod';
 import { formatToolResult } from '../types.js';
 import { logger } from '@/utils';
 
-let browser: Browser | null = null;
-let page: Page | null = null;
+// Dynamic import for playwright - allows bundling without playwright
+type BrowserType = Awaited<ReturnType<typeof import('playwright').chromium['launch']>>;
+type PageType = Awaited<ReturnType<BrowserType['newPage']>>;
+
+let browser: BrowserType | null = null;
+let page: PageType | null = null;
 
 // Store refs from the last snapshot for action resolution
 let currentRefs: Map<string, { role: string; name?: string; nth?: number }> = new Map();
@@ -16,7 +19,7 @@ interface SnapshotForAIResult {
 }
 
 // Extended Page type with _snapshotForAI method
-interface PageWithSnapshotForAI extends Page {
+interface PageWithSnapshotForAI {
   _snapshotForAI?: (opts: { timeout: number; track: string }) => Promise<SnapshotForAIResult>;
 }
 
@@ -133,8 +136,10 @@ To press Enter:
  * Ensure browser and page are initialized.
  * Lazily launches a headless Chromium browser on first use.
  */
-async function ensureBrowser(): Promise<Page> {
+async function ensureBrowser(): Promise<PageType> {
   if (!browser) {
+    // Dynamic import playwright
+    const { chromium } = await import('playwright');
     browser = await chromium.launch({ headless: false });
   }
   if (!page) {
@@ -192,7 +197,8 @@ function parseRefsFromSnapshot(snapshot: string): Map<string, { role: string; na
 /**
  * Resolve a ref to a Playwright locator using stored ref data.
  */
-function resolveRefToLocator(p: Page, ref: string): ReturnType<Page['locator']> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function resolveRefToLocator(p: PageType, ref: string): any {
   const refData = currentRefs.get(ref);
   
   if (!refData) {
@@ -207,7 +213,8 @@ function resolveRefToLocator(p: Page, ref: string): ReturnType<Page['locator']> 
     options.exact = true;
   }
   
-  let locator = p.getByRole(refData.role as Parameters<Page['getByRole']>[0], options);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let locator = p.getByRole(refData.role as any, options);
   
   // Handle nth occurrence if specified
   if (typeof refData.nth === 'number' && refData.nth > 0) {
@@ -221,7 +228,7 @@ function resolveRefToLocator(p: Page, ref: string): ReturnType<Page['locator']> 
  * Take an AI-optimized snapshot using Playwright's _snapshotForAI method.
  * Falls back to ariaSnapshot if _snapshotForAI is not available.
  */
-async function takeSnapshot(p: Page, maxChars?: number): Promise<{ snapshot: string; truncated: boolean }> {
+async function takeSnapshot(p: PageType, maxChars?: number): Promise<{ snapshot: string; truncated: boolean }> {
   const pageWithSnapshot = p as PageWithSnapshotForAI;
   
   let snapshot: string;
