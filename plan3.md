@@ -302,7 +302,7 @@
 
 ## 3. 实现状态追踪
 
-### ✅ Phase 0: 已完成
+### ✅ Phase 0: MCP 集成 (已完成)
 
 | 功能 | 状态 | 文件 | 日期 |
 |------|------|------|------|
@@ -313,14 +313,19 @@
 | 工具注册集成 | ✅ 已实现 | `src/tools/registry.ts` | 2026-05-07 |
 | 配置文件 | ✅ 已创建 | `.dexter/mcp-config.json` | 2026-05-07 |
 
-### ✅ Phase 1: Subagent 系统 (已完成)
+> **注意**: `@modelcontextprotocol/sdk` 需要手动安装: `bun add @modelcontextprotocol/sdk`
+
+### ✅ Phase 1: Subagent 系统 (已完成 + 验证)
 
 | 功能 | 状态 | 文件 | 日期 |
 |------|------|------|------|
 | **Subagent 类型定义** | ✅ 已实现 | `src/agent/subagent.ts` | 2026-05-07 |
 | SubagentRunner | ✅ 已实现 | `src/agent/subagent-runner.ts` | 2026-05-07 |
+| Agent 集成 | ✅ 已集成 | `src/agent/subagent-runner.ts` | 2026-05-07 |
 | AgentTool | ✅ 已实现 | `src/tools/agent-tool.ts` | 2026-05-07 |
 | 工具注册集成 | ✅ 已实现 | `src/tools/registry.ts` | 2026-05-07 |
+
+> **验证**: 30 个工具已注册，`agent` 工具可用
 
 ### ✅ Phase 1: Daemon + Workers (已完成)
 
@@ -331,7 +336,7 @@
 | TasksWorker | ✅ 已实现 | `src/daemon/workers/tasks.ts` | 2026-05-07 |
 | 模块导出 | ✅ 已实现 | `src/daemon/index.ts` | 2026-05-07 |
 
-### ✅ Phase 1: 计划模式 (已完成)
+### ✅ Phase 1: 计划模式 (已完成 + 验证)
 
 | 功能 | 状态 | 文件 | 日期 |
 |------|------|------|------|
@@ -340,6 +345,8 @@
 | ExitPlanMode 工具 | ✅ 已实现 | `src/tools/plan/exit-plan-mode.ts` | 2026-05-07 |
 | 计划步骤工具 | ✅ 已实现 | `src/tools/plan/plan-steps.ts` | 2026-05-07 |
 | 工具注册集成 | ✅ 已实现 | `src/tools/registry.ts` | 2026-05-07 |
+
+> **验证**: 5 个计划工具全部可用
 
 ### 📋 Phase 2-4: 待实现
 
