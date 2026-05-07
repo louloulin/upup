@@ -79,8 +79,8 @@ export class Agent {
 
   static async create(config: AgentConfig = {}): Promise<Agent> {
     const model = config.model ?? DEFAULT_MODEL;
-    const tools = getTools(model);
-    const concurrencyMap = getToolConcurrencyMap(model);
+    const tools = await getTools(model);
+    const concurrencyMap = await getToolConcurrencyMap(model);
     const soulContent = await loadSoulDocument();
     const rulesContent = await loadRulesDocument();
     let memoryFiles: string[] = [];
@@ -95,7 +95,7 @@ export class Agent {
       }
     }
 
-    const systemPrompt = buildSystemPrompt(
+    const systemPrompt = await buildSystemPrompt(
       model,
       soulContent,
       config.channel,

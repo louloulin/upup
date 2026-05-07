@@ -212,7 +212,7 @@ export function buildGroupSection(ctx: GroupContext): string {
  * @param soulContent - Optional SOUL.md identity content
  * @param channel - Delivery channel (e.g., 'whatsapp', 'cli') — selects formatting profile
  */
-export function buildSystemPrompt(
+export async function buildSystemPrompt(
   model: string,
   soulContent?: string | null,
   channel?: string,
@@ -220,8 +220,8 @@ export function buildSystemPrompt(
   memoryFiles?: string[],
   memoryContext?: string | null,
   rulesContent?: string | null,
-): string {
-  const toolDescriptions = buildCompactToolDescriptions(model);
+): Promise<string> {
+  const toolDescriptions = await buildCompactToolDescriptions(model);
   const profile = getChannelProfile(channel);
 
   const behaviorBullets = profile.behavior.map(b => `- ${b}`).join('\n');
