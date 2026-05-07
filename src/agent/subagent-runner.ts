@@ -18,6 +18,7 @@ import type {
   SubagentEventType,
 } from './subagent.js';
 import { DEFAULT_SUBAGENT_CONFIG } from './subagent.js';
+import { getTools, getToolConcurrencyMap } from '../tools/registry.js';
 
 /**
  * Subagent task store for tracking running tasks
@@ -292,17 +293,33 @@ export class SubagentRunner {
     prompt: string,
     onToolCall?: (name: string) => void
   ): Promise<string> {
-    // This is a placeholder for actual agent execution
-    // In the full implementation, this would:
-    // 1. Filter tools based on config.tools
-    // 2. Create a new Agent instance
-    // 3. Run the agent with the prompt
-    // 4. Return the result
+    try {
+      // Dynamically import Agent to avoid circular dependency
+      const { Agent } = await import('./agent.js');
 
-    // For now, simulate execution
-    await new Promise(resolve => setTimeout(resolve, 100));
+      // Create agent instance with inherited model
+      const model = config.model === 'inherit' ? undefined : config.model;
+      const agent = await Agent.create({
+        model,
+        signal: undefined, // TODO: Pass signal from context
+      });
 
-    return `[Subagent ${config.type}] Executed: ${prompt.substring(0, 100)}...`;
+      // Collect results from agent run
+      let result = '';
+      for await (const event of agent.run(prompt)) {
+        if (event.type === 'done') {
+          result = event.answer;
+        } else if (event.type === 'tool_result') {
+          if (onToolCall) onToolCall(event.toolName);
+        }
+      }
+
+      return result || 'Agent completed without output';
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('[SubagentRunner] Agent execution failed:', message);
+      throw new Error(`Subagent execution failed: ${message}`);
+    }
   }
 
   private async runInBackground(
