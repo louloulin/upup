@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs';
 import matter from 'gray-matter';
-import type { Skill, SkillSource } from './types.js';
+import type { Skill, SkillSource, SkillMetadata, SkillModel } from './types.js';
 
 /**
  * Parse a SKILL.md file content into a Skill object.
@@ -23,13 +23,33 @@ export function parseSkillFile(content: string, path: string, source: SkillSourc
     throw new Error(`Skill at ${path} is missing required 'description' field in frontmatter`);
   }
 
+  // Parse optional fields
+  const model = parseModelField(data.model);
+
   return {
     name: data.name,
     description: data.description,
     path,
     source,
+    model,
+    userInvocable: data['user-invocable'] === true,
+    argumentHint: data['argument-hint'] as string | undefined,
     instructions: instructions.trim(),
   };
+}
+
+/**
+ * Parse model field from frontmatter
+ */
+function parseModelField(value: unknown): SkillModel | undefined {
+  if (!value) return undefined;
+  if (typeof value === 'string') {
+    const normalized = value.toLowerCase().trim();
+    if (['sonnet', 'haiku', 'opus', 'default'].includes(normalized)) {
+      return normalized as SkillModel;
+    }
+  }
+  return undefined;
 }
 
 /**
@@ -53,7 +73,7 @@ export function loadSkillFromPath(path: string, source: SkillSource): Skill {
  * @param source - Where this skill came from
  * @returns Skill metadata (name, description, path, source)
  */
-export function extractSkillMetadata(path: string, source: SkillSource): { name: string; description: string; path: string; source: SkillSource } {
+export function extractSkillMetadata(path: string, source: SkillSource): SkillMetadata {
   const content = readFileSync(path, 'utf-8');
   const { data } = matter(content);
 
@@ -69,5 +89,8 @@ export function extractSkillMetadata(path: string, source: SkillSource): { name:
     description: data.description,
     path,
     source,
+    model: parseModelField(data.model),
+    userInvocable: data['user-invocable'] === true,
+    argumentHint: data['argument-hint'] as string | undefined,
   };
 }

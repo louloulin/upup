@@ -11,9 +11,17 @@ const __dirname = dirname(__filename);
 
 /**
  * Skill directories in order of precedence (later overrides earlier).
+ *
+ * Priority: project > user > builtin
+ * - project (.dexter/skills/): Project-specific skills, highest priority
+ * - user (.claude/skills/): User-level skills, overrides builtin
+ * - builtin (src/skills/): Built-in skills, lowest priority
+ *
+ * This allows users to override any built-in skill with their own versions.
  */
 const SKILL_DIRECTORIES: { path: string; source: SkillSource }[] = [
   { path: __dirname, source: 'builtin' },
+  { path: join(process.cwd(), '.claude', 'skills'), source: 'user' },
   { path: join(process.cwd(), dexterPath('skills')), source: 'project' },
 ];
 
