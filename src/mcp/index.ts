@@ -18,5 +18,6 @@ export {
 export {
   mcpToolsToRegisteredTools,
   getMCPToolDescriptions,
+  getMCPStatus,
   type MCPRegisteredTool,
 } from './registry.js';

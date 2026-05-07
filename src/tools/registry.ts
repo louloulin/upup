@@ -25,6 +25,7 @@ import { screenAstocks, SCREEN_ASTOCKS_DESCRIPTION } from './astock/screen-astoc
 import { getSectorData, GET_SECTOR_DATA_DESCRIPTION } from './astock/get-sector-data.js';
 import { getTechnicalData, GET_TECHNICAL_DATA_DESCRIPTION } from './astock/get-technical-data.js';
 import { getMarketStructure, GET_MARKET_STRUCTURE_DESCRIPTION } from './astock/get-market-structure.js';
+import { buildAgentTool, AGENT_TOOL_DESCRIPTION, AGENT_TOOL_COMPACT_DESCRIPTION } from './agent-tool.js';
 
 /**
  * A registered tool with its rich description for system prompt injection.
@@ -272,6 +273,16 @@ export function getToolRegistry(model: string): RegisteredTool[] {
     // MCP initialization failed, tools will be empty
     console.log('[ToolRegistry] MCP not configured or initialization failed');
   }
+
+  // Add AgentTool for spawning subagents
+  const agentTool = buildAgentTool();
+  tools.push({
+    name: 'agent',
+    tool: agentTool,
+    description: AGENT_TOOL_DESCRIPTION,
+    compactDescription: AGENT_TOOL_COMPACT_DESCRIPTION,
+    concurrencySafe: false,
+  });
 
   return tools;
 }
