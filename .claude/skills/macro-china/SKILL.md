@@ -18,6 +18,7 @@ description: |
 context: inherit
 user-invocable: true
 argument-hint: "宏观指标（例如，GDP、CPI、PMI）"
+model: sonnet
 allowed-tools:
   - Bash(curl*)
   - Bash(python3*)
