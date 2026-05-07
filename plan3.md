@@ -322,18 +322,25 @@
 | AgentTool | ✅ 已实现 | `src/tools/agent-tool.ts` | 2026-05-07 |
 | 工具注册集成 | ✅ 已实现 | `src/tools/registry.ts` | 2026-05-07 |
 
+### ✅ Phase 1: Daemon + Workers (已完成)
+
+| 功能 | 状态 | 文件 | 日期 |
+|------|------|------|------|
+| **Supervisor** | ✅ 已实现 | `src/daemon/supervisor.ts` | 2026-05-07 |
+| PriorityTaskQueue | ✅ 已实现 | `src/daemon/supervisor.ts` | 2026-05-07 |
+| TasksWorker | ✅ 已实现 | `src/daemon/workers/tasks.ts` | 2026-05-07 |
+| 模块导出 | ✅ 已实现 | `src/daemon/index.ts` | 2026-05-07 |
+
 ### 📋 Phase 1: 进行中
 
 | 功能 | 状态 | 优先级 |
 |------|------|--------|
-| 后台任务系统 | 🔄 待实现 | P1 |
 | 计划模式 | 🔄 待实现 | P1 |
 
 ### 📋 Phase 2-4: 待实现
 
 | 功能 | 状态 | 优先级 |
 |------|------|--------|
-| Daemon + Workers | 🔄 待实现 | P1 |
 | AI 记忆选择 | 🔄 待实现 | P2 |
 | 权限系统增强 | 🔄 待实现 | P2 |
 | Proactive 模式 | 🔄 待实现 | P2 |

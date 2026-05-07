@@ -26,6 +26,13 @@ import { getSectorData, GET_SECTOR_DATA_DESCRIPTION } from './astock/get-sector-
 import { getTechnicalData, GET_TECHNICAL_DATA_DESCRIPTION } from './astock/get-technical-data.js';
 import { getMarketStructure, GET_MARKET_STRUCTURE_DESCRIPTION } from './astock/get-market-structure.js';
 import { buildAgentTool, AGENT_TOOL_DESCRIPTION, AGENT_TOOL_COMPACT_DESCRIPTION } from './agent-tool.js';
+import {
+  createEnterPlanModeTool,
+  createExitPlanModeTool,
+  createAddPlanStepTool,
+  createUpdatePlanStepTool,
+  createListPlanStepsTool,
+} from './plan/index.js';
 
 /**
  * A registered tool with its rich description for system prompt injection.
@@ -283,6 +290,25 @@ export function getToolRegistry(model: string): RegisteredTool[] {
     compactDescription: AGENT_TOOL_COMPACT_DESCRIPTION,
     concurrencySafe: false,
   });
+
+  // Add Plan Mode tools
+  const planModeTools = [
+    { name: 'enter_plan_mode', tool: createEnterPlanModeTool() },
+    { name: 'exit_plan_mode', tool: createExitPlanModeTool() },
+    { name: 'add_plan_step', tool: createAddPlanStepTool() },
+    { name: 'update_plan_step', tool: createUpdatePlanStepTool() },
+    { name: 'list_plan_steps', tool: createListPlanStepsTool() },
+  ];
+
+  for (const { name, tool } of planModeTools) {
+    tools.push({
+      name,
+      tool,
+      description: `Plan mode tool: ${name}`,
+      compactDescription: `Structured planning tool for ${name.replace('_', ' ')}`,
+      concurrencySafe: true,
+    });
+  }
 
   return tools;
 }
