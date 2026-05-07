@@ -313,11 +313,19 @@
 | 工具注册集成 | ✅ 已实现 | `src/tools/registry.ts` | 2026-05-07 |
 | 配置文件 | ✅ 已创建 | `.dexter/mcp-config.json` | 2026-05-07 |
 
+### ✅ Phase 1: Subagent 系统 (已完成)
+
+| 功能 | 状态 | 文件 | 日期 |
+|------|------|------|------|
+| **Subagent 类型定义** | ✅ 已实现 | `src/agent/subagent.ts` | 2026-05-07 |
+| SubagentRunner | ✅ 已实现 | `src/agent/subagent-runner.ts` | 2026-05-07 |
+| AgentTool | ✅ 已实现 | `src/tools/agent-tool.ts` | 2026-05-07 |
+| 工具注册集成 | ✅ 已实现 | `src/tools/registry.ts` | 2026-05-07 |
+
 ### 📋 Phase 1: 进行中
 
 | 功能 | 状态 | 优先级 |
 |------|------|--------|
-| Subagent 系统 | 🔄 待实现 | P0 |
 | 后台任务系统 | 🔄 待实现 | P1 |
 | 计划模式 | 🔄 待实现 | P1 |
 
@@ -420,49 +428,52 @@ src/mcp/
     └── websocket.ts   # WebSocket 传输
 ```
 
-#### Gap 2: Subagent 系统 (P0 - 最高优先)
+#### Gap 2: Subagent 系统 (✅ 已完成)
 
-**现状**: Dexter 无 Subagent 支持
+**现状**: Dexter 已支持 Subagent
 
-**Loucode 实现**:
+**已实现**:
+- Subagent 类型定义 (`src/agent/subagent.ts`)
+- SubagentRunner 类 (`src/agent/subagent-runner.ts`)
+- AgentTool (`src/tools/agent-tool.ts`)
+- 工具注册集成 (`src/tools/registry.ts`)
+
+**实现详情**:
 ```typescript
-// /src/tools/AgentTool/AgentTool.tsx
-const baseInputSchema = z.object({
-  description: z.string(),
-  prompt: z.string(),
-  subagent_type: z.string().optional(),
-  model: z.enum(['sonnet', 'opus', 'haiku']).optional(),
-  run_in_background: z.boolean().optional()
-})
+// src/agent/subagent.ts - 类型定义
+export type SubagentType = 'general' | 'specialized' | 'fork';
+export type PermissionMode = 'default' | 'bubble' | 'plan';
+export type IsolationMode = 'none' | 'worktree';
 
-// /src/tools/AgentTool/forkSubagent.ts
-export const FORK_AGENT = {
-  agentType: FORK_SUBAGENT_TYPE,
-  tools: ['*'],              // 所有工具
-  maxTurns: 200,            // 最大轮次
-  model: 'inherit',          // 继承父模型
-  permissionMode: 'bubble'   // 气泡权限
-}
-```
-
-**需要实现**:
-```typescript
-// src/tools/agent-tool.ts
-interface AgentToolInput {
-  description: string;
-  prompt: string;
-  agentType?: 'general' | 'specialized' | 'fork';
-  model?: string;
+export interface SubagentConfig {
+  type: SubagentType;
+  tools: string[] | '*';
+  maxTurns?: number;
+  model?: string | 'inherit';
+  permissionMode?: PermissionMode;
+  isolation?: IsolationMode;
+  cwd?: string;
   runInBackground?: boolean;
 }
 
-// src/agent/subagent.ts
-interface SubagentConfig {
-  tools: string[];
-  maxTurns: number;
-  model: string | 'inherit';
-  permissionMode: 'default' | 'bubble';
+// src/agent/subagent-runner.ts - 执行器
+export class SubagentRunner {
+  async run(config, prompt, context): Promise<SubagentResult>;
+  async runAsync(config, prompt, context): Promise<string>;
+  getTaskStatus(taskId): SubagentTaskStatus;
+  cancelTask(taskId): Promise<void>;
 }
+
+// src/tools/agent-tool.ts - 工具接口
+export const AgentToolInputSchema = z.object({
+  description: z.string(),
+  prompt: z.string(),
+  subagent_type: z.enum(['general', 'specialized', 'fork']).optional(),
+  model: z.string().optional(),
+  run_in_background: z.boolean().optional(),
+  max_turns: z.number().optional(),
+  tools: z.array(z.string()).optional(),
+});
 ```
 
 #### Gap 3: 后台任务系统 (P1)
