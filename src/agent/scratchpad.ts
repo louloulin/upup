@@ -12,6 +12,16 @@ export interface ToolCallRecord {
   result: string;
 }
 
+/**
+ * A denied permission event for tracking permission denials across sessions.
+ */
+export interface PermissionDenial {
+  tool: string;
+  args: Record<string, unknown>;
+  reason: string;
+  timestamp: string;
+}
+
 export interface ScratchpadEntry {
   type: 'init' | 'tool_result' | 'thinking';
   timestamp: string;
@@ -75,6 +85,9 @@ export class Scratchpad {
   // In-memory tracking for Anthropic-style context clearing (JSONL file untouched)
   // Stores indices of tool_result entries that have been cleared from context
   private clearedToolIndices: Set<number> = new Set();
+
+  // Permission denials tracking (in-memory only)
+  private permissionDenials: PermissionDenial[] = [];
 
   // Compaction state (in-memory only — JSONL file untouched)
   // When set, getToolResults() returns the summary + any post-compaction results
@@ -188,6 +201,64 @@ export class Scratchpad {
       queries.push(query);
       this.toolQueries.set(toolName, queries);
     }
+  }
+
+  // ============================================================================
+  // Permission Denials
+  // ============================================================================
+
+  /**
+   * Record a permission denial for this query.
+   * Used for tracking and injecting denials into the system prompt.
+   */
+  recordPermissionDenial(tool: string, args: Record<string, unknown>, reason: string): void {
+    this.permissionDenials.push({
+      tool,
+      args,
+      reason,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  /**
+   * Get all permission denials for this query.
+   */
+  getPermissionDenials(): PermissionDenial[] {
+    return [...this.permissionDenials];
+  }
+
+  /**
+   * Check if a tool has been denied in this query.
+   */
+  hasBeenDenied(tool: string): boolean {
+    return this.permissionDenials.some(d => d.tool === tool);
+  }
+
+  /**
+   * Count denials for a specific tool.
+   */
+  getDenialCount(tool: string): number {
+    return this.permissionDenials.filter(d => d.tool === tool).length;
+  }
+
+  /**
+   * Format permission denials for injection into prompts.
+   */
+  formatDenialsForPrompt(): string | null {
+    if (this.permissionDenials.length === 0) {
+      return null;
+    }
+
+    const lines = this.permissionDenials.map(d => {
+      const argsStr = Object.entries(d.args)
+        .map(([k, v]) => `${k}=${v}`)
+        .join(', ');
+      return `- ${d.tool}(${argsStr}): denied (${d.reason}) at ${d.timestamp}`;
+    });
+
+    return `## Permission Denials This Query\n\n${lines.join('\n')}\n\n` +
+      `Note: Tools that were denied permission won't be retried automatically. ` +
+      `Consider alternative approaches or acknowledging the limitation to the user.`;
   }
 
   /**

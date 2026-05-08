@@ -169,7 +169,10 @@ export function snipMessages(
   const snipped: BaseMessage[] = [...messages];
 
   // Scan messages for low-value ones
-  for (let i = messages.length - 1; i >= safeStart && i >= safeEnd; i--) {
+  for (let i = messages.length - 1; i >= safeStart; i--) {
+    // Skip messages in the "preserve last" range
+    if (i >= messages.length - preserveLastN) continue;
+
     if (removeCount >= maxRemove) break;
 
     const { snip, reason } = shouldSnipMessage(messages[i]);

@@ -12,6 +12,7 @@ import {
   addStep,
   PLAN_STORAGE_DIR,
 } from '../../plan/plan-context.js';
+import { getPlanModeState } from '../../agent/plan-mode-state.js';
 
 export const ENTER_PLAN_MODE_DESCRIPTION = `
 Enter Plan Mode to create a structured plan for a complex task.
@@ -72,6 +73,10 @@ export function createEnterPlanModeTool(): DynamicStructuredTool {
 
       // Store plan in memory for session
       planMemory.set(plan.id, plan);
+
+      // Enter plan mode state (blocks non-plan tools)
+      const planModeState = getPlanModeState();
+      planModeState.enter(plan.id);
 
       // Create storage directory if needed
       try {

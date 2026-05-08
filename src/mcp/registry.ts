@@ -7,6 +7,7 @@
 
 import type { StructuredToolInterface } from '@langchain/core/tools';
 import type { MCPClientManager, MCPServerConnection } from './client.js';
+import { useMergedClients } from '../hooks/agent-hooks.js';
 
 /**
  * MCP Registered Tool format
@@ -28,8 +29,15 @@ export function mcpToolsToRegisteredTools(
 ): MCPRegisteredTool[] {
   const tools: MCPRegisteredTool[] = [];
 
+  // Register connected servers with the merged client registry
+  const mergedClients = useMergedClients();
+
   for (const connection of client.getAllConnections()) {
     if (connection.state !== 'connected') continue;
+
+    // Register this server's tools in the merged registry
+    const serverToolNames = (connection.tools || []).map(t => `mcp__${connection.name}__${t.name}`);
+    mergedClients.register(connection.name, serverToolNames);
 
     for (const mcpTool of connection.tools || []) {
       const langChainTool = client.getToolsForServer(connection.name).find(

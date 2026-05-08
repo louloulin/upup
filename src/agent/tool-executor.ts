@@ -15,6 +15,8 @@ import type {
 } from './types.js';
 import type { RunContext } from './run-context.js';
 import { info, warn, perf } from '../utils/logging/logger.js';
+import { getRateLimiter } from '../hooks/rate-limiter.js';
+import { useToolMetrics } from '../hooks/agent-hooks.js';
 
 type ToolExecutionEvent =
   | ToolStartEvent
@@ -136,6 +138,7 @@ export class AgentToolExecutor {
       yield { type: 'tool_approval', tool: toolName, args: toolArgs, approved: decision };
       if (decision === 'deny') {
         yield { type: 'tool_denied', tool: toolName, args: toolArgs, toolCallId };
+        ctx.scratchpad.recordPermissionDenial(toolName, toolArgs, 'user denied');
         return;
       }
       if (decision === 'allow-session') {
@@ -153,6 +156,12 @@ export class AgentToolExecutor {
 
     yield { type: 'tool_start', tool: toolName, args: toolArgs, toolCallId };
     info('tools', `Tool started: ${toolName}`);
+
+    // Rate limit check — wait for slot if needed
+    const limiter = getRateLimiter();
+    if (limiter.isEnabled()) {
+      await limiter.waitForSlot(toolName);
+    }
 
     const toolStartTime = Date.now();
 
@@ -184,12 +193,19 @@ export class AgentToolExecutor {
       yield { type: 'tool_end', tool: toolName, args: toolArgs, result, duration, toolCallId };
       perf('tools', `Tool completed: ${toolName}`, duration);
 
+      // Record tool metrics for performance tracking
+      useToolMetrics().recordExecution(toolName, duration, true);
+
       ctx.scratchpad.recordToolCall(toolName, toolQuery);
       ctx.scratchpad.addToolResult(toolName, toolArgs, result);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
+      const duration = Date.now() - toolStartTime;
       yield { type: 'tool_error', tool: toolName, error: errorMessage, toolCallId };
       warn('tools', `Tool error: ${toolName} - ${errorMessage}`);
+
+      // Record tool metrics for error tracking
+      useToolMetrics().recordExecution(toolName, duration, false);
 
       ctx.scratchpad.recordToolCall(toolName, toolQuery);
       ctx.scratchpad.addToolResult(toolName, toolArgs, `Error: ${errorMessage}`);

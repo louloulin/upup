@@ -74,6 +74,10 @@ export class MCPClientManager {
   private config: MCPClientConfig;
   private tools: StructuredToolInterface[] = [];
   private toolCallbacks: Set<(tools: StructuredToolInterface[]) => void> = new Set();
+  private healthCheckInterval: ReturnType<typeof setInterval> | null = null;
+  private reconnectAttempts: Map<string, number> = new Map();
+  private readonly MAX_RECONNECT_ATTEMPTS = 3;
+  private readonly HEALTH_CHECK_INTERVAL_MS = 30000; // 30 seconds
 
   constructor(config: MCPClientConfig) {
     this.config = config;
@@ -179,6 +183,7 @@ export class MCPClientManager {
    * Disconnect from all servers
    */
   async disconnectAll(): Promise<void> {
+    this.stopHealthMonitoring();
     const names = Array.from(this.clients.keys());
     await Promise.all(names.map(name => this.disconnect(name)));
   }
@@ -305,6 +310,78 @@ export class MCPClientManager {
   }
 
   /**
+   * List available resources from a specific server or all connected servers.
+   */
+  async listResources(serverName?: string): Promise<Array<{ server: string; resources: any[] }>> {
+    const results: Array<{ server: string; resources: any[] }> = [];
+
+    const servers = serverName
+      ? [[serverName, this.clients.get(serverName)] as const]
+      : Array.from(this.clients.entries());
+
+    for (const [name, client] of servers) {
+      if (!client) continue;
+      try {
+        const result = await client.request(
+          { method: 'resources/list' },
+          { resources: [] }
+        );
+        results.push({ server: name, resources: result.resources || [] });
+      } catch (error) {
+        // Server doesn't support resources — skip silently
+        info('mcp', `Server ${name} does not support resources or returned error`);
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Read a specific resource from an MCP server.
+   */
+  async readResource(uri: string, serverName?: string): Promise<{ server: string; contents: any[] }> {
+    // Find the server that has this resource
+    const client = serverName
+      ? this.clients.get(serverName)
+      : await this.findClientForResource(uri);
+
+    if (!client) {
+      throw new Error(`No MCP server found for resource URI: ${uri}`);
+    }
+
+    const result = await client.request(
+      { method: 'resources/read' },
+      { uri }
+    );
+
+    return {
+      server: serverName || 'auto-detected',
+      contents: result.contents || [],
+    };
+  }
+
+  /**
+   * Find which server has a given resource URI.
+   */
+  private async findClientForResource(uri: string): Promise<any | undefined> {
+    for (const [name, client] of this.clients.entries()) {
+      try {
+        const result = await client.request(
+          { method: 'resources/list' },
+          { resources: [] }
+        );
+        const resources = result.resources || [];
+        if (resources.some((r: any) => r.uri === uri)) {
+          return client;
+        }
+      } catch {
+        // Skip servers that don't support resources
+      }
+    }
+    return undefined;
+  }
+
+  /**
    * Get all LangChain tools from all connected servers
    */
   getTools(): StructuredToolInterface[] {
@@ -365,6 +442,90 @@ export class MCPClientManager {
     await Promise.allSettled(
       autoConnectServers.map(server => this.connect(server))
     );
+    // Start health monitoring after connecting
+    this.startHealthMonitoring();
+  }
+
+  /**
+   * Start periodic health checks for all connected servers.
+   * Detects dead servers and triggers automatic reconnection.
+   */
+  startHealthMonitoring(): void {
+    if (this.healthCheckInterval) return;
+    this.healthCheckInterval = setInterval(() => this.runHealthChecks(), this.HEALTH_CHECK_INTERVAL_MS);
+    info('mcp', 'Health monitoring started');
+  }
+
+  /**
+   * Stop health monitoring.
+   */
+  stopHealthMonitoring(): void {
+    if (this.healthCheckInterval) {
+      clearInterval(this.healthCheckInterval);
+      this.healthCheckInterval = null;
+      info('mcp', 'Health monitoring stopped');
+    }
+  }
+
+  /**
+   * Run health checks on all connected servers.
+   * If a server fails to respond, mark it disconnected and attempt reconnection.
+   */
+  private async runHealthChecks(): Promise<void> {
+    for (const [name, connection] of this.connections.entries()) {
+      if (connection.state !== 'connected') continue;
+
+      const client = this.clients.get(name);
+      if (!client) continue;
+
+      try {
+        // Ping the server by listing tools (lightweight health check)
+        await client.request(
+          { method: 'tools/list' },
+          { tools: [] }
+        );
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        logError('mcp', `Health check failed for ${name}: ${message}`);
+        this.updateConnectionState(name, 'error', message);
+
+        // Attempt automatic reconnection
+        await this.attemptReconnect(name);
+      }
+    }
+  }
+
+  /**
+   * Attempt to reconnect to a disconnected/errored server.
+   * Exponential backoff with max attempts.
+   */
+  private async attemptReconnect(serverName: string): Promise<void> {
+    const attempts = this.reconnectAttempts.get(serverName) ?? 0;
+    if (attempts >= this.MAX_RECONNECT_ATTEMPTS) {
+      logError('mcp', `Max reconnect attempts (${this.MAX_RECONNECT_ATTEMPTS}) reached for ${serverName}`);
+      return;
+    }
+
+    this.reconnectAttempts.set(serverName, attempts + 1);
+    const delayMs = Math.min(1000 * Math.pow(2, attempts), 30000); // 1s, 2s, 4s...
+    info('mcp', `Reconnecting to ${serverName} (attempt ${attempts + 1}/${this.MAX_RECONNECT_ATTEMPTS}, delay ${delayMs}ms)`);
+
+    // Wait with exponential backoff
+    await new Promise(resolve => setTimeout(resolve, delayMs));
+
+    const serverConfig = this.config.servers.find(s => s.name === serverName);
+    if (!serverConfig) return;
+
+    try {
+      // Disconnect first to clean up stale state
+      await this.disconnect(serverName);
+      await this.connect(serverConfig);
+      this.reconnectAttempts.set(serverName, 0); // Reset on success
+      info('mcp', `Successfully reconnected to ${serverName}`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      logError('mcp', `Reconnect failed for ${serverName}: ${message}`);
+    }
   }
 }
 

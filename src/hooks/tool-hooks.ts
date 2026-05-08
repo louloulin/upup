@@ -43,6 +43,9 @@ export type HookEvent =
   // Permission hooks
   | 'PermissionRequest'
   | 'PermissionDenied'
+  // Elicitation hooks
+  | 'ElicitationRequest'
+  | 'ElicitationResponse'
   // Context hooks
   | 'PreCompact'
   | 'PostCompact'
