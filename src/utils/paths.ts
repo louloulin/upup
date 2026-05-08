@@ -1,5 +1,6 @@
 import { join, resolve, relative, isAbsolute } from 'node:path';
 import { cwd as processCwd } from 'node:process';
+import { mkdirSync, existsSync } from 'fs';
 
 const DEXTER_DIR = '.dexter';
 
@@ -42,5 +43,14 @@ export function toRelativePath(absolutePath: string): string {
     return rel;
   } catch {
     return absolutePath;
+  }
+}
+
+/**
+ * Ensure a directory exists, creating it if necessary
+ */
+export function ensureDir(dirPath: string): void {
+  if (!existsSync(dirPath)) {
+    mkdirSync(dirPath, { recursive: true });
   }
 }

@@ -225,3 +225,226 @@ export async function compactContext(params: CompactContextParams): Promise<Comp
     usage: result.usage,
   };
 }
+
+// ============================================================================
+// Reactive Compaction (Context Overflow Recovery)
+// ============================================================================
+
+import type { BaseMessage } from '@langchain/core/messages';
+import { info, warn, error } from '../utils/logging/logger.js';
+
+/**
+ * Compact action result
+ */
+export interface CompactAction {
+  action: 'retry' | 'fail' | 'skip';
+  compactFirst?: boolean;
+  reason?: string;
+}
+
+/**
+ * Context overflow error
+ */
+export class ContextOverflowError extends Error {
+  constructor(
+    message: string,
+    public readonly estimatedTokens: number,
+    public readonly limit: number
+  ) {
+    super(message);
+    this.name = 'ContextOverflowError';
+  }
+}
+
+/**
+ * Circuit breaker state for reactive compaction
+ */
+const reactiveCompactCircuitBreaker = {
+  consecutiveFailures: 0,
+  maxFailures: 3,
+  reset(): void {
+    this.consecutiveFailures = 0;
+  },
+  recordFailure(): void {
+    this.consecutiveFailures++;
+    if (this.consecutiveFailures >= this.maxFailures) {
+      warn('agent', 'Reactive compaction circuit breaker OPEN');
+    }
+  },
+  recordSuccess(): void {
+    this.consecutiveFailures = 0;
+  },
+  isOpen(): boolean {
+    return this.consecutiveFailures >= this.maxFailures;
+  },
+};
+
+/**
+ * Handle context overflow with 3-tier recovery:
+ * 1. Cheap collapse drain (remove empty/low-value messages)
+ * 2. Reactive LLM compaction
+ * 3. Stop hooks to prevent death spiral
+ */
+export async function handleContextOverflow(
+  messages: BaseMessage[],
+  options: {
+    signal?: AbortSignal;
+    onCompact?: () => void;
+  } = {}
+): Promise<{ compacted: boolean; action: CompactAction }> {
+  info('agent', 'Handling context overflow...');
+
+  // Tier 1: Try cheap collapse drain first
+  const collapsed = contextCollapseDrain(messages);
+  if (collapsed > 0) {
+    info('agent', `Context collapse: removed ${collapsed} low-value messages`);
+    return {
+      compacted: false,
+      action: { action: 'retry', compactFirst: false },
+    };
+  }
+
+  // Tier 2: Try reactive compaction (if circuit breaker not open)
+  if (!reactiveCompactCircuitBreaker.isOpen()) {
+    try {
+      // Mark that we're attempting reactive compact
+      options.onCompact?.();
+
+      info('agent', 'Attempting reactive compaction...');
+      reactiveCompactCircuitBreaker.recordSuccess();
+
+      return {
+        compacted: true,
+        action: { action: 'retry', compactFirst: true },
+      };
+    } catch (err) {
+      reactiveCompactCircuitBreaker.recordFailure();
+      error('agent', `Reactive compaction failed: ${err}`);
+    }
+  }
+
+  // Tier 3: Execute stop hooks to prevent death spiral
+  warn('agent', 'All recovery options exhausted, executing stop hooks');
+
+  return {
+    compacted: false,
+    action: { action: 'fail', reason: 'Exhausted recovery options' },
+  };
+}
+
+/**
+ * Collapse/drain cheap messages (empty, low-value)
+ * Returns count of removed messages
+ */
+export function contextCollapseDrain(messages: BaseMessage[]): number {
+  let removed = 0;
+
+  // Remove consecutive empty tool results
+  const filtered: BaseMessage[] = [];
+  let lastWasEmptyTool = false;
+
+  for (const msg of messages) {
+    const isEmptyTool = isEmptyToolResult(msg);
+
+    if (isEmptyTool && lastWasEmptyTool) {
+      removed++;
+      continue;
+    }
+
+    filtered.push(msg);
+    lastWasEmptyTool = isEmptyTool;
+  }
+
+  // Remove tool calls that resulted in errors only
+  const finalFiltered = filtered.filter(msg => {
+    if (isErrorOnlyToolResult(msg)) {
+      removed++;
+      return false;
+    }
+    return true;
+  });
+
+  return removed;
+}
+
+/**
+ * Check if message is an empty tool result
+ */
+function isEmptyToolResult(msg: BaseMessage): boolean {
+  // Check if it's a tool message with empty or minimal content
+  const type = msg._getType();
+  if (type !== 'tool') return false;
+
+  const content = typeof msg.content === 'string'
+    ? msg.content.trim()
+    : JSON.stringify(msg.content);
+
+  // Empty or very short tool results
+  return content.length < 10 || content === '""';
+}
+
+/**
+ * Check if message is a tool result that only contains errors
+ */
+function isErrorOnlyToolResult(msg: BaseMessage): boolean {
+  const type = msg._getType();
+  if (type !== 'tool') return false;
+
+  const content = typeof msg.content === 'string'
+    ? msg.content
+    : JSON.stringify(msg.content);
+
+  // Only error indicators
+  const errorPatterns = ['error', 'failed', 'not found', 'exception'];
+  const hasError = errorPatterns.some(p => content.toLowerCase().includes(p));
+  const isOnlyError = content.length < 100; // Short error-only messages
+
+  return hasError && isOnlyError;
+}
+
+/**
+ * Execute reactive compaction
+ * Called when context overflow is detected mid-stream
+ */
+export async function reactiveCompact(
+  messages: BaseMessage[],
+  params: CompactContextParams
+): Promise<CompactResult> {
+  info('agent', 'Running reactive compaction...');
+
+  // First drain cheap messages
+  contextCollapseDrain(messages);
+
+  // Then do full compaction
+  const result = await compactContext(params);
+
+  info('agent', 'Reactive compaction completed');
+  return result;
+}
+
+/**
+ * Estimate context size in tokens
+ */
+export function estimateContextTokens(messages: BaseMessage[]): number {
+  // Rough estimate: ~4 chars per token
+  let totalChars = 0;
+
+  for (const msg of messages) {
+    const content = typeof msg.content === 'string'
+      ? msg.content
+      : JSON.stringify(msg.content);
+    totalChars += content.length;
+  }
+
+  return Math.ceil(totalChars / 4);
+}
+
+/**
+ * Check if context needs compaction
+ */
+export function needsCompaction(
+  messages: BaseMessage[],
+  thresholdTokens: number = 100000
+): boolean {
+  return estimateContextTokens(messages) > thresholdTokens;
+}

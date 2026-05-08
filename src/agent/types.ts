@@ -194,11 +194,22 @@ export type StreamMode = 'requesting' | 'thinking' | 'responding' | 'tool-input'
 /**
  * One streaming chunk's progress: how many characters arrived and which content type.
  * The agent runner accumulates charDelta into a per-turn counter for the working indicator.
+ *
+ * Enhanced with tool-specific info for incremental JSON parameter streaming:
+ * - toolName: Name of the tool being streamed (when mode is 'tool-input')
+ * - partialJson: Partial JSON string of tool arguments (when mode is 'tool-input')
+ * - toolCallId: ID of the tool call for ordering (when mode is 'tool-input')
  */
 export interface StreamProgressEvent {
   type: 'stream_progress';
   charDelta: number;
   mode: StreamMode;
+  /** Tool name when streaming tool arguments (tool-input mode) */
+  toolName?: string;
+  /** Partial JSON string of tool arguments (tool-input mode) */
+  partialJson?: string;
+  /** Tool call ID for ordering (tool-input mode) */
+  toolCallId?: string;
 }
 
 /**

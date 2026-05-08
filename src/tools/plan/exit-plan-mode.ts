@@ -19,6 +19,7 @@ import {
   listPlans,
   planMemory,
 } from './enter-plan-mode.js';
+import { getPlanModeState } from '../../agent/plan-mode-state.js';
 
 export const EXIT_PLAN_MODE_DESCRIPTION = `
 Exit Plan Mode and either save or discard the current plan.
@@ -91,10 +92,12 @@ export function createExitPlanModeTool(): DynamicStructuredTool {
 
         case 'discard':
           planMemory.delete(plan.id);
+          getPlanModeState().exit();
           return `Plan "${plan.goal}" has been discarded.`;
 
         case 'save':
           plan.status = 'active';
+          getPlanModeState().exit();
           return `Plan saved and ready for execution.
 
 ${formatPlan(plan)}

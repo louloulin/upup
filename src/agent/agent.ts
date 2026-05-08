@@ -13,14 +13,19 @@ import type { AgentConfig, AgentEvent, CompactionEvent, ContextClearedEvent, Mic
 import type { MessageQueue } from '../utils/message-queue.js';
 import { compactContext, MAX_CONSECUTIVE_COMPACTION_FAILURES, MIN_TOOL_RESULTS_FOR_COMPACTION } from './compact.js';
 import { microcompactMessages } from './microcompact.js';
+import { useContextWatchdog, useMemoryUsage, useSessionBackgrounding, useToolMetrics, useSessionRecovery } from '../hooks/agent-hooks.js';
 import { createRunContext, type RunContext } from './run-context.js';
 import { AgentToolExecutor } from './tool-executor.js';
+import { getLoopDetector, type RecoveryStrategy } from './loop-recovery.js';
+import { getSessionManager } from './session-persistence.js';
+import { getPlanModeState } from './plan-mode-state.js';
 import { MemoryManager } from '../memory/index.js';
 import { runMemoryFlush, shouldRunMemoryFlush } from '../memory/flush.js';
 import { createExtractionHook, type ExtractionResult } from '../memory/extraction.js';
 import { getObservationBuffer } from '../memory/observation-buffer.js';
 import { resolveProvider } from '../providers.js';
 import { warn, error, info, perf } from '../utils/logging/logger.js';
+import { ModelFallbackHandler, FallbackTriggeredError, isFallbackError } from './fallback.js';
 
 
 const DEFAULT_MODEL = 'gpt-5.4';
@@ -49,6 +54,7 @@ export class Agent {
   private readonly messageQueue?: MessageQueue;
   private readonly extractionHook: (messages: { role: string; content: string }[], signal?: AbortSignal) => Promise<ExtractionResult[]>;
   private compactionFailures: number = 0;
+  private readonly fallbackHandler: ModelFallbackHandler;
 
   private constructor(
     config: AgentConfig,
@@ -75,6 +81,7 @@ export class Agent {
       minTurnsBetweenExtractions: 5,
       maxMemoriesPerExtraction: 3,
     });
+    this.fallbackHandler = new ModelFallbackHandler({ primaryModel: this.model });
   }
 
   static async create(config: AgentConfig = {}): Promise<Agent> {
@@ -136,6 +143,60 @@ export class Agent {
 
     // Main agent loop
     let overflowRetries = 0;
+
+    // Initialize context watchdog for proactive context monitoring
+    const watchdog = useContextWatchdog();
+    let watchdogActive = false;
+
+    // Initialize memory monitor for system health tracking
+    const memoryMonitor = useMemoryUsage();
+    memoryMonitor.on('warning', (stats) => {
+      warn('agent', `Memory warning: heap at ${((stats.heapUsed / stats.heapTotal) * 100).toFixed(1)}%`);
+    });
+    memoryMonitor.on('critical', (stats) => {
+      warn('agent', `Memory critical: heap at ${((stats.heapUsed / stats.heapTotal) * 100).toFixed(1)}% — consider compacting`);
+    });
+    memoryMonitor.start(10000); // Poll every 10 seconds
+
+    // Initialize session backgrounding for idle session management
+    const bgSession = useSessionBackgrounding();
+    const sessionId = `agent-${Date.now()}`;
+    bgSession.create(sessionId, { model: this.model, startTime });
+
+    // Initialize tool metrics collector
+    const metrics = useToolMetrics();
+
+    // Initialize session recovery for auto-save
+    const recovery = useSessionRecovery(30000);
+    recovery.on('session_saved', ({ sessionId: sid }) => {
+      info('agent', `Session auto-saved: ${sid}`);
+    });
+    recovery.start(() => {
+      // Auto-save callback: persist current context state
+      const ctxSnapshot = {
+        iteration: ctx.iteration,
+        toolCalls: ctx.scratchpad.getToolCallRecords().length,
+        tokens: ctx.tokenCounter.getUsage()?.totalTokens ?? 0,
+      };
+      recovery.saveSession(sessionId, ctxSnapshot).catch(() => {});
+    });
+
+    // Cleanup function for when agent loop finishes
+    const cleanup = () => {
+      memoryMonitor.stop();
+      recovery.stop();
+      bgSession.background(sessionId);
+      // Emit final metrics summary
+      const finalMetrics = metrics.getMetrics();
+      if (finalMetrics.totalCalls > 0) {
+        perf('agent', `Tool metrics: ${finalMetrics.totalCalls} calls, ${(finalMetrics.successRate * 100).toFixed(1)}% success, avg ${(finalMetrics.avgDuration).toFixed(0)}ms`);
+      }
+    };
+
+    // Initialize loop detector for repeated action detection
+    const loopDetector = getLoopDetector({ minRepetitions: 3, historyWindow: 20 });
+
+    try {
     while (ctx.iteration < this.maxIterations) {
       ctx.iteration++;
 
@@ -144,6 +205,32 @@ export class Agent {
       if (mcResult.trigger) {
         messages = mcResult.messages;
         yield { type: 'microcompact', cleared: mcResult.cleared, tokensSaved: mcResult.estimatedTokensSaved } as MicrocompactEvent;
+      }
+
+      // Update context watchdog with current token estimate
+      const currentTokens = estimateTokens(messages);
+      const check = watchdog.check();
+
+      // Start watchdog if we detect high context usage (>50% of limit)
+      if (!watchdogActive && check.percent > 0.5) {
+        watchdogActive = true;
+        info('agent', `Context watchdog activated at ${(check.percent * 100).toFixed(1)}% usage`);
+      }
+
+      if (watchdogActive) {
+        const prevStatus = check.status;
+        watchdog.setTokenCount(currentTokens);
+        const newCheck = watchdog.check();
+
+        // Log status changes
+        if (newCheck.status !== prevStatus) {
+          info('agent', `Context watchdog: ${prevStatus} → ${newCheck.status} (${(newCheck.percent * 100).toFixed(1)}%)`);
+        }
+
+        // Emit compaction event if critical
+        if (newCheck.status === 'critical' && prevStatus !== 'critical') {
+          yield { type: 'compaction', reason: 'context_critical', usage: newCheck.usage, limit: newCheck.limit } as CompactionEvent;
+        }
       }
 
       // Strip old reasoning from AIMessages (keep last 2 for continuity)
@@ -232,6 +319,44 @@ export class Agent {
 
       messages.push(...toolMessages);
 
+      // Persist session after each tool batch for crash recovery
+      try {
+        const sessionMgr = getSessionManager();
+        ctx.scratchpad.getToolCallRecords().forEach(tc => sessionMgr.recordToolCall(tc.tool));
+        sessionMgr.updateTokens(ctx.tokenCounter.getUsage()?.totalTokens ?? 0);
+        await sessionMgr.persist();
+      } catch {
+        // Non-critical: session persistence failure should not block agent
+      }
+
+      // Loop detection: record tools used and check for repeated actions
+      const toolsUsed = response.tool_calls?.map(tc => tc.name ?? 'unknown').join(',') ?? 'no-tools';
+      loopDetector.recordAction(toolsUsed);
+      const loopCheck = loopDetector.detect();
+
+      if (loopCheck.isLooping) {
+        warn('agent', `Loop detected: ${loopCheck.type} (confidence: ${loopCheck.confidence.toFixed(2)}, repetitions: ${loopCheck.repetitions})`);
+
+        // If circuit breaker is open, abort
+        if (loopDetector.isCircuitBreakerOpen()) {
+          const totalTime = Date.now() - ctx.startTime;
+          yield {
+            type: 'done',
+            answer: 'Agent detected a repetitive loop and halted to prevent further iterations. Please try a different approach.',
+            toolCalls: ctx.scratchpad.getToolCallRecords(),
+            iterations: ctx.iteration,
+            totalTime,
+            tokenUsage: ctx.tokenCounter.getUsage(),
+            tokensPerSecond: ctx.tokenCounter.getTokensPerSecond(totalTime),
+          };
+          return;
+        }
+
+        // Inject warning into context
+        const loopWarning = `[Loop Warning] Detected repetitive behavior (${loopCheck.type}). Consider trying a different approach.`;
+        messages.push(new HumanMessage(loopWarning));
+      }
+
       if (denied) {
         const totalTime = Date.now() - ctx.startTime;
         yield {
@@ -257,6 +382,13 @@ export class Agent {
         messages.push(new HumanMessage(toolUsageWarning));
       }
 
+      // Inject token usage context for LLM awareness (every 5 iterations)
+      const tokenUsage = ctx.tokenCounter.getUsage();
+      if (tokenUsage && ctx.iteration % 5 === 0 && tokenUsage.totalTokens > 0) {
+        const usageContext = `[Token Usage] Total: ${tokenUsage.totalTokens.toLocaleString()} tokens used (input: ${tokenUsage.inputTokens?.toLocaleString() ?? 0}, output: ${tokenUsage.outputTokens?.toLocaleString() ?? 0}). Be concise.`;
+        messages.push(new HumanMessage(usageContext));
+      }
+
       // Drain queued messages: user may have sent follow-ups while agent was working
       const drainResult = this.drainQueue();
       if (drainResult) {
@@ -276,6 +408,9 @@ export class Agent {
       tokenUsage: ctx.tokenCounter.getUsage(),
       tokensPerSecond: ctx.tokenCounter.getTokensPerSecond(totalTime),
     };
+    } finally {
+      cleanup();
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -291,8 +426,34 @@ export class Agent {
   ): AsyncGenerator<StreamProgressEvent, { response: AIMessage; usage?: TokenUsage }> {
     try {
       return yield* this.streamAndAccumulate(messages);
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+    } catch (streamErr) {
+      // Handle fallback-triggered errors (model-specific failures)
+      if (streamErr instanceof FallbackTriggeredError) {
+        warn('agent', `Fallback triggered for model ${streamErr.failedModel}: ${streamErr.message}`);
+        try {
+          const result = await this.fallbackHandler.executeWithFallback(
+            async (model) => {
+              const res = await callLlmWithMessages(messages, {
+                model,
+                tools: this.tools,
+                signal: this.signal,
+              });
+              return {
+                response: res.response as AIMessage,
+                usage: res.usage,
+                model,
+              };
+            },
+          );
+          return { response: result.response as AIMessage, usage: result.usage };
+        } catch (fallbackError) {
+          const fallbackMsg = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
+          error('agent', `All fallback models exhausted: ${fallbackMsg}`);
+          throw fallbackError;
+        }
+      }
+
+      const errorMessage = streamErr instanceof Error ? streamErr.message : String(streamErr);
       warn('agent', `Streaming failed, falling back to blocking: ${errorMessage}`);
       // Fallback to blocking invoke (handles providers without streaming support)
       return await this.callModelWithMessages(messages);
@@ -332,9 +493,9 @@ export class Agent {
       gotFirstChunk = true;
 
       accumulated = accumulated ? accumulated.concat(chunk) : chunk;
-      const { charDelta, mode } = inspectChunkContent(chunk);
+      const { charDelta, mode, toolName, partialJson, toolCallId } = inspectChunkContent(chunk);
       if (charDelta > 0 || mode !== 'responding') {
-        yield { type: 'stream_progress', charDelta, mode };
+        yield { type: 'stream_progress', charDelta, mode, toolName, partialJson, toolCallId };
       }
     }
 
@@ -398,7 +559,41 @@ export class Agent {
     // Get observation buffer for memory extraction (Claude Code PostToolUse pattern)
     const obsBuffer = getObservationBuffer();
 
-    for await (const event of this.toolExecutor.executeAll(response, ctx)) {
+    // Plan mode flow control: block non-plan tools during planning
+    const planModeState = getPlanModeState();
+    const blockedTools = new Set<string>();
+
+    for (const tc of toolCalls) {
+      const toolName = tc.name ?? 'unknown';
+      if (!planModeState.isToolAllowed(toolName)) {
+        blockedTools.add(toolName);
+        // Mark as denied
+        toolMessageMap.set(tc.id!, new ToolMessage({
+          content: planModeState.getBlockedMessage(toolName),
+          tool_call_id: tc.id!,
+          name: toolName,
+        }));
+        denied = true;
+      }
+    }
+
+    // Skip execution if all tools are blocked
+    if (blockedTools.size > 0 && blockedTools.size === toolCalls.length) {
+      warn('agent', `All tools blocked by plan mode: ${Array.from(blockedTools).join(', ')}`);
+      const toolMessages: ToolMessage[] = toolCalls.map(tc =>
+        toolMessageMap.get(tc.id!)!,
+      );
+      return { toolMessages, denied };
+    }
+
+    // Execute allowed tools
+    const allowedToolCalls = toolCalls.filter(tc => !blockedTools.has(tc.name ?? 'unknown'));
+    const filteredResponse = allowedToolCalls.length > 0 ? {
+      ...response,
+      tool_calls: allowedToolCalls,
+    } : response;
+
+    for await (const event of this.toolExecutor.executeAll(filteredResponse, ctx)) {
       yield event;
 
       if (event.type === 'tool_end' && event.toolCallId) {
@@ -738,7 +933,13 @@ const MODE_PRIORITY: Record<StreamMode, number> = {
  * "advanced" mode the chunk contains. LangChain content can be a plain string
  * (most providers) or an array of typed parts (Anthropic).
  */
-function inspectChunkContent(chunk: AIMessageChunk): { charDelta: number; mode: StreamMode } {
+function inspectChunkContent(chunk: AIMessageChunk): {
+  charDelta: number;
+  mode: StreamMode;
+  toolName?: string;
+  partialJson?: string;
+  toolCallId?: string;
+} {
   const content = chunk.content;
   if (typeof content === 'string') {
     return { charDelta: content.length, mode: 'responding' };
@@ -749,6 +950,10 @@ function inspectChunkContent(chunk: AIMessageChunk): { charDelta: number; mode: 
 
   let charDelta = 0;
   let mode: StreamMode = 'responding';
+  let toolName: string | undefined;
+  let partialJson: string | undefined;
+  let toolCallId: string | undefined;
+
   for (const part of content) {
     if (!part || typeof part !== 'object') continue;
     const partType = (part as { type?: string }).type;
@@ -761,10 +966,17 @@ function inspectChunkContent(chunk: AIMessageChunk): { charDelta: number; mode: 
       if (typeof thinkingText === 'string') charDelta += thinkingText.length;
       if (MODE_PRIORITY.thinking > MODE_PRIORITY[mode]) mode = 'thinking';
     } else if (partType === 'tool_use' || partType === 'input_json_delta') {
-      const partialJson = (part as { input?: unknown; partial_json?: string }).partial_json;
-      if (typeof partialJson === 'string') charDelta += partialJson.length;
+      const pj = (part as { input?: unknown; partial_json?: string }).partial_json;
+      const name = (part as { name?: string }).name;
+      const id = (part as { id?: string }).id;
+      if (typeof pj === 'string') {
+        charDelta += pj.length;
+        partialJson = pj;
+      }
+      if (name) toolName = name;
+      if (id) toolCallId = id;
       if (MODE_PRIORITY['tool-input'] > MODE_PRIORITY[mode]) mode = 'tool-input';
     }
   }
-  return { charDelta, mode };
+  return { charDelta, mode, toolName, partialJson, toolCallId };
 }
