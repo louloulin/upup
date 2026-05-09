@@ -3,7 +3,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import type { SkillMetadata, Skill, SkillSource } from './types.js';
 import { extractSkillMetadata, loadSkillFromPath } from './loader.js';
-import { dexterPath } from '../utils/paths.js';
+import { upupPath } from '../utils/paths.js';
 
 // Get the directory of this file to locate builtin skills
 const __filename = fileURLToPath(import.meta.url);
@@ -13,7 +13,7 @@ const __dirname = dirname(__filename);
  * Skill directories in order of precedence (later overrides earlier).
  *
  * Priority: project > user > builtin
- * - project (.dexter/skills/): Project-specific skills, highest priority
+ * - project (.upup/skills/): Project-specific skills, highest priority
  * - user (.claude/skills/): User-level skills, overrides builtin
  * - builtin (src/skills/): Built-in skills, lowest priority
  *
@@ -22,7 +22,7 @@ const __dirname = dirname(__filename);
 const SKILL_DIRECTORIES: { path: string; source: SkillSource }[] = [
   { path: __dirname, source: 'builtin' },
   { path: join(process.cwd(), '.claude', 'skills'), source: 'user' },
-  { path: join(process.cwd(), dexterPath('skills')), source: 'project' },
+  { path: join(process.cwd(), upupPath('skills')), source: 'project' },
 ];
 
 // Cache for discovered skills (metadata only)

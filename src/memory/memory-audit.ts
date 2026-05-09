@@ -8,7 +8,7 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
-import { dexterPath } from '../utils/paths.js';
+import { upupPath } from '../utils/paths.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -35,7 +35,7 @@ export class MemoryAuditLogger {
   constructor(auditPath?: string) {
     const baseDir = auditPath
       ? dirname(auditPath)
-      : join(process.cwd(), '.dexter', 'logs');
+      : join(process.cwd(), '.upup', 'logs');
     const fileName = auditPath
       ? auditPath
       : join(baseDir, 'memory-audit.log');

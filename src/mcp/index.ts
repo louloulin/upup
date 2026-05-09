@@ -1,7 +1,7 @@
 /**
  * MCP Module - Model Context Protocol Integration
  *
- * Provides MCP server connection and tool management for Dexter.
+ * Provides MCP server connection and tool management for UpUp.
  */
 
 export {

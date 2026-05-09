@@ -20,7 +20,7 @@ Export portfolio positions and P&L data.
 - Analysis in external tools
 
 ## Output
-Exports to .dexter/exports/ with timestamp
+Exports to .upup/exports/ with timestamp
 `.trim();
 
 export const EXPORT_WATCHLIST_DESCRIPTION = `
@@ -32,7 +32,7 @@ Export watchlist with alerts.
 - Portfolio planning
 
 ## Output
-Exports to .dexter/exports/ with timestamp
+Exports to .upup/exports/ with timestamp
 `.trim();
 
 export const EXPORT_DATA_DESCRIPTION = `

@@ -17,7 +17,7 @@ allowed-tools:
   - Bash(curl*)
   - Bash(python3*)
   - Read
-  - Write(/tmp/dexter-cache/*)
+  - Write(/tmp/upup-cache/*)
 ---
 
 # A-Share Fund Skill

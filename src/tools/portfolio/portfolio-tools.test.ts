@@ -2,7 +2,7 @@
  * Portfolio Tools Tests
  *
  * Tests file-based persistence, cash management, and transaction history.
- * Uses a temp directory to avoid polluting .dexter/portfolio.json.
+ * Uses a temp directory to avoid polluting .upup/portfolio.json.
  *
  * IMPORTANT: setDataPath must be called on the module instance BEFORE any
  * operation that calls getData(), because getData() caches _data on first
@@ -16,7 +16,7 @@ import path from 'node:path';
 import type { PortfolioData } from './portfolio-tools.js';
 
 // Shared temp dir and file path
-const TEST_DIR = path.join('/tmp', `dexter-portfolio-test-${process.pid}`);
+const TEST_DIR = path.join('/tmp', `upup-portfolio-test-${process.pid}`);
 const TEST_FILE = path.join(TEST_DIR, 'portfolio.json');
 
 function resetFile(cash = 100000): void {

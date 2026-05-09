@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * oscript-verify.ts — Interactive Dexter command verification script
+ * oscript-verify.ts — Interactive UpUp command verification script
  *
  * Tests each slash command by directly invoking the CommandRegistry
  * without requiring the full TUI. Validates that commands:
@@ -34,7 +34,7 @@ const registry = getGlobalRegistry();
 const commands = registry.list();
 
 console.log('════════════════════════════════════════════════════════');
-console.log('  Dexter Interactive Command Verification (oscript)');
+console.log('  UpUp Interactive Command Verification (oscript)');
 console.log('════════════════════════════════════════════════════════');
 console.log(`  Registry: ${commands.length} commands registered`);
 console.log('');
@@ -231,7 +231,7 @@ if (failed > 0) {
 }
 
 // Export results for programmatic use
-const jsonPath = import.meta.dir + '/../.dexter/oscript-results.json';
+const jsonPath = import.meta.dir + '/../.upup/oscript-results.json';
 try {
   const { writeFileSync, mkdirSync } = await import('fs');
   const { dirname } = await import('path');

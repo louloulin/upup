@@ -1,7 +1,7 @@
 /**
  * SkillTool - Skill Discovery and Execution
  *
- * Exposes Dexter's skill system as tools for:
+ * Exposes UpUp's skill system as tools for:
  * - Listing available skills with metadata
  * - Loading a skill's full instructions
  * - Getting detailed info about a specific skill
@@ -52,7 +52,7 @@ List all available skills with metadata.
 Use this when:
 - Discovering what skills are available
 - Finding a skill by name or category
-- Showing the user what skills Dexter can use
+- Showing the user what skills UpUp can use
 
 Returns a formatted list of skills with name, description, source, and model preference.
 Optionally filter by source category: "builtin", "user", or "project".

@@ -1,19 +1,19 @@
 #!/usr/bin/env bun
 /**
- * oscript-cjk-diag.ts — Diagnostic: Does Chinese text actually reach Dexter?
+ * oscript-cjk-diag.ts — Diagnostic: Does Chinese text actually reach UpUp?
  *
  * Strategy:
  * 1. Start bun run dev
  * 2. Send a Chinese query via clipboard paste
  * 3. Wait for processing
- * 4. Send /history to check if Dexter recorded the Chinese query
+ * 4. Send /history to check if UpUp recorded the Chinese query
  * 5. Check output for evidence of Chinese query processing
  */
 
 import { execSync } from 'child_process';
 
 const PROJECT_DIR = '/Users/louloulin/Documents/linchong/touzhi/dexter';
-const OUTPUT_LOG = '/tmp/dexter-cjk-diag.log';
+const OUTPUT_LOG = '/tmp/upup-cjk-diag.log';
 
 function runAppleScript(script: string): { ok: boolean; output: string } {
   try {
@@ -36,7 +36,7 @@ function pasteText(text: string): boolean {
   // Default "C" locale converts UTF-8 → GB2312 (garbled).
   const env = { ...process.env, LANG: 'en_US.UTF-8', LC_ALL: 'en_US.UTF-8' };
 
-  const tmpFile = '/tmp/dexter-cjk-paste.txt';
+  const tmpFile = '/tmp/upup-cjk-paste.txt';
   try {
     Bun.write(tmpFile, text);
     execSync(`pbcopy < ${tmpFile}`, { encoding: 'utf-8', timeout: 5000, env });
@@ -104,7 +104,7 @@ function readRawLog(): Buffer {
 // ============================================================================
 
 console.log('════════════════════════════════════════════════════════');
-console.log('  CJK Input Diagnostic — Does Chinese text reach Dexter?');
+console.log('  CJK Input Diagnostic — Does Chinese text reach UpUp?');
 console.log('════════════════════════════════════════════════════════');
 console.log('');
 
@@ -115,7 +115,7 @@ try {
 } catch {}
 await Bun.sleep(1000);
 
-// Start Dexter
+// Start UpUp
 console.log('[1] Starting bun run dev...');
 const startScript = `
 tell application "Terminal"
@@ -151,7 +151,7 @@ if (!pasted) {
 }
 
 // Wait for processing (20 seconds for complex query)
-console.log('    Waiting 20s for Dexter to process...');
+console.log('    Waiting 20s for UpUp to process...');
 await Bun.sleep(20000);
 
 // ============================================================================
@@ -204,10 +204,10 @@ const queryIdx = rawLog.indexOf(queryBytes);
 console.log(`    Query text "${chineseQuery}" in log: ${queryIdx >= 0 ? `YES at offset ${queryIdx}` : 'NO'}`);
 
 // ============================================================================
-// Test 3: Send /history to check if Dexter recorded the query
+// Test 3: Send /history to check if UpUp recorded the query
 // ============================================================================
 console.log('');
-console.log('[4] Sending /history to check if Dexter recorded Chinese query...');
+console.log('[4] Sending /history to check if UpUp recorded Chinese query...');
 
 // Clear log
 try { execSync(`> ${OUTPUT_LOG}`); } catch {}

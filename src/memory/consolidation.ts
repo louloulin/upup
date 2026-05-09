@@ -1,5 +1,5 @@
 /**
- * Memory Consolidation - Periodic consolidation for Dexter Memory
+ * Memory Consolidation - Periodic consolidation for UpUp Memory
  *
  * Based on Claude Code's 2-phase consolidation:
  * - Triggered every 24h or after 5+ new sessions
@@ -15,7 +15,7 @@ import {
   buildConsolidationPrompt,
 } from './prompts.js';
 import { getChatModel, DEFAULT_MODEL } from '../model/llm.js';
-import { getDexterDir } from '../utils/paths.js';
+import { getUpupDir } from '../utils/paths.js';
 import { MEMORY_TYPES, type MemoryType } from './types.js';
 import { z } from 'zod';
 import { info, warn, error } from '../utils/logging/logger.js';
@@ -118,7 +118,7 @@ export async function consolidateMemories(options: {
 
     for (const mem of result.merged_memories || []) {
       try {
-        const typeDir = join(getDexterDir(), MEMORY_DIRNAME, mem.type);
+        const typeDir = join(getUpupDir(), MEMORY_DIRNAME, mem.type);
         const filePath = join(typeDir, `${mem.name}.md`);
         const content = matter.stringify(mem.content, {
           name: mem.name,
@@ -168,7 +168,7 @@ export async function shouldConsolidate(): Promise<{
   needed: boolean;
   reason: string;
 }> {
-  const memoryDir = join(getDexterDir(), MEMORY_DIRNAME);
+  const memoryDir = join(getUpupDir(), MEMORY_DIRNAME);
   const lockPath = join(memoryDir, LOCK_FILE);
 
   // Check lock
@@ -206,7 +206,7 @@ export async function shouldConsolidate(): Promise<{
  * Acquire consolidation lock.
  */
 async function acquireLock(): Promise<boolean> {
-  const memoryDir = join(getDexterDir(), MEMORY_DIRNAME);
+  const memoryDir = join(getUpupDir(), MEMORY_DIRNAME);
   const lockPath = join(memoryDir, LOCK_FILE);
 
   try {
@@ -224,7 +224,7 @@ async function acquireLock(): Promise<boolean> {
  * Release consolidation lock.
  */
 async function releaseLock(): Promise<void> {
-  const memoryDir = join(getDexterDir(), MEMORY_DIRNAME);
+  const memoryDir = join(getUpupDir(), MEMORY_DIRNAME);
   const lockPath = join(memoryDir, LOCK_FILE);
 
   try {
@@ -238,7 +238,7 @@ async function releaseLock(): Promise<void> {
  * Read all memory files from all type directories.
  */
 async function readAllMemoryFiles(): Promise<MemoryFile[]> {
-  const memoryDir = join(getDexterDir(), MEMORY_DIRNAME);
+  const memoryDir = join(getUpupDir(), MEMORY_DIRNAME);
   const memories: MemoryFile[] = [];
 
   for (const type of MEMORY_TYPES) {
@@ -331,7 +331,7 @@ async function performConsolidation(
  */
 async function countNewSessions(): Promise<number> {
   // Simple heuristic: count daily memory files
-  const memoryDir = join(getDexterDir(), MEMORY_DIRNAME);
+  const memoryDir = join(getUpupDir(), MEMORY_DIRNAME);
   const DAILY_RE = /^\d{4}-\d{2}-\d{2}\.md$/;
 
   try {
@@ -346,7 +346,7 @@ async function countNewSessions(): Promise<number> {
  * Get timestamp of last consolidation.
  */
 async function getLastConsolidationTime(): Promise<number> {
-  const memoryDir = join(getDexterDir(), MEMORY_DIRNAME);
+  const memoryDir = join(getUpupDir(), MEMORY_DIRNAME);
   const lockPath = join(memoryDir, LOCK_FILE);
 
   try {
@@ -371,7 +371,7 @@ function extractDescription(content: string): string {
  * Update MEMORY.md index after consolidation.
  */
 async function updateMemoryIndex(): Promise<void> {
-  const memoryDir = join(getDexterDir(), MEMORY_DIRNAME);
+  const memoryDir = join(getUpupDir(), MEMORY_DIRNAME);
   const indexPath = join(memoryDir, 'MEMORY.md');
 
   const memories = await readAllMemoryFiles();
@@ -380,7 +380,7 @@ async function updateMemoryIndex(): Promise<void> {
   );
 
   const indexContent = [
-    '# Dexter Memory Index',
+    '# UpUp Memory Index',
     '',
     `Last updated: ${new Date().toISOString()}`,
     `Last consolidation: ${new Date().toISOString()}`,

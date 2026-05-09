@@ -7,7 +7,7 @@
  * - project: Ongoing work, goals, decisions
  * - reference: External system pointers
  *
- * Each type maps to a subdirectory under ~/.dexter/memory/
+ * Each type maps to a subdirectory under ~/.upup/memory/
  */
 
 import { readdir, readFile, stat, writeFile } from 'node:fs/promises';
@@ -16,7 +16,7 @@ import { join } from 'node:path';
 import matter from 'gray-matter';
 import type { MemoryFileMeta, MemoryType } from './types.js';
 import { MEMORY_TYPES, parseMemoryType } from './types.js';
-import { getDexterDir } from '../utils/paths.js';
+import { getUpupDir } from '../utils/paths.js';
 
 // ============================================================================
 // Constants
@@ -45,7 +45,7 @@ export interface ScannerOptions {
   signal?: AbortSignal;
   /** Maximum number of files to scan */
   maxFiles?: number;
-  /** Override base Dexter directory for tests/scripts */
+  /** Override base UpUp directory for tests/scripts */
   baseDir?: string;
 }
 
@@ -96,7 +96,7 @@ function parseFrontmatter(content: string, filename: string): Partial<MemoryFile
 export async function scanMemoryFiles(
   options: ScannerOptions = {},
 ): Promise<MemoryFileMeta[]> {
-  const memoryDir = join(options.baseDir ?? getDexterDir(), MEMORY_DIRNAME);
+  const memoryDir = join(options.baseDir ?? getUpupDir(), MEMORY_DIRNAME);
   const results: MemoryFileMeta[] = [];
 
   try {
@@ -148,7 +148,7 @@ export async function scanMemoryFiles(
 export async function scanTypedMemoryFiles(
   options: ScannerOptions = {},
 ): Promise<MemoryFileMeta[]> {
-  const memoryDir = join(options.baseDir ?? getDexterDir(), MEMORY_DIRNAME);
+  const memoryDir = join(options.baseDir ?? getUpupDir(), MEMORY_DIRNAME);
   const results: MemoryFileMeta[] = [];
 
   for (const type of MEMORY_TYPES) {
@@ -256,7 +256,7 @@ export function buildTypedManifest(memories: MemoryFileMeta[]): string {
  * Creates it with current memories if it doesn't exist.
  */
 export async function ensureMemoryIndex(): Promise<void> {
-  const memoryDir = join(getDexterDir(), MEMORY_DIRNAME);
+  const memoryDir = join(getUpupDir(), MEMORY_DIRNAME);
   const indexPath = join(memoryDir, 'MEMORY.md');
 
   if (existsSync(indexPath)) {
@@ -268,7 +268,7 @@ export async function ensureMemoryIndex(): Promise<void> {
 
   // Build index content
   const indexContent = [
-    '# Dexter Memory Index',
+    '# UpUp Memory Index',
     '',
     '## Summary',
     `Last updated: ${new Date().toISOString()}`,

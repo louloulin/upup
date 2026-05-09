@@ -66,7 +66,7 @@ export function loadFilesystemTools(): RegisteredTool[] {
       name: 'heartbeat',
       tool: heartbeatTool,
       description: HEARTBEAT_TOOL_DESCRIPTION,
-      compactDescription: 'View or update the periodic heartbeat checklist (.dexter/HEARTBEAT.md).',
+      compactDescription: 'View or update the periodic heartbeat checklist (.upup/HEARTBEAT.md).',
       concurrencySafe: true,
     },
     {

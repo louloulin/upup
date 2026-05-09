@@ -1,11 +1,11 @@
 #!/usr/bin/env bun
 /**
- * oscript-mac-verify.ts — Real macOS osascript verification of Dexter
+ * oscript-mac-verify.ts — Real macOS osascript verification of UpUp
  *
  * Uses AppleScript System Events to:
  * 1. Create a Terminal tab and run `bun run dev`
  * 2. Send REAL investment analysis queries via clipboard paste
- * 3. Capture and verify Dexter's responses
+ * 3. Capture and verify UpUp's responses
  *
  * Key: AppleScript `keystroke` only supports ASCII.
  *      Chinese/unicode text is sent via clipboard paste (Cmd+V).
@@ -20,7 +20,7 @@ import { execSync } from 'child_process';
 // ============================================================================
 
 const PROJECT_DIR = '/Users/louloulin/Documents/linchong/touzhi/dexter';
-const OUTPUT_LOG = '/tmp/dexter-oscript-output.log';
+const OUTPUT_LOG = '/tmp/upup-oscript-output.log';
 const STARTUP_WAIT_MS = 15000;
 const SLASH_CMD_DELAY_MS = 6000;    // Slash commands via paste need a bit more for TUI render
 const INVEST_QUERY_DELAY_MS = 30000; // Investment queries need more time
@@ -137,7 +137,7 @@ function pasteText(text: string): boolean {
   const env = { ...process.env, LANG: 'en_US.UTF-8', LC_ALL: 'en_US.UTF-8' };
 
   // Write text to temp file (UTF-8 safe), then pbcopy from file
-  const tmpFile = '/tmp/dexter-paste.txt';
+  const tmpFile = '/tmp/upup-paste.txt';
   try {
     Bun.write(tmpFile, text);
     execSync(`pbcopy < ${tmpFile}`, { encoding: 'utf-8', timeout: 5000, env });
@@ -211,12 +211,12 @@ function escapeShellArg(str: string): string {
 // ============================================================================
 
 console.log('════════════════════════════════════════════════════════════════');
-console.log('  Dexter macOS osascript — Real Investment Analysis Verification');
+console.log('  UpUp macOS osascript — Real Investment Analysis Verification');
 console.log('════════════════════════════════════════════════════════════════');
 console.log('');
 
-// Step 1: Kill any previous dexter processes from prior runs
-console.log('[1] Cleaning up any previous dexter processes...');
+// Step 1: Kill any previous upup processes from prior runs
+console.log('[1] Cleaning up any previous upup processes...');
 try {
   execSync(`pkill -f "bun.*run.*dev" 2>/dev/null || true`, { encoding: 'utf-8' });
   execSync(`rm -f ${OUTPUT_LOG}`, { encoding: 'utf-8' });
@@ -230,7 +230,7 @@ const startScript = `
 tell application "Terminal"
   activate
   do script "cd ${PROJECT_DIR} && bun run dev 2>&1 | tee ${OUTPUT_LOG}"
-  set custom title of front window to "Dexter oscript Verify"
+  set custom title of front window to "UpUp oscript Verify"
 end tell
 `;
 const startResult = runAppleScript(startScript);
@@ -287,7 +287,7 @@ for (let i = 0; i < COMMANDS_TO_TEST.length; i++) {
     continue;
   }
 
-  // Wait for Dexter to process
+  // Wait for UpUp to process
   await Bun.sleep(delay);
 
   // Capture and clean output from tee log only (Terminal content is unstable)
@@ -417,11 +417,11 @@ console.log('');
 if (err.length === 0 && ok.length > 0) {
   console.log('  ✅ macOS osascript REAL verification PASSED');
   console.log(`     ${ok.length}/${results.length} commands received verified responses`);
-  console.log('     Dexter correctly handles real investment analysis queries via osascript');
+  console.log('     UpUp correctly handles real investment analysis queries via osascript');
 } else if (err.length > 0) {
   console.log('  ⚠️ Some commands had errors — check output above');
 } else {
-  console.log('  ⚠️ No commands received verified responses — check if Dexter is running');
+  console.log('  ⚠️ No commands received verified responses — check if UpUp is running');
 }
 
 console.log('');

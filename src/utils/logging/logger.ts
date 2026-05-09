@@ -1,5 +1,5 @@
 /**
- * Dexter Unified Logging System
+ * UpUp Unified Logging System
  *
  * Features:
  * - Multiple log levels (debug, info, warn, error)
@@ -12,7 +12,7 @@
 
 import { writeFileSync, appendFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
-import { getDexterDir } from '../paths.js';
+import { getUpupDir } from '../paths.js';
 
 // ============================================================================
 // Types
@@ -57,7 +57,7 @@ const LOG_LEVEL_PRIORITY: Record<LogLevel, number> = {
   error: 3,
 };
 
-const LOG_DIR = join(getDexterDir(), 'logs');
+const LOG_DIR = join(getUpupDir(), 'logs');
 const DEFAULT_CONFIG: LoggerConfig = {
   level: 'info',
   enableConsole: false,  // Default to silent - CLI/TUI handles output
@@ -159,7 +159,7 @@ class LogFileManager {
 
   private getLogFilename(date: Date): string {
     const dateStr = date.toISOString().slice(0, 10); // YYYY-MM-DD
-    return join(this.config.logDir, `dexter-${dateStr}.log`);
+    return join(this.config.logDir, `upup-${dateStr}.log`);
   }
 
   private rotateIfNeeded(): void {

@@ -52,10 +52,12 @@ yarn-error.log*
 # Cursor files
 .cursor/
 
-# Dexter context files (offloaded tool outputs)
+# UpUp context files (offloaded tool outputs)
+.upup/*
 .dexter/*
 
 
 logs/
 coverage.json
 dexter
+upup

@@ -12,7 +12,7 @@ import {
 } from './team-paths.js';
 
 describe('TeamMemoryPaths', () => {
-  const TEST_BASE_DIR = '/tmp/dexter-team-test';
+  const TEST_BASE_DIR = '/tmp/upup-team-test';
 
   beforeEach(() => {
     resetTeamMemoryPaths();

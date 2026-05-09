@@ -1,4 +1,4 @@
-# Dexter Memory Transformation Plan
+# UpUp Memory Transformation Plan
 
 > 基于 Claude Code、Codex、Loucode、OpenClaw、ClawKB/memvid 的最佳实践
 > 制定时间: 2026-05-07
@@ -7,7 +7,7 @@
 
 ## 摘要
 
-本计划将 Dexter 的记忆系统从依赖外部 Embedding API 改造为**三层混合架构**：
+本计划将 UpUp 的记忆系统从依赖外部 Embedding API 改造为**三层混合架构**：
 1. **AI-Selector 主导**: LLM 语义选择记忆文件 (无 API 依赖)
 2. **FTS5 全文兜底**: SQLite FTS5 关键词搜索 (无 API 依赖)
 3. **向量搜索可选**: Memvid 内置 BM25 / 源码编译版向量 (可离线)
@@ -171,7 +171,7 @@ struct Frame {
 │  ║                    STORAGE LAYER                                       ║ │
 │  ╠═══════════════════════════════════════════════════════════════════════╣ │
 │  ║                                                                        ║ │
-│  ║   ~/.dexter/memory/                                                   ║ │
+│  ║   ~/.upup/memory/                                                   ║ │
 │  ║   ├── MEMORY.md                    # 入口索引 (最多 200 行)             ║ │
 │  ║   ├── user/                       # 用户记忆                           ║ │
 │  ║   │   ├── preferences.md                                             ║ │
@@ -185,7 +185,7 @@ struct Frame {
 │  ║   └── logs/                       # 追加日志                           ║ │
 │  ║       └── 2026/05/2026-05-07.md                                     ║ │
 │  ║                                                                        ║ │
-│  ║   ~/.dexter/index.sqlite                                              ║ │
+│  ║   ~/.upup/index.sqlite                                              ║ │
 │  ║   ├── memories                  # 记忆文件索引                         ║ │
 │  ║   ├── memories_fts              # FTS5 全文索引                       ║ │
 │  ║   ├── embedding_cache           # 向量缓存                           ║ │
@@ -331,9 +331,9 @@ Tier 2 (Local search):  Memvid.find(mode: 'lex')
   - 向量搜索 (mode: 'sem') 仅源码编译版可用
 ```
 
-### Decision 2: Memvid 作为 Dexter 的核心
+### Decision 2: Memvid 作为 UpUp 的核心
 
-**结论**: @memvid/sdk npm 包是 Dexter 的最佳选择。
+**结论**: @memvid/sdk npm 包是 UpUp 的最佳选择。
 
 | 维度 | @memvid/sdk (npm) | 说明 |
 |------|-------------------|------|
@@ -512,9 +512,9 @@ CREATE TABLE meta (
 
 ## 十、关键文件路径
 
-- `/Users/louloulin/Documents/linchong/touzhi/dexter/src/memory/index.ts`
-- `/Users/louloulin/Documents/linchong/touzhi/dexter/src/memory/ai-selector.ts`
-- `/Users/louloulin/Documents/linchong/touzhi/dexter/src/memory/search.ts`
+- `/Users/louloulin/Documents/linchong/touzhi/upup/src/memory/index.ts`
+- `/Users/louloulin/Documents/linchong/touzhi/upup/src/memory/ai-selector.ts`
+- `/Users/louloulin/Documents/linchong/touzhi/upup/src/memory/search.ts`
 - `/Users/louloulin/Documents/linchong/claw/loucode/src/memdir/memoryTypes.ts`
 - `/Users/louloulin/Documents/linchong/claw/openclaw/src/memory/embeddings.ts`
 - `/Users/louloulin/Documents/linchong/claw/kb/crates/clawkb-core/src/kb.rs`

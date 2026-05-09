@@ -10,7 +10,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import { createHash } from 'crypto';
-import { dexterPath, ensureDir } from '../utils/paths.js';
+import { upupPath, ensureDir } from '../utils/paths.js';
 
 // ============================================================================
 // Types
@@ -55,7 +55,7 @@ export class SessionManager {
   private currentSessionId: string | null = null;
 
   constructor() {
-    this.sessionDir = join(dexterPath('data'), SESSION_DIR);
+    this.sessionDir = join(upupPath('data'), SESSION_DIR);
     ensureDir(this.sessionDir);
   }
 

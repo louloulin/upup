@@ -69,7 +69,7 @@ export interface TeamMemberContext {
 // Constants
 // ============================================================================
 
-const DEFAULT_TEAM_MEMORY_DIR = '.dexter/teams';
+const DEFAULT_TEAM_MEMORY_DIR = '.upup/teams';
 const DEFAULT_SHARED_MEMORY_FILE = 'shared.MEMORY.md';
 const DEFAULT_CONTEXT_FILE = 'context.json';
 const DEFAULT_AGENTS_DIR = 'agents';

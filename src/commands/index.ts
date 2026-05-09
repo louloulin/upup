@@ -11,7 +11,7 @@ export const SLASH_COMMANDS: SlashCommand[] = [
   { name: 'model', description: 'Switch LLM provider and model', category: 'core' },
   { name: 'history', description: 'Show recent conversation summaries', category: 'core' },
   // Memory commands
-  { name: 'memory', description: 'Show what Dexter remembers about you', category: 'core' },
+  { name: 'memory', description: 'Show what UpUp remembers about you', category: 'core' },
   { name: 'rules', description: 'Show your research rules', category: 'core' },
   // System commands
   { name: 'status', description: 'Show system status and stats', category: 'system' },

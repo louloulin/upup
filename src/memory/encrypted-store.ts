@@ -13,7 +13,7 @@ import { encrypt, decrypt, setMasterKey, isEncryptionAvailable } from './crypto.
 export interface EncryptedMemoryStoreOptions {
   /** Enable encryption (default: auto-detect from env) */
   enabled?: boolean;
-  /** Encryption key (default: from DEXTER_ENCRYPTION_KEY env) */
+  /** Encryption key (default: from UPUP_ENCRYPTION_KEY env) */
   key?: string;
   /** Categories to always encrypt */
   encryptedCategories?: string[];
@@ -36,7 +36,7 @@ export class EncryptedMemoryStore {
 
     // Determine if encryption should be enabled
     this.encryptionEnabled = options.enabled ?? isEncryptionAvailable();
-    this.key = options.key ?? process.env.DEXTER_ENCRYPTION_KEY ?? null;
+    this.key = options.key ?? process.env.UPUP_ENCRYPTION_KEY ?? null;
     this.encryptedCategories = new Set(options.encryptedCategories ?? DEFAULT_ENCRYPTED_CATEGORIES);
     this.plaintextCategories = new Set(options.plaintextCategories ?? DEFAULT_PLAINTEXT_CATEGORIES);
 

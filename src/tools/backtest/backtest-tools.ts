@@ -1,5 +1,5 @@
 /**
- * Backtest Tools for Dexter
+ * Backtest Tools for UpUp
  *
  * Provides backtesting evaluation for investment analysis strategies.
  * Based on daily_stock_analysis backtest architecture.

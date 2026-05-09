@@ -53,7 +53,7 @@ export interface PortfolioData {
 
 // --- Persistence ---
 
-const DEFAULT_FILE_PATH = '.dexter/portfolio.json';
+const DEFAULT_FILE_PATH = '.upup/portfolio.json';
 
 let dataFilePath: string = DEFAULT_FILE_PATH;
 let _data: PortfolioData | null = null;

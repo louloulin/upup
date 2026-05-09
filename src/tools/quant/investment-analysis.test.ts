@@ -1,7 +1,7 @@
 /**
- * investment-analysis.test.ts — Real verification of Dexter's investment analysis capabilities
+ * investment-analysis.test.ts — Real verification of UpUp's investment analysis capabilities
  *
- * Tests the core financial calculations that power Dexter's investment analysis:
+ * Tests the core financial calculations that power UpUp's investment analysis:
  * 1. Risk metrics (VaR, Sharpe, Sortino, MaxDrawdown) — previously UNTESTED
  * 2. Valuation (DCF math)
  * 3. Options pricing (Black-Scholes + put-call parity)

@@ -1,7 +1,7 @@
 /**
  * GrepTool - Search file contents with regex
  *
- * A simplified implementation of Claude Code's GrepTool for Dexter.
+ * A simplified implementation of Claude Code's GrepTool for UpUp.
  * Uses ripgrep (rg) for fast searching when available, falls back to JavaScript.
  */
 

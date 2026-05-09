@@ -82,7 +82,7 @@ function ensureDir(filePath: string): void {
 }
 
 function writeExportFile(data: ExportData): string {
-  const exportDir = '.dexter/exports';
+  const exportDir = '.upup/exports';
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
   const safeFilename = data.filename.replace(/[^a-zA-Z0-9_-]/g, '_');
   const fullPath = path.join(exportDir, `${safeFilename}_${timestamp}.${data.format}`);

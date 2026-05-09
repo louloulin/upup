@@ -18,8 +18,8 @@ import { EventEmitter } from 'events';
 // Constants
 // ============================================================================
 
-const DEXTER_SOCKET_PATH = process.env.DEXTER_SOCKET_PATH || '/tmp/dexter.sock';
-const DEXTER_TCP_PORT = parseInt(process.env.DEXTER_TCP_PORT || '18739', 10);
+const UPUP_SOCKET_PATH = process.env.UPUP_SOCKET_PATH || '/tmp/upup.sock';
+const UPUP_TCP_PORT = parseInt(process.env.UPUP_TCP_PORT || '18739', 10);
 const MAX_MESSAGE_SIZE = 10 * 1024 * 1024; // 10MB
 
 // ============================================================================
@@ -80,14 +80,14 @@ export class IPCRouter extends EventEmitter {
   private handlers: Map<string, IPCHandler> = new Map();
   private subscriptions: Map<string, Set<(msg: IPCMessage) => void>> = new Map();
   private server: import('net').Server | import('http').Server | null = null;
-  private socketPath: string = DEXTER_SOCKET_PATH;
+  private socketPath: string = UPUP_SOCKET_PATH;
   private useTCP: boolean = false;
   private clients: Set<import('net').Socket | import('http').ServerResponse> = new Set();
 
   constructor(options?: { socketPath?: string; tcpPort?: number }) {
     super();
     if (options?.socketPath) this.socketPath = options.socketPath;
-    if (options?.tcpPort) DEXTER_TCP_PORT === options.tcpPort;
+    if (options?.tcpPort) UPUP_TCP_PORT === options.tcpPort;
   }
 
   // -------------------------------------------------------------------------
@@ -111,7 +111,7 @@ export class IPCRouter extends EventEmitter {
     // Fallback to TCP
     try {
       await this.startTCP();
-      info('daemon', `IPC Router started on TCP: localhost:${DEXTER_TCP_PORT}`);
+      info('daemon', `IPC Router started on TCP: localhost:${UPUP_TCP_PORT}`);
     } catch (err) {
       error('daemon', `TCP fallback also failed: ${err}`);
       throw new Error('Failed to start IPC router (both UDS and TCP failed)');
@@ -160,7 +160,7 @@ export class IPCRouter extends EventEmitter {
           reject(err);
         });
 
-        this.server.listen(DEXTER_TCP_PORT, '127.0.0.1', () => {
+        this.server.listen(UPUP_TCP_PORT, '127.0.0.1', () => {
           this.useTCP = true;
           resolve();
         });
@@ -420,8 +420,8 @@ export class IPCClient {
   private reconnectDelay: number = 1000;
 
   constructor(options?: { socketPath?: string; tcpPort?: number }) {
-    this.socketPath = options?.socketPath || DEXTER_SOCKET_PATH;
-    this.tcpPort = options?.tcpPort || DEXTER_TCP_PORT;
+    this.socketPath = options?.socketPath || UPUP_SOCKET_PATH;
+    this.tcpPort = options?.tcpPort || UPUP_TCP_PORT;
   }
 
   /**

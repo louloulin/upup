@@ -4,12 +4,12 @@ import { join } from 'node:path';
 import matter from 'gray-matter';
 import { MEMORY_TYPES, type MemoryType } from './types.js';
 import { buildTypedManifest, scanTypedMemoryFiles } from './scanner.js';
-import { getDexterDir } from '../utils/paths.js';
+import { getUpupDir } from '../utils/paths.js';
 
 const MEMORY_DIRNAME = 'memory';
 const LEGACY_DIRNAME = 'legacy';
 const DAILY_FILE_RE = /^\d{4}-\d{2}-\d{2}\.md$/;
-const INDEX_HEADER = '# Dexter Memory Index';
+const INDEX_HEADER = '# UpUp Memory Index';
 
 export interface MigrationResult {
   migrated: Array<{ from: string; to: string; type: MemoryType }>;
@@ -97,7 +97,7 @@ async function rebuildMemoryIndex(baseDir: string): Promise<string> {
   const manifest = buildTypedManifest(memories).trim();
 
   const lines = [
-    '# Dexter Memory Index',
+    '# UpUp Memory Index',
     '',
     '## Summary',
     `Last updated: ${new Date().toISOString()}`,
@@ -114,7 +114,7 @@ export async function migrateLegacyMemories(options: {
   baseDir?: string;
   dryRun?: boolean;
 } = {}): Promise<MigrationResult> {
-  const baseDir = options.baseDir ?? getDexterDir();
+  const baseDir = options.baseDir ?? getUpupDir();
   const memoryDir = join(baseDir, MEMORY_DIRNAME);
   const archiveDir = join(memoryDir, LEGACY_DIRNAME);
   const result: MigrationResult = {

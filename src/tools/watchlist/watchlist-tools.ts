@@ -39,7 +39,7 @@ export interface WatchlistData {
 
 // --- Persistence ---
 
-const DEFAULT_FILE_PATH = '.dexter/watchlist.json';
+const DEFAULT_FILE_PATH = '.upup/watchlist.json';
 
 let dataFilePath: string = DEFAULT_FILE_PATH;
 let _data: WatchlistData | null = null;

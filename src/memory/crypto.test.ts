@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 
-const TEST_DIR = path.join(os.tmpdir(), `dexter-crypto-test-${process.pid}`);
+const TEST_DIR = path.join(os.tmpdir(), `upup-crypto-test-${process.pid}`);
 
 beforeEach(() => {
   if (!fs.existsSync(TEST_DIR)) {
@@ -106,14 +106,14 @@ describe('Memory Crypto', () => {
     const { isEncryptionAvailable, setMasterKey } = await import('./crypto.js');
     
     // Without key set and no env var
-    const originalEnv = process.env.DEXTER_ENCRYPTION_KEY;
-    delete process.env.DEXTER_ENCRYPTION_KEY;
+    const originalEnv = process.env.UPUP_ENCRYPTION_KEY;
+    delete process.env.UPUP_ENCRYPTION_KEY;
     
     setMasterKey('test-key');
     expect(isEncryptionAvailable()).toBe(true);
     
     // Clean up
     setMasterKey('');
-    if (originalEnv) process.env.DEXTER_ENCRYPTION_KEY = originalEnv;
+    if (originalEnv) process.env.UPUP_ENCRYPTION_KEY = originalEnv;
   });
 });

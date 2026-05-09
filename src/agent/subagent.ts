@@ -1,7 +1,7 @@
 /**
  * Subagent System - Core Types and Interfaces
  *
- * Provides subagent/spawn capabilities for Dexter, enabling:
+ * Provides subagent/spawn capabilities for UpUp, enabling:
  * - Spawning child agents for parallel task execution
  * - Context inheritance from parent agent
  * - Background task execution with lifecycle management

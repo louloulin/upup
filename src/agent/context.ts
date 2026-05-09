@@ -16,7 +16,7 @@ import { join } from 'node:path';
 import { existsSync } from 'node:fs';
 import { exec } from 'node:child_process';
 import { promisify } from 'node:util';
-import { getDexterDir } from '../utils/paths.js';
+import { getUpupDir } from '../utils/paths.js';
 import { cwd } from 'node:process';
 
 const execAsync = promisify(exec);
@@ -162,7 +162,7 @@ export async function getSystemContext(): Promise<SystemContext> {
  * Read MEMORY.md index
  */
 async function readMemoryIndex(): Promise<string> {
-  const memoryDir = join(getDexterDir(), 'memory');
+  const memoryDir = join(getUpupDir(), 'memory');
   const indexPath = join(memoryDir, 'MEMORY.md');
 
   if (!existsSync(indexPath)) {

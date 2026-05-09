@@ -11,7 +11,7 @@ export class IntroComponent extends Container {
   constructor(model: string) {
     super();
 
-    const welcomeText = 'Welcome to Dexter';
+    const welcomeText = 'Welcome to UpUp';
     const versionText = ` v${packageJson.version}`;
     const fullText = welcomeText + versionText;
     const padding = Math.floor((INTRO_WIDTH - fullText.length - 2) / 2);
@@ -38,12 +38,12 @@ export class IntroComponent extends Container {
         theme.bold(
           theme.primary(
             `
-██████╗ ███████╗██╗  ██╗████████╗███████╗██████╗ 
-██╔══██╗██╔════╝╚██╗██╔╝╚══██╔══╝██╔════╝██╔══██╗
-██║  ██║█████╗   ╚███╔╝    ██║   █████╗  ██████╔╝
-██║  ██║██╔══╝   ██╔██╗    ██║   ██╔══╝  ██╔══██╗
-██████╔╝███████╗██╔╝ ██╗   ██║   ███████╗██║  ██║
-╚═════╝ ╚══════╝╚═╝  ╚═╝   ╚═╝   ╚══════╝╚═╝  ╚═╝`,
+ ██╗   ██╗ ██████╗  ██╗   ██╗ ██████╗
+ ██║   ██║ ██╔══██╗ ██║   ██║ ██╔══██╗
+ ██║   ██║ ██████╔╝ ██║   ██║ ██████╔╝
+ ╚██╗ ██╔╝ ██╔═══╝  ╚██╗ ██╔╝ ██╔═══╝
+  ╚████╔╝  ██║       ╚████╔╝  ██║
+   ╚═══╝   ╚═╝        ╚═══╝   ╚═╝`,
           ),
         ),
         0,

@@ -332,7 +332,7 @@ export async function runCli() {
 
   const HELP_TEXT = `Keyboard Shortcuts
   esc          Interrupt query / clear input
-  ctrl+c       Exit Dexter
+  ctrl+c       Exit UpUp
   /model       Switch LLM provider and model
   /rules       Show research rules
   /clear       Clear conversation
@@ -344,7 +344,7 @@ export async function runCli() {
         modelSelection.startSelection();
         break;
       case 'rules':
-        await agentRunner.runQuery('Show me my current research rules from .dexter/RULES.md');
+        await agentRunner.runQuery('Show me my current research rules from .upup/RULES.md');
         break;
       case 'clear':
         chatLog.clearAll();
@@ -354,7 +354,7 @@ export async function runCli() {
         await agentRunner.runQuery('Show me what you know about me from memory. Use memory_search and memory_get.');
         break;
       case 'heartbeat':
-        await agentRunner.runQuery('Show me my current heartbeat checklist from .dexter/HEARTBEAT.md');
+        await agentRunner.runQuery('Show me my current heartbeat checklist from .upup/HEARTBEAT.md');
         break;
       case 'history': {
         const messages = modelSelection.inMemoryChatHistory.getMessages();
@@ -429,7 +429,7 @@ export async function runCli() {
           const session = getSessionManager();
 
           chatLog.addChild(new Spacer(1));
-          chatLog.addChild(new Text(theme.bold('Dexter System Status'), 0, 0));
+          chatLog.addChild(new Text(theme.bold('UpUp System Status'), 0, 0));
           chatLog.addChild(new Spacer(1));
 
           // Session info
@@ -563,7 +563,7 @@ export async function runCli() {
       case 'doctor': {
         // Health check - direct output
         chatLog.addChild(new Spacer(1));
-        chatLog.addChild(new Text(theme.bold('Dexter Health Check'), 0, 0));
+        chatLog.addChild(new Text(theme.bold('UpUp Health Check'), 0, 0));
         chatLog.addChild(new Spacer(1));
 
         // Check API keys
@@ -648,7 +648,7 @@ export async function runCli() {
             }
           } else {
             chatLog.addChild(new Spacer(1));
-            chatLog.addChild(new Text(theme.muted('No MCP servers configured. Edit .dexter/mcp-config.json to add servers.'), 0, 0));
+            chatLog.addChild(new Text(theme.muted('No MCP servers configured. Edit .upup/mcp-config.json to add servers.'), 0, 0));
           }
         } catch (e) {
           chatLog.addChild(new Text(theme.error('MCP system not available'), 0, 0));
@@ -682,7 +682,7 @@ export async function runCli() {
         chatLog.addChild(new Spacer(1));
         chatLog.addChild(new Text(theme.muted('To approve a tool, either:'), 0, 0));
         chatLog.addChild(new Text(theme.muted('1. Use the tool and select "allow-session" when prompted'), 0, 0));
-        chatLog.addChild(new Text(theme.muted('2. Edit .dexter/permissions.json to add permanent rules'), 0, 0));
+        chatLog.addChild(new Text(theme.muted('2. Edit .upup/permissions.json to add permanent rules'), 0, 0));
         tui.requestRender();
         break;
       }

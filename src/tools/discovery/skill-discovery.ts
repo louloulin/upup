@@ -53,7 +53,7 @@ function parseFrontmatter(content: string): SkillMetadata {
  * Discover skills from skills directories
  */
 export async function discoverSkills(
-  skillsDirs: string[] = ['.claude/skills', '.dexter/skills', 'src/skills']
+  skillsDirs: string[] = ['.claude/skills', '.upup/skills', 'src/skills']
 ): Promise<SkillInfo[]> {
   const skills: SkillInfo[] = [];
 
@@ -94,7 +94,7 @@ export async function discoverSkills(
  */
 export async function searchSkills(
   keyword: string,
-  skillsDirs: string[] = ['.claude/skills', '.dexter/skills', 'src/skills']
+  skillsDirs: string[] = ['.claude/skills', '.upup/skills', 'src/skills']
 ): Promise<SkillInfo[]> {
   const allSkills = await discoverSkills(skillsDirs);
   const lowerKeyword = keyword.toLowerCase();
@@ -129,7 +129,7 @@ export function createListSkillsTool() {
     func: async ({ format }) => {
       const skillsDirs = [
         '.claude/skills',
-        '.dexter/skills',
+        '.upup/skills',
         'src/skills',
       ];
 
@@ -178,7 +178,7 @@ export function createSearchSkillsTool() {
     func: async ({ keyword }) => {
       const skillsDirs = [
         '.claude/skills',
-        '.dexter/skills',
+        '.upup/skills',
         'src/skills',
       ];
 
@@ -223,7 +223,7 @@ export function createGetSkillTool() {
     func: async ({ name }) => {
       const skillsDirs = [
         '.claude/skills',
-        '.dexter/skills',
+        '.upup/skills',
         'src/skills',
       ];
 

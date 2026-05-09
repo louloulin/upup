@@ -26,7 +26,7 @@ import {
   buildTypedManifest,
 } from './scanner.js';
 import { getChatModel, DEFAULT_MODEL } from '../model/llm.js';
-import { getDexterDir } from '../utils/paths.js';
+import { getUpupDir } from '../utils/paths.js';
 import { MEMORY_TYPES, type MemoryFileMeta } from './types.js';
 import { error } from '../utils/logging/logger.js';
 
@@ -119,7 +119,7 @@ export async function findRelevantMemories(
   } = options;
 
   // Try to read MEMORY.md index first
-  const indexPath = join(getDexterDir(), MEMORY_DIRNAME, MEMORY_INDEX_FILE);
+  const indexPath = join(getUpupDir(), MEMORY_DIRNAME, MEMORY_INDEX_FILE);
   let memories: MemoryFileMeta[] = [];
 
   if (existsSync(indexPath)) {
@@ -237,7 +237,7 @@ async function selectRelevantMemories(
  */
 async function parseIndexFile(content: string): Promise<MemoryFileMeta[]> {
   const memories: MemoryFileMeta[] = [];
-  const memoryDir = join(getDexterDir(), MEMORY_DIRNAME);
+  const memoryDir = join(getUpupDir(), MEMORY_DIRNAME);
 
   // Parse markdown links: [name](type/filename.md) — description
   const linkRegex = /-\s*\[([^\]]+)\]\(([^)]+)\)\s*[—\-]\s*(.+)/g;

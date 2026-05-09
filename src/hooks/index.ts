@@ -1,12 +1,12 @@
 /**
- * Hooks Module for Dexter
+ * Hooks Module for UpUp
  *
  * Provides integration hooks for:
  * - Rate limiting API calls
  * - Response caching
  * - API key validation
  *
- * Based on Claude Code's hook system but simplified for Dexter's use case.
+ * Based on Claude Code's hook system but simplified for UpUp's use case.
  */
 
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
@@ -65,8 +65,8 @@ interface RateLimitState {
   [provider: string]: number;
 }
 
-const RATE_LIMIT_FILE = join(homedir(), '.dexter', 'rate-limit.state');
-const CACHE_DIR = join(homedir(), '.dexter', 'cache');
+const RATE_LIMIT_FILE = join(homedir(), '.upup', 'rate-limit.state');
+const CACHE_DIR = join(homedir(), '.upup', 'cache');
 
 /**
  * Load rate limit state from disk

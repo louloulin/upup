@@ -123,7 +123,7 @@ export class SubagentRunner {
       // Emit started event
       this.emitEvent('started', '', {});
 
-      // Execute using Dexter's Agent
+      // Execute using UpUp's Agent
       // Note: This will be integrated with the existing Agent system
       const result = await this.executeAgent(mergedConfig, execContext, (toolName) => {
         toolCalls.push(toolName);
@@ -452,7 +452,7 @@ export class SubagentRunner {
       const os = await import('os');
 
       const branchName = `subagent/${taskId.substring(0, 8)}-${Date.now().toString(36)}`;
-      const worktreeDir = path.join(os.tmpdir(), `dexter-wt-${taskId.substring(0, 8)}`);
+      const worktreeDir = path.join(os.tmpdir(), `upup-wt-${taskId.substring(0, 8)}`);
 
       // Create a new branch and worktree
       await execFileAsync('git', ['worktree', 'add', '-b', branchName, worktreeDir], {

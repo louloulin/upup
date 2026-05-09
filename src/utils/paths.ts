@@ -1,16 +1,23 @@
 import { join, resolve, relative, isAbsolute } from 'node:path';
 import { cwd as processCwd } from 'node:process';
-import { mkdirSync, existsSync } from 'fs';
+import { mkdirSync, existsSync, renameSync } from 'fs';
 
-const DEXTER_DIR = '.dexter';
+const UPUP_DIR = '.upup';
+const OLD_DIR = '.dexter';
 
-export function getDexterDir(): string {
-  return DEXTER_DIR;
+export function getUpupDir(): string {
+  // Auto-migration: .dexter → .upup on first run
+  if (!existsSync(UPUP_DIR) && existsSync(OLD_DIR)) {
+    renameSync(OLD_DIR, UPUP_DIR);
+    console.log(`[upup] Migrated config: ${OLD_DIR} → ${UPUP_DIR}`);
+  }
+  return UPUP_DIR;
 }
 
-export function dexterPath(...segments: string[]): string {
-  return join(getDexterDir(), ...segments);
+export function upupPath(...segments: string[]): string {
+  return join(getUpupDir(), ...segments);
 }
+
 
 /**
  * Get the current working directory

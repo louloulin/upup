@@ -1,7 +1,7 @@
 /**
  * MCP Tool Registry Integration
  *
- * Converts MCP tools to Dexter's RegisteredTool format for integration
+ * Converts MCP tools to UpUp's RegisteredTool format for integration
  * with the tool registry.
  */
 

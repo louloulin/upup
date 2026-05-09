@@ -8,7 +8,7 @@ import { join } from 'path';
 import { EncryptedMemoryStore } from './encrypted-store.js';
 
 describe('EncryptedMemoryStore', () => {
-  const TEST_DIR = join('/tmp', `dexter-encrypted-store-test-${process.pid}`);
+  const TEST_DIR = join('/tmp', `upup-encrypted-store-test-${process.pid}`);
   const testKey = 'test-encryption-key-32-characters!';
 
   beforeEach(() => {
@@ -57,10 +57,10 @@ describe('EncryptedMemoryStore', () => {
 
   describe('encryption detection', () => {
     it('auto-detects encryption from env when enabled', () => {
-      process.env.DEXTER_ENCRYPTION_KEY = testKey;
+      process.env.UPUP_ENCRYPTION_KEY = testKey;
       const store = new EncryptedMemoryStore(TEST_DIR);
       expect(store.isActive()).toBe(true);
-      delete process.env.DEXTER_ENCRYPTION_KEY;
+      delete process.env.UPUP_ENCRYPTION_KEY;
     });
 
     it('disables encryption when no key available', () => {

@@ -1,7 +1,7 @@
 /**
  * GlobTool - Find files by glob pattern
  *
- * A simplified implementation of Claude Code's GlobTool for Dexter.
+ * A simplified implementation of Claude Code's GlobTool for UpUp.
  * Uses native glob patterns to find files matching the specified pattern.
  */
 

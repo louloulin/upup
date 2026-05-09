@@ -38,7 +38,7 @@ export interface MultiPortfolioData {
 // Persistence
 // ============================================================================
 
-const PORTFOLIO_DIR = '.dexter/portfolios';
+const PORTFOLIO_DIR = '.upup/portfolios';
 
 function getPortfolioDir(): string {
   return PORTFOLIO_DIR;
