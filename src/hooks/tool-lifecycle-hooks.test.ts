@@ -29,6 +29,7 @@ describe('Hook Lifecycle Integration', () => {
 
       executor.register({
         id: 'test-pre-hook',
+        name: 'test-pre-hook',
         event: 'PreToolUse' as HookEvent,
         type: 'function',
         enabled: true,
@@ -55,6 +56,7 @@ describe('Hook Lifecycle Integration', () => {
 
       executor.register({
         id: 'veto-hook',
+        name: 'veto-hook',
         event: 'PreToolUse' as HookEvent,
         type: 'function',
         enabled: true,
@@ -78,6 +80,7 @@ describe('Hook Lifecycle Integration', () => {
 
       executor.register({
         id: 'deny-hook',
+        name: 'deny-hook',
         event: 'PreToolUse' as HookEvent,
         type: 'function',
         enabled: true,
@@ -100,6 +103,7 @@ describe('Hook Lifecycle Integration', () => {
 
       executor.register({
         id: 'allow-hook',
+        name: 'allow-hook',
         event: 'PreToolUse' as HookEvent,
         type: 'function',
         enabled: true,
@@ -124,6 +128,7 @@ describe('Hook Lifecycle Integration', () => {
 
       executor.register({
         id: 'hook-1',
+        name: 'hook-1',
         event: 'PreToolUse' as HookEvent,
         type: 'function',
         enabled: true,
@@ -135,6 +140,7 @@ describe('Hook Lifecycle Integration', () => {
 
       executor.register({
         id: 'hook-2',
+        name: 'hook-2',
         event: 'PreToolUse' as HookEvent,
         type: 'function',
         enabled: true,
@@ -161,6 +167,7 @@ describe('Hook Lifecycle Integration', () => {
 
       executor.register({
         id: 'post-hook',
+        name: 'post-hook',
         event: 'PostToolUse' as HookEvent,
         type: 'function',
         enabled: true,
@@ -192,6 +199,7 @@ describe('Hook Lifecycle Integration', () => {
 
       executor.register({
         id: 'error-hook',
+        name: 'error-hook',
         event: 'PostToolUseFailure' as HookEvent,
         type: 'function',
         enabled: true,
@@ -221,6 +229,7 @@ describe('Hook Lifecycle Integration', () => {
 
       executor.register({
         id: 'lifecycle-pre',
+        name: 'lifecycle-pre',
         event: 'PreToolUse' as HookEvent,
         type: 'function',
         enabled: true,
@@ -232,6 +241,7 @@ describe('Hook Lifecycle Integration', () => {
 
       executor.register({
         id: 'lifecycle-post',
+        name: 'lifecycle-post',
         event: 'PostToolUse' as HookEvent,
         type: 'function',
         enabled: true,
@@ -269,6 +279,7 @@ describe('Hook Lifecycle Integration', () => {
 
       executor.register({
         id: 'block-pre',
+        name: 'block-pre',
         event: 'PreToolUse' as HookEvent,
         type: 'function',
         enabled: true,
@@ -280,6 +291,7 @@ describe('Hook Lifecycle Integration', () => {
 
       executor.register({
         id: 'never-post',
+        name: 'never-post',
         event: 'PostToolUse' as HookEvent,
         type: 'function',
         enabled: true,
@@ -307,6 +319,7 @@ describe('Hook Lifecycle Integration', () => {
 
       executor.register({
         id: 'err-pre',
+        name: 'err-pre',
         event: 'PreToolUse' as HookEvent,
         type: 'function',
         enabled: true,
@@ -318,6 +331,7 @@ describe('Hook Lifecycle Integration', () => {
 
       executor.register({
         id: 'err-post',
+        name: 'err-post',
         event: 'PostToolUseFailure' as HookEvent,
         type: 'function',
         enabled: true,
@@ -353,6 +367,7 @@ describe('Hook Lifecycle Integration', () => {
 
       executor.register({
         id: 'disabled-hook',
+        name: 'disabled-hook',
         event: 'PreToolUse' as HookEvent,
         type: 'function',
         enabled: false, // DISABLED
@@ -378,6 +393,7 @@ describe('Hook Lifecycle Integration', () => {
 
       executor.register({
         id: 'removable-hook',
+        name: 'removable-hook',
         event: 'PreToolUse' as HookEvent,
         type: 'function',
         enabled: true,
