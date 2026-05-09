@@ -2360,3 +2360,72 @@ scripts/oscript-mac-verify.ts — 通过 macOS AppleScript 控制真实 Terminal
 ✅ osascript-verify (macOS 真机): 9/9 sent, 0 errors
 ✅ 工具注册: 167 tools, 0 duplicates
 ```
+
+---
+
+## 30. 子 Agent 并行验证 + 代码修复
+
+### 30.1 并行机制分析
+
+```
+Dexter 子 Agent 并行架构:
+
+Agent 主循环 → LLM 返回多个 tool_calls
+  ↓
+AgentToolExecutor.executeAll()
+  ↓ partitionToolCalls()
+  ├── 并发安全 batch → executeBatchConcurrently() [上限 10 并发]
+  │   ├── read_file, glob, grep, get_financials, memory_search, ...
+  │   └── agent (background) ← 新修复: concurrencySafe = true
+  └── 非并发安全 batch → 串行执行
+      └── write_file, edit_file, ...
+
+Background 子 Agent:
+  runner.runAsync() → fire-and-forget Promise
+    → 每个 Agent 实例独立 (独立消息历史/工具执行器/LLM 连接)
+    → 存入 activeAgents Map
+    → 事件通过 SubagentEventEmitter 转发
+```
+
+### 30.2 发现并修复的问题
+
+| # | 问题 | 修复 | 影响 |
+|---|------|------|------|
+| 1 | `agent` 工具标记为 `concurrencySafe: false` | 改为 `true` | 允许 LLM 在单次响应中并行 spawn 多个子 Agent |
+| 2 | `subagent-runner.ts` 重复 CWD override 块 | 移除重复块, 添加 race condition 文档 | 防止 worktree CWD 被覆盖 |
+| 3 | 无并行子 Agent 测试 | 新增 6 个测试 (subagent-parallel.test.ts) | 覆盖并发跟踪/取消/时间戳/工具分区 |
+
+### 30.3 并行测试结果
+
+```
+src/agent/subagent-parallel.test.ts — 6 tests:
+
+✅ 并发任务跟踪 — 3 个后台任务同时注册, ID 不重复
+✅ 重叠时间戳 — spawn 在 500ms 内完成 (fire-and-forget)
+✅ 独立取消 — 取消 task2 不影响 task1
+✅ Agent 工具并发安全 — concurrencySafe = true
+✅ 混合状态管理 — cancelled + running 共存
+✅ 工具并发分区 — 151/167 concurrent-safe (90%), 16/167 non-safe (10%)
+```
+
+### 30.4 工具并发分类
+
+```
+Concurrent-Safe (151 tools — 90%):
+  read_file, glob, grep, get_financials, get_market_data, memory_search,
+  calculate_var, sharpe_ratio, sortino_ratio, agent (background), web_fetch,
+  heartbeat, cron, config_get, ...
+
+Not Concurrent-Safe (16 tools — 10%):
+  write_file, edit_file, add_position, remove_position, export,
+  skill, browser, task_create, ...
+```
+
+### 30.5 最终验证
+
+```
+✅ bun test: 1721 pass, 0 fail (含 6 个新并行测试)
+✅ macOS osascript: 9/9 命令发送, 0 错误
+✅ Agent 工具: concurrencySafe = true (允许并行 spawn)
+✅ 工具并发: 151/167 并发安全 (90%)
+```
