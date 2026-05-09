@@ -7,6 +7,7 @@ export class CustomEditor extends Editor {
   onSlashSelect?: () => void;
   onSlashNavigate?: (direction: 'up' | 'down') => void;
   onSlashDismiss?: () => void;
+  onSlashExactMatch?: (text: string) => boolean;
   slashActive: boolean = false;
 
   // Map truncated display text → full original text for history entries
@@ -64,11 +65,15 @@ export class CustomEditor extends Editor {
       return;
     }
 
-    // Tab or Enter: select suggestion if active
-    if (showingSuggestions && (matchesKey(data, Key.tab) || matchesKey(data, Key.enter))) {
+    // Tab: select suggestion if active
+    if (showingSuggestions && matchesKey(data, Key.tab)) {
       this.onSlashSelect?.();
       return;
     }
+
+    // Enter: always submits (do NOT intercept for suggestion selection)
+    // This allows /help + Enter to work as expected.
+    // Use Tab to select from suggestion list.
 
     if (matchesKey(data, Key.ctrl('c')) && this.onCtrlC) {
       this.onCtrlC();
