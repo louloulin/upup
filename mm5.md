@@ -2197,3 +2197,13 @@ Agent 主循环 — 上下文压缩:
     → 存入 loadedHooks 数组
     → getUserHooksForEvent('PostToolUse') → [fn1, fn2, ...]
 ```
+
+### 26.5 验证结果
+
+```
+✅ 1715 tests pass, 0 fail, 3282 expect() calls
+✅ bun run dev 正常启动 Dexter v2026.5.2
+✅ 所有 Phase 4.3+4.4 提交: e4396c8
+✅ mock 路径修复: tool-search-tool.behavior.test.ts (registry.js → registry/index.js)
+✅ 测试断言修复: time-mc-config.test.ts (minThreshold 1000 → 500)
+```
