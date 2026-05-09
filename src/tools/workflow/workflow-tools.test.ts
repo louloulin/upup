@@ -2,7 +2,7 @@
  * Workflow Tools Tests
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'bun:test';
 
 describe('workflow_tools', () => {
   it('should create workflow tool', async () => {

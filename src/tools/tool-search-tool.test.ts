@@ -2,7 +2,7 @@
  * Tests for ToolSearchTool
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'bun:test';
 import { z } from 'zod';
 
 // Test schemas independently (re-define to avoid import chain)

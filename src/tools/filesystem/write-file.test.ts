@@ -5,7 +5,7 @@
  * Uses paths relative to current working directory to pass sandbox checks
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import fs from 'node:fs';
 import path from 'node:path';
 

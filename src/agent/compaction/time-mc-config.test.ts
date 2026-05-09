@@ -2,7 +2,7 @@
  * Tests for TimeBasedMCConfig
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'bun:test';
 import { TimeBasedMCConfig, type TimeBasedMCConfigOptions } from './time-mc-config.js';
 
 describe('TimeBasedMCConfig', () => {
@@ -301,18 +301,21 @@ describe('TimeBasedMCConfig', () => {
       // factor = 0.8 * 0.9^10 * 0.9^4
       const expectedAgeFactor = Math.pow(0.9, 10);
       const expectedMsgFactor = Math.pow(0.9, 4);
-      const expectedFactor = 0.8 * expectedAgeFactor * expectedMsgFactor;
-      const expectedThreshold = Math.round(4000 * expectedFactor);
 
-      // We need to test during business hours to get the right factor
-      const timeOfDay = config.getTimeOfDayFactor(14);
-      if (timeOfDay.isBusinessHours) {
-        const result = config.getAdaptiveThreshold(10 * 60 * 60 * 1000, 200);
-        expect(result.threshold).toBe(expectedThreshold);
+      // Use the actual time-of-day factor (getAdaptiveThreshold uses real clock)
+      const actualTimeOfDay = config.getTimeOfDayFactor();
+      const expectedFactor = actualTimeOfDay.factor * expectedAgeFactor * expectedMsgFactor;
+      const rawThreshold = Math.round(4000 * expectedFactor);
+      // minThreshold (1000) clamps the result
+      const expectedThreshold = Math.max(1000, rawThreshold);
+
+      const result = config.getAdaptiveThreshold(10 * 60 * 60 * 1000, 200);
+      expect(result.threshold).toBe(expectedThreshold);
+      if (actualTimeOfDay.isBusinessHours) {
         expect(result.reason).toContain('business hours');
-        expect(result.reason).toContain('session');
-        expect(result.reason).toContain('messages');
       }
+      expect(result.reason).toContain('session');
+      expect(result.reason).toContain('messages');
     });
   });
 });

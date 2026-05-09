@@ -6,7 +6,7 @@
  * focus on the in-memory functionality.
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'bun:test';
 
 // Test Scratchpad functionality without filesystem dependency
 // by testing the logic directly

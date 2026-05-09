@@ -2,7 +2,7 @@
  * Technical Indicators Tests (KDJ, BOLL, WR, CCI, ATR, OBV)
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'bun:test';
 import {
   createCalculateIndicatorsTool,
   createCalculateKDJTool,

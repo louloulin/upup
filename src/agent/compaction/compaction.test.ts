@@ -2,7 +2,7 @@
  * Compaction System Tests
  */
 
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'bun:test';
 import {
   AutoTrigger,
   getAutoTrigger,

@@ -2,7 +2,7 @@
  * Tests for MonitorTool
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'bun:test';
 import os from 'os';
 import {
   MonitorToolSchema,

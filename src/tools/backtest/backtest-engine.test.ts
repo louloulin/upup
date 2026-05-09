@@ -2,7 +2,7 @@
  * Backtest Engine Tests
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'bun:test';
 import { BacktestEngine, DailyBar, EvaluationConfig } from './backtest-engine.js';
 
 describe('BacktestEngine - Direction Inference', () => {

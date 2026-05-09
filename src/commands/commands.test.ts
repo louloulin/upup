@@ -2,7 +2,7 @@
  * Tests for Commands System
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'bun:test';
 import {
   CommandRegistry,
   registerBuiltinCommands,
