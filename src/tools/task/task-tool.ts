@@ -201,6 +201,60 @@ class TaskStore {
 // Global store
 const taskStore = new TaskStore();
 
+/**
+ * Bridge function: register a subagent background task into the TaskStore
+ * so it appears in task_list/task_get results alongside regular tasks.
+ * Uses the subagentTaskId directly as the TaskStore ID for consistency.
+ */
+export function registerSubagentTask(
+  subagentTaskId: string,
+  description: string,
+): void {
+  // Only register if not already present
+  if (taskStore.getTask(subagentTaskId)) return;
+
+  const task: Task = {
+    id: subagentTaskId,
+    name: `subagent:${subagentTaskId.substring(0, 8)}`,
+    description,
+    status: 'running',
+    createdAt: new Date().toISOString(),
+    startedAt: new Date().toISOString(),
+    metadata: { source: 'subagent' },
+  };
+
+  // Directly insert into the store (bypass createTask which generates new UUID)
+  taskStore.updateTask(subagentTaskId, task);
+  // updateTask returns false for non-existent, so use direct approach
+  (taskStore as any).tasks.set(subagentTaskId, task);
+}
+
+/**
+ * Bridge function: update a subagent task's status in the TaskStore.
+ */
+export function updateSubagentTask(
+  subagentTaskId: string,
+  status: TaskStatus,
+  result?: string,
+  error?: string,
+): void {
+  if (!taskStore.getTask(subagentTaskId)) return;
+
+  switch (status) {
+    case 'completed':
+      taskStore.completeTask(subagentTaskId, result, error);
+      break;
+    case 'failed':
+      taskStore.completeTask(subagentTaskId, undefined, error);
+      break;
+    case 'cancelled':
+      taskStore.stopTask(subagentTaskId);
+      break;
+    default:
+      taskStore.updateTask(subagentTaskId, { status });
+  }
+}
+
 // ============================================================================
 // Tool Schemas
 // ============================================================================
