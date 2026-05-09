@@ -506,9 +506,10 @@ const gitStatusCommand: Command = {
   description: 'Run git status',
   usage: '/git [args]',
   async execute(args, context): Promise<CommandResult> {
-    const { execSync } = await import('child_process');
+    const { execFileSync } = await import('child_process');
     try {
-      const output = execSync(`git status --short ${args}`, { cwd: context.cwd, encoding: 'utf-8', timeout: 10000 });
+      const extraArgs = args ? args.split(/\s+/).filter(Boolean) : [];
+      const output = execFileSync('git', ['status', '--short', ...extraArgs], { cwd: context.cwd, encoding: 'utf-8', timeout: 10000 });
       return { type: 'output', text: output || 'Working tree clean' };
     } catch (err) {
       return { type: 'error', message: `git: ${err instanceof Error ? err.message : String(err)}` };
@@ -521,9 +522,10 @@ const gitDiffCommand: Command = {
   description: 'Show git diff',
   usage: '/diff [args]',
   async execute(args, context): Promise<CommandResult> {
-    const { execSync } = await import('child_process');
+    const { execFileSync } = await import('child_process');
     try {
-      const output = execSync(`git diff ${args || '--stat'}`, { cwd: context.cwd, encoding: 'utf-8', timeout: 10000 });
+      const diffArgs = args ? args.split(/\s+/).filter(Boolean) : ['--stat'];
+      const output = execFileSync('git', ['diff', ...diffArgs], { cwd: context.cwd, encoding: 'utf-8', timeout: 10000 });
       return { type: 'output', text: output || 'No changes' };
     } catch (err) {
       return { type: 'error', message: `diff: ${err instanceof Error ? err.message : String(err)}` };
@@ -538,11 +540,10 @@ const gitCommitCommand: Command = {
   permission: 'admin',
   async execute(args, context): Promise<CommandResult> {
     if (!args) return { type: 'error', message: 'Usage: /commit <message>' };
-    const { execSync } = await import('child_process');
+    const { execFileSync } = await import('child_process');
     try {
-      execSync('git add -A', { cwd: context.cwd, encoding: 'utf-8' });
-      const escapedMsg = args.replace(/"/g, '\\"');
-      const output = execSync(`git commit -m "${escapedMsg}"`, { cwd: context.cwd, encoding: 'utf-8', timeout: 30000 });
+      execFileSync('git', ['add', '-A'], { cwd: context.cwd, encoding: 'utf-8' });
+      const output = execFileSync('git', ['commit', '-m', args], { cwd: context.cwd, encoding: 'utf-8', timeout: 30000 });
       return { type: 'output', text: output };
     } catch (err) {
       return { type: 'error', message: `commit: ${err instanceof Error ? err.message : String(err)}` };
@@ -556,13 +557,13 @@ const gitBranchCommand: Command = {
   usage: '/branch [name]',
   aliases: ['br'],
   async execute(args, context): Promise<CommandResult> {
-    const { execSync } = await import('child_process');
+    const { execFileSync } = await import('child_process');
     try {
       if (args) {
-        const output = execSync(`git checkout -b ${args}`, { cwd: context.cwd, encoding: 'utf-8', timeout: 10000 });
+        const output = execFileSync('git', ['checkout', '-b', args], { cwd: context.cwd, encoding: 'utf-8', timeout: 10000 });
         return { type: 'output', text: output };
       }
-      const output = execSync('git branch -a', { cwd: context.cwd, encoding: 'utf-8', timeout: 10000 });
+      const output = execFileSync('git', ['branch', '-a'], { cwd: context.cwd, encoding: 'utf-8', timeout: 10000 });
       return { type: 'output', text: output };
     } catch (err) {
       return { type: 'error', message: `branch: ${err instanceof Error ? err.message : String(err)}` };

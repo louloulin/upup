@@ -364,6 +364,10 @@ export function contextCollapseDrain(messages: BaseMessage[]): number {
     return true;
   });
 
+  // Mutate the caller's array in-place so the filtered messages take effect
+  messages.length = 0;
+  messages.push(...finalFiltered);
+
   return removed;
 }
 
