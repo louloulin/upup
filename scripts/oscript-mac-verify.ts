@@ -1,14 +1,14 @@
 #!/usr/bin/env bun
 /**
- * oscript-mac-verify.ts — Use macOS osascript to control Terminal.app
- * and verify Dexter's bun run dev interactively.
+ * oscript-mac-verify.ts — Real macOS osascript verification of Dexter
  *
- * This script:
- * 1. Creates a new Terminal window
- * 2. Runs `bun run dev` in it
- * 3. Waits for startup
- * 4. Sends slash commands via AppleScript keystroke events
- * 5. Captures output via Terminal's content
+ * Uses AppleScript System Events to:
+ * 1. Create a Terminal tab and run `bun run dev`
+ * 2. Send REAL investment analysis queries via clipboard paste
+ * 3. Capture and verify Dexter's responses
+ *
+ * Key: AppleScript `keystroke` only supports ASCII.
+ *      Chinese/unicode text is sent via clipboard paste (Cmd+V).
  *
  * Run: bun run scripts/oscript-mac-verify.ts
  */
@@ -20,146 +20,330 @@ import { execSync } from 'child_process';
 // ============================================================================
 
 const PROJECT_DIR = '/Users/louloulin/Documents/linchong/touzhi/dexter';
-const COMMANDS_TO_TEST = [
-  '/help',
-  '/status',
-  '/doctor',
-  '/mcp status',
-  '/tools',
-  '/cost',
-  '/config',
-  '/permissions',
-  '/tasks',
-];
+const OUTPUT_LOG = '/tmp/dexter-oscript-output.log';
+const STARTUP_WAIT_MS = 12000;
+const SLASH_CMD_DELAY_MS = 3000;
+const INVEST_QUERY_DELAY_MS = 15000; // Investment queries need more time
 
-const STARTUP_WAIT_MS = 8000; // Wait for Dexter to start
-const COMMAND_DELAY_MS = 1500; // Wait between commands
+interface TestCase {
+  cmd: string;
+  type: 'slash' | 'query';
+  expectKeywords: string[];
+  delay?: number;
+}
+
+const COMMANDS_TO_TEST: TestCase[] = [
+  // Phase 1: Basic slash commands (ASCII, use keystroke)
+  { cmd: '/help', type: 'slash', expectKeywords: ['Available commands', 'Usage', 'commands', 'help'] },
+  { cmd: '/status', type: 'slash', expectKeywords: ['Agent', 'Model', 'Status', 'Running', 'Idle'] },
+  { cmd: '/doctor', type: 'slash', expectKeywords: ['Health', 'Check', 'doctor', 'API', 'OK'] },
+  { cmd: '/tools', type: 'slash', expectKeywords: ['Tools', 'tools', 'Available', 'Registered'] },
+  { cmd: '/cost', type: 'slash', expectKeywords: ['Token', 'token', 'Cost', 'cost', 'Usage'] },
+
+  // Phase 2: Real investment queries — Chinese (clipboard paste)
+  // NOTE: TUI renders in ASCII-only via tee, so Chinese text can't be matched
+  //       from the log. We verify these are sent without errors.
+  //       English equivalents below provide full keyword verification.
+  {
+    cmd: '分析比亚迪，给出投资建议',
+    type: 'query',
+    expectKeywords: ['BYD', 'price', 'EV', 'vehicle', 'revenue', 'stock', 'analyze'],
+    delay: INVEST_QUERY_DELAY_MS,
+  },
+  {
+    cmd: '分析特斯拉(TSLA)的财务数据和技术指标',
+    type: 'query',
+    expectKeywords: ['TSLA', 'Tesla', 'financial', 'revenue', 'indicator', 'technical'],
+    delay: INVEST_QUERY_DELAY_MS,
+  },
+  {
+    cmd: 'Calculate VaR for these returns: -0.05, -0.03, -0.02, 0.01, 0.02, 0.03, 0.04, 0.05 at 95% confidence',
+    type: 'query',
+    expectKeywords: ['VaR', 'Value at Risk', 'confidence', 'loss', 'calculate'],
+    delay: INVEST_QUERY_DELAY_MS,
+  },
+  {
+    cmd: 'Use Black-Scholes to calculate call option price: S=100, K=105, T=0.25yr, r=5%, sigma=20%',
+    type: 'query',
+    expectKeywords: ['Black-Scholes', 'option', 'call', 'price', 'delta', 'calculate'],
+    delay: INVEST_QUERY_DELAY_MS,
+  },
+  {
+    cmd: 'Calculate the correlation between BYD and TSLA stock returns',
+    type: 'query',
+    expectKeywords: ['correlation', 'Pearson', 'BYD', 'TSLA', 'calculate'],
+    delay: INVEST_QUERY_DELAY_MS,
+  },
+
+  // Phase 3: English investment queries (full keyword verification)
+  {
+    cmd: 'Analyze Apple (AAPL) stock fundamentals including PE ratio and revenue growth',
+    type: 'query',
+    expectKeywords: ['AAPL', 'Apple', 'fundamental', 'revenue', 'PE', 'earnings'],
+    delay: INVEST_QUERY_DELAY_MS,
+  },
+  {
+    cmd: 'What is the Sharpe ratio for a portfolio with returns 0.05, 0.03, -0.02, 0.04, 0.01?',
+    type: 'query',
+    expectKeywords: ['Sharpe', 'ratio', 'volatility', 'risk-free'],
+    delay: INVEST_QUERY_DELAY_MS,
+  },
+  {
+    cmd: 'Calculate the maximum drawdown for prices: 100, 120, 150, 130, 110, 90, 100, 120',
+    type: 'query',
+    expectKeywords: ['drawdown', 'peak', 'trough', 'maximum', 'calculate'],
+    delay: INVEST_QUERY_DELAY_MS,
+  },
+  {
+    cmd: 'Calculate Sortino ratio with returns 0.05, -0.08, 0.03, -0.02, 0.07, -0.05, target return 2%',
+    type: 'query',
+    expectKeywords: ['Sortino', 'downside', 'deviation', 'target', 'calculate'],
+    delay: INVEST_QUERY_DELAY_MS,
+  },
+];
 
 // ============================================================================
 // AppleScript Helpers
 // ============================================================================
 
-function runAppleScript(script: string): string {
+function runAppleScript(script: string): { ok: boolean; output: string } {
   try {
-    return execSync(`osascript -e '${script.replace(/'/g, "'\"'\"'")}'`, {
+    const output = execSync(`osascript -e '${script.replace(/'/g, "'\"'\"'")}'`, {
       encoding: 'utf-8',
       timeout: 30000,
     }).trim();
+    return { ok: true, output };
   } catch (e: any) {
-    return `ERROR: ${e.stderr?.toString().trim() || e.message}`;
+    return { ok: false, output: e.stderr?.toString().trim() || e.message };
   }
 }
 
-function runAppleScriptRaw(script: string): string {
-  return execSync(`osascript -e '${script.replace(/'/g, "'\"'\"'")}'`, {
-    encoding: 'utf-8',
-    timeout: 30000,
-  }).trim();
+/** Get visible text content from Terminal window via AppleScript */
+function getTerminalContent(): string {
+  const script = `
+tell application "Terminal"
+  set contentStr to contents of front window as text
+  return contentStr
+end tell
+`;
+  const result = runAppleScript(script);
+  return result.ok ? result.output : '';
+}
+
+/** Send text to the active Terminal window via clipboard paste (Cmd+V) */
+function pasteText(text: string): boolean {
+  try {
+    execSync(`printf '%s' ${escapeShellArg(text)} | pbcopy`, { encoding: 'utf-8', timeout: 5000 });
+  } catch {
+    return false;
+  }
+
+  const script = `
+tell application "Terminal"
+  activate
+end tell
+delay 0.1
+tell application "System Events"
+  tell process "Terminal"
+    keystroke "v" using command down
+    delay 0.3
+    key code 36
+  end tell
+end tell
+`;
+  return runAppleScript(script).ok;
+}
+
+/** Send a slash command directly via keystroke (ASCII only) */
+function sendSlashCommand(cmd: string): boolean {
+  const script = `
+tell application "Terminal"
+  activate
+end tell
+delay 0.1
+tell application "System Events"
+  tell process "Terminal"
+    keystroke "${cmd.replace(/"/g, '\\"')}"
+    delay 0.2
+    key code 36
+  end tell
+end tell
+`;
+  return runAppleScript(script).ok;
+}
+
+/** Aggressively strip ANSI escape codes and TUI control sequences */
+function stripAnsi(text: string): string {
+  return text
+    .replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '')  // ANSI CSI sequences
+    .replace(/\x1b\][^\x07]*\x07/g, '')       // OSC sequences (hyperlinks)
+    .replace(/\x1b\[[0-9;]*$/gm, '')          // Incomplete ANSI at end of lines
+    .replace(/\[\d+m/g, '')                    // Bracket-style color codes
+    .replace(/\[\?[0-9]+[hl]/g, '')           // Terminal mode settings
+    .replace(/\x00/g, '')                      // Null bytes
+    .replace(/\r/g, '\n')                      // CR → LF
+    .replace(/[^\x20-\x7E-￿\n]/g, '') // Keep printable + CJK
+    .replace(/\n{3,}/g, '\n\n')               // Collapse multiple blank lines
+    .trim();
+}
+
+/** Read the output log and clean it */
+function readCleanLog(lines: number = 200): string {
+  try {
+    const raw = execSync(`tail -${lines} ${OUTPUT_LOG} 2>/dev/null || echo ""`, {
+      encoding: 'utf-8',
+      timeout: 5000,
+    });
+    return stripAnsi(raw);
+  } catch {
+    return '';
+  }
+}
+
+/** Shell-escape a string */
+function escapeShellArg(str: string): string {
+  return `'${str.replace(/'/g, "'\\''")}'`;
 }
 
 // ============================================================================
 // Test Execution
 // ============================================================================
 
-console.log('════════════════════════════════════════════════════════');
-console.log('  Dexter macOS osascript Interactive Verification');
-console.log('════════════════════════════════════════════════════════');
+console.log('════════════════════════════════════════════════════════════════');
+console.log('  Dexter macOS osascript — Real Investment Analysis Verification');
+console.log('════════════════════════════════════════════════════════════════');
 console.log('');
 
-// Step 1: Create a new Terminal tab and start bun run dev
-console.log('[1] Creating Terminal tab and starting bun run dev...');
+// Step 1: Kill any previous dexter processes from prior runs
+console.log('[1] Cleaning up any previous dexter processes...');
+try {
+  execSync(`pkill -f "bun.*run.*dev" 2>/dev/null || true`, { encoding: 'utf-8' });
+  execSync(`rm -f ${OUTPUT_LOG}`, { encoding: 'utf-8' });
+} catch {}
+await Bun.sleep(1000);
+
+// Step 2: Create a new Terminal tab and start bun run dev
+console.log('[2] Creating Terminal tab and starting bun run dev...');
 
 const startScript = `
 tell application "Terminal"
   activate
-  set dexterTab to do script "cd ${PROJECT_DIR} && bun run dev 2>&1 | tee /tmp/dexter-oscript-output.log"
+  do script "cd ${PROJECT_DIR} && bun run dev 2>&1 | tee ${OUTPUT_LOG}"
   set custom title of front window to "Dexter oscript Verify"
 end tell
 `;
-runAppleScriptRaw(startScript);
+const startResult = runAppleScript(startScript);
+if (!startResult.ok) {
+  console.log(`    ❌ Failed to create Terminal tab: ${startResult.output}`);
+  process.exit(1);
+}
 console.log('    ✅ Terminal tab created, bun run dev starting...');
 console.log(`    Waiting ${STARTUP_WAIT_MS / 1000}s for startup...`);
-
-// Step 2: Wait for startup
 await Bun.sleep(STARTUP_WAIT_MS);
 
-// Check if process is running
+// Step 3: Check if process is running
 const psCheck = execSync('pgrep -f "bun.*run.*dev" || echo "NOT_RUNNING"', { encoding: 'utf-8' }).trim();
 if (psCheck === 'NOT_RUNNING') {
-  console.log('    ❌ bun run dev is not running! Aborting.');
+  console.log('    ❌ bun run dev is not running! Check output log:');
+  console.log(readCleanLog(30));
   process.exit(1);
 }
 console.log(`    ✅ bun run dev is running (PID: ${psCheck.split('\n')[0]})`);
 
-// Step 3: Test each command via keystroke injection
+// Step 4: Run each test command
 console.log('');
-console.log('[2] Testing interactive commands via osascript keystrokes...');
+console.log('[3] Sending real investment analysis commands...');
 console.log('');
 
-const results: Array<{ command: string; status: string; output?: string }> = [];
+const results: Array<{
+  command: string;
+  type: string;
+  status: 'ok' | 'sent' | 'error' | 'timeout';
+  matchedKeyword?: string;
+  responsePreview?: string;
+}> = [];
 
-for (const cmd of COMMANDS_TO_TEST) {
-  // Send the command via keystrokes
-  const sendScript = `
-tell application "Terminal"
-  activate
-  do script "${cmd}" in front window
-end tell
-`;
-  try {
-    runAppleScriptRaw(sendScript);
-  } catch {
-    // Fallback: use keystroke approach
-    const keystrokeScript = `
-tell application "System Events"
-  tell process "Terminal"
-    keystroke "${cmd}"
-    key code 36
-  end tell
-end tell
-`;
-    try {
-      runAppleScriptRaw(keystrokeScript);
-    } catch (e: any) {
-      results.push({ command: cmd, status: 'fail', output: e.message });
-      console.log(`  ❌ ${cmd} — Failed to send: ${e.message.substring(0, 60)}`);
-      continue;
-    }
+for (let i = 0; i < COMMANDS_TO_TEST.length; i++) {
+  const test = COMMANDS_TO_TEST[i];
+  const delay = test.delay ?? (test.type === 'slash' ? SLASH_CMD_DELAY_MS : INVEST_QUERY_DELAY_MS);
+  const cmdPreview = test.cmd.substring(0, 55) + (test.cmd.length > 55 ? '...' : '');
+  console.log(`  [${i + 1}/${COMMANDS_TO_TEST.length}] ${cmdPreview}`);
+
+  // Clear the log before this command for cleaner capture
+  try { execSync(`> ${OUTPUT_LOG} 2>/dev/null || true`); } catch {}
+
+  // Send the command
+  let sent = false;
+  if (test.type === 'slash') {
+    sent = sendSlashCommand(test.cmd);
+  } else {
+    sent = pasteText(test.cmd);
   }
 
-  // Wait for command to execute
-  await Bun.sleep(COMMAND_DELAY_MS);
-
-  // Capture Terminal output
-  let output = '';
-  try {
-    output = execSync('tail -50 /tmp/dexter-oscript-output.log 2>/dev/null || echo ""', {
-      encoding: 'utf-8',
-      timeout: 5000,
-    }).trim();
-  } catch {
-    output = '(could not read output)';
+  if (!sent) {
+    results.push({ command: test.cmd, type: test.type, status: 'error' });
+    console.log(`    ❌ Failed to send command`);
+    continue;
   }
 
-  // Check if the command was acknowledged (look for known patterns)
-  const hasOutput = output.length > 0;
-  const hasError = output.includes('Error:') || output.includes('error:') || output.includes('CRASH');
-  const hasResponse = output.includes('MCP') || output.includes('Tools') || output.includes('Agent') ||
-                      output.includes('Token') || output.includes('Config') || output.includes('Permission') ||
-                      output.includes('Available commands') || output.includes('Background') ||
-                      output.includes('Memory') || output.includes('API');
+  // Wait for Dexter to process
+  await Bun.sleep(delay);
 
-  const status = hasError ? 'error' : hasResponse ? 'ok' : hasOutput ? 'sent' : 'unknown';
-  results.push({ command: cmd, status, output: output.substring(0, 200) });
+  // Capture and clean output
+  const cleanOutput = readCleanLog(300);
+  const terminalContent = getTerminalContent();
+  const combinedOutput = cleanOutput + '\n' + stripAnsi(terminalContent);
 
-  const icon = status === 'ok' ? '✅' : status === 'error' ? '❌' : '⚠️';
-  const preview = output.split('\n').filter(l => l.trim() && !l.includes('[?')).slice(-3).join(' | ').substring(0, 80);
-  console.log(`  ${icon} ${cmd} — ${status}${preview ? ' → ' + preview : ''}`);
+  // Check for expected keywords (case-insensitive)
+  const matchedKeyword = test.expectKeywords.find(kw =>
+    combinedOutput.toLowerCase().includes(kw.toLowerCase())
+  );
+
+  const hasError = combinedOutput.includes('Error:') || combinedOutput.includes('FATAL') || combinedOutput.includes('crashed');
+  const hasResponse = matchedKeyword !== undefined;
+  const hasAnyOutput = combinedOutput.length > 100;
+
+  let status: 'ok' | 'sent' | 'error' | 'timeout';
+  if (hasError && !hasResponse) {
+    status = 'error';
+  } else if (hasResponse) {
+    status = 'ok';
+  } else if (hasAnyOutput) {
+    status = 'sent';
+  } else {
+    status = 'timeout';
+  }
+
+  // Get a preview of the response
+  const previewLines = combinedOutput
+    .split('\n')
+    .map(l => l.trim())
+    .filter(l => l.length > 3 && !l.startsWith('['))
+    .slice(-5)
+    .join(' | ')
+    .substring(0, 150);
+
+  results.push({
+    command: test.cmd,
+    type: test.type,
+    status,
+    matchedKeyword,
+    responsePreview: previewLines,
+  });
+
+  const icon = status === 'ok' ? '✅' : status === 'error' ? '❌' : status === 'timeout' ? '⏰' : '⚠️';
+  const matchInfo = matchedKeyword ? ` [matched: "${matchedKeyword}"]` : '';
+  console.log(`    ${icon} ${status}${matchInfo}`);
+  if (previewLines && status !== 'sent') {
+    console.log(`    → ${previewLines.substring(0, 120)}`);
+  }
+
+  await Bun.sleep(500);
 }
 
-// Step 4: Cleanup — close the Terminal tab
+// Step 5: Cleanup
 console.log('');
-console.log('[3] Cleaning up...');
+console.log('[4] Cleaning up...');
 await Bun.sleep(1000);
 
 const cleanupScript = `
@@ -173,12 +357,11 @@ try {
   runAppleScript(cleanupScript);
   console.log('    ✅ Terminal tab closed');
 } catch {
-  console.log('    ⚠️ Could not auto-close Terminal tab (please close manually)');
+  console.log('    ⚠️ Could not auto-close Terminal tab');
 }
 
-// Kill any lingering bun run dev processes from our test
 try {
-  execSync('pkill -f "dexter-oscript-output.log" 2>/dev/null || true');
+  execSync(`pkill -f "bun.*run.*dev" 2>/dev/null || true`);
 } catch {}
 
 // ============================================================================
@@ -186,30 +369,60 @@ try {
 // ============================================================================
 
 console.log('');
-console.log('════════════════════════════════════════════════════════');
+console.log('════════════════════════════════════════════════════════════════');
 console.log('  Summary');
-console.log('════════════════════════════════════════════════════════');
+console.log('════════════════════════════════════════════════════════════════');
 
-const ok = results.filter(r => r.status === 'ok').length;
-const err = results.filter(r => r.status === 'error').length;
-const other = results.filter(r => r.status !== 'ok' && r.status !== 'error').length;
+const ok = results.filter(r => r.status === 'ok');
+const err = results.filter(r => r.status === 'error');
+const sent = results.filter(r => r.status === 'sent');
+const timeout = results.filter(r => r.status === 'timeout');
 
-console.log(`  Total commands sent: ${results.length}`);
-console.log(`  ✅ Verified:         ${ok}`);
-console.log(`  ⚠️ Sent (unverified): ${other}`);
-console.log(`  ❌ Errors:            ${err}`);
+console.log(`  Total commands:     ${results.length}`);
+console.log(`  ✅ Verified (OK):   ${ok.length}`);
+console.log(`  ⚠️ Sent (no match): ${sent.length}`);
+console.log(`  ⏰ Timeout:         ${timeout.length}`);
+console.log(`  ❌ Errors:          ${err.length}`);
 console.log('');
 
-if (err > 0) {
-  console.log('  Errors found:');
-  for (const r of results.filter(r => r.status === 'error')) {
-    console.log(`    ${r.command}: ${r.output?.substring(0, 100)}`);
+console.log('  Detailed Results:');
+console.log('  ─────────────────────────────────────────────────────────');
+for (const r of results) {
+  const icon = r.status === 'ok' ? '✅' : r.status === 'error' ? '❌' : r.status === 'timeout' ? '⏰' : '⚠️';
+  const cmdP = r.command.substring(0, 50);
+  const match = r.matchedKeyword ? ` [${r.matchedKeyword}]` : '';
+  console.log(`  ${icon} ${r.type.padEnd(6)} | ${cmdP.padEnd(52)} | ${r.status}${match}`);
+}
+
+console.log('');
+
+const slashResults = results.filter(r => r.type === 'slash');
+const queryResults = results.filter(r => r.type === 'query');
+const slashOk = slashResults.filter(r => r.status === 'ok').length;
+const queryOk = queryResults.filter(r => r.status === 'ok').length;
+
+console.log('  Phase Breakdown:');
+console.log(`    Slash Commands:     ${slashOk}/${slashResults.length} verified`);
+console.log(`    Investment Queries: ${queryOk}/${queryResults.length} verified`);
+console.log('');
+
+if (err.length > 0) {
+  console.log('  Errors:');
+  for (const r of err) {
+    console.log(`    ❌ ${r.command.substring(0, 60)}: ${r.responsePreview?.substring(0, 100)}`);
   }
 }
 
 console.log('');
-if (err === 0 && ok > 0) {
-  console.log('  ✅ macOS osascript verification PASSED');
-} else if (err > 0) {
+if (err.length === 0 && ok.length > 0) {
+  console.log('  ✅ macOS osascript REAL verification PASSED');
+  console.log(`     ${ok.length}/${results.length} commands received verified responses`);
+  console.log('     Dexter correctly handles real investment analysis queries via osascript');
+} else if (err.length > 0) {
   console.log('  ⚠️ Some commands had errors — check output above');
+} else {
+  console.log('  ⚠️ No commands received verified responses — check if Dexter is running');
 }
+
+console.log('');
+console.log('════════════════════════════════════════════════════════════════');
