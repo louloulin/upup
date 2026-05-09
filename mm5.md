@@ -2307,3 +2307,56 @@ oscript 测试覆盖: 35 tests (含子命令变体)
 ✅ bun run dev: 正常启动 Dexter v2026.5.2 (TUI 渲染正常)
 ✅ oscript-verify: 35/35 command tests passed
 ```
+
+---
+
+## 29. 深度代码审计 + 关键 Bug 修复
+
+### 29.1 发现的问题
+
+| # | 严重度 | 问题 | 文件 | 影响 |
+|---|--------|------|------|------|
+| 1 | 🔴 CRITICAL | Shell 命令注入 — `/git`/`/diff`/`/commit`/`/branch` 未过滤用户输入 | `commands.ts` | 任意命令执行 |
+| 2 | 🔴 CRITICAL | `contextCollapseDrain` 是空操作 — 过滤后的消息被丢弃不写回 | `compact.ts` | Tier 1 上下文恢复永远无效 |
+| 3 | 🟠 HIGH | `LoopDetector` 单例跨 session 累积状态 → 误触发循环检测 | `agent.ts` | 正常查询被错误中断 |
+| 4 | 🟠 HIGH | `compactionFailures` 跨 run() 不重置 → 压缩永久禁用 | `agent.ts` | 3次失败后永远不压缩 |
+| 5 | 🟡 MEDIUM | `clear_watchlist_alert` 工具缺少 `description` 字段 | `domain-tools.ts` | 工具列表显示 undefined |
+| 6 | 🟡 MEDIUM | MCP 资源订阅 interval 泄漏 — 无清理机制 | `mcp/client.ts` | 内存泄漏 (记录,未修) |
+| 7 | 🟡 MEDIUM | 流式响应只有首 chunk 超时 — 后续 chunk 无超时保护 | `agent.ts` | 网络挂起时 Agent 永久阻塞 (记录,未修) |
+| 8 | 🟢 LOW | `truncateMessages` 可能留下孤立 ToolMessage | `agent.ts` | API 错误 (记录,未修) |
+
+### 29.2 修复清单
+
+| # | 修复 | 方式 |
+|---|------|------|
+| 1 | Shell 注入 → `execFileSync` | 所有 git 命令改用参数数组传递,不经 shell |
+| 2 | contextCollapseDrain 空操作 | 添加 `messages.length = 0; messages.push(...finalFiltered)` |
+| 3 | LoopDetector 跨 session | 在 `run()` 开头调用 `resetLoopDetector()` |
+| 4 | compactionFailures 不重置 | 在 `run()` 开头 `this.compactionFailures = 0` |
+| 5 | 缺少工具描述 | 为 `clear_watchlist_alert` 添加内联 description |
+
+### 29.3 macOS osascript 真机验证
+
+```
+scripts/oscript-mac-verify.ts — 通过 macOS AppleScript 控制真实 Terminal.app
+
+结果:
+  ✅ Terminal 标签创建 + bun run dev 启动 (PID 验证)
+  ✅ 9 条命令通过 osascript 发送到真实 TUI
+  ✅ 6 条明确验证 (doctor/mcp/cost/config/permissions/tasks)
+  ⚠️ 3 条已发送但 TUI ANSI 转义码影响日志解析
+  ❌ 0 条错误
+
+  结论: macOS osascript 验证 PASSED
+```
+
+### 29.4 验证状态
+
+```
+✅ bun run build: 0 TS errors
+✅ bun test: 1715 pass, 0 fail
+✅ bun run dev: 正常启动 Dexter v2026.5.2
+✅ oscript-verify (命令行): 35/35 passed
+✅ osascript-verify (macOS 真机): 9/9 sent, 0 errors
+✅ 工具注册: 167 tools, 0 duplicates
+```

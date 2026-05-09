@@ -17,7 +17,7 @@ import { microcompactMessages } from './microcompact.js';
 import { useContextWatchdog, useMemoryUsage, useSessionBackgrounding, useToolMetrics, useSessionRecovery } from '../hooks/agent-hooks.js';
 import { createRunContext, type RunContext } from './run-context.js';
 import { AgentToolExecutor } from './tool-executor.js';
-import { getLoopDetector, type RecoveryStrategy } from './loop-recovery.js';
+import { getLoopDetector, resetLoopDetector, type RecoveryStrategy } from './loop-recovery.js';
 import { getSessionManager } from './session-persistence.js';
 import { getPlanModeState } from './plan-mode-state.js';
 import { MemoryManager } from '../memory/index.js';
@@ -135,6 +135,10 @@ export class Agent {
    */
   async *run(query: string, inMemoryHistory?: InMemoryChatHistory): AsyncGenerator<AgentEvent> {
     const startTime = Date.now();
+
+    // Reset per-run state to prevent cross-session contamination
+    this.compactionFailures = 0;
+    resetLoopDetector();
 
     // Load user hooks on first run (non-blocking, idempotent)
     try {

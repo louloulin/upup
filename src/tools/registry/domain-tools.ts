@@ -230,7 +230,7 @@ async function loadDynamicDomainTools(tools: RegisteredTool[]): Promise<void> {
     tools.push({ name: 'get_watchlist', tool: wl.createGetWatchlistTool(), description: wl.GET_WATCHLIST_DESCRIPTION, compactDescription: 'Get your current investment watchlist with alerts', concurrencySafe: true });
     tools.push({ name: 'add_watchlist_alert', tool: wl.createAddAlertTool(), description: wl.ADD_WATCHLIST_ALERT_DESCRIPTION, compactDescription: 'Add a price alert to a watchlist symbol', concurrencySafe: true });
     tools.push({ name: 'check_watchlist_alerts', tool: wl.createCheckAlertsTool(), description: wl.CHECK_WATCHLIST_ALERTS_DESCRIPTION, compactDescription: 'Check watchlist alerts against current prices', concurrencySafe: true });
-    tools.push({ name: 'clear_watchlist_alert', tool: wl.createClearAlertTool(), compactDescription: 'Clear a watchlist alert after it triggers', concurrencySafe: true });
+    tools.push({ name: 'clear_watchlist_alert', tool: wl.createClearAlertTool(), description: 'Clear or dismiss a triggered watchlist alert. Use after reviewing the alert to remove it from the active alerts list.', compactDescription: 'Clear a watchlist alert after it triggers', concurrencySafe: true });
   } catch { /* watchlist tools not available */ }
 
   // Benchmark
