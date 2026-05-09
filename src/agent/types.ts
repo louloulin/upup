@@ -58,6 +58,13 @@ export interface AgentConfig {
   memoryEnabled?: boolean;
   /** Message queue for mid-run injection of new user messages. */
   messageQueue?: MessageQueue;
+  /**
+   * Tool filter: whitelist of tool names the agent may use.
+   * - '*' or undefined: all registered tools (default)
+   * - string[]: only tools whose names appear in this list
+   * Useful for sub-agents that should only access a subset of tools.
+   */
+  toolFilter?: string[] | '*';
 }
 
 /**

@@ -571,7 +571,8 @@ export function createForkSubagentTool(): DynamicStructuredTool {
     schema: ForkSubagentSchema,
     async func(input): Promise<string> {
       const runner = getDefaultSubagentRunner() as EnhancedSubagentRunner;
-      const agentId = randomUUID(); // Parent ID for memory
+      // Use session ID as parent agent ID so memory context is inherited
+      const agentId = process.env.DEXTER_SESSION_ID || 'default';
 
       const result = await runner.fork(agentId, input.prompt, {
         tools: input.tools,

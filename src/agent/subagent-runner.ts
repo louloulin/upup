@@ -94,6 +94,7 @@ export class SubagentRunner {
   private events: SubagentEventEmitter;
   private activeAgents: Map<string, AbortController> = new Map();
   private readonly DEFAULT_TIMEOUT_MS = 300000; // 5 minutes default
+  private cleanupTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor() {
     this.store = new SubagentTaskStore();
@@ -157,6 +158,9 @@ export class SubagentRunner {
     prompt: string,
     context?: SubagentContext
   ): Promise<string> {
+    // Start auto-cleanup on first background task (idempotent)
+    this.startAutoCleanup();
+
     const taskId = randomUUID();
     const startTime = Date.now();
 
@@ -250,7 +254,8 @@ export class SubagentRunner {
   }
 
   /**
-   * Clean up completed tasks
+   * Clean up completed tasks older than maxAgeMs (default 1 hour).
+   * Auto-cleanup starts on first runAsync() and runs every 5 minutes.
    */
   cleanup(maxAgeMs: number = 3600000): void {
     const now = Date.now();
@@ -260,6 +265,29 @@ export class SubagentRunner {
       if (task.completedAt && (now - task.completedAt.getTime()) > maxAgeMs) {
         this.store.delete(task.id);
       }
+    }
+  }
+
+  /**
+   * Start periodic auto-cleanup of completed tasks (every 5 minutes).
+   * Called automatically on first runAsync(). Idempotent.
+   */
+  startAutoCleanup(intervalMs: number = 300000, maxAgeMs: number = 3600000): void {
+    if (this.cleanupTimer) return;
+    this.cleanupTimer = setInterval(() => this.cleanup(maxAgeMs), intervalMs);
+    // Don't prevent process exit
+    if (this.cleanupTimer.unref) {
+      this.cleanupTimer.unref();
+    }
+  }
+
+  /**
+   * Stop periodic auto-cleanup. Called on process exit or manual reset.
+   */
+  stopAutoCleanup(): void {
+    if (this.cleanupTimer) {
+      clearInterval(this.cleanupTimer);
+      this.cleanupTimer = null;
     }
   }
 
@@ -299,6 +327,8 @@ export class SubagentRunner {
     taskId?: string,
     eventCallback?: (event: AgentEvent) => void,
   ): Promise<string> {
+    // Save CWD before try block so catch can access it
+    let originalCwd: string | undefined;
     try {
       // Dynamically import Agent to avoid circular dependency
       const { Agent } = await import('./agent.js');
@@ -321,9 +351,22 @@ export class SubagentRunner {
         timeoutController.abort();
       }, timeoutMs);
 
+      // Save and override CWD if specified
+      originalCwd = config.cwd ? process.cwd() : undefined;
+      if (config.cwd) {
+        try {
+          process.chdir(config.cwd);
+          info('subagent', `CWD changed to: ${config.cwd}`);
+        } catch (err) {
+          warn('subagent', `Failed to change CWD to ${config.cwd}: ${err}`);
+        }
+      }
+
       const agent = await Agent.create({
         model,
         signal: timeoutController.signal,
+        toolFilter: config.tools,
+        maxIterations: config.maxTurns,
       });
 
       // Collect results from agent run
@@ -347,10 +390,18 @@ export class SubagentRunner {
         }
       } finally {
         clearTimeout(timeoutId);
+        // Restore original CWD if we changed it
+        if (originalCwd) {
+          try { process.chdir(originalCwd); } catch { /* best effort */ }
+        }
       }
 
       return result || 'Agent completed without output';
     } catch (error) {
+      // Restore CWD on error too
+      if (originalCwd) {
+        try { process.chdir(originalCwd); } catch { /* best effort */ }
+      }
       const message = error instanceof Error ? error.message : String(error);
       logError('subagent', `Agent execution failed: ${message}`);
       throw new Error(`Subagent execution failed: ${message}`);
@@ -434,5 +485,8 @@ export function getDefaultSubagentRunner(): SubagentRunner {
  * Reset the default runner (for testing)
  */
 export function resetDefaultSubagentRunner(): void {
+  if (defaultRunner) {
+    defaultRunner.stopAutoCleanup();
+  }
   defaultRunner = null;
 }

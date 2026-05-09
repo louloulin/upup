@@ -89,8 +89,21 @@ export class Agent {
     const model = config.model ?? DEFAULT_MODEL;
     // Lazy import to break circular dependency
     const { getTools, getToolConcurrencyMap } = await import('../tools/registry.js');
-    const tools = await getTools(model);
-    const concurrencyMap = await getToolConcurrencyMap(model);
+    let tools = await getTools(model);
+    let concurrencyMap = await getToolConcurrencyMap(model);
+
+    // Apply tool filter if specified (for sub-agents with restricted tool access)
+    if (config.toolFilter && config.toolFilter !== '*' && config.toolFilter.length > 0) {
+      const allowed = new Set(config.toolFilter);
+      tools = tools.filter(t => allowed.has(t.name));
+      // Filter concurrency map to only include allowed tools
+      const filteredMap = new Map<string, boolean>();
+      for (const [name, isConcurrent] of concurrencyMap) {
+        if (allowed.has(name)) filteredMap.set(name, isConcurrent);
+      }
+      concurrencyMap = filteredMap;
+    }
+
     const soulContent = await loadSoulDocument();
     const rulesContent = await loadRulesDocument();
     let memoryFiles: string[] = [];

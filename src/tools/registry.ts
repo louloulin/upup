@@ -947,12 +947,14 @@ export async function getToolRegistry(model: string): Promise<RegisteredTool[]> 
   }
 
   // Add Task System tools
+  const { getTaskResultTool } = await import('./agent-tool.js');
   const taskTools = [
     { name: 'task_create', tool: createTaskCreateTool() },
     { name: 'task_get', tool: createTaskGetTool() },
     { name: 'task_list', tool: createTaskListTool() },
     { name: 'task_stop', tool: createTaskStopTool() },
     { name: 'task_update', tool: createTaskUpdateTool() },
+    { name: 'task_result', tool: getTaskResultTool() },
   ];
 
   for (const { name, tool } of taskTools) {
