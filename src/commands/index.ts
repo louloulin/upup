@@ -1,7 +1,7 @@
 export interface SlashCommand {
   name: string;
   description: string;
-  category?: 'core' | 'plan' | 'agent' | 'mcp' | 'permissions' | 'system';
+  category?: 'core' | 'plan' | 'agent' | 'mcp' | 'permissions' | 'system' | 'git' | 'tools';
 }
 
 export const SLASH_COMMANDS: SlashCommand[] = [
@@ -30,6 +30,7 @@ export const SLASH_COMMANDS: SlashCommand[] = [
   { name: 'agent', description: 'Spawn a child agent for parallel task execution', category: 'agent' },
   { name: 'tasks', description: 'Show background task status', category: 'agent' },
   { name: 'fork', description: 'Create a parallel fork for independent work', category: 'agent' },
+  { name: 'team', description: 'List agent teams', category: 'agent' },
   // MCP commands
   { name: 'mcp', description: 'Show MCP server status and connected tools', category: 'mcp' },
   // Permission commands
@@ -40,14 +41,33 @@ export const SLASH_COMMANDS: SlashCommand[] = [
   // Proactive commands
   { name: 'proactive', description: 'Toggle proactive/background mode', category: 'system' },
   { name: 'events', description: 'Show recent proactive events', category: 'system' },
+  // Git commands (via CommandRegistry)
+  { name: 'git', description: 'Run git status', category: 'git' },
+  { name: 'diff', description: 'Show git diff', category: 'git' },
+  { name: 'commit', description: 'Stage all and commit (admin)', category: 'git' },
+  { name: 'branch', description: 'List or create git branches', category: 'git' },
+  // Tool commands (via CommandRegistry)
+  { name: 'tools', description: 'List registered tools', category: 'tools' },
+  { name: 'config', description: 'Get/set configuration', category: 'tools' },
+  { name: 'export', description: 'Export conversation to file', category: 'tools' },
 ];
 
 /**
  * Filter commands matching the current input.
  * Input should start with "/". Bare "/" returns all commands.
+ * Supports prefix matching and fuzzy matching.
  */
 export function matchCommands(input: string): SlashCommand[] {
   const query = input.slice(1).toLowerCase();
   if (query === '') return SLASH_COMMANDS;
-  return SLASH_COMMANDS.filter(cmd => cmd.name.startsWith(query));
+
+  // Prefix matches first
+  const prefixMatches = SLASH_COMMANDS.filter(cmd => cmd.name.startsWith(query));
+  if (prefixMatches.length > 0) return prefixMatches;
+
+  // Fallback to substring match
+  const substringMatches = SLASH_COMMANDS.filter(cmd =>
+    cmd.name.includes(query) || cmd.description.toLowerCase().includes(query)
+  );
+  return substringMatches;
 }
