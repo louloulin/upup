@@ -2688,6 +2688,38 @@ Tool Usage:
   Errors: 0
 ```
 
+### 33.8 Hook 生命周期集成
+
+**问题**: `PreToolUse` hook 已定义但在 `tool-executor.ts` 中从未调用。
+Agent 只在工具执行后调用 `PostToolUse` 和 `PostToolUseFailure`。
+
+**修复**: 在 `tool-executor.ts` 中添加 `PreToolUse` hook 调用，位于权限检查通过后、
+工具执行前。支持 veto（decision='block'/'deny'）阻止工具执行。
+
+```typescript
+// src/agent/tool-executor.ts — PreToolUse hook integration
+try {
+  const { getHookExecutor } = await import('../hooks/tool-hooks.js');
+  const preResult = await getHookExecutor().preToolUse({
+    toolName, args: toolArgs, toolCallId,
+  });
+  if (preResult?.decision === 'block' || preResult?.decision === 'deny') {
+    yield { type: 'tool_denied', tool: toolName, args: toolArgs, toolCallId };
+    return;
+  }
+} catch { /* hooks must not crash tool execution */ }
+```
+
+**验证**: `tool-lifecycle-hooks.test.ts` — 15 tests, 35 assertions:
+```
+✅ PreToolUse: params, veto (block/deny), allow, multiple hooks in order
+✅ PostToolUse: receives tool result with duration
+✅ PostToolUseFailure: receives error details
+✅ Full lifecycle: pre→post, blocked (no post), error lifecycle
+✅ Hook management: disabled hooks, unregistration, singleton pattern
+✅ Built-in hooks: createLoggingHook, createStopOnErrorHook
+```
+
 ---
 
 ## 34. 整体完成进度
@@ -2718,13 +2750,15 @@ Tool Usage:
 | 5 | osascript 真实投资查询 | VaR/BS/Sharpe/Sortino/DD/Corr/AAPL | ✅ 通过 |
 | 6 | CJK 中文输入验证 | 分析比亚迪/分析特斯拉 via osascript | ✅ 通过 |
 | 7 | /cost 命令 Token 追踪 | 83.6K input / 259 output / $0.0084 | ✅ 通过 |
+| 8 | Hook 生命周期集成测试 | 15 tests, 35 assertions | ✅ 通过 |
+| 9 | PreToolUse Hook 集成 | Veto/Allow/Deny + Full lifecycle | ✅ 通过 |
 
 ### 34.3 完成进度
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                                                             │
-│  ████████████████████████████████████████████████████████ 94%│
+│  ████████████████████████████████████████████████████████ 95%│
 │                                                             │
 │  ✅ 代码审计 & Bug 修复 (10 issues, 全部已修复)            │
 │  ✅ 子 Agent 并行验证 (6 tests)                             │
@@ -2733,11 +2767,12 @@ Tool Usage:
 │  ✅ 真实投资分析查询 (VaR/BS/Sharpe/Sortino/DD/Corr/AAPL)  │
 │  ✅ CJK 中文输入验证 (分析比亚迪/分析特斯拉 via osascript)  │
 │  ✅ /cost Token 追踪修复 (83.6K in / 259 out / $0.0084)    │
-│  ✅ 全套测试回归 (1748 pass, 0 fail)                        │
+│  ✅ PreToolUse Hook 集成 (veto/allow/deny + lifecycle)     │
+│  ✅ Hook 生命周期测试 (15 tests, 35 assertions)             │
+│  ✅ 全套测试回归 (1763 pass, 0 fail)                        │
 │                                                             │
-│  剩余 6%:                                                   │
+│  剩余 5%:                                                   │
 │  ⬜ MCP 集成深度验证                                        │
-│  ⬜ Hook 系统 lifecycle 完整性测试                          │
 │  ⬜ 命令覆盖度提升 (当前 41 → 目标 80+)                     │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
