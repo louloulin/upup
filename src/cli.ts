@@ -315,8 +315,8 @@ export async function runCli() {
   /clear       Clear conversation
   ↑ / ↓        Navigate input history`;
 
-  const handleSlashCommand = async (command: string) => {
-    switch (command) {
+  const handleSlashCommand = async (commandName: string, commandArgs: string = '') => {
+    switch (commandName) {
       case 'model':
         modelSelection.startSelection();
         break;
@@ -727,6 +727,39 @@ export async function runCli() {
         tui.requestRender();
         break;
       }
+      default: {
+        // Fallback to CommandRegistry for commands not in the switch
+        try {
+          const { getGlobalRegistry } = await import('./commands/commands.js');
+          const registry = getGlobalRegistry();
+          const hasCommand = registry.has(commandName);
+          if (hasCommand) {
+            const result = await registry.execute(`/${commandName} ${commandArgs}`.trim(), {
+              cwd: process.cwd(),
+              env: process.env as Record<string, string>,
+            });
+            chatLog.addChild(new Spacer(1));
+            if (result.type === 'output') {
+              chatLog.addChild(new Text(result.text, 0, 0));
+            } else if (result.type === 'error') {
+              chatLog.addChild(new Text(theme.error(result.message), 0, 0));
+            } else if (result.type === 'clear') {
+              chatLog.clearAll();
+            } else if (result.type === 'compact') {
+              await agentRunner.runQuery('Please compact the conversation context now.');
+            }
+            tui.requestRender();
+          } else {
+            chatLog.addChild(new Spacer(1));
+            chatLog.addChild(new Text(theme.error(`Unknown command: /${commandName}. Type /help for available commands.`), 0, 0));
+            tui.requestRender();
+          }
+        } catch (e) {
+          chatLog.addChild(new Text(theme.error(`Command error: ${e instanceof Error ? e.message : String(e)}`), 0, 0));
+          tui.requestRender();
+        }
+        break;
+      }
     }
   };
 
@@ -741,10 +774,14 @@ export async function runCli() {
 
     // Handle all slash commands
     if (query.startsWith('/')) {
-      const command = query.slice(1).trim().toLowerCase();
+      const rawCommand = query.slice(1).trim();
+      // Split command name from arguments: "/model deepseek" → name="model", args="deepseek"
+      const spaceIdx = rawCommand.indexOf(' ');
+      const commandName = (spaceIdx === -1 ? rawCommand : rawCommand.slice(0, spaceIdx)).toLowerCase();
+      const commandArgs = spaceIdx === -1 ? '' : rawCommand.slice(spaceIdx + 1).trim();
       slashActive = false;
       slashSuggestions = [];
-      await handleSlashCommand(command);
+      await handleSlashCommand(commandName, commandArgs);
       return;
     }
 
@@ -1033,7 +1070,7 @@ export async function runCli() {
       slashActive = false;
       slashSuggestions = [];
       editor.setText('');
-      void handleSlashCommand(selected.name);
+      void handleSlashCommand(selected.name, '');
     }
     updateView();
     tui.requestRender();

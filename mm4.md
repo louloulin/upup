@@ -289,7 +289,10 @@
 
 ### 5.2 Dexter 能力
 - **CommandRegistry**: `src/commands/commands.ts` 中的可插拔命令系统
-- **内置命令**: `/help`, `/clear`, `/compact`, `/status`, `/skills`, `/echo`, `/reset`, `/tools`, `/model`, `/history`, `/memory`, `/config`, `/export`, `/git`, `/diff`, `/commit`, `/branch`, `/agent`, `/team` (19 个命令)
+- **真实命令路由**: ✅ `cli.ts:handleSlashCommand()` 已接入，`switch` 处理核心命令，`default:` 回退到 CommandRegistry
+- **参数解析**: ✅ `/command args` 格式正确分离命令名和参数，支持后续参数传递
+- **自动补全**: ✅ `commands/index.ts` 的 `SLASH_COMMANDS` (35个) + `CommandRegistry.autocomplete()` 模糊匹配
+- **内置命令**: `/help`, `/clear`, `/compact`, `/status`, `/model`, `/history`, `/memory`, `/config`, `/export`, `/git`, `/diff`, `/commit`, `/branch`, `/agent`, `/team`, `/plan`, `/mcp`, `/cost`, `/doctor`, `/tasks`, `/fork`, `/proactive`, `/events` 等 35+ 命令
 - **别名**: `/h`, `/cls`, `/?`, `/tls`, `/m`, `/hist`, `/mem`, `/cfg`, `/exp`, `/info`, `/list_skills`, `/br` 已支持
 - **CommandContext**: cwd, env, sessionId, model, permission
 - **命令自动完成**: ✅ `autocomplete()` 方法支持前缀匹配+模糊匹配+描述匹配
@@ -688,7 +691,7 @@ src/mcp/client.ts, index.ts, registry.ts
 ---
 
 > 文档: mm4.md
-> 版本: v3.2 (第二十二轮验证更新版 — 命令系统大幅增强 + MCP 认证/订阅 + Hook 事件总线)
+> 版本: v3.3 (第二十三轮验证更新版 — 命令系统真实接入用户输入流)
 > 日期: 2026-05-09
 > 基于: src/agent/agent.ts, src/tools/registry.ts, mm3.md
 > 验证: 1503 tests passing (27 pre-existing fail, 4 errors), bun run dev ✅
