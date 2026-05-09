@@ -2,7 +2,7 @@ import { AIMessage, AIMessageChunk, SystemMessage, HumanMessage, ToolMessage, ty
 import { StructuredToolInterface } from '@langchain/core/tools';
 import { callLlmWithMessages, streamLlmWithMessages } from '../model/llm.js';
 // Lazy import to avoid circular dependency with tools/finance → agent/prompts → tools/registry
-// import { getTools, getToolConcurrencyMap } from '../tools/registry.js';
+// import { getTools, getToolConcurrencyMap } from '../tools/registry/index.js';
 import { buildSystemPrompt, loadSoulDocument, loadRulesDocument } from './prompts.js';
 import { extractTextContent, hasToolCalls } from '../utils/ai-message.js';
 import { InMemoryChatHistory } from '../utils/in-memory-chat-history.js';
@@ -88,7 +88,7 @@ export class Agent {
   static async create(config: AgentConfig = {}): Promise<Agent> {
     const model = config.model ?? DEFAULT_MODEL;
     // Lazy import to break circular dependency
-    const { getTools, getToolConcurrencyMap } = await import('../tools/registry.js');
+    const { getTools, getToolConcurrencyMap } = await import('../tools/registry/index.js');
     let tools = await getTools(model);
     let concurrencyMap = await getToolConcurrencyMap(model);
 

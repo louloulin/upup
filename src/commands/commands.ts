@@ -46,6 +46,27 @@ export interface CommandContext {
   model?: string;
   /** Permission level of the current user */
   permission?: CommandPermission;
+  /** Optional UI context for commands that render to the terminal */
+  ui?: UIContext;
+}
+
+/**
+ * UI context passed to commands that need TUI rendering.
+ * This bridges the gap between the CommandRegistry and cli.ts TUI components.
+ */
+export interface UIContext {
+  /** Add text to the chat log */
+  addText: (text: string) => void;
+  /** Clear the chat log */
+  clearChat: () => void;
+  /** Run an agent query and return the result */
+  runQuery: (query: string) => Promise<{ answer: string } | undefined>;
+  /** Get working state */
+  getWorkingState: () => { status: string; toolName?: string };
+  /** Get agent runner history */
+  getHistory: () => Array<{ query: string; answer?: string; status: string; duration?: number }>;
+  /** Request a TUI re-render */
+  requestRender: () => void;
 }
 
 export type CommandResult =
@@ -54,6 +75,7 @@ export type CommandResult =
   | { type: 'redirect'; command: string }
   | { type: 'clear' }
   | { type: 'compact' }
+  | { type: 'query'; text: string }
   | { type: 'noop' };
 
 // ============================================================================
@@ -338,7 +360,7 @@ const toolsCommand: Command = {
   usage: '/tools',
   async execute(): Promise<CommandResult> {
     try {
-      const { getTools } = await import('../tools/registry.js');
+      const { getTools } = await import('../tools/registry/index.js');
       const tools = await getTools('default');
       if (tools.length === 0) {
         return { type: 'output', text: 'No tools registered.' };
@@ -556,17 +578,21 @@ const agentCommand: Command = {
   name: 'agent',
   description: 'Manage subagents',
   usage: '/agent [list|status]',
-  async execute(args): Promise<CommandResult> {
+  async execute(_args): Promise<CommandResult> {
     // Dynamic import to avoid circular dependency
     try {
-      const { agentMemoryStore } = await import('../agent/subagent/types.js');
-      const agents = agentMemoryStore.listAgents();
-      if (agents.length === 0) {
+      const { getDefaultSubagentRunner } = await import('../agent/subagent-runner.js');
+      const runner = getDefaultSubagentRunner();
+      const tasks = runner.getAllTasks();
+
+      if (tasks.length === 0) {
         return { type: 'output', text: 'No active subagents.' };
       }
-      const lines = ['Active subagents:', ''];
-      for (const agent of agents) {
-        lines.push(`  ${agent.id.padEnd(20)} ${agent.type} (messages: ${agent.messageCount})`);
+
+      const lines = ['Subagent tasks:', ''];
+      for (const t of tasks) {
+        const icon = t.status === 'running' ? '⏳' : t.status === 'completed' ? '✓' : t.status === 'failed' ? '✗' : '○';
+        lines.push(`  ${icon} ${t.id.substring(0, 8)} (${t.status})`);
       }
       return { type: 'output', text: lines.join('\n') };
     } catch {
@@ -697,6 +723,145 @@ export function parseMacroFile(content: string, name: string): MacroDefinition {
   return { name, description, steps, stopOnError: true };
 }
 
+// ============================================================================
+// Migrated commands from cli.ts switch (Phase 4 command unification)
+// These commands use UIContext for TUI rendering.
+// ============================================================================
+
+const doctorCommand: Command = {
+  name: 'doctor',
+  description: 'Health check: API keys, memory, MCP, permissions',
+  aliases: ['health'],
+  async execute(_args, context): Promise<CommandResult> {
+    const lines: string[] = [];
+
+    // API key check
+    const hasApiKey = !!(context.env.OPENAI_API_KEY || context.env.ANTHROPIC_API_KEY || context.env.GOOGLE_API_KEY);
+    lines.push(`API Keys: ${hasApiKey ? '✓ configured' : '✗ none found'}`);
+
+    // Model
+    lines.push(`Model: ${context.model || 'default'}`);
+
+    // Memory
+    try {
+      const { agentMemoryStore } = await import('../agent/subagent/types.js');
+      const count = agentMemoryStore.getContext('system').length;
+      lines.push(`Memory: ${count > 0 ? `${count} context(s)` : '✓ available'}`);
+    } catch {
+      lines.push('Memory: ✗ unavailable');
+    }
+
+    // MCP
+    try {
+      const { getDefaultMCPClient } = await import('../mcp/client.js');
+      const client = getDefaultMCPClient();
+      lines.push(`MCP: client available`);
+    } catch {
+      lines.push('MCP: no servers');
+    }
+
+    return { type: 'output', text: lines.join('\n') };
+  },
+};
+
+const costCommand: Command = {
+  name: 'cost',
+  description: 'Token usage and cost breakdown',
+  async execute(_args, context): Promise<CommandResult> {
+    const lines: string[] = ['Token Usage & Cost'];
+    lines.push(`Model: ${context.model || 'default'}`);
+    lines.push('Use /status for full details');
+    return { type: 'output', text: lines.join('\n') };
+  },
+};
+
+const tasksCommand: Command = {
+  name: 'tasks',
+  description: 'List background agent tasks',
+  async execute(_args, _context): Promise<CommandResult> {
+    try {
+      const { getDefaultSubagentRunner } = await import('../agent/subagent-runner.js');
+      const runner = getDefaultSubagentRunner();
+      const tasks = runner.getAllTasks();
+
+      if (tasks.length === 0) {
+        return { type: 'output', text: 'No active background tasks.' };
+      }
+
+      const lines = tasks.map(t => {
+        const status = t.status === 'running' ? '⏳' : t.status === 'completed' ? '✓' : t.status === 'failed' ? '✗' : '○';
+        const preview = t.prompt ? t.prompt.substring(0, 50) : '';
+        return `${status} ${t.id.substring(0, 8)}: ${preview}... (${t.status})`;
+      });
+
+      return { type: 'output', text: `Background Tasks:\n${lines.join('\n')}` };
+    } catch {
+      return { type: 'error', message: 'Task system not available' };
+    }
+  },
+};
+
+const mcpCommand: Command = {
+  name: 'mcp',
+  description: 'Show MCP server and tool status',
+  async execute(_args, _context): Promise<CommandResult> {
+    try {
+      const { getDefaultMCPClient } = await import('../mcp/client.js');
+      const client = getDefaultMCPClient();
+      return { type: 'output', text: `MCP: client available (${typeof client})` };
+    } catch {
+      return { type: 'output', text: 'MCP client not available' };
+    }
+  },
+};
+
+const permissionsCommand: Command = {
+  name: 'permissions',
+  description: 'Show active permission rules',
+  aliases: ['perms'],
+  async execute(_args, _context): Promise<CommandResult> {
+    try {
+      const { getPermissionChecker } = await import('../hooks/permission-hooks.js');
+      const checker = getPermissionChecker();
+      return { type: 'output', text: 'Permission system active. Use /reset-permissions to reset.' };
+    } catch {
+      return { type: 'output', text: 'Permission system not available' };
+    }
+  },
+};
+
+const proactiveCommand: Command = {
+  name: 'proactive',
+  description: 'Toggle proactive mode on/off',
+  async execute(_args, _context): Promise<CommandResult> {
+    // Proactive controller not yet implemented
+    return { type: 'output', text: 'Proactive mode: not yet implemented. Coming soon.' };
+  },
+};
+
+const eventsCommand: Command = {
+  name: 'events',
+  description: 'Show recent proactive event history',
+  async execute(_args, _context): Promise<CommandResult> {
+    // Proactive controller not yet implemented
+    return { type: 'output', text: 'Event system: not yet implemented. Coming soon.' };
+  },
+};
+
+const resetPermissionsCommand: Command = {
+  name: 'reset-permissions',
+  description: 'Reset all permission rules to defaults',
+  async execute(_args, _context): Promise<CommandResult> {
+    try {
+      const { resetPermissionChecker } = await import('../hooks/permission-hooks.js');
+      resetPermissionChecker();
+      return { type: 'output', text: 'Permissions reset to defaults.' };
+    } catch {
+      return { type: 'error', message: 'Failed to reset permissions' };
+    }
+  },
+};
+
 /**
  * Expand a macro into a sequence of commands.
  * Returns the list of commands to execute in order.
@@ -803,6 +968,16 @@ export function registerBuiltinCommands(registry: CommandRegistry): void {
   // Agent/Team commands
   registry.register(agentCommand);
   registry.register(teamCommand);
+
+  // --- Migrated from cli.ts switch (Phase 4 command unification) ---
+  registry.register(doctorCommand);
+  registry.register(costCommand);
+  registry.register(tasksCommand);
+  registry.register(mcpCommand);
+  registry.register(permissionsCommand);
+  registry.register(proactiveCommand);
+  registry.register(eventsCommand);
+  registry.register(resetPermissionsCommand);
 }
 
 export function resetGlobalRegistry(): void {

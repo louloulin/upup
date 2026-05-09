@@ -7,7 +7,7 @@
 
 import { z } from 'zod';
 import { DynamicStructuredTool } from '@langchain/core/tools';
-import { getToolRegistry, type RegisteredTool } from './registry.js';
+import { getToolRegistry, type RegisteredTool } from './registry/index.js';
 
 // ============================================================================
 // Schema & Description

@@ -220,7 +220,7 @@ export async function buildSystemPrompt(
   memoryContext?: string | null,
   rulesContent?: string | null,
 ): Promise<string> {
-  const { buildCompactToolDescriptions } = await import('../tools/registry.js');
+  const { buildCompactToolDescriptions } = await import('../tools/registry/index.js');
   const toolDescriptions = await buildCompactToolDescriptions(model);
   const profile = getChannelProfile(channel);
 
