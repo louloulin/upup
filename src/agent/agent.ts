@@ -331,6 +331,14 @@ export class Agent {
       ctx.tokenCounter.add(usage);
       if (usage?.inputTokens) {
         ctx.lastApiInputTokens = usage.inputTokens;
+        // Sync token usage to AppState for /cost and /status commands
+        try {
+          const { getAppState, calculateTokenCost } = await import('../state/index.js');
+          const appState = getAppState();
+          appState.addTokens(usage.inputTokens, usage.outputTokens);
+          const cost = calculateTokenCost(usage.inputTokens, usage.outputTokens, this.model);
+          appState.addCost(cost);
+        } catch { /* non-critical — cost tracking best-effort */ }
       }
 
       const responseText = extractTextContent(response);
@@ -986,6 +994,14 @@ export class Agent {
 
         if (result.usage) {
           ctx.tokenCounter.add(result.usage);
+          // Sync compaction token usage to AppState
+          try {
+            const { getAppState, calculateTokenCost } = await import('../state/index.js');
+            const appState = getAppState();
+            appState.addTokens(result.usage.inputTokens, result.usage.outputTokens);
+            const cost = calculateTokenCost(result.usage.inputTokens, result.usage.outputTokens, this.model);
+            appState.addCost(cost);
+          } catch { /* non-critical */ }
         }
 
         this.compactionFailures = 0;

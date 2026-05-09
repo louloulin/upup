@@ -769,10 +769,41 @@ const costCommand: Command = {
   name: 'cost',
   description: 'Token usage and cost breakdown',
   async execute(_args, context): Promise<CommandResult> {
-    const lines: string[] = ['Token Usage & Cost'];
-    lines.push(`Model: ${context.model || 'default'}`);
-    lines.push('Use /status for full details');
-    return { type: 'output', text: lines.join('\n') };
+    try {
+      const { getAppState, calculateTokenCost, formatCost, formatTokens } = await import('../state/index.js');
+      const appState = getAppState();
+      const state = appState.getState();
+
+      const lines: string[] = ['═══ Token Usage & Cost ═══'];
+      lines.push(`Model: ${state.model || context.model || 'default'}`);
+      lines.push('');
+      lines.push('Token Usage:');
+      lines.push(`  Input:  ${formatTokens(state.totalInputTokens)} tokens`);
+      lines.push(`  Output: ${formatTokens(state.totalOutputTokens)} tokens`);
+      lines.push(`  Total:  ${formatTokens(state.totalTokens)} tokens`);
+      lines.push('');
+      lines.push('Cost:');
+      lines.push(`  Session: ${formatCost(state.totalCostUSD)}`);
+
+      if (state.totalInputTokens > 0 || state.totalOutputTokens > 0) {
+        const incrementalCost = calculateTokenCost(state.totalInputTokens, state.totalOutputTokens, state.model || context.model || 'default');
+        lines.push(`  Calculated: ${formatCost(incrementalCost)}`);
+      }
+
+      lines.push('');
+      lines.push('Tool Usage:');
+      lines.push(`  Calls: ${state.totalToolCalls}`);
+      lines.push(`  Errors: ${state.totalToolErrors}`);
+
+      if (state.totalToolCalls > 0) {
+        const errorRate = (state.totalToolErrors / state.totalToolCalls * 100).toFixed(1);
+        lines.push(`  Success: ${(100 - parseFloat(errorRate)).toFixed(1)}%`);
+      }
+
+      return { type: 'output', text: lines.join('\n') };
+    } catch (e) {
+      return { type: 'output', text: `Cost tracking error: ${String(e)}` };
+    }
   },
 };
 
