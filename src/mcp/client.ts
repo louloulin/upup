@@ -101,7 +101,7 @@ export class MCPClientManager extends EventEmitter {
     try {
       // Create client
       const client = new Client({
-        name: this.config.clientInfo?.name || 'Dexter',
+        name: this.config.clientInfo?.name || 'UpUp',
         version: this.config.clientInfo?.version || '1.0.0',
       });
 
@@ -592,7 +592,7 @@ let defaultClient: MCPClientManager | null = null;
  * Load MCP configuration from file
  */
 export function loadMCPConfig(configPath?: string): MCPClientConfig {
-  const path = configPath || join(process.cwd(), '.dexter', 'mcp-config.json');
+  const path = configPath || join(process.cwd(), '.upup', 'mcp-config.json');
 
   try {
     const content = readFileSync(path, 'utf-8');

@@ -1,5 +1,5 @@
 /**
- * Memory Extraction - Per-turn extraction for Dexter Memory
+ * Memory Extraction - Per-turn extraction for UpUp Memory
  *
  * Based on Claude Code's 2-phase extraction:
  * - Phase 1: Per-turn extraction (after final response, no tool calls)
@@ -16,7 +16,7 @@ import {
   buildExtractionPrompt,
 } from './prompts.js';
 import { getChatModel, DEFAULT_MODEL } from '../model/llm.js';
-import { getDexterDir } from '../utils/paths.js';
+import { getUpupDir } from '../utils/paths.js';
 import { MEMORY_TYPES, type MemoryType, type MemoryWriteRequest } from './types.js';
 import { z } from 'zod';
 import { warn, error } from '../utils/logging/logger.js';
@@ -141,7 +141,7 @@ export function hasToolCalls(messages: { role: string; content: string }[]): boo
  * Read existing memories for context (avoid duplicates).
  */
 async function readExistingMemories(): Promise<string> {
-  const memoryDir = join(getDexterDir(), MEMORY_DIRNAME);
+  const memoryDir = join(getUpupDir(), MEMORY_DIRNAME);
   const memories: string[] = [];
 
   try {
@@ -171,7 +171,7 @@ async function readExistingMemories(): Promise<string> {
  * Write a memory file to disk.
  */
 async function writeMemoryFile(memory: ExtractionResult): Promise<void> {
-  const memoryDir = join(getDexterDir(), MEMORY_DIRNAME);
+  const memoryDir = join(getUpupDir(), MEMORY_DIRNAME);
   const typeDir = join(memoryDir, memory.type);
   const fileName = `${memory.name}.md`;
   const filePath = join(typeDir, fileName);
@@ -193,7 +193,7 @@ async function writeMemoryFile(memory: ExtractionResult): Promise<void> {
  * Update MEMORY.md index with current memories.
  */
 async function updateMemoryIndex(): Promise<void> {
-  const memoryDir = join(getDexterDir(), MEMORY_DIRNAME);
+  const memoryDir = join(getUpupDir(), MEMORY_DIRNAME);
   const indexPath = join(memoryDir, 'MEMORY.md');
 
   const entries: string[] = [];
@@ -223,7 +223,7 @@ async function updateMemoryIndex(): Promise<void> {
 
   // Build index content
   const indexContent = [
-    '# Dexter Memory Index',
+    '# UpUp Memory Index',
     '',
     '## Summary',
     `Last updated: ${new Date().toISOString()}`,

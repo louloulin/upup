@@ -1,8 +1,8 @@
 /**
- * User Hook Loader — scans and loads .dexter/hooks/*.ts files
+ * User Hook Loader — scans and loads .upup/hooks/*.ts files
  *
  * Provides a mechanism for users to define custom hooks that
- * integrate with Dexter's hook lifecycle system.
+ * integrate with UpUp's hook lifecycle system.
  */
 
 import { existsSync, readdirSync } from 'fs';
@@ -35,11 +35,11 @@ let loaded = false;
  * Get the user hooks directory path
  */
 function getHooksDir(): string {
-  return join(process.cwd(), '.dexter', 'hooks');
+  return join(process.cwd(), '.upup', 'hooks');
 }
 
 /**
- * Load all user hooks from .dexter/hooks/ directory.
+ * Load all user hooks from .upup/hooks/ directory.
  * Each .ts file should export hook functions matching hook event names.
  *
  * @returns Number of hooks loaded

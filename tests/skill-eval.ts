@@ -1,7 +1,7 @@
 /**
  * Skill Evaluation Runner
  *
- * Evaluates Dexter's skill triggering accuracy and output quality.
+ * Evaluates UpUp's skill triggering accuracy and output quality.
  * Based on Anthropic's skill-creator eval methodology.
  */
 

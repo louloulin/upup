@@ -14,7 +14,7 @@ afterEach(() => {
 
 describe('migrateLegacyMemories', () => {
   test('migrates root markdown files into typed directories and rebuilds index', async () => {
-    const baseDir = mkdtempSync(join(tmpdir(), 'dexter-memory-migrate-'));
+    const baseDir = mkdtempSync(join(tmpdir(), 'upup-memory-migrate-'));
     tempDirs.push(baseDir);
     const memoryDir = join(baseDir, 'memory');
     mkdirSync(memoryDir, { recursive: true });
@@ -34,7 +34,7 @@ describe('migrateLegacyMemories', () => {
     expect(existsSync(join(memoryDir, 'legacy', 'preferences.md'))).toBe(true);
 
     const index = readFileSync(join(memoryDir, 'MEMORY.md'), 'utf-8');
-    expect(index).toContain('# Dexter Memory Index');
+    expect(index).toContain('# UpUp Memory Index');
     expect(index).toContain('## user/');
     expect(index).toContain('## feedback/');
     expect(index).toContain('## project/');
@@ -42,11 +42,11 @@ describe('migrateLegacyMemories', () => {
   });
 
   test('skips an existing typed memory index file', async () => {
-    const baseDir = mkdtempSync(join(tmpdir(), 'dexter-memory-index-'));
+    const baseDir = mkdtempSync(join(tmpdir(), 'upup-memory-index-'));
     tempDirs.push(baseDir);
     const memoryDir = join(baseDir, 'memory');
     mkdirSync(memoryDir, { recursive: true });
-    writeFileSync(join(memoryDir, 'MEMORY.md'), '# Dexter Memory Index\n\n## Summary\n');
+    writeFileSync(join(memoryDir, 'MEMORY.md'), '# UpUp Memory Index\n\n## Summary\n');
 
     const result = await migrateLegacyMemories({ baseDir, dryRun: true });
     expect(result.skipped[0]?.reason).toContain('Already a typed memory index');

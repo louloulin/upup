@@ -90,7 +90,7 @@ describe('MCP Client Manager', () => {
     test('accepts config with clientInfo', () => {
       const config: MCPClientConfig = {
         servers: [],
-        clientInfo: { name: 'Dexter', version: '2026.5.2' },
+        clientInfo: { name: 'UpUp', version: '2026.5.2' },
       };
       const mgr = new MCPClientManager(config);
       expect(mgr).toBeDefined();

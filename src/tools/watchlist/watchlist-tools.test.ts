@@ -16,7 +16,7 @@ import {
   removeEntry as removeWatchlistEntry,
 } from './watchlist-tools.js';
 
-const TEST_FILE = '/tmp/dexter-test-watchlist.json';
+const TEST_FILE = '/tmp/upup-test-watchlist.json';
 
 function freshModule() {
   // Delete stale test file from other test runs

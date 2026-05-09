@@ -234,7 +234,7 @@ function getStatusIcon(status: PlanStepStatus): string {
 /**
  * Default plan storage directory
  */
-export const PLAN_STORAGE_DIR = '.dexter/plans';
+export const PLAN_STORAGE_DIR = '.upup/plans';
 
 /**
  * Get plan file path

@@ -1,7 +1,7 @@
 /**
  * ConfigTool - Configuration Read/Write Management
  *
- * Exposes Dexter's configuration system as a tool for:
+ * Exposes UpUp's configuration system as a tool for:
  * - Reading configuration values
  * - Writing configuration values
  * - Listing all configuration
@@ -40,7 +40,7 @@ export type ConfigToolSetInput = z.infer<typeof ConfigToolSetSchema>;
 export type ConfigToolListInput = z.infer<typeof ConfigToolListSchema>;
 
 export const CONFIG_TOOL_GET_DESCRIPTION = `
-Read a configuration value from Dexter's settings.
+Read a configuration value from UpUp's settings.
 
 Use this to:
 - Check current model configuration
@@ -55,7 +55,7 @@ Examples:
 - View embedding provider settings`;
 
 export const CONFIG_TOOL_SET_DESCRIPTION = `
-Write a configuration value to Dexter's settings.
+Write a configuration value to UpUp's settings.
 
 Use this to:
 - Change the model
@@ -65,7 +65,7 @@ Use this to:
 
 Dot notation is supported: "memory.enabled", "modelId", etc.
 
-Warning: Some changes require restarting Dexter to take effect.
+Warning: Some changes require restarting UpUp to take effect.
 
 Examples:
 - Set the model to a new value
@@ -73,7 +73,7 @@ Examples:
 - Configure embedding provider`;
 
 export const CONFIG_TOOL_LIST_DESCRIPTION = `
-List all configuration keys and values from Dexter's settings.
+List all configuration keys and values from UpUp's settings.
 
 Use this to:
 - See all available configuration options
@@ -192,7 +192,7 @@ export function createConfigSetTool(): DynamicStructuredTool {
           `Key: ${input.key}\n` +
           `Old value: ${formatValue(oldValue)}\n` +
           `New value: ${formatValue(newValue)}\n\n` +
-          `Note: Some changes require restarting Dexter to take effect.`;
+          `Note: Some changes require restarting UpUp to take effect.`;
       } catch (err) {
         return `Config write error: ${err instanceof Error ? err.message : String(err)}`;
       }

@@ -2,7 +2,7 @@
  * ToolSearchTool - Search and explore available tools
  *
  * Allows agents to discover, search, and get details about available tools
- * in the Dexter tool registry.
+ * in the UpUp tool registry.
  */
 
 import { z } from 'zod';
@@ -31,7 +31,7 @@ export const ToolSearchSchema = z.object({
 export type ToolSearchInput = z.infer<typeof ToolSearchSchema>;
 
 export const TOOL_SEARCH_DESCRIPTION = `
-Search and explore available tools in the Dexter system.
+Search and explore available tools in the UpUp system.
 
 Use this when:
 - Looking for a tool to accomplish a specific task
@@ -57,7 +57,7 @@ Use this when:
 Returns tool name, full description, compact description, and safety status.`;
 
 export const TOOL_LIST_DESCRIPTION = `
-List all available tools in the Dexter system.
+List all available tools in the UpUp system.
 
 Use this when:
 - You want to see everything available

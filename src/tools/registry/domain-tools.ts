@@ -188,9 +188,9 @@ export async function loadDomainTools(): Promise<RegisteredTool[]> {
   }
 
   // Config tools
-  tools.push({ name: 'config_get', tool: createConfigGetTool(), description: CONFIG_TOOL_GET_DESCRIPTION, compactDescription: 'Read a configuration value from Dexter settings', concurrencySafe: true, concurrencyMetadata: systemMetadata() });
+  tools.push({ name: 'config_get', tool: createConfigGetTool(), description: CONFIG_TOOL_GET_DESCRIPTION, compactDescription: 'Read a configuration value from UpUp settings', concurrencySafe: true, concurrencyMetadata: systemMetadata() });
   tools.push({
-    name: 'config_set', tool: createConfigSetTool(), description: CONFIG_TOOL_SET_DESCRIPTION, compactDescription: 'Write a configuration value to Dexter settings',
+    name: 'config_set', tool: createConfigSetTool(), description: CONFIG_TOOL_SET_DESCRIPTION, compactDescription: 'Write a configuration value to UpUp settings',
     concurrencySafe: false,
     concurrencyMetadata: { safe: false, safetyLevel: 'warning', category: 'system', sideEffects: { readsFiles: false, writesFiles: true, makesNetworkRequests: false, hasRateLimit: false, modifiesState: true, spawnsProcess: false, hasFinancialImpact: false }, maxConcurrent: 1 },
   });

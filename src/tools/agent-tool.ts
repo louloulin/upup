@@ -79,7 +79,7 @@ export function buildAgentTool(): DynamicStructuredTool {
 
       // Build context from current process state
       const context: SubagentContext = {
-        sessionId: process.env.DEXTER_SESSION_ID || 'default',
+        sessionId: process.env.UPUP_SESSION_ID || 'default',
         cwd: input.cwd || process.cwd(),
         tools: [],  // Will be populated by SubagentRunner if needed
         systemPrompt: undefined,

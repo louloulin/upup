@@ -1,5 +1,5 @@
 /**
- * Dexter Memory Manager
+ * UpUp Memory Manager
  *
  * Based on Claude Code's memory system:
  * - 4-type classification (user, feedback, project, reference)

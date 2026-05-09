@@ -1,5 +1,5 @@
 /**
- * Memvid Store - MV2 storage + BM25 search for Dexter Memory
+ * Memvid Store - MV2 storage + BM25 search for UpUp Memory
  *
  * Uses @memvid/sdk for:
  * - MV2 single-file storage (append-optimized, versioned)
@@ -16,7 +16,7 @@ import { existsSync } from 'node:fs';
 import { create, use, maskPii } from '@memvid/sdk';
 import type { Memvid } from '@memvid/sdk';
 import type { MemoryType, MemoryWriteRequest, MemoryFileMeta } from './types.js';
-import { getDexterDir } from '../utils/paths.js';
+import { getUpupDir } from '../utils/paths.js';
 
 // ============================================================================
 // Constants
@@ -59,7 +59,7 @@ export class MemvidStore {
   private mv: Memvid | null = null;
   private readonly mv2Path: string;
 
-  constructor(private readonly baseDir: string = getDexterDir()) {
+  constructor(private readonly baseDir: string = getUpupDir()) {
     this.mv2Path = join(baseDir, MEMORY_DIRNAME, MV2_FILENAME);
   }
 

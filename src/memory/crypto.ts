@@ -55,7 +55,7 @@ let _masterKey: string | null = null;
 
 /**
  * Set the master encryption key (call once at startup)
- * Falls back to DEXTER_ENCRYPTION_KEY env var
+ * Falls back to UPUP_ENCRYPTION_KEY env var
  */
 export function setMasterKey(key: string): void {
   _masterKey = key;
@@ -66,9 +66,9 @@ export function setMasterKey(key: string): void {
  */
 function getMasterKey(): string {
   if (_masterKey) return _masterKey;
-  const envKey = process.env.DEXTER_ENCRYPTION_KEY;
+  const envKey = process.env.UPUP_ENCRYPTION_KEY;
   if (envKey) return envKey;
-  throw new Error('Encryption key not set. Call setMasterKey() or set DEXTER_ENCRYPTION_KEY env var.');
+  throw new Error('Encryption key not set. Call setMasterKey() or set UPUP_ENCRYPTION_KEY env var.');
 }
 
 /**
@@ -207,5 +207,5 @@ export function generateMasterKey(): string {
  * Check if encryption is configured (key available)
  */
 export function isEncryptionAvailable(): boolean {
-  return !!(_masterKey || process.env.DEXTER_ENCRYPTION_KEY);
+  return !!(_masterKey || process.env.UPUP_ENCRYPTION_KEY);
 }

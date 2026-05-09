@@ -103,9 +103,9 @@ describe('ToolListSchema', () => {
 
 describe('Tool Descriptions (inline)', () => {
   // Descriptions must be non-empty and reference relevant terms
-  const SEARCH_DESC = 'Search and explore available tools in the Dexter system.';
+  const SEARCH_DESC = 'Search and explore available tools in the UpUp system.';
   const GET_DESC = 'Get detailed information about a specific tool.';
-  const LIST_DESC = 'List all available tools in the Dexter system.';
+  const LIST_DESC = 'List all available tools in the UpUp system.';
 
   it('should have non-empty descriptions', () => {
     expect(SEARCH_DESC.length).toBeGreaterThan(10);

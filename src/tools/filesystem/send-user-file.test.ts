@@ -6,7 +6,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import fs from 'node:fs';
 import path from 'node:path';
 
-const TEST_DIR = '.dexter-send-test';
+const TEST_DIR = '.upup-send-test';
 const cwd = process.cwd();
 const testDirPath = path.join(cwd, TEST_DIR);
 

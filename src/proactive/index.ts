@@ -1,7 +1,7 @@
 /**
  * Proactive Mode - Event-driven background processing
  *
- * Provides a proactive event system that allows Dexter to:
+ * Provides a proactive event system that allows UpUp to:
  * - Process events in the background
  * - Trigger actions based on events
  * - Maintain awareness of system state

@@ -622,14 +622,14 @@ const teamCommand: Command = {
 // ============================================================================
 
 /**
- * Load user-defined commands from .dexter/commands/ directory.
+ * Load user-defined commands from .upup/commands/ directory.
  * Each .md file becomes a command with the filename as name.
  * The file content is returned as the command output.
  */
 export async function loadUserCommands(registry: CommandRegistry): Promise<number> {
   const { readdirSync, readFileSync, existsSync } = await import('fs');
   const { join } = await import('path');
-  const commandsDir = join(process.cwd(), '.dexter', 'commands');
+  const commandsDir = join(process.cwd(), '.upup', 'commands');
 
   if (!existsSync(commandsDir)) return 0;
 
@@ -990,13 +990,13 @@ export function expandMacro(macro: MacroDefinition): string[] {
 }
 
 /**
- * Load macro definitions from .dexter/macros/ directory.
+ * Load macro definitions from .upup/macros/ directory.
  * Each .md file becomes a macro with the filename as name.
  */
 export async function loadMacros(registry: CommandRegistry): Promise<number> {
   const { readdirSync, readFileSync, existsSync } = await import('fs');
   const { join } = await import('path');
-  const macrosDir = join(process.cwd(), '.dexter', 'macros');
+  const macrosDir = join(process.cwd(), '.upup', 'macros');
 
   if (!existsSync(macrosDir)) return 0;
 

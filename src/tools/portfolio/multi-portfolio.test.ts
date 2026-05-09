@@ -2,7 +2,7 @@
  * Multi-Portfolio Tools Tests
  *
  * Tests file-based persistence for multiple named portfolios.
- * Uses a temp directory to avoid polluting .dexter/portfolios/.
+ * Uses a temp directory to avoid polluting .upup/portfolios/.
  */
 
 import { describe, it, expect, beforeEach, beforeAll, afterAll } from 'bun:test';
@@ -10,7 +10,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 // Shared temp dir and file path
-const TEST_DIR = path.join('/tmp', `dexter-multiportfolio-test-${process.pid}`);
+const TEST_DIR = path.join('/tmp', `upup-multiportfolio-test-${process.pid}`);
 const TEST_FILE = path.join(TEST_DIR, 'index.json');
 
 function resetFile(): void {

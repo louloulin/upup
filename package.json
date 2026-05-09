@@ -1,11 +1,11 @@
 {
-  "name": "dexter-ts",
-  "version": "2026.5.2",
-  "description": "Dexter - AI agent for deep financial research.",
+  "name": "upup-ts",
+  "version": "2026.05.09",
+  "description": "UpUp - AI agent for deep financial research (涨涨 — 深度金融研究 AI 智能体).",
   "type": "module",
   "main": "src/index.tsx",
   "bin": {
-    "dexter-ts": "./src/index.tsx"
+    "upup-ts": "./src/index.tsx"
   },
   "scripts": {
     "start": "bun run src/index.tsx",
@@ -18,16 +18,16 @@
     "postinstall": "playwright install chromium",
     "build": "bun run typecheck",
     "build:bun": "bun run typecheck && echo '\u2705 Bun build complete - run: bun start'",
-    "build:node": "bun build src/index.tsx --target=node --outfile=dist/dexter.js --external=dotenv --external=zod && echo '\u2705 Node.js build complete'",
-    "build:node:win": "bun build src/index.tsx --target=node --outfile=dist/dexter.exe --external=dotenv --external=zod && echo '\u2705 Windows build complete'",
-    "build:compile": "bun build --compile --target=bun --outfile=dexter src/index.tsx --external=playwright --external=playwright-core && chmod +x dexter && echo '\u2705 Binary compile complete - run: ./dexter'",
-    "build:compile:win": "bun build --compile --target=bun --outfile=dexter.exe src/index.tsx && echo '\u2705 Windows binary compile complete'",
+    "build:node": "bun build src/index.tsx --target=node --outfile=dist/upup.js --external=dotenv --external=zod && echo '\u2705 Node.js build complete'",
+    "build:node:win": "bun build src/index.tsx --target=node --outfile=dist/upup.exe --external=dotenv --external=zod && echo '\u2705 Windows build complete'",
+    "build:compile": "bun build --compile --target=bun --outfile=upup src/index.tsx --external=playwright --external=playwright-core && chmod +x upup && echo '\u2705 Binary compile complete - run: ./upup'",
+    "build:compile:win": "bun build --compile --target=bun --outfile=upup.exe src/index.tsx && echo '\u2705 Windows binary compile complete'",
     "build:all": "bun run build:bun && bun run build:node && bun run build:compile",
-    "build:pkg": "pkg . --targets node18-linux-x64,node18-macos-x64,node18-win-x64 --output dist/dexter-pkg",
-    "build:pkg:linux": "pkg . --targets node18-linux-x64 --output dist/dexter-linux",
-    "build:pkg:mac": "pkg . --targets node18-macos-x64 --output dist/dexter-macos",
-    "build:pkg:win": "pkg . --targets node18-win-x64 --output dist/dexter.exe",
-    "dist": "bun run build:compile && ./dexter --version",
+    "build:pkg": "pkg . --targets node18-linux-x64,node18-macos-x64,node18-win-x64 --output dist/upup-pkg",
+    "build:pkg:linux": "pkg . --targets node18-linux-x64 --output dist/upup-linux",
+    "build:pkg:mac": "pkg . --targets node18-macos-x64 --output dist/upup-macos",
+    "build:pkg:win": "pkg . --targets node18-win-x64 --output dist/upup.exe",
+    "dist": "bun run build:compile && ./upup --version",
     "prepack": "bun run build:compile"
   },
   "dependencies": {
@@ -57,9 +57,9 @@
     "zod-v4": "npm:zod@4.3.6"
   },
   "pkg": {
-    "name": "dexter",
-    "version": "2026.5.2",
-    "description": "Dexter - AI agent for deep financial research",
+    "name": "upup",
+    "version": "2026.05.09",
+    "description": "UpUp - AI agent for deep financial research",
     "bin": "src/index.tsx",
     "targets": [
       "node18-linux-x64",
@@ -97,7 +97,7 @@
     "!.serena",
     "!.claude"
   ],
-  "author": "Dexter Team",
+  "author": "UpUp Team",
   "license": "MIT",
   "keywords": [
     "ai",
@@ -111,13 +111,13 @@
       "release": true
     },
     "mac": {
-      "bin": "dexter"
+      "bin": "upup"
     },
     "linux": {
-      "bin": "dexter"
+      "bin": "upup"
     },
     "windows": {
-      "bin": "dexter.exe"
+      "bin": "upup.exe"
     }
   },
   "devDependencies": {

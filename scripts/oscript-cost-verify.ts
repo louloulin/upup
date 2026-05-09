@@ -17,7 +17,7 @@
 import { execSync } from 'child_process';
 
 const PROJECT_DIR = '/Users/louloulin/Documents/linchong/touzhi/dexter';
-const OUTPUT_LOG = '/tmp/dexter-cost-verify.log';
+const OUTPUT_LOG = '/tmp/upup-cost-verify.log';
 const UTF8_ENV = { ...process.env, LANG: 'en_US.UTF-8', LC_ALL: 'en_US.UTF-8' };
 
 function runAppleScript(script: string): { ok: boolean; output: string } {
@@ -29,8 +29,8 @@ function runAppleScript(script: string): { ok: boolean; output: string } {
 }
 
 function pasteText(text: string): boolean {
-  Bun.write('/tmp/dexter-paste.txt', text);
-  execSync(`pbcopy < /tmp/dexter-paste.txt`, { encoding: 'utf-8', timeout: 5000, env: UTF8_ENV });
+  Bun.write('/tmp/upup-paste.txt', text);
+  execSync(`pbcopy < /tmp/upup-paste.txt`, { encoding: 'utf-8', timeout: 5000, env: UTF8_ENV });
   const clip = execSync('pbpaste', { encoding: 'utf-8', env: UTF8_ENV });
   if (!clip || clip.length === 0) return false;
   const script = `

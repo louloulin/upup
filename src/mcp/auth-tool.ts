@@ -11,7 +11,7 @@
 
 import { z } from 'zod';
 import { DynamicStructuredTool } from '@langchain/core/tools';
-import { dexterPath, ensureDir } from '../utils/paths.js';
+import { upupPath, ensureDir } from '../utils/paths.js';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { info, warn } from '../utils/logging/logger.js';
@@ -45,7 +45,7 @@ const AUTH_DIR = 'mcp-auth';
 const AUTH_FILE = 'credentials.json';
 
 function getAuthFilePath(): string {
-  return dexterPath(AUTH_DIR, AUTH_FILE);
+  return upupPath(AUTH_DIR, AUTH_FILE);
 }
 
 function loadAuthStore(): AuthStore {
@@ -107,7 +107,7 @@ Use this when:
 - Adding basic auth credentials
 - Storing OAuth2 tokens
 
-Credentials are stored locally in .dexter/mcp-auth/credentials.json.
+Credentials are stored locally in .upup/mcp-auth/credentials.json.
 
 Examples:
 - Set API key: server_name='alpha-vantage', type='api_key', credential='YOUR_KEY'
@@ -154,7 +154,7 @@ export function createMcpAuthSetTool(): DynamicStructuredTool {
         store[input.server_name] = auth;
         saveAuthStore(store);
         info('mcp', `Auth configured for ${input.server_name} (${input.type})`);
-        return `Authentication configured for "${input.server_name}" (type: ${input.type}).\nCredentials stored in .dexter/mcp-auth/credentials.json`;
+        return `Authentication configured for "${input.server_name}" (type: ${input.type}).\nCredentials stored in .upup/mcp-auth/credentials.json`;
       } catch (err) {
         return `Auth config error: ${err instanceof Error ? err.message : String(err)}`;
       }

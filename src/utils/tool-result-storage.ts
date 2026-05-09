@@ -7,7 +7,7 @@
  */
 
 import { existsSync, mkdirSync, writeFileSync } from 'fs';
-import { dexterPath } from './paths.js';
+import { upupPath } from './paths.js';
 
 /** Maximum characters for a single tool result in context. */
 export const MAX_TOOL_RESULT_CHARS = 50_000;
@@ -15,7 +15,7 @@ export const MAX_TOOL_RESULT_CHARS = 50_000;
 /** Characters to include in the preview when a result is persisted. */
 export const PREVIEW_CHARS = 2_000;
 
-const RESULTS_DIR = dexterPath('tool-results');
+const RESULTS_DIR = upupPath('tool-results');
 
 /**
  * Persist a large tool result to disk and return a compact preview.

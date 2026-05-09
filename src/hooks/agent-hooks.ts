@@ -11,7 +11,7 @@
  * - useSessionRecovery: Auto-save and recover session state
  * - useContextWatchdog: Monitor context window usage and warn before overflow
  *
- * Reference: Claude Code's 89 hooks (simplified for Dexter's architecture)
+ * Reference: Claude Code's 89 hooks (simplified for UpUp's architecture)
  */
 
 import { EventEmitter } from 'events';

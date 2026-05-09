@@ -1,12 +1,12 @@
 /**
- * State Management - Centralized state store for Dexter
+ * State Management - Centralized state store for UpUp
  *
  * Provides a simple, reactive state management system:
  * - AppState: Central state store with subscriptions
  * - CostTracker: Token usage and cost tracking
  * - SessionManager: Session management and history
  *
- * Based on Loucode's AppState architecture but simplified for Dexter.
+ * Based on Loucode's AppState architecture but simplified for UpUp.
  */
 
 import { EventEmitter } from 'eventemitter3';
@@ -90,7 +90,7 @@ export class AppStateStore {
   }
 
   private generateSessionId(): string {
-    return `dexter-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    return `upup-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
   }
 
   getState(): Readonly<AppState> {
@@ -290,7 +290,7 @@ export class SessionManager {
 
   private createNewSession(): SessionRecord {
     return {
-      sessionId: `dexter-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+      sessionId: `upup-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
       startedAt: Date.now(),
       model: 'gpt-5.4',
       provider: 'openai',

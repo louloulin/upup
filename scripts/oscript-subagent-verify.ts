@@ -2,7 +2,7 @@
 /**
  * oscript-subagent-verify.ts — Real osascript verification of sub-agent parallel execution
  *
- * Tests that Dexter's sub-agent system works correctly:
+ * Tests that UpUp's sub-agent system works correctly:
  * 1. Start bun run dev
  * 2. Send /agent command to spawn a sub-agent
  * 3. Send /tasks to check task status
@@ -13,7 +13,7 @@
 import { execSync } from 'child_process';
 
 const PROJECT_DIR = '/Users/louloulin/Documents/linchong/touzhi/dexter';
-const OUTPUT_LOG = '/tmp/dexter-subagent-verify.log';
+const OUTPUT_LOG = '/tmp/upup-subagent-verify.log';
 const UTF8_ENV = { ...process.env, LANG: 'en_US.UTF-8', LC_ALL: 'en_US.UTF-8' };
 
 function runAppleScript(script: string): { ok: boolean; output: string } {
@@ -26,7 +26,7 @@ function runAppleScript(script: string): { ok: boolean; output: string } {
 
 function pasteText(text: string): boolean {
   const env = UTF8_ENV;
-  const tmpFile = '/tmp/dexter-paste.txt';
+  const tmpFile = '/tmp/upup-paste.txt';
   try {
     Bun.write(tmpFile, text);
     execSync(`pbcopy < ${tmpFile}`, { encoding: 'utf-8', timeout: 5000, env });
