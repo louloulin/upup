@@ -306,8 +306,8 @@ describe('TimeBasedMCConfig', () => {
       const actualTimeOfDay = config.getTimeOfDayFactor();
       const expectedFactor = actualTimeOfDay.factor * expectedAgeFactor * expectedMsgFactor;
       const rawThreshold = Math.round(4000 * expectedFactor);
-      // minThreshold (1000) clamps the result
-      const expectedThreshold = Math.max(1000, rawThreshold);
+      // minThreshold (500) clamps the result
+      const expectedThreshold = Math.max(500, rawThreshold);
 
       const result = config.getAdaptiveThreshold(10 * 60 * 60 * 1000, 200);
       expect(result.threshold).toBe(expectedThreshold);

@@ -37,7 +37,7 @@ const MOCK_TOOLS: RegisteredTool[] = [
 ];
 
 // Reset module state between tests
-vi.mock('./registry.js', () => ({
+vi.mock('./registry/index.js', () => ({
   getToolRegistry: vi.fn(() => Promise.resolve(MOCK_TOOLS)),
 }));
 
