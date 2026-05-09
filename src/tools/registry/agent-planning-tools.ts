@@ -33,7 +33,11 @@ export async function loadAgentPlanningTools(): Promise<RegisteredTool[]> {
     tool: agentTool,
     description: AGENT_TOOL_DESCRIPTION,
     compactDescription: AGENT_TOOL_COMPACT_DESCRIPTION,
-    concurrencySafe: false,
+    // Background sub-agents are fire-and-forget (runAsync returns immediately), so they
+    // are safe to run concurrently. Foreground sub-agents block, but the tool executor
+    // already handles serial execution for non-concurrent-safe tools. Setting true allows
+    // the LLM to issue multiple agent(...) calls in a single response that fire in parallel.
+    concurrencySafe: true,
   });
 
   // Plan mode tools
