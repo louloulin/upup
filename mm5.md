@@ -2647,6 +2647,47 @@ execSync(`pbcopy < /tmp/dexter-paste.txt`, { env });  // 中文 → 正确
 ✅ /history contains "BYD" → "Company Search("比亚迪 BYD 002594 investment preferences...")"
 ```
 
+### 33.7 /cost 命令 Token 追踪修复
+
+**根本原因**: `TokenCounter` (每次 run 瞬态) 与 `AppStateStore` (单例) 从未连接。
+Agent 在每次 LLM call 后只更新 TokenCounter，AppState 始终为 0。
+
+**修复**: 在 `agent.ts` 中添加 token sync，在每次 `ctx.tokenCounter.add(usage)` 后同步到 AppState：
+```typescript
+// src/agent/agent.ts: L331 (主循环) + L988 (compaction)
+ctx.tokenCounter.add(usage);
+if (usage?.inputTokens) {
+  ctx.lastApiInputTokens = usage.inputTokens;
+  // Sync token usage to AppState for /cost and /status commands
+  try {
+    const { getAppState, calculateTokenCost } = await import('../state/index.js');
+    const appState = getAppState();
+    appState.addTokens(usage.inputTokens, usage.outputTokens);
+    const cost = calculateTokenCost(usage.inputTokens, usage.outputTokens, this.model);
+    appState.addCost(cost);
+  } catch { /* non-critical — cost tracking best-effort */ }
+}
+```
+
+**注意**: pi-tui 的 slash autocomplete 会拦截通过 keystroke 发送的 Enter 键。
+使用 clipboard paste (`Cmd+V` + Enter) 发送 /cost 命令可避免此问题。
+
+**验证**: `oscript-cost-verify.ts` 确认 /cost 显示真实非零 token 数据：
+```
+Token Usage & Cost
+Session: 0s
+Model: gpt-5.4
+Token Usage:
+  Input:  83.6K tokens
+  Output: 259 tokens
+  Total:  83.9K tokens
+Cost:
+  Session cost: $0.0084
+Tool Usage:
+  Total calls: 0
+  Errors: 0
+```
+
 ---
 
 ## 34. 整体完成进度
@@ -2676,13 +2717,14 @@ execSync(`pbcopy < /tmp/dexter-paste.txt`, { env });  // 中文 → 正确
 | 4 | macOS osascript 交互式验证 | 14 commands, 13 verified (93%) | ✅ 通过 |
 | 5 | osascript 真实投资查询 | VaR/BS/Sharpe/Sortino/DD/Corr/AAPL | ✅ 通过 |
 | 6 | CJK 中文输入验证 | 分析比亚迪/分析特斯拉 via osascript | ✅ 通过 |
+| 7 | /cost 命令 Token 追踪 | 83.6K input / 259 output / $0.0084 | ✅ 通过 |
 
 ### 34.3 完成进度
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                                                             │
-│  ██████████████████████████████████████████████████████  92%│
+│  ████████████████████████████████████████████████████████ 94%│
 │                                                             │
 │  ✅ 代码审计 & Bug 修复 (10 issues, 全部已修复)            │
 │  ✅ 子 Agent 并行验证 (6 tests)                             │
@@ -2690,9 +2732,10 @@ execSync(`pbcopy < /tmp/dexter-paste.txt`, { env });  // 中文 → 正确
 │  ✅ macOS osascript 真实交互式验证 (14 cmds, 13 verified)  │
 │  ✅ 真实投资分析查询 (VaR/BS/Sharpe/Sortino/DD/Corr/AAPL)  │
 │  ✅ CJK 中文输入验证 (分析比亚迪/分析特斯拉 via osascript)  │
+│  ✅ /cost Token 追踪修复 (83.6K in / 259 out / $0.0084)    │
 │  ✅ 全套测试回归 (1748 pass, 0 fail)                        │
 │                                                             │
-│  剩余 8%:                                                   │
+│  剩余 6%:                                                   │
 │  ⬜ MCP 集成深度验证                                        │
 │  ⬜ Hook 系统 lifecycle 完整性测试                          │
 │  ⬜ 命令覆盖度提升 (当前 41 → 目标 80+)                     │
