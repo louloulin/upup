@@ -9,12 +9,13 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import type { Tool as MCPTool } from '@modelcontextprotocol/sdk/types.js';
-import { ToolListChangedNotificationSchema } from '@modelcontextprotocol/sdk/types.js';
+import { ToolListChangedNotificationSchema, ResourceListChangedNotificationSchema } from '@modelcontextprotocol/sdk/types.js';
 import type { StructuredToolInterface } from '@langchain/core/tools';
 import { z } from 'zod';
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { EventEmitter } from 'events';
 import { info, error as logError } from '../utils/logging/logger.js';
 
 /**
@@ -67,7 +68,7 @@ export interface MCPServerConnection {
  * MCP Client wrapper
  * Manages connections to MCP servers and tool discovery
  */
-export class MCPClientManager {
+export class MCPClientManager extends EventEmitter {
   private clients: Map<string, any> = new Map();
   private transports: Map<string, any> = new Map();
   private connections: Map<string, MCPServerConnection> = new Map();
@@ -80,6 +81,7 @@ export class MCPClientManager {
   private readonly HEALTH_CHECK_INTERVAL_MS = 30000; // 30 seconds
 
   constructor(config: MCPClientConfig) {
+    super();
     this.config = config;
   }
 
@@ -140,6 +142,19 @@ export class MCPClientManager {
           await this.refreshTools(name);
         }
       );
+
+      // Set up resource list change notification handler
+      try {
+        client.setNotificationHandler(
+          ResourceListChangedNotificationSchema,
+          async () => {
+            info('mcp', `Resources changed for server ${name}`);
+            this.emit('resourcesChanged', name);
+          }
+        );
+      } catch {
+        // Server may not support resource notifications — skip silently
+      }
 
       // Initial tool discovery
       await this.refreshTools(name);
@@ -432,6 +447,47 @@ export class MCPClientManager {
   onToolsChange(callback: (tools: StructuredToolInterface[]) => void): () => void {
     this.toolCallbacks.add(callback);
     return () => this.toolCallbacks.delete(callback);
+  }
+
+  /**
+   * Subscribe to resource change notifications from a server.
+   * The callback is invoked when the server sends ResourceListChangedNotification.
+   */
+  onResourcesChanged(callback: (serverName: string) => void): () => void {
+    const handler = (serverName: string) => callback(serverName);
+    this.on('resourcesChanged', handler);
+    return () => this.off('resourcesChanged', handler);
+  }
+
+  /**
+   * Subscribe to updates for a specific resource URI.
+   * Polls the resource and calls back when content changes.
+   */
+  subscribeToResource(
+    uri: string,
+    callback: (uri: string, content: unknown) => void,
+    pollIntervalMs: number = 30000
+  ): () => void {
+    let lastContent: string = '';
+    let interval: ReturnType<typeof setInterval> | null = setInterval(async () => {
+      try {
+        const result = await this.readResource(uri);
+        const contentStr = JSON.stringify(result.contents);
+        if (contentStr !== lastContent) {
+          lastContent = contentStr;
+          callback(uri, result.contents);
+        }
+      } catch {
+        // Resource may be temporarily unavailable
+      }
+    }, pollIntervalMs);
+
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+        interval = null;
+      }
+    };
   }
 
   /**

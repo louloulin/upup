@@ -94,8 +94,10 @@ export class MemoryMonitor extends EventEmitter {
     const usage = mem.heapUsed / mem.heapTotal;
     if (usage >= this.threshold.criticalThreshold) {
       this.emit('critical', this.stats);
+      useHookEventBus().emitEvent({ type: 'memory:critical', source: 'useMemoryUsage', payload: this.stats });
     } else if (usage >= this.threshold.warningThreshold) {
       this.emit('warning', this.stats);
+      useHookEventBus().emitEvent({ type: 'memory:warning', source: 'useMemoryUsage', payload: this.stats });
     }
   }
 }
@@ -678,6 +680,87 @@ export function useContextWatchdog(limit?: number, warningThreshold?: number, cr
     contextWatchdog = new ContextWatchdog(limit, warningThreshold, criticalThreshold);
   }
   return contextWatchdog;
+}
+
+// ============================================================================
+// HookEventBus - Central event bus for inter-hook communication
+// ============================================================================
+
+export interface HookEvent {
+  type: string;
+  source: string;
+  payload: unknown;
+  timestamp: number;
+}
+
+export type HookEventHandler = (event: HookEvent) => void;
+
+/**
+ * Central event bus that allows hooks to communicate with each other.
+ * Any hook can emit events, and any hook can subscribe to events.
+ *
+ * Example usage:
+ *   bus.on('memory:critical', (e) => { ... });
+ *   bus.emit({ type: 'memory:critical', source: 'useMemoryUsage', payload: stats });
+ */
+export class HookEventBus extends EventEmitter {
+  private history: HookEvent[] = [];
+  private maxHistory: number;
+
+  constructor(maxHistory: number = 100) {
+    super();
+    this.maxHistory = maxHistory;
+  }
+
+  /**
+   * Emit a typed hook event to all listeners.
+   */
+  emitEvent(event: Omit<HookEvent, 'timestamp'>): void {
+    const fullEvent: HookEvent = {
+      ...event,
+      timestamp: Date.now(),
+    };
+    this.history.push(fullEvent);
+    if (this.history.length > this.maxHistory) {
+      this.history.shift();
+    }
+    this.emit(event.type, fullEvent);
+    this.emit('*', fullEvent); // Wildcard listener
+  }
+
+  /**
+   * Subscribe to events of a specific type, or '*' for all events.
+   */
+  onEvent(type: string, handler: HookEventHandler): () => void {
+    this.on(type, handler);
+    return () => this.off(type, handler);
+  }
+
+  /**
+   * Get recent event history (optionally filtered by type).
+   */
+  getHistory(type?: string): HookEvent[] {
+    if (type) {
+      return this.history.filter(e => e.type === type);
+    }
+    return [...this.history];
+  }
+
+  /**
+   * Clear event history.
+   */
+  clearHistory(): void {
+    this.history = [];
+  }
+}
+
+let hookEventBus: HookEventBus | null = null;
+
+export function useHookEventBus(maxHistory?: number): HookEventBus {
+  if (!hookEventBus) {
+    hookEventBus = new HookEventBus(maxHistory);
+  }
+  return hookEventBus;
 }
 
 // ============================================================================

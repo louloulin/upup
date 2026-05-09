@@ -412,7 +412,7 @@ export function createPeerComparisonTool(): DynamicStructuredTool {
 
       const lines = [
         `=== Peer Comparison: ${input.target.name} ===`,
-        `Peers: ${input.peers.map(p => p.name).join(', ')}`,
+        `Peers: ${input.peers.map((p: { name: string }) => p.name).join(', ')}`,
         '',
       ];
 

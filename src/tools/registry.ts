@@ -44,6 +44,7 @@ import { discoverSkills } from '../skills/index.js';
 import { getMCPStatus, mcpToolsToRegisteredTools, getMCPToolDescriptions } from '../mcp/index.js';
 import { getDefaultMCPClient } from '../mcp/client.js';
 import { listMcpResourcesTool, readMcpResourceTool, LIST_MCP_RESOURCES_DESCRIPTION, READ_MCP_RESOURCE_DESCRIPTION } from '../mcp/resource-tools.js';
+import { createMcpAuthSetTool, createMcpAuthGetTool, createMcpAuthClearTool, MCP_AUTH_SET_DESCRIPTION, MCP_AUTH_GET_DESCRIPTION, MCP_AUTH_CLEAR_DESCRIPTION } from '../mcp/auth-tool.js';
 
 import { getAStockPrice, GET_ASTOCK_PRICE_DESCRIPTION } from './astock/get-astock-price.js';
 import { getAStockFinancials, GET_ASTOCK_FINANCIALS_DESCRIPTION } from './astock/get-astock-financials.js';
@@ -864,6 +865,38 @@ export async function getToolRegistry(model: string): Promise<RegisteredTool[]> 
     compactDescription: 'Read a specific resource from an MCP server by URI.',
     concurrencySafe: true,
     concurrencyMetadata: networkMetadata(),
+  });
+
+  // MCP Auth tools
+  const mcpAuthSetTool = createMcpAuthSetTool();
+  const mcpAuthGetTool = createMcpAuthGetTool();
+  const mcpAuthClearTool = createMcpAuthClearTool();
+
+  tools.push({
+    name: 'mcp_auth_set',
+    tool: mcpAuthSetTool,
+    description: MCP_AUTH_SET_DESCRIPTION,
+    compactDescription: 'Set authentication credentials for an MCP server.',
+    concurrencySafe: false,
+    concurrencyMetadata: systemMetadata(),
+  });
+
+  tools.push({
+    name: 'mcp_auth_get',
+    tool: mcpAuthGetTool,
+    description: MCP_AUTH_GET_DESCRIPTION,
+    compactDescription: 'Get authentication config for MCP servers.',
+    concurrencySafe: true,
+    concurrencyMetadata: systemMetadata(),
+  });
+
+  tools.push({
+    name: 'mcp_auth_clear',
+    tool: mcpAuthClearTool,
+    description: MCP_AUTH_CLEAR_DESCRIPTION,
+    compactDescription: 'Clear authentication for an MCP server.',
+    concurrencySafe: false,
+    concurrencyMetadata: systemMetadata(),
   });
 
   // Add AgentTool for spawning subagents
