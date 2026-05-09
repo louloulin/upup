@@ -12,6 +12,7 @@ import { DynamicStructuredTool } from '@langchain/core/tools';
 import { getDefaultSubagentRunner } from '../agent/subagent-runner.js';
 import type { SubagentConfig, SubagentContext } from '../agent/subagent.js';
 import type { StructuredToolInterface } from '@langchain/core/tools';
+import type { AgentEvent } from '../agent/types.js';
 
 /**
  * AgentTool descriptions for registry
@@ -76,16 +77,33 @@ export function buildAgentTool(): DynamicStructuredTool {
         runInBackground: input.run_in_background,
       };
 
-      // Get context from parent if available
-      const context: SubagentContext | undefined = undefined; // Will be populated from session
+      // Build context from current process state
+      const context: SubagentContext = {
+        sessionId: process.env.DEXTER_SESSION_ID || 'default',
+        cwd: input.cwd || process.cwd(),
+        tools: [],  // Will be populated by SubagentRunner if needed
+        systemPrompt: undefined,
+      };
+
+      // Create event callback that forwards sub-agent events as tool progress
+      const progressCallback = runManager?.metadata?.onProgress;
+      const eventCallback = (event: AgentEvent): void => {
+        if (progressCallback) {
+          // Forward sub-agent events as progress messages for the parent tool
+          const label = formatSubagentEvent(event);
+          if (label) {
+            progressCallback(label);
+          }
+        }
+      };
 
       if (input.run_in_background) {
         // Run asynchronously
         const taskId = await runner.runAsync(config, input.prompt, context);
         return `Agent task started in background: ${taskId}\nDescription: ${input.description}\n\nUse the task_id to check progress or get results.`;
       } else {
-        // Run synchronously
-        const result = await runner.run(config, input.prompt, context);
+        // Run synchronously with event forwarding
+        const result = await runner.run(config, input.prompt, context, eventCallback);
 
         if (result.success) {
           return result.output || 'Task completed successfully.';
@@ -107,4 +125,34 @@ export function getAgentTool(): DynamicStructuredTool {
     agentToolInstance = buildAgentTool();
   }
   return agentToolInstance;
+}
+
+/**
+ * Format a sub-agent event into a human-readable progress label.
+ * Returns empty string for events that shouldn't be surfaced.
+ */
+export function formatSubagentEvent(event: AgentEvent): string {
+  switch (event.type) {
+    case 'thinking':
+      return event.message ? `thinking: ${event.message.slice(0, 80)}` : '';
+    case 'tool_start':
+      return `→ ${event.tool}()`;
+    case 'tool_end': {
+      const dur = event.duration ? ` (${event.duration}ms)` : '';
+      const preview = typeof event.result === 'string'
+        ? event.result.slice(0, 60)
+        : '';
+      return `← ${event.tool}${dur}${preview ? ': ' + preview : ''}`;
+    }
+    case 'tool_error':
+      return `✗ ${event.tool}: ${event.error?.slice(0, 80)}`;
+    case 'stream_progress':
+      return ''; // too noisy
+    case 'done':
+      return ''; // handled by tool result
+    case 'compaction':
+      return event.phase === 'end' ? 'compacted context' : '';
+    default:
+      return '';
+  }
 }

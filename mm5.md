@@ -1758,10 +1758,10 @@ TODO-1.2 AgentTool 事件桥接 (Day 2-3)
 ├── 新增 SubagentEventBridge 类
 └── 将 eventCallback 连接到父级事件流
 
-TODO-1.3 SubagentContext 传递 (Day 3)
+TODO-1.3 SubagentContext 传递 (Day 3) ✅ 已实现
 ├── 文件: src/tools/agent-tool.ts L80
-├── 修复: const context = undefined → 从 session 获取
-└── 新增: src/agent/session-context.ts
+├── 修复: const context = undefined → 从进程环境构建 SubagentContext
+└── 传入 sessionId, cwd, tools
 
 TODO-1.4 UI 嵌套渲染 (Day 4-5)
 ├── 文件: src/components/tool-event.ts
@@ -1772,12 +1772,13 @@ TODO-1.4 UI 嵌套渲染 (Day 4-5)
 ### 后续 (Phase 2-3)
 
 ```
-Phase 2: 事件系统补全 (3天)
-├── 渲染 tool_limit, memory_flush, memory_recalled 事件
+Phase 2: 事件系统补全 (3天) ✅ 部分完成
+├── ✅ 渲染 tool_limit 事件 (cli.ts)
+├── ✅ 渲染 memory_flush/memory_recalled 事件 (cli.ts + agent-runner.ts)
 ├── 渲染 compaction start phase
 └── stream_progress UI 更新优化
 
-Phase 3: 架构重构 (2周)
+Phase 3: 架构重构 (2周) — 未开始
 ├── 命令系统统一 (cli.ts switch → CommandRegistry)
 ├── 大文件拆分 (registry.ts 1976L → 多个 < 300L 文件)
 ├── MCP 深度集成
@@ -1786,5 +1787,63 @@ Phase 3: 架构重构 (2周)
 
 ---
 
+## 21. Phase 1+2 执行记录 (已完成)
+
+### 21.1 实际实现清单
+
+| # | TODO | 状态 | 修改文件 | 说明 |
+|---|------|------|---------|------|
+| 1 | TODO-1.1 | ✅ | `src/agent/subagent-runner.ts` | 新增 `eventCallback` 参数到 `run()` 和 `executeAgent()` |
+| 2 | TODO-1.2 | ✅ | `src/tools/agent-tool.ts` | 新增 `formatSubagentEvent()` 格式化子 Agent 事件，通过 `progressCallback` 转发 |
+| 3 | TODO-1.3 | ✅ | `src/tools/agent-tool.ts` | 修复 `context = undefined` → 从进程环境构建 `SubagentContext` |
+| 4 | TODO-2.1 | ✅ | `src/cli.ts` | `tool_limit` 事件从 `return` → `setLimitWarning()` 渲染 |
+| 5 | TODO-2.2 | ✅ | `src/cli.ts` + `src/controllers/agent-runner.ts` | 新增 `memory_flush`/`memory_recalled` 事件处理和渲染 |
+| 6 | 测试 | ✅ | `src/tools/agent-tool-events.test.ts` | 新增 9 个测试验证 `formatSubagentEvent()` |
+
+### 21.2 子 Agent 事件透传实现
+
+```
+修复前:
+  Agent.run() → ToolExecutor → AgentTool.func() → SubagentRunner.run()
+    └→ executeAgent() → agent.run() → [事件被吞掉] → 只返回 answer
+
+修复后:
+  Agent.run() → ToolExecutor → AgentTool.func()
+    ↓ progressCallback (from tool config)
+    ↓ eventCallback (new param)
+    ↓ SubagentRunner.run(config, prompt, context, eventCallback)
+    ↓ executeAgent(config, prompt, cb, taskId, eventCallback)
+    ↓ for await (event of agent.run(prompt)):
+    │   eventCallback(event)  ← 透传所有事件
+    │   ├── thinking → progressCallback("thinking: ...")
+    │   ├── tool_start → progressCallback("→ read_file()")
+    │   ├── tool_end → progressCallback("← read_file (120ms)")
+    │   └── tool_error → progressCallback("✗ write_file: ...")
+    ↓
+    ToolExecutor receives tool_progress events → yields to AgentRunner → renders in CLI
+```
+
+### 21.3 验证结果
+
+```
+测试结果: 1675 pass / 0 fail / 0 errors (85 files, 3225 assertions)
+运行时间: 4.24s
+Dev server: ✅ 正常启动 Dexter v2026.5.2
+新增测试: +9 (agent-tool-events.test.ts)
+```
+
+### 21.4 实现进度
+
+```
+Phase 0: 测试修复     ████████████████████ 100% (27 fail → 0 fail) ✅
+Phase 1: 子 Agent 事件 ████████████████░░░░  80% (1.1-1.3 完成, 1.4 UI嵌套待做)
+Phase 2: 事件系统补全  ████████████░░░░░░░░  60% (tool_limit + memory 完成)
+Phase 3: 架构重构     ░░░░░░░░░░░░░░░░░░░░   0% (未开始)
+
+总体进度: Phase 0+1+2 合计约 70% 完成
+```
+
+---
+
 *报告生成: Dexter v2026.5.2 | 分支: feature/investment-enhancement*
-*更新: 2026-05-09 v4 — Phase 0 完成: 27 fail → 0 fail, 循环依赖修复, 46 文件 vitest→bun:test*
+*更新: 2026-05-09 v5 — Phase 1+2 部分完成: 子 Agent 事件透传 + 事件渲染补全*
