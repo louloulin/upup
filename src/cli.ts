@@ -450,7 +450,7 @@ export async function runCli() {
           chatLog.addChild(new Text(`  Compactions: ${state.compactionCount}`, 0, 0));
 
           // Tool count
-          const { getTools } = await import('./tools/registry.js');
+          const { getTools } = await import('./tools/registry/index.js');
           const tools = await getTools(modelSelection.model);
           chatLog.addChild(new Spacer(1));
           chatLog.addChild(new Text(theme.bold('Tools:'), 0, 0));

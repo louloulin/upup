@@ -18,7 +18,7 @@ import type {
   SubagentEventType,
 } from './subagent.js';
 import { DEFAULT_SUBAGENT_CONFIG } from './subagent.js';
-import { getTools, getToolConcurrencyMap } from '../tools/registry.js';
+import { getTools, getToolConcurrencyMap } from '../tools/registry/index.js';
 import { info, warn, error as logError, perf } from '../utils/logging/logger.js';
 import type { AgentEvent } from './types.js';
 

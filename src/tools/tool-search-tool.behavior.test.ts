@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'bun:test';
-import type { RegisteredTool } from './registry.js';
+import type { RegisteredTool } from './registry/index.js';
 
 const MOCK_TOOLS: RegisteredTool[] = [
   {
