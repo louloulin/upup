@@ -764,5 +764,182 @@ export function useHookEventBus(maxHistory?: number): HookEventBus {
 }
 
 // ============================================================================
+// useCanUseTool - Permission gate hook
+// ============================================================================
+
+export type ToolPermission = 'allowed' | 'denied' | 'requires-approval';
+
+export interface ToolPermissionRule {
+  tool: string;
+  permission: ToolPermission;
+  reason?: string;
+  expiresAt?: number; // Timestamp when denial expires (0 = never)
+}
+
+export interface PermissionCheckResult {
+  allowed: boolean;
+  permission: ToolPermission;
+  reason?: string;
+  rule?: ToolPermissionRule;
+}
+
+export class ToolPermissionGate {
+  private rules: Map<string, ToolPermissionRule> = new Map();
+  private deniedTools: Map<string, { reason: string; deniedAt: number; expiresAt: number }> = new Map();
+  private globalDenyPatterns: RegExp[] = [];
+  private enabled: boolean = true;
+
+  /**
+   * Add or update a permission rule for a tool.
+   */
+  setRule(rule: ToolPermissionRule): void {
+    this.rules.set(rule.tool, rule);
+  }
+
+  /**
+   * Remove a permission rule for a tool.
+   */
+  removeRule(tool: string): boolean {
+    return this.rules.delete(tool);
+  }
+
+  /**
+   * Record that a tool was denied (e.g., by user or policy).
+   * Subsequent calls to `check()` will return denied until expiry.
+   */
+  recordDenial(tool: string, reason: string, ttlMs: number = 0): void {
+    this.deniedTools.set(tool, {
+      reason,
+      deniedAt: Date.now(),
+      expiresAt: ttlMs > 0 ? Date.now() + ttlMs : 0,
+    });
+    useHookEventBus().emitEvent({
+      type: 'tool:denied',
+      source: 'useCanUseTool',
+      payload: { tool, reason, ttlMs },
+    });
+  }
+
+  /**
+   * Clear a denial for a tool (e.g., user approved it).
+   */
+  clearDenial(tool: string): void {
+    this.deniedTools.delete(tool);
+  }
+
+  /**
+   * Check whether a tool can be used.
+   * Returns a PermissionCheckResult with the decision and reason.
+   */
+  check(tool: string, args?: Record<string, unknown>): PermissionCheckResult {
+    if (!this.enabled) {
+      return { allowed: true, permission: 'allowed' };
+    }
+
+    // 1. Check dynamic denials (from recordDenial)
+    const denial = this.deniedTools.get(tool);
+    if (denial) {
+      if (denial.expiresAt > 0 && Date.now() > denial.expiresAt) {
+        this.deniedTools.delete(tool); // TTL expired
+      } else {
+        return {
+          allowed: false,
+          permission: 'denied',
+          reason: denial.reason,
+        };
+      }
+    }
+
+    // 2. Check explicit rules
+    const rule = this.rules.get(tool);
+    if (rule) {
+      if (rule.expiresAt && rule.expiresAt > 0 && Date.now() > rule.expiresAt) {
+        this.rules.delete(tool); // Rule expired
+      } else if (rule.permission === 'denied') {
+        return {
+          allowed: false,
+          permission: 'denied',
+          reason: rule.reason ?? 'Tool denied by policy',
+          rule,
+        };
+      } else if (rule.permission === 'requires-approval') {
+        return {
+          allowed: false,
+          permission: 'requires-approval',
+          reason: rule.reason ?? 'Tool requires approval',
+          rule,
+        };
+      }
+    }
+
+    // 3. Check global deny patterns
+    for (const pattern of this.globalDenyPatterns) {
+      if (pattern.test(tool)) {
+        return {
+          allowed: false,
+          permission: 'denied',
+          reason: `Tool matches denied pattern: ${pattern.source}`,
+        };
+      }
+    }
+
+    return { allowed: true, permission: 'allowed' };
+  }
+
+  /**
+   * Add a global deny pattern (regex). Tools matching this pattern will be denied.
+   */
+  addDenyPattern(pattern: RegExp): void {
+    this.globalDenyPatterns.push(pattern);
+  }
+
+  /**
+   * Remove all deny patterns.
+   */
+  clearDenyPatterns(): void {
+    this.globalDenyPatterns = [];
+  }
+
+  /**
+   * Enable or disable the permission gate entirely.
+   */
+  setEnabled(enabled: boolean): void {
+    this.enabled = enabled;
+  }
+
+  /**
+   * Get all current rules.
+   */
+  getRules(): ToolPermissionRule[] {
+    return [...this.rules.values()];
+  }
+
+  /**
+   * Get all current denials.
+   */
+  getDenials(): Map<string, { reason: string; deniedAt: number; expiresAt: number }> {
+    return new Map(this.deniedTools);
+  }
+
+  /**
+   * Clear all rules and denials.
+   */
+  reset(): void {
+    this.rules.clear();
+    this.deniedTools.clear();
+    this.globalDenyPatterns = [];
+  }
+}
+
+let toolPermissionGate: ToolPermissionGate | null = null;
+
+export function useCanUseTool(): ToolPermissionGate {
+  if (!toolPermissionGate) {
+    toolPermissionGate = new ToolPermissionGate();
+  }
+  return toolPermissionGate;
+}
+
+// ============================================================================
 // Module Exports
 // ============================================================================

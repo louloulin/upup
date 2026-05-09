@@ -631,6 +631,134 @@ export async function loadUserCommands(registry: CommandRegistry): Promise<numbe
 }
 
 // ============================================================================
+// Command Macros - Sequence of commands as a single unit
+// ============================================================================
+
+export interface MacroStep {
+  command: string;
+  args?: string;
+  /** Delay in ms before executing next step */
+  delayMs?: number;
+}
+
+export interface MacroDefinition {
+  name: string;
+  description: string;
+  steps: MacroStep[];
+  /** Whether to stop on error (default: true) */
+  stopOnError?: boolean;
+}
+
+/**
+ * Parse a macro definition file content into a MacroDefinition.
+ *
+ * Format:
+ * ```
+ * # description line
+ * /command1 args
+ * /command2 args
+ * ## delay 1000
+ * /command3 args
+ * ```
+ */
+export function parseMacroFile(content: string, name: string): MacroDefinition {
+  const lines = content.split('\n');
+  let description = name;
+  const steps: MacroStep[] = [];
+  let nextDelay = 0;
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) continue;
+
+    // Description from first heading
+    if (line.startsWith('# ') && description === name) {
+      description = line.slice(2).trim();
+      continue;
+    }
+
+    // Delay directive: ## delay <ms>
+    const delayMatch = line.match(/^##\s+delay\s+(\d+)/);
+    if (delayMatch) {
+      nextDelay = parseInt(delayMatch[1], 10);
+      continue;
+    }
+
+    // Command line
+    if (line.startsWith('/')) {
+      const spaceIdx = line.indexOf(' ');
+      const cmd = (spaceIdx === -1 ? line.slice(1) : line.slice(1, spaceIdx)).trim();
+      const args = spaceIdx === -1 ? '' : line.slice(spaceIdx + 1).trim();
+      steps.push({ command: cmd, args: args || undefined, delayMs: nextDelay || undefined });
+      nextDelay = 0;
+    }
+  }
+
+  return { name, description, steps, stopOnError: true };
+}
+
+/**
+ * Expand a macro into a sequence of commands.
+ * Returns the list of commands to execute in order.
+ */
+export function expandMacro(macro: MacroDefinition): string[] {
+  return macro.steps.map(step => {
+    if (step.args) return `/${step.command} ${step.args}`;
+    return `/${step.command}`;
+  });
+}
+
+/**
+ * Load macro definitions from .dexter/macros/ directory.
+ * Each .md file becomes a macro with the filename as name.
+ */
+export async function loadMacros(registry: CommandRegistry): Promise<number> {
+  const { readdirSync, readFileSync, existsSync } = await import('fs');
+  const { join } = await import('path');
+  const macrosDir = join(process.cwd(), '.dexter', 'macros');
+
+  if (!existsSync(macrosDir)) return 0;
+
+  let loaded = 0;
+  try {
+    const files = readdirSync(macrosDir).filter(f => f.endsWith('.md'));
+    for (const file of files) {
+      const name = `macro-${file.slice(0, -3).toLowerCase()}`;
+      const content = readFileSync(join(macrosDir, file), 'utf-8');
+      const macro = parseMacroFile(content, name);
+
+      if (macro.steps.length === 0) continue;
+
+      registry.register({
+        name,
+        description: `Macro: ${macro.description} (${macro.steps.length} steps)`,
+        hidden: false,
+        async execute(_args, context): Promise<CommandResult> {
+          const results: string[] = [];
+          for (const step of macro.steps) {
+            if (step.delayMs && step.delayMs > 0) {
+              await new Promise(resolve => setTimeout(resolve, step.delayMs));
+            }
+            const result = await registry.execute(`/${step.command} ${step.args ?? ''}`.trim(), context);
+            if (result.type === 'output') {
+              results.push(result.text);
+            } else if (result.type === 'error') {
+              results.push(`Error: ${result.message}`);
+              if (macro.stopOnError !== false) break;
+            }
+          }
+          return { type: 'output', text: results.join('\n') || 'Macro completed' };
+        },
+      });
+      loaded++;
+    }
+  } catch {
+    // Non-critical
+  }
+  return loaded;
+}
+
+// ============================================================================
 // Global Registry
 
 let globalRegistry: CommandRegistry | null = null;
@@ -647,6 +775,8 @@ export function getGlobalRegistry(): CommandRegistry {
     });
     // Load user-defined commands
     loadUserCommands(globalRegistry).catch(() => {});
+    // Load macro definitions
+    loadMacros(globalRegistry).catch(() => {});
   }
   return globalRegistry;
 }

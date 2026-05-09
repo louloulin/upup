@@ -34,6 +34,7 @@ export function parseSkillFile(content: string, path: string, source: SkillSourc
     model,
     userInvocable: data['user-invocable'] === true,
     argumentHint: data['argument-hint'] as string | undefined,
+    dependsOn: parseDependsOnField(data['depends-on'] ?? data.dependsOn),
     instructions: instructions.trim(),
   };
 }
@@ -48,6 +49,19 @@ function parseModelField(value: unknown): SkillModel | undefined {
     if (['sonnet', 'haiku', 'opus', 'default'].includes(normalized)) {
       return normalized as SkillModel;
     }
+  }
+  return undefined;
+}
+
+/**
+ * Parse depends-on field from frontmatter.
+ * Accepts either a string (single dependency) or an array of strings.
+ */
+function parseDependsOnField(value: unknown): string[] | undefined {
+  if (!value) return undefined;
+  if (typeof value === 'string') return [value];
+  if (Array.isArray(value)) {
+    return value.filter((v): v is string => typeof v === 'string');
   }
   return undefined;
 }
@@ -92,5 +106,6 @@ export function extractSkillMetadata(path: string, source: SkillSource): SkillMe
     model: parseModelField(data.model),
     userInvocable: data['user-invocable'] === true,
     argumentHint: data['argument-hint'] as string | undefined,
+    dependsOn: parseDependsOnField(data['depends-on'] ?? data.dependsOn),
   };
 }

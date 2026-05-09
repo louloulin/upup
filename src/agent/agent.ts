@@ -163,6 +163,24 @@ export class Agent {
     const sessionId = `agent-${Date.now()}`;
     bgSession.create(sessionId, { model: this.model, startTime });
 
+    // Initialize daemon session for persistent cross-restart state
+    let daemonSession: import('../daemon/session.js').AgentSession | null = null;
+    try {
+      const { getSessionManager: getDaemonSessionManager } = await import('../daemon/session.js');
+      const daemonMgr = getDaemonSessionManager();
+      daemonSession = await daemonMgr.create({
+        id: sessionId,
+        context: {
+          projectSlug: process.cwd().split('/').pop() ?? 'unknown',
+          projectPath: process.cwd(),
+          model: this.model,
+        },
+      });
+      await daemonMgr.startSession(sessionId);
+    } catch {
+      // Daemon session is optional — agent runs fine without it
+    }
+
     // Initialize tool metrics collector
     const metrics = useToolMetrics();
 
@@ -182,10 +200,20 @@ export class Agent {
     });
 
     // Cleanup function for when agent loop finishes
-    const cleanup = () => {
+    const cleanup = async () => {
       memoryMonitor.stop();
       recovery.stop();
       bgSession.background(sessionId);
+      // Complete daemon session if active
+      if (daemonSession) {
+        try {
+          const { getSessionManager: getDaemonSessionManager } = await import('../daemon/session.js');
+          const daemonMgr = getDaemonSessionManager();
+          await daemonMgr.complete(sessionId);
+        } catch {
+          // Non-critical
+        }
+      }
       // Emit final metrics summary
       const finalMetrics = metrics.getMetrics();
       if (finalMetrics.totalCalls > 0) {
@@ -327,6 +355,26 @@ export class Agent {
         await sessionMgr.persist();
       } catch {
         // Non-critical: session persistence failure should not block agent
+      }
+
+      // Update daemon session metadata after tool execution
+      if (daemonSession) {
+        try {
+          const { getSessionManager: getDaemonSessionManager } = await import('../daemon/session.js');
+          const daemonMgr = getDaemonSessionManager();
+          await daemonMgr.update(sessionId, {
+            metadata: {
+              turnCount: ctx.iteration,
+              toolUseCount: ctx.scratchpad.getToolCallRecords().length,
+              tokenUsage: {
+                input: ctx.tokenCounter.getUsage()?.inputTokens ?? 0,
+                output: ctx.tokenCounter.getUsage()?.outputTokens ?? 0,
+              },
+            },
+          } as any);
+        } catch {
+          // Non-critical
+        }
       }
 
       // Loop detection: record tools used and check for repeated actions
