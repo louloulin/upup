@@ -458,12 +458,12 @@ const configCommand: Command = {
         `  Working Directory: ${context.cwd}`,
         `  Model: ${context.model ?? 'default'}`,
         `  Session: ${context.sessionId ?? 'N/A'}`,
-        `  Environment Variables: ${Object.keys(context.env).length}`,
+        `  Environment Variables: ${Object.keys(context.env ?? {}).length}`,
       ];
       return { type: 'output', text: lines.join('\n') };
     }
     const key = args.trim();
-    const envValue = context.env[key];
+    const envValue = (context.env ?? {})[key];
     if (envValue !== undefined) {
       return { type: 'output', text: `${key} = ${envValue}` };
     }
@@ -736,7 +736,7 @@ const doctorCommand: Command = {
     const lines: string[] = [];
 
     // API key check
-    const hasApiKey = !!(context.env.OPENAI_API_KEY || context.env.ANTHROPIC_API_KEY || context.env.GOOGLE_API_KEY);
+    const hasApiKey = !!((context.env ?? {}).OPENAI_API_KEY || (context.env ?? {}).ANTHROPIC_API_KEY || (context.env ?? {}).GOOGLE_API_KEY);
     lines.push(`API Keys: ${hasApiKey ? '✓ configured' : '✗ none found'}`);
 
     // Model
