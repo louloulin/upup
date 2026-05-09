@@ -339,7 +339,13 @@ export class SubagentRunner {
     let originalCwd: string | undefined;
     let worktreePath: string | undefined;
     try {
-      // Handle worktree isolation
+      // NOTE: process.chdir() is process-global and NOT concurrency-safe. When multiple
+      // sub-agents run concurrently (e.g. background tasks spawned via runAsync), their
+      // chdir/restore sequences can interleave, causing one sub-agent to execute in the
+      // wrong directory. A proper fix would pass CWD through the agent's configuration
+      // so each sub-agent resolves its own working directory without mutating global state.
+      // For now, we accept this limitation since background sub-agents typically operate
+      // in isolated worktrees and foreground sub-agents are serialized by the tool executor.
       if (config.isolation === 'worktree') {
         const wtPath = await this.createIsolationWorktree(taskId || 'sync');
         if (wtPath) {
@@ -348,16 +354,13 @@ export class SubagentRunner {
           originalCwd = process.cwd();
           process.chdir(worktreePath);
         }
-      } else {
-        // Save and override CWD if specified
-        originalCwd = config.cwd ? process.cwd() : undefined;
-        if (config.cwd) {
-          try {
-            process.chdir(config.cwd);
-            info('subagent', `CWD changed to: ${config.cwd}`);
-          } catch (err) {
-            warn('subagent', `Failed to change CWD to ${config.cwd}: ${err}`);
-          }
+      } else if (config.cwd) {
+        originalCwd = process.cwd();
+        try {
+          process.chdir(config.cwd);
+          info('subagent', `CWD changed to: ${config.cwd}`);
+        } catch (err) {
+          warn('subagent', `Failed to change CWD to ${config.cwd}: ${err}`);
         }
       }
 
@@ -381,17 +384,6 @@ export class SubagentRunner {
         warn('subagent', `Task ${taskId} timeout after ${timeoutMs}ms`);
         timeoutController.abort();
       }, timeoutMs);
-
-      // Save and override CWD if specified
-      originalCwd = config.cwd ? process.cwd() : undefined;
-      if (config.cwd) {
-        try {
-          process.chdir(config.cwd);
-          info('subagent', `CWD changed to: ${config.cwd}`);
-        } catch (err) {
-          warn('subagent', `Failed to change CWD to ${config.cwd}: ${err}`);
-        }
-      }
 
       const agent = await Agent.create({
         model,
