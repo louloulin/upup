@@ -25,7 +25,7 @@ import {
   validateCommandSecurity,
   type SecurityValidationResult,
 } from './security.js';
-import { checkPathConstraints, validatePath } from './path-validation.js';
+import { validatePath } from './path-validation.js';
 import {
   isReadOnlyCommand,
   classifyCommand,
@@ -177,7 +177,7 @@ export async function executeBashCommand(
       timeout,
       maxBuffer: maxOutputLength * 2,
       env: { ...process.env, ...env },
-    });
+    }) as { stdout: string; stderr: string; status?: number };
 
     const durationMs = Date.now() - startTime;
     let stdout = result.stdout;
@@ -344,7 +344,7 @@ export function formatBashResult(result: BashToolResult): string {
  */
 export function createBashTool(options: BashToolOptions = {}): StructuredToolInterface {
   const toolInstance = tool(
-    async (input: BashToolInput, runManager) => {
+    async (input: BashToolInput, runManager: any) => {
       const { command, description, timeout = 30 } = input;
 
       info('bash', `Executing: ${command}`);
@@ -404,7 +404,7 @@ export function createBashTool(options: BashToolOptions = {}): StructuredToolInt
 /**
  * Check if a command is considered dangerous
  */
-function isDangerousCommand(command: string): boolean {
+export function isDangerousCommand(command: string): boolean {
   const lowerCommand = command.toLowerCase().trim();
 
   // Check for dangerous command patterns

@@ -290,4 +290,4 @@ export { globalCache, globalCacheManager };
 // TypeScript Types Export
 // ============================================================================
 
-export type { CacheStats, CacheConfig };
+export type { CacheStats };

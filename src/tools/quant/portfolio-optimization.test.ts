@@ -32,7 +32,7 @@ describe('Kelly Criterion', () => {
       avgLoss: 0.10,
     });
 
-    expect(result).toContain('negative') || expect(result).toContain('Avoid');
+    expect(result).toMatch(/negative|Avoid/);
   });
 
   it('includes position sizing with capital', async () => {

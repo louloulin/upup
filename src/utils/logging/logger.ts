@@ -19,7 +19,7 @@ import { getDexterDir } from '../paths.js';
 // ============================================================================
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
-export type LogCategory = 'memory' | 'agent' | 'tools' | 'subagent' | 'mcp' | 'daemon' | 'system' | 'default';
+export type LogCategory = 'memory' | 'agent' | 'tools' | 'subagent' | 'mcp' | 'daemon' | 'system' | 'default' | 'compaction' | 'orchestrator' | 'post-cleanup' | 'session-compact' | 'bash';
 
 export interface LogEntry {
   id: string;
@@ -75,6 +75,11 @@ const DEFAULT_CONFIG: LoggerConfig = {
     daemon: true,
     system: true,
     default: true,
+    compaction: true,
+    orchestrator: true,
+    'post-cleanup': true,
+    'session-compact': true,
+    bash: true,
   },
 };
 

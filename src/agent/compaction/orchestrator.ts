@@ -153,7 +153,7 @@ export class CompactionOrchestrator {
     messages: BaseMessage[],
     params?: Partial<CompactContextParams>
   ): Promise<CompactionPipelineResult> {
-    const startTokens = estimateTokens(messages);
+    const startTokens = estimateTokens(messages as any);
     const appliedLayers: string[] = [];
     const layerResults: CompactionPipelineResult['layerResults'] = {};
     let currentMessages = [...messages];
@@ -195,12 +195,15 @@ export class CompactionOrchestrator {
       // === Layer 3: Full Compact (LLM summarization) ===
       if (this.config.layers.compact) {
         const compactThreshold = this.config.autoTrigger.compactTokenThreshold ?? 100_000;
-        const currentTokens = estimateTokens(currentMessages);
+        const currentTokens = estimateTokens(currentMessages as any);
 
-        if (currentTokens >= compactThreshold && params) {
+        if (currentTokens >= compactThreshold && params?.model && params?.query && params?.systemPrompt && params?.toolResults) {
           try {
             const compactResult = await compactContext({
-              ...params,
+              model: params.model!,
+              systemPrompt: params.systemPrompt!,
+              query: params.query!,
+              toolResults: params.toolResults!,
               signal: params.signal,
             });
 
@@ -254,7 +257,7 @@ export class CompactionOrchestrator {
         }
       }
 
-      const endTokens = estimateTokens(currentMessages);
+      const endTokens = estimateTokens(currentMessages as any);
 
       return {
         messages: currentMessages,
@@ -269,7 +272,7 @@ export class CompactionOrchestrator {
       return {
         messages: currentMessages,
         tokensBefore: startTokens,
-        tokensAfter: estimateTokens(currentMessages),
+        tokensAfter: estimateTokens(currentMessages as any),
         appliedLayers,
         layerResults,
         tokensSaved: 0,
@@ -317,8 +320,8 @@ export class CompactionOrchestrator {
       }
     }
 
-    const startTokens = estimateTokens(messages);
-    const endTokens = estimateTokens(currentMessages);
+    const startTokens = estimateTokens(messages as any);
+    const endTokens = estimateTokens(currentMessages as any);
 
     return {
       messages: currentMessages,

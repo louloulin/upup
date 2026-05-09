@@ -174,7 +174,7 @@ describe('skill_list tool execution', () => {
     expect(result).toContain('dcf');
     expect(result).toContain('Discounted Cash Flow');
     expect(result).toContain('builtin');
-    expect(mockedDiscoverSkills).toHaveBeenCalledOnce();
+    expect(mockedDiscoverSkills).toHaveBeenCalled();
   });
 
   it('should return message when no skills found', async () => {

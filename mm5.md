@@ -2207,3 +2207,27 @@ Agent 主循环 — 上下文压缩:
 ✅ mock 路径修复: tool-search-tool.behavior.test.ts (registry.js → registry/index.js)
 ✅ 测试断言修复: time-mc-config.test.ts (minThreshold 1000 → 500)
 ```
+
+---
+
+## 27. TypeScript Build Error 清理 (66→0)
+
+### 27.1 修复清单
+
+| # | 错误类型 | 数量 | 修复方式 | 涉及文件 |
+|---|---------|------|---------|---------|
+| 1 | LogCategory 不匹配 | 7 | 扩展 LogCategory 类型 + DEFAULT_CONFIG | `logger.ts` |
+| 2 | bash-tool 缺少导出 | 11 | 添加 export 关键字 + 修正 index.ts 重导出来源 | `bash-tool.ts`, `bash/index.ts` |
+| 3 | LangChain type-as-value | 5 | `import type` → `import` | `fallback.ts`, `api-microcompact.ts` |
+| 4 | 模块路径错误 | 3 | 修正相对路径 | `target-price.test.ts`, `subagent/types.ts` |
+| 5 | estimateTokens 类型 | 14 | 重载函数接受 `string | BaseMessage[]` | `tokens.ts`, `api-microcompact.ts`, `orchestrator.ts`, `auto-trigger.ts` |
+| 6 | 隐式 any 参数 | 10 | 添加显式类型注解 | `notebook-tools.ts`, `ask-tool.ts`, `notify-tool.test.ts` 等 |
+| 7 | 其他类型不匹配 | 16 | 类型断言、空值处理、接口补全 | `agent.ts`, `valuation-tools.ts`, `multi-portfolio.ts` 等 |
+
+### 27.2 验证结果
+
+```
+✅ bun run build: 0 TypeScript errors (was 66)
+✅ bun test: 1715 pass, 0 fail
+✅ bun run dev: 正常启动 Dexter v2026.5.2
+```

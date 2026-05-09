@@ -8,7 +8,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import { SubagentRunner, resetDefaultSubagentRunner } from './subagent-runner.js';
-import type { SubagentConfig } from './subagent.js';
+import type { SubagentConfig, SubagentEvent } from './subagent.js';
 
 describe('SubagentRunner deep features', () => {
   let runner: SubagentRunner;
@@ -145,8 +145,8 @@ describe('SubagentRunner deep features', () => {
   describe('event system', () => {
     it('onEvent registers listener', () => {
       const events: Array<{ type: string; taskId: string }> = [];
-      runner.onEvent((type, taskId) => {
-        events.push({ type, taskId });
+      runner.onEvent((event: SubagentEvent) => {
+        events.push({ type: event.type, taskId: event.taskId });
       });
       // Listener is registered (no direct way to verify without triggering an event)
       expect(true).toBe(true);

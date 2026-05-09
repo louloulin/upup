@@ -11,7 +11,7 @@
  */
 
 import { info, warn, error } from '../utils/logging/logger.js';
-import type { AIMessage } from '@langchain/core/messages';
+import { AIMessage } from '@langchain/core/messages';
 
 // ============================================================================
 // Error Types

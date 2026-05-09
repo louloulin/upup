@@ -128,7 +128,7 @@ export class AutoTrigger {
       };
     }
 
-    const tokenCount = estimateTokens(messages);
+    const tokenCount = estimateTokens(messages as any);
     const messageCount = messages.length;
     const exceededThresholds: string[] = [];
 

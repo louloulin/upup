@@ -75,11 +75,23 @@ export type {
   BashToolOptions,
   BashToolResult,
   BashToolInput,
+} from './bash-tool.js';
+
+export type {
   SecurityValidationResult,
+} from './security.js';
+
+export type {
   PathValidationResult,
   PathConstraint,
+} from './path-validation.js';
+
+export type {
   CommandInfo,
+} from './command-classifier.js';
+
+export type {
   PermissionRequest,
   PermissionSuggestion,
   PermissionResult,
-} from './bash-tool.js';
+} from './permission-mode.js';

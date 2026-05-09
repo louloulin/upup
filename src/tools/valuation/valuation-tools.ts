@@ -149,7 +149,7 @@ export function calculateDCF(input: DcfModelInput): DcfResult {
     terminal_value,
     pv_of_fcf,
     pv_of_terminal,
-    shares_outstanding,
+    shares_outstanding: shares_outstanding ?? null,
     net_debt,
     assumptions: {
       growth_rate,

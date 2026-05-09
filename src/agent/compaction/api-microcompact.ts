@@ -13,7 +13,7 @@
  * - Number rounding
  */
 
-import type { BaseMessage, AIMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
+import { BaseMessage, AIMessage, HumanMessage, SystemMessage } from '@langchain/core/messages';
 import { ToolMessage } from '@langchain/core/messages';
 import { estimateTokens } from '../../utils/tokens.js';
 import { info } from '../../utils/logging/logger.js';
@@ -228,7 +228,7 @@ export function analyzeMessageCompression(
     ? message.content
     : JSON.stringify(message.content);
 
-  const tokensBefore = estimateTokens([message]);
+  const tokensBefore = estimateTokens([message] as any);
   const compressed = compressMessageContent(content, options);
   const tokensAfter = Math.ceil(compressed.length / 4); // Rough estimate
   const tokensSaved = Math.max(0, tokensBefore - tokensAfter);
@@ -269,7 +269,7 @@ export class ApiMicrocompact {
         ? message.content
         : JSON.stringify(message.content);
 
-      const beforeTokens = estimateTokens([message]);
+      const beforeTokens = estimateTokens([message] as any);
       totalTokensBefore += beforeTokens;
 
       let newContent = content;
@@ -329,7 +329,7 @@ export class ApiMicrocompact {
             name: original.name,
           });
         }
-        return new ToolMessage({ content });
+        return new ToolMessage({ content, tool_call_id: 'unknown' } as any);
 
       default:
         return original;

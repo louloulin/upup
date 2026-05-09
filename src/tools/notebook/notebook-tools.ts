@@ -241,7 +241,7 @@ export function createNotebookEditCellTool(): DynamicStructuredTool {
         }
 
         const cell = nb.cells[input.cell_index];
-        cell.source = input.new_source.split('\n').map((line, i, arr) =>
+        cell.source = input.new_source.split('\n').map((line: string, i: number, arr: string[]) =>
           i < arr.length - 1 ? line + '\n' : line
         );
         if (input.cell_type) {

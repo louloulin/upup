@@ -120,8 +120,13 @@ const exportAnalysisSchema = z.object({
 // ============================================================================
 
 async function loadPortfolioData(): Promise<{ entries: Record<string, any>; updatedAt: string }> {
-  const { getPortfolio } = await import('../portfolio/index.js');
-  return getPortfolio();
+  const { getPositions } = await import('../portfolio/index.js');
+  const positions = getPositions();
+  const entries: Record<string, any> = {};
+  for (const pos of positions) {
+    entries[pos.symbol] = pos;
+  }
+  return { entries, updatedAt: new Date().toISOString() };
 }
 
 async function loadWatchlistData(): Promise<{ entries: Record<string, any>; updatedAt: string }> {
