@@ -56,6 +56,7 @@ interface ToolDisplayComponent {
   setLimitWarning(warning?: string): void;
   setApproval(decision: 'allow-once' | 'allow-session' | 'deny'): void;
   setDenied(path: string, tool: string): void;
+  addSubAgentDetail?(message: string): void;
   dispose?(): void;
 }
 
@@ -220,6 +221,20 @@ export class ChatLogComponent extends Container {
       return;
     }
     existing.setActive(message);
+  }
+
+  /**
+   * Add a sub-agent detail line to a tool component.
+   * Sub-agent progress lines (→ ← ✗) are rendered as indented children.
+   */
+  addSubAgentDetail(toolCallId: string, message: string) {
+    const existing = this.toolById.get(toolCallId);
+    if (!existing) {
+      return;
+    }
+    if ('addSubAgentDetail' in existing) {
+      (existing as ToolEventComponent).addSubAgentDetail(message);
+    }
   }
 
   completeTool(toolCallId: string, summary: string, duration: number) {

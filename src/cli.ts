@@ -168,6 +168,9 @@ function renderEvent(
   if (event.type === 'compaction' && event.phase === 'end') {
     chatLog.addCompaction(event.success ?? false, event.preCompactTokens, event.postCompactTokens);
   }
+  if (event.type === 'compaction' && event.phase === 'start') {
+    chatLog.addChild(new Text(`${theme.muted('⏺ Compacting context...')}`, 0, 0));
+  }
   if (event.type === 'memory_flush' && event.phase === 'end') {
     const files = event.filesWritten?.length ?? 0;
     chatLog.addChild(new Text(`${theme.muted('⎿')} ${theme.muted(`memory flushed (${files} file(s) written)`)}`, 0, 0));
@@ -245,6 +248,13 @@ export async function runCli() {
               } else if (display.endEvent.type === 'tool_error') {
                 component.setError(display.endEvent.error);
               }
+            }
+          }
+          // Route sub-agent progress messages to nested detail lines
+          if (display.event.type === 'tool_start' && !display.completed && display.progressMessage && !finalizedToolIds.has(display.id)) {
+            const msg = display.progressMessage;
+            if (msg.startsWith('→ ') || msg.startsWith('← ') || msg.startsWith('✗ ') || msg.startsWith('thinking:')) {
+              chatLog.addSubAgentDetail(display.id, msg);
             }
           }
         }

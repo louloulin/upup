@@ -1763,20 +1763,21 @@ TODO-1.3 SubagentContext 传递 (Day 3) ✅ 已实现
 ├── 修复: const context = undefined → 从进程环境构建 SubagentContext
 └── 传入 sessionId, cwd, tools
 
-TODO-1.4 UI 嵌套渲染 (Day 4-5)
-├── 文件: src/components/tool-event.ts
-├── 新增缩进层级支持
-└── 子 Agent 工具调用缩进 2 格显示
+TODO-1.4 UI 嵌套渲染 (Day 4-5) ✅ 已实现
+├── 文件: src/components/tool-event.ts + src/components/chat-log.ts + src/cli.ts
+├── 新增 addSubAgentDetail() 方法: 缩进 2 格显示子 Agent 事件
+├── 自动识别 → ← ✗ thinking: 前缀的进度消息为子 Agent 事件
+└── 最多显示 6 条子 Agent 详情 (超出自动裁剪最早条目)
 ```
 
 ### 后续 (Phase 2-3)
 
 ```
-Phase 2: 事件系统补全 (3天) ✅ 部分完成
+Phase 2: 事件系统补全 (3天) ✅ 已完成
 ├── ✅ 渲染 tool_limit 事件 (cli.ts)
 ├── ✅ 渲染 memory_flush/memory_recalled 事件 (cli.ts + agent-runner.ts)
-├── 渲染 compaction start phase
-└── stream_progress UI 更新优化
+├── ✅ 渲染 compaction start phase (cli.ts: "⏺ Compacting context...")
+└── stream_progress UI 更新优化 (已有 charDelta 累计, 无需额外改动)
 
 Phase 3: 架构重构 (2周) — 未开始
 ├── 命令系统统一 (cli.ts switch → CommandRegistry)
@@ -1836,14 +1837,69 @@ Dev server: ✅ 正常启动 Dexter v2026.5.2
 
 ```
 Phase 0: 测试修复     ████████████████████ 100% (27 fail → 0 fail) ✅
-Phase 1: 子 Agent 事件 ████████████████░░░░  80% (1.1-1.3 完成, 1.4 UI嵌套待做)
-Phase 2: 事件系统补全  ████████████░░░░░░░░  60% (tool_limit + memory 完成)
+Phase 1: 子 Agent 事件 ████████████████████ 100% (1.1-1.4 全部完成) ✅
+Phase 2: 事件系统补全  ████████████████████ 100% (tool_limit + memory + compaction start) ✅
 Phase 3: 架构重构     ░░░░░░░░░░░░░░░░░░░░   0% (未开始)
 
-总体进度: Phase 0+1+2 合计约 70% 完成
+总体进度: Phase 0+1+2 合计约 85% 完成
+```
+
+---
+
+## 22. Phase 1+2 补充执行记录 (TODO-1.4 + Phase 2 剩余)
+
+### 22.1 补充实现清单
+
+| # | TODO | 状态 | 修改文件 | 说明 |
+|---|------|------|---------|------|
+| 1 | TODO-1.4 | ✅ | `src/components/tool-event.ts` | 新增 `addSubAgentDetail()` 方法，缩进 2 格显示子 Agent 事件，最多 6 条 |
+| 2 | TODO-1.4 | ✅ | `src/components/chat-log.ts` | 新增 `addSubAgentDetail()` 路由，`ToolDisplayComponent` 接口扩展 |
+| 3 | TODO-1.4 | ✅ | `src/cli.ts` | 新增子 Agent 进度消息检测（→ ← ✗ thinking: 前缀），路由到嵌套渲染 |
+| 4 | TODO-2.3 | ✅ | `src/cli.ts` | 新增 compaction start phase 渲染: "⏺ Compacting context..." |
+| 5 | 类型修复 | ✅ | `src/tools/agent-tool.ts` | 修复 `runManager.metadata` protected 访问类型问题 |
+| 6 | 测试 | ✅ | `src/components/tool-event.test.ts` | 新增 8 个测试验证 ToolEventComponent 子 Agent 详情 |
+| 7 | 测试 | ✅ | `src/tools/agent-tool-events.test.ts` | 扩展至 13 个测试，新增 compaction start/end 和边界测试 |
+
+### 22.2 UI 嵌套渲染架构
+
+```
+子 Agent 事件嵌套渲染流程:
+
+Agent Tool 执行 → SubagentRunner.run(config, prompt, context, eventCallback)
+  │  eventCallback(event) → formatSubagentEvent(event)
+  │  ├── "→ read_file()"
+  │  ├── "← read_file (120ms): contents..."
+  │  └── "✗ write_file: Permission denied"
+  ↓
+ToolExecutor → channel.emit(label) → tool_progress event
+  ↓
+AgentRunnerController.handleEvent()
+  → updateLastItem: progressMessage = "→ read_file()"
+  ↓
+CLI incremental render onChange()
+  → for (display of events):
+    │  if progressMessage starts with → ← ✗ thinking:
+    │  → chatLog.addSubAgentDetail(toolCallId, msg)  ← NEW
+    │  else:
+    │  → component.setActive(progressMessage)         ← 常规进度
+  ↓
+ChatLogComponent.addSubAgentDetail()
+  → ToolEventComponent.addSubAgentDetail(msg)
+  → 添加缩进详情行: "⎿  [2-space-indent]→ read_file()"
+  → 最多 6 行，超出自动裁剪最早条目
+```
+
+### 22.3 验证结果
+
+```
+测试结果: 1686 pass / 0 fail / 0 errors (86 files, 3235 assertions)
+运行时间: 4.36s
+Dev server: ✅ 正常启动 Dexter v2026.5.2
+类型检查: ✅ 修改文件无类型错误
+新增测试: +11 (tool-event.test.ts 8个, agent-tool-events.test.ts 3个扩展)
 ```
 
 ---
 
 *报告生成: Dexter v2026.5.2 | 分支: feature/investment-enhancement*
-*更新: 2026-05-09 v5 — Phase 1+2 部分完成: 子 Agent 事件透传 + 事件渲染补全*
+*更新: 2026-05-09 v6 — Phase 1+2 完成: 子 Agent 事件透传 + UI 嵌套渲染 + 事件渲染补全*

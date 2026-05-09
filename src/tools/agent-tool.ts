@@ -86,7 +86,9 @@ export function buildAgentTool(): DynamicStructuredTool {
       };
 
       // Create event callback that forwards sub-agent events as tool progress
-      const progressCallback = runManager?.metadata?.onProgress;
+      // Access metadata via type assertion as BaseRunManager.metadata is protected
+      const metadata = runManager ? (runManager as unknown as { metadata: Record<string, unknown> }).metadata : undefined;
+      const progressCallback = metadata?.onProgress as ((msg: string) => void) | undefined;
       const eventCallback = (event: AgentEvent): void => {
         if (progressCallback) {
           // Forward sub-agent events as progress messages for the parent tool

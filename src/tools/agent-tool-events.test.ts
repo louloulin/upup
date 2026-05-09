@@ -74,8 +74,42 @@ describe('formatSubagentEvent', () => {
     expect(formatSubagentEvent(event)).toContain('compacted');
   });
 
+  it('returns empty for compaction start events', () => {
+    const event = {
+      type: 'compaction',
+      phase: 'start',
+    } as AgentEvent;
+    expect(formatSubagentEvent(event)).toBe('');
+  });
+
   it('returns empty for unknown event types', () => {
     const event = { type: 'memory_flush', phase: 'start' } as AgentEvent;
     expect(formatSubagentEvent(event)).toBe('');
+  });
+
+  it('formats tool_end events without duration', () => {
+    const event = {
+      type: 'tool_end',
+      tool: 'read_file',
+      args: {},
+      result: 'file contents here',
+    } as AgentEvent;
+    const result = formatSubagentEvent(event);
+    expect(result).toContain('read_file');
+    expect(result).toContain('file contents');
+    expect(result).not.toContain('ms');
+  });
+
+  it('formats tool_end events with non-string result', () => {
+    const event = {
+      type: 'tool_end',
+      tool: 'calculator',
+      args: {},
+      result: { answer: 42 },
+      duration: 100,
+    } as unknown as AgentEvent;
+    const result = formatSubagentEvent(event);
+    expect(result).toContain('calculator');
+    expect(result).toContain('100ms');
   });
 });

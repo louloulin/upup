@@ -58,11 +58,15 @@ function approvalLabel(decision: ApprovalDecision): string {
   }
 }
 
+const MAX_SUB_AGENT_DETAILS = 6;
+const SUB_AGENT_INDENT = '  ';
+
 export class ToolEventComponent extends Container {
   private readonly header: Text;
   private readonly toolTitle: string;
   private completedDetails: Text[] = [];
   private activeDetail: Text | null = null;
+  private subAgentDetails: Text[] = [];
   private unsubscribeSpinner: (() => void) | null = null;
   private blinkVisible: boolean = true;
   private blinkCounter: number = 0;
@@ -147,8 +151,26 @@ export class ToolEventComponent extends Container {
     this.addChild(detail);
   }
 
+  /**
+   * Add an indented sub-agent detail line (e.g., "→ read_file()").
+   * Accumulates up to MAX_SUB_AGENT_DETAILS lines, removing the oldest
+   * when the limit is exceeded.
+   */
+  addSubAgentDetail(message: string) {
+    const detail = new Text(`${theme.muted('⎿  ')}${theme.muted(SUB_AGENT_INDENT + message)}`, 0, 0);
+    this.subAgentDetails.push(detail);
+    this.addChild(detail);
+
+    // Trim oldest if over limit
+    if (this.subAgentDetails.length > MAX_SUB_AGENT_DETAILS) {
+      const oldest = this.subAgentDetails.shift()!;
+      this.removeChild(oldest);
+    }
+  }
+
   dispose() {
     this.clearDetail();
+    this.clearSubAgentDetails();
   }
 
   private clearDetail() {
@@ -160,5 +182,12 @@ export class ToolEventComponent extends Container {
       this.removeChild(this.activeDetail);
       this.activeDetail = null;
     }
+  }
+
+  private clearSubAgentDetails() {
+    for (const detail of this.subAgentDetails) {
+      this.removeChild(detail);
+    }
+    this.subAgentDetails = [];
   }
 }
