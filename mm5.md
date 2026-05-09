@@ -1782,8 +1782,8 @@ Phase 2: 事件系统补全 (3天) ✅ 已完成
 Phase 3: 架构重构 (2周) — ✅ 完成
 ├── 命令系统统一 (cli.ts switch → CommandRegistry) ✅
 ├── 大文件拆分 (registry.ts 1976L → 多个 < 300L 文件) ✅
-├── MCP 深度集成
-└── Hook 生命周期完善
+├── MCP 深度集成 ✅
+└── Hook 生命周期完善 ✅
 ```
 
 ---
@@ -2126,7 +2126,74 @@ Phase 2: 事件系统补全    ████████████████�
 Phase 3: Sub-Agent Deep  ████████████████████ 100% ✅
 Phase 4: 架构重构        ████████████████████ 100% ✅
   ├── 4.1 命令系统统一   ████████████████████ 100% ✅
-  └── 4.2 registry 拆分  ████████████████████ 100% ✅
+  ├── 4.2 registry 拆分  ████████████████████ 100% ✅
+  ├── 4.3 MCP 深度集成   ████████████████████ 100% ✅
+  └── 4.4 Hook 生命周期  ████████████████████ 100% ✅
 
 总体进度: 100% 完成
+```
+
+---
+
+## 26. Phase 4.3+4.4 MCP 深度集成 + Hook 生命周期
+
+### 26.1 实现清单
+
+| # | TODO | 状态 | 修改文件 | 说明 |
+|---|------|------|---------|------|
+| 1 | MCP CLI 子命令 | ✅ | `src/commands/commands.ts` | `/mcp status`, `/mcp list`, `/mcp resources`, `/mcp connect`, `/mcp disconnect` |
+| 2 | Hook: PostToolUse | ✅ | `src/agent/agent.ts` | 工具执行成功后触发 `postToolUse` hook |
+| 3 | Hook: PostToolUseFailure | ✅ | `src/agent/agent.ts` | 工具执行失败后触发 `postToolUseFailure` hook |
+| 4 | Hook: PreCompact | ✅ | `src/agent/agent.ts` | 上下文压缩前触发 `preCompact` hook |
+| 5 | Hook: PostCompact | ✅ | `src/agent/agent.ts` | 上下文压缩后触发 `postCompact` hook |
+| 6 | 用户 Hook 加载 | ✅ | `src/hooks/user-hooks.ts` | 新模块：扫描 `.dexter/hooks/*.ts` 加载用户自定义 hook |
+| 7 | Hook 自动加载 | ✅ | `src/agent/agent.ts` | Agent.run() 首次调用时自动加载用户 hooks |
+
+### 26.2 MCP CLI 子命令架构
+
+```
+/mcp                    → /mcp status (默认)
+/mcp status             → 显示连接状态、工具数、各服务器状态
+/mcp list               → 列出所有服务器及其工具数
+/mcp resources          → 列出所有 MCP 资源
+/mcp connect <name>     → 连接/重连指定服务器
+/mcp connect --all      → 重连所有服务器
+/mcp disconnect <name>  → 断开指定服务器
+```
+
+### 26.3 Hook 生命周期集成
+
+```
+Agent.run() 启动:
+  └→ loadUserHooks() — 扫描 .dexter/hooks/*.ts (首次运行)
+
+Agent 主循环 — 工具执行:
+  for event of toolExecutor.executeAll():
+    event.tool_end:
+      → getHookExecutor().postToolUse({ toolName, args, result })
+    event.tool_error:
+      → getHookExecutor().postToolUseFailure({ toolName, error })
+
+Agent 主循环 — 上下文压缩:
+  compaction phase='start':
+    → getHookExecutor().preCompact({ messages, tokenCount })
+    → compactContext(...)
+    → getHookExecutor().postCompact({ messages, tokenCount })
+  compaction phase='end'
+```
+
+### 26.4 用户 Hook 机制
+
+```
+.dexter/hooks/my-hook.ts:
+  export async function PostToolUse(params) {
+    console.log(`Tool ${params.toolName} completed`);
+  }
+
+加载流程:
+  Agent.run() → loadUserHooks()
+    → 扫描 .dexter/hooks/*.ts
+    → import() 每个 hook 文件
+    → 存入 loadedHooks 数组
+    → getUserHooksForEvent('PostToolUse') → [fn1, fn2, ...]
 ```

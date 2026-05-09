@@ -136,6 +136,12 @@ export class Agent {
   async *run(query: string, inMemoryHistory?: InMemoryChatHistory): AsyncGenerator<AgentEvent> {
     const startTime = Date.now();
 
+    // Load user hooks on first run (non-blocking, idempotent)
+    try {
+      const { loadUserHooks } = await import('../hooks/user-hooks.js');
+      loadUserHooks().catch(() => {}); // fire and forget
+    } catch { /* user hooks not available */ }
+
     // Log agent start
     const queryPreview = query.length > 100 ? query.substring(0, 100) + '...' : query;
     info('agent', `Agent started: "${queryPreview}"`);
@@ -675,6 +681,18 @@ export class Agent {
           result: event.result,
           success: true,
         });
+
+        // Hook: PostToolUse — notify hook system of successful tool execution
+        try {
+          const { getHookExecutor } = await import('../hooks/tool-hooks.js');
+          await getHookExecutor().postToolUse({
+            toolName: event.tool,
+            args: event.args || {},
+            result: typeof event.result === 'string' ? event.result : JSON.stringify(event.result),
+            toolCallId: event.toolCallId,
+          });
+        } catch { /* hooks must not crash agent loop */ }
+
       } else if (event.type === 'tool_error' && event.toolCallId) {
         toolMessageMap.set(event.toolCallId, new ToolMessage({
           content: `Error: ${event.error}`,
@@ -690,6 +708,18 @@ export class Agent {
           result: `Error: ${event.error}`,
           success: false,
         });
+
+        // Hook: PostToolUseFailure — notify hook system of tool error
+        try {
+          const { getHookExecutor } = await import('../hooks/tool-hooks.js');
+          await getHookExecutor().postToolUseFailure({
+            toolName: event.tool,
+            args: {},
+            error: event.error || 'Unknown error',
+            toolCallId: event.toolCallId,
+          });
+        } catch { /* hooks must not crash agent loop */ }
+
       } else if (event.type === 'tool_denied' && event.toolCallId) {
         toolMessageMap.set(event.toolCallId, new ToolMessage({
           content: 'Tool execution denied by user.',
@@ -929,6 +959,15 @@ export class Agent {
     ) {
       yield { type: 'compaction', phase: 'start', preCompactTokens: estimatedContextTokens };
 
+      // Hook: PreCompact — notify hook system before compaction
+      try {
+        const { getHookExecutor } = await import('../hooks/tool-hooks.js');
+        await getHookExecutor().preCompact({
+          messages: messageState.messages,
+          tokenCount: estimatedContextTokens,
+        });
+      } catch { /* hooks must not crash compaction */ }
+
       try {
         const result = await compactContext({
           model: this.model,
@@ -947,6 +986,15 @@ export class Agent {
 
         this.compactionFailures = 0;
         memoryFlushState.alreadyFlushed = false;
+
+        // Hook: PostCompact — notify hook system after successful compaction
+        try {
+          const { getHookExecutor } = await import('../hooks/tool-hooks.js');
+          await getHookExecutor().postCompact({
+            messages: messageState.messages,
+            tokenCount: estimatedContextTokens,
+          });
+        } catch { /* hooks must not crash compaction */ }
 
         const postCompactTokens = estimateTokens(
           messageState.messages.map(m =>

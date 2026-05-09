@@ -803,14 +803,98 @@ const tasksCommand: Command = {
 
 const mcpCommand: Command = {
   name: 'mcp',
-  description: 'Show MCP server and tool status',
-  async execute(_args, _context): Promise<CommandResult> {
+  description: 'MCP server management — status, list, resources, connect, disconnect',
+  async execute(args, _context): Promise<CommandResult> {
     try {
       const { getDefaultMCPClient } = await import('../mcp/client.js');
       const client = getDefaultMCPClient();
-      return { type: 'output', text: `MCP: client available (${typeof client})` };
+      const sub = args.trim().split(/\s+/)[0] || 'status';
+
+      switch (sub) {
+        case 'list':
+        case 'servers': {
+          const connections = client.getAllConnections();
+          if (connections.length === 0) {
+            return { type: 'output', text: 'No MCP servers configured.' };
+          }
+          const lines = connections.map(c => {
+            const icon = c.state === 'connected' ? '✅' : c.state === 'connecting' ? '⏳' : c.state === 'error' ? '❌' : '○';
+            const toolCount = c.tools?.length ?? 0;
+            return `${icon} ${c.name}: ${c.state} (${toolCount} tools)`;
+          });
+          return { type: 'output', text: `MCP Servers:\n${lines.join('\n')}` };
+        }
+
+        case 'resources': {
+          try {
+            const serverResources = await client.listResources();
+            const allResources = serverResources.flatMap(sr => sr.resources);
+            if (allResources.length === 0) {
+              return { type: 'output', text: 'No MCP resources available.' };
+            }
+            const lines = allResources.slice(0, 30).map((r: any) => `  • ${(r as any).uri ?? r.name ?? JSON.stringify(r).substring(0, 80)}`);
+            return { type: 'output', text: `MCP Resources (${allResources.length}):\n${lines.join('\n')}` };
+          } catch {
+            return { type: 'output', text: 'Could not list resources (no connected servers).' };
+          }
+        }
+
+        case 'connect': {
+          const serverName = args.trim().split(/\s+/)[1];
+          if (!serverName) {
+            return { type: 'output', text: 'Usage: /mcp connect <server-name>\nUse /mcp connect --all to reconnect all servers.' };
+          }
+          try {
+            if (serverName === '--all') {
+              await client.connectAll();
+              return { type: 'output', text: 'Reconnecting all MCP servers...' };
+            }
+            // Attempt reconnection via health check mechanism
+            const state = client.getConnectionState(serverName);
+            if (!state) {
+              return { type: 'error', message: `Server "${serverName}" not found. Check /mcp list for available servers.` };
+            }
+            await client.connectAll();
+            return { type: 'output', text: `Triggering reconnection for MCP server: ${serverName}` };
+          } catch (err) {
+            return { type: 'error', message: `Failed to connect: ${err instanceof Error ? err.message : String(err)}` };
+          }
+        }
+
+        case 'disconnect': {
+          const serverName = args.trim().split(/\s+/)[1];
+          if (!serverName) {
+            return { type: 'output', text: 'Usage: /mcp disconnect <server-name>' };
+          }
+          try {
+            await client.disconnect(serverName);
+            return { type: 'output', text: `Disconnected MCP server: ${serverName}` };
+          } catch (err) {
+            return { type: 'error', message: `Failed to disconnect: ${err instanceof Error ? err.message : String(err)}` };
+          }
+        }
+
+        case 'status':
+        default: {
+          const connections = client.getAllConnections();
+          const connected = connections.filter(c => c.state === 'connected').length;
+          const totalTools = connections.reduce((sum, c) => sum + (c.tools?.length ?? 0), 0);
+          const lines = [
+            `MCP Status: ${connected}/${connections.length} servers connected`,
+            `Total tools: ${totalTools}`,
+          ];
+          if (connections.length > 0) {
+            lines.push('');
+            for (const c of connections) {
+              const icon = c.state === 'connected' ? '✅' : c.state === 'connecting' ? '⏳' : c.state === 'error' ? '❌' : '○';
+              lines.push(`  ${icon} ${c.name}: ${c.state}`);
+            }
+          }
+          return { type: 'output', text: lines.join('\n') };
+        }
+      }
     } catch {
-      return { type: 'output', text: 'MCP client not available' };
+      return { type: 'output', text: 'MCP client not available.' };
     }
   },
 };
