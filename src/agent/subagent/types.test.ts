@@ -2,7 +2,7 @@
  * Tests for enhanced subagent types and tools
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'bun:test';
 import {
   BUILT_IN_AGENTS,
   EnhancedSubagentRunner,

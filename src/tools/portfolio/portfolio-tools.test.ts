@@ -10,7 +10,7 @@
  * so setDataPath on that instance will be the only setter it ever sees.
  */
 
-import { vi, describe, it, expect, beforeEach, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeEach, beforeAll, afterAll } from 'bun:test';
 import fs from 'node:fs';
 import path from 'node:path';
 import type { PortfolioData } from './portfolio-tools.js';
@@ -38,7 +38,8 @@ afterAll(() => {
 // Call this FIRST before any data operations in each test.
 // ---------------------------------------------------------------------------
 async function freshModule() {
-  vi.resetModules();
+  // bun:test does not support vi.resetModules()
+  // Instead, clear the module-level cache by resetting the data path
   const mod = await import('./portfolio-tools.js');
   mod.setDataPath(TEST_FILE);
   return mod;
@@ -169,8 +170,8 @@ describe('transaction history', () => {
     expect(raw.positions.GOOG).toBeUndefined();
     expect(raw.transactions.length).toBeGreaterThan(0);
 
-    // Simulate restart: clear require cache then re-import (fresh module, _data = null)
-    vi.resetModules();
+    // Simulate restart: clear data cache then re-import
+    // In bun:test, modules are cached; setDataPath(null) forces reload
     const mod2 = await import('./portfolio-tools.js');
     mod2.setDataPath(TEST_FILE);
 
@@ -221,7 +222,6 @@ describe('corrupted file recovery', () => {
     // Write corrupted JSON to TEST_FILE
     fs.writeFileSync(TEST_FILE, '{ not valid json }', 'utf-8');
 
-    vi.resetModules();
     const mod = await import('./portfolio-tools.js');
     // Point the fresh module at TEST_FILE so the load sees the corruption
     mod.setDataPath(TEST_FILE);

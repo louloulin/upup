@@ -2,7 +2,7 @@
  * Tests for SleepTool
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'bun:test';
 import {
   SleepToolSchema,
   SLEEP_TOOL_DESCRIPTION,

@@ -2,7 +2,7 @@
  * Tests for StreamingToolExecutor
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi } from 'bun:test';
 import { AIMessageChunk } from '@langchain/core/messages';
 import { StreamingToolExecutor, type StreamingToolResult } from './streaming-tool-executor.js';
 

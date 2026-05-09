@@ -2,7 +2,7 @@
  * Tests for MCP Resource Tools
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'bun:test';
 import { listMcpResourcesTool, readMcpResourceTool } from './resource-tools.js';
 
 // Mock the MCP client

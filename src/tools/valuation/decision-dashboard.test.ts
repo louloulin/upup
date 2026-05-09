@@ -2,7 +2,7 @@
  * Tests for DecisionDashboard
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'bun:test';
 import {
   DecisionDashboardSchema,
   DECISION_DASHBOARD_DESCRIPTION,

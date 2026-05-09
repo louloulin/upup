@@ -2,7 +2,7 @@
  * Options Pricing Tools Tests
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'bun:test';
 import {
   blackScholes,
   impliedVolatility,

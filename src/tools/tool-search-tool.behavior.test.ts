@@ -2,7 +2,7 @@
  * Behavior tests for ToolSearchTool (requires mocking getToolRegistry)
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'bun:test';
 import type { RegisteredTool } from './registry.js';
 
 const MOCK_TOOLS: RegisteredTool[] = [

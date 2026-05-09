@@ -5,7 +5,7 @@
  * Uses a temp directory to avoid polluting .dexter/portfolios/.
  */
 
-import { describe, it, expect, beforeEach, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeEach, beforeAll, afterAll } from 'bun:test';
 import fs from 'node:fs';
 import path from 'node:path';
 

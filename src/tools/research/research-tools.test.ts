@@ -8,7 +8,7 @@
  * - extractEntities (tickers, Chinese stocks, unit normalisation, periods)
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'bun:test';
 import {
   quickSentimentScan,
   analyzeSentiment,

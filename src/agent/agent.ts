@@ -1,7 +1,8 @@
 import { AIMessage, AIMessageChunk, SystemMessage, HumanMessage, ToolMessage, type BaseMessage } from '@langchain/core/messages';
 import { StructuredToolInterface } from '@langchain/core/tools';
 import { callLlmWithMessages, streamLlmWithMessages } from '../model/llm.js';
-import { getTools, getToolConcurrencyMap } from '../tools/registry.js';
+// Lazy import to avoid circular dependency with tools/finance → agent/prompts → tools/registry
+// import { getTools, getToolConcurrencyMap } from '../tools/registry.js';
 import { buildSystemPrompt, loadSoulDocument, loadRulesDocument } from './prompts.js';
 import { extractTextContent, hasToolCalls } from '../utils/ai-message.js';
 import { InMemoryChatHistory } from '../utils/in-memory-chat-history.js';
@@ -86,6 +87,8 @@ export class Agent {
 
   static async create(config: AgentConfig = {}): Promise<Agent> {
     const model = config.model ?? DEFAULT_MODEL;
+    // Lazy import to break circular dependency
+    const { getTools, getToolConcurrencyMap } = await import('../tools/registry.js');
     const tools = await getTools(model);
     const concurrencyMap = await getToolConcurrencyMap(model);
     const soulContent = await loadSoulDocument();

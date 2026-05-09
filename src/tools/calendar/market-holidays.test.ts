@@ -2,7 +2,7 @@
  * Market Calendar Tests
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'bun:test';
 import {
   createCheckTradingDayTool,
   createGetUpcomingHolidaysTool,

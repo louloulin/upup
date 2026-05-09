@@ -2,7 +2,7 @@
  * Data Reliability Tests
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'bun:test';
 import {
   calculateReliabilityScore,
   calculatePearsonCorrelation,

@@ -2,7 +2,7 @@
  * Tests for Permission Persistence
  */
 
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import fsp from 'fs/promises';
 import path from 'path';
 import os from 'os';

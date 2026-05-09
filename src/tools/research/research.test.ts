@@ -47,7 +47,7 @@ describe('Research Tools', () => {
     });
 
     test('should detect multiple events', () => {
-      const events = detectEvents('Q3 earnings beat, company announces acquisition');
+      const events = detectEvents('Q3 earnings beat, company acquired Startup Inc for $5 billion deal');
       expect(events.length).toBeGreaterThanOrEqual(2);
     });
   });

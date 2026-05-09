@@ -1,4 +1,3 @@
-import { buildCompactToolDescriptions } from '../tools/registry.js';
 import { buildSkillMetadataSection, discoverSkills } from '../skills/index.js';
 import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
@@ -221,6 +220,7 @@ export async function buildSystemPrompt(
   memoryContext?: string | null,
   rulesContent?: string | null,
 ): Promise<string> {
+  const { buildCompactToolDescriptions } = await import('../tools/registry.js');
   const toolDescriptions = await buildCompactToolDescriptions(model);
   const profile = getChannelProfile(channel);
 

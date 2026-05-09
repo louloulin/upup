@@ -2,7 +2,7 @@
  * Tests for Message Grouping
  */
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from 'bun:test';
 import {
   groupMessages,
   getRoundSummary,

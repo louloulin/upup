@@ -2,7 +2,8 @@
  * Watchlist Tools Tests
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'bun:test';
+import fs from 'node:fs';
 import {
   addEntry,
   removeEntry,
@@ -18,8 +19,12 @@ import {
 const TEST_FILE = '/tmp/dexter-test-watchlist.json';
 
 function freshModule() {
+  // Delete stale test file from other test runs
+  if (fs.existsSync(TEST_FILE)) {
+    fs.unlinkSync(TEST_FILE);
+  }
   setDataPath(TEST_FILE);
-  // Clear in-memory cache by reading fresh
+  // _data cache is cleared by setDataPath, next read will create fresh file
 }
 
 describe('Watchlist Core', () => {

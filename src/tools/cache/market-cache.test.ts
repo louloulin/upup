@@ -2,7 +2,7 @@
  * Market Cache Tests
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'bun:test';
 import { MarketDataCache, CACHE_PRESETS, CacheManager } from './market-cache.js';
 
 describe('MarketDataCache', () => {

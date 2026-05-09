@@ -2,7 +2,7 @@
  * Tests for SkillTool
  */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'bun:test';
 import {
   SkillListSchema,
   SkillExecuteSchema,
@@ -42,8 +42,9 @@ vi.mock('../skills/registry.js', () => ({
 // Import mocked functions for per-test control
 import { discoverSkills, getSkill } from '../skills/registry.js';
 
-const mockedDiscoverSkills = vi.mocked(discoverSkills);
-const mockedGetSkill = vi.mocked(getSkill);
+// bun:test does not support vi.mocked() - use type assertion instead
+const mockedDiscoverSkills = discoverSkills as unknown as ReturnType<typeof vi.fn>;
+const mockedGetSkill = getSkill as unknown as ReturnType<typeof vi.fn>;
 
 // ---------------------------------------------------------------------------
 // Schema tests
