@@ -23,6 +23,7 @@ describe('workflow_tools', () => {
         { name: 'step1', tool: 'get_market_data', input: { symbol: 'AAPL' } },
         { name: 'step2', tool: 'calculate_pnl', input: { positions: [] } },
       ],
+      stopOnError: true,
     });
     
     const parsed = JSON.parse(result as string);
@@ -39,14 +40,15 @@ describe('workflow_tools', () => {
     const result = await tool.func({
       name: 'Research Pipeline',
       steps: [
-        { 
-          name: 'fetch_data', 
-          tool: 'get_market_data', 
+        {
+          name: 'fetch_data',
+          tool: 'get_market_data',
           input: { symbol: 'AAPL' },
           condition: undefined,
           onError: 'abort',
         },
       ],
+      stopOnError: true,
     });
     
     const parsed = JSON.parse(result as string);

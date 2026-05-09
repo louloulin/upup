@@ -16,6 +16,8 @@
 // Types
 // ============================================================================
 
+export type CommandPermission = 'admin' | 'user' | 'readonly';
+
 export interface Command {
   /** Command name (without slash prefix) */
   name: string;
@@ -27,6 +29,8 @@ export interface Command {
   aliases?: string[];
   /** Whether this command is hidden from help */
   hidden?: boolean;
+  /** Permission level required (default: 'user') */
+  permission?: CommandPermission;
   /** Execute the command */
   execute(args: string, context: CommandContext): Promise<CommandResult>;
 }
@@ -40,6 +44,8 @@ export interface CommandContext {
   sessionId?: string;
   /** Model name */
   model?: string;
+  /** Permission level of the current user */
+  permission?: CommandPermission;
 }
 
 export type CommandResult =
@@ -104,6 +110,74 @@ export class CommandRegistry {
   }
 
   /**
+   * Get autocomplete suggestions for a partial command input.
+   * Supports prefix matching and fuzzy matching on command names and aliases.
+   *
+   * @param partial - The partial command text (e.g., "he", "comp", "st")
+   * @param maxResults - Maximum number of suggestions to return
+   * @returns Array of matching commands with relevance scores
+   */
+  autocomplete(partial: string, maxResults: number = 5): Array<{ name: string; description: string; score: number }> {
+    if (!partial || partial.length === 0) {
+      // Return all visible commands when no input
+      return this.list()
+        .slice(0, maxResults)
+        .map(c => ({ name: c.name, description: c.description, score: 1 }));
+    }
+
+    const query = partial.toLowerCase().replace(/^\//, '');
+    const results: Array<{ name: string; description: string; score: number }> = [];
+
+    for (const cmd of this.commands.values()) {
+      if (cmd.hidden) continue;
+
+      // Exact prefix match — highest score
+      if (cmd.name.startsWith(query)) {
+        results.push({ name: cmd.name, description: cmd.description, score: 100 });
+        continue;
+      }
+
+      // Alias prefix match
+      if (cmd.aliases?.some(a => a.startsWith(query))) {
+        results.push({ name: cmd.name, description: cmd.description, score: 90 });
+        continue;
+      }
+
+      // Substring match
+      if (cmd.name.includes(query)) {
+        results.push({ name: cmd.name, description: cmd.description, score: 70 });
+        continue;
+      }
+
+      // Fuzzy match: all chars in query appear in order in name
+      if (this.fuzzyMatch(query, cmd.name)) {
+        results.push({ name: cmd.name, description: cmd.description, score: 50 });
+        continue;
+      }
+
+      // Description substring match
+      if (cmd.description.toLowerCase().includes(query)) {
+        results.push({ name: cmd.name, description: cmd.description, score: 30 });
+      }
+    }
+
+    // Sort by score descending, then alphabetically
+    results.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
+    return results.slice(0, maxResults);
+  }
+
+  /**
+   * Simple fuzzy match: check if all characters in query appear in order in target.
+   */
+  private fuzzyMatch(query: string, target: string): boolean {
+    let qi = 0;
+    for (let ti = 0; ti < target.length && qi < query.length; ti++) {
+      if (target[ti] === query[qi]) qi++;
+    }
+    return qi === query.length;
+  }
+
+  /**
    * Parse a slash command from input text.
    * Returns null if the input is not a command.
    */
@@ -134,6 +208,14 @@ export class CommandRegistry {
     const command = this.get(parsed.name);
     if (!command) {
       return { type: 'error', message: `Unknown command: /${parsed.name}. Type /help for available commands.` };
+    }
+
+    // Permission check
+    const requiredPerm = command.permission ?? 'user';
+    const contextPerm = context.permission ?? 'admin';
+    const permLevels: Record<string, number> = { readonly: 0, user: 1, admin: 2 };
+    if ((permLevels[contextPerm] ?? 0) < (permLevels[requiredPerm] ?? 1)) {
+      return { type: 'error', message: `Permission denied: /${parsed.name} requires '${requiredPerm}' level` };
     }
 
     // Record command in queue for metrics/tracking
@@ -394,8 +476,162 @@ const exportCommand: Command = {
 };
 
 // ============================================================================
-// Global Registry Singleton
+// Git Commands
 // ============================================================================
+
+const gitStatusCommand: Command = {
+  name: 'git',
+  description: 'Run git status',
+  usage: '/git [args]',
+  async execute(args, context): Promise<CommandResult> {
+    const { execSync } = await import('child_process');
+    try {
+      const output = execSync(`git status --short ${args}`, { cwd: context.cwd, encoding: 'utf-8', timeout: 10000 });
+      return { type: 'output', text: output || 'Working tree clean' };
+    } catch (err) {
+      return { type: 'error', message: `git: ${err instanceof Error ? err.message : String(err)}` };
+    }
+  },
+};
+
+const gitDiffCommand: Command = {
+  name: 'diff',
+  description: 'Show git diff',
+  usage: '/diff [args]',
+  async execute(args, context): Promise<CommandResult> {
+    const { execSync } = await import('child_process');
+    try {
+      const output = execSync(`git diff ${args || '--stat'}`, { cwd: context.cwd, encoding: 'utf-8', timeout: 10000 });
+      return { type: 'output', text: output || 'No changes' };
+    } catch (err) {
+      return { type: 'error', message: `diff: ${err instanceof Error ? err.message : String(err)}` };
+    }
+  },
+};
+
+const gitCommitCommand: Command = {
+  name: 'commit',
+  description: 'Stage all and commit',
+  usage: '/commit <message>',
+  permission: 'admin',
+  async execute(args, context): Promise<CommandResult> {
+    if (!args) return { type: 'error', message: 'Usage: /commit <message>' };
+    const { execSync } = await import('child_process');
+    try {
+      execSync('git add -A', { cwd: context.cwd, encoding: 'utf-8' });
+      const escapedMsg = args.replace(/"/g, '\\"');
+      const output = execSync(`git commit -m "${escapedMsg}"`, { cwd: context.cwd, encoding: 'utf-8', timeout: 30000 });
+      return { type: 'output', text: output };
+    } catch (err) {
+      return { type: 'error', message: `commit: ${err instanceof Error ? err.message : String(err)}` };
+    }
+  },
+};
+
+const gitBranchCommand: Command = {
+  name: 'branch',
+  description: 'List or create git branches',
+  usage: '/branch [name]',
+  aliases: ['br'],
+  async execute(args, context): Promise<CommandResult> {
+    const { execSync } = await import('child_process');
+    try {
+      if (args) {
+        const output = execSync(`git checkout -b ${args}`, { cwd: context.cwd, encoding: 'utf-8', timeout: 10000 });
+        return { type: 'output', text: output };
+      }
+      const output = execSync('git branch -a', { cwd: context.cwd, encoding: 'utf-8', timeout: 10000 });
+      return { type: 'output', text: output };
+    } catch (err) {
+      return { type: 'error', message: `branch: ${err instanceof Error ? err.message : String(err)}` };
+    }
+  },
+};
+
+// ============================================================================
+// Agent / Team Commands
+// ============================================================================
+
+const agentCommand: Command = {
+  name: 'agent',
+  description: 'Manage subagents',
+  usage: '/agent [list|status]',
+  async execute(args): Promise<CommandResult> {
+    // Dynamic import to avoid circular dependency
+    try {
+      const { agentMemoryStore } = await import('../agent/subagent/types.js');
+      const agents = agentMemoryStore.listAgents();
+      if (agents.length === 0) {
+        return { type: 'output', text: 'No active subagents.' };
+      }
+      const lines = ['Active subagents:', ''];
+      for (const agent of agents) {
+        lines.push(`  ${agent.id.padEnd(20)} ${agent.type} (messages: ${agent.messageCount})`);
+      }
+      return { type: 'output', text: lines.join('\n') };
+    } catch {
+      return { type: 'output', text: 'No active subagents.' };
+    }
+  },
+};
+
+const teamCommand: Command = {
+  name: 'team',
+  description: 'List agent teams',
+  usage: '/team',
+  async execute(): Promise<CommandResult> {
+    try {
+      const mod = await import('../tools/team-tools.js');
+      // Team store is internal — provide basic info
+      return { type: 'output', text: 'Team management available via team_create/team_list tools.' };
+    } catch {
+      return { type: 'output', text: 'Team tools not available.' };
+    }
+  },
+};
+
+// ============================================================================
+// Custom User Commands
+// ============================================================================
+
+/**
+ * Load user-defined commands from .dexter/commands/ directory.
+ * Each .md file becomes a command with the filename as name.
+ * The file content is returned as the command output.
+ */
+export async function loadUserCommands(registry: CommandRegistry): Promise<number> {
+  const { readdirSync, readFileSync, existsSync } = await import('fs');
+  const { join } = await import('path');
+  const commandsDir = join(process.cwd(), '.dexter', 'commands');
+
+  if (!existsSync(commandsDir)) return 0;
+
+  let loaded = 0;
+  try {
+    const files = readdirSync(commandsDir).filter(f => f.endsWith('.md'));
+    for (const file of files) {
+      const name = file.slice(0, -3).toLowerCase(); // Remove .md
+      const content = readFileSync(join(commandsDir, file), 'utf-8');
+      const firstLine = content.split('\n')[0]?.replace(/^#\s*/, '') || name;
+
+      registry.register({
+        name,
+        description: firstLine.slice(0, 80),
+        hidden: false,
+        async execute(): Promise<CommandResult> {
+          return { type: 'output', text: content };
+        },
+      });
+      loaded++;
+    }
+  } catch {
+    // Non-critical
+  }
+  return loaded;
+}
+
+// ============================================================================
+// Global Registry
 
 let globalRegistry: CommandRegistry | null = null;
 
@@ -404,12 +640,13 @@ export function getGlobalRegistry(): CommandRegistry {
     globalRegistry = new CommandRegistry();
     registerBuiltinCommands(globalRegistry);
     // Connect command queue for command tracking
-    // Lazy import to avoid circular dependency
     import('../hooks/agent-hooks.js').then(({ useCommandQueue }) => {
       globalRegistry?.setCommandQueue(useCommandQueue());
     }).catch(() => {
       // Non-critical: command queue is optional for tracking
     });
+    // Load user-defined commands
+    loadUserCommands(globalRegistry).catch(() => {});
   }
   return globalRegistry;
 }
@@ -428,6 +665,14 @@ export function registerBuiltinCommands(registry: CommandRegistry): void {
   registry.register(memoryCommand);
   registry.register(configCommand);
   registry.register(exportCommand);
+  // Git commands
+  registry.register(gitStatusCommand);
+  registry.register(gitDiffCommand);
+  registry.register(gitCommitCommand);
+  registry.register(gitBranchCommand);
+  // Agent/Team commands
+  registry.register(agentCommand);
+  registry.register(teamCommand);
 }
 
 export function resetGlobalRegistry(): void {
