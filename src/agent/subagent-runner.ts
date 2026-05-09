@@ -195,6 +195,14 @@ export class SubagentRunner {
       this.emitEvent('failed', taskId, { error: String(error) });
     });
 
+    // Bridge to TaskStore so subagent tasks appear in task_list/task_get
+    try {
+      const { registerSubagentTask } = await import('../tools/task/task-tool.js');
+      registerSubagentTask(taskId, config.type === 'fork' ? 'Fork sub-agent' : `Sub-agent: ${prompt.substring(0, 60)}`);
+    } catch {
+      // Non-critical bridge — don't fail if task-tool not available
+    }
+
     return taskId;
   }
 
@@ -329,7 +337,30 @@ export class SubagentRunner {
   ): Promise<string> {
     // Save CWD before try block so catch can access it
     let originalCwd: string | undefined;
+    let worktreePath: string | undefined;
     try {
+      // Handle worktree isolation
+      if (config.isolation === 'worktree') {
+        const wtPath = await this.createIsolationWorktree(taskId || 'sync');
+        if (wtPath) {
+          worktreePath = wtPath;
+          info('subagent', `Created isolation worktree: ${worktreePath}`);
+          originalCwd = process.cwd();
+          process.chdir(worktreePath);
+        }
+      } else {
+        // Save and override CWD if specified
+        originalCwd = config.cwd ? process.cwd() : undefined;
+        if (config.cwd) {
+          try {
+            process.chdir(config.cwd);
+            info('subagent', `CWD changed to: ${config.cwd}`);
+          } catch (err) {
+            warn('subagent', `Failed to change CWD to ${config.cwd}: ${err}`);
+          }
+        }
+      }
+
       // Dynamically import Agent to avoid circular dependency
       const { Agent } = await import('./agent.js');
 
@@ -394,6 +425,10 @@ export class SubagentRunner {
         if (originalCwd) {
           try { process.chdir(originalCwd); } catch { /* best effort */ }
         }
+        // Clean up isolation worktree
+        if (worktreePath) {
+          await this.removeIsolationWorktree(worktreePath).catch(() => {});
+        }
       }
 
       return result || 'Agent completed without output';
@@ -402,9 +437,59 @@ export class SubagentRunner {
       if (originalCwd) {
         try { process.chdir(originalCwd); } catch { /* best effort */ }
       }
+      // Clean up isolation worktree on error
+      if (worktreePath) {
+        await this.removeIsolationWorktree(worktreePath).catch(() => {});
+      }
       const message = error instanceof Error ? error.message : String(error);
       logError('subagent', `Agent execution failed: ${message}`);
       throw new Error(`Subagent execution failed: ${message}`);
+    }
+  }
+
+  /**
+   * Create a temporary git worktree for sub-agent isolation.
+   * Returns the path to the worktree, or null on failure.
+   */
+  private async createIsolationWorktree(taskId: string): Promise<string | null> {
+    try {
+      const { execFile } = await import('child_process');
+      const { promisify } = await import('util');
+      const execFileAsync = promisify(execFile);
+      const path = await import('path');
+      const os = await import('os');
+
+      const branchName = `subagent/${taskId.substring(0, 8)}-${Date.now().toString(36)}`;
+      const worktreeDir = path.join(os.tmpdir(), `dexter-wt-${taskId.substring(0, 8)}`);
+
+      // Create a new branch and worktree
+      await execFileAsync('git', ['worktree', 'add', '-b', branchName, worktreeDir], {
+        cwd: process.cwd(),
+      });
+
+      info('subagent', `Created worktree: ${worktreeDir} on branch ${branchName}`);
+      return worktreeDir;
+    } catch (err) {
+      warn('subagent', `Failed to create isolation worktree: ${err}`);
+      return null;
+    }
+  }
+
+  /**
+   * Remove a temporary git worktree after sub-agent execution.
+   */
+  private async removeIsolationWorktree(worktreePath: string): Promise<void> {
+    try {
+      const { execFile } = await import('child_process');
+      const { promisify } = await import('util');
+      const execFileAsync = promisify(execFile);
+
+      await execFileAsync('git', ['worktree', 'remove', '--force', worktreePath], {
+        cwd: process.cwd(),
+      });
+      info('subagent', `Removed worktree: ${worktreePath}`);
+    } catch (err) {
+      warn('subagent', `Failed to remove worktree ${worktreePath}: ${err}`);
     }
   }
 
@@ -442,6 +527,12 @@ export class SubagentRunner {
       });
 
       this.emitEvent('completed', taskId, subagentResult);
+
+      // Bridge completion to TaskStore
+      try {
+        const { updateSubagentTask } = await import('../tools/task/task-tool.js');
+        updateSubagentTask(taskId, 'completed', subagentResult.output);
+      } catch { /* non-critical */ }
     } catch (error) {
       this.store.update(taskId, {
         status: 'failed',
@@ -453,6 +544,12 @@ export class SubagentRunner {
       });
 
       this.emitEvent('failed', taskId, { error: String(error) });
+
+      // Bridge failure to TaskStore
+      try {
+        const { updateSubagentTask } = await import('../tools/task/task-tool.js');
+        updateSubagentTask(taskId, 'failed', undefined, String(error));
+      } catch { /* non-critical */ }
     } finally {
       this.activeAgents.delete(taskId);
     }
