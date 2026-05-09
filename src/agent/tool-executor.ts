@@ -16,7 +16,7 @@ import type {
 import type { RunContext } from './run-context.js';
 import { info, warn, perf } from '../utils/logging/logger.js';
 import { getRateLimiter } from '../hooks/rate-limiter.js';
-import { useToolMetrics } from '../hooks/agent-hooks.js';
+import { useToolMetrics, useCanUseTool } from '../hooks/agent-hooks.js';
 
 type ToolExecutionEvent =
   | ToolStartEvent
@@ -131,6 +131,18 @@ export class AgentToolExecutor {
     const toolArgs = call.args as Record<string, unknown>;
     const toolCallId = call.id;
     const toolQuery = this.extractQueryFromArgs(toolArgs);
+
+    // Permission gate check (useCanUseTool)
+    const gate = useCanUseTool();
+    const gateResult = gate.check(toolName, toolArgs);
+    if (!gateResult.allowed) {
+      if (gateResult.permission === 'denied') {
+        yield { type: 'tool_denied', tool: toolName, args: toolArgs, toolCallId };
+        ctx.scratchpad.recordPermissionDenial(toolName, toolArgs, gateResult.reason ?? 'permission gate denied');
+        return;
+      }
+      // 'requires-approval' falls through to the approval flow below
+    }
 
     // Approval flow for sensitive tools
     if (this.requiresApproval(toolName) && !this.sessionApprovedTools.has(toolName)) {

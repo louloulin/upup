@@ -33,6 +33,8 @@ export interface SkillMetadata {
   userInvocable?: boolean;
   /** Hint for argument format */
   argumentHint?: string;
+  /** Skill dependencies — must be executed before this skill */
+  dependsOn?: string[];
 }
 
 /**

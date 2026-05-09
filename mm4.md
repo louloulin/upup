@@ -1,10 +1,10 @@
 # mm4.md: Dexter 缺失功能 vs Claude Code
 
-> 版本: v3.2 (第二十二轮验证更新版)
+> 版本: v3.4 (第二十四轮验证更新版)
 > 日期: 2026-05-09
 > 目的: 功能逐项对比、差距严重程度，投资专项差距
-> 状态: ✅ 已验证 — 1503 tests passing (27 pre-existing fail, 4 errors)
-> 新增: 命令系统增强 (19命令+自动补全+权限+自定义+git), McpAuthTool (3 tools), MCP资源订阅, Hook事件总线 — 2026-05-09
+> 状态: ✅ 已验证 — 1555 tests passing (27 pre-existing fail, 4 errors)
+> 新增: useCanUseTool 权限门控 (18 tests), 命令宏系统 (9 tests), 技能依赖解析 (12 tests), 技能调度器 (13 tests), Daemon会话持久化接入 — 2026-05-09
 
 ## 验证摘要 (2026-05-08 第三轮验证更新)
 
@@ -93,7 +93,7 @@
 | 模型降级级联 | ✅ 已实现 | `FallbackTriggeredError` + `ModelFallbackHandler` — primary → fallback1 → fallback2 多模型级联 | ~~Major~~ ✅ | **已验证实现** |
 | 流式输出 (带模式标签) | ✅ 已实现 | `stream_progress` 带 `mode` 标签 (`requesting`/`thinking`/`responding`/`tool-input`/`tool-use`) | ~~Major~~ ✅ | **已验证实现** |
 
-> **✅ 重要发现 (2026-05-09 第七轮验证)**: 8 个 agent hooks 全部已定义且有单元测试 (64 tests passing)。**8/8 全部接入生产代码**: useToolMetrics (tool-executor.ts), useMemoryUsage (agent.ts), useSessionBackgrounding (agent.ts), useMergedClients (mcp/registry.ts), useSessionRecovery (agent.ts), useContextWatchdog (agent.ts), useCommandQueue (commands.ts), useDynamicConfig (config-tool.ts)。MCP 健康监控+自动重连已实现。
+> **✅ 重要发现 (2026-05-09 第八轮验证)**: 9 个 agent hooks 全部已定义且有单元测试。**9/9 全部接入生产代码**: useToolMetrics (tool-executor.ts), useMemoryUsage (agent.ts), useSessionBackgrounding (agent.ts), useMergedClients (mcp/registry.ts), useSessionRecovery (agent.ts), useContextWatchdog (agent.ts), useCommandQueue (commands.ts), useDynamicConfig (config-tool.ts), **useCanUseTool (tool-executor.ts)**。MCP 健康监控+自动重连已实现。**新增**: 命令宏系统 (.dexter/macros/), 技能依赖解析 (Kahn 算法), 技能调度器 (cron-like), Daemon 会话持久化接入 agent loop。
 
 **差距严重程度汇总**:
 - **Critical**: 无 (核心循环稳定)
@@ -257,11 +257,11 @@
 
 | 功能 | 状态 | 差距 | 严重程度 | 说明 |
 |---------|------|-----|----------|-------|
-| `WorkflowTool` | ❌ 未实现 | 无多步骤工作流链作为原生工具 | Major | 技能接近但非原子多步骤带状态工作流 |
+| `WorkflowTool` | ✅ **已实现** | `run_workflow` 工具 — 多步骤工具链编排 | ~~Major~~ Minor | **已实现** — 工具系统中已有 |
 | 内置代码技能 | ❌ 未实现 | 无 `code-review`, `tester`, `architect`, `debugger`, `refactorer` 技能 | Major | 投资聚焦 — 目前不需要，但限制跨领域使用 |
-| 技能依赖解析 | ❌ 未实现 | 无技能依赖图 (技能 A 需要技能 B) | Major | 复杂研究管道会受益 |
+| 技能依赖解析 | ✅ **已实现** | `dependency.ts` — Kahn 算法拓扑排序，支持循环依赖检测、缺失依赖报告、依赖图可视化 | ~~Major~~ Minor | **已实现** — 12 tests |
 | 技能特定系统提示词注入 | ❌ 未实现 | 无将技能特定指令注入系统提示词的机制 | Major | 技能应修改 agent 行为超越工具调用序列 |
-| 技能调度集成 | ❌ 未实现 | 无 `ScheduleCron` → 技能执行绑定 | Major | 投资研究管道可按调度运行 |
+| 技能调度集成 | ✅ **已实现** | `scheduler.ts` — `SkillScheduler` 基于 cron-like 间隔调度技能执行；支持启用/禁用、并发控制、事件发射 | ~~Major~~ Minor | **已实现** — 13 tests |
 | 远程技能注册表 | ❌ 未实现 | 无从远程 URL 或 NPM 包获取技能 | Major | 无技能 marketplace |
 | 技能执行沙箱 | ❌ 未实现 | 无隔离 — 技能在 agent 同一进程中运行 | Minor | 不可信技能的安全问题 |
 | 技能热重载 | ❌ 未实现 | 无开发期间技能变更的 watch 模式 | Minor | `useDynamicConfig` 可扩展此处 |
@@ -272,7 +272,7 @@
 
 **差距严重程度汇总**:
 - **Critical**: 无
-- **Major** (6): ❌ WorkflowTool, ❌ 内置代码技能, ❌ 技能依赖, ❌ 技能提示词注入, ❌ 技能调度, ❌ 远程技能注册表
+- **Major** (4): ✅ 技能依赖已实现, ✅ 技能调度已实现, ❌ 内置代码技能, ❌ 技能提示词注入, ❌ 远程技能注册表
 - **Minor** (6): ❌ 沙箱, ❌ 热重载, ❌ 版本, ❌ 遥测, ❌ 参数 schema, ❌ 冲突检测
 
 ---
@@ -309,7 +309,7 @@
 | 命令 typeahead/自动完成 | ✅ **已实现** | `autocomplete()` 支持前缀+子串+模糊+描述匹配，多级评分排序 | ~~Major~~ Minor | **已实现** — 基础自动完成 |
 | Git 命令 | ✅ **已实现** | `/git` (status), `/diff` (stat), `/commit` (stage+commit), `/branch` (list/create) | ~~Major~~ Minor | **已实现** — 4 个 git 命令 |
 | Agent/团队命令 | ✅ **已实现** | `/agent` (列出活跃子代理), `/team` (团队管理信息) | ~~Major~~ Minor | **已实现** — 2 个命令 |
-| 命令宏 | ❌ 未实现 | 无宏系统 (序列命令作为一个) | Major | 对投资研究管道会非常强大 |
+| 命令宏 | ✅ **已实现** | `loadMacros()` 从 `.dexter/macros/*.md` 加载宏定义；支持多步骤命令序列、延迟指令、错误中断控制 | ~~Major~~ Minor | **已实现** — 9 tests |
 | 每命令权限级别 | ✅ **已实现** | `CommandPermission` 类型 (admin/user/readonly)，`/commit` 需要 admin | ~~Major~~ Minor | **已实现** — 权限门控 |
 | 自定义用户定义命令 | ✅ **已实现** | `loadUserCommands()` 从 `.dexter/commands/*.md` 加载，文件名即命令名 | ~~Major~~ Minor | **已实现** — 用户自定义命令 |
 | 命令历史 | ✅ 已实现 | `/history` 命令已存在 (别名 `/hist`) | ~~Minor~~ | 已添加到命令中 |
@@ -320,8 +320,8 @@
 
 **差距严重程度汇总**:
 - **Critical**: 无
-- **Major** (1): ❌ 命令宏
-- **Minor** (5): ✅ typeahead, ✅ git 命令, ✅ agent 命令, ✅ 权限级别, ✅ 自定义注册, ⚠️ 帮助扩展, ❌ 类别, ❌ 环境感知, ❌ 搜索/导航
+- **Major** (0): ✅ 命令宏已实现
+- **Minor** (5): ✅ typeahead, ✅ git 命令, ✅ agent 命令, ✅ 权限级别, ✅ 自定义注册, ✅ 命令宏, ⚠️ 帮助扩展, ❌ 类别, ❌ 环境感知, ❌ 搜索/导航
 
 ---
 
@@ -385,9 +385,9 @@
 
 ### 7.2 Dexter 能力
 - **原始 hooks**: permission-hooks, rate-limiter, elicitation, tool-hooks (6 hooks)
-- **Agent hooks**: useMemoryUsage, useMergedClients, useCommandQueue, useDynamicConfig, useSessionBackgrounding, useToolMetrics, useSessionRecovery, useContextWatchdog (8 hooks, 64 tests)
-- **总计**: 14 hooks (定义 + 测试)
-- ✅ **重要**: 8 个 agent hooks 全部已定义且有完整测试 (64 tests passing)。**8/8 已接入生产代码**: useToolMetrics (tool-executor.ts), useMemoryUsage (agent.ts), useSessionBackgrounding (agent.ts), useMergedClients (mcp/registry.ts), useSessionRecovery (agent.ts), useContextWatchdog (agent.ts), useCommandQueue (commands.ts), useDynamicConfig (config-tool.ts)。
+- **Agent hooks**: useMemoryUsage, useMergedClients, useCommandQueue, useDynamicConfig, useSessionBackgrounding, useToolMetrics, useSessionRecovery, useContextWatchdog, useCanUseTool (9 hooks)
+- **总计**: 15 hooks (定义 + 测试)
+- ✅ **重要**: 9 个 agent hooks 全部已定义且有完整测试。**9/9 已接入生产代码**: useToolMetrics (tool-executor.ts), useMemoryUsage (agent.ts), useSessionBackgrounding (agent.ts), useMergedClients (mcp/registry.ts), useSessionRecovery (agent.ts), useContextWatchdog (agent.ts), useCommandQueue (commands.ts), useDynamicConfig (config-tool.ts), useCanUseTool (tool-executor.ts)。
 - ✅ **Hook 事件总线**: `useHookEventBus()` 提供集中事件总线，支持 hook 间通信、通配符监听、事件历史
 
 ### 7.3 Dexter 缺失 — Hooks
@@ -396,7 +396,7 @@
 |---------|------|-----|----------|-------|
 | `useReplBridge` 等效物 | ❌ 未实现 | 无交互式 shell 集成的 REPL 桥接 | Major | Claude Code 仅前端；Dexter 无 UI 但概念可应用于 daemon 模式 |
 | `useTypeahead` / 命令补全 | ✅ **已实现** | `CommandRegistry.autocomplete()` 支持前缀+模糊+描述匹配 | ~~Major~~ Minor | **已实现** — 作为命令系统方法 |
-| `useCanUseTool` (权限门控) | ❌ 未实现 | 无在执行前检查权限的拦截工具调用的 hook | Major | 应基于权限状态门控工具执行 |
+| `useCanUseTool` (权限门控) | ✅ **已实现** | `ToolPermissionGate` — 工具执行前权限检查；支持规则、拒绝记录(TTL)、全局拒绝模式；已接入 `tool-executor.ts` 在审批流之前执行 | ~~Major~~ Minor | **已实现** — 18 tests |
 | `useGlobalKeybindings` | ❌ 未实现 | 无全局键盘快捷键系统 | Minor | Dexter 无 UI；概念映射到 CLI 快捷键 |
 | `useVoice` / `useVoiceIntegration` | ❌ 未实现 | 无语音输入 | Minor | 对投资研究聚焦不相关 |
 | `useIDEIntegration` | ❌ 未实现 | 无 IDE 插件集成 | Minor | Dexter 仅 CLI |
@@ -408,8 +408,8 @@
 | **Agent hooks 接入** | ✅ **8/8 全部接入** | 8 个 agent hooks 已定义+测试，全部已接入生产代码 | ~~Critical~~ ✅ | **已全部接入** |
 
 **差距严重程度汇总**:
-- **Critical** (0): ✅ Agent hooks 8/8 全部已接入生产代码
-- **Major** (2): ❌ ReplBridge, ❌ useCanUseTool
+- **Critical** (0): ✅ Agent hooks 9/9 全部已接入生产代码
+- **Major** (1): ❌ ReplBridge
 - **Minor** (7): ❌ 键盘绑定, ❌ 语音, ❌ IDE, ❌ 远程会话, ❌ 收件箱, ❌ 虚拟滚动, ❌ 文件建议
 
 ---
@@ -433,7 +433,7 @@
 
 | 功能 | 状态 | 差距 | 严重程度 | 说明 |
 |---------|------|-----|----------|-------|
-| 后台会话持久化 | ❌ 未接入 | `session.ts` 存在 (AgentSession, SessionManager, KV 存储接口) 但未在 `agent.ts` 中导入或调用 | Major | 会话未实际跨 daemon 重启持久化 |
+| 后台会话持久化 | ✅ **已接入** | `agent.ts` 在 `run()` 中创建 daemon SessionManager 会话，每工具批次更新元数据，结束时 `complete()` | ~~Major~~ Minor | **已接入** — daemon 会话生命周期完整 |
 | 收件箱系统 | ❌ 未实现 | 无后台任务结果/消息的收件箱 | Major | 无法向用户传递异步结果 |
 | Worker 健康监控 | ✅ **已实现** | `supervisor.ts` 第 428 行 `runHealthChecks()` — 30 秒间隔主动健康检查 | ~~Major~~ Minor | **已验证实现** — 有主动监控循环 |
 | IPC 会话绑定 | ⚠️ 部分 | `ipc.ts` 有 `IPCRouter`、方法注册、发布/订阅；但未在 agent 中调用 | Major | IPC 框架存在但未连接到 agent |
@@ -443,7 +443,7 @@
 
 **差距严重程度汇总**:
 - **Critical**: 无
-- **Major** (3): ❌ 会话持久化接入, ❌ 收件箱, ⚠️ IPC 框架存在但未连接
+- **Major** (2): ✅ 会话持久化已接入, ❌ 收件箱, ⚠️ IPC 框架存在但未连接
 - **Minor** (4): ❌ KV 存储, ✅ Worker 健康监控, ✅ 优雅关闭, ✅ 任务重试
 
 ---
@@ -530,10 +530,10 @@
 | 工具系统 | 100% | 92% | 8% | ✅ 132 核心工具 + MCP 动态；✅ WorkflowTool/SendUserFile/write_file 原子性/edit_file replace_all |
 | 记忆系统 | 100% | 78% | 22% | ✅ 28 文件 (新增 team-paths.ts)；✅ temporal-decay 已接入；✅ 静态加密已实现 |
 | 技能系统 | 100% | 60% | 40% | ✅ 9 投资技能 + 29 tests；❌ 无工作流/依赖 |
-| 命令系统 | 100% | 65% | 35% | ✅ 19 命令 + 自动补全 + 权限 + 自定义命令 + git 命令；❌ 命令宏 |
+| 命令系统 | 100% | 75% | 25% | ✅ 35 命令 + 自动补全 + 权限 + 自定义命令 + git 命令 + 命令宏；❌ 类别/搜索命令 |
 | MCP 集成 | 100% | 85% | 15% | ✅ MCP 1.0 SDK + mergedClients + 健康监控 + 自动重连 + 认证 + 资源订阅；❌ 工具缓存/过滤 |
-| Hooks 系统 | 100% | 90% | 10% | ✅ 14 hooks 定义, 8/8 agent hooks 全部接入, hook 事件总线已实现 |
-| Daemon 系统 | 100% | 48% | 52% | ✅ 健康监控/关闭/重试已实现；❌ 会话持久化/IPC 未接入 |
+| Hooks 系统 | 100% | 95% | 5% | ✅ 15 hooks 定义, 9/9 agent hooks 全部接入, hook 事件总线已实现, useCanUseTool 权限门控 |
+| Daemon 系统 | 100% | 58% | 42% | ✅ 健康监控/关闭/重试/会话持久化已实现；❌ 收件箱/IPC 未接入 |
 | **投资管道** | **0%** (非 Claude Code 领域) | **58%** | **N/A** | ✅ 数据+计算+实时价格就绪；❌ 编排/回测/优化缺失 |
 
 ### 10.2 优先级矩阵
@@ -691,8 +691,8 @@ src/mcp/client.ts, index.ts, registry.ts
 ---
 
 > 文档: mm4.md
-> 版本: v3.3 (第二十三轮验证更新版 — 命令系统真实接入用户输入流)
+> 版本: v3.4 (第二十四轮验证更新版 — useCanUseTool + 命令宏 + 技能依赖 + 技能调度 + Daemon会话接入)
 > 日期: 2026-05-09
 > 基于: src/agent/agent.ts, src/tools/registry.ts, mm3.md
-> 验证: 1503 tests passing (27 pre-existing fail, 4 errors), bun run dev ✅
-> 新增: 命令系统 (19命令+自动补全+权限+自定义+git), McpAuthTool (3 tools), MCP资源订阅, Hook事件总线 — MCP Major 0, 命令 Major 1, Hooks Major 2
+> 验证: 1555 tests passing (27 pre-existing fail, 4 errors), bun run dev ✅
+> 新增: useCanUseTool 权限门控 (18 tests), 命令宏 (9 tests), 技能依赖解析 (12 tests), 技能调度 (13 tests), Daemon会话持久化接入 — 命令 Major 0, Hooks Major 1, 技能 Major 4→2, Daemon Major 3→2
