@@ -20,6 +20,7 @@ import type {
 import { DEFAULT_SUBAGENT_CONFIG } from './subagent.js';
 import { getTools, getToolConcurrencyMap } from '../tools/registry.js';
 import { info, warn, error as logError, perf } from '../utils/logging/logger.js';
+import type { AgentEvent } from './types.js';
 
 /**
  * Subagent task store for tracking running tasks
@@ -105,7 +106,8 @@ export class SubagentRunner {
   async run(
     config: SubagentConfig,
     prompt: string,
-    context?: SubagentContext
+    context?: SubagentContext,
+    eventCallback?: (event: AgentEvent) => void,
   ): Promise<SubagentResult> {
     const startTime = Date.now();
     const toolCalls: string[] = [];
@@ -124,7 +126,7 @@ export class SubagentRunner {
       // Note: This will be integrated with the existing Agent system
       const result = await this.executeAgent(mergedConfig, execContext, (toolName) => {
         toolCalls.push(toolName);
-      });
+      }, undefined, eventCallback);
 
       const duration = Date.now() - startTime;
 
@@ -294,7 +296,8 @@ export class SubagentRunner {
     config: SubagentConfig,
     prompt: string,
     onToolCall?: (name: string) => void,
-    taskId?: string
+    taskId?: string,
+    eventCallback?: (event: AgentEvent) => void,
   ): Promise<string> {
     try {
       // Dynamically import Agent to avoid circular dependency
@@ -327,6 +330,15 @@ export class SubagentRunner {
       let result = '';
       try {
         for await (const event of agent.run(prompt)) {
+          // Forward all events to parent via callback
+          if (eventCallback) {
+            try {
+              eventCallback(event);
+            } catch {
+              // Don't let callback errors crash the subagent
+            }
+          }
+
           if (event.type === 'done') {
             result = event.answer;
           } else if (event.type === 'tool_end') {

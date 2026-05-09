@@ -283,6 +283,8 @@ export class AgentRunnerController {
       case 'compaction':
       case 'microcompact':
       case 'queue_drain':
+      case 'memory_flush':
+      case 'memory_recalled':
         this.pushEvent({
           id: `${event.type}-${Date.now()}`,
           event,

@@ -150,7 +150,11 @@ function renderEvent(
     return;
   }
 
-  if (event.type === 'tool_limit') return;
+  if (event.type === 'tool_limit') {
+    const component = chatLog.startTool(display.id, event.tool, {});
+    component.setLimitWarning(event.warning);
+    return;
+  }
 
   if (event.type === 'context_cleared') {
     chatLog.addContextCleared(event.clearedCount, event.keptCount);
@@ -163,6 +167,15 @@ function renderEvent(
   }
   if (event.type === 'compaction' && event.phase === 'end') {
     chatLog.addCompaction(event.success ?? false, event.preCompactTokens, event.postCompactTokens);
+  }
+  if (event.type === 'memory_flush' && event.phase === 'end') {
+    const files = event.filesWritten?.length ?? 0;
+    chatLog.addChild(new Text(`${theme.muted('⎿')} ${theme.muted(`memory flushed (${files} file(s) written)`)}`, 0, 0));
+  }
+  if (event.type === 'memory_recalled') {
+    const count = event.filesLoaded?.length ?? 0;
+    const tokens = event.tokenCount ? ` (~${event.tokenCount} tokens)` : '';
+    chatLog.addChild(new Text(`${theme.muted('⎿')} ${theme.muted(`memory recalled: ${count} file(s)${tokens}`)}`, 0, 0));
   }
 }
 
