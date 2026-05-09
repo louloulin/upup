@@ -8,7 +8,7 @@ import {
   createCalculateTaxTool,
   createCalculateTradesTaxTool,
   createCalculatePnLTool,
-} from './tax-calculator.js';
+} from '../quant/tax-calculator.js';
 import {
   createCalculateTargetPriceTool,
   createQuickTargetPriceTool,

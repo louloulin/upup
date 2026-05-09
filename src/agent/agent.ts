@@ -239,7 +239,7 @@ export class Agent {
       // Emit final metrics summary
       const finalMetrics = metrics.getMetrics();
       if (finalMetrics.totalCalls > 0) {
-        perf('agent', `Tool metrics: ${finalMetrics.totalCalls} calls, ${(finalMetrics.successRate * 100).toFixed(1)}% success, avg ${(finalMetrics.avgDuration).toFixed(0)}ms`);
+        perf('agent', `Tool metrics: ${finalMetrics.totalCalls} calls, ${(finalMetrics.successRate * 100).toFixed(1)}% success, avg ${(finalMetrics.avgDuration).toFixed(0)}ms`, 0);
       }
     };
 
@@ -258,7 +258,7 @@ export class Agent {
       }
 
       // Update context watchdog with current token estimate
-      const currentTokens = estimateTokens(messages);
+      const currentTokens = estimateTokens(messages as any);
       const check = watchdog.check();
 
       // Start watchdog if we detect high context usage (>50% of limit)
@@ -279,7 +279,7 @@ export class Agent {
 
         // Emit compaction event if critical
         if (newCheck.status === 'critical' && prevStatus !== 'critical') {
-          yield { type: 'compaction', reason: 'context_critical', usage: newCheck.usage, limit: newCheck.limit } as CompactionEvent;
+          yield { type: 'compaction', phase: 'start', reason: 'context_critical', usage: newCheck.usage, limit: newCheck.limit } as unknown as CompactionEvent;
         }
       }
 
@@ -663,7 +663,7 @@ export class Agent {
       tool_calls: allowedToolCalls,
     } : response;
 
-    for await (const event of this.toolExecutor.executeAll(filteredResponse, ctx)) {
+    for await (const event of this.toolExecutor.executeAll(filteredResponse as AIMessage, ctx)) {
       yield event;
 
       if (event.type === 'tool_end' && event.toolCallId) {

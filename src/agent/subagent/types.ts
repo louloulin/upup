@@ -22,8 +22,8 @@ import type {
   SubagentResult,
   SubagentTask,
   SubagentTaskStatus,
-} from './subagent.js';
-import { info, warn } from '../utils/logging/logger.js';
+} from '../subagent.js';
+import { info, warn } from '../../utils/logging/logger.js';
 import { randomUUID } from 'crypto';
 
 // ============================================================================
@@ -655,6 +655,7 @@ export function createAgentMemoryTool(): DynamicStructuredTool {
           return `Cleared ${deleted} memories.`;
         }
       }
+      return 'Unknown action';
     },
   });
 }

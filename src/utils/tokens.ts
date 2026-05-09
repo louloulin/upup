@@ -4,7 +4,24 @@
  * falling back to character-based estimation.
  */
 
+import type { BaseMessage } from '@langchain/core/messages';
 import { resolveProvider } from '../providers.js';
+
+// ---------------------------------------------------------------------------
+// Message serialization
+// ---------------------------------------------------------------------------
+
+/**
+ * Serialize an array of BaseMessage objects into a single string for token estimation.
+ */
+function messagesToString(messages: BaseMessage[]): string {
+  return messages
+    .map((msg) => {
+      const content = typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content);
+      return content;
+    })
+    .join('\n');
+}
 
 // ---------------------------------------------------------------------------
 // Character-based estimation (fallback)
@@ -14,8 +31,11 @@ import { resolveProvider } from '../providers.js';
  * Rough token estimation based on character count.
  * JSON is denser than prose, so we use ~3.5 chars per token.
  * This is conservative - better to underestimate available space.
+ *
+ * Accepts either a plain string or an array of BaseMessage objects.
  */
-export function estimateTokens(text: string): number {
+export function estimateTokens(textOrMessages: string | BaseMessage[]): number {
+  const text = typeof textOrMessages === 'string' ? textOrMessages : messagesToString(textOrMessages);
   return Math.ceil(text.length / 3.5);
 }
 

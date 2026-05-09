@@ -31,6 +31,7 @@ export interface MultiPortfolioData {
   portfolios: Record<string, NamedPortfolio>;
   activePortfolio: string;
   defaultCash: number;
+  updatedAt?: string;
 }
 
 // ============================================================================

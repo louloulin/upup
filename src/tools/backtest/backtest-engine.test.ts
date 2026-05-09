@@ -269,7 +269,7 @@ describe('BacktestEngine - Summary Computation', () => {
       }),
     ];
 
-    const summary = BacktestEngine.computeSummary(results, 'batch', undefined, 5, 'v1');
+    const summary = BacktestEngine.computeSummary(results, 'batch', 5, 'v1');
 
     expect(summary.totalEvaluations).toBe(3);
     expect(summary.completedCount).toBe(3);
@@ -323,7 +323,7 @@ describe('BacktestEngine - Summary Computation', () => {
       }),
     ];
 
-    const summary = BacktestEngine.computeSummary(results, 'batch', undefined, 5, 'v1');
+    const summary = BacktestEngine.computeSummary(results, 'batch', 5, 'v1');
 
     expect(summary.winRatePct).toBe(66.67); // 2 wins, 1 loss = 66.67%
   });
@@ -358,7 +358,7 @@ describe('BacktestEngine - Summary Computation', () => {
       }),
     ];
 
-    const summary = BacktestEngine.computeSummary(results, 'batch', undefined, 5, 'v1');
+    const summary = BacktestEngine.computeSummary(results, 'batch', 5, 'v1');
 
     expect(summary.directionAccuracyPct).toBe(100); // Both correct
   });

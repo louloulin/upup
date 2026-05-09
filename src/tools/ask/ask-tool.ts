@@ -551,7 +551,7 @@ export function createAskSelectTool(): DynamicStructuredTool {
     schema: AskSelectSchema,
     async func(input): Promise<string> {
       const askManager = getAskManager();
-      const choices = input.options.map(opt => ({
+      const choices = input.options.map((opt: { value: string; label: string; description?: string; recommended?: boolean }) => ({
         value: opt.value,
         label: opt.label,
         description: opt.description,
@@ -575,7 +575,7 @@ export function createAskMultiSelectTool(): DynamicStructuredTool {
     schema: AskMultiSelectSchema,
     async func(input): Promise<string> {
       const askManager = getAskManager();
-      const choices = input.options.map(opt => ({
+      const choices = input.options.map((opt: { value: string; label: string; description?: string }) => ({
         value: opt.value,
         label: opt.label,
         description: opt.description,
@@ -638,7 +638,7 @@ export function createAskResponseTool(): DynamicStructuredTool {
       // Parse value for multi-select (comma-separated)
       let parsedValue: string | string[];
       if (input.value.includes(',')) {
-        parsedValue = input.value.split(',').map(v => v.trim());
+        parsedValue = input.value.split(',').map((v: string) => v.trim());
       } else {
         parsedValue = input.value;
       }

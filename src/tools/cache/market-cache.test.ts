@@ -54,7 +54,7 @@ describe('MarketDataCache', () => {
   it('updates existing keys without eviction', () => {
     cache.set('key1', 'value1');
     cache.set('key1', 'value2');
-    expect(cache.get('key1')).toBe('value2');
+    expect(cache.get<string>('key1')).toBe('value2');
     expect(cache.getStats().totalEntries).toBe(1);
   });
 

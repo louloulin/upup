@@ -193,7 +193,7 @@ describe('createNotifyListTool', () => {
     const result = await tool.func({ limit: 1 });
     expect(result).toContain('Notifications (1)');
     // Only 1 notification shown
-    const lines = result.split('\n').filter(l => l.includes('[log]'));
+    const lines = result.split('\n').filter((l: string) => l.includes('[log]'));
     expect(lines.length).toBe(1);
   });
 });

@@ -163,7 +163,6 @@ function handleRunBacktest(params: z.infer<typeof runBacktestSchema>) {
   const summary = BacktestEngine.computeSummary(
     results,
     'batch',
-    undefined,
     params.evalWindowDays,
     'v1'
   );
