@@ -21,9 +21,9 @@ import { execSync } from 'child_process';
 
 const PROJECT_DIR = '/Users/louloulin/Documents/linchong/touzhi/dexter';
 const OUTPUT_LOG = '/tmp/dexter-oscript-output.log';
-const STARTUP_WAIT_MS = 12000;
-const SLASH_CMD_DELAY_MS = 3000;
-const INVEST_QUERY_DELAY_MS = 15000; // Investment queries need more time
+const STARTUP_WAIT_MS = 15000;
+const SLASH_CMD_DELAY_MS = 4000;
+const INVEST_QUERY_DELAY_MS = 25000; // Investment queries need more time
 
 interface TestCase {
   cmd: string;
@@ -132,8 +132,23 @@ end tell
 
 /** Send text to the active Terminal window via clipboard paste (Cmd+V) */
 function pasteText(text: string): boolean {
+  // CRITICAL: pbcopy needs LANG=en_US.UTF-8 for Chinese/Unicode text.
+  // Default "C" locale causes pbcopy to convert UTF-8 → GB2312/GBK (garbled).
+  const env = { ...process.env, LANG: 'en_US.UTF-8', LC_ALL: 'en_US.UTF-8' };
+
+  // Write text to temp file (UTF-8 safe), then pbcopy from file
+  const tmpFile = '/tmp/dexter-paste.txt';
   try {
-    execSync(`printf '%s' ${escapeShellArg(text)} | pbcopy`, { encoding: 'utf-8', timeout: 5000 });
+    Bun.write(tmpFile, text);
+    execSync(`pbcopy < ${tmpFile}`, { encoding: 'utf-8', timeout: 5000, env });
+  } catch {
+    return false;
+  }
+
+  // Verify clipboard
+  try {
+    const clip = execSync('pbpaste', { encoding: 'utf-8', env });
+    if (!clip || clip.length === 0) return false;
   } catch {
     return false;
   }
@@ -172,22 +187,19 @@ end tell
   return runAppleScript(script).ok;
 }
 
-/** Aggressively strip ANSI escape codes and TUI control sequences */
+/** Aggressively strip ANSI escape codes and TUI control sequences, preserving CJK */
 function stripAnsi(text: string): string {
   return text
     .replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '')  // ANSI CSI sequences
     .replace(/\x1b\][^\x07]*\x07/g, '')       // OSC sequences (hyperlinks)
     .replace(/\x1b\[[0-9;]*$/gm, '')          // Incomplete ANSI at end of lines
-    .replace(/\[\d+m/g, '')                    // Bracket-style color codes
-    .replace(/\[\?[0-9]+[hl]/g, '')           // Terminal mode settings
     .replace(/\x00/g, '')                      // Null bytes
     .replace(/\r/g, '\n')                      // CR → LF
-    .replace(/[^\x20-\x7E-￿\n]/g, '') // Keep printable + CJK
     .replace(/\n{3,}/g, '\n\n')               // Collapse multiple blank lines
     .trim();
 }
 
-/** Read the output log and clean it */
+/** Read the output log and clean it (preserves CJK characters) */
 function readCleanLog(lines: number = 200): string {
   try {
     const raw = execSync(`tail -${lines} ${OUTPUT_LOG} 2>/dev/null || echo ""`, {
@@ -289,10 +301,9 @@ for (let i = 0; i < COMMANDS_TO_TEST.length; i++) {
   // Wait for Dexter to process
   await Bun.sleep(delay);
 
-  // Capture and clean output
-  const cleanOutput = readCleanLog(300);
-  const terminalContent = getTerminalContent();
-  const combinedOutput = cleanOutput + '\n' + stripAnsi(terminalContent);
+  // Capture and clean output from tee log only (Terminal content is unstable)
+  const cleanOutput = readCleanLog(400);
+  const combinedOutput = cleanOutput;
 
   // Check for expected keywords (case-insensitive)
   const matchedKeyword = test.expectKeywords.find(kw =>
