@@ -158,3 +158,51 @@ export function formatSubagentEvent(event: AgentEvent): string {
       return '';
   }
 }
+
+/**
+ * Task Result Tool — allows the agent to poll/retrieve background sub-agent task results.
+ */
+export const TaskResultToolInputSchema = z.object({
+  task_id: z.string().describe('The task ID returned when the agent was started in background'),
+});
+
+export function buildTaskResultTool(): DynamicStructuredTool {
+  return new DynamicStructuredTool({
+    name: 'task_result',
+    description:
+      'Get the result of a background agent task. Use this to check if a previously started background task has completed and retrieve its output.',
+    schema: TaskResultToolInputSchema,
+    async func(input: { task_id: string }): Promise<string> {
+      const runner = getDefaultSubagentRunner();
+      const task = runner.getTask(input.task_id);
+
+      if (!task) {
+        return `Task not found: ${input.task_id}`;
+      }
+
+      switch (task.status) {
+        case 'pending':
+          return `Task ${input.task_id} is still pending (waiting to start).`;
+        case 'running':
+          return `Task ${input.task_id} is still running. ${task.progress || 'No progress info available.'}`;
+        case 'completed':
+          return task.result?.output || 'Task completed with no output.';
+        case 'failed':
+          return `Task failed: ${task.result?.error || 'Unknown error'}`;
+        case 'cancelled':
+          return `Task ${input.task_id} was cancelled.`;
+        default:
+          return `Task status: ${task.status}`;
+      }
+    },
+  });
+}
+
+let taskResultToolInstance: DynamicStructuredTool | null = null;
+
+export function getTaskResultTool(): DynamicStructuredTool {
+  if (!taskResultToolInstance) {
+    taskResultToolInstance = buildTaskResultTool();
+  }
+  return taskResultToolInstance;
+}

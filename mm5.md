@@ -1901,5 +1901,92 @@ Dev server: ✅ 正常启动 Dexter v2026.5.2
 
 ---
 
-*报告生成: Dexter v2026.5.2 | 分支: feature/investment-enhancement*
-*更新: 2026-05-09 v6 — Phase 1+2 完成: 子 Agent 事件透传 + UI 嵌套渲染 + 事件渲染补全*
+## 23. Phase 3 Sub-Agent Deep 实现记录
+
+### 23.1 实现清单
+
+| # | TODO | 状态 | 修改文件 | 说明 |
+|---|------|------|---------|------|
+| 1 | TODO-3.1 工具过滤 | ✅ | `src/agent/types.ts` + `src/agent/agent.ts` + `src/agent/subagent-runner.ts` | 新增 `AgentConfig.toolFilter` 字段，`Agent.create()` 中过滤 tools + concurrencyMap，`executeAgent()` 传入 `config.tools` |
+| 2 | TODO-3.2 任务结果 | ✅ | `src/tools/agent-tool.ts` + `src/tools/registry.ts` | 新增 `task_result` 工具，让父 Agent 可以查询后台子 Agent 任务结果 |
+| 3 | TODO-3.3 CWD 覆盖 | ✅ | `src/agent/subagent-runner.ts` | `executeAgent()` 在子 Agent 运行前 `process.chdir(config.cwd)`，运行后恢复 |
+| 4 | TODO-3.4 自动清理 | ✅ | `src/agent/subagent-runner.ts` | 新增 `startAutoCleanup()`/`stopAutoCleanup()`，首次 `runAsync()` 自动启动，5 分钟间隔清理 1 小时前的已完成任务 |
+| 5 | TODO-3.5 Fork 修复 | ✅ | `src/agent/subagent/types.ts` | `fork_subagent` 工具从 `randomUUID()` 改为 `process.env.DEXTER_SESSION_ID`，确保 Fork 继承父级记忆 |
+| 6 | 测试 | ✅ | `src/agent/subagent-deep.test.ts` | 18 个新测试: auto-cleanup、task management、tool filter config、event system |
+| 7 | 测试 | ✅ | `src/tools/task-result-tool.test.ts` | 5 个新测试: not found、pending、completed、failed、cancelled |
+
+### 23.2 子 Agent 工具过滤架构
+
+```
+之前 (STUB):
+  SubagentConfig.tools = ['read_file', 'glob']  ← 接受但忽略
+  Agent.create() → getTools(model) → 返回全部 114 个工具
+
+之后 (实现):
+  SubagentConfig.tools = ['read_file', 'glob']
+    ↓ executeAgent() → Agent.create({ toolFilter: config.tools })
+    ↓ Agent.create():
+      tools = getTools(model)  // 全部 114 工具
+      if (toolFilter !== '*' && toolFilter.length > 0):
+        allowed = new Set(toolFilter)
+        tools = tools.filter(t => allowed.has(t.name))
+        concurrencyMap = filteredMap(allowed)
+    ↓ Agent 获得过滤后的工具子集
+```
+
+### 23.3 后台任务结果查询流程
+
+```
+父 Agent 启动后台任务:
+  agent(description: "research", run_in_background: true)
+  → 返回: "Agent task started in background: uuid-xxx"
+
+父 Agent 查询结果:
+  task_result(task_id: "uuid-xxx")
+  → running: "Task uuid-xxx is still running."
+  → completed: "Research completed: found 5 articles"
+  → failed: "Task failed: API rate limit exceeded"
+```
+
+### 23.4 CWD 覆盖实现
+
+```
+executeAgent(config, prompt):
+  originalCwd = config.cwd ? process.cwd() : undefined
+  if (config.cwd):
+    process.chdir(config.cwd)   // 切换到子 Agent 工作目录
+
+  Agent.create({ toolFilter, maxTurns })
+  agent.run(prompt)
+
+  if (originalCwd):
+    process.chdir(originalCwd)  // 恢复父 Agent 工作目录
+```
+
+### 23.5 验证结果
+
+```
+测试结果: 1704 pass / 0 fail / 0 errors (88 files, 3253 assertions)
+运行时间: 5.31s
+Dev server: ✅ 正常启动 Dexter v2026.5.2
+类型检查: ✅ 修改文件无类型错误
+新增测试: +18 (subagent-deep.test.ts) + 5 (task-result-tool.test.ts)
+新增工具: task_result (registry.ts 已注册)
+```
+
+### 23.6 实现进度
+
+```
+Phase 0: 测试修复     ████████████████████ 100% ✅
+Phase 1: 子 Agent 事件 ████████████████████ 100% ✅
+Phase 2: 事件系统补全  ████████████████████ 100% ✅
+Phase 3: Sub-Agent Deep ██████████████████░░  90% (工具过滤+任务结果+CWD+清理+Fork修复)
+Phase 3 剩余: worktree 隔离 + 任务系统统一 + 命令系统统一
+
+总体进度: ~90% 完成
+```
+
+---
+
+*报告生成: Dexter v2026.5.2 | 分支: feature/subagent-deep*
+*更新: 2026-05-09 v7 — Phase 3 Sub-Agent Deep: 工具过滤 + 任务结果 + CWD覆盖 + 自动清理 + Fork修复*
