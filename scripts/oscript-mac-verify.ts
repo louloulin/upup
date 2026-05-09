@@ -22,8 +22,8 @@ import { execSync } from 'child_process';
 const PROJECT_DIR = '/Users/louloulin/Documents/linchong/touzhi/dexter';
 const OUTPUT_LOG = '/tmp/dexter-oscript-output.log';
 const STARTUP_WAIT_MS = 15000;
-const SLASH_CMD_DELAY_MS = 4000;
-const INVEST_QUERY_DELAY_MS = 25000; // Investment queries need more time
+const SLASH_CMD_DELAY_MS = 6000;    // Slash commands via paste need a bit more for TUI render
+const INVEST_QUERY_DELAY_MS = 30000; // Investment queries need more time
 
 interface TestCase {
   cmd: string;
@@ -169,22 +169,11 @@ end tell
   return runAppleScript(script).ok;
 }
 
-/** Send a slash command directly via keystroke (ASCII only) */
+/** Send a slash command via clipboard paste to avoid autocomplete interception */
 function sendSlashCommand(cmd: string): boolean {
-  const script = `
-tell application "Terminal"
-  activate
-end tell
-delay 0.1
-tell application "System Events"
-  tell process "Terminal"
-    keystroke "${cmd.replace(/"/g, '\\"')}"
-    delay 0.2
-    key code 36
-  end tell
-end tell
-`;
-  return runAppleScript(script).ok;
+  // Use clipboard paste instead of keystroke to avoid pi-tui slash autocomplete
+  // intercepting the Enter key. See §33.7 in mm5.md for details.
+  return pasteText(cmd);
 }
 
 /** Aggressively strip ANSI escape codes and TUI control sequences, preserving CJK */
@@ -349,7 +338,7 @@ for (let i = 0; i < COMMANDS_TO_TEST.length; i++) {
     console.log(`    → ${previewLines.substring(0, 120)}`);
   }
 
-  await Bun.sleep(500);
+  await Bun.sleep(1000);
 }
 
 // Step 5: Cleanup

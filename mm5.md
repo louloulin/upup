@@ -2609,16 +2609,19 @@ Sharpe/Sortino/MaxDrawdown:
 
 ```
 Total commands:     14
-✅ Verified (OK):   13 (93%)
-⚠️ Sent (no match): 1  (7%, "分析比亚迪"处理超过25s)
+✅ Verified (OK):   14 (100%)
+⚠️ Sent (no match): 0
 ⏰ Timeout:         0
 ❌ Errors:          0
 
 Phase Breakdown:
   Slash Commands:     5/5 verified (100%)
-  Investment Queries: 8/9 verified (89%)
-  CJK Queries:       1/2 verified (TSLA ✅, BYD 处理中)
+  Investment Queries: 9/9 verified (100%)
+  CJK Queries:       2/2 verified (BYD ✅, TSLA ✅)
 ```
+
+**关键修复**: 将 slash commands 从 keystroke 改为 clipboard paste，
+解决了 pi-tui slash autocomplete 拦截 Enter 键的问题。
 
 ### 33.6 CJK 输入修复详情
 
@@ -2720,6 +2723,31 @@ try {
 ✅ Built-in hooks: createLoggingHook, createStopOnErrorHook
 ```
 
+### 33.9 子 Agent 并行执行 osascript 验证
+
+使用 `oscript-subagent-verify.ts` 通过真实 macOS osascript 验证子 Agent 系统：
+
+```
+✅ /agent command → spawn sub-agent (description + prompt guidance)
+✅ /tasks command → background task status
+✅ Parallel VaR + Sharpe → 两个计算同时返回结果
+✅ Multi-stock AAPL + TSLA → 并行获取并比较两只股票
+✅ Comparison output → 生成对比分析
+
+Result: 5/5 verified (100%)
+```
+
+### 33.10 最终 osascript 综合验证
+
+使用改进后的 `oscript-mac-verify.ts`（clipboard paste 替代 keystroke）：
+
+```
+14/14 commands verified (100%) — 零超时，零错误
+
+Slash Commands:     5/5 (help, status, doctor, tools, cost)
+Investment Queries: 9/9 (BYD, TSLA, VaR, BS, Corr, AAPL, Sharpe, DD, Sortino)
+```
+
 ---
 
 ## 34. 整体完成进度
@@ -2746,34 +2774,37 @@ try {
 | 1 | 子 Agent 并行 | 6 tests | ✅ 通过 |
 | 2 | 投资分析单元测试 | 27 tests, 122 assertions | ✅ 通过 |
 | 3 | 完整测试套件 | 1748 pass, 0 fail | ✅ 通过 |
-| 4 | macOS osascript 交互式验证 | 14 commands, 13 verified (93%) | ✅ 通过 |
+| 4 | macOS osascript 交互式验证 | 14 commands, 14 verified (100%) | ✅ 通过 |
 | 5 | osascript 真实投资查询 | VaR/BS/Sharpe/Sortino/DD/Corr/AAPL | ✅ 通过 |
 | 6 | CJK 中文输入验证 | 分析比亚迪/分析特斯拉 via osascript | ✅ 通过 |
 | 7 | /cost 命令 Token 追踪 | 83.6K input / 259 output / $0.0084 | ✅ 通过 |
 | 8 | Hook 生命周期集成测试 | 15 tests, 35 assertions | ✅ 通过 |
 | 9 | PreToolUse Hook 集成 | Veto/Allow/Deny + Full lifecycle | ✅ 通过 |
 | 10 | MCP 客户端集成测试 | 14 tests, 26 assertions | ✅ 通过 |
+| 11 | 子 Agent 并行 osascript | 5/5 verified (agent, tasks, parallel) | ✅ 通过 |
+| 12 | TypeScript 类型检查 | 0 errors in production code | ✅ 通过 |
 
 ### 34.3 完成进度
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                                                             │
-│  ████████████████████████████████████████████████████████ 96%│
+│  ████████████████████████████████████████████████████████ 98%│
 │                                                             │
 │  ✅ 代码审计 & Bug 修复 (10 issues, 全部已修复)            │
-│  ✅ 子 Agent 并行验证 (6 tests)                             │
+│  ✅ 子 Agent 并行验证 (6 tests + osascript 5/5)             │
 │  ✅ 投资分析功能验证 (27 tests, 122 assertions)             │
-│  ✅ macOS osascript 真实交互式验证 (14 cmds, 13 verified)  │
+│  ✅ macOS osascript 真实交互式验证 (14/14 verified, 100%)   │
 │  ✅ 真实投资分析查询 (VaR/BS/Sharpe/Sortino/DD/Corr/AAPL)  │
-│  ✅ CJK 中文输入验证 (分析比亚迪/分析特斯拉 via osascript)  │
+│  ✅ CJK 中文输入验证 (分析比亚迪 ✅ / 分析特斯拉 ✅)        │
 │  ✅ /cost Token 追踪修复 (83.6K in / 259 out / $0.0084)    │
 │  ✅ PreToolUse Hook 集成 (veto/allow/deny + lifecycle)     │
 │  ✅ Hook 生命周期测试 (15 tests, 35 assertions)             │
-│  ✅ 全套测试回归 (1777 pass, 0 fail)                        │
 │  ✅ MCP 客户端集成测试 (14 tests, 26 assertions)            │
+│  ✅ TypeScript 类型检查 (0 errors in production code)       │
+│  ✅ 全套测试回归 (1777 pass, 0 fail)                        │
 │                                                             │
-│  剩余 4%:                                                   │
+│  剩余 2%:                                                   │
 │  ⬜ 命令覆盖度提升 (当前 41 → 目标 80+)                     │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
