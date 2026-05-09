@@ -166,6 +166,22 @@ export class AgentToolExecutor {
       yield { type: 'tool_limit', tool: toolName, warning: limitCheck.warning, blocked: false };
     }
 
+    // Hook: PreToolUse — notify hook system before tool execution
+    try {
+      const { getHookExecutor } = await import('../hooks/tool-hooks.js');
+      const preResult = await getHookExecutor().preToolUse({
+        toolName,
+        args: toolArgs,
+        toolCallId,
+      });
+      // PreToolUse hook can veto execution by returning decision='block' or continue=false
+      if (preResult?.decision === 'block' || preResult?.decision === 'deny') {
+        yield { type: 'tool_denied', tool: toolName, args: toolArgs, toolCallId };
+        info('tools', `Tool blocked by PreToolUse hook: ${toolName} — ${preResult.reason ?? 'hook veto'}`);
+        return;
+      }
+    } catch { /* hooks must not crash tool execution */ }
+
     yield { type: 'tool_start', tool: toolName, args: toolArgs, toolCallId };
     info('tools', `Tool started: ${toolName}`);
 
