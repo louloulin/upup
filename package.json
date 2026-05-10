@@ -31,6 +31,7 @@
     "prepack": "bun run build:compile"
   },
   "dependencies": {
+    "@duckdb/duckdb-wasm": "^1.33.1-dev45.0",
     "@langchain/anthropic": "^1.3.25",
     "@langchain/core": "^1.1.36",
     "@langchain/exa": "^1.0.1",

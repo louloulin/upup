@@ -26,6 +26,7 @@ import { loadMCPTools } from './mcp-tools.js';
 import { loadAgentPlanningTools } from './agent-planning-tools.js';
 import { loadQuantTools } from './quant-tools.js';
 import { loadDomainTools } from './domain-tools.js';
+import { loadDuckDBTools } from './duckdb-tools.js';
 
 import type { RegisteredTool } from './types.js';
 
@@ -54,6 +55,9 @@ export async function getToolRegistry(model: string): Promise<RegisteredTool[]> 
 
     // Domain-specific (portfolio, worktree, skill, team, valuation, etc.)
     ...await loadDomainTools(),
+
+    // DuckDB data analytics (in-process SQL for investment data)
+    ...await loadDuckDBTools(),
   ];
 
   return tools;
