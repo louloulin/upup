@@ -10,7 +10,7 @@
  * This extends the existing memory system with investment-specific knowledge.
  */
 
-import { readFile, writeFile, mkdir, readdir } from 'node:fs/promises';
+import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { getUpupDir } from '../utils/paths.js';
 import { info, warn } from '../utils/logging/logger.js';
@@ -189,6 +189,7 @@ export class InvestmentKnowledge {
   private static instance: InvestmentKnowledge | null = null;
   private state: InvestmentKnowledgeState;
   private dirty = false;
+  private autoSaveTimer: ReturnType<typeof setTimeout> | null = null;
 
   private constructor() {
     this.state = this.createDefaultState();
@@ -212,7 +213,6 @@ export class InvestmentKnowledge {
       this.state = {
         ...this.createDefaultState(),
         ...loaded,
-        // Ensure default strategies are always present
         strategies: loaded.strategies?.length
           ? loaded.strategies
           : DEFAULT_STRATEGIES,
@@ -225,9 +225,16 @@ export class InvestmentKnowledge {
   }
 
   /**
-   * Save knowledge to disk
+   * Save knowledge to disk (auto-saves with debounce)
    */
   async save(): Promise<void> {
+    this.scheduleSave();
+  }
+
+  /**
+   * Immediately save (bypass debounce)
+   */
+  async saveNow(): Promise<void> {
     if (!this.dirty) return;
 
     try {
@@ -239,6 +246,14 @@ export class InvestmentKnowledge {
     } catch (e) {
       warn('agent', `Failed to save investment knowledge: ${e}`);
     }
+  }
+
+  private scheduleSave(): void {
+    if (this.autoSaveTimer) return;
+    this.autoSaveTimer = setTimeout(() => {
+      this.autoSaveTimer = null;
+      this.saveNow().catch(() => {});
+    }, 500);
   }
 
   // --------------------------------------------------------------------------
@@ -476,5 +491,5 @@ export async function loadInvestmentKnowledge(): Promise<void> {
 
 export async function saveInvestmentKnowledge(): Promise<void> {
   const knowledge = InvestmentKnowledge.getInstance();
-  await knowledge.save();
+  await knowledge.saveNow();
 }

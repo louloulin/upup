@@ -9,6 +9,7 @@ import type {
 } from '../agent/index.js';
 import type { DisplayEvent, StreamMode } from '../agent/types.js';
 import type { HistoryItem, HistoryItemStatus, WorkingState } from '../types.js';
+import { getSessionManager } from '../agent/session-persistence.js';
 
 export interface TurnStats {
   turnStartMs: number;
@@ -146,6 +147,16 @@ export class AgentRunnerController {
     this.emitChange();
 
     try {
+      // Restore approved tools from SessionManager so they survive restarts
+      const sessionMgr = getSessionManager();
+      await sessionMgr.startSession(); // ensure sessionData is loaded before isToolApproved() works
+      const TOOLS_REQUIRING_APPROVAL = ['write_file', 'edit_file'] as const;
+      for (const tool of TOOLS_REQUIRING_APPROVAL) {
+        if (sessionMgr.isToolApproved(tool)) {
+          this.sessionApprovedTools.add(tool);
+        }
+      }
+
       const agent = await Agent.create({
         ...this.agentConfig,
         signal: this.abortController.signal,

@@ -218,10 +218,18 @@ export async function runCli() {
   let lastRenderedQueryId: string | null = null;
   const finalizedToolIds = new Set<string>();
 
+  // Deferred overlay trigger — set after renderSelectionOverlay is defined
+  let scheduleOverlay: () => void = () => {/* no-op until wired */};
+
   agentRunner = new AgentRunnerController(
     { model: modelSelection.model, modelProvider: modelSelection.provider, maxIterations: 50 },
     modelSelection.inMemoryChatHistory,
     () => {
+      // Route approval overlay first — must happen before any other rendering
+      if (agentRunner.pendingApproval) {
+        scheduleOverlay();
+        return;
+      }
       // Incremental history update — only render new events
       const history = agentRunner.history;
       const lastItem = history[history.length - 1];
@@ -1115,6 +1123,13 @@ export async function runCli() {
   for (const msg of inputHistory.getMessages().reverse()) {
     editor.addToHistoryWithTruncation(msg);
   }
+
+  // Wire deferred overlay after renderSelectionOverlay is defined
+  scheduleOverlay = () => {
+    renderSelectionOverlay();
+    tui.requestRender();
+  };
+
   renderSelectionOverlay();
   refreshError();
 
