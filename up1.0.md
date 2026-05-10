@@ -1,10 +1,11 @@
 # UpUp 1.0 — 投资 Agent 路线图
 
 > 分析日期: 2026-05-10 | 定位: 投资研究 AI Agent | 运行时: Bun
-> 当前版本: UpUp 2026.05.10 | 分支: feature/tui-framework-upgrade
-> 实现状态: ✅ 6/6 核心特性已实现, 🎯 插件系统已实现 (100%)
+> 当前版本: UpUp 2026.05.10 | 分支: feature/up-plugin
+> 实现状态: ✅ 7/7 核心特性已实现, 插件系统完成 (100%)
 >
 > **插件系统完成**: loader.ts + 4 运行时适配器 (bun/jiti/wasm/mcp) + registry + discovery + 23 tests
+> **测试验证**: 1875 测试通过, 0 失败
 
 ---
 
@@ -41,7 +42,7 @@
 │          │          │  covery  │ memory/  │ hooks/ (钩子系统)      │
 │          │          │ plan-    │ lsp/     │ keybindings/          │
 │          │          │  mode    │ +80 more │ file-state/           │
-│          │          │          │          │ plugins/ (核心)       │
+│          │          │          │          │ plugins/ ✅ (核心)       │
 ├──────────┴──────────┴──────────┴──────────┴────────────────────────┤
 │                     TUI: pi-tui (够用)                              │
 │                     运行时: Bun 1.x (高性能)                          │
