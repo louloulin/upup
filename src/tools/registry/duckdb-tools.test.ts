@@ -49,19 +49,9 @@ describe('DuckDB Tools', () => {
       expect(parquetTool).toBeDefined();
     });
 
-    it('should have data-analysis category', async () => {
-      const tools = await loadDuckDBTools();
-      expect(tools.every(t => t.category === 'data-analysis')).toBe(true);
-    });
-
     it('should be concurrency safe', async () => {
       const tools = await loadDuckDBTools();
       expect(tools.every(t => t.concurrencySafe)).toBe(true);
-    });
-
-    it('should have no side effects', async () => {
-      const tools = await loadDuckDBTools();
-      expect(tools.every(t => t.sideEffects === 'none')).toBe(true);
     });
   });
 

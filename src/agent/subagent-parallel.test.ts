@@ -20,26 +20,20 @@ describe('Sub-Agent Parallel Execution', () => {
     const runner = getDefaultSubagentRunner();
 
     // Spawn 3 background tasks simultaneously
-    const task1 = runner.runAsync({
-      description: 'Parallel task 1',
-      prompt: 'What is 2+2? Answer with just the number.',
-      subagent_type: 'general-purpose',
-      run_in_background: true,
-    });
+    const task1 = runner.runAsync(
+      { type: 'general', tools: '*', runInBackground: true },
+      'What is 2+2? Answer with just the number.'
+    );
 
-    const task2 = runner.runAsync({
-      description: 'Parallel task 2',
-      prompt: 'What is 3+3? Answer with just the number.',
-      subagent_type: 'general-purpose',
-      run_in_background: true,
-    });
+    const task2 = runner.runAsync(
+      { type: 'general', tools: '*', runInBackground: true },
+      'What is 3+3? Answer with just the number.'
+    );
 
-    const task3 = runner.runAsync({
-      description: 'Parallel task 3',
-      prompt: 'What is 4+4? Answer with just the number.',
-      subagent_type: 'general-purpose',
-      run_in_background: true,
-    });
+    const task3 = runner.runAsync(
+      { type: 'general', tools: '*', runInBackground: true },
+      'What is 4+4? Answer with just the number.'
+    );
 
     const [id1, id2, id3] = await Promise.all([task1, task2, task3]);
 
@@ -74,18 +68,14 @@ describe('Sub-Agent Parallel Execution', () => {
 
     // Spawn tasks in rapid succession (should be near-simultaneous)
     const ids = await Promise.all([
-      runner.runAsync({
-        description: 'Timestamp test 1',
-        prompt: 'Reply with just "done"',
-        subagent_type: 'general-purpose',
-        run_in_background: true,
-      }),
-      runner.runAsync({
-        description: 'Timestamp test 2',
-        prompt: 'Reply with just "done"',
-        subagent_type: 'general-purpose',
-        run_in_background: true,
-      }),
+      runner.runAsync(
+        { type: 'general', tools: '*', runInBackground: true },
+        'Reply with just "done"'
+      ),
+      runner.runAsync(
+        { type: 'general', tools: '*', runInBackground: true },
+        'Reply with just "done"'
+      ),
     ]);
 
     const spawnDuration = Date.now() - startTime;
@@ -103,19 +93,15 @@ describe('Sub-Agent Parallel Execution', () => {
   it('should cancel one task without affecting others', async () => {
     const runner = getDefaultSubagentRunner();
 
-    const id1 = await runner.runAsync({
-      description: 'Survivor task',
-      prompt: 'Reply with just "survived"',
-      subagent_type: 'general-purpose',
-      run_in_background: true,
-    });
+    const id1 = await runner.runAsync(
+      { type: 'general', tools: '*', runInBackground: true },
+      'Reply with just "survived"'
+    );
 
-    const id2 = await runner.runAsync({
-      description: 'Cancelled task',
-      prompt: 'Reply with just "cancelled"',
-      subagent_type: 'general-purpose',
-      run_in_background: true,
-    });
+    const id2 = await runner.runAsync(
+      { type: 'general', tools: '*', runInBackground: true },
+      'Reply with just "cancelled"'
+    );
 
     // Cancel only the second task
     await runner.cancelTask(id2);
@@ -148,19 +134,15 @@ describe('Sub-Agent Parallel Execution', () => {
     const runner = getDefaultSubagentRunner();
 
     // Create multiple tasks
-    const id1 = await runner.runAsync({
-      description: 'Task A',
-      prompt: 'Say hello',
-      subagent_type: 'general-purpose',
-      run_in_background: true,
-    });
+    const id1 = await runner.runAsync(
+      { type: 'general', tools: '*', runInBackground: true },
+      'Say hello'
+    );
 
-    const id2 = await runner.runAsync({
-      description: 'Task B',
-      prompt: 'Say world',
-      subagent_type: 'general-purpose',
-      run_in_background: true,
-    });
+    const id2 = await runner.runAsync(
+      { type: 'general', tools: '*', runInBackground: true },
+      'Say world'
+    );
 
     // Cancel one
     await Bun.sleep(50);
