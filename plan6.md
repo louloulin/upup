@@ -550,7 +550,10 @@ src/agent/
 | CREATE | `src/agent/investment-workflow-hooks.test.ts` | ✅ 已完成 |
 | EXISTS | `src/agent/session-persistence.ts` | ✅ 已存在 |
 | CREATE | `src/agent/investment-knowledge.ts` | ✅ 已完成 |
+| CREATE | `src/agent/investment-knowledge-tools.ts` | ✅ 已完成 |
+| CREATE | `src/tools/registry/investment-knowledge-tools.ts` | ✅ 已完成 |
 | MODIFY | `src/agent/prompts.ts` | ✅ 已完成 |
+| MODIFY | `src/tools/registry/index.ts` | ✅ 已完成 |
 
 **已存在模块 (无需重复实现)**:
 - `src/memory/index.ts` - MemoryManager (MV2+BM25)
@@ -585,11 +588,12 @@ bun test  # 1942 pass, 0 fail
 
 | 版本 | 日期 | 修改内容 | 作者 |
 |------|------|----------|------|
-| 1.5 | 2026-05-11 | 修正: 移除重复实现，清理 plan6.md 说明已有基础设施 | Dexter Team |
-| 1.4 | 2026-05-11 | Phase 2 完成: 记忆系统增强 (已存在: MV2+BM25, flush.ts) | Dexter Team |
+| 1.6 | 2026-05-11 | 完成: Investment Knowledge Tools (8 tools, 自动保存) | Dexter Team |
+| 1.5 | 2026-05-11 | 修正: 移除重复实现，清理 plan6.md | Dexter Team |
+| 1.4 | 2026-05-11 | Phase 2 完成: 投资知识库 | Dexter Team |
 | 1.3 | 2026-05-11 | Phase 1 P3 完成: 投资工作流 Hook 系统 | Dexter Team |
 | 1.2 | 2026-05-10 | Phase 1 P2 完成: 能力注册系统 | Dexter Team |
-| 1.1 | 2026-05-10 | Phase 1 P1 完成: 配置加载器 + GOALS/RULES/GOVERN | Dexter Team |
+| 1.1 | 2026-05-10 | Phase 1 P1 完成: 配置加载器 | Dexter Team |
 | 1.0 | 2026-05-10 | 初始版本 | Dexter Team |
 
 ---
@@ -630,6 +634,52 @@ src/
 │   └── memvid-store.ts           # MV2 + BM25
 └── ...
 ```
+
+---
+
+## 12. Investment Knowledge 工具架构
+
+### 存储位置
+```
+.upup/investment/knowledge.json  # 投资知识持久化存储
+```
+
+### 可用工具 (8个)
+
+| 工具名 | 功能 | 使用场景 |
+|--------|------|----------|
+| `get_investment_strategies` | 获取投资策略 | 策略选择、投资建议 |
+| `get_company_profile` | 查询公司档案 | 公司分析、持仓决策 |
+| `track_company` | 保存公司档案 | 分析完成后记录 |
+| `get_risks` | 查询风险评估 | 风险审查、仓位管理 |
+| `track_risk` | 记录风险评估 | 风险分析后记录 |
+| `get_sectors` | 查询行业分析 | 行业配置、趋势分析 |
+| `track_sector` | 保存行业分析 | 行业研究后记录 |
+| `get_knowledge_summary` | 获取知识库摘要 | 状态检查、快速概览 |
+
+### 数据流
+```
+Agent 分析完成
+    ↓
+track_company / track_risk / track_sector (调用工具)
+    ↓
+InvestmentKnowledge.add*() (内存修改)
+    ↓
+scheduleSave() (500ms debounce)
+    ↓
+.saveNow() → .upup/investment/knowledge.json (持久化)
+    ↓
+下次查询: get_company_profile / get_risks
+    ↓
+load() → 从 knowledge.json 加载 → 返回数据
+```
+
+### 默认策略 (5个)
+- `value-investing` - 价值投资 (保守型)
+- `growth-investing` - 成长投资 (激进型)
+- `dividend-growth` - 股息增长 (平衡型)
+- `momentum` - 动量策略 (激进型)
+- `index-investing` - 指数投资 (保守型)
 
 ---
 
