@@ -177,6 +177,18 @@ export class AgentToolExecutor {
         for (const name of TOOLS_REQUIRING_APPROVAL) {
           this.sessionApprovedTools.add(name);
         }
+        // Sync to SessionManager so approved tools persist across restarts
+        // Must init sessionData first, otherwise approveTool() is a no-op
+        try {
+          const { getSessionManager } = await import('./session-persistence.js');
+          const sm = getSessionManager();
+          sm.startSession().then(() => {
+            for (const name of TOOLS_REQUIRING_APPROVAL) {
+              sm.approveTool(name);
+            }
+            sm.persist();
+          }).catch(() => {/* non-critical */});
+        } catch { /* non-critical */ }
       }
     }
 

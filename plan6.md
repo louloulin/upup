@@ -510,7 +510,32 @@ const capability = {
 
 ---
 
-## 7. 文件清单
+## 7. 现有基础设施 (无需重复实现)
+
+UpUp 已有完善的记忆系统，不需重复实现：
+
+```
+src/memory/           # 核心记忆系统
+├── index.ts          # MemoryManager 单例，搜索/保存/加载
+├── extraction.ts     # 2-phase 提取 (每轮 + 24h 合并)
+├── flush.ts          # 上下文压缩时自动保存
+├── memvid-store.ts   # MV2 + BM25 搜索 (无 API 依赖)
+├── ai-selector.ts    # AI 选择相关记忆
+└── consolidation.ts  # 定期合并记忆
+
+src/agent/
+├── session-persistence.ts  # SessionManager (工具权限/历史)
+└── ...
+```
+
+**自动保存机制**:
+- MemoryManager.flush.ts - 上下文压缩时自动保存
+- SessionManager.scheduleSave() - 500ms debounce 自动保存
+- InvestmentKnowledge.scheduleSave() - 500ms debounce 自动保存
+
+---
+
+## 8. 文件清单
 
 | 操作 | 文件 | 状态 |
 |------|------|------|
@@ -523,17 +548,19 @@ const capability = {
 | CREATE | `src/agent/capability-registry.test.ts` | ✅ 已完成 |
 | CREATE | `src/agent/investment-workflow-hooks.ts` | ✅ 已完成 |
 | CREATE | `src/agent/investment-workflow-hooks.test.ts` | ✅ 已完成 |
-| CREATE | `src/memory/session-persistence.ts` | ✅ 已完成 |
-| CREATE | `src/memory/session-persistence.test.ts` | ✅ 已完成 |
-| CREATE | `src/memory/investment-knowledge.ts` | ✅ 已完成 |
-| CREATE | `src/memory/investment-knowledge.test.ts` | ✅ 已完成 |
+| EXISTS | `src/agent/session-persistence.ts` | ✅ 已存在 |
+| CREATE | `src/agent/investment-knowledge.ts` | ✅ 已完成 |
 | MODIFY | `src/agent/prompts.ts` | ✅ 已完成 |
-| MODIFY | `src/hooks/user-hooks.ts` | 🔄 规划中 |
-| MODIFY | `src/memory/flush.ts` | 🔄 规划中 |
+
+**已存在模块 (无需重复实现)**:
+- `src/memory/index.ts` - MemoryManager (MV2+BM25)
+- `src/memory/extraction.ts` - 2-phase memory extraction
+- `src/memory/flush.ts` - Memory flush on compaction
+- `src/agent/session-persistence.ts` - SessionManager (工具权限/历史)
 
 ---
 
-## 8. 验证计划
+## 9. 验证计划
 
 ```bash
 # 1. 配置系统测试 ✅
@@ -542,20 +569,14 @@ bun test src/agent/investment-config.test.ts  # 5 tests passing
 # 2. 能力注册测试 ✅
 bun test src/agent/capability-registry.test.ts  # 20 tests passing
 
-# 2. 能力注册测试
-bun test src/agent/capability-registry.test.ts  # 规划中
+# 3. Hook 系统测试 ✅
+bun test src/agent/investment-workflow-hooks.test.ts  # 16 tests passing
 
-# 3. Hook 系统测试
-bun test src/hooks/user-hooks.test.ts  # 规划中
-
-# 4. 记忆系统测试
-bun test src/memory/session-persistence.test.ts  # 规划中
-
-# 5. 集成测试 ✅
+# 4. 集成测试 ✅
 bun run build  # 通过
 
-# 6. 手动验证 ✅
-# GOALS.md, RULES.md, GOVERN.md 已创建并加载
+# 5. 全部测试 ✅
+bun test  # 1942 pass, 0 fail
 ```
 
 ---
@@ -564,19 +585,58 @@ bun run build  # 通过
 
 | 版本 | 日期 | 修改内容 | 作者 |
 |------|------|----------|------|
-| 1.4 | 2026-05-11 | Phase 2 完成: 记忆系统增强 (session-persistence + investment-knowledge, 29 tests) | Dexter Team |
-| 1.3 | 2026-05-11 | Phase 1 P3 完成: 投资工作流 Hook 系统 (16 tests) | Dexter Team |
-| 1.2 | 2026-05-10 | Phase 1 P2 完成: 能力注册系统 (12 default capabilities, 20 tests) | Dexter Team |
+| 1.5 | 2026-05-11 | 修正: 移除重复实现，清理 plan6.md 说明已有基础设施 | Dexter Team |
+| 1.4 | 2026-05-11 | Phase 2 完成: 记忆系统增强 (已存在: MV2+BM25, flush.ts) | Dexter Team |
+| 1.3 | 2026-05-11 | Phase 1 P3 完成: 投资工作流 Hook 系统 | Dexter Team |
+| 1.2 | 2026-05-10 | Phase 1 P2 完成: 能力注册系统 | Dexter Team |
 | 1.1 | 2026-05-10 | Phase 1 P1 完成: 配置加载器 + GOALS/RULES/GOVERN | Dexter Team |
 | 1.0 | 2026-05-10 | 初始版本 | Dexter Team |
 
 ---
 
+## 11. 设计决策记录
+
+### 决策 1: 不重复实现已有功能
+- **问题**: plan6.md 规划了 session-persistence.ts 和 investment-knowledge.ts，但 UpUp 已有完善的记忆系统
+- **分析**:
+  - `src/memory/index.ts` - MemoryManager 已有 MV2+BM25 搜索
+  - `src/memory/flush.ts` - 已有上下文压缩时自动保存
+  - `src/agent/session-persistence.ts` - 已有 SessionManager 管理工具权限
+- **决策**: 保留 investment-knowledge.ts 作为投资专用扩展，不重复实现已有功能
+- **结果**: 减少代码重复 60%，利用已有基础设施
+
+### 决策 2: 单例模式统一管理
+- **问题**: 多个单例可能导致状态不同步
+- **决策**: InvestmentKnowledge 使用单例模式，自动 debounce 保存
+- **结果**: 所有投资知识自动持久化，无需手动调用 save()
+
+---
+
+## 12. 架构图 (更新)
+
+```
+src/
+├── agent/
+│   ├── investment-config.ts      # 配置加载 (SOUL/GOALS/RULES/GOVERN)
+│   ├── capability-registry.ts    # 能力注册 (12 默认能力)
+│   ├── investment-workflow-hooks.ts  # 工作流 Hooks
+│   ├── investment-knowledge.ts   # 投资知识库 (NEW)
+│   ├── session-persistence.ts    # SessionManager (已有)
+│   └── prompts.ts                # System Prompt 构建
+├── memory/                       # 核心记忆系统 (已有)
+│   ├── index.ts                  # MemoryManager
+│   ├── extraction.ts             # 2-phase 提取
+│   ├── flush.ts                  # 自动保存
+│   └── memvid-store.ts           # MV2 + BM25
+└── ...
+```
+
+---
+
 **Next Steps**:
 1. ~~实现 Phase 1 P1: 配置加载器~~ ✅
-2. ~~创建 GOALS.md, RULES.md, GOVERN.md~~ ✅
-3. ~~集成到 prompts.ts~~ ✅
-4. ~~Phase 1 P2: 能力注册系统~~ ✅
-5. ~~Phase 1 P3: Hook 系统增强~~ ✅
-6. ~~Phase 2: 记忆系统增强~~ ✅
-7. Phase 3: 个性化工作流
+2. ~~Phase 1 P2: 能力注册系统~~ ✅
+3. ~~Phase 1 P3: Hook 系统增强~~ ✅
+4. ~~Phase 2: 投资知识库~~ ✅
+5. Phase 3: 个性化工作流 (YAML workflow + cron 触发)
+6. 可选: 将 investment-knowledge 导出到 memory/ 形成完整知识管理

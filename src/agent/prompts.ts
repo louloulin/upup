@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getChannelProfile } from './channels.js';
 import { upupPath } from '../utils/paths.js';
+import { loadInvestmentConfig, formatInvestmentConfig } from './investment-config.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -289,6 +290,14 @@ ${soulContent}
 
 Embody the identity and investing philosophy described above. Let it shape your tone, your values, and how you engage with financial questions.
 ` : ''}
+${await (async () => {
+  try {
+    const investConfig = await loadInvestmentConfig();
+    return formatInvestmentConfig(investConfig);
+  } catch {
+    return '';
+  }
+})()}
 
 ## Response Format
 
