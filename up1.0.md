@@ -2,7 +2,9 @@
 
 > 分析日期: 2026-05-10 | 定位: 投资研究 AI Agent | 运行时: Bun
 > 当前版本: UpUp 2026.05.10 | 分支: feature/tui-framework-upgrade
-> 实现状态: ✅ 6/6 核心特性已实现, 测试验证通过
+> 实现状态: ✅ 6/6 核心特性已实现, 🎯 插件系统已实现 (100%)
+>
+> **插件系统完成**: loader.ts + 4 运行时适配器 (bun/jiti/wasm/mcp) + registry + discovery + 23 tests
 
 ---
 
@@ -484,12 +486,13 @@ src/plugins/
 
 | 里程碑 | 交付物 | 验证 |
 |--------|--------|------|
-| M1: Bash AST | ast-parser.ts + 34 tests | 1852 测试通过 |
-| M2: 文件编辑追踪 | file-state.ts + 10 tests | 1852 测试通过 |
+| M1: Bash AST | ast-parser.ts + 34 tests | 1875 测试通过 |
+| M2: 文件编辑追踪 | file-state.ts + 10 tests | 1875 测试通过 |
 | M3: Hook 退出码 | spawn + exit 0/2 | TS 编译通过 |
 | M4: 工具 UI 渲染 | tool-renderers.ts | TS 编译通过 |
-| M5: 键绑定 | keybindings/ + 31 tests | 1852 测试通过 |
+| M5: 键绑定 | keybindings/ + 31 tests | 1875 测试通过 |
 | M6: Jobs CLI | /tasks stop, /jobs | TS 编译通过 |
+| M7: **统一插件系统** | loader + 4 adapters + registry + discovery + 23 tests | 1875 测试通过 |
 
 ---
 
@@ -641,7 +644,7 @@ Day 58:    测试
 | 金融工具 110+ | VaR, BS, Sharpe, Kelly, Greeks | 持续增加 MC/因子/压力 |
 | A 股深度集成 | 实时 + Level-2 + 融资融券 | 增加: IPO 日历 |
 | 美股数据 | FMP 完整 API | 增加: 财报预测 |
-| **统一插件系统** | TS(JITI)/Bun/WASM/MCP 四种运行时 | 投资扩展基础 |
+| **统一插件系统** | TS(JITI)/Bun/WASM/MCP 四种运行时 | 投资扩展基础 (✅ 已实现) |
 | 量化分析 | 回测、风险、组合优化 | 增加: 多因子 |
 | 消息通知 | WhatsApp + Telegram + 微信 | 多渠道预警 |
 | 记忆系统 | MV2 + BM25 + SQL | 增加: 投资偏好 |
@@ -652,7 +655,7 @@ Day 58:    测试
 
 | 指标 | 当前 | 1.0 目标 |
 |------|------|---------|
-| 测试用例数 | **1,852** | 3,000+ |
+| 测试用例数 | **1,875** | 3,000+ |
 | 测试文件数 | 97 | 120+ |
 | TypeScript 严格模式 | 部分 | 全部 strict |
 | CI/CD | 无 | GitHub Actions |
