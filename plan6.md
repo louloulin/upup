@@ -1,7 +1,7 @@
 # Plan6.md — UpUp 个性化投资 Agent 蓝图
 
 > 创建日期: 2026-05-10 | 定位: 打造个性化投资 AI 助手 | 对标: Claude Code / Codex / OpenClaw
-> 版本: 1.3 | 状态: **Phase 1 P1-P3 完成** ✅
+> 版本: 1.4 | 状态: **Phase 1-2 完成** ✅
 
 ---
 
@@ -13,7 +13,8 @@
 - ✅ Phase 1 P1: 配置加载器 (`investment-config.ts` + GOALS/RULES/GOVERN)
 - ✅ Phase 1 P2: 能力注册系统 (`capability-registry.ts` + 12 默认能力 + 20 tests)
 - ✅ Phase 1 P3: Hook 系统增强 (`investment-workflow-hooks.ts` + 16 tests)
-- 🔄 Phase 2: 记忆系统增强 (规划中)
+- ✅ Phase 2: 记忆系统增强 (`session-persistence.ts` + `investment-knowledge.ts` + 29 tests)
+- 🔄 Phase 3: 个性化工作流 (规划中)
 
 **核心差距**:
 | 维度 | Claude Code | Codex | OpenClaw | UpUp 当前 | UpUp 目标 |
@@ -522,7 +523,10 @@ const capability = {
 | CREATE | `src/agent/capability-registry.test.ts` | ✅ 已完成 |
 | CREATE | `src/agent/investment-workflow-hooks.ts` | ✅ 已完成 |
 | CREATE | `src/agent/investment-workflow-hooks.test.ts` | ✅ 已完成 |
-| CREATE | `.upup/config/schema.ts` | 🔄 规划中 |
+| CREATE | `src/memory/session-persistence.ts` | ✅ 已完成 |
+| CREATE | `src/memory/session-persistence.test.ts` | ✅ 已完成 |
+| CREATE | `src/memory/investment-knowledge.ts` | ✅ 已完成 |
+| CREATE | `src/memory/investment-knowledge.test.ts` | ✅ 已完成 |
 | MODIFY | `src/agent/prompts.ts` | ✅ 已完成 |
 | MODIFY | `src/hooks/user-hooks.ts` | 🔄 规划中 |
 | MODIFY | `src/memory/flush.ts` | 🔄 规划中 |
@@ -560,6 +564,7 @@ bun run build  # 通过
 
 | 版本 | 日期 | 修改内容 | 作者 |
 |------|------|----------|------|
+| 1.4 | 2026-05-11 | Phase 2 完成: 记忆系统增强 (session-persistence + investment-knowledge, 29 tests) | Dexter Team |
 | 1.3 | 2026-05-11 | Phase 1 P3 完成: 投资工作流 Hook 系统 (16 tests) | Dexter Team |
 | 1.2 | 2026-05-10 | Phase 1 P2 完成: 能力注册系统 (12 default capabilities, 20 tests) | Dexter Team |
 | 1.1 | 2026-05-10 | Phase 1 P1 完成: 配置加载器 + GOALS/RULES/GOVERN | Dexter Team |
@@ -573,4 +578,5 @@ bun run build  # 通过
 3. ~~集成到 prompts.ts~~ ✅
 4. ~~Phase 1 P2: 能力注册系统~~ ✅
 5. ~~Phase 1 P3: Hook 系统增强~~ ✅
-6. Phase 2: 记忆系统增强
+6. ~~Phase 2: 记忆系统增强~~ ✅
+7. Phase 3: 个性化工作流
