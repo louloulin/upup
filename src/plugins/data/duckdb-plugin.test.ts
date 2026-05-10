@@ -97,10 +97,7 @@ describe('DuckDBAdapter', () => {
   });
 
   it('should load DuckDB plugin with data-source capability', async () => {
-    const mockApi = {
-      registerTool: (_t: any) => {},
-      registerService: (_s: any) => {},
-    };
+    const mockApi = createMockPluginApi();
 
     const manifest: PluginManifest = {
       schemaVersion: '1.0',
@@ -121,10 +118,7 @@ describe('DuckDBAdapter', () => {
   });
 
   it('should unload without errors', async () => {
-    const mockApi = {
-      registerTool: () => {},
-      registerService: () => {},
-    };
+    const mockApi = createMockPluginApi();
 
     const manifest: PluginManifest = {
       schemaVersion: '1.0',
@@ -146,6 +140,38 @@ describe('DuckDBAdapter', () => {
     expect(error).toBe(false);
   });
 });
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
+/**
+ * Create a mock plugin API that satisfies UpUpPluginApi interface
+ */
+function createMockPluginApi() {
+  return {
+    id: 'test-plugin',
+    name: 'Test Plugin',
+    version: '1.0.0',
+    runtime: 'bun' as const,
+    config: {},
+    pluginConfig: {},
+    logger: {
+      info: (_msg: string) => {},
+      warn: (_msg: string) => {},
+      error: (_msg: string) => {},
+    },
+    registerTool: (_t: any) => {},
+    registerTools: (_t: any[]) => {},
+    registerHook: () => {},
+    on: () => {},
+    registerChannel: () => {},
+    registerCommand: () => {},
+    registerService: (_s: any) => {},
+    registerDataSource: () => {},
+    resolvePath: (_p: string) => _p,
+  };
+}
 
 // ============================================================================
 // Investment Analysis Use Cases

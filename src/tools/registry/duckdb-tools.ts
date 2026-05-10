@@ -11,6 +11,8 @@
  * - Ad-hoc SQL queries against loaded data
  */
 
+import { DynamicStructuredTool } from '@langchain/core/tools';
+import type { StructuredToolInterface } from '@langchain/core/tools';
 import type { RegisteredTool } from './types.js';
 import { DuckDBPlugin } from '../../plugins/data/duckdb-plugin.js';
 
@@ -33,17 +35,22 @@ export async function loadDuckDBTools(): Promise<RegisteredTool[]> {
     const plugin = getDuckDBPlugin();
     const pluginTools = plugin.getTools();
 
-    // Convert PluginTool to RegisteredTool format
+    // Convert AgentTool (Plugin format) to DynamicStructuredTool (LangChain format)
+    // This ensures tools have proper .toJSON() with 'type' field for OpenAI SDK compatibility
     const registeredTools: RegisteredTool[] = pluginTools.map((tool: any) => {
+      const langChainTool = new DynamicStructuredTool({
+        name: tool.name,
+        description: tool.description,
+        schema: tool.schema,
+        func: tool.execute,
+      });
+
       return {
         name: tool.name,
         description: tool.description,
         compactDescription: `[DuckDB] ${tool.description.substring(0, 100)}`,
-        tool: tool as any, // Tool interface compatible
-        safetyLevel: 'safe',
-        category: 'data-analysis' as const,
+        tool: langChainTool as unknown as StructuredToolInterface,
         concurrencySafe: true, // DuckDB handles concurrent queries
-        sideEffects: 'none' as const, // In-memory analytics
       };
     });
 
