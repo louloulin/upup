@@ -1,4 +1,5 @@
 import { Editor, Key, matchesKey } from '@mariozechner/pi-tui';
+import type { KeyEvent as KEvent, ResolveResult } from '../keybindings/types.js';
 
 export class CustomEditor extends Editor {
   onEscape?: () => void;
@@ -8,6 +9,12 @@ export class CustomEditor extends Editor {
   onSlashNavigate?: (direction: 'up' | 'down') => void;
   onSlashDismiss?: () => void;
   onSlashExactMatch?: (text: string) => boolean;
+  /**
+   * Optional keybinding resolver. When set, keys not consumed by the slash
+   * suggestion system are converted to KeyEvent and passed here for resolution.
+   * Return a ResolveResult to handle the key, or null to pass through to editor.
+   */
+  resolveKeybinding?: (event: KEvent) => ResolveResult | null;
   slashActive: boolean = false;
 
   // Map truncated display text → full original text for history entries
@@ -80,6 +87,19 @@ export class CustomEditor extends Editor {
       return;
     }
 
+    // Keybinding resolution: convert raw input to KeyEvent, check resolver
+    if (this.resolveKeybinding) {
+      const event = this.dataToKeyEvent(data);
+      if (event) {
+        const result = this.resolveKeybinding(event);
+        if (result && result.type === 'match') {
+          // Keybinding matched — action is handled by the callback
+          return;
+        }
+        // 'none' or 'unbound' → fall through to default editor behavior
+      }
+    }
+
     // Default: pass to editor
     super.handleInput(data);
 
@@ -92,5 +112,54 @@ export class CustomEditor extends Editor {
       this.slashActive = false;
       this.onSlashDismiss?.();
     }
+  }
+
+  /**
+   * Convert pi-tui raw data to a KeyEvent for keybinding resolution.
+   * Returns null if the data can't be represented as a KeyEvent.
+   */
+  private dataToKeyEvent(data: string): KEvent | null {
+    // Check special keys via pi-tui's matchesKey
+    const specialKeys: [string, (d: string) => boolean][] = [
+      ['enter', (d) => matchesKey(d, Key.return)],
+      ['escape', (d) => matchesKey(d, Key.escape)],
+      ['tab', (d) => matchesKey(d, Key.tab)],
+      ['backspace', (d) => matchesKey(d, Key.backspace)],
+      ['delete', (d) => matchesKey(d, Key.delete)],
+      ['up', (d) => matchesKey(d, Key.up)],
+      ['down', (d) => matchesKey(d, Key.down)],
+      ['left', (d) => matchesKey(d, Key.left)],
+      ['right', (d) => matchesKey(d, Key.right)],
+      ['home', (d) => matchesKey(d, Key.home)],
+      ['end', (d) => matchesKey(d, Key.end)],
+      ['pageup', (d) => matchesKey(d, Key.pageUp)],
+      ['pagedown', (d) => matchesKey(d, Key.pageDown)],
+    ];
+
+    // Detect ctrl combinations
+    const charCode = data.charCodeAt(0);
+    if (charCode >= 1 && charCode <= 26 && data.length === 1) {
+      const key = String.fromCharCode(charCode + 96); // ctrl+a → 'a'
+      return { key, ctrl: true, alt: false, shift: false, meta: false };
+    }
+
+    // Detect alt combinations (ESC prefix)
+    if (data.startsWith('\x1b') && data.length === 2) {
+      return { key: data[1], ctrl: false, alt: true, shift: false, meta: false };
+    }
+
+    // Detect special keys
+    for (const [keyName, matcher] of specialKeys) {
+      if (matcher(data)) {
+        return { key: keyName, ctrl: false, alt: false, shift: false, meta: false };
+      }
+    }
+
+    // Plain printable character
+    if (data.length === 1 && data >= ' ') {
+      return { key: data.toLowerCase(), ctrl: false, alt: false, shift: false, meta: false };
+    }
+
+    return null;
   }
 }

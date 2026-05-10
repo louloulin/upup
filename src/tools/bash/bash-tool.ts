@@ -25,6 +25,12 @@ import {
   validateCommandSecurity,
   type SecurityValidationResult,
 } from './security.js';
+import {
+  parseForSecurity,
+  classifyFromAST,
+  hasDangerousBuiltin,
+  type ParseResult,
+} from './ast-parser.js';
 import { validatePath } from './path-validation.js';
 import {
   isReadOnlyCommand,
@@ -144,7 +150,42 @@ export async function executeBashCommand(
     env = {},
   } = options;
 
-  // Security validation
+  // AST-based structural security check (fail-closed)
+  const astResult = parseForSecurity(command);
+  if (astResult.kind === 'too-complex') {
+    // Complex commands require explicit user approval
+    const permission = getPermissionMode(command);
+    if (permission === 'deny') {
+      const durationMs = Date.now() - startTime;
+      return {
+        stdout: '',
+        stderr: `Command blocked: ${astResult.reason}. Complex shell constructs require explicit approval.`,
+        exitCode: 1,
+        durationMs,
+        securityWarnings: [`AST parse: ${astResult.reason}`],
+      };
+    }
+    // For 'ask' mode, the approval flow is handled at a higher level
+    // For 'allow'/'bypass', continue with regex-based fallback
+  }
+
+  // Check for dangerous builtins via AST
+  if (astResult.kind === 'simple') {
+    for (const cmd of astResult.commands) {
+      if (hasDangerousBuiltin(cmd)) {
+        const durationMs = Date.now() - startTime;
+        return {
+          stdout: '',
+          stderr: `Dangerous builtin '${cmd.argv[0]}' detected and blocked`,
+          exitCode: 1,
+          durationMs,
+          securityWarnings: [`Blocked builtin: ${cmd.argv[0]}`],
+        };
+      }
+    }
+  }
+
+  // Regex-based security validation (existing, as defense-in-depth)
   const securityResult = validateCommandSecurity(command);
   if (!securityResult.valid) {
     const durationMs = Date.now() - startTime;

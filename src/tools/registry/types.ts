@@ -47,6 +47,10 @@ export interface RegisteredTool {
   compactDescription?: string;
   concurrencySafe: boolean;
   concurrencyMetadata?: ToolConcurrencyMetadata;
+  /** Custom result renderer for TUI display */
+  renderResult?: (result: unknown) => string;
+  /** Custom activity description shown while tool is running */
+  renderActivity?: (input: Record<string, unknown>) => string;
 }
 
 /**

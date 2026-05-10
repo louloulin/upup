@@ -1,60 +1,33 @@
-# UpUp 1.0 — 差距分析与路线图
+# UpUp 1.0 — 投资 Agent 路线图
 
-> 分析日期: 2026-05-10 | 对标: LouCode (Claude Code 官方)
-> 当前版本: UpUp 2026.05.09 | 分支: upup
-
----
-
-## 0. 规模对比
-
-| 维度 | LouCode (Claude Code) | UpUp (涨涨) | 差距 |
-|------|----------------------|-------------|------|
-| 源文件数 | **2,110** (.ts/.tsx) | **425** (.ts/.tsx) | 5x |
-| 总代码行 | **533,695** | **89,649** | 6x |
-| 工具数 | **~55** (通用) | **~110** (含金融) | UpUp 更多垂直工具 |
-| 测试文件 | ~200+ | **94** | 2x |
-| 顶级目录 | 55 个 | 22 个 | 2.5x |
+> 分析日期: 2026-05-10 | 定位: 投资研究 AI Agent | 运行时: Bun
+> 当前版本: UpUp 2026.05.10 | 分支: feature/tui-framework-upgrade
+> 实现状态: ✅ 6/6 核心特性已实现, 测试验证通过
 
 ---
 
-## 1. 架构对比 (ANSI 图)
+## 0. 定位说明
 
-### LouCode 架构
+**UpUp 是投资研究 AI Agent，不是通用编程工具。**
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                        Claude Code (LouCode)                        │
-├──────────┬──────────┬──────────┬──────────┬────────────────────────┤
-│  Entry   │   CLI    │  Agent   │  Tools   │    Infrastructure      │
-├──────────┼──────────┼──────────┼──────────┼────────────────────────┤
-│ main.tsx │  cli/    │ query/   │ BashTool │ ink/ (自研 TUI 框架)    │
-│ setup.ts │ screens/ │ context/ │ FileEdit │ state/ (全局状态)       │
-│ entry-   │ commands/│ coordin- │ FileRead │ services/ (分析/VSCode) │
-│  points/ │ keybinds │  ator/   │ GlobTool │ tasks/ (任务管理)       │
-│          │ hooks/   │ tools.ts │ GrepTool │ remote/ (远程 SSH)      │
-│          │ vim/     │ repl-    │ AgentTool│ ssh/ (SSH 会话)         │
-│          │ buddy/   │  Launch  │ WebFetch │ voice/ (语音模式)       │
-│          │ output-  │          │ WebBrows │ plugins/ (插件系统)     │
-│          │  Styles/ │          │ LSPTool  │ memdir/ (内存目录)      │
-│          │          │          │ MCPTool  │ migrations/ (数据迁移)  │
-│          │          │          │ PlanTool │ schemas/ (JSON Schema)  │
-│          │          │          │ NoteEdit │ daemon/ (守护进程)      │
-│          │          │          │ Workflow │ jobs/ (后台作业)        │
-│          │          │          │ +40 more │ upstreamproxy/          │
-├──────────┴──────────┴──────────┴──────────┴────────────────────────┤
-│                     TUI: ink (自研 React-like 框架)                  │
-│                     状态: state/ + context/ + coordinator/            │
-│                     工具: tools/ (55个, 每个独立目录+UI组件)          │
-└─────────────────────────────────────────────────────────────────────┘
-```
+| 维度 | Claude Code (通用) | UpUp (投资) |
+|------|-------------------|-------------|
+| 核心用户 | 软件工程师 | 投资者/分析师 |
+| 主要任务 | 代码编写、调试、重构 | 市场分析、组合管理、量化计算 |
+| 数据源 | GitHub、Stack Overflow | FMP、Tushare、Bloomberg |
+| 交互方式 | 代码编辑为主 | API 调用 + 数据分析 |
+| 插件生态 | npm 开发者工具 | 投资数据源/分析工具 |
+| 运行时 | Node.js | **Bun 1.x** |
 
-### UpUp 架构
+---
+
+## 1. 架构概览
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │                          UpUp (涨涨)                                │
 ├──────────┬──────────┬──────────┬──────────┬────────────────────────┤
-│  Entry   │   CLI    │  Agent   │  Tools   │    Infrastructure      │
+│  Entry   │   CLI    │  Agent   │  Tools   │    投资基础设施         │
 ├──────────┼──────────┼──────────┼──────────┼────────────────────────┤
 │ index.tsx│  cli.ts  │ agent/   │ finance/ │ memory/ (MV2+BM25+SQL) │
 │          │  theme.ts│ prompts  │ astock/  │ mcp/ (MCP 客户端)      │
@@ -62,314 +35,656 @@
 │          │  lers/   │  tion/   │ bash/    │ cron/ (定时任务)        │
 │          │  comp-   │ subagent │ portfol- │ permissions/ (权限)     │
 │          │  onents/ │ fallback │  io/     │ daemon/ (守护进程)      │
-│          │  commands│ loop-re- │ web/     │ plugins/ (基础)        │
-│          │          │  covery  │ memory/  │ evals/ (评估系统)      │
-│          │          │ plan-    │ lsp/     │ skills/ (技能系统)     │
-│          │          │  mode    │ search/  │ proactive/ (主动模式)  │
-│          │          │          │ +80 more │ hooks/ (钩子系统)      │
+│          │  commands│ loop-re- │ web/     │ proactive/ (主动模式)  │
+│          │          │  covery  │ memory/  │ hooks/ (钩子系统)      │
+│          │          │ plan-    │ lsp/     │ keybindings/          │
+│          │          │  mode    │ +80 more │ file-state/           │
+│          │          │          │          │ plugins/ (核心)       │
 ├──────────┴──────────┴──────────┴──────────┴────────────────────────┤
-│                     TUI: pi-tui (第三方库)                           │
-│                     状态: state/ (基本全局状态)                        │
-│                     工具: registry/ (110个, 按域分组)                  │
-│                     特色: 金融工具/A股/量化/回测/WhatsApp              │
+│                     TUI: pi-tui (够用)                              │
+│                     运行时: Bun 1.x (高性能)                          │
+│                     插件: 统一适配器架构 (TS/JITI/WASM/MCP)           │
+│                     工具: 110+ (金融 64+ / 通用 46)                  │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 2. 关键差距分析
+## 2. 统一插件系统架构 ⭐
 
-### 🔴 P0 — 核心缺失 (必须补齐)
+### 2.1 设计原则
 
-| # | 差距 | LouCode 实现 | UpUp 现状 | 影响 |
-|---|------|-------------|----------|------|
-| G1 | **自研 TUI 框架** | `ink/` — 完整的 React-like 终端框架 (40+ 文件), 自定义渲染器、布局引擎、事件系统 | 依赖 `pi-tui` 第三方库，功能受限 | 无法实现复杂布局、动画、可访问性 |
-| G2 | **Bash 工具** | `BashTool/` (19 文件) — AST 解析、sandbox、sed 编辑、命令语义、权限管理、安全验证 | `bash/` 基础实现，缺少 AST 解析、sandbox | Shell 命令安全性不足 |
-| G3 | **文件编辑工具** | `FileEditTool/` (6 文件) — 精确行编辑、冲突检测、编码检测、行尾检测 | `edit_file` 基础实现 | 代码编辑能力弱 |
-| G4 | **SSH 远程执行** | `ssh/` + `remote/` (6 文件) — SSH 会话管理、WebSocket、远程权限桥接 | 无 | 无法远程操作服务器 |
-| G5 | **Vim 模式** | `vim/` (5 文件) — motions、operators、text objects、transitions | 无 | 缺少高级编辑体验 |
-| G6 | **工具 UI 组件** | 每个工具都有独立 `UI.tsx` — 进度、结果渲染、错误显示 | 无独立工具 UI 组件 | 工具输出显示粗糙 |
-| G7 | **任务管理** | `tasks/` — LocalShellTask、前台/后台任务、通知、任务队列 | 基础 daemon 实现 | 长时间任务管理弱 |
+| 原则 | 说明 |
+|------|------|
+| **统一适配器模式** | 一个 Plugin API，适配多种运行时 (TS/JITI/WASM/MCP) |
+| **Bun 原生 + JITI** | Bun ESM 优先，JITI 作为 TypeScript 回退 |
+| **可插拔** | 数据源、分析工具、策略、通知渠道全部可扩展 |
+| **安全优先** | 路径安全、配置验证、沙箱隔离 |
+| **性能优先** | 懒加载、并发执行、服务生命周期管理 |
+| **向后兼容** | 现有 Tool Registry / Hook System / MCP 完全复用 |
 
-### 🟡 P1 — 重要差距 (影响体验)
+### 2.2 统一适配器架构图
 
-| # | 差距 | LouCode 实现 | UpUp 现状 | 影响 |
-|---|------|-------------|----------|------|
-| G8 | **Coordinator 模式** | `coordinator/` — 多轮对话协调器、暂停/恢复、上下文窗口管理 | agent.ts 单文件处理 | Agent 行为不够灵活 |
-| G9 | **Context 系统** | `context/` — TokenBudget、依赖注入、状态转换 | 基础 run-context | 上下文管理不够精细 |
-| G10 | **Screens 系统** | `screens/` — 多屏幕导航、主屏幕、模型选择、API 密钥设置 | 单屏 cli.ts | 缺少设置/配置 UI |
-| G11 | **Keybindings** | `keybindings/` — 完整的键绑定系统、自定义快捷键 | 硬编码按键处理 | 快捷键不可定制 |
-| G12 | **Voice 模式** | `voice/` — 语音输入/输出 | 无 | 缺少语音交互 |
-| G13 | **Buddy 系统** | `buddy/` — Companion 精灵、动画、通知 | 无 | 缺少品牌个性 UI |
-| G14 | **Output Styles** | `outputStyles/` — 可定制的输出样式、主题系统 | 基础 theme.ts | 输出样式不可定制 |
-| G15 | **Plugins 系统** | `plugins/` — 完整的插件加载、发现、管理 | 基础 plugins/ 目录 | 扩展性弱 |
-| G16 | **Jobs 系统** | `jobs/` — 后台作业队列、进度追踪 | 基础 daemon 实现 | 后台任务管理弱 |
-| G17 | **Migrations 系统** | `migrations/` — 数据库/配置迁移框架 | 手动迁移 | 版本升级风险高 |
-| G18 | **Analytics 服务** | `services/` — 事件追踪、分析、VSCode 集成 | 无 | 缺少使用数据分析 |
-| G19 | **Bridge 系统** | `bridge/` — VSCode/IDE 桥接 | 无 | 无 IDE 集成 |
-| G20 | **PowerShell 支持** | `PowerShellTool/` — Windows PowerShell 工具 | 无 | Windows 兼容性弱 |
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                  UpUp 统一插件系统 — 适配器架构                        │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│  ┌──────────────────────────────────────────────────────────────┐  │
+│  │                    Plugin Manifest Layer                       │  │
+│  │  upup.plugin.json — 统一元数据 (id, version, runtime)       │  │
+│  │                              ↓                                  │  │
+│  │  ┌──────────────┐  ┌─────────────────┐  ┌─────────────────┐  │  │
+│  │  │ Validation   │  │ Runtime         │  │ Config Schema    │  │  │
+│  │  │ (JSON Sch)   │──│ Declaration     │──│ (JSON Schema)   │  │  │
+│  │  └──────────────┘  └─────────────────┘  └─────────────────┘  │  │
+│  └──────────────────────────────────────────────────────────────┘  │
+│                              ↓                                      │
+│  ┌──────────────────────────────────────────────────────────────┐  │
+│  │                    Discovery Layer (4 sources)                │  │
+│  │  ① bundled  ② global (~/.upup/plugins/)  ③ workspace  ④ npm  │  │
+│  └──────────────────────────────────────────────────────────────┘  │
+│                              ↓                                      │
+│  ┌──────────────────────────────────────────────────────────────┐  │
+│  │                 Plugin Loader (适配器选择)                      │  │
+│  │  ┌─────────────────────────────────────────────────────────┐  │  │
+│  │  │  runtime: "bun"     → Bun native import                 │  │  │
+│  │  │  runtime: "jiti"     → JITI transpile TS                 │  │  │
+│  │  │  runtime: "wasm"     → Extism SDK + WASM sandbox         │  │  │
+│  │  │  runtime: "mcp"      → MCP Client + protocol adapter    │  │  │
+│  │  └─────────────────────────────────────────────────────────┘  │  │
+│  └──────────────────────────────────────────────────────────────┘  │
+│                              ↓                                      │
+│  ┌──────────────────────────────────────────────────────────────┐  │
+│  │                    Unified Plugin API                         │  │
+│  │  registerTool() / registerHook() / registerChannel()          │  │
+│  │  registerCommand() / registerService() / registerDataSource()│  │
+│  └──────────────────────────────────────────────────────────────┘  │
+│                              ↓                                      │
+│  ┌──────────────────────────────────────────────────────────────┐  │
+│  │                    Runtime Layer                             │  │
+│  │  Tool Registry  ← Hook System  ←  Service Locator              │  │
+│  │  MCP Client     ←  Daemon      ←  Memory System               │  │
+│  └──────────────────────────────────────────────────────────────┘  │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
 
-### 🟢 P2 — UpUp 独有优势 (已超越 LouCode)
+### 2.3 运行时适配器对比
 
-| # | 功能 | UpUp 实现 | LouCode 现状 |
-|---|------|----------|-------------|
-| A1 | **金融工具** | 110+ 工具: VaR, Black-Scholes, Sharpe, Sortino, Greeks, Kelly... | 无 |
-| A2 | **A股工具** | 7 个 A 股工具: 实时行情、财务、新闻、筛选、板块、技术指标 | 无 |
-| A3 | **投资组合** | 单/多组合管理、头寸追踪 | 无 |
-| A4 | **量化分析** | 风险指标、期权定价、技术指标、组合优化 | 无 |
-| A5 | **回测系统** | 交易评估、回测运行、胜率计算 | 无 |
-| A6 | **WhatsApp 网关** | 完整的 WhatsApp 集成 (38 文件) | 无 |
-| A7 | **记忆系统** | Memvid MV2 + BM25 + SQLite + 加密存储 (35 文件) | 简单 memdir |
-| A8 | **压缩系统** | 4 层压缩: Snip → Micro → Compact → Auto | 基础压缩 |
-| A9 | **定时任务** | Cron 工具 + 执行器 | 基础 ScheduleCron |
-| A10 | **LSP 集成** | 补全、定义、引用、悬停、诊断 | 有 LSPTool |
-| A11 | **模型回退** | 8 个 LLM 提供商 + 自动回退 | 主要 Anthropic |
-| A12 | **A股日历** | 交易日、节假日、交易日检查 | 无 |
-| A13 | **税收计算** | 美/中/港/英 资本利得税 | 无 |
-| A14 | **数据可靠性** | 数据源评分 (A-F 评级) | 无 |
-| A15 | **外汇工具** | 货币转换、汇率查询 | 无 |
-| A16 | **卖空分析** | 做空利息、空头回补检测 | 无 |
+| 适配器 | 运行时 | 隔离 | 性能 | 适用场景 | 复杂度 |
+|--------|--------|------|------|---------|--------|
+| **Bun** | Bun ESM | 无 | ⭐⭐⭐⭐⭐ | 信任的本地插件 | 低 |
+| **JITI** | Node.js TS | 无 | ⭐⭐⭐ | TS 源码插件、跨 Bun/Node | 中 |
+| **WASM** | Extism | 内存沙箱 | ⭐⭐⭐ | 第三方/不受信插件 | 中 |
+| **MCP** | 外部进程 | 进程隔离 | ⭐⭐ | 外部数据源、服务 | 低 |
+
+### 2.4 插件 Manifest (统一格式)
+
+```json
+{
+  "schemaVersion": "1.0",
+  "id": "fmp-data-provider",
+  "name": "FMP 美股数据源",
+  "version": "1.0.0",
+  "description": "提供美股实时行情、财务数据、SEC 文件",
+  "runtime": "bun",                    // "bun" | "jiti" | "wasm" | "mcp"
+  "author": { "name": "UpUp Team" },
+  "license": "MIT",
+  "homepage": "https://github.com/upup/plugins",
+  "capabilities": ["data-source", "tools"],
+  "runtimeConfig": {
+    "type": "api",
+    "provider": "fmp",
+    "apiKey": { "type": "string", "env": "FMP_API_KEY", "required": true }
+  },
+  "entry": "./dist/index.js",          // 适配器解释此路径
+  "hooks": "./hooks.json",
+  "dependencies": [],
+  "peerDependencies": { "@upup/sdk": ">=1.0.0" },
+  "security": {
+    "sandbox": "process",              // "process" | "wasm" | "mcp" | "none"
+    "permissions": ["net", "fs:read"]
+  }
+}
+```
+
+### 2.5 统一插件 API
+
+```typescript
+// src/plugins/types.ts
+
+/** 插件运行时类型 */
+export type PluginRuntime = 'bun' | 'jiti' | 'wasm' | 'mcp';
+
+/** 插件能力类型 */
+export type PluginCapability =
+  | 'data-source'
+  | 'tools'
+  | 'analysis'
+  | 'strategy'
+  | 'channel'
+  | 'service';
+
+/** 插件配置 */
+export interface UpUpPluginConfig {
+  id: string;
+  name: string;
+  version: string;
+  description?: string;
+  runtime: PluginRuntime;
+  entry: string;
+  capabilities: PluginCapability[];
+  enabled: boolean;
+  config: Record<string, unknown>;
+}
+
+/** 统一插件 API — 适配器隐藏实现细节 */
+export interface UpUpPluginApi {
+  id: string;
+  name: string;
+  version: string;
+  runtime: PluginRuntime;
+  config: UpUpConfig;
+  pluginConfig: Record<string, unknown>;
+  logger: UpUpLogger;
+
+  // === 工具注册 (复用现有 Tool Registry) ===
+  registerTool(tool: AgentTool, options?: ToolOptions): void;
+  registerTools(tools: AgentTool[], options?: ToolOptions): void;
+
+  // === Hook 注册 (复用现有 Hook System) ===
+  registerHook(events: string[], handler: HookHandler, options?: HookOptions): void;
+  on(event: string, handler: HookHandler, priority?: number): void;
+
+  // === 渠道注册 (复用 WhatsApp 插件模式) ===
+  registerChannel(channel: ChannelPlugin): void;
+
+  // === 命令注册 (复用 Commands System) ===
+  registerCommand(command: Command): void;
+
+  // === 服务注册 (后台服务生命周期) ===
+  registerService(service: BackgroundService): void;
+
+  // === 数据源注册 (投资插件特有) ===
+  registerDataSource(source: DataSourcePlugin): void;
+
+  // === 工具函数 ===
+  resolvePath(relativePath: string): string;
+
+  // === 生命周期 (所有运行时通用) ===
+  onLoad?(api: UpUpPluginApi): Promise<void> | void;
+  onStart?(api: UpUpPluginApi): Promise<void> | void;
+  onStop?(api: UpUpPluginApi): Promise<void> | void;
+  onUnload?(api: UpUpPluginApi): Promise<void> | void;
+}
+
+/** 适配器接口 — 每个运行时实现此接口 */
+export interface PluginAdapter {
+  readonly runtime: PluginRuntime;
+  canLoad(manifest: UpUpPluginConfig): boolean;
+  load(manifest: UpUpPluginConfig, api: UpUpPluginApi): Promise<LoadedPlugin>;
+  unload(plugin: LoadedPlugin): Promise<void>;
+}
+
+/** 加载后的插件实例 */
+export interface LoadedPlugin {
+  id: string;
+  runtime: PluginRuntime;
+  manifest: UpUpPluginConfig;
+  instance: unknown;                    // 运行时特定实例
+  services: BackgroundService[];       // 后台服务
+  tools: AgentTool[];                  // 注册的工具
+  hooks: Map<string, HookHandler[]>;  // 注册的 hooks
+}
+```
+
+### 2.6 适配器实现
+
+```typescript
+// src/plugins/adapters/
+
+/** Bun 适配器 — 原生 ESM 加载 */
+export class BunAdapter implements PluginAdapter {
+  readonly runtime = 'bun' as const;
+  canLoad(manifest) { return manifest.runtime === 'bun'; }
+  async load(manifest, api) {
+    // Bun 原生 import，直接执行
+    const module = await import(manifest.entry);
+    const plugin = module.default ?? module;
+    return this.activate(plugin, api);
+  }
+}
+
+/** JITI 适配器 — TypeScript 编译加载 */
+export class JitiAdapter implements PluginAdapter {
+  readonly runtime = 'jiti' as const;
+  private jiti: any;
+
+  canLoad(manifest) { return manifest.runtime === 'jiti'; }
+  async load(manifest, api) {
+    // JITI 转译 TS，支持 .ts/.tsx
+    const jiti = await import('jiti');
+    const module = await jiti.default(manifest.entry);
+    const plugin = module.default ?? module;
+    return this.activate(plugin, api);
+  }
+}
+
+/** WASM 适配器 — Extism 沙箱 */
+export class WasmAdapter implements PluginAdapter {
+  readonly runtime = 'wasm' as const;
+  async load(manifest, api) {
+    // Extism WASM 加载，内存隔离
+    const extism = await import('@extism/sdk');
+    const plugin = new extism.Plugin(manifest.entry, withCache: false, [
+      // Host functions 注册
+    ]);
+    return this.activateWasm(plugin, api);
+  }
+}
+
+/** MCP 适配器 — 外部进程协议 */
+export class McpAdapter implements PluginAdapter {
+  readonly runtime = 'mcp' as const;
+  async load(manifest, api) {
+    // MCP 协议连接外部服务器
+    const client = new MCPClient();
+    await client.connect(manifest.config.url);
+    return this.activateMcp(client, api);
+  }
+}
+```
+
+### 2.7 适配器选择器
+
+```typescript
+// src/plugins/loader.ts
+
+export class PluginLoader {
+  private adapters: Map<PluginRuntime, PluginAdapter> = new Map();
+
+  constructor() {
+    // 注册所有适配器 (按优先级)
+    this.adapters.set('bun', new BunAdapter());
+    this.adapters.set('jiti', new JitiAdapter());
+    this.adapters.set('wasm', new WasmAdapter());
+    this.adapters.set('mcp', new McpAdapter());
+  }
+
+  async loadPlugin(manifest: UpUpPluginConfig, api: UpUpPluginApi): Promise<LoadedPlugin> {
+    const adapter = this.adapters.get(manifest.runtime);
+    if (!adapter) {
+      throw new Error(`Unknown plugin runtime: ${manifest.runtime}`);
+    }
+    if (!adapter.canLoad(manifest)) {
+      throw new Error(`Adapter ${manifest.runtime} cannot load this plugin`);
+    }
+    return adapter.load(manifest, api);
+  }
+
+  async loadAll(manifests: UpUpPluginConfig[], api: UpUpPluginApi): Promise<LoadedPlugin[]> {
+    return Promise.all(manifests.map(m => this.loadPlugin(m, api)));
+  }
+}
+```
+
+### 2.8 Hook 系统扩展
+
+基于现有 22 类型 Hook，扩展投资专用 Hook:
+
+```typescript
+// 扩展 Hook 类型
+type InvestmentHook =
+  // 数据
+  | 'data_fetched'           // 数据获取完成
+  | 'data_source_error'      // 数据源异常
+  | 'data_cached'           // 数据缓存完成
+
+  // 分析
+  | 'analysis_start'         // 分析开始
+  | 'analysis_complete'      // 分析完成
+  | 'analysis_render'       // 分析结果渲染
+
+  // 组合
+  | 'portfolio_updated'      // 组合变更
+  | 'position_alert'        // 仓位预警
+  | 'risk_threshold'        // 风险阈值触发
+
+  // 服务
+  | 'session_idle'          // 会话空闲
+  | 'session_resume'        // 会话恢复
+  | 'service_start'         // 服务启动
+  | 'service_stop';        // 服务停止
+
+// Hook 执行模式
+type HookExecutionMode =
+  | 'parallel'    // 并行执行 (fire-and-forget)
+  | 'sequential'  // 顺序执行 (按优先级)
+  | 'sync';       // 同步执行 (结果必须立即返回)
+```
+
+### 2.9 服务生命周期
+
+```
+应用启动
+    │
+    ▼
+┌─────────────────┐
+│ Load Plugins    │ ← 根据 runtime 选择适配器
+│ (loader.ts)    │   bun/jiti/wasm/mcp
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ Register APIs   │ ← registerTool / registerHook / registerService
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ Start Services  │ ← 顺序启动 (注册顺序)
+│ (services.ts)  │   停止时按反向顺序
+└────────┬────────┘
+         │
+         ▼
+    [服务运行中]
+         │
+         ▼
+┌─────────────────┐
+│ Stop Services   │ ← reverse(services)
+└─────────────────┘
+```
+
+### 2.10 安全性设计
+
+| 层级 | 机制 | 实现 |
+|------|------|------|
+| **Manifest** | Schema 验证 | JSON Schema + ajv |
+| **路径安全** | 边界检查 | `isPathInside()`, 禁止逃逸 |
+| **配置安全** | 环境变量 | `env:` 引用，不暴露明文 |
+| **权限安全** | Capability 声明 | manifest 声明 + 运行时验证 |
+| **MCP 隔离** | 进程隔离 | MCP 协议天然隔离外部数据源 |
+| **WASM 沙箱** | 内存隔离 | Extism runtime |
+| **JITI 安全** | 路径安全扫描 | 插件代码扫描 |
+| **Bun 原生** | 高性能 | Bun import 直接执行 |
 
 ---
 
-## 3. 核心架构改进路线图
+## 3. OpenClaw 插件系统深度学习
 
-### Phase 1: TUI 框架升级 (2 周)
+### 3.1 核心设计模式
 
-**目标**: 从 pi-tui 迁移到自研或增强 TUI 框架
+| 模式 | OpenClaw | UpUp (适配) |
+|------|---------|------------|
+| **DI 方式** | Service Locator | Service Locator (已有) |
+| **加载方式** | JITI (ts transpile) | **Bun + JITI 双模式** |
+| **生命周期** | register/activate/start/stop | 扩展支持 unload |
+| **Hook 优先级** | priority 数字排序 | priority + executionMode |
+| **服务启动** | 正序注册，反序停止 | 复用此模式 |
+| **API 分层** | Api (插件可见) / Runtime (内部) | 继承此分层 |
 
-```
-┌──────────────────────────────────────────┐
-│              UpUp TUI Layer               │
-├──────────────────────────────────────────┤
-│                                          │
-│  ┌─────────────┐  ┌─────────────────┐   │
-│  │  Renderer    │  │  Layout Engine   │   │
-│  │  (ANSI/Term) │  │  (Flex/Grid)    │   │
-│  └──────┬──────┘  └────────┬────────┘   │
-│         │                  │             │
-│  ┌──────┴──────────────────┴────────┐   │
-│  │         Component System          │   │
-│  │  ┌──────┐ ┌──────┐ ┌──────────┐  │   │
-│  │  │ Text │ │ Box  │ │ ListView │  │   │
-│  │  ├──────┤ ├──────┤ ├──────────┤  │   │
-│  │  │Input │ │Scroll│ │ Table    │  │   │
-│  │  ├──────┤ ├──────┤ ├──────────┤  │   │
-│  │  │Modal │ │Tabs  │ │ Progress │  │   │
-│  │  └──────┘ └──────┘ └──────────┘  │   │
-│  └───────────────────────────────────┘   │
-│         │                                │
-│  ┌──────┴──────┐  ┌─────────────────┐   │
-│  │  Event Bus  │  │  Theme System    │   │
-│  │  (Keys/Mouse│  │  (Colors/Styles) │   │
-│  │   /Resize)  │  │                  │   │
-│  └─────────────┘  └─────────────────┘   │
-└──────────────────────────────────────────┘
-```
-
-**实施步骤**:
-1. 引入 ink 框架 (从 LouCode fork 或使用开源 ink 库)
-2. 将 pi-tui 组件逐步迁移到新框架
-3. 添加布局引擎、事件系统、主题系统
-4. 工具 UI 组件化 (每个工具独立 UI.tsx)
-
-### Phase 2: Bash 工具增强 (1 周)
+### 3.2 OpenClaw 关键文件
 
 ```
-┌──────────────────────────────────────────┐
-│           Enhanced Bash Tool              │
-├──────────────────────────────────────────┤
-│                                          │
-│  Input: "rm -rf /tmp/test && npm build"  │
-│         │                                │
-│  ┌──────▼──────┐                         │
-│  │ AST Parser  │ ← bash AST 分析         │
-│  │ (安全解析)   │                         │
-│  └──────┬──────┘                         │
-│         │                                │
-│  ┌──────▼──────────────────────────┐     │
-│  │        Command Classifier        │     │
-│  │  ┌────────┬────────┬──────────┐ │     │
-│  │  │Read-Only│Modify  │Destructive│ │     │
-│  │  │(ls,cat)│(touch) │(rm,sudo) │ │     │
-│  │  └────────┴────────┴──────────┘ │     │
-│  └──────┬──────────────────────────┘     │
-│         │                                │
-│  ┌──────▼──────┐  ┌─────────────────┐   │
-│  │ Sandbox     │  │ Permission      │   │
-│  │ (隔离执行)   │  │ (批准/拒绝/会话) │   │
-│  └──────┬──────┘  └────────┬────────┘   │
-│         │                  │             │
-│  ┌──────▼──────────────────▼────────┐   │
-│  │         Execution Engine          │   │
-│  │  - 超时管理                       │   │
-│  │  - 输出截断                       │   │
-│  │  - 进度追踪                       │   │
-│  │  - 后台任务                       │   │
-│  └──────────────────────────────────┘   │
-└──────────────────────────────────────────┘
+src/plugins/
+├── types.ts              ← 核心类型定义 (PluginApi, Runtime, Hooks)
+├── loader.ts             ← 加载器 (JITI + 路径安全 + provenance)
+├── registry.ts           ← 注册表 (tools/hooks/channels/commands/services)
+├── hooks.ts              ← Hook 执行引擎 (parallel/sequential/sync)
+├── services.ts           ← 服务生命周期 (start/stop order)
+├── discovery.ts          ← 发现机制 (config/workspace/bundled/global)
+├── manifest.ts           ← manifest 加载 + 验证
+├── manifest-registry.ts  ← manifest 缓存
+├── runtime/
+│   ├── types-core.ts    ← Core runtime (config/system/media/events)
+│   └── types-channel.ts  ← Channel runtime (Discord/Slack/Telegram等)
+├── path-safety.ts        ← 路径安全 (isPathInside, safeStatSync)
+├── enable.ts            ← 启用/禁用状态解析
+└── install.ts           ← 安装机制 (npm/zip/dir)
 ```
 
-**实施步骤**:
-1. 添加 Bash AST 解析器 (`src/tools/bash/ast.ts`)
-2. 命令语义分析 (`commandSemantics.ts`)
-3. Sandbox 集成 (`sandbox.ts`)
-4. Sed 编辑解析器 (`sedEditParser.ts`)
-5. 独立工具 UI 组件 (`UI.tsx`)
+### 3.3 借鉴点
 
-### Phase 3: 文件编辑工具增强 (1 周)
-
-**实施步骤**:
-1. 精确行号编辑 (不依赖字符串匹配)
-2. 编码检测 (UTF-8, GBK, etc.)
-3. 行尾检测 (LF, CRLF)
-4. 冲突检测和解决
-5. 文件历史追踪
-
-### Phase 4: SSH/远程执行 (1 周)
-
-```
-┌──────────┐     SSH      ┌──────────┐
-│  UpUp    │◄────────────►│  Remote  │
-│  Local   │   Tunnel     │  Server  │
-├──────────┤              ├──────────┤
-│ SSH      │              │ Agent    │
-│ Session  │              │ Runner   │
-│ Manager  │              │          │
-│          │              │ Tools    │
-│ Permission│             │ Bridge   │
-│ Bridge   │              │          │
-└──────────┘              └──────────┘
-```
-
-### Phase 5: 任务与 Jobs 系统 (1 周)
-
-**实施步骤**:
-1. LocalShellTask — 前台/后台 shell 任务管理
-2. 任务通知系统
-3. 进度追踪 UI
-4. 任务队列和优先级
+1. **Provenance 追踪**: 记录插件来源 (bundled/global/workspace/config)
+2. **JITI → Bun+JITI**: Bun 原生快速，JITI 支持 TS 源码插件
+3. **Path Safety**: 完整路径安全检查，防止插件逃逸
+4. **服务反向停止**: 注册顺序正向，停止顺序反向
 
 ---
 
-## 4. UpUp 1.0 功能矩阵
+## 4. Claude Code 功能筛选
 
-### 通用 Agent 功能 (对标 Claude Code)
+### ❌ 已删除 — 投资 Agent 不需要
 
-| 功能 | Claude Code | UpUp 当前 | UpUp 1.0 目标 |
-|------|------------|----------|--------------|
-| 多模型支持 | Anthropic 主 | ✅ 8 个提供商 | ✅ 保持优势 |
-| 流式响应 | ✅ | ✅ | ✅ |
-| 工具执行 | ✅ 55 工具 | ✅ 110 工具 | ✅ 120+ 工具 |
-| Bash 工具 | ✅ AST+Sandbox | 🟡 基础 | ✅ AST+Sandbox |
-| 文件编辑 | ✅ 精确编辑 | 🟡 基础 | ✅ 精确编辑 |
-| 文件读取 | ✅ | ✅ | ✅ |
-| Glob/Grep | ✅ | ✅ | ✅ |
-| MCP 协议 | ✅ | ✅ | ✅ |
-| Agent 子任务 | ✅ | ✅ | ✅ |
-| 记忆系统 | 🟡 基础 | ✅ MV2+SQL | ✅ 保持优势 |
-| 压缩系统 | ✅ | ✅ 4层 | ✅ 保持优势 |
-| SSH 远程 | ✅ | ❌ | ✅ Phase 4 |
-| Vim 模式 | ✅ | ❌ | 🟡 Phase 6 |
-| 插件系统 | ✅ | 🟡 基础 | ✅ Phase 5 |
-| 任务管理 | ✅ | 🟡 基础 | ✅ Phase 5 |
-| TUI 框架 | ✅ ink | 🟡 pi-tui | ✅ Phase 1 |
-| 工具 UI | ✅ 每工具UI | ❌ | ✅ Phase 1 |
-| 键绑定 | ✅ 可定制 | ❌ 硬编码 | ✅ Phase 1 |
-| 主题系统 | ✅ 可定制 | 🟡 基础 | ✅ Phase 1 |
-| Voice | ✅ | ❌ | ❌ 2.0 |
-| Buddy | ✅ | ❌ | 🟡 1.1 |
+| 功能 | 原因 |
+|------|------|
+| 自研 TUI 框架 | CLI 工具，pi-tui 完全满足 |
+| SSH 远程执行 | 投资在本地，API 获取数据 |
+| Vim 模式 | 代码编辑不是核心场景 |
+| Voice 模式 | 投资需精确数据 |
+| Buddy 系统 | Companion 动画无价值 |
+| Analytics/VSCode | 非投资场景 |
+| PowerShell 支持 | 投资工具在 macOS/Linux |
 
-### 金融/投资功能 (UpUp 独有)
+### ✅ 保留 — 投资 Agent 需要
 
-| 功能 | UpUp 当前 | UpUp 1.0 目标 |
-|------|----------|--------------|
-| 美股数据 | ✅ FMP API | ✅ |
-| A股数据 | ✅ Tushare | ✅ 增强: 实时推送 |
-| 港股数据 | 🟡 基础 | ✅ 增强 |
-| 量化计算 | ✅ 20 工具 | ✅ 25 工具 |
-| 组合管理 | ✅ 单/多组合 | ✅ 增强: 风险报告 |
-| 回测系统 | ✅ 基础 | ✅ 增强: 策略框架 |
-| 期权定价 | ✅ Black-Scholes | ✅ Monte Carlo |
-| 技术指标 | ✅ 12 指标 | ✅ 20 指标 |
-| 税收计算 | ✅ 4 国 | ✅ 增加 A 股印花税 |
-| 数据可靠性 | ✅ A-F 评分 | ✅ |
-| 外汇工具 | ✅ | ✅ |
-| 卖空分析 | ✅ | ✅ 增强 |
-| 日历工具 | ✅ A 股日历 | ✅ 全球日历 |
-
----
-
-## 5. 执行计划
-
-### 总体时间线: 6 周
-
-```
-Week 1-2: Phase 1 — TUI 框架升级
-Week 3:   Phase 2 — Bash 工具增强
-Week 4:   Phase 3 — 文件编辑增强 + SSH
-Week 5:   Phase 4 — 任务/Jobs 系统
-Week 6:   Phase 5 — 插件系统 + 集成测试
-```
-
-### 里程碑
-
-| 里程碑 | 交付物 | 验证标准 |
-|--------|--------|---------|
-| M1: TUI v2 | ink 框架 + 所有组件迁移 | 启动正常, 所有命令可用 |
-| M2: Bash v2 | AST+Sandbox+权限 | 1777 测试通过 + 新增 Bash 安全测试 |
-| M3: 文件编辑 v2 | 精确编辑+编码检测 | 文件操作测试通过 |
-| M4: SSH | 远程执行能力 | SSH 连接+远程命令执行测试 |
-| M5: Jobs v2 | 完整任务管理 | 后台任务+通知+进度 |
-| M6: 1.0 Release | 全部集成 | osascript 验证 + 2000+ 测试 |
-
----
-
-## 6. 优先级排序
-
-### 立即行动 (Week 1)
-
-1. **TUI 框架评估**: 决定是 fork ink 还是用开源 ink 库
-2. **Bash 安全增强**: 添加 AST 解析和 Sandbox — 这是安全性核心
-3. **工具 UI 组件化**: 每个工具添加独立 UI.tsx
-
-### 短期 (Week 2-3)
-
-4. **SSH 远程执行**: 企业用户的刚需
-5. **文件编辑增强**: 代码编辑能力
-6. **键绑定系统**: 提升交互体验
-
-### 中期 (Week 4-6)
-
-7. **插件系统完善**: 第三方扩展能力
-8. **任务管理系统**: 长时间任务和后台作业
-9. **Vim 模式**: 高级编辑体验
-10. **迁移框架**: 版本升级基础设施
-
----
-
-## 7. UpUp 竞争优势保持
-
-在补齐通用 Agent 差距的同时，必须保持以下 UpUp 独有优势:
-
-| 优势 | 保持策略 |
+| 功能 | 投资场景 |
 |------|---------|
-| 金融工具 110+ | 持续增加: 蒙特卡洛模拟、因子分析、压力测试 |
-| A 股深度集成 | 增加: 实时 Level-2、融资融券、IPO 日历 |
-| WhatsApp 网关 | 增加: Telegram 频道、微信机器人 |
-| 记忆系统 | 增加: 投资偏好学习、风险偏好跟踪 |
-| 多模型支持 | 增加: 通义千问、文心一言、智谱 GLM |
-| 中文优化 | 增加: 中文搜索、中文新闻源、A股 社区情绪 |
+| Bash/命令执行 | API 调用、数据下载、定时任务 |
+| 文件编辑 | 组合配置、回测脚本、报告 |
+| 工具渲染 | 金融数据格式化、VaR 结果 |
+| 任务/Jobs | 后台量化计算、定时更新 |
+| **插件系统** | 扩展数据源、分析工具、渠道 |
+| 键绑定 | 快速交互 |
+| MCP 协议 | 外部数据源隔离 |
 
 ---
 
-## 8. 代码质量目标
+## 5. 已完成特性 ✅
+
+| 里程碑 | 交付物 | 验证 |
+|--------|--------|------|
+| M1: Bash AST | ast-parser.ts + 34 tests | 1852 测试通过 |
+| M2: 文件编辑追踪 | file-state.ts + 10 tests | 1852 测试通过 |
+| M3: Hook 退出码 | spawn + exit 0/2 | TS 编译通过 |
+| M4: 工具 UI 渲染 | tool-renderers.ts | TS 编译通过 |
+| M5: 键绑定 | keybindings/ + 31 tests | 1852 测试通过 |
+| M6: Jobs CLI | /tasks stop, /jobs | TS 编译通过 |
+
+---
+
+## 6. 投资 Agent 路线图
+
+### 🔴 P0 — 核心投资功能
+
+| # | 功能 | 投资场景 | 插件类型 |
+|---|------|---------|---------|
+| **I0** | **统一插件系统架构** | 所有投资功能的扩展基础 | 核心 |
+| I1 | 投资组合深度分析 | 风险报告、头寸监控、再平衡 | 分析 |
+| I2 | 实时 A 股数据增强 | Level-2 推送、融资融券、IPO | 数据源 |
+| I3 | 量化策略框架 | 回测引擎、策略注册、胜率 | 策略 |
+| I4 | 投资记忆系统 | 偏好学习、风险跟踪、头寸 | 服务 |
+
+### 🟡 P1 — 重要投资功能
+
+| # | 功能 | 插件类型 |
+|---|------|---------|
+| I5 | Monte Carlo 模拟 | 分析 |
+| I6 | 因子分析 | 分析 |
+| I7 | 压力测试 | 分析 |
+| I8 | 港股数据增强 | 数据源 |
+| I9 | 全球宏观日历 | 数据源 |
+| I10 | Telegram 通知 | 渠道 |
+| I11 | 微信通知 | 渠道 |
+
+### 🟢 P2 — 增强功能
+
+| # | 功能 |
+|---|------|
+| I12 | 策略评分系统 (A-F) |
+| I13 | 组合归因分析 |
+| I14 | 税务优化 (A 股印花税) |
+| I15 | 卖空利率监控 |
+| I16 | 新闻情绪分析 |
+| I17 | Excel/CSV 导入 |
+
+---
+
+## 7. 插件系统实施步骤
+
+### Phase 1: 统一适配器架构 (Week 1-2)
+
+```
+Day 1-3:   Plugin types + manifest schema
+Day 4-6:   Plugin adapter interface + 4 adapters (bun/jiti/wasm/mcp)
+Day 7-9:   Plugin loader (适配器选择 + 路径安全)
+Day 10-12: Plugin registry (capability registration)
+Day 13-15: Discovery (4 sources: config/workspace/global/npm)
+Day 16-18: registerTool() → Tool Registry 集成
+Day 19-21: registerHook() → Hook System 集成
+Day 22:    测试
+```
+
+**新文件**:
+```
+src/plugins/
+├── types.ts              # Plugin API + capability types
+├── manifest.ts           # manifest 加载 + JSON Schema 验证
+├── loader.ts            # Plugin loader (适配器选择)
+├── adapters/
+│   ├── index.ts         # 适配器导出
+│   ├── bun.ts           # Bun 原生适配器
+│   ├── jiti.ts          # JITI TS 适配器
+│   ├── wasm.ts          # WASM Extism 适配器
+│   └── mcp.ts           # MCP 协议适配器
+├── registry.ts          # 能力注册表
+├── discovery.ts          # 4 来源发现
+├── services.ts           # 服务生命周期
+├── runtime/
+│   ├── types-core.ts    # Core runtime capabilities
+│   └── types-data.ts   # DataSource runtime
+└── path-safety.ts       # 路径边界检查
+```
+
+### Phase 2: 数据源插件 (Week 3)
+
+```
+Day 23-26: registerDataSource() + FMP 适配器 (bun)
+Day 27-30: Tushare 适配器重构为数据源插件
+Day 31-33: 宏观数据插件 (FRED, 世界银行)
+Day 34:    测试
+```
+
+### Phase 3: 分析工具插件 (Week 4)
+
+```
+Day 35-38: Monte Carlo 模拟器插件
+Day 39-42: 因子分析插件
+Day 43-45: 压力测试插件
+Day 46:    测试
+```
+
+### Phase 4: 渠道 + 服务 (Week 5)
+
+```
+Day 47-50: registerChannel() + Telegram
+Day 51-54: registerService() + 投资记忆服务
+Day 55-57: WhatsApp 增强 (价格预警)
+Day 58:    测试
+```
+
+---
+
+## 8. 功能矩阵
+
+| 功能 | 当前 | 1.0 目标 | 优先级 | 插件类型 |
+|------|------|----------|--------|---------|
+| 美股数据 (FMP) | ✅ | ✅ 增强 | P0 | 数据源 |
+| A股数据 (Tushare) | ✅ | ✅ Level-2 | P0 | 数据源 |
+| 港股数据 | 🟡 | ✅ 增强 | P1 | 数据源 |
+| 量化计算 (20 工具) | ✅ | ✅ 25+ | P1 | 分析 |
+| Monte Carlo | ❌ | ✅ | P1 | 分析 |
+| 因子分析 | ❌ | ✅ | P1 | 分析 |
+| 压力测试 | ❌ | ✅ | P1 | 分析 |
+| 组合管理 | ✅ | ✅ 风险报告 | P0 | 分析 |
+| 回测系统 | ✅ 基础 | ✅ 策略框架 | P0 | 策略 |
+| 技术指标 (12) | ✅ | ✅ 20+ | P1 | 分析 |
+| 数据可靠性 (A-F) | ✅ | ✅ | P0 | — |
+| 投资记忆系统 | 🟡 | ✅ 偏好学习 | P0 | 服务 |
+| WhatsApp 通知 | ✅ | ✅ 增强 | P1 | 渠道 |
+| **插件系统** | 🟡 | ✅ 统一架构 | P0 | **核心** |
+| MCP 协议 | ✅ | ✅ | P1 | — |
+| 键绑定 | ✅ | ✅ | P2 | — |
+| 主题系统 | 🟡 | ✅ | P2 | — |
+
+---
+
+## 9. 技术选型总结
+
+| 选择 | 方案 | 原因 |
+|------|------|------|
+| **运行时** | Bun 1.x | 高性能、无 Node 兼容层开销 |
+| **TS 插件** | Bun native + JITI 双模式 | 快速 + TS 源码支持 |
+| **WASM 支持** | Extism SDK | 成熟、WASMtime 后端 |
+| **MCP 支持** | MCP Client | 外部数据源进程隔离 |
+| **DI 模式** | Service Locator | 已有，复用模式 |
+| **路径安全** | 边界检查 + hardlink 拒绝 | 防止插件逃逸 |
+| **Hook 引擎** | Parallel/Sequential/Sync | 适配不同场景 |
+| **服务生命周期** | 正序启动、反序停止 | OpenClaw 模式复用 |
+
+---
+
+## 10. 竞争优势
+
+| 优势 | 描述 | 保持策略 |
+|------|------|---------|
+| 金融工具 110+ | VaR, BS, Sharpe, Kelly, Greeks | 持续增加 MC/因子/压力 |
+| A 股深度集成 | 实时 + Level-2 + 融资融券 | 增加: IPO 日历 |
+| 美股数据 | FMP 完整 API | 增加: 财报预测 |
+| **统一插件系统** | TS(JITI)/Bun/WASM/MCP 四种运行时 | 投资扩展基础 |
+| 量化分析 | 回测、风险、组合优化 | 增加: 多因子 |
+| 消息通知 | WhatsApp + Telegram + 微信 | 多渠道预警 |
+| 记忆系统 | MV2 + BM25 + SQL | 增加: 投资偏好 |
+
+---
+
+## 11. 代码质量
 
 | 指标 | 当前 | 1.0 目标 |
 |------|------|---------|
-| 测试文件数 | 94 | 150+ |
-| 测试用例数 | 1,777 | 3,000+ |
+| 测试用例数 | **1,852** | 3,000+ |
+| 测试文件数 | 97 | 120+ |
 | TypeScript 严格模式 | 部分 | 全部 strict |
-| 文档覆盖 | 低 | 每个模块 README |
 | CI/CD | 无 | GitHub Actions |
 | 代码覆盖率 | 未测 | 80%+ |
+
+---
+
+## 12. 与 Claude Code 的差异
+
+| Claude Code (通用) | UpUp (投资) |
+|-------------------|-------------|
+| 代码补全/重构 | 市场数据分析 |
+| Git 版本控制 | 组合配置管理 |
+| SSH 远程开发 | API 远程数据调用 |
+| Vim/IDE 快捷键 | 快速命令执行 |
+| VSCode 集成 | WhatsApp/Telegram 预警 |
+| Voice 语音输入 | 精确数据输入 |
+| npm 插件生态 | 统一适配器 (TS/Bun/JITI/WASM/MCP) |
+| 55 个工具 | 110+ 工具 + 插件扩展 |
+
+---
+
+## 13. 未来扩展
+
+### WASM 插件生态
+- Extism Hub (WASM 插件市场)
+- 第三方数据源 (Rust/Go 编译的 WASM)
+- 量化策略 WASM 插件 (高性能计算)
+
+### MCP 协议扩展
+- Bloomberg 数据源 MCP
+- 券商 API MCP
+- 宏观经济数据 MCP
+
+> **结论**: UpUp 1.0 = **投资研究 AI Agent + 统一适配器插件系统**。四种运行时 (Bun/JITI/WASM/MCP) 通过统一 Plugin API 适配，一次开发，处处运行。全面学习 OpenClaw 的 Capability Registration 模式，复用现有 Tool Registry/Hook System/MCP 协议。插件系统是 UpUp 区别于 Claude Code 的核心差异化: 支持数据源、分析工具、策略、通知渠道的全方位扩展，兼容未来 WASM 生态。

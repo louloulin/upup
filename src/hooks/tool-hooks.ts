@@ -11,7 +11,11 @@
  * Reference: Loucode's types/hooks.ts and utils/hooks.ts
  */
 
+import { exec, spawn } from 'child_process';
+import { promisify } from 'util';
 import { info, warn, error } from '../utils/logging/logger.js';
+
+const execAsync = promisify(exec);
 
 // ============================================================================
 // Hook Event Types
@@ -76,6 +80,10 @@ export interface HookOutput {
   reason?: string;
   /** Warning message */
   systemMessage?: string;
+  /** Exit code from command hook (LouCode convention: 0=ok, 2=block, other=warn) */
+  exitCode?: number;
+  /** Whether this hook blocked the tool call (derived from exit code or decision) */
+  blocked?: boolean;
   /** Event-specific output */
   hookSpecificOutput?: HookSpecificOutput;
 }
@@ -293,6 +301,95 @@ export class ToolHookExecutor {
   }
 
   /**
+   * Execute a shell command hook with exit code convention:
+   * - Exit 0: success, stdout shown in transcript
+   * - Exit 2: block tool call (PreToolUse) or continue conversation (Stop), stderr shown to model
+   * - Other: warning, stderr shown to user only
+   */
+  async executeCommandHook(
+    command: string,
+    event: HookEvent,
+    params: unknown,
+    timeoutMs: number = 5000,
+  ): Promise<HookOutput> {
+    const context: HookContext = {
+      sessionId: this.globalContext.sessionId ?? 'unknown',
+      turnCount: this.globalContext.turnCount ?? 0,
+      cwd: this.globalContext.cwd ?? process.cwd(),
+      timestamp: Date.now(),
+    };
+
+    // Pass params as JSON via stdin using spawn (exec doesn't support stdin piping)
+    const stdinData = JSON.stringify({ event, params, context });
+
+    try {
+      const { stdout, stderr, exitCode } = await new Promise<{ stdout: string; stderr: string; exitCode: number }>((resolve, reject) => {
+        const child = spawn('sh', ['-c', command], {
+          timeout: timeoutMs,
+          env: { ...process.env },
+          cwd: context.cwd,
+          stdio: ['pipe', 'pipe', 'pipe'],
+        });
+
+        let stdout = '';
+        let stderr = '';
+        child.stdout.on('data', (d: Buffer) => { stdout += d.toString(); });
+        child.stderr.on('data', (d: Buffer) => { stderr += d.toString(); });
+
+        child.on('error', (err) => reject(err));
+        child.on('close', (code) => {
+          if (code === null) {
+            reject(new Error('Process killed'));
+          } else {
+            resolve({ stdout, stderr, exitCode: code });
+          }
+        });
+
+        child.stdin.write(stdinData);
+        child.stdin.end();
+      });
+
+      // Exit code 0: success
+      if (exitCode === 0) {
+        return {
+          continue: true,
+          exitCode: 0,
+          systemMessage: stdout.trim() || undefined,
+        };
+      }
+
+      // Exit code 2: block tool call or continue conversation
+      if (exitCode === 2) {
+        const reason = stderr.trim() || 'Blocked by hook';
+        info('system', `Command hook blocked (exit 2): ${reason}`);
+        return {
+          continue: event === 'Stop',
+          exitCode: 2,
+          blocked: event === 'PreToolUse',
+          decision: event === 'PreToolUse' ? 'block' : undefined,
+          reason,
+          systemMessage: stderr.trim() || undefined,
+        };
+      }
+
+      // Other exit codes: warn but continue
+      if (stderr) {
+        warn('system', `Command hook warning (exit ${exitCode}): ${stderr.trim()}`);
+      }
+
+      return {
+        continue: true,
+        exitCode,
+        systemMessage: stderr.trim() || undefined,
+      };
+    } catch (err: unknown) {
+      // Process spawn error or timeout
+      warn('system', `Command hook execution failed: ${command} — ${(err as Error).message}`);
+      return { continue: true, exitCode: -1 };
+    }
+  }
+
+  /**
    * Merge multiple hook outputs
    */
   private mergeOutput(base: HookOutput, next: HookOutput): HookOutput {
@@ -315,6 +412,8 @@ export class ToolHookExecutor {
       decision: next.decision ?? base.decision,
       reason: next.reason ?? base.reason,
       systemMessage: next.systemMessage ?? base.systemMessage,
+      exitCode: next.exitCode ?? base.exitCode,
+      blocked: next.blocked ?? base.blocked,
       hookSpecificOutput: mergedSpecific,
     };
   }

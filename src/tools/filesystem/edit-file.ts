@@ -13,6 +13,7 @@ import {
   restoreLineEndings,
   stripBom,
 } from './utils/edit-diff.js';
+import { checkStaleness, updateAfterWrite } from './file-state.js';
 
 export const EDIT_FILE_DESCRIPTION = `
 Perform precise in-place text edits in a local workspace file.
@@ -63,7 +64,15 @@ export const editFileTool = new DynamicStructuredTool({
     }
 
     const rawContent = (await readFile(resolved)).toString('utf-8');
+
+    // Staleness check: detect if file was modified since last read
     const { bom, text: content } = stripBom(rawContent);
+    const staleness = await checkStaleness(resolved, content);
+    if (staleness.stale) {
+      throw new Error(
+        `File has been modified since last read: ${staleness.reason}. Please re-read the file before editing.`,
+      );
+    }
 
     const originalEnding = detectLineEnding(content);
     const normalizedContent = normalizeToLF(content);
@@ -113,6 +122,9 @@ export const editFileTool = new DynamicStructuredTool({
 
     const finalContent = bom + restoreLineEndings(newContent, originalEnding);
     await writeFile(resolved, finalContent, 'utf-8');
+
+    // Update tracked state so next edit doesn't see our own write as stale
+    updateAfterWrite(resolved, content);
 
     const diffResult = generateDiffString(baseContent, newContent);
     return formatToolResult({

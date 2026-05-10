@@ -6,6 +6,7 @@ import { formatToolResult } from '../types.js';
 import { assertSandboxPath } from './sandbox.js';
 import { resolveReadPath } from './utils/path-utils.js';
 import { DEFAULT_MAX_BYTES, formatSize, truncateHead } from './utils/truncate.js';
+import { trackRead } from './file-state.js';
 
 export const READ_FILE_DESCRIPTION = `
 Read file contents from the local workspace.
@@ -53,6 +54,10 @@ export const readFileTool = new DynamicStructuredTool({
     await access(absolutePath, constants.R_OK);
 
     const textContent = (await readFile(absolutePath)).toString('utf-8');
+
+    // Track read state for staleness detection in edit_file
+    trackRead(absolutePath, textContent);
+
     const allLines = textContent.split('\n');
     const totalFileLines = allLines.length;
 
