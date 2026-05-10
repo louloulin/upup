@@ -27,6 +27,7 @@ import { loadAgentPlanningTools } from './agent-planning-tools.js';
 import { loadQuantTools } from './quant-tools.js';
 import { loadDomainTools } from './domain-tools.js';
 import { loadDuckDBTools } from './duckdb-tools.js';
+import { loadInvestmentKnowledgeTools } from './investment-knowledge-tools.js';
 
 import type { RegisteredTool } from './types.js';
 
@@ -58,6 +59,9 @@ export async function getToolRegistry(model: string): Promise<RegisteredTool[]> 
 
     // DuckDB data analytics (in-process SQL for investment data)
     ...await loadDuckDBTools(),
+
+    // Investment knowledge management
+    ...loadInvestmentKnowledgeTools(),
   ];
 
   return tools;
