@@ -5,6 +5,7 @@ import type {
   ToolErrorEvent,
   ToolStartEvent,
 } from './agent/index.js';
+import { renderToolResult } from './tools/tool-renderers.js';
 import { getApiKeyNameForProvider, getProviderDisplayName } from './utils/env.js';
 import { defaultQueue } from './utils/message-queue.js';
 import { logger } from './utils/logger.js';
@@ -50,6 +51,10 @@ function truncateAtWord(str: string, maxLength: number): string {
 }
 
 function summarizeToolResult(tool: string, args: Record<string, unknown>, result: string): string {
+  // Try tool-specific renderer first
+  const customSummary = renderToolResult(tool, args, result);
+  if (customSummary) return customSummary;
+
   if (tool === 'skill') {
     const skillName = args.skill as string;
     return `Loaded ${skillName} skill`;

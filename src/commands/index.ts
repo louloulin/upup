@@ -28,7 +28,8 @@ export const SLASH_COMMANDS: SlashCommand[] = [
   { name: 'steps', description: 'List all steps in the current plan', category: 'plan' },
   // Agent commands
   { name: 'agent', description: 'Spawn a child agent for parallel task execution', category: 'agent' },
-  { name: 'tasks', description: 'Show background task status', category: 'agent' },
+  { name: 'tasks', description: 'Show background task status, stop with /tasks stop <id>', category: 'agent' },
+  { name: 'jobs', description: 'Show daemon job queue and worker status', category: 'agent' },
   { name: 'fork', description: 'Create a parallel fork for independent work', category: 'agent' },
   { name: 'team', description: 'List agent teams', category: 'agent' },
   // MCP commands

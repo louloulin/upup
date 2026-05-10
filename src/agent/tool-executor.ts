@@ -17,6 +17,7 @@ import type { RunContext } from './run-context.js';
 import { info, warn, perf } from '../utils/logging/logger.js';
 import { getRateLimiter } from '../hooks/rate-limiter.js';
 import { useToolMetrics, useCanUseTool } from '../hooks/agent-hooks.js';
+import { getHookExecutor } from '../hooks/tool-hooks.js';
 
 type ToolExecutionEvent =
   | ToolStartEvent
@@ -142,6 +143,25 @@ export class AgentToolExecutor {
         return;
       }
       // 'requires-approval' falls through to the approval flow below
+    }
+
+    // Hook PreToolUse check (LouCode exit code convention)
+    try {
+      const hookExecutor = getHookExecutor();
+      const hookOutput = await hookExecutor.preToolUse({
+        toolName,
+        args: toolArgs,
+        toolCallId,
+      });
+      if (hookOutput.blocked || hookOutput.decision === 'block') {
+        const reason = hookOutput.reason ?? hookOutput.systemMessage ?? 'Blocked by hook';
+        warn('system', `Tool ${toolName} blocked by hook: ${reason}`);
+        yield { type: 'tool_denied', tool: toolName, args: toolArgs, toolCallId };
+        ctx.scratchpad.recordPermissionDenial(toolName, toolArgs, `Hook blocked: ${reason}`);
+        return;
+      }
+    } catch {
+      // Hook execution failure — don't block tool execution
     }
 
     // Approval flow for sensitive tools

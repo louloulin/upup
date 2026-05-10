@@ -809,11 +809,24 @@ const costCommand: Command = {
 
 const tasksCommand: Command = {
   name: 'tasks',
-  description: 'List background agent tasks',
-  async execute(_args, _context): Promise<CommandResult> {
+  description: 'List background agent tasks, or stop a task with /tasks stop <id>',
+  async execute(args, _context): Promise<CommandResult> {
     try {
       const { getDefaultSubagentRunner } = await import('../agent/subagent-runner.js');
       const runner = getDefaultSubagentRunner();
+
+      // /tasks stop <id>
+      const parts = args.trim().split(/\s+/);
+      if (parts[0] === 'stop' && parts[1]) {
+        const taskId = parts[1];
+        try {
+          await runner.cancelTask(taskId);
+          return { type: 'output', text: `Task ${taskId} cancelled.` };
+        } catch (e) {
+          return { type: 'error', message: `Failed to cancel task ${taskId}: ${(e as Error).message}` };
+        }
+      }
+
       const tasks = runner.getAllTasks();
 
       if (tasks.length === 0) {
@@ -829,6 +842,62 @@ const tasksCommand: Command = {
       return { type: 'output', text: `Background Tasks:\n${lines.join('\n')}` };
     } catch {
       return { type: 'error', message: 'Task system not available' };
+    }
+  },
+};
+
+const jobsCommand: Command = {
+  name: 'jobs',
+  description: 'Show daemon job queue status, active tasks, and worker pool',
+  async execute(args, _context): Promise<CommandResult> {
+    try {
+      const sub = args.trim().split(/\s+/)[0] || 'status';
+
+      if (sub === 'history') {
+        // Show completed/failed jobs from supervisor
+        const { getDefaultSupervisor } = await import('../daemon/supervisor.js');
+        const supervisor = getDefaultSupervisor();
+        const stats = supervisor.getStats();
+        const lines: string[] = [];
+        if (stats.queueSize === 0 && stats.activeTasks === 0) {
+          lines.push('No pending or active jobs.');
+        } else {
+          lines.push(`Queue: ${stats.queueSize} pending, ${stats.activeTasks} active`);
+        }
+        lines.push(`Workers: ${stats.workers}`);
+        return { type: 'output', text: `Jobs Status:\n${lines.join('\n')}` };
+      }
+
+      // Default: show current status
+      const { getDefaultSupervisor } = await import('../daemon/supervisor.js');
+      const { getWorkerPool } = await import('../daemon/worker-pool.js');
+
+      const supervisor = getDefaultSupervisor();
+      const pool = getWorkerPool();
+      const stats = supervisor.getStats();
+      const poolStats = pool.getStats();
+
+      const lines: string[] = [
+        `Queue: ${stats.queueSize} pending`,
+        `Active: ${stats.activeTasks} running`,
+        `Workers: ${poolStats.totalWorkers} total (${poolStats.runningWorkers} running)`,
+      ];
+
+      // Add worker details if available
+      if (poolStats.workers.length > 0) {
+        lines.push('');
+        lines.push('Workers:');
+        for (const w of poolStats.workers) {
+          const icon = w.status === 'running' ? '✅' : w.status === 'starting' ? '⏳' : '○';
+          const age = Date.now() - w.lastHeartbeat;
+          const ageStr = age > 30000 ? ` (last heartbeat ${Math.round(age / 1000)}s ago)` : '';
+          lines.push(`  ${icon} ${w.kind}@${w.id.substring(0, 6)}: ${w.activeTasks} active, ${w.completedTasks} done${ageStr}`);
+        }
+      }
+
+      return { type: 'output', text: `Jobs Status:\n${lines.join('\n')}` };
+    } catch {
+      return { type: 'error', message: 'Job system not available' };
     }
   },
 };
@@ -1089,6 +1158,7 @@ export function registerBuiltinCommands(registry: CommandRegistry): void {
   registry.register(doctorCommand);
   registry.register(costCommand);
   registry.register(tasksCommand);
+  registry.register(jobsCommand);
   registry.register(mcpCommand);
   registry.register(permissionsCommand);
   registry.register(proactiveCommand);
