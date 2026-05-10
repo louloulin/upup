@@ -77,7 +77,7 @@ export interface TableInfo {
 // DuckDB Service (background service for DuckDB connection)
 // ============================================================================
 
-class DuckDBService implements PluginService {
+export class DuckDBService implements PluginService {
   name = 'duckdb-service';
   private db: any = null;
   private conn: any = null;
