@@ -1,0 +1,21 @@
+{
+  "name": "@upup/commands",
+  "version": "0.1.0",
+  "description": "UpUp Commands SDK - Slash command framework",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "bun build src/index.ts --outdir=dist --target=bun && npx tsc --emitDeclarationOnly --declaration --declarationMap --outDir dist",
+    "dev": "bun build src/index.ts --outdir=dist --watch --target=bun",
+    "test": "bun test"
+  },
+  "peerDependencies": {},
+  "files": ["dist"]
+}
