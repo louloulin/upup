@@ -1,9 +1,4 @@
 /**
- * @deprecated Use @upup/keybindings instead
- * Re-exports from @upup/keybindings for backward compatibility
- */
-
-/**
  * Keybinding System — Barrel exports
  */
 
@@ -15,7 +10,7 @@ export type {
   ResolveResult,
   KeybindingContext,
   KeybindingAction,
-} from '@upup/keybindings';
+} from './types.js';
 
 export {
   parseKeystroke,
@@ -23,12 +18,12 @@ export {
   keyEventToKeystroke,
   keystrokesMatch,
   formatKeystroke,
-} from '@upup/keybindings';
+} from './parser.js';
 
 export {
   resolveKey,
   flattenBindings,
   mergeBindings,
-} from '@upup/keybindings';
+} from './resolver.js';
 
-export { DEFAULT_KEYBINDINGS } from '@upup/keybindings';
+export { DEFAULT_KEYBINDINGS } from './defaults.js';

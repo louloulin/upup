@@ -1,7 +1,10 @@
 /**
+ * @deprecated Use @upup/mcp instead
+ * Re-exports from @upup/mcp for backward compatibility
+ */
+
+/**
  * MCP Module - Model Context Protocol Integration
- *
- * Provides MCP server connection and tool management for UpUp.
  */
 
 export {
@@ -13,11 +16,11 @@ export {
   loadMCPConfig,
   getDefaultMCPClient,
   initializeMCPClient,
-} from './client.js';
+} from '@upup/mcp';
 
 export {
   mcpToolsToRegisteredTools,
   getMCPToolDescriptions,
   getMCPStatus,
   type MCPRegisteredTool,
-} from './registry.js';
+} from '@upup/mcp';

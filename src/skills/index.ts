@@ -1,5 +1,10 @@
+/**
+ * @deprecated Use @upup/skills instead
+ * Re-exports from @upup/skills for backward compatibility
+ */
+
 // Skill types
-export type { SkillMetadata, Skill, SkillSource } from './types.js';
+export type { SkillMetadata, Skill, SkillSource } from '@upup/skills';
 
 // Skill registry functions
 export {
@@ -7,11 +12,11 @@ export {
   getSkill,
   buildSkillMetadataSection,
   clearSkillCache,
-} from './registry.js';
+} from '@upup/skills';
 
 // Skill loader functions
 export {
   parseSkillFile,
   loadSkillFromPath,
   extractSkillMetadata,
-} from './loader.js';
+} from '@upup/skills';
