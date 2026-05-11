@@ -1,0 +1,36 @@
+{
+  "name": "@upup/plugins",
+  "version": "0.1.0",
+  "description": "UpUp Plugin System - Plugin types, manifest validation, and core interfaces",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "bun build src/index.ts --outdir=dist --target=bun && tsc --emitDeclarationOnly --declaration --declarationMap --outDir dist",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "zod": "^3.23.8"
+  },
+  "peerDependencies": {
+    "@upup/types": "workspace:*"
+  },
+  "devDependencies": {
+    "@upup/types": "workspace:*",
+    "@types/bun": "latest"
+  },
+  "keywords": [
+    "plugin",
+    "upup",
+    "agent"
+  ]
+}
