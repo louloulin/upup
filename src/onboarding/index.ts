@@ -33,6 +33,8 @@ export { OnboardingWizard } from './wizard.js';
 export { OnboardingChecklist } from './checklist.js';
 export { TemplateManager, DEFAULT_EXAMPLES, QUICK_START_PROMPTS } from './templates.js';
 
+import { OnboardingChecklist } from './checklist.js';
+
 /**
  * Quick start function to check if onboarding is needed
  */

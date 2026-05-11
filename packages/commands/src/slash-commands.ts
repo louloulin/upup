@@ -55,6 +55,9 @@ export const SLASH_COMMANDS: SlashCommand[] = [
   { name: 'tools', description: 'List registered tools', category: 'tools' },
   { name: 'config', description: 'Get/set configuration', category: 'tools' },
   { name: 'export', description: 'Export conversation to file', category: 'tools' },
+  // Onboarding commands
+  { name: 'onboard', description: 'Start onboarding wizard for new users', category: 'system' },
+  { name: 'setup', description: 'Run setup wizard for new users', category: 'system' },
 ];
 
 /**
