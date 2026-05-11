@@ -367,8 +367,12 @@ export class SubagentRunner {
       // Dynamically import Agent to avoid circular dependency
       const { Agent } = await import('./agent.js');
 
-      // Create agent instance with inherited model
-      const model = config.model === 'inherit' ? undefined : config.model;
+      // Create agent instance with inherited model from settings
+      const { loadConfig } = await import('../utils/config.js');
+      const savedConfig = loadConfig();
+      const model = config.model === 'inherit' || !config.model
+        ? (savedConfig.modelId ?? undefined)
+        : config.model;
 
       // Get signal from active agents map if task is running in background
       let signal: AbortSignal | undefined;
