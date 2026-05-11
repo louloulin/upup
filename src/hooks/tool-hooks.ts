@@ -26,6 +26,7 @@ const execAsync = promisify(exec);
  */
 export type HookEvent =
   // Tool lifecycle hooks
+  | 'PreToolModify'  // Before PreToolUse — allows modifying tool args
   | 'PreToolUse'
   | 'PostToolUse'
   | 'PostToolUseFailure'
@@ -134,6 +135,25 @@ export type HookHandler = (
 // Hook Event Parameters
 // ============================================================================
 
+/**
+ * PreToolModify params — allows hooks to modify tool arguments before execution
+ */
+export interface PreToolModifyParams {
+  toolName: string;
+  args: Record<string, unknown>;
+  toolCallId?: string;
+}
+
+/**
+ * PreToolModify result — returned by PreToolModify hooks
+ */
+export interface PreToolModifyResult {
+  modified: boolean;
+  newArgs?: Record<string, unknown>;
+  blocked?: boolean;
+  reason?: string;
+}
+
 export interface PreToolUseParams {
   toolName: string;
   args: Record<string, unknown>;
@@ -202,7 +222,7 @@ export class ToolHookExecutor {
   constructor() {
     // Initialize hook arrays for all event types
     const events: HookEvent[] = [
-      'PreToolUse', 'PostToolUse', 'PostToolUseFailure',
+      'PreToolModify', 'PreToolUse', 'PostToolUse', 'PostToolUseFailure',
       'Stop', 'StopFailure', 'UserPromptSubmit',
       'SessionStart', 'SessionEnd', 'Setup',
       'SubagentStart', 'SubagentStop',
@@ -421,6 +441,59 @@ export class ToolHookExecutor {
   // -------------------------------------------------------------------------
   // Pre-defined hook execution methods
   // -------------------------------------------------------------------------
+
+  /**
+   * Execute PreToolModify hooks — allows modification of tool arguments
+   * Returns the modified args if any hook modified them, otherwise returns input args
+   */
+  async preToolModify(
+    params: PreToolModifyParams
+  ): Promise<{ args: Record<string, unknown>; blocked: boolean }> {
+    const hooks = this.getHooks('PreToolModify');
+    let currentArgs = { ...params.args };
+    let blocked = false;
+
+    const context: HookContext = {
+      sessionId: this.globalContext.sessionId ?? 'unknown',
+      turnCount: this.globalContext.turnCount ?? 0,
+      cwd: this.globalContext.cwd ?? process.cwd(),
+      timestamp: Date.now(),
+    };
+
+    for (const hook of hooks) {
+      if (!hook.enabled && hook.enabled !== undefined) continue;
+
+      try {
+        const result = await hook.handler({ ...params, args: currentArgs }, context);
+
+        if (result) {
+          // Check for modified args
+          if (result.hookSpecificOutput?.updatedInput) {
+            currentArgs = result.hookSpecificOutput.updatedInput;
+            info('system', `Hook ${hook.name} modified args for ${params.toolName}`);
+          }
+
+          // Check for blocking
+          if (result.blocked || result.decision === 'block' || result.decision === 'deny') {
+            blocked = true;
+            warn('system', `Hook ${hook.name} blocked ${params.toolName}`);
+            break;
+          }
+
+          // Exit code 2 also blocks
+          if (result.exitCode === 2) {
+            blocked = true;
+            warn('system', `Hook ${hook.name} blocked ${params.toolName} (exit 2)`);
+            break;
+          }
+        }
+      } catch (err) {
+        error('system', `PreToolModify hook ${hook.name} failed:`, err instanceof Error ? err : undefined);
+      }
+    }
+
+    return { args: currentArgs, blocked };
+  }
 
   /**
    * Execute PreToolUse hooks

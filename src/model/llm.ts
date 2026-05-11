@@ -15,8 +15,8 @@ import { logger } from '@/utils';
 import { classifyError, isNonRetryableError } from '@/utils/errors';
 import { resolveProvider, getProviderById } from '@/providers';
 
-export const DEFAULT_PROVIDER = 'openai';
-export const DEFAULT_MODEL = 'gpt-5.4';
+export const DEFAULT_PROVIDER = 'deepseek';
+export const DEFAULT_MODEL = 'deepseek-v4-flash';
 
 /**
  * Gets the fast model variant for the given provider.

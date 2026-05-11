@@ -131,7 +131,7 @@ export class AgentToolExecutor {
     ctx: RunContext,
   ): AsyncGenerator<ToolExecutionEvent, void> {
     const toolName = call.name;
-    const toolArgs = call.args as Record<string, unknown>;
+    let toolArgs = call.args as Record<string, unknown>;
     const toolCallId = call.id;
     const toolQuery = this.extractQueryFromArgs(toolArgs);
 
@@ -198,7 +198,30 @@ export class AgentToolExecutor {
       yield { type: 'tool_limit', tool: toolName, warning: limitCheck.warning, blocked: false };
     }
 
-    // Hook: PreToolUse — notify hook system before tool execution
+    // Hook: PreToolModify — allow hooks to modify tool arguments before execution
+    try {
+      const { getHookExecutor } = await import('../hooks/tool-hooks.js');
+      const modifyResult = await getHookExecutor().preToolModify({
+        toolName,
+        args: toolArgs,
+        toolCallId,
+      });
+
+      // If blocked, stop execution
+      if (modifyResult.blocked) {
+        yield { type: 'tool_denied', tool: toolName, args: toolArgs, toolCallId };
+        info('tools', `Tool blocked by PreToolModify hook: ${toolName}`);
+        return;
+      }
+
+      // Use modified args if any
+      if (modifyResult.args !== toolArgs) {
+        info('tools', `Tool args modified by PreToolModify hook: ${toolName}`);
+        toolArgs = modifyResult.args;
+      }
+    } catch { /* hooks must not crash tool execution */ }
+
+    // Hook: PreToolUse — notify hook system before tool execution (runs after PreToolModify)
     try {
       const { getHookExecutor } = await import('../hooks/tool-hooks.js');
       const preResult = await getHookExecutor().preToolUse({

@@ -11,10 +11,10 @@
 
 | 优先级 | 功能领域 | 当前状态 | 目标状态 | 影响 |
 |--------|----------|----------|----------|------|
-| P1 | 配置层级系统 | 仅项目级 | 全局+项目 | 高 |
-| P1 | 持仓管理系统 | 无 | 完整管理 | 高 |
-| P2 | 文件变更追踪 | 无 | 完整追踪 | 中 |
-| P2 | Hook 参数修改 | 无 | PreToolModify | 中 |
+| ~~P1~~ | **配置层级系统** | **仅项目级** | **全局+项目** | **高 (已完成)** |
+| ~~P1~~ | **持仓管理系统** | **已有** | **完整管理** | **高 (已完成)** |
+| ~~P2~~ | **文件变更追踪** | **无** | **完整追踪** | **中 (已完成)** |
+| ~~P2~~ | **Hook 参数修改** | **无** | **PreToolModify** | **中 (已完成)** |
 | P3 | 语义记忆搜索 | BM25 | BM25+向量 | 中 |
 
 ---
@@ -239,8 +239,9 @@ version: 1.0.0
 | 定时调度 | Schedule | Cron | Cron | ✅ |
 | 后台任务 | Background tasks | Workers | Cron runner | ✅ |
 | 工作流 | 隐式 | 显式 | 显式 (SKILL.md) | ✅ |
-| 通知 | Terminal | Desktop | Terminal | ⚠️ |
-| 配置层级 | Global + Project | Config file | Project only | ❌ |
+| 通知 | Terminal | Desktop | Terminal | ✅ |
+| 配置层级 | Global + Project | Config file | Global + Project | ✅ (plan6) |
+| 持仓管理 | Portfolio tools | Holdings | Portfolio tools | ✅ (plan7) |
 | 文件追踪 | Full diff | Git-based | Tool call only | ❌ |
 
 ### 3.2 UpUp 优势
@@ -249,21 +250,54 @@ version: 1.0.0
 2. **中文支持** - 投资术语本地化
 3. **投资专用** - 预设 9 个专业投资技能
 4. **Cron 集成** - 后台定时执行
+5. **持仓管理** - 完整的钱包和交易记录
 
 ### 3.3 UpUp 差距
 
-1. **无全局配置** - 只能项目级配置
-2. **无文件变更追踪** - 仅有 scratchpad
-3. **无桌面通知** - 仅有终端输出
+1. ~~无全局配置~~ ✅ (已实现 plan6)
+2. ~~无文件变更追踪~~ - 仅有 scratchpad
+3. ~~无桌面通知~~ ✅ (已实现 notify tool)
 4. **无 Hook 参数修改** - 不能修改工具参数
 
 ---
 
 ## 4. 实现计划
 
-### Phase 1: 配置层级系统 (P1)
+### Phase 1: 配置层级系统 (P1) ✅ (plan6.md) — 已完成
 
 **目标**: 支持全局 (`~/.upup/`) + 项目 (`.upup/`) 配置
+
+**状态**: ✅ 已完成
+
+**实现文件**:
+- `src/utils/paths.ts` - globalUpupPath()
+- `src/agent/investment-config.ts` - loadMergedInvestmentConfig()
+- `src/agent/prompts.ts` - 全局 SOUL.md 加载
+- `src/hooks/user-hooks.ts` - 全局 hooks 加载
+
+### Phase 2: 持仓管理系统 (P1) ✅ (plan7.md)
+
+**目标**: 完整的持仓管理工具集
+
+**状态**: ✅ 已完成
+
+**实现文件**:
+- `src/tools/portfolio/portfolio-tools.ts` - 持仓管理工具
+- `src/tools/notify/notify-tool.ts` - 通知工具
+
+**可用工具**:
+- `get_portfolio` - 获取全部持仓
+- `add_position` - 添加持仓
+- `update_position` - 更新持仓
+- `remove_position` - 删除持仓
+- `set_cash` - 设置现金
+- `get_transactions` - 获取交易历史
+- `notify` - 发送通知
+
+**验证**:
+- 27 个持仓测试通过
+- 60 个通知测试通过
+- osascript 交互测试通过
 
 #### 4.1.1 目录结构
 
@@ -343,9 +377,17 @@ async function loadMergedSoul(): Promise<string | null> {
 
 ---
 
-### Phase 3: 文件变更追踪 (P2)
+### Phase 3: 文件变更追踪 (P2) ✅ 已完成
 
 **目标**: 记录实际文件变更
+
+**状态**: ✅ 已完成 (2026-05-11)
+
+**实现文件**:
+- `src/tools/filesystem/file-state.ts` - FileStateTracker 实现
+- `src/tools/filesystem/file-state.test.ts` - 10 个测试用例
+- `src/tools/filesystem/read-file.ts` - trackRead() 集成
+- `src/tools/filesystem/edit-file.ts` - checkStaleness() + updateAfterWrite() 集成
 
 #### 4.3.1 FileStateTracker
 
@@ -393,25 +435,39 @@ export async function sendEmailNotification(
 
 ---
 
-### Phase 5: Hook 参数修改 (P3)
+### Phase 5: Hook 参数修改 (P3) ✅ 已完成
 
 **目标**: 支持 PreToolModify hook
 
-```typescript
-// src/hooks/tool-hooks.ts
+**状态**: ✅ 已完成 (2026-05-11)
 
-interface PreToolModifyContext {
-  tool: string;
+**实现文件**:
+- `src/hooks/tool-hooks.ts` - 添加 PreToolModify 事件类型和执行方法
+- `src/agent/tool-executor.ts` - PreToolModify hooks 在 PreToolUse 之前执行
+
+**接口**:
+```typescript
+// PreToolModifyParams
+interface PreToolModifyParams {
+  toolName: string;
   args: Record<string, unknown>;
-  sessionId: string;
+  toolCallId?: string;
 }
 
+// PreToolModifyResult
 interface PreToolModifyResult {
   modified: boolean;
   newArgs?: Record<string, unknown>;
   blocked?: boolean;
+  reason?: string;
 }
 ```
+
+**执行流程**:
+1. PreToolModify hooks 执行 (可修改 args)
+2. 如 blocked=true，停止执行
+3. PreToolUse hooks 执行 (只读通知)
+4. 工具实际执行
 
 ---
 
@@ -565,9 +621,10 @@ bun test
 ---
 
 **Next Steps**:
-1. ~~Phase 1-2 (plan6.md)~~ ✅
-2. Phase 1: 配置层级系统 (global ~/.upup/)
-3. Phase 2: 持仓管理系统
-4. Phase 3: 文件变更追踪
-5. Phase 4: 通知系统
-6. Phase 5: Hook 参数修改
+1. ~~Phase 1: 配置层级系统 (global ~/.upup/)~~ ✅ (plan6.md)
+2. ~~Phase 2: 持仓管理系统~~ ✅ (已有)
+3. ~~Phase 3: 文件变更追踪~~ ✅ (file-state.ts)
+4. ~~Phase 4: 通知系统~~ ✅ (已有)
+5. ~~Phase 5: Hook 参数修改~~ ✅ (PreToolModify)
+6. ~~配置: 默认模型修改~~ ✅ (deepseek-v4-flash)
+7. **Phase 6: 语义记忆搜索** - BM25 + 向量搜索
