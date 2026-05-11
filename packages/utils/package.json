@@ -1,0 +1,29 @@
+{
+  "name": "@upup/utils",
+  "version": "0.1.0",
+  "description": "UpUp Utils - Common utility functions",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./logging": "./dist/logging/index.js"
+  },
+  "scripts": {
+    "build": "bun build src/index.ts --outdir=dist --target=node && npx tsc --emitDeclarationOnly --declaration --declarationMap --outDir dist",
+    "dev": "bun build src/index.ts --outdir=dist --watch --target=node",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "chalk": "^5.0.0",
+    "dotenv": "^16.0.0",
+    "eventemitter3": "^5.0.0"
+  },
+  "peerDependencies": {
+    "@upup/types": "workspace:*"
+  },
+  "files": ["dist"]
+}
