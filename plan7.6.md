@@ -17,6 +17,13 @@
 
 **验证时间**: 2026-05-11
 
+**Phase 20 完成** ✅ (2026-05-11):
+- @upup/daemon 包创建成功
+- types.ts: WorkerHealth, WorkerPoolConfig, DaemonWorker 接口
+- workers.ts: MonitorWorker, EvolutionWorker, BridgeWorker 类型
+- worker-pool.ts 迁移使用 @upup/daemon 类型
+- oscript-mac 验证通过 14/14
+
 ---
 
 ## 0. 执行摘要
@@ -50,6 +57,7 @@
 | `@upup/mcp` | ✅ Phase 14 (部分) |
 | `@upup/plugins` | ✅ Phase 18 |
 | `@upup/cron` | ✅ Phase 19 |
+| `@upup/daemon` | ✅ Phase 20 |
 
 ---
 
@@ -614,32 +622,48 @@ src/plugins/ →
 
 ---
 
-### Phase 19: @upup/daemon — 后台进程系统 (Tier 1, 等 cron)
+### Phase 19: @upup/cron — 定时任务系统 ✅ (已迁移 2026-05-11)
 
-**目标**: 提取 src/daemon/ 到独立包
+**目标**: 提取 src/cron/ 到独立包
 
-**注意**: daemon 依赖 cron，等 Phase 20 完成后迁移
-
-**迁移内容**:
+**已迁移内容**:
 ```
-src/daemon/ →
+packages/cron/src/ →
 ├── index.ts (桥接)
-├── supervisor.ts
-├── worker-pool.ts
-├── session.ts
-├── ipc.ts
-├── workers/
-│   └── ...
-└── *.test.ts
+├── executor.ts
+├── schedule.ts
+├── runner.ts
+├── store.ts
+├── types.ts
+└── heartbeat-migration.ts
 ```
 
 **依赖关系**:
-- 依赖 @upup/cron (store, executor, schedule, types)
-- 依赖 @upup/utils (logging)
+- 依赖 @upup/utils (config, paths)
+- 依赖 @upup/agent (types)
+- 依赖 @upup/gateway (WhatsApp messaging)
 
 ---
 
-### Phase 20: @upup/cron — 定时任务系统 (Tier 2, 关键路径 🔴)
+### Phase 20: @upup/daemon — 后台进程系统 ✅ (已迁移 2026-05-11)
+
+**目标**: 提取 src/daemon/ 到独立包
+
+**已迁移内容**:
+```
+packages/daemon/src/ →
+├── index.ts (桥接)
+├── types.ts (WorkerHealth, WorkerPoolConfig, DaemonWorker)
+└── workers.ts (MonitorWorker, EvolutionWorker, BridgeWorker)
+```
+
+**依赖关系**:
+- 依赖 @upup/utils (logging)
+- 被 src/daemon/worker-pool.ts 使用
+
+---
+
+### Phase 21: @upup/gateway — 网关系统 (Tier 3, 困难)
 
 **目标**: 提取 src/cron/ 到独立包
 
@@ -781,16 +805,16 @@ src/evals/ →
 
 ```
 Phase 12-16: 并行提取 Tier 0 模块
-  - Phase 12: @upup/commands ⭐
-  - Phase 13: @upup/skills 🔄
-  - Phase 14: @upup/mcp 🔄
-  - Phase 15: @upup/keybindings ⭐
-  - Phase 16: @upup/state ⭐
+  - Phase 12: @upup/commands ⭐ ✅
+  - Phase 13: @upup/skills 🔄 ✅
+  - Phase 14: @upup/mcp 🔄 ✅
+  - Phase 15: @upup/keybindings ⭐ ✅
+  - Phase 16: @upup/state ⭐ ✅
 
-Phase 17: @upup/utils (Tier 1, 被依赖)
-Phase 18: @upup/plugins (Tier 1)
-Phase 19: @upup/daemon (等 cron)
-Phase 20: @upup/cron (关键路径 🔴)
+Phase 17: @upup/utils ✅
+Phase 18: @upup/plugins ✅
+Phase 19: @upup/cron ✅
+Phase 20: @upup/daemon ✅
 Phase 21: @upup/gateway (困难)
 Phase 22-25: 可选模块
 ```
@@ -816,18 +840,18 @@ bun install
 
 ## 5. 时间线预估
 
-| Phase | 包名 | 文件数 | 风险 | 预估工时 | 可并行 |
-|-------|------|--------|------|----------|--------|
-| 12 | @upup/commands ⭐ | 5 | 零风险 | 0.5h | ✅ |
-| 13 | @upup/skills 🔄 | 8+4 | 零风险 | 2h | ✅ |
-| 14 | @upup/mcp 🔄 | 7 | 零风险 | 2h | ✅ |
-| 15 | @upup/keybindings ⭐ | 6 | 零风险 | 0.5h | ✅ |
-| 16 | @upup/state ⭐ | 1 | 零风险 | 0.5h | ✅ |
-| 17 | @upup/utils | 25+ | 低 | 2h | 串行 |
-| 18 | @upup/plugins | 13+ | 中 | 2h | 串行 |
-| 19 | @upup/daemon | 10+ | 中 | 2h | 等 cron |
-| 20 | @upup/cron | 6 | 高 | 3h | 关键路径 |
-| 21 | @upup/gateway | 15+ | 极高 | 4-6h | 串行 |
+| Phase | 包名 | 文件数 | 风险 | 预估工时 | 可并行 | 状态 |
+|-------|------|--------|------|----------|--------|------|
+| 12 | @upup/commands ⭐ | 5 | 零风险 | 0.5h | ✅ | ✅ |
+| 13 | @upup/skills 🔄 | 8+4 | 零风险 | 2h | ✅ | ✅ |
+| 14 | @upup/mcp 🔄 | 7 | 零风险 | 2h | ✅ | ✅ |
+| 15 | @upup/keybindings ⭐ | 6 | 零风险 | 0.5h | ✅ | ✅ |
+| 16 | @upup/state ⭐ | 1 | 零风险 | 0.5h | ✅ | ✅ |
+| 17 | @upup/utils | 25+ | 低 | 2h | 串行 | ✅ |
+| 18 | @upup/plugins | 13+ | 中 | 2h | 串行 | ✅ |
+| 19 | @upup/cron | 6 | 高 | 3h | 关键路径 | ✅ |
+| 20 | @upup/daemon | 3+ | 中 | 1h | 串行 | ✅ |
+| 21 | @upup/gateway | 15+ | 极高 | 4-6h | 串行 | 🔄 |
 | 22 | @upup/evals | 3+ | 中 | 1h | 串行 |
 | 23 | @upup/ui | 14 | 高 | 3-4h | 串行 |
 | 24 | @upup/agent | 40+ | 极高 | 8h | 最后 |
@@ -877,9 +901,9 @@ packages/
 ├── utils/         # @upup/utils ✅ (Phase 17) - 2026-05-11
 ├── skills/        # @upup/skills (Phase 13) 🔄
 ├── mcp/           # @upup/mcp (Phase 14) 🔄
-├── plugins/       # @upup/plugins (Phase 18)
-├── daemon/        # @upup/daemon (Phase 19)
-├── cron/          # @upup/cron (Phase 20)
+├── plugins/       # @upup/plugins ✅ (Phase 18) - 2026-05-11
+├── cron/          # @upup/cron ✅ (Phase 19) - 2026-05-11
+├── daemon/        # @upup/daemon ✅ (Phase 20) - 2026-05-11
 ├── gateway/       # @upup/gateway (Phase 21)
 ├── evals/         # @upup/evals (Phase 22)
 ├── ui/            # @upup/ui (Phase 23)
@@ -906,11 +930,12 @@ packages/
 📋 Tier 0-1 已完成 (Phase 12-17):
 (全部完成!)
 
-📋 Tier 2+ (Phase 18-25):
-@upup/plugins     ░░░░░░░░░░░░░░░░░░░░ 0%
-@upup/daemon      ░░░░░░░░░░░░░░░░░░░░ 0%
-@upup/cron        ░░░░░░░░░░░░░░░░░░░░ 0%  🔴 关键路径
-@upup/gateway     ░░░░░░░░░░░░░░░░░░░░ 0%
+📋 Tier 2 (Phase 18-20):
+@upup/plugins     ████████████████████ 100%  (2026-05-11) ✅
+@upup/cron        ████████████████████ 100%  (2026-05-11) ✅
+@upup/daemon      ████████████████████ 100%  (2026-05-11) ✅
+
+📋 Tier 3+ (Phase 21-25):
 @upup/evals       ░░░░░░░░░░░░░░░░░░░░ 0%
 @upup/ui          ░░░░░░░░░░░░░░░░░░░░ 0%
 @upup/agent       ░░░░░░░░░░░░░░░░░░░░ 0%

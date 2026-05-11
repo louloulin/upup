@@ -1,0 +1,34 @@
+{
+  "name": "@upup/daemon",
+  "version": "0.1.0",
+  "description": "UpUp Daemon System - Worker pool types, health monitoring, and worker interfaces",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "bun build src/index.ts --outdir=dist --target=bun && tsc --emitDeclarationOnly --declaration --declarationMap --outDir dist",
+    "clean": "rm -rf dist"
+  },
+  "peerDependencies": {
+    "@upup/types": "workspace:*"
+  },
+  "devDependencies": {
+    "@upup/types": "workspace:*",
+    "@types/bun": "latest"
+  },
+  "keywords": [
+    "daemon",
+    "worker",
+    "upup",
+    "agent"
+  ]
+}
