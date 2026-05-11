@@ -29,7 +29,7 @@ import { warn, error, info, perf } from '../utils/logging/logger.js';
 import { ModelFallbackHandler, FallbackTriggeredError, isFallbackError } from './fallback.js';
 
 
-const DEFAULT_MODEL = 'gpt-5.4';
+import { DEFAULT_MODEL } from '../model/llm.js';
 const DEFAULT_MAX_ITERATIONS = 50;
 const MAX_OVERFLOW_RETRIES = 2;
 const OVERFLOW_KEEP_ROUNDS = 3;
