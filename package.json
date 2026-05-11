@@ -135,6 +135,7 @@
     "@types/qrcode-terminal": "^0.12.2",
     "@types/shell-quote": "^1.7.5",
     "@upup/daemon": "workspace:*",
+    "@upup/gateway": "workspace:*",
     "@upup/types": "workspace:*",
     "jest": "^29.7.0",
     "pkg": "^5.8.1",

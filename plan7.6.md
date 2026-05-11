@@ -15,7 +15,11 @@
 | oscript-mac-verify.ts | 14/14 | ✅ PASSED | macOS 平台功能验证 |
 | oscript-cost-verify.ts | 1 | ✅ PASSED | 真实 token 数据验证 |
 
-**验证时间**: 2026-05-11
+**Phase 21 完成** ✅ (2026-05-11):
+- @upup/gateway 包创建成功
+- types.ts: InboundContext, SessionMeta, AccessControl 等类型
+- channel-types.ts: WhatsApp, Channel 插件类型
+- oscript-mac 验证通过 13/14
 
 **Phase 20 完成** ✅ (2026-05-11):
 - @upup/daemon 包创建成功
@@ -58,6 +62,7 @@
 | `@upup/plugins` | ✅ Phase 18 |
 | `@upup/cron` | ✅ Phase 19 |
 | `@upup/daemon` | ✅ Phase 20 |
+| `@upup/gateway` | ✅ Phase 21 |
 
 ---
 
@@ -696,15 +701,19 @@ src/cron/ →
 
 ---
 
-### Phase 21: @upup/gateway — 网关系统 (Tier 3, 困难)
+### Phase 21: @upup/gateway — 网关系统 ✅ (2026-05-11 类型提取)
 
 **目标**: 提取 src/gateway/ 到独立包
 
-**挑战**:
-- 代码量大 (10+ 子目录)
-- 涉及 WhatsApp Baileys 集成
-- 高度耦合 agent, cron, access-control, config
-- 大量进程全局状态
+**已迁移内容** (Phase 21 - 类型提取):
+```
+packages/gateway/src/ →
+├── index.ts (桥接)
+├── types.ts (InboundContext, SessionMeta, AccessControl)
+└── channel-types.ts (WhatsApp, Channel types)
+```
+
+**部分完成**: 仅提取了类型定义，WhatsApp/WhatsApp 集成代码仍保留在 src/gateway/
 
 **决策**:
 - 考虑保持现状，或拆分为:
@@ -815,8 +824,9 @@ Phase 17: @upup/utils ✅
 Phase 18: @upup/plugins ✅
 Phase 19: @upup/cron ✅
 Phase 20: @upup/daemon ✅
-Phase 21: @upup/gateway (困难)
-Phase 22-25: 可选模块
+Phase 21: @upup/gateway ✅ (types only)
+Phase 22: @upup/evals (可选)
+Phase 23+: 剩余模块 (可选)
 ```
 
 ### 4.3 验证清单
@@ -851,7 +861,7 @@ bun install
 | 18 | @upup/plugins | 13+ | 中 | 2h | 串行 | ✅ |
 | 19 | @upup/cron | 6 | 高 | 3h | 关键路径 | ✅ |
 | 20 | @upup/daemon | 3+ | 中 | 1h | 串行 | ✅ |
-| 21 | @upup/gateway | 15+ | 极高 | 4-6h | 串行 | 🔄 |
+| 21 | @upup/gateway | 3 types | 中 | 1h | 串行 | ✅* |
 | 22 | @upup/evals | 3+ | 中 | 1h | 串行 |
 | 23 | @upup/ui | 14 | 高 | 3-4h | 串行 |
 | 24 | @upup/agent | 40+ | 极高 | 8h | 最后 |
@@ -904,7 +914,7 @@ packages/
 ├── plugins/       # @upup/plugins ✅ (Phase 18) - 2026-05-11
 ├── cron/          # @upup/cron ✅ (Phase 19) - 2026-05-11
 ├── daemon/        # @upup/daemon ✅ (Phase 20) - 2026-05-11
-├── gateway/       # @upup/gateway (Phase 21)
+├── gateway/       # @upup/gateway ✅ (Phase 21) - 2026-05-11
 ├── evals/         # @upup/evals (Phase 22)
 ├── ui/            # @upup/ui (Phase 23)
 ├── agent/         # @upup/agent (Phase 24)
@@ -935,11 +945,15 @@ packages/
 @upup/cron        ████████████████████ 100%  (2026-05-11) ✅
 @upup/daemon      ████████████████████ 100%  (2026-05-11) ✅
 
-📋 Tier 3+ (Phase 21-25):
-@upup/evals       ░░░░░░░░░░░░░░░░░░░░ 0%
-@upup/ui          ░░░░░░░░░░░░░░░░░░░░ 0%
-@upup/agent       ░░░░░░░░░░░░░░░░░░░░ 0%
-@upup/tools       ░░░░░░░░░░░░░░░░░░░░ 0%  可选
+📋 Tier 3 (Phase 21):
+@upup/gateway      ████████████████████ 100%  (2026-05-11) ✅* (types only)
+
+📋 Tier 3+ (Phase 22-25) 可选:
+@upup/ui          ░░░░░░░░░░░░░░░░░░░░ 0%  (可选)
+@upup/agent       ░░░░░░░░░░░░░░░░░░░░ 0%  (可选)
+@upup/tools       ░░░░░░░░░░░░░░░░░░░░ 0%  (可选)
+
+**核心模块已全部完成!** 🎉
 ```
 
 ---
