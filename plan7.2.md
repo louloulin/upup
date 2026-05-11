@@ -624,10 +624,18 @@ node -e "const sdk = require('@upup/plugin-sdk'); console.log(Object.keys(sdk))"
 
 ## 4. 文件清单
 
+### 核心文件
+
 | 操作 | 文件 | 说明 |
 |------|------|------|
 | CREATE | `bunfig.toml` | Bun 配置 |
 | MODIFY | `package.json` | 添加 workspaces |
+| CREATE | `tsconfig.base.json` | 共享 TypeScript 配置 |
+
+### @upup/plugin-sdk (P1)
+
+| 操作 | 文件 | 说明 |
+|------|------|------|
 | CREATE | `packages/plugin-sdk/` | SDK 包目录 |
 | CREATE | `packages/plugin-sdk/package.json` | 包配置 |
 | CREATE | `packages/plugin-sdk/tsconfig.json` | TypeScript 配置 |
@@ -637,6 +645,24 @@ node -e "const sdk = require('@upup/plugin-sdk'); console.log(Object.keys(sdk))"
 | CREATE | `packages/plugin-sdk/README.md` | 文档 |
 | MODIFY | `src/plugins/sdk/index.ts` | 重新导出 |
 | MODIFY | `src/plugins/types.ts` | 使用 SDK 类型 |
+
+### @upup/types (P2)
+
+| 操作 | 文件 | 说明 |
+|------|------|------|
+| CREATE | `packages/types/` | Types 包目录 |
+| CREATE | `packages/types/package.json` | 包配置 |
+| CREATE | `packages/types/src/index.ts` | 共享类型 |
+
+### @upup/memory (P2)
+
+| 操作 | 文件 | 说明 |
+|------|------|------|
+| CREATE | `packages/memory/` | Memory 包目录 |
+| CREATE | `packages/memory/package.json` | 包配置 |
+| CREATE | `packages/memory/src/index.ts` | MemoryStore 类 |
+| CREATE | `packages/memory/src/types.ts` | 类型定义 |
+| CREATE | `packages/memory/README.md` | 文档 |
 
 ---
 
@@ -720,14 +746,25 @@ upup plugin install ./my-upup-plugin
 
 ## 6. 工作量估算
 
+### 最小实现 (P1 + P2 包)
+
 | Phase | 任务 | 估算 | 优先级 |
 |-------|------|------|--------|
 | 1 | Bun Workspace 初始化 | 0.5 天 | P1 |
-| 2 | 创建 Plugin SDK 包 | 1 天 | P1 |
-| 3 | 更新现有代码 | 0.5 天 | P2 |
-| 4 | 构建和测试 | 0.5 天 | P2 |
+| 2 | 创建 @upup/types | 0.5 天 | P1 |
+| 3 | 创建 @upup/plugin-sdk | 1 天 | P1 |
+| 4 | 更新现有代码 | 0.5 天 | P2 |
+| 5 | 创建 @upup/memory | 1 天 | P2 |
+| 6 | 构建和测试 | 0.5 天 | P2 |
 
-**总计**: 2.5 天 (最小实现)
+**总计**: 4 天 (完整模块化)
+
+### 可选扩展 (P3 包)
+
+| 包 | 估算 | 优先级 |
+|-----|------|--------|
+| `@upup/llm` | 0.5 天 | P3 |
+| `@upup/hooks` | 0.5 天 | P3 |
 
 ---
 
@@ -761,8 +798,168 @@ bun run dev
 
 ---
 
+## 9. 其他可模块化的功能模块
+
+### 9.1 模块化分析
+
+基于代码库全面分析，以下模块具有模块化价值：
+
+| 模块 | 包名 | 优先级 | 模块化价值 | 原因 |
+|------|------|--------|------------|------|
+| `src/plugins/` | `@upup/plugin-sdk` | P1 | ⭐⭐⭐⭐⭐ | 外部插件开发核心 |
+| `src/memory/` | `@upup/memory` | P2 | ⭐⭐⭐⭐ | Memvid 存储可复用 |
+| `src/types.ts` | `@upup/types` | P2 | ⭐⭐⭐ | 共享类型定义 |
+| `src/providers.ts` | `@upup/llm` | P3 | ⭐⭐⭐ | LLM 接口可复用 |
+| `src/hooks/` | `@upup/hooks` | P3 | ⭐⭐ | Hook 系统通用 |
+| `src/tools/` | `@upup/tools` | P3 | ⭐⭐ | 工具注册系统 |
+| `src/agent/` | - | P4 | ⭐ | 紧耦合 UpUp 特定 |
+| `src/skills/` | - | P4 | ⭐ | 特定用例 |
+| `src/commands/` | - | P4 | ⭐ | CLI 特定 |
+
+### 9.2 @upup/memory (P2) - Memory SDK
+
+**价值**: Memvid MV2 存储 + BM25 搜索，可被其他应用复用
+
+```typescript
+// packages/memory/src/index.ts
+export class MemoryStore {
+  constructor(options?: MemoryOptions);
+  async search(query: string, options?: SearchOptions): Promise<SearchResult[]>;
+  async semanticSearch(query: string, options?: SearchOptions): Promise<SearchResult[]>;
+  async ask(question: string, options?: AskOptions): Promise<string>;
+  async put(content: string, metadata?: MemoryMetadata): Promise<string>;
+  async timeline(limit?: number): Promise<TimelineEntry[]>;
+  async close(): Promise<void>;
+}
+
+export interface MemoryOptions {
+  path?: string;
+  maxSize?: number;
+}
+
+export interface SearchOptions {
+  maxResults?: number;
+  minScore?: number;
+  type?: 'keyword' | 'semantic' | 'hybrid';
+}
+```
+
+**目录结构**:
+```
+packages/memory/
+├── package.json
+├── src/
+│   ├── index.ts        # MemoryStore 类
+│   ├── types.ts       # 类型定义
+│   ├── memvid.ts      # Memvid 封装
+│   └── search.ts      # 搜索实现
+└── README.md
+```
+
+### 9.3 @upup/types (P2) - Shared Types
+
+**价值**: 提取共享 TypeScript 类型，其他包可复用
+
+```typescript
+// packages/types/src/index.ts
+// 从 src/types.ts 提取核心类型
+
+export interface AgentTool {
+  name: string;
+  description: string;
+  inputSchema: Record<string, unknown>;
+  handler: (args: Record<string, unknown>) => Promise<unknown>;
+}
+
+export interface HookConfig {
+  events: string[];
+  handler: string;
+  enabled?: boolean;
+}
+
+export interface ProviderConfig {
+  id: string;
+  type: 'openai' | 'anthropic' | 'deepseek';
+  apiKey?: string;
+  baseUrl?: string;
+}
+
+export interface SessionConfig {
+  model?: string;
+  provider?: string;
+  maxTokens?: number;
+  temperature?: number;
+}
+```
+
+### 9.4 @upup/llm (P3) - LLM Provider SDK
+
+**价值**: 统一的 LLM 接口，支持多 Provider
+
+```typescript
+// packages/llm/src/index.ts
+export interface LlmClient {
+  complete(prompt: string, options?: LlmOptions): Promise<LlmResponse>;
+  stream(prompt: string, options?: LlmOptions): AsyncIterable<string>;
+}
+
+export interface LlmOptions {
+  model?: string;
+  maxTokens?: number;
+  temperature?: number;
+  system?: string;
+}
+
+export interface LlmResponse {
+  content: string;
+  model: string;
+  usage?: TokenUsage;
+  finishReason?: 'stop' | 'length' | 'content_filter';
+}
+
+export class OpenAiClient implements LlmClient { ... }
+export class AnthropicClient implements LlmClient { ... }
+export class DeepseekClient implements LlmClient { ... }
+```
+
+### 9.5 完整 packages 架构
+
+```
+packages/
+├── plugin-sdk/      # @upup/plugin-sdk (P1)
+├── memory/         # @upup/memory (P2)
+├── types/         # @upup/types (P2)
+└── llm/          # @upup/llm (P3)
+```
+
+### 9.6 分阶段实施
+
+```json
+// 根目录 package.json
+{
+  "workspaces": [
+    "packages/types",
+    "packages/plugin-sdk",
+    "packages/memory",
+    "packages/llm"
+  ]
+}
+```
+
+| Phase | 包 | 时间 | 依赖 |
+|-------|-----|------|------|
+| 1 | `@upup/types` | 0.5 天 | 无 |
+| 2 | `@upup/plugin-sdk` | 1 天 | types |
+| 3 | `@upup/memory` | 1 天 | types |
+| 4 | `@upup/llm` | 0.5 天 | types |
+
+**总计**: 3 天 (全部模块)
+
+---
+
 **Next Steps**:
 1. Phase 1: Bun Workspace 初始化
-2. Phase 2: 创建 Plugin SDK 包
-3. Phase 3: 更新现有代码
-4. Phase 4: 构建和测试
+2. Phase 2: 创建 @upup/plugin-sdk
+3. Phase 3: 创建 @upup/types
+4. Phase 4: 创建 @upup/memory (可选)
+5. Phase 5: 创建 @upup/llm (可选)
