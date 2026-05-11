@@ -1,0 +1,29 @@
+{
+  "name": "@upup/mcp",
+  "version": "0.1.0",
+  "description": "UpUp MCP SDK - Model Context Protocol client implementation",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "bun build src/index.ts --outdir=dist --target=node && npx tsc --emitDeclarationOnly --declaration --declarationMap --outDir dist",
+    "dev": "bun build src/index.ts --outdir=dist --watch --target=node",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@langchain/core": "^0.3.0",
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "zod": "^3.0.0"
+  },
+  "peerDependencies": {
+    "@upup/utils": "workspace:*",
+    "@upup/hooks": "workspace:*"
+  },
+  "files": ["dist"]
+}
