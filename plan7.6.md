@@ -3,7 +3,7 @@
 > 创建日期: 2026-05-11 | 更新日期: 2026-05-11 | 目标: 未来模块化路线图 | 版本: 2.4
 > 前置: plan7.2.md (Phase 1-8) + plan7.3.md (Phase 9-10) + plan7.5.md (Phase 11) 已完成
 > 方法: 使用 brainstorming skill 指导分析，深度扫描模块依赖关系
-> 状态: Phase 12-17 + Phase 13 部分 ✅ (@upup/commands, @upup/keybindings, @upup/state, @upup/utils, @upup/skills)
+> 状态: Phase 12-17 + Phase 13-14 完成 ✅ (@upup/commands, @upup/keybindings, @upup/state, @upup/utils, @upup/skills, @upup/mcp)
 
 ---
 
@@ -34,7 +34,8 @@
 | `@upup/keybindings` | ✅ Phase 15 |
 | `@upup/state` | ✅ Phase 16 |
 | `@upup/utils` | ✅ Phase 17 |
-| `@upup/skills` | ✅ Phase 13 (部分) |
+| `@upup/skills` | ✅ Phase 13 |
+| `@upup/mcp` | ✅ Phase 14 (部分) |
 
 ---
 
@@ -833,7 +834,7 @@ bun install
 4. ~~Phase 16: @upup/state~~ ✅ (2026-05-11)
 5. ~~Phase 17: @upup/utils~~ ✅ (2026-05-11)
 6. ~~Phase 13: @upup/skills~~ ✅ (2026-05-11)
-7. **Phase 14**: @upup/mcp 🔄 (可并行迁移)
+7. ~~Phase 14: @upup/mcp~~ ✅ (2026-05-11)
 8. **Phase 18**: 迁移 @upup/plugins
 9. **Phase 19**: 评估 @upup/daemon (等 cron)
 10. **Phase 20**: 迁移 @upup/cron (关键路径)
@@ -886,14 +887,12 @@ packages/
 @upup/state       ████████████████████ 100%  (2026-05-11)
 @upup/utils       ████████████████████ 100%  (2026-05-11) 🎉
 @upup/skills     ████████████████████ 100%  (2026-05-11) ✅
+@upup/mcp        ████████████████████ 100%  (2026-05-11) ✅
 
 📋 Tier 0-1 已完成 (Phase 12-17):
 (全部完成!)
 
-📋 Phase 14 (可并行迁移):
-@upup/mcp         ░░░░░░░░░░░░░░░░░░░░ 0%  🔄
-
-📋 待迁移 Tier 2+ (Phase 18-25):
+📋 Tier 2+ (Phase 18-25):
 @upup/plugins     ░░░░░░░░░░░░░░░░░░░░ 0%
 @upup/daemon      ░░░░░░░░░░░░░░░░░░░░ 0%
 @upup/cron        ░░░░░░░░░░░░░░░░░░░░ 0%  🔴 关键路径
