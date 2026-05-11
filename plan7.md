@@ -1,7 +1,7 @@
 # Plan7.md — UP SDK 对外集成改造计划
 
 > 创建日期: 2026-05-11 | 版本: 3.0 | 目标: 对标 Claude Code Agent SDK，构建 UP SDK
-> 状态: **Phase 1-2 完成** | 核心: stdio 通信 + 依赖分层
+> 状态: **Phase 2 完成，集成 Agent 中** | 核心: stdio 通信 + 依赖分层
 
 ---
 
@@ -634,7 +634,7 @@ $ bun test packages/sdk/src/sdk.test.ts
 ## 10. 下一步计划
 
 **Next Steps:**
-1. ⏳ 创建 `packages/agent-core/` 并迁移 `src/agent/` 核心代码
-2. ⏳ 集成现有 Agent (`src/agent/agent.ts`) 到 `upup-agent`
-3. ⏳ 实现真正的 Agent 运行逻辑（替代模拟）
-4. ⏳ NPM 发布 `@upup/sdk`
+1. ⏳ 测试 `run` 方法与真实 Agent 通信（需要 API key）
+2. ⏳ 创建 `packages/agent-core/` 并迁移 `src/agent/` 核心代码
+3. ⏳ NPM 发布 `@upup/sdk`
+4. ⏳ 完善 CLI 部署配置
