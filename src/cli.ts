@@ -837,6 +837,12 @@ export async function runCli() {
     // Handle all slash commands
     if (query.startsWith('/')) {
       const rawCommand = query.slice(1).trim();
+      // Ignore empty command (just "/" typed)
+      if (!rawCommand) {
+        slashActive = false;
+        slashSuggestions = [];
+        return;
+      }
       // Split command name from arguments: "/model deepseek" → name="model", args="deepseek"
       const spaceIdx = rawCommand.indexOf(' ');
       const commandName = (spaceIdx === -1 ? rawCommand : rawCommand.slice(0, spaceIdx)).toLowerCase();
