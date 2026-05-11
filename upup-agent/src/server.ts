@@ -3,6 +3,8 @@
  * 通过 stdio JSON-RPC 提供 Agent 服务
  */
 
+import { runAgent } from './agent-wrapper.js'
+
 // ============ JSON-RPC 类型 ============
 
 interface JsonRpcRequest {
@@ -30,6 +32,7 @@ interface JsonRpcNotification {
 export class StdioServer {
   private running = true
   private currentRunId: string | null = null
+  private abortController: AbortController | null = null
 
   start(): void {
     // 读取 stdin
@@ -91,35 +94,82 @@ export class StdioServer {
         }
 
         case 'run': {
-          // 运行 Agent（简化版本）
-          const runParams = params as {
-            messages: Array<{ role: string; content: string }>
-            model?: string
-            systemPrompt?: string
-          }
-
           // 生成唯一 runId
           this.currentRunId = `run-${Date.now()}`
+          this.abortController = new AbortController()
 
-          // 模拟响应
-          const response: JsonRpcResponse = {
-            jsonrpc: '2.0',
-            id: id!,
-            result: {
-              output: `Processed ${runParams.messages.length} messages`,
-              messages: runParams.messages,
-              runId: this.currentRunId,
-            },
+          const runParams = params as {
+            query?: string
+            messages?: Array<{ role: string; content: string }>
+            model?: string
+            systemPrompt?: string
+            maxIterations?: number
           }
-          this.send(response)
+
+          // 从消息中提取最后一个 user 消息作为 query
+          const query =
+            runParams.query ||
+            runParams.messages?.find((m) => m.role === 'user')
+              ?.content ||
+            'Hello'
+
+          try {
+            const result = await runAgent({
+              query,
+              model: runParams.model,
+              systemPrompt: runParams.systemPrompt,
+              maxIterations: runParams.maxIterations,
+              signal: this.abortController.signal,
+            })
+
+            const response: JsonRpcResponse = {
+              jsonrpc: '2.0',
+              id: id!,
+              result: {
+                output: result.output,
+                toolCalls: result.toolCalls,
+                iterations: result.iterations,
+                totalTime: result.totalTime,
+                runId: this.currentRunId,
+              },
+            }
+            this.send(response)
+          } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err)
+            console.error('[agent error]', errorMessage)
+
+            // 发送错误响应
+            const response: JsonRpcResponse = {
+              jsonrpc: '2.0',
+              id: id!,
+              error: {
+                code: -32603,
+                message: errorMessage,
+              },
+            }
+            this.send(response)
+          }
           break
         }
 
         case 'stream': {
-          // 流式运行
-          const runParams = params as Record<string, unknown>
-
+          // 流式运行（暂用阻塞模式 + 事件）
           this.currentRunId = `run-${Date.now()}`
+          this.abortController = new AbortController()
+
+          const runParams = params as {
+            query?: string
+            messages?: Array<{ role: string; content: string }>
+            model?: string
+            systemPrompt?: string
+            maxIterations?: number
+          }
+
+          const query =
+            runParams.query ||
+            runParams.messages?.find((m) => m.role === 'user')
+              ?.content ||
+            'Hello'
 
           // 发送开始事件
           this.send({
@@ -131,43 +181,88 @@ export class StdioServer {
             },
           } as JsonRpcNotification)
 
-          // 模拟一些事件
-          this.send({
-            jsonrpc: '2.0',
-            method: 'event',
-            params: {
-              type: 'content_delta',
-              data: { content: 'Thinking...' },
-            },
-          } as JsonRpcNotification)
+          try {
+            // 运行 Agent
+            const result = await runAgent({
+              query,
+              model: runParams.model,
+              systemPrompt: runParams.systemPrompt,
+              maxIterations: runParams.maxIterations,
+              signal: this.abortController.signal,
+            })
 
-          // 发送完成
-          this.send({
-            jsonrpc: '2.0',
-            method: 'event',
-            params: {
-              type: 'done',
-              data: { done: true, runId: this.currentRunId },
-            },
-          } as JsonRpcNotification)
+            // 发送内容事件
+            this.send({
+              jsonrpc: '2.0',
+              method: 'event',
+              params: {
+                type: 'content_delta',
+                data: { content: result.output },
+              },
+            } as JsonRpcNotification)
 
-          // 发送最终响应
-          const response: JsonRpcResponse = {
-            jsonrpc: '2.0',
-            id: id!,
-            result: {
-              output: 'Stream completed',
-              runId: this.currentRunId,
-            },
+            // 发送完成事件
+            this.send({
+              jsonrpc: '2.0',
+              method: 'event',
+              params: {
+                type: 'done',
+                data: {
+                  done: true,
+                  output: result.output,
+                  toolCalls: result.toolCalls,
+                  iterations: result.iterations,
+                  totalTime: result.totalTime,
+                  runId: this.currentRunId,
+                },
+              },
+            } as JsonRpcNotification)
+
+            // 发送最终响应
+            const response: JsonRpcResponse = {
+              jsonrpc: '2.0',
+              id: id!,
+              result: {
+                output: result.output,
+                toolCalls: result.toolCalls,
+                iterations: result.iterations,
+                totalTime: result.totalTime,
+                runId: this.currentRunId,
+              },
+            }
+            this.send(response)
+          } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : String(err)
+            console.error('[agent error]', errorMessage)
+
+            // 发送错误事件
+            this.send({
+              jsonrpc: '2.0',
+              method: 'event',
+              params: {
+                type: 'error',
+                data: { message: errorMessage },
+              },
+            } as JsonRpcNotification)
+
+            const response: JsonRpcResponse = {
+              jsonrpc: '2.0',
+              id: id!,
+              error: {
+                code: -32603,
+                message: errorMessage,
+              },
+            }
+            this.send(response)
           }
-          this.send(response)
           break
         }
 
         case 'cancel': {
           const runId = (params as { runId: string })?.runId
-          if (runId === this.currentRunId) {
-            this.currentRunId = null
+          if (runId === this.currentRunId && this.abortController) {
+            this.abortController.abort()
+            this.abortController = null
           }
           const response: JsonRpcResponse = {
             jsonrpc: '2.0',
