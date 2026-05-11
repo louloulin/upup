@@ -27,9 +27,8 @@ import { getObservationBuffer } from '../memory/observation-buffer.js';
 import { resolveProvider } from '../providers.js';
 import { warn, error, info, perf } from '../utils/logging/logger.js';
 import { ModelFallbackHandler, FallbackTriggeredError, isFallbackError } from './fallback.js';
+import { getConfiguredModelId, getConfiguredProvider } from '../utils/config.js';
 
-
-import { DEFAULT_MODEL } from '../model/llm.js';
 const DEFAULT_MAX_ITERATIONS = 50;
 const MAX_OVERFLOW_RETRIES = 2;
 const OVERFLOW_KEEP_ROUNDS = 3;
@@ -63,7 +62,7 @@ export class Agent {
     systemPrompt: string,
     concurrencyMap: Map<string, boolean>,
   ) {
-    this.model = config.model ?? DEFAULT_MODEL;
+    this.model = config.model ?? getConfiguredModelId();
     this.maxIterations = config.maxIterations ?? DEFAULT_MAX_ITERATIONS;
     this.tools = tools;
     this.toolMap = new Map(tools.map(t => [t.name, t]));
@@ -88,7 +87,7 @@ export class Agent {
   }
 
   static async create(config: AgentConfig = {}): Promise<Agent> {
-    const model = config.model ?? DEFAULT_MODEL;
+    const model = config.model ?? getConfiguredModelId();
     // Lazy import to break circular dependency
     const { getTools, getToolConcurrencyMap } = await import('../tools/registry/index.js');
     let tools = await getTools(model);

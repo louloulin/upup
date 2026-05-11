@@ -14,7 +14,7 @@
     "test": "bun test",
     "test:watch": "bun test --watch",
     "postinstall": "playwright install chromium",
-    "build": "bun run typecheck",
+    "build": "bun run typecheck && bun build --compile --target=bun --outfile=dist/upup src/index.tsx --external=playwright --external=playwright-core && chmod +x dist/upup && echo '✅ Build complete: dist/upup'",
     "build:all": "bun run build:types && bun run build:llm && bun run build:hooks && bun run build:memory && bun run build:plugin-sdk",
     "build:sdk": "bun run --filter @upup/plugin-sdk build",
     "build:types": "cd packages/types && bun build src/index.ts --outdir=dist --target=bun && npx tsc --emitDeclarationOnly --declaration --declarationMap --outDir dist",
