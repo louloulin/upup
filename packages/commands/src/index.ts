@@ -1,6 +1,7 @@
 /**
- * @deprecated Use @upup/commands instead
- * Re-exports from @upup/commands for backward compatibility
+ * @upup/commands - Slash command framework
+ *
+ * Exports from commands.ts, registry.ts, and slash-commands.ts
  */
 
 export {
@@ -8,18 +9,21 @@ export {
   getGlobalRegistry,
   registerBuiltinCommands,
   resetGlobalRegistry,
-  matchCommands,
   loadUserCommands,
   loadMacros,
   parseMacroFile,
   expandMacro,
-  SLASH_COMMANDS,
   type Command,
   type CommandContext,
   type CommandResult,
-  type SlashCommand,
+  type CommandPermission,
   type MacroStep,
   type MacroDefinition,
-  type CommandPermission,
   type UIContext,
-} from '@upup/commands';
+} from './commands.js';
+
+export {
+  SLASH_COMMANDS,
+  matchCommands,
+  type SlashCommand,
+} from './slash-commands.js';

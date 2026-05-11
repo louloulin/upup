@@ -2,10 +2,6 @@
 # https://bun.sh/docs/install/workspaces
 
 [install]
-# Use isolated linker for strict dependency management
-# Each workspace gets its own node_modules, preventing phantom dependencies
-linker = "isolated"
-
-# Optional: Define shared dependency version ranges
-# [install.scopes]
-# @upup/* = { version = "workspace:*" }
+# Use hoisted linker for backward compatibility
+# Packages are hoisted to root node_modules
+linker = "hoisted"
