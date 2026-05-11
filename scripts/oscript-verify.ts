@@ -11,7 +11,8 @@
  * Run: bun run scripts/oscript-verify.ts
  */
 
-import { getGlobalRegistry, type CommandContext } from '../src/commands/registry.js';
+import { getGlobalRegistry } from '@upup/commands';
+import type { CommandContext } from '@upup/commands';
 
 // ============================================================================
 // Types

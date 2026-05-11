@@ -18,9 +18,10 @@ export {
   initializeMCPClient,
 } from '@upup/mcp';
 
+// These functions require agent-specific hooks and stay in src/mcp/
 export {
   mcpToolsToRegisteredTools,
   getMCPToolDescriptions,
   getMCPStatus,
   type MCPRegisteredTool,
-} from '@upup/mcp';
+} from './registry.js';

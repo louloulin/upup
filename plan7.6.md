@@ -1,9 +1,21 @@
 # Plan7.6.md — 未来模块化迁移计划 (v2.0)
 
-> 创建日期: 2026-05-11 | 更新日期: 2026-05-11 | 目标: 未来模块化路线图 | 版本: 2.4
+> 创建日期: 2026-05-11 | 更新日期: 2026-05-11 | 目标: 未来模块化路线图 | 版本: 2.5
 > 前置: plan7.2.md (Phase 1-8) + plan7.3.md (Phase 9-10) + plan7.5.md (Phase 11) 已完成
 > 方法: 使用 brainstorming skill 指导分析，深度扫描模块依赖关系
 > 状态: Phase 12-17 + Phase 13-14 完成 ✅ (@upup/commands, @upup/keybindings, @upup/state, @upup/utils, @upup/skills, @upup/mcp)
+
+---
+
+## ✅ 验证结果 (v2.5)
+
+| 脚本 | 测试数 | 状态 | 备注 |
+|------|--------|------|------|
+| oscript-verify.ts | 26/26 | ✅ PASSED | 命令注册、执行、结果类型验证 |
+| oscript-mac-verify.ts | 14/14 | ✅ PASSED | macOS 平台功能验证 |
+| oscript-cost-verify.ts | 1 | ✅ PASSED | 真实 token 数据验证 |
+
+**验证时间**: 2026-05-11
 
 ---
 
