@@ -504,7 +504,7 @@ const getStockPrice = defineTool({
 | 任务 | 说明 | 优先级 | 状态 |
 |------|------|--------|------|
 | 集成测试 | 完整流程测试 | P0 | ✅ **已完成** |
-| 文档编写 | API 文档 | P0 | ⏳ 待完善 |
+| 文档编写 | API 文档 | P0 | ✅ **已完成** |
 | NPM 发布 | @upup/sdk | P0 | ⏳ 待发布 |
 | CLI 发布 | upup-agent | P1 | ⏳ 待发布 |
 
@@ -535,8 +535,10 @@ const getStockPrice = defineTool({
 | `packages/sdk/src/types.ts` | SDK 类型 | ✅ **已完成** |
 | `packages/sdk/src/index.ts` | 入口 | ✅ **已完成** |
 | `packages/sdk/src/sdk.test.ts` | SDK 测试 | ✅ **已完成** |
+| `packages/sdk/src/integration.test.ts` | 集成测试 | ✅ **已完成** |
+| `packages/sdk/README.md` | API 文档 | ✅ **已完成** |
+| `upup-agent/src/agent-wrapper.ts` | Agent wrapper | ✅ **已完成** |
 | `upup-agent/src/server.ts` | stdio 服务端 | ✅ **已完成** |
-| `upup-agent/src/cli.ts` | CLI 入口 | ✅ **已完成** |
 
 ### 6.3 修改文件
 
