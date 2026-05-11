@@ -12,33 +12,16 @@
  */
 
 import { info, warn, error } from '../utils/logging/logger.js';
+import type { WorkerHealth, WorkerPoolConfig, DaemonWorker } from '@upup/daemon';
+import { DEFAULT_WORKER_POOL_CONFIG } from '@upup/daemon';
+
+// Re-export types from @upup/daemon for local use
+export type { WorkerHealth, WorkerPoolConfig, DaemonWorker };
+export { DEFAULT_WORKER_POOL_CONFIG };
 
 // ============================================================================
 // Types
 // ============================================================================
-
-/**
- * Worker health status
- */
-export interface WorkerHealth {
-  status: 'healthy' | 'degraded' | 'unhealthy';
-  lastHeartbeat: number;
-  activeTasks: number;
-  completedTasks: number;
-  failedTasks: number;
-  memoryUsageMB?: number;
-}
-
-/**
- * Worker config
- */
-export interface WorkerPoolConfig {
-  maxWorkers: number;
-  heartbeatInterval: number;  // ms, default 30000
-  staleThreshold: number;     // ms, default 90000
-  restartDelay: number;       // ms, default 5000
-  maxRestartAttempts: number; // default 3
-}
 
 /**
  * Pooled worker wrapper
@@ -55,30 +38,8 @@ interface PooledWorker {
   heartbeatTimer?: NodeJS.Timeout;
 }
 
-/**
- * Daemon worker interface (extends base Worker)
- */
-export interface DaemonWorker {
-  id: string;
-  kind: string;
-  name: string;
-  description: string;
-  initialize(): Promise<void>;
-  healthCheck(): Promise<WorkerHealth>;
-  shutdown(): Promise<void>;
-  canHandle(taskType: string): boolean;
-  ping?(): Promise<boolean>;
-  onTaskStart?(): void;
-  onTaskComplete?(): void;
-  onTaskFail?(error: Error): void;
-}
-
 const DEFAULT_CONFIG: WorkerPoolConfig = {
-  maxWorkers: 10,
-  heartbeatInterval: 30000,
-  staleThreshold: 90000,
-  restartDelay: 5000,
-  maxRestartAttempts: 3,
+  ...DEFAULT_WORKER_POOL_CONFIG,
 };
 
 // ============================================================================
