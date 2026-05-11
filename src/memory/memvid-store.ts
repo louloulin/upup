@@ -13,6 +13,7 @@
 import { join } from 'node:path';
 import { mkdir } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
+import { getSetting } from '../utils/config.js';
 import { create, use, maskPii } from '@memvid/sdk';
 import type { Memvid } from '@memvid/sdk';
 import type { MemoryType, MemoryWriteRequest, MemoryFileMeta } from './types.js';
@@ -188,8 +189,13 @@ export class MemvidStore {
       throw new Error('LLM API key required for RAG synthesis');
     }
 
+    // Get configured model
+    const configuredModelId = getSetting('modelId', 'deepseek-v4-flash') as string;
+    const configuredProvider = getSetting('provider', 'deepseek') as string;
+    const modelSpec = `${configuredProvider}:${configuredModelId}`;
+
     const result = await mv.ask(question, {
-      model: options.model || 'openai:gpt-4o-mini',
+      model: options.model || modelSpec,
       modelApiKey: options.apiKey,
       contextOnly: options.contextOnly ?? true,
       mode: options.mode ?? 'lex',

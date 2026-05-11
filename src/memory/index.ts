@@ -30,6 +30,7 @@ import type {
 import { getSetting } from '../utils/config.js';
 import { resolveMemvidRagSettings, type MemvidRagFlag, type ResolvedMemvidRagSettings } from './memvid-rag.js';
 import { getApiKeyNameForProvider } from '../utils/env.js';
+import { getConfiguredModelId, getConfiguredProvider } from '../utils/config.js';
 
 // Re-export AI Memory Selector
 export {
@@ -214,8 +215,8 @@ export class MemoryManager {
   }
 
   getMemvidRagSettings(): ResolvedMemvidRagSettings {
-    const providerId = getSetting('provider', 'openai') as string;
-    const modelId = getSetting('modelId', 'gpt-5.4') as string;
+    const providerId = getConfiguredProvider();
+    const modelId = getConfiguredModelId();
     return resolveMemvidRagSettings({
       flag: this.config.memvidRag,
       providerId,

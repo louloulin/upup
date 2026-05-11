@@ -12,6 +12,8 @@
 
 import { info, warn, error } from '../utils/logging/logger.js';
 import { AIMessage } from '@langchain/core/messages';
+import { getSetting } from '../utils/config.js';
+import { DEFAULT_MODEL, DEFAULT_PROVIDER } from '../model/llm.js';
 
 // ============================================================================
 // Error Types
@@ -85,13 +87,29 @@ export interface FallbackConfig {
   enableThinkingStrip: boolean;
 }
 
-const DEFAULT_CONFIG: FallbackConfig = {
-  primaryModel: 'gpt-5.4',
-  fallbackModels: ['gpt-4o', 'claude-sonnet-4-20250514', 'gemini-2.0-flash'],
-  maxRetriesPerModel: 3,
-  enableTokenLimitRecovery: true,
-  enableThinkingStrip: true,
-};
+/**
+ * Get default fallback config from settings
+ */
+export function getDefaultFallbackConfig(): FallbackConfig {
+  const provider = getSetting('provider', DEFAULT_PROVIDER) as string;
+  const modelId = getSetting('modelId', DEFAULT_MODEL) as string;
+
+  // Build model ID based on provider
+  let primaryModel = modelId;
+  if (provider === 'deepseek') {
+    primaryModel = modelId || 'deepseek-v4-flash';
+  }
+
+  return {
+    primaryModel,
+    fallbackModels: ['gpt-4o', 'claude-sonnet-4-20250514', 'gemini-2.0-flash'],
+    maxRetriesPerModel: 3,
+    enableTokenLimitRecovery: true,
+    enableThinkingStrip: true,
+  };
+}
+
+const DEFAULT_CONFIG = getDefaultFallbackConfig();
 
 // ============================================================================
 // Thinking Signature Stripping
@@ -134,6 +152,8 @@ const MODEL_TOKEN_LIMITS: Record<string, number> = {
   'claude-opus-4-20250514': 8192,
   'gemini-2.0-flash': 8192,
   'deepseek-v3': 8192,
+  'deepseek-v4-flash': 16384,
+  'deepseek-chat': 16384,
 };
 
 /**

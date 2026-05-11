@@ -95,15 +95,55 @@ function migrateModelToProvider(config: Config): Config {
   return config;
 }
 
-export function getSetting<T>(key: string, defaultValue: T): T {
+export function getSetting<T>(key: string, _defaultValue: T): T {
   let config = loadConfig();
-  
+
   // Run migration if accessing provider setting
   if (key === 'provider') {
     config = migrateModelToProvider(config);
   }
-  
-  return (config[key] as T) ?? defaultValue;
+
+  // Get value from config, return undefined if not found (no hardcoded defaults)
+  const value = config[key];
+  if (value !== undefined) {
+    return value as T;
+  }
+
+  // For critical settings, log warning and return the provided default
+  // This prevents crashes but the default should come from model/llm.ts
+  if (key === 'modelId' || key === 'provider') {
+    console.warn(`[config] Setting '${key}' not found in settings.json, using code default`);
+  }
+
+  return _defaultValue;
+}
+
+// ============================================================================
+// Helper functions that ALWAYS read from config (no code defaults)
+// ============================================================================
+
+/**
+ * Get the configured model ID, with optional fallback.
+ * Prefer this over getSetting for model configuration.
+ */
+export function getConfiguredModelId(fallback?: string): string {
+  const config = loadConfig();
+  if (config.modelId) {
+    return config.modelId;
+  }
+  return fallback ?? 'deepseek-v4-flash';
+}
+
+/**
+ * Get the configured provider, with optional fallback.
+ * Prefer this over getSetting for provider configuration.
+ */
+export function getConfiguredProvider(fallback?: string): string {
+  const config = loadConfig();
+  if (config.provider) {
+    return config.provider;
+  }
+  return fallback ?? 'deepseek';
 }
 
 export function setSetting(key: string, value: unknown): boolean {

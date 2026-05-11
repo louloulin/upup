@@ -24,7 +24,7 @@ import {
 import type { GroupContext } from '../agent/prompts.js';
 import { appendFileSync } from 'node:fs';
 import { upupPath } from '../utils/paths.js';
-import { getSetting } from '../utils/config.js';
+import { getConfiguredModelId, getConfiguredProvider } from '../utils/config.js';
 
 const LOG_PATH = upupPath('gateway-debug.log');
 function debugLog(msg: string) {
@@ -157,8 +157,8 @@ async function handleInbound(cfg: GatewayConfig, inbound: WhatsAppInboundMessage
     }
 
     console.log(`Processing message with agent...`);
-    const model = getSetting('modelId', 'gpt-5.4') as string;
-    const modelProvider = getSetting('provider', 'openai') as string;
+    const model = getConfiguredModelId();
+    const modelProvider = getConfiguredProvider();
 
     // If agent is already running for this session, enqueue for mid-run injection
     if (isSessionRunning(route.sessionKey)) {

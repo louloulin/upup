@@ -7,6 +7,7 @@
 
 import { randomUUID } from 'crypto';
 import type { StructuredToolInterface } from '@langchain/core/tools';
+import { getConfiguredModelId } from '../utils/config.js';
 import type {
   SubagentConfig,
   SubagentResult,
@@ -368,10 +369,8 @@ export class SubagentRunner {
       const { Agent } = await import('./agent.js');
 
       // Create agent instance with inherited model from settings
-      const { loadConfig } = await import('../utils/config.js');
-      const savedConfig = loadConfig();
       const model = config.model === 'inherit' || !config.model
-        ? (savedConfig.modelId ?? undefined)
+        ? getConfiguredModelId()
         : config.model;
 
       // Get signal from active agents map if task is running in background
