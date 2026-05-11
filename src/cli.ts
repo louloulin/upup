@@ -792,7 +792,7 @@ export async function runCli() {
       default: {
         // Fallback to CommandRegistry for commands not in the switch
         try {
-          const { getGlobalRegistry } = await import('./commands/commands.js');
+          const { getGlobalRegistry } = await import('@upup/commands');
           const registry = getGlobalRegistry();
           const hasCommand = registry.has(commandName);
           if (hasCommand) {
