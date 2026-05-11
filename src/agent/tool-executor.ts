@@ -18,6 +18,7 @@ import { info, warn, perf } from '../utils/logging/logger.js';
 import { getRateLimiter } from '../hooks/rate-limiter.js';
 import { useToolMetrics, useCanUseTool } from '../hooks/agent-hooks.js';
 import { getHookExecutor } from '../hooks/tool-hooks.js';
+import { getSessionManager } from './session-persistence.js';
 
 type ToolExecutionEvent =
   | ToolStartEvent
@@ -57,6 +58,7 @@ export class AgentToolExecutor {
     }) => Promise<ApprovalDecision>,
     sessionApprovedTools?: Set<string>,
     maxConcurrency?: number,
+    private readonly onToolApproval?: (tool: string) => void,
   ) {
     this.sessionApprovedTools = sessionApprovedTools ?? new Set();
     this.maxConcurrency = maxConcurrency ?? DEFAULT_MAX_CONCURRENCY;
@@ -176,18 +178,16 @@ export class AgentToolExecutor {
       if (decision === 'allow-session') {
         for (const name of TOOLS_REQUIRING_APPROVAL) {
           this.sessionApprovedTools.add(name);
+          this.onToolApproval?.(name);
         }
         // Sync to SessionManager so approved tools persist across restarts
-        // Must init sessionData first, otherwise approveTool() is a no-op
+        // SessionData is already initialized (agent-runner calls startSession before any tools run).
+        // Use saveSession() directly — synchronous, no debounce, completes before tool execution.
         try {
-          const { getSessionManager } = await import('./session-persistence.js');
           const sm = getSessionManager();
-          sm.startSession().then(() => {
-            for (const name of TOOLS_REQUIRING_APPROVAL) {
-              sm.approveTool(name);
-            }
-            sm.persist();
-          }).catch(() => {/* non-critical */});
+          for (const name of TOOLS_REQUIRING_APPROVAL) {
+            sm.approveToolSync(name); // approveToolSync clears debounce + calls saveSession
+          }
         } catch { /* non-critical */ }
       }
     }

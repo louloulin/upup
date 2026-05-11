@@ -5,6 +5,20 @@ import { subscribeSpinner, SPINNER_INTERVAL_MS } from '../utils/spinner.js';
 
 const CIRCLE = '⏺';
 
+// Module-level pending approval decision — set when user presses Enter/Esc
+// before the approval UI is rendered. Cleared when consumePendingApprovalDecision runs.
+let _pendingApprovalDecision: ApprovalDecision | null = null;
+
+export function setPendingApprovalDecision(decision: ApprovalDecision): void {
+  _pendingApprovalDecision = decision;
+}
+
+export function consumePendingApprovalDecision(): ApprovalDecision | null {
+  const d = _pendingApprovalDecision;
+  _pendingApprovalDecision = null;
+  return d;
+}
+
 function formatToolName(name: string): string {
   const stripped = name.replace(/^(get)_/, '');
   return stripped
@@ -149,6 +163,48 @@ export class ToolEventComponent extends Container {
     const detail = new Text(`${theme.muted('⎿  ')}${color(approvalLabel(decision))}`, 0, 0);
     this.completedDetails.push(detail);
     this.addChild(detail);
+  }
+
+  /**
+   * Show an inline approval prompt in the chat.
+   * The user can press 1/2/3 + Enter or click in the editor.
+   */
+  setApprovalPending(onSelect: (decision: ApprovalDecision) => void, preStoredDecision?: ApprovalDecision | null) {
+    this.clearDetail();
+    this.header.setText(`${theme.warning('⏺')} ${this.toolTitle}`);
+
+    const line1 = new Text(
+      `${theme.muted('⎿  ')}${theme.warning('Permission required')}`,
+      0, 0,
+    );
+    const line2 = new Text(
+      `${theme.muted('⎿  ')}  ${theme.muted('1.')} Yes  ${theme.muted('2.')} Yes, allow all this session  ${theme.muted('3.')} No`,
+      0, 0,
+    );
+    const line3 = new Text(
+      `${theme.muted('⎿  ')}${theme.muted('Enter to confirm · esc to deny')}`,
+      0, 0,
+    );
+    this.addChild(line1);
+    this.addChild(line2);
+    this.addChild(line3);
+
+    // Store callback so the editor can call it
+    (this as any)._approvalCallback = onSelect;
+
+    // If user already pressed Enter/Esc before this UI was rendered,
+    // their decision was stored in preStoredDecision — invoke onSelect immediately.
+    const pending = preStoredDecision ?? consumePendingApprovalDecision();
+    if (pending !== null) {
+      onSelect(pending);
+    }
+  }
+
+  /**
+   * Get the stored approval callback (set by setApprovalPending).
+   */
+  getApprovalCallback(): ((decision: ApprovalDecision) => void) | null {
+    return (this as any)._approvalCallback ?? null;
   }
 
   /**

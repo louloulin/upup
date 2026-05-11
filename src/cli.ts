@@ -31,6 +31,10 @@ import { editorTheme, theme } from './theme.js';
 import { matchCommands, type SlashCommand } from './commands/index.js';
 import { initSpinner } from './utils/spinner.js';
 
+// Stores the user's approval decision when Enter/Esc is pressed before the
+// inline approval UI has been rendered. Consumed by setApprovalPending.
+let pendingApprovalDecisionGlobal: ApprovalDecision | null = null;
+
 function truncateForHistory(text: string): string {
   const lines = text.split('\n');
   if (lines.length <= 3) return text;
@@ -111,6 +115,7 @@ function renderEvent(
   chatLog: ChatLogComponent,
   display: { event: any; id: string; completed?: boolean; endEvent?: any; progressMessage?: string },
   itemStatus: string,
+  agentRunner?: AgentRunnerController,
 ) {
   const event = display.event;
 
@@ -145,7 +150,16 @@ function renderEvent(
   }
 
   if (event.type === 'tool_approval') {
-    chatLog.startTool(display.id, event.tool, event.args).setApproval(event.approved);
+    const comp = chatLog.startTool(display.id, event.tool, event.args);
+    const cb = (decision: ApprovalDecision) => {
+      if (!agentRunner) return;
+      agentRunner.respondToApproval(decision);
+    };
+    // Pass preStoredDecision so setApprovalPending can invoke cb immediately if
+    // user pressed Enter/Esc before this UI was rendered.
+    const stored = pendingApprovalDecisionGlobal;
+    pendingApprovalDecisionGlobal = null;
+    comp.setApprovalPending(cb, stored);
     return;
   }
 
@@ -226,8 +240,20 @@ export async function runCli() {
     modelSelection.inMemoryChatHistory,
     () => {
       // Route approval overlay first — must happen before any other rendering
-      if (agentRunner.pendingApproval) {
-        scheduleOverlay();
+      if (agentRunner.pendingApproval && !chatLog.hasApprovalPending()) {
+        // Render pending approval events so callbacks get registered before the early return.
+        // Without this, setApprovalPending() is never called and key handler finds no callback.
+        const history = agentRunner.history;
+        const lastItem = history[history.length - 1];
+        if (lastItem) {
+          for (let i = lastRenderedEventCount; i < lastItem.events.length; i++) {
+            renderEvent(chatLog, lastItem.events[i], lastItem.status, agentRunner);
+          }
+          lastRenderedEventCount = lastItem.events.length;
+        }
+        if (!chatLog.hasApprovalPending()) {
+          scheduleOverlay();
+        }
         return;
       }
       // Incremental history update — only render new events
@@ -243,7 +269,7 @@ export async function runCli() {
 
         // Render new events only
         for (let i = lastRenderedEventCount; i < lastItem.events.length; i++) {
-          renderEvent(chatLog, lastItem.events[i], lastItem.status);
+          renderEvent(chatLog, lastItem.events[i], lastItem.status, agentRunner);
         }
         lastRenderedEventCount = lastItem.events.length;
 
@@ -947,16 +973,9 @@ export async function runCli() {
       return;
     }
 
-    if (agentRunner.pendingApproval) {
-      const prompt = new ApprovalPromptComponent(
-        agentRunner.pendingApproval.tool,
-        agentRunner.pendingApproval.args,
-      );
-      prompt.onSelect = (decision: ApprovalDecision) => {
-        agentRunner.respondToApproval(decision);
-      };
-      showScreenView('', '', prompt, undefined, prompt.selector);
-      return;
+    if (agentRunner.pendingApproval && !chatLog.hasApprovalPending()) {
+      // Approval is shown inline in the chat via tool_approval events.
+      // No full-screen overlay needed.
     }
 
     if (state.appState === 'provider_select') {
@@ -1117,6 +1136,44 @@ export async function runCli() {
     slashSuggestions = [];
     updateView();
     tui.requestRender();
+  };
+
+  // Inline approval: intercept 1/2/3 + Enter/Esc and forward to the tool component's approval callback
+  let approvalSelected = 0; // 0=none, 1=allow-once, 2=allow-session, 3=deny
+
+  editor.onApprovalKey = (data: string) => {
+    const key = data;
+    if (key === '1') { approvalSelected = 1; return true; }
+    if (key === '2') { approvalSelected = 2; return true; }
+    if (key === '3') { approvalSelected = 3; return true; }
+    if (key === '\r' || key === '\n') {
+      const sel = approvalSelected || 1;
+      const decision: ApprovalDecision = sel === 1 ? 'allow-once' : sel === 2 ? 'allow-session' : 'deny';
+      approvalSelected = 0;
+      // Try callback first (normal path when renderEvent ran before user pressed Enter)
+      const cb = chatLog.getFirstApprovalCallback();
+      if (cb) { cb(decision); return true; }
+      // Callback not registered yet — store decision synchronously before calling
+      // respondToApproval, so setApprovalPending can consume it when it runs.
+      pendingApprovalDecisionGlobal = decision;
+      if (agentRunner.pendingApproval) {
+        agentRunner.respondToApproval(decision);
+        return true;
+      }
+      return false;
+    }
+    if (key === '\x1b') {
+      approvalSelected = 0;
+      const cb = chatLog.getFirstApprovalCallback();
+      if (cb) { cb('deny'); return true; }
+      pendingApprovalDecisionGlobal = 'deny';
+      if (agentRunner.pendingApproval) {
+        agentRunner.respondToApproval('deny');
+        return true;
+      }
+      return false;
+    }
+    return false;
   };
 
   await inputHistory.init();

@@ -63,21 +63,23 @@ export class SessionManager {
    * Create or resume a session.
    */
   async startSession(metadata?: Partial<SessionMetadata>): Promise<string> {
-    const sessionId = this.createSessionId();
-    this.currentSessionId = sessionId;
-
-    // Try to load existing session
-    const existingSession = await this.loadSession(sessionId);
-    if (existingSession) {
-      this.sessionData = existingSession;
-      // Update metadata
+    // Resume the most recent session instead of always creating a new one.
+    // This preserves approved tools across restarts.
+    const recent = await this.getMostRecentSession();
+    if (recent && !metadata?.model) {
+      this.currentSessionId = recent.metadata.id;
+      this.sessionData = recent;
       this.sessionData.metadata.queryCount++;
       this.sessionData.metadata.updatedAt = new Date().toISOString();
+      if (metadata?.model) this.sessionData.metadata.model = metadata.model;
+      if (metadata?.channel) this.sessionData.metadata.channel = metadata.channel;
       await this.saveSession();
-      return sessionId;
+      return this.currentSessionId;
     }
 
-    // Create new session
+    // No recent session — create a new one
+    const sessionId = this.createSessionId();
+    this.currentSessionId = sessionId;
     this.sessionData = {
       metadata: {
         id: sessionId,
@@ -93,7 +95,6 @@ export class SessionManager {
       deniedTools: [],
       toolCallCounts: {},
     };
-
     await this.saveSession();
     return sessionId;
   }
@@ -123,6 +124,17 @@ export class SessionManager {
     // Remove from denied if it was there
     this.sessionData.deniedTools = this.sessionData.deniedTools.filter(t => t !== toolName);
     this.scheduleSave();
+  }
+
+  /** Approve a tool and flush to disk immediately (bypasses debounce). */
+  approveToolSync(toolName: string): void {
+    if (!this.sessionData) return;
+    if (!this.sessionData.approvedTools.includes(toolName)) {
+      this.sessionData.approvedTools.push(toolName);
+    }
+    this.sessionData.deniedTools = this.sessionData.deniedTools.filter(t => t !== toolName);
+    if (this.saveTimer) { clearTimeout(this.saveTimer); this.saveTimer = null; }
+    this.saveSession().catch(() => {/* ignore */});
   }
 
   /**

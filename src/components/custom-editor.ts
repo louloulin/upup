@@ -9,6 +9,8 @@ export class CustomEditor extends Editor {
   onSlashNavigate?: (direction: 'up' | 'down') => void;
   onSlashDismiss?: () => void;
   onSlashExactMatch?: (text: string) => boolean;
+  /** Called when there's a pending approval: pass key to handle 1/2/3 + Enter for approval. Returns true if consumed. */
+  onApprovalKey?: (key: string) => boolean;
   /**
    * Optional keybinding resolver. When set, keys not consumed by the slash
    * suggestion system are converted to KeyEvent and passed here for resolution.
@@ -48,6 +50,12 @@ export class CustomEditor extends Editor {
 
   handleInput(data: string): void {
     const showingSuggestions = this.slashActive;
+
+    // Approval mode: route 1/2/3 + Enter/Esc to approval handler
+    if (this.onApprovalKey) {
+      const consumed = this.onApprovalKey(data);
+      if (consumed) return;
+    }
 
     // Esc: dismiss suggestions first, then existing behavior
     if (matchesKey(data, Key.escape)) {
