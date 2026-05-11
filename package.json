@@ -1,12 +1,10 @@
 {
-  "name": "upup-ts",
+  "name": "upup",
   "version": "2026.05.09",
+  "private": true,
   "description": "UpUp - AI agent for deep financial research (涨涨 — 深度金融研究 AI 智能体).",
   "type": "module",
-  "main": "src/index.tsx",
-  "bin": {
-    "upup-ts": "./src/index.tsx"
-  },
+  "workspaces": ["packages/*"],
   "scripts": {
     "start": "bun run src/index.tsx",
     "dev": "bun --watch run src/index.tsx",
@@ -17,12 +15,14 @@
     "test:watch": "bun test --watch",
     "postinstall": "playwright install chromium",
     "build": "bun run typecheck",
+    "build:sdk": "bun run --filter @upup/plugin-sdk build",
+    "build:types": "bun run --filter @upup/types build",
+    "build:all": "bun run --filter '*' build",
     "build:bun": "bun run typecheck && echo '✅ Bun build complete - run: bun start'",
     "build:node": "bun build src/index.tsx --target=node --outfile=dist/upup.js --external=dotenv --external=zod && echo '✅ Node.js build complete'",
     "build:node:win": "bun build src/index.tsx --target=node --outfile=dist/upup.exe --external=dotenv --external=zod && echo '✅ Windows build complete'",
     "build:compile": "bun build --compile --target=bun --outfile=upup src/index.tsx --external=playwright --external=playwright-core && chmod +x upup && echo '✅ Binary compile complete - run: ./upup'",
     "build:compile:win": "bun build --compile --target=bun --outfile=upup.exe src/index.tsx && echo '✅ Windows binary compile complete'",
-    "build:all": "bun run build:bun && bun run build:node && bun run build:compile",
     "build:pkg": "pkg . --targets node18-linux-x64,node18-macos-x64,node18-win-x64 --output dist/upup-pkg",
     "build:pkg:linux": "pkg . --targets node18-linux-x64 --output dist/upup-linux",
     "build:pkg:mac": "pkg . --targets node18-macos-x64 --output dist/upup-macos",
