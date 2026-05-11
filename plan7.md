@@ -547,6 +547,7 @@ const getStockPrice = defineTool({
 | `packages/sdk/examples/real-stdio-test.ts` | 真实 stdio 验证 | ✅ **已完成** |
 | `packages/sdk/examples/oscript-scenario.ts` | OScript 场景验证 | ✅ **已完成** |
 | `packages/sdk/examples/demo-project.ts` | 完整项目演示 | ✅ **已完成** |
+| `packages/sdk/examples/investment-demo.ts` | 投资功能验证 | ✅ **已完成** |
 | `upup-agent/src/agent-wrapper.ts` | Agent wrapper | ✅ **已完成** |
 | `upup-agent/src/server.ts` | stdio 服务端 | ✅ **已完成** |
 | `upup-agent/src/cli.test.ts` | CLI 测试 (4 tests) | ✅ **已完成** |
@@ -612,6 +613,16 @@ bun run packages/sdk/examples/demo-project.ts
 # 真实分析结果:
 #    - 工具调用次数: 14
 #    - Agent 回复: 贵州茅台(600519) 完整投资分析报告
+
+# 投资功能验证 (2026-05-11) ✅
+bun run packages/sdk/examples/investment-demo.ts
+# 验证结果:
+#    ✅ Agent 创建: 成功
+#    ✅ 连接 stdio: 成功
+#    ✅ 工具注册: 5 个 (get_stock_price, get_technical, calculate_valuation, analyze_risk, compare_stocks)
+#    ✅ 股票分析: 3 只 (600519, 000858, AAPL)
+#    ✅ 工具调用: 61 次 (12+12+7+30)
+#    🎉 投资功能验证完成!
 ```
 
 ---
