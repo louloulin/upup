@@ -1,186 +1,134 @@
 #!/usr/bin/env bun
 /**
- * UpUp - Unified Entry Point
+ * UpUp - Onboarding CLI
  *
  * Usage:
- *   bun run src/index.tsx                    # Start UpUp (status check + TUI)
- *   bun run src/index.tsx --status          # Show configuration status
- *   bun run src/index.tsx --check           # Run pre-flight checks
- *   bun run src/index.tsx --wizard          # Start onboarding wizard
- *   bun run src/index.tsx --doctor          # Run diagnostics
- *   bun run src/index.tsx --help            # Show help
+ *   bun run src/index.tsx              # Show help
+ *   bun run src/index.tsx --status    # Show configuration status
+ *   bun run src/index.tsx --check     # Run pre-flight checks
+ *   bun run src/index.tsx --wizard    # Start onboarding wizard
+ *   bun run src/index.tsx --doctor     # Run diagnostics
  */
 
 import { config } from 'dotenv';
-import { checkStartup, printStartupBanner, getOnboardingInstructions } from './onboarding/index.js';
 import { OnboardingChecklist, OnboardingWizard, OnboardingValidator } from './onboarding/index.js';
 import { PROVIDERS } from './providers.js';
 import { DEFAULT_PROVIDER } from './model/llm.js';
 import { checkApiKeyExistsForProvider } from './utils/env.js';
-import { runCli } from './cli.js';
 
-// Load environment variables
 config({ quiet: true });
 
-// ANSI colors
-const RESET = '\x1b[0m';
 const BOLD = '\x1b[1m';
 const GREEN = '\x1b[32m';
 const YELLOW = '\x1b[33m';
 const BLUE = '\x1b[34m';
 const CYAN = '\x1b[36m';
 const RED = '\x1b[31m';
+const RESET = '\x1b[0m';
 
-// Parse arguments
 const args = process.argv.slice(2);
 const flags = new Set(args);
 
 function isFlag(flag: string): boolean {
-  return flags.has('--' + flag) || flags.has('-' + flag.charAt(0));
+  return flags.has('--' + flag);
 }
 
 function showHelp() {
   console.log(`
-${BOLD}UpUp - AI Assistant for Financial Research${RESET}
+${BOLD}UpUp Onboarding CLI${RESET}
 
 ${BOLD}Usage:${RESET}
-  ${CYAN}bun run src/index.tsx${RESET}              # Start UpUp with status check
-  ${CYAN}bun run src/index.tsx --status${RESET}      # Show configuration status
-  ${CYAN}bun run src/index.tsx --check${RESET}       # Run pre-flight checks
-  ${CYAN}bun run src/index.tsx --wizard${RESET}      # Start onboarding wizard
-  ${CYAN}bun run src/index.tsx --doctor${RESET}       # Run diagnostics
-  ${CYAN}bun run src/index.tsx --help${RESET}         # Show this help
-
-${BOLD}Quick Start:${RESET}
-  ${CYAN}bun run src/index.tsx${RESET}               # Start (shows status if not configured)
-  ${CYAN}bun run src/index.tsx --wizard${RESET}       # First time setup
+  ${CYAN}bun run src/index.tsx${RESET}           # Show this help
+  ${CYAN}bun run src/index.tsx --status${RESET}   # Show configuration status
+  ${CYAN}bun run src/index.tsx --check${RESET}    # Run pre-flight checks
+  ${CYAN}bun run src/index.tsx --wizard${RESET}   # Start onboarding wizard
+  ${CYAN}bun run src/index.tsx --doctor${RESET}   # Run diagnostics
 `);
 }
 
 async function showStatus() {
-  console.log(`\n${BLUE}${BOLD}╔═══════════════════════════════════════════════════════════════╗${RESET}`);
-  console.log(`${BLUE}║${RESET}               ${BOLD}Configuration Status${RESET}                          ${BLUE}║${RESET}`);
-  console.log(`${BLUE}╚═══════════════════════════════════════════════════════════════╝${RESET}\n`);
+  console.log(`\n${BLUE}${BOLD}[Status]${RESET}\n`);
 
-  const startupCheck = await checkStartup();
-
-  console.log(`  ${startupCheck.configured ? GREEN + '✓' : YELLOW + '⚠'}${RESET}  Provider: ${startupCheck.provider}`);
-  console.log(`  ${startupCheck.ready ? GREEN + '✓' : YELLOW + '⚠'}${RESET}  Ready: ${startupCheck.ready ? GREEN + 'Yes' : YELLOW + 'No'}${RESET}`);
-  console.log(`  ${startupCheck.needsOnboarding ? YELLOW + '⚠' : GREEN + '✓'}${RESET}  Onboarding: ${startupCheck.needsOnboarding ? YELLOW + 'Required' : GREEN + 'Complete'}${RESET}`);
-  console.log('');
-
-  console.log(`  ${BOLD}Available Providers:${RESET}`);
   for (const p of PROVIDERS) {
     const hasKey = checkApiKeyExistsForProvider(p.id);
-    const status = hasKey ? `${GREEN}[configured]${RESET}` : `${YELLOW}[not set]${RESET}`;
-    console.log(`    ${p.displayName}: ${status}`);
+    const status = hasKey ? `${GREEN}[ok]` : `${YELLOW}[--]`;
+    console.log(`  ${status} ${p.displayName}`);
   }
   console.log('');
 }
 
 async function runCheck() {
-  console.log(`\n${BLUE}${BOLD}Running Pre-flight Checks...${RESET}\n`);
+  console.log(`\n${BLUE}${BOLD}[Check]${RESET}\n`);
 
   const checklist = new OnboardingChecklist(DEFAULT_PROVIDER);
   await checklist.runChecks();
 
-  console.log(checklist.render());
-  console.log('');
-
-  if (checklist.isReady()) {
-    console.log(`${GREEN}${BOLD}✓ System is ready!${RESET}\n`);
-  } else {
-    console.log(`${YELLOW}${BOLD}⚠ Some checks need attention. Run ${CYAN}bun run src/index.tsx --wizard${YELLOW} to setup.${RESET}\n`);
+  for (const item of checklist.getItems()) {
+    const icon = item.status === 'passed' ? GREEN + 'ok' : item.status === 'warning' ? YELLOW + '!' : RED + 'x';
+    console.log(`  [${icon}${RESET}] ${item.label}`);
   }
+
+  console.log(checklist.isReady() ? `\n${GREEN}Ready${RESET}\n` : `\n${YELLOW}Needs setup${RESET}\n`);
 }
 
 async function runWizard() {
-  console.log(`\n${CYAN}${BOLD}Starting Onboarding Wizard...${RESET}\n`);
+  console.log(`\n${CYAN}${BOLD}[Wizard]${RESET}\n`);
 
   const wizard = new OnboardingWizard();
+  const providers = wizard.getProviderOptions();
 
-  console.log(`  Welcome to UpUp Onboarding!\n`);
-  console.log(`  This wizard will help you set up your environment.\n`);
-
-  const options = wizard.getProviderOptions();
-  console.log(`  ${BOLD}Available providers:${RESET}`);
-  for (let i = 0; i < options.length; i++) {
-    const hasKey = checkApiKeyExistsForProvider(options[i].id);
-    const keyStatus = hasKey ? ` ${GREEN}[configured]${RESET}` : '';
-    console.log(`    ${i + 1}. ${options[i].label}${keyStatus}`);
+  console.log('  Available providers:');
+  for (let i = 0; i < providers.length; i++) {
+    const hasKey = checkApiKeyExistsForProvider(providers[i].id);
+    const keyStatus = hasKey ? ` ${GREEN}[ok]${RESET}` : '';
+    console.log(`    ${i + 1}. ${providers[i].label}${keyStatus}`);
   }
-  console.log('');
 
-  console.log(`  Current provider: ${DEFAULT_PROVIDER}`);
+  console.log(`\n  Current: ${DEFAULT_PROVIDER}`);
 
   const checklist = new OnboardingChecklist(DEFAULT_PROVIDER);
   await checklist.runChecks();
 
-  console.log(`\n  ${BOLD}Pre-flight Checks:${RESET}`);
+  console.log('');
   for (const item of checklist.getItems()) {
-    const icon = item.status === 'passed' ? GREEN + '✓' : item.status === 'warning' ? YELLOW + '⚠' : RED + '✗';
-    console.log(`    ${icon} ${item.label}`);
+    const icon = item.status === 'passed' ? GREEN + 'ok' : item.status === 'warning' ? YELLOW + '!' : RED + 'x';
+    console.log(`  [${icon}${RESET}] ${item.label}`);
   }
 
-  console.log(`\n${GREEN}${BOLD}✓ Configuration complete!${RESET}`);
-  console.log(`  Run ${CYAN}bun run src/index.tsx${RESET} to start UpUp.\n`);
+  console.log(`\n${GREEN}Done${RESET}\n`);
 }
 
 async function runDoctor() {
-  console.log(`\n${BLUE}${BOLD}Running Diagnostics...${RESET}\n`);
+  console.log(`\n${BLUE}${BOLD}[Doctor]${RESET}\n`);
 
   const validator = new OnboardingValidator();
   const checks = await validator.runAllChecks(DEFAULT_PROVIDER);
 
   for (const check of checks) {
-    const icon = check.status === 'passed' ? GREEN + '✓' : check.status === 'warning' ? YELLOW + '⚠' : RED + '✗';
-    console.log(`  ${icon} ${check.label}`);
-    console.log(`      ${check.description}`);
+    const icon = check.status === 'passed' ? GREEN + 'ok' : check.status === 'warning' ? YELLOW + '!' : RED + 'x';
+    console.log(`  [${icon}${RESET}] ${check.label}`);
     if (check.status === 'failed' && check.fix) {
-      console.log(`      ${YELLOW}Fix: ${check.fix}${RESET}`);
+      console.log(`       ${check.fix}`);
     }
   }
-
   console.log('');
 }
 
-// Main entry point
 async function main() {
-  // Help
-  if (isFlag('help') || isFlag('h') || args.length === 0) {
+  if (isFlag('help') || args.length === 0) {
     showHelp();
     return;
   }
 
-  // Status
-  if (isFlag('status') || isFlag('s')) {
-    await showStatus();
-    return;
-  }
+  if (isFlag('status')) { await showStatus(); return; }
+  if (isFlag('check')) { await runCheck(); return; }
+  if (isFlag('wizard')) { await runWizard(); return; }
+  if (isFlag('doctor')) { await runDoctor(); return; }
 
-  // Check
-  if (isFlag('check') || isFlag('c')) {
-    await runCheck();
-    return;
-  }
-
-  // Wizard
-  if (isFlag('wizard') || isFlag('w')) {
-    await runWizard();
-    return;
-  }
-
-  // Doctor
-  if (isFlag('doctor') || isFlag('d')) {
-    await runDoctor();
-    return;
-  }
-
-  // Unknown flag, show help
   showHelp();
 }
 
-main().catch((error) => {
-  console.error(`\n${RED}Error:${RESET}`, error);
+main().catch((e) => {
+  console.error(`\n${RED}Error:${RESET}`, e);
   process.exit(1);
 });
