@@ -73,6 +73,8 @@ export class Agent {
       config.signal,
       config.requestToolApproval,
       config.sessionApprovedTools,
+      undefined, // maxConcurrency unused
+      config.onToolApproval,
     );
     this.systemPrompt = systemPrompt;
     this.signal = config.signal;

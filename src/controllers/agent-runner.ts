@@ -163,6 +163,11 @@ export class AgentRunnerController {
         requestToolApproval: this.requestToolApproval,
         sessionApprovedTools: this.sessionApprovedTools,
         messageQueue: defaultQueue,
+        onToolApproval: (tool: string) => {
+          // Keep AgentRunner's in-memory Set in sync with the executor's decisions.
+          // Needed so the next run (which gets a fresh executor) inherits approved tools.
+          this.sessionApprovedTools.add(tool);
+        },
       });
       const stream = agent.run(query, this.inMemoryChatHistory);
       for await (const event of stream) {

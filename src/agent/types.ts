@@ -54,6 +54,13 @@ export interface AgentConfig {
   requestToolApproval?: (request: { tool: string; args: Record<string, unknown> }) => Promise<ApprovalDecision>;
   /** Shared set of tool names that have been session-approved (persists across queries) */
   sessionApprovedTools?: Set<string>;
+  /**
+   * Called by the tool executor when the user selects "allow-session".
+   * The agent runner uses this to keep its in-memory Set in sync with the
+   * tool executor's decisions (needed because Agent.create() creates a fresh
+   * executor each run, so the executor's Set starts empty).
+   */
+  onToolApproval?: (tool: string) => void;
   /** Enable/disable persistent memory integration for this run */
   memoryEnabled?: boolean;
   /** Message queue for mid-run injection of new user messages. */

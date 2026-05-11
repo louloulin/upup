@@ -55,6 +55,8 @@ interface ToolDisplayComponent {
   setError(error: string): void;
   setLimitWarning(warning?: string): void;
   setApproval(decision: 'allow-once' | 'allow-session' | 'deny'): void;
+  setApprovalPending(onSelect: (decision: 'allow-once' | 'allow-session' | 'deny') => void): void;
+  getApprovalCallback?(): ((decision: 'allow-once' | 'allow-session' | 'deny') => void) | null;
   setDenied(path: string, tool: string): void;
   addSubAgentDetail?(message: string): void;
   dispose?(): void;
@@ -64,12 +66,21 @@ class BrowserSessionComponent extends Container implements ToolDisplayComponent 
   private readonly header: Text;
   private detail: Text | null = null;
   private currentStep: string | null = null;
+  private approvalCallback: ((decision: 'allow-once' | 'allow-session' | 'deny') => void) | null = null;
 
   constructor(_tui: TUI) {
     super();
     this.addChild(new Spacer(1));
     this.header = new Text('⏺ Browser', 0, 0);
     this.addChild(this.header);
+  }
+
+  setApprovalPending(onSelect: (decision: 'allow-once' | 'allow-session' | 'deny') => void): void {
+    this.approvalCallback = onSelect;
+  }
+
+  getApprovalCallback(): ((decision: 'allow-once' | 'allow-session' | 'deny') => void) | null {
+    return this.approvalCallback;
   }
 
   setStep(args: Record<string, unknown>) {
@@ -213,6 +224,28 @@ export class ChatLogComponent extends Container {
 
   getToolById(toolCallId: string): ToolDisplayComponent | undefined {
     return this.toolById.get(toolCallId);
+  }
+
+  /** Returns true if any tool component has a pending approval awaiting user input. */
+  hasApprovalPending(): boolean {
+    for (const comp of this.toolById.values()) {
+      if (comp.getApprovalCallback) {
+        const cb = comp.getApprovalCallback();
+        if (cb) return true;
+      }
+    }
+    return false;
+  }
+
+  /** Returns the first approval callback, if any. */
+  getFirstApprovalCallback(): ((decision: 'allow-once' | 'allow-session' | 'deny') => void) | null {
+    for (const comp of this.toolById.values()) {
+      if (comp.getApprovalCallback) {
+        const cb = comp.getApprovalCallback();
+        if (cb) return cb;
+      }
+    }
+    return null;
   }
 
   updateToolProgress(toolCallId: string, message: string) {
