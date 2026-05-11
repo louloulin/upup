@@ -1,8 +1,9 @@
 /**
  * upup-agent - Agent Wrapper
- * 包装 src/agent/Agent 用于 stdio 服务
+ * 包装 Agent 用于 stdio 服务
  */
 
+// 直接从根目录 src 导入（workspace 内模块引用）
 import { Agent } from '../../src/agent/agent.js'
 import type { AgentEvent } from '../../src/agent/types.js'
 
@@ -63,7 +64,6 @@ export async function runAgent(
 
 /**
  * 运行 Agent（流式模式）
- * 返回生成器供外部迭代
  */
 export async function *runAgentStream(
   params: AgentRunParams

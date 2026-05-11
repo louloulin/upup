@@ -4,7 +4,7 @@
  */
 
 import { spawn } from 'child_process'
-import { describe, test, expect } from 'vitest'
+import { describe, test, expect } from 'bun:test'
 
 describe('upup-agent CLI JSON-RPC Protocol', () => {
   test('should respond to initialize', async () => {

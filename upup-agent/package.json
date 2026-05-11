@@ -3,16 +3,10 @@
   "version": "0.1.0",
   "description": "UP Agent - stdio server for @upup/sdk",
   "type": "module",
-  "bin": {
-    "upup-agent": "./dist/cli.js"
-  },
   "scripts": {
-    "build": "bun build src/cli.ts --outdir=dist --target=bun",
-    "dev": "bun build src/cli.ts --outdir=dist --watch --target=bun",
     "start": "bun run src/cli.ts"
   },
   "dependencies": {
     "@upup/types": "workspace:*"
-  },
-  "files": ["dist"]
+  }
 }

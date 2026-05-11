@@ -1,0 +1,26 @@
+{
+  "name": "@upup/agent-core",
+  "version": "0.1.0",
+  "description": "UP Agent Core - Core agent runtime for @upup/sdk",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && bun build dist/index.js --outdir=dist --target=bun",
+    "dev": "tsc -p tsconfig.json --watch",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@upup/types": "workspace:*"
+  },
+  "peerDependencies": {
+    "@upup/llm": "workspace:*"
+  },
+  "files": ["dist"]
+}
