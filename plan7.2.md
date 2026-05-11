@@ -1,7 +1,7 @@
 # Plan7.2.md — Bun Workspace + Plugin SDK 模块化
 
 > 创建日期: 2026-05-11 | 目标: Bun Workspace + 外部 Plugin SDK | 对标: Bun Workspaces 2025-2026 最佳实践
-> 版本: 2.0 | 状态: **Phase 1-3 已完成** ✅
+> 版本: 3.0 | 状态: **Phase 1-5 已完成** ✅
 
 ---
 
@@ -14,7 +14,7 @@
 | Bun Workspace | 单包 | ✅ 多包 | ✅ 已完成 |
 | @upup/types | ✅ 已创建 | packages/独立 | ✅ 已完成 |
 | @upup/plugin-sdk | ✅ 已创建 | packages/独立 | ✅ 已完成 |
-| 外部插件支持 | 紧耦合 | 依赖注入 | ⏳ 进行中 |
+| @upup/memory | ✅ 已创建 | packages/独立 | ✅ 已完成 |
 
 ---
 
@@ -790,6 +790,7 @@ bun run dev
 | Bun Workspace 配置 | ✅ | package.json workspaces 配置正确 |
 | @upup/types 构建 | ✅ | packages/types/dist/ 生成正确 |
 | @upup/plugin-sdk 构建 | ✅ | packages/plugin-sdk/dist/ 生成正确 |
+| @upup/memory 构建 | ✅ | packages/memory/dist/ 生成正确 |
 | bun install | ✅ | 1592 packages installed |
 | Unit Tests | ✅ | 1957 pass, 0 fail |
 | Typecheck | ⚠️ | 有预存的类型错误 (非本次改动) |
@@ -967,6 +968,6 @@ packages/
 1. ~~Phase 1: Bun Workspace 初始化~~ ✅
 2. ~~Phase 2: 创建 @upup/types~~ ✅
 3. ~~Phase 3: 创建 @upup/plugin-sdk~~ ✅
-4. Phase 4: 更新现有代码使用 packages (可选)
-5. Phase 5: 创建 @upup/memory (可选)
-6. Phase 6: 创建 @upup/llm (可选)
+4. ~~Phase 5: 创建 @upup/memory~~ ✅
+5. Phase 6: 创建 @upup/llm (可选)
+6. Phase 7: 更新现有代码使用 packages (可选)
