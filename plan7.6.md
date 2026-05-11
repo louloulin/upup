@@ -3,7 +3,7 @@
 > 创建日期: 2026-05-11 | 更新日期: 2026-05-11 | 目标: 未来模块化路线图 | 版本: 2.4
 > 前置: plan7.2.md (Phase 1-8) + plan7.3.md (Phase 9-10) + plan7.5.md (Phase 11) 已完成
 > 方法: 使用 brainstorming skill 指导分析，深度扫描模块依赖关系
-> 状态: Phase 12-17 已完成 ✅ (@upup/commands, @upup/keybindings, @upup/state, @upup/utils)
+> 状态: Phase 12-17 + Phase 13 部分 ✅ (@upup/commands, @upup/keybindings, @upup/state, @upup/utils, @upup/skills)
 
 ---
 
@@ -34,6 +34,7 @@
 | `@upup/keybindings` | ✅ Phase 15 |
 | `@upup/state` | ✅ Phase 16 |
 | `@upup/utils` | ✅ Phase 17 |
+| `@upup/skills` | ✅ Phase 13 (部分) |
 
 ---
 
@@ -830,8 +831,8 @@ bun install
 2. ~~Phase 12: @upup/commands~~ ✅ (2026-05-11)
 3. ~~Phase 15: @upup/keybindings~~ ✅ (2026-05-11)
 4. ~~Phase 16: @upup/state~~ ✅ (2026-05-11)
-5. ~~Phase 17: @upup/utils~~ ✅ (2026-05-11) - 关键依赖已解锁！
-6. **Phase 13**: @upup/skills 🔄 (可并行迁移)
+5. ~~Phase 17: @upup/utils~~ ✅ (2026-05-11)
+6. ~~Phase 13: @upup/skills~~ ✅ (2026-05-11)
 7. **Phase 14**: @upup/mcp 🔄 (可并行迁移)
 8. **Phase 18**: 迁移 @upup/plugins
 9. **Phase 19**: 评估 @upup/daemon (等 cron)
@@ -884,12 +885,12 @@ packages/
 @upup/keybindings ████████████████████ 100%  (2026-05-11)
 @upup/state       ████████████████████ 100%  (2026-05-11)
 @upup/utils       ████████████████████ 100%  (2026-05-11) 🎉
+@upup/skills     ████████████████████ 100%  (2026-05-11) ✅
 
 📋 Tier 0-1 已完成 (Phase 12-17):
 (全部完成!)
 
-📋 待迁移 Phase 13-14 (现在可以并行！):
-@upup/skills      ░░░░░░░░░░░░░░░░░░░░ 0%  🔄
+📋 Phase 14 (可并行迁移):
 @upup/mcp         ░░░░░░░░░░░░░░░░░░░░ 0%  🔄
 
 📋 待迁移 Tier 2+ (Phase 18-25):
