@@ -51,6 +51,16 @@
         "typescript": "^5.9.3",
       },
     },
+    "packages/agent-core": {
+      "name": "@upup/agent-core",
+      "version": "0.1.0",
+      "dependencies": {
+        "@upup/types": "workspace:*",
+      },
+      "peerDependencies": {
+        "@upup/llm": "workspace:*",
+      },
+    },
     "packages/commands": {
       "name": "@upup/commands",
       "version": "0.1.0",
@@ -148,6 +158,13 @@
         "@upup/types": "workspace:*",
       },
       "peerDependencies": {
+        "@upup/types": "workspace:*",
+      },
+    },
+    "packages/sdk": {
+      "name": "@upup/sdk",
+      "version": "0.1.0",
+      "dependencies": {
         "@upup/types": "workspace:*",
       },
     },
@@ -738,6 +755,8 @@
 
     "@ungap/structured-clone": ["@ungap/structured-clone@1.3.0", "https://registry.npmmirror.com/@ungap/structured-clone/-/structured-clone-1.3.0.tgz", {}, "sha512-WmoN8qaIAo7WTYWbAZuG8PYEhn5fkz7dZrqTBZ7dtt//lL2Gwms1IcnQ5yHqjDfX8Ft5j4YzDM23f87zBfDe9g=="],
 
+    "@upup/agent-core": ["@upup/agent-core@workspace:packages/agent-core"],
+
     "@upup/commands": ["@upup/commands@workspace:packages/commands"],
 
     "@upup/cron": ["@upup/cron@workspace:packages/cron"],
@@ -759,6 +778,8 @@
     "@upup/plugin-sdk": ["@upup/plugin-sdk@workspace:packages/plugin-sdk"],
 
     "@upup/plugins": ["@upup/plugins@workspace:packages/plugins"],
+
+    "@upup/sdk": ["@upup/sdk@workspace:packages/sdk"],
 
     "@upup/skills": ["@upup/skills@workspace:packages/skills"],
 
