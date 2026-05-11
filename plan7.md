@@ -546,6 +546,7 @@ const getStockPrice = defineTool({
 | `packages/sdk/examples/stock-analysis.ts` | 完整示例 | ✅ **已完成** |
 | `packages/sdk/examples/real-stdio-test.ts` | 真实 stdio 验证 | ✅ **已完成** |
 | `packages/sdk/examples/oscript-scenario.ts` | OScript 场景验证 | ✅ **已完成** |
+| `packages/sdk/examples/demo-project.ts` | 完整项目演示 | ✅ **已完成** |
 | `upup-agent/src/agent-wrapper.ts` | Agent wrapper | ✅ **已完成** |
 | `upup-agent/src/server.ts` | stdio 服务端 | ✅ **已完成** |
 | `upup-agent/src/cli.test.ts` | CLI 测试 (4 tests) | ✅ **已完成** |
@@ -599,6 +600,18 @@ bun run packages/sdk/examples/oscript-scenario.ts
 #    🌐 场景 3: 网络操作 ✅
 #    ⚙️ 场景 4: 进程管理 ✅
 #    ✅ 11 个工具成功注册
+
+# 完整项目演示 (2026-05-11) ✅
+bun run packages/sdk/examples/demo-project.ts
+# 输出:
+#    ✅ 工具注册: 成功
+#    ✅ CLI通信: 成功
+#    ✅ 投资分析: 成功
+#    🎉 所有演示成功完成!
+#
+# 真实分析结果:
+#    - 工具调用次数: 14
+#    - Agent 回复: 贵州茅台(600519) 完整投资分析报告
 ```
 
 ---
