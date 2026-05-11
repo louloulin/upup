@@ -32,6 +32,7 @@ export { OnboardingValidator } from './validator.js';
 export { OnboardingWizard } from './wizard.js';
 export { OnboardingChecklist } from './checklist.js';
 export { TemplateManager, DEFAULT_EXAMPLES, QUICK_START_PROMPTS } from './templates.js';
+export { checkStartup, printStartupBanner, printQuickStatus, getOnboardingInstructions } from './startup.js';
 
 import { OnboardingChecklist } from './checklist.js';
 
