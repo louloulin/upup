@@ -264,7 +264,7 @@ Coverage:
 - ✅ 真实 API 测试
 
 ### 待完善
-- [ ] 集成到 CLI 入口
+- [x] 集成到 CLI 入口
 - [ ] TUI 组件支持
 - [ ] 持久化配置
 - [ ] 多语言支持
@@ -272,7 +272,70 @@ Coverage:
 
 ---
 
-## 8. 参考资料
+## 9. CLI 命令
+
+### 9.1 Slash Commands
+
+在 UpUp TUI 中使用：
+
+```
+/onboard    # 启动 onboarding 向导
+/setup      # 运行设置向导
+```
+
+### 9.2 Standalone CLI
+
+独立运行 onboarding 工具：
+
+```bash
+# 显示状态
+bun run src/onboarding/cli.ts status
+
+# 运行预检
+bun run src/onboarding/cli.ts check
+
+# 启动向导
+bun run src/onboarding/cli.ts wizard
+
+# 运行诊断
+bun run src/onboarding/cli.ts doctor
+
+# 帮助信息
+bun run src/onboarding/cli.ts help
+```
+
+### 9.3 完整验证
+
+```bash
+# 运行完整系统验证
+bun run src/onboarding/oscript-onboarding.ts
+```
+
+### 9.4 CLI 输出示例
+
+```
+$ bun run src/onboarding/cli.ts status
+
+╔═══════════════════════════════════════════════════════════════╗
+║               Onboarding Status                               ║
+╚═══════════════════════════════════════════════════════════════╝
+
+  Provider: deepseek
+  Configured: Yes
+  Ready: Yes
+  Needs Onboarding: No
+
+  Checks:
+    ✓ Environment Setup: passed
+    ✓ API Key Configuration: passed
+    ✓ Provider Available: passed
+    ✓ Model Available: passed
+    ✓ Tools Ready: passed
+```
+
+---
+
+## 10. 参考资料
 
 - Claude Code SDK Setup Flow
 - OpenClaw Onboarding Patterns
