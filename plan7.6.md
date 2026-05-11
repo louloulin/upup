@@ -1,9 +1,9 @@
 # Plan7.6.md — 未来模块化迁移计划 (v2.0)
 
-> 创建日期: 2026-05-11 | 更新日期: 2026-05-11 | 目标: 未来模块化路线图 | 版本: 2.2
+> 创建日期: 2026-05-11 | 更新日期: 2026-05-11 | 目标: 未来模块化路线图 | 版本: 2.3
 > 前置: plan7.2.md (Phase 1-8) + plan7.3.md (Phase 9-10) + plan7.5.md (Phase 11) 已完成
 > 方法: 使用 brainstorming skill 指导分析，深度扫描模块依赖关系
-> 状态: Phase 12 (@upup/commands) 已完成 ✅
+> 状态: Phase 12-16 已完成 ✅ (@upup/commands, @upup/keybindings, @upup/state)
 
 ---
 
@@ -31,6 +31,8 @@
 | `@upup/plugin-sdk` | ✅ Phase 9-10 |
 | `@upup/hooks` | ✅ Phase 11 |
 | `@upup/commands` | ✅ Phase 12 |
+| `@upup/keybindings` | ✅ Phase 15 |
+| `@upup/state` | ✅ Phase 16 |
 
 ---
 
@@ -154,7 +156,7 @@ src/
 
 ## 3. 分阶段迁移计划
 
-> ⭐ = 零风险迁移 | 🔄 = 可并行执行
+> ⭐ = 零风险迁移 | 🔄 = 可并行执行 | ⚠️ = 等待依赖
 
 ### Phase 12: @upup/commands ⭐ — CLI 命令系统 (零风险)
 
@@ -218,7 +220,7 @@ bun run dev
 
 ---
 
-### Phase 13: @upup/skills 🔄 — 技能系统 (零风险, 并行)
+### Phase 13: @upup/skills ⚠️ — 技能系统 (等 @upup/utils)
 
 **目标**: 提取 src/skills/ 到独立包
 
@@ -297,7 +299,7 @@ export * from '@upup/skills';
 
 ---
 
-### Phase 14: @upup/mcp 🔄 — MCP 客户端 (零风险, 并行)
+### Phase 14: @upup/mcp ⚠️ — MCP 客户端 (等 @upup/utils)
 
 **目标**: 提取 src/mcp/ 到独立包
 
@@ -825,11 +827,11 @@ bun install
 
 1. ~~Phase 1-11: Packages 创建与迁移~~ ✅
 2. ~~Phase 12: @upup/commands~~ ✅ (2026-05-11)
-3. **Phase 13**: 并行迁移 @upup/skills 🔄
-4. **Phase 14**: 并行迁移 @upup/mcp 🔄
-5. **Phase 15**: 迁移 @upup/keybindings ⭐
-6. **Phase 16**: 迁移 @upup/state ⭐
-7. **Phase 17**: 迁移 @upup/utils
+3. ~~Phase 15: @upup/keybindings~~ ✅ (2026-05-11)
+4. ~~Phase 16: @upup/state~~ ✅ (2026-05-11)
+5. **Phase 17**: 迁移 @upup/utils (依赖 Phase 13-14)
+6. **Phase 13**: ⚠️ @upup/skills (等 @upup/utils)
+7. **Phase 14**: ⚠️ @upup/mcp (等 @upup/utils)
 8. **Phase 18**: 迁移 @upup/plugins
 9. **Phase 19**: 评估 @upup/daemon (等 cron)
 10. **Phase 20**: 迁移 @upup/cron (关键路径)
@@ -871,29 +873,30 @@ packages/
 ### 7.2 迁移状态总览
 
 ```
-✅ 已完成 (Phase 1-12):
+✅ 已完成 (Phase 1-16):
 @upup/types       ████████████████████ 100%
 @upup/llm         ████████████████████ 100%
 @upup/memory      ████████████████████ 100%
 @upup/plugin-sdk  ████████████████████ 100%
 @upup/hooks       ████████████████████ 100%
 @upup/commands    ████████████████████ 100%  (2026-05-11)
+@upup/keybindings ████████████████████ 100%  (2026-05-11)
+@upup/state       ████████████████████ 100%  (2026-05-11)
 
-📋 待迁移 Tier 0 ⭐ (Phase 13-16, 可并行):
-@upup/skills      ░░░░░░░░░░░░░░░░░░░░ 0%
-@upup/mcp         ░░░░░░░░░░░░░░░░░░░░ 0%
-@upup/keybindings ░░░░░░░░░░░░░░░░░░░░ 0%
-@upup/state       ░░░░░░░░░░░░░░░░░░░░ 0%
+📋 待迁移 Tier 0 ⭐:
+(全部完成!)
 
-📋 待迁移 Tier 1 (Phase 17-18):
-@upup/utils       ░░░░░░░░░░░░░░░░░░░░ 0%
+📋 待迁移 Tier 1 (Phase 17):
+@upup/utils       ░░░░░░░░░░░░░░░░░░░░ 0%  ⭐ 关键依赖
+
+📋 待迁移 Phase 13-14 (等 @upup/utils):
+@upup/skills      ░░░░░░░░░░░░░░░░░░░░ 0%  ⚠️
+@upup/mcp         ░░░░░░░░░░░░░░░░░░░░ 0%  ⚠️
+
+📋 待迁移 Tier 2+ (Phase 18-25):
 @upup/plugins     ░░░░░░░░░░░░░░░░░░░░ 0%
-
-📋 待迁移 Tier 2 (Phase 19-20):
 @upup/daemon      ░░░░░░░░░░░░░░░░░░░░ 0%
 @upup/cron        ░░░░░░░░░░░░░░░░░░░░ 0%  🔴 关键路径
-
-📋 待迁移 Tier 3-4 (Phase 21-25):
 @upup/gateway     ░░░░░░░░░░░░░░░░░░░░ 0%
 @upup/evals       ░░░░░░░░░░░░░░░░░░░░ 0%
 @upup/ui          ░░░░░░░░░░░░░░░░░░░░ 0%

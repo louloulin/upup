@@ -1,0 +1,27 @@
+{
+  "name": "@upup/llm",
+  "version": "0.1.0",
+  "description": "UpUp LLM SDK - Unified LLM interface with multi-provider support",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./providers": {
+      "types": "./dist/providers.d.ts",
+      "default": "./dist/providers.js"
+    }
+  },
+  "scripts": {
+    "build": "bun build src/index.ts --outdir=dist --target=bun && bun build src/index.ts --outdir=dist --target=node --format=cjs && rm -rf dist/*.map",
+    "dev": "bun build src/index.ts --outdir=dist --watch --target=bun",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@upup/types": "workspace:*"
+  },
+  "files": ["dist"]
+}

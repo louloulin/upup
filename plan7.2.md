@@ -1,7 +1,7 @@
 # Plan7.2.md — Bun Workspace + Plugin SDK 模块化
 
 > 创建日期: 2026-05-11 | 目标: Bun Workspace + 外部 Plugin SDK | 对标: Bun Workspaces 2025-2026 最佳实践
-> 版本: 3.0 | 状态: **Phase 1-5 已完成** ✅
+> 版本: 3.4 | 状态: **Phase 1-11 全部完成** ✅
 
 ---
 
@@ -644,7 +644,7 @@ node -e "const sdk = require('@upup/plugin-sdk'); console.log(Object.keys(sdk))"
 | CREATE | `packages/plugin-sdk/src/types.ts` | 类型定义 |
 | CREATE | `packages/plugin-sdk/src/manifest.ts` | Manifest Schema |
 | CREATE | `packages/plugin-sdk/README.md` | 文档 |
-| MODIFY | `src/plugins/sdk/index.ts` | 重新导出 |
+| CREATE | `src/plugins/sdk/index.ts` | 重新导出 SDK |
 | MODIFY | `src/plugins/types.ts` | 使用 SDK 类型 |
 
 ### @upup/types (P2)
@@ -654,6 +654,7 @@ node -e "const sdk = require('@upup/plugin-sdk'); console.log(Object.keys(sdk))"
 | CREATE | `packages/types/` | Types 包目录 |
 | CREATE | `packages/types/package.json` | 包配置 |
 | CREATE | `packages/types/src/index.ts` | 共享类型 |
+| MODIFY | `src/types.ts` | 使用 @upup/types |
 
 ### @upup/memory (P2)
 
@@ -664,6 +665,14 @@ node -e "const sdk = require('@upup/plugin-sdk'); console.log(Object.keys(sdk))"
 | CREATE | `packages/memory/src/index.ts` | MemoryStore 类 |
 | CREATE | `packages/memory/src/types.ts` | 类型定义 |
 | CREATE | `packages/memory/README.md` | 文档 |
+
+### Phase 7-8 (集成与验证)
+
+| 操作 | 文件 | 说明 |
+|------|------|------|
+| CREATE | `src/plugins/sdk/index.ts` | 重新导出 SDK |
+| MODIFY | `src/types.ts` | 使用 @upup/types |
+| CREATE | `scripts/oscript-workspace-verify.ts` | Workspace 验证脚本 |
 
 ---
 
@@ -793,7 +802,35 @@ bun run dev
 | @upup/memory 构建 | ✅ | packages/memory/dist/ 生成正确 |
 | bun install | ✅ | 1592 packages installed |
 | Unit Tests | ✅ | 1957 pass, 0 fail |
+| bun run dev | ✅ | 应用启动成功，界面正常显示 |
 | Typecheck | ⚠️ | 有预存的类型错误 (非本次改动) |
+
+## 7.2 Phase 7 验证结果 (2026-05-11)
+
+| 测试项 | 结果 | 说明 |
+|--------|------|------|
+| src/plugins/sdk/index.ts 创建 | ✅ | 重新导出 @upup/plugin-sdk |
+| src/types.ts 更新 | ✅ | 使用 @upup/types 共享类型 |
+| packages 构建 | ✅ | @upup/plugin-sdk, @upup/types 构建成功 |
+| Unit Tests | ✅ | 1957 pass, 0 fail |
+| bun run dev | ✅ | 应用启动成功，界面正常显示 |
+
+## 7.3 Phase 8 验证结果 (2026-05-11) - oscript 验证
+
+| 测试项 | 结果 | 说明 |
+|--------|------|------|
+| Workspace Config | ✅ | workspaces: packages/* |
+| @upup/types | ✅ | version 0.1.0, exports 1 |
+| @upup/plugin-sdk | ✅ | version 0.1.0, exports 2 |
+| @upup/memory | ✅ | version 0.1.0, exports 1 |
+| src/types.ts 引用 | ✅ | Found 'from @upup/types' |
+| src/plugins/sdk 引用 | ✅ | Found 'from @upup/plugin-sdk' |
+| bun.lock | ✅ | Found |
+| Unit Tests | ✅ | 1957 pass, 0 fail |
+| bun run dev | ✅ | 应用启动成功 |
+
+**oscript 验证脚本**: `scripts/oscript-workspace-verify.ts`
+**验证结果**: 12/12 项通过 (100%)
 
 ---
 
@@ -964,10 +1001,28 @@ packages/
 
 ---
 
+**后续计划**: 参见 [plan7.3.md](./plan7.3.md)
+
+| Phase | 包 | 优先级 | 状态 |
+|-------|-----|--------|------|
+| 9 | `@upup/llm` | P1 | ✅ 已完成 |
+| 10 | `@upup/hooks` | P2 | ✅ 已完成 |
+| 11 | 源码迁移 | P1 | ✅ 已完成 |
+
+**后续计划**: 参见 [plan7.5.md](./plan7.5.md)
+
+---
+
 **Next Steps**:
 1. ~~Phase 1: Bun Workspace 初始化~~ ✅
 2. ~~Phase 2: 创建 @upup/types~~ ✅
 3. ~~Phase 3: 创建 @upup/plugin-sdk~~ ✅
 4. ~~Phase 5: 创建 @upup/memory~~ ✅
-5. Phase 6: 创建 @upup/llm (可选)
-6. Phase 7: 更新现有代码使用 packages (可选)
+5. ~~bun run dev 验证~~ ✅
+6. ~~Phase 7: 更新现有代码使用 packages~~ ✅
+7. ~~Phase 8: oscript 验证~~ ✅
+8. ~~Phase 9: 创建 @upup/llm~~ ✅
+9. ~~Phase 10: 创建 @upup/hooks~~ ✅
+10. ~~Phase 11: 源码迁移到 Packages~~ ✅
+11. Phase 12: 清理废弃代码 (可选)
+12. Phase 13: 发布 Packages (可选)
