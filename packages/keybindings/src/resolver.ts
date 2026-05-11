@@ -33,7 +33,7 @@ export function resolveKey(
   let match: Keybinding | null = null;
 
   for (let i = bindings.length - 1; i >= 0; i--) {
-    const binding = bindings[i];
+    const binding = bindings[i]!;
 
     // Check if binding's context is active
     if (binding.context !== 'Global' && !activeContexts.includes(binding.context)) {
@@ -50,7 +50,7 @@ export function resolveKey(
     return { type: 'none' };
   }
 
-  if (match.action === null as unknown as string) {
+  if (match.action === null) {
     return { type: 'unbound' };
   }
 

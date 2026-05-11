@@ -236,7 +236,7 @@ export function calculateTokenCost(
   outputTokens: number,
   model: string,
 ): number {
-  const config = MODEL_COSTS[model] ?? MODEL_COSTS['default'];
+  const config = MODEL_COSTS[model] ?? MODEL_COSTS['default']!;
 
   const inputCost = (inputTokens / 1_000_000) * config.inputCostPerMillion;
   const outputCost = (outputTokens / 1_000_000) * config.outputCostPerMillion;
