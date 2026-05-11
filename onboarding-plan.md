@@ -197,7 +197,42 @@ console.log(checklist.render());
 
 ---
 
-## 6. 测试结果
+## 6. OScript 验证脚本
+
+### 6.1 运行验证
+
+```bash
+bun run src/onboarding/oscript-onboarding.ts
+```
+
+### 6.2 验证步骤
+
+1. **环境检查** - package.json, node_modules, .env
+2. **API Key 配置** - 检查配置的 provider 和 API key
+3. **Provider 配置** - 列出所有可用 provider
+4. **Validator 系统** - 运行所有验证检查
+5. **Wizard 系统** - 验证向导功能
+6. **Checklist 系统** - 渲染预检清单
+7. **Template 系统** - 列出示例模板
+8. **真实 API 测试** - 测试实际 API 连接
+
+### 6.3 验证结果 (2026-05-11)
+
+```
+✅ env          PASSED
+✅ provider     PASSED
+✅ validator    PASSED
+✅ wizard       PASSED
+✅ checklist    PASSED
+✅ templates    PASSED
+✅ api          PASSED
+
+🎉 All verifications passed!
+```
+
+---
+
+## 7. 测试结果
 
 ```bash
 $ bun test src/onboarding/onboarding.test.ts
@@ -216,7 +251,7 @@ Coverage:
 
 ---
 
-## 7. 下一步
+## 8. 下一步
 
 ### 已完成
 - ✅ 核心模块实现
@@ -225,13 +260,15 @@ Coverage:
 - ✅ 预检清单
 - ✅ 示例模板
 - ✅ 测试用例 (29 tests)
+- ✅ OScript 验证脚本
+- ✅ 真实 API 测试
 
 ### 待完善
 - [ ] 集成到 CLI 入口
 - [ ] TUI 组件支持
 - [ ] 持久化配置
-- [ ] 高级验证（真实 API 调用）
 - [ ] 多语言支持
+- [ ] 交互式 CLI 模式
 
 ---
 
