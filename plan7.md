@@ -15,7 +15,7 @@
 | ~~P1~~ | **持仓管理系统** | **已有** | **完整管理** | **高 (已完成)** |
 | ~~P2~~ | **文件变更追踪** | **无** | **完整追踪** | **中 (已完成)** |
 | ~~P2~~ | **Hook 参数修改** | **无** | **PreToolModify** | **中 (已完成)** |
-| P3 | 语义记忆搜索 | BM25 | BM25+向量 | 中 |
+| ~~P3~~ | **语义记忆搜索** | **BM25** | **BM25+向量** | **中 (已完成)** |
 
 ---
 
@@ -471,6 +471,52 @@ interface PreToolModifyResult {
 
 ---
 
+### Phase 6: 语义记忆搜索 (P3) ✅ 已完成
+
+**目标**: BM25 + 向量搜索混合 (基于Memvid，无外部API)
+
+**状态**: ✅ 已完成 (2026-05-11) - 完全基于 Memvid
+
+**实现文件**:
+- `src/memory/memvid-store.ts` - MemvidStore 增强
+  - `search()` - BM25 关键词搜索
+  - `semanticSearch()` - 语义搜索 (新增)
+  - `ask()` - RAG 合成 (需要 LLM API)
+  - `maskPii()` - PII 脱敏
+  - `getTimeline()` - 时间线
+  - `viewFrame()` - 查看帧
+- `src/memory/search.ts` - 搜索接口统一
+  - `hybridSearch()` - BM25 + 语义混合
+  - `keywordSearch()` - 纯 BM25
+  - `vectorSearch()` - 语义搜索 (调用 memvid)
+  - `scanSearch()` - 文件扫描
+
+**Memvid 架构**:
+```
+Memvid MV2 Store
+├── BM25 搜索 (mode: 'lex')
+│   └── TF-IDF 排名
+├── 语义搜索 (memvid.find)
+│   └── 相关性评分
+├── RAG 合成 (mode: 'ask')
+│   └── 需要 LLM API Key
+└── PII 脱敏 (maskPii)
+```
+
+**搜索流程**:
+1. `memvid.find()` - 关键词 + 相关性搜索
+2. `memvid.ask()` - RAG 问答 (需 API Key)
+3. BM25 + 语义分数合并
+4. 时间衰减 + MMR 重排序
+
+**优势**:
+- 完全基于 Memvid 实现
+- 无需 OpenAI/Gemini/Ollama API Key (基础搜索)
+- Memvid MV2 单文件存储
+- 内置 PII 脱敏
+
+---
+
 ## 5. 文件清单
 
 ### 新增文件
@@ -626,5 +672,5 @@ bun test
 3. ~~Phase 3: 文件变更追踪~~ ✅ (file-state.ts)
 4. ~~Phase 4: 通知系统~~ ✅ (已有)
 5. ~~Phase 5: Hook 参数修改~~ ✅ (PreToolModify)
-6. ~~配置: 默认模型修改~~ ✅ (deepseek-v4-flash)
-7. **Phase 6: 语义记忆搜索** - BM25 + 向量搜索
+6. ~~Phase 6: 语义记忆搜索~~ ✅ (BM25 + 向量搜索)
+7. **Plan7.md 全部功能已完成!** 🎉

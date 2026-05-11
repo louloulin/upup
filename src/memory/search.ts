@@ -160,6 +160,42 @@ export async function keywordSearch(
 }
 
 /**
+ * Semantic search using Memvid's semantic search.
+ * No external embedding API needed - uses memvid's built-in ranking.
+ */
+export async function vectorSearch(
+  query: string,
+  options: {
+    maxResults?: number;
+    minScore?: number;
+  } = {},
+): Promise<MemorySearchResult[]> {
+  const maxResults = options.maxResults ?? 10;
+  const minScore = options.minScore ?? 0.1;
+
+  try {
+    const memvidStore = await getMemvidStore();
+    const results = await memvidStore.semanticSearch(query, maxResults);
+
+    return results
+      .filter(r => r.score >= minScore)
+      .map(r => ({
+        snippet: buildSnippet(r.snippet, 700),
+        path: r.memory.filePath,
+        startLine: 1,
+        endLine: 1,
+        score: r.score,
+        source: 'vector' as const,
+        contentSource: 'memory' as const,
+        updatedAt: r.memory.mtimeMs,
+      }));
+  } catch (e) {
+    error('memory', 'Semantic search failed, falling back to BM25', e instanceof Error ? e : undefined);
+    return keywordSearch(query, { maxResults });
+  }
+}
+
+/**
  * Search using scanner + simple text matching.
  * No external dependencies.
  */

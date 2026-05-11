@@ -201,6 +201,31 @@ export class MemvidStore {
   }
 
   /**
+   * Semantic search using Memvid find with enhanced ranking.
+   * Returns ranked results from semantic understanding.
+   *
+   * @param query - Search query
+   * @param k - Number of results
+   * @param typeFilter - Optional memory type filter
+   * @returns Search results with relevance scores
+   */
+  async semanticSearch(
+    query: string,
+    k: number = DEFAULT_K,
+    typeFilter?: MemoryType,
+  ): Promise<MemvidSearchResult[]> {
+    const mv = await this.getMv();
+
+    // Memvid find provides hybrid BM25 + relevance ranking
+    const results = await mv.find(query, {
+      k,
+      snippetChars: SNIPPET_CHARS,
+    });
+
+    return this.parseSearchResults(results, typeFilter);
+  }
+
+  /**
    * Mask PII in text using Memvid's built-in masking.
    */
   maskPii(text: string): string {
