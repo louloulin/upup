@@ -2,21 +2,21 @@
 /**
  * UpUp - Unified Entry Point
  *
- * Single command for all operations:
- *   bun run dev                    # Start with status check
- *   bun run dev --status          # Show configuration status
- *   bun run dev --check           # Run pre-flight checks
- *   bun run dev --wizard          # Run onboarding wizard
- *   bun run dev --doctor          # Run diagnostics
- *   bun run dev --help            # Show help
+ * Usage:
+ *   bun run src/index.tsx                    # Start UpUp (status check + TUI)
+ *   bun run src/index.tsx --status          # Show configuration status
+ *   bun run src/index.tsx --check           # Run pre-flight checks
+ *   bun run src/index.tsx --wizard          # Start onboarding wizard
+ *   bun run src/index.tsx --doctor          # Run diagnostics
+ *   bun run src/index.tsx --help            # Show help
  */
 
 import { config } from 'dotenv';
 import { checkStartup, printStartupBanner, getOnboardingInstructions } from './onboarding/index.js';
-import { OnboardingChecklist, OnboardingWizard, OnboardingValidator, TemplateManager } from './onboarding/index.js';
+import { OnboardingChecklist, OnboardingWizard, OnboardingValidator } from './onboarding/index.js';
 import { PROVIDERS } from './providers.js';
 import { DEFAULT_PROVIDER } from './model/llm.js';
-import { checkApiKeyExistsForProvider, getApiKeyNameForProvider } from './utils/env.js';
+import { checkApiKeyExistsForProvider } from './utils/env.js';
 import { runCli } from './cli.js';
 
 // Load environment variables
@@ -44,16 +44,16 @@ function showHelp() {
 ${BOLD}UpUp - AI Assistant for Financial Research${RESET}
 
 ${BOLD}Usage:${RESET}
-  ${CYAN}bun run dev${RESET}                  Start UpUp with status check
-  ${CYAN}bun run dev${RESET} ${GREEN}--status${RESET}        Show configuration status
-  ${CYAN}bun run dev${RESET} ${GREEN}--check${RESET}         Run pre-flight checks
-  ${CYAN}bun run dev${RESET} ${GREEN}--wizard${RESET}        Start onboarding wizard
-  ${CYAN}bun run dev${RESET} ${GREEN}--doctor${RESET}         Run diagnostics
-  ${CYAN}bun run dev${RESET} ${GREEN}--help${RESET}           Show this help
+  ${CYAN}bun run src/index.tsx${RESET}              # Start UpUp with status check
+  ${CYAN}bun run src/index.tsx --status${RESET}      # Show configuration status
+  ${CYAN}bun run src/index.tsx --check${RESET}       # Run pre-flight checks
+  ${CYAN}bun run src/index.tsx --wizard${RESET}      # Start onboarding wizard
+  ${CYAN}bun run src/index.tsx --doctor${RESET}       # Run diagnostics
+  ${CYAN}bun run src/index.tsx --help${RESET}         # Show this help
 
 ${BOLD}Quick Start:${RESET}
-  ${CYAN}bun run dev${RESET}                  # Start (shows status if not configured)
-  ${CYAN}bun run dev --wizard${RESET}          # First time setup
+  ${CYAN}bun run src/index.tsx${RESET}               # Start (shows status if not configured)
+  ${CYAN}bun run src/index.tsx --wizard${RESET}       # First time setup
 `);
 }
 
@@ -90,7 +90,7 @@ async function runCheck() {
   if (checklist.isReady()) {
     console.log(`${GREEN}${BOLD}✓ System is ready!${RESET}\n`);
   } else {
-    console.log(`${YELLOW}${BOLD}⚠ Some checks need attention. Run ${CYAN}bun run dev --wizard${YELLOW} to setup.${RESET}\n`);
+    console.log(`${YELLOW}${BOLD}⚠ Some checks need attention. Run ${CYAN}bun run src/index.tsx --wizard${YELLOW} to setup.${RESET}\n`);
   }
 }
 
@@ -123,7 +123,7 @@ async function runWizard() {
   }
 
   console.log(`\n${GREEN}${BOLD}✓ Configuration complete!${RESET}`);
-  console.log(`  Run ${CYAN}bun run dev${RESET} to start UpUp.\n`);
+  console.log(`  Run ${CYAN}bun run src/index.tsx${RESET} to start UpUp.\n`);
 }
 
 async function runDoctor() {
@@ -147,7 +147,7 @@ async function runDoctor() {
 // Main entry point
 async function main() {
   // Help
-  if (isFlag('help') || isFlag('h')) {
+  if (isFlag('help') || isFlag('h') || args.length === 0) {
     showHelp();
     return;
   }
@@ -176,17 +176,8 @@ async function main() {
     return;
   }
 
-  // Default: check status and start TUI
-  const startupCheck = await checkStartup();
-  printStartupBanner(startupCheck);
-
-  if (startupCheck.needsOnboarding) {
-    console.log(getOnboardingInstructions());
-    return;
-  }
-
-  // Continue with normal CLI
-  await runCli();
+  // Unknown flag, show help
+  showHelp();
 }
 
 main().catch((error) => {
