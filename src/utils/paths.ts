@@ -1,9 +1,25 @@
 import { join, resolve, relative, isAbsolute } from 'node:path';
 import { cwd as processCwd } from 'node:process';
+import { homedir } from 'node:os';
 import { mkdirSync, existsSync, renameSync } from 'fs';
 
 const UPUP_DIR = '.upup';
 const OLD_DIR = '.dexter';
+
+/**
+ * Get the global UpUp configuration directory path (~/.upup/)
+ * Used for cross-project configuration that applies to all UpUp sessions.
+ */
+export function globalUpupPath(...segments: string[]): string {
+  return join(homedir(), '.upup', ...segments);
+}
+
+/**
+ * Check if global configuration directory exists.
+ */
+export function hasGlobalConfig(): boolean {
+  return existsSync(globalUpupPath(''));
+}
 
 export function getUpupDir(): string {
   // Auto-migration: .dexter → .upup on first run

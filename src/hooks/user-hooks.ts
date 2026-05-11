@@ -1,13 +1,16 @@
 /**
  * User Hook Loader — scans and loads .upup/hooks/*.ts files
+ * Supports both global (~/.upup/hooks/) and project (.upup/hooks/) hooks.
+ * Project hooks take precedence over global hooks (by name).
  *
  * Provides a mechanism for users to define custom hooks that
  * integrate with UpUp's hook lifecycle system.
  */
 
 import { existsSync, readdirSync } from 'fs';
-import { join } from 'path';
+import { join } from 'node:path';
 import { info, warn } from '../utils/logging/logger.js';
+import { globalUpupPath, upupPath } from '../utils/paths.js';
 import type { HookEvent } from './tool-hooks.js';
 
 // Type for user hook modules — they should export a default function
@@ -26,33 +29,35 @@ interface LoadedHook {
   name: string;
   path: string;
   module: UserHookModule;
+  source: 'global' | 'project';
 }
 
 let loadedHooks: LoadedHook[] = [];
 let loaded = false;
 
 /**
- * Get the user hooks directory path
+ * Get the project hooks directory path
  */
-function getHooksDir(): string {
+function getProjectHooksDir(): string {
   return join(process.cwd(), '.upup', 'hooks');
 }
 
 /**
- * Load all user hooks from .upup/hooks/ directory.
- * Each .ts file should export hook functions matching hook event names.
- *
- * @returns Number of hooks loaded
+ * Get the global hooks directory path
  */
-export async function loadUserHooks(): Promise<number> {
-  if (loaded) return loadedHooks.length;
+function getGlobalHooksDir(): string {
+  return globalUpupPath('hooks');
+}
 
-  const hooksDir = getHooksDir();
+/**
+ * Load hooks from a directory.
+ * Returns a map of hook name to hook module (for deduplication).
+ */
+async function loadHooksFromDir(hooksDir: string, source: 'global' | 'project'): Promise<Map<string, LoadedHook>> {
+  const hooks = new Map<string, LoadedHook>();
 
   if (!existsSync(hooksDir)) {
-    info('system', `No user hooks directory at ${hooksDir}`);
-    loaded = true;
-    return 0;
+    return hooks;
   }
 
   try {
@@ -62,23 +67,65 @@ export async function loadUserHooks(): Promise<number> {
 
     for (const file of files) {
       const filePath = join(hooksDir, file);
+      const hookName = file.replace(/\.(ts|js)$/, '');
       try {
         const mod = await import(filePath) as UserHookModule;
-        loadedHooks.push({
-          name: file.replace(/\.(ts|js)$/, ''),
+        hooks.set(hookName, {
+          name: hookName,
           path: filePath,
           module: mod,
+          source,
         });
-        info('system', `Loaded user hook: ${file}`);
       } catch (err) {
-        warn('system', `Failed to load user hook ${file}: ${err instanceof Error ? err.message : String(err)}`);
+        warn('system', `Failed to load hook ${file}: ${err instanceof Error ? err.message : String(err)}`);
       }
     }
-
-    info('system', `Loaded ${loadedHooks.length} user hook(s) from ${hooksDir}`);
   } catch (err) {
-    warn('system', `Failed to scan hooks directory: ${err instanceof Error ? err.message : String(err)}`);
+    warn('system', `Failed to scan hooks directory ${hooksDir}: ${err instanceof Error ? err.message : String(err)}`);
   }
+
+  return hooks;
+}
+
+/**
+ * Load all user hooks from global and project hooks directories.
+ * - Global hooks: ~/.upup/hooks/
+ * - Project hooks: .upup/hooks/
+ * Project hooks take precedence over global hooks (by name).
+ *
+ * @returns Number of hooks loaded
+ */
+export async function loadUserHooks(): Promise<number> {
+  if (loaded) return loadedHooks.length;
+
+  // Load global hooks first
+  const globalHooksDir = getGlobalHooksDir();
+  const globalHooks = await loadHooksFromDir(globalHooksDir, 'global');
+
+  // Load project hooks second (overrides global)
+  const projectHooksDir = getProjectHooksDir();
+  const projectHooks = await loadHooksFromDir(projectHooksDir, 'project');
+
+  // Merge: project hooks override global hooks
+  for (const [name, hook] of globalHooks) {
+    if (!projectHooks.has(name)) {
+      loadedHooks.push(hook);
+    }
+  }
+  for (const [, hook] of projectHooks) {
+    loadedHooks.push(hook);
+  }
+
+  // Log loaded hooks
+  const globalCount = globalHooks.size;
+  const projectCount = projectHooks.size;
+  if (globalCount > 0) {
+    info('system', `Loaded ${globalCount} global hook(s) from ${globalHooksDir}`);
+  }
+  if (projectCount > 0) {
+    info('system', `Loaded ${projectCount} project hook(s) from ${projectHooksDir}`);
+  }
+  info('system', `Total: ${loadedHooks.length} hook(s) loaded (project overrides global)`);
 
   loaded = true;
   return loadedHooks.length;

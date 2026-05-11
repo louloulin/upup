@@ -368,6 +368,37 @@ export async function loadInvestmentConfig(configDir?: string): Promise<Investme
   return { goals, rules, governance };
 }
 
+/**
+ * Load merged investment configuration (global + project).
+ * Project config takes precedence over global config.
+ *
+ * Load order:
+ * 1. Global config from ~/.upup/
+ * 2. Project config from .upup/
+ * 3. Project config overrides global config where present
+ */
+export async function loadMergedInvestmentConfig(): Promise<InvestmentConfig> {
+  // Dynamically import to avoid circular dependency
+  const { globalUpupPath, upupPath } = await import('../utils/paths.js');
+
+  // Check if global config exists
+  const globalExists = existsSync(globalUpupPath(''));
+
+  // Load both configs in parallel
+  const [globalConfig, projectConfig] = await Promise.all([
+    globalExists ? loadInvestmentConfig(globalUpupPath('')) : Promise.resolve({ goals: null, rules: null, governance: null }),
+    loadInvestmentConfig(upupPath('')),
+  ]);
+
+  // Merge: project config takes precedence
+  // For each section, use project if present, otherwise fall back to global
+  return {
+    goals: projectConfig.goals ?? globalConfig.goals,
+    rules: projectConfig.rules ?? globalConfig.rules,
+    governance: projectConfig.governance ?? globalConfig.governance,
+  };
+}
+
 // ============================================================================
 // Formatting Functions (for System Prompt Integration)
 // ============================================================================

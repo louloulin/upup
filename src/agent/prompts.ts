@@ -3,8 +3,8 @@ import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getChannelProfile } from './channels.js';
-import { upupPath } from '../utils/paths.js';
-import { loadInvestmentConfig, formatInvestmentConfig } from './investment-config.js';
+import { upupPath, globalUpupPath } from '../utils/paths.js';
+import { loadMergedInvestmentConfig, formatInvestmentConfig } from './investment-config.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -27,16 +27,27 @@ export function getCurrentDate(): string {
 }
 
 /**
- * Load SOUL.md content from user override or bundled file.
+ * Load SOUL.md content with global/project fallback.
+ * Priority: project .upup/ > global ~/.upup/ > bundled
  */
 export async function loadSoulDocument(): Promise<string | null> {
+  // 1. Try project config first
   const userSoulPath = upupPath('SOUL.md');
   try {
     return await readFile(userSoulPath, 'utf-8');
   } catch {
-    // Continue to bundled fallback when user override is missing/unreadable.
+    // Continue to global fallback
   }
 
+  // 2. Try global config
+  const globalSoulPath = globalUpupPath('SOUL.md');
+  try {
+    return await readFile(globalSoulPath, 'utf-8');
+  } catch {
+    // Continue to bundled fallback
+  }
+
+  // 3. Try bundled fallback
   const bundledSoulPath = join(__dirname, '../../SOUL.md');
   try {
     return await readFile(bundledSoulPath, 'utf-8');
@@ -49,12 +60,22 @@ export async function loadSoulDocument(): Promise<string | null> {
 
 /**
  * Load user-defined research rules from .upup/RULES.md.
- * Returns null if the file doesn't exist (rules are optional).
+ * Falls back to global ~/.upup/RULES.md if project config doesn't exist.
+ * Returns null if neither file exists (rules are optional).
  */
 export async function loadRulesDocument(): Promise<string | null> {
+  // 1. Try project config first
   const rulesPath = upupPath('RULES.md');
   try {
     return await readFile(rulesPath, 'utf-8');
+  } catch {
+    // Continue to global fallback
+  }
+
+  // 2. Try global config
+  const globalRulesPath = globalUpupPath('RULES.md');
+  try {
+    return await readFile(globalRulesPath, 'utf-8');
   } catch {
     return null;
   }
@@ -292,7 +313,7 @@ Embody the identity and investing philosophy described above. Let it shape your 
 ` : ''}
 ${await (async () => {
   try {
-    const investConfig = await loadInvestmentConfig();
+    const investConfig = await loadMergedInvestmentConfig();
     return formatInvestmentConfig(investConfig);
   } catch {
     return '';
