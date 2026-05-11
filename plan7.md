@@ -539,11 +539,16 @@ const getStockPrice = defineTool({
 | `packages/sdk/src/tools.ts` | defineTool | ✅ **已完成** |
 | `packages/sdk/src/types.ts` | SDK 类型 | ✅ **已完成** |
 | `packages/sdk/src/index.ts` | 入口 | ✅ **已完成** |
-| `packages/sdk/src/sdk.test.ts` | SDK 测试 | ✅ **已完成** |
-| `packages/sdk/src/integration.test.ts` | 集成测试 | ✅ **已完成** |
+| `packages/sdk/src/sdk.test.ts` | SDK 测试 (14 tests) | ✅ **已完成** |
+| `packages/sdk/src/integration.test.ts` | 集成测试 (6 tests) | ✅ **已完成** |
 | `packages/sdk/README.md` | API 文档 | ✅ **已完成** |
+| `packages/sdk/examples/basic-usage.ts` | 基础示例 | ✅ **已完成** |
+| `packages/sdk/examples/stock-analysis.ts` | 完整示例 | ✅ **已完成** |
+| `packages/sdk/examples/real-stdio-test.ts` | 真实 stdio 验证 | ✅ **已完成** |
+| `packages/sdk/examples/oscript-scenario.ts` | OScript 场景验证 | ✅ **已完成** |
 | `upup-agent/src/agent-wrapper.ts` | Agent wrapper | ✅ **已完成** |
 | `upup-agent/src/server.ts` | stdio 服务端 | ✅ **已完成** |
+| `upup-agent/src/cli.test.ts` | CLI 测试 (4 tests) | ✅ **已完成** |
 
 ### 6.3 修改文件
 
@@ -562,38 +567,38 @@ const getStockPrice = defineTool({
 
 ```bash
 # SDK 核心测试
-bun test packages/sdk/src/agent.test.ts
-bun test packages/sdk/src/stdio-client.test.ts
-bun test packages/sdk/src/tools.test.ts
+bun test packages/sdk/src/sdk.test.ts      # 14 tests
+bun test packages/sdk/src/integration.test.ts  # 6 tests
+bun test upup-agent/src/cli.test.ts        # 4 tests
+# 总计: 24 tests ✅
 
-# Agent Core 测试
-bun test packages/agent-core/src/agent.test.ts
+# SDK 示例验证
+bun run packages/sdk/examples/basic-usage.ts  # 基础功能 ✅
 ```
 
-### 7.2 Stdio 集成测试
-
-```typescript
-// 测试 stdio 通信
-test('stdio roundtrip', async () => {
-  const client = await StdioAgentClient.connect('node', ['upup-agent'])
-  
-  const result = await client.run({
-    messages: [{ role: 'user', content: 'test' }]
-  })
-  
-  expect(result.output).toBeDefined()
-  await client.shutdown()
-})
-```
-
-### 7.3 End-to-End 测试
+### 7.2 示例验证
 
 ```bash
-# 完整流程测试
-bun test e2e/
+# 基础使用示例
+bun run examples/basic-usage.ts
+# 输出: 所有基础测试通过!
 
-# CLI 测试
-echo '{"jsonrpc":"2.0","id":1,"method":"run","params":{}}' | npx upup-agent
+# 真实 Stdio 通信验证 (2026-05-11) ✅
+bun run packages/sdk/examples/real-stdio-test.ts
+# 输出:
+#    ✅ 已连接: true
+#    ✅ initialize 结果: { version: "1.0.0", ... }
+#    ✅ run 结果: { output: "Hey there...", toolCalls: 0 }
+#    ✅ 真实 Agent 通信成功!
+
+# OScript 场景验证 (2026-05-11) ✅
+bun run packages/sdk/examples/oscript-scenario.ts
+# 输出:
+#    📁 场景 1: 文件管理 ✅
+#    🖥️ 场景 2: 系统监控 ✅
+#    🌐 场景 3: 网络操作 ✅
+#    ⚙️ 场景 4: 进程管理 ✅
+#    ✅ 11 个工具成功注册
 ```
 
 ---
