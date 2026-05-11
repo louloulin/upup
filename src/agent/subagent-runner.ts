@@ -558,6 +558,14 @@ export class SubagentRunner {
       data,
     });
   }
+
+  /**
+   * Initialize agents directory (no-op for base runner, implemented in EnhancedSubagentRunner)
+   */
+  async initializeAgents(_dirPath?: string): Promise<number> {
+    // Base implementation - EnhancedSubagentRunner handles agent directory
+    return 0;
+  }
 }
 
 // Singleton instance
