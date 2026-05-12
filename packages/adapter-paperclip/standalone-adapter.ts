@@ -1,15 +1,24 @@
 /**
  * Standalone UpUp Paperclip Adapter
  *
- * This is a standalone adapter module that Paperclip can load directly.
- * It spawns the UpUp agent as a subprocess using runChildProcess from adapter-utils.
- *
- * Usage:
- *   npm run build:standalone
- *   POST to Paperclip API to install from local path
+ * Self-contained adapter that runs the bundled UpUp agent.
+ * NO external file paths - agent code is bundled inside this package.
  */
 
 import { runChildProcess } from '@paperclipai/adapter-utils/server-utils';
+import { fileURLToPath } from 'url';
+import { dirname, resolve } from 'path';
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+const DEFAULT_MODEL = 'deepseek-v4-flash';
+const DEFAULT_TIMEOUT_SEC = 1800;
+const DEFAULT_MAX_ITERATIONS = 50;
+
+// Path to bundled agent (relative to this file)
+const AGENT_BUNDLE_PATH = './agent-bundle.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -52,12 +61,8 @@ interface AdapterExecutionResult {
 }
 
 // ---------------------------------------------------------------------------
-// Constants
+// Template
 // ---------------------------------------------------------------------------
-
-const DEFAULT_MODEL = 'deepseek-v4-flash';
-const DEFAULT_TIMEOUT_SEC = 1800;
-const DEFAULT_MAX_ITERATIONS = 50;
 
 const DEFAULT_PROMPT_TEMPLATE = `You are "{{agentName}}", an AI agent specializing in financial research and investment analysis, managed by Paperclip.
 
@@ -107,14 +112,6 @@ function inferProvider(model: string): string {
   return MODEL_PROVIDER_MAP[model] || 'deepseek';
 }
 
-function renderTemplate(template: string, data: Record<string, unknown>): string {
-  let result = template;
-  for (const [key, value] of Object.entries(data)) {
-    result = result.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), String(value || ''));
-  }
-  return result;
-}
-
 // ---------------------------------------------------------------------------
 // Prompt builder
 // ---------------------------------------------------------------------------
@@ -149,6 +146,21 @@ function buildPrompt(ctx: AdapterExecutionContext): string {
 }
 
 // ---------------------------------------------------------------------------
+// Get adapter directory (where this file lives)
+// ---------------------------------------------------------------------------
+
+function getAdapterDir(): string {
+  // Use import.meta.url to find where this adapter file is located
+  try {
+    return dirname(fileURLToPath(import.meta.url));
+  } catch {
+    // Fallback: use __dirname equivalent
+    const url = new URL(import.meta.url);
+    return dirname(url.pathname);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Main execute function
 // ---------------------------------------------------------------------------
 
@@ -174,21 +186,25 @@ async function execute(ctx: AdapterExecutionContext): Promise<AdapterExecutionRe
     await ctx.onLog('stdout', `[upup] Resuming session: ${prevSessionId}\n`);
   }
 
-  // Get project root - the directory containing UpUp source
-  // Use DEXTER_ROOT or determine from the adapter location
-  const projectRoot = process.env.DEXTER_ROOT || '/Users/louloulin/Documents/linchong/touzhi/dexter';
+  // Get adapter directory (where agent-bundle.js lives)
+  const adapterDir = getAdapterDir();
+  const agentBundlePath = resolve(adapterDir, AGENT_BUNDLE_PATH);
+
+  await ctx.onLog('stdout', `[upup] Adapter dir: ${adapterDir}\n`);
+  await ctx.onLog('stdout', `[upup] Running agent bundle: ${agentBundlePath}\n`);
 
   // Buffer for stdout parsing
   let usage: { inputTokens: number; outputTokens: number } | undefined;
   let summary: string | undefined;
 
-  // Run the agent subprocess using runChildProcess (proper Paperclip integration)
+  // Run the bundled agent using runChildProcess
+  // IMPORTANT: Run from the adapter's directory so relative paths work
   const proc = await runChildProcess(
     ctx.runId,
     'bun',
-    ['run', 'src/run.ts', prompt],
+    ['run', './agent-bundle.js'],
     {
-      cwd: projectRoot,
+      cwd: adapterDir, // Run from adapter directory so ./agent-bundle.js resolves
       env: { ...process.env, DEFAULT_MODEL: model },
       timeoutSec,
       graceSec: 10, // Grace period before SIGKILL
