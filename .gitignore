@@ -62,3 +62,4 @@ coverage.json
 dexter
 upup
 .serena/cache/
+.playwright-mcp/
