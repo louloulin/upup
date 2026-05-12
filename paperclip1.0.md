@@ -1,6 +1,6 @@
 # Paperclip1.0.md — UpUp Paperclip Adapter 实现计划
 
-> 创建日期: 2026-05-12 | 版本: 4.5 | 状态: ✅ 完整验证通过 - Run 9793602e 成功执行 9 iterations 389.8k tokens
+> 创建日期: 2026-05-12 | 版本: 4.6 | 状态: ✅ UI Parser 已修复 - Adapter Reload 正常 - 12张截图
 
 ---
 
@@ -1011,6 +1011,10 @@ src/
 | 运行时执行 | ✅ 已验证 | Agent Heartbeat 成功执行 (9次迭代) |
 | Session 恢复 | 待测试 | 跨 heartbeat 会话恢复 |
 | A-Stock 数据 | ✅ 已验证 | get_astock_price 成功获取市场数据 |
+| UI Parser 404 | ✅ 已修复 | 添加 ui-parser.js 模块 |
+| Adapter Reload 500 | ✅ 已修复 | externalize dotenv 解决 ESM 问题 |
+| Financial Datasets API 401 | ⚠️ | 需要更新 API Key |
+| Exa API key 无效 | ⚠️ | Web Search 不可用 |
 
 ### Agent 执行验证 (v4.3 - 2026-05-12)
 
@@ -1218,3 +1222,4 @@ const proc = await runChildProcess(
 *执行: 2026-05-12 | v4.3 | ✅ Agent Heartbeat 成功执行 - 9次迭代完成 - A股数据获取成功*
 *打包: 2026-05-12 | v4.4 | ✅ Bundled Agent 执行成功 - 6次迭代完成 - 工具链完整*
 *验证: 2026-05-12 | v4.5 | ✅ 完整验证通过 - Run 9793602e 成功执行 9 iterations 389.8k tokens*
+*UI Parser: 2026-05-12 | v4.6 | ✅ 添加 ui-parser.js - Adapter Reload 正常*
