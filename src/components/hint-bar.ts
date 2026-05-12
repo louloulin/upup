@@ -126,7 +126,7 @@ export class HintBarComponent extends Container {
         : '';
       this.leftHint = theme.muted(` esc to interrupt${queueNote}`);
     } else if (state.hasPendingApproval) {
-      this.leftHint = theme.muted(' enter to approve · esc to deny');
+      this.leftHint = theme.muted('↑↓ navigate · Enter to confirm · esc to deny');
     } else if (!state.hasInput && !state.escPendingExit) {
       this.leftHint = theme.muted(' / for commands');
     }

@@ -11,7 +11,7 @@ export {
   createModelSelector,
   createProviderSelector,
 } from './select-list.js';
-export { ToolEventComponent } from './tool-event.js';
+export { ToolEventComponent, getApprovalCursor, setApprovalCursor } from './tool-event.js';
 export { UserQueryComponent } from './user-query.js';
 export { HintBarComponent } from './hint-bar.js';
 export { WorkingIndicatorComponent } from './working-indicator.js';

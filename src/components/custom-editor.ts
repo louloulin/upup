@@ -11,6 +11,10 @@ export class CustomEditor extends Editor {
   onSlashExactMatch?: (text: string) => boolean;
   /** Called when there's a pending approval: pass key to handle 1/2/3 + Enter for approval. Returns true if consumed. */
   onApprovalKey?: (key: string) => boolean;
+  /** Called when user presses up/down arrow during approval selection */
+  onApprovalNavigate?: (direction: 'up' | 'down') => void;
+  /** Called when user presses Enter during approval selection */
+  onApprovalSelect?: () => void;
   /**
    * Optional keybinding resolver. When set, keys not consumed by the slash
    * suggestion system are converted to KeyEvent and passed here for resolution.
@@ -55,6 +59,18 @@ export class CustomEditor extends Editor {
     if (this.onApprovalKey) {
       const consumed = this.onApprovalKey(data);
       if (consumed) return;
+    }
+
+    // Arrow key navigation for approval (when no approval pending but onApprovalNavigate is set)
+    if (this.onApprovalNavigate) {
+      if (matchesKey(data, Key.up)) {
+        this.onApprovalNavigate('up');
+        return;
+      }
+      if (matchesKey(data, Key.down)) {
+        this.onApprovalNavigate('down');
+        return;
+      }
     }
 
     // Esc: dismiss suggestions first, then existing behavior

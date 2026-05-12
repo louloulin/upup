@@ -19,6 +19,19 @@ export function consumePendingApprovalDecision(): ApprovalDecision | null {
   return d;
 }
 
+// Module-level cursor position for interactive approval selection.
+// Updated by cli.ts onApprovalKey, read by setApprovalPending during render.
+// 0 = allow-once (option 1), 1 = allow-session (option 2), 2 = deny (option 3)
+let _approvalCursor: number = 0;
+
+export function getApprovalCursor(): number {
+  return _approvalCursor;
+}
+
+export function setApprovalCursor(index: number): void {
+  _approvalCursor = Math.max(0, Math.min(2, index));
+}
+
 function formatToolName(name: string): string {
   const stripped = name.replace(/^(get)_/, '');
   return stripped
@@ -167,27 +180,42 @@ export class ToolEventComponent extends Container {
 
   /**
    * Show an inline approval prompt in the chat.
-   * The user can press 1/2/3 + Enter or click in the editor.
+   * User uses arrow keys to navigate and Enter to confirm.
    */
   setApprovalPending(onSelect: (decision: ApprovalDecision) => void, preStoredDecision?: ApprovalDecision | null) {
     this.clearDetail();
+
+    // Reset cursor to first option on new approval render
+    _approvalCursor = 0;
+
     this.header.setText(`${theme.warning('⏺')} ${this.toolTitle}`);
 
     const line1 = new Text(
       `${theme.muted('⎿  ')}${theme.warning('Permission required')}`,
       0, 0,
     );
-    const line2 = new Text(
-      `${theme.muted('⎿  ')}  ${theme.muted('1.')} Yes  ${theme.muted('2.')} Yes, allow all this session  ${theme.muted('3.')} No`,
-      0, 0,
-    );
-    const line3 = new Text(
-      `${theme.muted('⎿  ')}${theme.muted('Enter to confirm · esc to deny')}`,
-      0, 0,
-    );
     this.addChild(line1);
-    this.addChild(line2);
-    this.addChild(line3);
+
+    // Interactive options with visual cursor indicator (no number prefixes)
+    const options = [
+      { index: 0, label: 'Yes' },
+      { index: 1, label: 'Yes, allow all this session' },
+      { index: 2, label: 'No' },
+    ];
+
+    for (const opt of options) {
+      const isSelected = _approvalCursor === opt.index;
+      const prefix = isSelected ? `${theme.primary('> ')}` : '  ';
+      const styled = isSelected ? theme.primary(opt.label) : theme.muted(opt.label);
+      const line = new Text(`${theme.muted('⎿  ')}${prefix}${styled}`, 0, 0);
+      this.addChild(line);
+    }
+
+    const hintLine = new Text(
+      `${theme.muted('⎿  ')}${theme.muted('↑↓ navigate · Enter to confirm · esc to deny')}`,
+      0, 0,
+    );
+    this.addChild(hintLine);
 
     // Store callback so the editor can call it
     (this as any)._approvalCallback = onSelect;
