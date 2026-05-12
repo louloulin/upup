@@ -78,6 +78,64 @@ export type CommandResult =
   | { type: 'query'; text: string }
   | { type: 'noop' };
 
+/**
+ * Command queue interface for the main application to implement.
+ * This decouples the commands package from internal app paths.
+ */
+export interface CommandQueue {
+  enqueue(command: string): void;
+  dequeue(): string | undefined;
+  size: number;
+  clear(): void;
+}
+
+// ============================================================================
+// Internal Module Interfaces (for type safety)
+// ============================================================================
+
+/** Tool registry interface */
+export interface ToolInfo {
+  name: string;
+  description: string;
+}
+
+export interface ToolRegistry {
+  getTools(name: string): Promise<ToolInfo[]>;
+}
+
+export type GetToolsFn = (name: string) => Promise<ToolInfo[]>;
+
+/** Memory manager interface */
+export interface MemoryManager {
+  getRecentMemories(): Promise<Array<{ content: string; timestamp: number }>>;
+}
+
+/** Subagent runner interface */
+export interface SubagentRunner {
+  run(query: string, options?: { maxIterations?: number }): Promise<{ answer: string }>;
+}
+
+/** MCP client interface */
+export interface MCPClient {
+  listTools(): Promise<string[]>;
+  callTool(name: string, args: Record<string, unknown>): Promise<unknown>;
+}
+
+/** App state interface */
+export interface AppState {
+  get(key: string): unknown;
+  set(key: string, value: unknown): void;
+}
+
+export interface TokenCostCalculator {
+  calculateTokenCost(inputTokens: number, outputTokens: number, model: string): number;
+}
+
+/** Permission checker interface */
+export interface PermissionChecker {
+  check(action: string, resource?: string): Promise<boolean>;
+}
+
 // ============================================================================
 // Command Registry
 // ============================================================================
@@ -85,13 +143,13 @@ export type CommandResult =
 export class CommandRegistry {
   private commands: Map<string, Command> = new Map();
   private aliasMap: Map<string, string> = new Map();
-  private commandQueue: import('../hooks/agent-hooks.js').CommandQueue | null = null;
+  private commandQueue: CommandQueue | null = null;
 
   /**
    * Set the command queue for queuing commands.
    * Called during initialization to connect useCommandQueue hook.
    */
-  setCommandQueue(queue: import('../hooks/agent-hooks.js').CommandQueue): void {
+  setCommandQueue(queue: CommandQueue): void {
     this.commandQueue = queue;
   }
 
@@ -359,22 +417,17 @@ const toolsCommand: Command = {
   aliases: ['tls'],
   usage: '/tools',
   async execute(): Promise<CommandResult> {
-    try {
-      const { getTools } = await import('../tools/registry/index.js');
-      const tools = await getTools('default');
-      if (tools.length === 0) {
-        return { type: 'output', text: 'No tools registered.' };
-      }
-      const lines = [`Registered Tools (${tools.length}):`, ''];
-      for (const tool of tools) {
-        const name = tool.name || 'unnamed';
-        const desc = tool.description || '';
-        lines.push(`  ${name.padEnd(24)} ${desc.slice(0, 60)}`);
-      }
-      return { type: 'output', text: lines.join('\n') };
-    } catch {
-      return { type: 'output', text: 'Tools registry not available in this context.' };
+    const tools = await getTools();
+    if (tools.length === 0) {
+      return { type: 'output', text: 'No tools registered or tools registry not available.' };
     }
+    const lines = [`Registered Tools (${tools.length}):`, ''];
+    for (const tool of tools) {
+      const name = tool.name || 'unnamed';
+      const desc = tool.description || '';
+      lines.push(`  ${name.padEnd(24)} ${desc.slice(0, 60)}`);
+    }
+    return { type: 'output', text: lines.join('\n') };
   },
 };
 
@@ -410,39 +463,14 @@ const memoryCommand: Command = {
   aliases: ['mem'],
   usage: '/memory',
   async execute(): Promise<CommandResult> {
-    try {
-      const { MemoryManager } = await import('../memory/index.js');
-      const stats = {
-        count: 0,
-        types: [] as string[],
-      };
-      // Attempt to gather basic stats from MemoryManager
-      try {
-        const manager = (MemoryManager as any).getInstance?.() ?? null;
-        const memStats = (manager as any).stats;
-        if (memStats && typeof memStats === 'object') {
-          stats.count = memStats.count ?? 0;
-          stats.types = memStats.types ?? [];
-        }
-      } catch {
-        // MemoryManager may not be fully initialized in this context
-      }
-      const lines = [
-        'Memory Statistics',
-        `  Total memories: ${stats.count}`,
-        `  Types: ${stats.types.length > 0 ? stats.types.join(', ') : 'N/A'}`,
-        `  Status: Active`,
-      ];
-      return { type: 'output', text: lines.join('\n') };
-    } catch {
-      const lines = [
-        'Memory Statistics',
-        '  Total memories: N/A',
-        '  Types: N/A',
-        '  Status: Unavailable (memory module not loaded)',
-      ];
-      return { type: 'output', text: lines.join('\n') };
-    }
+    const stats = await getMemoryStats();
+    const lines = [
+      'Memory Statistics',
+      `  Total memories: ${stats.count}`,
+      `  Types: ${stats.types.length > 0 ? stats.types.join(', ') : 'N/A'}`,
+      `  Status: Active`,
+    ];
+    return { type: 'output', text: lines.join('\n') };
   },
 };
 
@@ -1109,6 +1137,131 @@ export async function loadMacros(registry: CommandRegistry): Promise<number> {
 }
 
 // ============================================================================
+// Internal Module Import Helpers
+// ============================================================================
+
+/**
+ * Safely import internal app modules.
+ * Returns null if the module is not available.
+ */
+async function importInternal<T>(path: string): Promise<T | null> {
+  try {
+    return await import(path) as T;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Get the command queue from the main application if available.
+ */
+async function getCommandQueue(): Promise<CommandQueue | null> {
+  try {
+    const mod = await importInternal<{ useCommandQueue: () => CommandQueue }>('../hooks/agent-hooks.js');
+    return mod?.useCommandQueue?.() ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Get tools from the registry.
+ */
+async function getTools(): Promise<ToolInfo[]> {
+  try {
+    const mod = await importInternal<{ getTools: (name: string) => Promise<ToolInfo[]> }>('../tools/registry/index.js');
+    return mod?.getTools?.('default') ?? [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Get memory manager instance.
+ */
+async function getMemoryStats(): Promise<{ count: number; types: string[] }> {
+  try {
+    const mod = await importInternal<{ MemoryManager: { getInstance?: () => { stats: { count: number; types: string[] } } } }>('../memory/index.js');
+    const instance = mod?.MemoryManager?.getInstance?.();
+    return instance?.stats ?? { count: 0, types: [] };
+  } catch {
+    return { count: 0, types: [] };
+  }
+}
+
+/**
+ * Get subagent runner.
+ */
+async function getSubagentRunner(): Promise<SubagentRunner | null> {
+  try {
+    const mod = await importInternal<{ getDefaultSubagentRunner: () => SubagentRunner }>('../agent/subagent-runner.js');
+    return mod?.getDefaultSubagentRunner?.() ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Get MCP client.
+ */
+async function getMCPClient(): Promise<MCPClient | null> {
+  try {
+    const mod = await importInternal<{ getDefaultMCPClient: () => MCPClient }>('../mcp/client.js');
+    return mod?.getDefaultMCPClient?.() ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Get app state utilities.
+ */
+async function getAppStateUtils(): Promise<{ getAppState: () => AppState; calculateTokenCost: TokenCostCalculator; formatCost: (n: number) => string; formatTokens: (n: number) => string } | null> {
+  try {
+    const mod = await importInternal<{ getAppState: () => AppState; calculateTokenCost: TokenCostCalculator; formatCost: (n: number) => string; formatTokens: (n: number) => string }>('../state/index.js');
+    return mod ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Get permission checker.
+ */
+async function getPermissionChecker(): Promise<PermissionChecker | null> {
+  try {
+    const mod = await importInternal<{ getPermissionChecker: () => PermissionChecker }>('../hooks/permission-hooks.js');
+    return mod?.getPermissionChecker?.() ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Get daemon supervisor.
+ */
+async function getSupervisor() {
+  try {
+    const mod = await importInternal<{ getDefaultSupervisor: () => unknown }>('../daemon/supervisor.js');
+    return mod?.getDefaultSupervisor?.() ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Get worker pool.
+ */
+async function getWorkerPool() {
+  try {
+    const mod = await importInternal<{ getWorkerPool: () => unknown }>('../daemon/worker-pool.js');
+    return mod?.getWorkerPool?.() ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// ============================================================================
 // Global Registry
 
 let globalRegistry: CommandRegistry | null = null;
@@ -1117,12 +1270,10 @@ export function getGlobalRegistry(): CommandRegistry {
   if (!globalRegistry) {
     globalRegistry = new CommandRegistry();
     registerBuiltinCommands(globalRegistry);
-    // Connect command queue for command tracking
-    import('../hooks/agent-hooks.js').then(({ useCommandQueue }) => {
-      globalRegistry?.setCommandQueue(useCommandQueue());
-    }).catch(() => {
-      // Non-critical: command queue is optional for tracking
-    });
+    // Connect command queue for command tracking (async, non-blocking)
+    getCommandQueue().then((queue) => {
+      if (queue) globalRegistry?.setCommandQueue(queue);
+    }).catch(() => {});
     // Load user-defined commands
     loadUserCommands(globalRegistry).catch(() => {});
     // Load macro definitions

@@ -30,7 +30,7 @@
   },
   "dependencies": {
     "@paperclipai/adapter-utils": "^2026.325.0",
-    "@upup/agent-core": "workspace:*",
+    "@upup/sdk": "workspace:*",
     "@upup/state": "workspace:*"
   },
   "peerDependencies": {

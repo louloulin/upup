@@ -8,10 +8,11 @@ import type { AdapterModel } from '@paperclipai/adapter-utils';
 
 import { ADAPTER_TYPE, ADAPTER_LABEL } from './shared/constants.js';
 
-// Server module
-export { execute, testEnvironment, sessionCodec, detectModel } from './server/index.js';
+// Server module - import for use before re-export
+import { execute, testEnvironment, sessionCodec, detectModel } from './server/index.js';
 
 // Server module re-export for convenience
+export { execute, testEnvironment, sessionCodec, detectModel } from './server/index.js';
 export { type UpupAdapterConfig, type UpupSessionParams } from './shared/types.js';
 
 // ── Adapter identity ─────────────────────────────────────────────────────
