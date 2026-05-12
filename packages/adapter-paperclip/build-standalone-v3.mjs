@@ -117,7 +117,17 @@ await esbuild.build({
 console.log('Adapter bundle created: index.js');
 
 // ============================================================
-// Step 3: Copy package.json
+// Step 3: Copy ui-parser.js to standalone directory
+// ============================================================
+
+console.log('Copying ui-parser.js...');
+fs.copyFileSync(
+  path.join(standaloneDir, 'ui-parser.js'),
+  path.join(standaloneDir, 'ui-parser.js'),
+);
+
+// ============================================================
+// Step 4: Copy package.json
 // ============================================================
 
 const pkgPath = path.resolve(__dirname, 'standalone-package.json');
