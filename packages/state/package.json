@@ -20,5 +20,9 @@
     "eventemitter3": "^5.0.0"
   },
   "peerDependencies": {},
-  "files": ["dist", "src"]
+  "files": [
+    "dist",
+    "src"
+  ],
+  "private": false
 }

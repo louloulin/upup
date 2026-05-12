@@ -36,5 +36,8 @@
   "peerDependencies": {
     "@upup/llm": "workspace:*"
   },
-  "files": ["src"]
+  "files": [
+    "src"
+  ],
+  "private": false
 }

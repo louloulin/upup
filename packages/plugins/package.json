@@ -32,5 +32,6 @@
     "plugin",
     "upup",
     "agent"
-  ]
+  ],
+  "private": false
 }

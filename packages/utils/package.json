@@ -25,5 +25,8 @@
   "peerDependencies": {
     "@upup/types": "workspace:*"
   },
-  "files": ["dist"]
+  "files": [
+    "dist"
+  ],
+  "private": false
 }

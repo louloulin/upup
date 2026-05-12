@@ -25,5 +25,8 @@
     "@upup/utils": "workspace:*",
     "@upup/hooks": "workspace:*"
   },
-  "files": ["dist"]
+  "files": [
+    "dist"
+  ],
+  "private": false
 }
