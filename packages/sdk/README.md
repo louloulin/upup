@@ -9,6 +9,8 @@
 - **工具定义** - 类似 `define_tool()` 的工具注册方式
 - **Hooks 支持** - PreToolUse, PostToolUse 等钩子
 - **进程隔离** - Agent 运行在独立进程中
+- **全局配置** - 自动加载 `~/.upup/settings.json`
+- **环境变量继承** - 自动继承 `process.env`
 
 ## 安装
 
@@ -18,41 +20,145 @@ npm install @upup/sdk
 bun add @upup/sdk
 ```
 
+## 全局配置
+
+创建 `~/.upup/settings.json` 配置 API key:
+
+```json
+{
+  "provider": "anthropic",
+  "modelId": "claude-sonnet-4-6",
+  "apiKey": "sk-ant-..."
+}
+```
+
+支持的 provider: `anthropic`, `deepseek`, `openai`, `google`
+
 ## 快速开始
 
 ```typescript
-import { Agent, defineTool } from '@upup/sdk'
+import { createClient } from '@upup/sdk'
 
-// 创建 Agent
-const agent = new Agent({
-  model: 'claude-sonnet-4-7',
-})
+// 创建客户端 (自动检测全局配置 ~/.upup/settings.json)
+const client = await createClient()
 
-// 注册工具
-agent.registerTool(
-  defineTool({
-    name: 'get_stock_price',
-    description: '获取股票价格',
-    inputSchema: {
-      ticker: { type: 'string', description: '股票代码' }
-    },
-    handler: async ({ ticker }) => {
-      return { price: 1800, currency: 'CNY' }
-    }
-  })
-)
+// 简单 query
+const result = await client.query('茅台现在多少钱?')
+console.log(result.result)
 
-// 运行
-const result = await agent.run({
-  messages: [
-    { role: 'user', content: '茅台现在的价格是多少?' }
-  ]
-})
+// 流式输出
+for await (const msg of client.stream('分析 AAPL')) {
+  console.log(msg)
+}
 
-console.log(result.output)
+// 使用后自动关闭
+await using client = createClient() {
+  const result = await client.query('你好')
+}
 ```
 
-## API 文档
+## v2 API (推荐)
+
+```typescript
+import { createClient, UpClient, StdioTransport } from '@upup/sdk'
+
+// 完整选项
+const client = await createClient({
+  provider: 'deepseek',           // 或 'anthropic', 'openai', 'google'
+  model: 'deepseek-chat',         // 模型 ID
+  apiKey: 'sk-...',               // 可选，使用 ~/.upup/settings.json
+  debug: false,                   // 调试模式
+  binary: { command: '/path/upup', args: ['--stdio'] }
+})
+
+// query() - 非流式
+const result = await client.query('分析茅台')
+console.log(result.result)
+console.log(result.usage)  // { inputTokens, outputTokens, totalTokens }
+
+// stream() - 流式
+for await (const msg of client.stream('数到5')) {
+  console.log(msg)
+}
+
+// 事件监听
+client.on('event', (event) => {
+  console.log('Event:', event)
+})
+
+// 中断
+await client.interrupt()
+
+// 关闭
+await client.close()
+
+// 或使用 using (自动关闭)
+await using client = createClient() {
+  const result = await client.query('你好')
+}
+```
+
+### 底层 Transport API
+
+```typescript
+import { createStdioTransport } from '@upup/sdk'
+
+// 直接使用 StdioTransport
+const transport = await createStdioTransport({ debug: true })
+
+// run() 方法
+const result = await transport.run('你好')
+console.log(result.output)
+
+// messages() - AsyncGenerator
+for await (const msg of transport.messages()) {
+  console.log(msg)
+}
+
+await transport.close()
+```
+
+## v1 API (已废弃)
+
+旧版 API 仍然可用，但推荐迁移到 v2：
+
+```typescript
+import { Agent, StdioAgentClient, defineTool } from '@upup/sdk'
+
+// v1 仍然支持
+const client = await StdioAgentClient.create()
+const result = await client.run({ messages: [...] })
+```
+
+```typescript
+// 创建客户端 (自动检测二进制)
+const client = await StdioAgentClient.create({
+  debug: true,              // 显示调试信息
+  development: false,        // 开发模式
+  loadGlobalConfig: true,    // 加载全局配置
+  env: {                    // 自定义环境变量
+    ANTHROPIC_API_KEY: '...'
+  }
+})
+
+// 运行
+const result = await client.run({
+  messages: [{ role: 'user', content: 'Hello' }]
+})
+
+// 流式运行
+for await (const event of client.streamRun({ messages: [...] })) {
+  console.log(event.type, event.data)
+}
+
+// 事件监听
+client.on('event', (data) => {
+  console.log('Event:', data)
+})
+
+// 关闭
+await client.shutdown()
+```
 
 ### Agent
 
@@ -103,43 +209,25 @@ const myTool = defineTool({
     param2: { type: 'number' }
   },
   handler: async (args, context) => {
-    // 处理逻辑
     return { success: true, data: args }
   },
   concurrency?: 'serial' | 'concurrent'
 })
 ```
 
-### StdioAgentClient
-
-```typescript
-import { StdioAgentClient } from '@upup/sdk'
-
-// 连接
-const client = await StdioAgentClient.connect('bun', ['run', 'upup-agent'])
-
-// 运行
-const result = await client.run({
-  messages: [{ role: 'user', content: 'Hello' }]
-})
-
-// 关闭
-await client.shutdown()
-```
-
 ## Stdio 协议
 
-`@upup/sdk` 通过 stdio JSON-RPC 与 `upup-agent` 通信：
+`@upup/sdk` 通过 stdio JSON-RPC 与 `upup` 通信：
 
 ```json
 // 请求
-{ "jsonrpc": "2.0", "id": 1, "method": "run", "params": { ... } }
+{ "jsonrpc": "2.0", "id": 1, "method": "run", "params": { "prompt": "..." } }
 
 // 响应
-{ "jsonrpc": "2.0", "id": 1, "result": { ... } }
+{ "jsonrpc": "2.0", "id": 1, "result": { "output": "..." } }
 
 // 事件通知
-{ "jsonrpc": "2.0", "method": "event", "params": { "type": "thinking", "data": { ... } } }
+{ "jsonrpc": "2.0", "method": "event", "params": { "event": { "type": "done", "answer": "..." } } }
 ```
 
 ### 方法
@@ -152,69 +240,29 @@ await client.shutdown()
 | `cancel` | 取消运行 |
 | `shutdown` | 关闭连接 |
 
-## Hooks
+## 二进制检测
 
-```typescript
-agent.useHook('pre_tool_use', async (ctx) => {
-  console.log(`Using tool: ${ctx.toolName}`)
-  return { action: 'continue' }
-})
-
-agent.useHook('post_tool_use', async (ctx) => {
-  console.log(`Tool result: ${ctx.result}`)
-  return { action: 'continue' }
-})
-
-agent.useHook('pre_tool_modify', async (ctx) => {
-  if (ctx.toolName === 'bash') {
-    return { action: 'modify', args: { ...ctx.args, timeout: 30000 } }
-  }
-  return { action: 'continue' }
-})
-```
-
-## 类型
-
-```typescript
-interface Message {
-  role: 'user' | 'assistant' | 'system' | 'tool'
-  content: string
-}
-
-interface RunParams {
-  messages: Message[]
-  model?: string
-  maxTokens?: number
-  systemPrompt?: string
-  tools?: ToolDefinition[]
-}
-
-interface RunResult {
-  output: string
-  messages: Message[]
-  usage?: {
-    inputTokens: number
-    outputTokens: number
-    totalTokens: number
-  }
-}
-```
+自动检测优先级:
+1. `UPUP_BIN` 环境变量
+2. PATH 中的 `upup`
+3. `node_modules/@upup/core`
+4. `bunx upup`
 
 ## 与 Claude Code SDK 对比
 
 | 特性 | Claude Code SDK | @upup/sdk |
 |------|----------------|-----------|
-| 工具定义 | `define_tool()` | `defineTool()` |
+| 主入口 | `query()` | `query()` |
 | 通信方式 | 内嵌 | stdio 进程 |
 | 流式输出 | `stream` 属性 | `runStream()` 方法 |
 | Hooks | `useHook()` | `useHook()` |
-| 部署 | npm 包 | npm 包 + CLI |
+| 全局配置 | - | `~/.upup/settings.json` |
+| 环境继承 | 自动 | 自动 |
 
 ## 下一步
 
 - [ ] 集成真实 LLM API 测试
 - [ ] 完善错误处理
-- [ ] 添加更多示例
 - [ ] NPM 发布
 
 ## 许可证

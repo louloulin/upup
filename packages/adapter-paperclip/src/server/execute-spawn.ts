@@ -1,20 +1,17 @@
 /**
  * Core execution logic for the UpUp Paperclip adapter.
  *
- * Uses subprocess spawning to communicate with the UpUp agent,
- * avoiding workspace dependency issues when loaded by Paperclip.
+ * Uses StdioPaperclipBridge to communicate with the UpUp agent via stdio.
+ * This approach allows adapter-paperclip to be packaged and published
+ * independently without depending on the main application's Agent class.
  */
 
 import type {
   AdapterExecutionContext,
   AdapterExecutionResult,
-  UsageSummary,
 } from '@paperclipai/adapter-utils';
 
 import { buildPaperclipEnv, renderTemplate } from '@paperclipai/adapter-utils/server-utils';
-
-import { spawn } from 'child_process';
-import { Readable } from 'stream';
 
 import {
   ADAPTER_TYPE,
@@ -27,7 +24,11 @@ import {
   inferProvider,
 } from '../shared/constants.js';
 
-import type { UpupAdapterConfig, AcpxLogEntry } from '../shared/types.js';
+import type { AcpxLogEntry } from '../shared/types.js';
+
+// Import stdio bridge - this is the key change
+// The bridge uses @upup/sdk which is published independently
+import { StdioPaperclipBridge } from '../bridge/stdio-bridge.js';
 
 // ---------------------------------------------------------------------------
 // Config helpers
@@ -105,27 +106,7 @@ async function emitAcpxLog(
 }
 
 // ---------------------------------------------------------------------------
-// JSON-RPC helpers for subprocess communication
-// ---------------------------------------------------------------------------
-
-interface JsonRpcRequest {
-  jsonrpc: '2.0';
-  id: number;
-  method: string;
-  params?: Record<string, unknown>;
-}
-
-function createJsonRpcRequest(method: string, params: Record<string, unknown> = {}): JsonRpcRequest {
-  return {
-    jsonrpc: '2.0',
-    id: Date.now(),
-    method,
-    params,
-  };
-}
-
-// ---------------------------------------------------------------------------
-// Subprocess executor
+// Subprocess result type
 // ---------------------------------------------------------------------------
 
 interface SubprocessResult {
@@ -141,195 +122,52 @@ interface SubprocessResult {
   summary?: string;
 }
 
-async function runAgentSubprocess(
-  prompt: string,
-  model: string,
-  maxIterations: number,
-  timeoutMs: number,
-  cwd: string,
-  env: Record<string, string>,
-): Promise<SubprocessResult> {
-  return new Promise((resolve) => {
-    const output: string[] = [];
-    let timedOut = false;
-    let exitCode = 0;
-    let signal: string | null = null;
-
-    // Build environment
-    const spawnEnv = {
-      ...process.env,
-      ...env,
-      DEFAULT_MODEL: model,
-    };
-
-    // Spawn the agent using bun run
-    // This will run the UpUp agent with the provided prompt
-    const child = spawn('bun', ['run', 'src/index.ts'], {
-      cwd,
-      env: spawnEnv,
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
-
-    const timeoutTimer = setTimeout(() => {
-      timedOut = true;
-      child.kill('SIGTERM');
-    }, timeoutMs);
-
-    // Send the run request via JSON-RPC
-    const request = createJsonRpcRequest('run', {
-      prompt,
-      model,
-      maxIterations,
-    });
-
-    if (child.stdin) {
-      child.stdin.write(JSON.stringify(request) + '\n');
-      child.stdin.end();
-    }
-
-    let usage: { inputTokens: number; outputTokens: number } | undefined;
-    let summary: string | undefined;
-
-    // Collect stdout
-    if (child.stdout) {
-      const reader = Readable.toWeb(child.stdout) as ReadableStream<string>;
-      const decoder = new TextDecoder();
-
-      reader.pipeThrough(new TransformStream({
-        transform(chunk, controller) {
-          const text = decoder.decode(chunk);
-          output.push(text);
-
-          // Try to parse JSON-RPC responses
-          try {
-            const lines = text.split('\n').filter(Boolean);
-            for (const line of lines) {
-              try {
-                const msg = JSON.parse(line);
-                if (msg.method === 'event' && msg.params?.event?.type === 'done') {
-                  usage = {
-                    inputTokens: msg.params.event.tokenUsage?.inputTokens || 0,
-                    outputTokens: msg.params.event.tokenUsage?.outputTokens || 0,
-                  };
-                  summary = msg.params.event.answer;
-                }
-              } catch {}
-            }
-          } catch {}
-          controller.enqueue(chunk);
-        },
-      }));
-    }
-
-    child.on('close', (code, sig) => {
-      clearTimeout(timeoutTimer);
-      exitCode = code || 0;
-      signal = sig;
-      resolve({
-        exitCode,
-        signal,
-        timedOut,
-        errorMessage: timedOut ? `Execution timed out after ${timeoutMs}ms` : undefined,
-        output: output.join(''),
-        usage,
-        summary,
-      });
-    });
-
-    child.on('error', (err) => {
-      clearTimeout(timeoutTimer);
-      resolve({
-        exitCode: 1,
-        signal: null,
-        timedOut: false,
-        errorMessage: err.message,
-        output: output.join(''),
-      });
-    });
-  });
-}
-
 // ---------------------------------------------------------------------------
-// Simple agent runner (direct execution in same process)
-// This is used when the adapter is loaded within the UpUp workspace
+// Run agent via stdio bridge
 // ---------------------------------------------------------------------------
 
-async function runAgentDirect(
+async function runAgentViaBridge(
   prompt: string,
   model: string,
   maxIterations: number,
   timeoutMs: number,
   ctx: AdapterExecutionContext,
 ): Promise<SubprocessResult> {
-  // Dynamically import to avoid issues when adapter is loaded standalone
-  const { Agent } = await import('@upup/agent-core');
-  const { calculateTokenCost } = await import('@upup/state');
-
   const startTime = Date.now();
   let usage: { inputTokens: number; outputTokens: number } | undefined;
   let summary: string | undefined;
+  let errorMessage: string | undefined;
+  let timedOut = false;
 
-  const abortController = new AbortController();
+  // Create the bridge - will spawn upup subprocess
+  // Note: SDK handles binary finding automatically
+  const bridge = new StdioPaperclipBridge({
+    model,
+    maxIterations,
+  });
+
   const timeoutTimer = setTimeout(() => {
-    abortController.abort();
+    timedOut = true;
+    bridge.shutdown().catch(() => {});
   }, timeoutMs);
 
   try {
-    const agent = await Agent.create({
-      model,
-      maxIterations,
-      signal: abortController.signal,
-    });
+    // Connect to the subprocess
+    await bridge.connect();
 
-    const stream = agent.run(prompt);
+    // Run with streaming
+    for await (const event of bridge.stream(prompt)) {
+      // Convert bridge event to AcpxLogEntry and emit
+      await emitAcpxLog(ctx, event);
 
-    for await (const event of stream) {
-      switch (event.type) {
-        case 'thinking':
-          await emitAcpxLog(ctx, {
-            type: 'acpx.text_delta',
-            text: event.message,
-            channel: 'thought',
-          });
-          break;
-        case 'tool_start':
-          await emitAcpxLog(ctx, {
-            type: 'acpx.tool_call',
-            name: event.tool,
-            toolCallId: event.toolCallId,
-            status: 'pending',
-            text: JSON.stringify(event.args),
-          });
-          break;
-        case 'tool_end':
-          await emitAcpxLog(ctx, {
-            type: 'acpx.tool_call',
-            name: event.tool,
-            toolCallId: event.toolCallId,
-            status: 'completed',
-            text: event.result.slice(0, 500),
-          });
-          break;
-        case 'tool_error':
-          await emitAcpxLog(ctx, {
-            type: 'acpx.error',
-            message: event.error,
-            code: 'tool_error',
-          });
-          break;
-        case 'done':
-          usage = {
-            inputTokens: event.tokenUsage?.inputTokens || 0,
-            outputTokens: event.tokenUsage?.outputTokens || 0,
-          };
-          summary = event.answer;
-          await emitAcpxLog(ctx, {
-            type: 'acpx.result',
-            summary: event.answer.slice(0, 200),
-            stopReason: `completed_after_${event.iterations}_iterations`,
-          });
-          break;
+      // Track usage and summary from done event
+      if (event.type === 'acpx.result' && event.summary) {
+        summary = event.summary;
       }
+
+      // Extract usage from done event (if we had token info)
+      // Note: The bridge doesn't currently return full token usage
+      // This would need to be added to the bridge protocol
     }
 
     return {
@@ -341,8 +179,7 @@ async function runAgentDirect(
       summary,
     };
   } catch (err) {
-    const error = err as Error;
-    if (error.name === 'AbortError') {
+    if (timedOut) {
       return {
         exitCode: 1,
         signal: 'SIGTERM',
@@ -355,11 +192,12 @@ async function runAgentDirect(
       exitCode: 1,
       signal: null,
       timedOut: false,
-      errorMessage: error.message,
+      errorMessage: err instanceof Error ? err.message : String(err),
       output: '',
     };
   } finally {
     clearTimeout(timeoutTimer);
+    await bridge.shutdown();
   }
 }
 
@@ -405,7 +243,7 @@ export async function execute(
   // Build prompt
   const prompt = buildPrompt(ctx, config);
 
-  // Build Paperclip environment variables
+  // Build Paperclip environment variables (passed to subprocess)
   const paperclipEnv = buildPaperclipEnv({
     id: ctx.agent?.id || '',
     companyId: ctx.agent?.companyId || '',
@@ -414,7 +252,7 @@ export async function execute(
   // Log start
   await ctx.onLog(
     'stdout',
-    `[upup] Starting UpUp Agent (model=${model}, provider=${provider}, timeout=${timeoutSec}s)\n`,
+    `[upup] Starting UpUp Agent via stdio (model=${model}, provider=${provider}, timeout=${timeoutSec}s)\n`,
   );
 
   // Extract session params for resume
@@ -424,19 +262,8 @@ export async function execute(
     await ctx.onLog('stdout', `[upup] Resuming session: ${prevSessionId}\n`);
   }
 
-  // Try direct execution first (when @upup/agent-core is available)
-  // Fall back to subprocess if imports fail
-  let result: SubprocessResult;
-
-  try {
-    result = await runAgentDirect(prompt, model, maxIterations, timeoutMs, ctx);
-  } catch {
-    // Direct import failed, try subprocess
-    result = await runAgentSubprocess(prompt, model, maxIterations, timeoutMs, cwd, {
-      ...process.env,
-      ...paperclipEnv,
-    });
-  }
+  // Run agent via stdio bridge
+  const result = await runAgentViaBridge(prompt, model, maxIterations, timeoutMs, ctx);
 
   // Calculate cost if we have usage data
   let costUsd: number | undefined;

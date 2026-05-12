@@ -9,14 +9,12 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
-    },
-    "./stdio": {
-      "types": "./dist/stdio-client.d.ts",
-      "default": "./dist/stdio-client.js"
     }
   },
   "scripts": {
     "build": "bun build src/index.ts --outdir=dist --target=bun && bun build src/index.ts --outdir=dist --target=node --format=cjs",
+    "typecheck": "tsc --noEmit",
+    "types": "tsc --declaration --emitDeclarationOnly --outDir dist",
     "dev": "bun build src/index.ts --outdir=dist --watch --target=bun",
     "test": "bun test"
   },

@@ -3,6 +3,7 @@ import { config } from 'dotenv';
 import { runCli } from './cli.js';
 import { runOnboarding } from './commands/onboarding.js';
 import { runDoctor } from './commands/doctor.js';
+import { createStdioServer } from './stdio/server.js';
 
 config({ quiet: true });
 
@@ -11,6 +12,17 @@ const args = process.argv.slice(2);
 const command = args[0]?.toLowerCase();
 
 async function main() {
+  // Check for --stdio mode (for external tool integration)
+  // In stdio mode, we run a pure JSON-RPC server without any CLI UI
+  if (args.includes('--stdio')) {
+    const server = createStdioServer();
+    server.start();
+    // Keep process alive - server handles its own lifecycle
+    // Use a promise that never resolves to keep the process running
+    await new Promise(() => {});
+    return;
+  }
+
   switch (command) {
     case 'setup':
       // Interactive setup wizard
