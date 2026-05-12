@@ -289384,30 +289384,36 @@ function migrateModelToProvider(config5) {
   return config5;
 }
 function getSetting2(key2, _defaultValue) {
-  let config5 = loadConfig2();
-  if (key2 === "provider") {
-    config5 = migrateModelToProvider(config5);
-  }
-  const value = config5[key2];
-  if (value !== void 0) {
-    return value;
-  }
-  if (key2 === "modelId" || key2 === "provider") {
-    console.warn(`[config] Setting '${key2}' not found in settings.json, using code default`);
+  try {
+    let config5 = loadConfig2();
+    if (key2 === "provider") {
+      config5 = migrateModelToProvider(config5);
+    }
+    const value = config5[key2];
+    if (value !== void 0) {
+      return value;
+    }
+  } catch {
   }
   return _defaultValue;
 }
 function getConfiguredModelId(fallback) {
-  const config5 = loadConfig2();
-  if (config5.modelId) {
-    return config5.modelId;
+  try {
+    const config5 = loadConfig2();
+    if (config5.modelId) {
+      return config5.modelId;
+    }
+  } catch {
   }
   return fallback ?? "deepseek-v4-flash";
 }
 function getConfiguredProvider(fallback) {
-  const config5 = loadConfig2();
-  if (config5.provider) {
-    return config5.provider;
+  try {
+    const config5 = loadConfig2();
+    if (config5.provider) {
+      return config5.provider;
+    }
+  } catch {
   }
   return fallback ?? "deepseek";
 }
