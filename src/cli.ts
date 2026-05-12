@@ -1,4 +1,4 @@
-import { Container, ProcessTerminal, Spacer, Text, TUI } from '@mariozechner/pi-tui';
+import { Container, ProcessTerminal, Spacer, Text, TUI, Key, matchesKey } from '@mariozechner/pi-tui';
 import type {
   ApprovalDecision,
   ToolEndEvent,
@@ -20,8 +20,10 @@ import {
   ChatLogComponent,
   CustomEditor,
   DebugPanelComponent,
+  getApprovalCursor,
   HintBarComponent,
   IntroComponent,
+  setApprovalCursor,
   WorkingIndicatorComponent,
   createApiKeyConfirmSelector,
   createModelSelector,
@@ -1144,32 +1146,63 @@ export async function runCli() {
     tui.requestRender();
   };
 
-  // Inline approval: intercept 1/2/3 + Enter/Esc and forward to the tool component's approval callback
-  let approvalSelected = 0; // 0=none, 1=allow-once, 2=allow-session, 3=deny
+  // Inline approval: interactive selection with arrow keys
+  editor.onApprovalNavigate = (direction: 'up' | 'down') => {
+    const cursor = getApprovalCursor();
+    if (direction === 'down') {
+      setApprovalCursor((cursor + 1) % 3); // 0→1→2→0
+    } else {
+      setApprovalCursor((cursor + 2) % 3); // 0→2→1→0
+    }
+    updateView();
+    tui.requestRender();
+  };
+
+  editor.onApprovalSelect = () => {
+    const sel = getApprovalCursor(); // 0=allow-once, 1=allow-session, 2=deny
+    setApprovalCursor(0);
+    const decision: ApprovalDecision = sel === 0 ? 'allow-once' : sel === 1 ? 'allow-session' : 'deny';
+    const cb = chatLog.getFirstApprovalCallback();
+    if (cb) { cb(decision); return; }
+    pendingApprovalDecisionGlobal = decision;
+    if (agentRunner.pendingApproval) {
+      agentRunner.respondToApproval(decision);
+    }
+  };
 
   editor.onApprovalKey = (data: string) => {
     const key = data;
-    if (key === '1') { approvalSelected = 1; return true; }
-    if (key === '2') { approvalSelected = 2; return true; }
-    if (key === '3') { approvalSelected = 3; return true; }
-    if (key === '\r' || key === '\n') {
-      const sel = approvalSelected || 1;
-      const decision: ApprovalDecision = sel === 1 ? 'allow-once' : sel === 2 ? 'allow-session' : 'deny';
-      approvalSelected = 0;
-      // Try callback first (normal path when renderEvent ran before user pressed Enter)
-      const cb = chatLog.getFirstApprovalCallback();
-      if (cb) { cb(decision); return true; }
-      // Callback not registered yet — store decision synchronously before calling
-      // respondToApproval, so setApprovalPending can consume it when it runs.
-      pendingApprovalDecisionGlobal = decision;
-      if (agentRunner.pendingApproval) {
-        agentRunner.respondToApproval(decision);
-        return true;
-      }
+
+    // Only intercept keys when there is actually a pending approval
+    if (!agentRunner.pendingApproval) {
       return false;
     }
+
+    // Arrow key navigation
+    if (matchesKey(key, Key.up)) {
+      editor.onApprovalNavigate?.('up');
+      return true;
+    }
+    if (matchesKey(key, Key.down)) {
+      editor.onApprovalNavigate?.('down');
+      return true;
+    }
+
+    // Tab: cycle forward one option
+    if (matchesKey(key, Key.tab)) {
+      editor.onApprovalNavigate?.('down');
+      return true;
+    }
+
+    // Enter: confirm current selection
+    if (key === '\r' || key === '\n') {
+      editor.onApprovalSelect?.();
+      return true;
+    }
+
+    // Esc: deny
     if (key === '\x1b') {
-      approvalSelected = 0;
+      setApprovalCursor(0);
       const cb = chatLog.getFirstApprovalCallback();
       if (cb) { cb('deny'); return true; }
       pendingApprovalDecisionGlobal = 'deny';
@@ -1179,6 +1212,7 @@ export async function runCli() {
       }
       return false;
     }
+
     return false;
   };
 
