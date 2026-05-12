@@ -96,23 +96,21 @@ function migrateModelToProvider(config: Config): Config {
 }
 
 export function getSetting<T>(key: string, _defaultValue: T): T {
-  let config = loadConfig();
+  try {
+    let config = loadConfig();
 
-  // Run migration if accessing provider setting
-  if (key === 'provider') {
-    config = migrateModelToProvider(config);
-  }
+    // Run migration if accessing provider setting
+    if (key === 'provider') {
+      config = migrateModelToProvider(config);
+    }
 
-  // Get value from config, return undefined if not found (no hardcoded defaults)
-  const value = config[key];
-  if (value !== undefined) {
-    return value as T;
-  }
-
-  // For critical settings, log warning and return the provided default
-  // This prevents crashes but the default should come from model/llm.ts
-  if (key === 'modelId' || key === 'provider') {
-    console.warn(`[config] Setting '${key}' not found in settings.json, using code default`);
+    // Get value from config, return default if not found
+    const value = config[key];
+    if (value !== undefined) {
+      return value as T;
+    }
+  } catch {
+    // Config file doesn't exist or is invalid - use default silently
   }
 
   return _defaultValue;
@@ -125,11 +123,16 @@ export function getSetting<T>(key: string, _defaultValue: T): T {
 /**
  * Get the configured model ID, with optional fallback.
  * Prefer this over getSetting for model configuration.
+ * Silently uses fallback if settings.json doesn't exist.
  */
 export function getConfiguredModelId(fallback?: string): string {
-  const config = loadConfig();
-  if (config.modelId) {
-    return config.modelId;
+  try {
+    const config = loadConfig();
+    if (config.modelId) {
+      return config.modelId;
+    }
+  } catch {
+    // Config file doesn't exist or is invalid - use fallback silently
   }
   return fallback ?? 'deepseek-v4-flash';
 }
@@ -137,11 +140,16 @@ export function getConfiguredModelId(fallback?: string): string {
 /**
  * Get the configured provider, with optional fallback.
  * Prefer this over getSetting for provider configuration.
+ * Silently uses fallback if settings.json doesn't exist.
  */
 export function getConfiguredProvider(fallback?: string): string {
-  const config = loadConfig();
-  if (config.provider) {
-    return config.provider;
+  try {
+    const config = loadConfig();
+    if (config.provider) {
+      return config.provider;
+    }
+  } catch {
+    // Config file doesn't exist or is invalid - use fallback silently
   }
   return fallback ?? 'deepseek';
 }

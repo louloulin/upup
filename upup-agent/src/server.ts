@@ -281,6 +281,13 @@ export class StdioServer {
               },
             } as JsonRpcNotification)
 
+            // 发送 stream_done 通知让客户端可以关闭
+            this.send({
+              jsonrpc: '2.0',
+              method: 'stream_done',
+              params: { done: true },
+            } as JsonRpcNotification)
+
             // 发送最终响应
             const response: JsonRpcResponse = {
               jsonrpc: '2.0',
