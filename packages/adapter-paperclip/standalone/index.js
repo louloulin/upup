@@ -1,8 +1,11 @@
-// standalone-adapter.ts
+// packages/adapter-paperclip/standalone-adapter.ts
 import { runChildProcess } from "@paperclipai/adapter-utils/server-utils";
+import { fileURLToPath } from "url";
+import { dirname, resolve } from "path";
 var DEFAULT_MODEL = "deepseek-v4-flash";
 var DEFAULT_TIMEOUT_SEC = 1800;
 var DEFAULT_MAX_ITERATIONS = 50;
+var AGENT_BUNDLE_PATH = "./agent-bundle.js";
 var DEFAULT_PROMPT_TEMPLATE = `You are "{{agentName}}", an AI agent specializing in financial research and investment analysis, managed by Paperclip.
 
 Your Paperclip identity:
@@ -70,6 +73,14 @@ function buildPrompt(ctx) {
   prompt = prompt.replace(/\{\{paperclipApiUrl\}\}/g, "http://127.0.0.1:3100/api");
   return prompt;
 }
+function getAdapterDir() {
+  try {
+    return dirname(fileURLToPath(import.meta.url));
+  } catch {
+    const url = new URL(import.meta.url);
+    return dirname(url.pathname);
+  }
+}
 async function execute(ctx) {
   const startTime = Date.now();
   const model = ctx.config?.model || process.env.DEFAULT_MODEL || DEFAULT_MODEL;
@@ -85,15 +96,21 @@ async function execute(ctx) {
     await ctx.onLog("stdout", `[upup] Resuming session: ${prevSessionId}
 `);
   }
-  const projectRoot = process.env.DEXTER_ROOT || "/Users/louloulin/Documents/linchong/touzhi/dexter";
+  const adapterDir = getAdapterDir();
+  const agentBundlePath = resolve(adapterDir, AGENT_BUNDLE_PATH);
+  await ctx.onLog("stdout", `[upup] Adapter dir: ${adapterDir}
+`);
+  await ctx.onLog("stdout", `[upup] Running agent bundle: ${agentBundlePath}
+`);
   let usage;
   let summary;
   const proc = await runChildProcess(
     ctx.runId,
     "bun",
-    ["run", "src/run.ts", prompt],
+    ["run", "./agent-bundle.js"],
     {
-      cwd: projectRoot,
+      cwd: adapterDir,
+      // Run from adapter directory so ./agent-bundle.js resolves
       env: { ...process.env, DEFAULT_MODEL: model },
       timeoutSec,
       graceSec: 10,
@@ -259,4 +276,3 @@ export {
   sessionCodec,
   testEnvironment
 };
-//# sourceMappingURL=index.js.map
