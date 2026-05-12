@@ -8,6 +8,23 @@
 import { runChildProcess } from '@paperclipai/adapter-utils/server-utils';
 import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
+import { config } from 'dotenv';
+
+// Load .env from the adapter's parent directories (project root)
+const adapterDir = dirname(fileURLToPath(import.meta.url));
+const possibleEnvPaths = [
+  resolve(adapterDir, '.env'),
+  resolve(adapterDir, '..', '..', '..', '.env'), // adapter/../../../.env -> project root
+  '/Users/louloulin/Documents/linchong/touzhi/dexter/.env',
+];
+
+for (const envPath of possibleEnvPaths) {
+  try {
+    config({ path: envPath, override: false });
+  } catch {
+    // Continue to next path
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -146,21 +163,6 @@ function buildPrompt(ctx: AdapterExecutionContext): string {
 }
 
 // ---------------------------------------------------------------------------
-// Get adapter directory (where this file lives)
-// ---------------------------------------------------------------------------
-
-function getAdapterDir(): string {
-  // Use import.meta.url to find where this adapter file is located
-  try {
-    return dirname(fileURLToPath(import.meta.url));
-  } catch {
-    // Fallback: use __dirname equivalent
-    const url = new URL(import.meta.url);
-    return dirname(url.pathname);
-  }
-}
-
-// ---------------------------------------------------------------------------
 // Main execute function
 // ---------------------------------------------------------------------------
 
@@ -186,8 +188,7 @@ async function execute(ctx: AdapterExecutionContext): Promise<AdapterExecutionRe
     await ctx.onLog('stdout', `[upup] Resuming session: ${prevSessionId}\n`);
   }
 
-  // Get adapter directory (where agent-bundle.js lives)
-  const adapterDir = getAdapterDir();
+  // adapterDir is defined at module level (loaded .env from various paths)
   const agentBundlePath = resolve(adapterDir, AGENT_BUNDLE_PATH);
 
   await ctx.onLog('stdout', `[upup] Adapter dir: ${adapterDir}\n`);
@@ -197,18 +198,36 @@ async function execute(ctx: AdapterExecutionContext): Promise<AdapterExecutionRe
   let usage: { inputTokens: number; outputTokens: number } | undefined;
   let summary: string | undefined;
 
+  // Ensure API keys are available to the subprocess (load from process.env which now includes .env)
+  const apiKeys = [
+    'ANTHROPIC_API_KEY',
+    'DEEPSEEK_API_KEY',
+    'OPENAI_API_KEY',
+    'GOOGLE_API_KEY',
+    'EXA_API_KEY',
+    'FINANCIAL_DATASETS_API_KEY',
+  ];
+  const passedEnv: Record<string, string | undefined> = {};
+  for (const key of apiKeys) {
+    passedEnv[key] = process.env[key];
+  }
+
   // Run the bundled agent using runChildProcess
   // IMPORTANT: Run from the adapter's directory so relative paths work
+  // Pass prompt as command line argument (agent-bundle.js reads from process.argv)
   const proc = await runChildProcess(
     ctx.runId,
     'bun',
-    ['run', './agent-bundle.js'],
+    ['run', './agent-bundle.js', prompt],
     {
       cwd: adapterDir, // Run from adapter directory so ./agent-bundle.js resolves
-      env: { ...process.env, DEFAULT_MODEL: model },
+      env: {
+        ...process.env,
+        ...passedEnv, // Pass API keys explicitly
+        DEFAULT_MODEL: model,
+      },
       timeoutSec,
       graceSec: 10, // Grace period before SIGKILL
-      stdin: prompt, // Pass prompt via stdin
       onLog: async (stream, chunk) => {
         await ctx.onLog(stream, chunk);
 

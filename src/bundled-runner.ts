@@ -9,8 +9,26 @@
 
 import { config } from 'dotenv';
 import { Agent } from './agent/agent.js';
+import path from 'path';
 
-config({ quiet: true });
+// Try to load .env from various locations
+const envPaths = [
+  '.env',
+  path.join(__dirname, '..', '..', '..', '.env'), // From adapter/../../../.env
+  '/Users/louloulin/Documents/linchong/touzhi/dexter/.env',
+];
+
+for (const envPath of envPaths) {
+  try {
+    config({ path: envPath, quiet: true });
+    // If we successfully loaded, break
+    if (process.env.DEEPSEEK_API_KEY || process.env.ANTHROPIC_API_KEY) {
+      break;
+    }
+  } catch {
+    // Continue to next path
+  }
+}
 
 // Get prompt from command line
 const prompt = process.argv.slice(2).join(' ');
