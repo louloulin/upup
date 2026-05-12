@@ -81,6 +81,8 @@ async function main() {
             usage: event.tokenUsage,
             totalTimeMs: totalTime,
           }));
+          // Exit with success code
+          process.exit(0);
           break;
       }
     }
@@ -91,6 +93,8 @@ async function main() {
       message: err.message,
       code: 'agent_error',
     }));
+    // Exit with error code
+    process.exit(1);
   }
 }
 
