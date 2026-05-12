@@ -104,7 +104,10 @@ await esbuild.build({
   platform: 'node',
   format: 'esm',
   outfile: path.join(standaloneDir, 'index.js'),
-  external: ['@paperclipai/adapter-utils'],
+  external: [
+    '@paperclipai/adapter-utils',
+    'dotenv',
+  ],
   sourcemap: false,
   minify: false,
   target: 'node18',

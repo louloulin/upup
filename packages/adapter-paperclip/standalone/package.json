@@ -16,7 +16,8 @@
     "./server": {
       "types": "./index.d.ts",
       "default": "./index.js"
-    }
+    },
+    "./ui-parser": "./ui-parser.js"
   },
   "dependencies": {
     "@paperclipai/adapter-utils": "^2026.325.0"
@@ -27,6 +28,8 @@
   },
   "files": [
     "index.js",
-    "index.d.ts"
+    "index.d.ts",
+    "ui-parser.js",
+    "agent-bundle.js"
   ]
 }
