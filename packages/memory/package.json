@@ -12,7 +12,7 @@
     }
   },
   "scripts": {
-    "build": "bun build src/index.ts --outdir=dist --target=bun && bun build src/index.ts --outdir=dist --target=node --format=cjs && rm -rf dist/*.map",
+    "build": "bun build src/index.ts --outdir=dist --target=bun && bun build src/index.ts --outdir=dist --target=node --format=cjs && rm -rf dist/*.map && rm -rf dist/*.node",
     "dev": "bun build src/index.ts --outdir=dist --watch --target=bun",
     "test": "bun test"
   },
@@ -20,5 +20,9 @@
     "@upup/types": "workspace:*",
     "@memvid/sdk": "^2.0.120"
   },
-  "files": ["dist"]
+  "files": [
+    "dist",
+    "!dist/*.node"
+  ],
+  "private": false
 }

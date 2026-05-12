@@ -8,9 +8,9 @@
 ## 目录
 
 1. [设计理念](#1-设计理念)
-2. [UpUp 核心架构分析](#2-upup-核心架构分析)
-3. [核心能力 vs 扩展能力](#3-核心能力-vs-扩展能力)
-4. [Claude Code 投资助手架构](#4-claude-code-投资助手架构)
+2. [Claude Code 核心架构分析](#2-claude-code-核心架构分析)
+3. [UpUp 核心架构分析](#3-upup-核心架构分析)
+4. [能力分层模型](#4-能力分层模型)
 5. [核心能力设计](#5-核心能力设计)
 6. [Skills 扩展体系](#6-skills-扩展体系)
 7. [Plugins 扩展体系](#7-plugins-扩展体系)
@@ -22,15 +22,28 @@
 
 ## 1. 设计理念
 
-### 1.1 Claude Code 风格核心思想
+### 1.1 Claude Code 设计哲学
+
+Claude Code (loucode) 实现了**渐进式复杂度**架构：
 
 ```
 Claude Code 设计哲学:
-├── 核心框架保持简洁
+├── 核心框架保持简洁稳定
 ├── 扩展功能通过 Skills/Plugins
-├── 用户可自由定制
-└── 渐进式复杂度
+├── 用户可自由定制和扩展
+├── 能力通过系统提示词注入
+└── 子 Agent 实现复杂任务
 ```
+
+**核心洞察来自 loucode 分析：**
+
+| 组件 | 文件 | 核心功能 |
+|------|------|----------|
+| QueryEngine | `src/QueryEngine.ts` | 会话生命周期管理，消息持久化 |
+| tools.ts | `src/tools.ts` | 59 种工具类型统一注册表 |
+| SkillTool | `src/tools/SkillTool/` | 技能执行（inline/forked 双模式） |
+| AgentTool | `src/tools/AgentTool/` | 子 Agent 创建和协作 |
+| MCP 集成 | `src/services/mcp/` | 外部工具连接 |
 
 ### 1.2 UpUp 投资助手定位
 
@@ -40,29 +53,33 @@ Claude Code 设计哲学:
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │   ┌─────────────────────────────────────────────────────────┐   │
-│   │                  核心框架 (Core)                       │   │
-│   │   • Agent Loop / Tool Executor / LLM 接口              │   │
-│   │   • 消息管理 / 上下文压缩 / Session 持久化            │   │
-│   │   • Skill 加载 / Plugin 加载 / MCP 连接               │   │
+│   │  Level 5: 用户自定义                                     │   │
+│   │  • 用户 SKILL.md / 用户 Plugin                          │   │
+│   │  • 私有知识库 / 自定义工作流                              │   │
 │   └─────────────────────────────────────────────────────────┘   │
-│                              │                                 │
-│                              ▼                                 │
+│                              │                                  │
+│                              ▼                                  │
 │   ┌─────────────────────────────────────────────────────────┐   │
-│   │                  投资核心 (Investment Core)            │   │
-│   │   • 基础数据获取 / 工具注册表                         │   │
-│   │   • 知识库管理 / 配置加载                            │   │
+│   │  Level 4: Plugins (系统扩展)                             │   │
+│   │  • MCP Server / 数据源插件 / 交易插件 / 可视化插件        │   │
 │   └─────────────────────────────────────────────────────────┘   │
-│                              │                                 │
-│                              ▼                                 │
+│                              │                                  │
+│                              ▼                                  │
 │   ┌─────────────────────────────────────────────────────────┐   │
-│   │                  Skills (用户扩展)                      │   │
-│   │   • 股票分析 Skill / 策略回测 Skill / 报告 Skill     │   │
+│   │  Level 3: Skills (投资扩展)                             │   │
+│   │  • 股票分析 Skill / 策略回测 Skill / 报告生成 Skill       │   │
 │   └─────────────────────────────────────────────────────────┘   │
-│                              │                                 │
-│                              ▼                                 │
+│                              │                                  │
+│                              ▼                                  │
 │   ┌─────────────────────────────────────────────────────────┐   │
-│   │                  Plugins (系统扩展)                    │   │
-│   │   • MCP 插件 / 数据源插件 / 交易插件                  │   │
+│   │  Level 2: Investment Core (投资核心)                    │   │
+│   │  • 投资配置 / 知识库 / 基础数据获取 / 估值计算 / 风控      │   │
+│   └─────────────────────────────────────────────────────────┘   │
+│                              │                                  │
+│                              ▼                                  │
+│   ┌─────────────────────────────────────────────────────────┐   │
+│   │  Level 1: Agent Core (Agent 核心)                      │   │
+│   │  • Agent Loop / Tool Executor / LLM / 上下文管理        │   │
 │   └─────────────────────────────────────────────────────────┘   │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
@@ -70,121 +87,233 @@ Claude Code 设计哲学:
 
 ---
 
-## 2. UpUp 核心架构分析
+## 2. Claude Code 核心架构分析
 
-### 2.1 核心模块
+### 2.1 QueryEngine 架构
+
+**文件**: `/Users/louloulin/Documents/linchong/claw/loucode/src/QueryEngine.ts`
+
+Claude Code 的 QueryEngine 是核心查询引擎，管理整个会话生命周期：
+
+```typescript
+export class QueryEngine {
+  // 核心状态
+  private mutableMessages: Message[]      // 消息历史
+  private totalUsage: NonNullableUsage     // Token 使用统计
+  private discoveredSkillNames: Set        // 发现的技能
+  private abortController: AbortController  // 中断控制
+
+  // 核心方法
+  async *submitMessage(prompt, options): AsyncGenerator<SDKMessage>
+  interrupt(): void
+  getMessages(): readonly Message[]
+}
+```
+
+**关键设计模式：**
+
+1. **AsyncGenerator 输出**: 使用 AsyncGenerator 逐步 yield 消息，支持流式 UI 更新
+2. **Session 持久化**: 消息自动记录到 transcript，支持 --resume 恢复
+3. **技能发现追踪**: `discoveredSkillNames` 用于追踪发现的技能
+4. **权限管理**: `wrappedCanUseTool` 包装权限检查并追踪拒绝
+
+### 2.2 工具系统架构
+
+**文件**: `/Users/louloulin/Documents/linchong/claw/loucode/src/tools.ts`
+
+Claude Code 定义了 59 种工具，分为几大类：
+
+| 类别 | 工具数 | 核心工具 |
+|------|--------|----------|
+| 文件操作 | 8 | FileReadTool, FileEditTool, FileWriteTool |
+| Agent 协作 | 5 | AgentTool, TaskCreate/Stop/List/Output |
+| 技能系统 | 2 | SkillTool, ExitPlanModeTool |
+| 网络搜索 | 2 | WebSearchTool, WebFetchTool |
+| 系统命令 | 5 | BashTool, GrepTool, GlobTool |
+| 计划模式 | 2 | EnterPlanModeTool, ExitPlanModeV2Tool |
+| MCP 集成 | 2 | ListMcpResourcesTool, ReadMcpResourceTool |
+| 其他 | 35+ | TodoWrite, AskUser, Cron, Push, etc |
+
+**工具注册流程：**
+
+```typescript
+export function getAllBaseTools(): Tools {
+  return [
+    AgentTool,
+    TaskOutputTool,
+    BashTool,
+    // ... 条件加载的工具
+    SkillTool,           // 技能执行
+    // ... 更多工具
+  ]
+}
+
+export function assembleToolPool(
+  permissionContext,
+  mcpTools: Tools
+): Tools {
+  // 1. 获取内置工具
+  const builtInTools = getTools(permissionContext)
+  // 2. 过滤 MCP 工具
+  const allowedMcpTools = filterToolsByDenyRules(mcpTools, permissionContext)
+  // 3. 合并去重
+  return uniqBy([...builtInTools, ...allowedMcpTools], 'name')
+}
+```
+
+### 2.3 SkillTool 实现
+
+**文件**: `/Users/louloulin/Documents/linchong/claw/loucode/src/tools/SkillTool/SkillTool.ts`
+
+Claude Code 的 SkillTool 支持两种执行模式：
+
+```typescript
+// 技能执行接口
+export interface SkillTool {
+  input: { skill: string; args?: string }
+  output: {
+    // inline 模式 (默认)
+    success: boolean
+    commandName: string
+    allowedTools?: string[]
+    model?: string
+    status: 'inline'
+    // forked 模式 (context: 'fork')
+    forked: true
+    agentId: string
+    result: string
+    status: 'forked'
+  }
+}
+
+// 执行流程
+async call({ skill, args }, context, canUseTool) {
+  // 1. 验证技能存在
+  const commands = await getAllCommands(context)
+  const command = findCommand(commandName, commands)
+
+  // 2. 检查执行模式
+  if (command?.type === 'prompt' && command.context === 'fork') {
+    // Forked: 在子 Agent 中执行
+    return executeForkedSkill(command, args, context, canUseTool)
+  }
+
+  // 3. Inline: 直接处理命令
+  const processedCommand = await processPromptSlashCommand(commandName, args, commands, context)
+  return { newMessages: processedCommand.messages, ... }
+}
+```
+
+### 2.4 AgentTool 实现
+
+**文件**: `/Users/louloulin/Documents/linchong/claw/loucode/src/tools/AgentTool/`
+
+Claude Code 支持创建子 Agent 实现复杂任务：
+
+```typescript
+// Agent 定义
+interface AgentDefinition {
+  agentType: 'general' | 'code' | 'research'
+  model?: string
+  effort?: 'light' | 'medium' | 'maximum'
+  tools?: string[]
+  instructions?: string
+}
+
+// Agent 执行
+async function runAgent({ agentDefinition, promptMessages, ... }) {
+  // 创建子 Agent
+  const agent = new Agent(agentDefinition)
+  // 执行消息循环
+  for await (const message of agent.run()) {
+    yield message
+  }
+}
+```
+
+---
+
+## 3. UpUp 核心架构分析
+
+### 3.1 当前架构
 
 ```
 src/
-├── agent/                          # Agent 核心
-│   ├── agent.ts                   # 主 Agent 类 (43KB)
-│   ├── tool-executor.ts            # 工具执行器
-│   ├── compact.ts                  # 上下文压缩
-│   ├── loop-recovery.ts            # 循环检测恢复
-│   ├── session-persistence.ts       # Session 持久化
-│   ├── investment-config.ts         # 投资配置加载
-│   ├── investment-knowledge.ts      # 投资知识库
+├── agent/                      # Agent 核心
+│   ├── agent.ts               # 主 Agent 类 (~43KB)
+│   ├── tool-executor.ts        # 工具执行器
+│   ├── compact.ts              # 上下文压缩
+│   ├── loop-recovery.ts        # 循环检测恢复
+│   ├── session-persistence.ts  # Session 持久化
+│   ├── investment-config.ts     # 投资配置加载
+│   ├── investment-knowledge.ts  # 投资知识库
 │   └── investment-knowledge-tools.ts # 投资知识工具
 │
-├── tools/                          # 工具模块
-│   ├── finance/                   # 美股/A股数据
-│   ├── astock/                    # A股专用工具
-│   ├── quant/                     # 量化工具
-│   ├── valuation/                  # 估值工具
-│   └── registry/                  # 工具注册表
+├── tools/                      # 工具模块
+│   ├── finance/               # 美股/A股数据
+│   ├── astock/                # A股专用工具
+│   ├── quant/                 # 量化工具
+│   ├── valuation/             # 估值工具
+│   └── registry/              # 工具注册表
 │
-├── model/                          # LLM 模型
-│   └── llm.ts                     # 模型调用封装
+├── model/                      # LLM 模型
+│   └── llm.ts                 # 模型调用封装
 │
-├── memory/                         # 记忆系统
-│   ├── flush.ts                   # 记忆刷新
-│   ├── extraction.ts              # 知识提取
-│   └── observation-buffer.ts       # 观察缓冲
+├── memory/                     # 记忆系统
+│   ├── flush.ts               # 记忆刷新
+│   ├── extraction.ts           # 知识提取
+│   └── observation-buffer.ts  # 观察缓冲
 │
-└── utils/                         # 工具函数
-    ├── config.ts                  # 配置管理
-    ├── tokens.ts                 # Token 计算
-    └── tool-result-*.ts          # 工具结果处理
+└── utils/                     # 工具函数
+    ├── config.ts              # 配置管理
+    ├── tokens.ts              # Token 计算
+    └── tool-result-*.ts       # 工具结果处理
 ```
 
-### 2.2 扩展模块
+### 3.2 扩展模块
 
 ```
 packages/
-├── agent-core/                    # Agent 核心包
-├── sdk/                          # SDK 包
-├── skills/                       # Skills 系统
-│   ├── src/loader.ts            # Skill 加载器
-│   ├── src/registry.ts          # Skill 注册表
-│   └── src/scheduler.ts         # Skill 调度器
-├── mcp/                          # MCP 集成
-│   └── src/client.ts            # MCP 客户端
-├── plugin-sdk/                   # Plugin SDK
-│   └── src/loader.ts           # Plugin 加载器
-└── memory/                       # 记忆系统包
+├── agent-core/                 # Agent 核心包
+├── sdk/                       # SDK 包
+├── skills/                    # Skills 系统
+│   ├── src/loader.ts         # Skill 加载器
+│   ├── src/registry.ts       # Skill 注册表
+│   └── src/scheduler.ts      # Skill 调度器
+├── mcp/                       # MCP 集成
+│   └── src/client.ts         # MCP 客户端
+├── plugin-sdk/                # Plugin SDK
+│   └── src/loader.ts         # Plugin 加载器
+└── memory/                    # 记忆系统包
 ```
 
 ---
 
-## 3. 核心能力 vs 扩展能力
+## 4. 能力分层模型
 
-### 3.1 能力分层
+### 4.1 能力矩阵
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                      能力分层模型                                │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  Level 5: 用户自定义                                            │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │  用户 SKILL.md / 用户 Plugin                           │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                              │                                 │
-│  Level 4: 系统扩展 (Plugins)                                    │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │  MCP Server / 数据源插件 / 交易插件 / 可视化插件        │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                              │                                 │
-│  Level 3: 投资扩展 (Skills)                                    │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │  股票分析 Skill / 策略回测 Skill / 报告生成 Skill       │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                              │                                 │
-│  Level 2: 投资核心                                            │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │  投资配置 / 知识库 / 基础数据获取 / 估值计算 / 风控      │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                              │                                 │
-│  Level 1: Agent 核心                                          │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │  Agent Loop / Tool Executor / LLM / 上下文管理 / Session │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
+| 层级 | 能力 | 说明 | 稳定性 | 扩展方式 |
+|------|------|------|--------|----------|
+| **L1 Agent 核心** | Agent Loop | 主循环、迭代控制 | ⭐⭐⭐⭐⭐ | 不扩展 |
+| L1 | Tool Executor | 工具并行/串行执行 | ⭐⭐⭐⭐⭐ | 通过注册 |
+| L1 | LLM 接口 | 多模型支持、fallback | ⭐⭐⭐⭐⭐ | 配置驱动 |
+| L1 | 上下文压缩 | Microcompact/Compaction | ⭐⭐⭐⭐ | 算法优化 |
+| L1 | Session 持久化 | 跨会话记忆 | ⭐⭐⭐⭐ | 存储扩展 |
+| **L2 投资核心** | 投资配置 | GOALS/RULES/GOVERN | ⭐⭐⭐⭐ | 配置驱动 |
+| L2 | 投资知识库 | 公司/行业/策略/风险 | ⭐⭐⭐ | 知识积累 |
+| L2 | 基础数据获取 | 行情/财务/新闻 | ⭐⭐⭐ | 工具注册 |
+| L2 | 估值计算 | PE/PB/DCF | ⭐⭐⭐ | 算法扩展 |
+| L2 | 风控管理 | 风险指标/头寸限制 | ⭐⭐⭐ | 规则扩展 |
+| **L3 Skills** | 股票分析 | 综合分析报告 | ⭐⭐ | Skill 加载 |
+| L3 | 策略回测 | 策略模板/回测 | ⭐⭐ | Skill 加载 |
+| L3 | 报告生成 | 定期报告/推送 | ⭐⭐ | Skill 加载 |
+| L3 | 情感分析 | 新闻/舆情分析 | ⭐ | Skill 加载 |
+| **L4 Plugins** | MCP 集成 | 外部 MCP 服务 | ⭐ | Plugin 加载 |
+| L4 | 数据源插件 | lumostock 等 | ⭐ | Plugin 加载 |
+| L4 | 交易插件 | 模拟/实盘交易 | ⭐ | Plugin 加载 |
 
-### 3.2 核心能力清单
-
-| 层级 | 能力 | 说明 | 位置 |
-|------|------|------|------|
-| **L1 Agent 核心** | Agent Loop | 主循环、迭代控制 | `src/agent/agent.ts` |
-| L1 | Tool Executor | 工具并行/串行执行 | `src/agent/tool-executor.ts` |
-| L1 | LLM 接口 | 多模型支持、fallback | `src/model/llm.ts` |
-| L1 | 上下文压缩 | Microcompact/Compaction | `src/agent/compact.ts` |
-| L1 | Session 持久化 | 跨会话记忆 | `src/agent/session-persistence.ts` |
-| **L2 投资核心** | 投资配置 | GOALS/RULES/GOVERN | `src/agent/investment-config.ts` |
-| L2 | 投资知识库 | 公司/行业/策略/风险 | `src/agent/investment-knowledge.ts` |
-| L2 | 基础数据获取 | 行情/财务/新闻 | `src/tools/finance/` |
-| L2 | 估值计算 | PE/PB/DCF | `src/tools/valuation/` |
-| L2 | 风控管理 | 风险指标/头寸限制 | `src/tools/quant/risk-metrics.ts` |
-| **L3 Skills** | 股票分析 | 综合分析报告 | `skills/stock-analysis.md` |
-| L3 | 策略回测 | 策略模板/回测 | `skills/backtest.md` |
-| L3 | 报告生成 | 定期报告/推送 | `skills/report.md` |
-| **L4 Plugins** | MCP 集成 | 外部 MCP 服务 | `packages/mcp/` |
-| L4 | 数据源插件 | lumostock 等 | `packages/plugins/` |
-| L4 | 交易插件 | 模拟/实盘交易 | `packages/plugins/` |
-
-### 3.3 核心原则
+### 4.2 设计原则
 
 ```
 设计原则:
@@ -197,261 +326,165 @@ packages/
 
 ---
 
-## 4. Claude Code 投资助手架构
-
-### 4.1 整体架构
-
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                    Claude Code 投资助手 - 完整架构                        │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                         │
-│  ┌─────────────────────────────────────────────────────────────────┐   │
-│  │                      用户交互层 (CLI/API/TUI)                  │   │
-│  └─────────────────────────────────────────────────────────────────┘   │
-│                                    │                                    │
-│                                    ▼                                    │
-│  ┌─────────────────────────────────────────────────────────────────┐   │
-│  │                      Agent Core (L1)                            │   │
-│  │  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐         │   │
-│  │  │ Agent   │  │  Tool   │  │   LLM   │  │Context  │         │   │
-│  │  │ Loop    │──│Executor │──│ Manager │──│Manager  │         │   │
-│  │  └─────────┘  └─────────┘  └─────────┘  └─────────┘         │   │
-│  └─────────────────────────────────────────────────────────────────┘   │
-│                                    │                                    │
-│                                    ▼                                    │
-│  ┌─────────────────────────────────────────────────────────────────┐   │
-│  │                   Investment Core (L2)                           │   │
-│  │  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐         │   │
-│  │  │Invest   │  │Knowledge│  │ Data    │  │Risk    │         │   │
-│  │  │Config   │──│Manager  │──│Fetcher  │──│Manager  │         │   │
-│  │  └─────────┘  └─────────┘  └─────────┘  └─────────┘         │   │
-│  └─────────────────────────────────────────────────────────────────┘   │
-│                                    │                                    │
-│                    ┌─────────────┼─────────────┐                   │
-│                    ▼             ▼             ▼                       │
-│  ┌───────────────────┐ ┌───────────────────┐ ┌───────────────────┐    │
-│  │   Skills (L3)     │ │   Plugins (L4)    │ │   MCP (L4)       │    │
-│  │                   │ │                   │ │                   │    │
-│  │  stock-analysis   │ │  lumostock-data   │ │  lumostock-mcp   │    │
-│  │  backtest        │ │  trading-plugin   │ │  tradingagents-cn │    │
-│  │  report          │ │  viz-plugin       │ │                   │    │
-│  │  sentiment       │ │                   │ │                   │    │
-│  └───────────────────┘ └───────────────────┘ └───────────────────┘    │
-│                                                                         │
-└─────────────────────────────────────────────────────────────────────────┘
-```
-
-### 4.2 投资助手交互流程
-
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                         用户请求处理流程                                 │
-├─────────────────────────────────────────────────────────────────────────┤
-│                                                                         │
-│  用户: "帮我分析一下贵州茅台的投资价值"                                  │
-│                                                                         │
-│  ┌─────────────────────────────────────────────────────────────────┐   │
-│  │ 1. Agent 接收请求                                                │   │
-│  │    └── 解析意图: 投资分析请求                                     │   │
-│  └─────────────────────────────────────────────────────────────────┘   │
-│                                    │                                    │
-│                                    ▼                                    │
-│  ┌─────────────────────────────────────────────────────────────────┐   │
-│  │ 2. Skill 匹配 (L3)                                               │   │
-│  │    └── 匹配 stock-analysis Skill                                 │   │
-│  │        Skill 指令: 执行综合股票分析流程                          │   │
-│  └─────────────────────────────────────────────────────────────────┘   │
-│                                    │                                    │
-│                                    ▼                                    │
-│  ┌─────────────────────────────────────────────────────────────────┐   │
-│  │ 3. Tool 调用 (L2 核心)                                           │   │
-│  │    ├── get_stock_price(600519) - 数据获取                       │   │
-│  │    ├── get_financials(600519) - 财务数据                        │   │
-│  │    ├── calculate_valuation(600519) - 估值计算                    │   │
-│  │    └── analyze_risk(600519) - 风险分析                          │   │
-│  └─────────────────────────────────────────────────────────────────┘   │
-│                                    │                                    │
-│                                    ▼                                    │
-│  ┌─────────────────────────────────────────────────────────────────┐   │
-│  │ 4. Plugin 扩展 (L4)                                              │   │
-│  │    ├── lumostock MCP: 获取 K线数据                                │   │
-│  │    └── sentiment MCP: 新闻情感分析                                │   │
-│  └─────────────────────────────────────────────────────────────────┘   │
-│                                    │                                    │
-│                                    ▼                                    │
-│  ┌─────────────────────────────────────────────────────────────────┐   │
-│  │ 5. 结果整合 & 输出                                                │   │
-│  │    └── 生成综合分析报告                                           │   │
-│  └─────────────────────────────────────────────────────────────────┘   │
-│                                                                         │
-└─────────────────────────────────────────────────────────────────────────┘
-```
-
----
-
 ## 5. 核心能力设计
 
-### 5.1 投资配置系统 (Investment Config)
+### 5.1 L1: Agent 核心
 
 ```
-src/agent/investment-config.ts
-
-职责:
-├── 加载 .upup/ 目录下的配置文档
-├── 解析 GOALS.md (投资目标)
-├── 解析 RULES.md (分析规则)
-├── 解析 GOVERN.md (治理规则)
-└── 注入到 Agent System Prompt
-
-配置文档结构:
-.upup/
-├── GOALS.md       # 投资目标
-│   # Investment Goals
-│   ---
-│   risk_tolerance: moderate
-│   analysis_depth: comprehensive
-│   time_horizon: long
+Agent Core (L1)
+├── 核心文件
+│   ├── src/agent/agent.ts          # 主 Agent 类 (~43KB)
+│   ├── src/agent/tool-executor.ts  # 工具执行器
+│   ├── src/agent/compact.ts        # 上下文压缩
+│   └── src/agent/session-persistence.ts # Session 持久化
 │
-├── RULES.md       # 分析规则
-│   # Analysis Rules
-│   ---
-│   research:
-│     - Always verify data sources
-│     - Use multiple analysis methods
+├── 核心功能
+│   ├── Agent Loop: run() 方法执行主循环
+│   ├── Tool Executor: 并行/串行执行工具
+│   ├── Context Manager: 消息压缩/历史管理
+│   └── LLM Manager: 模型调用/fallback
 │
-├── GOVERN.md      # 治理规则
-│   # Governance
-│   ---
-│   max_position: 0.1
-│   single_stock_limit: 0.2
+└── 设计参考
+    └── 借鉴 loucode QueryEngine 的会话管理
 ```
 
-### 5.2 投资知识库 (Investment Knowledge)
+### 5.2 L2: 投资核心
 
 ```
-src/agent/investment-knowledge.ts
-
-职责:
-├── 管理公司信息 (ticker, fundamentals, moat, risks)
-├── 管理行业信息 (trends, outlook, key metrics)
-├── 管理策略信息 (parameters, performance)
-├── 管理风险记录 (severity, probability, impact)
-└── 提供知识查询接口
-
-知识库存储:
-.upup/knowledge/
-├── companies/      # 公司数据
-│   ├── AAPL.json
-│   └── 600519.json
-├── sectors/        # 行业数据
-├── strategies/     # 策略数据
-└── risks/          # 风险数据
+Investment Core (L2)
+├── 投资配置系统
+│   ├── src/agent/investment-config.ts   # GOALS/RULES/GOVERN 加载
+│   ├── .upup/GOALS.md                   # 投资目标配置
+│   ├── .upup/RULES.md                   # 分析规则
+│   └── .upup/GOVERN.md                  # 治理规则
+│
+├── 投资知识库
+│   ├── src/agent/investment-knowledge.ts      # 知识管理
+│   ├── src/agent/investment-knowledge-tools.ts # 知识工具
+│   └── .upup/knowledge/                       # 知识存储
+│       ├── companies/                         # 公司数据
+│       ├── sectors/                           # 行业数据
+│       ├── strategies/                        # 策略数据
+│       └── risks/                             # 风险数据
+│
+├── 数据获取层
+│   └── src/tools/
+│       ├── finance/                          # 美股数据
+│       ├── astock/                           # A股数据
+│       └── quant/                            # 量化工具
+│
+├── 估值计算层
+│   └── src/tools/valuation/
+│       ├── valuation-tools.ts               # DCF/PE/PB
+│       └── target-price.ts                  # 目标价计算
+│
+└── 风控管理层
+    └── src/tools/quant/risk-metrics.ts      # 风险指标
 ```
 
-### 5.3 数据获取层 (Data Fetcher)
+### 5.3 投资配置格式
 
-```
-src/tools/finance/
+```yaml
+# .upup/GOALS.md - 投资目标
+# Investment Goals
+---
+risk_tolerance: moderate
+analysis_depth: comprehensive
+time_horizon: long
+max_single_position: 0.2
+portfolio_target: 10
+rebalance_threshold: 0.05
+---
 
-核心工具:
-├── get-stock-price.ts      # 获取股价
-├── get-market-data.ts     # 市场数据
-├── get-financials.ts      # 财务报表
-├── screen-stocks.ts       # 股票筛选
-└── news.ts                # 新闻获取
-
-src/tools/astock/
-
-A股专用:
-├── get-astock-price.ts    # A股行情
-├── get-astock-financials.ts # A股财报
-├── tushare-client.ts      # Tushare 接口
-└── realtime-client.ts     # 东方财富实时
-```
-
-### 5.4 估值计算层 (Valuation)
-
-```
-src/tools/valuation/
-
-├── valuation-tools.ts      # DCF/PE/PB 估值
-├── target-price.ts        # 目标价计算
-└── decision-dashboard.ts  # 决策看板
-
-支持方法:
-├── PE 市盈率
-├── PB 市净率
-├── PS 市销率
-├── DCF 现金流折现
-├── DDMs 股利折现
-└── Comparables 可比公司法
+# 投资目标说明
+- risk_tolerance: 风险承受能力 (conservative/moderate/aggressive)
+- analysis_depth: 分析深度 (basic/intermediate/comprehensive)
+- time_horizon: 投资周期 (short/medium/long)
+- max_single_position: 单股最大仓位
+- portfolio_target: 目标持仓数量
+- rebalance_threshold: 再平衡阈值
 ```
 
-### 5.5 风控管理 (Risk Management)
+```yaml
+# .upup/RULES.md - 分析规则
+# Analysis Rules
+---
+research:
+  - Always verify data sources
+  - Use multiple analysis methods
+  - Cross-reference financial data
+  
+valuation:
+  - Use DCF as primary method
+  - Compare with peers
+  
+risk:
+  - Check VaR before trade
+  - Monitor position limits
+  - Alert on drawdown
+---
 
+# 分析规则说明
+- research: 研究规则
+- valuation: 估值规则
+- risk: 风控规则
 ```
-src/tools/quant/risk-metrics.ts
 
-风险指标:
-├── VaR (Value at Risk)
-├── Sharpe Ratio
-├── Max Drawdown
-├── Beta
-├── Sortino Ratio
-└── Calmar Ratio
+```yaml
+# .upup/GOVERN.md - 治理规则
+# Governance
+---
+limits:
+  max_position: 0.1
+  single_stock_limit: 0.2
+  sector_limit: 0.3
+  daily_trades: 10
+  
+alerts:
+  drawdown_threshold: 0.05
+  position_alert: 0.15
+  concentration_alert: 0.4
+  
+notifications:
+  - email: config
+  - feishu: config
+---
 
-风控规则 (来自 GOVERN.md):
-├── 单股最大仓位: 20%
-├── 行业最大仓位: 30%
-├── 日内最大亏损: 5%
-└── 总仓位上限: 80%
+# 治理规则说明
+- limits: 仓位限制
+- alerts: 预警阈值
+- notifications: 通知配置
 ```
 
 ---
 
 ## 6. Skills 扩展体系
 
-### 6.1 Skills 架构
+### 6.1 Claude Code Skill 格式
 
-```
-.skills/
-├── SKILL.md           # Skill 定义文件 (YAML frontmatter)
-│
-investment/
-├── stock-analysis/
-│   ├── SKILL.md      # 股票综合分析
-│   └── templates/    # 分析模板
-├── backtest/
-│   ├── SKILL.md      # 策略回测
-│   └── strategies/   # 策略文件
-├── report/
-│   ├── SKILL.md      # 报告生成
-│   └── templates/   # 报告模板
-├── sentiment/
-│   ├── SKILL.md      # 情感分析
-│   └── lexicon/      # 情感词典
-└── portfolio/
-    ├── SKILL.md      # 组合管理
-    └── rebalancing/  # 再平衡规则
-```
-
-### 6.2 Skill 定义格式
+借鉴 Claude Code 的 Skill 设计：
 
 ```yaml
-# SKILL.md 格式
+# SKILL.md 格式 (参考 Claude Code)
 ---
 name: stock-analysis
 description: 综合股票分析 Skill，执行基本面+技术面+消息面分析
-model: sonnet  # 推荐模型
+model: sonnet
 user-invocable: true
 argument-hint: <股票代码>
 depends-on:
   - data-fetcher
   - valuation
+context: inline  # 或 'fork' 用于子 Agent 执行
 ---
 
 # 股票综合分析 Skill
+
+## 功能
+- 基本面分析: 财务指标、估值水平
+- 技术面分析: 趋势、支撑阻力
+- 消息面分析: 新闻、公告、研报
+- 综合评级: 买入/持有/卖出
 
 ## 执行流程
 
@@ -470,6 +503,52 @@ depends-on:
 
 4. 综合评估
    - 给出投资建议和目标价
+
+## 输出格式
+```markdown
+## [股票名称] ([代码]) 分析报告
+
+### 1. 基本面
+- 当前价格: ¥XXX
+- PE: XXx (行业平均: XXx)
+- ROE: XX%
+- 结论: ...
+
+### 2. 技术面
+- 趋势: ...
+- 支撑位: ¥XXX
+- 压力位: ¥XXX
+- MACD: ...
+
+### 3. 综合评级
+- 综合评分: X/10
+- 建议: 买入/持有/卖出
+- 目标价: ¥XXX
+```
+```
+
+### 6.2 UpUp Skills 目录结构
+
+```
+.skills/
+├── SKILL.md           # Skill 定义文件 (YAML frontmatter)
+│
+investment/
+├── stock-analysis/
+│   ├── SKILL.md      # 股票综合分析
+│   └── templates/    # 分析模板
+├── backtest/
+│   ├── SKILL.md      # 策略回测
+│   └── strategies/   # 策略文件
+├── report/
+│   ├── SKILL.md      # 报告生成
+│   └── templates/     # 报告模板
+├── sentiment/
+│   ├── SKILL.md      # 情感分析
+│   └── lexicon/       # 情感词典
+└── portfolio/
+    ├── SKILL.md      # 组合管理
+    └── rebalancing/  # 再平衡规则
 ```
 
 ### 6.3 核心 Skills 设计
@@ -487,37 +566,10 @@ argument-hint: <股票代码>
 depends-on:
   - data-fetcher
   - valuation
+context: inline
 ---
 
 # 股票综合分析 Skill
-
-## 功能
-- 基本面分析: 财务指标、估值水平
-- 技术面分析: 趋势、支撑阻力
-- 消息面分析: 新闻、公告、研报
-- 综合评级: 买入/持有/卖出
-
-## 输出格式
-```markdown
-## 贵州茅台 (600519) 分析报告
-
-### 1. 基本面
-- 当前价格: ¥1850
-- PE: 35x (行业平均: 30x)
-- ROE: 28%
-- 结论: 估值略高于行业平均
-
-### 2. 技术面
-- 趋势: 上升通道
-- 支撑位: ¥1800
-- 压力位: ¥1900
-- MACD: 金叉
-
-### 3. 综合评级
-- 综合评分: 8/10
-- 建议: 持有
-- 目标价: ¥2000
-```
 ```
 
 #### Skill 2: backtest (策略回测)
@@ -533,21 +585,11 @@ argument-hint: <策略ID或参数>
 depends-on:
   - data-fetcher
   - risk-metrics
+context: fork
+effort: medium
 ---
 
 # 策略回测 Skill
-
-## 功能
-- 加载策略参数
-- 历史数据回测
-- 性能指标计算
-- 生成回测报告
-
-## 支持策略模板
-- MA 金叉/死叉
-- 突破策略
-- 均值回归
-- 缠论
 ```
 
 #### Skill 3: report (报告生成)
@@ -563,18 +605,6 @@ argument-hint: <报告类型>
 ---
 
 # 投资报告生成 Skill
-
-## 支持报告类型
-- 每日简报
-- 周度总结
-- 月度分析
-- 个股深度报告
-- 组合绩效报告
-
-## 通知渠道
-- 飞书
-- 钉钉
-- 邮件
 ```
 
 ---
@@ -586,39 +616,39 @@ argument-hint: <报告类型>
 ```
 packages/plugins/
 ├── plugin-sdk/           # Plugin SDK
-│   ├── src/loader.ts   # 加载器
-│   ├── src/registry.ts # 注册表
-│   └── src/types.ts    # 类型定义
+│   ├── src/loader.ts     # 加载器
+│   ├── src/registry.ts   # 注册表
+│   └── src/types.ts     # 类型定义
 │
 └── plugins/
-    ├── lumostock/      # lumostock 数据源
-    ├── trading/       # 交易执行
-    └── visualization/  # 可视化
+    ├── lumostock/       # lumostock 数据源
+    ├── trading/         # 交易执行
+    └── visualization/   # 可视化
 ```
 
 ### 7.2 Plugin 类型
 
 ```typescript
 // 插件类型
-type PluginType = 
+type PluginType =
   | 'data'           // 数据源插件
   | 'trading'        // 交易插件
-  | 'visualization'   // 可视化插件
-  | 'notification'    // 通知插件
+  | 'visualization'  // 可视化插件
+  | 'notification'   // 通知插件
 
 // 插件接口
 interface UpUpPlugin {
-  type: PluginType;
-  name: string;
-  version: string;
-  description: string;
-  
+  type: PluginType
+  name: string
+  version: string
+  description: string
+
   // 生命周期
-  onLoad(): Promise<void>;
-  onUnload(): Promise<void>;
-  
+  onLoad(): Promise<void>
+  onUnload(): Promise<void>
+
   // 工具注册
-  registerTools(registry: ToolRegistry): void;
+  registerTools(registry: ToolRegistry): void
 }
 ```
 
@@ -640,26 +670,6 @@ config:
   server_url: http://localhost:8080
 ```
 
-### 7.4 交易插件
-
-```yaml
-# packages/plugins/trading/plugin.yaml
-name: trading-simulation
-type: trading
-version: 1.0.0
-description: 模拟交易执行
-
-tools:
-  - sim_place_order
-  - sim_get_positions
-  - sim_get_orders
-
-features:
-  - 模拟下单
-  - 持仓跟踪
-  - 绩效统计
-```
-
 ---
 
 ## 8. 参考项目融合
@@ -673,7 +683,7 @@ features:
 
 ✓ 策略模板系统
   └── 封装为 backtest Skill
-  
+
 ✓ 多数据源整合
   └── 通过 lumostock MCP 集成
 
@@ -916,7 +926,47 @@ features:
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 ```
 
-### 10.2 数据流架构
+### 10.2 Claude Code vs UpUp 架构对比
+
+```
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃              Claude Code (loucode) vs UpUp 架构对比                 ┃
+┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃                                                                     ┃
+┃  Claude Code (loucode)              UpUp 投资助手                   ┃
+┃  ┌─────────────────────────┐        ┌─────────────────────────┐   ┃
+┃  │ QueryEngine             │        │ Agent                   │   ┃
+┃  │ • 会话管理              │   ←→   │ • 主循环                │   ┃
+┃  │ • 消息持久化            │        │ • 工具执行              │   ┃
+┃  │ • 流式输出              │        │ • 上下文压缩            │   ┃
+┃  └─────────────────────────┘        └─────────────────────────┘   ┃
+┃           ↓                                   ↓                   ┃
+┃  ┌─────────────────────────┐        ┌─────────────────────────┐   ┃
+┃  │ tools.ts                │        │ tools/registry/          │   ┃
+┃  │ • 59种工具              │   ←→   │ • 投资工具注册           │   ┃
+┃  │ • 条件编译              │        │ • 并发控制               │   ┃
+┃  └─────────────────────────┘        └─────────────────────────┘   ┃
+┃           ↓                                   ↓                   ┃
+┃  ┌─────────────────────────┐        ┌─────────────────────────┐   ┃
+┃  │ SkillTool               │        │ packages/skills/        │   ┃
+┃  │ • inline/forked 双模式  │   ←→   │ • Skill 加载器          │   ┃
+┃  │ • 子 Agent 执行         │        │ • 投资技能定义          │   ┃
+┃  └─────────────────────────┘        └─────────────────────────┘   ┃
+┃           ↓                                   ↓                   ┃
+┃  ┌─────────────────────────┐        ┌─────────────────────────┐   ┃
+┃  │ MCP 集成                │        │ packages/mcp/            │   ┃
+┃  │ • 外部工具连接          │   ←→   │ • MCP 客户端            │   ┃
+┃  │ • 资源读取              │        │ • lumostock 集成         │   ┃
+┃  └─────────────────────────┘        └─────────────────────────┘   ┃
+┃                                                                     ┃
+┃  关键差异:                                                          ┃
+┃  • Claude Code: 通用编程助手，工具驱动                              ┃
+┃  • UpUp: 投资领域，配置驱动 + 知识积累                              ┃
+┃                                                                     ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+```
+
+### 10.3 数据流架构
 
 ```
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
@@ -963,7 +1013,7 @@ features:
 ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 ```
 
-### 10.3 工具注册流程
+### 10.4 工具注册流程
 
 ```
 ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
@@ -988,7 +1038,7 @@ features:
 ┃  │  │  • stock_analysis      • strategy_backtest           │   │     ┃
 ┃  │  │  • generate_report    • sentiment_analyze             │   │     ┃
 ┃  │  ├─────────────────────────────────────────────────────┤   │     ┃
-┃  │  │ Plugin Tools (L4):                                    │   │     ┃
+┃  │  │ Plugin Tools (L4):                                    │   ┃
 ┃  │  │  • lumo_stock_query   • lumo_valuation             │   │     ┃
 ┃  │  │  • sim_place_order    • portfolio_overview           │   │     ┃
 ┃  │  └─────────────────────────────────────────────────────┘   │     ┃
@@ -1025,11 +1075,15 @@ features:
 
 ### B. 参考文档
 
+- [Claude Code (loucode)](file:///Users/louloulin/Documents/linchong/claw/loucode/src/QueryEngine.ts)
 - [UpUp Agent Core](../packages/agent-core/README.md)
 - [UpUp SDK](../packages/sdk/README.md)
 - [UpUp Skills](../packages/skills/README.md)
 - [UpUp Plugin SDK](../packages/plugin-sdk/README.md)
 - [Paperclip Adapter](./paperclip1.0.md)
+- [daily_stock_analysis](../daily_stock_analysis/)
+- [TradingAgents-CN](../TradingAgents-CN/)
+- [lumostock](../lumostock/)
 
 ### C. 版本历史
 

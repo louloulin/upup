@@ -33,5 +33,6 @@
     "scheduler",
     "upup",
     "agent"
-  ]
+  ],
+  "private": false
 }

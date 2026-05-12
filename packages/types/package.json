@@ -16,5 +16,8 @@
     "dev": "bun build src/index.ts --outdir=dist --watch --target=bun",
     "test": "bun test"
   },
-  "files": ["dist"]
+  "files": [
+    "dist"
+  ],
+  "private": false
 }

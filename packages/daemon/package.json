@@ -30,5 +30,6 @@
     "worker",
     "upup",
     "agent"
-  ]
+  ],
+  "private": false
 }
