@@ -3,7 +3,7 @@
  * 通过 stdio JSON-RPC 提供 Agent 服务
  */
 
-import { runAgent } from './agent-wrapper.js'
+import { runAgentStream, type AgentRunParams } from './agent-wrapper.js'
 
 // ============ JSON-RPC 类型 ============
 
@@ -25,6 +25,11 @@ interface JsonRpcNotification {
   jsonrpc: '2.0'
   method: string
   params?: Record<string, unknown>
+}
+
+type StreamEvent = {
+  type: string
+  data?: unknown
 }
 
 // ============ StdioServer ============
@@ -70,6 +75,56 @@ export class StdioServer {
 
   private send(msg: unknown): void {
     console.log(JSON.stringify(msg))
+  }
+
+  private convertEvent(event: { type: string; [key: string]: unknown }): StreamEvent | null {
+    switch (event.type) {
+      case 'tool_start':
+        return {
+          type: 'tool_call_start',
+          data: {
+            name: event.tool,
+            args: event.args,
+            id: event.toolCallId,
+          },
+        }
+
+      case 'tool_end':
+        return {
+          type: 'tool_result',
+          data: {
+            id: event.toolCallId,
+            content: event.result,
+          },
+        }
+
+      case 'tool_error':
+        return {
+          type: 'error',
+          data: {
+            message: event.error,
+            tool: event.tool,
+          },
+        }
+
+      case 'thinking':
+        return {
+          type: 'thinking',
+          data: { content: event.thinking },
+        }
+
+      case 'display':
+        if (event.event === 'thinking') {
+          return {
+            type: 'thinking',
+            data: { content: event.text },
+          }
+        }
+        return null
+
+      default:
+        return null
+    }
   }
 
   private async handleMessage(
@@ -153,7 +208,7 @@ export class StdioServer {
         }
 
         case 'stream': {
-          // 流式运行（暂用阻塞模式 + 事件）
+          // 流式运行
           this.currentRunId = `run-${Date.now()}`
           this.abortController = new AbortController()
 
@@ -182,24 +237,34 @@ export class StdioServer {
           } as JsonRpcNotification)
 
           try {
-            // 运行 Agent
-            const result = await runAgent({
+            let finalOutput = ''
+            let toolCalls = 0
+
+            // 流式运行 Agent
+            for await (const event of runAgentStream({
               query,
               model: runParams.model,
               systemPrompt: runParams.systemPrompt,
               maxIterations: runParams.maxIterations,
               signal: this.abortController.signal,
-            })
+            })) {
+              // 转换并发送事件
+              const streamEvent = this.convertEvent(event as { type: string; [key: string]: unknown })
+              if (streamEvent) {
+                this.send({
+                  jsonrpc: '2.0',
+                  method: 'event',
+                  params: streamEvent,
+                } as JsonRpcNotification)
+              }
 
-            // 发送内容事件
-            this.send({
-              jsonrpc: '2.0',
-              method: 'event',
-              params: {
-                type: 'content_delta',
-                data: { content: result.output },
-              },
-            } as JsonRpcNotification)
+              // 收集结果
+              if (event.type === 'tool_start') {
+                toolCalls++
+              } else if (event.type === 'done') {
+                finalOutput = (event as { answer?: string }).answer ?? ''
+              }
+            }
 
             // 发送完成事件
             this.send({
@@ -209,10 +274,8 @@ export class StdioServer {
                 type: 'done',
                 data: {
                   done: true,
-                  output: result.output,
-                  toolCalls: result.toolCalls,
-                  iterations: result.iterations,
-                  totalTime: result.totalTime,
+                  output: finalOutput,
+                  toolCalls,
                   runId: this.currentRunId,
                 },
               },
@@ -223,10 +286,8 @@ export class StdioServer {
               jsonrpc: '2.0',
               id: id!,
               result: {
-                output: result.output,
-                toolCalls: result.toolCalls,
-                iterations: result.iterations,
-                totalTime: result.totalTime,
+                output: finalOutput,
+                toolCalls,
                 runId: this.currentRunId,
               },
             }
@@ -315,5 +376,21 @@ export class StdioServer {
         } as JsonRpcResponse)
       }
     }
+  }
+}
+
+// Alias for backwards compatibility
+const runAgent = async (params: Parameters<typeof runAgentStream>[0]) => {
+  let output = ''
+  for await (const event of runAgentStream(params)) {
+    if (event.type === 'done') {
+      output = (event as { answer?: string }).answer ?? ''
+    }
+  }
+  return {
+    output,
+    toolCalls: 0,
+    iterations: 0,
+    totalTime: 0,
   }
 }
