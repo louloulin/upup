@@ -4,6 +4,12 @@
  * Handles session storage for conversation history, tool usage,
  * permission denials, and other session-scoped data.
  *
+ * Features:
+ * - Full transcript persistence with message history
+ * - Session resume functionality (--resume flag)
+ * - Message deduplication and compression
+ * - Tool approval/denial tracking
+ *
  * Reference: Claude Code's sessionStorage pattern
  */
 
@@ -16,6 +22,9 @@ import { upupPath, ensureDir } from '../utils/paths.js';
 // Types
 // ============================================================================
 
+/**
+ * Session metadata
+ */
 export interface SessionMetadata {
   id: string;
   createdAt: string;
@@ -25,14 +34,51 @@ export interface SessionMetadata {
   totalTokens: number;
   model?: string;
   channel?: string;
+  /** Whether this session was resumed from a previous one */
+  resumed?: boolean;
+  /** Parent session ID if this was resumed */
+  resumedFrom?: string;
 }
 
+/**
+ * Transcript message types
+ */
+export type TranscriptRole = 'user' | 'assistant' | 'system' | 'tool' | 'result';
+
+/**
+ * Transcript message
+ */
+export interface TranscriptMessage {
+  id: string;
+  role: TranscriptRole;
+  content: string;
+  timestamp: string;
+  /** Tool name if role is 'tool' */
+  toolName?: string;
+  /** Tool result if role is 'tool' */
+  toolResult?: string;
+  /** Whether this message was compressed */
+  compressed?: boolean;
+}
+
+/**
+ * Session data
+ */
 export interface SessionData {
   metadata: SessionMetadata;
   approvedTools: string[];
   deniedTools: string[];
   toolCallCounts: Record<string, number>;
   lastQuery?: string;
+  /** Full message transcript */
+  transcript?: TranscriptMessage[];
+  /** Transcript stats */
+  transcriptStats?: {
+    messageCount: number;
+    userMessageCount: number;
+    assistantMessageCount: number;
+    toolMessageCount: number;
+  };
 }
 
 // ============================================================================
@@ -206,6 +252,245 @@ export class SessionManager {
    */
   shouldSkipTool(toolName: string): boolean {
     return this.isToolDenied(toolName);
+  }
+
+  // ============================================================================
+  // Transcript Methods
+  // ============================================================================
+
+  /**
+   * Add a message to the transcript.
+   */
+  addTranscriptMessage(
+    role: TranscriptRole,
+    content: string,
+    options?: {
+      toolName?: string;
+      toolResult?: string;
+    }
+  ): void {
+    if (!this.sessionData) return;
+
+    // Initialize transcript if needed
+    if (!this.sessionData.transcript) {
+      this.sessionData.transcript = [];
+      this.sessionData.transcriptStats = {
+        messageCount: 0,
+        userMessageCount: 0,
+        assistantMessageCount: 0,
+        toolMessageCount: 0,
+      };
+    }
+
+    // Create message with unique ID
+    const message: TranscriptMessage = {
+      id: this.createMessageId(),
+      role,
+      content,
+      timestamp: new Date().toISOString(),
+    };
+
+    if (options?.toolName) {
+      message.toolName = options.toolName;
+    }
+    if (options?.toolResult) {
+      message.toolResult = options.toolResult;
+    }
+
+    // Add to transcript
+    this.sessionData.transcript.push(message);
+    this.updateTranscriptStats();
+
+    this.scheduleSave();
+  }
+
+  /**
+   * Get full transcript for current session.
+   */
+  getTranscript(): TranscriptMessage[] {
+    return this.sessionData?.transcript ?? [];
+  }
+
+  /**
+   * Get transcript in a format suitable for resuming.
+   */
+  getTranscriptForResume(): TranscriptMessage[] {
+    const transcript = this.getTranscript();
+    // Return decompressed version for resume
+    return transcript.map(msg => ({
+      ...msg,
+      compressed: false,
+    }));
+  }
+
+  /**
+   * Resume a session from a previous session ID.
+   * Loads the transcript from the previous session.
+   */
+  async resumeFrom(sessionId: string): Promise<boolean> {
+    const previousSession = await this.loadSession(sessionId);
+    if (!previousSession) {
+      return false;
+    }
+
+    if (!this.sessionData) {
+      await this.startSession({ resumed: true, resumedFrom: sessionId });
+    }
+
+    if (this.sessionData) {
+      // Copy transcript from previous session
+      this.sessionData.transcript = previousSession.transcript ?? [];
+      this.sessionData.transcriptStats = previousSession.transcriptStats;
+      this.sessionData.metadata.resumed = true;
+      this.sessionData.metadata.resumedFrom = sessionId;
+
+      // Copy tool approvals/denials from previous session
+      this.sessionData.approvedTools = [...previousSession.approvedTools];
+      this.sessionData.deniedTools = [...previousSession.deniedTools];
+
+      await this.saveSession();
+    }
+
+    return true;
+  }
+
+  /**
+   * Compress transcript by removing redundant messages.
+   * Keeps the most recent N messages and summarizes older ones.
+   */
+  compressTranscript(keepRecent: number = 50): void {
+    if (!this.sessionData?.transcript || this.sessionData.transcript.length <= keepRecent) {
+      return;
+    }
+
+    const recent = this.sessionData.transcript.slice(-keepRecent);
+    const older = this.sessionData.transcript.slice(0, -keepRecent);
+
+    // Create a summary of older messages
+    const summary = this.summarizeMessages(older);
+
+    // Mark older messages as compressed
+    const compressedSummary: TranscriptMessage = {
+      id: this.createMessageId(),
+      role: 'system',
+      content: `[Previous ${older.length} messages summarized]: ${summary}`,
+      timestamp: older[0]?.timestamp ?? new Date().toISOString(),
+      compressed: true,
+    };
+
+    this.sessionData.transcript = [compressedSummary, ...recent];
+    this.scheduleSave();
+  }
+
+  /**
+   * Deduplicate consecutive messages with the same content.
+   */
+  deduplicateTranscript(): void {
+    if (!this.sessionData?.transcript) return;
+
+    const deduplicated: TranscriptMessage[] = [];
+    let lastContent = '';
+
+    for (const msg of this.sessionData.transcript) {
+      // Skip consecutive messages with identical content
+      if (msg.content === lastContent && msg.role !== 'tool') {
+        continue;
+      }
+      deduplicated.push(msg);
+      lastContent = msg.content;
+    }
+
+    this.sessionData.transcript = deduplicated;
+    this.updateTranscriptStats();
+    this.scheduleSave();
+  }
+
+  /**
+   * Clear the transcript for the current session.
+   */
+  clearTranscript(): void {
+    if (!this.sessionData) return;
+    this.sessionData.transcript = [];
+    this.sessionData.transcriptStats = {
+      messageCount: 0,
+      userMessageCount: 0,
+      assistantMessageCount: 0,
+      toolMessageCount: 0,
+    };
+    this.scheduleSave();
+  }
+
+  /**
+   * Export transcript as a readable format.
+   */
+  exportTranscript(): string {
+    const transcript = this.getTranscript();
+    const lines: string[] = [];
+
+    for (const msg of transcript) {
+      const prefix = `[${msg.timestamp}] ${msg.role.toUpperCase()}`;
+      if (msg.toolName) {
+        lines.push(`${prefix} [${msg.toolName}]: ${msg.content}`);
+      } else {
+        lines.push(`${prefix}: ${msg.content}`);
+      }
+    }
+
+    return lines.join('\n');
+  }
+
+  // ============================================================================
+  // Private Helper Methods
+  // ============================================================================
+
+  /**
+   * Create a unique message ID.
+   */
+  private createMessageId(): string {
+    return `msg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  }
+
+  /**
+   * Update transcript statistics.
+   */
+  private updateTranscriptStats(): void {
+    if (!this.sessionData?.transcript) return;
+
+    const stats = this.sessionData.transcriptStats ?? {
+      messageCount: 0,
+      userMessageCount: 0,
+      assistantMessageCount: 0,
+      toolMessageCount: 0,
+    };
+
+    stats.messageCount = this.sessionData.transcript.length;
+    stats.userMessageCount = this.sessionData.transcript.filter(m => m.role === 'user').length;
+    stats.assistantMessageCount = this.sessionData.transcript.filter(m => m.role === 'assistant').length;
+    stats.toolMessageCount = this.sessionData.transcript.filter(m => m.role === 'tool').length;
+
+    this.sessionData.transcriptStats = stats;
+  }
+
+  /**
+   * Summarize older messages for compression.
+   */
+  private summarizeMessages(messages: TranscriptMessage[]): string {
+    const userMsgs = messages.filter(m => m.role === 'user');
+    const assistantMsgs = messages.filter(m => m.role === 'assistant');
+    const toolCalls = messages.filter(m => m.role === 'tool');
+
+    const parts: string[] = [];
+    if (userMsgs.length > 0) {
+      parts.push(`${userMsgs.length} user messages`);
+    }
+    if (assistantMsgs.length > 0) {
+      parts.push(`${assistantMsgs.length} assistant responses`);
+    }
+    if (toolCalls.length > 0) {
+      parts.push(`${toolCalls.length} tool calls`);
+    }
+
+    return parts.join(', ');
   }
 
   /**

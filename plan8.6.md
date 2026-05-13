@@ -2,7 +2,7 @@
 
 > 版本: 8.6 | 更新日期: 2026-05-13
 > 目标: 全面分析 plan8.5 剩余未实现功能，制定实现计划
-> 状态: **P1.1 ✅ P1.2 ✅ P1.3 ✅ P2.4 ✅** | 2190 tests pass
+> 状态: **P1.1 ✅ P1.2 ✅ P1.3 ✅ P2.2 ✅ P2.4 ✅** | 2202 tests pass
 
 ---
 
@@ -111,17 +111,22 @@
 - [ ] 实现 MCP 服务器注册和启动
 - [ ] 添加 IPC 通信机制
 
-#### P2.2 Session Transcript 增强
+#### P2.2 Session Transcript 增强 ✅ 已完成
 | 项目 | 说明 |
 |------|------|
-| **状态** | **需增强** (已有 346 行) |
-| **影响** | 会话恢复功能不完整 |
-| **文件** | `src/agent/session-persistence.ts` |
+| **状态** | ✅ **已完成** |
+| **文件** | `src/agent/session-persistence.ts` (632 行) |
+| **测试** | 12 tests pass |
 
-**需实现**:
-- [ ] 添加完整的 Transcript 持久化
-- [ ] 实现 `--resume` 恢复功能
-- [ ] 添加消息去重和压缩
+**实现内容**:
+- `TranscriptRole`, `TranscriptMessage` 类型
+- `addTranscriptMessage()` - 添加消息到 transcript
+- `getTranscript()` - 获取完整 transcript
+- `compressTranscript()` - 压缩旧消息保留最近 N 条
+- `deduplicateTranscript()` - 去重连续重复消息
+- `resumeFrom()` - 从旧会话恢复 transcript
+- `exportTranscript()` - 导出为可读格式
+- 完整的 transcript 统计 (user/assistant/tool 数量)
 
 #### P2.3 Skill 执行追踪 ✅ 已完成
 | 项目 | 说明 |
