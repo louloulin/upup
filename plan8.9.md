@@ -590,4 +590,71 @@ export function getSessionsDir(): string {
 
 ---
 
-*最后更新: 2026-05-13*
+## 十、验证结果 (2026-05-14)
+
+### 10.1 oscript-storage-verify.ts 测试结果
+
+```
+═══════════════════════════════════════════════════════════════════
+  UpUp Storage System Verification (oscript-storage-verify)
+═══════════════════════════════════════════════════════════════════
+
+  Path Resolution Tests:
+  ✅ getUpupDir() returns absolute path — /Users/louloulin/.upup
+  ✅ getUpupDir() returns ~/.upup/ — /Users/louloulin/.upup
+  ✅ globalUpupPath() works — /Users/louloulin/.upup/data/sessions
+
+  Storage Layer Tests:
+  ✅ getSessionsDir() uses global path — /Users/louloulin/.upup/data/sessions
+  ✅ Sessions directory accessible
+  ✅ Create session
+  ✅ Read session metadata
+  ✅ List sessions
+  ✅ Get session summaries
+
+  Session Management Tests:
+  ✅ Rename session
+  ✅ Tag session
+  ✅ Search by title
+
+  Session Operations Tests:
+  ✅ Fork session
+  ✅ Export session to JSON
+
+  Cleanup:
+  ✅ Delete forked session
+  ✅ Delete session
+
+  Total tests:  16
+  ✅ Passed:     16
+  ❌ Failed:     0
+
+  Pass rate: 100.0%
+  ✅ ALL TESTS PASSED
+```
+
+### 10.2 实现状态
+
+| Phase | 功能 | 状态 | 验证 |
+|-------|------|------|------|
+| Phase 1 | paths.ts 重构 | ✅ 完成 | oscript 验证通过 |
+| Phase 2 | storage.ts 更新 | ✅ 完成 | oscript 验证通过 |
+| Phase 3 | 其他模块更新 | ✅ 完成 | TypeScript 编译通过 |
+| Phase 4 | PID 会话映射 | ⏳ 待实现 | - |
+| Phase 5 | 迁移脚本 | ⏳ 待实现 | - |
+| Phase 6 | 测试验证 | ✅ 完成 | 16/16 通过 |
+
+### 10.3 已验证功能
+
+- ✅ getUpupDir() 返回绝对路径 ~/.upup/
+- ✅ globalUpupPath() 正确拼接路径
+- ✅ getSessionsDir() 使用全局路径
+- ✅ 创建/读取/列表会话成功
+- ✅ 重命名/标签/搜索会话成功
+- ✅ Fork 会话功能正常
+- ✅ 导出 JSON 功能正常
+- ✅ 删除会话功能正常
+
+---
+
+*最后更新: 2026-05-14*

@@ -17,7 +17,7 @@ import type {
   SessionSummary,
   CreateSessionParams,
 } from './types.js';
-import { upupPath, ensureDir } from '../utils/paths.js';
+import { globalUpupPath, upupPath, ensureDir } from '../utils/paths.js';
 
 // ============================================================================
 // Constants
@@ -33,10 +33,10 @@ const MAX_SESSION_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 // ============================================================================
 
 /**
- * Get the sessions directory path
+ * Get the sessions directory path (uses global storage for cross-project access)
  */
 export function getSessionsDir(): string {
-  return join(upupPath('data'), SESSIONS_DIR);
+  return globalUpupPath('data', 'sessions');
 }
 
 /**

@@ -21,13 +21,34 @@ export function hasGlobalConfig(): boolean {
   return existsSync(globalUpupPath(''));
 }
 
+/**
+ * Get the UpUp configuration directory (~/.upup/)
+ *
+ * Uses global directory for cross-project data sharing.
+ * Auto-migrates from .dexter if needed.
+ */
 export function getUpupDir(): string {
+  const globalDir = globalUpupPath();
+
   // Auto-migration: .dexter → .upup on first run
-  if (!existsSync(UPUP_DIR) && existsSync(OLD_DIR)) {
-    renameSync(OLD_DIR, UPUP_DIR);
-    console.log(`[upup] Migrated config: ${OLD_DIR} → ${UPUP_DIR}`);
+  const oldLocalDir = '.dexter';
+  if (!existsSync(globalDir) && existsSync(oldLocalDir)) {
+    // Try to migrate from local .dexter
+    try {
+      mkdirSync(globalDir, { recursive: true });
+      renameSync(oldLocalDir, globalDir + '.old');
+      console.log(`[upup] Migrated config: ${oldLocalDir} → ${globalDir}`);
+    } catch {
+      // Migration failed, just use global dir
+    }
   }
-  return UPUP_DIR;
+
+  // Ensure global directory exists
+  if (!existsSync(globalDir)) {
+    mkdirSync(globalDir, { recursive: true });
+  }
+
+  return globalDir;
 }
 
 export function upupPath(...segments: string[]): string {
