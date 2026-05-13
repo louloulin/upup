@@ -13,9 +13,30 @@ import { sendUserFileTool, SEND_USER_FILE_DESCRIPTION } from '../filesystem/send
 import { heartbeatTool, HEARTBEAT_TOOL_DESCRIPTION } from '../heartbeat/heartbeat-tool.js';
 import { cronTool, CRON_TOOL_DESCRIPTION } from '../cron/cron-tool.js';
 import { memoryGetTool, MEMORY_GET_DESCRIPTION, memorySearchTool, MEMORY_SEARCH_DESCRIPTION, memoryUpdateTool, MEMORY_UPDATE_DESCRIPTION } from '../memory/index.js';
+import { bashTool, BASH_TOOL_NAME } from '../bash/index.js';
 
 export function loadFilesystemTools(): RegisteredTool[] {
   return [
+    // Bash tool - for shell commands like ls, pwd, cat, grep, mkdir, etc.
+    // Reference: Loucode's BashTool with command classification
+    {
+      name: BASH_TOOL_NAME,
+      tool: bashTool,
+      description: `Execute shell commands in the terminal. Use for:
+- Listing directories: ls, tree, du
+- Reading file content: cat, head, tail, less, more
+- Searching: find, grep, locate, which
+- File operations: mkdir, rm, cp, mv, touch, chmod
+- Information: pwd, whoami, date, uname
+- Pipes and redirects: any command with |, >, >>, &&, ||
+- Environment: echo, export, env
+
+DO NOT use this for reading individual files - use read_file instead.
+DO NOT use this for pattern matching - use glob instead.`,
+      compactDescription: 'Execute shell commands (ls, pwd, cat, grep, find, mkdir, etc.)',
+      concurrencySafe: false,
+      concurrencyMetadata: fileReadMetadata(),
+    },
     {
       name: 'read_file',
       tool: readFileTool,
@@ -42,8 +63,10 @@ export function loadFilesystemTools(): RegisteredTool[] {
     {
       name: 'glob',
       tool: globTool,
-      description: `Find files matching a glob pattern. Use this to find all files of a specific type (e.g., "**/*.ts") or files in a directory tree.`,
-      compactDescription: 'Find files by glob pattern (e.g., "**/*.ts", "src/**/*.js").',
+      description: `Find files matching a glob pattern. Use this to find all files of a specific type (e.g., "**/*.ts") or files in a directory tree.
+
+For shell commands (ls, cat, grep, find), use the bash tool instead.`,
+      compactDescription: 'Find files by glob pattern (e.g., "**/*.ts", "src/**/*.js"). For ls/cat/grep use bash.',
       concurrencySafe: true,
       concurrencyMetadata: fileReadMetadata(),
     },

@@ -9,27 +9,9 @@
 
 import { extractBaseCommand } from './security.js';
 
-// ============================================================================
-// Types
-// ============================================================================
-
-export type CommandClassification = 'read' | 'write' | 'unknown';
-export type PermissionMode = 'bypass' | 'allow' | 'ask' | 'deny';
-
-export interface CommandInfo {
-  /** Base command name */
-  command: string;
-  /** Classification */
-  classification: CommandClassification;
-  /** Permission mode */
-  mode: PermissionMode;
-  /** Whether it requires approval */
-  requiresApproval: boolean;
-  /** Human-readable description */
-  description: string;
-  /** Destructive warning if applicable */
-  destructiveWarning?: string;
-}
+// Re-export shared types
+export type { CommandClassification, PermissionMode, CommandInfo } from './types.js';
+import type { CommandClassification, PermissionMode, CommandInfo } from './types.js';
 
 // ============================================================================
 // Command Classifications
