@@ -2,7 +2,7 @@
 
 > 版本: 8.6 | 更新日期: 2026-05-13
 > 目标: 全面分析 plan8.5 剩余未实现功能，制定实现计划
-> 状态: **P1.1 ✅ P1.2 ✅ P1.3 ✅ P1.4 ✅ P2.1 ✅ P2.2 ✅ P2.4 ✅ P3.2 ✅ P3.3 ✅ P3.4 ✅** | 2279 tests pass
+> 状态: **P1.1 ✅ P1.2 ✅ P1.3 ✅ P1.4 ✅ P2.1 ✅ P2.2 ✅ P2.4 ✅ P3.2 ✅ P3.3 ✅ P3.4 ✅** | 2272 tests pass
 
 ---
 
@@ -189,18 +189,16 @@
 #### P3.3 语义检索 (Embedding) ✅ 已完成
 | 项目 | 说明 |
 |------|------|
-| **状态** | ✅ **已完成** |
-| **文件** | `src/memory/embeddings.ts` |
-| **测试** | 17 tests pass |
+| **状态** | ✅ **已完成** (集成到 memvid) |
+| **文件** | `src/memory/search.ts` |
+| **测试** | 10 tests pass |
 
 **实现内容**:
-- `SimpleTFIDFEmbedder` - 简单 TF-IDF 嵌入器，无需外部 API
-- `SimpleSearchEngine` - 内存语义搜索引擎
-- 支持 cosine similarity 相似度计算
-- `tokenize()` - 分词和停用词过滤
-- `embed()` - 生成归一化向量
-- `index()` - 文档索引
-- `search()` - 语义搜索
+- `tfidfSearch()` - TF-IDF 语义搜索函数
+- `TFIDFSearchEngine` - 内存搜索引擎
+- `TFIDFEmbedder` - TF-IDF 向量嵌入
+- 与 memvid BM25 搜索集成
+- 无需外部 embedding API
 
 #### P3.4 完整任务系统 ✅ 已完成
 | 项目 | 说明 |
