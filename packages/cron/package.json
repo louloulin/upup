@@ -1,6 +1,6 @@
 {
   "name": "@upup/cron",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "UpUp Cron System - Cron job types, schedule computation, and job management",
   "type": "module",
   "main": "./dist/index.js",

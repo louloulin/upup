@@ -1,6 +1,6 @@
 {
   "name": "@upup/sdk",
-  "version": "0.1.0",
+  "version": "0.2.1",
   "description": "UP SDK - Agent SDK with stdio communication",
   "type": "module",
   "main": "./dist/index.js",

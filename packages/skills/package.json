@@ -1,6 +1,6 @@
 {
   "name": "@upup/skills",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "UpUp Skills SDK - Skill discovery, loading, and scheduling",
   "type": "module",
   "main": "./dist/index.js",
