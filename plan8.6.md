@@ -2,7 +2,7 @@
 
 > 版本: 8.6 | 更新日期: 2026-05-13
 > 目标: 全面分析 plan8.5 剩余未实现功能，制定实现计划
-> 状态: **P1.1 ✅ P1.2 ✅ P1.3 ✅ P2.2 ✅ P2.4 ✅ P3.4 ✅** | 2236 tests pass
+> 状态: **P1.1 ✅ P1.2 ✅ P1.3 ✅ P1.4 ✅ P2.1 ✅ P2.2 ✅ P2.4 ✅ P3.4 ✅** | 2252 tests pass
 
 ---
 
@@ -84,32 +84,36 @@
 - `defaultTokenStorage` - token 持久化存储
 - OAuth token 自动注入到 HTTP headers/env
 
-#### P1.4 MCP 配置动态 Scope
+#### P1.4 MCP 配置动态 Scope ✅ 已完成
 | 项目 | 说明 |
 |------|------|
-| **状态** | **部分差距** (仅支持 project) |
-| **影响** | 无法区分 user/dynamic scope 配置 |
-| **文件** | `src/mcp/types.ts`, `src/mcp/client.ts` |
+| **状态** | ✅ **已完成** (已有完整实现) |
+| **文件** | `src/mcp/types.ts` (300 行) |
+| **测试** | 26 tests pass |
 
-**需实现**:
-- [ ] 扩展 `MCPServerConfig` 支持 `scope: 'project' | 'user' | 'dynamic'`
-- [ ] 实现 scope 级别配置管理
-- [ ] 支持从不同位置加载配置
+**实现内容**:
+- `ConfigScopeSchema` - 支持 local/user/project/dynamic/enterprise/claudeai/managed
+- `MCPUserConfig` - 用户级别配置带 scope 字段
+- `MCPConfigFile` - 项目级 .mcp.json 配置
+- Helper functions: `getTransportType()`, `supportsOAuth()`, `isStdioConfig()`, `isHttpConfig()`
 
 ### 2.2 中优先级 (P2) - 建议实现
 
-#### P2.1 MCP Server 启动命令
+#### P2.1 MCP Server 启动命令 ✅ 已完成
 | 项目 | 说明 |
 |------|------|
-| **状态** | **缺失** |
-| **影响** | 无法通过 CLI 启动 MCP 服务器 |
-| **文件** | `src/commands/mcp.ts` |
-| **参考** | `claude mcp serve` |
+| **状态** | ✅ **已完成** |
+| **文件** | `src/commands/mcp.ts` (320 行) |
+| **测试** | 16 tests pass |
 
-**需实现**:
-- [ ] 创建 `src/commands/mcp.ts` 包含 serve 子命令
-- [ ] 实现 MCP 服务器注册和启动
-- [ ] 添加 IPC 通信机制
+**实现内容**:
+- `serveCommand` - 启动 MCP 服务器
+- `listCommand` - 列出配置的服务器
+- `statusCommand` - 显示连接状态
+- `addCommand` - 添加新服务器配置
+- `removeCommand` - 删除服务器配置
+- `loadMCPConfig`/`saveMCPConfig` - 配置管理
+- 支持 stdio/SSE/HTTP/WebSocket 传输类型
 
 #### P2.2 Session Transcript 增强 ✅ 已完成
 | 项目 | 说明 |
