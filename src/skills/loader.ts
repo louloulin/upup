@@ -25,6 +25,7 @@ export function parseSkillFile(content: string, path: string, source: SkillSourc
 
   // Parse optional fields
   const model = parseModelField(data.model);
+  const context = parseContextField(data.context);
 
   return {
     name: data.name,
@@ -35,8 +36,58 @@ export function parseSkillFile(content: string, path: string, source: SkillSourc
     userInvocable: data['user-invocable'] === true,
     argumentHint: data['argument-hint'] as string | undefined,
     dependsOn: parseDependsOnField(data['depends-on'] ?? data.dependsOn),
+    // New fields for dual-mode execution
+    context,
+    agent: data.agent as string | undefined,
+    allowedTools: parseAllowedToolsField(data['allowed-tools'] ?? data.allowedTools),
+    progressMessage: data['progress-message'] as string | undefined,
+    whenToUse: data['when-to-use'] as string | undefined,
+    aliases: parseAliasesField(data.aliases),
     instructions: instructions.trim(),
   };
+}
+
+/**
+ * Parse context field (inline/fork execution mode)
+ */
+function parseContextField(value: unknown): 'inline' | 'fork' | undefined {
+  if (!value) return undefined;
+  if (typeof value === 'string') {
+    const normalized = value.toLowerCase().trim();
+    if (normalized === 'inline' || normalized === 'fork') {
+      return normalized;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Parse allowed tools field
+ */
+function parseAllowedToolsField(value: unknown): string[] | undefined {
+  if (!value) return undefined;
+  if (typeof value === 'string') {
+    // Split by comma
+    return value.split(',').map((s) => s.trim()).filter(Boolean);
+  }
+  if (Array.isArray(value)) {
+    return value.filter((v): v is string => typeof v === 'string');
+  }
+  return undefined;
+}
+
+/**
+ * Parse aliases field
+ */
+function parseAliasesField(value: unknown): string[] | undefined {
+  if (!value) return undefined;
+  if (typeof value === 'string') {
+    return value.split(',').map((s) => s.trim()).filter(Boolean);
+  }
+  if (Array.isArray(value)) {
+    return value.filter((v): v is string => typeof v === 'string');
+  }
+  return undefined;
 }
 
 /**
@@ -107,5 +158,12 @@ export function extractSkillMetadata(path: string, source: SkillSource): SkillMe
     userInvocable: data['user-invocable'] === true,
     argumentHint: data['argument-hint'] as string | undefined,
     dependsOn: parseDependsOnField(data['depends-on'] ?? data.dependsOn),
+    // New fields for dual-mode execution
+    context: parseContextField(data.context),
+    agent: data.agent as string | undefined,
+    allowedTools: parseAllowedToolsField(data['allowed-tools'] ?? data.allowedTools),
+    progressMessage: data['progress-message'] as string | undefined,
+    whenToUse: data['when-to-use'] as string | undefined,
+    aliases: parseAliasesField(data.aliases),
   };
 }

@@ -2,9 +2,11 @@
  * SkillTool - Skill Discovery and Execution
  *
  * Exposes UpUp's skill system as tools for:
- * - Listing available skills with metadata
+ * - Listing available skills with metadata (including context/agent info)
  * - Loading a skill's full instructions
  * - Getting detailed info about a specific skill
+ * - Searching skills by name/description
+ * - Executing skills (inline/fork dual mode)
  *
  * Skills are discovered from builtin, user, and project directories.
  * See src/skills/ for the underlying skill system.
@@ -13,7 +15,9 @@
 import { z } from 'zod';
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { discoverSkills, getSkill } from '../skills/registry.js';
-import type { SkillMetadata, Skill } from '../skills/types.js';
+import type { SkillMetadata, Skill, SkillContext } from '../skills/types.js';
+import type { SubagentRunner } from '../agent/subagent.js';
+import { executeSkill, getExecutionMode, shouldUseForkMode } from '../skills/executor.js';
 
 // ============================================================================
 // Schemas
@@ -31,6 +35,8 @@ export const SkillExecuteSchema = z.object({
   name: z.string().describe('Name of the skill to load'),
   /** Optional arguments to pass to the skill */
   args: z.string().optional().describe('Arguments to pass to the skill'),
+  /** Execution mode override (inline or fork) */
+  mode: z.enum(['inline', 'fork']).optional().describe('Execution mode: inline (default) or fork (subagent)'),
 });
 
 export const SkillInfoSchema = z.object({
@@ -38,9 +44,17 @@ export const SkillInfoSchema = z.object({
   name: z.string().describe('Name of the skill to get info about'),
 });
 
+export const SkillSearchSchema = z.object({
+  /** Search query */
+  query: z.string().describe('Search query for skill name or description'),
+  /** Maximum number of results */
+  limit: z.number().optional().default(5).describe('Maximum number of results'),
+});
+
 export type SkillListInput = z.infer<typeof SkillListSchema>;
 export type SkillExecuteInput = z.infer<typeof SkillExecuteSchema>;
 export type SkillInfoInput = z.infer<typeof SkillInfoSchema>;
+export type SkillSearchInput = z.infer<typeof SkillSearchSchema>;
 
 // ============================================================================
 // Descriptions
@@ -54,7 +68,7 @@ Use this when:
 - Finding a skill by name or category
 - Showing the user what skills UpUp can use
 
-Returns a formatted list of skills with name, description, source, and model preference.
+Returns a formatted list of skills with name, description, source, model, and execution mode.
 Optionally filter by source category: "builtin", "user", or "project".
 
 Examples:
@@ -73,6 +87,10 @@ Use this when:
 Returns the skill's complete instruction text, ready for injection into context.
 If the skill is not found, returns an error message.
 
+Optional mode parameter:
+- inline (default): Execute in current agent context
+- fork: Execute in isolated subagent context
+
 Examples:
 - Load the "dcf" skill instructions
 - Load the "technical-analysis" skill with arguments`;
@@ -84,13 +102,28 @@ Use this when:
 - Inspecting a skill before executing it
 - Checking if a skill is user-invocable
 - Viewing a skill's argument hint or model preference
+- Checking execution mode (inline/fork) and agent type
 
 Returns detailed metadata: name, description, source, model, user-invocable flag,
-argument hint, and file path.
+argument hint, execution mode, allowed tools, and file path.
 
 Examples:
 - Get info about the "dcf" skill
-- Check if "backtesting" is user-invocable`;
+- Check execution mode of "backtesting" skill`;
+
+export const SKILL_SEARCH_DESCRIPTION = `
+Search for available skills by name or description.
+
+Use this when:
+- Finding skills matching a keyword
+- Discovering similar skills
+- Looking for skills in a category
+
+Returns matching skills with name, description, and execution mode.
+
+Examples:
+- Search for "analysis" skills
+- Find skills related to "stock"`;
 
 // ============================================================================
 // Helper Functions
@@ -101,7 +134,8 @@ Examples:
  */
 function formatSkillSummary(skill: SkillMetadata): string {
   const modelTag = skill.model ? ` [${skill.model}]` : '';
-  return `  - ${skill.name}${modelTag}: ${skill.description} (${skill.source})`;
+  const contextTag = skill.context ? ` [${skill.context}]` : '';
+  return `  - ${skill.name}${modelTag}${contextTag}: ${skill.description} (${skill.source})`;
 }
 
 /**
@@ -127,8 +161,14 @@ function formatSkillInfo(skill: SkillMetadata): string {
     `Model: ${skill.model ?? 'default'}`,
     `User-invocable: ${skill.userInvocable ? 'yes' : 'no'}`,
     `Argument hint: ${skill.argumentHint ?? '(none)'}`,
+    `Execution mode: ${skill.context ?? 'inline'}`,
+    `Agent type: ${skill.agent ?? '(default)'}`,
+    skill.allowedTools ? `Allowed tools: ${skill.allowedTools.join(', ')}` : null,
+    skill.progressMessage ? `Progress message: ${skill.progressMessage}` : null,
+    skill.whenToUse ? `When to use: ${skill.whenToUse}` : null,
+    skill.aliases && skill.aliases.length > 0 ? `Aliases: ${skill.aliases.join(', ')}` : null,
     `Path: ${skill.path}`,
-  ];
+  ].filter((line) => line !== null && line !== undefined);
   return lines.join('\n');
 }
 
@@ -192,7 +232,21 @@ export function createSkillExecuteTool(): DynamicStructuredTool {
           return `Skill not found: "${input.name}". Use skill_list to see available skills.`;
         }
 
-        return formatSkillInstructions(skill, input.args);
+        // Determine execution mode
+        const mode = input.mode || skill.context || 'inline';
+
+        // Format instructions with execution mode info
+        let result = formatSkillInstructions(skill, input.args);
+
+        // Add execution mode hint
+        result += `\n[Execution mode: ${mode}]`;
+
+        // Add fork mode suggestion if applicable
+        if (shouldUseForkMode(skill)) {
+          result += `\n[Hint: This skill may benefit from fork mode execution]`;
+        }
+
+        return result;
       } catch (err) {
         return `Skill execute error: ${err instanceof Error ? err.message : String(err)}`;
       }
@@ -221,3 +275,47 @@ export function createSkillInfoTool(): DynamicStructuredTool {
     },
   });
 }
+
+export function createSkillSearchTool(): DynamicStructuredTool {
+  return new DynamicStructuredTool({
+    name: 'skill_search',
+    description: SKILL_SEARCH_DESCRIPTION,
+    schema: SkillSearchSchema,
+    async func(input): Promise<string> {
+      try {
+        const skills = discoverSkills();
+        const query = input.query.toLowerCase();
+        const limit = input.limit || 5;
+
+        // Search by name, description, or whenToUse
+        const matches = skills.filter(
+          (s) =>
+            s.name.toLowerCase().includes(query) ||
+            s.description.toLowerCase().includes(query) ||
+            (s.whenToUse && s.whenToUse.toLowerCase().includes(query)) ||
+            (s.aliases && s.aliases.some((a) => a.toLowerCase().includes(query)))
+        ).slice(0, limit);
+
+        if (matches.length === 0) {
+          return `No skills found matching "${input.query}". Try skill_list to see all available skills.`;
+        }
+
+        const lines = [`Found ${matches.length} skill(s):`];
+        for (const skill of matches) {
+          lines.push(formatSkillSummary(skill));
+        }
+
+        return lines.join('\n');
+      } catch (err) {
+        return `Skill search error: ${err instanceof Error ? err.message : String(err)}`;
+      }
+    },
+  });
+}
+
+// ============================================================================
+// Exports for tool registry
+// ============================================================================
+
+// Descriptions are exported inline at their definition above
+// Tool factories: createSkillListTool, createSkillExecuteTool, createSkillInfoTool, createSkillSearchTool
