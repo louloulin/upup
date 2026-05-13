@@ -2,8 +2,8 @@
 
 > 版本: 8.5 | 更新日期: 2026-05-13
 > 目标: 对齐 Claude Code (loucode) 能力，完善 Plugin SDK、MCP 集成、Skills 系统
-> 状态: **P0 ✅ P1 ✅ P2 核心完成** | 2149 tests pass
-> 测试: 2024 tests pass | 新增 32 skill tests
+> 状态: **P0 ✅ P1 ✅ P2 核心完成** | 2178 tests pass
+> 测试: 2178 tests pass | 新增 prompts/sampling + nested-paths
 > 前提: plan8.md (分层架构) + plan9.md (多平台模块化)
 
 ---
@@ -1053,8 +1053,8 @@ export class MemDir {
 | MCP 工具权限过滤 | 完整集成 | 基础集成 | 部分差距 |
 | MCP 资源自动同步 | listChanged 通知处理 | 基础 | 需增强 |
 | MCP 心跳/保活 | 基础 | 需增强 | 部分差距 |
-| MCP prompts/list | 支持 | 无 | **缺失** |
-| MCP sampling/create | 支持 | 无 | **缺失** |
+| MCP prompts/list | 支持 | ✅ 完整 (listPrompts) | 对等 |
+| MCP sampling/create | 支持 | ✅ 完整 (createSamplingMessage) | 对等 |
 
 ### 4.3 Skills 系统差距
 
@@ -1090,7 +1090,7 @@ export class MemDir {
 | 记忆时间衰减 | temporalDecay.ts | temporal-decay.ts | 对等 |
 | 记忆合并 | consolidation.ts | consolidation.ts | 对等 |
 | 团队记忆 | teamMemPaths.ts | ⚠️ 有 team-paths.ts | 部分对等 |
-| 嵌套记忆路径 | nestedMemoryPaths | 无 | **缺失** |
+| 嵌套记忆路径 | nestedMemoryPaths | ✅ 完整 (nested-paths.ts) | 对等 |
 | 记忆变化通知 | useMemoryUsage hook | ⚠️ 有 useMemoryUsage hook | 部分对等 |
 | 记忆加密存储 | 无 | encrypted-store.ts | Dexter独有 |
 
@@ -1569,15 +1569,12 @@ MCPClientManager.connect(config)
 | ✅ P2 | Plugins | CLI 插件管理命令 | `src/commands/plugin.ts` | ✅ 已完成 | 17 tests |
 | ✅ P2 | Plugins | Marketplace 远程发现 | `src/plugins/discovery.ts` | ✅ 已完成 | 部分完成 |
 | ✅ P2 | MCP | MCP Elicitation 集成 | `src/hooks/elicitation.ts` | ✅ 已完成 | 32 tests |
+| ✅ P2 | MCP | MCP prompts/sampling | `src/mcp/client.ts` | ✅ 已完成 | 8 tests |
 | P2 | MCP | MCP 连接管理 UI | React 组件 | 待实现 | 需前端 |
-| P2 | Memory | 嵌套记忆路径 | `src/memory/nested-paths.ts` | 待实现 | - |
+| ✅ P2 | Memory | 嵌套记忆路径 | `src/memory/nested-paths.ts` | ✅ 已完成 | 21 tests |
 | P2 | Memory | 语义检索 (embedding) | `src/memory/embeddings.ts` | 待实现 | - |
 | ✅ P2 | Agent | SDKMessage 类型对齐 | `src/agent/sdk-types.ts` | ✅ 已完成 | 25 tests |
 | P2 | Agent | Transcript 持久化增强 | `src/agent/session-persistence.ts` | 待实现 | 已有346行 |
-
----
-
-## 12. 实施路线图
 
 ### 12.1 时间线 (已更新)
 

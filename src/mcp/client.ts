@@ -583,6 +583,96 @@ export class MCPClientManager extends EventEmitter {
       logError('mcp', `Reconnect failed for ${serverName}: ${message}`);
     }
   }
+
+  /**
+   * List available prompts from a server or all connected servers.
+   */
+  async listPrompts(serverName?: string): Promise<Array<{ server: string; prompts: MCPPrompt[] }>> {
+    const results: Array<{ server: string; prompts: MCPPrompt[] }> = [];
+
+    const servers = serverName
+      ? [[serverName, this.clients.get(serverName)] as const]
+      : Array.from(this.clients.entries());
+
+    for (const [name, client] of servers) {
+      if (!client) continue;
+      try {
+        const result = await client.request(
+          { method: 'prompts/list' },
+          { prompts: [] }
+        );
+        results.push({ server: name, prompts: result.prompts || [] });
+      } catch {
+        info('mcp', `Server ${name} does not support prompts`);
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Get a specific prompt from an MCP server.
+   */
+  async getPrompt(
+    serverName: string,
+    promptName: string,
+    args?: Record<string, string>
+  ): Promise<MCPPromptResult> {
+    const client = this.clients.get(serverName);
+    if (!client) {
+      throw new Error(`MCP server not found: ${serverName}`);
+    }
+
+    const result = await client.request(
+      { method: 'prompts/get' },
+      { name: promptName, arguments: args || {} }
+    );
+
+    return {
+      server: serverName,
+      description: result.description,
+      messages: result.messages || [],
+    };
+  }
+
+  /**
+   * Request a sampling completion from an MCP server.
+   */
+  async createSamplingMessage(
+    serverName: string,
+    params: SamplingParams
+  ): Promise<SamplingResult> {
+    const client = this.clients.get(serverName);
+    if (!client) {
+      throw new Error(`MCP server not found: ${serverName}`);
+    }
+
+    try {
+      const result = await client.request(
+        { method: 'sampling/createMessage' },
+        {
+          method: 'sampling/createMessage',
+          params: {
+            messages: params.messages,
+            systemPrompt: params.systemPrompt,
+            temperature: params.temperature,
+            maxTokens: params.maxTokens,
+            stopSequences: params.stopSequences,
+          },
+        }
+      );
+
+      return {
+        server: serverName,
+        content: result.content,
+        model: result.model,
+        stopReason: result.stopReason,
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Sampling failed for ${serverName}: ${message}`);
+    }
+  }
 }
 
 // Default client instance
@@ -625,6 +715,72 @@ export function loadMCPConfig(configPath?: string): MCPClientConfig {
     // Return empty config if file doesn't exist
     return { servers: [] };
   }
+}
+
+/**
+ * MCP Prompt definition
+ */
+export interface MCPPrompt {
+  name: string;
+  description?: string;
+  arguments?: MCPPromptArgument[];
+}
+
+/**
+ * MCP Prompt argument
+ */
+export interface MCPPromptArgument {
+  name: string;
+  description?: string;
+  required?: boolean;
+}
+
+/**
+ * MCP Prompt result
+ */
+export interface MCPPromptResult {
+  server: string;
+  description?: string;
+  messages: MCPSamplingMessage[];
+}
+
+/**
+ * Sampling message
+ */
+export interface MCPSamplingMessage {
+  role: 'user' | 'assistant';
+  content: MCPSamplingContent;
+}
+
+/**
+ * Sampling content
+ */
+export interface MCPSamplingContent {
+  type: 'text' | 'image';
+  text?: string;
+  data?: string;
+  mimeType?: string;
+}
+
+/**
+ * Sampling parameters
+ */
+export interface SamplingParams {
+  messages: MCPSamplingMessage[];
+  systemPrompt?: string;
+  temperature?: number;
+  maxTokens?: number;
+  stopSequences?: string[];
+}
+
+/**
+ * Sampling result
+ */
+export interface SamplingResult {
+  server: string;
+  content: MCPSamplingContent;
+  model?: string;
+  stopReason?: string;
 }
 
 /**
