@@ -23,7 +23,9 @@ export type PluginCapability =
   | 'analysis'
   | 'strategy'
   | 'channel'
-  | 'service';
+  | 'service'
+  | 'skill'       // Plugin provides skills
+  | 'hook';       // Plugin provides hooks
 
 /** Hook execution modes */
 export type HookExecutionMode = 'parallel' | 'sequential' | 'sync';

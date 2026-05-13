@@ -2,7 +2,7 @@
 
 > 版本: 8.6 | 更新日期: 2026-05-13
 > 目标: 全面分析 plan8.5 剩余未实现功能，制定实现计划
-> 状态: **P1.1 ✅ P1.2 ✅ P1.3 ✅ P1.4 ✅ P2.1 ✅ P2.2 ✅ P2.4 ✅ P3.4 ✅** | 2252 tests pass
+> 状态: **P1.1 ✅ P1.2 ✅ P1.3 ✅ P1.4 ✅ P2.1 ✅ P2.2 ✅ P2.4 ✅ P3.2 ✅ P3.4 ✅** | 2262 tests pass
 
 ---
 
@@ -171,12 +171,20 @@
 | **文件** | React 组件 |
 | **优先级** | 需要前端开发 |
 
-#### P3.2 插件 Skill/Hook 集成
+#### P3.2 插件 Skill/Hook 集成 ✅ 已完成
 | 项目 | 说明 |
 |------|------|
-| **状态** | **缺失** |
-| **影响** | 插件无法提供 Skill/Hook |
-| **文件** | `src/plugins/` |
+| **状态** | ✅ **已完成** |
+| **文件** | `src/plugins/types.ts`, `src/skills/loader.ts` |
+| **测试** | 10 tests pass |
+
+**实现内容**:
+- 扩展 `PluginCapability` 支持 `'skill'` 和 `'hook'`
+- 添加 `convertPluginSkill()` 函数转换插件技能
+- 添加 `convertPluginSkills()` 批量转换
+- `BuiltinPluginDefinition.skills` 字段已存在
+- `BuiltinPluginDefinition.hooks` 字段已存在
+- `getBuiltinPluginSkills()` 和 `getBuiltinPluginMCPServers()` 已实现
 
 #### P3.3 语义检索 (Embedding)
 | 项目 | 说明 |
