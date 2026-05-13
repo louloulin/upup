@@ -2,7 +2,7 @@
 
 > 版本: 8.6 | 更新日期: 2026-05-13
 > 目标: 全面分析 plan8.5 剩余未实现功能，制定实现计划
-> 状态: **P1.1 ✅ P1.2 ✅ P1.3 ✅** | 2183 tests pass
+> 状态: **P1.1 ✅ P1.2 ✅ P1.3 ✅ P2.4 ✅** | 2190 tests pass
 
 ---
 
@@ -137,17 +137,20 @@
 - `wasDiscovered()`, `wasExecuted()` - 查询方法
 - `defaultSkillTracker` - 全局追踪器实例
 
-#### P2.4 Skill 变更监听 Hook
+#### P2.4 Skill 变更监听 Hook ✅ 已完成
 | 项目 | 说明 |
 |------|------|
-| **状态** | **缺失** |
-| **影响** | UI 无法感知 Skill 变更 |
-| **文件** | `src/hooks/use-skills-change.ts` (React) |
+| **状态** | ✅ **已完成** |
+| **文件** | `src/hooks/use-skills-change.ts` |
+| **测试** | 7 tests |
 
-**需实现**:
-- [ ] 创建 `useSkillsChange` hook
-- [ ] 监听 skills 目录变更
-- [ ] 提供 debounced 回调
+**实现内容**:
+- `useSkillsChange` - React hook 监听 skills 变更
+- `useSkillsList` - 简化版 skill 列表 hook
+- `createSkillsWatcher` - 非 React 场景的文件监视器
+- 支持 add/modified/removed 事件
+- Debounced 回调避免频繁触发
+- `SkillChangeEvent` 类型定义
 
 ### 2.3 低优先级 (P3) - 未来实现
 
