@@ -42,6 +42,22 @@ export interface ServeOptions extends MCPCommandOptions {
 }
 
 // ============================================================================
+// Type Conversion Helpers
+// ============================================================================
+
+/**
+ * Convert Record<string, McpServerConfig> to legacy MCPServerConfig[] format
+ */
+function toLegacyServerConfigs(servers: Record<string, McpServerConfig>): { name: string; command?: string; args?: string[]; env?: Record<string, string>; url?: string; autoConnect?: boolean }[] {
+  return Object.entries(servers).map(([name, config]) => {
+    if (config.type === 'stdio') {
+      return { name, command: config.command, args: config.args, env: config.env, autoConnect: config.autoConnect };
+    }
+    return { name, url: config.url };
+  });
+}
+
+// ============================================================================
 // Config Management
 // ============================================================================
 
@@ -137,17 +153,17 @@ export async function serveCommand(options: ServeOptions): Promise<void> {
   servers[name] = serverConfig;
   saveMCPConfig(servers, configFilePath);
 
-  // Create client manager
-  const manager = new MCPClientManager({ servers });
+  // Create client manager (convert to legacy format)
+  const manager = new MCPClientManager({ servers: toLegacyServerConfigs(servers) });
 
   if (verbose) {
     console.log(`Starting MCP server: ${name}`);
     console.log(`Config: ${JSON.stringify(serverConfig, null, 2)}`);
   }
 
-  // Connect to server
+  // Connect to server (convert to legacy format)
   try {
-    await manager.connect(name);
+    await manager.connect(toLegacyServerConfigs({ [name]: serverConfig })[0]);
 
     if (verbose) {
       console.log(`Server "${name}" started successfully`);
@@ -220,13 +236,13 @@ export async function statusCommand(options: MCPCommandOptions): Promise<void> {
     return;
   }
 
-  const manager = new MCPClientManager({ servers });
+  const manager = new MCPClientManager({ servers: toLegacyServerConfigs(servers) });
 
   console.log('MCP Server Status:');
   console.log('');
 
   for (const [name] of Object.entries(servers)) {
-    const status = manager.getServerStatus(name);
+    const status = manager.getConnectionState(name);
 
     if (status) {
       const state = status.state;

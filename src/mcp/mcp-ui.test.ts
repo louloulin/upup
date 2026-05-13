@@ -14,6 +14,7 @@ import {
   printMCPServers,
 } from './mcp-ui.js';
 import { saveMCPConfig, loadMCPConfig } from '../commands/mcp.js';
+import type { McpServerConfig, MCPServerStatus } from './types.js';
 
 describe('MCPServerList', () => {
   let list: MCPServerList;
@@ -30,8 +31,8 @@ describe('MCPServerList', () => {
 
   it('should render servers', () => {
     const servers: MCPServerInfo[] = [
-      { name: 'server1', config: { type: 'stdio', command: 'echo' } },
-      { name: 'server2', config: { type: 'stdio', command: 'node' } },
+      { name: 'server1', config: { type: 'stdio', command: 'echo', args: [] } as McpServerConfig },
+      { name: 'server2', config: { type: 'stdio', command: 'node', args: [] } as McpServerConfig },
     ];
 
     list.setServers(servers);
@@ -44,9 +45,9 @@ describe('MCPServerList', () => {
 
   it('should navigate up/down', () => {
     const servers: MCPServerInfo[] = [
-      { name: 'server1', config: { type: 'stdio', command: 'echo' } },
-      { name: 'server2', config: { type: 'stdio', command: 'node' } },
-      { name: 'server3', config: { type: 'stdio', command: 'python' } },
+      { name: 'server1', config: { type: 'stdio', command: 'echo', args: [] } as McpServerConfig },
+      { name: 'server2', config: { type: 'stdio', command: 'node', args: [] } as McpServerConfig },
+      { name: 'server3', config: { type: 'stdio', command: 'python', args: [] } as McpServerConfig },
     ];
 
     list.setServers(servers);
@@ -60,10 +61,16 @@ describe('MCPServerList', () => {
   });
 
   it('should show status icons', () => {
+    const makeStatus = (state: 'connected' | 'disconnected' | 'error'): MCPServerStatus => ({
+      name: state,
+      state,
+      transport: 'stdio',
+      autoConnect: false,
+    });
     const servers: MCPServerInfo[] = [
-      { name: 'connected', config: { type: 'stdio', command: 'echo' }, status: { name: 'connected', state: 'connected', transport: 'stdio', autoConnect: false } },
-      { name: 'disconnected', config: { type: 'stdio', command: 'echo' }, status: { name: 'disconnected', state: 'disconnected', transport: 'stdio', autoConnect: false } },
-      { name: 'error', config: { type: 'stdio', command: 'echo' }, status: { name: 'error', state: 'error', transport: 'stdio', autoConnect: false } },
+      { name: 'connected', config: { type: 'stdio', command: 'echo', args: [] } as McpServerConfig, status: makeStatus('connected') },
+      { name: 'disconnected', config: { type: 'stdio', command: 'echo', args: [] } as McpServerConfig, status: makeStatus('disconnected') },
+      { name: 'error', config: { type: 'stdio', command: 'echo', args: [] } as McpServerConfig, status: makeStatus('error') },
     ];
 
     list.setServers(servers);
@@ -91,7 +98,7 @@ describe('MCPServerDetail', () => {
   it('should render server details', () => {
     const server: MCPServerInfo = {
       name: 'test-server',
-      config: { type: 'stdio', command: 'node', args: ['server.js'] },
+      config: { type: 'stdio', command: 'node', args: ['server.js'] } as McpServerConfig,
     };
 
     detail.setServer(server);
@@ -105,7 +112,7 @@ describe('MCPServerDetail', () => {
   it('should show URL for HTTP servers', () => {
     const server: MCPServerInfo = {
       name: 'http-server',
-      config: { type: 'sse', url: 'https://api.example.com/mcp' },
+      config: { type: 'sse', url: 'https://api.example.com/mcp' } as McpServerConfig,
     };
 
     detail.setServer(server);
@@ -138,7 +145,7 @@ describe('MCP Config Integration', () => {
     const loaded = loadMCPConfig(configPath);
 
     expect(loaded['test-server']).toBeDefined();
-    expect(loaded['test-server'].command).toBe('echo');
+    expect((loaded['test-server'] as { command: string }).command).toBe('echo');
   });
 
   it('should print servers', () => {

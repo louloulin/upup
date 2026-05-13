@@ -65,6 +65,8 @@ export interface AgentConfig {
   memoryEnabled?: boolean;
   /** Message queue for mid-run injection of new user messages. */
   messageQueue?: MessageQueue;
+  /** Optional session ID for background session tracking */
+  sessionId?: string;
   /**
    * Tool filter: whitelist of tool names the agent may use.
    * - '*' or undefined: all registered tools (default)

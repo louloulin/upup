@@ -15,6 +15,8 @@ export class CustomEditor extends Editor {
   onApprovalNavigate?: (direction: 'up' | 'down') => void;
   /** Called when user presses Enter during approval selection */
   onApprovalSelect?: () => void;
+  /** Called when session list is active: handles d/n/t/r keys. Returns true if consumed. */
+  onSessionListKey?: (key: string) => boolean;
   /**
    * Optional keybinding resolver. When set, keys not consumed by the slash
    * suggestion system are converted to KeyEvent and passed here for resolution.
@@ -58,6 +60,12 @@ export class CustomEditor extends Editor {
     // Approval mode: route 1/2/3 + Enter/Esc to approval handler
     if (this.onApprovalKey) {
       const consumed = this.onApprovalKey(data);
+      if (consumed) return;
+    }
+
+    // Session list mode: route d/n/t/r keys to session handler
+    if (this.onSessionListKey) {
+      const consumed = this.onSessionListKey(data);
       if (consumed) return;
     }
 

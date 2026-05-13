@@ -238,7 +238,7 @@ export class MCPServerManager extends EventEmitter {
 
       const checkAndKill = () => {
         try {
-          process.kill(0, 0); // Check if process exists
+          process.kill('SIGTERM'); // Attempt graceful shutdown
           return true;
         } catch {
           return false;

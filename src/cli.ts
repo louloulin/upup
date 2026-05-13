@@ -13,6 +13,7 @@ import {
   AgentRunnerController,
   InputHistoryController,
   ModelSelectionController,
+  SessionSelectionController,
 } from './controllers/index.js';
 import {
   ApiKeyInputComponent,
@@ -28,6 +29,10 @@ import {
   createApiKeyConfirmSelector,
   createModelSelector,
   createProviderSelector,
+  createSessionSelector,
+  createSessionDeleteConfirmSelector,
+  SessionRenameInputComponent,
+  SessionTagInputComponent,
 } from './components/index.js';
 import { editorTheme, theme } from './theme.js';
 import { matchCommands, type SlashCommand } from './commands/index.js';
@@ -203,7 +208,13 @@ function renderEvent(
   }
 }
 
-export async function runCli() {
+export interface RunCliOptions {
+  resumeTarget?: string;
+  continue?: boolean;
+  fork?: boolean;
+}
+
+export async function runCli(options: RunCliOptions = {}) {
   const tui = new TUI(new ProcessTerminal());
   const root = new Container();
   const chatLog = new ChatLogComponent(tui);
@@ -223,6 +234,11 @@ export async function runCli() {
       model: modelSelection.model,
       modelProvider: modelSelection.provider,
     });
+    renderSelectionOverlay();
+    tui.requestRender();
+  });
+
+  const sessionSelection = new SessionSelectionController(() => {
     renderSelectionOverlay();
     tui.requestRender();
   });
@@ -791,6 +807,68 @@ export async function runCli() {
         tui.requestRender();
         break;
       }
+      case 'session': {
+        // Show session manager: list sessions, delete, rename, tag
+        const cwd = process.cwd();
+        const sessionId = agentRunner.sessionId;
+        await sessionSelection.startSelection(cwd, sessionId);
+        renderSelectionOverlay();
+        tui.requestRender();
+        break;
+      }
+      case 'resume': {
+        // Resume a session: if args provided, try to resolve; otherwise show picker
+        // Supports /resume --fork to fork instead of resuming
+        const args = commandArgs.trim();
+        const fork = args.includes('--fork');
+        const searchTerm = args.replace('--fork', '').trim();
+
+        if (searchTerm) {
+          const { resolveResumeTarget } = await import('./session/restore.js');
+          const targetId = await resolveResumeTarget(searchTerm, process.cwd());
+          if (targetId) {
+            chatLog.addChild(new Spacer(1));
+            chatLog.addChild(new Text(theme.primary(fork ? `Forking session...` : `Resuming session: ${targetId.slice(0, 8)}...`), 0, 0));
+            tui.requestRender();
+            try {
+              const resumedId = await agentRunner.resumeFromSession(targetId, fork);
+              if (fork) {
+                chatLog.addChild(new Text(theme.success(`Forked as: ${resumedId.slice(0, 8)}...`), 0, 0));
+              }
+            } catch (e) {
+              chatLog.addChild(new Text(theme.error(`Failed to resume: ${String(e)}`), 0, 0));
+            }
+          } else {
+            chatLog.addChild(new Spacer(1));
+            chatLog.addChild(new Text(theme.error(`Session not found: "${searchTerm}"`), 0, 0));
+            chatLog.addChild(new Text(theme.muted('Use /session to see available sessions'), 0, 0));
+          }
+        } else {
+          // Show session picker for resume
+          const cwd = process.cwd();
+          await sessionSelection.startSelection(cwd, agentRunner.sessionId);
+          renderSelectionOverlay();
+          tui.requestRender();
+        }
+        tui.requestRender();
+        break;
+      }
+      case 'continue': {
+        // Continue the most recent session
+        const { getMostRecentSession } = await import('./session/restore.js');
+        const lastSessionId = await getMostRecentSession(process.cwd());
+        if (lastSessionId && lastSessionId !== agentRunner.sessionId) {
+          chatLog.addChild(new Spacer(1));
+          chatLog.addChild(new Text(theme.primary(`Continuing session: ${lastSessionId.slice(0, 8)}...`), 0, 0));
+          tui.requestRender();
+          await agentRunner.resumeFromSession(lastSessionId);
+        } else if (!lastSessionId) {
+          chatLog.addChild(new Spacer(1));
+          chatLog.addChild(new Text(theme.muted('No previous session found. Use /session to see available sessions.'), 0, 0));
+          tui.requestRender();
+        }
+        break;
+      }
       default: {
         // Fallback to CommandRegistry for commands not in the switch
         try {
@@ -975,6 +1053,86 @@ export async function runCli() {
 
   const renderSelectionOverlay = () => {
     const state = modelSelection.state;
+
+    // Session selection takes priority over model selection
+    if (sessionSelection.isActive()) {
+      const sState = sessionSelection.state;
+      if (sState.appState === 'session_list') {
+        const selector = createSessionSelector(
+          sState.sessions,
+          async (sessionId) => {
+            // Resume the selected session
+            sessionSelection.cancel();
+            chatLog.addChild(new Spacer(1));
+            chatLog.addChild(new Text(theme.primary(`Resuming session...`), 0, 0));
+            tui.requestRender();
+            await agentRunner.resumeFromSession(sessionId);
+          },
+          () => sessionSelection.cancel(),
+        );
+        showScreenView(
+          'Sessions',
+          `${sState.sessions.length} session${sState.sessions.length !== 1 ? 's' : ''} available`,
+          selector,
+          '↑↓ Navigate · Enter Resume · d Delete · n Rename · t Tag · Esc Cancel',
+          selector,
+        );
+        return;
+      }
+
+      if (sState.appState === 'session_delete_confirm') {
+        const session = sState.sessions.find(s => s.id === sState.pendingSessionId);
+        const title = session?.customTitle || session?.firstPrompt?.slice(0, 40) || 'this session';
+        const selector = createSessionDeleteConfirmSelector(
+          title,
+          async () => {
+            await sessionSelection.confirmDelete();
+          },
+          () => sessionSelection.cancelDelete(),
+        );
+        showScreenView(
+          'Confirm Delete',
+          `Delete session "${title}"?`,
+          selector,
+          'Enter to confirm · Esc to cancel',
+          selector,
+        );
+        return;
+      }
+
+      if (sState.appState === 'session_rename_input') {
+        const input = new SessionRenameInputComponent();
+        input.onSubmit = async (newTitle) => {
+          await sessionSelection.submitRename(newTitle || '');
+        };
+        input.onCancel = () => sessionSelection.cancelRename();
+        showScreenView(
+          'Rename Session',
+          'Enter a new title for this session',
+          input,
+          'Enter to save · Esc to cancel',
+          input,
+        );
+        return;
+      }
+
+      if (sState.appState === 'session_tag_input') {
+        const input = new SessionTagInputComponent();
+        input.onSubmit = async (tag) => {
+          await sessionSelection.submitTag(tag || '');
+        };
+        input.onCancel = () => sessionSelection.cancelTag();
+        showScreenView(
+          'Tag Session',
+          'Enter a tag for this session (e.g. "bugfix", "refactor")',
+          input,
+          'Enter to save · Esc to cancel · Empty to remove tag',
+          input,
+        );
+        return;
+      }
+    }
+
     if (state.appState === 'idle' && !agentRunner.pendingApproval) {
       restoreMainView();
       tui.requestRender();
@@ -1064,6 +1222,10 @@ export async function runCli() {
   editor.onEscape = () => {
     if (modelSelection.isInSelectionFlow()) {
       modelSelection.cancelSelection();
+      return;
+    }
+    if (sessionSelection.isActive()) {
+      sessionSelection.cancel();
       return;
     }
     if (agentRunner.isProcessing || agentRunner.pendingApproval) {
@@ -1216,6 +1378,65 @@ export async function runCli() {
     return false;
   };
 
+  // Session list keyboard shortcuts: d=delete, n=rename, t=tag
+  editor.onSessionListKey = (data: string) => {
+    const key = data;
+
+    if (!sessionSelection.isActive()) return false;
+
+    const sState = sessionSelection.state;
+    if (sState.appState !== 'session_list') return false;
+
+    switch (key) {
+      case 'd':
+      case 'D':
+        sessionSelection.startDelete();
+        return true;
+      case 'n':
+      case 'N':
+        sessionSelection.startRename();
+        return true;
+      case 't':
+      case 'T':
+        sessionSelection.startTag();
+        return true;
+      case 'r':
+      case 'R':
+        if (sessionSelection.selectedSession) {
+          const sessionId = sessionSelection.selectedSession.id;
+          sessionSelection.cancel();
+          void (async () => {
+            chatLog.addChild(new Spacer(1));
+            chatLog.addChild(new Text(theme.primary(`Resuming session...`), 0, 0));
+            tui.requestRender();
+            await agentRunner.resumeFromSession(sessionId);
+          })();
+        }
+        return true;
+      case 'f':
+      case 'F':
+        if (sessionSelection.selectedSession) {
+          const sessionId = sessionSelection.selectedSession.id;
+          sessionSelection.cancel();
+          void (async () => {
+            chatLog.addChild(new Spacer(1));
+            chatLog.addChild(new Text(theme.primary(`Forking session...`), 0, 0));
+            tui.requestRender();
+            try {
+              const newId = await agentRunner.resumeFromSession(sessionId, true);
+              chatLog.addChild(new Text(theme.success(`Forked as: ${newId.slice(0, 8)}...`), 0, 0));
+            } catch (e) {
+              chatLog.addChild(new Text(theme.error(`Failed to fork: ${String(e)}`), 0, 0));
+            }
+            tui.requestRender();
+          })();
+        }
+        return true;
+      default:
+        return false;
+    }
+  };
+
   await inputHistory.init();
   for (const msg of inputHistory.getMessages().reverse()) {
     editor.addToHistoryWithTruncation(msg);
@@ -1226,6 +1447,66 @@ export async function runCli() {
     renderSelectionOverlay();
     tui.requestRender();
   };
+
+  // Handle CLI flags: --resume, -c, --continue
+  if (options.resumeTarget !== undefined || options.continue) {
+    const cwd = process.cwd();
+    if (options.resumeTarget) {
+      // Try to resolve the resume target
+      const { resolveResumeTarget } = await import('./session/restore.js');
+      const targetId = await resolveResumeTarget(options.resumeTarget, cwd);
+      if (targetId) {
+        chatLog.addChild(new Spacer(1));
+        chatLog.addChild(new Text(theme.primary(options.fork ? 'Forking session...' : 'Resuming session...'), 0, 0));
+        chatLog.addChild(new Text(theme.muted(`Session: ${targetId.slice(0, 8)}...`), 0, 0));
+        tui.requestRender();
+        try {
+          const resumedId = await agentRunner.resumeFromSession(targetId, options.fork);
+          if (options.fork) {
+            chatLog.addChild(new Text(theme.success(`Forked as: ${resumedId.slice(0, 8)}...`), 0, 0));
+          }
+        } catch (e) {
+          chatLog.addChild(new Text(theme.error(`Failed to resume: ${String(e)}`), 0, 0));
+          tui.requestRender();
+        }
+      } else {
+        chatLog.addChild(new Spacer(1));
+        chatLog.addChild(new Text(theme.error(`Session not found: "${options.resumeTarget}"`), 0, 0));
+        chatLog.addChild(new Text(theme.muted('Use /session to see available sessions'), 0, 0));
+        tui.requestRender();
+      }
+    } else if (options.continue) {
+      // Continue the most recent session
+      const { getMostRecentSession } = await import('./session/restore.js');
+      const lastId = await getMostRecentSession(cwd);
+      if (lastId) {
+        chatLog.addChild(new Spacer(1));
+        chatLog.addChild(new Text(theme.primary(options.fork ? 'Forking session...' : 'Continuing session...'), 0, 0));
+        tui.requestRender();
+        try {
+          const resumedId = await agentRunner.resumeFromSession(lastId, options.fork);
+          if (options.fork) {
+            chatLog.addChild(new Text(theme.success(`Forked as: ${resumedId.slice(0, 8)}...`), 0, 0));
+          }
+        } catch (e) {
+          chatLog.addChild(new Text(theme.error(`Failed to continue: ${String(e)}`), 0, 0));
+          tui.requestRender();
+        }
+      } else {
+        chatLog.addChild(new Spacer(1));
+        chatLog.addChild(new Text(theme.muted('No previous session found. Use /session to see available sessions.'), 0, 0));
+        tui.requestRender();
+      }
+    } else {
+      // -r without target: show session picker
+      chatLog.addChild(new Spacer(1));
+      chatLog.addChild(new Text(theme.primary('Opening session picker...'), 0, 0));
+      chatLog.addChild(new Text(theme.muted('Use ↑↓ to navigate, Enter to select, Esc to cancel'), 0, 0));
+      tui.requestRender();
+      // Start session selection
+      await sessionSelection.startSelection(cwd, agentRunner.sessionId);
+    }
+  }
 
   renderSelectionOverlay();
   refreshError();

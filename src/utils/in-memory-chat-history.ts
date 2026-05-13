@@ -144,4 +144,17 @@ Generate a brief 1-2 sentence summary of this answer.`;
   clear(): void {
     this.messages = [];
   }
+
+  /**
+   * Set messages directly (used for session resume)
+   * Takes an array of session messages and reconstructs the history.
+   */
+  setMessages(messages: Array<{ type: string; content: string }>): void {
+    this.messages = messages.map((msg, index) => ({
+      id: index,
+      query: msg.type === 'user' ? msg.content : '',
+      answer: msg.type === 'assistant' ? msg.content : null,
+      summary: null,
+    }));
+  }
 }

@@ -37,6 +37,7 @@ export class AgentRunnerController {
   private abortController: AbortController | null = null;
   private approvalResolve: ((decision: ApprovalDecision) => void) | null = null;
   private sessionApprovedTools = new Set<string>();
+  private sessionIdValue = '';
 
   constructor(
     agentConfig: AgentConfig,
@@ -62,6 +63,56 @@ export class AgentRunnerController {
 
   get pendingApproval(): { tool: string; args: Record<string, unknown> } | null {
     return this.pendingApprovalValue;
+  }
+
+  get sessionId(): string {
+    return this.sessionIdValue;
+  }
+
+  /**
+   * Resume from a previous session by ID.
+   * If fork=true, creates a copy with a new ID instead of resuming in place.
+   */
+  async resumeFromSession(sessionId: string, fork: boolean = false): Promise<string> {
+    let targetId = sessionId;
+
+    // Fork: create a copy with a new ID
+    if (fork) {
+      const { forkSession } = await import('../session/storage.js');
+      const newId = await forkSession(sessionId);
+      if (!newId) {
+        throw new Error(`Failed to fork session: ${sessionId}`);
+      }
+      targetId = newId;
+    }
+
+    const { loadSessionForResume, processResumedConversation } = await import('../session/restore.js');
+    const result = await loadSessionForResume(targetId);
+    if (!result) {
+      throw new Error(`Session not found: ${targetId}`);
+    }
+
+    const processed = await processResumedConversation(targetId);
+    if (!processed) {
+      throw new Error(`Failed to process session: ${targetId}`);
+    }
+
+    this.sessionIdValue = targetId;
+
+    // Update session manager
+    const sessionManager = getSessionManager();
+    if (sessionManager) {
+      await sessionManager.resumeFrom(targetId);
+    }
+
+    // Load messages into chat history
+    this.inMemoryChatHistory.clear();
+    this.inMemoryChatHistory.setMessages(
+      processed.messages.map(m => ({ type: m.type, content: m.content }))
+    );
+
+    this.emitChange();
+    return targetId;
   }
 
   get turnStats(): TurnStats | null {

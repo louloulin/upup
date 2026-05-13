@@ -19,7 +19,7 @@ import { getUpupDir } from '../paths.js';
 // ============================================================================
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
-export type LogCategory = 'memory' | 'agent' | 'tools' | 'subagent' | 'mcp' | 'daemon' | 'system' | 'default' | 'compaction' | 'orchestrator' | 'post-cleanup' | 'session-compact' | 'bash';
+export type LogCategory = 'memory' | 'agent' | 'tools' | 'subagent' | 'mcp' | 'daemon' | 'system' | 'default' | 'compaction' | 'orchestrator' | 'post-cleanup' | 'session-compact' | 'bash' | 'hooks';
 
 export interface LogEntry {
   id: string;
@@ -80,6 +80,7 @@ const DEFAULT_CONFIG: LoggerConfig = {
     'post-cleanup': true,
     'session-compact': true,
     bash: true,
+    hooks: true,
   },
 };
 

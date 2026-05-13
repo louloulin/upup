@@ -213,15 +213,10 @@ export async function isBuiltinPluginAvailable(name: string): Promise<boolean> {
 export function builtinToLoadedPlugin(definition: BuiltinPluginDefinition): LoadedPlugin {
   return {
     id: definition.manifest.id,
-    name: definition.manifest.name,
-    version: definition.manifest.version,
-    description: definition.manifest.description,
-    capabilities: definition.manifest.capabilities,
-    path: `builtin:${definition.manifest.name}`,
     manifest: definition.manifest,
+    path: `builtin:${definition.manifest.name}`,
     enabled: isBuiltinPluginEnabled(definition.manifest.name),
-    status: 'loaded',
-  };
+  } as LoadedPlugin;
 }
 
 /**

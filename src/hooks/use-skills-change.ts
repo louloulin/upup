@@ -115,9 +115,9 @@ export function useSkillsChange(
           try {
             const subFiles = await readdir(subDir);
             for (const subFile of subFiles) {
-              const subExt = extname(subFile.name).toLowerCase();
+              const subExt = extname(subFile).toLowerCase();
               if (extensions!.includes(subExt)) {
-                const skillName = `${file.name}/${subFile.name.replace(subExt, '')}`;
+                const skillName = `${file.name}/${subFile.replace(subExt, '')}`;
                 discoveredSkills.push(skillName);
               }
             }
@@ -140,7 +140,7 @@ export function useSkillsChange(
     oldSkills: Set<string>,
     forceRescan = false
   ): Promise<void> => {
-    const newSkills = forceRescan ? await scanDirectory() : (await scanDirectory()).filter(s => !oldSkills.has(s) || forceRescan);
+    const newSkills = forceRescan ? await scanDirectory() : (await scanDirectory()).filter((s: string) => !oldSkills.has(s) || forceRescan);
 
     // If forceRescan, compare with previous
     const allSkills = forceRescan ? await scanDirectory() : Array.from(new Set([...oldSkills, ...newSkills]));
@@ -264,7 +264,7 @@ export function useSkillsChange(
   // Initial scan and watching
   useEffect(() => {
     if (scanOnMount) {
-      scanDirectory().then(skills => {
+      scanDirectory().then((skills: string[]) => {
         setSkills(skills);
         previousSkillsRef.current = new Set(skills);
         setLastScanTime(Date.now());

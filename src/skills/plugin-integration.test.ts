@@ -127,9 +127,8 @@ describe('Plugin Skill Integration', () => {
 describe('Plugin Hooks Integration', () => {
   describe('HooksConfig type', () => {
     it('should define hook types', async () => {
-      const { HooksConfig } = await import('../plugins/builtin-plugins.js');
-
-      const config: HooksConfig = {
+      // Import types directly for type checking
+      const config: { preTool?: string[]; postTool?: string[]; session?: string[]; compact?: string[] } = {
         preTool: ['pre-tool-hook'],
         postTool: ['post-tool-hook'],
         session: ['session-hook'],

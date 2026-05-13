@@ -27,7 +27,7 @@ describe('DesktopMCPServerConfig type', () => {
   });
 
   it('should allow optional fields to be undefined', () => {
-    const config = {
+    const config: { command: string; args?: string[]; env?: Record<string, string> } = {
       command: '/usr/bin/mcp-server',
     };
 
@@ -182,7 +182,7 @@ describe('Server import filtering', () => {
     };
 
     const filter = ['server-1', 'server-3'];
-    const filtered = filter.filter((name) => servers[name]);
+    const filtered = filter.filter((name) => Boolean((servers as Record<string, unknown>)[name]));
 
     expect(filtered).toHaveLength(2);
     expect(filtered).toContain('server-1');
@@ -195,7 +195,7 @@ describe('Server import filtering', () => {
     };
 
     const filter = ['server-1', 'non-existent'];
-    const filtered = filter.filter((name) => servers[name]);
+    const filtered = filter.filter((name) => Boolean((servers as Record<string, unknown>)[name]));
 
     expect(filtered).toHaveLength(1);
     expect(filtered).toContain('server-1');

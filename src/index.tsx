@@ -11,6 +11,24 @@ config({ quiet: true });
 const args = process.argv.slice(2);
 const command = args[0]?.toLowerCase();
 
+// Parse global flags
+function getFlag(flags: string[]): string | undefined {
+  for (const flag of flags) {
+    const idx = args.indexOf(flag);
+    if (idx >= 0) {
+      // Return next arg if it doesn't look like a flag
+      const next = args[idx + 1];
+      if (next && !next.startsWith('-')) return next;
+      return ''; // flag without value
+    }
+  }
+  return undefined;
+}
+
+function hasFlag(flags: string[]): boolean {
+  return flags.some(f => args.includes(f));
+}
+
 async function main() {
   // Check for --stdio mode (for external tool integration)
   // In stdio mode, we run a pure JSON-RPC server without any CLI UI
@@ -22,6 +40,11 @@ async function main() {
     await new Promise(() => {});
     return;
   }
+
+  // Handle session resume flags before command switch
+  const resumeTarget = getFlag(['-r', '--resume']);
+  const shouldContinue = hasFlag(['-c', '--continue']);
+  const shouldFork = hasFlag(['--fork-session']);
 
   switch (command) {
     case 'setup':
@@ -46,18 +69,23 @@ async function main() {
     case 'version':
     case '--version':
     case '-v':
-      console.log('UpUp v2026.05.11');
+      console.log('UpUp v2026.05.13');
       process.exit(0);
       break;
 
-    default:
+    default: {
       if (command && !command.startsWith('-')) {
         console.error(`Unknown command: ${command}`);
         printHelp();
         process.exit(1);
       }
-      // No command - start interactive CLI
-      await runCli();
+      // Start interactive CLI with resume context
+      await runCli({
+        resumeTarget: resumeTarget ?? undefined,
+        continue: shouldContinue,
+        fork: shouldFork,
+      });
+    }
   }
 }
 
@@ -72,10 +100,20 @@ Usage:
   upup help         Show this help message
   upup version      Show version
 
+Session Commands:
+  upup -r [id]     Resume a previous session
+  upup -c          Continue the most recent session
+  upup --resume [id]  Resume session by ID or search term
+  upup --continue   Continue most recent session
+  upup --fork-session  Fork instead of resuming in place
+
 Examples:
   upup              Start the agent
   upup setup        Configure API keys and settings
   upup doctor       Check system health
+  upup -r           Show session picker to resume
+  upup -r abc123    Resume session matching "abc123"
+  upup -c           Continue the most recent session
 `);
 }
 

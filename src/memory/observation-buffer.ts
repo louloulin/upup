@@ -66,6 +66,13 @@ export class ObservationBuffer {
   }
 
   /**
+   * Alias for getCount()
+   */
+  size(): number {
+    return this.observations.length;
+  }
+
+  /**
    * Check if buffer is full enough for extraction
    */
   shouldExtract(minObservations = 5): boolean {

@@ -12,6 +12,7 @@ import {
   getConfigPath,
   MCPCommandOptions,
 } from './mcp.js';
+import type { McpServerConfig } from '../mcp/types.js';
 
 describe('MCP Commands', () => {
   const testDir = join(tmpdir(), 'test-mcp-commands');
@@ -37,7 +38,7 @@ describe('MCP Commands', () => {
 
       const config = loadMCPConfig(configPath);
       expect(config['test-server']).toBeDefined();
-      expect(config['test-server'].command).toBe('npx');
+      expect((config['test-server'] as { command: string }).command).toBe('npx');
     });
 
     it('should return empty object for non-existent file', () => {
@@ -69,7 +70,7 @@ describe('MCP Commands', () => {
   describe('saveMCPConfig', () => {
     it('should save config to file', () => {
       const configPath = join(testDir, 'save-test.json');
-      const servers = {
+      const servers: Record<string, { type: 'stdio'; command: string; args: string[] }> = {
         'save-server': { type: 'stdio', command: 'echo', args: ['hello'] },
       };
 
@@ -166,7 +167,7 @@ describe('MCP Commands', () => {
     it('should detect stdio transport', async () => {
       const { getTransportType, isStdioConfig } = await import('../mcp/types.js');
 
-      const config = { type: 'stdio' as const, command: 'echo' };
+      const config = { type: 'stdio', command: 'echo', args: [] } as McpServerConfig;
       expect(getTransportType(config)).toBe('stdio');
       expect(isStdioConfig(config)).toBe(true);
     });
@@ -174,7 +175,7 @@ describe('MCP Commands', () => {
     it('should detect HTTP transport', async () => {
       const { getTransportType, isHttpConfig } = await import('../mcp/types.js');
 
-      const config = { type: 'sse' as const, url: 'https://example.com/mcp' };
+      const config = { type: 'sse', url: 'https://example.com/mcp' } as McpServerConfig;
       expect(getTransportType(config)).toBe('sse');
       expect(isHttpConfig(config)).toBe(true);
     });
@@ -182,8 +183,8 @@ describe('MCP Commands', () => {
     it('should check OAuth support', async () => {
       const { supportsOAuth } = await import('../mcp/types.js');
 
-      const withOAuth = { type: 'sse' as const, url: 'https://example.com', oauth: { clientId: 'test' } };
-      const withoutOAuth = { type: 'stdio' as const, command: 'echo' };
+      const withOAuth = { type: 'sse', url: 'https://example.com', oauth: { clientId: 'test' } } as McpServerConfig;
+      const withoutOAuth = { type: 'stdio', command: 'echo', args: [] } as McpServerConfig;
 
       expect(supportsOAuth(withOAuth)).toBe(true);
       expect(supportsOAuth(withoutOAuth)).toBe(false);
