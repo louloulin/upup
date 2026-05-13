@@ -12,26 +12,22 @@ import { Agent } from './agent/agent.js';
 import path from 'path';
 import { homedir } from 'os';
 
-// Try to load .env from various locations
-const envPaths = [
-  '.env',
-  path.join(__dirname, '..', '..', '..', '.env'), // From adapter/../../../.env
-  '/Users/louloulin/Documents/linchong/touzhi/dexter/.env',
-];
-
-for (const envPath of envPaths) {
-  try {
-    config({ path: envPath, quiet: true });
-    // If we successfully loaded, break
-    if (process.env.DEEPSEEK_API_KEY || process.env.ANTHROPIC_API_KEY) {
-      break;
-    }
-  } catch {
-    // Continue to next path
-  }
+// Load .env from global ~/.upup/ directory
+const globalEnvPath = path.join(homedir(), '.upup', '.env');
+try {
+  config({ path: globalEnvPath, quiet: true });
+} catch {
+  // .env not found in global dir, continue
 }
 
-// Also try to load from global ~/.upup/settings.json for API key
+// Also check current directory .env
+try {
+  config({ path: '.env', quiet: true });
+} catch {
+  // .env not found in current dir, continue
+}
+
+// Load API key and provider settings from global ~/.upup/settings.json
 const globalSettingsPath = path.join(homedir(), '.upup', 'settings.json');
 try {
   const fs = require('fs');

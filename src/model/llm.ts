@@ -67,11 +67,31 @@ function getApiKey(envVar: string): string {
     const path = require('path');
 
     try {
+      // Check settings.json first
       const settingsPath = path.join(homedir(), '.upup', 'settings.json');
       if (fs.existsSync(settingsPath)) {
         const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
         if (settings.apiKey) {
           apiKey = settings.apiKey;
+        }
+      }
+
+      // Also check global .env file
+      if (!apiKey) {
+        const envPath = path.join(homedir(), '.upup', '.env');
+        if (fs.existsSync(envPath)) {
+          const envContent = fs.readFileSync(envPath, 'utf-8');
+          const lines = envContent.split('\n');
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (trimmed && !trimmed.startsWith('#') && trimmed.includes('=')) {
+              const [key, ...valueParts] = trimmed.split('=');
+              if (key.trim() === envVar) {
+                apiKey = valueParts.join('=').trim();
+                break;
+              }
+            }
+          }
         }
       }
     } catch {
