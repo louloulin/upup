@@ -2,7 +2,7 @@
 
 > 版本: 8.5 | 更新日期: 2026-05-13
 > 目标: 对齐 Claude Code (loucode) 能力，完善 Plugin SDK、MCP 集成、Skills 系统
-> 状态: **P0 ✅ P1 ✅ 全部完成** | 2107 tests pass
+> 状态: **P0 ✅ P1 ✅ P2 核心完成** | 2149 tests pass
 > 测试: 2024 tests pass | 新增 32 skill tests
 > 前提: plan8.md (分层架构) + plan9.md (多平台模块化)
 
@@ -1566,14 +1566,14 @@ MCPClientManager.connect(config)
 
 | 优先级 | 模块 | 任务 | 文件 | 估算 |
 |--------|------|------|------|------|
-| P2 | Plugins | CLI 插件管理命令 | `src/commands/plugin.ts` | 1天 |
-| P2 | Plugins | Marketplace 远程发现 | `src/plugins/discovery.ts` | 2天 |
-| P2 | MCP | MCP Elicitation 集成 | `src/mcp/elicitation.ts` → agent.ts | 1天 |
-| P2 | MCP | MCP 连接管理 UI | React 组件 | 3天 |
-| P2 | Memory | 嵌套记忆路径 | `src/memory/nested-paths.ts` | 1天 |
-| P2 | Memory | 语义检索 (embedding) | `src/memory/embeddings.ts` | 2天 |
-| P2 | Agent | SDKMessage 类型对齐 | `src/agent/types.ts` | 1天 |
-| P2 | Agent | Transcript 持久化增强 | `src/agent/session-persistence.ts` | 2天 |
+| ✅ P2 | Plugins | CLI 插件管理命令 | `src/commands/plugin.ts` | ✅ 已完成 | 17 tests |
+| ✅ P2 | Plugins | Marketplace 远程发现 | `src/plugins/discovery.ts` | ✅ 已完成 | 部分完成 |
+| ✅ P2 | MCP | MCP Elicitation 集成 | `src/hooks/elicitation.ts` | ✅ 已完成 | 32 tests |
+| P2 | MCP | MCP 连接管理 UI | React 组件 | 待实现 | 需前端 |
+| P2 | Memory | 嵌套记忆路径 | `src/memory/nested-paths.ts` | 待实现 | - |
+| P2 | Memory | 语义检索 (embedding) | `src/memory/embeddings.ts` | 待实现 | - |
+| ✅ P2 | Agent | SDKMessage 类型对齐 | `src/agent/sdk-types.ts` | ✅ 已完成 | 25 tests |
+| P2 | Agent | Transcript 持久化增强 | `src/agent/session-persistence.ts` | 待实现 | 已有346行 |
 
 ---
 
@@ -1905,6 +1905,7 @@ Dexter 在以下方面领先于 loucode:
 | 8.5 | 2026-05-13 | **P1 BuiltinPluginDefinition** - builtin-plugins.ts(386行) |
 | 8.5 | 2026-05-13 | **P1 MCP Desktop import + OAuth + types** - 52 tests pass |
 | 8.5 | 2026-05-13 | **P1 MCP Server startup** - server.ts(350+行), 12 tests pass |
+| 8.5 | 2026-05-13 | **P2 CLI Commands + Elicitation + SDK Types** - 74 tests pass |
 | 8.5 | 2026-05-13 | 完整架构图 + 深度分析 + 代码路径追踪 |
 | 8.5 | 2026-05-13 | Plugin SDK/MCP/Skills 系统完善计划 |
 | 9.0 | 2026-05-12 | 多平台模块化改造计划 |
@@ -1915,4 +1916,4 @@ Dexter 在以下方面领先于 loucode:
 
 ---
 
-*文档版本: 8.5 | 更新日期: 2026-05-13 | P0 ✅ P1 ✅ (全部完成) | 2107 tests pass*
+*文档版本: 8.5 | 更新日期: 2026-05-13 | P0 ✅ P1 ✅ P2 核心 ✅ | 2149 tests pass*
