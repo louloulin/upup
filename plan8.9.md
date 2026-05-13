@@ -719,6 +719,31 @@ export function getSessionsDir(): string {
 | `scripts/oscript-pid-verify.ts` | PID 管理验证脚本 |
 | `scripts/migrate-storage.ts` | 数据迁移脚本 |
 
+### 10.7 端到端验证结果
+
+**CLI 构建测试:**
+```
+$ bun run build
+✅ Build complete: dist/upup
+
+$ ./dist/upup -r (从 /tmp 运行)
+Sessions - 0 sessions available (TUI 正常显示)
+```
+
+**验证脚本总结:**
+| 脚本 | 测试数 | 通过 | 状态 |
+|------|--------|------|------|
+| oscript-storage-verify.ts | 16 | 16 | ✅ |
+| oscript-pid-verify.ts | 10 | 10 | ✅ |
+
+**全局存储验证:**
+```
+~/.upup/data/sessions/
+  session_xxx.jsonl  ✅
+~/.upup/sessions/
+  {pid}.json         ✅
+```
+
 ---
 
 *最后更新: 2026-05-14*
