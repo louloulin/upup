@@ -640,11 +640,63 @@ export function getSessionsDir(): string {
 | Phase 1 | paths.ts 重构 | ✅ 完成 | oscript 验证通过 |
 | Phase 2 | storage.ts 更新 | ✅ 完成 | oscript 验证通过 |
 | Phase 3 | 其他模块更新 | ✅ 完成 | TypeScript 编译通过 |
-| Phase 4 | PID 会话映射 | ⏳ 待实现 | - |
-| Phase 5 | 迁移脚本 | ⏳ 待实现 | - |
-| Phase 6 | 测试验证 | ✅ 完成 | 16/16 通过 |
+| Phase 4 | PID 会话映射 | ✅ 完成 | 10/10 通过 |
+| Phase 5 | 迁移脚本 | ✅ 完成 | 432 文件迁移 |
+| Phase 6 | 测试验证 | ✅ 完成 | 全部验证通过 |
 
-### 10.3 已验证功能
+### 10.3 oscript-pid-verify.ts 测试结果
+
+```
+═══════════════════════════════════════════════════════════════════
+  PID Session Manager Verification (oscript-pid-verify)
+═══════════════════════════════════════════════════════════════════
+
+  PID Registration Tests:
+  ✅ registerSessionPid — Registered
+  ✅ getSessionByPid — test-session-xxx
+  ✅ getSessionBySessionId — PID xxx
+  ✅ getAllActiveSessions includes test — 1 active
+  ✅ getActiveSessionCount — 1 sessions
+
+  PID File Structure Tests:
+  ✅ PID file at global path — ~/.upup/sessions/{pid}.json
+  ✅ PID file content valid — PID: xxx
+
+  Update Tests:
+  ✅ updateSessionPid — Updated
+
+  Cleanup Tests:
+  ✅ unregisterSessionPid — Cleaned up
+  ✅ PID file removed — Removed
+
+  Total tests:  10
+  ✅ Passed:     10
+  Pass rate: 100.0%
+  ✅ ALL TESTS PASSED
+```
+
+### 10.4 迁移脚本结果
+
+```
+═══════════════════════════════════════════════════════════════════
+  UpUp Storage Migration Script
+═══════════════════════════════════════════════════════════════════
+
+  Migrating to: /Users/louloulin/.upup
+
+  Checking: .dexter — Not found
+  Checking: ./dist/.upup — Found — migrating...
+  ✅ Migrated 3 files
+  Checking: ./.upup — Found — migrating...
+  ✅ Migrated 429 files
+
+  Total locations processed: 2
+  ✅ Successful: 2
+  Total files migrated: 432
+  ✅ New storage location ready: ~/.upup
+```
+
+### 10.5 已验证功能
 
 - ✅ getUpupDir() 返回绝对路径 ~/.upup/
 - ✅ globalUpupPath() 正确拼接路径
@@ -654,6 +706,18 @@ export function getSessionsDir(): string {
 - ✅ Fork 会话功能正常
 - ✅ 导出 JSON 功能正常
 - ✅ 删除会话功能正常
+- ✅ PID 注册/注销功能正常
+- ✅ PID 文件存储在 ~/.upup/sessions/
+- ✅ 迁移脚本成功迁移 432 文件
+
+### 10.6 新增文件
+
+| 文件 | 说明 |
+|------|------|
+| `src/session/pid-manager.ts` | PID 会话映射管理 |
+| `scripts/oscript-storage-verify.ts` | 存储系统验证脚本 |
+| `scripts/oscript-pid-verify.ts` | PID 管理验证脚本 |
+| `scripts/migrate-storage.ts` | 数据迁移脚本 |
 
 ---
 
