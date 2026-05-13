@@ -170,11 +170,12 @@ describe('SessionManager', () => {
   describe('updateTokens and updateIterations', () => {
     it('should track tokens and iterations', async () => {
       const manager = new SessionManager();
-      await manager.startSession();
-      
+      // Force new session by providing model metadata
+      await manager.startSession({ model: 'test-model' });
+
       manager.updateTokens(5000);
       manager.updateIterations(10);
-      
+
       const session = manager.getSession();
       expect(session?.metadata.totalTokens).toBe(5000);
       expect(session?.metadata.totalIterations).toBe(10);
