@@ -1,299 +1,164 @@
-# UpUp 模块化配置规范化 - plan9.1.md
+# UpUp 存储与 Claude Code 对比分析 + 硬编码清理计划 (plan9.1.md)
 
-> 版本: 9.1.1 | 更新日期: 2026-05-12
-> 目标: 规范化包配置，消除 src 导入，包之间完全隔离
-
----
-
-## 1. 问题分析
-
-### 1.1 核心问题
-
-**包隔离问题**: `adapter-paperclip` 包无法独立存在，因为它需要主应用的 `Agent` 类。
-
-```
-当前架构问题:
-
-┌─────────────────────────────────────────────────────────────┐
-│  src/agent/agent.ts (主应用)                              │
-│  └── export class Agent { ... }                           │
-│      depends on 26 internal modules:                       │
-│      ├── ../model/llm.js                                 │
-│      ├── ../tools/registry/index.js                       │
-│      ├── ../hooks/agent-hooks.js                          │
-│      ├── ../memory/index.js                              │
-│      └── ... (22 more)                                   │
-└─────────────────────────────────────────────────────────────┘
-           │
-           │ (不存在!)
-           ▼
-┌─────────────────────────────────────────────────────────────┐
-│  packages/agent-core (只导出类型)                           │
-│  └── export type { AgentConfig, AgentEvent, ... }        │
-│      ❌ 没有 Agent 类运行时                                │
-└─────────────────────────────────────────────────────────────┘
-           │
-           │ 期望导入 Agent 类
-           ▼
-┌─────────────────────────────────────────────────────────────┐
-│  packages/adapter-paperclip                                │
-│  └── import { Agent } from '@upup/agent-core';  ❌ ERROR  │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### 1.2 依赖关系图
-
-```
-@upup/types (独立) ←──┬──→ @upup/utils (独立)
-                      │
-                      ▼
-              @upup/llm ────→ @upup/agent-core (类型)
-                      │              │
-                      │              │ (缺少运行时!)
-                      ▼              ▼
-              @upup/memory    @upup/adapter-paperclip
-                                ❌ 需要 Agent 类
-```
-
-### 1.3 问题总结
-
-| 问题 | 描述 | 影响 |
-|------|------|------|
-| Agent 类位置错误 | Agent 类在 src/ 不在 packages/ | adapter-paperclip 无法独立 |
-| agent-core 名不副实 | 名字暗示运行时，实际只有类型 | 开发者困惑 |
-| 26 个内部依赖 | Agent 依赖 26 个内部模块 | 重构成本高 |
-| 包隔离失败 | adapter-paperclip 依赖主应用 | 无法发布独立包 |
+> 创建日期：2026-05-14
+> 更新日期：2026-05-14
+> 参考版本：Claude Code v2.1.138
+> 继承自：plan8.9.md
 
 ---
 
-## 2. 解决方案
+## 一、Claude Code vs UpUp 存储架构对比
 
-### 2.1 方案对比
+### 1.1 目录结构对比
 
-| 方案 | 描述 | 优点 | 缺点 | 成本 |
-|------|------|------|------|------|
-| **A. 移除 adapter-paperclip** | 删除 packages/adapter-paperclip | 完全隔离 | 功能丢失 | 低 |
-| **B. 集成到主应用** | 移动到 src/adapters/paperclip | 架构清晰 | 包数量减少 | 低 |
-| **C. 重构为子进程** | 使用 @upup/sdk 的 stdio 通信 | 完全隔离 | 性能开销 | 中 |
-| **D. 创建 agent-runtime** | 新建 packages/agent-runtime | 架构正确 | 工作量大 | 高 |
-
-### 2.2 推荐方案: B + C 组合
-
-#### 阶段 1: 立即行动 (推荐)
-
-**方案 B**: 将 adapter-paperclip 移入主应用
-
-```
-当前:                                   目标:
-packages/adapter-paperclip/    →     src/adapters/paperclip/
-     └── src/server/execute.ts             └── src/server/execute.ts
-     └── src/runtime/agent.ts (src引用)    └── 直接导入 src/agent/
-```
-
-**执行步骤**:
-```bash
-# 1. 移动目录
-mv packages/adapter-paperclip src/adapters/paperclip
-
-# 2. 修复导入
-# src/adapters/paperclip/src/runtime/agent.ts → 删除，使用 src/agent/
-
-# 3. 更新主应用入口
-# src/index.tsx 导入 src/adapters/paperclip
-
-# 4. 删除 packages/adapter-paperclip
-rm -rf packages/adapter-paperclip
-```
-
-#### 阶段 2: 长期优化 (可选)
-
-**方案 C**: 为外部集成创建 stdio 通信方式
-
-```
-外部应用 ──stdio──→ @upup/sdk ──stdio──→ upup (子进程)
-                                    └── Agent 运行在子进程
-```
+| 目录 | Claude Code (~/.claude/) | UpUp (~/.upup/) | 状态 |
+|------|------------------------|-----------------|------|
+| sessions/ | PID → Session 映射 | sessions/ (已实现) | ✅ |
+| file-history/ | 文件变更历史 | tool-results/ | ⚠️ |
+| shell-snapshots/ | Shell 状态快照 | 无 | ⏳ |
+| daemon/ | SQLite 数据库 | 无 | ⏳ |
+| settings.json | 全局设置 | settings.json | ✅ |
+| settings.local.json | 本地覆盖 | 无 | ⏳ |
+| settings.d/ | 设置片段 | 无 | ⏳ |
+| backups/ | 自动备份 | 无 | ⏳ |
+| skills/ | 全局 Skills | 无 | ⏳ |
+| hooks/ | 钩子配置 | 无 | ⏳ |
+| plugins/ | 插件 | plugins/ | ✅ |
+| todos/ | Todo 状态 | 无 | ⏳ |
+| plans/ | Plan 文件 | plans/ | ✅ |
+| memory/ | 记忆存储 | memory/ | ✅ |
 
 ---
 
-## 3. 包依赖管理最佳实践
+## 二、硬编码路径分析
 
-### 3.1 依赖分层
+### 2.1 已发现硬编码路径 (P1 必须修复)
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Layer 1: 基础层 (无依赖)                  │
-├─────────────────────────────────────────────────────────────┤
-│  @upup/types    - 共享类型定义                              │
-│  @upup/utils    - 纯工具函数 (无外部依赖)                   │
-└─────────────────────────────────────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    Layer 2: 核心层                          │
-├─────────────────────────────────────────────────────────────┤
-│  @upup/llm       - 依赖 types                              │
-│  @upup/state     - 依赖 types                             │
-│  @upup/memory    - 依赖 types                             │
-│  @upup/hooks     - 依赖 types, utils                       │
-└─────────────────────────────────────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    Layer 3: 服务层                          │
-├─────────────────────────────────────────────────────────────┤
-│  @upup/skills     - 依赖 types, utils, hooks              │
-│  @upup/mcp        - 依赖 types, utils, hooks              │
-│  @upup/plugins    - 依赖 types                            │
-│  @upup/plugin-sdk - 依赖 types                            │
-│  @upup/commands   - 依赖 types                            │
-│  @upup/keybindings- 依赖 types                            │
-│  @upup/cron       - 依赖 types                            │
-│  @upup/daemon     - 依赖 types                            │
-│  @upup/gateway    - 依赖 types, utils                      │
-└─────────────────────────────────────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    Layer 4: SDK 层 (对外)                    │
-├─────────────────────────────────────────────────────────────┤
-│  @upup/sdk        - 依赖 types (stdio 通信)                │
-│  @upup/agent-core - 依赖 types (仅类型)                    │
-└─────────────────────────────────────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    Layer 5: 应用层 (主应用)                   │
-├─────────────────────────────────────────────────────────────┤
-│  src/             - 整合所有包 + Agent 运行时              │
-│  src/adapters/    - 集成适配器                            │
-└─────────────────────────────────────────────────────────────┘
-```
+| 文件 | 硬编码 | 应改为 |
+|------|--------|--------|
+| `src/memory/memory-audit.ts:38` | `join(process.cwd(), '.upup', 'logs')` | `globalUpupPath('logs')` |
+| `src/memory/nested-paths.ts:391` | `join(process.env.HOME \|\| '~', '.upup')` | `getUpupDir()` |
+| `src/mcp/client.ts:823` | `join(process.cwd(), '.upup', 'mcp-config.json')` | `globalUpupPath('mcp-config.json')` |
+| `src/hooks/user-hooks.ts:42` | `join(process.cwd(), '.upup', 'hooks')` | `globalUpupPath('hooks')` |
+| `src/commands/mcp.ts:64` | `join(homedir(), '.config', 'upup', ...)` | `globalUpupPath('mcp-servers.json')` |
+| `src/skills/registry.ts:24` | `join(process.cwd(), '.claude', 'skills')` | `globalUpupPath('skills')` |
 
-### 3.2 隔离规则
+### 2.2 P2 应该修复
 
-| 规则 | 说明 | 示例 |
-|------|------|------|
-| **R1** | packages/ 之间只能依赖 Layer 1-4 | ✅ @upup/sdk → @upup/types |
-| **R2** | Layer 4 包不能依赖 Layer 5 | ✅ @upup/agent-core 只导出类型 |
-| **R3** | src/ 可以依赖任何包 | ✅ src/index.tsx → @upup/llm |
-| **R4** | src/ 可以导入 src/ | ✅ src/agent → src/tools |
-| **R5** | 禁止 src → packages 循环依赖 | ❌ src/agent 不能导入 adapter-paperclip |
+| 文件 | 硬编码 | 应改为 |
+|------|--------|--------|
+| `src/commands/onboarding.ts:181` | `'.env'` | `globalUpupPath('.env')` |
+| `src/commands/doctor.ts:70` | `existsSync('.env')` | `globalUpupPath('.env')` |
 
 ---
 
-## 4. 实施计划
+## 三、重构计划
 
-### 4.1 立即执行 (1天)
+### 3.1 Step 1: 创建 storage-paths.ts
 
-```markdown
-- [ ] 将 adapter-paperclip 移至 src/adapters/
-- [ ] 删除 packages/adapter-paperclip
-- [ ] 修复所有导入路径
-- [ ] 验证 TypeScript 类型检查通过
-- [ ] 验证测试套件通过
+```typescript
+// src/utils/storage-paths.ts
+import { join } from 'path';
+import { homedir } from 'os';
+import { existsSync, mkdirSync } from 'fs';
+
+const UPUP_DIR_NAME = '.upup';
+
+export function getUpupDir(): string {
+  const dir = join(homedir(), UPUP_DIR_NAME);
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+export function upupPath(...segments: string[]): string {
+  return join(getUpupDir(), ...segments);
+}
+
+export const globalUpupPath = upupPath;
+
+// Config files
+export const SETTINGS_FILE = upupPath('settings.json');
+export const ENV_FILE = upupPath('.env');
+
+// Data directories
+export const SESSIONS_DIR = upupPath('data', 'sessions');
+export const PID_SESSIONS_DIR = upupPath('sessions');
+export const MEMORY_DIR = upupPath('memory');
+export const CACHE_DIR = upupPath('cache');
+export const LOGS_DIR = upupPath('logs');
+export const TOOL_RESULTS_DIR = upupPath('tool-results');
+
+// Runtime directories
+export const HOOKS_DIR = upupPath('hooks');
+export const SKILLS_DIR = upupPath('skills');
+export const PLUGINS_DIR = upupPath('plugins');
+export const MCP_CONFIG_FILE = upupPath('mcp-config.json');
+export const MCP_SERVERS_FILE = upupPath('mcp-servers.json');
 ```
 
-### 4.2 清理验证 (1天)
+### 3.2 Step 2: 更新 paths.ts
 
-```markdown
-- [ ] 验证所有包配置使用 dist/
-- [ ] 验证没有 src 相对路径导入
-- [ ] 验证包依赖关系符合分层规则
-- [ ] 更新文档
+```typescript
+// 重导出 storage-paths
+export { getUpupDir, upupPath, globalUpupPath } from './storage-paths.js';
 ```
 
-### 4.3 长期优化 (可选)
+### 3.3 Step 3: 批量修复 P1 文件
 
-```markdown
-- [ ] 创建外部 stdio 通信示例
-- [ ] 完善 @upup/sdk 文档
-- [ ] 添加包版本兼容性测试
-```
-
----
-
-## 5. 包功能映射 (更新)
-
-### 5.1 核心包 (packages/)
-
-| 包名 | 功能 | 依赖 | 发布状态 |
-|------|------|------|----------|
-| @upup/types | 共享类型 | 无 | ✅ |
-| @upup/utils | 工具函数 | types | ✅ |
-| @upup/llm | LLM 封装 | types | ✅ |
-| @upup/state | 状态管理 | 无 | ✅ |
-| @upup/memory | 记忆系统 | types | ✅ |
-| @upup/mcp | MCP 客户端 | types, utils, hooks | ✅ |
-| @upup/skills | Skills | types, utils, hooks | ✅ |
-| @upup/plugins | 插件系统 | types | ✅ |
-| @upup/plugin-sdk | 插件 SDK | types | ✅ |
-| @upup/commands | 命令系统 | types | ✅ |
-| @upup/keybindings | 快捷键 | types | ✅ |
-| @upup/hooks | Hooks | types, utils | ✅ |
-| @upup/cron | Cron | types | ✅ |
-| @upup/daemon | 守护进程 | types | ✅ |
-| @upup/gateway | 网关 | types, utils | ✅ |
-| @upup/sdk | Agent SDK | types (stdio) | ✅ |
-| @upup/agent-core | Agent 类型 | types | ✅ |
-
-### 5.2 应用集成 (src/)
-
-| 路径 | 功能 | 说明 |
-|------|------|------|
-| src/agent/ | Agent 运行时 | 包含完整 Agent 类 |
-| src/adapters/ | 适配器 | Paperclip 等集成 |
-| src/tools/ | 工具系统 | 60+ 工具实现 |
-| src/model/ | 模型调用 | LLM 集成 |
-
----
-
-## 6. 验收标准
-
-- [ ] 18 个包全部使用 dist 目录
-- [ ] 没有 src 相对路径导入 (packages/)
-- [ ] 包依赖关系符合分层规则
-- [ ] TypeScript 类型检查通过
-- [ ] 测试套件全部通过
-- [ ] 文档完整
-
----
-
-## 7. 当前状态
-
-### 7.1 构建状态
-
-```
-Build Status: 18/18 packages ✅
-Test Status: 2012/2012 tests ✅
-Typecheck: PASS ✅
-```
-
-### 7.2 待修复问题
-
-| 问题 | 状态 |
+| 文件 | 修改 |
 |------|------|
-| adapter-paperclip 使用 src | ⚠️ 待修复 |
-| Agent 类位置不当 | ⚠️ 待修复 |
+| `src/memory/memory-audit.ts` | 使用 LOGS_DIR |
+| `src/memory/nested-paths.ts` | 使用 getUpupDir() |
+| `src/mcp/client.ts` | 使用 MCP_CONFIG_FILE |
+| `src/hooks/user-hooks.ts` | 使用 HOOKS_DIR |
+| `src/commands/mcp.ts` | 使用 MCP_SERVERS_FILE |
+| `src/skills/registry.ts` | 使用 SKILLS_DIR |
+
+### 3.4 Step 4: 修复 P2 文件
+
+| 文件 | 修改 |
+|------|------|
+| `src/commands/onboarding.ts` | 使用 ENV_FILE |
+| `src/commands/doctor.ts` | 使用 ENV_FILE |
 
 ---
 
-## 8. 附录
+## 四、执行时间估算
 
-### A. 相关文档
-
-- [plan9.md](./plan9.md) - 多平台模块化改造计划
-- [LOCAL_PUBLISH_ANALYSIS.md](./LOCAL_PUBLISH_ANALYSIS.md) - 本地发布分析
-- [PAPERCLIP_ADAPTER_README.md](./PAPERCLIP_ADAPTER_README.md) - Paperclip 适配器
-
-### B. 版本历史
-
-| 版本 | 日期 | 更新内容 |
-|------|------|----------|
-| 9.1.1 | 2026-05-12 | 包隔离分析，移除 adapter-paperclip 方案 |
-| 9.1 | 2026-05-12 | 模块化配置规范化 |
-| 9.0 | 2026-05-12 | 多平台模块化改造计划 |
+```
+Step 1: 创建 storage-paths.ts    15 分钟
+Step 2: 更新 paths.ts              5 分钟
+Step 3: Phase 1 修复 (P1)         20 分钟
+Step 4: Phase 2 修复 (P2)         10 分钟
+Step 5: 测试验证                  15 分钟
+────────────────────────────────────
+总计                              约 1 小时
+```
 
 ---
 
-*文档版本: 9.1.1 | 更新日期: 2026-05-12*
+## 五、文件变更清单
+
+### 5.1 新建文件
+
+| 文件 | 说明 |
+|------|------|
+| `src/utils/storage-paths.ts` | 统一路径常量模块 |
+
+### 5.2 修改文件
+
+| 文件 | 修改内容 |
+|------|----------|
+| `src/utils/paths.ts` | 导入并重导出 storage-paths |
+| `src/memory/memory-audit.ts` | 使用 LOGS_DIR |
+| `src/memory/nested-paths.ts` | 使用 getUpupDir() |
+| `src/mcp/client.ts` | 使用 MCP_CONFIG_FILE |
+| `src/hooks/user-hooks.ts` | 使用 HOOKS_DIR |
+| `src/commands/mcp.ts` | 使用 MCP_SERVERS_FILE |
+| `src/skills/registry.ts` | 使用 SKILLS_DIR |
+| `src/commands/onboarding.ts` | 使用 ENV_FILE |
+| `src/commands/doctor.ts` | 使用 ENV_FILE |
+
+---
+
+*最后更新: 2026-05-14*
