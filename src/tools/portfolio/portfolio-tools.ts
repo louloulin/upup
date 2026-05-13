@@ -13,6 +13,7 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { z } from 'zod';
 import { formatToolResult } from '../types.js';
+import { PORTFOLIO_FILE as DEFAULT_PORTFOLIO_FILE } from '../../utils/storage-paths.js';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -53,7 +54,7 @@ export interface PortfolioData {
 
 // --- Persistence ---
 
-const DEFAULT_FILE_PATH = '.upup/portfolio.json';
+const DEFAULT_FILE_PATH = DEFAULT_PORTFOLIO_FILE;
 
 let dataFilePath: string = DEFAULT_FILE_PATH;
 let _data: PortfolioData | null = null;

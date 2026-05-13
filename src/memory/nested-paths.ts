@@ -11,6 +11,7 @@
 
 import { join, relative, resolve, isAbsolute, dirname } from 'path';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
+import { getUpupDir } from '../utils/storage-paths.js';
 
 // ============================================================================
 // Types
@@ -388,7 +389,7 @@ export function registerDefaultMemoryPaths(config: {
   projectDir?: string;
   sessionDir?: string;
 }): void {
-  const { userDir = join(process.env.HOME || '~', '.upup'), projectDir = process.cwd(), sessionDir } = config;
+  const { userDir = getUpupDir(), projectDir = process.cwd(), sessionDir } = config;
   const paths = getNestedMemoryPaths();
 
   // Global user-level paths

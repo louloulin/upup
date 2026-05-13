@@ -11,7 +11,7 @@
  */
 
 import { join } from 'node:path';
-import { homedir } from 'node:os';
+import { TEAMS_DIR } from '../utils/storage-paths.js';
 
 // ============================================================================
 // Types
@@ -69,7 +69,7 @@ export interface TeamMemberContext {
 // Constants
 // ============================================================================
 
-const DEFAULT_TEAM_MEMORY_DIR = '.upup/teams';
+const DEFAULT_TEAM_MEMORY_DIR = 'teams';
 const DEFAULT_SHARED_MEMORY_FILE = 'shared.MEMORY.md';
 const DEFAULT_CONTEXT_FILE = 'context.json';
 const DEFAULT_AGENTS_DIR = 'agents';
@@ -89,7 +89,7 @@ export class TeamMemoryPaths {
 
   constructor(config: TeamMemoryConfig = {}) {
     this.config = {
-      baseDir: config.baseDir ?? join(process.cwd(), DEFAULT_TEAM_MEMORY_DIR),
+      baseDir: config.baseDir ?? TEAMS_DIR,
       defaultTeamId: config.defaultTeamId ?? 'default',
       crossTeamSharing: config.crossTeamSharing ?? true,
     };

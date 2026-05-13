@@ -12,6 +12,7 @@ import { DynamicStructuredTool } from '@langchain/core/tools';
 import { z } from 'zod';
 import fs from 'node:fs';
 import path from 'node:path';
+import { WATCHLIST_FILE as DEFAULT_WATCHLIST_FILE } from '../../utils/storage-paths.js';
 
 // --- Types ---
 
@@ -39,7 +40,7 @@ export interface WatchlistData {
 
 // --- Persistence ---
 
-const DEFAULT_FILE_PATH = '.upup/watchlist.json';
+const DEFAULT_FILE_PATH = DEFAULT_WATCHLIST_FILE;
 
 let dataFilePath: string = DEFAULT_FILE_PATH;
 let _data: WatchlistData | null = null;

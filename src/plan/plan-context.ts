@@ -9,6 +9,7 @@
  */
 
 import { randomUUID } from 'crypto';
+import { PLANS_DIR } from '../utils/storage-paths.js';
 
 /**
  * Plan step status
@@ -234,7 +235,7 @@ function getStatusIcon(status: PlanStepStatus): string {
 /**
  * Default plan storage directory
  */
-export const PLAN_STORAGE_DIR = '.upup/plans';
+export const PLAN_STORAGE_DIR = PLANS_DIR;
 
 /**
  * Get plan file path

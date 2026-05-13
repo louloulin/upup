@@ -12,6 +12,7 @@ import { z } from 'zod';
 import fs from 'node:fs';
 import path from 'node:path';
 import { formatToolResult } from '../types.js';
+import { EXPORTS_DIR } from '../../utils/storage-paths.js';
 
 // ============================================================================
 // Types
@@ -82,7 +83,7 @@ function ensureDir(filePath: string): void {
 }
 
 function writeExportFile(data: ExportData): string {
-  const exportDir = '.upup/exports';
+  const exportDir = EXPORTS_DIR;
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
   const safeFilename = data.filename.replace(/[^a-zA-Z0-9_-]/g, '_');
   const fullPath = path.join(exportDir, `${safeFilename}_${timestamp}.${data.format}`);
