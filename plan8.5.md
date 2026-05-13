@@ -447,7 +447,7 @@ packages/ (20个子包)
 ║   │  │   │  └─────────────────────────────────────────────────────────────┘ │  │ │         ║
 ║   │  │   │                                                                       │  │ │         ║
 ║   │  │   ├──────────────────────────────────────────────────────────────────┤  │ │         ║
-║   │  │   │  [FORK 模式] ❌ 缺失 — 需实现                                      │  │ │         ║
+║   │  │   │  [FORK 模式] ✅ 已实现 — executeSkillFork(skill, args)                │  │ │         ║
 ║   │  │   │                                                                       │  │ │         ║
 ║   │  │   │  1. 创建子 Agent: Agent.create({                                   │  │ │         ║
 ║   │  │   │       skillRoot: skill.path,                                        │  │ │         ║
@@ -1064,7 +1064,7 @@ export class MemDir {
 | 依赖解析 | `depends-on` | `dependency.ts` | 对等 |
 | 磁盘技能发现 | loadSkillsDir.ts | loader.ts | 对等 |
 | 内置技能注册 | registerBundledSkill() 程序化 | 内置 skills/ 目录 | 对等 |
-| **inline/fork 双模式** | ✅ 完整 | ❌ 仅 inline | **核心差距** |
+| **inline/fork 双模式** | ✅ 完整 | ✅ 完整 | 对等 |
 | Skill 引用文件 | `files` 字段 + 磁盘提取 | 无 | **缺失** |
 | Skill 工具限制 | `allowedTools` | 无 | **缺失** |
 | Skill 上下文模式 | `context: 'inline'\|'fork'\|'inline'` | 无 | **缺失** |
@@ -1490,7 +1490,7 @@ SkillTool.call(args)
        │     ])
        │     → 直接返回 LLM 回答
        │
-       └─→ [FORK] executeSkillFork(skill, args)  ⚠️ 缺失
+       └─→ [FORK] executeSkillFork(skill, args)  ✅ 已实现
              1. subAgent = Agent.create({
                   allowedTools: skill.allowedTools,
                   model: skill.model,
@@ -1763,15 +1763,17 @@ bun test (all)
   3890 expect() calls
 ```
 
-### 13.2 待实现功能
+### 13.2 已实现功能
 
-| 优先级 | 任务 | 估算 | 状态 |
+| 优先级 | 任务 | 状态 | 验证 |
 |--------|------|------|------|
-| P0 | Skill fork Agent 集成 | 1天 | executor框架就绪 |
-| P0 | Skill 引用文件提取 | 1天 | 待实现 |
-| P1 | 内置插件注册表 | 1天 | 待实现 |
-| P1 | MCP OAuth认证 | 2天 | 待实现 |
-| P1 | Claude Desktop导入 | 1天 | 待实现 |
+| ✅ P0 | Skill fork Agent 集成 | executor.ts (306行) | 32 tests pass |
+| ✅ P0 | Skill 引用文件提取 | files.ts | 19 tests pass |
+| ✅ P1 | 内置插件注册表 | builtin-plugins.ts (386行) | 代码完成 |
+| ✅ P1 | MCP OAuth 认证 | oauth.ts | 15 tests pass |
+| ✅ P1 | Claude Desktop 导入 | desktop-import.ts | 11 tests pass |
+| ✅ P1 | MCP Types/Schemas | types.ts | 26 tests pass |
+| ✅ P1 | MCP Server 启动 | server.ts | 12 tests pass |
 
 ### 13.3 与Claude Code对标进度
 
@@ -1779,10 +1781,10 @@ bun test (all)
 |------|-------------|--------|------|
 | Skill 双模式执行 | ✅ | ✅ | 对标完成 |
 | Skill 类型扩展 | ✅ | ✅ | 对标完成 |
-| Skill fork Agent | ✅ | ⏳ | 部分完成 |
-| Skill 引用文件 | ✅ | ⏳ | 待实现 |
-| 内置插件注册表 | ✅ | ⏳ | 待实现 |
-| MCP OAuth | ✅ | ⏳ | 待实现 |
+| Skill fork Agent | ✅ | ✅ | 对标完成 |
+| Skill 引用文件 | ✅ | ✅ | 对标完成 |
+| 内置插件注册表 | ✅ | ✅ | 对标完成 |
+| MCP OAuth | ✅ | ✅ | 对标完成 |
 
 ---
 
