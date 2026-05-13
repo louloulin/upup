@@ -219,7 +219,7 @@ describe('TaskManager', () => {
       const s1 = manager.createSubTask(parent.id, { title: 'Sub 1' });
       manager.createSubTask(parent.id, { title: 'Sub 2' });
 
-      manager.complete(s1.id, 'Done');
+      manager.complete(s1!.id, 'Done');
 
       const progress = manager.getProgress(parent.id);
       expect(progress.completed).toBe(1);

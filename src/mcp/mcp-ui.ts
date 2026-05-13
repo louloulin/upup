@@ -22,9 +22,8 @@ import {
   ProcessTerminal,
 } from '@mariozechner/pi-tui';
 import chalk from 'chalk';
-import type { MCPServerConfig, MCPServerStatus, MCPServerState } from './types.js';
+import type { McpServerConfig, MCPServerStatus, MCPServerState } from './types.js';
 import { loadMCPConfig, getConfigPath } from '../commands/mcp.js';
-import type { MCPServerConfig, MCPServerStatus } from './types.js';
 
 // ============================================================================
 // Theme
@@ -49,16 +48,16 @@ const theme = {
 
 export interface MCPServerInfo {
   name: string;
-  config: MCPServerConfig;
+  config: McpServerConfig;
   status?: MCPServerStatus;
 }
 
 export interface MCPUIOptions {
   scope?: 'project' | 'user';
-  onServerSelect?: (name: string, config: MCPServerConfig) => void;
+  onServerSelect?: (name: string, config: McpServerConfig) => void;
   onServerStart?: (name: string) => Promise<void>;
   onServerStop?: (name: string) => Promise<void>;
-  onServerAdd?: (name: string, config: MCPServerConfig) => Promise<void>;
+  onServerAdd?: (name: string, config: McpServerConfig) => Promise<void>;
   onServerRemove?: (name: string) => Promise<void>;
 }
 
@@ -69,6 +68,10 @@ export interface MCPUIOptions {
 export class MCPServerList implements Component {
   private servers: MCPServerInfo[] = [];
   private selectedIndex = 0;
+
+  invalidate(): void {
+    // No cached state to invalidate
+  }
 
   render(width: number): string[] {
     if (this.servers.length === 0) {
@@ -129,6 +132,10 @@ export class MCPServerList implements Component {
 
 export class MCPServerDetail implements Component {
   private server: MCPServerInfo | null = null;
+
+  invalidate(): void {
+    // No cached state to invalidate
+  }
 
   render(width: number): string[] {
     if (!this.server) {
@@ -193,16 +200,14 @@ export class MCPUI {
     this.serverList = new MCPServerList();
     this.serverDetail = new MCPServerDetail();
 
-    this.setupKeyHandlers();
-  }
-
-  private setupKeyHandlers(): void {
-    this.terminal.on('key', (key: string) => {
+    // Route keyboard input based on overlay state
+    this.tui.addInputListener((data: string) => {
       if (this.serverOverlay) {
-        this.handleDetailKey(key);
+        this.handleDetailKey(data);
       } else {
-        this.handleListKey(key);
+        this.handleListKey(data);
       }
+      return { consume: true };
     });
   }
 
@@ -275,7 +280,7 @@ export class MCPUI {
   private async showAddDialog(): Promise<void> {
     // Simplified: just add a placeholder server
     const name = `server-${Date.now()}`;
-    const config: MCPServerConfig = {
+    const config: McpServerConfig = {
       type: 'stdio',
       command: 'echo',
       args: ['"MCP server placeholder"'],

@@ -228,6 +228,20 @@ export interface PluginService {
   stop?(ctx: ServiceContext): Promise<void>;
 }
 
+/** Enriched service info with plugin name for display */
+export interface EnrichedService {
+  plugin: string;
+  name: string;
+  description?: string;
+}
+
+/** Enriched hook info with plugin name for display */
+export interface EnrichedHook {
+  plugin: string;
+  name: string;
+  event?: string;
+}
+
 // ============================================================================
 // Data Source Types (investment focus)
 // ============================================================================
@@ -312,6 +326,10 @@ export interface LoadedPlugin {
   services: PluginService[];
   tools: AgentTool[];
   hooks: Map<string, HookHandler[]>;
+  /** Optional file path to the plugin (for external plugins) */
+  path?: string;
+  /** Optional enabled state (defaults to true) */
+  enabled?: boolean;
 }
 
 // ============================================================================
@@ -338,6 +356,12 @@ export interface PluginRegistry {
   getByCapability(capability: PluginCapability): LoadedPlugin[];
   getTools(): AgentTool[];
   getServices(): PluginService[];
+  /** Get services with plugin name for display purposes */
+  getEnrichedServices(): EnrichedService[];
+  /** Get all hooks with plugin name for display purposes */
+  getAllEnrichedHooks(): EnrichedHook[];
+  /** Get tool names filtered by plugin name prefix */
+  getToolNamesByPlugin(pluginName: string): string[];
 }
 
 // ============================================================================

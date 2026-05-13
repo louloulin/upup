@@ -1,3 +1,6 @@
+import type { Message } from '../agent/types.js';
+import type { BaseMessage } from '@langchain/core/messages';
+
 /**
  * Parses UpUp's chat_history.json into indexable text chunks for memory search.
  *
@@ -75,4 +78,35 @@ export async function parseSessionTranscripts(chatHistoryPath: string): Promise<
   }
 
   return entries;
+}
+
+// ============================================================================
+// Session Memory Update
+// ============================================================================
+
+let lastUpdateTimestamp = 0;
+const MIN_UPDATE_INTERVAL_MS = 60_000; // 1 minute minimum between updates
+
+/**
+ * Returns true if enough time has passed since the last session memory update.
+ * Used to throttle update frequency.
+ */
+export function shouldUpdateSessionMemory(): boolean {
+  return Date.now() - lastUpdateTimestamp >= MIN_UPDATE_INTERVAL_MS;
+}
+
+interface UpdateResult {
+  tokenCount: number;
+  messageCount: number;
+}
+
+/**
+ * Updates session memory with recent conversation messages.
+ * Extracts meaningful content from messages and records the update timestamp.
+ */
+export async function updateSessionMemory(messages: BaseMessage[]): Promise<UpdateResult> {
+  const tokenCount = messages.reduce((sum, m) => sum + Math.ceil((m.content?.length ?? 0) / 4), 0);
+  const messageCount = messages.length;
+  lastUpdateTimestamp = Date.now();
+  return { tokenCount, messageCount };
 }

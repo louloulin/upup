@@ -24,8 +24,10 @@ import { MemoryManager } from '../memory/index.js';
 import { runMemoryFlush, shouldRunMemoryFlush } from '../memory/flush.js';
 import { createExtractionHook, type ExtractionResult } from '../memory/extraction.js';
 import { getObservationBuffer } from '../memory/observation-buffer.js';
+import { getStopHookRegistry, registerDefaultStopHooks, type StopHookContext } from '../hooks/stop-hooks.js';
+import { isFeatureEnabled } from '../utils/feature-flags.js';
 import { resolveProvider } from '../providers.js';
-import { warn, error, info, perf } from '../utils/logging/logger.js';
+import { warn, error, info, debug, perf } from '../utils/logging/logger.js';
 import { ModelFallbackHandler, FallbackTriggeredError, isFallbackError } from './fallback.js';
 import { getConfiguredModelId, getConfiguredProvider } from '../utils/config.js';
 
@@ -53,6 +55,8 @@ export class Agent {
   private readonly memoryEnabled: boolean;
   private readonly messageQueue?: MessageQueue;
   private readonly extractionHook: (messages: { role: string; content: string }[], signal?: AbortSignal) => Promise<ExtractionResult[]>;
+  private readonly sessionId: string;
+  private turnCount: number = 0;
   private compactionFailures: number = 0;
   private readonly fallbackHandler: ModelFallbackHandler;
 
@@ -79,11 +83,18 @@ export class Agent {
     this.signal = config.signal;
     this.memoryEnabled = config.memoryEnabled ?? true;
     this.messageQueue = config.messageQueue;
+    this.sessionId = config.sessionId ?? `agent-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    this.turnCount = 0;
     this.extractionHook = createExtractionHook({
       minTurnsBetweenExtractions: 5,
       maxMemoriesPerExtraction: 3,
     });
     this.fallbackHandler = new ModelFallbackHandler({ primaryModel: this.model });
+
+    // Register default stop hooks
+    if (isFeatureEnabled('dexter_stop_hooks_enabled')) {
+      registerDefaultStopHooks();
+    }
   }
 
   static async create(config: AgentConfig = {}): Promise<Agent> {
@@ -786,31 +797,23 @@ export class Agent {
   ): AsyncGenerator<AgentEvent, void> {
     const totalTime = Date.now() - ctx.startTime;
 
-    // Trigger per-turn memory extraction (non-blocking, in background)
-    // This runs after the final response when no tool calls were made
-    if (this.memoryEnabled) {
-      // Check observation buffer - if we have enough observations, extract from them
-      const obsBuffer = getObservationBuffer();
+    // Trigger stop hooks (memory extraction, session memory, etc.)
+    // These run in background after the turn completes
+    this.turnCount++;
 
-      if (obsBuffer.shouldExtract(5)) {
-        // Extract from accumulated observations (Claude Code PostToolUse pattern)
-        const obsMessages = obsBuffer.toMessages();
-        obsBuffer.clear(); // Clear after reading
-        this.extractionHook(obsMessages, this.signal).catch(err => {
-          warn('memory', `Observation-based extraction failed: ${err}`);
-        });
-        info('memory', `Extraction triggered from ${obsMessages.length} observations`);
-      } else {
-        // Fallback: extract from conversation messages
-        const messageData = messages.map(m => ({
-          role: m.getType(),
-          content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
-        }));
-        // Fire and forget - extraction runs in background
-        this.extractionHook(messageData, this.signal).catch(err => {
-          warn('memory', `Per-turn extraction failed: ${err}`);
-        });
-      }
+    if (this.memoryEnabled && isFeatureEnabled('dexter_stop_hooks_enabled')) {
+      const stopContext: StopHookContext = {
+        messages,
+        sessionId: this.sessionId,
+        turnCount: this.turnCount,
+        cwd: process.cwd(),
+        timestamp: Date.now(),
+      };
+
+      // Execute all stop hooks (fire and forget)
+      const hookRegistry = getStopHookRegistry();
+      hookRegistry.executeAll(stopContext);
+      debug('hooks', `Triggered stop hooks for turn ${this.turnCount}`);
     }
 
     const toolCallRecords = ctx.scratchpad.getToolCallRecords();

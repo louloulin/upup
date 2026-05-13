@@ -160,6 +160,49 @@ export class PluginRegistryImpl implements PluginRegistry {
   }
 
   /**
+   * Get services with plugin name for display
+   */
+  getEnrichedServices(): import('./types.js').EnrichedService[] {
+    const result: import('./types.js').EnrichedService[] = [];
+    for (const plugin of this.plugins.values()) {
+      for (const service of plugin.services) {
+        result.push({
+          plugin: plugin.manifest.name,
+          name: service.name,
+        });
+      }
+    }
+    return result;
+  }
+
+  /**
+   * Get all hooks with plugin name for display
+   */
+  getAllEnrichedHooks(): import('./types.js').EnrichedHook[] {
+    const result: import('./types.js').EnrichedHook[] = [];
+    for (const plugin of this.plugins.values()) {
+      for (const [event] of plugin.hooks) {
+        result.push({
+          plugin: plugin.manifest.name,
+          name: event,
+          event,
+        });
+      }
+    }
+    return result;
+  }
+
+  /**
+   * Get tool names filtered by plugin name prefix
+   */
+  getToolNamesByPlugin(pluginName: string): string[] {
+    const prefix = `${pluginName}:`;
+    return this.tools
+      .map(t => t.name)
+      .filter(name => name.startsWith(prefix));
+  }
+
+  /**
    * Clear all registrations
    */
   clear(): void {

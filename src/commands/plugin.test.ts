@@ -3,6 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'bun:test';
+import type { CommandResult } from '@upup/commands';
 import {
   pluginListCommand,
   pluginInfoCommand,
@@ -18,9 +19,9 @@ describe('pluginListCommand', () => {
   });
 
   it('should execute without error', async () => {
-    const context = { args: [], options: {} } as any;
-    const result = await pluginListCommand.execute(context);
-    expect(result.success).toBe(true);
+    const context = {} as any;
+    const result = await pluginListCommand.execute('', context);
+    expect(result.type).toBe('output');
   });
 });
 
@@ -31,17 +32,17 @@ describe('pluginInfoCommand', () => {
   });
 
   it('should require plugin name argument', async () => {
-    const context = { args: [], options: {} } as any;
-    const result = await pluginInfoCommand.execute(context);
-    expect(result.success).toBe(false);
-    expect(result.error).toContain('Usage');
+    const context = {} as any;
+    const result = await pluginInfoCommand.execute('', context);
+    expect(result.type).toBe('error');
+    expect((result as { message: string }).message).toContain('Usage');
   });
 
   it('should show error for non-existent plugin', async () => {
-    const context = { args: ['non-existent-plugin-xyz'], options: {} } as any;
-    const result = await pluginInfoCommand.execute(context);
-    expect(result.success).toBe(false);
-    expect(result.error).toContain('not found');
+    const context = {} as any;
+    const result = await pluginInfoCommand.execute('non-existent-plugin-xyz', context);
+    expect(result.type).toBe('error');
+    expect((result as { message: string }).message).toContain('not found');
   });
 });
 
@@ -52,10 +53,10 @@ describe('pluginEnableCommand', () => {
   });
 
   it('should require plugin name argument', async () => {
-    const context = { args: [], options: {} } as any;
-    const result = await pluginEnableCommand.execute(context);
-    expect(result.success).toBe(false);
-    expect(result.error).toContain('Usage');
+    const context = {} as any;
+    const result = await pluginEnableCommand.execute('', context);
+    expect(result.type).toBe('error');
+    expect((result as { message: string }).message).toContain('Usage');
   });
 });
 
@@ -66,10 +67,10 @@ describe('pluginDisableCommand', () => {
   });
 
   it('should require plugin name argument', async () => {
-    const context = { args: [], options: {} } as any;
-    const result = await pluginDisableCommand.execute(context);
-    expect(result.success).toBe(false);
-    expect(result.error).toContain('Usage');
+    const context = {} as any;
+    const result = await pluginDisableCommand.execute('', context);
+    expect(result.type).toBe('error');
+    expect((result as { message: string }).message).toContain('Usage');
   });
 });
 
@@ -80,16 +81,16 @@ describe('pluginSearchCommand', () => {
   });
 
   it('should require search query argument', async () => {
-    const context = { args: [], options: {} } as any;
-    const result = await pluginSearchCommand.execute(context);
-    expect(result.success).toBe(false);
-    expect(result.error).toContain('Usage');
+    const context = {} as any;
+    const result = await pluginSearchCommand.execute('', context);
+    expect(result.type).toBe('error');
+    expect((result as { message: string }).message).toContain('Usage');
   });
 
   it('should search with query', async () => {
-    const context = { args: ['test'], options: {} } as any;
-    const result = await pluginSearchCommand.execute(context);
-    expect(result.success).toBe(true);
+    const context = {} as any;
+    const result = await pluginSearchCommand.execute('test', context);
+    expect(result.type).toBe('output');
   });
 });
 

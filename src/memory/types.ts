@@ -120,7 +120,7 @@ export interface MemorySearchResult {
   startLine: number;
   endLine: number;
   score: number;
-  source: 'vector' | 'keyword' | 'both' | 'hybrid';
+  source: 'vector' | 'keyword' | 'both' | 'hybrid' | 'tfidf';
   contentSource?: ContentSource;
   updatedAt?: number;
 }

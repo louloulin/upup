@@ -23,12 +23,12 @@ export const pluginListCommand: Command = {
   description: 'List all installed plugins with their status',
   aliases: ['plugins', 'pl'],
 
-  async execute(context: CommandContext): Promise<CommandResult> {
+  async execute(_args: string, _context: CommandContext): Promise<CommandResult> {
     const registry = getPluginRegistry();
     const allPlugins = registry.getAll();
 
     if (allPlugins.length === 0) {
-      return { success: true, output: 'No plugins installed.' };
+      return { type: 'output', text: 'No plugins installed.' };
     }
 
     const lines: string[] = ['Installed plugins:'];
@@ -36,9 +36,9 @@ export const pluginListCommand: Command = {
     for (const plugin of allPlugins) {
       const enabled = plugin.enabled ?? true;
       const status = enabled ? '✅' : '❌';
-      const capabilities = plugin.capabilities?.join(', ') || 'none';
-      lines.push(`  ${status} ${plugin.name} (${plugin.version})`);
-      lines.push(`      ${plugin.description}`);
+      const capabilities = plugin.manifest.capabilities?.join(', ') || 'none';
+      lines.push(`  ${status} ${plugin.manifest.name} (${plugin.manifest.version})`);
+      lines.push(`      ${plugin.manifest.description}`);
       lines.push(`      Capabilities: ${capabilities}`);
       lines.push(`      Path: ${plugin.path}`);
     }
@@ -46,7 +46,7 @@ export const pluginListCommand: Command = {
     lines.push('');
     lines.push(`Total: ${allPlugins.length} plugin(s)`);
 
-    return { success: true, output: lines.join('\n') };
+    return { type: 'output', text: lines.join('\n') };
   },
 };
 
@@ -59,11 +59,11 @@ export const pluginInfoCommand: Command = {
   description: 'Show detailed information about a plugin',
   aliases: ['pi'],
 
-  async execute(context: CommandContext): Promise<CommandResult> {
-    const name = context.args[0];
+  async execute(args: string, _context: CommandContext): Promise<CommandResult> {
+    const name = args.trim();
 
     if (!name) {
-      return { success: false, error: 'Usage: plugin info <name>' };
+      return { type: 'error', message: 'Usage: plugin info <name>' };
     }
 
     const registry = getPluginRegistry();
@@ -73,43 +73,36 @@ export const pluginInfoCommand: Command = {
       // Check if it's a builtin plugin
       const builtin = getBuiltinPlugin(name);
       if (!builtin) {
-        return { success: false, error: `Plugin "${name}" not found` };
+        return { type: 'error', message: `Plugin "${name}" not found` };
       }
 
       const enabled = isBuiltinPluginEnabled(name);
       const manifest = builtin.manifest;
 
       return {
-        success: true,
-        output: formatPluginInfo(manifest.name, manifest, enabled),
+        type: 'output',
+        text: formatPluginInfo(manifest.name, manifest, enabled),
       };
     }
 
     const lines = [
-      formatPluginInfo(plugin.name, plugin.manifest || {
-        id: plugin.id,
-        name: plugin.name,
-        version: plugin.version,
-        description: plugin.description || '',
-        capabilities: plugin.capabilities || [],
-      }, plugin.enabled ?? true),
+      formatPluginInfo(plugin.manifest.name, plugin.manifest, plugin.enabled ?? true),
     ];
 
     // Add tools count
-    const tools = registry.getByCapability('tool');
-    const pluginTools = tools.filter(t => t.startsWith(`${plugin.name}:`));
+    const pluginTools = registry.getToolNamesByPlugin(plugin.manifest.name);
     if (pluginTools.length > 0) {
       lines.push(`Tools: ${pluginTools.length}`);
     }
 
     // Add services count
-    const services = registry.getServices();
-    const pluginServices = services.filter(s => s.plugin === plugin.name);
+    const allServices = registry.getEnrichedServices();
+    const pluginServices = allServices.filter(s => s.plugin === plugin.manifest.name);
     if (pluginServices.length > 0) {
       lines.push(`Services: ${pluginServices.length}`);
     }
 
-    return { success: true, output: lines.join('\n') };
+    return { type: 'output', text: lines.join('\n') };
   },
 };
 
@@ -122,11 +115,11 @@ export const pluginEnableCommand: Command = {
   description: 'Enable a plugin',
   aliases: ['pen'],
 
-  async execute(context: CommandContext): Promise<CommandResult> {
-    const name = context.args[0];
+  async execute(args: string, _context: CommandContext): Promise<CommandResult> {
+    const name = args.trim();
 
     if (!name) {
-      return { success: false, error: 'Usage: plugin enable <name>' };
+      return { type: 'error', message: 'Usage: plugin enable <name>' };
     }
 
     const registry = getPluginRegistry();
@@ -136,16 +129,16 @@ export const pluginEnableCommand: Command = {
       // Check if it's a builtin plugin
       const builtin = getBuiltinPlugin(name);
       if (!builtin) {
-        return { success: false, error: `Plugin "${name}" not found` };
+        return { type: 'error', message: `Plugin "${name}" not found` };
       }
 
       setBuiltinPluginEnabled(name, true);
-      return { success: true, output: `Plugin "${name}" enabled.` };
+      return { type: 'output', text: `Plugin "${name}" enabled.` };
     }
 
     // Update plugin enabled state
     plugin.enabled = true;
-    return { success: true, output: `Plugin "${name}" enabled.` };
+    return { type: 'output', text: `Plugin "${name}" enabled.` };
   },
 };
 
@@ -158,11 +151,11 @@ export const pluginDisableCommand: Command = {
   description: 'Disable a plugin',
   aliases: ['pdis'],
 
-  async execute(context: CommandContext): Promise<CommandResult> {
-    const name = context.args[0];
+  async execute(args: string, _context: CommandContext): Promise<CommandResult> {
+    const name = args.trim();
 
     if (!name) {
-      return { success: false, error: 'Usage: plugin disable <name>' };
+      return { type: 'error', message: 'Usage: plugin disable <name>' };
     }
 
     const registry = getPluginRegistry();
@@ -172,16 +165,16 @@ export const pluginDisableCommand: Command = {
       // Check if it's a builtin plugin
       const builtin = getBuiltinPlugin(name);
       if (!builtin) {
-        return { success: false, error: `Plugin "${name}" not found` };
+        return { type: 'error', message: `Plugin "${name}" not found` };
       }
 
       setBuiltinPluginEnabled(name, false);
-      return { success: true, output: `Plugin "${name}" disabled.` };
+      return { type: 'output', text: `Plugin "${name}" disabled.` };
     }
 
     // Update plugin enabled state
     plugin.enabled = false;
-    return { success: true, output: `Plugin "${name}" disabled.` };
+    return { type: 'output', text: `Plugin "${name}" disabled.` };
   },
 };
 
@@ -194,24 +187,24 @@ export const pluginSearchCommand: Command = {
   description: 'Search plugins by name or description',
   aliases: ['ps'],
 
-  async execute(context: CommandContext): Promise<CommandResult> {
-    const query = context.args[0]?.toLowerCase();
+  async execute(args: string, _context: CommandContext): Promise<CommandResult> {
+    const query = args.trim().toLowerCase();
 
     if (!query) {
-      return { success: false, error: 'Usage: plugin search <query>' };
+      return { type: 'error', message: 'Usage: plugin search <query>' };
     }
 
     const registry = getPluginRegistry();
     const allPlugins = registry.getAll();
 
     const matches = allPlugins.filter(p => {
-      const nameMatch = p.name.toLowerCase().includes(query);
-      const descMatch = p.description?.toLowerCase().includes(query);
+      const nameMatch = p.manifest.name.toLowerCase().includes(query);
+      const descMatch = p.manifest.description?.toLowerCase().includes(query);
       return nameMatch || descMatch;
     });
 
     if (matches.length === 0) {
-      return { success: true, output: `No plugins found matching "${query}".` };
+      return { type: 'output', text: `No plugins found matching "${query}".` };
     }
 
     const lines: string[] = [`Found ${matches.length} plugin(s):`];
@@ -219,10 +212,10 @@ export const pluginSearchCommand: Command = {
     for (const plugin of matches) {
       const enabled = plugin.enabled ?? true;
       const status = enabled ? '✅' : '❌';
-      lines.push(`  ${status} ${plugin.name}: ${plugin.description}`);
+      lines.push(`  ${status} ${plugin.manifest.name}: ${plugin.manifest.description}`);
     }
 
-    return { success: true, output: lines.join('\n') };
+    return { type: 'output', text: lines.join('\n') };
   },
 };
 
@@ -235,12 +228,12 @@ export const pluginHooksCommand: Command = {
   description: 'List all plugin hooks',
   aliases: ['ph'],
 
-  async execute(context: CommandContext): Promise<CommandResult> {
+  async execute(_args: string, _context: CommandContext): Promise<CommandResult> {
     const registry = getPluginRegistry();
-    const allHooks = registry.getHooks();
+    const allHooks = registry.getAllEnrichedHooks();
 
     if (allHooks.length === 0) {
-      return { success: true, output: 'No hooks registered.' };
+      return { type: 'output', text: 'No hooks registered.' };
     }
 
     const lines: string[] = ['Registered hooks:'];
@@ -252,7 +245,7 @@ export const pluginHooksCommand: Command = {
     lines.push('');
     lines.push(`Total: ${allHooks.length} hook(s)`);
 
-    return { success: true, output: lines.join('\n') };
+    return { type: 'output', text: lines.join('\n') };
   },
 };
 
@@ -265,24 +258,24 @@ export const pluginServicesCommand: Command = {
   description: 'List all plugin services',
   aliases: ['psvc'],
 
-  async execute(context: CommandContext): Promise<CommandResult> {
+  async execute(_args: string, _context: CommandContext): Promise<CommandResult> {
     const registry = getPluginRegistry();
-    const services = registry.getServices();
+    const services = registry.getEnrichedServices();
 
     if (services.length === 0) {
-      return { success: true, output: 'No services registered.' };
+      return { type: 'output', text: 'No services registered.' };
     }
 
     const lines: string[] = ['Registered services:'];
 
     for (const service of services) {
-      lines.push(`  ${service.plugin}: ${service.name} - ${service.description}`);
+      lines.push(`  ${service.plugin}: ${service.name}${service.description ? ` - ${service.description}` : ''}`);
     }
 
     lines.push('');
     lines.push(`Total: ${services.length} service(s)`);
 
-    return { success: true, output: lines.join('\n') };
+    return { type: 'output', text: lines.join('\n') };
   },
 };
 

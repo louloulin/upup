@@ -4,7 +4,7 @@
  * - project: Project-level skills (.upup/skills/)
  * - user: User-level skills (.claude/skills/)
  */
-export type SkillSource = 'builtin' | 'user' | 'project';
+export type SkillSource = 'builtin' | 'user' | 'project' | 'plugin';
 
 /**
  * Model selection for skill execution.

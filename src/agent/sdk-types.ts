@@ -391,6 +391,6 @@ export function toSDKMessage(msg: Message): SDKMessage {
   return {
     type: 'system',
     subtype: 'init',
-    content: msg.content,
+    content: typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content),
   };
 }

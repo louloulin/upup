@@ -8,8 +8,8 @@ import {
   MCPServerInstance,
 } from './server.js';
 import type {
+  McpServerConfig,
   McpStdioServerConfig,
-  McpSSEServerConfig,
 } from './types.js';
 
 describe('MCPServerManager', () => {
@@ -112,7 +112,8 @@ describe('MCPServerInstance type', () => {
       config: {
         type: 'stdio',
         command: '/bin/test',
-      },
+        args: [],
+      } as McpServerConfig,
       state: 'disconnected',
       reconnectAttempts: 0,
     };
@@ -126,7 +127,7 @@ describe('MCPServerInstance type', () => {
   it('should allow optional fields', () => {
     const instance: MCPServerInstance = {
       name: 'test',
-      config: { type: 'stdio', command: '/bin/test' },
+      config: { type: 'stdio', command: '/bin/test', args: [] } as McpServerConfig,
       state: 'error',
       error: 'Connection failed',
       reconnectAttempts: 3,

@@ -8,6 +8,7 @@ import {
   McpSSEServerConfigSchema,
   McpHTTPServerConfigSchema,
   McpWebSocketServerConfigSchema,
+  McpServerConfig,
   McpOAuthConfigSchema,
   ConfigScopeSchema,
   TransportSchema,
@@ -169,10 +170,10 @@ describe('TransportSchema', () => {
 describe('Helper functions', () => {
   describe('getTransportType', () => {
     it('should return correct transport type', () => {
-      expect(getTransportType({ type: 'stdio', command: '/bin/test' })).toBe('stdio');
-      expect(getTransportType({ type: 'sse', url: 'https://example.com' })).toBe('sse');
-      expect(getTransportType({ type: 'http', url: 'https://example.com' })).toBe('http');
-      expect(getTransportType({ type: 'ws', url: 'ws://example.com' })).toBe('ws');
+      expect(getTransportType({ type: 'stdio', command: '/bin/test', args: [] } as McpServerConfig)).toBe('stdio');
+      expect(getTransportType({ type: 'sse', url: 'https://example.com' } as McpServerConfig)).toBe('sse');
+      expect(getTransportType({ type: 'http', url: 'https://example.com' } as McpServerConfig)).toBe('http');
+      expect(getTransportType({ type: 'ws', url: 'ws://example.com' } as McpServerConfig)).toBe('ws');
     });
   });
 
@@ -182,7 +183,7 @@ describe('Helper functions', () => {
         type: 'sse',
         url: 'https://example.com',
         oauth: { clientId: 'test' },
-      };
+      } as McpServerConfig;
       expect(supportsOAuth(config)).toBe(true);
     });
 
@@ -190,43 +191,44 @@ describe('Helper functions', () => {
       const config = {
         type: 'stdio',
         command: '/bin/test',
-      };
+        args: [],
+      } as McpServerConfig;
       expect(supportsOAuth(config)).toBe(false);
     });
   });
 
   describe('isStdioConfig', () => {
     it('should return true for stdio config', () => {
-      expect(isStdioConfig({ type: 'stdio', command: '/bin/test' })).toBe(true);
+      expect(isStdioConfig({ type: 'stdio', command: '/bin/test', args: [] } as McpServerConfig)).toBe(true);
     });
 
     it('should return false for SSE config', () => {
-      expect(isStdioConfig({ type: 'sse', url: 'https://example.com' })).toBe(false);
+      expect(isStdioConfig({ type: 'sse', url: 'https://example.com' } as McpServerConfig)).toBe(false);
     });
   });
 
   describe('isHttpConfig', () => {
     it('should return true for SSE config', () => {
-      expect(isHttpConfig({ type: 'sse', url: 'https://example.com' })).toBe(true);
+      expect(isHttpConfig({ type: 'sse', url: 'https://example.com' } as McpServerConfig)).toBe(true);
     });
 
     it('should return true for HTTP config', () => {
-      expect(isHttpConfig({ type: 'http', url: 'https://example.com' })).toBe(true);
+      expect(isHttpConfig({ type: 'http', url: 'https://example.com' } as McpServerConfig)).toBe(true);
     });
 
     it('should return false for stdio config', () => {
-      expect(isHttpConfig({ type: 'stdio', command: '/bin/test' })).toBe(false);
+      expect(isHttpConfig({ type: 'stdio', command: '/bin/test', args: [] } as McpServerConfig)).toBe(false);
     });
   });
 
   describe('getServerEndpoint', () => {
     it('should return URL for HTTP-based configs', () => {
-      expect(getServerEndpoint({ type: 'sse', url: 'https://example.com' })).toBe('https://example.com');
-      expect(getServerEndpoint({ type: 'http', url: 'https://api.example.com' })).toBe('https://api.example.com');
+      expect(getServerEndpoint({ type: 'sse', url: 'https://example.com' } as McpServerConfig)).toBe('https://example.com');
+      expect(getServerEndpoint({ type: 'http', url: 'https://api.example.com' } as McpServerConfig)).toBe('https://api.example.com');
     });
 
     it('should return command for stdio config', () => {
-      expect(getServerEndpoint({ type: 'stdio', command: '/usr/bin/mcp' })).toBe('/usr/bin/mcp');
+      expect(getServerEndpoint({ type: 'stdio', command: '/usr/bin/mcp', args: [] } as McpServerConfig)).toBe('/usr/bin/mcp');
     });
   });
 

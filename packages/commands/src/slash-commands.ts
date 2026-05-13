@@ -58,6 +58,10 @@ export const SLASH_COMMANDS: SlashCommand[] = [
   // Onboarding commands
   { name: 'onboard', description: 'Start onboarding wizard for new users', category: 'system' },
   { name: 'setup', description: 'Run setup wizard for new users', category: 'system' },
+  // Session commands
+  { name: 'session', description: 'Manage sessions: list, delete, rename, tag', category: 'core' },
+  { name: 'resume', description: 'Resume a previous conversation', category: 'core' },
+  { name: 'continue', description: 'Continue the most recent conversation', category: 'core' },
 ];
 
 /**
