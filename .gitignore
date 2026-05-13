@@ -63,3 +63,4 @@ dexter
 upup
 .serena/cache/
 .playwright-mcp/
+packages/sdk/.upup

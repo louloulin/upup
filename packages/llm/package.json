@@ -1,6 +1,6 @@
 {
   "name": "@upup/llm",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "UpUp LLM SDK - Unified LLM interface with multi-provider support",
   "type": "module",
   "main": "./dist/index.js",

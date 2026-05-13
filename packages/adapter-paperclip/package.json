@@ -1,6 +1,6 @@
 {
   "name": "@upup/adapter-paperclip",
-  "version": "1.0.0",
+  "version": "0.2.0",
   "description": "Paperclip adapter for UpUp agent - enables UpUp as a Paperclip company employee",
   "type": "module",
   "main": "./src/index.ts",

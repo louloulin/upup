@@ -1,6 +1,6 @@
 {
   "name": "@upup/utils",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "UpUp Utils - Common utility functions",
   "type": "module",
   "main": "./dist/index.js",
