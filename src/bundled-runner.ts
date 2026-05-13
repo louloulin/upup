@@ -1,15 +1,16 @@
 /**
  * Bundled agent runner for Paperclip adapter
- * 
+ *
  * This file is bundled with esbuild to create a self-contained agent-bundle.js
  * that has NO external file dependencies.
- * 
+ *
  * Usage: bun run agent-bundle.js "your prompt"
  */
 
 import { config } from 'dotenv';
 import { Agent } from './agent/agent.js';
 import path from 'path';
+import { homedir } from 'os';
 
 // Try to load .env from various locations
 const envPaths = [
@@ -28,6 +29,25 @@ for (const envPath of envPaths) {
   } catch {
     // Continue to next path
   }
+}
+
+// Also try to load from global ~/.upup/settings.json for API key
+const globalSettingsPath = path.join(homedir(), '.upup', 'settings.json');
+try {
+  const fs = require('fs');
+  if (fs.existsSync(globalSettingsPath)) {
+    const settings = JSON.parse(fs.readFileSync(globalSettingsPath, 'utf-8'));
+    if (settings.apiKey && !process.env.DEEPSEEK_API_KEY && !process.env.ANTHROPIC_API_KEY) {
+      // Set environment variable from global config
+      if (settings.provider === 'deepseek') {
+        process.env.DEEPSEEK_API_KEY = settings.apiKey;
+      } else if (settings.provider === 'anthropic') {
+        process.env.ANTHROPIC_API_KEY = settings.apiKey;
+      }
+    }
+  }
+} catch {
+  // Continue without global settings
 }
 
 // Get prompt from command line

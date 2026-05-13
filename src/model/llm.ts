@@ -57,7 +57,28 @@ interface ModelOpts {
 type ModelFactory = (name: string, opts: ModelOpts) => BaseChatModel;
 
 function getApiKey(envVar: string): string {
-  const apiKey = process.env[envVar];
+  // First check environment variable
+  let apiKey = process.env[envVar];
+
+  // If not found, try to load from global ~/.upup/settings.json
+  if (!apiKey) {
+    const fs = require('fs');
+    const { homedir } = require('os');
+    const path = require('path');
+
+    try {
+      const settingsPath = path.join(homedir(), '.upup', 'settings.json');
+      if (fs.existsSync(settingsPath)) {
+        const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
+        if (settings.apiKey) {
+          apiKey = settings.apiKey;
+        }
+      }
+    } catch {
+      // Continue to error
+    }
+  }
+
   if (!apiKey) {
     throw new Error(`[LLM] ${envVar} not found in environment variables`);
   }
