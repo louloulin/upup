@@ -167,3 +167,62 @@ export function extractSkillMetadata(path: string, source: SkillSource): SkillMe
     aliases: parseAliasesField(data.aliases),
   };
 }
+
+// ============================================================================
+// Built-in Plugin Skill Integration
+// ============================================================================
+
+/**
+ * Bundled skill definition from plugins
+ */
+export interface PluginBundledSkill {
+  /** Skill name */
+  name: string;
+  /** Skill description */
+  description: string;
+  /** Markdown instructions */
+  instructions: string;
+  /** Plugin name that provides this skill */
+  pluginName: string;
+  /** Optional model specification */
+  model?: string;
+  /** Optional allowed tools */
+  allowedTools?: string[];
+  /** Optional execution context */
+  context?: 'inline' | 'fork';
+  /** Optional user invocable flag */
+  userInvocable?: boolean;
+  /** Optional argument hint */
+  argumentHint?: string;
+}
+
+/**
+ * Convert a plugin bundled skill to the internal Skill format.
+ *
+ * @param skill - Plugin bundled skill
+ * @returns Skill in internal format
+ */
+export function convertPluginSkill(skill: PluginBundledSkill): Skill {
+  return {
+    name: skill.name,
+    description: skill.description,
+    instructions: skill.instructions,
+    path: `plugin:${skill.pluginName}/${skill.name}`,
+    source: 'plugin',
+    model: parseModelField(skill.model),
+    userInvocable: skill.userInvocable ?? false,
+    argumentHint: skill.argumentHint,
+    context: skill.context,
+    allowedTools: skill.allowedTools,
+  };
+}
+
+/**
+ * Convert multiple plugin skills to internal format.
+ *
+ * @param skills - Array of plugin bundled skills
+ * @returns Array of skills in internal format
+ */
+export function convertPluginSkills(skills: PluginBundledSkill[]): Skill[] {
+  return skills.map(convertPluginSkill);
+}
