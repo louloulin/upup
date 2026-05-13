@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { formatToolResult } from '../types.js';
 import fs from 'node:fs';
 import path from 'node:path';
+import { PORTFOLIOS_DIR } from '../../utils/storage-paths.js';
 
 // ============================================================================
 // Types
@@ -38,7 +39,7 @@ export interface MultiPortfolioData {
 // Persistence
 // ============================================================================
 
-const PORTFOLIO_DIR = '.upup/portfolios';
+const PORTFOLIO_DIR = PORTFOLIOS_DIR;
 
 function getPortfolioDir(): string {
   return PORTFOLIO_DIR;

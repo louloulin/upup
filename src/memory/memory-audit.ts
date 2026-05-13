@@ -29,13 +29,15 @@ export interface MemoryAuditEntry {
 /**
  * Audit logger for memory access operations
  */
+import { LOGS_DIR } from '../utils/storage-paths.js';
+
 export class MemoryAuditLogger {
   private auditPath: string;
 
   constructor(auditPath?: string) {
     const baseDir = auditPath
       ? dirname(auditPath)
-      : join(process.cwd(), '.upup', 'logs');
+      : LOGS_DIR;
     const fileName = auditPath
       ? auditPath
       : join(baseDir, 'memory-audit.log');
