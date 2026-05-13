@@ -10,15 +10,17 @@
  * Reference: Loucode's modeValidation.ts and permissions.ts
  */
 
-import { getCommandInfo, type CommandClassification } from './command-classifier.js';
-import { classifyCommand } from './command-classifier.js';
+import type { CommandClassification, PermissionMode } from './types.js';
+import { getCommandInfo, classifyCommand } from './command-classifier.js';
 import { mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 
 // ============================================================================
 // Types
 // ============================================================================
 
-export type PermissionMode = 'bypass' | 'allow' | 'ask' | 'deny';
+// PermissionMode is defined in types.ts and re-exported here
+export type { PermissionMode };
+export type { CommandClassification } from './types.js';
 
 export interface PermissionRequest {
   command: string;

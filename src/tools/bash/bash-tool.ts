@@ -14,8 +14,7 @@
  */
 
 import { z } from 'zod';
-import { StructuredToolInterface } from '@langchain/core/tools';
-import { tool } from '@langchain/core/tools';
+import { DynamicStructuredTool } from '@langchain/core/tools';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { getCwd } from '../../utils/cwd.js';
@@ -381,20 +380,15 @@ export function formatBashResult(result: BashToolResult): string {
 }
 
 /**
- * Create the BashTool instance
+ * Create the BashTool instance using DynamicStructuredTool
  */
-export function createBashTool(options: BashToolOptions = {}): StructuredToolInterface {
-  const toolInstance = tool(
-    async (input: BashToolInput, runManager: any) => {
-      const { command, description, timeout = 30 } = input;
-
+export function createBashTool(options: BashToolOptions = {}): DynamicStructuredTool {
+  return new DynamicStructuredTool({
+    name: BASH_TOOL_NAME,
+    description: getBashToolDescription(),
+    schema: inputSchema,
+    async func({ command, description, timeout = 30 }: BashToolInput): Promise<string> {
       info('bash', `Executing: ${command}`);
-
-      // Log execution start
-      await runManager?.handleToolStart({
-        name: BASH_TOOL_NAME,
-        description: description || command,
-      });
 
       try {
         // Execute command
@@ -413,33 +407,14 @@ export function createBashTool(options: BashToolOptions = {}): StructuredToolInt
           warn('bash', `Dangerous command executed successfully: ${command}`);
         }
 
-        // Log completion
-        await runManager?.handleToolEnd({
-          name: BASH_TOOL_NAME,
-          output,
-        });
-
         return output;
       } catch (err) {
         const errorMsg = err instanceof Error ? err.message : String(err);
         error('bash', `Command failed: ${errorMsg}`);
-
-        await runManager?.handleToolError({
-          name: BASH_TOOL_NAME,
-          error: err,
-        });
-
         throw err;
       }
     },
-    {
-      name: BASH_TOOL_NAME,
-      description: getBashToolDescription(),
-      schema: inputSchema as unknown as Record<string, unknown>,
-    }
-  );
-
-  return toolInstance;
+  });
 }
 
 /**

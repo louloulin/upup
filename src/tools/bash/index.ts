@@ -53,8 +53,6 @@ export {
   isReadOnlyCommand,
   isDestructiveCommand,
   getCommandInfo,
-  CommandClassification,
-  PermissionMode,
 } from './command-classifier.js';
 
 export {
@@ -95,3 +93,6 @@ export type {
   PermissionSuggestion,
   PermissionResult,
 } from './permission-mode.js';
+
+// Re-export shared types from types.ts
+export type { CommandClassification, PermissionMode } from './types.js';

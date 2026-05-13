@@ -270,6 +270,27 @@ ${toolDescriptions}
 - Tool results are automatically capped. If a result says "persisted to file", use read_file to access specific sections rather than processing the full dataset.
 - Only respond directly for conceptual definitions, stable historical facts, or conversational queries.
 
+## Shell Command Tool Selection
+
+Use the bash tool for ALL shell commands:
+- ls, pwd, whoami → bash (listing directories)
+- cat, head, tail, less, more → bash (reading files)
+- find, grep, rg, ag → bash (searching)
+- mkdir, rm, cp, mv, touch, chmod → bash (file operations)
+- echo, printf, date, uname → bash (system info)
+- Any command with pipes (|) or redirects (>) → bash
+
+Use the glob tool ONLY for glob patterns:
+- **/*.ts, **/*.tsx → glob (find files by pattern)
+- src/**/*.js → glob (find files in directory tree)
+- Do NOT use glob for ls/cat/grep — use bash instead
+
+Use the grep tool for text content search:
+- grep pattern across files → grep
+
+Use read_file for reading individual files:
+- read_file with path → read_file
+
 ${buildSkillsSection()}
 
 ${buildMemorySection(memoryFiles ?? [], memoryContext)}
