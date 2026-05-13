@@ -1,8 +1,8 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { dirname } from 'path';
-import { upupPath } from './paths.js';
+import { globalUpupPath } from './paths.js';
 
-const SETTINGS_FILE = upupPath('settings.json');
+const SETTINGS_FILE = globalUpupPath('settings.json');
 
 // Map legacy model IDs to provider IDs for migration
 const MODEL_TO_PROVIDER_MAP: Record<string, string> = {
