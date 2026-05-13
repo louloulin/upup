@@ -17,6 +17,27 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import { EventEmitter } from 'events';
 import { info, error as logError } from '../utils/logging/logger.js';
+import {
+  defaultTokenStorage,
+  isTokenExpired,
+  type OAuthTokens,
+} from './oauth.js';
+
+/**
+ * OAuth configuration for MCP server
+ */
+export interface MCPOAuthConfig {
+  /** OAuth client ID */
+  clientId?: string;
+  /** OAuth client secret */
+  clientSecret?: string;
+  /** Authorization server URL */
+  authServerUrl?: string;
+  /** Token server URL */
+  tokenServerUrl?: string;
+  /** OAuth scopes */
+  scopes?: string[];
+}
 
 /**
  * MCP Server configuration
@@ -29,8 +50,12 @@ export interface MCPServerConfig {
   env?: Record<string, string>;
   /** SSE/HTTP transport config */
   url?: string;
+  /** HTTP headers */
+  headers?: Record<string, string>;
   /** Auto-connect on startup */
   autoConnect?: boolean;
+  /** OAuth configuration */
+  oauth?: MCPOAuthConfig;
 }
 
 /**
@@ -89,7 +114,7 @@ export class MCPClientManager extends EventEmitter {
    * Connect to an MCP server
    */
   async connect(serverConfig: MCPServerConfig): Promise<void> {
-    const { name, command, args, env, url, autoConnect = true } = serverConfig;
+    const { name, command, args, env, url, headers, oauth } = serverConfig;
 
     if (this.clients.has(name)) {
       info('mcp', `Server ${name} already connected`);
@@ -105,6 +130,9 @@ export class MCPClientManager extends EventEmitter {
         version: this.config.clientInfo?.version || '1.0.0',
       });
 
+      // Handle OAuth authentication if configured
+      const authHeaders = await this.getAuthHeaders(name, oauth);
+
       let transport: any;
 
       if (command) {
@@ -115,14 +143,27 @@ export class MCPClientManager extends EventEmitter {
             envRecord[key] = value;
           }
         }
+        // Add OAuth token to env if available
+        if (authHeaders.Authorization) {
+          envRecord['MCP_AUTH_TOKEN'] = authHeaders.Authorization.replace('Bearer ', '');
+        }
         transport = new StdioClientTransport({
           command,
           args: args || [],
           env: Object.keys(envRecord).length > 0 ? envRecord : undefined,
         });
       } else if (url) {
-        // SSE transport (remote server)
-        transport = new SSEClientTransport(new URL(url));
+        // SSE transport (remote server) with auth headers
+        const urlObj = new URL(url);
+        const mergedHeaders: Record<string, string> = { ...headers };
+        if (authHeaders.Authorization) {
+          mergedHeaders['Authorization'] = authHeaders.Authorization;
+        }
+        transport = new SSEClientTransport(urlObj, {
+          requestInit: {
+            headers: mergedHeaders,
+          },
+        });
       } else {
         throw new Error('Server must have either command or url');
       }
@@ -671,6 +712,103 @@ export class MCPClientManager extends EventEmitter {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       throw new Error(`Sampling failed for ${serverName}: ${message}`);
+    }
+  }
+
+  /**
+   * Get authorization headers for OAuth authentication
+   */
+  private async getAuthHeaders(
+    serverName: string,
+    oauth?: MCPOAuthConfig
+  ): Promise<Record<string, string>> {
+    if (!oauth) {
+      return {};
+    }
+
+    try {
+      // Try to get cached tokens
+      let tokens = await defaultTokenStorage.get(serverName);
+
+      // Check if token needs refresh
+      if (tokens && isTokenExpired(tokens)) {
+        if (tokens.refreshToken && oauth.tokenServerUrl) {
+          // Refresh the token
+          tokens = await this.refreshOAuthToken(serverName, oauth, tokens.refreshToken);
+        } else {
+          // Token expired without refresh, need new auth
+          tokens = null;
+        }
+      }
+
+      if (tokens?.accessToken) {
+        return { Authorization: `Bearer ${tokens.accessToken}` };
+      }
+
+      // No valid tokens, log warning
+      info('mcp', `No OAuth tokens for server ${serverName}, proceeding without auth`);
+      return {};
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logError('mcp', `OAuth auth error for ${serverName}: ${message}`);
+      return {};
+    }
+  }
+
+  /**
+   * Refresh OAuth token
+   */
+  private async refreshOAuthToken(
+    serverName: string,
+    oauth: MCPOAuthConfig,
+    refreshToken: string
+  ): Promise<OAuthTokens | null> {
+    if (!oauth.tokenServerUrl) {
+      return null;
+    }
+
+    try {
+      const response = await fetch(oauth.tokenServerUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          grant_type: 'refresh_token',
+          refresh_token: refreshToken,
+          client_id: oauth.clientId || '',
+        }),
+      });
+
+      if (!response.ok) {
+        logError('mcp', `Token refresh failed for ${serverName}: ${response.status}`);
+        return null;
+      }
+
+      const data = await response.json() as {
+        access_token: string;
+        refresh_token?: string;
+        expires_in?: number;
+        token_type?: string;
+      };
+
+      const tokens: OAuthTokens = {
+        accessToken: data.access_token,
+        refreshToken: data.refresh_token || refreshToken,
+        tokenType: data.token_type,
+        expiresAt: data.expires_in
+          ? Date.now() + data.expires_in * 1000
+          : undefined,
+      };
+
+      // Store updated tokens
+      await defaultTokenStorage.set(serverName, tokens);
+
+      return tokens;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logError('mcp', `Token refresh error for ${serverName}: ${message}`);
+      return null;
     }
   }
 }

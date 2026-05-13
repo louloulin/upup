@@ -2,7 +2,7 @@
 
 > 版本: 8.6 | 更新日期: 2026-05-13
 > 目标: 全面分析 plan8.5 剩余未实现功能，制定实现计划
-> 状态: **P1.1 ✅ P1.2 ✅** | 2178 tests pass
+> 状态: **P1.1 ✅ P1.2 ✅ P1.3 ✅** | 2183 tests pass
 
 ---
 
@@ -69,19 +69,20 @@
 - `executeSkillFork()` 中使用 `allowedTools` 过滤
 - `shouldUseForkMode()` 根据工具限制决定执行模式
 
-#### P1.3 MCP OAuth 认证集成
+#### P1.3 MCP OAuth 认证集成 ✅ 已完成
 | 项目 | 说明 |
 |------|------|
-| **状态** | **部分实现** (oauth.ts 已创建) |
-| **影响** | MCP 服务器无法使用 OAuth 认证 |
+| **状态** | ✅ **已完成** |
 | **文件** | `src/mcp/oauth.ts`, `src/mcp/client.ts` |
-| **实现内容** | OAuth token 获取、刷新、存储 |
+| **测试** | 5 tests (oauth-integration.test.ts) |
 
-**需实现**:
-- [ ] 在 `MCPServerConfig` 中添加 `auth` 配置
-- [ ] 在 `MCPClientManager.connect()` 中处理 OAuth 流程
-- [ ] 实现 token 持久化 (文件/钥匙串)
-- [ ] 添加测试用例
+**实现内容**:
+- `MCPOAuthConfig` 接口 - OAuth 配置定义
+- `MCPServerConfig` 添加 `oauth` 字段
+- `getAuthHeaders()` - 获取 OAuth 认证头
+- `refreshOAuthToken()` - 刷新过期 token
+- `defaultTokenStorage` - token 持久化存储
+- OAuth token 自动注入到 HTTP headers/env
 
 #### P1.4 MCP 配置动态 Scope
 | 项目 | 说明 |
