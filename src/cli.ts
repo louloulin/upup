@@ -281,6 +281,8 @@ export async function runCli(options: RunCliOptions = {}) {
       modelProvider: modelSelection.provider,
     });
     needsRenderOverlay = true;
+    // Immediately render the selection overlay when model selection state changes
+    renderSelectionOverlay();
     tui.requestRender();
   });
 
