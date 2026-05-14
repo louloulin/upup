@@ -1119,8 +1119,10 @@ export async function runCli(options: RunCliOptions = {}) {
   ) => {
     root.clear();
     root.addChild(createScreen(title, description, body, footer));
+    tui.requestRender();
     if (focusTarget) {
-      tui.setFocus(focusTarget);
+      // Delay focus to ensure render completes first
+      setTimeout(() => tui.setFocus(focusTarget), 10);
     }
   };
 
