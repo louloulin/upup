@@ -123,22 +123,36 @@ function createScreen(
 function renderHistoryMessage(
   msg: RenderableMessage,
   chatLog: ChatLogComponent,
-  theme: { primary: (text: string) => string; muted: (text: string) => string; dim: (text: string) => string },
+  _theme: { primary: (text: string) => string; muted: (text: string) => string; dim: (text: string) => string },
 ): void {
-  chatLog.addChild(new Spacer(1));
+  // 使用与原版相同的 ChatLogComponent 方法渲染历史消息
+  // 保持与 renderEvent() 相同的渲染模式以确保 UI 一致
 
   switch (msg.type) {
     case 'user':
-      chatLog.addChild(new Text(theme.primary(`You: ${msg.content}`), 0, 0));
+      // 用户消息使用 addQuery() + resetToolGrouping() - 与原版 UI 一致
+      // 每个新 query 开始时重置工具分组
+      chatLog.resetToolGrouping();
+      chatLog.addQuery(msg.content);
       break;
     case 'assistant':
-      chatLog.addChild(new Text(msg.content, 0, 0));
+      // 助手消息使用 finalizeAnswer() - 与原版 UI 一致
+      chatLog.finalizeAnswer(msg.content);
       break;
-    case 'tool':
-      chatLog.addChild(new Text(theme.dim(`[${msg.toolName || 'tool'}] ${msg.content}`), 0, 0));
+    case 'tool': {
+      // 工具消息使用 startTool() + setComplete() - 与原版 UI 一致
+      const toolId = msg.toolUseId || `history-tool-${msg.id}`;
+      const toolName = msg.toolName || 'unknown';
+      const args: Record<string, unknown> = {};
+      const component = chatLog.startTool(toolId, toolName, args);
+      // Summarize the result for the tool component
+      const summary = summarizeToolResult(toolName, args, msg.content);
+      component.setComplete(summary, 0); // Duration unknown for history
       break;
+    }
     case 'system':
-      chatLog.addChild(new Text(theme.muted(`[System] ${msg.content}`), 0, 0));
+      // 系统消息直接添加文本
+      chatLog.addChild(new Text(_theme.muted(`[System] ${msg.content}`), 0, 0));
       break;
   }
 }
