@@ -160,10 +160,23 @@ export function createSessionSelector(
   onCancel: () => void,
 ) {
   if (sessions.length === 0) {
-    const empty = new Container();
-    empty.addChild(new Text(theme.muted('No sessions found.'), 0, 0));
-    empty.addChild(new Text(theme.muted('Start a conversation to create your first session.'), 0, 0));
-    return empty;
+    // Create a custom class that handles escape key to exit
+    class EmptySessionSelector extends Container {
+      readonly cancelCallback: () => void;
+      constructor(cancel: () => void) {
+        super();
+        this.cancelCallback = cancel;
+        this.addChild(new Text(theme.muted('No sessions found.'), 0, 0));
+        this.addChild(new Text(theme.muted('Start a conversation to create your first session.'), 0, 0));
+      }
+      handleInput(keyData: string): void {
+        const kb = getEditorKeybindings();
+        if (kb.matches(keyData, 'selectCancel')) {
+          this.cancelCallback();
+        }
+      }
+    }
+    return new EmptySessionSelector(onCancel);
   }
 
   const items: SelectItem[] = sessions.map(session => ({
