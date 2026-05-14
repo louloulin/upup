@@ -8,6 +8,7 @@
   "scripts": {
     "start": "bun run src/index.tsx",
     "dev": "bun --watch run src/index.tsx",
+    "migrate:sessions": "bun run src/session/migrate.ts",
     "gateway": "tsx src/gateway/index.ts run",
     "gateway:login": "tsx src/gateway/index.ts login",
     "typecheck": "tsc --noEmit",
