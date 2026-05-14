@@ -1119,11 +1119,11 @@ export async function runCli(options: RunCliOptions = {}) {
   ) => {
     root.clear();
     root.addChild(createScreen(title, description, body, footer));
-    tui.requestRender();
+    // Set focus immediately before requestRender
     if (focusTarget) {
-      // Delay focus to ensure render completes first
-      setTimeout(() => tui.setFocus(focusTarget), 10);
+      tui.setFocus(focusTarget);
     }
+    tui.requestRender();
   };
 
   /**
@@ -1168,8 +1168,6 @@ export async function runCli(options: RunCliOptions = {}) {
           '↑↓ Navigate · Enter Resume · d Delete · n Rename · t Tag · Esc Cancel',
           selector,
         );
-        // Ensure focus is set to the selector
-        setTimeout(() => tui.setFocus(selector), 10);
         return;
       }
 
@@ -1190,7 +1188,6 @@ export async function runCli(options: RunCliOptions = {}) {
           'Enter to confirm · Esc to cancel',
           selector,
         );
-        setTimeout(() => tui.setFocus(selector), 10);
         return;
       }
 
@@ -1207,7 +1204,6 @@ export async function runCli(options: RunCliOptions = {}) {
           'Enter to save · Esc to cancel',
           input,
         );
-        setTimeout(() => tui.setFocus(input), 10);
         return;
       }
 
@@ -1224,7 +1220,6 @@ export async function runCli(options: RunCliOptions = {}) {
           'Enter to save · Esc to cancel · Empty to remove tag',
           input,
         );
-        setTimeout(() => tui.setFocus(input), 10);
         return;
       }
     }
@@ -1261,7 +1256,6 @@ export async function runCli(options: RunCliOptions = {}) {
         'Enter to confirm · esc to exit',
         selector,
       );
-      setTimeout(() => tui.setFocus(selector), 10);
       return;
     }
 
@@ -1279,7 +1273,6 @@ export async function runCli(options: RunCliOptions = {}) {
         'Enter to confirm · esc to go back',
         selector,
       );
-      setTimeout(() => tui.setFocus(selector), 10);
       return;
     }
 
@@ -1294,7 +1287,6 @@ export async function runCli(options: RunCliOptions = {}) {
         'Examples: anthropic/claude-3.5-sonnet, openai/gpt-4-turbo, meta-llama/llama-3-70b\nEnter to confirm · esc to go back',
         input,
       );
-      setTimeout(() => tui.setFocus(input), 10);
       return;
     }
 
@@ -1309,7 +1301,6 @@ export async function runCli(options: RunCliOptions = {}) {
         'Enter to confirm · esc to decline',
         selector,
       );
-      setTimeout(() => tui.setFocus(selector), 10);
       return;
     }
 
@@ -1325,7 +1316,6 @@ export async function runCli(options: RunCliOptions = {}) {
         'Enter to confirm · Esc to cancel',
         input,
       );
-      setTimeout(() => tui.setFocus(input), 10);
     }
   };
 
