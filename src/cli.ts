@@ -9,6 +9,7 @@ import { renderToolResult } from './tools/tool-renderers.js';
 import { getApiKeyNameForProvider, getProviderDisplayName } from './utils/env.js';
 import { defaultQueue } from './utils/message-queue.js';
 import { logger } from './utils/logger.js';
+import { validateConfig, isFirstTimeUse } from './utils/config-validation.js';
 import {
   AgentRunnerController,
   InputHistoryController,
@@ -270,20 +271,59 @@ export async function runCli(options: RunCliOptions = {}) {
   };
 
   let agentRunner: AgentRunnerController;
+  // Declare intro and renderSelectionOverlay early to avoid temporal dead zone
+  let intro: IntroComponent;
+  let needsRenderOverlay = false;
   const modelSelection = new ModelSelectionController(onError, () => {
-    intro.setModel(modelSelection.model);
+    if (intro) intro.setModel(modelSelection.model);
     agentRunner?.updateAgentConfig({
       model: modelSelection.model,
       modelProvider: modelSelection.provider,
     });
-    renderSelectionOverlay();
+    needsRenderOverlay = true;
     tui.requestRender();
   });
 
   const sessionSelection = new SessionSelectionController(() => {
-    renderSelectionOverlay();
+    needsRenderOverlay = true;
     tui.requestRender();
   });
+
+  // P0-4, P0-5, P0-6: Startup validation (Plan12)
+  // Validate configuration on startup and redirect to setup if needed
+  const configValidation = validateConfig();
+
+  if (!configValidation.valid) {
+    // Show configuration errors
+    chatLog.addChild(new Spacer(1));
+    chatLog.addChild(new Text(theme.error('⚠ Configuration incomplete'), 0, 0));
+
+    for (const error of configValidation.errors) {
+      chatLog.addChild(new Text(theme.muted(`  • ${error}`), 0, 0));
+    }
+
+    chatLog.addChild(new Spacer(1));
+
+    if (configValidation.isFirstTime) {
+      // P0-6: First-time welcome UI
+      chatLog.addChild(new Text(theme.bold(theme.primary('Welcome to UpUp!')), 0, 0));
+      chatLog.addChild(new Text(theme.muted("Let's set up your AI provider..."), 0, 0));
+      chatLog.addChild(new Spacer(1));
+    }
+
+    if (configValidation.missingProvider || configValidation.missingModel) {
+      // P0-5: Redirect to model selection UI
+      chatLog.addChild(new Text(
+        theme.muted('Starting setup wizard...'),
+        0, 0
+      ));
+      chatLog.addChild(new Spacer(1));
+      tui.requestRender();
+
+      // Auto-open model selection
+      modelSelection.startSelection();
+    }
+  }
 
   // Incremental history tracking
   let lastRenderedEventCount = 0;
@@ -391,7 +431,7 @@ export async function runCli(options: RunCliOptions = {}) {
     },
   );
 
-  const intro = new IntroComponent(modelSelection.model);
+  intro = new IntroComponent(modelSelection.model);
   const errorText = new Text('', 0, 0);
   const workingIndicator = new WorkingIndicatorComponent(tui);
   workingIndicator.setTurnStatsProvider(() => agentRunner.turnStats);
@@ -1514,6 +1554,11 @@ export async function runCli(options: RunCliOptions = {}) {
     renderSelectionOverlay();
     tui.requestRender();
   };
+
+  // Handle deferred overlay requests from early callbacks
+  if (needsRenderOverlay) {
+    renderSelectionOverlay();
+  }
 
   // Handle CLI flags: --resume, -c, --continue
   if (options.resumeTarget !== undefined || options.continue) {

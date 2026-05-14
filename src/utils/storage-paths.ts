@@ -53,6 +53,7 @@ export const RULES_FILE = globalUpupPath('RULES.md');
 export const HEARTBEAT_FILE = globalUpupPath('HEARTBEAT.md');
 export const SOUL_FILE = globalUpupPath('SOUL.md');
 export const GATEWAY_FILE = globalUpupPath('gateway.json');
+export const CREDENTIALS_FILE = globalUpupPath('.credentials.json');
 
 // MCP
 export const MCP_CONFIG_FILE = globalUpupPath('mcp-config.json');

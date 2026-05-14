@@ -3,6 +3,7 @@ import { config } from 'dotenv';
 import { runCli } from './cli.js';
 import { runOnboarding } from './commands/onboarding.js';
 import { runDoctor } from './commands/doctor.js';
+import { runConfigCommand } from './commands/config.js';
 import { createStdioServer } from './stdio/server.js';
 
 config({ quiet: true });
@@ -59,6 +60,15 @@ async function main() {
       process.exit(0);
       break;
 
+    case 'config':
+      // Configuration management
+      const configArgs = args.slice(1);
+      const configSubCommand = configArgs[0] || 'help';
+      const configSubArgs = configArgs.slice(1);
+      runConfigCommand({ command: configSubCommand, args: configSubArgs });
+      process.exit(0);
+      break;
+
     case 'help':
     case '--help':
     case '-h':
@@ -97,8 +107,19 @@ Usage:
   upup              Start interactive CLI
   upup setup        Run interactive setup wizard
   upup doctor       Run health check
+  upup config       Manage configuration
   upup help         Show this help message
   upup version      Show version
+
+Config Commands:
+  upup config get <key>      Get a config value
+  upup config set <key> <value>  Set a config value
+  upup config list           List all config values
+  upup config status         Show validation status
+  upup config sources        Show config sources
+  upup config export         Export config to file
+  upup config import <file>  Import config from file
+  upup config backup         Backup current config
 
 Session Commands:
   upup -r [id]     Resume a previous session
@@ -111,6 +132,7 @@ Examples:
   upup              Start the agent
   upup setup        Configure API keys and settings
   upup doctor       Check system health
+  upup config list  List all configuration
   upup -r           Show session picker to resume
   upup -r abc123    Resume session matching "abc123"
   upup -c           Continue the most recent session

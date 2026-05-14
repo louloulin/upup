@@ -242,6 +242,15 @@ export function clearConfigCache(): void {
 }
 
 /**
+ * Force reload configuration from disk
+ * Clears cache and returns fresh config
+ */
+export function reloadConfig(): Config {
+  clearConfigCache();
+  return getConfig();
+}
+
+/**
  * Generate ETag for config
  */
 function generateEtag(config: Config): string {
