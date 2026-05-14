@@ -7,8 +7,9 @@ import type {
   ApprovalDecision,
   DoneEvent,
 } from '../agent/index.js';
-import type { DisplayEvent, StreamMode } from '../agent/types.js';
+import type { DisplayEvent, StreamMode, ToolEndEvent, ToolErrorEvent } from '../agent/types.js';
 import type { HistoryItem, HistoryItemStatus, WorkingState } from '../types.js';
+import type { SessionMessage } from '../session/types.js';
 import { getSessionTracker } from '../session/session-tracker.js';
 import { createSession, addSessionMessage } from '../session/storage.js';
 import { recordFileHistorySnapshot, getFileHistoryManager } from '../storage/file-history.js';
@@ -368,6 +369,13 @@ export class AgentRunnerController {
           ),
         }));
         this.workingStateValue = { status: 'thinking' };
+
+        // Save tool result to session storage for resume
+        if (this.sessionIdValue) {
+          await this.saveToolResultToSession(event).catch((err: unknown) => {
+            console.error('[agent-runner] Failed to save tool result:', err);
+          });
+        }
         break;
       }
       case 'tool_error': {
@@ -379,6 +387,13 @@ export class AgentRunnerController {
           ),
         }));
         this.workingStateValue = { status: 'thinking' };
+
+        // Save tool error to session storage for resume
+        if (this.sessionIdValue) {
+          await this.saveToolErrorToSession(event).catch((err: unknown) => {
+            console.error('[agent-runner] Failed to save tool error:', err);
+          });
+        }
         break;
       }
       case 'tool_approval':
@@ -463,6 +478,42 @@ export class AgentRunnerController {
 
   private emitChange() {
     this.onChange?.();
+  }
+
+  /**
+   * Save tool result to session storage for resume.
+   * This ensures tool messages appear in the resumed conversation history.
+   */
+  private async saveToolResultToSession(event: ToolEndEvent): Promise<void> {
+    if (!this.sessionIdValue) return;
+
+    const toolMessage: Omit<SessionMessage, 'id' | 'timestamp'> = {
+      type: 'tool',
+      content: event.result,
+      parentUuid: this.getLastItem()?.id,
+      toolName: event.tool,
+      toolUseId: event.toolCallId,
+    };
+
+    await addSessionMessage(this.sessionIdValue, toolMessage, process.cwd());
+  }
+
+  /**
+   * Save tool error to session storage for resume.
+   * This ensures error messages appear in the resumed conversation history.
+   */
+  private async saveToolErrorToSession(event: ToolErrorEvent): Promise<void> {
+    if (!this.sessionIdValue) return;
+
+    const errorMessage: Omit<SessionMessage, 'id' | 'timestamp'> = {
+      type: 'error',
+      content: `Tool '${event.tool}' failed: ${event.error}`,
+      parentUuid: this.getLastItem()?.id,
+      toolName: event.tool,
+      toolUseId: event.toolCallId,
+    };
+
+    await addSessionMessage(this.sessionIdValue, errorMessage, process.cwd());
   }
 
   /**

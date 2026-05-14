@@ -1,7 +1,7 @@
 # Session 2.0 - 对话重建计划
 
 **日期**: 2026/05/14
-**版本**: v5 (真实测试验证完成)
+**版本**: v6 (Tool Messages 持久化)
 **状态**: ✅ 实现完成并验证
 **目标**: 彻底重构 session 系统，实现完整的对话历史展示，恢复时显示真实对话内容
 
@@ -50,6 +50,20 @@
 | **shouldCollapse** | ✅ | 阈值 50 | 自动检测 |
 | **estimateTokenCount** | ✅ | 字符估算 | token 估算 |
 | **CollapseStats** | ✅ | 统计信息 | 预估节省 |
+
+### Phase 6: Tool Messages 持久化 (P0) ✅ NEW
+
+| 功能 | 状态 | 文件 | 验收 |
+|------|------|------|------|
+| **tool_end 保存** | ✅ | `src/controllers/agent-runner.ts` | 工具结果写入 session |
+| **tool_error 保存** | ✅ | `src/controllers/agent-runner.ts` | 错误信息写入 session |
+| **parentUuid 关联** | ✅ | 关联到当前 query | 保持消息链完整 |
+
+**实现细节**:
+- `saveToolResultToSession()`: 在 `tool_end` 事件时调用，保存工具结果到 JSONL
+- `saveToolErrorToSession()`: 在 `tool_error` 事件时调用，保存错误信息
+- tool messages 通过 `parentUuid` 关联到当前 query 的 history item
+- resume 时 tool messages 会随 user/assistant 消息一起显示
 
 ### 测试 ✅
 
@@ -135,7 +149,7 @@ $ bun test src/session/session2.test.ts
    │
    ├─► loadSessionForResume() → 加载 JSONL
    │   │
-   │   └─► 读取 metadata + messages
+   │   └─► 读取 metadata + messages (包含 tool 类型)
    │
    ├─► buildMessageChain(messages) → 构建链
    │   │
@@ -145,13 +159,13 @@ $ bun test src/session/session2.test.ts
    │
    ├─► filterEphemeralMessages(messages) → 过滤
    │   │
-   │   └─► 移除 progress/bash_progress
+   │   └─► 移除 progress/bash_progress (保留 tool)
    │
    ├─► MessageRenderer.render(messages) → 渲染
    │   │
    │   ├─► 计算 depth (0, 1, 2...)
    │   ├─► 映射 type (user/assistant/tool/system)
-   │   └─► 返回 RenderableMessage[]
+   │   └─► 返回 RenderableMessage[] (含 tool 消息)
    │
    ├─► displayHistory(renderedMessages) → 显示
    │   │
@@ -161,9 +175,17 @@ $ bun test src/session/session2.test.ts
        │
        ├─► "You: Hello, this is a test message"
        ├─► "Hi! This is a response from the assistant."
+       ├─► "[Memory Search] Found user: louloulin"  ← Tool 消息显示
        └─► "You: Can you verify session persistence?"
 
-3. 用户输入 → runQuery() → 流式显示
+3. 对话中 tool 事件流程 (Session 2.0 v6)
+   │
+   ├─► tool_start → 更新 workingState + 事件记录
+   ├─► tool_end → 更新事件状态 + 保存到 session storage
+   │   │
+   │   └─► addSessionMessage({ type: 'tool', ... })
+   ├─► tool_error → 更新事件状态 + 保存错误到 session
+   └─► done → 最终答案写入 session
 ```
 
 ---
@@ -241,17 +263,18 @@ Consider diversification and risk management.
 ```
 $ bun run dev -r test_tool
 
-You: Please read the package.json file
-I'll read the package.json file.
-[read_file] File content here...
-You: What version is it?
-The package.json shows version 1.0.0.
+You: Who am I?
+Let me search for your identity.
+[Memory Search] Found user: louloulin, role: developer  ← Tool 消息正确显示
+Based on my search, you are louloulin, a developer.
 ```
 
 **功能验证**:
 - ✅ Tool 消息带 `[toolName]` 前缀
 - ✅ 显示工具结果内容
 - ✅ 与 user/assistant 消息正确衔接
+- ✅ Tool messages 在对话中被保存到 session storage
+- ✅ Resume 时 tool messages 正确加载和显示
 
 ---
 
@@ -264,17 +287,38 @@ bun run typecheck
 # Run tests
 bun test src/session/session2.test.ts
 
-# Test resume
-bun run dev -r 622d10ce
+# Test resume (显示包含 tool messages 的完整对话)
+bun run dev -r <session-id>
 
-# See session storage
-ls -la ~/.upup/data/sessions/Users_louloulin_Documents_linchong_touzhi_dexter/
+# See session storage with tool messages
+cat ~/.upup/data/sessions/Users_louloulin_Documents_linchong_touzhi_dexter/<session-id>.jsonl
+# 应该看到 type: "tool" 的消息行
+```
+
+### Tool Messages 持久化验证
+
+```bash
+# 1. 开始新对话
+bun run dev
+
+# 2. 输入一个会触发工具的查询 (如 "who am I")
+# 3. 查看 session storage
+tail -20 ~/.upup/data/sessions/.../session_xxx.jsonl
+
+# 4. 应该看到类似:
+# {"id":"...","type":"tool","content":"...","toolName":"Memory Search",...}
+
+# 5. Resume 这个 session
+bun run dev -r <session-id>
+
+# 6. 应该看到 tool messages 出现在对话历史中
 ```
 
 ---
 
 **创建时间**: 2026/05/14
-**更新时间**: 2026/05/14 (v5 - 真实测试验证完成)
+**更新时间**: 2026/05/14 (v6 - Tool Messages 持久化完成)
 **测试通过**: 47/47 tests
-**功能验证**: Session Picker ✅ | Resume ✅ | Tool Messages ✅
+**新功能**: tool_end/tool_error 事件保存到 session storage
+**功能验证**: Session Picker ✅ | Resume ✅ | Tool Messages ✅ | Tool Persistence ✅
 **参考**: `/Users/louloulin/Documents/linchong/claw/loucode/src/utils/sessionStorage.ts`
