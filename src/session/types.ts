@@ -34,15 +34,46 @@ export interface SessionData {
 }
 
 /**
+ * Entry type for session messages (mirroring Claude Code patterns)
+ */
+export type EntryType =
+  | 'user'
+  | 'assistant'
+  | 'tool'
+  | 'tool_use'
+  | 'tool_result'
+  | 'progress'
+  | 'bash_progress'
+  | 'system'
+  | 'error'
+  | 'context_collapse_snapshot'
+  | 'file_history_snapshot';
+
+/**
  * Session message for persistence
+ * Extended with Claude Code's message chain support
  */
 export interface SessionMessage {
   id: string;
-  type: 'user' | 'assistant' | 'system' | 'tool';
+  type: EntryType;
   content: string;
   timestamp: number;
+
+  // Message chain support (parentUuid pattern)
+  parentUuid?: string;
+
+  // Tool association (tool_result links to tool_use)
+  toolUseId?: string;
+
+  // Ephemeral flag (UI-only messages, not persisted)
+  isEphemeral?: boolean;
+
+  // Tool-specific fields
   toolName?: string;
   toolResult?: string;
+
+  // Flexible metadata storage
+  metadata?: Record<string, unknown>;
 }
 
 /**

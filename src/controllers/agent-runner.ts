@@ -12,6 +12,7 @@ import type { HistoryItem, HistoryItemStatus, WorkingState } from '../types.js';
 import { getSessionTracker } from '../session/session-tracker.js';
 import { createSession, addSessionMessage } from '../session/storage.js';
 import { recordFileHistorySnapshot, getFileHistoryManager } from '../storage/file-history.js';
+import { renderMessages, type RenderableMessage } from '../session/render/index.js';
 
 export interface TurnStats {
   turnStartMs: number;
@@ -20,6 +21,7 @@ export interface TurnStats {
 }
 
 type ChangeListener = () => void;
+type HistoryMessageListener = (msg: RenderableMessage) => void;
 
 export interface RunQueryResult {
   answer: string;
@@ -40,17 +42,20 @@ export class AgentRunnerController {
   private approvalResolve: ((decision: ApprovalDecision) => void) | null = null;
   private sessionApprovedTools = new Set<string>();
   private sessionIdValue = '';
+  private historyMessageListener?: HistoryMessageListener;
 
   constructor(
     agentConfig: AgentConfig,
     inMemoryChatHistory: InMemoryChatHistory,
     onChange?: ChangeListener,
     sessionId?: string,
+    onHistoryMessage?: HistoryMessageListener,
   ) {
     this.agentConfig = agentConfig;
     this.inMemoryChatHistory = inMemoryChatHistory;
     this.onChange = onChange;
     this.sessionIdValue = sessionId || '';
+    this.historyMessageListener = onHistoryMessage;
   }
 
   get history(): HistoryItem[] {
@@ -106,6 +111,12 @@ export class AgentRunnerController {
     // Update session tracker
     const tracker = getSessionTracker();
     await tracker.startSession(targetId);
+
+    // Render and display history messages (Session 2.0)
+    if (processed.messages.length > 0) {
+      const rendered = renderMessages(processed.messages);
+      this.displayHistory(rendered);
+    }
 
     // Load messages into chat history
     this.inMemoryChatHistory.clear();
@@ -452,5 +463,25 @@ export class AgentRunnerController {
 
   private emitChange() {
     this.onChange?.();
+  }
+
+  /**
+   * Display history messages via listener callback
+   * Used by Session 2.0 to render previous conversation
+   */
+  private displayHistory(messages: RenderableMessage[]): void {
+    if (!this.historyMessageListener) {
+      // No listener - silently skip (backward compatible)
+      return;
+    }
+
+    for (const msg of messages) {
+      try {
+        this.historyMessageListener(msg);
+      } catch (err) {
+        // Non-critical: don't fail resume if history display fails
+        console.error('[agent-runner] Failed to display history message:', err);
+      }
+    }
   }
 }
