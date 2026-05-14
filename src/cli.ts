@@ -288,6 +288,7 @@ export async function runCli(options: RunCliOptions = {}) {
 
   const sessionSelection = new SessionSelectionController(() => {
     needsRenderOverlay = true;
+    renderSelectionOverlay();
     tui.requestRender();
   });
 
