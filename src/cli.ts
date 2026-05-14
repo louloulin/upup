@@ -1236,8 +1236,8 @@ export async function runCli(options: RunCliOptions = {}) {
       }
     }
 
-    // Restore main view when session selection becomes idle
-    if (!sessionSelection.isActive() && !agentRunner.pendingApproval) {
+    // Restore main view when both session and model selection are idle
+    if (!sessionSelection.isActive() && !agentRunner.pendingApproval && state.appState === 'idle') {
       restoreMainView();
       tui.requestRender();
       return;
