@@ -112,6 +112,15 @@ export const SKILLS_DIR = globalUpupPath('skills');
 export const PLUGINS_DIR = globalUpupPath('plugins');
 
 // ============================================================================
+// Multi-level Config System
+// ============================================================================
+
+export const SETTINGS_LOCAL_FILE = globalUpupPath('settings.local.json');
+export const SETTINGS_DIR = globalUpupPath('settings.d');
+export const SETTINGS_BACKUPS_DIR = globalUpupPath('backups');
+export const SETTINGS_LOCK_FILE = globalUpupPath('settings.json.lock');
+
+// ============================================================================
 // Environment Variables
 // ============================================================================
 
