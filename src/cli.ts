@@ -15,6 +15,7 @@ import {
   ModelSelectionController,
   SessionSelectionController,
 } from './controllers/index.js';
+import type { RenderableMessage } from './session/render/index.js';
 import {
   ApiKeyInputComponent,
   ApprovalPromptComponent,
@@ -113,6 +114,33 @@ function createScreen(
     container.addChild(new Text(theme.muted(footer), 0, 0));
   }
   return container;
+}
+
+/**
+ * Render a history message (from session resume) into the chat log.
+ * Used by Session 2.0 to display previous conversation.
+ */
+function renderHistoryMessage(
+  msg: RenderableMessage,
+  chatLog: ChatLogComponent,
+  theme: { primary: (text: string) => string; muted: (text: string) => string; dim: (text: string) => string },
+): void {
+  chatLog.addChild(new Spacer(1));
+
+  switch (msg.type) {
+    case 'user':
+      chatLog.addChild(new Text(theme.primary(`You: ${msg.content}`), 0, 0));
+      break;
+    case 'assistant':
+      chatLog.addChild(new Text(msg.content, 0, 0));
+      break;
+    case 'tool':
+      chatLog.addChild(new Text(theme.dim(`[${msg.toolName || 'tool'}] ${msg.content}`), 0, 0));
+      break;
+    case 'system':
+      chatLog.addChild(new Text(theme.muted(`[System] ${msg.content}`), 0, 0));
+      break;
+  }
 }
 
 /**
@@ -341,6 +369,11 @@ export async function runCli(options: RunCliOptions = {}) {
       workingIndicator.setState(agentRunner.workingState);
       updateView();
       throttledRender();
+    },
+    undefined,
+    (msg: import('./session/render/index.js').RenderableMessage) => {
+      // Session 2.0: Render history messages when resuming
+      renderHistoryMessage(msg, chatLog, theme);
     },
   );
 
@@ -1077,6 +1110,8 @@ export async function runCli(options: RunCliOptions = {}) {
           '↑↓ Navigate · Enter Resume · d Delete · n Rename · t Tag · Esc Cancel',
           selector,
         );
+        // Ensure focus is set to the selector
+        setTimeout(() => tui.setFocus(selector), 10);
         return;
       }
 
@@ -1097,6 +1132,7 @@ export async function runCli(options: RunCliOptions = {}) {
           'Enter to confirm · Esc to cancel',
           selector,
         );
+        setTimeout(() => tui.setFocus(selector), 10);
         return;
       }
 
@@ -1113,6 +1149,7 @@ export async function runCli(options: RunCliOptions = {}) {
           'Enter to save · Esc to cancel',
           input,
         );
+        setTimeout(() => tui.setFocus(input), 10);
         return;
       }
 
@@ -1129,11 +1166,22 @@ export async function runCli(options: RunCliOptions = {}) {
           'Enter to save · Esc to cancel · Empty to remove tag',
           input,
         );
+        setTimeout(() => tui.setFocus(input), 10);
         return;
       }
     }
 
     if (state.appState === 'idle' && !agentRunner.pendingApproval) {
+      // Only restore main view if session selection is also idle
+      if (!sessionSelection.isActive()) {
+        restoreMainView();
+        tui.requestRender();
+        return;
+      }
+    }
+
+    // Restore main view when session selection becomes idle
+    if (!sessionSelection.isActive() && !agentRunner.pendingApproval) {
       restoreMainView();
       tui.requestRender();
       return;
@@ -1155,6 +1203,7 @@ export async function runCli(options: RunCliOptions = {}) {
         'Enter to confirm · esc to exit',
         selector,
       );
+      setTimeout(() => tui.setFocus(selector), 10);
       return;
     }
 
@@ -1172,6 +1221,7 @@ export async function runCli(options: RunCliOptions = {}) {
         'Enter to confirm · esc to go back',
         selector,
       );
+      setTimeout(() => tui.setFocus(selector), 10);
       return;
     }
 
@@ -1186,6 +1236,7 @@ export async function runCli(options: RunCliOptions = {}) {
         'Examples: anthropic/claude-3.5-sonnet, openai/gpt-4-turbo, meta-llama/llama-3-70b\nEnter to confirm · esc to go back',
         input,
       );
+      setTimeout(() => tui.setFocus(input), 10);
       return;
     }
 
@@ -1200,6 +1251,7 @@ export async function runCli(options: RunCliOptions = {}) {
         'Enter to confirm · esc to decline',
         selector,
       );
+      setTimeout(() => tui.setFocus(selector), 10);
       return;
     }
 
@@ -1215,6 +1267,7 @@ export async function runCli(options: RunCliOptions = {}) {
         'Enter to confirm · Esc to cancel',
         input,
       );
+      setTimeout(() => tui.setFocus(input), 10);
     }
   };
 
