@@ -1,7 +1,7 @@
 # Session 2.0 - 对话重建计划
 
 **日期**: 2026/05/14
-**版本**: v6 (Tool Messages 持久化)
+**版本**: v7 (UI 一致性修复)
 **状态**: ✅ 实现完成并验证
 **目标**: 彻底重构 session 系统，实现完整的对话历史展示，恢复时显示真实对话内容
 
@@ -51,7 +51,7 @@
 | **estimateTokenCount** | ✅ | 字符估算 | token 估算 |
 | **CollapseStats** | ✅ | 统计信息 | 预估节省 |
 
-### Phase 6: Tool Messages 持久化 (P0) ✅ NEW
+### Phase 6: Tool Messages 持久化 (P0) ✅
 
 | 功能 | 状态 | 文件 | 验收 |
 |------|------|------|------|
@@ -64,6 +64,31 @@
 - `saveToolErrorToSession()`: 在 `tool_error` 事件时调用，保存错误信息
 - tool messages 通过 `parentUuid` 关联到当前 query 的 history item
 - resume 时 tool messages 会随 user/assistant 消息一起显示
+
+### Phase 7: UI 一致性修复 (P0) ✅ NEW
+
+| 功能 | 状态 | 文件 | 验收 |
+|------|------|------|------|
+| **renderHistoryMessage 统一** | ✅ | `src/cli.ts` | 使用 ChatLogComponent 方法 |
+| **用户消息 addQuery()** | ✅ | 原版 UI 一致 | resetToolGrouping() |
+| **助手消息 finalizeAnswer()** | ✅ | 原版 UI 一致 | AnswerBoxComponent |
+| **工具消息 startTool() + setComplete()** | ✅ | 原版 UI 一致 | ToolEventComponent 卡片 |
+
+**UI 渲染对比**:
+
+| 元素 | 原版 (renderEvent) | Resume (renderHistoryMessage) |
+|------|-------------------|-------------------------------|
+| 用户消息 | `chatLog.addQuery()` | `chatLog.addQuery()` ✅ |
+| 助手消息 | `chatLog.finalizeAnswer()` | `chatLog.finalizeAnswer()` ✅ |
+| 工具开始 | `chatLog.startTool()` | `chatLog.startTool()` ✅ |
+| 工具完成 | `component.setComplete()` | `component.setComplete()` ✅ |
+| 工具错误 | `component.setError()` | `component.setError()` ✅ |
+| 性能统计 | `chatLog.addPerformanceStats()` | 待添加 |
+
+**实现方式**:
+- `renderHistoryMessage()` 现在使用与 `renderEvent()` 相同的 ChatLogComponent 方法
+- 工具显示为卡片样式（ToolEventComponent），而非简单文本
+- 每个 query 开始时调用 `resetToolGrouping()` 重置工具分组
 
 ### 测试 ✅
 
@@ -317,8 +342,8 @@ bun run dev -r <session-id>
 ---
 
 **创建时间**: 2026/05/14
-**更新时间**: 2026/05/14 (v6 - Tool Messages 持久化完成)
+**更新时间**: 2026/05/14 (v7 - UI 一致性修复完成)
 **测试通过**: 47/47 tests
-**新功能**: tool_end/tool_error 事件保存到 session storage
-**功能验证**: Session Picker ✅ | Resume ✅ | Tool Messages ✅ | Tool Persistence ✅
+**新功能**: tool_end/tool_error 事件保存到 session storage; Resume UI 与原版 UI 统一
+**功能验证**: Session Picker ✅ | Resume ✅ | Tool Messages ✅ | Tool Persistence ✅ | UI Consistency ✅
 **参考**: `/Users/louloulin/Documents/linchong/claw/loucode/src/utils/sessionStorage.ts`
