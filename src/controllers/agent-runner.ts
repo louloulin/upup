@@ -9,7 +9,9 @@ import type {
 } from '../agent/index.js';
 import type { DisplayEvent, StreamMode } from '../agent/types.js';
 import type { HistoryItem, HistoryItemStatus, WorkingState } from '../types.js';
-import { getSessionManager } from '../agent/session-persistence.js';
+import { getSessionTracker } from '../session/session-tracker.js';
+import { createSession, addSessionMessage } from '../session/storage.js';
+import { recordFileHistorySnapshot, getFileHistoryManager } from '../storage/file-history.js';
 
 export interface TurnStats {
   turnStartMs: number;
@@ -43,10 +45,12 @@ export class AgentRunnerController {
     agentConfig: AgentConfig,
     inMemoryChatHistory: InMemoryChatHistory,
     onChange?: ChangeListener,
+    sessionId?: string,
   ) {
     this.agentConfig = agentConfig;
     this.inMemoryChatHistory = inMemoryChatHistory;
     this.onChange = onChange;
+    this.sessionIdValue = sessionId || '';
   }
 
   get history(): HistoryItem[] {
@@ -99,11 +103,9 @@ export class AgentRunnerController {
 
     this.sessionIdValue = targetId;
 
-    // Update session manager
-    const sessionManager = getSessionManager();
-    if (sessionManager) {
-      await sessionManager.resumeFrom(targetId);
-    }
+    // Update session tracker
+    const tracker = getSessionTracker();
+    await tracker.startSession(targetId);
 
     // Load messages into chat history
     this.inMemoryChatHistory.clear();
@@ -198,12 +200,31 @@ export class AgentRunnerController {
     this.emitChange();
 
     try {
-      // Restore approved tools from SessionManager so they survive restarts
-      const sessionMgr = getSessionManager();
-      await sessionMgr.startSession(); // ensure sessionData is loaded before isToolApproved() works
+      // Create a new session using storage.ts (Phase 1 of plan11.0)
+      if (!this.sessionIdValue) {
+        const sessionMeta = await createSession({
+          projectPath: process.cwd(),
+          firstPrompt: query.slice(0, 200),
+        });
+        this.sessionIdValue = sessionMeta.id;
+
+        // Initialize file history manager for this session (Phase 3 of plan11.0)
+        const fileHistoryMgr = getFileHistoryManager(this.sessionIdValue);
+        fileHistoryMgr.setSessionId(this.sessionIdValue);
+      }
+
+      // Save user message
+      await addSessionMessage(this.sessionIdValue, {
+        type: 'user',
+        content: query,
+      }, process.cwd());
+
+      // Restore approved tools from SessionTracker so they survive restarts
+      const tracker = getSessionTracker();
+      await tracker.startSession(this.sessionIdValue);
       const TOOLS_REQUIRING_APPROVAL = ['write_file', 'edit_file'] as const;
       for (const tool of TOOLS_REQUIRING_APPROVAL) {
-        if (sessionMgr.isToolApproved(tool)) {
+        if (tracker.isToolApproved(tool)) {
           this.sessionApprovedTools.add(tool);
         }
       }
@@ -233,6 +254,24 @@ export class AgentRunnerController {
         const remaining = defaultQueue.dequeueAll();
         const mergedText = remaining.map(m => m.text).join('\n\n');
         return this.runQuery(mergedText);
+      }
+
+      // Save assistant response to session
+      if (finalAnswer && this.sessionIdValue) {
+        await addSessionMessage(this.sessionIdValue, {
+          type: 'assistant',
+          content: finalAnswer,
+        }, process.cwd());
+      }
+
+      // Record file history snapshot for file recovery (Phase 3 of plan11.0)
+      if (this.sessionIdValue) {
+        const itemId = String(startTime);
+        try {
+          recordFileHistorySnapshot(itemId, this.sessionIdValue);
+        } catch (err) {
+          console.error('[agent-runner] Failed to record file history snapshot:', err);
+        }
       }
 
       if (finalAnswer) {

@@ -71,6 +71,36 @@ export const DATA_DIR = globalUpupPath('data');
 export const SESSIONS_DIR = globalUpupPath('data', 'sessions');
 export const PID_SESSIONS_DIR = globalUpupPath('sessions');
 
+/**
+ * Sanitize a path for use as a directory name
+ * Replaces problematic characters and limits length
+ */
+export function sanitizePath(pathStr: string): string {
+  return pathStr
+    .replace(/[^a-zA-Z0-9._/-]/g, '_')
+    .replace(/\//g, '_')
+    .replace(/^_+/, '')
+    .replace(/_+$/, '')
+    .slice(0, 200) || 'default';
+}
+
+/**
+ * Get project-specific sessions directory
+ * @param projectPath - Absolute path to the project
+ * @returns Sanitized project directory path within data/sessions/
+ */
+export function getProjectSessionsDir(projectPath: string): string {
+  const sanitized = sanitizePath(projectPath);
+  return globalUpupPath('data', 'sessions', sanitized);
+}
+
+/**
+ * Get the default (no-project) sessions directory
+ */
+export function getDefaultSessionsDir(): string {
+  return globalUpupPath('data', 'sessions', 'default');
+}
+
 // Memory
 export const MEMORY_DIR = globalUpupPath('memory');
 

@@ -18,7 +18,7 @@ import { useContextWatchdog, useMemoryUsage, useSessionBackgrounding, useToolMet
 import { createRunContext, type RunContext } from './run-context.js';
 import { AgentToolExecutor } from './tool-executor.js';
 import { getLoopDetector, resetLoopDetector, type RecoveryStrategy } from './loop-recovery.js';
-import { getSessionManager } from './session-persistence.js';
+import { getSessionTracker } from '../session/session-tracker.js';
 import { getPlanModeState } from './plan-mode-state.js';
 import { MemoryManager } from '../memory/index.js';
 import { runMemoryFlush, shouldRunMemoryFlush } from '../memory/flush.js';
@@ -395,10 +395,10 @@ export class Agent {
 
       // Persist session after each tool batch for crash recovery
       try {
-        const sessionMgr = getSessionManager();
-        ctx.scratchpad.getToolCallRecords().forEach(tc => sessionMgr.recordToolCall(tc.tool));
-        sessionMgr.updateTokens(ctx.tokenCounter.getUsage()?.totalTokens ?? 0);
-        await sessionMgr.persist();
+        const sessionTracker = getSessionTracker();
+        ctx.scratchpad.getToolCallRecords().forEach(tc => sessionTracker.recordToolCall(tc.tool));
+        sessionTracker.updateTokens(ctx.tokenCounter.getUsage()?.totalTokens ?? 0);
+        await sessionTracker.persist();
       } catch {
         // Non-critical: session persistence failure should not block agent
       }

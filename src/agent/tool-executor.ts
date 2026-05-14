@@ -18,7 +18,7 @@ import { info, warn, perf } from '../utils/logging/logger.js';
 import { getRateLimiter } from '../hooks/rate-limiter.js';
 import { useToolMetrics, useCanUseTool } from '../hooks/agent-hooks.js';
 import { getHookExecutor } from '../hooks/tool-hooks.js';
-import { getSessionManager } from './session-persistence.js';
+import { getSessionTracker } from '../session/session-tracker.js';
 
 type ToolExecutionEvent =
   | ToolStartEvent
@@ -184,9 +184,9 @@ export class AgentToolExecutor {
         // SessionData is already initialized (agent-runner calls startSession before any tools run).
         // Use saveSession() directly — synchronous, no debounce, completes before tool execution.
         try {
-          const sm = getSessionManager();
+          const sessionTracker = getSessionTracker();
           for (const name of TOOLS_REQUIRING_APPROVAL) {
-            sm.approveToolSync(name); // approveToolSync clears debounce + calls saveSession
+            sessionTracker.approveToolSync(name); // approveToolSync clears debounce + calls saveSession
           }
         } catch { /* non-critical */ }
       }

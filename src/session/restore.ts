@@ -14,6 +14,9 @@
 
 import type { SessionData, SessionMessage, FileHistorySnapshot } from './types.js';
 import { getSession } from './storage.js';
+import { SESSIONS_DIR } from '../utils/storage-paths.js';
+import { readdirSync, existsSync } from 'fs';
+import { join } from 'path';
 
 // ============================================================================
 // Types
@@ -57,7 +60,14 @@ export interface AgentContext {
  * Load session data for resume
  */
 export async function loadSessionForResume(sessionId: string): Promise<ResumeResult | null> {
-  const sessionData = await getSession(sessionId);
+  // First try with default directory
+  let sessionData = await getSession(sessionId);
+
+  // If not found, search in project subdirectories
+  if (!sessionData) {
+    sessionData = await findSessionInProjects(sessionId);
+  }
+
   if (!sessionData) return null;
 
   // Check for mid-turn interruption
@@ -69,6 +79,38 @@ export async function loadSessionForResume(sessionId: string): Promise<ResumeRes
     wasInterrupted,
     interruptedAt: wasInterrupted ? Date.now() : undefined,
   };
+}
+
+/**
+ * Search for session in project subdirectories
+ */
+async function findSessionInProjects(sessionId: string): Promise<SessionData | null> {
+  if (!existsSync(SESSIONS_DIR)) return null;
+
+  let entries;
+  try {
+    entries = readdirSync(SESSIONS_DIR, { withFileTypes: true });
+  } catch {
+    return null;
+  }
+
+  const projectDirs = entries
+    .filter(d => d.isDirectory())
+    .map(d => join(SESSIONS_DIR, d.name));
+
+  for (const projectDir of projectDirs) {
+    // Try looking for the session file directly
+    const baseName = sessionId.startsWith('session_') ? sessionId : `session_${sessionId}`;
+    const sessionPath = join(projectDir, `${baseName}.jsonl`);
+
+    if (existsSync(sessionPath)) {
+      // Found it! Use getSession with the projectDir
+      const sessionData = await getSession(sessionId, projectDir);
+      if (sessionData) return sessionData;
+    }
+  }
+
+  return null;
 }
 
 /**
@@ -252,9 +294,14 @@ function extractAgentContext(sessionData: SessionData): AgentContext {
 /**
  * Parse resume argument and return session ID
  * Supports:
+ * - session_ prefix format: session_xxxxxx (exact match from session-persistence.ts)
  * - UUID format: exact session ID match
+ * - Partial ID match: session ID contains the argument
  * - Title format: custom title search
  * - Partial match: fuzzy title search
+ *
+ * When searching by session ID, project path filter is NOT applied.
+ * When searching by title/tag, project path filter is applied.
  */
 export async function resolveResumeTarget(
   arg?: string,
@@ -262,26 +309,45 @@ export async function resolveResumeTarget(
 ): Promise<string | null> {
   if (!arg) return null;
 
+  // Load storage module once
+  const storage = await import('./storage.js');
+
+  // First, search by session ID without project filter (ID searches should be global)
+  // Check if it's a session_ prefix format (exact match)
+  const sessionPrefixRegex = /^session_[a-zA-Z0-9]+$/;
+  if (sessionPrefixRegex.test(arg)) {
+    // Verify the session exists
+    const sessionData = await storage.getSession(arg);
+    if (sessionData) return arg;
+  }
+
   // Check if it's a valid UUID
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   if (uuidRegex.test(arg)) {
     // Verify the session exists
-    const sessionData = await getSession(arg);
+    const sessionData = await storage.getSession(arg);
     if (sessionData) return arg;
   }
 
-  // Try title search
-  const sessions = await import('./storage.js').then(m =>
-    m.getSessionSummaries({ projectPath: currentProjectPath })
-  );
+  // Load sessions for title/tag search (apply project filter)
+  const sessions = await storage.getSessionSummaries({ projectPath: currentProjectPath });
 
-  // Exact title match
+  // Also get all sessions for partial ID match (global search)
+  const allSessions = await storage.getSessionSummaries();
+
+  // Try partial ID match from all sessions (global search)
+  const partialIdMatch = allSessions.find(
+    s => s.id.toLowerCase().includes(arg.toLowerCase())
+  );
+  if (partialIdMatch) return partialIdMatch.id;
+
+  // Exact title match (filtered by project)
   const exactMatch = sessions.find(
     s => s.customTitle?.toLowerCase() === arg.toLowerCase()
   );
   if (exactMatch) return exactMatch.id;
 
-  // Partial title match
+  // Partial title match (filtered by project)
   const partialMatch = sessions.find(
     s =>
       s.customTitle?.toLowerCase().includes(arg.toLowerCase()) ||
@@ -289,7 +355,7 @@ export async function resolveResumeTarget(
   );
   if (partialMatch) return partialMatch.id;
 
-  // Tag match
+  // Tag match (filtered by project)
   const tagMatch = sessions.find(s => s.tag?.toLowerCase() === arg.toLowerCase());
   if (tagMatch) return tagMatch.id;
 

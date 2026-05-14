@@ -18,7 +18,8 @@ export {
   SETTINGS_FILE,
   ENV_FILE,
   SESSIONS_DIR,
-  PID_SESSIONS_DIR,
+  PID_SESSIONS_DIR,  // @deprecated - kept for backward compatibility
+  DATA_DIR,
   MEMORY_DIR,
   CACHE_DIR,
   LOGS_DIR,
