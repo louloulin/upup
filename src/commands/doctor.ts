@@ -2,11 +2,19 @@
  * Doctor Command
  *
  * Health check for system configuration
+ * Enhanced with config-validation for comprehensive diagnostics
+ *
+ * Part of Plan12 P2 implementation
  */
 
 import { existsSync } from 'fs';
+import { join } from 'path';
+import { homedir } from 'os';
 import { PROVIDERS } from '../providers.js';
 import { checkApiKeyExists } from '../utils/env.js';
+import { validateConfig, isFirstTimeUse, getConfigSummary } from '../utils/config-validation.js';
+import { getConfigSources } from '../utils/config.js';
+import { SETTINGS_FILE, ENV_FILE, SETTINGS_DIR } from '../utils/storage-paths.js';
 
 const dim = (text: string) => `\x1b[2m${text}\x1b[0m`;
 const bold = (text: string) => `\x1b[1m${text}\x1b[0m`;
@@ -29,17 +37,20 @@ export async function runDoctor(): Promise<void> {
 
   const checks: CheckResult[] = [];
 
-  // Check .env file
-  checks.push(checkEnvFile());
+  // P2-14: Enhanced config validation
+  checks.push(...checkConfigValidation());
 
-  // Check API keys
+  // Check API keys for all providers
   checks.push(...checkApiKeys());
 
   // Check required packages
   checks.push(...checkPackages());
 
-  // Check configuration
-  checks.push(...checkConfig());
+  // Check config files
+  checks.push(...checkConfigFiles());
+
+  // Check config sources
+  checks.push(...checkConfigSources());
 
   // Print results
   console.log('');
@@ -60,34 +71,128 @@ export async function runDoctor(): Promise<void> {
   console.log('');
 
   if (failed > 0) {
-    console.log(red('  Run `upup setup` to fix configuration issues.'));
+    console.log(red('  Run `upup setup` or `upup config set <key> <value>` to fix.'));
     console.log('');
     process.exit(1);
   }
 }
 
-function checkEnvFile(): CheckResult {
-  const exists = existsSync('.env');
-  return {
-    name: 'Environment',
-    status: exists ? 'pass' : 'warn',
-    message: exists ? 'Config file found' : 'No .env file - run setup',
-  };
+/**
+ * P2-14: Check configuration validation status
+ */
+function checkConfigValidation(): CheckResult[] {
+  const results: CheckResult[] = [];
+  const validation = validateConfig();
+
+  // Overall status
+  results.push({
+    name: 'Config Valid',
+    status: validation.valid ? 'pass' : 'fail',
+    message: validation.valid ? 'All settings configured' : 'Configuration incomplete',
+  });
+
+  // Provider
+  results.push({
+    name: 'Provider',
+    status: validation.missingProvider ? 'fail' : 'pass',
+    message: validation.provider ?? 'not set',
+  });
+
+  // Model
+  results.push({
+    name: 'Model',
+    status: validation.missingModel ? 'fail' : 'pass',
+    message: validation.modelId ?? 'not set',
+  });
+
+  // API Key
+  results.push({
+    name: 'API Key',
+    status: validation.missingApiKey ? 'fail' : validation.hasApiKey ? 'pass' : 'warn',
+    message: validation.missingApiKey ? 'missing' : validation.hasApiKey ? 'configured' : 'not required',
+  });
+
+  // First time use
+  if (validation.isFirstTime) {
+    results.push({
+      name: 'First Run',
+      status: 'warn',
+      message: 'First time setup - run `upup setup`',
+    });
+  }
+
+  return results;
+}
+
+function checkConfigFiles(): CheckResult[] {
+  const results: CheckResult[] = [];
+  const upupDir = join(homedir(), '.upup');
+
+  // Settings file
+  results.push({
+    name: 'settings.json',
+    status: existsSync(SETTINGS_FILE) ? 'pass' : 'warn',
+    message: existsSync(SETTINGS_FILE) ? 'found' : 'not found',
+  });
+
+  // Env file
+  results.push({
+    name: '.env',
+    status: existsSync(ENV_FILE) ? 'pass' : 'warn',
+    message: existsSync(ENV_FILE) ? 'found' : 'not found',
+  });
+
+  // Settings.d directory
+  if (existsSync(SETTINGS_DIR)) {
+    const files = require('fs').readdirSync(SETTINGS_DIR).filter((f: string) => f.endsWith('.json'));
+    results.push({
+      name: 'settings.d/',
+      status: files.length > 0 ? 'pass' : 'warn',
+      message: files.length > 0 ? `${files.length} config fragment(s)` : 'empty directory',
+    });
+  } else {
+    results.push({
+      name: 'settings.d/',
+      status: 'warn',
+      message: 'directory not created yet',
+    });
+  }
+
+  return results;
+}
+
+function checkConfigSources(): CheckResult[] {
+  const results: CheckResult[] = [];
+  const sources = getConfigSources();
+
+  if (sources.length === 0) {
+    results.push({
+      name: 'Config Sources',
+      status: 'warn',
+      message: 'No configuration loaded',
+    });
+  } else {
+    results.push({
+      name: 'Config Sources',
+      status: 'pass',
+      message: `${sources.length} value(s) configured`,
+    });
+  }
+
+  return results;
 }
 
 function checkApiKeys(): CheckResult[] {
   const results: CheckResult[] = [];
-  let hasAnyKey = false;
 
   for (const provider of PROVIDERS) {
     if (provider.apiKeyEnvVar) {
       const hasKey = checkApiKeyExists(provider.apiKeyEnvVar);
-      if (hasKey) hasAnyKey = true;
 
       results.push({
         name: `${provider.displayName} API`,
         status: hasKey ? 'pass' : 'fail',
-        message: hasKey ? 'configured' : 'missing - run setup',
+        message: hasKey ? 'configured' : 'missing',
       });
     }
   }
@@ -120,28 +225,6 @@ function checkPackages(): CheckResult[] {
       });
     }
   }
-
-  return results;
-}
-
-function checkConfig(): CheckResult[] {
-  const results: CheckResult[] = [];
-
-  // Check DEFAULT_MODEL
-  const defaultModel = process.env.DEFAULT_MODEL;
-  results.push({
-    name: 'Default Model',
-    status: defaultModel ? 'pass' : 'warn',
-    message: defaultModel ?? 'not set - will use provider default',
-  });
-
-  // Check working directory
-  const cwd = process.cwd();
-  results.push({
-    name: 'Working Dir',
-    status: 'pass',
-    message: cwd,
-  });
 
   return results;
 }

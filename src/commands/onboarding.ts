@@ -6,10 +6,13 @@
 
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { createInterface } from 'readline';
+import { homedir } from 'os';
+import { join } from 'path';
 import { config } from 'dotenv';
 import { PROVIDERS, type ProviderDef } from '../providers.js';
 import { getModelsForProvider } from '../utils/model.js';
 import { saveApiKeyToEnv, getApiKeyNameForProvider } from '../utils/env.js';
+import { setSetting } from '../utils/config.js';
 
 // ANSI colors
 const dim = (text: string) => `\x1b[2m${text}\x1b[0m`;
@@ -177,9 +180,21 @@ function getProviderUrl(providerId: string): string {
 }
 
 async function setDefaultModel(providerId: string, modelId: string): Promise<void> {
-  // Update .env with default model
-  const envPath = '.env';
+  // FIXED: Save to settings.json as the primary storage (P0-1)
+  // This ensures ModelSelectionController can read the model correctly
+  setSetting('provider', providerId);
+  setSetting('modelId', modelId);
+
+  // Also update .env for compatibility
+  const envPath = join(homedir(), '.upup', '.env');
   let lines: string[] = [];
+
+  // Ensure directory exists
+  const envDir = join(homedir(), '.upup');
+  if (!existsSync(envDir)) {
+    // Note: We don't create the directory here, just use settings.json
+    return;
+  }
 
   if (existsSync(envPath)) {
     lines = readFileSync(envPath, 'utf-8').split('\n');
@@ -187,7 +202,9 @@ async function setDefaultModel(providerId: string, modelId: string): Promise<voi
 
   // Find or add DEFAULT_MODEL line
   let found = false;
+  let providerFound = false;
   const modelLine = `DEFAULT_MODEL=${modelId}`;
+  const providerLine = `DEFAULT_PROVIDER=${providerId}`;
 
   lines = lines.map((line) => {
     const trimmed = line.trim();
@@ -195,17 +212,21 @@ async function setDefaultModel(providerId: string, modelId: string): Promise<voi
       found = true;
       return modelLine;
     }
+    if (trimmed.startsWith('DEFAULT_PROVIDER=')) {
+      providerFound = true;
+      return providerLine;
+    }
     return line;
   });
 
   if (!found) {
     lines.push(modelLine);
   }
-
-  writeFileSync(envPath, lines.join('\n'), { flag: 'a' });
-  if (!existsSync(envPath) || !lines.join('\n').includes(modelLine)) {
-    writeFileSync(envPath, lines.join('\n'));
+  if (!providerFound) {
+    lines.push(providerLine);
   }
+
+  writeFileSync(envPath, lines.join('\n') + '\n');
 }
 
 export async function runOnboarding(): Promise<boolean> {
