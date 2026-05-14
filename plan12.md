@@ -1,7 +1,7 @@
 # Plan 12 - 配置系统深度分析与增强
 
-**日期**: 2026/05/14
-**版本**: v4.5
+**日期**: 2026/05/15
+**版本**: v4.6
 **状态**: P0 ✅ + P1 ✅ + P2 ✅ + P3 ✅ + CLI集成 ✅ (除云同步和P1-9迁移外)
 **目标**: 对标 Claude Code 配置体系，完善启动验证，实现智能配置引导
 
@@ -11,11 +11,13 @@
 
 ### 🔴 关键 Bug (需立即修复)
 
-| Bug | 位置 | 影响 | 优先级 | 状态 |
-|-----|------|------|--------|------|
-| **Setup 模型名不生效** | `onboarding.ts:setDefaultModel()` | Setup 后模型配置丢失 | 🔴 P0 | ✅ 已修复 |
-| **启动无验证** | `cli.ts:runCli()` | 无配置时无提示 | 🔴 P0 | ✅ 已修复 |
-| **API Key 检查复杂** | `env.ts` | 4层检查难以维护 | 🟡 P1 | 待 P1 |
+| Bug | 位置 | 影响 | 优先级 | 状态 | 修复版本 |
+|-----|------|------|--------|------|----------|
+| **Setup 模型名不生效** | `onboarding.ts:setDefaultModel()` | Setup 后模型配置丢失 | 🔴 P0 | ✅ 已修复 | v4.5 |
+| **启动无验证** | `cli.ts:runCli()` | 无配置时无提示 | 🔴 P0 | ✅ 已修复 | v4.5 |
+| **API Key 检查复杂** | `env.ts` | 4层检查难以维护 | 🟡 P1 | 待 P1 | - |
+| **/model 命令不显示选择器** | `cli.ts:renderSelectionOverlay()` | 模型选择 UI 不显示 | 🔴 P0 | ✅ 已修复 | v4.6 |
+| **session 选择器卡住无法操作** | `cli.ts:showScreenView()` | 焦点和渲染问题 | 🔴 P0 | ✅ 已修复 | v4.6 |
 
 ### ✅ UpUp 已有功能
 
@@ -24,8 +26,10 @@
 | Skills 系统 | ✅ 已实现 | `src/skills/` |
 | MCP Client | ✅ 已实现 | `src/mcp/` |
 | 配置多层加载 | ✅ 已实现 | `src/utils/config.ts` |
-| 加密凭证 | ❌ 未实现 | 待 P1 |
+| 加密凭证 | ✅ 已实现 | `src/utils/credentials.ts` |
 | 启动验证 | ✅ 已实现 | `src/utils/config-validation.ts` |
+| /model 命令 | ✅ 已实现 | `src/controllers/model-selection.ts` |
+| /session 命令 | ✅ 已实现 | `src/controllers/session-selection.ts` |
 
 ---
 
@@ -505,6 +509,33 @@ async function runCli() {
 | 18 | Hooks 配置系统 | ✅ | `src/hooks/`, `settings.d/hooks.json` | P3 |
 | 19 | 自定义命令配置 | ✅ | `src/commands/config.ts` | P3 |
 | 20 | 配置云同步 (可选) | 🔲 | `src/sync/` | P3 |
+
+### 🔧 CLI 选择器 Bug 修复 (v4.6) ✅ 已完成
+
+| # | 任务 | 状态 | 修复版本 | 根因 |
+|---|------|------|----------|------|
+| S1 | 修复 `/model` 命令不显示选择器 | ✅ | v4.6 | `renderSelectionOverlay()` 条件检查顺序错误 |
+| S2 | 修复 `session` 选择器卡住无法操作 | ✅ | v4.6 | `showScreenView()` 缺少 `tui.requestRender()` |
+| S3 | 修复 `session` 选择器焦点问题 | ✅ | v4.6 | `setTimeout` 导致焦点延迟设置 |
+| S4 | 修复 `session` 选择器回调缺少 `renderSelectionOverlay()` | ✅ | v4.6 | `sessionSelection.onChange` 回调不完整 |
+
+---
+
+## ✅ 验证报告 (2026/05/15)
+
+### 单元测试结果
+```
+bun test src/utils/config-validation.test.ts src/utils/config.test.ts src/commands/config.test.ts src/utils/credentials.test.ts
+58 pass, 0 fail, 100 expect() calls
+```
+
+### 交互式验证
+| 功能 | 验证命令 | 状态 |
+|------|----------|------|
+| `/model` 选择器显示 | `bun run dev` → 输入 `/model` | ✅ |
+| `/session` 选择器显示 | `bun run dev -r` | ✅ |
+| Provider 切换 | `/model` → 选择 provider | ✅ |
+| Session 恢复 | `bun run dev -r` → 选择 session | ✅ |
 
 ---
 
