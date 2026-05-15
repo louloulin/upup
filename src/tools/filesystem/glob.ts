@@ -7,7 +7,8 @@
 
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { z } from 'zod';
-import { glob as globSync } from 'glob';
+import G from 'glob';
+const globSync = G.sync;
 import { stat } from 'node:fs/promises';
 import { getCwd, expandPath, toRelativePath } from '../../utils/paths.js';
 
