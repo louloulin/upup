@@ -133,6 +133,7 @@
     "@paperclipai/adapter-utils": "^2026.428.0",
     "@types/better-sqlite3": "^7.6.13",
     "@types/bun": "latest",
+    "@types/glob": "^7",
     "@types/jest": "^29.5.14",
     "@types/qrcode-terminal": "^0.12.2",
     "@types/react": "^19.2.14",
