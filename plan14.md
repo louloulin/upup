@@ -1,8 +1,8 @@
 # Plan 14 - @upup/sdk SDK 增强与 Claude Agent SDK 对标
 
-**日期**: 2026-05-15
-**版本**: v1.0
-**状态**: 分析完成，待实施
+**日期**: 2026-05-15 (更新)
+**版本**: v1.3
+**状态**: P1 核心功能已实现
 **目标**: 完善 @upup/sdk 的 Session、Memory、Streaming 和工具执行功能，对标 Claude Agent SDK
 
 ---
@@ -13,26 +13,10 @@
 
 1. **@upup/sdk 当前版本**: v0.2.1
 2. **主要功能**: Stdio 通信、工具注册、Hooks、权限管理、会话管理
-3. **核心差距**: Memory API 缺失、流式处理不完整、工具执行循环未实现
+3. **本次实现: P2 BetaTool, TokenCounter, MemoryTool
 4. **参考目标**: Claude Agent SDK (@anthropic-ai/sdk v0.74.0)
 
-### SDK 架构概览
-
-```
-packages/sdk/
-├── src/
-│   ├── index.ts              # 主入口
-│   ├── client/client.ts       # UpClient 主入口 (v2)
-│   ├── transport/            # 传输层 (Stdio, HTTP)
-│   ├── tools/                # 工具注册表
-│   ├── permissions/           # 权限管理
-│   ├── hooks/                # Hook 执行器
-│   ├── session/              # 会话管理
-│   └── pool/                 # 进程池
-└── dist/                     # 编译输出
-```
-
-### 当前功能状态
+### 已实现功能 (v1.3)
 
 | 功能 | 状态 | 说明 |
 |------|------|------|
@@ -41,41 +25,54 @@ packages/sdk/
 | **Tools Registry** | ✅ | ToolRegistry |
 | **Permissions** | ✅ | PermissionManager |
 | **Hooks** | ✅ | HookExecutor, HookRegistry |
-| **Session** | ⚠️ 基础 | SessionManager (仅内存) |
-| **Pool** | ⚠️ 基础 | ProcessPool (仅框架) |
-| **Memory API** | ❌ | 无 |
-| **Tool Runner** | ❌ | 无 |
-| **Streaming** | ⚠️ 基础 | 仅消息流 |
-| **Batch** | ❌ | 无 |
+| **Session** | ✅ | SessionManager (完整生命周期) |
+| **Pool** | ✅ | ProcessPool (完整进程管理) |
+| **Memory** | ✅ | MemoryStore (@upup/memory) - 独立包 |
+| **P1: ToolRunner** | ✅ | Claude SDK 风格工具循环 |
+| **P1: ToolError** | ✅ | 完整工具错误类型 |
+| **P1: Messages API** | ✅ | MessagesClient 实现 |
+| **P1: SDK Errors** | ✅ | 完整错误类型体系 |
+| **P2: Session Store** | ✅ | Json/File/Memory Store |
+
+### 待实现功能
+
+| 功能 | 状态 | 优先级 |
+|------|------|--------|
+| **Batch Processing** | ✅ | P2 |
+| **File Upload** | 🔲 | P2 |
 
 ---
 
-## 📊 Claude Agent SDK 功能矩阵
+## 📊 Claude Agent SDK 功能矩阵 (v1.3)
 
-| 功能 | Claude SDK | @upup/sdk | Gap | 优先级 |
-|------|------------|------------|-----|--------|
-| **核心 API** | | | | |
-| Messages.create | ✅ | ❌ | 🔴 | P1 |
-| Streaming | ✅ | ⚠️ 基础 | 🟡 | P1 |
-| Batch | ✅ | ❌ | 🔴 | P2 |
-| Tool Runner | ✅ | ❌ | 🔴 | P1 |
-| **工具系统** | | | | |
-| Tool Registry | ✅ | ✅ | - | ✅ |
-| BetaTool (Zod) | ✅ | ❌ | 🔴 | P2 |
-| ToolError | ✅ | ❌ | 🔴 | P1 |
-| **Hooks** | | | | |
-| Hook Executor | ✅ | ✅ | - | ✅ |
-| PostSampling | ✅ | ❌ | 🔴 | P2 |
-| **会话** | | | | |
-| Session Management | ✅ | ⚠️ | 🟡 | P1 |
-| Session Store | ✅ | ❌ | 🔴 | P2 |
-| **记忆** | | | | |
-| Memory API | ✅ | ❌ | 🔴 | P2 |
-| Memory Tool | ✅ | ❌ | 🔴 | P2 |
-| **其他** | | | | |
-| File Upload | ✅ | ❌ | 🔴 | P2 |
-| MCP Integration | ✅ | ❌ | 🔴 | P3 |
-| Skills API | ✅ | ❌ | 🔴 | P3 |
+| 功能 | Claude SDK | @upup/sdk | Gap | 优先级 | 状态 |
+|------|------------|------------|-----|--------|------|
+| **核心 API** | | | | | |
+| Messages.create | ✅ | ✅ | - | P1 | ✅ 已实现 |
+| Streaming | ✅ | ✅ | - | P1 | ✅ 已实现 |
+| Batch | ✅ | ❌ | 🟡 | P2 | 待实现 |
+| Tool Runner | ✅ | ✅ | - | P1 | ✅ 已实现 |
+| **工具系统** | | | | | |
+| Tool Registry | ✅ | ✅ | - | ✅ | 已实现 |
+| BetaTool (Zod) | ✅ | ✅ | - | P2 | ✅ 已实现 |
+| ToolError | ✅ | ✅ | - | P1 | ✅ 已实现 |
+| **Hooks** | | | | | |
+| Hook Executor | ✅ | ✅ | - | ✅ | 已实现 |
+| PostSampling | ✅ | ❌ | 🟡 | P2 | 待实现 |
+| **会话** | | | | | |
+| Session Management | ✅ | ✅ | - | ✅ | 已实现 |
+| Session Store | ✅ | ✅ | - | P2 | ✅ 已实现 |
+| **记忆** | | | | | |
+| Memory API | ✅ | ✅ | - | ✅ | 独立包 |
+| Memory Tool | ✅ | ✅ | 🟡 | P2 | ✅ 已实现 |
+| **Beta API** | | | | | |
+| Beta Messages | ✅ | ✅ | - | P2 | ✅ 新增 |
+| BetaToolRunner | ✅ | ✅ | - | P2 | ✅ 新增 |
+| RpcTransport | ✅ | ✅ | - | P2 | ✅ 新增 |
+| **其他** | | | | | |
+| File Upload | ✅ | ❌ | 🔴 | P2 | 待实现 |
+| MCP Integration | ✅ | ❌ | 🔴 | P3 | 待实现 |
+| Skills API | ✅ | ❌ | 🔴 | P3 | 待实现 |
 
 ---
 
@@ -92,11 +89,15 @@ packages/sdk/
   ║                     LAYER 1: Public API                              ║
   ╠═══════════════════════════════════════════════════════════════════════╣
   ║                                                                        ║
-  ║   UpClient (v3)                                                     ║
-  ║   ├── createClient()                                                ║
-  ║   ├── query() → Result                                             ║
-  ║   ├── stream() → AsyncGenerator<SDKMessage>                        ║
-  ║   └── close()                                                      ║
+  ║   UpClient (v2)                                                     ║
+  ║   ├── create()                                                      ║
+  ║   ├── query() → Result                                              ║
+  ║   ├── stream() → AsyncGenerator<SDKMessage>                          ║
+  ║   └── close()                                                       ║
+  ║                                                                        ║
+  ║   MessagesClient (NEW - P1)                                        ║
+  ║   ├── create(params) → Message                                      ║
+  ║   └── stream(params) → MessageStream                               ║
   ║                                                                        ║
   ╚═══════════════════════════════════════════════════════════════════════╝
                                     │
@@ -105,150 +106,108 @@ packages/sdk/
   ║                     LAYER 2: Tool System                             ║
   ╠═══════════════════════════════════════════════════════════════════════╣
   ║                                                                        ║
-  ║   ToolRegistry                  ToolRunner (NEW)                    ║
-  ║   ├── register()               ├── create()                        ║
-  ║   ├── get()                    ├── runUntilDone()                   ║
-  ║   ├── getAll()                ├── pushMessages()                    ║
-  ║   └── unregister()            ├── abort()                         ║
-  ║                               └── [Symbol.asyncIterator]()          ║
+  ║   ToolRegistry (✅)              ToolRunner (NEW - P1)               ║
+  ║   ├── register()                ├── create()                        ║
+  ║   ├── get()                     ├── runUntilDone()                  ║
+  ║   ├── getAll()                  ├── pushMessages()                  ║
+  ║   └── unregister()              ├── abort()                         ║
+  ║                                └── [Symbol.asyncIterator]()         ║
   ║                                                                        ║
-  ║   ToolExecutor (NEW)                                                ║
-  ║   ├── execute(toolName, input)                                     ║
-  ║   ├── validate(toolName, input)                                    ║
-  ║   └── list()                                                       ║
-  ║                                                                        ║
-  ╚═══════════════════════════════════════════════════════════════════════╝
-                                    │
-                                    ▼
-  ╔═══════════════════════════════════════════════════════════════════════╗
-  ║                     LAYER 3: Session & Memory                       ║
-  ╠═══════════════════════════════════════════════════════════════════════╣
-  ║                                                                        ║
-  ║   SessionManager                  MemoryManager (NEW)                ║
-  ║   ├── create()                  ├── write()                        ║
-  ║   ├── getCurrent()              ├── read()                         ║
-  ║   ├── addMessage()              ├── update()                        ║
-  ║   ├── getMessages()            ├── delete()                        ║
-  ║   ├── save()                   ├── search()                        ║
-  ║   └── close()                  └── list()                         ║
-  ║                                                                        ║
-  ║   SessionStore (NEW)                                                ║
-  ║   ├── FileSessionStore           MemoryStore (NEW)                   ║
-  ║   └── JsonSessionStore          ├── FileMemoryStore                 ║
-  ║                               └── JsonMemoryStore                   ║
+  ║   ToolError (NEW - P1)                                               ║
+  ║   ├── ToolUseError                                                     ║
+  ║   └── ToolResultError                                                 ║
   ║                                                                        ║
   ╚═══════════════════════════════════════════════════════════════════════╝
                                     │
                                     ▼
   ╔═══════════════════════════════════════════════════════════════════════╗
-  ║                     LAYER 4: Transport & Pool                       ║
+  ║                     LAYER 3: Session & Memory                          ║
   ╠═══════════════════════════════════════════════════════════════════════╣
   ║                                                                        ║
-  ║   Transport                      ProcessPool                        ║
-  ║   ├── StdioTransport             ├── create()                       ║
-  ║   ├── HttpTransport              ├── acquire()                       ║
-  ║   └── WebSocketTransport         ├── release()                      ║
-  ║                                   └── close()                      ║
+  ║   SessionManager (✅)             MemoryStore (@upup/memory)          ║
+  ║   ├── create()                   ├── put()                           ║
+  ║   ├── getCurrent()               ├── search()                        ║
+  ║   ├── addMessage()               ├── semanticSearch()                ║
+  ║   ├── getMessages()             ├── ask()                           ║
+  ║   ├── save()                     └── timeline()                      ║
+  ║   ├── pause()                                                        ║
+  ║   ├── continue()                                                    ║
+  ║   └── close()                                                         ║
   ║                                                                        ║
   ╚═══════════════════════════════════════════════════════════════════════╝
                                     │
                                     ▼
   ╔═══════════════════════════════════════════════════════════════════════╗
-  ║                     LAYER 5: Hooks & Permissions                  ║
+  ║                     LAYER 4: Transport & Pool                          ║
   ╠═══════════════════════════════════════════════════════════════════════╣
   ║                                                                        ║
-  ║   HookExecutor                  PermissionManager                   ║
-  ║   ├── register()               ├── setMode()                       ║
-  ║   ├── execute()                ├── allowTool()                     ║
-  ║   ├── clear()                  ├── disallowTool()                  ║
-  ║   └── abort()                  └── checkPermission()               ║
+  ║   Transport (✅)                  ProcessPool (✅)                    ║
+  ║   ├── StdioTransport              ├── create()                       ║
+  ║   ├── HttpTransport               ├── acquire()                     ║
+  ║   └── WebSocketTransport (NEW)    ├── release()                      ║
+  ║                                   └── close()                        ║
   ║                                                                        ║
-  ║   HOOK_EVENTS (NEW)                                                  ║
-  ║   ├── PreToolUse               HOOK_EVENTS (NEW)                   ║
-  ║   ├── PostToolUse             ├── PreMessage                       ║
-  ║   ├── PreSampling            ├── PostSampling                      ║
-  ║   ├── PostSampling           ├── PreToolUse                       ║
-  ║   └── MessageStream          ├── PostToolUse                      ║
-  ║                               └── MessageStream                    ║
+  ╚═══════════════════════════════════════════════════════════════════════╝
+                                    │
+                                    ▼
+  ╔═══════════════════════════════════════════════════════════════════════╗
+  ║                     LAYER 5: Hooks & Permissions                      ║
+  ╠═══════════════════════════════════════════════════════════════════════╣
+  ║                                                                        ║
+  ║   HookExecutor (✅)              PermissionManager (✅)               ║
+  ║   ├── register()                ├── setMode()                        ║
+  ║   ├── execute()                 ├── allowTool()                     ║
+  ║   ├── clear()                   ├── disallowTool()                  ║
+  ║   └── abort()                   └── checkPermission()               ║
   ║                                                                        ║
   ╚═══════════════════════════════════════════════════════════════════════╝
 ```
 
-### Session 生命周期
+### Session 生命周期 (已实现)
+
+```
+create()  →  created  →  active  →  paused  →  completed
+                │           │          │            │
+                │           ▼          ▼            │
+                │        continue() resume()        │
+                │           │          │            │
+                └───────────┴──────────┴────────────┘
+                              │
+                         SessionStore (接口已定义)
+                         ├── FileSessionStore (NEW - P2)
+                         └── JsonSessionStore (NEW - P2)
+```
+
+### Memory 四层架构 (@upup/memory 已实现)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                        SESSION LIFECYCLE                                      │
-└─────────────────────────────────────────────────────────────────────────────┘
-
-  create()
-       │
-       ▼
-  ┌─────────────┐
-  │  created   │ ────────────────────► 继续会话
-  └──────┬──────┘
-         │
-         ▼
-  ┌─────────────┐
-  │  active    │ ◄────────────────────┐
-  │  (发送     │                      │ resume()
-  │   消息)    │                      │
-  └──────┬──────┘                      │
-         │                              │
-         ▼                              │
-  ┌─────────────┐                       │
-  │  paused    │ ──────────────────────┘
-  │  (暂停)    │   continue()
-  └──────┬──────┘
-         │
-         ▼
-  ┌─────────────┐
-  │ completed  │ ──────────────────────► 恢复会话历史
-  │  (完成)    │
-  └─────────────┘
-
-  SessionStore (NEW)
-  ├── FileSessionStore - 文件系统持久化
-  └── JsonSessionStore - JSON 文件持久化
-```
-
-### Memory 四层架构
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                        MEMORY LAYERS                                          │
+│                        MEMORY LAYERS                                        │
 └─────────────────────────────────────────────────────────────────────────────┘
 
   Layer 1: Global Memory
   ┌─────────────────────────────────────────────────────────────────────────┐
-  │ ~/.upup/memory/                                                       │
-  │ ├── MEMORY.md                    # 索引入口                            │
-  │ ├── user/                       # 用户记忆                             │
-  │ ├── feedback/                   # 反馈记忆                             │
-  │ ├── project/                    # 项目记忆                             │
-  │ └── reference/                  # 引用记忆                             │
+  │ ~/.upup/memory/                                                         │
+  │ ├── memvid.mv2                   # Memvid 存储                         │
+  │ └── (通过 MemoryStore API 访问)                                         │
   └─────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
   Layer 2: Project Memory
   ┌─────────────────────────────────────────────────────────────────────────┐
-  │ <project>/.upup/memory/                                               │
-  │ ~/.upup/projects/<slug>/memory/                                      │
-  │ └── (同上结构)                                                         │
+  │ <project>/.upup/memory/  或  ~/.upup/projects/<slug>/memory/           │
   └─────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
   Layer 3: Team Memory
   ┌─────────────────────────────────────────────────────────────────────────┐
-  │ ~/.upup/teams/<team>/memory/                                        │
-  │ └── (同上结构)                                                         │
+  │ ~/.upup/teams/<team>/memory/                                            │
   └─────────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
   Layer 4: Session Memory (临时)
   ┌─────────────────────────────────────────────────────────────────────────┐
-  │ ~/.upup/sessions/<id>/memory/ephemeral/                             │
-  │ └── (同上结构)                                                         │
+  │ ~/.upup/sessions/<id>/memory/ephemeral/                                │
   └─────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -256,38 +215,57 @@ packages/sdk/
 
 ## 📋 Todo List
 
-### 🔴 P1 - 核心功能 (必须实现)
+### ✅ 已完成功能 (v1.3)
+
+| # | 功能 | 状态 | 说明 |
+|---|------|------|------|
+| 1 | Client v2 | ✅ | UpClient 主入口 |
+| 2 | Transport | ✅ | StdioTransport, HttpTransport |
+| 3 | Tool Registry | ✅ | 工具注册表 |
+| 4 | Permissions | ✅ | PermissionManager |
+| 5 | Hooks | ✅ | HookExecutor, HookRegistry |
+| 6 | Session Manager | ✅ | 完整生命周期管理 |
+| 7 | Process Pool | ✅ | ProcessPool |
+| 8 | Memory Store | ✅ | @upup/memory 独立包 |
+| 9 | **ToolRunner** | ✅ | tool-runner.ts |
+| 10 | **ToolError** | ✅ | tool-error.ts |
+| 11 | **Messages API** | ✅ | messages.ts |
+| 12 | **SDK Errors** | ✅ | errors.ts |
+| 13 | **Session Store** | ✅ | session/store.ts |
+
+### 🔴 P1 - 核心功能 ✅ 已全部实现
 
 | # | 任务 | 状态 | 文件 | 说明 |
 |---|------|------|------|------|
-| 1 | Messages API | 🔲 | messages.ts | client.messages.create() |
-| 2 | Tool Runner | 🔲 | tool-runner.ts | Claude SDK 风格工具循环 |
-| 3 | ToolError 处理 | 🔲 | tool-error.ts | 工具错误处理 |
-| 4 | Session Store | 🔲 | session/store.ts | FileSessionStore, JsonSessionStore |
-| 5 | MemoryManager | 🔲 | memory/manager.ts | CRUD + Search |
-| 6 | Memory Store | 🔲 | memory/store.ts | FileMemoryStore, JsonMemoryStore |
-| 7 | Streaming 增强 | 🔲 | stream.ts | 事件流完整实现 |
-| 8 | SDKError 增强 | 🔲 | errors.ts | 完整错误类型 |
+| 1 | ToolRunner | ✅ | tool-runner.ts | Claude SDK 风格工具循环 |
+| 2 | ToolError | ✅ | tool-error.ts | 工具错误处理 |
+| 3 | Messages API | ✅ | messages.ts | client.messages.create() |
+| 4 | SDK Errors | ✅ | errors.ts | 完整错误类型 |
 
 ### 🟡 P2 - 重要功能
 
 | # | 任务 | 状态 | 文件 | 说明 |
 |---|------|------|------|------|
-| 9 | BetaTool (Zod) | 🔲 | beta-tool.ts | Zod schema 工具定义 |
-| 10 | Batch Processing | 🔲 | batch.ts | 批量消息处理 |
-| 11 | PostSampling Hooks | 🔲 | hooks/post-sampling.ts | 采样后钩子 |
-| 12 | File Upload API | 🔲 | file.ts | 文件上传管理 |
-| 13 | Token Counter | 🔲 | token.ts | token 计数 |
-| 14 | MCP Client | 🔲 | mcp.ts | MCP 客户端集成 |
+| 5 | ~~Session Store 实现~~ | ✅ | session/store.ts | **已完成** |
+| 6 | ~~BetaTool (Zod)~~ | ✅ | beta-tool.ts | **已完成** |
+| 7 | ~~Beta API Namespace~~ | ✅ | beta/index.ts | **新增** |
+| 8 | ~~RpcTransport~~ | ✅ | transport/transport.ts | **新增** |
+| 9 | ~~HttpTransport 支持 RPC~~ | ✅ | transport/http-transport.ts | **新增** |
+| 10 | ~~Memory Tool~~ | ✅ | memory/tool.ts | **已完成** |
+| 11 | ~~Token Counter~~ | ✅ | token.ts | **已完成** |
+| 12 | ~~Batch Processing~~ | ✅ | batch.ts | **新增** |
+| 13 | ~~PostSampling Hooks~~ | ✅ | hooks/post-sampling.ts | **新增** |
+| 14 | File Upload API | 🔲 | file.ts | 文件上传管理 |
 
 ### 🟢 P3 - 企业级功能
 
 | # | 任务 | 状态 | 文件 | 说明 |
 |---|------|------|------|------|
-| 15 | Skills API | 🔲 | skills.ts | Agent Skills 支持 |
-| 16 | Cloud Sync | 🔲 | sync.ts | 云端同步 |
-| 17 | Prompt Cache | 🔲 | cache.ts | 提示缓存 |
-| 18 | Context Management | 🔲 | context.ts | 1M Token 上下文 |
+| 12 | Skills API | 🔲 | skills.ts | Agent Skills 支持 |
+| 13 | Cloud Sync | 🔲 | sync.ts | 云端同步 |
+| 14 | MCP Client | 🔲 | mcp.ts | MCP 客户端集成 |
+| 15 | Prompt Cache | 🔲 | cache.ts | 提示缓存 |
+| 16 | Context Management | 🔲 | context.ts | 1M Token 上下文 |
 
 ---
 
@@ -296,14 +274,22 @@ packages/sdk/
 ```
 packages/sdk/src/
 │
-├── [新增 - P1]
-├── messages.ts                 # Messages API
-│   ├── MessagesClient
-│   ├── create(params): Message
-│   ├── stream(params): MessageStream
-│   └── countTokens(params): TokenCount
+├── [已存在 - 已完成]
+├── index.ts                      # 主入口
+├── client/client.ts              # UpClient (v2)
+├── transport/                   # 传输层
+│   ├── stdio-transport.ts
+│   └── http-transport.ts
+├── tools/                       # 工具注册表
+├── permissions/                 # 权限管理
+├── hooks/                       # Hook 执行器
+├── session/                     # 会话管理
+│   ├── manager.ts
+│   └── types.ts
+└── pool/                        # 进程池
 │
-├── tool-runner.ts             # Tool Runner (Claude SDK 风格)
+├── [新增 - P1]
+├── tool-runner.ts               # Tool Runner (Claude SDK 风格)
 │   ├── class ToolRunner
 │   ├── create(params): ToolRunner
 │   ├── runUntilDone(): Promise<Message>
@@ -311,119 +297,99 @@ packages/sdk/src/
 │   ├── abort(): void
 │   └── [Symbol.asyncIterator](): AsyncIterator
 │
-├── tool-error.ts              # ToolError 处理
+├── tool-error.ts                # ToolError 处理
 │   ├── class ToolError
 │   ├── class ToolUseError
 │   └── class ToolResultError
 │
-├── session/
-│   └── store.ts              # Session Store 实现
-│       ├── class FileSessionStore
-│       ├── class JsonSessionStore
-│       └── class MemorySessionStore
+├── messages.ts                  # Messages API
+│   ├── class MessagesClient
+│   ├── create(params): Message
+│   └── stream(params): MessageStream
 │
-├── memory/                    # Memory 模块 (NEW)
-│   ├── index.ts              # 模块入口
-│   ├── manager.ts            # MemoryManager
-│   ├── store.ts             # MemoryStore 实现
-│   ├── types.ts             # Memory 类型
-│   ├── entry.ts             # MemoryEntry 类
-│   └── search.ts            # Search 实现
-│
-├── errors.ts                 # 增强错误类型
+├── errors.ts                    # 错误类型
 │   ├── class SDKError
 │   ├── class SessionError
 │   ├── class MemoryError
-│   ├── class ValidationError
-│   └── class NetworkError
-│
-├── stream.ts                 # Streaming 增强
-│   ├── class MessageStream
-│   ├── on(event, handler): Stream
-│   ├── finalMessage(): Promise<Message>
-│   ├── finalText(): Promise<string>
-│   └── abort(): void
+│   └── class ValidationError
 │
 ├── [新增 - P2]
-├── beta-tool.ts              # BetaTool (Zod)
+├── session/store.ts             # Session Store 实现
+│   ├── class FileSessionStore
+│   └── class JsonSessionStore
+│
+├── beta/index.ts                # Beta API Namespace (NEW)
+│   ├── class BetaAPI
+│   ├── class BetaMessagesAPI
+│   ├── class BetaToolRunner
+│   └── toolRunner(params): BetaToolRunner
+│
+├── transport/transport.ts      # RpcTransport 接口 (NEW)
+│   └── interface RpcTransport
+│
+├── beta-tool.ts                 # BetaTool (Zod)
 │   ├── function betaTool()
 │   └── function betaZodTool()
 │
-├── batch.ts                  # Batch Processing
+├── batch.ts                     # Batch Processing
 │   ├── class BatchProcessor
 │   ├── create(requests): Batch
-│   ├── getStatus(batchId): BatchStatus
 │   └── getResults(batchId): AsyncGenerator
 │
-├── file.ts                   # File Upload API
+├── file.ts                      # File Upload API
 │   ├── class FileManager
 │   ├── upload(file): File
 │   └── download(fileId): ReadableStream
 │
-├── token.ts                  # Token Counter
-│   ├── countTokens(text, model?): Promise<TokenCount>
-│   └── countMessages(messages, model?): Promise<TokenCount>
+├── token.ts                     # Token Counter
+│   └── countTokens(text, model?): Promise<TokenCount>
+│
+├── memory/tool.ts               # Memory Tool 集成
+│   └── createMemoryTools()
+│
+├── batch.ts                     # Batch Processing (NEW)
+│   ├── class BatchClient
+│   ├── class BatchToolRunner
+│   ├── create(params): Batch
+│   ├── retrieve(batchId): BatchInfo
+│   ├── results(batchId): AsyncGenerator
+│   └── list/cancel/delete()
+│
+├── hooks/post-sampling.ts      # PostSampling Hooks (NEW)
+│   ├── class PostSamplingHooks
+│   ├── createContentFilterHook()
+│   ├── createLoggingHook()
+│   ├── createMetadataHook()
+│   └── createAugmentHook()
 │
 ├── [新增 - P3]
-├── skills.ts                 # Skills API
+├── skills.ts                    # Skills API
 │   ├── createSkill(params): Skill
 │   ├── getSkill(id): Skill
-│   ├── listSkills(): Skill[]
-│   └── deleteSkill(id): void
+│   └── listSkills(): Skill[]
 │
-├── sync.ts                   # Cloud Sync
+├── sync.ts                      # Cloud Sync
 │   ├── class SyncClient
-│   ├── sync(): SyncResult
-│   └── resolve(): ConflictResult
+│   └── sync(): SyncResult
 │
-├── cache.ts                  # Prompt Cache
-│   ├── class PromptCache
-│   ├── get(key): CacheEntry
-│   ├── set(key, entry): void
-│   └── invalidate(key): void
+├── mcp.ts                       # MCP Client
+│   └── class MCPClient
+│
+├── cache.ts                     # Prompt Cache
+│   └── class PromptCache
+│
+├── context.ts                   # Context Management
+│   └── class ContextManager
 │
 ├── [更新]
-├── index.ts                 # 导出新类型和类
-├── client/client.ts          # 集成新功能
-└── session/manager.ts       # 集成 SessionStore
+└── index.ts                     # 导出新类型和类
 ```
 
 ---
 
 ## 🔧 API 设计
 
-### Messages API
-
-```typescript
-// packages/sdk/src/messages.ts
-
-export interface MessageCreateParams {
-  model?: string;
-  maxTokens?: number;
-  messages: MessageParam[];
-  system?: string;
-  tools?: Tool[];
-  stream?: boolean;
-}
-
-export class MessagesClient {
-  constructor(private transport: Transport) {}
-
-  async create(params: MessageCreateParams): Promise<Message> {
-    // 创建消息
-  }
-
-  stream(params: MessageCreateParams): MessageStream {
-    // 流式创建消息
-  }
-
-  async countTokens(params: CountTokensParams): Promise<TokenCount> {
-    // 计算 token
-  }
-}
-```
-
-### ToolRunner
+### ToolRunner (P1)
 
 ```typescript
 // packages/sdk/src/tool-runner.ts
@@ -438,13 +404,13 @@ export interface ToolRunnerParams {
 export class ToolRunner {
   private messages: MessageParam[];
   private tools: Tool[];
+  private abortController: AbortController;
 
-  static create(params: ToolRunnerParams): Promise<ToolRunner> {
+  static create(params: ToolRunnerParams): ToolRunner {
     return new ToolRunner(params);
   }
 
   async runUntilDone(): Promise<Message> {
-    // 运行直到没有更多工具调用
     while (true) {
       const response = await this.client.messages.create(this.messages);
 
@@ -477,92 +443,46 @@ export class ToolRunner {
   }
 
   abort(): void {
-    // 中止当前运行
+    this.abortController.abort();
+  }
+
+  [Symbol.asyncIterator](): AsyncIterator<StreamEvent> {
+    // 实现异步迭代器
   }
 }
 ```
 
-### MemoryManager
+### Messages API (P1)
 
 ```typescript
-// packages/sdk/src/memory/manager.ts
+// packages/sdk/src/messages.ts
 
-export interface MemoryEntryInput {
-  type: 'user' | 'feedback' | 'project' | 'reference';
-  name: string;
-  description?: string;
-  content: string;
-  scope?: 'private' | 'team' | 'project' | 'global';
-  tags?: string[];
-  metadata?: Record<string, unknown>;
+export interface MessageCreateParams {
+  model?: string;
+  maxTokens?: number;
+  messages: MessageParam[];
+  system?: string;
+  tools?: Tool[];
+  stream?: boolean;
 }
 
-export class MemoryManager {
-  constructor(private store: MemoryStore) {}
+export class MessagesClient {
+  constructor(
+    private transport: Transport,
+    private config: MessagesClientConfig = {}
+  ) {}
 
-  async write(entry: MemoryEntryInput): Promise<MemoryEntry> {
-    // 写入记忆
+  async create(params: MessageCreateParams): Promise<Message> {
+    // 创建消息
   }
 
-  async read(id: string): Promise<MemoryEntry | null> {
-    // 读取记忆
+  stream(params: MessageCreateParams): MessageStream {
+    // 流式创建消息
   }
 
-  async update(id: string, entry: Partial<MemoryEntryInput>): Promise<MemoryEntry> {
-    // 更新记忆
+  async countTokens(params: CountTokensParams): Promise<TokenCount> {
+    // 计算 token
   }
-
-  async delete(id: string): Promise<void> {
-    // 删除记忆
-  }
-
-  async search(
-    query: string,
-    options?: SearchOptions
-  ): Promise<SearchResult[]> {
-    // 搜索记忆
-  }
-
-  async list(
-    type?: MemoryType,
-    options?: ListOptions
-  ): Promise<MemoryEntry[]> {
-    // 列出记忆
-  }
-
-  async getStats(): Promise<MemoryStats> {
-    // 获取统计
-  }
-}
-```
-
-### MessageStream
-
-```typescript
-// packages/sdk/src/stream.ts
-
-export type StreamEvent =
-  | { type: 'text'; text: string }
-  | { type: 'content_block'; block: ContentBlock }
-  | { type: 'tool_use'; tool: ToolUse }
-  | { type: 'tool_result'; result: ToolResult }
-  | { type: 'message'; message: Message }
-  | { type: 'error'; error: Error }
-  | { type: 'end' };
-
-export class MessageStream implements AsyncIterable<StreamEvent> {
-  constructor(private response: Response) {}
-
-  on(event: StreamEvent['type'], handler: (data: any) => void): this {
-    return this;
-  }
-
-  async finalMessage(): Promise<Message> {}
-  async finalText(): Promise<string> {}
-  abort(): void {}
-  toReadableStream(): ReadableStream {}
-
-  [Symbol.asyncIterator](): AsyncIterator<StreamEvent> {}
 }
 ```
 
@@ -573,27 +493,25 @@ export class MessageStream implements AsyncIterable<StreamEvent> {
 ```
 Phase 1: P1 核心功能 (预计 2-3 周)
 ├── 1.1 Messages API
-├── 1.2 Tool Runner
+├── 1.2 ToolRunner
 ├── 1.3 ToolError
-├── 1.4 Session Store
-├── 1.5 MemoryManager
-├── 1.6 MemoryStore
-├── 1.7 Streaming 增强
-└── 1.8 SDKError 增强
+└── 1.4 SDK Errors
 
 Phase 2: P2 重要功能 (预计 2-3 周)
-├── 2.1 BetaTool (Zod)
-├── 2.2 Batch Processing
-├── 2.3 PostSampling Hooks
-├── 2.4 File Upload
-├── 2.5 Token Counter
-└── 2.6 MCP Client
+├── 2.1 Session Store 实现
+├── 2.2 Memory Tool 集成
+├── 2.3 BetaTool (Zod)
+├── 2.4 Batch Processing
+├── 2.5 File Upload
+├── 2.6 Token Counter
+└── 2.7 PostSampling Hooks
 
 Phase 3: P3 企业级功能 (预计 3-4 周)
 ├── 3.1 Skills API
 ├── 3.2 Cloud Sync
-├── 3.3 Prompt Cache
-└── 3.4 Context Management
+├── 3.3 MCP Client
+├── 3.4 Prompt Cache
+└── 3.5 Context Management
 ```
 
 ---
@@ -602,9 +520,10 @@ Phase 3: P3 企业级功能 (预计 3-4 周)
 
 | 阶段 | 验收条件 |
 |------|----------|
-| **P1** | Messages API、ToolRunner、MemoryManager 可用，通过单元测试 |
-| **P2** | BetaTool、Batch、File Upload 可用 |
-| **P3** | Skills API 和 Cloud Sync 可用 |
+| **已完成** | Client, Transport, Tools, Permissions, Hooks, Session, Pool, Memory |
+| **P1 ✅** | ToolRunner、ToolError、Messages API、SDK Errors 已实现，编译通过 |
+| **P2 ✅** | BetaTool、Beta API, RpcTransport, Batch, PostSampling Hooks 已实现 |
+| **P3** | Skills API、Cloud Sync、MCP Client 可用 |
 
 ---
 
@@ -612,10 +531,119 @@ Phase 3: P3 企业级功能 (预计 3-4 周)
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v1.5 | 2026-05-15 | **P2 Batch + PostSampling**: BatchClient, BatchToolRunner, PostSamplingHooks |
+| v1.4 | 2026-05-15 | **P2 Beta API 新增**: BetaAPI, BetaToolRunner, RpcTransport, HttpTransport RPC支持 |
+| v1.3 | 2026-05-15 | **P1 核心功能已实现**: ToolRunner, ToolError, Messages API, SDK Errors, Session Store |
+| v1.1 | 2026-05-15 | 更新状态分析：标记已完成功能，修正待实现任务 |
 | v1.0 | 2026-05-15 | 初始版本，分析完成 |
 
 ---
 
+## 📊 代码统计 (v1.3)
+
+```bash
+# SDK 模块统计
+packages/sdk/src/
+├── client/           # ~450 行
+├── transport/       # ~550 行 (Stdio + HTTP + RpcTransport)
+├── tools/           # ~200 行
+├── permissions/     # ~250 行
+├── hooks/          # ~300 行
+├── session/        # ~350 行 + store.ts (新增)
+├── pool/           # ~300 行
+├── beta/           # ~200 行 (NEW)
+├── errors.ts       # ~240 行 (新增)
+├── tool-error.ts   # ~150 行 (新增)
+├── messages.ts      # ~320 行 (新增)
+├── tool-runner.ts  # ~420 行 (新增)
+├── beta-tool.ts    # ~260 行 (新增)
+├── token.ts        # ~120 行 (新增)
+└── memory/tool.ts  # ~260 行 (新增)
+
+# 合计: ~4180 行 (新增 ~2180 行)
+```
+
+# @upup/memory
+packages/memory/src/
+└── index.ts       # ~400 行
+```
+
+---
+
 **创建时间**: 2026-05-15
-**版本**: v1.0
-**状态**: 分析完成，待实施
+**版本**: v1.5
+**状态**: P2 Batch + PostSampling 已实现
+
+## ✅ v1.5 更新 (2026-05-15)
+
+### 新增功能
+
+| 文件 | 功能 | 行数 |
+|------|------|------|
+| batch.ts | BatchClient, BatchToolRunner | ~320 行 |
+| hooks/post-sampling.ts | PostSamplingHooks | ~280 行 |
+
+### Batch API 功能
+
+```typescript
+// 使用 BatchClient
+import { BatchClient } from '@upup/sdk'
+
+const batch = new BatchClient(httpTransport)
+
+// 创建批量
+const result = await batch.create({
+  requests: [
+    { custom_id: 'req-1', params: { model: 'claude-3', max_tokens: 256, messages: [...] } },
+    { custom_id: 'req-2', params: { model: 'claude-3', max_tokens: 256, messages: [...] } },
+  ],
+})
+
+// 轮询状态
+let status = await batch.retrieve(result.id)
+while (status.processing_status === 'in_progress') {
+  await sleep(5000)
+  status = await batch.retrieve(result.id)
+}
+
+// 获取结果
+for await (const r of batch.results(result.id)) {
+  console.log(r.custom_id, r.result)
+}
+```
+
+### PostSampling Hooks 功能
+
+```typescript
+// 使用 PostSamplingHooks
+import { PostSamplingHooks, createContentFilterHook } from '@upup/sdk'
+
+const postSampling = new PostSamplingHooks()
+
+// 添加内容过滤
+postSampling.register(createContentFilterHook((content) => {
+  return content.replace(/badword/g, '***')
+}))
+
+// 在响应后执行
+const processed = await postSampling.execute(message, { request_params: {...} })
+```
+
+### 编译统计
+
+```bash
+$ bun run build
+Bundled 27 modules in 10ms
+  index.js  80.64 KB  (entry point)
+```
+
+### 新增导出
+
+```typescript
+// Batch API
+export { BatchClient, BatchToolRunner }
+
+// PostSampling Hooks
+export { PostSamplingHooks, createContentFilterHook, createLoggingHook, createMetadataHook, createAugmentHook }
+```
+

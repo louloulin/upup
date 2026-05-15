@@ -6,6 +6,13 @@ export {
   SessionManager,
 } from './manager.js'
 
+export {
+  JsonSessionStore,
+  FileSessionStore,
+  MemorySessionStore,
+  createSessionStore,
+} from './store.js'
+
 export type {
   SessionStatus,
   SessionInfo,

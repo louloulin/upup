@@ -24,6 +24,8 @@ import { ToolRegistry, type Tool } from '../tools/index.js'
 import { HookExecutor, type HookEvent, type HookInput, type HookMap } from '../hooks/index.js'
 import { SessionManager, type SessionConfig, type SessionInfo } from '../session/index.js'
 import { ProcessPool, type ProcessPoolConfig } from '../pool/index.js'
+import { BetaAPI, createBetaAPI } from '../beta/index.js'
+import type { RpcTransport } from '../messages.js'
 
 // ============ 配置类型 ============
 
@@ -193,6 +195,7 @@ export class UpClient extends EventEmitter implements AsyncDisposable {
   private hookExecutor: HookExecutor
   private sessionManager: SessionManager
   private pool: ProcessPool | null = null
+  private _beta: BetaAPI | null = null
 
   get connected(): boolean {
     return this._connected
@@ -225,6 +228,21 @@ export class UpClient extends EventEmitter implements AsyncDisposable {
   /** 获取进程池 (如果有) */
   get processPool(): ProcessPool | null {
     return this.pool
+  }
+
+  /** 获取 Beta API (需要 HTTP Transport) */
+  get beta(): BetaAPI {
+    if (!this._beta) {
+      // 需要 RpcTransport 才能使用 Beta API
+      // StdioTransport 不支持 RPC 请求
+      throw new Error('Beta API requires RpcTransport (HttpTransport)')
+    }
+    return this._beta
+  }
+
+  /** 检查 Beta API 是否可用 */
+  get hasBeta(): boolean {
+    return this._beta !== null
   }
 
   /**
@@ -324,7 +342,21 @@ export class UpClient extends EventEmitter implements AsyncDisposable {
       })
     }
 
+    // 初始化 Beta API (仅当有 RpcTransport 时)
+    // 注意: StdioTransport 不支持 RPC，所以 Beta API 暂时不可用
+    // 在未来通过 HttpTransport 时可以启用
+    // client._beta = createBetaAPI(transport as unknown as RpcTransport)
+
     return client
+  }
+
+  /**
+   * 设置 Beta API (需要 RpcTransport)
+   *
+   * 用于 HTTP Transport 模式下的 Beta API
+   */
+  setBetaAPI(transport: RpcTransport): void {
+    this._beta = createBetaAPI(transport)
   }
 
   /**

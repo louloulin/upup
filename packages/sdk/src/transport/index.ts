@@ -22,4 +22,5 @@ export type {
   TransportConfig,
   TransportMessage,
   EventHandler,
+  RpcTransport,
 } from './transport.js'

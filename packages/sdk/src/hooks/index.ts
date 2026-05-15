@@ -18,3 +18,20 @@ export {
   type HookMap,
   HOOK_EVENTS,
 } from './types.js'
+
+// ============ PostSampling Hooks (P2) ============
+
+export {
+  PostSamplingHooks,
+  createContentFilterHook,
+  createLoggingHook,
+  createMetadataHook,
+  createAugmentHook,
+} from './post-sampling.js'
+
+export type {
+  PostSamplingInput,
+  PostSamplingOutput,
+  PostSamplingCallback,
+  PostSamplingConfig,
+} from './post-sampling.js'

@@ -79,6 +79,27 @@ export interface Transport {
   close(): Promise<void>
 }
 
+/**
+ * RpcTransport 接口 - 支持 RPC 请求的 Transport
+ *
+ * 扩展基础 Transport，支持:
+ * - request(): 发送 RPC 请求并等待响应
+ * - stream(): 发送 RPC 流式请求
+ *
+ * 用于 HTTP Transport 和未来的 WebSocket Transport
+ */
+export interface RpcTransport extends Transport {
+  /**
+   * 发送 RPC 请求并等待响应
+   */
+  request(method: string, params?: Record<string, unknown>): Promise<unknown>
+
+  /**
+   * 发送 RPC 流式请求
+   */
+  stream(method: string, params?: Record<string, unknown>): AsyncGenerator<unknown>
+}
+
 // ============ 消息类型 ============
 
 /**

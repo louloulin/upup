@@ -2,9 +2,10 @@
  * @upup/sdk - HTTP Transport
  *
  * 通过 HTTP 与远程 upup 服务通信
+ * 实现 RpcTransport 接口支持 Beta API
  */
 
-import type { Transport } from './transport.js'
+import type { Transport, RpcTransport } from './transport.js'
 
 /**
  * Transport 消息类型
@@ -71,7 +72,7 @@ export interface HttpTransportConfig {
  * await transport.close()
  * ```
  */
-export class HttpTransport implements Transport {
+export class HttpTransport implements RpcTransport {
   readonly binarySource: string = 'http'
 
   private config: Required<HttpTransportConfig>
@@ -127,7 +128,7 @@ export class HttpTransport implements Transport {
   /**
    * 发送请求并等待响应
    */
-  async request(method: string, params: Record<string, unknown>): Promise<TransportMessage> {
+  async request(method: string, params: Record<string, unknown>): Promise<unknown> {
     const id = ++this.messageId
     const payload: TransportMessage = {
       jsonrpc: '2.0',
@@ -162,12 +163,12 @@ export class HttpTransport implements Transport {
   }
 
   /**
-   * 发送流式请求 (SSE)
+   * 发送流式请求 (SSE) - RpcTransport.stream()
    */
   async *stream(
     method: string,
     params: Record<string, unknown>
-  ): AsyncGenerator<TransportMessage> {
+  ): AsyncGenerator<unknown> {
     const id = ++this.messageId
     const payload: TransportMessage = {
       jsonrpc: '2.0',
@@ -225,7 +226,7 @@ export class HttpTransport implements Transport {
 
             try {
               const msg = JSON.parse(data) as TransportMessage
-              yield msg
+              yield msg as unknown
 
               // 触发事件处理器
               this.emit('message', msg)
@@ -244,9 +245,10 @@ export class HttpTransport implements Transport {
   /**
    * 发送消息（不等待响应）
    */
-  send(_message: object): void {
-    // HTTP Transport 不支持无响应发送
-    this.debugLog('Send (fire-and-forget not supported in HTTP mode)')
+  async send(_message: object): Promise<void> {
+    // HTTP Transport 不支持 fire-and-forget
+    // 使用 request() 方法发送 RPC 请求
+    this.debugLog('Send: use request() for HTTP Transport')
   }
 
   /**
