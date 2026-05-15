@@ -1,6 +1,6 @@
 {
   "name": "upup",
-  "version": "2026.05.13",
+  "version": "2026.05.15",
   "private": true,
   "description": "UpUp - AI agent for deep financial research (涨涨 — 深度金融研究 AI 智能体).",
   "type": "module",
@@ -65,7 +65,7 @@
   },
   "pkg": {
     "name": "upup",
-    "version": "2026.05.13",
+    "version": "2026.05.15",
     "description": "UpUp - AI agent for deep financial research",
     "bin": "src/index.tsx",
     "targets": [
