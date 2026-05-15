@@ -104,6 +104,11 @@ export type {
 export {
   HookExecutor,
   HookRegistry,
+  PostSamplingHooks,
+  createContentFilterHook,
+  createLoggingHook,
+  createMetadataHook,
+  createAugmentHook,
 } from './hooks/index.js'
 
 export type {
@@ -116,6 +121,10 @@ export type {
   HookExecutorConfig,
   HookExecutionResult,
   HOOK_EVENTS,
+  PostSamplingInput,
+  PostSamplingOutput,
+  PostSamplingCallback,
+  PostSamplingConfig,
 } from './hooks/index.js'
 
 // ============ Session (Phase 4) ============
@@ -146,3 +155,151 @@ export type {
   PooledProcessStatus,
   ProcessPoolEvent,
 } from './pool/index.js'
+
+// ============ Errors (P1) ============
+
+export {
+  SDKError,
+  SessionError,
+  TransportError,
+  MemoryError,
+  ValidationError,
+  PermissionError,
+  NetworkError,
+  InitializationError,
+  ErrorCode,
+  isSDKError,
+  isSessionError,
+  isTransportError,
+  toSDKError,
+  tryRecoverError,
+} from './errors.js'
+
+// ============ Tool Errors (P1) ============
+
+export {
+  ToolError,
+  ToolUseError,
+  ToolResultError,
+  ToolNotFoundError,
+  ToolTimeoutError,
+  ToolPermissionDeniedError,
+  ToolAbortedError,
+  ToolValidationError,
+  isToolError,
+  toToolError,
+} from './tool-error.js'
+
+// ============ Messages API (P1) ============
+
+export {
+  MessagesClient,
+} from './messages.js'
+
+export type {
+  MessageParam,
+  ContentBlock,
+  TextContentBlock,
+  ToolUseContentBlock,
+  ToolResultContentBlock,
+  MessageCreateParams,
+  Message,
+  TokenCount,
+  StreamEvent,
+  MessagesClientConfig,
+  CountTokensParams,
+} from './messages.js'
+
+// ============ Tool Runner (P1) ============
+
+export {
+  ToolRunner,
+  ClientToolRunner,
+} from './tool-runner.js'
+
+export type {
+  ToolRunnerParams,
+  RunnableTool,
+  ToolContext,
+  ToolResponse,
+  RunResult,
+} from './tool-runner.js'
+
+// ============ Session Store (P2) ============
+
+export {
+  JsonSessionStore,
+  FileSessionStore,
+  MemorySessionStore,
+  createSessionStore,
+} from './session/store.js'
+
+// ============ Beta Tools (P2) ============
+
+export {
+  betaTool,
+  betaZodTool,
+} from './beta-tool.js'
+
+export type {
+  BetaToolOptions,
+  JsonSchema,
+  JsonSchemaProperty,
+  ToolContext as BetaToolContext,
+  BetaZodToolOptions,
+  ZodSchema,
+} from './beta-tool.js'
+
+// ============ Token Counter (P2) ============
+
+export {
+  TokenCounter,
+  countTokens,
+  countMessageTokens,
+} from './token.js'
+
+// ============ Memory Tools (P2) ============
+
+export {
+  createMemoryTools,
+} from './memory/tool.js'
+
+export type {
+  MemoryType,
+  MemoryToolOptions,
+  MemoryTools,
+} from './memory/tool.js'
+
+// ============ Beta API (P2) ============
+
+export {
+  BetaAPI,
+  BetaMessagesAPI,
+  BetaToolRunner,
+  createBetaAPI,
+} from './beta/index.js'
+
+export type {
+  BetaToolRunnerParams,
+  BetaMessageStreamParams,
+  BetaToolRunnerResult,
+} from './beta/index.js'
+
+// ============ Batch API (P2) ============
+
+export {
+  BatchClient,
+  BatchToolRunner,
+} from './batch.js'
+
+export type {
+  BatchRequestItem,
+  BatchRequestParams,
+  BatchCreateParams,
+  BatchProcessingStatus,
+  BatchInfo,
+  BatchResultItem,
+  BatchCreateResponse,
+  BatchToolRunnerParams,
+  BatchToolRunnerResult,
+} from './batch.js'
