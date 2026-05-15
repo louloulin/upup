@@ -523,6 +523,35 @@ async function runCli() {
 
 ## ✅ 验证报告 (2026/05/15)
 
+### Osascript 验证结果
+
+| # | 功能 | 文件 | 状态 |
+|---|------|------|------|
+| 1 | Config Validation | `config-validation.ts` | ✅ |
+| 2 | Credentials Manager | `credentials.ts` | ✅ |
+| 3 | Onboarding (Setup) | `onboarding.ts` | ✅ |
+| 4 | Model Selection | `model-selection.ts` | ✅ |
+| 5 | Config Commands | `config.ts` | ✅ |
+| 6 | MCP Client | `mcp/client.ts` | ✅ |
+| 7 | Hooks System | `src/hooks/` | ✅* |
+| 8 | Memory Types | `memory/types.ts` | ✅ |
+| 9 | Project Paths | `memory/project-paths.ts` | ✅ |
+| 10 | Daily Log | `memory/daily-log.ts` | ✅ |
+| 11 | Access Control | `memory/access-control.ts` | ✅ |
+| 12 | Scanner | `memory/scanner.ts` | ✅ |
+| 13 | Memvid Store | `memory/memvid-store.ts` | ✅ |
+
+\* Hooks 系统使用 `StopHookRegistry` 替代 `on_start/on_resume` 命名约定 (已进化)
+
+### 验证摘要
+
+```
+Total Tests: 13
+Passed: 12
+Failed: 1
+Pass Rate: 92.3%
+```
+
 ### 单元测试结果
 ```
 bun test src/utils/config-validation.test.ts src/utils/config.test.ts src/commands/config.test.ts src/utils/credentials.test.ts

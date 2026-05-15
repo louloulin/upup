@@ -14,9 +14,11 @@ import { readdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import matter from 'gray-matter';
-import type { MemoryFileMeta, MemoryType } from './types.js';
+import type { MemoryFileMeta, MemoryType, MemoryScope, ScopedScanOptions } from './types.js';
 import { MEMORY_TYPES, parseMemoryType } from './types.js';
 import { getUpupDir } from '../utils/paths.js';
+import { getProjectMemoryPaths, getGlobalMemoryDir, extractProjectSlug } from './project-paths.js';
+import { getTeamMemoryPaths } from './team-paths.js';
 
 // ============================================================================
 // Constants
@@ -281,4 +283,209 @@ export async function ensureMemoryIndex(): Promise<void> {
 
   // Create the file
   await writeFile(indexPath, indexContent, 'utf-8');
+}
+
+// ============================================================================
+// Scoped Memory Scanning (四层隔离扫描)
+// ============================================================================
+
+/**
+ * Check if scope should be included based on options
+ */
+function shouldIncludeScope(
+  scope: MemoryScope,
+  filter?: MemoryScope | MemoryScope[]
+): boolean {
+  if (!filter) return true;
+  if (Array.isArray(filter)) {
+    return filter.includes(scope);
+  }
+  return scope === filter;
+}
+
+/**
+ * Scan memories from a specific directory
+ */
+async function scanMemoryDir(
+  dirPath: string,
+  options: ScannerOptions = {}
+): Promise<MemoryFileMeta[]> {
+  const results: MemoryFileMeta[] = [];
+
+  try {
+    const entries = await readdir(dirPath, { withFileTypes: true });
+
+    for (const entry of entries) {
+      if (options.signal?.aborted) break;
+      if (!entry.isFile() || !entry.name.endsWith('.md')) continue;
+
+      const filePath = join(dirPath, entry.name);
+
+      try {
+        const content = await readFile(filePath, 'utf-8');
+        const statResult = await stat(filePath);
+        const frontmatter = parseFrontmatter(content, entry.name);
+
+        // Determine type from directory name or frontmatter
+        const relativePath = filePath.slice(dirPath.length + 1);
+        const type: MemoryType =
+          frontmatter.type ||
+          (MEMORY_TYPES.includes(relativePath.split('/')[0] as MemoryType)
+            ? relativePath.split('/')[0]
+            : 'project') as MemoryType;
+
+        results.push({
+          filename: entry.name,
+          type,
+          description: frontmatter.description || '',
+          name: frontmatter.name || entry.name.replace(/\.md$/, ''),
+          filePath,
+          mtimeMs: statResult.mtimeMs,
+        });
+      } catch {
+        continue;
+      }
+    }
+  } catch {
+    // Directory doesn't exist
+  }
+
+  return results;
+}
+
+/**
+ * Scan scoped memory files from multiple layers
+ *
+ * @param options.scope - Filter by scope (global, project, team, private)
+ * @param options.teamId - Filter by team ID
+ * @param options.projectId - Filter by project ID
+ * @param options.maxAge - Maximum age in milliseconds
+ */
+export async function scanScopedMemoryFiles(
+  options: ScopedScanOptions = {},
+  scannerOptions: ScannerOptions = {}
+): Promise<MemoryFileMeta[]> {
+  const results: MemoryFileMeta[] = [];
+
+  // 1. Global scope (Layer 1)
+  if (shouldIncludeScope('global', options.scope)) {
+    const globalDir = getGlobalMemoryDir();
+    const globalFiles = await scanMemoryDir(globalDir, scannerOptions);
+
+    for (const file of globalFiles) {
+      file.scope = 'global';
+      file.projectId = undefined;
+      file.teamId = undefined;
+    }
+
+    results.push(...globalFiles);
+  }
+
+  // 2. Project scope (Layer 2)
+  if (shouldIncludeScope('project', options.scope)) {
+    const projectMemPaths = getProjectMemoryPaths();
+    const projects = projectMemPaths.scanProjects();
+
+    for (const project of projects) {
+      // Filter by projectId if specified
+      if (options.projectId && project.slug !== options.projectId) {
+        continue;
+      }
+
+      const projectPath = projectMemPaths.getOrCreateProjectPath(project.path);
+      const projectFiles = await scanMemoryDir(projectPath.memoryDir, scannerOptions);
+
+      for (const file of projectFiles) {
+        file.scope = 'project';
+        file.projectId = project.slug;
+        file.teamId = undefined;
+      }
+
+      results.push(...projectFiles);
+    }
+  }
+
+  // 3. Team scope (Layer 3)
+  if (shouldIncludeScope('team', options.scope)) {
+    const teamMemPaths = getTeamMemoryPaths();
+    const teams = teamMemPaths.listTeams();
+
+    for (const teamId of teams) {
+      // Filter by teamId if specified
+      if (options.teamId && teamId !== options.teamId) {
+        continue;
+      }
+
+      const teamPath = teamMemPaths.getTeamPaths(teamId);
+      if (!teamPath) continue;
+
+      const teamFiles = await scanMemoryDir(teamPath.rootDir, scannerOptions);
+
+      for (const file of teamFiles) {
+        file.scope = 'team';
+        file.teamId = teamId;
+        file.projectId = undefined;
+      }
+
+      results.push(...teamFiles);
+    }
+  }
+
+  // 4. Filter by maxAge
+  if (options.maxAge) {
+    const now = Date.now();
+    const filtered = results.filter(m => now - m.mtimeMs <= options.maxAge!);
+    return filtered;
+  }
+
+  // Sort by modification time (newest first)
+  results.sort((a, b) => b.mtimeMs - a.mtimeMs);
+
+  return results;
+}
+
+/**
+ * Build scoped manifest for AI selection
+ * Includes scope information in the output
+ */
+export function buildScopedManifest(memories: MemoryFileMeta[]): string {
+  const lines: string[] = [];
+
+  // Group by scope
+  const grouped: Record<MemoryScope, MemoryFileMeta[]> = {
+    global: [],
+    project: [],
+    team: [],
+    private: [],
+  };
+
+  for (const memory of memories) {
+    const scope = memory.scope || 'global';
+    grouped[scope].push(memory);
+  }
+
+  // Build manifest with scope labels
+  for (const scope of ['global', 'project', 'team', 'private'] as MemoryScope[]) {
+    const scopeMemories = grouped[scope];
+    if (scopeMemories.length === 0) continue;
+
+    lines.push(`## ${scope.toUpperCase()}`);
+
+    // Group by type within scope
+    const byType = groupByType(scopeMemories);
+    for (const type of MEMORY_TYPES) {
+      const typeMemories = byType[type];
+      if (typeMemories.length === 0) continue;
+
+      lines.push(`### ${type}/`);
+      for (const m of typeMemories) {
+        const projectTag = m.projectId ? ` [${m.projectId}]` : '';
+        const teamTag = m.teamId ? ` [team:${m.teamId}]` : '';
+        lines.push(`- [${m.name}](${m.type}/${m.filename})${projectTag}${teamTag} — ${m.description}`);
+      }
+      lines.push('');
+    }
+  }
+
+  return lines.join('\n');
 }
