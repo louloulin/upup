@@ -64,13 +64,52 @@ export {
 export {
   scanMemoryFiles,
   scanTypedMemoryFiles,
+  scanScopedMemoryFiles,
   filterByType,
   groupByType,
   buildManifest,
   buildTypedManifest,
+  buildScopedManifest,
   ensureMemoryIndex,
   type ScannerOptions,
 } from './scanner.js';
+
+// Re-export scope types
+export {
+  MEMORY_SCOPES,
+  MEMORY_SCOPE_PRIORITY,
+  getDefaultScopeForType,
+} from './types.js';
+export type { MemoryScope, ScopedScanOptions, ScopedSearchResult } from './types.js';
+
+// Re-export project paths
+export {
+  getProjectMemoryPaths,
+  encodeProjectSlug,
+  decodeProjectSlug,
+  getGlobalMemoryDir,
+  isProjectMemoryPath,
+  extractProjectSlug,
+} from './project-paths.js';
+
+// Re-export daily log
+export {
+  getDailyLogManager,
+  appendToDailyLog,
+  startSessionLog,
+  endSessionLog,
+  type DailyLogEntry,
+  type DailyLogStats,
+} from './daily-log.js';
+
+// Re-export access control
+export {
+  getMemoryAccessControl,
+  canReadMemory,
+  determineMemoryScope,
+  type AccessContext,
+  type AccessPermission,
+} from './access-control.js';
 
 // Re-export prompts
 export {

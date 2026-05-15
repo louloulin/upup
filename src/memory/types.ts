@@ -15,6 +15,46 @@ export function isValidMemoryType(type: string): type is MemoryType {
 }
 
 // ============================================================================
+// Memory Scope - 四层隔离作用域
+// ============================================================================
+
+export const MEMORY_SCOPES = ['global', 'project', 'team', 'private'] as const;
+export type MemoryScope = (typeof MEMORY_SCOPES)[number];
+
+export function isValidMemoryScope(scope: string): scope is MemoryScope {
+  return MEMORY_SCOPES.includes(scope as MemoryScope);
+}
+
+export function parseMemoryScope(raw: unknown): MemoryScope | undefined {
+  if (typeof raw !== 'string') return undefined;
+  return MEMORY_SCOPES.find(s => s === raw) ?? 'private'; // default to 'private'
+}
+
+// MemoryScope 优先级 (数字越大优先级越高)
+export const MEMORY_SCOPE_PRIORITY: Record<MemoryScope, number> = {
+  private: 4,   // 最高优先级
+  team: 3,
+  project: 2,
+  global: 1,     // 最低优先级
+};
+
+// 获取默认作用域 (基于 MemoryType)
+export function getDefaultScopeForType(type: MemoryType): MemoryScope {
+  switch (type) {
+    case 'user':
+      return 'private';
+    case 'feedback':
+      return 'private'; // 默认私人，可显式设置为 team
+    case 'project':
+      return 'project'; // 默认项目级
+    case 'reference':
+      return 'project'; // 默认项目级
+    default:
+      return 'private';
+  }
+}
+
+// ============================================================================
 // Embedding / Provider Types (legacy, being phased out)
 // ============================================================================
 
@@ -61,7 +101,7 @@ export interface MemoryRuntimeConfig {
 }
 
 // ============================================================================
-// Memory File Types (4-type with frontmatter)
+// Memory File Types (4-type with frontmatter + scope)
 // ============================================================================
 
 export interface MemoryFileMeta {
@@ -77,6 +117,14 @@ export interface MemoryFileMeta {
   filePath: string;
   /** File modification time */
   mtimeMs: number;
+  /** Memory scope - 四层隔离作用域 */
+  scope?: MemoryScope;
+  /** Team identifier (when scope is 'team') */
+  teamId?: string;
+  /** Project identifier (when scope is 'project') */
+  projectId?: string;
+  /** Creator identifier */
+  createdBy?: string;
 }
 
 export interface MemoryWriteRequest {
@@ -88,6 +136,12 @@ export interface MemoryWriteRequest {
   description: string;
   /** Memory body content */
   content: string;
+  /** Memory scope - optional, defaults based on type */
+  scope?: MemoryScope;
+  /** Team identifier (when scope is 'team') */
+  teamId?: string;
+  /** Project identifier (when scope is 'project') */
+  projectId?: string;
 }
 
 // ============================================================================
@@ -159,4 +213,32 @@ export interface MemoryEmbeddingClient {
   model: string;
   dimensions?: number;
   embed(texts: string[]): Promise<number[][]>;
+}
+
+// ============================================================================
+// Scoped Memory Search Options
+// ============================================================================
+
+export interface ScopedScanOptions {
+  /** Filter by scope - single or multiple scopes */
+  scope?: MemoryScope | MemoryScope[];
+  /** Filter by team ID (when scope includes 'team') */
+  teamId?: string;
+  /** Filter by project ID (when scope includes 'project') */
+  projectId?: string;
+  /** Filter by memory type */
+  type?: MemoryType | MemoryType[];
+  /** Maximum age in milliseconds (filter by mtimeMs) */
+  maxAge?: number;
+  /** Include private memories from current user */
+  includePrivate?: boolean;
+}
+
+export interface ScopedSearchResult extends MemorySearchResult {
+  /** The scope of this memory */
+  scope: MemoryScope;
+  /** Team ID if scope is 'team' */
+  teamId?: string;
+  /** Project ID if scope is 'project' */
+  projectId?: string;
 }

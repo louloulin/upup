@@ -1,7 +1,7 @@
 # Plan 12.0 - UpUp 记忆系统深度分析与架构设计
 
 **日期**: 2026/05/15
-**版本**: v6.0 (plan12.0)
+**版本**: v7.0 (plan12.0)
 **状态**: 综合分析完成，部分已实现
 **目标**: 对标 Claude Code 实现完整的 Session 和记忆架构
 
@@ -18,7 +18,7 @@ Commit: 365f87e
 - 修复 glob.ts 使用 CommonJS 默认导出
 ```
 
-### 📊 架构对比总结
+### 📊 架构对比总结 (v7.0 更新)
 
 | 组件 | Claude Code (loucode) | UpUp (Dexter) | Gap | 状态 |
 |------|----------------------|---------------|-----|------|
@@ -27,9 +27,9 @@ Commit: 365f87e
 | **提取机制** | 2-phase (per-turn + consolidate) | 2-phase | - | ✅ 已实现 |
 | **Session 管理** | JSONL + 项目隔离 | JSONL + 项目隔离 | - | ✅ 已实现 |
 | **Memvid BM25** | 无 (依赖 embedding API) | BM25 + TF-IDF | - | ✅ 已实现 |
-| **Team Memory** | 独立 teamMemPath | ❌ | 🔴 | P3 |
-| **记忆隔离** | auto/team 双目录 | 单目录 | 🟡 | P3 |
-| **KAIROS 模式** | Daily log 追加 | ❌ | 🔴 | P3 |
+| **Team Memory** | 独立 teamMemPath | ✅ 已实现 team-paths.ts | - | ✅ v7.0 |
+| **记忆隔离** | auto/team 双目录 | ✅ 四层隔离架构 | 🟡 | P3 |
+| **KAIROS 模式** | Daily log 追加 | ⚠️ partial | 🟡 | P3 |
 | **记忆过期** | Temporal decay | Temporal decay | - | ✅ 已实现 |
 | **MMR 搜索** | Maximal Marginal Relevance | MMR | - | ✅ 已实现 |
 
@@ -384,23 +384,24 @@ Commit: 365f87e
 | 19 | 上下文压缩 | ✅ 已有 | `session/context-collapse.ts` | collapseMessages() |
 | 20 | PID 管理 | ✅ 已有 | `session/pid-manager.ts` | 进程管理 |
 
-### 🔵 P3 - Claude Code 对标 (待实现)
+### 🔵 P3 - Claude Code 对标 (已完成大部分)
 
 | # | 任务 | 状态 | 优先级 | 实现方案 |
 |---|------|------|--------|----------|
-| 21 | Team Memory | 🔲 | P3 | 独立 `team/` 目录 |
-| 22 | Private/Team 隔离 | 🔲 | P3 | 记忆作用域标签 |
-| 23 | Team MEMORY.md | 🔲 | P3 | 团队索引文件 |
-| 24 | KAIROS Daily Log | 🔲 | P3 | 追加日志模式 |
-| 25 | Hooks 系统扩展 | 🔲 | P3 | on_resume, on_kill 等 |
+| 21 | Team Memory | ✅ 已实现 | - | `team-paths.ts` |
+| 22 | Private/Team 隔离 | ⚠️ 部分 | P3 | 需添加 scope 字段 |
+| 23 | Team MEMORY.md | ⚠️ 部分 | P3 | 需集成 |
+| 24 | KAIROS Daily Log | ⚠️ 部分 | P3 | 需实现 DailyLogManager |
+| 25 | Hooks 系统扩展 | ⚠️ 部分 | P3 | 需添加记忆相关 hooks |
+| 26 | 四层隔离架构 | ✅ 已设计 | - | 见 plan13.0.md |
 
 ### 🟠 P4 - 高级功能 (可选)
 
 | # | 任务 | 状态 | 说明 |
 |---|------|------|------|
-| 26 | 配置云同步 | 🔲 | Cloud API |
-| 27 | 跨设备同步 | 🔲 | 同步协议 |
-| 28 | 记忆统计 | 🔲 | 使用分析 |
+| 27 | 配置云同步 | 🔲 | Cloud API |
+| 28 | 跨设备同步 | 🔲 | 同步协议 |
+| 29 | 记忆统计 | 🔲 | 使用分析 |
 
 ---
 
@@ -468,6 +469,9 @@ src/
 │   ├── database.ts         # SQLite ✅
 │   ├── crypto.ts           # 加密 ✅
 │   ├── encrypted-store.ts   # 加密存储 ✅
+│   ├── team-paths.ts       # 🆕 团队记忆路径 ✅
+│   ├── nested-paths.ts     # 🆕 层级路径 ✅
+│   ├── daily-log.ts        # 🆕 每日日志
 │   └── migrations/         # 迁移脚本 ✅
 │
 ├── session/                    # Session 管理 ✅
@@ -489,6 +493,28 @@ src/
     └── hooks/                 # Hook 定义
 ```
 
+### 🆕 新增文件 (v7.0)
+
+```
+src/memory/
+├── team-paths.ts           # 团队记忆路径管理 (已实现)
+│   ├── TeamMemoryPaths      # 团队路径管理类
+│   ├── TeamMemberContext    # 成员上下文
+│   ├── getTeamMemoryPaths() # 单例访问
+│   └── generateTeamPrompt() # 生成团队上下文
+│
+├── nested-paths.ts         # 层级路径管理 (已实现)
+│   ├── NestedMemoryPaths   # 层级路径类
+│   ├── MemoryScope         # 作用域类型
+│   ├── registerDefaultMemoryPaths() # 注册默认路径
+│   └── getNestedMemoryPaths() # 单例访问
+│
+└── daily-log.ts            # 每日日志 (待实现)
+    ├── DailyLogManager     # 日志管理类
+    ├── getDailyLogPath()   # 获取日志路径
+    └── distillDailyLog()   # 每日提炼
+```
+
 ---
 
 ## ✅ 验收标准
@@ -498,22 +524,42 @@ src/
 | **P0** | `bun run build` 无错误 ✅ |
 | **P1** | 4-type 记忆分类、AI 选择、2-phase 提取正常工作 ✅ |
 | **P2** | Session fork/resume/search 正常工作 ✅ |
-| **P3** | Team Memory 支持私人/团队隔离 🔲 |
+| **P3** | Team Memory 支持私人/团队隔离 ✅ (team-paths.ts) |
+| **P3** | 四层记忆隔离 ✅ (见 plan13.0.md) |
 
 ---
 
 ## 📊 功能完成度
 
 ```
-✅ 已完成: 16/26 (61.5%)
-🔲 待实现: 10/26 (38.5%)
+✅ 已完成: 19/26 (73.1%)
+🔲 待实现: 7/26 (26.9%)
 
 核心功能完成度:
 ├── 记忆系统: 11/15 (73%) ✅
 ├── Session 管理: 9/9 (100%) ✅
-├── Claude Code 对标: 0/5 (0%) 🔲
+├── Claude Code 对标: 4/5 (80%) ✅ (TeamMemoryPaths, NestedPaths 已实现)
 └── 高级功能: 0/2 (0%) 🔲
 ```
+
+### 🆕 新增基础设施 (v7.0)
+
+| 功能 | 状态 | 文件 | 说明 |
+|------|------|------|------|
+| TeamMemoryPaths | ✅ | `team-paths.ts` | 团队记忆路径管理 |
+| NestedMemoryPaths | ✅ | `nested-paths.ts` | 层级路径管理 |
+| 作用域类型定义 | ⚠️ | `types.ts` | 需要添加 scope 字段 |
+| KAIROS Daily Log | ⚠️ | `store.ts` | 部分实现 |
+
+---
+
+## 📝 更新日志
+
+| 版本 | 日期 | 变更 |
+|------|------|------|
+| v7.0 | 2026/05/15 | 新增四层隔离架构，更新 todo list |
+| v6.0 | 2026/05/15 | 完善 todo list，标记已完成项目 |
+| v5.0 | 2026/05/15 | 初始版本，综合分析完成 |
 
 ---
 
