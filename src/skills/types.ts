@@ -7,6 +7,29 @@
 export type SkillSource = 'builtin' | 'user' | 'project' | 'plugin';
 
 /**
+ * Hook settings for skill execution.
+ * Allows pre/post tool hooks and other lifecycle events.
+ */
+export interface HooksSettings {
+  /** Hooks to run before tool execution */
+  preTool?: Array<{
+    name: string;
+    enabled?: boolean;
+  }>;
+  /** Hooks to run after tool execution */
+  postTool?: Array<{
+    name: string;
+    enabled?: boolean;
+  }>;
+}
+
+/**
+ * Effort value for skill workload estimation.
+ * Can be a predefined level or a numeric value.
+ */
+export type EffortValue = 'minimal' | 'short' | 'medium' | 'long' | 'extended' | number;
+
+/**
  * Model selection for skill execution.
  * - sonnet: Default model for complex analysis
  * - haiku: Lightweight model for simple data queries
@@ -63,6 +86,21 @@ export interface SkillMetadata {
 export interface Skill extends SkillMetadata {
   /** Full instructions from SKILL.md body (loaded when skill is invoked) */
   instructions: string;
+  /** Conditional skill paths (activates when matching files are present) */
+  paths?: string[];
+  /** Hooks settings for pre/post tool execution */
+  hooks?: HooksSettings;
+  /** Workload estimation */
+  effort?: EffortValue;
+  /** Version of the skill */
+  version?: string;
+  /** Shell configuration for command execution */
+  shell?: {
+    /** Allowed commands */
+    commands?: string[];
+    /** Working directory */
+    cwd?: string;
+  };
 }
 
 /**
@@ -126,4 +164,102 @@ export interface BundledSkillDefinition extends SkillMetadata {
   files?: Record<string, string>;
   /** Skill root directory */
   skillRoot?: string;
+}
+
+/**
+ * Bundled skill with prompt function.
+ * Extends BundledSkillDefinition with the getPromptForCommand method.
+ * This matches loucode's PromptCommand interface.
+ */
+export interface BundledSkillWithPrompt extends BundledSkillDefinition {
+  /** Core execution method - generates the prompt content for this skill */
+  getPromptForCommand(
+    args: string,
+    context?: unknown,
+  ): Promise<Array<{ type: 'text'; text: string }>>;
+}
+
+/**
+ * Skill Command - Unified command interface for skill execution.
+ *
+ * This is the core interface that aligns Upup with Loucode's Command system.
+ * It provides the getPromptForCommand() method for skill execution.
+ */
+export interface SkillCommand {
+  /** Command type - always 'prompt' for skills */
+  type: 'prompt';
+  /** Unique command name (e.g., "dcf") */
+  name: string;
+  /** Description of the command */
+  description: string;
+  /** Length of the skill content (for token estimation) */
+  contentLength: number;
+  /** Progress message shown during execution */
+  progressMessage?: string;
+  /** Whether this command can be invoked by user */
+  userInvocable?: boolean;
+  /** Argument hint for user input */
+  argumentHint?: string;
+  /** Named arguments for this command */
+  argNames?: string[];
+  /** Tools allowed when executing this skill */
+  allowedTools?: string[];
+  /** Preferred model for this skill */
+  model?: SkillModel;
+  /** Execution mode: inline or fork */
+  context?: SkillContext;
+  /** Agent type for fork mode */
+  agent?: string;
+  /** Workload estimation */
+  effort?: EffortValue;
+  /** Conditional skill paths */
+  paths?: string[];
+  /** Hooks settings */
+  hooks?: HooksSettings;
+  /** Skill root directory */
+  skillRoot?: string;
+  /** When to use this skill */
+  whenToUse?: string;
+  /** Version of the skill */
+  version?: string;
+  /** Whether this command is hidden from help */
+  isHidden?: boolean;
+  /** Source of the command */
+  source?: SkillSource;
+  /**
+   * Core execution method - generates the prompt content for this skill.
+   *
+   * This is the key method that transforms a skill into an executable command.
+   * It handles:
+   * - Loading the full skill content
+   * - Substituting arguments ({{args}}, {{argument}})
+   * - Replacing ${CLAUDE_SKILL_DIR} variable
+   * - Replacing ${CLAUDE_SESSION_ID} variable
+   * - Executing shell commands (!`command`)
+   *
+   * @param args - Arguments passed to the skill
+   * @param context - Tool use context for shell execution
+   * @returns Promise resolving to content blocks for system prompt injection
+   */
+  getPromptForCommand(
+    args: string,
+    context?: unknown,
+  ): Promise<Array<{ type: 'text'; text: string }>>;
+}
+
+/**
+ * Tool use context for skill execution.
+ * Used by getPromptForCommand() for shell command execution.
+ */
+export interface ToolUseContext {
+  /** Get application state */
+  getAppState?: () => {
+    toolPermissionContext?: {
+      alwaysAllowRules?: {
+        command?: string[];
+      };
+    };
+  };
+  /** Working directory */
+  cwd?: string;
 }

@@ -1,6 +1,63 @@
 import { readFileSync } from 'fs';
 import matter from 'gray-matter';
-import type { Skill, SkillSource, SkillMetadata, SkillModel } from './types.js';
+import type { Skill, SkillSource, SkillMetadata, SkillModel, HooksSettings, EffortValue } from './types.js';
+
+/**
+ * Parse effort value from frontmatter.
+ */
+function parseEffortValue(value: unknown): EffortValue | undefined {
+  if (!value) return undefined;
+  if (typeof value === 'string') {
+    const normalized = value.toLowerCase().trim();
+    if (['minimal', 'short', 'medium', 'long', 'extended'].includes(normalized)) {
+      return normalized as EffortValue;
+    }
+    // Try parsing as number
+    const num = parseFloat(value);
+    if (!isNaN(num) && num >= 0) {
+      return num;
+    }
+  }
+  if (typeof value === 'number' && value >= 0) {
+    return value;
+  }
+  return undefined;
+}
+
+/**
+ * Parse paths field (for conditional skills)
+ */
+function parsePathsField(value: unknown): string[] | undefined {
+  if (!value) return undefined;
+  if (typeof value === 'string') {
+    return value.split(',').map((s) => s.trim()).filter(Boolean);
+  }
+  if (Array.isArray(value)) {
+    return value.filter((v): v is string => typeof v === 'string');
+  }
+  return undefined;
+}
+
+/**
+ * Parse hooks field
+ */
+function parseHooksField(value: unknown): HooksSettings | undefined {
+  if (!value) return undefined;
+  if (typeof value !== 'object') return undefined;
+  const hooks = value as Record<string, unknown>;
+  const result: HooksSettings = {};
+  if (hooks.preTool && Array.isArray(hooks.preTool)) {
+    result.preTool = hooks.preTool.filter((h): h is { name: string; enabled?: boolean } =>
+      typeof h === 'object' && h !== null && typeof h.name === 'string'
+    );
+  }
+  if (hooks.postTool && Array.isArray(hooks.postTool)) {
+    result.postTool = hooks.postTool.filter((h): h is { name: string; enabled?: boolean } =>
+      typeof h === 'object' && h !== null && typeof h.name === 'string'
+    );
+  }
+  return result.preTool || result.postTool ? result : undefined;
+}
 
 /**
  * Parse a SKILL.md file content into a Skill object.
@@ -33,7 +90,7 @@ export function parseSkillFile(content: string, path: string, source: SkillSourc
     path,
     source,
     model,
-    userInvocable: data['user-invocable'] === true,
+    userInvocable: data['user-invocable'] !== false, // Default to true
     argumentHint: data['argument-hint'] as string | undefined,
     dependsOn: parseDependsOnField(data['depends-on'] ?? data.dependsOn),
     // New fields for dual-mode execution
@@ -44,6 +101,12 @@ export function parseSkillFile(content: string, path: string, source: SkillSourc
     whenToUse: data['when-to-use'] as string | undefined,
     aliases: parseAliasesField(data.aliases),
     instructions: instructions.trim(),
+    // Extended fields
+    paths: parsePathsField(data.paths),
+    hooks: parseHooksField(data.hooks),
+    effort: parseEffortValue(data.effort),
+    version: typeof data.version === 'string' ? data.version : undefined,
+    shell: parseShellField(data.shell),
   };
 }
 
@@ -57,6 +120,24 @@ function parseContextField(value: unknown): 'inline' | 'fork' | undefined {
     if (normalized === 'inline' || normalized === 'fork') {
       return normalized;
     }
+  }
+  return undefined;
+}
+
+/**
+ * Parse shell field
+ */
+function parseShellField(value: unknown): { commands?: string[]; cwd?: string } | undefined {
+  if (!value) return undefined;
+  if (typeof value === 'string') {
+    return { commands: value.split(',').map((s) => s.trim()).filter(Boolean) };
+  }
+  if (typeof value === 'object' && value !== null) {
+    const shell = value as Record<string, unknown>;
+    return {
+      commands: parseAllowedToolsField(shell.commands),
+      cwd: typeof shell.cwd === 'string' ? shell.cwd : undefined,
+    };
   }
   return undefined;
 }
@@ -155,7 +236,7 @@ export function extractSkillMetadata(path: string, source: SkillSource): SkillMe
     path,
     source,
     model: parseModelField(data.model),
-    userInvocable: data['user-invocable'] === true,
+    userInvocable: data['user-invocable'] !== false, // Default to true
     argumentHint: data['argument-hint'] as string | undefined,
     dependsOn: parseDependsOnField(data['depends-on'] ?? data.dependsOn),
     // New fields for dual-mode execution
@@ -210,7 +291,7 @@ export function convertPluginSkill(skill: PluginBundledSkill): Skill {
     path: `plugin:${skill.pluginName}/${skill.name}`,
     source: 'plugin',
     model: parseModelField(skill.model),
-    userInvocable: skill.userInvocable ?? false,
+    userInvocable: skill.userInvocable ?? true, // Default to true for plugins
     argumentHint: skill.argumentHint,
     context: skill.context,
     allowedTools: skill.allowedTools,

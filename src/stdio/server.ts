@@ -15,6 +15,14 @@ import type {
   ServerEvent,
 } from './protocol.js';
 import { JsonRpcMethod, JsonRpcErrorCode } from './protocol.js';
+import type {
+  SessionCreateParams,
+  SessionResumeParams,
+  SessionGetParams,
+  SessionMessagesParams,
+  SessionUpdateParams,
+  SessionEndParams,
+} from './protocol.js';
 
 // ============ StdioServer Implementation ============
 
@@ -203,12 +211,12 @@ export function createStdioServer(): StdioServer {
             return;
           }
 
-          const params = req.params as { prompt: string; model?: string; maxIterations?: number };
+          const params = req.params as { prompt: string; model?: string; maxIterations?: number; sessionId?: string };
           const runId = `run-${Date.now()}`;
           const startTime = Date.now();
 
           try {
-            const stream = agent.run(params.prompt);
+            const stream = agent.run(params.prompt, { sessionId: params.sessionId });
             let iterations = 0;
             let totalTime = 0;
             let tokenUsage: { inputTokens: number; outputTokens: number; totalTokens: number } | undefined;
@@ -250,7 +258,7 @@ export function createStdioServer(): StdioServer {
             return;
           }
 
-          const params = req.params as { prompt: string; model?: string; maxIterations?: number };
+          const params = req.params as { prompt: string; model?: string; maxIterations?: number; sessionId?: string };
           const runId = `run-${Date.now()}`;
 
           activeRun = {
@@ -263,7 +271,7 @@ export function createStdioServer(): StdioServer {
           sendResponse(req.id, { runId, status: 'streaming' });
 
           try {
-            const stream = agent.run(params.prompt, undefined);
+            const stream = agent.run(params.prompt, { sessionId: params.sessionId });
 
             for await (const event of stream) {
               const serverEvent = mapAgentEvent(event);
@@ -291,6 +299,171 @@ export function createStdioServer(): StdioServer {
             sendResponse(req.id, { cancelled: true, runId: activeRun.runId });
           } else {
             sendResponse(req.id, { cancelled: false });
+          }
+          break;
+        }
+
+        // ============ Session Operations (SDK v4) ============
+
+        case JsonRpcMethod.SessionCreate: {
+          try {
+            const { getSessionManager } = await import('../daemon/session.js');
+            const sessionMgr = getSessionManager();
+
+            const params = req.params as SessionCreateParams;
+
+            const session = await sessionMgr.create({
+              id: params.id,
+              context: {
+                projectSlug: params.context?.projectSlug || 'sdk',
+                projectPath: params.context?.projectPath || process.cwd(),
+                model: params.context?.model,
+                systemPrompt: params.context?.systemPrompt,
+              },
+            });
+
+            sendResponse(req.id, {
+              id: session.id,
+              state: session.state,
+              createdAt: session.createdAt,
+            });
+          } catch (err) {
+            sendResponse(req.id, undefined, {
+              code: JsonRpcErrorCode.ServerError,
+              message: err instanceof Error ? err.message : String(err),
+            });
+          }
+          break;
+        }
+
+        case JsonRpcMethod.SessionResume: {
+          try {
+            const { getSessionManager } = await import('../daemon/session.js');
+            const sessionMgr = getSessionManager();
+
+            const params = req.params as unknown as SessionResumeParams;
+
+            const session = await sessionMgr.resume(params.id);
+
+            sendResponse(req.id, {
+              id: session.id,
+              state: session.state,
+              messages: session.messages,
+              metadata: session.metadata,
+            });
+          } catch (err) {
+            sendResponse(req.id, undefined, {
+              code: JsonRpcErrorCode.ServerError,
+              message: err instanceof Error ? err.message : String(err),
+            });
+          }
+          break;
+        }
+
+        case JsonRpcMethod.SessionGet: {
+          try {
+            const { getSessionManager } = await import('../daemon/session.js');
+            const sessionMgr = getSessionManager();
+
+            const params = req.params as unknown as SessionGetParams;
+
+            const session = sessionMgr.get(params.id);
+            if (!session) {
+              sendResponse(req.id, undefined, {
+                code: JsonRpcErrorCode.InvalidParams,
+                message: 'Session not found',
+              });
+              return;
+            }
+
+            sendResponse(req.id, {
+              id: session.id,
+              state: session.state,
+              createdAt: session.createdAt,
+              lastActivity: session.lastActivity,
+              metadata: session.metadata,
+            });
+          } catch (err) {
+            sendResponse(req.id, undefined, {
+              code: JsonRpcErrorCode.ServerError,
+              message: err instanceof Error ? err.message : String(err),
+            });
+          }
+          break;
+        }
+
+        case JsonRpcMethod.SessionMessages: {
+          try {
+            const { getSessionManager } = await import('../daemon/session.js');
+            const sessionMgr = getSessionManager();
+
+            const params = req.params as unknown as SessionMessagesParams;
+
+            const session = sessionMgr.get(params.id);
+            if (!session) {
+              sendResponse(req.id, undefined, {
+                code: JsonRpcErrorCode.InvalidParams,
+                message: 'Session not found',
+              });
+              return;
+            }
+
+            sendResponse(req.id, {
+              messages: session.messages,
+            });
+          } catch (err) {
+            sendResponse(req.id, undefined, {
+              code: JsonRpcErrorCode.ServerError,
+              message: err instanceof Error ? err.message : String(err),
+            });
+          }
+          break;
+        }
+
+        case JsonRpcMethod.SessionUpdate: {
+          try {
+            const { getSessionManager } = await import('../daemon/session.js');
+            const sessionMgr = getSessionManager();
+
+            const params = req.params as unknown as SessionUpdateParams;
+
+            if (params.state === 'running') {
+              await sessionMgr.startSession(params.id);
+            } else if (params.state === 'waiting') {
+              await sessionMgr.pause(params.id);
+            } else if (params.state === 'completed') {
+              await sessionMgr.complete(params.id);
+            }
+
+            if (params.metadata) {
+              await sessionMgr.update(params.id, { metadata: params.metadata as any });
+            }
+
+            sendResponse(req.id, { success: true });
+          } catch (err) {
+            sendResponse(req.id, undefined, {
+              code: JsonRpcErrorCode.ServerError,
+              message: err instanceof Error ? err.message : String(err),
+            });
+          }
+          break;
+        }
+
+        case JsonRpcMethod.SessionEnd: {
+          try {
+            const { getSessionManager } = await import('../daemon/session.js');
+            const sessionMgr = getSessionManager();
+
+            const params = req.params as unknown as SessionEndParams;
+
+            await sessionMgr.complete(params.id);
+
+            sendResponse(req.id, { success: true });
+          } catch (err) {
+            sendResponse(req.id, undefined, {
+              code: JsonRpcErrorCode.ServerError,
+              message: err instanceof Error ? err.message : String(err),
+            });
           }
           break;
         }

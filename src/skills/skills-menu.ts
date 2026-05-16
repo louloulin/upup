@@ -11,6 +11,7 @@
  */
 
 import { SkillCommandRegistry, getSkillCommandRegistry, type SkillMetadata } from './slash-command.js';
+import { getAllSkillCommands } from './commands.js';
 
 // ============================================================================
 // Types
@@ -93,17 +94,18 @@ export class SkillsMenu {
    */
   private loadSkills(): void {
     this.items = [];
-    const skills = this.registry.getAllSkills();
+    // Use getAllSkillCommands() for consistency with commands.ts
+    const commands = getAllSkillCommands();
 
-    for (const skill of skills) {
+    for (const cmd of commands) {
       const item: SkillMenuItem = {
-        id: skill.name,
-        name: skill.name,
-        description: skill.description ?? 'No description',
-        source: this.detectSource(skill),
-        triggers: skill.triggers,
-        user_invocable: skill.user_invocable,
-        path: skill.path,
+        id: cmd.name,
+        name: cmd.name,
+        description: cmd.description ?? 'No description',
+        source: this.detectSourceFromCommand(cmd),
+        triggers: cmd.argumentHint ? [cmd.argumentHint] : [],
+        user_invocable: cmd.userInvocable ?? true,
+        path: cmd.skillRoot,
       };
 
       this.items.push(item);
@@ -112,6 +114,25 @@ export class SkillsMenu {
     // Sort by name
     this.items.sort((a, b) => a.name.localeCompare(b.name));
     this.filteredItems = [...this.items];
+  }
+
+  /**
+   * Detect skill source from SkillCommand
+   */
+  private detectSourceFromCommand(cmd: { source?: string }): SkillSource {
+    if (cmd.source === 'builtin') {
+      return 'policySettings';
+    }
+    if (cmd.source === 'user') {
+      return 'userSettings';
+    }
+    if (cmd.source === 'project') {
+      return 'projectSettings';
+    }
+    if (cmd.source === 'plugin') {
+      return 'plugin';
+    }
+    return 'userSettings';
   }
 
   /**
