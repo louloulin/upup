@@ -93,7 +93,7 @@ export async function runAgentForMessage(req: AgentRunRequest): Promise<string> 
       messageQueue: session?.queue,
     });
 
-    for await (const event of agent.run(req.query, session?.history)) {
+    for await (const event of agent.run(req.query, { inMemoryHistory: session?.history })) {
       await req.onEvent?.(event);
       if (event.type === 'done') {
         finalAnswer = event.answer;
@@ -117,7 +117,7 @@ export async function runAgentForMessage(req: AgentRunRequest): Promise<string> 
         messageQueue: session.queue,
       });
 
-      for await (const event of followUp.run(mergedText, session.history)) {
+      for await (const event of followUp.run(mergedText, { inMemoryHistory: session.history })) {
         await req.onEvent?.(event);
         if (event.type === 'done') {
           finalAnswer = event.answer;

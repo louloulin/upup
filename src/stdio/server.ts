@@ -146,6 +146,7 @@ export function createStdioServer(): StdioServer {
           toolName: event.toolName,
           partialJson: event.partialJson,
           toolCallId: event.toolCallId,
+          content: (event as any).textContent || (event as any).content || '',  // 添加: 累积的文本内容
         };
 
       case 'done':

@@ -508,6 +508,136 @@ const configCommand: Command = {
   },
 };
 
+// Sandbox command - enhanced with real sandbox manager integration
+const sandboxCommand: Command = {
+  name: 'sandbox',
+  description: 'Show or configure sandbox settings',
+  aliases: ['sb'],
+  usage: '/sandbox [strict|relaxed|enable|disable|auto|check|reset]',
+  async execute(args): Promise<CommandResult> {
+    // Dynamic import for real sandbox manager
+    let sandboxInfo: { mode: string; enabled: boolean; autoAllow: boolean; additionalDirs: string[] } | null = null;
+
+    try {
+      const { getSandboxManager } = await import('../../../src/tools/filesystem/sandbox-manager.js');
+      const manager = getSandboxManager();
+      sandboxInfo = {
+        mode: manager.getMode(),
+        enabled: manager.isEnabled(),
+        autoAllow: manager.isAutoAllowEnabled(),
+        additionalDirs: manager.getAdditionalDirs(),
+      };
+    } catch {
+      // Fallback to env vars if manager not available
+      sandboxInfo = {
+        mode: process.env.UPUP_SANDBOX || 'relaxed',
+        enabled: process.env.UPUP_SANDBOX !== 'disabled',
+        autoAllow: process.env.UPUP_SANDBOX_AUTO_ALLOW === 'true',
+        additionalDirs: (process.env.UPUP_SANDBOX_ADDITIONAL_DIRS || '').split(':').filter(Boolean),
+      };
+    }
+
+    const subcommand = args?.trim().toLowerCase();
+
+    // Display status if no subcommand
+    if (!subcommand || subcommand === 'status') {
+      const modeDisplay = sandboxInfo.mode === 'strict' ? 'Strict (cwd only)' :
+                          sandboxInfo.mode === 'disabled' ? 'Disabled (no restrictions)' :
+                          'Relaxed (cwd + ~/.upup)';
+      const lines = [
+        'Sandbox Configuration',
+        `  Mode: ${modeDisplay}`,
+        `  Status: ${sandboxInfo.enabled ? '✓ Enabled' : '✗ Disabled'}`,
+        `  Auto-allow: ${sandboxInfo.autoAllow ? '✓ Yes' : '✗ No'}`,
+        '',
+        'Usage:',
+        '  /sandbox            Show current status',
+        '  /sandbox strict     Set strict mode (cwd only)',
+        '  /sandbox relaxed   Set relaxed mode (cwd + ~/.upup)',
+        '  /sandbox disable  Disable sandbox (dangerous!)',
+        '  /sandbox auto     Enable auto-allow mode',
+        '  /sandbox check    Run dependency check',
+        '',
+      ];
+
+      if (sandboxInfo.additionalDirs.length > 0) {
+        lines.push('Additional Directories:');
+        for (const dir of sandboxInfo.additionalDirs) {
+          lines.push(`  - ${dir}`);
+        }
+        lines.push('');
+      }
+
+      lines.push('Environment Variables:');
+      lines.push('  UPUP_SANDBOX=strict|relaxed|disabled');
+      lines.push('  UPUP_SANDBOX_AUTO_ALLOW=true|false');
+
+      return { type: 'output', text: lines.join('\n') };
+    }
+
+    // Handle dependency check
+    if (subcommand === 'check') {
+      try {
+        const { checkSandboxDependencies } = await import('../../../src/tools/filesystem/sandbox-dependencies.js');
+        const check = await checkSandboxDependencies();
+
+        const lines = [
+          'Sandbox Dependency Check',
+          `  Platform: ${check.platform}`,
+          `  Node.js: ${check.nodeVersion}`,
+          '',
+          'Capabilities:',
+          `  Filesystem: ${check.capabilities.filesystem ? '✓' : '✗'}`,
+          `  Network: ${check.capabilities.network ? '✓' : '✗'}`,
+          `  Process: ${check.capabilities.process ? '✓' : '✗'}`,
+          `  Sandbox: ${check.capabilities.sandbox ? '✓' : '✗'}`,
+        ];
+
+        if (check.errors.length > 0) {
+          lines.push('');
+          lines.push('Errors:');
+          for (const error of check.errors) {
+            lines.push(`  ✗ ${error}`);
+          }
+        }
+
+        if (check.warnings.length > 0) {
+          lines.push('');
+          lines.push('Warnings:');
+          for (const warning of check.warnings) {
+            lines.push(`  ⚠ ${warning}`);
+          }
+        }
+
+        lines.push('');
+        lines.push(`Status: ${check.available ? '✓ Available' : '✗ Unavailable'}`);
+
+        return { type: 'output', text: lines.join('\n') };
+      } catch (e) {
+        return { type: 'error', message: `Dependency check failed: ${e instanceof Error ? e.message : String(e)}` };
+      }
+    }
+
+    // Handle mode changes
+    switch (subcommand) {
+      case 'strict':
+        return { type: 'output', text: 'Sandbox mode set to strict\nTo apply: set UPUP_SANDBOX=strict environment variable' };
+      case 'relaxed':
+        return { type: 'output', text: 'Sandbox mode set to relaxed\nTo apply: set UPUP_SANDBOX=relaxed environment variable' };
+      case 'enable':
+        return { type: 'output', text: 'Sandbox enabled (relaxed mode)\nTo apply: unset UPUP_SANDBOX or set UPUP_SANDBOX=relaxed' };
+      case 'disable':
+        return { type: 'output', text: '⚠️ Sandbox disabled - this is dangerous!\nTo apply: set UPUP_SANDBOX=disabled' };
+      case 'auto':
+        return { type: 'output', text: 'Auto-allow mode enabled\nTo apply: set UPUP_SANDBOX=relaxed UPUP_SANDBOX_AUTO_ALLOW=true' };
+      case 'reset':
+        return { type: 'output', text: 'Sandbox reset to defaults (relaxed mode)\nTo apply: unset UPUP_SANDBOX' };
+      default:
+        return { type: 'error', message: `Unknown sandbox command: ${subcommand}\nUsage: /sandbox [strict|relaxed|enable|disable|auto|check|reset]` };
+    }
+  },
+};
+
 const exportCommand: Command = {
   name: 'export',
   description: 'Export conversation to file',
@@ -1295,6 +1425,7 @@ export function registerBuiltinCommands(registry: CommandRegistry): void {
   registry.register(historyCommand);
   registry.register(memoryCommand);
   registry.register(configCommand);
+  registry.register(sandboxCommand);
   registry.register(exportCommand);
   // Git commands
   registry.register(gitStatusCommand);
