@@ -172,8 +172,15 @@ export class UpupSessionManager {
    * 添加消息
    */
   addMessage(message: SessionMessage): void {
+    // 如果没有当前 session，先创建一个
     if (!this.currentSession) {
-      throw new Error('No active session');
+      this.currentSession = {
+        id: `sdk-session-${Date.now()}`,
+        status: 'active',
+        createdAt: new Date(),
+        lastActiveAt: new Date(),
+        messageCount: 0,
+      };
     }
 
     this.messages.push(message);
@@ -266,14 +273,14 @@ export class UpupSessionManager {
    * 关闭会话
    */
   async close(): Promise<void> {
-    if (!this.currentSession) return;
-
-    try {
-      await this.transport.request('session/end', {
-        id: this.currentSession.id,
-      });
-    } catch {
-      // 忽略错误
+    if (this.currentSession) {
+      try {
+        await this.transport.request('session/end', {
+          id: this.currentSession.id,
+        });
+      } catch {
+        // 忽略错误
+      }
     }
 
     this.currentSession = null;

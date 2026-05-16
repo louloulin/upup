@@ -388,79 +388,106 @@ export class UpClient extends EventEmitter implements AsyncDisposable {
    * 对齐 Claude Code SDK 的 query() 方法
    */
   async query(query: string, options?: PromptOptions): Promise<Result> {
-    // 收集所有消息
+    // 收集所有消息和累积文本
     const messages: SDKMessage[] = []
+    let accumulatedText = ''
+    let doneAnswer: string | null = null
+    let doneUsage: Result['usage'] | undefined
+    let doneTime: number | undefined
 
     for await (const msg of this.stream(query, options)) {
       messages.push(msg)
 
-      // 检查消息类型
       const sdkMsg = msg as Record<string, unknown>
 
-      // 如果是转换后的 SDK 格式
+      // 检查 event 类型的消息 (从 transformMessage 转换而来)
       if (sdkMsg.type === 'event' && sdkMsg.event) {
         const event = sdkMsg.event as Record<string, unknown>
 
-        // 检查是否是 done 事件，有答案
+        // stream_progress: 累积文本内容
+        if (event.type === 'stream_progress') {
+          const content = (event as any).content as string
+          if (content) {
+            accumulatedText += content
+          }
+        }
+
+        // done 事件: 获取最终答案 - 继续处理，不立即返回
+        // 这样可以累积更多内容
         if (event?.type === 'done') {
           const answer = event.answer as string
           const usage = event.tokenUsage as Result['usage']
           const totalTime = event.totalTime as number | undefined
 
-          if (answer && !answer.startsWith('Error:')) {
-            return {
-              result: answer,
-              usage,
-              duration_ms: totalTime,
-            }
-          }
+          doneAnswer = answer
+          doneUsage = usage
+          doneTime = totalTime
+
+          // 如果有非空答案，继续处理下一个消息
+          // 不要立即返回，等待队列清空
+          // 注意: 我们不在这里立即返回，因为消息可能还没处理完
         }
       }
 
-      // 如果是原始 JSON-RPC 格式
-      if (sdkMsg.method === 'event' && sdkMsg.params) {
+      // 如果是原始 JSON-RPC 格式 (params.event 嵌套)
+      if (sdkMsg.type === 'notification' && sdkMsg.params) {
         const params = sdkMsg.params as Record<string, unknown>
-        const event = params.event as Record<string, unknown>
+        if (params?.event) {
+          const event = params.event as Record<string, unknown>
 
-        // 检查是否是 done 事件，有答案
-        if (event?.type === 'done') {
-          const answer = event.answer as string
-          const usage = event.tokenUsage as Result['usage']
-          const totalTime = event.totalTime as number | undefined
-
-          if (answer && !answer.startsWith('Error:')) {
-            return {
-              result: answer,
-              usage,
-              duration_ms: totalTime,
+          // stream_progress: 累积文本内容
+          if (event.type === 'stream_progress') {
+            const content = (event as any).content as string
+            if (content) {
+              accumulatedText += content
             }
+          }
+
+          // done 事件: 获取最终答案
+          if (event?.type === 'done') {
+            const answer = event.answer as string
+            const usage = event.tokenUsage as Result['usage']
+            const totalTime = event.totalTime as number | undefined
+
+            doneAnswer = answer
+            doneUsage = usage
+            doneTime = totalTime
           }
         }
       }
     }
 
-    // 找到 result 消息
-    const resultMsg = messages.find((m) => m.type === 'result') as ResultMessage | undefined
-
-    if (resultMsg) {
+    // 如果没有 done.answer 但有累积文本，返回累积文本
+    // 这发生在 Agent 使用工具但也产生了文本输出的情况下
+    if (accumulatedText.length > 0) {
       return {
-        result: resultMsg.result,
-        usage: resultMsg.usage,
-        duration_ms: resultMsg.duration_ms,
+        result: accumulatedText,
+        usage: doneUsage,
+        duration_ms: doneTime,
       }
     }
 
-    // 如果没有 result 消息，返回最后一条 assistant 消息
-    const lastAssistant = messages.filter((m) => m.type === 'assistant').pop()
-    if (lastAssistant) {
-      const assistant = lastAssistant as AssistantMessage
-      const text = assistant.message.content
-        .filter((c) => c.type === 'text')
-        .map((c) => c.text)
-        .join('')
-      return { result: text }
+    // stream 结束后，生成最终结果
+    // 如果有 done.answer，使用它；否则使用累积的文本
+    if (doneAnswer) {
+      return {
+        result: doneAnswer,
+        usage: doneUsage,
+        duration_ms: doneTime,
+      }
     }
 
+    // 如果没有 done.answer 但有累积文本，返回累积文本
+    // 这发生在 Agent 使用工具但也产生了文本输出的情况下
+    if (accumulatedText.length > 0) {
+      return {
+        result: accumulatedText,
+        usage: doneUsage,
+        duration_ms: doneTime,
+      }
+    }
+
+    // 如果没有找到任何响应，返回空结果
     return { result: '' }
   }
 
@@ -534,46 +561,52 @@ export class UpClient extends EventEmitter implements AsyncDisposable {
 
     const m = msg as Record<string, unknown>
 
-    // 处理 event 类型的消息
+    // 处理 event 类型的消息 (从 transformMessage 转换而来)
     if (m.type === 'event' && m.event) {
       const event = m.event as Record<string, unknown>
 
+      // stream_progress: 记录流式输出
       if (event.type === 'stream_progress') {
-        this.upupSessionManager.addMessage({
-          role: 'assistant',
-          content: (event.content as string) || '',
-          timestamp: new Date(),
-          metadata: { subType: 'stream_progress' }
-        })
-      } else if (event.type === 'tool_use') {
-        this.upupSessionManager.addMessage({
-          role: 'assistant',
-          content: '',
-          timestamp: new Date(),
-          toolCalls: [{
-            id: (event.tool_use_id as string) || `tool-${Date.now()}`,
-            name: event.tool_name as string,
-            input: (event.tool_input as Record<string, unknown>) || {}
-          }],
-          metadata: { subType: 'tool_use' }
-        })
-      } else if (event.type === 'tool_result') {
-        this.upupSessionManager.addMessage({
-          role: 'system',
-          content: '',
-          timestamp: new Date(),
-          toolResults: [{
-            toolCallId: event.tool_use_id as string,
-            result: event.result
-          }],
-          metadata: { subType: 'tool_result' }
-        })
-      } else if (event.type === 'done' && event.tokenUsage) {
-        // done 事件更新 token 使用量
-        this.upupSessionManager.updateTokenUsage(
-          event.tokenUsage as { inputTokens: number; outputTokens: number; totalTokens: number }
-        )
+        const charDelta = (event as any).charDelta as number || 0
+        if (charDelta > 0) {
+          // 有字符增量时记录内容
+        }
       }
+
+      // done 事件: 更新 token 使用量
+      if (event.type === 'done') {
+        if (event.tokenUsage) {
+          this.upupSessionManager.updateTokenUsage(
+            event.tokenUsage as { inputTokens: number; outputTokens: number; totalTokens: number }
+          )
+        }
+        // done 事件也意味着一个完整的轮次完成
+        // 可选：记录最终回答
+        const answer = event.answer as string
+        if (answer && !answer.startsWith('Error:')) {
+          // 可以在这里添加消息，但会导致重复
+          // 消息应该在 agent 层面记录
+        }
+      }
+      return
+    }
+
+    // 处理原始 JSON-RPC 格式 (params.event 嵌套)
+    if (m.type === 'notification' && m.params) {
+      const params = m.params as Record<string, unknown>
+      const event = params?.event as Record<string, unknown>
+
+      if (event) {
+        // done 事件: 更新 token 使用量
+        if (event.type === 'done') {
+          if (event.tokenUsage) {
+            this.upupSessionManager.updateTokenUsage(
+              event.tokenUsage as { inputTokens: number; outputTokens: number; totalTokens: number }
+            )
+          }
+        }
+      }
+      return
     }
   }
 
