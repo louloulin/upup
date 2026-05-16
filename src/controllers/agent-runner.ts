@@ -253,7 +253,7 @@ export class AgentRunnerController {
           this.sessionApprovedTools.add(tool);
         },
       });
-      const stream = agent.run(query, this.inMemoryChatHistory);
+      const stream = agent.run(query, { inMemoryHistory: this.inMemoryChatHistory });
       for await (const event of stream) {
         if (event.type === 'done') {
           finalAnswer = (event as DoneEvent).answer;

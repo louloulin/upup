@@ -73,6 +73,7 @@ export class Agent {
   private turnCount: number = 0;
   private compactionFailures: number = 0;
   private readonly fallbackHandler: ModelFallbackHandler;
+  private accumulatedText: string = ''; // 累积完整文本用于 SDK query() 返回
 
   private constructor(
     config: AgentConfig,
@@ -161,6 +162,9 @@ export class Agent {
    */
   async *run(query: string, options?: AgentRunOptions): AsyncGenerator<AgentEvent> {
     const startTime = Date.now();
+
+    // Reset accumulated text for this run
+    this.accumulatedText = '';
 
     // Use provided sessionId or generate a new one
     const sessionId = options?.sessionId || `agent-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -291,18 +295,20 @@ export class Agent {
             if (msg.getType() === 'ai') {
               const content = typeof msg.content === 'string' ? msg.content : '';
               const toolCalls = (msg as any).tool_calls;
-              return content.length > 0 && !(toolCalls && toolCalls.length > 0);
+              // 只要有文本内容就保存（包括有 tool_calls 的消息）
+              return content.trim().length > 0;
             }
             return false;
           });
           const serializedMessages = messagesToSave.map(msg => serializeMessage(msg));
 
           // Merge with existing messages (avoid duplicates)
+          // 使用更宽松的去重逻辑：检查前 100 字符
           const existingIds = new Set(
-            daemonSession.messages.map(m => `${m.type}:${m.content.substring(0, 50)}`)
+            daemonSession.messages.map(m => `${m.type}:${m.content.substring(0, 100)}`)
           );
           const newMessages = serializedMessages.filter(m => {
-            const key = `${m.type}:${m.content.substring(0, 50)}`;
+            const key = `${m.type}:${m.content.substring(0, 100)}`;
             return !existingIds.has(key);
           });
 
@@ -653,9 +659,15 @@ export class Agent {
       gotFirstChunk = true;
 
       accumulated = accumulated ? accumulated.concat(chunk) : chunk;
-      const { charDelta, mode, toolName, partialJson, toolCallId } = inspectChunkContent(chunk);
+      const { charDelta, mode, toolName, partialJson, toolCallId, textContent } = inspectChunkContent(chunk);
+
+      // 累积文本内容用于 SDK query() 返回
+      if (textContent) {
+        this.accumulatedText += textContent;
+      }
+
       if (charDelta > 0 || mode !== 'responding') {
-        yield { type: 'stream_progress', charDelta, mode, toolName, partialJson, toolCallId };
+        yield { type: 'stream_progress', charDelta, mode, toolName, partialJson, toolCallId, textContent };
       }
     }
 
@@ -905,7 +917,7 @@ export class Agent {
 
     yield {
       type: 'done',
-      answer: responseText,
+      answer: responseText || this.accumulatedText,  // 优先使用 responseText，如果为空则使用累积的文本
       toolCalls: toolCallRecords,
       iterations: ctx.iteration,
       totalTime,
@@ -1150,10 +1162,11 @@ function inspectChunkContent(chunk: AIMessageChunk): {
   toolName?: string;
   partialJson?: string;
   toolCallId?: string;
+  textContent?: string;  // 新增: 实际文本内容用于累积
 } {
   const content = chunk.content;
   if (typeof content === 'string') {
-    return { charDelta: content.length, mode: 'responding' };
+    return { charDelta: content.length, mode: 'responding', textContent: content };
   }
   if (!Array.isArray(content)) {
     return { charDelta: 0, mode: 'responding' };
@@ -1164,13 +1177,17 @@ function inspectChunkContent(chunk: AIMessageChunk): {
   let toolName: string | undefined;
   let partialJson: string | undefined;
   let toolCallId: string | undefined;
+  let textContent: string | undefined;
 
   for (const part of content) {
     if (!part || typeof part !== 'object') continue;
     const partType = (part as { type?: string }).type;
     if (partType === 'text') {
       const text = (part as { text?: string }).text;
-      if (typeof text === 'string') charDelta += text.length;
+      if (typeof text === 'string') {
+        charDelta += text.length;
+        textContent = (textContent || '') + text;
+      }
       if (MODE_PRIORITY.responding > MODE_PRIORITY[mode]) mode = 'responding';
     } else if (partType === 'thinking' || partType === 'redacted_thinking') {
       const thinkingText = (part as { thinking?: string }).thinking;
@@ -1189,5 +1206,5 @@ function inspectChunkContent(chunk: AIMessageChunk): {
       if (MODE_PRIORITY['tool-input'] > MODE_PRIORITY[mode]) mode = 'tool-input';
     }
   }
-  return { charDelta, mode, toolName, partialJson, toolCallId };
+  return { charDelta, mode, toolName, partialJson, toolCallId, textContent };
 }

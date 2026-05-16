@@ -226,6 +226,8 @@ export interface StreamProgressEvent {
   partialJson?: string;
   /** Tool call ID for ordering (tool-input mode) */
   toolCallId?: string;
+  /** Accumulated text content for SDK query() fallback */
+  textContent?: string;
 }
 
 /**

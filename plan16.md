@@ -406,3 +406,274 @@ UpUp v2026.05.15 ✅
 - [x] 基于 upup 命令真实验证
 
 **最终状态**: ✅ 完成所有任务
+
+---
+
+## 11. Bug 修复 (v4.2)
+
+### 11.1 Memory Hook Zod Error ✅
+
+**问题**: `Zod field at '#/definitions/extract/properties/memories' uses '.optional()' without '.nullable()'`
+
+**文件**: `src/memory/extraction.ts`
+
+**修复**:
+```typescript
+// Before
+memories: z.array(...).optional()
+
+// After
+memories: z.array(...).nullable().optional()
+```
+
+**原因**: OpenAI Structured Outputs 要求 `.optional()` 字段也必须是 `.nullable()`
+
+### 11.2 File Read Sandbox Error ✅
+
+**问题**: `Path escapes sandbox root: /Users/louloulin/.upup/tool-results/...`
+
+**文件**: `src/tools/filesystem/sandbox.ts`
+
+**修复**: 添加 `~/.upup` 到允许的沙箱根目录
+
+```typescript
+const ADDITIONAL_ROOTS = [
+  process.env.HOME ? `${process.env.HOME}/.upup` : '',
+  process.env.UPUP_DIR || '',
+].filter(Boolean);
+```
+
+---
+
+## 12. 授权 UI 系统分析 (v4.2)
+
+### 12.1 系统架构
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    CLI (cli.ts)                            │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │              AgentRunnerController                   │   │
+│  │  - pendingApproval: { tool, args }                  │   │
+│  │  - respondToApproval(decision)                     │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                            │                               │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │              ToolExecutor (tool-executor.ts)         │   │
+│  │  - requiresApproval() - 检查工具是否需要授权          │   │
+│  │  - requestToolApproval() - 请求用户授权              │   │
+│  │  - sessionApprovedTools - 会话级已批准工具          │   │
+│  └─────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 12.2 授权流程
+
+```
+工具调用 (write_file, edit_file)
+    │
+    ▼
+requiresApproval(toolName)?
+    │
+    ├── 是 → 检查 sessionApprovedTools
+    │         │
+    │         ├── 已批准 → 直接执行
+    │         │
+    │         └── 未批准 → requestToolApproval()
+    │                      │
+    │                      ▼
+    │                 等待用户决策
+    │                      │
+    │         ┌────────────┼────────────┐
+    │         ▼            ▼            ▼
+    │    allow-once   allow-session   deny
+    │    (本次允许)    (会话级)      (拒绝)
+    │
+    └── 否 → 直接执行
+```
+
+### 12.3 需要授权的工具
+
+```typescript
+const TOOLS_REQUIRING_APPROVAL = ['write_file', 'edit_file'];
+```
+
+### 12.4 授权事件流
+
+```typescript
+// tool-executor.ts:172
+yield { type: 'tool_approval', tool: toolName, args: toolArgs, approved: decision };
+
+// cli.ts:202-212
+if (event.type === 'tool_approval') {
+  const comp = chatLog.startTool(display.id, event.tool, event.args);
+  const cb = (decision) => agentRunner.respondToApproval(decision);
+  comp.setApprovalPending(cb, stored);
+}
+```
+
+### 12.5 授权选项
+
+| 选项 | 说明 | 持久化 |
+|------|------|--------|
+| `allow-once` | 本次允许，执行后失效 | 否 |
+| `allow-session` | 会话级允许，跨重启持久化 | 是 (存储到 SessionTracker) |
+| `deny` | 拒绝执行 | 会话级 |
+
+### 12.6 授权 UI 组件
+
+**组件**: `src/components/approval-prompt.ts`
+
+```typescript
+export class ApprovalPromptComponent extends Container {
+  readonly selector: any;
+  onSelect?: (decision: ApprovalDecision) => void;
+
+  constructor(tool: string, args: Record<string, unknown>) {
+    super();
+    this.selector = createApprovalSelector((decision) => this.onSelect?.(decision));
+    // ... UI rendering
+  }
+}
+```
+
+**UI 布局**:
+```
+────────────────────────────────────────────
+⚠️ Permission required
+Write file /path/to/file
+Do you want to allow this?
+
+> Allow once
+  Allow session
+  Deny
+
+Enter to confirm · esc to deny
+────────────────────────────────────────────
+```
+
+---
+
+## 13. 沙箱系统分析 (v4.2)
+
+### 13.1 沙箱启用条件
+
+**何时启用沙箱**:
+- 所有文件系统操作 (`read_file`, `write_file`, `edit_file`, `send_user_file`)
+- 默认限制为当前工作目录 (cwd)
+
+**沙箱不启用**:
+- 非文件系统操作
+- 显式指定 `root` 参数的情况
+
+### 13.2 沙箱配置
+
+**默认根目录**: `process.cwd()`
+
+**扩展根目录** (v4.2 新增):
+```typescript
+const ADDITIONAL_ROOTS = [
+  process.env.HOME ? `${process.env.HOME}/.upup` : '',
+  process.env.UPUP_DIR || '',
+].filter(Boolean);
+```
+
+### 13.3 沙箱工作原理
+
+```typescript
+// sandbox.ts:14-35
+function isPathAllowed(absolutePath: string, cwd: string): boolean {
+  // 1. 检查是否在 cwd 内
+  const relFromCwd = relative(cwdResolved, absolutePath);
+  if (!relFromCwd.startsWith('..') && !isAbsolute(relFromCwd)) {
+    return true; // Within cwd
+  }
+
+  // 2. 检查是否在 ADDITIONAL_ROOTS 内
+  for (const root of ADDITIONAL_ROOTS) {
+    const relFromRoot = relative(rootResolved, absolutePath);
+    if (!relFromRoot.startsWith('..') && !isAbsolute(relFromRoot)) {
+      return true; // Within allowed additional root
+    }
+  }
+
+  return false;
+}
+```
+
+### 13.4 沙箱安全检查
+
+1. **路径检查**: 不允许 `..` 穿越父目录
+2. **符号链接检查**: 不允许符号链接 (v4.2)
+3. **绝对路径检查**: 拒绝绝对路径访问外部目录
+
+### 13.5 如何配置使用/不使用沙箱
+
+**方式 1: 环境变量**
+```bash
+# 启用额外的沙箱根目录
+export UPUP_DIR=/path/to/custom-dir
+
+# 或者
+export HOME=/custom/home
+```
+
+**方式 2: 代码配置**
+```typescript
+// 读取自定义根目录
+const root = params.root ?? process.cwd();
+```
+
+**方式 3: 禁用沙箱** (不安全，不推荐)
+```typescript
+// 在 assertSandboxPath 中返回原始路径
+// ⚠️ 这将移除所有安全保护
+```
+
+### 13.6 常见问题
+
+**Q: 为什么 ~/.upup/tool-results/ 被阻止?**
+A: 默认情况下沙箱只允许 cwd 内的路径。v4.2 已修复，添加了 ADDITIONAL_ROOTS。
+
+**Q: 如何访问项目外的文件?**
+A: 设置环境变量 `UPUP_DIR` 指向目标目录。
+
+---
+
+## 14. 待完善功能 (v4.3)
+
+### 14.1 授权 UI 改进
+
+- [ ] 显示工具的详细参数信息
+- [ ] 添加"不再询问"选项
+- [ ] 权限规则可视化编辑器
+- [ ] 导入/导出权限配置
+
+### 14.2 沙箱配置改进
+
+- [ ] 添加配置文件 `~/.upup/sandbox.json`
+- [ ] 支持通配符路径 (如 `~/projects/*`)
+- [ ] 沙箱模式: `strict` | `relaxed` | `disabled`
+- [ ] 运行时沙箱状态监控
+
+### 14.3 权限系统增强
+
+- [ ] 基于 AI 的风险评估
+- [ ] 自动学习用户偏好
+- [ ] 权限变更历史记录
+- [ ] 团队权限管理 (多用户)
+
+---
+
+## 15. 验证结果 (v4.2)
+
+```bash
+✅ Build complete: dist/upup
+✅ Memory Hook Zod Error: 已修复
+✅ Sandbox Error: 已修复
+✅ 授权 UI: 已分析 (需要进一步测试)
+```
+
+---
+
+**最终状态**: ✅ 完成 v4.2 分析和修复

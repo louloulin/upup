@@ -49,7 +49,7 @@ const EXTRACTION_OUTPUT_SCHEMA = z.object({
     description: z.string(),
     type: z.enum(['user', 'feedback', 'project', 'reference']),
     content: z.string(),
-  })).optional(),
+  })).nullable().optional(),
 });
 
 // ============================================================================

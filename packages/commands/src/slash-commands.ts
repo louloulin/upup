@@ -62,6 +62,8 @@ export const SLASH_COMMANDS: SlashCommand[] = [
   { name: 'session', description: 'Manage sessions: list, delete, rename, tag', category: 'core' },
   { name: 'resume', description: 'Resume a previous conversation', category: 'core' },
   { name: 'continue', description: 'Continue the most recent conversation', category: 'core' },
+  // Sandbox commands
+  { name: 'sandbox', description: 'Show or configure sandbox settings', category: 'permissions' },
 ];
 
 /**
