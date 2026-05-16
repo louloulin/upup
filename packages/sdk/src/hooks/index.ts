@@ -16,6 +16,7 @@ export {
   type HookCallback,
   type HookMatcher,
   type HookMap,
+  type SDKMessage,
   HOOK_EVENTS,
 } from './types.js'
 

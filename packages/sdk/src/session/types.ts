@@ -59,6 +59,13 @@ export interface SessionConfig {
   timeout?: number
   /** 元数据 */
   metadata?: Record<string, unknown>
+  // ============ Stream + Session 一体架构新增配置 ============
+  /** 自动同步 Stream 消息到 Session (默认 true) */
+  autoSync?: boolean
+  /** 启用 checkpoint (默认 false) */
+  enableCheckpoint?: boolean
+  /** checkpoint 间隔 (消息数) */
+  checkpointInterval?: number
 }
 
 // ============ 会话存储 ============
@@ -104,6 +111,17 @@ export interface SessionMessage {
     toolCallId: string
     result: unknown
   }>
+  // ============ Stream + Session 一体架构新增字段 ============
+  /** 消息唯一 ID */
+  id?: string
+  /** 父消息 ID (支持追问) */
+  parentUuid?: string
+  /** 关联的 tool_use ID */
+  toolUseId?: string
+  /** 是否临时 (不持久化) */
+  isEphemeral?: boolean
+  /** 元数据 */
+  metadata?: Record<string, unknown>
 }
 
 // ============ 会话事件 ============

@@ -35,6 +35,20 @@ const DEFAULT_MAX_ITERATIONS = 50;
 const MAX_OVERFLOW_RETRIES = 2;
 const OVERFLOW_KEEP_ROUNDS = 3;
 
+// ============================================================================
+// Types
+// ============================================================================
+
+/**
+ * Agent run options
+ */
+export interface AgentRunOptions {
+  /** Session ID for associating this run with a persistent session */
+  sessionId?: string;
+  /** In-memory chat history */
+  inMemoryHistory?: InMemoryChatHistory;
+}
+
 /**
  * The core agent class that handles the agent loop and tool execution.
  *
@@ -145,8 +159,11 @@ export class Agent {
   /**
    * Run the agent with streaming, concurrent tools, and microcompact.
    */
-  async *run(query: string, inMemoryHistory?: InMemoryChatHistory): AsyncGenerator<AgentEvent> {
+  async *run(query: string, options?: AgentRunOptions): AsyncGenerator<AgentEvent> {
     const startTime = Date.now();
+
+    // Use provided sessionId or generate a new one
+    const sessionId = options?.sessionId || `agent-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
     // Reset per-run state to prevent cross-session contamination
     this.compactionFailures = 0;
@@ -172,10 +189,43 @@ export class Agent {
     const memoryFlushState = { alreadyFlushed: false };
 
     // Build initial message array
+    const inMemoryHistory = options?.inMemoryHistory;
     const historyMessages = inMemoryHistory?.getRecentTurnsAsMessages() ?? [];
+
+    // Initialize daemon session for persistent cross-restart state
+    let daemonSession: import('../daemon/session.js').AgentSession | null = null;
+    let daemonSessionManager: import('../daemon/session.js').SessionManager | null = null;
+    let existingSessionMessages: BaseMessage[] = [];
+
+    try {
+      const { getSessionManager: getDaemonSessionManager, deserializeMessage } = await import('../daemon/session.js');
+      daemonSessionManager = getDaemonSessionManager();
+      daemonSession = await daemonSessionManager.create({
+        id: sessionId,
+        context: {
+          projectSlug: process.cwd().split('/').pop() ?? 'unknown',
+          projectPath: process.cwd(),
+          model: this.model,
+        },
+      });
+      await daemonSessionManager.startSession(sessionId);
+
+      // Load existing messages from daemonSession for conversation continuity
+      if (daemonSession.messages && daemonSession.messages.length > 0) {
+        existingSessionMessages = daemonSession.messages
+          .map(msg => deserializeMessage(msg))
+          .filter(msg => msg.content); // Skip empty messages
+        info('agent', `Loaded ${existingSessionMessages.length} messages from session ${sessionId}`);
+      }
+    } catch (err) {
+      // Daemon session is optional — agent runs fine without it
+      warn('agent', `Failed to initialize daemon session: ${err}`);
+    }
+
     let messages: BaseMessage[] = [
       new SystemMessage(this.systemPrompt),
       ...historyMessages,
+      ...existingSessionMessages,
       new HumanMessage(query),
     ];
 
@@ -198,26 +248,7 @@ export class Agent {
 
     // Initialize session backgrounding for idle session management
     const bgSession = useSessionBackgrounding();
-    const sessionId = `agent-${Date.now()}`;
     bgSession.create(sessionId, { model: this.model, startTime });
-
-    // Initialize daemon session for persistent cross-restart state
-    let daemonSession: import('../daemon/session.js').AgentSession | null = null;
-    try {
-      const { getSessionManager: getDaemonSessionManager } = await import('../daemon/session.js');
-      const daemonMgr = getDaemonSessionManager();
-      daemonSession = await daemonMgr.create({
-        id: sessionId,
-        context: {
-          projectSlug: process.cwd().split('/').pop() ?? 'unknown',
-          projectPath: process.cwd(),
-          model: this.model,
-        },
-      });
-      await daemonMgr.startSession(sessionId);
-    } catch {
-      // Daemon session is optional — agent runs fine without it
-    }
 
     // Initialize tool metrics collector
     const metrics = useToolMetrics();
@@ -243,13 +274,48 @@ export class Agent {
       recovery.stop();
       bgSession.background(sessionId);
       // Complete daemon session if active
-      if (daemonSession) {
+      if (daemonSession && daemonSessionManager) {
         try {
-          const { getSessionManager: getDaemonSessionManager } = await import('../daemon/session.js');
-          const daemonMgr = getDaemonSessionManager();
-          await daemonMgr.complete(sessionId);
-        } catch {
-          // Non-critical
+          // Serialize and save messages to daemonSession for conversation continuity
+          const { serializeMessage } = await import('../daemon/session.js');
+          // Filter to only save essential messages for context continuity:
+          // - HumanMessage (user queries)
+          // - AIMessage with text content (not tool calls)
+          // Skip: SystemMessage, ToolMessage, empty AIMessages
+          const messagesToSave = messages.filter(msg => {
+            if (msg instanceof SystemMessage) return false; // Skip system prompt
+            if (msg instanceof ToolMessage) return false; // Skip tool results (they need tool_call_id)
+            // Keep human messages
+            if (msg.getType() === 'human') return true;
+            // Keep AI messages with text content
+            if (msg.getType() === 'ai') {
+              const content = typeof msg.content === 'string' ? msg.content : '';
+              const toolCalls = (msg as any).tool_calls;
+              return content.length > 0 && !(toolCalls && toolCalls.length > 0);
+            }
+            return false;
+          });
+          const serializedMessages = messagesToSave.map(msg => serializeMessage(msg));
+
+          // Merge with existing messages (avoid duplicates)
+          const existingIds = new Set(
+            daemonSession.messages.map(m => `${m.type}:${m.content.substring(0, 50)}`)
+          );
+          const newMessages = serializedMessages.filter(m => {
+            const key = `${m.type}:${m.content.substring(0, 50)}`;
+            return !existingIds.has(key);
+          });
+
+          if (newMessages.length > 0) {
+            await daemonSessionManager.update(sessionId, {
+              messages: [...daemonSession.messages, ...newMessages],
+            } as any);
+            info('agent', `Saved ${newMessages.length} new messages to session ${sessionId}`);
+          }
+
+          await daemonSessionManager.complete(sessionId);
+        } catch (err) {
+          warn('agent', `Failed to save session messages: ${err}`);
         }
       }
       // Emit final metrics summary
@@ -818,6 +884,15 @@ export class Agent {
 
     const toolCallRecords = ctx.scratchpad.getToolCallRecords();
     const tokenUsage = ctx.tokenCounter.getUsage();
+
+    // Add final AI response to messages array for session persistence
+    if (responseText) {
+      const finalResponse = new AIMessage({
+        content: responseText,
+        tool_calls: undefined,
+      });
+      messages.push(finalResponse);
+    }
 
     // Log agent completion
     const answerPreview = responseText.length > 100 ? responseText.substring(0, 100) + '...' : responseText;

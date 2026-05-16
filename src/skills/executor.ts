@@ -15,8 +15,12 @@ import type {
   SkillExecutionOptions,
   SkillExecutionResult,
   BundledSkillDefinition,
+  SkillCommand,
+  ToolUseContext,
+  SkillSource,
 } from './types.js';
 import type { SubagentConfig, SubagentResult, SubagentRunner } from '../agent/subagent.js';
+import { executeShellCommandsInPrompt, containsShellCommands } from './promptShellExecution.js';
 
 /**
  * Skill execution modes
@@ -340,17 +344,35 @@ export function isBundledSkill(name: string): boolean {
 }
 
 /**
+ * Bundled skill with optional getPromptForCommand method.
+ */
+interface BundledSkillWithOptionalPrompt extends BundledSkillDefinition {
+  getPromptForCommand?: (
+    args: string,
+    context?: unknown,
+  ) => Promise<Array<{ type: 'text'; text: string }>>;
+}
+
+/**
  * Convert BundledSkillDefinition to Skill
  *
  * For file-based skills, we keep the path.
  * For bundled skills, we use a virtual path.
+ * Preserves the getPromptForCommand method for dynamic prompt generation.
  */
-export function bundledSkillToSkill(bundled: BundledSkillDefinition): Skill {
-  return {
+export function bundledSkillToSkill(bundled: BundledSkillWithOptionalPrompt): Skill {
+  const skill: Skill = {
     ...bundled,
     path: bundled.skillRoot || `bundled:${bundled.name}`,
     source: 'builtin',
   };
+
+  // Preserve the getPromptForCommand method for dynamic prompts
+  if (typeof bundled.getPromptForCommand === 'function') {
+    (skill as any).getPromptForCommand = bundled.getPromptForCommand;
+  }
+
+  return skill;
 }
 
 /**
@@ -423,3 +445,188 @@ export class SkillTracker {
 
 // Default global tracker instance
 export const defaultSkillTracker = new SkillTracker();
+
+// ============================================================================
+// Session ID for ${CLAUDE_SESSION_ID} replacement
+// ============================================================================
+
+let sessionId: string | null = null;
+
+/**
+ * Get or generate session ID for skill execution.
+ * Used for ${CLAUDE_SESSION_ID} variable replacement.
+ */
+export function getSessionId(): string {
+  if (!sessionId) {
+    sessionId = `sess-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+  }
+  return sessionId;
+}
+
+/**
+ * Set session ID (useful for testing).
+ */
+export function setSessionId(id: string): void {
+  sessionId = id;
+}
+
+// ============================================================================
+// Argument Substitution
+// ============================================================================
+
+/**
+ * Parse argument names from argument hint string.
+ * Supports formats like: <stock>, <stock> <args>, <arg1> <arg2>
+ */
+export function parseArgumentNames(argumentHint?: string): string[] {
+  if (!argumentHint) return [];
+
+  const matches = argumentHint.matchAll(/<(\w+)>/g);
+  return Array.from(matches).map(m => m[1]);
+}
+
+/**
+ * Substitute arguments in skill content.
+ * Replaces {{args}} and {{argument}} placeholders with actual arguments.
+ */
+export function substituteArguments(
+  content: string,
+  args: string,
+  allowArbitraryArgs: boolean = true,
+  argumentNames: string[] = []
+): string {
+  let result = content;
+
+  // Replace {{args}} with the full args string
+  result = result.replace(/\{\{args\}\}/g, args);
+
+  // Replace {{argument}} with the full args string (alias)
+  result = result.replace(/\{\{argument\}\}/g, args);
+
+  // Replace named arguments {{name}} with args
+  for (const name of argumentNames) {
+    const pattern = new RegExp(`\\{\\{${name}\\}\\}`, 'g');
+    // For named args, use the full args as the value
+    result = result.replace(pattern, args);
+  }
+
+  return result;
+}
+
+// ============================================================================
+// Skill Command Creation (Core Factory Function)
+// ============================================================================
+
+/**
+ * Create a SkillCommand from a Skill.
+ *
+ * This is the core factory function that mirrors Loucode's createSkillCommand().
+ * It creates a command with the getPromptForCommand() method.
+ *
+ * If the skill has its own getPromptForCommand method (like bundled skills),
+ * that method is used directly for dynamic prompt generation.
+ *
+ * @param skill - The skill to convert to a command
+ * @param source - The source of the skill
+ * @returns SkillCommand with getPromptForCommand method
+ */
+export function createSkillCommand(
+  skill: Skill,
+  source?: SkillSource
+): SkillCommand {
+  const skillRoot = skill.path.replace(/\/SKILL\.md$/, '');
+  const argumentNames = parseArgumentNames(skill.argumentHint);
+
+  // Check if skill has its own getPromptForCommand method (for bundled skills)
+  const hasCustomPromptMethod = typeof (skill as any).getPromptForCommand === 'function';
+
+  return {
+    type: 'prompt',
+    name: skill.name,
+    description: skill.description,
+    contentLength: skill.instructions.length,
+    progressMessage: skill.progressMessage || 'running',
+    userInvocable: skill.userInvocable,
+    argumentHint: skill.argumentHint,
+    argNames: argumentNames.length > 0 ? argumentNames : undefined,
+    allowedTools: skill.allowedTools,
+    model: skill.model,
+    context: skill.context,
+    agent: skill.agent,
+    effort: skill.effort as any,
+    paths: skill.paths,
+    hooks: skill.hooks,
+    skillRoot,
+    whenToUse: skill.whenToUse,
+    source: source || skill.source,
+    isHidden: skill.userInvocable === false,
+
+    async getPromptForCommand(
+      args: string,
+      context?: ToolUseContext
+    ): Promise<Array<{ type: 'text'; text: string }>> {
+      // Use bundled skill's custom prompt method if available
+      if (hasCustomPromptMethod) {
+        return (skill as any).getPromptForCommand(args, context);
+      }
+
+      // Step 1: Build base content with Base directory prefix
+      let finalContent = skillRoot
+        ? `Base directory for this skill: ${skillRoot}\n\n${skill.instructions}`
+        : skill.instructions;
+
+      // Step 2: Substitute arguments ({{args}}, {{argument}}, {{name}})
+      finalContent = substituteArguments(finalContent, args, true, argumentNames);
+
+      // Step 3: Replace ${CLAUDE_SKILL_DIR} variable
+      // Normalize backslashes on Windows
+      const normalizedSkillDir = process.platform === 'win32'
+        ? skillRoot.replace(/\\/g, '/')
+        : skillRoot;
+      finalContent = finalContent.replace(/\$\{CLAUDE_SKILL_DIR\}/g, normalizedSkillDir);
+
+      // Step 4: Replace ${CLAUDE_SESSION_ID} variable
+      finalContent = finalContent.replace(
+        /\$\{CLAUDE_SESSION_ID\}/g,
+        getSessionId()
+      );
+
+      // Step 5: Execute shell commands (!`command` and ```! ... ```)
+      // Only execute if shell commands are present in the content
+      if (containsShellCommands(finalContent)) {
+        finalContent = await executeShellCommandsInPrompt(
+          finalContent,
+          context,
+          `/${skill.name}`,
+          skill.shell
+        );
+      }
+
+      return [{ type: 'text', text: finalContent }];
+    }
+  };
+}
+
+// ============================================================================
+// Get Prompt For Command (Standalone Function)
+// ============================================================================
+
+/**
+ * Get the prompt content for a skill execution.
+ *
+ * This is the standalone version of getPromptForCommand() that can be
+ * used without creating a full SkillCommand object.
+ *
+ * @param skill - The skill to execute
+ * @param args - Arguments to pass
+ * @param context - Optional tool use context
+ * @returns Promise resolving to content blocks
+ */
+export async function getPromptForCommand(
+  skill: Skill,
+  args: string,
+  context?: ToolUseContext
+): Promise<Array<{ type: 'text'; text: string }>> {
+  const command = createSkillCommand(skill);
+  return command.getPromptForCommand(args, context);
+}

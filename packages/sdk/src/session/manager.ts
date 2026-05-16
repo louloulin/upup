@@ -2,6 +2,7 @@
  * @upup/sdk - 会话管理器
  *
  * 管理会话的创建、继续和恢复
+ * 支持 Stream + Session 一体架构
  */
 
 import { randomUUID } from 'crypto'
@@ -14,6 +15,7 @@ import type {
   SessionEvent,
   SessionEventData,
 } from './types.js'
+import type { HookExecutor, HookInput } from '../hooks/types.js'
 
 /**
  * 会话管理器
@@ -41,10 +43,111 @@ export class SessionManager {
   private store?: SessionStore
   private eventHandlers: Map<SessionEvent, Set<(event: SessionEventData) => void>> = new Map()
   private config: SessionConfig
+  // Stream + Session 一体架构
+  private hookExecutor?: HookExecutor
+  private autoSync: boolean = true
 
   constructor(config: SessionConfig = {}, store?: SessionStore) {
     this.config = config
     this.store = store
+    this.autoSync = config.autoSync ?? true
+  }
+
+  /**
+   * 绑定 HookExecutor 并注册内置同步 Hook
+   * 用于 Stream + Session 一体架构
+   */
+  bindHookExecutor(executor: HookExecutor): void {
+    this.hookExecutor = executor
+
+    // 注册内置 StreamMessage Hook - 自动同步消息
+    executor.register('StreamMessage', {
+      hooks: [async (input: HookInput) => {
+        if (this.autoSync) {
+          await this._syncFromStream(input)
+        }
+        return { continue: true }
+      }]
+    })
+
+    // 注册内置 StreamEnd Hook - 更新 token 使用量
+    executor.register('StreamEnd', {
+      hooks: [async (input: HookInput) => {
+        if (input.token_usage) {
+          this.updateTokenUsage(input.token_usage)
+        }
+        return { continue: true }
+      }]
+    })
+  }
+
+  /**
+   * 从 Stream 消息同步到 Session
+   * 内部方法，由 StreamMessage Hook 调用
+   */
+  private async _syncFromStream(input: HookInput): Promise<void> {
+    const msg = input.stream_message
+    if (!msg || !this.currentSession) return
+
+    const { type, event } = msg as { type: string; event?: Record<string, unknown> }
+
+    let sessionMsg: SessionMessage | null = null
+
+    if (event?.type === 'stream_progress') {
+      sessionMsg = {
+        role: 'assistant',
+        content: (event.content as string) || '',
+        timestamp: new Date(),
+        metadata: { subType: 'stream_progress' }
+      }
+    } else if (event?.type === 'tool_use') {
+      sessionMsg = {
+        role: 'assistant',
+        content: '',
+        timestamp: new Date(),
+        toolCalls: [{
+          id: (event.tool_use_id as string) || `tool-${Date.now()}`,
+          name: event.tool_name as string,
+          input: (event.tool_input as Record<string, unknown>) || {}
+        }],
+        metadata: { subType: 'tool_use' }
+      }
+    } else if (event?.type === 'tool_result') {
+      sessionMsg = {
+        role: 'system',
+        content: '',
+        timestamp: new Date(),
+        toolResults: [{
+          toolCallId: event.tool_use_id as string,
+          result: event.result
+        }],
+        metadata: { subType: 'tool_result' }
+      }
+    } else if (event?.type === 'done') {
+      // done 事件更新 token 使用量
+      if (event.tokenUsage) {
+        this.updateTokenUsage(event.tokenUsage as { inputTokens: number; outputTokens: number; totalTokens: number })
+      }
+      return // done 不记录为消息
+    }
+
+    if (sessionMsg) {
+      this.addMessage(sessionMsg)
+    }
+  }
+
+  /**
+   * 设置自动同步模式
+   */
+  setAutoSync(enabled: boolean): void {
+    this.autoSync = enabled
+  }
+
+  /**
+   * 检查是否启用自动同步
+   */
+  isAutoSyncEnabled(): boolean {
+    return this.autoSync
   }
 
   /**

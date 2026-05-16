@@ -56,6 +56,14 @@ export const JsonRpcMethod = {
   Stream: 'stream',
   Cancel: 'cancel',
 
+  // Session operations (SDK v4)
+  SessionCreate: 'session/create',
+  SessionResume: 'session/resume',
+  SessionGet: 'session/get',
+  SessionMessages: 'session/messages',
+  SessionUpdate: 'session/update',
+  SessionEnd: 'session/end',
+
   // Events (server -> client notifications)
   Event: 'event',
   StreamDone: 'stream_done',
@@ -148,6 +156,95 @@ export interface CancelParams {
 
 export interface CancelResult {
   cancelled: boolean;
+}
+
+// ============ Session Types (SDK v4) ============
+
+export interface SessionContext {
+  projectSlug: string;
+  projectPath: string;
+  model?: string;
+  systemPrompt?: string;
+  tools?: string[];
+  userId?: string;
+}
+
+export interface SessionCreateParams {
+  context?: SessionContext;
+  id?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface SessionCreateResult {
+  id: string;
+  state: 'idle' | 'running' | 'waiting' | 'completed' | 'error' | 'canceled';
+  createdAt: number;
+}
+
+export interface SessionResumeParams {
+  id: string;
+}
+
+export interface SerializedMessage {
+  type: string;
+  content: string;
+  additional_kwargs?: Record<string, unknown>;
+  response_metadata?: Record<string, unknown>;
+}
+
+export interface SessionMetadata {
+  turnCount: number;
+  toolUseCount: number;
+  tokenUsage?: {
+    input: number;
+    output: number;
+  };
+  tags?: string[];
+}
+
+export interface SessionResumeResult {
+  id: string;
+  state: 'idle' | 'running' | 'waiting' | 'completed' | 'error' | 'canceled';
+  messages: SerializedMessage[];
+  metadata: SessionMetadata;
+}
+
+export interface SessionGetParams {
+  id: string;
+}
+
+export interface SessionGetResult {
+  id: string;
+  state: 'idle' | 'running' | 'waiting' | 'completed' | 'error' | 'canceled';
+  createdAt: number;
+  lastActivity: number;
+  metadata: SessionMetadata;
+}
+
+export interface SessionMessagesParams {
+  id: string;
+}
+
+export interface SessionMessagesResult {
+  messages: SerializedMessage[];
+}
+
+export interface SessionUpdateParams {
+  id: string;
+  state?: 'running' | 'waiting' | 'completed';
+  metadata?: Record<string, unknown>;
+}
+
+export interface SessionUpdateResult {
+  success: boolean;
+}
+
+export interface SessionEndParams {
+  id: string;
+}
+
+export interface SessionEndResult {
+  success: boolean;
 }
 
 // ============ Event Type Mapping ============

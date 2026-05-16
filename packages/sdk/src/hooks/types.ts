@@ -25,6 +25,10 @@ export type HookEvent =
   | 'PostCompact'
   | 'PermissionRequest'
   | 'PermissionDenied'
+  // Stream + Session 一体架构新增事件
+  | 'StreamStart'
+  | 'StreamMessage'
+  | 'StreamEnd'
 
 /**
  * 所有 Hook 事件列表
@@ -47,6 +51,10 @@ export const HOOK_EVENTS: readonly HookEvent[] = [
   'PostCompact',
   'PermissionRequest',
   'PermissionDenied',
+  // Stream + Session 一体架构新增事件
+  'StreamStart',
+  'StreamMessage',
+  'StreamEnd',
 ] as const
 
 // ============ Hook 输入/输出 ============
@@ -86,7 +94,28 @@ export interface HookInput {
   }
   /** 拒绝原因 (PermissionDenied) */
   denied_reason?: string
+  // ============ Stream + Session 一体架构新增字段 ============
+  /** Stream 消息内容 (StreamMessage) */
+  stream_message?: SDKMessage
+  /** 消息类型 (StreamMessage) */
+  message_type?: 'stream_progress' | 'tool_use' | 'tool_result' | 'done'
+  /** 消息文本内容 (StreamMessage) */
+  message_content?: string
+  /** Token 使用量 (StreamEnd) */
+  token_usage?: {
+    inputTokens: number
+    outputTokens: number
+    totalTokens: number
+  }
   /** 其他上下文数据 */
+  [key: string]: unknown
+}
+
+/**
+ * SDK 消息类型 (用于 StreamMessage Hook)
+ */
+export interface SDKMessage {
+  type: string
   [key: string]: unknown
 }
 

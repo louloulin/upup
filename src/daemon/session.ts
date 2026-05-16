@@ -12,7 +12,7 @@
  */
 
 import { info, warn, error } from '../utils/logging/logger.js';
-import type { BaseMessage } from '@langchain/core/messages';
+import { HumanMessage, AIMessage, SystemMessage, type BaseMessage } from '@langchain/core/messages';
 
 // ============================================================================
 // Types
@@ -221,9 +221,32 @@ export class SessionManager {
 
   /**
    * Create a new session
+   * If session with same ID exists, return existing session instead of creating new one
    */
   async create(params: CreateSessionParams): Promise<AgentSession> {
     const id = params.id || this.generateId();
+
+    // Check if session already exists - if so, return existing session to preserve messages
+    const existing = this.sessions.get(id);
+    if (existing) {
+      info('daemon', `Session already exists: ${id}, reusing with ${existing.messages.length} messages`);
+      return existing;
+    }
+
+    // Also check KV store for existing session
+    const kvData = await this.kv.get<SerializedSession>(`session:${id}`);
+    if (kvData) {
+      const session = this.deserializeSession(kvData);
+      this.sessions.set(id, session);
+      const controller = new AbortController();
+      controller.signal.addEventListener('abort', () => {
+        this.handleAbort(id, controller.signal.reason);
+      });
+      this.abortControllers.set(id, controller);
+      info('daemon', `Session loaded from KV: ${id}, ${session.messages.length} messages`);
+      return session;
+    }
+
     const now = Date.now();
 
     const session: AgentSession = {
@@ -685,14 +708,30 @@ export function serializeMessage(message: BaseMessage): SerializedMessage {
  * Deserialize a message from storage
  */
 export function deserializeMessage(data: SerializedMessage): BaseMessage {
-  // This would need to return the correct LangChain message type
-  // For now, return a generic structure
-  return {
-    _getType: () => data.type,
-    content: data.content,
-    additional_kwargs: data.additional_kwargs || {},
-    response_metadata: data.response_metadata || {},
-  } as unknown as BaseMessage;
+  // Create the correct LangChain message type based on the type field
+  switch (data.type) {
+    case 'human':
+      return new HumanMessage(data.content);
+
+    case 'ai':
+      // For AI messages, we store them as text-only (no tool calls)
+      return new AIMessage({
+        content: data.content,
+        tool_calls: undefined,
+      });
+
+    case 'system':
+      return new SystemMessage(data.content);
+
+    default:
+      // Fallback: create a generic message with the correct type
+      return {
+        _getType: () => data.type,
+        content: data.content,
+        additional_kwargs: data.additional_kwargs || {},
+        response_metadata: data.response_metadata || {},
+      } as unknown as BaseMessage;
+  }
 }
 
 // ============================================================================
