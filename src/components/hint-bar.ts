@@ -8,6 +8,21 @@ function visibleLength(str: string): number {
 }
 
 /**
+ * Category icons for slash commands
+ * Maps CommandCategory to display icons
+ */
+const CATEGORY_ICONS: Record<string, string> = {
+  core: '📦',      // help, clear, compact, model
+  plan: '📋',      // plan mode commands
+  agent: '🤖',      // agent, fork, tasks
+  mcp: '🔌',       // MCP related
+  permissions: '🔒', // permissions, approve, deny
+  system: '⚙️',     // status, cost, doctor, theme
+  git: '📚',       // git, diff, commit, branch
+  tools: '🔧',     // tools, config, export
+}
+
+/**
  * Contextual hint bar displayed below the input editor.
  * Shows keyboard shortcuts, slash command suggestions, and transient messages.
  * Supports left-aligned hints + right-aligned esc hints on a single line.
@@ -73,6 +88,7 @@ export class HintBarComponent extends Container {
 
   /**
    * Show slash command suggestions. Expands the hint bar to multiple lines.
+   * Shows category icons and command descriptions.
    */
   setSuggestions(commands: SlashCommand[], selectedIndex: number): void {
     this.clear();
@@ -80,10 +96,11 @@ export class HintBarComponent extends Container {
     for (let i = 0; i < commands.length; i++) {
       const cmd = commands[i];
       const isSelected = i === selectedIndex;
+      const icon = CATEGORY_ICONS[cmd.category ?? ''] || '📎';
       const prefix = isSelected ? theme.primary('> ') : '  ';
       const name = isSelected ? theme.primary(`/${cmd.name}`) : theme.muted(`/${cmd.name}`);
       const desc = theme.muted(` — ${cmd.description}`);
-      this.addChild(new Text(`${prefix}${name}${desc}`, 0, 0));
+      this.addChild(new Text(`${prefix}${icon} ${name}${desc}`, 0, 0));
     }
   }
 

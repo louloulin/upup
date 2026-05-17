@@ -47,8 +47,12 @@ export type SkillContext = 'inline' | 'fork';
 /**
  * Skill metadata - lightweight info loaded at startup for system prompt injection.
  * Only contains the name and description from YAML frontmatter.
+ *
+ * Extended to 16+ fields to match loucode's SkillMetadata interface.
+ * Reference: loucode/src/skills/loadSkillsDir.ts
  */
 export interface SkillMetadata {
+  // === Core Fields (Required) ===
   /** Unique skill name (e.g., "dcf") */
   name: string;
   /** Description of when to use this skill */
@@ -57,26 +61,52 @@ export interface SkillMetadata {
   path: string;
   /** Where this skill was discovered from */
   source: SkillSource;
+
+  // === Execution Configuration ===
   /** Preferred model for this skill (optional) */
   model?: SkillModel;
-  /** Whether this skill can be invoked by user via /command */
-  userInvocable?: boolean;
-  /** Hint for argument format */
-  argumentHint?: string;
-  /** Skill dependencies — must be executed before this skill */
-  dependsOn?: string[];
   /** Skill execution mode: inline (default) or fork (subagent) */
   context?: SkillContext;
   /** Agent type to use for fork mode (e.g., 'general', 'specialized') */
   agent?: string;
   /** Tools allowed when executing this skill */
   allowedTools?: string[];
+  /** Workload estimation */
+  effort?: EffortValue;
+  /** Disable model invocation (use tools only) */
+  disableModelInvocation?: boolean;
+
+  // === User Invocation ===
+  /** Whether this skill can be invoked by user via /command */
+  userInvocable?: boolean;
+  /** Hint for argument format (e.g., "<arg1> <arg2>") */
+  argumentHint?: string;
+  /** Named arguments for this command */
+  argumentNames?: string[];
+  /** Aliases for skill invocation */
+  aliases?: string[];
+  /** Slash command triggers (e.g., ["/skill", "/s"]) */
+  triggers?: string[];
+
+  // === Skill Relationships ===
+  /** Skill dependencies — must be executed before this skill */
+  dependsOn?: string[];
+  /** Conditional skill paths (activates when matching files are present) */
+  paths?: string[];
+
+  // === Hooks & Files ===
+  /** Hooks settings for pre/post tool execution */
+  hooks?: HooksSettings;
+  /** Files to extract to disk for this skill */
+  files?: Record<string, string>;
+
+  // === UI & Metadata ===
   /** Progress message shown during execution */
   progressMessage?: string;
   /** When to use this skill (usage hints) */
   whenToUse?: string;
-  /** Aliases for skill invocation */
-  aliases?: string[];
+  /** Version of the skill */
+  version?: string;
 }
 
 /**

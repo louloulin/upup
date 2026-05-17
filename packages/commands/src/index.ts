@@ -1,7 +1,7 @@
 /**
  * @upup/commands - Slash command framework
  *
- * Exports from commands.ts, registry.ts, slash-commands.ts, executor.ts, and types
+ * Exports from commands.ts, registry.ts, slash-commands.ts, executor.ts, types, and all-commands.ts
  */
 
 export {
@@ -23,17 +23,15 @@ export {
 } from './commands.js';
 
 export {
+  ALL_COMMANDS,
+  builtInCommandNames,
   SLASH_COMMANDS,
-  matchCommands,
+  inferCategory,
+  findCommand,
+  executeCommand,
+  type CommandCategory,
   type SlashCommand,
-} from './slash-commands.js';
-
-export {
-  executeSlashCommand,
-  getAllCommandNames,
-  validateCommandSync,
-  BUILTIN_COMMANDS,
-} from './executor.js';
+} from './all-commands.js';
 
 export {
   type PromptCommand,

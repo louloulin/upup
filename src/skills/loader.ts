@@ -2,8 +2,13 @@ import { readFileSync } from 'fs';
 import matter from 'gray-matter';
 import type { Skill, SkillSource, SkillMetadata, SkillModel, HooksSettings, EffortValue } from './types.js';
 
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
 /**
  * Parse effort value from frontmatter.
+ * Supports both string values (minimal, short, medium, long, extended) and numbers.
  */
 function parseEffortValue(value: unknown): EffortValue | undefined {
   if (!value) return undefined;
@@ -12,7 +17,6 @@ function parseEffortValue(value: unknown): EffortValue | undefined {
     if (['minimal', 'short', 'medium', 'long', 'extended'].includes(normalized)) {
       return normalized as EffortValue;
     }
-    // Try parsing as number
     const num = parseFloat(value);
     if (!isNaN(num) && num >= 0) {
       return num;
@@ -25,39 +29,180 @@ function parseEffortValue(value: unknown): EffortValue | undefined {
 }
 
 /**
- * Parse paths field (for conditional skills)
+ * Parse context field (inline/fork execution mode)
  */
-function parsePathsField(value: unknown): string[] | undefined {
+function parseContextField(value: unknown): 'inline' | 'fork' | undefined {
   if (!value) return undefined;
   if (typeof value === 'string') {
-    return value.split(',').map((s) => s.trim()).filter(Boolean);
-  }
-  if (Array.isArray(value)) {
-    return value.filter((v): v is string => typeof v === 'string');
+    const normalized = value.toLowerCase().trim();
+    if (normalized === 'inline' || normalized === 'fork') {
+      return normalized;
+    }
   }
   return undefined;
 }
 
 /**
- * Parse hooks field
+ * Parse model field from frontmatter
+ */
+function parseModelField(value: unknown): SkillModel | undefined {
+  if (!value) return undefined;
+  if (typeof value === 'string') {
+    return value as SkillModel;
+  }
+  return undefined;
+}
+
+/**
+ * Parse allowed tools field from frontmatter
+ */
+function parseAllowedToolsField(value: unknown): string[] | undefined {
+  if (!value) return undefined;
+  if (Array.isArray(value)) {
+    return value.filter((v): v is string => typeof v === 'string');
+  }
+  if (typeof value === 'string') {
+    return value.split(',').map((s) => s.trim()).filter(Boolean);
+  }
+  return undefined;
+}
+
+/**
+ * Parse dependsOn field from frontmatter
+ */
+function parseDependsOnField(value: unknown): string[] | undefined {
+  if (!value) return undefined;
+  if (Array.isArray(value)) {
+    return value.filter((v): v is string => typeof v === 'string');
+  }
+  if (typeof value === 'string') {
+    return value.split(',').map((s) => s.trim()).filter(Boolean);
+  }
+  return undefined;
+}
+
+/**
+ * Parse aliases field from frontmatter
+ */
+function parseAliasesField(value: unknown): string[] | undefined {
+  if (!value) return undefined;
+  if (Array.isArray(value)) {
+    return value.filter((v): v is string => typeof v === 'string');
+  }
+  if (typeof value === 'string') {
+    return value.split(',').map((s) => s.trim()).filter(Boolean);
+  }
+  return undefined;
+}
+
+/**
+ * Parse shell field from frontmatter
+ */
+function parseShellField(value: unknown): { commands?: string[]; cwd?: string } | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const shell = value as Record<string, unknown>;
+  if (shell.commands && Array.isArray(shell.commands)) {
+    return {
+      commands: shell.commands.filter((c): c is string => typeof c === 'string'),
+      cwd: typeof shell.cwd === 'string' ? shell.cwd : undefined,
+    };
+  }
+  return undefined;
+}
+
+/**
+ * Parse paths field from frontmatter
+ */
+function parsePathsField(value: unknown): string[] | undefined {
+  if (!value) return undefined;
+  if (Array.isArray(value)) {
+    return value.filter((v): v is string => typeof v === 'string');
+  }
+  if (typeof value === 'string') {
+    return value.split(/[,\n]+/).map(p => p.trim()).filter(Boolean);
+  }
+  return undefined;
+}
+
+/**
+ * Parse hooks field from frontmatter
  */
 function parseHooksField(value: unknown): HooksSettings | undefined {
-  if (!value) return undefined;
-  if (typeof value !== 'object') return undefined;
+  if (!value || typeof value !== 'object') return undefined;
   const hooks = value as Record<string, unknown>;
   const result: HooksSettings = {};
   if (hooks.preTool && Array.isArray(hooks.preTool)) {
-    result.preTool = hooks.preTool.filter((h): h is { name: string; enabled?: boolean } =>
-      typeof h === 'object' && h !== null && typeof h.name === 'string'
-    );
+    result.preTool = hooks.preTool
+      .filter((h): h is { name: string; enabled?: boolean } =>
+        typeof h === 'object' && h !== null && typeof h.name === 'string'
+      );
   }
   if (hooks.postTool && Array.isArray(hooks.postTool)) {
-    result.postTool = hooks.postTool.filter((h): h is { name: string; enabled?: boolean } =>
-      typeof h === 'object' && h !== null && typeof h.name === 'string'
-    );
+    result.postTool = hooks.postTool
+      .filter((h): h is { name: string; enabled?: boolean } =>
+        typeof h === 'object' && h !== null && typeof h.name === 'string'
+      );
   }
   return result.preTool || result.postTool ? result : undefined;
 }
+
+/**
+ * Parse files field from frontmatter
+ */
+function parseFilesField(value: unknown): Record<string, string> | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const files: Record<string, string> = {};
+  for (const [key, val] of Object.entries(value)) {
+    if (typeof val === 'string') {
+      files[key] = val;
+    }
+  }
+  return Object.keys(files).length > 0 ? files : undefined;
+}
+
+/**
+ * Parse argument names field from frontmatter
+ */
+function parseArgumentNamesField(value: unknown): string[] | undefined {
+  if (!value) return undefined;
+  if (Array.isArray(value)) {
+    return value.filter((v): v is string => typeof v === 'string');
+  }
+  if (typeof value === 'string') {
+    return value.split(/\s+/).filter(Boolean);
+  }
+  return undefined;
+}
+
+/**
+ * Parse triggers field from frontmatter
+ */
+function parseTriggersField(value: unknown): string[] | undefined {
+  if (!value) return undefined;
+  if (Array.isArray(value)) {
+    return value.filter((v): v is string => typeof v === 'string');
+  }
+  if (typeof value === 'string') {
+    return value.split(/[,\s]+/).filter(Boolean);
+  }
+  return undefined;
+}
+
+/**
+ * Parse effort field from frontmatter (for extractSkillMetadata)
+ */
+function parseEffortField(value: unknown): 'minimal' | 'short' | 'medium' | 'long' | 'extended' | undefined {
+  if (!value) return undefined;
+  const valid = ['minimal', 'short', 'medium', 'long', 'extended'];
+  if (typeof value === 'string' && valid.includes(value)) {
+    return value as 'minimal' | 'short' | 'medium' | 'long' | 'extended';
+  }
+  return undefined;
+}
+
+// ============================================================================
+// Main Functions
+// ============================================================================
 
 /**
  * Parse a SKILL.md file content into a Skill object.
@@ -80,122 +225,28 @@ export function parseSkillFile(content: string, path: string, source: SkillSourc
     throw new Error(`Skill at ${path} is missing required 'description' field in frontmatter`);
   }
 
-  // Parse optional fields
-  const model = parseModelField(data.model);
-  const context = parseContextField(data.context);
-
   return {
     name: data.name,
     description: data.description,
     path,
     source,
-    model,
+    model: parseModelField(data.model),
     userInvocable: data['user-invocable'] !== false, // Default to true
     argumentHint: data['argument-hint'] as string | undefined,
     dependsOn: parseDependsOnField(data['depends-on'] ?? data.dependsOn),
-    // New fields for dual-mode execution
-    context,
+    context: parseContextField(data.context),
     agent: data.agent as string | undefined,
     allowedTools: parseAllowedToolsField(data['allowed-tools'] ?? data.allowedTools),
     progressMessage: data['progress-message'] as string | undefined,
     whenToUse: data['when-to-use'] as string | undefined,
     aliases: parseAliasesField(data.aliases),
     instructions: instructions.trim(),
-    // Extended fields
     paths: parsePathsField(data.paths),
     hooks: parseHooksField(data.hooks),
     effort: parseEffortValue(data.effort),
     version: typeof data.version === 'string' ? data.version : undefined,
     shell: parseShellField(data.shell),
   };
-}
-
-/**
- * Parse context field (inline/fork execution mode)
- */
-function parseContextField(value: unknown): 'inline' | 'fork' | undefined {
-  if (!value) return undefined;
-  if (typeof value === 'string') {
-    const normalized = value.toLowerCase().trim();
-    if (normalized === 'inline' || normalized === 'fork') {
-      return normalized;
-    }
-  }
-  return undefined;
-}
-
-/**
- * Parse shell field
- */
-function parseShellField(value: unknown): { commands?: string[]; cwd?: string } | undefined {
-  if (!value) return undefined;
-  if (typeof value === 'string') {
-    return { commands: value.split(',').map((s) => s.trim()).filter(Boolean) };
-  }
-  if (typeof value === 'object' && value !== null) {
-    const shell = value as Record<string, unknown>;
-    return {
-      commands: parseAllowedToolsField(shell.commands),
-      cwd: typeof shell.cwd === 'string' ? shell.cwd : undefined,
-    };
-  }
-  return undefined;
-}
-
-/**
- * Parse allowed tools field
- */
-function parseAllowedToolsField(value: unknown): string[] | undefined {
-  if (!value) return undefined;
-  if (typeof value === 'string') {
-    // Split by comma
-    return value.split(',').map((s) => s.trim()).filter(Boolean);
-  }
-  if (Array.isArray(value)) {
-    return value.filter((v): v is string => typeof v === 'string');
-  }
-  return undefined;
-}
-
-/**
- * Parse aliases field
- */
-function parseAliasesField(value: unknown): string[] | undefined {
-  if (!value) return undefined;
-  if (typeof value === 'string') {
-    return value.split(',').map((s) => s.trim()).filter(Boolean);
-  }
-  if (Array.isArray(value)) {
-    return value.filter((v): v is string => typeof v === 'string');
-  }
-  return undefined;
-}
-
-/**
- * Parse model field from frontmatter
- */
-function parseModelField(value: unknown): SkillModel | undefined {
-  if (!value) return undefined;
-  if (typeof value === 'string') {
-    const normalized = value.toLowerCase().trim();
-    if (['sonnet', 'haiku', 'opus', 'default'].includes(normalized)) {
-      return normalized as SkillModel;
-    }
-  }
-  return undefined;
-}
-
-/**
- * Parse depends-on field from frontmatter.
- * Accepts either a string (single dependency) or an array of strings.
- */
-function parseDependsOnField(value: unknown): string[] | undefined {
-  if (!value) return undefined;
-  if (typeof value === 'string') return [value];
-  if (Array.isArray(value)) {
-    return value.filter((v): v is string => typeof v === 'string');
-  }
-  return undefined;
 }
 
 /**
@@ -215,9 +266,7 @@ export function loadSkillFromPath(path: string, source: SkillSource): Skill {
  * Extract just the metadata from a skill file without loading full instructions.
  * Used for lightweight discovery at startup.
  *
- * @param path - Absolute path to the SKILL.md file
- * @param source - Where this skill came from
- * @returns Skill metadata (name, description, path, source)
+ * Extended to parse 16+ frontmatter fields to match loucode's implementation.
  */
 export function extractSkillMetadata(path: string, source: SkillSource): SkillMetadata {
   const content = readFileSync(path, 'utf-8');
@@ -231,21 +280,39 @@ export function extractSkillMetadata(path: string, source: SkillSource): SkillMe
   }
 
   return {
+    // === Core Fields (Required) ===
     name: data.name,
     description: data.description,
     path,
     source,
+
+    // === Execution Configuration ===
     model: parseModelField(data.model),
-    userInvocable: data['user-invocable'] !== false, // Default to true
-    argumentHint: data['argument-hint'] as string | undefined,
-    dependsOn: parseDependsOnField(data['depends-on'] ?? data.dependsOn),
-    // New fields for dual-mode execution
     context: parseContextField(data.context),
     agent: data.agent as string | undefined,
     allowedTools: parseAllowedToolsField(data['allowed-tools'] ?? data.allowedTools),
+    effort: parseEffortField(data.effort),
+    disableModelInvocation: data['disable-model-invocation'] === true,
+
+    // === User Invocation ===
+    userInvocable: data['user-invocable'] !== false,
+    argumentHint: data['argument-hint'] as string | undefined,
+    argumentNames: parseArgumentNamesField(data['argument-names'] ?? data.argumentNames),
+    aliases: parseAliasesField(data.aliases),
+    triggers: parseTriggersField(data.triggers),
+
+    // === Skill Relationships ===
+    dependsOn: parseDependsOnField(data['depends-on'] ?? data.dependsOn),
+    paths: parsePathsField(data.paths),
+
+    // === Hooks & Files ===
+    hooks: parseHooksField(data.hooks),
+    files: parseFilesField(data.files),
+
+    // === UI & Metadata ===
     progressMessage: data['progress-message'] as string | undefined,
     whenToUse: data['when-to-use'] as string | undefined,
-    aliases: parseAliasesField(data.aliases),
+    version: data.version as string | undefined,
   };
 }
 
@@ -257,31 +324,19 @@ export function extractSkillMetadata(path: string, source: SkillSource): SkillMe
  * Bundled skill definition from plugins
  */
 export interface PluginBundledSkill {
-  /** Skill name */
   name: string;
-  /** Skill description */
   description: string;
-  /** Markdown instructions */
   instructions: string;
-  /** Plugin name that provides this skill */
   pluginName: string;
-  /** Optional model specification */
   model?: string;
-  /** Optional allowed tools */
   allowedTools?: string[];
-  /** Optional execution context */
   context?: 'inline' | 'fork';
-  /** Optional user invocable flag */
   userInvocable?: boolean;
-  /** Optional argument hint */
   argumentHint?: string;
 }
 
 /**
  * Convert a plugin bundled skill to the internal Skill format.
- *
- * @param skill - Plugin bundled skill
- * @returns Skill in internal format
  */
 export function convertPluginSkill(skill: PluginBundledSkill): Skill {
   return {
@@ -291,7 +346,7 @@ export function convertPluginSkill(skill: PluginBundledSkill): Skill {
     path: `plugin:${skill.pluginName}/${skill.name}`,
     source: 'plugin',
     model: parseModelField(skill.model),
-    userInvocable: skill.userInvocable ?? true, // Default to true for plugins
+    userInvocable: skill.userInvocable ?? true,
     argumentHint: skill.argumentHint,
     context: skill.context,
     allowedTools: skill.allowedTools,
@@ -300,9 +355,6 @@ export function convertPluginSkill(skill: PluginBundledSkill): Skill {
 
 /**
  * Convert multiple plugin skills to internal format.
- *
- * @param skills - Array of plugin bundled skills
- * @returns Array of skills in internal format
  */
 export function convertPluginSkills(skills: PluginBundledSkill[]): Skill[] {
   return skills.map(convertPluginSkill);
