@@ -22,7 +22,7 @@ import type { Transport } from '../transport/transport.js'
 import { PermissionManager, type PermissionMode, type CanUseTool } from '../permissions/index.js'
 import { ToolRegistry, type Tool } from '../tools/index.js'
 import { HookExecutor, type HookEvent, type HookInput, type HookMap } from '../hooks/index.js'
-import { SessionManager, UpupSessionManager, type SessionConfig, type SessionInfo, type RpcTransport as SessionRpcTransport } from '../session/index.js'
+import { UpupSessionManager, type SessionConfig, type SessionInfo, type RpcTransport as SessionRpcTransport } from '../session/index.js'
 import { ProcessPool, type ProcessPoolConfig } from '../pool/index.js'
 import { BetaAPI, createBetaAPI } from '../beta/index.js'
 import type { RpcTransport } from '../messages.js'
@@ -195,7 +195,6 @@ export class UpClient extends EventEmitter implements AsyncDisposable {
   private toolRegistry: ToolRegistry
   private permissionManager: PermissionManager
   private hookExecutor: HookExecutor
-  private sessionManager: SessionManager
   private upupSessionManager: UpupSessionManager | null = null
   private useUpupSession: boolean
   private pool: ProcessPool | null = null
@@ -224,12 +223,12 @@ export class UpClient extends EventEmitter implements AsyncDisposable {
     return this.hookExecutor
   }
 
-  /** 获取会话管理器 (SDK v3 - 独立实现) */
-  get session(): SessionManager {
-    return this.sessionManager
+  /** 获取会话管理器 (SDK v5 - 基于 upup 核心) */
+  get session(): UpupSessionManager | null {
+    return this.upupSessionManager
   }
 
-  /** 获取 UpupSessionManager (SDK v4 - 基于 upup 核心) */
+  /** 获取 UpupSessionManager (SDK v5 - 基于 upup 核心) */
   get upupSession(): UpupSessionManager | null {
     return this.upupSessionManager
   }
@@ -275,16 +274,12 @@ export class UpClient extends EventEmitter implements AsyncDisposable {
       canUseTool: config.canUseTool,
     })
     this.hookExecutor = new HookExecutor()
-    this.sessionManager = new SessionManager(config.session)
 
-    // 初始化 UpupSessionManager (SDK v4 - 基于 upup 核心)
-    if (this.useUpupSession) {
-      // StdioTransport 实现了 request 方法，可以作为 RpcTransport 使用
-      this.upupSessionManager = new UpupSessionManager({
-        transport: transport as unknown as SessionRpcTransport,
-        ...config.session,
-      })
-    }
+    // ✅ SDK v5: 始终使用 UpupSessionManager，基于 upup 核心
+    this.upupSessionManager = new UpupSessionManager({
+      transport: transport as unknown as SessionRpcTransport,
+      ...config.session,
+    })
 
     // 注册工具
     if (config.tools) {
@@ -499,8 +494,8 @@ export class UpClient extends EventEmitter implements AsyncDisposable {
     query: string,
     options?: PromptOptions
   ): AsyncGenerator<SDKMessage> {
-    // 优先使用 UpupSessionManager 的 sessionId (SDK v4)
-    const sessionId = this.upupSessionManager?.getSessionId() || this.sessionManager.getSessionId()
+    // ✅ SDK v5: 使用 UpupSessionManager 的 sessionId
+    const sessionId = this.upupSessionManager?.getSessionId()
 
     // 触发 StreamStart Hook
     await this.hookExecutor.execute('StreamStart', {
@@ -782,11 +777,8 @@ export class UpClient extends EventEmitter implements AsyncDisposable {
       return session
     }
 
-    // 使用传统 SessionManager (SDK v3)
-    const session = await this.sessionManager.create(config)
-
-    // 绑定 HookExecutor 到 SessionManager (Stream + Session 一体架构)
-    this.sessionManager.bindHookExecutor(this.hookExecutor)
+    // ✅ SDK v5: 使用 UpupSessionManager 创建会话
+    const session = await this.upupSessionManager!.create(config)
 
     // 触发 SessionStart Hook
     await this.hookExecutor.execute('SessionStart', {
@@ -801,21 +793,21 @@ export class UpClient extends EventEmitter implements AsyncDisposable {
    * 获取当前会话
    */
   getCurrentSession(): SessionInfo | null {
-    return this.sessionManager.getCurrentSession()
+    return this.upupSessionManager?.getCurrentSession() ?? null
   }
 
   /**
    * 继续会话
    */
   async resumeSession(sessionId: string): Promise<void> {
-    await this.sessionManager.continue(sessionId)
+    await this.upupSessionManager?.continue(sessionId)
   }
 
   /**
    * 保存会话
    */
   async saveSession(): Promise<void> {
-    await this.sessionManager.save()
+    await this.upupSessionManager?.save()
   }
 
   // ============ Phase 5: 进程池 ============
@@ -841,7 +833,7 @@ export class UpClient extends EventEmitter implements AsyncDisposable {
    * 关闭连接
    */
   async close(): Promise<void> {
-    const sessionId = this.sessionManager.getSessionId()
+    const sessionId = this.upupSessionManager?.getSessionId()
 
     // 触发 SessionEnd Hook
     if (sessionId) {
@@ -851,13 +843,10 @@ export class UpClient extends EventEmitter implements AsyncDisposable {
       })
     }
 
-    // 关闭 UpupSessionManager (SDK v4)
-    if (this.upupSessionManager) {
-      await this.upupSessionManager.close()
-    }
+    // ✅ SDK v5: 关闭 UpupSessionManager
+    await this.upupSessionManager?.close()
+    this.upupSessionManager = null
 
-    // 关闭会话管理器 (SDK v3)
-    await this.sessionManager.close()
     // 清空 Hooks
     this.hookExecutor.clear()
     // 关闭进程池
