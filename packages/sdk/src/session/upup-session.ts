@@ -1,7 +1,9 @@
 /**
- * @upup/sdk - 基于 upup 核心的 Session 实现
+ * @upup/sdk - 基于 upup 核心的 Session 实现 (SDK v5)
  *
- * 通过 stdio JSON-RPC 调用 upup SessionManager
+ * 策略: SDK 只做薄包装，不自己实现 Session 逻辑
+ * 所有消息存储由 upup 核心 SessionManager 管理
+ * 通过 IPC 调用获取消息历史
  */
 
 import type { SessionInfo, SessionMessage, SessionConfig } from './types.js';
@@ -17,33 +19,32 @@ export interface RpcTransport {
 
 type UpupSessionState = 'idle' | 'running' | 'waiting' | 'completed' | 'error' | 'canceled';
 
-interface UpupSerializedMessage {
-  type: string;
-  content: string;
-  additional_kwargs?: Record<string, unknown>;
-  response_metadata?: Record<string, unknown>;
-}
-
 interface UpupSessionMetadata {
   turnCount: number;
   toolUseCount: number;
-  tokenUsage?: {
-    input: number;
-    output: number;
-  };
+  tokenUsage?: { input: number; output: number };
   tags?: string[];
 }
 
-// ============ UpupSessionManager 实现 ============
+// ============ UpupSessionManager 实现 (SDK v5 简化版) ============
 
 export interface UpupSessionManagerConfig extends SessionConfig {
   transport: RpcTransport;
 }
 
+/**
+ * SDK v5 Session Manager - 完全基于 upup 核心
+ *
+ * 简化策略:
+ * 1. SDK 只追踪 sessionId，不存储消息
+ * 2. 所有消息操作通过 IPC 调用 upup SessionManager
+ * 3. tokenUsage 从 done 事件同步
+ */
 export class UpupSessionManager {
+  // 唯一状态: sessionId (所有消息由 upup 核心存储)
+  private sessionId: string | null = null;
   private transport: RpcTransport;
-  private currentSession: SessionInfo | null = null;
-  private messages: SessionMessage[] = [];
+  private tokenUsage?: { inputTokens: number; outputTokens: number; totalTokens: number };
   private config: UpupSessionManagerConfig;
 
   constructor(config: UpupSessionManagerConfig) {
@@ -52,7 +53,7 @@ export class UpupSessionManager {
   }
 
   /**
-   * 创建会话 (调用 upup SessionManager)
+   * 创建会话 - 调用 upup IPC
    */
   async create(config?: SessionConfig): Promise<SessionInfo> {
     const params = config || {};
@@ -63,73 +64,46 @@ export class UpupSessionManager {
         projectPath: (params.metadata?.projectPath as string) || process.cwd(),
       },
       id: params.id,
-    }) as {
-      id: string;
-      state: UpupSessionState;
-      createdAt: number;
-    };
+    }) as { id: string; state: UpupSessionState; createdAt: number };
 
-    this.currentSession = {
+    this.sessionId = result.id;
+
+    return {
       id: result.id,
-      status: this.mapUpupState(result.state),
+      status: this.mapState(result.state),
       createdAt: new Date(result.createdAt),
       lastActiveAt: new Date(result.createdAt),
       messageCount: 0,
       metadata: params.metadata,
     };
-
-    this.messages = [];
-    return this.currentSession;
   }
 
   /**
-   * 恢复会话 (调用 upup SessionManager)
+   * 恢复会话 - 调用 upup IPC
    */
   async resume(sessionId: string): Promise<void> {
     const result = await this.transport.request('session/resume', {
       id: sessionId,
-    }) as {
-      id: string;
-      state: UpupSessionState;
-      messages: UpupSerializedMessage[];
-      metadata: UpupSessionMetadata;
-    };
+    }) as { id: string; state: UpupSessionState; metadata: UpupSessionMetadata };
 
-    this.currentSession = {
-      id: result.id,
-      status: this.mapUpupState(result.state),
-      createdAt: new Date(),
-      lastActiveAt: new Date(),
-      messageCount: result.messages.length,
-      metadata: result.metadata,
-    };
-
-    this.messages = result.messages.map((msg) => ({
-      role: this.mapMessageRole(msg.type),
-      content: msg.content,
-      timestamp: new Date(),
-    }));
+    this.sessionId = result.id;
   }
 
   /**
-   * 获取会话
+   * 获取会话信息 - 调用 upup IPC
    */
-  async get(sessionId: string): Promise<SessionInfo | null> {
+  async get(): Promise<SessionInfo | null> {
+    if (!this.sessionId) return null;
+
     const result = await this.transport.request('session/get', {
-      id: sessionId,
-    }) as {
-      id: string;
-      state: UpupSessionState;
-      createdAt: number;
-      lastActivity: number;
-      metadata: UpupSessionMetadata;
-    } | null;
+      id: this.sessionId,
+    }) as { id: string; state: UpupSessionState; createdAt: number; lastActivity: number; metadata: UpupSessionMetadata } | null;
 
     if (!result) return null;
 
     return {
       id: result.id,
-      status: this.mapUpupState(result.state),
+      status: this.mapState(result.state),
       createdAt: new Date(result.createdAt),
       lastActiveAt: new Date(result.lastActivity),
       messageCount: 0,
@@ -138,91 +112,88 @@ export class UpupSessionManager {
   }
 
   /**
-   * 通过 IPC 获取消息历史
+   * 获取消息历史 - 调用 upup IPC
+   * SDK 不维护自己的 messages[]，直接从 upup 获取
    */
-  async fetchMessages(sessionId: string): Promise<SessionMessage[]> {
+  async getMessages(): Promise<SessionMessage[]> {
+    if (!this.sessionId) return [];
+
     const result = await this.transport.request('session/messages', {
-      id: sessionId,
-    }) as { messages: UpupSerializedMessage[] };
+      id: this.sessionId,
+    }) as { messages: Array<{ type: string; content: string }> };
 
     return result.messages.map((msg) => ({
-      role: this.mapMessageRole(msg.type),
+      role: this.mapRole(msg.type),
       content: msg.content,
       timestamp: new Date(),
     }));
   }
 
   /**
-   * 更新会话状态
+   * 更新会话状态 - 调用 upup IPC
    */
   async updateState(state: 'running' | 'waiting' | 'completed'): Promise<void> {
-    if (!this.currentSession) {
-      throw new Error('No active session');
-    }
+    if (!this.sessionId) return;
 
     await this.transport.request('session/update', {
-      id: this.currentSession.id,
+      id: this.sessionId,
       state,
     });
-
-    this.currentSession.status = this.mapUpupState(state);
   }
 
   /**
-   * 添加消息
+   * 添加消息 - SDK v5: 不再本地存储，消息由 upup 核心存储
+   * 此方法保留用于向后兼容，但不实际存储
    */
-  addMessage(message: SessionMessage): void {
-    // 如果没有当前 session，先创建一个
-    if (!this.currentSession) {
-      this.currentSession = {
-        id: `sdk-session-${Date.now()}`,
-        status: 'active',
-        createdAt: new Date(),
-        lastActiveAt: new Date(),
-        messageCount: 0,
-      };
-    }
-
-    this.messages.push(message);
-    this.currentSession.messageCount++;
-    this.currentSession.lastActiveAt = new Date();
+  addMessage(_message: SessionMessage): void {
+    // SDK v5: 消息由 upup 核心存储，SDK 不再维护本地副本
+    // 保留此方法用于向后兼容
   }
 
   /**
    * 获取当前会话
    */
   getCurrentSession(): SessionInfo | null {
-    return this.currentSession;
+    if (!this.sessionId) return null;
+
+    return {
+      id: this.sessionId,
+      status: 'active',
+      createdAt: new Date(),
+      lastActiveAt: new Date(),
+      messageCount: 0,
+      tokenUsage: this.tokenUsage,
+    };
   }
 
   /**
-   * 获取消息历史
+   * 获取消息历史 - SDK v5: 从 upup 获取
    */
   getMessages(): SessionMessage[] {
-    return [...this.messages];
+    // SDK v5: 不再维护本地 messages，直接返回空数组
+    // 使用 getMessages() async 方法从 upup 获取真实消息
+    return [];
   }
 
   /**
    * 获取会话 ID
    */
   getSessionId(): string | null {
-    return this.currentSession?.id || null;
+    return this.sessionId;
   }
 
   /**
    * 获取会话状态
    */
   getStatus(): SessionInfo['status'] | null {
-    return this.currentSession?.status || null;
+    return this.sessionId ? 'active' : null;
   }
 
   /**
-   * 更新 token 使用量
+   * 更新 token 使用量 - 从 done 事件同步
    */
   updateTokenUsage(usage: { inputTokens: number; outputTokens: number; totalTokens: number }): void {
-    if (this.currentSession) {
-      this.currentSession.tokenUsage = usage;
-    }
+    this.tokenUsage = usage;
   }
 
   /**
@@ -250,16 +221,12 @@ export class UpupSessionManager {
    * 取消会话
    */
   async cancel(): Promise<void> {
-    if (!this.currentSession) {
-      throw new Error('No active session');
-    }
+    if (!this.sessionId) return;
 
     await this.transport.request('session/update', {
-      id: this.currentSession.id,
+      id: this.sessionId,
       state: 'canceled',
     });
-
-    this.currentSession.status = 'cancelled';
   }
 
   /**
@@ -273,40 +240,34 @@ export class UpupSessionManager {
    * 关闭会话
    */
   async close(): Promise<void> {
-    if (this.currentSession) {
+    if (this.sessionId) {
       try {
         await this.transport.request('session/end', {
-          id: this.currentSession.id,
+          id: this.sessionId,
         });
       } catch {
         // 忽略错误
       }
     }
 
-    this.currentSession = null;
-    this.messages = [];
+    this.sessionId = null;
+    this.tokenUsage = undefined;
   }
 
   // ============ 辅助方法 ============
 
-  private mapUpupState(state: UpupSessionState): SessionInfo['status'] {
-    const stateMap: Record<UpupSessionState, SessionInfo['status']> = {
-      idle: 'created',
-      running: 'active',
-      waiting: 'paused',
-      completed: 'completed',
-      error: 'failed',
-      canceled: 'cancelled',
+  private mapState(state: string): SessionInfo['status'] {
+    const map: Record<string, SessionInfo['status']> = {
+      idle: 'created', running: 'active', waiting: 'paused',
+      completed: 'completed', error: 'failed', canceled: 'cancelled',
     };
-    return stateMap[state] || 'created';
+    return map[state] || 'created';
   }
 
-  private mapMessageRole(type: string): SessionMessage['role'] {
-    const roleMap: Record<string, SessionMessage['role']> = {
-      human: 'user',
-      ai: 'assistant',
-      system: 'system',
+  private mapRole(type: string): SessionMessage['role'] {
+    const map: Record<string, SessionMessage['role']> = {
+      human: 'user', ai: 'assistant', system: 'system',
     };
-    return roleMap[type] || 'assistant';
+    return map[type] || 'assistant';
   }
 }
