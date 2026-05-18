@@ -931,7 +931,7 @@ packages/commands/src/commands/
 ```
 Phase 0: 创建命令目录结构      [████████████████████] 100%
 Phase 1: 创建 all-commands.ts [████████████████████] 100%
-Phase 2: 创建核心命令           [████████████████████] 100% (17/17 命令)
+Phase 2: 创建核心命令           [████████████████████] 100% (34/34 命令)
 Phase 3: 更新 cli.ts            [████████████████████] 100% (slash-commands.ts 动态生成)
 Phase 4: 扩展 Skills           [████████████████████] 100% (16+ 字段)
 Phase 5: UI 增强               [████████████████████] 100% (HintBar 分类图标)
@@ -1007,50 +1007,77 @@ Phase 5: UI 增强               [███████████████�
 
 ### 文件清单
 
-**已创建文件** (34 个 .ts 实现文件):
+**已创建文件** (34 个命令目录):
 ```
 packages/commands/src/
-├── all-commands.ts              # 单一命令来源 (17 命令)
+├── all-commands.ts              # 单一命令来源 (34 命令)
 ├── commands/
-│   ├── status/ (index.ts, status-impl.ts)
-│   ├── cost/ (index.ts, cost-impl.ts)
-│   ├── doctor/ (index.ts, doctor-impl.ts)
-│   ├── help/ (index.ts, help-impl.ts)
-│   ├── clear/ (index.ts, clear-impl.ts)
-│   ├── compact/ (index.ts, compact-impl.ts)
-│   ├── mcp/ (index.ts, mcp-impl.ts)
-│   ├── permissions/ (index.ts, permissions-impl.ts)
-│   ├── model/ (index.ts, model-impl.ts)
-│   ├── history/ (index.ts, history-impl.ts)
-│   ├── memory/ (index.ts, memory-impl.ts)
-│   ├── session/ (index.ts, session-impl.ts)
-│   ├── sandbox/ (index.ts, sandbox-impl.ts)
-│   ├── git/ (index.ts, git-impl.ts) ✅ 新增
-│   ├── agent/ (index.ts, agent-impl.ts) ✅ 新增
-│   └── theme/ (index.ts, theme-impl.ts) ✅ 新增
+│   ├── status/           status-impl.ts, index.ts
+│   ├── cost/             cost-impl.ts, index.ts
+│   ├── doctor/           doctor-impl.ts, index.ts
+│   ├── help/             help.tsx, index.ts
+│   ├── clear/           clear-impl.ts, index.ts
+│   ├── compact/         compact-impl.ts, index.ts
+│   ├── mcp/             mcp-impl.ts, index.ts
+│   ├── mcp-add/         mcp-add-impl.ts, index.ts
+│   ├── permissions/      permissions-impl.ts, index.ts
+│   ├── model/           model-impl.ts, index.ts
+│   ├── history/         history-impl.ts, index.ts
+│   ├── memory/          memory-impl.ts, index.ts
+│   ├── session/         session-impl.ts, index.ts
+│   ├── resume/          resume-impl.ts, index.ts
+│   ├── sandbox/         sandbox-impl.ts, index.ts
+│   ├── git/             git-impl.ts, index.ts
+│   ├── branch/          branch-impl.ts, index.ts
+│   ├── commit/          commit-impl.ts, index.ts
+│   ├── diff/            diff-impl.ts, index.ts
+│   ├── log/             log-impl.ts, index.ts
+│   ├── stash/           stash-impl.ts, index.ts
+│   ├── remote/          remote-impl.ts, index.ts
+│   ├── agent/           agent-impl.ts, index.ts
+│   ├── agents/          agents-impl.ts, index.ts
+│   ├── fork/            fork-impl.ts, index.ts
+│   ├── tasks/           tasks-impl.ts, index.ts
+│   ├── theme/           theme-impl.ts, index.ts
+│   ├── config/          config-impl.ts, index.ts
+│   ├── keybindings/     keybindings-impl.ts, index.ts
+│   ├── files/           files-impl.ts, index.ts
+│   ├── export/          export-impl.ts, index.ts
+│   ├── usage/           usage-impl.ts, index.ts
+│   └── version/         version-impl.ts, index.ts
 └── types/command-types.ts
 ```
 
 ---
 
-**Document Version**: 14.0 (100% Complete - Dynamic Commands Integrated)
-**Last Updated**: 2026-05-17 15:35
+**Document Version**: 15.0 (34 Commands Implemented)
+**Last Updated**: 2026-05-18
 **Status**: ✅ COMPLETED - All Phases Implemented
-**Completion**: 100%
+**Completion**: 100% (34/34 commands)
 
-### 本次完成的功能
+### 命令统计
 
-1. **Phase 3: slash-commands.ts 动态生成** - 从 all-commands.ts 自动生成命令列表
-   - 自动导出命令名称、描述、分类
-   - 支持 legacy 命令合并 (prompt-type 命令)
-   - 保持向后兼容
-   - `matchCommands()` 使用 `getAllSlashCommands()` 合并动态+静态命令
+| 命令 | 类型 | 实现 |
+|------|------|------|
+| status, cost, doctor | system | ✅ |
+| help, clear, compact | core | ✅ |
+| model, history, memory, session, resume | core | ✅ |
+| mcp, mcp-add | mcp | ✅ |
+| permissions | permissions | ✅ |
+| sandbox | permissions | ✅ |
+| git, branch, commit, diff, log, stash, remote | git | ✅ |
+| agent, agents, fork, tasks | agent | ✅ |
+| theme | system | ✅ |
+| config, keybindings, files, export | tools | ✅ |
+| usage, version | tools | ✅ |
 
-### 下一步 (可选)
+### 构建验证
 
-- [ ] 集成 executeCommand 到 cli.ts (使用新命令系统替换 switch/case)
-- [ ] 添加更多命令到 all-commands.ts (扩展到 50+ 命令)
-- [ ] 实现 React Help 组件 (HelpV2)
+```
+✅ npm run build 成功通过
+✅ TypeScript 编译无错误
+✅ 34 个命令全部注册
+```
 
 ---
 

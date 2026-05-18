@@ -48,6 +48,21 @@ export interface CommandContext {
   permission?: CommandPermission;
   /** Optional UI context for commands that render to the terminal */
   ui?: UIContext;
+  /** Session state for command execution */
+  state?: {
+    totalInputTokens?: number;
+    totalOutputTokens?: number;
+    totalTokens?: number;
+    totalCostUSD?: number;
+    totalToolCalls?: number;
+    totalToolErrors?: number;
+    messageCount?: number;
+    compactionCount?: number;
+    proactiveEventsCount?: number;
+    provider?: string;
+  };
+  /** Session duration in milliseconds */
+  sessionDuration?: number;
 }
 
 /**
@@ -72,6 +87,7 @@ export interface UIContext {
 export type CommandResult =
   | { type: 'output'; text: string }
   | { type: 'error'; message: string }
+  | { type: 'jsx'; component: unknown }
   | { type: 'redirect'; command: string }
   | { type: 'clear' }
   | { type: 'compact' }
