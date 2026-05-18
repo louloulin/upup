@@ -1,20 +1,21 @@
 /**
  * Session Command
- * 
+ *
  * Manages sessions: list, delete, rename, tag.
- * 
- * Type: local (direct execution, no model involvement)
+ * Renders interactive session manager component.
+ *
+ * Type: local-jsx (renders TUI component)
  */
 
-import type { LocalCommand } from '../../types/command-types.js'
+import type { LocalJSXCommand } from '../../types/command-types.js'
 
-export const sessionCommand: LocalCommand = {
-  type: 'local',
+export const sessionCommand: LocalJSXCommand = {
+  type: 'local-jsx',
   name: 'session',
   description: 'Manage sessions',
   aliases: ['sess'],
   supportsNonInteractive: true,
-  load: () => import('./session-impl.js'),
+  load: () => import('./session.tsx'),
 }
 
 export default sessionCommand

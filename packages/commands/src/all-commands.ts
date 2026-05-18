@@ -9,10 +9,7 @@
  * Reference: loucode/src/commands.ts
  */
 
-import type { Command, CommandContext, CommandResult } from './types/command-types.js'
-import { CommandRegistry, getGlobalRegistry, registerBuiltinCommands } from './commands.js'
-
-// Import commands from directories
+import type { Command } from './types/command-types.js'
 import { statusCommand } from './commands/status/index.js'
 import { costCommand } from './commands/cost/index.js'
 import { doctorCommand } from './commands/doctor/index.js'
@@ -29,6 +26,38 @@ import { sandboxCommand } from './commands/sandbox/index.js'
 import { gitCommand } from './commands/git/index.js'
 import { agentCommand } from './commands/agent/index.js'
 import { themeCommand } from './commands/theme/index.js'
+import { branchCommand } from './commands/branch/index.js'
+import { commitCommand } from './commands/commit/index.js'
+import { diffCommand } from './commands/diff/index.js'
+import { logCommand } from './commands/log/index.js'
+import { stashCommand } from './commands/stash/index.js'
+import { remoteCommand } from './commands/remote/index.js'
+import { forkCommand } from './commands/fork/index.js'
+import { tasksCommand } from './commands/tasks/index.js'
+import { agentsCommand } from './commands/agents/index.js'
+import { resumeCommand } from './commands/resume/index.js'
+import { mcpAddCommand } from './commands/mcp-add/index.js'
+import { configCommand } from './commands/config/index.js'
+import { keybindingsCommand } from './commands/keybindings/index.js'
+import { filesCommand } from './commands/files/index.js'
+import { exportCommand } from './commands/export/index.js'
+import { usageCommand } from './commands/usage/index.js'
+import { versionCommand } from './commands/version/index.js'
+import { rulesCommand } from './commands/rules/index.js'
+import { heartbeatCommand } from './commands/heartbeat/index.js'
+import { exitPlanCommand } from './commands/exit-plan/index.js'
+import { addStepCommand } from './commands/add-step/index.js'
+import { stepsCommand } from './commands/steps/index.js'
+import { planCommand } from './commands/plan/index.js'
+import { approveCommand } from './commands/approve/index.js'
+import { denyCommand } from './commands/deny/index.js'
+import { resetPermissionsCommand } from './commands/reset-permissions/index.js'
+import { extraUsageCommand } from './commands/extra-usage/index.js'
+import { effortCommand } from './commands/effort/index.js'
+import { feedbackCommand } from './commands/feedback/index.js'
+import { skillsCommand } from './commands/skills/index.js'
+import { reviewCommand } from './commands/review/index.js'
+import { initCommand } from './commands/init/index.js'
 
 /**
  * All commands - single source of truth
@@ -43,15 +72,47 @@ export const ALL_COMMANDS: Command[] = [
   clearCommand,
   compactCommand,
   mcpCommand,
+  mcpAddCommand,
   permissionsCommand,
   modelCommand,
   historyCommand,
   memoryCommand,
   sessionCommand,
+  resumeCommand,
   sandboxCommand,
   gitCommand,
+  branchCommand,
+  commitCommand,
+  diffCommand,
+  logCommand,
+  stashCommand,
+  remoteCommand,
   agentCommand,
+  agentsCommand,
+  forkCommand,
+  tasksCommand,
   themeCommand,
+  configCommand,
+  keybindingsCommand,
+  filesCommand,
+  exportCommand,
+  usageCommand,
+  versionCommand,
+  planCommand,
+  rulesCommand,
+  heartbeatCommand,
+  exitPlanCommand,
+  addStepCommand,
+  stepsCommand,
+  approveCommand,
+  denyCommand,
+  resetPermissionsCommand,
+  extraUsageCommand,
+  effortCommand,
+  feedbackCommand,
+  skillsCommand,
+  reviewCommand,
+  initCommand,
 ]
 
 /**
@@ -77,23 +138,33 @@ export type CommandCategory =
 const COMMAND_CATEGORIES: Record<string, CommandCategory> = {
   status: 'system',
   cost: 'system',
+  'extra-usage': 'system',
   doctor: 'system',
+  effort: 'system',
+  feedback: 'system',
   theme: 'system',
+  usage: 'system',
+  version: 'system',
   help: 'core',
   clear: 'core',
   compact: 'core',
   model: 'core',
   history: 'core',
   memory: 'core',
+  skills: 'core',
   plan: 'plan',
   'exit-plan': 'plan',
   'add-step': 'plan',
   steps: 'plan',
+  rules: 'core',
+  heartbeat: 'core',
   agent: 'agent',
+  agents: 'agent',
   fork: 'agent',
   tasks: 'agent',
   jobs: 'agent',
   mcp: 'mcp',
+  'mcp-add': 'mcp',
   permissions: 'permissions',
   approve: 'permissions',
   deny: 'permissions',
@@ -102,6 +173,11 @@ const COMMAND_CATEGORIES: Record<string, CommandCategory> = {
   diff: 'git',
   commit: 'git',
   branch: 'git',
+  log: 'git',
+  stash: 'git',
+  remote: 'git',
+  review: 'git',
+  init: 'core',
   sandbox: 'permissions',
   proactive: 'system',
   events: 'system',
@@ -109,9 +185,9 @@ const COMMAND_CATEGORIES: Record<string, CommandCategory> = {
   resume: 'core',
   continue: 'core',
   config: 'tools',
+  files: 'tools',
   export: 'tools',
-  heartbeat: 'core',
-  rules: 'core',
+  keybindings: 'tools',
 }
 
 export function inferCategory(commandName: string): CommandCategory {
@@ -148,6 +224,11 @@ export function findCommand(name: string): Command | undefined {
 
 /**
  * Execute a command by name
+ *
+ * Supports three command types:
+ * - local: Direct text output
+ * - local-jsx: TUI component rendering (HelpV2Component, etc.)
+ * - prompt: Text that gets injected into the conversation
  */
 export async function executeCommand(
   name: string,
@@ -155,7 +236,7 @@ export async function executeCommand(
   context: CommandContext,
 ): Promise<CommandResult> {
   const cmd = findCommand(name)
-  
+
   if (!cmd) {
     return {
       type: 'error',
@@ -164,18 +245,25 @@ export async function executeCommand(
   }
 
   try {
-    // For local commands (new style)
+    // For local commands
     if (cmd.type === 'local') {
       const module = await cmd.load()
-      // Use ToolUseContext for LocalCommand
-      const localContext = {
+      // Build context with state support
+      const localContext: Record<string, unknown> = {
         cwd: context.cwd,
         env: context.env,
         sessionId: context.sessionId,
         model: context.model,
       }
-      const result = await module.call(args, localContext)
-      
+      // Pass state if available
+      if (context.state) {
+        localContext.state = context.state
+      }
+      if (context.sessionDuration !== undefined) {
+        localContext.sessionDuration = context.sessionDuration
+      }
+      const result = await module.call(args, localContext as ToolUseContext)
+
       if (result.type === 'text') {
         return { type: 'output', text: result.value }
       }
@@ -187,24 +275,49 @@ export async function executeCommand(
       }
       return { type: 'output', text: '' }
     }
-    
-    // For local-jsx commands (skip for now, not implemented)
+
+    // For local-jsx commands - return TUI component
     if (cmd.type === 'local-jsx') {
-      return { type: 'error', message: `Command /${name} (local-jsx) not yet implemented` }
+      const module = await cmd.load()
+
+      // Create onDone callback
+      const onDone = (result?: string) => {
+        // Command completed, result can be used to update state
+      }
+
+      // Build context for JSX command
+      const jsxContext = {
+        cwd: context.cwd,
+        env: context.env,
+        sessionId: context.sessionId,
+        model: context.model,
+      }
+
+      // Call the JSX command module
+      const component = await module.call(onDone, jsxContext, args)
+
+      // Return the component for rendering
+      // The CLI will handle rendering based on component type
+      return { type: 'jsx', component }
     }
-    
-    // For prompt commands
+
+    // For prompt commands - return text to be injected
     if (cmd.type === 'prompt') {
-      const blocks = await cmd.getPromptForCommand(args, {
+      // Prompt commands return text that gets shown to the user
+      // The user can then trigger model interaction
+      const text = await cmd.getPromptForCommand(args, {
         cwd: context.cwd,
         env: context.env,
         sessionId: context.sessionId,
         model: context.model,
       })
-      // Return blocks for model injection
-      return { type: 'output', text: JSON.stringify(blocks) }
+      // Return as text output for now (could be enhanced to inject into context)
+      const textContent = Array.isArray(text)
+        ? text.map(b => ('text' in b ? b.text : '')).filter(Boolean).join('\n\n')
+        : String(text)
+      return { type: 'output', text: textContent || '(empty prompt)' }
     }
-    
+
     return { type: 'error', message: `Command /${name} has no implementation` }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)

@@ -1,7 +1,7 @@
 {
   "name": "@upup/commands",
   "version": "0.2.0",
-  "description": "UpUp Commands SDK - Slash command framework (NOTE: requires main app for runtime)",
+  "description": "UpUp Commands SDK - Slash command framework",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -12,7 +12,7 @@
     }
   },
   "scripts": {
-    "build": "bun build src/index.ts --outdir=dist --target=bun",
+    "build": "bun build src/index.ts --outdir=dist --target=bun --external 'playwright*' --external 'playwright-core*' --external 'electron*' --external 'chromium*' && bun build src/all-commands.ts --outdir=dist --target=bun --external 'playwright*' --external 'playwright-core*' --external 'electron*' --external 'chromium*'",
     "dev": "bun build src/index.ts --outdir=dist --watch --target=bun",
     "test": "bun test"
   },

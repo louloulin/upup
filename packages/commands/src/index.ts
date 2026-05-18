@@ -33,6 +33,8 @@ export {
   type SlashCommand,
 } from './all-commands.js';
 
+export { matchCommands } from './slash-commands.js';
+
 export {
   type PromptCommand,
   type LocalCommand,
