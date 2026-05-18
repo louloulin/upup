@@ -1,0 +1,47 @@
+/**
+ * Agents Command Implementation
+ *
+ * Lists active agents.
+ */
+
+import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types.js'
+
+export const call = async (
+  args: string,
+  context: ToolUseContext,
+): Promise<LocalCommandResult> => {
+  const lines = [
+    '',
+    '═══════════════════════════════════════',
+    '  Active Agents',
+    '═══════════════════════════════════════',
+    '',
+    '  1. Main Agent (current session)',
+    '',
+  ]
+
+  // Try to get subagent list
+  try {
+    const { getDefaultSubagentRunner } = await import('../../../../../src/agent/subagent-runner.js')
+    const runner = getDefaultSubagentRunner()
+    const tasks = runner.getAllTasks()
+
+    if (tasks.length > 0) {
+      lines.push('  Background Agents:')
+      for (let i = 0; i < tasks.length; i++) {
+        const task = tasks[i]
+        lines.push(`    ${i + 2}. ${task.status}: ${task.prompt.substring(0, 40)}...`)
+      }
+    }
+  } catch {
+    // Subagent runner not available
+  }
+
+  lines.push('')
+  lines.push('  Use /fork to spawn a new agent.')
+  lines.push('  Use /tasks to manage background tasks.')
+
+  return { type: 'text', value: lines.join('\n') }
+}
+
+export const module: LocalCommandModule = { call }

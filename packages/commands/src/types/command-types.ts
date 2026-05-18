@@ -17,6 +17,23 @@ export interface ToolUseContext {
   env: Record<string, string>
   sessionId?: string
   model?: string
+  /** Extended state from AppState */
+  state?: {
+    totalInputTokens?: number
+    totalOutputTokens?: number
+    totalTokens?: number
+    totalCostUSD?: number
+    totalToolCalls?: number
+    totalToolErrors?: number
+    messageCount?: number
+    compactionCount?: number
+    proactiveEventsCount?: number
+    provider?: string
+  }
+  /** Session duration in milliseconds */
+  sessionDuration?: number
+  /** Additional context providers */
+  getAppState?: () => { getState: () => Record<string, unknown> }
 }
 
 // ============================================================================

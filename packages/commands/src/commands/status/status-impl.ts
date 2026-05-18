@@ -1,65 +1,86 @@
 /**
  * Status Command Implementation
- * 
- * This is the implementation file that gets lazy-loaded.
- * Implements LocalCommandModule interface.
+ *
+ * Displays comprehensive system status with state integration.
+ * Shows session info, model, tokens, MCP status, and more.
  */
 
-import type { 
-  LocalCommandModule,
-  LocalCommandResult,
-  ToolUseContext
-} from '../../types/command-types.js'
+import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types.js'
 
-// Extend context to include status state
 export interface StatusContext extends ToolUseContext {
-  state?: StatusState
+  state?: {
+    totalInputTokens?: number
+    totalOutputTokens?: number
+    totalTokens?: number
+    totalCostUSD?: number
+    totalToolCalls?: number
+    totalToolErrors?: number
+    messageCount?: number
+    compactionCount?: number
+    proactiveEventsCount?: number
+    provider?: string
+    sessionId?: string
+  }
 }
 
-export interface StatusState {
-  totalInputTokens?: number
-  totalOutputTokens?: number
-  totalCostUSD?: number
-  totalToolCalls?: number
-  messageCount?: number
-}
-
-const generateStatusText = (context: StatusContext): string => {
+export const call = async (
+  _args: string,
+  context: StatusContext,
+): Promise<LocalCommandResult> => {
   const state = context.state ?? {}
-  
+  const sessionDuration = context.sessionDuration ?? 0
+
+  // Format duration
+  const formatDuration = (ms: number): string => {
+    const seconds = Math.floor(ms / 1000)
+    const minutes = Math.floor(seconds / 60)
+    const hours = Math.floor(minutes / 60)
+    if (hours > 0) {
+      return `${hours}h ${minutes % 60}m`
+    }
+    if (minutes > 0) {
+      return `${minutes}m ${seconds % 60}s`
+    }
+    return `${seconds}s`
+  }
+
   const lines = [
     '',
     '═══════════════════════════════════════',
-    '  UpUp System Status',
+    '  System Status',
     '═══════════════════════════════════════',
     '',
-    `Session ID: ${context.sessionId?.substring(0, 20) ?? 'N/A'}...`,
-    `Model: ${context.model ?? 'default'}`,
+    `Session ID: ${state.sessionId?.substring(0, 12) ?? 'N/A'}...`,
+    `Model: ${context.model ?? 'default'} (${state.provider ?? 'unknown'})`,
+    `Duration: ${formatDuration(sessionDuration)}`,
     '',
     '───────────────────────────────────────',
-    '  Token Usage',
+    '  Agent',
+    '───────────────────────────────────────',
+    `  Messages: ${state.messageCount ?? 0}`,
+    `  Compactions: ${state.compactionCount ?? 0}`,
+    '',
+    '───────────────────────────────────────',
+    '  Tokens',
     '───────────────────────────────────────',
     `  Input:  ${formatTokens(state.totalInputTokens ?? 0)}`,
     `  Output: ${formatTokens(state.totalOutputTokens ?? 0)}`,
-    `  Total:  ${formatTokens((state.totalInputTokens ?? 0) + (state.totalOutputTokens ?? 0))}`,
+    `  Cost: ${formatCost(state.totalCostUSD ?? 0)}`,
     '',
     '───────────────────────────────────────',
-    '  Session Cost',
+    '  Tools',
     '───────────────────────────────────────',
-    `  ${formatCost(state.totalCostUSD ?? 0)}`,
+    `  Total calls: ${state.totalToolCalls ?? 0}`,
+    `  Errors: ${state.totalToolErrors ?? 0}`,
+    state.totalToolCalls && state.totalToolCalls > 0
+      ? `  Success rate: ${((1 - (state.totalToolErrors ?? 0) / state.totalToolCalls) * 100).toFixed(1)}%`
+      : null,
     '',
-    '───────────────────────────────────────',
-    '  Statistics',
-    '───────────────────────────────────────',
-    `  Messages: ${state.messageCount ?? 0}`,
-    `  Tool Calls: ${state.totalToolCalls ?? 0}`,
-    '',
-  ]
+  ].filter((line): line is string => line !== null)
 
-  return lines.join('\n')
+  return { type: 'text', value: lines.join('\n') }
 }
 
-// Simple token formatter (compatible with state/index.ts)
 function formatTokens(tokens: number): string {
   if (tokens >= 1_000_000) {
     return `${(tokens / 1_000_000).toFixed(2)}M`
@@ -67,10 +88,9 @@ function formatTokens(tokens: number): string {
   if (tokens >= 1_000) {
     return `${(tokens / 1_000).toFixed(1)}K`
   }
-  return tokens.toString()
+  return tokens.toLocaleString()
 }
 
-// Simple cost formatter
 function formatCost(costUSD: number): string {
   if (costUSD >= 1) {
     return `$${costUSD.toFixed(2)}`
@@ -79,13 +99,4 @@ function formatCost(costUSD: number): string {
     return `$${costUSD.toFixed(4)}`
   }
   return `$${costUSD.toFixed(6)}`
-}
-
-// LocalCommandModule - call function that matches the interface
-export const call = async (
-  args: string,
-  context: StatusContext,
-): Promise<LocalCommandResult> => {
-  const text = generateStatusText(context)
-  return { type: 'text', value: text }
 }

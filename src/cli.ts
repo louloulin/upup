@@ -292,6 +292,11 @@ export async function runCli(options: RunCliOptions = {}) {
     tui.requestRender();
   });
 
+  // JSX Command Overlay State - for rendering local-jsx command components
+  let jsxOverlayActive = false;
+  let jsxOverlayComponent: Container | null = null;
+  let jsxOverlayOnClose: (() => void) | null = null;
+
   // P0-4, P0-5, P0-6: Startup validation (Plan12)
   // Validate configuration on startup and redirect to setup if needed
   const configValidation = validateConfig();
@@ -485,513 +490,176 @@ export async function runCli(options: RunCliOptions = {}) {
   /clear       Clear conversation
   ↑ / ↓        Navigate input history`;
 
+  // Import command system for delegation
+  const executeCommandFromModule = async (name: string, args: string, context: { cwd: string; env: Record<string, string>; sessionId: string; model: string; state?: Record<string, unknown>; sessionDuration?: number }) => {
+    try {
+      const commandsModule = await import('@upup/commands')
+
+      // Access executeCommand from the module - it's exported from all-commands.js
+      const executeCommand = (commandsModule as any).executeCommand
+
+      if (!executeCommand) {
+        return { type: 'error', message: 'executeCommand not found in @upup/commands' }
+      }
+
+      return executeCommand(name, args, context)
+    } catch (e) {
+      return { type: 'error', message: `Failed to import @upup/commands: ${e}` }
+    }
+  }
+
   const handleSlashCommand = async (commandName: string, commandArgs: string = '') => {
-    switch (commandName) {
-      case 'model':
-        modelSelection.startSelection();
-        break;
-      case 'rules':
-        await agentRunner.runQuery('Show me my current research rules from .upup/RULES.md');
-        break;
-      case 'clear':
-        chatLog.clearAll();
-        tui.requestRender();
-        break;
-      case 'memory':
-        await agentRunner.runQuery('Show me what you know about me from memory. Use memory_search and memory_get.');
-        break;
-      case 'heartbeat':
-        await agentRunner.runQuery('Show me my current heartbeat checklist from .upup/HEARTBEAT.md');
-        break;
-      case 'history': {
-        const messages = modelSelection.inMemoryChatHistory.getMessages();
-        chatLog.addChild(new Spacer(1));
-        if (messages.length === 0) {
-          chatLog.addChild(new Text(theme.muted('No conversation history yet.'), 0, 0));
+    // Special commands that require UI interaction (model selection, fork)
+    // These cannot be handled by the module system
+    if (commandName === 'model') {
+      modelSelection.startSelection();
+      return
+    }
+
+    if (commandName === 'fork') {
+      await agentRunner.runQuery('Use the agent tool to spawn a fork subagent. For example: description="parallel work", prompt="Do independent research on X", subagent_type="fork", run_in_background=true');
+      return
+    }
+
+    // Session requires special handling with sessionSelection controller
+    if (commandName === 'session') {
+      const cwd = process.cwd();
+      const sessionId = agentRunner.sessionId;
+      await sessionSelection.startSelection(cwd, sessionId);
+      renderSelectionOverlay();
+      tui.requestRender();
+      return
+    }
+
+    if (commandName === 'resume') {
+      const args = commandArgs.trim();
+      const fork = args.includes('--fork');
+      const searchTerm = args.replace('--fork', '').trim();
+
+      if (searchTerm) {
+        const { resolveResumeTarget } = await import('./session/restore.js');
+        const targetId = await resolveResumeTarget(searchTerm, process.cwd());
+        if (targetId) {
+          chatLog.addChild(new Spacer(1));
+          chatLog.addChild(new Text(theme.primary(fork ? `Forking session...` : `Resuming session: ${targetId.slice(0, 8)}...`), 0, 0));
+          tui.requestRender();
+          try {
+            const resumedId = await agentRunner.resumeFromSession(targetId, fork);
+            if (fork) {
+              chatLog.addChild(new Text(theme.success(`Forked as: ${resumedId.slice(0, 8)}...`), 0, 0));
+            }
+          } catch (e) {
+            chatLog.addChild(new Text(theme.error(`Failed to resume: ${String(e)}`), 0, 0));
+          }
         } else {
-          chatLog.addChild(new Text(theme.muted('Recent conversations:'), 0, 0));
-          for (const msg of messages) {
-            const summary = msg.summary ?? msg.answer?.slice(0, 100) ?? '(pending)';
-            chatLog.addChild(new Text(theme.muted(`  ${msg.id + 1}. ${msg.query}`), 0, 0));
-            chatLog.addChild(new Text(theme.muted(`     ${summary}`), 0, 0));
-          }
+          chatLog.addChild(new Spacer(1));
+          chatLog.addChild(new Text(theme.error(`Session not found: "${searchTerm}"`), 0, 0));
+          chatLog.addChild(new Text(theme.muted('Use /session to see available sessions'), 0, 0));
         }
-        tui.requestRender();
-        break;
-      }
-      case 'help':
-        chatLog.addChild(new Spacer(1));
-        chatLog.addChild(new Text(theme.muted(HELP_TEXT), 0, 0));
-        tui.requestRender();
-        break;
-      case 'plan':
-        await agentRunner.runQuery('Use the enter_plan_mode tool to start planning. Think about what we need to accomplish and create a structured plan with steps.');
-        break;
-      case 'exit-plan':
-        await agentRunner.runQuery('Use the exit_plan_mode tool with action="save" to exit plan mode and start execution.');
-        break;
-      case 'add-step':
-        await agentRunner.runQuery('Use the add_plan_step tool to add a new step to the current plan.');
-        break;
-      case 'steps':
-        await agentRunner.runQuery('Use the list_plan_steps tool to show all steps in the current plan.');
-        break;
-      case 'agent':
-        await agentRunner.runQuery('Use the agent tool to spawn a child agent. For example: description="research task", prompt="Research the latest AI developments", subagent_type="general"');
-        break;
-      case 'tasks': {
-        // Direct access to subagent runner - no LLM call needed
-        try {
-          const { getDefaultSubagentRunner } = await import('./agent/subagent-runner.js');
-          const runner = getDefaultSubagentRunner();
-          const tasks = runner.getAllTasks();
-
-          chatLog.addChild(new Spacer(1));
-          chatLog.addChild(new Text(theme.bold('Background Tasks'), 0, 0));
-          chatLog.addChild(new Spacer(1));
-          if (tasks.length === 0) {
-            chatLog.addChild(new Text(theme.muted('No active background tasks.'), 0, 0));
-          } else {
-            for (const task of tasks) {
-              chatLog.addChild(new Text(`${task.status}: ${task.prompt.substring(0, 50)}...`, 0, 0));
-            }
-          }
-        } catch (e) {
-          chatLog.addChild(new Text(theme.error('Task system not available'), 0, 0));
-        }
-        tui.requestRender();
-        break;
-      }
-      case 'fork': {
-        await agentRunner.runQuery('Use the agent tool to spawn a fork subagent. For example: description="parallel work", prompt="Do independent research on X", subagent_type="fork", run_in_background=true');
-        break;
-      }
-      case 'status': {
-        // Enhanced status with state management
-        try {
-          const { getAppState, formatCost, formatTokens, getSessionManager } = await import('./state/index.js');
-
-          const appState = getAppState();
-          const state = appState.getState();
-          const session = getSessionManager();
-
-          chatLog.addChild(new Spacer(1));
-          chatLog.addChild(new Text(theme.bold('UpUp System Status'), 0, 0));
-          chatLog.addChild(new Spacer(1));
-
-          // Session info
-          chatLog.addChild(new Text(theme.bold('Session:'), 0, 0));
-          chatLog.addChild(new Text(`  ID: ${state.sessionId.substring(0, 20)}...`, 0, 0));
-          chatLog.addChild(new Text(`  Duration: ${session.formatDuration(session.getSessionDuration())}`, 0, 0));
-
-          // Model status
-          chatLog.addChild(new Spacer(1));
-          chatLog.addChild(new Text(theme.bold('Model:'), 0, 0));
-          chatLog.addChild(new Text(`  ${state.model} (${state.provider})`, 0, 0));
-
-          // Agent status
-          chatLog.addChild(new Spacer(1));
-          chatLog.addChild(new Text(theme.bold('Agent:'), 0, 0));
-          chatLog.addChild(new Text(`  Status: ${agentRunner.isProcessing ? theme.primary('busy') : theme.success('idle')}`, 0, 0));
-          chatLog.addChild(new Text(`  Messages: ${state.messageCount}`, 0, 0));
-          chatLog.addChild(new Text(`  Compactions: ${state.compactionCount}`, 0, 0));
-
-          // Tool count
-          const { getTools } = await import('./tools/registry/index.js');
-          const tools = await getTools(modelSelection.model);
-          chatLog.addChild(new Spacer(1));
-          chatLog.addChild(new Text(theme.bold('Tools:'), 0, 0));
-          chatLog.addChild(new Text(`  Registered: ${tools.length}`, 0, 0));
-          chatLog.addChild(new Text(`  Total calls: ${state.totalToolCalls}`, 0, 0));
-
-          // Token usage
-          chatLog.addChild(new Spacer(1));
-          chatLog.addChild(new Text(theme.bold('Tokens:'), 0, 0));
-          chatLog.addChild(new Text(`  Input:  ${formatTokens(state.totalInputTokens)}`, 0, 0));
-          chatLog.addChild(new Text(`  Output: ${formatTokens(state.totalOutputTokens)}`, 0, 0));
-          chatLog.addChild(new Text(`  Cost: ${formatCost(state.totalCostUSD)}`, 0, 0));
-
-          // MCP status
-          try {
-            const { getDefaultMCPClient } = await import('./mcp/client.js');
-            const { getMCPStatus } = await import('./mcp/registry.js');
-            const mcpClient = getDefaultMCPClient();
-            const mcpStatus = getMCPStatus(mcpClient);
-            chatLog.addChild(new Spacer(1));
-            chatLog.addChild(new Text(theme.bold('MCP:'), 0, 0));
-            chatLog.addChild(new Text(`  Servers: ${mcpStatus.connectedServers}/${mcpStatus.totalServers}`, 0, 0));
-            chatLog.addChild(new Text(`  MCP Tools: ${mcpStatus.totalTools}`, 0, 0));
-          } catch {
-            chatLog.addChild(new Text('MCP: not configured', 0, 0));
-          }
-
-          // Proactive status
-          try {
-            const { getProactiveController } = await import('./proactive/index.js');
-            const proactive = getProactiveController();
-            chatLog.addChild(new Spacer(1));
-            chatLog.addChild(new Text(theme.bold('Proactive:'), 0, 0));
-            chatLog.addChild(new Text(`  Mode: ${proactive.isActive() ? theme.success('active') : theme.muted('inactive')}`, 0, 0));
-            chatLog.addChild(new Text(`  Events: ${state.proactiveEventsCount}`, 0, 0));
-          } catch {
-            chatLog.addChild(new Text('Proactive: unavailable', 0, 0));
-          }
-        } catch (e) {
-          chatLog.addChild(new Spacer(1));
-          chatLog.addChild(new Text(theme.error('Failed to load status') + ': ' + String(e), 0, 0));
-        }
-
-        tui.requestRender();
-        break;
-      }
-      case 'cost': {
-        // Enhanced cost tracking with state management
-        try {
-          const {
-            getAppState,
-            formatCost,
-            formatTokens,
-            getSessionManager,
-          } = await import('./state/index.js');
-
-          const appState = getAppState();
-          const state = appState.getState();
-          const session = getSessionManager();
-          const duration = session.getSessionDuration();
-          const hours = duration / (1000 * 60 * 60);
-          const ratePerHour = hours > 0 ? state.totalCostUSD / hours : 0;
-
-          chatLog.addChild(new Spacer(1));
-          chatLog.addChild(new Text(theme.bold('Token Usage & Cost'), 0, 0));
-          chatLog.addChild(new Spacer(1));
-
-          // Token breakdown
-          chatLog.addChild(new Text(`Session: ${session.formatDuration(duration)}`, 0, 0));
-          chatLog.addChild(new Text(`Model: ${state.model}`, 0, 0));
-          chatLog.addChild(new Spacer(1));
-
-          chatLog.addChild(new Text(theme.bold('Token Usage:'), 0, 0));
-          chatLog.addChild(new Text(`  Input:  ${formatTokens(state.totalInputTokens)} tokens`, 0, 0));
-          chatLog.addChild(new Text(`  Output: ${formatTokens(state.totalOutputTokens)} tokens`, 0, 0));
-          chatLog.addChild(new Text(`  Total:  ${formatTokens(state.totalTokens)} tokens`, 0, 0));
-          chatLog.addChild(new Spacer(1));
-
-          // Cost breakdown
-          chatLog.addChild(new Text(theme.bold('Cost:'), 0, 0));
-          chatLog.addChild(new Text(`  Session cost: ${formatCost(state.totalCostUSD)}`, 0, 0));
-          chatLog.addChild(new Text(`  Rate: ~${formatCost(ratePerHour)}/hour`, 0, 0));
-          chatLog.addChild(new Spacer(1));
-
-          // Tool usage
-          chatLog.addChild(new Text(theme.bold('Tool Usage:'), 0, 0));
-          chatLog.addChild(new Text(`  Total calls: ${state.totalToolCalls}`, 0, 0));
-          chatLog.addChild(new Text(`  Errors: ${state.totalToolErrors}`, 0, 0));
-
-          // Efficiency
-          if (state.totalToolCalls > 0) {
-            const errorRate = (state.totalToolErrors / state.totalToolCalls * 100).toFixed(1);
-            chatLog.addChild(new Text(`  Success rate: ${100 - parseFloat(errorRate)}%`, 0, 0));
-          }
-
-        } catch (e) {
-          chatLog.addChild(new Spacer(1));
-          chatLog.addChild(new Text(theme.error('Failed to load cost tracking') + ': ' + String(e), 0, 0));
-        }
-        tui.requestRender();
-        break;
-      }
-      case 'compact': {
-        chatLog.addChild(new Spacer(1));
-        chatLog.addChild(new Text(theme.muted('Context compaction happens automatically when needed.'), 0, 0));
-        chatLog.addChild(new Text(theme.muted('Manual compaction: /clear to start fresh.'), 0, 0));
-        tui.requestRender();
-        break;
-      }
-      case 'doctor': {
-        // Health check - direct output
-        chatLog.addChild(new Spacer(1));
-        chatLog.addChild(new Text(theme.bold('UpUp Health Check'), 0, 0));
-        chatLog.addChild(new Spacer(1));
-
-        // Check API keys
-        const { getApiKeyNameForProvider } = await import('./utils/env.js');
-        const providers = ['openai', 'anthropic', 'google', 'xai', 'deepseek'];
-        chatLog.addChild(new Text(theme.bold('API Keys:'), 0, 0));
-        for (const provider of providers) {
-          try {
-            const keyName = getApiKeyNameForProvider(provider);
-            if (!keyName) {
-              chatLog.addChild(new Text(`  ${provider}: ${theme.muted('○ not in config')}`, 0, 0));
-              continue;
-            }
-            const hasKey = Boolean(process.env[keyName]);
-            chatLog.addChild(new Text(`  ${provider}: ${hasKey ? theme.success('✓ configured') : theme.error('✗ missing')}`, 0, 0));
-          } catch {
-            chatLog.addChild(new Text(`  ${provider}: ${theme.error('✗ error')}`, 0, 0));
-          }
-        }
-
-        chatLog.addChild(new Spacer(1));
-        chatLog.addChild(new Text(theme.bold('Modules:'), 0, 0));
-
-        // Check memory
-        try {
-          const MemoryManager = (await import('./memory/index.js')).MemoryManager;
-          const mm = await MemoryManager.get();
-          chatLog.addChild(new Text(`  Memory: ${mm.isAvailable() ? theme.success('✓ available') : theme.error('✗ unavailable')}`, 0, 0));
-        } catch (e) {
-          chatLog.addChild(new Text(`  Memory: ${theme.error('✗ error')}`, 0, 0));
-        }
-
-        // Check MCP
-        try {
-          const { getDefaultMCPClient } = await import('./mcp/client.js');
-          const { getMCPStatus } = await import('./mcp/registry.js');
-          const mcpClient = getDefaultMCPClient();
-          const status = getMCPStatus(mcpClient);
-          chatLog.addChild(new Text(`  MCP: ${status.connectedServers > 0 ? theme.success('✓') : theme.muted('○')} ${status.connectedServers}/${status.totalServers} connected`, 0, 0));
-        } catch {
-          chatLog.addChild(new Text(`  MCP: ${theme.error('✗ unavailable')}`, 0, 0));
-        }
-
-        // Check permissions
-        try {
-          const { getPermissionEvaluator } = await import('./permissions/index.js');
-          const evaluator = getPermissionEvaluator();
-          chatLog.addChild(new Text(`  Permissions: ${theme.success('✓')} ${evaluator.getAllRules().length} rules`, 0, 0));
-        } catch {
-          chatLog.addChild(new Text(`  Permissions: ${theme.error('✗ unavailable')}`, 0, 0));
-        }
-
-        tui.requestRender();
-        break;
-      }
-      case 'theme': {
-        chatLog.addChild(new Spacer(1));
-        chatLog.addChild(new Text(theme.bold('Theme Settings'), 0, 0));
-        chatLog.addChild(new Spacer(1));
-        chatLog.addChild(new Text('Current theme: Default', 0, 0));
-        chatLog.addChild(new Text(theme.muted('Theme customization coming soon.'), 0, 0));
-        tui.requestRender();
-        break;
-      }
-      case 'mcp': {
-        // Direct access to MCP status - no LLM call needed
-        try {
-          const { getDefaultMCPClient } = await import('./mcp/client.js');
-          const { getMCPStatus } = await import('./mcp/registry.js');
-          const mcpClient = getDefaultMCPClient();
-          const status = getMCPStatus(mcpClient);
-
-          chatLog.addChild(new Spacer(1));
-          chatLog.addChild(new Text(theme.bold('MCP Server Status'), 0, 0));
-          chatLog.addChild(new Spacer(1));
-          chatLog.addChild(new Text(`Servers: ${status.connectedServers}/${status.totalServers}`, 0, 0));
-          chatLog.addChild(new Text(`Total MCP tools: ${status.totalTools}`, 0, 0));
-          if (status.servers.length > 0) {
-            chatLog.addChild(new Spacer(1));
-            for (const server of status.servers) {
-              chatLog.addChild(new Text(`${server.name}: ${server.state} (${server.toolCount} tools)`, 0, 0));
-            }
-          } else {
-            chatLog.addChild(new Spacer(1));
-            chatLog.addChild(new Text(theme.muted('No MCP servers configured. Edit .upup/mcp-config.json to add servers.'), 0, 0));
-          }
-        } catch (e) {
-          chatLog.addChild(new Text(theme.error('MCP system not available'), 0, 0));
-        }
-        tui.requestRender();
-        break;
-      }
-      case 'permissions': {
-        // Direct access to permission system - no LLM call needed
-        try {
-          const { getPermissionEvaluator, getSessionPermissionManager } = await import('./permissions/index.js');
-          const evaluator = getPermissionEvaluator();
-          const sessionManager = getSessionPermissionManager();
-          const rules = evaluator.getAllRules();
-          const approved = sessionManager.getApprovedTools();
-
-          chatLog.addChild(new Spacer(1));
-          chatLog.addChild(new Text(theme.bold('Permission Settings'), 0, 0));
-          chatLog.addChild(new Spacer(1));
-          chatLog.addChild(new Text(`Active rules: ${rules.length}`, 0, 0));
-          chatLog.addChild(new Text(`Session approved tools: ${approved.length > 0 ? approved.join(', ') : '(none)'}`, 0, 0));
-          chatLog.addChild(new Spacer(1));
-          chatLog.addChild(new Text(theme.muted('Use /approve <tool> or /deny <tool> to manage permissions.'), 0, 0));
-        } catch (e) {
-          chatLog.addChild(new Text(theme.error('Permission system not available'), 0, 0));
-        }
-        tui.requestRender();
-        break;
-      }
-      case 'approve': {
-        chatLog.addChild(new Spacer(1));
-        chatLog.addChild(new Text(theme.muted('To approve a tool, either:'), 0, 0));
-        chatLog.addChild(new Text(theme.muted('1. Use the tool and select "allow-session" when prompted'), 0, 0));
-        chatLog.addChild(new Text(theme.muted('2. Edit .upup/permissions.json to add permanent rules'), 0, 0));
-        tui.requestRender();
-        break;
-      }
-      case 'deny': {
-        chatLog.addChild(new Spacer(1));
-        chatLog.addChild(new Text(theme.muted('To deny a tool, use the tool and select "deny" when prompted.'), 0, 0));
-        chatLog.addChild(new Text(theme.muted('Denied tools cannot be used in this session.'), 0, 0));
-        tui.requestRender();
-        break;
-      }
-      case 'reset-permissions': {
-        try {
-          const { resetPermissions } = await import('./permissions/index.js');
-          resetPermissions();
-          chatLog.addChild(new Spacer(1));
-          chatLog.addChild(new Text(theme.success('All session permissions have been reset.'), 0, 0));
-        } catch (e) {
-          chatLog.addChild(new Text(theme.error('Failed to reset permissions'), 0, 0));
-        }
-        tui.requestRender();
-        break;
-      }
-      case 'proactive': {
-        try {
-          const { getProactiveController } = await import('./proactive/index.js');
-          const controller = getProactiveController();
-          const state = controller.getState();
-
-          if (state.active) {
-            controller.deactivate();
-            chatLog.addChild(new Spacer(1));
-            chatLog.addChild(new Text(theme.muted('Proactive mode deactivated.'), 0, 0));
-          } else {
-            controller.activate();
-            chatLog.addChild(new Spacer(1));
-            chatLog.addChild(new Text(theme.success('Proactive mode activated!'), 0, 0));
-            chatLog.addChild(new Text(theme.muted('Background events will be processed automatically.'), 0, 0));
-          }
-        } catch (e) {
-          chatLog.addChild(new Text(theme.error('Proactive mode not available'), 0, 0));
-        }
-        tui.requestRender();
-        break;
-      }
-      case 'events': {
-        try {
-          const { getProactiveController } = await import('./proactive/index.js');
-          const controller = getProactiveController();
-          const events = controller.getEventHistory(20);
-
-          chatLog.addChild(new Spacer(1));
-          chatLog.addChild(new Text(theme.bold('Recent Proactive Events'), 0, 0));
-          chatLog.addChild(new Spacer(1));
-          if (events.length === 0) {
-            chatLog.addChild(new Text(theme.muted('No events recorded yet.'), 0, 0));
-          } else {
-            for (const event of events.reverse()) {
-              const time = event.timestamp.toLocaleTimeString();
-              chatLog.addChild(new Text(`${time} ${event.type}`, 0, 0));
-            }
-          }
-        } catch (e) {
-          chatLog.addChild(new Text(theme.error('Event history not available'), 0, 0));
-        }
-        tui.requestRender();
-        break;
-      }
-      case 'session': {
-        // Show session manager: list sessions, delete, rename, tag
+      } else {
         const cwd = process.cwd();
-        const sessionId = agentRunner.sessionId;
-        await sessionSelection.startSelection(cwd, sessionId);
+        await sessionSelection.startSelection(cwd, agentRunner.sessionId);
         renderSelectionOverlay();
         tui.requestRender();
-        break;
       }
-      case 'resume': {
-        // Resume a session: if args provided, try to resolve; otherwise show picker
-        // Supports /resume --fork to fork instead of resuming
-        const args = commandArgs.trim();
-        const fork = args.includes('--fork');
-        const searchTerm = args.replace('--fork', '').trim();
+      tui.requestRender();
+      return
+    }
 
-        if (searchTerm) {
-          const { resolveResumeTarget } = await import('./session/restore.js');
-          const targetId = await resolveResumeTarget(searchTerm, process.cwd());
-          if (targetId) {
-            chatLog.addChild(new Spacer(1));
-            chatLog.addChild(new Text(theme.primary(fork ? `Forking session...` : `Resuming session: ${targetId.slice(0, 8)}...`), 0, 0));
-            tui.requestRender();
-            try {
-              const resumedId = await agentRunner.resumeFromSession(targetId, fork);
-              if (fork) {
-                chatLog.addChild(new Text(theme.success(`Forked as: ${resumedId.slice(0, 8)}...`), 0, 0));
-              }
-            } catch (e) {
-              chatLog.addChild(new Text(theme.error(`Failed to resume: ${String(e)}`), 0, 0));
-            }
-          } else {
-            chatLog.addChild(new Spacer(1));
-            chatLog.addChild(new Text(theme.error(`Session not found: "${searchTerm}"`), 0, 0));
-            chatLog.addChild(new Text(theme.muted('Use /session to see available sessions'), 0, 0));
-          }
-        } else {
-          // Show session picker for resume
-          const cwd = process.cwd();
-          await sessionSelection.startSelection(cwd, agentRunner.sessionId);
-          renderSelectionOverlay();
-          tui.requestRender();
-        }
+    if (commandName === 'continue') {
+      const { getMostRecentSession } = await import('./session/restore.js');
+      const lastSessionId = await getMostRecentSession(process.cwd());
+      if (lastSessionId && lastSessionId !== agentRunner.sessionId) {
+        chatLog.addChild(new Spacer(1));
+        chatLog.addChild(new Text(theme.primary(`Continuing session: ${lastSessionId.slice(0, 8)}...`), 0, 0));
         tui.requestRender();
-        break;
+        await agentRunner.resumeFromSession(lastSessionId);
+      } else if (!lastSessionId) {
+        chatLog.addChild(new Spacer(1));
+        chatLog.addChild(new Text(theme.muted('No previous session found. Use /session to see available sessions.'), 0, 0));
+        tui.requestRender();
       }
-      case 'continue': {
-        // Continue the most recent session
-        const { getMostRecentSession } = await import('./session/restore.js');
-        const lastSessionId = await getMostRecentSession(process.cwd());
-        if (lastSessionId && lastSessionId !== agentRunner.sessionId) {
-          chatLog.addChild(new Spacer(1));
-          chatLog.addChild(new Text(theme.primary(`Continuing session: ${lastSessionId.slice(0, 8)}...`), 0, 0));
-          tui.requestRender();
-          await agentRunner.resumeFromSession(lastSessionId);
-        } else if (!lastSessionId) {
-          chatLog.addChild(new Spacer(1));
-          chatLog.addChild(new Text(theme.muted('No previous session found. Use /session to see available sessions.'), 0, 0));
-          tui.requestRender();
+      return
+    }
+
+    // All other commands use the unified command system from @upup/commands
+    try {
+      // Get state for command execution
+      let state: Record<string, unknown> | undefined
+      try {
+        const { getAppState, getSessionManager } = await import('./state/index.js')
+        const appState = getAppState()
+        const appState2 = appState.getState()
+        const session = getSessionManager()
+        state = {
+          ...appState2,
+          sessionDuration: session.getSessionDuration(),
         }
-        break;
+      } catch {
+        // State not available, continue without it
       }
-      default: {
-        // Fallback to CommandRegistry for commands not in the switch
-        try {
-          const { getGlobalRegistry } = await import('@upup/commands');
-          const registry = getGlobalRegistry();
-          const hasCommand = registry.has(commandName);
-          if (hasCommand) {
-            const result = await registry.execute(`/${commandName} ${commandArgs}`.trim(), {
-              cwd: process.cwd(),
-              env: process.env as Record<string, string>,
-            });
-            chatLog.addChild(new Spacer(1));
-            if (result.type === 'output') {
-              chatLog.addChild(new Text(result.text, 0, 0));
-            } else if (result.type === 'error') {
-              chatLog.addChild(new Text(theme.error(result.message), 0, 0));
-            } else if (result.type === 'clear') {
-              chatLog.clearAll();
-            } else if (result.type === 'compact') {
-              await agentRunner.runQuery('Please compact the conversation context now.');
-            }
-            tui.requestRender();
-          } else {
-            chatLog.addChild(new Spacer(1));
-            chatLog.addChild(new Text(theme.error(`Unknown command: /${commandName}. Type /help for available commands.`), 0, 0));
-            tui.requestRender();
+
+      const result = await executeCommandFromModule(commandName, commandArgs, {
+        cwd: process.cwd(),
+        env: process.env as Record<string, string>,
+        sessionId: agentRunner.sessionId,
+        model: modelSelection.model,
+        state,
+      })
+
+      // Debug logging
+      if (commandName === 'status') {
+        console.error('[DEBUG] status result:', JSON.stringify(result, null, 2));
+      }
+
+      if (result.type === 'output' && result.text) {
+        chatLog.addChild(new Spacer(1))
+        chatLog.addChild(new Text(result.text, 0, 0))
+      } else if (result.type === 'error') {
+        chatLog.addChild(new Spacer(1))
+        chatLog.addChild(new Text(theme.error(result.message), 0, 0))
+      } else if (result.type === 'clear') {
+        chatLog.clearAll()
+      } else if (result.type === 'compact') {
+        await agentRunner.runQuery('Please compact the conversation context now.')
+      } else if (result.type === 'jsx') {
+        // For local-jsx commands, render the TUI component as an overlay
+        if (result.component) {
+          // Create a wrapper container for the JSX component
+          const component = result.component as Container
+          jsxOverlayComponent = component
+          jsxOverlayActive = true
+
+          // Create close handler
+          jsxOverlayOnClose = () => {
+            jsxOverlayActive = false
+            jsxOverlayComponent = null
+            jsxOverlayOnClose = null
+            // Hide the overlay
+            tui.hideOverlay()
+            tui.requestRender()
           }
-        } catch (e) {
-          chatLog.addChild(new Text(theme.error(`Command error: ${e instanceof Error ? e.message : String(e)}`), 0, 0));
-          tui.requestRender();
+
+          // Show the JSX component in an overlay
+          const overlayHandle = tui.showOverlay(component, {
+            anchor: 'center',
+            width: '90%',
+            maxHeight: '80%',
+          })
+          // Store the handle for potential cleanup
+          ;(component as any)._overlayHandle = overlayHandle
+          tui.setFocus(component)
+          tui.requestRender()
+        } else {
+          chatLog.addChild(new Spacer(1))
+          chatLog.addChild(new Text(theme.error(`Command /${commandName} failed to render UI`), 0, 0))
         }
-        break;
       }
+      tui.requestRender()
+    } catch (e) {
+      chatLog.addChild(new Spacer(1));
+      chatLog.addChild(new Text(theme.error(`Unknown command: /${commandName}. Type /help for available commands.`), 0, 0));
+      tui.requestRender();
     }
   };
 
