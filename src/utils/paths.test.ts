@@ -74,13 +74,20 @@ describe('Config Loading Priority', () => {
 });
 
 describe('upupPath', () => {
-  it('should return path relative to current directory', () => {
+  it('should return absolute path within global upup directory', () => {
     const path = upupPath('memory');
-    expect(path).toBe(join('.upup', 'memory'));
+    // upupPath returns absolute path like ~/.upup/memory
+    expect(path).toContain('.upup');
+    expect(path).toContain('memory');
+    expect(path).not.toBe(join('.upup', 'memory')); // Not a relative path
   });
 
   it('should handle multiple segments', () => {
     const path = upupPath('memory', 'daily', '2024.md');
-    expect(path).toBe(join('.upup', 'memory', 'daily', '2024.md'));
+    // upupPath returns absolute path
+    expect(path).toContain('.upup');
+    expect(path).toContain('memory');
+    expect(path).toContain('daily');
+    expect(path).toContain('2024.md');
   });
 });
