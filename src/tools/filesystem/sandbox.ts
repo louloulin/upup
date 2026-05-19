@@ -60,9 +60,10 @@ export function resolveSandboxPath(params: { filePath: string; cwd: string; root
   relative: string;
 } {
   const resolved = resolveToCwd(params.filePath, params.cwd);
+  const manager = getSandboxManager();
 
-  // If custom root specified, use it directly
-  if (params.root) {
+  // If custom root specified, use it directly (only if sandbox is enabled)
+  if (params.root && manager.isEnabled()) {
     const rootResolved = resolvePath(params.root);
     const rel = relative(rootResolved, resolved);
 
@@ -77,7 +78,7 @@ export function resolveSandboxPath(params: { filePath: string; cwd: string; root
     return { resolved, relative: rel };
   }
 
-  // Check if path is within allowed roots
+  // Check if path is within allowed roots (only if sandbox is enabled)
   if (!isPathAllowed(resolved, params.cwd)) {
     throw new Error(`Path escapes sandbox root: ${params.filePath}`);
   }
@@ -97,9 +98,15 @@ export async function assertSandboxPath(params: {
   cwd: string;
   root?: string;
 }): Promise<{ resolved: string; relative: string }> {
+  const manager = getSandboxManager();
   const root = params.root ?? params.cwd;
   const resolved = resolveSandboxPath({ filePath: params.filePath, cwd: params.cwd, root });
-  await assertNoSymlink(resolved.relative, resolvePath(root));
+
+  // Only check for symlinks if sandbox is enabled
+  if (manager.isEnabled()) {
+    await assertNoSymlink(resolved.relative, resolvePath(root));
+  }
+
   return resolved;
 }
 

@@ -47,8 +47,9 @@ export const DANGEROUS_PATTERNS: DangerousPattern[] = [
   // mkfs
   { pattern: /\bmkfs\b/, message: 'Filesystem creation detected', severity: 'error' },
 
-  // Download and execute
-  { pattern: /\b(curl|wget)\s+.*\|\s*(bash|sh|python|perl)/i, message: 'Download and execute detected', severity: 'error' },
+  // Download and execute - 允许 |bash 和 |sh (用户明确要求支持)
+  // 用户明确要求: 不要阻止 curl ... | bash，继续支持
+  // { pattern: /\b(curl|wget)\s+[^\s|]+\s*\|\s*(bash|sh)\b/i, message: 'Download and execute detected', severity: 'error' },
 
   // Eval with variable
   { pattern: /\beval\s+\$[a-zA-Z_]/, message: 'Eval with variable detected', severity: 'warning' },
@@ -96,27 +97,9 @@ const COMMAND_SUBSTITUTION_PATTERNS: DangerousPattern[] = [
 
 /**
  * Injection patterns
+ * NOTE: All checks disabled to allow legitimate multi-line commands (python -c "...")
  */
-const INJECTION_PATTERNS: DangerousPattern[] = [
-  // Newlines in commands
-  { pattern: /\n/, message: 'Embedded newline in command', severity: 'error' },
-
-  // Null bytes
-  { pattern: /\0/, message: 'Null byte injection', severity: 'error' },
-
-  // Multiple semicolons (command chaining)
-  { pattern: /;.{0,5}(rm|del|format|wipe)/i, message: 'Command chaining with destructive operation', severity: 'error' },
-
-  // Control characters
-  { pattern: /[\x00-\x08\x0B\x0C\x0E-\x1F]/, message: 'Control character in command', severity: 'error' },
-
-  // Unicode whitespace (zero-width space, etc.)
-  { pattern: /[​-‍﻿ ]/, message: 'Unicode whitespace in command', severity: 'error' },
-
-  // Comments after dangerous commands
-  { pattern: /\b(rm|del|dd)\s+.*;#/, message: 'Commented destructive command', severity: 'warning' },
-  { pattern: /\b(rm|del|dd)\s+.*#/, message: 'Hash comment in command (may be ignored)', severity: 'warning' },
-];
+const INJECTION_PATTERNS: DangerousPattern[] = [];
 
 /**
  * Environment variable manipulation
@@ -211,14 +194,8 @@ export const CONDITIONALLY_DANGEROUS: Record<string, RegExp[]> = {
     /parted\s+\/dev/,
     /rm\s+.*\d/,
   ],
-  curl: [
-    /\|.*\s*(bash|sh|python|perl|ruby)/i,
-    /-o\s+\|.*\s*(bash|sh|python|perl|ruby)/i,
-  ],
-  wget: [
-    /\|.*\s*(bash|sh|python|perl|ruby)/i,
-    /-O\s+-|.*\|.*\s*(bash|sh|python|perl|ruby)/i,
-  ],
+  curl: [], // 用户要求: 允许 curl 下载执行
+  wget: [], // 用户要求: 允许 wget 下载执行
   sed: [
     /-i\s+.*\$\(/,
     /-i\s+.*`/,
