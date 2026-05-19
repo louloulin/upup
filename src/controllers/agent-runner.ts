@@ -321,9 +321,12 @@ export class AgentRunnerController {
   }
 
   private requestToolApproval = (request: { tool: string; args: Record<string, unknown> }) => {
+    console.error('[agent-runner] DEBUG: requestToolApproval called for tool:', request.tool);
     return new Promise<ApprovalDecision>((resolve) => {
+      console.error('[agent-runner] DEBUG: Promise created, setting up approval state');
       // 添加超时机制：60秒后自动拒绝
       const timeout = setTimeout(() => {
+        console.error('[agent-runner] DEBUG: Approval timeout - auto denying');
         resolve('deny');
         this.approvalResolve = null;
         this.pendingApprovalValue = null;
@@ -331,11 +334,13 @@ export class AgentRunnerController {
         this.emitChange();
       }, 60000);
       this.approvalResolve = (decision: ApprovalDecision) => {
+        console.error('[agent-runner] DEBUG: Approval resolve called with decision:', decision);
         clearTimeout(timeout);
         resolve(decision);
       };
       this.pendingApprovalValue = request;
       this.workingStateValue = { status: 'approval', toolName: request.tool };
+      console.error('[agent-runner] DEBUG: Emitting change for approval');
       this.emitChange();
     });
   };
@@ -412,6 +417,7 @@ export class AgentRunnerController {
         break;
       }
       case 'tool_approval':
+        console.error('[agent-runner] DEBUG: tool_approval event, tool:', event.tool, 'approved:', event.approved);
         this.pushEvent({
           id: `approval-${event.tool}-${Date.now()}`,
           event,

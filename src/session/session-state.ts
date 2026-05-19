@@ -44,7 +44,7 @@ export type SessionExternalMetadata = {
 /**
  * Permission mode type
  */
-export type PermissionMode = 'default' | '.accept-all' | 'bypassPermissions' | 'dangerously慷慨';
+export type PermissionMode = 'default' | '.accept-all' | 'bypassPermissions' | 'dangerously';
 
 /**
  * State change event
@@ -322,7 +322,7 @@ export function setPermissionMode(mode: PermissionMode): void {
  * @returns True if dangerous operations are allowed
  */
 export function isDangerousMode(): boolean {
-  return _currentPermissionMode === 'dangerously慷慨' || _currentPermissionMode === 'bypassPermissions';
+  return _currentPermissionMode === 'dangerously' || _currentPermissionMode === 'bypassPermissions';
 }
 
 /**
