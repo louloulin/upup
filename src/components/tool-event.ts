@@ -270,7 +270,6 @@ export class ToolEventComponent extends Container {
    */
   setApprovalPending(onSelect: (decision: ApprovalDecision) => void, preStoredDecision?: ApprovalDecision | null) {
     this.clearDetail();
-    console.error('[tool-event] DEBUG: setApprovalPending called for tool:', this.toolTitle);
 
     // Reset cursor to first option on new approval render
     _approvalCursor = 0;
