@@ -31,3 +31,29 @@ export interface CommandInfo {
   /** Destructive warning if applicable */
   destructiveWarning?: string;
 }
+
+// ============================================================================
+// Bash Tool Result
+// ============================================================================
+
+export interface BashToolResult {
+  /** Standard output */
+  stdout: string;
+  /** Standard error */
+  stderr: string;
+  /** Exit code */
+  exitCode: number;
+  /** Whether the command timed out */
+  timedOut?: boolean;
+  /** Execution duration in ms */
+  durationMs: number;
+  /** Truncated output indicator */
+  truncated?: boolean;
+  /** Security warnings */
+  securityWarnings?: string[];
+  /** Execution phases timing (optional) */
+  phases?: {
+    validation?: number;
+    execution?: number;
+  };
+}

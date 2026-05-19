@@ -99,7 +99,15 @@ class BrowserSessionComponent extends Container implements ToolDisplayComponent 
 
   setComplete(summary: string, duration: number): void {
     this.clearDetail();
-    const text = this.currentStep || `${summary}${theme.muted(` in ${formatDuration(duration)}`)}`;
+
+    // Check if summary already contains duration info (e.g., "5 lines output in 1.2s")
+    // Pattern matches "... in Nms" or "... in Ns"
+    const hasDuration = / in \d+(ms|s)$/.test(summary);
+
+    // Only append duration if summary doesn't already have it
+    const durationStr = hasDuration ? '' : theme.muted(` in ${formatDuration(duration)}`);
+    const text = this.currentStep || `${summary}${durationStr}`;
+
     this.detail = new Text(`${theme.muted('⎿  ')}${text}`, 0, 0);
     this.addChild(this.detail);
   }

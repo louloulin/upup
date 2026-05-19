@@ -131,8 +131,16 @@ export class ToolEventComponent extends Container {
   setComplete(summary: string, duration: number) {
     this.clearDetail();
     this.header.setText(`${theme.primary(CIRCLE)} ${this.toolTitle}`);
+
+    // Check if summary already contains duration info (e.g., "5 lines output in 1.2s")
+    // Pattern matches "... in Nms" or "... in Ns"
+    const hasDuration = / in \d+(ms|s)$/.test(summary);
+
+    // Only append duration if summary doesn't already have it
+    const durationStr = hasDuration ? '' : theme.muted(` in ${formatDuration(duration)}`);
+
     const detail = new Text(
-      `${theme.muted('⎿  ')}${summary}${theme.muted(` in ${formatDuration(duration)}`)}`,
+      `${theme.muted('⎿  ')}${summary}${durationStr}`,
       0,
       0
     );
