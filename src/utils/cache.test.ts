@@ -1,9 +1,11 @@
 import { describe, test, expect, beforeEach, afterEach } from 'bun:test';
 import { existsSync, mkdirSync, writeFileSync, rmSync } from 'fs';
 import { join } from 'path';
+import { homedir } from 'os';
 import { buildCacheKey, readCache, writeCache } from './cache.js';
 
-const TEST_CACHE_DIR = '.upup/cache';
+// Use the same cache directory as the implementation
+const TEST_CACHE_DIR = join(homedir(), '.upup', 'cache');
 
 // ---------------------------------------------------------------------------
 // buildCacheKey

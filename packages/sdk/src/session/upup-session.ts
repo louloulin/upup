@@ -167,15 +167,6 @@ export class UpupSessionManager {
   }
 
   /**
-   * 获取消息历史 - SDK v5: 从 upup 获取
-   */
-  getMessages(): SessionMessage[] {
-    // SDK v5: 不再维护本地 messages，直接返回空数组
-    // 使用 getMessages() async 方法从 upup 获取真实消息
-    return [];
-  }
-
-  /**
    * 获取会话 ID
    */
   getSessionId(): string | null {

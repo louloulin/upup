@@ -1,7 +1,7 @@
 /**
  * @upup/sdk - UpupSessionManager 测试
  *
- * 验证基于 upup 核心的 Session 实现 (SDK v4)
+ * 验证基于 upup 核心的 Session 实现 (SDK v5)
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
@@ -9,7 +9,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 // 导入被测试的模块
 import { UpupSessionManager, type RpcTransport } from './src/session/upup-session.js'
 
-describe('UpupSessionManager (SDK v4 - 基于 upup 核心)', () => {
+describe('UpupSessionManager (SDK v5 - 基于 upup 核心)', () => {
   // 模拟 RPC Transport
   let mockTransport: RpcTransport
   let sessionManager: UpupSessionManager
@@ -82,21 +82,26 @@ describe('UpupSessionManager (SDK v4 - 基于 upup 核心)', () => {
   })
 
   describe('resume()', () => {
-    it('应通过 IPC 调用 session/resume 并恢复消息', async () => {
-      const mockResult = {
+    it('应通过 IPC 调用 session/resume 并恢复会话', async () => {
+      const mockResumeResult = {
         id: 'sess-456',
         state: 'idle',
-        messages: [
-          { type: 'human', content: 'Hello' },
-          { type: 'ai', content: 'Hi there!' },
-        ],
         metadata: {
           turnCount: 1,
           toolUseCount: 0,
         },
       }
 
-      ;(mockTransport.request as ReturnType<typeof vi.fn>).mockResolvedValue(mockResult)
+      const mockMessagesResult = {
+        messages: [
+          { type: 'human', content: 'Hello' },
+          { type: 'ai', content: 'Hi there!' },
+        ],
+      }
+
+      ;(mockTransport.request as ReturnType<typeof vi.fn>)
+        .mockResolvedValueOnce(mockResumeResult)  // session/resume
+        .mockResolvedValueOnce(mockMessagesResult)  // session/messages
 
       await sessionManager.resume('sess-456')
 
@@ -108,9 +113,8 @@ describe('UpupSessionManager (SDK v4 - 基于 upup 核心)', () => {
       // 验证消息已恢复
       const session = sessionManager.getCurrentSession()
       expect(session?.id).toBe('sess-456')
-      expect(session?.messageCount).toBe(2)
 
-      const messages = sessionManager.getMessages()
+      const messages = await sessionManager.getMessages()
       expect(messages.length).toBe(2)
       expect(messages[0].role).toBe('user')
       expect(messages[0].content).toBe('Hello')
@@ -121,6 +125,14 @@ describe('UpupSessionManager (SDK v4 - 基于 upup 核心)', () => {
 
   describe('get()', () => {
     it('应通过 IPC 调用 session/get', async () => {
+      // 先创建 session
+      ;(mockTransport.request as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        id: 'sess-789',
+        state: 'idle',
+        createdAt: Date.now(),
+      })
+      await sessionManager.create({ id: 'sess-789' })
+
       const mockResult = {
         id: 'sess-789',
         state: 'running',
@@ -134,7 +146,7 @@ describe('UpupSessionManager (SDK v4 - 基于 upup 核心)', () => {
 
       ;(mockTransport.request as ReturnType<typeof vi.fn>).mockResolvedValue(mockResult)
 
-      const result = await sessionManager.get('sess-789')
+      const result = await sessionManager.get()
 
       // 验证 IPC 调用
       expect(mockTransport.request).toHaveBeenCalledWith('session/get', {
@@ -146,32 +158,32 @@ describe('UpupSessionManager (SDK v4 - 基于 upup 核心)', () => {
       expect(result?.status).toBe('active')
     })
 
-    it('当 session 不存在时应返回 null', async () => {
-      ;(mockTransport.request as ReturnType<typeof vi.fn>).mockResolvedValue(null)
-
-      const result = await sessionManager.get('nonexistent')
+    it('当无活动 session 时应返回 null', async () => {
+      const result = await sessionManager.get()
 
       expect(result).toBeNull()
     })
   })
 
-  describe('fetchMessages()', () => {
+  describe('getMessages()', () => {
     it('应通过 IPC 调用 session/messages', async () => {
+      // 先创建 session
+      ;(mockTransport.request as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        id: 'sess-123',
+        state: 'idle',
+        createdAt: Date.now(),
+      })
+      await sessionManager.create({ id: 'sess-123' })
+
       const mockResult = {
         messages: [
           { type: 'human', content: 'Test message' },
         ],
       }
 
-      // 使用 mockImplementation 来处理任何数量的调用
-      ;(mockTransport.request as ReturnType<typeof vi.fn>).mockImplementation(async (method: string, params?: Record<string, unknown>) => {
-        if (method === 'session/messages') {
-          return mockResult
-        }
-        throw new Error(`Unexpected method: ${method}`)
-      })
+      ;(mockTransport.request as ReturnType<typeof vi.fn>).mockResolvedValue(mockResult)
 
-      const messages = await sessionManager.fetchMessages('sess-123')
+      const messages = await sessionManager.getMessages()
 
       // 验证 IPC 调用
       expect(mockTransport.request).toHaveBeenCalledWith('session/messages', {
@@ -242,40 +254,57 @@ describe('UpupSessionManager (SDK v4 - 基于 upup 核心)', () => {
       await sessionManager.create({ id: 'sess-state' })
     })
 
-    it('pause() 应更新状态为 waiting', async () => {
+    it('pause() 应调用 IPC 更新状态为 waiting', async () => {
       await sessionManager.pause()
-      expect(sessionManager.getStatus()).toBe('paused')
+      // 验证 IPC 调用
+      expect(mockTransport.request).toHaveBeenCalledWith('session/update', {
+        id: 'sess-state',
+        state: 'waiting',
+      })
     })
 
-    it('complete() 应更新状态为 completed', async () => {
+    it('complete() 应调用 IPC 更新状态为 completed', async () => {
       await sessionManager.complete()
-      expect(sessionManager.getStatus()).toBe('completed')
+      // 验证 IPC 调用
+      expect(mockTransport.request).toHaveBeenCalledWith('session/update', {
+        id: 'sess-state',
+        state: 'completed',
+      })
     })
 
-    it('cancel() 应更新状态为 cancelled', async () => {
+    it('cancel() 应调用 IPC 更新状态为 canceled', async () => {
       await sessionManager.cancel()
-      expect(sessionManager.getStatus()).toBe('cancelled')
+      // 验证 IPC 调用
+      expect(mockTransport.request).toHaveBeenCalledWith('session/update', {
+        id: 'sess-state',
+        state: 'canceled',
+      })
     })
   })
 
   describe('消息角色映射', () => {
     it('应正确映射 upup 消息类型到角色', async () => {
-      const mockResult = {
+      const mockResumeResult = {
         id: 'sess-role',
         state: 'idle',
+        metadata: { turnCount: 0, toolUseCount: 0 },
+      }
+
+      const mockMessagesResult = {
         messages: [
           { type: 'human', content: 'User message' },      // → user
           { type: 'ai', content: 'AI message' },           // → assistant
           { type: 'system', content: 'System message' },    // → system
         ],
-        metadata: { turnCount: 0, toolUseCount: 0 },
       }
 
-      ;(mockTransport.request as ReturnType<typeof vi.fn>).mockResolvedValue(mockResult)
+      ;(mockTransport.request as ReturnType<typeof vi.fn>)
+        .mockResolvedValueOnce(mockResumeResult)
+        .mockResolvedValueOnce(mockMessagesResult)
 
       await sessionManager.resume('sess-role')
 
-      const messages = sessionManager.getMessages()
+      const messages = await sessionManager.getMessages()
       expect(messages[0].role).toBe('user')
       expect(messages[1].role).toBe('assistant')
       expect(messages[2].role).toBe('system')
@@ -283,35 +312,39 @@ describe('UpupSessionManager (SDK v4 - 基于 upup 核心)', () => {
   })
 
   describe('错误处理', () => {
-    it('addMessage 在无活动 session 时会自动创建 session', () => {
-      // UpupSessionManager.addMessage 现在会自动创建 session
+    it('addMessage 在无活动 session 时不会抛出错误', () => {
+      // SDK v5: addMessage 是向后兼容的空操作
       expect(() => {
         sessionManager.addMessage({
           role: 'user',
           content: 'Test',
           timestamp: new Date(),
         })
-      }).not.toThrow('No active session')
+      }).not.toThrow()
 
-      // 验证 session 已自动创建
-      expect(sessionManager.getSessionId()).toBeDefined()
-      expect(sessionManager.getCurrentSession()).not.toBeNull()
+      // session 不会自动创建
+      expect(sessionManager.getSessionId()).toBeNull()
+      expect(sessionManager.getCurrentSession()).toBeNull()
     })
 
-    it('当无活动 session 时 updateState 应抛出错误', async () => {
-      await expect(sessionManager.updateState('running')).rejects.toThrow('No active session')
+    it('当无活动 session 时 updateState 静默返回', async () => {
+      // SDK v5: 无 session 时静默返回，不抛出错误
+      await expect(sessionManager.updateState('running')).resolves.toBeUndefined()
     })
 
-    it('当无活动 session 时 pause 应抛出错误', async () => {
-      await expect(sessionManager.pause()).rejects.toThrow('No active session')
+    it('当无活动 session 时 pause 静默返回', async () => {
+      // SDK v5: 无 session 时静默返回，不抛出错误
+      await expect(sessionManager.pause()).resolves.toBeUndefined()
     })
 
-    it('当无活动 session 时 complete 应抛出错误', async () => {
-      await expect(sessionManager.complete()).rejects.toThrow('No active session')
+    it('当无活动 session 时 complete 静默返回', async () => {
+      // SDK v5: 无 session 时静默返回，不抛出错误
+      await expect(sessionManager.complete()).resolves.toBeUndefined()
     })
 
-    it('当无活动 session 时 cancel 应抛出错误', async () => {
-      await expect(sessionManager.cancel()).rejects.toThrow('No active session')
+    it('当无活动 session 时 cancel 静默返回', async () => {
+      // SDK v5: 无 session 时静默返回，不抛出错误
+      await expect(sessionManager.cancel()).resolves.toBeUndefined()
     })
   })
 })
@@ -347,53 +380,50 @@ describe('UpupSessionManager 集成场景', () => {
     expect(session.id).toBe('sess-multi')
     expect(session.status).toBe('created')
 
-    // 第 2 轮: 添加消息
-    sessionManager.addMessage({
-      role: 'user',
-      content: 'Hello!',
-      timestamp: new Date(),
-    })
-    sessionManager.addMessage({
-      role: 'assistant',
-      content: 'Hi there!',
-      timestamp: new Date(),
-    })
-
-    expect(sessionManager.getMessages().length).toBe(2)
-    expect(sessionManager.getCurrentSession()?.messageCount).toBe(2)
+    // 第 2 轮: 验证 session 已创建
+    expect(sessionManager.getSessionId()).toBe('sess-multi')
+    expect(sessionManager.getCurrentSession()).not.toBeNull()
 
     // 第 3 轮: 更新状态
     await sessionManager.updateState('completed')
-    expect(sessionManager.getStatus()).toBe('completed')
+    // IPC 调用已发送
+    expect(mockTransport.request).toHaveBeenCalledWith('session/update', {
+      id: 'sess-multi',
+      state: 'completed',
+    })
   })
 
   it('会话恢复后继续对话', async () => {
     // 模拟恢复已有 session
-    ;(mockTransport.request as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
-      id: 'sess-resume-test',
-      state: 'idle',
-      messages: [
-        { type: 'human', content: 'Previous message' },
-        { type: 'ai', content: 'Previous response' },
-      ],
-      metadata: { turnCount: 1, toolUseCount: 0 },
-    })
+    ;(mockTransport.request as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce({
+        id: 'sess-resume-test',
+        state: 'idle',
+        metadata: { turnCount: 1, toolUseCount: 0 },
+      })
+      .mockResolvedValueOnce({
+        messages: [
+          { type: 'human', content: 'Previous message' },
+          { type: 'ai', content: 'Previous response' },
+        ],
+      })
 
     await sessionManager.resume('sess-resume-test')
 
     // 验证历史消息
-    const history = sessionManager.getMessages()
+    const history = await sessionManager.getMessages()
     expect(history.length).toBe(2)
+    expect(history[0].role).toBe('user')
+    expect(history[1].role).toBe('assistant')
 
-    // 继续添加新消息
-    sessionManager.addMessage({
-      role: 'user',
-      content: 'New message',
-      timestamp: new Date(),
-    })
-
-    expect(sessionManager.getMessages().length).toBe(3)
-    expect(sessionManager.getCurrentSession()?.messageCount).toBe(3)
+    // SDK v5: addMessage 不存储消息，但不会抛出错误
+    expect(() => {
+      sessionManager.addMessage({
+        role: 'user',
+        content: 'New message',
+        timestamp: new Date(),
+      })
+    }).not.toThrow()
   })
 
   it('token 使用量跟踪', async () => {
