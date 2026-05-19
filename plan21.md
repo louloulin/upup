@@ -363,10 +363,16 @@ it('should format error with summarize', () => {
 - [x] 长命令自动截断，保留关键词
 - [x] 多行命令只显示第一行
 
-### Phase 3: Skill 优化 ⏳
-- [ ] 减少不必要的文件读写
-- [ ] macro-china skill 执行时间减少 30%
+### Phase 3: Skill 优化 ⏳ (无需修改核心代码)
+
+**分析结果：**
+- Dexter 核心代码中没有文件中介实现
+- macro-china skill 已是直接输出模式
+- Phase 3 偏向用户体验优化，非核心代码修改
+
+**优化目标（可选）：**
 - [ ] 错误时显示重试建议
+- [ ] 优化 skill 使用体验
 
 ---
 
@@ -387,10 +393,11 @@ it('should format error with summarize', () => {
 | `src/components/tool-event.ts` | 重写 header 格式化逻辑，添加 formatBashArgs | ✅ |
 | `src/components/tool-event.test.ts` | 新增测试用例 | ✅ |
 
-### Phase 3 (待实施)
-| 文件 | 改动 |
+### Phase 3 (无需修改核心代码)
+| 项目 | 说明 |
 |------|------|
-| `.claude/skills/macro-china/SKILL.md` | 优化数据获取流程 |
+| Dexter 核心代码 | 无需修改 |
+| Skill 体验优化 | 可选的体验改进 |
 
 ---
 
@@ -399,8 +406,7 @@ it('should format error with summarize', () => {
 | Phase | 内容 | 预计工时 | 状态 |
 |-------|------|----------|------|
 | Phase 1 | UI 结果优化 | 1.5 小时 | ✅ 已完成 |
-| Phase 2 | 命令显示优化 | 1 小时 | ⏳ 待实施 |
-| Phase 3 | Skill 优化 | 2 小时 | ⏳ 待实施 |
-| 测试和调试 | - | 1 小时 | - |
+| Phase 2 | 命令显示优化 | 1 小时 | ✅ 已完成 |
+| Phase 3 | Skill 体验 | 0 小时 | ⏳ 可选 |
 
-**总计: ~5.5 小时**
+**核心代码修改已完成**
