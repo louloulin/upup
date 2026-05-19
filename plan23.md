@@ -1,420 +1,416 @@
-# Plan 23: UpUp vs Claude Code 功能完善计划
+# Plan 23: UpUp 投资助手完善计划
 
 > 创建日期：2026-05-19
-> 目标：对比 Claude Code，全面分析 UpUp 存在的差距，制定完善计划
+> 更新日期：2026-05-19
+> 目标：构建顶级的 AI Agent 驱动的投资助手，对标 Claude Code investment edition
 
 ---
 
-## 一、Claude Code 核心功能分析
+## 一、愿景与定位
 
-### 1.1 工具系统 (Tools)
+### 1.1 产品愿景
 
-| 功能 | Claude Code | UpUp | 状态 |
-|------|-------------|------|------|
-| Read File | ✅ | ✅ | ✅ |
-| Write File | ✅ | ✅ | ✅ |
-| Edit File | ✅ | ✅ | ✅ |
-| Glob | ✅ | ✅ | ✅ |
-| Grep | ✅ | ✅ | ✅ |
-| Bash | ✅ | ✅ | ✅ |
-| Web Search | ✅ | ✅ | ✅ |
-| Web Fetch | ✅ | ✅ | ✅ |
-| Notebook | ✅ | ❌ | ❌ |
-| Task | ✅ | ✅ | ✅ |
-| Todo | ✅ | ✅ | ✅ |
-| Memory | ✅ | ✅ | ✅ |
-| **Read Multiple** | ✅ | ❌ | ❌ |
-| **Multi-Edit** | ✅ | ❌ | ❌ |
+**UpUp = Claude Code + 专业投资能力**
 
-### 1.2 记忆系统 (Memory)
+打造一款专门为投资者设计的 AI 助手，具备：
+- Claude Code 的代码理解和生成能力
+- 专业级的投资分析功能
+- 深度市场数据和新闻整合
+- 量化分析和回测能力
 
-| 功能 | Claude Code | UpUp | 状态 |
-|------|-------------|------|------|
-| Soul Document | ✅ (CLAUDE.md) | ✅ | ✅ |
-| Rules | ✅ (.claude/rules.md) | ✅ | ✅ |
-| Memory Files | ✅ | ✅ | ✅ |
-| Context Learning | ✅ | ✅ | ✅ |
-| **Semantic Memory** | ✅ | ⚠️ 部分 | 需完善 |
-| **Episodic Memory** | ✅ | ⚠️ 部分 | 需完善 |
+### 1.2 目标用户
 
-### 1.3 技能系统 (Skills)
+| 用户类型 | 需求 | 优先级 |
+|----------|------|--------|
+| 个人投资者 | 快速选股、基本面分析 | P0 |
+| 专业投资者 | 量化策略、回测、组合优化 | P1 |
+| 机构分析师 | 研报生成、行业分析 | P2 |
 
-| 功能 | Claude Code | UpUp | 状态 |
-|------|-------------|------|------|
-| Built-in Skills | 80+ | 20+ | 需扩展 |
-| User Skills | ✅ | ✅ | ✅ |
-| Project Skills | ✅ | ✅ | ✅ |
-| Skill Discovery | ✅ | ⚠️ | 需完善 |
-| **Skill Composer** | ✅ | ❌ | ❌ |
-| **Skill Marketplace** | ✅ | ❌ | ❌ |
+### 1.3 核心价值
 
-### 1.4 规划系统 (Planning)
-
-| 功能 | Claude Code | UpUp | 状态 |
-|------|-------------|------|------|
-| Plan Mode | ✅ | ✅ | ✅ |
-| Plan Review | ✅ | ✅ | ✅ |
-| Auto-Plan | ✅ | ⚠️ 部分 | 需完善 |
-| **Plan History** | ✅ | ❌ | ❌ |
-| **Plan Branching** | ✅ | ❌ | ❌ |
-
-### 1.5 钩子系统 (Hooks)
-
-| 功能 | Claude Code | UpUp | 状态 |
-|------|-------------|------|------|
-| Pre-Tool Hook | ✅ | ✅ | ✅ |
-| Post-Tool Hook | ✅ | ✅ | ✅ |
-| Tool Error Hook | ✅ | ⚠️ | 需完善 |
-| **Pre-Message Hook** | ✅ | ❌ | ❌ |
-| **Post-Message Hook** | ✅ | ❌ | ❌ |
-
-### 1.6 安全系统 (Security)
-
-| 功能 | Claude Code | UpUp | 状态 |
-|------|-------------|------|------|
-| Tool Permission | ✅ | ✅ | ✅ |
-| Sandboxed Bash | ✅ | ✅ | ✅ |
-| Path Restrictions | ✅ | ✅ | ✅ |
-| **Approval Timeout** | ✅ | ✅ (刚修复) | ✅ |
-| **Auto-Deny** | ✅ | ❌ | ❌ |
-
-### 1.7 会话系统 (Session)
-
-| 功能 | Claude Code | UpUp | 状态 |
-|------|-------------|------|------|
-| Session Resume | ✅ | ✅ | ✅ |
-| Session History | ✅ | ✅ | ✅ |
-| Session Import | ✅ | ✅ | ✅ |
-| Session Merge | ✅ | ❌ | ❌ |
-| **Session Branching** | ✅ | ⚠️ 部分 | 需完善 |
-| **Session Collaboration** | ✅ | ❌ | ❌ |
-
-### 1.8 MCP 集成
-
-| 功能 | Claude Code | UpUp | 状态 |
-|------|-------------|------|------|
-| MCP Server | ✅ | ✅ | ✅ |
-| MCP Client | ✅ | ✅ | ✅ |
-| MCP Tools | ✅ | ✅ | ✅ |
-| MCP Resources | ✅ | ⚠️ | 需完善 |
-| MCP Prompts | ✅ | ❌ | ❌ |
-
-### 1.9 开发工具 (Developer Experience)
-
-| 功能 | Claude Code | UpUp | 状态 |
-|------|-------------|------|------|
-| Code Review | ✅ | ⚠️ | 需完善 |
-| Test Generation | ✅ | ⚠️ | 需完善 |
-| Git Integration | ✅ | ✅ | ✅ |
-| Debug Mode | ✅ | ✅ | ✅ |
-| **Auto-Fix** | ✅ | ❌ | ❌ |
-| **TDD Workflow** | ✅ | ❌ | ❌ |
-
-### 1.10 配置系统
-
-| 功能 | Claude Code | UpUp | 状态 |
-|------|-------------|------|------|
-| Settings.json | ✅ | ✅ | ✅ |
-| Project Settings | ✅ | ✅ | ✅ |
-| Environment Variables | ✅ | ✅ | ✅ |
-| **Feature Flags** | ✅ | ⚠️ 部分 | 需完善 |
-| **Permissions Config** | ✅ | ⚠️ | 需完善 |
+1. **效率提升**: 5 分钟完成原本需要 2 小时的分析
+2. **数据整合**: 一站式获取所有市场数据
+3. **决策支持**: 结构化的投资建议
+4. **持续学习**: 从历史交易中学习改进
 
 ---
 
-## 二、UpUp 差距分析
+## 二、现有能力分析
 
-### 2.1 高优先级问题
+### 2.1 已有工具 (src/tools/)
 
-#### 问题 1: 缺少 Read Multiple 文件功能
-- **描述**: Claude Code 支持同时读取多个文件
-- **影响**: 无法高效处理需要跨文件分析的场景
-- **复杂度**: 中
+| 类别 | 工具 | 状态 |
+|------|------|------|
+| **美股数据** | get_stock_price, get_financials, get_key_ratios | ✅ |
+| **A股数据** | get_astock_price, get_astock_financials | ✅ |
+| **港股数据** | get_astock_price (00700.HK) | ✅ |
+| **加密货币** | get_crypto_price | ✅ |
+| **新闻资讯** | get_company_news, get_astock_news | ✅ |
+| **技术分析** | 基础指标计算 | ✅ |
+| **量化分析** | 组合优化、风险指标 | ✅ |
+| **财报分析** | filings, earnings, estimates | ✅ |
+| **内部交易** | insider_trades | ✅ |
 
-#### 问题 2: 缺少 Multi-Edit 功能
-- **描述**: Claude Code 支持批量编辑多个文件
-- **影响**: 需要修改多个文件时效率低下
-- **复杂度**: 高
+### 2.2 已有技能 (src/skills/bundled/)
 
-#### 问题 3: Skill 系统不够完善
-- **描述**: UpUp 技能数量少（20+ vs Claude 80+）
-- **影响**: 功能受限，无法满足复杂场景
-- **复杂度**: 中
+| 技能 | 功能 | 状态 |
+|------|------|------|
+| dream | 投资记忆整合 | ✅ |
+| research | 投资研究框架 | ✅ |
+| portfolio-review | 组合回顾分析 | ✅ |
+| risk-assessment | 风险评估 | ✅ |
+| stock-screen | 选股器 | ✅ |
+| batch | 批量研究 | ✅ |
 
-#### 问题 4: 缺少 Auto-Deny 机制
-- **描述**: 未添加自动拒绝危险操作的机制
-- **影响**: 安全性不足
-- **复杂度**: 低
+### 2.3 界面组件 (src/components/)
 
-### 2.2 中优先级问题
-
-#### 问题 5: Session Merge 缺失
-- **描述**: 无法合并多个会话
-- **影响**: 会话管理不够灵活
-- **复杂度**: 中
-
-#### 问题 6: MCP Prompts 缺失
-- **描述**: MCP 只支持 Tools，不支持 Prompts
-- **影响**: MCP 集成不够完整
-- **复杂度**: 中
-
-#### 问题 7: Plan History 缺失
-- **描述**: 无法查看历史计划
-- **影响**: 计划管理不完善
-- **复杂度**: 低
-
-#### 问题 8: Code Review 基础
-- **描述**: 代码审查功能不完善
-- **影响**: 开发体验不如 Claude Code
-- **复杂度**: 中
-
-### 2.3 低优先级问题
-
-#### 问题 9: Auto-Fix 缺失
-- **描述**: 无法自动修复代码问题
-- **影响**: 需要手动修复
-- **复杂度**: 高
-
-#### 问题 10: TDD Workflow 缺失
-- **描述**: 没有内置 TDD 工作流
-- **影响**: 开发体验不够好
-- **复杂度**: 中
+| 组件 | 功能 | 状态 |
+|------|------|------|
+| ChatLog | 对话显示 | ✅ |
+| ToolEvent | 工具执行显示 | ✅ |
+| ApprovalPrompt | 授权提示 | ✅ |
+| AnswerBox | 回答显示 | ✅ |
 
 ---
 
-## 三、完善计划
+## 三、差距分析
 
-### Phase 1: 核心安全与稳定性 (P0)
+### 3.1 投资数据能力差距
 
-| 任务 | 描述 | 优先级 | 复杂度 |
-|------|------|--------|--------|
-| P1.1 | 实现 Auto-Deny 机制 | P0 | 低 |
-| P1.2 | 完善 Tool Error Hook | P0 | 低 |
-| P1.3 | 添加 Approval 审计日志 | P0 | 低 |
+| 功能 | 竞品 | UpUp | 状态 |
+|------|------|------|------|
+| 实时行情 | Bloomberg, Wind | ⚠️ 部分 | 需完善 |
+| 衍生品定价 | Black-Scholes, Greeks | ✅ | ✅ |
+| 宏观数据 | FRED, 宏观指标 | ⚠️ 有限 | 需扩展 |
+| 研报整合 | 同花顺, 东方财富 | ❌ | 缺失 |
+| 公墓持仓 | 季报数据 | ✅ | ✅ |
+| 情绪数据 | 社交媒体, 新闻情感 | ⚠️ 基础 | 需完善 |
 
-### Phase 2: 核心功能增强 (P1)
+### 3.2 投资分析能力差距
 
-| 任务 | 描述 | 优先级 | 复杂度 |
-|------|------|--------|--------|
-| P2.1 | 实现 Read Multiple 文件功能 | P1 | 中 |
-| P2.2 | 实现 Multi-Edit 功能 | P1 | 高 |
-| P2.3 | 扩展 Skill 系统至 40+ | P1 | 中 |
-| P2.4 | 实现 Session Merge | P1 | 中 |
+| 功能 | 竞品 | UpUp | 状态 |
+|------|------|------|------|
+| DCF 估值 | 主流工具 | ✅ | ✅ |
+| 技术指标 | TradingView | ⚠️ 基础 | 需扩展 |
+| 量化回测 | Backtrader, QuantConnect | ⚠️ 基础 | 需完善 |
+| 组合优化 | 现代投资组合理论 | ✅ | ✅ |
+| 风险模型 | VaR, CVaR | ⚠️ 有限 | 需扩展 |
+| 因子分析 | 多因子模型 | ❌ | 缺失 |
+| ESG 评分 | ESG 数据源 | ❌ | 缺失 |
 
-### Phase 3: 开发体验提升 (P2)
+### 3.3 交互体验差距
 
-| 任务 | 描述 | 优先级 | 复杂度 |
-|------|------|--------|--------|
-| P3.1 | 完善 Code Review 功能 | P2 | 中 |
-| P3.2 | 实现 MCP Prompts | P2 | 中 |
-| P3.3 | 添加 Plan History | P2 | 低 |
-| P3.4 | 实现 Auto-Fix (实验) | P2 | 高 |
-
-### Phase 4: 高级功能 (P3)
-
-| 任务 | 描述 | 优先级 | 复杂度 |
-|------|------|--------|--------|
-| P4.1 | 实现 TDD Workflow | P3 | 中 |
-| P4.2 | Skill Marketplace | P3 | 高 |
-| P4.3 | Session Collaboration | P3 | 高 |
+| 功能 | 竞品 | UpUp | 状态 |
+|------|------|------|------|
+| 图表展示 | Matplotlib, Plotly | ❌ | 缺失 |
+| 数据表格 | 交互式表格 | ❌ | 缺失 |
+| 报告导出 | PDF, Excel | ❌ | 缺失 |
+| 语音输入 | 语音交互 | ❌ | 缺失 |
+| 快捷命令 | 快速选股命令 | ⚠️ 有限 | 需扩展 |
 
 ---
 
-## 四、具体任务清单
+## 四、完善计划
 
-### 4.1 P1.1: 实现 Auto-Deny 机制
+### Phase 1: 投资数据扩展 (P0)
 
-**文件**: `src/permissions/index.ts`
+| 任务 | 描述 | 复杂度 | 文件 |
+|------|------|--------|------|
+| P1.1 | 扩展技术指标 (MACD, Bollinger, Ichimoku) | 中 | src/tools/quant/technical-indicators.ts |
+| P1.2 | 添加宏观数据获取 (GDP, CPI, PMI) | 中 | src/tools/macro/ |
+| P1.3 | 实现衍生品定价 (期权定价, Greeks) | 高 | src/tools/quant/options-pricing.ts |
+| P1.4 | 添加情绪分析 (新闻情感, 社交媒体) | 高 | src/tools/sentiment/ |
 
-**实现**:
+### Phase 2: 投资分析增强 (P1)
+
+| 任务 | 描述 | 复杂度 | 文件 |
+|------|------|--------|------|
+| P2.1 | 实现完整回测框架 | 高 | src/tools/backtest/ |
+| P2.2 | 添加因子分析工具 | 高 | src/tools/factors/ |
+| P2.3 | 实现风险模型 (VaR, CVaR, Monte Carlo) | 中 | src/tools/quant/risk-metrics.ts |
+| P2.4 | 添加 ESG 评分整合 | 中 | src/tools/esg/ |
+
+### Phase 3: 可视化与报告 (P2)
+
+| 任务 | 描述 | 复杂度 | 文件 |
+|------|------|--------|------|
+| P3.1 | 实现图表生成 (K线, 技术指标) | 高 | src/components/charts/ |
+| P3.2 | 实现数据表格组件 | 中 | src/components/tables/ |
+| P3.3 | 添加报告导出 (PDF, Excel, HTML) | 高 | src/tools/export/ |
+| P3.4 | 实现交互式 Dashboard | 高 | src/components/dashboard/ |
+
+### Phase 4: 交互体验优化 (P3)
+
+| 任务 | 描述 | 复杂度 | 文件 |
+|------|------|--------|------|
+| P4.1 | 实现语音输入 | 高 | src/voice/ |
+| P4.2 | 添加快捷命令系统 | 低 | src/commands/investment.ts |
+| P4.3 | 实现实时行情推送 | 高 | src/realtime/ |
+| P4.4 | 添加自定义指标支持 | 中 | src/tools/custom-indicators/ |
+
+---
+
+## 五、新增技能清单
+
+### 5.1 投资研究技能
+
+| 技能名 | 描述 | 来源 |
+|--------|------|------|
+| macro-analysis | 宏观经济分析 | 新增 |
+| industry-analysis | 行业分析 | 新增 |
+| company-analysis | 公司深度分析 | 新增 |
+| sector-rotation | 行业轮动分析 | 新增 |
+| earnings-preview | 财报预测 | 新增 |
+
+### 5.2 量化分析技能
+
+| 技能名 | 描述 | 来源 |
+|--------|------|------|
+| backtest | 回测分析 | 扩展现有 |
+| strategy-development | 策略开发 | 新增 |
+| factor-analysis | 因子分析 | 新增 |
+| risk-analysis | 风险分析 | 扩展现有 |
+| portfolio-opt | 组合优化 | 扩展现有 |
+
+### 5.3 交易执行技能
+
+| 技能名 | 描述 | 来源 |
+|--------|------|------|
+| trade-execution | 交易执行 | 新增 |
+| order-management | 订单管理 | 新增 |
+| position-tracking | 持仓跟踪 | 新增 |
+| pnl-analysis | 盈亏分析 | 新增 |
+
+---
+
+## 六、界面优化计划
+
+### 6.1 投资专用 UI 组件
+
+```
+src/components/investment/
+├── stock-chart.ts      # K线图 + 技术指标
+├── data-table.ts       # 财务数据表格
+├── portfolio-view.ts   # 组合可视化
+├── news-feed.ts       # 新闻资讯流
+├── alerts-panel.ts    # 提醒面板
+└── sentiment-meter.ts # 情绪仪表盘
+```
+
+### 6.2 投资视图模式
+
 ```typescript
-// 添加自动拒绝模式
-const AUTO_DENY_PATTERNS = [
-  /rm\s+-rf\s+\//,           // 删除根目录
-  /dd\s+.*of=\/dev\//,       // 写入原始设备
-  /^:\(\)\{:\|:&\};:/,       // Fork 炸弹
-  /curl.*\|.*sh/,            // 远程代码执行
-];
-
-function shouldAutoDeny(command: string): boolean {
-  return AUTO_DENY_PATTERNS.some(p => p.test(command));
+interface InvestmentViewMode {
+  mode: 'analysis' | 'trading' | 'portfolio' | 'research';
+  layout: 'single' | 'split' | 'dashboard';
+  panels: {
+    chat: boolean;
+    chart: boolean;
+    data: boolean;
+    alerts: boolean;
+  };
 }
 ```
 
-**测试**:
-- [ ] 危险命令被自动拒绝
-- [ ] 不影响正常授权流程
-- [ ] 记录审计日志
+### 6.3 快捷命令
+
+| 命令 | 功能 |
+|------|------|
+| `/price AAPL` | 查询股价 |
+| `/ financials AAPL` | 查询财报 |
+| `/screen PE<15 ROE>20` | 选股 |
+| `/ compare AAPL GOOGL` | 对比股票 |
+| `/portfolio` | 查看组合 |
+| `/risk TSLA` | 风险分析 |
 
 ---
 
-### 4.2 P2.1: Read Multiple 文件功能
+## 七、技术架构升级
 
-**文件**: `src/tools/filesystem/read-multiple.ts`
+### 7.1 新增模块
 
-**实现**:
-```typescript
-interface ReadMultipleInput {
-  paths: string[];
-  limit?: number;  // 每文件行数限制
-  offset?: number;  // 每文件起始行
-}
-
-async function readMultiple(input: ReadMultipleInput): Promise<string> {
-  const results = await Promise.all(
-    input.paths.map(async (path) => {
-      const content = await readFile(path, input.limit, input.offset);
-      return `=== ${path} ===\n${content}`;
-    })
-  );
-  return results.join('\n\n');
-}
+```
+src/
+├── macro/              # 宏观数据
+│   ├── cn_gdp.ts      # 中国GDP
+│   ├── cn_cpi.ts      # 中国CPI
+│   ├── fed_data.ts    # 美联储数据
+│   └── global_indicators.ts
+├── sentiment/          # 情绪分析
+│   ├── news_sentiment.ts
+│   ├── social_sentiment.ts
+│   └── market_sentiment.ts
+├── derivatives/       # 衍生品
+│   ├── options_pricing.ts
+│   ├── greeks.ts
+│   └── implied_vol.ts
+├── factors/           # 因子分析
+│   ├── value_factors.ts
+│   ├── momentum_factors.ts
+│   └── quality_factors.ts
+├── esg/               # ESG评分
+│   ├── environmental.ts
+│   ├── social.ts
+│   └── governance.ts
+├── charts/            # 图表组件
+│   ├── candlestick.ts
+│   ├── volume.ts
+│   └── indicators.ts
+└── export/            # 报告导出
+    ├── pdf_generator.ts
+    ├── excel_generator.ts
+    └── html_report.ts
 ```
 
-**注册工具**: `read_multiple`
-**测试**: [ ] 同时读取 5 个文件 [ ] 限制行数 [ ] 处理不存在的文件
+### 7.2 数据库扩展
 
----
+```sql
+-- 投资专用表
+CREATE TABLE investment_portfolios (
+  id TEXT PRIMARY KEY,
+  name TEXT,
+  positions JSON,
+  created_at TIMESTAMP,
+  updated_at TIMESTAMP
+);
 
-### 4.3 P2.2: Multi-Edit 功能
+CREATE TABLE watchlists (
+  id TEXT PRIMARY KEY,
+  user_id TEXT,
+  name TEXT,
+  symbols JSON,
+  created_at TIMESTAMP
+);
 
-**文件**: `src/tools/filesystem/multi-edit.ts`
-
-**实现**:
-```typescript
-interface MultiEditInput {
-  edits: Array<{
-    path: string;
-    old_string: string;
-    new_string: string;
-  }>;
-}
-
-async function multiEdit(input: MultiEditInput): Promise<string> {
-  const results = await Promise.all(
-    input.edits.map(async (edit) => {
-      await editFile(edit.path, edit.old_string, edit.new_string);
-      return `Edited: ${edit.path}`;
-    })
-  );
-  return results.join('\n');
-}
+CREATE TABLE price_alerts (
+  id TEXT PRIMARY KEY,
+  symbol TEXT,
+  condition TEXT,
+  target_price REAL,
+  triggered BOOLEAN,
+  created_at TIMESTAMP
+);
 ```
 
-**注册工具**: `multi_edit`
-**测试**: [ ] 同时编辑 3 个文件 [ ] 部分成功部分失败 [ ] 回滚机制
+---
+
+## 八、实现优先级
+
+### 8.1 短期 (1个月) - MVP
+
+| 任务 | 优先级 | 验收标准 |
+|------|--------|----------|
+| 扩展技术指标 | P0 | MACD, Bollinger, RSI |
+| 添加宏观数据 | P0 | GDP, CPI, PMI |
+| 快捷命令 | P0 | /price, /screen, /compare |
+| 数据表格组件 | P1 | 财务数据展示 |
+
+### 8.2 中期 (3个月) - 完整版
+
+| 任务 | 优先级 | 验收标准 |
+|------|--------|----------|
+| 图表生成 | P1 | K线图, 技术指标图 |
+| 报告导出 | P1 | PDF, Excel |
+| 情绪分析 | P2 | 新闻情感, 市场情绪 |
+| 回测框架 | P2 | 完整回测流程 |
+
+### 8.3 长期 (6个月) - 专业版
+
+| 任务 | 优先级 | 验收标准 |
+|------|--------|----------|
+| 实时行情 | P2 | WebSocket推送 |
+| 语音输入 | P3 | 语音命令 |
+| Dashboard | P3 | 交互式面板 |
+| 策略开发 | P3 | 完整量化平台 |
 
 ---
 
-### 4.4 P2.3: Skill 系统扩展
+## 九、竞品对比
 
-**新增技能**:
+### 9.1 vs Bloomberg Terminal
 
-| 技能名 | 描述 | 复杂度 |
-|--------|------|--------|
-| `dcf` | DCF 估值分析 | 中 |
-| `technical-analysis` | 技术分析 | 中 |
-| `risk-management` | 风险管理 | 中 |
-| `fundamental-analysis` | 基本面分析 | 中 |
-| `sentiment-analysis` | 情感分析 | 中 |
-| `backtest` | 回测引擎 | 高 |
-| `portfolio-optimization` | 组合优化 | 高 |
-| `screening` | 筛选器 | 中 |
-| `macro-analysis` | 宏观分析 | 中 |
-| `industry-analysis` | 行业分析 | 中 |
-| `a-share-report` | A股报告生成 | 中 |
-| `medfish` | 医疗行业分析 | 中 |
+| 功能 | Bloomberg | UpUp | 优势 |
+|------|-----------|------|------|
+| 数据覆盖 | 完整 | 部分 | ✅ AI 理解 |
+| 实时性 | 毫秒级 | 秒级 | 差距 |
+| 技术分析 | 完整 | 基础 | 差距 |
+| AI 能力 | 有限 | 强大 | ✅ |
+| 成本 | $20k+/年 | 免费 | ✅ |
+
+### 9.2 vs 同花顺
+
+| 功能 | 同花顺 | UpUp | 优势 |
+|------|---------|------|------|
+| A股数据 | 完整 | 完整 | - |
+| AI助手 | 有限 | 强大 | ✅ |
+| 量化回测 | 有 | 基础 | 差距 |
+| 中文理解 | 强 | 强 | - |
+| 定制化 | 低 | 高 | ✅ |
+
+### 9.3 vs 聚宽
+
+| 功能 | 聚宽 | UpUp | 优势 |
+|------|------|------|------|
+| 量化回测 | 完整 | 基础 | 差距 |
+| 数据API | 完整 | 部分 | 差距 |
+| AI集成 | 无 | 有 | ✅ |
+| 使用门槛 | 高 | 低 | ✅ |
 
 ---
 
-### 4.5 P3.1: Code Review 功能完善
+## 十、总结
 
-**增强现有**: `src/tools/workflow/review.ts`
+### 10.1 核心定位
 
-**新增功能**:
-```typescript
-interface ReviewOptions {
-  files: string[];
-  focus: 'security' | 'performance' | 'style' | 'all';
-  depth: 'quick' | 'standard' | 'deep';
-}
+**UpUp = Claude Code + 专业投资能力 + 中文优化**
+
+不是简单的 ChatGPT 包装，而是真正为投资者设计的 AI 助手。
+
+### 10.2 关键差异化
+
+1. **代码能力**: 继承 Claude Code 的代码理解
+2. **投资专业**: 专业级投资分析工具
+3. **数据整合**: 一站式市场数据获取
+4. **中文优化**: 优化的中文投资分析
+
+### 10.3 发展路径
+
+```
+Phase 1: 投资数据工具 (1个月)
+    ↓
+Phase 2: 投资分析能力 (3个月)
+    ↓
+Phase 3: 可视化与报告 (6个月)
+    ↓
+Phase 4: 专业量化平台 (12个月)
 ```
 
-**测试**: [ ] 安全审查 [ ] 性能审查 [ ] 代码风格审查
-
 ---
 
-## 五、实现顺序建议
+## 附录 A: 技术参考
 
-### 建议 1: 先安全后功能
-1. P1.1 Auto-Deny 机制
-2. P1.2 Tool Error Hook
-3. P1.3 Approval 审计日志
+### A.1 数据源
 
-### 建议 2: 核心功能优先
-1. P2.1 Read Multiple
-2. P2.3 Skill 扩展
-3. P2.2 Multi-Edit
+| 数据源 | 类型 | 用途 |
+|--------|------|------|
+| Tushare Pro | A股 | 财务、行情 |
+| Yahoo Finance | 美股 | 股价、财报 |
+| Alpha Vantage | 宏观 | 经济指标 |
+| News API | 新闻 | 情绪分析 |
+| SEC EDGAR | 美股 | 公文公告 |
 
-### 建议 3: 快速迭代
-- 每 2 周完成一个 Phase
-- 每个 Phase 包含 3-5 个任务
-- 持续验证和测试
+### A.2 技术栈
 
----
-
-## 六、验收标准
-
-### 短期 (1个月)
-- [ ] Auto-Deny 机制上线
-- [ ] Read Multiple 功能上线
-- [ ] Skill 系统扩展至 30+
-- [ ] 授权审计日志完善
-
-### 中期 (3个月)
-- [ ] Multi-Edit 功能上线
-- [ ] Session Merge 上线
-- [ ] Code Review 完善
-- [ ] MCP Prompts 支持
-
-### 长期 (6个月)
-- [ ] Auto-Fix 实验版本
-- [ ] Skill Marketplace 上线
-- [ ] Session Collaboration 上线
-- [ ] TDD Workflow 支持
-
----
-
-## 七、风险评估
-
-| 风险 | 可能性 | 影响 | 缓解措施 |
-|------|--------|------|----------|
-| Multi-Edit 实现复杂 | 中 | 高 | 分阶段实现，先支持简单场景 |
-| Skill 扩展质量参差 | 高 | 中 | 制定 Skill 编写规范 |
-| 性能问题 | 低 | 高 | 性能测试和监控 |
-
----
-
-## 八、总结
-
-通过对比 Claude Code，UpUp 在核心功能上已经具备较为完善的架构，但仍有以下差距：
-
-### 主要差距
-1. **功能数量**: UpUp 工具和技能数量少于 Claude Code
-2. **高级特性**: Multi-Edit、Auto-Fix、TDD 等高级功能缺失
-3. **协作能力**: Session 协作功能缺失
-
-### 优势
-1. **金融特色**: 专业的金融分析和工具
-2. **中文支持**: 优化的中文处理
-3. **模块化设计**: 清晰的代码架构
-
-### 行动计划
-1. **短期**: 完善安全机制，修复已知问题
-2. **中期**: 扩展核心功能，增加技能数量
-3. **长期**: 开发高级功能，提升协作能力
+| 组件 | 技术 | 备注 |
+|------|------|------|
+| 运行时 | Bun | 高性能 |
+| 框架 | TypeScript | 类型安全 |
+| LLM | DeepSeek | 性价比 |
+| UI | pi-tui | 终端UI |
+| 数据库 | SQLite | 本地存储 |
 
 ---
 
 *最后更新: 2026-05-19*
 *状态: 草稿，待评审*
+*版本: v1.0*
