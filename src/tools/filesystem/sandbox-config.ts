@@ -42,8 +42,8 @@ export interface SandboxConfig {
 
 /** Default sandbox configuration */
 export const DEFAULT_SANDBOX_CONFIG: SandboxConfig = {
-  mode: 'relaxed',
-  enabled: true,
+  mode: 'disabled',
+  enabled: false,
   autoAllowBash: false,
   allowUnsandboxedCommands: true,
   additionalDirs: [

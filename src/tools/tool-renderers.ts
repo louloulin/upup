@@ -7,6 +7,8 @@
  * Reference: Loucode's Tool UI 4-function contract pattern
  */
 
+import { truncateAtWord } from './bash/output-processors.js';
+
 function truncate(str: string, maxLen: number): string {
   if (str.length <= maxLen) return str;
   return str.slice(0, maxLen) + '...';
@@ -29,6 +31,10 @@ export type ToolResultRenderer = (
   result: string,
 ) => string | null;
 
+// Re-export truncateAtWord as truncateWithKeyword for backward compatibility
+// The function in output-processors.ts already implements word-boundary truncation
+const truncateWithKeyword = truncateAtWord;
+
 // ============================================================================
 // Per-tool renderers
 // ============================================================================
@@ -41,15 +47,29 @@ const bashRenderer: ToolResultRenderer = (_args, result) => {
   const stdout = parsed.stdout ?? '';
   const stderr = parsed.stderr ?? '';
 
+  // Error case: classify security errors
   if (exitCode !== 0) {
-    return `Exit ${exitCode}${stderr ? `: ${truncate(stderr.trim(), 60)}` : ''}`;
+    // Security validation errors
+    if (stderr.includes('validation failed')) {
+      // Extract the denied path if present
+      const pathMatch = stderr.match(/path ['"]([^'"]+)['"]/);
+      const path = pathMatch ? pathMatch[1].split('/').pop() : '';
+      return path ? `Security: denied '${path}'` : 'Security: path denied';
+    }
+    // Other security errors
+    if (stderr.includes('Security')) {
+      return `Security: ${truncateWithKeyword(stderr.trim(), 50)}`;
+    }
+    // General errors
+    return `Error: ${truncateWithKeyword(stderr.trim(), 60)}`;
   }
 
+  // Success case: summarize output
   const lines = stdout.trim().split('\n').length;
   if (lines > 1) {
-    return `${lines} lines output`;
+    return `${lines} lines output`;  // No duration - setComplete handles it
   }
-  return truncate(stdout.trim(), 60) || 'Exit 0';
+  return truncateWithKeyword(stdout.trim(), 60) || 'Done';
 };
 
 const editFileRenderer: ToolResultRenderer = (_args, result) => {
