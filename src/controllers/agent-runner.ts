@@ -162,6 +162,10 @@ export class AgentRunnerController {
 
   respondToApproval(decision: ApprovalDecision) {
     if (!this.approvalResolve) {
+      // 如果 approvalResolve 为 null，清理状态并恢复 UI
+      this.pendingApprovalValue = null;
+      this.workingStateValue = { status: 'thinking' };
+      this.emitChange();
       return;
     }
     this.approvalResolve(decision);
@@ -318,7 +322,18 @@ export class AgentRunnerController {
 
   private requestToolApproval = (request: { tool: string; args: Record<string, unknown> }) => {
     return new Promise<ApprovalDecision>((resolve) => {
-      this.approvalResolve = resolve;
+      // 添加超时机制：60秒后自动拒绝
+      const timeout = setTimeout(() => {
+        resolve('deny');
+        this.approvalResolve = null;
+        this.pendingApprovalValue = null;
+        this.workingStateValue = { status: 'thinking' };
+        this.emitChange();
+      }, 60000);
+      this.approvalResolve = (decision: ApprovalDecision) => {
+        clearTimeout(timeout);
+        resolve(decision);
+      };
       this.pendingApprovalValue = request;
       this.workingStateValue = { status: 'approval', toolName: request.tool };
       this.emitChange();

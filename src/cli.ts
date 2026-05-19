@@ -1106,7 +1106,11 @@ export async function runCli(options: RunCliOptions = {}) {
     const key = data;
 
     // Only intercept keys when there is actually a pending approval
-    if (!agentRunner.pendingApproval) {
+    // Check both pendingApproval and workingState.status for consistency
+    const hasPendingApproval = !!agentRunner.pendingApproval;
+    const isInApprovalState = agentRunner.workingState.status === 'approval';
+
+    if (!hasPendingApproval && !isInApprovalState) {
       return false;
     }
 
