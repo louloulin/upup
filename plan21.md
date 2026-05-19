@@ -87,7 +87,7 @@ Bash() → Read /tmp/macro_err.txt → Bash() → Read /tmp/gdp_out.txt → Bash
 ⏱ timeout                       # 超时
 ```
 
-### Phase 2: Bash 命令显示优化 (待实施)
+### Phase 2: Bash 命令显示优化 (✅ 已完成)
 
 **目标:** 优化 Bash 工具的 header 显示
 
@@ -357,11 +357,11 @@ it('should format error with summarize', () => {
 - [x] 错误信息完整可读
 - [x] 空输出显示退出码
 
-### Phase 2: 命令显示优化 ⏳
-- [ ] Bash 工具显示命令名（如 `python3`）而非 `Bash`
-- [ ] 优先显示 `description` 作为子标题
-- [ ] 长命令自动截断，保留关键词
-- [ ] 多行命令只显示第一行
+### Phase 2: 命令显示优化 ✅
+- [x] Bash 工具显示命令名（如 `python3`）而非 `Bash`
+- [x] 优先显示 `description` 作为子标题
+- [x] 长命令自动截断，保留关键词
+- [x] 多行命令只显示第一行
 
 ### Phase 3: Skill 优化 ⏳
 - [ ] 减少不必要的文件读写
@@ -381,11 +381,11 @@ it('should format error with summarize', () => {
 | `src/tools/tool-renderers.ts` | 更新所有渲染器使用新符号 | ✅ |
 | `src/tools/bash/bash-tool.test.ts` | 更新测试用例 | ✅ |
 
-### Phase 2 (待实施)
-| 文件 | 改动 |
-|------|------|
-| `src/components/tool-event.ts` | 重写 header 格式化逻辑 |
-| `src/tools/bash/types.ts` | 添加命令提取类型 |
+### Phase 2 (已完成)
+| 文件 | 改动 | 状态 |
+|------|------|------|
+| `src/components/tool-event.ts` | 重写 header 格式化逻辑，添加 formatBashArgs | ✅ |
+| `src/components/tool-event.test.ts` | 新增测试用例 | ✅ |
 
 ### Phase 3 (待实施)
 | 文件 | 改动 |

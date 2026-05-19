@@ -32,14 +32,22 @@ export function setApprovalCursor(index: number): void {
   _approvalCursor = Math.max(0, Math.min(2, index));
 }
 
-function formatToolName(name: string): string {
-  const stripped = name.replace(/^(get)_/, '');
-  return stripped
-    .split('_')
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(' ');
+/**
+ * 提取命令基名 (Plan 21 Phase 2)
+ * python3 -c "..." → python3
+ * node script.js → node
+ * bash script.sh → bash
+ */
+function extractCommandBase(command: string): string {
+  const trimmed = command.trim();
+  // 提取第一个单词作为命令名
+  const match = trimmed.match(/^([^\s]+)/);
+  return match ? match[1] : trimmed;
 }
 
+/**
+ * 截断字符串，在单词边界处截断 (Plan 21)
+ */
 function truncateAtWord(str: string, maxLength: number): string {
   if (str.length <= maxLength) {
     return str;
@@ -51,7 +59,30 @@ function truncateAtWord(str: string, maxLength: number): string {
   return `${str.slice(0, maxLength)}...`;
 }
 
+/**
+ * 格式化工具名称 (Plan 21 Phase 2)
+ * 优化 Bash 命令的显示格式
+ */
+function formatToolName(name: string): string {
+  // 移除前缀 get_ 并转为标题格式
+  const stripped = name.replace(/^(get)_/, '');
+  return stripped
+    .split('_')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
+/**
+ * 格式化工具参数 (Plan 21 Phase 2)
+ * Bash 特殊处理：显示命令基名和 description
+ */
 function formatArgs(tool: string, args: Record<string, unknown>): string {
+  // Plan 21 Phase 2: Bash 特殊处理
+  if (tool === 'bash') {
+    return formatBashArgs(args);
+  }
+
+  // 其他工具的通用处理
   if ('query' in args) {
     const query = String(args.query);
     return theme.muted(`"${truncateAtWord(query, 60)}"`);
@@ -65,6 +96,43 @@ function formatArgs(tool: string, args: Record<string, unknown>): string {
       .map(([key, value]) => `${key}=${truncateAtWord(String(value).replace(/\n/g, '\\n'), 60)}`)
       .join(', '),
   );
+}
+
+/**
+ * 格式化 Bash 命令参数 (Plan 21 Phase 2)
+ * 目标格式: python3 Fetch China GDP data
+ */
+function formatBashArgs(args: Record<string, unknown>): string {
+  const parts: string[] = [];
+
+  // 1. 优先使用 description
+  if (args.description) {
+    return theme.muted(String(args.description));
+  }
+
+  // 2. 提取命令基名
+  if (args.command) {
+    const cmd = String(args.command);
+    const baseName = extractCommandBase(cmd);
+    parts.push(baseName);
+
+    // 3. 如果是多行命令，只显示第一行
+    const firstLine = cmd.split('\n')[0];
+    if (firstLine.length > 40) {
+      // 截断并添加省略号
+      const truncated = truncateAtWord(firstLine, 40);
+      parts.push(theme.muted(truncated));
+    } else if (firstLine !== baseName) {
+      parts.push(theme.muted(firstLine));
+    }
+  }
+
+  // 4. 显示超时
+  if (args.timeout !== undefined) {
+    parts.push(theme.muted(`${args.timeout}s`));
+  }
+
+  return parts.length > 0 ? parts.join(' ') : theme.muted('(no args)');
 }
 
 function formatDuration(ms: number): string {
