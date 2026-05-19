@@ -168,6 +168,7 @@ function renderEvent(
   agentRunner?: AgentRunnerController,
 ) {
   const event = display.event;
+  console.error('[cli] DEBUG: renderEvent called, event.type:', event.type);
 
   if (event.type === 'thinking') {
     const message = event.message.trim();
@@ -200,8 +201,11 @@ function renderEvent(
   }
 
   if (event.type === 'tool_approval') {
+    console.error('[cli] DEBUG: tool_approval event received for tool:', event.tool);
     const comp = chatLog.startTool(display.id, event.tool, event.args);
+    console.error('[cli] DEBUG: Got component from startTool');
     const cb = (decision: ApprovalDecision) => {
+      console.error('[cli] DEBUG: Approval callback called with decision:', decision);
       if (!agentRunner) return;
       agentRunner.respondToApproval(decision);
     };
@@ -209,7 +213,9 @@ function renderEvent(
     // user pressed Enter/Esc before this UI was rendered.
     const stored = pendingApprovalDecisionGlobal;
     pendingApprovalDecisionGlobal = null;
+    console.error('[cli] DEBUG: Calling setApprovalPending, stored:', stored);
     comp.setApprovalPending(cb, stored);
+    console.error('[cli] DEBUG: setApprovalPending completed');
     return;
   }
 
@@ -1086,7 +1092,8 @@ export async function runCli(options: RunCliOptions = {}) {
     } else {
       setApprovalCursor((cursor + 2) % 3); // 0→2→1→0
     }
-    updateView();
+    // Update the approval UI cursor display
+    chatLog.updateApprovalCursor();
     tui.requestRender();
   };
 

@@ -303,7 +303,7 @@ export function parseSessionLiteInfo(sessionId: string, headTail: HeadTailResult
 export type SessionState = 'idle' | 'running' | 'requires_action';
 export type RequiresActionDetails = { tool_name, action_description, tool_use_id, request_id, input? }
 export type SessionExternalMetadata = { permission_mode?, model?, pending_action?, task_summary? }
-export type PermissionMode = 'default' | '.accept-all' | 'bypassPermissions' | 'dangerously慷慨'
+export type PermissionMode = 'default' | '.accept-all' | 'bypassPermissions' | 'dangerously'
 
 // 状态管理
 export function setSessionStateChangedListener(cb: (state: SessionState, details?) => void): void

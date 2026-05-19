@@ -262,6 +262,16 @@ export class ChatLogComponent extends Container {
     return null;
   }
 
+  /** Update the approval cursor display in the first tool component with approval UI. */
+  updateApprovalCursor(): void {
+    for (const comp of this.toolById.values()) {
+      if (typeof (comp as any).updateApprovalCursor === 'function') {
+        (comp as any).updateApprovalCursor();
+        return;
+      }
+    }
+  }
+
   updateToolProgress(toolCallId: string, message: string) {
     const existing = this.toolById.get(toolCallId);
     if (!existing) {
