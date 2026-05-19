@@ -2,24 +2,53 @@
 
 ## 问题分析
 
-### 1. UI 展示问题
+### 1. UI 展示问题 (✅ 已完成)
 
-**当前输出示例：**
+**旧格式 → 新格式：**
 ```
-⎿  ✅ Done (13 lines) in 2.7s
-⎿  ✅ Done (15 lines) in 583ms
-⎿  ✅ Done (18 lines) in 6.6s
+旧: ⎿  ✅ Done (13 lines) in 2.7s
+新: ⎿  → 13 lines | {"name": "GDP"}
 ```
 
-**发现的问题：**
+**已修复：**
+| # | 问题 | 状态 |
+|---|------|------|
+| 1 | 冗余状态 `✅ Done` | ✅ 已修复 |
+| 2 | 重复耗时 `in Xs` | ✅ 已修复 |
+| 3 | 信息量少 | ✅ 已修复 |
+| 4 | 错误截断 | ✅ 已修复 |
+| 5 | 空输出处理 `✅  in 444ms` | ✅ 已修复 |
+
+### 2. Bash 命令显示问题 (待修复)
+
+**当前显示：**
+```
+Bash(command=python3 -c "
+import akshare as ak
+import json
+#...", description=Fetch China GDP data,
+timeout=30)
+```
+
+**问题：**
 
 | # | 问题 | 严重程度 | 说明 |
 |---|------|----------|------|
-| 1 | **冗余状态** | 🔴 高 | `✅ Done (X lines)` - emoji 和 "Done" 冗余 |
-| 2 | **重复耗时** | 🔴 高 | `Done (X lines) in Xs` - 耗时出现两次 |
-| 3 | **信息量少** | 🟡 中 | 只显示行数，没有输出预览 |
-| 4 | **错误截断** | 🔴 高 | 错误信息被截断，关键词丢失 |
-| 5 | **空输出处理** | 🟡 中 | `✅  in 444ms` - 没有内容 |
+| 1 | **命令过长** | 🔴 高 | Python 多行命令显示不完整 |
+| 2 | **命令截断** | 🔴 高 | 关键代码被截断，无法识别 |
+| 3 | **描述丢失** | 🟡 中 | description 参数被忽略 |
+| 4 | **换行显示** | 🟡 中 | 多行命令显示混乱 |
+
+**理想显示：**
+```
+⎿  python3 Fetch China GDP data → 13 lines | {"gdp": 126.5}
+```
+
+**目标格式：**
+- 使用 `python3` 作为命令标识（提取命令的 base name）
+- 使用 `description` 作为子标题
+- 移除冗余的 `command=` 前缀
+- 截断多行命令，只显示第一行或关键部分
 
 ### 2. macro-china Skill 执行问题
 
@@ -41,7 +70,87 @@ Bash() → Read /tmp/macro_err.txt → Bash() → Read /tmp/gdp_out.txt → Bash
 
 ## 改造计划
 
-### Phase 1: Bash UI 优化 (优先级: 高)
+### Phase 1: Bash UI 结果优化 (✅ 已完成)
+
+**修改文件:**
+- `src/tools/bash/formatter.ts` - 重写 `formatBashSummary`
+- `src/components/tool-event.ts` - 简化 `setComplete`
+- `src/components/chat-log.ts` - 简化 `setComplete`
+- `src/tools/tool-renderers.ts` - 更新所有渲染器
+
+**已实现格式:**
+```
+→ 13 lines | {"gdp": 126.5}  # 多行输出预览
+→ hello world                     # 单行输出
+→ exit 0                         # 空输出
+✗ error message                  # 错误
+⏱ timeout                       # 超时
+```
+
+### Phase 2: Bash 命令显示优化 (待实施)
+
+**目标:** 优化 Bash 工具的 header 显示
+
+**当前问题:**
+```
+Bash(command=python3 -c "
+import akshare as ak
+import json
+...", description=Fetch China GDP data,
+timeout=30)
+```
+
+**期望格式:**
+```
+python3 Fetch China GDP data
+```
+
+**实施步骤:**
+
+```typescript
+// src/components/tool-event.ts
+
+// 提取命令基名
+function extractCommandName(command: string): string {
+  // python3 -c "..." → python3
+  // node script.js → node
+  // bash script.sh → bash
+  const parts = command.trim().split(/\s+/);
+  return parts[0] || command;
+}
+
+// 格式化工具名和参数
+function formatToolName(name: string, args: Record<string, unknown>): string {
+  // Bash(command=..., description=..., timeout=...)
+  // → python3 Fetch China GDP data
+
+  // 1. 提取命令名
+  let cmdName = name;
+  if (name === 'bash' && args.command) {
+    cmdName = extractCommandName(args.command as string);
+  }
+
+  // 2. 优先使用 description
+  if (args.description) {
+    return `${cmdName} ${args.description}`;
+  }
+
+  // 3. 否则截断命令
+  if (args.command) {
+    const cmd = args.command as string;
+    const firstLine = cmd.split('\n')[0];
+    const truncated = truncateAtWord(firstLine, 40);
+    return `${cmdName} ${truncated}`;
+  }
+
+  return cmdName;
+}
+```
+
+**修改文件:**
+- `src/components/tool-event.ts` - 重写 header 格式化逻辑
+
+### Phase 3: macro-china Skill 优化 (待实施)
 
 #### 1.1 简化状态显示
 
@@ -241,39 +350,57 @@ it('should format error with summarize', () => {
 
 ## 验收标准
 
-### UI 优化
-- [ ] Bash 执行结果显示简洁，不再有 `✅ Done` 冗余
-- [ ] 耗时只显示一次
-- [ ] 成功时显示输出预览（单行或前两行）
-- [ ] 错误信息完整可读
-- [ ] 空输出显示退出码
+### Phase 1: UI 结果优化 ✅
+- [x] Bash 执行结果显示简洁，不再有 `✅ Done` 冗余
+- [x] 耗时只显示一次
+- [x] 成功时显示输出预览（单行或前两行）
+- [x] 错误信息完整可读
+- [x] 空输出显示退出码
 
-### 性能优化
+### Phase 2: 命令显示优化 ⏳
+- [ ] Bash 工具显示命令名（如 `python3`）而非 `Bash`
+- [ ] 优先显示 `description` 作为子标题
+- [ ] 长命令自动截断，保留关键词
+- [ ] 多行命令只显示第一行
+
+### Phase 3: Skill 优化 ⏳
 - [ ] 减少不必要的文件读写
 - [ ] macro-china skill 执行时间减少 30%
-
-### 兼容性
-- [ ] 所有现有测试通过
-- [ ] 不破坏其他工具的显示
+- [ ] 错误时显示重试建议
 
 ---
 
 ## 文件变更清单
 
+### Phase 1 (已完成)
+| 文件 | 改动 | 状态 |
+|------|------|------|
+| `src/tools/bash/formatter.ts` | 重写 `formatBashSummary` | ✅ |
+| `src/components/tool-event.ts` | 简化 `setComplete`，添加颜色处理 | ✅ |
+| `src/components/chat-log.ts` | 简化 `setComplete`，添加颜色处理 | ✅ |
+| `src/tools/tool-renderers.ts` | 更新所有渲染器使用新符号 | ✅ |
+| `src/tools/bash/bash-tool.test.ts` | 更新测试用例 | ✅ |
+
+### Phase 2 (待实施)
 | 文件 | 改动 |
 |------|------|
-| `src/tools/bash/formatter.ts` | 重写 `formatBashSummary` |
-| `src/tools/bash/output-processors.ts` | 新增 `summarizeError` |
-| `src/components/tool-event.ts` | 简化 `setComplete` |
-| `src/tools/bash/bash-tool.test.ts` | 更新测试用例 |
+| `src/components/tool-event.ts` | 重写 header 格式化逻辑 |
+| `src/tools/bash/types.ts` | 添加命令提取类型 |
+
+### Phase 3 (待实施)
+| 文件 | 改动 |
+|------|------|
+| `.claude/skills/macro-china/SKILL.md` | 优化数据获取流程 |
 
 ---
 
 ## 预计工时
 
-- Phase 1 (UI 优化): 1.5 小时
-- Phase 2 (Skill 优化): 2 小时
-- Phase 3 (TUI 组件): 1 小时
-- 测试和调试: 1 小时
+| Phase | 内容 | 预计工时 | 状态 |
+|-------|------|----------|------|
+| Phase 1 | UI 结果优化 | 1.5 小时 | ✅ 已完成 |
+| Phase 2 | 命令显示优化 | 1 小时 | ⏳ 待实施 |
+| Phase 3 | Skill 优化 | 2 小时 | ⏳ 待实施 |
+| 测试和调试 | - | 1 小时 | - |
 
 **总计: ~5.5 小时**
