@@ -916,8 +916,39 @@ export async function runCli(options: RunCliOptions = {}) {
     }
 
     if (agentRunner.pendingApproval && !chatLog.hasApprovalPending()) {
-      // Approval is shown inline in the chat via tool_approval events.
-      // No full-screen overlay needed.
+      // When pendingApproval is set but hasApprovalPending() is false,
+      // it means the tool_approval event hasn't been rendered yet.
+      // Check if there's a pending approval event in history that needs rendering.
+      const history = agentRunner.history;
+      const lastItem = history[history.length - 1];
+      if (lastItem) {
+        for (let i = lastRenderedEventCount; i < lastItem.events.length; i++) {
+          const display = lastItem.events[i];
+          if (display.event.type === 'tool_approval') {
+            renderEvent(chatLog, display, lastItem.status, agentRunner);
+            lastRenderedEventCount = Math.max(lastRenderedEventCount, i + 1);
+            tui.requestRender();
+            return;
+          }
+        }
+      }
+
+      // If we get here, the tool_approval event hasn't been pushed to history yet.
+      // This happens when pendingApproval is set but the event hasn't been yielded.
+      // We need to create a placeholder UI for the pending approval.
+      const pending = agentRunner.pendingApproval;
+      if (pending) {
+        const tempId = `approval-pending-${Date.now()}`;
+        const comp = chatLog.startTool(tempId, pending.tool, pending.args);
+        const cb = (decision: 'allow-once' | 'allow-session' | 'deny') => {
+          agentRunner.respondToApproval(decision);
+        };
+        const stored = pendingApprovalDecisionGlobal;
+        pendingApprovalDecisionGlobal = null;
+        comp.setApprovalPending(cb, stored);
+        tui.requestRender();
+        return;
+      }
     }
 
     if (state.appState === 'provider_select') {
@@ -1111,13 +1142,16 @@ export async function runCli(options: RunCliOptions = {}) {
 
   editor.onApprovalKey = (data: string) => {
     const key = data;
+    console.error('[cli] DEBUG: onApprovalKey called with key:', JSON.stringify(key));
 
     // Only intercept keys when there is actually a pending approval
     // Check both pendingApproval and workingState.status for consistency
     const hasPendingApproval = !!agentRunner.pendingApproval;
     const isInApprovalState = agentRunner.workingState.status === 'approval';
+    console.error('[cli] DEBUG: hasPendingApproval:', hasPendingApproval, 'isInApprovalState:', isInApprovalState);
 
     if (!hasPendingApproval && !isInApprovalState) {
+      console.error('[cli] DEBUG: No pending approval, returning false');
       return false;
     }
 
