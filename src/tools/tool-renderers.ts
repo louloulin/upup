@@ -53,32 +53,29 @@ const bashRenderer: ToolResultRenderer = (_args, result) => {
   const stdout = parsed.stdout ?? '';
   const stderr = parsed.stderr ?? '';
 
-  // 成功情况 (Plan 21: 简化)
+  // 成功情况 - 直接显示内容，不显示行数
   if (exitCode === 0) {
     const lines = stdout.trim().split('\n').filter(l => l.trim());
     if (lines.length === 0) {
       return `${ARROW} exit 0`;
     }
-    if (lines.length === 1) {
-      return `${ARROW} ${truncateWithKeyword(lines[0], 50)}`;
-    }
-    // 多行输出：显示行数和预览
-    const preview = truncateWithKeyword(lines[0], 40);
-    return `${ARROW} ${lines.length} lines | ${preview}`;
+    // 只显示第一行内容，简洁明了
+    const content = truncateWithKeyword(lines[0], 80);
+    return `${ARROW} ${content}`;
   }
 
-  // 错误情况 (Plan 21: 使用 ✗)
+  // 错误情况
   if (stderr.includes('validation failed')) {
     const pathMatch = stderr.match(/path ['"]([^'"]+)['"]/);
     const path = pathMatch ? pathMatch[1].split('/').pop() : '';
-    return path ? `${CROSS} Security: denied '${path}'` : `${CROSS} Security: path denied`;
+    return path ? `${CROSS} denied '${path}'` : `${CROSS} path denied`;
   }
   if (stderr.includes('Security')) {
-    return `${CROSS} Security: ${truncateWithKeyword(stderr.trim(), 50)}`;
+    return `${CROSS} ${truncateWithKeyword(stderr.trim(), 60)}`;
   }
   // General errors
-  const firstLine = stderr.trim().split('\n')[0] || 'Unknown error';
-  return `${CROSS} ${truncateWithKeyword(firstLine, 60)}`;
+  const firstLine = stderr.trim().split('\n')[0] || 'error';
+  return `${CROSS} ${truncateWithKeyword(firstLine, 80)}`;
 };
 
 const editFileRenderer: ToolResultRenderer = (_args, result) => {

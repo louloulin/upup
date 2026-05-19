@@ -524,17 +524,36 @@ export class Agent {
       }
 
       if (denied) {
-        const totalTime = Date.now() - ctx.startTime;
-        yield {
-          type: 'done',
-          answer: '',
-          toolCalls: ctx.scratchpad.getToolCallRecords(),
-          iterations: ctx.iteration,
-          totalTime,
-          tokenUsage: ctx.tokenCounter.getUsage(),
-          tokensPerSecond: ctx.tokenCounter.getTokensPerSecond(totalTime),
-        };
-        return;
+        // 检查是否有可用的工具结果
+        const deniedCount = toolMessages.filter(tm =>
+          tm.content === 'Tool execution denied by user.'
+        ).length;
+
+        const hasAvailableResults = toolMessages.some(tm =>
+          tm.content &&
+          tm.content !== 'Tool execution denied by user.' &&
+          tm.content !== 'Skipped (already executed).'
+        );
+
+        if (!hasAvailableResults) {
+          // 所有工具都被拒绝，返回错误信息
+          const totalTime = Date.now() - ctx.startTime;
+          yield {
+            type: 'done',
+            answer: `请求无法完成。${deniedCount} 个工具被用户拒绝。`,
+            toolCalls: ctx.scratchpad.getToolCallRecords(),
+            iterations: ctx.iteration,
+            totalTime,
+            tokenUsage: ctx.tokenCounter.getUsage(),
+            tokensPerSecond: ctx.tokenCounter.getTokensPerSecond(totalTime),
+          };
+          return;
+        }
+
+        // 有部分工具可用，通知 LLM 继续处理
+        const deniedMessage = `[Note] ${deniedCount} tool(s) were denied by user. Please analyze the available results and provide an answer based on partial data, or suggest an alternative approach.`;
+        messages.push(new HumanMessage(deniedMessage));
+        // 不要终止，继续循环让 LLM 处理部分成功的工具结果
       }
 
       // Context threshold management (may compact the message array)
