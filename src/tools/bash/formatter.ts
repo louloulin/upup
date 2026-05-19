@@ -10,7 +10,7 @@
  * - 简化状态符号：✅→ →, ❌→ ✗, ⏱️→ ⏱
  * - 移除冗余的 "Done" 文字
  * - 不再重复显示耗时
- * - 成功时显示输出预览
+ * - 成功时显示输出预览（不显示行数）
  */
 
 import {
@@ -148,8 +148,7 @@ export function formatBashOutput(result: BashToolResult): string {
  * 简化的摘要格式 (Plan 21: 极简风格)
  *
  * 格式:
- * - 成功单行: → "hello world"
- * - 成功多行: → 13 lines | "first line"
+ * - 成功: → content (直接显示内容，不显示行数)
  * - 错误: ✗ error message
  * - 超时: ⏱ timeout
  * - 空输出: → exit 0
@@ -169,16 +168,10 @@ export function formatBashSummary(result: BashToolResult): string {
       return `${ARROW} exit 0`;
     }
 
+    // 只显示第一行内容，简洁明了
     const lines = stdout.split('\n').filter(l => l.trim());
-    if (lines.length === 1) {
-      // 单行输出：直接显示内容
-      const content = truncateAtWord(lines[0], 50);
-      return `${ARROW} ${content}`;
-    }
-
-    // 多行输出：显示行数和预览
-    const preview = truncateAtWord(lines[0], 40);
-    return `${ARROW} ${lines.length} lines | ${preview}`;
+    const content = truncateAtWord(lines[0], 80);
+    return `${ARROW} ${content}`;
   }
 
   // 错误：显示错误信息
@@ -189,12 +182,12 @@ export function formatBashSummary(result: BashToolResult): string {
 
   // 提取核心错误信息
   const firstLine = stderr.split('\n')[0] || 'error';
-  const errorMsg = summarizeErrorMessage(firstLine, 50);
+  const errorMsg = summarizeErrorMessage(firstLine, 80);
   return `${CROSS} ${errorMsg}`;
 }
 
 /**
- * 智能错误摘要 (Plan 21 新增)
+ * 智能错误摘要 (Plan 21)
  * 1. 移除冗余路径前缀
  * 2. 提取核心错误信息
  * 3. 在单词边界截断

@@ -7,7 +7,8 @@
 **旧格式 → 新格式：**
 ```
 旧: ⎿  ✅ Done (13 lines) in 2.7s
-新: ⎿  → 13 lines | {"name": "GDP"}
+旧: ⎿  → 13 lines | === GDP ===
+新: ⎿  → === GDP === (直接显示内容，不显示行数)
 ```
 
 **已修复：**
@@ -15,11 +16,17 @@
 |---|------|------|
 | 1 | 冗余状态 `✅ Done` | ✅ 已修复 |
 | 2 | 重复耗时 `in Xs` | ✅ 已修复 |
-| 3 | 信息量少 | ✅ 已修复 |
+| 3 | 显示 "N lines" 行数 | ✅ 已修复 - 移除行数显示 |
 | 4 | 错误截断 | ✅ 已修复 |
 | 5 | 空输出处理 `✅  in 444ms` | ✅ 已修复 |
+| 6 | 多行输出只显示内容 | ✅ 已修复 |
 
-### 2. Bash 命令显示问题 (待修复)
+**2026-05-19 优化:**
+- 移除 "N lines |" 前缀，直接显示内容
+- 增加截断长度从 40-50 到 80 字符
+- 简化错误信息显示
+
+### 2. Bash 命令显示问题 (✅ 已完成)
 
 **当前显示：**
 ```
@@ -41,7 +48,8 @@ timeout=30)
 
 **理想显示：**
 ```
-⎿  python3 Fetch China GDP data → 13 lines | {"gdp": 126.5}
+python3 Fetch China GDP data
+→ {"gdp": 126.5}
 ```
 
 **目标格式：**
@@ -379,9 +387,11 @@ it('should format error with summarize', () => {
 ### Phase 1: UI 结果优化 ✅
 - [x] Bash 执行结果显示简洁，不再有 `✅ Done` 冗余
 - [x] 耗时只显示一次
-- [x] 成功时显示输出预览（单行或前两行）
+- [x] 成功时显示输出预览（单行内容）
 - [x] 错误信息完整可读
 - [x] 空输出显示退出码
+- [x] 移除 "N lines |" 前缀，直接显示内容
+- [x] 增加截断长度到 80 字符
 
 ### Phase 2: 命令显示优化 ✅
 - [x] Bash 工具显示命令名（如 `python3`）而非 `Bash`
@@ -442,4 +452,64 @@ it('should format error with summarize', () => {
 | Phase 2 | 命令显示优化 | 1 小时 | ✅ 已完成 | ✅ |
 | Phase 3 | Skill 体验 | 0 小时 | ⏳ 可选 | - |
 
+## Phase 4: 图标简化 (2026-05-19 完成)
+
+### 问题
+命令展示太啰嗦，图标过多：
+- 头部 `⏺` 图标
+- 详情行 `⎿` 前缀
+
+### 解决方案
+移除所有冗余图标，只保留核心内容。
+
+**旧格式:**
+```
+⏺ ToolName(args)
+⎿  → result
+```
+
+**新格式 (简化):**
+```
+ToolName(args)
+→ result
+```
+
+### 修改文件
+| 文件 | 改动 | 状态 |
+|------|------|------|
+| `src/components/tool-event.ts` | 移除 CIRCLE 图标和 `⎿` 前缀 | ✅ |
+| `src/components/chat-log.ts` | 移除 BrowserSessionComponent 中的图标 | ✅ |
+
+### 验证
+- Unit Tests: 2485 pass, 0 fail
+- Build: ✅ Success
+
 **核心代码修改已完成 ✅ 100%**
+
+## Phase 5: 移除行数前缀 (2026-05-19 完成)
+
+### 问题
+多行输出时显示冗余的行数信息：
+```
+旧: → 12 lines | === GDP ===
+旧: → 3 lines | /opt/homebrew/lib/python3.14/site-pac....
+```
+
+### 解决方案
+移除 "N lines |" 前缀，直接显示内容：
+```
+新: → === GDP ===
+新: → /opt/homebrew/lib/python3.14/site-pac....
+```
+
+### 修改文件
+| 文件 | 改动 | 状态 |
+|------|------|------|
+| `src/tools/tool-renderers.ts` | bashRenderer 不再显示行数 | ✅ |
+| `src/tools/bash/formatter.ts` | formatBashSummary 不再显示行数 | ✅ |
+
+### 验证
+- Unit Tests: 2485 pass, 0 fail
+- Build: ✅ Success
+
+**Phase 5 优化已完成 ✅**
