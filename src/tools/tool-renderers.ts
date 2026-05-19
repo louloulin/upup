@@ -5,6 +5,8 @@
  * for the TUI display. Falls back to generic summarization.
  *
  * Reference: Loucode's Tool UI 4-function contract pattern
+ *
+ * Plan 21: 新的状态符号 → (成功), ✗ (错误)
  */
 
 import { truncateAtWord } from './bash/output-processors.js';
@@ -32,12 +34,16 @@ export type ToolResultRenderer = (
 ) => string | null;
 
 // Re-export truncateAtWord as truncateWithKeyword for backward compatibility
-// The function in output-processors.ts already implements word-boundary truncation
 const truncateWithKeyword = truncateAtWord;
 
 // ============================================================================
 // Per-tool renderers
+// Plan 21: 新的状态符号 → (成功), ✗ (错误)
 // ============================================================================
+
+// Plan 21: 新的状态符号
+const ARROW = '→';
+const CROSS = '✗';
 
 const bashRenderer: ToolResultRenderer = (_args, result) => {
   const parsed = tryParseJSON(result) as { exitCode?: number; stdout?: string; stderr?: string } | null;
@@ -47,29 +53,32 @@ const bashRenderer: ToolResultRenderer = (_args, result) => {
   const stdout = parsed.stdout ?? '';
   const stderr = parsed.stderr ?? '';
 
-  // Error case: classify security errors
-  if (exitCode !== 0) {
-    // Security validation errors
-    if (stderr.includes('validation failed')) {
-      // Extract the denied path if present
-      const pathMatch = stderr.match(/path ['"]([^'"]+)['"]/);
-      const path = pathMatch ? pathMatch[1].split('/').pop() : '';
-      return path ? `Security: denied '${path}'` : 'Security: path denied';
+  // 成功情况 (Plan 21: 简化)
+  if (exitCode === 0) {
+    const lines = stdout.trim().split('\n').filter(l => l.trim());
+    if (lines.length === 0) {
+      return `${ARROW} exit 0`;
     }
-    // Other security errors
-    if (stderr.includes('Security')) {
-      return `Security: ${truncateWithKeyword(stderr.trim(), 50)}`;
+    if (lines.length === 1) {
+      return `${ARROW} ${truncateWithKeyword(lines[0], 50)}`;
     }
-    // General errors
-    return `Error: ${truncateWithKeyword(stderr.trim(), 60)}`;
+    // 多行输出：显示行数和预览
+    const preview = truncateWithKeyword(lines[0], 40);
+    return `${ARROW} ${lines.length} lines | ${preview}`;
   }
 
-  // Success case: summarize output
-  const lines = stdout.trim().split('\n').length;
-  if (lines > 1) {
-    return `${lines} lines output`;  // No duration - setComplete handles it
+  // 错误情况 (Plan 21: 使用 ✗)
+  if (stderr.includes('validation failed')) {
+    const pathMatch = stderr.match(/path ['"]([^'"]+)['"]/);
+    const path = pathMatch ? pathMatch[1].split('/').pop() : '';
+    return path ? `${CROSS} Security: denied '${path}'` : `${CROSS} Security: path denied`;
   }
-  return truncateWithKeyword(stdout.trim(), 60) || 'Done';
+  if (stderr.includes('Security')) {
+    return `${CROSS} Security: ${truncateWithKeyword(stderr.trim(), 50)}`;
+  }
+  // General errors
+  const firstLine = stderr.trim().split('\n')[0] || 'Unknown error';
+  return `${CROSS} ${truncateWithKeyword(firstLine, 60)}`;
 };
 
 const editFileRenderer: ToolResultRenderer = (_args, result) => {
@@ -102,7 +111,7 @@ const writeFileRenderer: ToolResultRenderer = (_args, result) => {
 
   if (parsed.bytesWritten !== undefined) {
     const kb = (parsed.bytesWritten / 1024).toFixed(1);
-    return `Wrote ${kb}KB`;
+    return `${ARROW} wrote ${kb}KB`;
   }
   return parsed.message ? truncate(parsed.message, 60) : null;
 };
@@ -112,7 +121,7 @@ const webSearchRenderer: ToolResultRenderer = (_args, result) => {
   if (!parsed) return null;
 
   if (Array.isArray(parsed.results)) {
-    return `${parsed.results.length} search results`;
+    return `${ARROW} ${parsed.results.length} results`;
   }
   return null;
 };
@@ -122,7 +131,7 @@ const webFetchRenderer: ToolResultRenderer = (_args, result) => {
   if (!parsed) return null;
 
   if (parsed.title) {
-    return truncate(parsed.title, 60);
+    return `${ARROW} ${truncate(parsed.title, 60)}`;
   }
   return null;
 };
@@ -136,12 +145,12 @@ const financialRenderer: ToolResultRenderer = (args, result) => {
   const keys = Object.keys(parsed.data).filter(k => !k.startsWith('_'));
 
   if (ticker) {
-    return `${ticker}: ${keys.length} data fields`;
+    return `${ARROW} ${ticker}: ${keys.length} fields`;
   }
-  return `${keys.length} data fields`;
+  return `${ARROW} ${keys.length} data fields`;
 };
 
-const quantRenderer: ToolResultRenderer = (args, result) => {
+const quantRenderer: ToolResultRenderer = (_args, result) => {
   const parsed = tryParseJSON(result) as { data?: Record<string, unknown> } | null;
   if (!parsed?.data) return null;
 
@@ -157,7 +166,7 @@ const quantRenderer: ToolResultRenderer = (args, result) => {
   }
 
   if (values.length > 0) {
-    return values.slice(0, 2).join(', ');
+    return `${ARROW} ${values.slice(0, 2).join(', ')}`;
   }
   return null;
 };

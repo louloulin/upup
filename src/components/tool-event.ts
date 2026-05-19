@@ -132,15 +132,25 @@ export class ToolEventComponent extends Container {
     this.clearDetail();
     this.header.setText(`${theme.primary(CIRCLE)} ${this.toolTitle}`);
 
-    // Check if summary already contains duration info (e.g., "5 lines output in 1.2s")
-    // Pattern matches "... in Nms" or "... in Ns"
-    const hasDuration = / in \d+(ms|s)$/.test(summary);
+    // Plan 21: 新的简化格式
+    // summary 格式: "→ content" 或 "✗ error" 或 "⏱ timeout"
+    // 不再追加耗时（formatter 已经处理）
 
-    // Only append duration if summary doesn't already have it
-    const durationStr = hasDuration ? '' : theme.muted(` in ${formatDuration(duration)}`);
+    // 根据状态选择颜色
+    let styledSummary = summary;
+    if (summary.startsWith('→')) {
+      // 成功：使用主色
+      styledSummary = theme.success(summary);
+    } else if (summary.startsWith('✗')) {
+      // 错误：使用错误色
+      styledSummary = theme.error(summary);
+    } else if (summary.startsWith('⏱')) {
+      // 超时：使用警告色
+      styledSummary = theme.warning(summary);
+    }
 
     const detail = new Text(
-      `${theme.muted('⎿  ')}${summary}${durationStr}`,
+      `${theme.muted('⎿  ')}${styledSummary}`,
       0,
       0
     );

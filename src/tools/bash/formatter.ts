@@ -5,6 +5,12 @@
  * 1. 将 BashToolResult 转换为结构化输出
  * 2. 生成符合 TUI 显示格式的字符串
  * 3. 支持 JSON 格式化和 ANSI 清理
+ *
+ * Plan 21 改动：
+ * - 简化状态符号：✅→ →, ❌→ ✗, ⏱️→ ⏱
+ * - 移除冗余的 "Done" 文字
+ * - 不再重复显示耗时
+ * - 成功时显示输出预览
  */
 
 import {
@@ -25,12 +31,13 @@ interface BashToolResult {
 }
 
 // ============================================================================
-// 常量定义
+// 常量定义 - Plan 21: 简化符号
 // ============================================================================
 
-const STATUS_SUCCESS = '✅';
-const STATUS_ERROR = '❌';
-const STATUS_TIMEOUT = '⏱️';
+// 新符号: → 表示成功/导向，✗ 表示错误，⏱ 表示超时
+const ARROW = '→';  // 成功/输出导向
+const CROSS = '✗';  // 错误
+const CLOCK = '⏱'; // 超时
 
 const TREE_INDENT = '⎿  ';
 const SECTION_STDOUT = '--- stdout ---';
@@ -52,30 +59,20 @@ function formatDuration(ms: number): string {
 }
 
 /**
- * 格式化执行状态行
+ * 格式化执行状态行 (Plan 21: 简化版)
  */
 function formatStatusLine(
   exitCode: number,
   durationMs: number,
   timedOut?: boolean
 ): string {
-  const status = timedOut
-    ? STATUS_TIMEOUT
-    : exitCode === 0
-      ? STATUS_SUCCESS
-      : STATUS_ERROR;
-
-  const durationStr = formatDuration(durationMs);
-
   if (timedOut) {
-    return `${TREE_INDENT}${status} Timed out in ${durationStr}`;
+    return `${TREE_INDENT}${CLOCK} Timed out`;
   }
-
   if (exitCode === 0) {
-    return `${TREE_INDENT}${status} Done in ${durationStr}`;
+    return `${TREE_INDENT}${ARROW} Done`;
   }
-
-  return `${TREE_INDENT}${status} Exit code ${exitCode} in ${durationStr}`;
+  return `${TREE_INDENT}${CROSS} Exit ${exitCode}`;
 }
 
 /**
@@ -148,31 +145,78 @@ export function formatBashOutput(result: BashToolResult): string {
 }
 
 /**
- * 简化的摘要格式（用于紧凑显示）
- * 注意：这个函数返回的摘要不包含耗时，耗时由 setComplete 统一追加
+ * 简化的摘要格式 (Plan 21: 极简风格)
+ *
+ * 格式:
+ * - 成功单行: → "hello world"
+ * - 成功多行: → 13 lines | "first line"
+ * - 错误: ✗ error message
+ * - 超时: ⏱ timeout
+ * - 空输出: → exit 0
+ *
+ * 注意: 不再包含耗时，耗时由 tool-event.ts 的 setComplete 统一处理
  */
 export function formatBashSummary(result: BashToolResult): string {
-  const status = result.timedOut
-    ? STATUS_TIMEOUT
-    : result.exitCode === 0
-      ? STATUS_SUCCESS
-      : STATUS_ERROR;
-
+  // 超时
   if (result.timedOut) {
-    return `${status} Timed out`;
+    return `${CLOCK} timeout`;
   }
 
+  // 成功
   if (result.exitCode === 0) {
-    const lineCount = result.stdout.split('\n').length;
-    if (lineCount > 1) {
-      return `${status} Done (${lineCount} lines)`;
+    const stdout = result.stdout.trim();
+    if (!stdout) {
+      return `${ARROW} exit 0`;
     }
-    const firstLine = result.stdout.split('\n')[0] || '';
-    // 使用 truncateAtWord 确保单词边界截断
-    return `${status} ${truncateAtWord(firstLine, 40)}`;
+
+    const lines = stdout.split('\n').filter(l => l.trim());
+    if (lines.length === 1) {
+      // 单行输出：直接显示内容
+      const content = truncateAtWord(lines[0], 50);
+      return `${ARROW} ${content}`;
+    }
+
+    // 多行输出：显示行数和预览
+    const preview = truncateAtWord(lines[0], 40);
+    return `${ARROW} ${lines.length} lines | ${preview}`;
   }
 
-  // 错误情况：使用 truncateAtWord 确保截断在单词边界
-  const errorPreview = result.stderr.split('\n')[0] || 'Unknown error';
-  return `${status} ${truncateAtWord(errorPreview, 40)}`;
+  // 错误：显示错误信息
+  const stderr = result.stderr.trim();
+  if (!stderr) {
+    return `${CROSS} exit ${result.exitCode}`;
+  }
+
+  // 提取核心错误信息
+  const firstLine = stderr.split('\n')[0] || 'error';
+  const errorMsg = summarizeErrorMessage(firstLine, 50);
+  return `${CROSS} ${errorMsg}`;
+}
+
+/**
+ * 智能错误摘要 (Plan 21 新增)
+ * 1. 移除冗余路径前缀
+ * 2. 提取核心错误信息
+ * 3. 在单词边界截断
+ */
+function summarizeErrorMessage(error: string, maxLen: number): string {
+  // 移除常见冗余前缀
+  let msg = error
+    // 移除 Python 路径
+    .replace(/File ".*?", line \d+/g, '')
+    // 移除 Node.js 路径
+    .replace(/\/Users\/.*?\/node_modules\//g, '')
+    // 移除 ANSI 颜色代码
+    .replace(/\x1B\[[0-9;]*[a-zA-Z]/g, '')
+    // 移除多余空白
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  // 移除常见错误前缀
+  msg = msg
+    .replace(/^Error:\s*/i, '')
+    .replace(/^Exception:\s*/i, '')
+    .replace(/^Warning:\s*/i, '');
+
+  return truncateAtWord(msg, maxLen);
 }
