@@ -1,180 +1,390 @@
-# UpUp 🤖
+# UpUp (涨涨) 🤖
 
-UpUp is an autonomous financial research agent that thinks, plans, and learns as it works. It performs analysis using task planning, self-reflection, and real-time market data. Think Claude Code, but built specifically for financial research.
+> 深度金融研究 AI Agent —— 基于 Dexter 核心改造，融合 Claude Code 设计理念
 
-<img width="665" height="452" alt="Screenshot 2026-04-02 at 4 16 57 PM" src="https://github.com/user-attachments/assets/02418111-5f48-4a66-be5d-dc9bf9806284" />
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue.svg)](https://www.typescriptlang.org/)
+[![Bun](https://img.shields.io/badge/Bun-1.0+-orange.svg)](https://bun.sh)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-## Table of Contents
+---
 
-- [👋 Overview](#-overview)
-- [✅ Prerequisites](#-prerequisites)
-- [💻 How to Install](#-how-to-install)
-- [🚀 How to Run](#-how-to-run)
-- [📊 How to Evaluate](#-how-to-evaluate)
-- [🐛 How to Debug](#-how-to-debug)
-- [📱 How to Use with WhatsApp](#-how-to-use-with-whatsapp)
-- [🤝 How to Contribute](#-how-to-contribute)
-- [📄 License](#-license)
+## 项目起源
 
+**UpUp (涨涨)** 是对 [Dexter](https://github.com/virattt/dexter) 的深度改造版本，继承了其金融研究能力，并融合了 [Claude Code](https://docs.anthropic.com/en/docs/claude-code) 的核心设计理念：
 
-## 👋 Overview
+- **从 Dexter 继承**: 完整的金融数据分析框架、工具系统、多数据源集成
+- **从 Claude Code 学习**: 权限管理模式、Session 状态管理、TUI 交互设计、插件架构
 
-UpUp takes complex financial questions and turns them into clear, step-by-step research plans. It runs those tasks using live market data, checks its own work, and refines the results until it has a confident, data-backed answer.  
+---
 
-**Key Capabilities:**
-- **Intelligent Task Planning**: Automatically decomposes complex queries into structured research steps
-- **Autonomous Execution**: Selects and executes the right tools to gather financial data
-- **Self-Validation**: Checks its own work and iterates until tasks are complete
-- **Real-Time Financial Data**: Access to income statements, balance sheets, and cash flow statements
-- **Safety Features**: Built-in loop detection and step limits to prevent runaway execution
+## 核心特性
 
-[![Twitter Follow](https://img.shields.io/twitter/follow/virattt?style=social)](https://twitter.com/virattt) [![Discord](https://img.shields.io/badge/Discord-Join%20Server-5865F2?style=social&logo=discord)](https://discord.gg/jpGHv2XB6T)
+### 🎯 金融研究能力
 
-<img width="1042" height="638" alt="Screenshot 2026-02-18 at 12 21 25 PM" src="https://github.com/user-attachments/assets/2a6334f9-863f-4bd2-a56f-923e42f4711e" />
+| 能力 | 说明 |
+|------|------|
+| **A股深度分析** | 财报数据、技术指标、资金流向、估值模型 |
+| **多数据源集成** | Tushare Pro, AKShare, Financial Datasets API |
+| **回测引擎** | 策略历史表现验证 |
+| **舆情分析** | 新闻情感、机构持仓、分析师评级 |
+| **风险管理** | 波动率计算、头寸限制、止损策略 |
 
+### 🏗️ 技术架构 (来自 Claude Code 灵感)
 
-## ✅ Prerequisites
+| 组件 | 描述 |
+|------|------|
+| **Session 2.0** | 完整对话历史、状态持久化、会话恢复 |
+| **权限系统** | 多层权限控制、`--dangerously` 模式、规则持久化 |
+| **插件架构** | UpUp Plugin API，支持 Bun/Jiti/WASM/MCP 多运行时 |
+| **Skill 系统** | 动态 Skill 加载、组合执行 |
+| **TUI 组件** | 富文本交互、Approval 提示、Debug 面板 |
 
-- [Bun](https://bun.com) runtime (v1.0 or higher)
-- OpenAI API key (get [here](https://platform.openai.com/api-keys))
-- Financial Datasets API key (get [here](https://financialdatasets.ai))
-- Exa API key (get [here](https://exa.ai)) - optional, for web search
+### 🔧 开发体验
 
-#### Installing Bun
-
-If you don't have Bun installed, you can install it using curl:
-
-**macOS/Linux:**
 ```bash
-curl -fsSL https://bun.com/install | bash
+bun start          # 交互式 TUI 模式
+bun dev            # 开发模式（热重载）
+bun test           # 测试套件
 ```
 
-**Windows:**
-```bash
-powershell -c "irm bun.sh/install.ps1|iex"
-```
+---
 
-After installation, restart your terminal and verify Bun is installed:
-```bash
-bun --version
-```
+## 快速开始
 
-## 💻 How to Install
+### 安装依赖
 
-1. Clone the repository:
 ```bash
+# 克隆仓库
 git clone https://github.com/virattt/upup.git
 cd upup
-```
 
-2. Install dependencies with Bun:
-```bash
+# 安装依赖
 bun install
 ```
 
-3. Set up your environment variables:
+### 配置环境变量
+
 ```bash
-# Copy the example environment file
+# 复制环境变量模板
 cp env.example .env
 
-# Edit .env and add your API keys (if using cloud providers)
-# OPENAI_API_KEY=your-openai-api-key
-# ANTHROPIC_API_KEY=your-anthropic-api-key (optional)
-# GOOGLE_API_KEY=your-google-api-key (optional)
-# XAI_API_KEY=your-xai-api-key (optional)
-# OPENROUTER_API_KEY=your-openrouter-api-key (optional)
-
-# Institutional-grade market data for agents
-# FINANCIAL_DATASETS_API_KEY=your-financial-datasets-api-key
-
-# (Optional) If using Ollama locally
-# OLLAMA_BASE_URL=http://127.0.0.1:11434
-
-# Web Search (Exa preferred, Tavily fallback)
-# EXASEARCH_API_KEY=your-exa-api-key
-# TAVILY_API_KEY=your-tavily-api-key
+# 编辑 .env 添加必要的 API Keys
 ```
 
-## 🚀 How to Run
+**推荐配置:**
 
-Run UpUp in interactive mode:
+```env
+# LLM Provider (至少配置一个)
+ANTHROPIC_API_KEY=sk-ant-...        # Claude 模型
+OPENAI_API_KEY=sk-...               # GPT 模型
+DEEPSEEK_API_KEY=sk-...             # DeepSeek 模型
+
+# 金融数据 (A股必需)
+TUSHARE_TOKEN=your_tushare_token    # https://tushare.pro
+
+# 搜索能力 (可选)
+EXASEARCH_API_KEY=your_exa_key      # Web 搜索
+
+# UpUp 权限模式 (可选)
+UPUP_DANGEROUSLY_MODE=true          # 启用无授权模式
+```
+
+### 运行
+
 ```bash
+# 交互式 TUI
 bun start
+
+# 单次查询
+bun run src/run.ts "分析贵州茅台的财务状况"
+
+# 无授权模式 (无需每个操作确认)
+bun --dangerously "批量分析A股科技股"
 ```
 
-Or with watch mode for development:
+---
+
+## 架构概览
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                           UpUp Architecture                          │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  ┌─────────────┐     ┌─────────────┐     ┌─────────────┐           │
+│  │    CLI      │     │    TUI      │     │  Bundled    │           │
+│  │  (dexter)   │     │  (Claude)   │     │   Runner    │           │
+│  └──────┬──────┘     └──────┬──────┘     └──────┬──────┘           │
+│         └────────────────────┴────────────────────┘                   │
+│                              │                                       │
+│                              ▼                                       │
+│  ┌──────────────────────────────────────────────────────────────┐  │
+│  │                     Agent Core                                │  │
+│  │  ┌────────────┐  ┌────────────┐  ┌────────────┐           │  │
+│  │  │  Capability │  │   Session   │  │   Skill    │           │  │
+│  │  │  Registry   │  │   State     │  │  Executor  │           │  │
+│  │  └────────────┘  └────────────┘  └────────────┘           │  │
+│  └──────────────────────────────────────────────────────────────┘  │
+│                              │                                       │
+│         ┌────────────────────┼────────────────────┐               │
+│         ▼                    ▼                    ▼               │
+│  ┌─────────────┐      ┌─────────────┐      ┌─────────────┐       │
+│  │   Tools     │      │   Skills     │      │ Components   │       │
+│  │   (64+)     │      │   (25+)      │      │   (16)       │       │
+│  │             │      │              │      │              │       │
+│  │ • Bash      │      │ • medfish    │      │ • ChatLog    │       │
+│  │ • Read/Edit │      │ • technical  │      │ • Approval   │       │
+│  │ • A股数据   │      │ • backtest   │      │ • Debug      │       │
+│  │ • 回测     │      │ • risk-mgmt  │      │ • StatusBar  │       │
+│  └─────────────┘      └─────────────┘      └─────────────┘       │
+│                              │                                       │
+│                              ▼                                       │
+│  ┌──────────────────────────────────────────────────────────────┐  │
+│  │                      Packages (17+)                         │  │
+│  │  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐        │  │
+│  │  │   llm   │  │ memory  │  │  sdk    │  │ plugins │        │  │
+│  │  └─────────┘  └─────────┘  └─────────┘  └─────────┘        │  │
+│  └──────────────────────────────────────────────────────────────┘  │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### 核心模块来源
+
+| 模块 | 来源 | 描述 |
+|------|------|------|
+| `agent/` | Dexter | Agent 运行逻辑、工具注册 |
+| `tools/` | 混合 | Bash、文件系统、金融工具 |
+| `session/` | Claude Code | Session 状态、权限模式 |
+| `components/` | Claude Code | TUI 组件库 |
+| `packages/sdk/` | 新设计 | UpUp Plugin SDK |
+
+---
+
+## 权限系统
+
+UpUp 采用多层权限架构，参考 Claude Code 的设计：
+
+### 权限模式
+
+```typescript
+// Session 级别
+type PermissionMode =
+  | 'default'           // 标准权限检查
+  | '.accept-all'       // 接受所有提示
+  | 'bypassPermissions' // 绕过所有检查
+  | 'dangerously';      // 允许危险操作
+
+// Bash 工具级别
+type BashMode = 'bypass' | 'allow' | 'ask' | 'deny';
+```
+
+### CLI 标志
+
 ```bash
-bun dev
+# 危险模式 - 允许所有操作
+bun --dangerously "执行批量分析"
+
+# 无授权模式 - 绕过权限检查
+bun --bypass "快速查询"
+
+# 安全模式
+bun --safe "首次运行"
 ```
 
-## 📊 How to Evaluate
+### 内置 bypass 规则
 
-UpUp includes an evaluation suite that tests the agent against a dataset of financial questions. Evals use LangSmith for tracking and an LLM-as-judge approach for scoring correctness.
+以下命令自动放行，无需授权：
 
-**Run on all questions:**
-```bash
-bun run src/evals/run.ts
+| 类别 | 命令 |
+|------|------|
+| 基础 | `pwd`, `echo`, `cd`, `ls` |
+| 读取 | `cat`, `grep`, `find`, `wc` |
+| Git | `git status`, `git log`, `git diff`, `git show` |
+
+---
+
+## 插件系统
+
+UpUp 支持多运行时插件架构 (来自 Claude Code 灵感):
+
+### 插件类型
+
+| 运行时 | 说明 | 沙箱级别 |
+|--------|------|----------|
+| `bun` | Native ESM，高性能 | `process` |
+| `jiti` | TypeScript 原生执行 | `process` |
+| `wasm` | WebAssembly 安全隔离 | `wasm` |
+| `mcp` | Model Context Protocol | `mcp` |
+
+### 插件结构
+
+```
+my-plugin/
+├── upup.plugin.json    # 插件清单
+├── src/
+│   ├── index.ts        # 入口
+│   └── tools/          # 工具定义
+└── package.json
 ```
 
-**Run on a random sample of data:**
-```bash
-bun run src/evals/run.ts --sample 10
-```
+### 插件示例
 
-The eval runner displays a real-time UI showing progress, current question, and running accuracy statistics. Results are logged to LangSmith for analysis.
-
-## 🐛 How to Debug
-
-UpUp logs all tool calls to a scratchpad file for debugging and history tracking. Each query creates a new JSONL file in `.upup/scratchpad/`.
-
-**Scratchpad location:**
-```
-.upup/scratchpad/
-├── 2026-01-30-111400_9a8f10723f79.jsonl
-├── 2026-01-30-143022_a1b2c3d4e5f6.jsonl
-└── ...
-```
-
-Each file contains newline-delimited JSON entries tracking:
-- **init**: The original query
-- **tool_result**: Each tool call with arguments, raw result, and LLM summary
-- **thinking**: Agent reasoning steps
-
-**Example scratchpad entry:**
 ```json
-{"type":"tool_result","timestamp":"2026-01-30T11:14:05.123Z","toolName":"get_income_statements","args":{"ticker":"AAPL","period":"annual","limit":5},"result":{...},"llmSummary":"Retrieved 5 years of Apple annual income statements showing revenue growth from $274B to $394B"}
+{
+  "schemaVersion": "1.0",
+  "id": "my-stock-analyzer",
+  "name": "Stock Analyzer",
+  "runtime": "bun",
+  "capabilities": ["tools"],
+  "security": {
+    "sandbox": "process"
+  }
+}
 ```
 
-This makes it easy to inspect exactly what data the agent gathered and how it interpreted results.
+---
 
-## 📱 How to Use with WhatsApp
+## Skill 系统
 
-Chat with UpUp through WhatsApp by linking your phone to the gateway. Messages you send to yourself are processed by UpUp and responses are sent back to the same chat.
+UpUp 内置丰富的金融研究 Skill：
 
-**Quick start:**
+### 核心 Skill
+
+| Skill | 功能 |
+|-------|------|
+| `medfish` | 医疗器械/医药行业分析 |
+| `technical-analysis` | 技术指标计算 (RSI, MACD, 布林带) |
+| `backtesting` | 策略回测引擎 |
+| `risk-management` | 风险管理工具 |
+| `sentiment-analysis` | 舆情情感分析 |
+| `financial-data` | 金融数据获取 |
+| `fundamental-analysis` | 基本面分析 |
+
+### 使用示例
+
+```
+> 分析医药行业
+[Skill: medfish] 已加载
+[Skill: financial-data] 已加载
+```
+
+---
+
+## 目录结构
+
+```
+dexter/                          # 项目根目录
+├── src/
+│   ├── agent/                   # Agent 核心
+│   │   ├── agent.ts
+│   │   ├── capability-registry.ts
+│   │   └── fallback-handler.ts
+│   ├── tools/                   # 工具系统 (64+)
+│   │   ├── bash/               # Bash 工具 (来自 Claude Code)
+│   │   ├── filesystem/          # 文件系统工具
+│   │   ├── financial/          # 金融数据工具
+│   │   └── types.ts
+│   ├── session/                # Session 管理 (来自 Claude Code)
+│   │   ├── session-state.ts
+│   │   └── render/
+│   ├── components/             # TUI 组件 (来自 Claude Code)
+│   ├── commands/               # Slash 命令
+│   ├── hooks/                  # Hook 系统
+│   ├── skills/                 # Skill 加载器
+│   ├── cli.ts                  # CLI 入口
+│   └── run.ts                  # Bundled Runner
+├── packages/
+│   ├── sdk/                    # UpUp Plugin SDK
+│   ├── llm/                    # LLM 适配器
+│   ├── memory/                 # 记忆系统
+│   └── plugins/               # 插件基础设施
+├── docs/                       # 文档
+├── tests/                      # 测试
+└── package.json
+```
+
+---
+
+## 配置参考
+
+### settings.local.json
+
+```json
+{
+  "permissions": {
+    "dangerouslyAllow": false,
+    "allow": [
+      "Bash(git status)",
+      "Bash(git diff)",
+      "Bash(npm run:*)",
+      "Read(CLAUDE.md)",
+      "Read(README.md)"
+    ],
+    "deny": [
+      "Bash(sudo *)",
+      "Bash(chmod 777 *)"
+    ]
+  },
+  "env": {
+    "DEFAULT_MODEL": "claude-sonnet-4-20250514",
+    "UPUP_DANGEROUSLY_MODE": "false"
+  }
+}
+```
+
+---
+
+## 开发指南
+
+### 本地开发
+
 ```bash
-# Link your WhatsApp account (scan QR code)
-bun run gateway:login
+# 安装依赖
+bun install
 
-# Start the gateway
-bun run gateway
+# 类型检查
+bun run typecheck
+
+# 运行测试
+bun test
+
+# 构建
+bun run build
 ```
 
-Then open WhatsApp, go to your own chat (message yourself), and ask UpUp a question.
+### 调试
 
-For detailed setup instructions, configuration options, and troubleshooting, see the [WhatsApp Gateway README](src/gateway/channels/whatsapp/README.md).
+```bash
+# 查看 Scratchpad 日志
+cat .upup/scratchpad/*.jsonl | jq
 
-## 🤝 How to Contribute
+# 调试模式
+DEBUG=* bun start
 
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
+# 权限调试
+DEBUG=permissions bun run src/run.ts "test"
+```
 
-**Important**: Please keep your pull requests small and focused.  This will make it easier to review and merge.
+---
 
+## 致谢
 
-## 📄 License
+**UpUp (涨涨)** 的诞生离不开以下项目的启发：
 
-This project is licensed under the MIT License.
+| 项目 | 贡献 |
+|------|------|
+| [Dexter](https://github.com/virattt/dexter) | 金融研究框架、多数据源集成、核心工具系统 |
+| [Claude Code](https://docs.anthropic.com/en/docs/claude-code) | 权限架构、Session 管理、TUI 设计、插件系统 |
+
+---
+
+## License
+
+MIT License - see [LICENSE](LICENSE) for details.
+
+---
+
+<p align="center">
+  <strong>UpUp (涨涨)</strong> — 让金融研究更智能
+</p>
