@@ -526,3 +526,56 @@ export const permissionMode = {
   PERMISSION_MODE_BEHAVIORS,
   DEFAULT_PERMISSION_MODE,
 };
+
+// ============================================================================
+// Hard-Deny Commands (Even in dangerously mode)
+// ============================================================================
+
+/**
+ * Commands that are always denied, even in bypassPermissions or dangerously mode
+ */
+export const HARD_DENY_PATTERNS: RegExp[] = [
+  /:\(\)\{:\|:&\};:/,           // Fork bomb
+  /^rm\s+-rf\s+\/+/,            // Root directory recursive delete
+  /^rm\s+-rf\s+\/\s*$/,        // rm -rf / with trailing whitespace
+  /^mkfs\b/,                    // Create filesystem
+  /^dd\s+.*of=\/dev\//,        // Direct disk write
+  /^fdisk\b/,                  // Disk partitioning
+  /^mount\s+-o\s+rw\s+\//,     // Remount root as writable
+  /\bchmod\s+0000\b/,          // Remove all permissions
+  /\bsudo\s+rm\s+-rf\b/,       // sudo delete
+  /base64\s+-d\s.*\|\s*(bash|sh|perl|python)/i, // Encoded command execution
+]
+
+/**
+ * Check if a command matches any hard-deny pattern
+ */
+export function isHardDenyCommand(command: string): boolean {
+  for (const pattern of HARD_DENY_PATTERNS) {
+    if (pattern.test(command)) {
+      return true
+    }
+  }
+  return false
+}
+
+/**
+ * Check permission with hard-deny protection
+ * Even in bypassPermissions/dangerously mode, hard-deny commands are blocked
+ */
+export function checkPermissionWithHardDeny(command: string): PermissionResult {
+  // First check hard-deny patterns
+  if (isHardDenyCommand(command)) {
+    const result: PermissionResult = {
+      allowed: false,
+      mode: 'deny',
+      reason: 'Command blocked: extremely dangerous operation',
+      suggestions: undefined,
+    }
+    permissionStore.addToHistory(result)
+    return result
+  }
+  
+  // Then proceed with normal permission check
+  return checkPermission(command)
+}

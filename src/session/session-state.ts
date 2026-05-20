@@ -44,7 +44,16 @@ export type SessionExternalMetadata = {
 /**
  * Permission mode type
  */
-export type PermissionMode = 'default' | '.accept-all' | 'bypassPermissions' | 'dangerously';
+export type PermissionMode = 
+  | 'default' 
+  | '.accept-all' 
+  | 'acceptEdits' 
+  | 'bypassPermissions' 
+  | 'dangerously'
+  | 'dontAsk'
+  | 'plan'
+  | 'auto'
+  | 'bubble';
 
 /**
  * State change event
@@ -452,3 +461,84 @@ export default {
   resetAllSessionState,
   removeAllListeners,
 };
+
+// ============================================================================
+// Permission Mode Helpers (Enhanced)
+// ============================================================================
+
+/**
+ * Check if current mode allows plan mode (read-only)
+ */
+export function isPlanMode(): boolean {
+  return _currentPermissionMode === 'plan'
+}
+
+/**
+ * Check if current mode accepts edits automatically
+ */
+export function isAcceptEditsMode(): boolean {
+  return _currentPermissionMode === 'acceptEdits' || _currentPermissionMode === '.accept-all'
+}
+
+/**
+ * Check if current mode never asks for permission
+ */
+export function isDontAskMode(): boolean {
+  return _currentPermissionMode === 'dontAsk' || _currentPermissionMode === 'bypassPermissions'
+}
+
+/**
+ * Check if current mode is auto mode (AI-assisted)
+ */
+export function isAutoMode(): boolean {
+  return _currentPermissionMode === 'auto'
+}
+
+/**
+ * Get a human-readable label for the current permission mode
+ */
+export function getPermissionModeLabel(): string {
+  switch (_currentPermissionMode) {
+    case 'default':
+      return ''
+    case 'bypassPermissions':
+      return '[BYPASS]'
+    case 'dangerously':
+      return '[DANGEROUS]'
+    case 'plan':
+      return '[PLAN]'
+    case 'acceptEdits':
+    case '.accept-all':
+      return '[AUTO-EDIT]'
+    case 'dontAsk':
+      return '[NO-PROMPT]'
+    case 'auto':
+      return '[AUTO]'
+    case 'bubble':
+      return '[BUBBLE]'
+    default:
+      return ''
+  }
+}
+
+/**
+ * Get notification message for the current mode
+ */
+export function getCurrentModeNotification(): string | undefined {
+  switch (_currentPermissionMode) {
+    case 'bypassPermissions':
+      return 'Permission checks have been bypassed'
+    case 'dangerously':
+      return 'Dangerous mode enabled'
+    case 'plan':
+      return 'Plan mode: read-only'
+    case 'acceptEdits':
+      return 'Edit operations auto-accepted'
+    case '.accept-all':
+      return 'All operations auto-accepted'
+    case 'dontAsk':
+      return 'No permission prompts'
+    default:
+      return undefined
+  }
+}

@@ -5,6 +5,10 @@ import type {
   ToolErrorEvent,
   ToolStartEvent,
 } from './agent/index.js';
+import { initialPermissionModeFromCLI } from './utils/permissions/permissionSetup.js'
+import { setPermissionMode } from './session/session-state.js'
+import type { PermissionCliArgs } from './utils/permissions/types.js'
+
 import { renderToolResult } from './tools/tool-renderers.js';
 import { getApiKeyNameForProvider, getProviderDisplayName } from './utils/env.js';
 import { defaultQueue } from './utils/message-queue.js';
@@ -168,7 +172,6 @@ function renderEvent(
   agentRunner?: AgentRunnerController,
 ) {
   const event = display.event;
-  console.error('[cli] DEBUG: renderEvent called, event.type:', event.type);
 
   if (event.type === 'thinking') {
     const message = event.message.trim();
@@ -201,11 +204,8 @@ function renderEvent(
   }
 
   if (event.type === 'tool_approval') {
-    console.error('[cli] DEBUG: tool_approval event received for tool:', event.tool);
     const comp = chatLog.startTool(display.id, event.tool, event.args);
-    console.error('[cli] DEBUG: Got component from startTool');
     const cb = (decision: ApprovalDecision) => {
-      console.error('[cli] DEBUG: Approval callback called with decision:', decision);
       if (!agentRunner) return;
       agentRunner.respondToApproval(decision);
     };
@@ -213,9 +213,7 @@ function renderEvent(
     // user pressed Enter/Esc before this UI was rendered.
     const stored = pendingApprovalDecisionGlobal;
     pendingApprovalDecisionGlobal = null;
-    console.error('[cli] DEBUG: Calling setApprovalPending, stored:', stored);
     comp.setApprovalPending(cb, stored);
-    console.error('[cli] DEBUG: setApprovalPending completed');
     return;
   }
 
@@ -261,9 +259,22 @@ export interface RunCliOptions {
   resumeTarget?: string;
   continue?: boolean;
   fork?: boolean;
+  dangerouslySkipPermissions?: boolean;
+  permissionMode?: string;
 }
 
 export async function runCli(options: RunCliOptions = {}) {
+  // Initialize permission mode from CLI args
+  const { mode, notification } = initialPermissionModeFromCLI({
+    dangerouslySkipPermissions: options.dangerouslySkipPermissions,
+    permissionMode: options.permissionMode,
+  } as PermissionCliArgs)
+  setPermissionMode(mode)
+  
+  if (notification) {
+    console.log(`[Permissions] ${notification}`)
+  }
+
   const tui = new TUI(new ProcessTerminal());
   const root = new Container();
   const chatLog = new ChatLogComponent(tui);
@@ -615,7 +626,6 @@ export async function runCli(options: RunCliOptions = {}) {
 
       // Debug logging
       if (commandName === 'status') {
-        console.error('[DEBUG] status result:', JSON.stringify(result, null, 2));
       }
 
       if (result.type === 'output' && result.text) {
@@ -1142,16 +1152,13 @@ export async function runCli(options: RunCliOptions = {}) {
 
   editor.onApprovalKey = (data: string) => {
     const key = data;
-    console.error('[cli] DEBUG: onApprovalKey called with key:', JSON.stringify(key));
 
     // Only intercept keys when there is actually a pending approval
     // Check both pendingApproval and workingState.status for consistency
     const hasPendingApproval = !!agentRunner.pendingApproval;
     const isInApprovalState = agentRunner.workingState.status === 'approval';
-    console.error('[cli] DEBUG: hasPendingApproval:', hasPendingApproval, 'isInApprovalState:', isInApprovalState);
 
     if (!hasPendingApproval && !isInApprovalState) {
-      console.error('[cli] DEBUG: No pending approval, returning false');
       return false;
     }
 

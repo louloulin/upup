@@ -790,3 +790,217 @@ bun test tests/permissions/matching.test.ts
 - [ ] 拒绝跟踪防止无限循环
 - [ ] 向后兼容现有配置
 - [ ] 所有权限相关测试通过
+---
+
+## 十二、实现进度
+
+### Phase 0: 基础准备 ✅ 已完成
+
+**完成时间**: 2026-05-20
+
+**已创建文件**:
+- `src/utils/permissions/types.ts` - 统一权限类型定义
+- `src/utils/permissions/permissionSetup.ts` - CLI 参数和安全检查
+- `src/utils/permissions/index.ts` - 导出入口
+
+**已修改文件**:
+- `src/cli.ts` - 添加 `--dangerously-skip-permissions` 支持
+- `src/session/session-state.ts` - 扩展权限模式，添加辅助函数
+- `src/tools/bash/permission-mode.ts` - 添加 hard-deny 检测
+
+### Phase 1: CLI 参数 + 安全检查 ✅ 已完成
+
+**已实现功能**:
+
+1. **CLI 参数支持**
+```typescript
+// src/cli.ts - RunCliOptions
+export interface RunCliOptions {
+  resumeTarget?: string;
+  continue?: boolean;
+  fork?: boolean;
+  dangerouslySkipPermissions?: boolean;  // 新增
+  permissionMode?: string;               // 新增
+}
+```
+
+2. **权限初始化**
+```typescript
+// src/cli.ts - runCli 函数
+const { mode, notification } = initialPermissionModeFromCLI({
+  dangerouslySkipPermissions: options.dangerouslySkipPermissions,
+  permissionMode: options.permissionMode,
+} as PermissionCliArgs)
+setPermissionMode(mode)
+```
+
+3. **安全检查函数**
+```typescript
+// src/utils/permissions/permissionSetup.ts
+export function isRunningAsRoot(): boolean
+export function isInSandbox(): boolean
+export function shouldAllowBypassPermissionsMode(): boolean
+export function runSecurityChecks(): SecurityCheckResult[]
+```
+
+4. **环境变量支持**
+```bash
+UPUP_PERMISSION_MODE=default|acceptEdits|bypassPermissions|dangerously
+UPUP_DANGEROUSLY_MODE=true
+UPUP_BYPASS_MODE=true
+UPUP_ALLOW_BYPASS_OUTSIDE_SANDBOX=true
+UPUP_DISABLE_BYPASS=true
+```
+
+### Phase 2: Hard-Deny 检测 ✅ 已完成
+
+**已实现功能**:
+
+1. **Hard-Deny 模式列表**
+```typescript
+// src/tools/bash/permission-mode.ts
+const HARD_DENY_PATTERNS: RegExp[] = [
+  /:\(\)\{:\|:&\};:/,           // Fork bomb
+  /^rm\s+-rf\s+\/+/,            // Root directory delete
+  /^mkfs\b/,                    // Create filesystem
+  /^dd\s+.*of=\/dev\//,        // Direct disk write
+  /^fdisk\b/,                  // Disk partitioning
+  /\bchmod\s+0000\b/,          // Remove all permissions
+  /\bsudo\s+rm\s+-rf\b/,       // sudo delete
+]
+```
+
+2. **新增权限检查函数**
+```typescript
+export function isHardDenyCommand(command: string): boolean
+export function checkPermissionWithHardDeny(command: string): PermissionResult
+```
+
+### Phase 3: 扩展权限模式 ✅ 已完成
+
+**新增权限模式**:
+| 模式 | 说明 |
+|------|------|
+| `default` | 标准权限检查 |
+| `acceptEdits` | 自动接受编辑 |
+| `bypassPermissions` | 绕过所有检查 |
+| `dangerously` | 允许危险操作 |
+| `dontAsk` | 不询问 |
+| `plan` | 规划模式 |
+| `auto` | 自动模式 |
+| `bubble` | 气泡模式 |
+| `.accept-all` | 接受所有 |
+
+### Phase 4: 会话状态增强 ✅ 已完成
+
+**新增辅助函数**:
+```typescript
+// src/session/session-state.ts
+export function isPlanMode(): boolean
+export function isAcceptEditsMode(): boolean
+export function isDontAskMode(): boolean
+export function isAutoMode(): boolean
+export function getPermissionModeLabel(): string
+export function getCurrentModeNotification(): string | undefined
+```
+
+---
+
+## 十三、使用指南
+
+### 启动参数
+
+```bash
+# 绕过所有权限检查
+bun start --dangerously-skip-permissions
+
+# 指定权限模式
+bun start --permission-mode bypassPermissions
+bun start --permission-mode dangerously
+
+# 查看帮助
+bun start --help
+```
+
+### 环境变量
+
+```bash
+# 绕过权限检查
+export UPUP_DANGEROUSLY_MODE=true
+
+# 指定模式
+export UPUP_PERMISSION_MODE=acceptEdits
+
+# 允许在非沙箱环境使用 bypass
+export UPUP_ALLOW_BYPASS_OUTSIDE_SANDBOX=true
+```
+
+### 编程使用
+
+```typescript
+import { 
+  setPermissionMode, 
+  getPermissionMode,
+  checkPermissionWithHardDeny 
+} from './utils/permissions/index.js'
+
+// 设置权限模式
+setPermissionMode('bypassPermissions')
+
+// 获取当前模式
+const mode = getPermissionMode()
+console.log(`Current mode: ${mode}`)
+
+// 检查命令权限
+const result = checkPermissionWithHardDeny('ls -la')
+if (result.allowed) {
+  // 执行命令
+}
+
+// Hard-deny 命令始终被阻止
+const dangerResult = checkPermissionWithHardDeny('rm -rf /')
+// dangerResult.allowed === false
+```
+
+---
+
+## 十四、文件清单
+
+### 新建文件
+```
+src/utils/permissions/
+├── index.ts           # 导出入口
+├── types.ts          # 类型定义
+└── permissionSetup.ts # CLI 和安全检查
+```
+
+### 修改文件
+```
+src/
+├── cli.ts            # CLI 参数支持
+├── session/
+│   └── session-state.ts  # 权限模式扩展
+└── tools/
+    └── bash/
+        └── permission-mode.ts  # Hard-deny 检测
+```
+
+---
+
+## 十五、后续计划
+
+### Phase 5: 规则解析器 (待实现)
+- [ ] `Tool(content)` 格式解析
+- [ ] Glob 模式匹配
+- [ ] MCP 工具规则支持
+
+### Phase 6: 规则加载器 (待实现)
+- [ ] 多源规则加载 (user/project/local)
+- [ ] 规则优先级
+- [ ] 规则持久化
+
+### Phase 7: AI 分类器 (可选)
+- [ ] 自动模式配置
+- [ ] 拒绝跟踪
+- [ ] AI 辅助决策
+
