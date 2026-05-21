@@ -115,7 +115,7 @@ export abstract class BaseApprovalRequest extends Container {
   
   handleInput(keyData: string): void {
     const kb = getKeybindings();
-    if (kb.matches(keyData, 'selectCancel')) {
+    if (kb.matches(keyData, 'tui.select.cancel')) {
       this.options.onDeny();
     }
   }

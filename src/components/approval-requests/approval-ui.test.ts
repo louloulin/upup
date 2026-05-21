@@ -41,7 +41,7 @@ describe('ApprovalConfig', () => {
   })
 
   it('should update timeout via setApprovalConfig', () => {
-    setApprovalConfig({ timeout: { defaultMs: 30000 } })
+    setApprovalConfig({ timeout: { enabled: true, defaultMs: 30000 } })
     const config = getApprovalConfig()
     expect(config.timeout.defaultMs).toBe(30000)
   })

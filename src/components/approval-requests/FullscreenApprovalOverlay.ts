@@ -283,13 +283,13 @@ export class FullscreenApprovalOverlay extends Container {
     const kb = getKeybindings();
 
     // Navigation
-    if (kb.matches(keyData, 'cursorUp') || keyData === 'k' || keyData === 'K') {
+    if (kb.matches(keyData, 'tui.editor.cursorUp') || keyData === 'k' || keyData === 'K') {
       this.selectedIndex = Math.max(0, this.selectedIndex - 1);
       this.refreshOptions();
       return;
     }
 
-    if (kb.matches(keyData, 'cursorDown') || keyData === 'j' || keyData === 'J') {
+    if (kb.matches(keyData, 'tui.editor.cursorDown') || keyData === 'j' || keyData === 'J') {
       this.selectedIndex = Math.min(this.options.length - 1, this.selectedIndex + 1);
       this.refreshOptions();
       return;
@@ -322,13 +322,13 @@ export class FullscreenApprovalOverlay extends Container {
     }
 
     // Enter to confirm
-    if (kb.matches(keyData, 'submit')) {
+    if (kb.matches(keyData, 'tui.input.submit')) {
       this.selectCurrent();
       return;
     }
 
     // Escape to deny
-    if (kb.matches(keyData, 'selectCancel')) {
+    if (kb.matches(keyData, 'tui.select.cancel')) {
       this.callbacks.onDeny();
       return;
     }
