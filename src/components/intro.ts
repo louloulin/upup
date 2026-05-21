@@ -1,4 +1,5 @@
 import { Container, Spacer, Text } from '@mariozechner/pi-tui';
+import { BorderBox } from './BorderBox.js';
 import packageJson from '../../package.json';
 import { getModelDisplayName } from '../utils/model.js';
 import { theme } from '../theme.js';
@@ -15,24 +16,15 @@ export class IntroComponent extends Container {
 
     const welcomeText = 'Welcome to UpUp';
     const versionText = ` v${packageJson.version}`;
-    const fullText = welcomeText + versionText;
-    const padding = Math.floor((INTRO_WIDTH - fullText.length - 2) / 2);
-    const trailing = INTRO_WIDTH - fullText.length - padding - 2;
+
+    // Create header box using BorderBox component (double border)
+    const headerBox = new BorderBox(
+      [new Text(`${theme.bold(welcomeText)}${theme.muted(versionText)}`)],
+      { style: 'double', paddingX: 2, paddingY: 0 }
+    );
 
     this.addChild(new Spacer(1));
-    this.addChild(new Text(theme.primary('═'.repeat(INTRO_WIDTH)), 0, 0));
-    this.addChild(
-      new Text(
-        theme.primary(
-          `║${' '.repeat(padding)}${theme.bold(welcomeText)}${theme.muted(versionText)}${' '.repeat(
-            trailing,
-          )}║`,
-        ),
-        0,
-        0,
-      ),
-    );
-    this.addChild(new Text(theme.primary('═'.repeat(INTRO_WIDTH)), 0, 0));
+    this.addChild(headerBox);
     this.addChild(new Spacer(1));
 
     this.addChild(

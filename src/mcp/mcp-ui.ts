@@ -2,6 +2,7 @@
  * MCP UI - Terminal UI for MCP Server Management
  *
  * Uses pi-tui for interactive terminal UI.
+ * Refactored to use Box component for borders instead of manual drawing.
  *
  * Features:
  * - List MCP servers with status
@@ -13,23 +14,23 @@
 import {
   TUI,
   Text,
-  Box,
-  SelectList,
   Container,
-  Input,
+  Spacer,
   type Component,
   type OverlayHandle,
   ProcessTerminal,
 } from '@mariozechner/pi-tui';
 import chalk from 'chalk';
-import type { McpServerConfig, MCPServerStatus, MCPServerState } from './types.js';
+import type { McpServerConfig, MCPServerStatus } from './types.js';
 import { loadMCPConfig, getConfigPath } from '../commands/mcp.js';
+import { theme as appTheme } from '../theme.js';
+import { BorderBox, type BorderStyle } from '../components/BorderBox.js';
 
 // ============================================================================
-// Theme
+// Theme - using pi-tui compatible chalk theme
 // ============================================================================
 
-const theme = {
+const mcpTheme = {
   header: chalk.bold.cyan,
   success: chalk.green,
   error: chalk.red,
@@ -62,47 +63,71 @@ export interface MCPUIOptions {
 }
 
 // ============================================================================
-// MCP Server List Component
+// MCP Server List Component (pi-tui BorderBox)
 // ============================================================================
 
-export class MCPServerList implements Component {
+export class MCPServerList extends Container {
   private servers: MCPServerInfo[] = [];
   private selectedIndex = 0;
+  private headerBox: BorderBox;
+  private listBox: BorderBox;
+  private hintText: Text;
 
-  invalidate(): void {
-    // No cached state to invalidate
+  constructor() {
+    super();
+
+    // Create header box with border
+    this.headerBox = new BorderBox(
+      [new Text(mcpTheme.header('MCP Servers'))],
+      { style: 'single', paddingX: 1, paddingY: 0 }
+    );
+
+    // Create list box
+    this.listBox = this.createListBox();
+
+    // Create hint text
+    this.hintText = new Text(
+      mcpTheme.muted('↑↓ Navigate · Enter Select · a Add · d Delete · q Quit'),
+      0,
+      0
+    );
+
+    // Add children in order
+    this.addChild(this.headerBox);
+    this.addChild(new Spacer(1));
+    this.addChild(this.listBox);
+    this.addChild(new Spacer(1));
+    this.addChild(this.hintText);
   }
 
-  render(width: number): string[] {
+  private createListBox(): BorderBox {
+    const children: Text[] = [];
+
     if (this.servers.length === 0) {
-      return [theme.muted('No MCP servers configured. Press "a" to add one.')];
+      children.push(new Text(mcpTheme.muted('No servers configured'), 0, 0));
+    } else {
+      for (let i = 0; i < this.servers.length; i++) {
+        const server = this.servers[i];
+        const isSelected = i === this.selectedIndex;
+        const statusIcon = this.getStatusIcon(server);
+        const prefix = isSelected ? appTheme.primary('▶ ') : '  ';
+        const serverText = isSelected
+          ? `${prefix}${statusIcon} ${server.name}`
+          : `  ${statusIcon} ${server.name}`;
+        children.push(new Text(serverText, 0, 0));
+      }
     }
 
-    const lines: string[] = [];
-    lines.push(theme.header('┌─ MCP Servers ─'.padEnd(width - 1) + '┐'));
-
-    for (let i = 0; i < this.servers.length; i++) {
-      const server = this.servers[i];
-      const isSelected = i === this.selectedIndex;
-      const statusIcon = this.getStatusIcon(server);
-      const nameDisplay = `${statusIcon} ${server.name}`;
-      const prefix = isSelected ? '▶ ' : '  ';
-      const line = `${prefix}${nameDisplay}`.padEnd(width - 2);
-      lines.push(isSelected ? chalk.bgBlue.white(line) : line);
-    }
-
-    lines.push(' '.repeat(width));
-    lines.push(theme.muted('Press ↑↓ to select, Enter to manage, "a" to add, "d" to delete'));
-    return lines;
+    return new BorderBox(children, { style: 'single', paddingX: 1, paddingY: 0 });
   }
 
   private getStatusIcon(server: MCPServerInfo): string {
     const state = server.status?.state ?? 'disconnected';
     switch (state) {
-      case 'connected': return theme.statusConnected;
-      case 'connecting': return theme.statusConnecting;
-      case 'error': return theme.statusError;
-      default: return theme.statusDisconnected;
+      case 'connected': return mcpTheme.statusConnected;
+      case 'connecting': return mcpTheme.statusConnecting;
+      case 'error': return mcpTheme.statusError;
+      default: return mcpTheme.statusDisconnected;
     }
   }
 
@@ -111,6 +136,17 @@ export class MCPServerList implements Component {
     if (this.selectedIndex >= servers.length) {
       this.selectedIndex = Math.max(0, servers.length - 1);
     }
+    this.refreshList();
+  }
+
+  private refreshList(): void {
+    // Remove old list box
+    this.removeChild(this.listBox);
+    // Create new list box
+    this.listBox = this.createListBox();
+    // Add at the same position (after header)
+    this.addChild(this.listBox);
+    this.invalidate();
   }
 
   getSelected(): MCPServerInfo | undefined {
@@ -118,65 +154,109 @@ export class MCPServerList implements Component {
   }
 
   moveUp(): void {
-    if (this.selectedIndex > 0) this.selectedIndex--;
+    if (this.selectedIndex > 0) {
+      this.selectedIndex--;
+      this.refreshList();
+    }
   }
 
   moveDown(): void {
-    if (this.selectedIndex < this.servers.length - 1) this.selectedIndex++;
+    if (this.selectedIndex < this.servers.length - 1) {
+      this.selectedIndex++;
+      this.refreshList();
+    }
   }
 }
 
 // ============================================================================
-// MCP Server Detail Component
+// MCP Server Detail Component (pi-tui BorderBox)
 // ============================================================================
 
-export class MCPServerDetail implements Component {
+export class MCPServerDetail extends Container {
   private server: MCPServerInfo | null = null;
+  private headerBox: BorderBox;
+  private contentBox: BorderBox;
+  private hintText: Text;
 
-  invalidate(): void {
-    // No cached state to invalidate
+  constructor() {
+    super();
+
+    // Create header box with border
+    this.headerBox = new BorderBox(
+      [new Text(mcpTheme.header('Server Details'))],
+      { style: 'single', paddingX: 1, paddingY: 0 }
+    );
+
+    // Create content box (will be updated)
+    this.contentBox = this.createContentBox(null);
+
+    // Create hint text
+    this.hintText = new Text(
+      mcpTheme.muted('s Start · x Stop · Esc Back'),
+      0,
+      0
+    );
+
+    this.addChild(this.headerBox);
+    this.addChild(new Spacer(1));
+    this.addChild(this.contentBox);
+    this.addChild(new Spacer(1));
+    this.addChild(this.hintText);
   }
 
-  render(width: number): string[] {
-    if (!this.server) {
-      return [theme.muted('Select a server to view details')];
+  private createContentBox(server: MCPServerInfo | null): BorderBox {
+    const items: Text[] = [];
+
+    if (!server) {
+      items.push(new Text(mcpTheme.muted('Select a server to view details'), 0, 0));
+      return new BorderBox(items, { style: 'single', paddingX: 1, paddingY: 0 });
     }
 
-    const lines: string[] = [];
-    const name = this.server.name;
-    const config = this.server.config;
-    const status = this.server.status;
+    const config = server.config;
+    const status = server.status;
 
-    lines.push(theme.header(`┌─ ${name} ─`.padEnd(width - 1) + '┐'));
-    lines.push(`│ Type: ${chalk.cyan(config.type || 'stdio')}`.padEnd(width - 2) + '│');
+    // Server name
+    items.push(new Text(`Name: ${mcpTheme.serverName(server.name)}`, 0, 0));
 
+    // Type
+    items.push(new Text(`Type: ${chalk.cyan(config.type || 'stdio')}`, 0, 0));
+
+    // Command or URL
     if ('command' in config) {
-      lines.push(`│ Command: ${chalk.yellow(config.command)}`.padEnd(width - 2) + '│');
+      items.push(new Text(`Command: ${chalk.yellow(config.command)}`, 0, 0));
       if (config.args?.length) {
-        lines.push(`│ Args: ${chalk.gray(config.args.join(' '))}`.padEnd(width - 2) + '│');
+        items.push(new Text(`Args: ${chalk.gray(config.args.join(' '))}`, 0, 0));
       }
     } else if ('url' in config) {
-      lines.push(`│ URL: ${chalk.blue(config.url)}`.padEnd(width - 2) + '│');
+      items.push(new Text(`URL: ${chalk.blue(config.url)}`, 0, 0));
     }
 
+    // Status
     if (status) {
       const stateColor = status.state === 'connected' ? chalk.green :
-                         status.state === 'error' ? chalk.red : chalk.gray;
-      lines.push(`│ Status: ${stateColor(status.state)}`.padEnd(width - 2) + '│');
+                        status.state === 'error' ? chalk.red : chalk.gray;
+      items.push(new Text(`Status: ${stateColor(status.state)}`, 0, 0));
+
       if (status.error) {
-        lines.push(`│ Error: ${chalk.red(status.error.substring(0, width - 12))}`.padEnd(width - 2) + '│');
+        items.push(new Text(`Error: ${chalk.red(status.error.substring(0, 50))}`, 0, 0));
       }
     }
 
-    lines.push('│' + ' '.repeat(width - 2) + '│');
-    lines.push(theme.muted('Press "s" to start, "x" to stop, "Esc" to go back'));
-    lines.push(theme.header('└' + '─'.repeat(width - 2) + '┘'));
-
-    return lines;
+    return new BorderBox(items, { style: 'single', paddingX: 1, paddingY: 0 });
   }
 
   setServer(server: MCPServerInfo | null): void {
     this.server = server;
+    this.refreshContent();
+  }
+
+  private refreshContent(): void {
+    // Remove old content box
+    this.removeChild(this.contentBox);
+    // Create and add new content box
+    this.contentBox = this.createContentBox(this.server);
+    this.addChild(this.contentBox);
+    this.invalidate();
   }
 }
 
@@ -315,11 +395,27 @@ export class MCPUI {
    * Start the MCP UI
    */
   start(): void {
-    // Create main container
+    // Create main container using pi-tui components
     const container = new Container();
-    container.addChild(new Text(theme.header('┌─ MCP Server Manager ─'.padEnd(50) + '┐'), 0, 0));
-    container.addChild(new Text(theme.muted('│ Use ↑↓ to navigate, Enter to select, Q to quit'), 0, 0));
+
+    // Header using BorderBox component with double border
+    const header = new BorderBox(
+      [new Text(mcpTheme.header('MCP Server Manager'))],
+      { style: 'double', paddingX: 1, paddingY: 0 }
+    );
+
+    // Hint using Text component
+    const hint = new Text(
+      mcpTheme.muted('Use ↑↓ to navigate, Enter to select, Q to quit'),
+      0,
+      0
+    );
+
+    container.addChild(header);
+    container.addChild(new Spacer(1));
     container.addChild(this.serverList);
+    container.addChild(new Spacer(1));
+    container.addChild(hint);
 
     this.tui.addChild(container);
 
@@ -355,17 +451,23 @@ export async function runMCPUI(options: MCPUIOptions = {}): Promise<void> {
 }
 
 // ============================================================================
-// Simple Text-based UI (no external dependencies)
+// Simple Text-based UI (pi-tui BorderBox)
 // ============================================================================
 
 export function printMCPServers(scope: 'project' | 'user' = 'project'): void {
   const configPath = getConfigPath(scope);
   const servers = loadMCPConfig(configPath);
 
-  console.log(chalk.bold.cyan('\n┌─ MCP Servers ─'.padEnd(60) + '┐'));
+  // Use BorderBox for consistent styling
+  const headerBox = new BorderBox(
+    [new Text(chalk.bold.cyan('MCP Servers'))],
+    { style: 'single', paddingX: 1, paddingY: 0 }
+  );
+
+  console.log('\n' + headerBox.render(60).join('\n'));
 
   if (Object.keys(servers).length === 0) {
-    console.log(chalk.gray('│ No servers configured') + ' '.repeat(45) + '│');
+    console.log(chalk.gray('No servers configured'));
   } else {
     for (const [name, config] of Object.entries(servers)) {
       const type = config.type || 'stdio';
@@ -373,10 +475,8 @@ export function printMCPServers(scope: 'project' | 'user' = 'project'): void {
       if ('command' in config) endpoint = config.command;
       else if ('url' in config) endpoint = config.url;
 
-      const line = `│ ${name.padEnd(20)} ${type.padEnd(8)} ${chalk.gray(endpoint.substring(0, 25))}`;
-      console.log(line.padEnd(62) + '│');
+      console.log(`  ${name.padEnd(20)} ${type.padEnd(8)} ${chalk.gray(endpoint.substring(0, 25))}`);
     }
   }
-
-  console.log(chalk.bold.cyan('└' + '─'.repeat(60) + '┘\n'));
+  console.log('');
 }

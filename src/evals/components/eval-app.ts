@@ -1,4 +1,5 @@
 import { Container, Spacer, Text, type TUI } from '@mariozechner/pi-tui';
+import { BorderBox } from '../../components/BorderBox.js';
 import { theme } from '../../theme.js';
 import { EvalCurrentQuestion } from './eval-current-question.js';
 import { EvalProgress } from './eval-progress.js';
@@ -171,9 +172,14 @@ export class EvalApp extends Container {
         ? this.state.results.reduce((sum, result) => sum + result.score, 0) / this.state.results.length
         : 0;
 
-    this.addChild(new Text('═'.repeat(70), 0, 0));
-    this.addChild(new Text(theme.bold('EVALUATION COMPLETE'), 0, 0));
-    this.addChild(new Text('═'.repeat(70), 0, 0));
+    // Header using BorderBox
+    const headerBox = new BorderBox(
+      [new Text(theme.bold('EVALUATION COMPLETE'))],
+      { style: 'double', paddingX: 2, paddingY: 0 }
+    );
+
+    this.addChild(headerBox);
+    this.addChild(new Spacer(1));
     this.addChild(new Text(`Experiment: ${this.state.experimentName ?? 'unknown'}`, 0, 0));
     this.addChild(new Text(`Examples evaluated: ${this.state.results.length}`, 0, 0));
     this.addChild(
@@ -185,12 +191,13 @@ export class EvalApp extends Container {
     );
     this.addChild(new Spacer(1));
     this.addChild(new Text('Results by question:', 0, 0));
-    this.addChild(new Text('─'.repeat(70), 0, 0));
 
+    // Results section using BorderBox
+    const resultItems: Text[] = [];
     for (const result of this.state.results) {
       const icon = result.score === 1 ? '✓' : '✗';
       const iconColor = result.score === 1 ? theme.success : theme.error;
-      this.addChild(
+      resultItems.push(
         new Text(
           `${iconColor(icon)} ${theme.muted(`[${result.score}]`)} ${this.truncate(result.question, 65)}`,
           0,
@@ -198,12 +205,13 @@ export class EvalApp extends Container {
         ),
       );
       if (result.comment && result.score !== 1) {
-        this.addChild(new Text(`    ${theme.muted(this.truncate(result.comment, 80))}`, 0, 0));
+        resultItems.push(new Text(`    ${theme.muted(this.truncate(result.comment, 80))}`, 0, 0));
       }
     }
 
+    const resultsBox = new BorderBox(resultItems, { style: 'single', paddingX: 1, paddingY: 0 });
+    this.addChild(resultsBox);
     this.addChild(new Spacer(1));
-    this.addChild(new Text('─'.repeat(70), 0, 0));
     this.addChild(new Text(theme.muted('View full results: https://smith.langchain.com'), 0, 0));
   }
 
