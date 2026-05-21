@@ -12,7 +12,7 @@ import {
   Input,
   Spacer,
   type SelectItem,
-  getEditorKeybindings,
+  getKeybindings,
 } from '@mariozechner/pi-tui';
 import { theme } from '../theme.js';
 import type { SessionSummary } from './types.js';
@@ -215,23 +215,23 @@ export class SessionSelector extends Container {
    * Handle keyboard input
    */
   handleInput(keyData: string): void {
-    const kb = getEditorKeybindings();
+    const kb = getKeybindings();
 
     // Search mode handling
     if (this.searchMode) {
-      if (kb.matches(keyData, 'selectCancel')) {
+      if (kb.matches(keyData, 'tui.select.cancel')) {
         this.exitSearch();
         return;
       }
-      if (kb.matches(keyData, 'submit')) {
+      if (kb.matches(keyData, 'tui.input.submit')) {
         this.selectCurrent();
         return;
       }
-      if (kb.matches(keyData, 'cursorUp')) {
+      if (kb.matches(keyData, 'tui.editor.cursorUp')) {
         this.navigateUp();
         return;
       }
-      if (kb.matches(keyData, 'cursorDown')) {
+      if (kb.matches(keyData, 'tui.editor.cursorDown')) {
         this.navigateDown();
         return;
       }
@@ -242,22 +242,22 @@ export class SessionSelector extends Container {
     }
 
     // Normal mode
-    if (kb.matches(keyData, 'selectCancel')) {
+    if (kb.matches(keyData, 'tui.select.cancel')) {
       this.callbacks.onCancel();
       return;
     }
 
-    if (kb.matches(keyData, 'submit')) {
+    if (kb.matches(keyData, 'tui.input.submit')) {
       this.selectCurrent();
       return;
     }
 
-    if (kb.matches(keyData, 'cursorUp') || keyData === 'k' || keyData === 'K') {
+    if (kb.matches(keyData, 'tui.editor.cursorUp') || keyData === 'k' || keyData === 'K') {
       this.navigateUp();
       return;
     }
 
-    if (kb.matches(keyData, 'cursorDown') || keyData === 'j' || keyData === 'J') {
+    if (kb.matches(keyData, 'tui.editor.cursorDown') || keyData === 'j' || keyData === 'J') {
       this.navigateDown();
       return;
     }

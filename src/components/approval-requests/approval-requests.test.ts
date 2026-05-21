@@ -34,7 +34,8 @@ describe('BashApprovalRequest (pi-tui Container)', () => {
     const data = { toolName: 'Bash', args: { command: 'ls' } }
     const request = createApprovalRequest(data, { onApprove: () => {}, onDeny: () => {} })
     expect(request).toBeTruthy()
-    expect(typeof request.handleInput).toBe('function')
+    // handleInput is defined on the component instance
+    expect(typeof (request as any).handleInput).toBe('function')
   })
 
   it('should create with command data', () => {
@@ -46,7 +47,7 @@ describe('BashApprovalRequest (pi-tui Container)', () => {
   it('should handle input', () => {
     const data = { toolName: 'Bash', args: { command: 'ls' } }
     const request = createApprovalRequest(data, { onApprove: () => {}, onDeny: () => {} })
-    request.handleInput('test') // Should not throw
+    ;(request as any).handleInput('test') // Should not throw
   })
 })
 
@@ -55,7 +56,8 @@ describe('WriteApprovalRequest (pi-tui Container)', () => {
     const data = { toolName: 'Write', args: { file_path: '/path/to/file.ts' } }
     const request = createApprovalRequest(data, { onApprove: () => {}, onDeny: () => {} })
     expect(request).toBeTruthy()
-    expect(typeof request.handleInput).toBe('function')
+    // handleInput is defined on the component instance
+    expect(typeof (request as any).handleInput).toBe('function')
   })
 
   it('should create with file path data', () => {
@@ -67,7 +69,7 @@ describe('WriteApprovalRequest (pi-tui Container)', () => {
   it('should handle input', () => {
     const data = { toolName: 'Write', args: { file_path: '/path/to/file.ts' } }
     const request = createApprovalRequest(data, { onApprove: () => {}, onDeny: () => {} })
-    request.handleInput('test') // Should not throw
+    ;(request as any).handleInput('test') // Should not throw
   })
 })
 
@@ -76,7 +78,8 @@ describe('GenericApprovalRequest (pi-tui Container)', () => {
     const data = { toolName: 'UnknownTool', args: { param: 'value' } }
     const request = createApprovalRequest(data, { onApprove: () => {}, onDeny: () => {} })
     expect(request).toBeTruthy()
-    expect(typeof request.handleInput).toBe('function')
+    // handleInput is defined on the component instance
+    expect(typeof (request as any).handleInput).toBe('function')
   })
 
   it('should handle unknown tools', () => {
@@ -88,7 +91,7 @@ describe('GenericApprovalRequest (pi-tui Container)', () => {
   it('should handle input', () => {
     const data = { toolName: 'CustomTool', args: {} }
     const request = createApprovalRequest(data, { onApprove: () => {}, onDeny: () => {} })
-    request.handleInput('test') // Should not throw
+    ;(request as any).handleInput('test') // Should not throw
   })
 })
 
