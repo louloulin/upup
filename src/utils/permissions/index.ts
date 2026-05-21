@@ -95,3 +95,99 @@ export {
   isHardDenyCommand,
   HARD_DENY_PATTERNS,
 } from '../../tools/bash/permission-mode.js'
+
+// Rule Parser
+export {
+  permissionRuleValueFromString,
+  permissionRuleValueToString,
+  parseRuleString,
+  matchesRuleContent,
+  containsGlob,
+  globMatch,
+  escapeContent,
+  unescapeContent,
+  isValidRuleString,
+  extractToolName,
+  isMcpToolRule,
+  parseRuleStrings,
+  normalizeRuleContent,
+} from './permissionRuleParser.js'
+
+// Permissions Loader
+export {
+  loadAllPermissionRulesFromDisk,
+  getPermissionRulesForSource,
+  getRulesForBehavior,
+  sortRulesByPriority,
+  findMatchingRules,
+  applyPermissionUpdate,
+  persistPermissionUpdates,
+  getBuiltInRules,
+  settingsJsonToRules,
+  RULE_SOURCE_PRIORITY,
+} from './permissionsLoader.js'
+
+// Permissions Core
+export {
+  PermissionChecker,
+  getPermissionChecker,
+  reloadPermissionRules,
+  checkToolPermission,
+  quickCheckPermission,
+  shouldPromptForTool,
+  createPermissionRequest,
+  formatPermissionResult,
+  getDecisionLabel,
+  isOperationAllowedInCurrentMode,
+  getModeSecurityLevel,
+  isOperationSafe,
+} from './permissions.js'
+
+// Denial Tracking
+export {
+  DenialTracker,
+  getDenialTracker,
+  resetDenialTracker,
+  trackDenial,
+  trackSuccess,
+  shouldPrompt,
+  getDenialStats,
+  getDenialRecoverySuggestions,
+  withDenialTracking,
+  DENIAL_LIMITS,
+  RECOVERY_SUGGESTIONS,
+} from './denialTracking.js'
+
+// Permission Update
+export {
+  PermissionConfigManager,
+  getPermissionConfigManager,
+  addAllowRule,
+  addDenyRule,
+  addAskRule,
+  removeRule,
+  hasRule,
+  listRules,
+  clearAllRules,
+  addRuleFromString,
+  addRulesFromStrings,
+  PERMISSION_CONFIG_DIR,
+  PERMISSION_CONFIG_FILE,
+  SESSION_CONFIG_FILE,
+} from './PermissionUpdate.js'
+
+// Approval Config
+export {
+  getApprovalConfig,
+  setApprovalConfig,
+  resetApprovalConfig,
+  loadConfigFromEnv,
+  loadConfigFromSettings,
+  getTimeoutForTool,
+  shouldShowTimeoutWarning,
+  getToolDangerLevel,
+  DEFAULT_APPROVAL_CONFIG,
+  DEFAULT_TIMEOUT_MS,
+  DEFAULT_APPROVAL_OPTIONS,
+  DEFAULT_UI_CONFIG,
+} from './approvalConfig.js'
