@@ -39,6 +39,7 @@ import {
   createSessionDeleteConfirmSelector,
   SessionRenameInputComponent,
   SessionTagInputComponent,
+  createFullscreenApproval,
 } from './components/index.js';
 import { editorTheme, theme } from './theme.js';
 import { matchCommands, type SlashCommand } from './commands/index.js';
@@ -1160,6 +1161,34 @@ export async function runCli(options: RunCliOptions = {}) {
 
     if (!hasPendingApproval && !isInApprovalState) {
       return false;
+    }
+
+    // F2: Toggle fullscreen approval overlay
+    if (key === '\x1bOP' || key === 'OP') {
+      const pending = agentRunner.pendingApproval;
+      if (pending) {
+        const fullscreenApproval = createFullscreenApproval(
+          { toolName: pending.tool, args: pending.args },
+          {
+            onApprove: (decision) => {
+              agentRunner.respondToApproval(decision);
+              restoreMainView();
+            },
+            onDeny: () => {
+              agentRunner.respondToApproval('deny');
+              restoreMainView();
+            },
+          }
+        );
+        showScreenView(
+          'Authorization Required',
+          `Tool: ${pending.tool}`,
+          fullscreenApproval,
+          '↑↓ Navigate · 1/2/3 Select · Enter Confirm · Esc Deny',
+          fullscreenApproval,
+        );
+        return true;
+      }
     }
 
     // Arrow key navigation
