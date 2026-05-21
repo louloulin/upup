@@ -14,6 +14,7 @@ import { getSessionTracker } from '../session/session-tracker.js';
 import { createSession, addSessionMessage } from '../session/storage.js';
 import { recordFileHistorySnapshot, getFileHistoryManager } from '../storage/file-history.js';
 import { renderMessages, type RenderableMessage } from '../session/render/index.js';
+import { getTimeoutForTool } from '../utils/permissions/index.js';
 
 export interface TurnStats {
   turnStartMs: number;
@@ -324,15 +325,16 @@ export class AgentRunnerController {
     console.error('[agent-runner] DEBUG: requestToolApproval called for tool:', request.tool);
     return new Promise<ApprovalDecision>((resolve) => {
       console.error('[agent-runner] DEBUG: Promise created, setting up approval state');
-      // 添加超时机制：60秒后自动拒绝
+      // 使用可配置的授权超时
+      const timeoutMs = getTimeoutForTool(request.tool)
       const timeout = setTimeout(() => {
-        console.error('[agent-runner] DEBUG: Approval timeout - auto denying');
+        console.error('[agent-runner] DEBUG: Approval timeout - auto denying after', timeoutMs, 'ms');
         resolve('deny');
         this.approvalResolve = null;
         this.pendingApprovalValue = null;
         this.workingStateValue = { status: 'thinking' };
         this.emitChange();
-      }, 60000);
+      }, timeoutMs);
       this.approvalResolve = (decision: ApprovalDecision) => {
         console.error('[agent-runner] DEBUG: Approval resolve called with decision:', decision);
         clearTimeout(timeout);

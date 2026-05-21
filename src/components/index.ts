@@ -19,3 +19,9 @@ export { ToolEventComponent, getApprovalCursor, setApprovalCursor } from './tool
 export { UserQueryComponent } from './user-query.js';
 export { HintBarComponent } from './hint-bar.js';
 export { WorkingIndicatorComponent } from './working-indicator.js';
+
+// Re-export fullscreen approval overlay
+export {
+  FullscreenApprovalOverlay,
+  createFullscreenApproval,
+} from './approval-requests/FullscreenApprovalOverlay.js';
