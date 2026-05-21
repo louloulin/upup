@@ -26,7 +26,8 @@ describe('MCPServerList', () => {
   it('should render empty state', () => {
     const lines = list.render(60);
     expect(lines.length).toBeGreaterThan(0);
-    expect(lines[0]).toContain('No MCP servers');
+    // Use lines.join() because Box adds padding which shifts content
+    expect(lines.join()).toContain('No servers configured');
   });
 
   it('should render servers', () => {
@@ -92,7 +93,8 @@ describe('MCPServerDetail', () => {
 
   it('should render empty state', () => {
     const lines = detail.render(60);
-    expect(lines[0]).toContain('Select a server');
+    // Use lines.join() because Box adds padding which shifts content
+    expect(lines.join()).toContain('Select a server');
   });
 
   it('should render server details', () => {
