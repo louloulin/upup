@@ -916,3 +916,273 @@ src/controllers/
 ---
 
 **文档更新**: 2026-05-21
+
+---
+
+## 十五、代码最佳实践分析
+
+### 15.1 UpUp 代码架构
+
+#### 目录结构
+
+```
+src/
+├── agent/              # Agent 核心逻辑
+│   ├── agent.ts       # Agent 主类
+│   ├── tool-executor.ts
+│   ├── fallback.ts
+│   └── loop-recovery.ts
+├── tools/             # 工具集
+│   ├── registry/     # 工具注册表
+│   ├── bash/         # Bash 工具
+│   └── finance-tools.ts
+├── hooks/             # 钩子系统
+├── memory/            # 记忆系统
+├── session/           # 会话管理
+├── components/         # UI 组件
+├── controllers/        # 控制器
+├── utils/             # 工具函数
+│   ├── permissions/  # 权限系统
+│   ├── errors.ts
+│   └── config.ts
+└── cli.ts            # CLI 入口
+```
+
+#### 设计模式
+
+| 模式 | 使用场景 |
+|------|---------|
+| 单例模式 | Logger, RateLimiter, MemoryManager |
+| 工厂模式 | LLM Client 创建 |
+| 观察者模式 | 状态变化通知 |
+| 策略模式 | 循环恢复策略选择 |
+| 生成器模式 | Agent.create() 分步构建 |
+| 代理模式 | Rate-limited fetcher |
+
+#### 状态管理
+
+```typescript
+// packages/state/src/state.ts
+class AppStateStore {
+  private emitter = new EventEmitter()
+  
+  subscribe(event: string, listener): () => void {
+    this.emitter.on(event, listener)
+    return () => this.emitter.off(event, listener)
+  }
+  
+  setState(updates: Partial<AppState>): void {
+    const oldState = { ...this.state }
+    this.state = { ...this.state, ...updates }
+    this.emitter.emit('stateChange', this.state, oldState)
+  }
+}
+```
+
+---
+
+### 15.2 Claude Code 代码实践
+
+#### 类型系统
+
+```typescript
+// 泛型 + Discriminated Unions
+export type PermissionDecision<Input extends {...}> =
+  | PermissionAllowDecision<Input>
+  | PermissionAskDecision<Input>
+  | PermissionDenyDecision
+
+// 错误类层次
+class ClaudeError extends Error {}
+class AbortError extends ClaudeError {}
+class ShellError extends ClaudeError {}
+
+// 类型守卫
+export function isAbortError(e: unknown): boolean {
+  return e instanceof AbortError || (e instanceof Error && e.name === 'AbortError')
+}
+```
+
+#### 缓存策略
+
+```typescript
+// 后台刷新 + TTL
+export function memoizeWithTTLAsync(f, cacheLifetimeMs = 5 * 60 * 1000) {
+  // 返回过期数据同时异步刷新
+  if (now - cached.timestamp > cacheLifetimeMs && !cached.refreshing) {
+    cached.refreshing = true
+    Promise.resolve().then(() => {
+      const newValue = f(...args)
+      // 更新缓存
+    })
+    return cached.value  // 立即返回
+  }
+}
+
+// LRU 缓存
+export function memoizeWithLRU(f, maxCacheSize = 100) {
+  const cache = new LRUCache({ max: maxCacheSize })
+  // peek() 避免更新 recency
+}
+```
+
+#### React 性能优化
+
+```typescript
+// 虚拟滚动 + 量化
+const SCROLL_QUANTUM = 40  // 滚动位置分片
+const OVERSCAN_ROWS = 80   // 上下 overscan
+
+// useSyncExternalStore 同步外部状态
+useSyncExternalStore(subscribe, () => {
+  const bin = Math.floor(target / SCROLL_QUANTUM)
+  return s.isSticky() ? ~bin : bin
+})
+
+// useDeferredValue 异步渲染
+const dStart = useDeferredValue(start)
+const dEnd = useDeferredValue(end)
+```
+
+---
+
+### 15.3 最佳实践对比
+
+| 方面 | UpUp | Claude Code | 建议 |
+|------|------|------------|------|
+| **类型安全** | 良好 | 极致 (泛型) | 增强泛型使用 |
+| **缓存策略** | 简单 TTL | LRU + 后台刷新 | 借鉴高级缓存 |
+| **错误处理** | 模式匹配 | 完整类层次 | 完善错误类 |
+| **性能优化** | 基础 | 虚拟滚动 | 关键组件优化 |
+| **单例模式** | 类 + 延迟初始化 | 模块级 let | 统一模式 |
+
+---
+
+### 15.4 可借鉴的改进
+
+#### 1. 类型守卫函数
+
+```typescript
+// 借鉴 Claude Code 的类型守卫
+export function isContextOverflowError(e: unknown): boolean
+export function isRateLimitError(e: unknown): boolean
+export function isAuthError(e: unknown): boolean
+
+// 在错误处理中使用
+if (isContextOverflowError(error)) {
+  return handleContextOverflow()
+}
+```
+
+#### 2. 后台刷新缓存
+
+```typescript
+// src/utils/cache.ts
+export function memoizeWithBackgroundRefresh<T>(
+  fetcher: () => Promise<T>,
+  ttlMs: number = 60000
+): () => Promise<T> {
+  let cached: { value: T; timestamp: number; refreshing: boolean } | null = null
+  
+  return async () => {
+    const now = Date.now()
+    if (!cached || now - cached.timestamp > ttlMs) {
+      if (!cached?.refreshing) {
+        cached = { value: await fetcher(), timestamp: now, refreshing: false }
+      }
+    }
+    return cached!.value
+  }
+}
+```
+
+#### 3. 错误类层次
+
+```typescript
+// src/utils/errors.ts
+export class UpupError extends Error {
+  constructor(message: string, public code?: string) {
+    super(message)
+    this.name = 'UpupError'
+  }
+}
+
+export class PermissionError extends UpupError {
+  constructor(message: string, public toolName: string) {
+    super(message, 'PERMISSION_DENIED')
+  }
+}
+
+export class TimeoutError extends UpupError {
+  constructor(message: string, public timeoutMs: number) {
+    super(message, 'TIMEOUT')
+  }
+}
+```
+
+#### 4. 统一常量管理
+
+```typescript
+// src/constants/index.ts
+export const AGENT = {
+  DEFAULT_MAX_ITERATIONS: 50,
+  MAX_OVERFLOW_RETRIES: 2,
+  OVERFLOW_KEEP_ROUNDS: 3,
+} as const
+
+export const TOOLS = {
+  APPROVAL_REQUIRED: ['write_file', 'edit_file'] as const,
+  DEFAULT_TIMEOUT_MS: 30000,
+} as const
+
+export const MEMORY = {
+  COMPACTION_THRESHOLD: 0.8,
+  MIN_TOOL_RESULTS: 3,
+} as const
+```
+
+---
+
+### 15.5 实施计划
+
+#### Phase BP1: 类型系统增强
+
+**目标**: 增强类型安全
+
+**任务**:
+- [ ] 添加泛型约束到工具系统
+- [ ] 创建错误类层次
+- [ ] 添加类型守卫函数
+
+#### Phase BP2: 缓存系统升级
+
+**目标**: 提升缓存效率
+
+**任务**:
+- [ ] 实现 LRU 缓存
+- [ ] 实现后台刷新
+- [ ] 添加请求去重
+
+#### Phase BP3: 性能优化
+
+**目标**: 优化关键路径性能
+
+**任务**:
+- [ ] 虚拟滚动 (如需要)
+- [ ] useDeferredValue 优化
+- [ ] 内存监控增强
+
+---
+
+### 15.6 代码质量指标
+
+| 指标 | 当前 | 目标 |
+|------|------|------|
+| 类型覆盖 | ~70% | 90% |
+| 测试覆盖率 | ~40% | 70% |
+| 循环复杂度 | 部分高 | <15 |
+| 文件大小 | 部分>1000行 | <800行 |
+
+---
+
+**文档更新**: 2026-05-21
