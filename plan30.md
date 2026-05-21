@@ -596,3 +596,323 @@ export function shouldAllowBypassPermissionsMode(): boolean {
 
 **计划制定者**: Claude Code 分析 + UpUp 改造团队  
 **下次更新**: Phase 5 实现完成后
+---
+
+## 十四、授权 TUI 分析与改造计划
+
+### 14.1 UpUp 当前授权 TUI 架构
+
+#### 核心文件
+
+| 文件路径 | 核心功能 |
+|---------|---------|
+| `src/components/approval-prompt.ts` | `ApprovalPromptComponent` - 授权弹窗 TUI 组件 |
+| `src/components/select-list.ts` | `createApprovalSelector()` - 授权选项列表 |
+| `src/agent/tool-executor.ts` | 工具执行器，处理授权决策 |
+| `src/controllers/agent-runner.ts` | `AgentRunnerController` - 协调授权流程 |
+| `src/cli.ts` | CLI 主入口，处理按键事件 |
+
+#### 授权流程
+
+```
+用户输入
+    ↓
+ToolExecutor.executeSingleWithId()
+    ↓
+useCanUseTool().check() (权限门检查)
+    ↓
+requiresApproval(toolName)? ──No──→ 执行工具
+    ↓
+requestToolApproval() Promise
+    ↓
+pendingApprovalValue 设置
+    ↓
+workingState = 'approval'
+    ↓
+CLI onChange() → renderSelectionOverlay()
+    ↓
+渲染授权 UI
+    ↓
+用户选择 (Enter/Esc/↑↓)
+    ↓
+respondToApproval(decision)
+    ↓
+resolve(Promise) → 继续/拒绝
+```
+
+#### 当前授权选项
+
+```typescript
+// src/components/select-list.ts
+const items: SelectItem[] = [
+  { value: 'allow-once', label: '1. Yes' },
+  { value: 'allow-session', label: '2. Yes, allow all edits this session' },
+  { value: 'deny', label: '3. No' },
+];
+```
+
+---
+
+### 14.2 Claude Code 授权 UI 设计
+
+#### 组件结构
+
+```
+src/components/permissions/
+├── PermissionRequest.tsx       # 主入口，工具专用组件
+├── PermissionDialog.tsx      # 通用对话框容器
+├── PermissionPrompt.tsx       # 共享选项选择组件
+├── BashPermissionRequest/      # Bash 命令专用
+├── FileEditPermissionRequest/  # 文件编辑专用
+├── FileWritePermissionRequest/ # 文件写入专用
+└── rules/                     # 权限规则配置
+```
+
+#### 关键设计特点
+
+1. **工具专用组件模式** - 每种工具类型有专门的处理组件
+2. **反馈输入功能** - Tab 键展开反馈输入
+3. **快捷键绑定** - 使用 `useKeybindings` 处理键盘交互
+4. **通知超时机制** - `useNotifyAfterTimeout`
+
+---
+
+### 14.3 识别的问题
+
+#### 问题 1: 超时配置硬编码
+
+**位置**: `agent-runner.ts:326`
+
+```typescript
+const timeout = setTimeout(() => {
+  resolve('deny');
+}, 60000);  // 硬编码 60 秒
+```
+
+**影响**: 无法通过配置修改超时时间
+
+#### 问题 2: UI 与状态时序问题
+
+**位置**: `cli.ts:367-383`
+
+```typescript
+if (agentRunner.pendingApproval && !chatLog.hasApprovalPending()) {
+  // 存在时序依赖
+  scheduleOverlay();
+}
+```
+
+**影响**: 可能导致渲染延迟或闪烁
+
+#### 问题 3: Hook 执行失败静默处理
+
+**位置**: `tool-executor.ts:165-167`
+
+```typescript
+} catch {
+  // Hook 执行失败时静默通过
+}
+```
+
+**影响**: 可能存在安全风险
+
+#### 问题 4: 缓存机制不完整
+
+**位置**: `permission-hooks.ts:109-137`
+
+```typescript
+const key = `${context.toolName}:${JSON.stringify(context.args).slice(0, 100)}`;
+```
+
+**影响**: 
+- 缓存 key 可能碰撞
+- 缓存 TTL 固定 5 分钟无配置
+
+#### 问题 5: 缺少工具专用授权组件
+
+**影响**: 所有工具使用相同的授权 UI，无法提供详细信息
+
+---
+
+### 14.4 Claude Code vs UpUp 对比
+
+| 维度 | Claude Code | UpUp | 差距 |
+|------|------------|------|------|
+| UI架构 | 专用组件+通用容器 | 内联UI+工具组件 | **需改进** |
+| 组件复用 | 每工具专用组件 | 通用fallback | **需改进** |
+| 反馈机制 | Tab键展开输入 | 无 | **需添加** |
+| 快捷键 | useKeybindings | 模块级光标 | **需改进** |
+| 超时配置 | 可配置 | 硬编码60秒 | **需改进** |
+| 状态同步 | React状态 | 模块级状态 | 相对OK |
+| 工具覆盖 | 20+专用组件 | 通用处理 | **需改进** |
+
+---
+
+### 14.5 TUI 改造计划
+
+#### Phase T1: 授权配置化 (P1)
+
+**目标**: 将硬编码的配置项提取到配置文件
+
+**任务**:
+- [ ] 提取授权超时时间到配置
+- [ ] 提取选项标签文本到配置
+- [ ] 支持自定义授权选项
+
+**配置格式**:
+```json
+{
+  "approval": {
+    "timeoutMs": 60000,
+    "options": [
+      { "value": "allow-once", "label": "1. Yes" },
+      { "value": "allow-session", "label": "2. Yes, all this session" },
+      { "value": "deny", "label": "3. No" }
+    ],
+    "enableFeedback": true,
+    "showDangerWarning": true
+  }
+}
+```
+
+#### Phase T2: 工具专用授权组件 (P1)
+
+**目标**: 为不同工具类型创建专用授权组件
+
+**任务**:
+- [ ] 创建 `WriteFilePermissionRequest`
+- [ ] 创建 `EditFilePermissionRequest`
+- [ ] 创建 `BashPermissionRequest`
+- [ ] 创建通用的 `FallbackPermissionRequest`
+
+**架构设计**:
+```typescript
+// src/components/approval-requests/
+├── index.ts
+├── BaseApprovalRequest.ts
+├── WriteFileApprovalRequest.ts
+├── EditFileApprovalRequest.ts
+├── BashApprovalRequest.ts
+└── GenericApprovalRequest.ts
+```
+
+#### Phase T3: 增强用户交互 (P2)
+
+**目标**: 提供更好的用户交互体验
+
+**任务**:
+- [ ] 添加 Tab 键展开反馈输入
+- [ ] 添加方向键快捷方式
+- [ ] 添加权限规则解释
+- [ ] 添加预览功能
+
+**UI 示例**:
+```
+┌─────────────────────────────────────────┐
+│ ⚠️ Permission Required                    │
+├─────────────────────────────────────────┤
+│ Tool: write_file                         │
+│ Path: src/utils/new-file.ts              │
+├─────────────────────────────────────────┤
+│ > 1. Yes                               │
+│   2. Yes, all edits this session       │
+│   3. No                                │
+│                                         │
+│ [Tab for feedback]                      │
+└─────────────────────────────────────────┘
+```
+
+#### Phase T4: 状态管理改进 (P2)
+
+**目标**: 改进授权状态管理，解决时序问题
+
+**任务**:
+- [ ] 统一授权状态管理到单一模块
+- [ ] 消除时序依赖
+- [ ] 添加状态一致性检查
+- [ ] 改进错误处理
+
+**新架构**:
+```typescript
+// src/approval/ApprovalManager.ts
+class ApprovalManager {
+  private state: ApprovalState
+  private listeners: Set<ApprovalListener>
+  
+  requestApproval(tool: string, args: unknown): Promise<ApprovalDecision>
+  respond(decision: ApprovalDecision): void
+  addListener(listener: ApprovalListener): void
+}
+```
+
+#### Phase T5: Hook 安全增强 (P2)
+
+**目标**: 改进权限 Hook 的错误处理
+
+**任务**:
+- [ ] Hook 失败时记录警告日志
+- [ ] 添加 Hook 执行超时
+- [ ] 支持 Hook 级别的拒绝原因
+
+---
+
+### 14.6 TUI 改造文件清单
+
+#### 新建文件
+
+```
+src/components/approval-requests/
+├── index.ts              # 导出入口
+├── BaseApprovalRequest.ts # 基类
+├── WriteFileApprovalRequest.ts
+├── EditFileApprovalRequest.ts
+├── BashApprovalRequest.ts
+└── GenericApprovalRequest.ts
+
+src/approval/
+├── index.ts             # 导出入口
+├── ApprovalManager.ts   # 状态管理
+├── ApprovalConfig.ts    # 配置类型
+└── ApprovalEvents.ts   # 事件类型
+```
+
+#### 修改文件
+
+```
+src/components/
+├── approval-prompt.ts    # 重构为通用容器
+├── select-list.ts       # 支持配置化
+└── ...
+
+src/controllers/
+└── agent-runner.ts      # 使用新的 ApprovalManager
+```
+
+---
+
+### 14.7 实施优先级
+
+| 优先级 | 任务 | 工作量 | 风险 |
+|--------|------|--------|------|
+| P1 | 超时配置化 | 小 | 低 |
+| P1 | 工具专用组件 | 中 | 中 |
+| P2 | 用户交互增强 | 中 | 中 |
+| P2 | 状态管理改进 | 中 | 中 |
+| P2 | Hook 安全增强 | 小 | 低 |
+
+---
+
+### 14.8 里程碑更新
+
+| 阶段 | 功能 | 状态 | 交付日期 |
+|------|------|------|----------|
+| Phase 0-4 | 权限系统基础 | ✅ | 2026-05-20 |
+| Phase T1 | 授权配置化 | 🔲 | 待定 |
+| Phase T2 | 工具专用组件 | 🔲 | 待定 |
+| Phase T3 | 用户交互增强 | 🔲 | 待定 |
+| Phase T4 | 状态管理改进 | 🔲 | 待定 |
+| Phase T5 | Hook 安全增强 | 🔲 | 待定 |
+
+---
+
+**文档更新**: 2026-05-21
