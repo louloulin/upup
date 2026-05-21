@@ -2,6 +2,7 @@ import { Container, Text } from '@mariozechner/pi-tui';
 import type { ApprovalDecision } from '../agent/types.js';
 import { createApprovalSelector } from './select-list.js';
 import { theme } from '../theme.js';
+import { BorderBox } from './BorderBox.js';
 
 function formatToolLabel(tool: string): string {
   return tool
@@ -17,18 +18,33 @@ export class ApprovalPromptComponent extends Container {
   constructor(tool: string, args: Record<string, unknown>) {
     super();
     this.selector = createApprovalSelector((decision) => this.onSelect?.(decision));
-    const width = Math.max(20, process.stdout.columns ?? 80);
-    const border = theme.warning('─'.repeat(width));
     const path = (args.path as string) || '<unknown>';
 
-    this.addChild(new Text(border, 0, 0));
-    this.addChild(new Text(theme.warning(theme.bold('Permission required')), 0, 0));
-    this.addChild(new Text(`${formatToolLabel(tool)} ${path}`, 0, 0));
-    this.addChild(new Text(theme.muted('Do you want to allow this?'), 0, 0));
-    this.addChild(new Text('', 0, 0));
+    // Header using BorderBox
+    const headerBox = new BorderBox(
+      [new Text(theme.warning(theme.bold('⚠️  Permission Required')))],
+      { style: 'single', paddingX: 1 }
+    );
+
+    // Content using BorderBox
+    const contentBox = new BorderBox(
+      [
+        new Text(formatToolLabel(tool), 0, 0),
+        new Text(theme.primary(path), 0, 0),
+        new Text('', 0, 0),
+        new Text(theme.muted('Do you want to allow this?'), 0, 0),
+      ],
+      { style: 'single', paddingX: 1 }
+    );
+
+    // Add components
+    this.addChild(new Text(''));
+    this.addChild(headerBox);
+    this.addChild(new Text(''));
+    this.addChild(contentBox);
+    this.addChild(new Text(''));
     this.addChild(this.selector);
-    this.addChild(new Text('', 0, 0));
+    this.addChild(new Text(''));
     this.addChild(new Text(theme.muted('Enter to confirm · esc to deny'), 0, 0));
-    this.addChild(new Text(border, 0, 0));
   }
 }
