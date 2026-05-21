@@ -8,11 +8,16 @@
  * - ask_input: Free text input
  *
  * Reference: Claude Code's AskUserQuestion / Loucode's elicitation system
+ *
+ * Uses BorderBox for consistent border styling
  */
 
 import { z } from 'zod';
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { getElicitationManager, ElicitationRequest, ElicitationResponse, ElicitationChoice } from '../../hooks/elicitation.js';
+import { BorderBox } from '../../components/BorderBox.js';
+import { Text } from '@mariozechner/pi-tui';
+import { theme } from '../../theme.js';
 
 // ============================================================================
 // Types
@@ -162,16 +167,19 @@ export class AskManager {
   }
 
   /**
-   * Format confirm prompt for terminal display
+   * Format confirm prompt for terminal display using BorderBox
    */
   private formatConfirmPrompt(request: ElicitationRequest): string {
     const lines: string[] = [];
-    lines.push('');
-    lines.push('═'.repeat(60));
-    lines.push(`❓ ${request.question}`);
-    lines.push('═'.repeat(60));
-    lines.push('');
 
+    // Header box with question
+    const headerBox = new BorderBox(
+      [new Text(theme.primary(`❓ ${request.question}`), 0, 0)],
+      { style: 'double', paddingX: 1, paddingY: 0 }
+    );
+    lines.push(headerBox.render(60).join('\n'));
+
+    // Choices
     if (request.choices) {
       for (const choice of request.choices) {
         lines.push(`  [${choice.value}] ${choice.label}`);
@@ -181,27 +189,31 @@ export class AskManager {
       }
     }
 
-    lines.push('');
-    lines.push('─'.repeat(60));
-    lines.push('Enter your choice (yes/no): ');
+    // Footer
+    const footerBox = new BorderBox(
+      [new Text(theme.muted('Enter your choice (yes/no): '), 0, 0)],
+      { style: 'single', paddingX: 1, paddingY: 0 }
+    );
+    lines.push(footerBox.render(60).join('\n'));
 
     return lines.join('\n');
   }
 
   /**
-   * Format select prompt for terminal display
+   * Format select prompt for terminal display using BorderBox
    */
   private formatSelectPrompt(request: ElicitationRequest, header?: string): string {
     const lines: string[] = [];
-    lines.push('');
-    lines.push('═'.repeat(60));
-    lines.push(`❓ ${request.question}`);
-    if (header) {
-      lines.push(`   ${header}`);
-    }
-    lines.push('═'.repeat(60));
-    lines.push('');
 
+    // Header with question
+    const headerItems: Text[] = [new Text(theme.primary(`❓ ${request.question}`), 0, 0)];
+    if (header) {
+      headerItems.push(new Text(theme.muted(header), 0, 0));
+    }
+    const headerBox = new BorderBox(headerItems, { style: 'double', paddingX: 1, paddingY: 0 });
+    lines.push(headerBox.render(60).join('\n'));
+
+    // Choices
     if (request.choices) {
       for (let i = 0; i < request.choices.length; i++) {
         const choice = request.choices[i];
@@ -213,15 +225,18 @@ export class AskManager {
       }
     }
 
-    lines.push('');
-    lines.push('─'.repeat(60));
-    lines.push('Enter your choice (number): ');
+    // Footer
+    const footerBox = new BorderBox(
+      [new Text(theme.muted('Enter your choice (number): '), 0, 0)],
+      { style: 'single', paddingX: 1, paddingY: 0 }
+    );
+    lines.push(footerBox.render(60).join('\n'));
 
     return lines.join('\n');
   }
 
   /**
-   * Format multi-select prompt for terminal display
+   * Format multi-select prompt for terminal display using BorderBox
    */
   private formatMultiSelectPrompt(
     request: ElicitationRequest,
@@ -230,15 +245,16 @@ export class AskManager {
     maxSelections?: number
   ): string {
     const lines: string[] = [];
-    lines.push('');
-    lines.push('═'.repeat(60));
-    lines.push(`❓ ${request.question}`);
-    if (header) {
-      lines.push(`   ${header}`);
-    }
-    lines.push('═'.repeat(60));
-    lines.push('');
 
+    // Header with question
+    const headerItems: Text[] = [new Text(theme.primary(`❓ ${request.question}`), 0, 0)];
+    if (header) {
+      headerItems.push(new Text(theme.muted(header), 0, 0));
+    }
+    const headerBox = new BorderBox(headerItems, { style: 'double', paddingX: 1, paddingY: 0 });
+    lines.push(headerBox.render(60).join('\n'));
+
+    // Choices
     if (request.choices) {
       for (let i = 0; i < request.choices.length; i++) {
         const choice = request.choices[i];
@@ -249,7 +265,7 @@ export class AskManager {
       }
     }
 
-    lines.push('');
+    // Hint
     let hint = 'Enter numbers separated by commas (e.g., 1,3,5)';
     if (minSelections || maxSelections) {
       if (minSelections && maxSelections && minSelections === maxSelections) {
@@ -262,41 +278,56 @@ export class AskManager {
         hint = `Select up to ${maxSelections} option(s)`;
       }
     }
-    lines.push(hint);
 
-    lines.push('');
-    lines.push('─'.repeat(60));
-    lines.push('Enter your choices: ');
+    // Footer with hint
+    const footerBox = new BorderBox(
+      [
+        new Text(theme.muted(hint), 0, 0),
+        new Text('', 0, 0),
+        new Text(theme.muted('Enter your choices: '), 0, 0),
+      ],
+      { style: 'single', paddingX: 1, paddingY: 0 }
+    );
+    lines.push(footerBox.render(60).join('\n'));
 
     return lines.join('\n');
   }
 
   /**
-   * Format input prompt for terminal display
+   * Format input prompt for terminal display using BorderBox
    */
   private formatInputPrompt(request: ElicitationRequest, multiline?: boolean): string {
     const lines: string[] = [];
-    lines.push('');
-    lines.push('═'.repeat(60));
-    lines.push(`❓ ${request.question}`);
-    lines.push('═'.repeat(60));
-    lines.push('');
 
+    // Header with question
+    const headerBox = new BorderBox(
+      [new Text(theme.primary(`❓ ${request.question}`), 0, 0)],
+      { style: 'double', paddingX: 1, paddingY: 0 }
+    );
+    lines.push(headerBox.render(60).join('\n'));
+
+    // Placeholder and default value
+    const infoItems: Text[] = [];
     if (request.placeholder) {
-      lines.push(`  ${request.placeholder}`);
+      infoItems.push(new Text(theme.muted(request.placeholder), 0, 0));
     }
-
     if (request.defaultValue) {
-      lines.push(`  (Default: ${request.defaultValue})`);
+      infoItems.push(new Text(theme.muted(`(Default: ${request.defaultValue})`), 0, 0));
+    }
+    if (infoItems.length > 0) {
+      const infoBox = new BorderBox(infoItems, { style: 'single', paddingX: 1, paddingY: 0 });
+      lines.push(infoBox.render(60).join('\n'));
     }
 
-    lines.push('');
-    lines.push('─'.repeat(60));
-    if (multiline) {
-      lines.push('Enter your response (Ctrl+D to submit, Ctrl+C to cancel): ');
-    } else {
-      lines.push('Enter your response: ');
-    }
+    // Footer with prompt
+    const promptText = multiline
+      ? 'Enter your response (Ctrl+D to submit, Ctrl+C to cancel): '
+      : 'Enter your response: ';
+    const footerBox = new BorderBox(
+      [new Text(theme.muted(promptText), 0, 0)],
+      { style: 'single', paddingX: 1, paddingY: 0 }
+    );
+    lines.push(footerBox.render(60).join('\n'));
 
     return lines.join('\n');
   }
