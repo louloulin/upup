@@ -4,30 +4,11 @@ import type { ApprovalDecision } from '../agent/types.js';
 import type { SessionSummary } from '../session/types.js';
 import { selectListTheme, theme } from '../theme.js';
 import { formatRelativeTime } from '../utils/time.js';
+// Simple wrapper that just uses native SelectList - no custom input handling needed
+// because pi-tui's SelectList already handles arrow keys and Enter/Esc
 class VimSelectList extends SelectList {
   handleInput(keyData: string): void {
-    // Normalize arrow keys: convert escape sequences to vim-style keys
-    if (keyData === '\x1b[A' || keyData === '^[A' || keyData === '\e[A') {
-      // Arrow Up -> k (move up in vim)
-      super.handleInput('k');
-      return;
-    }
-    if (keyData === '\x1b[B' || keyData === '^[B' || keyData === '\e[B') {
-      // Arrow Down -> j (move down in vim)
-      super.handleInput('j');
-      return;
-    }
-
-    // Vim-style navigation (j/k)
-    if (keyData === 'j' || keyData === 'J') {
-      super.handleInput('\x1b[B'); // Down
-      return;
-    }
-    if (keyData === 'k' || keyData === 'K') {
-      super.handleInput('\x1b[A'); // Up
-      return;
-    }
-
+    // Let SelectList handle all keys directly
     super.handleInput(keyData);
   }
 }
