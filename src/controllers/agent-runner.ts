@@ -239,7 +239,7 @@ export class AgentRunnerController {
       // Restore approved tools from SessionTracker so they survive restarts
       const tracker = getSessionTracker();
       await tracker.startSession(this.sessionIdValue);
-      const TOOLS_REQUIRING_APPROVAL = ['write_file', 'edit_file'] as const;
+      const TOOLS_REQUIRING_APPROVAL = ['write_file', 'edit_file', 'bash'] as const;
       for (const tool of TOOLS_REQUIRING_APPROVAL) {
         if (tracker.isToolApproved(tool)) {
           this.sessionApprovedTools.add(tool);
