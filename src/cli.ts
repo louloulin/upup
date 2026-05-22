@@ -806,7 +806,6 @@ export async function runCli(options: RunCliOptions = {}) {
   ) => {
     root.clear();
     root.addChild(createScreen(title, description, body, footer));
-    // Set focus immediately before requestRender
     if (focusTarget) {
       tui.setFocus(focusTarget);
     }
@@ -1297,7 +1296,6 @@ export async function runCli(options: RunCliOptions = {}) {
 
   // Wire deferred overlay after renderSelectionOverlay is defined
   scheduleOverlay = () => {
-    // Use showScreenView for approval to leverage SelectList-based selector
     const pending = agentRunner.pendingApproval;
     if (pending) {
       const selector = createApprovalSelector((decision) => {
@@ -1387,6 +1385,7 @@ export async function runCli(options: RunCliOptions = {}) {
   refreshError();
 
   tui.start();
+
   await new Promise<void>((resolve) => {
     const finish = () => resolve();
     process.once('exit', finish);
