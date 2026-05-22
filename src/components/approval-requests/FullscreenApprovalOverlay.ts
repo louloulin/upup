@@ -282,14 +282,30 @@ export class FullscreenApprovalOverlay extends Container {
   handleInput(keyData: string): void {
     const kb = getKeybindings();
 
-    // Navigation
-    if (kb.matches(keyData, 'tui.editor.cursorUp') || keyData === 'k' || keyData === 'K') {
+    // Normalize arrow keys: convert escape sequences to 'up'/'down'
+    let normalizedKey = keyData;
+    if (keyData === '[A' || keyData === '\x1b[A') {
+      normalizedKey = 'up';
+    } else if (keyData === '[B' || keyData === '\x1b[B') {
+      normalizedKey = 'down';
+    }
+
+    // Navigation (support arrow keys, vim j/k, and explicit up/down)
+    if (
+      normalizedKey === 'up' ||
+      keyData === 'k' || keyData === 'K' ||
+      kb.matches(keyData, 'tui.editor.cursorUp')
+    ) {
       this.selectedIndex = Math.max(0, this.selectedIndex - 1);
       this.refreshOptions();
       return;
     }
 
-    if (kb.matches(keyData, 'tui.editor.cursorDown') || keyData === 'j' || keyData === 'J') {
+    if (
+      normalizedKey === 'down' ||
+      keyData === 'j' || keyData === 'J' ||
+      kb.matches(keyData, 'tui.editor.cursorDown')
+    ) {
       this.selectedIndex = Math.min(this.options.length - 1, this.selectedIndex + 1);
       this.refreshOptions();
       return;
