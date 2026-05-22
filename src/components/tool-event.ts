@@ -281,7 +281,6 @@ export class ToolEventComponent extends Container {
       0, 0,
     );
     this.addChild(line1);
-    console.error('[tool-event] DEBUG: Added Permission required line');
 
     // Interactive options with visual cursor indicator (no number prefixes)
     const options = [
@@ -303,16 +302,13 @@ export class ToolEventComponent extends Container {
       0, 0,
     );
     this.addChild(hintLine);
-    console.error('[tool-event] DEBUG: Added hint line');
 
     // Store callback so the editor can call it
     (this as any)._approvalCallback = onSelect;
-    console.error('[tool-event] DEBUG: Stored approval callback');
 
     // If user already pressed Enter/Esc before this UI was rendered,
     // their decision was stored in preStoredDecision — invoke onSelect immediately.
     const pending = preStoredDecision ?? consumePendingApprovalDecision();
-    console.error('[tool-event] DEBUG: pending decision:', pending);
     if (pending !== null) {
       onSelect(pending);
     }

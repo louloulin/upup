@@ -167,15 +167,11 @@ export class AgentToolExecutor {
     }
 
     // Approval flow for sensitive tools
-    console.error('[tool-executor] DEBUG: Checking approval for:', toolName, 'requiresApproval:', this.requiresApproval(toolName), 'sessionApproved:', this.sessionApprovedTools.has(toolName));
     if (this.requiresApproval(toolName) && !this.sessionApprovedTools.has(toolName)) {
-      console.error('[tool-executor] DEBUG: Tool requires approval:', toolName);
-      console.error('[tool-executor] DEBUG: requestToolApproval is:', typeof this.requestToolApproval);
       if (!this.requestToolApproval) {
         console.error('[tool-executor] ERROR: requestToolApproval is undefined!');
       }
       const decision = (await this.requestToolApproval?.({ tool: toolName, args: toolArgs })) ?? 'deny';
-      console.error('[tool-executor] DEBUG: Approval decision received:', decision);
       yield { type: 'tool_approval', tool: toolName, args: toolArgs, approved: decision };
       if (decision === 'deny') {
         yield { type: 'tool_denied', tool: toolName, args: toolArgs, toolCallId };
@@ -245,7 +241,6 @@ export class AgentToolExecutor {
     } catch { /* hooks must not crash tool execution */ }
 
     yield { type: 'tool_start', tool: toolName, args: toolArgs, toolCallId };
-    console.error('[tool-executor] DEBUG: Emitted tool_start for:', toolName);
     info('tools', `Tool started: ${toolName}`);
 
     // Rate limit check — wait for slot if needed

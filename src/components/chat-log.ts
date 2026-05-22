@@ -242,12 +242,9 @@ export class ChatLogComponent extends Container {
 
   /** Returns true if any tool component has a pending approval awaiting user input. */
   hasApprovalPending(): boolean {
-    console.error('[chat-log] DEBUG: hasApprovalPending called, toolById.size:', this.toolById.size);
     for (const comp of this.toolById.values()) {
-      console.error('[chat-log] DEBUG: checking component, has getApprovalCallback:', !!comp.getApprovalCallback);
       if (comp.getApprovalCallback) {
         const cb = comp.getApprovalCallback();
-        console.error('[chat-log] DEBUG: callback result:', cb ? 'found' : 'null');
         if (cb) return true;
       }
     }
@@ -256,17 +253,14 @@ export class ChatLogComponent extends Container {
 
   /** Returns the first approval callback, if any. */
   getFirstApprovalCallback(): ((decision: 'allow-once' | 'allow-session' | 'deny') => void) | null {
-    console.error('[chat-log] DEBUG: getFirstApprovalCallback called');
     for (const comp of this.toolById.values()) {
       if (comp.getApprovalCallback) {
         const cb = comp.getApprovalCallback();
         if (cb) {
-          console.error('[chat-log] DEBUG: found callback, returning it');
           return cb;
         }
       }
     }
-    console.error('[chat-log] DEBUG: no callback found');
     return null;
   }
 

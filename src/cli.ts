@@ -1191,6 +1191,23 @@ export async function runCli(options: RunCliOptions = {}) {
       }
     }
 
+    // Number keys 1/2/3 for quick selection
+    if (key === '1') {
+      setApprovalCursor(0);
+      editor.onApprovalSelect?.();
+      return true;
+    }
+    if (key === '2') {
+      setApprovalCursor(1);
+      editor.onApprovalSelect?.();
+      return true;
+    }
+    if (key === '3') {
+      setApprovalCursor(2);
+      editor.onApprovalSelect?.();
+      return true;
+    }
+
     // Arrow key navigation
     if (matchesKey(key, Key.up)) {
       editor.onApprovalNavigate?.('up');
