@@ -55,17 +55,12 @@ export class CustomEditor extends Editor {
   }
 
   handleInput(data: string): void {
-    console.error('[editor] DEBUG: CustomEditor.handleInput called with:', JSON.stringify(data));
     const showingSuggestions = this.slashActive;
 
     // Approval mode: route 1/2/3 + Enter/Esc to approval handler
-    console.error('[editor] DEBUG: onApprovalKey is:', typeof this.onApprovalKey);
     if (this.onApprovalKey) {
       const consumed = this.onApprovalKey(data);
-      console.error('[editor] DEBUG: onApprovalKey returned:', consumed);
       if (consumed) return;
-    } else {
-      console.error('[editor] DEBUG: onApprovalKey is not set!');
     }
 
     // Session list mode: route d/n/t/r keys to session handler
