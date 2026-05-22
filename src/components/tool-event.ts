@@ -311,6 +311,8 @@ export class ToolEventComponent extends Container {
     const pending = preStoredDecision ?? consumePendingApprovalDecision();
     if (pending !== null) {
       onSelect(pending);
+      // Clear callback after use to prevent stale callbacks from blocking future approvals
+      (this as any)._approvalCallback = null;
     }
   }
 
@@ -319,6 +321,14 @@ export class ToolEventComponent extends Container {
    */
   getApprovalCallback(): ((decision: ApprovalDecision) => void) | null {
     return (this as any)._approvalCallback ?? null;
+  }
+
+  /**
+   * Clear the approval callback. Called when the tool completes or when
+   * the full-screen approval UI takes over.
+   */
+  clearApprovalCallback(): void {
+    (this as any)._approvalCallback = null;
   }
 
   /**

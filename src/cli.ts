@@ -1298,6 +1298,10 @@ export async function runCli(options: RunCliOptions = {}) {
   scheduleOverlay = () => {
     const pending = agentRunner.pendingApproval;
     if (pending) {
+      // Clear any existing inline approval callbacks to prevent stale callbacks
+      // from blocking the full-screen approval UI
+      chatLog.clearAllApprovalCallbacks();
+
       const selector = createApprovalSelector((decision) => {
         agentRunner.respondToApproval(decision);
         restoreMainView();

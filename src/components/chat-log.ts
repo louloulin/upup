@@ -264,6 +264,15 @@ export class ChatLogComponent extends Container {
     return null;
   }
 
+  /** Clear all approval callbacks from tool components. Called when full-screen approval takes over. */
+  clearAllApprovalCallbacks(): void {
+    for (const comp of this.toolById.values()) {
+      if (typeof (comp as any).clearApprovalCallback === 'function') {
+        (comp as any).clearApprovalCallback();
+      }
+    }
+  }
+
   /** Update the approval cursor display in the first tool component with approval UI. */
   updateApprovalCursor(): void {
     for (const comp of this.toolById.values()) {
