@@ -19,6 +19,7 @@ import { getRateLimiter } from '../hooks/rate-limiter.js';
 import { useToolMetrics, useCanUseTool } from '../hooks/agent-hooks.js';
 import { getHookExecutor } from '../hooks/tool-hooks.js';
 import { getSessionTracker } from '../session/session-tracker.js';
+import { classifyCommand } from '../tools/bash/command-classifier.js';
 
 type ToolExecutionEvent =
   | ToolStartEvent
@@ -29,7 +30,7 @@ type ToolExecutionEvent =
   | ToolDeniedEvent
   | ToolLimitEvent;
 
-const TOOLS_REQUIRING_APPROVAL = ['write_file', 'edit_file'] as const;
+const TOOLS_REQUIRING_APPROVAL = ['write_file', 'edit_file', 'bash'] as const;
 const DEFAULT_MAX_CONCURRENCY = 10;
 
 interface ToolCallBatch {
@@ -167,7 +168,7 @@ export class AgentToolExecutor {
     }
 
     // Approval flow for sensitive tools
-    if (this.requiresApproval(toolName) && !this.sessionApprovedTools.has(toolName)) {
+    if (this.requiresApproval(toolName, toolArgs) && !this.sessionApprovedTools.has(toolName)) {
       if (!this.requestToolApproval) {
         console.error('[tool-executor] ERROR: requestToolApproval is undefined!');
       }
@@ -184,12 +185,10 @@ export class AgentToolExecutor {
           this.onToolApproval?.(name);
         }
         // Sync to SessionManager so approved tools persist across restarts
-        // SessionData is already initialized (agent-runner calls startSession before any tools run).
-        // Use saveSession() directly — synchronous, no debounce, completes before tool execution.
         try {
           const sessionTracker = getSessionTracker();
           for (const name of TOOLS_REQUIRING_APPROVAL) {
-            sessionTracker.approveToolSync(name); // approveToolSync clears debounce + calls saveSession
+            sessionTracker.approveToolSync(name);
           }
         } catch { /* non-critical */ }
       }
@@ -308,7 +307,16 @@ export class AgentToolExecutor {
     return undefined;
   }
 
-  private requiresApproval(toolName: string): boolean {
-    return (TOOLS_REQUIRING_APPROVAL as readonly string[]).includes(toolName);
+  private requiresApproval(toolName: string, toolArgs?: Record<string, unknown>): boolean {
+    if (!(TOOLS_REQUIRING_APPROVAL as readonly string[]).includes(toolName)) {
+      return false;
+    }
+    // For bash commands, check if it's a write-classified command
+    if (toolName === 'bash' && toolArgs?.command) {
+      const cmd = String(toolArgs.command);
+      const classification = classifyCommand(cmd);
+      return classification === 'write';
+    }
+    return true;
   }
 }
