@@ -23,6 +23,18 @@ const CATEGORY_ICONS: Record<string, string> = {
 }
 
 /**
+ * Permission mode indicator configuration
+ */
+export interface PermissionModeIndicator {
+  /** Whether permission bypass is active */
+  bypassPermissions: boolean;
+  /** Current model being used */
+  model: string;
+  /** Session duration in format "2h 15m" */
+  sessionDuration?: string;
+}
+
+/**
  * Contextual hint bar displayed below the input editor.
  * Shows keyboard shortcuts, slash command suggestions, and transient messages.
  * Supports left-aligned hints + right-aligned esc hints on a single line.
@@ -33,6 +45,7 @@ export class HintBarComponent extends Container {
   private leftHint: string = '';
   private rightHint: string = '';
   private currentHintMode: 'left' | 'right' | 'both' | 'none' = 'none';
+  private permissionIndicator: string = '';
 
   constructor() {
     super();
@@ -148,6 +161,41 @@ export class HintBarComponent extends Container {
       this.leftHint = theme.muted(' / for commands');
     }
 
+    // Add permission indicator if active
+    if (this.permissionIndicator) {
+      if (this.leftHint) {
+        this.leftHint = this.permissionIndicator + ' · ' + this.leftHint;
+      } else {
+        this.leftHint = this.permissionIndicator;
+      }
+    }
+
     this.updateHintLine();
+  }
+
+  /**
+   * Update permission mode indicator
+   * Shows bypass status, model, and session duration
+   */
+  updatePermissionMode(indicator: PermissionModeIndicator): void {
+    if (indicator.bypassPermissions) {
+      this.permissionIndicator = theme.warning('[UpUp] ⚡ bypassPermissions');
+    } else {
+      this.permissionIndicator = '';
+    }
+  }
+
+  /**
+   * Format session duration
+   */
+  formatSessionDuration(startTime: number): string {
+    const durationMs = Date.now() - startTime;
+    const hours = Math.floor(durationMs / (1000 * 60 * 60));
+    const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    }
+    return `${minutes}m`;
   }
 }

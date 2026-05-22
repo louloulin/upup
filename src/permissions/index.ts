@@ -6,9 +6,15 @@
  * - Bash command classification
  * - Auto-approve patterns
  * - Session-level permission management
+ * - MCP tool rules support
+ * - Path protection rules
+ * - Rule import/export
  */
 
 import type { ApprovalDecision } from '../agent/types.js';
+import { existsSync, readFileSync, writeFileSync } from 'fs';
+import { join } from 'path';
+import { upupPath } from '../utils/paths.js';
 
 // ============================================================================
 // Permission Rules
@@ -171,8 +177,305 @@ export const MEDIUM_RISK_PATTERNS: PermissionRule[] = [
 ];
 
 // ============================================================================
-// Bash Command Classifier
+// MCP Tool Rules
 // ============================================================================
+
+/**
+ * MCP server configuration for permission rules
+ */
+export interface MCPServerRule {
+  /** MCP server name (e.g., 'filesystem', 'github') */
+  serverName: string;
+  /** Allowed tool patterns (supports * wildcard) */
+  allowedTools?: string[];
+  /** Denied tool patterns (supports * wildcard) */
+  deniedTools?: string[];
+  /** Path restrictions for file-based MCP servers */
+  allowedPaths?: string[];
+  /** Denied path patterns (supports glob) */
+  deniedPaths?: string[];
+}
+
+/**
+ * MCP permission configuration
+ */
+export interface MCPPermissionConfig {
+  /** Server-specific rules */
+  servers: Record<string, MCPServerRule>;
+  /** Default behavior for MCP tools */
+  defaultDecision: ApprovalDecision;
+}
+
+/**
+ * Default MCP server rules
+ */
+export const DEFAULT_MCP_RULES: MCPPermissionConfig = {
+  servers: {
+    // Filesystem MCP - restrict to project directory
+    'filesystem': {
+      serverName: 'filesystem',
+      allowedTools: ['*'], // Allow all tools
+      deniedTools: ['rm', 'delete'], // But deny deletion
+      deniedPaths: [
+        '**/.git/**',
+        '**/.claude/**',
+        '**/node_modules/**',
+        '**/.env',
+        '**/credentials*',
+      ],
+    },
+    // GitHub MCP - read-only operations
+    'github': {
+      serverName: 'github',
+      allowedTools: ['*'],
+      deniedTools: ['delete_*', 'remove_*'],
+    },
+  },
+  defaultDecision: 'allow-session', // Default: require approval
+};
+
+// ============================================================================
+// Path Protection Rules
+// ============================================================================
+
+/**
+ * Path protection configuration
+ */
+export interface PathProtectionConfig {
+  /** Protected directory patterns (glob) */
+  protectedPaths: string[];
+  /** Allowed operations on protected paths */
+  allowedOperations: ('read' | 'write' | 'delete')[];
+  /** Whether to always deny modifications to protected paths */
+  alwaysDeny: boolean;
+}
+
+/**
+ * Default protected paths
+ */
+export const DEFAULT_PROTECTED_PATHS: PathProtectionConfig = {
+  protectedPaths: [
+    '**/.git/**',
+    '**/.claude/**',
+    '**/.env',
+    '**/credentials*',
+    '**/id_rsa*',
+    '**/.ssh/**',
+    '**/secrets/**',
+    '**/keys/**',
+    '**/password*',
+    '**/.npmrc',
+    '**/.pypirc',
+    '**/.netrc',
+  ],
+  allowedOperations: ['read'], // Only read by default
+  alwaysDeny: true, // Always deny modifications
+};
+
+/**
+ * Check if a path matches a glob pattern
+ */
+function matchesGlob(path: string, pattern: string): boolean {
+  // Convert glob to regex
+  const regexPattern = pattern
+    .replace(/\./g, '\\.')
+    .replace(/\*\*/g, '{{DOUBLE_STAR}}')
+    .replace(/\*/g, '[^/]*')
+    .replace(/\{\{DOUBLE_STAR\}\}/g, '.*');
+
+  try {
+    const regex = new RegExp(`^${regexPattern}$`);
+    return regex.test(path);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Check if a path is protected
+ */
+export function isPathProtected(path: string, config: PathProtectionConfig = DEFAULT_PROTECTED_PATHS): boolean {
+  for (const protectedPath of config.protectedPaths) {
+    if (matchesGlob(path, protectedPath)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Evaluate MCP tool permission
+ */
+export function evaluateMCPTool(
+  serverName: string,
+  toolName: string,
+  args?: Record<string, unknown>,
+  mcpConfig: MCPPermissionConfig = DEFAULT_MCP_RULES
+): { allowed: boolean; reason: string } {
+  const serverRule = mcpConfig.servers[serverName];
+
+  // No specific rule for this server
+  if (!serverRule) {
+    return {
+      allowed: mcpConfig.defaultDecision !== 'deny',
+      reason: `No specific rule for MCP server '${serverName}' - using default`,
+    };
+  }
+
+  // Check denied tools first
+  if (serverRule.deniedTools) {
+    for (const pattern of serverRule.deniedTools) {
+      const regexPattern = pattern.replace(/\*/g, '.*');
+      if (new RegExp(`^${regexPattern}$`).test(toolName)) {
+        return {
+          allowed: false,
+          reason: `Tool '${toolName}' denied by MCP server rule`,
+        };
+      }
+    }
+  }
+
+  // Check allowed tools
+  if (serverRule.allowedTools) {
+    let allowed = false;
+    for (const pattern of serverRule.allowedTools) {
+      const regexPattern = pattern.replace(/\*/g, '.*');
+      if (new RegExp(`^${regexPattern}$`).test(toolName)) {
+        allowed = true;
+        break;
+      }
+    }
+
+    if (!allowed) {
+      return {
+        allowed: false,
+        reason: `Tool '${toolName}' not in allowed tools for MCP server '${serverName}'`,
+      };
+    }
+  }
+
+  // Check path restrictions if applicable
+  if (serverRule.deniedPaths && args?.path) {
+    const path = String(args.path);
+    for (const deniedPath of serverRule.deniedPaths) {
+      if (matchesGlob(path, deniedPath)) {
+        return {
+          allowed: false,
+          reason: `Path '${path}' denied by MCP server path restrictions`,
+        };
+      }
+    }
+  }
+
+  return {
+    allowed: true,
+    reason: `Tool '${toolName}' allowed for MCP server '${serverName}'`,
+  };
+}
+
+// ============================================================================
+// Rule Import/Export
+// ============================================================================
+
+/**
+ * Permission rules export format
+ */
+export interface PermissionRulesExport {
+  version: string;
+  exportedAt: string;
+  customRules: PermissionRule[];
+  mcpConfig: MCPPermissionConfig;
+  pathProtection: PathProtectionConfig;
+}
+
+const PERMISSIONS_CONFIG_DIR = upupPath('config');
+const PERMISSIONS_FILE = join(PERMISSIONS_CONFIG_DIR, 'permissions.json');
+
+/**
+ * Export permission rules to file
+ */
+export function exportPermissionRules(
+  customRules: PermissionRule[],
+  mcpConfig: MCPPermissionConfig = DEFAULT_MCP_RULES,
+  pathProtection: PathProtectionConfig = DEFAULT_PROTECTED_PATHS
+): string {
+  const exportData: PermissionRulesExport = {
+    version: '1.0',
+    exportedAt: new Date().toISOString(),
+    customRules,
+    mcpConfig,
+    pathProtection,
+  };
+
+  return JSON.stringify(exportData, null, 2);
+}
+
+/**
+ * Save permission rules to config file
+ */
+export function savePermissionRules(
+  customRules: PermissionRule[],
+  mcpConfig?: MCPPermissionConfig,
+  pathProtection?: PathProtectionConfig
+): void {
+  const data = exportPermissionRules(customRules, mcpConfig, pathProtection);
+
+  try {
+    if (!existsSync(PERMISSIONS_CONFIG_DIR)) {
+      const { mkdirSync } = require('fs');
+      mkdirSync(PERMISSIONS_CONFIG_DIR, { recursive: true });
+    }
+    writeFileSync(PERMISSIONS_FILE, data, 'utf-8');
+  } catch (error) {
+    console.error('Failed to save permission rules:', error);
+  }
+}
+
+/**
+ * Import permission rules from file
+ */
+export function importPermissionRules(filepath?: string): PermissionRulesExport | null {
+  const filePath = filepath || PERMISSIONS_FILE;
+
+  if (!existsSync(filePath)) {
+    return null;
+  }
+
+  try {
+    const content = readFileSync(filePath, 'utf-8');
+    const data = JSON.parse(content) as PermissionRulesExport;
+
+    // Validate basic structure
+    if (!data.version || !data.customRules || !data.mcpConfig) {
+      console.warn('Invalid permission rules file format');
+      return null;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Failed to import permission rules:', error);
+    return null;
+  }
+}
+
+/**
+ * Load custom rules from config file
+ */
+export function loadCustomRules(): PermissionRule[] {
+  const imported = importPermissionRules();
+  return imported?.customRules || [];
+}
+
+/**
+ * Save current permission configuration
+ */
+export function saveCurrentPermissionConfig(
+  customRules: PermissionRule[],
+  mcpConfig?: MCPPermissionConfig,
+  pathProtection?: PathProtectionConfig
+): void {
+  savePermissionRules(customRules, mcpConfig, pathProtection);
+}
 
 /**
  * Categories of bash commands
@@ -425,6 +728,13 @@ export class PermissionEvaluator {
    */
   clearCustomRules(): void {
     this.customRules = [];
+  }
+
+  /**
+   * Get custom rules (for export/save)
+   */
+  getCustomRules(): PermissionRule[] {
+    return [...this.customRules];
   }
 }
 
