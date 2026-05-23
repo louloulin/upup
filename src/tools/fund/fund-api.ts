@@ -770,3 +770,20 @@ export function deleteFundAlert(alertId: string): boolean {
   saveFundAlerts(alerts);
   return true;
 }
+
+/**
+ * Get fund unit value (unit net worth and accumulated)
+ * This function is a wrapper that uses pingzhongdata
+ */
+export async function getFundUnitValue(fundCode: string): Promise<{
+  unitValue: number;
+  accumulated: number;
+} | null> {
+  const pzData = await fetchPingzhongData(fundCode);
+  if (!pzData) return null;
+  
+  return {
+    unitValue: pzData.unitNetWorth || 0,
+    accumulated: pzData.accumulatedNetWorth || 0,
+  };
+}
