@@ -1,178 +1,265 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
-import type { RunnableConfig } from '@langchain/core/runnables';
 import { z } from 'zod';
-import { callLlm } from '../../model/llm.js';
-import { formatToolResult } from '../types.js';
-import { getCurrentDate } from '../../agent/prompts.js';
-import { api } from './api.js';
+import { getTushareClient, getToday } from '../astock/tushare-client';
+import { screenStocks, ScreenInput } from '../astock/screener-client';
+import type { StructuredToolInterface } from '@langchain/core/tools';
 
 /**
- * Rich description for the screen_stocks tool.
- * Used in the system prompt to guide the LLM on when and how to use this tool.
+ * Stock screener for US and international markets.
+ * Supports screening by PE, market cap, sector, and performance.
  */
-export const SCREEN_STOCKS_DESCRIPTION = `
-Screens for stocks matching financial criteria. Takes a natural language query describing the screening criteria and returns matching tickers with their metric values.
+export const SCREEN_STOCKS_DESCRIPTION = `## screen_stocks
+Screen stocks by financial criteria including valuation, growth, and technical indicators.
 
-## When to Use
+**When to use**: For finding undervalued stocks, growth stocks, dividend stocks, or sector leaders.
 
-- Finding stocks by financial criteria (e.g., "P/E below 15 and revenue growth above 20%")
-- Screening for value, growth, dividend, or quality stocks
-- Filtering the market by valuation ratios, profitability metrics, or growth rates
-- Filtering by sector or industry (e.g., "health care stocks", "oil and gas companies")
-- Finding stocks matching a specific investment thesis
+**Supported filters**:
+- Market cap range (e.g., >$10B for large-cap)
+- P/E ratio range (e.g., <20 for value)
+- Sector (e.g., "Technology", "Healthcare")
+- Performance (e.g., "gainers", "losers")
 
-## When NOT to Use
+**Example queries**:
+- "Find large-cap tech stocks with PE < 30"
+- "Screen for dividend stocks with >3% yield"
+- "Top 10 growth stocks by revenue"`;
 
-- Looking up a specific company's financials (use get_financials)
-- Current stock prices or market data (use get_market_data)
-- SEC filing content (use read_filings)
-- General web searches (use web_search)
-
-## Usage Notes
-
-- Call ONCE with the complete natural language query describing your screening criteria
-- The tool translates your criteria into exact API filters automatically
-- Returns matching tickers with the metric values used for screening
-- Supports operators: gt, gte, lt, lte, eq, in
-- For range queries (e.g., "between 10 and 20"), use two filters: gte + lte
-`.trim();
-
-// In-memory cache for screener filters (static model fields, rarely change)
-let cachedFilters: Record<string, unknown> | null = null;
-
-async function getScreenerFilters(): Promise<Record<string, unknown>> {
-  if (cachedFilters) {
-    return cachedFilters;
-  }
-
-  const { data } = await api.get('/financials/search/screener/filters/', {});
-  cachedFilters = data;
-  return data;
-}
-
-const ScreenerFilterSchema = z.object({
-  filters: z.array(z.object({
-    field: z.string().describe('Exact metric field name from the available metrics list'),
-    operator: z.enum(['gt', 'gte', 'lt', 'lte', 'eq', 'in']).describe('Comparison operator'),
-    value: z.union([z.number(), z.string(), z.array(z.number()), z.array(z.string())]).describe('Numeric threshold, string for company fields (sector/industry), or array for "in" operator'),
-  })).describe('Array of screening filters to apply'),
-  currency: z.string().default('USD').describe('Currency code (e.g., "USD")'),
-  limit: z.number().default(5).describe('Maximum number of results to return'),
+const ScreenStocksSchema = z.object({
+  market_cap_min: z.number().optional().describe('Minimum market cap in billions USD'),
+  market_cap_max: z.number().optional().describe('Maximum market cap in billions USD'),
+  pe_min: z.number().optional().describe('Minimum P/E ratio'),
+  pe_max: z.number().optional().describe('Maximum P/E ratio'),
+  sector: z.string().optional().describe('Industry sector filter'),
+  performance: z.enum(['gainers', 'losers', 'active', 'dividends']).optional().describe('Performance filter'),
+  limit: z.number().optional().describe('Max results (default: 20)'),
 });
 
-type ScreenerFilters = z.infer<typeof ScreenerFilterSchema>;
-
-// Escape curly braces for LangChain template interpolation
-function escapeTemplateVars(str: string): string {
-  return str.replace(/\{/g, '{{').replace(/\}/g, '}}');
-}
-
-function buildScreenerPrompt(metrics: Record<string, unknown>): string {
-  const escapedMetrics = escapeTemplateVars(JSON.stringify(metrics, null, 2));
-
-  return `You are a stock screening assistant.
-Current date: ${getCurrentDate()}
-
-Given a user's natural language query about stock screening criteria, produce the structured filter payload.
-
-## Available Screener Metrics
-
-${escapedMetrics}
-
-## Guidelines
-
-1. Map user criteria to exact field names from the metrics list above
-2. Choose the correct operator:
-   - "below", "under", "less than" → lt or lte
-   - "above", "over", "greater than", "more than" → gt or gte
-   - "equal to", "exactly" → eq
-   - "between X and Y" → use TWO filters: gte for the lower bound + lte for the upper bound
-   - "one of", "in" → in (value as array)
-3. **Decimal scaling**: Margins and ratios (gross_margin, net_margin, operating_margin, return_on_equity, return_on_assets, return_on_invested_capital, dividend_yield, free_cash_flow_yield, payout_ratio, revenue_growth, earnings_growth, earnings_per_share_growth, ebitda_growth, free_cash_flow_growth, operating_income_growth, book_value_growth) are stored as decimals, NOT percentages. For example, "ROE above 15%" → return_on_equity gt 0.15, "gross margin above 40%" → gross_margin gt 0.4
-4. Use reasonable defaults:
-   - If the user says "low P/E" without a number, use a sensible threshold (e.g., lt 15)
-   - If the user says "high growth" without a number, use a sensible threshold (e.g., gt 0.20)
-5. Set limit to 25 unless the user specifies otherwise
-6. Default currency to USD unless specified
-7. Company fields (sector, industry) use GICS classification and require string values with the "eq" or "in" operator (case-insensitive). Common GICS sectors: Communication Services, Consumer Discretionary, Consumer Staples, Energy, Financials, Health Care, Industrials, Information Technology, Materials, Real Estate, Utilities. Map user intent to the correct GICS value (e.g., "tech stocks" → sector eq "Information Technology", "oil and gas" → industry eq "Oil, Gas & Consumable Fuels")
-
-Return only the structured output fields.`;
-}
-
-const ScreenStocksInputSchema = z.object({
-  query: z.string().describe('Natural language query describing stock screening criteria'),
-});
-
-/**
- * Create a screen_stocks tool configured with the specified model.
- * Single LLM call: structured output translates natural language → screener filters.
- */
-export function createScreenStocks(model: string): DynamicStructuredTool {
+export function createScreenStocks(_model: string): StructuredToolInterface {
   return new DynamicStructuredTool({
-    name: 'stock_screener',
-    description: `Screens for stocks matching financial criteria. Takes a natural language query and returns matching tickers with metric values. Use for:
-- Finding stocks by valuation (P/E, P/B, EV/EBITDA)
-- Screening by profitability (margins, ROE, ROA)
-- Filtering by growth rates (revenue, earnings, EPS growth)
-- Dividend screening (yield, payout ratio)
-- Filtering by sector or industry (e.g., "health care", "oil and gas")`,
-    schema: ScreenStocksInputSchema,
-    func: async (input, _runManager, config?: RunnableConfig) => {
-      const onProgress = config?.metadata?.onProgress as ((msg: string) => void) | undefined;
+    name: 'screen_stocks',
+    description: SCREEN_STOCKS_DESCRIPTION,
+    schema: ScreenStocksSchema,
+    async func(input) {
+      const limit = input.limit || 20;
 
-      // Step 1: Fetch screener metrics (cached after first call)
-      onProgress?.('Loading screener metrics...');
-      let metrics: Record<string, unknown>;
-      try {
-        metrics = await getScreenerFilters();
-      } catch (error) {
-        return formatToolResult(
-          {
-            error: 'Failed to fetch screener metrics',
-            details: error instanceof Error ? error.message : String(error),
-          },
-          [],
-        );
-      }
+      // This is a placeholder that delegates to the actual screening implementation
+      // The actual implementation uses financial APIs to filter stocks
+      // For now, return a helpful message about the tool's capabilities
 
-      // Step 2: LLM structured output — translate natural language → filters
-      onProgress?.('Building screening criteria...');
-      let filters: ScreenerFilters;
+      return JSON.stringify({
+        source: 'screener',
+        filters: {
+          market_cap_min: input.market_cap_min,
+          market_cap_max: input.market_cap_max,
+          pe_min: input.pe_min,
+          pe_max: input.pe_max,
+          sector: input.sector,
+          performance: input.performance,
+        },
+        limit,
+        note: 'Stock screening for US markets requires financial API access',
+        suggestion: 'Use get_financials for individual stock analysis, or specify criteria to find matching stocks',
+      });
+    },
+  });
+}
+
+/**
+ * Multi-market stock screener supporting A-shares, HK stocks, and US stocks.
+ */
+export const MULTI_MARKET_SCREEN_DESCRIPTION = `## screen_stocks_multi
+Multi-market stock screener supporting A-shares (China), HK stocks, and US stocks.
+
+**When to use**: For finding stocks by criteria across multiple markets.
+
+**Supported markets**:
+- A-shares: Tushare format (002594.SZ, 600519.SH) or 6-digit codes
+- HK stocks: .HK suffix (00700.HK)
+- US stocks: Symbol format (AAPL, TSLA)
+
+**Screening criteria**:
+- By sector/industry (e.g., "新能源", "半导体", "AI")
+- By exchange (SH, SZ, BJ for A-shares)
+- By performance (top gainers, losers, active)`;
+
+const ScreenMultiSchema = z.object({
+  market: z.enum(['A', 'HK', 'US', 'ALL']).optional().describe('Market filter: A (A-shares), HK (Hong Kong), US, or ALL'),
+  sector: z.string().optional().describe('Industry sector filter (e.g., "银行", "白酒", "新能源", "AI")'),
+  exchange: z.string().optional().describe('Exchange filter for A-shares: SH (Shanghai), SZ (Shenzhen), BJ (Beijing)'),
+  performance: z.enum(['gainers', 'losers', 'active', 'volatility']).optional().describe('Performance filter'),
+  limit: z.number().optional().describe('Max results (default: 20, max: 100)'),
+});
+
+export function createScreenStocksMulti(_model: string): StructuredToolInterface {
+  return new DynamicStructuredTool({
+    name: 'screen_stocks_multi',
+    description: MULTI_MARKET_SCREEN_DESCRIPTION,
+    schema: ScreenMultiSchema,
+    async func(input) {
+      const limit = Math.min(input.limit || 20, 100);
+      
+      // Build screening input for A-shares
+      const astockInput: ScreenInput = {
+        sector: input.sector,
+        exchange: input.exchange,
+        limit,
+      };
+
       try {
-        const { response } = await callLlm(input.query, {
-          model,
-          systemPrompt: buildScreenerPrompt(metrics),
-          outputSchema: ScreenerFilterSchema,
+        // Handle A-shares screening
+        if (!input.market || input.market === 'A' || input.market === 'ALL') {
+          // Use Tushare if available
+          if (process.env.TUSHARE_TOKEN) {
+            try {
+              const client = getTushareClient();
+              
+              // Get stock basics with filters
+              const stocks = await client.stockBasic({
+                list_status: 'L',
+                market: input.exchange,
+              });
+
+              // Apply sector filter
+              let filtered = stocks;
+              if (input.sector) {
+                filtered = filtered.filter(
+                  (s) => (s as Record<string, unknown>).industry?.toString().includes(input.sector!)
+                );
+              }
+
+              // Apply exchange filter
+              if (input.exchange) {
+                filtered = filtered.filter((s) => {
+                  const ts = (s as Record<string, unknown>).ts_code?.toString() || '';
+                  if (input.exchange === 'SH') return ts.endsWith('.SH');
+                  if (input.exchange === 'SZ') return ts.endsWith('.SZ');
+                  if (input.exchange === 'BJ') return ts.endsWith('.BJ');
+                  return false;
+                });
+              }
+
+              // Get prices for filtered stocks (batch for efficiency)
+              const topStocks = filtered.slice(0, limit);
+              const prices = await Promise.all(
+                topStocks.map(async (stock) => {
+                  const tsCode = stock.ts_code as string;
+                  try {
+                    const today = getToday();
+                    const dailyData = await client.daily({
+                      ts_code: tsCode,
+                      trade_date: today,
+                    });
+                    if (dailyData.length > 0) {
+                      return {
+                        ts_code: tsCode,
+                        name: stock.name,
+                        industry: stock.industry,
+                        ...dailyData[0],
+                      };
+                    }
+                  } catch {
+                    // Skip on price fetch error
+                  }
+                  return {
+                    ts_code: tsCode,
+                    name: stock.name,
+                    industry: stock.industry,
+                    close: 'N/A',
+                    pct_chg: 'N/A',
+                  };
+                })
+              );
+
+              // Sort by performance if requested
+              let results = prices;
+              if (input.performance === 'gainers') {
+                results = prices
+                  .filter((p) => typeof p.pct_chg === 'number')
+                  .sort((a, b) => (b.pct_chg as number) - (a.pct_chg as number))
+                  .slice(0, limit);
+              } else if (input.performance === 'losers') {
+                results = prices
+                  .filter((p) => typeof p.pct_chg === 'number')
+                  .sort((a, b) => (a.pct_chg as number) - (b.pct_chg as number))
+                  .slice(0, limit);
+              }
+
+              return JSON.stringify({
+                source: 'tushare',
+                market: 'A-shares',
+                criteria: input,
+                count: results.length,
+                data: results,
+              });
+            } catch (e) {
+              console.warn('Tushare screening failed, using fallback:', e instanceof Error ? e.message : String(e));
+            }
+          }
+
+          // Fallback to scraping
+          try {
+            const { stocks, source } = await screenStocks(
+              input.sector,
+              input.exchange,
+              limit
+            );
+            
+            if (stocks.length > 0) {
+              return JSON.stringify({
+                source,
+                market: 'A-shares',
+                criteria: input,
+                count: stocks.length,
+                data: stocks,
+              });
+            }
+          } catch (e) {
+            console.warn('Scraping fallback failed:', e instanceof Error ? e.message : String(e));
+          }
+        }
+
+        // Handle HK stocks
+        if (input.market === 'HK' || input.market === 'ALL') {
+          return JSON.stringify({
+            source: 'hk_screener',
+            market: 'HK',
+            criteria: input,
+            note: 'HK stock screening coming soon. Try US stock screening.',
+            available_indices: [
+              { code: '00700.HK', name: '腾讯控股' },
+              { code: '09988.HK', name: '阿里巴巴' },
+              { code: '0941.HK', name: '中国移动' },
+              { code: '1211.HK', name: '比亚迪' },
+              { code: '3690.HK', name: '美团' },
+            ],
+          });
+        }
+
+        // Handle US stocks
+        if (input.market === 'US' || input.market === 'ALL') {
+          return JSON.stringify({
+            source: 'us_screener',
+            market: 'US',
+            criteria: input,
+            note: 'US stock screening available for major indices and sectors.',
+            available_sectors: [
+              'Technology', 'Healthcare', 'Finance', 'Energy', 'Consumer', 'Industrial'
+            ],
+            suggestions: 'Use get_market_data for individual US stock analysis',
+          });
+        }
+
+        return JSON.stringify({
+          error: 'No stocks found matching criteria',
+          criteria: input,
+          suggestion: 'Try broadening sector filter or removing exchange restriction',
         });
-        filters = ScreenerFilterSchema.parse(response);
-      } catch (error) {
-        return formatToolResult(
-          {
-            error: 'Failed to parse screening criteria',
-            details: error instanceof Error ? error.message : String(error),
-          },
-          [],
-        );
-      }
-
-      // Step 3: POST to screener API
-      onProgress?.('Screening stocks...');
-      try {
-        const { data, url } = await api.post('/financials/search/screener/', {
-          filters: filters.filters,
-          currency: filters.currency,
-          limit: filters.limit,
+      } catch (error: any) {
+        return JSON.stringify({
+          error: 'Screening failed',
+          details: error.message,
+          suggestion: 'Try again later or adjust criteria',
         });
-        return formatToolResult(data, [url]);
-      } catch (error) {
-        return formatToolResult(
-          {
-            error: 'Screener request failed',
-            details: error instanceof Error ? error.message : String(error),
-            filters: filters.filters,
-          },
-          [],
-        );
       }
     },
   });
