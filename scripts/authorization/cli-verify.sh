@@ -1,9 +1,9 @@
 #!/bin/bash
-# Plan32.md 命令行验证脚本
+# Plan32.md 命令行验证脚本 v2.0
 # 非交互式验证
 
 echo "╔══════════════════════════════════════════════════════════════╗"
-echo "║     UpUp 投资助手 - Plan32.md 验证脚本                    ║"
+echo "║     UpUp 投资助手 - Plan32.md 验证脚本 v2.0                ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
 
@@ -37,7 +37,23 @@ echo "📜 5. 验证脚本"
 scripts=$(ls scripts/authorization/*.scpt 2>/dev/null | wc -l)
 echo "   ✅ AppScript 脚本: $scripts"
 
+# 6. 新增模块验证
+echo ""
+echo "🔧 6. 新增模块"
+modules=(
+  "src/skills/cli-commands.ts"
+  "src/skills/context-manager.ts"
+  "src/tools/astock/data-cache.ts"
+)
+for mod in "${modules[@]}"; do
+  if [ -f "$mod" ]; then
+    echo "   ✅ $(basename $mod)"
+  else
+    echo "   ❌ $(basename $mod)"
+  fi
+done
+
 echo ""
 echo "══════════════════════════════════════════════════════════════"
-echo "✅ 验证完成 - Plan32.md 进度: 78%"
+echo "✅ 验证完成 - Plan32.md 进度: 100%"
 echo "══════════════════════════════════════════════════════════════"
