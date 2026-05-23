@@ -220,3 +220,349 @@ ${rows}
 > 数据来源: 天天基金`;
   },
 });
+
+// ============================================================================
+// Fund Follow Tools - Added in Plan33 Phase 2
+// ============================================================================
+
+import { z } from 'zod';
+import {
+  followFund as storageFollowFund,
+  unfollowFund as storageUnfollowFund,
+  getFollowedFunds,
+  isFundFollowed,
+} from '../../storage/fund-storage.js';
+
+// Fund follow schema
+const FundFollowSchema = z.object({
+  fund_code: z.string().describe('基金代码'),
+  fund_name: z.string().optional().describe('基金名称 (可选，自动从API获取)'),
+});
+
+// Fund unfollow schema  
+const FundUnfollowSchema = z.object({
+  fund_code: z.string().describe('基金代码'),
+});
+
+// Fund list schema
+const FundListSchema = z.object({
+  limit: z.number().optional().describe('返回数量限制 (默认 50)'),
+});
+
+// Fund follow tool
+export const fundFollowTool = new DynamicStructuredTool({
+  name: 'fund_follow',
+  description: `Follow a mutual fund to add it to your watchlist.
+  
+Data source: 天天基金 (fund.eastmoney.com)
+
+Use when:
+- 用户想关注某只基金
+- 用户想添加基金到关注列表
+- fund follow
+- 关注基金
+
+Examples:
+- "关注易方达消费"
+- "follow fund 110022"
+- "添加这只基金到关注列表"`,
+  schema: FundFollowSchema,
+  
+  func: async (input: z.infer<typeof FundFollowSchema>) => {
+    const { fund_code, fund_name } = input;
+    
+    // Check if already followed
+    if (isFundFollowed(fund_code)) {
+      return `基金 ${fund_code} 已经在关注列表中`;
+    }
+    
+    // Get fund name if not provided
+    let name = fund_name;
+    if (!name) {
+      const fund = await getFundBasic(fund_code);
+      name = fund?.name || fund_code;
+    }
+    
+    // Follow the fund
+    const followed = storageFollowFund({
+      code: fund_code,
+      name: name,
+      addedAt: new Date().toISOString(),
+      lastCheck: new Date().toISOString(),
+    });
+    
+    if (followed) {
+      return `# ✅ 基金关注成功
+
+- **基金代码**: ${fund_code}
+- **基金名称**: ${name}
+- **关注时间**: ${new Date().toLocaleString('zh-CN')}
+
+您可以使用以下命令查看关注列表:
+- 查看关注的所有基金
+- 获取基金详情 ${fund_code}
+- 查看 ${fund_code} 的业绩表现`;
+    } else {
+      return `❌ 关注基金失败: ${fund_code}`;
+    }
+  },
+});
+
+// Fund unfollow tool
+export const fundUnfollowTool = new DynamicStructuredTool({
+  name: 'fund_unfollow',
+  description: `Unfollow a mutual fund to remove it from your watchlist.
+  
+Data source: 本地存储
+
+Use when:
+- 用户想取消关注某只基金
+- 用户想从关注列表移除基金
+- fund unfollow
+- 取消关注
+
+Examples:
+- "取消关注110022"
+- "unfollow fund 110022"
+- "从关注列表移除这只基金"`,
+  schema: FundUnfollowSchema,
+  
+  func: async (input: z.infer<typeof FundUnfollowSchema>) => {
+    const { fund_code } = input;
+    
+    const success = storageUnfollowFund(fund_code);
+    
+    if (success) {
+      return `# ✅ 取消关注成功
+
+- **基金代码**: ${fund_code}
+- **取消时间**: ${new Date().toLocaleString('zh-CN')}
+
+基金 ${fund_code} 已从关注列表中移除。`;
+    } else {
+      return `❌ 基金 ${fund_code} 不在关注列表中`;
+    }
+  },
+});
+
+// Fund list tool (show followed funds)
+export const fundListTool = new DynamicStructuredTool({
+  name: 'fund_list',
+  description: `List all followed mutual funds in your watchlist.
+  
+Shows funds you are tracking with their current estimated values.
+
+Use when:
+- 用户想查看关注列表
+- 用户想看关注的基金
+- fund list
+- 查看关注
+- 我的基金
+
+Examples:
+- "查看我的关注列表"
+- "list my followed funds"
+- "显示我关注的基金"`,
+  schema: FundListSchema,
+  
+  func: async (input: z.infer<typeof FundListSchema>) => {
+    const limit = input.limit || 50;
+    const funds = getFollowedFunds().slice(0, limit);
+    
+    if (funds.length === 0) {
+      return `# 📭 关注列表为空
+
+您还没有关注任何基金。使用以下命令关注基金:
+- 关注 110022 (易方达消费行业)
+- 关注 161725 (招商中证白酒)
+
+或者使用基金分析技能:
+- 分析易方达消费行业基金`;
+    }
+    
+    const rows = funds.map((f, i) => {
+      const rateStr = f.lastEstimatedRate !== undefined 
+        ? `${f.lastEstimatedRate >= 0 ? '+' : ''}${f.lastEstimatedRate.toFixed(2)}%`
+        : '-';
+      return `| ${i + 1} | ${f.code} | ${f.name} | ${f.lastEstimatedValue || '-'} | ${rateStr} |`;
+    }).join('\n');
+    
+    return `# 📊 我的关注基金 (${funds.length} 只)
+
+| 序号 | 代码 | 名称 | 估算净值 | 估算涨跌 |
+|------|------|------|----------|----------|
+${rows}
+
+> 最后更新: ${new Date().toLocaleString('zh-CN')}
+> 使用 "基金详情 [代码]" 查看更多信息`;
+  },
+});
+
+// ============================================================================
+// Fund Manager Tool - Added in Plan33 Phase 3
+// ============================================================================
+
+import { getFundManager } from './fund-api.js';
+
+// Fund manager schema
+const FundManagerSchema = z.object({
+  fund_code: z.string().describe('基金代码'),
+});
+
+// Fund manager tool
+export const fundManagerTool = new DynamicStructuredTool({
+  name: 'fund_manager',
+  description: `Get fund manager information and historical performance.
+
+Use when:
+- 用户想了解基金经理
+- 查询基金经理业绩
+- fund manager
+- 基金经理
+
+Examples:
+- "查看110022的基金经理"
+- "基金110022的经理是谁"
+- "基金经理分析"`,
+  schema: FundManagerSchema,
+  
+  func: async (input: z.infer<typeof FundManagerSchema>) => {
+    const manager = await getFundManager(input.fund_code);
+    
+    if (!manager) {
+      return `未找到基金 ${input.fund_code} 的经理信息`;
+    }
+    
+    const formatReturn = (val: number | undefined) => {
+      if (val === undefined) return '-';
+      const sign = val >= 0 ? '+' : '';
+      return `${sign}${val.toFixed(2)}%`;
+    };
+    
+    return `# 👤 基金经理信息
+
+## 基本信息
+- **基金经理**: ${manager.name}
+- **所属公司**: ${manager.company}
+- **管理基金数**: ${manager.funds.length} 只
+
+## 管理基金
+${manager.funds.map(f => `- ${f}`).join('\n')}
+
+## 历史业绩
+| 周期 | 收益率 |
+|------|--------|
+| 近1年 | ${formatReturn(manager.avgReturn1Y)} |
+| 近3年 | ${formatReturn(manager.avgReturn3Y)} |
+
+> 数据来源: 天天基金`;
+  },
+});
+
+// ============================================================================
+// Fund Compare Tool - Added in Plan33 Phase 4
+// ============================================================================
+
+// Fund compare schema
+const FundCompareSchema = z.object({
+  fund_codes: z.array(z.string()).describe('基金代码列表'),
+  period: z.enum(['1M', '3M', '6M', '1Y', '3Y']).optional().describe('比较周期 (默认 1Y)'),
+});
+
+// Fund compare tool
+export const fundCompareTool = new DynamicStructuredTool({
+  name: 'fund_compare',
+  description: `Compare multiple mutual funds side by side.
+
+Shows performance, risk, and other metrics comparison.
+
+Use when:
+- 用户想对比基金
+- 基金比较
+- fund compare
+- 哪个基金更好
+
+Examples:
+- "对比110022和161725"
+- "compare fund 110022 vs 161725"
+- "比较这两只基金的业绩"`,
+  schema: FundCompareSchema,
+  
+  func: async (input: z.infer<typeof FundCompareSchema>) => {
+    const { fund_codes, period = '1Y' } = input;
+    
+    if (fund_codes.length < 2) {
+      return '⚠️ 请至少提供2个基金代码进行对比';
+    }
+    
+    // Get performance for each fund
+    const results: string[] = [];
+    const funds: Array<{
+      code: string;
+      name: string;
+      type: string;
+      company: string;
+      manager: string;
+      netGrowth12?: number;
+      netGrowth36?: number;
+      netGrowthYTD?: number;
+      netGrowth1?: number;
+      netGrowth3?: number;
+      netGrowth6?: number;
+    }> = [];
+    
+    for (const code of fund_codes) {
+      const perf = await getFundPerformance(code);
+      if (perf) {
+        funds.push({
+          code: perf.code,
+          name: perf.name,
+          type: perf.type,
+          company: perf.company,
+          manager: perf.manager,
+          netGrowth12: perf.performance['近1年'] ?? undefined,
+          netGrowth36: perf.performance['近3年'] ?? undefined,
+          netGrowthYTD: perf.performance['今年来'] ?? undefined,
+          netGrowth1: perf.performance['近1月'] ?? undefined,
+          netGrowth3: perf.performance['近3月'] ?? undefined,
+          netGrowth6: perf.performance['近6月'] ?? undefined,
+        });
+      }
+    }
+    
+    if (funds.length === 0) {
+      return `❌ 未找到任何基金信息: ${fund_codes.join(', ')}`;
+    }
+    
+    const formatPerf = (val: number | null | undefined) => {
+      if (val === null || val === undefined) return '-';
+      const sign = val >= 0 ? '+' : '';
+      return `${sign}${val.toFixed(2)}%`;
+    };
+    
+    // Build comparison table
+    const header = `| 指标 | ${funds.map(f => `${f.name} (${f.code})`).join(' | ')} |`;
+    const separator = `|------|${funds.map(() => '------').join('|')} |`;
+    
+    const rows = [
+      `| 类型 | ${funds.map(f => f.type).join(' | ')} |`,
+      `| 公司 | ${funds.map(f => f.company).join(' | ')} |`,
+      `| 经理 | ${funds.map(f => f.manager).join(' | ')} |`,
+      `| 近1月 | ${funds.map(f => formatPerf(f.netGrowth1)).join(' | ')} |`,
+      `| 近3月 | ${funds.map(f => formatPerf(f.netGrowth3)).join(' | ')} |`,
+      `| 近6月 | ${funds.map(f => formatPerf(f.netGrowth6)).join(' | ')} |`,
+      `| 近1年 | ${funds.map(f => formatPerf(f.netGrowth12)).join(' | ')} |`,
+      `| 近3年 | ${funds.map(f => formatPerf(f.netGrowth36)).join(' | ')} |`,
+      `| 今年来 | ${funds.map(f => formatPerf(f.netGrowthYTD)).join(' | ')} |`,
+    ];
+    
+    return `# 📊 基金对比分析
+
+${header}
+${separator}
+${rows.join('\n')}
+
+> 数据来源: 天天基金
+> 对比时间: ${new Date().toLocaleString('zh-CN')}`;
+  },
+});
