@@ -971,3 +971,79 @@ osascript scripts/authorization/comprehensive-verify.scpt
 **实现完成**: 2026-05-24
 **进度更新**: **85%** (+7%)
 **状态**: ✅ M3/M4/M5 功能全部实现
+
+---
+
+## 二十二、新增 Skills (2026-05-24 早)
+
+### 22.1 新增 Skills
+
+| Skill | 功能 | 触发词 |
+|-------|------|--------|
+| **cash-flow-analysis** | 现金流分析 | 现金流, 经营现金流, 自由现金流 |
+| **sector-rotation** | 板块轮动分析 | 板块轮动, 热点切换, 风格切换 |
+| **valuation-comparison** | 估值对比 | 估值对比, 历史估值, PE分位 |
+| **earnings-season** | 财报季策略 | 财报季, 超预期, 业绩发布 |
+
+### 22.2 Skills 总清单 (36个)
+
+```
+基础分析:
+- a-share-analysis - A股分析
+- sentiment-analysis - 舆情分析
+- research-report - 研究报告
+- stock-comparison - 股票对比
+- technical-analysis - 技术分析
+- financial-report - 财报分析
+
+投资策略:
+- value-investing - 价值投资
+- growth-investing - 成长投资
+- momentum-investing - 动量投资
+- dividend-analysis - 分红分析
+- cash-flow-analysis (新增) - 现金流分析
+- sector-rotation (新增) - 板块轮动
+
+估值分析:
+- dcf - DCF估值
+- valuation-comparison (新增) - 估值对比
+- earnings-forecast - 盈利预测
+
+风险管理:
+- risk-assessment - 风险评估
+- portfolio-management - 组合管理
+- portfolio-rebalancing - 组合再平衡
+
+市场分析:
+- sector-analysis - 板块分析
+- market-monitor - 市场监控
+- market-overview - 市场概览
+- earnings-season (新增) - 财报季策略
+
+宏观/机构:
+- macro-analysis - 宏观分析
+- institutional-holding - 机构持仓
+
+其他:
+- ... (共36个)
+```
+
+### 22.3 Phase 进度更新
+
+| Phase | 任务 | 进度 |
+|-------|------|------|
+| **Phase 1** | 核心增强 | **95%** |
+| M1 | 投资研究能力 | 95% ✅ |
+| M2 | 情感分析增强 | 95% ✅ |
+| M3 | CLI体验优化 | 100% ✅ |
+| M4 | 对话状态优化 | 100% ✅ |
+| **Phase 2** | CLI体验 | **80%** |
+| M5 | 数据可靠性 | 100% ✅ |
+| M6 | 技能系统增强 | **100%** ✅ |
+
+---
+
+**更新完成**: 2026-05-24 早
+**进度更新**: **88%** (+3%)
+**新增 Skills**: 4 个
+**Skills 总数**: 36 个
