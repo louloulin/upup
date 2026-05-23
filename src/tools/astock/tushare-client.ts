@@ -224,6 +224,7 @@ export class TushareClient {
     name?: string;
     market?: string;
     list_status?: string;
+    industry?: string;
   }): Promise<Record<string, unknown>[]> {
     const data = await this.call<{ fields: string[]; items: string[][] }>('stock_basic', params);
     return this.parseResult(data);

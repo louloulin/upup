@@ -228,3 +228,29 @@ export function createDataExport(_model: string): StructuredToolInterface {
 }
 
 export default createDataExport;
+
+// Placeholder exports for domain-tools.ts compatibility
+// These tools are planned for future implementation
+export const EXPORT_PORTFOLIO_DESCRIPTION = `## export_portfolio
+Export portfolio data in various formats.
+Note: This feature is planned for future implementation.`;
+
+export const EXPORT_WATCHLIST_DESCRIPTION = `## export_watchlist
+Export watchlist data in various formats.
+Note: This feature is planned for future implementation.`;
+
+export const EXPORT_DATA_DESCRIPTION = `## export_data
+Export financial data in various formats.
+Note: This feature is planned for future implementation.`;
+
+export function createExportPortfolioTool() {
+  return null as any;
+}
+
+export function createExportWatchlistTool() {
+  return null as any;
+}
+
+export function createExportDataTool() {
+  return null as any;
+}

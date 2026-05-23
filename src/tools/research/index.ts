@@ -198,3 +198,29 @@ Compare multiple stocks side by side across key metrics.
     },
   });
 }
+
+// Export research tools and descriptions for domain-tools.ts
+export const researchTools = [createGenerateResearchReportTool, createCompareStocksTool];
+
+export const RESEARCH_TOOLS_DESCRIPTION = `
+## Research Tools
+Tools for generating investment research reports and comparing stocks.
+
+- **generate_research_report**: Generate comprehensive investment research reports
+- **compare_stocks**: Compare multiple stocks across key metrics
+`;
+
+export const ANALYZE_SENTIMENT_DESCRIPTION = `
+## analyze_sentiment
+Analyze sentiment from news and social media for a stock.
+`;
+
+export const DETECT_EVENTS_DESCRIPTION = `
+## detect_events
+Detect significant events that may affect stock price.
+`;
+
+export const EXTRACT_ENTITIES_DESCRIPTION = `
+## extract_entities
+Extract key entities and relationships from financial documents.
+`;

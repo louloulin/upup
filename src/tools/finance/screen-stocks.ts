@@ -1,8 +1,23 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { z } from 'zod';
 import { getTushareClient, getToday } from '../astock/tushare-client';
-import { screenStocks, ScreenInput } from '../astock/screener-client';
+// ScreenInput 类型已内联定义
 import type { StructuredToolInterface } from '@langchain/core/tools';
+
+/**
+ * Stock screening input interface
+ */
+export interface ScreenInput {
+  market_cap_min?: number;
+  market_cap_max?: number;
+  pe_min?: number;
+  pe_max?: number;
+  sector?: string;
+  exchange?: string;
+  performance?: 'gainers' | 'losers' | 'active' | 'dividends';
+  limit?: number;
+}
+
 
 /**
  * Stock screener for US and international markets.
