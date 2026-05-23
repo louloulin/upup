@@ -1,25 +1,25 @@
 /**
- * Unit tests for Multi-Agent Research Tool
+ * Unit tests for Financial Forecast Tool
  */
 
 import { describe, expect, test, beforeEach } from 'bun:test';
-import { createMultiAgentResearch } from './multi-agent-research';
+import { createFinancialForecast } from './index';
 
-describe('Multi-Agent Research Tool', () => {
+describe('Financial Forecast Tool', () => {
   const mockModel = 'test-model';
   let tool: any;
 
   beforeEach(() => {
-    tool = createMultiAgentResearch(mockModel);
+    tool = createFinancialForecast(mockModel);
   });
 
   test('should create tool with correct name', () => {
-    expect(tool.name).toBe('multi_agent_research');
+    expect(tool.name).toBe('financial_forecast');
   });
 
   test('should have correct description', () => {
-    expect(tool.description).toContain('multi_agent_research');
-    expect(tool.description).toContain('agent');
+    expect(tool.description).toContain('financial_forecast');
+    expect(tool.description).toContain('forecast');
   });
 
   test('should have schema with required code', () => {
@@ -27,14 +27,14 @@ describe('Multi-Agent Research Tool', () => {
     expect(tool.schema.shape.code).toBeDefined();
   });
 
-  test('should have schema with optional agents array', () => {
-    expect(tool.schema.shape.agents).toBeDefined();
-    expect(tool.schema.shape.agents.isOptional()).toBe(true);
+  test('should have schema with optional forecast_period', () => {
+    expect(tool.schema.shape.forecast_period).toBeDefined();
+    expect(tool.schema.shape.forecast_period.isOptional()).toBe(true);
   });
 
-  test('should have schema with optional period', () => {
-    expect(tool.schema.shape.period).toBeDefined();
-    expect(tool.schema.shape.period.isOptional()).toBe(true);
+  test('should have schema with optional metrics', () => {
+    expect(tool.schema.shape.metrics).toBeDefined();
+    expect(tool.schema.shape.metrics.isOptional()).toBe(true);
   });
 
   test('should handle missing TUSHARE_TOKEN', async () => {
@@ -47,7 +47,7 @@ describe('Multi-Agent Research Tool', () => {
       });
       
       const parsed = JSON.parse(result);
-      expect(parsed.stock_code || parsed.error).toBeDefined();
+      expect(parsed.source).toBe('tushare');
     } finally {
       if (originalToken) {
         process.env.TUSHARE_TOKEN = originalToken;
