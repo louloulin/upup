@@ -3,6 +3,7 @@
  * 
  * 处理 CLI 参数解析和权限模式初始化
  * 基于 Claude Code 的 permissionSetup.ts 设计
+ * Phase 5: 统一 CLI / config / session 入口
  */
 
 import type {
@@ -16,6 +17,69 @@ import {
 } from './types.js'
 
 // ============================================================================
+// Permission Mode Source Tracking
+// ============================================================================
+
+/**
+ * Permission mode source tracking
+ * Identifies where the permission mode was configured from
+ */
+export type PermissionModeSource = 
+  | 'cli'        // From CLI flag (highest priority)
+  | 'env'        // From environment variable
+  | 'settings'   // From persisted settings.json
+  | 'default'    // Default fallback
+
+/**
+ * Result of initial permission mode resolution
+ */
+export interface InitialPermissionModeResult {
+  mode: PermissionMode
+  source: PermissionModeSource
+  notification?: string
+}
+
+// ============================================================================
+// Settings Integration
+// ============================================================================
+
+/**
+ * Get permission mode from persisted settings
+ * Checks both top-level permissionMode and nested permissions.defaultMode
+ * Returns null if no valid mode is found in settings
+ */
+function getPermissionModeFromSettings(): { mode: PermissionMode; source: PermissionModeSource } | null {
+  try {
+    // Lazy import to avoid circular dependencies
+    // config.js may import from here, so we defer the import
+    const configModule = require('../config.js')
+    const getSetting: <T>(key: string, defaultValue: T) => T = configModule.getSetting
+    
+    if (!getSetting) {
+      return null
+    }
+    
+    // Check top-level permissionMode
+    const topLevelMode = getSetting<PermissionMode | undefined>('permissionMode', undefined)
+    if (topLevelMode && isValidPermissionMode(topLevelMode)) {
+      return { mode: topLevelMode, source: 'settings' }
+    }
+    
+    // Check nested permissions.defaultMode
+    const permissions = getSetting<Record<string, unknown>>('permissions', {})
+    const nestedMode = permissions?.defaultMode as PermissionMode | undefined
+    if (nestedMode && isValidPermissionMode(nestedMode)) {
+      return { mode: nestedMode, source: 'settings' }
+    }
+    
+    return null
+  } catch {
+    // If settings reading fails (circular dep, missing file, etc), fall back
+    return null
+  }
+}
+
+// ============================================================================
 // Security Checks
 // ============================================================================
 
@@ -24,7 +88,6 @@ import {
  */
 export function isRunningAsRoot(): boolean {
   if (process.platform === 'win32') {
-    // Windows: 检查是否有管理员权限
     try {
       const { execSync } = require('child_process')
       execSync('net session', { stdio: 'ignore' })
@@ -33,8 +96,6 @@ export function isRunningAsRoot(): boolean {
       return false
     }
   }
-  
-  // Unix: 检查 EUID
   return process.geteuid?.() === 0 || (process as any).uid === 0
 }
 
@@ -42,7 +103,6 @@ export function isRunningAsRoot(): boolean {
  * 检查是否在沙箱环境中运行
  */
 export function isInSandbox(): boolean {
-  // 检查常见沙箱环境变量
   const sandboxEnvVars = [
     'UPUP_SANDBOX',
     'IS_SANDBOX',
@@ -56,12 +116,10 @@ export function isInSandbox(): boolean {
     }
   }
   
-  // 检查 Docker 环境
   if (process.env.HOSTNAME && /\.docker\.internal$/i.test(process.env.HOSTNAME)) {
     return true
   }
   
-  // 检查 cgroup
   try {
     const { readFileSync } = require('fs')
     const cgroup = readFileSync('/proc/1/cgroup', 'utf8')
@@ -69,7 +127,7 @@ export function isInSandbox(): boolean {
       return true
     }
   } catch {
-    // 忽略错误
+    // ignore
   }
   
   return false
@@ -77,27 +135,17 @@ export function isInSandbox(): boolean {
 
 /**
  * 检查是否应该允许 bypassPermissions 模式
- * 
- * Claude Code 的安全策略: 在非沙箱环境中使用 bypassPermissions 需要特殊确认
  */
 export function shouldAllowBypassPermissionsMode(): boolean {
-  // 在沙箱环境中始终允许
   if (isInSandbox()) {
     return true
   }
-  
-  // 检查环境变量强制启用
   if (process.env.UPUP_ALLOW_BYPASS_OUTSIDE_SANDBOX === 'true') {
     return true
   }
-  
-  // 检查是否禁用了 bypass 模式
   if (process.env.UPUP_DISABLE_BYPASS === 'true') {
     return false
   }
-  
-  // 默认: 在非沙箱环境中也允许（UpUp 设计决策）
-  // 如果需要更严格的策略，可以改为 return false
   return true
 }
 
@@ -107,7 +155,6 @@ export function shouldAllowBypassPermissionsMode(): boolean {
 export function runSecurityChecks(): SecurityCheckResult[] {
   const results: SecurityCheckResult[] = []
   
-  // 检查 root 权限
   if (isRunningAsRoot()) {
     results.push({
       passed: true,
@@ -116,7 +163,6 @@ export function runSecurityChecks(): SecurityCheckResult[] {
     })
   }
   
-  // 检查沙箱环境
   if (!isInSandbox()) {
     results.push({
       passed: true,
@@ -133,60 +179,6 @@ export function runSecurityChecks(): SecurityCheckResult[] {
 // ============================================================================
 
 /**
- * 从 CLI 参数解析初始权限模式
- * 
- * @param args CLI 参数对象
- * @returns 解析后的权限模式和通知信息
- */
-export function initialPermissionModeFromCLI(
-  args: PermissionCliArgs
-): { mode: PermissionMode; notification?: string } {
-  
-  // 优先级: dangerouslySkipPermissions > permissionMode > 环境变量 > 默认
-  if (args.dangerouslySkipPermissions) {
-    // 检查是否可以安全使用 bypassPermissions
-    if (!shouldAllowBypassPermissionsMode()) {
-      return {
-        mode: 'default',
-        notification: 'bypassPermissions mode is disabled outside sandbox'
-      }
-    }
-    return {
-      mode: 'bypassPermissions',
-      notification: 'All permission checks have been bypassed'
-    }
-  }
-  
-  // 指定模式
-  if (args.permissionMode) {
-    const mode = args.permissionMode as PermissionMode
-    
-    // 验证模式是否有效
-    if (isValidPermissionMode(mode)) {
-      // 特殊模式需要检查
-      if (mode === 'bypassPermissions' && !shouldAllowBypassPermissionsMode()) {
-        return {
-          mode: 'default',
-          notification: 'bypassPermissions mode is disabled outside sandbox'
-        }
-      }
-      return { mode }
-    }
-    
-    console.warn(`Invalid permission mode: ${mode}, falling back to default`)
-  }
-  
-  // 环境变量检查
-  const envMode = getPermissionModeFromEnv()
-  if (envMode) {
-    return { mode: envMode }
-  }
-  
-  // 默认模式
-  return { mode: DEFAULT_PERMISSION_MODE }
-}
-
-/**
  * 检查权限模式是否有效
  */
 export function isValidPermissionMode(mode: string): mode is PermissionMode {
@@ -200,7 +192,6 @@ export function isValidPermissionMode(mode: string): mode is PermissionMode {
  * 从环境变量获取权限模式
  */
 export function getPermissionModeFromEnv(): PermissionMode | null {
-  // 检查多个可能的环境变量
   const envVars = [
     'UPUP_PERMISSION_MODE',
     'UPUP_DANGEROUSLY_MODE',
@@ -212,8 +203,6 @@ export function getPermissionModeFromEnv(): PermissionMode | null {
     if (value && isValidPermissionMode(value)) {
       return value as PermissionMode
     }
-    
-    // 处理布尔值环境变量
     if (value === 'true') {
       if (envVar === 'UPUP_DANGEROUSLY_MODE') return 'dangerously'
       if (envVar === 'UPUP_BYPASS_MODE') return 'bypassPermissions'
@@ -221,6 +210,64 @@ export function getPermissionModeFromEnv(): PermissionMode | null {
   }
   
   return null
+}
+
+/**
+ * 从 CLI 参数解析初始权限模式
+ * 
+ * Priority: CLI flag > env > settings > default
+ */
+export function initialPermissionModeFromCLI(
+  args: PermissionCliArgs
+): InitialPermissionModeResult {
+  
+  // Priority: dangerouslySkipPermissions > permissionMode > env > settings > default
+  if (args.dangerouslySkipPermissions) {
+    if (!shouldAllowBypassPermissionsMode()) {
+      return {
+        mode: 'default',
+        source: 'cli',
+        notification: 'bypassPermissions mode is disabled outside sandbox'
+      }
+    }
+    return {
+      mode: 'bypassPermissions',
+      source: 'cli',
+      notification: 'All permission checks have been bypassed'
+    }
+  }
+  
+  if (args.permissionMode) {
+    const mode = args.permissionMode as PermissionMode
+    
+    if (isValidPermissionMode(mode)) {
+      if (mode === 'bypassPermissions' && !shouldAllowBypassPermissionsMode()) {
+        return {
+          mode: 'default',
+          source: 'cli',
+          notification: 'bypassPermissions mode is disabled outside sandbox'
+        }
+      }
+      return { mode, source: 'cli' }
+    }
+    
+    console.warn(`Invalid permission mode: ${mode}, falling back to default`)
+  }
+  
+  // 环境变量检查
+  const envMode = getPermissionModeFromEnv()
+  if (envMode) {
+    return { mode: envMode, source: 'env' }
+  }
+  
+  // Persisted settings check
+  const settingsMode = getPermissionModeFromSettings()
+  if (settingsMode) {
+    return settingsMode
+  }
+  
+  // 默认模式
+  return { mode: DEFAULT_PERMISSION_MODE, source: 'default' }
 }
 
 // ============================================================================
@@ -285,9 +332,8 @@ export function isDangerousBashPermission(
   ruleContent: string | undefined
 ): boolean {
   if (toolName !== 'Bash') return false
-  if (!ruleContent) return true // 允许所有 Bash 命令是危险的
+  if (!ruleContent) return true
   
-  // 危险的命令模式
   const dangerousPatterns = [
     /^python/i,
     /^node/i,
@@ -297,8 +343,8 @@ export function isDangerousBashPermission(
     /^bash/i,
     /^sh\s+-c/i,
     /\|.*sh$/i,
-    /\$\(/,  // 命令替换
-    /`[^`]+`/,  // 反引号命令替换
+    /\$\(/,
+    /`[^`]+`/,
   ]
   
   for (const pattern of dangerousPatterns) {
@@ -314,12 +360,12 @@ export function isDangerousBashPermission(
  * 危险的命令（即使在 dangerously 模式也阻止）
  */
 export const HARD_DENY_PATTERNS = [
-  /:\(\)\{:\|:&\};:/,           // Fork bomb
-  /^rm\s+-rf\s+\/+/,            // 根目录递归删除
-  /^mkfs\b/,                    // 创建文件系统
-  /^dd\s+.*of=\/dev\//,         // 直接磁盘写入
-  /^fdisk\b/,                  // 磁盘分区
-  /^mount\s+-o\s+rw\s+\//,     // 重新挂载根目录
+  /:\(\)\{:\|:&\};:/,
+  /^rm\s+-rf\s+\/+/,
+  /^mkfs\b/,
+  /^dd\s+.*of=\/dev\//,
+  /^fdisk\b/,
+  /^mount\s+-o\s+rw\s+\//,
 ]
 
 /**
@@ -338,9 +384,6 @@ export function isHardDenyCommand(command: string): boolean {
 // Constants
 // ============================================================================
 
-/**
- * CLI 参数默认值
- */
 export const DEFAULT_CLI_ARGS: PermissionCliArgs = {
   dangerouslySkipPermissions: false,
   permissionMode: undefined,
