@@ -566,3 +566,311 @@ ${rows.join('\n')}
 > 对比时间: ${new Date().toLocaleString('zh-CN')}`;
   },
 });
+
+// ============================================================================
+// Fund Screen Tool - Added in Plan33 Phase 5
+// ============================================================================
+
+import { screenFunds, getTopFunds } from './fund-api.js';
+
+// Fund screen schema
+const FundScreenSchema = z.object({
+  type: z.enum(['股票型', '混合型', '债券型', '指数型', '货币型', 'QDII']).optional().describe('基金类型'),
+  min_scale: z.number().optional().describe('最小规模 (亿元)'),
+  max_scale: z.number().optional().describe('最大规模 (亿元)'),
+  min_return: z.number().optional().describe('最低收益率 (百分比)'),
+  period: z.enum(['1M', '3M', '6M', '1Y', '3Y']).optional().describe('收益周期'),
+  sort_by: z.enum(['return', 'scale', 'rating']).optional().describe('排序方式'),
+  limit: z.number().optional().describe('返回数量 (默认20)'),
+});
+
+// Fund screen tool
+export const fundScreenTool = new DynamicStructuredTool({
+  name: 'fund_screen',
+  description: `Screen mutual funds based on criteria.
+
+Use when:
+- 用户想筛选基金
+- 基金筛选
+- fund screen
+- 找符合条件的基金
+
+Examples:
+- "筛选近一年收益超过20%的股票型基金"
+- "screen funds by type: 混合型"
+- "找出规模最大的10只基金"
+- "推荐近3月表现最好的基金"`,
+  schema: FundScreenSchema,
+  
+  func: async (input: z.infer<typeof FundScreenSchema>) => {
+    const criteria = {
+      type: input.type,
+      minScale: input.min_scale,
+      maxScale: input.max_scale,
+      minReturn: input.min_return,
+      period: input.period,
+      sortBy: input.sort_by,
+      limit: input.limit || 20,
+    };
+    
+    const results = await screenFunds(criteria);
+    
+    if (results.length === 0) {
+      return `未找到符合条件的基金
+
+筛选条件:
+- 类型: ${input.type || '不限'}
+- 规模: ${input.min_scale || 0} - ${input.max_scale || '不限'} 亿元
+- 收益率: ${input.min_return ? `> ${input.min_return}%` : '不限'}
+- 周期: ${input.period || '1年'}
+
+请尝试放宽筛选条件`;
+    }
+    
+    const formatReturn = (val: number | undefined) => {
+      if (val === undefined) return '-';
+      const sign = val >= 0 ? '+' : '';
+      return `${sign}${val.toFixed(2)}%`;
+    };
+    
+    const rows = results.map((f, i) => 
+      `| ${i + 1} | ${f.code} | ${f.name} | ${f.type || '-'} | ${f.scale || '-'} | ${formatReturn(f.netGrowth12)} |`
+    ).join('\n');
+    
+    return `# 🔍 基金筛选结果 (${results.length} 只)
+
+| 序号 | 代码 | 名称 | 类型 | 规模 | 近1年收益 |
+|------|------|------|------|------|----------|
+${rows}
+
+> 数据来源: 天天基金
+> 筛选条件: 类型=${input.type || '不限'}, 规模=${input.min_scale || 0}-${input.max_scale || '不限'}亿, 收益>${input.min_return || '不限'}%
+> 使用 "基金详情 [代码]" 查看更多信息`;
+  },
+});
+
+// Fund top tool (convenience)
+const FundTopSchema = z.object({
+  period: z.enum(['1M', '3M', '6M', '1Y']).optional().describe('收益周期 (默认 1Y)'),
+  limit: z.number().optional().describe('返回数量 (默认 10)'),
+});
+
+export const fundTopTool = new DynamicStructuredTool({
+  name: 'fund_top',
+  description: `Get top performing mutual funds.
+
+Use when:
+- 用户想看收益最好的基金
+- 基金排行
+- fund top
+- 推荐基金
+
+Examples:
+- "最近1月收益最好的基金"
+- "top funds this year"
+- "今年收益排名前10的基金"`,
+  schema: FundTopSchema,
+  
+  func: async (input: z.infer<typeof FundTopSchema>) => {
+    const period = input.period || '1Y';
+    const limit = input.limit || 10;
+    
+    const results = await getTopFunds(period as any, limit);
+    
+    if (results.length === 0) {
+      return `未找到基金数据`;
+    }
+    
+    const formatReturn = (val: number | undefined) => {
+      if (val === undefined) return '-';
+      const sign = val >= 0 ? '+' : '';
+      return `${sign}${val.toFixed(2)}%`;
+    };
+    
+    const emoji = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
+    const rows = results.map((f, i) => 
+      `| ${emoji[i]} | ${f.code} | ${f.name} | ${f.type || '-'} | ${formatReturn(f.netGrowth12)} |`
+    ).join('\n');
+    
+    const periodName = period === '1M' ? '近1月' : 
+                       period === '3M' ? '近3月' : 
+                       period === '6M' ? '近6月' : '近1年';
+    
+    return `# 🏆 ${periodName}基金收益排行
+
+| 排名 | 代码 | 名称 | 类型 | 收益率 |
+|------|------|------|------|--------|
+${rows}
+
+> 数据来源: 天天基金
+> 使用 "关注 [代码]" 将基金添加到关注列表`;
+  },
+});
+
+// ============================================================================
+// Fund Alert Tool - Added in Plan33 Phase 6
+// ============================================================================
+
+import {
+  createFundAlert,
+  getFundAlerts,
+  deleteFundAlert,
+  getFollowedFunds,
+} from '../../storage/fund-storage.js';
+
+// Fund alert create schema
+const FundAlertCreateSchema = z.object({
+  fund_code: z.string().describe('基金代码'),
+  alert_type: z.enum(['price_above', 'price_below', 'change_up', 'change_down']).describe('警报类型'),
+  value: z.number().describe('触发阈值'),
+});
+
+// Fund alert list schema
+const FundAlertListSchema = z.object({
+  fund_code: z.string().optional().describe('基金代码 (可选，不填则显示全部)'),
+});
+
+// Fund alert delete schema
+const FundAlertDeleteSchema = z.object({
+  alert_id: z.string().describe('警报ID'),
+});
+
+// Fund alert create tool
+export const fundAlertCreateTool = new DynamicStructuredTool({
+  name: 'fund_alert_create',
+  description: `Create a price alert for a followed fund.
+
+Use when:
+- 用户想设置基金警报
+- 创建警报
+- fund alert
+- 价格提醒
+
+Examples:
+- "设置110022涨到3元提醒"
+- "创建基金跌幅超过5%的警报"
+- "alert when fund drops 10%"`,
+  schema: FundAlertCreateSchema,
+  
+  func: async (input: z.infer<typeof FundAlertCreateSchema>) => {
+    const { fund_code, alert_type, value } = input;
+    
+    // Check if fund is followed
+    const followed = getFollowedFunds();
+    const fund = followed.find(f => f.code === fund_code);
+    
+    if (!fund) {
+      return `⚠️ 请先关注基金 ${fund_code} 再创建警报
+
+使用 "关注 ${fund_code}" 添加到关注列表`;
+    }
+    
+    const alert = createFundAlert({
+      fundCode: fund_code,
+      fundName: fund.name,
+      type: alert_type as any,
+      condition: { value },
+      enabled: true,
+    });
+    
+    if (!alert) {
+      return `❌ 创建警报失败`;
+    }
+    
+    const typeDesc = {
+      'price_above': '价格高于',
+      'price_below': '价格低于',
+      'change_up': '涨幅超过',
+      'change_down': '跌幅超过',
+    };
+    
+    return `# ✅ 基金警报创建成功
+
+- **基金**: ${fund.name} (${fund_code})
+- **警报类型**: ${typeDesc[alert_type as keyof typeof typeDesc]}
+- **触发值**: ${value}
+- **警报ID**: ${alert.id}
+
+> 警报将在条件满足时触发提醒
+> 使用 "查看基金警报" 查看所有警报`;
+  },
+});
+
+// Fund alert list tool
+export const fundAlertListTool = new DynamicStructuredTool({
+  name: 'fund_alert_list',
+  description: `List all fund price alerts.
+
+Use when:
+- 用户想查看警报
+- 查看警报列表
+- fund alert list
+- 我的警报
+
+Examples:
+- "查看我的基金警报"
+- "list alerts"
+- "显示所有警报"`,
+  schema: FundAlertListSchema,
+  
+  func: async (input: z.infer<typeof FundAlertListSchema>) => {
+    const alerts = getFundAlerts(input.fund_code);
+    
+    if (alerts.length === 0) {
+      return `# 📭 基金警报列表为空
+
+您还没有设置任何基金警报
+
+使用 "创建基金警报 [代码] [类型] [值]" 添加警报
+例如: "创建基金警报 110022 跌幅超过 5%"`;
+    }
+    
+    const typeDesc = {
+      'price_above': '价格高于',
+      'price_below': '价格低于',
+      'change_up': '涨幅超过',
+      'change_down': '跌幅超过',
+    };
+    
+    const rows = alerts.map((a, i) => {
+      const status = a.enabled ? '✅' : '❌';
+      return `| ${i + 1} | ${a.fundCode} | ${a.fundName} | ${typeDesc[a.type]} ${a.condition.value} | ${status} | ${a.triggerCount}次 |`;
+    }).join('\n');
+    
+    return `# 🔔 基金警报列表 (${alerts.length} 个)
+
+| 序号 | 代码 | 名称 | 条件 | 状态 | 触发 |
+|------|------|------|------|------|------|
+${rows}
+
+> 使用 "删除基金警报 [警报ID]" 移除警报`;
+  },
+});
+
+// Fund alert delete tool
+export const fundAlertDeleteTool = new DynamicStructuredTool({
+  name: 'fund_alert_delete',
+  description: `Delete a fund price alert.
+
+Use when:
+- 用户想删除警报
+- 移除警报
+- fund alert delete
+
+Examples:
+- "删除基金警报 abc123"
+- "delete alert abc123"`,
+  schema: FundAlertDeleteSchema,
+  
+  func: async (input: z.infer<typeof FundAlertDeleteSchema>) => {
+    const success = deleteFundAlert(input.alert_id);
+    
+    if (success) {
+      return `# ✅ 警报删除成功
+
+警报 ${input.alert_id} 已移除`;
+    } else {
+      return `❌ 未找到警报 ${input.alert_id}`;
+    }
+  },
+});

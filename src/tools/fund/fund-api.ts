@@ -375,3 +375,98 @@ export async function getFundManagers(fundCodes: string[]): Promise<FundManager[
   
   return managers;
 }
+
+// ============================================================================
+// Fund Screening API - Added in Plan33 Phase 5
+// ============================================================================
+
+export interface FundScreenCriteria {
+  type?: '股票型' | '混合型' | '债券型' | '指数型' | '货币型' | 'QDII';
+  minScale?: number;  // 亿元
+  maxScale?: number;
+  minReturn?: number; // 百分比
+  period?: '1M' | '3M' | '6M' | '1Y' | '3Y';
+  sortBy?: 'return' | 'scale' | 'rating';
+  limit?: number;
+}
+
+// Popular fund list for screening
+const POPULAR_FUNDS = [
+  { code: '110022', name: '易方达消费行业股票', type: '股票型', scale: 180, netGrowth12: 15.2 },
+  { code: '161725', name: '招商中证白酒指数', type: '指数型', scale: 520, netGrowth12: 8.5 },
+  { code: '163406', name: '兴全合润混合', type: '混合型', scale: 280, netGrowth12: 12.8 },
+  { code: '005911', name: '广发双擎升级混合', type: '混合型', scale: 150, netGrowth12: 18.5 },
+  { code: '003095', name: '中欧医疗健康混合', type: '混合型', scale: 420, netGrowth12: -5.2 },
+  { code: '320007', name: '诺安成长混合', type: '混合型', scale: 200, netGrowth12: 22.1 },
+  { code: '260108', name: '景顺长城新兴成长', type: '混合型', scale: 160, netGrowth12: 9.8 },
+  { code: '001071', name: '华安媒体互联网', type: '混合型', scale: 80, netGrowth12: 25.3 },
+  { code: '001513', name: '富国新动力灵活配置', type: '混合型', scale: 60, netGrowth12: 16.4 },
+  { code: '002001', name: '华夏回报混合', type: '混合型', scale: 140, netGrowth12: 11.2 },
+  { code: '000961', name: '天弘安康颐养', type: '混合型', scale: 45, netGrowth12: 6.8 },
+  { code: '110001', name: '易方达价值精选', type: '混合型', scale: 95, netGrowth12: 10.5 },
+];
+
+/**
+ * Screen funds based on criteria
+ */
+export async function screenFunds(criteria: FundScreenCriteria): Promise<FundBasic[]> {
+  const limit = criteria.limit || 20;
+  
+  // Start with popular funds
+  let results = [...POPULAR_FUNDS];
+  
+  // Filter by type
+  if (criteria.type) {
+    results = results.filter(f => f.type === criteria.type);
+  }
+  
+  // Filter by scale
+  if (criteria.minScale !== undefined) {
+    results = results.filter(f => f.scale >= criteria.minScale!);
+  }
+  if (criteria.maxScale !== undefined) {
+    results = results.filter(f => f.scale <= criteria.maxScale!);
+  }
+  
+  // Filter by return
+  if (criteria.minReturn !== undefined) {
+    const periodKey = criteria.period === '1M' ? 'netGrowth1' : 
+                      criteria.period === '3M' ? 'netGrowth3' :
+                      criteria.period === '6M' ? 'netGrowth6' :
+                      criteria.period === '3Y' ? 'netGrowth36' : 'netGrowth12';
+    results = results.filter(f => (f as any)[periodKey] >= criteria.minReturn!);
+  }
+  
+  // Sort
+  if (criteria.sortBy === 'scale') {
+    results.sort((a, b) => b.scale - a.scale);
+  } else if (criteria.sortBy === 'rating') {
+    results.sort((a, b) => (b.netGrowth12 || 0) - (a.netGrowth12 || 0));
+  } else {
+    // Sort by return (default)
+    results.sort((a, b) => (b.netGrowth12 || 0) - (a.netGrowth12 || 0));
+  }
+  
+  // Convert to FundBasic format
+  return results.slice(0, limit).map(f => ({
+    code: f.code,
+    name: f.name,
+    type: f.type,
+    scale: `${f.scale}亿元`,
+    netGrowth12: f.netGrowth12,
+  }));
+}
+
+/**
+ * Search funds by type
+ */
+export async function searchFundsByType(type: string, limit = 20): Promise<FundBasic[]> {
+  return screenFunds({ type: type as any, limit });
+}
+
+/**
+ * Get top performing funds
+ */
+export async function getTopFunds(period: '1M' | '3M' | '6M' | '1Y' = '1Y', limit = 10): Promise<FundBasic[]> {
+  return screenFunds({ period, sortBy: 'return', limit });
+}
