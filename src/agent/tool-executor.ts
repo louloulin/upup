@@ -39,15 +39,30 @@ interface ToolCallBatch {
 }
 
 /**
+ * Queued tool call waiting for approval
+ */
+interface QueuedToolCall {
+  call: ToolCall;
+  ctx: RunContext;
+  resolve: (events: ToolExecutionEvent[]) => void;
+  reject: (error: Error) => void;
+}
+
+/**
  * Executes tool calls with concurrent support for read-only tools.
  *
  * Consecutive concurrent-safe tool calls are batched and run in parallel
  * (up to maxConcurrency). Non-concurrent tools execute serially with
  * approval gates where required.
+ *
+ * Approval requests are queued: if a tool needs approval while one is pending,
+ * the tool is queued and executed after the current approval completes.
  */
 export class AgentToolExecutor {
   private readonly sessionApprovedTools: Set<string>;
   private readonly maxConcurrency: number;
+  private isApprovalPending = false;
+  private readonly toolCallQueue: QueuedToolCall[] = [];
 
   constructor(
     private readonly toolMap: Map<string, StructuredToolInterface>,

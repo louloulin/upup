@@ -42,6 +42,10 @@ export class AgentRunnerController {
   private readonly onChange?: ChangeListener;
   private abortController: AbortController | null = null;
   private approvalResolve: ((decision: ApprovalDecision) => void) | null = null;
+  private readonly approvalQueue: Array<{
+    request: { tool: string; args: Record<string, unknown> };
+    resolve: (decision: ApprovalDecision) => void;
+  }> = [];
   private sessionApprovedTools = new Set<string>();
   private sessionIdValue = '';
   private historyMessageListener?: HistoryMessageListener;
@@ -176,6 +180,10 @@ export class AgentRunnerController {
       this.workingStateValue = { status: 'thinking' };
     }
     this.emitChange();
+    // Fix: 处理队列中的下一个授权请求，确保第二次授权能弹出对话框
+    // 如果队列中有待处理的授权请求，processNextApproval 会设置新的 pendingApprovalValue
+    // 并触发 emitChange，从而让 UI 显示第二个授权对话框
+    this.processNextApproval();
   }
 
   cancelExecution() {
@@ -323,24 +331,58 @@ export class AgentRunnerController {
 
   private requestToolApproval = (request: { tool: string; args: Record<string, unknown> }) => {
     return new Promise<ApprovalDecision>((resolve) => {
-      // 使用可配置的授权超时
-      const timeoutMs = getTimeoutForTool(request.tool)
+      // 如果已有 pendingApproval，加入队列等待
+      if (this.pendingApprovalValue !== null) {
+        this.approvalQueue.push({ request, resolve });
+        return;
+      }
+
+      // 处理当前授权请求
+      const timeoutMs = getTimeoutForTool(request.tool);
       const timeout = setTimeout(() => {
         resolve('deny');
-        this.approvalResolve = null;
-        this.pendingApprovalValue = null;
-        this.workingStateValue = { status: 'thinking' };
-        this.emitChange();
+        this.processNextApproval();
       }, timeoutMs);
+
       this.approvalResolve = (decision: ApprovalDecision) => {
         clearTimeout(timeout);
         resolve(decision);
+        // 处理队列中的下一个授权请求
+        this.processNextApproval();
       };
       this.pendingApprovalValue = request;
       this.workingStateValue = { status: 'approval', toolName: request.tool };
       this.emitChange();
     });
   };
+
+  /**
+   * 处理队列中的下一个授权请求
+   */
+  private processNextApproval() {
+    const next = this.approvalQueue.shift();
+    if (next) {
+      const timeoutMs = getTimeoutForTool(next.request.tool);
+      const timeout = setTimeout(() => {
+        next.resolve('deny');
+        this.processNextApproval();
+      }, timeoutMs);
+
+      this.approvalResolve = (decision: ApprovalDecision) => {
+        clearTimeout(timeout);
+        next.resolve(decision);
+        this.processNextApproval();
+      };
+      this.pendingApprovalValue = next.request;
+      this.workingStateValue = { status: 'approval', toolName: next.request.tool };
+      this.emitChange();
+    } else {
+      this.approvalResolve = null;
+      this.pendingApprovalValue = null;
+      this.workingStateValue = { status: 'thinking' };
+      this.emitChange();
+    }
+  }
 
   private async handleEvent(event: AgentEvent) {
     switch (event.type) {
