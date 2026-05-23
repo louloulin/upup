@@ -28,6 +28,7 @@ import { loadQuantTools } from './quant-tools.js';
 import { loadDomainTools } from './domain-tools.js';
 import { loadDuckDBTools } from './duckdb-tools.js';
 import { loadInvestmentKnowledgeTools } from './investment-knowledge-tools.js';
+import { loadFundTools } from './fund-tools.js';
 
 import type { RegisteredTool } from './types.js';
 
@@ -36,8 +37,11 @@ import type { RegisteredTool } from './types.js';
  */
 export async function getToolRegistry(model: string): Promise<RegisteredTool[]> {
   const tools: RegisteredTool[] = [
-    // Finance (US + A-share)
+    // Finance (US + A-share + Fund)
     ...loadFinanceTools(model),
+
+    // Fund tools (Chinese mutual funds - 天天基金)
+    ...loadFundTools(),
 
     // Web, search, browser
     ...await loadWebSearchTools(),
