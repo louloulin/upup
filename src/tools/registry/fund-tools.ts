@@ -101,3 +101,23 @@ export function loadFundTools(): RegisteredTool[] {
     { name: 'fund_alert_delete', tool: fundAlertDeleteTool as unknown as StructuredToolInterface, description: FUND_ALERT_DELETE_DESCRIPTION, compactDescription: 'Delete alert', concurrencySafe: true, concurrencyMetadata: financialWriteMetadata() },
   ];
 }
+
+// Import backtest tools
+import { backtestDCATool, backtestLumpSumTool, backtestThresholdTool } from '../fund/fund-tool.js';
+
+export const BACKTEST_DCA_DESCRIPTION = `Run DCA (Dollar-Cost Averaging) backtest for a fund.
+Use when: 回测定投, DCA backtest, 定投收益分析`;
+
+export const BACKTEST_LUMPSUM_DESCRIPTION = `Run Lump Sum investment backtest.
+Use when: 一次性投资回测, lump sum backtest`;
+
+export const BACKTEST_THRESHOLD_DESCRIPTION = `Run threshold-based trading backtest.
+Use when: 条件触发回测, 均线策略回测`;
+
+// Add to loadFundTools function at the end:
+/*
+    // Backtest tools
+    { name: 'backtest_dca', tool: backtestDCATool as unknown as StructuredToolInterface, description: BACKTEST_DCA_DESCRIPTION, compactDescription: 'DCA backtest', concurrencySafe: true, concurrencyMetadata: financialReadMetadata() },
+    { name: 'backtest_lumpsum', tool: backtestLumpSumTool as unknown as StructuredToolInterface, description: BACKTEST_LUMPSUM_DESCRIPTION, compactDescription: 'Lump sum backtest', concurrencySafe: true, concurrencyMetadata: financialReadMetadata() },
+    { name: 'backtest_threshold', tool: backtestThresholdTool as unknown as StructuredToolInterface, description: BACKTEST_THRESHOLD_DESCRIPTION, compactDescription: 'Threshold backtest', concurrencySafe: true, concurrencyMetadata: financialReadMetadata() },
+*/

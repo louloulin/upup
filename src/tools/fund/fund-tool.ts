@@ -874,3 +874,118 @@ Examples:
     }
   },
 });
+
+// ============================================================================
+// Fund Backtest Tools - Added in Plan34
+// ============================================================================
+
+import { backtestDCA, backtestLumpSum, backtestThreshold, generateBacktestReport } from './fund-backtest.js';
+
+// Backtest DCA schema
+const BacktestDCASchema = z.object({
+  fund_code: z.string().describe('基金代码 (6位数字)'),
+  months: z.number().optional().describe('回测月数 (默认12)'),
+  monthly_amount: z.number().optional().describe('每月定投金额 (默认1000)'),
+});
+
+// Backtest Lump Sum schema
+const BacktestLumpSumSchema = z.object({
+  fund_code: z.string().describe('基金代码'),
+  months: z.number().optional().describe('回测月数 (默认12)'),
+  amount: z.number().optional().describe('投资金额 (默认10000)'),
+});
+
+// Backtest Threshold schema
+const BacktestThresholdSchema = z.object({
+  fund_code: z.string().describe('基金代码'),
+  months: z.number().optional().describe('回测月数 (默认12)'),
+  buy_below: z.number().optional().describe('买入阈值 (净值相对起始值的比例, 默认0.95)'),
+  sell_above: z.number().optional().describe('卖出阈值 (净值相对起始值的比例, 默认1.05)'),
+});
+
+// Backtest DCA tool
+export const backtestDCATool = new DynamicStructuredTool({
+  name: 'backtest_dca',
+  description: `Run Dollar-Cost Averaging (DCA) backtest for a fund.
+
+Use when:
+- 用户想回测定投策略
+- 基金定投效果
+- DCA backtest
+- 定投收益分析
+
+Examples:
+- "回测110022定投1年"
+- "回测易方达消费的DCA策略"
+- "计算定投12个月的收益"`,
+  schema: BacktestDCASchema,
+  
+  func: async (input: z.infer<typeof BacktestDCASchema>) => {
+    const { fund_code, months = 12, monthly_amount = 1000 } = input;
+    
+    try {
+      const result = await backtestDCA(fund_code, months, monthly_amount);
+      return generateBacktestReport(result);
+    } catch (error) {
+      return `❌ 回测失败: ${error instanceof Error ? error.message : '未知错误'}`;
+    }
+  },
+});
+
+// Backtest Lump Sum tool
+export const backtestLumpSumTool = new DynamicStructuredTool({
+  name: 'backtest_lumpsum',
+  description: `Run Lump Sum investment backtest for a fund.
+
+Use when:
+- 用户想回测一次性投资
+- 一次性买入收益分析
+- lump sum backtest
+
+Examples:
+- "回测110022一次性投资1年"
+- "计算10000元买入的收益"`,
+  schema: BacktestLumpSumSchema,
+  
+  func: async (input: z.infer<typeof BacktestLumpSumSchema>) => {
+    const { fund_code, months = 12, amount = 10000 } = input;
+    
+    try {
+      const result = await backtestLumpSum(fund_code, months, amount);
+      return generateBacktestReport(result);
+    } catch (error) {
+      return `❌ 回测失败: ${error instanceof Error ? error.message : '未知错误'}`;
+    }
+  },
+});
+
+// Backtest Threshold tool
+export const backtestThresholdTool = new DynamicStructuredTool({
+  name: 'backtest_threshold',
+  description: `Run threshold-based trading backtest for a fund.
+
+Uses moving average crossover strategy:
+- Buy when price drops below MA and threshold
+- Sell when price rises above MA and threshold
+
+Use when:
+- 用户想回测条件触发策略
+- 智能买卖点回测
+- threshold backtest
+
+Examples:
+- "回测110022条件触发策略"
+- "测试均线策略的效果"`,
+  schema: BacktestThresholdSchema,
+  
+  func: async (input: z.infer<typeof BacktestThresholdSchema>) => {
+    const { fund_code, months = 12, buy_below = 0.95, sell_above = 1.05 } = input;
+    
+    try {
+      const result = await backtestThreshold(fund_code, months, buy_below, sell_above);
+      return generateBacktestReport(result);
+    } catch (error) {
+      return `❌ 回测失败: ${error instanceof Error ? error.message : '未知错误'}`;
+    }
+  },
+});
