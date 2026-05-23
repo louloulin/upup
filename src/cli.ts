@@ -367,7 +367,9 @@ export async function runCli(options: RunCliOptions = {}) {
     modelSelection.inMemoryChatHistory,
     () => {
       // Route approval overlay first — must happen before any other rendering
-      if (agentRunner.pendingApproval && !chatLog.hasApprovalPending()) {
+      // Fix: Removed hasApprovalPending() check - callbacks from previous approvals
+      // were not being cleared, causing second approvals to not show the dialog.
+      if (agentRunner.pendingApproval) {
         // Render pending approval events so callbacks get registered before the early return.
         // Without this, setApprovalPending() is never called and key handler finds no callback.
         const history = agentRunner.history;
@@ -378,9 +380,9 @@ export async function runCli(options: RunCliOptions = {}) {
           }
           lastRenderedEventCount = lastItem.events.length;
         }
-        if (!chatLog.hasApprovalPending()) {
-          scheduleOverlay();
-        }
+        // Always schedule overlay for pending approval - don't check hasApprovalPending()
+        // as previous callbacks may still exist but should not block the dialog.
+        scheduleOverlay();
         return;
       }
       // Incremental history update — only render new events
@@ -927,7 +929,10 @@ export async function runCli(options: RunCliOptions = {}) {
     }
 
     // Use SelectList-based approval UI via showScreenView (same as model selection)
-    if (agentRunner.pendingApproval && !chatLog.hasApprovalPending()) {
+    // Fix: Removed !chatLog.hasApprovalPending() check - the callback state in tool
+    // components was not being cleared properly, causing the second approval dialog
+    // to not show. We now rely solely on agentRunner.pendingApproval state.
+    if (agentRunner.pendingApproval) {
       const pending = agentRunner.pendingApproval;
       if (pending) {
         const selector = createApprovalSelector((decision) => {
