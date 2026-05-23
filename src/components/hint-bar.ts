@@ -12,32 +12,49 @@ function visibleLength(str: string): number {
  * Maps CommandCategory to display icons
  */
 const CATEGORY_ICONS: Record<string, string> = {
-  core: '📦',      // help, clear, compact, model
-  plan: '📋',      // plan mode commands
-  agent: '🤖',      // agent, fork, tasks
-  mcp: '🔌',       // MCP related
-  permissions: '🔒', // permissions, approve, deny
-  system: '⚙️',     // status, cost, doctor, theme
-  git: '📚',       // git, diff, commit, branch
-  tools: '🔧',     // tools, config, export
+  core: '📦',
+  plan: '📋',
+  agent: '🤖',
+  mcp: '🔌',
+  permissions: '🔒',
+  system: '⚙️',
+  git: '📚',
+  tools: '🔧',
 }
 
 /**
  * Permission mode indicator configuration
+ * Phase 5: Added for unified permission mode display
  */
 export interface PermissionModeIndicator {
-  /** Whether permission bypass is active */
   bypassPermissions: boolean;
-  /** Current model being used */
   model: string;
-  /** Session duration in format "2h 15m" */
   sessionDuration?: string;
+}
+
+/**
+ * Phase 5: Extended state for hint bar update
+ * Includes permission mode information for unified display
+ */
+export interface HintBarUpdateState {
+  isProcessing: boolean;
+  hasPendingApproval: boolean;
+  hasInput: boolean;
+  escPendingClear: boolean;
+  escPendingExit: boolean;
+  queueLength: number;
+  /** Optional permission mode label (e.g., '[BYPASS]') */
+  permissionModeLabel?: string;
+  /** Optional permission mode source (e.g., 'cli', 'env', 'settings') */
+  permissionModeSource?: string;
 }
 
 /**
  * Contextual hint bar displayed below the input editor.
  * Shows keyboard shortcuts, slash command suggestions, and transient messages.
  * Supports left-aligned hints + right-aligned esc hints on a single line.
+ * 
+ * Phase 5: Now displays permission mode indicator and source.
  */
 export class HintBarComponent extends Container {
   private hintText: Text;
@@ -129,16 +146,12 @@ export class HintBarComponent extends Container {
 
   /**
    * Build contextual hints based on current app state.
-   * Left side: general hints. Right side: esc action hints.
+   * Left side: general hints + permission mode indicator. Right side: esc action hints.
+   * 
+   * Phase 5: Now accepts permissionModeLabel and permissionModeSource
+   * to display the current permission mode configuration source.
    */
-  update(state: {
-    isProcessing: boolean;
-    hasPendingApproval: boolean;
-    hasInput: boolean;
-    escPendingClear: boolean;
-    escPendingExit: boolean;
-    queueLength: number;
-  }): void {
+  update(state: HintBarUpdateState): void {
     this.leftHint = '';
     this.rightHint = '';
 
@@ -161,7 +174,21 @@ export class HintBarComponent extends Container {
       this.leftHint = theme.muted(' / for commands');
     }
 
-    // Add permission indicator if active
+    // Phase 5: Add permission indicator if active
+    // Shows mode label and source badge when not default
+    const modeLabel = state.permissionModeLabel ?? '';
+    const modeSource = state.permissionModeSource ?? '';
+    
+    if (modeLabel && modeLabel !== '') {
+      // Non-default mode: show label with optional source
+      const sourceSuffix = modeSource && modeSource !== 'default' 
+        ? ` (${modeSource})` 
+        : '';
+      this.permissionIndicator = theme.warning(`${modeLabel}${sourceSuffix}`);
+    } else {
+      this.permissionIndicator = '';
+    }
+
     if (this.permissionIndicator) {
       if (this.leftHint) {
         this.leftHint = this.permissionIndicator + ' · ' + this.leftHint;
@@ -186,7 +213,8 @@ export class HintBarComponent extends Container {
   }
 
   /**
-   * Format session duration
+   * Format session duration from start time
+   * @param startTime - Unix timestamp when session started
    */
   formatSessionDuration(startTime: number): string {
     const durationMs = Date.now() - startTime;
