@@ -1,224 +1,141 @@
 ---
-name: investment-research
-description: AI-driven comprehensive investment research report generator. Triggers on 投资研究报告, research report, 深 度报告, company analysis report, 投研报告, investment thesis.
+name: research-report
+description: Generate comprehensive investment research reports. Triggers on 研究报告, 生成报告, research report, investment report, 分析报告, 深度报告.
 triggers:
-  - investment research report
-  - 投资研究报告
-  - research report
+  - 研究报告
+  - 生成报告
+  - investment report
+  - 分析报告
   - 深度报告
-  - company analysis
-  - 投研报告
-  - investment thesis
-  - make a research report
+  - comprehensive analysis
 ---
 
-# Investment Research Report Generator (AI 投研报告生成器)
+# Investment Research Report Generator
 
-Generate comprehensive, institutional-grade investment research reports using multi-source data analysis.
+## Overview
 
-## Report Types
+This skill generates institutional-grade investment research reports combining:
+- Technical Analysis
+- Fundamental Analysis  
+- News & Sentiment
+- Risk Assessment
 
-| Type | Focus | Depth |
-|------|-------|-------|
-| **Initiation** | New coverage | Full analysis |
-| **Update** | Existing coverage | Incremental |
-| **Earnings Review** | Quarterly results | Focused |
-| **Sector Report** | Industry analysis | Cross-stock |
+## Report Template
 
-## Step 1: Data Collection
-
-### 1.1 Stock Identification
-```
-get_astock_price({ code: "[STOCK_CODE]" })
-get_astock_financials({ code: "[STOCK_CODE]", period: "2024" })
-get_astock_news({ code: "[STOCK_CODE]", limit: 20 })
-```
-
-### 1.2 Technical Analysis
-```
-get_technical_data({
-  code: "[STOCK_CODE]",
-  indicators: ["MA", "MACD", "KDJ", "BOLL", "RSI"]
-})
-```
-
-### 1.3 Market Context
-```
-get_market_structure({ type: "hsgt" })
-get_sector_data({ code: "[STOCK_CODE]" })
-```
-
-### 1.4 News & Sentiment
-```
-get_sentiment({ code: "[STOCK_CODE]", period: "1m", type: "overall" })
-```
-
-## Step 2: Financial Analysis
-
-### 2.1 Extract Key Metrics
-
-| Category | Metrics | Importance |
-|----------|---------|------------|
-| **Profitability** | ROE, ROA, Gross Margin, Net Margin | ⭐⭐⭐⭐⭐ |
-| **Growth** | Revenue Growth, Profit Growth, CAGR | ⭐⭐⭐⭐⭐ |
-| **Valuation** | P/E, P/B, EV/EBITDA, PEG | ⭐⭐⭐⭐ |
-| **Financial Health** | Debt Ratio, Current Ratio, Interest Coverage | ⭐⭐⭐⭐ |
-| **Cash Flow** | Operating CF, Free Cash Flow | ⭐⭐⭐⭐⭐ |
-
-### 2.2 Calculate Ratios
-
-```
-ROE = Net Profit / Shareholders' Equity × 100%
-ROA = Net Profit / Total Assets × 100%
-Gross Margin = (Revenue - COGS) / Revenue × 100%
-Net Margin = Net Profit / Revenue × 100%
-P/E = Market Cap / Net Profit
-P/B = Market Cap / Book Value
-PEG = P/E / Growth Rate
-```
-
-## Step 3: Industry Analysis
-
-### 3.1 Sector Positioning
-- Market share and ranking
-- Competitive advantages (护城河)
-- Industry trends and outlook
-
-### 3.2 Porter's Five Forces
-1. **Competitive rivalry** - Industry competition intensity
-2. **Supplier power** - Supplier bargaining power
-3. **Buyer power** - Customer bargaining power
-4. **Threat of substitution** - Alternative products
-5. **Threat of new entry** - Market barriers
-
-## Step 4: Technical Analysis
-
-### 4.1 Trend Analysis
-- Price trend (20-day, 60-day, 250-day MA)
-- Moving average crossovers
-- Support and resistance levels
-
-### 4.2 Momentum Indicators
-- MACD (Moving Average Convergence Divergence)
-- RSI (Relative Strength Index)
-- KDJ (Stochastic)
-
-### 4.3 Volume Analysis
-- Volume trend
-- Volume-price correlation
-- Unusual volume
-
-## Step 5: Risk Assessment
-
-### 5.1 Business Risks
-- Revenue concentration
-- Key customer dependency
-- Product risk
-- Management risk
-
-### 5.2 Financial Risks
-- Debt levels
-- Liquidity risk
-- Interest rate risk
-
-### 5.3 External Risks
-- Regulatory risk
-- Macroeconomic risk
-- Industry cyclicality
-
-## Step 6: Valuation
-
-### 6.1 Multiple Analysis
-| Method | Formula | Application |
-|--------|---------|-------------|
-| P/E | Price / EPS | Growth companies |
-| P/B | Price / Book | Financials, Value |
-| DCF | PV of FCF | Intrinsic value |
-| EV/EBITDA | Enterprise Value / EBITDA | M&A, comparables |
-| PEG | P/E / Growth | Growth adjusted |
-
-### 6.2 Target Price Calculation
-```
-Base Case: 25x P/E × 2025 EPS = Target Price
-Bull Case: 30x P/E × 2025 EPS = Upside Target
-Bear Case: 15x P/E × 2025 EPS = Downside Target
-```
-
-## Step 7: Report Generation
-
-### Standard Report Structure
-
-```
+```markdown
 # [Stock Name] ([Code]) Investment Research Report
-Date: [Report Date]
-Analyst: UpUp AI Research
+
+**Report Date**: [YYYY-MM-DD]
+**Analyst**: UpUp AI
 
 ---
 
-## Executive Summary
-[2-3 sentence investment thesis]
+## 1. Executive Summary
 
-## Investment Highlights
-- **Rating**: [BUY/HOLD/SELL]
-- **Target Price**: [Price] ([Upside/Downside]%)
-- **Key Catalyst**: [Primary driver]
-- **Risk**: [Key risk factor]
+**Recommendation**: BUY / HOLD / SELL
+**Confidence**: [XX]%
+**Target Price**: [XXX]
+**Current Price**: [XXX]
+**Upside/Downside**: [+/-XX%]
 
-## Company Overview
-[Brief company description, business model, key products]
-
-## Industry Analysis
-[Industry trends, competitive landscape, growth outlook]
-
-## Financial Analysis
-### Historical Performance
-[Key metrics table]
-
-### Key Ratios
-[ROE, Margins, Growth table]
-
-## Technical Analysis
-[Chart interpretation, key levels]
-
-## Valuation
-### DCF Assumptions
-[Growth rate, WACC, terminal growth]
-
-### Valuation Summary
-[Multiple comparison table]
-
-## Risks
-1. [Risk 1]
-2. [Risk 2]
-3. [Risk 3]
-
-## Appendix
-- Financial statements
-- Glossary
-- Methodology
+**Key Points**:
+- [Point 1]
+- [Point 2]
+- [Point 3]
 
 ---
 
-Disclaimer: This report is generated by AI and is for informational purposes only. Not investment advice.
+## 2. Technical Analysis
+
+### Price Trend
+- Current Price: [XXX]
+- 20-Day MA: [XXX]
+- 50-Day MA: [XXX]
+- 200-Day MA: [XXX]
+
+### Technical Signals
+| Indicator | Signal | Value |
+|-----------|--------|-------|
+| RSI(14) | [Overbought/Neutral/Oversold] | [XX] |
+| MACD | [Bullish/Bearish] | [Diff: XX, Signal: XX] |
+| Bollinger | [Upper/Middle/Lower] Band | [XXX/XXX/XXX] |
+
+### Support/Resistance
+- Support: [XXX], [XXX]
+- Resistance: [XXX], [XXX]
+
+---
+
+## 3. Fundamental Analysis
+
+### Valuation Metrics
+| Metric | Value | Industry Avg | vs Average |
+|---------|-------|--------------|-------------|
+| P/E | [XX] | [XX] | [+/-XX%] |
+| P/B | [XX] | [XX] | [+/-XX%] |
+| P/S | [XX] | [XX] | [+/-XX%] |
+| EV/EBITDA | [XX] | [XX] | [+/-XX%] |
+
+### Financial Highlights
+- Market Cap: [XXX]B
+- Revenue (TTM): [XXX]B
+- Net Income: [XXX]B
+- ROE: [XX]%
+- Debt/Equity: [XX]%
+
+---
+
+## 4. News & Sentiment
+
+### Recent News
+1. [Date] - [Headline]
+2. [Date] - [Headline]
+3. [Date] - [Headline]
+
+### Sentiment Score
+- Overall: [Positive/Neutral/Negative]
+- Score: [XX/100]
+
+---
+
+## 5. Risk Assessment
+
+### Key Risks
+1. **Risk 1**: [Description]
+2. **Risk 2**: [Description]
+
+### Risk Level: [Low/Medium/High]
+
+---
+
+## 6. Investment Recommendation
+
+| Time Horizon | Recommendation | Target Price | Stop Loss |
+|--------------|-----------------|--------------|-----------|
+| Short (1-3M) | [BUY/HOLD/SELL] | [XXX] | [XXX] |
+| Medium (3-12M) | [BUY/HOLD/SELL] | [XXX] | [XXX] |
+
+**Rationale**:
+- [Reason 1]
+- [Reason 2]
 ```
 
-## Common Stock References
+## Workflow
 
-| Stock | Code | Industry | Key Metrics |
-|-------|------|----------|-------------|
-| 贵州茅台 | 600519.SH | 白酒 | ROE > 30%, 高毛利率 |
-| 宁德时代 | 300750.SZ | 新能源 | 全球龙头, 高增长 |
-| 比亚迪 | 002594.SZ | 新能源车 | 全产业链, 出口 |
-| 中国平安 | 601318.SH | 保险 | 综合金融, 低估值 |
-| 招商银行 | 600036.SH | 银行 | 零售银行, 高质量 |
+1. **Gather Data**: Call financial APIs in parallel
+2. **Analyze**: Process technical + fundamental data
+3. **Synthesize**: Combine insights
+4. **Report**: Generate structured markdown
 
-## Tips for Quality Reports
+## Usage
 
-1. **Cite data sources** - Always reference Tushare, company filings
-2. **Use recent data** - Ensure financial data is latest available
-3. **Balance analysis** - Cover both bull and bear cases
-4. **Quantify claims** - Use specific numbers, not vague statements
-5. **Check consistency** - Ensure numbers add up
-6. **Add context** - Compare to industry peers and history
-7. **Include risks** - Don't overemphasize positives
-8. **Clear recommendation** - Explicit BUY/HOLD/SELL with rationale
+```
+User: "生成贵州茅台的研究报告"
+→ Use this skill to generate comprehensive report
+
+User: "帮我分析苹果公司的投资价值"
+→ Use this skill for full analysis
+
+User: "AAPL research report"
+→ Use this skill for institutional-grade report
+```
