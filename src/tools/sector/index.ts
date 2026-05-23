@@ -141,7 +141,7 @@ export function createSectorAnalysis(_model: string): StructuredToolInterface {
                   const prev = income[1];
                   pe = parseFloat(String((priceData as any)?.[0]?.pe || 0)) || 0;
                   if (prev.revenue) {
-                    revenueGrowth = ((latest.revenue - prev.revenue) / prev.revenue) * 100;
+                    revenueGrowth = ((Number(latest.revenue) - Number(prev.revenue)) / Number(prev.revenue)) * 100;
                   }
                 }
                 
