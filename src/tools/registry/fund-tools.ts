@@ -1,114 +1,103 @@
 /**
  * Fund tool registrations - Chinese mutual fund analysis tools.
  * Data source: 天天基金 (fund.eastmoney.com)
- * Plan33: Added follow, list, manager, compare tools
+ * Plan33: Complete implementation (11 tools + 2 skills)
  */
 
 import type { StructuredToolInterface } from '@langchain/core/tools';
 import type { RegisteredTool } from './types.js';
 import { financialReadMetadata, financialWriteMetadata } from './types.js';
 import {
+  // Basic tools
   fundSearchTool,
   fundDetailTool,
   fundPerformanceTool,
   fundHoldingsTool,
+  // Follow tools
   fundFollowTool,
   fundUnfollowTool,
   fundListTool,
+  // Manager tool
   fundManagerTool,
+  // Compare tool
   fundCompareTool,
+  // Screen tools
+  fundScreenTool,
+  fundTopTool,
+  // Alert tools
+  fundAlertCreateTool,
+  fundAlertListTool,
+  fundAlertDeleteTool,
 } from '../fund/fund-tool.js';
 
 export const FUND_SEARCH_DESCRIPTION = `Search for mutual funds by keyword (name or code).
-
 Data source: 天天基金 (fund.eastmoney.com)
+Use when: 搜索基金, 查找基金, fund search, 推荐基金`;
 
-Use when user asks about:
-- 搜索基金, 查找基金, 基金代码
-- fund search, fund lookup
-- 推荐基金
-
-Examples:
-- "搜索易方达基金"
-- "查找代码110022"
-- "搜索科技类基金"`;
-
-export const FUND_DETAIL_DESCRIPTION = `Get detailed information about a specific mutual fund.
-
-Includes: name, type, scale, manager, company, net value, performance data.
-
+export const FUND_DETAIL_DESCRIPTION = `Get detailed fund info (name, type, scale, manager, company, net value, performance).
 Data source: 天天基金 (fund.eastmoney.com)
+Use when: 基金详情, 基金信息, fund detail`;
 
-Use when user asks about:
-- 基金详情, 基金信息
-- fund detail, fund info
-- 基金怎么样, 这只基金好吗`;
-
-export const FUND_PERFORMANCE_DESCRIPTION = `Get fund historical performance data.
-
-Returns performance metrics for multiple time periods:
-- 近1月, 近3月, 近6月, 近1年, 近3年, 5年
-- 今年来, 成立来
-
+export const FUND_PERFORMANCE_DESCRIPTION = `Get fund historical performance (1M/3M/6M/1Y/3Y/5Y/YTD).
 Data source: 天天基金 (fund.eastmoney.com)
+Use when: 基金收益, 基金业绩, fund performance`;
 
-Use when user asks about:
-- 基金收益, 基金业绩
-- fund performance, fund returns`;
-
-export const FUND_HOLDINGS_DESCRIPTION = `Get fund holdings (top 10 stocks the fund invests in).
-
-Shows the fund's major stock positions.
-
+export const FUND_HOLDINGS_DESCRIPTION = `Get fund top 10 stock holdings.
 Data source: 天天基金 (fundf10.eastmoney.com)
+Use when: 基金持仓, 十大重仓, fund holdings`;
 
-Use when user asks about:
-- 基金持仓, 十大重仓
-- fund holdings, fund portfolio`;
-
-export const FUND_FOLLOW_DESCRIPTION = `Follow a mutual fund to add it to your watchlist.
-
+export const FUND_FOLLOW_DESCRIPTION = `Follow a fund to add to watchlist.
 Data source: 本地存储 (.upup/data/followed-funds.json)
+Use when: 关注基金, fund follow`;
 
-Use when user asks about: 关注基金, fund follow`;
+export const FUND_UNFOLLOW_DESCRIPTION = `Unfollow a fund to remove from watchlist.
+Data source: 本地存储
+Use when: 取消关注, fund unfollow`;
 
-export const FUND_UNFOLLOW_DESCRIPTION = `Unfollow a mutual fund to remove it from your watchlist.
+export const FUND_LIST_DESCRIPTION = `List all followed funds in watchlist.
+Data source: 本地存储
+Use when: 我的基金, 关注列表, fund list`;
 
-Data source: 本地存储 (.upup/data/followed-funds.json)
+export const FUND_MANAGER_DESCRIPTION = `Get fund manager info and performance.
+Use when: 基金经理, fund manager`;
 
-Use when user asks about: 取消关注, fund unfollow`;
+export const FUND_COMPARE_DESCRIPTION = `Compare multiple funds side by side.
+Use when: 基金对比, fund compare, 哪个更好`;
 
-export const FUND_LIST_DESCRIPTION = `List all followed mutual funds in your watchlist.
+export const FUND_SCREEN_DESCRIPTION = `Screen funds by criteria (type, scale, return).
+Use when: 基金筛选, fund screen, 找符合条件的基金`;
 
-Data source: 本地存储 (.upup/data/followed-funds.json)
+export const FUND_TOP_DESCRIPTION = `Get top performing funds.
+Use when: 基金排行, fund top, 推荐基金`;
 
-Use when user asks about: 我的基金, 关注列表, fund list`;
+export const FUND_ALERT_CREATE_DESCRIPTION = `Create price alert for followed fund.
+Use when: 设置警报, 创建警报, fund alert`;
 
-export const FUND_MANAGER_DESCRIPTION = `Get fund manager information and historical performance.
+export const FUND_ALERT_LIST_DESCRIPTION = `List all fund price alerts.
+Use when: 查看警报, 我的警报, fund alert list`;
 
-Use when user asks about: 基金经理, fund manager`;
-
-export const FUND_COMPARE_DESCRIPTION = `Compare multiple mutual funds side by side.
-
-Use when user asks about: 基金对比, fund compare, 哪个更好
-
-Examples:
-- "对比110022和161725"
-- "compare fund 110022 vs 161725"`;
+export const FUND_ALERT_DELETE_DESCRIPTION = `Delete a fund price alert.
+Use when: 删除警报, 移除警报, fund alert delete`;
 
 export function loadFundTools(): RegisteredTool[] {
   return [
-    // Read tools
-    { name: 'fund_search', tool: fundSearchTool as unknown as StructuredToolInterface, description: FUND_SEARCH_DESCRIPTION, compactDescription: 'Search mutual funds by name or code', concurrencySafe: true, concurrencyMetadata: financialReadMetadata() },
-    { name: 'fund_detail', tool: fundDetailTool as unknown as StructuredToolInterface, description: FUND_DETAIL_DESCRIPTION, compactDescription: 'Get detailed fund info', concurrencySafe: true, concurrencyMetadata: financialReadMetadata() },
+    // Read tools (basic 4 + screen 2)
+    { name: 'fund_search', tool: fundSearchTool as unknown as StructuredToolInterface, description: FUND_SEARCH_DESCRIPTION, compactDescription: 'Search mutual funds', concurrencySafe: true, concurrencyMetadata: financialReadMetadata() },
+    { name: 'fund_detail', tool: fundDetailTool as unknown as StructuredToolInterface, description: FUND_DETAIL_DESCRIPTION, compactDescription: 'Get fund details', concurrencySafe: true, concurrencyMetadata: financialReadMetadata() },
     { name: 'fund_performance', tool: fundPerformanceTool as unknown as StructuredToolInterface, description: FUND_PERFORMANCE_DESCRIPTION, compactDescription: 'Get fund performance', concurrencySafe: true, concurrencyMetadata: financialReadMetadata() },
     { name: 'fund_holdings', tool: fundHoldingsTool as unknown as StructuredToolInterface, description: FUND_HOLDINGS_DESCRIPTION, compactDescription: 'Get fund holdings', concurrencySafe: true, concurrencyMetadata: financialReadMetadata() },
-    { name: 'fund_manager', tool: fundManagerTool as unknown as StructuredToolInterface, description: FUND_MANAGER_DESCRIPTION, compactDescription: 'Get fund manager info', concurrencySafe: true, concurrencyMetadata: financialReadMetadata() },
-    { name: 'fund_compare', tool: fundCompareTool as unknown as StructuredToolInterface, description: FUND_COMPARE_DESCRIPTION, compactDescription: 'Compare multiple funds', concurrencySafe: true, concurrencyMetadata: financialReadMetadata() },
-    // Write tools
-    { name: 'fund_follow', tool: fundFollowTool as unknown as StructuredToolInterface, description: FUND_FOLLOW_DESCRIPTION, compactDescription: 'Follow a fund', concurrencySafe: true, concurrencyMetadata: financialWriteMetadata() },
-    { name: 'fund_unfollow', tool: fundUnfollowTool as unknown as StructuredToolInterface, description: FUND_UNFOLLOW_DESCRIPTION, compactDescription: 'Unfollow a fund', concurrencySafe: true, concurrencyMetadata: financialWriteMetadata() },
+    { name: 'fund_manager', tool: fundManagerTool as unknown as StructuredToolInterface, description: FUND_MANAGER_DESCRIPTION, compactDescription: 'Get fund manager', concurrencySafe: true, concurrencyMetadata: financialReadMetadata() },
+    { name: 'fund_compare', tool: fundCompareTool as unknown as StructuredToolInterface, description: FUND_COMPARE_DESCRIPTION, compactDescription: 'Compare funds', concurrencySafe: true, concurrencyMetadata: financialReadMetadata() },
+    { name: 'fund_screen', tool: fundScreenTool as unknown as StructuredToolInterface, description: FUND_SCREEN_DESCRIPTION, compactDescription: 'Screen funds', concurrencySafe: true, concurrencyMetadata: financialReadMetadata() },
+    { name: 'fund_top', tool: fundTopTool as unknown as StructuredToolInterface, description: FUND_TOP_DESCRIPTION, compactDescription: 'Get top funds', concurrencySafe: true, concurrencyMetadata: financialReadMetadata() },
+    // Write tools (follow/unfollow)
+    { name: 'fund_follow', tool: fundFollowTool as unknown as StructuredToolInterface, description: FUND_FOLLOW_DESCRIPTION, compactDescription: 'Follow fund', concurrencySafe: true, concurrencyMetadata: financialWriteMetadata() },
+    { name: 'fund_unfollow', tool: fundUnfollowTool as unknown as StructuredToolInterface, description: FUND_UNFOLLOW_DESCRIPTION, compactDescription: 'Unfollow fund', concurrencySafe: true, concurrencyMetadata: financialWriteMetadata() },
     // List tool
     { name: 'fund_list', tool: fundListTool as unknown as StructuredToolInterface, description: FUND_LIST_DESCRIPTION, compactDescription: 'List followed funds', concurrencySafe: true, concurrencyMetadata: financialReadMetadata() },
+    // Alert tools (write)
+    { name: 'fund_alert_create', tool: fundAlertCreateTool as unknown as StructuredToolInterface, description: FUND_ALERT_CREATE_DESCRIPTION, compactDescription: 'Create alert', concurrencySafe: true, concurrencyMetadata: financialWriteMetadata() },
+    { name: 'fund_alert_list', tool: fundAlertListTool as unknown as StructuredToolInterface, description: FUND_ALERT_LIST_DESCRIPTION, compactDescription: 'List alerts', concurrencySafe: true, concurrencyMetadata: financialReadMetadata() },
+    { name: 'fund_alert_delete', tool: fundAlertDeleteTool as unknown as StructuredToolInterface, description: FUND_ALERT_DELETE_DESCRIPTION, compactDescription: 'Delete alert', concurrencySafe: true, concurrencyMetadata: financialWriteMetadata() },
   ];
 }
