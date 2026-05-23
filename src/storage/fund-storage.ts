@@ -216,3 +216,84 @@ export function getFollowedCount(): number {
 export function clearAllFollowed(): void {
   saveStorage({ followed: [], alerts: [] });
 }
+
+// ============================================================================
+// Fund Monitor Integration - Check alerts on value updates
+// ============================================================================
+
+import { getFundEstimatedValue } from '../tools/fund/fund-api.js';
+
+/**
+ * Check all alerts for a fund and return triggered ones
+ */
+export function checkFundAlerts(fundCode: string, currentValue: number, changeRate: number): FundAlert[] {
+  const alerts = getFundAlerts(fundCode);
+  const triggered: FundAlert[] = [];
+  
+  for (const alert of alerts) {
+    if (!alert.enabled) continue;
+    
+    let shouldTrigger = false;
+    
+    switch (alert.type) {
+      case 'price_above':
+        shouldTrigger = currentValue > alert.condition.value;
+        break;
+      case 'price_below':
+        shouldTrigger = currentValue < alert.condition.value;
+        break;
+      case 'change_up':
+        shouldTrigger = changeRate > alert.condition.value;
+        break;
+      case 'change_down':
+        shouldTrigger = changeRate < -alert.condition.value;
+        break;
+    }
+    
+    if (shouldTrigger) {
+      triggered.push(alert);
+    }
+  }
+  
+  return triggered;
+}
+
+/**
+ * Update fund and check alerts
+ */
+export async function updateFundWithAlertCheck(fundCode: string): Promise<{
+  updated: boolean;
+  triggeredAlerts: FundAlert[];
+}> {
+  try {
+    const estimate = await getFundEstimatedValue(fundCode);
+    
+    if (!estimate) {
+      return { updated: false, triggeredAlerts: [] };
+    }
+    
+    // Update the fund
+    const updated = updateFollowedFund(fundCode, {
+      lastEstimatedValue: estimate.estimatedUnit,
+      lastEstimatedRate: estimate.estimatedRate,
+      lastCheck: new Date().toISOString(),
+    });
+    
+    // Check alerts
+    const triggeredAlerts = checkFundAlerts(
+      fundCode,
+      estimate.estimatedUnit,
+      estimate.estimatedRate
+    );
+    
+    // Update alert trigger counts
+    for (const alert of triggeredAlerts) {
+      updateAlertTrigger(alert.id);
+    }
+    
+    return { updated, triggeredAlerts };
+  } catch (error) {
+    console.error(`Error updating fund ${fundCode}:`, error);
+    return { updated: false, triggeredAlerts: [] };
+  }
+}
