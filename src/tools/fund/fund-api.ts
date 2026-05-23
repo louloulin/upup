@@ -304,3 +304,74 @@ export async function getFundHoldings(fundCode: string): Promise<{
     return null;
   }
 }
+
+// ============================================================================
+// Fund Manager API - Added in Plan33 Phase 3
+// ============================================================================
+
+export interface FundManager {
+  id: string;
+  name: string;
+  company: string;
+  tenureYears: number;
+  funds: string[];
+  totalScale: number;
+  rating?: string;
+  avgReturn1Y?: number;
+  avgReturn3Y?: number;
+  avgReturn5Y?: number;
+  awards?: string[];
+}
+
+/**
+ * Get fund manager info from eastmoney
+ */
+export async function getFundManager(fundCode: string): Promise<FundManager | null> {
+  try {
+    // First get fund basic info to find manager name
+    const fundBasic = await getFundBasic(fundCode);
+    if (!fundBasic) {
+      return null;
+    }
+
+    const managerName = fundBasic.manager;
+    if (!managerName) {
+      return null;
+    }
+
+    // Search for manager info on eastmoney
+    const searchUrl = `https://search-api.eastmoney.com/api/search/v3?appId=&client=web&keyword=${encodeURIComponent(managerName)}&type=&pageIndex=1&pageSize=5&fields=&callback=`;
+    
+    // For now, return basic manager info from fund detail
+    // Full manager page requires special parsing
+    return {
+      id: `manager_${fundCode}`,
+      name: managerName,
+      company: fundBasic.company || '未知',
+      tenureYears: 0, // Would need historical data
+      funds: [fundCode],
+      totalScale: 0, // Would need aggregation
+      avgReturn1Y: fundBasic.netGrowth12 || undefined,
+      avgReturn3Y: fundBasic.netGrowth36 || undefined,
+    };
+  } catch (error) {
+    console.error(`Error fetching manager for ${fundCode}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Get multiple fund managers
+ */
+export async function getFundManagers(fundCodes: string[]): Promise<FundManager[]> {
+  const managers: FundManager[] = [];
+  
+  for (const code of fundCodes) {
+    const manager = await getFundManager(code);
+    if (manager) {
+      managers.push(manager);
+    }
+  }
+  
+  return managers;
+}
