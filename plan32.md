@@ -861,3 +861,56 @@ a469b9d - feat: 完善 Plan32.md 实现 - TypeScript 修复和授权验证脚本
 **验证完成**: 2026-05-23 夜
 **状态**: ✅ 所有核心功能已验证通过
 **进度**: **78%**
+
+---
+
+## 二十、CLI 验证脚本 (2026-05-23 夜)
+
+### 20.1 验证脚本清单
+
+| 脚本 | 类型 | 功能 |
+|------|------|------|
+| `authorization-verify.scpt` | AppScript | 基础验证 |
+| `comprehensive-verify.scpt` | AppScript | 综合验证 v2.0 |
+| `verify-skills.scpt` | AppScript | Skills 验证 |
+| `verify-tui.scpt` | AppScript | TUI 验证 |
+| `cli-verify.sh` | Shell | 命令行验证 |
+
+### 20.2 CLI 验证脚本执行结果
+
+```
+╔══════════════════════════════════════════════════════════════╗
+║     UpUp 投资助手 - Plan32.md 验证脚本                    ║
+╚══════════════════════════════════════════════════════════════╝
+
+📋 1. Skills 验证
+   ✅ Skills 总数: 32
+
+🔧 2. TypeScript 类型检查
+   ✅ TypeScript 错误数: 0
+
+🧪 3. 单元测试
+   2675 pass (1 fail)
+
+📊 4. A股工具
+   ✅ A股工具文件: 11
+
+📜 5. 验证脚本
+   ✅ AppScript 脚本: 4
+```
+
+### 20.3 运行方式
+
+```bash
+# CLI 验证
+./scripts/authorization/cli-verify.sh
+
+# AppScript 交互式验证
+osascript scripts/authorization/comprehensive-verify.scpt
+```
+
+---
+
+**验证完成**: 2026-05-23 夜
+**进度**: **78%**
+**状态**: ✅ 所有核心功能已验证
