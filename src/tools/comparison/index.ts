@@ -125,7 +125,8 @@ export function createStockComparison(_model: string): StructuredToolInterface {
               }
               
               // ROE calculation
-              const equity = parseFloat(String((await client.balancesheet({ ts_code: code }).catch(() => [{}]))[0]?.total_equity || 0));
+              const bs = (await client.balancesheet({ ts_code: code }).catch(() => [{}]));
+              const equity = parseFloat(String((bs[0] as any)?.total_equity || 0));
               if (equity > 0) {
                 stock.roe = (profit / equity) * 100;
               }

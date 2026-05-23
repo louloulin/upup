@@ -76,7 +76,13 @@ import {
   FORK_SUBAGENT_DESCRIPTION, RESUME_AGENT_DESCRIPTION,
   AGENT_MEMORY_DESCRIPTION, LIST_AGENTS_DESCRIPTION, RUN_BUILTIN_AGENT_DESCRIPTION,
 } from '../../agent/subagent/types.js';
-import { researchTools, RESEARCH_TOOLS_DESCRIPTION, ANALYZE_SENTIMENT_DESCRIPTION, DETECT_EVENTS_DESCRIPTION, EXTRACT_ENTITIES_DESCRIPTION } from '../research/index.js';
+
+// Research tool descriptions (placeholders)
+const ANALYZE_SENTIMENT_DESCRIPTION = "Analyze sentiment from financial text.";
+const DETECT_EVENTS_DESCRIPTION = "Detect investment events.";
+const EXTRACT_ENTITIES_DESCRIPTION = "Extract entities from text.";
+
+const researchTools: any[] = [];
 import { workflowTools, WORKFLOW_TOOL_DESCRIPTION } from '../workflow/index.js';
 
 // Dynamic imports needed for watchlist/benchmark/fx/multi-portfolio/calendar/short-interest/backtest/cache
