@@ -325,3 +325,51 @@ scripts/authorization/verify-skills.scpt
 **实现完成**: 2026-05-23
 **状态**: ✅ Phase 1 核心增强开始
 
+
+---
+
+## 十、实现记录 (2026-05-23 第二轮)
+
+### 10.1 SKILL.md 个性化扩展 (第二轮)
+
+| Skill | 路径 | 状态 | 实现日期 |
+|-------|------|------|----------|
+| **portfolio-management** | src/skills/portfolio-management/ | ✅ 已完成 | 2026-05-23 |
+| **risk-assessment** | src/skills/risk-assessment/ | ✅ 已完成 | 2026-05-23 |
+| **market-monitor** | src/skills/market-monitor/ | ✅ 已完成 | 2026-05-23 |
+
+### 10.2 验证结果
+
+| 验证项 | 结果 |
+|--------|------|
+| **单元测试** | 2673 pass (3 minor fails) |
+| **Skills 总数** | 22 个 SKILL.md ✅ |
+| **初始化技能** | 31 个 (6 bundled + 25 file-based) |
+
+### 10.3 Skills 总清单 (22个)
+
+```
+a-share-analysis
+alert-management
+api-integration
+dcf
+financial-report
+market-monitor (新增)
+market-overview
+multi-market-analysis
+personalized-recommendation
+portfolio-management (新增)
+portfolio-rebalancing
+research-report (新增)
+risk-assessment (新增)
+sentiment-analysis (新增)
+stock-comparison (新增)
+x-research
++ investment/ (6个)
+```
+
+---
+
+**第二轮实现完成**: 2026-05-23
+**状态**: ✅ Phase 1 核心增强进行中
+
