@@ -94,6 +94,10 @@ export {
   type PersistenceConfig,
 } from './persistence.js';
 
+// Tools exports
+export { swarmTools } from './tools/swarm-tools.js';
+export { specializedTools } from './tools/specialized-skills.js';
+
 // CLI tools exports
 export * from './agent-cli.js';
 
