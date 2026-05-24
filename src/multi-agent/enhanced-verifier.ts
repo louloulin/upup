@@ -572,17 +572,18 @@ export async function runEnhancedVerification(): Promise<VerificationReport> {
   return await verifier.runAll();
 }
 
-// Run if executed directly
-if (import.meta.url === `file://${process.argv[1]}`) {
-  runEnhancedVerification()
-    .then(report => {
-      const exitCode = report.failed > 0 ? 1 : 0;
-      console.log('\n--- END_RESULT ---');
-      console.log(JSON.stringify(report, null, 2));
-      process.exit(exitCode);
-    })
-    .catch(err => {
-      console.error('Verification failed:', err);
-      process.exit(1);
-    });
-}
+// Run if executed directly - 禁用自动运行，防止在导入时执行
+// 使用环境变量 ENABLE_VERIFIER 来启用独立运行
+// if (import.meta.url === `file://${process.argv[1]}` && process.env.ENABLE_VERIFIER === 'true') {
+//   runEnhancedVerification()
+//     .then(report => {
+//       const exitCode = report.failed > 0 ? 1 : 0;
+//       console.log('\n--- END_RESULT ---');
+//       console.log(JSON.stringify(report, null, 2));
+//       process.exit(exitCode);
+//     })
+//     .catch(err => {
+//       console.error('Verification failed:', err);
+//       process.exit(1);
+//     });
+// }
