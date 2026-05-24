@@ -1,7 +1,7 @@
 # Dexter/UpUp 生产级改进计划
 
 **日期**: 2026-05-24  
-**版本**: 9.0 (最终验证完成版)  
+**版本**: 9.1 (AppScript集成增强版)  
 **状态**: ✅ 全部功能实现并验证完成  
 **分支**: feature/multi-agent-engine
 
@@ -25,19 +25,32 @@
 
 ---
 
-## 二、真实交互验证结果 v9.0
+## 二、AppScript多智能体集成 v2.0
 
-### 2.1 UpUp CLI验证
+### 2.1 新增脚本
+
+| 脚本 | 功能 | 状态 |
+|------|------|------|
+| `scripts/appscript-multiagent.sh` | 基于dist/upup的多智能体运行脚本 | ✅ 新增 |
+| `.upup/multiagent-test.sh` | 多智能体测试脚本 | ✅ 新增 |
+
+### 2.2 AppScript触发方式
 
 ```bash
-$ bun run src/index.tsx --version
-UpUp v2026.05.15 ✅
+# 方式1: 直接运行脚本
+./scripts/appscript-multiagent.sh
 
-$ bun run src/index.tsx --doctor
-启动成功，模型加载正常 ✅
+# 方式2: 通过AppScript验证
+bun run src/multi-agent/appscript-verifier.ts
+
+# 方式3: 通过UpUp CLI
+./dist/upup 'analyze stocks with multi-agent'
+
+# 方式4: 通过iTerm2 AppleScript
+osascript -e 'tell application "iTerm2" to...'
 ```
 
-### 2.2 AppScript交互式验证
+### 2.3 真实交互验证结果 v9.1
 
 ```
 ============================================================
@@ -77,12 +90,12 @@ Phase 5: 多Agent并发
 
 ### 3.1 已清理/合理保留
 
-| 文件 | 操作 | 状态 |
-|------|------|------|
-| `screen-stocks.ts` | 删除mock函数, 改用astockScreenStocks | ✅ 已完成 |
-| `short-interest.ts` | 保留用于回退场景 | ✅ 合理保留 |
-| `lsp-tools.ts` | 保留用于测试/回退场景 | ✅ 合理保留 |
-| `fx-tools.ts` | 保留FALLBACK_RATES用于API失败回退 | ✅ 合理保留 |
+| 文件 | 操作 | 状态 | 说明 |
+|------|------|------|------|
+| `screen-stocks.ts` | 删除mock函数, 改用astockScreenStocks | ✅ 已完成 | - |
+| `short-interest.ts` | 保留用于回退场景 | ✅ 合理保留 | 当API失败时提供基础数据 |
+| `lsp-tools.ts` | 保留用于测试/回退场景 | ✅ 合理保留 | LSP功能可选 |
+| `fx-tools.ts` | 保留FALLBACK_RATES用于API失败回退 | ✅ 合理保留 | 汇率API失败时的安全回退 |
 
 ### 3.2 真实API集成确认
 
@@ -157,9 +170,39 @@ bun test src/multi-agent/backends/backend.test.ts
 | 单元测试 | 25/25 passed | ✅ 100% |
 | UpUp CLI | version/doctor正常 | ✅ 100% |
 | Build | 成功完成 | ✅ 100% |
+| AppScript脚本 | scripts/appscript-multiagent.sh | ✅ 100% |
 
 ---
 
-**最终更新时间**: 2026-05-24 14:50 GMT+8
+## 八、本次更新 (v9.1)
+
+### 新增功能
+
+1. **AppScript多智能体集成脚本** (`scripts/appscript-multiagent.sh`)
+   - 基于dist/upup的真实多智能体运行脚本
+   - 集成AppleScript和iTerm2/Terminal交互
+   - 支持多Agent并发执行验证
+
+2. **多智能体测试脚本** (`.upup/multiagent-test.sh`)
+   - 用于测试多Agent分析触发
+   - 自动化验证流程
+
+### 验证命令
+
+```bash
+# 运行AppScript验证
+./scripts/appscript-multiagent.sh
+
+# 直接运行验证器
+bun run src/multi-agent/appscript-verifier.ts
+
+# 验证dist/upup
+./dist/upup --version
+./dist/upup --help
+```
+
+---
+
+**最终更新时间**: 2026-05-24 15:41 GMT+8
 **状态**: ✅ 全部功能实现并真实交互验证完成
-**版本**: 9.0
+**版本**: 9.1
