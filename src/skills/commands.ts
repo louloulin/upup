@@ -8,12 +8,19 @@
  * - Register all discovered skills as commands
  * - Provide initializeSkills() for startup
  * - Create SkillCommand objects with getPromptForCommand() method
+ *
+ * Architecture: Uses SkillCommandRegistry as the single source of truth.
+ * This eliminates the previous dual-registry problem where registeredCommands
+ * Map and SkillCommandRegistry could get out of sync.
+ *
+ * Reference: Loucode's getSkillDirCommands() pattern
  */
 
 import type { Skill, SkillCommand, SkillMetadata } from './types.js';
 import { discoverSkills, getSkill, getAllBundledSkills } from './registry.js';
 import { createSkillCommand, bundledSkillToSkill } from './executor.js';
 import { SkillCommandRegistry, getSkillCommandRegistry } from './slash-command.js';
+import { registerBuiltinSkills } from './builtin-skills.js';
 
 
 // ============================================================================
@@ -21,7 +28,7 @@ import { SkillCommandRegistry, getSkillCommandRegistry } from './slash-command.j
 // ============================================================================
 
 let initialized = false;
-let registeredCommands: Map<string, SkillCommand> = new Map();
+
 
 // ============================================================================
 // Initialize Skills (Core Startup Function)
@@ -37,6 +44,8 @@ let registeredCommands: Map<string, SkillCommand> = new Map();
  * 4. Create SkillCommand objects
  * 5. Register commands with the registry
  *
+ * Uses SkillCommandRegistry as the single source of truth.
+ *
  * @param registry - Optional registry instance (uses global if not provided)
  * @returns Number of skills registered
  */
@@ -44,13 +53,15 @@ export async function initializeSkills(
   registry?: SkillCommandRegistry
 ): Promise<number> {
   if (initialized) {
-    return registeredCommands.size;
+    return getSkillCommandRegistry().skillCommandCount;
   }
-
 
   const skillRegistry = registry || getSkillCommandRegistry();
 
   let count = 0;
+
+  // Step 0: Register built-in bundled skills (P1)
+  registerBuiltinSkills();
 
   // Step 1: Register bundled skills
   const bundledSkills = getAllBundledSkills();
@@ -65,24 +76,19 @@ export async function initializeSkills(
     // Create SkillCommand with dynamic prompt support
     const command = createSkillCommand(skill, 'builtin');
 
-    // Store command for later retrieval
-    registeredCommands.set(skill.name, command);
+    // Register for execution (SkillCommand with getPromptForCommand)
+    skillRegistry.registerSkillCommand(skill.name, command);
 
-    // Register with slash-command registry
-    skillRegistry.register({
-      name: command.name,
-      description: command.description,
-      skillPath: skill.path,
-      metadata: {
-        name: skill.name,
-        description: skill.description,
-        path: skill.path,
-        triggers: skill.aliases || [],
-        user_invocable: skill.userInvocable ?? true,
-        model: skill.model,
-        argument_hint: skill.argumentHint,
-      },
-    });
+    // Register for autocomplete + triggers (includes triggers/aliases)
+    skillRegistry.registerSkill({
+      name: skill.name,
+      description: skill.description,
+      path: skill.path,
+      triggers: skill.aliases || [],
+      user_invocable: skill.userInvocable ?? true,
+      model: skill.model,
+      argument_hint: skill.argumentHint,
+    }, command);  // Pass command to register triggers to skillCommands Map
 
     count++;
   }
@@ -106,10 +112,10 @@ export async function initializeSkills(
     // Create SkillCommand
     const command = createSkillCommand(skill, metadata.source);
 
-    // Store command for later retrieval
-    registeredCommands.set(skill.name, command);
+    // Register for execution
+    skillRegistry.registerSkillCommand(skill.name, command);
 
-    // Register skill with slash-command registry (includes triggers/aliases)
+    // Register for autocomplete + triggers (includes triggers/aliases)
     skillRegistry.registerSkill({
       name: skill.name,
       description: skill.description,
@@ -117,7 +123,7 @@ export async function initializeSkills(
       triggers: skill.aliases || [],
       user_invocable: skill.userInvocable ?? true,
       model: skill.model,
-    });
+    }, command);  // Pass command to register triggers to skillCommands Map
 
     count++;
   }
@@ -128,10 +134,11 @@ export async function initializeSkills(
 }
 
 /**
- * Get the number of registered commands.
+ * Get the number of registered skill commands.
+ * Uses SkillCommandRegistry as single source of truth.
  */
 export function getRegisteredCommandCount(): number {
-  return registeredCommands.size;
+  return getSkillCommandRegistry().skillCommandCount;
 }
 
 /**
@@ -146,50 +153,74 @@ export function isInitialized(): boolean {
  */
 export function resetInitialization(): void {
   initialized = false;
-  registeredCommands.clear();
+  getSkillCommandRegistry().clear();
 }
 
 /**
  * Get a registered skill command by name.
+ * Uses SkillCommandRegistry as single source of truth.
  *
  * @param name - Command name (e.g., 'dcf')
  * @returns SkillCommand or undefined if not found
  */
 export function getSkillCommand(name: string): SkillCommand | undefined {
-  return registeredCommands.get(name.toLowerCase());
+  return getSkillCommandRegistry().getSkillCommand(name);
 }
 
 /**
  * Get all registered skill commands.
+ * Uses SkillCommandRegistry as single source of truth.
  */
 export function getAllSkillCommands(): SkillCommand[] {
-  return [...registeredCommands.values()];
+  return getSkillCommandRegistry().getAllSkillCommands();
 }
 
 /**
  * Get commands filtered by source.
+ * Uses SkillCommandRegistry as single source of truth.
  */
 export function getCommandsBySource(source: string): SkillCommand[] {
-  return [...registeredCommands.values()].filter(
+  return getSkillCommandRegistry().getAllSkillCommands().filter(
     cmd => cmd.source === source
   );
 }
 
 /**
  * Check if a command exists.
+ * Uses SkillCommandRegistry as single source of truth.
  */
 export function hasCommand(name: string): boolean {
-  return registeredCommands.has(name.toLowerCase());
+  return getSkillCommandRegistry().hasSkillCommand(name);
 }
 
 /**
  * Search commands by name prefix.
+ * Uses SkillCommandRegistry as single source of truth.
  */
 export function searchCommands(prefix: string): SkillCommand[] {
   const lowerPrefix = prefix.toLowerCase();
-  return [...registeredCommands.values()].filter(
+  return getSkillCommandRegistry().getAllSkillCommands().filter(
     cmd => cmd.name.startsWith(lowerPrefix)
   );
+}
+
+/**
+ * Get unique skill commands by name (deduplicated).
+ * Aliases point to the same skill, so this returns only unique skill names.
+ * Useful for displaying skill lists without duplicates.
+ */
+export function getUniqueSkillCommands(): SkillCommand[] {
+  const seen = new Set<string>();
+  const unique: SkillCommand[] = [];
+
+  for (const cmd of getSkillCommandRegistry().getAllSkillCommands()) {
+    if (!seen.has(cmd.name)) {
+      seen.add(cmd.name);
+      unique.push(cmd);
+    }
+  }
+
+  return unique;
 }
 
 // ============================================================================

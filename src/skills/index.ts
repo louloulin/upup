@@ -72,6 +72,7 @@ export {
   initializeSkills,
   getSkillCommand,
   getAllSkillCommands,
+  getUniqueSkillCommands,
   getCommandsBySource,
   hasCommand,
   searchCommands,
@@ -132,3 +133,13 @@ export {
   extractShellCommands,
   isCommandAllowed,
 } from './promptShellExecution.js';
+
+export {
+  recordUsage,
+  getRecentScore,
+  getAllRecentScores,
+  calculateScore,
+  getUsageStats,
+  clearUsageData,
+  type UsageRecord,
+} from './recent-usage.js';
