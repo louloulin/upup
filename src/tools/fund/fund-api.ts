@@ -787,3 +787,109 @@ export async function getFundUnitValue(fundCode: string): Promise<{
     accumulated: pzData.accumulatedNetWorth || 0,
   };
 }
+
+// ============================================================================
+// Historical Net Value API - 真实历史净值获取
+// ============================================================================
+
+interface FundHistoryItem {
+  FSRQ: string;      // 净值日期
+  DWJZ: string;      // 单位净值
+  LJJZ: string;      // 累计净值
+  JZZZL: string;     // 日增长率
+  SGZT: string;      // 申购状态
+  SHZT: string;      // 赎回状态
+}
+
+interface FundHistoryResponse {
+  Data: {
+    LSJZList: FundHistoryItem[];
+  };
+}
+
+/**
+ * 获取基金历史净值 (真实API)
+ * API: https://api.fund.eastmoney.com/f10/lsjz
+ */
+export async function getFundHistoricalNav(
+  fundCode: string,
+  pageIndex: number = 1,
+  pageSize: number = 20
+): Promise<{
+  totalCount: number;
+  items: Array<{
+    date: string;
+    nav: number;
+    accumulated: number;
+    dailyReturn: number;
+  }>;
+}> {
+  const url = `https://api.fund.eastmoney.com/f10/lsjz?fundCode=${fundCode}&pageIndex=${pageIndex}&pageSize=${pageSize}`;
+  
+  try {
+    const response = await fetch(url, {
+      headers: {
+        'Referer': 'https://fund.eastmoney.com/',
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    
+    const data = await response.json() as FundHistoryResponse;
+    const items = (data.Data?.LSJZList || []).map(item => {
+      const growthStr = String(item.JZZZL || '');
+      const dailyReturn = growthStr.includes('%') 
+        ? parseFloat(growthStr.replace('%', '')) || 0 
+        : parseFloat(growthStr) || 0;
+      return {
+        date: item.FSRQ,
+        nav: parseFloat(item.DWJZ) || 0,
+        accumulated: parseFloat(item.LJJZ) || 0,
+        dailyReturn,
+      };
+    });
+    
+    return {
+      totalCount: items.length,
+      items,
+    };
+  } catch (error) {
+    console.error(`Error fetching historical nav for ${fundCode}:`, error);
+    return { totalCount: 0, items: [] };
+  }
+}
+
+/**
+ * 获取多页历史净值
+ */
+export async function getFundFullHistory(
+  fundCode: string,
+  maxPages: number = 10
+): Promise<Array<{
+  date: string;
+  nav: number;
+  accumulated: number;
+  dailyReturn: number;
+}>> {
+  const allItems: Array<{
+    date: string;
+    nav: number;
+    accumulated: number;
+    dailyReturn: number;
+  }> = [];
+  
+  for (let page = 1; page <= maxPages; page++) {
+    const result = await getFundHistoricalNav(fundCode, page);
+    allItems.push(...result.items);
+    
+    if (result.items.length < 20) break;
+    
+    // 避免请求过快
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  
+  return allItems;
+}
