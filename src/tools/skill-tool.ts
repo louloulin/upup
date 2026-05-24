@@ -290,7 +290,7 @@ export function createSkillSearchTool(): DynamicStructuredTool {
         // Search by name, description, or whenToUse
         const matches = skills.filter(
           (s) =>
-            s.name.toLowerCase().includes(query) ||
+            (s.name || "").toLowerCase().includes(query) ||
             s.description.toLowerCase().includes(query) ||
             (s.whenToUse && s.whenToUse.toLowerCase().includes(query)) ||
             (s.aliases && s.aliases.some((a) => a.toLowerCase().includes(query)))

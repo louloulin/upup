@@ -228,11 +228,11 @@ export function createGetSkillTool() {
       ];
 
       const allSkills = await discoverSkills(skillsDirs);
-      const skill = allSkills.find(s => s.name.toLowerCase() === name.toLowerCase());
+      const skill = allSkills.find(s => (s.name || "").toLowerCase() === (name || "").toLowerCase());
 
       if (!skill) {
         const suggestions = allSkills
-          .filter(s => s.name.toLowerCase().includes(name.toLowerCase().substring(0, 3)))
+          .filter(s => (s.name || "").toLowerCase().includes((name || "").toLowerCase().substring(0, 3)))
           .slice(0, 3)
           .map(s => s.name);
 

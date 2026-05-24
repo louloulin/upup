@@ -188,7 +188,7 @@ export class SkillsMenu {
       // Search filter
       if (options.search) {
         const search = options.search.toLowerCase();
-        const matchesName = item.name.toLowerCase().includes(search);
+        const matchesName = (item.name || "").toLowerCase().includes(search);
         const matchesDesc = item.description.toLowerCase().includes(search);
         const matchesTrigger = item.triggers.some(t =>
           t.toLowerCase().includes(search)
@@ -224,13 +224,13 @@ export class SkillsMenu {
 
     // Try exact match first
     let item = this.filteredItems.find(
-      i => i.name.toLowerCase() === identifier.toLowerCase()
+      i => (i.name || '').toLowerCase() === (identifier || '').toLowerCase()
     );
     if (item) return item;
 
     // Try partial match
     item = this.filteredItems.find(
-      i => i.name.toLowerCase().includes(identifier.toLowerCase())
+      i => (i.name || "").toLowerCase().includes((identifier || "").toLowerCase())
     );
     return item ?? null;
   }
@@ -296,7 +296,7 @@ export function renderSkillsMenu(menu: SkillsMenu, options?: SkillsMenuOptions):
 
     for (const item of items) {
       const num = (index + 1).toString().padStart(2, ' ');
-      const name = item.name.padEnd(25, ' ');
+      const name = (item.name || '').padEnd(25, ' ');
       const desc = item.description.length > 35
         ? item.description.slice(0, 32) + '...'
         : item.description;
@@ -322,7 +322,7 @@ export function renderSkillDetail(item: SkillMenuItem): string {
 
   lines.push('');
   lines.push('╔════════════════════════════════════════════════════════════════════════╗');
-  lines.push(`║  Skill: ${item.name.padEnd(60)}║`);
+  lines.push(`║  Skill: ${(item.name || "").padEnd(60)}║`);
   lines.push('╠════════════════════════════════════════════════════════════════════════╣');
   lines.push(`║ Source: ${SKILL_SOURCE_LABELS[item.source].padEnd(60)}║`);
   lines.push('╠════════════════════════════════════════════════════════════════════════╣');
