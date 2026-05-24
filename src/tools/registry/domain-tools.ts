@@ -177,6 +177,7 @@ export async function loadDomainTools(): Promise<RegisteredTool[]> {
 
   // Research tools (智能投研)
   for (const researchTool of researchTools) {
+    if (!researchTool?.name) continue;
     const toolName = researchTool.name;
     let compactDescription = '';
     let description = '';
@@ -209,6 +210,7 @@ export async function loadDomainTools(): Promise<RegisteredTool[]> {
 
   // Workflow tools
   for (const workflowTool of workflowTools) {
+    if (!workflowTool?.name) continue;
     tools.push({
       name: workflowTool.name, tool: workflowTool, description: WORKFLOW_TOOL_DESCRIPTION,
       compactDescription: 'Execute a multi-step workflow as a single atomic operation',
@@ -260,6 +262,7 @@ async function loadDynamicDomainTools(tools: RegisteredTool[]): Promise<void> {
     const mp = await import('../portfolio/multi-portfolio.js');
     const mpTools = mp.multiPortfolioTools;
     for (const pt of mpTools) {
+      if (!pt?.name) continue;
       const toolName = pt.name;
       let compactDescription = '';
       if (toolName === 'list_portfolios') compactDescription = 'List all portfolios and show which one is active';

@@ -76,7 +76,7 @@ export async function getToolRegistry(model: string): Promise<RegisteredTool[]> 
  */
 export async function getToolConcurrencyMap(model: string): Promise<Map<string, boolean>> {
   const tools = await getToolRegistry(model);
-  return new Map(tools.map(t => [t.name, t.concurrencySafe]));
+  return new Map(tools.filter(t => t?.name).map(t => [t!.name, t!.concurrencySafe]));
 }
 
 /**
@@ -84,7 +84,7 @@ export async function getToolConcurrencyMap(model: string): Promise<Map<string, 
  */
 export async function getTools(model: string): Promise<StructuredToolInterface[]> {
   const tools = await getToolRegistry(model);
-  return tools.map(t => t.tool);
+  return tools.filter(t => t?.tool).map(t => t!.tool);
 }
 
 /**
@@ -93,6 +93,7 @@ export async function getTools(model: string): Promise<StructuredToolInterface[]
 export async function buildCompactToolDescriptions(model: string): Promise<string> {
   const tools = await getToolRegistry(model);
   return tools
-    .map((t) => `- **${t.name}**: ${t.compactDescription}`)
+    .filter(t => t?.name)
+    .map((t) => `- **${t!.name}**: ${t!.compactDescription}`)
     .join('\n');
 }

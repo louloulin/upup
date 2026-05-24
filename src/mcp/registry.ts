@@ -36,10 +36,11 @@ export function mcpToolsToRegisteredTools(
     if (connection.state !== 'connected') continue;
 
     // Register this server's tools in the merged registry
-    const serverToolNames = (connection.tools || []).map(t => `mcp__${connection.name}__${t.name}`);
+    const serverToolNames = (connection.tools || []).map(t => t?.name ? `mcp__${connection.name}__${t.name}` : null).filter((n): n is string => n !== null);
     mergedClients.register(connection.name, serverToolNames);
 
     for (const mcpTool of connection.tools || []) {
+      if (!mcpTool?.name) continue;
       const langChainTool = client.getToolsForServer(connection.name).find(
         t => t.name === `mcp__${connection.name}__${mcpTool.name}`
       );
@@ -87,6 +88,7 @@ export function getMCPToolDescriptions(
     if (connection.state !== 'connected') continue;
 
     for (const mcpTool of connection.tools || []) {
+      if (!mcpTool?.name) continue;
       descriptions.push({
         name: `mcp__${connection.name}__${mcpTool.name}`,
         description: mcpTool.description || `MCP tool from ${connection.name}`,

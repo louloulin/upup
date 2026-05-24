@@ -78,6 +78,7 @@ class UpUpPluginApiImpl implements UpUpPluginApi {
 
   // === Tool Registration ===
   registerTool(tool: AgentTool, options?: any): void {
+    if (!tool) return;
     this.tools.push(tool);
     info('default', `Registered tool: ${tool.name}`);
   }
