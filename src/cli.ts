@@ -45,6 +45,7 @@ import {
 import { editorTheme, theme } from './theme.js';
 import { matchCommands, type SlashCommand } from './commands/index.js';
 import { initSpinner } from './utils/spinner.js';
+import { initializeSkills, getSkillCommandRegistry } from './skills/index.js';
 
 // Stores the user's approval decision when Enter/Esc is pressed before the
 // inline approval UI has been rendered. Consumed by setApprovalPending.
@@ -530,6 +531,32 @@ export async function runCli(options: RunCliOptions = {}) {
   }
 
   const handleSlashCommand = async (commandName: string, commandArgs: string = '') => {
+    // Check if this is a skill command
+    try {
+      const { executeSkillCommand } = await import('./skills/executor.js');
+      const skillCommand = await executeSkillCommand(commandName, commandArgs, {
+        cwd: process.cwd(),
+        env: process.env as Record<string, string>,
+        sessionId: agentRunner.sessionId,
+        model: modelSelection.model,
+      });
+      if (skillCommand) {
+        if (skillCommand.type === 'query' && skillCommand.text) {
+          await agentRunner.runQuery(skillCommand.text);
+        } else if (skillCommand.type === 'output' && skillCommand.text) {
+          chatLog.addChild(new Spacer(1));
+          chatLog.addChild(new Text(skillCommand.text, 0, 0));
+        } else if (skillCommand.type === 'error' && skillCommand.message) {
+          chatLog.addChild(new Spacer(1));
+          chatLog.addChild(new Text(theme.error(skillCommand.message), 0, 0));
+        }
+        tui.requestRender();
+        return;
+      }
+    } catch {
+      // Not a skill command, continue with regular commands
+    }
+
     // Special commands that require UI interaction (model selection, fork)
     // These cannot be handled by the module system
     if (commandName === 'model') {
@@ -1078,8 +1105,24 @@ export async function runCli(options: RunCliOptions = {}) {
     tui.requestRender();
   };
 
-  editor.onSlashChange = (text: string) => {
+  editor.onSlashChange = async (text: string) => {
+    // Get regular commands
     slashSuggestions = matchCommands(text);
+
+    // Also get matching skill commands
+    try {
+      const { getMatchingSkillCommands } = await import('./skills/executor.js');
+      const skillMatches = await getMatchingSkillCommands(text);
+      // Merge skill commands with regular commands
+      for (const skillCmd of skillMatches) {
+        if (!slashSuggestions.find(c => c.name === skillCmd.name)) {
+          slashSuggestions.push(skillCmd);
+        }
+      }
+    } catch {
+      // Skill system not available, continue with regular commands
+    }
+
     slashSelectedIndex = 0;
     slashActive = slashSuggestions.length > 0;
     updateView();

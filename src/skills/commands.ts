@@ -109,20 +109,14 @@ export async function initializeSkills(
     // Store command for later retrieval
     registeredCommands.set(skill.name, command);
 
-    // Register with slash-command registry
-    skillRegistry.register({
-      name: command.name,
-      description: command.description,
-      skillPath: skill.path,
-      metadata: {
-        name: skill.name,
-        description: skill.description,
-        path: skill.path,
-        triggers: skill.aliases || [],
-        user_invocable: skill.userInvocable ?? true,
-        model: skill.model,
-        argument_hint: skill.argumentHint,
-      },
+    // Register skill with slash-command registry (includes triggers/aliases)
+    skillRegistry.registerSkill({
+      name: skill.name,
+      description: skill.description,
+      path: skill.path,
+      triggers: skill.aliases || [],
+      user_invocable: skill.userInvocable ?? true,
+      model: skill.model,
     });
 
     count++;
