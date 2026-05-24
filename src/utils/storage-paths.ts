@@ -157,3 +157,32 @@ export const SETTINGS_LOCK_FILE = globalUpupPath('settings.json.lock');
 
 export const UPUP_DATA_DIR_ENV = 'UPUP_DATA_DIR';
 export const UPUP_LOCAL_ENV = 'UPUP_LOCAL';
+// ============================================================================
+// Agents Directory
+// ============================================================================
+
+/**
+ * Global agents directory (~/.upup/agents/)
+ */
+export const AGENTS_DIR = globalUpupPath('agents');
+
+/**
+ * Get global agent file path
+ */
+export function globalAgentPath(agentFile: string): string {
+  return join(AGENTS_DIR, agentFile);
+}
+
+/**
+ * Project-level agents directory (.agents/ in cwd)
+ */
+export function projectAgentsDir(): string {
+  return '.agents';
+}
+
+/**
+ * Alternative project agents directory (agents/ in cwd)
+ */
+export function projectAgentsDirAlt(): string {
+  return 'agents';
+}

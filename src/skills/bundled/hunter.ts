@@ -1,61 +1,134 @@
 /**
- * Hunter Skill - 发现并追踪问题
+ * Hunter Skill - 发现追踪问题
  * 
  * 基于Claude Code /hunter设计:
- * - 自动发现代码问题
- * - 追踪潜在bug
- * - 提供修复建议
+ * - 发现并追踪Bug
+ * - 问题分析
+ * - 根因定位
+ * 
+ * Phase 3: EnhancedSkillDefinition with files property
  */
 
-import type { SpecializedSkill, ToolUseContext, SkillResult } from '../enhanced-types.js';
+import type { EnhancedSkillDefinition, ToolUseContext } from '../enhanced-types.js';
+import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/index.mjs';
 
-/**
- * Hunter Skill 实现
- */
-export const hunterSkill: SpecializedSkill = {
-  name: 'hunter',
-  description: 'Hunt for bugs and issues. Automatically discover and track potential problems.',
-  aliases: ['/hunter', '/debug', '/find'],
-  agent: 'debugger',
-  context: 'fork',
-  
-  execute: async (args: string, context: ToolUseContext): Promise<SkillResult> => {
-    try {
-      // 模拟猎取过程
-      await new Promise(resolve => setTimeout(resolve, 300));
+export function createHunterSkill(): EnhancedSkillDefinition {
+  return {
+    name: 'hunter',
+    description: 'Hunt for bugs and issues. Analyze error messages, trace through code, identify root causes, and propose fixes.',
+    aliases: ['/hunter', '/bug', '/debug', '/fix'],
+    whenToUse: 'When you need to find and fix bugs, analyze errors, or investigate issues.',
+    argumentHint: '<bug description or error message>',
+    allowedTools: ['bash', 'file_read', 'file_write', 'grep', 'web_search', 'browser'],
+    
+    // Agent配置
+    agent: 'debugger',
+    context: 'fork',
+    
+    // 引用文件 (示例模板)
+    files: {
+      'debug-template.md': `# Bug Investigation Template
+
+## Issue Description
+<!-- Describe the bug here -->
+
+## Symptoms
+- 
+- 
+
+## Investigation Plan
+1. [ ] Reproduce the issue
+2. [ ] Identify the affected code
+3. [ ] Trace the execution
+4. [ ] Find the root cause
+
+## Root Cause
+<!-- Document findings -->
+
+## Fix
+<!-- Propose solution -->
+`
+    },
+    
+    // 进度消息
+    progressMessage: '🎯 Starting bug hunt...',
+    
+    // 工具模式
+    disableModelInvocation: false,
+    userInvocable: true,
+    
+    async getPromptForCommand(
+      args: string,
+      context: ToolUseContext
+    ): Promise<ContentBlockParam[]> {
+      const bugDescription = args.trim() || 'Investigate the reported issue';
       
-      let output = '## Bug Hunt Results\n\n';
-      output += `Target: ${args || 'Current codebase'}\n\n`;
-      
-      // 模拟发现的问题
-      const bugs = [
-        { severity: 'Low', issue: 'Unused variable', file: 'example.ts:42' },
-        { severity: 'Medium', issue: 'Missing null check', file: 'handler.ts:88' },
-        { severity: 'High', issue: 'Race condition', file: 'async.ts:156' },
-      ];
-      
-      output += '| Severity | Issue | Location |\n';
-      output += '|----------|-------|----------|\n';
-      for (const bug of bugs) {
-        output += `| ${bug.severity} | ${bug.issue} | ${bug.file} |\n`;
-      }
-      
-      output += '\n🎯 Found 3 potential issues\n';
-      
-      return { success: true, output };
-    } catch (error) {
-      return {
-        success: false,
-        output: '',
-        error: error instanceof Error ? error.message : String(error),
-      };
+      return [{
+        type: 'text',
+        text: `## 🎯 Bug Hunting Mode
+
+You are in **bug hunting mode**. Your mission is to find and fix the issue.
+
+### Issue Report
+${bugDescription}
+
+### Investigation Process
+
+**Phase 1: Reproduce**
+- Understand the expected vs actual behavior
+- Create a minimal reproduction case
+- Confirm the bug exists
+
+**Phase 2: Investigate**
+- Read relevant source code
+- Trace execution flow
+- Check recent changes (git log, git diff)
+- Look for similar patterns elsewhere
+
+**Phase 3: Root Cause**
+- Identify the exact failure point
+- Understand why it fails
+- Check related components
+
+**Phase 4: Fix**
+- Design the fix
+- Implement it
+- Verify it works
+- Check for side effects
+
+### Bug Report Template
+When documenting findings, use this structure:
+\`\`\`
+## Bug Report
+
+### Summary
+One-line description
+
+### Severity
+- [ ] Critical: Blocks production
+- [ ] High: Major functionality broken
+- [ ] Medium: Degraded functionality
+- [ ] Low: Minor issue
+
+### Root Cause
+Explain the actual cause
+
+### Fix
+Describe the solution
+\`\`\`
+
+### Guidelines
+- Be systematic and thorough
+- Don't assume - verify
+- Document everything
+- Focus on the root cause, not symptoms`
+      }];
     }
-  },
-};
+  };
+}
 
-/**
- * 注册Hunter Skill
- */
-export function registerHunterSkill(): SpecializedSkill {
-  return hunterSkill;
+export const hunterSkill = createHunterSkill();
+
+export function registerHunterSkill(): EnhancedSkillDefinition {
+  return createHunterSkill();
 }

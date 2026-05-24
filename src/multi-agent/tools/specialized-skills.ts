@@ -6,11 +6,13 @@
  * - verify: 验证结果
  * - hunter: 发现追踪问题
  * - batch: 批量任务执行
+ * 
+ * Phase 3: 集成EnhancedSkillDefinition
  */
 
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { z } from 'zod';
-import { getAllSpecializedSkills } from '../../skills/bundled/index.js';
+import { getAllSpecializedSkills, getSkillByName } from '../../skills/bundled/index.js';
 
 /**
  * Execute specialized skill
@@ -26,20 +28,26 @@ export const executeSkillTool = new DynamicStructuredTool({
 
   func: async ({ skill_name, args }): Promise<string> => {
     try {
-      const skills = getAllSpecializedSkills();
-      const skill = skills.find(s => 
-        s.name === skill_name || s.aliases.includes(skill_name)
-      );
+      const skill = getSkillByName(skill_name);
       
       if (!skill) {
+        const allSkills = getAllSpecializedSkills();
         return JSON.stringify({ 
           error: `Skill not found: ${skill_name}`,
-          available: skills.map(s => s.name),
+          available: allSkills.map(s => s.name),
         });
       }
       
-      const result = await skill.execute(args ?? '', {});
-      return JSON.stringify(result);
+      // Execute skill using getPromptForCommand
+      const content = await skill.getPromptForCommand(args ?? '', {});
+      
+      return JSON.stringify({
+        success: true,
+        skill: skill.name,
+        output: content,
+        context: skill.context,
+        agent: skill.agent,
+      });
     } catch (error) {
       return JSON.stringify({ 
         error: error instanceof Error ? error.message : String(error) 
@@ -65,9 +73,10 @@ export const listSkillsTool = new DynamicStructuredTool({
         skills: skills.map(s => ({
           name: s.name,
           description: s.description,
-          aliases: s.aliases,
+          aliases: s.aliases || [],
           context: s.context,
           agent: s.agent,
+          whenToUse: s.whenToUse,
         })),
       });
     } catch (error) {
@@ -78,4 +87,47 @@ export const listSkillsTool = new DynamicStructuredTool({
   },
 });
 
-export const specializedTools = [executeSkillTool, listSkillsTool];
+/**
+ * Get skill details
+ */
+export const skillInfoTool = new DynamicStructuredTool({
+  name: 'skill_info',
+  description: 'Get detailed information about a specific skill including its usage instructions.',
+  
+  schema: z.object({
+    skill_name: z.string().describe('Name of the skill to get info about'),
+  }),
+
+  func: async ({ skill_name }): Promise<string> => {
+    try {
+      const skill = getSkillByName(skill_name);
+      
+      if (!skill) {
+        return JSON.stringify({ 
+          error: `Skill not found: ${skill_name}`,
+        });
+      }
+      
+      // Get the full prompt
+      const prompt = await skill.getPromptForCommand('', {});
+      
+      return JSON.stringify({
+        name: skill.name,
+        description: skill.description,
+        aliases: skill.aliases || [],
+        context: skill.context,
+        agent: skill.agent,
+        allowedTools: skill.allowedTools || [],
+        whenToUse: skill.whenToUse,
+        argumentHint: skill.argumentHint,
+        prompt: prompt,
+      });
+    } catch (error) {
+      return JSON.stringify({ 
+        error: error instanceof Error ? error.message : String(error) 
+      });
+    }
+  },
+});
+
+export const specializedTools = [executeSkillTool, listSkillsTool, skillInfoTool];
