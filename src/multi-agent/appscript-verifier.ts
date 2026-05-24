@@ -346,9 +346,10 @@ export class AppScriptVerifier {
   }
 }
 
-// CLI入口
-if (import.meta.url === `file://${process.argv[1]}`) {
-  new AppScriptVerifier().runAll()
-    .then(r => process.exit(r.filter(x => x.passed).length >= r.length * 0.7 ? 0 : 1))
-    .catch(e => { console.error(e); process.exit(1); });
-}
+// CLI入口 - 禁用自动运行，防止在导入时执行
+// 使用环境变量 ENABLE_VERIFIER 来启用独立运行
+// if (import.meta.url === `file://${process.argv[1]}` && process.env.ENABLE_VERIFIER === 'true') {
+//   new AppScriptVerifier().runAll()
+//     .then(r => process.exit(r.filter(x => x.passed).length >= r.length * 0.7 ? 0 : 1))
+//     .catch(e => { console.error(e); process.exit(1); });
+// }

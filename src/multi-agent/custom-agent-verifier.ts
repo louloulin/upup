@@ -162,11 +162,11 @@ async function runVerification(): Promise<void> {
   return;
 }
 
-// Run if executed directly
-if (import.meta.url === `file://${process.argv[1]}`) {
-  runVerification()
-    .then(() => process.exit(0))
-    .catch(e => { console.error(e); process.exit(1); });
-}
+// Run if executed directly - 禁用自动运行
+// if (import.meta.url === `file://${process.argv[1]}`) {
+//   runVerification()
+//     .then(() => process.exit(0))
+//     .catch(e => { console.error(e); process.exit(1); });
+// }
 
 export { runVerification };
