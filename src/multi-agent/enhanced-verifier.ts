@@ -155,7 +155,7 @@ export class EnhancedVerifier {
       const teamName = `verify-team-${Date.now()}`;
       const team = coordinator.createTeam(teamName, 'Verification test team', 'researcher');
       
-      const teamManager = coordinator.teamManager;
+      const teamManager = (coordinator as any).getTeamManager?.() || null;
       const loadedTeam = teamManager?.getTeam(team.name);
       
       this.addResult({
@@ -242,8 +242,8 @@ export class EnhancedVerifier {
       if (agents.length >= 2) {
         const from = agents[0];
         const to = agents[1];
-        sentCount = coordinator.sendMessage ? 1 : 0;
-        if (sentCount > 0) {
+        sentCount = (coordinator as any).sendMessage ? 1 : 0;
+        if (sentCount && sentCount > 0) {
           coordinator.sendMessage(from.id, to.id, 'Test message');
         }
       }
@@ -392,7 +392,8 @@ export class EnhancedVerifier {
       await new Promise(r => setTimeout(r, 50)); // Small delay
       tracker.trackExecutionComplete(execId, 'Verification result');
       
-      const stats = tracker.getSkillStats('dream');
+      const rawStats = tracker.getSkillStats('dream');
+      const stats = (typeof rawStats === 'object' && rawStats !== null && 'totalExecutions' in rawStats ? rawStats : { totalExecutions: 0 as number, averageDurationMs: 0 as number }) as { totalExecutions: number; averageDurationMs: number };
       const history = tracker.getExecutionHistory(10);
       const available = tracker.getAvailableSkills();
       
@@ -400,7 +401,7 @@ export class EnhancedVerifier {
         name: 'Skill Tracker',
         passed: stats.totalExecutions > 0,
         message: `追踪${history.length}条执行记录`,
-        details: `可用Skills: ${available.length}, 平均耗时: ${stats.averageDurationMs.toFixed(0)}ms`,
+        details: `可用Skills: ${available.length}, 平均耗时: ${typeof stats.averageDurationMs === 'number' ? stats.averageDurationMs.toFixed(0) : 0}ms`,
       });
     } catch (err) {
       this.addResult({
