@@ -100,8 +100,8 @@ export async function searchSkills(
   const lowerKeyword = keyword.toLowerCase();
 
   return allSkills.filter(skill =>
-    skill.name.toLowerCase().includes(lowerKeyword) ||
-    skill.description.toLowerCase().includes(lowerKeyword)
+    (skill.name || '').toLowerCase().includes(lowerKeyword) ||
+    (skill.description || '').toLowerCase().includes(lowerKeyword)
   );
 }
 
