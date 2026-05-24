@@ -8,21 +8,6 @@ function visibleLength(str: string): number {
 }
 
 /**
- * Category icons for slash commands
- * Maps CommandCategory to display icons
- */
-const CATEGORY_ICONS: Record<string, string> = {
-  core: '📦',
-  plan: '📋',
-  agent: '🤖',
-  mcp: '🔌',
-  permissions: '🔒',
-  system: '⚙️',
-  git: '📚',
-  tools: '🔧',
-}
-
-/**
  * Permission mode indicator configuration
  * Phase 5: Added for unified permission mode display
  */
@@ -118,19 +103,19 @@ export class HintBarComponent extends Container {
 
   /**
    * Show slash command suggestions. Expands the hint bar to multiple lines.
-   * Shows category icons and command descriptions.
+   * Simple display: /name  description, max 10 items.
    */
   setSuggestions(commands: SlashCommand[], selectedIndex: number): void {
     this.clear();
     this.showingSuggestions = true;
-    for (let i = 0; i < commands.length; i++) {
-      const cmd = commands[i];
+    const display = commands.slice(0, 10); // Limit to 10
+    for (let i = 0; i < display.length; i++) {
+      const cmd = display[i];
       const isSelected = i === selectedIndex;
-      const icon = CATEGORY_ICONS[cmd.category ?? ''] || '📎';
-      const prefix = isSelected ? theme.primary('> ') : '  ';
-      const name = isSelected ? theme.primary(`/${cmd.name}`) : theme.muted(`/${cmd.name}`);
-      const desc = theme.muted(` — ${cmd.description}`);
-      this.addChild(new Text(`${prefix}${icon} ${name}${desc}`, 0, 0));
+      const prefix = isSelected ? '> ' : '  ';
+      const name = isSelected ? cmd.name : cmd.name;
+      const desc = cmd.description.slice(0, 20);
+      this.addChild(new Text(`${prefix}/${name}  ${desc}`, 0, 0));
     }
   }
 
