@@ -19,7 +19,7 @@ import { getUpupDir } from '../paths.js';
 // ============================================================================
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
-export type LogCategory = 'memory' | 'agent' | 'tools' | 'subagent' | 'mcp' | 'daemon' | 'system' | 'default' | 'compaction' | 'orchestrator' | 'post-cleanup' | 'session-compact' | 'bash' | 'hooks';
+export type LogCategory = 'memory' | 'agent-loader' | 'agent-registry' | 'backend' | 'iterm2' | 'coordinator' | 'team-manager' | 'verifier' | 'health-check' | 'event-bus' | 'lifecycle' | 'scheduler' | 'persistence' | 'skills' | 'monitor' | 'skill-tracker' | 'monitor' | 'agent' | 'tools' | 'subagent' | 'mcp' | 'daemon' | 'system' | 'default' | 'compaction' | 'orchestrator' | 'post-cleanup' | 'session-compact' | 'bash' | 'hooks';
 
 export interface LogEntry {
   id: string;
@@ -81,6 +81,21 @@ const DEFAULT_CONFIG: LoggerConfig = {
     'session-compact': true,
     bash: true,
     hooks: true,
+    'agent-loader': true,
+    'agent-registry': true,
+    backend: true,
+    iterm2: true,
+    coordinator: true,
+    'team-manager': true,
+    verifier: true,
+    'health-check': true,
+    'event-bus': true,
+    lifecycle: true,
+    scheduler: true,
+    persistence: true,
+    skills: true,
+    monitor: true,
+    'skill-tracker': true,
   },
 };
 

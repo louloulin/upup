@@ -59,7 +59,9 @@ export interface SpawnAgentParams {
   teamId: string;
   name: string;
   role: string;
-  prompt: string;
+  prompt?: string;
+  context?: 'inline' | 'fork' | 'swarm';
+  cwd?: string;
   tools?: string[] | '*';
   model?: string;
   maxTurns?: number;
@@ -128,7 +130,7 @@ export interface AgentSpawnInput {
   team_name: string;
   agent_name: string;
   role: string;
-  prompt: string;
+  prompt?: string;
   tools?: string[];
   model?: string;
   max_turns?: number;

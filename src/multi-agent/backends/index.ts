@@ -20,6 +20,7 @@ export { WorkerPoolBackend } from './workerpool.js';
 export { TmuxBackend } from './tmux.js';
 export { ITerm2Backend } from './iterm2.js';
 export { initializeBackends, getBackendForSpawn } from './initialize.js';
+export type { BackendType } from '../types.js';
 
 /**
  * Backend基类接口
