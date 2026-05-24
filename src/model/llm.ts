@@ -147,11 +147,15 @@ const MODEL_FACTORIES: Record<string, ModelFactory> = {
       },
     }),
   deepseek: (name, opts) => {
+    // Default maxTokens for deepseek
+    const maxTokens = parseInt(process.env.DEEPSEEK_MAX_TOKENS || '8192');
+
     // Both deepseek-v4-pro and deepseek-v4-flash support thinking mode.
     // temperature/top_p/presence_penalty/frequency_penalty are ignored in thinking mode.
     const isThinkingModel = name === 'deepseek-v4-pro' || name === 'deepseek-v4-flash';
     return new ChatOpenAI({
       model: name,
+      maxTokens: maxTokens,
       ...opts,
       apiKey: getApiKey('DEEPSEEK_API_KEY'),
       configuration: {
@@ -160,7 +164,7 @@ const MODEL_FACTORIES: Record<string, ModelFactory> = {
       ...(isThinkingModel && {
         // reasoning_effort is a top-level param; thinking toggle goes in extra_body
         // per DeepSeek V4 API docs (OpenAI SDK compat layer)
-        reasoning_effort: 'high',
+        reasoning_effort: process.env.DEEPSEEK_REASONING_EFFORT || 'high',
         extraBody: {
           thinking: { type: 'enabled' },
         },
