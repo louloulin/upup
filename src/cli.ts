@@ -47,6 +47,43 @@ import { matchCommands, type SlashCommand } from './commands/index.js';
 import { initSpinner } from './utils/spinner.js';
 import { initializeSkills, getSkillCommandRegistry } from './skills/index.js';
 
+/**
+ * Get skill commands merged with CLI commands.
+ * This ensures skill commands appear in command suggestions.
+ */
+function getCliCommands(text: string) {
+  // Get base CLI commands
+  const commands = [...matchCommands(text)];
+
+  // Try to add skill commands
+  try {
+    const registry = getSkillCommandRegistry();
+    const skillCmds = registry.getAllCommands();
+    const existingNames = new Set(commands.map(c => c.name));
+
+    for (const cmd of skillCmds) {
+      const name = cmd.name.toLowerCase();
+      const desc = cmd.description.toLowerCase();
+      const query = text.startsWith('/') ? text.slice(1).toLowerCase() : text.toLowerCase();
+
+      // Check if this skill matches the query
+      const matches = !query || name.startsWith(query) || name.includes(query) || desc.includes(query);
+
+      if (matches && !existingNames.has(name)) {
+        commands.push({
+          name: cmd.name,
+          description: cmd.description,
+          category: 'skill' as const,
+        });
+      }
+    }
+  } catch {
+    // Skill registry not available, continue with base commands
+  }
+
+  return commands;
+}
+
 // Stores the user's approval decision when Enter/Esc is pressed before the
 // inline approval UI has been rendered. Consumed by setApprovalPending.
 let pendingApprovalDecisionGlobal: ApprovalDecision | null = null;
@@ -1106,22 +1143,8 @@ export async function runCli(options: RunCliOptions = {}) {
   };
 
   editor.onSlashChange = async (text: string) => {
-    // Get regular commands
-    slashSuggestions = matchCommands(text);
-
-    // Also get matching skill commands
-    try {
-      const { getMatchingSkillCommands } = await import('./skills/executor.js');
-      const skillMatches = await getMatchingSkillCommands(text);
-      // Merge skill commands with regular commands
-      for (const skillCmd of skillMatches) {
-        if (!slashSuggestions.find(c => c.name === skillCmd.name)) {
-          slashSuggestions.push(skillCmd);
-        }
-      }
-    } catch {
-      // Skill system not available, continue with regular commands
-    }
+    // Get CLI commands including skills
+    slashSuggestions = getCliCommands(text);
 
     slashSelectedIndex = 0;
     slashActive = slashSuggestions.length > 0;

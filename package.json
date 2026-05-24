@@ -4,7 +4,9 @@
   "private": true,
   "description": "UpUp - AI agent for deep financial research (涨涨 — 深度金融研究 AI 智能体).",
   "type": "module",
-  "workspaces": ["packages/*"],
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "start": "bun run src/index.tsx",
     "dev": "bun --watch run src/index.tsx",
@@ -99,10 +101,7 @@
     ]
   },
   "files": [
-    "src",
-    "dist",
-    "!.serena",
-    "!.claude"
+    "dist"
   ],
   "author": "UpUp Team",
   "license": "MIT",
