@@ -9,7 +9,7 @@ import type { AgentInstance, SpawnAgentParams } from '../types.js';
 import { Backend } from './index.js';
 import { randomUUID } from 'crypto';
 import { getDefaultSubagentRunner, type SubagentRunner } from '../../agent/subagent-runner.js';
-import type { SubagentConfig, SubagentResult } from '../../agent/subagent.js';
+import type { SubagentConfig, SubagentType } from '../../agent/subagent.js';
 import { info, warn, error as logError } from '../../utils/logging/logger.js';
 
 export class InProcessBackend implements Backend {
@@ -60,20 +60,22 @@ export class InProcessBackend implements Backend {
       
       info('backend', `Starting agent execution: ${agent.name}`);
       
+      // Map role to SubagentType
+      const agentType = this.mapRoleToSubagentType(params.role);
+      
       // 构建Agent配置
       const config: SubagentConfig = {
-        agentType: params.role || 'executor',
-        context: params.context || 'inline',
+        type: agentType,
+        tools: params.tools === '*' ? '*' : (params.tools || []),
         timeoutMs: timeout,
         maxTurns: params.maxTurns ?? 10,
-        tools: params.tools === '*' ? '*' : (params.tools || []),
         model: params.model,
         cwd: params.cwd,
-        sessionId: `team-${params.teamId}-agent-${agent.id}`,
+        systemPrompt: params.prompt ? `${params.prompt}\n\nYou are ${params.role || 'agent'} named ${params.name}.` : undefined,
       };
       
       // 执行Agent
-      const prompt = params.prompt || `You are a ${params.role || 'agent'} named ${params.name}.`;
+      const prompt = params.prompt || `You are a ${params.role || 'agent'} named ${params.name}. Complete the assigned task.`;
       
       const result = await this.runner.run(
         config,
@@ -103,6 +105,21 @@ export class InProcessBackend implements Backend {
       agent.completedAt = Date.now();
       logError('backend', `Agent error: ${agent.name}`, error instanceof Error ? error : undefined);
     }
+  }
+  
+  /**
+   * Map role to SubagentType
+   */
+  private mapRoleToSubagentType(role: string): SubagentType {
+    const roleMap: Record<string, SubagentType> = {
+      'researcher': 'specialized',
+      'reviewer': 'specialized',
+      'debugger': 'specialized',
+      'coordinator': 'general',
+      'executor': 'general',
+      'analyst': 'specialized',
+    };
+    return roleMap[role] || 'general';
   }
   
   async terminate(agentId: string): Promise<void> {

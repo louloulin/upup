@@ -109,7 +109,7 @@ function parseFrontmatter(content: string): { frontmatter: Record<string, unknow
     if (value === '') {
       continue;
     } else if (value.startsWith('[') && value.endsWith(']')) {
-      value = value.slice(1, -1).split(',').map(v => v.trim());
+      value = value.slice(1, -1).split(',').map((v: string) => v.trim());
     } else if (value === 'true') {
       value = true;
     } else if (value === 'false') {

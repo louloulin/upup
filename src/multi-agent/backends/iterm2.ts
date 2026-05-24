@@ -12,7 +12,7 @@ import { exec, execSync } from 'child_process';
 import { promisify } from 'util';
 import { info, warn, error as logError } from '../../utils/logging/logger.js';
 import { getDefaultSubagentRunner, type SubagentRunner } from '../../agent/subagent-runner.js';
-import type { SubagentConfig } from '../../agent/subagent.js';
+import type { SubagentConfig, SubagentType } from '../../agent/subagent.js';
 
 const execAsync = promisify(exec);
 
@@ -81,16 +81,18 @@ export class ITerm2Backend implements Backend {
       
       info('iterm2', `iTerm2 session created for: ${agent.name}`);
       
+      // Map role to SubagentType
+      const agentType = this.mapRoleToSubagentType(params.role);
+      
       // 执行真实Agent
       const config: SubagentConfig = {
-        agentType: params.role || 'executor',
-        context: params.context || 'inline',
+        type: agentType,
+        tools: params.tools === '*' ? '*' : (params.tools || []),
         timeoutMs: timeout,
         maxTurns: params.maxTurns ?? 10,
-        tools: params.tools === '*' ? '*' : (params.tools || []),
         model: params.model,
         cwd: params.cwd,
-        sessionId: `iterm-${agent.teamId}-${agent.id}`,
+        systemPrompt: params.prompt ? `${params.prompt}\n\nYou are ${params.role || 'agent'} named ${params.name}.` : undefined,
       };
       
       const prompt = params.prompt || `You are a ${params.role || 'agent'} named ${params.name}.`;
@@ -113,6 +115,21 @@ export class ITerm2Backend implements Backend {
       agent.error = error instanceof Error ? error.message : String(error);
       agent.completedAt = Date.now();
     }
+  }
+  
+  /**
+   * Map role to SubagentType
+   */
+  private mapRoleToSubagentType(role: string): SubagentType {
+    const roleMap: Record<string, SubagentType> = {
+      'researcher': 'specialized',
+      'reviewer': 'specialized',
+      'debugger': 'specialized',
+      'coordinator': 'general',
+      'executor': 'general',
+      'analyst': 'specialized',
+    };
+    return roleMap[role] || 'general';
   }
   
   private async checkITerm2Running(): Promise<boolean> {
