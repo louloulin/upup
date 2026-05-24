@@ -1,0 +1,13 @@
+src/
+tests/
+*.test.ts
+*.spec.ts
+.env
+.env.*
+.upup/
+.agents/
+.claude/
+.DS_Store
+*.md
+!README.md
+LICENSE

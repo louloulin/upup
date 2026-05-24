@@ -9,8 +9,6 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
-    "declaration": true,
-    "declarationMap": true,
     "outDir": "./dist",
     "rootDir": "./src",
     "baseUrl": ".",
@@ -21,4 +19,3 @@
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
 }
-
