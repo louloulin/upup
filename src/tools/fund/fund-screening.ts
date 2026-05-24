@@ -262,8 +262,8 @@ export async function screenFunds(criteria: ScreeningCriteria): Promise<FundBasi
           bVal = parseFloat(b.scale || '0');
           break;
         case 'name':
-          aVal = a.name;
-          bVal = b.name;
+          aVal = a.name || '';
+          bVal = b.name || '';
           break;
       }
       
