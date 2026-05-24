@@ -5,7 +5,7 @@
 
 import { z } from 'zod';
 import { DynamicStructuredTool } from '@langchain/core/tools';
-import { searchFunds, getFundBasic, getFundEstimatedValue, getFundUnitValue, getFundPerformance, getFundHoldings } from './fund-api';
+import { searchFunds, getFundBasic, getFundEstimatedValue, getFundUnitValue, getFundPerformance, getFundHoldings, getFollowedFunds } from './fund-api';
 
 export const FUND_SEARCH_DESCRIPTION = `Search for mutual funds by keyword (name or code).
 
@@ -206,7 +206,7 @@ export const fundHoldingsTool = new DynamicStructuredTool({
     }
     
     const rows = holdings.holdings
-      .map((h, i) => `| ${i + 1} | ${h.code} | ${h.name} | ${h.percent.toFixed(2)}% |`)
+      .map((h, i) => `| ${i + 1} | ${h.stockCode} | ${h.stockName} | ${h.holdingPercent.toFixed(2)}% |`)
       .join('\n');
     
     return `# 基金 ${input.fund_code} 十大重仓股
@@ -224,12 +224,9 @@ ${rows}
 // ============================================================================
 // Fund Follow Tools - Added in Plan33 Phase 2
 // ============================================================================
-
-import { z } from 'zod';
 import {
   followFund as storageFollowFund,
   unfollowFund as storageUnfollowFund,
-  getFollowedFunds,
   isFundFollowed,
 } from '../../storage/fund-storage.js';
 
@@ -381,10 +378,10 @@ Examples:
     }
     
     const rows = funds.map((f, i) => {
-      const rateStr = f.lastEstimatedRate !== undefined 
-        ? `${f.lastEstimatedRate >= 0 ? '+' : ''}${f.lastEstimatedRate.toFixed(2)}%`
+      const rateStr = f.netEstimatedRate !== undefined 
+        ? `${f.netEstimatedRate >= 0 ? '+' : ''}${f.netEstimatedRate.toFixed(2)}%`
         : '-';
-      return `| ${i + 1} | ${f.code} | ${f.name} | ${f.lastEstimatedValue || '-'} | ${rateStr} |`;
+      return `| ${i + 1} | ${f.code} | ${f.name} | ${f.netEstimatedUnit || '-'} | ${rateStr} |`;
     }).join('\n');
     
     return `# 📊 我的关注基金 (${funds.length} 只)
@@ -715,7 +712,6 @@ import {
   createFundAlert,
   getFundAlerts,
   deleteFundAlert,
-  getFollowedFunds,
 } from '../../storage/fund-storage.js';
 
 // Fund alert create schema
@@ -782,6 +778,7 @@ Examples:
       'price_below': '价格低于',
       'change_up': '涨幅超过',
       'change_down': '跌幅超过',
+      'estimate_update': '净值更新',
     };
     
     return `# ✅ 基金警报创建成功
@@ -830,6 +827,7 @@ Examples:
       'price_below': '价格低于',
       'change_up': '涨幅超过',
       'change_down': '跌幅超过',
+      'estimate_update': '净值更新',
     };
     
     const rows = alerts.map((a, i) => {
