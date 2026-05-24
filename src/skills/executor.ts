@@ -630,3 +630,128 @@ export async function getPromptForCommand(
   const command = createSkillCommand(skill);
   return command.getPromptForCommand(args, context);
 }
+
+// ============================================================================
+// CLI Integration Functions
+// ============================================================================
+
+export interface SkillCommandResult {
+  type: 'query' | 'output' | 'error';
+  text?: string;
+  message?: string;
+}
+
+export interface SkillCommandMatch {
+  name: string;
+  description: string;
+}
+
+/**
+ * Execute a skill command from CLI.
+ *
+ * @param commandName - The command name (without /)
+ * @param args - Arguments to pass
+ * @param context - Execution context
+ * @returns SkillCommandResult or null if not a skill command
+ */
+export async function executeSkillCommand(
+  commandName: string,
+  args: string,
+  context: {
+    cwd: string;
+    env: Record<string, string>;
+    sessionId?: string;
+    model?: string;
+  }
+): Promise<SkillCommandResult | null> {
+  try {
+    // Import and initialize skills
+    const { initializeSkills } = await import('./commands.js');
+    const { getSkillCommandRegistry } = await import('./slash-command.js');
+    const { getSkill } = await import('./registry.js');
+    await initializeSkills();
+
+    // Check if this is a skill command
+    const registry = getSkillCommandRegistry();
+    const skillCmd = registry.getCommand(commandName);
+
+    if (!skillCmd) {
+      return null; // Not a skill command
+    }
+
+    // Get skill metadata
+    const skill = skillCmd.metadata;
+    if (!skill) {
+      return { type: 'error', message: `Skill metadata not found for ${commandName}` };
+    }
+
+    // Get the full skill
+    const fullSkill = getSkill(skill.name);
+    if (!fullSkill) {
+      return { type: 'error', message: `Skill not found: ${skill.name}` };
+    }
+
+    // Execute the skill and get prompt
+    const content = await getPromptForCommand(fullSkill, args, {
+      cwd: context.cwd,
+    });
+
+    // Return as a query for the agent to execute
+    const prompt = content.map(c => c.text).join('\n\n');
+    return { type: 'query', text: prompt };
+
+  } catch (error) {
+    console.error(`Error executing skill command ${commandName}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Get skill commands matching the input text.
+ *
+ * @param input - The input text (e.g., "/swarm" or "/swa")
+ * @returns Array of matching skill commands
+ */
+export async function getMatchingSkillCommands(
+  input: string
+): Promise<SkillCommandMatch[]> {
+  try {
+    // Initialize skills if not already done
+    const { initializeSkills } = await import('./commands.js');
+    const { getSkillCommandRegistry } = await import('./slash-command.js');
+    await initializeSkills();
+
+    const registry = getSkillCommandRegistry();
+    const query = input.startsWith('/') ? input.slice(1).toLowerCase() : input.toLowerCase();
+
+    if (!query) {
+      // Return all skill commands
+      return registry.getUserInvocableSkills().map((s: { name?: string; description?: string }) => ({
+        name: s.name || '',
+        description: s.description || '',
+      }));
+    }
+
+    // Find matching skill commands
+    const matches: SkillCommandMatch[] = [];
+    const allCommands = registry.getAllCommands();
+
+    for (const cmd of allCommands) {
+      const name = cmd.name.toLowerCase();
+      const desc = (cmd.description || '').toLowerCase();
+
+      // Match by name prefix or description substring
+      if (name.startsWith(query) || desc.includes(query)) {
+        matches.push({
+          name: cmd.name,
+          description: cmd.description,
+        });
+      }
+    }
+
+    return matches;
+  } catch (error) {
+    console.error('Error getting matching skill commands:', error);
+    return [];
+  }
+}
