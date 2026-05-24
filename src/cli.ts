@@ -49,8 +49,8 @@ import { initializeSkills, getSkillCommandRegistry, getRegisteredCommandCount } 
 
 /**
  * Get skill commands merged with CLI commands.
- * Uses fuzzy search (Fuse.js) for better matching.
- * P2: Search index is lazily initialized by the registry itself.
+ * Uses fuzzy search for better matching.
+ * Returns at most 10 commands.
  */
 function getCliCommands(text: string) {
   // Get base CLI commands
@@ -61,11 +61,10 @@ function getCliCommands(text: string) {
     const registry = getSkillCommandRegistry();
     const query = text.startsWith('/') ? text.slice(1).trim() : '';
 
-    // Get matching skills using fuzzy search
-    // P2: registry.initSearchIndex() is called internally if needed
+    // Get matching skills using fuzzy search, limit to 10 total
     const matchedSkills = query
-      ? registry.searchSkillsFuzzy(query, 10)  // Fuzzy search with limit
-      : registry.getAllSkillCommands().slice(0, 10); // Default: first 10
+      ? registry.searchSkillsFuzzy(query, 10)
+      : registry.getAllSkillCommands().slice(0, 10);
 
     const existingNames = new Set(commands.map(c => c.name.toLowerCase()));
 
@@ -83,8 +82,10 @@ function getCliCommands(text: string) {
     // Skill registry not available, continue with base commands
   }
 
-  return commands;
+  // Limit to 10 commands total
+  return commands.slice(0, 10);
 }
+
 
 // Stores the user's approval decision when Enter/Esc is pressed before the
 // inline approval UI has been rendered. Consumed by setApprovalPending.

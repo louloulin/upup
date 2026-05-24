@@ -4,6 +4,18 @@
 
 ---
 
+## 实现状态
+
+| 功能 | 状态 |
+|------|------|
+| 模糊搜索 | ✅ 已实现 |
+| 限制10条 | ✅ 已实现 |
+| 下键滑动 | ✅ 已实现 |
+| 简约展示 | ✅ 已实现 |
+| 删除图标 | ✅ 已实现 |
+
+---
+
 ## 问题
 
 - 输入 `/` 显示所有命令
@@ -28,114 +40,46 @@
 
 ---
 
-## 实现
+## 已实现
 
-### 1. hint-bar.ts - 滑动容器
+### 1. cli.ts - getCliCommands
 
 ```typescript
-// 使用 pi-tui Scrollable 或自定义滑动
-class SuggestionList extends Container {
-  private items: Text[] = [];
-  private selectedIndex: number = 0;
-  private maxDisplay: number = 10;
-
-  setCommands(commands: SlashCommand[]): void {
-    this.clear();
-    this.items = [];
-    const display = commands.slice(0, this.maxDisplay);
-    
-    for (let i = 0; i < display.length; i++) {
-      const cmd = display[i];
-      const text = new Text(`  /${cmd.name}  ${cmd.description.slice(0, 18)}`, 0, 0);
-      this.items.push(text);
-      this.addChild(text);
-    }
-    this.setSelected(0);
-  }
-
-  setSelected(index: number): void {
-    // 移除之前的选中
-    if (this.items[this.selectedIndex]) {
-      const prev = this.items[this.selectedIndex];
-      prev.setText(`  ${prev.text.slice(2)}`);
-    }
-    // 设置新的选中
-    this.selectedIndex = index;
-    if (this.items[index]) {
-      const curr = this.items[index];
-      curr.setText(`> ${curr.text.slice(2)}`);
-    }
-  }
-
-  scrollDown(): void {
-    const next = (this.selectedIndex + 1) % this.items.length;
-    this.setSelected(next);
-  }
-
-  scrollUp(): void {
-    const prev = this.selectedIndex <= 0 
-      ? this.items.length - 1 
-      : this.selectedIndex - 1;
-    this.setSelected(prev);
-  }
-
-  getSelectedIndex(): number {
-    return this.selectedIndex;
-  }
+// 限制返回最多10条
+function getCliCommands(text: string) {
+  // ...模糊搜索逻辑
+  return commands.slice(0, 10); // 限制10条
 }
 ```
 
-### 2. cli.ts - 键盘处理
+### 2. hint-bar.ts - setSuggestions
 
 ```typescript
-// 键盘事件
-case 'down':
-  if (slashSuggestions.length > 0) {
-    suggestionList.scrollDown();
+// 简约展示，删除图标，限制10条
+setSuggestions(commands: SlashCommand[], selectedIndex: number): void {
+  this.clear();
+  this.showingSuggestions = true;
+  const display = commands.slice(0, 10); // Limit to 10
+  for (let i = 0; i < display.length; i++) {
+    const cmd = display[i];
+    const isSelected = i === selectedIndex;
+    const prefix = isSelected ? '> ' : '  ';
+    const name = cmd.name;
+    const desc = cmd.description.slice(0, 20);
+    this.addChild(new Text(`${prefix}/${name}  ${desc}`, 0, 0));
   }
-  break;
-
-case 'up':
-  if (slashSuggestions.length > 0) {
-    suggestionList.scrollUp();
-  }
-  break;
-
-case 'enter':
-  if (slashSuggestions.length > 0) {
-    const idx = suggestionList.getSelectedIndex();
-    const cmd = slashSuggestions[idx];
-    await handleSlashCommand(cmd.name, '');
-  }
-  break;
-```
-
-### 3. 模糊搜索
-
-```typescript
-function fuzzySearch(commands: SlashCommand[], query: string): SlashCommand[] {
-  const q = query.slice(1).toLowerCase();
-  if (!q) return commands.slice(0, 10);
-  
-  return commands
-    .filter(cmd => {
-      const name = cmd.name.toLowerCase();
-      return name.includes(q) || isSubsequence(name, q);
-    })
-    .slice(0, 10);
 }
 ```
 
 ---
 
-## 文件
+## 文件变更
 
 | 文件 | 变更 |
 |------|------|
-| `src/components/hint-bar.ts` | 新增 SuggestionList 类 |
-| `src/cli.ts` | 集成滑动 + 回车 |
-| `src/commands/index.ts` | fuzzySearch |
+| `src/cli.ts` | getCliCommands 限制10条 |
+| `src/components/hint-bar.ts` | 删除图标，简约展示 |
 
 ---
 
-**状态**: 待实施
+**状态**: ✅ 已实现
