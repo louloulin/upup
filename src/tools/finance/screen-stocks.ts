@@ -1,6 +1,7 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { z } from 'zod';
 import { getTushareClient, getToday } from '../astock/tushare-client';
+import { screenStocks as astockScreenStocks } from '../astock/screener-client';
 // ScreenInput 类型已内联定义
 import type { StructuredToolInterface } from '@langchain/core/tools';
 
@@ -214,7 +215,7 @@ export function createScreenStocksMulti(_model: string): StructuredToolInterface
 
           // Fallback to scraping
           try {
-            const { stocks, source } = await screenStocks(
+            const { stocks, source } = await astockScreenStocks(
               input.sector,
               input.exchange,
               limit
@@ -282,7 +283,3 @@ export function createScreenStocksMulti(_model: string): StructuredToolInterface
   });
 }
 
-// Mock screenStocks function for compatibility
-async function screenStocks(sector?: string, exchange?: string, limit?: number) {
-  return { stocks: [], source: 'mock' };
-}
