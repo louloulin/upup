@@ -14,7 +14,7 @@ import type { Skill, SkillCommand, SkillMetadata } from './types.js';
 import { discoverSkills, getSkill, getAllBundledSkills } from './registry.js';
 import { createSkillCommand, bundledSkillToSkill } from './executor.js';
 import { SkillCommandRegistry, getSkillCommandRegistry } from './slash-command.js';
-import { initInvestmentSkills } from './bundled/index.js';
+
 
 // ============================================================================
 // Global State
@@ -47,8 +47,6 @@ export async function initializeSkills(
     return registeredCommands.size;
   }
 
-  // Initialize bundled skills first
-  initInvestmentSkills();
 
   const skillRegistry = registry || getSkillCommandRegistry();
 

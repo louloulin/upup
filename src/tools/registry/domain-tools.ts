@@ -248,6 +248,28 @@ try {
   }
 } catch { /* swarm tools not available */ }
 
+// Specialized Skills tools (dream, verify, hunter, batch)
+try {
+  const { specializedTools } = await import('../../multi-agent/tools/specialized-skills.js');
+  for (const tool of specializedTools) {
+    if (!tool?.name) continue;
+    tools.push({
+      name: tool.name,
+      tool,
+      description: tool.description,
+      compactDescription: `Skill: ${tool.description}`,
+      concurrencySafe: true,
+      concurrencyMetadata: {
+        safe: true,
+        safetyLevel: 'safe',
+        category: 'system',
+        sideEffects: { readsFiles: false, writesFiles: true, makesNetworkRequests: false, hasRateLimit: false, modifiesState: true, spawnsProcess: false, hasFinancialImpact: false },
+        maxConcurrent: 5,
+      },
+    });
+  }
+} catch { /* specialized tools not available */ }
+
   return tools;
 }
 
