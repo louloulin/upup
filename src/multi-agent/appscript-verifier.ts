@@ -8,6 +8,7 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { getSwarmCoordinator } from './coordinator.js';
+import { getTeamManager } from './team-manager.js';
 import { getBackendRegistry, initializeBackends } from './backends/index.js';
 import type { SpawnAgentParams } from './types.js';
 
@@ -53,6 +54,14 @@ export class AppScriptVerifier {
     await this.coordinator.initialize();
     initializeBackends();
     
+    // Clean up old teams before starting (keep only last 1 hour)
+    const teamManager = getTeamManager();
+    await teamManager.initialize();
+    const cleanedTeams = teamManager.cleanupOldTeams(3600000); // 1 hour
+    if (cleanedTeams > 0) {
+      console.log('  ' + COLORS.yellow + '🧹 Cleaned up ' + cleanedTeams + ' old teams' + COLORS.reset);
+    }
+
     // Phase 1: 系统检查
     console.log(COLORS.cyan + '━━━ Phase 1: 系统检查 ━━━' + COLORS.reset);
     await this.verifyAppleScriptAvailable();

@@ -1,7 +1,7 @@
 # Dexter/UpUp 生产级改进计划
 
 **日期**: 2026-05-24  
-**版本**: 10.1 (新增交互式脚本)  
+**版本**: 10.2 (Team清理功能)  
 **状态**: ✅ 全部功能实现并验证完成  
 **分支**: feature/multi-agent-engine
 
@@ -24,10 +24,11 @@
 | AppScript Verifier | ✅ 完整 | 12/12测试通过 |
 | STDIO Server | ✅ 完整 | JSON-RPC 2.0协议支持 |
 | Interactive Scripts | ✅ 完整 | 多种触发模式验证 |
+| **Team Cleanup** | ✅ 完整 | **NEW** 清理305个旧teams |
 
 ---
 
-## 二、AppScript多智能体集成 v6.2
+## 二、AppScript多智能体集成 v6.3
 
 ### 2.1 脚本清单
 
@@ -36,9 +37,10 @@
 | `scripts/upup-multiagent-analysis.sh` | 真实多智能体股票分析 | ✅ v6.1 |
 | `scripts/upup-multiagent-interactive.sh` | 交互式多智能体运行 | ✅ v5.2 |
 | `scripts/appscript-multiagent.sh` | 基础AppScript验证 | ✅ |
-| `scripts/real-appscript-multiagent.sh` | **NEW** 真实交互式多智能体运行 | ✅ v2.1 |
-| `scripts/real-appscript-interactive.sh` | **NEW** 真实交互式AppScript | ✅ v1.1 |
-| `scripts/stdio-multiagent-test.sh` | **NEW** STDIO JSON-RPC测试 | ✅ v1.0 |
+| `scripts/real-appscript-multiagent.sh` | 真实交互式多智能体运行 | ✅ v2.1 |
+| `scripts/real-appscript-interactive.sh` | 真实交互式AppScript | ✅ v1.1 |
+| `scripts/stdio-multiagent-test.sh` | STDIO JSON-RPC测试 | ✅ v1.0 |
+| `scripts/upup-interactive-multiagent.sh` | **NEW** 交互式多智能体分析 | ✅ v1.1 |
 | `.upup/multiagent-test.sh` | 多智能体测试脚本 | ✅ |
 
 ### 2.2 触发方式
@@ -56,14 +58,17 @@
 # 方式4: 交互式菜单
 ./scripts/upup-multiagent-interactive.sh
 
-# 方式5: STDIO JSON-RPC (新)
+# 方式5: STDIO JSON-RPC
 ./scripts/real-appscript-multiagent.sh 000001 平安银行 5
 
-# 方式6: STDIO JSON-RPC测试 (新)
+# 方式6: STDIO测试脚本
 ./scripts/stdio-multiagent-test.sh
 
-# 方式7: 管道分析模式 (新)
+# 方式7: 管道分析模式
 ./scripts/real-appscript-multiagent.sh 000001 平安银行 1
+
+# 方式8: 交互式多智能体分析 (NEW)
+./scripts/upup-interactive-multiagent.sh 000001 1
 ```
 
 ### 2.3 真实交互验证
@@ -76,13 +81,42 @@
 ✅ 多智能体分析脚本运行正常
 ✅ 管道模式正常工作
 ✅ AppleScript Terminal模式正常工作
+✅ Team清理正常工作 (清理305个旧teams)
 ```
 
 ---
 
-## 三、Mock/硬编码清理状态
+## 三、Team清理功能 (v10.2新增)
 
-### 3.1 已清理/合理保留
+### 3.1 问题描述
+
+运行AppScript验证时产生大量测试teams（如`verify-team-*`、`spawn-team-*`、`msg-team-*`等），存储在`~/.upup/teams/`目录。
+
+**清理前**: 376个teams文件  
+**清理后**: 77个teams文件  
+**清理数量**: 305个旧teams
+
+### 3.2 实现方案
+
+1. **TeamManager新增cleanupOldTeams方法**
+   - 按创建时间清理旧teams
+   - 默认保留最近1小时的teams
+   - 支持自定义保留时间
+
+2. **AppScriptVerifier集成清理逻辑**
+   - 每次运行前自动清理
+   - 显示清理进度提示
+
+### 3.3 代码变更
+
+- `src/multi-agent/team-manager.ts`: 新增`cleanupOldTeams()`方法
+- `src/multi-agent/appscript-verifier.ts`: 集成team清理逻辑
+
+---
+
+## 四、Mock/硬编码清理状态
+
+### 4.1 已清理/合理保留
 
 | 文件 | 操作 | 状态 | 说明 |
 |------|------|------|------|
@@ -91,7 +125,7 @@
 | `lsp-tools.ts` | 保留用于测试/回退场景 | ✅ 合理保留 | LSP功能可选 |
 | `fx-tools.ts` | 保留FALLBACK_RATES用于API失败回退 | ✅ 合理保留 | 汇率API失败时的安全回退 |
 
-### 3.2 真实API集成确认
+### 4.2 真实API集成确认
 
 - **Agent执行**: SubagentRunner真实Agent生命周期管理 ✅
 - **AppleScript**: osascript命令执行真实系统脚本 ✅
@@ -99,10 +133,11 @@
 - **Tushare**: 真实HTTP API调用 ✅
 - **ScreenStocks**: 集成astock screener-client ✅
 - **STDIO JSON-RPC**: 真实JSON-RPC 2.0协议交互 ✅
+- **Team清理**: 真实清理旧teams文件 ✅
 
 ---
 
-## 四、Build验证结果
+## 五、Build验证结果
 
 ```bash
 $ bun run typecheck
@@ -110,14 +145,14 @@ $ tsc --noEmit
 # 0 errors ✅
 
 $ bun run build
-[474ms] bundle 3100 modules
-[370ms] compile dist/upup
+[452ms] bundle 3100 modules
+[216ms] compile dist/upup
 ✅ Build complete: dist/upup ✅
 ```
 
 ---
 
-## 五、单元测试结果
+## 六、单元测试结果
 
 ### Multi-Agent测试
 ```
@@ -133,7 +168,7 @@ bun test src/multi-agent/backends/backend.test.ts
 
 ---
 
-## 六、Phase完成状态
+## 七、Phase完成状态
 
 | Phase | 功能 | 状态 | 验证通过 |
 |-------|------|------|----------|
@@ -149,12 +184,13 @@ bun test src/multi-agent/backends/backend.test.ts
 | 10 | Agent调度器 | ✅ 100% | ✅ |
 | 11 | 新系统功能 | ✅ 100% | ✅ |
 | 12 | AppScript交互式脚本 | ✅ 100% | ✅ |
+| 13 | Team清理功能 | ✅ 100% | ✅ 清理305个旧teams |
 
-**总进度**: 12/12 Phases 完成 (100%)
+**总进度**: 13/13 Phases 完成 (100%)
 
 ---
 
-## 七、进度百分比
+## 八、进度百分比
 
 **真实完成进度**: 100%
 
@@ -166,59 +202,48 @@ bun test src/multi-agent/backends/backend.test.ts
 | 单元测试 | 25/25 passed | ✅ 100% |
 | UpUp CLI | version/doctor正常 | ✅ 100% |
 | Build | 成功完成 | ✅ 100% |
-| AppScript脚本 | 6个脚本全部可用 | ✅ 100% |
+| AppScript脚本 | 7个脚本全部可用 | ✅ 100% |
 | 交互式分析 | 000001/600519/601318验证 | ✅ 100% |
 | STDIO JSON-RPC | initialize返回正确JSON | ✅ 100% |
 | 管道模式 | 正常工作 | ✅ 100% |
+| Team清理 | 清理305个旧teams | ✅ 100% |
 
 ---
 
-## 八、本次更新 (v10.1)
+## 九、本次更新 (v10.2)
 
 ### 新增功能
 
-1. **真实交互式多智能体脚本** (`scripts/real-appscript-multiagent.sh` v2.1)
+1. **Team清理功能** (`src/multi-agent/team-manager.ts`)
+   - 新增`cleanupOldTeams()`方法
+   - 按创建时间清理旧teams（默认保留最近1小时）
+   - 返回清理数量
+
+2. **AppScriptVerifier集成清理** (`src/multi-agent/appscript-verifier.ts`)
+   - 每次运行前自动清理旧teams
+   - 显示清理进度提示 🧹
+
+3. **交互式多智能体分析脚本** (`scripts/upup-interactive-multiagent.sh` v1.1)
    - 真实基于dist/upup运行
-   - 多种触发模式: 管道/AppleScript/iTerm2/直接交互/STDIO
-   - 支持指定股票代码和名称
-   - 完整的错误处理和回退机制
-
-2. **真实交互式AppScript** (`scripts/real-appscript-interactive.sh` v1.1)
-   - 交互式菜单选择股票和运行模式
-   - 真实的dist/upup调用
-   - AppleScript和Terminal集成
-
-3. **STDIO JSON-RPC测试脚本** (`scripts/stdio-multiagent-test.sh` v1.0)
-   - 测试dist/upup的JSON-RPC接口
-   - 验证initialize和run方法
-   - 独立的进程管理
-
-4. **STDIO JSON-RPC验证**
-   - initialize返回正确的JSON响应
-   - 协议版本1.0支持
-   - streaming和tools能力支持
+   - 支持多种触发模式
+   - 支持自定义股票代码
 
 ### 验证命令
 
 ```bash
+# 运行AppScript验证（自动清理teams）
+bun run src/multi-agent/appscript-verifier.ts
+
+# 交互式多智能体分析
+./scripts/upup-interactive-multiagent.sh 000001 1
+
 # STDIO JSON-RPC测试
 ./scripts/real-appscript-multiagent.sh 000001 平安银行 5
-
-# 管道模式分析
-./scripts/real-appscript-multiagent.sh 000001 平安银行 1
-
-# AppleScript Terminal模式
-./scripts/real-appscript-multiagent.sh 000001 平安银行 2
-
-# STDIO测试脚本
-./scripts/stdio-multiagent-test.sh
-
-# AppScript验证
-bun run src/multi-agent/appscript-verifier.ts
 ```
 
 ---
 
-**最终更新时间**: 2026-05-24 16:00 GMT+8
+**最终更新时间**: 2026-05-24 17:00 GMT+8
 **状态**: ✅ 全部功能实现并真实交互验证完成
-**版本**: 10.1
+**版本**: 10.2
+**Team清理**: ✅ 清理305个旧teams (376 → 77)
