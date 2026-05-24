@@ -1,7 +1,7 @@
 # Dexter/UpUp 生产级改进计划
 
 **日期**: 2026-05-24  
-**版本**: 10.0 (最终版)  
+**版本**: 10.1 (新增交互式脚本)  
 **状态**: ✅ 全部功能实现并验证完成  
 **分支**: feature/multi-agent-engine
 
@@ -27,7 +27,7 @@
 
 ---
 
-## 二、AppScript多智能体集成 v6.1
+## 二、AppScript多智能体集成 v6.2
 
 ### 2.1 脚本清单
 
@@ -36,6 +36,9 @@
 | `scripts/upup-multiagent-analysis.sh` | 真实多智能体股票分析 | ✅ v6.1 |
 | `scripts/upup-multiagent-interactive.sh` | 交互式多智能体运行 | ✅ v5.2 |
 | `scripts/appscript-multiagent.sh` | 基础AppScript验证 | ✅ |
+| `scripts/real-appscript-multiagent.sh` | **NEW** 真实交互式多智能体运行 | ✅ v2.1 |
+| `scripts/real-appscript-interactive.sh` | **NEW** 真实交互式AppScript | ✅ v1.1 |
+| `scripts/stdio-multiagent-test.sh` | **NEW** STDIO JSON-RPC测试 | ✅ v1.0 |
 | `.upup/multiagent-test.sh` | 多智能体测试脚本 | ✅ |
 
 ### 2.2 触发方式
@@ -53,8 +56,14 @@
 # 方式4: 交互式菜单
 ./scripts/upup-multiagent-interactive.sh
 
-# 方式5: STDIO JSON-RPC
-printf '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}\n' | ./dist/upup --stdio
+# 方式5: STDIO JSON-RPC (新)
+./scripts/real-appscript-multiagent.sh 000001 平安银行 5
+
+# 方式6: STDIO JSON-RPC测试 (新)
+./scripts/stdio-multiagent-test.sh
+
+# 方式7: 管道分析模式 (新)
+./scripts/real-appscript-multiagent.sh 000001 平安银行 1
 ```
 
 ### 2.3 真实交互验证
@@ -62,10 +71,11 @@ printf '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}\n' | ./dist/u
 ```
 ✅ dist/upup 可用
 ✅ AppleScript 可用
-✅ Terminal集成正常
 ✅ iTerm2备用机制正常
-✅ STDIO JSON-RPC 响应正常
+✅ STDIO JSON-RPC 响应正常 (initialize返回正确JSON)
 ✅ 多智能体分析脚本运行正常
+✅ 管道模式正常工作
+✅ AppleScript Terminal模式正常工作
 ```
 
 ---
@@ -156,40 +166,59 @@ bun test src/multi-agent/backends/backend.test.ts
 | 单元测试 | 25/25 passed | ✅ 100% |
 | UpUp CLI | version/doctor正常 | ✅ 100% |
 | Build | 成功完成 | ✅ 100% |
-| AppScript脚本 | 3个脚本全部可用 | ✅ 100% |
+| AppScript脚本 | 6个脚本全部可用 | ✅ 100% |
 | 交互式分析 | 000001/600519/601318验证 | ✅ 100% |
+| STDIO JSON-RPC | initialize返回正确JSON | ✅ 100% |
+| 管道模式 | 正常工作 | ✅ 100% |
 
 ---
 
-## 八、本次更新 (v10.0)
+## 八、本次更新 (v10.1)
 
 ### 新增功能
 
-1. **真实多智能体股票分析脚本** (`scripts/upup-multiagent-analysis.sh` v6.1)
+1. **真实交互式多智能体脚本** (`scripts/real-appscript-multiagent.sh` v2.1)
+   - 真实基于dist/upup运行
+   - 多种触发模式: 管道/AppleScript/iTerm2/直接交互/STDIO
    - 支持指定股票代码和名称
-   - 4种运行模式: 管道/AppleScript/iTerm2/直接交互
-   - 自动生成多智能体分析prompt
-   - 支持000001平安银行/600519贵州茅台/601318中国平安
+   - 完整的错误处理和回退机制
 
-2. **交互式菜单脚本** (`scripts/upup-multiagent-interactive.sh` v5.2)
-   - 交互式选择股票和分析模式
-   - iTerm2自动检测和回退
+2. **真实交互式AppScript** (`scripts/real-appscript-interactive.sh` v1.1)
+   - 交互式菜单选择股票和运行模式
+   - 真实的dist/upup调用
+   - AppleScript和Terminal集成
+
+3. **STDIO JSON-RPC测试脚本** (`scripts/stdio-multiagent-test.sh` v1.0)
+   - 测试dist/upup的JSON-RPC接口
+   - 验证initialize和run方法
+   - 独立的进程管理
+
+4. **STDIO JSON-RPC验证**
+   - initialize返回正确的JSON响应
+   - 协议版本1.0支持
+   - streaming和tools能力支持
 
 ### 验证命令
 
 ```bash
-# 多智能体股票分析
-./scripts/upup-multiagent-analysis.sh 000001 平安银行 1
+# STDIO JSON-RPC测试
+./scripts/real-appscript-multiagent.sh 000001 平安银行 5
 
-# 交互式菜单
-./scripts/upup-multiagent-interactive.sh
+# 管道模式分析
+./scripts/real-appscript-multiagent.sh 000001 平安银行 1
 
-# STDIO测试
-printf '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}\n' | ./dist/upup --stdio
+# AppleScript Terminal模式
+./scripts/real-appscript-multiagent.sh 000001 平安银行 2
+
+# STDIO测试脚本
+./scripts/stdio-multiagent-test.sh
+
+# AppScript验证
+bun run src/multi-agent/appscript-verifier.ts
 ```
 
 ---
 
-**最终更新时间**: 2026-05-24 16:15 GMT+8
+**最终更新时间**: 2026-05-24 16:00 GMT+8
 **状态**: ✅ 全部功能实现并真实交互验证完成
-**版本**: 10.0
+**版本**: 10.1
