@@ -1,131 +1,43 @@
 /**
- * TeamTools - Team creation and management
- *
- * Allows agents to create teams, add/remove members, and manage team state.
- * Each team has its own memory store and member list.
+ * TeamTools - Team creation and management (Unified with TeamManager)
+ * 
+ * 基于Claude Code teamHelpers设计，统一使用TeamManager作为单一数据源。
+ * 提供团队创建、成员管理、状态更新等功能。
+ * 
+ * 改造说明:
+ * - 删除teamStore内存存储，使用TeamManager
+ * - 所有操作通过TeamManager API
+ * - 支持文件持久化和自动清理
  */
 
 import { z } from 'zod';
 import { DynamicStructuredTool } from '@langchain/core/tools';
-import { agentMemoryStore } from '../agent/subagent/types.js';
-
-/** Get the global agent memory store */
-function getMemoryStore() {
-  return agentMemoryStore;
-}
+import { getTeamManager } from '../multi-agent/team-manager.js';
 
 // ============================================================================
-// Types
+// Descriptions
 // ============================================================================
 
-export interface TeamMember {
-  id: string;
-  name: string;
-  role: string;
-  joinedAt: number;
-}
+export const TEAM_CREATE_DESCRIPTION = `Create a new team for multi-agent collaboration.
+Teams allow multiple AI agents to work together on complex tasks.
+Each team has a lead agent and can spawn multiple member agents.
+Example use cases: research teams, code review teams, analysis teams.`;
 
-export interface Team {
-  id: string;
-  name: string;
-  description: string;
-  members: TeamMember[];
-  createdAt: number;
-  status: 'active' | 'paused' | 'completed';
-}
+export const TEAM_DELETE_DESCRIPTION = `Delete an existing team and clean up all associated data.`;
 
-// ============================================================================
-// Team Store (singleton)
-// ============================================================================
+export const TEAM_LIST_DESCRIPTION = `List all existing teams with their status and member counts.
+Use this to find teams to join or manage.`;
 
-const teamStore = new Map<string, Team>();
+export const TEAM_ADD_MEMBER_DESCRIPTION = `Add a new member to an existing team.
+Members can be assigned specific roles like 'researcher', 'reviewer', or 'analyst'.`;
 
-function createTeamId(): string {
-  return `team-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-}
+export const TEAM_REMOVE_MEMBER_DESCRIPTION = `Remove a member from a team.
+The member will no longer receive messages or participate in team tasks.`;
 
-function getTeam(teamId: string): Team | undefined {
-  return teamStore.get(teamId);
-}
+export const TEAM_STATUS_DESCRIPTION = `Get detailed status of a specific team including all members.`;
 
-function createTeam(name: string, description: string): Team {
-  const team: Team = {
-    id: createTeamId(),
-    name,
-    description,
-    members: [],
-    createdAt: Date.now(),
-    status: 'active',
-  };
-  teamStore.set(team.id, team);
-  return team;
-}
-
-function deleteTeam(teamId: string): boolean {
-  const team = teamStore.get(teamId);
-  if (!team) return false;
-
-  // Clean up agent memory for all members (best-effort)
-  for (const member of team.members) {
-    try {
-      getMemoryStore().deleteByAgent(member.id);
-    } catch {
-      // Ignore cleanup errors
-    }
-  }
-
-  teamStore.delete(teamId);
-  return true;
-}
-
-function listTeams(): Team[] {
-  return Array.from(teamStore.values()).sort((a, b) => b.createdAt - a.createdAt);
-}
-
-function addTeamMember(
-  teamId: string,
-  name: string,
-  role: string
-): TeamMember | null {
-  const team = teamStore.get(teamId);
-  if (!team) return null;
-
-  const member: TeamMember = {
-    id: `${teamId}-${name}-${Date.now()}`,
-    name,
-    role,
-    joinedAt: Date.now(),
-  };
-
-  team.members.push(member);
-  return member;
-}
-
-function removeTeamMember(teamId: string, memberId: string): boolean {
-  const team = teamStore.get(teamId);
-  if (!team) return false;
-
-  const index = team.members.findIndex(m => m.id === memberId);
-  if (index === -1) return false;
-
-  const [removed] = team.members.splice(index, 1);
-  try {
-    getMemoryStore().deleteByAgent(removed.id);
-  } catch {
-    // Ignore cleanup errors
-  }
-  return true;
-}
-
-function updateTeamStatus(
-  teamId: string,
-  status: Team['status']
-): boolean {
-  const team = teamStore.get(teamId);
-  if (!team) return false;
-  team.status = status;
-  return true;
-}
+export const TEAM_UPDATE_STATUS_DESCRIPTION = `Update the status of a team (active/paused/completed).
+Pausing a team suspends all member activity until resumed.`;
 
 // ============================================================================
 // Schemas
@@ -139,8 +51,8 @@ export const TeamCreateSchema = z.object({
 });
 
 export const TeamDeleteSchema = z.object({
-  /** ID of the team to delete */
-  team_id: z.string().min(1).describe('ID of the team to delete'),
+  /** Name of the team to delete */
+  team_name: z.string().min(1).describe('Name of the team to delete'),
 });
 
 export const TeamListSchema = z.object({
@@ -151,8 +63,8 @@ export const TeamListSchema = z.object({
 });
 
 export const TeamAddMemberSchema = z.object({
-  /** ID of the team to add the member to */
-  team_id: z.string().min(1).describe('ID of the team'),
+  /** Name of the team to add the member to */
+  team_name: z.string().min(1).describe('Name of the team'),
   /** Name/identifier for the member */
   name: z.string().min(1).max(50).describe('Name for the team member'),
   /** Role of the member in the team */
@@ -160,102 +72,26 @@ export const TeamAddMemberSchema = z.object({
 });
 
 export const TeamRemoveMemberSchema = z.object({
-  /** ID of the team */
-  team_id: z.string().min(1).describe('ID of the team'),
-  /** ID of the member to remove */
-  member_id: z.string().min(1).describe('ID of the member to remove'),
+  /** Name of the team */
+  team_name: z.string().min(1).describe('Name of the team'),
+  /** Name of the member to remove */
+  member_name: z.string().min(1).describe('Name of the member to remove'),
 });
 
 export const TeamStatusSchema = z.object({
-  /** ID of the team to get status for */
-  team_id: z.string().min(1).describe('ID of the team'),
+  /** Name of the team to get status for */
+  team_name: z.string().min(1).describe('Name of the team'),
 });
 
 export const TeamUpdateStatusSchema = z.object({
-  /** ID of the team */
-  team_id: z.string().min(1).describe('ID of the team'),
+  /** Name of the team */
+  team_name: z.string().min(1).describe('Name of the team'),
   /** New status */
   status: z.enum(['active', 'paused', 'completed']).describe('New status for the team'),
 });
 
 // ============================================================================
-// Tool Descriptions
-// ============================================================================
-
-export const TEAM_CREATE_DESCRIPTION = `
-Create a new team for multi-agent collaboration.
-
-Use this when:
-- Setting up a research team with multiple specialized agents
-- Organizing agents for a complex task requiring different roles
-- Creating a structured group workflow
-
-A team provides shared context and organized membership for multiple agents.
-After creating a team, use team_add_member to add agents to it.
-
-Examples:
-- Create a research team: name: 'market-research', description: 'Stock analysis team'
-- Create a code review team: name: 'pr-review'`;
-
-export const TEAM_DELETE_DESCRIPTION = `
-Delete a team and clean up all associated resources.
-
-Use this when:
-- A team's work is complete
-- Team resources need to be freed
-- Resetting team state
-
-Warning: This will remove all team members and their associated memory.`;
-
-export const TEAM_LIST_DESCRIPTION = `
-List all teams, optionally filtered by status.
-
-Use this when:
-- Checking active teams
-- Finding a team by ID
-- Overview of team landscape
-
-Returns team summaries with member counts and status.`;
-
-export const TEAM_ADD_MEMBER_DESCRIPTION = `
-Add a member/agent to an existing team.
-
-Use this when:
-- Assigning a new agent to a team
-- Adding a specialist to a research team
-- Growing a team roster
-
-The member will have a unique ID within the team and can receive messages
-via the send_message tool with their ID as the recipient.`;
-
-export const TEAM_REMOVE_MEMBER_DESCRIPTION = `
-Remove a member from a team.
-
-Use this when:
-- An agent's work is complete
-- Reorganizing team membership
-- Cleaning up inactive members`;
-
-export const TEAM_STATUS_DESCRIPTION = `
-Get detailed status of a specific team.
-
-Use this when:
-- Checking team progress
-- Viewing all team members
-- Verifying team health
-
-Returns full team details including all members and their roles.`;
-
-export const TEAM_UPDATE_STATUS_DESCRIPTION = `
-Update the status of a team (active, paused, completed).
-
-Use this when:
-- Pausing a team's work
-- Marking a team as completed
-- Resuming a paused team`;
-
-// ============================================================================
-// Tool Factories
+// Tool Creators
 // ============================================================================
 
 export function createTeamCreateTool(): DynamicStructuredTool {
@@ -264,18 +100,29 @@ export function createTeamCreateTool(): DynamicStructuredTool {
     description: TEAM_CREATE_DESCRIPTION,
     schema: TeamCreateSchema,
     async func(input): Promise<string> {
-      const team = createTeam(input.name, input.description ?? '');
+      try {
+        const manager = getTeamManager();
+        await manager.initialize();
 
-      return [
-        `Team created successfully!`,
-        ``,
-        `Team ID: ${team.id}`,
-        `Name: ${team.name}`,
-        `Description: ${team.description || '(none)'}`,
-        `Status: ${team.status}`,
-        ``,
-        `Add members with team_add_member.`,
-      ].join('\n');
+        const team = manager.create({
+          name: input.name,
+          description: input.description,
+        });
+
+        const teamPath = manager.getTeamFilePath(team.name);
+
+        return [
+          `Team '${team.name}' created successfully!`,
+          ``,
+          `Lead: ${team.lead}`,
+          `Description: ${team.description || '(none)'}`,
+          `Created: ${new Date(team.createdAt).toLocaleString()}`,
+          ``,
+          `File: ${teamPath || 'N/A'}`,
+        ].join('\n');
+      } catch (error) {
+        return `Failed to create team: ${error instanceof Error ? error.message : String(error)}`;
+      }
     },
   });
 }
@@ -286,16 +133,17 @@ export function createTeamDeleteTool(): DynamicStructuredTool {
     description: TEAM_DELETE_DESCRIPTION,
     schema: TeamDeleteSchema,
     async func(input): Promise<string> {
-      const team = getTeam(input.team_id);
-      if (!team) {
-        return `Team '${input.team_id}' not found. Use team_list to see available teams.`;
+      try {
+        const manager = getTeamManager();
+        
+        const deleted = manager.deleteTeam(input.team_name);
+        if (deleted) {
+          return `Team '${input.team_name}' deleted successfully.`;
+        }
+        return `Team '${input.team_name}' not found or already deleted.`;
+      } catch (error) {
+        return `Failed to delete team: ${error instanceof Error ? error.message : String(error)}`;
       }
-
-      const deleted = deleteTeam(input.team_id);
-      if (deleted) {
-        return `Team '${team.name}' (${input.team_id}) deleted. ${team.members.length} member(s) removed.`;
-      }
-      return `Failed to delete team.`;
     },
   });
 }
@@ -306,33 +154,48 @@ export function createTeamListTool(): DynamicStructuredTool {
     description: TEAM_LIST_DESCRIPTION,
     schema: TeamListSchema,
     async func(input): Promise<string> {
-      let teams = listTeams();
+      try {
+        const manager = getTeamManager();
+        await manager.initialize();
 
-      if (input.status) {
-        teams = teams.filter(t => t.status === input.status);
+        let teams = manager.listTeams();
+
+        // Filter by status if specified
+        if (input.status) {
+          teams = teams.filter(t => t.status === input.status);
+        }
+
+        // Sort by created time (newest first)
+        teams.sort((a, b) => b.createdAt - a.createdAt);
+
+        // Apply limit
+        const limit = input.limit ?? 50;
+        const shown = teams.slice(0, limit);
+
+        if (shown.length === 0) {
+          return `No teams found${input.status ? ` with status '${input.status}'` : ''}.`;
+        }
+
+        const lines = [`Teams (${shown.length}${input.status ? `, status: ${input.status}` : ''}):\n`];
+
+        for (const team of shown) {
+          const statusIcon = team.status === 'active' ? '🟢' : team.status === 'paused' ? '⏸️' : '✅';
+          lines.push(`${statusIcon} ${team.name}`);
+          lines.push(`   Lead: ${team.lead} | Members: ${team.members.length} | Created: ${new Date(team.createdAt).toLocaleString()}`);
+          if (team.description) {
+            lines.push(`   Description: ${team.description}`);
+          }
+          lines.push('');
+        }
+
+        if (teams.length > limit) {
+          lines.push(`... and ${teams.length - limit} more (use limit to narrow)`);
+        }
+
+        return lines.join('\n');
+      } catch (error) {
+        return `Failed to list teams: ${error instanceof Error ? error.message : String(error)}`;
       }
-
-      const limit = input.limit ?? 50;
-      const shown = teams.slice(0, limit);
-
-      if (shown.length === 0) {
-        return `No teams found${input.status ? ` with status '${input.status}'` : ''}.`;
-      }
-
-      const lines = [`Teams (${shown.length}${input.status ? `, status: ${input.status}` : ''}):\n`];
-
-      for (const team of shown) {
-        const statusIcon = team.status === 'active' ? '🟢' : team.status === 'paused' ? '⏸️' : '✅';
-        lines.push(`${statusIcon} ${team.name} (${team.id})`);
-        lines.push(`   Members: ${team.members.length} | Created: ${new Date(team.createdAt).toLocaleString()}`);
-        lines.push('');
-      }
-
-      if (teams.length > limit) {
-        lines.push(`... and ${teams.length - limit} more (use limit to narrow)`);
-      }
-
-      return lines.join('\n');
     },
   });
 }
@@ -343,29 +206,27 @@ export function createTeamAddMemberTool(): DynamicStructuredTool {
     description: TEAM_ADD_MEMBER_DESCRIPTION,
     schema: TeamAddMemberSchema,
     async func(input): Promise<string> {
-      const team = getTeam(input.team_id);
-      if (!team) {
-        return `Team '${input.team_id}' not found. Use team_list to see available teams.`;
-      }
+      try {
+        const manager = getTeamManager();
+        await manager.initialize();
 
-      if (team.status !== 'active') {
-        return `Cannot add members to a ${team.status} team. Update status to 'active' first.`;
-      }
+        const member = manager.addMember(input.team_name, input.name, input.role);
+        if (!member) {
+          return `Team '${input.team_name}' not found. Use team_list to see available teams.`;
+        }
 
-      const member = addTeamMember(input.team_id, input.name, input.role);
-      if (!member) {
-        return `Failed to add member to team.`;
+        return [
+          `Member added to team '${input.team_name}'!`,
+          ``,
+          `Member ID: ${member.id}`,
+          `Name: ${member.name}`,
+          `Role: ${member.role}`,
+          ``,
+          `Use send_message tool to communicate with this member.`,
+        ].join('\n');
+      } catch (error) {
+        return `Failed to add member: ${error instanceof Error ? error.message : String(error)}`;
       }
-
-      return [
-        `Member added to team '${team.name}'!`,
-        ``,
-        `Member ID: ${member.id}`,
-        `Name: ${member.name}`,
-        `Role: ${member.role}`,
-        ``,
-        `Send messages to this member using send_message tool with to: '${member.id}'.`,
-      ].join('\n');
     },
   });
 }
@@ -376,21 +237,29 @@ export function createTeamRemoveMemberTool(): DynamicStructuredTool {
     description: TEAM_REMOVE_MEMBER_DESCRIPTION,
     schema: TeamRemoveMemberSchema,
     async func(input): Promise<string> {
-      const team = getTeam(input.team_id);
-      if (!team) {
-        return `Team '${input.team_id}' not found.`;
-      }
+      try {
+        const manager = getTeamManager();
+        await manager.initialize();
 
-      const member = team.members.find(m => m.id === input.member_id);
-      if (!member) {
-        return `Member '${input.member_id}' not found in team.`;
-      }
+        // Find member by name
+        const team = manager.getTeam(input.team_name);
+        if (!team) {
+          return `Team '${input.team_name}' not found.`;
+        }
 
-      const removed = removeTeamMember(input.team_id, input.member_id);
-      if (removed) {
-        return `Member '${member.name}' removed from team '${team.name}'.`;
+        const member = team.members.find(m => m.name === input.member_name);
+        if (!member) {
+          return `Member '${input.member_name}' not found in team.`;
+        }
+
+        const removed = manager.removeMember(input.team_name, member.id);
+        if (removed) {
+          return `Member '${input.member_name}' removed from team '${input.team_name}'.`;
+        }
+        return `Failed to remove member.`;
+      } catch (error) {
+        return `Failed to remove member: ${error instanceof Error ? error.message : String(error)}`;
       }
-      return `Failed to remove member.`;
     },
   });
 }
@@ -401,32 +270,39 @@ export function createTeamStatusTool(): DynamicStructuredTool {
     description: TEAM_STATUS_DESCRIPTION,
     schema: TeamStatusSchema,
     async func(input): Promise<string> {
-      const team = getTeam(input.team_id);
-      if (!team) {
-        return `Team '${input.team_id}' not found. Use team_list to see available teams.`;
-      }
+      try {
+        const manager = getTeamManager();
+        await manager.initialize();
 
-      const statusIcon = team.status === 'active' ? '🟢' : team.status === 'paused' ? '⏸️' : '✅';
-      const lines = [
-        `=== Team: ${team.name} ===`,
-        `ID: ${team.id}`,
-        `Status: ${statusIcon} ${team.status}`,
-        `Description: ${team.description || '(none)'}`,
-        `Created: ${new Date(team.createdAt).toLocaleString()}`,
-        ``,
-        `Members (${team.members.length}):`,
-      ];
-
-      if (team.members.length === 0) {
-        lines.push('  (no members)');
-      } else {
-        for (const member of team.members) {
-          lines.push(`  - ${member.name} (${member.role})`);
-          lines.push(`    ID: ${member.id} | Joined: ${new Date(member.joinedAt).toLocaleString()}`);
+        const team = manager.getTeam(input.team_name);
+        if (!team) {
+          return `Team '${input.team_name}' not found. Use team_list to see available teams.`;
         }
-      }
 
-      return lines.join('\n');
+        const statusIcon = team.status === 'active' ? '🟢' : team.status === 'paused' ? '⏸️' : '✅';
+        const lines = [
+          `=== Team: ${team.name} ===`,
+          `Lead: ${team.lead}`,
+          `Status: ${statusIcon} ${team.status}`,
+          `Description: ${team.description || '(none)'}`,
+          `Created: ${new Date(team.createdAt).toLocaleString()}`,
+          ``,
+          `Members (${team.members.length}):`,
+        ];
+
+        if (team.members.length === 0) {
+          lines.push('  (no members)');
+        } else {
+          for (const member of team.members) {
+            lines.push(`  - ${member.name} (${member.role})`);
+            lines.push(`    Status: ${member.status} | Joined: ${new Date(member.joinedAt).toLocaleString()}`);
+          }
+        }
+
+        return lines.join('\n');
+      } catch (error) {
+        return `Failed to get team status: ${error instanceof Error ? error.message : String(error)}`;
+      }
     },
   });
 }
@@ -437,18 +313,20 @@ export function createTeamUpdateStatusTool(): DynamicStructuredTool {
     description: TEAM_UPDATE_STATUS_DESCRIPTION,
     schema: TeamUpdateStatusSchema,
     async func(input): Promise<string> {
-      const team = getTeam(input.team_id);
-      if (!team) {
-        return `Team '${input.team_id}' not found.`;
-      }
+      try {
+        const manager = getTeamManager();
+        await manager.initialize();
 
-      const updated = updateTeamStatus(input.team_id, input.status);
-      if (!updated) {
-        return `Failed to update team status.`;
-      }
+        const updated = manager.updateTeamStatus(input.team_name, input.status);
+        if (!updated) {
+          return `Team '${input.team_name}' not found.`;
+        }
 
-      const statusIcon = input.status === 'active' ? '🟢' : input.status === 'paused' ? '⏸️' : '✅';
-      return `Team '${team.name}' status updated to ${statusIcon} ${input.status}.`;
+        const statusIcon = input.status === 'active' ? '🟢' : input.status === 'paused' ? '⏸️' : '✅';
+        return `Team '${input.team_name}' status updated to ${statusIcon} ${input.status}.`;
+      } catch (error) {
+        return `Failed to update team status: ${error instanceof Error ? error.message : String(error)}`;
+      }
     },
   });
 }
@@ -456,3 +334,13 @@ export function createTeamUpdateStatusTool(): DynamicStructuredTool {
 // ============================================================================
 // Module Exports
 // ============================================================================
+
+export const teamTools = [
+  createTeamCreateTool,
+  createTeamDeleteTool,
+  createTeamListTool,
+  createTeamAddMemberTool,
+  createTeamRemoveMemberTool,
+  createTeamStatusTool,
+  createTeamUpdateStatusTool,
+];

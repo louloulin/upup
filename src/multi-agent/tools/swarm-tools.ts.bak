@@ -1,17 +1,12 @@
 /**
- * Swarm Tools - 多智能体工具定义 (Unified with TeamManager)
+ * Swarm Tools - 多智能体工具定义
  * 
- * 提供给LLM使用的多智能体工具:
- * - swarm_team_create: 创建团队
- * - swarm_agent_spawn: spawn子Agent
- * - swarm_agent_message: Agent间消息
- * - swarm_agent_results: 获取结果
- * - swarm_team_list: 列出团队
- * 
- * 改造说明:
- * - 使用TeamManager作为统一数据源
- * - 删除重复的team定义
- * - 与team-tools.ts保持接口一致
+ * 提供给LLM使用的工具:
+ * - team_create: 创建团队
+ * - team_add_member: 添加成员
+ * - agent_spawn: spawn子Agent
+ * - agent_message: Agent间消息
+ * - agent_results: 获取结果
  */
 
 import { DynamicStructuredTool } from '@langchain/core/tools';
@@ -30,32 +25,12 @@ import type {
 } from '../types.js';
 
 // ============================================================================
-// Tool Descriptions
-// ============================================================================
-
-const SWARM_TEAM_CREATE_DESCRIPTION = `[SWARM] Create a new multi-agent team for collaborative work.
-Teams allow multiple AI agents to work together on complex tasks.
-Example: Create a 'stock-analysis' team with researcher, analyst, and summarizer agents.`;
-
-const SWARM_AGENT_SPAWN_DESCRIPTION = `[SWARM] Spawn a new agent in an existing team.
-The agent will work on the assigned task and can communicate with other team members.
-Use this to delegate tasks to specialized agents.`;
-
-const SWARM_AGENT_MESSAGE_DESCRIPTION = `[SWARM] Send a message from one agent to another in the same team.
-Used for inter-agent communication and coordination.`;
-
-const SWARM_AGENT_RESULTS_DESCRIPTION = `[SWARM] Get results from agents in a team.
-Can retrieve all agent results or a specific agent.`;
-
-const SWARM_TEAM_LIST_DESCRIPTION = `[SWARM] List all existing teams and their status.`;
-
-// ============================================================================
 // Team Create Tool
 // ============================================================================
 
 export const teamCreateTool = new DynamicStructuredTool({
   name: 'swarm_team_create',
-  description: SWARM_TEAM_CREATE_DESCRIPTION,
+  description: '[SWARM] Create a new multi-agent team for collaborative work. Teams allow multiple AI agents to work together on complex tasks.',
   
   schema: z.object({
     team_name: z.string().describe('Unique name for the team'),
@@ -68,7 +43,6 @@ export const teamCreateTool = new DynamicStructuredTool({
       const coordinator = getSwarmCoordinator();
       await coordinator.initialize();
 
-      // Use TeamManager for team creation (unified data source)
       const team = coordinator.createTeam(team_name, description, agent_type);
       const teamPath = getTeamManager().getTeamFilePath(team.name);
 
@@ -78,11 +52,9 @@ export const teamCreateTool = new DynamicStructuredTool({
         lead_agent_id: team.lead,
       };
 
-      return JSON.stringify(result, null, 2);
+      return JSON.stringify(result);
     } catch (error) {
-      return JSON.stringify({ 
-        error: error instanceof Error ? error.message : String(error) 
-      }, null, 2);
+      return JSON.stringify({ error: error instanceof Error ? error.message : String(error) });
     }
   },
 });
@@ -93,7 +65,7 @@ export const teamCreateTool = new DynamicStructuredTool({
 
 export const agentSpawnTool = new DynamicStructuredTool({
   name: 'swarm_agent_spawn',
-  description: SWARM_AGENT_SPAWN_DESCRIPTION,
+  description: 'Spawn a new agent in an existing team. The agent will work on the assigned task and can communicate with other team members.',
   
   schema: z.object({
     team_name: z.string().describe('Name of the team to spawn agent in'),
@@ -125,11 +97,9 @@ export const agentSpawnTool = new DynamicStructuredTool({
         status: agent.status as "pending" | "running",
       };
 
-      return JSON.stringify(result, null, 2);
+      return JSON.stringify(result);
     } catch (error) {
-      return JSON.stringify({ 
-        error: error instanceof Error ? error.message : String(error) 
-      }, null, 2);
+      return JSON.stringify({ error: error instanceof Error ? error.message : String(error) });
     }
   },
 });
@@ -140,7 +110,7 @@ export const agentSpawnTool = new DynamicStructuredTool({
 
 export const agentMessageTool = new DynamicStructuredTool({
   name: 'swarm_agent_message',
-  description: SWARM_AGENT_MESSAGE_DESCRIPTION,
+  description: 'Send a message from one agent to another in the same team. Used for inter-agent communication and coordination.',
   
   schema: z.object({
     from_agent: z.string().describe('Source agent ID or name'),
@@ -164,11 +134,9 @@ export const agentMessageTool = new DynamicStructuredTool({
         delivered: success,
       };
 
-      return JSON.stringify(result, null, 2);
+      return JSON.stringify(result);
     } catch (error) {
-      return JSON.stringify({ 
-        error: error instanceof Error ? error.message : String(error) 
-      }, null, 2);
+      return JSON.stringify({ error: error instanceof Error ? error.message : String(error) });
     }
   },
 });
@@ -179,7 +147,7 @@ export const agentMessageTool = new DynamicStructuredTool({
 
 export const agentResultsTool = new DynamicStructuredTool({
   name: 'swarm_agent_results',
-  description: SWARM_AGENT_RESULTS_DESCRIPTION,
+  description: '[SWARM] Get results from agents in a team. Can retrieve all agent results or a specific agent.',
   
   schema: z.object({
     team_name: z.string().describe('Name of the team'),
@@ -201,11 +169,9 @@ export const agentResultsTool = new DynamicStructuredTool({
         })),
       };
 
-      return JSON.stringify(result, null, 2);
+      return JSON.stringify(result);
     } catch (error) {
-      return JSON.stringify({ 
-        error: error instanceof Error ? error.message : String(error) 
-      }, null, 2);
+      return JSON.stringify({ error: error instanceof Error ? error.message : String(error) });
     }
   },
 });
@@ -216,17 +182,16 @@ export const agentResultsTool = new DynamicStructuredTool({
 
 export const teamListTool = new DynamicStructuredTool({
   name: 'swarm_team_list',
-  description: SWARM_TEAM_LIST_DESCRIPTION,
+  description: '[SWARM] List all existing teams and their status.',
   
   schema: z.object({}),
 
   func: async (): Promise<string> => {
     try {
       const manager = getTeamManager();
-      await manager.initialize();
       const teams = manager.listTeams();
 
-      const result = {
+      return JSON.stringify({
         teams: teams.map(t => ({
           name: t.name,
           description: t.description,
@@ -234,13 +199,9 @@ export const teamListTool = new DynamicStructuredTool({
           status: t.status,
           created_at: new Date(t.createdAt).toISOString(),
         })),
-      };
-
-      return JSON.stringify(result, null, 2);
+      });
     } catch (error) {
-      return JSON.stringify({ 
-        error: error instanceof Error ? error.message : String(error) 
-      }, null, 2);
+      return JSON.stringify({ error: error instanceof Error ? error.message : String(error) });
     }
   },
 });
