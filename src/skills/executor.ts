@@ -649,6 +649,10 @@ export interface SkillCommandMatch {
 /**
  * Execute a skill command from CLI.
  *
+ * Uses SkillCommandRegistry as single source of truth:
+ * 1. Get SkillCommand via getSkillCommand() (contains getPromptForCommand)
+ * 2. Call getPromptForCommand directly for execution
+ *
  * @param commandName - The command name (without /)
  * @param args - Arguments to pass
  * @param context - Execution context
@@ -668,31 +672,22 @@ export async function executeSkillCommand(
     // Import and initialize skills
     const { initializeSkills } = await import('./commands.js');
     const { getSkillCommandRegistry } = await import('./slash-command.js');
-    const { getSkill } = await import('./registry.js');
+    const { recordUsage } = await import('./recent-usage.js');
     await initializeSkills();
 
-    // Check if this is a skill command
+    // Get SkillCommand directly from registry (P0 fix: use getSkillCommand, not getCommand)
     const registry = getSkillCommandRegistry();
-    const skillCmd = registry.getCommand(commandName);
+    const skillCmd = registry.getSkillCommand(commandName);
 
     if (!skillCmd) {
       return null; // Not a skill command
     }
 
-    // Get skill metadata
-    const skill = skillCmd.metadata;
-    if (!skill) {
-      return { type: 'error', message: `Skill metadata not found for ${commandName}` };
-    }
+    // P3: Record usage asynchronously (don't block execution)
+    recordUsage(skillCmd.name).catch(() => {});
 
-    // Get the full skill
-    const fullSkill = getSkill(skill.name);
-    if (!fullSkill) {
-      return { type: 'error', message: `Skill not found: ${skill.name}` };
-    }
-
-    // Execute the skill and get prompt
-    const content = await getPromptForCommand(fullSkill, args, {
+    // Execute via getPromptForCommand (P0 fix: use SkillCommand directly)
+    const content = await skillCmd.getPromptForCommand(args, {
       cwd: context.cwd,
     });
 

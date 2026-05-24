@@ -91,22 +91,45 @@ export function getSkillName(input: string): string | null {
 
 /**
  * Skill command registry
+ *
+ * This registry serves as the single source of truth for all skill commands.
+ * It maintains two types of data:
+ * - SkillCommandRegistration: lightweight metadata for autocomplete (includes triggers)
+ * - SkillCommand: full command with getPromptForCommand() for execution
+ *
+ * Architecture aligns with Loucode's getSkillDirCommands() pattern.
  */
 export class SkillCommandRegistry {
+  // For autocomplete (includes triggers as aliases)
   private commands: Map<string, SkillCommandRegistration> = new Map();
+  // For metadata lookup
   private skills: Map<string, SkillMetadata> = new Map();
+  // For execution (SkillCommand with getPromptForCommand)
+  private skillCommands: Map<string, import('./types.js').SkillCommand> = new Map();
+  // P2: Lazy initialization flag for fuzzy search
+  private searchIndexInitialized = false;
 
   /**
-   * Register a skill command
+   * Register a skill command (for autocomplete)
    */
   register(registration: SkillCommandRegistration): void {
     this.commands.set((registration.name || "").toLowerCase(), registration);
   }
 
   /**
-   * Register a skill (internal metadata)
+   * Register a skill command for execution (SkillCommand with getPromptForCommand)
+   * This stores the full command object needed for execution.
    */
-  registerSkill(metadata: SkillMetadata): void {
+  registerSkillCommand(name: string, command: import('./types.js').SkillCommand): void {
+    this.skillCommands.set(name.toLowerCase(), command);
+  }
+
+  /**
+   * Register a skill (internal metadata)
+   * @param metadata - Skill metadata
+   * @param command - Optional SkillCommand for registering triggers to execution Map
+   */
+  registerSkill(metadata: SkillMetadata, command?: import('./types.js').SkillCommand): void {
     this.skills.set((metadata.name || "").toLowerCase(), metadata);
 
     // Auto-register if user_invocable
@@ -118,26 +141,39 @@ export class SkillCommandRegistry {
         metadata,
       });
 
-      // Also register triggers
+      // Also register triggers to both maps
       for (const trigger of metadata.triggers) {
         const triggerName = trigger.replace(/^\//, '').toLowerCase();
         if (triggerName !== (metadata.name || "").toLowerCase()) {
+          // Register to commands Map (for autocomplete)
           this.register({
             name: triggerName,
             description: metadata.description ?? '',
             skillPath: metadata.path,
             metadata,
           });
+
+          // Register to skillCommands Map (for execution) if command provided
+          if (command) {
+            this.skillCommands.set(triggerName, command);
+          }
         }
       }
     }
   }
 
   /**
-   * Get command by name
+   * Get command by name (for autocomplete)
    */
   getCommand(name: string): SkillCommandRegistration | undefined {
     return this.commands.get(name.toLowerCase());
+  }
+
+  /**
+   * Get skill command for execution (with getPromptForCommand)
+   */
+  getSkillCommand(name: string): import('./types.js').SkillCommand | undefined {
+    return this.skillCommands.get(name.toLowerCase());
   }
 
   /**
@@ -148,10 +184,17 @@ export class SkillCommandRegistry {
   }
 
   /**
-   * Get all commands
+   * Get all commands (for autocomplete)
    */
   getAllCommands(): SkillCommandRegistration[] {
     return [...this.commands.values()];
+  }
+
+  /**
+   * Get all skill commands (for execution)
+   */
+  getAllSkillCommands(): import('./types.js').SkillCommand[] {
+    return [...this.skillCommands.values()];
   }
 
   /**
@@ -176,7 +219,14 @@ export class SkillCommandRegistry {
   }
 
   /**
-   * Search commands by prefix
+   * Check if skill command exists (for execution)
+   */
+  hasSkillCommand(name: string): boolean {
+    return this.skillCommands.has(name.toLowerCase());
+  }
+
+  /**
+   * Search commands by prefix (for autocomplete)
    */
   searchCommands(prefix: string): SkillCommandRegistration[] {
     const lowerPrefix = prefix.toLowerCase();
@@ -186,18 +236,73 @@ export class SkillCommandRegistry {
   }
 
   /**
+   * Fuzzy search skill commands using Fuse.js
+   * Lazy initializes search index only when needed
+   */
+  searchSkillsFuzzy(query: string, limit?: number): import('./types.js').SkillCommand[] {
+    // Lazy import to avoid circular dependency
+    const { searchSkillsSorted, initFuseSearch } = require('./search.js');
+
+    // Lazy initialization: only init once
+    if (!this.searchIndexInitialized) {
+      initFuseSearch(this.getAllSkillCommands());
+      this.searchIndexInitialized = true;
+    }
+
+    return searchSkillsSorted(query, { limit });
+  }
+
+  /**
+   * Fuzzy search with recent usage boost
+   * Prioritizes recently/frequently used skills
+   */
+  searchSkillsWithRecent(query: string, limit?: number): import('./types.js').SkillCommand[] {
+    // Lazy import to avoid circular dependency
+    const { searchSkillsWithRecent: searchWithRecent, initFuseSearch } = require('./search.js');
+
+    // Lazy initialization: only init once
+    if (!this.searchIndexInitialized) {
+      initFuseSearch(this.getAllSkillCommands());
+      this.searchIndexInitialized = true;
+    }
+
+    return searchWithRecent(query, { limit });
+  }
+
+  /**
+   * Initialize search index for fuzzy search (explicit)
+   */
+  initSearchIndex(): void {
+    if (this.searchIndexInitialized) {
+      return; // Already initialized
+    }
+    const { initFuseSearch } = require('./search.js');
+    initFuseSearch(this.getAllSkillCommands());
+    this.searchIndexInitialized = true;
+  }
+
+  /**
    * Clear all registrations
    */
   clear(): void {
     this.commands.clear();
     this.skills.clear();
+    this.skillCommands.clear();
+    this.searchIndexInitialized = false; // P2: Reset search index
   }
 
   /**
-   * Get command count
+   * Get command count (for autocomplete)
    */
   get size(): number {
     return this.commands.size;
+  }
+
+  /**
+   * Get skill command count (for execution)
+   */
+  get skillCommandCount(): number {
+    return this.skillCommands.size;
   }
 
   /**

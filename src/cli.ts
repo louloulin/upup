@@ -45,34 +45,36 @@ import {
 import { editorTheme, theme } from './theme.js';
 import { matchCommands, type SlashCommand } from './commands/index.js';
 import { initSpinner } from './utils/spinner.js';
-import { initializeSkills, getSkillCommandRegistry } from './skills/index.js';
+import { initializeSkills, getSkillCommandRegistry, getRegisteredCommandCount } from './skills/index.js';
 
 /**
  * Get skill commands merged with CLI commands.
- * This ensures skill commands appear in command suggestions.
+ * Uses fuzzy search (Fuse.js) for better matching.
+ * P2: Search index is lazily initialized by the registry itself.
  */
 function getCliCommands(text: string) {
   // Get base CLI commands
-  const commands = [...matchCommands(text)];
+  const commands: SlashCommand[] = [...matchCommands(text)];
 
-  // Try to add skill commands
+  // Try to add skill commands using fuzzy search
   try {
     const registry = getSkillCommandRegistry();
-    const skillCmds = registry.getAllCommands();
-    const existingNames = new Set(commands.map(c => c.name));
+    const query = text.startsWith('/') ? text.slice(1).trim() : '';
 
-    for (const cmd of skillCmds) {
-      const name = cmd.name.toLowerCase();
-      const desc = cmd.description.toLowerCase();
-      const query = text.startsWith('/') ? text.slice(1).toLowerCase() : text.toLowerCase();
+    // Get matching skills using fuzzy search
+    // P2: registry.initSearchIndex() is called internally if needed
+    const matchedSkills = query
+      ? registry.searchSkillsFuzzy(query, 10)  // Fuzzy search with limit
+      : registry.getAllSkillCommands().slice(0, 10); // Default: first 10
 
-      // Check if this skill matches the query
-      const matches = !query || name.startsWith(query) || name.includes(query) || desc.includes(query);
+    const existingNames = new Set(commands.map(c => c.name.toLowerCase()));
 
-      if (matches && !existingNames.has(name)) {
+    for (const skill of matchedSkills) {
+      const name = skill.name.toLowerCase();
+      if (!existingNames.has(name)) {
         commands.push({
-          name: cmd.name,
-          description: cmd.description,
+          name: skill.name,
+          description: skill.description,
           category: 'skill' as const,
         });
       }
@@ -310,9 +312,17 @@ export async function runCli(options: RunCliOptions = {}) {
     permissionMode: options.permissionMode,
   } as PermissionCliArgs)
   setPermissionMode(mode)
-  
+
   if (notification) {
     console.log(`[Permissions] ${notification}`)
+  }
+
+  // Initialize skills system - must be called before getCliCommands()
+  try {
+    await initializeSkills();
+    console.log(`[Skills] Initialized ${getRegisteredCommandCount()} skills`);
+  } catch (e) {
+    console.warn('[Skills] Failed to initialize:', e);
   }
 
   const tui = new TUI(new ProcessTerminal());
