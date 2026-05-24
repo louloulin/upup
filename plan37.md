@@ -206,3 +206,51 @@ bun run src/multi-agent/appscript-verifier.ts
 **最终更新时间**: 2026-05-24 15:41 GMT+8
 **状态**: ✅ 全部功能实现并真实交互验证完成
 **版本**: 9.1
+
+---
+
+## 九、AppScript交互式运行 v5.2
+
+### 9.1 新增脚本
+
+| 脚本 | 功能 | 状态 |
+|------|------|------|
+| `scripts/upup-multiagent-interactive.sh` | 真实交互式多智能体运行 | ✅ v5.2 |
+
+### 9.2 触发方式
+
+```bash
+# 方式1: 多智能体股票分析
+./scripts/upup-multiagent-interactive.sh 1
+
+# 方式2: AppleScript+Terminal
+./scripts/upup-multiagent-interactive.sh 2
+
+# 方式3: iTerm2集成 (Terminal备用)
+./scripts/upup-multiagent-interactive.sh 3
+
+# 方式4: 直接运行
+./scripts/upup-multiagent-interactive.sh 4
+
+# 方式5: STDIO测试
+./scripts/upup-multiagent-interactive.sh 5
+```
+
+### 9.3 真实交互验证
+
+- ✅ dist/upup 可用
+- ✅ AppleScript 可用
+- ✅ Terminal集成正常
+- ✅ iTerm2备用机制正常
+
+### 9.4 技术实现
+
+1. **直接运行**: 通过管道传递prompt到UpUp
+2. **AppleScript Terminal**: 使用osascript启动Terminal并运行UpUp
+3. **iTerm2**: iTerm2可用时使用，否则回退到Terminal
+4. **STDIO JSON-RPC**: 支持JSON-RPC 2.0协议
+
+---
+
+**更新时间**: 2026-05-24 15:55 GMT+8
+**版本**: 9.2
