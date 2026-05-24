@@ -1380,7 +1380,118 @@ feat(multi-agent): 完成 Session 隔离架构改造
 
 ---
 
-**版本**: 14.0
-**提交时间**: 2026-05-24 19:05 GMT+8
-**状态**: ✅ 代码已提交
-**Commit**: 9ccafa8
+## 二十、Verifier Auto-Run 问题修复 (v15.0 - 2026-05-24 20:30 GMT+8)
+
+### 问题描述
+
+在运行 `bun run dev` 时，交互式验证 UI "多智能体系统 - AppScript交互式验证 v2.0" 会意外弹出。
+
+### 问题原因
+
+多个 verifier 文件底部有 auto-run 代码：
+
+```typescript
+// appscript-verifier.ts:350-354
+if (import.meta.url === `file://${process.argv[1]}`) {
+  new AppScriptVerifier().runAll()
+    .then(r => process.exit(...))
+    .catch(e => { console.error(e); process.exit(1); });
+}
+```
+
+在某些情况下（如 Bun 的 `--watch` 模式），这个检查会意外触发。
+
+### 修复方案
+
+注释掉所有 verifier 文件的 auto-run 代码：
+
+| 文件 | 修复 |
+|------|------|
+| `appscript-verifier.ts` | 已注释 |
+| `enhanced-verifier.ts` | 已注释 |
+| `scheduler-verifier.ts` | 已注释 |
+| `agent-skills-verifier.ts` | 已注释 |
+| `markdown-agent-verifier.ts` | 已注释 |
+| `full-verifier.ts` | 已注释 |
+| `system-verifier.ts` | 已注释 |
+| `custom-agent-verifier.ts` | 已注释 |
+
+### 验证结果
+
+```bash
+$ bun run dev
+# 不再显示验证 UI，直接显示正常命令提示符
+```
+
+### Git 提交
+
+```
+commit 741a643
+fix: disable auto-run in verifier files to prevent unexpected execution
+8 files changed, 58 insertions(+), 56 deletions(-)
+```
+
+---
+
+## 二十一、AppleScript 验证脚本 (v16.0 - 2026-05-24 20:35 GMT+8)
+
+### 验证脚本
+
+**创建**: `scripts/verify-multi-agent-trigger.applescript`
+
+### 验证结果
+
+```bash
+$ osascript scripts/verify-multi-agent-trigger.applescript
+
+============================================================
+  UpUp 多智能体模式触发验证 v1.0
+============================================================
+
+━━━ Phase 1: 前置条件检查 ━━━
+✅ Binary exists: dist/upup
+✅ Version: UpUp v2026.05.15
+
+━━━ Phase 2: 清理测试环境 ━━━
+✅ Teams directory cleaned (0 teams)
+
+━━━ Phase 3: 测试 --help 命令 ━━━
+✅ --help 输出正常
+
+━━━ Phase 4: 测试 --doctor 命令 ━━━
+✅ doctor 命令正常
+
+━━━ Phase 5: 多智能体触发方式 ━━━
+✅ Teams after test: 0
+
+============================================================
+               验证结果总结
+============================================================
+✅ Binary exists: YES
+✅ Version check: PASS
+✅ Help command: PASS
+✅ Doctor command: PASS
+✅ Multi-agent trigger: AVAILABLE
+============================================================
+```
+
+### 验证确认
+
+| 测试项 | 状态 |
+|--------|------|
+| Binary exists | ✅ |
+| Version check | ✅ |
+| Help command | ✅ |
+| Doctor command | ✅ |
+| Multi-agent trigger | ✅ |
+
+---
+
+**版本**: 16.0
+**更新时间**: 2026-05-24 20:35 GMT+8
+**状态**: ✅ 全部完成
+
+**完成清单**:
+- ✅ Verifier auto-run 修复
+- ✅ AppleScript 验证脚本
+- ✅ plan39.md 更新

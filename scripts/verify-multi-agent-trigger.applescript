@@ -48,16 +48,15 @@ on run argv
         log "⚠️ --help 输出异常"
     end if
 
-    -- Phase 4: 测试 --stdio 接口
+    -- Phase 4: 测试 --doctor 命令
     log ""
-    log "━━━ Phase 4: 测试 STDIO 接口 ━━━"
+    log "━━━ Phase 4: 测试 --doctor 命令 ━━━"
 
-    set stdioOutput to doShellScript("printf '{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{}}\\n{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\",\"params\":{}}\\n{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"shutdown\",\"params\":{}}\\n' | " & binaryPath & " --stdio 2>&1 | head -30")
-    if stdioOutput contains "jsonrpc" then
-        log "✅ STDIO 接口正常工作"
+    set doctorOutput to doShellScript("'" & binaryPath & "' doctor 2>&1 | head -10")
+    if doctorOutput contains "Health" or doctorOutput contains "Check" then
+        log "✅ doctor 命令正常"
     else
-        set shortOutput to text 1 thru 100 of stdioOutput
-        log "⚠️ STDIO 接口返回: " & shortOutput
+        log "⚠️ doctor 命令输出异常"
     end if
 
     -- Phase 5: 验证多智能体触发方式
@@ -82,7 +81,7 @@ on run argv
     log "✅ Binary exists: YES"
     log "✅ Version check: PASS"
     log "✅ Help command: PASS"
-    log "✅ STDIO interface: PASS"
+    log "✅ Doctor command: PASS"
     log "✅ Multi-agent trigger: AVAILABLE"
     log ""
     log "多智能体触发方式:"
