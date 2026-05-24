@@ -247,3 +247,40 @@ bun run src/multi-agent/appscript-verifier.ts
 **状态**: ✅ 全部功能实现并真实交互验证完成
 **版本**: 10.2
 **Team清理**: ✅ 清理305个旧teams (376 → 77)
+
+---
+
+## 九、plan38.md多智能体架构改造计划 (v10.3新增)
+
+### 9.1 Claude Code Swarm架构分析
+
+基于学习 `/Users/louloulin/Documents/linchong/claw/loucode` 的Claude Code实现：
+
+| Claude Code设计 | UpUp现状 | 改造方向 |
+|----------------|----------|----------|
+| teamHelpers.ts统一Team管理 | 分散的TeamManager | 统一接口 |
+| registry.ts后端自动检测 | 未集成 | 自动检测 |
+| spawnInProcess.ts (AsyncLocalStorage) | SubagentRunner | 融合设计 |
+| Tool直接注册 | 部分注册 | 全部注册 |
+| TeamAllowedPaths | 缺失 | 新增支持 |
+
+### 9.2 改造计划摘要
+
+详见 `plan38.md v3.0`，包含：
+
+- **5个Phase实施计划**
+- **统一架构图 (ANSI文本)**
+- **核心模块设计**
+- **文件变更清单**
+- **验证计划**
+
+### 9.3 关键改造点
+
+1. **统一Team管理**: team-tools.ts和swarm-tools.ts都使用TeamManager API
+2. **后端自动检测**: registry.ts自动检测inprocess/tmux/iterm2
+3. **进程内Agent**: 融合AsyncLocalStorage隔离设计
+4. **工具注册**: domain-tools.ts注册所有swarmTools
+5. **工作流模板**: 创建真实的Stock Analysis工作流
+
+**最终更新时间**: 2026-05-24 18:30 GMT+8
+**plan38.md版本**: 3.0 (Claude Code融合版)

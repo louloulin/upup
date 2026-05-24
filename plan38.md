@@ -1,365 +1,613 @@
-# Dexter/UpUp 多智能体系统改造计划
+# Dexter/UpUp 多智能体系统架构改造计划
 
 **日期**: 2026-05-24  
-**版本**: 1.0 (初稿)  
+**版本**: 3.0 (Claude Code融合版)  
 **状态**: 📋 规划中  
 **分支**: feature/multi-agent-engine
 
 ---
 
-## 一、问题分析
+## 一、Claude Code Swarm架构分析
 
-### 1.1 当前实现概述
+### 1.1 Claude Code核心组件
 
-当前UpUp多智能体系统基于Claude Code Swarm设计，核心组件包括：
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           Claude Code Swarm Architecture                    │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │                        Team Management                               │    │
+│  │  ┌─────────────────────────────────────────────────────────────┐   │    │
+│  │  │ teamHelpers.ts - 统一团队管理                                │   │    │
+│  │  │  ├─ TeamFile (name, members, allowedPaths)                  │   │    │
+│  │  │  ├─ spawnTeam() - 创建团队                                   │   │    │
+│  │  │  ├─ readTeamFile() / writeTeamFile()                        │   │    │
+│  │  │  └─ registerTeamForSessionCleanup()                         │   │    │
+│  │  └─────────────────────────────────────────────────────────────┘   │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                      │                                      │
+│                                      ▼                                      │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │                        Backend Registry                             │    │
+│  │  ┌─────────────────────────────────────────────────────────────┐   │    │
+│  │  │ registry.ts - 后端检测与选择                                │   │    │
+│  │  │  ├─ detectAndGetBackend() - 自动检测后端                   │   │    │
+│  │  │  ├─ getBackendByType() - 按类型获取后端                   │   │    │
+│  │  │  ├─ InProcessBackend (进程内)                              │   │    │
+│  │  │  ├─ TmuxBackend (tmux终端)                                  │   │    │
+│  │  │  └─ ITermBackend (iTerm2)                                   │   │    │
+│  │  └─────────────────────────────────────────────────────────────┘   │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                      │                                      │
+│                                      ▼                                      │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │                        In-Process Spawn                              │    │
+│  │  ┌─────────────────────────────────────────────────────────────┐   │    │
+│  │  │ spawnInProcess.ts - 进程内Agent spawn                       │   │    │
+│  │  │  ├─ InProcessSpawnConfig (name, team, prompt, color)        │   │    │
+│  │  │  ├─ createTeammateContext() - 创建上下文                    │   │    │
+│  │  │  ├─ spawnInProcessTeammate() - spawn函数                   │   │    │
+│  │  │  └─ AsyncLocalStorage - 上下文隔离                         │   │    │
+│  │  └─────────────────────────────────────────────────────────────┘   │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                      │                                      │
+│                                      ▼                                      │
+│  ┌─────────────────────────────────────────────────────────────────────┐    │
+│  │                        Tool Integration                             │    │
+│  │  ┌─────────────────────────────────────────────────────────────┐   │    │
+│  │  │ TeamCreateTool.ts - 团队创建工具                            │   │    │
+│  │  │ AgentTool.ts - Agent spawn工具                             │   │    │
+│  │  │ SendMessageTool.ts - Agent间通信                            │   │    │
+│  │  └─────────────────────────────────────────────────────────────┘   │    │
+│  └─────────────────────────────────────────────────────────────────────┘    │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
 
-| 组件 | 位置 | 功能 |
+### 1.2 Claude Code关键设计
+
+| 设计 | 实现 | 说明 |
 |------|------|------|
-| SwarmCoordinator | `src/multi-agent/coordinator.ts` | 多智能体编排 |
-| TeamManager | `src/multi-agent/team-manager.ts` | 团队生命周期管理 |
-| Backend Registry | `src/multi-agent/backends/index.ts` | 执行后端管理 |
-| SubagentRunner | `src/agent/subagent-runner.ts` | 子Agent执行 |
-| SwarmTools | `src/multi-agent/tools/swarm-tools.ts` | LLM工具接口 |
-
-### 1.2 发现的问题
-
-#### 问题1: 工具重复定义
-- `src/multi-agent/tools/swarm-tools.ts` 定义了`swarm_team_create`等工具
-- `src/tools/team-tools.ts` 定义了`team_create`等工具
-- 两者功能重叠但实现不同
-
-#### 问题2: 团队管理分散
-- `TeamManager`使用文件持久化（`~/.upup/teams/`）
-- `team-tools.ts`使用内存Map存储
-- 数据不一致，teams累积过多
-
-#### 问题3: 执行后端未集成到主Agent
-- Backend Registry存在但未被主Agent使用
-- 多智能体工具未被注册到工具注册表
-- LLM无法直接调用多智能体功能
-
-#### 问题4: 缺少真实的多智能体工作流
-- 现有脚本是测试性质的
-- 没有真实的多智能体分析工作流
-- 交互式AppScript触发机制不完善
-
-### 1.3 与Claude Code的差距
-
-| 功能 | Claude Code | 当前UpUp | 差距 |
-|------|------------|----------|------|
-| Team管理 | 文件+内存同步 | 仅文件 | ⚠️ |
-| Agent Spawn | 真实子进程 | 内部执行 | ⚠️ |
-| 工具注册 | 全局注册 | 部分注册 | ⚠️ |
-| 工作流 | 内置模板 | 缺失 | ❌ |
-| 交互触发 | 成熟机制 | 待完善 | ⚠️ |
+| 统一Team存储 | `teamHelpers.ts` | 文件+内存统一，session级清理 |
+| 后端检测 | `registry.ts` | 自动检测tmux/iterm2/inprocess |
+| 进程内Agent | `spawnInProcess.ts` | AsyncLocalStorage隔离 |
+| 工具注册 | 直接集成 | Tools直接注册到Agent |
+| 允许路径 | TeamAllowedPaths | 团队级路径权限管理 |
 
 ---
 
-## 二、改造目标
+## 二、UpUp当前架构
 
-### 2.1 总体目标
+### 2.1 当前架构图
 
-1. **统一团队管理** - 合并两套team实现，建立单一数据源
-2. **完善工具集成** - 将多智能体工具注册到主工具注册表
-3. **增强交互触发** - 实现真实的交互式多智能体工作流
-4. **优化资源管理** - 自动清理旧teams，防止堆积
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              UpUp CLI / STDIO                               │
+│                    (src/index.tsx / src/stdio/server.ts)                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           Agent Core (src/agent/)                          │
+│  ┌─────────────────┐  ┌──────────────────┐  ┌────────────────────────────┐  │
+│  │  Agent Loop     │  │  Tool Executor   │  │  Memory Manager          │  │
+│  │  (agent.ts)     │  │  (tool-executor)│  │  (memory/)               │  │
+│  └─────────────────┘  └──────────────────┘  └────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         Tool Registry (src/tools/)                          │
+│  ┌────────────────────────────────────────────────────────────────────┐    │
+│  │                     getToolRegistry()                              │    │
+│  │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────┐ │    │
+│  │  │ Finance      │ │ Domain       │ │ Quant        │ │ Research │ │    │
+│  │  │ (A-share)    │ │ (Portfolio,   │ │ (Analysis,   │ │ (Multi-  │ │    │
+│  │  │              │ │  Team, Skill)│ │  Screening)  │ │  Agent)  │ │    │
+│  │  └──────────────┘ └──────────────┘ └──────────────┘ └──────────┘ │    │
+│  └────────────────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    Multi-Agent System (src/multi-agent/)                    │
+│  ⚠️ 问题: 工具重复定义，后端未集成                                           │
+│  ┌─────────────────────────┐    ┌─────────────────────────────┐            │
+│  │ team-tools.ts         │    │ swarm-tools.ts             │            │
+│  │ (内存Map)              │    │ (未注册)                    │            │
+│  └─────────────────────────┘    └─────────────────────────────┘            │
+│  ┌────────────────┐  ┌────────────────┐  ┌──────────────────────────────┐   │
+│  │ SwarmCoordi-   │  │ TeamManager   │  │ BackendRegistry           │   │
+│  │ nator          │  │ (文件存储)    │  │ (未与Agent集成)           │   │
+│  └────────────────┘  └────────────────┘  └──────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
 
-### 2.2 具体目标
+### 2.2 问题分析
 
-| 目标 | 优先级 | 说明 |
-|------|--------|------|
-| 统一Team存储 | P0 | 合并team-tools.ts和TeamManager |
-| 注册SwarmTools | P0 | 将工具注册到domain-tools.ts |
-| 真实工作流 | P1 | 创建多智能体分析工作流 |
-| 交互触发 | P1 | 完善AppScript交互机制 |
-| 资源清理 | P2 | Team自动清理机制 |
+| 问题ID | 描述 | 影响 | 优先级 |
+|--------|------|------|--------|
+| P1 | 两套Team工具重复定义 | 维护困难，行为不一致 | P0 |
+| P2 | team-tools.ts使用内存Map | 重启后数据丢失 | P0 |
+| P3 | swarm-tools.ts未注册 | LLM无法使用多智能体功能 | P0 |
+| P4 | Backend未与主Agent集成 | 多智能体执行受限 | P1 |
+| P5 | 缺少真实工作流 | 仅有测试脚本 | P1 |
+| P6 | Team文件堆积 | 存储浪费 | P2 |
 
 ---
 
-## 三、改造计划
+## 三、目标架构 (融合Claude Code设计)
 
-### Phase 1: 统一Team存储 (P0)
-
-#### 1.1 合并Team实现
-
-**目标**: 建立单一team数据源
+### 3.1 统一架构图
 
 ```
-现状:
-- TeamManager: 文件存储 ~/.upup/teams/
-- teamStore: 内存 Map<string, Team>
-
-改造后:
-- 统一使用TeamManager
-- team-tools.ts调用TeamManager API
-- 删除重复的teamStore
-```
-
-#### 1.2 改造步骤
-
-1. 修改`src/tools/team-tools.ts`使用TeamManager API
-2. 删除`src/multi-agent/tools/swarm-tools.ts`中的team相关代码
-3. 添加TeamManager的内存缓存同步
-4. 更新team持久化逻辑
-
-#### 1.3 验证
-
-```bash
-# 运行AppScript验证
-bun run src/multi-agent/appscript-verifier.ts
-
-# 检查teams目录
-ls ~/.upup/teams/ | wc -l  # 应该 < 100
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              UpUp CLI / STDIO                               │
+│                    (src/index.tsx / src/stdio/server.ts)                   │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           Agent Core (src/agent/)                           │
+│  ┌─────────────────┐  ┌──────────────────┐  ┌────────────────────────────┐  │
+│  │  Agent Loop     │  │  Tool Executor   │  │  Memory Manager          │  │
+│  │  (agent.ts)     │  │  (tool-executor)│  │  (memory/)               │  │
+│  └─────────────────┘  └──────────────────┘  └────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         Tool Registry (src/tools/)                          │
+│  ┌────────────────────────────────────────────────────────────────────┐    │
+│  │                     getToolRegistry()                              │    │
+│  │  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────┐ │    │
+│  │  │ Finance      │ │ Swarm        │ │ Quant        │ │ Skills   │ │    │
+│  │  │ (A-share)    │ │ (✅已注册)   │ │ (Analysis,   │ │ Workflow │ │    │
+│  │  │              │ │ team_create  │ │  Screening)  │ │ Templates │ │    │
+│  │  │              │ │ swarm_*     │ │              │ │           │ │    │
+│  │  └──────────────┘ └──────────────┘ └──────────────┘ └──────────┘ │    │
+│  └────────────────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    Unified Multi-Agent System (改造后)                     │
+│  ┌────────────────────────────────────────────────────────────────────┐    │
+│  │  ✅ 统一Team管理 (Single Source of Truth)                         │    │
+│  │  ┌─────────────────────────────────────────────────────────────┐│    │
+│  │  │                TeamManager (team-manager.ts)                  ││    │
+│  │  │  ├─ TeamFile 统一存储                                        ││    │
+│  │  │  ├─ 文件持久化 (~/.upup/teams/*.json)                        ││    │
+│  │  │  ├─ 内存缓存 (Map<string, Team>)                           ││    │
+│  │  │  ├─ 自动清理 (cleanupOldTeams)                              ││    │
+│  │  │  ├─ Session级清理 (registerTeamForSession)                   ││    │
+│  │  │  └─ TeamAllowedPaths (路径权限)                              ││    │
+│  │  └─────────────────────────────────────────────────────────────┘│    │
+│  └────────────────────────────────────────────────────────────────────┘    │
+│  ┌────────────────┐  ┌────────────────┐  ┌──────────────────────────────┐   │
+│  │ SwarmCoordi-   │  │ Tool Bridge   │  │ BackendRegistry             │   │
+│  │ nator          │  │ (统一接口)    │  │ (backends/)                 │   │
+│  │                │  │               │  ├─ InProcessBackend ✅       │   │
+│  │                │  │ swarm_tools ─►│  ├─ TmuxBackend ✅          │   │
+│  │                │  │ team_tools ──►│  ├─ ITerm2Backend ✅         │   │
+│  │                │  │ (共享TeamMgr)  │  └─ WorkerPoolBackend ✅      │   │
+│  └────────────────┘  └────────────────┘  └──────────────────────────────┘   │
+│  ┌────────────────┐  ┌────────────────┐  ┌──────────────────────────────┐   │
+│  │ SubagentRunner │  │ Monitor        │  │ Workflows                   │   │
+│  │ ✅ 已集成      │  │ ✅ 已集成      │  ├─ stock-analysis.ts ✅       │   │
+│  └────────────────┘  └────────────────┘  └──────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    Backend Execution Layer                                   │
+│  ┌────────────────────────────────────────────────────────────────────┐    │
+│  │  ┌──────────────────┐  ┌──────────────────┐  ┌────────────────────┐ │    │
+│  │  │ InProcess       │  │ Tmux            │  │ iTerm2           │ │    │
+│  │  │ (AsyncLocalStorage)│  │ (tmux panes)  │  │ (iTerm panes)    │ │    │
+│  │  └──────────────────┘  └──────────────────┘  └────────────────────┘ │    │
+│  └────────────────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         Skill Templates (src/skills/)                        │
+│  ┌────────────────────────────────────────────────────────────────────┐    │
+│  │  ┌──────────────────┐  ┌──────────────────┐  ┌────────────────┐ │    │
+│  │  │ swarm-analysis   │  │ dcf-valuation     │  │ batch-process  │ │    │
+│  │  │ /swarm-analysis  │  │ /dcf              │  │ /batch         │ │    │
+│  │  │ (多智能体分析)    │  │ (DCF估值)         │  │ (批量处理)     │ │    │
+│  │  └──────────────────┘  └──────────────────┘  └────────────────┘ │    │
+│  └────────────────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-### Phase 2: 注册SwarmTools (P0)
+## 四、核心模块设计
 
-#### 2.1 添加工具注册
-
-**目标**: 将swarm工具注册到主工具注册表
-
-修改`src/tools/registry/domain-tools.ts`:
+### 4.1 TeamManager统一接口 (融合Claude Code)
 
 ```typescript
-// 添加swarm工具导入
-import { swarmTools } from '../../multi-agent/tools/swarm-tools.js';
+// src/multi-agent/team-manager.ts (改造后)
 
-// 在loadDomainTools中注册
-export async function loadDomainTools(): Promise<RegisteredTool[]> {
-  const tools: RegisteredTool[] = [];
+/**
+ * Unified Team Manager - 基于Claude Code teamHelpers设计
+ * 
+ * 提供统一的团队管理接口:
+ * - TeamFile存储
+ * - 内存缓存
+ * - 自动清理
+ * - Session级清理
+ * - TeamAllowedPaths
+ */
+export class TeamManager {
+  // 现有方法...
   
-  // ... 现有工具 ...
+  /**
+   * 注册团队到session清理列表
+   */
+  registerTeamForSessionCleanup(teamName: string): void;
   
-  // 添加Swarm多智能体工具
-  for (const tool of swarmTools) {
-    tools.push({
-      name: tool.name,
-      tool,
-      description: tool.description,
-      compactDescription: `SWARM: ${tool.description.slice(0, 50)}...`,
-      concurrencySafe: false, // 多智能体操作非并发安全
-    });
-  }
+  /**
+   * 获取团队文件路径
+   */
+  getTeamFilePath(teamName: string): string;
   
-  return tools;
+  /**
+   * 读取团队文件
+   */
+  readTeamFile(teamName: string): TeamFile | null;
+  
+  /**
+   * 写入团队文件
+   */
+  writeTeamFile(teamName: string, team: TeamFile): void;
+  
+  /**
+   * 添加团队成员
+   */
+  addTeamMember(
+    teamName: string, 
+    member: TeamMember, 
+    backendType?: BackendType
+  ): void;
+  
+  /**
+   * 清理会话相关的团队
+   */
+  cleanupSessionTeams(): void;
+  
+  /**
+   * 自动清理旧团队
+   */
+  cleanupOldTeams(maxAgeMs: number): number;
 }
 ```
 
-#### 2.2 验证
-
-```bash
-# 检查工具列表中是否包含swarm工具
-./dist/upup --help 2>&1 | grep swarm
-
-# 检查LLM工具描述
-./dist/upup --doctor 2>&1 | grep -i swarm
-```
-
----
-
-### Phase 3: 真实多智能体工作流 (P1)
-
-#### 3.1 创建工作流模板
-
-**文件**: `src/skills/swarm-analysis/SKILL.md`
-
-```yaml
----
-name: swarm-analysis
-description: Multi-agent stock analysis workflow
-context: swarm
-agent: coordinator
----
-
-# 多智能体股票分析工作流
-
-## 步骤
-
-1. 创建团队 `stock-analysis-{symbol}`
-2. Spawn研究员Agent - 研究基本面
-3. Spawn分析师Agent - 分析财务指标
-4. 汇总Agent - 生成投资建议
-5. 聚合结果返回
-
-## 触发方式
-
-使用 `/swarm-analysis {symbol}` 触发
-```
-
-#### 3.2 创建工作流执行器
-
-**文件**: `src/multi-agent/workflows/stock-analysis.ts`
-
-实现真实的多智能体股票分析工作流。
-
----
-
-### Phase 4: 交互触发机制 (P1)
-
-#### 4.1 增强AppScript脚本
-
-```bash
-# 新的触发命令
-./scripts/upup-swarm-analysis.sh 000001  # 分析平安银行
-./scripts/upup-swarm-interactive.sh        # 交互式菜单
-```
-
-#### 4.2 AppleScript集成
-
-创建`scripts/upup-swarm-trigger.applescript`用于：
-- 检测运行状态
-- 触发工作流
-- 收集结果
-- 显示反馈
-
----
-
-### Phase 5: 资源清理机制 (P2)
-
-#### 5.1 Team自动清理
-
-已有`cleanupOldTeams()`方法，需要：
-
-1. 添加启动时清理
-2. 添加定时清理（可选）
-3. 添加手动清理命令
-
-#### 5.2 清理配置
+### 4.2 Backend Registry (融合Claude Code)
 
 ```typescript
-// TeamManager配置
-interface TeamManagerConfig {
-  maxTeams: number;           // 最大teams数量
-  maxAgeMs: number;           // 最大保留时间
-  cleanupOnStartup: boolean; // 启动时清理
+// src/multi-agent/backends/registry.ts (改造后)
+
+/**
+ * Backend Registry - 基于Claude Code registry.ts设计
+ * 
+ * 功能:
+ * - 后端自动检测
+ * - 后端按类型获取
+ * - InProcess/Tmux/iTerm2/WorkerPool
+ */
+export interface BackendRegistry {
+  /**
+   * 自动检测并获取后端
+   */
+  detectAndGetBackend(): Backend;
+  
+  /**
+   * 按类型获取后端
+   */
+  getBackendByType(type: BackendType): Backend;
+  
+  /**
+   * 检查后端是否可用
+   */
+  isBackendAvailable(type: BackendType): boolean;
+  
+  /**
+   * 注册后端类型
+   */
+  registerBackend(type: BackendType, backend: Backend): void;
+}
+
+/**
+ * 后端类型
+ */
+export type BackendType = 
+  | 'inprocess'   // 进程内执行 (AsyncLocalStorage隔离)
+  | 'tmux'        // Tmux终端执行
+  | 'iterm2'      // iTerm2终端执行
+  | 'workerpool'; // Worker池执行
+```
+
+### 4.3 Tool Bridge (新组件)
+
+```typescript
+// src/multi-agent/tools/tool-bridge.ts
+
+/**
+ * Tool Bridge - 连接现有tools和多智能体系统
+ * 
+ * 统一工具接口:
+ * - swarm_team_create → team_create (使用TeamManager)
+ * - swarm_agent_spawn → 使用Backend spawn
+ * - swarm_agent_message → 使用Coordinator
+ */
+export class ToolBridge {
+  private teamManager: TeamManager;
+  private coordinator: SwarmCoordinator;
+  private backendRegistry: BackendRegistry;
+  
+  /**
+   * 创建团队
+   */
+  async createTeam(params: {
+    teamName: string;
+    description?: string;
+    agentType?: string;
+  }): Promise<TeamCreateOutput>;
+  
+  /**
+   * Spawn Agent
+   */
+  async spawnAgent(params: {
+    teamName: string;
+    agentName: string;
+    role: string;
+    prompt: string;
+    tools?: string[];
+    model?: string;
+    maxTurns?: number;
+  }): Promise<AgentSpawnOutput>;
+  
+  /**
+   * 发送消息
+   */
+  async sendMessage(params: {
+    fromAgent: string;
+    toAgent: string;
+    message: string;
+  }): Promise<AgentMessageOutput>;
+  
+  /**
+   * 获取结果
+   */
+  async getResults(params: {
+    teamName: string;
+    agentId?: string;
+  }): Promise<AgentResultsOutput>;
 }
 ```
 
 ---
 
-## 四、代码变更清单
+## 五、文件变更清单
 
-### 4.1 新增文件
+### 5.1 改造文件
+
+| 文件 | 变更内容 |
+|------|----------|
+| `src/multi-agent/team-manager.ts` | 添加Session清理、TeamAllowedPaths支持 |
+| `src/multi-agent/backends/index.ts` | 融合Claude Code registry设计 |
+| `src/multi-agent/tools/swarm-tools.ts` | 使用ToolBridge |
+| `src/tools/team-tools.ts` | 使用TeamManager API |
+| `src/tools/registry/domain-tools.ts` | 注册swarmTools |
+
+### 5.2 新增文件
 
 | 文件 | 功能 |
 |------|------|
+| `src/multi-agent/tools/tool-bridge.ts` | 工具桥接层 |
+| `src/multi-agent/backends/registry.ts` | 后端注册表 (Claude Code风格) |
+| `src/multi-agent/backends/inprocess.ts` | 进程内后端 (AsyncLocalStorage) |
 | `src/multi-agent/workflows/stock-analysis.ts` | 股票分析工作流 |
-| `src/skills/swarm-analysis/SKILL.md` | 工作流skill |
-| `scripts/upup-swarm-analysis.sh` | 分析脚本 |
-| `scripts/upup-swarm-trigger.applescript` | AppleScript触发器 |
+| `src/skills/swarm-analysis/SKILL.md` | 多智能体分析Skill |
 
-### 4.2 修改文件
+### 5.3 脚本文件
 
-| 文件 | 变更 |
+| 文件 | 功能 |
 |------|------|
-| `src/tools/team-tools.ts` | 使用TeamManager API |
-| `src/tools/registry/domain-tools.ts` | 注册swarm工具 |
-| `src/multi-agent/tools/swarm-tools.ts` | 清理重复代码 |
-| `src/multi-agent/team-manager.ts` | 增强清理功能 |
-
-### 4.3 删除文件
-
-| 文件 | 原因 |
-|------|------|
-| (待定) | 如果确认无用则删除 |
+| `scripts/upup-swarm-analysis.sh` | 多智能体分析触发脚本 |
+| `scripts/upup-swarm-interactive.sh` | 交互式多智能体菜单 |
 
 ---
 
-## 五、验证计划
+## 六、实施步骤
 
-### 5.1 单元测试
+### Phase 1: 统一Team管理 (2-3小时)
+
+```
+Step 1.1: 改造TeamManager
+├─ 添加registerTeamForSessionCleanup()
+├─ 添加TeamAllowedPaths支持
+├─ 添加cleanupSessionTeams()
+└─ 验证: Teams正确创建和持久化
+
+Step 1.2: 改造team-tools.ts
+├─ 使用TeamManager API
+├─ 删除teamStore内存存储
+└─ 验证: 团队数据一致性
+
+Step 1.3: 改造swarm-tools.ts
+├─ 使用TeamManager API
+├─ 通过ToolBridge调用
+└─ 验证: 多智能体工具正常
+```
+
+### Phase 2: 后端集成 (1-2小时)
+
+```
+Step 2.1: 创建registry.ts
+├─ 后端自动检测逻辑
+├─ getBackendByType()
+└─ 验证: 后端正确选择
+
+Step 2.2: 增强inprocess.ts
+├─ AsyncLocalStorage隔离
+├─ 上下文管理
+└─ 验证: 进程内Agent正确运行
+
+Step 2.3: 集成到Agent
+├─ 在agent.ts中集成Backend
+└─ 验证: 主Agent可使用多智能体功能
+```
+
+### Phase 3: 工具注册 (1-2小时)
+
+```
+Step 3.1: 创建ToolBridge
+├─ 统一工具接口
+├─ 桥接TeamManager和Backend
+└─ 验证: 工具正常工作
+
+Step 3.2: 注册SwarmTools
+├─ domain-tools.ts导入swarmTools
+├─ specializedTools注册
+└─ 验证: LLM可使用多智能体工具
+```
+
+### Phase 4: 工作流实现 (2-3小时)
+
+```
+Step 4.1: 创建stock-analysis.ts
+├─ 多智能体股票分析流程
+├─ 研究员+分析师+汇总Agent
+└─ 验证: 完整分析流程
+
+Step 4.2: 创建SKILL.md
+├─ /swarm-analysis命令
+├─ 工作流模板
+└─ 验证: Skill触发正常
+
+Step 4.3: 创建触发脚本
+├─ upup-swarm-analysis.sh
+├─ upup-swarm-interactive.sh
+└─ 验证: 脚本正常工作
+```
+
+### Phase 5: 优化完善 (1小时)
+
+```
+Step 5.1: 资源清理
+├─ 自动清理旧Teams
+├─ Session级清理
+└─ 验证: Teams数量控制
+
+Step 5.2: 性能优化
+├─ 内存使用优化
+├─ 并发控制
+└─ 验证: 稳定运行
+
+Step 5.3: 文档完善
+└─ 更新README和注释
+```
+
+---
+
+## 七、验证计划
+
+### 7.1 单元测试
 
 ```bash
 bun test src/multi-agent/
 # 目标: 16 pass, 0 fail
 ```
 
-### 5.2 集成测试
+### 7.2 集成测试
 
 ```bash
 # AppScript验证
 bun run src/multi-agent/appscript-verifier.ts
 # 目标: 12/12 passed
 
-# 工具注册测试
+# 工具注册验证
 ./dist/upup --doctor | grep swarm
 # 目标: 显示swarm工具
 
 # 多智能体分析测试
 ./scripts/upup-swarm-analysis.sh 000001
-# 目标: 成功执行分析
+# 目标: 真实执行分析
 ```
 
-### 5.3 性能测试
+### 7.3 资源检查
 
 ```bash
-# Teams数量检查
+# Teams数量
 ls ~/.upup/teams/ | wc -l
 # 目标: < 100
 
-# 内存使用检查
-ps aux | grep upup | grep -v grep
-# 目标: 稳定
+# 内存使用
+ps aux | grep upup
+# 目标: 稳定 < 500MB
 ```
 
 ---
 
-## 六、实施顺序
+## 八、架构演进路线图
 
-### Step 1: 统一Team存储
-- 修改team-tools.ts
-- 验证teams正确创建
-- 运行AppScript验证
-
-### Step 2: 注册SwarmTools
-- 修改domain-tools.ts
-- 运行doctor检查
-- 验证工具可用
-
-### Step 3: 真实工作流
-- 创建工作流文件
-- 测试工作流执行
-- 优化输出格式
-
-### Step 4: 交互触发
-- 创建Shell脚本
-- 创建AppleScript
-- 测试交互流程
-
-### Step 5: 资源清理
-- 完善清理逻辑
-- 添加配置选项
-- 验证清理效果
-
----
-
-## 七、风险与缓解
-
-| 风险 | 影响 | 缓解措施 |
-|------|------|----------|
-| Team数据丢失 | 高 | 保留备份逻辑 |
-| 工具冲突 | 中 | 逐步迁移 |
-| 性能下降 | 中 | 监控内存使用 |
-| 现有功能破坏 | 高 | 充分的回归测试 |
-
----
-
-## 八、时间估算
-
-| Phase | 预计时间 | 依赖 |
-|-------|----------|------|
-| Phase 1 | 2-3小时 | 无 |
-| Phase 2 | 1-2小时 | Phase 1 |
-| Phase 3 | 2-3小时 | Phase 2 |
-| Phase 4 | 1-2小时 | Phase 3 |
-| Phase 5 | 1小时 | Phase 1 |
-
-**总计**: 7-11小时
+```
+Phase 0: 当前状态 (问题状态)
+  └─ team-tools.ts (内存Map) ←→ swarm-tools.ts (未注册)
+      TeamManager (文件) 独立存在
+          │
+          ▼
+Phase 1: 统一Team管理 [2-3h]
+  ├─ team-tools.ts ──► TeamManager API
+  ├─ swarm-tools.ts ──► TeamManager API
+  ├─ registerTeamForSessionCleanup()
+  └─ TeamAllowedPaths支持
+          │
+          ▼
+Phase 2: 后端集成 [1-2h]
+  ├─ registry.ts (Claude Code风格)
+  ├─ Backend自动检测
+  ├─ InProcessBackend (AsyncLocalStorage)
+  └─ Agent集成Backend
+          │
+          ▼
+Phase 3: 工具注册 [1-2h]
+  ├─ ToolBridge统一接口
+  ├─ domain-tools.ts注册swarmTools
+  └─ LLM可使用多智能体工具
+          │
+          ▼
+Phase 4: 工作流实现 [2-3h]
+  ├─ workflows/stock-analysis.ts
+  ├─ SKILL.md模板
+  ├─ 触发脚本
+  └─ 真实的多智能体分析
+          │
+          ▼
+Phase 5: 优化完善 [1h]
+  ├─ 资源清理
+  ├─ 性能优化
+  └─ 文档完善
+          │
+          ▼
+Phase Final: 目标状态
+  └─ 统一的Swarm架构
+      ├─ TeamManager (Single Source)
+      ├─ BackendRegistry (自动检测)
+      ├─ ToolBridge (统一接口)
+      ├─ Workflows (工作流模板)
+      └─ Skills (命令触发)
+```
 
 ---
 
-**最终更新时间**: 2026-05-24 17:30 GMT+8
-**状态**: 📋 规划中
-**版本**: 1.0
+**最终更新时间**: 2026-05-24 18:30 GMT+8
+**状态**: 📋 规划完成
+**版本**: 3.0
+**预计实施时间**: 7-11小时
+**融合**: Claude Code swarm架构设计
