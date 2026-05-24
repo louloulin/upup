@@ -1210,7 +1210,10 @@ function inspectChunkContent(chunk: AIMessageChunk): {
       if (MODE_PRIORITY.responding > MODE_PRIORITY[mode]) mode = 'responding';
     } else if (partType === 'thinking' || partType === 'redacted_thinking') {
       const thinkingText = (part as { thinking?: string }).thinking;
-      if (typeof thinkingText === 'string') charDelta += thinkingText.length;
+      if (typeof thinkingText === 'string') {
+        charDelta += thinkingText.length;
+        textContent = (textContent || '') + thinkingText;  // Include thinking in text content
+      }
       if (MODE_PRIORITY.thinking > MODE_PRIORITY[mode]) mode = 'thinking';
     } else if (partType === 'tool_use' || partType === 'input_json_delta') {
       const pj = (part as { input?: unknown; partial_json?: string }).partial_json;
