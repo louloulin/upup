@@ -1,3 +1,4 @@
+import type { AgentCapability } from '../agent/registry.js';
 /**
  * Custom Agent Registry - 自定义Agent注册系统 (v1.0)
  * 
@@ -225,7 +226,7 @@ export class CustomAgentRegistry {
         description: agent.description,
         version: '1.0.0',
         systemPrompt: agent.systemPrompt,
-        capabilities: config.capabilities || [],
+        capabilities: (config.capabilities || []).filter((c: string) => ["research", "coding", "debugging", "refactoring", "testing", "documentation", "deployment", "review", "analysis"].includes(c)) as AgentCapability[],
         taskTypes: config.taskTypes || [],
         preferredModel: agent.model,
         config: {
