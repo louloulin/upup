@@ -1,7 +1,7 @@
 # Dexter/UpUp 生产级改进计划
 
 **日期**: 2026-05-24  
-**版本**: 9.1 (AppScript集成增强版)  
+**版本**: 10.0 (最终版)  
 **状态**: ✅ 全部功能实现并验证完成  
 **分支**: feature/multi-agent-engine
 
@@ -22,66 +22,50 @@
 | Multi-Agent System | ✅ 完整 | AppScript验证 12/12 |
 | Backend Registry | ✅ 完整 | 4种后端注册, 3/4可用 |
 | AppScript Verifier | ✅ 完整 | 12/12测试通过 |
+| STDIO Server | ✅ 完整 | JSON-RPC 2.0协议支持 |
+| Interactive Scripts | ✅ 完整 | 多种触发模式验证 |
 
 ---
 
-## 二、AppScript多智能体集成 v2.0
+## 二、AppScript多智能体集成 v6.1
 
-### 2.1 新增脚本
+### 2.1 脚本清单
 
 | 脚本 | 功能 | 状态 |
 |------|------|------|
-| `scripts/appscript-multiagent.sh` | 基于dist/upup的多智能体运行脚本 | ✅ 新增 |
-| `.upup/multiagent-test.sh` | 多智能体测试脚本 | ✅ 新增 |
+| `scripts/upup-multiagent-analysis.sh` | 真实多智能体股票分析 | ✅ v6.1 |
+| `scripts/upup-multiagent-interactive.sh` | 交互式多智能体运行 | ✅ v5.2 |
+| `scripts/appscript-multiagent.sh` | 基础AppScript验证 | ✅ |
+| `.upup/multiagent-test.sh` | 多智能体测试脚本 | ✅ |
 
-### 2.2 AppScript触发方式
+### 2.2 触发方式
 
 ```bash
-# 方式1: 直接运行脚本
-./scripts/appscript-multiagent.sh
+# 方式1: 多智能体股票分析 (管道模式)
+./scripts/upup-multiagent-analysis.sh 000001 平安银行 1
 
-# 方式2: 通过AppScript验证
-bun run src/multi-agent/appscript-verifier.ts
+# 方式2: AppleScript Terminal
+./scripts/upup-multiagent-analysis.sh 000001 平安银行 2
 
-# 方式3: 通过UpUp CLI
-./dist/upup 'analyze stocks with multi-agent'
+# 方式3: 直接运行
+./scripts/upup-multiagent-analysis.sh 000001 平安银行 4
 
-# 方式4: 通过iTerm2 AppleScript
-osascript -e 'tell application "iTerm2" to...'
+# 方式4: 交互式菜单
+./scripts/upup-multiagent-interactive.sh
+
+# 方式5: STDIO JSON-RPC
+printf '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}\n' | ./dist/upup --stdio
 ```
 
-### 2.3 真实交互验证结果 v9.1
+### 2.3 真实交互验证
 
 ```
-============================================================
-  UpUp 多智能体系统 - AppScript交互式验证 v2.0
-============================================================
-
-Phase 1: 系统检查
-✅ AppleScript可用性: AppleScript执行正常
-✅ iTerm2集成: iTerm2未运行（可启动集成）
-✅ 后端注册表: 3/4后端可用
-
-Phase 2: 团队操作
-✅ 团队创建: 团队创建成功
-✅ 团队持久性: 团队状态正确保持
-
-Phase 3: Agent执行
-✅ Agent Spawning: Agent spawn成功
-✅ Agent消息传递: 消息传递正常
-✅ Agent完成处理: Agent生命周期正常
-
-Phase 4: Skill系统
-✅ Skill系统加载: 已加载 7 个专业Skills
-✅ 增强Skill属性: 7/7 个Skills带增强属性
-✅ 投资Core Skills: Phase 3: 4, Phase 4: 3 Skills
-
-Phase 5: 多Agent并发
-✅ 并发Agent Spawn: 成功并发spawn 3 个Agents
-
-============================================================
-验证结果: 12/12 通过 (100%) 🎉
-============================================================
+✅ dist/upup 可用
+✅ AppleScript 可用
+✅ Terminal集成正常
+✅ iTerm2备用机制正常
+✅ STDIO JSON-RPC 响应正常
+✅ 多智能体分析脚本运行正常
 ```
 
 ---
@@ -93,7 +77,7 @@ Phase 5: 多Agent并发
 | 文件 | 操作 | 状态 | 说明 |
 |------|------|------|------|
 | `screen-stocks.ts` | 删除mock函数, 改用astockScreenStocks | ✅ 已完成 | - |
-| `short-interest.ts` | 保留用于回退场景 | ✅ 合理保留 | 当API失败时提供基础数据 |
+| `short-interest.ts` | 保留用于回退场景 | ✅ 合理保留 | API失败时的安全回退 |
 | `lsp-tools.ts` | 保留用于测试/回退场景 | ✅ 合理保留 | LSP功能可选 |
 | `fx-tools.ts` | 保留FALLBACK_RATES用于API失败回退 | ✅ 合理保留 | 汇率API失败时的安全回退 |
 
@@ -101,9 +85,10 @@ Phase 5: 多Agent并发
 
 - **Agent执行**: SubagentRunner真实Agent生命周期管理 ✅
 - **AppleScript**: osascript命令执行真实系统脚本 ✅
-- **iTerm2**: AppleScript集成iTerm2终端 ✅
-- **Tushare**: 真实HTTP API调用 (无Python subprocess) ✅
+- **iTerm2**: iTerm2可用时使用，否则回退到Terminal ✅
+- **Tushare**: 真实HTTP API调用 ✅
 - **ScreenStocks**: 集成astock screener-client ✅
+- **STDIO JSON-RPC**: 真实JSON-RPC 2.0协议交互 ✅
 
 ---
 
@@ -153,8 +138,9 @@ bun test src/multi-agent/backends/backend.test.ts
 | 9 | Agent配置Skills | ✅ 100% | ✅ |
 | 10 | Agent调度器 | ✅ 100% | ✅ |
 | 11 | 新系统功能 | ✅ 100% | ✅ |
+| 12 | AppScript交互式脚本 | ✅ 100% | ✅ |
 
-**总进度**: 11/11 Phases 完成 (100%)
+**总进度**: 12/12 Phases 完成 (100%)
 
 ---
 
@@ -170,87 +156,40 @@ bun test src/multi-agent/backends/backend.test.ts
 | 单元测试 | 25/25 passed | ✅ 100% |
 | UpUp CLI | version/doctor正常 | ✅ 100% |
 | Build | 成功完成 | ✅ 100% |
-| AppScript脚本 | scripts/appscript-multiagent.sh | ✅ 100% |
+| AppScript脚本 | 3个脚本全部可用 | ✅ 100% |
+| 交互式分析 | 000001/600519/601318验证 | ✅ 100% |
 
 ---
 
-## 八、本次更新 (v9.1)
+## 八、本次更新 (v10.0)
 
 ### 新增功能
 
-1. **AppScript多智能体集成脚本** (`scripts/appscript-multiagent.sh`)
-   - 基于dist/upup的真实多智能体运行脚本
-   - 集成AppleScript和iTerm2/Terminal交互
-   - 支持多Agent并发执行验证
+1. **真实多智能体股票分析脚本** (`scripts/upup-multiagent-analysis.sh` v6.1)
+   - 支持指定股票代码和名称
+   - 4种运行模式: 管道/AppleScript/iTerm2/直接交互
+   - 自动生成多智能体分析prompt
+   - 支持000001平安银行/600519贵州茅台/601318中国平安
 
-2. **多智能体测试脚本** (`.upup/multiagent-test.sh`)
-   - 用于测试多Agent分析触发
-   - 自动化验证流程
+2. **交互式菜单脚本** (`scripts/upup-multiagent-interactive.sh` v5.2)
+   - 交互式选择股票和分析模式
+   - iTerm2自动检测和回退
 
 ### 验证命令
 
 ```bash
-# 运行AppScript验证
-./scripts/appscript-multiagent.sh
+# 多智能体股票分析
+./scripts/upup-multiagent-analysis.sh 000001 平安银行 1
 
-# 直接运行验证器
-bun run src/multi-agent/appscript-verifier.ts
+# 交互式菜单
+./scripts/upup-multiagent-interactive.sh
 
-# 验证dist/upup
-./dist/upup --version
-./dist/upup --help
+# STDIO测试
+printf '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}\n' | ./dist/upup --stdio
 ```
 
 ---
 
-**最终更新时间**: 2026-05-24 15:41 GMT+8
+**最终更新时间**: 2026-05-24 16:15 GMT+8
 **状态**: ✅ 全部功能实现并真实交互验证完成
-**版本**: 9.1
-
----
-
-## 九、AppScript交互式运行 v5.2
-
-### 9.1 新增脚本
-
-| 脚本 | 功能 | 状态 |
-|------|------|------|
-| `scripts/upup-multiagent-interactive.sh` | 真实交互式多智能体运行 | ✅ v5.2 |
-
-### 9.2 触发方式
-
-```bash
-# 方式1: 多智能体股票分析
-./scripts/upup-multiagent-interactive.sh 1
-
-# 方式2: AppleScript+Terminal
-./scripts/upup-multiagent-interactive.sh 2
-
-# 方式3: iTerm2集成 (Terminal备用)
-./scripts/upup-multiagent-interactive.sh 3
-
-# 方式4: 直接运行
-./scripts/upup-multiagent-interactive.sh 4
-
-# 方式5: STDIO测试
-./scripts/upup-multiagent-interactive.sh 5
-```
-
-### 9.3 真实交互验证
-
-- ✅ dist/upup 可用
-- ✅ AppleScript 可用
-- ✅ Terminal集成正常
-- ✅ iTerm2备用机制正常
-
-### 9.4 技术实现
-
-1. **直接运行**: 通过管道传递prompt到UpUp
-2. **AppleScript Terminal**: 使用osascript启动Terminal并运行UpUp
-3. **iTerm2**: iTerm2可用时使用，否则回退到Terminal
-4. **STDIO JSON-RPC**: 支持JSON-RPC 2.0协议
-
----
-
-**更新时间**: 2026-05-24 15:55 GMT+8
-**版本**: 9.2
+**版本**: 10.0
