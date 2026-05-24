@@ -57,7 +57,7 @@ export class AppScriptVerifier {
     // Clean up old teams before starting (keep only last 1 hour)
     const teamManager = getTeamManager();
     await teamManager.initialize();
-    const cleanedTeams = teamManager.cleanupOldTeams(3600000); // 1 hour
+    const cleanedTeams = teamManager.cleanupOldTeams(86400000); // 24 hours
     if (cleanedTeams > 0) {
       console.log('  ' + COLORS.yellow + '🧹 Cleaned up ' + cleanedTeams + ' old teams' + COLORS.reset);
     }
