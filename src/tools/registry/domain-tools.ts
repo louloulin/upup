@@ -226,6 +226,28 @@ export async function loadDomainTools(): Promise<RegisteredTool[]> {
   // ===== Dynamic-import domains (watchlist, benchmark, fx, multi-portfolio, calendar, short-interest, backtest, cache) =====
   await loadDynamicDomainTools(tools);
 
+// Swarm tools (multi-agent)
+try {
+  const { swarmTools } = await import('../../multi-agent/index.js');
+  for (const tool of swarmTools) {
+    if (!tool?.name) continue;
+    tools.push({
+      name: tool.name,
+      tool,
+      description: tool.description,
+      compactDescription: `Swarm: ${tool.description}`,
+      concurrencySafe: true,
+      concurrencyMetadata: {
+        safe: true,
+        safetyLevel: 'safe',
+        category: 'system',
+        sideEffects: { readsFiles: false, writesFiles: true, makesNetworkRequests: false, hasRateLimit: false, modifiesState: true, spawnsProcess: false, hasFinancialImpact: false },
+        maxConcurrent: 5,
+      },
+    });
+  }
+} catch { /* swarm tools not available */ }
+
   return tools;
 }
 
