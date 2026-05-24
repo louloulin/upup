@@ -130,7 +130,7 @@ export function createPortfolio(name: string, initialCash: number = 100000): Por
 /**
  * 获取当前组合
  */
-export function getPortfolio(): Portfolio | null {
+export async function getPortfolio(): Promise<Portfolio | null> {
   const data = loadData();
   if (!data.portfolio) return null;
   return updatePortfolioNav(data.portfolio);

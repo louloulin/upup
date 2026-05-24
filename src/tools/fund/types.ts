@@ -73,3 +73,59 @@ export interface FundHoldings {
     valuePercent: number;
   }>;
 }
+
+export interface FundManager {
+  id: string;
+  name: string;
+  company: string;
+  tenureYears: number;
+  funds: string[];
+  totalScale: number;
+  avgReturn1Y?: number;
+  avgReturn3Y?: number;
+}
+
+export interface Portfolio {
+  id: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+  initialCash: number;
+  cash: number;
+  holdings: PortfolioHolding[];
+  trades: SimulatedTrade[];
+}
+
+export interface PortfolioHolding {
+  fundCode: string;
+  fundName: string;
+  shares: number;
+  avgCost: number;
+  purchaseDate: string;
+}
+
+export interface SimulatedTrade {
+  id: string;
+  fundCode: string;
+  fundName: string;
+  type: 'buy' | 'sell';
+  shares: number;
+  price: number;
+  amount: number;
+  fee: number;
+  date: string;
+}
+
+export interface AlertConfig {
+  id: string;
+  fundCode: string;
+  fundName: string;
+  type: 'price_above' | 'price_below' | 'change_up' | 'change_down' | 'estimate_update';
+  condition: {
+    value: number;
+  };
+  enabled: boolean;
+  createdAt: string;
+  triggerCount: number;
+  lastTriggered?: string;
+}

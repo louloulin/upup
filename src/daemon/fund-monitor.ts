@@ -9,7 +9,8 @@
  */
 
 import { getFollowedFunds, updateFollowedFund } from '../storage/fund-storage.js';
-import { getFundEstimatedValue, type FundBasic } from '../tools/fund/fund-api.js';
+import { getFundEstimatedValue } from '../tools/fund/fund-api.js';
+import type { FundBasic } from '../tools/fund/types.js';
 
 export interface FundMonitorConfig {
   /** Update interval in milliseconds (default: 5 minutes) */

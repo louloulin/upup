@@ -3,7 +3,7 @@
  * 基于多维度条件的基金筛选和智能推荐
  */
 
-import { FundBasic, FundPerformance, FundManager } from './fund-api';
+import type { FundBasic, FundPerformance, FundManager } from './types';
 import { searchFunds, getFundBasic, getFundPerformance, getFundManager, screenFunds as baseScreenFunds, getTopFunds } from './fund-api';
 
 // ============================================================================
@@ -242,7 +242,7 @@ export async function screenFunds(criteria: ScreeningCriteria): Promise<FundBasi
     const field = periodMap[criteria.minPerformance.period];
     funds = funds.filter(f => {
       const val = f[field];
-      return val !== undefined && val >= criteria.minPerformance!.threshold;
+      return typeof val === 'number' && val >= criteria.minPerformance!.threshold;
     });
   }
   
@@ -329,7 +329,9 @@ export async function getFundRecommendations(
         recommendation: getRecommendationLevel(score),
         reasons: generateReasons(fund, score, factors),
         warnings: generateWarnings(fund, perf, mgr),
-        periodPerformance: perf?.performance || undefined,
+        periodPerformance: perf?.performance ? Object.fromEntries(
+            Object.entries(perf.performance).map(([k, v]) => [k, v ?? 0])
+          ) : undefined,
       });
     } catch (e) {
       // 跳过失败的基金
