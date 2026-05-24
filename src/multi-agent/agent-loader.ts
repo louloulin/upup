@@ -103,24 +103,23 @@ function parseFrontmatter(content: string): { frontmatter: Record<string, unknow
     if (colonIndex === -1) continue;
     
     const key = line.slice(0, colonIndex).trim();
-    let value: unknown = line.slice(colonIndex + 1).trim();
+    const valueStr: string = line.slice(colonIndex + 1).trim();
     
     // Parse array
-    if (value === '') {
+    if (valueStr === '') {
       continue;
-    } else if (value.startsWith('[') && value.endsWith(']')) {
-      value = value.slice(1, -1).split(',').map((v: string) => v.trim());
-    } else if (value === 'true') {
-      value = true;
-    } else if (value === 'false') {
-      value = false;
-    } else if (!isNaN(Number(value))) {
-      value = Number(value);
+    } else if (valueStr.startsWith('[') && valueStr.endsWith(']')) {
+      frontmatter[key] = valueStr.slice(1, -1).split(',').map((v: string) => v.trim());
+    } else if (valueStr === 'true') {
+      frontmatter[key] = true;
+    } else if (valueStr === 'false') {
+      frontmatter[key] = false;
+    } else if (!isNaN(Number(valueStr))) {
+      frontmatter[key] = Number(valueStr);
+    } else {
+      frontmatter[key] = valueStr;
     }
-    
-    frontmatter[key] = value;
   }
-  
   return { frontmatter, body };
 }
 

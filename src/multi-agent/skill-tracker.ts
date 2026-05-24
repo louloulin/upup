@@ -13,7 +13,7 @@ export interface SkillExecutionRecord {
   skillName: string;
   skillType: string;
   agentType: string;
-  context: 'inline' | 'fork' | 'swarm';
+  context: 'inline' | 'fork' | 'swarm' | 'background';
   startTime: number;
   endTime?: number;
   durationMs?: number;
@@ -126,7 +126,7 @@ export class SkillExecutionTracker {
     const record: SkillExecutionRecord = {
       id: crypto.randomUUID(),
       skillName,
-      skillType: skill?.type || 'unknown',
+      skillType: (skill as any)?.type || 'unknown',
       agentType: skill?.agent || 'default',
       context: skill?.context || 'inline',
       startTime: Date.now(),

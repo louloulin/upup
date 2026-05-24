@@ -178,7 +178,7 @@ export class AgentPersistence {
     let loaded = 0;
 
     try {
-      const files = readdirSync(this.config.dir).filter(f => f.endsWith('.json'));
+      const files = readdirSync(this.config.dir).filter((f: string) => f.endsWith('.json'));
       
       for (const file of files) {
         try {

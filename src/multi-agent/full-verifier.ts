@@ -120,7 +120,7 @@ async function runFullVerification(): Promise<void> {
     const tracker = getSkillTracker();
     const execId = tracker.trackExecutionStart('dream', { test: true });
     tracker.trackExecutionComplete(execId, 'Test result');
-    const stats = tracker.getSkillStats('dream');
+    const stats = tracker.getSkillStats('dream') as { totalExecutions: number; averageDurationMs: number };
     allResults.push({
       name: 'Skill Tracker',
       passed: stats.totalExecutions > 0,

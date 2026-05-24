@@ -344,6 +344,38 @@ export class SwarmCoordinator {
       }
     }
   }
+  /**
+   * Get all active agents
+   */
+  getAgents(): AgentInstance[] {
+    return Array.from(this.agents.values());
+  }
+
+  /**
+   * Get all messages
+   */
+  getAllMessages(): Map<string, Array<{from: string; to: string; content: string; timestamp: number}>> {
+    return this.messages;
+  }
+
+  /**
+   * Get message count
+   */
+  getMessageCount(): number {
+    let count = 0;
+    for (const msgs of this.messages.values()) {
+      count += msgs.length;
+    }
+    return count;
+  }
+
+  /**
+   * Get TeamManager for verifier access
+   */
+  getTeamManager(): TeamManager {
+    return this.teamManager;
+  }
+
 }
 
 // Singleton
@@ -362,23 +394,3 @@ export function getSwarmCoordinator(): SwarmCoordinator {
 export function resetSwarmCoordinator(): void {
   coordinator = new SwarmCoordinator();
 }
-
-/**
- * Additional exports for monitoring integration
- */
-export function getAgents(): AgentInstance[] {
-  return Array.from(this.agents.values());
-}
-
-export function getMessageCount(): number {
-  let count = 0;
-  for (const messages of this.messages.values()) {
-    count += messages.length;
-  }
-  return count;
-}
-
-// Add methods to prototype
-const proto = SwarmCoordinator.prototype as any;
-proto.getAgents = getAgents;
-proto.getMessageCount = getMessageCount;
