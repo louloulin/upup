@@ -61,17 +61,19 @@ describe('SwarmCoordinator', () => {
     expect(team).toBeDefined();
     expect(team.name).toBe(teamName);
 
+    // Spawn with short timeout for testing
     const agent = await coordinator.spawnAgent({
       teamId: team.name,
       name: 'test-agent',
       role: 'researcher',
       prompt: 'Research test',
+      timeoutMs: 5000,
     });
 
     expect(agent).toBeDefined();
     expect(agent.name).toBe('test-agent');
-    expect(['pending', 'running']).toContain(agent.status);
-  });
+    expect(['pending', 'running', 'completed']).toContain(agent.status);
+  }, 10000);
 
   it('should send messages between agents', () => {
     expect(coordinator.sendMessage('fake-from', 'fake-to', 'Hello')).toBe(false);
@@ -84,9 +86,26 @@ describe('SwarmCoordinator', () => {
       name: 'agent-1',
       role: 'test',
       prompt: 'Test',
+      timeoutMs: 5000,
     });
 
     const count = coordinator.getActiveAgentCount();
     expect(typeof count).toBe('number');
-  });
+  }, 10000);
+
+  it('should get team stats', async () => {
+    const team = coordinator.createTeam(`stats-test-${Date.now()}`);
+    await coordinator.spawnAgent({
+      teamId: team.name,
+      name: 'stats-agent',
+      role: 'test',
+      prompt: 'Test',
+      timeoutMs: 5000,
+    });
+
+    const stats = coordinator.getTeamStats(team.name);
+    expect(stats).toHaveProperty('total');
+    expect(stats).toHaveProperty('active');
+    expect(stats).toHaveProperty('completed');
+  }, 10000);
 });

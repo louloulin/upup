@@ -1,5 +1,5 @@
 /**
- * Swarm Coordinator - 多智能体编排器
+ * Swarm Coordinator - 多智能体编排器 (v2.0)
  * 
  * 基于Claude Code Swarm设计:
  * - team_create: 创建团队
@@ -7,11 +7,10 @@
  * - message_pass: Agent间通信
  * - state_sync: 状态同步
  * - output_aggregate: 结果聚合
+ * 
+ * 集成Backend系统进行Agent执行
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
-import { z } from 'zod';
-import { randomUUID } from 'crypto';
 import type {
   TeamFile,
   AgentInstance,
@@ -21,6 +20,7 @@ import type {
   BackendType,
 } from './types.js';
 import { TeamManager, getTeamManager } from './team-manager.js';
+import { getBackendForSpawn, initializeBackends, type Backend } from './backends/index.js';
 import { info, warn, error as logError } from '../utils/logging/logger.js';
 
 /**
@@ -31,17 +31,37 @@ export class SwarmCoordinator {
   private readonly agents: Map<string, AgentInstance> = new Map();
   private readonly events: Map<string, CoordinatorEventListener[]> = new Map();
   private readonly messages: Map<string, Array<{from: string; to: string; content: string; timestamp: number}>> = new Map();
+  private readonly backends: Map<string, Backend> = new Map();
+  private initialized = false;
 
   constructor() {
     this.teamManager = getTeamManager();
   }
 
   /**
-   * Initialize coordinator
+   * Initialize coordinator and backends
    */
   async initialize(): Promise<void> {
+    if (this.initialized) return;
+    
     await this.teamManager.initialize();
-    info('agent', 'SwarmCoordinator initialized');
+    initializeBackends();
+    
+    // Setup default backends
+    const { type, backend } = getBackendForSpawn();
+    this.backends.set('default', backend);
+    
+    this.initialized = true;
+    info('agent', `SwarmCoordinator initialized with ${type} backend`);
+  }
+
+  /**
+   * Ensure coordinator is initialized
+   */
+  private async ensureInitialized(): Promise<void> {
+    if (!this.initialized) {
+      await this.initialize();
+    }
   }
 
   /**
@@ -57,13 +77,15 @@ export class SwarmCoordinator {
    * Spawn an agent in a team
    */
   async spawnAgent(params: SpawnAgentParams): Promise<AgentInstance> {
+    await this.ensureInitialized();
+    
     const team = this.teamManager.getTeam(params.teamId);
     if (!team) {
       throw new Error(`Team not found: ${params.teamId}`);
     }
 
     const agent: AgentInstance = {
-      id: randomUUID(),
+      id: crypto.randomUUID(),
       teamId: params.teamId,
       name: params.name,
       role: params.role,
@@ -78,39 +100,81 @@ export class SwarmCoordinator {
 
     this.emitEvent({ type: 'agent_spawned', teamId: params.teamId, agentId: agent.id, timestamp: Date.now() });
 
-    // Start agent execution (using existing Subagent system)
-    this.executeAgent(agent, params).catch(err => {
-      agent.status = 'failed';
-      agent.error = err.message;
-      this.emitEvent({ type: 'agent_failed', teamId: params.teamId, agentId: agent.id, data: { error: err.message }, timestamp: Date.now() });
-    });
-
-    return agent;
-  }
-
-  /**
-   * Execute agent (using existing UpUp agent system)
-   */
-  private async executeAgent(agent: AgentInstance, params: SpawnAgentParams): Promise<void> {
+    // Get backend for execution
+    const backendType = params.tools === '*' ? undefined : (params as any).backendType;
+    const { backend } = getBackendForSpawn(backendType as BackendType);
+    
+    // Execute agent using backend
     try {
-      agent.status = 'running';
-      agent.startedAt = Date.now();
-
-      // TODO: Integrate with existing SubagentRunner
-      // For now, simulate execution
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      // Mark as completed (placeholder for actual implementation)
-      agent.status = 'completed';
-      agent.completedAt = Date.now();
-      agent.result = `Agent ${agent.name} completed`;
-
-      this.emitEvent({ type: 'agent_completed', teamId: params.teamId, agentId: agent.id, data: { result: agent.result }, timestamp: Date.now() });
+      const spawnedAgent = await backend.spawn(params);
+      
+      // Sync status from spawned agent
+      agent.id = spawnedAgent.id;
+      agent.status = spawnedAgent.status;
+      agent.startedAt = spawnedAgent.startedAt;
+      
+      // Monitor agent completion
+      this.monitorAgent(agent, backend);
+      
+      return agent;
     } catch (error) {
       agent.status = 'failed';
       agent.error = error instanceof Error ? error.message : String(error);
-      this.emitEvent({ type: 'agent_failed', teamId: params.teamId, agentId: agent.id, data: { error: agent.error }, timestamp: Date.now() });
+      this.emitEvent({ 
+        type: 'agent_failed', 
+        teamId: params.teamId, 
+        agentId: agent.id, 
+        data: { error: agent.error }, 
+        timestamp: Date.now() 
+      });
+      throw error;
     }
+  }
+
+  /**
+   * Monitor agent status changes
+   */
+  private monitorAgent(agent: AgentInstance, backend: Backend): void {
+    const checkInterval = setInterval(async () => {
+      try {
+        const activeAgents = await backend.listActive();
+        const isActive = activeAgents.some(a => a.id === agent.id);
+        
+        if (!isActive && agent.status === 'running') {
+          // Agent completed or failed
+          clearInterval(checkInterval);
+          
+          // Try to get final status
+          const results = this.getAgentResults(agent.teamId, agent.id);
+          if (results.length > 0) {
+            const finalAgent = results[0];
+            agent.status = finalAgent.status;
+            agent.result = finalAgent.result;
+            agent.completedAt = finalAgent.completedAt;
+            
+            if (finalAgent.status === 'completed') {
+              this.emitEvent({ 
+                type: 'agent_completed', 
+                teamId: agent.teamId, 
+                agentId: agent.id, 
+                data: { result: agent.result }, 
+                timestamp: Date.now() 
+              });
+            } else if (finalAgent.status === 'failed') {
+              this.emitEvent({ 
+                type: 'agent_failed', 
+                teamId: agent.teamId, 
+                agentId: agent.id, 
+                data: { error: finalAgent.error }, 
+                timestamp: Date.now() 
+              });
+            }
+          }
+        }
+      } catch {
+        clearInterval(checkInterval);
+      }
+    }, 500);
   }
 
   /**
@@ -121,8 +185,13 @@ export class SwarmCoordinator {
     const fromAgent = this.agents.get(from);
     const toAgent = this.agents.get(to);
 
-    if (!fromAgent || !toAgent) {
-      warn('agent', `Message failed: agent not found (from=${from}, to=${to})`);
+    if (!fromAgent) {
+      warn('agent', `Message failed: source agent not found (${from})`);
+      return false;
+    }
+    
+    if (!toAgent) {
+      warn('agent', `Message failed: target agent not found (${to})`);
       return false;
     }
 
@@ -141,6 +210,24 @@ export class SwarmCoordinator {
     this.emitEvent({ type: 'message_sent', agentId: to, data: { from, content }, timestamp: Date.now() });
     
     return true;
+  }
+
+  /**
+   * Broadcast message to all team agents
+   */
+  broadcastMessage(teamId: string, from: string, content: string): number {
+    const teamAgents = this.getTeamAgents(teamId);
+    let count = 0;
+    
+    for (const agent of teamAgents) {
+      if (agent.id !== from && agent.status === 'running') {
+        if (this.sendMessage(from, agent.id, content)) {
+          count++;
+        }
+      }
+    }
+    
+    return count;
   }
 
   /**
@@ -183,10 +270,18 @@ export class SwarmCoordinator {
     const agent = this.agents.get(agentId);
     if (!agent) return;
 
+    // Try to terminate via all backends
+    for (const backend of this.backends.values()) {
+      try {
+        await backend.terminate(agentId);
+      } catch {
+        // Backend might not own this agent
+      }
+    }
+
     agent.status = 'cancelled';
     agent.completedAt = Date.now();
-    this.agents.delete(agentId);
-
+    
     info('agent', `Agent terminated: ${agentId}`);
   }
 
@@ -195,6 +290,26 @@ export class SwarmCoordinator {
    */
   getActiveAgentCount(): number {
     return Array.from(this.agents.values()).filter(a => a.status === 'running').length;
+  }
+
+  /**
+   * Get team statistics
+   */
+  getTeamStats(teamId: string): {
+    total: number;
+    active: number;
+    completed: number;
+    failed: number;
+    pending: number;
+  } {
+    const teamAgents = this.getTeamAgents(teamId);
+    return {
+      total: teamAgents.length,
+      active: teamAgents.filter(a => a.status === 'running').length,
+      completed: teamAgents.filter(a => a.status === 'completed').length,
+      failed: teamAgents.filter(a => a.status === 'failed').length,
+      pending: teamAgents.filter(a => a.status === 'pending').length,
+    };
   }
 
   /**
@@ -240,3 +355,30 @@ export function getSwarmCoordinator(): SwarmCoordinator {
   }
   return coordinator;
 }
+
+/**
+ * Reset coordinator (for testing)
+ */
+export function resetSwarmCoordinator(): void {
+  coordinator = new SwarmCoordinator();
+}
+
+/**
+ * Additional exports for monitoring integration
+ */
+export function getAgents(): AgentInstance[] {
+  return Array.from(this.agents.values());
+}
+
+export function getMessageCount(): number {
+  let count = 0;
+  for (const messages of this.messages.values()) {
+    count += messages.length;
+  }
+  return count;
+}
+
+// Add methods to prototype
+const proto = SwarmCoordinator.prototype as any;
+proto.getAgents = getAgents;
+proto.getMessageCount = getMessageCount;
