@@ -198,8 +198,8 @@ export class PluginRegistryImpl implements PluginRegistry {
   getToolNamesByPlugin(pluginName: string): string[] {
     const prefix = `${pluginName}:`;
     return this.tools
-      .map(t => t.name)
-      .filter(name => name.startsWith(prefix));
+      .map(t => t?.name)
+      .filter((name): name is string => name !== undefined && name.startsWith(prefix));
   }
 
   /**

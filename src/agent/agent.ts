@@ -84,7 +84,7 @@ export class Agent {
     this.model = config.model ?? getConfiguredModelId();
     this.maxIterations = config.maxIterations ?? DEFAULT_MAX_ITERATIONS;
     this.tools = tools;
-    this.toolMap = new Map(tools.map(t => [t.name, t]));
+    this.toolMap = new Map(tools.filter(t => t?.name).map(t => [t!.name, t!]));
     this.toolExecutor = new AgentToolExecutor(
       this.toolMap,
       concurrencyMap,
@@ -122,7 +122,7 @@ export class Agent {
     // Apply tool filter if specified (for sub-agents with restricted tool access)
     if (config.toolFilter && config.toolFilter !== '*' && config.toolFilter.length > 0) {
       const allowed = new Set(config.toolFilter);
-      tools = tools.filter(t => allowed.has(t.name));
+      tools = tools.filter(t => t?.name && allowed.has(t.name));
       // Filter concurrency map to only include allowed tools
       const filteredMap = new Map<string, boolean>();
       for (const [name, isConcurrent] of concurrencyMap) {

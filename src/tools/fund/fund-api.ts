@@ -196,7 +196,7 @@ export async function searchFunds(keyword: string): Promise<FundBasic[]> {
   const lowerKeyword = keyword.toLowerCase();
   
   const results = FUND_DATABASE.filter(f => 
-    f.name.toLowerCase().includes(lowerKeyword) || 
+    (f.name || "").toLowerCase().includes(lowerKeyword) || 
     f.code.includes(keyword) ||
     f.type.includes(keyword)
   ).map(f => ({

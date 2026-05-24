@@ -173,7 +173,7 @@ export class SubagentRunner {
       parentContext: context ? {
         sessionId: context.sessionId,
         cwd: context.cwd,
-        tools: context.tools.map(t => t.name),
+        tools: context.tools.map(t => t?.name).filter((n): n is string => n !== undefined),
         systemPrompt: context.systemPrompt,
       } : undefined,
       status: 'pending',
