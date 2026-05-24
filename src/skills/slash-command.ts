@@ -100,14 +100,14 @@ export class SkillCommandRegistry {
    * Register a skill command
    */
   register(registration: SkillCommandRegistration): void {
-    this.commands.set(registration.name.toLowerCase(), registration);
+    this.commands.set((registration.name || "").toLowerCase(), registration);
   }
 
   /**
    * Register a skill (internal metadata)
    */
   registerSkill(metadata: SkillMetadata): void {
-    this.skills.set(metadata.name.toLowerCase(), metadata);
+    this.skills.set((metadata.name || "").toLowerCase(), metadata);
 
     // Auto-register if user_invocable
     if (metadata.user_invocable) {
@@ -121,7 +121,7 @@ export class SkillCommandRegistry {
       // Also register triggers
       for (const trigger of metadata.triggers) {
         const triggerName = trigger.replace(/^\//, '').toLowerCase();
-        if (triggerName !== metadata.name.toLowerCase()) {
+        if (triggerName !== (metadata.name || "").toLowerCase()) {
           this.register({
             name: triggerName,
             description: metadata.description ?? '',
