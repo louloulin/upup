@@ -98,56 +98,58 @@ interface FundHistoryPoint {
   nav: number;
 }
 
-/**
- * 模拟历史净值数据 (实际使用时调用真实API)
- */
-function generateSimulatedHistory(
+// Use real historical data from API
+async function getRealFundHistory(
   startDate: string,
   endDate: string,
-  startNav: number,
-  volatility: number = 0.02
-): FundHistoryPoint[] {
-  const points: FundHistoryPoint[] = [];
-  const start = new Date(startDate);
-  const end = new Date(endDate);
+  fundCode: string
+): Promise<FundHistoryPoint[]> {
+  // Import the real API function
+  const { getFundFullHistory } = await import('./fund-api');
   
-  let currentNav = startNav;
-  const current = new Date(start);
-  
-  while (current <= end) {
-    // 模拟波动
-    const change = (Math.random() - 0.5) * 2 * volatility;
-    currentNav = currentNav * (1 + change);
+  try {
+    const history = await getFundFullHistory(fundCode, 10);
     
-    points.push({
-      date: current.toISOString().split('T')[0],
-      nav: Math.round(currentNav * 10000) / 10000,
+    // Filter by date range
+    const filtered = history.filter(item => {
+      return item.date >= startDate && item.date <= endDate;
     });
     
-    // 下一个工作日
-    current.setDate(current.getDate() + 1);
+    return filtered.map(item => ({
+      date: item.date,
+      nav: item.nav,
+    }));
+  } catch (e) {
+    console.error('Failed to get real history, using fallback:', e);
+    return [];
   }
-  
-  return points;
 }
 
 /**
- * 获取历史净值 (简化版)
+ * 获取历史净值 (使用真实API)
  */
 export async function getFundHistory(
   fundCode: string,
   startDate: string,
   endDate: string
 ): Promise<FundHistoryPoint[]> {
-  // 获取当前净值作为基准
+  // 首先尝试获取真实历史数据
+  const realHistory = await getRealFundHistory(startDate, endDate, fundCode);
+  
+  if (realHistory.length > 0) {
+    return realHistory;
+  }
+  
+  // 如果真实数据获取失败，使用估算净值作为备选
   const fund = await getFundBasic(fundCode);
   const estimated = await getFundEstimatedValue(fundCode);
-  
   const currentNav = estimated?.estimatedUnit || fund?.netUnitValue || 1.0;
   
-  // 生成模拟历史数据 (基于当前净值往前推)
-  // 实际生产环境应调用天天基金历史净值API
-  return generateSimulatedHistory(startDate, endDate, currentNav);
+  // 返回单点数据
+  return [{
+    date: endDate,
+    nav: currentNav,
+  }];
 }
 
 // ============================================================================
