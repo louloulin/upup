@@ -29,8 +29,8 @@ import type {
 // ============================================================================
 
 export const teamCreateTool = new DynamicStructuredTool({
-  name: 'team_create',
-  description: 'Create a new multi-agent team for collaborative work. Teams allow multiple AI agents to work together on complex tasks.',
+  name: 'swarm_team_create',
+  description: '[SWARM] Create a new multi-agent team for collaborative work. Teams allow multiple AI agents to work together on complex tasks.',
   
   schema: z.object({
     team_name: z.string().describe('Unique name for the team'),
@@ -64,7 +64,7 @@ export const teamCreateTool = new DynamicStructuredTool({
 // ============================================================================
 
 export const agentSpawnTool = new DynamicStructuredTool({
-  name: 'agent_spawn',
+  name: 'swarm_agent_spawn',
   description: 'Spawn a new agent in an existing team. The agent will work on the assigned task and can communicate with other team members.',
   
   schema: z.object({
@@ -109,7 +109,7 @@ export const agentSpawnTool = new DynamicStructuredTool({
 // ============================================================================
 
 export const agentMessageTool = new DynamicStructuredTool({
-  name: 'agent_message',
+  name: 'swarm_agent_message',
   description: 'Send a message from one agent to another in the same team. Used for inter-agent communication and coordination.',
   
   schema: z.object({
@@ -146,8 +146,8 @@ export const agentMessageTool = new DynamicStructuredTool({
 // ============================================================================
 
 export const agentResultsTool = new DynamicStructuredTool({
-  name: 'agent_results',
-  description: 'Get results from agents in a team. Can retrieve all agent results or a specific agent.',
+  name: 'swarm_agent_results',
+  description: '[SWARM] Get results from agents in a team. Can retrieve all agent results or a specific agent.',
   
   schema: z.object({
     team_name: z.string().describe('Name of the team'),
@@ -181,8 +181,8 @@ export const agentResultsTool = new DynamicStructuredTool({
 // ============================================================================
 
 export const teamListTool = new DynamicStructuredTool({
-  name: 'team_list',
-  description: 'List all existing teams and their status.',
+  name: 'swarm_team_list',
+  description: '[SWARM] List all existing teams and their status.',
   
   schema: z.object({}),
 
