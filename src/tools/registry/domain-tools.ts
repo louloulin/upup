@@ -19,8 +19,8 @@ import {
   CREATE_WORKTREE_DESCRIPTION, REMOVE_WORKTREE_DESCRIPTION, LIST_WORKTREE_DESCRIPTION,
 } from '../worktree/index.js';
 import {
-  createListSkillsTool, createSearchSkillsTool, createGetSkillTool,
-  LIST_SKILLS_DESCRIPTION, SEARCH_SKILLS_DESCRIPTION, GET_SKILL_DESCRIPTION,
+  createSearchSkillsTool, createGetSkillTool,
+  SEARCH_SKILLS_DESCRIPTION, GET_SKILL_DESCRIPTION,
 } from '../discovery/index.js';
 import { createSendMessageTool, SEND_MESSAGE_DESCRIPTION } from '../send-message.js';
 import { createSnipTool, SNIP_TOOL_DESCRIPTION } from '../snip-tool.js';
@@ -103,7 +103,7 @@ export async function loadDomainTools(): Promise<RegisteredTool[]> {
   tools.push({ name: 'list_worktree', tool: listWorktreeTool(), description: LIST_WORKTREE_DESCRIPTION, compactDescription: 'List all git worktrees in the repository', concurrencySafe: true });
 
   // Skill discovery
-  tools.push({ name: 'list_skills', tool: createListSkillsTool(), description: LIST_SKILLS_DESCRIPTION, compactDescription: 'List all available skills in the system', concurrencySafe: true });
+  // Note: list_skills is provided by specialized-skills.ts to avoid duplication
   tools.push({ name: 'search_skills', tool: createSearchSkillsTool(), description: SEARCH_SKILLS_DESCRIPTION, compactDescription: 'Search for skills by keyword', concurrencySafe: true });
   tools.push({ name: 'get_skill', tool: createGetSkillTool(), description: GET_SKILL_DESCRIPTION, compactDescription: 'Get detailed information about a specific skill', concurrencySafe: true });
 
