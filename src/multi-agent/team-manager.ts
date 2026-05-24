@@ -257,6 +257,28 @@ export class TeamManager {
   getTeamFilePath(teamName: string): string | undefined {
     return this.teams.has(teamName) ? getTeamFilePath(teamName) : undefined;
   }
+
+  /**
+   * Clean up teams older than the specified age
+   * @param maxAgeMs - Maximum age in milliseconds (default: 24 hours)
+   */
+  cleanupOldTeams(maxAgeMs: number = 86400000): number {
+    const cutoff = Date.now() - maxAgeMs;
+    let cleaned = 0;
+    
+    for (const [name, team] of this.teams.entries()) {
+      if (team.createdAt < cutoff) {
+        this.deleteTeam(name);
+        cleaned++;
+      }
+    }
+    
+    if (cleaned > 0) {
+      info('daemon', `Cleaned up ${cleaned} old teams`);
+    }
+    
+    return cleaned;
+  }
 }
 
 // Singleton instance
