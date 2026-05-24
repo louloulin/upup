@@ -14,6 +14,7 @@ import { upupPath } from '../utils/paths.js';
 import { randomUUID } from 'crypto';
 import type { TeamFile, TeamMember, CreateTeamParams } from './types.js';
 import { info, warn, error as logError } from '../utils/logging/logger.js';
+import { registerTeamForSessionCleanup, unregisterTeamForSessionCleanup } from './session-cleanup.js';
 
 const TEAMS_DIR = 'teams';
 
@@ -218,6 +219,9 @@ export class TeamManager {
 
     // Remove from memory
     this.teams.delete(teamName);
+    
+    // Unregister from session cleanup
+    unregisterTeamForSessionCleanup(teamName);
 
     // Remove file
     const filePath = getTeamFilePath(teamName);
@@ -266,8 +270,21 @@ export class TeamManager {
     const cutoff = Date.now() - maxAgeMs;
     let cleaned = 0;
     
+    // Test/verification team name patterns
+    const testPatterns = /^(test-|spawn-|verify-|count-|stats-|swarm-|concurrent-|complete-|msg-|persist-|team-[ab]-)/;
+    
     for (const [name, team] of this.teams.entries()) {
-      if (team.createdAt < cutoff) {
+      const ts = team.createdAt;
+      
+      // Clean if:
+      // 1. Name matches test patterns (verification artifacts)
+      // 2. Timestamp looks like seconds stored as milliseconds
+      // 3. Timestamp older than cutoff
+      const tsAsSeconds = ts / 1000;
+      const isSecondsAsMilliseconds = tsAsSeconds > 1900000000 && tsAsSeconds < 2100000000;
+      const isTestTeam = testPatterns.test(name);
+      
+      if (isTestTeam || isSecondsAsMilliseconds || ts < cutoff) {
         this.deleteTeam(name);
         cleaned++;
       }

@@ -143,3 +143,24 @@ main().catch((e) => {
   console.error('Error:', e.message);
   process.exit(1);
 });
+
+// Import session cleanup (for process exit hooks)
+import { cleanupSessionTeams } from './multi-agent/session-cleanup.js';
+import { getTeamManager } from './multi-agent/team-manager.js';
+
+// Register process exit hooks for session cleanup
+process.on('SIGINT', async () => {
+  console.log('\n🧹 Cleaning up session teams...');
+  await cleanupSessionTeams((name) => getTeamManager().deleteTeam(name));
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  await cleanupSessionTeams((name) => getTeamManager().deleteTeam(name));
+  process.exit(0);
+});
+
+process.on('SIGHUP', async () => {
+  await cleanupSessionTeams((name) => getTeamManager().deleteTeam(name));
+  process.exit(0);
+});
