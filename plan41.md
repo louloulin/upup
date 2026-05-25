@@ -393,3 +393,32 @@ Week 9+: P3 Swarm 增强
 2. **准备 P1**: MCP Skills 架构设计
 3. **评估 P2**: PowerShell/LSP 需求
 4. **规划 P3**: Swarm/Team 增强路线
+
+---
+
+## 十一、P0 & P1 完成详情 (2026-05-25)
+
+### P0: Skills 权限系统
+
+**新增文件**:
+- src/skills/permissions.ts
+- src/skills/toolResultStorage.ts
+
+**实现的函数**:
+- hasPermissionsToUseTool()
+- createSkillPermissionContext()
+- isCommandAllowed()
+- processToolResultBlock()
+
+**权限检查流程**:
+1. 检查 toolPermissionContext.alwaysAllowRules.command
+2. 支持 glob 模式匹配 (如 Bash(python3*))
+3. 默认允许所有命令
+
+### P1: 结果存储
+
+**工具结果块**: ToolResultBlock 接口支持存储和检索
+
+**验证结果**:
+- TypeScript 编译通过
+- 单元测试 12 pass

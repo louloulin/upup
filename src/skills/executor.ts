@@ -21,6 +21,8 @@ import type {
 } from './types.js';
 import type { SubagentConfig, SubagentResult, SubagentRunner } from '../agent/subagent.js';
 import { executeShellCommandsInPrompt, containsShellCommands } from './promptShellExecution.js';
+import { hasPermissionsToUseTool, createSkillPermissionContext } from './permissions.js';
+import { processToolResultBlock } from './toolResultStorage.js';
 
 /**
  * Skill execution modes
@@ -594,12 +596,26 @@ export function createSkillCommand(
       // Step 5: Execute shell commands (!`command` and ```! ... ```)
       // Only execute if shell commands are present in the content
       if (containsShellCommands(finalContent)) {
+        // Create permission context for this skill
+        const permissionContext = context ? { ...context } : {};
+        
+        // Add toolPermissionContext if available
+        if (!permissionContext.getAppState) {
+          permissionContext.getAppState = () => ({
+            toolPermissionContext: {
+              alwaysAllowRules: {
+                command: skill.allowedTools || [],
+              },
+            },
+          });
+        }
+        
         finalContent = await executeShellCommandsInPrompt(
           finalContent,
-          context,
+          permissionContext,
           `/${skill.name}`,
           skill.shell,
-          skill.allowedTools  // Pass allowedTools for permission checking
+          skill.allowedTools
         );
       }
 
