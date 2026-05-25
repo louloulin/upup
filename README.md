@@ -361,6 +361,36 @@ DEBUG=permissions bun run src/run.ts "test"
 
 ---
 
+## Documentation
+
+Comprehensive documentation is available in the [docs/](docs/) directory:
+
+| Document | Description |
+|----------|-------------|
+| [docs/README.md](docs/README.md) | Documentation index |
+| [docs/architecture.md](docs/architecture.md) | System architecture |
+| [docs/permission.md](docs/permission.md) | Permission system |
+| [docs/skills.md](docs/skills.md) | Skills system |
+| [docs/api.md](docs/api.md) | API reference |
+| [docs/plugins.md](docs/plugins.md) | Plugin system |
+| [docs/session.md](docs/session.md) | Session management |
+| [docs/development.md](docs/development.md) | Development guide |
+
+### Chinese Documentation (中文文档)
+
+| Document | Description |
+|----------|-------------|
+| [docs/README_CN.md](docs/README_CN.md) | 文档索引 |
+| [docs/architecture-cn.md](docs/architecture-cn.md) | 系统架构 |
+| [docs/permission-cn.md](docs/permission-cn.md) | 权限系统 |
+| [docs/skills-cn.md](docs/skills-cn.md) | 技能系统 |
+| [docs/api-cn.md](docs/api-cn.md) | API 参考 |
+| [docs/plugins-cn.md](docs/plugins-cn.md) | 插件系统 |
+| [docs/session-cn.md](docs/session-cn.md) | 会话管理 |
+| [docs/development-cn.md](docs/development-cn.md) | 开发指南 |
+
+---
+
 ## License
 
 MIT License - see [LICENSE](LICENSE) for details.
