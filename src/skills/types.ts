@@ -4,7 +4,7 @@
  * - project: Project-level skills (.upup/skills/)
  * - user: User-level skills (.claude/skills/)
  */
-export type SkillSource = 'builtin' | 'user' | 'project' | 'plugin' | 'agent';
+export type SkillSource = 'builtin' | 'user' | 'project' | 'plugin' | 'agent' | 'mcp';
 
 /**
  * Hook settings for skill execution.

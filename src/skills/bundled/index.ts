@@ -111,3 +111,22 @@ export function getPhase4Skills(): EnhancedSkillDefinition[] {
     createAlertSkill(),
   ];
 }
+
+// ============================================================================
+// Initialization
+// ============================================================================
+
+/**
+ * Initialize all bundled skills.
+ * Registers all skills with the registry.
+ */
+export function initInvestmentSkills(): void {
+  const skills = getAllSpecializedSkills();
+  
+  // Import registry functions
+  const { registerBundledSkill } = require('../registry.js');
+  
+  for (const skill of skills) {
+    registerBundledSkill(skill);
+  }
+}
