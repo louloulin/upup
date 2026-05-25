@@ -111,3 +111,46 @@ bun test test/skills-*.test.ts
 | P5 | 更新文档和注释 | ⏳ 待完成 |
 
 ## 总体进度: 80% (P1-P4 完成)
+
+---
+
+## 问题深入分析 (2026-05-25 第二轮)
+
+### 发现的问题
+
+#### 1. Skills 加载正常
+```
+[skills] Initialized 102 skills (5 bundled + 97 file-based)
+✓ a-share-data (source: user)
+✓ a-share-fund, a-share-filings, etc.
+```
+
+#### 2. Skills 执行正常
+```
+executeSkillCommand('a-share-data', '贵州茅台')
+→ Result: query (2180 chars)
+→ 包含 AKShare Python 代码
+```
+
+#### 3. 可能的问题原因
+
+| 原因 | 可能性 | 说明 |
+|------|--------|------|
+| Python/akshare 执行失败 | 高 | Agent 执行 Bash 时出错 |
+| 工具权限问题 | 中 | Bash 工具被禁用 |
+| 会话超时 | 中 | 长时间运行的 Python 脚本 |
+| 模型响应问题 | 低 | Agent 无法理解 SKILL.md 指令 |
+
+### 验证方法
+
+需要用户在 UpUp 中实际执行 `/a-share-data 贵州茅台` 观察错误信息。
+
+### P5: 错误诊断增强 (待实施)
+
+| 任务 | 状态 |
+|------|------|
+| 添加错误日志 | pending |
+| 捕获并显示 Bash 错误 | pending |
+| 检查 akshare 安装状态 | pending |
+
+## 总体进度: 80% (P1-P4 完成，P5 待诊断)
