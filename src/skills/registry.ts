@@ -1,3 +1,4 @@
+import os from 'os';
 import { existsSync, readdirSync } from 'fs';
 import { EventEmitter } from 'events';
 import { join, dirname } from 'path';
@@ -25,6 +26,7 @@ const SKILL_DIRECTORIES: { path: string; source: SkillSource }[] = [
   { path: __dirname, source: 'builtin' },
   { path: join(process.cwd(), '.claude', 'skills'), source: 'user' },
   { path: join(process.cwd(), upupPath('skills')), source: 'project' },
+  { path: join(os.homedir(), '.agents', 'skills'), source: 'agent' },
 ];
 
 // Cache for discovered skills (metadata only)
