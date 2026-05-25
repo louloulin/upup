@@ -598,7 +598,8 @@ export function createSkillCommand(
           finalContent,
           context,
           `/${skill.name}`,
-          skill.shell
+          skill.shell,
+          skill.allowedTools  // Pass allowedTools for permission checking
         );
       }
 
