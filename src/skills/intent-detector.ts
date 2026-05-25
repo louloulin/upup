@@ -270,7 +270,7 @@ function isValidAShare(code: string): boolean {
   // 明确是A股代码的模式
   if (/^6\d{5}$/.test(code)) return true;  // 6开头 (600/601/603/605/688)
   if (/^00[0-3]\d{3}$/.test(code)) return true;  // 000/001/002/003开头
-  if (/^30\d{3}$/.test(code)) return true;  // 300/301开头
+  if (/^30\d{4}$/.test(code)) return true;  // 300/301开头
   
   // 北交所: 430/830/870开头
   if (/^4[38]\d{3}$/.test(code)) return true;
