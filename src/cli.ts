@@ -817,6 +817,18 @@ export async function runCli(options: RunCliOptions = {}) {
     if (result?.answer) {
       await inputHistory.updateAgentResponse(result.answer);
     }
+    
+    // Show skill suggestion for future queries (after response is generated)
+    try {
+      const { getCliSkillSuggestion } = await import('./skills/skills-menu.js');
+      const suggestion = getCliSkillSuggestion(query, 40);
+      if (suggestion) {
+        chatLog.addChild(new Text(suggestion, 0, 0));
+      }
+    } catch {
+      // Ignore errors in skill suggestions
+    }
+    
     refreshError();
     tui.requestRender();
   };

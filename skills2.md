@@ -708,3 +708,24 @@ getCliSkillSuggestion("ETF涨跌") -> 💡 提示: 考虑使用 /a-share-fund
 | shouldSuggestSkills | ✅ | ✅ | ✅ |
 | getCliSkillSuggestion | ✅ | ✅ | ✅ |
 
+
+---
+
+## P5 实现: CLI 集成 (2026-05-25)
+
+### 实现状态
+- [x] 在 handleSubmit 中集成 getCliSkillSuggestion
+- [x] 用户提交查询后显示技能建议
+- [x] 只对高分匹配显示建议 (阈值40)
+- [x] TypeScript 编译通过
+- [x] 所有测试通过
+
+### 代码位置
+- `src/cli.ts` - handleSubmit 函数
+
+### 使用效果
+```
+用户输入: ETF基金涨跌排名
+AI响应: ...
+💡 提示: 考虑使用 /a-share-fund 来 A股基金数据查询与分析。当用户提到以下内容时必须使用此技能：...
+```
