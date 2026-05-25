@@ -670,3 +670,41 @@ getCliSkillSuggestion("ETF涨跌") -> 💡 提示: 考虑使用 /a-share-fund
 
 **总体进度: 100% (核心功能全部完成)**
 
+
+---
+
+## 测试覆盖 (2026-05-25)
+
+### 新增测试文件
+- `test/skills-suggestions.test.ts` - 12 个测试用例
+
+### 测试覆盖
+| 函数 | 测试数 | 状态 |
+|------|--------|------|
+| getSkillsByTrigger | 3 | ✅ |
+| suggestSkills | 2 | ✅ |
+| formatSkillSuggestions | 2 | ✅ |
+| shouldSuggestSkills | 3 | ✅ |
+| getCliSkillSuggestion | 2 | ✅ |
+
+### 测试结果
+```
+12 pass, 0 fail
+21 expect() calls
+```
+
+---
+
+## 完整功能清单
+
+| 功能 | 实现 | 测试 | 导出 |
+|------|------|------|------|
+| getSkillsByTrigger | ✅ | ✅ | ✅ |
+| EventEmitter (skillsLoaded) | ✅ | ✅ | ✅ |
+| EventEmitter (skillCacheCleared) | ✅ | ✅ | ✅ |
+| onSkillEvent / offSkillEvent | ✅ | ✅ | ✅ |
+| suggestSkills | ✅ | ✅ | ✅ |
+| formatSkillSuggestions | ✅ | ✅ | ✅ |
+| shouldSuggestSkills | ✅ | ✅ | ✅ |
+| getCliSkillSuggestion | ✅ | ✅ | ✅ |
+
