@@ -469,3 +469,44 @@ if (allowedTools && !isCommandAllowed(command, allowedTools)) {
 ## 下一步
 
 P8: 测试实际 SKILL.md 执行
+
+---
+
+## P8 完成详情 (2026-05-25)
+
+### 验证结果
+
+| 测试项 | 结果 | 说明 |
+|--------|------|------|
+| ```! 块预执行 | ✅ | "Hello from shell" → 输出结果 |
+| !` 内联执行 | ✅ | "inline result" → 输出结果 |
+| ```bash 保持原样 | ✅ | 代码块不被预执行 |
+| allowedTools 集成 | ✅ | 权限检查正常 |
+
+### 关键发现
+
+1. **Shell 预执行功能正常**：` ```! ` 和 ` !` ` 语法会被正确预执行
+2. **```bash 不会被执行**：这是设计意图，代码块作为示例显示给 Agent
+3. **Agent 负责执行**：Agent 收到 markdown 后，需要调用 Bash tool 执行 python3
+
+### 架构流程确认
+
+```
+SKILL.md with ```! → containsShellCommands() = TRUE → 预执行 ✅
+SKILL.md with ```bash → containsShellCommands() = FALSE → Agent 执行
+```
+
+### 总体进度: 100%
+
+所有 P1-P8 任务完成！
+
+| 阶段 | 任务 | 状态 |
+|------|------|------|
+| P1 | 扩展 SKILL_DIRECTORIES | ✅ |
+| P2 | 添加 'agent' SkillSource | ✅ |
+| P3 | 测试外部 skills 发现 | ✅ |
+| P4 | 验证 /a-share-data 执行 | ✅ |
+| P5 | 错误诊断增强 | ✅ |
+| P6 | 重构 promptShellExecution | ✅ |
+| P7 | 集成权限系统 | ✅ |
+| P8 | 测试并验证修复 | ✅ |
