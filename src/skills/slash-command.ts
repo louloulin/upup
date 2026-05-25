@@ -38,6 +38,10 @@ export interface SkillMetadata {
   user_invocable: boolean;
   model?: string;
   argument_hint?: string;
+  whenToUse?: string;
+  source?: string;
+  userInvocable?: boolean;
+  argumentHint?: string;
 }
 
 /**
@@ -311,6 +315,92 @@ export class SkillCommandRegistry {
   get skillCount(): number {
     return this.skills.size;
   }
+  /**
+   * Find skills matching user input based on triggers, whenToUse, and description
+   * Used for automatic skill activation when user doesn't use slash command
+   * @param input - User's natural language input
+   * @param limit - Maximum number of matches to return (default 5)
+   * @returns Array of SkillMatch with score and skill metadata
+   */
+  getSkillsByTrigger(input: string, limit: number = 5): Array<{ score: number; skill: SkillMetadata }> {
+    const normalizedInput = input.toLowerCase();
+    const userKeywords = this.extractKeywords(normalizedInput);
+    const results: Array<{ score: number; skill: SkillMetadata }> = [];
+
+    for (const skill of this.getAllSkills()) {
+      let score = 0;
+
+      // 1. Exact command name match (highest priority)
+      if (normalizedInput.includes(skill.name.toLowerCase())) {
+        score += 100;
+      }
+
+      // 2. Check if skill description contains user keywords
+      const skillDesc = (skill.description || '').toLowerCase();
+      const skillWhenToUse = (skill.whenToUse || '').toLowerCase();
+      
+      for (const keyword of userKeywords) {
+        // Higher score for whenToUse match
+        if (skillWhenToUse.includes(keyword)) {
+          score += 30;
+        }
+        // Lower score for description match
+        if (skillDesc.includes(keyword)) {
+          score += 15;
+        }
+      }
+
+      // 3. Check triggers
+      const triggers = skill.triggers || [];
+      for (const trigger of triggers) {
+        const normalizedTrigger = trigger.toLowerCase().replace(/^\//, '');
+        if (normalizedInput.includes(normalizedTrigger)) {
+          score += 50;
+        }
+      }
+
+      if (score > 0) {
+        results.push({ score, skill });
+      }
+    }
+
+    // Sort by score descending and limit
+    return results.sort((a, b) => b.score - a.score).slice(0, limit);
+  }
+
+  /**
+   * Extract keywords from user input
+   */
+  private extractKeywords(text: string): string[] {
+    const keywords: string[] = [];
+    // Match Chinese words (2-4 chars) - split by punctuation and spaces
+    // This gives us individual meaningful words
+    const chineseRegex = /[\u4e00-\u9fff]{2,4}/g;
+    const chineseMatches = text.match(chineseRegex);
+    if (chineseMatches) keywords.push(...chineseMatches);
+    // Also extract longer phrases (up to 6 chars)
+    const longChineseRegex = /[\u4e00-\u9fff]{5,6}/g;
+    const longMatches = text.match(longChineseRegex);
+    if (longMatches) {
+      for (const match of longMatches) {
+        // Split into smaller parts
+        for (let i = 0; i < match.length - 1; i += 2) {
+          keywords.push(match.slice(i, i + 2));
+        }
+      }
+    }
+    // Match English words (3+ chars)
+    const englishRegex = /[a-zA-Z]{3,}/g;
+    const englishMatches = text.match(englishRegex);
+    if (englishMatches) keywords.push(...englishMatches.map(w => w.toLowerCase()));
+    return keywords;
+  }
+
+
+  /**
+   * Parse keywords from whenToUse field
+   */
+
 }
 
 // ============================================================================
