@@ -221,3 +221,69 @@ describe('Intent Detector', () => {
     });
   });
 });
+
+// ============================================================================
+// Additional Integration Tests
+// ============================================================================
+
+describe('Intent Detector > Extended Tests', () => {
+  test('detects all supported intent types', () => {
+    const testCases = [
+      { input: '分析PE估值', expected: 'valuation' },
+      { input: 'K线技术分析', expected: 'technical' },
+      { input: '财务数据分析', expected: 'fundamental' },
+      { input: '风险评估', expected: 'risk' },
+      { input: 'ETF基金分析', expected: 'fund' },
+      { input: 'GDP增长分析', expected: 'macro' },
+      { input: '持仓管理', expected: 'portfolio' },
+      { input: '设置价格提醒', expected: 'alert' },
+      { input: '/dcf', expected: 'command' },
+    ];
+
+    for (const { input, expected } of testCases) {
+      const intents = detectIntents(input);
+      expect(intents.some(i => i.type === expected)).toBe(true);
+    }
+  });
+
+  test('detects all supported market tickers', () => {
+    // Test A-share codes (6xxx, 000xxx, 300xxx, 688xxx patterns)
+    expect(extractTickers('600519')[0]?.market).toBe('A-share');
+    expect(extractTickers('000858')[0]?.market).toBe('A-share');
+    expect(extractTickers('300750')[0]?.market).toBe('A-share');
+    expect(extractTickers('688981')[0]?.market).toBe('A-share');
+    
+    // Test HK codes (0xxxx pattern, 4-5 digits after 0)
+    expect(extractTickers('00700')[0]?.market).toBe('HK');
+    
+    // Test US tickers (uppercase letters)
+    expect(extractTickers('AAPL')[0]?.market).toBe('US');
+    expect(extractTickers('TSLA')[0]?.market).toBe('US');
+  });
+
+  test('handles complex investment queries', () => {
+    const queries = [
+      '对比贵州茅台600519和五粮液000858的DCF估值',
+      '分析腾讯00700的技术面',
+      '帮我看看苹果AAPL的风险回报比',
+      '分析科创板688981的走势',
+    ];
+
+    for (const query of queries) {
+      const intents = detectIntents(query);
+      const tickers = extractTickers(query);
+      expect(intents.length).toBeGreaterThan(0);
+      expect(tickers.length).toBeGreaterThan(0);
+    }
+  });
+
+  test('confidence scoring works correctly', () => {
+    const intents = detectIntents('分析茅台的DCF内在价值和PE估值');
+    expect(intents.length).toBeGreaterThan(0);
+    
+    // valuation intent should have high confidence
+    const valuationIntent = intents.find(i => i.type === 'valuation');
+    expect(valuationIntent).toBeDefined();
+    expect(valuationIntent!.confidence).toBeGreaterThan(0.5);
+  });
+});
