@@ -436,3 +436,56 @@ export function searchSkills(term: string): string {
 
   return renderSkillsMenu(menu);
 }
+
+// ============================================================================
+// Skill Suggestions (Based on getSkillsByTrigger)
+// ============================================================================
+
+/**
+ * Suggest skills based on user input using getSkillsByTrigger
+ * @param input - User's natural language input
+ * @param limit - Maximum number of suggestions (default 5)
+ * @returns Array of suggested skills with scores
+ */
+export function suggestSkills(input: string, limit: number = 5): Array<{ name: string; description: string; score: number }> {
+  // Lazy import to avoid circular dependency
+  const registry = getSkillCommandRegistry();
+  
+  if (!registry) {
+    return [];
+  }
+  
+  const matches = registry.getSkillsByTrigger(input, limit);
+  
+  return matches.map(m => ({
+    name: m.skill.name,
+    description: m.skill.description || '',
+    score: m.score,
+  }));
+}
+
+/**
+ * Format skill suggestions for display
+ * @param suggestions - Array of skill suggestions
+ * @returns Formatted string for terminal display
+ */
+export function formatSkillSuggestions(suggestions: Array<{ name: string; description: string; score: number }>): string {
+  if (suggestions.length === 0) {
+    return 'No skill suggestions available.';
+  }
+  
+  const lines = ['\n🎯 Skill Suggestions:'];
+  
+  suggestions.forEach((s, i) => {
+    lines.push(`  ${i + 1}. ${s.name} (score: ${s.score})`);
+    // Show first line of description (truncated)
+    const descPreview = s.description.split('\n')[0].slice(0, 60);
+    if (descPreview) {
+      lines.push(`     ${descPreview}${descPreview.length >= 60 ? '...' : ''}`);
+    }
+  });
+  
+  lines.push('\n  Use /<skill-name> to invoke a skill.');
+  
+  return lines.join('\n');
+}

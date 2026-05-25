@@ -127,6 +127,8 @@ export {
   searchSkills,
   renderSkillsMenu,
   renderSkillDetail,
+  suggestSkills,
+  formatSkillSuggestions,
   type SkillMenuItem,
   type SkillSource as MenuSkillSource,
 } from './skills-menu.js';

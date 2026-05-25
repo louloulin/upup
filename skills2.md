@@ -597,3 +597,41 @@ onSkillEvent('skillsLoaded', (skills) => {
 // Unsubscribe
 offSkillEvent('skillsLoaded', handler);
 ```
+
+## P3 实现: Skill Suggestions (2026-05-25)
+
+### 实现状态
+- [x] suggestSkills 函数 - 基于 getSkillsByTrigger 的智能建议
+- [x] formatSkillSuggestions 函数 - 终端格式化显示
+- [x] 从 index.ts 导出新函数
+- [x] TypeScript 编译通过
+- [x] 功能验证通过
+
+### 验证结果
+```
+Input: ETF基金涨跌排名
+🎯 Skill Suggestions:
+  1. a-share-fund (score: 90)
+  2. fund-holdings (score: 15)
+  3. market-monitor (score: 15)
+
+Input: 分析A股市场结构
+🎯 Skill Suggestions:
+  1. a-share-market-structure (score: 45)
+  2. review (score: 15)
+```
+
+### 代码位置
+- `src/skills/skills-menu.ts` - suggestSkills, formatSkillSuggestions
+- `src/skills/index.ts` - 导出新函数
+
+### 使用示例
+```typescript
+import { suggestSkills, formatSkillSuggestions } from './src/skills/index.ts';
+
+// Get suggestions
+const suggestions = suggestSkills('ETF基金涨跌排名', 5);
+
+// Format for display
+console.log(formatSkillSuggestions(suggestions));
+```
