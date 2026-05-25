@@ -489,3 +489,47 @@ export function formatSkillSuggestions(suggestions: Array<{ name: string; descri
   
   return lines.join('\n');
 }
+
+// ============================================================================
+// CLI Integration Helper
+// ============================================================================
+
+/**
+ * Check if input should trigger skill suggestion display
+ * @param input - User's input
+ * @returns true if input is not a slash command and has length > 3
+ */
+export function shouldSuggestSkills(input: string): boolean {
+  // Don't suggest for slash commands (they're explicit)
+  if (input.startsWith('/')) {
+    return false;
+  }
+  // Don't suggest for very short inputs
+  if (input.trim().length < 4) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Get skill suggestion for CLI display
+ * Returns formatted suggestion string or empty string
+ * @param input - User's input
+ * @param minScore - Minimum score threshold (default 30)
+ * @returns Formatted suggestion or empty string
+ */
+export function getCliSkillSuggestion(input: string, minScore: number = 30): string {
+  if (!shouldSuggestSkills(input)) {
+    return '';
+  }
+  
+  const suggestions = suggestSkills(input, 3);
+  
+  // Only show if there's a high-confidence match
+  const topMatch = suggestions[0];
+  if (!topMatch || topMatch.score < minScore) {
+    return '';
+  }
+  
+  return `\n💡 提示: 考虑使用 /${topMatch.name} 来 ${topMatch.description.split('\n')[0].slice(0, 30)}...`;
+}
