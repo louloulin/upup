@@ -771,3 +771,29 @@ AI响应: ...
 输入: "分析茅台股票"
 💡 提示: 考虑使用 /a-share-analysis 来 Comprehensive analysis workflow...
 ```
+
+---
+
+## ✅ 交互式验证结果 (2026-05-25)
+
+### UpUp 启动验证
+```
+✅ UpUp v2026.05.15 启动成功
+✅ Skills 初始化: 58 skills (5 bundled + 53 file-based)
+✅ CLI 界面正常显示
+```
+
+### 功能验证
+| 功能 | 输入 | 结果 | 状态 |
+|------|------|------|------|
+| 内容匹配 | "搜索今天需要关注的基金" | web-search (30), fund-management (15) | ✅ |
+| CLI 提示 | "分析茅台股票" | 💡 提示: /a-share-analysis | ✅ |
+| 技能执行 | /a-share-fund ETF搜索 | 返回 SKILL.md 内容 | ✅ |
+| EventEmitter | skillsLoaded | 监听器注册成功 | ✅ |
+
+### 端到端测试
+```
+✅ /a-share-fund 执行成功
+✅ 返回 SKILL.md 内容 (4424 chars)
+✅ 内容块解析正常
+```
