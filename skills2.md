@@ -635,3 +635,38 @@ const suggestions = suggestSkills('ETF基金涨跌排名', 5);
 // Format for display
 console.log(formatSkillSuggestions(suggestions));
 ```
+
+## P4 实现: CLI 集成助手 (2026-05-25)
+
+### 实现状态
+- [x] shouldSuggestSkills() - 判断是否应显示建议
+- [x] getCliSkillSuggestion() - 获取 CLI 格式建议
+- [x] 从 index.ts 导出新函数
+- [x] TypeScript 编译通过
+- [x] 功能验证通过
+
+### 验证结果
+```
+shouldSuggestSkills("/a-share-fund") -> false
+shouldSuggestSkills("帮我分析基金") -> true
+getCliSkillSuggestion("ETF涨跌") -> 💡 提示: 考虑使用 /a-share-fund
+```
+
+### 代码位置
+- `src/skills/skills-menu.ts` - shouldSuggestSkills, getCliSkillSuggestion
+- `src/skills/index.ts` - 导出新函数
+
+---
+
+## 实现进度总结
+
+| 优先级 | 功能 | 状态 | 完成度 |
+|--------|------|------|--------|
+| P1 | getSkillsByTrigger | ✅ | 100% |
+| P2 | 动态加载事件 | ✅ | 100% |
+| P3 | Skill Suggestions | ✅ | 100% |
+| P4 | CLI 集成助手 | ✅ | 100% |
+| - | 核心系统 (手动/自动触发) | ✅ | 100% |
+
+**总体进度: 100% (核心功能全部完成)**
+
