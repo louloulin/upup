@@ -558,3 +558,42 @@ Input: /a-share-fund 基金净值
 
 ### 代码位置
 - `src/skills/slash-command.ts` - SkillCommandRegistry 类
+
+## P2 实现: 动态加载事件 (2026-05-25)
+
+### 实现状态
+- [x] EventEmitter 导入 registry.ts
+- [x] skillEvents 实例创建
+- [x] onSkillEvent 订阅函数
+- [x] offSkillEvent 取消订阅函数
+- [x] getSkillEventEmitter 获取器函数
+- [x] skillsLoaded 事件触发
+- [x] skillCacheCleared 事件触发
+- [x] TypeScript 编译通过
+- [x] 功能验证通过
+
+### 验证结果
+```
+✅ skillsLoaded event fires after discoverSkills()
+✅ skillCacheCleared event fires after clearSkillCache()
+✅ onSkillEvent/offSkillEvent work correctly
+✅ Events don't fire when using cached results
+✅ getSkillEventEmitter returns EventEmitter instance
+```
+
+### 代码位置
+- `src/skills/registry.ts` - skillEvents EventEmitter
+- `src/skills/index.ts` - 导出新函数
+
+### 使用示例
+```typescript
+import { onSkillEvent, offSkillEvent } from './src/skills/index.ts';
+
+// Subscribe to skill loading
+onSkillEvent('skillsLoaded', (skills) => {
+  console.log('Skills loaded:', skills.length);
+});
+
+// Unsubscribe
+offSkillEvent('skillsLoaded', handler);
+```

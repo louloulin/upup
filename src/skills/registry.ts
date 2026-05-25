@@ -1,4 +1,5 @@
 import { existsSync, readdirSync } from 'fs';
+import { EventEmitter } from 'events';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import type { SkillMetadata, Skill, SkillSource } from './types.js';
@@ -28,6 +29,34 @@ const SKILL_DIRECTORIES: { path: string; source: SkillSource }[] = [
 
 // Cache for discovered skills (metadata only)
 let skillMetadataCache: Map<string, SkillMetadata> | null = null;
+
+// Event emitter for skill lifecycle events
+const skillEvents = new EventEmitter();
+
+/**
+ * Subscribe to skill events
+ * @param event - Event name ('skillsLoaded', 'skillCacheCleared')
+ * @param handler - Event handler callback
+ */
+export function onSkillEvent(event: string, handler: (...args: any[]) => void): void {
+  skillEvents.on(event, handler);
+}
+
+/**
+ * Unsubscribe from skill events
+ * @param event - Event name
+ * @param handler - Event handler to remove
+ */
+export function offSkillEvent(event: string, handler: (...args: any[]) => void): void {
+  skillEvents.off(event, handler);
+}
+
+/**
+ * Get the skill event emitter for advanced use cases
+ */
+export function getSkillEventEmitter(): EventEmitter {
+  return skillEvents;
+}
 
 /**
  * Scan a directory for SKILL.md files and return their metadata.
@@ -88,7 +117,10 @@ export function discoverSkills(): SkillMetadata[] {
     }
   }
 
-  return Array.from(skillMetadataCache.values());
+  const result = Array.from(skillMetadataCache.values());
+  // Emit skillsLoaded event
+  skillEvents.emit('skillsLoaded', result);
+  return result;
 }
 
 /**
@@ -240,6 +272,7 @@ export function buildSkillMetadataSection(): string {
  */
 export function clearSkillCache(): void {
   skillMetadataCache = null;
+  skillEvents.emit('skillCacheCleared');
 }
 
 // ============================================================================

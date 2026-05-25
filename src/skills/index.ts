@@ -35,6 +35,10 @@ export {
   getBundledSkill,
   getAllBundledSkills,
   registerBundledSkill,
+  // Event emitter
+  onSkillEvent,
+  offSkillEvent,
+  getSkillEventEmitter,
 } from './registry.js';
 
 export {
