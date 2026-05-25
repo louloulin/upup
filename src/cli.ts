@@ -600,6 +600,9 @@ export async function runCli(options: RunCliOptions = {}) {
         }
         tui.requestRender();
         return;
+      } else {
+        // skillCommand is null - continue with regular commands
+        return;
       }
     } catch {
       // Not a skill command, continue with regular commands
