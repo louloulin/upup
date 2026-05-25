@@ -19,7 +19,7 @@ import { getUpupDir } from '../paths.js';
 // ============================================================================
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
-export type LogCategory = 'memory' | 'agent-loader' | 'agent-registry' | 'backend' | 'iterm2' | 'coordinator' | 'team-manager' | 'verifier' | 'health-check' | 'event-bus' | 'lifecycle' | 'scheduler' | 'persistence' | 'skills' | 'monitor' | 'skill-tracker' | 'monitor' | 'agent' | 'tools' | 'subagent' | 'mcp' | 'daemon' | 'system' | 'default' | 'compaction' | 'orchestrator' | 'post-cleanup' | 'session-compact' | 'bash' | 'hooks';
+export type LogCategory = 'memory' | 'agent-loader' | 'powershell' | 'agent-registry' | 'backend' | 'iterm2' | 'coordinator' | 'team-manager' | 'verifier' | 'health-check' | 'event-bus' | 'lifecycle' | 'scheduler' | 'persistence' | 'skills' | 'monitor' | 'skill-tracker' | 'monitor' | 'agent' | 'tools' | 'subagent' | 'mcp' | 'daemon' | 'system' | 'default' | 'compaction' | 'orchestrator' | 'post-cleanup' | 'session-compact' | 'bash' | 'hooks';
 
 export interface LogEntry {
   id: string;
@@ -80,6 +80,7 @@ const DEFAULT_CONFIG: LoggerConfig = {
     'post-cleanup': true,
     'session-compact': true,
     bash: true,
+    powershell: true,
     hooks: true,
     'agent-loader': true,
     'agent-registry': true,

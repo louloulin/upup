@@ -36,7 +36,10 @@ interface ToolUseContext {
   cwd?: string;
 }
 
-type Tool = { name?: string; permissions?: { mode?: string } };
+export interface Tool {
+  name?: string;
+  permissions?: { mode?: string };
+}
 
 /**
  * Check if a tool can be used based on context and permissions.
