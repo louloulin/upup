@@ -10,10 +10,10 @@
  * Full implementation requires integration with the permission system.
  */
 
-import { exec } from 'child_process';
+import { executeBashCommand } from '../tools/bash/bash-tool.js';
 import { promisify } from 'util';
 
-const execAsync = promisify(exec);
+
 
 // Pattern for code blocks: ```! command ```
 const BLOCK_PATTERN = /```!\s*\n?([\s\S]*?)\n?```/g;
@@ -32,15 +32,22 @@ export interface ShellExecutionResult {
  * Execute a shell command and return the result.
  */
 async function executeCommand(command: string): Promise<ShellExecutionResult> {
-  return new Promise((resolve) => {
-    exec(command, { timeout: 30000, shell: '/bin/bash' }, (error, stdout, stderr) => {
-      resolve({
-        stdout: stdout || '',
-        stderr: stderr || '',
-        exitCode: error?.code || 0,
-      });
+  try {
+    const result = await executeBashCommand(command, {
+      timeout: 30000,
     });
-  });
+    return {
+      stdout: result.stdout || '',
+      stderr: result.stderr || '',
+      exitCode: result.exitCode || 0,
+    };
+  } catch (error: any) {
+    return {
+      stdout: '',
+      stderr: error.message || String(error),
+      exitCode: 1,
+    };
+  }
 }
 
 /**
@@ -61,6 +68,7 @@ export async function executeShellCommandsInPrompt(
   context?: unknown,
   slashCommandName?: string,
   shell?: { commands?: string[] },
+  allowedTools?: string[],
 ): Promise<string> {
   let result = text;
 
@@ -91,6 +99,16 @@ export async function executeShellCommandsInPrompt(
   // Execute all commands in parallel
   const results = await Promise.all(
     matches.map(async ({ pattern, command, isInline }) => {
+      // Check permissions before executing
+      const allowed = allowedTools || shell?.commands;
+      if (allowed && allowed.length > 0 && !isCommandAllowed(command, allowed)) {
+        return {
+          pattern,
+          output: '',
+          error: `[Permission Denied] Command not allowed: ${command}. Allowed: ${allowed.join(', ')}`,
+        };
+      }
+      
       try {
         const shellResult = await executeCommand(command);
 

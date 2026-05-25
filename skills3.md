@@ -423,3 +423,49 @@ bun run test-skill-execution.ts
 2. **P7**: 集成 `toolPermissionContext`
 3. **P8**: 测试并验证修复
 4. **诊断**: 在 UpUp 中实际执行 `/a-share-data` 观察结果
+
+---
+
+## P6 & P7 完成详情 (2026-05-25)
+
+### P6: 重构 promptShellExecution ✅
+
+**变更**:
+- `executeBashCommand` 替代 `exec()`
+- 集成 Upup 安全检查 (AST 分析、危险命令检测)
+
+```typescript
+// Before
+exec(command, { timeout: 30000, shell: '/bin/bash' })
+
+// After
+executeBashCommand(command, { timeout: 30000 })
+```
+
+### P7: 集成权限系统 ✅
+
+**变更**:
+- `executeShellCommandsInPrompt` 新增 `allowedTools` 参数
+- 执行前检查命令是否在允许列表中
+- 权限拒绝时返回清晰错误
+
+```typescript
+if (allowedTools && !isCommandAllowed(command, allowedTools)) {
+  return { error: `[Permission Denied] Command not allowed` };
+}
+```
+
+### 验证结果
+
+| 测试 | 结果 |
+|------|------|
+| TypeScript 编译 | ✅ 通过 |
+| 单元测试 | ✅ 12 pass |
+| UpUp 启动 | ✅ 正常 |
+| Skills 加载 | ✅ 102 skills |
+
+---
+
+## 下一步
+
+P8: 测试实际 SKILL.md 执行
