@@ -112,10 +112,11 @@ export class HintBarComponent extends Container {
     for (let i = 0; i < display.length; i++) {
       const cmd = display[i];
       const isSelected = i === selectedIndex;
-      const prefix = isSelected ? '> ' : '  ';
-      const name = isSelected ? cmd.name : cmd.name;
+      // Use theme to highlight selected item
+      const nameText = isSelected ? theme.primary(`/${cmd.name}`) : `/${cmd.name}`;
       const desc = cmd.description.slice(0, 20);
-      this.addChild(new Text(`${prefix}/${name}  ${desc}`, 0, 0));
+      const line = isSelected ? `${nameText}  ${desc}` : `${nameText}  ${desc}`;
+      this.addChild(new Text(line, 0, 0));
     }
   }
 

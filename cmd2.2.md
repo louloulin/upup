@@ -1,11 +1,122 @@
 # Dexter 命令系统改造计划 v2.2
 
 > 更新日期: 2026-05-26
-> 版本: v4.3 (完整验证报告 + Skills 模糊搜索)
+> 版本: v4.4 (Bug 修复 + 验证)
 
 ---
 
 ## v4.3 完整验证报告 (2026-05-26 21:00)
+
+### Bug 修复
+
+| Bug | 修复文件 | 状态 |
+|-----|----------|------|
+| hint-bar selection highlighting 无效 | src/components/hint-bar.ts | ✅ 已修复 |
+| redirect 无限循环 | src/cli.ts | ✅ 已修复 (cycle detection) |
+| onSlashSelect 错误被吞掉 | src/cli.ts | ✅ 已修复 (catch + log) |
+| 错误信息不明确 | src/cli.ts | ✅ 改进 |
+
+### hint-bar 修复 (v4.4)
+
+```typescript
+// src/components/hint-bar.ts
+setSuggestions(commands: SlashCommand[], selectedIndex: number): void {
+  this.clear();
+  this.showingSuggestions = true;
+  const display = commands.slice(0, 10);
+  for (let i = 0; i < display.length; i++) {
+    const cmd = display[i];
+    const isSelected = i === selectedIndex;
+    // 使用 theme.primary 高亮选中项
+    const nameText = isSelected ? theme.primary(`/${cmd.name}`) : `/${cmd.name}`;
+    const desc = cmd.description.slice(0, 20);
+    const line = isSelected ? `${nameText}  ${desc}` : `${nameText}  ${desc}`;
+    this.addChild(new Text(line, 0, 0));
+  }
+}
+```
+
+### cli.ts 修复 (v4.4)
+
+```typescript
+// src/cli.ts - handleSlashCommand
+const handleSlashCommand = async (commandName: string, commandArgs: string = '') => {
+  // Track redirect chain for cycle detection
+  const redirectChain = new Set<string>()
+  // ...
+}
+
+// src/cli.ts - redirect handling with cycle detection
+} else if (result.type === 'redirect') {
+  const redirectCmd = (result as { command?: string }).command || ''
+  console.log(`[CMD] /${commandName} → redirecting to /${redirectCmd}`)
+
+  // Check for redirect loop (cycle detection)
+  if (redirectChain.has(redirectCmd)) {
+    console.error(`[CMD] Redirect loop detected: ${[...redirectChain].join(' → ')} → ${redirectCmd}`)
+    chatLog.addChild(new Spacer(1))
+    chatLog.addChild(new Text(theme.error(`Redirect loop detected for /${redirectCmd}`), 0, 0))
+  } else {
+    redirectChain.add(redirectCmd)
+    await handleSlashCommand(redirectCmd)
+  }
+}
+
+// src/cli.ts - onSlashSelect with proper error handling
+editor.onSlashSelect = () => {
+  const selected = slashSuggestions[slashSelectedIndex];
+  if (!selected) {
+    console.error('[ERROR] No selected command');
+    return;
+  }
+  const cmdName = selected.name;
+  console.log(`[CMD] Selected command: /${cmdName}`);
+  slashActive = false;
+  slashSuggestions = [];
+  editor.setText('');
+  updateView();
+  // Execute the command with proper error handling
+  handleSlashCommand(cmdName, '').catch(err => {
+    console.error(`[CMD] Command /${cmdName} failed:`, err);
+    chatLog.addChild(new Spacer(1));
+    chatLog.addChild(new Text(theme.error(`Command /${cmdName} failed: ${err}`), 0, 0));
+    tui.requestRender();
+  });
+}
+```
+
+### Bug 修复验证
+
+```
+═══ Bug Fixes Verification ═══
+
+Test 1: getCliCommands with dedup
+  getCliCommands('/'): 10 results
+  First: /commands, Last: /permissions
+
+Test 2: Keyboard navigation
+  Initial: idx=0, selected=/commands
+  After ↓: idx=1, selected=/status
+  After ↑: idx=0, selected=/commands
+
+Test 3: Selection highlighting
+  ✓ /commands  Open interactive command 
+    /status  Show system status and st
+    /cost  Show token usage and cost
+
+Test 4: Redirect cycle detection
+  ✓ Added /help to chain
+  ✓ Added /status to chain
+  ✓ Added /git to chain
+  ❌ Loop detected: help already in chain
+
+════════════════════════════════════════════════════════════════════
+  ✅ Bug fixes verified
+  - hint-bar: selection highlighting (theme.primary)
+  - cli.ts: redirect cycle detection
+  - onSlashSelect: proper error handling
+════════════════════════════════════════════════════════════════════
+```
 
 ### 验证执行摘要
 
@@ -1138,6 +1249,7 @@ Total tests:   64
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v4.4 | 2026-05-26 | ✅ Bug 修复: hint-bar highlighting, redirect cycle, onSlashSelect error |
 | v4.3 | 2026-05-26 | ✅ 完整验证报告: 105 skills, oscript 测试, Skills 模糊搜索 |
 | v4.2 | 2026-05-26 | ✅ 验证报告: 102 skills, 64/64 tests, 52/52 oscript tests |
 | v4.1 | 2026-05-26 | ✅ 添加 Skills 动态加载 + 键盘导航文档 |

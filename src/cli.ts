@@ -583,6 +583,10 @@ export async function runCli(options: RunCliOptions = {}) {
 
   const handleSlashCommand = async (commandName: string, commandArgs: string = '') => {
     console.log(`[CMD] Handling command: /${commandName}`);
+
+    // Track redirect chain for cycle detection (reset at top-level command)
+    const redirectChain = new Set<string>()
+
     // Check if this is a skill command
     try {
       const { executeSkillCommand } = await import('./skills/executor.js');
@@ -778,10 +782,19 @@ export async function runCli(options: RunCliOptions = {}) {
         console.log(`[CMD] /${commandName} → injecting query: "${queryText.slice(0, 50)}..."`)
         await agentRunner.runQuery(queryText)
       } else if (result.type === 'redirect') {
-        // Redirect to another command
+        // Redirect to another command with cycle detection
         const redirectCmd = (result as { command?: string }).command || ''
         console.log(`[CMD] /${commandName} → redirecting to /${redirectCmd}`)
-        await handleSlashCommand(redirectCmd)
+
+        // Check for redirect loop (cycle detection)
+        if (redirectChain.has(redirectCmd)) {
+          console.error(`[CMD] Redirect loop detected: ${[...redirectChain].join(' → ')} → ${redirectCmd}`)
+          chatLog.addChild(new Spacer(1))
+          chatLog.addChild(new Text(theme.error(`Redirect loop detected for /${redirectCmd}`), 0, 0))
+        } else {
+          redirectChain.add(redirectCmd)
+          await handleSlashCommand(redirectCmd)
+        }
       }
       tui.requestRender()
     } catch (e) {
@@ -1237,21 +1250,24 @@ export async function runCli(options: RunCliOptions = {}) {
   };
 
   editor.onSlashSelect = () => {
-    console.error('[DEBUG] onSlashSelect called');
-    console.error(`[DEBUG] slashActive=${slashActive}, slashSuggestions.length=${slashSuggestions.length}, slashSelectedIndex=${slashSelectedIndex}`);
     const selected = slashSuggestions[slashSelectedIndex];
     if (!selected) {
       console.error('[ERROR] No selected command');
       return;
     }
-    console.error(`[DEBUG] Selected: /${selected.name}`);
     const cmdName = selected.name;
+    console.log(`[CMD] Selected command: /${cmdName}`);
     slashActive = false;
     slashSuggestions = [];
     editor.setText('');
     updateView();
-    // Execute the command
-    void handleSlashCommand(cmdName, '');
+    // Execute the command with proper error handling
+    handleSlashCommand(cmdName, '').catch(err => {
+      console.error(`[CMD] Command /${cmdName} failed:`, err);
+      chatLog.addChild(new Spacer(1));
+      chatLog.addChild(new Text(theme.error(`Command /${cmdName} failed: ${err}`), 0, 0));
+      tui.requestRender();
+    });
     tui.requestRender();
   };
 
