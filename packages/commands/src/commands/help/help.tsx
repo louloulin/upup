@@ -12,8 +12,9 @@
  * Reference: loucode/src/commands/help/help.tsx
  */
 
-import { Container, Text, Spacer, Input, SelectList, getEditorKeybindings, type SelectItem } from '@mariozechner/pi-tui';
+import { Container, Text, Spacer, Input, SelectList, type SelectItem } from '@mariozechner/pi-tui';
 import { ALL_COMMANDS, builtInCommandNames, inferCategory, type Command } from '../../all-commands.js';
+import { getCommandUsage } from '../../command-usage.js';
 import { theme } from '../../theme.js';
 
 // Category icons for display
@@ -30,14 +31,6 @@ const CATEGORY_ICONS: Record<string, string> = {
 
 const CATEGORY_ORDER = ['core', 'system', 'plan', 'agent', 'mcp', 'permissions', 'git', 'tools']
 
-interface HelpV2Options {
-  commands?: Command[]
-}
-
-interface HelpV2Context {
-  options?: HelpV2Options
-}
-
 /**
  * HelpV2 Component - Interactive help with search and navigation
  */
@@ -48,9 +41,11 @@ export class HelpV2Component extends Container {
   private filteredCommands: Command[] = []
   private searchQuery: string = ''
   private selectedIndex: number = 0
+  private onClose: () => void
 
   constructor(onClose: () => void) {
     super()
+    this.onClose = onClose
 
     // Initialize commands
     this.commands = ALL_COMMANDS.filter(cmd => !cmd.isHidden)
@@ -83,7 +78,7 @@ export class HelpV2Component extends Container {
       const idx = parseInt(item.value, 10) - 1
       if (idx >= 0 && idx < this.filteredCommands.length) {
         const cmd = this.filteredCommands[idx]
-        onClose(cmd.name)
+        this.onClose(cmd.name)
       }
     }
   }
@@ -98,9 +93,14 @@ export class HelpV2Component extends Container {
       const aliasStr = cmd.aliases?.length
         ? theme.muted(` (${cmd.aliases.map(a => `/${a}`).join(', ')})`)
         : ''
+
+      // Show usage count if command has been used
+      const usage = getCommandUsage(cmd.name)
+      const usageStr = usage > 0 ? theme.muted(` [${usage}x]`) : ''
+
       return {
         value: String(index + 1),
-        label: `${icon} /${cmd.name.padEnd(12)}${cmd.description}${aliasStr}`,
+        label: `${icon} /${cmd.name}${usageStr}${aliasStr} — ${cmd.description}`
       }
     })
   }
@@ -108,134 +108,25 @@ export class HelpV2Component extends Container {
   private updateCommandList(): void {
     const items = this.buildCommandItems()
     this.commandList.setItems(items)
-    this.commandList.setHeight(Math.min(15, items.length))
-    this.invalidate()
-  }
-
-  render(width: number): string[] {
-    const lines: string[] = []
-    const w = Math.max(40, width)
-
-    // Header
-    lines.push(theme.primary('═'.repeat(Math.min(w, 60))))
-    lines.push(theme.bold('  UpUp Commands  '))
-    lines.push(theme.primary('═'.repeat(Math.min(w, 60))))
-
-    // Search input
-    lines.push('')
-    lines.push(theme.muted('  Search: ') + this.searchInput.render(w - 10)[0] || '')
-    lines.push('')
-
-    // Commands grouped by category (if not searching)
-    if (!this.searchQuery && this.filteredCommands.length > 0) {
-      const grouped = this.groupByCategory(this.filteredCommands)
-
-      for (const cat of CATEGORY_ORDER) {
-        const cmds = grouped[cat]
-        if (!cmds || cmds.length === 0) continue
-
-        const icon = CATEGORY_ICONS[cat] || '📎'
-        lines.push(`  ${theme.bold(icon + ' ' + cat.toUpperCase())}`)
-        lines.push(theme.muted('  ' + '─'.repeat(20)))
-
-        for (const cmd of cmds) {
-          const aliasStr = cmd.aliases?.length
-            ? theme.muted(` (${cmd.aliases.map(a => `/${a}`).join(', ')})`)
-            : ''
-          lines.push(`    /${cmd.name.padEnd(12)} ${cmd.description}${aliasStr}`)
-        }
-        lines.push('')
-      }
-    } else {
-      // Search results or no commands
-      if (this.filteredCommands.length === 0) {
-        lines.push(theme.muted('  No commands match your search.'))
-        lines.push('')
-      } else {
-        lines.push(theme.muted(`  ${this.filteredCommands.length} commands (use ↑/↓ to select)`))
-        lines.push('')
-        lines.push(...this.commandList.render(width))
-      }
-    }
-
-    // Footer
-    lines.push('')
-    lines.push(theme.muted('  ─────────────────────────────────────────'))
-    lines.push(theme.muted('  esc: close  |  enter: select command  |  ↑/↓: navigate'))
-
-    return lines
-  }
-
-  private groupByCategory(cmds: Command[]): Record<string, Command[]> {
-    const grouped: Record<string, Command[]> = {}
-    for (const cmd of cmds) {
-      const cat = inferCategory(cmd.name)
-      if (!grouped[cat]) grouped[cat] = []
-      grouped[cat].push(cmd)
-    }
-    return grouped
+    this.commandList.setSelectedIndex(0)
   }
 
   handleInput(keyData: string): void {
-    const kb = getEditorKeybindings()
-
-    // Esc to close - handled by parent
-    if (kb.matches(keyData, 'selectCancel')) {
+    // Esc to close
+    if (keyData === '\x1b') {
+      this.onClose()
       return
     }
 
-    // Pass to search input first
-    if (!keyData.startsWith('\x1b')) {
-      this.searchInput.handleInput(keyData)
-      if (this.searchInput.getValue() !== this.searchQuery) {
-        return // Search input handled
-      }
-    }
-
-    // Arrow key navigation
-    if (keyData === '\x1b[A' || keyData === 'k') {
-      // Up
-      if (this.selectedIndex > 0) {
-        this.selectedIndex--
-        this.commandList.selectPrevious()
-        this.invalidate()
-      }
-      return
-    }
-    if (keyData === '\x1b[B' || keyData === 'j') {
-      // Down
-      if (this.selectedIndex < this.filteredCommands.length - 1) {
-        this.selectedIndex++
-        this.commandList.selectNext()
-        this.invalidate()
-      }
-      return
-    }
-
-    // Tab to switch sections
-    if (keyData === '\t') {
-      // Toggle search/command mode
-      return
-    }
-
-    // Enter to select
-    if (keyData === '\r') {
-      if (this.filteredCommands.length > 0 && this.selectedIndex < this.filteredCommands.length) {
-        const cmd = this.filteredCommands[this.selectedIndex]
-        // This would trigger onDone callback
-      }
-      return
-    }
+    // Pass to command list for navigation
+    this.commandList.handleInput(keyData)
   }
 }
 
-/**
- * Local JSX Command Module for HelpV2
- */
 export const call = async (
-  onDone: () => void,
-  context: HelpV2Context,
-  _args?: string,
-) => {
+  onDone: (result?: string) => void,
+  _context: any,
+  _args: string,
+): Promise<any> => {
   return new HelpV2Component(onDone)
 }

@@ -2,6 +2,11 @@
  * @upup/commands - Slash command framework
  *
  * Exports from commands.ts, registry.ts, slash-commands.ts, executor.ts, types, and all-commands.ts
+ *
+ * Enhanced with:
+ * - Alias support: getAliasesForCommand, resolveAlias, isAlias
+ * - Fuzzy matching: fuzzyMatchCommands
+ * - Usage tracking: recordCommandUsage, getCommandUsage, getUsageStats, getTopCommands
  */
 
 export {
@@ -33,7 +38,16 @@ export {
   type SlashCommand,
 } from './all-commands.js';
 
-export { matchCommands } from './slash-commands.js';
+export {
+  matchCommands,
+  fuzzyMatchCommands,
+  getAllSlashCommands,
+  getAllSlashCommandsWithAliases,
+  getAliasesForCommand,
+  resolveAlias,
+  isAlias,
+  type SlashCommandWithAlias,
+} from './slash-commands.js';
 
 export {
   type PromptCommand,
@@ -51,3 +65,13 @@ export {
   isCommandEnabled,
   meetsAvailabilityRequirement,
 } from './types/command-types.js';
+
+export {
+  recordCommandUsage,
+  getCommandUsage,
+  getUsageStats,
+  getTopCommands,
+  getCommandRank,
+  isFrequentlyUsed,
+  resetUsageStats,
+} from './command-usage.js';
