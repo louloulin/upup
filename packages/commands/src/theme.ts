@@ -37,5 +37,8 @@ export const editorTheme = {
 
 export const selectListTheme = {
   primaryColor: '#258bff',
+  primaryText: fg('#258bff'),     // Selected item text color
   selectedColor: '#3D3D3D',
+  selectedText: fg('#ffffff'),    // Selected item text (inverted for visibility)
+  normalText: fg('#cccccc'),      // Normal item text
 }

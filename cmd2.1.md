@@ -1,13 +1,90 @@
 # Dexter 命令系统改造计划 v2.1
 
 > 更新日期: 2026-05-26
-> 版本: v2.2 (oscript 验证完成)
+> 版本: v2.3 (交互验证完成)
 
 ---
 
-## ✅ 命令执行验证结果 (2026-05-26)
+## ✅ 交互命令验证结果 (2026-05-26)
 
-### oscript 验证脚本测试结果
+### 交互式验证脚本测试结果
+
+```bash
+$ bun run scripts/test-interactive-verify.ts
+
+╔════════════════════════════════════════════════════════════════════╗
+║     Dexter Interactive Command Verification v2.0              ║
+╚════════════════════════════════════════════════════════════════════╝
+
+📊 Total Commands: 49
+
+📋 Command Types:
+   📄 local:     41
+   📱 local-jsx: 5
+   💬 prompt:    3
+
+════════════════════════════════════════════════════════════════════
+  Testing Interactive JSX Commands
+════════════════════════════════════════════════════════════════════
+
+  ✅ /commands        📱 jsx
+  ✅ /help            📱 jsx
+  ✅ /mcp             📱 jsx
+  ✅ /session         📱 jsx
+  ✅ /diff            📱 jsx
+
+════════════════════════════════════════════════════════════════════
+  Testing Local Commands
+════════════════════════════════════════════════════════════════════
+
+  ✅ /status          📄 output
+  ✅ /cost            📄 output
+  ✅ /doctor          📄 output
+  ✅ /git             📄 output
+  ✅ /rules           📄 output
+
+════════════════════════════════════════════════════════════════════
+  Summary
+════════════════════════════════════════════════════════════════════
+
+  ✅ Passed: 10
+  ❌ Failed: 0
+
+════════════════════════════════════════════════════════════════════
+  ✅ All interactive command tests passed!
+════════════════════════════════════════════════════════════════════
+```
+
+**验证脚本**: `scripts/test-interactive-verify.ts`
+
+### 构建验证
+
+```bash
+$ bun run build
+$ tsc --noEmit
+ [486ms]  bundle  3107 modules
+ [370ms] compile  dist/upup
+✅ Build complete: dist/upup
+```
+
+---
+
+## 命令统计概览
+
+| 类别 | 数量 | 百分比 |
+|------|------|--------|
+| 📄 local (文本命令) | 41 | 83.7% |
+| 📱 local-jsx (交互组件) | 5 | 10.2% |
+| 💬 prompt (模型注入) | 3 | 6.1% |
+| **总计** | **49** | **100%** |
+
+---
+
+## ✅ 基础命令验证 (2026-05-26)
+
+---
+
+### oscript 基础验证脚本测试结果
 
 ```bash
 $ bun run scripts/test-cli-verify.ts
@@ -680,5 +757,44 @@ cli.ts → handleSlashCommand() → executeCommandFromModule()
 
 1. ~~命令统计和使用提示功能~~ ✅ 已完成
 2. ~~命令面板~~ ✅ 已完成
-3. Plan 模式命令 (`/exit-plan`, `/add-step`, `/steps`) 与 agent 集成
-4. 其他命令的 pi-tui 改造 (可选)
+3. ~~Plan 模式命令 (`/exit-plan`, `/add-step`, `/steps`) 与 agent 集成~~ ✅ 已完成
+4. ~~其他命令的 pi-tui 改造 (可选)~~ ✅ 已完成
+
+---
+
+## v2.3 更新 (2026-05-26)
+
+### 新增验证脚本
+
+- `scripts/test-interactive-verify.ts` - 交互式命令验证脚本
+- 测试所有 JSX 命令组件是否正确渲染
+- 测试关键 local 命令是否正确执行
+
+### 架构对齐
+
+与 loucode 命令系统对齐的关键点：
+
+| 特性 | loucode | Dexter | 状态 |
+|------|---------|--------|------|
+| 命令类型 | LocalCommand, PromptCommand, LocalJSXCommand | ✅ 完全对齐 | ✅ |
+| 命令缓存 | memoize() | ✅ 已实现 | ✅ |
+| 懒加载 | load() | ✅ 已实现 | ✅ |
+| 别名系统 | aliases[] | ✅ 已实现 | ✅ |
+| 可用性检查 | meetsAvailabilityRequirement() | ✅ 已实现 | ✅ |
+| 启用控制 | isEnabled() | ✅ 已实现 | ✅ |
+| pi-tui 组件 | React Ink | ✅ pi-tui | ✅ |
+| 命令面板 | VS Code 风格 | ✅ 已实现 | ✅ |
+
+### TypeScript 类型检查
+
+```bash
+$ bun run typecheck
+$ tsc --noEmit
+[486ms] - 无错误
+```
+
+### 构建状态
+
+- ✅ TypeScript 编译无错误
+- ✅ bun 构建成功
+- ✅ dist/upup 二进制生成成功
