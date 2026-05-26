@@ -562,23 +562,27 @@ export async function runCli(options: RunCliOptions = {}) {
 
   // Import command system for delegation
   const executeCommandFromModule = async (name: string, args: string, context: { cwd: string; env: Record<string, string>; sessionId: string; model: string; state?: Record<string, unknown>; sessionDuration?: number }) => {
+    console.log(`[CMD] Executing: /${name} ${args}`);
     try {
       const commandsModule = await import('@upup/commands')
-
-      // Access executeCommand from the module - it's exported from all-commands.js
-      const executeCommand = (commandsModule as any).executeCommand
+      const executeCommand = commandsModule.executeCommand
 
       if (!executeCommand) {
+        console.error(`[CMD] ERROR: executeCommand not found in @upup/commands`);
         return { type: 'error', message: 'executeCommand not found in @upup/commands' }
       }
 
-      return executeCommand(name, args, context)
+      const result = await executeCommand(name, args, context);
+      console.log(`[CMD] Result: ${result.type} for /${name}`);
+      return result;
     } catch (e) {
+      console.error(`[CMD] ERROR: ${e}`);
       return { type: 'error', message: `Failed to import @upup/commands: ${e}` }
     }
   }
 
   const handleSlashCommand = async (commandName: string, commandArgs: string = '') => {
+    console.log(`[CMD] Handling command: /${commandName}`);
     // Check if this is a skill command
     try {
       const { executeSkillCommand } = await import('./skills/executor.js');
@@ -600,12 +604,10 @@ export async function runCli(options: RunCliOptions = {}) {
         }
         tui.requestRender();
         return;
-      } else {
-        // skillCommand is null - continue with regular commands
-        return;
       }
+      // skillCommand is null - continue with regular commands below
     } catch {
-      // Not a skill command, continue with regular commands
+      // Error checking skill commands - continue with regular commands
     }
 
     // Special commands that require UI interaction (model selection, fork)
@@ -686,18 +688,36 @@ export async function runCli(options: RunCliOptions = {}) {
       // Get state for command execution
       let state: Record<string, unknown> | undefined
       try {
+        // Loading state
         const { getAppState, getSessionManager } = await import('./state/index.js')
+
         const appState = getAppState()
+
         const appState2 = appState.getState()
+
         const session = getSessionManager()
+
         state = {
           ...appState2,
           sessionDuration: session.getSessionDuration(),
         }
-      } catch {
-        // State not available, continue without it
+
+        console.log(`[CMD] State loaded: ${Object.keys(state).length} keys, duration=${state.sessionDuration}ms`)
+
+      } catch (e) {
+        console.error('[CMD] State loading error:', e);
+        // State not available, use empty state
+        state = {
+          sessionDuration: 0,
+          totalInputTokens: 0,
+          totalOutputTokens: 0,
+          totalToolCalls: 0,
+          totalToolErrors: 0,
+          messageCount: 0,
+        }
       }
 
+      console.log(`[CMD] Executing: /${commandName} ${commandArgs}`)
       const result = await executeCommandFromModule(commandName, commandArgs, {
         cwd: process.cwd(),
         env: process.env as Record<string, string>,
@@ -705,17 +725,14 @@ export async function runCli(options: RunCliOptions = {}) {
         model: modelSelection.model,
         state,
       })
-
-      // Debug logging
-      if (commandName === 'status') {
-      }
+      console.log(`[CMD] Result: type=${result.type}`)
 
       if (result.type === 'output' && result.text) {
         chatLog.addChild(new Spacer(1))
         chatLog.addChild(new Text(result.text, 0, 0))
       } else if (result.type === 'error') {
         chatLog.addChild(new Spacer(1))
-        chatLog.addChild(new Text(theme.error(result.message), 0, 0))
+        chatLog.addChild(new Text(theme.error(result.message || 'Unknown error'), 0, 0))
       } else if (result.type === 'clear') {
         chatLog.clearAll()
       } else if (result.type === 'compact') {
@@ -752,6 +769,19 @@ export async function runCli(options: RunCliOptions = {}) {
           chatLog.addChild(new Spacer(1))
           chatLog.addChild(new Text(theme.error(`Command /${commandName} failed to render UI`), 0, 0))
         }
+      } else if (result.type === 'noop') {
+        // No operation - command completed but produced no visible output
+        console.log(`[CMD] /${commandName} completed (noop)`)
+      } else if (result.type === 'query') {
+        // Inject text as a query to the agent
+        const queryText = (result as { text?: string }).text || ''
+        console.log(`[CMD] /${commandName} → injecting query: "${queryText.slice(0, 50)}..."`)
+        await agentRunner.runQuery(queryText)
+      } else if (result.type === 'redirect') {
+        // Redirect to another command
+        const redirectCmd = (result as { command?: string }).command || ''
+        console.log(`[CMD] /${commandName} → redirecting to /${redirectCmd}`)
+        await handleSlashCommand(redirectCmd)
       }
       tui.requestRender()
     } catch (e) {
@@ -1189,14 +1219,21 @@ export async function runCli(options: RunCliOptions = {}) {
   };
 
   editor.onSlashSelect = () => {
+    console.error('[DEBUG] onSlashSelect called');
+    console.error(`[DEBUG] slashActive=${slashActive}, slashSuggestions.length=${slashSuggestions.length}, slashSelectedIndex=${slashSelectedIndex}`);
     const selected = slashSuggestions[slashSelectedIndex];
-    if (selected) {
-      slashActive = false;
-      slashSuggestions = [];
-      editor.setText('');
-      void handleSlashCommand(selected.name, '');
+    if (!selected) {
+      console.error('[ERROR] No selected command');
+      return;
     }
+    console.error(`[DEBUG] Selected: /${selected.name}`);
+    const cmdName = selected.name;
+    slashActive = false;
+    slashSuggestions = [];
+    editor.setText('');
     updateView();
+    // Execute the command
+    void handleSlashCommand(cmdName, '');
     tui.requestRender();
   };
 

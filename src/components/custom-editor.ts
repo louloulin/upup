@@ -110,9 +110,11 @@ export class CustomEditor extends Editor {
       return;
     }
 
-    // Enter: always submits (do NOT intercept for suggestion selection)
-    // This allows /help + Enter to work as expected.
-    // Use Tab to select from suggestion list.
+    // Enter: select from suggestion if active, otherwise submit
+    if (showingSuggestions && matchesKey(data, Key.return)) {
+      this.onSlashSelect?.();
+      return;
+    }
 
     if (matchesKey(data, Key.ctrl('c')) && this.onCtrlC) {
       this.onCtrlC();
