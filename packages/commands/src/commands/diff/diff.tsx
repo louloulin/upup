@@ -9,7 +9,7 @@
  * Type: local-jsx (renders TUI component)
  */
 
-import { Container, Text, Spacer, Box, ScrollView, getEditorKeybindings } from '@mariozechner/pi-tui';
+import { Container, Text, Spacer, Box, ScrollView } from '@mariozechner/pi-tui';
 import { theme } from '../../theme.js';
 
 interface DiffFile {
@@ -125,10 +125,8 @@ export class DiffComponent extends Container {
   }
 
   handleInput(keyData: string): void {
-    const kb = getEditorKeybindings()
-
     // Esc to close
-    if (kb.matches(keyData, 'selectCancel')) {
+    if (keyData === '\x1b' || keyData.startsWith('\x1b')) {
       this.onDone?.('closed')
       return
     }

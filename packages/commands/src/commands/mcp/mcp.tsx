@@ -9,7 +9,7 @@
  * Type: local-jsx (renders TUI component)
  */
 
-import { Container, Text, Spacer, Input, SelectList, getEditorKeybindings, type SelectItem, Box } from '@mariozechner/pi-tui';
+import { Container, Text, Spacer, Input, SelectList, type SelectItem, Box } from '@mariozechner/pi-tui';
 import { theme } from '../../theme.js';
 
 interface MCPServer {
@@ -103,10 +103,8 @@ export class MCPStatusComponent extends Container {
   }
 
   handleInput(keyData: string): void {
-    const kb = getEditorKeybindings()
-
     // Esc to close
-    if (kb.matches(keyData, 'selectCancel')) {
+    if (keyData === '\x1b' || keyData.startsWith('\x1b')) {
       this.onDone?.('closed')
       return
     }

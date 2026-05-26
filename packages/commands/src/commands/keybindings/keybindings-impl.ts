@@ -5,7 +5,7 @@
  */
 
 import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types.js'
-import { getEditorKeybindings } from '@mariozechner/pi-tui'
+import { getKeybindings } from '@mariozechner/pi-tui'
 
 export const call = async (
   args: string,
@@ -20,25 +20,31 @@ export const call = async (
   ]
 
   try {
-    const kb = getEditorKeybindings()
-    const shortcuts = kb.getAllBindings()
+    const kb = getKeybindings()
+    const shortcuts = kb.getAllBindings?.() || {}
 
     const categories: Record<string, string[]> = {}
 
     for (const [name, binding] of Object.entries(shortcuts)) {
-      const cat = binding.context || 'general'
+      const cat = (binding as any).context || 'general'
       if (!categories[cat]) categories[cat] = []
-      const keys = Array.isArray(binding.keys) ? binding.keys.join(', ') : binding.keys
+      const keys = Array.isArray((binding as any).keys) ? (binding as any).keys.join(', ') : (binding as any).keys || name
       categories[cat].push(`    ${name.padEnd(20)} ${keys}`)
     }
 
     const categoryOrder = ['global', 'editor', 'select', 'general', 'help']
+    let hasAny = false
     for (const cat of categoryOrder) {
       if (categories[cat]) {
         lines.push(`  ${cat.toUpperCase()}:`)
         lines.push(...categories[cat].sort())
         lines.push('')
+        hasAny = true
       }
+    }
+
+    if (!hasAny) {
+      throw new Error('No keybindings loaded')
     }
   } catch {
     // Fallback to default shortcuts
