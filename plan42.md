@@ -1,7 +1,7 @@
-# Plan42.md - UpUp 投资助手平台化改进计划 v4.8
+# Plan42.md - UpUp 投资助手平台化改进计划 v4.9
 
 > 更新时间: 2026-05-26
-> 版本: 4.8 (深度分析版)
+> 版本: 4.9 (多轮对话验证版)
 > 目标: 构建投资版 Claude Code + 平台化扩展生态
 
 ---
@@ -23,11 +23,8 @@
 | Integration 文档 | ✅ 完成 | 已创建 | 自主实现 |
 | TypeScript 编译 | ✅ 完成 | 0 errors | 自主实现 |
 | Build 成功 | ✅ 完成 | dist/upup | 自主实现 |
-| 交互式验证 | ✅ 完成 | Appscript验证通过 | 自主实现 |
-
-### 🐛 Bug 修复
-
-- **300xxx代码验证bug**: 修复了创业板代码验证正则表达式 (`^30\\d{4}$`)
+| 单轮对话验证 | ✅ 完成 | Appscript验证通过 | 自主实现 |
+| **多轮对话验证** | ✅ 完成 | multi-round-test.sh验证通过 | 自主实现 |
 
 ### 测试结果汇总
 
@@ -40,91 +37,18 @@ Total:                     72 pass
 0 fail
 ```
 
-### 交互式验证结果
+### 多轮对话验证结果
 
 ```
-✅ UpUp v2026.05.15 正常启动
-✅ Skills 初始化: 58 skills loaded
-✅ Model: DeepSeek V4 Flash
-✅ 接收输入: "分析贵州茅台600519的估值"
-✅ Appscript 脚本运行正常
+✅ Round 1: "你好，请分析贵州茅台600519的估值" - 成功
+✅ Round 2: "继续分析技术面" - 成功
+✅ Round 3: "对比腾讯00700" - 成功
+✅ Round 4: "谢谢分析" - 成功
 ```
 
 ---
 
-## 二、架构分析
-
-### 2.1 当前架构
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        UpUp 投资助手架构                              │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                     │
-│  用户输入                                                              │
-│      │                                                                │
-│      ▼                                                                │
-│  ┌───────────────────────────────────────────────────────────┐    │
-│  │     Intent Detector + Skill Trigger (独立模块)               │    │
-│  │     ✅ 已实现，✅ 测试通过                                   │    │
-│  │     ⚠️ 未集成到主 Agent                                    │    │
-│  └───────────────────────────────────────────────────────────┘    │
-│      │                                                                │
-│      ▼                                                                │
-│  ┌───────────────────────────────────────────────────────────┐    │
-│  │                    Agent Loop (主Agent)                      │    │
-│  │     ✅ 正常运行                                              │    │
-│  └───────────────────────────────────────────────────────────┘    │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### 2.2 待集成功能 (P2 可选)
-
-| 功能 | 说明 | 状态 |
-|------|------|------|
-| Auto-Trigger → Agent | 将意图检测集成到主Agent | 可选 |
-| 工具级并发 | LouCode toolOrchestration | 可选 |
-| Cron 任务 | LouCode daemon/workers/tasks | 可选 |
-
----
-
-## 三、LouCode 学习总结
-
-### 关键架构模式 (来自 LouCode)
-
-| 模式 | LouCode | UpUp | 状态 |
-|------|---------|------|------|
-| 工具级并发 | 支持(最多10) | 顺序调用 | P2 可选 |
-| Cron 任务 | 支持 | 无 | P2 可选 |
-| 主动模式 | 事件总线 | 无 | P2 可选 |
-| 技能执行 | Forked agent | 已实现 | ✅ |
-
-### LouCode 核心组件参考
-
-- `QueryEngine` - 查询生命周期管理
-- `toolOrchestration` - 工具并发编排
-- `daemon/workers/tasks` - Cron 任务调度
-- `proactive` - 主动模式事件系统
-
----
-
-## 四、已创建文件
-
-| 文件 | 说明 | 测试 | 状态 |
-|------|------|------|------|
-| `src/agent/agent-auto-trigger.ts` | Agent集成层 | 12 tests | ✅ |
-| `src/agent/agent-auto-trigger.test.ts` | Agent集成测试 | 12 tests | ✅ |
-| `src/agent/auto-trigger.ts` | 自动触发集成器 | 24 tests | ✅ |
-| `src/agent/auto-trigger.test.ts` | 自动触发测试 | 24 tests | ✅ |
-| `src/skills/intent-detector.ts` | 意图检测器 | 36 tests | ✅ |
-| `src/skills/intent-detector.test.ts` | 意图检测测试 | 36 tests | ✅ |
-| `src/skills/skill-trigger.ts` | 技能触发器 | - | ✅ |
-| `src/agent/INTEGRATION.md` | 集成文档 | - | ✅ |
-
----
-
-## 五、验证命令
+## 二、验证命令
 
 ```bash
 # 构建验证
@@ -140,26 +64,59 @@ bun test src/agent/agent-auto-trigger.test.ts src/agent/auto-trigger.test.ts src
 
 # 交互式验证
 bash scripts/real-appscript-interactive.sh 600519 "贵州茅台" 1
+
+# 多轮对话验证
+bash scripts/multi-round-test.sh
 ```
 
 ---
 
-## 六、深度分析结论
+## 三、已创建文件
 
-### 6.1 已实现功能
+| 文件 | 说明 | 测试 | 状态 |
+|------|------|------|------|
+| `src/agent/agent-auto-trigger.ts` | Agent集成层 | 12 tests | ✅ |
+| `src/agent/agent-auto-trigger.test.ts` | Agent集成测试 | 12 tests | ✅ |
+| `src/agent/auto-trigger.ts` | 自动触发集成器 | 24 tests | ✅ |
+| `src/agent/auto-trigger.test.ts` | 自动触发测试 | 24 tests | ✅ |
+| `src/skills/intent-detector.ts` | 意图检测器 | 36 tests | ✅ |
+| `src/skills/intent-detector.test.ts` | 意图检测测试 | 36 tests | ✅ |
+| `src/skills/skill-trigger.ts` | 技能触发器 | - | ✅ |
+| `src/agent/INTEGRATION.md` | 集成文档 | - | ✅ |
+| `scripts/multi-round-test.sh` | 多轮对话测试 | - | ✅ |
+
+---
+
+## 四、LouCode 学习总结
+
+### 关键架构模式 (来自 LouCode)
+
+| 模式 | LouCode | UpUp | 状态 |
+|------|---------|------|------|
+| 工具级并发 | 支持(最多10) | 顺序调用 | P2 可选 |
+| Cron 任务 | 支持 | 无 | P2 可选 |
+| 主动模式 | 事件总线 | 无 | P2 可选 |
+| 技能执行 | Forked agent | 已实现 | ✅ |
+
+---
+
+## 五、深度分析结论
+
+### 5.1 已实现功能
 
 - ✅ Intent Detector - 完整的股票代码和意图检测
 - ✅ Skill Trigger - 意图到技能的映射
 - ✅ Auto-Trigger - 集成意图检测和技能触发
 - ✅ Investment Hooks - Pre/Post Research 钩子
+- ✅ 多轮对话 - 支持连续对话
 
-### 6.2 未集成到主Agent
+### 5.2 未集成到主Agent
 
 - ⚠️ Auto-Trigger 模块尚未集成到主 Agent 循环
 - 说明: 模块已创建并测试通过，但需要修改 agent.ts 来集成
 - 影响: 当前版本仍可正常工作，但不会有自动意图检测提示
 
-### 6.3 可选优化方向
+### 5.3 可选优化方向
 
 1. **工具级并发** - 参考 LouCode toolOrchestration
 2. **Cron 任务** - 参考 LouCode daemon/workers/tasks
@@ -168,5 +125,5 @@ bash scripts/real-appscript-interactive.sh 600519 "贵州茅台" 1
 ---
 
 **最后更新**: 2026-05-26
-**状态**: ✅ P0 功能全部完成，测试通过
-**版本**: v4.8
+**状态**: ✅ P0 功能全部完成，多轮对话验证通过
+**版本**: v4.9
