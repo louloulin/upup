@@ -13,7 +13,7 @@ export const resumeCommand: LocalCommand = {
   type: 'local',
   name: 'resume',
   description: 'Resume a previous conversation',
-  aliases: [],
+  aliases: ['continue'],
   supportsNonInteractive: true,
   load: () => import('./resume-impl.js'),
 }

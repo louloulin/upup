@@ -1,54 +1,52 @@
 /**
  * @upup/commands - Slash command framework
  *
- * Exports from commands.ts, registry.ts, slash-commands.ts, executor.ts, types, and all-commands.ts
+ * Unified exports from all-commands.ts (merged from executor.ts, slash-commands.ts)
  *
- * Enhanced with:
+ * Features (aligned with loucode):
+ * - Unified COMMAND_ALIASES
+ * - Memoized command loading
  * - Alias support: getAliasesForCommand, resolveAlias, isAlias
- * - Fuzzy matching: fuzzyMatchCommands
- * - Usage tracking: recordCommandUsage, getCommandUsage, getUsageStats, getTopCommands
+ * - Fuzzy matching: fuzzyMatchCommands, matchCommands
+ * - Usage tracking: recordCommandUsage, getCommandUsage
+ * - Availability checks: meetsAvailabilityRequirement
+ * - Remote/Bridge safe commands
  */
 
-export {
-  CommandRegistry,
-  getGlobalRegistry,
-  registerBuiltinCommands,
-  resetGlobalRegistry,
-  loadUserCommands,
-  loadMacros,
-  parseMacroFile,
-  expandMacro,
-  type Command,
-  type CommandContext,
-  type CommandResult,
-  type CommandPermission,
-  type MacroStep,
-  type MacroDefinition,
-  type UIContext,
-} from './commands.js';
-
+// Command system core
 export {
   ALL_COMMANDS,
   builtInCommandNames,
   SLASH_COMMANDS,
+  COMMAND_ALIASES,
+  ALIAS_TO_COMMAND,
   inferCategory,
   findCommand,
   executeCommand,
-  type CommandCategory,
-  type SlashCommand,
-} from './all-commands.js';
-
-export {
-  matchCommands,
-  fuzzyMatchCommands,
-  getAllSlashCommands,
-  getAllSlashCommandsWithAliases,
+  getAvailableCommands,
+  filterCommandsForRemoteMode,
+  filterCommandsForBridgeMode,
+  filterCommandsForNonInteractive,
+  // Alias helpers
   getAliasesForCommand,
   resolveAlias,
   isAlias,
+  getAllSlashCommands,
+  getAllSlashCommandsWithAliases,
   type SlashCommandWithAlias,
-} from './slash-commands.js';
+  // Command matching
+  matchCommands,
+  fuzzyMatchCommands,
+  type CommandCategory,
+  type SlashCommand,
+  // Dynamic command registration
+  registerDynamicCommand,
+  unregisterDynamicCommand,
+  getDynamicCommands,
+  clearDynamicCommands,
+} from './all-commands.js'
 
+// Command types
 export {
   type PromptCommand,
   type LocalCommand,
@@ -61,11 +59,16 @@ export {
   type CommandBase,
   type CommandAvailability,
   type ToolUseContext,
+  type CommandSource,
+  type FeatureGate,
   getCommandName,
   isCommandEnabled,
   meetsAvailabilityRequirement,
-} from './types/command-types.js';
+  isRemoteSafeCommand,
+  isBridgeSafeCommand,
+} from './types/command-types.js'
 
+// Usage tracking
 export {
   recordCommandUsage,
   getCommandUsage,
@@ -74,4 +77,65 @@ export {
   getCommandRank,
   isFrequentlyUsed,
   resetUsageStats,
-} from './command-usage.js';
+} from './command-usage.js'
+
+// Theme
+export {
+  theme,
+  editorTheme,
+  selectListTheme,
+} from './theme.js'
+
+// Argument parsing
+export {
+  parseArgs,
+  splitCommand,
+  hasFlag,
+  getOption,
+  getPositional,
+  getAllPositionals,
+  parseKeyValues,
+  formatArgs,
+  type ParsedArgs,
+} from './args.js'
+
+// Timeout utilities
+export {
+  TimeoutError,
+  executeWithTimeout,
+  executeWithTimeoutOrThrow,
+  withTimeout,
+  delay,
+  raceWithTimeout,
+  executeAllWithTimeout,
+  COMMAND_TIMEOUTS,
+  getCommandTimeout,
+  type TimeoutResult,
+} from './timeout.js'
+
+// Command metrics
+export {
+  recordCommandMetric,
+  getCommandMetric,
+  getAllMetrics,
+  getMetricsSummary,
+  resetMetrics,
+  exportMetrics,
+  importMetrics,
+  type CommandMetric,
+  type MetricsSummary,
+} from './command-metrics.js'
+
+// Command registry (legacy support)
+export {
+  getGlobalRegistry,
+  registerBuiltinCommands,
+  resetGlobalRegistry,
+  parseMacroFile,
+  expandMacro,
+  loadUserCommands,
+  loadMacros,
+  type CommandRegistry,
+  type CommandContext,
+  type CommandResult,
+} from './commands.js'

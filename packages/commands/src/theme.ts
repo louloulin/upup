@@ -36,9 +36,13 @@ export const editorTheme = {
 }
 
 export const selectListTheme = {
+  // Required functions for SelectList component
+  selectedPrefix: (text: string) => `${fg('#258bff')('▶')} ${text}`,
+  selectedText: (text: string) => chalk.inverse(text),
+  description: (text: string) => fg('#a6a6a6')(text),
+  scrollInfo: (text: string) => fg('#666666')(text),
+  noMatch: (text: string) => fg('#ff3333')(text),
+  // Legacy properties for compatibility
   primaryColor: '#258bff',
-  primaryText: fg('#258bff'),     // Selected item text color
   selectedColor: '#3D3D3D',
-  selectedText: fg('#ffffff'),    // Selected item text (inverted for visibility)
-  normalText: fg('#cccccc'),      // Normal item text
 }

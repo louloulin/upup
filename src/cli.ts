@@ -1147,14 +1147,32 @@ export async function runCli(options: RunCliOptions = {}) {
 
   // Wire callbacks that need renderSelectionOverlay (defined above)
   editor.onEscape = () => {
+    // Priority 1: Close JSX overlay if active
+    if (jsxOverlayActive && jsxOverlayOnClose) {
+      // If the overlay component has a handleInput that handles Escape,
+      // we should call it. Otherwise, close the overlay.
+      const component = jsxOverlayComponent
+      if (component && typeof (component as any).handleInput === 'function') {
+        const handled = (component as any).handleInput('\x1b')
+        if (handled) return // Component handled the Escape
+      }
+      jsxOverlayOnClose()
+      return
+    }
+
+    // Priority 2: Cancel model selection flow
     if (modelSelection.isInSelectionFlow()) {
       modelSelection.cancelSelection();
       return;
     }
+
+    // Priority 3: Cancel session selection
     if (sessionSelection.isActive()) {
       sessionSelection.cancel();
       return;
     }
+
+    // Priority 4: Cancel agent execution
     if (agentRunner.isProcessing || agentRunner.pendingApproval) {
       agentRunner.cancelExecution();
       return;

@@ -338,8 +338,7 @@ const helpCommand: Command = {
   usage: '/help [command]',
   aliases: ['h', '?'],
   async execute(args, context): Promise<CommandResult> {
-    // Dynamic import to avoid circular dependency
-    const { getGlobalRegistry } = await import('./registry.js');
+    // Use local registry reference
     const registry = getGlobalRegistry();
     const commands = registry.list();
 
