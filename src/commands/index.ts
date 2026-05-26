@@ -4,22 +4,11 @@
  */
 
 export {
-  CommandRegistry,
   getGlobalRegistry,
-  registerBuiltinCommands,
-  resetGlobalRegistry,
   matchCommands,
-  loadUserCommands,
-  loadMacros,
-  parseMacroFile,
-  expandMacro,
   SLASH_COMMANDS,
   type Command,
   type CommandContext,
   type CommandResult,
   type SlashCommand,
-  type MacroStep,
-  type MacroDefinition,
-  type CommandPermission,
-  type UIContext,
 } from '@upup/commands';

@@ -17,7 +17,7 @@ import {
   SelectList,
   type SelectItem,
 } from '@mariozechner/pi-tui'
-import { theme } from '../../theme.js'
+import { theme, selectListTheme } from '../../theme.js'
 import { getCommandUsage, isFrequentlyUsed } from '../../command-usage.js'
 
 // Inline category inference
@@ -143,17 +143,11 @@ export class CommandPaletteComponent extends Container {
 
     // Create category selector
     const categoryItems = this.buildCategoryItems()
-    this.categoryList = new SelectList(categoryItems, Math.min(10, categoryItems.length), {
-      primaryColor: theme.primaryColor,
-      selectedColor: theme.selectedColor,
-    })
+    this.categoryList = new SelectList(categoryItems, Math.min(10, categoryItems.length), selectListTheme)
 
     // Create command list
     const commandItems = this.buildCommandItems()
-    this.commandList = new SelectList(commandItems, 15, {
-      primaryColor: theme.primaryColor,
-      selectedColor: theme.selectedColor,
-    })
+    this.commandList = new SelectList(commandItems, 15, selectListTheme)
 
     // Wire up interactions
     this.searchInput.onChange = () => {
