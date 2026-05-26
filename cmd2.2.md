@@ -1,7 +1,262 @@
 # Dexter 命令系统改造计划 v2.2
 
 > 更新日期: 2026-05-26
-> 版本: v4.0 (最终报告)
+> 版本: v4.1 (Skills 动态加载 + 键盘导航)
+
+---
+
+## v4.1 新增: Skills 动态加载与键盘导航
+
+### Skills 动态加载系统
+
+Dexter 支持 skills 的动态加载和注册:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      Skills 动态加载架构                                     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  src/skills/                                                              │
+│  ├── loader.ts           ← 加载 skill 文件和元数据                         │
+│  ├── registry.ts         ← SkillCommandRegistry 管理所有 skill              │
+│  ├── slash-command.ts    ← slash 命令解析和路由                           │
+│  ├── skills-menu.ts      ← SkillsMenu 类，菜单展示                          │
+│  └── executor.ts         ← 执行 skill 的核心逻辑                           │
+│                                                                              │
+│  Skills 来源:                                                              │
+│  ├── bundled/            ← 内置 skills (60+ 金融分析)                      │
+│  ├── 用户目录             ← ~/.claude/skills/                             │
+│  ├── 项目目录            ← ./.claude/skills/                             │
+│  └── MCP                 ← MCP 服务器提供的 skills                          │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### SkillsMenu 类 (src/skills/skills-menu.ts)
+
+```typescript
+export class SkillsMenu {
+  private registry: SkillCommandRegistry;
+  private items: SkillMenuItem[] = [];
+  private filteredItems: SkillMenuItem[] = [];
+
+  constructor(registry?: SkillCommandRegistry) {
+    this.registry = registry ?? getSkillCommandRegistry();
+    this.loadSkills();  // 初始化时加载所有 skills
+  }
+
+  /**
+   * Load all skills from registry
+   */
+  private loadSkills(): void {
+    this.items = [];
+    // 使用 getAllSkillCommands() 获取所有已注册命令
+    const commands = getAllSkillCommands();
+
+    for (const cmd of commands) {
+      const item: SkillMenuItem = {
+        id: cmd.name,
+        name: cmd.name,
+        description: cmd.description ?? 'No description',
+        source: this.detectSourceFromCommand(cmd),
+        triggers: cmd.argumentHint ? [cmd.argumentHint] : [],
+        user_invocable: cmd.userInvocable ?? true,
+        path: cmd.skillRoot,
+      };
+      this.items.push(item);
+    }
+    // 按名称排序
+    this.items.sort((a, b) => a.name.localeCompare(b.name));
+    this.filteredItems = [...this.items];
+  }
+
+  /**
+   * Reload skills from registry
+   */
+  reload(): void {
+    this.loadSkills();  // 支持运行时重新加载
+  }
+}
+```
+
+#### SkillCommandRegistry (src/skills/slash-command.ts)
+
+```typescript
+export class SkillCommandRegistry {
+  private skills: Map<string, SkillMetadata> = new Map();
+  private commands: Map<string, SkillCommand> = new Map();
+
+  /**
+   * Get all registered skill commands
+   */
+  getAllSkillCommands(): SkillCommand[] {
+    return Array.from(this.commands.values());
+  }
+
+  /**
+   * Get all user-invocable skills
+   */
+  getUserInvocableSkills(): SkillCommand[] {
+    return Array.from(this.commands.values())
+      .filter(cmd => cmd.userInvocable ?? true);
+  }
+
+  /**
+   * Search skills with fuzzy matching
+   */
+  searchSkillsFuzzy(query: string, limit = 10): SkillCommand[] {
+    // 实现模糊搜索
+  }
+
+  /**
+   * Search skills with recent usage weighting
+   */
+  searchSkillsWithRecent(query: string, limit = 10): SkillCommand[] {
+    // 结合最近使用频率排序
+  }
+}
+```
+
+### 命令动态展示与键盘导航
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      CLI 命令提示架构                                         │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│  src/cli.ts                                                                │
+│  ├── slashSuggestions: SlashCommand[]  ← 当前建议列表                       │
+│  ├── slashSelectedIndex: number      ← 当前选中索引                        │
+│  └── slashActive: boolean            ← 是否显示建议                        │
+│                                                                              │
+│  用户输入 "/" 后:                                                           │
+│  1. getCliCommands(text) → 获取匹配的命令                                  │
+│  2. hintBar.setSuggestions() → 显示建议列表                                 │
+│  3. 用户按 ↑/↓ 导航                                                        │
+│  4. 用户按 Tab/Enter 选择                                                   │
+│                                                                              │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+#### 键盘导航实现 (src/cli.ts:1220-1260)
+
+```typescript
+// Slash 命令建议状态
+let slashSuggestions: SlashCommand[] = [];
+let slashSelectedIndex = 0;
+let slashActive = false;
+
+// 更新 slash 命令建议
+editor.onSlashCommand = (text: string) => {
+  slashSuggestions = getCliCommands(text);
+  slashSelectedIndex = 0;
+  slashActive = slashSuggestions.length > 0;
+  updateView();
+  tui.requestRender();
+};
+
+// 上下键导航
+editor.onSlashNavigate = (direction: 'up' | 'down') => {
+  if (direction === 'down') {
+    slashSelectedIndex = Math.min(slashSelectedIndex + 1, slashSuggestions.length - 1);
+  } else {
+    slashSelectedIndex = Math.max(slashSelectedIndex - 1, 0);
+  }
+  updateView();
+  tui.requestRender();
+};
+
+// 选择当前命令
+editor.onSlashSelect = () => {
+  const selected = slashSuggestions[slashSelectedIndex];
+  if (!selected) return;
+  const cmdName = selected.name;
+  slashActive = false;
+  slashSuggestions = [];
+  editor.setText('');
+  // 执行命令
+  void handleSlashCommand(cmdName, '');
+  tui.requestRender();
+};
+
+// 关闭建议
+editor.onSlashDismiss = () => {
+  slashActive = false;
+  slashSuggestions = [];
+  updateView();
+  tui.requestRender();
+};
+```
+
+#### getCliCommands 实现
+
+```typescript
+// src/commands/index.ts
+import { matchCommands, fuzzyMatchCommands } from '@upup/commands';
+
+export function getCliCommands(text: string): SlashCommand[] {
+  if (!text.startsWith('/')) {
+    return [];
+  }
+
+  const query = text.slice(1); // 去掉 "/"
+  if (!query) {
+    // 无查询词，返回前 10 个命令
+    return matchCommands('/').slice(0, 10);
+  }
+
+  // 模糊匹配
+  const matches = fuzzyMatchCommands('/' + query, 10);
+  return matches.map(m => ({
+    name: m.name,
+    description: m.description,
+    aliases: m.aliases,
+    category: m.category,
+  }));
+}
+```
+
+### 交互流程
+
+```
+用户输入 "/"                      用户输入 "/he"
+       │                                │
+       ▼                                ▼
+┌──────────────────┐           ┌──────────────────┐
+│ getCliCommands() │           │ fuzzyMatchCommands() │
+│ 返回前10个命令   │           │ 返回匹配命令     │
+└──────────────────┘           └──────────────────┘
+       │                                │
+       ▼                                ▼
+┌──────────────────┐           ┌──────────────────┐
+│ 显示建议列表     │           │ 显示匹配列表     │
+│ 1. /help        │           │ 1. /help         │
+│ 2. /status      │           │ 2. /heartbeat    │
+│ 3. /cost        │           │                  │
+└──────────────────┘           └──────────────────┘
+       │                                │
+       ▼                                ▼
+  ↑/↓ 导航                         ↑/↓ 导航
+       │                                │
+       ▼                                ▼
+  Tab/Enter 选择                   Tab/Enter 选择
+       │                                │
+       ▼                                ▼
+  handleSlashCommand()          handleSlashCommand()
+```
+
+### Skills 列表 (60+ 个内置 skills)
+
+| 分类 | 数量 | 示例 |
+|------|------|------|
+| 金融分析 | 60+ | medfish, financial-data, technical-analysis, risk-management |
+| 投资策略 | 10+ | value-investing, growth-investing, momentum-investing |
+| 市场分析 | 15+ | a-share-fund, macro-china, sentiment-analysis |
+| 工具类 | 20+ | backtesting, stock-valuation, fundamentals-analysis |
+
+---
+
+## v4.0 最终报告 (2026-05-26)
 
 ---
 
@@ -707,6 +962,7 @@ Total tests:   64
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| v4.1 | 2026-05-26 | ✅ 添加 Skills 动态加载 + 键盘导航文档 |
 | v4.0 | 2026-05-26 | ✅ 最终报告: 64/64 测试通过, 100% 完成度 |
 | v3.7 | 2026-05-26 | ✅ 最终验证: 64/64 测试通过, 构建成功 |
 | v3.6 | 2026-05-26 | ✅ 完整命令验证脚本 (complete-cmd-verify.ts) |
@@ -739,9 +995,21 @@ Total tests:   64
 Dexter 命令系统改造已完成，所有 49 个命令均可正常工作：
 
 - ✅ 命令执行链路统一
-- ✅ 别名解析完整
+- ✅ 别名解析完整 (23个别名)
 - ✅ pi-tui 集成完善
-- ✅ 测试验证通过
+- ✅ Skills 动态加载 (60+ 内置 skills)
+- ✅ 键盘导航 (↑/↓ 选择)
+- ✅ 测试验证通过 (64/64)
 - ✅ 构建成功
+
+### 核心能力
+
+| 功能 | 状态 | 说明 |
+|------|------|------|
+| Skills 动态加载 | ✅ | SkillsMenu 类支持运行时重载 |
+| 命令动态展示 | ✅ | 基于 fuzzyMatchCommands 实时匹配 |
+| 键盘上下选择 | ✅ | editor.onSlashNavigate 处理 |
+| Tab/Enter 选择 | ✅ | editor.onSlashSelect 执行 |
+| Esc 关闭 | ✅ | editor.onSlashDismiss |
 
 **下一步工作**: 无阻塞性问题。命令系统已完全正常工作。
