@@ -18,11 +18,137 @@ import type {
   SkillCommand,
   ToolUseContext,
   SkillSource,
+  HooksSettings,
 } from './types.js';
 import type { SubagentConfig, SubagentResult, SubagentRunner } from '../agent/subagent.js';
 import { executeShellCommandsInPrompt, containsShellCommands } from './promptShellExecution.js';
 import { hasPermissionsToUseTool, createSkillPermissionContext } from './permissions.js';
 import { processToolResultBlock } from './toolResultStorage.js';
+
+// ============================================================================
+// Hook System (P1)
+// ============================================================================
+
+/**
+ * Hook event types
+ */
+export type HookEvent = 'pre-execute' | 'post-execute' | 'pre-tool' | 'post-tool';
+
+/**
+ * Hook context passed to hook handlers
+ */
+export interface HookContext {
+  skillName: string;
+  skillPath?: string;
+  args?: string;
+  commandName?: string;
+}
+
+/**
+ * Hook result
+ */
+export interface HookResult {
+  /** Whether the hook executed successfully */
+  success: boolean;
+  /** Output from the hook */
+  output?: string;
+  /** Error message if hook failed */
+  error?: string;
+  /** Whether to skip the main execution */
+  skip?: boolean;
+}
+
+/**
+ * Registered hook handlers
+ */
+const hookHandlers: Map<string, (context: HookContext) => Promise<HookResult | void>> = new Map();
+
+/**
+ * Register a hook handler
+ * @param event - The event to listen for
+ * @param handler - The handler function
+ */
+export function registerHook(event: HookEvent, handler: (context: HookContext) => Promise<HookResult | void>): void {
+  hookHandlers.set(event, handler);
+}
+
+/**
+ * Unregister a hook handler
+ * @param event - The event to unregister
+ */
+export function unregisterHook(event: HookEvent): void {
+  hookHandlers.delete(event);
+}
+
+/**
+ * Execute a hook if registered
+ * @param event - The hook event
+ * @param context - Hook context
+ * @returns Hook result or undefined if no hook registered
+ */
+export async function executeHook(
+  event: HookEvent,
+  context: HookContext
+): Promise<HookResult | undefined> {
+  const handler = hookHandlers.get(event);
+  if (!handler) {
+    return undefined;
+  }
+
+  try {
+    const result = await handler(context);
+    if (result) {
+      return result;
+    }
+    return undefined;
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+/**
+ * Execute hooks defined in skill metadata
+ * @param hooks - Hook settings from skill
+ * @param context - Hook context
+ */
+export async function executeSkillHooks(
+  hooks: HooksSettings | undefined,
+  context: HookContext
+): Promise<{ preResult?: HookResult; postResult?: HookResult }> {
+  const results: { preResult?: HookResult; postResult?: HookResult } = {};
+
+  // Execute pre-execute hooks
+  if (hooks?.preTool?.some(h => h.enabled !== false)) {
+    const preHook = await executeHook('pre-execute', context);
+    if (preHook) {
+      results.preResult = preHook;
+      if (preHook.skip) {
+        return results;
+      }
+    }
+  }
+
+  // Execute post-execute hooks
+  if (hooks?.postTool?.some(h => h.enabled !== false)) {
+    const postHook = await executeHook('post-execute', context);
+    if (postHook) {
+      results.postResult = postHook;
+    }
+  }
+
+  return results;
+}
+
+/**
+ * Check if hooks are enabled for a skill
+ */
+export function hasHooks(hooks: HooksSettings | undefined): boolean {
+  return !!(hooks?.preTool?.some(h => h.enabled !== false) ||
+           hooks?.postTool?.some(h => h.enabled !== false));
+}
 
 /**
  * Skill execution modes
@@ -171,7 +297,7 @@ export async function executeSkill(
  */
 export function buildSkillPrompt(skill: Skill, args?: string): string {
   // Format the skill instructions with arguments
-  let prompt = skill.instructions;
+  let prompt = skill.instructions || '';
 
   // Append arguments if provided
   if (args && args.trim()) {
@@ -224,7 +350,7 @@ function buildSkillSystemPrompt(skill: Skill): string {
     ``,
     `## Instructions`,
     ``,
-    skill.instructions,
+    skill.instructions || '',
   ];
 
   // Add usage hints if available
@@ -301,7 +427,7 @@ export function shouldUseForkMode(skill: Skill): boolean {
   }
 
   // Long instructions (> 2000 chars) may benefit from fork mode
-  if (skill.instructions.length > 2000) {
+  if (skill.instructions && skill.instructions.length > 2000) {
     return true;
   }
 
@@ -546,7 +672,7 @@ export function createSkillCommand(
     type: 'prompt',
     name: skill.name,
     description: skill.description,
-    contentLength: skill.instructions.length,
+    contentLength: skill.instructions?.length ?? 0,
     progressMessage: skill.progressMessage || 'running',
     userInvocable: skill.userInvocable,
     argumentHint: skill.argumentHint,
@@ -591,6 +717,12 @@ export function createSkillCommand(
       finalContent = finalContent.replace(
         /\$\{CLAUDE_SESSION_ID\}/g,
         getSessionId()
+      );
+
+      // Step 4.1: Replace ${cwd} variable (P1 - added)
+      finalContent = finalContent.replace(
+        /\$\{cwd\}/g,
+        process.cwd()
       );
 
       // Step 5: Execute shell commands (!`command` and ```! ... ```)
@@ -644,8 +776,35 @@ export async function getPromptForCommand(
   args: string,
   context?: ToolUseContext
 ): Promise<Array<{ type: 'text'; text: string }>> {
+  // P1: Execute pre-execute hooks
+  if (hasHooks(skill.hooks)) {
+    const hookContext: HookContext = {
+      skillName: skill.name,
+      skillPath: skill.path,
+      args,
+    };
+    const { preResult } = await executeSkillHooks(skill.hooks, hookContext);
+
+    // If hook says to skip, return hook output
+    if (preResult?.skip && preResult.output) {
+      return [{ type: 'text', text: preResult.output }];
+    }
+  }
+
   const command = createSkillCommand(skill);
-  return command.getPromptForCommand(args, context);
+  const result = await command.getPromptForCommand(args, context);
+
+  // P1: Execute post-execute hooks
+  if (hasHooks(skill.hooks)) {
+    const hookContext: HookContext = {
+      skillName: skill.name,
+      skillPath: skill.path,
+      args,
+    };
+    await executeSkillHooks(skill.hooks, hookContext);
+  }
+
+  return result;
 }
 
 // ============================================================================
@@ -694,6 +853,7 @@ export async function executeSkillCommand(
 
     // Get SkillCommand directly from registry (P0 fix: use getSkillCommand, not getCommand)
     const registry = getSkillCommandRegistry();
+
     const skillCmd = registry.getSkillCommand(commandName);
 
     if (!skillCmd) {
@@ -710,10 +870,10 @@ export async function executeSkillCommand(
 
     // Return as a query for the agent to execute
     const prompt = content.map(c => c.text).join('\n\n');
+
     return { type: 'query', text: prompt };
 
   } catch (error) {
-    console.error(`Error executing skill command ${commandName}:`, error);
     return null;
   }
 }

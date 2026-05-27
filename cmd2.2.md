@@ -62,21 +62,50 @@ const handleSlashCommand = async (commandName: string, commandArgs: string = '')
   }
 }
 
-// src/cli.ts - onSlashSelect with proper error handling
+// src/cli.ts - onSlashSelect with fallback and args extraction
 editor.onSlashSelect = () => {
   const selected = slashSuggestions[slashSelectedIndex];
+
   if (!selected) {
-    console.error('[ERROR] No selected command');
-    return;
+    // Fallback: use the editor's current text as the command
+    const editorText = editor.getText().trim();
+    if (editorText.startsWith('/')) {
+      const rawCommand = editorText.slice(1).trim();
+      const spaceIdx = rawCommand.indexOf(' ');
+      const commandName = (spaceIdx === -1 ? rawCommand : rawCommand.slice(0, spaceIdx)).toLowerCase();
+      const commandArgs = spaceIdx === -1 ? '' : rawCommand.slice(spaceIdx + 1).trim();
+
+      console.log(`[CMD] Fallback to direct command: /${commandName} ${commandArgs}`);
+      slashActive = false;
+      slashSuggestions = [];
+      editor.setText('');
+      updateView();
+
+      handleSlashCommand(commandName, commandArgs).catch(err => {
+        console.error(`[CMD] Command /${commandName} failed:`, err);
+        chatLog.addChild(new Spacer(1));
+        chatLog.addChild(new Text(theme.error(`Command /${commandName} failed: ${err}`), 0, 0));
+        tui.requestRender();
+      });
+      tui.requestRender();
+      return;
+    }
   }
+
+  // Extract args from editor text
+  const editorText = editor.getText().trim();
+  const rawCommand = editorText.slice(1).trim();
+  const spaceIdx = rawCommand.indexOf(' ');
+  const commandArgs = spaceIdx === -1 ? '' : rawCommand.slice(spaceIdx + 1).trim();
+
   const cmdName = selected.name;
-  console.log(`[CMD] Selected command: /${cmdName}`);
+  console.log(`[CMD] Selected command: /${cmdName} with args: "${commandArgs}"`);
   slashActive = false;
   slashSuggestions = [];
   editor.setText('');
   updateView();
-  // Execute the command with proper error handling
-  handleSlashCommand(cmdName, '').catch(err => {
+
+  handleSlashCommand(cmdName, commandArgs).catch(err => {
     console.error(`[CMD] Command /${cmdName} failed:`, err);
     chatLog.addChild(new Spacer(1));
     chatLog.addChild(new Text(theme.error(`Command /${cmdName} failed: ${err}`), 0, 0));
