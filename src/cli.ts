@@ -562,28 +562,22 @@ export async function runCli(options: RunCliOptions = {}) {
 
   // Import command system for delegation
   const executeCommandFromModule = async (name: string, args: string, context: { cwd: string; env: Record<string, string>; sessionId: string; model: string; state?: Record<string, unknown>; sessionDuration?: number }) => {
-    console.log(`[CMD] Executing: /${name} ${args}`);
     try {
       const commandsModule = await import('@upup/commands')
       const executeCommand = commandsModule.executeCommand
 
       if (!executeCommand) {
-        console.error(`[CMD] ERROR: executeCommand not found in @upup/commands`);
         return { type: 'error', message: 'executeCommand not found in @upup/commands' }
       }
 
       const result = await executeCommand(name, args, context);
-      console.log(`[CMD] Result: ${result.type} for /${name}`);
       return result;
     } catch (e) {
-      console.error(`[CMD] ERROR: ${e}`);
       return { type: 'error', message: `Failed to import @upup/commands: ${e}` }
     }
   }
 
   const handleSlashCommand = async (commandName: string, commandArgs: string = '') => {
-    console.log(`[CMD] Handling command: /${commandName}`);
-
     // Track redirect chain for cycle detection (reset at top-level command)
     const redirectChain = new Set<string>()
 
@@ -596,8 +590,12 @@ export async function runCli(options: RunCliOptions = {}) {
         sessionId: agentRunner.sessionId,
         model: modelSelection.model,
       });
+
       if (skillCommand) {
         if (skillCommand.type === 'query' && skillCommand.text) {
+          chatLog.addChild(new Spacer(1));
+          chatLog.addChild(new Text(theme.primary(`Executing /${commandName}...`), 0, 0));
+          tui.requestRender();
           await agentRunner.runQuery(skillCommand.text);
         } else if (skillCommand.type === 'output' && skillCommand.text) {
           chatLog.addChild(new Spacer(1));
@@ -609,8 +607,7 @@ export async function runCli(options: RunCliOptions = {}) {
         tui.requestRender();
         return;
       }
-      // skillCommand is null - continue with regular commands below
-    } catch {
+    } catch (e) {
       // Error checking skill commands - continue with regular commands
     }
 
@@ -706,10 +703,8 @@ export async function runCli(options: RunCliOptions = {}) {
           sessionDuration: session.getSessionDuration(),
         }
 
-        console.log(`[CMD] State loaded: ${Object.keys(state).length} keys, duration=${state.sessionDuration}ms`)
 
       } catch (e) {
-        console.error('[CMD] State loading error:', e);
         // State not available, use empty state
         state = {
           sessionDuration: 0,
@@ -721,7 +716,6 @@ export async function runCli(options: RunCliOptions = {}) {
         }
       }
 
-      console.log(`[CMD] Executing: /${commandName} ${commandArgs}`)
       const result = await executeCommandFromModule(commandName, commandArgs, {
         cwd: process.cwd(),
         env: process.env as Record<string, string>,
@@ -729,7 +723,6 @@ export async function runCli(options: RunCliOptions = {}) {
         model: modelSelection.model,
         state,
       })
-      console.log(`[CMD] Result: type=${result.type}`)
 
       if (result.type === 'output' && result.text) {
         chatLog.addChild(new Spacer(1))
@@ -775,16 +768,13 @@ export async function runCli(options: RunCliOptions = {}) {
         }
       } else if (result.type === 'noop') {
         // No operation - command completed but produced no visible output
-        console.log(`[CMD] /${commandName} completed (noop)`)
       } else if (result.type === 'query') {
         // Inject text as a query to the agent
         const queryText = (result as { text?: string }).text || ''
-        console.log(`[CMD] /${commandName} → injecting query: "${queryText.slice(0, 50)}..."`)
         await agentRunner.runQuery(queryText)
       } else if (result.type === 'redirect') {
         // Redirect to another command with cycle detection
         const redirectCmd = (result as { command?: string }).command || ''
-        console.log(`[CMD] /${commandName} → redirecting to /${redirectCmd}`)
 
         // Check for redirect loop (cycle detection)
         if (redirectChain.has(redirectCmd)) {
@@ -820,6 +810,8 @@ export async function runCli(options: RunCliOptions = {}) {
       if (!rawCommand) {
         slashActive = false;
         slashSuggestions = [];
+        editor.setText('');
+        updateView();
         return;
       }
       // Split command name from arguments: "/model deepseek" → name="model", args="deepseek"
@@ -828,6 +820,8 @@ export async function runCli(options: RunCliOptions = {}) {
       const commandArgs = spaceIdx === -1 ? '' : rawCommand.slice(spaceIdx + 1).trim();
       slashActive = false;
       slashSuggestions = [];
+      editor.setText('');  // Clear editor after slash command
+      updateView();
       await handleSlashCommand(commandName, commandArgs);
       return;
     }
@@ -1245,24 +1239,74 @@ export async function runCli(options: RunCliOptions = {}) {
     } else {
       slashSelectedIndex = Math.max(slashSelectedIndex - 1, 0);
     }
+    // P2: Refresh hint bar with pagination aware selection
+    hintBar.refreshPage(slashSelectedIndex);
+    updateView();
+    tui.requestRender();
+  };
+
+  // P2: Pagination navigation handler
+  editor.onSlashPage = (direction: 'next' | 'prev') => {
+    if (direction === 'next') {
+      hintBar.nextPage();
+    } else {
+      hintBar.prevPage();
+    }
+    // Reset selection to first item on current page
+    const pageInfo = hintBar.getPageInfo();
+    slashSelectedIndex = pageInfo.current * 10;
     updateView();
     tui.requestRender();
   };
 
   editor.onSlashSelect = () => {
+    // Try to get selected command from suggestions
     const selected = slashSuggestions[slashSelectedIndex];
+
     if (!selected) {
-      console.error('[ERROR] No selected command');
-      return;
+      // Fallback: use the editor's current text as the command
+      // This handles cases where suggestions haven't loaded yet or list is empty
+      const editorText = editor.getText().trim();
+      if (editorText.startsWith('/')) {
+        const rawCommand = editorText.slice(1).trim();
+        const spaceIdx = rawCommand.indexOf(' ');
+        const commandName = (spaceIdx === -1 ? rawCommand : rawCommand.slice(0, spaceIdx)).toLowerCase();
+        const commandArgs = spaceIdx === -1 ? '' : rawCommand.slice(spaceIdx + 1).trim();
+
+        slashActive = false;
+        slashSuggestions = [];
+        editor.setText('');
+        updateView();
+
+        handleSlashCommand(commandName, commandArgs).catch(err => {
+          console.error(`[CMD] Command /${commandName} failed:`, err);
+          chatLog.addChild(new Spacer(1));
+          chatLog.addChild(new Text(theme.error(`Command /${commandName} failed: ${err}`), 0, 0));
+          tui.requestRender();
+        });
+        tui.requestRender();
+        return;
+      } else {
+        console.error('[ERROR] Invalid command format');
+        return;
+      }
     }
+
     const cmdName = selected.name;
-    console.log(`[CMD] Selected command: /${cmdName}`);
+    
+    // Extract args from editor text (args after command name)
+    const editorText = editor.getText().trim();
+    const rawCommand = editorText.slice(1).trim(); // Remove leading /
+    const spaceIdx = rawCommand.indexOf(' ');
+    const commandArgs = spaceIdx === -1 ? '' : rawCommand.slice(spaceIdx + 1).trim();
+    
     slashActive = false;
     slashSuggestions = [];
     editor.setText('');
     updateView();
+    
     // Execute the command with proper error handling
-    handleSlashCommand(cmdName, '').catch(err => {
+    handleSlashCommand(cmdName, commandArgs).catch(err => {
       console.error(`[CMD] Command /${cmdName} failed:`, err);
       chatLog.addChild(new Spacer(1));
       chatLog.addChild(new Text(theme.error(`Command /${cmdName} failed: ${err}`), 0, 0));

@@ -264,13 +264,14 @@ Overall Score: {{score}}/10
  * Register all built-in skills
  */
 export function registerBuiltinSkills(): void {
-  const { registerBundledSkill } = require('./registry.js');
-
-  for (const skill of BUILTIN_SKILLS) {
-    registerBundledSkill({
-      ...skill,
-      path: `builtin:${skill.name}`,
-      source: 'builtin',
-    } as BundledSkillDefinition);
-  }
+  // Dynamic import for ESM compatibility
+  import('./registry.js').then(({ registerBundledSkill }) => {
+    for (const skill of BUILTIN_SKILLS) {
+      registerBundledSkill({
+        ...skill,
+        path: `builtin:${skill.name}`,
+        source: 'builtin',
+      } as BundledSkillDefinition);
+    }
+  });
 }

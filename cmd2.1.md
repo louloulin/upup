@@ -938,7 +938,181 @@ packages/commands/src/
 
 ---
 
+## v2.7 Bug 修复 (2026-05-27)
+
+### 🐛 Bug: Skill 命令执行失败 "No selected command"
+
+**问题描述**:
+用户输入 `/a-share-data 获取比亚迪` 时报错：
+```
+[ERROR] No selected command
+```
+
+**根本原因**:
+`onSlashSelect` 回调在 `slashSuggestions` 为空时会报错，而不是使用编辑器文本作为命令回退。
+
+**影响场景**:
+- 交互模式下 autocomplete 建议未及时加载
+- 异步获取命令列表时的竞态条件
+- 用户快速输入时
+
+**修复内容**:
+```typescript
+// cli.ts:onSlashSelect
+editor.onSlashSelect = () => {
+  const selected = slashSuggestions[slashSelectedIndex];
+
+  if (!selected) {
+    // Fallback: use the editor's current text as the command
+    const editorText = editor.getText().trim();
+    if (editorText.startsWith('/')) {
+      const rawCommand = editorText.slice(1).trim();
+      const spaceIdx = rawCommand.indexOf(' ');
+      const commandName = (spaceIdx === -1 ? rawCommand : rawCommand.slice(0, spaceIdx)).toLowerCase();
+      const commandArgs = spaceIdx === -1 ? '' : rawCommand.slice(spaceIdx + 1).trim();
+
+      console.log(`[CMD] Fallback to direct command: /${commandName} ${commandArgs}`);
+      // 直接执行命令
+      handleSlashCommand(commandName, commandArgs);
+      return;
+    }
+  }
+  // 原有逻辑...
+};
+```
+
+**验证结果**:
+```
+$ echo "/a-share-data 获取比亚迪" | bun run src/index.tsx
+
+[CMD] Fallback to direct command: /a-share-data 获取比亚迪
+[CMD] Handling command: /a-share-data
+# A-Share Stock Data Skill
+A 股实时行情与历史数据查询。
+...
+```
+
+### 🐛 Bug: Autocomplete 选择时 Args 丢失
+
+**问题描述**:
+当用户从 autocomplete 建议列表中选择命令时（如选择 `/a-share-data`），输入的额外参数（如 `获取比亚迪`）被丢失。
+
+**根本原因**:
+`onSlashSelect` 在从 `slashSuggestions` 选择时，传递了空字符串 `''` 作为 `commandArgs`：
+```typescript
+// BUG: 硬编码空字符串
+handleSlashCommand(cmdName, '').catch(...)
+```
+
+**修复内容**:
+```typescript
+// cli.ts:onSlashSelect
+const cmdName = selected.name;
+
+// Extract args from editor text (args after command name)
+const editorText = editor.getText().trim();
+const rawCommand = editorText.slice(1).trim(); // Remove leading /
+const spaceIdx = rawCommand.indexOf(' ');
+const commandArgs = spaceIdx === -1 ? '' : rawCommand.slice(spaceIdx + 1).trim();
+
+// Execute with extracted args
+handleSlashCommand(cmdName, commandArgs).catch(...)
+```
+
+**影响场景**:
+- 从 autocomplete 建议中选择命令后追加参数
+- `/命令 参数` 格式的完整输入
+
+### 🐛 Bug: Slash 命令输入被回显
+
+**问题描述**:
+用户输入 `/a-share-fund 搜索基金` 后，看到输入被回显到编辑器中，而不是执行 skill。
+
+**根本原因**:
+`handleSubmit` 函数在处理 slash 命令时，**没有清除编辑器内容**。
+
+**修复内容**:
+```typescript
+// cli.ts:handleSubmit
+if (query.startsWith('/')) {
+  // ...
+  slashActive = false;
+  slashSuggestions = [];
+  editor.setText('');  // 清除编辑器内容
+  updateView();
+  await handleSlashCommand(commandName, commandArgs);
+  return;
+}
+```
+
+**验证结果**:
+```
+[executeSkillCommand] Skill command found: true
+[executeSkillCommand] Success, returning query with 22782 chars
+✅ Skill 执行成功
+```
+
+### 🐛 Bug: Shell 命令执行失败 "Permission Denied"
+
+**问题描述**:
+Skill 中的 shell 命令（如 `a-share-fund`）执行时返回 `[Permission Denied]` 错误。
+
+**根本原因**:
+1. Skill 文件中的代码块使用 ```bash 而非 ```! 标记，导致 shell 命令不会执行
+2. 权限匹配函数 `matchCommandPattern` 和 `isCommandAllowed` 对工具名称大小写敏感
+   - Skill 配置使用 `Bash(python3*)`，但系统使用 `bash`
+
+**修复内容**:
+
+1. **修改 Skill 文件标记** (```bash → ```!):
+```markdown
+```!
+python3 -c "import akshare as ak ..."
+```
+```
+
+2. **修复 permissions.ts - matchCommandPattern**:
+```typescript
+// 修改前 (大小写敏感)
+if (toolName !== tool) return false;
+
+// 修改后 (大小写不敏感)
+if (toolName.toLowerCase() !== tool.toLowerCase()) return false;
+```
+
+3. **修复 promptShellExecution.ts - isCommandAllowed**:
+```typescript
+// 支持 "Bash(curl*)" 格式的模式匹配
+export function isCommandAllowed(command: string, allowedCommands?: string[]): boolean {
+  const match = allowed.match(/^(\w+)\(([^)]+)\)$/);
+  if (match) {
+    const [, tool, commandPattern] = match;
+    if (toolName !== tool.toLowerCase()) return false;
+    // ... wildcard matching
+  }
+  // Simple case-insensitive match
+  return normalizedCommand.startsWith(allowed.toLowerCase());
+}
+```
+
+**验证结果**:
+```bash
+$ bun run scripts/test-skill-execution.ts
+[TEST] ✅ Found a-share-fund command
+[TEST] Prompt generated, length: 22152
+[TEST] ✅ Shell commands were executed (content has data)
+```
+
+---
+
 ## 总结
+
+### v2.7 Bug 修复
+
+1. **✅ 修复 Skill 命令执行** - 添加 `onSlashSelect` 回退逻辑
+2. **✅ 修复 Args 丢失** - 从编辑器文本提取完整参数
+3. **✅ 修复 Shell 命令权限** - 修复大小写敏感和模式匹配
+4. **✅ 修复 Slash 命令回显** - `handleSubmit` 添加 `editor.setText('')` 清除编辑器
 
 ### v2.6 新增功能
 

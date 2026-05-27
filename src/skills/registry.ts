@@ -32,6 +32,9 @@ const SKILL_DIRECTORIES: { path: string; source: SkillSource }[] = [
 // Cache for discovered skills (metadata only)
 let skillMetadataCache: Map<string, SkillMetadata> | null = null;
 
+// Cache for full skill content (P1 - added)
+const skillContentCache: Map<string, Skill> = new Map();
+
 // Event emitter for skill lifecycle events
 const skillEvents = new EventEmitter();
 
@@ -58,6 +61,16 @@ export function offSkillEvent(event: string, handler: (...args: any[]) => void):
  */
 export function getSkillEventEmitter(): EventEmitter {
   return skillEvents;
+}
+
+/**
+ * Get cache statistics (P1 - for debugging)
+ */
+export function getSkillCacheStats(): { metadata: number; content: number } {
+  return {
+    metadata: skillMetadataCache?.size ?? 0,
+    content: skillContentCache.size,
+  };
 }
 
 /**
@@ -105,6 +118,8 @@ export function discoverSkills(): SkillMetadata[] {
     return Array.from(skillMetadataCache.values());
   }
 
+  // Clear content cache when discovering (P1)
+  skillContentCache.clear();
   skillMetadataCache = new Map();
 
   // Pre-filter directories that exist to avoid unnecessary work
@@ -211,10 +226,20 @@ export function getSkill(name: string): Skill | undefined {
     discoverSkills();
   }
 
+  // Check cache first (P1 - content caching)
+  const cached = skillContentCache.get(name);
+  if (cached) {
+    return cached;
+  }
+
   // First check file-based skills
   const metadata = skillMetadataCache?.get(name);
   if (metadata) {
-    return loadSkillFromPath(metadata.path, metadata.source);
+    const skill = loadSkillFromPath(metadata.path, metadata.source);
+    if (skill) {
+      skillContentCache.set(name, skill);
+    }
+    return skill;
   }
 
   // Then check bundled skills (local registry)
@@ -274,6 +299,7 @@ export function buildSkillMetadataSection(): string {
  */
 export function clearSkillCache(): void {
   skillMetadataCache = null;
+  skillContentCache.clear(); // P1 - also clear content cache
   skillEvents.emit('skillCacheCleared');
 }
 

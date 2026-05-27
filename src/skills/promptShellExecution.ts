@@ -16,18 +16,24 @@ import { executeBashCommand } from '../tools/bash/bash-tool.js';
 import { executePowerShellCommand } from '../tools/powershell/powershell-tool.js';
 import { hasPermissionsToUseTool, createSkillPermissionContext, type Tool } from './permissions.js';
 
-// Pattern for code blocks: ```! command ```
+// Pattern for code blocks: ```! command ``` (loucode style)
 const BLOCK_PATTERN = /```!\s*\n?([\s\S]*?)\n?```/g;
 
-// Pattern for inline: !`command`
+// Pattern for inline: !`command` (loucode style)
 // Uses positive lookbehind to require whitespace or start-of-line before !
 const INLINE_PATTERN = /(?<=^|\s)!`([^`]+)`/gm;
 
-// Pattern for PowerShell blocks: ```!ps command ```
+// Pattern for PowerShell blocks: ```!ps command ``` (loucode style)
 const PS_BLOCK_PATTERN = /```!ps\s*\n?([\s\S]*?)\n?```/g;
 
-// Pattern for PowerShell inline: !ps`command`
+// Pattern for PowerShell inline: !ps`command` (loucode style)
 const PS_INLINE_PATTERN = /(?<=^|\s)!ps`([^`]+)`/gm;
+
+// Standard markdown bash code blocks: ```bash command ``` (compatibility mode)
+const BASH_BLOCK_PATTERN = /```bash\s*\n?([\s\S]*?)\n?```/gi;
+
+// Standard markdown shell code blocks: ```shell command ``` (compatibility mode)
+const SHELL_BLOCK_PATTERN = /```shell\s*\n?([\s\S]*?)\n?```/gi;
 
 export interface ShellExecutionResult {
   stdout: string;
@@ -164,6 +170,28 @@ export async function executeShellCommandsInPrompt(
     }
   }
 
+  // Find standard markdown bash block matches (compatibility mode)
+  if (text.includes('```bash')) {
+    const bashBlockRegex = new RegExp(BASH_BLOCK_PATTERN.source, 'gi');
+    while ((match = bashBlockRegex.exec(text)) !== null) {
+      const command = match[1]?.trim();
+      if (command) {
+        matches.push({ pattern: match[0], command, isInline: false, shell: 'bash' });
+      }
+    }
+  }
+
+  // Find standard markdown shell block matches (compatibility mode)
+  if (text.includes('```shell')) {
+    const shellBlockRegex = new RegExp(SHELL_BLOCK_PATTERN.source, 'gi');
+    while ((match = shellBlockRegex.exec(text)) !== null) {
+      const command = match[1]?.trim();
+      if (command) {
+        matches.push({ pattern: match[0], command, isInline: false, shell: 'bash' });
+      }
+    }
+  }
+
   // Execute all commands in parallel
   const results = await Promise.all(
     matches.map(async ({ pattern, command, isInline, shell }) => {
@@ -237,7 +265,12 @@ export async function executeShellCommandsInPrompt(
  * Check if text contains shell command syntax.
  */
 export function containsShellCommands(text: string): boolean {
-  return text.includes('!`') || text.includes('```!') || text.includes('!ps`') || text.includes('```!ps');
+  return text.includes('!`') ||
+         text.includes('```!') ||
+         text.includes('```bash') ||
+         text.includes('```shell') ||
+         text.includes('!ps`') ||
+         text.includes('```!ps');
 }
 
 /**
@@ -287,11 +320,34 @@ export function extractShellCommands(text: string): Array<{ command: string; she
     }
   }
 
+  // Extract standard markdown bash block commands (compatibility mode)
+  if (text.includes('```bash')) {
+    const bashBlockRegex = new RegExp(BASH_BLOCK_PATTERN.source, 'gi');
+    while ((match = bashBlockRegex.exec(text)) !== null) {
+      const command = match[1]?.trim();
+      if (command) {
+        commands.push({ command, shell: 'bash' });
+      }
+    }
+  }
+
+  // Extract standard markdown shell block commands (compatibility mode)
+  if (text.includes('```shell')) {
+    const shellBlockRegex = new RegExp(SHELL_BLOCK_PATTERN.source, 'gi');
+    while ((match = shellBlockRegex.exec(text)) !== null) {
+      const command = match[1]?.trim();
+      if (command) {
+        commands.push({ command, shell: 'bash' });
+      }
+    }
+  }
+
   return commands;
 }
 
 /**
  * Validate a shell command against allowed commands list.
+ * Supports patterns like "Bash(curl*)", "Bash(python3*)"
  */
 export function isCommandAllowed(
   command: string,
@@ -301,7 +357,35 @@ export function isCommandAllowed(
     return true;
   }
 
-  return allowedCommands.some((allowed) =>
-    command.trim().startsWith(allowed)
-  );
+  const normalizedCommand = command.trim().toLowerCase();
+
+  return allowedCommands.some((allowed) => {
+    // Parse pattern like "Bash(curl*)" or "Bash(curl)"
+    const match = allowed.match(/^(\w+)\(([^)]+)\)$/);
+    if (match) {
+      const [, tool, commandPattern] = match;
+      const toolName = normalizedCommand.startsWith('powershell') ? 'powershell' : 'bash';
+
+      // Check tool name matches
+      if (toolName !== tool.toLowerCase()) {
+        return false;
+      }
+
+      // Check command pattern
+      if (commandPattern.endsWith('*')) {
+        const prefix = commandPattern.slice(0, -1).toLowerCase();
+        return normalizedCommand.includes(prefix);
+      }
+
+      // Exact match
+      return normalizedCommand === commandPattern.toLowerCase();
+    }
+
+    // Simple tool name match (case-insensitive)
+    if (normalizedCommand.startsWith('powershell')) {
+      return allowed.toLowerCase() === 'powershell';
+    }
+    return normalizedCommand.startsWith(allowed.toLowerCase()) ||
+           normalizedCommand.startsWith('bash ' + allowed.toLowerCase());
+  });
 }

@@ -7,6 +7,8 @@ export class CustomEditor extends Editor {
   onSlashChange?: (text: string) => void;
   onSlashSelect?: () => void;
   onSlashNavigate?: (direction: 'up' | 'down') => void;
+  // P2: Pagination navigation handler
+  onSlashPage?: (direction: 'next' | 'prev') => void;
   onSlashDismiss?: () => void;
   onSlashExactMatch?: (text: string) => boolean;
   /** Called when there's a pending approval: pass key to handle 1/2/3 + Enter for approval. Returns true if consumed. */
@@ -101,6 +103,16 @@ export class CustomEditor extends Editor {
     }
     if (showingSuggestions && matchesKey(data, Key.down)) {
       this.onSlashNavigate?.('down');
+      return;
+    }
+
+    // P2: Left/Right arrows: pagination for suggestions
+    if (showingSuggestions && matchesKey(data, Key.left)) {
+      this.onSlashPage?.('prev');
+      return;
+    }
+    if (showingSuggestions && matchesKey(data, Key.right)) {
+      this.onSlashPage?.('next');
       return;
     }
 

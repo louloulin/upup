@@ -132,23 +132,23 @@ function matchCommandPattern(toolName: string, input: string, pattern: string): 
   const globMatch = pattern.match(/^(\w+)\(([^)]+)\)$/);
   if (globMatch) {
     const [, tool, commandPattern] = globMatch;
-    
-    // Check tool name
-    if (toolName !== tool) {
+
+    // Check tool name (case-insensitive)
+    if (toolName.toLowerCase() !== tool.toLowerCase()) {
       return false;
     }
-    
+
     // Check command pattern
     if (commandPattern.endsWith('*')) {
       const prefix = commandPattern.slice(0, -1);
-      return input.includes(prefix);
+      return input.toLowerCase().includes(prefix.toLowerCase());
     }
-    
-    return input === commandPattern;
+
+    return input.toLowerCase() === commandPattern.toLowerCase();
   }
-  
-  // Simple tool name match
-  return toolName === pattern;
+
+  // Simple tool name match (case-insensitive)
+  return toolName.toLowerCase() === pattern.toLowerCase();
 }
 
 /**

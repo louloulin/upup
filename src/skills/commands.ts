@@ -21,6 +21,7 @@ import { discoverSkills, getSkill, getAllBundledSkills } from './registry.js';
 import { createSkillCommand, bundledSkillToSkill } from './executor.js';
 import { SkillCommandRegistry, getSkillCommandRegistry } from './slash-command.js';
 import { registerBuiltinSkills } from './builtin-skills.js';
+import { initInvestmentSkills } from './bundled/index.js';
 
 
 // ============================================================================
@@ -62,6 +63,9 @@ export async function initializeSkills(
 
   // Step 0: Register built-in bundled skills (P1)
   registerBuiltinSkills();
+
+  // Step 0.5: Initialize investment bundled skills (including a-share-fund)
+  await initInvestmentSkills();
 
   // Step 1: Register bundled skills
   const bundledSkills = getAllBundledSkills();
@@ -244,7 +248,61 @@ export async function executeSkillCommand(
   if (!command) {
     return undefined;
   }
+  // P2: Record command usage
+  recordCommandUsage(name);
   return command.getPromptForCommand(args, context);
+}
+
+// ============================================================================
+// Command Usage Statistics (P2)
+// ============================================================================
+
+// In-memory usage tracking
+const commandUsageStats: Map<string, { count: number; lastUsed: number }> = new Map();
+
+/**
+ * Record that a command was used (P2)
+ */
+export function recordCommandUsage(commandName: string): void {
+  const existing = commandUsageStats.get(commandName);
+  if (existing) {
+    existing.count++;
+    existing.lastUsed = Date.now();
+  } else {
+    commandUsageStats.set(commandName, { count: 1, lastUsed: Date.now() });
+  }
+}
+
+/**
+ * Get usage statistics for a specific command (P2)
+ */
+export function getCommandUsageStats(commandName: string): { count: number; lastUsed: number } | undefined {
+  return commandUsageStats.get(commandName);
+}
+
+/**
+ * Get all command usage statistics sorted by frequency (P2)
+ */
+export function getAllCommandUsageStats(): Array<{ name: string; count: number; lastUsed: number }> {
+  return Array.from(commandUsageStats.entries())
+    .map(([name, stats]) => ({ name, ...stats }))
+    .sort((a, b) => b.count - a.count);
+}
+
+/**
+ * Get top N most used commands (P2)
+ */
+export function getTopCommands(limit: number = 10): Array<{ name: string; count: number }> {
+  return getAllCommandUsageStats()
+    .slice(0, limit)
+    .map(({ name, count }) => ({ name, count }));
+}
+
+/**
+ * Reset usage statistics (P2)
+ */
+export function resetCommandUsageStats(): void {
+  commandUsageStats.clear();
 }
 
 // ============================================================================
