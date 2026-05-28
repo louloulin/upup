@@ -22,6 +22,7 @@ import { createSkillCommand, bundledSkillToSkill } from './executor.js';
 import { SkillCommandRegistry, getSkillCommandRegistry } from './slash-command.js';
 import { registerBuiltinSkills } from './builtin-skills.js';
 import { initInvestmentSkills } from './bundled/index.js';
+import { initializeAgentCommands } from './agent-commands.js';
 
 
 // ============================================================================
@@ -132,8 +133,12 @@ export async function initializeSkills(
     count++;
   }
 
+  // Step 3: Register agent skills from ~/.claude/skills/
+  const agentCount = await initializeAgentCommands();
+  count += agentCount;
+
   initialized = true;
-  console.log(`[skills] Initialized ${count} skills (${bundledSkills.length} bundled + ${fileBasedSkills.length} file-based)`);
+  console.log(`[skills] Initialized ${count} skills (${bundledSkills.length} bundled + ${fileBasedSkills.length} file-based + ${agentCount} agent)`);
   return count;
 }
 

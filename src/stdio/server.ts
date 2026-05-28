@@ -295,7 +295,7 @@ export function createStdioServer(): StdioServer {
         }
 
         case JsonRpcMethod.Cancel: {
-          if (activeRun) {
+          if (activeRun?.abortController) {
             activeRun.abortController.abort();
             sendResponse(req.id, { cancelled: true, runId: activeRun.runId });
           } else {
@@ -515,10 +515,10 @@ export function createStdioServer(): StdioServer {
 
   // Cleanup function
   function cleanup(): void {
-    if (activeRun) {
+    if (activeRun?.abortController) {
       activeRun.abortController.abort();
-      activeRun = null;
     }
+    activeRun = null;
     agent = null;
     initialized = false;
   }
