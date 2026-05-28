@@ -61,3 +61,14 @@ export {
   type UseCLIIntegrationOptions,
   type UseCLIIntegrationResult,
 } from './use-cli-integration.js';
+
+// Reactive Render Hooks
+export {
+  useReactiveRender,
+  startGlobalReactiveRender,
+  stopGlobalReactiveRender,
+  isGlobalReactiveRenderActive,
+  requestReactiveRender,
+  type UseReactiveRenderOptions,
+  type UseReactiveRenderResult,
+} from './use-reactive-render.js';
