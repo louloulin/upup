@@ -1,7 +1,7 @@
 # TUI 改造计划 (PLAN46.md)
 
 > 基于 Loucode Claude Code TUI 分析 + UpUp (Dexter) 现状优化
-> 版本: 9.2 | 更新: 2026-05-28
+> 版本: 9.3 | 更新: 2026-05-28
 
 ---
 
@@ -125,6 +125,36 @@
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐           │
 │  │ QueryGuard │  │  订阅模式   │  │  响应式更新 │           │
 │  └─────────────┘  └─────────────┘  └─────────────┘           │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Phase 11: CLI 集成层 (已完成 - 2026-05-28)
+
+| 模块 | 文件 | 功能 |
+|------|------|------|
+| CLI集成 | `src/tui/cli-integration.ts` | CLI与TUI Store桥接 (~150行) |
+| Hook | `src/tui/hooks/use-cli-integration.ts` | CLI集成Hook (~90行) |
+| 导出 | `src/tui/index.ts` | 统一导出 |
+
+**CLI 集成架构**:
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                      CLI (src/cli.ts)                             │
+│                         │                                          │
+│                         ▼                                          │
+│              ┌─────────────────────┐                              │
+│              │  TUICLIIntegration  │                              │
+│              │  • subscribeToAll   │                              │
+│              │  • getAppState()    │                              │
+│              │  • getHistoryItems()│                              │
+│              │  • getToolEvents()  │                              │
+│              └─────────────────────┘                              │
+│                         │                                          │
+│                         ▼                                          │
+│    ┌──────────────────────────────────────────────┐               │
+│    │              Store Subscriptions              │               │
+│    │  AppStateStore │ HistoryStore │ ToolEventStore│               │
+│    └──────────────────────────────────────────────┘               │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -753,8 +783,8 @@ describe('Store', () => {
 |------|--------|------|------|
 | 历史消息 Store | P2 | ✅ 已完成 | HistoryStore 已实现 |
 | 工具事件 Store | P2 | ✅ 已完成 | ToolEventStore 已实现 |
-| CLI 使用 TUI Store | P1 | 🔄 进行中 | 替换全局状态为 Store 订阅 |
-| CLI 使用 QueryGuard | P1 | 🔄 进行中 | 替换状态检查为 QueryGuard |
+| CLI-TUI 集成层 | P1 | ✅ 已完成 | cli-integration.ts 已实现 |
+| CLI 使用 QueryGuard | P1 | ✅ 已完成 | use-cli-integration.ts 已实现 |
 | 响应式渲染 | P2 | ⏳ 待开始 | requestRender() → subscribe() |
 
 ---
@@ -795,10 +825,26 @@ $ bun run build
 ✅ dist/upup 构建成功
 ```
 
+### CLI 集成验证 (2026-05-28)
+
+```bash
+# 新增文件
+src/tui/cli-integration.ts           # CLI-TUI 桥接层
+src/tui/hooks/use-cli-integration.ts  # CLI 集成 Hook
+
+# 构建验证
+$ bun run build
+✅ TypeScript 类型检查通过
+✅ 3119 modules bundled
+✅ dist/upup 构建成功
+```
+
 ### 分支状态
 
 ```
 feature/tui-pi-tui-migration (当前分支)
+├── a6e455c feat(tui): 添加 CLI-TUI 集成层
+├── 3011f3e docs: 更新 PLAN46.md 添加 Phase 10 状态存储层
 ├── 440b7cd feat(tui): 添加 HistoryStore 和 ToolEventStore
 ├── 706627b docs: 更新 PLAN46.md 添加架构对比分析
 ├── 3e93a7a docs: 更新 PLAN46.md 添加 Phase 2.1 迁移记录
@@ -808,7 +854,7 @@ feature/tui-pi-tui-migration (当前分支)
 
 ---
 
-*文档版本: 9.2*
+*文档版本: 9.3*
 *创建时间: 2026-05-28*
 *更新: 2026-05-28 (迁移到 @earendil-works/pi-tui v0.76.0, 架构分析)*
 *参考: Loucode Claude Code TUI, @earendil-works/pi-tui v0.76.0*
