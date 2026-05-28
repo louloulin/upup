@@ -53,3 +53,11 @@ export {
   type ApprovalState,
   type UseApprovalResult,
 } from './use-approval.js';
+
+// CLI Integration Hooks
+export {
+  useCLIIntegration,
+  createCLISubscription,
+  type UseCLIIntegrationOptions,
+  type UseCLIIntegrationResult,
+} from './use-cli-integration.js';

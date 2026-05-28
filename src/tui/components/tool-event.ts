@@ -1,5 +1,5 @@
 /**
- * ToolEvent Component
+ * ToolEventDisplay Component
  *
  * 对标 Loucode ToolEvent 组件
  * 显示工具执行事件和结果
@@ -11,12 +11,12 @@ import { Box, Text } from '@earendil-works/pi-tui';
 // Types
 // ============================================================================
 
-export type ToolEventType = 'start' | 'progress' | 'success' | 'error' | 'complete';
+export type ToolEventDisplayType = 'start' | 'progress' | 'success' | 'error' | 'complete';
 
-export interface ToolEvent {
+export interface ToolEventDisplayEvent {
   id: string;
   toolName: string;
-  type: ToolEventType;
+  type: ToolEventDisplayType;
   message?: string;
   progress?: number; // 0-100
   input?: Record<string, unknown>;
@@ -25,9 +25,9 @@ export interface ToolEvent {
   timestamp: number;
 }
 
-export interface ToolEventProps {
+export interface ToolEventDisplayProps {
   /** 工具事件列表 */
-  events: ToolEvent[];
+  events: ToolEventDisplayEvent[];
   /** 最大显示事件数 */
   maxEvents?: number;
   /** 是否显示输入/输出 */
@@ -63,11 +63,11 @@ function renderProgressBar(progress: number, width: number): string {
 // ============================================================================
 
 export class ToolEventDisplay {
-  private events: ToolEvent[];
+  private events: ToolEventDisplayEvent[];
   private maxEvents: number;
   private showDetails: boolean;
 
-  constructor(props: ToolEventProps) {
+  constructor(props: ToolEventDisplayProps) {
     this.events = props.events;
     this.maxEvents = props.maxEvents || 10;
     this.showDetails = props.showDetails !== false;
@@ -76,14 +76,14 @@ export class ToolEventDisplay {
   /**
    * 更新事件列表
    */
-  updateEvents(events: ToolEvent[]): void {
+  updateEvents(events: ToolEventDisplayEvent[]): void {
     this.events = events.slice(-this.maxEvents);
   }
 
   /**
    * 添加新事件
    */
-  addEvent(event: ToolEvent): void {
+  addEvent(event: ToolEventDisplayEvent): void {
     this.events.push(event);
     if (this.events.length > this.maxEvents) {
       this.events.shift();
@@ -93,14 +93,14 @@ export class ToolEventDisplay {
   /**
    * 获取事件类型颜色
    */
-  private getColor(type: ToolEventType): string {
+  private getColor(type: ToolEventDisplayType): string {
     return THEME[type] || THEME.dim;
   }
 
   /**
    * 获取事件类型图标
    */
-  private getIcon(type: ToolEventType): string {
+  private getIcon(type: ToolEventDisplayType): string {
     switch (type) {
       case 'start': return '▶';
       case 'progress': return '◐';
@@ -135,7 +135,7 @@ export class ToolEventDisplay {
   /**
    * 渲染单个事件
    */
-  private renderEvent(event: ToolEvent, maxWidth: number): string[] {
+  private renderEvent(event: ToolEventDisplayEvent, maxWidth: number): string[] {
     const lines: string[] = [];
     const color = this.getColor(event.type);
     const icon = this.getIcon(event.type);
@@ -236,6 +236,6 @@ export class ToolEventDisplay {
 // Factory Function
 // ============================================================================
 
-export function createToolEventDisplay(props: ToolEventProps): ToolEventDisplay {
+export function createToolEventDisplay(props: ToolEventDisplayProps): ToolEventDisplay {
   return new ToolEventDisplay(props);
 }
