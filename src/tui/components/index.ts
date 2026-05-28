@@ -17,9 +17,9 @@ export {
 export {
   ToolEventDisplay,
   createToolEventDisplay,
-  type ToolEvent,
-  type ToolEventType,
-  type ToolEventProps,
+  type ToolEventDisplayEvent,
+  type ToolEventDisplayType,
+  type ToolEventDisplayProps,
 } from './tool-event.js';
 
 // HintBar Component

@@ -17,6 +17,32 @@ export {
   type AppState,
   type AppStateStore,
 } from './state/app-state.js';
+export {
+  createHistoryStore,
+  getHistoryStore,
+  resetHistoryStore,
+  type HistoryMessage,
+  type HistoryItem,
+  type HistoryState,
+  type HistoryStore,
+} from './state/history-store.js';
+export {
+  createToolEventStore,
+  getToolEventStore,
+  resetToolEventStore,
+  type ToolEvent,
+  type ToolEventType,
+  type ToolEventState,
+  type ToolEventStore,
+} from './state/tool-event-store.js';
+
+// CLI Integration
+export {
+  createTUICLIIntegration,
+  getTUICLIIntegration,
+  destroyTUICLIIntegration,
+  type TUICLIIntegration,
+} from './cli-integration.js';
 
 // Hooks Layer
 export { useStore, useStoreSelector, useStoreSubscription } from './hooks/use-store.js';
@@ -60,9 +86,9 @@ export {
 export {
   ToolEventDisplay,
   createToolEventDisplay,
-  type ToolEvent,
-  type ToolEventType,
-  type ToolEventProps,
+  type ToolEventDisplayEvent,
+  type ToolEventDisplayType,
+  type ToolEventDisplayProps,
 } from './components/tool-event.js';
 export {
   HintBar,
