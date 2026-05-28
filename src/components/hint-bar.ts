@@ -1,4 +1,4 @@
-import { Container, Text } from '@mariozechner/pi-tui';
+import { Container, Text } from '@earendil-works/pi-tui';
 import { theme } from '../theme.js';
 import type { SlashCommand } from '../commands/index.js';
 

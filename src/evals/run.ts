@@ -7,7 +7,7 @@
  */
 
 import 'dotenv/config';
-import { ProcessTerminal, TUI } from '@mariozechner/pi-tui';
+import { ProcessTerminal, TUI } from '@earendil-works/pi-tui';
 import { Client } from 'langsmith';
 import type { EvaluationResult } from 'langsmith/evaluation';
 import { ChatOpenAI } from '@langchain/openai';

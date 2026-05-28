@@ -206,7 +206,7 @@ function checkPackages(): CheckResult[] {
   const requiredModules = [
     '@langchain/core',
     '@langchain/anthropic',
-    '@mariozechner/pi-tui',
+    '@earendil-works/pi-tui',
   ];
 
   for (const module of requiredModules) {

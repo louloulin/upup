@@ -1,4 +1,4 @@
-import { Container, Spacer, Text } from '@mariozechner/pi-tui';
+import { Container, Spacer, Text } from '@earendil-works/pi-tui';
 import { BorderBox } from './BorderBox.js';
 import packageJson from '../../package.json';
 import { getModelDisplayName } from '../utils/model.js';

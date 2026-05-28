@@ -1,4 +1,4 @@
-import { Container, Spacer, Text } from '@mariozechner/pi-tui';
+import { Container, Spacer, Text } from '@earendil-works/pi-tui';
 import type { WorkingState } from '../types.js';
 import type { StreamMode } from '../agent/types.js';
 import { getRandomThinkingVerb } from '../utils/thinking-verbs.js';

@@ -1,4 +1,4 @@
-import { Container, Input, SelectList, Text, type SelectItem, getKeybindings } from '@mariozechner/pi-tui';
+import { Container, Input, SelectList, Text, type SelectItem, getKeybindings } from '@earendil-works/pi-tui';
 import { PROVIDERS, type Model } from '../utils/model.js';
 import type { ApprovalDecision } from '../agent/types.js';
 import type { SessionSummary } from '../session/types.js';

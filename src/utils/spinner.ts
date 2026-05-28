@@ -6,7 +6,7 @@
  * fires per tick regardless of how many spinners are active.
  */
 
-import type { TUI } from '@mariozechner/pi-tui';
+import type { TUI } from '@earendil-works/pi-tui';
 
 export const SPINNER_INTERVAL_MS = 50;
 const FRAME_ADVANCE_MS = 120;

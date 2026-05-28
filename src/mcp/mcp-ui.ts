@@ -19,7 +19,7 @@ import {
   type Component,
   type OverlayHandle,
   ProcessTerminal,
-} from '@mariozechner/pi-tui';
+} from '@earendil-works/pi-tui';
 import chalk from 'chalk';
 import type { McpServerConfig, MCPServerStatus } from './types.js';
 import { loadMCPConfig, getConfigPath } from '../commands/mcp.js';

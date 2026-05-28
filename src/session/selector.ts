@@ -13,7 +13,7 @@ import {
   Spacer,
   type SelectItem,
   getKeybindings,
-} from '@mariozechner/pi-tui';
+} from '@earendil-works/pi-tui';
 import { theme } from '../theme.js';
 import type { SessionSummary } from './types.js';
 import { formatDuration, formatRelativeTime } from '../utils/time.js';

@@ -5,7 +5,7 @@
  * 使用 BorderBox 组件替代手动边框绘制
  */
 
-import { Container, Text, Spacer } from '@mariozechner/pi-tui';
+import { Container, Text, Spacer } from '@earendil-works/pi-tui';
 import { BorderBox } from '../BorderBox.js';
 import type { ApprovalDecision } from '../../agent/types.js';
 import { getToolDangerLevel } from '../../utils/permissions/index.js';

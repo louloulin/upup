@@ -9,7 +9,7 @@
  * - iTerm2 image protocol (iTerm2 only)
  */
 
-import { hyperlink, detectCapabilities, type TerminalCapabilities } from '@mariozechner/pi-tui';
+import { hyperlink, detectCapabilities, type TerminalCapabilities } from '@earendil-works/pi-tui';
 
 /**
  * Check if hyperlinks are supported in the current terminal

@@ -1,4 +1,4 @@
-import { Container, ProcessTerminal, Spacer, Text, TUI, Key, matchesKey } from '@mariozechner/pi-tui';
+import { Container, ProcessTerminal, Spacer, Text, TUI, Key, matchesKey } from '@earendil-works/pi-tui';
 import type {
   ApprovalDecision,
   ToolEndEvent,
