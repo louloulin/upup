@@ -1,62 +1,62 @@
 {
   "help": {
     "name": "help",
-    "totalCalls": 37,
-    "successCount": 37,
+    "totalCalls": 38,
+    "successCount": 38,
     "errorCount": 0,
-    "totalDurationMs": 121,
+    "totalDurationMs": 123,
     "avgDurationMs": 3,
     "minDurationMs": 0,
     "maxDurationMs": 15,
-    "lastCalled": 1779955785074,
-    "lastSuccess": 1779955785074
+    "lastCalled": 1779955793706,
+    "lastSuccess": 1779955793706
   },
   "status": {
     "name": "status",
-    "totalCalls": 37,
-    "successCount": 37,
+    "totalCalls": 38,
+    "successCount": 38,
     "errorCount": 0,
     "totalDurationMs": 214,
     "avgDurationMs": 6,
     "minDurationMs": 0,
     "maxDurationMs": 10,
-    "lastCalled": 1779955785074,
-    "lastSuccess": 1779955785074
+    "lastCalled": 1779955793706,
+    "lastSuccess": 1779955793706
   },
   "h": {
     "name": "h",
-    "totalCalls": 21,
-    "successCount": 21,
+    "totalCalls": 22,
+    "successCount": 22,
     "errorCount": 0,
-    "totalDurationMs": 8,
+    "totalDurationMs": 9,
     "avgDurationMs": 0,
     "minDurationMs": 0,
     "maxDurationMs": 1,
-    "lastCalled": 1779955785075,
-    "lastSuccess": 1779955785075
+    "lastCalled": 1779955793707,
+    "lastSuccess": 1779955793707
   },
   "c": {
     "name": "c",
-    "totalCalls": 21,
-    "successCount": 21,
+    "totalCalls": 22,
+    "successCount": 22,
     "errorCount": 0,
-    "totalDurationMs": 11,
+    "totalDurationMs": 12,
     "avgDurationMs": 1,
     "minDurationMs": 0,
     "maxDurationMs": 5,
-    "lastCalled": 1779955785076,
-    "lastSuccess": 1779955785076
+    "lastCalled": 1779955793708,
+    "lastSuccess": 1779955793708
   },
   "unknown": {
     "name": "unknown",
-    "totalCalls": 4,
+    "totalCalls": 5,
     "successCount": 0,
-    "errorCount": 4,
+    "errorCount": 5,
     "totalDurationMs": 1,
     "avgDurationMs": 0,
     "minDurationMs": 0,
     "maxDurationMs": 1,
-    "lastCalled": 1779955785076,
+    "lastCalled": 1779955793708,
     "lastSuccess": 0
   },
   "commands": {
