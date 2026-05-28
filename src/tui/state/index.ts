@@ -16,3 +16,21 @@ export {
   type AppState,
   type AppStateStore,
 } from './app-state.js';
+export {
+  createHistoryStore,
+  getHistoryStore,
+  resetHistoryStore,
+  type HistoryMessage,
+  type HistoryItem,
+  type HistoryState,
+  type HistoryStore,
+} from './history-store.js';
+export {
+  createToolEventStore,
+  getToolEventStore,
+  resetToolEventStore,
+  type ToolEvent,
+  type ToolEventType,
+  type ToolEventState,
+  type ToolEventStore,
+} from './tool-event-store.js';
