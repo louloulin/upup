@@ -1,7 +1,7 @@
 # TUI 改造计划 (PLAN46.md)
 
 > 基于 Loucode Claude Code TUI 分析 + UpUp (Dexter) 现状优化
-> 版本: 9.0 | 更新: 2026-05-28
+> 版本: 9.2 | 更新: 2026-05-28
 
 ---
 
@@ -104,6 +104,29 @@
 |------|------|------|
 | TUIMain | `src/tui/main.ts` | TUI主入口 (~250行) |
 | TUI导出 | `src/tui/index.ts` | 统一导出 |
+
+### Phase 10: 状态存储层 (已完成 - 2026-05-28)
+
+| 存储 | 文件 | 功能 |
+|------|------|------|
+| HistoryStore | `src/tui/state/history-store.ts` | 聊天历史管理 (~180行) |
+| ToolEventStore | `src/tui/state/tool-event-store.ts` | 工具事件管理 (~220行) |
+| 状态导出 | `src/tui/state/index.ts` | 统一导出 |
+
+**状态存储架构**:
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Store 层 (单一数据源)                            │
+├─────────────────────────────────────────────────────────────────┤
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐           │
+│  │AppStateStore│  │HistoryStore │  │ToolEventStore│           │
+│  │  (会话)    │  │  (历史)    │  │  (工具)     │           │
+│  └─────────────┘  └─────────────┘  └─────────────┘           │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐           │
+│  │ QueryGuard │  │  订阅模式   │  │  响应式更新 │           │
+│  └─────────────┘  └─────────────┘  └─────────────┘           │
+└─────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
@@ -726,13 +749,13 @@ describe('Store', () => {
 
 ### 待完成工作
 
-| 任务 | 优先级 | 说明 |
-|------|--------|------|
-| CLI 使用 TUI Store | P1 | 替换全局状态为 Store 订阅 |
-| CLI 使用 QueryGuard | P1 | 替换状态检查为 QueryGuard |
-| 响应式渲染 | P2 | requestRender() → subscribe() |
-| 历史消息 Store | P2 | 消息历史 Store 化 |
-| 工具事件 Store | P2 | 工具事件 Store 化 |
+| 任务 | 优先级 | 状态 | 说明 |
+|------|--------|------|------|
+| 历史消息 Store | P2 | ✅ 已完成 | HistoryStore 已实现 |
+| 工具事件 Store | P2 | ✅ 已完成 | ToolEventStore 已实现 |
+| CLI 使用 TUI Store | P1 | 🔄 进行中 | 替换全局状态为 Store 订阅 |
+| CLI 使用 QueryGuard | P1 | 🔄 进行中 | 替换状态检查为 QueryGuard |
+| 响应式渲染 | P2 | ⏳ 待开始 | requestRender() → subscribe() |
 
 ---
 
@@ -752,23 +775,40 @@ $ bun test src/tui/state/
 ✅ 34/34 测试通过
 
 # 交互验证
-$ ./dist/upup
+$ ./dist/upup doctor
 ✅ TUI 渲染正常
 ✅ 欢迎界面显示
 ✅ 输入框工作
+```
+
+### 新增存储验证 (2026-05-28)
+
+```bash
+# 新增文件
+src/tui/state/history-store.ts     # 聊天历史管理
+src/tui/state/tool-event-store.ts  # 工具事件管理
+
+# 构建验证
+$ bun run build
+✅ TypeScript 类型检查通过
+✅ 3120 modules bundled
+✅ dist/upup 构建成功
 ```
 
 ### 分支状态
 
 ```
 feature/tui-pi-tui-migration (当前分支)
-├── 972f5e3 feat(tui): 迁移所有 import 到 @earendil-works/pi-tui v0.76.0
-└── 3e93a7a docs: 更新 PLAN46.md 添加 Phase 2.1 迁移记录
+├── 440b7cd feat(tui): 添加 HistoryStore 和 ToolEventStore
+├── 706627b docs: 更新 PLAN46.md 添加架构对比分析
+├── 3e93a7a docs: 更新 PLAN46.md 添加 Phase 2.1 迁移记录
+└── 972f5e3 feat(tui): 迁移所有 import 到 @earendil-works/pi-tui v0.76.0
+```
 ```
 
 ---
 
-*文档版本: 9.1*
+*文档版本: 9.2*
 *创建时间: 2026-05-28*
 *更新: 2026-05-28 (迁移到 @earendil-works/pi-tui v0.76.0, 架构分析)*
 *参考: Loucode Claude Code TUI, @earendil-works/pi-tui v0.76.0*
