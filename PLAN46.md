@@ -33,6 +33,17 @@
 | `src/tui/state/query-guard.test.ts` | 16 | ✅ 通过 |
 | **总计** | **34** | **✅ 全部通过** |
 
+### Phase 4: Hooks 层 (已完成)
+
+| Hook | 文件 | 功能 |
+|------|------|------|
+| useStore | `src/tui/hooks/use-store.ts` | Store Hook (~70行) |
+| useQuery | `src/tui/hooks/use-query.ts` | QueryGuard Hook (~80行) |
+| useInput | `src/tui/hooks/use-input.ts` | 输入处理 Hook (~140行) |
+| useStreaming | `src/tui/hooks/use-streaming.ts` | 流式文本 Hook (~200行) |
+| useApproval | `src/tui/hooks/use-approval.ts` | 授权 Hook (~180行) |
+| Hooks导出 | `src/tui/hooks/index.ts` | 统一导出 |
+
 ---
 
 ## 📋 概述
