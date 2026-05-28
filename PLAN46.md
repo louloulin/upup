@@ -1,11 +1,11 @@
 # TUI 改造计划 (PLAN46.md)
 
 > 基于 Loucode Claude Code TUI 分析 + UpUp (Dexter) 现状优化
-> 版本: 7.0 | 更新: 2026-05-28
+> 版本: 8.0 | 更新: 2026-05-28
 
 ---
 
-## ✅ 已实现功能 (v7.0)
+## ✅ 已实现功能 (v8.0)
 
 ### Phase 1: 状态层核心 (已完成)
 
@@ -43,6 +43,17 @@
 | useStreaming | `src/tui/hooks/use-streaming.ts` | 流式文本 Hook (~200行) |
 | useApproval | `src/tui/hooks/use-approval.ts` | 授权 Hook (~180行) |
 | Hooks导出 | `src/tui/hooks/index.ts` | 统一导出 |
+
+### Phase 5: 构建验证 (已完成)
+
+| 任务 | 状态 | 日期 |
+|------|------|------|
+| TypeScript 类型错误修复 | ✅ 已完成 | 2026-05-28 |
+| `bun run build` 构建成功 | ✅ 已完成 | 2026-05-28 |
+| `dist/upup --version` 验证 | ✅ 已完成 | 2026-05-28 |
+| `dist/upup --help` 验证 | ✅ 已完成 | 2026-05-28 |
+
+**构建输出**: `dist/upup` (3117 modules bundled)
 
 ---
 
