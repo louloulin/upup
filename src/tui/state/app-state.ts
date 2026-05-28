@@ -139,11 +139,11 @@ export function createAppStateStore(initial?: Partial<AppState>): AppStateStore 
     },
 
     reset: () => {
-      store.setState({
+      store.setState(() => ({
         ...DEFAULT_STATE,
         sessionId: '',
         sessionStartedAt: Date.now(),
-      });
+      }));
     },
   };
 }

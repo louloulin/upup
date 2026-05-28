@@ -15,4 +15,4 @@ export {
   updateAppState,
   type AppState,
   type AppStateStore,
-} from './app-state.ts';
+} from './app-state.js';
