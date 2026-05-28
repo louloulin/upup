@@ -11,6 +11,7 @@
 
 import type { EnhancedSkillDefinition, ToolUseContext } from '../enhanced-types.js';
 import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/index.mjs';
+import { registerBundledSkill } from '../registry.js';
 
 export function createPortfolioSkill(): EnhancedSkillDefinition {
   return {
@@ -124,5 +125,7 @@ Provide comprehensive portfolio report:
 export const portfolioSkill = createPortfolioSkill();
 
 export function registerPortfolioSkill(): EnhancedSkillDefinition {
-  return createPortfolioSkill();
+  const skill = createPortfolioSkill();
+  registerBundledSkill(skill as any);
+  return skill;
 }

@@ -24,6 +24,8 @@ const __dirname = dirname(__filename);
  */
 const SKILL_DIRECTORIES: { path: string; source: SkillSource }[] = [
   { path: __dirname, source: 'builtin' },
+  // Include nested skill directories like investment/ subdirectory
+  { path: join(__dirname, 'investment'), source: 'builtin' },
   { path: join(process.cwd(), '.claude', 'skills'), source: 'user' },
   { path: join(process.cwd(), upupPath('skills')), source: 'project' },
   { path: join(os.homedir(), '.agents', 'skills'), source: 'agent' },

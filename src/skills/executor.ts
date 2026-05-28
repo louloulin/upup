@@ -263,7 +263,7 @@ export async function executeSkillFork(
  * Execute a skill with automatic mode selection
  *
  * Determines execution mode based on:
- * 1. Skill's context setting (inline/fork)
+ * 1. Skill's context setting (inline/fork/swarm)
  * 2. Options override
  * 3. Default behavior (inline)
  */
@@ -288,8 +288,139 @@ export async function executeSkill(
     return executeSkillFork(options, subagentRunner, progressCallback);
   }
 
+  // Swarm mode - multi-agent execution
+  if (mode === 'swarm') {
+    return executeSkillSwarm(options, subagentRunner, progressCallback);
+  }
+
   // Inline mode
   return executeSkillInline(options, progressCallback);
+}
+
+/**
+ * Execute a skill in swarm mode (multi-agent coordination)
+ *
+ * Spawns a coordinator and multiple teammate agents to work in parallel
+ * on different aspects of the task. Results are aggregated at the end.
+ */
+export async function executeSkillSwarm(
+  options: SkillExecutionOptions,
+  subagentRunner?: SubagentRunner,
+  progressCallback?: ProgressCallback
+): Promise<SkillExecutionResult> {
+  const startTime = Date.now();
+  const { skill, args, cwd, agentConfig, allowedTools, teammateCount, teamName, planRequired, taskStrategy } = options;
+
+  try {
+    // Emit progress message if defined
+    if (skill.progressMessage && progressCallback) {
+      progressCallback(skill.progressMessage);
+    }
+
+    // Get teammate count from skill or options
+    const numTeammates = skill.teammates || teammateCount || 2;
+
+    // Get spawn mode
+    const spawnMode = skill.spawnMode || options.spawnMode || 'auto';
+
+    // Get task strategy
+    const strategy = skill.taskStrategy || taskStrategy || 'parallel';
+
+    // Build skill execution prompt with swarm instructions
+    const prompt = buildSkillPromptWithSwarmContext(skill, args, {
+      teamName: teamName || skill.teamName || `skill-${skill.name}`,
+      numTeammates,
+      planRequired: planRequired || skill.planRequired || false,
+      strategy,
+    });
+
+    // For now, use fork mode as a fallback since full swarm implementation
+    // would require the complete swarm infrastructure (tmux coordination,
+    // teammate spawning, permission bridging, etc.)
+    if (subagentRunner) {
+      const subagentConfig = buildSubagentConfig(skill, {
+        cwd,
+        agentConfig,
+        allowedTools,
+      });
+      subagentConfig.name = `${skill.name}-swarm-leader`;
+      subagentConfig.type = 'specialized';
+
+      const result = await subagentRunner.run(subagentConfig, prompt, {
+        sessionId: `swarm-${skill.name}-${Date.now()}`,
+        cwd: cwd || process.cwd(),
+        tools: [],
+      });
+
+      return {
+        success: result.success,
+        output: result.output || '',
+        error: result.error,
+        duration: result.duration || Date.now() - startTime,
+        tokens: result.tokens,
+        toolCalls: result.toolCalls,
+      };
+    }
+
+    // Fallback to inline mode with swarm instructions in prompt
+    return {
+      success: true,
+      output: prompt,
+      duration: Date.now() - startTime,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      output: '',
+      error: error instanceof Error ? error.message : String(error),
+      duration: Date.now() - startTime,
+    };
+  }
+}
+
+/**
+ * Build skill execution prompt with swarm context
+ */
+function buildSkillPromptWithSwarmContext(
+  skill: Skill,
+  args?: string,
+  swarmConfig?: {
+    teamName?: string;
+    numTeammates?: number;
+    planRequired?: boolean;
+    strategy?: 'parallel' | 'sequential' | 'hierarchical';
+  }
+): string {
+  const lines: string[] = [
+    `# ${skill.name} (Swarm Mode)`,
+    ``,
+    skill.description,
+    ``,
+    `## Swarm Configuration`,
+    `- Team Name: ${swarmConfig?.teamName || 'default-team'}`,
+    `- Teammates: ${swarmConfig?.numTeammates || 2}`,
+    `- Strategy: ${swarmConfig?.strategy || 'parallel'}`,
+    `- Plan Required: ${swarmConfig?.planRequired ? 'Yes' : 'No'}`,
+    ``,
+    `## Instructions`,
+    ``,
+    skill.instructions || '',
+  ];
+
+  // Add task arguments
+  if (args && args.trim()) {
+    lines.push('', `## Task Arguments`, '', args.trim());
+  }
+
+  // Add swarm-specific guidelines
+  lines.push('', `## Swarm Execution Guidelines`);
+  lines.push(`You are the team coordinator. Coordinate ${swarmConfig?.numTeammates || 2} teammate agents:`);
+  lines.push(`1. Break down the task into subtasks`);
+  lines.push(`2. Distribute subtasks to teammates`);
+  lines.push(`3. Aggregate results from teammates`);
+  lines.push(`4. Present unified final output`);
+
+  return lines.join('\n');
 }
 
 /**
@@ -316,6 +447,7 @@ export function buildSubagentConfig(
     cwd?: string;
     agentConfig?: Record<string, unknown>;
     allowedTools?: string[];
+    maxTokens?: number;
   }
 ): SubagentConfig {
   // Determine agent type from skill metadata
@@ -327,11 +459,16 @@ export function buildSubagentConfig(
   // Build system prompt
   const systemPrompt = buildSkillSystemPrompt(skill);
 
+  // Get maxTokens from options (override) or skill metadata (token budget control)
+  // Options take precedence for explicit override
+  const maxTokens = options.maxTokens ?? skill.maxTokens;
+
   return {
     type: agentType,
     name: skill.name,
     tools,
     maxTurns: 50,
+    maxTokens,
     model: skill.model || 'inherit',
     systemPrompt,
     cwd: options.cwd || process.cwd(),

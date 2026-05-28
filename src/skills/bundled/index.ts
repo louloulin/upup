@@ -193,15 +193,50 @@ function createPortfolioReviewSkillInternal(): any {
 
 /**
  * Initialize all bundled skills.
- * Registers all skills with the registry.
+ * Registers all skills with the registry using their register* functions
+ * to ensure getPromptForCommand and other properties are correctly set.
  */
 export async function initInvestmentSkills(): Promise<void> {
-  const skills = getAllBundledSkillsInternal();
+  // Import register functions from each module
+  const [
+    { registerDreamSkill },
+    { registerVerifySkill },
+    { registerHunterSkill },
+    { registerBatchSkill },
+    { registerSandboxSkill },
+    { registerPortfolioSkill },
+    { registerAlertSkill },
+    { registerFundSkill },
+    { registerResearchSkill },
+    { registerRiskAssessmentSkill },
+    { registerStockScreenSkill },
+    { registerPortfolioReviewSkill },
+  ] = await Promise.all([
+    import('./dream.js'),
+    import('./verify.js'),
+    import('./hunter.js'),
+    import('./batch.js'),
+    import('./sandbox.js'),
+    import('./portfolio.js'),
+    import('./alert.js'),
+    import('./fund.js'),
+    import('./research.js'),
+    import('./risk-assessment.js'),
+    import('./stock-screen.js'),
+    import('./portfolio-review.js'),
+  ]);
 
-  // Dynamic import for ESM compatibility
-  const { registerBundledSkill } = await import('../registry.js');
-
-  for (const skill of skills) {
-    registerBundledSkill(skill);
-  }
+  // Register all skills using their proper register functions
+  registerDreamSkill();
+  registerVerifySkill();
+  registerHunterSkill();
+  registerBatchSkill();
+  registerSandboxSkill();
+  registerPortfolioSkill();
+  registerAlertSkill();
+  registerFundSkill();
+  registerResearchSkill();
+  registerRiskAssessmentSkill();
+  registerStockScreenSkill();
+  registerPortfolioReviewSkill();
 }

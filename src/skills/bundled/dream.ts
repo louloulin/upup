@@ -14,6 +14,7 @@
 
 import type { EnhancedSkillDefinition, ToolUseContext } from '../enhanced-types.js';
 import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/index.mjs';
+import { registerBundledSkill } from '../registry.js';
 
 /**
  * Dream Skill 实现
@@ -80,5 +81,7 @@ export const dreamSkill = createDreamSkill();
  * 注册Dream Skill
  */
 export function registerDreamSkill(): EnhancedSkillDefinition {
-  return createDreamSkill();
+  const skill = createDreamSkill();
+  registerBundledSkill(skill as any);
+  return skill;
 }

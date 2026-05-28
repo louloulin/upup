@@ -47,6 +47,8 @@ export interface SubagentConfig {
   tools: string[] | '*';
   /** Maximum number of turns (iterations) */
   maxTurns?: number;
+  /** Maximum tokens to consume (budget limit) */
+  maxTokens?: number;
   /** Model to use ('inherit' to use parent's model) */
   model?: string | 'inherit';
   /** Permission mode */

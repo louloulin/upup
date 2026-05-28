@@ -173,7 +173,7 @@ const intentQueries = [
 
 for (const query of intentQueries) {
   const intents = detectIntents(query);
-  const matched = intents.length > 0 ? intents.map(i => i.intent).join(', ') : 'none';
+  const matched = intents.length > 0 ? intents.map(i => i.type).join(', ') : 'none';
   console.log(`  ${intents.length > 0 ? '✅' : '⚠️'} "${query}" -> ${matched}`);
 }
 

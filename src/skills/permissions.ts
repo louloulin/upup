@@ -68,10 +68,22 @@ export async function hasPermissionsToUseTool(
   const appState = context?.getAppState?.();
   const toolPermissionContext = appState?.toolPermissionContext;
 
+  // Check tool-level permissions first (takes precedence over context rules)
+  const toolPermissions = tool?.permissions;
+  if (toolPermissions?.mode === 'allow') {
+    return { behavior: 'allow' };
+  }
+  if (toolPermissions?.mode === 'deny') {
+    return {
+      behavior: 'deny',
+      message: `Tool ${toolName} is explicitly denied`
+    };
+  }
+
   // Check alwaysAllowRules
   if (toolPermissionContext?.alwaysAllowRules?.command) {
     const alwaysAllow = toolPermissionContext.alwaysAllowRules.command;
-    
+
     if (Array.isArray(alwaysAllow)) {
       const inputStr = JSON.stringify(input);
       for (const allowedPattern of alwaysAllow) {
@@ -85,30 +97,18 @@ export async function hasPermissionsToUseTool(
   // Check alwaysDenyRules
   if (toolPermissionContext?.alwaysDenyRules?.command) {
     const alwaysDeny = toolPermissionContext.alwaysDenyRules.command;
-    
+
     if (Array.isArray(alwaysDeny)) {
       const inputStr = JSON.stringify(input);
       for (const deniedPattern of alwaysDeny) {
         if (matchCommandPattern(toolName, inputStr, deniedPattern)) {
-          return { 
+          return {
             behavior: 'deny',
             message: `Command denied by alwaysDenyRules: ${deniedPattern}`
           };
         }
       }
     }
-  }
-
-  // Check if tool itself has permission configuration
-  const toolPermissions = tool?.permissions;
-  if (toolPermissions?.mode === 'allow') {
-    return { behavior: 'allow' };
-  }
-  if (toolPermissions?.mode === 'deny') {
-    return { 
-      behavior: 'deny',
-      message: `Tool ${toolName} is explicitly denied`
-    };
   }
 
   // Default: allow with no restrictions

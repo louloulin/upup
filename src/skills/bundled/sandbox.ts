@@ -11,6 +11,7 @@
 
 import type { EnhancedSkillDefinition, ToolUseContext } from '../enhanced-types.js';
 import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/index.mjs';
+import { registerBundledSkill } from '../registry.js';
 
 export function createSandboxSkill(): EnhancedSkillDefinition {
   return {
@@ -116,5 +117,7 @@ Provide a structured report:
 export const sandboxSkill = createSandboxSkill();
 
 export function registerSandboxSkill(): EnhancedSkillDefinition {
-  return createSandboxSkill();
+  const skill = createSandboxSkill();
+  registerBundledSkill(skill as any);
+  return skill;
 }

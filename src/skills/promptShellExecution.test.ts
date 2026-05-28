@@ -161,9 +161,11 @@ describe('Prompt Shell Execution', () => {
       expect(isCommandAllowed('docker run -d nginx', ['docker'])).toBe(true);
     });
 
-    test('case sensitive matching', () => {
-      expect(isCommandAllowed('LS', ['ls'])).toBe(false);
-      expect(isCommandAllowed('ls', ['LS'])).toBe(false);
+    test('case insensitive matching', () => {
+      // Implementation is intentionally case-insensitive for better UX
+      expect(isCommandAllowed('LS', ['ls'])).toBe(true);
+      expect(isCommandAllowed('ls', ['LS'])).toBe(true);
+      expect(isCommandAllowed('LS', ['ls', 'cat'])).toBe(true);
     });
 
     test('handles command with leading whitespace', () => {

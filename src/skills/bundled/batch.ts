@@ -12,6 +12,7 @@
 
 import type { EnhancedSkillDefinition, ToolUseContext } from '../enhanced-types.js';
 import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/index.mjs';
+import { registerBundledSkill } from '../registry.js';
 
 export function createBatchSkill(): EnhancedSkillDefinition {
   return {
@@ -114,5 +115,7 @@ Provide a structured batch report:
 export const batchSkill = createBatchSkill();
 
 export function registerBatchSkill(): EnhancedSkillDefinition {
-  return createBatchSkill();
+  const skill = createBatchSkill();
+  registerBundledSkill(skill as any);
+  return skill;
 }
