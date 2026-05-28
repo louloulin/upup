@@ -695,7 +695,80 @@ describe('Store', () => {
 
 ---
 
-*文档版本: 6.0*
+---
+
+## 📊 架构对比分析
+
+### Loucode vs UpUp TUI 架构
+
+| 特性 | Loucode Claude Code | UpUp (Dexter) | 差距 |
+|------|-------------------|----------------|------|
+| **TUI 框架** | React/Ink | pi-tui | 框架不同 |
+| **状态模式** | useSyncExternalStore | Store + subscribe | ✅ 已对齐 |
+| **QueryGuard** | ✅ 完整实现 | ✅ 完整实现 | ✅ 已对齐 |
+| **AppState** | 6488 行 | ~150 行 | 功能子集 |
+| **组件模型** | React Hooks | Class-based | 架构差异 |
+| **CLI 集成** | 直接使用 Store | requestRender() | ⚠️ 待迁移 |
+
+### 关键差异
+
+#### 1. 渲染模型
+- **Loucode**: React 组件树，响应式更新
+- **UpUp**: pi-tui 类组件，手动 requestRender()
+
+#### 2. 状态订阅
+- **Loucode**: `useSyncExternalStore(store.subscribe, store.getSnapshot)`
+- **UpUp**: Store.subscribe() + 手动 requestRender()
+
+#### 3. 组件实现
+- **Loucode**: 函数组件 + Hooks
+- **UpUp**: 类组件 + 方法调用
+
+### 待完成工作
+
+| 任务 | 优先级 | 说明 |
+|------|--------|------|
+| CLI 使用 TUI Store | P1 | 替换全局状态为 Store 订阅 |
+| CLI 使用 QueryGuard | P1 | 替换状态检查为 QueryGuard |
+| 响应式渲染 | P2 | requestRender() → subscribe() |
+| 历史消息 Store | P2 | 消息历史 Store 化 |
+| 工具事件 Store | P2 | 工具事件 Store 化 |
+
+---
+
+## ✅ 验证结果
+
+### 迁移验证 (2026-05-28)
+
+```bash
+# 构建验证
+$ bun run build
+✅ TypeScript 类型检查通过
+✅ 3119 modules bundled
+✅ dist/upup 构建成功
+
+# 测试验证
+$ bun test src/tui/state/
+✅ 34/34 测试通过
+
+# 交互验证
+$ ./dist/upup
+✅ TUI 渲染正常
+✅ 欢迎界面显示
+✅ 输入框工作
+```
+
+### 分支状态
+
+```
+feature/tui-pi-tui-migration (当前分支)
+├── 972f5e3 feat(tui): 迁移所有 import 到 @earendil-works/pi-tui v0.76.0
+└── 3e93a7a docs: 更新 PLAN46.md 添加 Phase 2.1 迁移记录
+```
+
+---
+
+*文档版本: 9.1*
 *创建时间: 2026-05-28*
-*更新: 2026-05-28 (迁移到 @earendil-works/pi-tui v0.76.0)*
+*更新: 2026-05-28 (迁移到 @earendil-works/pi-tui v0.76.0, 架构分析)*
 *参考: Loucode Claude Code TUI, @earendil-works/pi-tui v0.76.0*
