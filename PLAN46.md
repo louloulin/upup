@@ -1,11 +1,11 @@
 # TUI 改造计划 (PLAN46.md)
 
 > 基于 Loucode Claude Code TUI 分析 + UpUp (Dexter) 现状优化
-> 版本: 8.0 | 更新: 2026-05-28
+> 版本: 9.0 | 更新: 2026-05-28
 
 ---
 
-## ✅ 已实现功能 (v8.0)
+## ✅ 已实现功能 (v9.0)
 
 ### Phase 1: 状态层核心 (已完成)
 
@@ -55,6 +55,42 @@
 
 **构建输出**: `dist/upup` (3117 modules bundled)
 
+### Phase 6: Components 层 (已完成)
+
+| 组件 | 文件 | 功能 |
+|------|------|------|
+| ChatLog | `src/tui/components/chat-log.ts` | 聊天日志 (~250行) |
+| ToolEvent | `src/tui/components/tool-event.ts` | 工具事件 (~300行) |
+| HintBar | `src/tui/components/hint-bar.ts` | 快捷键提示 (~200行) |
+| Editor | `src/tui/components/editor.ts` | 多行编辑器 (~400行) |
+| Components导出 | `src/tui/components/index.ts` | 统一导出 |
+
+### Phase 7: Overlays 层 (已完成)
+
+| 组件 | 文件 | 功能 |
+|------|------|------|
+| ApprovalOverlay | `src/tui/overlays/approval-overlay.ts` | 授权确认 (~350行) |
+| ModelSelector | `src/tui/overlays/model-selector.ts` | 模型选择器 (~450行) |
+| SessionSelector | `src/tui/overlays/session-selector.ts` | 会话选择器 (~400行) |
+| ConfirmDialog | `src/tui/overlays/confirm-dialog.ts` | 确认对话框 (~350行) |
+| Overlays导出 | `src/tui/overlays/index.ts` | 统一导出 |
+
+### Phase 8: Utils 层 (已完成)
+
+| 工具 | 文件 | 功能 |
+|------|------|------|
+| format.ts | `src/tui/utils/format.ts` | 格式化工具 (~350行) |
+| theme.ts | `src/tui/utils/theme.ts` | 主题定义 (~250行) |
+| keybindings.ts | `src/tui/utils/keybindings.ts` | 快捷键 (~400行) |
+| Utils导出 | `src/tui/utils/index.ts` | 统一导出 |
+
+### Phase 9: 主入口 (已完成)
+
+| 组件 | 文件 | 功能 |
+|------|------|------|
+| TUIMain | `src/tui/main.ts` | TUI主入口 (~250行) |
+| TUI导出 | `src/tui/index.ts` | 统一导出 |
+
 ---
 
 ## 📋 概述
@@ -63,12 +99,12 @@
 
 | 指标 | Loucode Claude Code | UpUp (Dexter) |
 |------|-------------------|----------------|
-| **核心文件** | `REPL.tsx` (5223 行) | `cli.ts` (1614 行) |
+| **核心文件** | `REPL.tsx` (5223 行) | 分布式模块 |
 | **TUI 框架** | Ink (React 渲染器) | **@earendil-works/pi-tui** (v0.76.0) |
-| **状态管理** | `useSyncExternalStore` + QueryGuard | EventEmitter + 回调 |
-| **组件模型** | React 函数组件 | pi-tui 类组件 |
-| **架构评分** | ★★★★★ | ★★★☆☆ |
-| **可维护性** | ★★★★☆ | ★★☆☆☆ |
+| **状态管理** | `useSyncExternalStore` + QueryGuard | **Store + QueryGuard (已完成)** |
+| **组件模型** | React 函数组件 | **Hooks + pi-tui 类组件 (已完成)** |
+| **架构评分** | ★★★★★ | ★★★★★ (与Loucode对齐) |
+| **可维护性** | ★★★★☆ | ★★★★☆ (持续提升) |
 
 ### 核心目标
 
