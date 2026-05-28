@@ -6,6 +6,7 @@
  */
 
 import type { BundledSkillDefinition } from '../types.js';
+import { registerBundledSkill } from '../registry.js';
 
 export function createFundSkill(): BundledSkillDefinition {
   return {
@@ -149,9 +150,7 @@ fund_compare({ fund_codes: ["代码1", "代码2", "代码3"], period: "1Y" })
  * Register the fund skill
  */
 export function registerFundSkill(): void {
-  import('../registry.js').then(({ registerBundledSkill }) => {
-    registerBundledSkill(createFundSkill());
-  });
+  registerBundledSkill(createFundSkill());
 }
 
 // Export for direct use

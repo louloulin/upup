@@ -11,6 +11,7 @@
 
 import type { EnhancedSkillDefinition, ToolUseContext } from '../enhanced-types.js';
 import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/index.mjs';
+import { registerBundledSkill } from '../registry.js';
 
 export function createAlertSkill(): EnhancedSkillDefinition {
   return {
@@ -136,5 +137,7 @@ Provide alert summary:
 export const alertSkill = createAlertSkill();
 
 export function registerAlertSkill(): EnhancedSkillDefinition {
-  return createAlertSkill();
+  const skill = createAlertSkill();
+  registerBundledSkill(skill as any);
+  return skill;
 }

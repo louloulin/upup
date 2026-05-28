@@ -14,6 +14,7 @@
 
 import type { EnhancedSkillDefinition, ToolUseContext } from '../enhanced-types.js';
 import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/index.mjs';
+import { registerBundledSkill } from '../registry.js';
 
 export function createVerifySkill(): EnhancedSkillDefinition {
   return {
@@ -91,5 +92,7 @@ Provide a structured report:
 export const verifySkill = createVerifySkill();
 
 export function registerVerifySkill(): EnhancedSkillDefinition {
-  return createVerifySkill();
+  const skill = createVerifySkill();
+  registerBundledSkill(skill as any);
+  return skill;
 }

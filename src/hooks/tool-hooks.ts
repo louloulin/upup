@@ -58,7 +58,15 @@ export type HookEvent =
   | 'CwdChanged'
   | 'FileChanged'
   | 'ConfigChange'
-  | 'Notification';
+  | 'Notification'
+  // Worktree hooks (from Loucode)
+  | 'WorktreeCreate'
+  | 'WorktreeRemove'
+  | 'WorktreeEnter'
+  | 'WorktreeExit'
+  // Instructions hooks (from Loucode)
+  | 'InstructionsLoaded'
+  | 'InstructionsChanged';
 
 /**
  * Hook types

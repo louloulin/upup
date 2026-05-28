@@ -40,9 +40,10 @@ export type SkillModel = 'sonnet' | 'haiku' | 'opus' | 'default';
 /**
  * Skill execution mode.
  * - inline: Execute in current agent context (default)
- * - fork: Execute in isolated subagent context
+ * - fork: Execute in isolated subagent context (single worker)
+ * - swarm: Execute in multi-agent swarm mode (coordinator + teammates)
  */
-export type SkillContext = 'inline' | 'fork';
+export type SkillContext = 'inline' | 'fork' | 'swarm';
 
 /**
  * Skill metadata - lightweight info loaded at startup for system prompt injection.
@@ -75,6 +76,8 @@ export interface SkillMetadata {
   effort?: EffortValue;
   /** Disable model invocation (use tools only) */
   disableModelInvocation?: boolean;
+  /** Maximum tokens to consume (budget limit) - stops execution when exceeded */
+  maxTokens?: number;
 
   // === User Invocation ===
   /** Whether this skill can be invoked by user via /command */
@@ -93,6 +96,18 @@ export interface SkillMetadata {
   dependsOn?: string[];
   /** Conditional skill paths (activates when matching files are present) */
   paths?: string[];
+
+  // === Swarm Configuration (Multi-agent mode) ===
+  /** Number of teammate agents to spawn (for swarm mode) */
+  teammates?: number;
+  /** Team name for swarm coordination */
+  teamName?: string;
+  /** Spawn mode for teammates: 'tmux' | 'in-process' | 'auto' */
+  spawnMode?: 'tmux' | 'in-process' | 'auto';
+  /** Whether plan mode is required before implementation */
+  planRequired?: boolean;
+  /** Task distribution strategy: 'parallel' | 'sequential' | 'hierarchical' */
+  taskStrategy?: 'parallel' | 'sequential' | 'hierarchical';
 
   // === Hooks & Files ===
   /** Hooks settings for pre/post tool execution */
@@ -159,7 +174,7 @@ export interface SkillExecutionOptions {
   skill: Skill;
   /** Arguments to pass to the skill */
   args?: string;
-  /** Execution mode: inline or fork */
+  /** Execution mode: inline, fork, or swarm */
   mode?: SkillContext;
   /** Custom agent config for fork mode */
   agentConfig?: Record<string, unknown>;
@@ -171,6 +186,18 @@ export interface SkillExecutionOptions {
   signal?: AbortSignal;
   /** Working directory */
   cwd?: string;
+
+  // === Swarm Options (multi-agent mode) ===
+  /** Number of teammate agents (for swarm mode) */
+  teammateCount?: number;
+  /** Team name for swarm coordination */
+  teamName?: string;
+  /** Spawn mode for teammates */
+  spawnMode?: 'tmux' | 'in-process' | 'auto';
+  /** Whether plan mode is required before implementation */
+  planRequired?: boolean;
+  /** Task distribution strategy */
+  taskStrategy?: 'parallel' | 'sequential' | 'hierarchical';
 }
 
 /**
