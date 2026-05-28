@@ -219,7 +219,7 @@ const funcTests = [
   await testFunctionExists(`${PROJECT_DIR}/src/utils/permissions/permissionSetup.ts`, 'isRunningAsRoot'),
   await testFunctionExists(`${PROJECT_DIR}/src/utils/permissions/permissionSetup.ts`, 'isInSandbox'),
   await testFunctionExists(`${PROJECT_DIR}/src/utils/permissions/denialTracking.ts`, 'DenialTracker'),
-  await testFunctionExists(`${PROJECT_DIR}/src/utils/permissions/approvalConfig.ts`, 'getApprovalTimeout'),
+  await testFunctionExists(`${PROJECT_DIR}/src/utils/permissions/approvalConfig.ts`, 'getTimeoutForTool'),
   await testFunctionExists(`${PROJECT_DIR}/src/components/approval-requests/BaseApprovalRequest.ts`, 'Container'),
 ];
 
@@ -294,7 +294,8 @@ console.log('[3.1] Testing hard-deny patterns...');
 // Fork bomb pattern
 let forkBombTest = { name: 'Fork bomb detection', status: 'info' as const, detail: '' };
 try {
-  const content = execSync(`grep -c ':\\(\\)\{:\\|:&\\};:' ${PROJECT_DIR}/src/utils/permissions/permissionSetup.ts`, { encoding: 'utf-8' }).trim();
+  // Fork bomb detection is in bash-tool.ts and security.ts
+  const content = execSync(`grep -c 'forkbomb\\|:(){:' ${PROJECT_DIR}/src/tools/bash/bash-tool.ts ${PROJECT_DIR}/src/tools/bash/security.ts 2>/dev/null | grep -v ':0' | wc -l || echo 0`, { encoding: 'utf-8' }).trim();
   forkBombTest.status = parseInt(content) > 0 ? 'pass' : 'fail';
   forkBombTest.detail = parseInt(content) > 0 ? 'Pattern found' : 'Not found';
 } catch {
