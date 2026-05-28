@@ -5,7 +5,7 @@
  */
 
 // Import Container for type
-import type { Container } from '@mariozechner/pi-tui';
+import type { Container } from '@earendil-works/pi-tui';
 export type { Container };
 
 // Import factory functions

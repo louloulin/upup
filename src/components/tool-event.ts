@@ -1,4 +1,4 @@
-import { Container, Spacer, Text, type TUI } from '@mariozechner/pi-tui';
+import { Container, Spacer, Text, type TUI } from '@earendil-works/pi-tui';
 import type { ApprovalDecision } from '../agent/types.js';
 import { theme } from '../theme.js';
 import { subscribeSpinner, SPINNER_INTERVAL_MS } from '../utils/spinner.js';

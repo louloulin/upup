@@ -1,4 +1,4 @@
-import { Container, Text, SelectList } from '@mariozechner/pi-tui';
+import { Container, Text, SelectList } from '@earendil-works/pi-tui';
 import type { ApprovalDecision } from '../agent/types.js';
 import { theme } from '../theme.js';
 import { createApprovalSelector } from './select-list.js';

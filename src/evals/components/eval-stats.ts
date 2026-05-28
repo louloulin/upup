@@ -1,4 +1,4 @@
-import { Container, Text, type TUI } from '@mariozechner/pi-tui';
+import { Container, Text, type TUI } from '@earendil-works/pi-tui';
 import { theme } from '../../theme.js';
 
 function formatElapsed(startTime: number): string {

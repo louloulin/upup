@@ -1,4 +1,4 @@
-import { Box, Container, Text } from '@mariozechner/pi-tui';
+import { Box, Container, Text } from '@earendil-works/pi-tui';
 import { logger, type LogEntry, type LogLevel } from '../utils/logger.js';
 import { theme } from '../theme.js';
 

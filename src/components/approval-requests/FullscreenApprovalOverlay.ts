@@ -15,7 +15,7 @@ import {
   Spacer,
   getKeybindings,
   type Component,
-} from '@mariozechner/pi-tui';
+} from '@earendil-works/pi-tui';
 import { BorderBox } from '../BorderBox.js';
 import type { ApprovalDecision } from '../../agent/types.js';
 import { getToolDangerLevel, isHardDenyCommand } from '../../utils/permissions/index.js';

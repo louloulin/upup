@@ -16,7 +16,7 @@ import { z } from 'zod';
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { getElicitationManager, ElicitationRequest, ElicitationResponse, ElicitationChoice } from '../../hooks/elicitation.js';
 import { BorderBox } from '../../components/BorderBox.js';
-import { Text } from '@mariozechner/pi-tui';
+import { Text } from '@earendil-works/pi-tui';
 import { theme } from '../../theme.js';
 
 // ============================================================================

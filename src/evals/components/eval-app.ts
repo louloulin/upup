@@ -1,4 +1,4 @@
-import { Container, Spacer, Text, type TUI } from '@mariozechner/pi-tui';
+import { Container, Spacer, Text, type TUI } from '@earendil-works/pi-tui';
 import { BorderBox } from '../../components/BorderBox.js';
 import { theme } from '../../theme.js';
 import { EvalCurrentQuestion } from './eval-current-question.js';

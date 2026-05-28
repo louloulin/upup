@@ -15,7 +15,7 @@ import {
   setCapabilities,
   getCapabilities,
   type TerminalCapabilities,
-} from '@mariozechner/pi-tui';
+} from '@earendil-works/pi-tui';
 import chalk from 'chalk';
 
 /**

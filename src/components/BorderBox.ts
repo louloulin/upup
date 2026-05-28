@@ -11,7 +11,7 @@
  * - 'bold': Bold single line (━┏┓┗┛)
  */
 
-import { Container, Text, Spacer, type Component } from '@mariozechner/pi-tui';
+import { Container, Text, Spacer, type Component } from '@earendil-works/pi-tui';
 
 // Border drawing characters
 const BORDERS = {

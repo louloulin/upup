@@ -4,7 +4,7 @@
  * 基于 pi-tui 的基础授权请求组件
  */
 
-import { Container, Text, getKeybindings } from '@mariozechner/pi-tui';
+import { Container, Text, getKeybindings } from '@earendil-works/pi-tui';
 import type { ApprovalDecision } from '../../agent/types.js';
 import { getToolDangerLevel, getApprovalConfig, isHardDenyCommand } from '../../utils/permissions/index.js';
 import { theme } from '../../theme.js';
