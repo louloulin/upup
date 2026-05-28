@@ -25,6 +25,20 @@
 | 更新 build:node script external | ✅ 已完成 | 2026-05-28 |
 | 运行 bun install | ✅ 已完成 | 2026-05-28 |
 
+### Phase 2.1: Import 迁移 (已完成 - 2026-05-28)
+
+| 任务 | 状态 | 日期 |
+|------|------|------|
+| 迁移所有源文件 import | ✅ 已完成 | 2026-05-28 |
+| 验证构建成功 | ✅ 已完成 | 2026-05-28 |
+| 验证 dist/upup 可执行 | ✅ 已完成 | 2026-05-28 |
+| 运行 TUI 状态测试 | ✅ 34/34 通过 | 2026-05-28 |
+
+**迁移文件清单** (35 个文件):
+- `src/cli.ts`, `src/theme.ts`, `src/components/*.ts`, `src/utils/*.ts`
+- `src/evals/*.ts`, `src/mcp/mcp-ui.ts`, `src/session/selector.ts`
+- `src/tools/ask/ask-tool.ts`, `src/commands/doctor.ts`
+
 ### Phase 3: 测试覆盖 (已完成)
 
 | 测试文件 | 测试数 | 状态 |
