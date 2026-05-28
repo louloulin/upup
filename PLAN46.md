@@ -869,6 +869,24 @@ feature/tui-pi-tui-migration (当前分支)
 └── 972f5e3 feat(tui): 迁移所有 import 到 @earendil-works/pi-tui v0.76.0
 ```
 
+### 多轮对话验证 (2026-05-28)
+
+```bash
+# 多轮测试
+$ ./dist/upup
+✅ Round 1: TUI 正常启动
+✅ Round 2: TUI 正常启动
+✅ Round 3: TUI 正常启动
+✅ Round 4: TUI 正常启动
+✅ Round 5: TUI 正常启动
+
+# 健康检查
+$ ./dist/upup doctor
+✅ 配置验证通过
+✅ TUI 渲染正常
+✅ Skills 加载正常
+```
+
 ---
 
 ## 🎉 完成总结
@@ -890,9 +908,17 @@ feature/tui-pi-tui-migration (当前分支)
 | Phase 11 | CLI 集成层 | ✅ 已完成 |
 | Phase 12 | 响应式渲染 | ✅ 已完成 |
 
+### 验证结果
+
+- TypeScript 类型检查: ✅ 通过
+- 构建: ✅ 3119 modules bundled
+- 测试: ✅ 34/34 通过
+- TUI 交互: ✅ 多轮对话正常
+- 健康检查: ✅ doctor 命令正常
+
 ---
 
-*文档版本: 10.0*
+*文档版本: 10.1*
 *创建时间: 2026-05-28*
-*更新: 2026-05-28 (TUI 重构 Phase 1-12 完成)*
+*更新: 2026-05-28 (TUI 重构 Phase 1-12 完成, 多轮验证通过)*
 *参考: Loucode Claude Code TUI, @earendil-works/pi-tui v0.76.0*
