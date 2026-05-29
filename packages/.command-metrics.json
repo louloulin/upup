@@ -1,62 +1,62 @@
 {
   "help": {
     "name": "help",
-    "totalCalls": 127,
-    "successCount": 127,
+    "totalCalls": 128,
+    "successCount": 128,
     "errorCount": 0,
-    "totalDurationMs": 1513,
+    "totalDurationMs": 1519,
     "avgDurationMs": 12,
     "minDurationMs": 0,
     "maxDurationMs": 592,
-    "lastCalled": 1780034211903,
-    "lastSuccess": 1780034211903
+    "lastCalled": 1780034229304,
+    "lastSuccess": 1780034229304
   },
   "status": {
     "name": "status",
-    "totalCalls": 127,
-    "successCount": 127,
+    "totalCalls": 128,
+    "successCount": 128,
     "errorCount": 0,
-    "totalDurationMs": 915,
+    "totalDurationMs": 916,
     "avgDurationMs": 7,
     "minDurationMs": 0,
     "maxDurationMs": 575,
-    "lastCalled": 1780034211903,
-    "lastSuccess": 1780034211903
+    "lastCalled": 1780034229305,
+    "lastSuccess": 1780034229305
   },
   "h": {
     "name": "h",
-    "totalCalls": 111,
-    "successCount": 111,
+    "totalCalls": 112,
+    "successCount": 112,
     "errorCount": 0,
     "totalDurationMs": 46,
     "avgDurationMs": 0,
     "minDurationMs": 0,
     "maxDurationMs": 11,
-    "lastCalled": 1780034211903,
-    "lastSuccess": 1780034211903
+    "lastCalled": 1780034229306,
+    "lastSuccess": 1780034229306
   },
   "c": {
     "name": "c",
-    "totalCalls": 110,
-    "successCount": 110,
+    "totalCalls": 111,
+    "successCount": 111,
     "errorCount": 0,
-    "totalDurationMs": 343,
+    "totalDurationMs": 344,
     "avgDurationMs": 3,
     "minDurationMs": 0,
     "maxDurationMs": 79,
-    "lastCalled": 1780034211905,
-    "lastSuccess": 1780034211905
+    "lastCalled": 1780034229307,
+    "lastSuccess": 1780034229307
   },
   "unknown": {
     "name": "unknown",
-    "totalCalls": 93,
+    "totalCalls": 94,
     "successCount": 0,
-    "errorCount": 93,
+    "errorCount": 94,
     "totalDurationMs": 13,
     "avgDurationMs": 0,
     "minDurationMs": 0,
     "maxDurationMs": 1,
-    "lastCalled": 1780034211905,
+    "lastCalled": 1780034229307,
     "lastSuccess": 0
   },
   "commands": {
