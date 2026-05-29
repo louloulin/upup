@@ -54,18 +54,18 @@ describe('TeamCreateSchema', () => {
 });
 
 describe('TeamDeleteSchema', () => {
-  it('should parse valid team_id', () => {
-    const result = TeamDeleteSchema.safeParse({ team_id: 'team-123' });
+  it('should parse valid team_name', () => {
+    const result = TeamDeleteSchema.safeParse({ team_name: 'my-team' });
     expect(result.success).toBe(true);
   });
 
-  it('should require team_id', () => {
+  it('should require team_name', () => {
     const result = TeamDeleteSchema.safeParse({});
     expect(result.success).toBe(false);
   });
 
-  it('should reject empty team_id', () => {
-    const result = TeamDeleteSchema.safeParse({ team_id: '' });
+  it('should reject empty team_name', () => {
+    const result = TeamDeleteSchema.safeParse({ team_name: '' });
     expect(result.success).toBe(false);
   });
 });
@@ -107,7 +107,7 @@ describe('TeamListSchema', () => {
 describe('TeamAddMemberSchema', () => {
   it('should parse valid input', () => {
     const result = TeamAddMemberSchema.safeParse({
-      team_id: 'team-123',
+      team_name: 'my-team',
       name: 'Alice',
       role: 'researcher',
     });
@@ -115,13 +115,13 @@ describe('TeamAddMemberSchema', () => {
   });
 
   it('should require all fields', () => {
-    const result = TeamAddMemberSchema.safeParse({ team_id: 'team-123' });
+    const result = TeamAddMemberSchema.safeParse({ team_name: 'my-team' });
     expect(result.success).toBe(false);
   });
 
   it('should reject empty name', () => {
     const result = TeamAddMemberSchema.safeParse({
-      team_id: 'team-123',
+      team_name: 'my-team',
       name: '',
       role: 'researcher',
     });
