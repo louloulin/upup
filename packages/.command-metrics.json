@@ -1,62 +1,62 @@
 {
   "help": {
     "name": "help",
-    "totalCalls": 130,
-    "successCount": 130,
+    "totalCalls": 132,
+    "successCount": 132,
     "errorCount": 0,
-    "totalDurationMs": 1531,
+    "totalDurationMs": 1543,
     "avgDurationMs": 12,
     "minDurationMs": 0,
     "maxDurationMs": 592,
-    "lastCalled": 1780034272273,
-    "lastSuccess": 1780034272273
+    "lastCalled": 1780034311661,
+    "lastSuccess": 1780034311661
   },
   "status": {
     "name": "status",
-    "totalCalls": 130,
-    "successCount": 130,
+    "totalCalls": 132,
+    "successCount": 132,
     "errorCount": 0,
-    "totalDurationMs": 918,
+    "totalDurationMs": 919,
     "avgDurationMs": 7,
     "minDurationMs": 0,
     "maxDurationMs": 575,
-    "lastCalled": 1780034272274,
-    "lastSuccess": 1780034272274
+    "lastCalled": 1780034311661,
+    "lastSuccess": 1780034311661
   },
   "h": {
     "name": "h",
-    "totalCalls": 114,
-    "successCount": 114,
+    "totalCalls": 116,
+    "successCount": 116,
     "errorCount": 0,
     "totalDurationMs": 46,
     "avgDurationMs": 0,
     "minDurationMs": 0,
     "maxDurationMs": 11,
-    "lastCalled": 1780034272274,
-    "lastSuccess": 1780034272274
+    "lastCalled": 1780034311662,
+    "lastSuccess": 1780034311662
   },
   "c": {
     "name": "c",
-    "totalCalls": 113,
-    "successCount": 113,
+    "totalCalls": 115,
+    "successCount": 115,
     "errorCount": 0,
-    "totalDurationMs": 348,
+    "totalDurationMs": 350,
     "avgDurationMs": 3,
     "minDurationMs": 0,
     "maxDurationMs": 79,
-    "lastCalled": 1780034272277,
-    "lastSuccess": 1780034272277
+    "lastCalled": 1780034311663,
+    "lastSuccess": 1780034311663
   },
   "unknown": {
     "name": "unknown",
-    "totalCalls": 96,
+    "totalCalls": 98,
     "successCount": 0,
-    "errorCount": 96,
-    "totalDurationMs": 13,
+    "errorCount": 98,
+    "totalDurationMs": 14,
     "avgDurationMs": 0,
     "minDurationMs": 0,
     "maxDurationMs": 1,
-    "lastCalled": 1780034272277,
+    "lastCalled": 1780034311663,
     "lastSuccess": 0
   },
   "commands": {
