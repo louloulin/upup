@@ -1,62 +1,62 @@
 {
   "help": {
     "name": "help",
-    "totalCalls": 194,
-    "successCount": 194,
+    "totalCalls": 199,
+    "successCount": 199,
     "errorCount": 0,
-    "totalDurationMs": 6171,
-    "avgDurationMs": 32,
+    "totalDurationMs": 6218,
+    "avgDurationMs": 31,
     "minDurationMs": 0,
     "maxDurationMs": 2372,
-    "lastCalled": 1780035370145,
-    "lastSuccess": 1780035370145
+    "lastCalled": 1780035402173,
+    "lastSuccess": 1780035402173
   },
   "status": {
     "name": "status",
-    "totalCalls": 193,
-    "successCount": 193,
+    "totalCalls": 198,
+    "successCount": 198,
     "errorCount": 0,
-    "totalDurationMs": 1603,
+    "totalDurationMs": 1612,
     "avgDurationMs": 8,
     "minDurationMs": 0,
     "maxDurationMs": 575,
-    "lastCalled": 1780035370145,
-    "lastSuccess": 1780035370145
+    "lastCalled": 1780035402173,
+    "lastSuccess": 1780035402173
   },
   "h": {
     "name": "h",
-    "totalCalls": 177,
-    "successCount": 177,
+    "totalCalls": 182,
+    "successCount": 182,
     "errorCount": 0,
-    "totalDurationMs": 149,
+    "totalDurationMs": 150,
     "avgDurationMs": 1,
     "minDurationMs": 0,
     "maxDurationMs": 52,
-    "lastCalled": 1780035370146,
-    "lastSuccess": 1780035370146
+    "lastCalled": 1780035402174,
+    "lastSuccess": 1780035402174
   },
   "c": {
     "name": "c",
-    "totalCalls": 176,
-    "successCount": 176,
+    "totalCalls": 180,
+    "successCount": 180,
     "errorCount": 0,
-    "totalDurationMs": 1002,
+    "totalDurationMs": 1010,
     "avgDurationMs": 6,
     "minDurationMs": 0,
     "maxDurationMs": 79,
-    "lastCalled": 1780035370147,
-    "lastSuccess": 1780035370147
+    "lastCalled": 1780035402176,
+    "lastSuccess": 1780035402176
   },
   "unknown": {
     "name": "unknown",
-    "totalCalls": 159,
+    "totalCalls": 163,
     "successCount": 0,
-    "errorCount": 159,
-    "totalDurationMs": 51,
+    "errorCount": 163,
+    "totalDurationMs": 52,
     "avgDurationMs": 0,
     "minDurationMs": 0,
     "maxDurationMs": 11,
-    "lastCalled": 1780035370147,
+    "lastCalled": 1780035402176,
     "lastSuccess": 0
   },
   "commands": {
