@@ -132,8 +132,8 @@ describe('TeamAddMemberSchema', () => {
 describe('TeamRemoveMemberSchema', () => {
   it('should parse valid input', () => {
     const result = TeamRemoveMemberSchema.safeParse({
-      team_id: 'team-123',
-      member_id: 'member-456',
+      team_name: 'my-team',
+      member_name: 'alice',
     });
     expect(result.success).toBe(true);
   });
@@ -145,8 +145,8 @@ describe('TeamRemoveMemberSchema', () => {
 });
 
 describe('TeamStatusSchema', () => {
-  it('should parse valid team_id', () => {
-    const result = TeamStatusSchema.safeParse({ team_id: 'team-123' });
+  it('should parse valid team_name', () => {
+    const result = TeamStatusSchema.safeParse({ team_name: 'my-team' });
     expect(result.success).toBe(true);
   });
 
