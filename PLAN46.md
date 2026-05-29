@@ -1125,9 +1125,30 @@ Query: /exit
 - 同一会话内多次查询正常工作
 - 无内存泄漏或状态错误
 
+### Skill 自动执行功能 (2026-05-29)
+
+Skill 支持带参数自动执行，无需硬编码关键词：
+
+```bash
+/macro-china GDP    # 自动获取 GDP 数据
+/macro-china CPI    # 自动获取 CPI 数据
+/macro-china PMI    # 自动获取 PMI 数据
+```
+
+**实现方式**:
+- `autoExecuteSkillCommands`: 通用上下文匹配
+- `contextMatchesArgs`: 模糊匹配，无硬编码
+- 支持中文术语和函数名模糊匹配
+
+**验证**:
+```
+### 执行结果 (匹配: cpi)
+[{"商品":"中国CPI年率报告","今值":0.7,...}]
+```
+
 ---
 
-*文档版本: 10.5*
+*文档版本: 10.6*
 *创建时间: 2026-05-28*
 *更新: 2026-05-29 (AppScript 交互验证 10/10 + 业务连续对话 10/10 通过)*
 *参考: Loucode Claude Code TUI, @earendil-works/pi-tui v0.76.0*
