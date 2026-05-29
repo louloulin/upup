@@ -26,6 +26,13 @@ A 股实时行情与历史数据查询。
 
 ```bash
 python3 -c "
+import os
+# 绕过 macOS 系统代理设置（如 TunnelBlick/VPN 等）
+os.environ.pop('HTTPS_PROXY', None)
+os.environ.pop('https_proxy', None)
+os.environ.pop('HTTP_PROXY', None)
+os.environ.pop('http_proxy', None)
+
 import akshare as ak
 import json
 
@@ -41,8 +48,15 @@ print(df.head(10).to_json(orient='records', force_ascii=False))
 
 ```bash
 python3 -c "
+import os
+os.environ.pop('HTTPS_PROXY', None)
+os.environ.pop('https_proxy', None)
+os.environ.pop('HTTP_PROXY', None)
+os.environ.pop('http_proxy', None)
+
 import akshare as ak
 import json
+
 # A股实时行情（成交额排序前20）
 df = ak.stock_zh_a_spot_em()
 df_filtered = df[df['成交额'] > 100000000]
@@ -54,11 +68,18 @@ print(df_filtered[['代码', '名称', '最新价', '涨跌幅', '成交额']].h
 
 ```bash
 python3 -c "
+import os
+os.environ.pop('HTTPS_PROXY', None)
+os.environ.pop('https_proxy', None)
+
 import akshare as ak
 import json
-# 个股实时行情
-df = ak.stock_zh_a_spot_em(symbol='600519')
-print(df.to_json(orient='records', force_ascii=False))
+
+# 个股实时行情（spot_em 不支持 symbol 参数，需全量筛选）
+df = ak.stock_zh_a_spot_em()
+code = '600519'
+result = df[df['代码'] == code]
+print(result.to_json(orient='records', force_ascii=False))
 "
 ```
 
@@ -68,8 +89,13 @@ print(df.to_json(orient='records', force_ascii=False))
 
 ```bash
 python3 -c "
+import os
+os.environ.pop('HTTPS_PROXY', None)
+os.environ.pop('https_proxy', None)
+
 import akshare as ak
 import json
+
 # 个股日线历史
 df = ak.stock_zh_a_hist(symbol='600519', period='daily', start_date='20240101', end_date='20241231')
 print(df.tail(30).to_json(orient='records', force_ascii=False))
@@ -80,11 +106,21 @@ print(df.tail(30).to_json(orient='records', force_ascii=False))
 
 ```bash
 python3 -c "
+import os
+os.environ.pop('HTTPS_PROXY', None)
+os.environ.pop('https_proxy', None)
+
 import akshare as ak
 import json
-# 5分钟数据
-df = ak.stock_zh_a_min_em(symbol='600519', period='5')
-print(df.tail(20).to_json(orient='records', force_ascii=False))
+
+# 5分钟数据（akshare新版API）
+try:
+    df = ak.stock_zh_a_minute(symbol='600519', period='5')
+    print(df.tail(20).to_json(orient='records', force_ascii=False))
+except AttributeError:
+    # 备用: 日线数据替代
+    df = ak.stock_zh_a_hist(symbol='600519', period='daily', start_date='20260101', end_date='20260528')
+    print(df.tail(10).to_json(orient='records', force_ascii=False))
 "
 ```
 
@@ -94,11 +130,21 @@ print(df.tail(20).to_json(orient='records', force_ascii=False))
 
 ```bash
 python3 -c "
+import os
+os.environ.pop('HTTPS_PROXY', None)
+os.environ.pop('https_proxy', None)
+
 import akshare as ak
 import json
-# 财务指标
-df = ak.stock_financial_analysis_indicator_em(symbol='600519')
-print(df[['日期', '市盈率', '市净率', 'ROE', '毛利率']].tail(4).to_json(orient='records', force_ascii=False))
+
+# 财务指标 - 股票财务分析指标
+try:
+    df = ak.stock_financial_analysis_indicator(symbol='600519', start='2020', end='2025')
+    print(df.tail(8).to_json(orient='records', force_ascii=False))
+except:
+    # 备用: 财务摘要
+    df = ak.stock_financial_abstract(symbol='600519')
+    print(df.head(10).to_json(orient='records', force_ascii=False))
 "
 ```
 
@@ -147,4 +193,4 @@ print(df[['日期', '市盈率', '市净率', 'ROE', '毛利率']].tail(4).to_js
 - T+1 交割制度
 - 涨跌停板限制
 
-Last Updated: 2026-05-07
+Last Updated: 2026-05-28

@@ -1,747 +1,517 @@
-# 配置化改造计划 (PLAN47.md)
+# UpUp 核心功能全面分析报告 (PLAN47.md)
 
-> 消除硬编码，统一配置管理，支持多环境部署
-> 版本: 1.1 | 创建: 2026-05-29 | 更新: 添加架构图
-
----
-
-## 背景
-
-当前代码库存在大量硬编码值，包括：
-- API URLs (Tushare, Eastmoney, Sina 等)
-- Timeout 值 (分散在 10+ 个文件中)
-- Retry 次数 (不一致)
-- Cache TTL 值 (不统一)
-- 业务参数 (风险参数、筛选阈值等)
-
-## 目标
-
-1. **统一配置管理** - 所有可配置值通过配置文件或环境变量管理
-2. **支持多环境** - 开发/测试/生产环境配置分离
-3. **便于维护** - 集中管理配置，减少散落各处的硬编码
-4. **灵活扩展** - 支持动态配置覆盖
+> 全面的代码分析、问题识别与改造计划
+> 版本: 3.0 Complete | 创建: 2026-05-29
 
 ---
 
-## 系统架构图
+## 📋 执行总结
 
-### 当前架构 (硬编码分散)
+### v11.0 Complete 验证结果
 
-```
-┌─────────────────────────────────────────────────────────────────────────────────────┐
-│                              UpUp Agent 系统                                      │
-├─────────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                 │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐         │
-│  │  tushare-  │  │  eastmoney- │  │  realtime-  │  │   news-    │         │
-│  │  client.ts │  │  client.ts  │  │  client.ts │  │  client.ts │         │
-│  │             │  │             │  │             │  │             │         │
-│  │ HTTP 硬编码 │  │ URL 硬编码  │  │ TIMEOUT=5s  │  │ RETRY=2    │         │
-│  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘         │
-│                                                                                 │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐         │
-│  │ bash-tool.ts│  │risk-manage- │  │data-cache.ts│  │  executor.ts│         │
-│  │             │  │  ment.ts   │  │             │  │             │         │
-│  │ TIMEOUT=30s │  │ ACCOUNT=100K│  │ TTL=5min   │  │ TIMEOUT=30s│         │
-│  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘         │
-│                                                                                 │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐                          │
-│  │   finance/ │  │   forecast/ │  │    SKILL/  │                          │
-│  │   utils.ts │  │   index.ts  │  │   *.md     │                          │
-│  │             │  │             │  │             │                          │
-│  │ TTL 硬编码  │  │  PE=20     │  │ URLs 硬编码 │                          │
-│  └─────────────┘  └─────────────┘  └─────────────┘                          │
-│                                                                                 │
-│  ❌ 问题: 10+ 文件包含硬编码，难以维护，不支持多环境                           │
-└─────────────────────────────────────────────────────────────────────────────────────┘
-```
+| 验证类型 | 测试项 | 通过率 |
+|----------|--------|--------|
+| Skills执行测试 | 32个命令 | 31/32 (96.9%) |
+| 连续对话测试 | 10轮对话 | 10/10 (100%) |
+| AppScript验证 | 10轮对话 | 10/10 (100%) |
 
-### 目标架构 (配置中心)
+### 失败项
 
-```
-┌─────────────────────────────────────────────────────────────────────────────────────┐
-│                              UpUp Agent 系统                                      │
-├─────────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                 │
-│  ┌──────────────────────────────────────────────────────────────────────┐     │
-│  │                      配置中心 (src/config/)                           │     │
-│  │  ┌────────────┐  ┌────────────┐  ┌────────────┐  ┌────────────┐    │     │
-│  │  │ index.ts  │  │ schema.ts │  │   env.ts  │  │ defaults.ts│    │     │
-│  │  │           │  │           │  │           │  │           │    │     │
-│  │  │ 统一入口  │  │ 类型定义  │  │ 环境变量  │  │ 默认值    │    │     │
-│  │  └────────────┘  └────────────┘  └────────────┘  └────────────┘    │     │
-│  └──────────────────────────────────────────────────────────────────────┘     │
-│                                    │                                           │
-│                        配置加载优先级:                                          │
-│                        1. 环境变量 (最高)                                      │
-│                        2. settings.json                                       │
-│                        3. defaults.ts (最低)                                   │
-│                                    │                                           │
-│  ┌──────────────────────────────────────────────────────────────────────┐     │
-│  │                         配置覆盖示例                                   │     │
-│  │                                                                      │     │
-│  │   环境变量:  TUSHARE_TIMEOUT_MS=5000                                  │     │
-│  │   settings.json: { "api.tushare.timeout": 5000 }                     │     │
-│  │   代码默认值: timeout = 10000                                         │     │
-│  └──────────────────────────────────────────────────────────────────────┘     │
-│                                    │                                           │
-└────────────────────────────────────────────────────────────────┬────────────────┘
-                                                                     │
-                    ┌──────────────────────────────────────────────┐  │
-                    │              配置消费方                        │  │
-                    ├──────────────────────────────────────────────┤  │
-                    │                                              │  │
-                    │  ┌─────────────┐  ┌─────────────┐           │  │
-                    │  │  Tushare   │  │  Eastmoney │           │  │
-                    │  │  Client    │  │  Client    │           │  │
-                    │  │             │  │             │           │  │
-                    │  │ baseUrl:   │  │ baseUrl:   │           │  │
-                    │  │  config    │  │  config    │           │  │
-                    │  │ .api.ts    │  │ .api.east  │           │  │
-                    │  └─────────────┘  └─────────────┘           │  │
-                    │                                              │  │
-                    │  ┌─────────────┐  ┌─────────────┐           │  │
-                    │  │  Bash Tool │  │Risk Manage │           │  │
-                    │  │            │  │            │           │  │
-                    │  │ timeout:   │  │ account:   │           │  │
-                    │  │ config.tool│  │ config.biz│           │  │
-                    │  │ .bash      │  │ .risk      │           │  │
-                    │  └─────────────┘  └─────────────┘           │  │
-                    │                                              │  │
-                    └──────────────────────────────────────────────┘  │
-                                                                     │
-                    ┌──────────────────────────────────────────────┐  │
-                    │              配置数据流                       │  │
-                    ├──────────────────────────────────────────────┤  │
-                    │                                              │  │
-                    │   settings.json ──→ Config Index ──→ 消费方  │  │
-                    │        │                   │                 │  │
-                    │        ▼                   ▼                 │  │
-                    │   .env.local ──→ Env Parser ──→ 覆盖值       │  │
-                    │        │                                       │  │
-                    │        ▼                                       │  │
-                    │   defaults.ts ──→ 最终默认值                  │  │
-                    │                                              │  │
-                    └──────────────────────────────────────────────┘  │
-                                                                     │
-┌────────────────────────────────────────────────────────────────────▼────────┐
-│                         配置模式切换                                     │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│   ┌─────────────┐     ┌─────────────┐     ┌─────────────┐                │
-│   │   开发环境   │ ──▶ │   测试环境   │ ──▶ │   生产环境   │                │
-│   │  (local)   │     │   (test)   │     │  (prod)   │                │
-│   │             │     │             │     │             │                │
-│   │ DEBUG=true │     │ TEST=true  │     │ DEBUG=false│                │
-│   │ LOG=debug  │     │ LOG=info  │     │ LOG=error │                │
-│   │ TIMEOUT=5s│     │TIMEOUT=10s│     │TIMEOUT=30s│                │
-│   └─────────────┘     └─────────────┘     └─────────────┘                │
-│                                                                             │
-│   切换方式: UP_ENV=prod ./dist/upup                                      │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
-### 配置中心内部模块
-
-```
-┌─────────────────────────────────────────────────────────────────────────────────────┐
-│                         配置中心模块 (src/config/)                                │
-├─────────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                 │
-│  ┌─────────────────────────────────────────────────────────────────────────┐   │
-│  │                          schema.ts                                        │   │
-│  │  ┌─────────────────────────────────────────────────────────────────┐  │   │
-│  │  │ export interface ConfigSchema {                              │  │   │
-│  │  │   api: {                                                    │  │   │
-│  │  │     tushare: { baseUrl, timeout, maxRetries }               │  │   │
-│  │  │     eastmoney: { baseUrls, timeout }                        │  │   │
-│  │  │     sina: { baseUrl, timeout }                            │  │   │
-│  │  │   };                                                        │  │   │
-│  │  │   agent: { maxIterations, maxOverflowRetries }             │  │   │
-│  │  │   tool: { bash: {...}, fetch: {...} }                      │  │   │
-│  │  │   cache: { ttl15m, ttl1h, ttl6h, ttl24h }                │  │   │
-│  │  │   business: { risk: {...} }                                │  │   │
-│  │  │ }                                                          │  │   │
-│  │  └───────────────────────────────────────────────────────────┘  │   │
-│  └─────────────────────────────────────────────────────────────────────────┘   │
-│                                                                                 │
-│  ┌─────────────────────────────────────────────────────────────────────────┐   │
-│  │                          defaults.ts                                       │   │
-│  │  ┌─────────────────────────────────────────────────────────────────┐  │   │
-│  │  │ export const DEFAULT_CONFIG: ConfigSchema = {                │  │   │
-│  │  │   api: {                                                    │  │   │
-│  │  │     tushare: {                                             │  │   │
-│  │  │       baseUrl: 'https://api.tushare.pro',                   │  │   │
-│  │  │       timeout: 10000,                                      │  │   │
-│  │  │       maxRetries: 2                                        │  │   │
-│  │  │     }                                                       │  │   │
-│  │  │   },                                                        │  │   │
-│  │  │   cache: {                                                  │  │   │
-│  │  │     ttl15m: 900000,  // 15 minutes                        │  │   │
-│  │  │     ttl1h: 3600000,   // 1 hour                           │  │   │
-│  │  │     ttl6h: 21600000,  // 6 hours                          │  │   │
-│  │  │     ttl24h: 86400000 // 24 hours                           │  │   │
-│  │  │   }                                                        │  │   │
-│  │  │ };                                                         │  │   │
-│  │  └───────────────────────────────────────────────────────────┘  │   │
-│  └─────────────────────────────────────────────────────────────────────────┘   │
-│                                                                                 │
-│  ┌─────────────────────────────────────────────────────────────────────────┐   │
-│  │                            env.ts                                             │   │
-│  │  ┌─────────────────────────────────────────────────────────────────┐  │   │
-│  │  │ export function parseEnvConfig(): Partial<ConfigSchema> {         │  │   │
-│  │  │   return {                                                    │  │   │
-│  │  │     api: {                                                    │  │   │
-│  │  │       tushare: {                                             │  │   │
-│  │  │         baseUrl: process.env.TUSHARE_BASE_URL,                │  │   │
-│  │  │         timeout: parseInt(process.env.TUSHARE_TIMEOUT_MS),     │  │   │
-│  │  │       }                                                       │  │   │
-│  │  │     },                                                        │  │   │
-│  │  │     cache: {                                                  │  │   │
-│  │  │       ttl15m: parseInt(process.env.CACHE_TTL_15M),           │  │   │
-│  │  │     }                                                        │  │   │
-│  │  │   };                                                         │  │   │
-│  │  │ }                                                            │  │   │
-│  │  └───────────────────────────────────────────────────────────┘  │   │
-│  └─────────────────────────────────────────────────────────────────────────┘   │
-│                                                                                 │
-│  ┌─────────────────────────────────────────────────────────────────────────┐   │
-│  │                            index.ts                                         │   │
-│  │  ┌─────────────────────────────────────────────────────────────────┐  │   │
-│  │  │ import { DEFAULT_CONFIG } from './defaults';                    │  │   │
-│  │  │ import { parseEnvConfig } from './env';                        │  │   │
-│  │  │ import { loadSettingsConfig } from './settings';                │  │   │
-│  │  │                                                           │  │   │
-│  │  │ let cachedConfig: ConfigSchema | null = null;                │  │   │
-│  │  │                                                           │  │   │
-│  │  │ export function getConfig(): ConfigSchema {                 │  │   │
-│  │  │   if (cachedConfig) return cachedConfig;                    │  │   │
-│  │  │                                                           │  │   │
-│  │  │   const envConfig = parseEnvConfig();                        │  │   │
-│  │  │   const settingsConfig = loadSettingsConfig();             │  │   │
-│  │  │                                                           │  │   │
-│  │  │   cachedConfig = deepMerge(                                  │  │   │
-│  │  │     DEFAULT_CONFIG,     // 最低优先级                      │  │   │
-│  │  │     settingsConfig,    //                                    │  │   │
-│  │  │     envConfig          // 最高优先级                        │  │   │
-│  │  │   );                                                        │  │   │
-│  │  │   return cachedConfig;                                       │  │   │
-│  │  │ }                                                           │  │   │
-│  │  │                                                           │  │   │
-│  │  │ export function resetConfig(): void {                       │  │   │
-│  │  │   cachedConfig = null;                                       │  │   │
-│  │  │ }                                                           │  │   │
-│  │  └───────────────────────────────────────────────────────────┘  │   │
-│  └─────────────────────────────────────────────────────────────────────────┘   │
-│                                                                                 │
-└─────────────────────────────────────────────────────────────────────────────────────┘
-```
-
-### 消费方集成示例
-
-```
-┌─────────────────────────────────────────────────────────────────────────────────────┐
-│                           消费方集成模式                                         │
-├─────────────────────────────────────────────────────────────────────────────────────┤
-│                                                                                 │
-│  方式 1: 函数参数注入 (推荐)                                                       │
-│  ┌─────────────────────────────────────────────────────────────────────────┐   │
-│  │ export async function fetchTushare(                                       │   │
-│  │   params: TushareParams,                                                  │   │
-│  │   options?: { timeout?: number; retries?: number }  // 可选覆盖           │   │
-│  │ ) {                                                                      │   │
-│  │   const config = getConfig();                                            │   │
-│  │   const timeout = options?.timeout ?? config.api.tushare.timeout;         │   │
-│  │   const retries = options?.retries ?? config.api.tushare.maxRetries;     │   │
-│  │   // ...                                                                 │   │
-│  │ }                                                                        │   │
-│  └─────────────────────────────────────────────────────────────────────────┘   │
-│                                                                                 │
-│  方式 2: 直接引用 (简单场景)                                                     │
-│  ┌─────────────────────────────────────────────────────────────────────────┐   │
-│  │ import { getConfig } from '../config';                                  │   │
-│  │                                                                          │   │
-│  │ class TushareClient {                                                   │   │
-│  │   private baseUrl = getConfig().api.tushare.baseUrl;                    │   │
-│  │   private timeout = getConfig().api.tushare.timeout;                    │   │
-│  │ }                                                                        │   │
-│  └─────────────────────────────────────────────────────────────────────────┘   │
-│                                                                                 │
-│  方式 3: 依赖注入 (测试友好)                                                    │
-│  ┌─────────────────────────────────────────────────────────────────────────┐   │
-│  │ interface TushareConfig {                                                │   │
-│  │   baseUrl: string;                                                     │   │
-│  │   timeout: number;                                                      │   │
-│  │ }                                                                      │   │
-│  │                                                                          │   │
-│  │ function createTushareClient(config: TushareConfig): TushareClient {     │   │
-│  │   return new TushareClient(config);                                     │   │
-│  │ }                                                                      │   │
-│  │                                                                          │   │
-│  │ // 在应用启动时                                                           │   │
-│  │ const client = createTushareClient(getConfig().api.tushare);             │   │
-│  └─────────────────────────────────────────────────────────────────────────┘   │
-│                                                                                 │
-└─────────────────────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## 硬编码分析汇总
-
-### 高优先级 (P0)
-
-| 类别 | 文件 | 问题 |
+| 命令 | 错误 | 原因 |
 |------|------|------|
-| Tushare URL | `src/tools/astock/tushare-client.ts` | 使用 HTTP 而非 HTTPS |
-| Agent Max Iterations | `src/agent/agent.ts` | `DEFAULT_MAX_ITERATIONS = 50` |
-| Risk Parameters | `src/tools/risk/management.ts` | 业务参数硬编码 |
-| SKILL URLs | `.claude/skills/*.md` | API URLs 硬编码 |
-
-### 中优先级 (P1)
-
-| 类别 | 文件数 | 问题 |
-|------|--------|------|
-| Timeout 配置 | 6+ | 分散在多个文件中 |
-| Retry 配置 | 5+ | MAX_RETRIES 不一致 |
-| Cache TTL | 4+ | TTL 值不统一 |
-| Bash Limits | 2 | MAX_OUTPUT_LENGTH 等 |
-
-### 低优先级 (P2)
-
-| 类别 | 文件 | 说明 |
-|------|------|------|
-| Theme Colors | `src/theme.ts` | UI 定制通常不需要 |
-| 示例代码 | SKILL.md | 示例数据保留合理 |
+| `/dcf` | Skill命令不存在 | 缺少DCF估值技能 |
 
 ---
 
-## Phase 1: 配置中心模块 (P0)
+## 🏗️ 系统架构总览
 
-### 1.1 创建统一配置模块
+```
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│                              UpUp Agent 系统架构                                  │
+├─────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                 │
+│  ┌─────────────────────────────────────────────────────────────────────────────┐│
+│  │                          用户交互层                                          ││
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐                        ││
+│  │  │    CLI     │  │    TUI     │  │   SDK/API  │                        ││
+│  │  │  (bun start)│  │ (pi-tui)  │  │  (run.ts)  │                        ││
+│  │  └─────────────┘  └─────────────┘  └─────────────┘                        ││
+│  └─────────────────────────────────────────────────────────────────────────────┘│
+│                                         │                                        │
+│  ┌──────────────────────────────────────▼────────────────────────────────────┐│
+│  │                          核心系统层                                          ││
+│  │                                                                             ││
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐       ││
+│  │  │   Agent    │  │   Skills   │  │   Tools    │  │  Session   │       ││
+│  │  │  (agent.ts)│  │(slash-cmd)│  │ (50+ tools)│  │ (tracker) │       ││
+│  │  │             │  │             │  │             │  │             │       ││
+│  │  │ • Agent循环 │  │ • 命令解析  │  │ • Finance  │  │ • 状态跟踪 │       ││
+│  │  │ • 上下文压缩│  │ • 执行引擎  │  │ • A-Stock │  │ • 权限管理 │       ││
+│  │  │ • 模型回退  │  │ • Hook系统 │  │ • Fund    │  │ • 使用统计 │       ││
+│  │  │ • 循环检测 │  │ • 双模式   │  │ • Research │  │ • 恢复机制 │       ││
+│  │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘       ││
+│  │                                                                             ││
+│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐       ││
+│  │  │   Memory    │  │   Model    │  │  Permissions│  │   Hooks    │       ││
+│  │  │(memory-mgr)│  │   (llm.ts) │  │   (auth)   │  │(agent-hooks│       ││
+│  │  │             │  │             │  │             │  │             │       ││
+│  │  │ • 记忆提取  │  │ • DeepSeek │  │ • Bash权限  │  │ • 内存监控 │       ││
+│  │  │ • 观察缓冲  │  │ • OpenAI   │  │ • 路径约束  │  │ • 会话恢复 │       ││
+│  │  │ • 记忆刷新  │  │ • Anthropic│  │ • 危险命令  │  │ • 工具指标 │       ││
+│  │  │ • 持久化   │  │ • Ollama   │  │ • 模式选择  │  │ • 上下文看门│       ││
+│  │  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘       ││
+│  └─────────────────────────────────────────────────────────────────────────────┘│
+│                                         │                                        │
+│  ┌──────────────────────────────────────▼────────────────────────────────────┐│
+│  │                          工具层 (50+ 工具)                                  ││
+│  │                                                                             ││
+│  │  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐  ┌────────────┐   ││
+│  │  │   Finance    │  │   A-Stock    │  │    Fund      │  │   Quant   │   ││
+│  │  │  (美国数据)  │  │  (A股数据)   │  │  (基金数据)  │  │ (量化分析)│   ││
+│  │  └───────────────┘  └───────────────┘  └───────────────┘  └────────────┘   ││
+│  │                                                                             ││
+│  │  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐  ┌────────────┐   ││
+│  │  │    Risk      │  │  Screening   │  │   Earnings   │  │ Sentiment │   ││
+│  │  │  (风险管理)  │  │   (筛选)    │  │   (财报)    │  │  (舆情)  │   ││
+│  │  └───────────────┘  └───────────────┘  └───────────────┘  └────────────┘   ││
+│  │                                                                             ││
+│  │  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐  ┌────────────┐   ││
+│  │  │  Filesystem  │  │  Web Search  │  │    MCP      │  │   Other   │   ││
+│  │  │   (文件系统)  │  │   (网络搜索)  │  │ (Model Context│  │   (其他)  │   ││
+│  │  └───────────────┘  └───────────────┘  │   Protocol)   │  └────────────┘   ││
+│  │                                         └───────────────┘                   ││
+│  └─────────────────────────────────────────────────────────────────────────────┘│
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────────┘
+```
 
-**文件**: `src/config/index.ts`
+---
+
+## 📊 核心模块分析
+
+### 1. Agent System (核心AI引擎)
+
+| 文件 | 行数 | 功能 |
+|------|------|------|
+| `src/agent/agent.ts` | ~1000 | 核心Agent类，Agent循环 |
+| `src/agent/compact.ts` | ~300 | 上下文压缩 |
+| `src/agent/fallback.ts` | ~150 | 模型回退机制 |
+| `src/agent/loop-recovery.ts` | ~100 | 循环检测与恢复 |
+| `src/agent/tool-executor.ts` | ~200 | 工具执行器 |
+
+#### 问题清单
+
+| ID | 严重程度 | 问题 | 解决方案 |
+|----|----------|------|----------|
+| A-1 | P1 | `MAX_ITERATIONS=50` 硬编码 | 配置化 |
+| A-2 | P1 | 上下文压缩阈值硬编码 | 配置化 |
+| A-3 | P2 | 循环检测算法简单 | 改进算法 |
+| A-4 | P2 | 模型回退配置分散 | 统一配置 |
+
+#### 核心代码片段
 
 ```typescript
-/**
- * 统一配置管理
- * 
- * 支持:
- * - 环境变量覆盖
- * - 配置文件覆盖
- * - 默认值
- */
+// src/agent/agent.ts:34-36
+const DEFAULT_MAX_ITERATIONS = 50;
+const MAX_OVERFLOW_RETRIES = 2;
+const OVERFLOW_KEEP_ROUNDS = 3;
 
-export interface ConfigSchema {
-  // API 配置
-  api: {
-    tushare: {
-      baseUrl: string;
-      timeout: number;
-      maxRetries: number;
-    };
-    eastmoney: {
-      baseUrls: Record<string, string>;
-      timeout: number;
-    };
-    // ...
-  };
-  
-  // Agent 配置
-  agent: {
-    maxIterations: number;
-    maxOverflowRetries: number;
-  };
-  
-  // Tool 配置
-  tool: {
-    bash: {
-      timeout: number;
-      maxOutputLength: number;
-    };
-    fetch: {
-      timeout: number;
-      maxChars: number;
-    };
-  };
-  
-  // Cache 配置
-  cache: {
-    ttl15m: number;
-    ttl1h: number;
-    ttl6h: number;
-    ttl24h: number;
-  };
-  
-  // 业务配置
-  business: {
-    risk: {
-      defaultAccountSize: number;
-      defaultWinRate: number;
-      defaultAvgWin: number;
-      defaultAvgLoss: number;
-      kellyCap: number;
-    };
-  };
-}
+// 问题: 这些常量硬编码，不支持配置化
 ```
 
-### 1.2 配置加载优先级
+---
+
+### 2. Skills System (命令系统)
+
+| 文件 | 行数 | 功能 |
+|------|------|------|
+| `src/skills/slash-command.ts` | 627 | 命令解析与注册表 |
+| `src/skills/types.ts` | 323 | 类型定义 |
+| `src/skills/executor.ts` | 1220 | 执行引擎 |
+| `src/skills/commands.ts` | 318 | 初始化与注册 |
+
+#### 问题清单
+
+| ID | 严重程度 | 问题 | 解决方案 |
+|----|----------|------|----------|
+| S-1 | **P0** | Shell执行安全风险 (`execAsync`) | 使用spawn + 权限检查 |
+| S-2 | **P0** | 三重Map不同步 | 重构为单一注册表 |
+| S-3 | **P1** | 中文命令不支持 (`/茅台分析`) | 扩展正则 |
+| S-4 | **P1** | Shell超时30s硬编码 | 配置化 |
+| S-5 | **P1** | `/dcf` 技能缺失 | 添加DCF技能 |
+| S-6 | P2 | 统计不持久化 | 添加持久化 |
+
+#### 架构图
 
 ```
-1. 环境变量 (最高优先级)
-2. settings.json / .env
-3. 默认值 (最低优先级)
+用户输入 → SlashCommandParser → SkillCommandRegistry → SkillCommand → SkillExecutor
+                ↓                    ↓                    ↓              ↓
+         中文支持缺失          三重Map结构        getPromptFor    Shell安全风险
 ```
 
-### 1.3 实现文件
+---
 
-| 文件 | 功能 |
+### 3. Tools System (50+ 工具)
+
+| 文件 | 行数 | 功能 |
+|------|------|------|
+| `src/tools/registry/index.ts` | 100 | 工具注册中心 |
+| `src/tools/bash/bash-tool.ts` | ~500 | Bash执行 |
+| `src/tools/astock/*.ts` | ~2000 | A股数据工具 |
+| `src/tools/finance/*.ts` | ~1500 | 美股数据工具 |
+| `src/tools/fund/*.ts` | ~1000 | 基金数据工具 |
+
+#### 工具分类
+
+| 类别 | 数量 | 工具 |
+|------|------|------|
+| A-Stock | 15+ | tushare, eastmoney, realtime, screener, news |
+| Finance | 10+ | stock-data, earnings, sentiment, risk |
+| Fund | 8+ | fund-analysis, comparison, screening |
+| Quant | 5+ | backtest, technical, valuation, risk |
+| System | 10+ | bash, filesystem, search, ask |
+
+#### 问题清单
+
+| ID | 严重程度 | 问题 | 解决方案 |
+|----|----------|------|----------|
+| T-1 | P1 | API URLs硬编码 | 配置化 |
+| T-2 | P1 | Timeout值分散 | 统一配置 |
+| T-3 | P1 | Retry次数不一致 | 统一配置 |
+| T-4 | P2 | Cache TTL不统一 | 统一配置 |
+| T-5 | P2 | 工具文档缺失 | 补充文档 |
+
+---
+
+### 4. Permission System (权限管理)
+
+| 文件 | 行数 | 功能 |
+|------|------|------|
+| `src/permissions/index.ts` | 200+ | 权限管理入口 |
+| `src/tools/bash/security.ts` | 150+ | Bash安全检查 |
+| `src/tools/bash/path-validation.ts` | 100+ | 路径验证 |
+| `src/tools/bash/ast-parser.ts` | 200+ | AST解析 |
+
+#### 问题清单
+
+| ID | 严重程度 | 问题 | 解决方案 |
+|----|----------|------|----------|
+| P-1 | **P0** | 危险命令检测不完整 | 完善检测规则 |
+| P-2 | P1 | 路径约束配置分散 | 统一配置 |
+| P-3 | P2 | 权限日志缺失 | 添加审计日志 |
+
+---
+
+### 5. Session System (会话管理)
+
+| 文件 | 行数 | 功能 |
+|------|------|------|
+| `src/session/session-tracker.ts` | 300+ | 会话状态跟踪 |
+| `src/session/storage.ts` | 200+ | 会话持久化 |
+
+#### 问题清单
+
+| ID | 严重程度 | 问题 | 解决方案 |
+|----|----------|------|----------|
+| SS-1 | P1 | 状态保存有延迟 | 添加同步保存 |
+| SS-2 | P2 | 会话恢复逻辑简单 | 改进恢复机制 |
+| SS-3 | P2 | 历史记录限制 | 配置化限制 |
+
+---
+
+### 6. Memory System (记忆管理)
+
+| 文件 | 行数 | 功能 |
+|------|------|------|
+| `src/memory/memory-manager.ts` | 300+ | 记忆管理器 |
+| `src/memory/extraction.ts` | 150+ | 记忆提取 |
+| `src/memory/flush.ts` | 100+ | 记忆刷新 |
+| `src/memory/observation-buffer.ts` | 100+ | 观察缓冲 |
+
+#### 问题清单
+
+| ID | 严重程度 | 问题 | 解决方案 |
+|----|----------|------|----------|
+| M-1 | P1 | 提取间隔硬编码 | 配置化 |
+| M-2 | P2 | 缓冲大小硬编码 | 配置化 |
+| M-3 | P2 | 持久化机制简单 | 改进存储 |
+
+---
+
+### 7. Hooks System (钩子系统)
+
+| 文件 | 行数 | 功能 |
+|------|------|------|
+| `src/hooks/agent-hooks.ts` | 500+ | 8个Agent钩子 |
+| `src/hooks/stop-hooks.ts` | 100+ | 停止钩子 |
+| `src/hooks/user-hooks.ts` | 50+ | 用户钩子 |
+
+#### 8个Agent钩子
+
+| 钩子 | 功能 |
 |------|------|
-| `src/config/index.ts` | 配置入口 |
-| `src/config/schema.ts` | 配置类型定义 |
-| `src/config/env.ts` | 环境变量解析 |
-| `src/config/defaults.ts` | 默认值定义 |
+| `useMemoryUsage` | 内存监控 |
+| `useMergedClients` | MCP客户端合并 |
+| `useCommandQueue` | 命令队列 |
+| `useDynamicConfig` | 动态配置 |
+| `useSessionBackgrounding` | 会话后台管理 |
+| `useToolMetrics` | 工具指标 |
+| `useSessionRecovery` | 会话恢复 |
+| `useContextWatchdog` | 上下文监控 |
+
+#### 问题清单
+
+| ID | 严重程度 | 问题 | 解决方案 |
+|----|----------|------|----------|
+| H-1 | P1 | 内存阈值硬编码 | 配置化 |
+| H-2 | P2 | 钩子顺序不明确 | 添加优先级 |
 
 ---
 
-## Phase 2: API URL 配置化 (P0)
+### 8. Model/LLM System (模型集成)
 
-### 2.1 Tushare Client
-
-**修改文件**: `src/tools/astock/tushare-client.ts`
-
-```typescript
-// Before
-private readonly baseUrl = 'http://api.tushare.pro';
-
-// After
-import { getConfig } from '../../config/index';
-const config = getConfig();
-private readonly baseUrl = config.api.tushare.baseUrl;
-```
-
-### 2.2 Eastmoney Clients
-
-**修改文件**:
-- `src/tools/astock/news-client.ts`
-- `src/tools/astock/realtime-client.ts`
-- `src/tools/astock/screener-client.ts`
-
-### 2.3 Finance API
-
-**修改文件**: `src/tools/finance/api.ts`
-
----
-
-## Phase 3: Timeout 配置化 (P1)
-
-### 3.1 统一 Timeout 定义
-
-```typescript
-// src/config/defaults.ts
-export const DEFAULT_TIMEOUTS = {
-  bash: 30_000,           // 30s
-  powershell: 30_000,     // 30s
-  tushare: 10_000,        // 10s
-  astock: 10_000,         // 10s
-  eastmoney: 5_000,       // 5s
-  fetch: 30_000,          // 30s
-  skill: 60_000,          // 60s
-} as const;
-```
-
-### 3.2 修改文件
-
-| 文件 | 原值 | 新配置 |
-|------|------|--------|
-| `src/tools/bash/bash-tool.ts` | 30_000 | `config.tool.bash.timeout` |
-| `src/tools/powershell/powershell-tool.ts` | 30_000 | `config.tool.powershell.timeout` |
-| `src/tools/astock/tushare-client.ts` | 10_000 | `config.api.tushare.timeout` |
-| `src/skills/executor.ts` | 30_000 | `config.tool.skill.timeout` |
-| `src/skills/promptShellExecution.ts` | 30_000 | `config.tool.bash.timeout` |
-
----
-
-## Phase 4: Retry 配置化 (P1)
-
-### 4.1 统一 Retry 定义
-
-```typescript
-// src/config/defaults.ts
-export const DEFAULT_RETRY = {
-  maxRetries: 2,
-  delayMs: 500,
-  backoffMultiplier: 2,
-} as const;
-```
-
-### 4.2 修改文件
-
-| 文件 | 原值 | 新配置 |
-|------|------|--------|
-| `src/tools/astock/news-client.ts` | MAX_RETRIES=2 | `config.retry.maxRetries` |
-| `src/tools/astock/tushare-client.ts` | MAX_RETRIES=2 | `config.retry.maxRetries` |
-| `src/tools/astock/realtime-client.ts` | MAX_RETRIES=2 | `config.retry.maxRetries` |
-| `src/tools/astock/screener-client.ts` | MAX_RETRIES=2 | `config.retry.maxRetries` |
-| `src/agent/agent.ts` | MAX_OVERFLOW_RETRIES=2 | `config.agent.maxOverflowRetries` |
-
----
-
-## Phase 5: Cache TTL 配置化 (P1)
-
-### 5.1 统一 TTL 定义
-
-```typescript
-// src/config/defaults.ts
-export const DEFAULT_CACHE_TTL = {
-  TTL_15M: 15 * 60 * 1000,    // 15分钟
-  TTL_1H: 60 * 60 * 1000,      // 1小时
-  TTL_6H: 6 * 60 * 60 * 1000, // 6小时
-  TTL_24H: 24 * 60 * 60 * 1000, // 24小时
-} as const;
-```
-
-### 5.2 修改文件
-
-| 文件 | 原值 | 新配置 |
-|------|------|--------|
-| `src/tools/finance/utils.ts` | TTL_15M 等 | `config.cache.ttl15m` |
-| `src/tools/fetch/cache.ts` | TTL 15min | `config.cache.ttl15m` |
-| `src/tools/astock/data-cache.ts` | TTL 5min | `config.cache.ttl15m` |
-| `src/tools/fx/fx-tools.ts` | TTL 1h | `config.cache.ttl1h` |
-
----
-
-## Phase 6: 业务参数配置化 (P0)
-
-### 6.1 Risk Management
-
-**修改文件**: `src/tools/risk/management.ts`
-
-```typescript
-// Before
-const accountSize = 100000;
-const winRate = 0.55;
-const avgWin = 0.05;
-const avgLoss = 0.03;
-const kellyCap = 0.25;
-
-// After
-import { getConfig } from '../../config/index';
-const config = getConfig();
-const { accountSize, winRate, avgWin, avgLoss, kellyCap } = config.business.risk;
-```
-
-### 6.2 其他业务参数
-
-| 文件 | 参数 | 建议 |
+| 文件 | 行数 | 功能 |
 |------|------|------|
-| `src/tools/forecast/index.ts` | avgPE=20 | 保留默认值 |
-| `src/tools/risk/management.ts` | 风险参数 | 配置化 |
+| `src/model/llm.ts` | 500+ | LLM集成 |
+| `src/model/fallback.ts` | 100+ | 模型回退 |
+
+#### 支持的模型
+
+| 提供商 | 模型 | 状态 |
+|--------|------|------|
+| DeepSeek | deepseek-v4-flash | ✅ 默认 |
+| OpenAI | gpt-4, gpt-3.5 | ✅ |
+| Anthropic | claude-3 | ✅ |
+| Ollama | 本地模型 | ✅ |
+| Google | gemini-pro | 🔲 |
+
+#### 问题清单
+
+| ID | 严重程度 | 问题 | 解决方案 |
+|----|----------|------|----------|
+| L-1 | P1 | API Key加载逻辑重复 | 统一管理 |
+| L-2 | P2 | 模型配置分散 | 集中配置 |
 
 ---
 
-## Phase 7: SKILL.md 配置化 (P1)
+### 9. TUI System (终端界面)
 
-### 7.1 动态日期生成
+| 文件 | 行数 | 功能 |
+|------|------|------|
+| `src/tui/components/*.tsx` | 2000+ | TUI组件 |
+| `src/tui/theme.ts` | 100+ | 主题系统 |
 
-**问题**: SKILL.md 中硬编码日期如 `20240101`, `20241231`
+#### 问题清单
 
-**解决方案**: 使用脚本标签动态生成
-
-```markdown
-```bash
-# 获取最近12个月的数据
-python3 -c "
-import datetime
-end = datetime.date.today().strftime('%Y%m%d')
-start = (datetime.date.today() - datetime.timedelta(days=365)).strftime('%Y%m%d')
-print(f'start={start}, end={end}')
-"
-```
-```
-
-### 7.2 提取 API URLs 到环境变量
-
-**问题**: SKILL.md 中硬编码 API URLs
-
-**解决方案**: 在 SKILL.md frontmatter 中定义变量
-
-```markdown
----
-env:
-  TUSHARE_API_URL: "https://api.tushare.pro"
-  EXA_API_URL: "https://api.exa.ai"
----
-```
-
-### 7.3 参数化筛选阈值
-
-**问题**: 硬编码筛选条件
-
-**解决方案**: 使用参数占位符
-
-```markdown
-```bash
-python3 -c "
-import akshare as ak
-df = ak.stock_a_indicator_ly(
-    symbol='{{pe_threshold|30}}',
-    start_date='{{start_date}}',
-    end_date='{{end_date}}'
-)
-"
-```
-```
+| ID | 严重程度 | 问题 | 解决方案 |
+|----|----------|------|----------|
+| UI-1 | P2 | 主题配置分散 | 统一主题系统 |
+| UI-2 | P2 | 组件文档缺失 | 补充文档 |
 
 ---
 
-## Phase 8: 测试验证 (P1)
+## 🎯 改造计划
 
-### 8.1 单元测试
+### Phase 1: 配置中心 (P0)
 
-```bash
-# 测试配置加载
-$ bun test src/config/*.test.ts
-
-# 测试配置覆盖
-$ bun test src/config/override.test.ts
+```
+┌─────────────────────────────────────────────────────────────────────────────────────┐
+│                          配置中心 (src/config/)                                   │
+├─────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                 │
+│  配置优先级:                                                                      │
+│  1. 环境变量 (最高)                                                              │
+│  2. settings.json                                                               │
+│  3. defaults.ts (最低)                                                          │
+│                                                                                 │
+│  ┌─────────────────────────────────────────────────────────────────────────┐   │
+│  │ export interface ConfigSchema {                                          │   │
+│  │   agent: { maxIterations, timeout }                                     │   │
+│  │   api: { tushare: {...}, eastmoney: {...} }                            │   │
+│  │   tool: { bash: { timeout }, fetch: { timeout } }                      │   │
+│  │   cache: { ttl15m, ttl1h, ttl6h, ttl24h }                              │   │
+│  │   memory: { extractionInterval, bufferSize }                            │   │
+│  │   hooks: { memoryWarningThreshold, memoryCriticalThreshold }             │   │
+│  │   business: { risk: {...}, screening: {...} }                          │   │
+│  │ }                                                                        │   │
+│  └─────────────────────────────────────────────────────────────────────────┘   │
+│                                                                                 │
+└─────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 8.2 集成测试
+### Phase 2: 命令系统重构 (P0)
 
-```bash
-# 测试环境变量覆盖
-$ TUSHARE_TIMEOUT_MS=5000 bun test
+| 任务 | 优先级 | 状态 |
+|------|--------|------|
+| 统一命令解析器 (中文支持) | P0 | 待实现 |
+| 单一命令注册表 | P0 | 待实现 |
+| 安全Shell执行器 | P0 | 待实现 |
+| 添加DCF技能 | P1 | 待实现 |
 
-# 测试配置文件覆盖
-$ cat settings.d/test.json
-{
-  "api.tushare.timeout": 5000
-}
-```
+### Phase 3: 工具系统优化 (P1)
+
+| 任务 | 优先级 | 状态 |
+|------|--------|------|
+| API URLs配置化 | P1 | 待实现 |
+| Timeout配置化 | P1 | 待实现 |
+| Retry配置化 | P1 | 待实现 |
+| Cache TTL配置化 | P1 | 待实现 |
+
+### Phase 4: Agent系统优化 (P1)
+
+| 任务 | 优先级 | 状态 |
+|------|--------|------|
+| MaxIterations配置化 | P1 | 待实现 |
+| 上下文压缩阈值配置化 | P1 | 待实现 |
+| 循环检测算法改进 | P2 | 待实现 |
+
+### Phase 5: 其他系统优化 (P2)
+
+| 任务 | 优先级 | 状态 |
+|------|--------|------|
+| Memory阈值配置化 | P2 | 待实现 |
+| 权限配置化 | P2 | 待实现 |
+| 会话恢复改进 | P2 | 待实现 |
 
 ---
 
-## 实施顺序
+## 📁 文件变更计划
 
-```
-Phase 1: 配置中心模块 (基础)
-Phase 2: API URL 配置化 (P0)
-Phase 6: 业务参数配置化 (P0)
-Phase 3: Timeout 配置化 (P1)
-Phase 4: Retry 配置化 (P1)
-Phase 5: Cache TTL 配置化 (P1)
-Phase 7: SKILL.md 配置化 (P1)
-Phase 8: 测试验证
-```
+### 新增文件
 
----
+| 文件 | 功能 | 优先级 |
+|------|------|--------|
+| `src/config/index.ts` | 配置入口 | P0 |
+| `src/config/schema.ts` | 类型定义 | P0 |
+| `src/config/env.ts` | 环境变量解析 | P0 |
+| `src/config/defaults.ts` | 默认值 | P0 |
+| `src/commands/parser.ts` | 命令解析器 | P0 |
+| `src/commands/registry.ts` | 单一注册表 | P0 |
+| `src/commands/executor.ts` | 安全执行器 | P0 |
+| `src/commands/shell.ts` | Shell安全执行 | P0 |
 
-## 环境变量清单
+### 修改文件
 
-| 变量名 | 类型 | 默认值 | 说明 |
-|--------|------|--------|------|
-| `TUSHARE_BASE_URL` | string | https://api.tushare.pro | Tushare API URL |
-| `TUSHARE_TIMEOUT_MS` | number | 10000 | Tushare 超时 |
-| `BASH_TIMEOUT_MS` | number | 30000 | Bash 超时 |
-| `AGENT_MAX_ITERATIONS` | number | 50 | Agent 最大迭代 |
-| `CACHE_TTL_15M` | number | 900000 | 15分钟缓存 |
-| `CACHE_TTL_1H` | number | 3600000 | 1小时缓存 |
-| `RISK_ACCOUNT_SIZE` | number | 100000 | 默认账户规模 |
-| `RISK_WIN_RATE` | number | 0.55 | 默认胜率 |
-
----
-
-## 配置文件格式
-
-### settings.json
-
-```json
-{
-  "api": {
-    "tushare": {
-      "baseUrl": "https://api.tushare.pro",
-      "timeout": 10000,
-      "maxRetries": 2
-    },
-    "eastmoney": {
-      "newsUrl": "https://np-anotice-stock.eastmoney.com",
-      "timeout": 5000
-    }
-  },
-  "agent": {
-    "maxIterations": 50,
-    "maxOverflowRetries": 2
-  },
-  "tool": {
-    "bash": {
-      "timeout": 30000,
-      "maxOutputLength": 100000
-    }
-  },
-  "cache": {
-    "ttl15m": 900000,
-    "ttl1h": 3600000,
-    "ttl6h": 21600000,
-    "ttl24h": 86400000
-  },
-  "business": {
-    "risk": {
-      "defaultAccountSize": 100000,
-      "defaultWinRate": 0.55,
-      "kellyCap": 0.25
-    }
-  }
-}
-```
-
-### .env 示例
-
-```bash
-# API 配置
-TUSHARE_BASE_URL=https://api.tushare.pro
-TUSHARE_TIMEOUT_MS=10000
-
-# Agent 配置
-AGENT_MAX_ITERATIONS=50
-
-# Cache 配置
-CACHE_TTL_15M=900000
-CACHE_TTL_1H=3600000
-
-# 业务配置
-RISK_ACCOUNT_SIZE=100000
-```
+| 文件 | 变更 | 优先级 |
+|------|------|--------|
+| `src/agent/agent.ts` | 使用配置中心 | P1 |
+| `src/skills/*.ts` | 重构命令系统 | P0 |
+| `src/tools/astock/*.ts` | API URL配置化 | P1 |
+| `src/tools/finance/*.ts` | API URL配置化 | P1 |
+| `src/tools/bash/bash-tool.ts` | 使用安全执行器 | P0 |
+| `src/memory/*.ts` | 使用配置中心 | P2 |
+| `src/hooks/agent-hooks.ts` | 使用配置中心 | P2 |
 
 ---
 
-## 验证清单
+## 📅 时间线
 
-- [ ] 配置中心模块创建完成
-- [ ] 所有 API URL 从配置读取
-- [ ] 所有 Timeout 值统一管理
-- [ ] 所有 Retry 配置统一管理
-- [ ] 所有 Cache TTL 统一管理
-- [ ] 业务参数支持配置化
-- [ ] 环境变量覆盖测试通过
-- [ ] 配置文件覆盖测试通过
+| Phase | 任务 | 优先级 | 预计时间 |
+|-------|------|--------|----------|
+| Phase 1 | 配置中心模块 | P0 | 4小时 |
+| Phase 2 | 命令系统重构 | P0 | 8小时 |
+| Phase 3 | 工具系统优化 | P1 | 6小时 |
+| Phase 4 | Agent系统优化 | P1 | 4小时 |
+| Phase 5 | 其他系统优化 | P2 | 4小时 |
+| Phase 6 | 测试验证 | P1 | 4小时 |
+
+**总计**: ~30小时
+
+---
+
+## ✅ 验收标准
+
+### Phase 1: 配置中心
+- [ ] 配置入口正常工作
+- [ ] 环境变量覆盖生效
+- [ ] 默认值正确
+- [ ] 配置类型安全
+
+### Phase 2: 命令系统
+- [ ] 中文命令解析测试通过
+- [ ] Shell执行超时控制工作
+- [ ] Shell执行权限检查工作
+- [ ] DCF技能可执行
+- [ ] 三重Map问题解决
+
+### Phase 3: 工具系统
+- [ ] API URLs从配置读取
+- [ ] Timeout值可配置
+- [ ] Retry次数可配置
+- [ ] Cache TTL可配置
+
+### Phase 4: Agent系统
+- [ ] MaxIterations可配置
+- [ ] 上下文压缩阈值可配置
+- [ ] 模型回退配置统一
+
+### Phase 5: 其他系统
+- [ ] Memory阈值可配置
+- [ ] 权限配置可管理
+- [ ] 会话恢复机制改进
+
+### 全面验收
 - [ ] 单元测试通过
 - [ ] 集成测试通过
+- [ ] Skills执行测试 100%通过
+- [ ] 连续对话测试通过
 
 ---
 
-## 预期收益
+## 📝 问题追踪表
 
-1. **可维护性提升** - 配置集中管理，减少散落各处的硬编码
-2. **灵活性增强** - 支持多环境配置，无需修改代码
-3. **错误率降低** - 统一默认值，减少不一致导致的 bug
-4. **部署简化** - 支持 Docker/K8s 环境变量注入
+### P0 - 阻塞性问题
+
+| ID | 模块 | 问题 | 状态 |
+|----|------|------|------|
+| P0-1 | Skills | Shell执行安全风险 | 待修复 |
+| P0-2 | Skills | 三重Map不同步 | 待修复 |
+| P0-3 | Skills | 危险命令检测不完整 | 待修复 |
+
+### P1 - 高优先级问题
+
+| ID | 模块 | 问题 | 状态 |
+|----|------|------|------|
+| P1-1 | Skills | 中文命令不支持 | 待修复 |
+| P1-2 | Skills | Shell超时硬编码 | 待修复 |
+| P1-3 | Skills | `/dcf` 技能缺失 | 待修复 |
+| P1-4 | Tools | API URLs硬编码 | 待修复 |
+| P1-5 | Tools | Timeout值分散 | 待修复 |
+| P1-6 | Agent | MAX_ITERATIONS硬编码 | 待修复 |
+| P1-7 | Model | API Key加载逻辑重复 | 待修复 |
+
+### P2 - 中优先级问题
+
+| ID | 模块 | 问题 | 状态 |
+|----|------|------|------|
+| P2-1 | Skills | 统计不持久化 | 待修复 |
+| P2-2 | Tools | Cache TTL不统一 | 待修复 |
+| P2-3 | Tools | Retry次数不一致 | 待修复 |
+| P2-4 | Agent | 循环检测算法简单 | 待改进 |
+| P2-5 | Memory | 提取间隔硬编码 | 待配置化 |
+| P2-6 | Hooks | 内存阈值硬编码 | 待配置化 |
+| P2-7 | Session | 会话恢复逻辑简单 | 待改进 |
 
 ---
 
-*文档版本: 1.0*
+## 参考文档
+
+- `src/agent/agent.ts` - Agent核心逻辑
+- `src/skills/slash-command.ts` - 命令系统
+- `src/skills/executor.ts` - 执行引擎
+- `src/tools/registry/index.ts` - 工具注册
+- `src/tools/bash/bash-tool.ts` - Bash工具
+- `src/session/session-tracker.ts` - 会话管理
+- `src/memory/memory-manager.ts` - 记忆管理
+- `src/hooks/agent-hooks.ts` - 钩子系统
+- `src/model/llm.ts` - 模型集成
+- `PLAN46.md` - TUI重构计划
+- `x11.md` - Skills测试报告
+
+---
+
+*文档版本: 3.0 Complete*
 *创建时间: 2026-05-29*
-*参考: PLAN46.md (TUI 重构完成)*
+*更新: 2026-05-29*
+*状态: 分析完成，待实施*
+*参考: v11.0 Complete 验证结果*
