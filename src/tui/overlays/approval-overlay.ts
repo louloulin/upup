@@ -3,10 +3,11 @@
  *
  * 对标 Loucode ApprovalOverlay
  * 工具执行授权确认浮层
+ * 使用 pi-tui TUI.showOverlay API 实现居中显示
  */
 
 import { matchesKey, Key } from '@earendil-works/pi-tui';
-import { useApproval } from '../hooks/use-approval.js';
+import type { Component, OverlayHandle } from '@earendil-works/pi-tui';
 
 // ============================================================================
 // Types
@@ -56,14 +57,42 @@ const THEME = {
 };
 
 // ============================================================================
-// Component
+// ApprovalContent - 浮层内容组件 (实现 Component 接口)
 // ============================================================================
 
-export class ApprovalOverlay {
+class ApprovalContent implements Component {
+  private overlay: ApprovalOverlay;
+
+  constructor(overlay: ApprovalOverlay) {
+    this.overlay = overlay;
+  }
+
+  render(width: number): string[] {
+    return this.overlay.renderContent(width);
+  }
+
+  handleInput(data: string): void {
+    this.overlay.handleInputInternal(data);
+  }
+
+  invalidate(): void {
+    // no-op for content component
+  }
+}
+
+// ============================================================================
+// ApprovalOverlay - 使用 pi-tui Overlay 系统
+// ============================================================================
+
+export class ApprovalOverlay implements Component {
   private request: ApprovalRequest | null;
   private visible: boolean;
   private focusedIndex: number = 0;
   private selectedOption: 'approve' | 'deny' | 'approve-all' | 'deny-all' | 'cancel' = 'approve';
+
+  // pi-tui Overlay 句柄
+  private overlayHandle: OverlayHandle | null = null;
+  private contentComponent: ApprovalContent | null = null;
 
   private onApprove: (id: string) => void;
   private onDeny: (id: string) => void;
@@ -79,6 +108,34 @@ export class ApprovalOverlay {
     this.onApproveAll = props.onApproveAll;
     this.onDenyAll = props.onDenyAll;
     this.onClose = props.onClose;
+
+    // 创建内容组件
+    this.contentComponent = new ApprovalContent(this);
+  }
+
+  /**
+   * 显示浮层
+   */
+  showOverlay(tui: { showOverlay: (component: Component, options?: object) => OverlayHandle }): void {
+    if (this.overlayHandle) return;
+
+    this.visible = true;
+    this.overlayHandle = tui.showOverlay(this.contentComponent!, {
+      anchor: 'center',
+      width: 60,
+      maxHeight: '80%',
+    });
+  }
+
+  /**
+   * 隐藏浮层
+   */
+  hideOverlay(): void {
+    if (this.overlayHandle) {
+      this.overlayHandle.hide();
+      this.overlayHandle = null;
+    }
+    this.visible = false;
   }
 
   /**
@@ -109,9 +166,16 @@ export class ApprovalOverlay {
   }
 
   /**
-   * 处理输入
+   * 处理输入 (由 TUI 调用)
    */
   handleInput(data: string): void {
+    this.handleInputInternal(data);
+  }
+
+  /**
+   * 内部输入处理
+   */
+  handleInputInternal(data: string): void {
     if (!this.visible) return;
 
     // 方向键导航
@@ -137,6 +201,7 @@ export class ApprovalOverlay {
       if (this.request) {
         this.onDeny(this.request.id);
       }
+      this.hideOverlay();
       this.onClose();
       return;
     }
@@ -146,6 +211,7 @@ export class ApprovalOverlay {
       if (this.request) {
         this.onApproveAll(this.request.id);
       }
+      this.hideOverlay();
       this.onClose();
       return;
     }
@@ -154,6 +220,7 @@ export class ApprovalOverlay {
       if (this.request) {
         this.onDenyAll(this.request.id);
       }
+      this.hideOverlay();
       this.onClose();
       return;
     }
@@ -187,9 +254,11 @@ export class ApprovalOverlay {
         this.onDenyAll(this.request.id);
         break;
       case 'cancel':
+        this.hideOverlay();
         this.onClose();
         return;
     }
+    this.hideOverlay();
     this.onClose();
   }
 
@@ -225,9 +294,9 @@ export class ApprovalOverlay {
   }
 
   /**
-   * 渲染组件
+   * 渲染内容 (由 ApprovalContent 调用)
    */
-  render(width: number): string[] {
+  renderContent(width: number): string[] {
     if (!this.visible || !this.request) {
       return [];
     }
@@ -285,6 +354,20 @@ export class ApprovalOverlay {
     lines.push(' '.repeat(padding) + `${THEME.border}└${'─'.repeat(innerWidth - 2)}┘${THEME.reset}`);
 
     return lines;
+  }
+
+  /**
+   * Component.render - 由 TUI 调用
+   */
+  render(width: number): string[] {
+    return this.renderContent(width);
+  }
+
+  /**
+   * Component.invalidate
+   */
+  invalidate(): void {
+    // no-op
   }
 }
 

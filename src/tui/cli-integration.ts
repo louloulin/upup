@@ -73,11 +73,12 @@ export function createTUICLIIntegration(tui: TUI): TUICLIIntegration {
     _renderScheduled = true;
     _pendingRender = false;
 
-    // Use requestAnimationFrame-like behavior
-    Promise.resolve().then(() => {
+    // FIXED: 使用 setImmediate 替代 Promise.resolve() 以避免微任务队列阻塞
+    setImmediate(() => {
       _renderScheduled = false;
       if (_pendingRender) {
-        scheduleRender();
+        _pendingRender = false;
+        scheduleRender();  // 递归调度，处理积压
       } else {
         try {
           tui.requestRender();

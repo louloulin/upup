@@ -1,4 +1,41 @@
 import { Container, ProcessTerminal, Spacer, Text, TUI, Key, matchesKey } from '@earendil-works/pi-tui';
+
+// ============================================================================
+// 全局渲染控制 - FIXED: 防止丢失渲染请求
+// ============================================================================
+let _renderPending = false;
+let _needsRenderAfterPending = false;
+let _tuiInstance: TUI | null = null;
+const RENDER_THROTTLE_MS = 32;
+
+/**
+ * 节流渲染 - 用于普通事件 (30fps)
+ */
+function throttledRender(): void {
+  if (!_tuiInstance) return;
+  if (_renderPending) {
+    _needsRenderAfterPending = true;
+    return;
+  }
+  _renderPending = true;
+  _needsRenderAfterPending = false;
+
+  setImmediate(() => {
+    _tuiInstance?.requestRender();
+    _renderPending = false;
+
+    if (_needsRenderAfterPending) {
+      throttledRender();
+    }
+  });
+}
+
+/**
+ * 强制渲染 - 用于关键事件 (工具开始/完成等)
+ */
+function forceRender(): void {
+  _tuiInstance?.requestRender(true);
+}
 import type {
   ApprovalDecision,
   ToolEndEvent,
@@ -243,6 +280,7 @@ function renderEvent(
     } else if (display.progressMessage) {
       component.setActive(display.progressMessage);
     }
+    forceRender();  // 工具开始时强制渲染
     return;
   }
 
@@ -257,18 +295,21 @@ function renderEvent(
     const stored = pendingApprovalDecisionGlobal;
     pendingApprovalDecisionGlobal = null;
     comp.setApprovalPending(cb, stored);
+    forceRender();  // 工具审批时强制渲染
     return;
   }
 
   if (event.type === 'tool_denied') {
     const path = (event.args.path as string) ?? '';
     chatLog.startTool(display.id, event.tool, event.args).setDenied(path, event.tool);
+    forceRender();  // 工具拒绝时强制渲染
     return;
   }
 
   if (event.type === 'tool_limit') {
     const component = chatLog.startTool(display.id, event.tool, {});
     component.setLimitWarning(event.warning);
+    forceRender();  // 工具限制时强制渲染
     return;
   }
 
@@ -296,6 +337,8 @@ function renderEvent(
     const tokens = event.tokenCount ? ` (~${event.tokenCount} tokens)` : '';
     chatLog.addChild(new Text(`${theme.muted('⎿')} ${theme.muted(`memory recalled: ${count} file(s)${tokens}`)}`, 0, 0));
   }
+  // 非关键事件使用节流渲染
+  throttledRender();
 }
 
 export interface RunCliOptions {
@@ -327,6 +370,7 @@ export async function runCli(options: RunCliOptions = {}) {
   }
 
   const tui = new TUI(new ProcessTerminal());
+  _tuiInstance = tui;  // 注册全局 TUI 实例用于渲染函数
   const root = new Container();
   const chatLog = new ChatLogComponent(tui);
   const inputHistory = new InputHistoryController(() => tui.requestRender());
@@ -529,18 +573,6 @@ export async function runCli(options: RunCliOptions = {}) {
   root.addChild(debugPanel);
   tui.addChild(root);
   initSpinner(tui);
-
-  // Render throttle for agent events (~30fps max)
-  let renderPending = false;
-  const RENDER_THROTTLE_MS = 32;
-  function throttledRender(): void {
-    if (renderPending) return;
-    renderPending = true;
-    setTimeout(() => {
-      renderPending = false;
-      tui.requestRender();
-    }, RENDER_THROTTLE_MS);
-  }
 
   const refreshError = () => {
     const message = lastError ?? agentRunner.error;

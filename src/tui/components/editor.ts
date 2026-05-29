@@ -1,11 +1,19 @@
 /**
  * Editor Component
  *
- * 对标 Loucode Editor 组件
- * 多行编辑器，支持输入和自动补全提示
+ * 基于 pi-tui Editor 的 UpUp 编辑器组件
+ * 提供完整 Emacs 风格编辑体验
  */
 
-import { matchesKey, Key } from '@earendil-works/pi-tui';
+import {
+  Editor as PiEditor,
+  TUI,
+  type TUI as TUIType,
+  type EditorTheme,
+  type Component,
+  type SelectListTheme,
+} from '@earendil-works/pi-tui';
+import type { AutocompleteProvider, AutocompleteItem } from '@earendil-works/pi-tui';
 
 // ============================================================================
 // Types
@@ -24,15 +32,15 @@ export interface EditorProps {
   readOnly?: boolean;
   /** 是否启用多行模式 */
   multiline?: boolean;
-  /** 自动补全列表 */
+  /** 自动补全列表 (简单字符串数组) */
   autocomplete?: string[];
-  /** 自动补全回调 */
+  /** 自动补全回调 (返回匹配项) */
   onAutocomplete?: (input: string) => string[];
   /** 内容变化回调 */
   onChange?: (value: string) => void;
-  /** 提交回调 */
+  /** 提交回调 (Enter) */
   onSubmit?: (value: string) => void;
-  /** 取消回调 */
+  /** 取消回调 (Escape) */
   onCancel?: () => void;
 }
 
@@ -40,371 +48,234 @@ export interface EditorProps {
 // Theme Colors
 // ============================================================================
 
-const THEME = {
-  prompt: '\x1b[1;32m',      // 绿色
-  cursor: '\x1b[1;37m',       // 白色
-  cursorBlock: '\x1b[7m',     // 反白
-  text: '\x1b[0;37m',        // 白色
-  placeholder: '\x1b[0;90m',  // 灰色
-  autocomplete: '\x1b[0;36m', // 青色
-  autocompleteSelect: '\x1b[1;33m', // 黄色选中
-  border: '\x1b[0;90m',       // 灰色
-  reset: '\x1b[0m',
+const THEME: EditorTheme = {
+  borderColor: (str) => `\x1b[0;90m${str}\x1b[0m`,
+  selectList: {
+    selectedPrefix: (s) => `\x1b[1;33m▸ ${s}\x1b[0m`,
+    selectedText: (s) => `\x1b[1;37m${s}\x1b[0m`,
+    description: (s) => `\x1b[0;90m${s}\x1b[0m`,
+    scrollInfo: (s) => `\x1b[0;90m${s}\x1b[0m`,
+    noMatch: (s) => `\x1b[0;31mNo match: ${s}\x1b[0m`,
+  },
 };
 
 // ============================================================================
-// Component
+// UpUp Editor (Wrapper around pi-tui Editor)
 // ============================================================================
 
-export class Editor {
-  private value: string;
-  private placeholder: string;
-  private maxLines: number;
-  private maxWidth: number;
-  private readOnly: boolean;
-  private multiline: boolean;
-  private cursorPosition: number = 0;
-  private scrollOffset: number = 0;
-  private autocomplete: string[];
-  private autocompleteIndex: number = -1;
-  private showAutocomplete: boolean = false;
+export class Editor implements Component {
+  private editor: PiEditor;
+  private tui: TUIType;
 
-  private onAutocomplete?: (input: string) => string[];
+  // 回调
   private onChange?: (value: string) => void;
   private onSubmit?: (value: string) => void;
   private onCancel?: () => void;
+  private onAutocomplete?: (input: string) => string[];
 
-  constructor(props: EditorProps) {
-    this.value = props.value || '';
-    this.placeholder = props.placeholder || '';
-    this.maxLines = props.maxLines || 10;
-    this.maxWidth = props.maxWidth || 80;
-    this.readOnly = props.readOnly || false;
-    this.multiline = props.multiline !== false;
-    this.autocomplete = props.autocomplete || [];
-    this.onAutocomplete = props.onAutocomplete;
+  constructor(tui: TUIType, props: EditorProps = {}) {
+    this.tui = tui;
+
+    // 创建 pi-tui Editor 实例
+    this.editor = new PiEditor(tui, THEME, {
+      paddingX: 2,
+      autocompleteMaxVisible: 10,
+    });
+
+    // 绑定回调
     this.onChange = props.onChange;
     this.onSubmit = props.onSubmit;
     this.onCancel = props.onCancel;
+    this.onAutocomplete = props.onAutocomplete;
+
+    // 设置提交回调
+    this.editor.onSubmit = (text) => {
+      this.onSubmit?.(text);
+    };
+
+    // 设置内容变化回调
+    this.editor.onChange = (text) => {
+      this.onChange?.(text);
+    };
+
+    // 如果有初始值
+    if (props.value) {
+      this.editor.setText(props.value);
+    }
+
+    // 如果有自动补全回调，设置提供者
+    if (props.onAutocomplete) {
+      this.editor.setAutocompleteProvider(
+        this.createAutocompleteProvider(props.onAutocomplete)
+      );
+    }
   }
+
+  /**
+   * 创建自动补全提供者
+   */
+  private createAutocompleteProvider(
+    onAutocomplete: (input: string) => string[]
+  ): AutocompleteProvider {
+    return {
+      async getSuggestions(
+        lines: string[],
+        cursorLine: number,
+        cursorCol: number,
+        options: { signal: AbortSignal; force?: boolean }
+      ): Promise<{ items: AutocompleteItem[]; prefix: string } | null> {
+        const currentLine = lines[cursorLine] || '';
+        const textBeforeCursor = currentLine.slice(0, cursorCol);
+
+        // 提取命令前缀 (以 / 开头)
+        const match = textBeforeCursor.match(/(\/\w*)$/);
+        if (!match) {
+          return null;
+        }
+
+        const prefix = match[1];
+        const query = prefix.slice(1); // 去掉 /
+
+        const suggestions = onAutocomplete(query);
+
+        if (suggestions.length === 0) {
+          return null;
+        }
+
+        return {
+          items: suggestions.map((s) => ({
+            value: s.startsWith('/') ? s : `/${s}`,
+            label: s.startsWith('/') ? s : `/${s}`,
+            description: undefined,
+          })),
+          prefix,
+        };
+      },
+
+      applyCompletion(
+        lines: string[],
+        cursorLine: number,
+        cursorCol: number,
+        item: AutocompleteItem,
+        prefix: string
+      ): { lines: string[]; cursorLine: number; cursorCol: number } {
+        const newLines = [...lines];
+        const currentLine = newLines[cursorLine];
+
+        // 找到前缀位置并替换
+        const prefixIndex = cursorCol - prefix.length;
+        const newLine = currentLine.slice(0, prefixIndex) + item.value + currentLine.slice(cursorCol);
+        newLines[cursorLine] = newLine;
+
+        return {
+          lines: newLines,
+          cursorLine,
+          cursorCol: prefixIndex + item.value.length,
+        };
+      },
+    };
+  }
+
+  // ========================================================================
+  // Public Methods (API兼容)
+  // ========================================================================
 
   /**
    * 获取当前值
    */
   getValue(): string {
-    return this.value;
+    return this.editor.getText();
+  }
+
+  /**
+   * 获取行列表
+   */
+  getLines(): string[] {
+    return this.editor.getLines();
+  }
+
+  /**
+   * 获取光标位置
+   */
+  getCursor(): { line: number; col: number } {
+    return this.editor.getCursor();
   }
 
   /**
    * 设置值
    */
   setValue(value: string): void {
-    this.value = value;
-    this.cursorPosition = value.length;
-    this.onChange?.(value);
+    this.editor.setText(value);
   }
 
   /**
    * 清空内容
    */
   clear(): void {
-    this.value = '';
-    this.cursorPosition = 0;
-    this.showAutocomplete = false;
-    this.onChange?.('');
+    this.editor.setText('');
   }
 
   /**
-   * 设置占位符
+   * 插入文本到光标位置
    */
-  setPlaceholder(placeholder: string): void {
-    this.placeholder = placeholder;
+  insertText(text: string): void {
+    this.editor.insertTextAtCursor(text);
+  }
+
+  /**
+   * 添加到历史记录 (用于 Up/Down 导航)
+   */
+  addToHistory(text: string): void {
+    this.editor.addToHistory(text);
+  }
+
+  /**
+   * 是否显示自动补全
+   */
+  isShowingAutocomplete(): boolean {
+    return this.editor.isShowingAutocomplete();
   }
 
   /**
    * 更新自动补全列表
    */
   updateAutocomplete(items: string[]): void {
-    this.autocomplete = items;
+    // pi-tui Editor 使用 Provider，不需要手动设置列表
+    // 保留此方法为了 API 兼容
+  }
+
+  /**
+   * 设置占位符
+   */
+  setPlaceholder(placeholder: string): void {
+    // pi-tui Editor 不支持占位符，可以通过自定义渲染实现
+    // 当前简化处理
+  }
+
+  // ========================================================================
+  // Component Interface (pi-tui)
+  // ========================================================================
+
+  /**
+   * 渲染编辑器
+   */
+  render(width: number): string[] {
+    return this.editor.render(width);
   }
 
   /**
    * 处理输入
    */
   handleInput(data: string): void {
-    if (this.readOnly) return;
-
-    // Enter - 提交
-    if (matchesKey(data, Key.enter)) {
-      if (this.showAutocomplete && this.autocompleteIndex >= 0) {
-        this.selectAutocomplete();
-      } else {
-        this.submit();
-      }
-      return;
-    }
-
-    // Escape - 取消
-    if (matchesKey(data, Key.escape)) {
-      if (this.showAutocomplete) {
-        this.showAutocomplete = false;
-        this.autocompleteIndex = -1;
-      } else {
-        this.cancel();
-      }
-      return;
-    }
-
-    // Tab - 自动补全
-    if (matchesKey(data, Key.tab)) {
-      if (this.autocomplete.length > 0) {
-        this.selectAutocomplete();
-      }
-      return;
-    }
-
-    // 方向键 - 导航/选择
-    if (matchesKey(data, Key.up)) {
-      if (this.showAutocomplete) {
-        this.autocompleteIndex = Math.max(0, this.autocompleteIndex - 1);
-      } else {
-        this.moveCursor(-1);
-      }
-      return;
-    }
-
-    if (matchesKey(data, Key.down)) {
-      if (this.showAutocomplete) {
-        this.autocompleteIndex = Math.min(
-          this.autocomplete.length - 1,
-          this.autocompleteIndex + 1
-        );
-      } else {
-        this.moveCursor(1);
-      }
-      return;
-    }
-
-    if (matchesKey(data, Key.left)) {
-      this.moveCursor(-1);
-      return;
-    }
-
-    if (matchesKey(data, Key.right)) {
-      this.moveCursor(1);
-      return;
-    }
-
-    // Home/End
-    if (matchesKey(data, Key.home)) {
-      this.cursorPosition = 0;
-      return;
-    }
-
-    if (matchesKey(data, Key.end)) {
-      this.cursorPosition = this.value.length;
-      return;
-    }
-
-    // Backspace
-    if (data === '\x7f' || data === '\x08') {
-      this.deleteChar(-1);
-      return;
-    }
-
-    // Delete
-    if (matchesKey(data, Key.delete)) {
-      this.deleteChar(1);
-      return;
-    }
-
-    // 普通字符输入
-    if (data.length === 1 && !data.match(/[\x00-\x1f]/)) {
-      this.insertChar(data);
-    }
+    // 委托给 pi-tui Editor 处理
+    this.editor.handleInput(data);
   }
 
   /**
-   * 插入字符
+   * 使编辑器无效 (强制重新渲染)
    */
-  private insertChar(char: string): void {
-    const before = this.value.slice(0, this.cursorPosition);
-    const after = this.value.slice(this.cursorPosition);
-    this.value = before + char + after;
-    this.cursorPosition++;
-    this.onChange?.(this.value);
-    this.checkAutocomplete();
-  }
-
-  /**
-   * 删除字符
-   */
-  private deleteChar(direction: number): void {
-    if (direction < 0 && this.cursorPosition > 0) {
-      const before = this.value.slice(0, this.cursorPosition - 1);
-      const after = this.value.slice(this.cursorPosition);
-      this.value = before + after;
-      this.cursorPosition--;
-      this.onChange?.(this.value);
-    } else if (direction > 0 && this.cursorPosition < this.value.length) {
-      const before = this.value.slice(0, this.cursorPosition);
-      const after = this.value.slice(this.cursorPosition + 1);
-      this.value = before + after;
-      this.onChange?.(this.value);
-    }
-    this.checkAutocomplete();
-  }
-
-  /**
-   * 移动光标
-   */
-  private moveCursor(delta: number): void {
-    this.cursorPosition = Math.max(
-      0,
-      Math.min(this.value.length, this.cursorPosition + delta)
-    );
-  }
-
-  /**
-   * 提交内容
-   */
-  private submit(): void {
-    const value = this.value.trim();
-    if (value) {
-      this.onSubmit?.(value);
-    }
-    this.clear();
-  }
-
-  /**
-   * 取消输入
-   */
-  private cancel(): void {
-    this.onCancel?.();
-    if (this.value) {
-      this.clear();
-    }
-  }
-
-  /**
-   * 检查自动补全
-   */
-  private checkAutocomplete(): void {
-    const lastWord = this.getCurrentWord();
-
-    if (lastWord.length >= 2 && this.onAutocomplete) {
-      const items = this.onAutocomplete(lastWord);
-      if (items.length > 0) {
-        this.autocomplete = items;
-        this.autocompleteIndex = 0;
-        this.showAutocomplete = true;
-        return;
-      }
-    }
-
-    this.showAutocomplete = false;
-    this.autocompleteIndex = -1;
-  }
-
-  /**
-   * 获取当前单词
-   */
-  private getCurrentWord(): string {
-    const before = this.value.slice(0, this.cursorPosition);
-    const match = before.match(/[\w/]+$/);
-    return match ? match[0] : '';
-  }
-
-  /**
-   * 选择自动补全项
-   */
-  private selectAutocomplete(): void {
-    if (this.autocompleteIndex >= 0 && this.autocompleteIndex < this.autocomplete.length) {
-      const selected = this.autocomplete[this.autocompleteIndex];
-      const word = this.getCurrentWord();
-
-      if (word) {
-        // 替换当前单词
-        const before = this.value.slice(0, this.cursorPosition - word.length);
-        this.value = before + selected + this.value.slice(this.cursorPosition);
-        this.cursorPosition = before.length + selected.length;
-      } else {
-        // 插入补全
-        this.value = this.value + selected;
-        this.cursorPosition = this.value.length;
-      }
-
-      this.onChange?.(this.value);
-      this.showAutocomplete = false;
-      this.autocompleteIndex = -1;
-    }
-  }
-
-  /**
-   * 渲染输入行
-   */
-  private renderInputLine(maxWidth: number): string {
-    const prompt = `${THEME.prompt}>${THEME.reset} `;
-    const content = this.value || this.placeholder;
-    const displayContent = this.value ? this.value : this.placeholder;
-
-    // 计算可视区域
-    const promptWidth = prompt.length;
-    const availableWidth = maxWidth - promptWidth - 1;
-
-    // 光标前的文本
-    const beforeCursor = this.value.slice(0, this.cursorPosition);
-    const afterCursor = this.value.slice(this.cursorPosition);
-
-    // 渲染 (简化版本)
-    const rendered = `${prompt}${displayContent}${THEME.cursorBlock} ${THEME.reset}${afterCursor}`;
-
-    // 截断到最大宽度
-    if (rendered.length > maxWidth) {
-      const truncated = rendered.slice(0, maxWidth - 3) + '...';
-      return truncated;
-    }
-
-    return rendered.padEnd(maxWidth);
-  }
-
-  /**
-   * 渲染自动补全
-   */
-  private renderAutocomplete(maxWidth: number): string[] {
-    if (!this.showAutocomplete || this.autocomplete.length === 0) {
-      return [];
-    }
-
-    const lines: string[] = [];
-    const maxItems = Math.min(this.autocomplete.length, 5);
-
-    for (let i = 0; i < maxItems; i++) {
-      const item = this.autocomplete[i];
-      const isSelected = i === this.autocompleteIndex;
-
-      const prefix = isSelected ? `${THEME.autocompleteSelect}▶${THEME.reset} ` : '  ';
-      const label = item.length > maxWidth - 4 ? item.slice(0, maxWidth - 6) + '...' : item;
-
-      lines.push(`${prefix}${THEME.autocomplete}${label}${THEME.reset}`);
-    }
-
-    return lines;
-  }
-
-  /**
-   * 渲染组件
-   */
-  render(width: number): string[] {
-    const lines: string[] = [];
-
-    // 渲染自动补全列表
-    lines.push(...this.renderAutocomplete(width));
-
-    // 渲染输入行
-    lines.push(this.renderInputLine(width));
-
-    return lines;
+  invalidate(): void {
+    this.editor.invalidate();
   }
 }
 
@@ -412,6 +283,6 @@ export class Editor {
 // Factory Function
 // ============================================================================
 
-export function createEditor(props: EditorProps): Editor {
-  return new Editor(props);
+export function createEditor(tui: TUIType, props?: EditorProps): Editor {
+  return new Editor(tui, props);
 }

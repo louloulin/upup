@@ -3,9 +3,11 @@
  *
  * 对标 Loucode SessionSelector
  * 会话历史选择浮层
+ * 使用 pi-tui SelectList 作为核心列表组件
  */
 
 import { matchesKey, Key } from '@earendil-works/pi-tui';
+import { SelectList, type SelectListTheme, type SelectItem } from '@earendil-works/pi-tui';
 
 // ============================================================================
 // Types
@@ -57,6 +59,15 @@ const THEME = {
   indicator: '\x1b[1;32m',     // 绿色指示器
 };
 
+// pi-tui SelectList Theme
+const SELECT_LIST_THEME: SelectListTheme = {
+  selectedPrefix: (s) => `${THEME.indicator}▸ ${s}${THEME.reset}`,
+  selectedText: (s) => `${THEME.sessionTitle}${s}${THEME.reset}`,
+  description: (s) => `${THEME.timestamp}${s}${THEME.reset}`,
+  scrollInfo: (s) => `${THEME.hint}${s}${THEME.reset}`,
+  noMatch: (s) => `${THEME.delete}No match: ${s}${THEME.reset}`,
+};
+
 // ============================================================================
 // Component
 // ============================================================================
@@ -67,6 +78,9 @@ export class SessionSelector {
   private visible: boolean;
   private selectedIndex: number = 0;
   private mode: 'list' | 'delete' = 'list';
+
+  // pi-tui SelectList 用于模糊搜索
+  private selectList: SelectList;
 
   private onSelect: (sessionId: string) => void;
   private onNewSession: () => void;
@@ -81,13 +95,58 @@ export class SessionSelector {
     this.onNewSession = props.onNewSession;
     this.onDelete = props.onDelete;
     this.onClose = props.onClose;
+
+    // 创建 pi-tui SelectList (用于模糊搜索)
+    const items = this.sessionsToSelectItems(props.sessions);
+    this.selectList = new SelectList(items, 10, SELECT_LIST_THEME);
+
+    // 绑定选择回调
+    this.selectList.onSelect = (item: SelectItem) => {
+      const session = this.sessions.find(s => s.id === item.value);
+      if (session && this.mode === 'list') {
+        this.onSelect(session.id);
+      } else if (session && this.mode === 'delete') {
+        this.deleteSession(session.id);
+      }
+    };
+
+    this.selectList.onCancel = () => {
+      this.onClose();
+    };
+
+    this.selectList.onSelectionChange = (item: SelectItem) => {
+      const idx = this.sessions.findIndex(s => s.id === item.value);
+      if (idx >= 0) this.selectedIndex = idx;
+    };
   }
 
   /**
-   * 更新会话列表
+   * 将会话列表转换为 SelectList 项目
+   */
+  private sessionsToSelectItems(sessions: Session[]): SelectItem[] {
+    return sessions.map(s => ({
+      value: s.id,
+      label: s.title,
+      description: `${s.messageCount} msgs • ${this.formatTimestamp(s.updatedAt)}`,
+    }));
+  }
+
+  /**
+   * 更新会话列表 (重新创建 SelectList 实例)
    */
   updateSessions(sessions: Session[]): void {
     this.sessions = sessions;
+    // 重新创建 SelectList (pi-tui SelectList 不支持 setItems)
+    const items = this.sessionsToSelectItems(sessions);
+    const oldOnSelect = this.selectList.onSelect;
+    const oldOnCancel = this.selectList.onCancel;
+    const oldOnSelectionChange = this.selectList.onSelectionChange;
+
+    this.selectList = new SelectList(items, 10, SELECT_LIST_THEME);
+    this.selectList.onSelect = oldOnSelect;
+    this.selectList.onCancel = oldOnCancel;
+    this.selectList.onSelectionChange = oldOnSelectionChange;
+
     if (this.selectedIndex >= sessions.length) {
       this.selectedIndex = Math.max(0, sessions.length - 1);
     }
@@ -99,7 +158,10 @@ export class SessionSelector {
   setCurrentSession(sessionId: string): void {
     this.currentSessionId = sessionId;
     const idx = this.sessions.findIndex(s => s.id === sessionId);
-    if (idx >= 0) this.selectedIndex = idx;
+    if (idx >= 0) {
+      this.selectedIndex = idx;
+      this.selectList.setSelectedIndex(idx);
+    }
   }
 
   /**
@@ -124,22 +186,28 @@ export class SessionSelector {
   }
 
   /**
-   * 处理输入
+   * 处理输入 (委托给 SelectList 处理导航, 自定义处理快捷键)
    */
   handleInput(data: string): void {
     if (!this.visible) return;
 
+    // Tab 切换到过滤模式
+    if (data === '\t') {
+      // 触发过滤搜索
+      this.selectedIndex = 0;
+      return;
+    }
+
     // 上方向键
     if (matchesKey(data, Key.up)) {
       if (this.mode === 'delete') {
-        // 删除模式：删除选中项
         const session = this.sessions[this.selectedIndex];
         if (session && session.id !== this.currentSessionId) {
-          this.onDelete(session.id);
-          this.updateSessions(this.sessions.filter(s => s.id !== session.id));
+          this.deleteSession(session.id);
         }
       } else {
         this.selectedIndex = Math.max(0, this.selectedIndex - 1);
+        this.selectList.setSelectedIndex(this.selectedIndex);
       }
       return;
     }
@@ -147,6 +215,7 @@ export class SessionSelector {
     // 下方向键
     if (matchesKey(data, Key.down)) {
       this.selectedIndex = Math.min(this.sessions.length - 1, this.selectedIndex + 1);
+      this.selectList.setSelectedIndex(this.selectedIndex);
       return;
     }
 
@@ -155,8 +224,7 @@ export class SessionSelector {
       if (this.mode === 'delete') {
         const session = this.sessions[this.selectedIndex];
         if (session && session.id !== this.currentSessionId) {
-          this.onDelete(session.id);
-          this.updateSessions(this.sessions.filter(s => s.id !== session.id));
+          this.deleteSession(session.id);
         }
         this.mode = 'list';
       } else {
@@ -194,11 +262,25 @@ export class SessionSelector {
     if (data === 'x' || data === 'X') {
       const session = this.sessions[this.selectedIndex];
       if (session && session.id !== this.currentSessionId) {
-        this.onDelete(session.id);
-        this.updateSessions(this.sessions.filter(s => s.id !== session.id));
+        this.deleteSession(session.id);
       }
       return;
     }
+
+    // 字符输入 -> 过滤搜索
+    if (data.length === 1 && data.match(/[a-zA-Z0-9一-龥]/)) {
+      this.selectList.handleInput(data);
+      return;
+    }
+  }
+
+  /**
+   * 删除会话
+   */
+  private deleteSession(sessionId: string): void {
+    if (sessionId === this.currentSessionId) return;
+    this.onDelete(sessionId);
+    this.updateSessions(this.sessions.filter(s => s.id !== sessionId));
   }
 
   /**

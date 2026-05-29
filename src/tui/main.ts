@@ -1,11 +1,32 @@
 /**
  * TUI Main Entry
  *
- * 对标 Loucode REPL.tsx
- * TUI 主入口模块
+ * 对标 Loucode FullscreenLayout.tsx
+ * 基于 pi-tui Container 的 TUI 主入口模块
+ * 使用差分渲染引擎
  */
 
-import { TUI, Container, Box, Spacer, ProcessTerminal } from '@earendil-works/pi-tui';
+import {
+  TUI,
+  Container,
+  Box,
+  Text,
+  ProcessTerminal,
+  matchesKey,
+  Key,
+  type Component,
+  type OverlayHandle,
+} from '@earendil-works/pi-tui';
+
+// InputListener result type (from pi-tui)
+type InputListenerResult = {
+  consume?: boolean;
+  data?: string;
+} | undefined;
+
+import { Editor } from './components/editor';
+import { ChatLog } from './components/chat-log';
+import { ToolEventDisplay } from './components/tool-event';
 
 // ============================================================================
 // Types
@@ -43,69 +64,231 @@ const DEFAULT_OPTIONS: Required<TUIOptions> = {
 };
 
 // ============================================================================
-// TUI Main
+// Theme Colors
+// ============================================================================
+
+const THEME_BG = (str: string) => `\x1b[1;34m${str}\x1b[0m`;
+const THEME_BORDER = (str: string) => `\x1b[1;36m${str}\x1b[0m`;
+const THEME_HINT = (str: string) => `\x1b[0;90m${str}\x1b[0m`;
+
+// ============================================================================
+// TUI Main - 基于 pi-tui Container
 // ============================================================================
 
 export class TUIMain {
   private options: Required<TUIOptions>;
   private tui: TUI | null = null;
-  private container: Container | null = null;
-  private components: Map<string, TUIRenderer> = new Map();
-  private activeOverlay: TUIRenderer | null = null;
+  private rootContainer: Container | null = null;
+  private components: Map<string, Component> = new Map();
+  private overlayHandle: OverlayHandle | null = null;
   private mode: 'normal' | 'insert' | 'select' | 'confirm' = 'normal';
+  private terminal: ProcessTerminal | null = null;
+  private inputUnsubscribe: (() => void) | null = null;
 
   constructor(options: TUIOptions = {}) {
     this.options = { ...DEFAULT_OPTIONS, ...options };
   }
 
   /**
-   * 初始化 TUI
+   * 初始化 TUI (使用 pi-tui)
    */
   async init(): Promise<void> {
     // 创建终端
-    const terminal = new ProcessTerminal();
+    this.terminal = new ProcessTerminal();
 
-    // 创建 TUI 实例
-    this.tui = new TUI(terminal);
-    this.container = this.tui;
+    // 创建 TUI 实例 (pi-tui 差分渲染引擎)
+    this.tui = new TUI(this.terminal);
 
-    // 添加子组件
-    // this.tui.addChild(this.container);
+    // 创建根容器
+    this.rootContainer = new Container();
+
+    // 构建界面结构
+    this.buildLayout();
+
+    // 添加到 TUI
+    this.tui.addChild(this.rootContainer);
+
+    // 注册键盘输入监听
+    this.inputUnsubscribe = this.tui.addInputListener((data): InputListenerResult => {
+      return this.handleInputListener(data);
+    });
   }
 
   /**
-   * 注册组件
+   * 处理输入监听器
    */
-  registerComponent(name: string, renderer: TUIRenderer): void {
-    this.components.set(name, renderer);
+  private handleInputListener(data: string): InputListenerResult {
+    // 浮层优先处理
+    if (this.overlayHandle && this.overlayHandle.isFocused()) {
+      return undefined; // 让浮层处理
+    }
+
+    // 全局快捷键
+    if (matchesKey(data, Key.ctrl('c'))) {
+      console.log('Interrupt');
+      return { consume: true };
+    }
+
+    if (matchesKey(data, Key.escape)) {
+      this.hideOverlay();
+      this.setMode('normal');
+      return { consume: true };
+    }
+
+    // 根据模式处理
+    switch (this.mode) {
+      case 'insert':
+        this.handleInsertMode(data);
+        break;
+      case 'select':
+        this.handleSelectMode(data);
+        break;
+      case 'confirm':
+        this.handleConfirmMode(data);
+        break;
+      default:
+        this.handleNormalMode(data);
+    }
+
+    return undefined;
   }
 
   /**
-   * 取消注册组件
+   * 构建布局 (使用 pi-tui Box 组件)
    */
-  unregisterComponent(name: string): void {
-    this.components.delete(name);
+  private buildLayout(): void {
+    if (!this.rootContainer) return;
+
+    // 1. 标题栏 (Box + Text)
+    const header = this.createHeader();
+    this.rootContainer.addChild(header);
+
+    // 2. 聊天区域 (Box + ChatLog)
+    const chatArea = this.createChatArea();
+    this.rootContainer.addChild(chatArea);
+
+    // 3. 工具事件区域
+    const toolArea = this.createToolArea();
+    this.rootContainer.addChild(toolArea);
+
+    // 4. 编辑器 (pi-tui Editor)
+    const editor = this.createEditor();
+    this.rootContainer.addChild(editor);
+
+    // 5. 提示栏
+    const hintBar = this.createHintBar();
+    this.rootContainer.addChild(hintBar);
   }
 
   /**
-   * 获取组件
+   * 创建标题栏
    */
-  getComponent(name: string): TUIRenderer | undefined {
-    return this.components.get(name);
+  private createHeader(): Box {
+    const box = new Box(2, 1, THEME_BG);
+    const titleText = new Text(this.options.title, 0, 0);
+    box.addChild(titleText);
+    return box;
   }
 
   /**
-   * 显示浮层
+   * 创建聊天区域
    */
-  showOverlay(overlay: TUIRenderer): void {
-    this.activeOverlay = overlay;
+  private createChatArea(): Box {
+    const chatLog = new ChatLog({
+      messages: [],
+      maxMessages: 100,
+      showTimestamp: true,
+      userName: 'You',
+      assistantName: 'Assistant',
+    });
+
+    this.components.set('chatLog', chatLog);
+
+    // 创建带边框的 Box
+    const box = new Box(2, 1, undefined);
+    box.addChild(chatLog);
+
+    return box;
+  }
+
+  /**
+   * 创建工具事件区域
+   */
+  private createToolArea(): Box {
+    const toolEvent = new ToolEventDisplay({
+      events: [],
+      maxEvents: 10,
+      showDetails: true,
+    });
+
+    this.components.set('toolEvent', toolEvent);
+
+    const box = new Box(2, 1, undefined);
+    box.addChild(toolEvent);
+
+    return box;
+  }
+
+  /**
+   * 创建编辑器 (pi-tui Editor)
+   */
+  private createEditor(): Editor {
+    const editor = new Editor(this.tui!, {
+      onSubmit: (text) => {
+        console.log('Submit:', text);
+      },
+      onChange: (text) => {
+        console.log('Change:', text);
+      },
+    });
+
+    this.components.set('editor', editor);
+
+    return editor;
+  }
+
+  /**
+   * 创建提示栏
+   */
+  private createHintBar(): Box {
+    const hintsText = this.options.hints.join(' | ');
+    const hintsTextComponent = new Text(hintsText, 2, 1);
+    const box = new Box(0, 0, undefined);
+    box.addChild(hintsTextComponent);
+    return box;
+  }
+
+  /**
+   * 显示浮层 (使用 pi-tui showOverlay)
+   */
+  showOverlay(component: Component): void {
+    if (!this.tui) return;
+
+    this.overlayHandle = this.tui.showOverlay(component, {
+      anchor: 'center',
+      width: 70,
+      maxHeight: '80%',
+    });
   }
 
   /**
    * 隐藏浮层
    */
   hideOverlay(): void {
-    this.activeOverlay = null;
+    if (this.overlayHandle) {
+      this.overlayHandle.hide();
+      this.overlayHandle = null;
+    }
+  }
+
+  /**
+   * 设置焦点
+   */
+  setFocus(componentName: string): void {
+    const component = this.components.get(componentName);
+    if (component && this.tui) {
+      this.tui.setFocus(component);
+    }
   }
 
   /**
@@ -123,40 +306,20 @@ export class TUIMain {
   }
 
   /**
-   * 处理输入
+   * 处理输入 (由监听器调用)
    */
   handleInput(data: string): void {
-    // 优先处理浮层输入
-    if (this.activeOverlay) {
-      this.activeOverlay.handleInput(data);
-      return;
-    }
-
-    // 根据模式处理输入
-    switch (this.mode) {
-      case 'insert':
-        this.handleInsertMode(data);
-        break;
-      case 'select':
-        this.handleSelectMode(data);
-        break;
-      case 'confirm':
-        this.handleConfirmMode(data);
-        break;
-      case 'normal':
-      default:
-        this.handleNormalMode(data);
-        break;
-    }
+    // 由 handleInputListener 委托处理
   }
 
   /**
    * 普通模式处理
    */
   private handleNormalMode(data: string): void {
-    // 触发组件输入
-    for (const [, component] of this.components) {
-      component.handleInput(data);
+    // 传递给编辑器
+    const editor = this.components.get('editor') as Editor;
+    if (editor) {
+      editor.handleInput(data);
     }
   }
 
@@ -164,8 +327,7 @@ export class TUIMain {
    * 插入模式处理
    */
   private handleInsertMode(data: string): void {
-    // 传递给编辑器组件
-    const editor = this.components.get('editor');
+    const editor = this.components.get('editor') as Editor;
     if (editor) {
       editor.handleInput(data);
     }
@@ -175,10 +337,9 @@ export class TUIMain {
    * 选择模式处理
    */
   private handleSelectMode(data: string): void {
-    // 传递选择逻辑
-    const selector = this.components.get('selector');
-    if (selector) {
-      selector.handleInput(data);
+    const chatLog = this.components.get('chatLog') as ChatLog;
+    if (chatLog) {
+      chatLog.handleInput?.(data);
     }
   }
 
@@ -186,78 +347,14 @@ export class TUIMain {
    * 确认模式处理
    */
   private handleConfirmMode(data: string): void {
-    // 传递确认逻辑
-    const confirm = this.components.get('confirm');
-    if (confirm) {
-      confirm.handleInput(data);
-    }
+    // 确认逻辑
   }
 
   /**
-   * 渲染
+   * 获取组件
    */
-  render(): string[] {
-    const lines: string[] = [];
-
-    // 渲染标题
-    lines.push(this.renderTitle());
-
-    // 渲染组件
-    for (const [name, component] of this.components) {
-      if (name !== 'overlay') {
-        lines.push(...component.render());
-      }
-    }
-
-    // 渲染提示栏
-    lines.push(...this.renderHints());
-
-    // 渲染浮层
-    if (this.activeOverlay) {
-      lines.push(...this.renderOverlay());
-    }
-
-    return lines;
-  }
-
-  /**
-   * 渲染标题
-   */
-  private renderTitle(): string {
-    const title = this.options.title;
-    const width = this.options.width;
-    const padding = Math.max(0, width - title.length - 4);
-    return `┌${'─'.repeat(padding / 2)} ${title} ${'─'.repeat(Math.ceil(padding / 2))}┐`;
-  }
-
-  /**
-   * 渲染提示栏
-   */
-  private renderHints(): string[] {
-    const hints = this.hintsToString();
-    const width = this.options.width;
-    const padding = Math.max(0, width - hints.length - 4);
-    return [
-      `├${'─'.repeat(width - 2)}┤`,
-      `│${' '.repeat(width - 2)}│`,
-      `│ ${hints}${' '.repeat(padding)}│`,
-      `└${'─'.repeat(width - 2)}┘`,
-    ];
-  }
-
-  /**
-   * 提示转字符串
-   */
-  private hintsToString(): string {
-    return this.options.hints.join(' | ');
-  }
-
-  /**
-   * 渲染浮层
-   */
-  private renderOverlay(): string[] {
-    if (!this.activeOverlay) return [];
-    return this.activeOverlay.render();
+  getComponent(name: string): Component | undefined {
+    return this.components.get(name);
   }
 
   /**
@@ -271,16 +368,49 @@ export class TUIMain {
   }
 
   /**
+   * 启动 TUI (pi-tui 渲染循环)
+   */
+  start(): void {
+    if (this.tui) {
+      this.tui.start();
+    }
+  }
+
+  /**
+   * 停止 TUI
+   */
+  stop(): void {
+    if (this.tui) {
+      this.tui.stop();
+    }
+  }
+
+  /**
+   * 请求重新渲染
+   */
+  requestRender(): void {
+    if (this.tui) {
+      this.tui.requestRender();
+    }
+  }
+
+  /**
    * 销毁
    */
   destroy(): void {
-    for (const [, component] of this.components) {
-      component.destroy();
+    this.stop();
+
+    // 取消输入监听
+    if (this.inputUnsubscribe) {
+      this.inputUnsubscribe();
+      this.inputUnsubscribe = null;
     }
+
     this.components.clear();
-    this.activeOverlay = null;
+    this.overlayHandle = null;
     this.tui = null;
-    this.container = null;
+    this.rootContainer = null;
+    this.terminal = null;
   }
 }
 

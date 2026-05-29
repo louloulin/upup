@@ -1,203 +1,203 @@
 {
   "status": {
     "command": "status",
-    "count": 554,
-    "lastUsed": 1780036714842
+    "count": 604,
+    "lastUsed": 1780068809619
   },
   "help": {
     "command": "help",
-    "count": 558,
-    "lastUsed": 1780036714842
+    "count": 608,
+    "lastUsed": 1780068809617
   },
   "clear": {
     "command": "clear",
-    "count": 78,
-    "lastUsed": 1779953757135
+    "count": 89,
+    "lastUsed": 1780068735001
   },
   "cost": {
     "command": "cost",
-    "count": 84,
-    "lastUsed": 1779953757135
+    "count": 95,
+    "lastUsed": 1780068735001
   },
   "rules": {
     "command": "rules",
-    "count": 87,
-    "lastUsed": 1779953757569
+    "count": 98,
+    "lastUsed": 1780068736041
   },
   "doctor": {
     "command": "doctor",
-    "count": 83,
-    "lastUsed": 1779953757566
+    "count": 96,
+    "lastUsed": 1780068853706
   },
   "memory": {
     "command": "memory",
-    "count": 48,
-    "lastUsed": 1779953757136
+    "count": 59,
+    "lastUsed": 1780068735002
   },
   "git": {
     "command": "git",
-    "count": 84,
-    "lastUsed": 1779953757232
+    "count": 95,
+    "lastUsed": 1780068735058
   },
   "plan": {
     "command": "plan",
-    "count": 73,
-    "lastUsed": 1779953757565
+    "count": 84,
+    "lastUsed": 1780068736036
   },
   "exit-plan": {
     "command": "exit-plan",
-    "count": 47,
-    "lastUsed": 1779953757566
+    "count": 58,
+    "lastUsed": 1780068736036
   },
   "add-step": {
     "command": "add-step",
-    "count": 47,
-    "lastUsed": 1779953757566
+    "count": 58,
+    "lastUsed": 1780068736037
   },
   "steps": {
     "command": "steps",
-    "count": 47,
-    "lastUsed": 1779953757566
+    "count": 58,
+    "lastUsed": 1780068736036
   },
   "commands": {
     "command": "commands",
-    "count": 88,
-    "lastUsed": 1779953757127
+    "count": 99,
+    "lastUsed": 1780068734993
   },
   "mcp": {
     "command": "mcp",
-    "count": 132,
-    "lastUsed": 1779953757565
+    "count": 154,
+    "lastUsed": 1780068736035
   },
   "session": {
     "command": "session",
-    "count": 81,
-    "lastUsed": 1779953757137
+    "count": 92,
+    "lastUsed": 1780068735002
   },
   "diff": {
     "command": "diff",
-    "count": 81,
-    "lastUsed": 1779953757500
+    "count": 92,
+    "lastUsed": 1780068735970
   },
   "compact": {
     "command": "compact",
-    "count": 72,
-    "lastUsed": 1779953757135
+    "count": 83,
+    "lastUsed": 1780068735001
   },
   "mcp-add": {
     "command": "mcp-add",
-    "count": 46,
-    "lastUsed": 1779953757565
+    "count": 57,
+    "lastUsed": 1780068736036
   },
   "permissions": {
     "command": "permissions",
-    "count": 47,
-    "lastUsed": 1779953757568
+    "count": 60,
+    "lastUsed": 1780068849551
   },
   "model": {
     "command": "model",
-    "count": 46,
-    "lastUsed": 1779953757135
+    "count": 57,
+    "lastUsed": 1780068735001
   },
   "history": {
     "command": "history",
-    "count": 46,
-    "lastUsed": 1779953757136
+    "count": 58,
+    "lastUsed": 1780068735001
   },
   "resume": {
     "command": "resume",
-    "count": 46,
-    "lastUsed": 1779953757137
+    "count": 57,
+    "lastUsed": 1780068735003
   },
   "sandbox": {
     "command": "sandbox",
-    "count": 46,
-    "lastUsed": 1779953757568
+    "count": 57,
+    "lastUsed": 1780068736039
   },
   "branch": {
     "command": "branch",
-    "count": 46,
-    "lastUsed": 1779953757525
+    "count": 57,
+    "lastUsed": 1780068735994
   },
   "commit": {
     "command": "commit",
-    "count": 46,
-    "lastUsed": 1779953757501
+    "count": 57,
+    "lastUsed": 1780068735970
   },
   "log": {
     "command": "log",
-    "count": 46,
-    "lastUsed": 1779953757538
+    "count": 57,
+    "lastUsed": 1780068736005
   },
   "stash": {
     "command": "stash",
-    "count": 46,
-    "lastUsed": 1779953757553
+    "count": 57,
+    "lastUsed": 1780068736024
   },
   "remote": {
     "command": "remote",
-    "count": 46,
-    "lastUsed": 1779953757563
+    "count": 57,
+    "lastUsed": 1780068736034
   },
   "agent": {
     "command": "agent",
-    "count": 46,
-    "lastUsed": 1779953757564
+    "count": 59,
+    "lastUsed": 1780068889479
   },
   "agents": {
     "command": "agents",
-    "count": 46,
-    "lastUsed": 1779953757564
+    "count": 57,
+    "lastUsed": 1780068736035
   },
   "fork": {
     "command": "fork",
-    "count": 46,
-    "lastUsed": 1779953757564
+    "count": 57,
+    "lastUsed": 1780068736035
   },
   "tasks": {
     "command": "tasks",
-    "count": 46,
-    "lastUsed": 1779953757564
+    "count": 59,
+    "lastUsed": 1780068896241
   },
   "theme": {
     "command": "theme",
-    "count": 46,
-    "lastUsed": 1779953757136
+    "count": 57,
+    "lastUsed": 1780068735002
   },
   "config": {
     "command": "config",
-    "count": 46,
-    "lastUsed": 1779953757567
+    "count": 57,
+    "lastUsed": 1780068736037
   },
   "keybindings": {
     "command": "keybindings",
-    "count": 46,
-    "lastUsed": 1779953757567
+    "count": 57,
+    "lastUsed": 1780068736038
   },
   "files": {
     "command": "files",
-    "count": 46,
-    "lastUsed": 1779953757568
+    "count": 57,
+    "lastUsed": 1780068736038
   },
   "export": {
     "command": "export",
-    "count": 46,
-    "lastUsed": 1779953757568
+    "count": 57,
+    "lastUsed": 1780068736038
   },
   "usage": {
     "command": "usage",
-    "count": 47,
-    "lastUsed": 1779953757566
+    "count": 58,
+    "lastUsed": 1780068736037
   },
   "version": {
     "command": "version",
-    "count": 46,
-    "lastUsed": 1779953757566
+    "count": 57,
+    "lastUsed": 1780068736037
   },
   "heartbeat": {
     "command": "heartbeat",
-    "count": 47,
-    "lastUsed": 1779953757570
+    "count": 58,
+    "lastUsed": 1780068736041
   },
   "approve": {
     "command": "approve",
@@ -211,8 +211,8 @@
   },
   "reset-permissions": {
     "command": "reset-permissions",
-    "count": 46,
-    "lastUsed": 1779953757568
+    "count": 57,
+    "lastUsed": 1780068736039
   },
   "extra-usage": {
     "command": "extra-usage",
@@ -221,48 +221,48 @@
   },
   "effort": {
     "command": "effort",
-    "count": 46,
-    "lastUsed": 1779953757570
+    "count": 57,
+    "lastUsed": 1780068736041
   },
   "feedback": {
     "command": "feedback",
-    "count": 46,
-    "lastUsed": 1779953757570
+    "count": 57,
+    "lastUsed": 1780068736041
   },
   "skills": {
     "command": "skills",
-    "count": 46,
-    "lastUsed": 1779953757571
+    "count": 57,
+    "lastUsed": 1780068736042
   },
   "review": {
     "command": "review",
-    "count": 46,
-    "lastUsed": 1779953757571
+    "count": 57,
+    "lastUsed": 1780068736043
   },
   "init": {
     "command": "init",
-    "count": 46,
-    "lastUsed": 1779953757572
+    "count": 57,
+    "lastUsed": 1780068736043
   },
   "h": {
     "command": "h",
-    "count": 492,
-    "lastUsed": 1780036714843
+    "count": 542,
+    "lastUsed": 1780068809619
   },
   "g": {
     "command": "g",
-    "count": 31,
-    "lastUsed": 1779953757611
+    "count": 42,
+    "lastUsed": 1780068736090
   },
   "s": {
     "command": "s",
-    "count": 30,
-    "lastUsed": 1779953757572
+    "count": 41,
+    "lastUsed": 1780068736043
   },
   "r": {
     "command": "r",
-    "count": 30,
-    "lastUsed": 1779953757572
+    "count": 41,
+    "lastUsed": 1780068736043
   },
   "?": {
     "command": "?",
@@ -396,12 +396,12 @@
   },
   "c": {
     "command": "c",
-    "count": 479,
-    "lastUsed": 1780036714844
+    "count": 529,
+    "lastUsed": 1780068809621
   },
   "unknown": {
     "command": "unknown",
-    "count": 457,
-    "lastUsed": 1780036714845
+    "count": 496,
+    "lastUsed": 1780068809621
   }
 }

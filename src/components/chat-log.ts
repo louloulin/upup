@@ -1,9 +1,11 @@
-import { Container, Spacer, Text, type TUI } from '@earendil-works/pi-tui';
+import { Container, Spacer, Text, type TUI, type Component } from '@earendil-works/pi-tui';
 import type { TokenUsage } from '../agent/types.js';
 import { theme } from '../theme.js';
 import { AnswerBoxComponent } from './answer-box.js';
 import { ToolEventComponent } from './tool-event.js';
 import { UserQueryComponent } from './user-query.js';
+import { SimpleVirtualList } from '../tui/components/virtual-container.js';
+import { ComponentPool } from '../tui/utils/component-pool.js';
 
 function formatDuration(ms: number): string {
   if (ms < 1000) {
@@ -166,9 +168,35 @@ export class ChatLogComponent extends Container {
   private lastToolName: string | null = null;
   private lastToolComponent: ToolDisplayComponent | null = null;
 
+  // 虚拟化列表 - 只渲染最后 N 个组件
+  private readonly virtualList: SimpleVirtualList;
+  // 组件回收池 - 复用已完成的组件
+  private readonly componentPool: ComponentPool<any>;
+  // 已完成的组件列表 (用于延迟回收)
+  private readonly completedComponents: Array<{ id: string; component: Component; disposeTime: number }> = [];
+  // 组件回收延迟 (ms)
+  private readonly RECYCLE_DELAY_MS = 5000;
+  // 最大保留组件数
+  private readonly MAX_RETAINED_COMPONENTS = 50;
+  // 上次清理时间
+  private lastCleanupTime = 0;
+  // 清理间隔 (ms)
+  private readonly CLEANUP_INTERVAL_MS = 10000;
+
   constructor(tui: TUI) {
     super();
     this.tui = tui;
+    // 初始化虚拟列表 - 只渲染最后 50 个组件
+    this.virtualList = new SimpleVirtualList(50, 3);
+    // 初始化组件池 - 用于工具事件组件
+    this.componentPool = new ComponentPool(
+      () => new ToolEventComponent(tui, 'unknown', {}),
+      (comp) => {
+        // 重置组件状态
+        comp.clear?.();
+      },
+      { maxSize: 20, recycleDelay: 5000 }
+    );
   }
 
   clearAll() {
@@ -182,10 +210,44 @@ export class ChatLogComponent extends Container {
     this.activeAnswer = null;
     this.lastToolName = null;
     this.lastToolComponent = null;
+    // 清理虚拟列表和组件池
+    this.virtualList.clear();
+    this.componentPool.clear();
+    this.completedComponents.length = 0;
+  }
+
+  /**
+   * 定期清理已完成的组件
+   */
+  private cleanupCompletedComponents(): void {
+    const now = Date.now();
+    if (now - this.lastCleanupTime < this.CLEANUP_INTERVAL_MS) {
+      return;
+    }
+    this.lastCleanupTime = now;
+
+    // 清理超时的组件
+    while (this.completedComponents.length > 0) {
+      const oldest = this.completedComponents[0];
+      if (now - oldest.disposeTime > this.RECYCLE_DELAY_MS) {
+        this.completedComponents.shift();
+      } else {
+        break;
+      }
+    }
+
+    // 限制最大保留数
+    while (this.completedComponents.length > this.MAX_RETAINED_COMPONENTS) {
+      this.completedComponents.shift();
+    }
   }
 
   addQuery(query: string) {
-    this.addChild(new UserQueryComponent(query));
+    const component = new UserQueryComponent(query);
+    this.virtualList.addItem(component);
+    this.addChild(component);
+    // 定期清理
+    this.cleanupCompletedComponents();
   }
 
   resetToolGrouping() {
