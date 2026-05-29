@@ -214,11 +214,6 @@ describe('createTeamStatusTool', () => {
 });
 
 describe('createTeamUpdateStatusTool', () => {
-  beforeEach(async () => {
-    const createTool = createTeamCreateTool();
-    await createTool.func({ name: 'Update Status Team' });
-  });
-
   it('should create tool with name team_update_status', () => {
     const tool = createTeamUpdateStatusTool();
     expect(tool.name).toBe('team_update_status');
@@ -230,20 +225,41 @@ describe('createTeamUpdateStatusTool', () => {
   });
 
   it('should update team status to paused', async () => {
+    // Create team first
+    const createTool = createTeamCreateTool();
+    const createResult = await createTool.func({ name: 'Update Status Team' });
+    const match = createResult.match(/Team '([^']+)' created successfully/);
+    expect(match).toBeTruthy();
+    const teamName = match![1];
+
     const tool = createTeamUpdateStatusTool();
-    const result = await tool.func({ team_name: 'Update Status Team', status: 'paused' });
+    const result = await tool.func({ team_name: teamName, status: 'paused' });
     expect(result).toContain('paused');
   });
 
   it('should update team status to completed', async () => {
+    // Create team first
+    const createTool = createTeamCreateTool();
+    const createResult = await createTool.func({ name: 'Update Status Team 2' });
+    const match = createResult.match(/Team '([^']+)' created successfully/);
+    expect(match).toBeTruthy();
+    const teamName = match![1];
+
     const tool = createTeamUpdateStatusTool();
-    const result = await tool.func({ team_name: 'Update Status Team', status: 'completed' });
+    const result = await tool.func({ team_name: teamName, status: 'completed' });
     expect(result).toContain('completed');
   });
 
   it('should update team status back to active', async () => {
+    // Create team first
+    const createTool = createTeamCreateTool();
+    const createResult = await createTool.func({ name: 'Update Status Team 3' });
+    const match = createResult.match(/Team '([^']+)' created successfully/);
+    expect(match).toBeTruthy();
+    const teamName = match![1];
+
     const tool = createTeamUpdateStatusTool();
-    const result = await tool.func({ team_name: 'Update Status Team', status: 'active' });
+    const result = await tool.func({ team_name: teamName, status: 'active' });
     expect(result).toContain('active');
   });
 });
