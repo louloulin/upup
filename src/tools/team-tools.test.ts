@@ -159,7 +159,7 @@ describe('TeamStatusSchema', () => {
 describe('TeamUpdateStatusSchema', () => {
   it('should parse valid input', () => {
     const result = TeamUpdateStatusSchema.safeParse({
-      team_id: 'team-123',
+      team_name: 'my-team',
       status: 'paused',
     });
     expect(result.success).toBe(true);
@@ -167,7 +167,7 @@ describe('TeamUpdateStatusSchema', () => {
 
   it('should accept all status values', () => {
     for (const status of ['active', 'paused', 'completed']) {
-      const result = TeamUpdateStatusSchema.safeParse({ team_id: 'team-123', status });
+      const result = TeamUpdateStatusSchema.safeParse({ team_name: 'my-team', status });
       expect(result.success).toBe(true);
     }
   });
