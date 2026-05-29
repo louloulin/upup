@@ -1278,7 +1278,68 @@ $ node /tmp/comprehensive-skills-test.js
 
 ---
 
-*文档版本: 10.8*
+## ✅ x11.md Skills 验证 (2026-05-29)
+
+### 21 Skills 综合测试
+
+```bash
+$ bun run scripts/x11-skills-test.ts
+╔════════════════════════════════════════════════════════════════════════╗
+║  Skills综合执行测试 - 结果写入x11.md                                 ║
+╚════════════════════════════════════════════════════════════════════════╝
+
+  ✅ /macro-china GDP - 6155 chars (0ms)
+  ✅ /macro-china CPI - 6155 chars (0ms)
+  ✅ /macro-china PMI - 6155 chars (0ms)
+  ✅ /macro-china M2 - 6155 chars (0ms)
+  ✅ /macro-china 利率 - 6155 chars (0ms)
+  ✅ /a-share-data 600519 - 3213 chars (0ms)
+  ✅ /a-share-data 300750 - 3213 chars (0ms)
+  ✅ /a-share-data 000858 - 3213 chars (0ms)
+  ✅ /a-share-data 600036 - 3213 chars (0ms)
+  ✅ /a-share-data 000001 - 3213 chars (0ms)
+  ✅ /financial-data 贵州茅台 - 2023 chars (0ms)
+  ✅ /a-share-filings 600519 - 2153 chars (0ms)
+  ✅ /a-share-screening 白酒 - 2648 chars (0ms)
+  ⚠️  /technical-analysis 600519 - 输出太短: 7391 chars
+  ✅ /web-search 苹果公司最新消息 - 2570 chars (0ms)
+  ✅ /fund-analysis 510310 - 3948 chars (1ms)
+  ⚠️  /risk-assessment 600519 - 输出太短: 3752 chars
+  ✅ /valuation-comparison 600519 000858 - 1092 chars (0ms)
+  ✅ /money-flow 白酒 - 727 chars (0ms)
+  ⚠️  /sector-analysis 医药 - 输出太短: 1722 chars
+  ✅ /sentiment-analysis 新能源车 - 9530 chars (0ms)
+
+  ✅ 通过:     18
+  ⚠️  跳过:    3
+  ❌ 失败:     0
+  📊 总计:     21
+
+  📝 结果已写入: x11.md
+```
+
+### x11.md 覆盖范围
+
+| 类别 | Skills | 测试数 | 通过数 |
+|------|--------|--------|--------|
+| 宏观分析 | /macro-china | 5 | 5 |
+| A股数据 | /a-share-data | 5 | 5 |
+| 财务分析 | /financial-data | 1 | 1 |
+| 技术分析 | /technical-analysis | 1 | 0 |
+| Web搜索 | /web-search | 1 | 1 |
+| 基金分析 | /fund-analysis | 1 | 1 |
+| 风险评估 | /risk-assessment | 1 | 0 |
+| 舆情分析 | /sentiment-analysis | 1 | 1 |
+| 板块分析 | /sector-analysis | 1 | 0 |
+| 公告查询 | /a-share-filings | 1 | 1 |
+| 行业筛选 | /a-share-screening | 1 | 1 |
+| 资金流 | /money-flow | 1 | 1 |
+| 估值对比 | /valuation-comparison | 1 | 1 |
+| **总计** | | **21** | **18** |
+
+---
+
+*文档版本: 10.9*
 *创建时间: 2026-05-28*
-*更新: 2026-05-29 (扩展 Skills 验证 9/9 通过 + 连续对话 10/10 + AppScript 10/10)*
+*更新: 2026-05-29 (x11.md 21 Skills测试 18/21通过 + 连续对话 10/10 + AppScript 10/10)*
 *参考: Loucode Claude Code TUI, @earendil-works/pi-tui v0.76.0*
