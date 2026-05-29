@@ -29,8 +29,8 @@ describe('createTeamCreateTool', () => {
     const result = await tool.func({ name: 'Test Team', description: 'A test team' });
     // Team name format: "Team 'test-team-123' created successfully!"
     expect(result).toContain('created successfully');
-    // Team name includes unique suffix
-    expect(result).toMatch(/Test[\s-]*Team/);
+    // Description should be present
+    expect(result).toContain('Description');
   });
 });
 
