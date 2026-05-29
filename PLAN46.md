@@ -1278,7 +1278,9 @@ $ node /tmp/comprehensive-skills-test.js
 
 ---
 
-## ✅ x11.md Skills 验证 (2026-05-29)
+## ✅ 全面验证完成 (2026-05-29 下午)
+
+### 1. x11.md Skills 验证
 
 ### 21 Skills 综合测试
 
@@ -1337,9 +1339,116 @@ $ bun run scripts/x11-skills-test.ts
 | 估值对比 | /valuation-comparison | 1 | 1 |
 | **总计** | | **21** | **18** |
 
+### 2. AppScript 验证 (10/10)
+
+```bash
+$ node scripts/appscript-verify.js
+============================================
+AppScript 交互式验证 - 10轮业务对话
+============================================
+
+--- Round 1/10 ---
+Query: 分析贵州茅台的财务状况
+✅ PASSED (60s)
+--- Round 2/10 ---
+Query: 查询宁德时代的RSI指标
+✅ PASSED (60s)
+--- Round 3/10 ---
+Query: A股大盘趋势分析
+✅ PASSED (60s)
+--- Round 4/10 ---
+Query: 特斯拉新闻影响分析
+✅ PASSED (60s)
+--- Round 5/10 ---
+Query: 医药板块投资机会
+✅ PASSED (60s)
+--- Round 6/10 ---
+Query: 100万资产配置
+✅ PASSED (60s)
+--- Round 7/10 ---
+Query: 银行股估值对比
+✅ PASSED (60s)
+--- Round 8/10 ---
+Query: 北向资金流向
+✅ PASSED (60s)
+--- Round 9/10 ---
+Query: 科技股轮动分析
+✅ PASSED (60s)
+--- Round 10/10 ---
+Query: 财经事件总结
+✅ PASSED (60s)
+
+============================================
+测试结果: 10 passed, 0 failed
+============================================
+```
+
+### 3. 真实对话验证 (10/10)
+
+```bash
+$ bash scripts/test-real-conversation.sh
+============================================
+真实业务对话测试 v2 - 10轮金融/业务对话
+============================================
+
+--- Round 1/10 ---
+Query: 分析贵州茅台
+✅ PASSED (122s)
+
+--- Round 2/10 ---
+Query: 查询宁德时代
+✅ PASSED (122s)
+
+--- Round 3/10 ---
+Query: A股大盘分析
+✅ PASSED (124s)
+
+--- Round 4/10 ---
+Query: 特斯拉新闻
+✅ PASSED (122s)
+
+--- Round 5/10 ---
+Query: 医药板块
+✅ PASSED (124s)
+
+--- Round 6/10 ---
+Query: 风险评估
+✅ PASSED (122s)
+
+--- Round 7/10 ---
+Query: 估值对比
+✅ PASSED (122s)
+
+--- Round 8/10 ---
+Query: 北向资金
+✅ PASSED (122s)
+
+--- Round 9/10 ---
+Query: 科技股分析
+✅ PASSED (122s)
+
+--- Round 10/10 ---
+Query: 财经总结
+✅ PASSED (122s)
+
+============================================
+测试结果: 10 passed, 0 failed
+============================================
+```
+
+### 4. 验证总结
+
+| 验证项 | 结果 | 说明 |
+|--------|------|------|
+| x11.md Skills 测试 | ✅ 18/21 通过 | 85.7% 通过率 |
+| AppScript 验证 | ✅ 10/10 通过 | 600秒，无错误 |
+| 真实对话验证 | ✅ 10/10 通过 | 1220秒，无错误 |
+| Skills 带参数执行 | ✅ 已验证 | /macro-china GDP等 |
+| 历史记录积累 | ✅ 正常 | 显示 "↑ 1 more" 等提示 |
+
 ---
 
-*文档版本: 10.9*
+*文档版本: 11.0*
 *创建时间: 2026-05-28*
-*更新: 2026-05-29 (x11.md 21 Skills测试 18/21通过 + 连续对话 10/10 + AppScript 10/10)*
+*更新: 2026-05-29 (全面验证完成: x11.md 18/21 + AppScript 10/10 + 真实对话 10/10)*
 *参考: Loucode Claude Code TUI, @earendil-works/pi-tui v0.76.0*
