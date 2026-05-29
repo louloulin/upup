@@ -28,7 +28,8 @@ describe('createTeamCreateTool', () => {
     const tool = createTeamCreateTool();
     const result = await tool.func({ name: 'Test Team', description: 'A test team' });
     expect(result).toContain('Team created successfully');
-    expect(result).toContain('Test Team');
+    // Team name includes unique suffix
+    expect(result).toMatch(/Test[\s-]*Team/);
   });
 });
 
@@ -78,8 +79,9 @@ describe('createTeamListTool', () => {
   it('should list created teams', async () => {
     const tool = createTeamListTool();
     const result = await tool.func({});
-    expect(result).toContain('Team Alpha');
-    expect(result).toContain('Team Beta');
+    // Team names include unique suffix, check case-insensitive
+    expect(result.toLowerCase()).toContain('team-alpha');
+    expect(result.toLowerCase()).toContain('team-beta');
   });
 
   it('should filter by status', async () => {
@@ -90,11 +92,6 @@ describe('createTeamListTool', () => {
 });
 
 describe('createTeamAddMemberTool', () => {
-  beforeEach(async () => {
-    const createTool = createTeamCreateTool();
-    await createTool.func({ name: 'Add Member Team' });
-  });
-
   it('should create tool with name team_add_member', () => {
     const tool = createTeamAddMemberTool();
     expect(tool.name).toBe('team_add_member');
@@ -105,10 +102,18 @@ describe('createTeamAddMemberTool', () => {
     expect(typeof tool.func).toBe('function');
   });
 
-  it('should add member to existing team', async () => {
+  it('should add member to new team', async () => {
+    // Create team first
+    const createTool = createTeamCreateTool();
+    const createResult = await createTool.func({ name: 'Add Member Team' });
+    // Extract team name from result (format: "Team 'add-member-team-123' created successfully!")
+    const match = createResult.match(/Team '([^']+)' created successfully/);
+    expect(match).toBeTruthy();
+    const teamName = match![1];
+
     const tool = createTeamAddMemberTool();
     const result = await tool.func({
-      team_name: 'Add Member Team',
+      team_name: teamName,
       name: 'Alice',
       role: 'researcher',
     });
@@ -119,7 +124,7 @@ describe('createTeamAddMemberTool', () => {
   it('should return not found for unknown team', async () => {
     const tool = createTeamAddMemberTool();
     const result = await tool.func({
-      team_name: 'nonexistent-team',
+      team_name: 'nonexistent-team-123',
       name: 'Bob',
       role: 'reviewer',
     });
