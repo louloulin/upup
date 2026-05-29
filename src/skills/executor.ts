@@ -965,6 +965,7 @@ export interface SkillCommandMatch {
  * Uses SkillCommandRegistry as single source of truth:
  * 1. Get SkillCommand via getSkillCommand() (contains getPromptForCommand)
  * 2. Call getPromptForCommand directly for execution
+ * 3. Auto-execute shell commands in skill content based on arguments
  *
  * @param commandName - The command name (without /)
  * @param args - Arguments to pass
@@ -1005,14 +1006,115 @@ export async function executeSkillCommand(
       cwd: context.cwd,
     });
 
-    // Return as a query for the agent to execute
-    const prompt = content.map(c => c.text).join('\n\n');
+    let prompt = content.map(c => c.text).join('\n\n');
 
+    // Auto-execute shell commands if args are provided
+    if (args && args.trim()) {
+      const executedResults = await autoExecuteSkillCommands(prompt, args, skillCmd);
+      if (executedResults.length > 0) {
+        prompt = `${prompt}\n\n## 执行结果\n\n${executedResults.join('\n\n')}`;
+      }
+    }
+
+    // Return as a query for the agent to execute
     return { type: 'query', text: prompt };
 
   } catch (error) {
     return null;
   }
+}
+
+/**
+ * Auto-execute shell commands in skill content based on arguments.
+ * Analyzes skill content and executes matching commands.
+ */
+async function autoExecuteSkillCommands(
+  skillContent: string,
+  args: string,
+  skillCmd: any
+): Promise<string[]> {
+  const results: string[] = [];
+  const argsLower = args.toLowerCase();
+
+  // Keywords mapping to code blocks
+  const keywordToPattern: Record<string, RegExp[]> = {
+    'gdp': [/macro_china_gdp/i, /cn_gdp/i, /gdp.*增速/i],
+    'cpi': [/macro_china_cpi/i, /cn_cpi/i, /cpi.*数据/i],
+    'ppi': [/macro_china_ppi/i, /cn_ppi/i, /ppi.*数据/i],
+    'pmi': [/macro_china_pmi/i, /cn_pmi/i, /pmi.*数据/i],
+    'm2': [/macro_china_money/i, /m2.*数据/i, /money_supply/i],
+    'lpr': [/lpr/i, /loan_prime_rate/i],
+    '汇率': [/exchange_rate/i, /currency/i, /人民币.*汇率/i],
+    'gdp.*增速': [/macro_china_gdp/i, /cn_gdp/i],
+  };
+
+  // Find matching commands to execute
+  const bashBlocks = skillContent.match(/```bash\n([\s\S]*?)```/g) || [];
+
+  for (const block of bashBlocks) {
+    // Check if this block matches the args
+    const blockLower = block.toLowerCase();
+    let shouldExecute = false;
+
+    // Check keywords
+    for (const [keyword, patterns] of Object.entries(keywordToPattern)) {
+      if (argsLower.includes(keyword.replace('.*', ''))) {
+        for (const pattern of patterns) {
+          if (pattern.test(block)) {
+            shouldExecute = true;
+            break;
+          }
+        }
+      }
+    }
+
+    // Special handling for specific queries
+    if (argsLower.includes('gdp') && block.includes('macro_china_gdp')) {
+      shouldExecute = true;
+    }
+    if (argsLower.includes('cpi') && block.includes('macro_china_cpi')) {
+      shouldExecute = true;
+    }
+    if (argsLower.includes('ppi') && block.includes('macro_china_ppi')) {
+      shouldExecute = true;
+    }
+    if (argsLower.includes('pmi') && block.includes('macro_china_pmi')) {
+      shouldExecute = true;
+    }
+
+    if (shouldExecute) {
+      // Extract command from block
+      const commandMatch = block.match(/```bash\n([\s\S]*?)```/);
+      if (commandMatch && commandMatch[1]) {
+        const command = commandMatch[1].trim();
+        // Skip comments and template variables
+        if (!command.startsWith('#') && !command.includes('{')) {
+          try {
+            // Execute the command
+            const { exec } = await import('child_process');
+            const { promisify } = await import('util');
+            const execAsync = promisify(exec);
+
+            const { stdout, stderr } = await execAsync(command, {
+              timeout: 30000,
+              maxBuffer: 1024 * 1024
+            });
+
+            if (stdout) {
+              results.push(`### 命令执行结果\n\`\`\`\n${stdout}\n\`\`\``);
+            }
+            if (stderr) {
+              results.push(`### 错误\n\`\`\`\n${stderr}\n\`\`\``);
+            }
+          } catch (error: any) {
+            results.push(`### 执行错误\n\`\`\`\n${error.message}\n\`\`\``);
+          }
+        }
+      }
+    }
+  }
+
+  return results;
 }
 
 /**
