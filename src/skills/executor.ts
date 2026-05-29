@@ -1026,7 +1026,8 @@ export async function executeSkillCommand(
 
 /**
  * Auto-execute shell commands in skill content based on arguments.
- * Analyzes skill content and executes matching commands.
+ * Dynamically analyzes skill content and executes matching commands.
+ * No hardcoded keywords - uses context-aware matching.
  */
 async function autoExecuteSkillCommands(
   skillContent: string,
@@ -1036,85 +1037,136 @@ async function autoExecuteSkillCommands(
   const results: string[] = [];
   const argsLower = args.toLowerCase();
 
-  // Keywords mapping to code blocks
-  const keywordToPattern: Record<string, RegExp[]> = {
-    'gdp': [/macro_china_gdp/i, /cn_gdp/i, /gdp.*增速/i],
-    'cpi': [/macro_china_cpi/i, /cn_cpi/i, /cpi.*数据/i],
-    'ppi': [/macro_china_ppi/i, /cn_ppi/i, /ppi.*数据/i],
-    'pmi': [/macro_china_pmi/i, /cn_pmi/i, /pmi.*数据/i],
-    'm2': [/macro_china_money/i, /m2.*数据/i, /money_supply/i],
-    'lpr': [/lpr/i, /loan_prime_rate/i],
-    '汇率': [/exchange_rate/i, /currency/i, /人民币.*汇率/i],
-    'gdp.*增速': [/macro_china_gdp/i, /cn_gdp/i],
-  };
+  // Extract all bash code blocks with their context (comments above)
+  const codeBlocks = extractCodeBlocksWithContext(skillContent);
 
-  // Find matching commands to execute
-  const bashBlocks = skillContent.match(/```bash\n([\s\S]*?)```/g) || [];
+  for (const { command, context } of codeBlocks) {
+    // Skip comments, empty commands, and template variables
+    if (!command || command.trim().startsWith('#') || command.includes('{')) {
+      continue;
+    }
 
-  for (const block of bashBlocks) {
-    // Check if this block matches the args
-    const blockLower = block.toLowerCase();
-    let shouldExecute = false;
+    // Check if this block's context matches the args
+    if (contextMatchesArgs(context, argsLower)) {
+      try {
+        const { exec } = await import('child_process');
+        const { promisify } = await import('util');
+        const execAsync = promisify(exec);
 
-    // Check keywords
-    for (const [keyword, patterns] of Object.entries(keywordToPattern)) {
-      if (argsLower.includes(keyword.replace('.*', ''))) {
-        for (const pattern of patterns) {
-          if (pattern.test(block)) {
-            shouldExecute = true;
-            break;
-          }
+        const { stdout, stderr } = await execAsync(command, {
+          timeout: 30000,
+          maxBuffer: 1024 * 1024
+        });
+
+        if (stdout) {
+          results.push(`### 执行结果 (匹配: ${extractMatchReason(context, argsLower)})\n\`\`\`\n${stdout}\n\`\`\``);
         }
-      }
-    }
-
-    // Special handling for specific queries
-    if (argsLower.includes('gdp') && block.includes('macro_china_gdp')) {
-      shouldExecute = true;
-    }
-    if (argsLower.includes('cpi') && block.includes('macro_china_cpi')) {
-      shouldExecute = true;
-    }
-    if (argsLower.includes('ppi') && block.includes('macro_china_ppi')) {
-      shouldExecute = true;
-    }
-    if (argsLower.includes('pmi') && block.includes('macro_china_pmi')) {
-      shouldExecute = true;
-    }
-
-    if (shouldExecute) {
-      // Extract command from block
-      const commandMatch = block.match(/```bash\n([\s\S]*?)```/);
-      if (commandMatch && commandMatch[1]) {
-        const command = commandMatch[1].trim();
-        // Skip comments and template variables
-        if (!command.startsWith('#') && !command.includes('{')) {
-          try {
-            // Execute the command
-            const { exec } = await import('child_process');
-            const { promisify } = await import('util');
-            const execAsync = promisify(exec);
-
-            const { stdout, stderr } = await execAsync(command, {
-              timeout: 30000,
-              maxBuffer: 1024 * 1024
-            });
-
-            if (stdout) {
-              results.push(`### 命令执行结果\n\`\`\`\n${stdout}\n\`\`\``);
-            }
-            if (stderr) {
-              results.push(`### 错误\n\`\`\`\n${stderr}\n\`\`\``);
-            }
-          } catch (error: any) {
-            results.push(`### 执行错误\n\`\`\`\n${error.message}\n\`\`\``);
-          }
+        if (stderr && !isWarning(stderr)) {
+          results.push(`### 错误\n\`\`\`\n${stderr}\n\`\`\``);
         }
+      } catch (error: any) {
+        results.push(`### 执行错误\n\`\`\`\n${error.message}\n\`\`\``);
       }
     }
   }
 
   return results;
+}
+
+/**
+ * Extract code blocks with their preceding context (comments/titles).
+ */
+function extractCodeBlocksWithContext(skillContent: string): Array<{ command: string; context: string }> {
+  const blocks: Array<{ command: string; context: string }> = [];
+
+  // Split by bash code blocks
+  const parts = skillContent.split(/(```bash\n[\s\S]*?```)/g);
+
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    if (part.startsWith('```bash')) {
+      // Extract command
+      const commandMatch = part.match(/```bash\n([\s\S]*?)```/);
+      if (commandMatch && commandMatch[1]) {
+        const command = commandMatch[1].trim();
+        // Extract preceding context (previous 200 chars of non-code content)
+        const preceding = i > 0 ? parts.slice(Math.max(0, i - 10), i).join(' ').slice(-200) : '';
+        blocks.push({ command, context: preceding + '\n' + part });
+      }
+    }
+  }
+
+  return blocks;
+}
+
+/**
+ * Check if the code block's context matches the user's arguments.
+ * Uses fuzzy matching without hardcoded keywords.
+ */
+function contextMatchesArgs(context: string, args: string): boolean {
+  const contextLower = context.toLowerCase();
+
+  // Tokenize args into words
+  const argWords = args.split(/\s+/).filter(w => w.length > 1);
+
+  // Check each arg word against context
+  let matchCount = 0;
+  for (const word of argWords) {
+    // Check direct substring match
+    if (contextLower.includes(word)) {
+      matchCount++;
+      continue;
+    }
+    // Check if word appears in function/api names
+    // e.g., "gdp" matches "macro_china_gdp", "cn_gdp"
+    const normalized = word.replace(/[_\-\s]/g, '');
+    if (contextLower.replace(/[_\-\s]/g, '').includes(normalized)) {
+      matchCount++;
+      continue;
+    }
+    // Check partial match for Chinese terms
+    if (word.length >= 2 && containsChinese(word)) {
+      if (contextLower.includes(word)) {
+        matchCount++;
+      }
+    }
+  }
+
+  // Require at least one significant match
+  return matchCount > 0;
+}
+
+/**
+ * Check if string contains Chinese characters.
+ */
+function containsChinese(str: string): boolean {
+  return /[一-鿿]/.test(str);
+}
+
+/**
+ * Extract the matching reason for display.
+ */
+function extractMatchReason(context: string, args: string): string {
+  const argWords = args.split(/\s+/).filter(w => w.length > 1);
+  for (const word of argWords) {
+    if (context.toLowerCase().includes(word.toLowerCase())) {
+      return word;
+    }
+  }
+  return 'context';
+}
+
+/**
+ * Check if stderr is just warnings (not errors).
+ */
+function isWarning(stderr: string): boolean {
+  const warnings = [
+    'RequestsDependencyWarning',
+    'DeprecationWarning',
+    'FutureWarning',
+    'UserWarning'
+  ];
+  return warnings.some(w => stderr.includes(w));
 }
 
 /**
