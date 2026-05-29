@@ -370,7 +370,7 @@ describe('Shell Command Execution', () => {
     const commands = extractShellCommands(text);
 
     expect(commands.length).toBeGreaterThanOrEqual(1);
-    expect(commands[0]).toContain('echo');
+    expect(commands[0].command).toContain('echo');
   });
 
   it('should extract block shell commands', () => {
@@ -378,7 +378,7 @@ describe('Shell Command Execution', () => {
     const commands = extractShellCommands(text);
 
     expect(commands.length).toBeGreaterThanOrEqual(1);
-    expect(commands[0]).toContain('echo');
+    expect(commands[0].command).toContain('echo');
   });
 
   it('should execute inline shell command and replace', async () => {
