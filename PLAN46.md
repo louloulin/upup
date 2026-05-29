@@ -1230,7 +1230,55 @@ Query: 财经事件总结
 
 ---
 
-*文档版本: 10.7*
+## ✅ 扩展 Skills 验证 (2026-05-29 下午)
+
+### 9 Skills 全面测试
+
+```bash
+$ node /tmp/comprehensive-skills-test.js
+============================================
+全面 Skills 测试 - 9 个 skills
+============================================
+
+测试: /macro-china GDP (GDP数据查询)
+✅ PASSED - 输出: 86395 chars
+测试: /macro-china CPI (CPI数据查询)
+✅ PASSED - 输出: 72191 chars
+测试: /macro-china PMI (PMI数据查询)
+✅ PASSED - 输出: 1921 chars
+测试: /a-share-data 600519 (贵州茅台数据)
+✅ PASSED - 输出: 1911 chars
+测试: /a-share-data 300750 (宁德时代数据)
+✅ PASSED - 输出: 30568 chars
+测试: /web-search 苹果公司最新消息 (Web搜索测试)
+✅ PASSED - 输出: 24175 chars
+测试: /financial-data 贵州茅台 (财务数据分析)
+✅ PASSED - 输出: 30870 chars
+测试: /a-share-filings 600519 (A股公告查询)
+✅ PASSED - 输出: 61029 chars
+测试: /a-share-screening 白酒 (行业筛选)
+✅ PASSED - 输出: 43975 chars
+
+============================================
+测试结果: 9 passed, 0 failed
+============================================
+```
+
+### Skills 覆盖范围
+
+| Category | Skills | Status |
+|----------|--------|--------|
+| 宏观分析 | /macro-china (GDP/CPI/PMI) | ✅ 3/3 |
+| A股数据 | /a-share-data (多个股票) | ✅ 2/2 |
+| Web搜索 | /web-search | ✅ 1/1 |
+| 财务分析 | /financial-data | ✅ 1/1 |
+| 公告查询 | /a-share-filings | ✅ 1/1 |
+| 行业筛选 | /a-share-screening | ✅ 1/1 |
+| **总计** | | **9/9** |
+
+---
+
+*文档版本: 10.8*
 *创建时间: 2026-05-28*
-*更新: 2026-05-29 (全面验证完成 - Skills带参数执行 2/2 + 连续对话 10/10 + AppScript 10/10)*
+*更新: 2026-05-29 (扩展 Skills 验证 9/9 通过 + 连续对话 10/10 + AppScript 10/10)*
 *参考: Loucode Claude Code TUI, @earendil-works/pi-tui v0.76.0*
