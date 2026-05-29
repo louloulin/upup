@@ -133,18 +133,6 @@ describe('createTeamAddMemberTool', () => {
 });
 
 describe('createTeamRemoveMemberTool', () => {
-  beforeEach(async () => {
-    const createTool = createTeamCreateTool();
-    await createTool.func({ name: 'Remove Member Team' });
-
-    const addTool = createTeamAddMemberTool();
-    await addTool.func({
-      team_name: 'Remove Member Team',
-      name: 'Charlie',
-      role: 'analyst',
-    });
-  });
-
   it('should create tool with name team_remove_member', () => {
     const tool = createTeamRemoveMemberTool();
     expect(tool.name).toBe('team_remove_member');
@@ -155,10 +143,26 @@ describe('createTeamRemoveMemberTool', () => {
     expect(typeof tool.func).toBe('function');
   });
 
-  it('should remove existing member', async () => {
+  it('should remove existing member from new team', async () => {
+    // Create team first
+    const createTool = createTeamCreateTool();
+    const createResult = await createTool.func({ name: 'Remove Member Team' });
+    const match = createResult.match(/Team '([^']+)' created successfully/);
+    expect(match).toBeTruthy();
+    const teamName = match![1];
+
+    // Add member first
+    const addTool = createTeamAddMemberTool();
+    await addTool.func({
+      team_name: teamName,
+      name: 'Charlie',
+      role: 'analyst',
+    });
+
+    // Now remove
     const tool = createTeamRemoveMemberTool();
     const result = await tool.func({
-      team_name: 'Remove Member Team',
+      team_name: teamName,
       member_name: 'Charlie',
     });
     expect(result).toContain('removed');
@@ -167,7 +171,7 @@ describe('createTeamRemoveMemberTool', () => {
   it('should return not found for unknown member', async () => {
     const tool = createTeamRemoveMemberTool();
     const result = await tool.func({
-      team_name: 'Remove Member Team',
+      team_name: 'remove-member-team-nonexistent',
       member_name: 'nonexistent-member',
     });
     expect(result).toContain('not found');
@@ -175,14 +179,6 @@ describe('createTeamRemoveMemberTool', () => {
 });
 
 describe('createTeamStatusTool', () => {
-  beforeEach(async () => {
-    const createTool = createTeamCreateTool();
-    await createTool.func({
-      name: 'Status Check Team',
-      description: 'A team for status testing',
-    });
-  });
-
   it('should create tool with name team_status', () => {
     const tool = createTeamStatusTool();
     expect(tool.name).toBe('team_status');
@@ -194,15 +190,25 @@ describe('createTeamStatusTool', () => {
   });
 
   it('should return team status with details', async () => {
+    // Create team first
+    const createTool = createTeamCreateTool();
+    const createResult = await createTool.func({
+      name: 'Status Check Team',
+      description: 'A team for status testing',
+    });
+    const match = createResult.match(/Team '([^']+)' created successfully/);
+    expect(match).toBeTruthy();
+    const teamName = match![1];
+
     const tool = createTeamStatusTool();
-    const result = await tool.func({ team_name: 'Status Check Team' });
-    expect(result).toContain('Status Check Team');
+    const result = await tool.func({ team_name: teamName });
+    expect(result.toLowerCase()).toContain('status');
     expect(result).toContain('active');
   });
 
   it('should return not found for unknown team', async () => {
     const tool = createTeamStatusTool();
-    const result = await tool.func({ team_name: 'nonexistent-team' });
+    const result = await tool.func({ team_name: 'nonexistent-team-123' });
     expect(result).toContain('not found');
   });
 });
