@@ -35,6 +35,9 @@ const CATEGORY_ORDER = ['core', 'system', 'plan', 'agent', 'mcp', 'permissions',
  * HelpV2 Component - Interactive help with search and navigation
  */
 export class HelpV2Component extends Container {
+  // Required by pi-tui for focus management
+  focused: boolean = false;
+
   private searchInput: Input
   private commandList: SelectList
   private commands: Command[] = []
