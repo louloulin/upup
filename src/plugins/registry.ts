@@ -14,6 +14,7 @@ import type {
   PluginService,
   HookHandler,
 } from './types.js';
+import { PluginError } from './types.js';
 
 /**
  * Plugin Registry Implementation
@@ -24,6 +25,7 @@ export class PluginRegistryImpl implements PluginRegistry {
   private services: PluginService[] = [];
   private hooks: Map<string, HookHandler[]> = new Map();
   private capabilities: Map<PluginCapability, LoadedPlugin[]> = new Map();
+  private errors: Map<string, PluginError> = new Map();
 
   /**
    * Register a loaded plugin
@@ -218,6 +220,100 @@ export class PluginRegistryImpl implements PluginRegistry {
    */
   get size(): number {
     return this.plugins.size;
+  }
+
+  // ========================================================================
+  // Phase 64: Enable/Disable Support
+  // ========================================================================
+
+  /**
+   * Enable a plugin by ID
+   */
+  enable(id: string): boolean {
+    const plugin = this.plugins.get(id);
+    if (!plugin) {
+      warn('default', `Plugin not found for enable: ${id}`);
+      return false;
+    }
+
+    plugin.enabled = true;
+    // Clear any error when enabling
+    this.errors.delete(id);
+    info('default', `Plugin enabled: ${id}`);
+    return true;
+  }
+
+  /**
+   * Disable a plugin by ID
+   */
+  disable(id: string): boolean {
+    const plugin = this.plugins.get(id);
+    if (!plugin) {
+      warn('default', `Plugin not found for disable: ${id}`);
+      return false;
+    }
+
+    plugin.enabled = false;
+    info('default', `Plugin disabled: ${id}`);
+    return true;
+  }
+
+  /**
+   * Check if a plugin is enabled
+   */
+  isEnabled(id: string): boolean {
+    const plugin = this.plugins.get(id);
+    return plugin?.enabled ?? false;
+  }
+
+  /**
+   * Get enabled plugins only
+   */
+  getEnabled(): LoadedPlugin[] {
+    return [...this.plugins.values()].filter(p => p.enabled !== false);
+  }
+
+  /**
+   * Get disabled plugins only
+   */
+  getDisabled(): LoadedPlugin[] {
+    return [...this.plugins.values()].filter(p => p.enabled === false);
+  }
+
+  /**
+   * Record a plugin error
+   */
+  setError(id: string, error: PluginError): void {
+    this.errors.set(id, error);
+    warn('default', `Plugin error recorded: ${id} - ${error.message}`);
+  }
+
+  /**
+   * Get error for a plugin
+   */
+  getError(id: string): PluginError | undefined {
+    return this.errors.get(id);
+  }
+
+  /**
+   * Clear error for a plugin
+   */
+  clearError(id: string): void {
+    this.errors.delete(id);
+  }
+
+  /**
+   * Get all plugin errors
+   */
+  getAllErrors(): Array<{ id: string; error: PluginError }> {
+    return [...this.errors.entries()].map(([id, error]) => ({ id, error }));
+  }
+
+  /**
+   * Get plugins with errors
+   */
+  getPluginsWithErrors(): string[] {
+    return [...this.errors.keys()];
   }
 }
 

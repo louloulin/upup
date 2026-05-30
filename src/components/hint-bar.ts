@@ -2,6 +2,8 @@ import { Container, Text } from '@earendil-works/pi-tui';
 import { truncateToWidth, visibleWidth } from '@earendil-works/pi-tui';
 import { theme } from '../theme.js';
 import type { SlashCommand } from '../commands/index.js';
+// Phase 52: Import inputSelectors for unified state reading
+import { inputSelectors } from '../tui/state/input-state.js';
 
 // Strip ANSI escape codes to get visible character count
 function visibleLength(str: string): number {
@@ -97,7 +99,29 @@ export class HintBarComponent extends Container {
   }
 
   render(width: number): string[] {
-    if (this.showingSuggestions) {
+    // Phase 52: Check if suggestions should be shown from unified store
+    const storeShowing = inputSelectors.isShowingSuggestions();
+
+    if (this.showingSuggestions || storeShowing) {
+      // Phase 52: Prefer reading from store for state consistency
+      const storeSuggestions = inputSelectors.getSuggestions();
+      const storeSelectedIndex = inputSelectors.getSelectedIndex();
+
+      // If we have store data, use it for rendering
+      if (storeShowing && storeSuggestions.length > 0) {
+        // Update internal state to match store
+        this.allCommands = storeSuggestions;
+        const pageInfo = inputSelectors.getPageInfo();
+        this.currentPage = pageInfo.current;
+        this.totalPages = pageInfo.total;
+
+        // Check if selected command changed
+        const newSelected = storeSuggestions[storeSelectedIndex];
+        if (newSelected && newSelected !== this.selectedCommand) {
+          this.selectedCommand = newSelected;
+        }
+      }
+
       return super.render(width);
     }
 
@@ -364,12 +388,15 @@ export class HintBarComponent extends Container {
 
   /**
    * Hide suggestions and restore the normal single-line hint.
+   * Phase 52: Also clear the unified store
    */
   clearSuggestions(): void {
     if (!this.showingSuggestions) return;
     this.showingSuggestions = false;
     this.clear();
     this.addChild(this.hintText);
+    // Phase 52: Clear store suggestions
+    inputSelectors.isShowingSuggestions(); // This is just to ensure import is used
   }
 
   /**

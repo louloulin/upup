@@ -1,6 +1,8 @@
 /**
  * CommandInputController - 命令输入控制器
  *
+ * Phase 50: 现在使用 input-state 作为统一状态源
+ *
  * 目标: 统一管理命令输入状态，解决以下问题:
  * 1. slashActive 双重状态问题
  * 2. 左右键完全被劫持导致无法移动光标
@@ -13,7 +15,8 @@
  * - custom-editor.ts 通过控制器获取状态和进行条件判断
  */
 
-import { commandStore, commandActions } from './state/command-state.js';
+// Phase 50: Use input-state as unified state source
+import { inputStore, inputActions } from './state/input-state.js';
 
 export interface InputState {
   text: string;
@@ -104,11 +107,11 @@ export class CommandInputController {
   private _onInputChange(): void {
     if (this.hasSlashPrefix) {
       // 更新查询状态
-      commandActions.setQuery(this._text);
+      inputActions.setQuery(this._text);
       // 注意: suggestions 由 cli.ts 在调用此方法后设置
     } else {
       // 清除建议
-      commandActions.clear();
+      inputActions.clear();
     }
 
     // 通知回调
@@ -119,7 +122,7 @@ export class CommandInputController {
    * 设置建议列表 (由 cli.ts 调用)
    */
   setSuggestions(suggestions: any[]): void {
-    commandActions.setSuggestions(suggestions);
+    inputActions.setSuggestions(suggestions);
   }
 
   // ==================== Navigation ====================
@@ -128,14 +131,14 @@ export class CommandInputController {
    * 导航到上一个建议
    */
   navigateUp(): void {
-    commandActions.selectPrev();
+    inputActions.selectPrev();
   }
 
   /**
    * 导航到下一个建议
    */
   navigateDown(): void {
-    commandActions.selectNext();
+    inputActions.selectNext();
   }
 
   // ==================== Pagination Checks ====================
@@ -145,7 +148,7 @@ export class CommandInputController {
    * 条件: 当前页 > 0
    */
   canPagePrev(): boolean {
-    const state = commandStore.getState();
+    const state = inputStore.getState();
     return state.currentPage > 0;
   }
 
@@ -154,7 +157,7 @@ export class CommandInputController {
    * 条件: 当前页 < 总页数 - 1
    */
   canPageNext(): boolean {
-    const state = commandStore.getState();
+    const state = inputStore.getState();
     return state.currentPage < state.totalPages - 1;
   }
 
@@ -195,9 +198,9 @@ export class CommandInputController {
    * 返回是否应该进行分页，而不是移动光标
    */
   shouldPageLeft(): boolean {
-    const state = commandStore.getState();
+    const state = inputStore.getState();
     return (
-      state.mode === 'suggestions' &&
+      state.inputMode === 'suggestions' &&
       this.isAtStart() &&
       this.canPagePrev()
     );
@@ -208,9 +211,9 @@ export class CommandInputController {
    * 返回是否应该进行分页，而不是移动光标
    */
   shouldPageRight(): boolean {
-    const state = commandStore.getState();
+    const state = inputStore.getState();
     return (
-      state.mode === 'suggestions' &&
+      state.inputMode === 'suggestions' &&
       this.isAtEnd() &&
       this.canPageNext()
     );
@@ -231,7 +234,7 @@ export class CommandInputController {
    * 订阅状态变化
    */
   subscribe(listener: () => void): () => void {
-    return commandStore.subscribe(listener);
+    return inputStore.subscribe(listener);
   }
 
   // ==================== Utility ====================
@@ -242,18 +245,18 @@ export class CommandInputController {
   reset(): void {
     this._text = '';
     this._cursorPosition = 0;
-    commandActions.clear();
+    inputActions.clear();
   }
 
   /**
    * 调试信息
    */
   debug(): string {
-    const state = commandStore.getState();
+    const state = inputStore.getState();
     return JSON.stringify({
       text: this._text,
       cursorPosition: this._cursorPosition,
-      mode: state.mode,
+      mode: state.inputMode,
       suggestionsCount: state.suggestions.length,
       selectedIndex: state.selectedIndex,
       currentPage: state.currentPage,

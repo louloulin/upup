@@ -1,86 +1,90 @@
 /**
  * Command System Integration Layer
  *
- * 提供 cli.ts 与 CommandState Store 之间的集成接口
+ * Phase 50: 现在使用 input-state 作为统一状态源
+ *
+ * 提供 cli.ts 与 InputState Store 之间的集成接口
  * 解决循环依赖问题
  */
 
-import { commandStore, commandActions, commandSelectors, type CommandState } from './state/command-state.js';
+// Phase 50: Use input-state as unified state source
+import { inputStore, inputActions, inputSelectors, type InputState } from './state/input-state.js';
 import type { SlashCommand } from '@upup/commands';
 
-// Re-export types
-export type { CommandState } from './state/command-state.js';
+// Re-export InputState type
+export type { InputState } from './state/input-state.js';
 
 /**
  * 命令系统状态管理
+ * Phase 50: 委托给 inputState
  */
 export const commandState = {
   // 获取当前状态
   getState() {
-    return commandStore.getState();
+    return inputStore.getState();
   },
 
   // 订阅变化
   subscribe(listener: () => void) {
-    return commandStore.subscribe(listener);
+    return inputStore.subscribe(listener);
   },
 
   // 更新查询
   setQuery(query: string) {
-    commandActions.setQuery(query);
+    inputActions.setQuery(query);
   },
 
   // 更新建议
   setSuggestions(suggestions: SlashCommand[]) {
-    commandActions.setSuggestions(suggestions);
+    inputActions.setSuggestions(suggestions);
   },
 
   // 导航
   navigateUp() {
-    commandActions.selectPrev();
+    inputActions.selectPrev();
   },
 
   navigateDown() {
-    commandActions.selectNext();
+    inputActions.selectNext();
   },
 
   // 分页
   nextPage() {
-    commandActions.nextPage();
+    inputActions.nextPage();
   },
 
   prevPage() {
-    commandActions.prevPage();
+    inputActions.prevPage();
   },
 
   // 选择
   selectIndex(index: number) {
-    commandActions.selectIndex(index);
+    inputActions.selectIndex(index);
   },
 
   // 清除
   clear() {
-    commandActions.clear();
+    inputActions.clear();
   },
 
   // 获取页信息
   getPageInfo() {
-    return commandSelectors.getPageInfo();
+    return inputSelectors.getPageInfo();
   },
 
   // 检查是否可以分页
   canPaginate() {
-    return commandSelectors.canPaginate();
+    return inputSelectors.getPageInfo();
   },
 
   // 记录使用
   recordUsage(commandName: string) {
-    commandActions.recordUsage(commandName);
+    inputActions.recordUsage(commandName);
   },
 
   // 获取当前页建议
   getCurrentPageSuggestions() {
-    return commandSelectors.getCurrentPageSuggestions();
+    return inputSelectors.getCurrentPageSuggestions();
   },
 };
 
@@ -88,33 +92,33 @@ export const commandState = {
  * 获取是否处于建议模式
  */
 export function isInSuggestionsMode(): boolean {
-  return commandStore.getState().mode === 'suggestions';
+  return inputSelectors.isShowingSuggestions();
 }
 
 /**
  * 获取当前建议列表
  */
 export function getCurrentSuggestions(): SlashCommand[] {
-  return commandStore.getState().suggestions;
+  return inputSelectors.getSuggestions();
 }
 
 /**
  * 获取当前选中索引
  */
 export function getSelectedIndex(): number {
-  return commandStore.getState().selectedIndex;
+  return inputSelectors.getSelectedIndex();
 }
 
 /**
  * 获取当前页码
  */
 export function getCurrentPage(): number {
-  return commandStore.getState().currentPage;
+  return inputSelectors.getPageInfo().current;
 }
 
 /**
  * 获取总页数
  */
 export function getTotalPages(): number {
-  return commandStore.getState().totalPages;
+  return inputSelectors.getPageInfo().total;
 }

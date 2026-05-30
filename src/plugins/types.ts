@@ -295,6 +295,7 @@ export interface ChannelMessage {
 export interface PluginCommand {
   name: string;
   description?: string;
+  aliases?: string[];
   execute(args: string[], ctx: CommandContext): Promise<CommandResult>;
 }
 
@@ -362,6 +363,30 @@ export interface PluginRegistry {
   getAllEnrichedHooks(): EnrichedHook[];
   /** Get tool names filtered by plugin name prefix */
   getToolNamesByPlugin(pluginName: string): string[];
+
+  // Phase 64: Enable/Disable Support
+  /** Enable a plugin by ID */
+  enable(id: string): boolean;
+  /** Disable a plugin by ID */
+  disable(id: string): boolean;
+  /** Check if a plugin is enabled */
+  isEnabled(id: string): boolean;
+  /** Get enabled plugins only */
+  getEnabled(): LoadedPlugin[];
+  /** Get disabled plugins only */
+  getDisabled(): LoadedPlugin[];
+
+  // Phase 64: Error Handling
+  /** Record a plugin error */
+  setError(id: string, error: PluginError): void;
+  /** Get error for a plugin */
+  getError(id: string): PluginError | undefined;
+  /** Clear error for a plugin */
+  clearError(id: string): void;
+  /** Get all plugin errors */
+  getAllErrors(): Array<{ id: string; error: PluginError }>;
+  /** Get plugins with errors */
+  getPluginsWithErrors(): string[];
 }
 
 // ============================================================================

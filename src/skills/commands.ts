@@ -136,9 +136,7 @@ export async function initializeSkills(
   // Step 3: Register agent skills from ~/.claude/skills/
   const agentCount = await initializeAgentCommands();
   count += agentCount;
-
   initialized = true;
-  console.log(`[skills] Initialized ${count} skills (${bundledSkills.length} bundled + ${fileBasedSkills.length} file-based + ${agentCount} agent)`);
   return count;
 }
 

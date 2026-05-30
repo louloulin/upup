@@ -4,6 +4,14 @@
  * 导出所有状态管理相关的类和函数
  */
 
+// Phase 50: Re-export input-state as the unified state
+export {
+  inputStore,
+  inputActions,
+  inputSelectors,
+  type InputState,
+} from './input-state.js';
+
 export { createStore, combineStores, type Store, type Listener } from './store.js';
 export { QueryGuard, getQueryGuard, resetQueryGuard, type QueryState } from './query-guard.js';
 export {

@@ -201,11 +201,6 @@ export async function initializeAgentCommands(): Promise<number> {
 
   const count = registerAllAgentCommands();
   initialized = true;
-
-  if (count > 0) {
-    console.log(`[agent-commands] Loaded ${count} agent skills`);
-  }
-
   return count;
 }
 

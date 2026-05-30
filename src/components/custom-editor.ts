@@ -1,5 +1,20 @@
 import { Editor, Key, matchesKey } from '@earendil-works/pi-tui';
 import type { KeyEvent as KEvent, ResolveResult } from '../keybindings/types.js';
+import { inputStore, inputSelectors, inputActions } from '../tui/state/input-state.js';
+import { Cursor } from '../tui/utils/cursor.js';
+import {
+  pushToKillRing,
+  getLastKill,
+  killToLineEnd,
+  killToLineStart,
+  killWordBefore,
+  resetKillAccumulation,
+  resetYankState,
+  recordYank,
+  updateYankLength,
+  canYankPop,
+  yankPop,
+} from '../utils/kill-ring.js';
 
 export class CustomEditor extends Editor {
   onEscape?: () => void;
@@ -25,17 +40,47 @@ export class CustomEditor extends Editor {
    * Return a ResolveResult to handle the key, or null to pass through to editor.
    */
   resolveKeybinding?: (event: KEvent) => ResolveResult | null;
-  slashActive: boolean = false;
 
-  // Cursor position tracking for conditional key handling
-  private _cursorPosition: number = 0;
+  // Phase 40: Esc double-press for clearing input
+  private lastEscapeTime = 0;
+  private readonly ESC_DOUBLE_PRESS_MS = 500;
 
+  // Phase 51: Internal cursor tracking using Cursor class
+  private _cursor: Cursor = new Cursor('');
+
+  // Phase 31: Use inputState for slashActive (single source of truth)
+  get slashActive(): boolean {
+    return inputSelectors.isShowingSuggestions();
+  }
+
+  // Cursor position tracking - use internal Cursor
   get cursorPosition(): number {
-    return this._cursorPosition;
+    return this._cursor.offset;
   }
 
   setCursorPosition(pos: number): void {
-    this._cursorPosition = Math.max(0, Math.min(pos, this.getText().length));
+    // Update internal cursor
+    this._cursor = this._cursor.moveTo(pos);
+    // Also update inputStore for UI
+    inputActions.setCursorPosition(pos);
+  }
+
+  /**
+   * Get internal cursor instance for precise operations
+   * Phase 51: Named to avoid collision with base Editor.getCursor()
+   */
+  getSlashCursor(): Cursor {
+    return this._cursor;
+  }
+
+  /**
+   * Sync internal cursor with current text
+   * Phase 51: Call after text changes
+   */
+  syncCursor(): void {
+    const text = this.getText();
+    const currentOffset = this._cursor.offset;
+    this._cursor = Cursor.fromText(text, 80, currentOffset);
   }
 
   // Map truncated display text → full original text for history entries
@@ -68,7 +113,11 @@ export class CustomEditor extends Editor {
   }
 
   handleInput(data: string): void {
-    const showingSuggestions = this.slashActive;
+    // Phase 31: Use inputState for showingSuggestions (single source of truth)
+    const currentText = this.getText();
+    const isTypingSlash = data === '/';
+    const hasSlashPrefix = currentText.startsWith('/') || isTypingSlash;
+    const showingSuggestions = hasSlashPrefix || inputSelectors.isShowingSuggestions();
 
     // Approval mode: route 1/2/3 + Enter/Esc to approval handler
     if (this.onApprovalKey) {
@@ -95,12 +144,23 @@ export class CustomEditor extends Editor {
     }
 
     // Esc: dismiss suggestions first, then existing behavior
+    // Phase 40: Add double-press detection for clearing input
     if (matchesKey(data, Key.escape)) {
       if (showingSuggestions) {
-        this.slashActive = false;
+        inputActions.hideSuggestions();
         this.onSlashDismiss?.();
         return;
       }
+      // Phase 40: Double-press Esc to clear input
+      const now = Date.now();
+      if (now - this.lastEscapeTime < this.ESC_DOUBLE_PRESS_MS && this.getText().length > 0) {
+        // Double-press: clear input
+        this.setText('');
+        inputActions.clear();
+        this.lastEscapeTime = 0;
+        return;
+      }
+      this.lastEscapeTime = now;
       if (this.onEscape) {
         this.onEscape();
         return;
@@ -119,9 +179,11 @@ export class CustomEditor extends Editor {
 
     // P2: Left/Right arrows: conditional pagination or cursor movement
     // Only paginate if cursor is at boundary AND there's a previous/next page
+    // Phase 51: Use internal _cursor for precise position tracking
     if (showingSuggestions && matchesKey(data, Key.left)) {
       // Only paginate if cursor is at start AND we can go to previous page
-      if (this._cursorPosition === 0 && this.onSlashPage) {
+      // Phase 51: Use internal cursor position
+      if (this._cursor.isAtStart() && this.onSlashPage) {
         this.onSlashPage('prev');
         return;
       }
@@ -131,7 +193,8 @@ export class CustomEditor extends Editor {
     }
     if (showingSuggestions && matchesKey(data, Key.right)) {
       // Only paginate if cursor is at end AND we can go to next page
-      if (this._cursorPosition === this.getText().length && this.onSlashPage) {
+      // Phase 51: Use internal cursor position
+      if (this._cursor.isAtEnd() && this.onSlashPage) {
         this.onSlashPage('next');
         return;
       }
@@ -140,10 +203,28 @@ export class CustomEditor extends Editor {
       return;
     }
 
-    // Tab: select suggestion if active
-    if (showingSuggestions && matchesKey(data, Key.tab)) {
-      this.onSlashSelect?.();
-      return;
+    // Tab: select suggestion if active, or autocomplete if no suggestion shown
+    // Phase 53: Tab completion for slash commands
+    if (matchesKey(data, Key.tab)) {
+      if (showingSuggestions) {
+        // If suggestions are shown, select the current one
+        this.onSlashSelect?.();
+        return;
+      }
+      // Phase 53: Try Tab autocomplete if text starts with /
+      const text = this.getText();
+      if (text.startsWith('/')) {
+        // Try to find exact match and complete
+        const query = text.slice(1).toLowerCase();
+        if (query && this.onSlashExactMatch) {
+          const matched = this.onSlashExactMatch(text);
+          if (matched) {
+            // Text was completed by the callback
+            return;
+          }
+        }
+      }
+      // Fall through to default editor behavior
     }
 
     // Enter: select from suggestion if active, otherwise submit
@@ -156,6 +237,131 @@ export class CustomEditor extends Editor {
       this.onCtrlC();
       return;
     }
+
+    // ========================================================================
+    // Phase 60: Kill Ring + Emacs Shortcuts
+    // ========================================================================
+
+    // Ctrl+K: Kill to end of line
+    if (matchesKey(data, Key.ctrl('k'))) {
+      const cursor = { text: this.getText(), offset: this._cursor.offset };
+      const result = killToLineEnd(cursor);
+      if (result.killed) {
+        pushToKillRing(result.killed, 'append');
+        this.setText(result.cursor.text);
+        this.setCursorPosition(result.cursor.offset);
+        resetYankState();
+      }
+      return;
+    }
+
+    // Ctrl+U: Kill to start of line
+    if (matchesKey(data, Key.ctrl('u'))) {
+      const cursor = { text: this.getText(), offset: this._cursor.offset };
+      const result = killToLineStart(cursor);
+      if (result.killed) {
+        pushToKillRing(result.killed, 'prepend');
+        this.setText(result.cursor.text);
+        this.setCursorPosition(result.cursor.text.length > result.cursor.offset
+          ? result.cursor.offset
+          : result.cursor.text.length);
+        resetYankState();
+      }
+      return;
+    }
+
+    // Ctrl+W: Kill word before cursor
+    if (matchesKey(data, Key.ctrl('w'))) {
+      const cursor = { text: this.getText(), offset: this._cursor.offset };
+      const result = killWordBefore(cursor);
+      if (result.killed) {
+        pushToKillRing(result.killed, 'prepend');
+        this.setText(result.cursor.text);
+        this.setCursorPosition(result.cursor.offset);
+        resetYankState();
+      }
+      return;
+    }
+
+    // Ctrl+Y: Yank (paste) from kill ring
+    if (matchesKey(data, Key.ctrl('y'))) {
+      const text = getLastKill();
+      if (text.length > 0) {
+        const startOffset = this._cursor.offset;
+        const newCursor = this._cursor.insert(text);
+        recordYank(startOffset, text.length);
+        this.setText(newCursor.text);
+        this.setCursorPosition(newCursor.offset);
+        resetKillAccumulation();
+      }
+      return;
+    }
+
+    // Alt+Y: Yank-pop (cycle through kill ring)
+    if (data.startsWith('\x1b') && data.length === 2 && data[1] === 'y') {
+      if (canYankPop()) {
+        const popResult = yankPop();
+        if (popResult) {
+          const { text, start, length } = popResult;
+          const before = this._cursor.text.slice(0, start);
+          const after = this._cursor.text.slice(start + length);
+          const newText = before + text + after;
+          const newOffset = start + text.length;
+          updateYankLength(text.length);
+          this.setText(newText);
+          this.setCursorPosition(newOffset);
+        }
+      }
+      return;
+    }
+
+    // Alt+B: Move to previous word (beginning)
+    if (data.startsWith('\x1b') && data.length === 2 && data[1] === 'b') {
+      const result = this._cursor.prevWord();
+      if (!result.equals(this._cursor)) {
+        this.setCursorPosition(result.offset);
+      }
+      return;
+    }
+
+    // Alt+F: Move to next word (end)
+    if (data.startsWith('\x1b') && data.length === 2 && data[1] === 'f') {
+      const result = this._cursor.nextWord();
+      if (!result.equals(this._cursor)) {
+        this.setCursorPosition(result.offset);
+      }
+      return;
+    }
+
+    // Alt+D: Delete word after cursor
+    if (data.startsWith('\x1b') && data.length === 2 && data[1] === 'd') {
+      const result = this._cursor.deleteWordAfter();
+      if (result) {
+        pushToKillRing(result.killed, 'append');
+        this.setText(result.cursor.text);
+        this.setCursorPosition(result.cursor.offset);
+        resetYankState();
+      }
+      return;
+    }
+
+    // Ctrl+A: Move to start of line
+    if (matchesKey(data, Key.ctrl('a'))) {
+      const result = this._cursor.startOfLine();
+      this.setCursorPosition(result.offset);
+      return;
+    }
+
+    // Ctrl+E: Move to end of line
+    if (matchesKey(data, Key.ctrl('e'))) {
+      const result = this._cursor.endOfLine();
+      this.setCursorPosition(result.offset);
+      return;
+    }
+
+    // ========================================================================
+    // End Phase 60
+    // ========================================================================
 
     // Keybinding resolution: convert raw input to KeyEvent, check resolver
     if (this.resolveKeybinding) {
@@ -173,18 +379,27 @@ export class CustomEditor extends Editor {
     // Default: pass to editor
     super.handleInput(data);
 
-    // Update cursor position after editor processes input
-    this.updateCursorPosition();
+    // Phase 31: Update inputState after editor processes input
+    // Phase 51: Also sync internal cursor
+    this.updateInputState();
+    this.syncCursor();
 
     // Check if slash mode should activate or deactivate
     const newText = this.getText();
-    if (newText.startsWith('/')) {
-      this.slashActive = true;
+    const wasSlashActive = inputSelectors.isShowingSuggestions();
+    const shouldBeActive = newText.startsWith('/');
+
+    if (shouldBeActive && !wasSlashActive) {
+      // Just activated slash mode
       this.onSlashChange?.(newText);
-    } else if (this.slashActive) {
-      this.slashActive = false;
+    } else if (shouldBeActive && wasSlashActive) {
+      // Already active, just update the text
+      this.onSlashChange?.(newText);
+    } else if (!shouldBeActive && wasSlashActive) {
+      // Deactivated slash mode
       this.onSlashDismiss?.();
     }
+    // If neither active, do nothing
   }
 
   /**
@@ -237,16 +452,23 @@ export class CustomEditor extends Editor {
   }
 
   /**
-   * Update internal cursor position after editor handles input.
-   * This is needed for conditional pagination logic.
+   * Update inputState after editor handles input.
+   * Phase 31: Use inputStore for unified state management.
+   * Phase 51: Also sync internal cursor.
    */
-  private updateCursorPosition(): void {
-    // The editor base class maintains cursor position internally.
-    // We use a best-effort approach: track how input affects cursor.
-    // For most cases, cursor moves to end after typing.
-    // The real cursor position is maintained by pi-tui's Editor.
+  private updateInputState(): void {
     const text = this.getText();
-    this._cursorPosition = Math.min(this._cursorPosition, text.length);
+    const state = inputStore.getState();
+
+    // Phase 51: Update internal cursor with new text
+    this._cursor = Cursor.fromText(text, 80, state.cursorPosition);
+
+    // Update text and ensure cursor position is valid
+    inputStore.setState(prev => ({
+      ...prev,
+      text,
+      cursorPosition: Math.min(prev.cursorPosition, text.length),
+    }));
   }
 
   /**

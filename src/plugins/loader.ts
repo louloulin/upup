@@ -21,8 +21,10 @@ import type {
   AgentTool,
   PluginService,
   HookHandler,
+  PluginConfig,
 } from './types.js';
-import type { PluginConfig } from './types.js';
+import { PluginError, PluginLoadError, PluginRuntimeError } from './types.js';
+import { getPluginRegistry } from './registry.js';
 
 // ============================================================================
 // Plugin Source Directories
@@ -424,15 +426,31 @@ export interface PluginLifecycleOptions {
  */
 export async function loadAndStartPlugin(options: PluginLifecycleOptions): Promise<LoadedPlugin> {
   const { manifest, config, cwd, stateDir = cwd + '/.upup-state' } = options;
+  const registry = getPluginRegistry();
 
-  const loader = getPluginLoader();
-  const plugin = await loader.load(manifest, config, cwd);
+  try {
+    const loader = getPluginLoader();
+    const plugin = await loader.load(manifest, config, cwd);
 
-  // Start services
-  const serviceManager = getServiceManager();
-  await serviceManager.startServices(manifest.id, manifest.name, config, cwd, stateDir);
+    // Start services
+    const serviceManager = getServiceManager();
+    await serviceManager.startServices(manifest.id, manifest.name, config, cwd, stateDir);
 
-  return plugin;
+    // Register with registry
+    registry.register(plugin);
+
+    return plugin;
+  } catch (err) {
+    // Record error in registry
+    const pluginError = err instanceof PluginError
+      ? err
+      : new PluginLoadError(
+          err instanceof Error ? err.message : String(err),
+          manifest.id
+        );
+    registry.setError(manifest.id, pluginError);
+    throw pluginError;
+  }
 }
 
 /**
@@ -440,5 +458,22 @@ export async function loadAndStartPlugin(options: PluginLifecycleOptions): Promi
  */
 export async function stopAndUnloadPlugin(pluginId: string): Promise<void> {
   const loader = getPluginLoader();
-  await loader.unload(pluginId);
+  const registry = getPluginRegistry();
+
+  try {
+    await loader.unload(pluginId);
+    registry.unregister(pluginId);
+    registry.clearError(pluginId);
+  } catch (err) {
+    // Record error even during unload
+    const pluginError = err instanceof PluginError
+      ? err
+      : new PluginRuntimeError(
+          err instanceof Error ? err.message : String(err),
+          'bun',
+          pluginId
+        );
+    registry.setError(pluginId, pluginError);
+    throw pluginError;
+  }
 }

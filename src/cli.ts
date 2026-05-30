@@ -80,49 +80,12 @@ import {
   createApprovalSelector,
 } from './components/index.js';
 import { editorTheme, theme } from './theme.js';
-import { matchCommands, type SlashCommand } from './commands/index.js';
+import { type SlashCommand } from './commands/index.js';
+import { getCliCommands } from './commands/unified-registry.js';
 import { initSpinner } from './utils/spinner.js';
-import { commandStore, commandActions, commandSelectors } from './tui/state/command-state.js';
+// Phase 50: 统一使用 input-state，移除 command-state
+import { inputStore, inputSelectors, inputActions } from './tui/state/input-state.js';
 import { initializeSkills, getSkillCommandRegistry, getRegisteredCommandCount } from './skills/index.js';
-
-/**
- * Get skill commands merged with CLI commands.
- * Uses fuzzy search for better matching.
- * Returns at most 10 commands.
- */
-function getCliCommands(text: string) {
-  // Get base CLI commands
-  const commands: SlashCommand[] = [...matchCommands(text)];
-
-  // Try to add skill commands using fuzzy search
-  try {
-    const registry = getSkillCommandRegistry();
-    const query = text.startsWith('/') ? text.slice(1).trim() : '';
-
-    // Get matching skills using fuzzy search, limit to 10 total
-    const matchedSkills = query
-      ? registry.searchSkillsFuzzy(query, 10)
-      : registry.getAllSkillCommands().slice(0, 10);
-
-    const existingNames = new Set(commands.map(c => c.name.toLowerCase()));
-
-    for (const skill of matchedSkills) {
-      const name = skill.name.toLowerCase();
-      if (!existingNames.has(name)) {
-        commands.push({
-          name: skill.name,
-          description: skill.description,
-          category: 'skill' as const,
-        });
-      }
-    }
-  } catch {
-    // Skill registry not available, continue with base commands
-  }
-
-  // Limit to 10 commands total
-  return commands.slice(0, 10);
-}
 
 
 // Stores the user's approval decision when Enter/Esc is pressed before the
@@ -365,7 +328,6 @@ export async function runCli(options: RunCliOptions = {}) {
   // Initialize skills system - must be called before getCliCommands()
   try {
     await initializeSkills();
-    console.log(`[Skills] Initialized ${getRegisteredCommandCount()} skills`);
   } catch (e) {
     console.warn('[Skills] Failed to initialize:', e);
   }
@@ -463,7 +425,7 @@ export async function runCli(options: RunCliOptions = {}) {
       // Route approval overlay first — must happen before any other rendering
       // Fix: Removed hasApprovalPending() check - callbacks from previous approvals
       // were not being cleared, causing second approvals to not show the dialog.
-      if (agentRunner.pendingApproval) {
+      if (agentRunner?.pendingApproval) {
         // Render pending approval events so callbacks get registered before the early return.
         // Without this, setApprovalPending() is never called and key handler finds no callback.
         const history = agentRunner.history;
@@ -580,10 +542,8 @@ export async function runCli(options: RunCliOptions = {}) {
     errorText.setText(message ? theme.error(`Error: ${message}`) : '');
   };
 
-  // Slash command autocomplete state
-  let slashSuggestions: SlashCommand[] = [];
-  let slashSelectedIndex = 0;
-  let slashActive = false;
+  // Phase 50: 移除残留状态变量，完全依赖 inputStore
+  // 状态管理统一使用 inputActions/inputSelectors
 
   const HELP_TEXT = `Keyboard Shortcuts
   esc          Interrupt query / clear input
@@ -679,7 +639,7 @@ export async function runCli(options: RunCliOptions = {}) {
           chatLog.addChild(new Text(theme.primary(fork ? `Forking session...` : `Resuming session: ${targetId.slice(0, 8)}...`), 0, 0));
           tui.requestRender();
           try {
-            const resumedId = await agentRunner.resumeFromSession(targetId, fork);
+            const resumedId = await agentRunner?.resumeFromSession(targetId, fork);
             if (fork) {
               chatLog.addChild(new Text(theme.success(`Forked as: ${resumedId.slice(0, 8)}...`), 0, 0));
             }
@@ -708,7 +668,7 @@ export async function runCli(options: RunCliOptions = {}) {
         chatLog.addChild(new Spacer(1));
         chatLog.addChild(new Text(theme.primary(`Continuing session: ${lastSessionId.slice(0, 8)}...`), 0, 0));
         tui.requestRender();
-        await agentRunner.resumeFromSession(lastSessionId);
+        await agentRunner?.resumeFromSession(lastSessionId);
       } else if (!lastSessionId) {
         chatLog.addChild(new Spacer(1));
         chatLog.addChild(new Text(theme.muted('No previous session found. Use /session to see available sessions.'), 0, 0));
@@ -841,9 +801,8 @@ export async function runCli(options: RunCliOptions = {}) {
       const rawCommand = query.slice(1).trim();
       // Ignore empty command (just "/" typed)
       if (!rawCommand) {
-        slashActive = false;
-        slashSuggestions = [];
-        commandActions.clear();
+        // Phase 50: 只使用 inputActions
+        inputActions.clear();
         editor.setText('');
         updateView();
         return;
@@ -852,9 +811,8 @@ export async function runCli(options: RunCliOptions = {}) {
       const spaceIdx = rawCommand.indexOf(' ');
       const commandName = (spaceIdx === -1 ? rawCommand : rawCommand.slice(0, spaceIdx)).toLowerCase();
       const commandArgs = spaceIdx === -1 ? '' : rawCommand.slice(spaceIdx + 1).trim();
-      slashActive = false;
-      slashSuggestions = [];
-      commandActions.clear();
+      // Phase 50: 只使用 inputActions
+      inputActions.clear();
       editor.setText('');  // Clear editor after slash command
       updateView();
       await handleSlashCommand(commandName, commandArgs);
@@ -939,20 +897,25 @@ export async function runCli(options: RunCliOptions = {}) {
    */
   const updateView = () => {
     refreshError();
-    if (slashActive && slashSuggestions.length > 0) {
-      hintBar.setSuggestions(slashSuggestions, slashSelectedIndex);
+    // Phase 31: Use inputSelectors instead of local slashActive/slashSuggestions
+    const showingSuggestions = inputSelectors.isShowingSuggestions();
+    const suggestions = inputSelectors.getSuggestions();
+    const selectedIndex = inputSelectors.getSelectedIndex();
+
+    if (showingSuggestions && suggestions.length > 0) {
+      hintBar.setSuggestions(suggestions, selectedIndex);
     } else {
       hintBar.clearSuggestions();
       hintBar.update({
         isProcessing: agentRunner.isProcessing,
-        hasPendingApproval: !!agentRunner.pendingApproval,
+        hasPendingApproval: !!agentRunner?.pendingApproval,
         hasInput: editor.getText().trim().length > 0,
         escPendingClear,
         escPendingExit,
         queueLength: defaultQueue.length(),
       });
     }
-    if (!modelSelection.isInSelectionFlow() && !agentRunner.pendingApproval) {
+    if (!modelSelection.isInSelectionFlow() && !agentRunner?.pendingApproval) {
       tui.setFocus(editor);
     }
   };
@@ -961,13 +924,13 @@ export async function runCli(options: RunCliOptions = {}) {
    * Show a full-screen selection view by replacing the root content.
    * Used for infrequent user-initiated overlays (model selection, approval).
    */
-  const showScreenView = (
+  function showScreenView(
     title: string,
     description: string,
     body: any,
     footer?: string,
     focusTarget?: any,
-  ) => {
+  ) {
     root.clear();
     root.addChild(createScreen(title, description, body, footer));
     if (focusTarget) {
@@ -979,7 +942,7 @@ export async function runCli(options: RunCliOptions = {}) {
   /**
    * Restore the main view after an overlay screen closes.
    */
-  const restoreMainView = () => {
+  function restoreMainView() {
     root.clear();
     root.addChild(intro);
     root.addChild(chatLog);
@@ -992,7 +955,7 @@ export async function runCli(options: RunCliOptions = {}) {
     updateView();
   };
 
-  const renderSelectionOverlay = () => {
+  function renderSelectionOverlay() {
     const state = modelSelection.state;
 
     // Session selection takes priority over model selection
@@ -1007,7 +970,7 @@ export async function runCli(options: RunCliOptions = {}) {
             chatLog.addChild(new Spacer(1));
             chatLog.addChild(new Text(theme.primary(`Resuming session...`), 0, 0));
             tui.requestRender();
-            await agentRunner.resumeFromSession(sessionId);
+            await agentRunner?.resumeFromSession(sessionId);
           },
           () => sessionSelection.cancel(),
         );
@@ -1074,7 +1037,7 @@ export async function runCli(options: RunCliOptions = {}) {
       }
     }
 
-    if (state.appState === 'idle' && !agentRunner.pendingApproval) {
+    if (state.appState === 'idle' && !agentRunner?.pendingApproval) {
       // Only restore main view if session selection is also idle
       if (!sessionSelection.isActive()) {
         restoreMainView();
@@ -1084,7 +1047,7 @@ export async function runCli(options: RunCliOptions = {}) {
     }
 
     // Restore main view when both session and model selection are idle
-    if (!sessionSelection.isActive() && !agentRunner.pendingApproval && state.appState === 'idle') {
+    if (!sessionSelection.isActive() && !agentRunner?.pendingApproval && state.appState === 'idle') {
       restoreMainView();
       tui.requestRender();
       return;
@@ -1094,7 +1057,7 @@ export async function runCli(options: RunCliOptions = {}) {
     // Fix: Removed !chatLog.hasApprovalPending() check - the callback state in tool
     // components was not being cleared properly, causing the second approval dialog
     // to not show. We now rely solely on agentRunner.pendingApproval state.
-    if (agentRunner.pendingApproval) {
+    if (agentRunner?.pendingApproval) {
       const pending = agentRunner.pendingApproval;
       if (pending) {
         const selector = createApprovalSelector((decision) => {
@@ -1259,32 +1222,50 @@ export async function runCli(options: RunCliOptions = {}) {
   };
 
   editor.onSlashChange = async (text: string) => {
-    // Get CLI commands including skills
+    // Phase 50: 统一使用 inputActions
     const suggestions = getCliCommands(text);
 
-    // Update CommandState Store
-    commandActions.setSuggestions(suggestions);
+    // 更新 inputStore
+    inputActions.setSuggestions(suggestions);
 
-    // Update local state for backward compatibility
-    slashSuggestions = suggestions;
-    slashSelectedIndex = 0;
-    slashActive = suggestions.length > 0;
     updateView();
     tui.requestRender();
   };
 
-  editor.onSlashNavigate = (direction: 'up' | 'down') => {
-    const state = commandStore.getState();
+  // Phase 53: Tab autocomplete callback
+  editor.onSlashExactMatch = (text: string): boolean => {
+    // Try to find exact command match and complete
+    const query = text.startsWith('/') ? text.slice(1).toLowerCase() : text.toLowerCase();
+    const suggestions = inputSelectors.getSuggestions();
 
+    // Find exact or prefix match
+    const match = suggestions.find(cmd =>
+      cmd.name.toLowerCase() === query ||
+      cmd.name.toLowerCase().startsWith(query)
+    );
+
+    if (match) {
+      // Complete the command name (replace /xxx with /match.name)
+      editor.setText('/' + match.name + ' ');
+      // Clear suggestions since we have exact match
+      inputActions.clear();
+      updateView();
+      tui.requestRender();
+      return true;
+    }
+    return false;
+  };
+
+  editor.onSlashNavigate = (direction: 'up' | 'down') => {
+    // Phase 50: 统一使用 inputActions
     if (direction === 'down') {
-      slashSelectedIndex = Math.min(slashSelectedIndex + 1, slashSuggestions.length - 1);
-      commandActions.selectNext();
+      inputActions.selectNext();
     } else {
-      slashSelectedIndex = Math.max(slashSelectedIndex - 1, 0);
-      commandActions.selectPrev();
+      inputActions.selectPrev();
     }
     // P2: Refresh hint bar with pagination aware selection
-    hintBar.refreshPage(slashSelectedIndex);
+    const selectedIndex = inputSelectors.getSelectedIndex();
+    hintBar.refreshPage(selectedIndex);
     updateView();
     tui.requestRender();
   };
@@ -1293,27 +1274,25 @@ export async function runCli(options: RunCliOptions = {}) {
   editor.onSlashPage = (direction: 'next' | 'prev') => {
     if (direction === 'next') {
       hintBar.nextPage();
-      commandActions.nextPage();
+      inputActions.nextPage();
     } else {
       hintBar.prevPage();
-      commandActions.prevPage();
+      inputActions.prevPage();
     }
-    // Reset selection to first item on current page
-    const pageInfo = hintBar.getPageInfo();
-    slashSelectedIndex = pageInfo.current * 10;
+    // Phase 50: 使用 inputSelectors
+    const selectedIndex = inputSelectors.getSelectedIndex();
+    hintBar.refreshPage(selectedIndex);
     updateView();
     tui.requestRender();
   };
 
   editor.onSlashSelect = () => {
-    const state = commandStore.getState();
-
-    // Try to get selected command from suggestions
-    const selected = state.suggestions[state.selectedIndex] || slashSuggestions[slashSelectedIndex];
+    // Phase 50: 使用 inputStore 获取选中项
+    const state = inputStore.getState();
+    const selected = state.suggestions[state.selectedIndex];
 
     if (!selected) {
       // Fallback: use the editor's current text as the command
-      // This handles cases where suggestions haven't loaded yet or list is empty
       const editorText = editor.getText().trim();
       if (editorText.startsWith('/')) {
         const rawCommand = editorText.slice(1).trim();
@@ -1321,9 +1300,8 @@ export async function runCli(options: RunCliOptions = {}) {
         const commandName = (spaceIdx === -1 ? rawCommand : rawCommand.slice(0, spaceIdx)).toLowerCase();
         const commandArgs = spaceIdx === -1 ? '' : rawCommand.slice(spaceIdx + 1).trim();
 
-        slashActive = false;
-        slashSuggestions = [];
-        commandActions.clear();
+        // Phase 50: 只清除 inputStore
+        inputActions.clear();
         editor.setText('');
         updateView();
 
@@ -1342,19 +1320,18 @@ export async function runCli(options: RunCliOptions = {}) {
     }
 
     const cmdName = selected.name;
-    
+
     // Extract args from editor text (args after command name)
     const editorText = editor.getText().trim();
     const rawCommand = editorText.slice(1).trim(); // Remove leading /
     const spaceIdx = rawCommand.indexOf(' ');
     const commandArgs = spaceIdx === -1 ? '' : rawCommand.slice(spaceIdx + 1).trim();
 
-    slashActive = false;
-    slashSuggestions = [];
-    commandActions.clear();
+    // Phase 50: 只清除 inputStore
+    inputActions.clear();
     editor.setText('');
     updateView();
-    
+
     // Execute the command with proper error handling
     handleSlashCommand(cmdName, commandArgs).catch(err => {
       console.error(`[CMD] Command /${cmdName} failed:`, err);
@@ -1366,9 +1343,8 @@ export async function runCli(options: RunCliOptions = {}) {
   };
 
   editor.onSlashDismiss = () => {
-    slashActive = false;
-    slashSuggestions = [];
-    commandActions.clear();
+    // Phase 50: 只清除 inputStore
+    inputActions.clear();
     updateView();
     tui.requestRender();
   };
@@ -1393,7 +1369,7 @@ export async function runCli(options: RunCliOptions = {}) {
     const cb = chatLog.getFirstApprovalCallback();
     if (cb) { cb(decision); return; }
     pendingApprovalDecisionGlobal = decision;
-    if (agentRunner.pendingApproval) {
+    if (agentRunner?.pendingApproval) {
       agentRunner.respondToApproval(decision);
     }
   };
@@ -1403,7 +1379,7 @@ export async function runCli(options: RunCliOptions = {}) {
 
     // Only intercept keys when there is actually a pending approval
     // Check both pendingApproval and workingState.status for consistency
-    const hasPendingApproval = !!agentRunner.pendingApproval;
+    const hasPendingApproval = !!agentRunner?.pendingApproval;
     const isInApprovalState = agentRunner.workingState.status === 'approval';
 
     if (!hasPendingApproval && !isInApprovalState) {
@@ -1483,7 +1459,7 @@ export async function runCli(options: RunCliOptions = {}) {
       const cb = chatLog.getFirstApprovalCallback();
       if (cb) { cb('deny'); return true; }
       pendingApprovalDecisionGlobal = 'deny';
-      if (agentRunner.pendingApproval) {
+      if (agentRunner?.pendingApproval) {
         agentRunner.respondToApproval('deny');
         return true;
       }
@@ -1524,7 +1500,7 @@ export async function runCli(options: RunCliOptions = {}) {
             chatLog.addChild(new Spacer(1));
             chatLog.addChild(new Text(theme.primary(`Resuming session...`), 0, 0));
             tui.requestRender();
-            await agentRunner.resumeFromSession(sessionId);
+            await agentRunner?.resumeFromSession(sessionId);
           })();
         }
         return true;
@@ -1538,7 +1514,7 @@ export async function runCli(options: RunCliOptions = {}) {
             chatLog.addChild(new Text(theme.primary(`Forking session...`), 0, 0));
             tui.requestRender();
             try {
-              const newId = await agentRunner.resumeFromSession(sessionId, true);
+              const newId = await agentRunner?.resumeFromSession(sessionId, true);
               chatLog.addChild(new Text(theme.success(`Forked as: ${newId.slice(0, 8)}...`), 0, 0));
             } catch (e) {
               chatLog.addChild(new Text(theme.error(`Failed to fork: ${String(e)}`), 0, 0));
@@ -1601,7 +1577,7 @@ export async function runCli(options: RunCliOptions = {}) {
         chatLog.addChild(new Text(theme.muted(`Session: ${targetId.slice(0, 8)}...`), 0, 0));
         tui.requestRender();
         try {
-          const resumedId = await agentRunner.resumeFromSession(targetId, options.fork);
+          const resumedId = await agentRunner?.resumeFromSession(targetId, options.fork);
           if (options.fork) {
             chatLog.addChild(new Text(theme.success(`Forked as: ${resumedId.slice(0, 8)}...`), 0, 0));
           }
@@ -1624,7 +1600,7 @@ export async function runCli(options: RunCliOptions = {}) {
         chatLog.addChild(new Text(theme.primary(options.fork ? 'Forking session...' : 'Continuing session...'), 0, 0));
         tui.requestRender();
         try {
-          const resumedId = await agentRunner.resumeFromSession(lastId, options.fork);
+          const resumedId = await agentRunner?.resumeFromSession(lastId, options.fork);
           if (options.fork) {
             chatLog.addChild(new Text(theme.success(`Forked as: ${resumedId.slice(0, 8)}...`), 0, 0));
           }

@@ -6,13 +6,14 @@
  */
 
 import { describe, it, expect, beforeEach } from 'bun:test';
-import { existsSync, writeFileSync, mkdirSync, rmSync } from 'fs';
+import { existsSync, writeFileSync, mkdirSync, rmSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
+import { upupPath } from './storage-paths.js';
 
-// Test helper to get the test config directory
+// Test helper to get the actual config directory that getConfigSources reads from
 function getTestConfigDir() {
-  return join(homedir(), '.upup-test-config-sources');
+  return join(homedir(), '.upup');
 }
 
 function cleanupTestConfig() {
@@ -39,23 +40,48 @@ describe('getConfigSources', () => {
   });
 
   it('should identify settings.json as source when config exists', async () => {
-    // Create test settings
+    // Ensure test directory exists
     const dir = getTestConfigDir();
     mkdirSync(dir, { recursive: true });
-    writeFileSync(join(dir, 'settings.json'), JSON.stringify({
-      provider: 'test-provider',
-      modelId: 'test-model',
-    }));
 
+    // Write to the actual settings file that getConfigSources reads
+    const settingsFile = upupPath('settings.json');
+
+    // Read current settings to preserve existing config
+    let existingConfig: Record<string, unknown> = {};
+    if (existsSync(settingsFile)) {
+      try {
+        existingConfig = JSON.parse(readFileSync(settingsFile, 'utf-8'));
+      } catch { /* ignore */ }
+    }
+
+    // Add test values
+    const testData = {
+      ...existingConfig,
+      __testProvider: 'test-provider-value',
+      __testModelId: 'test-model-value',
+    };
+    writeFileSync(settingsFile, JSON.stringify(testData, null, 2));
+
+    // Re-import to get fresh state
     const module = await import('./config.js');
+    module.clearConfigCache(); // Clear cache before testing
     const sources = module.getConfigSources();
-    
-    // Should find provider and modelId
-    const providerSource = sources.find(s => s.key === 'provider');
-    const modelIdSource = sources.find(s => s.key === 'modelId');
-    
+
+    // Should find test keys from settings.json
+    const providerSource = sources.find(s => s.key === '__testProvider');
+    const modelIdSource = sources.find(s => s.key === '__testModelId');
+
     expect(providerSource).toBeDefined();
+    expect(providerSource?.source).toContain('settings');
     expect(modelIdSource).toBeDefined();
+    expect(modelIdSource?.source).toContain('settings');
+
+    // Clean up test values
+    const finalConfig = JSON.parse(readFileSync(settingsFile, 'utf-8'));
+    delete finalConfig.__testProvider;
+    delete finalConfig.__testModelId;
+    writeFileSync(settingsFile, JSON.stringify(finalConfig, null, 2));
   });
 
   it('should return ConfigSourceInfo interface structure', async () => {
