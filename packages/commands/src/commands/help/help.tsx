@@ -12,7 +12,7 @@
  * Reference: loucode/src/commands/help/help.tsx
  */
 
-import { Container, Text, Spacer, Input, SelectList, type SelectItem } from '@earendil-works/pi-tui';
+import { Container, Text, Spacer, Input, SelectList, Key, matchesKey, type SelectItem } from '@earendil-works/pi-tui';
 import { ALL_COMMANDS, builtInCommandNames, inferCategory, type Command } from '../../all-commands.js';
 import { getCommandUsage } from '../../command-usage.js';
 import { theme, selectListTheme } from '../../theme.js';
@@ -110,7 +110,7 @@ export class HelpV2Component extends Container {
 
   handleInput(keyData: string): void {
     // Esc to close
-    if (keyData === '\x1b') {
+    if (matchesKey(keyData, Key.escape)) {
       this.onClose()
       return
     }
