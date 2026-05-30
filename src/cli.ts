@@ -415,8 +415,15 @@ export async function runCli(options: RunCliOptions = {}) {
   let lastRenderedQueryId: string | null = null;
   const finalizedToolIds = new Set<string>();
 
+  // Prevent overlay scheduling loop
+  let _isSchedulingOverlay = false;
+
   // Deferred overlay trigger — set after renderSelectionOverlay is defined
-  let scheduleOverlay: () => void = () => {/* no-op until wired */};
+  let scheduleOverlay: () => void = () => {
+    if (_isSchedulingOverlay) return;
+    _isSchedulingOverlay = true;
+    // no-op until wired — actual implementation below
+  };
 
   agentRunner = new AgentRunnerController(
     { model: modelSelection.model, modelProvider: modelSelection.provider, maxIterations: 50 },
@@ -824,7 +831,7 @@ export async function runCli(options: RunCliOptions = {}) {
     }
 
     // If agent is busy, enqueue the message for mid-run injection
-    if (agentRunner.isProcessing) {
+    if (agentRunner?.isProcessing) {
       defaultQueue.enqueue({
         text: query,
         priority: 'next',
@@ -883,7 +890,7 @@ export async function runCli(options: RunCliOptions = {}) {
       modelSelection.cancelSelection();
       return;
     }
-    if (agentRunner.isProcessing || agentRunner.pendingApproval) {
+    if (agentRunner?.isProcessing || agentRunner.pendingApproval) {
       agentRunner.cancelExecution();
       return;
     }
@@ -907,7 +914,7 @@ export async function runCli(options: RunCliOptions = {}) {
     } else {
       hintBar.clearSuggestions();
       hintBar.update({
-        isProcessing: agentRunner.isProcessing,
+        isProcessing: agentRunner?.isProcessing,
         hasPendingApproval: !!agentRunner?.pendingApproval,
         hasInput: editor.getText().trim().length > 0,
         escPendingClear,
@@ -1178,7 +1185,7 @@ export async function runCli(options: RunCliOptions = {}) {
     }
 
     // Priority 4: Cancel agent execution
-    if (agentRunner.isProcessing || agentRunner.pendingApproval) {
+    if (agentRunner?.isProcessing || agentRunner?.pendingApproval) {
       agentRunner.cancelExecution();
       return;
     }
@@ -1553,10 +1560,12 @@ export async function runCli(options: RunCliOptions = {}) {
         selector,
       );
       tui.requestRender();
+      _isSchedulingOverlay = false;
       return;
     }
     renderSelectionOverlay();
     tui.requestRender();
+    _isSchedulingOverlay = false;
   };
 
   // Handle deferred overlay requests from early callbacks
