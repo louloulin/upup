@@ -9,7 +9,7 @@
  * Type: local-jsx (renders TUI component)
  */
 
-import { Container, Text, Spacer, Input, SelectList, type SelectItem, Box } from '@mariozechner/pi-tui';
+import { Container, Text, Spacer, Input, SelectList, type SelectItem, Box } from '@earendil-works/pi-tui';
 import { theme } from '../../theme.js';
 
 interface MCPServer {

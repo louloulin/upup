@@ -16,7 +16,7 @@ import {
   Input,
   SelectList,
   type SelectItem,
-} from '@mariozechner/pi-tui'
+} from '@earendil-works/pi-tui'
 import { theme, selectListTheme } from '../../theme.js'
 import { getCommandUsage, isFrequentlyUsed } from '../../command-usage.js'
 

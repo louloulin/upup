@@ -50,6 +50,8 @@ export class HelpV2Component extends Container {
     super()
     this.onClose = onClose
 
+    console.log('[HelpV2Component] Constructor called')
+
     // Initialize commands
     this.commands = ALL_COMMANDS.filter(cmd => !cmd.isHidden)
     this.filteredCommands = this.commands
@@ -61,26 +63,19 @@ export class HelpV2Component extends Container {
     const items = this.buildCommandItems()
     this.commandList = new SelectList(items, Math.min(15, items.length), selectListTheme)
 
-    // Update on search input change
-    this.searchInput.onChange = () => {
-      this.searchQuery = this.searchInput.getValue().toLowerCase()
-      this.filteredCommands = this.searchQuery
-        ? this.commands.filter(cmd =>
-            cmd.name.toLowerCase().includes(this.searchQuery) ||
-            cmd.description.toLowerCase().includes(this.searchQuery)
-          )
-        : this.commands
-      this.selectedIndex = 0
-      this.updateCommandList()
-    }
-
+    // Wire up onSelect BEFORE any input can happen
     this.commandList.onSelect = (item) => {
+      console.log('[HelpV2Component] onSelect triggered:', item)
       const idx = parseInt(item.value, 10) - 1
       if (idx >= 0 && idx < this.filteredCommands.length) {
         const cmd = this.filteredCommands[idx]
+        console.log('[HelpV2Component] Selected command:', cmd.name)
         this.onClose(cmd.name)
+      } else {
+        console.log('[HelpV2Component] onSelect: invalid index', idx)
       }
     }
+    console.log('[HelpV2Component] onSelect callback registered, count:', this.commandList.onSelect ? 1 : 0)
   }
 
   private buildCommandItems(): SelectItem[] {
@@ -112,9 +107,33 @@ export class HelpV2Component extends Container {
   }
 
   handleInput(keyData: string): void {
-    // Esc to close
-    if (matchesKey(keyData, Key.escape)) {
+    // Debug: log all received key inputs
+    console.log('[HelpV2Component] handleInput called with:', JSON.stringify(keyData))
+    console.log('[HelpV2Component] commandList.handleInput exists:', typeof this.commandList.handleInput === 'function')
+    console.log('[HelpV2Component] commandList.onSelect exists:', typeof this.commandList.onSelect === 'function')
+
+    // Direct string comparison for debugging - check raw escape character
+    if (keyData === '\x1b' || keyData === 'escape' || keyData === 'Escape') {
+      console.log('[HelpV2Component] Direct escape check: closing overlay')
       this.onClose()
+      return
+    }
+
+    // Also check with matchesKey
+    if (matchesKey(keyData, Key.escape)) {
+      console.log('[HelpV2Component] matchesKey Escape detected, calling onClose')
+      this.onClose()
+      return
+    }
+
+    // Direct Enter check
+    if (keyData === '\r' || keyData === '\n' || keyData === 'enter' || keyData === 'Enter') {
+      console.log('[HelpV2Component] Direct Enter check: triggering select')
+      const selectedItem = this.commandList.filteredItems[this.commandList.selectedIndex]
+      if (selectedItem && this.commandList.onSelect) {
+        console.log('[HelpV2Component] Calling onSelect with:', selectedItem)
+        this.commandList.onSelect(selectedItem)
+      }
       return
     }
 

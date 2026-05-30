@@ -744,6 +744,7 @@ export async function runCli(options: RunCliOptions = {}) {
 
           // Create close handler
           jsxOverlayOnClose = () => {
+            console.log('[CLI] jsxOverlayOnClose called')
             jsxOverlayActive = false
             jsxOverlayComponent = null
             jsxOverlayOnClose = null
