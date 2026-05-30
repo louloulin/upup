@@ -64,7 +64,7 @@ export function registerSessionPid(sessionId: string, options?: { kind?: string;
     cwd: process.cwd(),
     startedAt: Date.now(),
     procStart: new Date().toLocaleString(),
-    version: '2026.05.15',
+    version: '2026.05.30',
     kind: options?.kind as SessionPidInfo['kind'] || 'interactive',
     entrypoint: options?.entrypoint,
   };
