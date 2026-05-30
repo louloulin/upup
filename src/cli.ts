@@ -1260,6 +1260,7 @@ export async function runCli(options: RunCliOptions = {}) {
     slashSuggestions = getCliCommands(text);
 
     slashSelectedIndex = 0;
+    // Only activate slash mode if there are suggestions available
     slashActive = slashSuggestions.length > 0;
     updateView();
     tui.requestRender();
