@@ -34,6 +34,8 @@ export const theme = {
   border: fg(palette.border),
   dim: (text: string) => chalk.dim(text),
   bold: (text: string) => chalk.bold(text),
+  // 新增 key 方法用于快捷键显示
+  key: (text: string) => chalk.hex('#ffcc00').bold(`[${text}]`),
 };
 
 export const markdownTheme: MarkdownTheme = {

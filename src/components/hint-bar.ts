@@ -1,10 +1,11 @@
 import { Container, Text } from '@earendil-works/pi-tui';
+import { truncateToWidth, visibleWidth } from '@earendil-works/pi-tui';
 import { theme } from '../theme.js';
 import type { SlashCommand } from '../commands/index.js';
 
 // Strip ANSI escape codes to get visible character count
 function visibleLength(str: string): number {
-  return str.replace(/\x1b\[[0-9;]*m/g, '').length;
+  return visibleWidth(str);
 }
 
 /**
@@ -32,6 +33,12 @@ export interface HintBarUpdateState {
   permissionModeLabel?: string;
   /** Optional permission mode source (e.g., 'cli', 'env', 'settings') */
   permissionModeSource?: string;
+  /** Current editing mode: 'normal', 'insert', 'select', 'confirm' */
+  editingMode?: 'normal' | 'insert' | 'select' | 'confirm';
+  /** Custom shortcuts to display */
+  customShortcuts?: Array<{ key: string; label: string; enabled?: boolean }>;
+  /** Show additional context hints */
+  showContextHints?: boolean;
 }
 
 /**
@@ -74,17 +81,19 @@ export class HintBarComponent extends Container {
     }
     if (this.rightHint && !this.leftHint) {
       this.currentHintMode = 'right';
-      this.hintText.setText(this.rightHint);
+      // 截断到合理长度
+      this.hintText.setText(this.rightHint.slice(0, 100));
       return;
     }
     if (this.leftHint && !this.rightHint) {
       this.currentHintMode = 'left';
-      this.hintText.setText(this.leftHint);
+      // 截断到合理长度
+      this.hintText.setText(this.leftHint.slice(0, 100));
       return;
     }
     // Both: placeholder, render() handles positioning
     this.currentHintMode = 'both';
-    this.hintText.setText(this.leftHint);
+    this.hintText.setText(this.leftHint.slice(0, 100));
   }
 
   render(width: number): string[] {
@@ -99,16 +108,49 @@ export class HintBarComponent extends Container {
     if (this.currentHintMode === 'both') {
       const leftLen = visibleLength(this.leftHint);
       const rightLen = visibleLength(this.rightHint);
-      const padding = Math.max(1, width - leftLen - rightLen);
-      return [this.leftHint + ' '.repeat(padding) + this.rightHint];
+      const totalLen = leftLen + rightLen;
+
+      let result: string;
+      if (totalLen >= width) {
+        // 需要截断 - 计算可用空间
+        const availableSpace = width - rightLen - 1; // 至少留1个空格
+        if (availableSpace > 0) {
+          const truncatedLeft = truncateToWidth(this.leftHint, availableSpace);
+          result = theme.muted(truncatedLeft) + ' ' + theme.muted(this.rightHint);
+        } else {
+          // 没有空间显示左侧，只显示右侧
+          result = theme.muted(this.rightHint.slice(0, width - 1));
+        }
+      } else {
+        // 不需要截断，加上padding
+        const padding = ' '.repeat(width - totalLen);
+        result = theme.muted(this.leftHint) + padding + theme.muted(this.rightHint);
+      }
+
+      // 最终验证，确保不超宽
+      if (visibleLength(result) > width) {
+        result = truncateToWidth(result, width);
+      }
+      return [result];
     }
 
     if (this.currentHintMode === 'right') {
       const rightLen = visibleLength(this.rightHint);
-      const padding = Math.max(0, width - rightLen);
-      return [' '.repeat(padding) + this.rightHint];
+      let result: string;
+      if (rightLen >= width) {
+        result = truncateToWidth(theme.muted(this.rightHint), width);
+      } else {
+        const padding = ' '.repeat(width - rightLen);
+        result = padding + theme.muted(this.rightHint);
+      }
+      return [result];
     }
 
+    // 左对齐模式
+    const leftLen = visibleLength(this.leftHint);
+    if (leftLen >= width) {
+      return [truncateToWidth(theme.muted(this.leftHint), width)];
+    }
     return super.render(width);
   }
 
@@ -333,46 +375,83 @@ export class HintBarComponent extends Container {
   /**
    * Build contextual hints based on current app state.
    * Left side: general hints + permission mode indicator. Right side: esc action hints.
-   * 
+   *
    * Phase 5: Now accepts permissionModeLabel and permissionModeSource
    * to display the current permission mode configuration source.
+   *
+   * Phase 4.4: Enhanced with custom shortcuts and context hints
    */
   update(state: HintBarUpdateState): void {
     this.leftHint = '';
     this.rightHint = '';
 
-    // Right-side esc hints (transient)
+    // Right-side esc hints (transient) - plain text
     if (state.escPendingClear) {
-      this.rightHint = theme.muted('esc again to clear');
+      this.rightHint = 'esc again to clear';
     } else if (state.escPendingExit) {
-      this.rightHint = theme.muted('esc again to exit');
+      this.rightHint = 'esc again to exit';
+    } else if (state.isProcessing) {
+      this.rightHint = 'esc to stop';
     }
 
-    // Left-side contextual hints
+    // Left-side contextual hints (enhanced with context hints) - plain text
     if (state.isProcessing) {
       const queueNote = state.queueLength > 0
         ? ` · ${state.queueLength} message${state.queueLength !== 1 ? 's' : ''} queued`
         : '';
-      this.leftHint = theme.muted(` esc to interrupt${queueNote}`);
+      this.leftHint = `⏳ processing${queueNote}`;
     } else if (state.hasPendingApproval) {
-      this.leftHint = theme.muted('↑↓ navigate · Enter to confirm · esc to deny');
+      this.leftHint = '↑↓ navigate · Enter to confirm · esc to deny';
+    } else if (state.hasInput && state.editingMode === 'insert') {
+      // Editing mode with input
+      const hints: string[] = [];
+      hints.push('Enter to send');
+      hints.push('esc to cancel');
+      if (state.showContextHints) {
+        hints.push('/ for commands');
+      }
+      this.leftHint = hints.join(' · ');
     } else if (!state.hasInput && !state.escPendingExit) {
-      this.leftHint = theme.muted(' / for commands');
+      // Empty input - show full hint set
+      const hints: string[] = [];
+      hints.push('/ for commands');
+      if (state.showContextHints) {
+        hints.push('↑↓ history');
+      }
+      this.leftHint = hints.join(' · ');
     }
 
     // Phase 5: Add permission indicator if active
     // Shows mode label and source badge when not default
     const modeLabel = state.permissionModeLabel ?? '';
     const modeSource = state.permissionModeSource ?? '';
-    
+
     if (modeLabel && modeLabel !== '') {
       // Non-default mode: show label with optional source
-      const sourceSuffix = modeSource && modeSource !== 'default' 
-        ? ` (${modeSource})` 
+      const sourceSuffix = modeSource && modeSource !== 'default'
+        ? ` (${modeSource})`
         : '';
       this.permissionIndicator = theme.warning(`${modeLabel}${sourceSuffix}`);
     } else {
       this.permissionIndicator = '';
+    }
+
+    // Phase 4.4: Add custom shortcuts to left hint
+    if (state.customShortcuts && state.customShortcuts.length > 0) {
+      const shortcutStr = state.customShortcuts
+        .map((s) => {
+          const keyStr = theme.key(`[${s.key}]`);
+          const enabled = s.enabled !== false;
+          const labelStr = enabled ? theme.muted(s.label) : theme.muted(theme.dim(s.label));
+          return `${keyStr}${labelStr}`;
+        })
+        .join(' ');
+
+      if (this.leftHint) {
+        this.leftHint = this.leftHint + ' · ' + shortcutStr;
+      } else {
+        this.leftHint = shortcutStr;
+      }
     }
 
     if (this.permissionIndicator) {
@@ -384,6 +463,30 @@ export class HintBarComponent extends Container {
     }
 
     this.updateHintLine();
+  }
+
+  /**
+   * Set dynamic shortcuts for the current context
+   * Phase 4.4: Enhanced with custom shortcut support
+   */
+  setDynamicShortcuts(shortcuts: Array<{ key: string; label: string; enabled?: boolean }>): void {
+    // Store for later use
+    this.leftHint = shortcuts
+      .map((s) => {
+        const keyStr = theme.key(`[${s.key}]`);
+        const enabled = s.enabled !== false;
+        const labelStr = enabled ? theme.muted(s.label) : theme.muted(theme.dim(s.label));
+        return `${keyStr}${labelStr}`;
+      })
+      .join(' ');
+    this.updateHintLine();
+  }
+
+  /**
+   * Clear dynamic shortcuts
+   */
+  clearDynamicShortcuts(): void {
+    // Will be replaced by update() with state-based hints
   }
 
   /**
