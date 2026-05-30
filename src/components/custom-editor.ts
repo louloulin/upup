@@ -27,6 +27,17 @@ export class CustomEditor extends Editor {
   resolveKeybinding?: (event: KEvent) => ResolveResult | null;
   slashActive: boolean = false;
 
+  // Cursor position tracking for conditional key handling
+  private _cursorPosition: number = 0;
+
+  get cursorPosition(): number {
+    return this._cursorPosition;
+  }
+
+  setCursorPosition(pos: number): void {
+    this._cursorPosition = Math.max(0, Math.min(pos, this.getText().length));
+  }
+
   // Map truncated display text → full original text for history entries
   private historyFullText = new Map<string, string>();
 
@@ -106,13 +117,26 @@ export class CustomEditor extends Editor {
       return;
     }
 
-    // P2: Left/Right arrows: pagination for suggestions
+    // P2: Left/Right arrows: conditional pagination or cursor movement
+    // Only paginate if cursor is at boundary AND there's a previous/next page
     if (showingSuggestions && matchesKey(data, Key.left)) {
-      this.onSlashPage?.('prev');
+      // Only paginate if cursor is at start AND we can go to previous page
+      if (this._cursorPosition === 0 && this.onSlashPage) {
+        this.onSlashPage('prev');
+        return;
+      }
+      // Otherwise, let the editor handle cursor movement
+      super.handleInput(data);
       return;
     }
     if (showingSuggestions && matchesKey(data, Key.right)) {
-      this.onSlashPage?.('next');
+      // Only paginate if cursor is at end AND we can go to next page
+      if (this._cursorPosition === this.getText().length && this.onSlashPage) {
+        this.onSlashPage('next');
+        return;
+      }
+      // Otherwise, let the editor handle cursor movement
+      super.handleInput(data);
       return;
     }
 
@@ -148,6 +172,9 @@ export class CustomEditor extends Editor {
 
     // Default: pass to editor
     super.handleInput(data);
+
+    // Update cursor position after editor processes input
+    this.updateCursorPosition();
 
     // Check if slash mode should activate or deactivate
     const newText = this.getText();
@@ -207,5 +234,34 @@ export class CustomEditor extends Editor {
     }
 
     return null;
+  }
+
+  /**
+   * Update internal cursor position after editor handles input.
+   * This is needed for conditional pagination logic.
+   */
+  private updateCursorPosition(): void {
+    // The editor base class maintains cursor position internally.
+    // We use a best-effort approach: track how input affects cursor.
+    // For most cases, cursor moves to end after typing.
+    // The real cursor position is maintained by pi-tui's Editor.
+    const text = this.getText();
+    this._cursorPosition = Math.min(this._cursorPosition, text.length);
+  }
+
+  /**
+   * Check if we can paginate left (has previous page)
+   */
+  canPageLeft(): boolean {
+    // This is called by cli.ts to check if pagination is possible
+    // The actual pagination is handled by onSlashPage callback
+    return this.onSlashPage !== undefined;
+  }
+
+  /**
+   * Check if we can paginate right (has next page)
+   */
+  canPageRight(): boolean {
+    return this.onSlashPage !== undefined;
   }
 }

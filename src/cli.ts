@@ -82,6 +82,7 @@ import {
 import { editorTheme, theme } from './theme.js';
 import { matchCommands, type SlashCommand } from './commands/index.js';
 import { initSpinner } from './utils/spinner.js';
+import { commandStore, commandActions, commandSelectors } from './tui/state/command-state.js';
 import { initializeSkills, getSkillCommandRegistry, getRegisteredCommandCount } from './skills/index.js';
 
 /**
@@ -842,6 +843,7 @@ export async function runCli(options: RunCliOptions = {}) {
       if (!rawCommand) {
         slashActive = false;
         slashSuggestions = [];
+        commandActions.clear();
         editor.setText('');
         updateView();
         return;
@@ -852,6 +854,7 @@ export async function runCli(options: RunCliOptions = {}) {
       const commandArgs = spaceIdx === -1 ? '' : rawCommand.slice(spaceIdx + 1).trim();
       slashActive = false;
       slashSuggestions = [];
+      commandActions.clear();
       editor.setText('');  // Clear editor after slash command
       updateView();
       await handleSlashCommand(commandName, commandArgs);
@@ -1257,20 +1260,28 @@ export async function runCli(options: RunCliOptions = {}) {
 
   editor.onSlashChange = async (text: string) => {
     // Get CLI commands including skills
-    slashSuggestions = getCliCommands(text);
+    const suggestions = getCliCommands(text);
 
+    // Update CommandState Store
+    commandActions.setSuggestions(suggestions);
+
+    // Update local state for backward compatibility
+    slashSuggestions = suggestions;
     slashSelectedIndex = 0;
-    // Only activate slash mode if there are suggestions available
-    slashActive = slashSuggestions.length > 0;
+    slashActive = suggestions.length > 0;
     updateView();
     tui.requestRender();
   };
 
   editor.onSlashNavigate = (direction: 'up' | 'down') => {
+    const state = commandStore.getState();
+
     if (direction === 'down') {
       slashSelectedIndex = Math.min(slashSelectedIndex + 1, slashSuggestions.length - 1);
+      commandActions.selectNext();
     } else {
       slashSelectedIndex = Math.max(slashSelectedIndex - 1, 0);
+      commandActions.selectPrev();
     }
     // P2: Refresh hint bar with pagination aware selection
     hintBar.refreshPage(slashSelectedIndex);
@@ -1282,8 +1293,10 @@ export async function runCli(options: RunCliOptions = {}) {
   editor.onSlashPage = (direction: 'next' | 'prev') => {
     if (direction === 'next') {
       hintBar.nextPage();
+      commandActions.nextPage();
     } else {
       hintBar.prevPage();
+      commandActions.prevPage();
     }
     // Reset selection to first item on current page
     const pageInfo = hintBar.getPageInfo();
@@ -1293,8 +1306,10 @@ export async function runCli(options: RunCliOptions = {}) {
   };
 
   editor.onSlashSelect = () => {
+    const state = commandStore.getState();
+
     // Try to get selected command from suggestions
-    const selected = slashSuggestions[slashSelectedIndex];
+    const selected = state.suggestions[state.selectedIndex] || slashSuggestions[slashSelectedIndex];
 
     if (!selected) {
       // Fallback: use the editor's current text as the command
@@ -1308,6 +1323,7 @@ export async function runCli(options: RunCliOptions = {}) {
 
         slashActive = false;
         slashSuggestions = [];
+        commandActions.clear();
         editor.setText('');
         updateView();
 
@@ -1332,9 +1348,10 @@ export async function runCli(options: RunCliOptions = {}) {
     const rawCommand = editorText.slice(1).trim(); // Remove leading /
     const spaceIdx = rawCommand.indexOf(' ');
     const commandArgs = spaceIdx === -1 ? '' : rawCommand.slice(spaceIdx + 1).trim();
-    
+
     slashActive = false;
     slashSuggestions = [];
+    commandActions.clear();
     editor.setText('');
     updateView();
     
@@ -1351,6 +1368,7 @@ export async function runCli(options: RunCliOptions = {}) {
   editor.onSlashDismiss = () => {
     slashActive = false;
     slashSuggestions = [];
+    commandActions.clear();
     updateView();
     tui.requestRender();
   };
