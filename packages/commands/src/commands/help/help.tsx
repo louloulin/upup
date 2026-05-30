@@ -12,10 +12,10 @@
  * Reference: loucode/src/commands/help/help.tsx
  */
 
-import { Container, Text, Spacer, Input, SelectList, type SelectItem } from '@mariozechner/pi-tui';
+import { Container, Text, Spacer, Input, SelectList, type SelectItem } from '@earendil-works/pi-tui';
 import { ALL_COMMANDS, builtInCommandNames, inferCategory, type Command } from '../../all-commands.js';
 import { getCommandUsage } from '../../command-usage.js';
-import { theme } from '../../theme.js';
+import { theme, selectListTheme } from '../../theme.js';
 
 // Category icons for display
 const CATEGORY_ICONS: Record<string, string> = {
@@ -41,9 +41,9 @@ export class HelpV2Component extends Container {
   private filteredCommands: Command[] = []
   private searchQuery: string = ''
   private selectedIndex: number = 0
-  private onClose: () => void
+  private onClose: (commandName?: string) => void
 
-  constructor(onClose: () => void) {
+  constructor(onClose: (commandName?: string) => void) {
     super()
     this.onClose = onClose
 
@@ -54,12 +54,9 @@ export class HelpV2Component extends Container {
     // Create search input
     this.searchInput = new Input()
 
-    // Create command list
+    // Create command list with proper theme functions
     const items = this.buildCommandItems()
-    this.commandList = new SelectList(items, Math.min(15, items.length), {
-      primaryColor: theme.primaryColor,
-      selectedColor: theme.selectedColor,
-    })
+    this.commandList = new SelectList(items, Math.min(15, items.length), selectListTheme)
 
     // Update on search input change
     this.searchInput.onChange = () => {
@@ -120,6 +117,47 @@ export class HelpV2Component extends Container {
 
     // Pass to command list for navigation
     this.commandList.handleInput(keyData)
+  }
+
+  /**
+   * Invalidate cached rendering (required by Component interface)
+   */
+  invalidate(): void {
+    this.commandList.invalidate()
+  }
+
+  /**
+   * Render the help component
+   * Returns an array of strings, one per line
+   */
+  render(width: number): string[] {
+    const lines: string[] = []
+    const w = Math.max(40, width)
+
+    // Header
+    lines.push(theme.primary('╔' + '═'.repeat(Math.min(w - 2, 60)) + '╗'))
+    lines.push(theme.primary('║') + ' '.repeat(Math.floor((w - 16) / 2)) + '📖 Command Help' + ' '.repeat(Math.ceil((w - 16) / 2)) + theme.primary('║'))
+    lines.push(theme.primary('╚' + '═'.repeat(Math.min(w - 2, 60)) + '╝'))
+
+    // Search hint
+    lines.push('')
+    lines.push(theme.muted('  Search: type to filter commands · ↑/↓: navigate · Enter: select · Esc: close'))
+    lines.push('')
+
+    // Render command list
+    const commandLines = this.commandList.render(w - 4)
+    for (const line of commandLines) {
+      lines.push('  ' + line)
+    }
+
+    // Footer
+    lines.push('')
+    lines.push(theme.primary('─'.repeat(Math.min(w, 60))))
+    lines.push(theme.muted('  ↵ Select  ') + theme.muted('│  ') +
+              theme.muted('↑/↓ Navigate  ') + theme.muted('│  ') +
+              theme.muted('Esc Close'))
+
+    return lines
   }
 }
 
