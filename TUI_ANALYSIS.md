@@ -51,7 +51,7 @@
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**技术栈**: `@mariozechner/pi-tui` (命令式 TUI 框架)
+**技术栈**: `@earendil-works/pi-tui` (命令式 TUI 框架)
 
 ### 1.2 Loucode Claude Code TUI 架构
 

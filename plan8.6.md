@@ -169,7 +169,7 @@
 | **状态** | ✅ **已完成** (Terminal UI) |
 | **文件** | `src/mcp/mcp-ui.ts` |
 | **测试** | 9 tests pass |
-| **依赖** | @mariozechner/pi-tui |
+| **依赖** | @earendil-works/pi-tui |
 
 **实现内容**:
 - `MCPUI` - 交互式终端 UI 类

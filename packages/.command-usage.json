@@ -6,8 +6,8 @@
   },
   "help": {
     "command": "help",
-    "count": 696,
-    "lastUsed": 1780131909762
+    "count": 717,
+    "lastUsed": 1780186405768
   },
   "clear": {
     "command": "clear",
@@ -86,8 +86,8 @@
   },
   "mcp-add": {
     "command": "mcp-add",
-    "count": 85,
-    "lastUsed": 1780131884354
+    "count": 86,
+    "lastUsed": 1780157918290
   },
   "permissions": {
     "command": "permissions",

@@ -371,6 +371,7 @@ export async function runCli(options: RunCliOptions = {}) {
   let jsxOverlayActive = false;
   let jsxOverlayComponent: Container | null = null;
   let jsxOverlayOnClose: (() => void) | null = null;
+  let jsxInputUnsubscriber: (() => void) | null = null;
 
   // P0-4, P0-5, P0-6: Startup validation (Plan12)
   // Validate configuration on startup and redirect to setup if needed
@@ -748,6 +749,11 @@ export async function runCli(options: RunCliOptions = {}) {
             jsxOverlayActive = false
             jsxOverlayComponent = null
             jsxOverlayOnClose = null
+            // Cleanup input listener
+            if (jsxInputUnsubscriber) {
+              jsxInputUnsubscriber()
+              jsxInputUnsubscriber = null
+            }
             // Hide the overlay
             tui.hideOverlay()
             tui.requestRender()
@@ -759,6 +765,16 @@ export async function runCli(options: RunCliOptions = {}) {
             width: '90%',
             maxHeight: '80%',
           })
+
+          // Add input listener at TUI level to handle ESC
+          const unsub = tui.addInputListener((data: string) => {
+            if (data === '\x1b' && jsxOverlayActive) {
+              jsxOverlayOnClose?.()
+            }
+            return undefined
+          })
+          jsxInputUnsubscriber = unsub
+
           // Store the handle for potential cleanup
           ;(component as any)._overlayHandle = overlayHandle
           tui.setFocus(component)

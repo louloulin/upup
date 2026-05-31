@@ -37,6 +37,8 @@ const CATEGORY_ORDER = ['core', 'system', 'plan', 'agent', 'mcp', 'permissions',
 export class HelpV2Component extends Container {
   // Required by pi-tui for focus management
   focused: boolean = false;
+  // CRITICAL: Without this, ESC/Enter may be filtered by isKeyRelease check
+  wantsKeyRelease: boolean = true;
 
   private searchInput: Input
   private commandList: SelectList

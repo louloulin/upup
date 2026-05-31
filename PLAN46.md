@@ -744,7 +744,7 @@ describe('Store', () => {
 | 包 | 版本 | 说明 |
 |---|------|------|
 | `@earendil-works/pi-tui` | **0.76.0** | 最新版本 (推荐) |
-| `@mariozechner/pi-tui` | 0.73.1 | 旧版本 |
+| `@earendil-works/pi-tui` | 0.73.1 | 旧版本 |
 
 ---
 

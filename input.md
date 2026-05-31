@@ -59,7 +59,7 @@ export function setApprovalCursor(index: number): void {
 
 **添加导入**：
 ```typescript
-import { Key, matchesKey } from '@mariozechner/pi-tui';
+import { Key, matchesKey } from '@earendil-works/pi-tui';
 import { getApprovalCursor, setApprovalCursor } from './components/index.js';
 ```
 
