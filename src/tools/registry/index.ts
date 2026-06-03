@@ -29,6 +29,9 @@ import { loadDomainTools } from './domain-tools.js';
 import { loadDuckDBTools } from './duckdb-tools.js';
 import { loadInvestmentKnowledgeTools } from './investment-knowledge-tools.js';
 import { loadTradingTools } from './trading-tools.js';
+import { loadRealtimeTools } from './realtime-tools.js';
+import { loadCoordinatorTools } from './coordinator-tools.js';
+import { loadKairosTools } from './kairos-tools.js';
 import { loadFundTools } from './fund-tools.js';
 
 import type { RegisteredTool } from './types.js';
@@ -70,6 +73,15 @@ export async function getToolRegistry(model: string): Promise<RegisteredTool[]> 
 
     // Trading (sandbox + broker adapters)
     ...loadTradingTools(),
+
+    // Realtime feed (mock / eastmoney) with throttle + OHLC aggregation
+    ...loadRealtimeTools(),
+
+    // 4-worker investment-analysis coordinator
+    ...loadCoordinatorTools(),
+
+    // KAIROS proactive / position monitor / event scanner (read-only tools)
+    ...loadKairosTools(),
   ];
 
   return tools;
