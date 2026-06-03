@@ -5,6 +5,9 @@ import { runOnboarding } from './commands/onboarding.js';
 import { runDoctor } from './commands/doctor.js';
 import { runConfigCommand } from './commands/config.js';
 import { createStdioServer } from './stdio/server.js';
+import { homedir } from 'node:os';
+import { dirname, join } from 'node:path';
+import { mkdirSync } from 'node:fs';
 
 config({ quiet: true });
 
@@ -40,6 +43,38 @@ async function main() {
     // Use a promise that never resolves to keep the process running
     await new Promise(() => {});
     return;
+  }
+
+  // Bridge-mode flag (Sprint 1.3). When present, start the local WebSocket
+  // bridge server alongside (or in place of) the regular CLI. The token is
+  // auto-generated from crypto.randomUUID if --bridge-token is omitted.
+  if (hasFlag(['--bridge'])) {
+    const portRaw = getFlag(['--bridge-port']) ?? '7333';
+    const port = Number.parseInt(portRaw, 10);
+    if (!Number.isFinite(port) || port < 0 || port > 65535) {
+      console.error(`Invalid --bridge-port: ${portRaw}`);
+      process.exit(1);
+    }
+    const bind = getFlag(['--bridge-bind']) ?? '127.0.0.1';
+    const explicitToken = getFlag(['--bridge-token']);
+    const token =
+      explicitToken && explicitToken.length >= 8
+        ? explicitToken
+        : crypto.randomUUID().replace(/-/g, '').slice(0, 32);
+    const auditPath = join(homedir(), '.upup', 'bridge-audit.log');
+    mkdirSync(dirname(auditPath), { recursive: true });
+    const { startBridgeServer } = await import('./bridge/server.js');
+    const srv = await startBridgeServer({ port, bind, token, auditPath });
+    console.log(
+      `[bridge] listening on ws://${bind}:${srv.port}/bridge?token=${token}\n` +
+        `[bridge] audit: ${auditPath}\n` +
+        `[bridge] stop with: kill -TERM ${process.pid}`,
+    );
+    if (hasFlag(['--bridge-only'])) {
+      // Bridge-only mode: keep the process alive without launching the CLI.
+      await new Promise(() => {});
+      return;
+    }
   }
 
   // Handle session resume flags before command switch
@@ -136,6 +171,15 @@ Examples:
   upup -r           Show session picker to resume
   upup -r abc123    Resume session matching "abc123"
   upup -c           Continue the most recent session
+
+Bridge Mode (Sprint 1.3):
+  upup --bridge [--bridge-port=7333] [--bridge-token=<secret>] [--bridge-bind=127.0.0.1] [--bridge-only]
+         Start CLI with local WebSocket bridge enabled. Token auto-generated if omitted.
+
+Examples:
+  upup --bridge                                  # default port 7333, auto token
+  upup --bridge --bridge-port 0                  # OS-assigned free port
+  upup --bridge-only                             # bridge without CLI TUI
 `);
 }
 
