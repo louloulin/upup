@@ -57,13 +57,13 @@
 
 ### 1.5 session-sync
 
-- [ ] 1.5.1 实现 `src/bridge/session-sync.ts` 跨设备会话状态共享
-- [ ] 1.5.2 写本地 session 序列化(messages + tool history + scratchpad)
-- [ ] 1.5.3 写断点续传(远端 session 接管本地未完成 query)
-- [ ] 1.5.4 写冲突合并(本地 / 远端同时改,最后写胜 + 备份)
-- [ ] 1.5.5 写 `src/bridge/session-sync.test.ts` 验证序列化 + 续传 + 合并
-- [ ] 1.5.6 集成到 `src/bridge/server.ts`(subscribe 远端 session 变化)
-- [ ] 1.5.7 写 e2e:本地 CLI 启动,远端 bridge 接管同一 session
+- [x] 1.5.1 实现 `src/bridge/session-sync.ts` 跨设备会话状态共享
+- [x] 1.5.2 写本地 session 序列化(messages + tool history + scratchpad)
+- [x] 1.5.3 写断点续传(远端 session 接管本地未完成 query,SessionSync.resume 持久化回写让 resumedCount 累加)
+- [x] 1.5.4 写冲突合并(本地 / 远端同时改,最后写胜 + 备份到 <id>.conflict-<ts>.json)
+- [x] 1.5.5 写 `src/bridge/session-sync.test.ts` 验证序列化 + 续传 + 合并(17/17 pass)
+- [x] 1.5.6 集成到 `src/bridge/server.ts`(URL ?sessionId= + msg.sessionId 晚绑定 + best-effort 持久化,新增 BridgeSessionStore.join)
+- [x] 1.5.7 写 e2e:本地 CLI sync.save → 远端 bridge ?sessionId= 接管,follow-up chat 落盘(3/3 pass,Bun 1.3.7 WS settle 模式见 header)
 
 ## Sprint 2: v2 P2 升级 4 个 loucode 深度 spec (2 turn)
 
