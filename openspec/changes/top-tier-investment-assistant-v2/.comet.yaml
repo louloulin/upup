@@ -1,10 +1,10 @@
 workflow: full
-phase: open
+phase: design
 build_mode: null
 isolation: null
 verify_mode: null
 base_ref: 627011a1035525a1298f2ddbac6d556a2ab373d7
-design_doc: null
+design_doc: docs/superpowers/specs/2026-06-04-top-tier-investment-assistant-v2-design.md
 plan: null
 verify_result: pending
 verification_report: null
@@ -12,3 +12,5 @@ branch_status: pending
 created_at: 2026-06-04
 verified_at: null
 archived: false
+handoff_context: openspec/changes/top-tier-investment-assistant-v2/.comet/handoff/design-context.json
+handoff_hash: 133ed2ec1465dc5eb68dec4bcab1387de5e7be8af22cc62ed3e4470e54c91a2a
