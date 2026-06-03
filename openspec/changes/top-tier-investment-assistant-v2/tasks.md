@@ -45,15 +45,15 @@
 
 ### 1.4 portfolio-attribution
 
-- [ ] 1.4.1 实现 `src/tools/portfolio/brinson.ts` Brinson 3-factor(配置/选股/交互)
-- [ ] 1.4.2 实现 `src/tools/portfolio/style-attribution.ts` Barra 风格因子(大盘/价值/成长/动量)
-- [ ] 1.4.3 实现 `src/tools/portfolio/sector-attribution.ts` 申万一级 / GICS
-- [ ] 1.4.4 实现 `src/tools/portfolio/attribution.ts` 统一入口(组合归因)
-- [ ] 1.4.5 写 `src/tools/portfolio/brinson.test.ts` 加和验证(配置+选股+交互 = 组合收益-基准)
-- [ ] 1.4.6 写 `src/tools/portfolio/style.test.ts` 4 因子分解
-- [ ] 1.4.7 写 `src/tools/portfolio/sector.test.ts` 行业归因
-- [ ] 1.4.8 注册 `portfolio_attribution` 1 个 tool 到 registry
-- [ ] 1.4.9 写 e2e:用 mock 组合 + 基准,跑完整归因
+- [x] 1.4.1 实现 `src/tools/portfolio/brinson.ts` Brinson 3-factor(配置/选股/交互)
+- [x] 1.4.2 实现 `src/tools/portfolio/style-attribution.ts` Barra 风格因子(大盘/价值/成长/动量)
+- [x] 1.4.3 实现 `src/tools/portfolio/sector-attribution.ts` 申万一级 / GICS
+- [x] 1.4.4 实现 `src/tools/portfolio/attribution.ts` 统一入口(组合归因)
+- [x] 1.4.5 写 `src/tools/portfolio/brinson.test.ts` 加和验证(配置+选股+交互 = 组合收益-基准)
+- [x] 1.4.6 写 `src/tools/portfolio/style.test.ts` 4 因子分解
+- [x] 1.4.7 写 `src/tools/portfolio/sector.test.ts` 行业归因
+- [x] 1.4.8 注册 `portfolio_attribution` 1 个 tool 到 registry
+- [x] 1.4.9 写 e2e:用 mock 组合 + 基准,跑完整归因
 
 ### 1.5 session-sync
 
