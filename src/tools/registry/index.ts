@@ -33,6 +33,7 @@ import { loadRealtimeTools } from './realtime-tools.js';
 import { loadCoordinatorTools } from './coordinator-tools.js';
 import { loadKairosTools } from './kairos-tools.js';
 import { loadFundTools } from './fund-tools.js';
+import { loadAltDataTools } from './alt-data-tools.js';
 
 import type { RegisteredTool } from './types.js';
 
@@ -46,6 +47,9 @@ export async function getToolRegistry(model: string): Promise<RegisteredTool[]> 
 
     // Fund tools (Chinese mutual funds - 天天基金)
     ...loadFundTools(),
+
+    // Alt-data (龙虎榜 / 北向资金 / 融资融券)
+    ...loadAltDataTools(),
 
     // Web, search, browser
     ...await loadWebSearchTools(),
