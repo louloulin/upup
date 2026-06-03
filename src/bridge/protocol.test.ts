@@ -53,17 +53,17 @@ describe('protocol', () => {
   test('verify fails with tampered message', () => {
     const msg = makeChat();
     const sig = signMessage(msg, secret);
-    const tampered: BridgeMessage = { ...msg, payload: { role: 'user', content: 'hacked' } };
+    const tampered = { ...msg, payload: { role: 'user', content: 'hacked' } } as BridgeMessage;
     expect(verifyMessage(tampered, sig, secret)).toBe(false);
   });
 
   test('all 4 message kinds encode/decode', () => {
-    const kinds: BridgeMessage[] = [
-      { kind: 'chat', seq: 1, sessionId: 's', timestamp: 0, payload: { role: 'user', content: 'x' } },
+    const kinds = [
+      { kind: 'chat', seq: 1, sessionId: 's', timestamp: 0, payload: { role: 'user' as const, content: 'x' } },
       { kind: 'approval', seq: 2, sessionId: 's', timestamp: 0, payload: { tool: 'bash', args: { cmd: 'ls' }, approved: true } },
       { kind: 'output', seq: 3, sessionId: 's', timestamp: 0, payload: { tool: 'bash', result: 'file.txt', latencyMs: 12 } },
-      { kind: 'status', seq: 4, sessionId: 's', timestamp: 0, payload: { phase: 'idle' } },
-    ];
+      { kind: 'status', seq: 4, sessionId: 's', timestamp: 0, payload: { phase: 'idle' as const } },
+    ] as BridgeMessage[];
     for (const m of kinds) {
       const round = decodeMessage(encodeMessage(m));
       expect(round).toEqual(m);

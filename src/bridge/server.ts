@@ -68,14 +68,18 @@ export async function startBridgeServer(cfg: BridgeServerConfig): Promise<Bridge
       }
       const ip = srv.requestIP(req)?.address ?? 'unknown';
       const upgraded = srv.upgrade(req, {
-        data: { clientId, sessionId: '', ip } as ConnState,
+        data: { clientId, sessionId: '', ip },
       });
       if (upgraded) return undefined;
       return new Response('Upgrade failed', { status: 500 });
     },
     websocket: {
+      // Type-narrow ws.data to ConnState. The fetch() handler passes the
+      // ConnState via server.upgrade(req, { data: ... }) and Bun re-exposes
+      // it on ws.data in the lifecycle callbacks.
+      data: {} as ConnState,
       open(ws) {
-        const data = ws.data as ConnState;
+        const data = ws.data;
         const session = sessions.start(data.clientId);
         data.sessionId = session.id;
         audit(cfg.auditPath, 'connect', {
@@ -97,7 +101,7 @@ export async function startBridgeServer(cfg: BridgeServerConfig): Promise<Bridge
         }
       },
       message(ws, raw) {
-        const data = ws.data as ConnState;
+        const data = ws.data;
         const rl = auth.rateLimit(data.ip);
         if (!rl.ok) {
           audit(cfg.auditPath, 'rate-limited', {
@@ -137,7 +141,7 @@ export async function startBridgeServer(cfg: BridgeServerConfig): Promise<Bridge
         }
       },
       close(ws) {
-        const data = ws.data as ConnState;
+        const data = ws.data;
         if (data.sessionId) sessions.shutdown(data.sessionId);
         audit(cfg.auditPath, 'disconnect', {
           clientId: data.clientId,
@@ -153,7 +157,7 @@ export async function startBridgeServer(cfg: BridgeServerConfig): Promise<Bridge
   await new Promise((r) => setTimeout(r, 100));
 
   return {
-    port: bunServer.port,
+    port: bunServer.port ?? 0,
     async stop() {
       await bunServer.stop();
     },
