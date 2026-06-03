@@ -1,75 +1,75 @@
 {
   "help": {
     "name": "help",
-    "totalCalls": 652,
-    "successCount": 652,
+    "totalCalls": 656,
+    "successCount": 656,
     "errorCount": 0,
-    "totalDurationMs": 12672,
+    "totalDurationMs": 12686,
     "avgDurationMs": 19,
     "minDurationMs": 0,
     "maxDurationMs": 2372,
-    "lastCalled": 1780186405769,
-    "lastSuccess": 1780186405769
+    "lastCalled": 1780370765180,
+    "lastSuccess": 1780370765180
   },
   "status": {
     "name": "status",
-    "totalCalls": 629,
-    "successCount": 629,
+    "totalCalls": 630,
+    "successCount": 630,
     "errorCount": 0,
     "totalDurationMs": 3402,
     "avgDurationMs": 5,
     "minDurationMs": 0,
     "maxDurationMs": 575,
-    "lastCalled": 1780131909763,
-    "lastSuccess": 1780131909763
+    "lastCalled": 1780370765180,
+    "lastSuccess": 1780370765180
   },
   "h": {
     "name": "h",
-    "totalCalls": 611,
-    "successCount": 611,
+    "totalCalls": 612,
+    "successCount": 612,
     "errorCount": 0,
-    "totalDurationMs": 422,
+    "totalDurationMs": 423,
     "avgDurationMs": 1,
     "minDurationMs": 0,
     "maxDurationMs": 52,
-    "lastCalled": 1780131909764,
-    "lastSuccess": 1780131909764
+    "lastCalled": 1780370765181,
+    "lastSuccess": 1780370765181
   },
   "c": {
     "name": "c",
-    "totalCalls": 607,
-    "successCount": 607,
+    "totalCalls": 608,
+    "successCount": 608,
     "errorCount": 0,
-    "totalDurationMs": 3464,
+    "totalDurationMs": 3466,
     "avgDurationMs": 6,
     "minDurationMs": 0,
     "maxDurationMs": 269,
-    "lastCalled": 1780131909765,
-    "lastSuccess": 1780131909765
+    "lastCalled": 1780370765183,
+    "lastSuccess": 1780370765183
   },
   "unknown": {
     "name": "unknown",
-    "totalCalls": 552,
+    "totalCalls": 553,
     "successCount": 0,
-    "errorCount": 552,
+    "errorCount": 553,
     "totalDurationMs": 143,
     "avgDurationMs": 0,
     "minDurationMs": 0,
     "maxDurationMs": 11,
-    "lastCalled": 1780131909765,
+    "lastCalled": 1780370765183,
     "lastSuccess": 0
   },
   "commands": {
     "name": "commands",
-    "totalCalls": 71,
-    "successCount": 71,
+    "totalCalls": 72,
+    "successCount": 72,
     "errorCount": 0,
-    "totalDurationMs": 399,
+    "totalDurationMs": 401,
     "avgDurationMs": 6,
     "minDurationMs": 1,
     "maxDurationMs": 17,
-    "lastCalled": 1780131884209,
-    "lastSuccess": 1780131884209
+    "lastCalled": 1780187301574,
+    "lastSuccess": 1780187301574
   },
   "session": {
     "name": "session",
@@ -731,5 +731,18 @@
     "lastCalled": 1779947976659,
     "lastSuccess": 0,
     "lastError": "Unknown command: /permissionsia. Type /help for available commands."
+  },
+  "收到": {
+    "name": "收到",
+    "totalCalls": 1,
+    "successCount": 0,
+    "errorCount": 1,
+    "totalDurationMs": 0,
+    "avgDurationMs": 0,
+    "minDurationMs": 0,
+    "maxDurationMs": 0,
+    "lastCalled": 1780187307675,
+    "lastSuccess": 0,
+    "lastError": "Unknown command: /收到. Type /help for available commands."
   }
 }
