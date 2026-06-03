@@ -19,6 +19,7 @@ import {
   type Task,
   type WorkerRole,
 } from './types.js';
+import { extractTaskNotifications, parseTaskNotification } from './worker-xml.js';
 
 const FIXED_NOW = 1_700_000_000_000;
 const SYMBOL = '600519.SH';
@@ -236,5 +237,89 @@ describe('coordinator', () => {
     const elapsed = Date.now() - t0;
     // 4 workers at 50ms each in parallel should finish in well under 200ms
     expect(elapsed).toBeLessThan(180);
+  });
+});
+
+describe('coordinator v2 (Sprint 2.1.3) — wrapInXml', () => {
+  test('researchXml is empty by default (v1 behavior preserved)', async () => {
+    const taskList = createInMemoryTaskList();
+    const { executor } = makeExecutor();
+    const coord = createCoordinator({ taskList }, executor);
+    const result = await coord.runAnalysis(SYMBOL);
+    expect(result.researchXml).toEqual([]);
+  });
+
+  test('researchXml contains 4 <task-notification> blocks when wrapInXml=true', async () => {
+    const taskList = createInMemoryTaskList();
+    const { executor } = makeExecutor();
+    const coord = createCoordinator({ taskList, wrapInXml: true }, executor);
+    const result = await coord.runAnalysis(SYMBOL);
+    expect(result.researchXml).toHaveLength(4);
+    for (const xml of result.researchXml) {
+      expect(xml).toContain('<task-notification');
+      expect(xml).toContain('</task-notification>');
+    }
+  });
+
+  test('researchXml order matches RESEARCH_TASKS order (technical, fundamental, capital-flow, sentiment)', async () => {
+    const taskList = createInMemoryTaskList();
+    const { executor } = makeExecutor();
+    const coord = createCoordinator({ taskList, wrapInXml: true }, executor);
+    const result = await coord.runAnalysis(SYMBOL);
+    const roles = result.researchXml.map((xml) => parseTaskNotification(xml).workerRole);
+    expect(roles).toEqual([
+      'technical-analysis',
+      'fundamental-analysis',
+      'capital-flow',
+      'sentiment-analysis',
+    ]);
+  });
+
+  test('researchXml task-id matches the corresponding Task in the task list', async () => {
+    const taskList = createInMemoryTaskList();
+    const { executor } = makeExecutor();
+    const coord = createCoordinator({ taskList, wrapInXml: true }, executor);
+    const result = await coord.runAnalysis(SYMBOL);
+    const tasks = await taskList.list({ phase: 'research' });
+    const taskIds = tasks.map((t) => t.id).sort();
+    const xmlIds = result.researchXml
+      .map((xml) => parseTaskNotification(xml).taskId)
+      .sort();
+    expect(xmlIds).toEqual(taskIds);
+  });
+
+  test('failed Worker becomes a status="failed" notification (not silently dropped)', async () => {
+    const taskList = createInMemoryTaskList();
+    const { executor } = makeExecutor({ failRoles: ['sentiment-analysis'] });
+    const coord = createCoordinator({ taskList, wrapInXml: true }, executor);
+    const result = await coord.runAnalysis(SYMBOL);
+    expect(result.researchXml).toHaveLength(4);
+    const failed = result.researchXml
+      .map((xml) => parseTaskNotification(xml))
+      .find((n) => n.status === 'failed');
+    expect(failed).toBeDefined();
+    expect(failed!.workerRole).toBe('sentiment-analysis');
+    expect(failed!.result).toMatch(/sentiment-analysis failed/);
+  });
+
+  test('Coordinator can extract notifications back from the buffer (round-trip via extractTaskNotifications)', async () => {
+    const taskList = createInMemoryTaskList();
+    const { executor } = makeExecutor();
+    const coord = createCoordinator({ taskList, wrapInXml: true }, executor);
+    const result = await coord.runAnalysis(SYMBOL);
+    // Simulate the Coordinator's conversation buffer containing the blocks.
+    const buffer = [
+      'Coordinator thought: I should look at the 4 worker results.',
+      ...result.researchXml,
+      'Coordinator thought: now I will synthesize.',
+    ].join('\n\n');
+    const extracted = extractTaskNotifications(buffer);
+    expect(extracted).toHaveLength(4);
+    expect(extracted.map((n) => n.workerRole).sort()).toEqual([
+      'capital-flow',
+      'fundamental-analysis',
+      'sentiment-analysis',
+      'technical-analysis',
+    ]);
   });
 });

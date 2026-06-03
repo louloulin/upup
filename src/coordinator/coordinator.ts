@@ -24,6 +24,7 @@ import {
   type WorkerConfig,
   type WorkerRole,
 } from './types.js';
+import { wrapWorkerResult } from './worker-xml.js';
 
 export interface WorkerExecutor {
   runResearch(role: WorkerRole, symbol: string, systemPrompt: string): Promise<ResearchResult>;
@@ -48,6 +49,12 @@ export interface Coordinator {
 export interface CoordinatorRunResult {
   symbol: string;
   research: ResearchResult[];
+  /**
+   * v2: each Worker result wrapped in a <task-notification> XML block
+   * (one per role, in the same order as `research`). Empty array unless
+   * `wrapInXml: true` was passed in CoordinatorDeps.
+   */
+  researchXml: string[];
   synthesis: string;
   implementation?: { artifact: string };
   verification?: { ok: boolean; notes?: string };
@@ -207,9 +214,48 @@ export function createCoordinator(deps: CoordinatorDeps, executor: WorkerExecuto
 
       void now; // keep the param used in case future phases need a timestamp
 
+      // v2 (Sprint 2.1.3): when wrapInXml is set, serialize each Worker
+      // result into a <task-notification> block so the main Agent can
+      // inject the wire format into its own context. Failed workers are
+      // serialized with status="failed" so the Coordinator sees the
+      // failure, not a silent drop.
+      const researchXml: string[] = [];
+      if (deps.wrapInXml) {
+        for (let i = 0; i < RESEARCH_TASKS.length; i++) {
+          const r = researchResults[i];
+          const role = RESEARCH_TASKS[i]!;
+          const taskId = researchTasks[i]?.id ?? `research-${role}-${symbol}`;
+          if (r) {
+            researchXml.push(
+              wrapWorkerResult({
+                taskId,
+                workerRole: role,
+                status: 'completed',
+                summary: `${role} for ${r.symbol}: confidence=${r.confidence.toFixed(2)}`,
+                result: JSON.stringify(r.findings),
+                usage: { totalTokens: 0, durationMs: 0 },
+              }),
+            );
+          } else {
+            const notes = (await taskList.get(taskId))?.notes ?? 'unknown failure';
+            researchXml.push(
+              wrapWorkerResult({
+                taskId,
+                workerRole: role,
+                status: 'failed',
+                summary: `${role} for ${symbol} failed`,
+                result: notes,
+                usage: { totalTokens: 0, durationMs: 0 },
+              }),
+            );
+          }
+        }
+      }
+
       return {
         symbol,
         research: researchResults,
+        researchXml,
         synthesis,
         implementation,
         verification,

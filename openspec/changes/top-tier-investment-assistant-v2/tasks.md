@@ -69,7 +69,16 @@
 
 ### 2.1 coordinator-v2
 
-- [ ] 2.1.1 重写 `src/coordinator/coordinator-mode.ts` 主 Agent 工具白名单(只允许 Agent/SendMessage/TaskStop)
+- [x] 2.1.1 [in progress] 新增 `src/coordinator/coordinatorMode.ts` 主 Agent 工具白名单(feature gate + isCoordinatorMode + WHITELIST + filterToolsForMainAgent)
+- [ ] 2.1.2 新增 `src/coordinator/worker-xml.ts` Worker XML 注入协议(`<task-notification>` + serialize/parse/extract + 测试)
+- [ ] 2.1.3 升级 `src/coordinator/coordinator.ts` 使用 worker-xml 包裹 runResearch 结果(research 输出变 XML 注入而不是裸 JSON)
+- [ ] 2.1.4 新增 `src/coordinator/worker-resume.ts` 失败续接(TASK_STOP + SEND_MESSAGE,指数退避 2 次重试,escalate 给主 Agent)
+- [ ] 2.1.5 升级 `src/coordinator/coordinator.ts` 在 implement 失败时调用 worker-resume;超过重试上限则 mark 'failed' + 写 notes
+- [ ] 2.1.6 新增 `src/coordinator/verification.ts` 真实验证(bun test + tsc --noEmit + 独立 sanity check,run as Worker 角色)
+- [ ] 2.1.7 升级 `src/coordinator/coordinator.ts` 在 verification 阶段调用 verification.ts 而不是依赖 executor.verify 桩
+- [ ] 2.1.8 写 `src/coordinator/coordinator-v2.e2e.test.ts` 4 阶段完整 e2e(research 4 worker 并行 → synthesis → implement 写 report → verification 跑 test+typecheck)
+- [ ] 2.1.9 写 `src/coordinator/coordinator-mode.test.ts` isCoordinatorMode + WHITELIST + filterToolsForMainAgent 单元测试
+- [ ] 2.1.10 把 coordinator-v2 接入 `src/coordinator/coordinator-tools.ts` registry,通过 `analyze_symbol` 走 v2 路径
 - [ ] 2.1.2 实现 `src/coordinator/worker-xml.ts` Worker XML 结果注入协议(`<task-notification>`)
 - [ ] 2.1.3 实现 `src/coordinator/worker-resume.ts` 失败续接(TASK_STOP + SEND_MESSAGE)
 - [ ] 2.1.4 实现 `src/coordinator/verification.ts` Worker 真实验证(跑测试 + typecheck + 独立验证)

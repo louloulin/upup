@@ -60,6 +60,14 @@ export interface CoordinatorDeps {
   rootDir?: string;
   /** Optional clock for tests. */
   now?: () => number;
+  /**
+   * v2 (Sprint 2.1.3): wrap each successful Worker result in a
+   * <task-notification> XML block. The XML appears in
+   * `CoordinatorRunResult.researchXml` so the main Agent can inject the
+   * blocks into its own conversation context. Off by default so the v1
+   * 4-phase flow is unchanged for existing callers.
+   */
+  wrapInXml?: boolean;
 }
 
 /**
