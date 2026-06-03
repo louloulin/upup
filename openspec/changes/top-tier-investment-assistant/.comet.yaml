@@ -1,0 +1,14 @@
+workflow: full
+phase: design
+build_mode: null
+isolation: null
+verify_mode: null
+base_ref: f17ef56d29e6b799170f0e70ad5cac14229696fb
+design_doc: null
+plan: null
+verify_result: pending
+verification_report: null
+branch_status: pending
+created_at: 2026-06-03
+verified_at: null
+archived: false
