@@ -25,6 +25,12 @@ import {
   type WorkerRole,
 } from './types.js';
 import { wrapWorkerResult } from './worker-xml.js';
+import {
+  DEFAULT_WORKER_RESUME_POLICY,
+  runWithResume,
+  type WorkerResumeEvent,
+  type WorkerResumePolicy,
+} from './worker-resume.js';
 
 export interface WorkerExecutor {
   runResearch(role: WorkerRole, symbol: string, systemPrompt: string): Promise<ResearchResult>;
@@ -176,19 +182,58 @@ export function createCoordinator(deps: CoordinatorDeps, executor: WorkerExecuto
         });
         tasks.push(implTask);
         await setTaskStatus(implTask.id, 'in_progress');
-        try {
-          implementation = await executor.implement(
+
+        // v2 (Sprint 2.1.5): wrap the implement() call with runWithResume
+        // so transient failures retry with exponential backoff. When
+        // deps.workerResumePolicy is omitted, we still funnel through
+        // runWithResume with maxAttempts=1 so the success/failure code
+        // path is unified (the v1 behavior is preserved: no retries, no
+        // events, fail on first error). When the policy is set, each
+        // retry writes a directive to the task notes and emits a
+        // `coordinator.worker.resume` bus event so the UI can surface
+        // the retry.
+        const policyEnabled = deps.workerResumePolicy !== undefined;
+        const resumePolicy: Partial<WorkerResumePolicy> = policyEnabled
+          ? {
+              ...DEFAULT_WORKER_RESUME_POLICY,
+              ...deps.workerResumePolicy,
+            }
+          : { maxAttempts: 1, sleep: () => Promise.resolve() };
+
+        const onResume = (e: WorkerResumeEvent): void => {
+          if (!policyEnabled) return;
+          if (deps.bus) {
+            deps.bus.emit('coordinator.worker.resume', { taskId: implTask.id, event: e });
+          }
+          if (e.directive) {
+            // Best-effort note write. Don't await — keep the retry loop
+            // moving; the next attempt will see an up-to-date notes field
+            // when it calls taskList.get() during a follow-on phase.
+            taskList
+              .update(implTask.id, { notes: e.directive })
+              .catch(() => {
+                /* ignore */
+              });
+          }
+        };
+
+        const runOnce = (): Promise<{ artifact: string }> =>
+          executor.implement!(
             'fundamental-analysis',
             defaultImplementPrompt(symbol, synthesis),
           );
+
+        const outcome = await runWithResume(runOnce, resumePolicy, onResume);
+
+        if (outcome.result) {
+          implementation = outcome.result;
           const done = await setTaskStatus(implTask.id, 'completed');
           await taskList.update(implTask.id, { artifacts: [implementation.artifact] });
           tasks.push(done);
-        } catch (err) {
+        } else {
           const failed = await setTaskStatus(implTask.id, 'failed');
-          await taskList.update(implTask.id, {
-            notes: `error: ${err instanceof Error ? err.message : String(err)}`,
-          });
+          const notes = `error: ${outcome.finalError?.message ?? 'unknown'}`;
+          await taskList.update(implTask.id, { notes });
           tasks.push(failed);
         }
       }

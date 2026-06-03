@@ -323,3 +323,223 @@ describe('coordinator v2 (Sprint 2.1.3) — wrapInXml', () => {
     ]);
   });
 });
+
+/**
+ * Sprint 2.1.5: wrap executor.implement() with runWithResume so transient
+ * failures retry before the task is marked failed. v1 callers (no
+ * `workerResumePolicy` in deps) see no behavior change.
+ *
+ * Test strategy: implementFn controls success/failure per attempt using a
+ * shared counter, the test installs a no-op sleep on the resume policy so
+ * retries don't actually wait, and bus events are captured via an in-test
+ * subscriber on `coordinator.worker.resume`.
+ */
+describe('coordinator v2 (Sprint 2.1.5) — worker-resume on implementation', () => {
+  let bus: EventBus;
+  beforeEach(() => {
+    bus = createEventBus();
+  });
+
+  /**
+   * Capture every `coordinator.worker.resume` event the coordinator emits.
+   * Returns both the array of events and a count-by-type helper.
+   */
+  function captureResumeEvents(bus: EventBus): {
+    events: Array<{
+      taskId: string;
+      attempt: number;
+      type: string;
+      nextDelayMs?: number;
+      directive?: string;
+      errorMsg?: string;
+    }>;
+    byType: () => Record<string, number>;
+  } {
+    const events: Array<{
+      taskId: string;
+      attempt: number;
+      type: string;
+      nextDelayMs?: number;
+      directive?: string;
+      errorMsg?: string;
+    }> = [];
+    bus.on('coordinator.worker.resume', (e) => {
+      const p = e.payload as {
+        taskId: string;
+        event: {
+          type: string;
+          attempt: number;
+          nextDelayMs?: number;
+          directive?: string;
+          error: Error;
+        };
+      };
+      events.push({
+        taskId: p.taskId,
+        attempt: p.event.attempt,
+        type: p.event.type,
+        nextDelayMs: p.event.nextDelayMs,
+        directive: p.event.directive,
+        errorMsg: p.event.error.message,
+      });
+    });
+    return {
+      events,
+      byType: () =>
+        events.reduce<Record<string, number>>((acc, ev) => {
+          acc[ev.type] = (acc[ev.type] ?? 0) + 1;
+          return acc;
+        }, {}),
+    };
+  }
+
+  /** Install a no-op sleep so retry waits don't slow the test suite. */
+  const fastPolicy = {
+    maxAttempts: 3,
+    initialBackoffMs: 0,
+    backoffFactor: 1,
+    maxBackoffMs: 0,
+    sleep: () => Promise.resolve(),
+  };
+
+  test('no workerResumePolicy (v1): single failure → task failed, no resume events', async () => {
+    const taskList = createInMemoryTaskList({ now: () => FIXED_NOW });
+    const { events } = captureResumeEvents(bus);
+    const implementFn: WorkerExecutor['implement'] = async () => {
+      throw new Error('boom');
+    };
+    const { executor } = makeExecutor({ implementFn });
+    const coord = createCoordinator({ taskList, bus }, executor);
+    const result = await coord.runAnalysis(SYMBOL);
+    expect(result.implementation).toBeUndefined();
+    const impl = await taskList.list({ phase: 'implementation' });
+    expect(impl).toHaveLength(1);
+    expect(impl[0]?.status).toBe('failed');
+    expect(impl[0]?.notes).toMatch(/error: boom/);
+    // v1 behavior: no resume events surfaced (policy not configured)
+    expect(events).toHaveLength(0);
+  });
+
+  test('with policy: succeed on 1st attempt → no resume events, task completed', async () => {
+    const taskList = createInMemoryTaskList({ now: () => FIXED_NOW });
+    const { events } = captureResumeEvents(bus);
+    const implementFn: WorkerExecutor['implement'] = async () => ({
+      artifact: `/reports/${SYMBOL}.md`,
+    });
+    const { executor } = makeExecutor({ implementFn });
+    const coord = createCoordinator({ taskList, bus, workerResumePolicy: fastPolicy }, executor);
+    const result = await coord.runAnalysis(SYMBOL);
+    expect(result.implementation?.artifact).toBe(`/reports/${SYMBOL}.md`);
+    expect(events).toHaveLength(0);
+    const impl = await taskList.list({ phase: 'implementation' });
+    expect(impl[0]?.status).toBe('completed');
+  });
+
+  test('with policy: fail 1st, succeed 2nd → 1 retry event, task completed', async () => {
+    const taskList = createInMemoryTaskList({ now: () => FIXED_NOW });
+    const { events, byType } = captureResumeEvents(bus);
+    let calls = 0;
+    const implementFn: WorkerExecutor['implement'] = async () => {
+      calls += 1;
+      if (calls === 1) throw new Error('flake 1');
+      return { artifact: `/reports/${SYMBOL}.md` };
+    };
+    const { executor } = makeExecutor({ implementFn });
+    const coord = createCoordinator({ taskList, bus, workerResumePolicy: fastPolicy }, executor);
+    const result = await coord.runAnalysis(SYMBOL);
+    expect(calls).toBe(2);
+    expect(result.implementation?.artifact).toBe(`/reports/${SYMBOL}.md`);
+    expect(byType()).toEqual({ retry: 1 });
+    const impl = await taskList.list({ phase: 'implementation' });
+    expect(impl[0]?.status).toBe('completed');
+    // The retry directive should have been written to the task notes
+    const finalImpl = (await taskList.get(impl[0]!.id))!;
+    expect(finalImpl.notes).toMatch(/retry-attempt=1/);
+  });
+
+  test('with policy: all 3 attempts fail → 2 retry + 1 exhausted, task failed', async () => {
+    const taskList = createInMemoryTaskList({ now: () => FIXED_NOW });
+    const { events, byType } = captureResumeEvents(bus);
+    let calls = 0;
+    const implementFn: WorkerExecutor['implement'] = async () => {
+      calls += 1;
+      throw new Error(`flake ${calls}`);
+    };
+    const { executor } = makeExecutor({ implementFn });
+    const coord = createCoordinator({ taskList, bus, workerResumePolicy: fastPolicy }, executor);
+    const result = await coord.runAnalysis(SYMBOL);
+    expect(calls).toBe(3);
+    expect(result.implementation).toBeUndefined();
+    expect(byType()).toEqual({ retry: 2, exhausted: 1 });
+    const impl = await taskList.list({ phase: 'implementation' });
+    expect(impl[0]?.status).toBe('failed');
+    expect(impl[0]?.notes).toMatch(/error: flake 3/);
+    // The exhausted event should be the last one emitted
+    const last = events[events.length - 1]!;
+    expect(last.type).toBe('exhausted');
+    expect(last.attempt).toBe(3);
+  });
+
+  test('with shouldRetry=false: non-retryable error → escalated, no retry, task failed', async () => {
+    const taskList = createInMemoryTaskList({ now: () => FIXED_NOW });
+    const { events, byType } = captureResumeEvents(bus);
+    let calls = 0;
+    const implementFn: WorkerExecutor['implement'] = async () => {
+      calls += 1;
+      throw new Error('bad config: missing symbol');
+    };
+    const policy = {
+      ...fastPolicy,
+      shouldRetry: (err: Error) => !err.message.includes('bad config'),
+    };
+    const { executor } = makeExecutor({ implementFn });
+    const coord = createCoordinator({ taskList, bus, workerResumePolicy: policy }, executor);
+    const result = await coord.runAnalysis(SYMBOL);
+    expect(calls).toBe(1);
+    expect(result.implementation).toBeUndefined();
+    expect(byType()).toEqual({ escalated: 1 });
+    const impl = await taskList.list({ phase: 'implementation' });
+    expect(impl[0]?.status).toBe('failed');
+    expect(impl[0]?.notes).toMatch(/error: bad config/);
+  });
+
+  test('with policy: retry event payload includes taskId, attempt, error, nextDelayMs, directive', async () => {
+    const taskList = createInMemoryTaskList({ now: () => FIXED_NOW });
+    const { events } = captureResumeEvents(bus);
+    let calls = 0;
+    const implementFn: WorkerExecutor['implement'] = async () => {
+      calls += 1;
+      if (calls === 1) throw new Error('transient 1');
+      return { artifact: 'ok' };
+    };
+    const { executor } = makeExecutor({ implementFn });
+    const coord = createCoordinator({ taskList, bus, workerResumePolicy: fastPolicy }, executor);
+    await coord.runAnalysis(SYMBOL);
+    expect(events).toHaveLength(1);
+    const e = events[0]!;
+    expect(e.taskId).toBe(`implement-${SYMBOL}`);
+    expect(e.type).toBe('retry');
+    expect(e.attempt).toBe(1);
+    expect(e.nextDelayMs).toBe(0);
+    expect(e.directive).toMatch(/retry-attempt=1/);
+    expect(e.errorMsg).toBe('transient 1');
+  });
+
+  test('with policy: implementation success path still works when depth="deep"', async () => {
+    // Regression check: v1 deep-depth impl success must keep working under
+    // the resume wrapper. Catches accidental changes to the implement-phase
+    // success path.
+    const taskList = createInMemoryTaskList({ now: () => FIXED_NOW });
+    const { events } = captureResumeEvents(bus);
+    const implementFn: WorkerExecutor['implement'] = async () => ({
+      artifact: `/reports/${SYMBOL}-deep.md`,
+    });
+    const verifyFn: WorkerExecutor['verify'] = async (a) => ({ ok: true, notes: `ok ${a}` });
+    const { executor } = makeExecutor({ implementFn, verifyFn });
+    const coord = createCoordinator({ taskList, bus, workerResumePolicy: fastPolicy }, executor);
+    const result = await coord.runAnalysis(SYMBOL, { depth: 'deep' });
+    expect(result.implementation?.artifact).toBe(`/reports/${SYMBOL}-deep.md`);
+    expect(result.verification?.ok).toBe(true);
+    expect(events).toHaveLength(0);
+  });
+});

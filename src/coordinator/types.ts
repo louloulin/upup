@@ -68,6 +68,16 @@ export interface CoordinatorDeps {
    * 4-phase flow is unchanged for existing callers.
    */
   wrapInXml?: boolean;
+  /**
+   * v2 (Sprint 2.1.5): retry policy for executor.implement() (and, after
+   * 2.1.7, executor.verify()). When omitted, the executor is called once
+   * with no retries (v1 behavior). When set, transient failures are
+   * retried with exponential backoff; each retry writes a `retry-directive`
+   * to the implement task notes and emits a `coordinator.worker.resume`
+   * event on the bus. Use to absorb flake (network, 5xx, timeout) without
+   * the Coordinator marking the task failed on the first hiccup.
+   */
+  workerResumePolicy?: Partial<import('./worker-resume.js').WorkerResumePolicy>;
 }
 
 /**
