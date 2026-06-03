@@ -1,0 +1,61 @@
+{
+  "skill_name": "dcf-valuation",
+  "description": "DCF估值 - 现金流折现、估值模型、价值评估",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "用DCF模型估算苹果公司的内在价值，给出估值区间",
+      "expected_output": "DCF估值报告",
+      "expectations": [
+        "收集DCF所需数据",
+        "设定合理假设",
+        "计算内在价值",
+        "给出估值区间"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "帮我分析DCF估值的关键参数，哪些参数对估值影响最大",
+      "expected_output": "参数敏感性分析",
+      "expectations": [
+        "识别关键参数",
+        "分析参数敏感性",
+        "设定合理范围",
+        "给出建议值"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "用DCF模型估算特斯拉的内在价值，分析估值的安全边际",
+      "expected_output": "特斯拉DCF分析",
+      "expectations": [
+        "预测未来现金流",
+        "设定折现率",
+        "计算内在价值",
+        "评估安全边际"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "对比分析茅台用DCF和PE估值，哪个更合理，为什么",
+      "expected_output": "估值方法对比",
+      "expectations": [
+        "执行两种估值",
+        "对比估值结果",
+        "分析适用场景",
+        "给出推荐方法"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "帮我评估一个成长型股票的DCF估值需要注意什么",
+      "expected_output": "成长股DCF指南",
+      "expectations": [
+        "说明参数选择",
+        "强调增长期假设",
+        "解释终值计算",
+        "提示常见陷阱"
+      ]
+    }
+  ]
+}

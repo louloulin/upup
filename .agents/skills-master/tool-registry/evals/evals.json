@@ -1,0 +1,44 @@
+{
+  "skill_name": "tool-registry",
+  "description": "AI Agent工具注册系统",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "register-finance-tool",
+      "prompt": "我需要添加一个获取加密货币价格的新工具。请说明：1) 如何定义工具schema 2) 如何注册到工具注册中心 3) 如何配置并发安全",
+      "expected_output": "完整的工具注册流程",
+      "files": [],
+      "expectations": [
+        "使用DynamicStructuredTool定义",
+        "包含name, description, schema",
+        "在域加载器中注册",
+        "配置concurrencySafe"
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "concurrency-config",
+      "prompt": "哪些工具应该标记为并发安全？以get_financials和write_file为例说明为什么。",
+      "expected_output": "清晰说明并发安全配置原则",
+      "files": [],
+      "expectations": [
+        "get_financials为只读，可并发",
+        "write_file有副作用，需串行",
+        "说明判断原则"
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "compact-description",
+      "prompt": "工具的compactDescription有什么作用？如何编写好的compactDescription？请举例。",
+      "expected_output": "compactDescription的作用和编写指南",
+      "files": [],
+      "expectations": [
+        "用于系统提示token优化",
+        "限制50字以内",
+        "包含主要功能和批量支持",
+        "给出示例"
+      ]
+    }
+  ]
+}

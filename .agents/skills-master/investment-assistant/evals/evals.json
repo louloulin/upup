@@ -1,0 +1,146 @@
+{
+  "skill_name": "investment-assistant",
+  "description": "投资助手核心能力",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "stock-analysis-complete-flow",
+      "prompt": "用户问：'帮我分析一下苹果公司(AAPL)是否值得投资，我需要完整的分析报告，包括估值、风险评估和投资建议。'假设你可以调用get_market_data和get_financials工具，请给出完整的分析流程和预期输出格式。",
+      "expected_output": "包含股价、估值(DCF/相对估值)、风险评估、投资建议的完整报告",
+      "files": [],
+      "expectations": [
+        "先检查用户记忆/偏好",
+        "收集股价和市场数据",
+        "收集财务报表数据",
+        "进行盈利能力分析",
+        "进行成长性分析",
+        "进行DCF估值",
+        "进行风险评估",
+        "生成结构化投资建议",
+        "包含风险提示"
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "user-preference-check",
+      "prompt": "用户之前说过他的风险承受能力较低，最大回撤不能超过10%。现在他问你某只高波动性股票是否值得投资。请说明你应该如何处理这个情况。",
+      "expected_output": "说明如何在分析前检查用户偏好并调整建议",
+      "files": [],
+      "expectations": [
+        "调用memory_search检查用户风险偏好",
+        "识别用户的风险承受能力",
+        "根据风险偏好调整股票推荐",
+        "对高风险股票给出警告"
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "dcf-valuation-calculation",
+      "prompt": "假设某公司当前自由现金流为100亿，过去5年FCF年复合增长率为12%，WACC为10%，终值增长率为2.5%，总股本10亿股，净债务为50亿，当前股价为150元。请计算DCF估值并给出分析。",
+      "expected_output": "计算DCF估值并与当前股价比较",
+      "files": [],
+      "expectations": [
+        "正确计算5年FCF预测",
+        "正确计算终值",
+        "正确折现所有现金流",
+        "正确计算企业价值和股权价值",
+        "计算每股价值和上涨空间",
+        "给出估值评级"
+      ]
+    },
+    {
+      "id": 4,
+      "eval_name": "risk-assessment-framework",
+      "prompt": "请说明对一只股票进行完整风险评估的框架。需要评估哪些维度的风险？如何量化这些风险？",
+      "expected_output": "完整的风险评估框架和方法",
+      "files": [],
+      "expectations": [
+        "识别财务风险维度",
+        "识别业务风险维度",
+        "识别市场风险维度",
+        "提供量化方法",
+        "给出风险等级划分"
+      ]
+    },
+    {
+      "id": 5,
+      "eval_name": "portfolio-comparison",
+      "prompt": "用户想要比较三只科技股：苹果(AAPL)、微软(MSFT)、谷歌(GOOGL)。请说明你会如何批量获取数据并进行多维度比较。",
+      "expected_output": "批量比较流程和多维度评分",
+      "files": [],
+      "expectations": [
+        "批量调用API获取数据",
+        "按多维度(估值、成长、质量)比较",
+        "生成对比表格",
+        "给出综合排名"
+      ]
+    },
+    {
+      "id": 6,
+      "eval_name": "investment-report-format",
+      "prompt": "请生成一份标准的股票投资分析报告模板，包含哪些必要章节？每个章节应该包含什么内容？",
+      "expected_output": "标准投资报告模板",
+      "files": [],
+      "expectations": [
+        "包含估值摘要",
+        "包含核心指标",
+        "包含投资理由",
+        "包含风险提示",
+        "包含配置建议",
+        "包含免责声明"
+      ]
+    },
+    {
+      "id": 7,
+      "eval_name": "relative-valuation",
+      "prompt": "某公司PE为25倍，行业平均PE为20倍；PB为4倍，行业平均为3倍；PS为8倍，行业平均为6倍。请计算相对估值比率并判断是被高估还是低估。",
+      "expected_output": "相对估值分析",
+      "files": [],
+      "expectations": [
+        "计算各估值比率",
+        "与行业平均比较",
+        "判断估值高低",
+        "综合判断"
+      ]
+    },
+    {
+      "id": 8,
+      "eval_name": "profitability-analysis",
+      "prompt": "某公司毛利率为45%，运营利润率为25%，净利润率为18%，ROE为22%，ROIC为15%。请评估这家公司的盈利能力，并说明各指标的行业对比。",
+      "expected_output": "盈利能力评估",
+      "files": [],
+      "expectations": [
+        "评估各盈利能力指标",
+        "与行业benchmark比较",
+        "识别盈利质量",
+        "给出综合评价"
+      ]
+    },
+    {
+      "id": 9,
+      "eval_name": "growth-analysis",
+      "prompt": "某公司过去5年营收分别为：100亿、115亿、135亿、160亿、190亿。请计算营收复合增长率，并结合分析师预期给出成长性评估。",
+      "expected_output": "成长性分析",
+      "files": [],
+      "expectations": [
+        "正确计算CAGR",
+        "分析增长趋势",
+        "考虑分析师预期",
+        "给出成长性评级"
+      ]
+    },
+    {
+      "id": 10,
+      "eval_name": "financial-health",
+      "prompt": "某公司流动比率0.8，速动比率0.5，资产负债率70%，利息覆盖倍数3倍。请评估该公司财务健康状况。",
+      "expected_output": "财务健康评估",
+      "files": [],
+      "expectations": [
+        "识别财务问题信号",
+        "评估流动性风险",
+        "评估偿债能力",
+        "给出财务健康等级"
+      ]
+    }
+  ]
+}

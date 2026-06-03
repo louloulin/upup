@@ -1,0 +1,42 @@
+{
+  "skill_name": "financial-analysis",
+  "description": "金融数据分析与获取",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "price-query",
+      "prompt": "获取微软(MSFT)当前股价、市值、PE比率。应该使用什么工具和查询格式？",
+      "expected_output": "数据获取流程",
+      "files": [],
+      "expectations": [
+        "使用get_market_data",
+        "正确查询格式",
+        "解析返回数据"
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "financial-metrics",
+      "prompt": "获取苹果5年营收增长、净利润率、ROE数据。如何批量获取多指标？",
+      "expected_output": "多指标查询方法",
+      "files": [],
+      "expectations": [
+        "使用get_financials",
+        "指定years参数",
+        "提取多个metrics"
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "stock-screening",
+      "prompt": "筛选市值大于1000亿、PE低于20、ROE高于15%的价值股。查询格式是什么？",
+      "expected_output": "筛选工具使用",
+      "files": [],
+      "expectations": [
+        "使用stock_screener",
+        "criteria格式",
+        "sort_by和limit"
+      ]
+    }
+  ]
+}

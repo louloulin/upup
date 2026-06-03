@@ -1,0 +1,42 @@
+{
+  "skill_name": "memory-system",
+  "description": "AI Agent持久化记忆系统",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "memory-storage-design",
+      "prompt": "设计一个记忆存储系统，支持：1) 长期记忆 2) 每日日志 3) 会话记忆。需要什么数据结构？",
+      "expected_output": "存储结构和API设计",
+      "files": [],
+      "expectations": [
+        "区分三种记忆类型",
+        "SQLite索引设计",
+        "分类存储API"
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "search-strategy",
+      "prompt": "记忆搜索需要支持TF-IDF和Embedding两种方式。如何实现混合搜索(MMR)？",
+      "expected_output": "混合搜索实现方案",
+      "files": [],
+      "expectations": [
+        "TF-IDF评分计算",
+        "Embedding相似度计算",
+        "MMR去重逻辑"
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "memory-extraction",
+      "prompt": "如何自动从对话中提取记忆？需要多久提取一次？如何判断提取的内容重要？",
+      "expected_output": "记忆提取策略和实现",
+      "files": [],
+      "expectations": [
+        "设置提取间隔(如5轮)",
+        "使用正则匹配用户偏好",
+        "计算重要性分数"
+      ]
+    }
+  ]
+}

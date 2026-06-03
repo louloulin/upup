@@ -1,0 +1,42 @@
+{
+  "skill_name": "upup-finance",
+  "description": "UpUp金融数据工具集。用于获取股价、财务报表、SEC文件、股票筛选、A股数据、基金数据等金融信息。",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "us-stock-price-query",
+      "prompt": "获取苹果公司(AAPL)当前股价和市值。",
+      "expected_output": "返回股价、市值等数据",
+      "files": [],
+      "expectations": [
+        "使用get_market_data或类似工具",
+        "返回股价信息",
+        "返回市值信息"
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "financial-metrics-analysis",
+      "prompt": "获取微软(MSFT)最近5年的营收和净利润数据。",
+      "expected_output": "返回营收、净利润数据列表",
+      "files": [],
+      "expectations": [
+        "使用get_financials工具",
+        "包含营收(revenue)数据",
+        "包含净利润(net income)数据"
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "astock-screening",
+      "prompt": "筛选A股中市盈率低于20、ROE高于15%的科技股。",
+      "expected_output": "返回符合条件的股票列表",
+      "files": [],
+      "expectations": [
+        "使用screen_astocks工具",
+        "筛选条件包含pe和roe",
+        "结果格式清晰"
+      ]
+    }
+  ]
+}

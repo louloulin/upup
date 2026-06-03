@@ -1,0 +1,44 @@
+{
+  "skill_name": "upup-skill-system",
+  "description": "UpUp SKILL.md技能系统。用于理解技能定义、发现机制、执行流程、创建新技能。",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "create-new-skill",
+      "prompt": "我想创建一个新的技能用于技术分析。我应该怎么创建SKILL.md文件？",
+      "expected_output": "说明SKILL.md格式和内容",
+      "files": [],
+      "expectations": [
+        "包含YAML frontmatter",
+        "包含description触发描述",
+        "包含工作流程说明",
+        "放置在正确目录"
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "skill-discovery",
+      "prompt": "UpUp按什么顺序搜索技能目录？用户自定义的技能和内置技能哪个优先？",
+      "expected_output": "说明技能发现优先级",
+      "files": [],
+      "expectations": [
+        "说明优先级顺序",
+        "project > user > builtin",
+        "说明搜索路径"
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "skill-execution",
+      "prompt": "用户触发技能后，UpUp是如何执行技能的？请说明从intent检测到执行完成的流程。",
+      "expected_output": "说明skill执行流程",
+      "files": [],
+      "expectations": [
+        "intent-detector检测触发",
+        "skill-trigger调用",
+        "executor执行",
+        "返回结果"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "skill_name": "upup-tool-registry",
+  "description": "UpUp工具注册与使用指南。用于理解可用的AI工具、如何注册新工具、工具元数据、并发安全配置。",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "register-new-tool",
+      "prompt": "我想在UpUp中添加一个新的工具用于获取加密货币价格。我需要做什么？",
+      "expected_output": "说明注册新工具的步骤",
+      "files": [],
+      "expectations": [
+        "创建工具文件",
+        "在域加载器中注册",
+        "在index.ts中导出"
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "tool-concurrency",
+      "prompt": "UpUp中哪些工具可以并发执行？哪些需要串行？以get_financials和write_file为例说明。",
+      "expected_output": "说明并发安全配置",
+      "files": [],
+      "expectations": [
+        "get_financials标记为并发安全",
+        "write_file非并发安全",
+        "说明原因"
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "tool-metadata",
+      "prompt": "注册一个工具时需要提供哪些元数据？请列出并解释每个字段的作用。",
+      "expected_output": "列出RegisteredTool接口字段",
+      "files": [],
+      "expectations": [
+        "说明name字段",
+        "说明description和compactDescription",
+        "说明concurrencySafe",
+        "说明metadata"
+      ]
+    }
+  ]
+}

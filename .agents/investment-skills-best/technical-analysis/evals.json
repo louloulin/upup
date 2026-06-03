@@ -1,0 +1,11 @@
+{
+  "skill_name": "technical-analysis",
+  "description": "技术分析专家",
+  "evals": [
+    {"id": 1, "prompt": "分析苹果股票的技术面，给出买卖信号", "expected_output": "技术分析报告", "expectations": ["MACD", "RSI", "布林带", "均线"]},
+    {"id": 2, "prompt": "判断特斯拉当前趋势方向", "expected_output": "趋势分析", "expectations": ["短期趋势", "中期趋势", "长期趋势"]},
+    {"id": 3, "prompt": "分析腾讯控股的MACD背离信号", "expected_output": "MACD分析", "expectations": ["MACD指标", "背离检测", "信号判断"]},
+    {"id": 4, "prompt": "识别最近出现的K线形态", "expected_output": "形态分析", "expectations": ["形态识别", "信号强度", "目标价位"]},
+    {"id": 5, "prompt": "分析布林带挤压后的突破方向", "expected_output": "布林带分析", "expectations": ["挤压判断", "突破方向", "成交量确认"]}
+  ]
+}

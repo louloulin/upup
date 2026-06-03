@@ -1,0 +1,46 @@
+{
+  "skill_name": "upup-dcf",
+  "description": "UpUp DCF折现现金流估值技能。用于计算股票的内在价值、公允价值、估值分析。",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "dcf-basic-analysis",
+      "prompt": "对特斯拉(TSLA)进行DCF估值分析，估算其内在价值。",
+      "expected_output": "返回DCF估值结果，包括每股价值、上涨/下跌空间",
+      "files": [],
+      "expectations": [
+        "收集FCF数据",
+        "计算WACC折现率",
+        "预测未来现金流",
+        "计算每股价值",
+        "包含敏感性分析"
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "dcf-validation-check",
+      "prompt": "分析AAPL的DCF估值，说明使用的关键假设。",
+      "expected_output": "列出关键假设和计算过程",
+      "files": [],
+      "expectations": [
+        "说明增长率假设",
+        "说明WACC假设",
+        "说明终值假设",
+        "结果经过验证"
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "dcf-sensitivity-analysis",
+      "prompt": "对谷歌(GOOGL)做DCF分析，并展示WACC和终值增长率的敏感性矩阵。",
+      "expected_output": "返回3x3敏感性矩阵",
+      "files": [],
+      "expectations": [
+        "创建敏感性矩阵",
+        "WACC变化范围合理",
+        "终值增长率变化范围合理",
+        "结果格式清晰"
+      ]
+    }
+  ]
+}

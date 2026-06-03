@@ -1,0 +1,11 @@
+{
+  "skill_name": "financial-analysis",
+  "description": "财务报表分析专家",
+  "evals": [
+    {"id": 1, "prompt": "分析茅台最新财报的财务健康度", "expected_output": "财务分析报告", "expectations": ["三大报表", "关键指标", "财务评分"]},
+    {"id": 2, "prompt": "帮我检测比亚迪财报有没有财务陷阱", "expected_output": "排雷报告", "expectations": ["异常指标", "造假信号", "风险评估"]},
+    {"id": 3, "prompt": "对比分析五粮液和洋河的盈利能力", "expected_output": "盈利对比", "expectations": ["毛利率", "净利率", "ROE", "ROIC"]},
+    {"id": 4, "prompt": "分析苹果公司的盈利质量", "expected_output": "盈利质量报告", "expectations": ["OCF/NI", "FCF质量", "评分"]},
+    {"id": 5, "prompt": "解释ROE分解计算的方法", "expected_output": "ROE分解指南", "expectations": ["分解公式", "各因素", "应用示例"]}
+  ]
+}

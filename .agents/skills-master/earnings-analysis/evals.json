@@ -1,0 +1,61 @@
+{
+  "skill_name": "earnings-analysis",
+  "description": "盈利分析 - EPS预测、beat rate、财报陷阱识别",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "帮我预测苹果公司下个季度的EPS，看是否能超预期",
+      "expected_output": "EPS预测报告",
+      "expectations": [
+        "分析历史EPS",
+        "预测下季度EPS",
+        "评估超预期概率",
+        "给出预测依据"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "分析比亚迪最新财报，检查有没有财务异常或潜在的财报陷阱",
+      "expected_output": "财报排雷报告",
+      "expectations": [
+        "检测财务异常",
+        "识别财报陷阱信号",
+        "分析应收账款",
+        "评估现金流质量"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "帮我分析腾讯控股最近几个季度的营收增长趋势",
+      "expected_output": "营收趋势分析",
+      "expectations": [
+        "分析营收历史",
+        "识别增长趋势",
+        "分析增长驱动因素",
+        "预测未来营收"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "分析五粮液的毛利率和净利率变化趋势，判断盈利质量",
+      "expected_output": "盈利质量分析",
+      "expectations": [
+        "分析毛利率趋势",
+        "分析净利率变化",
+        "评估盈利质量",
+        "与行业对比"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "帮我分析微软的beat rate，看他是否经常超预期",
+      "expected_output": "Beat Rate分析",
+      "expectations": [
+        "计算历史beat rate",
+        "分析超预期幅度",
+        "评估持续性",
+        "预测未来表现"
+      ]
+    }
+  ]
+}

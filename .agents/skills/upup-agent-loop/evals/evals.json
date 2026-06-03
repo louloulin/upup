@@ -1,0 +1,42 @@
+{
+  "skill_name": "upup-agent-loop",
+  "description": "UpUp Agent循环执行机制。当需要理解agent如何迭代执行工具、处理上下文、生成最终答案时触发。",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "tool-execution-flow",
+      "prompt": "在UpUp的Agent循环中，一个工具调用是如何执行的？请说明从用户查询到工具结果返回的完整流程。",
+      "expected_output": "说明完整的工具执行流程",
+      "files": [],
+      "expectations": [
+        "识别AgentToolExecutor",
+        "说明并发执行机制",
+        "说明结果记录到scratchpad"
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "context-compaction",
+      "prompt": "当Agent上下文过长时会发生什么？UpUp是如何处理上下文溢出的？",
+      "expected_output": "说明compact机制",
+      "files": [],
+      "expectations": [
+        "识别compact机制",
+        "说明触发条件",
+        "说明压缩策略"
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "loop-detection",
+      "prompt": "如果Agent反复调用同一个工具怎么办？UpUp有什么机制检测和恢复？",
+      "expected_output": "说明循环检测和恢复策略",
+      "files": [],
+      "expectations": [
+        "识别loop-recovery.ts",
+        "说明检测机制",
+        "说明恢复策略"
+      ]
+    }
+  ]
+}

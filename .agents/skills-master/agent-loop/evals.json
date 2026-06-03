@@ -1,0 +1,61 @@
+{
+  "skill_name": "agent-loop",
+  "description": "Agent循环执行机制 - 工具迭代、上下文管理、结果生成",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "帮我分析一个复杂的研究任务，理解agent如何分步执行",
+      "expected_output": "任务分解说明",
+      "expectations": [
+        "分解为可执行步骤",
+        "解释工具调用流程",
+        "说明上下文管理",
+        "展示最终结果生成"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "解释agent loop中scratchpad的作用和原理",
+      "expected_output": "Scratchpad机制说明",
+      "expectations": [
+        "解释scratchpad概念",
+        "说明上下文积累方式",
+        "分析工具结果存储",
+        "说明结果生成机制"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "帮我分析compaction机制在长对话中的作用",
+      "expected_output": "Compaction机制分析",
+      "expectations": [
+        "解释compaction概念",
+        "分析上下文压缩原理",
+        "说明触发条件",
+        "展示效果"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "分析agent如何检测和处理循环迭代",
+      "expected_output": "循环检测机制说明",
+      "expectations": [
+        "识别迭代模式",
+        "说明检测方法",
+        "解释干预策略",
+        "给出处理流程"
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "帮我理解stream模式下agent如何生成实时响应",
+      "expected_output": "流式响应机制",
+      "expectations": [
+        "解释流式处理",
+        "分析事件生成",
+        "说明实时反馈",
+        "展示响应流程"
+      ]
+    }
+  ]
+}

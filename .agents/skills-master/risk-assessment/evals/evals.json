@@ -1,0 +1,66 @@
+{
+  "skill_name": "risk-assessment",
+  "description": "投资风险评估与管理",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "var-calculation",
+      "prompt": "某投资组合过去一年日收益率的标准差为2%，组合价值1000万。在95%置信水平下，使用参数法计算1天的VaR。假设日均收益为0.05%。",
+      "expected_output": "VaR计算",
+      "files": [],
+      "expectations": [
+        "正确使用z-score(95%对应1.65)",
+        "计算VaR公式",
+        "给出VaR金额"
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "max-drawdown-calculation",
+      "prompt": "某股票从100元涨到150元，然后跌到120元，再涨到180元。计算最大回撤和当前回撤。",
+      "expected_output": "回撤计算",
+      "files": [],
+      "expectations": [
+        "识别峰值150元",
+        "计算最大回撤=(120-150)/150",
+        "计算当前回撤"
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "beta-analysis",
+      "prompt": "某股票与市场的相关系数为0.8，股票收益率标准差为25%，市场收益率标准差为15%。计算该股票的Beta。如果市场下跌10%，该股票预期下跌多少？",
+      "expected_output": "Beta计算和分析",
+      "files": [],
+      "expectations": [
+        "正确使用Beta公式",
+        "计算Beta值",
+        "预测下行风险"
+      ]
+    },
+    {
+      "id": 4,
+      "eval_name": "volatility-calculation",
+      "prompt": "某股票5天收益率分别为：+2%、-1%、+3%、-2%、+1%。计算年化波动率。",
+      "expected_output": "波动率计算",
+      "files": [],
+      "expectations": [
+        "计算日波动率",
+        "年化(乘sqrt(252))",
+        "给出年化结果"
+      ]
+    },
+    {
+      "id": 5,
+      "eval_name": "stop-loss-setting",
+      "prompt": "某股票买入价为100元，历史波动率为20%，账户资金10万，投资者风险承受能力为2%。请计算建议的止损位和仓位大小。",
+      "expected_output": "止损和仓位计算",
+      "files": [],
+      "expectations": [
+        "计算2倍波动率止损",
+        "计算最大风险金额",
+        "计算建议仓位"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "skill_name": "dcf-valuation",
+  "description": "折现现金流(DCF)估值分析",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "dcf-calculation",
+      "prompt": "对苹果公司(AAPL)进行DCF估值。需要哪些数据？WACC如何计算？现金流如何预测？",
+      "expected_output": "DCF计算完整流程",
+      "files": [],
+      "expectations": [
+        "收集FCF数据",
+        "计算WACC(含公式)",
+        "预测5年现金流",
+        "计算终值",
+        "折现求现值"
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "sensitivity-analysis",
+      "prompt": "DCF分析的敏感性矩阵如何创建？请说明WACC和终值增长率的取值范围。",
+      "expected_output": "3x3敏感性矩阵实现",
+      "files": [],
+      "expectations": [
+        "WACC ±1% 范围",
+        "终值增长率 2.0%-3.0%",
+        "矩阵计算逻辑"
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "dcf-validation",
+      "prompt": "DCF估值完成后如何验证？有哪些 sanity check 需要做？",
+      "expected_output": "DCF验证检查清单",
+      "files": [],
+      "expectations": [
+        "EV比较(±30%)",
+        "终值比例(50-80%)",
+        "每股交叉验证"
+      ]
+    }
+  ]
+}

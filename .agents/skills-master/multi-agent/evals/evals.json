@@ -1,0 +1,42 @@
+{
+  "skill_name": "multi-agent",
+  "description": "多代理AI系统",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "subagent-creation",
+      "prompt": "需要创建一个专门做财务分析的子Agent。请说明：1) 如何配置工具限制 2) 如何传递父上下文 3) 如何获取结果",
+      "expected_output": "子Agent创建完整流程",
+      "files": [],
+      "expectations": [
+        "allowedTools配置",
+        "parentContext传递",
+        "run()获取结果"
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "coordinator-pattern",
+      "prompt": "多Agent协调有哪些模式？请分别说明sequential、parallel、hierarchical的适用场景。",
+      "expected_output": "三种协调器模式说明",
+      "files": [],
+      "expectations": [
+        "sequential: 顺序依赖任务",
+        "parallel: 独立并行任务",
+        "hierarchical: Manager分解+Worker执行"
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "result-aggregation",
+      "prompt": "多Agent并行执行后，如何汇总结果？TeamResult包含哪些字段？",
+      "expected_output": "结果聚合格式和逻辑",
+      "files": [],
+      "expectations": [
+        "agentResults数组",
+        "combinedAnswer合成",
+        "duration统计"
+      ]
+    }
+  ]
+}

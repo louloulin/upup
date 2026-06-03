@@ -1,0 +1,11 @@
+{
+  "skill_name": "valuation-expert",
+  "description": "股票估值专家",
+  "evals": [
+    {"id": 1, "prompt": "用DCF模型估算特斯拉内在价值", "expected_output": "DCF估值报告", "expectations": ["参数假设", "现金流预测", "终值计算", "目标价"]},
+    {"id": 2, "prompt": "对比分析茅台和五粮液的估值", "expected_output": "估值对比报告", "expectations": ["PE对比", "PB对比", "DCF对比", "综合结论"]},
+    {"id": 3, "prompt": "分析当前比亚迪的估值安全边际", "expected_output": "安全边际分析", "expectations": ["当前估值", "内在价值", "安全边际计算"]},
+    {"id": 4, "prompt": "解释PE、PB、PS三种估值方法的适用场景", "expected_output": "估值方法指南", "expectations": ["各方法原理", "适用场景", "茅台示例"]},
+    {"id": 5, "prompt": "用多种方法估算腾讯控股的合理估值", "expected_output": "综合估值报告", "expectations": ["DCF", "PE", "PB", "综合结论"]}
+  ]
+}

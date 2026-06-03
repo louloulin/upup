@@ -1,0 +1,66 @@
+{
+  "skill_name": "sector-analysis",
+  "description": "行业与板块深度分析",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "porters-five-forces",
+      "prompt": "请说明波特五力模型的五个力，并分析软件行业这五力的强弱。",
+      "expected_output": "波特五力分析",
+      "files": [],
+      "expectations": [
+        "识别五力",
+        "分析软件行业特点",
+        "给出综合吸引力"
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "industry-life-cycle",
+      "prompt": "某行业过去3年增长率15%/12%/10%，行业整合加剧，新进入者减少。请判断行业生命周期阶段。",
+      "expected_output": "生命周期判断",
+      "files": [],
+      "expectations": [
+        "识别growth阶段",
+        "识别shakeout信号",
+        "给出投资含义"
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "moat-analysis",
+      "prompt": "某科技公司用户留存率95%，品牌价值行业第一，专利10000项。请分析其护城河类型和强度。",
+      "expected_output": "护城河分析",
+      "files": [],
+      "expectations": [
+        "识别多种护城河",
+        "评估护城河强度",
+        "给出持续性判断"
+      ]
+    },
+    {
+      "id": 4,
+      "eval_name": "value-chain-analysis",
+      "prompt": "半导体产业链分为设备/材料(上游)、设计(中游)、制造封测(下游)。请分析各环节的竞争特点和利润率分布。",
+      "expected_output": "产业链分析",
+      "files": [],
+      "expectations": [
+        "识别各环节",
+        "分析竞争特点",
+        "分析利润率分布"
+      ]
+    },
+    {
+      "id": 5,
+      "eval_name": "industry-valuation",
+      "prompt": "某行业PE中位数25倍，历史范围15-35倍。当前行业平均PE为20倍。请判断估值高低。",
+      "expected_output": "行业估值判断",
+      "files": [],
+      "expectations": [
+        "计算相对位置",
+        "判断估值高低",
+        "给出投资含义"
+      ]
+    }
+  ]
+}

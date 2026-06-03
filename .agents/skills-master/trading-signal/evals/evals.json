@@ -1,0 +1,66 @@
+{
+  "skill_name": "trading-signal",
+  "description": "交易信号与技术分析",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "macd-calculation",
+      "prompt": "某股票12日EMA=150元，26日EMA=145元，MACD信号线=4.5。请计算MACD柱状图，判断目前是金叉还是死叉。",
+      "expected_output": "MACD计算和交叉判断",
+      "files": [],
+      "expectations": [
+        "计算MACD=EMA12-EMA26",
+        "判断histogram=MACD-signal",
+        "识别交叉状态"
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "rsi-interpretation",
+      "prompt": "某股票RSI(14)=72，另一只股票RSI(14)=28。请说明这两个RSI值的含义和交易信号。",
+      "expected_output": "RSI解读",
+      "files": [],
+      "expectations": [
+        "RSI>70超买",
+        "RSI<30超卖",
+        "给出交易建议"
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "bollinger-bands",
+      "prompt": "某股票布林带参数为20日SMA=100元，标准差=5元，2倍标准差。当前价格=95元。请计算上下轨，判断价格位置。",
+      "expected_output": "布林带计算",
+      "files": [],
+      "expectations": [
+        "计算上下轨",
+        "计算%B",
+        "判断价格位置"
+      ]
+    },
+    {
+      "id": 4,
+      "eval_name": "trend-identification",
+      "prompt": "某股票SMA20=105元 > SMA50=100元 > SMA200=90元，当前价格=110元。请判断趋势和均线排列状态。",
+      "expected_output": "趋势识别",
+      "files": [],
+      "expectations": [
+        "识别多头排列",
+        "判断上升趋势",
+        "给出交易信号"
+      ]
+    },
+    {
+      "id": 5,
+      "eval_name": "stop-loss-calculation",
+      "prompt": "某股票买入价100元，ATR(14)=2.5元。请计算2倍ATR止损位和3%固定止损位，哪个更合理？",
+      "expected_output": "止损计算",
+      "files": [],
+      "expectations": [
+        "计算ATR止损",
+        "计算固定止损",
+        "给出建议"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,66 @@
+{
+  "skill_name": "earnings-analysis",
+  "description": "财报分析与盈利预测",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "beat-rate-calculation",
+      "prompt": "某公司连续8个季度EPS分别是：2.0, 2.1, 2.2, 2.0, 2.3, 2.4, 2.5, 2.6元，分析师共识预期2.4元。如果下季度EPS为2.5元，计算beat rate并判断信号。",
+      "expected_output": "beat rate计算和信号判断",
+      "files": [],
+      "expectations": [
+        "计算beat rate",
+        "计算超出共识百分比",
+        "判断beat/miss信号"
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "earnings-quality",
+      "prompt": "某公司净利润10亿，自由现金流6亿，应收账款天数120天。请评估盈利质量。",
+      "expected_output": "盈利质量评估",
+      "files": [],
+      "expectations": [
+        "计算FCF转换率",
+        "评估应收账款天数",
+        "识别质量问题"
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "margin-analysis",
+      "prompt": "某公司毛利率45%，运营利润率25%，净利润率18%。请分析利润率结构和竞争力。",
+      "expected_output": "利润率分析",
+      "files": [],
+      "expectations": [
+        "识别利润率结构",
+        "与行业比较",
+        "趋势判断"
+      ]
+    },
+    {
+      "id": 4,
+      "eval_name": "revenue-growth-calculation",
+      "prompt": "某公司连续3年营收：100亿、120亿、150亿、195亿。请计算年复合增长率并预测下年营收。",
+      "expected_output": "增长率计算和预测",
+      "files": [],
+      "expectations": [
+        "计算CAGR",
+        "分析增长趋势",
+        "给出预测"
+      ]
+    },
+    {
+      "id": 5,
+      "eval_name": "earnings-trap",
+      "prompt": "某公司净利润增长50%但自由现金流下降，运营利润率扩张但应收款大增。请识别这是否是盈利陷阱。",
+      "expected_output": "盈利陷阱识别",
+      "files": [],
+      "expectations": [
+        "识别多个警告信号",
+        "评估陷阱严重性",
+        "给出投资建议"
+      ]
+    }
+  ]
+}

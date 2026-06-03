@@ -1,0 +1,43 @@
+{
+  "skill_name": "upup-multi-agent",
+  "description": "UpUp多代理系统。用于理解子Agent创建、任务协调、Agent团队管理、跨Agent通信。",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "create-subagent",
+      "prompt": "如何创建一个专门用于财务分析的子Agent？请给出代码示例。",
+      "expected_output": "使用createSubAgent创建子Agent",
+      "files": [],
+      "expectations": [
+        "使用createSubAgent函数",
+        "配置allowedTools限制工具",
+        "指定模型和角色"
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "coordinator-patterns",
+      "prompt": "UpUp的多Agent协调器支持哪些模式？请列出并说明每种模式的适用场景。",
+      "expected_output": "列出sequential, parallel, hierarchical模式",
+      "files": [],
+      "expectations": [
+        "识别sequential模式",
+        "识别parallel模式",
+        "识别hierarchical模式",
+        "说明适用场景"
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "team-result-aggregation",
+      "prompt": "多Agent团队执行后，如何汇总各个Agent的结果？请说明输出格式。",
+      "expected_output": "说明TeamResult格式",
+      "files": [],
+      "expectations": [
+        "说明agentResults结构",
+        "说明combinedAnswer",
+        "说明状态信息"
+      ]
+    }
+  ]
+}

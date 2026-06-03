@@ -1,0 +1,68 @@
+{
+  "skill_name": "portfolio-analysis",
+  "description": "投资组合分析与管理",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "portfolio-return-calculation",
+      "prompt": "某组合包含三只股票：AAPL(配置30%)今年上涨20%，MSFT(配置40%)今年上涨15%，GOOGL(配置30%)今年上涨25%。请计算组合总收益率和年化收益率。假设初始投资100万。",
+      "expected_output": "组合收益率计算",
+      "files": [],
+      "expectations": [
+        "正确计算加权收益率",
+        "计算组合总收益",
+        "计算金额变化"
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "sharpe-ratio-calculation",
+      "prompt": "某组合年化收益率为12%，年化波动率为18%，无风险利率为3%。请计算夏普比率并评价该组合的风险调整后收益。",
+      "expected_output": "夏普比率计算和分析",
+      "files": [],
+      "expectations": [
+        "正确使用夏普比率公式",
+        "计算超额收益",
+        "给出风险调整后评价"
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "rebalancing-decision",
+      "prompt": "用户目标配置是股票60%、债券30%、现金10%。当前配置是股票70%、债券25%、现金5%。股票已经超过目标10%，债券低于目标5%。是否需要再平衡？",
+      "expected_output": "再平衡决策",
+      "files": [],
+      "expectations": [
+        "识别偏离目标配置",
+        "评估偏离程度",
+        "考虑交易成本",
+        "给出再平衡建议"
+      ]
+    },
+    {
+      "id": 4,
+      "eval_name": "concentration-risk",
+      "prompt": "某组合前三大持仓占比分别为30%、25%、20%，其余5只股票各占5%。请计算有效股票数量和Herfindahl指数，并评估集中度风险。",
+      "expected_output": "集中度风险分析",
+      "files": [],
+      "expectations": [
+        "计算HHI指数",
+        "计算有效N",
+        "评估集中度风险等级"
+      ]
+    },
+    {
+      "id": 5,
+      "eval_name": "diversification-analysis",
+      "prompt": "如何评估一个股票组合的分散化程度？需要考虑哪些因素？如果组合中所有股票都来自科技行业，是否算充分分散化？",
+      "expected_output": "分散化评估框架",
+      "files": [],
+      "expectations": [
+        "识别分散化维度",
+        "说明行业分散重要性",
+        "说明市值分散",
+        "说明相关性分析"
+      ]
+    }
+  ]
+}

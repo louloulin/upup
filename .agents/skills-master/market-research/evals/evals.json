@@ -1,0 +1,66 @@
+{
+  "skill_name": "market-research",
+  "description": "市场研究与宏观分析",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "market-health-assessment",
+      "prompt": "如何评估市场整体健康度？需要考虑哪些维度和指标？",
+      "expected_output": "市场健康度评估框架",
+      "files": [],
+      "expectations": [
+        "识别评估维度",
+        "说明各维度指标",
+        "给出综合评分方法"
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "sector-rotation",
+      "prompt": "请说明美林时钟的四个经济阶段，以及每个阶段应该超配哪些行业？",
+      "expected_output": "美林时钟策略",
+      "files": [],
+      "expectations": [
+        "识别四个阶段",
+        "每个阶段的超配行业",
+        "说明配置逻辑"
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "sentiment-interpretation",
+      "prompt": "VIX指数为35，Put/Call比率为1.5，恐惧贪婪指数为25。请判断市场情绪并给出投资建议。",
+      "expected_output": "情绪判断和投资建议",
+      "files": [],
+      "expectations": [
+        "VIX>30表示高波动/恐惧",
+        "Put/Call>1表示偏空",
+        "给出综合判断"
+      ]
+    },
+    {
+      "id": 4,
+      "eval_name": "industry-comparison",
+      "prompt": "科技行业过去3个月上涨15%，金融行业下跌5%，消费行业上涨8%。请按动量排序并分析原因。",
+      "expected_output": "行业动量分析",
+      "files": [],
+      "expectations": [
+        "正确排序",
+        "分析差异原因",
+        "给出配置建议"
+      ]
+    },
+    {
+      "id": 5,
+      "eval_name": "money-flow-analysis",
+      "prompt": "某板块过去5日资金净流入20亿，占板块总市值1%。另一板块净流出10亿。请分析资金流向含义。",
+      "expected_output": "资金流向分析",
+      "files": [],
+      "expectations": [
+        "识别净流入板块",
+        "计算相对比例",
+        "给出资金含义"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "skill_name": "upup-memory",
+  "description": "UpUp记忆系统。用于理解持久化记忆、记忆搜索、记忆提取、记忆整合。",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "memory-store-recall",
+      "prompt": "用户之前说过他偏好保守型投资组合，最大回撤不超过10%。在给投资建议前，需要做什么？",
+      "expected_output": "调用memory_search搜索用户偏好",
+      "files": [],
+      "expectations": [
+        "使用memory_search工具",
+        "搜索用户偏好相关",
+        "引用找到的信息"
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "memory-update-flow",
+      "prompt": "用户说他的投资目标是5年内积累100万。我需要记住这个信息，应该使用什么工具和命令？",
+      "expected_output": "使用memory_update存储信息",
+      "files": [],
+      "expectations": [
+        "使用memory_update工具",
+        "说明正确的参数",
+        "说明存储位置"
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "memory-search-strategy",
+      "prompt": "在UpUp中，如何搜索包含'风险偏好'的记忆？请说明搜索策略。",
+      "expected_output": "说明搜索方法和工具",
+      "files": [],
+      "expectations": [
+        "识别正确的搜索工具",
+        "说明搜索语法或参数",
+        "考虑多种搜索方式(TF-IDF/embeddings)"
+      ]
+    }
+  ]
+}

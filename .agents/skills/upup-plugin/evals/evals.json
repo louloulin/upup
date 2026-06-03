@@ -1,0 +1,43 @@
+{
+  "skill_name": "upup-plugin",
+  "description": "UpUp插件系统。用于理解插件开发、MCP服务器集成、工具扩展。",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "plugin-creation",
+      "prompt": "如何创建一个UpUp插件？请说明目录结构和必要文件。",
+      "expected_output": "说明插件目录结构和文件",
+      "files": [],
+      "expectations": [
+        "创建目录结构",
+        "plugin.json配置",
+        "index.ts主入口"
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "mcp-integration",
+      "prompt": "如何在UpUp中集成一个MCP服务器？请说明配置步骤。",
+      "expected_output": "说明MCP服务器配置",
+      "files": [],
+      "expectations": [
+        "说明plugin.json配置",
+        "说明命令和参数",
+        "说明环境变量"
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "plugin-lifecycle",
+      "prompt": "UpUp插件的生命周期是什么？请列出主要钩子函数。",
+      "expected_output": "列出生命周期方法",
+      "files": [],
+      "expectations": [
+        "识别onLoad",
+        "识别onUnload",
+        "识别onEnable/onDisable",
+        "识别工具注册"
+      ]
+    }
+  ]
+}

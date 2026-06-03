@@ -1,0 +1,44 @@
+{
+  "skill_name": "agent-loop",
+  "description": "AI Agent核心循环架构与实现",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "tool-execution-flow",
+      "prompt": "我需要实现一个AI Agent的循环执行机制。请说明：1) Scratchpad的作用 2) 如何实现并发工具执行 3) 什么时候触发上下文压缩",
+      "expected_output": "详细说明工具执行流程、并发策略、压缩触发条件",
+      "files": [],
+      "expectations": [
+        "Scratchpad记录工具结果并持久化",
+        "只读工具可并发，写操作需串行",
+        "上下文超过阈值或工具结果过多时触发压缩"
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "loop-detection",
+      "prompt": "AI Agent可能出现无限循环调用同一个工具。如何设计循环检测机制？请给出代码示例。",
+      "expected_output": "提供完整的循环检测和恢复代码",
+      "files": [],
+      "expectations": [
+        "记录工具调用历史",
+        "检测相同调用+相同参数",
+        "相似查询检测",
+        "提供恢复建议"
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "streaming-implementation",
+      "prompt": "如何实现Agent的流式响应？需要支持：1) 实时显示思考过程 2) 显示工具调用 3) 流式返回最终答案",
+      "expected_output": "流式处理的完整实现方案",
+      "files": [],
+      "expectations": [
+        "onChunk回调处理",
+        "onToolStart/onToolEnd事件",
+        "流式生成最终答案",
+        "使用async generator模式"
+      ]
+    }
+  ]
+}

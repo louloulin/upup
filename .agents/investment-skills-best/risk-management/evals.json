@@ -1,0 +1,11 @@
+{
+  "skill_name": "risk-management",
+  "description": "风险管理专家",
+  "evals": [
+    {"id": 1, "prompt": "计算我持有茅台股票的风险VaR", "expected_output": "VaR分析", "expectations": ["VaR计算", "置信度", "风险金额"]},
+    {"id": 2, "prompt": "设置合理的止损策略", "expected_output": "止损方案", "expectations": ["固定止损", "移动止损", "止损点"]},
+    {"id": 3, "prompt": "分析我的科技股组合的回撤风险", "expected_output": "回撤分析", "expectations": ["最大回撤", "历史分析", "风险评估"]},
+    {"id": 4, "prompt": "帮我评估比亚迪的政策风险", "expected_output": "风险识别", "expectations": ["政策风险", "行业风险", "风险缓解"]},
+    {"id": 5, "prompt": "解释Kelly公式计算仓位的原理", "expected_output": "仓位管理指南", "expectations": ["Kelly公式", "最优仓位", "实际应用"]}
+  ]
+}

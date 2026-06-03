@@ -1,0 +1,43 @@
+{
+  "skill_name": "upup-core",
+  "description": "UpUp CLI AI agent 核心架构。用于理解upup项目的整体结构、入口点、主要模块关系。",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "project-structure-understanding",
+      "prompt": "在UpUp项目中，帮我找到以下信息：1) Agent核心循环在哪个文件？2) 工具注册中心在哪里？3) 记忆系统的主要文件有哪些？简洁列出文件路径。",
+      "expected_output": "列出至少3个关键模块的文件路径：agent/, tools/, memory/等",
+      "files": [],
+      "expectations": [
+        "正确识别agent核心文件路径（如agent.ts）",
+        "正确识别tools目录结构",
+        "正确识别memory目录结构",
+        "响应简洁明了"
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "entry-point-analysis",
+      "prompt": "UpUp的入口点是什么？CLI启动后是如何到达Agent的？请简要说明流程。",
+      "expected_output": "说明index.tsx → cli.tsx → agent的执行流程",
+      "files": [],
+      "expectations": [
+        "识别入口文件index.tsx",
+        "说明CLI到Agent的流程",
+        "描述关键配置文件"
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "tool-categories-mapping",
+      "prompt": "UpUp中有哪些工具类别？请列出每个类别的主要工具。",
+      "expected_output": "分类列出工具：Finance, A-Stock, Quant, Search, System等",
+      "files": [],
+      "expectations": [
+        "识别至少4个工具类别",
+        "每个类别至少列出1个工具",
+        "格式清晰"
+      ]
+    }
+  ]
+}

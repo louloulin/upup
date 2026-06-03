@@ -1,0 +1,42 @@
+{
+  "skill_name": "upup-tui",
+  "description": "UpUp TUI界面开发。用于理解Ink CLI组件、命令状态管理、焦点管理、覆盖层、渲染流程。",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "tui-component-structure",
+      "prompt": "UpUp的TUI使用Ink构建。请说明主要组件和它们的作用。",
+      "expected_output": "列出主要组件及其功能",
+      "files": [],
+      "expectations": [
+        "识别main.ts渲染器",
+        "识别command-input.ts命令输入",
+        "识别focus-manager.ts焦点管理"
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "overlay-system",
+      "prompt": "UpUp的覆盖层系统是如何工作的？请说明OverlayCoordinator的作用。",
+      "expected_output": "说明覆盖层协调机制",
+      "files": [],
+      "expectations": [
+        "识别OverlayCoordinator",
+        "说明覆盖层类型",
+        "说明堆叠管理"
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "command-processing",
+      "prompt": "用户在CLI中输入命令后，UpUp是如何处理和响应的？",
+      "expected_output": "说明命令处理流程",
+      "files": [],
+      "expectations": [
+        "识别CommandStateManager",
+        "说明命令解析",
+        "说明执行和响应"
+      ]
+    }
+  ]
+}
