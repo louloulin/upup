@@ -20,6 +20,20 @@ export {
   sandboxTools,
 } from './sandbox-tools.js';
 
+export {
+  createBroker,
+  createBrokerAsync,
+  listBrokers,
+  registerBroker,
+  resolveActiveBroker,
+  unregisterBroker,
+  type BuiltinBrokerName,
+} from './registry.js';
+
+export { IbkrAdapter, createMemoryTransport as createIbkrMemoryTransport, type IbkrTransport } from './ibkr-adapter.js';
+
+export { XueqiuAdapter, createMemoryTransport as createXueqiuMemoryTransport, type XueqiuTransport } from './xueqiu-adapter.js';
+
 export type {
   Balance,
   BrokerAdapter,
@@ -42,11 +56,12 @@ Trading tools for paper and live brokerage operations.
 - Track positions, balance, realized / unrealized P&L
 - Persist sandbox state across CLI restarts
 - Pluggable BrokerAdapter — same code works for sandbox and live brokers
+- Selectable via \`UPUP_BROKER\` env var (sandbox | ibkr | xueqiu)
 
 ## When to Use
-- User wants to "模拟买入 X 股" → sandbox broker
+- User wants to "模拟买入 X 股" → sandbox broker (default)
 - Backtest result needs to continue as paper trading → sandbox
-- User asks to connect to a live broker → register IBKR/Xueqiu adapter
+- User asks to connect to a live broker → UPUP_BROKER=ibkr / xueqiu
 
 ## Tools
 - \`place_trade_order\` — 下单(支持 market/limit/stop/stop_limit)
@@ -57,5 +72,6 @@ Trading tools for paper and live brokerage operations.
 
 ## Brokers
 - \`sandbox\` (default) — paper trading, no real money, deterministic mock quotes by default
-- Live brokers: not yet registered in this build. Adapter contract in \`types.ts\`.
+- \`ibkr\` — Interactive Brokers (Client Portal API; transport stub included, real plumbing TODO)
+- \`xueqiu\` — 雪球证券 (HTTPS + cookie auth; transport stub included, real plumbing TODO)
 `;
