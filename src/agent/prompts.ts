@@ -244,6 +244,8 @@ export async function buildSystemPrompt(
 ): Promise<string> {
   const { buildCompactToolDescriptions } = await import('../tools/registry/index.js');
   const toolDescriptions = await buildCompactToolDescriptions(model);
+  const { buildInvestmentCapabilitiesSection } = await import('./capability-manifest.js');
+  const investmentCapabilities = await buildInvestmentCapabilitiesSection();
   const profile = getChannelProfile(channel);
 
   const behaviorBullets = profile.behavior.map(b => `- ${b}`).join('\n');
@@ -262,6 +264,7 @@ ${profile.preamble}
 ## Available Tools
 
 ${toolDescriptions}
+${investmentCapabilities ? `\n\n${investmentCapabilities}` : ''}
 
 ## Tool Usage Policy
 
