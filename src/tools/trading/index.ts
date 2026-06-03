@@ -21,6 +21,31 @@ export {
 } from './sandbox-tools.js';
 
 export {
+  createStrategyRunPaperTool,
+  createStrategyListTool,
+  createStrategyBacktestTool,
+  strategyTools,
+} from './strategy-tools.js';
+
+export {
+  TwapAlgo,
+  VwapAlgo,
+  PovAlgo,
+  IsAlgo,
+  isMultiplier,
+  AlgoRunner,
+  getAlgo,
+  type Algo,
+  type AlgoKind,
+  type AlgoProgress,
+  type AlgoReport,
+  type ChildOrder,
+  type ParentOrder,
+  type TradingSessionWindow,
+  DEFAULT_A_SHARE_SESSIONS,
+} from './algos/index.js';
+
+export {
   createBroker,
   createBrokerAsync,
   listBrokers,
