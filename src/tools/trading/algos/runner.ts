@@ -25,8 +25,9 @@ import type {
 } from './types.js';
 import type { BrokerAdapter, Order } from '../types.js';
 import { TwapAlgo } from './twap.js';
-// VWAP / POV / IS will be registered as they are implemented in follow-up
-// commits; the runner is algorithm-agnostic and accepts any Algo instance.
+import { VwapAlgo } from './vwap.js';
+import { PovAlgo } from './pov.js';
+import { IsAlgo } from './is.js';
 
 // ---------------------------------------------------------------------------
 // Registry
@@ -34,10 +35,9 @@ import { TwapAlgo } from './twap.js';
 
 const ALGOS: Record<AlgoKind, () => Algo> = {
   twap: () => new TwapAlgo(),
-  // Lazy placeholders — will be filled by additional algo implementations.
-  vwap: () => new TwapAlgo(), // TODO: replace with VwapAlgo once implemented
-  pov: () => new TwapAlgo(),  // TODO: replace with PovAlgo once implemented
-  is: () => new TwapAlgo(),   // TODO: replace with IsAlgo once implemented
+  vwap: () => new VwapAlgo(),
+  pov: () => new PovAlgo(),
+  is: () => new IsAlgo(),
 };
 
 export function getAlgo(kind: AlgoKind): Algo {

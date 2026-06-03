@@ -47,7 +47,7 @@ export interface ParentOrder {
   /** Limit price for child orders when childOrderType is 'limit' or 'stop_limit'. */
   childLimitPrice?: number;
   /** Algo-specific parameters. */
-  params?: Record<string, number | string | boolean>;
+  params?: Record<string, unknown>;
 }
 
 export interface TradingSessionWindow {
