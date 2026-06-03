@@ -32,16 +32,16 @@
 
 ### 1.3 bridge-mode
 
-- [ ] 1.3.1 实现 `src/bridge/server.ts` 本地 WebSocket server(`Bun.serve({ websocket })`)
-- [ ] 1.3.2 实现 `src/bridge/protocol.ts` 消息协议(chat/approval/output/status 4 类)
-- [ ] 1.3.3 实现 `src/bridge/auth.ts` token 鉴权 + 速率限制 + 审计日志
-- [ ] 1.3.4 实现 `src/bridge/session.ts` 远端 session 接入 + 跨设备
-- [ ] 1.3.5 实现 `src/bridge/client.ts` 基础 CLI 客户端
-- [ ] 1.3.6 写 `src/bridge/server.test.ts` 验证 token 鉴权 + 消息路由
-- [ ] 1.3.7 写 `src/bridge/protocol.test.ts` 验证消息序列化
-- [ ] 1.3.8 CLI 参数 `upup --bridge --bridge-token=<secret>` 启动
-- [ ] 1.3.9 写 e2e:启动 bridge,CLI 客户端连接、发送消息、批准权限
-- [ ] 1.3.10 写 `docs/bridge.md` 使用文档
+- [x] 1.3.1 实现 `src/bridge/server.ts` 本地 WebSocket server(`Bun.serve({ websocket })`)
+- [x] 1.3.2 实现 `src/bridge/protocol.ts` 消息协议(chat/approval/output/status 4 类)
+- [x] 1.3.3 实现 `src/bridge/auth.ts` token 鉴权 + 速率限制 + 审计日志
+- [x] 1.3.4 实现 `src/bridge/session.ts` 远端 session 接入 + 跨设备
+- [x] 1.3.5 实现 `src/bridge/client.ts` 基础 CLI 客户端
+- [x] 1.3.6 写 `src/bridge/server.test.ts` 验证 token 鉴权 + 消息路由
+- [x] 1.3.7 写 `src/bridge/protocol.test.ts` 验证消息序列化
+- [x] 1.3.8 CLI 参数 `upup --bridge --bridge-token=<secret>` 启动
+- [ ] 1.3.9 [deferred → Sprint 2.3 bridge-v2] e2e:启动 bridge,CLI 客户端连接、发送消息、批准权限
+- [ ] 1.3.10 [deferred → Sprint 2.3 bridge-v2] 写 `docs/bridge.md` 使用文档
 
 ### 1.4 portfolio-attribution
 
