@@ -28,6 +28,7 @@ import { loadQuantTools } from './quant-tools.js';
 import { loadDomainTools } from './domain-tools.js';
 import { loadDuckDBTools } from './duckdb-tools.js';
 import { loadInvestmentKnowledgeTools } from './investment-knowledge-tools.js';
+import { loadTradingTools } from './trading-tools.js';
 import { loadFundTools } from './fund-tools.js';
 
 import type { RegisteredTool } from './types.js';
@@ -66,6 +67,9 @@ export async function getToolRegistry(model: string): Promise<RegisteredTool[]> 
 
     // Investment knowledge management
     ...loadInvestmentKnowledgeTools(),
+
+    // Trading (sandbox + broker adapters)
+    ...loadTradingTools(),
   ];
 
   return tools;
