@@ -19,16 +19,16 @@
 
 ### 1.2 alt-data
 
-- [ ] 1.2.1 定义 `src/data/alt/types.ts` `AltDataAdapter` 接口(fetch/normalize/source)
-- [ ] 1.2.2 实现 `src/data/alt/news.ts` 财联社 + 新华财经 Adapter
-- [ ] 1.2.3 实现 `src/data/alt/reports.ts` 慧博 + Choice 研报 Adapter
-- [ ] 1.2.4 实现 `src/data/alt/social.ts` 雪球 + X Adapter
-- [ ] 1.2.5 实现 `src/data/alt/dragon-tiger.ts` 龙虎榜 + 大宗交易 Adapter
-- [ ] 1.2.6 实现 `src/data/alt/north-bound.ts` 北向资金 + 融资融券 Adapter
-- [ ] 1.2.7 写 `src/data/alt/types.test.ts` 验证 NormalizedEvent 统一 schema
-- [ ] 1.2.8 写 5 个 Adapter 单元测试(mock API)
-- [ ] 1.2.9 注册 `alt_data_fetch` / `alt_data_search` 2 个 tool 到 registry
-- [ ] 1.2.10 写 e2e:抓取过去 7 天数据,验证去重 + 格式统一
+- [x] 1.2.1 定义 `src/data/alt/types.ts` `AltDataAdapter` 接口(fetch/normalize/source)
+- [ ] 1.2.2 [deferred → Sprint 4 per Design Doc Q5] 实现 `src/data/alt/news.ts` 财联社 + 新华财经 Adapter
+- [ ] 1.2.3 [deferred → Sprint 4 per Design Doc Q5] 实现 `src/data/alt/reports.ts` 慧博 + Choice 研报 Adapter
+- [ ] 1.2.4 [deferred → Sprint 4 per Design Doc Q5] 实现 `src/data/alt/social.ts` 雪球 + X Adapter
+- [x] 1.2.5 实现 `src/data/alt/dragon-tiger.ts` 龙虎榜 + 大宗交易 Adapter
+- [x] 1.2.6 实现 `src/data/alt/north-bound.ts` 北向资金 + 融资融券 Adapter
+- [x] 1.2.7 写 `src/data/alt/types.test.ts` 验证 NormalizedEvent 统一 schema
+- [x] 1.2.8 [2 of 5 adapters tested; news/reports/social deferred to Sprint 4] 写 5 个 Adapter 单元测试(mock API)
+- [x] 1.2.9 注册 `alt_data_fetch` / `alt_data_search` 2 个 tool 到 registry
+- [x] 1.2.10 写 e2e:抓取过去 7 天数据,验证去重 + 格式统一
 
 ### 1.3 bridge-mode
 
