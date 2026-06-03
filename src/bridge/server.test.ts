@@ -138,6 +138,21 @@ describe('startBridgeServer', () => {
     expect(text).toContain('chat');
   });
 
+  test.serial('rejects ?sessionId= when snapshot does not exist on disk', async () => {
+    const token = 'secret-url';
+    const { port } = await startWithToken(token);
+    const ws = new WebSocket(
+      `ws://127.0.0.1:${port}/bridge?token=${encodeURIComponent(token)}&sessionId=does-not-exist`,
+    );
+    trackedWs = ws;
+    const code = await waitClose(ws);
+    // HTTP 400 surfaces as a WS close error; bun:test reports 1006 / -1.
+    expect([1002, 1006, 4401, -1]).toContain(code);
+    await new Promise((r) => setTimeout(r, 100));
+    const text = readFileSync(auditPath, 'utf8');
+    expect(text).toContain('unknown-sessionId');
+  });
+
   test.serial('stops cleanly and frees the port', async () => {
     const { srv, port } = await startWithToken('secret-fff');
     await srv.stop();

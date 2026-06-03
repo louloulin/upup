@@ -10,6 +10,24 @@ describe('BridgeSessionStore', () => {
     expect(s.clientId).toBe('client-a');
   });
 
+  test('join creates in-memory entry with given id', () => {
+    const store = new BridgeSessionStore();
+    const s = store.join('persisted-id', 'phone-1');
+    expect(s.id).toBe('persisted-id');
+    expect(s.clientId).toBe('phone-1');
+    expect(store.get('persisted-id')).toBe(s);
+    expect(store.list().map((x) => x.id)).toContain('persisted-id');
+  });
+
+  test('join is idempotent and updates clientId', () => {
+    const store = new BridgeSessionStore();
+    const first = store.join('id-x', 'phone-1');
+    const second = store.join('id-x', 'phone-2');
+    expect(second).toBe(first);
+    expect(second.clientId).toBe('phone-2');
+    expect(store.list().filter((x) => x.id === 'id-x')).toHaveLength(1);
+  });
+
   test('attach returns existing session by id', () => {
     const store = new BridgeSessionStore();
     const a = store.start('client-a');

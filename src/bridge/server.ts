@@ -1,14 +1,24 @@
 import { BridgeAuth } from './auth.js';
 import { BridgeSessionStore } from './session.js';
 import { decodeMessage, encodeMessage, type BridgeMessage } from './protocol.js';
+import { SessionSync, type SessionState } from './session-sync.js';
 import { appendFileSync } from 'node:fs';
 import { timingSafeEqual } from 'node:crypto';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 
 export interface BridgeServerConfig {
   port: number;
   bind?: string;
   token: string;
   auditPath: string;
+  /**
+   * Cross-device session persistence. If omitted, defaults to
+   * ~/.upup/sessions (overridable via `sessionStorageDir` for tests).
+   */
+  sessionSync?: SessionSync;
+  /** Override the default session storage directory. */
+  sessionStorageDir?: string;
 }
 
 export interface BridgeServer {
@@ -25,12 +35,17 @@ interface ConnState {
 export async function startBridgeServer(cfg: BridgeServerConfig): Promise<BridgeServer> {
   const auth = new BridgeAuth({ secret: cfg.token, auditPath: cfg.auditPath });
   const sessions = new BridgeSessionStore();
+  const sync =
+    cfg.sessionSync ??
+    new SessionSync({
+      storageDir: cfg.sessionStorageDir ?? join(homedir(), '.upup', 'sessions'),
+    });
   const bind = cfg.bind ?? '127.0.0.1';
 
   const bunServer = Bun.serve({
     port: cfg.port,
     hostname: bind,
-    fetch(req, srv) {
+    async fetch(req, srv) {
       const url = new URL(req.url);
       if (url.pathname !== '/bridge') {
         return new Response('Not found', { status: 404 });
@@ -67,8 +82,23 @@ export async function startBridgeServer(cfg: BridgeServerConfig): Promise<Bridge
         }
       }
       const ip = srv.requestIP(req)?.address ?? 'unknown';
+      // Optional ?sessionId=<id>: cross-device resume. The session must
+      // already exist on disk (we don't accept forged ids here).
+      let resumeSessionId = '';
+      const requestedId = url.searchParams.get('sessionId');
+      if (requestedId) {
+        const persisted = await sync.load(requestedId);
+        if (!persisted) {
+          audit(cfg.auditPath, 'reject', {
+            reason: 'unknown-sessionId',
+            sessionId: requestedId,
+          });
+          return new Response('Unknown sessionId', { status: 400 });
+        }
+        resumeSessionId = requestedId;
+      }
       const upgraded = srv.upgrade(req, {
-        data: { clientId, sessionId: '', ip },
+        data: { clientId, sessionId: resumeSessionId, ip },
       });
       if (upgraded) return undefined;
       return new Response('Upgrade failed', { status: 500 });
@@ -80,17 +110,32 @@ export async function startBridgeServer(cfg: BridgeServerConfig): Promise<Bridge
       data: {} as ConnState,
       open(ws) {
         const data = ws.data;
-        const session = sessions.start(data.clientId);
-        data.sessionId = session.id;
+        if (data.sessionId) {
+          // Cross-device resume: the fetch handler already validated that
+          // the snapshot exists on disk. Join (or attach to) the in-memory
+          // store under that id, then rehydrate history from the snapshot.
+          const session = sessions.join(data.sessionId, data.clientId);
+          // Rehydrate history in the background so the handshake isn't
+          // blocked on disk I/O. recordEvent later appends to this list.
+          void sync.load(data.sessionId).then((persisted) => {
+            if (persisted && session.history.length === 0) {
+              session.history = [...persisted.history];
+            }
+          }).catch(() => { /* best-effort */ });
+        } else {
+          const session = sessions.start(data.clientId);
+          data.sessionId = session.id;
+        }
+        const finalSessionId = data.sessionId;
         audit(cfg.auditPath, 'connect', {
           clientId: data.clientId,
-          sessionId: session.id,
+          sessionId: finalSessionId,
           ip: data.ip,
         });
         const status: BridgeMessage = {
           kind: 'status',
           seq: 0,
-          sessionId: session.id,
+          sessionId: finalSessionId,
           timestamp: Date.now(),
           payload: { phase: 'idle' },
         };
@@ -117,6 +162,14 @@ export async function startBridgeServer(cfg: BridgeServerConfig): Promise<Bridge
           audit(cfg.auditPath, 'decode-fail', { err: (e as Error).message });
           return;
         }
+        // Late session-id binding: if the chat carries a sessionId that
+        // differs from the one we opened with, try to attach to the
+        // persisted snapshot. If not on disk yet, adopt the message's id
+        // so future saves land under the right file. Fire-and-forget so
+        // the response loop isn't blocked on disk I/O.
+        if (msg.sessionId && msg.sessionId !== data.sessionId) {
+          adoptMessageSessionId(sync, sessions, data, msg.sessionId);
+        }
         sessions.recordEvent(data.sessionId, msg.kind, msg.payload);
         audit(cfg.auditPath, msg.kind, { sessionId: data.sessionId, seq: msg.seq });
         const thinking: BridgeMessage = {
@@ -139,6 +192,10 @@ export async function startBridgeServer(cfg: BridgeServerConfig): Promise<Bridge
         } catch {
           // best-effort
         }
+        // Best-effort persistence: read-modify-write the snapshot under
+        // data.sessionId so cross-device clients can resume. Errors are
+        // swallowed — persistence is advisory, not on the hot path.
+        persistAfterMessage(sync, sessions, data.sessionId, data.clientId);
       },
       close(ws) {
         const data = ws.data;
@@ -171,4 +228,77 @@ function audit(path: string, event: string, data: Record<string, unknown>): void
   } catch {
     // best-effort
   }
+}
+
+/**
+ * Late session-id binding for the message handler. If a chat carries a
+ * sessionId that differs from the connection's current id, look it up on
+ * disk: if a snapshot exists, swap the connection to it (rehydrating
+ * history); otherwise adopt the message's id as the new anchor. This
+ * function is fire-and-forget — the caller does not await it.
+ */
+function adoptMessageSessionId(
+  sync: SessionSync,
+  sessions: BridgeSessionStore,
+  data: ConnState,
+  msgSessionId: string,
+): void {
+  void sync
+    .load(msgSessionId)
+    .then((persisted) => {
+      if (persisted) {
+        const existing = sessions.get(msgSessionId);
+        if (!existing) {
+          const s = sessions.join(msgSessionId, data.clientId);
+          s.history = [...persisted.history];
+        }
+      } else {
+        // No snapshot yet — anchor on the message's id so future saves
+        // land in the right file.
+        sessions.join(msgSessionId, data.clientId);
+      }
+      data.sessionId = msgSessionId;
+    })
+    .catch(() => {
+      // best-effort: leave data.sessionId as-is on failure
+    });
+}
+
+/**
+ * Read-modify-write the persisted snapshot after a bridge message. Merges
+ * the current in-memory session state on top of any existing snapshot
+ * (preserving messages/scratchpad/featureGates we don't track in memory).
+ * Swallows all errors: persistence is advisory, the WS round-trip is
+ * the source of truth.
+ */
+function persistAfterMessage(
+  sync: SessionSync,
+  sessions: BridgeSessionStore,
+  sessionId: string,
+  clientId: string,
+): void {
+  void sync
+    .load(sessionId)
+    .then((existing) => {
+      const inMemory = sessions.get(sessionId);
+      if (!inMemory) return;
+      const now = Date.now();
+      const next: SessionState = {
+        sessionId,
+        createdAt: existing?.createdAt ?? inMemory.createdAt,
+        updatedAt: now,
+        clientId,
+        status: inMemory.status,
+        history: inMemory.history,
+        messages: existing?.messages ?? [],
+        toolHistory: existing?.toolHistory ?? [],
+        scratchpad: existing?.scratchpad ?? '',
+        featureGates: existing?.featureGates ?? {},
+        metadata: existing?.metadata ?? {},
+      };
+      return sync.save(next);
+    })
+    .catch(() => {
+      // best-effort
+    });
 }

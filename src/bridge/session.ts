@@ -28,6 +28,33 @@ export class BridgeSessionStore {
     return s;
   }
 
+  /**
+   * Join an existing session by id, creating an in-memory entry if absent.
+   * Used by cross-device resume: the bridge server reads ?sessionId= from
+   * the URL, the SessionSync layer confirms the snapshot exists on disk,
+   * and the in-memory store joins the same id so recordEvent/update work.
+   * Idempotent: if id is already tracked, returns the existing entry.
+   */
+  join(id: string, clientId: string): BridgeSession {
+    const existing = this.byId.get(id);
+    if (existing) {
+      existing.clientId = clientId;
+      existing.updatedAt = Date.now();
+      return existing;
+    }
+    const now = Date.now();
+    const s: BridgeSession = {
+      id,
+      clientId,
+      status: 'idle',
+      history: [],
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.byId.set(id, s);
+    return s;
+  }
+
   attach(id: string, clientId: string): BridgeSession | null {
     const s = this.byId.get(id);
     if (!s) return null;
