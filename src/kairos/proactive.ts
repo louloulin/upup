@@ -17,6 +17,7 @@ import {
   type OpportunityKind,
   type ProactiveConfig,
 } from './types.js';
+import { ProactiveState } from './proactiveState.js';
 
 export interface MarketSnapshot {
   symbol: string;
@@ -46,6 +47,13 @@ export interface ProactiveDeps {
   config?: ProactiveConfig;
   /** Optional clock for tests. */
   now?: () => number;
+  /**
+   * Optional 6-property state machine. When provided, the scanner
+   * consults shouldRun() before each scan (active && !paused &&
+   * !contextBlocked). When absent, the scanner falls back to the
+   * idle-threshold check only.
+   */
+  state?: ProactiveState;
 }
 
 const HIGH_VOLUME_MULT = 2.0;
@@ -155,6 +163,21 @@ export function createProactiveScanner(deps: ProactiveDeps): ProactiveScanner {
 
   return {
     async scan(): Promise<ScanResult> {
+      // State-machine gate (if wired). When the proactive is inactive,
+      // paused, or context-blocked, skip without touching fetchSnapshots.
+      if (deps.state && !deps.state.shouldRun()) {
+        return {
+          scanned: 0,
+          emitted: 0,
+          opportunities: [],
+          skipped: true,
+          skipReason: deps.state.isActive()
+            ? deps.state.isPaused()
+              ? 'proactive paused'
+              : 'context-blocked'
+            : 'proactive inactive',
+        };
+      }
       const idleMs = getIdleMs();
       if (idleMs < cfg.idleThresholdMs) {
         return {
