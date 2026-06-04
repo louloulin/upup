@@ -235,3 +235,100 @@ tracker.ts (Layer 4 — 工具)
 - [ ] v7-2d: 把 `src/tools/registry/domain-tools.ts` 和 `src/tools/export/export-tools.ts` 里的 `await import` 改成静态 import
 - [ ] v7-3: 复用 `PortfolioService` 接到 investment `review` phase (v6-2 占位)
 - [ ] v7-4: 复用 `TusharePriceProvider` 接到 `multi-portfolio.ts`
+
+## 10. 分层规则 + SCC 自动校验 (Sprint v7-4)
+
+### 10.1 背景
+
+v7-2a / v7-2b 阶段手工梳理了 6 个端口 + tracker.ts 三层拆分,但缺一个 CI 级强制闸门。
+脆弱的 `const mod = await import('../../../../src/tools/portfolio/tracker.js')` 这类
+"深层动态 import"在 review 阶段才能发现,容易再被引入。v7-4 用 `scripts/check-scc.ts`
+做硬约束,跑在 CI 的第一关。
+
+### 10.2 分层定义 (5 层,DAG,严禁反向)
+
+| Layer | 路径 | 职责 | 例子 |
+|---|---|---|---|
+| 1 | `src/utils/` | 纯函数、path/fs helper | `stock-code.ts`, `config-merge.ts` |
+| 2 | `src/state/`, `src/session/`, `src/portfolio/`, `src/storage/`, `src/telemetry/`, `src/hooks/`, `src/mcp/` | 基础服务 + 持久化 | `AppStateStore`, `SessionManager`, `PortfolioRepository` |
+| 3 | `src/tools/`, `src/skills/` | 业务工具 (LangChain wrappers, 计算函数) | `sandbox-engine.ts`, `attribution.ts`, `financial_search` |
+| 4 | `src/plan/`, `src/agent/`, `src/multi-agent/`, `src/worktree/`, `src/daemon/`, `src/code-archaeology/` | 业务编排 + agent loop | `agent.ts`, `plan-executor.ts`, `investment-workflow.ts` |
+| 5 | `src/commands/`, `src/controllers/`, `src/cli.tsx`, `src/bridge/`, `src/stdio/`, `src/gateway/` | 顶层入口 (CLI/commands/MCP bridge) | `cli.tsx`, `commands.ts`, `bridgeStatusUtil.ts` |
+
+**规则**:
+- Layer N → Layer M,要求 N >= M(高层依赖低层或同层)
+- Layer N → Layer M where N < M 视为 **back-reference**,CI 失败
+- 同层互引 OK(例如 `src/agent/*` 之间互相 import)
+- 跨包只允许 `packages/<pkg>/src/index.ts` 这一个公开入口
+
+### 10.3 检查项 (`scripts/check-scc.ts`)
+
+1. **强连通分量 (SCC) > 1** → 循环依赖。Tarjan's algorithm,O(V+E)。
+2. **层违规** → 低层反向依赖高层 (Layer N → Layer M where N < M)。
+3. **深层动态 import (3+ 级 ../)** → 脆弱的跨包/跨层耦合,违反 v6-1 端口模式。
+4. **跨包非公开路径** → `packages/<pkg>/src/X/Y.ts` 而不是 `index.ts`。
+
+`bun run lint:scc` 跑这 4 项,`--strict` 把所有警告也变成错误。
+`bun run ci` = `lint && typecheck && test`,本地一遍跑完所有闸门。
+
+### 10.4 v7-4 修过的真实问题
+
+跑 `lint:scc` 时**主动发现**的 1 个层违规:
+
+```
+src/utils/config-merge.test.ts (L1) → src/agent/investment-config.ts (L4)
+```
+
+根因:这个 86 行的测试文件虽然路径在 `src/utils/`,但实际上**只测 `investment-config.ts`**
+(7 个 `await import('../agent/investment-config')`),从未 import 任何 utils 函数。
+属于早期重构遗留,测试被遗忘在错层。
+
+**修复**:`git rm src/utils/config-merge.test.ts` — 直接删除。
+`src/agent/investment-config.test.ts` 已经有完整的 5 个原版测试覆盖同一模块,无需重复。
+
+修复后:
+- 0 循环依赖
+- 0 层违规
+- 0 深层动态 import
+- 0 跨包非公开路径
+- 1220 文件扫描 73 条边,全部合法
+
+### 10.5 高内聚模块的范式 (`tracker.ts` v7-2a split)
+
+任何 ≥200 行的混合文件按此模式拆 3 层:
+
+```
+<feature>/
+  store.ts          纯数据层,CRUD + 单例,零外部依赖
+  service.ts        业务逻辑层,持有 store + provider,零 LangChain
+  <feature>.ts      工具包装层,LangChain tool / CLI 绑定
+  *.test.ts         按代码所在层放,严格遵守层约束
+```
+
+3 个模块的依赖方向:
+
+```
+<feature>.ts (工具)
+  └─→ service.ts (业务)
+        └─→ store.ts (数据)
+        └─→ <data-source>.ts (外部数据)
+```
+
+`scripts/check-scc.ts` 用静态分析强制这条 DAG 不可逆。
+
+### 10.6 CI 集成
+
+`.github/workflows/ci.yml` 现在跑 3 个并行任务:
+
+```yaml
+matrix:
+  include:
+    - task: lint-scc
+      command: bun run lint:scc
+    - task: typecheck
+      command: bun run typecheck
+    - task: test
+      command: bun test
+```
+
+任何 PR 改了一行 `import` 引入循环/反向依赖,CI 红。

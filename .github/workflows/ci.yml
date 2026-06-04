@@ -14,6 +14,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - task: lint-scc
+            command: bun run lint:scc
           - task: typecheck
             command: bun run typecheck
           - task: test
