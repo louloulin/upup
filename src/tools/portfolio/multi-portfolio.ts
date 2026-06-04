@@ -2,6 +2,15 @@
  * Multi-Portfolio Manager
  *
  * Supports managing multiple named portfolios.
+ *
+ * Sprint v7-5 — P&L 自动从 PriceProvider 拉实时价
+ * 之前: get_portfolio_multi 必须 caller 传 prices 才算 P&L
+ * 现在: 不传 prices → 自动从 TusharePriceProvider 拉(默认)
+ *       传了 prices → 仍优先用(向后兼容)
+ *       setPriceProvider(NullPriceProvider) 用于测试(零网络)
+ *
+ * 模块边界(零循环):
+ *   multi-portfolio.ts (Layer 3) → service.ts (Layer 3, 同层, OK)
  */
 
 import { DynamicStructuredTool } from '@langchain/core/tools';
@@ -10,6 +19,7 @@ import { formatToolResult } from '../types.js';
 import fs from 'node:fs';
 import path from 'node:path';
 import { PORTFOLIOS_DIR } from '../../utils/storage-paths.js';
+import { TusharePriceProvider, type PriceProvider } from './service.js';
 
 // ============================================================================
 // Types
@@ -113,6 +123,35 @@ function persistData(): void {
 // For testing: reset in-memory data
 export function _resetData(): void {
   _data = null;
+}
+
+// ============================================================================
+// Price provider (v7-5 — 实时 P&L)
+// ============================================================================
+// Default to TusharePriceProvider; tests inject NullPriceProvider via
+// setPriceProvider() to avoid network calls.
+
+let _priceProvider: PriceProvider | null = null;
+let _priceProviderInitialized = false;
+
+async function getPriceProvider(): Promise<PriceProvider> {
+  if (!_priceProviderInitialized) {
+    _priceProvider = new TusharePriceProvider();
+    _priceProviderInitialized = true;
+  }
+  return _priceProvider!;
+}
+
+/** Test/main override: 注入自定义 PriceProvider(如 NullPriceProvider) */
+export function setPriceProvider(provider: PriceProvider): void {
+  _priceProvider = provider;
+  _priceProviderInitialized = true;
+}
+
+/** Test helper: 重置 priceProvider singleton(下次访问重新初始化) */
+export function __resetPriceProvider(): void {
+  _priceProvider = null;
+  _priceProviderInitialized = false;
 }
 
 export function getActivePortfolio(): string {
@@ -524,7 +563,39 @@ function handleRemovePositionMulti(params: z.infer<typeof removePositionMultiSch
   });
 }
 
-function handleGetPortfolioMulti(params: z.infer<typeof getPortfolioMultiSchema>) {
+async function fetchPricesForPortfolio(
+  portfolio: NamedPortfolio,
+  explicitPrices: Map<string, number>,
+): Promise<{ priceMap: Map<string, number>; source: 'explicit' | 'provider' | 'cost-basis' }> {
+  // 显式 prices 优先(向后兼容,测试也可控)
+  if (explicitPrices.size > 0) {
+    return { priceMap: explicitPrices, source: 'explicit' };
+  }
+  // 自动从 PriceProvider 拉(默认 TusharePriceProvider)
+  const provider = await getPriceProvider();
+  const today = new Date().toISOString().split('T')[0];
+  const fetched = new Map<string, number>();
+  let hitCount = 0;
+  await Promise.all(
+    Object.keys(portfolio.positions).map(async (symbol) => {
+      try {
+        const quote = await provider.quote(symbol, today);
+        if (quote && typeof quote.price === 'number' && quote.price > 0) {
+          fetched.set(symbol, quote.price);
+          hitCount += 1;
+        }
+      } catch {
+        // 单 symbol 失败不阻塞整个 portfolio
+      }
+    }),
+  );
+  if (hitCount > 0) {
+    return { priceMap: fetched, source: 'provider' };
+  }
+  return { priceMap: new Map(), source: 'cost-basis' };
+}
+
+async function handleGetPortfolioMulti(params: z.infer<typeof getPortfolioMultiSchema>) {
   const portfolioName = params.portfolio ?? getActivePortfolio();
   const portfolio = getPortfolio(portfolioName);
 
@@ -535,34 +606,45 @@ function handleGetPortfolioMulti(params: z.infer<typeof getPortfolioMultiSchema>
     });
   }
 
-  const priceMap = new Map<string, number>(Object.entries(params.prices ?? {}));
+  const explicitPrices = new Map<string, number>(Object.entries(params.prices ?? {}));
+  const { priceMap, source } = await fetchPricesForPortfolio(portfolio, explicitPrices);
   const hasPrices = priceMap.size > 0;
 
-  let result: ReturnType<typeof calculatePortfolioPnL> = { positions: [], summary: { totalPositions: 0, totalCost: 0, totalMarketValue: 0, totalPnl: 0, totalPnlPercent: 0, cash: 0, totalValue: 0 } };
+  const pnlResult = hasPrices ? calculatePortfolioPnL(portfolioName, priceMap) : null;
+  const pnlBySymbol = new Map<string, NonNullable<typeof pnlResult>['positions'][number]>();
+  if (pnlResult) for (const p of pnlResult.positions) pnlBySymbol.set(p.symbol, p);
 
-  if (hasPrices) {
-    result = calculatePortfolioPnL(portfolioName, priceMap);
-  }
+  // 始终显示持仓;有价格时附 P&L 字段,无价格时只显示成本基础
+  const positions = Object.values(portfolio.positions).map(pos => {
+    const pnl = pnlBySymbol.get(pos.symbol);
+    return {
+      symbol: pos.symbol,
+      quantity: pos.quantity,
+      avgCost: pos.avgCost,
+      purchaseDate: pos.purchaseDate,
+      currentPrice: pnl?.currentPrice,
+      marketValue: pnl?.marketValue,
+      pnl: pnl ? pnl.pnl.toFixed(2) : undefined,
+      pnlPercent: pnl ? pnl.pnlPercent.toFixed(2) + '%' : undefined,
+    };
+  });
 
   return formatToolResult({
     type: 'Portfolio Report',
     portfolio: portfolioName,
     isActive: portfolioName === getActivePortfolio(),
-    positions: result?.positions.map(p => ({
-      symbol: p.symbol,
-      quantity: p.quantity,
-      avgCost: p.avgCost,
-      currentPrice: hasPrices ? p.currentPrice : undefined,
-      marketValue: hasPrices ? p.marketValue : undefined,
-      pnl: hasPrices ? p.pnl.toFixed(2) : undefined,
-      pnlPercent: hasPrices ? p.pnlPercent.toFixed(2) + '%' : undefined,
-    })) ?? [],
+    priceSource: source,
+    positions,
     summary: {
-      totalPositions: portfolioName === getActivePortfolio() ? Object.keys(portfolio.positions).length : result?.summary.totalPositions ?? 0,
+      totalPositions: positions.length,
       cash: portfolio.cash.toFixed(2),
-      totalValue: hasPrices ? `$${result?.summary.totalValue.toFixed(2)}` : undefined,
+      totalValue: pnlResult ? `$${pnlResult.summary.totalValue.toFixed(2)}` : undefined,
     },
-    priceNote: hasPrices ? undefined : 'No prices provided - showing cost basis only',
+    priceNote: !hasPrices
+      ? 'No prices available (provider miss) - showing cost basis only'
+      : source === 'provider'
+        ? `Live prices from PriceProvider (${priceMap.size} symbols)`
+        : undefined,
   });
 }
 

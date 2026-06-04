@@ -202,3 +202,86 @@ describe('Portfolio Tools', () => {
     expect(toolNames).toContain('get_portfolio_multi');
   });
 });
+
+// ---------------------------------------------------------------------------
+// v7-5 — PriceProvider integration
+// ---------------------------------------------------------------------------
+// 用 NullPriceProvider + 自定义 fake provider 测试价格拉取路径
+import { NullPriceProvider, type PriceProvider } from './service.js';
+
+class FakePriceProvider implements PriceProvider {
+  constructor(private readonly quotes: Record<string, number>) {}
+  async quote(code: string, _date: string) {
+    const price = this.quotes[code.toUpperCase()];
+    return price != null ? { price, name: code } : null;
+  }
+}
+
+describe('v7-5 PriceProvider integration', () => {
+  beforeEach(() => resetFile());
+
+  it('setPriceProvider + __resetPriceProvider swap provider cleanly', async () => {
+    const { setPriceProvider, __resetPriceProvider } = await import('./multi-portfolio.js');
+    setPriceProvider(new NullPriceProvider());
+    __resetPriceProvider();
+    // 重置后再注入一次,确保 setter 可重复调用
+    setPriceProvider(new NullPriceProvider());
+    expect(true).toBe(true); // 不抛错即通过
+  });
+
+  it('get_portfolio_multi uses explicit prices when provided (backward compat)', async () => {
+    const { createPortfolio, addPositionToPortfolio, createGetPortfolioMultiTool, setPriceProvider } = await freshModule();
+    setPriceProvider(new NullPriceProvider());
+
+    createPortfolio('compat', 100000);
+    addPositionToPortfolio('compat', 'AAPL', 10, 150);
+
+    const tool = createGetPortfolioMultiTool();
+    const result = await tool.func({ portfolio: 'compat', prices: { AAPL: 200 } });
+    const parsed = JSON.parse(result as string);
+
+    expect(parsed.data.priceSource).toBe('explicit');
+    expect(parsed.data.positions[0].currentPrice).toBe(200);
+    expect(parsed.data.positions[0].pnl).toBe('500.00'); // (200-150)*10
+    expect(parsed.data.summary.totalValue).toBe('$100500.00');
+  });
+
+  it('get_portfolio_multi auto-fetches from PriceProvider when no prices given', async () => {
+    const { createPortfolio, addPositionToPortfolio, createGetPortfolioMultiTool, setPriceProvider } = await freshModule();
+    setPriceProvider(new FakePriceProvider({ AAPL: 175, TSLA: 250 }));
+
+    createPortfolio('live', 100000);
+    addPositionToPortfolio('live', 'AAPL', 10, 150);
+    addPositionToPortfolio('live', 'TSLA', 4, 200);
+
+    const tool = createGetPortfolioMultiTool();
+    const result = await tool.func({ portfolio: 'live' });
+    const parsed = JSON.parse(result as string);
+
+    expect(parsed.data.priceSource).toBe('provider');
+    // 2 个 positions 都有 currentPrice
+    expect(parsed.data.positions.length).toBe(2);
+    const aapl = parsed.data.positions.find((p: any) => p.symbol === 'AAPL');
+    expect(aapl.currentPrice).toBe(175);
+    expect(aapl.pnl).toBe('250.00'); // (175-150)*10
+    // 现金: 100000 - (10*150) - (4*200) = 97700
+    expect(parsed.data.summary.cash).toBe('97700.00');
+  });
+
+  it('get_portfolio_multi falls back to cost-basis when provider returns null for all', async () => {
+    const { createPortfolio, addPositionToPortfolio, createGetPortfolioMultiTool, setPriceProvider } = await freshModule();
+    setPriceProvider(new NullPriceProvider()); // 永远返回 null
+
+    createPortfolio('empty-prices', 100000);
+    addPositionToPortfolio('empty-prices', 'AAPL', 10, 150);
+
+    const tool = createGetPortfolioMultiTool();
+    const result = await tool.func({ portfolio: 'empty-prices' });
+    const parsed = JSON.parse(result as string);
+
+    expect(parsed.data.priceSource).toBe('cost-basis');
+    // 没有 currentPrice 字段
+    expect(parsed.data.positions[0].currentPrice).toBeUndefined();
+    expect(parsed.data.priceNote).toContain('No prices available');
+  });
+});
