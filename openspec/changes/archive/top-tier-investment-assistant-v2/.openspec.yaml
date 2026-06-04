@@ -1,2 +1,8 @@
 schema: spec-driven
 created: 2026-06-03
+status: archived
+archived_at: 2026-06-04
+archived_reason: |
+  101/191 tasks 已完成, 剩余 90 个被 v7-v8 sprint 链以新架构落地 (v7-3 sandbox-engine +
+  v7-5 multi-portfolio P&L + v8-1 Coordinator 路由 + v8-2 投资记忆)。spec/ 目录中未应用
+  的 spec delta 已被后续 v7-v8 commits 实质取代。归档以清爽 openspec/changes/。

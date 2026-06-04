@@ -8,7 +8,7 @@
         "@duckdb/duckdb-wasm": "^1.33.1-dev45.0",
         "@earendil-works/pi-tui": "0.76.0",
         "@langchain/anthropic": "^1.3.25",
-        "@langchain/core": "^1.1.36",
+        "@langchain/core": "^1.1.44",
         "@langchain/exa": "^1.0.1",
         "@langchain/google-genai": "^2.1.26",
         "@langchain/ollama": "^1.2.6",
@@ -628,7 +628,7 @@
 
     "@langchain/anthropic": ["@langchain/anthropic@1.3.25", "https://registry.npmmirror.com/@langchain/anthropic/-/anthropic-1.3.25.tgz", { "dependencies": { "@anthropic-ai/sdk": "^0.74.0", "zod": "^3.25.76 || ^4" }, "peerDependencies": { "@langchain/core": "^1.1.34" } }, "sha512-iwhznHMFaU+MZyac4UJjppJmfNSINB1Joruh0obgCLSmJYxicRVWtWnUgnHXGYRstToWDYwfymvfftgo872EzQ=="],
 
-    "@langchain/core": ["@langchain/core@1.1.36", "https://registry.npmmirror.com/@langchain/core/-/core-1.1.36.tgz", { "dependencies": { "@cfworker/json-schema": "^4.0.2", "@standard-schema/spec": "^1.1.0", "ansi-styles": "^5.0.0", "camelcase": "6", "decamelize": "1.2.0", "js-tiktoken": "^1.0.12", "langsmith": ">=0.5.0 <1.0.0", "mustache": "^4.2.0", "p-queue": "^6.6.2", "uuid": "^11.1.0", "zod": "^3.25.76 || ^4" } }, "sha512-9NWsdzU3uZD13lJwunXK0t6SIwew+UwcbHggW5yUdaiMmzKeNkDpp1lRD6p49N8+D0Vv4qmQBEKB4Ukh2jfnvw=="],
+    "@langchain/core": ["@langchain/core@1.1.45", "https://registry.npmmirror.com/@langchain/core/-/core-1.1.45.tgz", { "dependencies": { "@cfworker/json-schema": "^4.0.2", "@standard-schema/spec": "^1.1.0", "ansi-styles": "^5.0.0", "camelcase": "6", "decamelize": "1.2.0", "js-tiktoken": "^1.0.12", "langsmith": ">=0.5.0 <1.0.0", "mustache": "^4.2.0", "p-queue": "^6.6.2", "zod": "^3.25.76 || ^4" } }, "sha512-Y/wvuglLTMKJahkl4QD9dBIdF/z/CxZJWdTfHJF/q2jtlJtoFf6Mb5JpGxZfsi3mBY6NSG941FSLTcqhCKrhBA=="],
 
     "@langchain/exa": ["@langchain/exa@1.0.1", "https://registry.npmmirror.com/@langchain/exa/-/exa-1.0.1.tgz", { "dependencies": { "exa-js": "^1.0.12" }, "peerDependencies": { "@langchain/core": "^1.0.0" } }, "sha512-mojKKWUSe1qD/2/mqs9EL5IMXAg4xhf8fzhOjc/gsiVvbh5kfu7wHRy69LCAGiS6R+QJFjoggGrqoyQINa5GCg=="],
 
@@ -1944,8 +1944,6 @@
 
     "@langchain/langgraph-checkpoint/uuid": ["uuid@10.0.0", "https://registry.npmmirror.com/uuid/-/uuid-10.0.0.tgz", { "bin": "dist/bin/uuid" }, "sha512-8XkAphELsDnEGrDxUOHB3RGvXz6TeuYSGEZBOjtTtPm2lwhGBjLgOzLHB63IUWfBpNucQjND6d3AOudO+H3RWQ=="],
 
-    "@langchain/langgraph-sdk/@langchain/core": ["@langchain/core@1.1.45", "https://registry.npmmirror.com/@langchain/core/-/core-1.1.45.tgz", { "dependencies": { "@cfworker/json-schema": "^4.0.2", "@standard-schema/spec": "^1.1.0", "ansi-styles": "^5.0.0", "camelcase": "6", "decamelize": "1.2.0", "js-tiktoken": "^1.0.12", "langsmith": ">=0.5.0 <1.0.0", "mustache": "^4.2.0", "p-queue": "^6.6.2", "zod": "^3.25.76 || ^4" } }, "sha512-Y/wvuglLTMKJahkl4QD9dBIdF/z/CxZJWdTfHJF/q2jtlJtoFf6Mb5JpGxZfsi3mBY6NSG941FSLTcqhCKrhBA=="],
-
     "@langchain/langgraph-sdk/p-queue": ["p-queue@9.1.0", "https://registry.npmmirror.com/p-queue/-/p-queue-9.1.0.tgz", { "dependencies": { "eventemitter3": "^5.0.1", "p-timeout": "^7.0.0" } }, "sha512-O/ZPaXuQV29uSLbxWBGGZO1mCQXV2BLIwUr59JUU9SoH76mnYvtms7aafH/isNSNGwuEfP6W/4xD0/TJXxrizw=="],
 
     "@langchain/langgraph-sdk/p-retry": ["p-retry@7.1.1", "https://registry.npmmirror.com/p-retry/-/p-retry-7.1.1.tgz", { "dependencies": { "is-network-error": "^1.1.0" } }, "sha512-J5ApzjyRkkf601HpEeykoiCvzHQjWxPAHhyjFcEUP2SWq0+35NKh8TLhpLw+Dkq5TZBFvUM6UigdE9hIVYTl5w=="],
@@ -2274,12 +2272,6 @@
 
     "@langchain/exa/exa-js/openai": ["openai@5.23.2", "https://registry.npmmirror.com/openai/-/openai-5.23.2.tgz", { "peerDependencies": { "ws": "^8.18.0", "zod": "^3.23.8" }, "optionalPeers": ["ws", "zod"], "bin": { "openai": "bin/cli" } }, "sha512-MQBzmTulj+MM5O8SKEk/gL8a7s5mktS9zUtAkU257WjvobGc9nKcBuVwjyEEcb9SI8a8Y2G/mzn3vm9n1Jlleg=="],
 
-    "@langchain/langgraph-sdk/@langchain/core/langsmith": ["langsmith@0.5.13", "https://registry.npmmirror.com/langsmith/-/langsmith-0.5.13.tgz", { "dependencies": { "@types/uuid": "^10.0.0", "chalk": "^5.6.2", "console-table-printer": "^2.12.1", "p-queue": "^6.6.2", "semver": "^7.6.3", "uuid": "^10.0.0" }, "peerDependencies": { "@opentelemetry/api": "*", "@opentelemetry/exporter-trace-otlp-proto": "*", "@opentelemetry/sdk-trace-base": "*", "openai": "*", "ws": ">=7" }, "optionalPeers": ["@opentelemetry/api", "@opentelemetry/exporter-trace-otlp-proto", "@opentelemetry/sdk-trace-base", "openai", "ws"] }, "sha512-arD4XzLdMTyb3rrKVainpXG9vtJPL3urOc/fC/yMHeoorK5KSHsvBWkogZUgjCsLkhtH8FdfSEAAG8Am8DNoYQ=="],
-
-    "@langchain/langgraph-sdk/@langchain/core/p-queue": ["p-queue@6.6.2", "https://registry.npmmirror.com/p-queue/-/p-queue-6.6.2.tgz", { "dependencies": { "eventemitter3": "^4.0.4", "p-timeout": "^3.2.0" } }, "sha512-RwFpb72c/BhQLEXIZ5K2e+AhgNVmIejGlTgiB9MzZ0e93GRvqZ7uSi0dvRF7/XIXDeNkra2fNHBxTyPDGySpjQ=="],
-
-    "@langchain/langgraph-sdk/@langchain/core/zod": ["zod@4.3.6", "https://registry.npmmirror.com/zod/-/zod-4.3.6.tgz", {}, "sha512-rftlrkhHZOcjDwkGlnUtZZkvaPHCsDATp4pGpuOOMDaTdDDXF91wuVDJoWoPsKX/3YPQ5fHuF3STjcYyKr+Qhg=="],
-
     "@langchain/langgraph-sdk/p-queue/p-timeout": ["p-timeout@7.0.1", "https://registry.npmmirror.com/p-timeout/-/p-timeout-7.0.1.tgz", {}, "sha512-AxTM2wDGORHGEkPCt8yqxOTMgpfbEHqF51f/5fJCmwFC3C/zNcGT63SymH2ttOAaiIws2zVg4+izQCjrakcwHg=="],
 
     "@llamaindex/node-parser/@llamaindex/core/zod": ["zod@4.3.6", "https://registry.npmmirror.com/zod/-/zod-4.3.6.tgz", {}, "sha512-rftlrkhHZOcjDwkGlnUtZZkvaPHCsDATp4pGpuOOMDaTdDDXF91wuVDJoWoPsKX/3YPQ5fHuF3STjcYyKr+Qhg=="],
@@ -2595,12 +2587,6 @@
     "@jest/transform/@jest/types/@jest/schemas/@sinclair/typebox": ["@sinclair/typebox@0.34.41", "https://registry.npmmirror.com/@sinclair/typebox/-/typebox-0.34.41.tgz", {}, "sha512-6gS8pZzSXdyRHTIqoqSVknxolr1kzfy4/CeDnrzsVz8TTIWUbOBr6gnzOmTYJ3eXQNh4IYHIGi5aIL7sOZ2G/g=="],
 
     "@jest/transform/jest-haste-map/jest-worker/supports-color": ["supports-color@8.1.1", "https://registry.npmmirror.com/supports-color/-/supports-color-8.1.1.tgz", { "dependencies": { "has-flag": "^4.0.0" } }, "sha512-MpUEN2OodtUzxvKQl72cUF7RQ5EiHsGvSsVG0ia9c5RbWGL2CI4C7EpPS8UTBIplnlzZiNuV56w+FuNxy3ty2Q=="],
-
-    "@langchain/langgraph-sdk/@langchain/core/langsmith/semver": ["semver@7.7.3", "https://registry.npmmirror.com/semver/-/semver-7.7.3.tgz", { "bin": "bin/semver.js" }, "sha512-SdsKMrI9TdgjdweUSR9MweHA4EJ8YxHn8DFaDisvhVlUOe4BF1tLD7GAj0lIqWVl+dPb/rExr0Btby5loQm20Q=="],
-
-    "@langchain/langgraph-sdk/@langchain/core/langsmith/uuid": ["uuid@10.0.0", "https://registry.npmmirror.com/uuid/-/uuid-10.0.0.tgz", { "bin": "dist/bin/uuid" }, "sha512-8XkAphELsDnEGrDxUOHB3RGvXz6TeuYSGEZBOjtTtPm2lwhGBjLgOzLHB63IUWfBpNucQjND6d3AOudO+H3RWQ=="],
-
-    "@langchain/langgraph-sdk/@langchain/core/p-queue/eventemitter3": ["eventemitter3@4.0.7", "https://registry.npmmirror.com/eventemitter3/-/eventemitter3-4.0.7.tgz", {}, "sha512-8guHBZCwKnFhYdHr2ysuRWErTwhoN2X8XELRlrRwpmfeY2jjuUN4taQMsULKUVo1K4DvZl+0pgfyoysHxvmvEw=="],
 
     "@upup/mcp/@langchain/core/langsmith/chalk": ["chalk@4.1.2", "https://registry.npmmirror.com/chalk/-/chalk-4.1.2.tgz", { "dependencies": { "ansi-styles": "^4.1.0", "supports-color": "^7.1.0" } }, "sha512-oKnbhFyRIXpUuez8iBMmyEa4nbj4IOQyuhc/wy9kY7/WVPcwIO9VA668Pu8RkO7+0G76SLROeyw9CpQ061i4mA=="],
 
