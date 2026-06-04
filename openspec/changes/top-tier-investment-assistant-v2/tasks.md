@@ -200,11 +200,24 @@
 
 ### 4.2 research-deep-search (AlphaSense 对标)
 
-- [ ] 4.2.1 实现 `src/research/deep-search.ts` 企业级文档/研报全文搜索
-- [ ] 4.2.2 NLP 提取关键论断
-- [ ] 4.2.3 跨文档引用图谱
-- [ ] 4.2.4 注册 `research_deep_search` 1 个 tool
-- [ ] 4.2.5 写 deep-search.test.ts
+- [x] 4.2.1 实现 `src/research/deep-search.ts` 企业级文档/研报全文搜索
+  - `DeepSearchEngine`: 文档索引 + 同义词扩展 + TF-IDF-like 评分
+  - 同义词扩展(EN: buy/long/overweight + beat/exceed + miss/below;ZH: 买入/增持/推荐,超预期/超出预期,不及预期/低于预期)
+  - ticker 自动检测(US $AAPL / AAPL,CN 600519.SH / 002594)
+  - theme 自动检测(AI/cloud/EV/semiconductor/biotech/financials/consumer/energy/precious_metals/real_estate)
+- [x] 4.2.2 NLP 提取关键论断
+  - `extractKeyClaims`: sentence-level + polarity(-1..+1) + magnitude(0..1) + kind(positive/negative/neutral/risk/opportunity)
+  - 19 个 financial-context 正负信号(EN + ZH 双语);每条 claim 引用 docId + sentenceIdx
+- [x] 4.2.3 跨文档引用图谱
+  - `buildCitationGraph`: same_theme(theme 聚类)+ agrees(同 ticker 同 kind)+ disagrees(同 ticker 正负冲突)
+  - 5 种 edge type(cites / agrees / disagrees / same_theme / same_event),每条带 weight + reason
+- [x] 4.2.4 注册 `research_deep_search` 1 个 tool
+  - LangChain DynamicStructuredTool,7 字段 schema(query / limit / kinds / tickers / documents)
+  - `RESEARCH_TOOL` 编译开关 gate(默认 off,`BUN_CONFIG_FEATURE_RESEARCH_TOOL=1` 启用)
+  - 已注册到 `src/tools/registry/domain-tools.ts`(`loadDomainTools` 自动加载)
+- [x] 4.2.5 写 deep-search.test.ts
+  - 50 个 e2e 测试,100 expect() 调用,全绿
+  - 覆盖:expandQuery / 检测 ticker+theme / claim 提取 / 图谱 / 引擎 CRUD / search 排序 / 工具 inline corpus / 安全(空 doc / 巨大 doc / 空查询)
 
 ### 4.3 matrix-analysis (Hebbia 对标)
 

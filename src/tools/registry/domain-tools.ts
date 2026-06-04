@@ -8,6 +8,7 @@
 
 import type { RegisteredTool } from './types.js';
 import { systemMetadata } from './types.js';
+import { isFeatureCompiledIn } from '../../agent/feature-gates.js';
 import {
   createAddPositionTool, createUpdatePositionTool,
   createRemovePositionTool, createGetPortfolioTool,
@@ -82,7 +83,17 @@ const ANALYZE_SENTIMENT_DESCRIPTION = "Analyze sentiment from financial text.";
 const DETECT_EVENTS_DESCRIPTION = "Detect investment events.";
 const EXTRACT_ENTITIES_DESCRIPTION = "Extract entities from text.";
 
-const researchTools: any[] = [];
+import {
+  createResearchDeepSearchTool,
+  RESEARCH_DEEP_SEARCH_DESCRIPTION,
+} from '../../research/index.js';
+const RESEARCH_DEEP_SEARCH_COMPACT = 'AlphaSense-style deep search: NLP claims + citation graph across documents';
+
+// Deep search is v2/P2; gate it on the RESEARCH_TOOL compile flag so the
+// bundle stays small when the feature is off.
+const researchTools: any[] = isFeatureCompiledIn('RESEARCH_TOOL')
+  ? [createResearchDeepSearchTool()]
+  : [];
 import { workflowTools, WORKFLOW_TOOL_DESCRIPTION } from '../workflow/index.js';
 
 // Dynamic imports needed for watchlist/benchmark/fx/multi-portfolio/calendar/short-interest/backtest/cache
@@ -190,6 +201,9 @@ export async function loadDomainTools(): Promise<RegisteredTool[]> {
     } else if (toolName === 'extract_entities') {
       compactDescription = 'Extract stock tickers, numbers, and dates from text';
       description = EXTRACT_ENTITIES_DESCRIPTION;
+    } else if (toolName === 'research_deep_search') {
+      compactDescription = RESEARCH_DEEP_SEARCH_COMPACT;
+      description = RESEARCH_DEEP_SEARCH_DESCRIPTION;
     }
     tools.push({ name: toolName, tool: researchTool, description, compactDescription, concurrencySafe: true });
   }
