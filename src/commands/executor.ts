@@ -8,6 +8,7 @@
  */
 
 import type { CommandContext } from '@upup/commands';
+import { isInvestmentCommand, runInvestmentCommand } from './investment/registry.js';
 
 /**
  * Command execution result
@@ -50,6 +51,13 @@ export async function executeSlashCommand(
   args: string,
   context: CommandContext,
 ): Promise<ExecutionResult> {
+  // Fast lane: 投资命令(本地,无 LLM,< 1s)
+  // 不进 packages/commands 也不调 src/tools/*,零循环依赖
+  if (isInvestmentCommand(commandName)) {
+    const text = runInvestmentCommand(commandName, args) ?? '';
+    return { success: true, type: 'output', text };
+  }
+
   try {
     // Import @upup/commands dynamically
     const commandsModule = await import('@upup/commands');
