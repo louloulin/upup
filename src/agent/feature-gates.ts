@@ -295,7 +295,7 @@ const BUILTIN_FEATURES: ReadonlyArray<FeatureFlag> = [
   { name: 'ALERTS',                 description: 'Real-time alert system (price / news / risk thresholds)',  category: 'analytics', defaultEnabled: false, since: '2026.6.0', owner: 'analytics' },
   { name: 'DASHBOARDS',             description: 'Pre-built analytics dashboards',                          category: 'analytics', defaultEnabled: false, since: '2026.6.0', owner: 'analytics' },
   { name: 'REPORTS',                description: 'Scheduled + on-demand PDF/HTML reports',                  category: 'analytics', defaultEnabled: false, since: '2026.6.0', owner: 'analytics' },
-];
+  { name: 'COMPETITIVE_POSITIONING',  description: 'Sprint v4-2: 13 竞品 7 维度矩阵 + 4 唯一差异化 (CLI-first/open-source/全市场/三件套) 量化证据 + 4 类投资者决策路径 + 30 字 sologan', category: 'analytics', defaultEnabled: true, since: '2026.6.0', owner: 'analytics' },];
 
 // Populate the registry at module load. Idempotent if a plugin
 // re-registers with the same flag (last write wins; the metadata is

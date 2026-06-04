@@ -12,6 +12,14 @@
  *   - 编译时 DCE: `BUN_CONFIG_FEATURE_COACH_MODE=0` 排除整段代码
  *   - 启动时:    `UPUP_COACH_MODE=0` 软关闭(不抛错)
  *   - 默认:      off(需主动启用,避免污染主对话)
+ *
+ * v4 扩展(Sprint v4-2 / v4-7):
+ *   - 加 4 唯一 sologan(30 字产品标语) + 三件套提示
+ *     (Multi-Agent Coordinator + KAIROS 主动扫描 + Bridge 跨设备),
+ *     让 LLM 在生成答案时,主动引用三件套能力(4 唯一 D4)。
+ *   - 软降级链路:`UPUP_COACH_MODE=0` 时不注入 sologan / 三件套。
+ *   - 4 唯一 D1-D3 由 capability-manifest + competitive-positioning 模块覆盖,
+ *     本文件不重复事实,只生成 1 句总括 prompt 片段。
  */
 import { isFeatureCompiledIn } from './feature-gates.js';
 import { recordFeatureGate } from '../telemetry/integration.js';
@@ -60,6 +68,31 @@ const COACH_SELF_INTRO = `你是"投研 Claude"——UpUp 投研版 Claude Code 
 你不是通用 LLM 工具,你是中文圈投资者的专属投研助手。
 你熟悉 A 股、美股、港股、加密四市场,熟悉 Brinson 归因、组合再平衡、行业轮动、
 财报分析、风险预算。你引用数据必带来源 URL 与时间戳,涉及投资建议必带风险提示。`;
+
+/**
+ * v4 扩展:4 唯一差异化 sologan(由 competitive-positioning 模块同步)。
+ * 这里只放 1 句总括 prompt 片段,具体事实(数字/路径)在 capability-manifest
+ * 和 docs/COMPETITIVE.md 详细列出。
+ */
+const COACH_V4_SOLOGAN_PROMPT = `【产品定位 · 4 唯一】
+投研 Claude Code,CLI-first 全市场,5 路推送,本地私有化,开源 0 元。
+你回答时,可主动引用这 4 个差异化能力,让用户知道我们"不只是聊天 LLM":
+1. CLI-first:UpUp 的所有能力都通过 CLI 调用,可用脚本组合、可入 CI、可定时跑;
+2. 开源 + 自托管:MIT 协议 + Dockerfile + docker-compose,数据不出本地;
+3. 全市场:A 股 / 美股 / 港股 / 加密四市场统一抽象,1 套 prompt 走天下;
+4. 三件套:Multi-Agent Coordinator(4 路并行研究)+ KAIROS(6 状态主动扫描)
+   + Bridge(跨设备会话同步),投研 / 监控 / 协作闭环。`;
+
+/**
+ * v4 扩展:三件套主动引用 prompt(让 LLM 知道何时该调用对应工具)。
+ */
+const COACH_V4_THREE_PIECES_PROMPT = `【三件套 · 何时该用】
+- Multi-Agent Coordinator:用户问"全面分析 X" / "多角度对比 X" / "做组合归因"
+  时,主 agent 应转交 analyze_symbol 给 4 路 worker(技术/基本面/资金流/情绪);
+- KAIROS:用户问"最近有什么机会" / "我的持仓有什么风险" / "市场有什么异动"
+  时,主 agent 应转交 kairos_recent_* 读 KAIROS 已产出的事件(不直接触发扫描);
+- Bridge:用户在多设备用 UpUp、想把手机上看到的会话同步到桌面 / 想分享
+  投研过程给同事时,主 agent 应调用 session-share 走 Bridge 跨设备同步。`;
 
 const COACH_CORE_PRINCIPLES = `四条核心准则(违反任何一条都算 prompt 失败):
 
@@ -154,7 +187,7 @@ export function isCoachEnabled(): boolean {
  *
  * 行为:
  *   - 若 Coach 未启用,返回空字符串(不污染主对话)
- *   - 若启用,返回完整人设(自介 + 准则 + 触发 + 上下文)
+ *   - 若启用,返回完整人设(自介 + v4 sologan + v4 三件套 + 准则 + 触发 + 上下文)
  *
  * 不抛错:所有失败路径(编译期 off / 启动期 off / context 渲染失败)都安全降级。
  */
@@ -168,6 +201,10 @@ export function buildCoachSystemPrompt(ctx?: CoachPromptContext): string {
     '## 投研 Claude 人设',
     '',
     COACH_SELF_INTRO,
+    '',
+    COACH_V4_SOLOGAN_PROMPT,
+    '',
+    COACH_V4_THREE_PIECES_PROMPT,
     '',
     COACH_CORE_PRINCIPLES,
     '',

@@ -3,6 +3,12 @@
  * capabilities (realtime / coordinator / kairos / trading / multimodal) to
  * the LLM so it knows which tool to reach for at runtime. Auto-derived
  * from the tool registry by tool-name prefix.
+ *
+ * v4 扩展(Sprint v4-7):
+ *   - `competitorRefs?: string[]`  关联 13 竞品矩阵中的竞品 id,
+ *     下游消费方用 `?? []` 兜底(向后兼容)。
+ *   - `markets?: string[]`  realtime 组新增 4 市场标签
+ *     (a-share / us / hk / crypto),用于 4 唯一 D3 evidence。
  */
 
 import { getToolRegistry } from "../tools/registry/index.js";
@@ -13,6 +19,10 @@ export interface CapabilityGroup {
   prefixes: string[];
   blurb: string;
   whenToUse: string[];
+  /** v4 扩展:关联 13 竞品矩阵中的竞品 id,用作对比文档生成 */
+  competitorRefs?: string[];
+  /** v4 扩展:仅 realtime 使用,4 市场标签 */
+  markets?: string[];
 }
 
 export const CAPABILITY_GROUPS: CapabilityGroup[] = [
@@ -28,6 +38,8 @@ export const CAPABILITY_GROUPS: CapabilityGroup[] = [
       "Stop tracking: realtime_unsubscribe",
       "Inspect what's live: realtime_list_subscriptions",
     ],
+    competitorRefs: ["alpha-sense", "finchat", "miaoxiang-ai", "bloomberg", "wind"],
+    markets: ["a-share", "us", "hk", "crypto"],
   },
   {
     id: "coordinator",
@@ -40,6 +52,7 @@ export const CAPABILITY_GROUPS: CapabilityGroup[] = [
       "Inspect the latest coordinator trail: list_research_tasks",
       "Limit to a single worker (e.g. only technical): pass workers=['technical-analysis']",
     ],
+    competitorRefs: ["alpha-sense", "hebbia", "finchat", "miaoxiang-ai"],
   },
   {
     id: "kairos",
@@ -53,6 +66,7 @@ export const CAPABILITY_GROUPS: CapabilityGroup[] = [
       "Recent scanner events (price / volume / news / large-order / gap): kairos_recent_scanner_events",
       "One-shot summary across all kinds: kairos_summary",
     ],
+    competitorRefs: ["bloomberg", "wind", "joinquant", "uqer"],
   },
   {
     id: "trading",
@@ -65,6 +79,7 @@ export const CAPABILITY_GROUPS: CapabilityGroup[] = [
       "Cancel a pending order: cancel_trade_order",
       "Check positions / balance / quote: get_trading_positions / get_trading_balance / get_trade_quote",
     ],
+    competitorRefs: ["bloomberg", "joinquant", "uqer"],
   },
   {
     id: "multimodal",
@@ -76,6 +91,7 @@ export const CAPABILITY_GROUPS: CapabilityGroup[] = [
       "Render an ASCII chart for a price series",
       "Generate a structured Markdown research report from findings",
     ],
+    competitorRefs: ["alpha-sense", "finchat", "hebbia"],
   },
 ];
 
@@ -114,6 +130,17 @@ export async function buildInvestmentCapabilitiesSection(): Promise<string> {
     blocks.push("**When to use**:");
     for (const b of group.whenToUse) blocks.push(`- ${b}`);
     blocks.push("");
+    // v4 扩展:realtime 组标注 4 市场
+    if (group.markets && group.markets.length > 0) {
+      blocks.push(`**Markets covered**: ${group.markets.join(", ")}`);
+      blocks.push("");
+    }
+    // v4 扩展:competitorRefs 兜底 `?? []`(向后兼容)
+    const refs = group.competitorRefs ?? [];
+    if (refs.length > 0) {
+      blocks.push(`**Competitor refs**: ${refs.map((r) => `\`${r}\``).join(", ")}`);
+      blocks.push("");
+    }
   }
   return blocks.join("\n");
 }
