@@ -325,7 +325,7 @@ export async function runCli(options: RunCliOptions = {}) {
     console.log(`[Permissions] ${notification}`)
   }
 
-  // Initialize skills system - must be called before getCliCommands()
+  // Initialize skills system - registers dynamic commands used by getAllSlashCommands()
   try {
     await initializeSkills();
   } catch (e) {
