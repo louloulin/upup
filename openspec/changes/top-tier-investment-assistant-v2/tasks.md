@@ -280,11 +280,11 @@
 
 ### 4.5 intent-routing-zh (同花顺问财对标)
 
-- [ ] 4.5.1 实现 `src/agent/intent-detector/zh-router.ts` 中文投资意图路由
-- [ ] 4.5.2 4 大类:选股 / 诊断 / 对比 / 教学
-- [ ] 4.5.3 LLM-driven 路由,失败 fallback 到关键词
-- [ ] 4.5.4 集成到现有 `src/agent/intent-detector/`
-- [ ] 4.5.5 写 zh-router.test.ts(中文 query 测试)
+- [x] 4.5.1 实现 `src/agent/intent-detector/zh-router.ts` 中文投资意图路由
+- [x] 4.5.2 4 大类:选股 / 诊断 / 对比 / 教学(+ 3 兼容:回测/交易/监控)
+- [x] 4.5.3 LLM-driven 路由,失败 fallback 到关键词(ruleThreshold=0.34)
+- [x] 4.5.4 集成到现有 `src/agent/intent-detector/`(index.ts re-export)
+- [x] 4.5.5 写 zh-router.test.ts(72 tests, 全部通过)
 
 ### 4.6 institutional-data-feed (东方财富 Choice 对标)
 

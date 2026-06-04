@@ -9,7 +9,9 @@ export type Intent =
   | 'analysis'
   | 'backtest'
   | 'trade'
-  | 'monitor';
+  | 'monitor'
+  | 'compare'
+  | 'tutorial';
 
 export const ALL_INTENTS: readonly Intent[] = [
   'stock-selection',
@@ -17,6 +19,8 @@ export const ALL_INTENTS: readonly Intent[] = [
   'backtest',
   'trade',
   'monitor',
+  'compare',
+  'tutorial',
 ] as const;
 
 export interface IntentScore {
@@ -58,4 +62,6 @@ export const INTENT_DESCRIPTIONS: Record<Intent, string> = {
   'backtest': 'Run a historical backtest of a strategy (e.g., 用均线策略回测 000001).',
   'trade': 'Execute a trade, place or cancel an order, manage positions.',
   'monitor': 'Track / watch prices, set alerts, monitor positions or watchlist.',
+  'compare': 'Side-by-side comparison of multiple stocks or dimensions (e.g., 对比茅台和五粮液, A vs B).',
+  'tutorial': 'Explain a concept, teach a method, answer a definitional question (e.g., 什么是 PE, 怎么读财报).',
 };

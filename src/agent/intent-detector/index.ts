@@ -86,3 +86,18 @@ export {
   type FewShotExample,
   type LlmCall,
 } from './types.js';
+
+// ---------------------------------------------------------------------------
+// 中文投资意图路由 (Sprint 4.5 — 同花顺问财对标)
+// ---------------------------------------------------------------------------
+
+export {
+  ZhRouter,
+  routeZh,
+  keywordRoute,
+  ZH_INTENT_LABELS,
+  ZH_INTENT_DESCRIPTIONS,
+  type ZhIntent,
+  type ZhRouteResult,
+  type ZhRouterOptions,
+} from './zh-router.js';
