@@ -137,7 +137,7 @@
 | `src/hooks/tool-lifecycle-hooks.test.ts` | other | 367 | no-inbound |
 | `src/screening/nl-screener.test.ts` | L2 | 367 | no-inbound |
 | `src/tools/powershell/powershell-tool.test.ts` | L2 | 358 | no-inbound |
-| `src/components/hint-bar.ts` | other | 357 | no-inbound |
+| `src/components/status-hint.ts` (replaces hint-bar single-line role) | other | 68 | leaf |
 | `src/tools/backtest/backtest-engine.test.ts` | L2 | 347 | no-inbound |
 | `src/kairos/proactiveState.test.ts` | L5 | 346 | no-inbound |
 | `src/components/custom-editor.ts` | other | 330 | no-inbound |
