@@ -295,6 +295,15 @@ const BUILTIN_FEATURES: ReadonlyArray<FeatureFlag> = [
   { name: 'ALERTS',                 description: 'Real-time alert system (price / news / risk thresholds)',  category: 'analytics', defaultEnabled: false, since: '2026.6.0', owner: 'analytics' },
   { name: 'DASHBOARDS',             description: 'Pre-built analytics dashboards',                          category: 'analytics', defaultEnabled: false, since: '2026.6.0', owner: 'analytics' },
   { name: 'REPORTS',                description: 'Scheduled + on-demand PDF/HTML reports',                  category: 'analytics', defaultEnabled: false, since: '2026.6.0', owner: 'analytics' },
+
+  // ---- v5 Sprint 1 (Plan Mode + CLI + Workflow) ----------------------
+  { name: 'PLAN_MODE_INVESTMENT',  description: 'Sprint 1.1: 投资研究 Plan Mode — 用户问"分析 NVDA"自动生成 2-10 步研究 plan,等用户确认再执行', category: 'agent', defaultEnabled: true,  since: '2026.6.0', owner: 'core' },
+  { name: 'COMMAND_MORNING_BRIEF',  description: 'Sprint 2.1: /morning-brief CLI — 早盘简报 (隔夜美股 + 今日财报 + watchlist 异动),< 5s fast lane', category: 'tools', defaultEnabled: true,  since: '2026.6.0', owner: 'cli' },
+  { name: 'COMMAND_EARNINGS_PREVIEW', description: 'Sprint 2.2: /earnings-preview TICKER — 财报前瞻 (下次财报日期 + 共识预期 + 历史 surprise 平均)', category: 'tools', defaultEnabled: true,  since: '2026.6.0', owner: 'cli' },
+  { name: 'COMMAND_RISK_DASHBOARD', description: 'Sprint 2.3: /risk-dashboard — 风险面板 (组合 β + 行业集中度 + 单股权重 + VaR)', category: 'tools', defaultEnabled: true,  since: '2026.6.0', owner: 'cli' },
+  { name: 'COMMAND_PORTFOLIO_REVIEW', description: 'Sprint 2.4: /portfolio-review — 组合复盘 (Brinson 归因 + 贡献分析 + rebalance 建议)', category: 'tools', defaultEnabled: true,  since: '2026.6.0', owner: 'cli' },
+  { name: 'COMMAND_WATCHLIST_EDIT', description: 'Sprint 2.5: /watchlist-edit — watchlist 编辑 (加/删/排序)', category: 'tools', defaultEnabled: true,  since: '2026.6.0', owner: 'cli' },
+  { name: 'INVESTMENT_WORKFLOW',    description: 'Sprint 3: 5 步研究闭环 (research → valuation → backtest → trade → review) 一次性跑完,checkpoint + resume', category: 'agent', defaultEnabled: true,  since: '2026.6.0', owner: 'core' },
   { name: 'COMPETITIVE_POSITIONING',  description: 'Sprint v4-2: 13 竞品 7 维度矩阵 + 4 唯一差异化 (CLI-first/open-source/全市场/三件套) 量化证据 + 4 类投资者决策路径 + 30 字 sologan', category: 'analytics', defaultEnabled: true, since: '2026.6.0', owner: 'analytics' },];
 
 // Populate the registry at module load. Idempotent if a plugin
