@@ -189,7 +189,7 @@ v7-6   loucode 学习 + 差距分析     ✅
 v7-7   投资专用 subagent 类型      ✅ (commit 6bdc4275)
 v8-1   Coordinator 意图路由        ✅ (本文件 §6)
 v8-2   投资记忆 schema             ✅ (本文件 §9)
-v8-3   投资 status line            ⏳ 下一轮
+v8-3   投资 status line            ✅ (本文件 §11)
 ```
 
 ## 8. 循环依赖审计 (用户原话 `await import('../../../../src/tools/portfolio/tracker.js')`)
@@ -249,3 +249,52 @@ v8-1   Coordinator 意图路由        ✅ (commit de28aeb7)
 v8-2   投资记忆 schema             ✅ (本文件 §9)
 v8-3   投资 status line            ⏳ 下一轮
 ```
+
+## 11. v8-3 已完成:投资 status line 模板
+
+**落地**: `src/components/investment-status-line.ts` (141 行) + `src/components/investment-status-line.test.ts` (188 行, 15/15 pass)。
+
+**关键设计**:
+- 纯函数 + 注入, **无 Ink/React 依赖**, 可被 CLI footer / TUI 顶部栏 / Web dashboard 任何 UI surface 集成
+- 复用 v8-2 (InvestmentMemory) + v7-5 (multi-portfolio) 通过 DI
+- 动态 import multi-portfolio 避免 status line 加载时启动 price provider
+
+**输出模板** (中文, 1 行):
+```
+组合: 3 (default) | 自选: 8 | 决策: 12 (3 持仓中) | 今日: +1.25%
+```
+
+**3 个 API**:
+- `extractStatusLineParts(opts?)` — 提取结构化状态数据
+- `formatInvestmentStatusLine(opts?)` — 格式化为单行字符串
+- `formatInvestmentStatusLineFromMultiPortfolio(opts?)` — async 便捷封装,自动读 multi-portfolio
+
+**5 个测试维度** (15 个测试):
+- extractStatusLineParts: 空 / 部分 / 完整 / P&L 透传控制 (5)
+- formatInvestmentStatusLine: 各场景 (空 / 活跃组合 / 持仓中 / 已闭环 / P&L 正负零 / 完整) (8)
+- formatInvestmentStatusLineFromMultiPortfolio: async + dynamic import (2)
+
+## 12. v7-v8 sprint chain 完成 (差距 A/B/C/D 全清)
+
+| Sprint | 落地 | 提交 |
+|---|---|---|
+| v7-1  | plan-auto-trigger 接入主循环 | 06b6ee9e |
+| v7-2a | tracker.ts 三层 split (store/service/tracker) | 0633e9d5 |
+| v7-2b | 端口注册表 + 8 个深层 import 清除 | 27c57365 |
+| v7-2c | plan-auto-trigger 测试污染修复 | 3ac53460 |
+| v7-3  | trade + review phase 真实接通 sandbox + attribution | caa32eb9 |
+| v7-4  | SCC + Layer CI 闸门 | bc96d403 |
+| v7-5  | multi-portfolio 实时 P&L | 4c228bc1 |
+| v7-6  | loucode 学习 + 差距分析 | (in this doc) |
+| v7-7  | 投资专用 subagent 类型 (explore/plan/risk/trade/review) | 6bdc4275 |
+| v8-1  | Coordinator 意图路由 (Intent → invest-*) | de28aeb7 |
+| v8-2  | 投资记忆 schema (4 种记忆项) | 1e6b3ffc |
+| v8-3  | 投资 status line 模板 | (next commit) |
+
+**差距全部清空** (对比 docs/GAP-ANALYSIS.md):
+- A: 投资专用 subagent 类型 — ✅ v7-7
+- B: Coordinator 自动路由 — ✅ v8-1
+- C: 投资记忆 schema — ✅ v8-2
+- D: 投资 status line — ✅ v8-3
+
+**总提交**: 12 commits, 净增 ~2700 行 (代码 + 测试 + 文档), 零回归。
