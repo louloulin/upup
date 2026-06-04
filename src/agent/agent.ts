@@ -20,6 +20,7 @@ import { AgentToolExecutor } from './tool-executor.js';
 import { getLoopDetector, resetLoopDetector, type RecoveryStrategy } from './loop-recovery.js';
 import { getSessionTracker } from '../session/session-tracker.js';
 import { getPlanModeState } from './plan-mode-state.js';
+import { maybeEnterPlanMode, type PlanAutoTriggerResult } from './plan-auto-trigger.js';
 import { recordToolCallOk, recordToolCallErr } from '../telemetry/integration.js';
 import { MemoryManager } from '../memory/index.js';
 import { runMemoryFlush, shouldRunMemoryFlush } from '../memory/flush.js';
@@ -59,6 +60,34 @@ export interface AgentRunOptions {
  * - Streaming LLM responses with fallback to blocking
  * - Per-turn microcompact + threshold-based full compaction
  */
+/**
+ * v7-1: Format an auto-triggered plan as a SystemMessage summary for the LLM.
+ * Kept module-private (not exported) since it is a UI/internal concern.
+ * Injects the plan id, ticker, phases, primary intent so the LLM can
+ * reference the plan on the next iteration and follow plan-mode tool rules.
+ */
+function formatAutoPlanSummary(trigger: PlanAutoTriggerResult): string {
+  if (!trigger.triggered || !trigger.plan) return "";
+  const lines: string[] = [
+    "[AUTO-PLAN-MODE]",
+    "An auto-built ResearchPlan was created for the user query.",
+    "",
+    "Plan ID: " + trigger.plan.id,
+    "Ticker: " + (trigger.ticker ?? "(not specified)"),
+    "Phases: " + (trigger.phases?.join(" -> ") ?? "(none)"),
+    "Steps: " + trigger.plan.steps.length,
+    "Primary Intent: " + (trigger.primaryIntent ?? "keyword-fallback"),
+    "",
+    "Plan mode is now ACTIVE. Only plan-related tools (enter_plan_mode, exit_plan_mode,",
+    "add_plan_step, update_plan_step, list_plan_steps, get_plan) are allowed until the",
+    "user calls exit_plan_mode or confirms the plan via confirmPlan.",
+    "",
+    "If the user wants to proceed, summarize the plan and ask for confirmation.",
+    "If the user wants to modify it, use add_plan_step / update_plan_step.",
+  ];
+  return lines.join("\n");
+}
+
 export class Agent {
   private readonly model: string;
   private readonly maxIterations: number;
@@ -233,6 +262,24 @@ export class Agent {
       ...existingSessionMessages,
       new HumanMessage(query),
     ];
+
+    // v7-1: Auto-trigger plan mode from user intent (claude code AI capability)
+    // Bridges user query to plan-builder + plan-mode-state. Non-blocking:
+    // any failure (no intent, detector unavailable, build error) silently
+    // skips, agent loop continues with original behavior.
+    try {
+      const trigger = await maybeEnterPlanMode(query);
+      if (trigger.triggered && trigger.plan) {
+        // Inject a SystemMessage summarizing the auto-built plan so the LLM
+        // sees it on the next iteration. The plan itself was already built
+        // and persisted by the trigger; this just informs the LLM.
+        const planSummary = formatAutoPlanSummary(trigger);
+        messages.push(new SystemMessage(planSummary));
+        info('agent', `Auto-entered plan mode: ${trigger.plan.id} (intent=${trigger.primaryIntent ?? 'keyword'}, ticker=${trigger.ticker ?? 'n/a'}, phases=${trigger.phases?.join(',') ?? '?'})`);
+      }
+    } catch (err) {
+      warn('agent', `plan-auto-trigger failed (non-fatal): ${err instanceof Error ? err.message : String(err)}`);
+    }
 
     // Main agent loop
     let overflowRetries = 0;
