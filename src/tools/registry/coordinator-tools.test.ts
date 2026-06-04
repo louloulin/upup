@@ -8,6 +8,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import {
   loadCoordinatorTools,
   setCoordinatorExecutor,
+  setCoordinatorOptions,
   getLastCoordinatorResult,
 } from "./coordinator-tools.js";
 import type { ResearchResult, WorkerRole } from "../../coordinator/index.js";
@@ -130,5 +131,156 @@ describe("loadCoordinatorTools", () => {
     const analyze = tools.find((t) => t.name === "analyze_symbol")!;
     await expect((analyze.tool as any).invoke({ question: "?" })).rejects.toThrow();
     await expect((analyze.tool as any).invoke({ symbol: "X" })).rejects.toThrow();
+  });
+});
+
+/**
+ * Sprint 2.1.10: analyze_symbol wires the v2 coordinator features
+ * (wrapInXml + workerResumePolicy + verificationDeps overrides) by
+ * default. These tests assert that the tool surface activates them
+ * end-to-end without the caller needing to thread extra config.
+ */
+describe("analyze_symbol v2 (Sprint 2.1.10)", () => {
+  // Reset both the executor slot AND the options override between tests,
+  // so the order in this file does not affect the next describe block.
+  afterEach(() => {
+    setCoordinatorExecutor(null);
+    setCoordinatorOptions({});
+  });
+
+  test("wrapInXml is on by default: result.researchXml has 4 task-notification blocks", async () => {
+    const tools = loadCoordinatorTools();
+    const analyze = tools.find((t) => t.name === "analyze_symbol")!;
+    const result = JSON.parse(
+      await (analyze.tool as any).invoke({ symbol: "AAPL", question: "buy?" }),
+    );
+    expect(Array.isArray(result.researchXml)).toBe(true);
+    expect(result.researchXml).toHaveLength(4);
+    for (const xml of result.researchXml) {
+      expect(xml).toContain("<task-notification");
+      expect(xml).toContain("</task-notification>");
+      expect(xml).toMatch(
+        /worker-role="(technical-analysis|fundamental-analysis|capital-flow|sentiment-analysis)"/,
+      );
+    }
+  });
+
+  test("setCoordinatorOptions overrides verificationRunner: a fake runner is used (no real tsc)", async () => {
+    // Use a fake VerificationRunner that records each call so we can
+    // assert that tsc was actually invoked through the injection point.
+    const calls: string[][] = [];
+    const fakeRunner = {
+      async run(cmd: string[]) {
+        calls.push(cmd);
+        return { exitCode: 0, stdout: "", stderr: "" };
+      },
+    };
+    setCoordinatorOptions({
+      verificationRunner: fakeRunner as any,
+      verificationDeps: { runBunTest: false },
+    });
+    // Inject an executor that writes a real .ts file so verification
+    // has something to check.
+    setCoordinatorExecutor({
+      async runResearch(role, symbol) {
+        return {
+          role,
+          symbol,
+          findings: { stub: true },
+          confidence: 0.5,
+          completedAt: Date.now(),
+        };
+      },
+      async implement(_role, _plan) {
+        const artifact = `/tmp/upup-tool-ts-${Date.now()}-${Math.random()
+          .toString(36)
+          .slice(2)}.ts`;
+        await Bun.write(artifact, "export const x: number = 1;");
+        return { artifact };
+      },
+    });
+    const tools = loadCoordinatorTools();
+    const analyze = tools.find((t) => t.name === "analyze_symbol")!;
+    const result = JSON.parse(
+      await (analyze.tool as any).invoke({ symbol: "NVDA", question: "?" }),
+    );
+    expect(result.implementation).toBeDefined();
+    expect(result.implementation.artifact).toMatch(/\.ts$/);
+    // The fake runner should have been called for tsc.
+    const tscCalls = calls.filter((c) => c.includes("tsc"));
+    expect(tscCalls.length).toBeGreaterThanOrEqual(1);
+    expect(tscCalls[0]).toContain("--noEmit");
+    // Cleanup
+    const { unlink } = await import("node:fs/promises");
+    await unlink(result.implementation.artifact).catch(() => {});
+  });
+
+  test("workerResumePolicy: flaky implement via setCoordinatorExecutor retries on the tool surface", async () => {
+    // v2: a 1st-attempt failure in implement should retry (3 attempts) and
+    // eventually succeed. The result.implementation should be defined and
+    // result.verification.ok should be true.
+    let implementCalls = 0;
+    const tmpArtifacts: string[] = [];
+    setCoordinatorOptions({
+      verificationDeps: { runTsc: false, runBunTest: false },
+      // Override the default 500ms initial backoff with 0 so the test
+      // doesn't actually wait. The DEFAULT_COORDINATOR_RESUME_POLICY
+      // defaults are verified separately in a dedicated test below.
+      workerResumePolicy: {
+        maxAttempts: 3,
+        initialBackoffMs: 0,
+        backoffFactor: 1,
+        maxBackoffMs: 0,
+        sleep: () => Promise.resolve(),
+      },
+    });
+    setCoordinatorExecutor({
+      async runResearch(role, symbol) {
+        return {
+          role,
+          symbol,
+          findings: { stub: true },
+          confidence: 0.5,
+          completedAt: Date.now(),
+        };
+      },
+      async implement(_role, _plan) {
+        implementCalls += 1;
+        if (implementCalls === 1) {
+          throw new Error("flake attempt 1");
+        }
+        const artifact = `/tmp/upup-tool-retry-${Date.now()}-${Math.random()
+          .toString(36)
+          .slice(2)}.md`;
+        tmpArtifacts.push(artifact);
+        await Bun.write(
+          artifact,
+          "# Report\n\n## Synthesis\n\nBody.\n\n## Recommendation\n\nBUY.",
+        );
+        return { artifact };
+      },
+    });
+    try {
+      const tools = loadCoordinatorTools();
+      const analyze = tools.find((t) => t.name === "analyze_symbol")!;
+      const result = JSON.parse(
+        await (analyze.tool as any).invoke({ symbol: "TSLA", question: "?" }),
+      );
+      expect(implementCalls).toBe(2);
+      expect(result.implementation).toBeDefined();
+      expect(result.implementation.artifact).toMatch(/\.md$/);
+      expect(result.verification.ok).toBe(true);
+    } finally {
+      const { unlink } = await import("node:fs/promises");
+      for (const f of tmpArtifacts) await unlink(f).catch(() => {});
+    }
+  });
+
+  test("DEFAULT_COORDINATOR_RESUME_POLICY is exported and has the expected defaults", async () => {
+    const { DEFAULT_COORDINATOR_RESUME_POLICY } = await import("./coordinator-tools.js");
+    expect(DEFAULT_COORDINATOR_RESUME_POLICY.maxAttempts).toBe(3);
+    expect(DEFAULT_COORDINATOR_RESUME_POLICY.initialBackoffMs).toBe(500);
+    expect(DEFAULT_COORDINATOR_RESUME_POLICY.backoffFactor).toBe(2);
+    expect(DEFAULT_COORDINATOR_RESUME_POLICY.maxBackoffMs).toBe(5000);
   });
 });
