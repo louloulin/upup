@@ -1,4 +1,4 @@
-import { Container, ProcessTerminal, Spacer, Text, TUI, Key, matchesKey } from '@earendil-works/pi-tui';
+import { CombinedAutocompleteProvider, Container, ProcessTerminal, Spacer, Text, TUI, Key, matchesKey } from '@earendil-works/pi-tui';
 
 // ============================================================================
 // 全局渲染控制 - FIXED: 防止丢失渲染请求
@@ -65,7 +65,7 @@ import {
   CustomEditor,
   DebugPanelComponent,
   getApprovalCursor,
-  HintBarComponent,
+  StatusHintComponent,
   IntroComponent,
   setApprovalCursor,
   WorkingIndicatorComponent,
@@ -81,7 +81,7 @@ import {
 } from './components/index.js';
 import { editorTheme, theme } from './theme.js';
 import { type SlashCommand } from './commands/index.js';
-import { getCliCommands } from './commands/unified-registry.js';
+import { listAllCommands } from './commands/unified-registry.js';
 import { initSpinner } from './utils/spinner.js';
 // Phase 50: 统一使用 input-state，移除 command-state
 import { inputStore, inputSelectors, inputActions } from './tui/state/input-state.js';
@@ -529,7 +529,15 @@ export async function runCli(options: RunCliOptions = {}) {
   const workingIndicator = new WorkingIndicatorComponent(tui);
   workingIndicator.setTurnStatsProvider(() => agentRunner.turnStats);
   const editor = new CustomEditor(tui, editorTheme);
-  const hintBar = new HintBarComponent();
+  // SCAP-005: wire pi-tui's CombinedAutocompleteProvider directly. Slash, @
+  // file, and `/<cmd> <arg>` completion is handled by the upstream provider
+  // (its own fuzzyFilter + autocomplete popup). The Editor is the single
+  // source of truth for the autocomplete UI; we never mirror its state.
+  editor.setAutocompleteProvider(
+    new CombinedAutocompleteProvider(listAllCommands(), process.cwd()),
+  );
+  editor.setAutocompleteMaxVisible(8);
+  const statusHint = new StatusHintComponent();
   const debugPanel = new DebugPanelComponent(8, true);
   const spacer = new Spacer(1);
 
@@ -540,7 +548,7 @@ export async function runCli(options: RunCliOptions = {}) {
   root.addChild(workingIndicator);
   root.addChild(spacer);
   root.addChild(editor);
-  root.addChild(hintBar);
+  root.addChild(statusHint);
   root.addChild(debugPanel);
   tui.addChild(root);
   initSpinner(tui);
@@ -921,24 +929,16 @@ export async function runCli(options: RunCliOptions = {}) {
    */
   const updateView = () => {
     refreshError();
-    // Phase 31: Use inputSelectors instead of local slashActive/slashSuggestions
-    const showingSuggestions = inputSelectors.isShowingSuggestions();
-    const suggestions = inputSelectors.getSuggestions();
-    const selectedIndex = inputSelectors.getSelectedIndex();
-
-    if (showingSuggestions && suggestions.length > 0) {
-      hintBar.setSuggestions(suggestions, selectedIndex);
-    } else {
-      hintBar.clearSuggestions();
-      hintBar.update({
-        isProcessing: agentRunner?.isProcessing,
-        hasPendingApproval: !!agentRunner?.pendingApproval,
-        hasInput: editor.getText().trim().length > 0,
-        escPendingClear,
-        escPendingExit,
-        queueLength: defaultQueue.length(),
-      });
-    }
+    // Slash / file popup is rendered by pi-tui's Editor itself. We only
+    // refresh the single-line status hint here.
+    statusHint.update({
+      isProcessing: agentRunner?.isProcessing,
+      hasPendingApproval: !!agentRunner?.pendingApproval,
+      hasInput: editor.getText().trim().length > 0,
+      escPendingClear,
+      escPendingExit,
+      queueLength: defaultQueue.length(),
+    });
     if (!modelSelection.isInSelectionFlow() && !agentRunner?.pendingApproval) {
       tui.setFocus(editor);
     }
@@ -974,7 +974,7 @@ export async function runCli(options: RunCliOptions = {}) {
     root.addChild(workingIndicator);
     root.addChild(spacer);
     root.addChild(editor);
-    root.addChild(hintBar);
+    root.addChild(statusHint);
     root.addChild(debugPanel);
     updateView();
   };
@@ -1245,133 +1245,6 @@ export async function runCli(options: RunCliOptions = {}) {
     tui.requestRender();
   };
 
-  editor.onSlashChange = async (text: string) => {
-    // Phase 50: 统一使用 inputActions
-    const suggestions = getCliCommands(text);
-
-    // 更新 inputStore
-    inputActions.setSuggestions(suggestions);
-
-    updateView();
-    tui.requestRender();
-  };
-
-  // Phase 53: Tab autocomplete callback
-  editor.onSlashExactMatch = (text: string): boolean => {
-    // Try to find exact command match and complete
-    const query = text.startsWith('/') ? text.slice(1).toLowerCase() : text.toLowerCase();
-    const suggestions = inputSelectors.getSuggestions();
-
-    // Find exact or prefix match
-    const match = suggestions.find(cmd =>
-      cmd.name.toLowerCase() === query ||
-      cmd.name.toLowerCase().startsWith(query)
-    );
-
-    if (match) {
-      // Complete the command name (replace /xxx with /match.name)
-      editor.setText('/' + match.name + ' ');
-      // Clear suggestions since we have exact match
-      inputActions.clear();
-      updateView();
-      tui.requestRender();
-      return true;
-    }
-    return false;
-  };
-
-  editor.onSlashNavigate = (direction: 'up' | 'down') => {
-    // Phase 50: 统一使用 inputActions
-    if (direction === 'down') {
-      inputActions.selectNext();
-    } else {
-      inputActions.selectPrev();
-    }
-    // P2: Refresh hint bar with pagination aware selection
-    const selectedIndex = inputSelectors.getSelectedIndex();
-    hintBar.refreshPage(selectedIndex);
-    updateView();
-    tui.requestRender();
-  };
-
-  // P2: Pagination navigation handler
-  editor.onSlashPage = (direction: 'next' | 'prev') => {
-    if (direction === 'next') {
-      hintBar.nextPage();
-      inputActions.nextPage();
-    } else {
-      hintBar.prevPage();
-      inputActions.prevPage();
-    }
-    // Phase 50: 使用 inputSelectors
-    const selectedIndex = inputSelectors.getSelectedIndex();
-    hintBar.refreshPage(selectedIndex);
-    updateView();
-    tui.requestRender();
-  };
-
-  editor.onSlashSelect = () => {
-    // Phase 50: 使用 inputStore 获取选中项
-    const state = inputStore.getState();
-    const selected = state.suggestions[state.selectedIndex];
-
-    if (!selected) {
-      // Fallback: use the editor's current text as the command
-      const editorText = editor.getText().trim();
-      if (editorText.startsWith('/')) {
-        const rawCommand = editorText.slice(1).trim();
-        const spaceIdx = rawCommand.indexOf(' ');
-        const commandName = (spaceIdx === -1 ? rawCommand : rawCommand.slice(0, spaceIdx)).toLowerCase();
-        const commandArgs = spaceIdx === -1 ? '' : rawCommand.slice(spaceIdx + 1).trim();
-
-        // Phase 50: 只清除 inputStore
-        inputActions.clear();
-        editor.setText('');
-        updateView();
-
-        handleSlashCommand(commandName, commandArgs).catch(err => {
-          console.error(`[CMD] Command /${commandName} failed:`, err);
-          chatLog.addChild(new Spacer(1));
-          chatLog.addChild(new Text(theme.error(`Command /${commandName} failed: ${err}`), 0, 0));
-          tui.requestRender();
-        });
-        tui.requestRender();
-        return;
-      } else {
-        console.error('[ERROR] Invalid command format');
-        return;
-      }
-    }
-
-    const cmdName = selected.name;
-
-    // Extract args from editor text (args after command name)
-    const editorText = editor.getText().trim();
-    const rawCommand = editorText.slice(1).trim(); // Remove leading /
-    const spaceIdx = rawCommand.indexOf(' ');
-    const commandArgs = spaceIdx === -1 ? '' : rawCommand.slice(spaceIdx + 1).trim();
-
-    // Phase 50: 只清除 inputStore
-    inputActions.clear();
-    editor.setText('');
-    updateView();
-
-    // Execute the command with proper error handling
-    handleSlashCommand(cmdName, commandArgs).catch(err => {
-      console.error(`[CMD] Command /${cmdName} failed:`, err);
-      chatLog.addChild(new Spacer(1));
-      chatLog.addChild(new Text(theme.error(`Command /${cmdName} failed: ${err}`), 0, 0));
-      tui.requestRender();
-    });
-    tui.requestRender();
-  };
-
-  editor.onSlashDismiss = () => {
-    // Phase 50: 只清除 inputStore
-    inputActions.clear();
-    updateView();
-    tui.requestRender();
-  };
 
   // Inline approval: interactive selection with arrow keys
   editor.onApprovalNavigate = (direction: 'up' | 'down') => {
