@@ -127,3 +127,101 @@ src/tools/portfolio/*.ts            → 外部:@langchain/core/tools, zod
 - [ ] 无 Layer N → Layer N+1 的反向 import
 - [ ] 新端口已加 `src/agent/agent-port.ts` + 本地副本 + 单测
 - [ ] typecheck + 关联模块单测全绿
+
+---
+
+## 9. v7-2 依赖审计与重构 (Dependency Audit & Refactor)
+
+> 由 [`$comet-open`](/Users/louloulin/.agents/skills/comet-open/SKILL.md) 主线触发:对全项目做严格依赖审查,识别深层相对路径、循环征兆、高耦合模块,并按"模块高内聚"原则重构。
+
+### 9.1 全项目 SCC 审计
+
+通过 Node 实现的 Tarjan SCC 扫描器扫描全部 ~1040 个源文件、~5300 条 import 边:
+
+- **0 个静态循环**(SCC size > 1) — 之前的 v6-1 端口注册表 + 4 级 `await import` 清理已经把回路堵住
+- **0 个下层 import 上层**的违反(基于 §2 的层级 rank)
+- **5 条 `src/tools/` → `src/utils/` 边**:正常向下依赖
+- **1 条 `packages/` → `src/tools/` 边**:遗留,不在 v7-2 范围
+
+### 9.2 深层相对路径清单 (4 级及以上)
+
+> 这一节是 v7-2 收尾的**主要待办**。所有 4+ 级 `../` 都是循环依赖征兆(v6-1 commit 修复了 2 个,还剩 8 个)。
+
+| # | 文件 | 目标 | 现状 |
+|---|------|------|------|
+| 1 | `packages/commands/src/commands/agent/agent-impl.ts:45` | `../../../../src/agent/subagent-runner.js` | `getDefaultSubagentRunner` |
+| 2 | `packages/commands/src/commands/agents/agents-impl.ts:25` | `../../../../../src/agent/subagent-runner.js` | `getDefaultSubagentRunner` |
+| 3 | `packages/commands/src/commands/exit-plan/exit-plan-impl.ts:18,45` | `../../../../src/agent/plan-mode-state.js` | `getPlanModeState` (端口已存在,待切换) |
+| 4 | `packages/commands/src/commands/mcp-add/mcp-add-impl.ts:33` | `../../../../../src/mcp/registry.js` | `getMCPStatus` |
+| 5 | `packages/commands/src/commands/resume/resume-impl.ts:31` | `../../../../../src/state/index.js` | `getSessionManager` |
+| 6 | `packages/commands/src/commands/steps/steps-impl.ts:18` | `../../../../src/agent/plan-mode-state.js` | `getPlanModeState` (端口已存在) |
+| 7 | `packages/commands/src/commands/tasks/tasks-impl.ts:24` | `../../../../../src/agent/subagent-runner.js` | `getDefaultSubagentRunner` |
+| 8 | `packages/commands/src/commands/usage/usage-impl.ts:22` | `../../../../../src/state/index.js` | `getAppState` / `formatCost` / `formatTokens` |
+
+**修复模式**(v7-2 后续 sprint):
+1. 在 `src/agent/agent-port.ts` 加 `SubagentPort` / `McpRegistryPort` / `StatePort` interface
+2. 在 `src/agent/subagent-runner.ts` / `src/mcp/registry.ts` / `src/state/index.ts` 模块末尾自注册
+3. 在 `packages/commands/src/agent-port.ts` 加本地副本(4 行 interface)
+4. 8 个调用点改为 `getXxxPortLocal()` 调用,删除 `await import('../../../../../...')`
+
+### 9.3 高耦合模块:tracker.ts 重构 (v7-2a)
+
+#### 9.3.1 重构前
+
+`src/tools/portfolio/tracker.ts` (212 行) 三个关注点混在一起:
+- LangChain tool 绑定 + schema(50 行)
+- 业务逻辑:add / remove / list / performance / summaryBySector (140 行)
+- 模块级单例状态:`portfolioStore: Map`, `positionIdCounter`(20 行)
+- 还有一个未使用的 `_model` 参数
+
+**测试**: 0 行。无法单元测试。
+
+#### 9.3.2 重构后 (3 个高内聚模块)
+
+```
+src/tools/portfolio/
+  store.ts         91 行  PortfolioRepository 接口 + InMemoryPortfolioRepository
+                          + getDefaultPortfolioRepository (保留向后兼容)
+  service.ts      241 行  PortfolioService (业务逻辑)
+                          + PriceProvider 接口 + TusharePriceProvider + NullPriceProvider
+  tracker.ts      155 行  createPortfolioTracker (LangChain tool wrapper, 80 行真逻辑)
+  store.test.ts    8 测试 纯数据层 CRUD + 单例管理
+  service.test.ts 10 测试 业务逻辑 + 假 PriceProvider (零 tushare / 零网络)
+```
+
+**依赖方向** (DAG, 无回路):
+```
+tracker.ts (Layer 4 — 工具)
+  └─→ service.ts (Layer 4 — 业务)
+        └─→ store.ts (Layer 4 — 数据)
+        └─→ astock/tushare-client.ts (Layer 4 — 数据源)
+```
+
+**好处**:
+- store 可以单测,不需要 LangChain / tushare
+- service 可以单测,使用 `NullPriceProvider` / `StubPriceProvider`
+- tracker 只负责 schema 绑定和错误包装
+- 未来 drop in `FileBackedPortfolioRepository` / `MultiPortfolioRepository` 不需要改 service / tracker
+- 移除了未使用的 `_model` 参数(改为可选 overrides 对象)
+
+**API 兼容性**:
+- `createPortfolioTracker(_model)` 签名保留(无 breaking change)
+- `PORTFOLIO_TRACKER_DESCRIPTION` 常量保留
+- `src/tools/index.ts` 的两个 re-export 不需要改
+
+#### 9.3.3 验证
+
+| 检查 | 结果 |
+|------|------|
+| `bun run typecheck` | 通过(零错误) |
+| `bun test src/tools/portfolio/store.test.ts` | 8/8 pass |
+| `bun test src/tools/portfolio/service.test.ts` | 10/10 pass |
+| `bun test src/tools/portfolio/` (全模块) | 63/63 pass,零回归 |
+| `createPortfolioTracker` 调用方影响 | 仅 `src/tools/index.ts`,API 兼容 |
+
+### 9.4 v7-2 下一步
+
+1. **v7-2b**: 扩展 `agent-port.ts` 注册 `SubagentPort` / `McpRegistryPort` / `StatePort`,清掉 §9.2 的 8 个深层 import
+2. **v7-2c**: 把 `src/tools/registry/domain-tools.ts` 和 `src/tools/export/export-tools.ts` 里的 `await import('...multi-portfolio.js')` / `await import('...portfolio/index.js')` 改成端口注入(§5.2)
+3. **v7-3**: 复用新的 `PortfolioService` 接到 investment `review` phase (v6-2 占位)
+4. **v7-4**: 复用 `TusharePriceProvider` 接到 `src/tools/portfolio/multi-portfolio.ts`(目前每个 portfolio 自己的价源逻辑重复)
