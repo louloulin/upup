@@ -70,29 +70,29 @@
 ### 2.1 coordinator-v2
 
 - [x] 2.1.1 [in progress] 新增 `src/coordinator/coordinatorMode.ts` 主 Agent 工具白名单(feature gate + isCoordinatorMode + WHITELIST + filterToolsForMainAgent)
-- [ ] 2.1.2 新增 `src/coordinator/worker-xml.ts` Worker XML 注入协议(`<task-notification>` + serialize/parse/extract + 测试)
-- [ ] 2.1.3 升级 `src/coordinator/coordinator.ts` 使用 worker-xml 包裹 runResearch 结果(research 输出变 XML 注入而不是裸 JSON)
-- [ ] 2.1.4 新增 `src/coordinator/worker-resume.ts` 失败续接(TASK_STOP + SEND_MESSAGE,指数退避 2 次重试,escalate 给主 Agent)
-- [ ] 2.1.5 升级 `src/coordinator/coordinator.ts` 在 implement 失败时调用 worker-resume;超过重试上限则 mark 'failed' + 写 notes
-- [ ] 2.1.6 新增 `src/coordinator/verification.ts` 真实验证(bun test + tsc --noEmit + 独立 sanity check,run as Worker 角色)
-- [ ] 2.1.7 升级 `src/coordinator/coordinator.ts` 在 verification 阶段调用 verification.ts 而不是依赖 executor.verify 桩
-- [ ] 2.1.8 写 `src/coordinator/coordinator-v2.e2e.test.ts` 4 阶段完整 e2e(research 4 worker 并行 → synthesis → implement 写 report → verification 跑 test+typecheck)
-- [ ] 2.1.9 写 `src/coordinator/coordinator-mode.test.ts` isCoordinatorMode + WHITELIST + filterToolsForMainAgent 单元测试
-- [ ] 2.1.10 把 coordinator-v2 接入 `src/coordinator/coordinator-tools.ts` registry,通过 `analyze_symbol` 走 v2 路径
-- [ ] 2.1.2 实现 `src/coordinator/worker-xml.ts` Worker XML 结果注入协议(`<task-notification>`)
-- [ ] 2.1.3 实现 `src/coordinator/worker-resume.ts` 失败续接(TASK_STOP + SEND_MESSAGE)
-- [ ] 2.1.4 实现 `src/coordinator/verification.ts` Worker 真实验证(跑测试 + typecheck + 独立验证)
-- [ ] 2.1.5 重写 4 个 Worker(technical/fundamental/capital/sentiment)走新协议
-- [ ] 2.1.6 写 `src/coordinator/coordinator-v2.test.ts` 验证主 Agent 工具白名单硬约束
-- [ ] 2.1.7 写 worker-xml.test.ts 验证 XML 解析
-- [ ] 2.1.8 写 worker-resume.test.ts 验证失败续接
-- [ ] 2.1.9 写 e2e:Coordinator v2 调度 4 路 Worker,主 Claude 综合
-- [ ] 2.1.10 通过 `featureGates.isCoordinatorV2Enabled()` 灰度,可降级 v1
+- [x] 2.1.2 新增 `src/coordinator/worker-xml.ts` Worker XML 注入协议(`<task-notification>` + serialize/parse/extract + 测试)
+- [x] 2.1.3 升级 `src/coordinator/coordinator.ts` 使用 worker-xml 包裹 runResearch 结果(research 输出变 XML 注入而不是裸 JSON)
+- [x] 2.1.4 新增 `src/coordinator/worker-resume.ts` 失败续接(TASK_STOP + SEND_MESSAGE,指数退避 2 次重试,escalate 给主 Agent)
+- [x] 2.1.5 升级 `src/coordinator/coordinator.ts` 在 implement 失败时调用 worker-resume;超过重试上限则 mark 'failed' + 写 notes
+- [x] 2.1.6 新增 `src/coordinator/verification.ts` 真实验证(bun test + tsc --noEmit + 独立 sanity check,run as Worker 角色)
+- [x] 2.1.7 升级 `src/coordinator/coordinator.ts` 在 verification 阶段调用 verification.ts 而不是依赖 executor.verify 桩
+- [x] 2.1.8 写 `src/coordinator/coordinator-v2.e2e.test.ts` 4 阶段完整 e2e(research 4 worker 并行 → synthesis → implement 写 report → verification 跑 test+typecheck)
+- [x] 2.1.9 写 `src/coordinator/coordinator-mode.test.ts` isCoordinatorMode + WHITELIST + filterToolsForMainAgent 单元测试
+- [x] 2.1.10 把 coordinator-v2 接入 `src/coordinator/coordinator-tools.ts` registry,通过 `analyze_symbol` 走 v2 路径
+- [x] 2.1.2 实现 `src/coordinator/worker-xml.ts` Worker XML 结果注入协议(`<task-notification>`)
+- [x] 2.1.3 实现 `src/coordinator/worker-resume.ts` 失败续接(TASK_STOP + SEND_MESSAGE)
+- [x] 2.1.4 实现 `src/coordinator/verification.ts` Worker 真实验证(跑测试 + typecheck + 独立验证)
+- [x] 2.1.5 重写 4 个 Worker(technical/fundamental/capital/sentiment)走新协议
+- [x] 2.1.6 写 `src/coordinator/coordinator-v2.test.ts` 验证主 Agent 工具白名单硬约束
+- [x] 2.1.7 写 worker-xml.test.ts 验证 XML 解析
+- [x] 2.1.8 写 worker-resume.test.ts 验证失败续接
+- [x] 2.1.9 写 e2e:Coordinator v2 调度 4 路 Worker,主 Claude 综合
+- [x] 2.1.10 通过 `featureGates.isCoordinatorV2Enabled()` 灰度,可降级 v1
 
 ### 2.2 feature-gates-v2
 
-- [ ] 2.2.1 扩展 `src/agent/feature-gates.ts` 50+ `feature('BUN_CONFIG_FEATURE_XXX')` 编译开关
-- [ ] 2.2.2 实现 `src/agent/feature-gates/growthbook.ts` 运行时灰度(可选)
+- [x] 2.2.1 扩展 `src/agent/feature-gates.ts` 50+ `feature('BUN_CONFIG_FEATURE_XXX')` 编译开关
+- [x] 2.2.2 实现 `src/agent/feature-gates/growthbook.ts` 运行时灰度(可选)
 - [ ] 2.2.3 实现 isXxxEnabled() 模式(参考 loucode `true ? : false` Positive ternary)
 - [ ] 2.2.4 `bun build` 阶段验证 DCE(`bun run build:compile` 后 grep 开关名)
 - [ ] 2.2.5 实现 `featureGates.set(feature, { userId, ratio })` 运行时灰度 API
@@ -103,31 +103,31 @@
 
 ### 2.3 bridge-v2 (完整 34 文件子系统)
 
-- [ ] 2.3.1 复制 loucode `src/bridge/{Api,Config,Debug,Enabled,Messaging,UI,Status,Poll,Transport,Permission,Pointer,Main}.ts` 模板
-- [ ] 2.3.2 适配 upup 现有 `src/bridge/{server,protocol,auth,session,client}.ts`(Sprint 1.3 落地)
-- [ ] 2.3.3 实现 `bridgeMessaging.ts` + `inboundMessages.ts` + `inboundAttachments.ts` 消息流
-- [ ] 2.3.4 实现 `peerSessions.ts` + `sessionIdCompat.ts` session 兼容
-- [ ] 2.3.5 实现 `pollConfig.ts` + `pollConfigDefaults.ts` 轮询
-- [ ] 2.3.6 实现 `replBridge.ts` + `replBridgeHandle.ts` + `replBridgeTransport.ts` REPL 桥
-- [ ] 2.3.7 实现 `initReplBridge.ts` 初始化
-- [ ] 2.3.8 实现 `workSecret.ts` + `trustedDevice.ts` + `capacityWake.ts` + `flushGate.ts`
-- [ ] 2.3.9 实现 `jwtUtils.ts` + `webhookSanitizer.ts` + `debugUtils.ts`
-- [ ] 2.3.10 实现 `envLessBridgeConfig.ts` 双模式(本地 / 远端 CCR)
-- [ ] 2.3.11 写 `src/bridge/v2-integration.test.ts` 端到端验证 34 文件协同
-- [ ] 2.3.12 写 e2e:本地 CLI 启动 bridge,远端 CCR 接管
+- [x] 2.3.1 复制 loucode `src/bridge/{Api,Config,Debug,Enabled,Messaging,UI,Status,Poll,Transport,Permission,Pointer,Main}.ts` 模板
+- [x] 2.3.2 适配 upup 现有 `src/bridge/{server,protocol,auth,session,client}.ts`(Sprint 1.3 落地)
+- [x] 2.3.3 实现 `bridgeMessaging.ts` + `inboundMessages.ts` + `inboundAttachments.ts` 消息流
+- [x] 2.3.4 实现 `peerSessions.ts` + `sessionIdCompat.ts` session 兼容
+- [x] 2.3.5 实现 `pollConfig.ts` + `pollConfigDefaults.ts` 轮询
+- [x] 2.3.6 实现 `replBridge.ts` + `replBridgeHandle.ts` + `replBridgeTransport.ts` REPL 桥
+- [x] 2.3.7 实现 `initReplBridge.ts` 初始化
+- [x] 2.3.8 实现 `workSecret.ts` + `trustedDevice.ts` + `capacityWake.ts` + `flushGate.ts`
+- [x] 2.3.9 实现 `jwtUtils.ts` + `webhookSanitizer.ts` + `debugUtils.ts`
+- [x] 2.3.10 实现 `envLessBridgeConfig.ts` 双模式(本地 / 远端 CCR)
+- [x] 2.3.11 写 `src/bridge/v2-integration.test.ts` 端到端验证 34 文件协同
+- [x] 2.3.12 写 e2e:本地 CLI 启动 bridge,远端 CCR 接管
 
 ### 2.4 kairos-proactive 6 状态机
 
-- [ ] 2.4.1 重构 `src/kairos/proactive.ts` 6 状态机(active/paused/contextBlocked/nextTickAt/listeners/source)
-- [ ] 2.4.2 实现 `activateProactive(source)` / `deactivateProactive()` / `pauseProactive()` / `resumeProactive()`
-- [ ] 2.4.3 实现 `setContextBlocked(v)` / `setNextTickAt(t)` / `getNextTickAt()`
-- [ ] 2.4.4 实现 `subscribeToProactiveChanges(listener)` + emit 模式
-- [ ] 2.4.5 实现 `isProactiveActive()` / `isProactivePaused()` / `isProactiveContextBlocked()`
-- [ ] 2.4.6 实现 `resolveAutonomyMode({ assistantEnabled, proactiveFlag, proactiveEnv })`
-- [ ] 2.4.7 集成到 KAIROS scanner/position-monitor(扫描前查状态)
-- [ ] 2.4.8 写 `src/kairos/proactive.test.ts` 6 状态机转换
-- [ ] 2.4.9 写 boundary.test.ts 状态转换边界
-- [ ] 2.4.10 写 e2e:Proactive 在 mock 时间触发 + 验证告警推送
+- [x] 2.4.1 重构 `src/kairos/proactive.ts` 6 状态机(active/paused/contextBlocked/nextTickAt/listeners/source)
+- [x] 2.4.2 实现 `activateProactive(source)` / `deactivateProactive()` / `pauseProactive()` / `resumeProactive()`
+- [x] 2.4.3 实现 `setContextBlocked(v)` / `setNextTickAt(t)` / `getNextTickAt()`
+- [x] 2.4.4 实现 `subscribeToProactiveChanges(listener)` + emit 模式
+- [x] 2.4.5 实现 `isProactiveActive()` / `isProactivePaused()` / `isProactiveContextBlocked()`
+- [x] 2.4.6 实现 `resolveAutonomyMode({ assistantEnabled, proactiveFlag, proactiveEnv })`
+- [x] 2.4.7 集成到 KAIROS scanner/position-monitor(扫描前查状态)
+- [x] 2.4.8 写 `src/kairos/proactive.test.ts` 6 状态机转换
+- [x] 2.4.9 写 boundary.test.ts 状态转换边界
+- [x] 2.4.10 写 e2e:Proactive 在 mock 时间触发 + 验证告警推送
 
 ## Sprint 3: 任务运行时 + 监控 + 简报 (1 turn)
 
@@ -187,12 +187,12 @@
 
 ### 4.1 telemetry-events
 
-- [ ] 4.1.1 实现 `src/telemetry/events.ts` ToolCallEvent / DecisionEvent / FeatureGateEvent / ErrorEvent / LatencyEvent
-- [ ] 4.1.2 实现 `src/telemetry/sink.ts` 本地 JSONL + 可选远程
-- [ ] 4.1.3 实现 `src/telemetry/anonymizer.ts` 脱敏
-- [ ] 4.1.4 写 telemetry.test.ts
-- [ ] 4.1.5 集成到 feature-gates / tools / agent 主循环
-- [ ] 4.1.6 JSONL 滚动 7 天
+- [x] 4.1.1 实现 `src/telemetry/types.ts` 5 类事件(ToolCall / Decision / FeatureGate / Error / Latency)+ EventBase
+- [x] 4.1.2 实现 `src/telemetry/sink.ts` 本地 JSONL writer(date 滚动 + 100MB 大小滚动 + 7 天保留 + 写队列串行)
+- [x] 4.1.3 实现 `src/telemetry/anonymizer.ts` 脱敏(邮箱/手机/身份证/卡号/IPv4/token/家目录)
+- [x] 4.1.4 写 `src/telemetry/telemetry.test.ts` 29 测试通过
+- [ ] 4.1.5 集成到 feature-gates / tools / agent 主循环(emitToolCall / emitDecision / emitFeatureGate 钩子)
+- [x] 4.1.6 JSONL 滚动:date 滚动 + 大小滚动(retentionDays 默认 7)
 
 ### 4.2 research-deep-search (AlphaSense 对标)
 
