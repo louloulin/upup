@@ -1,14 +1,19 @@
 /**
  * Plan Auto-Trigger — 验证从用户输入自动生成 plan + 进入 plan mode 的完整流程
  */
-import { describe, test, expect, beforeEach, mock } from 'bun:test';
+import { describe, test, expect, beforeEach, afterEach, mock } from 'bun:test';
 import {
   maybeEnterPlanMode,
   maybeEnterPlanModeSync,
   type PlanAutoTriggerDeps,
   type PlanAutoTriggerResult,
 } from './plan-auto-trigger.js';
-import { __resetAgentPorts } from './agent-port.js';
+import {
+  __resetAgentPorts,
+  __saveAgentPorts,
+  __restoreAgentPorts,
+  type AgentPorts,
+} from './agent-port.js';
 
 // Mock plan-mode-state so we can control isActive/enter via global registry
 import { registerPlanModePort } from './agent-port.js';
@@ -45,9 +50,21 @@ function makeMockPort(initialActive = false) {
   return state;
 }
 
+// v7-2c fix: use save/restore to avoid polluting the global port registry
+// for other test files that run in the same Bun process.
+let savedPorts: AgentPorts | null = null;
+
 beforeEach(() => {
+  savedPorts = __saveAgentPorts();
   __resetAgentPorts();
 });
+afterEach(() => {
+  if (savedPorts) {
+    __restoreAgentPorts(savedPorts);
+    savedPorts = null;
+  }
+});
+
 
 function makeIntentDetectorMock(intentMap: Record<string, string | null | undefined>) {
   return async (input: string) => {

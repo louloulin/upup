@@ -97,7 +97,7 @@ export interface StatePort {
 // Global registry
 // ---------------------------------------------------------------------------
 
-interface AgentPorts {
+export interface AgentPorts {
   planMode?: PlanModePort;
   config?: AgentConfigPort;
   session?: SessionPort;
@@ -177,4 +177,14 @@ export function getStatePort(): StatePort | null {
 // Test-only: reset all ports
 export function __resetAgentPorts(): void {
   globalThis.__upupAgentPorts = {};
+}
+
+// Test-only: save the current registry (for save/restore patterns)
+export function __saveAgentPorts(): AgentPorts {
+  return { ...(globalThis.__upupAgentPorts ?? {}) };
+}
+
+// Test-only: restore a previously saved registry
+export function __restoreAgentPorts(saved: AgentPorts): void {
+  globalThis.__upupAgentPorts = { ...saved };
 }
