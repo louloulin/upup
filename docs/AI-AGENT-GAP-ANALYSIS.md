@@ -132,7 +132,77 @@ v7-3   trade + review 真实工具     ✅
 v7-4   SCC + Layer CI 闸门         ✅
 v7-5   multi-portfolio 实时 P&L    ✅
 v7-6   loucode 学习 + 差距分析     ✅ (本文件)
-v7-7   投资专用 subagent 类型      🔜 下一轮
-v7-8   Coordinator 自动路由        ⏳
+v7-7   投资专用 subagent 类型      ✅ (commit 6bdc4275)
+v8-1   Coordinator 意图路由        ✅ (本文件 §6)
 v7-9   投资记忆 schema             ⏳
 ```
+
+## 6. v8-1 已完成:Coordinator 意图路由
+
+**落地 commit**: 紧随 v7-7, 新增 `src/multi-agent/intent-router.ts` + 测试。
+
+**关键设计**:
+- 高内聚独立模块 (`intent-router.ts`),不 bloat `coordinator.ts`
+- 复用 v5 落地的 `IntentDetector` (LLM + legacy 双模),不重新发明分类器
+- 复用 v7-7 落地的 `AgentRegistry` (5 个 invest-* subagent)
+- 路由表 (`INTENT_TO_SUBAGENT`) 是纯数据,易测试 / 易扩展
+
+**路由映射** (7 Intent → 5 invest-* subagent):
+
+| Intent | Subagent | 场景 |
+|---|---|---|
+| `analysis` | `invest-explore` | "分析 NVDA" |
+| `stock-selection` | `invest-explore` | "找出低 PE 的银行股" |
+| `compare` | `invest-explore` | "对比茅台和五粮液" |
+| `tutorial` | `invest-explore` | "什么是 PE" |
+| `monitor` | `invest-explore` | "加入自选" (暂无专用 subagent, 走 explore) |
+| `backtest` | `invest-plan` | "用均线策略回测 000001" |
+| `trade` | `invest-trade` | "买入 600519" |
+
+**未直路由** (workflow 第二步显式调度):
+- `invest-risk` — 主 agent 在收到 explore/plan 结果后调度
+- `invest-review` — 主 agent 在 trade 完成后调度
+
+**实现要点**:
+- `routeByIntent(query, opts?)` — async,自动注入 IntentDetector
+- `routeFromIntentResult(result, opts?)` — sync,SwarmCoordinator 复用缓存
+- `minConfidence` 阈值 (默认 0.4) + `fallbackSubagentId` 可覆盖
+- 主 subagent 不在 registry 时降级到 FALLBACK,不抛错
+
+**验证**:
+- ✅ 14/14 单元测试 pass (路由表 + 决策 + 同步版 + registry miss 守卫)
+- ✅ typecheck 通过
+- ✅ SCC + Layer 0 违规
+- ✅ 全项目 4400/4416 pass (16 fail 全 baseline,v8-1 零回归)
+
+## 7. 更新后的进度
+
+```
+v7-1   plan-auto-trigger          ✅
+v7-2a  tracker.ts 三层 split       ✅
+v7-2b  端口注册表 + 8 个深层 import ✅
+v7-2c  plan-auto-trigger 测试污染  ✅
+v7-3   trade + review 真实工具     ✅
+v7-4   SCC + Layer CI 闸门         ✅
+v7-5   multi-portfolio 实时 P&L    ✅
+v7-6   loucode 学习 + 差距分析     ✅
+v7-7   投资专用 subagent 类型      ✅ (commit 6bdc4275)
+v8-1   Coordinator 意图路由        ✅ (本文件 §6)
+v8-2   投资记忆 schema             ⏳ 下一轮
+v8-3   投资 status line            ⏳
+```
+
+## 8. 循环依赖审计 (用户原话 `await import('../../../../src/tools/portfolio/tracker.js')`)
+
+**结论**: 该模式已被 v7-2b commit (`端口注册表扩展 + 8 个深层 import 清除`) 全部清除。
+
+**现状审计**:
+- `grep -rEn "['\"]\.\./\.\./\.\./\.\." src/ packages/` → **0 命中**
+- `scripts/check-scc.ts` (v7-4) 已加 "3+ 级 ../" 规则,任何新引入会被 CI 拦截
+- `tracker.ts` 本身在 v7-2a 已拆为 store/service/tracker 三层(零循环)
+
+**架构原则** (Sprint 持续强化):
+- 跨包: `globalThis` 端口注册表 (`src/agent/agent-port.ts` 等 6 端口)
+- 模块高内聚: store/service/tracker 三层(零业务逻辑混在 tool schema)
+- 严禁: 4 级 `await import`、反向依赖高层、SCC 循环
+- CI 闸门: `bun run lint` (SCC + Layer) + `bun run typecheck` + `bun test`
