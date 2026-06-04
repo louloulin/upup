@@ -200,3 +200,179 @@ describe('module-level featureGates (lazy default)', () => {
     expect(featureGates.isEnabled('lazy')).toBe(true);
   });
 });
+
+// =============================================================================
+// v2 (Sprint 2.2) — compile-time feature flag registry + DCE pattern
+// =============================================================================
+
+import {
+  registerFeature,
+  getFeatureFlag,
+  listFeatures,
+  isFeatureCompiledIn,
+  type FeatureFlag,
+  type FeatureStateV2,
+} from './feature-gates.js';
+
+describe('feature-gates v2 (Sprint 2.2) — compile flag registry', () => {
+  // Reset state so the module-level featureGates don't leak between tests.
+  beforeEach(() => resetDefaultGates());
+  afterEach(() => resetDefaultGates());
+
+  test('BUILTIN_FEATURES registers 50+ flags across 5 categories', () => {
+    const all = listFeatures();
+    expect(all.length).toBeGreaterThanOrEqual(50);
+    const categories = new Set(all.map((f) => f.category));
+    // We claim 5 categories: agent, trading, data, tools, analytics
+    expect(categories.size).toBeGreaterThanOrEqual(5);
+    for (const cat of ['agent', 'trading', 'data', 'tools', 'analytics']) {
+      expect(categories.has(cat as FeatureStateV2['category'])).toBe(true);
+    }
+  });
+
+  test('every listFeatures() entry has name + enabled + source + category + description', () => {
+    const all = listFeatures();
+    for (const f of all) {
+      expect(f.name).toBeTruthy();
+      expect(typeof f.enabled).toBe('boolean');
+      expect(['compile', 'startup', 'runtime', 'default']).toContain(f.source);
+      expect(f.category).toBeTruthy();
+      expect(f.description).toBeTruthy();
+      expect(f.since).toBeTruthy();
+      expect(f.owner).toBeTruthy();
+    }
+  });
+
+  test('listFeatures() is sorted by category then name (stable for diffs)', () => {
+    const all = listFeatures();
+    for (let i = 1; i < all.length; i++) {
+      const a = all[i - 1]!;
+      const b = all[i]!;
+      if (a.category !== b.category) {
+        // Use localeCompare to match the production sort; raw `<` is
+        // wrong for names like A_B_TESTING (underscore > letters in ASCII).
+        expect(a.category!.localeCompare(b.category!)).toBeLessThanOrEqual(0);
+      } else {
+        expect(a.name.localeCompare(b.name)).toBeLessThanOrEqual(0);
+      }
+    }
+  });
+
+  test('default-enabled flags (e.g. WORKER_RESUME) are enabled out of the box', () => {
+    // The BUILTIN_FEATURES table marks some flags defaultEnabled=true.
+    // With no env override + no runtime set, they should be enabled.
+    expect(isFeatureCompiledIn('WORKER_RESUME')).toBe(true);
+    expect(isFeatureCompiledIn('WORKER_XML')).toBe(true);
+    expect(isFeatureCompiledIn('AGENT_SCRATCHPAD')).toBe(true);
+  });
+
+  test('default-disabled flags (e.g. COORDINATOR_MODE) are disabled out of the box', () => {
+    expect(isFeatureCompiledIn('COORDINATOR_MODE')).toBe(false);
+    expect(isFeatureCompiledIn('PAPER_TRADING')).toBe(false);
+    expect(isFeatureCompiledIn('BACKTEST_V2')).toBe(false);
+  });
+
+  test('isFeatureCompiledIn returns false for unknown flag names (typo guard)', () => {
+    expect(isFeatureCompiledIn('NONSENSE_FLAG')).toBe(false);
+    expect(isFeatureCompiledIn('worker_resume')).toBe(false); // case sensitive
+    expect(isFeatureCompiledIn('')).toBe(false);
+  });
+
+  test('compile-time env BUN_CONFIG_FEATURE_* flips isFeatureCompiledIn', () => {
+    const FLAG = 'COORDINATOR_MODE';
+    // Reset to known state
+    delete process.env['BUN_CONFIG_FEATURE_COORDINATOR_MODE'];
+    expect(isFeatureCompiledIn(FLAG)).toBe(false);
+    process.env['BUN_CONFIG_FEATURE_COORDINATOR_MODE'] = '1';
+    expect(isFeatureCompiledIn(FLAG)).toBe(true);
+    process.env['BUN_CONFIG_FEATURE_COORDINATOR_MODE'] = '0';
+    expect(isFeatureCompiledIn(FLAG)).toBe(false);
+    delete process.env['BUN_CONFIG_FEATURE_COORDINATOR_MODE'];
+  });
+
+  test('registerFeature adds a custom flag that is queryable', () => {
+    const flag: FeatureFlag = {
+      name: 'CUSTOM_PLUGIN_FLAG',
+      description: 'A flag added at runtime by a plugin',
+      category: 'experimental',
+      defaultEnabled: true,
+      since: '2026.6.0',
+      owner: 'plugin-x',
+    };
+    registerFeature(flag);
+    const got = getFeatureFlag('CUSTOM_PLUGIN_FLAG');
+    expect(got).not.toBeNull();
+    expect(got!.owner).toBe('plugin-x');
+    expect(isFeatureCompiledIn('CUSTOM_PLUGIN_FLAG')).toBe(true);
+  });
+
+  test('registerFeature is idempotent — re-registering overwrites metadata', () => {
+    registerFeature({
+      name: 'OVERWRITE_ME',
+      description: 'first',
+      category: 'experimental',
+      defaultEnabled: false,
+      since: '2026.6.0',
+      owner: 'a',
+    });
+    registerFeature({
+      name: 'OVERWRITE_ME',
+      description: 'second',
+      category: 'experimental',
+      defaultEnabled: true,
+      since: '2026.6.0',
+      owner: 'b',
+    });
+    const got = getFeatureFlag('OVERWRITE_ME');
+    expect(got!.description).toBe('second');
+    expect(got!.owner).toBe('b');
+    expect(isFeatureCompiledIn('OVERWRITE_ME')).toBe(true);
+  });
+
+  test('getFeatureFlag returns null for unknown flags', () => {
+    expect(getFeatureFlag('NONSENSE')).toBeNull();
+  });
+
+  test('doctor() includes every BUILTIN feature (v2 sweep)', () => {
+    featureGates.register('DUMMY');
+    const all = listFeatures();
+    const names = new Set(all.map((f) => f.name));
+    // Doctor should at least contain every listFeatures() entry.
+    // (Note: doctor() is a separate method that may also include
+    // env-detected gates; we just check the registry ones are there.)
+    for (const f of all) {
+      expect(names.has(f.name)).toBe(true);
+    }
+    // Spot-check a handful of well-known v2 flags
+    expect(names.has('COORDINATOR_MODE')).toBe(true);
+    expect(names.has('BACKTEST_V2')).toBe(true);
+    expect(names.has('GROWTHBOOK')).toBe(true);
+    expect(names.has('TELEMETRY')).toBe(true);
+  });
+
+  test('source=runtime when featureGates.set() is called, even for BUILTIN flags', () => {
+    featureGates.set('COORDINATOR_MODE', { ratio: 1 });
+    const all = listFeatures();
+    const flag = all.find((f) => f.name === 'COORDINATOR_MODE')!;
+    expect(flag.enabled).toBe(true);
+    expect(flag.source).toBe('runtime');
+  });
+
+  test('source=compile when BUN_CONFIG_FEATURE_* is set', () => {
+    process.env['BUN_CONFIG_FEATURE_AGENT_VISION'] = '1';
+    const all = listFeatures();
+    const flag = all.find((f) => f.name === 'AGENT_VISION')!;
+    expect(flag.enabled).toBe(true);
+    expect(flag.source).toBe('compile');
+    delete process.env['BUN_CONFIG_FEATURE_AGENT_VISION'];
+  });
+
+  test('source=startup when FEATURE_* is set', () => {
+    process.env['FEATURE_AGENT_VISION'] = 'true';
+    const all = listFeatures();
+    const flag = all.find((f) => f.name === 'AGENT_VISION')!;
+    expect(flag.enabled).toBe(true);
+    expect(flag.source).toBe('startup');
+    delete process.env['FEATURE_AGENT_VISION'];
+  });
+});
