@@ -31,6 +31,7 @@ import {
   type WorkerResumeEvent,
   type WorkerResumePolicy,
 } from './worker-resume.js';
+import { runVerification } from './verification.js';
 
 export interface WorkerExecutor {
   runResearch(role: WorkerRole, symbol: string, systemPrompt: string): Promise<ResearchResult>;
@@ -239,8 +240,16 @@ export function createCoordinator(deps: CoordinatorDeps, executor: WorkerExecuto
       }
 
       // ----- Phase 4: Verification -----
+      // v2 (Sprint 2.1.7): replaces the v1 `executor.verify` stub call
+      // with the real `runVerification` (file-exists + readable +
+      // extension-specific parse + optional tsc --noEmit + optional
+      // bun test on a sibling test file). The `WorkerExecutor.verify?`
+      // field is kept in the interface for backward compat (other code
+      // paths can still call it), but Phase 4 no longer dispatches to
+      // it. Verification failures retry via runWithResume when
+      // `deps.workerResumePolicy` is set, just like Phase 3.
       let verification: { ok: boolean; notes?: string } | undefined;
-      if (executor.verify && implementation) {
+      if (implementation) {
         const verTask = await taskList.create({
           id: `verify-${symbol}`,
           title: `Verify analysis report for ${symbol}`,
@@ -249,12 +258,60 @@ export function createCoordinator(deps: CoordinatorDeps, executor: WorkerExecuto
         });
         tasks.push(verTask);
         await setTaskStatus(verTask.id, 'in_progress');
-        verification = await executor.verify(implementation.artifact);
-        const done = await taskList.update(verTask.id, {
+
+        const verPolicyEnabled = deps.workerResumePolicy !== undefined;
+        const verResumePolicy: Partial<WorkerResumePolicy> = verPolicyEnabled
+          ? {
+              ...DEFAULT_WORKER_RESUME_POLICY,
+              ...deps.workerResumePolicy,
+            }
+          : { maxAttempts: 1, sleep: () => Promise.resolve() };
+
+        const onVerResume = (e: WorkerResumeEvent): void => {
+          if (!verPolicyEnabled) return;
+          if (deps.bus) {
+            deps.bus.emit('coordinator.worker.resume', { taskId: verTask.id, event: e });
+          }
+          if (e.directive) {
+            taskList
+              .update(verTask.id, { notes: e.directive })
+              .catch(() => {
+                /* ignore */
+              });
+          }
+        };
+
+        const artifact = implementation.artifact;
+        // Wrap runVerification so a logical failure (ok=false) becomes a
+        // thrown error. Otherwise runWithResume would see a successful
+        // `{ok:false}` return and not retry, defeating the point of
+        // pairing verification with the resume policy.
+        const runVerify = async (): Promise<{ ok: boolean; notes?: string }> => {
+          const out = await runVerification(artifact, {
+            ...(deps.verificationDeps ?? {}),
+            runner: deps.verificationRunner,
+          });
+          if (!out.ok) {
+            throw new Error(`verification failed: ${out.notes}`);
+          }
+          return { ok: out.ok, notes: out.notes };
+        };
+
+        const verOutcome = await runWithResume(runVerify, verResumePolicy, onVerResume);
+
+        if (verOutcome.result) {
+          verification = verOutcome.result;
+        } else {
+          verification = {
+            ok: false,
+            notes: `error: ${verOutcome.finalError?.message ?? 'verification failed'}`,
+          };
+        }
+        const verDone = await taskList.update(verTask.id, {
           status: verification.ok ? 'completed' : 'failed',
           notes: verification.notes,
         });
-        tasks.push(done);
+        tasks.push(verDone);
       }
 
       void now; // keep the param used in case future phases need a timestamp

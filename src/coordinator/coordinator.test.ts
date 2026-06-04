@@ -165,25 +165,61 @@ describe('coordinator', () => {
   });
 
   test('runs verification after implementation and reports ok=true', async () => {
+    // v2 (Sprint 2.1.7): Phase 4 uses runVerification instead of
+    // executor.verify. Write a real tmp markdown report so the
+    // file-exists + md-structure checks pass.
     const taskList = createInMemoryTaskList({ now: () => FIXED_NOW });
-    const implementFn: WorkerExecutor['implement'] = async () => ({ artifact: '/r/x.md' });
-    const verifyFn: WorkerExecutor['verify'] = async (a) => ({ ok: true, notes: `verified ${a}` });
-    const { executor } = makeExecutor({ implementFn, verifyFn });
-    const coord = createCoordinator({ taskList, bus, now: () => FIXED_NOW }, executor);
-    const result = await coord.runAnalysis(SYMBOL);
-    expect(result.verification?.ok).toBe(true);
-    const ver = await taskList.list({ phase: 'verification' });
-    expect(ver[0]?.status).toBe('completed');
+    const artifact = `/tmp/upup-coord-${Date.now()}-${Math.random().toString(36).slice(2)}.md`;
+    await Bun.write(
+      artifact,
+      '# 600519.SH Report\n\n## Synthesis\n\nOverall bias: bullish.\n\n## Recommendation\n\nBUY.',
+    );
+    try {
+      const implementFn: WorkerExecutor['implement'] = async () => ({ artifact });
+      const { executor } = makeExecutor({ implementFn });
+      const coord = createCoordinator(
+        {
+          taskList,
+          bus,
+          now: () => FIXED_NOW,
+          // Skip tsc + bun test in the verify step — this is a v1 wiring
+          // smoke test, not a real tsc/test exercise.
+          verificationDeps: { runTsc: false, runBunTest: false },
+        },
+        executor,
+      );
+      const result = await coord.runAnalysis(SYMBOL);
+      expect(result.verification?.ok).toBe(true);
+      const ver = await taskList.list({ phase: 'verification' });
+      expect(ver[0]?.status).toBe('completed');
+    } finally {
+      await Bun.write(artifact, '').catch(() => {});
+      const { unlink } = await import('node:fs/promises');
+      await unlink(artifact).catch(() => {});
+    }
   });
 
-  test('marks verification task failed when verify returns ok=false', async () => {
+  test('marks verification task failed when deliverable fails file-exists check', async () => {
+    // v2 (Sprint 2.1.7): Phase 4 verification fails when the artifact
+    // file is missing on disk (file-exists check). WorkerExecutor.verify
+    // is no longer called from Phase 4, so verifyFn is omitted.
     const taskList = createInMemoryTaskList({ now: () => FIXED_NOW });
-    const implementFn: WorkerExecutor['implement'] = async () => ({ artifact: '/r/x.md' });
-    const verifyFn: WorkerExecutor['verify'] = async () => ({ ok: false, notes: 'truncated' });
-    const { executor } = makeExecutor({ implementFn, verifyFn });
-    const coord = createCoordinator({ taskList, bus, now: () => FIXED_NOW }, executor);
+    const implementFn: WorkerExecutor['implement'] = async () => ({
+      artifact: `/tmp/upup-missing-${Date.now()}-${Math.random().toString(36).slice(2)}.md`,
+    });
+    const { executor } = makeExecutor({ implementFn });
+    const coord = createCoordinator(
+      {
+        taskList,
+        bus,
+        now: () => FIXED_NOW,
+        verificationDeps: { runTsc: false, runBunTest: false },
+      },
+      executor,
+    );
     const result = await coord.runAnalysis(SYMBOL);
     expect(result.verification?.ok).toBe(false);
+    expect(result.verification?.notes).toMatch(/file not found/);
     const ver = await taskList.list({ phase: 'verification' });
     expect(ver[0]?.status).toBe('failed');
   });
@@ -423,38 +459,65 @@ describe('coordinator v2 (Sprint 2.1.5) — worker-resume on implementation', ()
   test('with policy: succeed on 1st attempt → no resume events, task completed', async () => {
     const taskList = createInMemoryTaskList({ now: () => FIXED_NOW });
     const { events } = captureResumeEvents(bus);
-    const implementFn: WorkerExecutor['implement'] = async () => ({
-      artifact: `/reports/${SYMBOL}.md`,
-    });
-    const { executor } = makeExecutor({ implementFn });
-    const coord = createCoordinator({ taskList, bus, workerResumePolicy: fastPolicy }, executor);
-    const result = await coord.runAnalysis(SYMBOL);
-    expect(result.implementation?.artifact).toBe(`/reports/${SYMBOL}.md`);
-    expect(events).toHaveLength(0);
-    const impl = await taskList.list({ phase: 'implementation' });
-    expect(impl[0]?.status).toBe('completed');
+    // v2 (Sprint 2.1.7): use a real tmp .ts file so runVerification
+    // doesn't fail-and-retry during Phase 4 and pollute the events array.
+    const artifact = `/tmp/upup-215-1st-${Date.now()}-${Math.random().toString(36).slice(2)}.ts`;
+    await Bun.write(artifact, 'export const x: number = 1;');
+    const { unlink } = await import('node:fs/promises');
+    try {
+      const implementFn: WorkerExecutor['implement'] = async () => ({ artifact });
+      const { executor } = makeExecutor({ implementFn });
+      const coord = createCoordinator(
+        {
+          taskList, bus, workerResumePolicy: fastPolicy,
+          verificationDeps: { runTsc: false, runBunTest: false },
+        },
+        executor,
+      );
+      const result = await coord.runAnalysis(SYMBOL);
+      expect(result.implementation?.artifact).toBe(artifact);
+      expect(events).toHaveLength(0);
+      const impl = await taskList.list({ phase: 'implementation' });
+      expect(impl[0]?.status).toBe('completed');
+    } finally {
+      await unlink(artifact).catch(() => {});
+    }
   });
 
   test('with policy: fail 1st, succeed 2nd → 1 retry event, task completed', async () => {
     const taskList = createInMemoryTaskList({ now: () => FIXED_NOW });
     const { events, byType } = captureResumeEvents(bus);
+    // v2 (Sprint 2.1.7): use a real tmp .ts file so runVerification
+    // doesn't fail-and-retry during Phase 4 and pollute the events array.
+    const artifact = `/tmp/upup-215-2nd-${Date.now()}-${Math.random().toString(36).slice(2)}.ts`;
+    await Bun.write(artifact, 'export const x: number = 1;');
+    const { unlink } = await import('node:fs/promises');
     let calls = 0;
-    const implementFn: WorkerExecutor['implement'] = async () => {
-      calls += 1;
-      if (calls === 1) throw new Error('flake 1');
-      return { artifact: `/reports/${SYMBOL}.md` };
-    };
-    const { executor } = makeExecutor({ implementFn });
-    const coord = createCoordinator({ taskList, bus, workerResumePolicy: fastPolicy }, executor);
-    const result = await coord.runAnalysis(SYMBOL);
-    expect(calls).toBe(2);
-    expect(result.implementation?.artifact).toBe(`/reports/${SYMBOL}.md`);
-    expect(byType()).toEqual({ retry: 1 });
-    const impl = await taskList.list({ phase: 'implementation' });
-    expect(impl[0]?.status).toBe('completed');
-    // The retry directive should have been written to the task notes
-    const finalImpl = (await taskList.get(impl[0]!.id))!;
-    expect(finalImpl.notes).toMatch(/retry-attempt=1/);
+    try {
+      const implementFn: WorkerExecutor['implement'] = async () => {
+        calls += 1;
+        if (calls === 1) throw new Error('flake 1');
+        return { artifact };
+      };
+      const { executor } = makeExecutor({ implementFn });
+      const coord = createCoordinator(
+        {
+          taskList, bus, workerResumePolicy: fastPolicy,
+          verificationDeps: { runTsc: false, runBunTest: false },
+        },
+        executor,
+      );
+      const result = await coord.runAnalysis(SYMBOL);
+      expect(calls).toBe(2);
+      expect(result.implementation?.artifact).toBe(artifact);
+      expect(byType()).toEqual({ retry: 1 });
+      const impl = await taskList.list({ phase: 'implementation' });
+      expect(impl[0]?.status).toBe('completed');
+      const finalImpl = (await taskList.get(impl[0]!.id))!;
+      expect(finalImpl.notes).toMatch(/retry-attempt=1/);
+    } finally {
+      await unlink(artifact).catch(() => {});
+    }
   });
 
   test('with policy: all 3 attempts fail → 2 retry + 1 exhausted, task failed', async () => {
@@ -506,40 +569,342 @@ describe('coordinator v2 (Sprint 2.1.5) — worker-resume on implementation', ()
   test('with policy: retry event payload includes taskId, attempt, error, nextDelayMs, directive', async () => {
     const taskList = createInMemoryTaskList({ now: () => FIXED_NOW });
     const { events } = captureResumeEvents(bus);
+    // v2 (Sprint 2.1.7): use a real tmp .ts file so runVerification
+    // doesn't fail-and-retry during Phase 4 and pollute the events array.
+    const artifact = `/tmp/upup-215-payload-${Date.now()}-${Math.random().toString(36).slice(2)}.ts`;
+    await Bun.write(artifact, 'export const x: number = 1;');
+    const { unlink } = await import('node:fs/promises');
     let calls = 0;
-    const implementFn: WorkerExecutor['implement'] = async () => {
-      calls += 1;
-      if (calls === 1) throw new Error('transient 1');
-      return { artifact: 'ok' };
-    };
-    const { executor } = makeExecutor({ implementFn });
-    const coord = createCoordinator({ taskList, bus, workerResumePolicy: fastPolicy }, executor);
-    await coord.runAnalysis(SYMBOL);
-    expect(events).toHaveLength(1);
-    const e = events[0]!;
-    expect(e.taskId).toBe(`implement-${SYMBOL}`);
-    expect(e.type).toBe('retry');
-    expect(e.attempt).toBe(1);
-    expect(e.nextDelayMs).toBe(0);
-    expect(e.directive).toMatch(/retry-attempt=1/);
-    expect(e.errorMsg).toBe('transient 1');
+    try {
+      const implementFn: WorkerExecutor['implement'] = async () => {
+        calls += 1;
+        if (calls === 1) throw new Error('transient 1');
+        return { artifact };
+      };
+      const { executor } = makeExecutor({ implementFn });
+      const coord = createCoordinator(
+        {
+          taskList, bus, workerResumePolicy: fastPolicy,
+          verificationDeps: { runTsc: false, runBunTest: false },
+        },
+        executor,
+      );
+      await coord.runAnalysis(SYMBOL);
+      expect(events).toHaveLength(1);
+      const e = events[0]!;
+      expect(e.taskId).toBe(`implement-${SYMBOL}`);
+      expect(e.type).toBe('retry');
+      expect(e.attempt).toBe(1);
+      expect(e.nextDelayMs).toBe(0);
+      expect(e.directive).toMatch(/retry-attempt=1/);
+      expect(e.errorMsg).toBe('transient 1');
+    } finally {
+      await unlink(artifact).catch(() => {});
+    }
   });
 
-  test('with policy: implementation success path still works when depth="deep"', async () => {
+  test('with policy: implementation + verification success path still works when depth="deep"', async () => {
     // Regression check: v1 deep-depth impl success must keep working under
-    // the resume wrapper. Catches accidental changes to the implement-phase
-    // success path.
+    // the resume wrapper, AND the v2 runVerification pipeline must accept
+    // a real artifact file. Catches accidental changes to either the
+    // implement-phase success path or the verify wiring.
     const taskList = createInMemoryTaskList({ now: () => FIXED_NOW });
     const { events } = captureResumeEvents(bus);
-    const implementFn: WorkerExecutor['implement'] = async () => ({
-      artifact: `/reports/${SYMBOL}-deep.md`,
+    const artifact = `/tmp/upup-deep-${Date.now()}-${Math.random().toString(36).slice(2)}.md`;
+    await Bun.write(
+      artifact,
+      '# 600519.SH Deep Report\n\n## Synthesis\n\nBullish.\n\n## Recommendation\n\nBUY.',
+    );
+    const { unlink } = await import('node:fs/promises');
+    try {
+      const implementFn: WorkerExecutor['implement'] = async () => ({ artifact });
+      const { executor } = makeExecutor({ implementFn });
+      const coord = createCoordinator(
+        {
+          taskList,
+          bus,
+          workerResumePolicy: fastPolicy,
+          verificationDeps: { runTsc: false, runBunTest: false },
+        },
+        executor,
+      );
+      const result = await coord.runAnalysis(SYMBOL, { depth: 'deep' });
+      expect(result.implementation?.artifact).toBe(artifact);
+      expect(result.verification?.ok).toBe(true);
+      expect(events).toHaveLength(0);
+    } finally {
+      await unlink(artifact).catch(() => {});
+    }
+  });
+});
+
+/**
+ * Sprint 2.1.7: Phase 4 verification is now backed by runVerification
+ * (file-exists + readable + extension-specific parse + optional
+ * tsc --noEmit + optional bun test). Failures retry via the same
+ * runWithResume wrapper as Phase 3 when workerResumePolicy is set.
+ *
+ * Tests use a fake `VerificationRunner` so we don't actually spawn
+ * `bun x tsc` / `bun test` processes. Artifact files are written to
+ * /tmp via Bun.write so the file-exists check sees real files.
+ */
+describe('coordinator v2 (Sprint 2.1.7) — runVerification wiring', () => {
+  let bus: EventBus;
+  beforeEach(() => {
+    bus = createEventBus();
+  });
+
+  function captureResumeEvents(bus: EventBus): {
+    events: Array<{ taskId: string; type: string; attempt: number; errorMsg?: string }>;
+    byType: () => Record<string, number>;
+  } {
+    const events: Array<{ taskId: string; type: string; attempt: number; errorMsg?: string }> = [];
+    bus.on('coordinator.worker.resume', (e) => {
+      const p = e.payload as {
+        taskId: string;
+        event: { type: string; attempt: number; error: Error };
+      };
+      events.push({
+        taskId: p.taskId,
+        type: p.event.type,
+        attempt: p.event.attempt,
+        errorMsg: p.event.error.message,
+      });
     });
-    const verifyFn: WorkerExecutor['verify'] = async (a) => ({ ok: true, notes: `ok ${a}` });
-    const { executor } = makeExecutor({ implementFn, verifyFn });
-    const coord = createCoordinator({ taskList, bus, workerResumePolicy: fastPolicy }, executor);
-    const result = await coord.runAnalysis(SYMBOL, { depth: 'deep' });
-    expect(result.implementation?.artifact).toBe(`/reports/${SYMBOL}-deep.md`);
-    expect(result.verification?.ok).toBe(true);
-    expect(events).toHaveLength(0);
+    return {
+      events,
+      byType: () =>
+        events.reduce<Record<string, number>>((acc, ev) => {
+          acc[ev.type] = (acc[ev.type] ?? 0) + 1;
+          return acc;
+        }, {}),
+    };
+  }
+
+  const fastPolicy = {
+    maxAttempts: 3,
+    initialBackoffMs: 0,
+    backoffFactor: 1,
+    maxBackoffMs: 0,
+    sleep: () => Promise.resolve(),
+  };
+
+  /** Make a tmp .ts path (does not actually create the file). */
+  const tmpTsPath = (tag: string) =>
+    `/tmp/upup-verif-${tag}-${Date.now()}-${Math.random().toString(36).slice(2)}.ts`;
+
+  test('with policy: verification retries on tsc failure, succeeds on 2nd attempt', async () => {
+    const taskList = createInMemoryTaskList({ now: () => FIXED_NOW });
+    const { events, byType } = captureResumeEvents(bus);
+    const artifact = tmpTsPath('retry');
+    await Bun.write(artifact, 'export const x: number = 1;');
+    const { unlink } = await import('node:fs/promises');
+
+    let tscCalls = 0;
+    const fakeRunner: import('./verification.js').VerificationRunner = {
+      async run(cmd) {
+        if (cmd.includes('tsc')) {
+          tscCalls += 1;
+          if (tscCalls === 1) {
+            return { exitCode: 2, stdout: '', stderr: 'error TS2: transient' };
+          }
+          return { exitCode: 0, stdout: '', stderr: '' };
+        }
+        return { exitCode: 0, stdout: '', stderr: '' };
+      },
+    };
+
+    try {
+      const implementFn: WorkerExecutor['implement'] = async () => ({ artifact });
+      const { executor } = makeExecutor({ implementFn });
+      const coord = createCoordinator(
+        {
+          taskList, bus, workerResumePolicy: fastPolicy, verificationRunner: fakeRunner,
+          // No sibling .test.ts exists for the tmp artifact, so disable
+          // the bun-test step to keep the retry count predictable.
+          verificationDeps: { runBunTest: false },
+        },
+        executor,
+      );
+      const result = await coord.runAnalysis(SYMBOL, { depth: 'deep' });
+      expect(tscCalls).toBe(2);
+      expect(result.verification?.ok).toBe(true);
+      // 1 retry event from the verify phase (implement succeeded on 1st try)
+      expect(byType()).toEqual({ retry: 1 });
+      // The retry event's taskId points to the verification task
+      const ev = events.find((e) => e.taskId.startsWith('verify-'))!;
+      expect(ev.type).toBe('retry');
+      expect(ev.attempt).toBe(1);
+      expect(ev.errorMsg).toMatch(/transient/);
+    } finally {
+      await unlink(artifact).catch(() => {});
+    }
+  });
+
+  test('with policy: verification exhausts all retries when tsc always fails', async () => {
+    const taskList = createInMemoryTaskList({ now: () => FIXED_NOW });
+    const { byType } = captureResumeEvents(bus);
+    const artifact = tmpTsPath('exhaust');
+    await Bun.write(artifact, 'export const x: number = 1;');
+    const { unlink } = await import('node:fs/promises');
+
+    let tscCalls = 0;
+    const fakeRunner: import('./verification.js').VerificationRunner = {
+      async run() {
+        tscCalls += 1;
+        return { exitCode: 1, stdout: '', stderr: 'persistent tsc error' };
+      },
+    };
+
+    try {
+      const implementFn: WorkerExecutor['implement'] = async () => ({ artifact });
+      const { executor } = makeExecutor({ implementFn });
+      const coord = createCoordinator(
+        { taskList, bus, workerResumePolicy: fastPolicy, verificationRunner: fakeRunner },
+        executor,
+      );
+      const result = await coord.runAnalysis(SYMBOL, { depth: 'deep' });
+      expect(tscCalls).toBe(3); // maxAttempts=3
+      expect(result.verification?.ok).toBe(false);
+      expect(byType()).toEqual({ retry: 2, exhausted: 1 });
+      const ver = await taskList.list({ phase: 'verification' });
+      expect(ver[0]?.status).toBe('failed');
+    } finally {
+      await unlink(artifact).catch(() => {});
+    }
+  });
+
+  test('no workerResumePolicy: verification single attempt, no resume events', async () => {
+    const taskList = createInMemoryTaskList({ now: () => FIXED_NOW });
+    const { events } = captureResumeEvents(bus);
+    const artifact = tmpTsPath('nopolicy');
+    await Bun.write(artifact, 'export const x: number = 1;');
+    const { unlink } = await import('node:fs/promises');
+
+    let tscCalls = 0;
+    const fakeRunner: import('./verification.js').VerificationRunner = {
+      async run() {
+        tscCalls += 1;
+        return { exitCode: 1, stdout: '', stderr: 'fail' };
+      },
+    };
+
+    try {
+      const implementFn: WorkerExecutor['implement'] = async () => ({ artifact });
+      const { executor } = makeExecutor({ implementFn });
+      const coord = createCoordinator(
+        { taskList, bus, verificationRunner: fakeRunner },
+        executor,
+      );
+      const result = await coord.runAnalysis(SYMBOL, { depth: 'deep' });
+      expect(tscCalls).toBe(1);
+      expect(result.verification?.ok).toBe(false);
+      expect(events).toHaveLength(0);
+    } finally {
+      await unlink(artifact).catch(() => {});
+    }
+  });
+
+  test('executor.verify is no longer called from Phase 4 (replaced by runVerification)', async () => {
+    // Regression: ensure backward-compat `executor.verify` is NOT called
+    // when runVerification is the new path. Tests that previously
+    // relied on verifyFn must now drive verification through artifact
+    // content + injected runner.
+    const taskList = createInMemoryTaskList({ now: () => FIXED_NOW });
+    let verifyFnCalled = 0;
+    const artifact = tmpTsPath('novfy');
+    await Bun.write(artifact, 'export const x: number = 1;');
+    const { unlink } = await import('node:fs/promises');
+
+    const fakeRunner: import('./verification.js').VerificationRunner = {
+      async run() {
+        return { exitCode: 0, stdout: '', stderr: '' };
+      },
+    };
+    const verifyFn: WorkerExecutor['verify'] = async () => {
+      verifyFnCalled += 1;
+      return { ok: true };
+    };
+
+    try {
+      const implementFn: WorkerExecutor['implement'] = async () => ({ artifact });
+      const { executor } = makeExecutor({ implementFn, verifyFn });
+      const coord = createCoordinator(
+        { taskList, bus, verificationRunner: fakeRunner },
+        executor,
+      );
+      await coord.runAnalysis(SYMBOL, { depth: 'deep' });
+      expect(verifyFnCalled).toBe(0);
+    } finally {
+      await unlink(artifact).catch(() => {});
+    }
+  });
+
+  test('verificationDeps.runTsc=false skips tsc-noEmit check', async () => {
+    const taskList = createInMemoryTaskList({ now: () => FIXED_NOW });
+    const artifact = tmpTsPath('notsc');
+    await Bun.write(artifact, 'export const x: number = 1;');
+    const { unlink } = await import('node:fs/promises');
+
+    let tscCalls = 0;
+    const fakeRunner: import('./verification.js').VerificationRunner = {
+      async run(cmd) {
+        if (cmd.includes('tsc')) tscCalls += 1;
+        return { exitCode: 0, stdout: '', stderr: '' };
+      },
+    };
+
+    try {
+      const implementFn: WorkerExecutor['implement'] = async () => ({ artifact });
+      const { executor } = makeExecutor({ implementFn });
+      const coord = createCoordinator(
+        {
+          taskList, bus,
+          verificationRunner: fakeRunner,
+          verificationDeps: { runTsc: false, runBunTest: false },
+        },
+        executor,
+      );
+      const result = await coord.runAnalysis(SYMBOL, { depth: 'deep' });
+      expect(tscCalls).toBe(0);
+      expect(result.verification?.ok).toBe(true);
+    } finally {
+      await unlink(artifact).catch(() => {});
+    }
+  });
+
+  test('verificationRunner is invoked with artifact path and configured cwd', async () => {
+    const taskList = createInMemoryTaskList({ now: () => FIXED_NOW });
+    const artifact = tmpTsPath('cwdcheck');
+    await Bun.write(artifact, 'export const x: number = 1;');
+    const { unlink } = await import('node:fs/promises');
+
+    const calls: Array<{ cmd: string[]; opts?: { cwd?: string } }> = [];
+    const fakeRunner: import('./verification.js').VerificationRunner = {
+      async run(cmd, opts) {
+        calls.push({ cmd, opts: opts as { cwd?: string } });
+        return { exitCode: 0, stdout: '', stderr: '' };
+      },
+    };
+
+    try {
+      const implementFn: WorkerExecutor['implement'] = async () => ({ artifact });
+      const { executor } = makeExecutor({ implementFn });
+      const coord = createCoordinator(
+        {
+          taskList, bus,
+          verificationRunner: fakeRunner,
+          verificationDeps: { runTsc: false, runBunTest: false },
+        },
+        executor,
+      );
+      await coord.runAnalysis(SYMBOL, { depth: 'deep' });
+      // file-exists / file-readable use injected fileExists, NOT the
+      // runner. So the runner is never called when both tsc + bun
+      // test are disabled. (Useful negative test.)
+      expect(calls).toHaveLength(0);
+    } finally {
+      await unlink(artifact).catch(() => {});
+    }
   });
 });

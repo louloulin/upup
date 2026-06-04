@@ -69,15 +69,31 @@ export interface CoordinatorDeps {
    */
   wrapInXml?: boolean;
   /**
-   * v2 (Sprint 2.1.5): retry policy for executor.implement() (and, after
-   * 2.1.7, executor.verify()). When omitted, the executor is called once
-   * with no retries (v1 behavior). When set, transient failures are
-   * retried with exponential backoff; each retry writes a `retry-directive`
-   * to the implement task notes and emits a `coordinator.worker.resume`
-   * event on the bus. Use to absorb flake (network, 5xx, timeout) without
-   * the Coordinator marking the task failed on the first hiccup.
+   * v2 (Sprint 2.1.5): retry policy for executor.implement() and for
+   * the built-in verification (runVerification in 2.1.7). When omitted,
+   * both are called once with no retries (v1 behavior). When set,
+   * transient failures are retried with exponential backoff; each retry
+   * writes a `retry-directive` to the task notes and emits a
+   * `coordinator.worker.resume` event on the bus. Use to absorb flake
+   * (network, 5xx, timeout) without the Coordinator marking the task
+   * failed on the first hiccup.
    */
   workerResumePolicy?: Partial<import('./worker-resume.js').WorkerResumePolicy>;
+  /**
+   * v2 (Sprint 2.1.7): inject a custom `VerificationRunner` so the
+   * built-in verification (runVerification) can be exercised in tests
+   * without spawning real `bun x tsc` / `bun test` processes. The
+   * default is a Bun.spawn wrapper. Pass a fake that returns a fixed
+   * exit code to keep tests fast.
+   */
+  verificationRunner?: import('./verification.js').VerificationRunner;
+  /**
+   * v2 (Sprint 2.1.7): extra deps passed to runVerification. Useful for
+   * tests that need to override `resolveTestPath`, `runTsc`, `runBunTest`,
+   * or `fileExists` / `readFile`. Production callers can leave this unset
+   * to use the defaults (file-system + Bun.spawn).
+   */
+  verificationDeps?: Partial<import('./verification.js').VerificationDeps>;
 }
 
 /**
