@@ -191,7 +191,11 @@
 - [x] 4.1.2 实现 `src/telemetry/sink.ts` 本地 JSONL writer(date 滚动 + 100MB 大小滚动 + 7 天保留 + 写队列串行)
 - [x] 4.1.3 实现 `src/telemetry/anonymizer.ts` 脱敏(邮箱/手机/身份证/卡号/IPv4/token/家目录)
 - [x] 4.1.4 写 `src/telemetry/telemetry.test.ts` 29 测试通过
-- [ ] 4.1.5 集成到 feature-gates / tools / agent 主循环(emitToolCall / emitDecision / emitFeatureGate 钩子)
+- [x] 4.1.5 集成到 feature-gates / tools / agent 主循环
+  - integration.ts 安全包装器(try/catch + isEnabled check)
+  - agent.ts executeToolsAndCollectMessages 加 recordToolCallOk/Err(toolStartTimes Map 跟踪 duration)
+  - feature-gates.ts isEnabled 重构 value+source 计算后 emit recordFeatureGate
+  - integration.test.ts 11 e2e 测试通过(40/40 telemetry 全部通过)
 - [x] 4.1.6 JSONL 滚动:date 滚动 + 大小滚动(retentionDays 默认 7)
 
 ### 4.2 research-deep-search (AlphaSense 对标)

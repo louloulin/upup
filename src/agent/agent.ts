@@ -20,6 +20,7 @@ import { AgentToolExecutor } from './tool-executor.js';
 import { getLoopDetector, resetLoopDetector, type RecoveryStrategy } from './loop-recovery.js';
 import { getSessionTracker } from '../session/session-tracker.js';
 import { getPlanModeState } from './plan-mode-state.js';
+import { recordToolCallOk, recordToolCallErr } from '../telemetry/integration.js';
 import { MemoryManager } from '../memory/index.js';
 import { runMemoryFlush, shouldRunMemoryFlush } from '../memory/flush.js';
 import { createExtractionHook, type ExtractionResult } from '../memory/extraction.js';
@@ -744,6 +745,7 @@ export class Agent {
     ctx: RunContext,
   ): AsyncGenerator<AgentEvent, { toolMessages: ToolMessage[]; denied: boolean }> {
     const toolMessageMap = new Map<string, ToolMessage>();
+    const toolStartTimes = new Map<string, number>();
     let denied = false;
     const toolCalls = response.tool_calls!;
 
@@ -787,12 +789,24 @@ export class Agent {
     for await (const event of this.toolExecutor.executeAll(filteredResponse as AIMessage, ctx)) {
       yield event;
 
-      if (event.type === 'tool_end' && event.toolCallId) {
+      if (event.type === 'tool_start' && event.toolCallId) {
+        toolStartTimes.set(event.toolCallId, Date.now());
+      } else if (event.type === 'tool_end' && event.toolCallId) {
         toolMessageMap.set(event.toolCallId, new ToolMessage({
           content: event.result,
           tool_call_id: event.toolCallId,
           name: event.tool,
         }));
+
+        // Telemetry: record successful tool call
+        recordToolCallOk({
+          type: 'tool_end',
+          tool: event.tool,
+          args: event.args || {},
+          result: event.result,
+          duration: event.duration ?? 0,
+          toolCallId: event.toolCallId,
+        });
 
         // Record observation for memory extraction (Claude Code PostToolUse pattern)
         obsBuffer.recordObservation({
@@ -820,6 +834,18 @@ export class Agent {
           tool_call_id: event.toolCallId,
           name: event.tool,
         }));
+
+        // Telemetry: record failed tool call (duration computed from start time)
+        const startedAt = toolStartTimes.get(event.toolCallId) ?? null;
+        recordToolCallErr(
+          {
+            type: 'tool_error',
+            tool: event.tool,
+            error: event.error ?? 'unknown',
+            toolCallId: event.toolCallId,
+          },
+          startedAt,
+        );
 
         // Record error observation for memory extraction
         obsBuffer.recordObservation({

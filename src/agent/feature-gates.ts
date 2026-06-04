@@ -63,6 +63,8 @@ function readStartup(name: string): boolean | null {
 }
 
 /** Deterministic 32-bit FNV-1a hash. Same input always lands in the same bucket. */
+import { recordFeatureGate } from '../telemetry/integration.js';
+
 export function fnv1a(s: string): number {
   let h = 0x811c9dc5;
   for (let i = 0; i < s.length; i++) {
@@ -83,23 +85,32 @@ export function createFeatureGates(): FeatureGates {
   const DEFAULTS = new Map<string, boolean>();
   function isEnabled(name: string, ctx?: { userId?: string }): boolean {
     const rt = RUNTIME.get(name);
+    let value: boolean;
+    let source: 'runtime' | 'compile' | 'env' | 'default';
     if (rt) {
-      if (rt.force === true) return true;
-      if (rt.force === false) return false;
-      if (rt.ratio === undefined) return true;
-      const ratio = Math.max(0, Math.min(1, rt.ratio));
-      const uid = ctx?.userId ?? rt.userId;
-      if (!uid) {
+      if (rt.force === true) { value = true; source = 'runtime'; }
+      else if (rt.force === false) { value = false; source = 'runtime'; }
+      else if (rt.ratio === undefined) { value = true; source = 'runtime'; }
+      else {
+        const ratio = Math.max(0, Math.min(1, rt.ratio));
+        const uid = ctx?.userId ?? rt.userId;
         // Without a stable userId, fall back to enabled (so dev mode is opt-in).
-        return true;
+        value = !uid || bucket(uid, name) < ratio;
+        source = 'runtime';
       }
-      return bucket(uid, name) < ratio;
+    } else {
+      const compile = readCompileTime(name);
+      if (compile !== null) { value = compile; source = 'compile'; }
+      else {
+        const startup = readStartup(name);
+        if (startup !== null) { value = startup; source = 'env'; }
+        else { value = DEFAULTS.get(name) ?? false; source = 'default'; }
+      }
     }
-    const compile = readCompileTime(name);
-    if (compile !== null) return compile;
-    const startup = readStartup(name);
-    if (startup !== null) return startup;
-    return DEFAULTS.get(name) ?? false;
+    // Telemetry: emit feature gate event (no-op when telemetry is disabled).
+    // Wrapped in try/catch defensively — telemetry must never crash the host.
+    try { recordFeatureGate(name, value, source === 'runtime' ? 'growthbook' : source); } catch { /* never throw */ }
+    return value;
   }
 
   function inspect(name: string): FeatureState {
