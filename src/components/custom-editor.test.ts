@@ -16,7 +16,7 @@
  *     runtime type errors when wired in).
  */
 
-import { describe, it, expect } from 'bun:test';
+import { describe, it, expect, mock } from 'bun:test';
 import {
   CombinedAutocompleteProvider,
   type TUI,
@@ -26,7 +26,7 @@ import { CustomEditor } from './custom-editor.js';
 import { listAllCommands } from '../commands/unified-registry.js';
 
 // Minimal TUI stub — Editor only calls requestRender() in normal flow.
-const stubTui = { requestRender: () => {} } as unknown as TUI;
+const stubTui = { requestRender: () => {}, terminal: { rows: 40, cols: 120 } } as unknown as TUI;
 const stubTheme: EditorTheme = {
   borderColor: (s: string) => s,
   selectList: {
@@ -69,5 +69,92 @@ describe('CustomEditor autocomplete wiring', () => {
     }
     const provider = new CombinedAutocompleteProvider(commands, process.cwd());
     expect(provider).toBeInstanceOf(CombinedAutocompleteProvider);
+  });
+});
+
+describe('CustomEditor autocomplete up/down navigation (SCAP-005 regression)', () => {
+  const setupWithProvider = (theme: EditorTheme = stubTheme) => {
+    const editor = new CustomEditor(stubTui, theme);
+    const provider = new CombinedAutocompleteProvider(
+      listAllCommands(),
+      process.cwd(),
+    );
+    editor.setAutocompleteProvider(provider);
+    return editor;
+  };
+
+  const waitForAutocomplete = async (editor: CustomEditor) => {
+    // Slash debounce is 0; getSuggestions is a Promise so we yield a few ticks.
+    await new Promise((r) => setTimeout(r, 30));
+  };
+
+  it('shows the autocomplete popup after typing "/"', async () => {
+    const editor = setupWithProvider();
+    editor.handleInput('/');
+    await waitForAutocomplete(editor);
+    expect(editor.isShowingAutocomplete()).toBe(true);
+  });
+
+  it('renders command names in the popup', async () => {
+    const editor = setupWithProvider();
+    editor.handleInput('/');
+    await waitForAutocomplete(editor);
+    const lines = editor.render(120);
+    // At least one registered slash command name should appear in the popup.
+    const firstCommand = listAllCommands()[0]!.name;
+    expect(lines.some((l) => l.includes(firstCommand))).toBe(true);
+  });
+
+  it('down arrow is NOT intercepted by onApprovalNavigate when no approval is pending', async () => {
+    const editor = setupWithProvider();
+    const navSpy = mock();
+    editor.onApprovalNavigate = navSpy as unknown as (d: 'up' | 'down') => void;
+
+    editor.handleInput('/');
+    await waitForAutocomplete(editor);
+    expect(editor.isShowingAutocomplete()).toBe(true);
+
+    // Pre-fix bug: CustomEditor ate up/down here before super.handleInput
+    // could route it to the autocomplete SelectList.
+    editor.handleInput('\x1b[B');
+
+    expect(navSpy).not.toHaveBeenCalled();
+    // Popup must still be active — proves the key reached the base editor.
+    expect(editor.isShowingAutocomplete()).toBe(true);
+  });
+
+  it('up arrow is NOT intercepted by onApprovalNavigate when no approval is pending', async () => {
+    const editor = setupWithProvider();
+    const navSpy = mock();
+    editor.onApprovalNavigate = navSpy as unknown as (d: 'up' | 'down') => void;
+
+    editor.handleInput('/');
+    await waitForAutocomplete(editor);
+
+    editor.handleInput('\x1b[A');
+
+    expect(navSpy).not.toHaveBeenCalled();
+    expect(editor.isShowingAutocomplete()).toBe(true);
+  });
+
+
+  it('down arrow moves the selected item in the popup', async () => {
+    // pi-tui's SelectList hardcodes the selected prefix to U+2192 followed
+    // by a space. The popup is appended to editor.render() as padded lines
+    // (border + content + padding). We look for the line that contains the
+    // arrow marker; before vs after down arrow should be different lines.
+    const editor = setupWithProvider();
+    editor.handleInput('/');
+    await waitForAutocomplete(editor);
+
+    const findSelected = (lines: string[]) =>
+      lines.findIndex((l) => l.includes('\u2192 '));
+
+    const before = findSelected(editor.render(120));
+    expect(before).toBeGreaterThanOrEqual(0);
+
+    editor.handleInput('\u001b[B'); // down arrow escape sequence
+    const after = findSelected(editor.render(120));
+    expect(after).toBeGreaterThan(before);
   });
 });

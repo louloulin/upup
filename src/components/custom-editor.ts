@@ -125,18 +125,6 @@ export class CustomEditor extends Editor {
       if (consumed) return;
     }
 
-    // Arrow key navigation for approval (when no approval pending but onApprovalNavigate is set)
-    if (this.onApprovalNavigate) {
-      if (matchesKey(data, Key.up)) {
-        this.onApprovalNavigate('up');
-        return;
-      }
-      if (matchesKey(data, Key.down)) {
-        this.onApprovalNavigate('down');
-        return;
-      }
-    }
-
     // Phase 40: Esc double-press for clearing input
     if (matchesKey(data, Key.escape)) {
       const now = Date.now();
