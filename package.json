@@ -35,7 +35,8 @@
     "build:pkg:mac": "pkg . --targets node18-macos-x64 --output dist/upup-macos",
     "build:pkg:win": "pkg . --targets node18-win-x64 --output dist/upup.exe",
     "dist": "bun run build:compile && ./upup --version",
-    "prepack": "bun run build:compile"
+    "prepack": "bun run build:compile",
+    "code-archaeology": "bun run scripts/code-archaeology.ts"
   },
   "dependencies": {
     "@duckdb/duckdb-wasm": "^1.33.1-dev45.0",

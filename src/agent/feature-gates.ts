@@ -245,6 +245,7 @@ const BUILTIN_FEATURES: ReadonlyArray<FeatureFlag> = [
   { name: 'AGENT_CONTEXT_COMPACTION', description: 'Compress old tool results when token budget exceeded',  category: 'agent', defaultEnabled: true,  since: '2026.5.0', owner: 'core' },
   { name: 'KAIROS_PROACTIVE',       description: 'Kairos 6-state proactive agent with autonomy mode',       category: 'agent', defaultEnabled: false, since: '2026.6.0', owner: 'kairos' },
   { name: 'COACH_MODE',            description: 'Sprint 1.1: 投研 Claude 人设注入主对话 system prompt',   category: 'agent', defaultEnabled: false, since: '2026.6.0', owner: 'coach' },
+  { name: 'CODE_ARCHAEOLOGY',     description: 'Sprint v4-1: code-archaeology 自动代码考古 (CODE-MAP.md + 5 layer 分布 + hot spots + orphans)', category: 'tools', defaultEnabled: true, since: '2026.6.0', owner: 'tools' },
   { name: 'KAIROS_CHANNELS',        description: 'Sprint 1.3: push channels 5 路 (cli/wechat/feishu/dingtalk/email) for coach + kairos', category: 'agent', defaultEnabled: false, since: '2026.6.0', owner: 'kairos' },
 
   // ---- Trading (10) ----------------------------------------------------
