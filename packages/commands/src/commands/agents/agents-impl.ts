@@ -5,6 +5,7 @@
  */
 
 import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types.js'
+import { getSubagentPortLocal } from '../../agent-port.js'
 
 export const call = async (
   args: string,
@@ -20,21 +21,21 @@ export const call = async (
     '',
   ]
 
-  // Try to get subagent list
-  try {
-    const { getDefaultSubagentRunner } = await import('../../../../../src/agent/subagent-runner.js')
-    const runner = getDefaultSubagentRunner()
-    const tasks = runner.getAllTasks()
-
-    if (tasks.length > 0) {
-      lines.push('  Background Agents:')
-      for (let i = 0; i < tasks.length; i++) {
-        const task = tasks[i]
-        lines.push(`    ${i + 2}. ${task.status}: ${task.prompt.substring(0, 40)}...`)
+  // Use the port registry — no fragile deep import needed
+  const subagent = getSubagentPortLocal()
+  if (subagent) {
+    try {
+      const tasks = subagent.getAllTasks()
+      if (tasks.length > 0) {
+        lines.push('  Background Agents:')
+        for (let i = 0; i < tasks.length; i++) {
+          const task = tasks[i]
+          lines.push(`    ${i + 2}. ${task.status}: ${task.prompt.substring(0, 40)}...`)
+        }
       }
+    } catch {
+      // Subagent port not available
     }
-  } catch {
-    // Subagent runner not available
   }
 
   lines.push('')

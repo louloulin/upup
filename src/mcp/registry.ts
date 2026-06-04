@@ -132,3 +132,37 @@ export function getMCPStatus(client: MCPClientManager): {
     })),
   };
 }
+
+
+// ============================================================================
+// Self-registration with public port registry
+// ============================================================================
+// Allows packages/commands/ to access MCP status without a fragile
+// 4-level `await import('../../../../../src/mcp/registry.js')` path.
+// Builds the status from the same MergedClientRegistry that the rest of the
+// module already uses.
+import {
+  registerMcpRegistryPort,
+  type McpRegistryPort,
+  type McpStatus,
+} from '../agent/agent-port.js';
+
+function registerSelf(): void {
+  const port: McpRegistryPort = {
+    getStatus(): McpStatus {
+      const merged = useMergedClients();
+      const clients = merged.getClients();
+      const totalServers = clients.length;
+      const connectedServers = clients.filter((c) => c.connected).length;
+      const totalTools = clients.reduce((sum, c) => sum + c.tools.length, 0);
+      const servers = clients.map((c) => ({
+        name: c.name,
+        state: c.connected ? 'connected' : 'disconnected',
+        toolCount: c.tools.length,
+      }));
+      return { totalServers, connectedServers, totalTools, servers };
+    },
+  };
+  registerMcpRegistryPort(port);
+}
+registerSelf();

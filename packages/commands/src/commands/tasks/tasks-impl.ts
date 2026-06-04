@@ -5,6 +5,7 @@
  */
 
 import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types.js'
+import { getSubagentPortLocal } from '../../agent-port.js'
 
 export const call = async (
   args: string,
@@ -18,25 +19,25 @@ export const call = async (
     '',
   ]
 
-  // Check if there's a task system
-  try {
-    // Import task system if available
-    const { getDefaultSubagentRunner } = await import('../../../../../src/agent/subagent-runner.js')
-    const runner = getDefaultSubagentRunner()
-    const tasks = runner.getAllTasks()
-
-    if (tasks.length === 0) {
-      lines.push('  No active background tasks.')
-    } else {
-      for (let i = 0; i < tasks.length; i++) {
-        const task = tasks[i]
-        lines.push(`  ${i + 1}. ${task.status}: ${task.prompt.substring(0, 50)}...`)
-        if (task.result) {
-          lines.push(`     Status: ${task.status}`)
+  // Use the port registry — no fragile deep import needed
+  const subagent = getSubagentPortLocal()
+  if (subagent) {
+    try {
+      const tasks = subagent.getAllTasks()
+      if (tasks.length === 0) {
+        lines.push('  No active background tasks.')
+      } else {
+        for (let i = 0; i < tasks.length; i++) {
+          const task = tasks[i]
+          lines.push(`  ${i + 1}. ${task.status}: ${task.prompt.substring(0, 50)}...`)
         }
       }
+    } catch {
+      lines.push('  No active background tasks.')
+      lines.push('')
+      lines.push('  Use /fork to start a background task.')
     }
-  } catch {
+  } else {
     lines.push('  No active background tasks.')
     lines.push('')
     lines.push('  Use /fork to start a background task.')

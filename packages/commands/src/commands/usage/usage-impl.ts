@@ -5,6 +5,7 @@
  */
 
 import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types.js'
+import { getStatePortLocal } from '../../agent-port.js'
 
 export const call = async (
   args: string,
@@ -18,20 +19,34 @@ export const call = async (
     '',
   ]
 
-  try {
-    const { getAppState, formatCost, formatTokens } = await import('../../../../../src/state/index.js')
-    const appState = getAppState()
-    const state = appState.getState()
+  // Use the port registry — no fragile deep import needed
+  const statePort = getStatePortLocal()
+  if (statePort) {
+    try {
+      const appState = statePort.getAppState()
+      const state = appState.getState() as {
+        totalInputTokens: number;
+        totalOutputTokens: number;
+        totalTokens: number;
+        totalCostUSD: number;
+        totalToolCalls: number;
+        totalToolErrors: number;
+      }
 
-    lines.push(`  Input:  ${formatTokens(state.totalInputTokens)} tokens`)
-    lines.push(`  Output: ${formatTokens(state.totalOutputTokens)} tokens`)
-    lines.push(`  Total:  ${formatTokens(state.totalTokens)} tokens`)
-    lines.push('')
-    lines.push(`  Session Cost: ${formatCost(state.totalCostUSD)}`)
-    lines.push('')
-    lines.push(`  Tool Calls: ${state.totalToolCalls}`)
-    lines.push(`  Errors: ${state.totalToolErrors}`)
-  } catch {
+      lines.push(`  Input:  ${statePort.formatTokens(state.totalInputTokens)} tokens`)
+      lines.push(`  Output: ${statePort.formatTokens(state.totalOutputTokens)} tokens`)
+      lines.push(`  Total:  ${statePort.formatTokens(state.totalTokens)} tokens`)
+      lines.push('')
+      lines.push(`  Session Cost: ${statePort.formatCost(state.totalCostUSD)}`)
+      lines.push('')
+      lines.push(`  Tool Calls: ${state.totalToolCalls}`)
+      lines.push(`  Errors: ${state.totalToolErrors}`)
+    } catch {
+      lines.push('  Usage data not available.')
+      lines.push('')
+      lines.push('  Use /cost for detailed cost tracking.')
+    }
+  } else {
     lines.push('  Usage data not available.')
     lines.push('')
     lines.push('  Use /cost for detailed cost tracking.')

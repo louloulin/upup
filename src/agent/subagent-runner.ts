@@ -590,3 +590,42 @@ export function resetDefaultSubagentRunner(): void {
   }
   defaultRunner = null;
 }
+
+
+// ============================================================================
+// Self-registration with public port registry
+// ============================================================================
+// Allows packages/commands/ to access subagent capabilities without a fragile
+// 4-level `await import('../../../../src/agent/...')` path.
+import { registerSubagentPort, type SubagentPort } from './agent-port.js';
+
+function registerSelf(): void {
+  const port: SubagentPort = {
+    createTask: async (config) => {
+      const runner = getDefaultSubagentRunner();
+      // The consumer-facing API is `createTask({description, prompt, runInBackground})`,
+      // which maps to the underlying `runAsync(config, prompt, context)`.
+      const taskId = await runner.runAsync(
+        {
+          name: config.description,
+          systemPrompt: config.description,
+          type: 'general',
+          tools: '*',
+          runInBackground: config.runInBackground ?? false,
+        },
+        config.prompt,
+      );
+      return { id: taskId };
+    },
+    getAllTasks: () => {
+      const runner = getDefaultSubagentRunner();
+      return runner.getAllTasks().map((t) => ({
+        id: t.id,
+        status: t.status,
+        prompt: t.prompt,
+      }));
+    },
+  };
+  registerSubagentPort(port);
+}
+registerSelf();

@@ -8,6 +8,7 @@
  */
 
 import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types.js'
+import { getSubagentPortLocal } from '../../agent-port.js'
 
 export const call = async (
   args: string,
@@ -40,24 +41,27 @@ agent runner system in src/agent/subagent-runner.js
     }
   }
 
-  // Try to import and use the actual agent system
-  try {
-    const { getDefaultSubagentRunner } = await import('../../../../src/agent/subagent-runner.js')
-    const runner = getDefaultSubagentRunner()
-
-    const task = runner.createTask({
-      description,
-      prompt: `You are a subagent tasked with: ${description}`,
-      runInBackground: isBackground,
-    })
-
-    return {
-      type: 'text',
-      value: isBackground
-        ? `✅ Agent spawned in background (ID: ${task.id})\n   Task: ${description}`
-        : `🤖 Agent started (ID: ${task.id})\n   Task: ${description}\n\nUse /tasks to check status.`,
+  // Use the port registry — no fragile deep import needed
+  const subagent = getSubagentPortLocal()
+  if (subagent) {
+    try {
+      const task = await subagent.createTask({
+        description,
+        prompt: `You are a subagent tasked with: ${description}`,
+        runInBackground: isBackground,
+      })
+      return {
+        type: 'text',
+        value: isBackground
+          ? `✅ Agent spawned in background (ID: ${task.id})\n   Task: ${description}`
+          : `🤖 Agent started (ID: ${task.id})\n   Task: ${description}\n\nUse /tasks to check status.`,
+      }
+    } catch {
+      // Fall through to fallback
     }
-  } catch {
+  }
+
+  try {
     // Fallback: describe what would happen
     return {
       type: 'text',

@@ -5,6 +5,7 @@
  */
 
 import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types.js'
+import { getMcpRegistryPortLocal } from '../../agent-port.js'
 
 export const call = async (
   args: string,
@@ -28,16 +29,20 @@ export const call = async (
     '  Current MCP servers:',
   ]
 
-  // Try to get MCP status
-  try {
-    const { getMCPStatus } = await import('../../../../../src/mcp/registry.js')
-    const status = getMCPStatus()
-    if (status.totalServers > 0) {
-      lines.push(`    ${status.connectedServers}/${status.totalServers} connected`)
-    } else {
+  // Use the port registry — no fragile deep import needed
+  const mcp = getMcpRegistryPortLocal()
+  if (mcp) {
+    try {
+      const status = mcp.getStatus()
+      if (status.totalServers > 0) {
+        lines.push(`    ${status.connectedServers}/${status.totalServers} connected`)
+      } else {
+        lines.push('    No MCP servers configured')
+      }
+    } catch {
       lines.push('    No MCP servers configured')
     }
-  } catch {
+  } else {
     lines.push('    No MCP servers configured')
   }
 

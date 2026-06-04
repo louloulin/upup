@@ -18,7 +18,7 @@
 
 ### 1.3 跨包边界用端口(Port)
 
-跨 `packages/commands/` ↔ `src/agent/` 的访问必须通过**端口注册表**(globalThis 上的 typed registry),不允许直接相对路径 import。
+跨 `packages/commands/` ↔ `src/` 的访问必须通过**端口注册表**(globalThis 上的 typed registry),不允许直接相对路径 import。
 
 ## 2. 分层(从下到上)
 
@@ -37,6 +37,8 @@ Layer 8:  packages/commands/  旧命令容器(只允许消费 ports)
 
 **规则**:Layer N 只能 import Layer 0..N-1,不能 import 同层或更高层。
 
+**注**:port 注册表 (`src/agent/agent-port.ts`) 是一个跨层基础设施,不是普通的 Layer 5 模块。它的存在就是为了让高层和低层之间通过 `globalThis` 类型化注册表通信,而不是用脆弱的相对路径 import。src/state/ 等"边界"模块可以 import 它,因为这就是它的职责。
+
 ## 3. 跨包端口注册表
 
 ### 3.1 位置
@@ -44,32 +46,36 @@ Layer 8:  packages/commands/  旧命令容器(只允许消费 ports)
 | 文件 | 角色 |
 |------|------|
 | `src/agent/agent-port.ts` | 端口接口 + 注册表(globalThis.__upupAgentPorts) |
-| `packages/commands/src/agent-port.ts` | 端口接口本地副本(只 4 行的 interface) |
+| `packages/commands/src/agent-port.ts` | 端口接口本地副本 |
 
-### 3.2 当前注册的端口
+### 3.2 当前注册的端口 (v7-2b 之后)
 
-| 端口 | 实现方 | 消费方 |
-|------|-------|-------|
-| `PlanModePort` | `src/agent/plan-mode-state.ts`(模块加载时自注册) | `packages/commands/src/commands/plan/plan-impl.ts` |
-| `PlanModePort` | 同上 | `packages/commands/src/commands/add-step/add-step-impl.ts` |
-| `AgentConfigPort` | (v6 计划) | (v6 计划) |
-| `SessionPort` | (v6 计划) | (v6 计划) |
+| 端口 | 接口文件 | 实现方(自注册) | 消费方 (packages/commands/) |
+|------|---------|---------------|------------------------------|
+| `PlanModePort` | `src/agent/agent-port.ts` | `src/agent/plan-mode-state.ts` | `exit-plan-impl.ts`, `steps-impl.ts` |
+| `AgentConfigPort` | 同上 | (v6 计划) | (v6 计划) |
+| `SessionPort` | 同上 | (v6 计划) | (v6 计划) |
+| `SubagentPort` | 同上 | `src/agent/subagent-runner.ts` | `agent-impl.ts`, `agents-impl.ts`, `tasks-impl.ts` |
+| `McpRegistryPort` | 同上 | `src/mcp/registry.ts` | `mcp-add-impl.ts` |
+| `StatePort` | 同上 | `src/state/index.ts` (re-export 包装) | `resume-impl.ts`, `usage-impl.ts` |
 
 ### 3.3 添加新端口的流程
 
 1. 在 `src/agent/agent-port.ts` 加 interface + register/getter
-2. 在 `packages/commands/src/agent-port.ts` 加本地副本(4 行 interface)
-3. 在 `src/agent/` 某个模块末尾 `import { registerFoo } from './agent-port.js'` + `registerSelf()`
-4. 在 `packages/commands/` 用 `getFooPortLocal()` 消费,不需要 import src/
+2. 在 `packages/commands/src/agent-port.ts` 加本地副本 interface + getter (`*Local`)
+3. 在 `src/<layer>/<module>` 末尾 `import { registerXPort } from './agent-port.js'` + `registerSelf()`
+4. 在 `packages/commands/` 用 `getXPortLocal()` 消费,不需要 import src/
 
 ### 3.4 为什么用 globalThis
 
-- **零静态依赖**:packages/commands/ 不需要在编译期 resolve `src/agent/`
+- **零静态依赖**:packages/commands/ 不需要在编译期 resolve `src/`
 - **零相对路径**:不会出现 `../../../../src/...` 这种脆弱的深层路径
 - **类型安全**:TypeScript 通过本地 interface 副本保证类型一致(测试套件保证不漂移)
-- **可测试**:`__resetAgentPorts()` 让测试可以隔离
+- **可测试**:`__resetAgentPorts()` 让测试可以隔离(但注意:全局 reset 会影响同进程的其他测试,见 §7 测试注意事项)
 
 ## 4. 已修复的循环依赖征兆
+
+### 4.1 v6-1: PlanModePort
 
 | 位置 | 修复前 | 修复后 |
 |------|-------|-------|
@@ -80,26 +86,42 @@ Layer 8:  packages/commands/  旧命令容器(只允许消费 ports)
 
 **修复后**:port 注册表在 `src/agent/plan-mode-state.ts` 模块加载时自注册,`packages/commands/` 通过 globalThis 读取,零路径耦合。
 
+### 4.2 v7-2b: 8 个剩余深层 import 一并消除
+
+| # | 文件 | 修复前 | 修复后 |
+|---|------|-------|-------|
+| 1 | `agent-impl.ts:45` | `await import('../../../../src/agent/subagent-runner.js')` (4 级) | `getSubagentPortLocal()` |
+| 2 | `agents-impl.ts:25` | `await import('../../../../../src/agent/subagent-runner.js')` (5 级) | `getSubagentPortLocal()` |
+| 3 | `exit-plan/exit-plan-impl.ts:18,45` | `await import('../../../../src/agent/plan-mode-state.js')` (4 级) | `getPlanModePortLocal()` |
+| 4 | `mcp-add/mcp-add-impl.ts:33` | `await import('../../../../../src/mcp/registry.js')` (5 级) | `getMcpRegistryPortLocal()` |
+| 5 | `resume/resume-impl.ts:31` | `await import('../../../../../src/state/index.js')` (5 级) | `getStatePortLocal()` |
+| 6 | `steps/steps-impl.ts:18` | `await import('../../../../src/agent/plan-mode-state.js')` (4 级) | `getPlanModePortLocal()` |
+| 7 | `tasks/tasks-impl.ts:24` | `await import('../../../../../src/agent/subagent-runner.js')` (5 级) | `getSubagentPortLocal()` |
+| 8 | `usage/usage-impl.ts:22` | `await import('../../../../../src/state/index.js')` (5 级) | `getStatePortLocal()` |
+
+**新增 3 个端口**(扩展了 §3.2 的端口表):
+- `SubagentPort` (注册于 `src/agent/subagent-runner.ts`)
+- `McpRegistryPort` (注册于 `src/mcp/registry.ts`)
+- `StatePort` (注册于 `src/state/index.ts` re-export 包装)
+
 ## 5. src/tools/ 内部规则
 
 ### 5.1 允许的依赖方向
 
 ```
-src/tools/portfolio/index.ts        → src/tools/portfolio/{portfolio-tools,multi-portfolio,types}.ts
-src/tools/portfolio/*.ts            → src/tools/types.ts
-src/tools/portfolio/*.ts            → src/tools/astock/tushare-client.ts (单向下游)
-src/tools/portfolio/*.ts            → src/utils/storage-paths.ts
-src/tools/portfolio/*.ts            → 外部:@langchain/core/tools, zod
+src/tools/portfolio/store.ts          → 无 src/ 内部依赖 (纯数据层)
+src/tools/portfolio/service.ts        → store.ts + astock/tushare-client.ts (业务逻辑)
+src/tools/portfolio/tracker.ts        → service.ts + store.ts (LangChain tool 包装)
+src/tools/portfolio/{brinson,sector,style}-attribution.ts → types.ts
+src/tools/portfolio/portfolio-tools.ts → types.ts + utils/storage-paths.ts
 ```
 
 **禁止**:`src/tools/portfolio/*` → `src/agent/*` 或 `src/tools/registry/*`(反向引用会产生循环)。
 
-### 5.2 已有的边界设计
+### 5.2 v7-2 计划
 
-- `src/tools/registry/domain-tools.ts` 中 `multi-portfolio.js` 用 `await import` 懒加载(已用 try/catch 包住,允许运行时缺失)
-- `src/tools/export/export-tools.ts:124` 中 `portfolio/index.js` 用 `await import` 懒加载(同上)
-
-**v6 重构目标**:把这两个 `await import` 也改成端口注入模式,完全消除动态 import。
+- 把 `src/tools/registry/domain-tools.ts` 的 `await import('...multi-portfolio.js')` 改成静态 import(已无循环风险)
+- 把 `src/tools/export/export-tools.ts:124` 的 `await import('...portfolio/index.js')` 改成静态 import
 
 ## 6. src/commands/ 内部规则
 
@@ -111,24 +133,33 @@ src/tools/portfolio/*.ts            → 外部:@langchain/core/tools, zod
 
 ### 6.2 旧命令(packages/commands/src/commands/)
 
-- 通过 `packages/commands/src/agent-port.ts` 消费 src/agent/ 能力
-- 不允许 `await import('../../../../src/...')` 跨包导入
+- 通过 `packages/commands/src/agent-port.ts` 消费 src/ 能力
+- 不允许 `await import('../../../../../src/...')` 跨包导入 (v7-2b 后已全部消除)
 
 ## 7. 测试要求
 
-- 每个端口必须有 `agent-port.test.ts` 验证注册 + 消费
-- 每个跨包消费点必须有 e2e 测试(启动 → 端口注册 → 命令消费)
+- 每个端口必须有 `agent-port.test.ts` (基础) + `agent-port-extended.test.ts` (v7-2b 新增的 3 个) 验证注册 + 消费
+- 每个跨包消费点应该有 e2e 测试(启动 → 端口注册 → 命令消费)
 - 禁止 `try/catch` 包住 import,这是循环依赖的征兆
+
+### 7.1 已知测试隔离问题 (TODO: v7-2c 修)
+
+`src/agent/plan-auto-trigger.test.ts` 的 `beforeEach(() => { __resetAgentPorts(); })` 会清空全局 port 注册表,影响同进程运行的其他测试(agent-port 的 PlanMode 相关测试会失败)。**当前状态**:单文件跑全绿;混合跑时部分 fail。
+
+**修复方向**:
+- 改成 `beforeEach(() => { saveAgentPorts(); __resetAgentPorts(); })` + `afterEach(() => { restoreAgentPorts(); })`
+- 或者把 `__resetAgentPorts` 改成只清空测试自己关心的 port
+
+**不是 v7-2b 引入的回归**——stash 后的 main 也有同样问题。
 
 ## 8. 验证清单(PR Review)
 
-- [ ] 无 `await import('../../../../...')` 跨包动态导入
+- [ ] 无 `await import('../../../../../...')` 跨包动态导入
 - [ ] 无用 `try/catch` 包住的 import
 - [ ] 无 Layer N → Layer N+1 的反向 import
 - [ ] 新端口已加 `src/agent/agent-port.ts` + 本地副本 + 单测
 - [ ] typecheck + 关联模块单测全绿
-
----
+- [ ] src/agent/agent-port.test.ts + agent-port-extended.test.ts 全绿
 
 ## 9. v7-2 依赖审计与重构 (Dependency Audit & Refactor)
 
@@ -143,26 +174,20 @@ src/tools/portfolio/*.ts            → 外部:@langchain/core/tools, zod
 - **5 条 `src/tools/` → `src/utils/` 边**:正常向下依赖
 - **1 条 `packages/` → `src/tools/` 边**:遗留,不在 v7-2 范围
 
-### 9.2 深层相对路径清单 (4 级及以上)
+### 9.2 深层相对路径清单 (v7-2b 之前 8 个,v7-2b 之后 0 个)
 
-> 这一节是 v7-2 收尾的**主要待办**。所有 4+ 级 `../` 都是循环依赖征兆(v6-1 commit 修复了 2 个,还剩 8 个)。
+| # | 文件 | 目标 | 现状 (v7-2b 之后) |
+|---|------|------|-----------------|
+| 1 | `packages/commands/.../agent-impl.ts:45` | `src/agent/subagent-runner.js` | `getSubagentPortLocal()` |
+| 2 | `packages/commands/.../agents-impl.ts:25` | `src/agent/subagent-runner.js` | `getSubagentPortLocal()` |
+| 3 | `packages/commands/.../exit-plan-impl.ts` | `src/agent/plan-mode-state.js` | `getPlanModePortLocal()` |
+| 4 | `packages/commands/.../mcp-add-impl.ts:33` | `src/mcp/registry.js` | `getMcpRegistryPortLocal()` |
+| 5 | `packages/commands/.../resume-impl.ts:31` | `src/state/index.js` | `getStatePortLocal()` |
+| 6 | `packages/commands/.../steps-impl.ts:18` | `src/agent/plan-mode-state.js` | `getPlanModePortLocal()` |
+| 7 | `packages/commands/.../tasks-impl.ts:24` | `src/agent/subagent-runner.js` | `getSubagentPortLocal()` |
+| 8 | `packages/commands/.../usage-impl.ts:22` | `src/state/index.js` | `getStatePortLocal()` |
 
-| # | 文件 | 目标 | 现状 |
-|---|------|------|------|
-| 1 | `packages/commands/src/commands/agent/agent-impl.ts:45` | `../../../../src/agent/subagent-runner.js` | `getDefaultSubagentRunner` |
-| 2 | `packages/commands/src/commands/agents/agents-impl.ts:25` | `../../../../../src/agent/subagent-runner.js` | `getDefaultSubagentRunner` |
-| 3 | `packages/commands/src/commands/exit-plan/exit-plan-impl.ts:18,45` | `../../../../src/agent/plan-mode-state.js` | `getPlanModeState` (端口已存在,待切换) |
-| 4 | `packages/commands/src/commands/mcp-add/mcp-add-impl.ts:33` | `../../../../../src/mcp/registry.js` | `getMCPStatus` |
-| 5 | `packages/commands/src/commands/resume/resume-impl.ts:31` | `../../../../../src/state/index.js` | `getSessionManager` |
-| 6 | `packages/commands/src/commands/steps/steps-impl.ts:18` | `../../../../src/agent/plan-mode-state.js` | `getPlanModeState` (端口已存在) |
-| 7 | `packages/commands/src/commands/tasks/tasks-impl.ts:24` | `../../../../../src/agent/subagent-runner.js` | `getDefaultSubagentRunner` |
-| 8 | `packages/commands/src/commands/usage/usage-impl.ts:22` | `../../../../../src/state/index.js` | `getAppState` / `formatCost` / `formatTokens` |
-
-**修复模式**(v7-2 后续 sprint):
-1. 在 `src/agent/agent-port.ts` 加 `SubagentPort` / `McpRegistryPort` / `StatePort` interface
-2. 在 `src/agent/subagent-runner.ts` / `src/mcp/registry.ts` / `src/state/index.ts` 模块末尾自注册
-3. 在 `packages/commands/src/agent-port.ts` 加本地副本(4 行 interface)
-4. 8 个调用点改为 `getXxxPortLocal()` 调用,删除 `await import('../../../../../...')`
+**v7-2b 完成**:0 个剩余 4+ 级相对路径。
 
 ### 9.3 高耦合模块:tracker.ts 重构 (v7-2a)
 
@@ -197,31 +222,16 @@ tracker.ts (Layer 4 — 工具)
         └─→ astock/tushare-client.ts (Layer 4 — 数据源)
 ```
 
-**好处**:
-- store 可以单测,不需要 LangChain / tushare
-- service 可以单测,使用 `NullPriceProvider` / `StubPriceProvider`
-- tracker 只负责 schema 绑定和错误包装
-- 未来 drop in `FileBackedPortfolioRepository` / `MultiPortfolioRepository` 不需要改 service / tracker
-- 移除了未使用的 `_model` 参数(改为可选 overrides 对象)
-
 **API 兼容性**:
 - `createPortfolioTracker(_model)` 签名保留(无 breaking change)
 - `PORTFOLIO_TRACKER_DESCRIPTION` 常量保留
 - `src/tools/index.ts` 的两个 re-export 不需要改
 
-#### 9.3.3 验证
-
-| 检查 | 结果 |
-|------|------|
-| `bun run typecheck` | 通过(零错误) |
-| `bun test src/tools/portfolio/store.test.ts` | 8/8 pass |
-| `bun test src/tools/portfolio/service.test.ts` | 10/10 pass |
-| `bun test src/tools/portfolio/` (全模块) | 63/63 pass,零回归 |
-| `createPortfolioTracker` 调用方影响 | 仅 `src/tools/index.ts`,API 兼容 |
-
 ### 9.4 v7-2 下一步
 
-1. **v7-2b**: 扩展 `agent-port.ts` 注册 `SubagentPort` / `McpRegistryPort` / `StatePort`,清掉 §9.2 的 8 个深层 import
-2. **v7-2c**: 把 `src/tools/registry/domain-tools.ts` 和 `src/tools/export/export-tools.ts` 里的 `await import('...multi-portfolio.js')` / `await import('...portfolio/index.js')` 改成端口注入(§5.2)
-3. **v7-3**: 复用新的 `PortfolioService` 接到 investment `review` phase (v6-2 占位)
-4. **v7-4**: 复用 `TusharePriceProvider` 接到 `src/tools/portfolio/multi-portfolio.ts`(目前每个 portfolio 自己的价源逻辑重复)
+- [x] v7-2a: 拆分 tracker.ts (commit `0633e9d5`)
+- [x] v7-2b: 端口注册表扩展 + 8 个深层 import 清除 (本节)
+- [ ] v7-2c: 修复 §7.1 的测试隔离问题
+- [ ] v7-2d: 把 `src/tools/registry/domain-tools.ts` 和 `src/tools/export/export-tools.ts` 里的 `await import` 改成静态 import
+- [ ] v7-3: 复用 `PortfolioService` 接到 investment `review` phase (v6-2 占位)
+- [ ] v7-4: 复用 `TusharePriceProvider` 接到 `multi-portfolio.ts`

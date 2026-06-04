@@ -5,23 +5,16 @@
  */
 
 import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types.js'
+import { getPlanModePortLocal } from '../../agent-port.js'
 
 export const call = async (
   _args: string,
   _context: ToolUseContext,
 ): Promise<LocalCommandResult> => {
-  // Dynamic import to avoid circular dependency
-  let isActive = false
-  let planId: string | undefined
-
-  try {
-    const { getPlanModeState } = await import('../../../../src/agent/plan-mode-state.js')
-    const planMode = getPlanModeState()
-    isActive = planMode.isActive()
-    planId = planMode.getPlanId()
-  } catch {
-    // Plan mode not available
-  }
+  // Use the port registry — no fragile deep import needed
+  const planMode = getPlanModePortLocal()
+  const isActive = planMode?.isActive() ?? false
+  const planId = planMode?.getPlanId()
 
   if (!isActive) {
     return {
@@ -40,17 +33,20 @@ export const call = async (
     }
   }
 
-  // Try to exit plan mode
-  try {
-    const { getPlanModeState } = await import('../../../../src/agent/plan-mode-state.js')
-    const planMode = getPlanModeState()
-    planMode.exit()
-
-    return {
-      type: 'query',
-      text: 'exit_plan_mode',
+  // Use the port registry to exit
+  if (planMode) {
+    try {
+      planMode.exit()
+      return {
+        type: 'query',
+        text: 'exit_plan_mode',
+      }
+    } catch {
+      // Fall through to fallback
     }
-  } catch {
+  }
+
+  try {
     return {
       type: 'text',
       value: `
