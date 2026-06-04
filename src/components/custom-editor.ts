@@ -1,6 +1,6 @@
 import { Editor, Key, matchesKey } from '@earendil-works/pi-tui';
 import type { KeyEvent as KEvent, ResolveResult } from '../keybindings/types.js';
-import { inputStore, inputSelectors, inputActions } from '../tui/state/input-state.js';
+import { inputStore, inputActions } from '../tui/state/input-state.js';
 import { Cursor } from '../tui/utils/cursor.js';
 import {
   pushToKillRing,
@@ -16,16 +16,21 @@ import {
   yankPop,
 } from '../utils/kill-ring.js';
 
+/**
+ * CustomEditor extends pi-tui Editor with:
+ * - Vim/Emacs shortcuts (Ctrl+A/E/K/U/W/Y, Alt+B/F/D/Y)
+ * - Kill-ring integration
+ * - Multi-line paste history compression
+ * - Approval / session-list key routing
+ * - Optional keybinding resolver hook
+ *
+ * Slash command autocomplete is delegated to pi-tui's built-in
+ * CombinedAutocompleteProvider (wired via editor.setAutocompleteProvider in cli.ts).
+ * The Editor is the single source of truth for autocomplete state.
+ */
 export class CustomEditor extends Editor {
   onEscape?: () => void;
   onCtrlC?: () => void;
-  onSlashChange?: (text: string) => void;
-  onSlashSelect?: () => void;
-  onSlashNavigate?: (direction: 'up' | 'down') => void;
-  // P2: Pagination navigation handler
-  onSlashPage?: (direction: 'next' | 'prev') => void;
-  onSlashDismiss?: () => void;
-  onSlashExactMatch?: (text: string) => boolean;
   /** Called when there's a pending approval: pass key to handle 1/2/3 + Enter for approval. Returns true if consumed. */
   onApprovalKey?: (key: string) => boolean;
   /** Called when user presses up/down arrow during approval selection */
@@ -35,8 +40,8 @@ export class CustomEditor extends Editor {
   /** Called when session list is active: handles d/n/t/r keys. Returns true if consumed. */
   onSessionListKey?: (key: string) => boolean;
   /**
-   * Optional keybinding resolver. When set, keys not consumed by the slash
-   * suggestion system are converted to KeyEvent and passed here for resolution.
+   * Optional keybinding resolver. Converted to KeyEvent and passed here for
+   * resolution when not consumed by the editor / approval / session paths.
    * Return a ResolveResult to handle the key, or null to pass through to editor.
    */
   resolveKeybinding?: (event: KEvent) => ResolveResult | null;
@@ -47,11 +52,6 @@ export class CustomEditor extends Editor {
 
   // Phase 51: Internal cursor tracking using Cursor class
   private _cursor: Cursor = new Cursor('');
-
-  // Phase 31: Use inputState for slashActive (single source of truth)
-  get slashActive(): boolean {
-    return inputSelectors.isShowingSuggestions();
-  }
 
   // Cursor position tracking - use internal Cursor
   get cursorPosition(): number {
@@ -113,12 +113,6 @@ export class CustomEditor extends Editor {
   }
 
   handleInput(data: string): void {
-    // Phase 31: Use inputState for showingSuggestions (single source of truth)
-    const currentText = this.getText();
-    const isTypingSlash = data === '/';
-    const hasSlashPrefix = currentText.startsWith('/') || isTypingSlash;
-    const showingSuggestions = hasSlashPrefix || inputSelectors.isShowingSuggestions();
-
     // Approval mode: route 1/2/3 + Enter/Esc to approval handler
     if (this.onApprovalKey) {
       const consumed = this.onApprovalKey(data);
@@ -143,15 +137,8 @@ export class CustomEditor extends Editor {
       }
     }
 
-    // Esc: dismiss suggestions first, then existing behavior
-    // Phase 40: Add double-press detection for clearing input
+    // Phase 40: Esc double-press for clearing input
     if (matchesKey(data, Key.escape)) {
-      if (showingSuggestions) {
-        inputActions.hideSuggestions();
-        this.onSlashDismiss?.();
-        return;
-      }
-      // Phase 40: Double-press Esc to clear input
       const now = Date.now();
       if (now - this.lastEscapeTime < this.ESC_DOUBLE_PRESS_MS && this.getText().length > 0) {
         // Double-press: clear input
@@ -165,72 +152,6 @@ export class CustomEditor extends Editor {
         this.onEscape();
         return;
       }
-    }
-
-    // Arrow keys: navigate suggestions if active
-    if (showingSuggestions && matchesKey(data, Key.up)) {
-      this.onSlashNavigate?.('up');
-      return;
-    }
-    if (showingSuggestions && matchesKey(data, Key.down)) {
-      this.onSlashNavigate?.('down');
-      return;
-    }
-
-    // P2: Left/Right arrows: conditional pagination or cursor movement
-    // Only paginate if cursor is at boundary AND there's a previous/next page
-    // Phase 51: Use internal _cursor for precise position tracking
-    if (showingSuggestions && matchesKey(data, Key.left)) {
-      // Only paginate if cursor is at start AND we can go to previous page
-      // Phase 51: Use internal cursor position
-      if (this._cursor.isAtStart() && this.onSlashPage) {
-        this.onSlashPage('prev');
-        return;
-      }
-      // Otherwise, let the editor handle cursor movement
-      super.handleInput(data);
-      return;
-    }
-    if (showingSuggestions && matchesKey(data, Key.right)) {
-      // Only paginate if cursor is at end AND we can go to next page
-      // Phase 51: Use internal cursor position
-      if (this._cursor.isAtEnd() && this.onSlashPage) {
-        this.onSlashPage('next');
-        return;
-      }
-      // Otherwise, let the editor handle cursor movement
-      super.handleInput(data);
-      return;
-    }
-
-    // Tab: select suggestion if active, or autocomplete if no suggestion shown
-    // Phase 53: Tab completion for slash commands
-    if (matchesKey(data, Key.tab)) {
-      if (showingSuggestions) {
-        // If suggestions are shown, select the current one
-        this.onSlashSelect?.();
-        return;
-      }
-      // Phase 53: Try Tab autocomplete if text starts with /
-      const text = this.getText();
-      if (text.startsWith('/')) {
-        // Try to find exact match and complete
-        const query = text.slice(1).toLowerCase();
-        if (query && this.onSlashExactMatch) {
-          const matched = this.onSlashExactMatch(text);
-          if (matched) {
-            // Text was completed by the callback
-            return;
-          }
-        }
-      }
-      // Fall through to default editor behavior
-    }
-
-    // Enter: select from suggestion if active, otherwise submit
-    if (showingSuggestions && matchesKey(data, Key.return)) {
-      this.onSlashSelect?.();
-      return;
     }
 
     if (matchesKey(data, Key.ctrl('c')) && this.onCtrlC) {
@@ -379,27 +300,9 @@ export class CustomEditor extends Editor {
     // Default: pass to editor
     super.handleInput(data);
 
-    // Phase 31: Update inputState after editor processes input
-    // Phase 51: Also sync internal cursor
+    // Phase 51: Sync internal cursor after editor processes input
     this.updateInputState();
     this.syncCursor();
-
-    // Check if slash mode should activate or deactivate
-    const newText = this.getText();
-    const wasSlashActive = inputSelectors.isShowingSuggestions();
-    const shouldBeActive = newText.startsWith('/');
-
-    if (shouldBeActive && !wasSlashActive) {
-      // Just activated slash mode
-      this.onSlashChange?.(newText);
-    } else if (shouldBeActive && wasSlashActive) {
-      // Already active, just update the text
-      this.onSlashChange?.(newText);
-    } else if (!shouldBeActive && wasSlashActive) {
-      // Deactivated slash mode
-      this.onSlashDismiss?.();
-    }
-    // If neither active, do nothing
   }
 
   /**
@@ -453,8 +356,7 @@ export class CustomEditor extends Editor {
 
   /**
    * Update inputState after editor handles input.
-   * Phase 31: Use inputStore for unified state management.
-   * Phase 51: Also sync internal cursor.
+   * Phase 51: Use inputStore for unified state management.
    */
   private updateInputState(): void {
     const text = this.getText();
@@ -469,21 +371,5 @@ export class CustomEditor extends Editor {
       text,
       cursorPosition: Math.min(prev.cursorPosition, text.length),
     }));
-  }
-
-  /**
-   * Check if we can paginate left (has previous page)
-   */
-  canPageLeft(): boolean {
-    // This is called by cli.ts to check if pagination is possible
-    // The actual pagination is handled by onSlashPage callback
-    return this.onSlashPage !== undefined;
-  }
-
-  /**
-   * Check if we can paginate right (has next page)
-   */
-  canPageRight(): boolean {
-    return this.onSlashPage !== undefined;
   }
 }
