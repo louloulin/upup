@@ -1,0 +1,18 @@
+{
+  "change": "top-tier-investment-assistant-v2",
+  "phase": "design",
+  "mode": "compact",
+  "canonical_spec": "openspec",
+  "generated_by": "comet-handoff.sh",
+  "context_hash": "133ed2ec1465dc5eb68dec4bcab1387de5e7be8af22cc62ed3e4470e54c91a2a",
+  "files": [
+    { "path": "openspec/changes/top-tier-investment-assistant-v2/proposal.md", "sha256": "341bd5ba0ebed951e95de8751c339c1d06555417d85b31d0be8c7e49e0f1ff95" },
+    { "path": "openspec/changes/top-tier-investment-assistant-v2/design.md", "sha256": "eff48793488c7b05699d4bd2dd3e71e7ca332ff4588b44cb67a47977eca67971" },
+    { "path": "openspec/changes/top-tier-investment-assistant-v2/tasks.md", "sha256": "20a764ceb4a642081f003580e485f7cac3b4e5a0b627e10dd263dc18fc05a934" },
+    { "path": "openspec/changes/top-tier-investment-assistant-v2/specs/algo-trading/spec.md", "sha256": "37142cc8d939e117325e5bed16224e4b4af3890387fec36aa4ec1a106f6d9b8b" },
+    { "path": "openspec/changes/top-tier-investment-assistant-v2/specs/alt-data/spec.md", "sha256": "1cd0e1dc31483fefa6ca6d31b43370df30d7f0e579272e98a3a7a35c418fd36f" },
+    { "path": "openspec/changes/top-tier-investment-assistant-v2/specs/bridge-mode/spec.md", "sha256": "718b5c148078888ad966d477325e2c746d420abda7e082db1aeb66747679bbc4" },
+    { "path": "openspec/changes/top-tier-investment-assistant-v2/specs/portfolio-attribution/spec.md", "sha256": "823f2ea87f84d7da23e51020c4a1da6dc333b4f15ca56432946b69ba0cb3f9e3" },
+    { "path": "openspec/changes/top-tier-investment-assistant-v2/specs/session-sync/spec.md", "sha256": "11f545def4a10e354f9886ecd3e843a965927468885042bff103949d3e88dd1d" }
+  ]
+}
