@@ -23,6 +23,7 @@ import {
   WORKFLOW_PHASES,
   type WorkflowResult,
 } from '../../agent/investment-workflow.js';
+import { createPhaseHandlerMap } from './phase-handlers.js';
 import { loadPlan } from '../../plan/plan-executor.js';
 import { extractTicker } from '../../plan/plan-builder.js';
 
@@ -156,6 +157,7 @@ export async function runInvest(args: string): Promise<string> {
   const result = await runInvestmentWorkflow(intent, {
     ...(ticker ? { ticker } : {}),
     mode,
+    phaseHandlerMap: createPhaseHandlerMap(),
   });
   return renderResult(result);
 }

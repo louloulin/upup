@@ -69,6 +69,9 @@ export type PhaseHandler = (
   phase: ResearchPhase,
 ) => Promise<{ output: string; error?: string }>;
 
+/** 5 步 phase 各自的 handler 映射(可只填部分 phase,未填的用 fallback) */
+export type PhaseHandlerMap = Partial<Record<ResearchPhase, PhaseHandler>>;
+
 // ============================================================================
 // 5 步 phase 顺序(标准闭环)
 // ============================================================================
@@ -102,6 +105,11 @@ export async function runInvestmentWorkflow(
     ticker?: string;
     phases?: ResearchPhase[];
     phaseHandler?: PhaseHandler;
+    /**
+     * 5 步 phase 各自的 handler 映射。优先级高于 phaseHandler。
+     * 未填写的 phase 回退到 phaseHandler / defaultPhaseHandler。
+     */
+    phaseHandlerMap?: PhaseHandlerMap;
     /** 默认 'fast'(只跑指定 phase),'full'(跑 5 步) */
     mode?: 'fast' | 'full';
   },
@@ -128,7 +136,11 @@ export async function runInvestmentWorkflow(
 
   // 2. 顺序跑 phase
   const phaseResults: PhaseResult[] = [];
-  const handler = options?.phaseHandler ?? defaultPhaseHandler;
+  const defaultHandler = options?.phaseHandler ?? defaultPhaseHandler;
+  const handlerMap = options?.phaseHandlerMap ?? {};
+  // 解析当前 phase 该用哪个 handler:map → fallback → default
+  const resolveHandler = (phase: ResearchPhase): PhaseHandler =>
+    handlerMap[phase] ?? defaultHandler;
 
   for (const phase of phases) {
     const phaseStart = Date.now();
@@ -139,7 +151,7 @@ export async function runInvestmentWorkflow(
 
     let result: PhaseResult;
     try {
-      const out = await handler(plan, phase);
+      const out = await resolveHandler(phase)(plan, phase);
       result = {
         phase,
         status: out.error ? 'failed' : 'completed',
