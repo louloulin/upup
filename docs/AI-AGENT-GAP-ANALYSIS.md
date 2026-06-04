@@ -188,8 +188,8 @@ v7-5   multi-portfolio 实时 P&L    ✅
 v7-6   loucode 学习 + 差距分析     ✅
 v7-7   投资专用 subagent 类型      ✅ (commit 6bdc4275)
 v8-1   Coordinator 意图路由        ✅ (本文件 §6)
-v8-2   投资记忆 schema             ⏳ 下一轮
-v8-3   投资 status line            ⏳
+v8-2   投资记忆 schema             ✅ (本文件 §9)
+v8-3   投资 status line            ⏳ 下一轮
 ```
 
 ## 8. 循环依赖审计 (用户原话 `await import('../../../../src/tools/portfolio/tracker.js')`)
@@ -206,3 +206,46 @@ v8-3   投资 status line            ⏳
 - 模块高内聚: store/service/tracker 三层(零业务逻辑混在 tool schema)
 - 严禁: 4 级 `await import`、反向依赖高层、SCC 循环
 - CI 闸门: `bun run lint` (SCC + Layer) + `bun run typecheck` + `bun test`
+
+## 9. v8-2 已完成:投资记忆 schema
+
+**落地**: `src/memory/investment-memory.ts` (291 行) + `src/memory/investment-memory.test.ts` (272 行, 20/20 pass)。
+
+**关键设计**:
+- 独立模块, **不侵入** 现有 9801 行 memory 系统 (避免破坏 4-type 通用层)
+- 独立 JSONL 持久化 (`.upup/investment-memory.jsonl`), 简单可靠
+- 模块顶层单例 + 测试友好 (inMemory 模式, now/id 注入)
+
+**4 种记忆项** (覆盖研究→计划→回测→交易→复盘闭环):
+| Kind | 用途 | 关键 API |
+|---|---|---|
+| `preference` | 用户偏好 (风险/持仓周期/关注行业) | `recordPreference(key, value)` / `getPreference(key)` |
+| `decision`   | 投资决策 (含 rationale + outcome 闭环) | `recordDecision({ticker, action, rationale, ...})` / `closeDecision(id, outcome)` |
+| `watchlist`  | 自选股 (持久化, 跨 session 可见, 同 ticker 自动 update) | `addToWatchlist(ticker, note?)` / `removeFromWatchlist(ticker)` |
+| `note`       | 自由研究笔记 (含 ticker 关联) | `recordNote(content, {ticker, metadata})` |
+
+**闭环支持**:
+- research  → recordNote 保存研究发现
+- plan      → recordPreference 记住用户偏好
+- backtest  → recordNote({kind: 'backtest' metadata}) 保存回测
+- trade     → recordDecision 录入决策 + 入场价
+- review    → closeDecision 录入出场价 + PnL
+
+**未做** (v8-3 候选): 与现有 4-type memory 系统的双写/搜索整合
+
+## 10. 更新后的进度
+
+```
+v7-1   plan-auto-trigger          ✅
+v7-2a  tracker.ts 三层 split       ✅
+v7-2b  端口注册表 + 8 个深层 import ✅
+v7-2c  plan-auto-trigger 测试污染  ✅
+v7-3   trade + review 真实工具     ✅
+v7-4   SCC + Layer CI 闸门         ✅
+v7-5   multi-portfolio 实时 P&L    ✅
+v7-6   loucode 学习 + 差距分析     ✅
+v7-7   投资专用 subagent 类型      ✅ (commit 6bdc4275)
+v8-1   Coordinator 意图路由        ✅ (commit de28aeb7)
+v8-2   投资记忆 schema             ✅ (本文件 §9)
+v8-3   投资 status line            ⏳ 下一轮
+```
