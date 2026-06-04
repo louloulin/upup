@@ -18,15 +18,17 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const TMP_ROOT = join(tmpdir(), `upup-investment-test-${Date.now()}`);
-process.env.UPUP_DATA_DIR = TMP_ROOT;
+// env var 覆盖避免污染真实 ~/.upup/(plan-executor + watchlist-edit 都支持)
+process.env['UPUP_PLANS_DIR'] = join(TMP_ROOT, 'plans');
+process.env['UPUP_WATCHLIST_FILE'] = join(TMP_ROOT, 'watchlist.json');
 
 let PLANS_DIR_LOCAL: string;
 let WATCHLIST_FILE_LOCAL: string;
 let SETTINGS_FILE_LOCAL: string;
 
 beforeAll(() => {
-  PLANS_DIR_LOCAL = join(TMP_ROOT, 'plans');
-  WATCHLIST_FILE_LOCAL = join(TMP_ROOT, 'watchlist.json');
+  PLANS_DIR_LOCAL = process.env['UPUP_PLANS_DIR']!;
+  WATCHLIST_FILE_LOCAL = process.env['UPUP_WATCHLIST_FILE']!;
   SETTINGS_FILE_LOCAL = join(TMP_ROOT, 'settings.json');
   mkdirSync(PLANS_DIR_LOCAL, { recursive: true });
 });
@@ -197,15 +199,15 @@ describe('investment: registry', () => {
     expect(isInvestmentCommand('status')).toBe(false);
     expect(isInvestmentCommand('unknown-cmd')).toBe(false);
 
-    expect(INVESTMENT_COMMANDS.length).toBe(5);
+    expect(INVESTMENT_COMMANDS.length).toBe(6);  // 5 + /invest (Sprint 3)
   });
 
   test('runInvestmentCommand returns text for known, null for unknown', async () => {
     const { runInvestmentCommand } = await import('./registry.js');
-    const text = runInvestmentCommand('morning-brief', '');
+    const text = await runInvestmentCommand('morning-brief', '');
     expect(typeof text).toBe('string');
     expect(text).toContain('Morning Brief');
 
-    expect(runInvestmentCommand('status', '')).toBeNull();
+    expect(await runInvestmentCommand('status', '')).toBeNull();
   });
 });

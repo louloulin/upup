@@ -19,15 +19,17 @@ import { runMorningBrief } from './morning-brief.js';
 import { runEarningsPreview } from './earnings-preview.js';
 import { runRiskDashboard } from './risk-dashboard.js';
 import { runPortfolioReview } from './portfolio-review.js';
+import { runInvest } from './invest.js';
 
 export type InvestmentCommandName =
   | 'morning-brief'
   | 'earnings-preview'
   | 'risk-dashboard'
   | 'portfolio-review'
-  | 'watchlist-edit';
+  | 'watchlist-edit'
+  | 'invest';
 
-export type InvestmentCommandHandler = (args: string) => string;
+export type InvestmentCommandHandler = (args: string) => string | Promise<string>;
 
 export interface InvestmentCommandEntry {
   name: InvestmentCommandName;
@@ -68,6 +70,12 @@ export const INVESTMENT_COMMANDS: ReadonlyArray<InvestmentCommandEntry> = [
     description: 'watchlist 编辑: add|remove|list (本地 .upup/watchlist.json)',
     run: runWatchlistEdit,
   },
+  {
+    name: 'invest',
+    aliases: ['wf', 'workflow'],
+    description: '5 步研究闭环: research → valuation → backtest → trade → review (/invest NVDA)',
+    run: runInvest,
+  },
 ];
 
 /** 命令名 → 入口的快速查找 */
@@ -81,10 +89,10 @@ export function isInvestmentCommand(name: string): boolean {
 }
 
 /** 执行投资命令 — TUI/executor 调用 */
-export function runInvestmentCommand(name: string, args: string): string | null {
+export async function runInvestmentCommand(name: string, args: string): Promise<string | null> {
   const entry = COMMAND_MAP.get(name.toLowerCase());
   if (!entry) return null;
-  return entry.run(args ?? '');
+  return await entry.run(args ?? '');
 }
 
 /** 列出现有投资命令(给 help / TUI 用) */

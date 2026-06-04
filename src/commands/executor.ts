@@ -54,7 +54,7 @@ export async function executeSlashCommand(
   // Fast lane: 投资命令(本地,无 LLM,< 1s)
   // 不进 packages/commands 也不调 src/tools/*,零循环依赖
   if (isInvestmentCommand(commandName)) {
-    const text = runInvestmentCommand(commandName, args) ?? '';
+    const text = (await runInvestmentCommand(commandName, args)) ?? '';
     return { success: true, type: 'output', text };
   }
 

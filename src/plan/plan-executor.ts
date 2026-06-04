@@ -26,6 +26,14 @@ import {
 
 const MAX_PLANS_KEPT = 100;
 
+function getPlansDir(): string {
+  return process.env['UPUP_PLANS_DIR'] ?? PLANS_DIR;
+}
+
+function getAuditLogPath(): string {
+  return join(getPlansDir(), 'audit.log');
+}
+
 /** 单步执行结果 */
 export interface StepExecutionResult {
   stepId: string;
@@ -58,19 +66,20 @@ export type StepExecutor = (
 
 /** 确保 plans 目录存在 */
 function ensurePlansDir(): void {
-  if (!existsSync(PLANS_DIR)) {
-    mkdirSync(PLANS_DIR, { recursive: true });
+  const dir = getPlansDir();
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true });
   }
 }
 
 /** 单个 plan 文件路径 */
 export function planFilePath(planId: string): string {
-  return join(PLANS_DIR, `${planId}.json`);
+  return join(getPlansDir(), `${planId}.json`);
 }
 
 /** 审计日志路径 */
 export function auditLogPath(): string {
-  return join(PLANS_DIR, 'audit.log');
+  return getAuditLogPath();
 }
 
 /** 持久化 plan 到磁盘 */
@@ -123,12 +132,12 @@ function enforceLru(): void {
 export function auditLog(entry: Omit<PlanAuditEntry, 'ts'>): void {
   ensurePlansDir();
   const line = JSON.stringify({ ...entry, ts: new Date().toISOString() });
-  appendFileSync(auditLogPath(), line + '\n', 'utf-8');
+  appendFileSync(getAuditLogPath(), line + '\n', 'utf-8');
 }
 
 /** 读最近 N 条审计(默认 100) */
 export function readAuditLog(limit = 100): PlanAuditEntry[] {
-  const p = auditLogPath();
+  const p = getAuditLogPath();
   if (!existsSync(p)) return [];
   const lines = readFileSync(p, 'utf-8').trim().split('\n').filter(Boolean);
   const tail = lines.slice(-limit);

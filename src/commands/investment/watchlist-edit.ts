@@ -29,11 +29,16 @@ export interface WatchlistData {
 
 const EMPTY: WatchlistData = { entries: {} };
 
+/** 测试/部署可覆盖 WATCHLIST_FILE,避免污染用户 ~/.upup/ */
+function getWatchlistFile(): string {
+  return process.env['UPUP_WATCHLIST_FILE'] ?? WATCHLIST_FILE;
+}
+
 /** 读本地 watchlist.json,文件不存在返回空 */
 export function readWatchlist(): WatchlistData {
-  if (!existsSync(WATCHLIST_FILE)) return structuredClone(EMPTY);
+  if (!existsSync(getWatchlistFile())) return structuredClone(EMPTY);
   try {
-    const raw = readFileSync(WATCHLIST_FILE, 'utf-8');
+    const raw = readFileSync(getWatchlistFile(), 'utf-8');
     const parsed = JSON.parse(raw) as Partial<WatchlistData>;
     return {
       entries: (parsed.entries ?? {}) as Record<string, WatchlistEntry>,
@@ -45,9 +50,9 @@ export function readWatchlist(): WatchlistData {
 
 /** 写本地 watchlist.json(自动 mkdir) */
 export function writeWatchlist(data: WatchlistData): void {
-  const dir = dirname(WATCHLIST_FILE);
+  const dir = dirname(getWatchlistFile());
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-  writeFileSync(WATCHLIST_FILE, JSON.stringify(data, null, 2), 'utf-8');
+  writeFileSync(getWatchlistFile(), JSON.stringify(data, null, 2), 'utf-8');
 }
 
 /** 解析命令行参数 */
