@@ -2,24 +2,22 @@
  * Add-Step Command Implementation
  *
  * Adds a step to the current plan.
+ *
+ * Module boundary: this file lives in packages/commands/ and must NOT
+ * import from src/agent/ directly. It consumes the PlanMode port via the
+ * globalThis registry populated by src/agent/plan-mode-state.ts at startup.
  */
 
 import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types.js'
+import { getPlanModePortLocal } from '../../agent-port.js'
 
 export const call = async (
   args: string,
   _context: ToolUseContext,
 ): Promise<LocalCommandResult> => {
-  // Check if in plan mode
-  let isActive = false
-
-  try {
-    const { getPlanModeState } = await import('../../../../src/agent/plan-mode-state.js')
-    const planMode = getPlanModeState()
-    isActive = planMode.isActive()
-  } catch {
-    // Plan mode not available
-  }
+  // Read plan-mode state via the public port (no cross-package import).
+  const port = getPlanModePortLocal()
+  const isActive = port?.isActive() ?? false
 
   if (!isActive) {
     return {

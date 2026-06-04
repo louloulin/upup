@@ -2,9 +2,14 @@
  * Plan Command Implementation
  *
  * Triggers plan mode in the agent.
+ *
+ * Module boundary: this file lives in packages/commands/ and must NOT
+ * import from src/agent/ directly. It consumes the PlanMode port via the
+ * globalThis registry populated by src/agent/plan-mode-state.ts at startup.
  */
 
 import type { LocalCommandResult, ToolUseContext } from '../../types/command-types.js'
+import { getPlanModePortLocal } from '../../agent-port.js'
 
 export interface PlanContext extends ToolUseContext {
   state?: {
@@ -18,17 +23,14 @@ export const call = async (
   args: string,
   _context: PlanContext,
 ): Promise<LocalCommandResult> => {
-  // Check if in plan mode
+  // Read plan-mode state via the public port (no cross-package import).
   let isActive = false
   let planId: string | undefined
 
-  try {
-    const { getPlanModeState } = await import('../../../../src/agent/plan-mode-state.js')
-    const planMode = getPlanModeState()
-    isActive = planMode.isActive()
-    planId = planMode.getPlanId()
-  } catch {
-    // Plan mode not available
+  const port = getPlanModePortLocal()
+  if (port) {
+    isActive = port.isActive()
+    planId = port.getPlanId()
   }
 
   // If in plan mode, show plan status
