@@ -87,12 +87,14 @@ import {
   createResearchDeepSearchTool,
   RESEARCH_DEEP_SEARCH_DESCRIPTION,
 } from '../../research/index.js';
+import { createMatrixAnalysisTool } from '../../analysis/matrix.js';
 const RESEARCH_DEEP_SEARCH_COMPACT = 'AlphaSense-style deep search: NLP claims + citation graph across documents';
+const MATRIX_ANALYSIS_COMPACT = 'Hebbia-style cross-ticker × cross-dimension matrix with per-cell verdicts';
 
-// Deep search is v2/P2; gate it on the RESEARCH_TOOL compile flag so the
-// bundle stays small when the feature is off.
+// Deep search + matrix analysis are v2/P2; gate them on the RESEARCH_TOOL
+// compile flag so the bundle stays small when the feature is off.
 const researchTools: any[] = isFeatureCompiledIn('RESEARCH_TOOL')
-  ? [createResearchDeepSearchTool()]
+  ? [createResearchDeepSearchTool(), createMatrixAnalysisTool()]
   : [];
 import { workflowTools, WORKFLOW_TOOL_DESCRIPTION } from '../workflow/index.js';
 
@@ -204,6 +206,9 @@ export async function loadDomainTools(): Promise<RegisteredTool[]> {
     } else if (toolName === 'research_deep_search') {
       compactDescription = RESEARCH_DEEP_SEARCH_COMPACT;
       description = RESEARCH_DEEP_SEARCH_DESCRIPTION;
+    } else if (toolName === 'matrix_analysis') {
+      compactDescription = MATRIX_ANALYSIS_COMPACT;
+      description = ''; // description is on the tool itself
     }
     tools.push({ name: toolName, tool: researchTool, description, compactDescription, concurrencySafe: true });
   }

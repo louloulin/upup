@@ -221,12 +221,31 @@
 
 ### 4.3 matrix-analysis (Hebbia 对标)
 
-- [ ] 4.3.1 实现 `src/analysis/matrix.ts` 多标的 × 多维度矩阵
-- [ ] 4.3.2 默认维度:技术/基本面/资金/情绪
-- [ ] 4.3.3 默认 50 个标的(可配置)
-- [ ] 4.3.4 批量决策输出(每个 cell 一个 short verdict)
-- [ ] 4.3.5 注册 `matrix_analysis` 1 个 tool
-- [ ] 4.3.6 写 matrix.test.ts
+- [x] 4.3.1 实现 `src/analysis/matrix.ts` 多标的 × 多维度矩阵
+  - `MatrixEngine` 类:spec 验证 + dedup + setCell/bulkSet + async build + summarize
+  - 单元格模型:metrics + verdict + polarity(-1..+1) + confidence(0..1) + sources
+  - `CellResolver` 抽象:caller 通过 resolver 注入数据,无 LLM 调用
+- [x] 4.3.2 默认维度:技术/基本面/资金/情绪(4 维)
+  - 技术:RSI + momentum + volatility(超买/超卖/震荡/上升/下降 verdict)
+  - 基本面:PE/PB/ROE/营收增长(低估/合理/高估 + 优秀/良好/一般 verdict)
+  - 资金:主力净流入/北向/机构(净流入/净流出/平衡 verdict)
+  - 情绪:舆情 score + 新闻数 + 券商一致预期(推荐/中性/回避 verdict)
+- [x] 4.3.3 默认 50 个标的(可配置)
+  - `DEFAULT_TICKERS_UNIVERSE`:25 A-share blue chips(茅台/平安/招行/五粮液/...) + 25 US mega caps(AAPL/MSFT/GOOGL/AMZN/NVDA/...)
+  - 支持自定义:tickers 参数可传入 1-100 个标的
+- [x] 4.3.4 批量决策输出(每个 cell 一个 short verdict)
+  - `renderVerdict`:维度特化的中文 verdict 模板
+  - `MatrixSummary`:topBullish(5) / topBearish(5) / overallLeaders(按 score 排序)
+  - `toMarkdown`:pivoted table + 综合排行 + 各维度均值 + 最看多/最看空
+  - `toCSV`:扁平表 (ticker, dimension, dimension_zh, polarity, confidence, verdict, metrics)
+- [x] 4.3.5 注册 `matrix_analysis` 1 个 tool
+  - LangChain DynamicStructuredTool,6 字段 schema(tickers/dimensions/cells/format/limit)
+  - 支持 json/csv/markdown 三种 format
+  - `RESEARCH_TOOL` 编译开关 gate(与 deep_search 共用)
+  - 已注册到 `src/tools/registry/domain-tools.ts`
+- [x] 4.3.6 写 matrix.test.ts
+  - 54 个 e2e 测试,113 expect() 调用,全绿
+  - 覆盖:renderVerdict(4 维 × 多场景)/ DEFAULT 50 标的 / 引擎 CRUD / build / summary / CSV+Markdown / 工具 json/csv/markdown / 自定义 resolver / safety
 
 ### 4.4 natural-language-screener (FinChat 对标)
 
