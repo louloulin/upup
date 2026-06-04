@@ -249,11 +249,34 @@
 
 ### 4.4 natural-language-screener (FinChat 对标)
 
-- [ ] 4.4.1 实现 `src/screening/nl-screener.ts` 自然语言 → screening DSL
-- [ ] 4.4.2 LLM 翻译("找出 PE<20、ROE>15%、近 5 日北向净流入的科技股" → DSL)
-- [ ] 4.4.3 DSL 复用现有 `src/screening/` 引擎
-- [ ] 4.4.4 注册 `nl_screen` 1 个 tool
-- [ ] 4.4.5 写 nl-screener.test.ts
+- [x] 4.4.1 实现 `src/screening/nl-screener.ts` 自然语言 → screening DSL
+  - `NLScreener` 类 + 纯函数 `ruleBasedTranslate` (offline, deterministic)
+  - `ScreenCriteria` 类型:与现有 `advanced_screening` 引擎 shape 兼容
+    (value / growth / quality / flow / sector / themes / market_cap)
+  - 17+ 个 rule pattern (PE/PB/dividend/ROE/revenue growth/profit growth/北向/主力净流入/
+    科技/银行/消费/能源/医药/地产/蓝筹/sort_value/dividend/growth)
+  - `formatCriteriaZh`:中文解释 (e.g. "PE ≤ 20, ROE ≥ 15.0%, 板块:Technology")
+  - `toAdvancedScreeningCriteria`:与现有 screening 引擎对接
+- [x] 4.4.2 LLM 翻译(规则无法 parse 时 fallback)
+  - `LLMTranslateFn` 注入接口(测试用 mock LLM,生产可接 gpt-4/Claude)
+  - rule 0 match → 走 LLM
+  - LLM 出错或返回 null → 回退到 rule 结果
+  - rule + LLM 都生效 → merged,source 标记为 llm
+- [x] 4.4.3 DSL 复用现有 `src/screening/` 引擎
+  - `toAdvancedScreeningCriteria` 把 ScreenCriteria 映射成
+    `{ criteria: { value, growth, quality }, sector, limit }` shape
+  - 现有 `advanced_screening` 工具 (src/tools/screening/index.ts) 直接对接
+- [x] 4.4.4 注册 `nl_screen` 1 个 tool
+  - LangChain DynamicStructuredTool,4 字段 schema(query/limit/override_criteria/candidates)
+  - `SCREEN_TOOL` 编译开关 gate(独立于 RESEARCH_TOOL)
+  - 已注册到 `src/tools/registry/domain-tools.ts`
+  - candidates 参数:可选股票池,工具按 criteria 过滤后返回 match
+- [x] 4.4.5 写 nl-screener.test.ts
+  - 54 个 e2e 测试,76 expect() 调用,全绿
+  - 覆盖:value/growth/quality/flow/sector/sort/multi-criteria 各分支
+  - LLM 路径: rule-only / LLM fallback / LLM error / LLM null
+  - 工具: feature_disabled / happy path / override_criteria / candidates 过滤 / limit
+  - safety: 空 query / 长 query / 异常字符
 
 ### 4.5 intent-routing-zh (同花顺问财对标)
 

@@ -88,13 +88,18 @@ import {
   RESEARCH_DEEP_SEARCH_DESCRIPTION,
 } from '../../research/index.js';
 import { createMatrixAnalysisTool } from '../../analysis/matrix.js';
+import { createNlScreenTool } from '../../screening/nl-screener.js';
 const RESEARCH_DEEP_SEARCH_COMPACT = 'AlphaSense-style deep search: NLP claims + citation graph across documents';
 const MATRIX_ANALYSIS_COMPACT = 'Hebbia-style cross-ticker × cross-dimension matrix with per-cell verdicts';
+const NL_SCREEN_COMPACT = 'FinChat-style natural-language stock screener (rule-based + LLM fallback)';
 
 // Deep search + matrix analysis are v2/P2; gate them on the RESEARCH_TOOL
-// compile flag so the bundle stays small when the feature is off.
+// compile flag. nl_screen is gated on SCREEN_TOOL (its own compile flag).
 const researchTools: any[] = isFeatureCompiledIn('RESEARCH_TOOL')
   ? [createResearchDeepSearchTool(), createMatrixAnalysisTool()]
+  : [];
+const screeningTools: any[] = isFeatureCompiledIn('SCREEN_TOOL')
+  ? [createNlScreenTool()]
   : [];
 import { workflowTools, WORKFLOW_TOOL_DESCRIPTION } from '../workflow/index.js';
 
@@ -187,6 +192,19 @@ export async function loadDomainTools(): Promise<RegisteredTool[]> {
   tools.push({ name: 'lsp_references', tool: createLSPReferencesTool(), description: LSP_REFERENCES_DESCRIPTION, compactDescription: 'Find all references to symbol at position', concurrencySafe: true });
   tools.push({ name: 'lsp_hover', tool: createLSPHoverTool(), description: LSP_HOVER_DESCRIPTION, compactDescription: 'Get hover/type information for symbol at position', concurrencySafe: true });
   tools.push({ name: 'lsp_diagnostics', tool: createLSPDiagnosticsTool(), description: LSP_DIAGNOSTICS_DESCRIPTION, compactDescription: 'Get diagnostics (errors/warnings) for a file', concurrencySafe: true });
+
+  // Screening tools (FinChat-style NL screener)
+  for (const screeningTool of screeningTools) {
+    if (!screeningTool?.name) continue;
+    const toolName = screeningTool.name;
+    let compactDescription = '';
+    let description = '';
+    if (toolName === 'nl_screen') {
+      compactDescription = NL_SCREEN_COMPACT;
+      description = ''; // description is on the tool itself
+    }
+    tools.push({ name: toolName, tool: screeningTool, description, compactDescription, concurrencySafe: true });
+  }
 
   // Research tools (智能投研)
   for (const researchTool of researchTools) {
