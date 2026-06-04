@@ -244,6 +244,7 @@ const BUILTIN_FEATURES: ReadonlyArray<FeatureFlag> = [
   { name: 'AGENT_REFLECTION',       description: 'Self-critique pass after each turn',                      category: 'agent', defaultEnabled: false, since: '2026.6.0', owner: 'core' },
   { name: 'AGENT_CONTEXT_COMPACTION', description: 'Compress old tool results when token budget exceeded',  category: 'agent', defaultEnabled: true,  since: '2026.5.0', owner: 'core' },
   { name: 'KAIROS_PROACTIVE',       description: 'Kairos 6-state proactive agent with autonomy mode',       category: 'agent', defaultEnabled: false, since: '2026.6.0', owner: 'kairos' },
+  { name: 'COACH_MODE',            description: 'Sprint 1.1: 投研 Claude 人设注入主对话 system prompt',   category: 'agent', defaultEnabled: false, since: '2026.6.0', owner: 'coach' },
 
   // ---- Trading (10) ----------------------------------------------------
   { name: 'PAPER_TRADING',          description: 'Paper trading with simulated order matching',             category: 'trading', defaultEnabled: false, since: '2026.6.0', owner: 'trading' },
