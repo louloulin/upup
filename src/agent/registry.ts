@@ -265,9 +265,9 @@ export class AgentRegistry {
   /**
    * Unregister an agent
    */
-  unregister(id: string): boolean {
+  unregister(id: string, force: boolean = false): boolean {
     const agent = this.agents.get(id);
-    if (agent?.isBuiltIn) {
+    if (agent?.isBuiltIn && !force) {
       warn('agent', `Cannot unregister built-in agent: ${id}`);
       return false;
     }
