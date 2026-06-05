@@ -1,0 +1,57 @@
+{
+  "name": "@upup/storage",
+  "version": "0.3.0",
+  "description": "L3 Storage Abstraction",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./file-history": {
+      "types": "./src/file-history.ts",
+      "default": "./src/file-history.ts"
+    },
+    "./storage-adapter": {
+      "types": "./src/storage-adapter.ts",
+      "default": "./src/storage-adapter.ts"
+    },
+    "./project-storage": {
+      "types": "./src/project-storage.ts",
+      "default": "./src/project-storage.ts"
+    },
+    "./stats-cache": {
+      "types": "./src/stats-cache.ts",
+      "default": "./src/stats-cache.ts"
+    },
+    "./shell-snapshots": {
+      "types": "./src/shell-snapshots.ts",
+      "default": "./src/shell-snapshots.ts"
+    },
+    "./crypto-utils": {
+      "types": "./src/crypto-utils.ts",
+      "default": "./src/crypto-utils.ts"
+    },
+    "./fund-storage": {
+      "types": "./src/fund-storage.ts",
+      "default": "./src/fund-storage.ts"
+    },
+    "./*": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
+    }
+  },
+  "scripts": {
+    "build": "echo L3",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@upup/types": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}

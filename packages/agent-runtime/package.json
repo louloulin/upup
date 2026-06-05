@@ -1,0 +1,362 @@
+{
+  "name": "@upup/agent-runtime",
+  "version": "0.3.0",
+  "description": "UpUp Agent Runtime - L4 stub (filled in Phase 4 of modularize-src-into-bun-workspaces)",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./role-system": {
+      "types": "./src/role-system.ts",
+      "default": "./src/role-system.ts"
+    },
+    "./capability-registry.test": {
+      "types": "./src/capability-registry.test.ts",
+      "default": "./src/capability-registry.test.ts"
+    },
+    "./streaming-tool-executor.test": {
+      "types": "./src/streaming-tool-executor.test.ts",
+      "default": "./src/streaming-tool-executor.test.ts"
+    },
+    "./fallback": {
+      "types": "./src/fallback.ts",
+      "default": "./src/fallback.ts"
+    },
+    "./feature-gates": {
+      "types": "./src/feature-gates.ts",
+      "default": "./src/feature-gates.ts"
+    },
+    "./sdk-types": {
+      "types": "./src/sdk-types.ts",
+      "default": "./src/sdk-types.ts"
+    },
+    "./agent-port-extended.test": {
+      "types": "./src/agent-port-extended.test.ts",
+      "default": "./src/agent-port-extended.test.ts"
+    },
+    "./subagent-parallel.test": {
+      "types": "./src/subagent-parallel.test.ts",
+      "default": "./src/subagent-parallel.test.ts"
+    },
+    "./investment-subagents.test": {
+      "types": "./src/investment-subagents.test.ts",
+      "default": "./src/investment-subagents.test.ts"
+    },
+    "./tombstone.test": {
+      "types": "./src/tombstone.test.ts",
+      "default": "./src/tombstone.test.ts"
+    },
+    "./channels": {
+      "types": "./src/channels.ts",
+      "default": "./src/channels.ts"
+    },
+    "./capability-manifest": {
+      "types": "./src/capability-manifest.ts",
+      "default": "./src/capability-manifest.ts"
+    },
+    "./sdk-types.test": {
+      "types": "./src/sdk-types.test.ts",
+      "default": "./src/sdk-types.test.ts"
+    },
+    "./capability-registry": {
+      "types": "./src/capability-registry.ts",
+      "default": "./src/capability-registry.ts"
+    },
+    "./auto-trigger.test": {
+      "types": "./src/auto-trigger.test.ts",
+      "default": "./src/auto-trigger.test.ts"
+    },
+    "./agent": {
+      "types": "./src/agent.ts",
+      "default": "./src/agent.ts"
+    },
+    "./investment-workflow": {
+      "types": "./src/investment-workflow.ts",
+      "default": "./src/investment-workflow.ts"
+    },
+    "./streaming-tool-executor": {
+      "types": "./src/streaming-tool-executor.ts",
+      "default": "./src/streaming-tool-executor.ts"
+    },
+    "./context": {
+      "types": "./src/context.ts",
+      "default": "./src/context.ts"
+    },
+    "./compaction/message-grouping": {
+      "types": "./src/compaction/message-grouping.ts",
+      "default": "./src/compaction/message-grouping.ts"
+    },
+    "./compaction/session-compact": {
+      "types": "./src/compaction/session-compact.ts",
+      "default": "./src/compaction/session-compact.ts"
+    },
+    "./compaction/message-grouping.test": {
+      "types": "./src/compaction/message-grouping.test.ts",
+      "default": "./src/compaction/message-grouping.test.ts"
+    },
+    "./compaction/orchestrator": {
+      "types": "./src/compaction/orchestrator.ts",
+      "default": "./src/compaction/orchestrator.ts"
+    },
+    "./compaction/compaction.test": {
+      "types": "./src/compaction/compaction.test.ts",
+      "default": "./src/compaction/compaction.test.ts"
+    },
+    "./compaction/auto-trigger": {
+      "types": "./src/compaction/auto-trigger.ts",
+      "default": "./src/compaction/auto-trigger.ts"
+    },
+    "./compaction/time-mc-config.test": {
+      "types": "./src/compaction/time-mc-config.test.ts",
+      "default": "./src/compaction/time-mc-config.test.ts"
+    },
+    "./compaction/time-mc-config": {
+      "types": "./src/compaction/time-mc-config.ts",
+      "default": "./src/compaction/time-mc-config.ts"
+    },
+    "./compaction/api-microcompact": {
+      "types": "./src/compaction/api-microcompact.ts",
+      "default": "./src/compaction/api-microcompact.ts"
+    },
+    "./compaction/index": {
+      "types": "./src/compaction/index.ts",
+      "default": "./src/compaction/index.ts"
+    },
+    "./compaction/post-cleanup": {
+      "types": "./src/compaction/post-cleanup.ts",
+      "default": "./src/compaction/post-cleanup.ts"
+    },
+    "./run-context": {
+      "types": "./src/run-context.ts",
+      "default": "./src/run-context.ts"
+    },
+    "./compact-reactivity.test": {
+      "types": "./src/compact-reactivity.test.ts",
+      "default": "./src/compact-reactivity.test.ts"
+    },
+    "./snip": {
+      "types": "./src/snip.ts",
+      "default": "./src/snip.ts"
+    },
+    "./plan-auto-trigger.test": {
+      "types": "./src/plan-auto-trigger.test.ts",
+      "default": "./src/plan-auto-trigger.test.ts"
+    },
+    "./auto-trigger": {
+      "types": "./src/auto-trigger.ts",
+      "default": "./src/auto-trigger.ts"
+    },
+    "./loop-recovery.test": {
+      "types": "./src/loop-recovery.test.ts",
+      "default": "./src/loop-recovery.test.ts"
+    },
+    "./investment-config.test": {
+      "types": "./src/investment-config.test.ts",
+      "default": "./src/investment-config.test.ts"
+    },
+    "./agent-port": {
+      "types": "./src/agent-port.ts",
+      "default": "./src/agent-port.ts"
+    },
+    "./investment-knowledge": {
+      "types": "./src/investment-knowledge.ts",
+      "default": "./src/investment-knowledge.ts"
+    },
+    "./role-system.test": {
+      "types": "./src/role-system.test.ts",
+      "default": "./src/role-system.test.ts"
+    },
+    "./prompts": {
+      "types": "./src/prompts.ts",
+      "default": "./src/prompts.ts"
+    },
+    "./plan-mode-state": {
+      "types": "./src/plan-mode-state.ts",
+      "default": "./src/plan-mode-state.ts"
+    },
+    "./types": {
+      "types": "./src/types.ts",
+      "default": "./src/types.ts"
+    },
+    "./investment-workflow-hooks.test": {
+      "types": "./src/investment-workflow-hooks.test.ts",
+      "default": "./src/investment-workflow-hooks.test.ts"
+    },
+    "./task.test": {
+      "types": "./src/task.test.ts",
+      "default": "./src/task.test.ts"
+    },
+    "./compact": {
+      "types": "./src/compact.ts",
+      "default": "./src/compact.ts"
+    },
+    "./agent-port.test": {
+      "types": "./src/agent-port.test.ts",
+      "default": "./src/agent-port.test.ts"
+    },
+    "./agent-auto-trigger.test": {
+      "types": "./src/agent-auto-trigger.test.ts",
+      "default": "./src/agent-auto-trigger.test.ts"
+    },
+    "./registry.test": {
+      "types": "./src/registry.test.ts",
+      "default": "./src/registry.test.ts"
+    },
+    "./capability-manifest.test": {
+      "types": "./src/capability-manifest.test.ts",
+      "default": "./src/capability-manifest.test.ts"
+    },
+    "./scratchpad.test": {
+      "types": "./src/scratchpad.test.ts",
+      "default": "./src/scratchpad.test.ts"
+    },
+    "./registry": {
+      "types": "./src/registry.ts",
+      "default": "./src/registry.ts"
+    },
+    "./fallback-integration.test": {
+      "types": "./src/fallback-integration.test.ts",
+      "default": "./src/fallback-integration.test.ts"
+    },
+    "./investment-subagents": {
+      "types": "./src/investment-subagents.ts",
+      "default": "./src/investment-subagents.ts"
+    },
+    "./investment-config": {
+      "types": "./src/investment-config.ts",
+      "default": "./src/investment-config.ts"
+    },
+    "./feature-gates.test": {
+      "types": "./src/feature-gates.test.ts",
+      "default": "./src/feature-gates.test.ts"
+    },
+    "./plan-mode-state.test": {
+      "types": "./src/plan-mode-state.test.ts",
+      "default": "./src/plan-mode-state.test.ts"
+    },
+    "./investment-knowledge-tools": {
+      "types": "./src/investment-knowledge-tools.ts",
+      "default": "./src/investment-knowledge-tools.ts"
+    },
+    "./subagent-runner": {
+      "types": "./src/subagent-runner.ts",
+      "default": "./src/subagent-runner.ts"
+    },
+    "./plan-auto-trigger": {
+      "types": "./src/plan-auto-trigger.ts",
+      "default": "./src/plan-auto-trigger.ts"
+    },
+    "./token-counter": {
+      "types": "./src/token-counter.ts",
+      "default": "./src/token-counter.ts"
+    },
+    "./intent-detector/types": {
+      "types": "./src/intent-detector/types.ts",
+      "default": "./src/intent-detector/types.ts"
+    },
+    "./intent-detector/llm": {
+      "types": "./src/intent-detector/llm.ts",
+      "default": "./src/intent-detector/llm.ts"
+    },
+    "./intent-detector/intent-detector.test": {
+      "types": "./src/intent-detector/intent-detector.test.ts",
+      "default": "./src/intent-detector/intent-detector.test.ts"
+    },
+    "./intent-detector/index": {
+      "types": "./src/intent-detector/index.ts",
+      "default": "./src/intent-detector/index.ts"
+    },
+    "./intent-detector/legacy": {
+      "types": "./src/intent-detector/legacy.ts",
+      "default": "./src/intent-detector/legacy.ts"
+    },
+    "./intent-detector/zh-router": {
+      "types": "./src/intent-detector/zh-router.ts",
+      "default": "./src/intent-detector/zh-router.ts"
+    },
+    "./intent-detector/zh-router.test": {
+      "types": "./src/intent-detector/zh-router.test.ts",
+      "default": "./src/intent-detector/zh-router.test.ts"
+    },
+    "./subagent-deep.test": {
+      "types": "./src/subagent-deep.test.ts",
+      "default": "./src/subagent-deep.test.ts"
+    },
+    "./subagent": {
+      "types": "./src/subagent/index.ts",
+      "default": "./src/subagent/index.ts"
+    },
+    "./investment-workflow-hooks": {
+      "types": "./src/investment-workflow-hooks.ts",
+      "default": "./src/investment-workflow-hooks.ts"
+    },
+    "./investment-workflow.test": {
+      "types": "./src/investment-workflow.test.ts",
+      "default": "./src/investment-workflow.test.ts"
+    },
+    "./scratchpad": {
+      "types": "./src/scratchpad.ts",
+      "default": "./src/scratchpad.ts"
+    },
+    "./microcompact": {
+      "types": "./src/microcompact.ts",
+      "default": "./src/microcompact.ts"
+    },
+    "./subagent/types.test": {
+      "types": "./src/subagent/types.test.ts",
+      "default": "./src/subagent/types.test.ts"
+    },
+    "./subagent/types": {
+      "types": "./src/subagent/types.ts",
+      "default": "./src/subagent/types.ts"
+    },
+    "./tombstone": {
+      "types": "./src/tombstone.ts",
+      "default": "./src/tombstone.ts"
+    },
+    "./task": {
+      "types": "./src/task.ts",
+      "default": "./src/task.ts"
+    },
+    "./tool-executor": {
+      "types": "./src/tool-executor.ts",
+      "default": "./src/tool-executor.ts"
+    },
+    "./agent-auto-trigger": {
+      "types": "./src/agent-auto-trigger.ts",
+      "default": "./src/agent-auto-trigger.ts"
+    },
+    "./loop-recovery": {
+      "types": "./src/loop-recovery.ts",
+      "default": "./src/loop-recovery.ts"
+    },
+    "./compaction": {
+      "types": "./src/compaction/index.ts",
+      "default": "./src/compaction/index.ts"
+    },
+    "./intent-detector": {
+      "types": "./src/intent-detector/index.ts",
+      "default": "./src/intent-detector/index.ts"
+    },
+    "./*": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
+    }
+  },
+  "scripts": {
+    "build": "echo 'L4 stub - real content in Phase 4'",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@upup/types": "workspace:*"
+  },
+  "peerDependencies": {},
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}

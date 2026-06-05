@@ -1,0 +1,109 @@
+{
+  "name": "@upup/cli",
+  "version": "0.3.0",
+  "description": "UpUp CLI - L6 application shell (commands, subcommands, arg parsing)",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./cli": {
+      "types": "./src/cli.ts",
+      "default": "./src/cli.ts"
+    },
+    "./commands/executor": {
+      "types": "./src/commands/executor.ts",
+      "default": "./src/commands/executor.ts"
+    },
+    "./commands/doctor": {
+      "types": "./src/commands/doctor.ts",
+      "default": "./src/commands/doctor.ts"
+    },
+    "./commands/investment/risk-dashboard": {
+      "types": "./src/commands/investment/risk-dashboard.ts",
+      "default": "./src/commands/investment/risk-dashboard.ts"
+    },
+    "./commands/investment/morning-brief": {
+      "types": "./src/commands/investment/morning-brief.ts",
+      "default": "./src/commands/investment/morning-brief.ts"
+    },
+    "./commands/investment/invest": {
+      "types": "./src/commands/investment/invest.ts",
+      "default": "./src/commands/investment/invest.ts"
+    },
+    "./commands/investment/portfolio-review": {
+      "types": "./src/commands/investment/portfolio-review.ts",
+      "default": "./src/commands/investment/portfolio-review.ts"
+    },
+    "./commands/investment/watchlist-edit": {
+      "types": "./src/commands/investment/watchlist-edit.ts",
+      "default": "./src/commands/investment/watchlist-edit.ts"
+    },
+    "./commands/investment/registry": {
+      "types": "./src/commands/investment/registry.ts",
+      "default": "./src/commands/investment/registry.ts"
+    },
+    "./commands/investment/phase-handlers": {
+      "types": "./src/commands/investment/phase-handlers.ts",
+      "default": "./src/commands/investment/phase-handlers.ts"
+    },
+    "./commands/investment/earnings-preview": {
+      "types": "./src/commands/investment/earnings-preview.ts",
+      "default": "./src/commands/investment/earnings-preview.ts"
+    },
+    "./commands/unified-registry": {
+      "types": "./src/commands/unified-registry.ts",
+      "default": "./src/commands/unified-registry.ts"
+    },
+    "./commands/plugin": {
+      "types": "./src/commands/plugin.ts",
+      "default": "./src/commands/plugin.ts"
+    },
+    "./commands/mcp": {
+      "types": "./src/commands/mcp.ts",
+      "default": "./src/commands/mcp.ts"
+    },
+    "./commands/sandbox": {
+      "types": "./src/commands/sandbox.ts",
+      "default": "./src/commands/sandbox.ts"
+    },
+    "./commands/onboarding": {
+      "types": "./src/commands/onboarding.ts",
+      "default": "./src/commands/onboarding.ts"
+    },
+    "./commands/index": {
+      "types": "./src/commands/index.ts",
+      "default": "./src/commands/index.ts"
+    },
+    "./commands/config": {
+      "types": "./src/commands/config.ts",
+      "default": "./src/commands/config.ts"
+    },
+    "./commands": {
+      "types": "./src/commands/index.ts",
+      "default": "./src/commands/index.ts"
+    },
+    "./commands/investment": {
+      "types": "./src/commands/investment/index.ts",
+      "default": "./src/commands/investment/index.ts"
+    },
+    "./*": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
+    }
+  },
+  "scripts": {
+    "build": "echo 'L6 - real content in Phase 6'",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@upup/types": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}

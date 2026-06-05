@@ -13,13 +13,77 @@
       "types": "./src/index.ts",
       "default": "./src/index.ts"
     },
-    "./server": {
+    "./ui/build-config": {
+      "types": "./src/ui/build-config.ts",
+      "default": "./src/ui/build-config.ts"
+    },
+    "./ui/index": {
+      "types": "./src/ui/index.ts",
+      "default": "./src/ui/index.ts"
+    },
+    "./ui/parse-stdout": {
+      "types": "./src/ui/parse-stdout.ts",
+      "default": "./src/ui/parse-stdout.ts"
+    },
+    "./bridge/stdio-bridge": {
+      "types": "./src/bridge/stdio-bridge.ts",
+      "default": "./src/bridge/stdio-bridge.ts"
+    },
+    "./server/detect-model": {
+      "types": "./src/server/detect-model.ts",
+      "default": "./src/server/detect-model.ts"
+    },
+    "./server/execute-spawn": {
+      "types": "./src/server/execute-spawn.ts",
+      "default": "./src/server/execute-spawn.ts"
+    },
+    "./server/session-codec": {
+      "types": "./src/server/session-codec.ts",
+      "default": "./src/server/session-codec.ts"
+    },
+    "./server/test": {
+      "types": "./src/server/test.ts",
+      "default": "./src/server/test.ts"
+    },
+    "./server/index": {
       "types": "./src/server/index.ts",
       "default": "./src/server/index.ts"
+    },
+    "./shared/types": {
+      "types": "./src/shared/types.ts",
+      "default": "./src/shared/types.ts"
+    },
+    "./shared/constants": {
+      "types": "./src/shared/constants.ts",
+      "default": "./src/shared/constants.ts"
+    },
+    "./cli/index": {
+      "types": "./src/cli/index.ts",
+      "default": "./src/cli/index.ts"
+    },
+    "./cli/format-event": {
+      "types": "./src/cli/format-event.ts",
+      "default": "./src/cli/format-event.ts"
     },
     "./ui": {
       "types": "./src/ui/index.ts",
       "default": "./src/ui/index.ts"
+    },
+    "./bridge": {
+      "types": "./src/bridge/index.ts",
+      "default": "./src/bridge/index.ts"
+    },
+    "./server": {
+      "types": "./src/server/index.ts",
+      "default": "./src/server/index.ts"
+    },
+    "./shared": {
+      "types": "./src/shared/index.ts",
+      "default": "./src/shared/index.ts"
+    },
+    "./cli": {
+      "types": "./src/cli/index.ts",
+      "default": "./src/cli/index.ts"
     },
     "./ui-parser": "./ui-parser.js"
   },

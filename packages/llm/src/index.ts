@@ -1,114 +1,427 @@
-/**
- * @upup/llm - LLM Client SDK
- *
- * Unified interface for multiple LLM providers.
- * No external dependencies.
- *
- * @example
- * ```typescript
- * import { createClient, PROVIDERS } from '@upup/llm';
- *
- * // Create client
- * const client = createClient('openai', process.env.OPENAI_API_KEY);
- *
- * // Complete
- * const response = await client.complete('Hello!');
- * console.log(response.content);
- * ```
- */
-
-import type { AgentTool } from '@upup/types';
-
+import { AIMessage, AIMessageChunk, BaseMessage } from '@langchain/core/messages';
+import { ChatOpenAI } from '@langchain/openai';
+import { ChatAnthropic } from '@langchain/anthropic';
+import { ChatGoogleGenerativeAI } from '@langchain/google-genai';
+import { ChatOllama } from '@langchain/ollama';
+import { ChatPromptTemplate } from '@langchain/core/prompts';
+import { SystemMessage, HumanMessage } from '@langchain/core/messages';
+import { BaseChatModel } from '@langchain/core/language_models/chat_models';
+import type { StructuredToolInterface } from '@langchain/core/tools';
+import { Runnable } from '@langchain/core/runnables';
+import { z } from 'zod';
 // Re-export provider types
 export type { ProviderDef } from './providers.js';
 export { PROVIDERS, resolveProvider, getProviderById } from './providers.js';
 
-// ===== Token Usage =====
 
-export interface TokenUsage {
-  promptTokens: number;
-  completionTokens: number;
-  totalTokens: number;
+import type { TokenUsage } from '@upup/types';
+import { logger } from '@upup/utils';
+import { classifyError, isNonRetryableError } from '@upup/utils';
+import { resolveProvider, getProviderById } from './providers.js';
+
+export const DEFAULT_PROVIDER = 'deepseek';
+export const DEFAULT_MODEL = 'deepseek-v4-flash';
+
+export const DEFAULT_SYSTEM_PROMPT = 'You are UpUp, a helpful AI assistant for deep financial research.';
+
+/**
+ * Gets the fast model variant for the given provider.
+ * Falls back to the provided model if no fast variant is configured (e.g., Ollama).
+ */
+export function getFastModel(modelProvider: string, fallbackModel: string): string {
+  return getProviderById(modelProvider)?.fastModel ?? fallbackModel;
 }
 
-// ===== LLM Options =====
+// Generic retry helper with exponential backoff
+async function withRetry<T>(fn: () => Promise<T>, provider: string, maxAttempts = 3): Promise<T> {
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      const errorType = classifyError(message);
+      logger.error(`[${provider} API] ${errorType} error (attempt ${attempt + 1}/${maxAttempts}): ${message}`);
 
-export interface LlmOptions {
+      if (isNonRetryableError(message)) {
+        throw new Error(`[${provider} API] ${message}`);
+      }
+
+      if (attempt === maxAttempts - 1) {
+        throw new Error(`[${provider} API] ${message}`);
+      }
+      await new Promise((r) => setTimeout(r, 500 * 2 ** attempt));
+    }
+  }
+  throw new Error('Unreachable');
+}
+
+// Model provider configuration
+interface ModelOpts {
+  streaming: boolean;
+}
+
+type ModelFactory = (name: string, opts: ModelOpts) => BaseChatModel;
+
+function getApiKey(envVar: string): string {
+  // First check environment variable
+  let apiKey = process.env[envVar];
+
+  // If not found, try to load from global ~/.upup/settings.json
+  if (!apiKey) {
+    const fs = require('fs');
+    const { homedir } = require('os');
+    const path = require('path');
+
+    try {
+      // Check settings.json first
+      const settingsPath = path.join(homedir(), '.upup', 'settings.json');
+      if (fs.existsSync(settingsPath)) {
+        const settings = JSON.parse(fs.readFileSync(settingsPath, 'utf-8'));
+        if (settings.apiKey) {
+          apiKey = settings.apiKey;
+        }
+      }
+
+      // Also check global .env file
+      if (!apiKey) {
+        const envPath = path.join(homedir(), '.upup', '.env');
+        if (fs.existsSync(envPath)) {
+          const envContent = fs.readFileSync(envPath, 'utf-8');
+          const lines = envContent.split('\n');
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (trimmed && !trimmed.startsWith('#') && trimmed.includes('=')) {
+              const [key, ...valueParts] = trimmed.split('=');
+              if (key.trim() === envVar) {
+                apiKey = valueParts.join('=').trim();
+                break;
+              }
+            }
+          }
+        }
+      }
+    } catch {
+      // Continue to error
+    }
+  }
+
+  if (!apiKey) {
+    throw new Error(`[LLM] ${envVar} not found in environment variables`);
+  }
+  return apiKey;
+}
+
+// Factories keyed by provider id — prefix routing is handled by resolveProvider()
+const MODEL_FACTORIES: Record<string, ModelFactory> = {
+  anthropic: (name, opts) =>
+    new ChatAnthropic({
+      model: name,
+      ...opts,
+      apiKey: getApiKey('ANTHROPIC_API_KEY'),
+    }),
+  google: (name, opts) =>
+    new ChatGoogleGenerativeAI({
+      model: name,
+      ...opts,
+      apiKey: getApiKey('GOOGLE_API_KEY'),
+    }),
+  xai: (name, opts) =>
+    new ChatOpenAI({
+      model: name,
+      ...opts,
+      apiKey: getApiKey('XAI_API_KEY'),
+      configuration: {
+        baseURL: 'https://api.x.ai/v1',
+      },
+    }),
+  openrouter: (name, opts) =>
+    new ChatOpenAI({
+      model: name.replace(/^openrouter:/, ''),
+      ...opts,
+      apiKey: getApiKey('OPENROUTER_API_KEY'),
+      configuration: {
+        baseURL: 'https://openrouter.ai/api/v1',
+      },
+    }),
+  moonshot: (name, opts) =>
+    new ChatOpenAI({
+      model: name,
+      ...opts,
+      apiKey: getApiKey('MOONSHOT_API_KEY'),
+      configuration: {
+        baseURL: 'https://api.moonshot.cn/v1',
+      },
+    }),
+  deepseek: (name, opts) => {
+    // Default maxTokens for deepseek
+    const maxTokens = parseInt(process.env.DEEPSEEK_MAX_TOKENS || '8192');
+
+    // Both deepseek-v4-pro and deepseek-v4-flash support thinking mode.
+    // temperature/top_p/presence_penalty/frequency_penalty are ignored in thinking mode.
+    const isThinkingModel = name === 'deepseek-v4-pro' || name === 'deepseek-v4-flash';
+    return new ChatOpenAI({
+      model: name,
+      maxTokens: maxTokens,
+      ...opts,
+      apiKey: getApiKey('DEEPSEEK_API_KEY'),
+      configuration: {
+        baseURL: 'https://api.deepseek.com',
+      },
+      ...(isThinkingModel && {
+        // reasoning_effort is a top-level param; thinking toggle goes in extra_body
+        // per DeepSeek V4 API docs (OpenAI SDK compat layer)
+        reasoning_effort: process.env.DEEPSEEK_REASONING_EFFORT || 'high',
+        extraBody: {
+          thinking: { type: 'enabled' },
+        },
+      }),
+    });
+  },
+  ollama: (name, opts) =>
+    new ChatOllama({
+      model: name.replace(/^ollama:/, ''),
+      ...opts,
+      ...(process.env.OLLAMA_BASE_URL ? { baseUrl: process.env.OLLAMA_BASE_URL } : {}),
+    }),
+};
+
+const DEFAULT_FACTORY: ModelFactory = (name, opts) =>
+  new ChatOpenAI({
+    model: name,
+    ...opts,
+    apiKey: getApiKey('OPENAI_API_KEY'),
+  });
+
+export function getChatModel(
+  modelName: string = DEFAULT_MODEL,
+  streaming: boolean = false
+): BaseChatModel {
+  const opts: ModelOpts = { streaming };
+  const provider = resolveProvider(modelName);
+  const factory = MODEL_FACTORIES[provider.id] ?? DEFAULT_FACTORY;
+  return factory(modelName, opts);
+}
+
+interface CallLlmOptions {
   model?: string;
-  maxTokens?: number;
-  temperature?: number;
-  system?: string;
-  tools?: AgentTool[];
+  systemPrompt?: string;
+  outputSchema?: z.ZodType<unknown>;
+  tools?: StructuredToolInterface[];
+  signal?: AbortSignal;
 }
 
-// ===== LLM Response =====
-
-export interface LlmResponse {
-  content: string;
-  model: string;
-  finishReason?: 'stop' | 'length' | 'content_filter';
+export interface LlmResult {
+  response: AIMessage | string;
   usage?: TokenUsage;
 }
 
-// ===== LLM Client Interface =====
+function extractUsage(result: unknown): TokenUsage | undefined {
+  if (!result || typeof result !== 'object') return undefined;
+  const msg = result as Record<string, unknown>;
 
-export interface LlmClient {
-  /**
-   * Send a completion request
-   */
-  complete(prompt: string, options?: LlmOptions): Promise<LlmResponse>;
-
-  /**
-   * Stream a completion response
-   */
-  stream?(prompt: string, options?: LlmOptions): AsyncIterable<string>;
-
-  /**
-   * Provider identifier
-   */
-  readonly provider: string;
-
-  /**
-   * Default model
-   */
-  readonly defaultModel: string;
-}
-
-// ===== Client Factory =====
-
-type ClientConstructor = new (apiKey?: string) => LlmClient;
-
-const clients = new Map<string, ClientConstructor>();
-
-/**
- * Register a client constructor for a provider
- */
-export function registerClient(provider: string, clientClass: ClientConstructor): void {
-  clients.set(provider, clientClass);
-}
-
-/**
- * Create a client for a specific provider
- */
-export function createClient(provider: string, apiKey?: string): LlmClient {
-  const ClientClass = clients.get(provider);
-  if (!ClientClass) {
-    const available = Array.from(clients.keys()).join(', ');
-    throw new Error(`Unknown provider: ${provider}. Available: ${available}`);
+  const usageMetadata = msg.usage_metadata;
+  if (usageMetadata && typeof usageMetadata === 'object') {
+    const u = usageMetadata as Record<string, unknown>;
+    const input = typeof u.input_tokens === 'number' ? u.input_tokens : 0;
+    const output = typeof u.output_tokens === 'number' ? u.output_tokens : 0;
+    const total = typeof u.total_tokens === 'number' ? u.total_tokens : input + output;
+    return { promptTokens: input, completionTokens: output, totalTokens: total };
   }
-  return new ClientClass(apiKey);
+
+  const responseMetadata = msg.response_metadata;
+  if (responseMetadata && typeof responseMetadata === 'object') {
+    const rm = responseMetadata as Record<string, unknown>;
+    if (rm.usage && typeof rm.usage === 'object') {
+      const u = rm.usage as Record<string, unknown>;
+      const input = typeof u.prompt_tokens === 'number' ? u.prompt_tokens : 0;
+      const output = typeof u.completion_tokens === 'number' ? u.completion_tokens : 0;
+      const total = typeof u.total_tokens === 'number' ? u.total_tokens : input + output;
+      return { promptTokens: input, completionTokens: output, totalTokens: total };
+    }
+  }
+
+  return undefined;
 }
 
 /**
- * Check if a provider is registered
+ * Build messages with Anthropic cache_control on the system prompt.
+ * Marks the system prompt as ephemeral so Anthropic caches the prefix,
+ * reducing input token costs by ~90% on subsequent calls.
  */
-export function hasClient(provider: string): boolean {
-  return clients.has(provider);
+function buildAnthropicMessages(systemPrompt: string, userPrompt: string) {
+  return [
+    new SystemMessage({
+      content: [
+        {
+          type: 'text' as const,
+          text: systemPrompt,
+          cache_control: { type: 'ephemeral' },
+        },
+      ],
+    }),
+    new HumanMessage(userPrompt),
+  ];
+}
+
+export async function callLlm(prompt: string, options: CallLlmOptions = {}): Promise<LlmResult> {
+  const { model = DEFAULT_MODEL, systemPrompt, outputSchema, tools, signal } = options;
+  const finalSystemPrompt = systemPrompt || DEFAULT_SYSTEM_PROMPT;
+
+  const llm = getChatModel(model, false);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let runnable: Runnable<any, any> = llm;
+
+  if (outputSchema) {
+    runnable = llm.withStructuredOutput(outputSchema, { strict: false });
+  } else if (tools && tools.length > 0 && llm.bindTools) {
+    runnable = llm.bindTools(tools);
+  }
+
+  const invokeOpts = signal ? { signal } : undefined;
+  const provider = resolveProvider(model);
+  let result;
+
+  if (provider.id === 'anthropic') {
+    // Anthropic: use explicit messages with cache_control for prompt caching (~90% savings)
+    const messages = buildAnthropicMessages(finalSystemPrompt, prompt);
+    result = await withRetry(() => runnable.invoke(messages, invokeOpts), provider.displayName);
+  } else {
+    // Other providers: use ChatPromptTemplate (OpenAI/Gemini have automatic caching)
+    const promptTemplate = ChatPromptTemplate.fromMessages([
+      ['system', finalSystemPrompt],
+      ['user', '{prompt}'],
+    ]);
+    const chain = promptTemplate.pipe(runnable);
+    result = await withRetry(() => chain.invoke({ prompt }, invokeOpts), provider.displayName);
+  }
+  const usage = extractUsage(result);
+
+  // If no outputSchema and no tools, extract content from AIMessage
+  // When tools are provided, return the full AIMessage to preserve tool_calls
+  if (!outputSchema && !tools && result && typeof result === 'object' && 'content' in result) {
+    return { response: (result as { content: string }).content, usage };
+  }
+  return { response: result as AIMessage, usage };
+}
+
+// ---------------------------------------------------------------------------
+// Multi-turn message array API
+// ---------------------------------------------------------------------------
+
+/**
+ * Annotate the first SystemMessage with Anthropic's cache_control for prompt
+ * caching (~90% input token savings on repeated calls).
+ */
+function annotateSystemMessageForCaching(messages: BaseMessage[]): BaseMessage[] {
+  const first = messages[0];
+  if (!first || first._getType() !== 'system') {
+    return messages;
+  }
+
+  const systemMsg = first;
+  const text = typeof systemMsg.content === 'string'
+    ? systemMsg.content
+    : JSON.stringify(systemMsg.content);
+
+  const annotated = new SystemMessage({
+    content: [
+      {
+        type: 'text' as const,
+        text,
+        cache_control: { type: 'ephemeral' },
+      },
+    ],
+  });
+
+  return [annotated, ...messages.slice(1)];
+}
+
+interface CallLlmWithMessagesOptions {
+  model?: string;
+  tools?: StructuredToolInterface[];
+  signal?: AbortSignal;
 }
 
 /**
- * Get list of registered providers
+ * Call an LLM with a full message array (multi-turn tool-calling).
+ *
+ * Unlike callLlm() which takes a single prompt string, this function accepts
+ * a BaseMessage[] array containing SystemMessage, HumanMessage, AIMessage,
+ * and ToolMessage objects. This enables the agent loop where
+ * conversation history (including model reasoning and tool results) persists
+ * across iterations.
+ *
+ * All LangChain providers support BaseMessage[] via BaseChatModel.invoke().
  */
-export function getRegisteredProviders(): string[] {
-  return Array.from(clients.keys());
+export async function callLlmWithMessages(
+  messages: BaseMessage[],
+  options: CallLlmWithMessagesOptions = {},
+): Promise<LlmResult> {
+  const { model = DEFAULT_MODEL, tools, signal } = options;
+
+  const llm = getChatModel(model, false);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let runnable: Runnable<any, any> = llm;
+
+  if (tools && tools.length > 0 && llm.bindTools) {
+    runnable = llm.bindTools(tools);
+  }
+
+  const invokeOpts = signal ? { signal } : undefined;
+  const provider = resolveProvider(model);
+
+  // For Anthropic: annotate SystemMessage with cache_control for prompt caching
+  const finalMessages = provider.id === 'anthropic'
+    ? annotateSystemMessageForCaching(messages)
+    : messages;
+
+  const result = await withRetry(
+    () => runnable.invoke(finalMessages, invokeOpts),
+    provider.displayName,
+  );
+
+  const usage = extractUsage(result);
+  return { response: result as AIMessage, usage };
+}
+
+// ---------------------------------------------------------------------------
+// Streaming multi-turn API
+// ---------------------------------------------------------------------------
+
+/**
+ * Stream an LLM response as AIMessageChunk objects.
+ *
+ * Uses LangChain's .stream() method. Chunks can be accumulated via .concat()
+ * to progressively build complete tool_calls. Falls back to blocking invoke
+ * if streaming is not supported by the provider.
+ */
+export async function* streamLlmWithMessages(
+  messages: BaseMessage[],
+  options: CallLlmWithMessagesOptions = {},
+): AsyncGenerator<AIMessageChunk, void> {
+  const { model = DEFAULT_MODEL, tools, signal } = options;
+
+  const llm = getChatModel(model, true);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let runnable: Runnable<any, any> = llm;
+
+  if (tools && tools.length > 0 && llm.bindTools) {
+    runnable = llm.bindTools(tools);
+  }
+
+  const invokeOpts = signal ? { signal } : undefined;
+  const provider = resolveProvider(model);
+
+  const finalMessages = provider.id === 'anthropic'
+    ? annotateSystemMessageForCaching(messages)
+    : messages;
+
+  const stream = await runnable.stream(finalMessages, invokeOpts);
+
+  for await (const chunk of stream) {
+    yield chunk as AIMessageChunk;
+  }
 }

@@ -62,6 +62,8 @@ export const call = async (
 
 `,
     }
+  } catch {
+    // Fallback failed
   }
 }
 

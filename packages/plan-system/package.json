@@ -1,0 +1,55 @@
+{
+  "name": "@upup/plan-system",
+  "version": "0.2.0",
+  "description": "UpUp Plan System - Research plan builder, executor, and context",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./plan-builder": {
+      "types": "./src/plan-builder.ts",
+      "default": "./src/plan-builder.ts"
+    },
+    "./plan-executor": {
+      "types": "./src/plan-executor.ts",
+      "default": "./src/plan-executor.ts"
+    },
+    "./research-plan": {
+      "types": "./src/research-plan.ts",
+      "default": "./src/research-plan.ts"
+    },
+    "./plan-context": {
+      "types": "./src/plan-context.ts",
+      "default": "./src/plan-context.ts"
+    },
+    "./plan": {
+      "types": "./src/plan/index.ts",
+      "default": "./src/plan/index.ts"
+    },
+    "./tasks": {
+      "types": "./src/tasks/index.ts",
+      "default": "./src/tasks/index.ts"
+    },
+    "./*": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
+    }
+  },
+  "scripts": {
+    "build": "bun build src/index.ts --outdir=dist --target=node && npx tsc --emitDeclarationOnly --declaration --declarationMap --outDir dist",
+    "dev": "bun build src/index.ts --outdir=dist --watch --target=node",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@upup/types": "workspace:*"
+  },
+  "peerDependencies": {},
+  "files": [
+    "dist"
+  ],
+  "private": false
+}

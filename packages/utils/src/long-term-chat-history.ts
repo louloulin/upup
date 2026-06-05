@@ -1,7 +1,8 @@
 import { readFile, writeFile, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
 import { join, dirname } from 'path';
-import { getUpupDir } from './paths.js';
+import { globalUpupPath, upupPath } from './paths.js';
+import { MESSAGES_DIR } from './storage-paths.js';
 
 /**
  * Represents a conversation entry (user message + agent response pair)
@@ -18,21 +19,28 @@ interface MessagesFile {
   messages: ConversationEntry[];
 }
 
-const MESSAGES_DIR = 'messages';
 const MESSAGES_FILE = 'chat_history.json';
 
 /**
  * Manages persistent storage of conversation history for input history navigation.
  * Uses stack ordering (most recent first) for O(1) access to latest entries.
- * Stores messages in .upup/messages/chat_history.json
+ * Stores messages in ~/.upup/messages/chat_history.json
  */
 export class LongTermChatHistory {
   private filePath: string;
   private messages: ConversationEntry[] = [];
   private loaded = false;
 
-  constructor(baseDir: string = process.cwd()) {
-    this.filePath = join(baseDir, getUpupDir(), MESSAGES_DIR, MESSAGES_FILE);
+  constructor(baseDir?: string) {
+    // Use provided baseDir or default to global storage
+    // Note: baseDir here is for testing purposes only, real storage always uses global path
+    if (baseDir && baseDir !== process.cwd()) {
+      // Testing mode: use provided path
+      this.filePath = join(baseDir, MESSAGES_DIR, MESSAGES_FILE);
+    } else {
+      // Production: always use global storage
+      this.filePath = join(globalUpupPath(MESSAGES_DIR), MESSAGES_FILE);
+    }
   }
 
   /**

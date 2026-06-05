@@ -1,0 +1,57 @@
+{
+  "name": "@upup/telemetry",
+  "version": "0.3.0",
+  "description": "L3 Telemetry",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./telemetry.test": {
+      "types": "./src/telemetry.test.ts",
+      "default": "./src/telemetry.test.ts"
+    },
+    "./integration": {
+      "types": "./src/integration.ts",
+      "default": "./src/integration.ts"
+    },
+    "./types": {
+      "types": "./src/types.ts",
+      "default": "./src/types.ts"
+    },
+    "./recorder": {
+      "types": "./src/recorder.ts",
+      "default": "./src/recorder.ts"
+    },
+    "./sink": {
+      "types": "./src/sink.ts",
+      "default": "./src/sink.ts"
+    },
+    "./anonymizer": {
+      "types": "./src/anonymizer.ts",
+      "default": "./src/anonymizer.ts"
+    },
+    "./integration.test": {
+      "types": "./src/integration.test.ts",
+      "default": "./src/integration.test.ts"
+    },
+    "./*": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
+    }
+  },
+  "scripts": {
+    "build": "echo L3",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@upup/types": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}

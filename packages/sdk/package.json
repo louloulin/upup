@@ -9,6 +9,158 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./beta/index": {
+      "types": "./src/beta/index.ts",
+      "default": "./src/beta/index.ts"
+    },
+    "./beta-tool": {
+      "types": "./src/beta-tool.ts",
+      "default": "./src/beta-tool.ts"
+    },
+    "./tools/types": {
+      "types": "./src/tools/types.ts",
+      "default": "./src/tools/types.ts"
+    },
+    "./tools/index": {
+      "types": "./src/tools/index.ts",
+      "default": "./src/tools/index.ts"
+    },
+    "./transport/http-transport": {
+      "types": "./src/transport/http-transport.ts",
+      "default": "./src/transport/http-transport.ts"
+    },
+    "./transport/transport": {
+      "types": "./src/transport/transport.ts",
+      "default": "./src/transport/transport.ts"
+    },
+    "./transport/index": {
+      "types": "./src/transport/index.ts",
+      "default": "./src/transport/index.ts"
+    },
+    "./transport/stdio-transport": {
+      "types": "./src/transport/stdio-transport.ts",
+      "default": "./src/transport/stdio-transport.ts"
+    },
+    "./memory/tool": {
+      "types": "./src/memory/tool.ts",
+      "default": "./src/memory/tool.ts"
+    },
+    "./errors": {
+      "types": "./src/errors.ts",
+      "default": "./src/errors.ts"
+    },
+    "./tool-error": {
+      "types": "./src/tool-error.ts",
+      "default": "./src/tool-error.ts"
+    },
+    "./messages": {
+      "types": "./src/messages.ts",
+      "default": "./src/messages.ts"
+    },
+    "./tool-runner": {
+      "types": "./src/tool-runner.ts",
+      "default": "./src/tool-runner.ts"
+    },
+    "./permissions/manager": {
+      "types": "./src/permissions/manager.ts",
+      "default": "./src/permissions/manager.ts"
+    },
+    "./permissions/types": {
+      "types": "./src/permissions/types.ts",
+      "default": "./src/permissions/types.ts"
+    },
+    "./permissions/index": {
+      "types": "./src/permissions/index.ts",
+      "default": "./src/permissions/index.ts"
+    },
+    "./hooks/executor": {
+      "types": "./src/hooks/executor.ts",
+      "default": "./src/hooks/executor.ts"
+    },
+    "./hooks/types": {
+      "types": "./src/hooks/types.ts",
+      "default": "./src/hooks/types.ts"
+    },
+    "./hooks/index": {
+      "types": "./src/hooks/index.ts",
+      "default": "./src/hooks/index.ts"
+    },
+    "./hooks/post-sampling": {
+      "types": "./src/hooks/post-sampling.ts",
+      "default": "./src/hooks/post-sampling.ts"
+    },
+    "./batch": {
+      "types": "./src/batch.ts",
+      "default": "./src/batch.ts"
+    },
+    "./token": {
+      "types": "./src/token.ts",
+      "default": "./src/token.ts"
+    },
+    "./pool/pool": {
+      "types": "./src/pool/pool.ts",
+      "default": "./src/pool/pool.ts"
+    },
+    "./pool/index": {
+      "types": "./src/pool/index.ts",
+      "default": "./src/pool/index.ts"
+    },
+    "./client/client": {
+      "types": "./src/client/client.ts",
+      "default": "./src/client/client.ts"
+    },
+    "./session/types": {
+      "types": "./src/session/types.ts",
+      "default": "./src/session/types.ts"
+    },
+    "./session/index": {
+      "types": "./src/session/index.ts",
+      "default": "./src/session/index.ts"
+    },
+    "./session/upup-session": {
+      "types": "./src/session/upup-session.ts",
+      "default": "./src/session/upup-session.ts"
+    },
+    "./session/store": {
+      "types": "./src/session/store.ts",
+      "default": "./src/session/store.ts"
+    },
+    "./beta": {
+      "types": "./src/beta/index.ts",
+      "default": "./src/beta/index.ts"
+    },
+    "./tools": {
+      "types": "./src/tools/index.ts",
+      "default": "./src/tools/index.ts"
+    },
+    "./transport": {
+      "types": "./src/transport/index.ts",
+      "default": "./src/transport/index.ts"
+    },
+    "./memory": {
+      "types": "./src/memory/index.ts",
+      "default": "./src/memory/index.ts"
+    },
+    "./permissions": {
+      "types": "./src/permissions/index.ts",
+      "default": "./src/permissions/index.ts"
+    },
+    "./hooks": {
+      "types": "./src/hooks/index.ts",
+      "default": "./src/hooks/index.ts"
+    },
+    "./pool": {
+      "types": "./src/pool/index.ts",
+      "default": "./src/pool/index.ts"
+    },
+    "./client": {
+      "types": "./src/client/index.ts",
+      "default": "./src/client/index.ts"
+    },
+    "./session": {
+      "types": "./src/session/index.ts",
+      "default": "./src/session/index.ts"
     }
   },
   "scripts": {

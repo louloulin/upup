@@ -1,0 +1,83 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": false,
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@upup/types": [
+        "../types/src"
+      ],
+      "@upup/types/*": [
+        "../types/src/*"
+      ],
+      "@upup/utils": [
+        "../utils/src"
+      ],
+      "@upup/utils/*": [
+        "../utils/src/*"
+      ],
+      "@upup/utils/logging": [
+        "../utils/src/logging"
+      ],
+      "@upup/llm": [
+        "../llm/src"
+      ],
+      "@upup/hooks": [
+        "../hooks/src"
+      ],
+      "@upup/hooks/*": [
+        "../hooks/src/*"
+      ],
+      "@upup/agent-runtime": [
+        "../agent-runtime/src"
+      ],
+      "@upup/memory-system": [
+        "../memory-system/src"
+      ],
+      "@upup/session-system": [
+        "../session-system/src"
+      ],
+      "@upup/telemetry": [
+        "../telemetry/src"
+      ],
+      "@upup/storage": [
+        "../storage/src"
+      ],
+      "@upup/skills": [
+        "../skills/src"
+      ],
+      "@upup/plan-system": [
+        "../plan-system/src"
+      ],
+      "@upup/mcp": [
+        "../mcp/src"
+      ],
+      "@upup/daemon": [
+        "../daemon/src"
+      ],
+      "@upup/cron": [
+        "../cron/src"
+      ],
+      "@upup/gateway": [
+        "../gateway/src"
+      ],
+      "@upup/cli": [
+        "../cli/src"
+      ],
+      "@upup/tui-renderer": [
+        "../tui-renderer/src"
+      ],
+      "@upup/tui-renderer/*": [
+        "../tui-renderer/src/*"
+      ]
+    }
+  },
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "dist",
+    "node_modules"
+  ]
+}

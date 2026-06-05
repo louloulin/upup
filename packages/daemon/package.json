@@ -7,8 +7,48 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./workers": {
+      "types": "./src/workers/index.ts",
+      "default": "./src/workers/index.ts"
+    },
+    "./fund-monitor": {
+      "types": "./src/fund-monitor.ts",
+      "default": "./src/fund-monitor.ts"
+    },
+    "./types": {
+      "types": "./src/types.ts",
+      "default": "./src/types.ts"
+    },
+    "./session": {
+      "types": "./src/session.ts",
+      "default": "./src/session.ts"
+    },
+    "./ipc": {
+      "types": "./src/ipc.ts",
+      "default": "./src/ipc.ts"
+    },
+    "./supervisor": {
+      "types": "./src/supervisor.ts",
+      "default": "./src/supervisor.ts"
+    },
+    "./workers/types": {
+      "types": "./src/workers/types.ts",
+      "default": "./src/workers/types.ts"
+    },
+    "./workers/tasks": {
+      "types": "./src/workers/tasks.ts",
+      "default": "./src/workers/tasks.ts"
+    },
+    "./worker-pool": {
+      "types": "./src/worker-pool.ts",
+      "default": "./src/worker-pool.ts"
+    },
+    "./*": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
     }
   },
   "files": [

@@ -10,11 +10,8 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync, unlinkSync } from 'fs';
 import { join, dirname } from 'path';
 import { createHash } from 'crypto';
-import { warn, type LogCategory } from './logging/logger.js';
+import { logger } from './logger.js';
 import { upupPath } from './paths.js';
-
-// Log category for cache operations
-const CACHE_LOG_CATEGORY: LogCategory = 'system';
 
 // ============================================================================
 // Types
@@ -147,7 +144,7 @@ export function readCache(
     const parsed: unknown = JSON.parse(content);
 
     if (!isValidCacheEntry(parsed)) {
-      warn(CACHE_LOG_CATEGORY, `Cache corrupted (invalid structure): ${label}`, { filepath });
+      logger.warn(`Cache corrupted (invalid structure): ${label}`, { filepath });
       removeCacheFile(filepath);
       return null;
     }
@@ -163,7 +160,7 @@ export function readCache(
     return { data: parsed.data, url: parsed.url };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    warn(CACHE_LOG_CATEGORY, `Cache read error: ${label} — ${message}`, { filepath });
+    logger.warn(`Cache read error: ${label} — ${message}`, { filepath });
     removeCacheFile(filepath);
     return null;
   }
@@ -200,6 +197,6 @@ export function writeCache(
     writeFileSync(filepath, JSON.stringify(entry, null, 2));
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    warn(CACHE_LOG_CATEGORY, `Cache write error: ${label} — ${message}`, { filepath });
+    logger.warn(`Cache write error: ${label} — ${message}`, { filepath });
   }
 }

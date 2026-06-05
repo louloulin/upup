@@ -167,3 +167,11 @@ export class ProviderError extends UpupError {
     this.name = 'ProviderError';
   }
 }
+
+// ===== Token Usage =====
+export interface TokenUsage {
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+}
+

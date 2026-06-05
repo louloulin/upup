@@ -1,19 +1,83 @@
 {
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "target": "ESNext",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true,
-    "declaration": true,
-    "declarationMap": true,
-    "outDir": "./dist",
-    "rootDir": "./src",
-    "baseUrl": "."
+    "composite": false,
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@upup/types": [
+        "../types/src"
+      ],
+      "@upup/types/*": [
+        "../types/src/*"
+      ],
+      "@upup/utils": [
+        "../utils/src"
+      ],
+      "@upup/utils/*": [
+        "../utils/src/*"
+      ],
+      "@upup/utils/logging": [
+        "../utils/src/logging"
+      ],
+      "@upup/llm": [
+        "../llm/src"
+      ],
+      "@upup/hooks": [
+        "../hooks/src"
+      ],
+      "@upup/hooks/*": [
+        "../hooks/src/*"
+      ],
+      "@upup/agent-runtime": [
+        "../agent-runtime/src"
+      ],
+      "@upup/agent-runtime/*": [
+        "../agent-runtime/src/*"
+      ],
+      "@upup/memory-system": [
+        "../memory-system/src"
+      ],
+      "@upup/memory-system/*": [
+        "../memory-system/src/*"
+      ],
+      "@upup/session-system": [
+        "../session-system/src"
+      ],
+      "@upup/telemetry": [
+        "../telemetry/src"
+      ],
+      "@upup/telemetry/*": [
+        "../telemetry/src/*"
+      ],
+      "@upup/storage": [
+        "../storage/src"
+      ],
+      "@upup/skills": [
+        "../skills/src"
+      ],
+      "@upup/skills/*": [
+        "../skills/src/*"
+      ],
+      "@upup/plan-system": [
+        "../plan-system/src"
+      ],
+      "@upup/mcp": [
+        "../mcp/src"
+      ],
+      "@upup/mcp/*": [
+        "../mcp/src/*"
+      ],
+      "@upup/cli": [
+        "../cli/src"
+      ]
+    }
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "dist",
+    "node_modules"
+  ]
 }

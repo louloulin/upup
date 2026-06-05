@@ -7,8 +7,172 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./access-control": {
+      "types": "./src/access-control.ts",
+      "default": "./src/access-control.ts"
+    },
+    "./channel-types": {
+      "types": "./src/channel-types.ts",
+      "default": "./src/channel-types.ts"
+    },
+    "./group/history-buffer": {
+      "types": "./src/group/history-buffer.ts",
+      "default": "./src/group/history-buffer.ts"
+    },
+    "./group/member-tracker": {
+      "types": "./src/group/member-tracker.ts",
+      "default": "./src/group/member-tracker.ts"
+    },
+    "./group/mention-detection": {
+      "types": "./src/group/mention-detection.ts",
+      "default": "./src/group/mention-detection.ts"
+    },
+    "./group/index": {
+      "types": "./src/group/index.ts",
+      "default": "./src/group/index.ts"
+    },
+    "./utils": {
+      "types": "./src/utils.ts",
+      "default": "./src/utils.ts"
+    },
+    "./agent-runner": {
+      "types": "./src/agent-runner.ts",
+      "default": "./src/agent-runner.ts"
+    },
+    "./extension-points": {
+      "types": "./src/extension-points.ts",
+      "default": "./src/extension-points.ts"
+    },
+    "./types": {
+      "types": "./src/types.ts",
+      "default": "./src/types.ts"
+    },
+    "./heartbeat/prompt": {
+      "types": "./src/heartbeat/prompt.ts",
+      "default": "./src/heartbeat/prompt.ts"
+    },
+    "./heartbeat/index": {
+      "types": "./src/heartbeat/index.ts",
+      "default": "./src/heartbeat/index.ts"
+    },
+    "./heartbeat/suppression": {
+      "types": "./src/heartbeat/suppression.ts",
+      "default": "./src/heartbeat/suppression.ts"
+    },
+    "./sessions/store": {
+      "types": "./src/sessions/store.ts",
+      "default": "./src/sessions/store.ts"
+    },
+    "./routing/resolve-route": {
+      "types": "./src/routing/resolve-route.ts",
+      "default": "./src/routing/resolve-route.ts"
+    },
+    "./config": {
+      "types": "./src/config.ts",
+      "default": "./src/config.ts"
+    },
+    "./gateway": {
+      "types": "./src/gateway.ts",
+      "default": "./src/gateway.ts"
+    },
+    "./channels/manager": {
+      "types": "./src/channels/manager.ts",
+      "default": "./src/channels/manager.ts"
+    },
+    "./channels/types": {
+      "types": "./src/channels/types.ts",
+      "default": "./src/channels/types.ts"
+    },
+    "./channels/index": {
+      "types": "./src/channels/index.ts",
+      "default": "./src/channels/index.ts"
+    },
+    "./channels/whatsapp/lid": {
+      "types": "./src/channels/whatsapp/lid.ts",
+      "default": "./src/channels/whatsapp/lid.ts"
+    },
+    "./channels/whatsapp/login": {
+      "types": "./src/channels/whatsapp/login.ts",
+      "default": "./src/channels/whatsapp/login.ts"
+    },
+    "./channels/whatsapp/plugin": {
+      "types": "./src/channels/whatsapp/plugin.ts",
+      "default": "./src/channels/whatsapp/plugin.ts"
+    },
+    "./channels/whatsapp/outbound": {
+      "types": "./src/channels/whatsapp/outbound.ts",
+      "default": "./src/channels/whatsapp/outbound.ts"
+    },
+    "./channels/whatsapp/inbound": {
+      "types": "./src/channels/whatsapp/inbound.ts",
+      "default": "./src/channels/whatsapp/inbound.ts"
+    },
+    "./channels/whatsapp/runtime": {
+      "types": "./src/channels/whatsapp/runtime.ts",
+      "default": "./src/channels/whatsapp/runtime.ts"
+    },
+    "./channels/whatsapp/types": {
+      "types": "./src/channels/whatsapp/types.ts",
+      "default": "./src/channels/whatsapp/types.ts"
+    },
+    "./channels/whatsapp/logger": {
+      "types": "./src/channels/whatsapp/logger.ts",
+      "default": "./src/channels/whatsapp/logger.ts"
+    },
+    "./channels/whatsapp/session": {
+      "types": "./src/channels/whatsapp/session.ts",
+      "default": "./src/channels/whatsapp/session.ts"
+    },
+    "./channels/whatsapp/auth-store": {
+      "types": "./src/channels/whatsapp/auth-store.ts",
+      "default": "./src/channels/whatsapp/auth-store.ts"
+    },
+    "./channels/whatsapp/dedupe": {
+      "types": "./src/channels/whatsapp/dedupe.ts",
+      "default": "./src/channels/whatsapp/dedupe.ts"
+    },
+    "./channels/whatsapp/index": {
+      "types": "./src/channels/whatsapp/index.ts",
+      "default": "./src/channels/whatsapp/index.ts"
+    },
+    "./channels/whatsapp/error": {
+      "types": "./src/channels/whatsapp/error.ts",
+      "default": "./src/channels/whatsapp/error.ts"
+    },
+    "./channels/whatsapp/reconnect": {
+      "types": "./src/channels/whatsapp/reconnect.ts",
+      "default": "./src/channels/whatsapp/reconnect.ts"
+    },
+    "./group": {
+      "types": "./src/group/index.ts",
+      "default": "./src/group/index.ts"
+    },
+    "./heartbeat": {
+      "types": "./src/heartbeat/index.ts",
+      "default": "./src/heartbeat/index.ts"
+    },
+    "./sessions": {
+      "types": "./src/sessions/index.ts",
+      "default": "./src/sessions/index.ts"
+    },
+    "./routing": {
+      "types": "./src/routing/index.ts",
+      "default": "./src/routing/index.ts"
+    },
+    "./channels": {
+      "types": "./src/channels/index.ts",
+      "default": "./src/channels/index.ts"
+    },
+    "./channels/whatsapp": {
+      "types": "./src/channels/whatsapp/index.ts",
+      "default": "./src/channels/whatsapp/index.ts"
+    },
+    "./*": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
     }
   },
   "files": [

@@ -7,8 +7,36 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./executor": {
+      "types": "./src/executor.ts",
+      "default": "./src/executor.ts"
+    },
+    "./schedule": {
+      "types": "./src/schedule.ts",
+      "default": "./src/schedule.ts"
+    },
+    "./heartbeat-migration": {
+      "types": "./src/heartbeat-migration.ts",
+      "default": "./src/heartbeat-migration.ts"
+    },
+    "./types": {
+      "types": "./src/types.ts",
+      "default": "./src/types.ts"
+    },
+    "./runner": {
+      "types": "./src/runner.ts",
+      "default": "./src/runner.ts"
+    },
+    "./store": {
+      "types": "./src/store.ts",
+      "default": "./src/store.ts"
+    },
+    "./*": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
     }
   },
   "files": [

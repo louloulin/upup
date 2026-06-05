@@ -1,0 +1,99 @@
+{
+  "name": "@upup/session-system",
+  "version": "0.3.0",
+  "description": "UpUp Session System - L4 package for session lifecycle, persistence, and migration",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./migrate": {
+      "types": "./src/migrate.ts",
+      "default": "./src/migrate.ts"
+    },
+    "./context-collapse": {
+      "types": "./src/context-collapse.ts",
+      "default": "./src/context-collapse.ts"
+    },
+    "./restore": {
+      "types": "./src/restore.ts",
+      "default": "./src/restore.ts"
+    },
+    "./session-state": {
+      "types": "./src/session-state.ts",
+      "default": "./src/session-state.ts"
+    },
+    "./storage": {
+      "types": "./src/storage.ts",
+      "default": "./src/storage.ts"
+    },
+    "./restore-advanced": {
+      "types": "./src/restore-advanced.ts",
+      "default": "./src/restore-advanced.ts"
+    },
+    "./render/MessageRenderer": {
+      "types": "./src/render/MessageRenderer.ts",
+      "default": "./src/render/MessageRenderer.ts"
+    },
+    "./render/index": {
+      "types": "./src/render/index.ts",
+      "default": "./src/render/index.ts"
+    },
+    "./types": {
+      "types": "./src/types.ts",
+      "default": "./src/types.ts"
+    },
+    "./selector": {
+      "types": "./src/selector.ts",
+      "default": "./src/selector.ts"
+    },
+    "./session-environment": {
+      "types": "./src/session-environment.ts",
+      "default": "./src/session-environment.ts"
+    },
+    "./message-chain": {
+      "types": "./src/message-chain.ts",
+      "default": "./src/message-chain.ts"
+    },
+    "./session-tracker": {
+      "types": "./src/session-tracker.ts",
+      "default": "./src/session-tracker.ts"
+    },
+    "./storage-portable": {
+      "types": "./src/storage-portable.ts",
+      "default": "./src/storage-portable.ts"
+    },
+    "./ephemeral-messages": {
+      "types": "./src/ephemeral-messages.ts",
+      "default": "./src/ephemeral-messages.ts"
+    },
+    "./pid-manager": {
+      "types": "./src/pid-manager.ts",
+      "default": "./src/pid-manager.ts"
+    },
+    "./render": {
+      "types": "./src/render/index.ts",
+      "default": "./src/render/index.ts"
+    },
+    "./*": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
+    }
+  },
+  "scripts": {
+    "build": "echo 'L4 stub - real content in Phase 4'",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@upup/types": "workspace:*",
+    "@upup/utils": "workspace:*"
+  },
+  "peerDependencies": {},
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}

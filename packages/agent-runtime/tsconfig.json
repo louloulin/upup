@@ -1,0 +1,108 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": false,
+    "noEmit": true,
+    "outDir": "./dist",
+    "baseUrl": ".",
+    "paths": {
+      "@upup/types": [
+        "../types/src"
+      ],
+      "@upup/types/*": [
+        "../types/src/*"
+      ],
+      "@upup/utils": [
+        "../utils/src"
+      ],
+      "@upup/utils/*": [
+        "../utils/src/*"
+      ],
+      "@upup/llm": [
+        "../llm/src"
+      ],
+      "@upup/llm/*": [
+        "../llm/src/*"
+      ],
+      "@upup/hooks": [
+        "../hooks/src"
+      ],
+      "@upup/hooks/*": [
+        "../hooks/src/*"
+      ],
+      "@upup/state": [
+        "../state/src"
+      ],
+      "@upup/state/*": [
+        "../state/src/*"
+      ],
+      "@upup/storage": [
+        "../storage/src"
+      ],
+      "@upup/storage/*": [
+        "../storage/src/*"
+      ],
+      "@upup/telemetry": [
+        "../telemetry/src"
+      ],
+      "@upup/telemetry/*": [
+        "../telemetry/src/*"
+      ],
+      "@upup/keybindings": [
+        "../keybindings/src"
+      ],
+      "@upup/keybindings/*": [
+        "../keybindings/src/*"
+      ],
+      "@upup/memory-system": [
+        "../memory-system/src"
+      ],
+      "@upup/memory-system/*": [
+        "../memory-system/src/*"
+      ],
+      "@upup/session-system": [
+        "../session-system/src"
+      ],
+      "@upup/session-system/*": [
+        "../session-system/src/*"
+      ],
+      "@upup/skills": [
+        "../skills/src"
+      ],
+      "@upup/skills/*": [
+        "../skills/src/*"
+      ],
+      "@upup/plan-system": [
+        "../plan-system/src"
+      ],
+      "@upup/plan-system/*": [
+        "../plan-system/src/*"
+      ],
+      "@upup/tools-registry": [
+        "../tools-registry/src"
+      ],
+      "@upup/tools-registry/*": [
+        "../tools-registry/src/*"
+      ],
+      "@upup/finance-tools": [
+        "../finance-tools/src"
+      ],
+      "@upup/finance-tools/*": [
+        "../finance-tools/src/*"
+      ],
+      "@upup/daemon": [
+        "../daemon/src"
+      ],
+      "@upup/daemon/*": [
+        "../daemon/src/*"
+      ]
+    }
+  },
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "dist",
+    "node_modules"
+  ]
+}

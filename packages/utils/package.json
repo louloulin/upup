@@ -3,14 +3,217 @@
   "version": "0.2.0",
   "description": "UpUp Utils - Common utility functions",
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
     },
-    "./logging": "./dist/logging/index.js"
+    "./feature-flags": {
+      "types": "./src/feature-flags.ts",
+      "default": "./src/feature-flags.ts"
+    },
+    "./in-memory-chat-history": {
+      "types": "./src/in-memory-chat-history.ts",
+      "default": "./src/in-memory-chat-history.ts"
+    },
+    "./ollama": {
+      "types": "./src/ollama.ts",
+      "default": "./src/ollama.ts"
+    },
+    "./json": {
+      "types": "./src/json.ts",
+      "default": "./src/json.ts"
+    },
+    "./config-sources.test": {
+      "types": "./src/config-sources.test.ts",
+      "default": "./src/config-sources.test.ts"
+    },
+    "./spinner": {
+      "types": "./src/spinner.ts",
+      "default": "./src/spinner.ts"
+    },
+    "./cwd": {
+      "types": "./src/cwd.ts",
+      "default": "./src/cwd.ts"
+    },
+    "./storage-paths": {
+      "types": "./src/storage-paths.ts",
+      "default": "./src/storage-paths.ts"
+    },
+    "./cache.test": {
+      "types": "./src/cache.test.ts",
+      "default": "./src/cache.test.ts"
+    },
+    "./progress-channel": {
+      "types": "./src/progress-channel.ts",
+      "default": "./src/progress-channel.ts"
+    },
+    "./input-key-handlers": {
+      "types": "./src/input-key-handlers.ts",
+      "default": "./src/input-key-handlers.ts"
+    },
+    "./errors": {
+      "types": "./src/errors.ts",
+      "default": "./src/errors.ts"
+    },
+    "./enhanced-cache.test": {
+      "types": "./src/enhanced-cache.test.ts",
+      "default": "./src/enhanced-cache.test.ts"
+    },
+    "./grapheme": {
+      "types": "./src/grapheme.ts",
+      "default": "./src/grapheme.ts"
+    },
+    "./kill-ring": {
+      "types": "./src/kill-ring.ts",
+      "default": "./src/kill-ring.ts"
+    },
+    "./tool-result-budget": {
+      "types": "./src/tool-result-budget.ts",
+      "default": "./src/tool-result-budget.ts"
+    },
+    "./enhanced-cache": {
+      "types": "./src/enhanced-cache.ts",
+      "default": "./src/enhanced-cache.ts"
+    },
+    "./long-term-chat-history": {
+      "types": "./src/long-term-chat-history.ts",
+      "default": "./src/long-term-chat-history.ts"
+    },
+    "./platform": {
+      "types": "./src/platform.ts",
+      "default": "./src/platform.ts"
+    },
+    "./model": {
+      "types": "./src/model.ts",
+      "default": "./src/model.ts"
+    },
+    "./command-usage": {
+      "types": "./src/command-usage.ts",
+      "default": "./src/command-usage.ts"
+    },
+    "./ai-message": {
+      "types": "./src/ai-message.ts",
+      "default": "./src/ai-message.ts"
+    },
+    "./terminal-links": {
+      "types": "./src/terminal-links.ts",
+      "default": "./src/terminal-links.ts"
+    },
+    "./tokens": {
+      "types": "./src/tokens.ts",
+      "default": "./src/tokens.ts"
+    },
+    "./logger": {
+      "types": "./src/logger.ts",
+      "default": "./src/logger.ts"
+    },
+    "./format": {
+      "types": "./src/format.ts",
+      "default": "./src/format.ts"
+    },
+    "./cache": {
+      "types": "./src/cache.ts",
+      "default": "./src/cache.ts"
+    },
+    "./text-navigation": {
+      "types": "./src/text-navigation.ts",
+      "default": "./src/text-navigation.ts"
+    },
+    "./concurrency": {
+      "types": "./src/concurrency.ts",
+      "default": "./src/concurrency.ts"
+    },
+    "./markdown-table": {
+      "types": "./src/markdown-table.ts",
+      "default": "./src/markdown-table.ts"
+    },
+    "./tool-description": {
+      "types": "./src/tool-description.ts",
+      "default": "./src/tool-description.ts"
+    },
+    "./config-validation": {
+      "types": "./src/config-validation.ts",
+      "default": "./src/config-validation.ts"
+    },
+    "./slash-detection": {
+      "types": "./src/slash-detection.ts",
+      "default": "./src/slash-detection.ts"
+    },
+    "./thinking-verbs": {
+      "types": "./src/thinking-verbs.ts",
+      "default": "./src/thinking-verbs.ts"
+    },
+    "./credentials": {
+      "types": "./src/credentials.ts",
+      "default": "./src/credentials.ts"
+    },
+    "./paths.test": {
+      "types": "./src/paths.test.ts",
+      "default": "./src/paths.test.ts"
+    },
+    "./credentials.test": {
+      "types": "./src/credentials.test.ts",
+      "default": "./src/credentials.test.ts"
+    },
+    "./tool-result-storage": {
+      "types": "./src/tool-result-storage.ts",
+      "default": "./src/tool-result-storage.ts"
+    },
+    "./paths": {
+      "types": "./src/paths.ts",
+      "default": "./src/paths.ts"
+    },
+    "./env": {
+      "types": "./src/env.ts",
+      "default": "./src/env.ts"
+    },
+    "./config": {
+      "types": "./src/config.ts",
+      "default": "./src/config.ts"
+    },
+    "./vim-movements": {
+      "types": "./src/vim-movements.ts",
+      "default": "./src/vim-movements.ts"
+    },
+    "./stock-code": {
+      "types": "./src/stock-code.ts",
+      "default": "./src/stock-code.ts"
+    },
+    "./terminal-capabilities": {
+      "types": "./src/terminal-capabilities.ts",
+      "default": "./src/terminal-capabilities.ts"
+    },
+    "./logging/logger": {
+      "types": "./src/logging/logger.ts",
+      "default": "./src/logging/logger.ts"
+    },
+    "./logging/index": {
+      "types": "./src/logging/index.ts",
+      "default": "./src/logging/index.ts"
+    },
+    "./config-validation.test": {
+      "types": "./src/config-validation.test.ts",
+      "default": "./src/config-validation.test.ts"
+    },
+    "./time": {
+      "types": "./src/time.ts",
+      "default": "./src/time.ts"
+    },
+    "./message-queue": {
+      "types": "./src/message-queue.ts",
+      "default": "./src/message-queue.ts"
+    },
+    "./logging": {
+      "types": "./src/logging/index.ts",
+      "default": "./src/logging/index.ts"
+    },
+    "./*": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
+    }
   },
   "scripts": {
     "build": "bun build src/index.ts --outdir=dist --target=node && npx tsc --emitDeclarationOnly --declaration --declarationMap --outDir dist",
@@ -23,7 +226,11 @@
     "eventemitter3": "^5.0.0"
   },
   "peerDependencies": {
-    "@upup/types": "workspace:*"
+    "@upup/types": "workspace:*",
+    "@upup/llm": "workspace:*",
+    "@upup/commands": "workspace:*",
+    "@upup/hooks": "workspace:*",
+    "@upup/state": "workspace:*"
   },
   "files": [
     "dist"

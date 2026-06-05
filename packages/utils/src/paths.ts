@@ -1,47 +1,39 @@
+/**
+ * Path utilities for UpUp
+ *
+ * Re-exports from storage-paths.ts for compatibility.
+ * All path constants should be defined in storage-paths.ts.
+ */
+
 import { join, resolve, relative, isAbsolute } from 'node:path';
-import { cwd as processCwd } from 'node:process';
-import { homedir } from 'node:os';
-import { mkdirSync, existsSync, renameSync } from 'fs';
+import { getCwd } from './cwd.js';
+import { existsSync, mkdirSync } from 'fs';
+import { getUpupDir, globalUpupPath } from './storage-paths.js';
 
-const UPUP_DIR = '.upup';
-const OLD_DIR = '.dexter';
-
-/**
- * Get the global UpUp configuration directory path (~/.upup/)
- * Used for cross-project configuration that applies to all UpUp sessions.
- */
-export function globalUpupPath(...segments: string[]): string {
-  return join(homedir(), '.upup', ...segments);
-}
-
-/**
- * Check if global configuration directory exists.
- */
-export function hasGlobalConfig(): boolean {
-  return existsSync(globalUpupPath(''));
-}
-
-export function getUpupDir(): string {
-  // Auto-migration: .dexter → .upup on first run
-  if (!existsSync(UPUP_DIR) && existsSync(OLD_DIR)) {
-    renameSync(OLD_DIR, UPUP_DIR);
-    console.log(`[upup] Migrated config: ${OLD_DIR} → ${UPUP_DIR}`);
-  }
-  return UPUP_DIR;
-}
-
-export function upupPath(...segments: string[]): string {
-  return join(getUpupDir(), ...segments);
-}
-
-
-/**
- * Get the current working directory
- */
-export function getCwd(): string {
-  return processCwd();
-}
-
+// Re-export from storage-paths for compatibility
+export {
+  getUpupDir,
+  globalUpupPath,
+  upupPath,
+  SETTINGS_FILE,
+  ENV_FILE,
+  SESSIONS_DIR,
+  PID_SESSIONS_DIR,  // @deprecated - kept for backward compatibility
+  DATA_DIR,
+  MEMORY_DIR,
+  CACHE_DIR,
+  LOGS_DIR,
+  TOOL_RESULTS_DIR,
+  SCRATCHPAD_DIR,
+  EXPORTS_DIR,
+  PLANS_DIR,
+  PORTFOLIOS_DIR,
+  HOOKS_DIR,
+  SKILLS_DIR,
+  PLUGINS_DIR,
+  MCP_CONFIG_FILE,
+  MCP_SERVERS_FILE,
+} from './storage-paths.js';
 /**
  * Resolve a relative path to an absolute path
  */
@@ -76,4 +68,11 @@ export function ensureDir(dirPath: string): void {
   if (!existsSync(dirPath)) {
     mkdirSync(dirPath, { recursive: true });
   }
+}
+
+/**
+ * Check if global configuration directory exists.
+ */
+export function hasGlobalConfig(): boolean {
+  return existsSync(getUpupDir());
 }

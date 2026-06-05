@@ -1,0 +1,406 @@
+{
+  "name": "@upup/tui-renderer",
+  "version": "0.3.0",
+  "description": "UpUp TUI Renderer - Ink-style pi-tui components and rendering",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./tui/renderer/incremental-renderer": {
+      "types": "./src/tui/renderer/incremental-renderer.ts",
+      "default": "./src/tui/renderer/incremental-renderer.ts"
+    },
+    "./tui/keybindings/index": {
+      "types": "./src/tui/keybindings/index.ts",
+      "default": "./src/tui/keybindings/index.ts"
+    },
+    "./tui/main": {
+      "types": "./src/tui/main.ts",
+      "default": "./src/tui/main.ts"
+    },
+    "./tui/command-input": {
+      "types": "./src/tui/command-input.ts",
+      "default": "./src/tui/command-input.ts"
+    },
+    "./tui/focus-manager": {
+      "types": "./src/tui/focus-manager.ts",
+      "default": "./src/tui/focus-manager.ts"
+    },
+    "./tui/overlays/approval-overlay": {
+      "types": "./src/tui/overlays/approval-overlay.ts",
+      "default": "./src/tui/overlays/approval-overlay.ts"
+    },
+    "./tui/overlays/confirm-dialog": {
+      "types": "./src/tui/overlays/confirm-dialog.ts",
+      "default": "./src/tui/overlays/confirm-dialog.ts"
+    },
+    "./tui/overlays/index": {
+      "types": "./src/tui/overlays/index.ts",
+      "default": "./src/tui/overlays/index.ts"
+    },
+    "./tui/overlays/model-selector": {
+      "types": "./src/tui/overlays/model-selector.ts",
+      "default": "./src/tui/overlays/model-selector.ts"
+    },
+    "./tui/overlays/session-selector": {
+      "types": "./src/tui/overlays/session-selector.ts",
+      "default": "./src/tui/overlays/session-selector.ts"
+    },
+    "./tui/utils/cursor": {
+      "types": "./src/tui/utils/cursor.ts",
+      "default": "./src/tui/utils/cursor.ts"
+    },
+    "./tui/utils/fuzzy-search": {
+      "types": "./src/tui/utils/fuzzy-search.ts",
+      "default": "./src/tui/utils/fuzzy-search.ts"
+    },
+    "./tui/utils/format": {
+      "types": "./src/tui/utils/format.ts",
+      "default": "./src/tui/utils/format.ts"
+    },
+    "./tui/utils/keybindings": {
+      "types": "./src/tui/utils/keybindings.ts",
+      "default": "./src/tui/utils/keybindings.ts"
+    },
+    "./tui/utils/index": {
+      "types": "./src/tui/utils/index.ts",
+      "default": "./src/tui/utils/index.ts"
+    },
+    "./tui/utils/theme": {
+      "types": "./src/tui/utils/theme.ts",
+      "default": "./src/tui/utils/theme.ts"
+    },
+    "./tui/utils/component-pool": {
+      "types": "./src/tui/utils/component-pool.ts",
+      "default": "./src/tui/utils/component-pool.ts"
+    },
+    "./tui/cli-integration": {
+      "types": "./src/tui/cli-integration.ts",
+      "default": "./src/tui/cli-integration.ts"
+    },
+    "./tui/state/query-guard.test": {
+      "types": "./src/tui/state/query-guard.test.ts",
+      "default": "./src/tui/state/query-guard.test.ts"
+    },
+    "./tui/state/store.test": {
+      "types": "./src/tui/state/store.test.ts",
+      "default": "./src/tui/state/store.test.ts"
+    },
+    "./tui/state/tool-event-store": {
+      "types": "./src/tui/state/tool-event-store.ts",
+      "default": "./src/tui/state/tool-event-store.ts"
+    },
+    "./tui/state/query-guard": {
+      "types": "./src/tui/state/query-guard.ts",
+      "default": "./src/tui/state/query-guard.ts"
+    },
+    "./tui/state/input-state": {
+      "types": "./src/tui/state/input-state.ts",
+      "default": "./src/tui/state/input-state.ts"
+    },
+    "./tui/state/history-store": {
+      "types": "./src/tui/state/history-store.ts",
+      "default": "./src/tui/state/history-store.ts"
+    },
+    "./tui/state/app-state": {
+      "types": "./src/tui/state/app-state.ts",
+      "default": "./src/tui/state/app-state.ts"
+    },
+    "./tui/state/index": {
+      "types": "./src/tui/state/index.ts",
+      "default": "./src/tui/state/index.ts"
+    },
+    "./tui/state/store": {
+      "types": "./src/tui/state/store.ts",
+      "default": "./src/tui/state/store.ts"
+    },
+    "./tui/components/command-history": {
+      "types": "./src/tui/components/command-history.ts",
+      "default": "./src/tui/components/command-history.ts"
+    },
+    "./tui/components/editor": {
+      "types": "./src/tui/components/editor.ts",
+      "default": "./src/tui/components/editor.ts"
+    },
+    "./tui/components/updatable-select": {
+      "types": "./src/tui/components/updatable-select.ts",
+      "default": "./src/tui/components/updatable-select.ts"
+    },
+    "./tui/components/hint-bar": {
+      "types": "./src/tui/components/hint-bar.ts",
+      "default": "./src/tui/components/hint-bar.ts"
+    },
+    "./tui/components/chat-log": {
+      "types": "./src/tui/components/chat-log.ts",
+      "default": "./src/tui/components/chat-log.ts"
+    },
+    "./tui/components/tool-event": {
+      "types": "./src/tui/components/tool-event.ts",
+      "default": "./src/tui/components/tool-event.ts"
+    },
+    "./tui/components/virtual-container": {
+      "types": "./src/tui/components/virtual-container.ts",
+      "default": "./src/tui/components/virtual-container.ts"
+    },
+    "./tui/components/index": {
+      "types": "./src/tui/components/index.ts",
+      "default": "./src/tui/components/index.ts"
+    },
+    "./tui/components/command-groups": {
+      "types": "./src/tui/components/command-groups.ts",
+      "default": "./src/tui/components/command-groups.ts"
+    },
+    "./tui/components/command-preview": {
+      "types": "./src/tui/components/command-preview.ts",
+      "default": "./src/tui/components/command-preview.ts"
+    },
+    "./tui/components/command-registry": {
+      "types": "./src/tui/components/command-registry.ts",
+      "default": "./src/tui/components/command-registry.ts"
+    },
+    "./tui/components/command-categories": {
+      "types": "./src/tui/components/command-categories.ts",
+      "default": "./src/tui/components/command-categories.ts"
+    },
+    "./tui/hooks/use-slash-input": {
+      "types": "./src/tui/hooks/use-slash-input.ts",
+      "default": "./src/tui/hooks/use-slash-input.ts"
+    },
+    "./tui/hooks/use-cli-integration": {
+      "types": "./src/tui/hooks/use-cli-integration.ts",
+      "default": "./src/tui/hooks/use-cli-integration.ts"
+    },
+    "./tui/hooks/use-approval": {
+      "types": "./src/tui/hooks/use-approval.ts",
+      "default": "./src/tui/hooks/use-approval.ts"
+    },
+    "./tui/hooks/use-streaming": {
+      "types": "./src/tui/hooks/use-streaming.ts",
+      "default": "./src/tui/hooks/use-streaming.ts"
+    },
+    "./tui/hooks/use-input": {
+      "types": "./src/tui/hooks/use-input.ts",
+      "default": "./src/tui/hooks/use-input.ts"
+    },
+    "./tui/hooks/use-reactive-render": {
+      "types": "./src/tui/hooks/use-reactive-render.ts",
+      "default": "./src/tui/hooks/use-reactive-render.ts"
+    },
+    "./tui/hooks/use-scroll-quantum": {
+      "types": "./src/tui/hooks/use-scroll-quantum.ts",
+      "default": "./src/tui/hooks/use-scroll-quantum.ts"
+    },
+    "./tui/hooks/use-store": {
+      "types": "./src/tui/hooks/use-store.ts",
+      "default": "./src/tui/hooks/use-store.ts"
+    },
+    "./tui/hooks/index": {
+      "types": "./src/tui/hooks/index.ts",
+      "default": "./src/tui/hooks/index.ts"
+    },
+    "./tui/hooks/use-sync-store": {
+      "types": "./src/tui/hooks/use-sync-store.ts",
+      "default": "./src/tui/hooks/use-sync-store.ts"
+    },
+    "./tui/hooks/use-query": {
+      "types": "./src/tui/hooks/use-query.ts",
+      "default": "./src/tui/hooks/use-query.ts"
+    },
+    "./tui/index": {
+      "types": "./src/tui/index.ts",
+      "default": "./src/tui/index.ts"
+    },
+    "./tui/command-state-manager": {
+      "types": "./src/tui/command-state-manager.ts",
+      "default": "./src/tui/command-state-manager.ts"
+    },
+    "./tui/overlay-coordinator": {
+      "types": "./src/tui/overlay-coordinator.ts",
+      "default": "./src/tui/overlay-coordinator.ts"
+    },
+    "./components/approval-requests/BaseApprovalRequest": {
+      "types": "./src/components/approval-requests/BaseApprovalRequest.ts",
+      "default": "./src/components/approval-requests/BaseApprovalRequest.ts"
+    },
+    "./components/approval-requests/FullscreenApprovalOverlay": {
+      "types": "./src/components/approval-requests/FullscreenApprovalOverlay.ts",
+      "default": "./src/components/approval-requests/FullscreenApprovalOverlay.ts"
+    },
+    "./components/approval-requests/approval-requests.test": {
+      "types": "./src/components/approval-requests/approval-requests.test.ts",
+      "default": "./src/components/approval-requests/approval-requests.test.ts"
+    },
+    "./components/approval-requests/WriteApprovalRequest": {
+      "types": "./src/components/approval-requests/WriteApprovalRequest.ts",
+      "default": "./src/components/approval-requests/WriteApprovalRequest.ts"
+    },
+    "./components/approval-requests/GenericApprovalRequest": {
+      "types": "./src/components/approval-requests/GenericApprovalRequest.ts",
+      "default": "./src/components/approval-requests/GenericApprovalRequest.ts"
+    },
+    "./components/approval-requests/approval-ui.test": {
+      "types": "./src/components/approval-requests/approval-ui.test.ts",
+      "default": "./src/components/approval-requests/approval-ui.test.ts"
+    },
+    "./components/approval-requests/index": {
+      "types": "./src/components/approval-requests/index.ts",
+      "default": "./src/components/approval-requests/index.ts"
+    },
+    "./components/approval-requests/ApprovalFeedback": {
+      "types": "./src/components/approval-requests/ApprovalFeedback.ts",
+      "default": "./src/components/approval-requests/ApprovalFeedback.ts"
+    },
+    "./components/approval-requests/BashApprovalRequest": {
+      "types": "./src/components/approval-requests/BashApprovalRequest.ts",
+      "default": "./src/components/approval-requests/BashApprovalRequest.ts"
+    },
+    "./components/intro": {
+      "types": "./src/components/intro.ts",
+      "default": "./src/components/intro.ts"
+    },
+    "./components/working-indicator": {
+      "types": "./src/components/working-indicator.ts",
+      "default": "./src/components/working-indicator.ts"
+    },
+    "./components/intro.test": {
+      "types": "./src/components/intro.test.ts",
+      "default": "./src/components/intro.test.ts"
+    },
+    "./components/inline-approval-selector": {
+      "types": "./src/components/inline-approval-selector.ts",
+      "default": "./src/components/inline-approval-selector.ts"
+    },
+    "./components/BorderBox": {
+      "types": "./src/components/BorderBox.ts",
+      "default": "./src/components/BorderBox.ts"
+    },
+    "./components/answer-box": {
+      "types": "./src/components/answer-box.ts",
+      "default": "./src/components/answer-box.ts"
+    },
+    "./components/hint-bar.test": {
+      "types": "./src/components/hint-bar.test.ts",
+      "default": "./src/components/hint-bar.test.ts"
+    },
+    "./components/hint-bar": {
+      "types": "./src/components/hint-bar.ts",
+      "default": "./src/components/hint-bar.ts"
+    },
+    "./components/chat-log": {
+      "types": "./src/components/chat-log.ts",
+      "default": "./src/components/chat-log.ts"
+    },
+    "./components/tool-event": {
+      "types": "./src/components/tool-event.ts",
+      "default": "./src/components/tool-event.ts"
+    },
+    "./components/investment-status-line": {
+      "types": "./src/components/investment-status-line.ts",
+      "default": "./src/components/investment-status-line.ts"
+    },
+    "./components/investment-status-line.test": {
+      "types": "./src/components/investment-status-line.test.ts",
+      "default": "./src/components/investment-status-line.test.ts"
+    },
+    "./components/approval-prompt": {
+      "types": "./src/components/approval-prompt.ts",
+      "default": "./src/components/approval-prompt.ts"
+    },
+    "./components/index": {
+      "types": "./src/components/index.ts",
+      "default": "./src/components/index.ts"
+    },
+    "./components/debug-panel": {
+      "types": "./src/components/debug-panel.ts",
+      "default": "./src/components/debug-panel.ts"
+    },
+    "./components/tool-event.test": {
+      "types": "./src/components/tool-event.test.ts",
+      "default": "./src/components/tool-event.test.ts"
+    },
+    "./components/custom-editor": {
+      "types": "./src/components/custom-editor.ts",
+      "default": "./src/components/custom-editor.ts"
+    },
+    "./components/user-query": {
+      "types": "./src/components/user-query.ts",
+      "default": "./src/components/user-query.ts"
+    },
+    "./components/select-list": {
+      "types": "./src/components/select-list.ts",
+      "default": "./src/components/select-list.ts"
+    },
+    "./theme": {
+      "types": "./src/theme.ts",
+      "default": "./src/theme.ts"
+    },
+    "./tui": {
+      "types": "./src/tui/index.ts",
+      "default": "./src/tui/index.ts"
+    },
+    "./tui/renderer": {
+      "types": "./src/tui/renderer/index.ts",
+      "default": "./src/tui/renderer/index.ts"
+    },
+    "./tui/keybindings": {
+      "types": "./src/tui/keybindings/index.ts",
+      "default": "./src/tui/keybindings/index.ts"
+    },
+    "./tui/overlays": {
+      "types": "./src/tui/overlays/index.ts",
+      "default": "./src/tui/overlays/index.ts"
+    },
+    "./tui/utils": {
+      "types": "./src/tui/utils/index.ts",
+      "default": "./src/tui/utils/index.ts"
+    },
+    "./tui/state": {
+      "types": "./src/tui/state/index.ts",
+      "default": "./src/tui/state/index.ts"
+    },
+    "./tui/components": {
+      "types": "./src/tui/components/index.ts",
+      "default": "./src/tui/components/index.ts"
+    },
+    "./tui/hooks": {
+      "types": "./src/tui/hooks/index.ts",
+      "default": "./src/tui/hooks/index.ts"
+    },
+    "./components": {
+      "types": "./src/components/index.ts",
+      "default": "./src/components/index.ts"
+    },
+    "./components/approval-requests": {
+      "types": "./src/components/approval-requests/index.ts",
+      "default": "./src/components/approval-requests/index.ts"
+    },
+    "./*": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
+    },
+    "./tui-renderer/state/input-state": {
+      "types": "./src/state/input-state.ts",
+      "default": "./src/state/input-state.ts"
+    }
+  },
+  "scripts": {
+    "build": "echo 'L2 - tui renderer', typecheck",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@upup/types": "workspace:*",
+    "@upup/utils": "workspace:*",
+    "@upup/hooks": "workspace:*",
+    "@upup/state": "workspace:*",
+    "@upup/keybindings": "workspace:*",
+    "@earendil-works/pi-tui": "0.76.0"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}

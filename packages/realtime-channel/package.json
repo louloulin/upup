@@ -1,0 +1,51 @@
+{
+  "name": "@upup/realtime-channel",
+  "version": "0.3.0",
+  "description": "UpUp Realtime Channel - L4 package for WebSocket/SSE/streaming channels",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./mock-feed": {
+      "types": "./src/mock-feed.ts",
+      "default": "./src/mock-feed.ts"
+    },
+    "./types": {
+      "types": "./src/types.ts",
+      "default": "./src/types.ts"
+    },
+    "./throttled-feed": {
+      "types": "./src/throttled-feed.ts",
+      "default": "./src/throttled-feed.ts"
+    },
+    "./aggregator": {
+      "types": "./src/aggregator.ts",
+      "default": "./src/aggregator.ts"
+    },
+    "./eastmoney-feed": {
+      "types": "./src/eastmoney-feed.ts",
+      "default": "./src/eastmoney-feed.ts"
+    },
+    "./*": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
+    }
+  },
+  "scripts": {
+    "build": "echo 'L4 stub - real content in Phase 4'",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@upup/types": "workspace:*",
+    "@upup/utils": "workspace:*"
+  },
+  "peerDependencies": {},
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}

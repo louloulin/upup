@@ -3,7 +3,11 @@
  *
  * Defines the unified plugin API that works across all runtimes:
  * bun (native ESM), jiti (TypeScript), wasm (Extism), mcp (external).
+ *
+ * Inspired by OpenClaw's plugin architecture with UpUp's investment focus.
  */
+
+import type { ServiceContext } from './services.js';
 
 // ============================================================================
 // Plugin Runtime Types
@@ -19,7 +23,9 @@ export type PluginCapability =
   | 'analysis'
   | 'strategy'
   | 'channel'
-  | 'service';
+  | 'service'
+  | 'skill'       // Plugin provides skills
+  | 'hook';       // Plugin provides hooks
 
 /** Hook execution modes */
 export type HookExecutionMode = 'parallel' | 'sequential' | 'sync';
@@ -104,16 +110,22 @@ export interface UpUpPluginApi {
   // === Service Registration ===
   registerService(service: PluginService): void;
 
-  // === Data Source Registration ===
+  // === Data Source Registration (investment focus) ===
   registerDataSource(source: DataSourcePlugin): void;
 
   // === Utilities ===
   resolvePath(relativePath: string): string;
 
+  // === Lifecycle Hooks ===
+  onLoad?(api: UpUpPluginApi): Promise<void> | void;
+  onStart?(api: UpUpPluginApi): Promise<void> | void;
+  onStop?(api: UpUpPluginApi): Promise<void> | void;
+  onUnload?(api: UpUpPluginApi): Promise<void> | void;
+
   // === Internal Access (for adapters) ===
   _tools?: AgentTool[];
   _services?: PluginService[];
-  _hooks?: Map<string, { handler: HookHandler; options?: unknown }[]>;
+  _hooks?: Map<string, { handler: HookHandler; options?: any }[]>;
 }
 
 // ============================================================================
@@ -156,6 +168,56 @@ export type HookResult =
   | { modified?: boolean; data?: unknown }
   | void;
 
+// Investment-specific hooks
+export type InvestmentHook =
+  // Data hooks
+  | 'data_fetched'
+  | 'data_source_error'
+  | 'data_cached'
+  // Analysis hooks
+  | 'analysis_start'
+  | 'analysis_complete'
+  | 'analysis_render'
+  // Portfolio hooks
+  | 'portfolio_updated'
+  | 'position_alert'
+  | 'risk_threshold'
+  // Service hooks
+  | 'session_idle'
+  | 'session_resume'
+  | 'service_start'
+  | 'service_stop';
+
+// All hook names (existing + investment)
+export type HookName =
+  // Existing hooks (22 types from tool-hooks.ts)
+  | 'PreToolUse'
+  | 'PostToolUse'
+  | 'PostToolUseFailure'
+  | 'Stop'
+  | 'SessionStart'
+  | 'SessionEnd'
+  | 'ToolResultPersist'
+  | 'BeforeMessageWrite'
+  | 'MessageReceived'
+  | 'MessageSending'
+  | 'MessageSent'
+  | 'BeforePromptBuild'
+  | 'BeforeAgentStart'
+  | 'AgentEnd'
+  | 'LLMInput'
+  | 'LLMOutput'
+  | 'BeforeModelResolve'
+  | 'SubagentSpawning'
+  | 'SubagentDeliveryTarget'
+  | 'SubagentSpawned'
+  | 'SubagentEnded'
+  | 'BeforeCompaction'
+  | 'AfterCompaction'
+  | 'BeforeReset'
+  // Investment hooks
+  | InvestmentHook;
+
 // ============================================================================
 // Service Types
 // ============================================================================
@@ -166,14 +228,22 @@ export interface PluginService {
   stop?(ctx: ServiceContext): Promise<void>;
 }
 
-export interface ServiceContext {
-  pluginId: string;
-  config: Record<string, unknown>;
-  logger: { info: (msg: string) => void; warn: (msg: string) => void; error: (msg: string) => void };
+/** Enriched service info with plugin name for display */
+export interface EnrichedService {
+  plugin: string;
+  name: string;
+  description?: string;
+}
+
+/** Enriched hook info with plugin name for display */
+export interface EnrichedHook {
+  plugin: string;
+  name: string;
+  event?: string;
 }
 
 // ============================================================================
-// Data Source Types
+// Data Source Types (investment focus)
 // ============================================================================
 
 export interface DataSourcePlugin {
@@ -195,7 +265,7 @@ export interface DataSourceParams {
 }
 
 // ============================================================================
-// Channel Types
+// Channel Types (messaging)
 // ============================================================================
 
 export interface ChannelPlugin {
@@ -225,6 +295,7 @@ export interface ChannelMessage {
 export interface PluginCommand {
   name: string;
   description?: string;
+  aliases?: string[];
   execute(args: string[], ctx: CommandContext): Promise<CommandResult>;
 }
 
@@ -256,6 +327,10 @@ export interface LoadedPlugin {
   services: PluginService[];
   tools: AgentTool[];
   hooks: Map<string, HookHandler[]>;
+  /** Optional file path to the plugin (for external plugins) */
+  path?: string;
+  /** Optional enabled state (defaults to true) */
+  enabled?: boolean;
 }
 
 // ============================================================================
@@ -268,6 +343,50 @@ export interface DiscoveredPlugin {
   source: PluginSource;
   path: string;
   manifest: PluginManifest;
+}
+
+// ============================================================================
+// Plugin Registry
+// ============================================================================
+
+export interface PluginRegistry {
+  register(plugin: LoadedPlugin): void;
+  unregister(id: string): void;
+  get(id: string): LoadedPlugin | undefined;
+  getAll(): LoadedPlugin[];
+  getByCapability(capability: PluginCapability): LoadedPlugin[];
+  getTools(): AgentTool[];
+  getServices(): PluginService[];
+  /** Get services with plugin name for display purposes */
+  getEnrichedServices(): EnrichedService[];
+  /** Get all hooks with plugin name for display purposes */
+  getAllEnrichedHooks(): EnrichedHook[];
+  /** Get tool names filtered by plugin name prefix */
+  getToolNamesByPlugin(pluginName: string): string[];
+
+  // Phase 64: Enable/Disable Support
+  /** Enable a plugin by ID */
+  enable(id: string): boolean;
+  /** Disable a plugin by ID */
+  disable(id: string): boolean;
+  /** Check if a plugin is enabled */
+  isEnabled(id: string): boolean;
+  /** Get enabled plugins only */
+  getEnabled(): LoadedPlugin[];
+  /** Get disabled plugins only */
+  getDisabled(): LoadedPlugin[];
+
+  // Phase 64: Error Handling
+  /** Record a plugin error */
+  setError(id: string, error: PluginError): void;
+  /** Get error for a plugin */
+  getError(id: string): PluginError | undefined;
+  /** Clear error for a plugin */
+  clearError(id: string): void;
+  /** Get all plugin errors */
+  getAllErrors(): Array<{ id: string; error: PluginError }>;
+  /** Get plugins with errors */
+  getPluginsWithErrors(): string[];
 }
 
 // ============================================================================

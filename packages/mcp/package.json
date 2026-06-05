@@ -7,8 +7,36 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./auth-tool": {
+      "types": "./src/auth-tool.ts",
+      "default": "./src/auth-tool.ts"
+    },
+    "./client": {
+      "types": "./src/client.ts",
+      "default": "./src/client.ts"
+    },
+    "./resource-tools": {
+      "types": "./src/resource-tools.ts",
+      "default": "./src/resource-tools.ts"
+    },
+    "./*": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
+    },
+    "./mcp/types": {
+      "types": "./src/types.ts",
+      "default": "./src/types.ts"
+    },
+    "./types": {
+      "types": "./src/types.ts",
+      "default": "./src/types.ts"
+    },
+    "./investment-data": {
+      "types": "./src/investment-data.ts",
+      "default": "./src/investment-data.ts"
     }
   },
   "scripts": {

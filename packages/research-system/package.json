@@ -1,0 +1,159 @@
+{
+  "name": "@upup/research-system",
+  "version": "0.3.0",
+  "description": "UpUp Research System - L4 package for deep research, analysis, and competitive positioning",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./research/index": {
+      "types": "./src/research/index.ts",
+      "default": "./src/research/index.ts"
+    },
+    "./research/deep-search": {
+      "types": "./src/research/deep-search.ts",
+      "default": "./src/research/deep-search.ts"
+    },
+    "./code-archaeology/hot-spot-finder": {
+      "types": "./src/code-archaeology/hot-spot-finder.ts",
+      "default": "./src/code-archaeology/hot-spot-finder.ts"
+    },
+    "./code-archaeology/types": {
+      "types": "./src/code-archaeology/types.ts",
+      "default": "./src/code-archaeology/types.ts"
+    },
+    "./code-archaeology/orphan-finder": {
+      "types": "./src/code-archaeology/orphan-finder.ts",
+      "default": "./src/code-archaeology/orphan-finder.ts"
+    },
+    "./code-archaeology/index": {
+      "types": "./src/code-archaeology/index.ts",
+      "default": "./src/code-archaeology/index.ts"
+    },
+    "./code-archaeology/manifest-checker": {
+      "types": "./src/code-archaeology/manifest-checker.ts",
+      "default": "./src/code-archaeology/manifest-checker.ts"
+    },
+    "./code-archaeology/scanner": {
+      "types": "./src/code-archaeology/scanner.ts",
+      "default": "./src/code-archaeology/scanner.ts"
+    },
+    "./code-archaeology/markdown-renderer": {
+      "types": "./src/code-archaeology/markdown-renderer.ts",
+      "default": "./src/code-archaeology/markdown-renderer.ts"
+    },
+    "./code-archaeology/layer-detector": {
+      "types": "./src/code-archaeology/layer-detector.ts",
+      "default": "./src/code-archaeology/layer-detector.ts"
+    },
+    "./analysis/matrix": {
+      "types": "./src/analysis/matrix.ts",
+      "default": "./src/analysis/matrix.ts"
+    },
+    "./competitive-positioning/four-uniques": {
+      "types": "./src/competitive-positioning/four-uniques.ts",
+      "default": "./src/competitive-positioning/four-uniques.ts"
+    },
+    "./competitive-positioning/sologan": {
+      "types": "./src/competitive-positioning/sologan.ts",
+      "default": "./src/competitive-positioning/sologan.ts"
+    },
+    "./competitive-positioning/types": {
+      "types": "./src/competitive-positioning/types.ts",
+      "default": "./src/competitive-positioning/types.ts"
+    },
+    "./competitive-positioning/index": {
+      "types": "./src/competitive-positioning/index.ts",
+      "default": "./src/competitive-positioning/index.ts"
+    },
+    "./competitive-positioning/decision-path": {
+      "types": "./src/competitive-positioning/decision-path.ts",
+      "default": "./src/competitive-positioning/decision-path.ts"
+    },
+    "./competitive-positioning/matrix": {
+      "types": "./src/competitive-positioning/matrix.ts",
+      "default": "./src/competitive-positioning/matrix.ts"
+    },
+    "./coach/memory": {
+      "types": "./src/coach/memory.ts",
+      "default": "./src/coach/memory.ts"
+    },
+    "./coach/channels/feishu": {
+      "types": "./src/coach/channels/feishu.ts",
+      "default": "./src/coach/channels/feishu.ts"
+    },
+    "./coach/channels/email": {
+      "types": "./src/coach/channels/email.ts",
+      "default": "./src/coach/channels/email.ts"
+    },
+    "./coach/channels/cli": {
+      "types": "./src/coach/channels/cli.ts",
+      "default": "./src/coach/channels/cli.ts"
+    },
+    "./coach/channels/wechat": {
+      "types": "./src/coach/channels/wechat.ts",
+      "default": "./src/coach/channels/wechat.ts"
+    },
+    "./coach/channels/types": {
+      "types": "./src/coach/channels/types.ts",
+      "default": "./src/coach/channels/types.ts"
+    },
+    "./coach/channels/registry": {
+      "types": "./src/coach/channels/registry.ts",
+      "default": "./src/coach/channels/registry.ts"
+    },
+    "./coach/channels/index": {
+      "types": "./src/coach/channels/index.ts",
+      "default": "./src/coach/channels/index.ts"
+    },
+    "./coach/channels/dingtalk": {
+      "types": "./src/coach/channels/dingtalk.ts",
+      "default": "./src/coach/channels/dingtalk.ts"
+    },
+    "./research": {
+      "types": "./src/research/index.ts",
+      "default": "./src/research/index.ts"
+    },
+    "./code-archaeology": {
+      "types": "./src/code-archaeology/index.ts",
+      "default": "./src/code-archaeology/index.ts"
+    },
+    "./analysis": {
+      "types": "./src/analysis/index.ts",
+      "default": "./src/analysis/index.ts"
+    },
+    "./competitive-positioning": {
+      "types": "./src/competitive-positioning/index.ts",
+      "default": "./src/competitive-positioning/index.ts"
+    },
+    "./coach": {
+      "types": "./src/coach/index.ts",
+      "default": "./src/coach/index.ts"
+    },
+    "./coach/channels": {
+      "types": "./src/coach/channels/index.ts",
+      "default": "./src/coach/channels/index.ts"
+    },
+    "./*": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
+    }
+  },
+  "scripts": {
+    "build": "echo 'L4 stub - real content in Phase 4'",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@upup/types": "workspace:*",
+    "@upup/utils": "workspace:*"
+  },
+  "peerDependencies": {},
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}

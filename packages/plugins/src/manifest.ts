@@ -5,16 +5,68 @@
  * Provides JSON Schema validation for plugin configuration.
  */
 
-import { readFileSync, existsSync, statSync } from 'fs';
+import { readFileSync } from 'fs';
 import { resolve, dirname } from 'path';
-import type { PluginManifest, PluginRuntime } from './types.js';
+import { warn, info } from '@upup/utils/logging';
+import { pluginFileExists, isPathInside } from './path-safety.js';
+import type { PluginManifest, PluginRuntime, PluginCapability } from './types.js';
+
+// ============================================================================
+// Manifest Schema (JSON Schema for validation)
+// ============================================================================
+
+const MANIFEST_SCHEMA = {
+  type: 'object',
+  required: ['schemaVersion', 'id', 'name', 'version', 'runtime', 'capabilities', 'entry'],
+  properties: {
+    schemaVersion: { type: 'string', const: '1.0' },
+    id: {
+      type: 'string',
+      pattern: '^[a-z0-9-]+$',
+      minLength: 1,
+      maxLength: 64,
+    },
+    name: { type: 'string', minLength: 1, maxLength: 128 },
+    version: { type: 'string', pattern: '^\\d+\\.\\d+\\.\\d+' },
+    description: { type: 'string', maxLength: 512 },
+    runtime: { type: 'string', enum: ['bun', 'jiti', 'wasm', 'mcp'] },
+    author: {
+      type: 'object',
+      properties: {
+        name: { type: 'string' },
+        email: { type: 'string', format: 'email' },
+        url: { type: 'string', format: 'uri' },
+      },
+    },
+    license: { type: 'string' },
+    homepage: { type: 'string', format: 'uri' },
+    capabilities: {
+      type: 'array',
+      items: {
+        type: 'string',
+        enum: ['data-source', 'tools', 'analysis', 'strategy', 'channel', 'service'],
+      },
+      minItems: 1,
+    },
+    entry: { type: 'string', minLength: 1 },
+    hooks: { type: 'string' },
+    tools: { type: 'string' },
+    dependencies: { type: 'array', items: { type: 'string' } },
+    peerDependencies: { type: 'object' },
+    security: {
+      type: 'object',
+      properties: {
+        sandbox: { type: 'string', enum: ['process', 'wasm', 'mcp', 'none'] },
+        permissions: { type: 'array', items: { type: 'string' } },
+      },
+    },
+    runtimeConfig: { type: 'object' },
+  },
+};
 
 // ============================================================================
 // Manifest Loader
 // ============================================================================
-
-const VALID_RUNTIMES: PluginRuntime[] = ['bun', 'jiti', 'wasm', 'mcp'];
-const VALID_CAPABILITIES = ['data-source', 'tools', 'analysis', 'strategy', 'channel', 'service'];
 
 export class ManifestLoader {
   private cache = new Map<string, { manifest: PluginManifest; mtime: number }>();
@@ -30,11 +82,6 @@ export class ManifestLoader {
     const cached = this.cache.get(manifestPath);
     if (cached && Date.now() - cached.mtime < this.cacheTimeout) {
       return cached.manifest;
-    }
-
-    // Check file exists
-    if (!existsSync(manifestPath)) {
-      throw new Error(`Manifest file not found: ${manifestPath}`);
     }
 
     // Load manifest file
@@ -58,16 +105,12 @@ export class ManifestLoader {
 
     // Track provenance
     if (provenance) {
-      (manifest as unknown as Record<string, unknown>)._provenance = provenance;
+      (manifest as any)._provenance = provenance;
     }
 
     // Cache
-    try {
-      const stat = statSync(manifestPath);
-      this.cache.set(manifestPath, { manifest, mtime: stat.mtimeMs });
-    } catch {
-      // Ignore stat errors
-    }
+    const stat = require('fs').statSync(manifestPath);
+    this.cache.set(manifestPath, { manifest, mtime: stat.mtimeMs });
 
     return manifest;
   }
@@ -91,11 +134,6 @@ export class ManifestLoader {
       throw new Error(`Missing or invalid id${source ? ` (${source})` : ''}`);
     }
 
-    // ID format: lowercase alphanumeric with hyphens
-    if (!/^[a-z0-9-]+$/.test(m.id as string)) {
-      throw new Error(`Invalid id format: must be lowercase alphanumeric with hyphens${source ? ` (${source})` : ''}`);
-    }
-
     if (!m.name || typeof m.name !== 'string') {
       throw new Error(`Missing or invalid name${source ? ` (${source})` : ''}`);
     }
@@ -104,27 +142,28 @@ export class ManifestLoader {
       throw new Error(`Missing or invalid version${source ? ` (${source})` : ''}`);
     }
 
-    // Version format: semver
-    if (!/^\d+\.\d+\.\d+/.test(m.version as string)) {
-      throw new Error(`Invalid version format: must be semver (e.g., 1.0.0)${source ? ` (${source})` : ''}`);
-    }
-
-    if (!m.runtime || !VALID_RUNTIMES.includes(m.runtime as PluginRuntime)) {
-      throw new Error(`Invalid runtime: must be one of ${VALID_RUNTIMES.join(', ')}${source ? ` (${source})` : ''}`);
+    if (!m.runtime || !['bun', 'jiti', 'wasm', 'mcp'].includes(m.runtime as string)) {
+      throw new Error(`Invalid runtime: must be "bun", "jiti", "wasm", or "mcp"${source ? ` (${source})` : ''}`);
     }
 
     if (!Array.isArray(m.capabilities) || m.capabilities.length === 0) {
       throw new Error(`Missing or empty capabilities${source ? ` (${source})` : ''}`);
     }
 
+    const validCapabilities = ['data-source', 'tools', 'analysis', 'strategy', 'channel', 'service'];
     for (const cap of m.capabilities as string[]) {
-      if (!VALID_CAPABILITIES.includes(cap)) {
+      if (!validCapabilities.includes(cap)) {
         throw new Error(`Invalid capability: "${cap}"${source ? ` (${source})` : ''}`);
       }
     }
 
     if (!m.entry || typeof m.entry !== 'string') {
       throw new Error(`Missing or invalid entry${source ? ` (${source})` : ''}`);
+    }
+
+    // Version format
+    if (!/^\d+\.\d+\.\d+/.test(m.version as string)) {
+      warn('default', `Version "${m.version}" doesn't follow semver format`);
     }
   }
 
@@ -135,11 +174,12 @@ export class ManifestLoader {
     if (!manifest.runtimeConfig) return true;
 
     const required = Object.entries(manifest.runtimeConfig)
-      .filter(([, v]) => (v as { required?: boolean }).required === true)
+      .filter(([, v]) => (v as any).required === true)
       .map(([k]) => k);
 
     for (const key of required) {
       if (!(key in config)) {
+        warn('default', `Missing required config key: ${key}`);
         return false;
       }
     }

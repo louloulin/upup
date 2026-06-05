@@ -1,0 +1,59 @@
+{
+  "name": "@upup/multimodal-system",
+  "version": "0.3.0",
+  "description": "UpUp Multimodal System - L4 package for image/audio/video processing",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./charts/ascii-line": {
+      "types": "./src/charts/ascii-line.ts",
+      "default": "./src/charts/ascii-line.ts"
+    },
+    "./charts/ascii-heatmap": {
+      "types": "./src/charts/ascii-heatmap.ts",
+      "default": "./src/charts/ascii-heatmap.ts"
+    },
+    "./charts/ascii-candlestick": {
+      "types": "./src/charts/ascii-candlestick.ts",
+      "default": "./src/charts/ascii-candlestick.ts"
+    },
+    "./types": {
+      "types": "./src/types.ts",
+      "default": "./src/types.ts"
+    },
+    "./reports/research-report": {
+      "types": "./src/reports/research-report.ts",
+      "default": "./src/reports/research-report.ts"
+    },
+    "./charts": {
+      "types": "./src/charts/index.ts",
+      "default": "./src/charts/index.ts"
+    },
+    "./reports": {
+      "types": "./src/reports/index.ts",
+      "default": "./src/reports/index.ts"
+    },
+    "./*": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
+    }
+  },
+  "scripts": {
+    "build": "echo 'L4 stub - real content in Phase 4'",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@upup/types": "workspace:*",
+    "@upup/utils": "workspace:*"
+  },
+  "peerDependencies": {},
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}

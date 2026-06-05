@@ -7,8 +7,100 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./path-safety": {
+      "types": "./src/path-safety.ts",
+      "default": "./src/path-safety.ts"
+    },
+    "./commands": {
+      "types": "./src/commands.ts",
+      "default": "./src/commands.ts"
+    },
+    "./loader": {
+      "types": "./src/loader.ts",
+      "default": "./src/loader.ts"
+    },
+    "./locator": {
+      "types": "./src/locator.ts",
+      "default": "./src/locator.ts"
+    },
+    "./types": {
+      "types": "./src/types.ts",
+      "default": "./src/types.ts"
+    },
+    "./adapters/bun": {
+      "types": "./src/adapters/bun.ts",
+      "default": "./src/adapters/bun.ts"
+    },
+    "./adapters/mcp": {
+      "types": "./src/adapters/mcp.ts",
+      "default": "./src/adapters/mcp.ts"
+    },
+    "./adapters/wasm": {
+      "types": "./src/adapters/wasm.ts",
+      "default": "./src/adapters/wasm.ts"
+    },
+    "./adapters/index": {
+      "types": "./src/adapters/index.ts",
+      "default": "./src/adapters/index.ts"
+    },
+    "./adapters/jiti": {
+      "types": "./src/adapters/jiti.ts",
+      "default": "./src/adapters/jiti.ts"
+    },
+    "./hook-events": {
+      "types": "./src/hook-events.ts",
+      "default": "./src/hook-events.ts"
+    },
+    "./sdk/index": {
+      "types": "./src/sdk/index.ts",
+      "default": "./src/sdk/index.ts"
+    },
+    "./registry": {
+      "types": "./src/registry.ts",
+      "default": "./src/registry.ts"
+    },
+    "./manifest": {
+      "types": "./src/manifest.ts",
+      "default": "./src/manifest.ts"
+    },
+    "./discovery": {
+      "types": "./src/discovery.ts",
+      "default": "./src/discovery.ts"
+    },
+    "./data/duckdb-plugin": {
+      "types": "./src/data/duckdb-plugin.ts",
+      "default": "./src/data/duckdb-plugin.ts"
+    },
+    "./data/index": {
+      "types": "./src/data/index.ts",
+      "default": "./src/data/index.ts"
+    },
+    "./services": {
+      "types": "./src/services.ts",
+      "default": "./src/services.ts"
+    },
+    "./builtin-plugins": {
+      "types": "./src/builtin-plugins.ts",
+      "default": "./src/builtin-plugins.ts"
+    },
+    "./adapters": {
+      "types": "./src/adapters/index.ts",
+      "default": "./src/adapters/index.ts"
+    },
+    "./sdk": {
+      "types": "./src/sdk/index.ts",
+      "default": "./src/sdk/index.ts"
+    },
+    "./data": {
+      "types": "./src/data/index.ts",
+      "default": "./src/data/index.ts"
+    },
+    "./*": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
     }
   },
   "files": [

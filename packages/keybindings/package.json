@@ -7,8 +7,32 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./defaults": {
+      "types": "./src/defaults.ts",
+      "default": "./src/defaults.ts"
+    },
+    "./resolver": {
+      "types": "./src/resolver.ts",
+      "default": "./src/resolver.ts"
+    },
+    "./resolver.test": {
+      "types": "./src/resolver.test.ts",
+      "default": "./src/resolver.test.ts"
+    },
+    "./parser": {
+      "types": "./src/parser.ts",
+      "default": "./src/parser.ts"
+    },
+    "./types": {
+      "types": "./src/types.ts",
+      "default": "./src/types.ts"
+    },
+    "./*": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
     }
   },
   "scripts": {

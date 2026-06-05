@@ -1,0 +1,153 @@
+{
+  "name": "@upup/memory-system",
+  "version": "0.3.0",
+  "description": "L4 stub (filled in Phase 4)",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./memvid-store": {
+      "types": "./src/memvid-store.ts",
+      "default": "./src/memvid-store.ts"
+    },
+    "./migration": {
+      "types": "./src/migration.ts",
+      "default": "./src/migration.ts"
+    },
+    "./access-control": {
+      "types": "./src/access-control.ts",
+      "default": "./src/access-control.ts"
+    },
+    "./memory-audit": {
+      "types": "./src/memory-audit.ts",
+      "default": "./src/memory-audit.ts"
+    },
+    "./temporal-decay": {
+      "types": "./src/temporal-decay.ts",
+      "default": "./src/temporal-decay.ts"
+    },
+    "./search": {
+      "types": "./src/search.ts",
+      "default": "./src/search.ts"
+    },
+    "./indexer": {
+      "types": "./src/indexer.ts",
+      "default": "./src/indexer.ts"
+    },
+    "./mmr": {
+      "types": "./src/mmr.ts",
+      "default": "./src/mmr.ts"
+    },
+    "./ai-selector": {
+      "types": "./src/ai-selector.ts",
+      "default": "./src/ai-selector.ts"
+    },
+    "./extraction": {
+      "types": "./src/extraction.ts",
+      "default": "./src/extraction.ts"
+    },
+    "./embeddings": {
+      "types": "./src/embeddings.ts",
+      "default": "./src/embeddings.ts"
+    },
+    "./crypto": {
+      "types": "./src/crypto.ts",
+      "default": "./src/crypto.ts"
+    },
+    "./flush": {
+      "types": "./src/flush.ts",
+      "default": "./src/flush.ts"
+    },
+    "./nested-paths": {
+      "types": "./src/nested-paths.ts",
+      "default": "./src/nested-paths.ts"
+    },
+    "./prompts": {
+      "types": "./src/prompts.ts",
+      "default": "./src/prompts.ts"
+    },
+    "./memory-deny": {
+      "types": "./src/memory-deny.ts",
+      "default": "./src/memory-deny.ts"
+    },
+    "./types": {
+      "types": "./src/types.ts",
+      "default": "./src/types.ts"
+    },
+    "./project-paths": {
+      "types": "./src/project-paths.ts",
+      "default": "./src/project-paths.ts"
+    },
+    "./session-files": {
+      "types": "./src/session-files.ts",
+      "default": "./src/session-files.ts"
+    },
+    "./database": {
+      "types": "./src/database.ts",
+      "default": "./src/database.ts"
+    },
+    "./consolidation": {
+      "types": "./src/consolidation.ts",
+      "default": "./src/consolidation.ts"
+    },
+    "./observation-buffer": {
+      "types": "./src/observation-buffer.ts",
+      "default": "./src/observation-buffer.ts"
+    },
+    "./chunker": {
+      "types": "./src/chunker.ts",
+      "default": "./src/chunker.ts"
+    },
+    "./daily-log": {
+      "types": "./src/daily-log.ts",
+      "default": "./src/daily-log.ts"
+    },
+    "./investment-memory": {
+      "types": "./src/investment-memory.ts",
+      "default": "./src/investment-memory.ts"
+    },
+    "./encrypted-store": {
+      "types": "./src/encrypted-store.ts",
+      "default": "./src/encrypted-store.ts"
+    },
+    "./scanner": {
+      "types": "./src/scanner.ts",
+      "default": "./src/scanner.ts"
+    },
+    "./team-paths": {
+      "types": "./src/team-paths.ts",
+      "default": "./src/team-paths.ts"
+    },
+    "./store": {
+      "types": "./src/store.ts",
+      "default": "./src/store.ts"
+    },
+    "./save-gates": {
+      "types": "./src/save-gates.ts",
+      "default": "./src/save-gates.ts"
+    },
+    "./memvid-rag": {
+      "types": "./src/memvid-rag.ts",
+      "default": "./src/memvid-rag.ts"
+    },
+    "./*": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
+    }
+  },
+  "scripts": {
+    "build": "echo stub",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@upup/types": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}

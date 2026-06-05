@@ -7,8 +7,168 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./mcp-skills": {
+      "types": "./src/mcp-skills.ts",
+      "default": "./src/mcp-skills.ts"
+    },
+    "./executor": {
+      "types": "./src/executor.ts",
+      "default": "./src/executor.ts"
+    },
+    "./auto-activate": {
+      "types": "./src/auto-activate.ts",
+      "default": "./src/auto-activate.ts"
+    },
+    "./commands": {
+      "types": "./src/commands.ts",
+      "default": "./src/commands.ts"
+    },
+    "./cli-commands": {
+      "types": "./src/cli-commands.ts",
+      "default": "./src/cli-commands.ts"
+    },
+    "./scheduler": {
+      "types": "./src/scheduler.ts",
+      "default": "./src/scheduler.ts"
+    },
+    "./search": {
+      "types": "./src/search.ts",
+      "default": "./src/search.ts"
+    },
+    "./permissions": {
+      "types": "./src/permissions.ts",
+      "default": "./src/permissions.ts"
+    },
+    "./dependency": {
+      "types": "./src/dependency.ts",
+      "default": "./src/dependency.ts"
+    },
+    "./loader": {
+      "types": "./src/loader.ts",
+      "default": "./src/loader.ts"
+    },
+    "./builtin-skills": {
+      "types": "./src/builtin-skills.ts",
+      "default": "./src/builtin-skills.ts"
+    },
+    "./skills-menu": {
+      "types": "./src/skills-menu.ts",
+      "default": "./src/skills-menu.ts"
+    },
+    "./bundled/alert": {
+      "types": "./src/bundled/alert.ts",
+      "default": "./src/bundled/alert.ts"
+    },
+    "./bundled/portfolio": {
+      "types": "./src/bundled/portfolio.ts",
+      "default": "./src/bundled/portfolio.ts"
+    },
+    "./bundled/verify": {
+      "types": "./src/bundled/verify.ts",
+      "default": "./src/bundled/verify.ts"
+    },
+    "./bundled/risk-assessment": {
+      "types": "./src/bundled/risk-assessment.ts",
+      "default": "./src/bundled/risk-assessment.ts"
+    },
+    "./bundled/sandbox": {
+      "types": "./src/bundled/sandbox.ts",
+      "default": "./src/bundled/sandbox.ts"
+    },
+    "./bundled/dream": {
+      "types": "./src/bundled/dream.ts",
+      "default": "./src/bundled/dream.ts"
+    },
+    "./bundled/prompt-helpers": {
+      "types": "./src/bundled/prompt-helpers.ts",
+      "default": "./src/bundled/prompt-helpers.ts"
+    },
+    "./bundled/portfolio-review": {
+      "types": "./src/bundled/portfolio-review.ts",
+      "default": "./src/bundled/portfolio-review.ts"
+    },
+    "./bundled/batch": {
+      "types": "./src/bundled/batch.ts",
+      "default": "./src/bundled/batch.ts"
+    },
+    "./bundled/hunter": {
+      "types": "./src/bundled/hunter.ts",
+      "default": "./src/bundled/hunter.ts"
+    },
+    "./bundled/research": {
+      "types": "./src/bundled/research.ts",
+      "default": "./src/bundled/research.ts"
+    },
+    "./bundled/index": {
+      "types": "./src/bundled/index.ts",
+      "default": "./src/bundled/index.ts"
+    },
+    "./bundled/stock-screen": {
+      "types": "./src/bundled/stock-screen.ts",
+      "default": "./src/bundled/stock-screen.ts"
+    },
+    "./bundled/fund": {
+      "types": "./src/bundled/fund.ts",
+      "default": "./src/bundled/fund.ts"
+    },
+    "./promptShellExecution": {
+      "types": "./src/promptShellExecution.ts",
+      "default": "./src/promptShellExecution.ts"
+    },
+    "./enhanced-types": {
+      "types": "./src/enhanced-types.ts",
+      "default": "./src/enhanced-types.ts"
+    },
+    "./skill-trigger": {
+      "types": "./src/skill-trigger.ts",
+      "default": "./src/skill-trigger.ts"
+    },
+    "./types": {
+      "types": "./src/types.ts",
+      "default": "./src/types.ts"
+    },
+    "./slash-command": {
+      "types": "./src/slash-command.ts",
+      "default": "./src/slash-command.ts"
+    },
+    "./agent-commands": {
+      "types": "./src/agent-commands.ts",
+      "default": "./src/agent-commands.ts"
+    },
+    "./registry": {
+      "types": "./src/registry.ts",
+      "default": "./src/registry.ts"
+    },
+    "./recent-usage": {
+      "types": "./src/recent-usage.ts",
+      "default": "./src/recent-usage.ts"
+    },
+    "./context-manager": {
+      "types": "./src/context-manager.ts",
+      "default": "./src/context-manager.ts"
+    },
+    "./intent-detector": {
+      "types": "./src/intent-detector.ts",
+      "default": "./src/intent-detector.ts"
+    },
+    "./toolResultStorage": {
+      "types": "./src/toolResultStorage.ts",
+      "default": "./src/toolResultStorage.ts"
+    },
+    "./files": {
+      "types": "./src/files.ts",
+      "default": "./src/files.ts"
+    },
+    "./bundled": {
+      "types": "./src/bundled/index.ts",
+      "default": "./src/bundled/index.ts"
+    },
+    "./*": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
     }
   },
   "scripts": {

@@ -87,8 +87,9 @@ const BUILTIN_COMMANDS: Record<string, Command> = {
   unknown: {
     name: 'unknown',
     description: 'Unknown command',
-    execute: () => ({ type: 'error', message: 'Unknown command' })
-  }
+    type: 'local',
+    call: async () => ({ type: 'text', value: 'Unknown command' })
+  } as Command
 }
 
 // ============================================================================
@@ -383,7 +384,7 @@ export const SLASH_COMMANDS: SlashCommand[] = [
  * 2. Alias from COMMAND_ALIASES (centralized alias map)
  * 3. Alias defined on command object
  */
-export function findCommand(name: string): Command | undefined {
+export function findCommand(name: string): Command | SlashCommand | undefined {
   const lower = name.toLowerCase()
   const allCmds = [...ALL_COMMANDS, ...DYNAMIC_COMMANDS]
 

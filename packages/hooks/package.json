@@ -3,12 +3,80 @@
   "version": "0.2.0",
   "description": "UpUp Hooks SDK - Rate limiting, caching, and API validation",
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./permission-hooks": {
+      "types": "./src/permission-hooks.ts",
+      "default": "./src/permission-hooks.ts"
+    },
+    "./tool-lifecycle-hooks.test": {
+      "types": "./src/tool-lifecycle-hooks.test.ts",
+      "default": "./src/tool-lifecycle-hooks.test.ts"
+    },
+    "./stop-hooks": {
+      "types": "./src/stop-hooks.ts",
+      "default": "./src/stop-hooks.ts"
+    },
+    "./rate-limiter.test": {
+      "types": "./src/rate-limiter.test.ts",
+      "default": "./src/rate-limiter.test.ts"
+    },
+    "./elicitation": {
+      "types": "./src/elicitation.ts",
+      "default": "./src/elicitation.ts"
+    },
+    "./tool-hooks": {
+      "types": "./src/tool-hooks.ts",
+      "default": "./src/tool-hooks.ts"
+    },
+    "./can-use-tool.test": {
+      "types": "./src/can-use-tool.test.ts",
+      "default": "./src/can-use-tool.test.ts"
+    },
+    "./use-skills-change": {
+      "types": "./src/use-skills-change.ts",
+      "default": "./src/use-skills-change.ts"
+    },
+    "./worktree-hooks": {
+      "types": "./src/worktree-hooks.ts",
+      "default": "./src/worktree-hooks.ts"
+    },
+    "./agent-hooks.test": {
+      "types": "./src/agent-hooks.test.ts",
+      "default": "./src/agent-hooks.test.ts"
+    },
+    "./rate-limiter": {
+      "types": "./src/rate-limiter.ts",
+      "default": "./src/rate-limiter.ts"
+    },
+    "./user-hooks": {
+      "types": "./src/user-hooks.ts",
+      "default": "./src/user-hooks.ts"
+    },
+    "./instructions-hooks": {
+      "types": "./src/instructions-hooks.ts",
+      "default": "./src/instructions-hooks.ts"
+    },
+    "./agent-hooks": {
+      "types": "./src/agent-hooks.ts",
+      "default": "./src/agent-hooks.ts"
+    },
+    "./permission-hooks.test": {
+      "types": "./src/permission-hooks.test.ts",
+      "default": "./src/permission-hooks.test.ts"
+    },
+    "./elicitation.test": {
+      "types": "./src/elicitation.test.ts",
+      "default": "./src/elicitation.test.ts"
+    },
+    "./*": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
     }
   },
   "scripts": {
@@ -19,5 +87,11 @@
   "files": [
     "dist"
   ],
-  "private": false
+  "private": false,
+  "dependencies": {
+    "@upup/types": "workspace:*",
+    "@upup/utils": "workspace:*",
+    "@upup/llm": "workspace:*",
+    "@upup/memory-system": "workspace:*"
+  }
 }

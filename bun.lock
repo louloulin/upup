@@ -1,6 +1,6 @@
 {
   "lockfileVersion": 1,
-  "configVersion": 0,
+  "configVersion": 1,
   "workspaces": {
     "": {
       "name": "dexter-ts",
@@ -78,9 +78,51 @@
         "@upup/llm": "workspace:*",
       },
     },
+    "packages/agent-runtime": {
+      "name": "@upup/agent-runtime",
+      "version": "0.3.0",
+      "dependencies": {
+        "@upup/types": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
+    },
+    "packages/bridge-system": {
+      "name": "@upup/bridge-system",
+      "version": "0.3.0",
+      "dependencies": {
+        "@upup/types": "workspace:*",
+        "@upup/utils": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
+    },
+    "packages/cli": {
+      "name": "@upup/cli",
+      "version": "0.3.0",
+      "dependencies": {
+        "@upup/types": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
+    },
     "packages/commands": {
       "name": "@upup/commands",
       "version": "0.2.0",
+    },
+    "packages/coordinator-system": {
+      "name": "@upup/coordinator-system",
+      "version": "0.3.0",
+      "dependencies": {
+        "@upup/types": "workspace:*",
+        "@upup/utils": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
     },
     "packages/cron": {
       "name": "@upup/cron",
@@ -107,6 +149,17 @@
         "@upup/types": "workspace:*",
       },
     },
+    "packages/finance-tools": {
+      "name": "@upup/finance-tools",
+      "version": "0.3.0",
+      "dependencies": {
+        "@upup/types": "workspace:*",
+        "@upup/utils": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
+    },
     "packages/gateway": {
       "name": "@upup/gateway",
       "version": "0.2.0",
@@ -121,6 +174,23 @@
     "packages/hooks": {
       "name": "@upup/hooks",
       "version": "0.2.0",
+      "dependencies": {
+        "@upup/llm": "workspace:*",
+        "@upup/memory-system": "workspace:*",
+        "@upup/types": "workspace:*",
+        "@upup/utils": "workspace:*",
+      },
+    },
+    "packages/index-app": {
+      "name": "@upup/index-app",
+      "version": "0.3.0",
+      "dependencies": {
+        "@upup/cli": "workspace:*",
+        "@upup/types": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
     },
     "packages/keybindings": {
       "name": "@upup/keybindings",
@@ -133,7 +203,9 @@
       "name": "@upup/llm",
       "version": "0.2.0",
       "dependencies": {
+        "@upup/agent-runtime": "workspace:*",
         "@upup/types": "workspace:*",
+        "@upup/utils": "workspace:*",
       },
     },
     "packages/mcp": {
@@ -154,6 +226,34 @@
       "version": "0.2.0",
       "dependencies": {
         "@memvid/sdk": "^2.0.120",
+        "@upup/types": "workspace:*",
+      },
+    },
+    "packages/memory-system": {
+      "name": "@upup/memory-system",
+      "version": "0.3.0",
+      "dependencies": {
+        "@upup/types": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
+    },
+    "packages/multimodal-system": {
+      "name": "@upup/multimodal-system",
+      "version": "0.3.0",
+      "dependencies": {
+        "@upup/types": "workspace:*",
+        "@upup/utils": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
+    },
+    "packages/plan-system": {
+      "name": "@upup/plan-system",
+      "version": "0.2.0",
+      "dependencies": {
         "@upup/types": "workspace:*",
       },
     },
@@ -178,11 +278,54 @@
         "@upup/types": "workspace:*",
       },
     },
+    "packages/realtime-channel": {
+      "name": "@upup/realtime-channel",
+      "version": "0.3.0",
+      "dependencies": {
+        "@upup/types": "workspace:*",
+        "@upup/utils": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
+    },
+    "packages/research-system": {
+      "name": "@upup/research-system",
+      "version": "0.3.0",
+      "dependencies": {
+        "@upup/types": "workspace:*",
+        "@upup/utils": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
+    },
     "packages/sdk": {
       "name": "@upup/sdk",
       "version": "0.2.1",
       "dependencies": {
         "@upup/types": "workspace:*",
+      },
+    },
+    "packages/services-core": {
+      "name": "@upup/services-core",
+      "version": "0.3.0",
+      "dependencies": {
+        "@upup/types": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
+    },
+    "packages/session-system": {
+      "name": "@upup/session-system",
+      "version": "0.3.0",
+      "dependencies": {
+        "@upup/types": "workspace:*",
+        "@upup/utils": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
       },
     },
     "packages/skills": {
@@ -202,6 +345,52 @@
         "eventemitter3": "^5.0.0",
       },
     },
+    "packages/storage": {
+      "name": "@upup/storage",
+      "version": "0.3.0",
+      "dependencies": {
+        "@upup/types": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
+    },
+    "packages/telemetry": {
+      "name": "@upup/telemetry",
+      "version": "0.3.0",
+      "dependencies": {
+        "@upup/types": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
+    },
+    "packages/tools-registry": {
+      "name": "@upup/tools-registry",
+      "version": "0.3.0",
+      "dependencies": {
+        "@upup/types": "workspace:*",
+        "@upup/utils": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
+    },
+    "packages/tui-renderer": {
+      "name": "@upup/tui-renderer",
+      "version": "0.3.0",
+      "dependencies": {
+        "@earendil-works/pi-tui": "0.76.0",
+        "@upup/hooks": "workspace:*",
+        "@upup/keybindings": "workspace:*",
+        "@upup/state": "workspace:*",
+        "@upup/types": "workspace:*",
+        "@upup/utils": "workspace:*",
+      },
+      "devDependencies": {
+        "@types/bun": "latest",
+      },
+    },
     "packages/types": {
       "name": "@upup/types",
       "version": "0.2.0",
@@ -215,10 +404,18 @@
         "eventemitter3": "^5.0.0",
       },
       "peerDependencies": {
+        "@upup/commands": "workspace:*",
+        "@upup/hooks": "workspace:*",
+        "@upup/llm": "workspace:*",
+        "@upup/state": "workspace:*",
         "@upup/types": "workspace:*",
       },
     },
   },
+  "trustedDependencies": [
+    "@whiskeysockets/baileys",
+    "protobufjs",
+  ],
   "packages": {
     "@ai-sdk/gateway": ["@ai-sdk/gateway@3.0.110", "https://registry.npmmirror.com/@ai-sdk/gateway/-/gateway-3.0.110.tgz", { "dependencies": { "@ai-sdk/provider": "3.0.10", "@ai-sdk/provider-utils": "4.0.26", "@vercel/oidc": "3.2.0" }, "peerDependencies": { "zod": "^3.25.76 || ^4.1.8" } }, "sha512-sbv8+1L9/BRKydn8dMNwoMQKupA4iLJ9N+yvxgW6wMQ/94UepDf3FeYWMj/dLdzolAHZ6izRUP4s5WqQkmJ2Zg=="],
 
@@ -782,15 +979,27 @@
 
     "@upup/agent-core": ["@upup/agent-core@workspace:packages/agent-core"],
 
+    "@upup/agent-runtime": ["@upup/agent-runtime@workspace:packages/agent-runtime"],
+
+    "@upup/bridge-system": ["@upup/bridge-system@workspace:packages/bridge-system"],
+
+    "@upup/cli": ["@upup/cli@workspace:packages/cli"],
+
     "@upup/commands": ["@upup/commands@workspace:packages/commands"],
+
+    "@upup/coordinator-system": ["@upup/coordinator-system@workspace:packages/coordinator-system"],
 
     "@upup/cron": ["@upup/cron@workspace:packages/cron"],
 
     "@upup/daemon": ["@upup/daemon@workspace:packages/daemon"],
 
+    "@upup/finance-tools": ["@upup/finance-tools@workspace:packages/finance-tools"],
+
     "@upup/gateway": ["@upup/gateway@workspace:packages/gateway"],
 
     "@upup/hooks": ["@upup/hooks@workspace:packages/hooks"],
+
+    "@upup/index-app": ["@upup/index-app@workspace:packages/index-app"],
 
     "@upup/keybindings": ["@upup/keybindings@workspace:packages/keybindings"],
 
@@ -800,15 +1009,37 @@
 
     "@upup/memory": ["@upup/memory@workspace:packages/memory"],
 
+    "@upup/memory-system": ["@upup/memory-system@workspace:packages/memory-system"],
+
+    "@upup/multimodal-system": ["@upup/multimodal-system@workspace:packages/multimodal-system"],
+
+    "@upup/plan-system": ["@upup/plan-system@workspace:packages/plan-system"],
+
     "@upup/plugin-sdk": ["@upup/plugin-sdk@workspace:packages/plugin-sdk"],
 
     "@upup/plugins": ["@upup/plugins@workspace:packages/plugins"],
 
+    "@upup/realtime-channel": ["@upup/realtime-channel@workspace:packages/realtime-channel"],
+
+    "@upup/research-system": ["@upup/research-system@workspace:packages/research-system"],
+
     "@upup/sdk": ["@upup/sdk@workspace:packages/sdk"],
+
+    "@upup/services-core": ["@upup/services-core@workspace:packages/services-core"],
+
+    "@upup/session-system": ["@upup/session-system@workspace:packages/session-system"],
 
     "@upup/skills": ["@upup/skills@workspace:packages/skills"],
 
     "@upup/state": ["@upup/state@workspace:packages/state"],
+
+    "@upup/storage": ["@upup/storage@workspace:packages/storage"],
+
+    "@upup/telemetry": ["@upup/telemetry@workspace:packages/telemetry"],
+
+    "@upup/tools-registry": ["@upup/tools-registry@workspace:packages/tools-registry"],
+
+    "@upup/tui-renderer": ["@upup/tui-renderer@workspace:packages/tui-renderer"],
 
     "@upup/types": ["@upup/types@workspace:packages/types"],
 
@@ -1984,15 +2215,47 @@
 
     "@types/babel__traverse/@babel/types": ["@babel/types@7.28.5", "https://registry.npmmirror.com/@babel/types/-/types-7.28.5.tgz", { "dependencies": { "@babel/helper-string-parser": "^7.27.1", "@babel/helper-validator-identifier": "^7.28.5" } }, "sha512-qQ5m48eI/MFLQ5PxQj4PFaprjyCTLI37ElWMmNs0K8Lk3dVeOdNpB3ks8jc7yM5CDmVC73eMVk/trk3fgmrUpA=="],
 
+    "@upup/agent-runtime/@types/bun": ["@types/bun@1.3.14", "https://registry.npmmirror.com/@types/bun/-/bun-1.3.14.tgz", { "dependencies": { "bun-types": "1.3.14" } }, "sha512-h1hFqFVcvAvD9j9K7ZW7vd82aSA+rTdznZa+5bwvCwqSB1jmmfLcbIWhOLx1/+boy/xmjgCs/OMUL8hRJSmnPw=="],
+
+    "@upup/bridge-system/@types/bun": ["@types/bun@1.3.14", "https://registry.npmmirror.com/@types/bun/-/bun-1.3.14.tgz", { "dependencies": { "bun-types": "1.3.14" } }, "sha512-h1hFqFVcvAvD9j9K7ZW7vd82aSA+rTdznZa+5bwvCwqSB1jmmfLcbIWhOLx1/+boy/xmjgCs/OMUL8hRJSmnPw=="],
+
+    "@upup/cli/@types/bun": ["@types/bun@1.3.14", "https://registry.npmmirror.com/@types/bun/-/bun-1.3.14.tgz", { "dependencies": { "bun-types": "1.3.14" } }, "sha512-h1hFqFVcvAvD9j9K7ZW7vd82aSA+rTdznZa+5bwvCwqSB1jmmfLcbIWhOLx1/+boy/xmjgCs/OMUL8hRJSmnPw=="],
+
+    "@upup/coordinator-system/@types/bun": ["@types/bun@1.3.14", "https://registry.npmmirror.com/@types/bun/-/bun-1.3.14.tgz", { "dependencies": { "bun-types": "1.3.14" } }, "sha512-h1hFqFVcvAvD9j9K7ZW7vd82aSA+rTdznZa+5bwvCwqSB1jmmfLcbIWhOLx1/+boy/xmjgCs/OMUL8hRJSmnPw=="],
+
     "@upup/cron/@types/bun": ["@types/bun@1.3.14", "https://registry.npmmirror.com/@types/bun/-/bun-1.3.14.tgz", { "dependencies": { "bun-types": "1.3.14" } }, "sha512-h1hFqFVcvAvD9j9K7ZW7vd82aSA+rTdznZa+5bwvCwqSB1jmmfLcbIWhOLx1/+boy/xmjgCs/OMUL8hRJSmnPw=="],
 
     "@upup/daemon/@types/bun": ["@types/bun@1.3.14", "https://registry.npmmirror.com/@types/bun/-/bun-1.3.14.tgz", { "dependencies": { "bun-types": "1.3.14" } }, "sha512-h1hFqFVcvAvD9j9K7ZW7vd82aSA+rTdznZa+5bwvCwqSB1jmmfLcbIWhOLx1/+boy/xmjgCs/OMUL8hRJSmnPw=="],
 
+    "@upup/finance-tools/@types/bun": ["@types/bun@1.3.14", "https://registry.npmmirror.com/@types/bun/-/bun-1.3.14.tgz", { "dependencies": { "bun-types": "1.3.14" } }, "sha512-h1hFqFVcvAvD9j9K7ZW7vd82aSA+rTdznZa+5bwvCwqSB1jmmfLcbIWhOLx1/+boy/xmjgCs/OMUL8hRJSmnPw=="],
+
     "@upup/gateway/@types/bun": ["@types/bun@1.3.14", "https://registry.npmmirror.com/@types/bun/-/bun-1.3.14.tgz", { "dependencies": { "bun-types": "1.3.14" } }, "sha512-h1hFqFVcvAvD9j9K7ZW7vd82aSA+rTdznZa+5bwvCwqSB1jmmfLcbIWhOLx1/+boy/xmjgCs/OMUL8hRJSmnPw=="],
+
+    "@upup/index-app/@types/bun": ["@types/bun@1.3.14", "https://registry.npmmirror.com/@types/bun/-/bun-1.3.14.tgz", { "dependencies": { "bun-types": "1.3.14" } }, "sha512-h1hFqFVcvAvD9j9K7ZW7vd82aSA+rTdznZa+5bwvCwqSB1jmmfLcbIWhOLx1/+boy/xmjgCs/OMUL8hRJSmnPw=="],
 
     "@upup/mcp/@langchain/core": ["@langchain/core@0.3.80", "https://registry.npmmirror.com/@langchain/core/-/core-0.3.80.tgz", { "dependencies": { "@cfworker/json-schema": "^4.0.2", "ansi-styles": "^5.0.0", "camelcase": "6", "decamelize": "1.2.0", "js-tiktoken": "^1.0.12", "langsmith": "^0.3.67", "mustache": "^4.2.0", "p-queue": "^6.6.2", "p-retry": "4", "uuid": "^10.0.0", "zod": "^3.25.32", "zod-to-json-schema": "^3.22.3" } }, "sha512-vcJDV2vk1AlCwSh3aBm/urQ1ZrlXFFBocv11bz/NBUfLWD5/UDNMzwPdaAd2dKvNmTWa9FM2lirLU3+JCf4cRA=="],
 
+    "@upup/memory-system/@types/bun": ["@types/bun@1.3.14", "https://registry.npmmirror.com/@types/bun/-/bun-1.3.14.tgz", { "dependencies": { "bun-types": "1.3.14" } }, "sha512-h1hFqFVcvAvD9j9K7ZW7vd82aSA+rTdznZa+5bwvCwqSB1jmmfLcbIWhOLx1/+boy/xmjgCs/OMUL8hRJSmnPw=="],
+
+    "@upup/multimodal-system/@types/bun": ["@types/bun@1.3.14", "https://registry.npmmirror.com/@types/bun/-/bun-1.3.14.tgz", { "dependencies": { "bun-types": "1.3.14" } }, "sha512-h1hFqFVcvAvD9j9K7ZW7vd82aSA+rTdznZa+5bwvCwqSB1jmmfLcbIWhOLx1/+boy/xmjgCs/OMUL8hRJSmnPw=="],
+
     "@upup/plugins/@types/bun": ["@types/bun@1.3.14", "https://registry.npmmirror.com/@types/bun/-/bun-1.3.14.tgz", { "dependencies": { "bun-types": "1.3.14" } }, "sha512-h1hFqFVcvAvD9j9K7ZW7vd82aSA+rTdznZa+5bwvCwqSB1jmmfLcbIWhOLx1/+boy/xmjgCs/OMUL8hRJSmnPw=="],
+
+    "@upup/realtime-channel/@types/bun": ["@types/bun@1.3.14", "https://registry.npmmirror.com/@types/bun/-/bun-1.3.14.tgz", { "dependencies": { "bun-types": "1.3.14" } }, "sha512-h1hFqFVcvAvD9j9K7ZW7vd82aSA+rTdznZa+5bwvCwqSB1jmmfLcbIWhOLx1/+boy/xmjgCs/OMUL8hRJSmnPw=="],
+
+    "@upup/research-system/@types/bun": ["@types/bun@1.3.14", "https://registry.npmmirror.com/@types/bun/-/bun-1.3.14.tgz", { "dependencies": { "bun-types": "1.3.14" } }, "sha512-h1hFqFVcvAvD9j9K7ZW7vd82aSA+rTdznZa+5bwvCwqSB1jmmfLcbIWhOLx1/+boy/xmjgCs/OMUL8hRJSmnPw=="],
+
+    "@upup/services-core/@types/bun": ["@types/bun@1.3.14", "https://registry.npmmirror.com/@types/bun/-/bun-1.3.14.tgz", { "dependencies": { "bun-types": "1.3.14" } }, "sha512-h1hFqFVcvAvD9j9K7ZW7vd82aSA+rTdznZa+5bwvCwqSB1jmmfLcbIWhOLx1/+boy/xmjgCs/OMUL8hRJSmnPw=="],
+
+    "@upup/session-system/@types/bun": ["@types/bun@1.3.14", "https://registry.npmmirror.com/@types/bun/-/bun-1.3.14.tgz", { "dependencies": { "bun-types": "1.3.14" } }, "sha512-h1hFqFVcvAvD9j9K7ZW7vd82aSA+rTdznZa+5bwvCwqSB1jmmfLcbIWhOLx1/+boy/xmjgCs/OMUL8hRJSmnPw=="],
+
+    "@upup/storage/@types/bun": ["@types/bun@1.3.14", "https://registry.npmmirror.com/@types/bun/-/bun-1.3.14.tgz", { "dependencies": { "bun-types": "1.3.14" } }, "sha512-h1hFqFVcvAvD9j9K7ZW7vd82aSA+rTdznZa+5bwvCwqSB1jmmfLcbIWhOLx1/+boy/xmjgCs/OMUL8hRJSmnPw=="],
+
+    "@upup/telemetry/@types/bun": ["@types/bun@1.3.14", "https://registry.npmmirror.com/@types/bun/-/bun-1.3.14.tgz", { "dependencies": { "bun-types": "1.3.14" } }, "sha512-h1hFqFVcvAvD9j9K7ZW7vd82aSA+rTdznZa+5bwvCwqSB1jmmfLcbIWhOLx1/+boy/xmjgCs/OMUL8hRJSmnPw=="],
+
+    "@upup/tools-registry/@types/bun": ["@types/bun@1.3.14", "https://registry.npmmirror.com/@types/bun/-/bun-1.3.14.tgz", { "dependencies": { "bun-types": "1.3.14" } }, "sha512-h1hFqFVcvAvD9j9K7ZW7vd82aSA+rTdznZa+5bwvCwqSB1jmmfLcbIWhOLx1/+boy/xmjgCs/OMUL8hRJSmnPw=="],
+
+    "@upup/tui-renderer/@types/bun": ["@types/bun@1.3.14", "https://registry.npmmirror.com/@types/bun/-/bun-1.3.14.tgz", { "dependencies": { "bun-types": "1.3.14" } }, "sha512-h1hFqFVcvAvD9j9K7ZW7vd82aSA+rTdznZa+5bwvCwqSB1jmmfLcbIWhOLx1/+boy/xmjgCs/OMUL8hRJSmnPw=="],
 
     "@upup/utils/dotenv": ["dotenv@16.4.7", "https://registry.npmmirror.com/dotenv/-/dotenv-16.4.7.tgz", {}, "sha512-47qPchRCykZC03FhkYAhrvwU4xDBFIj1QPqaarj6mdM/hgUzfPHcpkHJOn3mJAufFeeAxAzeGsr5X0M4k6fLZQ=="],
 
@@ -2278,17 +2541,49 @@
 
     "@llamaindex/workflow/@llamaindex/core/zod": ["zod@4.3.6", "https://registry.npmmirror.com/zod/-/zod-4.3.6.tgz", {}, "sha512-rftlrkhHZOcjDwkGlnUtZZkvaPHCsDATp4pGpuOOMDaTdDDXF91wuVDJoWoPsKX/3YPQ5fHuF3STjcYyKr+Qhg=="],
 
+    "@upup/agent-runtime/@types/bun/bun-types": ["bun-types@1.3.14", "https://registry.npmmirror.com/bun-types/-/bun-types-1.3.14.tgz", { "dependencies": { "@types/node": "*" } }, "sha512-4N0ig0fEomHt5R0KCFWjovxow98rIoRwKolrYdCcknNwMekCXRnWEUvgu5soYV8QXtVsrUD8B95MBOZGPvr6KQ=="],
+
+    "@upup/bridge-system/@types/bun/bun-types": ["bun-types@1.3.14", "https://registry.npmmirror.com/bun-types/-/bun-types-1.3.14.tgz", { "dependencies": { "@types/node": "*" } }, "sha512-4N0ig0fEomHt5R0KCFWjovxow98rIoRwKolrYdCcknNwMekCXRnWEUvgu5soYV8QXtVsrUD8B95MBOZGPvr6KQ=="],
+
+    "@upup/cli/@types/bun/bun-types": ["bun-types@1.3.14", "https://registry.npmmirror.com/bun-types/-/bun-types-1.3.14.tgz", { "dependencies": { "@types/node": "*" } }, "sha512-4N0ig0fEomHt5R0KCFWjovxow98rIoRwKolrYdCcknNwMekCXRnWEUvgu5soYV8QXtVsrUD8B95MBOZGPvr6KQ=="],
+
+    "@upup/coordinator-system/@types/bun/bun-types": ["bun-types@1.3.14", "https://registry.npmmirror.com/bun-types/-/bun-types-1.3.14.tgz", { "dependencies": { "@types/node": "*" } }, "sha512-4N0ig0fEomHt5R0KCFWjovxow98rIoRwKolrYdCcknNwMekCXRnWEUvgu5soYV8QXtVsrUD8B95MBOZGPvr6KQ=="],
+
     "@upup/cron/@types/bun/bun-types": ["bun-types@1.3.14", "https://registry.npmmirror.com/bun-types/-/bun-types-1.3.14.tgz", { "dependencies": { "@types/node": "*" } }, "sha512-4N0ig0fEomHt5R0KCFWjovxow98rIoRwKolrYdCcknNwMekCXRnWEUvgu5soYV8QXtVsrUD8B95MBOZGPvr6KQ=="],
 
     "@upup/daemon/@types/bun/bun-types": ["bun-types@1.3.14", "https://registry.npmmirror.com/bun-types/-/bun-types-1.3.14.tgz", { "dependencies": { "@types/node": "*" } }, "sha512-4N0ig0fEomHt5R0KCFWjovxow98rIoRwKolrYdCcknNwMekCXRnWEUvgu5soYV8QXtVsrUD8B95MBOZGPvr6KQ=="],
 
+    "@upup/finance-tools/@types/bun/bun-types": ["bun-types@1.3.14", "https://registry.npmmirror.com/bun-types/-/bun-types-1.3.14.tgz", { "dependencies": { "@types/node": "*" } }, "sha512-4N0ig0fEomHt5R0KCFWjovxow98rIoRwKolrYdCcknNwMekCXRnWEUvgu5soYV8QXtVsrUD8B95MBOZGPvr6KQ=="],
+
     "@upup/gateway/@types/bun/bun-types": ["bun-types@1.3.14", "https://registry.npmmirror.com/bun-types/-/bun-types-1.3.14.tgz", { "dependencies": { "@types/node": "*" } }, "sha512-4N0ig0fEomHt5R0KCFWjovxow98rIoRwKolrYdCcknNwMekCXRnWEUvgu5soYV8QXtVsrUD8B95MBOZGPvr6KQ=="],
+
+    "@upup/index-app/@types/bun/bun-types": ["bun-types@1.3.14", "https://registry.npmmirror.com/bun-types/-/bun-types-1.3.14.tgz", { "dependencies": { "@types/node": "*" } }, "sha512-4N0ig0fEomHt5R0KCFWjovxow98rIoRwKolrYdCcknNwMekCXRnWEUvgu5soYV8QXtVsrUD8B95MBOZGPvr6KQ=="],
 
     "@upup/mcp/@langchain/core/langsmith": ["langsmith@0.3.87", "https://registry.npmmirror.com/langsmith/-/langsmith-0.3.87.tgz", { "dependencies": { "@types/uuid": "^10.0.0", "chalk": "^4.1.2", "console-table-printer": "^2.12.1", "p-queue": "^6.6.2", "semver": "^7.6.3", "uuid": "^10.0.0" }, "peerDependencies": { "@opentelemetry/api": "*", "@opentelemetry/exporter-trace-otlp-proto": "*", "@opentelemetry/sdk-trace-base": "*", "openai": "*" }, "optionalPeers": ["@opentelemetry/api", "@opentelemetry/exporter-trace-otlp-proto", "@opentelemetry/sdk-trace-base", "openai"] }, "sha512-XXR1+9INH8YX96FKWc5tie0QixWz6tOqAsAKfcJyPkE0xPep+NDz0IQLR32q4bn10QK3LqD2HN6T3n6z1YLW7Q=="],
 
     "@upup/mcp/@langchain/core/uuid": ["uuid@10.0.0", "https://registry.npmmirror.com/uuid/-/uuid-10.0.0.tgz", { "bin": "dist/bin/uuid" }, "sha512-8XkAphELsDnEGrDxUOHB3RGvXz6TeuYSGEZBOjtTtPm2lwhGBjLgOzLHB63IUWfBpNucQjND6d3AOudO+H3RWQ=="],
 
+    "@upup/memory-system/@types/bun/bun-types": ["bun-types@1.3.14", "https://registry.npmmirror.com/bun-types/-/bun-types-1.3.14.tgz", { "dependencies": { "@types/node": "*" } }, "sha512-4N0ig0fEomHt5R0KCFWjovxow98rIoRwKolrYdCcknNwMekCXRnWEUvgu5soYV8QXtVsrUD8B95MBOZGPvr6KQ=="],
+
+    "@upup/multimodal-system/@types/bun/bun-types": ["bun-types@1.3.14", "https://registry.npmmirror.com/bun-types/-/bun-types-1.3.14.tgz", { "dependencies": { "@types/node": "*" } }, "sha512-4N0ig0fEomHt5R0KCFWjovxow98rIoRwKolrYdCcknNwMekCXRnWEUvgu5soYV8QXtVsrUD8B95MBOZGPvr6KQ=="],
+
     "@upup/plugins/@types/bun/bun-types": ["bun-types@1.3.14", "https://registry.npmmirror.com/bun-types/-/bun-types-1.3.14.tgz", { "dependencies": { "@types/node": "*" } }, "sha512-4N0ig0fEomHt5R0KCFWjovxow98rIoRwKolrYdCcknNwMekCXRnWEUvgu5soYV8QXtVsrUD8B95MBOZGPvr6KQ=="],
+
+    "@upup/realtime-channel/@types/bun/bun-types": ["bun-types@1.3.14", "https://registry.npmmirror.com/bun-types/-/bun-types-1.3.14.tgz", { "dependencies": { "@types/node": "*" } }, "sha512-4N0ig0fEomHt5R0KCFWjovxow98rIoRwKolrYdCcknNwMekCXRnWEUvgu5soYV8QXtVsrUD8B95MBOZGPvr6KQ=="],
+
+    "@upup/research-system/@types/bun/bun-types": ["bun-types@1.3.14", "https://registry.npmmirror.com/bun-types/-/bun-types-1.3.14.tgz", { "dependencies": { "@types/node": "*" } }, "sha512-4N0ig0fEomHt5R0KCFWjovxow98rIoRwKolrYdCcknNwMekCXRnWEUvgu5soYV8QXtVsrUD8B95MBOZGPvr6KQ=="],
+
+    "@upup/services-core/@types/bun/bun-types": ["bun-types@1.3.14", "https://registry.npmmirror.com/bun-types/-/bun-types-1.3.14.tgz", { "dependencies": { "@types/node": "*" } }, "sha512-4N0ig0fEomHt5R0KCFWjovxow98rIoRwKolrYdCcknNwMekCXRnWEUvgu5soYV8QXtVsrUD8B95MBOZGPvr6KQ=="],
+
+    "@upup/session-system/@types/bun/bun-types": ["bun-types@1.3.14", "https://registry.npmmirror.com/bun-types/-/bun-types-1.3.14.tgz", { "dependencies": { "@types/node": "*" } }, "sha512-4N0ig0fEomHt5R0KCFWjovxow98rIoRwKolrYdCcknNwMekCXRnWEUvgu5soYV8QXtVsrUD8B95MBOZGPvr6KQ=="],
+
+    "@upup/storage/@types/bun/bun-types": ["bun-types@1.3.14", "https://registry.npmmirror.com/bun-types/-/bun-types-1.3.14.tgz", { "dependencies": { "@types/node": "*" } }, "sha512-4N0ig0fEomHt5R0KCFWjovxow98rIoRwKolrYdCcknNwMekCXRnWEUvgu5soYV8QXtVsrUD8B95MBOZGPvr6KQ=="],
+
+    "@upup/telemetry/@types/bun/bun-types": ["bun-types@1.3.14", "https://registry.npmmirror.com/bun-types/-/bun-types-1.3.14.tgz", { "dependencies": { "@types/node": "*" } }, "sha512-4N0ig0fEomHt5R0KCFWjovxow98rIoRwKolrYdCcknNwMekCXRnWEUvgu5soYV8QXtVsrUD8B95MBOZGPvr6KQ=="],
+
+    "@upup/tools-registry/@types/bun/bun-types": ["bun-types@1.3.14", "https://registry.npmmirror.com/bun-types/-/bun-types-1.3.14.tgz", { "dependencies": { "@types/node": "*" } }, "sha512-4N0ig0fEomHt5R0KCFWjovxow98rIoRwKolrYdCcknNwMekCXRnWEUvgu5soYV8QXtVsrUD8B95MBOZGPvr6KQ=="],
+
+    "@upup/tui-renderer/@types/bun/bun-types": ["bun-types@1.3.14", "https://registry.npmmirror.com/bun-types/-/bun-types-1.3.14.tgz", { "dependencies": { "@types/node": "*" } }, "sha512-4N0ig0fEomHt5R0KCFWjovxow98rIoRwKolrYdCcknNwMekCXRnWEUvgu5soYV8QXtVsrUD8B95MBOZGPvr6KQ=="],
 
     "@whiskeysockets/baileys/p-queue/p-timeout": ["p-timeout@7.0.1", "https://registry.npmmirror.com/p-timeout/-/p-timeout-7.0.1.tgz", {}, "sha512-AxTM2wDGORHGEkPCt8yqxOTMgpfbEHqF51f/5fJCmwFC3C/zNcGT63SymH2ttOAaiIws2zVg4+izQCjrakcwHg=="],
 

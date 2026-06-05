@@ -3,12 +3,700 @@
   "version": "0.2.0",
   "description": "UpUp Commands SDK - Slash command framework",
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./commands": {
+      "types": "./src/commands/index.ts",
+      "default": "./src/commands/index.ts"
+    },
+    "./types/command-types": {
+      "types": "./src/types/command-types.ts",
+      "default": "./src/types/command-types.ts"
+    },
+    "./command-macros.test": {
+      "types": "./src/command-macros.test.ts",
+      "default": "./src/command-macros.test.ts"
+    },
+    "./commands.test": {
+      "types": "./src/commands.test.ts",
+      "default": "./src/commands.test.ts"
+    },
+    "./plugins/loader": {
+      "types": "./src/plugins/loader.ts",
+      "default": "./src/plugins/loader.ts"
+    },
+    "./plugins/types": {
+      "types": "./src/plugins/types.ts",
+      "default": "./src/plugins/types.ts"
+    },
+    "./args": {
+      "types": "./src/args.ts",
+      "default": "./src/args.ts"
+    },
+    "./utils/path": {
+      "types": "./src/utils/path.ts",
+      "default": "./src/utils/path.ts"
+    },
+    "./agent-port": {
+      "types": "./src/agent-port.ts",
+      "default": "./src/agent-port.ts"
+    },
+    "./command-usage": {
+      "types": "./src/command-usage.ts",
+      "default": "./src/command-usage.ts"
+    },
+    "./timeout": {
+      "types": "./src/timeout.ts",
+      "default": "./src/timeout.ts"
+    },
+    "./commands/commit/commit-impl": {
+      "types": "./src/commands/commit/commit-impl.ts",
+      "default": "./src/commands/commit/commit-impl.ts"
+    },
+    "./commands/commit/index": {
+      "types": "./src/commands/commit/index.ts",
+      "default": "./src/commands/commit/index.ts"
+    },
+    "./commands/init/index": {
+      "types": "./src/commands/init/index.ts",
+      "default": "./src/commands/init/index.ts"
+    },
+    "./commands/fork/index": {
+      "types": "./src/commands/fork/index.ts",
+      "default": "./src/commands/fork/index.ts"
+    },
+    "./commands/fork/fork-impl": {
+      "types": "./src/commands/fork/fork-impl.ts",
+      "default": "./src/commands/fork/fork-impl.ts"
+    },
+    "./commands/tasks/tasks-impl": {
+      "types": "./src/commands/tasks/tasks-impl.ts",
+      "default": "./src/commands/tasks/tasks-impl.ts"
+    },
+    "./commands/tasks/index": {
+      "types": "./src/commands/tasks/index.ts",
+      "default": "./src/commands/tasks/index.ts"
+    },
+    "./commands/compact/compact-impl": {
+      "types": "./src/commands/compact/compact-impl.ts",
+      "default": "./src/commands/compact/compact-impl.ts"
+    },
+    "./commands/compact/index": {
+      "types": "./src/commands/compact/index.ts",
+      "default": "./src/commands/compact/index.ts"
+    },
+    "./commands/branch/branch-impl": {
+      "types": "./src/commands/branch/branch-impl.ts",
+      "default": "./src/commands/branch/branch-impl.ts"
+    },
+    "./commands/branch/index": {
+      "types": "./src/commands/branch/index.ts",
+      "default": "./src/commands/branch/index.ts"
+    },
+    "./commands/memory/index": {
+      "types": "./src/commands/memory/index.ts",
+      "default": "./src/commands/memory/index.ts"
+    },
+    "./commands/memory/memory-impl": {
+      "types": "./src/commands/memory/memory-impl.ts",
+      "default": "./src/commands/memory/memory-impl.ts"
+    },
+    "./commands/keybindings/keybindings-impl": {
+      "types": "./src/commands/keybindings/keybindings-impl.ts",
+      "default": "./src/commands/keybindings/keybindings-impl.ts"
+    },
+    "./commands/keybindings/index": {
+      "types": "./src/commands/keybindings/index.ts",
+      "default": "./src/commands/keybindings/index.ts"
+    },
+    "./commands/config/config-impl": {
+      "types": "./src/commands/config/config-impl.ts",
+      "default": "./src/commands/config/config-impl.ts"
+    },
+    "./commands/config/index": {
+      "types": "./src/commands/config/index.ts",
+      "default": "./src/commands/config/index.ts"
+    },
+    "./commands/plan/plan-impl": {
+      "types": "./src/commands/plan/plan-impl.ts",
+      "default": "./src/commands/plan/plan-impl.ts"
+    },
+    "./commands/plan/index": {
+      "types": "./src/commands/plan/index.ts",
+      "default": "./src/commands/plan/index.ts"
+    },
+    "./commands/effort/effort-impl": {
+      "types": "./src/commands/effort/effort-impl.ts",
+      "default": "./src/commands/effort/effort-impl.ts"
+    },
+    "./commands/effort/index": {
+      "types": "./src/commands/effort/index.ts",
+      "default": "./src/commands/effort/index.ts"
+    },
+    "./commands/add-step/add-step-impl": {
+      "types": "./src/commands/add-step/add-step-impl.ts",
+      "default": "./src/commands/add-step/add-step-impl.ts"
+    },
+    "./commands/add-step/index": {
+      "types": "./src/commands/add-step/index.ts",
+      "default": "./src/commands/add-step/index.ts"
+    },
+    "./commands/resume/resume-impl": {
+      "types": "./src/commands/resume/resume-impl.ts",
+      "default": "./src/commands/resume/resume-impl.ts"
+    },
+    "./commands/resume/index": {
+      "types": "./src/commands/resume/index.ts",
+      "default": "./src/commands/resume/index.ts"
+    },
+    "./commands/doctor/index": {
+      "types": "./src/commands/doctor/index.ts",
+      "default": "./src/commands/doctor/index.ts"
+    },
+    "./commands/doctor/doctor-impl": {
+      "types": "./src/commands/doctor/doctor-impl.ts",
+      "default": "./src/commands/doctor/doctor-impl.ts"
+    },
+    "./commands/cost/cost-impl": {
+      "types": "./src/commands/cost/cost-impl.ts",
+      "default": "./src/commands/cost/cost-impl.ts"
+    },
+    "./commands/cost/index": {
+      "types": "./src/commands/cost/index.ts",
+      "default": "./src/commands/cost/index.ts"
+    },
+    "./commands/agents/agents-impl": {
+      "types": "./src/commands/agents/agents-impl.ts",
+      "default": "./src/commands/agents/agents-impl.ts"
+    },
+    "./commands/agents/index": {
+      "types": "./src/commands/agents/index.ts",
+      "default": "./src/commands/agents/index.ts"
+    },
+    "./commands/diff/diff": {
+      "types": "./src/commands/diff/diff.tsx",
+      "default": "./src/commands/diff/diff.tsx"
+    },
+    "./commands/diff/diff-impl": {
+      "types": "./src/commands/diff/diff-impl.ts",
+      "default": "./src/commands/diff/diff-impl.ts"
+    },
+    "./commands/diff/index": {
+      "types": "./src/commands/diff/index.ts",
+      "default": "./src/commands/diff/index.ts"
+    },
+    "./commands/usage/index": {
+      "types": "./src/commands/usage/index.ts",
+      "default": "./src/commands/usage/index.ts"
+    },
+    "./commands/usage/usage-impl": {
+      "types": "./src/commands/usage/usage-impl.ts",
+      "default": "./src/commands/usage/usage-impl.ts"
+    },
+    "./commands/agent/agent-impl": {
+      "types": "./src/commands/agent/agent-impl.ts",
+      "default": "./src/commands/agent/agent-impl.ts"
+    },
+    "./commands/agent/index": {
+      "types": "./src/commands/agent/index.ts",
+      "default": "./src/commands/agent/index.ts"
+    },
+    "./commands/mcp/mcp-impl": {
+      "types": "./src/commands/mcp/mcp-impl.ts",
+      "default": "./src/commands/mcp/mcp-impl.ts"
+    },
+    "./commands/mcp/mcp": {
+      "types": "./src/commands/mcp/mcp.tsx",
+      "default": "./src/commands/mcp/mcp.tsx"
+    },
+    "./commands/mcp/index": {
+      "types": "./src/commands/mcp/index.ts",
+      "default": "./src/commands/mcp/index.ts"
+    },
+    "./commands/status/status-impl": {
+      "types": "./src/commands/status/status-impl.ts",
+      "default": "./src/commands/status/status-impl.ts"
+    },
+    "./commands/status/index": {
+      "types": "./src/commands/status/index.ts",
+      "default": "./src/commands/status/index.ts"
+    },
+    "./commands/permissions/index": {
+      "types": "./src/commands/permissions/index.ts",
+      "default": "./src/commands/permissions/index.ts"
+    },
+    "./commands/permissions/permissions-impl": {
+      "types": "./src/commands/permissions/permissions-impl.ts",
+      "default": "./src/commands/permissions/permissions-impl.ts"
+    },
+    "./commands/feedback/feedback-impl": {
+      "types": "./src/commands/feedback/feedback-impl.ts",
+      "default": "./src/commands/feedback/feedback-impl.ts"
+    },
+    "./commands/feedback/index": {
+      "types": "./src/commands/feedback/index.ts",
+      "default": "./src/commands/feedback/index.ts"
+    },
+    "./commands/extra-usage/extra-usage-impl": {
+      "types": "./src/commands/extra-usage/extra-usage-impl.ts",
+      "default": "./src/commands/extra-usage/extra-usage-impl.ts"
+    },
+    "./commands/extra-usage/index": {
+      "types": "./src/commands/extra-usage/index.ts",
+      "default": "./src/commands/extra-usage/index.ts"
+    },
+    "./commands/mcp-add/mcp-add-impl": {
+      "types": "./src/commands/mcp-add/mcp-add-impl.ts",
+      "default": "./src/commands/mcp-add/mcp-add-impl.ts"
+    },
+    "./commands/mcp-add/index": {
+      "types": "./src/commands/mcp-add/index.ts",
+      "default": "./src/commands/mcp-add/index.ts"
+    },
+    "./commands/clear/index": {
+      "types": "./src/commands/clear/index.ts",
+      "default": "./src/commands/clear/index.ts"
+    },
+    "./commands/clear/clear-impl": {
+      "types": "./src/commands/clear/clear-impl.ts",
+      "default": "./src/commands/clear/clear-impl.ts"
+    },
+    "./commands/heartbeat/heartbeat-impl": {
+      "types": "./src/commands/heartbeat/heartbeat-impl.ts",
+      "default": "./src/commands/heartbeat/heartbeat-impl.ts"
+    },
+    "./commands/heartbeat/index": {
+      "types": "./src/commands/heartbeat/index.ts",
+      "default": "./src/commands/heartbeat/index.ts"
+    },
+    "./commands/approve/approve-impl": {
+      "types": "./src/commands/approve/approve-impl.ts",
+      "default": "./src/commands/approve/approve-impl.ts"
+    },
+    "./commands/approve/index": {
+      "types": "./src/commands/approve/index.ts",
+      "default": "./src/commands/approve/index.ts"
+    },
+    "./commands/reset-permissions/reset-permissions-impl": {
+      "types": "./src/commands/reset-permissions/reset-permissions-impl.ts",
+      "default": "./src/commands/reset-permissions/reset-permissions-impl.ts"
+    },
+    "./commands/reset-permissions/index": {
+      "types": "./src/commands/reset-permissions/index.ts",
+      "default": "./src/commands/reset-permissions/index.ts"
+    },
+    "./commands/command-palette/command-palette": {
+      "types": "./src/commands/command-palette/command-palette.tsx",
+      "default": "./src/commands/command-palette/command-palette.tsx"
+    },
+    "./commands/command-palette/index": {
+      "types": "./src/commands/command-palette/index.ts",
+      "default": "./src/commands/command-palette/index.ts"
+    },
+    "./commands/deny/index": {
+      "types": "./src/commands/deny/index.ts",
+      "default": "./src/commands/deny/index.ts"
+    },
+    "./commands/deny/deny-impl": {
+      "types": "./src/commands/deny/deny-impl.ts",
+      "default": "./src/commands/deny/deny-impl.ts"
+    },
+    "./commands/steps/steps-impl": {
+      "types": "./src/commands/steps/steps-impl.ts",
+      "default": "./src/commands/steps/steps-impl.ts"
+    },
+    "./commands/steps/index": {
+      "types": "./src/commands/steps/index.ts",
+      "default": "./src/commands/steps/index.ts"
+    },
+    "./commands/stash/stash-impl": {
+      "types": "./src/commands/stash/stash-impl.ts",
+      "default": "./src/commands/stash/stash-impl.ts"
+    },
+    "./commands/stash/index": {
+      "types": "./src/commands/stash/index.ts",
+      "default": "./src/commands/stash/index.ts"
+    },
+    "./commands/version/version-impl": {
+      "types": "./src/commands/version/version-impl.ts",
+      "default": "./src/commands/version/version-impl.ts"
+    },
+    "./commands/version/index": {
+      "types": "./src/commands/version/index.ts",
+      "default": "./src/commands/version/index.ts"
+    },
+    "./commands/theme/index": {
+      "types": "./src/commands/theme/index.ts",
+      "default": "./src/commands/theme/index.ts"
+    },
+    "./commands/theme/theme-impl": {
+      "types": "./src/commands/theme/theme-impl.ts",
+      "default": "./src/commands/theme/theme-impl.ts"
+    },
+    "./commands/sandbox/sandbox-impl": {
+      "types": "./src/commands/sandbox/sandbox-impl.ts",
+      "default": "./src/commands/sandbox/sandbox-impl.ts"
+    },
+    "./commands/sandbox/index": {
+      "types": "./src/commands/sandbox/index.ts",
+      "default": "./src/commands/sandbox/index.ts"
+    },
+    "./commands/review/index": {
+      "types": "./src/commands/review/index.ts",
+      "default": "./src/commands/review/index.ts"
+    },
+    "./commands/model/model-impl": {
+      "types": "./src/commands/model/model-impl.ts",
+      "default": "./src/commands/model/model-impl.ts"
+    },
+    "./commands/model/index": {
+      "types": "./src/commands/model/index.ts",
+      "default": "./src/commands/model/index.ts"
+    },
+    "./commands/history/history-impl": {
+      "types": "./src/commands/history/history-impl.ts",
+      "default": "./src/commands/history/history-impl.ts"
+    },
+    "./commands/history/index": {
+      "types": "./src/commands/history/index.ts",
+      "default": "./src/commands/history/index.ts"
+    },
+    "./commands/rules/rules-impl": {
+      "types": "./src/commands/rules/rules-impl.ts",
+      "default": "./src/commands/rules/rules-impl.ts"
+    },
+    "./commands/rules/index": {
+      "types": "./src/commands/rules/index.ts",
+      "default": "./src/commands/rules/index.ts"
+    },
+    "./commands/files/files-impl": {
+      "types": "./src/commands/files/files-impl.ts",
+      "default": "./src/commands/files/files-impl.ts"
+    },
+    "./commands/files/index": {
+      "types": "./src/commands/files/index.ts",
+      "default": "./src/commands/files/index.ts"
+    },
+    "./commands/log/log-impl": {
+      "types": "./src/commands/log/log-impl.ts",
+      "default": "./src/commands/log/log-impl.ts"
+    },
+    "./commands/log/index": {
+      "types": "./src/commands/log/index.ts",
+      "default": "./src/commands/log/index.ts"
+    },
+    "./commands/exit-plan/exit-plan-impl": {
+      "types": "./src/commands/exit-plan/exit-plan-impl.ts",
+      "default": "./src/commands/exit-plan/exit-plan-impl.ts"
+    },
+    "./commands/exit-plan/index": {
+      "types": "./src/commands/exit-plan/index.ts",
+      "default": "./src/commands/exit-plan/index.ts"
+    },
+    "./commands/skills/skills-impl": {
+      "types": "./src/commands/skills/skills-impl.ts",
+      "default": "./src/commands/skills/skills-impl.ts"
+    },
+    "./commands/skills/index": {
+      "types": "./src/commands/skills/index.ts",
+      "default": "./src/commands/skills/index.ts"
+    },
+    "./commands/export/export-impl": {
+      "types": "./src/commands/export/export-impl.ts",
+      "default": "./src/commands/export/export-impl.ts"
+    },
+    "./commands/export/index": {
+      "types": "./src/commands/export/index.ts",
+      "default": "./src/commands/export/index.ts"
+    },
+    "./commands/git/git-impl": {
+      "types": "./src/commands/git/git-impl.ts",
+      "default": "./src/commands/git/git-impl.ts"
+    },
+    "./commands/git/index": {
+      "types": "./src/commands/git/index.ts",
+      "default": "./src/commands/git/index.ts"
+    },
+    "./commands/help/help": {
+      "types": "./src/commands/help/help.tsx",
+      "default": "./src/commands/help/help.tsx"
+    },
+    "./commands/help/index": {
+      "types": "./src/commands/help/index.ts",
+      "default": "./src/commands/help/index.ts"
+    },
+    "./commands/remote/remote-impl": {
+      "types": "./src/commands/remote/remote-impl.ts",
+      "default": "./src/commands/remote/remote-impl.ts"
+    },
+    "./commands/remote/index": {
+      "types": "./src/commands/remote/index.ts",
+      "default": "./src/commands/remote/index.ts"
+    },
+    "./commands/session/session": {
+      "types": "./src/commands/session/session.tsx",
+      "default": "./src/commands/session/session.tsx"
+    },
+    "./commands/session/index": {
+      "types": "./src/commands/session/index.ts",
+      "default": "./src/commands/session/index.ts"
+    },
+    "./commands/session/session-impl": {
+      "types": "./src/commands/session/session-impl.ts",
+      "default": "./src/commands/session/session-impl.ts"
+    },
+    "./skills/loader": {
+      "types": "./src/skills/loader.ts",
+      "default": "./src/skills/loader.ts"
+    },
+    "./skills/parser": {
+      "types": "./src/skills/parser.ts",
+      "default": "./src/skills/parser.ts"
+    },
+    "./skills/types": {
+      "types": "./src/skills/types.ts",
+      "default": "./src/skills/types.ts"
+    },
+    "./skills/registry": {
+      "types": "./src/skills/registry.ts",
+      "default": "./src/skills/registry.ts"
+    },
+    "./skills/index": {
+      "types": "./src/skills/index.ts",
+      "default": "./src/skills/index.ts"
+    },
+    "./skills/skill-to-command": {
+      "types": "./src/skills/skill-to-command.ts",
+      "default": "./src/skills/skill-to-command.ts"
+    },
+    "./theme": {
+      "types": "./src/theme.ts",
+      "default": "./src/theme.ts"
+    },
+    "./command-metrics": {
+      "types": "./src/command-metrics.ts",
+      "default": "./src/command-metrics.ts"
+    },
+    "./all-commands": {
+      "types": "./src/all-commands.ts",
+      "default": "./src/all-commands.ts"
+    },
+    "./types": {
+      "types": "./src/types/index.ts",
+      "default": "./src/types/index.ts"
+    },
+    "./plugins": {
+      "types": "./src/plugins/index.ts",
+      "default": "./src/plugins/index.ts"
+    },
+    "./utils": {
+      "types": "./src/utils/index.ts",
+      "default": "./src/utils/index.ts"
+    },
+    "./commands/commit": {
+      "types": "./src/commands/commit/index.ts",
+      "default": "./src/commands/commit/index.ts"
+    },
+    "./commands/init": {
+      "types": "./src/commands/init/index.ts",
+      "default": "./src/commands/init/index.ts"
+    },
+    "./commands/fork": {
+      "types": "./src/commands/fork/index.ts",
+      "default": "./src/commands/fork/index.ts"
+    },
+    "./commands/tasks": {
+      "types": "./src/commands/tasks/index.ts",
+      "default": "./src/commands/tasks/index.ts"
+    },
+    "./commands/compact": {
+      "types": "./src/commands/compact/index.ts",
+      "default": "./src/commands/compact/index.ts"
+    },
+    "./commands/branch": {
+      "types": "./src/commands/branch/index.ts",
+      "default": "./src/commands/branch/index.ts"
+    },
+    "./commands/memory": {
+      "types": "./src/commands/memory/index.ts",
+      "default": "./src/commands/memory/index.ts"
+    },
+    "./commands/keybindings": {
+      "types": "./src/commands/keybindings/index.ts",
+      "default": "./src/commands/keybindings/index.ts"
+    },
+    "./commands/config": {
+      "types": "./src/commands/config/index.ts",
+      "default": "./src/commands/config/index.ts"
+    },
+    "./commands/plan": {
+      "types": "./src/commands/plan/index.ts",
+      "default": "./src/commands/plan/index.ts"
+    },
+    "./commands/effort": {
+      "types": "./src/commands/effort/index.ts",
+      "default": "./src/commands/effort/index.ts"
+    },
+    "./commands/add-step": {
+      "types": "./src/commands/add-step/index.ts",
+      "default": "./src/commands/add-step/index.ts"
+    },
+    "./commands/resume": {
+      "types": "./src/commands/resume/index.ts",
+      "default": "./src/commands/resume/index.ts"
+    },
+    "./commands/doctor": {
+      "types": "./src/commands/doctor/index.ts",
+      "default": "./src/commands/doctor/index.ts"
+    },
+    "./commands/cost": {
+      "types": "./src/commands/cost/index.ts",
+      "default": "./src/commands/cost/index.ts"
+    },
+    "./commands/agents": {
+      "types": "./src/commands/agents/index.ts",
+      "default": "./src/commands/agents/index.ts"
+    },
+    "./commands/diff": {
+      "types": "./src/commands/diff/index.ts",
+      "default": "./src/commands/diff/index.ts"
+    },
+    "./commands/usage": {
+      "types": "./src/commands/usage/index.ts",
+      "default": "./src/commands/usage/index.ts"
+    },
+    "./commands/agent": {
+      "types": "./src/commands/agent/index.ts",
+      "default": "./src/commands/agent/index.ts"
+    },
+    "./commands/mcp": {
+      "types": "./src/commands/mcp/index.ts",
+      "default": "./src/commands/mcp/index.ts"
+    },
+    "./commands/status": {
+      "types": "./src/commands/status/index.ts",
+      "default": "./src/commands/status/index.ts"
+    },
+    "./commands/permissions": {
+      "types": "./src/commands/permissions/index.ts",
+      "default": "./src/commands/permissions/index.ts"
+    },
+    "./commands/feedback": {
+      "types": "./src/commands/feedback/index.ts",
+      "default": "./src/commands/feedback/index.ts"
+    },
+    "./commands/extra-usage": {
+      "types": "./src/commands/extra-usage/index.ts",
+      "default": "./src/commands/extra-usage/index.ts"
+    },
+    "./commands/mcp-add": {
+      "types": "./src/commands/mcp-add/index.ts",
+      "default": "./src/commands/mcp-add/index.ts"
+    },
+    "./commands/clear": {
+      "types": "./src/commands/clear/index.ts",
+      "default": "./src/commands/clear/index.ts"
+    },
+    "./commands/heartbeat": {
+      "types": "./src/commands/heartbeat/index.ts",
+      "default": "./src/commands/heartbeat/index.ts"
+    },
+    "./commands/approve": {
+      "types": "./src/commands/approve/index.ts",
+      "default": "./src/commands/approve/index.ts"
+    },
+    "./commands/reset-permissions": {
+      "types": "./src/commands/reset-permissions/index.ts",
+      "default": "./src/commands/reset-permissions/index.ts"
+    },
+    "./commands/command-palette": {
+      "types": "./src/commands/command-palette/index.ts",
+      "default": "./src/commands/command-palette/index.ts"
+    },
+    "./commands/deny": {
+      "types": "./src/commands/deny/index.ts",
+      "default": "./src/commands/deny/index.ts"
+    },
+    "./commands/steps": {
+      "types": "./src/commands/steps/index.ts",
+      "default": "./src/commands/steps/index.ts"
+    },
+    "./commands/stash": {
+      "types": "./src/commands/stash/index.ts",
+      "default": "./src/commands/stash/index.ts"
+    },
+    "./commands/version": {
+      "types": "./src/commands/version/index.ts",
+      "default": "./src/commands/version/index.ts"
+    },
+    "./commands/theme": {
+      "types": "./src/commands/theme/index.ts",
+      "default": "./src/commands/theme/index.ts"
+    },
+    "./commands/sandbox": {
+      "types": "./src/commands/sandbox/index.ts",
+      "default": "./src/commands/sandbox/index.ts"
+    },
+    "./commands/review": {
+      "types": "./src/commands/review/index.ts",
+      "default": "./src/commands/review/index.ts"
+    },
+    "./commands/model": {
+      "types": "./src/commands/model/index.ts",
+      "default": "./src/commands/model/index.ts"
+    },
+    "./commands/history": {
+      "types": "./src/commands/history/index.ts",
+      "default": "./src/commands/history/index.ts"
+    },
+    "./commands/rules": {
+      "types": "./src/commands/rules/index.ts",
+      "default": "./src/commands/rules/index.ts"
+    },
+    "./commands/files": {
+      "types": "./src/commands/files/index.ts",
+      "default": "./src/commands/files/index.ts"
+    },
+    "./commands/log": {
+      "types": "./src/commands/log/index.ts",
+      "default": "./src/commands/log/index.ts"
+    },
+    "./commands/exit-plan": {
+      "types": "./src/commands/exit-plan/index.ts",
+      "default": "./src/commands/exit-plan/index.ts"
+    },
+    "./commands/skills": {
+      "types": "./src/commands/skills/index.ts",
+      "default": "./src/commands/skills/index.ts"
+    },
+    "./commands/export": {
+      "types": "./src/commands/export/index.ts",
+      "default": "./src/commands/export/index.ts"
+    },
+    "./commands/git": {
+      "types": "./src/commands/git/index.ts",
+      "default": "./src/commands/git/index.ts"
+    },
+    "./commands/help": {
+      "types": "./src/commands/help/index.ts",
+      "default": "./src/commands/help/index.ts"
+    },
+    "./commands/remote": {
+      "types": "./src/commands/remote/index.ts",
+      "default": "./src/commands/remote/index.ts"
+    },
+    "./commands/session": {
+      "types": "./src/commands/session/index.ts",
+      "default": "./src/commands/session/index.ts"
+    },
+    "./skills": {
+      "types": "./src/skills/index.ts",
+      "default": "./src/skills/index.ts"
     }
   },
   "scripts": {

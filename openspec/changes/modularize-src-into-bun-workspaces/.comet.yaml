@@ -1,0 +1,16 @@
+workflow: full
+phase: build
+build_mode: executing-plans
+isolation: worktree
+verify_mode: null
+base_ref: 7dce0a1a82ef99c6ae1635c28de8c8aa1b1b9ef1
+design_doc: docs/superpowers/specs/2026-06-05-modularize-src-into-bun-workspaces-design.md
+plan: docs/superpowers/plans/2026-06-05-modularize-src-into-bun-workspaces.md
+verify_result: pending
+verification_report: null
+branch_status: pending
+created_at: 2026-06-05
+verified_at: null
+archived: false
+handoff_context: openspec/changes/modularize-src-into-bun-workspaces/.comet/handoff/design-context.json
+handoff_hash: bab8a74b0a22bd711cb6ddd1360c6db188685717bd76a1f077d6ba11f51fed80

@@ -1,0 +1,103 @@
+{
+  "name": "@upup/bridge-system",
+  "version": "0.3.0",
+  "description": "UpUp Bridge System - L4 package for external system bridges (Claude Code, IDEs, etc.)",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./pollConfigDefaults": {
+      "types": "./src/pollConfigDefaults.ts",
+      "default": "./src/pollConfigDefaults.ts"
+    },
+    "./session-sync": {
+      "types": "./src/session-sync.ts",
+      "default": "./src/session-sync.ts"
+    },
+    "./debugUtils": {
+      "types": "./src/debugUtils.ts",
+      "default": "./src/debugUtils.ts"
+    },
+    "./flushGate": {
+      "types": "./src/flushGate.ts",
+      "default": "./src/flushGate.ts"
+    },
+    "./jwtUtils": {
+      "types": "./src/jwtUtils.ts",
+      "default": "./src/jwtUtils.ts"
+    },
+    "./trustedDevice": {
+      "types": "./src/trustedDevice.ts",
+      "default": "./src/trustedDevice.ts"
+    },
+    "./validateBridgeId": {
+      "types": "./src/validateBridgeId.ts",
+      "default": "./src/validateBridgeId.ts"
+    },
+    "./session": {
+      "types": "./src/session.ts",
+      "default": "./src/session.ts"
+    },
+    "./envLessBridgeConfig": {
+      "types": "./src/envLessBridgeConfig.ts",
+      "default": "./src/envLessBridgeConfig.ts"
+    },
+    "./client": {
+      "types": "./src/client.ts",
+      "default": "./src/client.ts"
+    },
+    "./protocol": {
+      "types": "./src/protocol.ts",
+      "default": "./src/protocol.ts"
+    },
+    "./bridgeStatusUtil": {
+      "types": "./src/bridgeStatusUtil.ts",
+      "default": "./src/bridgeStatusUtil.ts"
+    },
+    "./server": {
+      "types": "./src/server.ts",
+      "default": "./src/server.ts"
+    },
+    "./workSecret": {
+      "types": "./src/workSecret.ts",
+      "default": "./src/workSecret.ts"
+    },
+    "./capacityWake": {
+      "types": "./src/capacityWake.ts",
+      "default": "./src/capacityWake.ts"
+    },
+    "./auth": {
+      "types": "./src/auth.ts",
+      "default": "./src/auth.ts"
+    },
+    "./webhookSanitizer": {
+      "types": "./src/webhookSanitizer.ts",
+      "default": "./src/webhookSanitizer.ts"
+    },
+    "./pollConfig": {
+      "types": "./src/pollConfig.ts",
+      "default": "./src/pollConfig.ts"
+    },
+    "./*": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
+    }
+  },
+  "scripts": {
+    "build": "echo 'L4 stub - real content in Phase 4'",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@upup/types": "workspace:*",
+    "@upup/utils": "workspace:*"
+  },
+  "peerDependencies": {},
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}

@@ -1,0 +1,183 @@
+{
+  "name": "@upup/tools-registry",
+  "version": "0.3.0",
+  "description": "UpUp Tool Registry - L4 package for tool discovery, registration, and metadata",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./filesystem-tools": {
+      "types": "./src/filesystem-tools.ts",
+      "default": "./src/filesystem-tools.ts"
+    },
+    "./quant-tools": {
+      "types": "./src/quant-tools.ts",
+      "default": "./src/quant-tools.ts"
+    },
+    "./trading-tools": {
+      "types": "./src/trading-tools.ts",
+      "default": "./src/trading-tools.ts"
+    },
+    "./alt-data-tools": {
+      "types": "./src/alt-data-tools.ts",
+      "default": "./src/alt-data-tools.ts"
+    },
+    "./realtime-tools": {
+      "types": "./src/realtime-tools.ts",
+      "default": "./src/realtime-tools.ts"
+    },
+    "./portfolio-tools": {
+      "types": "./src/portfolio-tools.ts",
+      "default": "./src/portfolio-tools.ts"
+    },
+    "./web-search-tools": {
+      "types": "./src/web-search-tools.ts",
+      "default": "./src/web-search-tools.ts"
+    },
+    "./types": {
+      "types": "./src/types.ts",
+      "default": "./src/types.ts"
+    },
+    "./mcp-tools": {
+      "types": "./src/mcp-tools.ts",
+      "default": "./src/mcp-tools.ts"
+    },
+    "./coordinator-tools": {
+      "types": "./src/coordinator-tools.ts",
+      "default": "./src/coordinator-tools.ts"
+    },
+    "./tool-renderers": {
+      "types": "./src/tool-renderers.ts",
+      "default": "./src/tool-renderers.ts"
+    },
+    "./investment-knowledge-tools": {
+      "types": "./src/investment-knowledge-tools.ts",
+      "default": "./src/investment-knowledge-tools.ts"
+    },
+    "./duckdb-tools": {
+      "types": "./src/duckdb-tools.ts",
+      "default": "./src/duckdb-tools.ts"
+    },
+    "./kairos-tools": {
+      "types": "./src/kairos-tools.ts",
+      "default": "./src/kairos-tools.ts"
+    },
+    "./fund-tools": {
+      "types": "./src/fund-tools.ts",
+      "default": "./src/fund-tools.ts"
+    },
+    "./domain-tools": {
+      "types": "./src/domain-tools.ts",
+      "default": "./src/domain-tools.ts"
+    },
+    "./finance-tools": {
+      "types": "./src/finance-tools.ts",
+      "default": "./src/finance-tools.ts"
+    },
+    "./agent-planning-tools": {
+      "types": "./src/agent-planning-tools.ts",
+      "default": "./src/agent-planning-tools.ts"
+    },
+    "./*": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
+    },
+    "./tools-registry/bash/bash-tool": {
+      "types": "./src/bash/bash-tool.ts",
+      "default": "./src/bash/bash-tool.ts"
+    },
+    "./tools-registry/powershell/powershell-tool": {
+      "types": "./src/powershell/powershell-tool.ts",
+      "default": "./src/powershell/powershell-tool.ts"
+    },
+    "./tools-registry/bash/command-classifier": {
+      "types": "./src/bash/command-classifier.ts",
+      "default": "./src/bash/command-classifier.ts"
+    },
+    "./bash/bash-tool": {
+      "types": "./src/bash/bash-tool.ts",
+      "default": "./src/bash/bash-tool.ts"
+    },
+    "./bash/command-classifier": {
+      "types": "./src/bash/command-classifier.ts",
+      "default": "./src/bash/command-classifier.ts"
+    },
+    "./bash/index": {
+      "types": "./src/bash/index.ts",
+      "default": "./src/bash/index.ts"
+    },
+    "./bash/types": {
+      "types": "./src/bash/types.ts",
+      "default": "./src/bash/types.ts"
+    },
+    "./bash/security": {
+      "types": "./src/bash/security.ts",
+      "default": "./src/bash/security.ts"
+    },
+    "./bash/formatter": {
+      "types": "./src/bash/formatter.ts",
+      "default": "./src/bash/formatter.ts"
+    },
+    "./bash/ast-parser": {
+      "types": "./src/bash/ast-parser.ts",
+      "default": "./src/bash/ast-parser.ts"
+    },
+    "./bash/output-processors": {
+      "types": "./src/bash/output-processors.ts",
+      "default": "./src/bash/output-processors.ts"
+    },
+    "./bash/path-validation": {
+      "types": "./src/bash/path-validation.ts",
+      "default": "./src/bash/path-validation.ts"
+    },
+    "./bash/permission-mode": {
+      "types": "./src/bash/permission-mode.ts",
+      "default": "./src/bash/permission-mode.ts"
+    },
+    "./powershell/powershell-tool": {
+      "types": "./src/powershell/powershell-tool.ts",
+      "default": "./src/powershell/powershell-tool.ts"
+    },
+    "./powershell/index": {
+      "types": "./src/powershell/index.ts",
+      "default": "./src/powershell/index.ts"
+    },
+    "./bash": {
+      "types": "./src/bash/index.ts",
+      "default": "./src/bash/index.ts"
+    },
+    "./powershell": {
+      "types": "./src/powershell/index.ts",
+      "default": "./src/powershell/index.ts"
+    },
+    "./fund/fund-api": {
+      "types": "./src/fund/fund-api.ts",
+      "default": "./src/fund/fund-api.ts"
+    },
+    "./fund/types": {
+      "types": "./src/fund/types.ts",
+      "default": "./src/fund/types.ts"
+    },
+    "./browser": {
+      "types": "./src/browser.ts",
+      "default": "./src/browser.ts"
+    }
+  },
+  "scripts": {
+    "build": "echo 'L4 stub - real content in Phase 4'",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@upup/types": "workspace:*",
+    "@upup/utils": "workspace:*"
+  },
+  "peerDependencies": {},
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}

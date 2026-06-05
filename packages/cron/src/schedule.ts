@@ -1,23 +1,13 @@
-/**
- * UpUp Cron System — Schedule Computation
- *
- * Computes next run times for different schedule types.
- */
-
 import { Cron } from 'croner';
 import type { CronSchedule } from './types.js';
 
-// Minimum gap between scheduled runs to prevent spin-loops
 const MIN_REFIRE_GAP_MS = 2_000;
 
 /**
  * Compute the next run time for a schedule.
- *
- * @param schedule - The schedule to compute
- * @param nowMs - Current time in milliseconds (defaults to Date.now())
- * @returns Next run time in milliseconds, or undefined if schedule has expired/invalid
+ * Returns undefined if the schedule has expired (one-shot in the past) or is invalid.
  */
-export function computeNextRunAtMs(schedule: CronSchedule, nowMs: number = Date.now()): number | undefined {
+export function computeNextRunAtMs(schedule: CronSchedule, nowMs: number): number | undefined {
   switch (schedule.kind) {
     case 'at': {
       const targetMs = new Date(schedule.at).getTime();
@@ -57,32 +47,5 @@ export function computeNextRunAtMs(schedule: CronSchedule, nowMs: number = Date.
         return undefined; // Invalid cron expression
       }
     }
-  }
-}
-
-/**
- * Check if a schedule is valid
- */
-export function isValidSchedule(schedule: CronSchedule): boolean {
-  return computeNextRunAtMs(schedule, Date.now()) !== undefined;
-}
-
-/**
- * Format a schedule as human-readable string
- */
-export function formatSchedule(schedule: CronSchedule): string {
-  switch (schedule.kind) {
-    case 'at':
-      return `at ${schedule.at}`;
-    case 'every':
-      if (schedule.everyMs < 60000) {
-        return `every ${schedule.everyMs}ms`;
-      } else if (schedule.everyMs < 3600000) {
-        return `every ${schedule.everyMs / 60000} minutes`;
-      } else {
-        return `every ${schedule.everyMs / 3600000} hours`;
-      }
-    case 'cron':
-      return `cron: ${schedule.expr}${schedule.tz ? ` (${schedule.tz})` : ''}`;
   }
 }

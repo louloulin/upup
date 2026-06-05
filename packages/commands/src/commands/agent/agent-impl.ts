@@ -67,5 +67,7 @@ agent runner system in src/agent/subagent-runner.js
       type: 'text',
       value: `🤖 Would spawn agent for: ${description}\n\n   Mode: ${isBackground ? 'background' : 'foreground'}\n\n   Note: Agent system not fully initialized.\n   Check /status for agent availability.`,
     }
+  } catch {
+    return { type: 'text', value: '❌ Agent command failed' }
   }
 }

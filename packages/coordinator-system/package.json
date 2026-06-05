@@ -1,0 +1,243 @@
+{
+  "name": "@upup/coordinator-system",
+  "version": "0.3.0",
+  "description": "UpUp Coordinator System - L4 package for multi-agent coordination and subagent dispatch",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./coordinator/coordinatorMode": {
+      "types": "./src/coordinator/coordinatorMode.ts",
+      "default": "./src/coordinator/coordinatorMode.ts"
+    },
+    "./coordinator/worker-xml": {
+      "types": "./src/coordinator/worker-xml.ts",
+      "default": "./src/coordinator/worker-xml.ts"
+    },
+    "./coordinator/in-memory-task-list": {
+      "types": "./src/coordinator/in-memory-task-list.ts",
+      "default": "./src/coordinator/in-memory-task-list.ts"
+    },
+    "./coordinator/worker-resume": {
+      "types": "./src/coordinator/worker-resume.ts",
+      "default": "./src/coordinator/worker-resume.ts"
+    },
+    "./coordinator/task-list": {
+      "types": "./src/coordinator/task-list.ts",
+      "default": "./src/coordinator/task-list.ts"
+    },
+    "./coordinator/types": {
+      "types": "./src/coordinator/types.ts",
+      "default": "./src/coordinator/types.ts"
+    },
+    "./coordinator/index": {
+      "types": "./src/coordinator/index.ts",
+      "default": "./src/coordinator/index.ts"
+    },
+    "./coordinator/verification": {
+      "types": "./src/coordinator/verification.ts",
+      "default": "./src/coordinator/verification.ts"
+    },
+    "./coordinator/coordinator": {
+      "types": "./src/coordinator/coordinator.ts",
+      "default": "./src/coordinator/coordinator.ts"
+    },
+    "./core/event-bus": {
+      "types": "./src/core/event-bus.ts",
+      "default": "./src/core/event-bus.ts"
+    },
+    "./multi-agent/session-cleanup": {
+      "types": "./src/multi-agent/session-cleanup.ts",
+      "default": "./src/multi-agent/session-cleanup.ts"
+    },
+    "./multi-agent/agent-registry": {
+      "types": "./src/multi-agent/agent-registry.ts",
+      "default": "./src/multi-agent/agent-registry.ts"
+    },
+    "./multi-agent/tools/specialized-skills": {
+      "types": "./src/multi-agent/tools/specialized-skills.ts",
+      "default": "./src/multi-agent/tools/specialized-skills.ts"
+    },
+    "./multi-agent/tools/swarm-tools": {
+      "types": "./src/multi-agent/tools/swarm-tools.ts",
+      "default": "./src/multi-agent/tools/swarm-tools.ts"
+    },
+    "./multi-agent/scheduler-verifier": {
+      "types": "./src/multi-agent/scheduler-verifier.ts",
+      "default": "./src/multi-agent/scheduler-verifier.ts"
+    },
+    "./multi-agent/agent-loader": {
+      "types": "./src/multi-agent/agent-loader.ts",
+      "default": "./src/multi-agent/agent-loader.ts"
+    },
+    "./multi-agent/scheduler": {
+      "types": "./src/multi-agent/scheduler.ts",
+      "default": "./src/multi-agent/scheduler.ts"
+    },
+    "./multi-agent/skill-tracker": {
+      "types": "./src/multi-agent/skill-tracker.ts",
+      "default": "./src/multi-agent/skill-tracker.ts"
+    },
+    "./multi-agent/agent-skills-verifier": {
+      "types": "./src/multi-agent/agent-skills-verifier.ts",
+      "default": "./src/multi-agent/agent-skills-verifier.ts"
+    },
+    "./multi-agent/backends/iterm2": {
+      "types": "./src/multi-agent/backends/iterm2.ts",
+      "default": "./src/multi-agent/backends/iterm2.ts"
+    },
+    "./multi-agent/backends/inprocess": {
+      "types": "./src/multi-agent/backends/inprocess.ts",
+      "default": "./src/multi-agent/backends/inprocess.ts"
+    },
+    "./multi-agent/backends/workerpool": {
+      "types": "./src/multi-agent/backends/workerpool.ts",
+      "default": "./src/multi-agent/backends/workerpool.ts"
+    },
+    "./multi-agent/backends/tmux": {
+      "types": "./src/multi-agent/backends/tmux.ts",
+      "default": "./src/multi-agent/backends/tmux.ts"
+    },
+    "./multi-agent/backends/initialize": {
+      "types": "./src/multi-agent/backends/initialize.ts",
+      "default": "./src/multi-agent/backends/initialize.ts"
+    },
+    "./multi-agent/backends/index": {
+      "types": "./src/multi-agent/backends/index.ts",
+      "default": "./src/multi-agent/backends/index.ts"
+    },
+    "./multi-agent/backends/health-check": {
+      "types": "./src/multi-agent/backends/health-check.ts",
+      "default": "./src/multi-agent/backends/health-check.ts"
+    },
+    "./multi-agent/lifecycle": {
+      "types": "./src/multi-agent/lifecycle.ts",
+      "default": "./src/multi-agent/lifecycle.ts"
+    },
+    "./multi-agent/markdown-agent-verifier": {
+      "types": "./src/multi-agent/markdown-agent-verifier.ts",
+      "default": "./src/multi-agent/markdown-agent-verifier.ts"
+    },
+    "./multi-agent/workflows/stock-analysis": {
+      "types": "./src/multi-agent/workflows/stock-analysis.ts",
+      "default": "./src/multi-agent/workflows/stock-analysis.ts"
+    },
+    "./multi-agent/full-verifier": {
+      "types": "./src/multi-agent/full-verifier.ts",
+      "default": "./src/multi-agent/full-verifier.ts"
+    },
+    "./multi-agent/types": {
+      "types": "./src/multi-agent/types.ts",
+      "default": "./src/multi-agent/types.ts"
+    },
+    "./multi-agent/system-verifier": {
+      "types": "./src/multi-agent/system-verifier.ts",
+      "default": "./src/multi-agent/system-verifier.ts"
+    },
+    "./multi-agent/agent-memory": {
+      "types": "./src/multi-agent/agent-memory.ts",
+      "default": "./src/multi-agent/agent-memory.ts"
+    },
+    "./multi-agent/appscript-verifier": {
+      "types": "./src/multi-agent/appscript-verifier.ts",
+      "default": "./src/multi-agent/appscript-verifier.ts"
+    },
+    "./multi-agent/custom-agent-verifier": {
+      "types": "./src/multi-agent/custom-agent-verifier.ts",
+      "default": "./src/multi-agent/custom-agent-verifier.ts"
+    },
+    "./multi-agent/index": {
+      "types": "./src/multi-agent/index.ts",
+      "default": "./src/multi-agent/index.ts"
+    },
+    "./multi-agent/agent-factory": {
+      "types": "./src/multi-agent/agent-factory.ts",
+      "default": "./src/multi-agent/agent-factory.ts"
+    },
+    "./multi-agent/event-bus": {
+      "types": "./src/multi-agent/event-bus.ts",
+      "default": "./src/multi-agent/event-bus.ts"
+    },
+    "./multi-agent/monitor": {
+      "types": "./src/multi-agent/monitor.ts",
+      "default": "./src/multi-agent/monitor.ts"
+    },
+    "./multi-agent/enhanced-verifier": {
+      "types": "./src/multi-agent/enhanced-verifier.ts",
+      "default": "./src/multi-agent/enhanced-verifier.ts"
+    },
+    "./multi-agent/team-manager": {
+      "types": "./src/multi-agent/team-manager.ts",
+      "default": "./src/multi-agent/team-manager.ts"
+    },
+    "./multi-agent/persistence": {
+      "types": "./src/multi-agent/persistence.ts",
+      "default": "./src/multi-agent/persistence.ts"
+    },
+    "./multi-agent/intent-router": {
+      "types": "./src/multi-agent/intent-router.ts",
+      "default": "./src/multi-agent/intent-router.ts"
+    },
+    "./multi-agent/coordinator": {
+      "types": "./src/multi-agent/coordinator.ts",
+      "default": "./src/multi-agent/coordinator.ts"
+    },
+    "./multi-agent/agent-cli": {
+      "types": "./src/multi-agent/agent-cli.ts",
+      "default": "./src/multi-agent/agent-cli.ts"
+    },
+    "./subagent/team-coordination": {
+      "types": "./src/subagent/team-coordination.ts",
+      "default": "./src/subagent/team-coordination.ts"
+    },
+    "./coordinator": {
+      "types": "./src/coordinator/index.ts",
+      "default": "./src/coordinator/index.ts"
+    },
+    "./core": {
+      "types": "./src/core/index.ts",
+      "default": "./src/core/index.ts"
+    },
+    "./multi-agent": {
+      "types": "./src/multi-agent/index.ts",
+      "default": "./src/multi-agent/index.ts"
+    },
+    "./multi-agent/tools": {
+      "types": "./src/multi-agent/tools/index.ts",
+      "default": "./src/multi-agent/tools/index.ts"
+    },
+    "./multi-agent/backends": {
+      "types": "./src/multi-agent/backends/index.ts",
+      "default": "./src/multi-agent/backends/index.ts"
+    },
+    "./multi-agent/workflows": {
+      "types": "./src/multi-agent/workflows/index.ts",
+      "default": "./src/multi-agent/workflows/index.ts"
+    },
+    "./subagent": {
+      "types": "./src/subagent/index.ts",
+      "default": "./src/subagent/index.ts"
+    },
+    "./*": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
+    }
+  },
+  "scripts": {
+    "build": "echo 'L4 stub - real content in Phase 4'",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@upup/types": "workspace:*",
+    "@upup/utils": "workspace:*"
+  },
+  "peerDependencies": {},
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}
