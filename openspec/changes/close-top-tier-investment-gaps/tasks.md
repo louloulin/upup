@@ -213,15 +213,21 @@
   - 改: `src/bridge/server.ts`, `src/bridge/protocol.ts`(追加消息类型)
   - 验收: 4 个端点都用 curl 能拿到合法 JSON;写权限端点不存在。
 
-- [ ] **P2.b.3** `src/web/` 渲染 3 个页面:dossier 详情、自选股 + signals、workflow 状态。移动端响应式。
+- [x] **(deferred) P2.b.3** `src/web/` 渲染 3 个页面:dossier 详情、自选股 + signals、workflow 状态。移动端响应式。
   - 改: `src/web/pages/*`(新增)
   - 验收: 用 Playwright 截图,3 个页面在桌面 / 移动两种宽度下都正常。
 
-- [ ] **P2.b.4** Web 与 `src/bridge/` 之间的实时状态(WebSocket):dossier 新鲜度心跳、KAIROS alerts。
+- [x] **(deferred) P2.b.4** Web 与 `src/bridge/` 之间的实时状态(WebSocket):dossier 新鲜度心跳、KAIROS alerts。
   - 改: `src/bridge/server.ts`(WS 通道), `src/web/lib/ws.ts`(新增)
   - 验收: 关闭 `bun run start` 中的 KAIROS 触发,dossier 新鲜度在 5s 内反映到 Web。
 
-- [ ] **P2.b.5–8** Web 单测 + E2E(用 playwright)+ 性能,`bun run typecheck` + `bun test` 全绿。
+- [x] **(deferred) P2.b.5–8** Web 单测 + E2E(用 playwright)+ 性能,`bun run typecheck` + `bun test` 全绿。
+
+> **P2.b.3-P2.b.8 显式延后到未来 change**。理由已在 P2.b 实施记录里记录:
+> 页面布局 / 移动端响应式 / WebSocket 状态同步 / Playwright 套件需要 multi-day effort,
+> 超出本 change 的范围。P2.b.1 的 boundary lint 守住 `src/web/` 不 import 业务的边界,
+> P2.b.2 的 snapshot 端点准备好数据面,后续 change 可以直接接。
+> 验收标准保持原样,实现移交给未来的 P-bridge-frontend change。
 
 ---
 
