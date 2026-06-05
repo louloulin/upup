@@ -1,6 +1,7 @@
 ---
 name: earnings-calendar
 description: Earnings calendar and report schedule. Triggers on 财报, earnings calendar, 业绩, 财报发布, 业绩预告.
+description.zh-CN: 财报日历与发布日程。触发关键词: 财报, earnings calendar, 业绩, 财报发布, 业绩预告.
 triggers:
   - 财报
   - earnings calendar

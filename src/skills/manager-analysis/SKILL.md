@@ -1,6 +1,7 @@
 ---
 name: manager-analysis
 description: Analyze fund manager performance and track record. Triggers on 基金经理分析, manager analysis, 基金经理, 经理业绩, 谁管理这只基金.
+description.zh-CN: 基金经理业绩与履历分析。触发关键词: 基金经理分析, manager analysis, 基金经理, 经理业绩, 谁管理这只基金.
 triggers:
   - 基金经理分析
   - manager analysis

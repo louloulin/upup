@@ -1,6 +1,7 @@
 ---
 name: swarm-analysis
 description: Multi-agent stock analysis workflow using a team of specialized agents (researcher, analyst, summarizer)
+description.zh-CN: 多 agent 协同选股工作流 (researcher / analyst / summarizer)。触发关键词: swarm, multi-agent stock analysis.
 context: swarm
 agent: coordinator
 aliases:

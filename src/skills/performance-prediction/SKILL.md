@@ -1,6 +1,7 @@
 ---
 name: performance-prediction
 description: Stock performance prediction based on patterns. Triggers on 走势预测, 目标价位, 上涨空间, 下跌空间, 压力位, 支撑位.
+description.zh-CN: 基于形态的股价走势预测。触发关键词: 走势预测, 目标价位, 上涨空间, 下跌空间, 压力位, 支撑位.
 triggers:
   - 走势预测
   - 目标价位

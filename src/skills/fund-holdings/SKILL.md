@@ -1,6 +1,7 @@
 ---
 name: fund-holdings
 description: Analyze fund stock holdings and sector allocation. Triggers on 基金持仓, holdings analysis, 重仓股, 行业分布, 持仓分析.
+description.zh-CN: 基金持仓和行业配置分析。触发关键词: 基金持仓, holdings analysis, 重仓股, 行业分布, 持仓分析.
 triggers:
   - 基金持仓
   - holdings analysis

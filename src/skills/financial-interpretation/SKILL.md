@@ -1,6 +1,7 @@
 ---
 name: financial-interpretation
 description: Financial report interpretation. Triggers on 财报解读, 报表分析, 利润表, 资产负债表, 现金流量表解读.
+description.zh-CN: 财报解读。触发关键词: 财报解读, 报表分析, 利润表, 资产负债表, 现金流量表解读.
 triggers:
   - 财报解读
   - 报表分析

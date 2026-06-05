@@ -1,6 +1,7 @@
 ---
 name: fund-management
 description: Manage your fund watchlist - follow, unfollow, list followed funds. Triggers on 基金关注, 基金管理, fund management, my funds, watchlist management.
+description.zh-CN: 管理基金关注列表 — 关注、取消关注、列出已关注基金。触发关键词: 基金关注, 基金管理, fund management, my funds, watchlist management.
 triggers:
   - 基金关注
   - 基金管理

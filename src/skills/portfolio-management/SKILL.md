@@ -1,6 +1,7 @@
 ---
 name: portfolio-management
 description: Manage and analyze investment portfolios. Triggers on 组合, portfolio, 持仓分析, portfolio analysis, 投资组合, 资产管理.
+description.zh-CN: 投资组合管理与分析。触发关键词: 组合, portfolio, 持仓分析, portfolio analysis, 投资组合, 资产管理.
 triggers:
   - 组合
   - portfolio

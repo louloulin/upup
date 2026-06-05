@@ -1,6 +1,7 @@
 ---
 name: dca-strategy
 description: Dollar-cost averaging strategy. Triggers on 定投, 定期投资, 分批买入, 平均成本, 懒人投资.
+description.zh-CN: 定投策略。触发关键词: 定投, 定期投资, 分批买入, 平均成本, 懒人投资.
 triggers:
   - 定投
   - 定期投资

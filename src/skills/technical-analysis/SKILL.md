@@ -1,6 +1,7 @@
 ---
 name: technical-analysis
 description: Technical analysis for stocks. Triggers on 技术分析, technical analysis, K线, 均线, MACD, RSI, 技术指标.
+description.zh-CN: 股票技术分析。触发关键词: 技术分析, technical analysis, K线, 均线, MACD, RSI, 技术指标.
 triggers:
   - 技术分析
   - technical analysis

@@ -1,6 +1,7 @@
 ---
 name: personalized-recommendation
 description: Personalized investment recommendation skill based on user preferences, risk tolerance, and portfolio. Triggers on 推荐股票, 个性化推荐, investment recommendation, 投资建议, portfolio recommendation.
+description.zh-CN: 基于用户偏好、风险承受度和组合的个性化投资推荐。触发关键词: 推荐股票, 个性化推荐, investment recommendation, 投资建议, portfolio recommendation.
 triggers:
   - personalized recommendation
   - 推荐股票

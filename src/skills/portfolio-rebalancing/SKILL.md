@@ -1,6 +1,7 @@
 ---
 name: portfolio-rebalancing
 description: Portfolio rebalancing and optimization skill. Triggers on 组合再平衡, 仓位调整, rebalance portfolio, portfolio optimization, 投资组合优化.
+description.zh-CN: 组合再平衡与优化。触发关键词: 组合再平衡, 仓位调整, rebalance portfolio, portfolio optimization, 投资组合优化.
 triggers:
   - portfolio rebalancing
   - 组合再平衡

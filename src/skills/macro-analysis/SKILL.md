@@ -1,6 +1,7 @@
 ---
 name: macro-analysis
 description: Macroeconomic analysis for investment decisions. Triggers on 宏观经济, macro, 经济分析, GDP, CPI, 利率, 货币政策.
+description.zh-CN: 宏观经济分析, 服务投资决策。触发关键词: 宏观经济, macro, 经济分析, GDP, CPI, 利率, 货币政策.
 triggers:
   - 宏观经济
   - macro

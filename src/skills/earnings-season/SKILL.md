@@ -1,6 +1,7 @@
 ---
 name: earnings-season
 description: Earnings season trading strategies. Triggers on 财报季, 业绩发布, 超预期, 业绩预告, 年报季报.
+description.zh-CN: 财报季交易策略。触发关键词: 财报季, 业绩发布, 超预期, 业绩预告, 年报季报.
 triggers:
   - 财报季
   - 业绩发布

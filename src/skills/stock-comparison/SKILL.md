@@ -1,6 +1,7 @@
 ---
 name: stock-comparison
 description: Compare multiple stocks side by side. Triggers on 对比, 比较, compare stocks, stock comparison, 选哪个, which is better.
+description.zh-CN: 多只股票横向对比。触发关键词: 对比, 比较, compare stocks, stock comparison, 选哪个, which is better.
 triggers:
   - 对比
   - 比较

@@ -1,6 +1,7 @@
 ---
 name: growth-investing
 description: Growth investing analysis. Triggers on 成长投资, growth investing, 成长股, growth stocks, 高增长, 营收增速.
+description.zh-CN: 成长投资分析。触发关键词: 成长投资, growth investing, 成长股, growth stocks, 高增长, 营收增速.
 triggers:
   - 成长投资
   - growth investing

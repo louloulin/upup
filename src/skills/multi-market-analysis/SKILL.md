@@ -1,6 +1,7 @@
 ---
 name: multi-market-analysis
 description: Multi-market analysis skill supporting A-shares (China), HK stocks, and US stocks. Triggers on 多市场分析, cross-market, global analysis, 全球市场, comparative analysis.
+description.zh-CN: 跨市场分析(A 股 / 港股 / 美股)。触发关键词: 多市场分析, cross-market, global analysis, 全球市场, comparative analysis.
 triggers:
   - multi-market analysis
   - 多市场分析

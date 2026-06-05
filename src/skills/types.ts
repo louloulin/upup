@@ -56,8 +56,14 @@ export interface SkillMetadata {
   // === Core Fields (Required) ===
   /** Unique skill name (e.g., "dcf") */
   name: string;
-  /** Description of when to use this skill */
+  /** Description of when to use this skill (English) */
   description: string;
+  /**
+   * Chinese (zh-CN) localized description (Gap C1 / P3.a.2).
+   * Loaded from the `description.zh-CN` YAML frontmatter field.
+   * Optional — when omitted, falls back to `description` in the UI.
+   */
+  descriptionZhCn?: string;
   /** Absolute path to the SKILL.md file */
   path: string;
   /** Where this skill was discovered from */
