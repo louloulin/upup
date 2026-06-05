@@ -1,6 +1,7 @@
 import { BridgeAuth } from './auth.js';
 import { BridgeSessionStore } from './session.js';
 import { decodeMessage, encodeMessage, type BridgeMessage } from './protocol.js';
+import { DossierStore } from '../memory/dossier.js';
 import { SessionSync, type SessionState } from './session-sync.js';
 import { appendFileSync } from 'node:fs';
 import { timingSafeEqual } from 'node:crypto';
@@ -19,6 +20,13 @@ export interface BridgeServerConfig {
   sessionSync?: SessionSync;
   /** Override the default session storage directory. */
   sessionStorageDir?: string;
+  /**
+   * Optional dossier store (P2.b.2). When provided, the
+   * `GET /bridge/snapshot/dossier/{ticker}` endpoint becomes readable.
+   * If omitted, the dossier snapshot endpoint returns 503 (the WS path
+   * is unaffected).
+   */
+  dossiers?: DossierStore;
 }
 
 export interface BridgeServer {
@@ -42,11 +50,30 @@ export async function startBridgeServer(cfg: BridgeServerConfig): Promise<Bridge
     });
   const bind = cfg.bind ?? '127.0.0.1';
 
-  const bunServer = Bun.serve({
+  // P2.b.2: snapshot endpoints need the *actual* bound port (cfg.port
+  // is 0 when the caller asked for an ephemeral one). Explicit type
+  // annotation breaks the self-reference cycle with the fetch closure
+  // that reads bunServer.port.
+  const bunServer: ReturnType<typeof Bun.serve> = Bun.serve({
     port: cfg.port,
     hostname: bind,
     async fetch(req, srv) {
       const url = new URL(req.url);
+      // P2.b.2: read-only JSON snapshot endpoints (C3 Web UI). The health
+      // check is unauthenticated; snapshot/* requires the same token as
+      // the WS endpoint. These exist to give the future Vite+React UI a
+      // hermetic data surface (no direct imports of business modules).
+      if (req.method === 'GET' && url.pathname === '/bridge/health') {
+        return new Response(
+          JSON.stringify({ ok: true, ts: Date.now(), port: srv.port ?? 0, version: '0.0.0' }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        );
+      }
+      if (url.pathname.startsWith('/bridge/snapshot/')) {
+        // Non-GET methods enter the router so it can return 405 explicitly
+        // (per REST conventions) rather than 404 from the catch-all below.
+        return handleSnapshot(url, req, cfg, sync, auth);
+      }
       if (url.pathname !== '/bridge') {
         return new Response('Not found', { status: 404 });
       }
@@ -228,6 +255,93 @@ function audit(path: string, event: string, data: Record<string, unknown>): void
   } catch {
     // best-effort
   }
+}
+
+/**
+ * P2.b.2 — read-only JSON snapshot router.
+ *
+ * Auth: same token model as the WS endpoint (query string `?token=`).
+ * Routes:
+ *   GET /bridge/snapshot/session/:id     — persisted SessionState
+ *   GET /bridge/snapshot/dossier/:ticker — DossierStore.read(ticker)
+ *
+ * Anything else under /bridge/snapshot/* → 404. POST/PUT → 405.
+ * Errors are returned as plain text (status + reason) for symmetry with
+ * the existing WS auth errors.
+ */
+async function handleSnapshot(
+  url: URL,
+  req: Request,
+  cfg: BridgeServerConfig,
+  sync: SessionSync,
+  auth: BridgeAuth,
+): Promise<Response> {
+  if (req.method !== 'GET') {
+    return new Response('Method not allowed', { status: 405 });
+  }
+  // Auth
+  const token = url.searchParams.get('token');
+  if (!token) {
+    audit(cfg.auditPath, 'snapshot-reject', { reason: 'no-token', path: url.pathname });
+    return new Response('Token required', { status: 401 });
+  }
+  const v = auth.verifyToken(token);
+  const ok =
+    v.ok ||
+    (() => {
+      // Dev-mode fallback matching the WS path: accept the raw secret.
+      const tk = Buffer.from(token);
+      const sk = Buffer.from(cfg.token);
+      if (tk.length === sk.length && tk.length >= 8) {
+        try { return timingSafeEqual(tk, sk); } catch { return false; }
+      }
+      return false;
+    })();
+  if (!ok) {
+    audit(cfg.auditPath, 'snapshot-reject', { reason: v.reason ?? 'bad-token', path: url.pathname });
+    return new Response('Unauthorized', { status: 401 });
+  }
+
+  // Route
+  const rest = url.pathname.slice('/bridge/snapshot/'.length);
+  const slash = rest.indexOf('/');
+  const kind = slash < 0 ? rest : rest.slice(0, slash);
+  const id = slash < 0 ? '' : rest.slice(slash + 1);
+  if (!id) return new Response('Snapshot id required', { status: 400 });
+
+  if (kind === 'session') {
+    const persisted = await sync.load(id);
+    if (!persisted) {
+      return new Response(JSON.stringify({ error: 'session-not-found', id }), {
+        status: 404,
+        headers: { 'content-type': 'application/json' },
+      });
+    }
+    return new Response(JSON.stringify(persisted), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
+  }
+  if (kind === 'dossier') {
+    if (!cfg.dossiers) {
+      return new Response(
+        JSON.stringify({ error: 'dossier-store-not-configured' }),
+        { status: 503, headers: { 'content-type': 'application/json' } },
+      );
+    }
+    const d = cfg.dossiers.read(id);
+    if (!d) {
+      return new Response(JSON.stringify({ error: 'dossier-not-found', ticker: id }), {
+        status: 404,
+        headers: { 'content-type': 'application/json' },
+      });
+    }
+    return new Response(JSON.stringify(d), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    });
+  }
+  return new Response(`Unknown snapshot kind: ${kind}`, { status: 404 });
 }
 
 /**

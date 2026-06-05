@@ -163,3 +163,115 @@ describe('startBridgeServer', () => {
     expect([1006, -1]).toContain(code);
   });
 });
+
+// ---------------------------------------------------------------------------
+// P2.b.2: read-only JSON snapshot endpoints (C3 Web UI surface)
+// ---------------------------------------------------------------------------
+//
+// We exercise the snapshot router over plain HTTP (no WS). The bridge
+// server already binds a real socket for these; we use Bun's fetch()
+// with the bound port. Tests cover: health (no auth), session snapshot
+// (auth + 404), dossier snapshot (auth + 200 + 404 + 503).
+
+import { DossierStore } from '../memory/dossier.js';
+
+describe('startBridgeServer — read-only snapshot endpoints (P2.b.2)', () => {
+  test.serial('GET /bridge/health returns ok=true (no auth required)', async () => {
+    const { port } = await startWithToken('secret-health');
+    const r = await fetch(`http://127.0.0.1:${port}/bridge/health`);
+    expect(r.status).toBe(200);
+    expect(r.headers.get('content-type')).toContain('application/json');
+    const body = (await r.json()) as { ok: boolean; ts: number; port: number };
+    expect(body.ok).toBe(true);
+    expect(typeof body.ts).toBe('number');
+    expect(body.port).toBe(port);
+  });
+
+  test.serial('GET /bridge/snapshot/session/:id → 401 without token', async () => {
+    const { port } = await startWithToken('secret-snap-noauth');
+    const r = await fetch(`http://127.0.0.1:${port}/bridge/snapshot/session/x`);
+    expect(r.status).toBe(401);
+  });
+
+  test.serial('GET /bridge/snapshot/session/:id → 404 for unknown id', async () => {
+    const { port } = await startWithToken('secret-snap-404');
+    const r = await fetch(
+      `http://127.0.0.1:${port}/bridge/snapshot/session/nope?token=secret-snap-404`,
+    );
+    expect(r.status).toBe(404);
+    const body = (await r.json()) as { error: string; id: string };
+    expect(body.error).toBe('session-not-found');
+    expect(body.id).toBe('nope');
+  });
+
+  test.serial('GET /bridge/snapshot/dossier/:ticker → 200 for known ticker', async () => {
+    const token = 'secret-dossier-ok';
+    const dossiers = new DossierStore({ inMemory: true });
+    dossiers.create('AAPL', { name: 'Apple' });
+    server = await startBridgeServer({
+      port: 0,
+      token,
+      auditPath,
+      dossiers,
+    });
+    const port = server.port;
+    const r = await fetch(
+      `http://127.0.0.1:${port}/bridge/snapshot/dossier/AAPL?token=${encodeURIComponent(token)}`,
+    );
+    expect(r.status).toBe(200);
+    const body = (await r.json()) as { ticker: string; snapshot: { name: string } };
+    expect(body.ticker).toBe('AAPL');
+    expect(body.snapshot.name).toBe('Apple');
+  });
+
+  test.serial('GET /bridge/snapshot/dossier/:ticker → 404 for unknown ticker', async () => {
+    const token = 'secret-dossier-404';
+    const dossiers = new DossierStore({ inMemory: true });
+    server = await startBridgeServer({
+      port: 0,
+      token,
+      auditPath,
+      dossiers,
+    });
+    const port = server.port;
+    const r = await fetch(
+      `http://127.0.0.1:${port}/bridge/snapshot/dossier/MISSING?token=${encodeURIComponent(token)}`,
+    );
+    expect(r.status).toBe(404);
+  });
+
+  test.serial('GET /bridge/snapshot/dossier/:ticker → 503 when no store configured', async () => {
+    const { port } = await startWithToken('secret-dossier-503');
+    const r = await fetch(
+      `http://127.0.0.1:${port}/bridge/snapshot/dossier/AAPL?token=secret-dossier-503`,
+    );
+    expect(r.status).toBe(503);
+    const body = (await r.json()) as { error: string };
+    expect(body.error).toBe('dossier-store-not-configured');
+  });
+
+  test.serial('snapshot POST is rejected with 405', async () => {
+    const { port } = await startWithToken('secret-snap-405');
+    const r = await fetch(
+      `http://127.0.0.1:${port}/bridge/snapshot/session/x?token=secret-snap-405`,
+      { method: 'POST' },
+    );
+    expect(r.status).toBe(405);
+  });
+
+  test.serial('unknown snapshot kind returns 404', async () => {
+    const { port } = await startWithToken('secret-snap-unknown');
+    const r = await fetch(
+      `http://127.0.0.1:${port}/bridge/snapshot/whatever/x?token=secret-snap-unknown`,
+    );
+    expect(r.status).toBe(404);
+  });
+
+  test.serial('missing snapshot id returns 400', async () => {
+    const { port } = await startWithToken('secret-snap-empty');
+    const r = await fetch(
+      `http://127.0.0.1:${port}/bridge/snapshot/session/?token=secret-snap-empty`,
+    );
+    expect(r.status).toBe(400);
+  });
+});
