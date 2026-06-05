@@ -202,9 +202,8 @@ describe('investment: registry', () => {
     expect(isInvestmentCommand('status')).toBe(false);
     expect(isInvestmentCommand('unknown-cmd')).toBe(false);
 
-    expect(INVESTMENT_COMMANDS.length).toBe(7);  // 5 + /invest (Sprint 3) + /dossier (P0.5) + /earnings alias (P1.a.5)
-    // P1.a.5 keeps length at 7 by adding `earnings` as an alias of `earnings-preview`
-    // (no new top-level command — only a new URI resource kind).
+    expect(INVESTMENT_COMMANDS.length).toBe(8);  // 7 + /screen (P1.b.4)
+    // P1.b.4 adds /screen as a new top-level command with alias /scr.
   });
 
   test('runInvestmentCommand returns text for known, null for unknown', async () => {
@@ -272,5 +271,63 @@ describe('investment: /dossier', () => {
     expect(text).toContain('AI 需求强劲');
     expect(text).toContain('盯盘触发器');
     expect(text).toContain('upup://dossier/NVDA');
+  });
+});
+
+// =====================================================================
+// screen (P1.b.4)
+// =====================================================================
+
+describe('investment: screen', () => {
+  test('runScreen without args shows usage', async () => {
+    const { runScreen } = await import('./screen.js');
+    const text = await runScreen('');
+    expect(text).toContain('用法');
+    expect(text).toContain('/screen');
+  });
+
+  test('runScreen with NL query renders results table', async () => {
+    const { runScreen } = await import('./screen.js');
+    const text = await runScreen('AAPL-like');
+    expect(text).toContain('/screen');
+    expect(text).toContain('AAPL');
+    expect(text).toContain('Source');
+    expect(text).toContain('Universe');
+  });
+
+  test('runScreen parses universe=cn flag', async () => {
+    const { runScreen } = await import('./screen.js');
+    const text = await runScreen('universe=cn PE < 15');
+    expect(text).toContain('Universe: cn');
+  });
+
+  test('runScreen parses realtime=true flag', async () => {
+    const { runScreen } = await import('./screen.js');
+    const text = await runScreen('realtime=true RSI < 50');
+    // realtime=true is plumbed to the tool but doesn't change text output
+    // beyond the result count — just verify no error / no usage prompt.
+    expect(text).toContain('/screen');
+    expect(text).not.toContain('用法');
+  });
+
+  test('runScreen with no matches renders empty-message', async () => {
+    const { runScreen } = await import('./screen.js');
+    // No real ticker matches market cap $1B-$2B in the default universe
+    const text = await runScreen('市值 $1B-$2B');
+    expect(text).toContain('(无结果');
+  });
+
+  test('INVESTMENT_COMMANDS includes screen (P1.b.4 follow-up)', async () => {
+    const { INVESTMENT_COMMANDS } = await import('./registry.js');
+    const screen = INVESTMENT_COMMANDS.find(c => c.name === 'screen');
+    expect(screen).toBeDefined();
+    expect(screen?.aliases).toContain('scr');
+  });
+
+  test('runInvestmentCommand dispatches screen (P1.b.4 integration)', async () => {
+    const { runInvestmentCommand } = await import('./registry.js');
+    const text = await runInvestmentCommand('screen', 'AAPL-like');
+    expect(text).toContain('/screen');
+    expect(text).toContain('AAPL');
   });
 });

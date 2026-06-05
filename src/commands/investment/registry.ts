@@ -21,6 +21,7 @@ import { runRiskDashboard } from './risk-dashboard.js';
 import { runPortfolioReview } from './portfolio-review.js';
 import { runInvest } from './invest.js';
 import { runDossier } from './dossier.js';
+import { runScreen } from './screen.js';
 
 export type InvestmentCommandName =
   | 'morning-brief'
@@ -29,7 +30,8 @@ export type InvestmentCommandName =
   | 'portfolio-review'
   | 'watchlist-edit'
   | 'invest'
-  | 'dossier';
+  | 'dossier'
+  | 'screen';
 
 export type InvestmentCommandHandler = (args: string) => string | Promise<string>;
 
@@ -83,6 +85,12 @@ export const INVESTMENT_COMMANDS: ReadonlyArray<InvestmentCommandEntry> = [
     aliases: ['doss'],
     description: '个股 dossier 一页式: snapshot / freshness / 最近论点 / triggers (/dossier NVDA)',
     run: runDossier,
+  },
+  {
+    name: 'screen',
+    aliases: ['scr'],
+    description: '自然语言选股: NL → FilterSpec → 排序结果 + 1 句论点 (/screen "PE<15 且 ROE>20%")',
+    run: runScreen,
   },
 ];
 
