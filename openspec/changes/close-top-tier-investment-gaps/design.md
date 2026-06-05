@@ -440,3 +440,50 @@
 | -- | 移动端 App | 2 | 1 | 1 | 2 | future |
 
 本 change 范围 = 5 个 P0/P1 差距(G1/G2/G3/G4)+ P0 横切(C2)+ 2 个 P2(G5/C3)+ 1 个 P3 横切(C1)。其余 10 项标 `future`,记在 tasks.md 的 `OUT-OF-SCOPE` 区域做留档,不做实现。
+
+## 附录 B — C2 审计轨迹威胁模型(P3.b.2 落地)
+
+### B.1 资产 / 攻击面
+
+| 资产 | 存储位置 | 信任等级 | 影响面 |
+|------|----------|----------|--------|
+| 审计记录(`AuditRecord`) | `.upup/audit-chain.jsonl` | 高 — 合规证据 | 投资决策可追溯性 / 监管可读性 |
+| ed25519 私钥 | 内存中(每次启动生成)→ `keyPath`(可选落地 base64 PKCS8) | 关键 | 一旦泄漏可伪造任意审计记录 |
+| 私钥公钥(verification) | 同上 | 中 — 公钥不需要保密 | 验证失败时无法证明 |
+| `intentId` ↔ `AuditRecord` 索引 | `audit-chain.jsonl` 内嵌 | 中 | 失去按意图检索能力 |
+
+### B.2 威胁清单(STRIDE 简版)
+
+| 威胁 ID | 类别 | 描述 | 缓解(已实现 / 计划) |
+|---------|------|------|---------------------|
+| T1 | Tampering — 篡改 | 攻击者修改 `.upup/audit-chain.jsonl` 中某条记录的 `action` / `ticker` / `evidenceRefs` | **已实现**:`canonicalJson(payload)` 后 ed25519 签名;任何字节变化 → `verify()` 失败(`audit-signing.test.ts:94` "tampering with action field breaks signature") |
+| T2 | Tampering — 删除 | 攻击者从文件中删一条记录 | **已实现**:每条 `prevHash = sha256(canonicalJson(prev))`,删一条会让后续所有 `prevHash` 验证失败(`audit-signing.test.ts:108` "deleting a record breaks prevHash chain") |
+| T3 | Tampering — 重排 | 攻击者把旧记录移到链尾 | **已实现**:`prevHash` 链式结构决定顺序;重排会让 `prevHash` 与上一条不匹配 |
+| T4 | Repudiation — 抵赖 | 用户 / agent 否认发出过某条 BUY / SELL 指令 | **已实现**:`author` + `agentChain` 字段在 payload 内,签名覆盖;`upup://audit/{intent-id}` MCP 资源可外部读取 |
+| T5 | Spoofing — 伪造记录 | 攻击者尝试在链尾追加假记录 | **部分缓解**:私钥在内存(每次启动随机),无外部出口可写;若用户把私钥落地(配置 `keyPath`),需用户自行保护 |
+| T6 | Information Disclosure | 审计链明文含 `ticker` / `action` / `evidenceRefs` | **已实现**(可选):`EncryptedMemoryStore` 提供 AES-256-GCM 加密层(P0 已 ship),`AuditChain` 复用 `appendMemoryFile`;用户启用 `UPUP_ENCRYPTION_KEY` 后链上 `ticker` / `action` 不可读 |
+| T7 | Elevation of Privilege | 攻击者通过 MCP `publish_strategy` 端点绕过鉴权 | **P2.a.4 计划**:`src/mcp/oauth.ts` 追加 `strategy:write` scope,未授权 client → 401 |
+
+### B.3 已实现的不可篡改保证(可被 `bun test` 验证)
+
+| 断言 | 位置 |
+|------|------|
+| 篡改 `action` 字段 → 签名验证失败 | `src/memory/audit-signing.test.ts:94` |
+| 删除中间记录 → `prevHash` 链断裂 | `src/memory/audit-signing.test.ts:108` |
+| `edit()` / `delete()` API 不在 `AuditChain` 公开接口 → 文件层面 append-only | `src/memory/audit-signing.ts`(只暴露 `append` / `list` / `getByIntent` / `verify`) |
+| `canonicalJson()` 用稳定键序 → 序列化等价 | `src/memory/dossier.ts:128` |
+
+### B.4 残余风险(用户层)
+
+1. **私钥泄漏**:`keyPath` 落地后被读 → 攻击者可写假链。**用户责任**:用 OS 级 keychain(`macOS Keychain` / `Linux secret-tool`)而不是明文。
+2. **文件系统级攻击**:`.upup/audit-chain.jsonl` 被替换为旧快照 + 新签名。**当前无解**:落 OS 级审计(如 `auditd`)是未来 work。本 change 范围内仅做加密 + 签名 + 链式 hash 的应用层防护。
+3. **回滚攻击**:攻击者用历史快照 + 历史签名重放。**当前缓解**:`ts` 字段 + `upup://audit/{intent-id}` MCP 资源可按时间窗查询;最终仲裁在用户 / 合规侧。
+
+### B.5 验证清单(CI gate)
+
+- `bun test src/memory/audit-signing.test.ts` 须全绿(含 T1 / T2 篡改用例)
+- `bun test src/memory/encrypted-store.test.ts` 须全绿(加密 / 解密对称)
+- P3.b.3 增加:回归测试断言 `AuditChain` 公开 API 不暴露 `edit` / `delete`(静态类型 + 运行时 `typeof` 双重断言)
+
+本附录随 P3.b.2 一起 ship。后续若 C2 安全模型调整,在此更新版本号。
+

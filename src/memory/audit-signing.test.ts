@@ -144,3 +144,58 @@ describe('AuditChain — persistence', () => {
 
 // generateKeyPair is the test helper. If we don't have it, expose one.
 // end
+
+// ---------------------------------------------------------------------------
+// P3.b.2 + P3.b.3 — append-only API surface regression (B.5)
+// ---------------------------------------------------------------------------
+
+describe('AuditChain — append-only API surface (P3.b.2 / P3.b.3)', () => {
+  test('public API does not expose edit / delete / overwrite methods', () => {
+    // P3.b.2 威胁模型 B.5: 公开接口必须 append-only, 不允许篡改/删除/重写。
+    // 这一条是 C2 审计链完整性的"架构层"防线, 与签名/链式 hash 互补。
+    const c = newChain();
+    const api = new Set(Object.getOwnPropertyNames(Object.getPrototypeOf(c)));
+    for (const forbidden of ['edit', 'delete', 'remove', 'update', 'overwrite', 'rewrite']) {
+      expect(api.has(forbidden)).toBe(false);
+    }
+    // 白名单: 仅 append / list / getByIntent / verify / getPublicKey
+    expect(api.has('append')).toBe(true);
+    expect(api.has('list')).toBe(true);
+    expect(api.has('getByIntent')).toBe(true);
+    expect(api.has('verify')).toBe(true);
+    expect(api.has('getPublicKey')).toBe(true);
+  });
+
+  test('repeated verify on intact chain returns valid=true', () => {
+    // P3.b.3 回归: 完整链路在多次 verify 下保持稳定 (idempotency)。
+    const c = newChain();
+    c.append({ intentId: 'i1', author: 'user', action: 'BUY' });
+    c.append({ intentId: 'i2', author: 'user', action: 'SELL' });
+    c.append({ intentId: 'i3', author: 'user', action: 'HOLD' });
+    const pub = c.getPublicKey();
+    expect(c.verify(pub).valid).toBe(true);
+    expect(c.verify(pub).valid).toBe(true);
+    expect(c.verify(pub).valid).toBe(true);
+  });
+
+  test('key rotation: inMemory chains with distinct keys fail cross-verify', () => {
+    // P3.b.3 回归: 私钥轮换后旧签名全部失效。用 inMemory 模式生成两条独立 chain,
+    // 用 keyB 的公钥验 keyA 签的链, 应当失败。
+    // 之所以不用 newChain(): 它从 KEY 文件 load, 两条 chain 会共享同一 key,
+    // 测不出"轮换失效"的语义。
+    const tmpA = '/tmp/audit-p3b3-rot-a.jsonl';
+    const tmpB = '/tmp/audit-p3b3-rot-b.jsonl';
+    const cA = new AuditChain({
+      filePath: tmpA, keyPath: '/tmp/audit-p3b3-rot-a.key',
+      inMemory: true, now: () => fixedNow,
+    });
+    cA.append({ intentId: 'i1', author: 'user', action: 'BUY' });
+    const cB = new AuditChain({
+      filePath: tmpB, keyPath: '/tmp/audit-p3b3-rot-b.key',
+      inMemory: true, now: () => fixedNow,
+    });
+    // cA 用 keyA 签了 1 条; cB 拿 keyB 的公钥来验, 应当失败
+    const r = cA.verify(cB.getPublicKey());
+    expect(r.valid).toBe(false);
+  });
+});
