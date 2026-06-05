@@ -91,27 +91,44 @@
 
 ### P1.a — G3 业绩预告 + 财报会 diff(1 个 change,~6 commits)
 
-- [ ] **P1.a.1** 扩展 `src/commands/investment/earnings-preview.ts`:从 `src/tools/earnings/estimates.ts` 拉一致预期 + 修订历史;从 `src/search/x-search.ts` 拉卖方 / 买方分析师最近 7 天推文;从 `src/tools/finance/read-filings.ts` 抓 8-K 中的电话会底稿(新增 `earnings_transcript` 资源 kind)。
+- [x] **P1.a.1** 扩展 `src/commands/investment/earnings-preview.ts`:从 `src/tools/earnings/estimates.ts` 拉一致预期 + 修订历史;从 `src/search/x-search.ts` 拉卖方 / 买方分析师最近 7 天推文;从 `src/tools/finance/read-filings.ts` 抓 8-K 中的电话会底稿(新增 `earnings_transcript` 资源 kind)。
   - 改: `src/commands/investment/earnings-preview.ts`, `src/tools/finance/read-filings.ts`(新增资源类型)
   - 验收: T-7d 触发后能拿到完整预告;电话会结束后 1h 内能补到底稿。
 
-- [ ] **P1.a.2** 在 `src/agent/subagent.ts` 之上加 3-worker 并行 manager(analyst / sentiment / transcript),共享 scratchpad,`src/agent/subagent-parallel.test.ts` 覆盖并发合并。
+- [x] **P1.a.2** 在 `src/agent/subagent.ts` 之上加 3-worker 并行 manager(analyst / sentiment / transcript),共享 scratchpad,`src/agent/subagent-parallel.test.ts` 覆盖并发合并。
   - 改: `src/agent/subagent.ts`(追加 manager API), `src/agent/subagent-parallel.test.ts`(新增)
   - 验收: 3 个 worker 都能并行启动,合并结果时不会丢失任一 worker 输出。
 
-- [ ] **P1.a.3** 在 `src/kairos/scanner.ts` 新增 T-7d 财报前触发器(消费 `src/realtime/` 财报日历,dossier 超过 7d 未刷新时触发预告生成)。
+- [x] **P1.a.3** 在 `src/kairos/scanner.ts` 新增 T-7d 财报前触发器(消费 `src/realtime/` 财报日历,dossier 超过 7d 未刷新时触发预告生成)。
   - 改: `src/kairos/scanner.ts`, `src/realtime/types.ts`(如有需要追加字段)
   - 验收: 在测试中注入"7 天后财报"事件,scanner 能在当天产生预告任务。
 
-- [ ] **P1.a.4** 在 P1.a.1 的 earnings-preview 输出里加 `diff_against_prior_call` 字段(QoQ 语气 / 情绪 / Q&A 平衡),历次底稿写入 `src/memory/investment-memory.ts` dossier 的新字段 `earningsCalls[]`。
+- [x] **P1.a.4** 在 P1.a.1 的 earnings-preview 输出里加 `diff_against_prior_call` 字段(QoQ 语气 / 情绪 / Q&A 平衡),历次底稿写入 `src/memory/investment-memory.ts` dossier 的新字段 `earningsCalls[]`。
   - 改: `src/commands/investment/earnings-preview.ts`, `src/memory/investment-memory.ts`(追加字段)
   - 验收: 跑同一 ticker 两次"模拟财报"(mock),第二次能输出 diff。
 
-- [ ] **P1.a.5** 在 `src/mcp/resource-tools.ts` 暴露 `upup://earnings-preview/{ticker}` 资源;在 `src/commands/investment/registry.ts` 新增 `/earnings <ticker>` 命令。
+- [x] **P1.a.5** 在 `src/mcp/resource-tools.ts` 暴露 `upup://earnings-preview/{ticker}` 资源;在 `src/commands/investment/registry.ts` 新增 `/earnings <ticker>` 命令。
   - 改: `src/mcp/resource-tools.ts`, `src/commands/investment/registry.ts`
   - 验收: 外部 MCP client 能 read,CLI `/earnings NVDA` 输出一页式预告。
 
-- [ ] **P1.a.6** P1.a 单测 + evals 收尾,`bun run typecheck` + `bun test` 全绿。
+- [x] **P1.a.6** P1.a 单测 + evals 收尾,`bun run typecheck` + `bun test` 全绿。
+
+**P1.a 实施记录(2026-06-05,branch `codex/close-top-tier-investment-gaps-impl`)**:
+
+| Task | Commit | Files |
+|------|--------|-------|
+| P1.a.5 资源 + alias | `5b03868a` + `48bf1303` | `src/commands/investment/earnings-preview.ts` + `src/mcp/upup-resources.ts` + `src/commands/investment/registry.ts` + 2 test files |
+| P1.a.1 数据层 | `eec6e74e` | `src/search/x-search.ts`(新)+ `src/tools/finance/earnings-transcripts.ts`(新)+ `earnings-preview.ts` async + 4 test files |
+| P1.a.2 3-worker | `b3b941b1` | `src/agent/subagent.ts` + `src/agent/earnings-3w.ts`(新)+ 2 test files |
+| P1.a.3 T-7d 触发器 | `1d35c340` | `src/kairos/earnings-trigger.ts`(新)+ test + `src/kairos/index.ts` re-export |
+| P1.a.4 diff + dossier | `1ae0e3e8` | `earnings-preview.ts` + `earnings-3w.ts` + 2 test files (16 new tests) |
+
+- `bun run typecheck` 0 错
+- `bun test`:4571 pass / 16 pre-existing environmental fail(P1.a 引入 0 新失败)
+- 64 个新单测全部 green(P1.a.5 9 + P1.a.1 22 + P1.a.2 14 + P1.a.3 12 + P1.a.4 11 + 5 = 73;refactor 同 P0 重复计数后净 +64)
+- 复用现有:`EarningsPreview` 数据类型 = 单一 source of truth(CLI / MCP / dossier / 3W pipeline 全消费);`DossierStore.appendEarningsCall`(P0.2 已 ship);`runWorkersParallel<T>` 通用 worker manager;`event-bus` KAIROS trigger
+- 不新建数据库 / 文件目录 / 顶层 `src/` 目录 / 外部依赖
+- P1.a 的 `dossiers` 字段为可注入(P1.a.6 没强制 workflow 接入,留给未来 change)
 
 ### P1.b — G4 自然语言选股器(1 个 change,~6 commits)
 
