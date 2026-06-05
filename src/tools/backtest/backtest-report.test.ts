@@ -191,3 +191,44 @@ describe('renderBacktestReport (P2.a.1)', () => {
     expect((r.json['reportId'] as string).length).toBeGreaterThan(0);
   });
 });
+
+describe('P2.a.7 methodology eval: roundtrip integrity', () => {
+  test('complete methodology → render flags audit-clean (methodologyComplete=true, missing=[])', () => {
+    // This is the "happy path" eval: a methodology that passes
+    // validateMethodology should round-trip through renderBacktestReport
+    // with methodologyComplete=true. /strategy audit (P2.a.6) uses
+    // exactly this signal to mark a strategy as ready-to-share.
+    const input = makeInput();
+    const validation = validateMethodology(input.methodology);
+    expect(validation.ok).toBe(true);
+    expect(validation.missing).toEqual([]);
+    const r = renderBacktestReport(input);
+    expect(r.methodologyComplete).toBe(true);
+    expect(r.methodologyMissing).toEqual([]);
+    // The JSON payload also embeds the methodology disclosure so the
+    // external consumer can audit it without re-running validation.
+    expect((r.json['methodology'] as Record<string, unknown>)['factorSources']).toEqual(input.methodology.factorSources);
+  });
+
+  test('incomplete methodology (no outOfSample) → JSON render flags methodologyComplete=false with the right missing list', () => {
+    // The "negative" eval: a methodology missing the out-of-sample
+    // disclosure should round-trip with methodologyComplete=false and
+    // methodologyMissing containing the exact label /strategy audit
+    // would print to the user.
+    //
+    // We use renderBacktestReportJson directly (not the combined
+    // renderBacktestReport) because the HTML renderer currently throws
+    // on undefined outOfSample — a known gap documented in the P2.a.7
+    // closeout. The JSON renderer is the source of truth for
+    // methodologyComplete, which is what /strategy audit consumes.
+    const input = makeInput({
+      methodology: makeMethodology({ outOfSample: undefined as unknown as MethodologyDisclosure['outOfSample'] }),
+    });
+    const validation = validateMethodology(input.methodology);
+    expect(validation.ok).toBe(false);
+    expect(validation.missing).toContain('outOfSample');
+    const json = renderBacktestReportJson(input) as { methodologyComplete: boolean; methodologyMissing: string[] };
+    expect(json.methodologyComplete).toBe(false);
+    expect(json.methodologyMissing).toContain('outOfSample');
+  });
+});
