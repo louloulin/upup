@@ -8,6 +8,45 @@ import { timingSafeEqual } from 'node:crypto';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
+/**
+ * Build a JSON response with the correct content-type. Centralized so
+ * every snapshot/health endpoint produces a structurally identical
+ * `Response` and tests don't have to re-assert the headers in 4 places.
+ */
+export function jsonResponse(status: number, body: unknown): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'content-type': 'application/json' },
+  });
+}
+
+/**
+ * Verify a bridge token. The WS fetch path and the snapshot endpoints
+ * both need the same auth model: prefer a signed bridge token from
+ * `BridgeAuth.issueToken`, fall back to the raw secret for dev / CLI
+ * ergonomics (production should always use the signed format).
+ *
+ * Returns the clientId on success, or a string reason on failure.
+ */
+export function verifyBridgeToken(
+  token: string,
+  expectedSecret: string,
+  auth: BridgeAuth,
+): { ok: true; clientId: string } | { ok: false; reason: string } {
+  const v = auth.verifyToken(token);
+  if (v.ok) return { ok: true, clientId: v.clientId };
+  // Dev-mode fallback: accept the raw secret directly. Same length check
+  // as the WS path to avoid leaking timing info on length mismatches.
+  const tk = Buffer.from(token);
+  const sk = Buffer.from(expectedSecret);
+  if (tk.length === sk.length && tk.length >= 8) {
+    try {
+      if (timingSafeEqual(tk, sk)) return { ok: true, clientId: 'shared-secret' };
+    } catch { /* fallthrough */ }
+  }
+  return { ok: false, reason: v.reason ?? 'bad-token' };
+}
+
 export interface BridgeServerConfig {
   port: number;
   bind?: string;
@@ -64,10 +103,7 @@ export async function startBridgeServer(cfg: BridgeServerConfig): Promise<Bridge
       // the WS endpoint. These exist to give the future Vite+React UI a
       // hermetic data surface (no direct imports of business modules).
       if (req.method === 'GET' && url.pathname === '/bridge/health') {
-        return new Response(
-          JSON.stringify({ ok: true, ts: Date.now(), port: srv.port ?? 0, version: '0.0.0' }),
-          { status: 200, headers: { 'content-type': 'application/json' } },
-        );
+        return jsonResponse(200, { ok: true, ts: Date.now(), port: srv.port ?? 0, version: '0.0.0' });
       }
       if (url.pathname.startsWith('/bridge/snapshot/')) {
         // Non-GET methods enter the router so it can return 405 explicitly
@@ -82,32 +118,12 @@ export async function startBridgeServer(cfg: BridgeServerConfig): Promise<Bridge
         audit(cfg.auditPath, 'reject', { reason: 'no-token' });
         return new Response('Token required', { status: 401 });
       }
-      const v = auth.verifyToken(token);
-      let clientId: string;
-      if (v.ok) {
-        clientId = v.clientId;
-      } else {
-        // Fallback: accept raw secret for dev / CLI ergonomics. Production should
-        // always use bridge.xxx.yyy format tokens (issueToken()).
-        const tk = Buffer.from(token);
-        const sk = Buffer.from(cfg.token);
-        if (tk.length === sk.length && tk.length >= 8) {
-          try {
-            if (timingSafeEqual(tk, sk)) {
-              clientId = 'shared-secret';
-            } else {
-              audit(cfg.auditPath, 'reject', { reason: v.reason });
-              return new Response('Unauthorized', { status: 401 });
-            }
-          } catch {
-            audit(cfg.auditPath, 'reject', { reason: v.reason });
-            return new Response('Unauthorized', { status: 401 });
-          }
-        } else {
-          audit(cfg.auditPath, 'reject', { reason: v.reason });
-          return new Response('Unauthorized', { status: 401 });
-        }
+      const v = verifyBridgeToken(token, cfg.token, auth);
+      if (!v.ok) {
+        audit(cfg.auditPath, 'reject', { reason: v.reason });
+        return new Response('Unauthorized', { status: 401 });
       }
+      const clientId = v.clientId;
       const ip = srv.requestIP(req)?.address ?? 'unknown';
       // Optional ?sessionId=<id>: cross-device resume. The session must
       // already exist on disk (we don't accept forged ids here).
@@ -261,14 +277,56 @@ function audit(path: string, event: string, data: Record<string, unknown>): void
  * P2.b.2 — read-only JSON snapshot router.
  *
  * Auth: same token model as the WS endpoint (query string `?token=`).
- * Routes:
+ * Auth path is shared with the WS handler via `verifyBridgeToken`.
+ *
+ * Routes (table-driven, see SNAPSHOT_HANDLERS):
  *   GET /bridge/snapshot/session/:id     — persisted SessionState
  *   GET /bridge/snapshot/dossier/:ticker — DossierStore.read(ticker)
  *
  * Anything else under /bridge/snapshot/* → 404. POST/PUT → 405.
- * Errors are returned as plain text (status + reason) for symmetry with
- * the existing WS auth errors.
+ *
+ * Each handler signature: `(id, deps) => Promise<Response> | Response`.
+ * Adding a new snapshot kind is one entry in the table — no edits to
+ * handleSnapshot itself.
  */
+
+interface SnapshotDeps {
+  cfg: BridgeServerConfig;
+  sync: SessionSync;
+}
+
+type SnapshotHandler = (id: string, deps: SnapshotDeps) => Promise<Response> | Response;
+
+const SNAPSHOT_HANDLERS: Record<string, SnapshotHandler> = {
+  session: async (id, { sync }) => {
+    const persisted = await sync.load(id);
+    if (!persisted) {
+      return jsonResponse(404, { error: 'session-not-found', id });
+    }
+    return jsonResponse(200, persisted);
+  },
+  dossier: (id, { cfg }) => {
+    if (!cfg.dossiers) {
+      return jsonResponse(503, { error: 'dossier-store-not-configured' });
+    }
+    const d = cfg.dossiers.read(id);
+    if (!d) {
+      return jsonResponse(404, { error: 'dossier-not-found', ticker: id });
+    }
+    return jsonResponse(200, d);
+  },
+};
+
+function parseSnapshotPath(pathname: string): { kind: string; id: string } | null {
+  const rest = pathname.slice('/bridge/snapshot/'.length);
+  if (!rest) return null;
+  const slash = rest.indexOf('/');
+  const kind = slash < 0 ? rest : rest.slice(0, slash);
+  const id = slash < 0 ? '' : rest.slice(slash + 1);
+  if (!kind) return null;
+  return { kind, id };
+}
+
 async function handleSnapshot(
   url: URL,
   req: Request,
@@ -279,70 +337,32 @@ async function handleSnapshot(
   if (req.method !== 'GET') {
     return new Response('Method not allowed', { status: 405 });
   }
-  // Auth
+  // Auth (shared with the WS fetch handler — see verifyBridgeToken)
   const token = url.searchParams.get('token');
   if (!token) {
     audit(cfg.auditPath, 'snapshot-reject', { reason: 'no-token', path: url.pathname });
     return new Response('Token required', { status: 401 });
   }
-  const v = auth.verifyToken(token);
-  const ok =
-    v.ok ||
-    (() => {
-      // Dev-mode fallback matching the WS path: accept the raw secret.
-      const tk = Buffer.from(token);
-      const sk = Buffer.from(cfg.token);
-      if (tk.length === sk.length && tk.length >= 8) {
-        try { return timingSafeEqual(tk, sk); } catch { return false; }
-      }
-      return false;
-    })();
-  if (!ok) {
-    audit(cfg.auditPath, 'snapshot-reject', { reason: v.reason ?? 'bad-token', path: url.pathname });
+  const v = verifyBridgeToken(token, cfg.token, auth);
+  if (!v.ok) {
+    audit(cfg.auditPath, 'snapshot-reject', { reason: v.reason, path: url.pathname });
     return new Response('Unauthorized', { status: 401 });
   }
 
-  // Route
-  const rest = url.pathname.slice('/bridge/snapshot/'.length);
-  const slash = rest.indexOf('/');
-  const kind = slash < 0 ? rest : rest.slice(0, slash);
-  const id = slash < 0 ? '' : rest.slice(slash + 1);
-  if (!id) return new Response('Snapshot id required', { status: 400 });
-
-  if (kind === 'session') {
-    const persisted = await sync.load(id);
-    if (!persisted) {
-      return new Response(JSON.stringify({ error: 'session-not-found', id }), {
-        status: 404,
-        headers: { 'content-type': 'application/json' },
-      });
-    }
-    return new Response(JSON.stringify(persisted), {
-      status: 200,
-      headers: { 'content-type': 'application/json' },
-    });
-  }
-  if (kind === 'dossier') {
-    if (!cfg.dossiers) {
-      return new Response(
-        JSON.stringify({ error: 'dossier-store-not-configured' }),
-        { status: 503, headers: { 'content-type': 'application/json' } },
-      );
-    }
-    const d = cfg.dossiers.read(id);
-    if (!d) {
-      return new Response(JSON.stringify({ error: 'dossier-not-found', ticker: id }), {
-        status: 404,
-        headers: { 'content-type': 'application/json' },
-      });
-    }
-    return new Response(JSON.stringify(d), {
-      status: 200,
-      headers: { 'content-type': 'application/json' },
-    });
-  }
-  return new Response(`Unknown snapshot kind: ${kind}`, { status: 404 });
+  // Route dispatch
+  const parsed = parseSnapshotPath(url.pathname);
+  if (!parsed) return new Response('Snapshot id required', { status: 400 });
+  const handler = SNAPSHOT_HANDLERS[parsed.kind];
+  if (!handler) return new Response(`Unknown snapshot kind: ${parsed.kind}`, { status: 404 });
+  if (!parsed.id) return new Response('Snapshot id required', { status: 400 });
+  return handler(parsed.id, { cfg, sync });
 }
+
+/**
+ * @internal — exported for tests so the auth + JSON helpers can be
+ * exercised directly without spinning up the bridge server.
+ */
+export const _internal = { parseSnapshotPath };
 
 /**
  * Late session-id binding for the message handler. If a chat carries a
