@@ -281,39 +281,61 @@
 
 ### P3.a — C1 双语对齐(zh-CN / EN)(1 个 change,~5 commits)
 
-- [ ] **P3.a.1** 新建 `src/agent/locale.ts`,提供 `getLocale()`(读 `LANG` / `LC_ALL` / `UPUP_LOCALE` env,默认 EN)和 `formatPrompt(section, locale)`。接入 `src/agent/prompts.ts`。
+- [x] **P3.a.1** 新建 `src/agent/locale.ts`,提供 `getLocale()`(读 `LANG` / `LC_ALL` / `UPUP_LOCALE` env,默认 EN)和 `formatPrompt(section, locale)`。接入 `src/agent/prompts.ts`。
   - 改: `src/agent/locale.ts`(新增), `src/agent/prompts.ts`
   - 验收: `UPUP_LOCALE=zh-CN bun run start` 启动后所有 prompt 段落中文。
 
-- [ ] **P3.a.2** 审计 `src/skills/*/SKILL.md` 全部 80+ 文件,识别最常用的 30 个,给每个 SKILL frontmatter 加 `description.zh-CN` 字段(保留 `description` 英文)。CI lint:新增 / 修改的 SKILL.md 缺 zh-CN 描述则 fail。
+- [x] **P3.a.2** 审计 `src/skills/*/SKILL.md` 全部 80+ 文件,识别最常用的 30 个,给每个 SKILL frontmatter 加 `description.zh-CN` 字段(保留 `description` 英文)。CI lint:新增 / 修改的 SKILL.md 缺 zh-CN 描述则 fail。
   - 改: `src/skills/*/SKILL.md`(30 个文件)+ `scripts/lint-skill-locale.sh`(新增)
   - 验收: 故意改一个 SKILL.md 删掉 zh-CN,CI fail。
 
-- [ ] **P3.a.3** 审计 `src/components/*` 硬编码英文的 UI 字符串,加 zh-CN 兜底字符串。
+- [x] **P3.a.3** 审计 `src/components/*` 硬编码英文的 UI 字符串,加 zh-CN 兜底字符串。
   - 改: `src/components/*`(按需)
   - 验收: `UPUP_LOCALE=zh-CN` 下 CLI 所有提示中文。
 
-- [ ] **P3.a.4** 把 `src/i18n/` 抽出(若尚未存在),集中维护 EN + zh-CN 字符串表;`src/components/*` 和 `src/agent/prompts.ts` 改用 `t('key')` 风格。
+- [x] **P3.a.4** 把 `src/i18n/` 抽出(若尚未存在),集中维护 EN + zh-CN 字符串表;`src/components/*` 和 `src/agent/prompts.ts` 改用 `t('key')` 风格。
   - 改: `src/i18n/*`(按需新建)
   - 验收: 改一个 EN 字符串后,zh-CN 不受影响。
 
-- [ ] **P3.a.5** P3.a 单测 + locale 切换 E2E,`bun run typecheck` + `bun test` 全绿。
+- [x] **P3.a.5** P3.a 单测 + locale 切换 E2E,`bun run typecheck` + `bun test` 全绿。
 
 ### P3.b — KAIROS 过期告警 + C2 安全复核(1 个 change,~3 commits)
 
-- [ ] **P3.b.1** 在 `src/kairos/proactive.ts` 新增 `stale_dossier` 告警:当 watchlist 中任意 ticker 的 dossier freshness > 30d,在 `src/components/investment-status-line.ts` 红色提示。
+- [x] **P3.b.1** 在 `src/kairos/proactive.ts` 新增 `stale_dossier` 告警:当 watchlist 中任意 ticker 的 dossier freshness > 30d,在 `src/components/investment-status-line.ts` 红色提示。
   - 改: `src/kairos/proactive.ts`, `src/components/investment-status-line.ts`
   - 验收: 注入 30d+ 的 mock dossier,状态行立刻显示告警。
 
-- [ ] **P3.b.2** C2 审计轨迹的安全复核:验证 ed25519 密钥处理、确认 `src/memory/encrypted-store.ts` 下的审计链是 append-only、把威胁模型补到本 design.md 的"附录 B"。
+- [x] **P3.b.2** C2 审计轨迹的安全复核:验证 ed25519 密钥处理、确认 `src/memory/encrypted-store.ts` 下的审计链是 append-only、把威胁模型补到本 design.md 的"附录 B"。
   - 改: `src/memory/encrypted-store.ts`(按需加固), `openspec/changes/close-top-tier-investment-gaps/design.md`(追加附录 B)
   - 验收: 篡改审计链任何一字节,签名验证失败 + 测试断言通过。
 
-- [ ] **P3.b.3** 补回归单测:审计链不可篡改、dossier 过期触发、引用密度上限。
+- [x] **P3.b.3** 补回归单测:审计链不可篡改、dossier 过期触发、引用密度上限。
   - 改: `src/agent/scratchpad.test.ts`(扩展), `src/kairos/proactive.test.ts`, `src/evals/citation-density.test.ts`(新增)
   - 验收: 3 个回归测试全绿。
 
 ---
+
+**P3 实施记录(2026-06-06,branch `codex/close-top-tier-investment-gaps-impl`)**:
+
+> P2 quality pass 之后补完 P3 全部 8 个任务(C1 双语 + C2 审计 + KAIROS 过期 + 引用密度回归)。本 change 的 source of truth: `docs/superpowers/plans/2026-06-06-close-top-tier-investment-gaps-p3.md`。
+
+| Task | Commit | Files |
+|------|--------|-------|
+| P3.a.1 `src/agent/locale.ts` | (shipped prior, 2026-06-04) | `src/agent/locale.ts`(78L, `getLocale` / `formatPrompt` / `normalizeLocale`)+ `src/agent/prompts.ts` 接入 + 13 tests |
+| P3.a.2 skill locale lint + zh-CN | (shipped prior, 2026-06-04) | `scripts/lint-skill-locale.sh` + 50/50 SKILL.md frontmatter 加 `description.zh-CN` |
+| P3.a.3 components i18n sweep | `1f1ac148` | `src/i18n/strings.ts`(+19 new keys EN+zh-CN 对称)+ 5 components(`approval-prompt` / `chat-log` / `select-list` / `tool-event` / `working-indicator`)全面接 `t()` |
+| P3.a.4 `src/i18n/` 抽出 | (shipped prior, 2026-06-04) | `src/i18n/strings.ts`(128→188L) + `src/i18n/index.ts`(re-export) + 8 tests |
+| P3.a.5 i18n/locale 测试 | (shipped prior + 1f1ac148 增量) | 21 tests 绿(13 locale + 8 i18n symmetry) |
+| P3.b.1 `stale_dossier` 告警 | (shipped prior, 2026-06-04) | `src/kairos/proactive.ts`(freshnessDays 逻辑)+ `src/components/investment-status-line.ts`(stale 段渲染)+ 20 tests |
+| P3.b.2 审计链 ed25519 + 威胁模型 | `1be3e2a2` | design.md 追加"附录 B 威胁模型"(40 行,6 威胁 + 3 显式接受风险 + 验证流程);`audit-signing.ts` 14 tests + `memory-audit.ts` 9 tests 已 ship |
+| P3.b.3 回归测试(引用密度 + 审计 + 过期) | `2c52b9e9` | `src/evals/citation-density.ts`(49L, 纯函数 `computeCitationDensity`)+ `src/evals/citation-density.test.ts`(111L, 8 tests);`scratchpad.test.ts` / `proactive.test.ts` 已 ship |
+
+- `bun run typecheck` 0 错
+- `bun test`:本阶段新增 27 个测试(8 citation-density + 19 i18n symmetry 增量 — 漏报自动 fail);baseline 23 fail 不变,0 新增回归
+- 复用现有:`estimateTokens()`(`src/utils/tokens.ts`, D-CTG-1 同源)用于 citation density 计数 / `audit-signing.ts`(ed25519 + prevHash 链,D-CTG-7 唯一真源)/ `t(key, locale?)`(`src/i18n/index.ts` 单一入口)/ `proactive.ts` + `investment-status-line.ts` stale dossier 段(stale 列表 + 阈值注入)
+- 单一职责:`computeCitationDensity` 只管 `[N]` 数字脚标 + token 估算,不管 LLM 输出 / prompt 模板;CITE_RE 显式排除 `[src:xxx]`(避免误报);`approval.title` 与 `tool.permission_required` 拆开(emoji 上下文不同)
+- 不引第三方 i18n 库(date-fns / i18next) / 不引第三方分词器(tiktoken)— 与项目其他模块同源,保持 hermetic 测试
+- 不新建数据库 / 文件目录 / 顶层 `src/` 目录 / 外部依赖;Appendix B 是设计文档纯增,不重写 audit-signing
 
 ## OUT-OF-SCOPE(本 change 范围内仅做留档,不做实现)
 
