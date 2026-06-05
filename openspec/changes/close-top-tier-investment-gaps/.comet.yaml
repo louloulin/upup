@@ -1,5 +1,5 @@
 workflow: full
-phase: build
+phase: verify
 build_mode: direct
 isolation: branch
 verify_mode: null
