@@ -260,6 +260,23 @@
 - `/strategy` 是 CLI 命令不是 skill — 这是有意的(commands 给用户用,skills 给 LLM 用;`requirements.md` 明确说 build_invocable 是 P2.a 的唯一 skill 通道)
 - 不引入新外部依赖(无 Vite / 无 React / 无 Playwright);`src/web/` 当前仅 1 个 0-imports 的 index.ts,lint 通过 = 边界天然不破
 - `BridgeServerConfig.dossiers?` 是可选的,默认 503(与 P0.4 引入 `UpupReader.dossiers` 的可注入模式一致);调用方不传 = 读端点返回 503,WS 路径不受影响
+**P2 quality pass 实施记录(2026-06-06,branch `codex/close-top-tier-investment-gaps-impl`)**:
+
+> P2 ship 后做的两次"高内聚低耦合"内部去重重构,无行为变化,无新外部依赖,plans 文档 `docs/superpowers/plans/2026-06-06-close-top-tier-investment-gaps-quality.md`。
+
+| Task | Commit | Files |
+|------|--------|-------|
+| QP.a StrategyStore 重构(P2.a.4/P2.a.5 内部去重) | `146b33fd` | `src/memory/strategy-store.ts`(抽出 `computeStrategyPrevHash` 静态方法 + `latestPerName(records?)` 实例方法)+ `src/commands/investment/strategy.ts`(`asMethodology` narrowing helper 替代 4 次 `as Parameters<...>` cast)+ `src/mcp/upup-resources.ts`(消除内联 createHash + canonicalJson)+ `src/memory/strategy-store.test.ts`(+6 tests,hash 链 / 重复 name 合并 / 非法 methodology 拒绝)+ `src/mcp/upup-resources.test.ts`(去重)|
+| QP.b Bridge 重构(P2.b.2 内部去重) | `154b8049` | `src/bridge/server.ts`(抽出 `jsonResponse(status, body)` + `verifyBridgeToken(token, expectedSecret, auth)` + `SNAPSHOT_HANDLERS: Record<string, SnapshotHandler>` + `parseSnapshotPath()`;WS fetch handler 和 `handleSnapshot` 共享 `verifyBridgeToken`;`_internal.parseSnapshotPath` 导出供单测直击) |
+
+- `bun run typecheck` 0 错
+- `bun test`:baseline 23 fail 不变,0 新增回归(两次全量跑均为 23);`src/bridge/server.test.ts` 14/14 绿
+- 复用现有:`node:crypto.timingSafeEqual`(无新密码学)/ `BridgeAuth.issueToken / verifyToken`(QP.b 只抽 shared auth model,签名验签底层不变)/ `StrategyStore` 实例方法 API 向前兼容(`latestPerName()` 默认走 `this.list()`)
+- 单一职责:每个 helper 一个不可分割的语义单位 — `jsonResponse` 只管 `application/json` header;`verifyBridgeToken` 只管 token → clientId 二元结果;`parseSnapshotPath` 只管 pathname → `{kind, id}` 切分;`computeStrategyPrevHash` 只管最新 hash 推导;`latestPerName` 只管同 name 去重
+- 可测试性:`_internal.parseSnapshotPath` / 静态 `computeStrategyPrevHash` 都可被单测直接调用,不需要 spin up `Bun.serve` 或 `StrategyStore` 实例,test 隔离干净
+- 不新增文件 / 不新增外部依赖 / 不改持久化格式 / 不改 HTTP 行为 / 不动边界 lint — quality pass 严格限定在 P2 已 ship 模块的内部
+
+
 ## P3 — 横切加固(2 个 change,~8 commits)
 
 ### P3.a — C1 双语对齐(zh-CN / EN)(1 个 change,~5 commits)
