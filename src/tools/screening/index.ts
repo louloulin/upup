@@ -253,3 +253,17 @@ export function createAdvancedScreening(_model: string): StructuredToolInterface
     },
   });
 }
+
+// P1.b.1 — natural language screener (Gap G4)
+export {
+  createNlScreenTool,
+  deterministicNlParser,
+  executeFilterSpec,
+  DEFAULT_UNIVERSE,
+  type NlParserFn,
+  type NlScreenDeps,
+  type NlScreenOutput,
+  type ScreenResult,
+  type StockRow,
+  NL_SCREEN_DESCRIPTION,
+} from './nl-screen.js';

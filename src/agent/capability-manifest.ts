@@ -97,6 +97,19 @@ export const CAPABILITY_GROUPS: CapabilityGroup[] = [
     competitorRefs: ["bloomberg", "joinquant", "uqer"],
   },
   {
+    id: "screening",
+    title: "Natural-language stock screening (Gap G4)",
+    prefixes: ["nl_"],
+    blurb:
+      "Two-stage natural-language stock screener. Stage 1: NL → typed FilterSpec (Zod-validated). Stage 2: deterministic execution → ranked rows with a 1-line thesis per result. Universe is pluggable; static fixture ships by default for hermetic tests.",
+    whenToUse: [
+      "Free-form screening query: nl_screen",
+      "Override universe / parser: pass deps to createNlScreenTool",
+      "Use realtime RSI/price-change fields: pass realtime=true",
+    ],
+    competitorRefs: ["alpha-sense", "finchat", "hebbia", "joinquant"],
+  },
+  {
     id: "multimodal",
     title: "Charts and research-report output",
     prefixes: ["render_chart", "render_research_report", "ascii_", "report_"],
