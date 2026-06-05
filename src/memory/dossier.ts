@@ -124,12 +124,14 @@ export interface DossierOptions {
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Deterministic JSON serialization for hashing (sorted keys). */
+/** Deterministic JSON serialization for hashing (sorted keys, undefined omitted). */
 export function canonicalJson(value: unknown): string {
   if (value === null || typeof value !== 'object') return JSON.stringify(value);
-  if (Array.isArray(value)) return '[' + value.map(canonicalJson).join(',') + ']';
-  const keys = Object.keys(value as Record<string, unknown>).sort();
+  if (Array.isArray(value)) {
+    return '[' + value.map(v => (v === undefined ? 'null' : canonicalJson(v))).join(',') + ']';
+  }
   const obj = value as Record<string, unknown>;
+  const keys = Object.keys(obj).filter(k => obj[k] !== undefined).sort();
   return '{' + keys.map(k => JSON.stringify(k) + ':' + canonicalJson(obj[k])).join(',') + '}';
 }
 

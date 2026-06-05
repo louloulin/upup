@@ -26,9 +26,43 @@ import {
 import { createPhaseHandlerMap } from './phase-handlers.js';
 import { loadPlan } from '../../plan/plan-executor.js';
 import { extractTicker } from '../../plan/plan-builder.js';
+import { getDefaultAuditChain, type AuditAction } from '../../memory/audit-signing.js';
+import { randomUUID } from 'node:crypto';
 
 export type InvestMode = 'full' | 'fast' | 'resume';
 
+
+
+/**
+ * Emit a signed audit record for the trade phase of a workflow result, if any
+ * tool output contains an explicit BUY/SELL/COVER recommendation.
+ *
+ * Heuristic: scan each phase's output for the keyword + ticker. Only the first
+ * match is recorded; absent match, no audit is emitted (so this is safe to
+ * always call).
+ */
+function recordTradeAuditIfApplicable(result: WorkflowResult): void {
+  const tradePhase = result.phases.find(p => p.phase === 'trade' && p.status === 'completed');
+  if (!tradePhase) return;
+  const out = tradePhase.output;
+  const ticker = result.ticker;
+  if (!ticker) return;
+  const matched = out.match(/\b(BUY|SELL|COVER|HOLD|CANCEL)\b/i);
+  if (!matched) return;
+  const action = matched[1]!.toUpperCase() as AuditAction;
+  try {
+    getDefaultAuditChain().append({
+      intentId: `invest-${result.planId}`,
+      author: 'agent',
+      action,
+      ticker,
+      evidenceRefs: [],
+      agentChain: [{ agentId: 'investment-workflow', toolCalls: ['runInvestmentWorkflow'], modelVersion: 'unknown' }],
+    });
+  } catch {
+    // audit is best-effort; do not fail the workflow on signing error
+  }
+}
 function parseArgs(input: string): { mode: InvestMode; ticker?: string; intent: string; planId?: string } {
   const trimmed = input.trim();
   if (!trimmed) return { mode: 'full', intent: '分析投资机会' };
@@ -159,6 +193,7 @@ export async function runInvest(args: string): Promise<string> {
     mode,
     phaseHandlerMap: createPhaseHandlerMap(),
   });
+  recordTradeAuditIfApplicable(result);
   return renderResult(result);
 }
 
