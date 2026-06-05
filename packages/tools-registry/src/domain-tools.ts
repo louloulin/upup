@@ -18,15 +18,15 @@ import {
 import {
   createWorktreeTool, removeWorktreeTool, listWorktreeTool,
   CREATE_WORKTREE_DESCRIPTION, REMOVE_WORKTREE_DESCRIPTION, LIST_WORKTREE_DESCRIPTION,
-} from '@upup/./worktree/index';
+} from ('@upup/./worktree/index');
 import {
   createSearchSkillsTool, createGetSkillTool,
   SEARCH_SKILLS_DESCRIPTION, GET_SKILL_DESCRIPTION,
-} from '@upup/./discovery/index';
-import { createSendMessageTool, SEND_MESSAGE_DESCRIPTION } from '@upup/./send-message';
-import { createSnipTool, SNIP_TOOL_DESCRIPTION } from '@upup/./snip-tool';
+} from ('@upup/./discovery/index');
+import { createSendMessageTool, SEND_MESSAGE_DESCRIPTION } from ('@upup/./send-message');
+import { createSnipTool, SNIP_TOOL_DESCRIPTION } from ('@upup/./snip-tool');
 import { createSleepTool, SLEEP_TOOL_DESCRIPTION } from '@upup/sleep-tool';
-import { createMonitorTool, MONITOR_TOOL_DESCRIPTION } from '@upup/./monitor-tool';
+import { createMonitorTool, MONITOR_TOOL_DESCRIPTION } from ('@upup/./monitor-tool');
 import {
   createToolSearchTool, createToolGetTool, createToolListTool,
   TOOL_SEARCH_DESCRIPTION, TOOL_GET_DESCRIPTION, TOOL_LIST_DESCRIPTION,
@@ -38,7 +38,7 @@ import {
   TEAM_CREATE_DESCRIPTION, TEAM_DELETE_DESCRIPTION, TEAM_LIST_DESCRIPTION,
   TEAM_ADD_MEMBER_DESCRIPTION, TEAM_REMOVE_MEMBER_DESCRIPTION,
   TEAM_STATUS_DESCRIPTION, TEAM_UPDATE_STATUS_DESCRIPTION,
-} from '@upup/./team-tools';
+} from ('@upup/./team-tools');
 import {
   createValuationRatiosTool, createDCFTool, createPeerComparisonTool,
   createDecisionDashboardTool, createCalculateTargetPriceTool, createQuickTargetPriceTool,
@@ -50,27 +50,27 @@ import {
   createNotebookInsertCellTool, createNotebookDeleteCellTool,
   NOTEBOOK_READ_DESCRIPTION, NOTEBOOK_CREATE_DESCRIPTION,
   NOTEBOOK_EDIT_CELL_DESCRIPTION, NOTEBOOK_INSERT_CELL_DESCRIPTION, NOTEBOOK_DELETE_CELL_DESCRIPTION,
-} from '@upup/./notebook/index';
+} from ('@upup/./notebook/index');
 import {
   createNotifyTool, createNotifyListTool,
   NOTIFY_DESCRIPTION, NOTIFY_LIST_DESCRIPTION,
   createSubscribePRTool, createUnsubscribePRTool, createListPRSubscriptionsTool,
   SUBSCRIBE_PR_DESCRIPTION, UNSUBSCRIBE_PR_DESCRIPTION, LIST_PR_SUBSCRIPTIONS_DESCRIPTION,
-} from '@upup/./notify/index';
+} from ('@upup/./notify/index');
 import {
   createExportPortfolioTool, createExportWatchlistTool, createExportDataTool,
   EXPORT_PORTFOLIO_DESCRIPTION, EXPORT_WATCHLIST_DESCRIPTION, EXPORT_DATA_DESCRIPTION,
-} from '@upup/./export/index';
+} from ('@upup/./export/index');
 import {
   createLSPCompleteTool, createLSPDefinitionTool, createLSPReferencesTool,
   createLSPHoverTool, createLSPDiagnosticsTool,
   LSP_COMPLETE_DESCRIPTION, LSP_DEFINITION_DESCRIPTION,
   LSP_REFERENCES_DESCRIPTION, LSP_HOVER_DESCRIPTION, LSP_DIAGNOSTICS_DESCRIPTION,
-} from '@upup/./lsp/index';
+} from ('@upup/./lsp/index');
 import {
   createConfigGetTool, createConfigSetTool, createConfigListTool,
   CONFIG_TOOL_GET_DESCRIPTION, CONFIG_TOOL_SET_DESCRIPTION, CONFIG_TOOL_LIST_DESCRIPTION,
-} from '@upup/./config-tool';
+} from ('@upup/./config-tool');
 import {
   createForkSubagentTool, createResumeAgentTool,
   createAgentMemoryTool, createListAgentsTool, createRunBuiltInAgentTool,
@@ -265,7 +265,7 @@ export async function loadDomainTools(): Promise<RegisteredTool[]> {
 
 // Swarm tools (multi-agent)
 try {
-  const { swarmTools } = await import('../../multi-agent/index.js');
+  const { swarmTools } = await import('@upup/multi-agent/index');
   for (const tool of swarmTools) {
     if (!tool?.name) continue;
     tools.push({
@@ -287,7 +287,7 @@ try {
 
 // Specialized Skills tools (dream, verify, hunter, batch)
 try {
-  const { specializedTools } = await import('../../multi-agent/tools/specialized-skills.js');
+  const { specializedTools } = await import('@upup/multi-agent/tools/specialized-skills');
   for (const tool of specializedTools) {
     if (!tool?.name) continue;
     tools.push({
@@ -313,7 +313,7 @@ try {
 async function loadDynamicDomainTools(tools: RegisteredTool[]): Promise<void> {
   // Watchlist
   try {
-    const wl = await import('../watchlist/index.js');
+    const wl = await import('@upup/watchlist/index');
     tools.push({ name: 'add_to_watchlist', tool: wl.createAddToWatchlistTool(), description: wl.ADD_TO_WATCHLIST_DESCRIPTION, compactDescription: 'Add a stock to your investment watchlist for tracking', concurrencySafe: true });
     tools.push({ name: 'remove_from_watchlist', tool: wl.createRemoveFromWatchlistTool(), description: wl.REMOVE_FROM_WATCHLIST_DESCRIPTION, compactDescription: 'Remove a stock from your investment watchlist', concurrencySafe: true });
     tools.push({ name: 'get_watchlist', tool: wl.createGetWatchlistTool(), description: wl.GET_WATCHLIST_DESCRIPTION, compactDescription: 'Get your current investment watchlist with alerts', concurrencySafe: true });
@@ -324,7 +324,7 @@ async function loadDynamicDomainTools(tools: RegisteredTool[]): Promise<void> {
 
   // Benchmark
   try {
-    const bm = await import('../benchmark/index.js');
+    const bm = await import('@upup/benchmark/index');
     tools.push({ name: 'list_benchmarks', tool: bm.createListBenchmarksTool(), description: bm.LIST_BENCHMARKS_DESCRIPTION, compactDescription: 'List available market benchmarks (SPX, CSI300, NDX)', concurrencySafe: true });
     tools.push({ name: 'compare_to_benchmark', tool: bm.createCompareBenchmarkTool(), description: bm.COMPARE_BENCHMARK_DESCRIPTION, compactDescription: 'Compare portfolio return vs benchmarks for alpha', concurrencySafe: true });
     tools.push({ name: 'calculate_alpha', tool: bm.createCalculateAlphaTool(), description: bm.CALCULATE_ALPHA_DESCRIPTION, compactDescription: 'Calculate portfolio alpha vs a benchmark', concurrencySafe: true });
@@ -332,7 +332,7 @@ async function loadDynamicDomainTools(tools: RegisteredTool[]): Promise<void> {
 
   // FX Currency
   try {
-    const fx = await import('../fx/index.js');
+    const fx = await import('@upup/fx/index');
     tools.push({ name: 'convert_currency', tool: fx.createConvertCurrencyTool(), description: fx.CONVERT_CURRENCY_DESCRIPTION, compactDescription: 'Convert between currencies (USD/CNY/HKD/EUR/GBP)', concurrencySafe: true });
     tools.push({ name: 'list_currencies', tool: fx.createListCurrenciesTool(), description: fx.LIST_CURRENCIES_DESCRIPTION, compactDescription: 'List supported currencies for conversion', concurrencySafe: true });
     tools.push({ name: 'get_exchange_rate', tool: fx.createGetRateTool(), description: fx.GET_EXCHANGE_RATE_DESCRIPTION, compactDescription: 'Get current exchange rate between two currencies', concurrencySafe: true });
@@ -340,7 +340,7 @@ async function loadDynamicDomainTools(tools: RegisteredTool[]): Promise<void> {
 
   // Multi-Portfolio
   try {
-    const mp = await import('../portfolio/multi-portfolio.js');
+    const mp = await import('@upup/portfolio/multi-portfolio');
     const mpTools = mp.multiPortfolioTools;
     for (const pt of mpTools) {
       if (!pt?.name) continue;
@@ -359,7 +359,7 @@ async function loadDynamicDomainTools(tools: RegisteredTool[]): Promise<void> {
 
   // Calendar
   try {
-    const cal = await import('../calendar/index.js');
+    const cal = await import('@upup/calendar/index');
     tools.push({ name: 'check_trading_day', tool: cal.createCheckTradingDayTool(), description: cal.CHECK_TRADING_DAY_DESCRIPTION, compactDescription: 'Check if a date is a trading day for US/China/HK markets', concurrencySafe: true });
     tools.push({ name: 'get_upcoming_holidays', tool: cal.createGetUpcomingHolidaysTool(), description: cal.GET_UPCOMING_HOLIDAYS_DESCRIPTION, compactDescription: 'Get upcoming market holidays for US/China/HK', concurrencySafe: true });
     tools.push({ name: 'get_next_trading_day', tool: cal.createGetNextTradingDayTool(), description: cal.GET_NEXT_TRADING_DAY_DESCRIPTION, compactDescription: 'Find next trading day after a given date', concurrencySafe: true });
@@ -368,7 +368,7 @@ async function loadDynamicDomainTools(tools: RegisteredTool[]): Promise<void> {
 
   // Short Interest
   try {
-    const si = await import('../short-interest/index.js');
+    const si = await import('@upup/short-interest/index');
     tools.push({ name: 'get_short_interest', tool: si.createGetShortInterestTool(), description: si.GET_SHORT_INTEREST_DESCRIPTION, compactDescription: 'Get short interest data and squeeze risk analysis', concurrencySafe: true });
     tools.push({ name: 'calculate_short_interest_ratio', tool: si.createCalculateShortInterestRatioTool(), description: si.CALCULATE_SHORT_INTEREST_RATIO_DESCRIPTION, compactDescription: 'Calculate position squeeze risk from short interest', concurrencySafe: true });
     tools.push({ name: 'detect_short_squeeze', tool: si.createDetectShortSqueezeTool(), description: si.DETECT_SHORT_SQUEEZE_DESCRIPTION, compactDescription: 'Screen stocks for short squeeze potential', concurrencySafe: true });
@@ -376,7 +376,7 @@ async function loadDynamicDomainTools(tools: RegisteredTool[]): Promise<void> {
 
   // Backtest
   try {
-    const bt = await import('../backtest/index.js');
+    const bt = await import('@upup/backtest/index');
     tools.push({ name: 'evaluate_trade', tool: bt.createEvaluateTradeTool(), description: bt.EVALUATE_TRADE_DESCRIPTION, compactDescription: 'Evaluate single historical trade against forward price data', concurrencySafe: true });
     tools.push({ name: 'run_backtest', tool: bt.createRunBacktestTool(), description: bt.RUN_BACKTEST_DESCRIPTION, compactDescription: 'Run batch backtest on multiple historical trades', concurrencySafe: true });
     tools.push({ name: 'get_backtest_summary', tool: bt.createGetBacktestSummaryTool(), description: bt.GET_BACKTEST_SUMMARY_DESCRIPTION, compactDescription: 'Get guidance on backtest summary metrics interpretation', concurrencySafe: true });
@@ -385,7 +385,7 @@ async function loadDynamicDomainTools(tools: RegisteredTool[]): Promise<void> {
 
   // Cache
   try {
-    const cache = await import('../cache/index.js');
+    const cache = await import('@upup/cache/index');
     tools.push({ name: 'get_cache_stats', tool: cache.createGetCacheStatsTool(), description: cache.GET_CACHE_STATS_DESCRIPTION, compactDescription: 'Get market data cache statistics', concurrencySafe: true });
     tools.push({ name: 'clear_cache', tool: cache.createClearCacheTool(), description: cache.CLEAR_CACHE_DESCRIPTION, compactDescription: 'Clear the market data cache', concurrencySafe: true });
     tools.push({ name: 'invalidate_cache', tool: cache.createInvalidateCacheTool(), description: cache.INVALIDATE_CACHE_DESCRIPTION, compactDescription: 'Invalidate specific cache entries by prefix', concurrencySafe: true });

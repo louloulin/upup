@@ -270,7 +270,7 @@ export class EnhancedVerifier {
    */
   private async verifySkillEnhancements(): Promise<void> {
     try {
-      const { getAllSpecializedSkills } = await import('../skills/bundled/index.js');
+      const { getAllSpecializedSkills } = await import('@upup/skills/bundled/index');
       const skills = getAllSpecializedSkills();
       const enhancedCount = skills.filter(s => 
         (s as any).agent || (s as any).context || (s as any).aliases
@@ -296,7 +296,7 @@ export class EnhancedVerifier {
    */
   private async verifyInvestmentCoreSkills(): Promise<void> {
     try {
-      const { getAllSpecializedSkills } = await import('../skills/bundled/index.js');
+      const { getAllSpecializedSkills } = await import('@upup/skills/bundled/index');
       const skills = getAllSpecializedSkills();
       const investmentSkills = skills.filter(s => 
         ['sandbox', 'portfolio', 'alert'].includes(s.name.toLowerCase())

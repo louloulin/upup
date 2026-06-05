@@ -69,7 +69,7 @@ export async function run(opts: RunOptions): Promise<CodeMapReport | null> {
   // 失败时视为 always-on(CLI 场景)
   let isFeatureCompiledIn: ((name: string) => boolean) | null = null;
   try {
-    const mod = await import('../agent/feature-gates.js');
+    const mod = await import('@upup/agent/feature-gates');
     isFeatureCompiledIn = mod.isFeatureCompiledIn;
   } catch { /* fallback: 视为 enabled */ }
   if (isFeatureCompiledIn && !isFeatureCompiledIn('CODE_ARCHAEOLOGY')) {

@@ -534,7 +534,7 @@ const sandboxCommand: Command = {
     let sandboxInfo: { mode: string; enabled: boolean; autoAllow: boolean; additionalDirs: string[] } | null = null;
 
     try {
-      const { getSandboxManager } = await import('../../../src/tools/filesystem/sandbox-manager.js');
+      const { getSandboxManager } = await import('@upup/src/tools/filesystem/sandbox-manager');
       const manager = getSandboxManager();
       sandboxInfo = {
         mode: manager.getMode(),
@@ -593,7 +593,7 @@ const sandboxCommand: Command = {
     // Handle dependency check
     if (subcommand === 'check') {
       try {
-        const { checkSandboxDependencies } = await import('../../../src/tools/filesystem/sandbox-dependencies.js');
+        const { checkSandboxDependencies } = await import('@upup/src/tools/filesystem/sandbox-dependencies');
         const check = await checkSandboxDependencies();
 
         const lines = [
@@ -755,7 +755,7 @@ const agentCommand: Command = {
   async execute(_args): Promise<CommandResult> {
     // Dynamic import to avoid circular dependency
     try {
-      const { getDefaultSubagentRunner } = await import('../agent/subagent-runner.js');
+      const { getDefaultSubagentRunner } = await import('@upup/agent/subagent-runner');
       const runner = getDefaultSubagentRunner();
       const tasks = runner.getAllTasks();
 
@@ -781,7 +781,7 @@ const teamCommand: Command = {
   usage: '/team',
   async execute(): Promise<CommandResult> {
     try {
-      const mod = await import('../tools/team-tools.js');
+      const mod = await import('@upup/tools/team-tools');
       // Team store is internal — provide basic info
       return { type: 'output', text: 'Team management available via team_create/team_list tools.' };
     } catch {
@@ -918,7 +918,7 @@ const doctorCommand: Command = {
 
     // Memory
     try {
-      const { agentMemoryStore } = await import('../agent/subagent/types.js');
+      const { agentMemoryStore } = await import('@upup/agent/subagent/types');
       const count = agentMemoryStore.getContext('system').length;
       lines.push(`Memory: ${count > 0 ? `${count} context(s)` : '✓ available'}`);
     } catch {
@@ -927,7 +927,7 @@ const doctorCommand: Command = {
 
     // MCP
     try {
-      const { getDefaultMCPClient } = await import('../mcp/client.js');
+      const { getDefaultMCPClient } = await import('@upup/mcp/client');
       const client = getDefaultMCPClient();
       lines.push(`MCP: client available`);
     } catch {
@@ -943,7 +943,7 @@ const costCommand: Command = {
   description: 'Token usage and cost breakdown',
   async execute(_args, context): Promise<CommandResult> {
     try {
-      const { getAppState, calculateTokenCost, formatCost, formatTokens } = await import('../state/index.js');
+      const { getAppState, calculateTokenCost, formatCost, formatTokens } = await import('@upup/state/index');
       const appState = getAppState();
       const state = appState.getState();
 
@@ -985,7 +985,7 @@ const tasksCommand: Command = {
   description: 'List background agent tasks, or stop a task with /tasks stop <id>',
   async execute(args, _context): Promise<CommandResult> {
     try {
-      const { getDefaultSubagentRunner } = await import('../agent/subagent-runner.js');
+      const { getDefaultSubagentRunner } = await import('@upup/agent/subagent-runner');
       const runner = getDefaultSubagentRunner();
 
       // /tasks stop <id>
@@ -1028,7 +1028,7 @@ const jobsCommand: Command = {
 
       if (sub === 'history') {
         // Show completed/failed jobs from supervisor
-        const { getDefaultSupervisor } = await import('../daemon/supervisor.js');
+        const { getDefaultSupervisor } = await import('@upup/daemon/supervisor');
         const supervisor = getDefaultSupervisor();
         const stats = supervisor.getStats();
         const lines: string[] = [];
@@ -1042,8 +1042,8 @@ const jobsCommand: Command = {
       }
 
       // Default: show current status
-      const { getDefaultSupervisor } = await import('../daemon/supervisor.js');
-      const { getWorkerPool } = await import('../daemon/worker-pool.js');
+      const { getDefaultSupervisor } = await import('@upup/daemon/supervisor');
+      const { getWorkerPool } = await import('@upup/daemon/worker-pool');
 
       const supervisor = getDefaultSupervisor();
       const pool = getWorkerPool();
@@ -1080,7 +1080,7 @@ const mcpCommand: Command = {
   description: 'MCP server management — status, list, resources, connect, disconnect',
   async execute(args, _context): Promise<CommandResult> {
     try {
-      const { getDefaultMCPClient } = await import('../mcp/client.js');
+      const { getDefaultMCPClient } = await import('@upup/mcp/client');
       const client = getDefaultMCPClient();
       const sub = args.trim().split(/\s+/)[0] || 'status';
 
@@ -1179,7 +1179,7 @@ const permissionsCommand: Command = {
   aliases: ['perms'],
   async execute(_args, _context): Promise<CommandResult> {
     try {
-      const { getPermissionChecker } = await import('../hooks/permission-hooks.js');
+      const { getPermissionChecker } = await import('@upup/hooks/permission-hooks');
       const checker = getPermissionChecker();
       return { type: 'output', text: 'Permission system active. Use /reset-permissions to reset.' };
     } catch {
@@ -1211,7 +1211,7 @@ const resetPermissionsCommand: Command = {
   description: 'Reset all permission rules to defaults',
   async execute(_args, _context): Promise<CommandResult> {
     try {
-      const { resetPermissionChecker } = await import('../hooks/permission-hooks.js');
+      const { resetPermissionChecker } = await import('@upup/hooks/permission-hooks');
       resetPermissionChecker();
       return { type: 'output', text: 'Permissions reset to defaults.' };
     } catch {

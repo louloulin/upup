@@ -242,7 +242,7 @@ export async function buildSystemPrompt(
   memoryContext?: string | null,
   rulesContent?: string | null,
 ): Promise<string> {
-  const { buildCompactToolDescriptions } = await import('../tools/registry/index.js');
+  const { buildCompactToolDescriptions } = await import('@upup/tools/registry/index');
   const toolDescriptions = await buildCompactToolDescriptions(model);
   const { buildInvestmentCapabilitiesSection } = await import('./capability-manifest.js');
   const investmentCapabilities = await buildInvestmentCapabilitiesSection();

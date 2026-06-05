@@ -245,7 +245,7 @@ export class AppScriptVerifier {
   
   private async verifySkillSystem(): Promise<void> {
     try {
-      const { getAllSpecializedSkills } = await import('../skills/bundled/index.js');
+      const { getAllSpecializedSkills } = await import('@upup/skills/bundled/index');
       const skills = getAllSpecializedSkills();
       
       this.addResult('Skill系统加载', skills.length > 0, 
@@ -257,7 +257,7 @@ export class AppScriptVerifier {
   
   private async verifyEnhancedSkills(): Promise<void> {
     try {
-      const { getAllSpecializedSkills } = await import('../skills/bundled/index.js');
+      const { getAllSpecializedSkills } = await import('@upup/skills/bundled/index');
       const skills = getAllSpecializedSkills();
       const enhanced = skills.filter((s: any) => s.agent && s.aliases && s.context);
       
@@ -270,7 +270,7 @@ export class AppScriptVerifier {
   
   private async verifyInvestmentSkills(): Promise<void> {
     try {
-      const { getPhase3Skills, getPhase4Skills } = await import('../skills/bundled/index.js');
+      const { getPhase3Skills, getPhase4Skills } = await import('@upup/skills/bundled/index');
       const phase3 = getPhase3Skills();
       const phase4 = getPhase4Skills();
       

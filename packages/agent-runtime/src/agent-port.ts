@@ -2,7 +2,7 @@
  * Agent Public Port Registry
  *
  * High-cohesion boundary between src/agent/ and packages/commands/.
- * Replaces fragile 4-level `await import('../../../../src/agent/...')`
+ * Replaces fragile 4-level `await import('@upup/src/agent/...')`
  * patterns with a global registry populated at startup.
  *
  * Rules:

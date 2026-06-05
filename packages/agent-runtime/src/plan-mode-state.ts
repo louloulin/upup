@@ -177,7 +177,7 @@ export function resetPlanModeState(): void {
 // Self-registration with public port registry
 // ============================================================================
 // Allow packages/commands/ (and any cross-package consumer) to read plan-mode
-// state without a fragile 4-level `await import('../../../../src/agent/...')`
+// state without a fragile 4-level `await import('@upup/src/agent/...')`
 // path. Registration is a one-time side effect of importing this module.
 import { registerPlanModePort, type PlanModePort } from './agent-port.js';
 

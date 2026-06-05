@@ -4,18 +4,18 @@
 
 import type { RegisteredTool } from './types.js';
 import { financialReadMetadata } from './types.js';
-import { createGetFinancials, createGetMarketData, createReadFilings, createScreenStocks } from '@upup/./finance/index';
-import { GET_FINANCIALS_DESCRIPTION } from '@upup/./finance/get-financials';
-import { GET_MARKET_DATA_DESCRIPTION } from '@upup/./finance/get-market-data';
-import { READ_FILINGS_DESCRIPTION } from '@upup/./finance/read-filings';
-import { SCREEN_STOCKS_DESCRIPTION } from '@upup/./finance/screen-stocks';
-import { getAStockPrice, GET_ASTOCK_PRICE_DESCRIPTION } from '@upup/./astock/get-astock-price';
-import { getAStockFinancials, GET_ASTOCK_FINANCIALS_DESCRIPTION } from '@upup/./astock/get-astock-financials';
-import { getAStockNews, GET_ASTOCK_NEWS_DESCRIPTION } from '@upup/./astock/get-astock-news';
-import { screenAstocks, SCREEN_ASTOCKS_DESCRIPTION } from '@upup/./astock/screen-astocks';
-import { getSectorData, GET_SECTOR_DATA_DESCRIPTION } from '@upup/./astock/get-sector-data';
-import { getTechnicalData, GET_TECHNICAL_DATA_DESCRIPTION } from '@upup/./astock/get-technical-data';
-import { getMarketStructure, GET_MARKET_STRUCTURE_DESCRIPTION } from '@upup/./astock/get-market-structure';
+import { createGetFinancials, createGetMarketData, createReadFilings, createScreenStocks } from ('@upup/./finance/index');
+import { GET_FINANCIALS_DESCRIPTION } from ('@upup/./finance/get-financials');
+import { GET_MARKET_DATA_DESCRIPTION } from ('@upup/./finance/get-market-data');
+import { READ_FILINGS_DESCRIPTION } from ('@upup/./finance/read-filings');
+import { SCREEN_STOCKS_DESCRIPTION } from ('@upup/./finance/screen-stocks');
+import { getAStockPrice, GET_ASTOCK_PRICE_DESCRIPTION } from ('@upup/./astock/get-astock-price');
+import { getAStockFinancials, GET_ASTOCK_FINANCIALS_DESCRIPTION } from ('@upup/./astock/get-astock-financials');
+import { getAStockNews, GET_ASTOCK_NEWS_DESCRIPTION } from ('@upup/./astock/get-astock-news');
+import { screenAstocks, SCREEN_ASTOCKS_DESCRIPTION } from ('@upup/./astock/screen-astocks');
+import { getSectorData, GET_SECTOR_DATA_DESCRIPTION } from ('@upup/./astock/get-sector-data');
+import { getTechnicalData, GET_TECHNICAL_DATA_DESCRIPTION } from ('@upup/./astock/get-technical-data');
+import { getMarketStructure, GET_MARKET_STRUCTURE_DESCRIPTION } from ('@upup/./astock/get-market-structure');
 
 export function loadFinanceTools(model: string): RegisteredTool[] {
   return [

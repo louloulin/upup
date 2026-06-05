@@ -198,7 +198,7 @@ export class SubagentRunner {
 
     // Bridge to TaskStore so subagent tasks appear in task_list/task_get
     try {
-      const { registerSubagentTask } = await import('../tools/task/task-tool.js');
+      const { registerSubagentTask } = await import('@upup/tools/task/task-tool');
       registerSubagentTask(taskId, config.type === 'fork' ? 'Fork sub-agent' : `Sub-agent: ${prompt.substring(0, 60)}`);
     } catch {
       // Non-critical bridge — don't fail if task-tool not available
@@ -525,7 +525,7 @@ export class SubagentRunner {
 
       // Bridge completion to TaskStore
       try {
-        const { updateSubagentTask } = await import('../tools/task/task-tool.js');
+        const { updateSubagentTask } = await import('@upup/tools/task/task-tool');
         updateSubagentTask(taskId, 'completed', subagentResult.output);
       } catch { /* non-critical */ }
     } catch (error) {
@@ -542,7 +542,7 @@ export class SubagentRunner {
 
       // Bridge failure to TaskStore
       try {
-        const { updateSubagentTask } = await import('../tools/task/task-tool.js');
+        const { updateSubagentTask } = await import('@upup/tools/task/task-tool');
         updateSubagentTask(taskId, 'failed', undefined, String(error));
       } catch { /* non-critical */ }
     } finally {
@@ -596,7 +596,7 @@ export function resetDefaultSubagentRunner(): void {
 // Self-registration with public port registry
 // ============================================================================
 // Allows packages/commands/ to access subagent capabilities without a fragile
-// 4-level `await import('../../../../src/agent/...')` path.
+// 4-level `await import('@upup/src/agent/...')` path.
 import { registerSubagentPort, type SubagentPort } from './agent-port.js';
 
 function registerSelf(): void {
