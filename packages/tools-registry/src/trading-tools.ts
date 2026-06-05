@@ -23,7 +23,7 @@ import {
   createGetTradingBalanceTool,
   createGetTradeQuoteTool,
   TRADING_DESCRIPTION,
-} from '@upup/tools-registry/index';
+} from './index';
 
 export function loadTradingTools(): RegisteredTool[] {
   const read = financialReadMetadata();

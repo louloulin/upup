@@ -4,9 +4,9 @@
 
 import type { RegisteredTool } from './types.js';
 import { networkMetadata } from './types.js';
-import { webFetchTool, WEB_FETCH_DESCRIPTION } from '@upup/tools-registry/web-fetch';
-import { browserTool, BROWSER_DESCRIPTION } from '@upup/tools-registry/browser';
-import { exaSearch, perplexitySearch, tavilySearch, WEB_SEARCH_DESCRIPTION, xSearchTool, X_SEARCH_DESCRIPTION } from '@upup/tools-registry/index';
+import { webFetchTool, WEB_FETCH_DESCRIPTION } from './web-fetch';
+import { browserTool, BROWSER_DESCRIPTION } from './browser';
+import { exaSearch, perplexitySearch, tavilySearch, WEB_SEARCH_DESCRIPTION, xSearchTool, X_SEARCH_DESCRIPTION } from './index';
 import { skillTool, SKILL_TOOL_DESCRIPTION } from '@upup/skill';
 import { discoverSkills } from '@upup/skills/index';
 

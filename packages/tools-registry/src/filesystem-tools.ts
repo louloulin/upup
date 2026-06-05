@@ -4,16 +4,16 @@
 
 import type { RegisteredTool } from './types.js';
 import { fileWriteMetadata, fileReadMetadata, memoryMetadata } from './types.js';
-import { readFileTool, READ_FILE_DESCRIPTION } from '@upup/tools-registry/read-file';
-import { writeFileTool, WRITE_FILE_DESCRIPTION } from '@upup/tools-registry/write-file';
-import { editFileTool, EDIT_FILE_DESCRIPTION } from '@upup/tools-registry/edit-file';
-import { globTool } from '@upup/tools-registry/glob';
-import { grepTool } from '@upup/tools-registry/grep';
-import { sendUserFileTool, SEND_USER_FILE_DESCRIPTION } from '@upup/tools-registry/send-user-file';
-import { heartbeatTool, HEARTBEAT_TOOL_DESCRIPTION } from '@upup/tools-registry/heartbeat-tool';
+import { readFileTool, READ_FILE_DESCRIPTION } from './read-file';
+import { writeFileTool, WRITE_FILE_DESCRIPTION } from './write-file';
+import { editFileTool, EDIT_FILE_DESCRIPTION } from './edit-file';
+import { globTool } from './glob';
+import { grepTool } from './grep';
+import { sendUserFileTool, SEND_USER_FILE_DESCRIPTION } from './send-user-file';
+import { heartbeatTool, HEARTBEAT_TOOL_DESCRIPTION } from './heartbeat-tool';
 import { cronTool, CRON_TOOL_DESCRIPTION } from '@upup/cron/cron-tool';
 import { memoryGetTool, MEMORY_GET_DESCRIPTION, memorySearchTool, MEMORY_SEARCH_DESCRIPTION, memoryUpdateTool, MEMORY_UPDATE_DESCRIPTION } from '@upup/memory-system/index';
-import { bashTool, BASH_TOOL_NAME } from '@upup/bash/index';
+import { bashTool, BASH_TOOL_NAME } from './bash/index';
 
 export function loadFilesystemTools(): RegisteredTool[] {
   return [

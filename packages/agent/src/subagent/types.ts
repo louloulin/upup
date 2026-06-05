@@ -15,14 +15,14 @@ import {
   SubagentRunner,
   getDefaultSubagentRunner,
   resetDefaultSubagentRunner,
-} from '@upup/subagent-runner';
+} from '@upup/agent-runtime/subagent-runner';
 import type {
   SubagentConfig,
   SubagentContext,
   SubagentResult,
   SubagentTask,
   SubagentTaskStatus,
-} from '@upup/subagent';
+} from '@upup/agent-runtime/subagent';
 import { info, warn } from '@upup/utils/logging/logger';
 import { randomUUID } from 'crypto';
 

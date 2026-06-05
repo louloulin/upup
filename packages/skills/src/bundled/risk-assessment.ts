@@ -5,7 +5,7 @@
  * Pattern: Dynamic prompt with portfolio risk context.
  */
 
-import { registerBundledSkill } from '@upup/skills/registry';
+import { registerBundledSkill } from '../registry';
 import { buildInvestmentPrompt, isMcpAvailable } from './prompt-helpers.js';
 
 const RISK_ASSESSMENT_BASE_PROMPT = `# 投资风险评估

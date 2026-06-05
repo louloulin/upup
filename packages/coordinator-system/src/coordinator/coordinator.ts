@@ -12,7 +12,7 @@
  * Workers are injected so tests can swap in synchronous fakes.
  */
 
-import type { EventBus } from '@upup/coordinator-system/core/event-bus';
+import type { EventBus } from '../core/event-bus';
 import {
   DEFAULT_WORKER_TEMPLATES,
   type CoordinatorDeps,

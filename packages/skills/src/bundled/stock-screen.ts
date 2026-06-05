@@ -5,7 +5,7 @@
  * Pattern: Dynamic prompt with MCP data access context.
  */
 
-import { registerBundledSkill } from '@upup/skills/registry';
+import { registerBundledSkill } from '../registry';
 import { buildInvestmentPrompt, isMcpAvailable } from './prompt-helpers.js';
 
 const STOCK_SCREEN_BASE_PROMPT = `# 选股筛选

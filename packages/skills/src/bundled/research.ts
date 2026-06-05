@@ -5,7 +5,7 @@
  * Pattern: Dynamic prompt with MCP context injection.
  */
 
-import { registerBundledSkill } from '@upup/skills/registry';
+import { registerBundledSkill } from '../registry';
 import { buildInvestmentPrompt, isMcpAvailable } from './prompt-helpers.js';
 
 const RESEARCH_BASE_PROMPT = `# 投资研究框架

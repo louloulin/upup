@@ -5,7 +5,7 @@
  * Pattern: Dynamic prompt with portfolio context injection.
  */
 
-import { registerBundledSkill } from '@upup/skills/registry';
+import { registerBundledSkill } from '../registry';
 import {
   buildInvestmentPrompt,
   hasPortfolioData,
