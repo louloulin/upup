@@ -43,5 +43,17 @@ export {
   type ProactiveConfig,
 } from "./types.js";
 
+export {
+  createEarningsTrigger,
+  daysUntil,
+  type EarningsTrigger,
+  type EarningsTriggerDeps,
+  type EarningsTriggerConfig,
+  type EarningsTriggerResult,
+  type EarningsUpcomingEvent,
+  type EarningsCalendarEntry,
+  type EarningsCalendarFetcher,
+} from "./earnings-trigger.js";
+
 export { _internal as _positionMonitorInternal } from "./position-monitor.js";
 export { _internal as _scannerInternal } from "./scanner.js";
