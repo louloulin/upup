@@ -21,6 +21,7 @@ import { DossierStore } from '../memory/dossier.js';
 import { AuditChain } from '../memory/audit-signing.js';
 import { CitationRegistry } from '../agent/citation.js';
 import { buildEarningsPreview, buildEarningsPreviewAsync, type EarningsPreview } from '../commands/investment/earnings-preview.js';
+import { StrategyStore, type StrategyRecord } from '../memory/strategy-store.js';
 
 // ---------------------------------------------------------------------------
 // URI parsing
@@ -28,7 +29,7 @@ import { buildEarningsPreview, buildEarningsPreviewAsync, type EarningsPreview }
 
 export const UPUP_SCHEME = 'upup:';
 
-export type UpupResourceKind = 'dossier' | 'audit' | 'citations' | 'earnings-preview';
+export type UpupResourceKind = 'dossier' | 'audit' | 'citations' | 'earnings-preview' | 'strategy' | 'strategy-list';
 
 export interface ParsedUpupUri {
   kind: UpupResourceKind;
@@ -40,7 +41,11 @@ export function parseUpupUri(uri: string): ParsedUpupUri | null {
   if (!uri.startsWith('upup://')) return null;
   const rest = uri.slice('upup://'.length);
   const slash = rest.indexOf('/');
-  if (slash < 0) return null;
+  if (slash < 0) {
+    // Id-less resources: `upup://strategy-list` (no path segment).
+    if (rest === 'strategy-list') return { kind: 'strategy-list', id: '' };
+    return null;
+  }
   const kind = rest.slice(0, slash);
   const id = rest.slice(slash + 1);
   if (!id) return null;
@@ -48,7 +53,9 @@ export function parseUpupUri(uri: string): ParsedUpupUri | null {
     kind !== 'dossier' &&
     kind !== 'audit' &&
     kind !== 'citations' &&
-    kind !== 'earnings-preview'
+    kind !== 'earnings-preview' &&
+    kind !== 'strategy' &&
+    kind !== 'strategy-list'
   ) {
     return null;
   }
@@ -90,6 +97,18 @@ export function listUpupResourceTemplates(): UpupResourceDescriptor[] {
       uri: 'upup://earnings-preview/{ticker}',
       name: 'Earnings preview',
       description: 'Structured earnings preview (consensus, recent sell/buy-side tweets, 8-K transcript refs, plan framework, QoQ diff).',
+      mimeType: 'application/json',
+    },
+    {
+      uri: 'upup://strategy/{id}',
+      name: 'Strategy record (P2.a.4)',
+      description: 'A single versioned + signed strategy record by id (or name; latest version returned).',
+      mimeType: 'application/json',
+    },
+    {
+      uri: 'upup://strategy-list',
+      name: 'Strategy list (P2.a.4)',
+      description: 'All published strategies, grouped by name, with version chain integrity status.',
       mimeType: 'application/json',
     },
   ];
@@ -175,6 +194,13 @@ export function _clearEarningsCache(): void {
 export interface UpupReader {
   dossiers: DossierStore;
   audits: AuditChain;
+  /**
+   * Optional strategy store (Gap G5 / P2.a.4). When provided, the
+   * `upup://strategy/{id}` and `upup://strategy-list` resources become
+   * readable. Lazy default = inMemory StrategyStore so callers can
+   * omit this field for read-only resources.
+   */
+  strategies?: StrategyStore;
 }
 
 /**
@@ -212,6 +238,51 @@ export function readUpupResource(uri: string, reader: UpupReader): unknown {
       // We accept reader for API uniformity and future cache warming hooks.
       void reader;
       return readEarningsPreviewCached(parsed.id);
+    }
+    case 'strategy': {
+      // P2.a.4: external MCP clients (Claude.ai / Cursor) can read a single
+      // strategy record by id (or by name, in which case the latest version
+      // is returned). P2.a.4 also plans to expose `publish_strategy` /
+      // `fork_strategy` as MCP *tools*; those are deferred to a follow-up
+      // change because they require OAuth scope wiring + a write path.
+      const store = reader.strategies ?? new StrategyStore({ inMemory: true });
+      let rec: StrategyRecord | undefined = store.getById(parsed.id);
+      if (!rec) rec = store.getLatest(parsed.id);
+      if (!rec) {
+        throw new Error(`Strategy not found: ${parsed.id}`);
+      }
+      // Include chain integrity status so external callers can see whether
+      // the strategy has been tampered with.
+      const chainStatus = store.verifyChain();
+      return {
+        record: rec,
+        chainValid: chainStatus.valid,
+        chainBrokenAt: chainStatus.brokenAt?.id,
+        chainReason: chainStatus.reason,
+      };
+    }
+    case 'strategy-list': {
+      // P2.a.4: list endpoint — returns all strategy names with their latest
+      // version + methodology compliance status.
+      const store = reader.strategies ?? new StrategyStore({ inMemory: true });
+      const all = store.list();
+      const byName = new Map<string, StrategyRecord[]>();
+      for (const r of all) {
+        const arr = byName.get(r.name) ?? [];
+        arr.push(r);
+        byName.set(r.name, arr);
+      }
+      const items: Array<{ name: string; latestId: string; version: number; author: string; ts: number }> = [];
+      for (const [name, recs] of byName) {
+        const sorted = [...recs].sort((a, b) => a.version - b.version);
+        const latest = sorted[sorted.length - 1]!;
+        items.push({ name, latestId: latest.id, version: latest.version, author: latest.author, ts: latest.ts });
+      }
+      return {
+        total: items.length,
+        items,
+        chainValid: store.verifyChain().valid,
+      };
     }
   }
 }
