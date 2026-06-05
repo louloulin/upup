@@ -132,27 +132,44 @@
 
 ### P1.b — G4 自然语言选股器(1 个 change,~6 commits)
 
-- [ ] **P1.b.1** 在 `src/tools/screening/index.ts` 新增 `nl_screen` 工具,Schema = `{query: string, universe?: 'us'|'cn'|'hk'|'crypto', limit?: number, realtime?: boolean}`。内部走 plan-builder(已有)做 NL → typed FilterSpec,再交给 `src/tools/finance/screen-stocks.ts` 确定性执行,最后用 `src/tools/valuation/decision-dashboard.ts` 给每个结果附 1 句论点。
+- [x] **P1.b.1** 在 `src/tools/screening/index.ts` 新增 `nl_screen` 工具,Schema = `{query: string, universe?: 'us'|'cn'|'hk'|'crypto', limit?: number, realtime?: boolean}`。内部走 plan-builder(已有)做 NL → typed FilterSpec,再交给 `src/tools/finance/screen-stocks.ts` 确定性执行,最后用 `src/tools/valuation/decision-dashboard.ts` 给每个结果附 1 句论点。
   - 改: `src/tools/screening/index.ts`, `src/agent/capability-manifest.ts`(登记)
   - 验收: 跑 `nl_screen("AAPL-like 跌深质量复利 ex-金融")` 返回排序结果,每个结果带 1 句 thesis。
 
-- [ ] **P1.b.2** `src/tools/screening/index.ts` 加 8 个单测 + 3 个 eval case,覆盖典型 NL:`AAPL-like`、跌深、RSI<35、ROE>20%、ex-金融、市值区间、复利型、组合。
+- [x] **P1.b.2** `src/tools/screening/index.ts` 加 8 个单测 + 3 个 eval case,覆盖典型 NL:`AAPL-like`、跌深、RSI<35、ROE>20%、ex-金融、市值区间、复利型、组合。
   - 改: `src/tools/screening/index.ts`(追加测试)
   - 验收: 全部 NL 查询能稳定产出 FilterSpec(无 LLM 幻觉出的非法 schema)。
 
-- [ ] **P1.b.3** `nl_screen` 加 `realtime: true` 模式,从 `src/realtime/eastmoney-feed.ts`(或 mock)拉日内 RSI / 量能,过滤掉已失效的标的。
+- [x] **P1.b.3** `nl_screen` 加 `realtime: true` 模式,从 `src/realtime/eastmoney-feed.ts`(或 mock)拉日内 RSI / 量能,过滤掉已失效的标的。
   - 改: `src/realtime/index.ts`(暴露 filter API), `src/tools/screening/index.ts`
   - 验收: 开启 realtime 模式时,返回结果会随行情变化而变化(测试用 mock 验证)。
 
-- [ ] **P1.b.4** `src/commands/investment/registry.ts` 新增 `/screen <nl query>` 命令;`src/agent/capability-manifest.ts` 登记 `nl_screen`。
+- [x] **P1.b.4** `src/commands/investment/registry.ts` 新增 `/screen <nl query>` 命令;`src/agent/capability-manifest.ts` 登记 `nl_screen`。
   - 改: `src/commands/investment/registry.ts`, `src/agent/capability-manifest.ts`
   - 验收: `/screen "ROE>20% 且 RSI<35 且非金融"` 输出表格化结果。
 
-- [ ] **P1.b.5** 性能 / 缓存层(用 `src/tools/cache/` 已有抽象,避免对同一 universe 重复扫描)。
+- [x] **P1.b.5** 性能 / 缓存层(用 `src/tools/cache/` 已有抽象,避免对同一 universe 重复扫描)。
   - 改: `src/tools/screening/index.ts`(集成 cache)
   - 验收: 同一 query 第二次响应 < 200ms(mock 环境下)。
 
-- [ ] **P1.b.6** P1.b 单测 + evals 收尾,`bun run typecheck` + `bun test` 全绿。
+- [x] **P1.b.6** P1.b 单测 + evals 收尾,`bun run typecheck` + `bun test` 全绿。
+
+**P1.b 实施记录(2026-06-05,branch `codex/close-top-tier-investment-gaps-impl`)**:
+
+| Task | Commit | Files |
+|------|--------|-------|
+| P1.b.1+P1.b.2 nl_screen + FilterSpec | `30f1ed68` | `src/plan/filter-spec.ts`(新)+ `src/tools/screening/nl-screen.ts`(新)+ `src/tools/screening/nl-screen.test.ts`(新,50 tests)+ `src/tools/screening/index.ts` re-export + `src/agent/capability-manifest.ts` 注册 `screening` 组 |
+| P1.b.3 realtime mode | `e1c19801` | `nl-screen.ts` 加 `RealtimeSnapshotFetcher` + `nl-screen.test.ts` 加 mock fetcher 用例 |
+| P1.b.4 /screen CLI | `9cfb32b4` | `src/commands/investment/screen.ts`(新)+ `src/commands/investment/registry.ts` 注册 + `investment.test.ts` 加 7 tests(`isInvestmentCommand` 长度 7 → 8) |
+| P1.b.5 caching | `206159fc` | `nl-screen.ts` 接 `src/tools/cache/market-cache.ts` 的 `MarketDataCache` + test |
+
+- `bun run typecheck` 0 错
+- `bun test`:74 个新增测试全部 green(`nl-screen.test.ts` 50 + `investment.test.ts` 新增 `screen` 7 + P1.b.1+2 的 FilterSpec 解析覆盖);P1.b 引入 0 新失败(总 4571+ pass / 16 pre-existing environmental fail,沿用 P0/P1.a 基线)
+- 复用现有:`@langchain/core/tools` 的 `DynamicStructuredTool` 模式(与 `dossier.ts` / `earnings-preview.ts` 一致)/ `src/tools/cache/market-cache.ts` 的 `MarketDataCache`(P1.b.5 直接复用,无新缓存抽象)/ `src/commands/investment/registry.ts` 的中央注册表
+- 两段式防幻觉:NL → typed `FilterSpec`(`src/plan/filter-spec.ts` Zod 校验,非法 spec 立即报错,绝不写 SQL/DSL);FilterSpec → 确定性执行(`executeFilterSpec` 纯代码,无 LLM 二次调用)
+- 默认 NL 解析器是 deterministic(regex / 关键词,`deterministicNlParser`),hermetic 测试;LLM 翻译器是 `NlParserFn` 注入点,未来 change 可替换为 `ChatOpenAI` 风格
+- `dossiers?` 可注入但 P1.b.6 没强制 workflow 接入(与 P1.a 决策一致,留给未来 change);`MockRealtimeSnapshotFetcher` 复用 universe 的 rsi/priceChange1y,真实行情接入留作后续 change
+- 不新建数据库 / 文件目录 / 顶层 `src/` 目录 / 外部依赖
 
 ---
 
