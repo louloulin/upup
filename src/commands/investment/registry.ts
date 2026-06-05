@@ -22,6 +22,7 @@ import { runPortfolioReview } from './portfolio-review.js';
 import { runInvest } from './invest.js';
 import { runDossier } from './dossier.js';
 import { runScreen } from './screen.js';
+import { runStrategy } from './strategy.js';
 
 export type InvestmentCommandName =
   | 'morning-brief'
@@ -31,7 +32,8 @@ export type InvestmentCommandName =
   | 'watchlist-edit'
   | 'invest'
   | 'dossier'
-  | 'screen';
+  | 'screen'
+  | 'strategy';
 
 export type InvestmentCommandHandler = (args: string) => string | Promise<string>;
 
@@ -91,6 +93,12 @@ export const INVESTMENT_COMMANDS: ReadonlyArray<InvestmentCommandEntry> = [
     aliases: ['scr'],
     description: '自然语言选股: NL → FilterSpec → 排序结果 + 1 句论点 (/screen "PE<15 且 ROE>20%")',
     run: runScreen,
+  },
+  {
+    name: 'strategy',
+    aliases: ['strat'],
+    description: '策略市场: list / show / new / publish / fork / audit (/strategy list)',
+    run: runStrategy,
   },
 ];
 

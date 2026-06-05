@@ -199,11 +199,13 @@ describe('investment: registry', () => {
     expect(isInvestmentCommand('wl')).toBe(true);
     expect(isInvestmentCommand('dossier')).toBe(true);
     expect(isInvestmentCommand('doss')).toBe(true);
+    expect(isInvestmentCommand('strategy')).toBe(true);
+    expect(isInvestmentCommand('strat')).toBe(true);
     expect(isInvestmentCommand('status')).toBe(false);
     expect(isInvestmentCommand('unknown-cmd')).toBe(false);
 
-    expect(INVESTMENT_COMMANDS.length).toBe(8);  // 7 + /screen (P1.b.4)
-    // P1.b.4 adds /screen as a new top-level command with alias /scr.
+    expect(INVESTMENT_COMMANDS.length).toBe(9);  // 8 + /strategy (P2.a.5)
+    // P2.a.5 adds /strategy as a new top-level command with alias /strat.
   });
 
   test('runInvestmentCommand returns text for known, null for unknown', async () => {
