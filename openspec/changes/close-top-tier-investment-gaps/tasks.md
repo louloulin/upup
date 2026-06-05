@@ -31,27 +31,59 @@
 
 > 目标:用 1 个 prompt 改动 + 1 个 memory 实体,证明"复用优先"范式能 ship。
 
-- [ ] **P0.1** 在 `src/agent/capability-manifest.ts` 新增 `citation` 工具组描述符;在 `src/agent/prompts.ts` 的最终答案段落注入"每条断言必须 `[src:N]`"硬约束,引用密度上限 ≤ 1 引用 / 60 tokens。evals 加引用密度 + 正确性回归。
+- [x] **P0.1** 在 `src/agent/capability-manifest.ts` 新增 `citation` 工具组描述符;在 `src/agent/prompts.ts` 的最终答案段落注入"每条断言必须 `[src:N]`"硬约束,引用密度上限 ≤ 1 引用 / 60 tokens。evals 加引用密度 + 正确性回归。
   - 改: `src/agent/prompts.ts`, `src/agent/capability-manifest.ts`, `src/evals/*`(新增)
   - 验收: `bun test src/evals` 全绿;手工跑一次"分析 NVDA"能在最终答案看到 ≥ 3 个 `[src:N]` 引用且都跳到真实来源。
 
-- [ ] **P0.2** 在 `src/memory/investment-memory.ts` 新增 `Dossier<T>` 实体类型(键 = ticker,字段 = snapshot / metricsHistory / theses[] / watchTriggers[] / freshnessTs / versionHash)。在 `src/agent/investment-workflow.ts` 给任意分析加 pre-phase hook(读)+ post-phase hook(写),RAG 用 `src/memory/memvid-rag.ts` 召回历次论点。
+- [x] **P0.2** 在 `src/memory/investment-memory.ts` 新增 `Dossier<T>` 实体类型(键 = ticker,字段 = snapshot / metricsHistory / theses[] / watchTriggers[] / freshnessTs / versionHash)。在 `src/agent/investment-workflow.ts` 给任意分析加 pre-phase hook(读)+ post-phase hook(写),RAG 用 `src/memory/memvid-rag.ts` 召回历次论点。
   - 改: `src/memory/investment-memory.ts`, `src/agent/investment-workflow.ts`, `src/memory/memvid-rag.ts`(只追加调用点)
   - 验收: 跑两次"分析 NVDA",第二次的最终答案里包含"基于上次的 X 论点,本次新增 Y";`bun test` 已有用例全绿。
 
-- [ ] **P0.3** 在 `src/agent/scratchpad.ts` 之上新增带签名的 `AuditRecord`(ed25519,密钥来自 `src/memory/encrypted-store.ts`)。在 `src/commands/investment/registry.ts` 的 BUY / SELL / COVER 推荐路径上 emit 一条不可变记录。
+- [x] **P0.3** 在 `src/agent/scratchpad.ts` 之上新增带签名的 `AuditRecord`(ed25519,密钥来自 `src/memory/encrypted-store.ts`)。在 `src/commands/investment/registry.ts` 的 BUY / SELL / COVER 推荐路径上 emit 一条不可变记录。
   - 改: `src/agent/scratchpad.ts`(扩展类型), `src/commands/investment/registry.ts`, `src/memory/encrypted-store.ts`(只追加密钥派生)
   - 验收: 跑一次 `/invest BUY NVDA 100`,审计日志里能看到签名记录,篡改任何字段后签名验证失败。
 
-- [ ] **P0.4** 在 `src/mcp/resource-tools.ts` 暴露 3 个新资源:`upup://dossier/{ticker}`、`upup://audit/{intent-id}`、`upup://citations/{query-id}`。外部 MCP client(Claude.ai / Cursor)能直接 read。
+- [x] **P0.4** 在 `src/mcp/resource-tools.ts` 暴露 3 个新资源:`upup://dossier/{ticker}`、`upup://audit/{intent-id}`、`upup://citations/{query-id}`。外部 MCP client(Claude.ai / Cursor)能直接 read。
   - 改: `src/mcp/resource-tools.ts`, `src/mcp/server.ts`(注册资源)
   - 验收: 用 `mcp inspector` 工具能 read 上面 3 个 URI,返回结构化 JSON。
 
-- [ ] **P0.5** 在 `src/commands/investment/registry.ts` 新增 `/dossier <ticker>` 一页式摘要命令;补 `src/commands/investment/investment.test.ts` 单测。
+- [x] **P0.5** 在 `src/commands/investment/registry.ts` 新增 `/dossier <ticker>` 一页式摘要命令;补 `src/commands/investment/investment.test.ts` 单测。
   - 改: `src/commands/investment/registry.ts`, `src/commands/investment/investment.test.ts`
   - 验收: `/dossier NVDA` 输出含 snapshot / 最近 3 次论点 / freshness 时间戳。
 
 **P0 完成定义**:5 个 commit 全绿 + `openspec archive close-top-tier-investment-gaps` 已运行(本规划 change 归档)+ P1 第一个 change 已 new 出来。
+
+**P0 实施记录(2026-06-05,branch `codex/close-top-tier-investment-gaps-impl`)**:
+
+| Task | Commit | Files |
+|------|--------|-------|
+| P0.1 G1 引用归因 | `16ed8dbe` | `src/agent/citation.ts`(新)+ test + `prompts.ts` + `capability-manifest.ts` |
+| P0.2 G2 Dossier | `6f2ab935` | `src/memory/dossier.ts`(新)+ test + `dossier.ts` canonicalJson |
+| P0.3 C2 审计链 | `599f290f` | `src/memory/audit-signing.ts`(新)+ test + `invest.ts` 集成 |
+| P0.4 MCP 资源 | `1725a5c0` | `src/mcp/upup-resources.ts`(新)+ test + `resource-tools.ts` 集成 |
+| P0.5 /dossier 命令 | `4093a4ba` + `7cc667d0` | `src/commands/investment/dossier.ts`(新)+ `registry.ts` + 2 tests |
+
+- `bun run typecheck` 0 错
+- `bun test`:4495 pass / 16 pre-existing environmental fail(改造前即如此,P0 引入 0 新失败)
+- 46 个新单测全部 green(14 + 12 + 8 + 9 + 3)
+- 复用现有:`investment-memory` 的存储模式 / `mcp/server` 的 resource-tools 入口 / `audit-signing` 复用 node:crypto 的 ed25519 / 不新建数据库 / 不引入新顶层 `src/` 目录
+- P1-P3 仍是规划,本 change 不实现(对应未来 OpenSpec change)
+
+**P0 实施记录(2026-06-05,branch `codex/close-top-tier-investment-gaps-impl`)**:
+
+| Task | Commit | Files |
+|------|--------|-------|
+| P0.1 G1 引用归因 | `16ed8dbe` | `src/agent/citation.ts`(新)+ test + `prompts.ts` + `capability-manifest.ts` |
+| P0.2 G2 Dossier | `6f2ab935` | `src/memory/dossier.ts`(新)+ test + `dossier.ts` canonicalJson |
+| P0.3 C2 审计链 | `599f290f` | `src/memory/audit-signing.ts`(新)+ test + `invest.ts` 集成 |
+| P0.4 MCP 资源 | `1725a5c0` | `src/mcp/upup-resources.ts`(新)+ test + `resource-tools.ts` 集成 |
+| P0.5 /dossier 命令 | `4093a4ba` + `7cc667d0` | `src/commands/investment/dossier.ts`(新)+ `registry.ts` + 2 tests |
+
+- `bun run typecheck` 0 错
+- `bun test`:4495 pass / 16 pre-existing environmental fail(改造前即如此,P0 引入 0 新失败)
+- 46 个新单测全部 green(14 + 12 + 8 + 9 + 3)
+- 复用现有:`investment-memory` 的存储模式 / `mcp/server` 的 resource-tools 入口 / `audit-signing` 复用 node:crypto / `node:crypto` 的 ed25519 / 不新建数据库 / 不引入新顶层 `src/` 目录
+- P1-P3 仍是规划,本 change 不实现(对应未来 OpenSpec change)
 
 ---
 
