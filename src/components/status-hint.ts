@@ -6,9 +6,12 @@
  * editor.setAutocompleteProvider in cli.ts).
  *
  * Spec: openspec/changes/simplify-cmd-autocomplete-pi-tui/specs/slash-command-autocomplete/spec.md
+ *
+ * i18n: 所有用户可见的字符串走 t() (Gap C1 / P3.a.3)。
  */
 
 import { Text } from '@earendil-works/pi-tui';
+import { t } from '../i18n/index.js';
 
 export interface StatusHintState {
   isProcessing: boolean;
@@ -32,26 +35,26 @@ export class StatusHintComponent {
     const left: string[] = [];
     const right: string[] = [];
 
-    if (state.escPendingClear) right.push('esc again to clear');
-    else if (state.escPendingExit) right.push('esc again to exit');
-    else if (state.isProcessing) right.push('esc to stop');
+    if (state.escPendingClear) right.push(t('hint.esc_clear'));
+    else if (state.escPendingExit) right.push(t('hint.esc_exit'));
+    else if (state.isProcessing) right.push(t('hint.esc_stop'));
 
     if (state.isProcessing) {
-      const q = state.queueLength > 0 ? ` · ${state.queueLength} queued` : '';
-      left.push(`\u23F3 processing${q}`);
+      const q = state.queueLength > 0 ? ` · ${state.queueLength} ${t('hint.queued')}` : '';
+      left.push(`⏳ ${t('hint.processing')}${q}`);
     } else if (state.hasPendingApproval) {
-      left.push('\u2191\u2193 navigate \u00B7 Enter to confirm \u00B7 esc to deny');
+      left.push(t('hint.navigate_enter'));
     } else if (state.hasInput) {
-      left.push('Enter to send \u00B7 esc to cancel');
+      left.push(t('hint.enter_send'));
     } else {
-      left.push('/ for commands');
+      left.push(t('hint.slash_commands'));
     }
 
     const permBadge = state.permissionModeLabel && state.permissionModeLabel !== ''
-      ? `${state.permissionModeLabel} \u00B7 `
+      ? `${state.permissionModeLabel} · `
       : '';
 
-    this.text.setText(permBadge + left.join(' \u00B7 ') + '   ' + right.join(' \u00B7 '));
+    this.text.setText(permBadge + left.join(' · ') + '   ' + right.join(' · '));
   }
 
   render(width: number): string[] {

@@ -83,6 +83,7 @@ describe('i18n symmetry (P3.a.4 / P3.a.5)', () => {
     const allKeys: StringKey[] = [
       'intro.welcome', 'intro.subtitle',
       'hint.esc_stop', 'hint.esc_clear', 'hint.esc_exit', 'hint.queued',
+      'hint.processing', 'hint.navigate_enter', 'hint.enter_send', 'hint.slash_commands',
       'prompt.identity', 'prompt.behavior_accuracy', 'prompt.tone',
       'prompt.keep_brief', 'prompt.citation_density', 'prompt.no_markdown_italics',
       'status.portfolio_prefix', 'status.watchlist_prefix', 'status.decision_prefix',

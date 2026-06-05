@@ -28,6 +28,10 @@ export type StringKey =
   | 'hint.esc_clear'
   | 'hint.esc_exit'
   | 'hint.queued'
+  | 'hint.processing'
+  | 'hint.navigate_enter'
+  | 'hint.enter_send'
+  | 'hint.slash_commands'
   // prompts.ts — identity + behavior rules
   | 'prompt.identity'
   | 'prompt.behavior_accuracy'
@@ -55,6 +59,10 @@ export const STRINGS: Record<Locale, Record<StringKey, string>> = {
     'hint.esc_clear': 'esc again to clear',
     'hint.esc_exit': 'esc again to exit',
     'hint.queued': 'queued',
+    'hint.processing': 'processing',
+    'hint.navigate_enter': 'navigate · Enter to confirm · esc to deny',
+    'hint.enter_send': 'Enter to send · esc to cancel',
+    'hint.slash_commands': '/ for commands',
     'prompt.identity': 'You are UpUp, a helpful AI assistant.',
     'prompt.behavior_accuracy': 'Prioritize accuracy over validation',
     'prompt.tone': 'Use professional, objective tone',
@@ -77,6 +85,10 @@ export const STRINGS: Record<Locale, Record<StringKey, string>> = {
     'hint.esc_clear': '再次按 esc 清屏',
     'hint.esc_exit': '再次按 esc 退出',
     'hint.queued': '排队中',
+    'hint.processing': '处理中',
+    'hint.navigate_enter': '上下键选择 · Enter 确认 · esc 拒绝',
+    'hint.enter_send': 'Enter 发送 · esc 取消',
+    'hint.slash_commands': '输入 / 触发命令',
     'prompt.identity': '你是 UpUp, 一位乐于助人的 AI 助手。',
     'prompt.behavior_accuracy': '优先保证准确性, 而非取悦用户',
     'prompt.tone': '使用专业、客观的语气',
