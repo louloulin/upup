@@ -2,12 +2,12 @@ workflow: full
 phase: verify
 build_mode: direct
 isolation: branch
-verify_mode: null
+verify_mode: full
 base_ref: 2ce84675a8be44a868d20863a067c648447d1ad5
 design_doc: docs/superpowers/specs/2026-06-05-close-top-tier-investment-gaps-design.md
 plan: docs/superpowers/plans/2026-06-06-close-top-tier-investment-gaps-p3.md
 verify_result: pending
-verification_report: null
+verification_report: docs/superpowers/reports/2026-06-06-close-top-tier-investment-gaps-verify.md
 branch_status: pending
 created_at: 2026-06-05
 verified_at: null
