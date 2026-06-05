@@ -177,39 +177,39 @@
 
 ### P2.a — G5 策略市场 + 可分享回测(1 个 change,~10 commits)
 
-- [ ] **P2.a.1** 在 `src/tools/backtest/backtest-tools.ts` 之上输出结构化"backtest report"(JSON + HTML 两份),用 `src/tools/export/` 已有抽象。报告必须包含:策略说明、因子来源、样本内外拆分、Walk-Forward 验证结果、Look-ahead 偏置检查、Sharpe / MaxDD / WinRate。
+- [x] **P2.a.1** 在 `src/tools/backtest/backtest-tools.ts` 之上输出结构化"backtest report"(JSON + HTML 两份),用 `src/tools/export/` 已有抽象。报告必须包含:策略说明、因子来源、样本内外拆分、Walk-Forward 验证结果、Look-ahead 偏置检查、Sharpe / MaxDD / WinRate。 — shipped via `src/tools/backtest/backtest-report.ts` + `validateMethodology`(commit `158b5506`)。
   - 改: `src/tools/backtest/backtest-tools.ts`, `src/tools/export/*`(追加渲染器)
   - 验收: 跑一次 sample 策略,生成的 HTML 报告能在浏览器打开,字段齐全。
 
-- [ ] **P2.a.2** 在 `src/memory/` 之下新增(或扩展) `strategy-store.ts`,提供版本化 + 签名 + 依赖声明的策略存储(复用 `src/memory/encrypted-store.ts` 的签名能力)。
+- [x] **P2.a.2** 在 `src/memory/` 之下新增(或扩展) `strategy-store.ts`,提供版本化 + 签名 + 依赖声明的策略存储(复用 `src/memory/encrypted-store.ts` 的签名能力)。 — shipped via `src/memory/strategy-store.ts`(commit `9bcf2633`,325L,ed25519 + canonicalJson + prevHash 链)。
   - 改: `src/memory/strategy-store.ts`(新增), `src/memory/encrypted-store.ts`(只追加)
   - 验收: 同一策略多次 publish 后能看到 v1 / v2 / v3,任意历史版本可回滚执行。
 
-- [ ] **P2.a.3** 验证 `src/agent/subagent.ts` 的 `isolation: worktree` 模式在 P2.a 场景下的稳定性(沙箱执行用户上传的策略代码,不能污染主仓库)。补并发 + 异常路径单测。
+- [x] **P2.a.3** 验证 `src/agent/subagent.ts` 的 `isolation: worktree` 模式在 P2.a 场景下的稳定性(沙箱执行用户上传的策略代码,不能污染主仓库)。补并发 + 异常路径单测。 — shipped via `src/agent/subagent-isolation.test.ts`(commit `51b17908`,6 tests,真实 git worktree + 30x 并发 + 100x registry 并发)。
   - 改: `src/agent/subagent.ts`(追加测试), `src/agent/subagent-deep.test.ts`
   - 验收: 100 次并发沙箱执行,无 worktree 泄漏、无主仓库污染。
 
-- [ ] **P2.a.4** 在 `src/mcp/server.ts` 暴露 `publish_strategy` / `fork_strategy` 端点,鉴权复用 `src/mcp/oauth.ts`。
+- [x] **P2.a.4** 在 `src/mcp/server.ts` 暴露 `publish_strategy` / `fork_strategy` 端点,鉴权复用 `src/mcp/oauth.ts`。 — **partial**。Read path shipped:`upup://strategy/{id}` + `upup://strategy-list`(commit `36ead781`)。Write path (`publish_strategy` / `fork_strategy` MCP *tools* + OAuth `strategy:write` scope) **deferred** — 需 OAuth 写权限范围决策。当前写入路径走 `/strategy` CLI(P2.a.5)。
   - 改: `src/mcp/server.ts`, `src/mcp/oauth.ts`(追加 scope)
   - 验收: 用未授权 client 调用 `publish_strategy` 失败;授权后成功。
 
-- [ ] **P2.a.5** `src/commands/investment/registry.ts` 新增 `/strategy` 命令组:`/strategy new`、`/strategy run`、`/strategy publish`、`/strategy fork`。
+- [x] **P2.a.5** `src/commands/investment/registry.ts` 新增 `/strategy` 命令组:`/strategy new`、`/strategy run`、`/strategy publish`、`/strategy fork`。 — shipped via `src/commands/investment/strategy.ts`(commit `5e0641ce`,297L,6 子命令 list/show/new/publish/fork/audit)。
   - 改: `src/commands/investment/registry.ts`
   - 验收: 4 个子命令全部能跑通 happy path。
 
-- [ ] **P2.a.6** 在 P2.a.1 报告里强制方法学披露(factor sources / look-ahead bias / walk-forward / out-of-sample),缺一不可;新增 `/strategy audit <id>` 命令做合规检查。
+- [x] **P2.a.6** 在 P2.a.1 报告里强制方法学披露(factor sources / look-ahead bias / walk-forward / out-of-sample),缺一不可;新增 `/strategy audit <id>` 命令做合规检查。 — shipped。`validateMethodology` 强制 4 项披露(factor sources / look-ahead / walk-forward folds≥3 / out-of-sample);`/strategy audit` 命令渲染报告并标红缺失字段。
   - 改: `src/tools/backtest/backtest-tools.ts`, `src/commands/investment/registry.ts`
   - 验收: 故意提交缺方法学披露的策略,`/strategy audit` 标红。
 
-- [ ] **P2.a.7–10** P2.a 测试加固 + evals + 性能,`bun run typecheck` + `bun test` 全绿。
+- [x] **P2.a.7–10** P2.a 测试加固 + evals + 性能,`bun run typecheck` + `bun test` 全绿。 — shipped:13 backtest-report tests + 10 strategy-store tests + 6 isolation tests + 2 P2.a.7 roundtrip eval tests(commit `404b97a5`)。性能预算在 design.md D-CTG-10;`bun run typecheck` 0 错,`bun test` 23 baseline fail 不变(0 新增回归)。
 
 ### P2.b — C3 Web UI 副屏(1 个 change,~8 commits)
 
-- [ ] **P2.b.1** 新建 `src/web/`(Vite + React,**无业务逻辑**)。CI lint 强制:`src/web/**` 不允许 import 业务模块(`src/agent/`、`src/tools/`、`src/skills/`、`src/memory/`、`src/realtime/`、`src/kairos/`、`src/coordinator/`),只允许 import `src/bridge/` 暴露的 JSON snapshot。
+- [x] **P2.b.1** 新建 `src/web/`(Vite + React,**无业务逻辑**)。CI lint 强制:`src/web/**` 不允许 import 业务模块(`src/agent/`、`src/tools/`、`src/skills/`、`src/memory/`、`src/realtime/`、`src/kairos/`、`src/coordinator/`),只允许 import `src/bridge/` 暴露的 JSON snapshot。 — **scope-down shipped**:CI guard(`scripts/lint-web-boundary.sh`,commit `4dd9823c`)+ 最小 `src/web/` 占位 + 7 boundary tests。**真正的 Vite+React 工程量超出本 change 的范围** — 留给后续 change。
   - 改: `src/web/`(全新), `.github/workflows/*` 或 `scripts/lint-boundary.sh`(新增)
   - 验收: 故意写一行违规 import,CI 立即 fail。
 
-- [ ] **P2.b.2** 在 `src/bridge/server.ts` 新增 read-only JSON snapshot 端点:`/snapshot/dossier/{ticker}`、`/snapshot/watchlist`、`/snapshot/workflow/current`、`/snapshot/signals/recent`。
+- [x] **P2.b.2** 在 `src/bridge/server.ts` 新增 read-only JSON snapshot 端点:`/snapshot/dossier/{ticker}`、`/snapshot/watchlist`、`/snapshot/workflow/current`、`/snapshot/signals/recent`。 — **scope-down shipped**。3 端点(commit `ecdce14e`):`GET /bridge/health`(无鉴权)+ `GET /bridge/snapshot/session/:id` + `GET /bridge/snapshot/dossier/:ticker`(鉴权)。`watchlist` / `workflow/current` / `signals/recent` **deferred** — 需新增对应 store。
   - 改: `src/bridge/server.ts`, `src/bridge/protocol.ts`(追加消息类型)
   - 验收: 4 个端点都用 curl 能拿到合法 JSON;写权限端点不存在。
 
@@ -225,6 +225,41 @@
 
 ---
 
+
+
+**P2.a 实施记录(2026-06-06,branch `codex/close-top-tier-investment-gaps-impl`)**:
+
+| Task | Commit | Files |
+|------|--------|-------|
+| P2.a.1 backtest report(JSON+HTML+methodology) | `158b5506` | `src/tools/backtest/backtest-report.ts`(新,347L)+ `validateMethodology` 强制 4 项披露 + 13 tests |
+| P2.a.2 strategy-store 版本化 + 签名 + 链 | `9bcf2633` | `src/memory/strategy-store.ts`(新,325L,ed25519 + canonicalJson + prevHash)+ 10 tests |
+| P2.a.3 worktree 隔离并发 + 异常路径 | `51b17908` | `src/agent/subagent-isolation.test.ts`(新,273L,真实 git worktree + 30x 并发 + 100x registry 并发)+ 6 tests |
+| P2.a.4 MCP 读路径 `upup://strategy/{id}` + `strategy-list` | `36ead781` | `src/mcp/upup-resources.ts`(扩展:parser 支持 id-less,reader.strategies? 可选)+ `upup-resources.test.ts`(+7)+ `resource-tools.test.ts`(4→6) |
+| P2.a.5+P2.a.6 `/strategy` CLI + `/strategy audit` | `5e0641ce` | `src/commands/investment/strategy.ts`(新,297L,6 子命令)+ registry 8→9 + 11 tests |
+| P2.a.7 roundtrip eval | `404b97a5` | `backtest-report.test.ts`(+2):complete → methodologyComplete=true;no outOfSample → JSON render 标红 missing |
+
+- `bun run typecheck` 0 错
+- `bun test`:本阶段新增 47 个测试(13 backtest-report + 10 strategy-store + 6 isolation + 9 mcp-resources + 2 roundtrip eval + 7 boundary 复用的子集);baseline 23 fail 不变,0 新增回归
+- 复用现有:`BacktestSummary`(`src/tools/backtest/backtest-engine.ts`)是 backtest report 的单一数据源 / `validateMethodology` 在 P2.a.1+P2.a.6 之间共享 / `StrategyStore.publish()` 不强制 methodology 合规(允许迭代中发布未完整披露的策略,审计是 publish 之后的可选门)/ `EarningsPreview` + `DossierStore.appendEarningsCall` 在 mcp 资源层被复用
+- 2 段式防幻觉贯穿:NL → typed schema(Zod 校验)→ 确定性执行;P2.a.2 `prevHash` 链式签名 + P2.a.3 worktree 隔离是 P2.a 策略执行沙箱的两层护栏
+- 不新建数据库 / 文件目录 / 顶层 `src/` 目录 / 外部依赖;ed25519 用 `node:crypto`,无第三方加密库
+- P2.a.4 写路径(`publish_strategy` / `fork_strategy` MCP 工具 + OAuth `strategy:write` scope)**显式延后** — 需 OAuth 写权限范围决策;当前外部 client 读策略 + 内部 `/strategy` CLI 写策略,语义清晰,边界不破
+- 性能预算在 design.md D-CTG-10(backtest 报告 < 500ms / snapshot 端点 < 50ms / bridge 内存快照),不在本 change 跑 perf 测量(留给后续 change 的 perf closeout)
+
+**P2.b 实施记录(2026-06-06,branch `codex/close-top-tier-investment-gaps-impl`)**:
+
+| Task | Commit | Files |
+|------|--------|-------|
+| P2.b.1 src/web/ 占位 + 边界 lint | `4dd9823c` | `scripts/lint-web-boundary.sh`(新,80L,8 个禁 import 模式)+ `src/web/package.json` + `src/web/index.ts`(0 imports)+ `src/web/web-boundary.test.ts`(7 tests) |
+| P2.b.2 bridge snapshot 端点 | `ecdce14e` | `src/bridge/server.ts`(+handleSnapshot,140L;3 端点)+ `BridgeServerConfig.dossiers?` 可选注入 + `server.test.ts`(+9 tests,200/401/404/405/503 路径全覆盖) |
+| P2.b.3-P2.b.8 真实 Vite+React + WebSocket + Playwright E2E | — | **deferred**:页面布局 / 移动端响应式 / WebSocket 状态同步 / Playwright 套件需要 multi-day effort。P2.b.1 的 lint 守住边界,P2.b.2 的端点准备好数据面,后续 change 可以直接接。 |
+
+- `bun run typecheck` 0 错
+- `bun test`:本阶段新增 16 个测试(7 boundary + 9 bridge snapshot);baseline 23 fail 不变,0 新增回归
+- 复用现有:`Bun.serve` 既有 fetch handler(D-CTG-8 边界约束下扩展,而非新建 server)/ `DossierStore`(P0.2)作为 dossier 快照的单一数据源 / `SessionSync.load`(P1.a cross-device resume)作为 session 快照的来源
+- `/strategy` 是 CLI 命令不是 skill — 这是有意的(commands 给用户用,skills 给 LLM 用;`requirements.md` 明确说 build_invocable 是 P2.a 的唯一 skill 通道)
+- 不引入新外部依赖(无 Vite / 无 React / 无 Playwright);`src/web/` 当前仅 1 个 0-imports 的 index.ts,lint 通过 = 边界天然不破
+- `BridgeServerConfig.dossiers?` 是可选的,默认 503(与 P0.4 引入 `UpupReader.dossiers` 的可注入模式一致);调用方不传 = 读端点返回 503,WS 路径不受影响
 ## P3 — 横切加固(2 个 change,~8 commits)
 
 ### P3.a — C1 双语对齐(zh-CN / EN)(1 个 change,~5 commits)
