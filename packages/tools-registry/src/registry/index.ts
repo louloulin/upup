@@ -10,33 +10,33 @@
 import type { StructuredToolInterface } from '@langchain/core/tools';
 
 // Re-export types from sub-module
-export type { ToolSafetyLevel, ToolCategory, ToolSideEffects, ToolConcurrencyMetadata, RegisteredTool } from '@upup/./types';
+export type { ToolSafetyLevel, ToolCategory, ToolSideEffects, ToolConcurrencyMetadata, RegisteredTool } from './types';
 export {
   financialReadMetadata, financialWriteMetadata,
   fileWriteMetadata, fileReadMetadata,
   computationMetadata, memoryMetadata,
   networkMetadata, systemMetadata,
-} from '@upup/./types';
+} from './types';
 
 // Import domain loaders
 import { loadFinanceTools } from './finance-tools.js';
-import { loadWebSearchTools } from '@upup/./web-search-tools';
+import { loadWebSearchTools } from './web-search-tools';
 import { loadFilesystemTools } from './filesystem-tools.js';
-import { loadMCPTools } from '@upup/./mcp-tools';
+import { loadMCPTools } from './mcp-tools';
 import { loadAgentPlanningTools } from './agent-planning-tools.js';
 import { loadQuantTools } from './quant-tools.js';
-import { loadDomainTools } from '@upup/./domain-tools';
-import { loadDuckDBTools } from '@upup/./duckdb-tools';
-import { loadInvestmentKnowledgeTools } from '@upup/./investment-knowledge-tools';
-import { loadTradingTools } from '@upup/./trading-tools';
-import { loadRealtimeTools } from '@upup/./realtime-tools';
-import { loadCoordinatorTools } from '@upup/./coordinator-tools';
-import { loadKairosTools } from '@upup/./kairos-tools';
-import { loadFundTools } from '@upup/./fund-tools';
-import { loadAltDataTools } from '@upup/./alt-data-tools';
-import { loadPortfolioTools } from '@upup/./portfolio-tools';
+import { loadDomainTools } from './domain-tools';
+import { loadDuckDBTools } from './duckdb-tools';
+import { loadInvestmentKnowledgeTools } from './investment-knowledge-tools';
+import { loadTradingTools } from './trading-tools';
+import { loadRealtimeTools } from './realtime-tools';
+import { loadCoordinatorTools } from './coordinator-tools';
+import { loadKairosTools } from './kairos-tools';
+import { loadFundTools } from './fund-tools';
+import { loadAltDataTools } from './alt-data-tools';
+import { loadPortfolioTools } from './portfolio-tools';
 
-import type { RegisteredTool } from '@upup/./types';
+import type { RegisteredTool } from './types';
 
 /**
  * Build the full tool registry by composing all domain loaders.

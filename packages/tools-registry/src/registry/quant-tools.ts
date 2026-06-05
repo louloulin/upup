@@ -3,8 +3,8 @@
  * portfolio optimization, data reliability, and correlation tools.
  */
 
-import type { RegisteredTool } from '@upup/./types';
-import { computationMetadata } from '@upup/./types';
+import type { RegisteredTool } from './types';
+import { computationMetadata } from './types';
 import {
   createCalculateVaRTool, CALCULATE_VAR_DESCRIPTION,
   createCalculateSharpeTool, CALCULATE_SHARPE_DESCRIPTION,

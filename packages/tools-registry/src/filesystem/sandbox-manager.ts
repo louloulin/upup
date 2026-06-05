@@ -4,8 +4,8 @@
  * Provides centralized access to sandbox settings and status.
  */
 
-import { loadSandboxConfig, type SandboxConfig, type SandboxMode } from '@upup/./sandbox-config';
-import { getSandboxRulesManager, type RuleScope } from '@upup/./sandbox-rules';
+import { loadSandboxConfig, type SandboxConfig, type SandboxMode } from './sandbox-config';
+import { getSandboxRulesManager, type RuleScope } from './sandbox-rules';
 import { logger } from '@upup/utils/logger';
 
 export class SandboxManager {

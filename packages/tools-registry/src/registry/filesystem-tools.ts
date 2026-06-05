@@ -2,8 +2,8 @@
  * Filesystem, heartbeat, cron, and memory tool registrations.
  */
 
-import type { RegisteredTool } from '@upup/./types';
-import { fileWriteMetadata, fileReadMetadata, memoryMetadata } from '@upup/./types';
+import type { RegisteredTool } from './types';
+import { fileWriteMetadata, fileReadMetadata, memoryMetadata } from './types';
 import { readFileTool, READ_FILE_DESCRIPTION } from '@upup/filesystem/read-file';
 import { writeFileTool, WRITE_FILE_DESCRIPTION } from '@upup/filesystem/write-file';
 import { editFileTool, EDIT_FILE_DESCRIPTION } from '@upup/filesystem/edit-file';

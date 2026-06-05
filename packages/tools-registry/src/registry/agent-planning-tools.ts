@@ -2,7 +2,7 @@
  * Agent, plan mode, todo, task, and ask-user tool registrations.
  */
 
-import type { RegisteredTool } from '@upup/./types';
+import type { RegisteredTool } from './types';
 import { buildAgentTool, AGENT_TOOL_DESCRIPTION, AGENT_TOOL_COMPACT_DESCRIPTION } from '../agent-tool.js';
 import {
   createEnterPlanModeTool, createExitPlanModeTool,
