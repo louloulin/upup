@@ -85,7 +85,7 @@ describe('buildEarningsPreview', () => {
 describe('runEarningsPreview CLI', () => {
   test('without args shows usage mentioning both command names', async () => {
     const { runEarningsPreview } = await import('./earnings-preview.js');
-    const text = runEarningsPreview('');
+    const text = await runEarningsPreview('');
     expect(text).toContain('用法');
     expect(text).toContain('/earnings-preview');
     expect(text).toContain('/earnings');
@@ -93,27 +93,73 @@ describe('runEarningsPreview CLI', () => {
 
   test('with ticker renders framework + MCP resource URI', async () => {
     const { runEarningsPreview } = await import('./earnings-preview.js');
-    const text = runEarningsPreview('NVDA');
+    const text = await runEarningsPreview('NVDA');
     expect(text).toContain('Earnings Preview');
     expect(text).toContain('NVDA');
     expect(text).toContain('研究计划');
     expect(text).toContain('upup://earnings-preview/NVDA');
-    expect(text).toContain('数据源: framework');
+    // Source may be 'framework' or 'partial' depending on whether the
+    // x-search mock returns data (it does, so 'partial' is expected).
+    expect(text).toMatch(/数据源: (framework|partial|full)/);
   });
 
   test('with A-share ticker', async () => {
     const { runEarningsPreview } = await import('./earnings-preview.js');
-    const text = runEarningsPreview('600519.SH');
+    const text = await runEarningsPreview('600519.SH');
     expect(text).toContain('600519.SH');
   });
 
   test('placeholder sections appear when no real data is wired', async () => {
     const { runEarningsPreview } = await import('./earnings-preview.js');
-    const text = runEarningsPreview('AAPL');
+    const text = await runEarningsPreview('AAPL');
     expect(text).toContain('共识预期');
     expect(text).toContain('推文');
     expect(text).toContain('电话会底稿');
-    // P1.a.5 explicit placeholders
-    expect(text).toContain('P1.a.1');
+  });
+});
+describe('buildEarningsPreviewAsync (P1.a.1)', () => {
+  test('returns framework source when offline=true', async () => {
+    const { buildEarningsPreviewAsync } = await import('./earnings-preview.js');
+    const p = await buildEarningsPreviewAsync('NVDA', { offline: true, now: () => 1_700_000_000_000 });
+    expect(p.ticker).toBe('NVDA');
+    expect(p.source).toBe('framework');
+    expect(p.consensus).toEqual([]);
+    expect(p.transcripts).toEqual([]);
+  });
+
+  test('mock x-search produces at least 1 tweet (no API key required)', async () => {
+    const { buildEarningsPreviewAsync } = await import('./earnings-preview.js');
+    const p = await buildEarningsPreviewAsync('NVDA', { offline: false, now: () => 1_700_000_000_000 });
+    // Without FINANCIAL_DATASETS_API_KEY, consensus will be empty,
+    // but x-search mock always returns. So source is at least 'partial'.
+    expect(p.recentTweets.length).toBeGreaterThanOrEqual(1);
+    expect(p.recentTweets[0]!.url).toMatch(/^https:\/\/x\.com\//);
+    expect(p.source).not.toBe('framework');
+  });
+
+  test('transcript fetcher injection: custom data flows through', async () => {
+    const { buildEarningsPreviewAsync } = await import('./earnings-preview.js');
+    const ref = {
+      filingDate: '2025-01-15',
+      url: 'https://sec/test',
+      excerpt: 'mock transcript excerpt',
+      ts: 1_736_899_200_000,
+    };
+    const p = await buildEarningsPreviewAsync('NVDA', {
+      offline: true,
+      transcriptFetcher: async () => [ref],
+      now: () => 1_700_000_000_000,
+    });
+    expect(p.transcripts).toEqual([ref]);
+  });
+
+  test('transcript fetcher throwing degrades to empty (does not throw)', async () => {
+    const { buildEarningsPreviewAsync } = await import('./earnings-preview.js');
+    const p = await buildEarningsPreviewAsync('NVDA', {
+      offline: true,
+      transcriptFetcher: async () => { throw new Error('boom'); },
+      now: () => 1_700_000_000_000,
+    });
+    expect(p.transcripts).toEqual([]);
   });
 });

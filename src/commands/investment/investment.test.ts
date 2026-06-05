@@ -129,14 +129,14 @@ describe('investment: morning-brief', () => {
 describe('investment: earnings-preview', () => {
   test('runEarningsPreview without ticker shows usage', async () => {
     const { runEarningsPreview } = await import('./earnings-preview.js');
-    const text = runEarningsPreview('');
+    const text = await runEarningsPreview('');
     expect(text).toContain('用法');
     expect(text).toContain('示例');
   });
 
   test('runEarningsPreview with ticker renders framework', async () => {
     const { runEarningsPreview } = await import('./earnings-preview.js');
-    const text = runEarningsPreview('NVDA');
+    const text = await runEarningsPreview('NVDA');
     expect(text).toContain('Earnings Preview');
     expect(text).toContain('NVDA');
     expect(text).toContain('研究计划');
@@ -145,7 +145,7 @@ describe('investment: earnings-preview', () => {
 
   test('runEarningsPreview with A-share ticker', async () => {
     const { runEarningsPreview } = await import('./earnings-preview.js');
-    const text = runEarningsPreview('600519.SH');
+    const text = await runEarningsPreview('600519.SH');
     expect(text).toContain('600519.SH');
   });
 });

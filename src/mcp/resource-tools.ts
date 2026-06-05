@@ -98,7 +98,11 @@ export const readMcpResourceTool = new DynamicStructuredTool({
   func: async (input) => {
     // Dispatch upup:// URIs to the local provider first
     if (parseUpupUri(input.uri)) {
-      const data = readUpupResource(input.uri, {
+      // P1.a.1: readUpupResource may return a Promise for the
+      // earnings-preview case (network-touching fetchers). Awaiting
+      // a non-Promise resolves immediately, so this is safe for all
+      // other cases.
+      const data = await readUpupResource(input.uri, {
         dossiers: new DossierStore(),
         audits: getDefaultAuditChain(),
       });

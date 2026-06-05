@@ -20,7 +20,7 @@
 import { DossierStore } from '../memory/dossier.js';
 import { AuditChain } from '../memory/audit-signing.js';
 import { CitationRegistry } from '../agent/citation.js';
-import { buildEarningsPreview, type EarningsPreview } from '../commands/investment/earnings-preview.js';
+import { buildEarningsPreview, buildEarningsPreviewAsync, type EarningsPreview } from '../commands/investment/earnings-preview.js';
 
 // ---------------------------------------------------------------------------
 // URI parsing
@@ -135,19 +135,32 @@ export interface EarningsCacheOptions {
   force?: boolean;
 }
 
-/** Read (or compute + cache) the earnings preview for a ticker. */
-export function readEarningsPreviewCached(
+/**
+ * Read (or compute + cache) the earnings preview for a ticker.
+ *
+ * Async because P1.a.1 introduced network-touching fetchers (estimates,
+ * x-search, 8-K). The framework-only sync builder is still used as the
+ * cache's "last-known" fallback so reads never fail.
+ */
+export async function readEarningsPreviewCached(
   ticker: string,
   opts: EarningsCacheOptions = {},
-): EarningsPreview {
+): Promise<EarningsPreview> {
   const now = Date.now();
   const cached = earningsCache.get(ticker);
   if (!opts.force && cached && now - cached.ts < EARNINGS_CACHE_TTL_MS) {
     return cached.value;
   }
-  const value = buildEarningsPreview(ticker, { plansDir: opts.plansDir });
-  earningsCache.set(ticker, { ts: now, value });
-  return value;
+  try {
+    const value = await buildEarningsPreviewAsync(ticker, { plansDir: opts.plansDir });
+    earningsCache.set(ticker, { ts: now, value });
+    return value;
+  } catch {
+    // Fall back to framework-only if the async pipeline throws.
+    const fallback = buildEarningsPreview(ticker, { plansDir: opts.plansDir });
+    earningsCache.set(ticker, { ts: now, value: fallback });
+    return fallback;
+  }
 }
 
 /** For tests only. */
@@ -168,6 +181,10 @@ export interface UpupReader {
  * Read an upup:// resource and return its JSON-serialisable contents.
  * Throws an Error with a stable message on unknown / missing entries
  * so the MCP layer can surface it back to the client.
+ *
+ * P1.a.1: the `earnings-preview` case returns a `Promise<EarningsPreview>`
+ * (network-touching). Other cases remain sync. Callers should `await` the
+ * return value to handle both transparently.
  */
 export function readUpupResource(uri: string, reader: UpupReader): unknown {
   const parsed = parseUpupUri(uri);
