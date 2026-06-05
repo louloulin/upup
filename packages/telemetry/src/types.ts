@@ -14,7 +14,7 @@
  *   - sessionId 用 hash,不存 raw session
  *   - 全部 unix-ms timestamp,不要 ISO string (省 parse)
  */
-import type { TaskKind } from '@upup/tasks/types';
+import type { TaskKind } from '@upup/plan-system/tasks/types';
 
 export const TELEMETRY_EVENT_KINDS = [
   'tool_call',

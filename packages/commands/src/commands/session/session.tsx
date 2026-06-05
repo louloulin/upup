@@ -181,7 +181,7 @@ export const call = async (
 
   try {
     // Import session management functions
-    const { getSessionManager } = await import('@upup/session/manager')
+    const { getSessionManager } = await import('@upup/session-system/manager')
     const sessionManager = getSessionManager()
 
     // Get all sessions

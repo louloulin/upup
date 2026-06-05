@@ -2,7 +2,7 @@
  * Telemetry recorder — main entry point for emitting events.
  *
  * Usage:
- *   import { telemetry } from ('@upup/./telemetry');
+ *   import { telemetry } from './telemetry';
  *   telemetry.recordToolCall({ tool: 'analyze_symbol', input: {...}, output, durationMs, ok });
  *
  * The recorder is **opt-in**: by default it's a no-op. Enable via:

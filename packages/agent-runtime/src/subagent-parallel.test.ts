@@ -122,7 +122,7 @@ describe('Sub-Agent Parallel Execution', () => {
 
   it('should handle concurrent-safe agent tool registration', async () => {
     // Verify the agent tool is registered as concurrency-safe
-    const { loadAgentPlanningTools } = await import('@upup/tools/registry/agent-planning-tools');
+    const { loadAgentPlanningTools } = await import('@upup/tools-registry/registry/agent-planning-tools');
     const agentTools = await loadAgentPlanningTools();
 
     const agentTool = agentTools.find(t => t.name === 'agent');
@@ -163,14 +163,14 @@ describe('Sub-Agent Parallel Execution', () => {
     // Test that the concurrency partitioning logic correctly separates
     // concurrent-safe from non-concurrent-safe tools
     // Use domain-specific loaders to avoid mock interference
-    const { loadFinanceTools } = await import('@upup/tools/registry/finance-tools');
-    const { loadFilesystemTools } = await import('@upup/tools/registry/filesystem-tools');
-    const { loadAgentPlanningTools } = await import('@upup/tools/registry/agent-planning-tools');
+    const { loadFinanceTools } = await import('@upup/tools-registry/registry/finance-tools');
+    const { loadFilesystemTools } = await import('@upup/tools-registry/registry/filesystem-tools');
+    const { loadAgentPlanningTools } = await import('@upup/tools-registry/registry/agent-planning-tools');
     const tools = [
       ...loadFinanceTools('gpt-4o'),
       ...loadFilesystemTools(),
       ...(await loadAgentPlanningTools()),
-      ...(await import('@upup/tools/registry/quant-tools')).loadQuantTools(),
+      ...(await import('@upup/tools-registry/registry/quant-tools')).loadQuantTools(),
     ];
 
     const concurrentSafe = tools.filter(t => t.concurrencySafe);

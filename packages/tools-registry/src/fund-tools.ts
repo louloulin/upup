@@ -28,7 +28,7 @@ import {
   fundAlertCreateTool,
   fundAlertListTool,
   fundAlertDeleteTool,
-} from ('@upup/./fund/fund-tool');
+} from './fund/fund-tool';
 
 export const FUND_SEARCH_DESCRIPTION = `Search for mutual funds by keyword (name or code).
 Data source: 天天基金 (fund.eastmoney.com)
@@ -103,7 +103,7 @@ export function loadFundTools(): RegisteredTool[] {
 }
 
 // Import backtest tools
-import { backtestDCATool, backtestLumpSumTool, backtestThresholdTool } from ('@upup/./fund/fund-tool');
+import { backtestDCATool, backtestLumpSumTool, backtestThresholdTool } from './fund/fund-tool';
 
 export const BACKTEST_DCA_DESCRIPTION = `Run DCA (Dollar-Cost Averaging) backtest for a fund.
 Use when: 回测定投, DCA backtest, 定投收益分析`;

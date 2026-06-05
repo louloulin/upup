@@ -218,7 +218,7 @@ export class TasksWorker implements Worker {
 
     try {
       // Import Agent dynamically to avoid circular dependency
-      const { Agent } = await import('@upup/agent/agent');
+      const { Agent } = await import('@upup/agent-runtime/agent');
 
       // Create agent instance with specified model
       const agent = await Agent.create({

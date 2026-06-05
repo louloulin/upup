@@ -12,8 +12,8 @@
 
 import type { RegisteredTool } from './types.js';
 import { networkMetadata } from './types.js';
-import { DragonTigerAdapter } from ('@upup/./alt/dragon-tiger');
-import { NorthBoundAdapter } from ('@upup/./alt/north-bound');
+import { DragonTigerAdapter } from './alt/dragon-tiger';
+import { NorthBoundAdapter } from './alt/north-bound';
 import {
   createAltDataFetchTool,
   createAltDataSearchTool,

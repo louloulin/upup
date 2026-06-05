@@ -43,7 +43,7 @@ async function fetchMCPStatus(cwd: string): Promise<MCPStatusResult | null> {
   try {
     // Try to get MCP client and status
     const { getDefaultMCPClient } = await import('@upup/mcp/client')
-    const { getMCPStatus } = await import('@upup/mcp/registry')
+    const { getMCPStatus } = await import('@upup/tools-registry/registry')
 
     const client = getDefaultMCPClient()
     const status = getMCPStatus(client)

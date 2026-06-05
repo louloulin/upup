@@ -11,7 +11,7 @@ import {
 } from './integration.js';
 import { TelemetryRecorder } from './recorder.js';
 import { telemetry } from './index.js';
-import type { ToolEndEvent, ToolErrorEvent } from '@upup/agent/types';
+import type { ToolEndEvent, ToolErrorEvent } from '@upup/agent-runtime/types';
 
 let tmpDir: string;
 

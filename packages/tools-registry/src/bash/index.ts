@@ -13,7 +13,7 @@
  *
  * Usage:
  * ```typescript
- * import { bashTool, executeBashCommand } from ('@upup/./bash');
+ * import { bashTool, executeBashCommand } from './bash';
  *
  * // Direct execution
  * const result = await executeBashCommand('ls -la');

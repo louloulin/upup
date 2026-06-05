@@ -534,7 +534,7 @@ const sandboxCommand: Command = {
     let sandboxInfo: { mode: string; enabled: boolean; autoAllow: boolean; additionalDirs: string[] } | null = null;
 
     try {
-      const { getSandboxManager } = await import('@upup/src/tools/filesystem/sandbox-manager');
+      const { getSandboxManager } = await import('@upup/tools-registry/filesystem/sandbox-manager');
       const manager = getSandboxManager();
       sandboxInfo = {
         mode: manager.getMode(),
@@ -593,7 +593,7 @@ const sandboxCommand: Command = {
     // Handle dependency check
     if (subcommand === 'check') {
       try {
-        const { checkSandboxDependencies } = await import('@upup/src/tools/filesystem/sandbox-dependencies');
+        const { checkSandboxDependencies } = await import('@upup/tools-registry/filesystem/sandbox-dependencies');
         const check = await checkSandboxDependencies();
 
         const lines = [
@@ -755,7 +755,7 @@ const agentCommand: Command = {
   async execute(_args): Promise<CommandResult> {
     // Dynamic import to avoid circular dependency
     try {
-      const { getDefaultSubagentRunner } = await import('@upup/agent/subagent-runner');
+      const { getDefaultSubagentRunner } = await import('@upup/agent-runtime/subagent-runner');
       const runner = getDefaultSubagentRunner();
       const tasks = runner.getAllTasks();
 
@@ -781,7 +781,7 @@ const teamCommand: Command = {
   usage: '/team',
   async execute(): Promise<CommandResult> {
     try {
-      const mod = await import('@upup/tools/team-tools');
+      const mod = await import('@upup/tools-registry/team-tools');
       // Team store is internal — provide basic info
       return { type: 'output', text: 'Team management available via team_create/team_list tools.' };
     } catch {
@@ -918,7 +918,7 @@ const doctorCommand: Command = {
 
     // Memory
     try {
-      const { agentMemoryStore } = await import('@upup/agent/subagent/types');
+      const { agentMemoryStore } = await import('@upup/agent-runtime/subagent/types');
       const count = agentMemoryStore.getContext('system').length;
       lines.push(`Memory: ${count > 0 ? `${count} context(s)` : '✓ available'}`);
     } catch {
@@ -985,7 +985,7 @@ const tasksCommand: Command = {
   description: 'List background agent tasks, or stop a task with /tasks stop <id>',
   async execute(args, _context): Promise<CommandResult> {
     try {
-      const { getDefaultSubagentRunner } = await import('@upup/agent/subagent-runner');
+      const { getDefaultSubagentRunner } = await import('@upup/agent-runtime/subagent-runner');
       const runner = getDefaultSubagentRunner();
 
       // /tasks stop <id>
