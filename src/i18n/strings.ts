@@ -45,7 +45,28 @@ export type StringKey =
   | 'status.decision_prefix'
   | 'status.pnl_today'
   | 'status.stale_prefix'
-  | 'status.stale_overflow';
+  | 'status.stale_overflow'
+  // P3.a.3 — components i18n sweep
+  | 'ui.untitled'
+  | 'ui.empty_session'
+  | 'ui.enter_confirm_esc_cancel'
+  | 'ui.tag_esc_clear'
+  | 'approval.title'
+  | 'approval.question'
+  | 'approval.hint_enter_esc'
+  | 'browser.opening_prefix'
+  | 'browser.navigating_prefix'
+  | 'browser.snapshot'
+  | 'browser.read'
+  | 'browser.close'
+  | 'tool.searching'
+  | 'tool.limit_warning'
+  | 'tool.approved_once'
+  | 'tool.approved_session'
+  | 'tool.denied'
+  | 'tool.permission_required'
+  | 'working.waiting_approval'
+;
 
 /**
  * Source of truth for all UI strings. Adding a new key requires updating
@@ -77,6 +98,27 @@ export const STRINGS: Record<Locale, Record<StringKey, string>> = {
     'status.pnl_today': 'Today:',
     'status.stale_prefix': 'Stale:',
     'status.stale_overflow': 'more',
+
+    // P3.a.3 — components i18n sweep
+    'ui.untitled': 'Untitled',
+    'ui.empty_session': 'Start a conversation to create your first session.',
+    'ui.enter_confirm_esc_cancel': 'Enter to confirm · Esc to cancel',
+    'ui.tag_esc_clear': 'Enter to confirm · Esc to clear tag · Empty to skip',
+    'approval.title': '⚠️  Permission Required',
+    'approval.question': 'Do you want to allow this?',
+    'approval.hint_enter_esc': 'Enter to confirm · esc to deny',
+    'browser.opening_prefix': 'Opening ',
+    'browser.navigating_prefix': 'Navigating to ',
+    'browser.snapshot': 'Reading page structure',
+    'browser.read': 'Extracting page text',
+    'browser.close': 'Closing browser',
+    'tool.searching': 'Searching...',
+    'tool.limit_warning': 'Approaching suggested limit',
+    'tool.approved_once': 'Approved',
+    'tool.approved_session': 'Approved (session)',
+    'tool.denied': 'Denied',
+    'tool.permission_required': 'Permission required',
+    'working.waiting_approval': 'Waiting for approval...',
   },
   'zh-CN': {
     'intro.welcome': '欢迎使用 UpUp',
@@ -103,6 +145,27 @@ export const STRINGS: Record<Locale, Record<StringKey, string>> = {
     'status.pnl_today': '今日:',
     'status.stale_prefix': '过期:',
     'status.stale_overflow': '更多',
+
+    // P3.a.3 — components i18n sweep
+    'ui.untitled': '未命名',
+    'ui.empty_session': '发起对话即可创建你的第一个会话。',
+    'ui.enter_confirm_esc_cancel': 'Enter 确认 · Esc 取消',
+    'ui.tag_esc_clear': 'Enter 确认 · Esc 清空标签 · 留空跳过',
+    'approval.title': '⚠️  需要授权',
+    'approval.question': '是否允许此次操作？',
+    'approval.hint_enter_esc': 'Enter 确认 · esc 拒绝',
+    'browser.opening_prefix': '正在打开 ',
+    'browser.navigating_prefix': '正在跳转 ',
+    'browser.snapshot': '正在读取页面结构',
+    'browser.read': '正在提取页面文本',
+    'browser.close': '正在关闭浏览器',
+    'tool.searching': '正在搜索...',
+    'tool.limit_warning': '接近建议上限',
+    'tool.approved_once': '已批准',
+    'tool.approved_session': '已批准（本次会话）',
+    'tool.denied': '已拒绝',
+    'tool.permission_required': '需要授权',
+    'working.waiting_approval': '等待授权中...',
   },
 };
 

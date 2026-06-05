@@ -3,6 +3,7 @@ import { PROVIDERS, type Model } from '../utils/model.js';
 import type { ApprovalDecision } from '../agent/types.js';
 import type { SessionSummary } from '../session/types.js';
 import { selectListTheme, theme } from '../theme.js';
+import { t } from '../i18n/index.js';
 import { formatRelativeTime } from '../utils/time.js';
 // Simple wrapper that just uses native SelectList - no custom input handling needed
 // because pi-tui's SelectList already handles arrow keys and Enter/Esc
@@ -126,7 +127,7 @@ export class ApiKeyInputComponent {
       : raw;
     return [
       `${theme.primary('> ')}${display}`,
-      theme.muted('Enter to confirm · Esc to cancel'),
+      theme.muted(t('ui.enter_confirm_esc_cancel')),
     ];
   }
 
@@ -153,7 +154,7 @@ export class ApiKeyInputComponent {
 // ============================================================================
 
 function formatSessionLabel(session: SessionSummary): string {
-  const title = session.customTitle || session.firstPrompt?.slice(0, 50) || 'Untitled';
+  const title = session.customTitle || session.firstPrompt?.slice(0, 50) || t('ui.untitled');
   const timeAgo = formatRelativeTime(session.modified);
   const tag = session.tag ? ` #${session.tag}` : '';
   const msgs = `(${session.messageCount})`;
@@ -173,7 +174,7 @@ export function createSessionSelector(
         super();
         this.cancelCallback = cancel;
         this.addChild(new Text(theme.muted('No sessions found.'), 0, 0));
-        this.addChild(new Text(theme.muted('Start a conversation to create your first session.'), 0, 0));
+        this.addChild(new Text(theme.muted(t('ui.empty_session')), 0, 0));
       }
       handleInput(keyData: string): void {
         const kb = getKeybindings();
@@ -260,7 +261,7 @@ export class SessionTagInputComponent {
     const raw = lines[0] ?? '';
     return [
       `${theme.primary('> ')}${raw}`,
-      theme.muted('Enter to confirm · Esc to clear tag · Empty to skip'),
+      theme.muted(t('ui.tag_esc_clear')),
     ];
   }
 

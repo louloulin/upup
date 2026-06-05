@@ -1,4 +1,5 @@
 import { Container, Spacer, Text } from '@earendil-works/pi-tui';
+import { t } from '../i18n/index.js';
 import type { WorkingState } from '../types.js';
 import type { StreamMode } from '../agent/types.js';
 import { getRandomThinkingVerb } from '../utils/thinking-verbs.js';
@@ -86,7 +87,7 @@ export class WorkingIndicatorComponent extends Container {
       return;
     }
     const baseMessage = this.state.status === 'approval'
-      ? 'Waiting for approval...'
+      ? t('working.waiting_approval')
       : `${this.thinkingVerb}...`;
 
     const suffix = this.computeStatsSuffix();

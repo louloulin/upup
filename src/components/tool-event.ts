@@ -1,6 +1,7 @@
 import { Container, Spacer, Text, type TUI } from '@earendil-works/pi-tui';
 import type { ApprovalDecision } from '../agent/types.js';
 import { theme } from '../theme.js';
+import { t } from '../i18n/index.js';
 import { subscribeSpinner, SPINNER_INTERVAL_MS } from '../utils/spinner.js';
 
 const CIRCLE = '⏺';
@@ -238,7 +239,7 @@ export class ToolEventComponent extends Container {
   setLimitWarning(warning?: string) {
     this.clearDetail();
     this.activeDetail = new Text(
-      `${theme.muted('⎿  ')}${theme.warning(truncateAtWord(warning || 'Approaching suggested limit', 100))}`,
+      `${theme.muted('⎿  ')}${theme.warning(truncateAtWord(warning || t('tool.limit_warning'), 100))}`,
       0,
       0,
     );
@@ -277,7 +278,7 @@ export class ToolEventComponent extends Container {
     this.header.setText(`${theme.warning('⏺')} ${this.toolTitle}`);
 
     const line1 = new Text(
-      `${theme.muted('⎿  ')}${theme.warning('Permission required')}`,
+      `${theme.muted('⎿  ')}${theme.warning(t('tool.permission_required'))}`,
       0, 0,
     );
     this.addChild(line1);
