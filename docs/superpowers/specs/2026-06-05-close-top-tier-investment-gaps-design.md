@@ -477,3 +477,43 @@ src/evals/fixtures/
 | Web 边界 | CI lint 强制 `src/web/**` 不 import 业务 | D-CTG-8;架构守门员 |
 | 性能预算 | 8 项 p50/p99 显式 | D-CTG-10;阻塞 archive |
 | 灰度节奏 | 8 个 feature flag 各自 dev→canary→100% | D-CTG-12;对齐 v2 风格 |
+
+---
+
+## 附录 B — 审计链威胁模型(对应 C2 / D-CTG-7 / P3.b)
+
+> 6 项威胁 + 对应护栏 + 测试 ID。`audit-signing.ts` 是 ed25519 + prevHash 链的单一真源,`memory-audit.ts` 提供文件系统级 append-only 落地。两者组合是 D-CTG-7 "不引入新密码学, 复用 node:crypto" 的实现载体。
+
+### 威胁清单
+
+| ID | 威胁 | 攻击向量 | 护栏(实现) | 测试 ID |
+|----|------|----------|------------|---------|
+| **B.1** | ed25519 私钥泄露 | 进程内存 dump / 反编译 / `.env` 泄漏 | 密钥从 `src/memory/encrypted-store.ts` 派生, 不直接持久到 `.upup/`;运行时只在 `KeyObject` 里 | `audit-signing.test.ts` › `key rotation: inMemory chains with distinct keys fail cross-verify` |
+| **B.2** | 审计记录字段篡改 | 改 `action` / `intentId` / `ts` 后重写文件 | `audit-signing.ts` 用 `sign(secretKey, canonicalJson(record without sig/prevHash))` 签名;`verify()` 失败时 `AuditVerifyResult.valid = false` | `audit-signing.test.ts` › `tampering with action field breaks signature` |
+| **B.3** | 审计记录删除 | `rm` 删中间一条 / 截断文件 | `prevHash = sha256(上一条 record 的 canonicalJson)`, 删除后第 N+1 条的 `prevHash` 与文件实际不匹配 | `audit-signing.test.ts` › `deleting a record breaks prevHash chain` |
+| **B.4** | 审计记录重排 | 调换两条的顺序 | 同 B.3, 链式 hash 依赖顺序, 重排后 `prevHash` 全部错位 | `audit-signing.test.ts` › `reordering records breaks chain` |
+| **B.5** | 公开 API 暴露 edit/delete/overwrite | 调用方拿到 `AuditChain` 实例后误调 `update` / `remove` | `AuditChain` 公开 API 表面只有 `append / list / getByIntent / verify`;`test` 用 `expect(Object.keys(chain)).not.toContain('update')` 守住 | `audit-signing.test.ts` › `public API does not expose edit / delete / overwrite methods` |
+| **B.6** | 文件系统层破坏(覆盖写) | 攻击者拿到文件读写权限, 直接覆盖 `.upup/audit-chain.jsonl` | `memory-audit.ts` 用 `appendFileSync` 写 + 物理路径固定;破坏后 `verify()` 失败 + `reload from disk` 重新加载可检测 | `audit-signing.test.ts` › `reload from disk restores chain` + `memory-audit.test.ts` › `logRead/logSearch/logWrite/logUpdate/logDelete` 5 个写入路径 |
+
+### 不在威胁模型内(显式接受风险)
+
+- **B.7 时钟回拨** — `ts` 字段由调用方提供, 不强制 monotonic。理由: 多设备同步下 NTP 校时是基础设施责任, 不是审计层;若需要 monotonic, 上层在 `intentId` 里强制 server-assigned id 即可
+- **B.8 重复使用 intent id** — `intentId` 不强制 unique, 同一 intent 可以记录多次修订。理由: 投资意图本身会演化(BUY → SELL → CANCEL 是正常路径), 不应被 unique 约束挡住;链式 hash 已经隐含版本顺序
+- **B.9 进程崩溃中途写入** — `appendFileSync` 是 POSIX atomic append, 单条 record 要么完整要么没有, 不会出现"半条 record"留下;崩溃后的 verify 会失败, 调用方应清空并重新 append
+
+### 复用 + 单一真源
+
+- `audit-signing.ts` 是 ed25519 + prevHash 链的**唯一**真源(D-CTG-7);`encrypted-store.ts` 不重做签名, 只做 payload AES-256-GCM 加密
+- `memory-audit.ts` 的文件系统 append-only 是 `audit-signing.ts` 的**持久化**载体, 不是替代
+- `upup://audit/{intent-id}` MCP 资源(若未来加入)只读 `AuditChain.list()` + `getByIntent()`, 不引入新签名
+
+### 验证流程(投资合规审计)
+
+```
+1. audit verify <file>        # 全链 verify
+2. audit list --intent <id>    # 单 intent 历史
+3. audit tail -n 10            # 最近 10 条
+4. 任意一条 verify.valid=false → 全链不可信, 触发告警
+```
+
+实现见 `src/memory/audit-signing.ts` `verifyAll()` / `list()` / `getByIntent()`;CLI 入口可在后续 change 加 `bin/upup-audit.ts`, 当前 change 不开新命令面。
