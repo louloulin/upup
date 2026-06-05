@@ -10,13 +10,13 @@
 import type { StructuredToolInterface } from '@langchain/core/tools';
 
 // Re-export types from sub-module
-export type { ToolSafetyLevel, ToolCategory, ToolSideEffects, ToolConcurrencyMetadata, RegisteredTool } from './types';
+export type { ToolSafetyLevel, ToolCategory, ToolSideEffects, ToolConcurrencyMetadata, RegisteredTool } from '../types.js';
 export {
   financialReadMetadata, financialWriteMetadata,
   fileWriteMetadata, fileReadMetadata,
   computationMetadata, memoryMetadata,
   networkMetadata, systemMetadata,
-} from './types';
+} from '../types.js';
 
 // Import domain loaders
 import { loadFinanceTools } from './finance-tools.js';
@@ -36,7 +36,7 @@ import { loadFundTools } from './fund-tools';
 import { loadAltDataTools } from './alt-data-tools';
 import { loadPortfolioTools } from './portfolio-tools';
 
-import type { RegisteredTool } from './types';
+import type { RegisteredTool } from '../types.js';
 
 /**
  * Build the full tool registry by composing all domain loaders.

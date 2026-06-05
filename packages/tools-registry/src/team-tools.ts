@@ -12,7 +12,7 @@
 
 import { z } from 'zod';
 import { DynamicStructuredTool } from '@langchain/core/tools';
-import { getTeamManager } from '@upup/multi-agent/team-manager';
+import { getTeamManager } from '@upup/coordinator-system/multi-agent/team-manager';
 
 // ============================================================================
 // Descriptions

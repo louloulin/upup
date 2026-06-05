@@ -12,7 +12,7 @@ import { DynamicStructuredTool } from '@langchain/core/tools';
 import { getDefaultSubagentRunner } from '@upup/agent/subagent-runner';
 import type { SubagentConfig, SubagentContext } from '@upup/agent/subagent';
 import type { StructuredToolInterface } from '@langchain/core/tools';
-import type { AgentEvent } from '@upup/agent/types';
+import type { AgentEvent } from '@upup/agent-runtime/types';
 
 /**
  * AgentTool descriptions for registry

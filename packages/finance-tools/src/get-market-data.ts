@@ -2,9 +2,9 @@ import { DynamicStructuredTool, StructuredToolInterface } from '@langchain/core/
 import type { RunnableConfig } from '@langchain/core/runnables';
 import { AIMessage, ToolCall } from '@langchain/core/messages';
 import { z } from 'zod';
-import { callLlm } from '@upup/model/llm';
+import { callLlm } from '@upup/llm';
 import { formatToolResult } from '@upup/types';
-import { getCurrentDate } from '@upup/agent/prompts';
+import { getCurrentDate } from '@upup/agent-runtime/prompts';
 import { withTimeout, SUB_TOOL_TIMEOUT_MS } from './utils.js';
 import { MARKET_DATA_FORMATTERS } from './formatters.js';
 import { isAShare, isHKStock, parseStockCode } from '@upup/utils/stock-code';

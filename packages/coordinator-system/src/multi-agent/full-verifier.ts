@@ -9,7 +9,7 @@ import { getSkillTracker } from './skill-tracker.js';
 import { getBackendHealthChecker } from './backends/health-check.js';
 import { getCustomAgentRegistry } from './agent-registry.js';
 import { getAgentLoader } from './agent-loader.js';
-import { getAllSpecializedSkills } from '@upup/skills/bundled/index';
+import { getAllSpecializedSkills } from '@upup/tools-registry/skills/bundled/index';
 
 interface VerificationResult {
   name: string;

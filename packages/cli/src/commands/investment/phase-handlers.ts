@@ -34,22 +34,22 @@ import {
   getAnalystEstimates,
   getEarnings,
   getFilings,
-} from '@upup/tools/finance/index';
+} from '@upup/tools-registry/finance/index';
 import {
   calculateValuationRatios,
   calculateDCF,
-} from '@upup/tools/valuation/valuation-tools';
+} from '@upup/tools-registry/valuation/valuation-tools';
 import {
   backtestLumpSum,
   generateBacktestReport,
-} from '@upup/tools/fund/fund-backtest';
-import { SandboxBroker } from '@upup/tools/trading/sandbox-engine';
-import { attribution } from '@upup/tools/portfolio/attribution';
+} from '@upup/tools-registry/fund/fund-backtest';
+import { SandboxBroker } from '@upup/tools-registry/trading/sandbox-engine';
+import { attribution } from '@upup/tools-registry/portfolio/attribution';
 import type {
   Holding,
   Portfolio,
   Benchmark,
-} from '@upup/tools/portfolio/types';
+} from '@upup/tools-registry/portfolio/types';
 import type { ResearchPhase, ResearchPlan } from '@upup/plan-system/research-plan';
 import type { PhaseHandler } from '@upup/agent-runtime/investment-workflow';
 

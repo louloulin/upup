@@ -12,7 +12,7 @@
 
 import Fuse from 'fuse.js';
 import { type SlashCommand, matchCommands, builtInCommandNames } from '@upup/commands';
-import { getSkillCommandRegistry } from '@upup/skills/slash-command';
+import { getSkillCommandRegistry } from '@upup/tools-registry/skills/slash-command';
 
 // ============================================================================
 // Types

@@ -57,7 +57,7 @@ import {
   ModelSelectionController,
   SessionSelectionController,
 } from '@upup/coordinator-system/coordinator';
-import type { RenderableMessage } from './session/render/index';
+import type { RenderableMessage } from '@upup/./session/render/index';
 import {
   ApiKeyInputComponent,
   ApprovalPromptComponent,
@@ -85,7 +85,7 @@ import { getCliCommands } from './commands/unified-registry.js';
 import { initSpinner } from '@upup/utils/spinner';
 // Phase 50: 统一使用 input-state，移除 command-state
 import { inputStore, inputSelectors, inputActions } from '@upup/tui-renderer/state/input-state';
-import { initializeSkills, getSkillCommandRegistry, getRegisteredCommandCount } from '@upup/skills';
+import { initializeSkills, getSkillCommandRegistry, getRegisteredCommandCount } from '@upup/tools-registry/skills';
 
 
 // Stores the user's approval decision when Enter/Esc is pressed before the
@@ -518,7 +518,7 @@ export async function runCli(options: RunCliOptions = {}) {
       throttledRender();
     },
     undefined,
-    (msg: import('./session/render/index').RenderableMessage) => {
+    (msg: from '@upup/./session/render/index'.RenderableMessage) => {
       // Session 2.0: Render history messages when resuming
       renderHistoryMessage(msg, chatLog, theme);
     },
@@ -584,7 +584,7 @@ export async function runCli(options: RunCliOptions = {}) {
 
     // Check if this is a skill command
     try {
-      const { executeSkillCommand } = await import('./skills/executor');
+      const { executeSkillCommand } = await import('@upup/./skills/executor');
       const skillCommand = await executeSkillCommand(commandName, commandArgs, {
         cwd: process.cwd(),
         env: process.env as Record<string, string>,
@@ -640,7 +640,7 @@ export async function runCli(options: RunCliOptions = {}) {
       const searchTerm = args.replace('--fork', '').trim();
 
       if (searchTerm) {
-        const { resolveResumeTarget } = await import('./session/restore');
+        const { resolveResumeTarget } = await import('@upup/./session/restore');
         const targetId = await resolveResumeTarget(searchTerm, process.cwd());
         if (targetId) {
           chatLog.addChild(new Spacer(1));
@@ -670,7 +670,7 @@ export async function runCli(options: RunCliOptions = {}) {
     }
 
     if (commandName === 'continue') {
-      const { getMostRecentSession } = await import('./session/restore');
+      const { getMostRecentSession } = await import('@upup/./session/restore');
       const lastSessionId = await getMostRecentSession(process.cwd());
       if (lastSessionId && lastSessionId !== agentRunner.sessionId) {
         chatLog.addChild(new Spacer(1));
@@ -874,7 +874,7 @@ export async function runCli(options: RunCliOptions = {}) {
     
     // Show skill suggestion for future queries (after response is generated)
     try {
-      const { getCliSkillSuggestion } = await import('./skills/skills-menu');
+      const { getCliSkillSuggestion } = await import('@upup/./skills/skills-menu');
       const suggestion = getCliSkillSuggestion(query, 40);
       if (suggestion) {
         chatLog.addChild(new Text(suggestion, 0, 0));
@@ -1595,7 +1595,7 @@ export async function runCli(options: RunCliOptions = {}) {
     const cwd = process.cwd();
     if (options.resumeTarget) {
       // Try to resolve the resume target
-      const { resolveResumeTarget } = await import('./session/restore');
+      const { resolveResumeTarget } = await import('@upup/./session/restore');
       const targetId = await resolveResumeTarget(options.resumeTarget, cwd);
       if (targetId) {
         chatLog.addChild(new Spacer(1));
@@ -1619,7 +1619,7 @@ export async function runCli(options: RunCliOptions = {}) {
       }
     } else if (options.continue) {
       // Continue the most recent session
-      const { getMostRecentSession } = await import('./session/restore');
+      const { getMostRecentSession } = await import('@upup/./session/restore');
       const lastId = await getMostRecentSession(cwd);
       if (lastId) {
         chatLog.addChild(new Spacer(1));

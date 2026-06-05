@@ -5,8 +5,8 @@
  * Part of Plan17 Phase 3 implementation.
  */
 
-import { getSandboxManager } from '@upup/tools/filesystem/sandbox-manager';
-import type { SandboxMode } from '@upup/tools/filesystem/sandbox-config';
+import { getSandboxManager } from '@upup/tools-registry/filesystem/sandbox-manager';
+import type { SandboxMode } from '@upup/tools-registry/filesystem/sandbox-config';
 
 // ANSI colors for output
 const colors = {
@@ -187,5 +187,5 @@ export async function executeSandboxCommand(args: string[]): Promise<{ output?: 
   }
 }
 
-export { getSandboxManager } from '@upup/tools/filesystem/sandbox-manager';
-export type { SandboxMode } from '@upup/tools/filesystem/sandbox-config';
+export { getSandboxManager } from '@upup/tools-registry/filesystem/sandbox-manager';
+export type { SandboxMode } from '@upup/tools-registry/filesystem/sandbox-config';

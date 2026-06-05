@@ -198,7 +198,7 @@ export class SubagentRunner {
 
     // Bridge to TaskStore so subagent tasks appear in task_list/task_get
     try {
-      const { registerSubagentTask } = await import('@upup/tools/task/task-tool');
+      const { registerSubagentTask } = await import('@upup/tools-registry/task/task-tool');
       registerSubagentTask(taskId, config.type === 'fork' ? 'Fork sub-agent' : `Sub-agent: ${prompt.substring(0, 60)}`);
     } catch {
       // Non-critical bridge — don't fail if task-tool not available
@@ -525,7 +525,7 @@ export class SubagentRunner {
 
       // Bridge completion to TaskStore
       try {
-        const { updateSubagentTask } = await import('@upup/tools/task/task-tool');
+        const { updateSubagentTask } = await import('@upup/tools-registry/task/task-tool');
         updateSubagentTask(taskId, 'completed', subagentResult.output);
       } catch { /* non-critical */ }
     } catch (error) {
@@ -542,7 +542,7 @@ export class SubagentRunner {
 
       // Bridge failure to TaskStore
       try {
-        const { updateSubagentTask } = await import('@upup/tools/task/task-tool');
+        const { updateSubagentTask } = await import('@upup/tools-registry/task/task-tool');
         updateSubagentTask(taskId, 'failed', undefined, String(error));
       } catch { /* non-critical */ }
     } finally {

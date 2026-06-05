@@ -19,7 +19,7 @@ import {
 import { BorderBox } from '../BorderBox.js';
 import type { ApprovalDecision } from '@upup/agent-runtime';
 import { getToolDangerLevel, isHardDenyCommand } from '@upup/services-core/permissions';
-import { theme } from '@upup/theme';
+import { theme } from '@upup/tui-renderer/theme';
 import type { ApprovalRequestData } from './BaseApprovalRequest.js';
 
 // Re-use the factory from GenericApprovalRequest

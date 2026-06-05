@@ -2,7 +2,7 @@
  * Agent, plan mode, todo, task, and ask-user tool registrations.
  */
 
-import type { RegisteredTool } from './types';
+import type { RegisteredTool } from '../types.js';
 import { buildAgentTool, AGENT_TOOL_DESCRIPTION, AGENT_TOOL_COMPACT_DESCRIPTION } from '../agent-tool.js';
 import {
   createEnterPlanModeTool, createExitPlanModeTool,
@@ -11,11 +11,11 @@ import {
 import {
   createCreateTodoTool, createUpdateTodoTool,
   createListTodosTool, createDeleteTodoTool,
-} from '@upup/todo/todo-tool';
+} from '@upup/tools-registry/todo/todo-tool';
 import {
   createTaskCreateTool, createTaskGetTool,
   createTaskListTool, createTaskStopTool, createTaskUpdateTool,
-} from '@upup/task/task-tool';
+} from '@upup/tools-registry/task/task-tool';
 import {
   createAskConfirmTool, createAskSelectTool,
   createAskMultiSelectTool, createAskInputTool, createAskResponseTool,

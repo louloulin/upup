@@ -7,7 +7,7 @@
 import { Container, Text, getKeybindings } from '@earendil-works/pi-tui';
 import type { ApprovalDecision } from '@upup/agent-runtime';
 import { getToolDangerLevel, getApprovalConfig, isHardDenyCommand } from '@upup/services-core/permissions';
-import { theme } from '@upup/theme';
+import { theme } from '@upup/tui-renderer/theme';
 
 // ============================================================================
 // Types

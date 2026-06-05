@@ -11,7 +11,7 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { z } from 'zod';
 import type { StructuredToolInterface } from '@langchain/core/tools';
-import { isFeatureCompiledIn } from '@upup/agent/feature-gates';
+import { isFeatureCompiledIn } from '@upup/agent-runtime/feature-gates';
 import {
   DeepSearchEngine,
   type Document,

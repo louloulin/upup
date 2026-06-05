@@ -2,8 +2,8 @@
  * Finance tool registrations — US market + A-share tools.
  */
 
-import type { RegisteredTool } from './types';
-import { financialReadMetadata } from './types';
+import type { RegisteredTool } from '../types.js';
+import { financialReadMetadata } from '../types.js';
 import { createGetFinancials, createGetMarketData, createReadFilings, createScreenStocks } from '@upup/finance/index';
 import { GET_FINANCIALS_DESCRIPTION } from '@upup/finance/get-financials';
 import { GET_MARKET_DATA_DESCRIPTION } from '@upup/finance/get-market-data';

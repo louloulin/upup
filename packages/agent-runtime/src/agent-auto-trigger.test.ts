@@ -10,8 +10,8 @@ import {
   formatSkillSuggestionsForDisplay,
 } from './agent-auto-trigger.js';
 import { resetAutoTriggerIntegration } from './auto-trigger.js';
-import { resetIntentDetector } from '@upup/skills/intent-detector';
-import { resetSkillTrigger } from '@upup/skills/skill-trigger';
+import { resetIntentDetector } from '@upup/tools-registry/skills/intent-detector';
+import { resetSkillTrigger } from '@upup/tools-registry/skills/skill-trigger';
 
 describe('Agent Auto-Trigger Integration', () => {
   beforeEach(() => {

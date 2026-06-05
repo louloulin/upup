@@ -25,12 +25,12 @@ import {
 } from './discovery/index';
 import { createSendMessageTool, SEND_MESSAGE_DESCRIPTION } from './send-message';
 import { createSnipTool, SNIP_TOOL_DESCRIPTION } from './snip-tool';
-import { createSleepTool, SLEEP_TOOL_DESCRIPTION } from '@upup/sleep-tool';
+import { createSleepTool, SLEEP_TOOL_DESCRIPTION } from '@upup/tools-registry/sleep-tool';
 import { createMonitorTool, MONITOR_TOOL_DESCRIPTION } from './monitor-tool';
 import {
   createToolSearchTool, createToolGetTool, createToolListTool,
   TOOL_SEARCH_DESCRIPTION, TOOL_GET_DESCRIPTION, TOOL_LIST_DESCRIPTION,
-} from '@upup/tool-search-tool';
+} from '@upup/tools-registry/tool-search-tool';
 import {
   createTeamCreateTool, createTeamDeleteTool, createTeamListTool,
   createTeamAddMemberTool, createTeamRemoveMemberTool,
@@ -44,7 +44,7 @@ import {
   createDecisionDashboardTool, createCalculateTargetPriceTool, createQuickTargetPriceTool,
   VALUATION_RATIOS_DESCRIPTION, DCF_MODEL_DESCRIPTION, PEER_COMPARISON_DESCRIPTION,
   DECISION_DASHBOARD_DESCRIPTION, CALCULATE_TARGET_PRICE_DESCRIPTION, QUICK_TARGET_PRICE_DESCRIPTION,
-} from '@upup/valuation/index';
+} from '@upup/tools-registry/valuation';
 import {
   createNotebookReadTool, createNotebookCreateTool, createNotebookEditCellTool,
   createNotebookInsertCellTool, createNotebookDeleteCellTool,
@@ -86,9 +86,9 @@ const EXTRACT_ENTITIES_DESCRIPTION = "Extract entities from text.";
 import {
   createResearchDeepSearchTool,
   RESEARCH_DEEP_SEARCH_DESCRIPTION,
-} from '@upup/research/index';
-import { createMatrixAnalysisTool } from '@upup/analysis/matrix';
-import { createNlScreenTool } from '@upup/screening/nl-screener';
+} from '@upup/research-system/research';
+import { createMatrixAnalysisTool } from '@upup/research-system/matrix';
+import { createNlScreenTool } from '@upup/tools-registry/nl-screener';
 const RESEARCH_DEEP_SEARCH_COMPACT = 'AlphaSense-style deep search: NLP claims + citation graph across documents';
 const MATRIX_ANALYSIS_COMPACT = 'Hebbia-style cross-ticker × cross-dimension matrix with per-cell verdicts';
 const NL_SCREEN_COMPACT = 'FinChat-style natural-language stock screener (rule-based + LLM fallback)';
@@ -101,7 +101,7 @@ const researchTools: any[] = isFeatureCompiledIn('RESEARCH_TOOL')
 const screeningTools: any[] = isFeatureCompiledIn('SCREEN_TOOL')
   ? [createNlScreenTool()]
   : [];
-import { workflowTools, WORKFLOW_TOOL_DESCRIPTION } from '@upup/workflow/index';
+import { workflowTools, WORKFLOW_TOOL_DESCRIPTION } from '@upup/tools-registry/workflow';
 
 // Dynamic imports needed for watchlist/benchmark/fx/multi-portfolio/calendar/short-interest/backtest/cache
 // These are loaded via dynamic import to keep the module clean
@@ -265,7 +265,7 @@ export async function loadDomainTools(): Promise<RegisteredTool[]> {
 
 // Swarm tools (multi-agent)
 try {
-  const { swarmTools } = await import('@upup/multi-agent/index');
+  const { swarmTools } = await import('@upup/coordinator-system/multi-agent');
   for (const tool of swarmTools) {
     if (!tool?.name) continue;
     tools.push({
@@ -287,7 +287,7 @@ try {
 
 // Specialized Skills tools (dream, verify, hunter, batch)
 try {
-  const { specializedTools } = await import('@upup/multi-agent/tools/specialized-skills');
+  const { specializedTools } = await import('@upup/coordinator-system/multi-agent/tools/specialized-skills');
   for (const tool of specializedTools) {
     if (!tool?.name) continue;
     tools.push({
@@ -313,7 +313,7 @@ try {
 async function loadDynamicDomainTools(tools: RegisteredTool[]): Promise<void> {
   // Watchlist
   try {
-    const wl = await import('@upup/watchlist/index');
+    const wl = await import('@upup/tools-registry/watchlist');
     tools.push({ name: 'add_to_watchlist', tool: wl.createAddToWatchlistTool(), description: wl.ADD_TO_WATCHLIST_DESCRIPTION, compactDescription: 'Add a stock to your investment watchlist for tracking', concurrencySafe: true });
     tools.push({ name: 'remove_from_watchlist', tool: wl.createRemoveFromWatchlistTool(), description: wl.REMOVE_FROM_WATCHLIST_DESCRIPTION, compactDescription: 'Remove a stock from your investment watchlist', concurrencySafe: true });
     tools.push({ name: 'get_watchlist', tool: wl.createGetWatchlistTool(), description: wl.GET_WATCHLIST_DESCRIPTION, compactDescription: 'Get your current investment watchlist with alerts', concurrencySafe: true });
@@ -368,7 +368,7 @@ async function loadDynamicDomainTools(tools: RegisteredTool[]): Promise<void> {
 
   // Short Interest
   try {
-    const si = await import('@upup/short-interest/index');
+    const si = await import('@upup/tools-registry/short-interest');
     tools.push({ name: 'get_short_interest', tool: si.createGetShortInterestTool(), description: si.GET_SHORT_INTEREST_DESCRIPTION, compactDescription: 'Get short interest data and squeeze risk analysis', concurrencySafe: true });
     tools.push({ name: 'calculate_short_interest_ratio', tool: si.createCalculateShortInterestRatioTool(), description: si.CALCULATE_SHORT_INTEREST_RATIO_DESCRIPTION, compactDescription: 'Calculate position squeeze risk from short interest', concurrencySafe: true });
     tools.push({ name: 'detect_short_squeeze', tool: si.createDetectShortSqueezeTool(), description: si.DETECT_SHORT_SQUEEZE_DESCRIPTION, compactDescription: 'Screen stocks for short squeeze potential', concurrencySafe: true });

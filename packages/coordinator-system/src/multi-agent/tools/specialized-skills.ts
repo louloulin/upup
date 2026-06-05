@@ -12,7 +12,7 @@
 
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { z } from 'zod';
-import { getAllSpecializedSkills, getSkillByName } from '@upup/skills/bundled/index';
+import { getAllSpecializedSkills, getSkillByName } from '@upup/tools-registry/skills/bundled/index';
 
 /**
  * Execute specialized skill

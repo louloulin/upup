@@ -17,7 +17,7 @@ import type {
   PluginCapability,
   LoadedPlugin,
 } from './types.js';
-import type { BundledSkillDefinition } from '@upup/skills/types';
+import type { BundledSkillDefinition } from '@upup/tools-registry/skills/types';
 
 /**
  * Built-in plugin definition

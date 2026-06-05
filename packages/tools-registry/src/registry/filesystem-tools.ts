@@ -2,8 +2,8 @@
  * Filesystem, heartbeat, cron, and memory tool registrations.
  */
 
-import type { RegisteredTool } from './types';
-import { fileWriteMetadata, fileReadMetadata, memoryMetadata } from './types';
+import type { RegisteredTool } from '../types.js';
+import { fileWriteMetadata, fileReadMetadata, memoryMetadata } from '../types.js';
 import { readFileTool, READ_FILE_DESCRIPTION } from '@upup/filesystem/read-file';
 import { writeFileTool, WRITE_FILE_DESCRIPTION } from '@upup/filesystem/write-file';
 import { editFileTool, EDIT_FILE_DESCRIPTION } from '@upup/filesystem/edit-file';
@@ -11,7 +11,7 @@ import { globTool } from '@upup/filesystem/glob';
 import { grepTool } from '@upup/filesystem/grep';
 import { sendUserFileTool, SEND_USER_FILE_DESCRIPTION } from '@upup/filesystem/send-user-file';
 import { heartbeatTool, HEARTBEAT_TOOL_DESCRIPTION } from '@upup/heartbeat/heartbeat-tool';
-import { cronTool, CRON_TOOL_DESCRIPTION } from '@upup/cron/cron-tool';
+import { cronTool, CRON_TOOL_DESCRIPTION } from '@upup/tools-registry/cron/cron-tool';
 import { memoryGetTool, MEMORY_GET_DESCRIPTION, memorySearchTool, MEMORY_SEARCH_DESCRIPTION, memoryUpdateTool, MEMORY_UPDATE_DESCRIPTION } from '@upup/memory/index';
 import { bashTool, BASH_TOOL_NAME } from '../bash/index.js';
 

@@ -1,4 +1,4 @@
-import { buildSkillMetadataSection, discoverSkills } from '@upup/skills/index';
+import { buildSkillMetadataSection, discoverSkills } from '@upup/tools-registry/skills/index';
 import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';

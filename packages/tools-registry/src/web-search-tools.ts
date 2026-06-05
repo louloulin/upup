@@ -4,11 +4,11 @@
 
 import type { RegisteredTool } from './types.js';
 import { networkMetadata } from './types.js';
-import { webFetchTool, WEB_FETCH_DESCRIPTION } from './web-fetch';
+import { webFetchTool, WEB_FETCH_DESCRIPTION } from '@upup/./web-fetch';
 import { browserTool, BROWSER_DESCRIPTION } from './browser';
 import { exaSearch, perplexitySearch, tavilySearch, WEB_SEARCH_DESCRIPTION, xSearchTool, X_SEARCH_DESCRIPTION } from './index';
-import { skillTool, SKILL_TOOL_DESCRIPTION } from '@upup/skill';
-import { discoverSkills } from '@upup/skills/index';
+import { skillTool, SKILL_TOOL_DESCRIPTION } from '@upup/tools-registry/skill';
+import { discoverSkills } from '@upup/tools-registry/skills/index';
 
 /** Check if playwright is available. Cached for performance. */
 let playwrightAvailableCache: boolean | null = null;
