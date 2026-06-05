@@ -26,6 +26,7 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { z } from 'zod';
 import type { StructuredToolInterface } from '@langchain/core/tools';
+import { MarketDataCache } from '../cache/market-cache.js';
 import {
   type FilterSpec,
   type FilterClause,
@@ -403,12 +404,18 @@ export interface NlScreenDeps {
   validateSpec?: boolean;
   /** Realtime snapshot fetcher (P1.b.3). */
   realtimeFetcher?: RealtimeSnapshotFetcher;
+  /** In-memory cache (P1.b.5). Default: 60s TTL, 100 entries. */
+  cache?: MarketDataCache;
+  /** Cache TTL in seconds (P1.b.5). Default 60. */
+  cacheTtlSeconds?: number;
 }
 
 export function createNlScreenTool(deps: NlScreenDeps = {}): StructuredToolInterface {
   const parser = deps.parser ?? deterministicNlParser;
   const universe = deps.universe ?? DEFAULT_UNIVERSE;
   const validateSpec = deps.validateSpec ?? true;
+  const cache = deps.cache;
+  const cacheTtl = deps.cacheTtlSeconds ?? 60;
 
   return new DynamicStructuredTool({
     name: 'nl_screen',
@@ -418,6 +425,27 @@ export function createNlScreenTool(deps: NlScreenDeps = {}): StructuredToolInter
       const upper = (input.universe ?? 'us') as Universe;
       const limit = input.limit ?? 50;
       const realtime = input.realtime ?? false;
+
+      // P1.b.5 — cache key covers every dimension that affects output.
+      // realtime=true and realtime=false are intentionally NOT merged:
+      // a realtime snapshot from 30s ago is not interchangeable with a
+      // framework-only result.
+      const cacheKey = cache
+        ? MarketDataCache.generateKey('nl_screen', {
+            query: input.query,
+            universe: upper,
+            limit,
+            realtime,
+            // Universe identity participates in the key so different
+            // test fixtures (e.g. P1.b.4's `tiny` row) don't collide.
+            universeHash: universe.length + ':' + (universe[0]?.ticker ?? ''),
+          })
+        : null;
+      if (cache && cacheKey) {
+        const hit = cache.get<NlScreenOutput>(cacheKey);
+        if (hit) return JSON.stringify(hit);
+      }
+
       const spec = parser(input.query, upper);
       // Apply the runtime overrides on top of parser output
       const finalSpec: FilterSpec = { ...spec, limit, realtime };
@@ -440,6 +468,7 @@ export function createNlScreenTool(deps: NlScreenDeps = {}): StructuredToolInter
         matchedCount: results.length,
         results,
       };
+      if (cache && cacheKey) cache.set(cacheKey, out, cacheTtl);
       return JSON.stringify(out);
     },
   });

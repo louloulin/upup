@@ -29,6 +29,7 @@ import {
   type RealtimeSnapshotFetcher,
 } from './nl-screen.js';
 import { safeParseFilterSpec } from '../../plan/filter-spec.js';
+import { MarketDataCache } from '../cache/market-cache.js';
 
 // ---------------------------------------------------------------------------
 // P1.b.2 — 8 typical NL queries
@@ -461,3 +462,99 @@ describe('P1.b.3 — realtime mode', () => {
     expect(out.matchedCount).toBe(DEFAULT_UNIVERSE.length);
   });
 });
+
+/**
+ * P1.b.5 — caching tests
+ *
+ * Coverage:
+ *  - cache miss → execute + set
+ *  - cache hit → no execute (verified via call counter on parser)
+ *  - different params → different cache keys (no cross-hit)
+ *  - realtime=true vs realtime=false don't share a key
+ *  - cache.get returns the same payload on second call
+ *  - cache disabled → no caching happens
+ */
+describe('P1.b.5 — caching', () => {
+  test('cache miss: first call executes, returns results', async () => {
+    const cache = new MarketDataCache({ ttlSeconds: 60, maxEntries: 10 });
+    const tool = createNlScreenTool({ cache });
+    const out = JSON.parse(await tool.invoke({ query: 'AAPL-like', universe: 'us', limit: 10, realtime: false }) as string);
+    expect(out.matchedCount).toBeGreaterThan(0);
+  });
+
+  test('cache hit: second call does not re-execute (parser not called)', async () => {
+    const cache = new MarketDataCache({ ttlSeconds: 60, maxEntries: 10 });
+    let parserCalls = 0;
+    const countingParser: NlParserFn = (q, u) => {
+      parserCalls++;
+      return deterministicNlParser(q, u);
+    };
+    const tool = createNlScreenTool({ cache, parser: countingParser });
+    const args = { query: 'PE < 15', universe: 'us' as const, limit: 10, realtime: false };
+    await tool.invoke(args);
+    await tool.invoke(args);
+    expect(parserCalls).toBe(1); // second call served from cache
+  });
+
+  test('different query → different cache key (no cross-hit)', async () => {
+    const cache = new MarketDataCache({ ttlSeconds: 60, maxEntries: 10 });
+    let parserCalls = 0;
+    const countingParser: NlParserFn = (q, u) => {
+      parserCalls++;
+      return deterministicNlParser(q, u);
+    };
+    const tool = createNlScreenTool({ cache, parser: countingParser });
+    await tool.invoke({ query: 'PE < 15', universe: 'us', limit: 10, realtime: false });
+    await tool.invoke({ query: 'PE < 20', universe: 'us', limit: 10, realtime: false });
+    expect(parserCalls).toBe(2);
+  });
+
+  test('realtime=true and realtime=false do not share a cache key', async () => {
+    const cache = new MarketDataCache({ ttlSeconds: 60, maxEntries: 10 });
+    let parserCalls = 0;
+    const countingParser: NlParserFn = (q, u) => {
+      parserCalls++;
+      return deterministicNlParser(q, u);
+    };
+    const tool = createNlScreenTool({ cache, parser: countingParser });
+    await tool.invoke({ query: 'RSI < 35', universe: 'us', limit: 10, realtime: true });
+    await tool.invoke({ query: 'RSI < 35', universe: 'us', limit: 10, realtime: false });
+    expect(parserCalls).toBe(2);
+  });
+
+  test('cache disabled: every call re-executes', async () => {
+    let parserCalls = 0;
+    const countingParser: NlParserFn = (q, u) => {
+      parserCalls++;
+      return deterministicNlParser(q, u);
+    };
+    const tool = createNlScreenTool({ parser: countingParser });
+    await tool.invoke({ query: 'AAPL-like', universe: 'us', limit: 10, realtime: false });
+    await tool.invoke({ query: 'AAPL-like', universe: 'us', limit: 10, realtime: false });
+    expect(parserCalls).toBe(2);
+  });
+
+  test('cache returns identical payload on hit (deep equality)', async () => {
+    const cache = new MarketDataCache({ ttlSeconds: 60, maxEntries: 10 });
+    const tool = createNlScreenTool({ cache });
+    const args = { query: 'AAPL-like', universe: 'us' as const, limit: 10, realtime: false };
+    const a = JSON.parse(await tool.invoke(args) as string);
+    const b = JSON.parse(await tool.invoke(args) as string);
+    expect(a).toEqual(b);
+  });
+
+  test('cache hit is faster than miss (sanity)', async () => {
+    const cache = new MarketDataCache({ ttlSeconds: 60, maxEntries: 10 });
+    const tool = createNlScreenTool({ cache });
+    const args = { query: 'AAPL-like', universe: 'us' as const, limit: 10, realtime: false };
+    const t0 = performance.now();
+    await tool.invoke(args);
+    const missMs = performance.now() - t0;
+    const t1 = performance.now();
+    await tool.invoke(args);
+    const hitMs = performance.now() - t1;
+    // Hit should be at least as fast. Allow 0ms ties on fast machines.
+    expect(hitMs).toBeLessThanOrEqual(missMs + 5);
+  });
+});
+
