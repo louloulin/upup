@@ -7,6 +7,9 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { z } from 'zod';
 import { getDefaultMCPClient } from './client.js';
+import { listUpupResourceTemplates, parseUpupUri, readUpupResource } from './upup-resources.js';
+import { DossierStore } from '../memory/dossier.js';
+import { getDefaultAuditChain } from '../memory/audit-signing.js';
 
 export const LIST_MCP_RESOURCES_DESCRIPTION = `
 List available resources from connected MCP servers.
@@ -55,20 +58,23 @@ export const listMcpResourcesTool = new DynamicStructuredTool({
   }),
   func: async (input) => {
     const client = getDefaultMCPClient();
-    const results = await client.listResources(input.server);
+    const [results] = await Promise.all([client.listResources(input.server)]);
+    const upupResources = listUpupResourceTemplates();
 
-    if (results.length === 0) {
+    if (results.length === 0 && upupResources.length === 0) {
       return JSON.stringify({
-        message: 'No MCP servers connected or no resources available.',
+        message: 'No MCP servers connected or upup resources available.',
         servers: 0,
         totalResources: 0,
       });
     }
 
-    const totalResources = results.reduce((sum, r) => sum + r.resources.length, 0);
+    const totalResources =
+      results.reduce((sum, r) => sum + r.resources.length, 0) + upupResources.length;
     return JSON.stringify({
       servers: results.length,
       totalResources,
+      upupResources,
       results: results.map(r => ({
         server: r.server,
         resources: r.resources.map((res: any) => ({
@@ -90,6 +96,20 @@ export const readMcpResourceTool = new DynamicStructuredTool({
     server: z.string().optional().describe('Optional server name (auto-detected if omitted).'),
   }),
   func: async (input) => {
+    // Dispatch upup:// URIs to the local provider first
+    if (parseUpupUri(input.uri)) {
+      const data = readUpupResource(input.uri, {
+        dossiers: new DossierStore(),
+        audits: getDefaultAuditChain(),
+      });
+      return JSON.stringify({
+        server: 'upup',
+        uri: input.uri,
+        mimeType: 'application/json',
+        contents: [{ uri: input.uri, mimeType: 'application/json', text: JSON.stringify(data) }],
+      });
+    }
+
     const client = getDefaultMCPClient();
     const result = await client.readResource(input.uri, input.server);
 

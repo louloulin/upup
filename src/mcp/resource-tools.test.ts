@@ -51,7 +51,9 @@ describe('listMcpResourcesTool', () => {
     const parsed = JSON.parse(result as string);
 
     expect(parsed.servers).toBe(1);
-    expect(parsed.totalResources).toBe(2);
+    // totalResources now includes the 3 built-in upup:// templates
+    expect(parsed.totalResources).toBe(2 + parsed.upupResources.length);
+    expect(parsed.upupResources).toHaveLength(3);
     expect(parsed.results).toHaveLength(1);
     expect(parsed.results[0].resources).toHaveLength(2);
     expect(parsed.results[0].resources[0].uri).toBe('file:///test/resource.txt');
@@ -67,15 +69,19 @@ describe('listMcpResourcesTool', () => {
     const result = await listMcpResourcesTool.invoke({});
     const parsed = JSON.parse(result as string);
 
-    expect(parsed.message).toContain('No MCP servers');
-    expect(parsed.totalResources).toBe(0);
+    // No 'message' fallback because upup:// templates are always available.
+    // This is the new contract: zero external servers does NOT mean zero resources.
+    expect(parsed.message).toBeUndefined();
+    expect(parsed.servers).toBe(0);
+    expect(parsed.totalResources).toBe(3);
+    expect(parsed.upupResources).toHaveLength(3);
   });
 
   it('filters by server name', async () => {
     const result = await listMcpResourcesTool.invoke({ server: 'test-server' });
     const parsed = JSON.parse(result as string);
 
-    expect(parsed.totalResources).toBe(2);
+    expect(parsed.totalResources).toBe(2 + parsed.upupResources.length);
   });
 });
 
