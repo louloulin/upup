@@ -6,7 +6,7 @@
  */
 
 import { beforeEach, describe, expect, test } from 'bun:test';
-import { createEventBus, type EventBus } from '../core/event-bus.js';
+import { createEventBus, type BusEvent, type EventBus } from '../core/event-bus.js';
 import {
   _internal,
   createProactiveScanner,
@@ -242,3 +242,99 @@ describe('proactive scanner', () => {
     expect(opp).toBeNull();
   });
 });
+
+// ---------------------------------------------------------------------------
+// P3.b.1 — stale-dossier detector
+// ---------------------------------------------------------------------------
+
+describe('proactive scanner — stale-dossier detector (P3.b.1)', () => {
+  function makeBus(): EventBus {
+    return createEventBus();
+  }
+
+  test('emits stale-dossier opportunity for each stale ticker', async () => {
+    const bus = makeBus();
+    const captured: Opportunity[] = [];
+    bus.on<Opportunity>('kairos.opportunity.stale-dossier', e => captured.push(e.payload));
+    const scanner = createProactiveScanner({
+      bus,
+      fetchSnapshots: async () => [],
+      fetchStaleDossiers: async () => [
+        { ticker: 'NVDA', freshnessDays: 45 },
+        { ticker: 'AAPL', freshnessDays: 31 },
+      ],
+      getIdleMs: () => 2 * 60 * 60 * 1000,
+      now: () => FIXED_NOW,
+    });
+    const r = await scanner.scan();
+    expect(r.emitted).toBe(2);
+    expect(captured).toHaveLength(2);
+    const tickers = captured.map(c => c.symbol).sort();
+    expect(tickers).toEqual(['AAPL', 'NVDA']);
+    for (const opp of captured) {
+      expect(opp.kind).toBe('stale-dossier');
+      expect(opp.confidence).toBeGreaterThanOrEqual(0.5);
+      expect((opp.data as { freshnessDays: number }).freshnessDays).toBeGreaterThan(30);
+    }
+  });
+
+  test('skips stale-dossier when fetchStaleDossiers is not wired', async () => {
+    const bus = makeBus();
+    const captured: Opportunity[] = [];
+    bus.on<Opportunity>('kairos.opportunity.stale-dossier', (e: BusEvent<Opportunity>) => captured.push(e.payload));
+    const scanner = createProactiveScanner({
+      bus,
+      fetchSnapshots: async () => [],
+      getIdleMs: () => 2 * 60 * 60 * 1000,
+      now: () => FIXED_NOW,
+    });
+    const r = await scanner.scan();
+    expect(r.emitted).toBe(0);
+    expect(captured).toHaveLength(0);
+  });
+
+  test('fail-soft when fetchStaleDossiers throws', async () => {
+    const bus = makeBus();
+    const scanner = createProactiveScanner({
+      bus,
+      fetchSnapshots: async () => [],
+      fetchStaleDossiers: async () => {
+        throw new Error('dossier store offline');
+      },
+      getIdleMs: () => 2 * 60 * 60 * 1000,
+      now: () => FIXED_NOW,
+    });
+    const r = await scanner.scan();
+    expect(r.skipped).toBe(false);
+    expect(r.emitted).toBe(0);
+  });
+
+  test('detector unit: confidence scales with freshness days, capped at 0.99', () => {
+    const mild = _internal.detectStaleDossier(
+      { ticker: 'X', freshnessDays: 31 },
+      FIXED_NOW,
+    );
+    const ancient = _internal.detectStaleDossier(
+      { ticker: 'Y', freshnessDays: 365 * 2 },
+      FIXED_NOW,
+    );
+    expect(mild?.confidence).toBeCloseTo(0.5 + 31 / 365, 5);
+    expect(ancient?.confidence).toBe(0.99);
+  });
+
+  test('detector unit: returns null for non-positive freshnessDays', () => {
+    expect(
+      _internal.detectStaleDossier({ ticker: 'X', freshnessDays: 0 }, FIXED_NOW),
+    ).toBeNull();
+    expect(
+      _internal.detectStaleDossier({ ticker: 'X', freshnessDays: -1 }, FIXED_NOW),
+    ).toBeNull();
+    expect(
+      _internal.detectStaleDossier(
+        { ticker: 'X', freshnessDays: Number.NaN },
+        FIXED_NOW,
+      ),
+    ).toBeNull();
+  });
+});
+

@@ -44,6 +44,19 @@ describe('extractStatusLineParts', () => {
     expect(parts.decisionCount).toBe(0);
     expect(parts.openDecisionCount).toBe(0);
     expect(parts.totalPnlPct).toBeUndefined();
+    expect(parts.staleDossiers).toEqual([]);
+  });
+
+  test('staleDossiers 注入透传 (P3.b.1)', () => {
+    const parts = extractStatusLineParts({
+      memory: makeMemory(),
+      staleDossiers: [
+        { ticker: 'NVDA', freshnessDays: 45 },
+        { ticker: 'AAPL', freshnessDays: 31 },
+      ],
+    });
+    expect(parts.staleDossiers).toHaveLength(2);
+    expect(parts.staleDossiers[0]?.ticker).toBe('NVDA');
   });
 
   test('含自选 + 决策 + 持仓中决策', () => {
@@ -162,6 +175,54 @@ describe('formatInvestmentStatusLine', () => {
       totalPnlPct: 0.012,
     });
     expect(text).toBe('组合: 2 (tech) | 自选: 3 | 决策: 1 (1 持仓中) | 今日: +1.20%');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 4. stale-dossier segment (P3.b.1)
+// ---------------------------------------------------------------------------
+
+describe('formatInvestmentStatusLine — stale-dossier segment (P3.b.1)', () => {
+  test('无 stale dossier 时不渲染过期段', () => {
+    const text = formatInvestmentStatusLine({ memory: makeMemory() });
+    expect(text).not.toContain('过期:');
+  });
+
+  test('单 ticker 渲染 ANSI 红色过期段', () => {
+    const text = formatInvestmentStatusLine({
+      memory: makeMemory(),
+      staleDossiers: [{ ticker: 'NVDA', freshnessDays: 45 }],
+    });
+    expect(text).toContain('\x1b[31m');
+    expect(text).toContain('过期: NVDA(45d)');
+    expect(text).toContain('\x1b[0m');
+  });
+
+  test('多 ticker 按 freshnessDays 倒序 + 超过 3 个归并为 +N', () => {
+    const text = formatInvestmentStatusLine({
+      memory: makeMemory(),
+      staleDossiers: [
+        { ticker: 'A', freshnessDays: 31 },
+        { ticker: 'B', freshnessDays: 90 },
+        { ticker: 'C', freshnessDays: 60 },
+        { ticker: 'D', freshnessDays: 120 },
+        { ticker: 'E', freshnessDays: 200 },
+      ],
+    });
+    expect(text).toContain('过期: E(200d),D(120d),B(90d) +2');
+  });
+
+  test('segment 位置: 总是最后一个 (P&L 之后)', () => {
+    const text = formatInvestmentStatusLine({
+      memory: makeMemory(),
+      withPnL: true,
+      totalPnlPct: 0.05,
+      staleDossiers: [{ ticker: 'NVDA', freshnessDays: 31 }],
+    });
+    const pnlIdx = text.indexOf('今日:');
+    const staleIdx = text.indexOf('过期:');
+    expect(pnlIdx).toBeGreaterThan(-1);
+    expect(staleIdx).toBeGreaterThan(pnlIdx);
   });
 });
 
