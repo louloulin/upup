@@ -20,6 +20,7 @@ import { runEarningsPreview } from './earnings-preview.js';
 import { runRiskDashboard } from './risk-dashboard.js';
 import { runPortfolioReview } from './portfolio-review.js';
 import { runInvest } from './invest.js';
+import { runDossier } from './dossier.js';
 
 export type InvestmentCommandName =
   | 'morning-brief'
@@ -27,7 +28,8 @@ export type InvestmentCommandName =
   | 'risk-dashboard'
   | 'portfolio-review'
   | 'watchlist-edit'
-  | 'invest';
+  | 'invest'
+  | 'dossier';
 
 export type InvestmentCommandHandler = (args: string) => string | Promise<string>;
 
@@ -75,6 +77,12 @@ export const INVESTMENT_COMMANDS: ReadonlyArray<InvestmentCommandEntry> = [
     aliases: ['wf', 'workflow'],
     description: '5 步研究闭环: research → valuation → backtest → trade → review (/invest NVDA)',
     run: runInvest,
+  },
+  {
+    name: 'dossier',
+    aliases: ['doss'],
+    description: '个股 dossier 一页式: snapshot / freshness / 最近论点 / triggers (/dossier NVDA)',
+    run: runDossier,
   },
 ];
 

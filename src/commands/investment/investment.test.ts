@@ -196,10 +196,12 @@ describe('investment: registry', () => {
     expect(isInvestmentCommand('portfolio-review')).toBe(true);
     expect(isInvestmentCommand('watchlist-edit')).toBe(true);
     expect(isInvestmentCommand('wl')).toBe(true);
+    expect(isInvestmentCommand('dossier')).toBe(true);
+    expect(isInvestmentCommand('doss')).toBe(true);
     expect(isInvestmentCommand('status')).toBe(false);
     expect(isInvestmentCommand('unknown-cmd')).toBe(false);
 
-    expect(INVESTMENT_COMMANDS.length).toBe(6);  // 5 + /invest (Sprint 3)
+    expect(INVESTMENT_COMMANDS.length).toBe(7);  // 5 + /invest (Sprint 3) + /dossier (P0.5)
   });
 
   test('runInvestmentCommand returns text for known, null for unknown', async () => {
@@ -209,5 +211,54 @@ describe('investment: registry', () => {
     expect(text).toContain('Morning Brief');
 
     expect(await runInvestmentCommand('status', '')).toBeNull();
+  });
+});
+
+// =====================================================================
+// /dossier (P0.5)
+// =====================================================================
+
+describe('investment: /dossier', () => {
+  test('without args shows usage', async () => {
+    const { runDossier } = await import('./dossier.js');
+    const { DossierStore } = await import('../../memory/dossier.js');
+    const tmpStore = new DossierStore({ inMemory: true });
+    const text = runDossier('', tmpStore);
+    expect(text).toContain('用法: /dossier <TICKER>');
+  });
+
+  test('unknown ticker shows helpful empty-state', async () => {
+    const { runDossier } = await import('./dossier.js');
+    const { DossierStore } = await import('../../memory/dossier.js');
+    const emptyStore = new DossierStore({ inMemory: true });
+    const text = runDossier('ZZZZZ', emptyStore);
+    expect(text).toContain('✗ 暂无 ZZZZZ 的 dossier');
+    expect(text).toContain('/invest ZZZZZ');
+  });
+
+  test('renders snapshot + freshness + theses for an existing dossier', async () => {
+    const { runDossier } = await import('./dossier.js');
+    const { DossierStore } = await import('../../memory/dossier.js');
+    const { join } = await import('node:path');
+    const { tmpdir } = await import('node:os');
+    const path = join(tmpdir(), `upup-dossier-cmd-test-${Date.now()}.jsonl`);
+    const s = new DossierStore({ filePath: path, inMemory: false, now: () => 1_000_000 });
+    s.create('NVDA', { name: 'NVIDIA', sector: 'Tech', marketCap: 3_000_000_000_000, oneLiner: 'AI 加速器龙头' });
+    s.appendThesis('NVDA', {
+      author: 'agent',
+      intent: '分析 NVDA',
+      claims: ['AI 需求强劲', '毛利率扩张'],
+      evidenceRefs: ['1', '2'],
+      confidence: 0.85,
+    });
+    s.addTrigger('NVDA', { description: '股价破 200', condition: { metric: 'price', op: '<', value: 200 } });
+
+    const text = runDossier('NVDA', s);
+    expect(text).toContain('Dossier: NVDA');
+    expect(text).toContain('NVIDIA');
+    expect(text).toContain('AI 加速器龙头');
+    expect(text).toContain('AI 需求强劲');
+    expect(text).toContain('盯盘触发器');
+    expect(text).toContain('upup://dossier/NVDA');
   });
 });
