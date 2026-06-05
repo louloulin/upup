@@ -186,6 +186,38 @@ export const DEFAULT_UNIVERSE: StockRow[] = [
   { ticker: 'GS',   name: 'Goldman Sachs',       sector: 'finance',      marketCap: 130e9,  pe: 13, pb: 1.4,roe: 11,  revenueGrowth: 4,  profitGrowth: 6,  rsi: 48, priceChange1y: 12 },
 ];
 
+
+// ---------------------------------------------------------------------------
+// Realtime snapshot fetcher (P1.b.3)
+// ---------------------------------------------------------------------------
+
+/** Real-time per-ticker snapshot the screen enriches the universe with. */
+export interface RealtimeSnapshot {
+  rsi: number;
+  priceChange1y: number;
+}
+
+/**
+ * Async fetcher of realtime snapshots. Real impls can hit
+ * `src/realtime/eastmoney-feed.ts`; tests inject canned data. The
+ * fetcher is responsible for returning only tickers that have live
+ * data — tickers missing from the result are considered "stale" and
+ * filtered out when realtime=true.
+ */
+export type RealtimeSnapshotFetcher = (tickers: string[]) => Promise<Record<string, RealtimeSnapshot>>;
+
+/** Default mock fetcher — uses the universe's existing rsi/priceChange1y. */
+export const mockRealtimeSnapshotFetcher: RealtimeSnapshotFetcher = async (tickers) => {
+  const out: Record<string, RealtimeSnapshot> = {};
+  for (const t of tickers) {
+    const row = DEFAULT_UNIVERSE.find(r => r.ticker === t);
+    if (row?.rsi !== undefined && row.priceChange1y !== undefined) {
+      out[t] = { rsi: row.rsi, priceChange1y: row.priceChange1y };
+    }
+  }
+  return out;
+};
+
 // ---------------------------------------------------------------------------
 // FilterSpec → ScreenResult
 // ---------------------------------------------------------------------------
@@ -280,14 +312,29 @@ function buildThesis(row: StockRow, template: string | undefined): string {
   }
 }
 
-export function executeFilterSpec(
+export interface ExecuteOptions {
+  realtimeFetcher?: RealtimeSnapshotFetcher;
+}
+
+export async function executeFilterSpec(
   spec: FilterSpec,
   universe: StockRow[] = DEFAULT_UNIVERSE,
-): ScreenResult[] {
-  // Apply realtime gating: if spec.realtime is false, drop rows missing rsi
-  // from the universe (simulating "no live data" → not eligible for rsi criteria).
-  let pool = universe;
-  if (!spec.realtime) {
+  opts: ExecuteOptions = {},
+): Promise<ScreenResult[]> {
+  // Apply realtime gating. Two cases:
+  //   spec.realtime === false → no live data lookup, but rows must still
+  //                            have rsi defined (else they're considered stale)
+  //   spec.realtime === true  → fetch snapshots from the injected fetcher;
+  //                            rows with no live data are dropped
+  let pool: StockRow[];
+  if (spec.realtime) {
+    const tickers = universe.map(r => r.ticker);
+    const fetcher = opts.realtimeFetcher ?? mockRealtimeSnapshotFetcher;
+    const snapshots = await fetcher(tickers);
+    pool = universe
+      .filter(r => snapshots[r.ticker] !== undefined)
+      .map(r => ({ ...r, rsi: snapshots[r.ticker]!.rsi, priceChange1y: snapshots[r.ticker]!.priceChange1y }));
+  } else {
     pool = universe.filter(r => r.rsi !== undefined);
   }
   const matched: ScreenResult[] = [];
@@ -354,6 +401,8 @@ export interface NlScreenDeps {
   universe?: StockRow[];
   /** Validate the LLM's emitted FilterSpec before execution. */
   validateSpec?: boolean;
+  /** Realtime snapshot fetcher (P1.b.3). */
+  realtimeFetcher?: RealtimeSnapshotFetcher;
 }
 
 export function createNlScreenTool(deps: NlScreenDeps = {}): StructuredToolInterface {
@@ -380,7 +429,7 @@ export function createNlScreenTool(deps: NlScreenDeps = {}): StructuredToolInter
         }
       }
 
-      const results = executeFilterSpec(finalSpec, universe);
+      const results = await executeFilterSpec(finalSpec, universe, { realtimeFetcher: deps.realtimeFetcher });
       const out: NlScreenOutput = {
         source: 'nl_screen',
         query: input.query,

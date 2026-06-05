@@ -24,7 +24,9 @@ import {
   executeFilterSpec,
   createNlScreenTool,
   DEFAULT_UNIVERSE,
+  mockRealtimeSnapshotFetcher,
   type NlParserFn,
+  type RealtimeSnapshotFetcher,
 } from './nl-screen.js';
 import { safeParseFilterSpec } from '../../plan/filter-spec.js';
 
@@ -203,45 +205,45 @@ describe('executeFilterSpec — operators', () => {
     return { ...DEFAULT_UNIVERSE[0]!, ...overrides };
   }
 
-  test('= operator exact match', () => {
-    const r = executeFilterSpec({
+  test('= operator exact match', async () => {
+    const r = await executeFilterSpec({
       universe: 'us', filters: [{ field: 'pe', op: '=', value: 28 }], limit: 10, realtime: false,
     }, [row()]);
     expect(r).toHaveLength(1);
   });
 
-  test('!= operator exclusion', () => {
+  test('!= operator exclusion', async () => {
     // filter: sector != tech → a row with sector=tech must be EXCLUDED
-    const r = executeFilterSpec({
+    const r = await executeFilterSpec({
       universe: 'us', filters: [{ field: 'sector', op: '!=', value: 'tech' }], limit: 10, realtime: false,
     }, [row({ sector: 'tech' }), row({ sector: 'finance' })]);
     expect(r).toHaveLength(1);
     expect(r[0]!.sector).toBe('finance');
   });
 
-  test('> operator', () => {
-    const r = executeFilterSpec({
+  test('> operator', async () => {
+    const r = await executeFilterSpec({
       universe: 'us', filters: [{ field: 'roe', op: '>', value: 100 }], limit: 10, realtime: false,
     }, [row({ roe: 150 })]);
     expect(r).toHaveLength(1);
   });
 
-  test('between operator inclusive bounds', () => {
-    const r = executeFilterSpec({
+  test('between operator inclusive bounds', async () => {
+    const r = await executeFilterSpec({
       universe: 'us', filters: [{ field: 'pe', op: 'between', value: [20, 30] }], limit: 10, realtime: false,
     }, [row({ pe: 20 }), row({ pe: 25 }), row({ pe: 30 }), row({ pe: 31 })]);
     expect(r.map(x => x.metrics.pe)).toEqual([20, 25, 30]);
   });
 
-  test('in operator', () => {
-    const r = executeFilterSpec({
+  test('in operator', async () => {
+    const r = await executeFilterSpec({
       universe: 'us', filters: [{ field: 'pe', op: 'in', value: [10, 20, 28] }], limit: 10, realtime: false,
     }, [row({ pe: 10 }), row({ pe: 20 }), row({ pe: 30 })]);
     expect(r).toHaveLength(2);
   });
 
-  test('AND semantics: one filter fails → row excluded', () => {
-    const r = executeFilterSpec({
+  test('AND semantics: one filter fails → row excluded', async () => {
+    const r = await executeFilterSpec({
       universe: 'us',
       filters: [
         { field: 'roe', op: '>', value: 20 },
@@ -252,15 +254,15 @@ describe('executeFilterSpec — operators', () => {
     expect(r).toHaveLength(0);
   });
 
-  test('limit truncates results', () => {
-    const r = executeFilterSpec({
+  test('limit truncates results', async () => {
+    const r = await executeFilterSpec({
       universe: 'us', filters: [], limit: 3, realtime: false,
     }, DEFAULT_UNIVERSE);
     expect(r).toHaveLength(3);
   });
 
-  test('realtime=false drops rows missing rsi', () => {
-    const r = executeFilterSpec({
+  test('realtime=false drops rows missing rsi', async () => {
+    const r = await executeFilterSpec({
       universe: 'us', filters: [], limit: 100, realtime: false,
     }, [row({ rsi: undefined })]);
     expect(r).toHaveLength(0);
@@ -362,5 +364,100 @@ describe('createNlScreenTool', () => {
     const tool = createNlScreenTool({ parser: permissiveParser, validateSpec: false });
     const out = JSON.parse(await tool.invoke({ query: 'whatever', universe: 'us', limit: 50, realtime: false }) as string);
     expect(out.results.length).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * P1.b.3 — realtime mode tests
+ *
+ * Coverage:
+ *  - realtime=false keeps the original gating (rows must have rsi defined)
+ *  - realtime=true fetches snapshots via injected RealtimeSnapshotFetcher
+ *  - realtime=true drops rows missing from the fetcher result (stale filter)
+ *  - custom fetcher can override rsi/priceChange1y
+ *  - default mockRealtimeSnapshotFetcher returns universe data
+ */
+describe('P1.b.3 — realtime mode', () => {
+  test('realtime=false: rows missing rsi are dropped (no fetcher called)', async () => {
+    const calls: string[][] = [];
+    const fetcher = async (tickers: string[]) => {
+      calls.push(tickers);
+      return {};
+    };
+    const r = await executeFilterSpec(
+      { universe: 'us', filters: [], limit: 100, realtime: false },
+      [DEFAULT_UNIVERSE[0]!, { ...DEFAULT_UNIVERSE[0]!, ticker: 'NORSI', rsi: undefined }],
+      { realtimeFetcher: fetcher },
+    );
+    expect(calls).toEqual([]); // fetcher not called
+    expect(r).toHaveLength(1); // NORSI dropped (no rsi)
+  });
+
+  test('realtime=true: fetcher is called with all tickers', async () => {
+    const calls: string[][] = [];
+    const fetcher: RealtimeSnapshotFetcher = async (tickers) => {
+      calls.push(tickers);
+      return Object.fromEntries(tickers.map(t => [t, { rsi: 50, priceChange1y: 10 }]));
+    };
+    await executeFilterSpec(
+      { universe: 'us', filters: [], limit: 100, realtime: true },
+      DEFAULT_UNIVERSE,
+      { realtimeFetcher: fetcher },
+    );
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.length).toBe(DEFAULT_UNIVERSE.length);
+    expect(calls[0]).toContain('AAPL');
+  });
+
+  test('realtime=true: rows missing from snapshot are dropped (stale filter)', async () => {
+    const fetcher: RealtimeSnapshotFetcher = async (tickers) => {
+      // Only return 2 of 15 tickers
+      const allowed = new Set(['AAPL', 'MSFT']);
+      return Object.fromEntries(
+        tickers.filter(t => allowed.has(t)).map(t => [t, { rsi: 50, priceChange1y: 10 }]),
+      );
+    };
+    const r = await executeFilterSpec(
+      { universe: 'us', filters: [], limit: 100, realtime: true },
+      DEFAULT_UNIVERSE,
+      { realtimeFetcher: fetcher },
+    );
+    expect(r).toHaveLength(2);
+    expect(r.map(x => x.ticker).sort()).toEqual(['AAPL', 'MSFT']);
+  });
+
+  test('realtime=true: fetcher overrides rsi/priceChange1y on rows', async () => {
+    const fetcher: RealtimeSnapshotFetcher = async (tickers) => {
+      return Object.fromEntries(
+        tickers.map(t => [t, { rsi: 99, priceChange1y: -50 }]),
+      );
+    };
+    const r = await executeFilterSpec(
+      { universe: 'us', filters: [{ field: 'rsi', op: '>', value: 90 }], limit: 100, realtime: true },
+      DEFAULT_UNIVERSE,
+      { realtimeFetcher: fetcher },
+    );
+    expect(r.length).toBe(DEFAULT_UNIVERSE.length);
+    expect(r[0]!.metrics.rsi).toBe(99);
+  });
+
+  test('default mockRealtimeSnapshotFetcher uses universe data', async () => {
+    const snap = await mockRealtimeSnapshotFetcher(['AAPL', 'PFE']);
+    const aapl = DEFAULT_UNIVERSE.find(r => r.ticker === 'AAPL')!;
+    const pfe = DEFAULT_UNIVERSE.find(r => r.ticker === 'PFE')!;
+    expect(snap['AAPL']!.rsi).toBe(aapl.rsi!);
+    expect(snap['PFE']!.priceChange1y).toBe(pfe.priceChange1y!);
+  });
+
+  test('createNlScreenTool threads realtimeFetcher through', async () => {
+    const calls: string[][] = [];
+    const fetcher: RealtimeSnapshotFetcher = async (tickers) => {
+      calls.push(tickers);
+      return Object.fromEntries(tickers.map(t => [t, { rsi: 50, priceChange1y: 5 }]));
+    };
+    const tool = createNlScreenTool({ realtimeFetcher: fetcher });
+    const out = JSON.parse(await tool.invoke({ query: 'all', universe: 'us', limit: 100, realtime: true }) as string);
+    expect(calls).toHaveLength(1);
+    expect(out.matchedCount).toBe(DEFAULT_UNIVERSE.length);
   });
 });
