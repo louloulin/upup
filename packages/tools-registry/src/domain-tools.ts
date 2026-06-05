@@ -18,15 +18,15 @@ import {
 import {
   createWorktreeTool, removeWorktreeTool, listWorktreeTool,
   CREATE_WORKTREE_DESCRIPTION, REMOVE_WORKTREE_DESCRIPTION, LIST_WORKTREE_DESCRIPTION,
-} from './worktree/index';
+} from '@upup/./worktree/index';
 import {
   createSearchSkillsTool, createGetSkillTool,
   SEARCH_SKILLS_DESCRIPTION, GET_SKILL_DESCRIPTION,
-} from './discovery/index';
-import { createSendMessageTool, SEND_MESSAGE_DESCRIPTION } from './send-message';
-import { createSnipTool, SNIP_TOOL_DESCRIPTION } from './snip-tool';
+} from '@upup/./discovery/index';
+import { createSendMessageTool, SEND_MESSAGE_DESCRIPTION } from '@upup/./send-message';
+import { createSnipTool, SNIP_TOOL_DESCRIPTION } from '@upup/./snip-tool';
 import { createSleepTool, SLEEP_TOOL_DESCRIPTION } from '@upup/sleep-tool';
-import { createMonitorTool, MONITOR_TOOL_DESCRIPTION } from './monitor-tool';
+import { createMonitorTool, MONITOR_TOOL_DESCRIPTION } from '@upup/./monitor-tool';
 import {
   createToolSearchTool, createToolGetTool, createToolListTool,
   TOOL_SEARCH_DESCRIPTION, TOOL_GET_DESCRIPTION, TOOL_LIST_DESCRIPTION,
@@ -38,7 +38,7 @@ import {
   TEAM_CREATE_DESCRIPTION, TEAM_DELETE_DESCRIPTION, TEAM_LIST_DESCRIPTION,
   TEAM_ADD_MEMBER_DESCRIPTION, TEAM_REMOVE_MEMBER_DESCRIPTION,
   TEAM_STATUS_DESCRIPTION, TEAM_UPDATE_STATUS_DESCRIPTION,
-} from './team-tools';
+} from '@upup/./team-tools';
 import {
   createValuationRatiosTool, createDCFTool, createPeerComparisonTool,
   createDecisionDashboardTool, createCalculateTargetPriceTool, createQuickTargetPriceTool,
@@ -50,27 +50,27 @@ import {
   createNotebookInsertCellTool, createNotebookDeleteCellTool,
   NOTEBOOK_READ_DESCRIPTION, NOTEBOOK_CREATE_DESCRIPTION,
   NOTEBOOK_EDIT_CELL_DESCRIPTION, NOTEBOOK_INSERT_CELL_DESCRIPTION, NOTEBOOK_DELETE_CELL_DESCRIPTION,
-} from './notebook/index';
+} from '@upup/./notebook/index';
 import {
   createNotifyTool, createNotifyListTool,
   NOTIFY_DESCRIPTION, NOTIFY_LIST_DESCRIPTION,
   createSubscribePRTool, createUnsubscribePRTool, createListPRSubscriptionsTool,
   SUBSCRIBE_PR_DESCRIPTION, UNSUBSCRIBE_PR_DESCRIPTION, LIST_PR_SUBSCRIPTIONS_DESCRIPTION,
-} from './notify/index';
+} from '@upup/./notify/index';
 import {
   createExportPortfolioTool, createExportWatchlistTool, createExportDataTool,
   EXPORT_PORTFOLIO_DESCRIPTION, EXPORT_WATCHLIST_DESCRIPTION, EXPORT_DATA_DESCRIPTION,
-} from './export/index';
+} from '@upup/./export/index';
 import {
   createLSPCompleteTool, createLSPDefinitionTool, createLSPReferencesTool,
   createLSPHoverTool, createLSPDiagnosticsTool,
   LSP_COMPLETE_DESCRIPTION, LSP_DEFINITION_DESCRIPTION,
   LSP_REFERENCES_DESCRIPTION, LSP_HOVER_DESCRIPTION, LSP_DIAGNOSTICS_DESCRIPTION,
-} from './lsp/index';
+} from '@upup/./lsp/index';
 import {
   createConfigGetTool, createConfigSetTool, createConfigListTool,
   CONFIG_TOOL_GET_DESCRIPTION, CONFIG_TOOL_SET_DESCRIPTION, CONFIG_TOOL_LIST_DESCRIPTION,
-} from './config-tool';
+} from '@upup/./config-tool';
 import {
   createForkSubagentTool, createResumeAgentTool,
   createAgentMemoryTool, createListAgentsTool, createRunBuiltInAgentTool,

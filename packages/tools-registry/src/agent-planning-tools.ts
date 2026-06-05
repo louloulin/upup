@@ -3,7 +3,7 @@
  */
 
 import type { RegisteredTool } from './types.js';
-import { buildAgentTool, AGENT_TOOL_DESCRIPTION, AGENT_TOOL_COMPACT_DESCRIPTION } from './agent-tool';
+import { buildAgentTool, AGENT_TOOL_DESCRIPTION, AGENT_TOOL_COMPACT_DESCRIPTION } from '@upup/./agent-tool';
 import {
   createEnterPlanModeTool, createExitPlanModeTool,
   createAddPlanStepTool, createUpdatePlanStepTool, createListPlanStepsTool,
@@ -11,17 +11,17 @@ import {
 import {
   createCreateTodoTool, createUpdateTodoTool,
   createListTodosTool, createDeleteTodoTool,
-} from './todo/todo-tool';
+} from '@upup/./todo/todo-tool';
 import {
   createTaskCreateTool, createTaskGetTool,
   createTaskListTool, createTaskStopTool, createTaskUpdateTool,
-} from './task/task-tool';
+} from '@upup/./task/task-tool';
 import {
   createAskConfirmTool, createAskSelectTool,
   createAskMultiSelectTool, createAskInputTool, createAskResponseTool,
   ASK_CONFIRM_DESCRIPTION, ASK_SELECT_DESCRIPTION,
   ASK_MULTI_SELECT_DESCRIPTION, ASK_INPUT_DESCRIPTION, ASK_RESPONSE_DESCRIPTION,
-} from './ask/ask-tool';
+} from '@upup/./ask/ask-tool';
 
 export async function loadAgentPlanningTools(): Promise<RegisteredTool[]> {
   const tools: RegisteredTool[] = [];
