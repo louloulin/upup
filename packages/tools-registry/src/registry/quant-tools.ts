@@ -26,7 +26,7 @@ import {
   createCompareDataSourcesTool, COMPARE_DATA_SOURCES_DESCRIPTION,
   createCorrelationMatrixTool, CALCULATE_CORRELATION_MATRIX_DESCRIPTION,
   createCalculateCorrelationTool, CALCULATE_CORRELATION_DESCRIPTION,
-} from '@upup/quant/index';
+} from '@upup/tools-registry/quant';
 
 export function loadQuantTools(): RegisteredTool[] {
   const tools: RegisteredTool[] = [];

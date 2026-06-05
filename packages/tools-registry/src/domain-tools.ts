@@ -340,7 +340,7 @@ async function loadDynamicDomainTools(tools: RegisteredTool[]): Promise<void> {
 
   // Multi-Portfolio
   try {
-    const mp = await import('@upup/portfolio/multi-portfolio');
+    const mp = await import('@upup/tools-registry/portfolio/multi-portfolio');
     const mpTools = mp.multiPortfolioTools;
     for (const pt of mpTools) {
       if (!pt?.name) continue;

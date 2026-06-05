@@ -11,8 +11,8 @@
  * 3. 用户确认后执行技能
  */
 
-import { IntentDetector, getIntentDetector, type Intent } from '@upup/tools-registry/skills/intent-detector';
-import { SkillTrigger, getSkillTrigger, formatTriggerSuggestions, type SkillTriggerResult } from '@upup/tools-registry/skills/skill-trigger';
+import { IntentDetector, getIntentDetector, type Intent } from '@upup/skills/intent-detector';
+import { SkillTrigger, getSkillTrigger, formatTriggerSuggestions, type SkillTriggerResult } from '@upup/skills/skill-trigger';
 import {
   getInvestmentWorkflowHooks,
   type PreResearchParams,

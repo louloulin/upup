@@ -7,7 +7,7 @@
 
 import { info, warn, debug } from '@upup/utils/logging';
 import { getAutoTriggerIntegration, type AutoTriggerResult } from './auto-trigger.js';
-import type { Intent } from '@upup/tools-registry/skills/intent-detector';
+import type { Intent } from '@upup/skills/intent-detector';
 
 /**
  * Agent integration interface for Auto-Trigger

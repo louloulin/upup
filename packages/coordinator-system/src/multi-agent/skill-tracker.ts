@@ -5,7 +5,7 @@
  * 与EnhancedSkillDefinition真实集成，无硬编码
  */
 
-import { getAllSpecializedSkills, getSkillByName } from '@upup/tools-registry/skills/bundled/index';
+import { getAllSpecializedSkills, getSkillByName } from '@upup/skills/bundled/index';
 import { info, warn } from '@upup/utils/logging';
 
 export interface SkillExecutionRecord {

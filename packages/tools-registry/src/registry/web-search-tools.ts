@@ -8,7 +8,7 @@ import { webFetchTool, WEB_FETCH_DESCRIPTION } from '../fetch/web-fetch.js';
 import { browserTool, BROWSER_DESCRIPTION } from '../browser/browser.js';
 import { exaSearch, perplexitySearch, tavilySearch, WEB_SEARCH_DESCRIPTION, xSearchTool, X_SEARCH_DESCRIPTION } from '../search/index.js';
 import { skillTool, SKILL_TOOL_DESCRIPTION } from '../skill.js';
-import { discoverSkills } from '@upup/tools-registry/skills/index';
+import { discoverSkills } from '@upup/skills/index';
 
 /** Check if playwright is available. Cached for performance. */
 let playwrightAvailableCache: boolean | null = null;

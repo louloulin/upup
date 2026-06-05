@@ -29,7 +29,7 @@ import { join, basename } from 'path';
 import { AGENTS_DIR, projectAgentsDir, projectAgentsDirAlt } from '@upup/utils/storage-paths';
 import { info, warn, error as logError } from '@upup/utils/logging';
 import { getCustomAgentRegistry, type CustomAgentConfig } from './agent-registry.js';
-import { getAllSpecializedSkills } from '@upup/tools-registry/skills/bundled/index';
+import { getAllSpecializedSkills } from '@upup/skills/bundled/index';
 
 export interface MarkdownAgentDefinition {
   /** Unique agent ID (from filename or frontmatter) */

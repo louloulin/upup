@@ -26,8 +26,8 @@ import {
   type Task,
   type WorkerRole,
   type WorkerExecutor,
-} from "@upup/coordinator/index";
-import type { WorkerResumePolicy } from "@upup/coordinator/worker-resume";
+} from "@upup/coordinator-system/coordinator/index";
+import type { WorkerResumePolicy } from "@upup/coordinator-system/coordinator/worker-resume";
 import { DynamicStructuredTool } from "@langchain/core/tools";
 import { z } from "zod";
 

@@ -14,10 +14,10 @@
 
 import { z } from 'zod';
 import { DynamicStructuredTool } from '@langchain/core/tools';
-import { discoverSkills, getSkill } from '@upup/tools-registry/skills/registry';
-import type { SkillMetadata, Skill, SkillContext } from '@upup/tools-registry/skills/types';
+import { discoverSkills, getSkill } from '@upup/skills/registry';
+import type { SkillMetadata, Skill, SkillContext } from '@upup/skills/types';
 import type { SubagentRunner } from '@upup/agent/subagent';
-import { executeSkill, getExecutionMode, shouldUseForkMode } from '@upup/tools-registry/skills/executor';
+import { executeSkill, getExecutionMode, shouldUseForkMode } from '@upup/skills/executor';
 
 // ============================================================================
 // Schemas

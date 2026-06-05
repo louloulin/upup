@@ -200,3 +200,42 @@ export function systemMetadata(): ToolConcurrencyMetadata {
     maxConcurrent: 5,
   };
 }
+
+// === Migrated from src/tools/types.ts ===
+
+export interface ToolResult {
+  data: unknown;
+  sourceUrls?: string[];
+}
+
+export function formatToolResult(data: unknown, sourceUrls?: string[]): string {
+  const result: ToolResult = { data };
+  if (sourceUrls?.length) {
+    result.sourceUrls = sourceUrls;
+  }
+  return JSON.stringify(result);
+}
+
+export function parseSearchResults(result: unknown): { parsed: unknown; urls: string[] } {
+  let parsed: unknown;
+  if (typeof result === 'string') {
+    try {
+      parsed = JSON.parse(result);
+    } catch {
+      parsed = result;
+    }
+  } else {
+    parsed = result;
+  }
+  const urls: string[] = [];
+  function extractUrls(obj: unknown): void {
+    if (!obj || typeof obj !== 'object') return;
+    const o = obj as Record<string, unknown>;
+    if (typeof o.url === 'string') urls.push(o.url);
+    if (Array.isArray(o.results)) {
+      for (const r of o.results) extractUrls(r);
+    }
+  }
+  extractUrls(parsed);
+  return { parsed, urls };
+}

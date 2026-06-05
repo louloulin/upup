@@ -40,7 +40,7 @@ vi.mock('../skills/registry.js', () => ({
 }));
 
 // Import mocked functions for per-test control
-import { discoverSkills, getSkill } from '@upup/tools-registry/skills/registry';
+import { discoverSkills, getSkill } from '@upup/skills/registry';
 
 // bun:test does not support vi.mocked() - use type assertion instead
 const mockedDiscoverSkills = discoverSkills as unknown as ReturnType<typeof vi.fn>;

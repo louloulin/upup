@@ -10,9 +10,9 @@ import { editFileTool, EDIT_FILE_DESCRIPTION } from '@upup/filesystem/edit-file'
 import { globTool } from '@upup/filesystem/glob';
 import { grepTool } from '@upup/filesystem/grep';
 import { sendUserFileTool, SEND_USER_FILE_DESCRIPTION } from '@upup/filesystem/send-user-file';
-import { heartbeatTool, HEARTBEAT_TOOL_DESCRIPTION } from '@upup/heartbeat/heartbeat-tool';
+import { heartbeatTool, HEARTBEAT_TOOL_DESCRIPTION } from '@upup/tools-registry/heartbeat/heartbeat-tool';
 import { cronTool, CRON_TOOL_DESCRIPTION } from '@upup/tools-registry/cron/cron-tool';
-import { memoryGetTool, MEMORY_GET_DESCRIPTION, memorySearchTool, MEMORY_SEARCH_DESCRIPTION, memoryUpdateTool, MEMORY_UPDATE_DESCRIPTION } from '@upup/memory/index';
+import { memoryGetTool, MEMORY_GET_DESCRIPTION, memorySearchTool, MEMORY_SEARCH_DESCRIPTION, memoryUpdateTool, MEMORY_UPDATE_DESCRIPTION } from '@upup/memory-system';
 import { bashTool, BASH_TOOL_NAME } from '../bash/index.js';
 
 export function loadFilesystemTools(): RegisteredTool[] {

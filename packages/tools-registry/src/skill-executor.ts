@@ -7,11 +7,11 @@
  * 3. 上下文传递不正确
  */
 
-import { parseSlashCommand, getSkillCommandRegistry } from '@upup/tools-registry/skills/slash-command';
-import { getSkillCommand, initializeSkills } from '@upup/tools-registry/skills/commands';
-import { recordUsage } from '@upup/tools-registry/skills/recent-usage';
-import type { SkillCommand } from '@upup/tools-registry/skills/types';
-import { getSessionId } from '@upup/tools-registry/skills/executor';
+import { parseSlashCommand, getSkillCommandRegistry } from '@upup/skills/slash-command';
+import { getSkillCommand, initializeSkills } from '@upup/skills/commands';
+import { recordUsage } from '@upup/skills/recent-usage';
+import type { SkillCommand } from '@upup/skills/types';
+import { getSessionId } from '@upup/skills/executor';
 
 // ============================================================================
 // Types

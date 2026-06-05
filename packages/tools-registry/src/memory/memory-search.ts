@@ -1,6 +1,6 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { z } from 'zod';
-import { MemoryManager } from '@upup/memory/index';
+import { MemoryManager } from '@upup/memory-system';
 import { formatToolResult } from '../types.js';
 
 export const MEMORY_SEARCH_DESCRIPTION = `

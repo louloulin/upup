@@ -9,7 +9,7 @@
 
 import { z } from 'zod';
 import { DynamicStructuredTool } from '@langchain/core/tools';
-import { getTeamCoordinator } from '@upup/subagent/team-coordination';
+import { getTeamCoordinator } from '@upup/coordinator-system/team-coordination';
 
 // ============================================================================
 // Schema & Description

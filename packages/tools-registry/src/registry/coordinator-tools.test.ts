@@ -11,7 +11,7 @@ import {
   setCoordinatorOptions,
   getLastCoordinatorResult,
 } from "./coordinator-tools.js";
-import type { ResearchResult, WorkerRole } from "@upup/coordinator/index";
+import type { ResearchResult, WorkerRole } from "@upup/coordinator-system/coordinator/index";
 
 afterEach(() => {
   setCoordinatorExecutor(null);

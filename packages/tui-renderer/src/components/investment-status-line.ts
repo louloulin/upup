@@ -23,7 +23,7 @@ import {
   useInvestmentMemory,
   type InvestmentMemory,
   type InvestmentMemoryItem,
-} from '@upup/memory/investment-memory';
+} from '@upup/memory-system/investment-memory';
 
 // ---------------------------------------------------------------------------
 // Types

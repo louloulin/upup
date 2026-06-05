@@ -14,7 +14,7 @@ import {
 import {
   InvestmentMemory,
   __resetInvestmentMemory,
-} from '@upup/memory/investment-memory';
+} from '@upup/memory-system/investment-memory';
 
 let _now = 1700000000000;
 let _idCounter = 0;

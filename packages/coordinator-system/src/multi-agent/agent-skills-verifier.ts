@@ -7,7 +7,7 @@ import {
   resetAgentLoader,
   type MarkdownAgentDefinition,
 } from './agent-loader.js';
-import { getAllSpecializedSkills } from '@upup/tools-registry/skills/bundled/index';
+import { getAllSpecializedSkills } from '@upup/skills/bundled/index';
 import { info } from '@upup/utils/logging';
 
 interface VerificationResult {
