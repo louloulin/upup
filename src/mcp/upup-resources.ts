@@ -1,23 +1,26 @@
 /**
- * UpUp MCP Resources (Gap G1/C2/G2 cross-cutting)
+ * UpUp MCP Resources (Gap G1/C2/G2 cross-cutting + P1.a.5)
  *
  * Exposes internal UpUp state as MCP resources so external clients
  * (Claude.ai, Cursor, mcp inspector) can read them via the standard
  * `resources/read` protocol.
  *
- * Three resource kinds (see design tasks.md P0.4):
- *   - upup://dossier/{ticker}        → full Dossier JSON
- *   - upup://audit/{intent-id}       → most recent AuditRecord for intent
- *   - upup://citations/{query-id}    → CitationRef[] for a query
+ * Resource kinds (P0.4 + P1.a.5):
+ *   - upup://dossier/{ticker}             → full Dossier JSON
+ *   - upup://audit/{intent-id}            → most recent AuditRecord for intent
+ *   - upup://citations/{query-id}         → CitationRef[] for a query
+ *   - upup://earnings-preview/{ticker}    → structured EarningsPreview
  *
  * Module boundary:
- *   upup-resources.ts (Layer 3) → dossier.ts, audit-signing.ts, citation.ts
+ *   upup-resources.ts (Layer 3) → dossier.ts, audit-signing.ts, citation.ts,
+ *                                 commands/investment/earnings-preview.ts
  *   Exposes only data — no LLM, no tool registry, no business logic.
  */
 
 import { DossierStore } from '../memory/dossier.js';
 import { AuditChain } from '../memory/audit-signing.js';
 import { CitationRegistry } from '../agent/citation.js';
+import { buildEarningsPreview, type EarningsPreview } from '../commands/investment/earnings-preview.js';
 
 // ---------------------------------------------------------------------------
 // URI parsing
@@ -25,7 +28,7 @@ import { CitationRegistry } from '../agent/citation.js';
 
 export const UPUP_SCHEME = 'upup:';
 
-export type UpupResourceKind = 'dossier' | 'audit' | 'citations';
+export type UpupResourceKind = 'dossier' | 'audit' | 'citations' | 'earnings-preview';
 
 export interface ParsedUpupUri {
   kind: UpupResourceKind;
@@ -41,7 +44,14 @@ export function parseUpupUri(uri: string): ParsedUpupUri | null {
   const kind = rest.slice(0, slash);
   const id = rest.slice(slash + 1);
   if (!id) return null;
-  if (kind !== 'dossier' && kind !== 'audit' && kind !== 'citations') return null;
+  if (
+    kind !== 'dossier' &&
+    kind !== 'audit' &&
+    kind !== 'citations' &&
+    kind !== 'earnings-preview'
+  ) {
+    return null;
+  }
   return { kind, id };
 }
 
@@ -76,6 +86,12 @@ export function listUpupResourceTemplates(): UpupResourceDescriptor[] {
       description: 'Numbered citation references for a query (kebab/snake-case query id assigned at registration).',
       mimeType: 'application/json',
     },
+    {
+      uri: 'upup://earnings-preview/{ticker}',
+      name: 'Earnings preview',
+      description: 'Structured earnings preview (consensus, recent sell/buy-side tweets, 8-K transcript refs, plan framework, QoQ diff).',
+      mimeType: 'application/json',
+    },
   ];
 }
 
@@ -98,6 +114,45 @@ export function readCitationSnapshot(queryId: string): ReturnType<CitationRegist
 /** For tests only. */
 export function _clearCitationCache(): void {
   citationCache.clear();
+}
+
+// ---------------------------------------------------------------------------
+// Earnings-preview cache (P1.a.5)
+// ---------------------------------------------------------------------------
+//
+// buildEarningsPreview is cheap today (P1.a.5: file I/O only), but P1.a.1
+// will add network-touching data sources. We add a tiny in-memory cache
+// with a 60s TTL so repeated MCP reads don't refetch.
+//
+// Keyed by ticker. Override plansDir via opts when callers need to (tests).
+
+const EARNINGS_CACHE_TTL_MS = 60_000;
+const earningsCache = new Map<string, { ts: number; value: EarningsPreview }>();
+
+export interface EarningsCacheOptions {
+  plansDir?: string;
+  /** Force a refresh (skip the cache). */
+  force?: boolean;
+}
+
+/** Read (or compute + cache) the earnings preview for a ticker. */
+export function readEarningsPreviewCached(
+  ticker: string,
+  opts: EarningsCacheOptions = {},
+): EarningsPreview {
+  const now = Date.now();
+  const cached = earningsCache.get(ticker);
+  if (!opts.force && cached && now - cached.ts < EARNINGS_CACHE_TTL_MS) {
+    return cached.value;
+  }
+  const value = buildEarningsPreview(ticker, { plansDir: opts.plansDir });
+  earningsCache.set(ticker, { ts: now, value });
+  return value;
+}
+
+/** For tests only. */
+export function _clearEarningsCache(): void {
+  earningsCache.clear();
 }
 
 // ---------------------------------------------------------------------------
@@ -133,6 +188,13 @@ export function readUpupResource(uri: string, reader: UpupReader): unknown {
       const snap = readCitationSnapshot(parsed.id);
       if (!snap) throw new Error(`Citation snapshot not found for query-id: ${parsed.id}`);
       return snap;
+    }
+    case 'earnings-preview': {
+      // The reader parameter is intentionally unused here — earnings-preview
+      // is a pure derivation over .upup/plans/ (and, in P1.a.1, public data).
+      // We accept reader for API uniformity and future cache warming hooks.
+      void reader;
+      return readEarningsPreviewCached(parsed.id);
     }
   }
 }

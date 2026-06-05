@@ -50,8 +50,8 @@ export const INVESTMENT_COMMANDS: ReadonlyArray<InvestmentCommandEntry> = [
   },
   {
     name: 'earnings-preview',
-    aliases: ['ep'],
-    description: '财报前瞻: <TICKER> → 研究计划框架 + 历史 plan',
+    aliases: ['ep', 'earnings'],
+    description: '财报前瞻: <TICKER> → 研究计划框架 + 历史 plan + MCP upup://earnings-preview/{ticker}',
     run: runEarningsPreview,
   },
   {

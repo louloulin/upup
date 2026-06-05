@@ -191,6 +191,7 @@ describe('investment: registry', () => {
     expect(isInvestmentCommand('brief')).toBe(true);
     expect(isInvestmentCommand('earnings-preview')).toBe(true);
     expect(isInvestmentCommand('ep')).toBe(true);
+    expect(isInvestmentCommand('earnings')).toBe(true);
     expect(isInvestmentCommand('risk-dashboard')).toBe(true);
     expect(isInvestmentCommand('risk')).toBe(true);
     expect(isInvestmentCommand('portfolio-review')).toBe(true);
@@ -201,7 +202,9 @@ describe('investment: registry', () => {
     expect(isInvestmentCommand('status')).toBe(false);
     expect(isInvestmentCommand('unknown-cmd')).toBe(false);
 
-    expect(INVESTMENT_COMMANDS.length).toBe(7);  // 5 + /invest (Sprint 3) + /dossier (P0.5)
+    expect(INVESTMENT_COMMANDS.length).toBe(7);  // 5 + /invest (Sprint 3) + /dossier (P0.5) + /earnings alias (P1.a.5)
+    // P1.a.5 keeps length at 7 by adding `earnings` as an alias of `earnings-preview`
+    // (no new top-level command — only a new URI resource kind).
   });
 
   test('runInvestmentCommand returns text for known, null for unknown', async () => {
@@ -211,6 +214,15 @@ describe('investment: registry', () => {
     expect(text).toContain('Morning Brief');
 
     expect(await runInvestmentCommand('status', '')).toBeNull();
+  });
+
+  test('runInvestmentCommand dispatches /earnings alias to runEarningsPreview', async () => {
+    const { runInvestmentCommand } = await import('./registry.js');
+    const text = await runInvestmentCommand('earnings', 'NVDA');
+    expect(typeof text).toBe('string');
+    expect(text).toContain('Earnings Preview');
+    expect(text).toContain('NVDA');
+    expect(text).toContain('upup://earnings-preview/NVDA');
   });
 });
 

@@ -37,10 +37,11 @@ afterEach(() => {
 });
 
 describe('parseUpupUri', () => {
-  test('accepts the 3 supported URI shapes', () => {
+  test('accepts the 4 supported URI shapes', () => {
     expect(parseUpupUri('upup://dossier/NVDA')).toEqual({ kind: 'dossier', id: 'NVDA' });
     expect(parseUpupUri('upup://audit/invest-abc123')).toEqual({ kind: 'audit', id: 'invest-abc123' });
     expect(parseUpupUri('upup://citations/q-1')).toEqual({ kind: 'citations', id: 'q-1' });
+    expect(parseUpupUri('upup://earnings-preview/NVDA')).toEqual({ kind: 'earnings-preview', id: 'NVDA' });
   });
 
   test('rejects non-upup URIs', () => {
@@ -52,13 +53,14 @@ describe('parseUpupUri', () => {
 });
 
 describe('listUpupResourceTemplates', () => {
-  test('returns 3 descriptors with stable URIs', () => {
+  test('returns 4 descriptors with stable URIs', () => {
     const list = listUpupResourceTemplates();
-    expect(list).toHaveLength(3);
+    expect(list).toHaveLength(4);
     expect(list.map(r => r.uri)).toEqual([
       'upup://dossier/{ticker}',
       'upup://audit/{intent-id}',
       'upup://citations/{query-id}',
+      'upup://earnings-preview/{ticker}',
     ]);
     for (const r of list) {
       expect(r.mimeType).toBe('application/json');
@@ -118,5 +120,49 @@ describe('readUpupResource — citations (publish + read)', () => {
       audits: new AuditChain({ filePath: join(TMP, 'a.jsonl'), keyPath: join(TMP, 'k.json'), inMemory: false }),
     };
     expect(() => readUpupResource('upup://citations/nope', reader)).toThrow(/Citation snapshot not found/);
+  });
+});
+describe('readUpupResource — earnings-preview (P1.a.5)', () => {
+  test('returns a framework-only preview when plans are absent', () => {
+    const reader = {
+      dossiers: new DossierStore({ filePath: join(TMP, 'd.jsonl'), inMemory: false }),
+      audits: new AuditChain({ filePath: join(TMP, 'a.jsonl'), keyPath: join(TMP, 'k.json'), inMemory: false }),
+    };
+    const data = readUpupResource('upup://earnings-preview/NVDA', reader) as {
+      ticker: string;
+      source: string;
+      consensus: unknown[];
+      recentTweets: unknown[];
+      transcripts: unknown[];
+      planFramework: { ticker: string };
+    };
+    expect(data.ticker).toBe('NVDA');
+    expect(data.source).toBe('framework');
+    expect(data.consensus).toEqual([]);
+    expect(data.recentTweets).toEqual([]);
+    expect(data.transcripts).toEqual([]);
+    expect(data.planFramework.ticker).toBe('NVDA');
+  });
+
+  test('throws on non-upup URIs reaching the earnings branch', () => {
+    const reader = {
+      dossiers: new DossierStore({ filePath: join(TMP, 'd.jsonl'), inMemory: false }),
+      audits: new AuditChain({ filePath: join(TMP, 'a.jsonl'), keyPath: join(TMP, 'k.json'), inMemory: false }),
+    };
+    expect(() => readUpupResource('upup://earnings-preview/', reader)).toThrow(/Not an upup/);
+  });
+
+  test('cache: second read within TTL returns the same shape', () => {
+    _clearCitationCache();
+    const reader = {
+      dossiers: new DossierStore({ filePath: join(TMP, 'd.jsonl'), inMemory: false }),
+      audits: new AuditChain({ filePath: join(TMP, 'a.jsonl'), keyPath: join(TMP, 'k.json'), inMemory: false }),
+    };
+    const a = readUpupResource('upup://earnings-preview/AAPL', reader) as { generatedAt: number };
+    const b = readUpupResource('upup://earnings-preview/AAPL', reader) as { generatedAt: number };
+    // Either equal (cache hit) or b could be newer if cache missed —
+    // in either case both must be valid EarningsPreview shape.
+    expect(typeof a.generatedAt).toBe('number');
+    expect(typeof b.generatedAt).toBe('number');
   });
 });
