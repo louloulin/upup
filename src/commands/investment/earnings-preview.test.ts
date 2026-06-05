@@ -163,3 +163,210 @@ describe('buildEarningsPreviewAsync (P1.a.1)', () => {
     expect(p.transcripts).toEqual([]);
   });
 });
+
+/**
+ * P1.a.4 — diff_against_prior_call + dossier persistence
+ *
+ * Coverage:
+ *  - computeEarningsDiff pure function: toneDelta string + lastCallTs
+ *  - buildEarningsPreview stamps diff when dossier has prior call
+ *  - buildEarningsPreview leaves diff undefined when no dossier
+ *  - buildEarningsPreview leaves diff undefined when dossier has no prior calls
+ *  - persistEarningsCallToDossier creates dossier if missing
+ *  - persistEarningsCallToDossier appends new call note
+ *  - persistEarningsCallToDossier is a no-op for framework source
+ *  - persistEarningsCallToDossier is a no-op for empty transcripts
+ */
+describe('P1.a.4 — diff_against_prior_call + dossier persistence', () => {
+  test('computeEarningsDiff: buy > sell → 净买入 with signed net', async () => {
+    const { computeEarningsDiff } = await import('./earnings-preview.js');
+    const diff = computeEarningsDiff(
+      { callId: 'ec-AAPL-1', callTs: 1_700_000_000_000, transcriptRefs: [] },
+      {
+        recentTweets: [
+          { handle: 'a', tweetId: '1', url: 'u1', ts: 0, authorKind: 'analyst-buy', snippet: '' },
+          { handle: 'b', tweetId: '2', url: 'u2', ts: 0, authorKind: 'analyst-buy', snippet: '' },
+          { handle: 'c', tweetId: '3', url: 'u3', ts: 0, authorKind: 'analyst-sell', snippet: '' },
+        ],
+        transcripts: [],
+      },
+    );
+    expect(diff.lastCallTs).toBe(1_700_000_000_000);
+    expect(diff.toneDelta).toContain('净买入');
+    expect(diff.toneDelta).toContain('+1');
+    expect(diff.toneDelta).toContain('2 买');
+    expect(diff.toneDelta).toContain('1 卖');
+  });
+
+  test('computeEarningsDiff: sell > buy → 净卖出 with signed net', async () => {
+    const { computeEarningsDiff } = await import('./earnings-preview.js');
+    const diff = computeEarningsDiff(
+      { callId: 'ec-X-1', callTs: 0, transcriptRefs: [] },
+      {
+        recentTweets: [
+          { handle: 'a', tweetId: '1', url: 'u1', ts: 0, authorKind: 'analyst-sell', snippet: '' },
+          { handle: 'b', tweetId: '2', url: 'u2', ts: 0, authorKind: 'analyst-sell', snippet: '' },
+        ],
+        transcripts: [],
+      },
+    );
+    expect(diff.toneDelta).toContain('净卖出');
+    expect(diff.toneDelta).toContain('-2');
+  });
+
+  test('computeEarningsDiff: no tweets → toneDelta undefined', async () => {
+    const { computeEarningsDiff } = await import('./earnings-preview.js');
+    const diff = computeEarningsDiff(
+      { callId: 'ec-X-1', callTs: 0, transcriptRefs: [] },
+      { recentTweets: [], transcripts: [] },
+    );
+    expect(diff.toneDelta).toBeUndefined();
+    expect(diff.qaBalanceDelta).toBeUndefined();
+    expect(diff.lastCallTs).toBe(0);
+  });
+
+  test('buildEarningsPreview stamps diff when dossier has prior call', async () => {
+    const { buildEarningsPreview } = await import('./earnings-preview.js');
+    const { DossierStore } = await import('../../memory/dossier.js');
+    const dossiers = new DossierStore({ inMemory: true, now: () => 1_700_000_000_000 });
+    dossiers.create('NVDA', { name: 'NVIDIA', sector: 'Tech', marketCap: 1, oneLiner: 'x' });
+    dossiers.appendEarningsCall('NVDA', {
+      callId: 'ec-NVDA-1',
+      callTs: 1_699_000_000_000,
+      transcriptRefs: ['https://sec/old'],
+    });
+    const p = buildEarningsPreview('NVDA', { dossiers, now: () => 1_700_000_500_000 });
+    expect(p.diff_against_prior_call).toBeDefined();
+    expect(p.diff_against_prior_call!.lastCallTs).toBe(1_699_000_000_000);
+  });
+
+  test('buildEarningsPreview leaves diff undefined when no dossier provided', async () => {
+    const { buildEarningsPreview } = await import('./earnings-preview.js');
+    const p = buildEarningsPreview('NVDA', { now: () => 1_700_000_000_000 });
+    expect(p.diff_against_prior_call).toBeUndefined();
+  });
+
+  test('buildEarningsPreview leaves diff undefined when dossier has no prior calls', async () => {
+    const { buildEarningsPreview } = await import('./earnings-preview.js');
+    const { DossierStore } = await import('../../memory/dossier.js');
+    const dossiers = new DossierStore({ inMemory: true });
+    dossiers.create('NVDA', { name: 'NVIDIA', sector: 'Tech', marketCap: 1, oneLiner: 'x' });
+    const p = buildEarningsPreview('NVDA', { dossiers });
+    expect(p.diff_against_prior_call).toBeUndefined();
+  });
+
+  test('persistEarningsCallToDossier creates dossier + appends call note', async () => {
+    const { persistEarningsCallToDossier } = await import('./earnings-preview.js');
+    const { DossierStore } = await import('../../memory/dossier.js');
+    const dossiers = new DossierStore({ inMemory: true, now: () => 1_700_000_000_000 });
+    const preview = {
+      ticker: 'NVDA',
+      generatedAt: 1_700_000_000_000,
+      source: 'full' as const,
+      consensus: [],
+      recentTweets: [],
+      transcripts: [
+        { filingDate: '2025-01-15', url: 'https://sec/8k-1', excerpt: 'x', ts: 1_700_000_000_000 },
+      ],
+      history: [],
+      planFramework: {} as never,
+    };
+    persistEarningsCallToDossier(dossiers, preview);
+    const d = dossiers.read('NVDA');
+    expect(d).toBeDefined();
+    expect(d!.earningsCalls).toHaveLength(1);
+    expect(d!.earningsCalls[0]!.callId).toBe('ec-NVDA-1700000000000');
+    expect(d!.earningsCalls[0]!.transcriptRefs).toEqual(['https://sec/8k-1']);
+  });
+
+  test('persistEarningsCallToDossier is a no-op for framework source', async () => {
+    const { persistEarningsCallToDossier } = await import('./earnings-preview.js');
+    const { DossierStore } = await import('../../memory/dossier.js');
+    const dossiers = new DossierStore({ inMemory: true });
+    const preview = {
+      ticker: 'NVDA',
+      generatedAt: 1_700_000_000_000,
+      source: 'framework' as const,
+      consensus: [],
+      recentTweets: [],
+      transcripts: [],
+      history: [],
+      planFramework: {} as never,
+    };
+    persistEarningsCallToDossier(dossiers, preview);
+    expect(dossiers.read('NVDA')).toBeUndefined();
+  });
+
+  test('persistEarningsCallToDossier is a no-op for empty transcripts', async () => {
+    const { persistEarningsCallToDossier } = await import('./earnings-preview.js');
+    const { DossierStore } = await import('../../memory/dossier.js');
+    const dossiers = new DossierStore({ inMemory: true });
+    const preview = {
+      ticker: 'NVDA',
+      generatedAt: 1_700_000_000_000,
+      source: 'partial' as const,
+      consensus: [],
+      recentTweets: [],
+      transcripts: [],
+      history: [],
+      planFramework: {} as never,
+    };
+    persistEarningsCallToDossier(dossiers, preview);
+    expect(dossiers.read('NVDA')).toBeUndefined();
+  });
+
+  test('persistEarningsCallToDossier appends to existing dossier (append-only)', async () => {
+    const { persistEarningsCallToDossier } = await import('./earnings-preview.js');
+    const { DossierStore } = await import('../../memory/dossier.js');
+    const dossiers = new DossierStore({ inMemory: true, now: () => 1_700_000_000_000 });
+    dossiers.create('AAPL', { name: 'Apple', sector: 'Tech', marketCap: 1, oneLiner: 'x' });
+    dossiers.appendEarningsCall('AAPL', {
+      callId: 'ec-AAPL-1',
+      callTs: 1_699_000_000_000,
+      transcriptRefs: ['https://sec/old'],
+    });
+    const preview = {
+      ticker: 'AAPL',
+      generatedAt: 1_700_000_500_000,
+      source: 'full' as const,
+      consensus: [],
+      recentTweets: [],
+      transcripts: [
+        { filingDate: '2025-04-15', url: 'https://sec/8k-2', excerpt: 'y', ts: 1_700_000_500_000 },
+      ],
+      history: [],
+      planFramework: {} as never,
+    };
+    persistEarningsCallToDossier(dossiers, preview);
+    const d = dossiers.read('AAPL')!;
+    expect(d.earningsCalls).toHaveLength(2);
+    expect(d.earningsCalls[0]!.callId).toBe('ec-AAPL-1');
+    expect(d.earningsCalls[1]!.callId).toBe('ec-AAPL-1700000500000');
+  });
+
+  test('persistEarningsCallToDossier echoes toneDelta when set on preview', async () => {
+    const { persistEarningsCallToDossier } = await import('./earnings-preview.js');
+    const { DossierStore } = await import('../../memory/dossier.js');
+    const dossiers = new DossierStore({ inMemory: true, now: () => 1_700_000_000_000 });
+    const preview = {
+      ticker: 'NVDA',
+      generatedAt: 1_700_000_000_000,
+      source: 'full' as const,
+      consensus: [],
+      recentTweets: [],
+      transcripts: [
+        { filingDate: '2025-01-15', url: 'https://sec/8k-1', excerpt: 'x', ts: 1 },
+      ],
+      history: [],
+      planFramework: {} as never,
+      diff_against_prior_call: {
+        toneDelta: '净买入 +2 (3 买 / 1 卖 / 4 总)',
+        qaBalanceDelta: undefined,
+        lastCallTs: 1_699_000_000_000,
+      },
+    };
+    persistEarningsCallToDossier(dossiers, preview);
+    const d = dossiers.read('NVDA')!;
+    expect(d.earningsCalls[0]!.toneDelta).toBe('净买入 +2 (3 买 / 1 卖 / 4 总)');
+  });
+});

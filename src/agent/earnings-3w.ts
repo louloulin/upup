@@ -28,6 +28,8 @@ import {
   type WorkerRunFn,
 } from './subagent.js';
 import { buildEarningsPreview, type EarningsPreview, type ConsensusEstimate, type TweetRef, type TranscriptRef } from '../commands/investment/earnings-preview.js';
+import { persistEarningsCallToDossier, populateEarningsDiff } from '../commands/investment/earnings-preview.js';
+import type { DossierStore } from '../memory/dossier.js';
 import { searchX } from '../search/x-search.js';
 import { fetchEarningsTranscripts } from '../tools/finance/earnings-transcripts.js';
 
@@ -74,6 +76,15 @@ export interface EarningsPreviewSpec {
   mode: 'pre' | 'post';
   /** When true, skip network-touching data sources (suite-hermetic). */
   offline?: boolean;
+  /**
+   * Optional dossier store. When provided, the 3W pipeline:
+   *   - reads the prior earnings call from `dossier.earningsCalls[]`
+   *     and stamps `diff_against_prior_call` on the preview.
+   *   - after a successful run with non-framework source + transcripts,
+   *     persists a new `EarningsCallNote` to the dossier.
+   * P1.a.4.
+   */
+  dossiers?: DossierStore;
 }
 
 /**
@@ -255,7 +266,7 @@ export async function runEarningsPreview3W(
   spec: EarningsPreviewSpec,
   runFn: WorkerRunFn = defaultEarningsRunFn,
 ): Promise<{ preview: EarningsPreview; group: ParallelGroupResult<EarningsWorkerOutputs> }> {
-  const base = buildEarningsPreview(spec.ticker);
+  const base = buildEarningsPreview(spec.ticker, { dossiers: spec.dossiers });
   const specs = buildEarningsWorkerSpecs(spec);
 
   const group = await runWorkersParallel<EarningsWorkerOutputs>(specs as ParallelWorkerSpec<EarningsWorkerOutputs>[], runFn, { concurrency: 3 });
@@ -285,6 +296,18 @@ export async function runEarningsPreview3W(
     recentTweets: sentiment?.output?.voices ?? [],
     transcripts: transcript?.output?.transcripts ?? [],
   };
+
+  // P1.a.4: re-populate the diff now that the workers filled in
+  // recentTweets + transcripts. The sync builder's diff pass had
+  // empty data; we want toneDelta from the real tweet polarity.
+  populateEarningsDiff(preview, spec.dossiers);
+
+  // P1.a.4: persist the call to dossier when workers produced real
+  // transcript data. The helper is a no-op when source === 'framework'
+  // or transcripts is empty.
+  if (spec.dossiers) {
+    persistEarningsCallToDossier(spec.dossiers, preview);
+  }
 
   return { preview, group };
 }
