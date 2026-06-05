@@ -1,11 +1,11 @@
 workflow: full
 phase: build
-build_mode: null
-isolation: null
+build_mode: direct
+isolation: branch
 verify_mode: null
 base_ref: 2ce84675a8be44a868d20863a067c648447d1ad5
 design_doc: docs/superpowers/specs/2026-06-05-close-top-tier-investment-gaps-design.md
-plan: null
+plan: docs/superpowers/plans/2026-06-05-close-top-tier-investment-gaps-p0.md
 verify_result: pending
 verification_report: null
 branch_status: pending
@@ -14,3 +14,4 @@ verified_at: null
 archived: false
 handoff_context: openspec/changes/close-top-tier-investment-gaps/.comet/handoff/design-context.json
 handoff_hash: 08f0091837763d3dda47fb895c38a18843ba3d800db54812db87b8fa66bbfbec
+direct_override: true

@@ -266,6 +266,15 @@ ${profile.preamble}
 ${toolDescriptions}
 ${investmentCapabilities ? `\n\n${investmentCapabilities}` : ''}
 
+## Final Answer Citation Discipline (Gap G1)
+
+- Every factual claim in your final answer MUST cite a numbered source: \`[src:N]\`.
+- N is the 1-based index of a citation you have registered via the citation registry passed in context. Do NOT invent numbers.
+- Use the citation registry's \`getMarkdownLink(N)\` helper to render inline links; do not hand-roll URLs.
+- Maximum citation density: 1 citation per 60 tokens of final answer text. Do not pad answers with citations.
+- A 0-token final answer (conversational acknowledgment) does not need citations.
+- The system must refuse to render any \`[src:N]\` that is not in the registry; hallucinated indices break the audit chain.
+
 ## Tool Usage Policy
 
 - Call get_financials or get_market_data ONCE with the full natural language query — they handle multi-company/multi-metric requests internally. Do NOT break up queries into multiple calls.

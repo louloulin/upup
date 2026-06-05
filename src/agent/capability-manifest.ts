@@ -69,6 +69,21 @@ export const CAPABILITY_GROUPS: CapabilityGroup[] = [
     competitorRefs: ["bloomberg", "wind", "joinquant", "uqer"],
   },
   {
+    id: "citation",
+    title: "Source-attributed answer infrastructure (Gap G1)",
+    prefixes: ["citation_"],
+    blurb:
+      "In-process CitationRegistry for numbering and rendering `[src:N]` markdown links in the final answer. Density is bounded to 1 citation per 60 tokens.",
+    whenToUse: [
+      "Register a citation: CitationRegistry.add({ url, kind, snippet })",
+      "Render an inline link: registry.getMarkdownLink(N)",
+      "Inspect coverage: extractCitationRefs(text)",
+      "Assert density budget: estimateCitationDensity(text, count)",
+      "Snapshot for MCP resource / audit: registry.toJSON()",
+    ],
+    competitorRefs: ["alpha-sense", "finchat", "hebbia", "bloomberg"],
+  },
+  {
     id: "trading",
     title: "Paper / live trading (sandbox default)",
     prefixes: ["place_trade_", "cancel_trade_", "get_trading_", "get_trade_"],
