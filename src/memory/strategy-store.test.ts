@@ -6,7 +6,7 @@ import { afterEach, describe, expect, test } from 'bun:test';
 import { existsSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { StrategyStore, type StrategyRecordInput } from './strategy-store.js';
+import { StrategyStore, computeStrategyPrevHash, type StrategyRecordInput } from './strategy-store.js';
 
 const TMP = join(tmpdir(), `upup-strategy-test-${process.pid}-${Date.now()}`);
 
@@ -130,5 +130,113 @@ describe('StrategyStore — getById / getVersions / getLatest (P2.a.2)', () => {
     expect(versions.map(v => v.version)).toEqual([1, 2, 3]);
     expect(s.getLatest('test-strategy')?.id).toBe(v3.id);
     expect(s.getByNameAndVersion('test-strategy', 2)?.id).toBe(v2.id);
+  });
+});
+
+
+describe('computeStrategyPrevHash (P2.a.5 refactor)', () => {
+  test('produces 64-hex sha256 over canonicalJson of the predecessor with empty signature', () => {
+    const s = new StrategyStore({ inMemory: true });
+    const v1 = s.publish({
+      name: 'low-pe',
+      author: 'alice',
+      code: 'v1',
+      methodology: { source: 'handwritten' },
+      version: 1,
+      prevHash: '0'.repeat(64),
+      description: 'v1',
+    });
+    // Reproduce the rule inline (this is the same path publish() takes).
+    const { createHash } = require('node:crypto') as typeof import('node:crypto');
+    const { canonicalJson } = require('./dossier.js') as typeof import('./dossier.js');
+    const expected = createHash('sha256')
+      .update(canonicalJson({ ...v1, signature: '' }))
+      .digest('hex');
+    expect(computeStrategyPrevHash(v1)).toBe(expected);
+    expect(computeStrategyPrevHash(v1)).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  test('is sensitive to all predecessor fields (changes when code changes)', () => {
+    const s = new StrategyStore({ inMemory: true });
+    const rec = s.publish({
+      name: 'low-pe',
+      author: 'alice',
+      code: 'v1',
+      methodology: { source: 'handwritten' },
+      version: 1,
+      prevHash: '0'.repeat(64),
+      description: 'v1',
+    });
+    const before = computeStrategyPrevHash(rec);
+    const mutated = { ...rec, code: 'v1-mutated' };
+    const after = computeStrategyPrevHash(mutated);
+    expect(after).not.toBe(before);
+  });
+
+  test('is independent of the signature field (signature is stripped before hashing)', () => {
+    // This is the key invariant: two records with identical content but
+    // different signatures must produce the same prevHash for the next
+    // record, so the chain rule is reproducible from the predecessor's
+    // content alone.
+    const s = new StrategyStore({ inMemory: true });
+    const rec = s.publish({
+      name: 'low-pe',
+      author: 'alice',
+      code: 'v1',
+      methodology: { source: 'handwritten' },
+      version: 1,
+      prevHash: '0'.repeat(64),
+      description: 'v1',
+    });
+    const withOriginalSig = computeStrategyPrevHash(rec);
+    const withBlankSig = computeStrategyPrevHash({ ...rec, signature: '' });
+    expect(withBlankSig).toBe(withOriginalSig);
+  });
+});
+
+describe('StrategyStore.latestPerName (P2.a.4/P2.a.5 refactor)', () => {
+  test('returns the highest-version record per name', () => {
+    const s = new StrategyStore({ inMemory: true });
+    // Two names, three versions total (low-pe v1+v2, low-roe v1).
+    s.publish({
+      name: 'low-pe', author: 'a', code: 'a', methodology: { source: 'h' },
+      version: 1, prevHash: '0'.repeat(64), description: 'a',
+    });
+    const v1 = s.getLatest('low-pe')!;
+    s.publish({
+      name: 'low-pe', author: 'a', code: 'b', methodology: { source: 'h' },
+      version: 2, prevHash: computeStrategyPrevHash(v1), description: 'b',
+    });
+    s.publish({
+      name: 'low-roe', author: 'b', code: 'c', methodology: { source: 'h' },
+      version: 1, prevHash: '0'.repeat(64), description: 'c',
+    });
+    const latests = s.latestPerName();
+    const byName = new Map(latests.map((r) => [r.name, r]));
+    expect(latests).toHaveLength(2);
+    expect(byName.get('low-pe')?.version).toBe(2);
+    expect(byName.get('low-roe')?.version).toBe(1);
+  });
+
+  test('returns [] on an empty store', () => {
+    const s = new StrategyStore({ inMemory: true });
+    expect(s.latestPerName()).toEqual([]);
+  });
+
+  test('accepts an external list (used by the CLI to group a snapshot of the store)', () => {
+    const s = new StrategyStore({ inMemory: true });
+    s.publish({
+      name: 'a', author: 'x', code: 'a', methodology: { source: 'h' },
+      version: 1, prevHash: '0'.repeat(64), description: 'a',
+    });
+    const a1 = s.getLatest('a')!;
+    s.publish({
+      name: 'a', author: 'x', code: 'b', methodology: { source: 'h' },
+      version: 2, prevHash: computeStrategyPrevHash(a1), description: 'b',
+    });
+    // External list: only v1 should appear as the latest of that name.
+    const latests = s.latestPerName([a1]);
+    expect(latests).toHaveLength(1);
+    expect(latests[0]?.version).toBe(1);
   });
 });

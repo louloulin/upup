@@ -258,6 +258,30 @@ export class StrategyStore {
     return versions[versions.length - 1];
   }
 
+  /**
+   * Group records by name, return the latest version of each name
+   * (sorted by version). If `records` is omitted, uses the in-memory
+   * store. Shared by /strategy list (P2.a.5), MCP `upup://strategy-list`
+   * (P2.a.4), and the audit view (P2.a.6) so the grouping rule lives
+   * in exactly one place.
+   */
+  latestPerName(records?: StrategyRecord[]): StrategyRecord[] {
+    const src = records ?? this.memRecords;
+    const byName = new Map<string, StrategyRecord[]>();
+    for (const r of src) {
+      const arr = byName.get(r.name) ?? [];
+      arr.push(r);
+      byName.set(r.name, arr);
+    }
+    const out: StrategyRecord[] = [];
+    for (const recs of byName.values()) {
+      const sorted = [...recs].sort((a, b) => a.version - b.version);
+      const latest = sorted[sorted.length - 1];
+      if (latest) out.push(latest);
+    }
+    return out;
+  }
+
   // -----------------------------------------------------------------------
   // Verification
   // -----------------------------------------------------------------------
@@ -305,6 +329,23 @@ export class StrategyStore {
     }
     return { valid: true };
   }
+}
+
+/**
+ * Compute the prevHash for a successor record, given the predecessor.
+ *
+ *   prevHash := sha256( canonicalJson({ ...prevRecord, signature: '' }) )
+ *
+ * Centralized here so /strategy publish (P2.a.5), the MCP read path
+ * (P2.a.4), and tests all use the same rule. The signature is stripped
+ * because the hash binds the *content*, not the signature on top of it.
+ *
+ * Pure function — usable from outside the class without a store instance.
+ */
+export function computeStrategyPrevHash(prevRecord: StrategyRecord): string {
+  return createHash('sha256')
+    .update(canonicalJson({ ...prevRecord, signature: '' }))
+    .digest('hex');
 }
 
 /**

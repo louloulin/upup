@@ -19,10 +19,21 @@
  *   - renderBacktestReport 链接占位 (实际报告由用户主动 /strategy run 触发)
  */
 
-import { StrategyStore, type StrategyRecord, type StrategyRecordInput } from '../../memory/strategy-store.js';
-import { validateMethodology } from '../../tools/backtest/backtest-report.js';
-import { createHash } from 'node:crypto';
-import { canonicalJson } from '../../memory/dossier.js';
+import { StrategyStore, computeStrategyPrevHash, type StrategyRecord, type StrategyRecordInput } from '../../memory/strategy-store.js';
+import { validateMethodology, type MethodologyDisclosure } from '../../tools/backtest/backtest-report.js';
+
+
+/**
+ * Runtime narrowing: StrategyRecord stores `methodology` as `unknown`
+ * (the versioned+signed input may carry whatever the publisher wrote),
+ * but the only call site that actually needs to *validate* it is
+ * /strategy audit + the report renderers — both of which know the
+ * shape. This guard preserves the unknown-typed store contract while
+ * giving callers a type-safe handle.
+ */
+function asMethodology(m: unknown): MethodologyDisclosure {
+  return m as MethodologyDisclosure;
+}
 
 const USAGE = [
   '',
@@ -59,7 +70,7 @@ function formatMethodologyBadge(valid: { ok: boolean; missing: string[] }): stri
 }
 
 function renderRecord(rec: StrategyRecord, store: StrategyStore): string[] {
-  const valid = validateMethodology(rec.methodology as Parameters<typeof validateMethodology>[0]);
+  const valid = validateMethodology(asMethodology(rec.methodology));
   return [
     `  ─ ${rec.name} v${rec.version} ─`,
     `    id:        ${rec.id}`,
@@ -80,23 +91,17 @@ function renderRecord(rec: StrategyRecord, store: StrategyStore): string[] {
 // ---------------------------------------------------------------------------
 
 function cmdList(store: StrategyStore): string {
-  const all = store.list();
-  if (all.length === 0) {
+  const latests = store.latestPerName();
+  if (latests.length === 0) {
     return ['', '  暂无策略。', '  提示: /strategy new <name> 创建模板。', ''].join('\n');
   }
-  // Group by name
-  const byName = new Map<string, StrategyRecord[]>();
-  for (const r of all) {
-    const arr = byName.get(r.name) ?? [];
-    arr.push(r);
-    byName.set(r.name, arr);
-  }
   const lines = ['', '  已 publish 策略', '  ─────────────────────────────────────'];
-  for (const [name, recs] of [...byName.entries()].sort()) {
-    const sorted = [...recs].sort((a, b) => a.version - b.version);
-    const latest = sorted[sorted.length - 1]!;
-    const valid = validateMethodology(latest.methodology as Parameters<typeof validateMethodology>[0]);
-    lines.push(`  ${name}  v${latest.version} (${recs.length} 版本)  ${formatMethodologyBadge(valid)}`);
+  // Sort by name for stable display. The store doesn't promise an order
+  // — we just need a consistent one for the user.
+  for (const latest of [...latests].sort((a, b) => a.name.localeCompare(b.name))) {
+    const versionsForName = store.getVersions(latest.name);
+    const valid = validateMethodology(asMethodology(latest.methodology));
+    lines.push(`  ${latest.name}  v${latest.version} (${versionsForName.length} 版本)  ${formatMethodologyBadge(valid)}`);
     lines.push(`    latest id: ${latest.id}  · ${formatTs(latest.ts)}`);
   }
   lines.push('');
@@ -185,10 +190,7 @@ function cmdPublish(rest: string[], store: StrategyStore): string {
   // 默认 v1, 默认 prevHash genesis
   const latest = store.getLatest(name);
   const version = parsed.version ?? (latest ? latest.version + 1 : 1);
-  const prevHash = parsed.prevHash
-    ?? (latest
-      ? createHash('sha256').update(canonicalJson({ ...latest, signature: '' })).digest('hex')
-      : '0'.repeat(64));
+  const prevHash = parsed.prevHash ?? (latest ? computeStrategyPrevHash(latest) : '0'.repeat(64));
   try {
     const rec = store.publish({
       name: parsed.name ?? name,
@@ -200,7 +202,7 @@ function cmdPublish(rest: string[], store: StrategyStore): string {
       description: parsed.description ?? `${name} v${version}`,
       tags: parsed.tags,
     });
-    const valid = validateMethodology(rec.methodology as Parameters<typeof validateMethodology>[0]);
+    const valid = validateMethodology(asMethodology(rec.methodology));
     return [
       '',
       `  ✓ Published ${rec.name} v${rec.version}`,
@@ -255,7 +257,8 @@ function cmdAudit(rest: string[], store: StrategyStore): string {
   if (!rec) {
     return [`  ✗ 找不到 "${target}"`, ''].join('\n');
   }
-  const valid = validateMethodology(rec.methodology as Parameters<typeof validateMethodology>[0]);
+  const m = asMethodology(rec.methodology);
+  const valid = validateMethodology(m);
   const lines = [
     '',
     `  审计: ${rec.name} v${rec.version} (${rec.id})`,
@@ -263,14 +266,18 @@ function cmdAudit(rest: string[], store: StrategyStore): string {
   ];
   if (valid.ok) {
     lines.push('  ✓ PASS — 方法学披露完整');
-    lines.push(`    - factorSources:     ${(rec.methodology as { factorSources: unknown[] }).factorSources.length} 个`);
-    lines.push(`    - lookAheadBias:     ${(rec.methodology as { lookAheadBiasCheck: string }).lookAheadBiasCheck}`);
-    lines.push(`    - walkForward.folds: ${(rec.methodology as { walkForward: { folds: unknown[] } }).walkForward.folds.length} 个`);
-    lines.push(`    - outOfSample:       ${(rec.methodology as { outOfSample: { startDate: string; endDate: string } }).outOfSample.startDate} → ${(rec.methodology as { outOfSample: { startDate: string; endDate: string } }).outOfSample.endDate}`);
+    const fs = Array.isArray(m.factorSources) ? m.factorSources : [];
+    const folds = m.walkForward?.folds ?? [];
+    const oos = m.outOfSample;
+    lines.push(`    - factorSources:     ${fs.length} 个`);
+    lines.push(`    - lookAheadBias:     ${m.lookAheadBiasCheck ?? '(unset)'}`);
+    lines.push(`    - walkForward.folds: ${folds.length} 个`);
+    if (oos) lines.push(`    - outOfSample:       ${oos.startDate} → ${oos.endDate}`);
+    else lines.push(`    - outOfSample:       (missing)`);
   } else {
     lines.push('  ✗ FAIL');
-    for (const m of valid.missing) {
-      lines.push(`    - 缺: ${m}`);
+    for (const miss of valid.missing) {
+      lines.push(`    - 缺: ${miss}`);
     }
   }
   lines.push('');

@@ -21,7 +21,7 @@ import { DossierStore } from '../memory/dossier.js';
 import { AuditChain } from '../memory/audit-signing.js';
 import { CitationRegistry } from '../agent/citation.js';
 import { buildEarningsPreview, buildEarningsPreviewAsync, type EarningsPreview } from '../commands/investment/earnings-preview.js';
-import { StrategyStore, type StrategyRecord } from '../memory/strategy-store.js';
+import { StrategyStore } from '../memory/strategy-store.js';
 
 // ---------------------------------------------------------------------------
 // URI parsing
@@ -246,8 +246,7 @@ export function readUpupResource(uri: string, reader: UpupReader): unknown {
       // `fork_strategy` as MCP *tools*; those are deferred to a follow-up
       // change because they require OAuth scope wiring + a write path.
       const store = reader.strategies ?? new StrategyStore({ inMemory: true });
-      let rec: StrategyRecord | undefined = store.getById(parsed.id);
-      if (!rec) rec = store.getLatest(parsed.id);
+      const rec = store.getById(parsed.id) ?? store.getLatest(parsed.id);
       if (!rec) {
         throw new Error(`Strategy not found: ${parsed.id}`);
       }
@@ -262,22 +261,18 @@ export function readUpupResource(uri: string, reader: UpupReader): unknown {
       };
     }
     case 'strategy-list': {
-      // P2.a.4: list endpoint — returns all strategy names with their latest
-      // version + methodology compliance status.
+      // P2.a.4: list endpoint — returns all strategy names with their
+      // latest version. The grouping rule lives in StrategyStore so the
+      // MCP read path and /strategy CLI (P2.a.5) cannot drift.
       const store = reader.strategies ?? new StrategyStore({ inMemory: true });
-      const all = store.list();
-      const byName = new Map<string, StrategyRecord[]>();
-      for (const r of all) {
-        const arr = byName.get(r.name) ?? [];
-        arr.push(r);
-        byName.set(r.name, arr);
-      }
-      const items: Array<{ name: string; latestId: string; version: number; author: string; ts: number }> = [];
-      for (const [name, recs] of byName) {
-        const sorted = [...recs].sort((a, b) => a.version - b.version);
-        const latest = sorted[sorted.length - 1]!;
-        items.push({ name, latestId: latest.id, version: latest.version, author: latest.author, ts: latest.ts });
-      }
+      const latests = store.latestPerName();
+      const items = latests.map((r) => ({
+        name: r.name,
+        latestId: r.id,
+        version: r.version,
+        author: r.author,
+        ts: r.ts,
+      }));
       return {
         total: items.length,
         items,

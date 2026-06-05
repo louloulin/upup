@@ -24,7 +24,7 @@ import {
 import { DossierStore } from '../memory/dossier.js';
 import { AuditChain } from '../memory/audit-signing.js';
 import { CitationRegistry } from '../agent/citation.js';
-import { StrategyStore } from '../memory/strategy-store.js';
+import { StrategyStore, computeStrategyPrevHash } from '../memory/strategy-store.js';
 
 const TMP = join(tmpdir(), `upup-mcp-resources-${process.pid}-${Date.now()}`);
 
@@ -218,12 +218,9 @@ describe('readUpupResource — strategy (P2.a.4)', () => {
       prevHash: '0'.repeat(64),
       description: 'v1',
     });
-    // v2 — prevHash = sha256(canonical(v1 with empty sig))
+    // v2 — prevHash = sha256(canonical(v1 with empty sig)), shared rule
     const v1 = s.getLatest('low-pe')!;
-    // Recompute the expected prevHash the same way StrategyStore does
-    const { createHash } = require('node:crypto') as typeof import('node:crypto');
-    const { canonicalJson } = require('../memory/dossier.js') as typeof import('../memory/dossier.js');
-    const expectedPrev = createHash('sha256').update(canonicalJson({ ...v1, signature: '' })).digest('hex');
+    const expectedPrev = computeStrategyPrevHash(v1);
     s.publish({
       name: 'low-pe',
       author: 'alice',
