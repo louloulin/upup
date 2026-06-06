@@ -1,4 +1,3 @@
-// @ts-nocheck - temporary fix for type narrowing
 /**
  * Exit-Plan Command Implementation
  *
@@ -38,19 +37,14 @@ export const call = async (
   if (planMode) {
     try {
       planMode.exit()
-      return {
-        type: 'text',
-        value: 'exit_plan_mode',
-      }
     } catch {
-      // Fall through to fallback
+      // Fall through to the success message below
     }
   }
 
-  try {
-    return {
-      type: 'text',
-      value: `
+  return {
+    type: 'text',
+    value: `
 ═══════════════════════════════════════
   Exit Plan Mode
 ═══════════════════════════════════════
@@ -62,9 +56,6 @@ export const call = async (
   Ready for execution.
 
 `,
-    }
-  } catch {
-    // Fallback failed
   }
 }
 

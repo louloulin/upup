@@ -1,4 +1,3 @@
-// @ts-nocheck - temporary during modularization migration
 /**
  * Plan Command Implementation
  *
@@ -9,20 +8,12 @@
  * globalThis registry populated by src/agent/plan-mode-state.ts at startup.
  */
 
-import type { LocalCommandResult, ToolUseContext } from '../../types/command-types.js'
+import type { LocalCommandResult, LocalCommandModule, ToolUseContext } from '../../types/command-types.js'
 import { getPlanModePortLocal } from '../../agent-port.js'
-
-export interface PlanContext extends ToolUseContext {
-  state?: {
-    inPlanMode?: boolean
-    currentPlanId?: string
-    planGoal?: string
-  }
-}
 
 export const call = async (
   args: string,
-  _convalue: PlanContext,
+  _context: ToolUseContext,
 ): Promise<LocalCommandResult> => {
   // Read plan-mode state via the public port (no cross-package import).
   let isActive = false
@@ -85,11 +76,13 @@ export const call = async (
   lines.push('───────────────────────────────────────')
   lines.push('  /plan <goal>    Enter plan mode with goal')
   lines.push('  /steps          List plan steps')
-  lines.push('  /add-step      Add a step to plan')
-  lines.push('  /exit-plan     Exit and start execution')
+  lines.push('  /add-step       Add a step to plan')
+  lines.push('  /exit-plan      Exit and start execution')
   lines.push('')
   lines.push('  Tip: /plan <description> to start planning')
 
   lines.push('')
   return { type: 'text', value: lines.join('\n') }
 }
+
+export const module: LocalCommandModule = { call }

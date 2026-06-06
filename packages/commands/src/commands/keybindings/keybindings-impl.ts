@@ -1,4 +1,3 @@
-// @ts-nocheck - temporary during modularization migration
 /**
  * Keybindings Command Implementation
  *
@@ -9,8 +8,8 @@ import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../
 import { getKeybindings } from '@earendil-works/pi-tui'
 
 export const call = async (
-  args: string,
-  context: ToolUseContext,
+  _args: string,
+  _context: ToolUseContext,
 ): Promise<LocalCommandResult> => {
   const lines = [
     '',
@@ -22,33 +21,32 @@ export const call = async (
 
   try {
     const kb = getKeybindings()
-    const shortcuts = kb.getAllBindings?.() || {}
+    const resolved = kb.getResolvedBindings?.() ?? {}
+    const userBindings = kb.getUserBindings?.() ?? {}
 
-    const categories: Record<string, string[]> = {}
-
-    for (const [name, binding] of Object.entries(shortcuts)) {
-      const cat = (binding as any).context || 'general'
-      if (!categories[cat]) categories[cat] = []
-      const keys = Array.isArray((binding as any).keys) ? (binding as any).keys.join(', ') : (binding as any).keys || name
-      categories[cat].push(`    ${name.padEnd(20)} ${keys}`)
+    const entries: Array<[string, string]> = []
+    for (const [name, keys] of Object.entries(resolved)) {
+      if (keys === undefined) continue
+      const formatted = Array.isArray(keys) ? keys.join(', ') : String(keys)
+      entries.push([name, formatted])
     }
 
-    const categoryOrder = ['global', 'editor', 'select', 'general', 'help']
-    let hasAny = false
-    for (const cat of categoryOrder) {
-      if (categories[cat]) {
-        lines.push(`  ${cat.toUpperCase()}:`)
-        lines.push(...categories[cat].sort())
-        lines.push('')
-        hasAny = true
-      }
-    }
-
-    if (!hasAny) {
+    if (entries.length === 0) {
       throw new Error('No keybindings loaded')
     }
+
+    lines.push('  RESOLVED BINDINGS:')
+    for (const [name, keys] of entries.sort(([a], [b]) => a.localeCompare(b))) {
+      lines.push(`    ${name.padEnd(36)} ${keys}`)
+    }
+
+    const customCount = Object.keys(userBindings).length
+    if (customCount > 0) {
+      lines.push('')
+      lines.push(`  USER OVERRIDES: ${customCount} binding${customCount === 1 ? '' : 's'}`)
+    }
   } catch {
-    // Fallback to default shortcuts
+    // Fallback to default shortcuts when the runtime API differs
     lines.push('  Navigation:')
     lines.push('    ↑ / ↓          Navigate history or list')
     lines.push('    ← / →          Navigate input line')
@@ -56,19 +54,19 @@ export const call = async (
     lines.push('  Commands:')
     lines.push('    /              Show commands')
     lines.push('    esc            Cancel / clear / interrupt')
-    lines.push('    Enter         Submit')
+    lines.push('    Enter          Submit')
     lines.push('')
     lines.push('  Editing:')
-    lines.push('    Ctrl+A        Beginning of line')
-    lines.push('    Ctrl+E        End of line')
-    lines.push('    Ctrl+U        Clear line')
-    lines.push('    Ctrl+W        Delete word')
+    lines.push('    Ctrl+A         Beginning of line')
+    lines.push('    Ctrl+E         End of line')
+    lines.push('    Ctrl+U         Clear line')
+    lines.push('    Ctrl+W         Delete word')
   }
 
   lines.push('')
   lines.push('───────────────────────────────────────')
   lines.push('  Keybindings are defined in:')
-  lines.push('    ~/.claude/keybindings.json')
+  lines.push('    ~/.upup/keybindings.json')
 
   return { type: 'text', value: lines.join('\n') }
 }
