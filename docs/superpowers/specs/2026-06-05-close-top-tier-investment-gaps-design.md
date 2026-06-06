@@ -2,6 +2,8 @@
 comet_change: close-top-tier-investment-gaps
 role: technical-design
 canonical_spec: openspec
+archived-with: 2026-06-06-close-top-tier-investment-gaps
+status: final
 ---
 
 # Technical Design: 补齐对标顶级投研助手的差距
@@ -31,6 +33,8 @@ bun run src/evals/run.ts --sample 10
 - 不允许 `test.skip` 绕开单测
 - 不允许禁用 lint
 
+archived-with: 2026-06-06-close-top-tier-investment-gaps
+status: final
 ---
 
 ## D-CTG-2. Dossier 存储 schema(扩展 `investment-memory`)
@@ -69,6 +73,8 @@ export interface Thesis {
 
 **版本控制**:`versionHash` 用 sha256(JSON.stringify(dossier, sorted-keys))。归档时只 append,不改历史。
 
+archived-with: 2026-06-06-close-top-tier-investment-gaps
+status: final
 ---
 
 ## D-CTG-3. NL→FilterSpec 的 LLM 强约束 schema(G4)
@@ -122,6 +128,8 @@ const nlScreenTool = new DynamicStructuredTool({
 
 **单测覆盖**:`8 个典型 NL + 3 个 eval case`,见 tasks.md P1.b.2。
 
+archived-with: 2026-06-06-close-top-tier-investment-gaps
+status: final
 ---
 
 ## D-CTG-4. Citation registry 编号一致性(G1)
@@ -173,6 +181,8 @@ export interface CitationRef {
 
 **密度上限校验**:在 evals 加 `citation-density.test.ts`,跑 20 个真实 query,断言 (citations / tokens) ≤ 1/60。
 
+archived-with: 2026-06-06-close-top-tier-investment-gaps
+status: final
 ---
 
 ## D-CTG-5. 引用 kind 映射规则(G1 数据流)
@@ -195,6 +205,8 @@ interface ToolResultWithCitations<T> {
 
 **改造点**:`tools/finance/{news,read-filings,earnings}.ts` + `tools/search/{exa,tavily,x-search,perplexity}.ts` 全部扩展(单测覆盖)。
 
+archived-with: 2026-06-06-close-top-tier-investment-gaps
+status: final
 ---
 
 ## D-CTG-6. Subagent 3-worker isolation 协议(G3)
@@ -246,6 +258,8 @@ export async function runEarningsPreview(
 - 2 个 worker 失败 → 整个 preview 标 `partial`,KAIROS 重试一次
 - 3 个 worker 失败 → 标 `failed`,不写入 dossier
 
+archived-with: 2026-06-06-close-top-tier-investment-gaps
+status: final
 ---
 
 ## D-CTG-7. 审计链 ed25519 签名(C2)
@@ -296,6 +310,8 @@ export async function verifyAuditChain(
 - 逻辑上,每条 record 的 signature + prevHash 双重校验
 - 测试:`memory-audit.test.ts` 已有 ed25519 基础,P3.b 加 `audit-chain-tamper.test.ts`
 
+archived-with: 2026-06-06-close-top-tier-investment-gaps
+status: final
 ---
 
 ## D-CTG-8. Web UI 严格边界(C3)
@@ -341,6 +357,8 @@ echo "✓ src/web/ boundary lint passed"
 
 **违规用例测试**:`web-boundary.test.ts` 故意写一行违规 import,断言 lint 报错。
 
+archived-with: 2026-06-06-close-top-tier-investment-gaps
+status: final
 ---
 
 ## D-CTG-9. 测试策略(分类 + 覆盖率)
@@ -368,6 +386,8 @@ src/evals/fixtures/
 └── g5_strategy/         # 策略回测 5 个 case
 ```
 
+archived-with: 2026-06-06-close-top-tier-investment-gaps
+status: final
 ---
 
 ## D-CTG-10. 性能预算(p50 / p99)
@@ -387,6 +407,8 @@ src/evals/fixtures/
 
 **超预算处理**:P1 / P2 阶段任一超预算 → 阻塞 archive,必须先优化或调预算(调预算要更新本文档)。
 
+archived-with: 2026-06-06-close-top-tier-investment-gaps
+status: final
 ---
 
 ## D-CTG-11. 可观测性(metrics / logs / traces)
@@ -413,6 +435,8 @@ src/evals/fixtures/
 - Dev: 100%
 - Prod: 10% by default;BUY/SELL/COVER 100%(合规要求)
 
+archived-with: 2026-06-06-close-top-tier-investment-gaps
+status: final
 ---
 
 ## D-CTG-12. 灰度 / 迁移策略
@@ -442,12 +466,16 @@ src/evals/fixtures/
 - [ ] docs/CHANGELOG.md 写入用户可见变化
 - [ ] README 给出开关说明
 
+archived-with: 2026-06-06-close-top-tier-investment-gaps
+status: final
 ---
 
 ## Spec Patches(回写 OpenSpec delta spec)
 
 **无**。本 change 显式声明"无 capability 变化",后续 4 个实现 change 会各自声明自己的 capability,届时再回写 `specs/<capability>/spec.md`。
 
+archived-with: 2026-06-06-close-top-tier-investment-gaps
+status: final
 ---
 
 ## 风险矩阵(本设计层)
@@ -463,6 +491,8 @@ src/evals/fixtures/
 | feature flag 命名冲突(已有 `BUN_CONFIG_FEATURE_UPUP_*`) | 中 | 低 | D-CTG-12 命名对齐现有 v2 flag 风格 |
 | `docs/superpowers/specs/` 目录不存在 → Design Doc 写失败 | 0 | - | 已确认存在(2 个 v1/v2 design) |
 
+archived-with: 2026-06-06-close-top-tier-investment-gaps
+status: final
 ---
 
 ## 关键设计决策小结(便于 Step 1c 用户确认)
@@ -478,6 +508,8 @@ src/evals/fixtures/
 | 性能预算 | 8 项 p50/p99 显式 | D-CTG-10;阻塞 archive |
 | 灰度节奏 | 8 个 feature flag 各自 dev→canary→100% | D-CTG-12;对齐 v2 风格 |
 
+archived-with: 2026-06-06-close-top-tier-investment-gaps
+status: final
 ---
 
 ## 附录 B — 审计链威胁模型(对应 C2 / D-CTG-7 / P3.b)

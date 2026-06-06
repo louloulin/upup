@@ -2,6 +2,7 @@
 change: close-top-tier-investment-gaps
 design-doc: docs/superpowers/specs/2026-06-05-close-top-tier-investment-gaps-design.md
 base-ref: bff212b4
+archived-with: 2026-06-06-close-top-tier-investment-gaps
 ---
 
 # 实施计划: P3 — 横切加固(C1 双语 + C2 审计 + KAIROS 过期告警)
