@@ -185,13 +185,13 @@ export const call = async (
     const sessionManager = getSessionManager()
 
     // Get all sessions
-    const allSessions = sessionManager.listSessions?.() ?? []
-    sessions = allSessions.map(s => ({
+    const allSessions = await (sessionManager.listSessions?.() ?? Promise.resolve([]))
+    sessions = (allSessions as Array<{ id: string; lastQuery?: string; lastUpdated: number; totalIterations: number }>).map(s => ({
       id: s.id,
-      title: s.title,
-      timestamp: s.lastActivity,
-      messageCount: s.messageCount,
-      tags: s.tags,
+      title: s.lastQuery?.slice(0, 50) || 'Untitled session',
+      timestamp: s.lastUpdated,
+      messageCount: s.totalIterations,
+      tags: [],
     }))
   } catch {
     // Session manager not available

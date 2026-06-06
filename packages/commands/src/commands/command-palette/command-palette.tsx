@@ -1,4 +1,3 @@
-// @ts-nocheck - temporary during modularization migration
 /**
  * Command Palette - Interactive Command Selection
  *
