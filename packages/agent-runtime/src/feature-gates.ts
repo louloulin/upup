@@ -1,4 +1,3 @@
-// @ts-nocheck - temporary during modularization migration
 /**
  * Feature Gates — three-layer enablement for UpUp capabilities.
  *

@@ -1,4 +1,3 @@
-// @ts-nocheck - temporary during modularization migration
 import { AIMessage, AIMessageChunk, BaseMessage } from '@langchain/core/messages';
 import { ChatOpenAI } from '@langchain/openai';
 import { ChatAnthropic } from '@langchain/anthropic';
@@ -226,7 +225,7 @@ function extractUsage(result: unknown): TokenUsage | undefined {
     const input = typeof u.input_tokens === 'number' ? u.input_tokens : 0;
     const output = typeof u.output_tokens === 'number' ? u.output_tokens : 0;
     const total = typeof u.total_tokens === 'number' ? u.total_tokens : input + output;
-    return { promptTokens: input, completionTokens: output, totalTokens: total };
+    return { inputTokens: input, outputTokens: output, totalTokens: total };
   }
 
   const responseMetadata = msg.response_metadata;
@@ -237,7 +236,7 @@ function extractUsage(result: unknown): TokenUsage | undefined {
       const input = typeof u.prompt_tokens === 'number' ? u.prompt_tokens : 0;
       const output = typeof u.completion_tokens === 'number' ? u.completion_tokens : 0;
       const total = typeof u.total_tokens === 'number' ? u.total_tokens : input + output;
-      return { promptTokens: input, completionTokens: output, totalTokens: total };
+      return { inputTokens: input, outputTokens: output, totalTokens: total };
     }
   }
 
