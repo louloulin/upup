@@ -543,7 +543,8 @@ export async function executeCommand(
   if (builtin) {
     try {
       recordCommandUsage(name)
-      const result = await builtin.execute(args, context)
+      const module = await (builtin as { load: () => Promise<{ call: (a: string, c: typeof context) => Promise<{ type: string; text?: string; message?: string }> }> }).load()
+      const result = await module.call(args, context) as CommandResult
       recordCommandMetric(name, result.type !== 'error', Date.now() - startTime)
       return result
     } catch (error) {
