@@ -14,10 +14,10 @@ export type HistoryItemStatus = HistoryItem['status'];
  * components to render a status indicator and the active tool name.
  */
 export type WorkingState =
-  | { status: 'idle' }
-  | { status: 'thinking' }
-  | { status: 'tool' }
-  | { status: 'approval' }
+  | { status: "idle" }
+  | { status: "thinking" }
+  | { status: "tool"; toolName?: string }
+  | { status: "approval"; toolName?: string }
   | { status: 'tool-input'; toolName: string }
   | { status: 'tool-use'; toolName: string }
   | { status: 'responding' }

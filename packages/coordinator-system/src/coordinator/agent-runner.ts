@@ -8,7 +8,8 @@ import type {
   DoneEvent,
 } from '@upup/agent-runtime';
 import type { DisplayEvent, StreamMode, ToolEndEvent, ToolErrorEvent } from '@upup/agent-runtime/types';
-import type { HistoryItem, HistoryItemStatus, WorkingState } from '@upup/types';
+import type { TuiHistoryItem, HistoryItemStatus, WorkingState } from "@upup/types";
+import type { HistoryMessage } from "@upup/tui-renderer";
 import type { SessionMessage } from '@upup/session-system/types';
 import { getSessionTracker } from '@upup/session-system/session-tracker';
 import { createSession, addSessionMessage } from '@upup/session-system/storage';
@@ -30,8 +31,9 @@ export interface RunQueryResult {
 }
 
 export class AgentRunnerController {
-  private historyValue: HistoryItem[] = [];
+  private historyValue: TuiHistoryItem[] = [];
   private workingStateValue: WorkingState = { status: 'idle' };
+  private activeToolIdValue: string | undefined = undefined;
   private errorValue: string | null = null;
   private pendingApprovalValue: { tool: string; args: Record<string, unknown> } | null = null;
   private turnStartMsValue: number | null = null;
@@ -64,7 +66,7 @@ export class AgentRunnerController {
     this.historyMessageListener = onHistoryMessage;
   }
 
-  get history(): HistoryItem[] {
+  get history(): TuiHistoryItem[] {
     return this.historyValue;
   }
 
@@ -145,7 +147,7 @@ export class AgentRunnerController {
 
   get isProcessing(): boolean {
     return (
-      this.historyValue.length > 0 && this.historyValue[this.historyValue.length - 1]?.status === 'processing'
+      this.historyValue.length > 0 && this.historyValue[this.historyValue.length - 1]?.status === 'running'
     );
   }
 
@@ -207,13 +209,12 @@ export class AgentRunnerController {
     let finalAnswer: string | undefined;
 
     const startTime = Date.now();
-    const item: HistoryItem = {
+    const item: TuiHistoryItem = {
       id: String(startTime),
       query,
       events: [],
-      answer: '',
-      status: 'processing',
-      startTime,
+      status: 'running',
+      startedAt: startTime,
     };
     this.historyValue = [...this.historyValue, item];
     this.inMemoryChatHistory.saveUserQuery(query);
@@ -397,34 +398,35 @@ export class AgentRunnerController {
       case 'tool_start': {
         const toolId = event.toolCallId ?? `tool-${event.tool}-${Date.now()}`;
         this.workingStateValue = { status: 'tool', toolName: event.tool };
+        this.activeToolIdValue = toolId;
+        const startMsg: HistoryMessage = {
+          id: toolId,
+          type: 'tool',
+          content: '',
+          timestamp: Date.now(),
+          toolName: event.tool,
+          toolUseId: event.toolCallId,
+        };
         this.updateLastItem((last) => ({
           ...last,
-          activeToolId: toolId,
-          events: [
-            ...last.events,
-            {
-              id: toolId,
-              event,
-              completed: false,
-            } as DisplayEvent,
-          ],
+          events: [...last.events, startMsg],
         }));
         break;
       }
       case 'tool_progress':
         this.updateLastItem((last) => ({
           ...last,
-          events: last.events.map((entry: import('@upup/agent-runtime').DisplayEvent) =>
-            entry.id === last.activeToolId ? { ...entry, progressMessage: event.message } : entry,
+          events: last.events.map((entry) =>
+            entry.id === this.activeToolIdValue ? { ...entry } : entry,
           ),
         }));
         break;
       case 'tool_end': {
-        const endToolId = event.toolCallId ?? this.getLastItem()?.activeToolId;
+        const endToolId = event.toolCallId ?? this.activeToolIdValue;
         this.updateLastItem((last) => ({
           ...last,
-          events: last.events.map((entry: import('@upup/agent-runtime').DisplayEvent) =>
-            entry.id === endToolId ? { ...entry, completed: true, endEvent: event } : entry,
+          events: last.events.map((entry) =>
+            entry.id === endToolId ? { ...entry, duration: event.duration } : entry,
           ),
         }));
         this.workingStateValue = { status: 'thinking' };
@@ -438,11 +440,11 @@ export class AgentRunnerController {
         break;
       }
       case 'tool_error': {
-        const errToolId = event.toolCallId ?? this.getLastItem()?.activeToolId;
+        const errToolId = event.toolCallId ?? this.activeToolIdValue;
         this.updateLastItem((last) => ({
           ...last,
-          events: last.events.map((entry: import('@upup/agent-runtime').DisplayEvent) =>
-            entry.id === errToolId ? { ...entry, completed: true, endEvent: event } : entry,
+          events: last.events.map((entry) =>
+            entry.id === errToolId ? { ...entry, error: event.error } : entry,
           ),
         }));
         this.workingStateValue = { status: 'thinking' };
@@ -497,7 +499,7 @@ export class AgentRunnerController {
         this.updateLastItem((last) => ({
           ...last,
           answer: done.answer,
-          status: 'complete',
+          status: 'completed',
           duration: done.totalTime,
           tokenUsage: done.tokenUsage,
           tokensPerSecond: done.tokensPerSecond,
@@ -511,16 +513,37 @@ export class AgentRunnerController {
   }
 
   private pushEvent(displayEvent: DisplayEvent) {
-    this.updateLastItem((last) => ({ ...last, events: [...last.events, displayEvent] }));
+    const message = this.toHistoryMessage(displayEvent)
+    if (!message) return
+    this.updateLastItem((last) => ({ ...last, events: [...last.events, message] }))
   }
 
-  private getLastItem(): HistoryItem | undefined {
+  private toHistoryMessage(displayEvent: DisplayEvent): HistoryMessage | null {
+    const base = { id: displayEvent.id || `msg-${Date.now()}`, timestamp: Date.now() }
+    const inner = displayEvent.event as unknown as Record<string, unknown>
+    const toolName = typeof inner.tool === 'string' ? inner.tool : undefined
+    const toolUseId = typeof inner.toolCallId === 'string' ? inner.toolCallId : undefined
+    switch (displayEvent.event.type) {
+      case 'thinking':
+        return { ...base, type: 'assistant', content: '' }
+      case 'tool_start':
+        return { ...base, type: 'tool', content: '', toolName, toolUseId }
+      case 'tool_end':
+        return { ...base, type: 'tool', content: '', toolName, toolUseId, duration: typeof inner.duration === 'number' ? inner.duration : undefined }
+      case 'tool_error':
+        return { ...base, type: 'tool', content: '', toolName, toolUseId, error: typeof inner.error === 'string' ? inner.error : 'unknown' }
+      default:
+        return null
+    }
+  }
+
+  private getLastItem(): TuiHistoryItem | undefined {
     return this.historyValue[this.historyValue.length - 1];
   }
 
-  private updateLastItem(updater: (item: HistoryItem) => HistoryItem) {
+  private updateLastItem(updater: (item: TuiHistoryItem) => TuiHistoryItem) {
     const last = this.historyValue[this.historyValue.length - 1];
-    if (!last || last.status !== 'processing') {
+    if (!last || last.status !== 'running') {
       return;
     }
     const next = updater(last);
@@ -529,7 +552,7 @@ export class AgentRunnerController {
 
   private markLastProcessing(status: HistoryItemStatus) {
     const last = this.historyValue[this.historyValue.length - 1];
-    if (!last || last.status !== 'processing') {
+    if (!last || last.status !== 'running') {
       return;
     }
     this.historyValue = [...this.historyValue.slice(0, -1), { ...last, status }];

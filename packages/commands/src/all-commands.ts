@@ -1,4 +1,3 @@
-// @ts-nocheck - temporary during modularization migration
 /**
  * All Commands - Single Source of Truth
  *
