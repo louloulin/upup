@@ -214,3 +214,48 @@ export function loadManifestSync(
     };
   }
 }
+
+
+/**
+ * Skill manifest entry (P1.7 — added in unify-skills-and-plugins-registries).
+ * Plugins can declare skills in their upup.plugin.json instead of forking
+ * the codebase. The shape is a strict subset of SkillMetadata; the
+ * runtime API (`PluginAPI.registerSkill`) accepts the same fields plus
+ * a few extras.
+ */
+export interface PluginSkillEntry {
+  /** Unique skill name (lowercase, hyphenated) */
+  name: string;
+  /** Short description shown in autocomplete + system prompt */
+  description: string;
+  /** Optional argument hint (e.g. "<ticker>") */
+  argumentHint?: string;
+  /** Optional slash command triggers (e.g. ["my", "ma"]) */
+  aliases?: string[];
+  /** Preferred model for this skill (sonnet | haiku | opus | default) */
+  model?: 'sonnet' | 'haiku' | 'opus' | 'default';
+  /** Whether this skill is user-invocable (default: true) */
+  userInvocable?: boolean;
+  /** Execution mode */
+  context?: 'inline' | 'fork';
+  /** Allowed tools */
+  allowedTools?: string[];
+  /** Markdown body — full instructions loaded into the skill */
+  instructions: string;
+}
+
+/**
+ * Skill registration input for the runtime API.
+ * Mirrors PluginSkillEntry but is the canonical shape the host accepts.
+ */
+export interface PluginSkillRegistration {
+  name: string;
+  description: string;
+  instructions: string;
+  argumentHint?: string;
+  aliases?: string[];
+  model?: 'sonnet' | 'haiku' | 'opus' | 'default';
+  context?: 'inline' | 'fork';
+  allowedTools?: string[];
+  userInvocable?: boolean;
+}

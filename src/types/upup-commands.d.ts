@@ -32,6 +32,32 @@ declare module '@upup/commands' {
     name: string;
     description: string;
     category?: string;
+    type?: 'prompt' | 'local' | 'local-jsx';
+    isHidden?: boolean;
+    aliases?: string[];
+    argumentHint?: string;
+    whenToUse?: string;
+    version?: string;
+    source?: 'builtin' | 'mcp' | 'plugin' | 'bundled' | 'skills' | 'workflow';
+    availability?: string[];
+    isEnabled?: () => boolean;
+    featureGate?: { envVar?: string; envValue?: string; check?: () => boolean };
+    disableModelInvocation?: boolean;
+    userInvocable?: boolean;
+    loadedFrom?: 'commands' | 'skills' | 'plugin' | 'bundled' | 'mcp';
+    kind?: 'workflow';
+    immediate?: boolean;
+    isSensitive?: boolean;
+    // PromptCommand-only fields (when type === 'prompt')
+    progressMessage?: string;
+    contentLength?: number;
+    argNames?: string[];
+    allowedTools?: string[];
+    model?: string;
+    context?: 'inline' | 'fork';
+    agent?: string;
+    effort?: 'minimal' | 'short' | 'medium' | 'long' | 'extended';
+    getPromptForCommand?(args: string, context: CommandContext): Promise<unknown>;
   }
 
   export interface Command {
@@ -92,4 +118,10 @@ declare module '@upup/commands' {
   export function loadMacros(registry: CommandRegistry): Promise<number>;
   export function parseMacroFile(content: string, name: string): MacroDefinition;
   export function expandMacro(macro: MacroDefinition): string[];
+
+  // Dynamic command registration (consumed by src/skills/bridge.ts)
+  export function registerDynamicCommand(cmd: SlashCommand): () => void;
+  export function unregisterDynamicCommand(name: string): boolean;
+  export function getDynamicCommands(): SlashCommand[];
+  export function clearDynamicCommands(): void;
 }

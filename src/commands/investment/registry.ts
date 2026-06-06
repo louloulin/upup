@@ -20,6 +20,9 @@ import { runEarningsPreview } from './earnings-preview.js';
 import { runRiskDashboard } from './risk-dashboard.js';
 import { runPortfolioReview } from './portfolio-review.js';
 import { runInvest } from './invest.js';
+import { runDossier } from './dossier.js';
+import { runScreen } from './screen.js';
+import { runStrategy } from './strategy.js';
 
 export type InvestmentCommandName =
   | 'morning-brief'
@@ -27,7 +30,10 @@ export type InvestmentCommandName =
   | 'risk-dashboard'
   | 'portfolio-review'
   | 'watchlist-edit'
-  | 'invest';
+  | 'invest'
+  | 'dossier'
+  | 'screen'
+  | 'strategy';
 
 export type InvestmentCommandHandler = (args: string) => string | Promise<string>;
 
@@ -48,8 +54,8 @@ export const INVESTMENT_COMMANDS: ReadonlyArray<InvestmentCommandEntry> = [
   },
   {
     name: 'earnings-preview',
-    aliases: ['ep'],
-    description: '财报前瞻: <TICKER> → 研究计划框架 + 历史 plan',
+    aliases: ['ep', 'earnings'],
+    description: '财报前瞻: <TICKER> → 研究计划框架 + 历史 plan + MCP upup://earnings-preview/{ticker}',
     run: runEarningsPreview,
   },
   {
@@ -75,6 +81,24 @@ export const INVESTMENT_COMMANDS: ReadonlyArray<InvestmentCommandEntry> = [
     aliases: ['wf', 'workflow'],
     description: '5 步研究闭环: research → valuation → backtest → trade → review (/invest NVDA)',
     run: runInvest,
+  },
+  {
+    name: 'dossier',
+    aliases: ['doss'],
+    description: '个股 dossier 一页式: snapshot / freshness / 最近论点 / triggers (/dossier NVDA)',
+    run: runDossier,
+  },
+  {
+    name: 'screen',
+    aliases: ['scr'],
+    description: '自然语言选股: NL → FilterSpec → 排序结果 + 1 句论点 (/screen "PE<15 且 ROE>20%")',
+    run: runScreen,
+  },
+  {
+    name: 'strategy',
+    aliases: ['strat'],
+    description: '策略市场: list / show / new / publish / fork / audit (/strategy list)',
+    run: runStrategy,
   },
 ];
 

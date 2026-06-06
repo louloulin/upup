@@ -36,6 +36,13 @@ export interface PortfolioSummary {
   activeName: string | undefined;
 }
 
+export interface StaleDossierItem {
+  /** Ticker that has a stale dossier. */
+  ticker: string;
+  /** Whole days since the dossier was last refreshed. */
+  freshnessDays: number;
+}
+
 export interface StatusLineOptions {
   /** 注入: 投资记忆 (默认 useInvestmentMemory()) */
   memory?: InvestmentMemory;
@@ -45,6 +52,12 @@ export interface StatusLineOptions {
   withPnL?: boolean;
   /** 注入: 总 P&L 百分比 (withPnL=true 时必填) */
   totalPnlPct?: number;
+  /**
+   * 注入: 过期 dossier 列表 (freshness > 30d, P3.b.1 落地)。
+   * 注入而非默认拉取 — 避免 status line 启动时拉 dossier store。
+   * 超过阈值会用 ANSI 红色高亮, 提示用户优先刷新。
+   */
+  staleDossiers?: StaleDossierItem[];
 }
 
 export interface StatusLineParts {
@@ -54,6 +67,8 @@ export interface StatusLineParts {
   decisionCount: number;
   openDecisionCount: number;
   totalPnlPct?: number;
+  /** P3.b.1: stale dossier 列表, 默认空数组 */
+  staleDossiers: StaleDossierItem[];
 }
 
 // ---------------------------------------------------------------------------
@@ -77,6 +92,7 @@ export function extractStatusLineParts(opts: StatusLineOptions = {}): StatusLine
     decisionCount: decisions.length,
     openDecisionCount: openDecisions.length,
     totalPnlPct: opts.withPnL ? opts.totalPnlPct : undefined,
+    staleDossiers: opts.staleDossiers ?? [],
   };
 }
 
@@ -105,6 +121,24 @@ export function formatInvestmentStatusLine(opts: StatusLineOptions = {}): string
     const pnlSign = parts.totalPnlPct >= 0 ? '+' : '';
     const pnlPct = (parts.totalPnlPct * 100).toFixed(2);
     segments.push(`今日: ${pnlSign}${pnlPct}%`);
+  }
+
+  // P3.b.1: stale dossier segment. 任何 ticker 的 dossier 超过阈值
+  // (默认 30 天, 由调用方筛) 都会用 ANSI 红色提示。设计要点:
+  //   - 不引入新的红色判断逻辑 — 整段用统一红
+  //   - 最多显示 3 个 ticker, 其余归并为 "+N"
+  //   - 空数组完全不渲染, 保持默认输出兼容 (P0/P1.a 单测已锁)
+  if (parts.staleDossiers.length > 0) {
+    const sorted = [...parts.staleDossiers].sort(
+      (a, b) => b.freshnessDays - a.freshnessDays,
+    );
+    const head = sorted.slice(0, 3);
+    const overflow = sorted.length - head.length;
+    const tag = head
+      .map(d => `${d.ticker}(${d.freshnessDays}d)`)
+      .join(',');
+    const tail = overflow > 0 ? ` +${overflow}` : '';
+    segments.push(`[31m过期: ${tag}${tail}[0m`);
   }
 
   return segments.join(' | ');

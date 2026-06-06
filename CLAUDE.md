@@ -51,7 +51,7 @@ bun test              # Run tests
 
 | Path | Purpose |
 |------|---------|
-| `src/cli.ts` | Main CLI entry (~1500 lines) |
+| `src/cli.ts` | Main CLI entry (~1540 lines); slash autocomplete is delegated to pi-tui's `CombinedAutocompleteProvider` (3-line wiring) |
 | `src/agent/` | Agent core logic |
 | `src/session/` | Session state management |
 | `src/components/` | TUI components |

@@ -1,6 +1,7 @@
 ---
 name: x-research
 description: >
+description.zh-CN: X (Twitter) 平台上的卖方 / 买方分析师观点研究。触发关键词: X, Twitter, 卖方观点, 社交媒体舆情.
   X/Twitter public sentiment research. Searches X for real-time perspectives,
   market sentiment, expert opinions, breaking news, and community discourse.
   Use when: user asks "what are people saying about", "X/Twitter sentiment",

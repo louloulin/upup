@@ -1,6 +1,7 @@
 ---
 name: valuation-alert
 description: Valuation-based price alerts. Triggers on 估值提醒, 价格提醒, PE预警, 估值过高, 估值过低.
+description.zh-CN: 基于估值的价格提醒。触发关键词: 估值提醒, 价格提醒, PE预警, 估值过高, 估值过低.
 triggers:
   - 估值提醒
   - 价格提醒

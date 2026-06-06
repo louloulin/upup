@@ -1,6 +1,7 @@
 ---
 name: fund-comparison
 description: Compare multiple mutual funds side by side. Triggers on 基金对比, fund comparison, 哪个更好, compare funds.
+description.zh-CN: 多只基金横向对比。触发关键词: 基金对比, fund comparison, 哪个更好, compare funds.
 triggers:
   - 基金对比
   - fund comparison

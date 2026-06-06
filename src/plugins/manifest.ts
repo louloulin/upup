@@ -102,6 +102,11 @@ export class ManifestLoader {
 
     // Validate
     this.validate(manifest, manifestPath);
+    // Validate optional skills[] entries (P1.7)
+    const m = manifest as unknown as Record<string, unknown>;
+    if ('skills' in m) {
+      validatePluginSkills(m['skills']);
+    }
 
     // Track provenance
     if (provenance) {
@@ -228,6 +233,57 @@ export function getManifestLoader(): ManifestLoader {
  */
 export function loadPluginManifest(dirPath: string, provenance?: string): PluginManifest {
   return getManifestLoader().load(dirPath, provenance);
+}
+
+/**
+ * Validate plugin skill entry shape (P1.7 — added in
+ * unify-skills-and-plugins-registries).
+ *
+ * Plugins declare skills in their upup.plugin.json `skills` array. The
+ * shape mirrors `PluginSkillEntry` in the SDK; this guard rejects
+ * bad shape early (wrong field name, missing required fields, etc.)
+ * so plugin authors get a clear error instead of a runtime crash.
+ *
+ * Not using Zod (not a project dep) — small surface area means a
+ * type-guard function is fine.
+ */
+export function validatePluginSkills(skills: unknown): void {
+  if (!Array.isArray(skills)) {
+    throw new Error('Plugin manifest "skills" must be an array');
+  }
+  for (let i = 0; i < skills.length; i++) {
+    const entry = skills[i];
+    if (!entry || typeof entry !== 'object') {
+      throw new Error(`Plugin skill[${i}] is not an object`);
+    }
+    const e = entry as Record<string, unknown>;
+    if (typeof e.name !== 'string' || e.name.length === 0) {
+      throw new Error(`Plugin skill[${i}].name must be a non-empty string`);
+    }
+    if (typeof e.description !== 'string') {
+      throw new Error(`Plugin skill[${i}].description must be a string`);
+    }
+    if (typeof e.instructions !== 'string') {
+      throw new Error(`Plugin skill[${i}].instructions must be a string`);
+    }
+    if (e.argumentHint !== undefined && typeof e.argumentHint !== 'string') {
+      throw new Error(`Plugin skill[${i}].argumentHint must be a string if present`);
+    }
+    if (e.aliases !== undefined) {
+      if (!Array.isArray(e.aliases) || !e.aliases.every((a: unknown) => typeof a === 'string')) {
+        throw new Error(`Plugin skill[${i}].aliases must be string[] if present`);
+      }
+    }
+    if (e.model !== undefined && !['sonnet', 'haiku', 'opus', 'default'].includes(e.model as string)) {
+      throw new Error(`Plugin skill[${i}].model must be sonnet|haiku|opus|default`);
+    }
+    if (e.context !== undefined && !['inline', 'fork'].includes(e.context as string)) {
+      throw new Error(`Plugin skill[${i}].context must be inline|fork`);
+    }
+    if (e.userInvocable !== undefined && typeof e.userInvocable !== 'boolean') {
+      throw new Error(`Plugin skill[${i}].userInvocable must be boolean if present`);
+    }
+  }
 }
 
 /**

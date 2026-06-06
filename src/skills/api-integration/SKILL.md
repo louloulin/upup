@@ -1,6 +1,7 @@
 ---
 name: api-integration
 description: Complete API integration guide for all investment tools. Triggers on API documentation, tool integration, 数据集成, API使用指南.
+description.zh-CN: 所有投资工具的完整 API 集成指南。触发关键词: API documentation, tool integration, 数据集成, API使用指南.
 triggers:
   - api integration
   - API documentation

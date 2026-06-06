@@ -1,6 +1,7 @@
 ---
 name: sentiment-analysis
 description: Analyze market sentiment and news for stocks. Triggers on 舆情, 情绪, sentiment, 新闻分析, news analysis, 市场情绪.
+description.zh-CN: 个股市场情绪与新闻分析。触发关键词: 舆情, 情绪, sentiment, 新闻分析, news analysis, 市场情绪.
 triggers:
   - 舆情
   - 情绪

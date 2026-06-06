@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getChannelProfile } from './channels.js';
+import { formatPrompt, getLocale, type Locale as PromptLocale } from './locale.js';
 import { upupPath, globalUpupPath } from '../utils/paths.js';
 import { loadMergedInvestmentConfig, formatInvestmentConfig } from './investment-config.js';
 
@@ -241,6 +242,12 @@ export async function buildSystemPrompt(
   memoryFiles?: string[],
   memoryContext?: string | null,
   rulesContent?: string | null,
+  /**
+   * Optional explicit locale override (Gap C1 / P3.a.1). When omitted,
+   * `getLocale()` is consulted at call time so the prompt reflects
+   * UPUP_LOCALE / LC_ALL / LANG.
+   */
+  locale?: PromptLocale,
 ): Promise<string> {
   const { buildCompactToolDescriptions } = await import('../tools/registry/index.js');
   const toolDescriptions = await buildCompactToolDescriptions(model);
@@ -248,6 +255,9 @@ export async function buildSystemPrompt(
   const investmentCapabilities = await buildInvestmentCapabilitiesSection();
   const profile = getChannelProfile(channel);
 
+  const resolvedLocale: PromptLocale = locale ?? getLocale();
+  const identityLine = formatPrompt('prompt.identity', resolvedLocale);
+  const citationDensityLine = formatPrompt('prompt.citation_density', resolvedLocale);
   const behaviorBullets = profile.behavior.map(b => `- ${b}`).join('\n');
   const formatBullets = profile.responseFormat.map(b => `- ${b}`).join('\n');
 
@@ -255,7 +265,7 @@ export async function buildSystemPrompt(
     ? `\n## Tables (for comparative/tabular data)\n\n${profile.tables}`
     : '';
 
-  return `You are UpUp, a ${profile.label} assistant with access to research tools.
+  return `${identityLine.replace(/\.$/, '')} a ${profile.label} assistant with access to research tools.
 
 Current date: ${getCurrentDate()}
 
@@ -265,6 +275,15 @@ ${profile.preamble}
 
 ${toolDescriptions}
 ${investmentCapabilities ? `\n\n${investmentCapabilities}` : ''}
+
+## Final Answer Citation Discipline (Gap G1)
+
+- Every factual claim in your final answer MUST cite a numbered source: \`[src:N]\`.
+- N is the 1-based index of a citation you have registered via the citation registry passed in context. Do NOT invent numbers.
+- Use the citation registry's \`getMarkdownLink(N)\` helper to render inline links; do not hand-roll URLs.
+- ${citationDensityLine}
+- A 0-token final answer (conversational acknowledgment) does not need citations.
+- The system must refuse to render any \`[src:N]\` that is not in the registry; hallucinated indices break the audit chain.
 
 ## Tool Usage Policy
 

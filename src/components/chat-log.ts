@@ -1,6 +1,7 @@
 import { Container, Spacer, Text, type TUI, type Component } from '@earendil-works/pi-tui';
 import type { TokenUsage } from '../agent/types.js';
 import { theme } from '../theme.js';
+import { t } from '../i18n/index.js';
 import { AnswerBoxComponent } from './answer-box.js';
 import { ToolEventComponent } from './tool-event.js';
 import { UserQueryComponent } from './user-query.js';
@@ -35,15 +36,15 @@ function formatBrowserStep(args: Record<string, unknown>): string | null {
   const url = args.url as string | undefined;
   switch (action) {
     case 'open':
-      return `Opening ${truncateUrl(url || '')}`;
+      return `${t('browser.opening_prefix')}${truncateUrl(url || '')}`;
     case 'navigate':
-      return `Navigating to ${truncateUrl(url || '')}`;
+      return `${t('browser.navigating_prefix')}${truncateUrl(url || '')}`;
     case 'snapshot':
-      return 'Reading page structure';
+      return t('browser.snapshot');
     case 'read':
-      return 'Extracting page text';
+      return t('browser.read');
     case 'close':
-      return 'Closing browser';
+      return t('browser.close');
     case 'act':
       return null;
     default:
@@ -94,7 +95,7 @@ class BrowserSessionComponent extends Container implements ToolDisplayComponent 
 
   setActive(progressMessage?: string): void {
     this.clearDetail();
-    const message = progressMessage || this.currentStep || 'Searching...';
+    const message = progressMessage || this.currentStep || t('tool.searching');
     this.detail = new Text(`${theme.muted('⎿  ')}${message}`, 0, 0);
     this.addChild(this.detail);
   }
@@ -128,7 +129,7 @@ class BrowserSessionComponent extends Container implements ToolDisplayComponent 
 
   setLimitWarning(warning?: string): void {
     this.clearDetail();
-    this.detail = new Text(`${theme.muted('⎿  ')}${theme.warning(warning || 'Approaching suggested limit')}`, 0, 0);
+    this.detail = new Text(`${theme.muted('⎿  ')}${theme.warning(warning || t('tool.limit_warning'))}`, 0, 0);
     this.addChild(this.detail);
   }
 
@@ -136,10 +137,10 @@ class BrowserSessionComponent extends Container implements ToolDisplayComponent 
     this.clearDetail();
     const label =
       decision === 'allow-once'
-        ? 'Approved'
+        ? t('tool.approved_once')
         : decision === 'allow-session'
-          ? 'Approved (session)'
-          : 'Denied';
+          ? t('tool.approved_session')
+          : t('tool.denied');
     const color = decision === 'deny' ? theme.warning : theme.primary;
     this.detail = new Text(`${theme.muted('⎿  ')}${color(label)}`, 0, 0);
     this.addChild(this.detail);

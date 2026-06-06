@@ -59,6 +59,14 @@ export interface PluginAPI {
   /** Register a tool */
   registerTool(tool: ExternalTool, options?: ToolOptions): void;
 
+  /**
+   * Register a skill (P1.7 — added in unify-skills-and-plugins-registries).
+   * The skill becomes available in /cmd autocomplete, the local
+   * SkillCommandRegistry, and the system prompt. Returns a cleanup
+   * function that unregisters the skill.
+   */
+  registerSkill(skill: PluginSkillRegistration): () => void;
+
   /** Register hooks */
   registerHook(events: string | string[], handler: HookHandler): void;
 
@@ -192,5 +200,10 @@ export interface ToolResult {
 
 // ===== Manifest =====
 
-export { type PluginManifest, type PluginManifestLoadResult } from './manifest.js';
+export {
+  type PluginManifest,
+  type PluginManifestLoadResult,
+  type PluginSkillEntry,
+  type PluginSkillRegistration,
+} from './manifest.js';
 export { validateManifest, loadManifest } from './manifest.js';

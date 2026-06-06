@@ -1,6 +1,7 @@
 ---
 name: value-investing
 description: Value investing analysis. Triggers on 价值投资, value investing, 低估值, undervalued, 估值修复, value stocks, 格雷厄姆.
+description.zh-CN: 价值投资分析。触发关键词: 价值投资, value investing, 低估值, undervalued, 估值修复, value stocks, 格雷厄姆.
 triggers:
   - 价值投资
   - value investing

@@ -1,6 +1,7 @@
 ---
 name: momentum-investing
 description: Momentum investing strategy analysis. Triggers on 动量, momentum, 趋势, 追涨, 趋势投资.
+description.zh-CN: 动量投资策略分析。触发关键词: 动量, momentum, 趋势, 追涨, 趋势投资.
 triggers:
   - 动量
   - momentum

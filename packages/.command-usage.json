@@ -1,13 +1,13 @@
 {
   "status": {
     "command": "status",
-    "count": 697,
-    "lastUsed": 1780568861337
+    "count": 702,
+    "lastUsed": 1780616036679
   },
   "help": {
     "command": "help",
-    "count": 725,
-    "lastUsed": 1780568861336
+    "count": 729,
+    "lastUsed": 1780616036673
   },
   "clear": {
     "command": "clear",
@@ -26,8 +26,8 @@
   },
   "doctor": {
     "command": "doctor",
-    "count": 125,
-    "lastUsed": 1780131884355
+    "count": 127,
+    "lastUsed": 1780616565993
   },
   "memory": {
     "command": "memory",
@@ -66,8 +66,8 @@
   },
   "mcp": {
     "command": "mcp",
-    "count": 211,
-    "lastUsed": 1780131884354
+    "count": 213,
+    "lastUsed": 1780616569044
   },
   "session": {
     "command": "session",
@@ -101,8 +101,8 @@
   },
   "history": {
     "command": "history",
-    "count": 86,
-    "lastUsed": 1780131884217
+    "count": 87,
+    "lastUsed": 1780616573512
   },
   "resume": {
     "command": "resume",
@@ -146,8 +146,8 @@
   },
   "agents": {
     "command": "agents",
-    "count": 85,
-    "lastUsed": 1780131884353
+    "count": 86,
+    "lastUsed": 1780608292795
   },
   "fork": {
     "command": "fork",
@@ -246,8 +246,8 @@
   },
   "h": {
     "command": "h",
-    "count": 633,
-    "lastUsed": 1780568861338
+    "count": 637,
+    "lastUsed": 1780616036680
   },
   "g": {
     "command": "g",
@@ -396,12 +396,12 @@
   },
   "c": {
     "command": "c",
-    "count": 620,
-    "lastUsed": 1780568861339
+    "count": 624,
+    "lastUsed": 1780616036681
   },
   "unknown": {
     "command": "unknown",
-    "count": 560,
-    "lastUsed": 1780568861340
+    "count": 564,
+    "lastUsed": 1780616036681
   }
 }

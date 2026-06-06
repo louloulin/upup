@@ -1,6 +1,7 @@
 ---
 name: institutional-holding
 description: Institutional investor holding analysis. Triggers on 机构持仓, institutional, 主力动向, 基金持仓, 北向资金.
+description.zh-CN: 机构持仓分析。触发关键词: 机构持仓, institutional, 主力动向, 基金持仓, 北向资金.
 triggers:
   - 机构持仓
   - institutional

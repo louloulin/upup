@@ -1,6 +1,7 @@
 ---
 name: institution-research
 description: Institution research activity tracking. Triggers on 机构调研, 调研记录, 机构动向, 基金公司调研.
+description.zh-CN: 机构调研活动跟踪。触发关键词: 机构调研, 调研记录, 机构动向, 基金公司调研.
 triggers:
   - 机构调研
   - 调研记录

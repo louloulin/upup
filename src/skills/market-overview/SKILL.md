@@ -1,6 +1,7 @@
 ---
 name: market-overview
 description: Provides comprehensive Chinese market overview including index performance, sector trends, northbound flow (北向资金), and market sentiment. Triggers on 市场概览, 今日行情, 北向资金, 板块涨跌.
+description.zh-CN: 中国市场综合概览 — 指数表现、板块涨跌、北向资金、市场情绪。触发关键词: 市场概览, 今日行情, 北向资金, 板块涨跌.
 triggers:
   - 市场概览
   - 今日行情

@@ -1,62 +1,62 @@
 {
   "help": {
     "name": "help",
-    "totalCalls": 660,
-    "successCount": 660,
+    "totalCalls": 664,
+    "successCount": 664,
     "errorCount": 0,
-    "totalDurationMs": 12704,
+    "totalDurationMs": 12719,
     "avgDurationMs": 19,
     "minDurationMs": 0,
     "maxDurationMs": 2372,
-    "lastCalled": 1780568861336,
-    "lastSuccess": 1780568861336
+    "lastCalled": 1780616036674,
+    "lastSuccess": 1780616036674
   },
   "status": {
     "name": "status",
-    "totalCalls": 634,
-    "successCount": 634,
+    "totalCalls": 639,
+    "successCount": 639,
     "errorCount": 0,
-    "totalDurationMs": 3405,
+    "totalDurationMs": 3413,
     "avgDurationMs": 5,
     "minDurationMs": 0,
     "maxDurationMs": 575,
-    "lastCalled": 1780568861337,
-    "lastSuccess": 1780568861337
+    "lastCalled": 1780616036679,
+    "lastSuccess": 1780616036679
   },
   "h": {
     "name": "h",
-    "totalCalls": 616,
-    "successCount": 616,
+    "totalCalls": 620,
+    "successCount": 620,
     "errorCount": 0,
-    "totalDurationMs": 423,
+    "totalDurationMs": 427,
     "avgDurationMs": 1,
     "minDurationMs": 0,
     "maxDurationMs": 52,
-    "lastCalled": 1780568861338,
-    "lastSuccess": 1780568861338
+    "lastCalled": 1780616036680,
+    "lastSuccess": 1780616036680
   },
   "c": {
     "name": "c",
-    "totalCalls": 612,
-    "successCount": 612,
+    "totalCalls": 616,
+    "successCount": 616,
     "errorCount": 0,
-    "totalDurationMs": 3471,
+    "totalDurationMs": 3474,
     "avgDurationMs": 6,
     "minDurationMs": 0,
     "maxDurationMs": 269,
-    "lastCalled": 1780568861339,
-    "lastSuccess": 1780568861339
+    "lastCalled": 1780616036681,
+    "lastSuccess": 1780616036681
   },
   "unknown": {
     "name": "unknown",
-    "totalCalls": 557,
+    "totalCalls": 561,
     "successCount": 0,
-    "errorCount": 557,
-    "totalDurationMs": 143,
+    "errorCount": 561,
+    "totalDurationMs": 145,
     "avgDurationMs": 0,
     "minDurationMs": 0,
     "maxDurationMs": 11,
-    "lastCalled": 1780568861340,
+    "lastCalled": 1780616036681,
     "lastSuccess": 0
   },
   "commands": {
@@ -97,15 +97,15 @@
   },
   "mcp": {
     "name": "mcp",
-    "totalCalls": 148,
-    "successCount": 148,
+    "totalCalls": 150,
+    "successCount": 150,
     "errorCount": 0,
-    "totalDurationMs": 22,
+    "totalDurationMs": 26,
     "avgDurationMs": 0,
     "minDurationMs": 0,
-    "maxDurationMs": 1,
-    "lastCalled": 1780131884354,
-    "lastSuccess": 1780131884354
+    "maxDurationMs": 2,
+    "lastCalled": 1780616569044,
+    "lastSuccess": 1780616569044
   },
   "cost": {
     "name": "cost",
@@ -157,15 +157,15 @@
   },
   "history": {
     "name": "history",
-    "totalCalls": 71,
-    "successCount": 71,
+    "totalCalls": 72,
+    "successCount": 72,
     "errorCount": 0,
     "totalDurationMs": 14,
     "avgDurationMs": 0,
     "minDurationMs": 0,
     "maxDurationMs": 3,
-    "lastCalled": 1780131884217,
-    "lastSuccess": 1780131884217
+    "lastCalled": 1780616573512,
+    "lastSuccess": 1780616573512
   },
   "memory": {
     "name": "memory",
@@ -301,15 +301,15 @@
   },
   "agents": {
     "name": "agents",
-    "totalCalls": 70,
-    "successCount": 70,
+    "totalCalls": 71,
+    "successCount": 71,
     "errorCount": 0,
-    "totalDurationMs": 44,
+    "totalDurationMs": 45,
     "avgDurationMs": 1,
     "minDurationMs": 0,
     "maxDurationMs": 4,
-    "lastCalled": 1780131884353,
-    "lastSuccess": 1780131884353
+    "lastCalled": 1780608292795,
+    "lastSuccess": 1780608292795
   },
   "fork": {
     "name": "fork",
@@ -445,15 +445,15 @@
   },
   "doctor": {
     "name": "doctor",
-    "totalCalls": 74,
-    "successCount": 74,
+    "totalCalls": 76,
+    "successCount": 76,
     "errorCount": 0,
-    "totalDurationMs": 14,
+    "totalDurationMs": 15,
     "avgDurationMs": 0,
     "minDurationMs": 0,
     "maxDurationMs": 1,
-    "lastCalled": 1780131884355,
-    "lastSuccess": 1780131884355
+    "lastCalled": 1780616565994,
+    "lastSuccess": 1780616565994
   },
   "version": {
     "name": "version",

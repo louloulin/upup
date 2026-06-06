@@ -21,6 +21,19 @@ export {
   backtestTools,
 } from './backtest-tools.js';
 
+export {
+  renderBacktestReport,
+  renderBacktestReportJson,
+  renderBacktestReportHtml,
+  validateMethodology,
+  type BacktestReport,
+  type BacktestReportInput,
+  type FactorSource,
+  type MethodologyDisclosure,
+  type OutOfSampleResult,
+  type WalkForwardFold,
+} from './backtest-report.js';
+
 export const EVALUATE_TRADE_DESCRIPTION = `
 Evaluate a single historical trade analysis against forward price data.
 

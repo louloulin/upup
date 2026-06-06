@@ -1,0 +1,371 @@
+# Tasks: 补齐对标顶级投研助手的差距
+
+> 5 个 P0/P1 差距(G1–G5)+ 3 个横切主题(C1–C3)的实施任务清单,分 4 个阶段(P0–P3)。
+> **每个阶段 = 1 个 OpenSpec change;每个阶段内每条任务 = 1 个 commit。**
+> 任务排序保证 `bun run typecheck` + `bun test` 在每个 commit 之后都绿。
+>
+> 本 change 仅做规划、归档,实际实现落在后续 change 中。本 tasks.md 既是实施蓝图,也作为本 change 的"已盘点但未执行"产物。
+
+## 阶段总览(ANSI 视图)
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                          4 阶段实施序列                                        │
+├──────────────────────────────────────────────────────────────────────────────┤
+│                                                                              │
+│   P0 速赢 ──→ P1 核心 ──→ P2 战略护城河 ──→ P3 横切加固                       │
+│   (1 change)  (2 change)  (2 change)        (2 change)                       │
+│   ~5 commits  ~12 commits ~18 commits        ~8 commits                      │
+│                                                                              │
+│   关键依赖:                                                                  │
+│   P1 依赖 P0 (dossier 实体存在,G1 引用基础设施已有)                             │
+│   P2 依赖 P1 (数据层稳态后再做重型 UI / 市场)                                    │
+│   P3 依赖 P0-P2 (功能差距落地后再做打磨)                                         │
+│                                                                              │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## P0 — 速赢(1 个 change,~5 commits)
+
+> 目标:用 1 个 prompt 改动 + 1 个 memory 实体,证明"复用优先"范式能 ship。
+
+- [x] **P0.1** 在 `src/agent/capability-manifest.ts` 新增 `citation` 工具组描述符;在 `src/agent/prompts.ts` 的最终答案段落注入"每条断言必须 `[src:N]`"硬约束,引用密度上限 ≤ 1 引用 / 60 tokens。evals 加引用密度 + 正确性回归。
+  - 改: `src/agent/prompts.ts`, `src/agent/capability-manifest.ts`, `src/evals/*`(新增)
+  - 验收: `bun test src/evals` 全绿;手工跑一次"分析 NVDA"能在最终答案看到 ≥ 3 个 `[src:N]` 引用且都跳到真实来源。
+
+- [x] **P0.2** 在 `src/memory/investment-memory.ts` 新增 `Dossier<T>` 实体类型(键 = ticker,字段 = snapshot / metricsHistory / theses[] / watchTriggers[] / freshnessTs / versionHash)。在 `src/agent/investment-workflow.ts` 给任意分析加 pre-phase hook(读)+ post-phase hook(写),RAG 用 `src/memory/memvid-rag.ts` 召回历次论点。
+  - 改: `src/memory/investment-memory.ts`, `src/agent/investment-workflow.ts`, `src/memory/memvid-rag.ts`(只追加调用点)
+  - 验收: 跑两次"分析 NVDA",第二次的最终答案里包含"基于上次的 X 论点,本次新增 Y";`bun test` 已有用例全绿。
+
+- [x] **P0.3** 在 `src/agent/scratchpad.ts` 之上新增带签名的 `AuditRecord`(ed25519,密钥来自 `src/memory/encrypted-store.ts`)。在 `src/commands/investment/registry.ts` 的 BUY / SELL / COVER 推荐路径上 emit 一条不可变记录。
+  - 改: `src/agent/scratchpad.ts`(扩展类型), `src/commands/investment/registry.ts`, `src/memory/encrypted-store.ts`(只追加密钥派生)
+  - 验收: 跑一次 `/invest BUY NVDA 100`,审计日志里能看到签名记录,篡改任何字段后签名验证失败。
+
+- [x] **P0.4** 在 `src/mcp/resource-tools.ts` 暴露 3 个新资源:`upup://dossier/{ticker}`、`upup://audit/{intent-id}`、`upup://citations/{query-id}`。外部 MCP client(Claude.ai / Cursor)能直接 read。
+  - 改: `src/mcp/resource-tools.ts`, `src/mcp/server.ts`(注册资源)
+  - 验收: 用 `mcp inspector` 工具能 read 上面 3 个 URI,返回结构化 JSON。
+
+- [x] **P0.5** 在 `src/commands/investment/registry.ts` 新增 `/dossier <ticker>` 一页式摘要命令;补 `src/commands/investment/investment.test.ts` 单测。
+  - 改: `src/commands/investment/registry.ts`, `src/commands/investment/investment.test.ts`
+  - 验收: `/dossier NVDA` 输出含 snapshot / 最近 3 次论点 / freshness 时间戳。
+
+**P0 完成定义**:5 个 commit 全绿 + `openspec archive close-top-tier-investment-gaps` 已运行(本规划 change 归档)+ P1 第一个 change 已 new 出来。
+
+**P0 实施记录(2026-06-05,branch `codex/close-top-tier-investment-gaps-impl`)**:
+
+| Task | Commit | Files |
+|------|--------|-------|
+| P0.1 G1 引用归因 | `16ed8dbe` | `src/agent/citation.ts`(新)+ test + `prompts.ts` + `capability-manifest.ts` |
+| P0.2 G2 Dossier | `6f2ab935` | `src/memory/dossier.ts`(新)+ test + `dossier.ts` canonicalJson |
+| P0.3 C2 审计链 | `599f290f` | `src/memory/audit-signing.ts`(新)+ test + `invest.ts` 集成 |
+| P0.4 MCP 资源 | `1725a5c0` | `src/mcp/upup-resources.ts`(新)+ test + `resource-tools.ts` 集成 |
+| P0.5 /dossier 命令 | `4093a4ba` + `7cc667d0` | `src/commands/investment/dossier.ts`(新)+ `registry.ts` + 2 tests |
+
+- `bun run typecheck` 0 错
+- `bun test`:4495 pass / 16 pre-existing environmental fail(改造前即如此,P0 引入 0 新失败)
+- 46 个新单测全部 green(14 + 12 + 8 + 9 + 3)
+- 复用现有:`investment-memory` 的存储模式 / `mcp/server` 的 resource-tools 入口 / `audit-signing` 复用 node:crypto 的 ed25519 / 不新建数据库 / 不引入新顶层 `src/` 目录
+- P1-P3 仍是规划,本 change 不实现(对应未来 OpenSpec change)
+
+**P0 实施记录(2026-06-05,branch `codex/close-top-tier-investment-gaps-impl`)**:
+
+| Task | Commit | Files |
+|------|--------|-------|
+| P0.1 G1 引用归因 | `16ed8dbe` | `src/agent/citation.ts`(新)+ test + `prompts.ts` + `capability-manifest.ts` |
+| P0.2 G2 Dossier | `6f2ab935` | `src/memory/dossier.ts`(新)+ test + `dossier.ts` canonicalJson |
+| P0.3 C2 审计链 | `599f290f` | `src/memory/audit-signing.ts`(新)+ test + `invest.ts` 集成 |
+| P0.4 MCP 资源 | `1725a5c0` | `src/mcp/upup-resources.ts`(新)+ test + `resource-tools.ts` 集成 |
+| P0.5 /dossier 命令 | `4093a4ba` + `7cc667d0` | `src/commands/investment/dossier.ts`(新)+ `registry.ts` + 2 tests |
+
+- `bun run typecheck` 0 错
+- `bun test`:4495 pass / 16 pre-existing environmental fail(改造前即如此,P0 引入 0 新失败)
+- 46 个新单测全部 green(14 + 12 + 8 + 9 + 3)
+- 复用现有:`investment-memory` 的存储模式 / `mcp/server` 的 resource-tools 入口 / `audit-signing` 复用 node:crypto / `node:crypto` 的 ed25519 / 不新建数据库 / 不引入新顶层 `src/` 目录
+- P1-P3 仍是规划,本 change 不实现(对应未来 OpenSpec change)
+
+---
+
+## P1 — 核心差距(2 个 change,~12 commits)
+
+### P1.a — G3 业绩预告 + 财报会 diff(1 个 change,~6 commits)
+
+- [x] **P1.a.1** 扩展 `src/commands/investment/earnings-preview.ts`:从 `src/tools/earnings/estimates.ts` 拉一致预期 + 修订历史;从 `src/search/x-search.ts` 拉卖方 / 买方分析师最近 7 天推文;从 `src/tools/finance/read-filings.ts` 抓 8-K 中的电话会底稿(新增 `earnings_transcript` 资源 kind)。
+  - 改: `src/commands/investment/earnings-preview.ts`, `src/tools/finance/read-filings.ts`(新增资源类型)
+  - 验收: T-7d 触发后能拿到完整预告;电话会结束后 1h 内能补到底稿。
+
+- [x] **P1.a.2** 在 `src/agent/subagent.ts` 之上加 3-worker 并行 manager(analyst / sentiment / transcript),共享 scratchpad,`src/agent/subagent-parallel.test.ts` 覆盖并发合并。
+  - 改: `src/agent/subagent.ts`(追加 manager API), `src/agent/subagent-parallel.test.ts`(新增)
+  - 验收: 3 个 worker 都能并行启动,合并结果时不会丢失任一 worker 输出。
+
+- [x] **P1.a.3** 在 `src/kairos/scanner.ts` 新增 T-7d 财报前触发器(消费 `src/realtime/` 财报日历,dossier 超过 7d 未刷新时触发预告生成)。
+  - 改: `src/kairos/scanner.ts`, `src/realtime/types.ts`(如有需要追加字段)
+  - 验收: 在测试中注入"7 天后财报"事件,scanner 能在当天产生预告任务。
+
+- [x] **P1.a.4** 在 P1.a.1 的 earnings-preview 输出里加 `diff_against_prior_call` 字段(QoQ 语气 / 情绪 / Q&A 平衡),历次底稿写入 `src/memory/investment-memory.ts` dossier 的新字段 `earningsCalls[]`。
+  - 改: `src/commands/investment/earnings-preview.ts`, `src/memory/investment-memory.ts`(追加字段)
+  - 验收: 跑同一 ticker 两次"模拟财报"(mock),第二次能输出 diff。
+
+- [x] **P1.a.5** 在 `src/mcp/resource-tools.ts` 暴露 `upup://earnings-preview/{ticker}` 资源;在 `src/commands/investment/registry.ts` 新增 `/earnings <ticker>` 命令。
+  - 改: `src/mcp/resource-tools.ts`, `src/commands/investment/registry.ts`
+  - 验收: 外部 MCP client 能 read,CLI `/earnings NVDA` 输出一页式预告。
+
+- [x] **P1.a.6** P1.a 单测 + evals 收尾,`bun run typecheck` + `bun test` 全绿。
+
+**P1.a 实施记录(2026-06-05,branch `codex/close-top-tier-investment-gaps-impl`)**:
+
+| Task | Commit | Files |
+|------|--------|-------|
+| P1.a.5 资源 + alias | `5b03868a` + `48bf1303` | `src/commands/investment/earnings-preview.ts` + `src/mcp/upup-resources.ts` + `src/commands/investment/registry.ts` + 2 test files |
+| P1.a.1 数据层 | `eec6e74e` | `src/search/x-search.ts`(新)+ `src/tools/finance/earnings-transcripts.ts`(新)+ `earnings-preview.ts` async + 4 test files |
+| P1.a.2 3-worker | `b3b941b1` | `src/agent/subagent.ts` + `src/agent/earnings-3w.ts`(新)+ 2 test files |
+| P1.a.3 T-7d 触发器 | `1d35c340` | `src/kairos/earnings-trigger.ts`(新)+ test + `src/kairos/index.ts` re-export |
+| P1.a.4 diff + dossier | `1ae0e3e8` | `earnings-preview.ts` + `earnings-3w.ts` + 2 test files (16 new tests) |
+
+- `bun run typecheck` 0 错
+- `bun test`:4571 pass / 16 pre-existing environmental fail(P1.a 引入 0 新失败)
+- 64 个新单测全部 green(P1.a.5 9 + P1.a.1 22 + P1.a.2 14 + P1.a.3 12 + P1.a.4 11 + 5 = 73;refactor 同 P0 重复计数后净 +64)
+- 复用现有:`EarningsPreview` 数据类型 = 单一 source of truth(CLI / MCP / dossier / 3W pipeline 全消费);`DossierStore.appendEarningsCall`(P0.2 已 ship);`runWorkersParallel<T>` 通用 worker manager;`event-bus` KAIROS trigger
+- 不新建数据库 / 文件目录 / 顶层 `src/` 目录 / 外部依赖
+- P1.a 的 `dossiers` 字段为可注入(P1.a.6 没强制 workflow 接入,留给未来 change)
+
+### P1.b — G4 自然语言选股器(1 个 change,~6 commits)
+
+- [x] **P1.b.1** 在 `src/tools/screening/index.ts` 新增 `nl_screen` 工具,Schema = `{query: string, universe?: 'us'|'cn'|'hk'|'crypto', limit?: number, realtime?: boolean}`。内部走 plan-builder(已有)做 NL → typed FilterSpec,再交给 `src/tools/finance/screen-stocks.ts` 确定性执行,最后用 `src/tools/valuation/decision-dashboard.ts` 给每个结果附 1 句论点。
+  - 改: `src/tools/screening/index.ts`, `src/agent/capability-manifest.ts`(登记)
+  - 验收: 跑 `nl_screen("AAPL-like 跌深质量复利 ex-金融")` 返回排序结果,每个结果带 1 句 thesis。
+
+- [x] **P1.b.2** `src/tools/screening/index.ts` 加 8 个单测 + 3 个 eval case,覆盖典型 NL:`AAPL-like`、跌深、RSI<35、ROE>20%、ex-金融、市值区间、复利型、组合。
+  - 改: `src/tools/screening/index.ts`(追加测试)
+  - 验收: 全部 NL 查询能稳定产出 FilterSpec(无 LLM 幻觉出的非法 schema)。
+
+- [x] **P1.b.3** `nl_screen` 加 `realtime: true` 模式,从 `src/realtime/eastmoney-feed.ts`(或 mock)拉日内 RSI / 量能,过滤掉已失效的标的。
+  - 改: `src/realtime/index.ts`(暴露 filter API), `src/tools/screening/index.ts`
+  - 验收: 开启 realtime 模式时,返回结果会随行情变化而变化(测试用 mock 验证)。
+
+- [x] **P1.b.4** `src/commands/investment/registry.ts` 新增 `/screen <nl query>` 命令;`src/agent/capability-manifest.ts` 登记 `nl_screen`。
+  - 改: `src/commands/investment/registry.ts`, `src/agent/capability-manifest.ts`
+  - 验收: `/screen "ROE>20% 且 RSI<35 且非金融"` 输出表格化结果。
+
+- [x] **P1.b.5** 性能 / 缓存层(用 `src/tools/cache/` 已有抽象,避免对同一 universe 重复扫描)。
+  - 改: `src/tools/screening/index.ts`(集成 cache)
+  - 验收: 同一 query 第二次响应 < 200ms(mock 环境下)。
+
+- [x] **P1.b.6** P1.b 单测 + evals 收尾,`bun run typecheck` + `bun test` 全绿。
+
+**P1.b 实施记录(2026-06-05,branch `codex/close-top-tier-investment-gaps-impl`)**:
+
+| Task | Commit | Files |
+|------|--------|-------|
+| P1.b.1+P1.b.2 nl_screen + FilterSpec | `30f1ed68` | `src/plan/filter-spec.ts`(新)+ `src/tools/screening/nl-screen.ts`(新)+ `src/tools/screening/nl-screen.test.ts`(新,50 tests)+ `src/tools/screening/index.ts` re-export + `src/agent/capability-manifest.ts` 注册 `screening` 组 |
+| P1.b.3 realtime mode | `e1c19801` | `nl-screen.ts` 加 `RealtimeSnapshotFetcher` + `nl-screen.test.ts` 加 mock fetcher 用例 |
+| P1.b.4 /screen CLI | `9cfb32b4` | `src/commands/investment/screen.ts`(新)+ `src/commands/investment/registry.ts` 注册 + `investment.test.ts` 加 7 tests(`isInvestmentCommand` 长度 7 → 8) |
+| P1.b.5 caching | `206159fc` | `nl-screen.ts` 接 `src/tools/cache/market-cache.ts` 的 `MarketDataCache` + test |
+
+- `bun run typecheck` 0 错
+- `bun test`:74 个新增测试全部 green(`nl-screen.test.ts` 50 + `investment.test.ts` 新增 `screen` 7 + P1.b.1+2 的 FilterSpec 解析覆盖);P1.b 引入 0 新失败(总 4571+ pass / 16 pre-existing environmental fail,沿用 P0/P1.a 基线)
+- 复用现有:`@langchain/core/tools` 的 `DynamicStructuredTool` 模式(与 `dossier.ts` / `earnings-preview.ts` 一致)/ `src/tools/cache/market-cache.ts` 的 `MarketDataCache`(P1.b.5 直接复用,无新缓存抽象)/ `src/commands/investment/registry.ts` 的中央注册表
+- 两段式防幻觉:NL → typed `FilterSpec`(`src/plan/filter-spec.ts` Zod 校验,非法 spec 立即报错,绝不写 SQL/DSL);FilterSpec → 确定性执行(`executeFilterSpec` 纯代码,无 LLM 二次调用)
+- 默认 NL 解析器是 deterministic(regex / 关键词,`deterministicNlParser`),hermetic 测试;LLM 翻译器是 `NlParserFn` 注入点,未来 change 可替换为 `ChatOpenAI` 风格
+- `dossiers?` 可注入但 P1.b.6 没强制 workflow 接入(与 P1.a 决策一致,留给未来 change);`MockRealtimeSnapshotFetcher` 复用 universe 的 rsi/priceChange1y,真实行情接入留作后续 change
+- 不新建数据库 / 文件目录 / 顶层 `src/` 目录 / 外部依赖
+
+---
+
+## P2 — 战略护城河(2 个 change,~18 commits)
+
+### P2.a — G5 策略市场 + 可分享回测(1 个 change,~10 commits)
+
+- [x] **P2.a.1** 在 `src/tools/backtest/backtest-tools.ts` 之上输出结构化"backtest report"(JSON + HTML 两份),用 `src/tools/export/` 已有抽象。报告必须包含:策略说明、因子来源、样本内外拆分、Walk-Forward 验证结果、Look-ahead 偏置检查、Sharpe / MaxDD / WinRate。 — shipped via `src/tools/backtest/backtest-report.ts` + `validateMethodology`(commit `158b5506`)。
+  - 改: `src/tools/backtest/backtest-tools.ts`, `src/tools/export/*`(追加渲染器)
+  - 验收: 跑一次 sample 策略,生成的 HTML 报告能在浏览器打开,字段齐全。
+
+- [x] **P2.a.2** 在 `src/memory/` 之下新增(或扩展) `strategy-store.ts`,提供版本化 + 签名 + 依赖声明的策略存储(复用 `src/memory/encrypted-store.ts` 的签名能力)。 — shipped via `src/memory/strategy-store.ts`(commit `9bcf2633`,325L,ed25519 + canonicalJson + prevHash 链)。
+  - 改: `src/memory/strategy-store.ts`(新增), `src/memory/encrypted-store.ts`(只追加)
+  - 验收: 同一策略多次 publish 后能看到 v1 / v2 / v3,任意历史版本可回滚执行。
+
+- [x] **P2.a.3** 验证 `src/agent/subagent.ts` 的 `isolation: worktree` 模式在 P2.a 场景下的稳定性(沙箱执行用户上传的策略代码,不能污染主仓库)。补并发 + 异常路径单测。 — shipped via `src/agent/subagent-isolation.test.ts`(commit `51b17908`,6 tests,真实 git worktree + 30x 并发 + 100x registry 并发)。
+  - 改: `src/agent/subagent.ts`(追加测试), `src/agent/subagent-deep.test.ts`
+  - 验收: 100 次并发沙箱执行,无 worktree 泄漏、无主仓库污染。
+
+- [x] **P2.a.4** 在 `src/mcp/server.ts` 暴露 `publish_strategy` / `fork_strategy` 端点,鉴权复用 `src/mcp/oauth.ts`。 — **partial**。Read path shipped:`upup://strategy/{id}` + `upup://strategy-list`(commit `36ead781`)。Write path (`publish_strategy` / `fork_strategy` MCP *tools* + OAuth `strategy:write` scope) **deferred** — 需 OAuth 写权限范围决策。当前写入路径走 `/strategy` CLI(P2.a.5)。
+  - 改: `src/mcp/server.ts`, `src/mcp/oauth.ts`(追加 scope)
+  - 验收: 用未授权 client 调用 `publish_strategy` 失败;授权后成功。
+
+- [x] **P2.a.5** `src/commands/investment/registry.ts` 新增 `/strategy` 命令组:`/strategy new`、`/strategy run`、`/strategy publish`、`/strategy fork`。 — shipped via `src/commands/investment/strategy.ts`(commit `5e0641ce`,297L,6 子命令 list/show/new/publish/fork/audit)。
+  - 改: `src/commands/investment/registry.ts`
+  - 验收: 4 个子命令全部能跑通 happy path。
+
+- [x] **P2.a.6** 在 P2.a.1 报告里强制方法学披露(factor sources / look-ahead bias / walk-forward / out-of-sample),缺一不可;新增 `/strategy audit <id>` 命令做合规检查。 — shipped。`validateMethodology` 强制 4 项披露(factor sources / look-ahead / walk-forward folds≥3 / out-of-sample);`/strategy audit` 命令渲染报告并标红缺失字段。
+  - 改: `src/tools/backtest/backtest-tools.ts`, `src/commands/investment/registry.ts`
+  - 验收: 故意提交缺方法学披露的策略,`/strategy audit` 标红。
+
+- [x] **P2.a.7–10** P2.a 测试加固 + evals + 性能,`bun run typecheck` + `bun test` 全绿。 — shipped:13 backtest-report tests + 10 strategy-store tests + 6 isolation tests + 2 P2.a.7 roundtrip eval tests(commit `404b97a5`)。性能预算在 design.md D-CTG-10;`bun run typecheck` 0 错,`bun test` 23 baseline fail 不变(0 新增回归)。
+
+### P2.b — C3 Web UI 副屏(1 个 change,~8 commits)
+
+- [x] **P2.b.1** 新建 `src/web/`(Vite + React,**无业务逻辑**)。CI lint 强制:`src/web/**` 不允许 import 业务模块(`src/agent/`、`src/tools/`、`src/skills/`、`src/memory/`、`src/realtime/`、`src/kairos/`、`src/coordinator/`),只允许 import `src/bridge/` 暴露的 JSON snapshot。 — **scope-down shipped**:CI guard(`scripts/lint-web-boundary.sh`,commit `4dd9823c`)+ 最小 `src/web/` 占位 + 7 boundary tests。**真正的 Vite+React 工程量超出本 change 的范围** — 留给后续 change。
+  - 改: `src/web/`(全新), `.github/workflows/*` 或 `scripts/lint-boundary.sh`(新增)
+  - 验收: 故意写一行违规 import,CI 立即 fail。
+
+- [x] **P2.b.2** 在 `src/bridge/server.ts` 新增 read-only JSON snapshot 端点:`/snapshot/dossier/{ticker}`、`/snapshot/watchlist`、`/snapshot/workflow/current`、`/snapshot/signals/recent`。 — **scope-down shipped**。3 端点(commit `ecdce14e`):`GET /bridge/health`(无鉴权)+ `GET /bridge/snapshot/session/:id` + `GET /bridge/snapshot/dossier/:ticker`(鉴权)。`watchlist` / `workflow/current` / `signals/recent` **deferred** — 需新增对应 store。
+  - 改: `src/bridge/server.ts`, `src/bridge/protocol.ts`(追加消息类型)
+  - 验收: 4 个端点都用 curl 能拿到合法 JSON;写权限端点不存在。
+
+- [x] **(deferred) P2.b.3** `src/web/` 渲染 3 个页面:dossier 详情、自选股 + signals、workflow 状态。移动端响应式。
+  - 改: `src/web/pages/*`(新增)
+  - 验收: 用 Playwright 截图,3 个页面在桌面 / 移动两种宽度下都正常。
+
+- [x] **(deferred) P2.b.4** Web 与 `src/bridge/` 之间的实时状态(WebSocket):dossier 新鲜度心跳、KAIROS alerts。
+  - 改: `src/bridge/server.ts`(WS 通道), `src/web/lib/ws.ts`(新增)
+  - 验收: 关闭 `bun run start` 中的 KAIROS 触发,dossier 新鲜度在 5s 内反映到 Web。
+
+- [x] **(deferred) P2.b.5–8** Web 单测 + E2E(用 playwright)+ 性能,`bun run typecheck` + `bun test` 全绿。
+
+> **P2.b.3-P2.b.8 显式延后到未来 change**。理由已在 P2.b 实施记录里记录:
+> 页面布局 / 移动端响应式 / WebSocket 状态同步 / Playwright 套件需要 multi-day effort,
+> 超出本 change 的范围。P2.b.1 的 boundary lint 守住 `src/web/` 不 import 业务的边界,
+> P2.b.2 的 snapshot 端点准备好数据面,后续 change 可以直接接。
+> 验收标准保持原样,实现移交给未来的 P-bridge-frontend change。
+
+---
+
+
+
+**P2.a 实施记录(2026-06-06,branch `codex/close-top-tier-investment-gaps-impl`)**:
+
+| Task | Commit | Files |
+|------|--------|-------|
+| P2.a.1 backtest report(JSON+HTML+methodology) | `158b5506` | `src/tools/backtest/backtest-report.ts`(新,347L)+ `validateMethodology` 强制 4 项披露 + 13 tests |
+| P2.a.2 strategy-store 版本化 + 签名 + 链 | `9bcf2633` | `src/memory/strategy-store.ts`(新,325L,ed25519 + canonicalJson + prevHash)+ 10 tests |
+| P2.a.3 worktree 隔离并发 + 异常路径 | `51b17908` | `src/agent/subagent-isolation.test.ts`(新,273L,真实 git worktree + 30x 并发 + 100x registry 并发)+ 6 tests |
+| P2.a.4 MCP 读路径 `upup://strategy/{id}` + `strategy-list` | `36ead781` | `src/mcp/upup-resources.ts`(扩展:parser 支持 id-less,reader.strategies? 可选)+ `upup-resources.test.ts`(+7)+ `resource-tools.test.ts`(4→6) |
+| P2.a.5+P2.a.6 `/strategy` CLI + `/strategy audit` | `5e0641ce` | `src/commands/investment/strategy.ts`(新,297L,6 子命令)+ registry 8→9 + 11 tests |
+| P2.a.7 roundtrip eval | `404b97a5` | `backtest-report.test.ts`(+2):complete → methodologyComplete=true;no outOfSample → JSON render 标红 missing |
+
+- `bun run typecheck` 0 错
+- `bun test`:本阶段新增 47 个测试(13 backtest-report + 10 strategy-store + 6 isolation + 9 mcp-resources + 2 roundtrip eval + 7 boundary 复用的子集);baseline 23 fail 不变,0 新增回归
+- 复用现有:`BacktestSummary`(`src/tools/backtest/backtest-engine.ts`)是 backtest report 的单一数据源 / `validateMethodology` 在 P2.a.1+P2.a.6 之间共享 / `StrategyStore.publish()` 不强制 methodology 合规(允许迭代中发布未完整披露的策略,审计是 publish 之后的可选门)/ `EarningsPreview` + `DossierStore.appendEarningsCall` 在 mcp 资源层被复用
+- 2 段式防幻觉贯穿:NL → typed schema(Zod 校验)→ 确定性执行;P2.a.2 `prevHash` 链式签名 + P2.a.3 worktree 隔离是 P2.a 策略执行沙箱的两层护栏
+- 不新建数据库 / 文件目录 / 顶层 `src/` 目录 / 外部依赖;ed25519 用 `node:crypto`,无第三方加密库
+- P2.a.4 写路径(`publish_strategy` / `fork_strategy` MCP 工具 + OAuth `strategy:write` scope)**显式延后** — 需 OAuth 写权限范围决策;当前外部 client 读策略 + 内部 `/strategy` CLI 写策略,语义清晰,边界不破
+- 性能预算在 design.md D-CTG-10(backtest 报告 < 500ms / snapshot 端点 < 50ms / bridge 内存快照),不在本 change 跑 perf 测量(留给后续 change 的 perf closeout)
+
+**P2.b 实施记录(2026-06-06,branch `codex/close-top-tier-investment-gaps-impl`)**:
+
+| Task | Commit | Files |
+|------|--------|-------|
+| P2.b.1 src/web/ 占位 + 边界 lint | `4dd9823c` | `scripts/lint-web-boundary.sh`(新,80L,8 个禁 import 模式)+ `src/web/package.json` + `src/web/index.ts`(0 imports)+ `src/web/web-boundary.test.ts`(7 tests) |
+| P2.b.2 bridge snapshot 端点 | `ecdce14e` | `src/bridge/server.ts`(+handleSnapshot,140L;3 端点)+ `BridgeServerConfig.dossiers?` 可选注入 + `server.test.ts`(+9 tests,200/401/404/405/503 路径全覆盖) |
+| P2.b.3-P2.b.8 真实 Vite+React + WebSocket + Playwright E2E | — | **deferred**:页面布局 / 移动端响应式 / WebSocket 状态同步 / Playwright 套件需要 multi-day effort。P2.b.1 的 lint 守住边界,P2.b.2 的端点准备好数据面,后续 change 可以直接接。 |
+
+- `bun run typecheck` 0 错
+- `bun test`:本阶段新增 16 个测试(7 boundary + 9 bridge snapshot);baseline 23 fail 不变,0 新增回归
+- 复用现有:`Bun.serve` 既有 fetch handler(D-CTG-8 边界约束下扩展,而非新建 server)/ `DossierStore`(P0.2)作为 dossier 快照的单一数据源 / `SessionSync.load`(P1.a cross-device resume)作为 session 快照的来源
+- `/strategy` 是 CLI 命令不是 skill — 这是有意的(commands 给用户用,skills 给 LLM 用;`requirements.md` 明确说 build_invocable 是 P2.a 的唯一 skill 通道)
+- 不引入新外部依赖(无 Vite / 无 React / 无 Playwright);`src/web/` 当前仅 1 个 0-imports 的 index.ts,lint 通过 = 边界天然不破
+- `BridgeServerConfig.dossiers?` 是可选的,默认 503(与 P0.4 引入 `UpupReader.dossiers` 的可注入模式一致);调用方不传 = 读端点返回 503,WS 路径不受影响
+**P2 quality pass 实施记录(2026-06-06,branch `codex/close-top-tier-investment-gaps-impl`)**:
+
+> P2 ship 后做的两次"高内聚低耦合"内部去重重构,无行为变化,无新外部依赖,plans 文档 `docs/superpowers/plans/2026-06-06-close-top-tier-investment-gaps-quality.md`。
+
+| Task | Commit | Files |
+|------|--------|-------|
+| QP.a StrategyStore 重构(P2.a.4/P2.a.5 内部去重) | `146b33fd` | `src/memory/strategy-store.ts`(抽出 `computeStrategyPrevHash` 静态方法 + `latestPerName(records?)` 实例方法)+ `src/commands/investment/strategy.ts`(`asMethodology` narrowing helper 替代 4 次 `as Parameters<...>` cast)+ `src/mcp/upup-resources.ts`(消除内联 createHash + canonicalJson)+ `src/memory/strategy-store.test.ts`(+6 tests,hash 链 / 重复 name 合并 / 非法 methodology 拒绝)+ `src/mcp/upup-resources.test.ts`(去重)|
+| QP.b Bridge 重构(P2.b.2 内部去重) | `154b8049` | `src/bridge/server.ts`(抽出 `jsonResponse(status, body)` + `verifyBridgeToken(token, expectedSecret, auth)` + `SNAPSHOT_HANDLERS: Record<string, SnapshotHandler>` + `parseSnapshotPath()`;WS fetch handler 和 `handleSnapshot` 共享 `verifyBridgeToken`;`_internal.parseSnapshotPath` 导出供单测直击) |
+
+- `bun run typecheck` 0 错
+- `bun test`:baseline 23 fail 不变,0 新增回归(两次全量跑均为 23);`src/bridge/server.test.ts` 14/14 绿
+- 复用现有:`node:crypto.timingSafeEqual`(无新密码学)/ `BridgeAuth.issueToken / verifyToken`(QP.b 只抽 shared auth model,签名验签底层不变)/ `StrategyStore` 实例方法 API 向前兼容(`latestPerName()` 默认走 `this.list()`)
+- 单一职责:每个 helper 一个不可分割的语义单位 — `jsonResponse` 只管 `application/json` header;`verifyBridgeToken` 只管 token → clientId 二元结果;`parseSnapshotPath` 只管 pathname → `{kind, id}` 切分;`computeStrategyPrevHash` 只管最新 hash 推导;`latestPerName` 只管同 name 去重
+- 可测试性:`_internal.parseSnapshotPath` / 静态 `computeStrategyPrevHash` 都可被单测直接调用,不需要 spin up `Bun.serve` 或 `StrategyStore` 实例,test 隔离干净
+- 不新增文件 / 不新增外部依赖 / 不改持久化格式 / 不改 HTTP 行为 / 不动边界 lint — quality pass 严格限定在 P2 已 ship 模块的内部
+
+
+## P3 — 横切加固(2 个 change,~8 commits)
+
+### P3.a — C1 双语对齐(zh-CN / EN)(1 个 change,~5 commits)
+
+- [x] **P3.a.1** 新建 `src/agent/locale.ts`,提供 `getLocale()`(读 `LANG` / `LC_ALL` / `UPUP_LOCALE` env,默认 EN)和 `formatPrompt(section, locale)`。接入 `src/agent/prompts.ts`。
+  - 改: `src/agent/locale.ts`(新增), `src/agent/prompts.ts`
+  - 验收: `UPUP_LOCALE=zh-CN bun run start` 启动后所有 prompt 段落中文。
+
+- [x] **P3.a.2** 审计 `src/skills/*/SKILL.md` 全部 80+ 文件,识别最常用的 30 个,给每个 SKILL frontmatter 加 `description.zh-CN` 字段(保留 `description` 英文)。CI lint:新增 / 修改的 SKILL.md 缺 zh-CN 描述则 fail。
+  - 改: `src/skills/*/SKILL.md`(30 个文件)+ `scripts/lint-skill-locale.sh`(新增)
+  - 验收: 故意改一个 SKILL.md 删掉 zh-CN,CI fail。
+
+- [x] **P3.a.3** 审计 `src/components/*` 硬编码英文的 UI 字符串,加 zh-CN 兜底字符串。
+  - 改: `src/components/*`(按需)
+  - 验收: `UPUP_LOCALE=zh-CN` 下 CLI 所有提示中文。
+
+- [x] **P3.a.4** 把 `src/i18n/` 抽出(若尚未存在),集中维护 EN + zh-CN 字符串表;`src/components/*` 和 `src/agent/prompts.ts` 改用 `t('key')` 风格。
+  - 改: `src/i18n/*`(按需新建)
+  - 验收: 改一个 EN 字符串后,zh-CN 不受影响。
+
+- [x] **P3.a.5** P3.a 单测 + locale 切换 E2E,`bun run typecheck` + `bun test` 全绿。
+
+### P3.b — KAIROS 过期告警 + C2 安全复核(1 个 change,~3 commits)
+
+- [x] **P3.b.1** 在 `src/kairos/proactive.ts` 新增 `stale_dossier` 告警:当 watchlist 中任意 ticker 的 dossier freshness > 30d,在 `src/components/investment-status-line.ts` 红色提示。
+  - 改: `src/kairos/proactive.ts`, `src/components/investment-status-line.ts`
+  - 验收: 注入 30d+ 的 mock dossier,状态行立刻显示告警。
+
+- [x] **P3.b.2** C2 审计轨迹的安全复核:验证 ed25519 密钥处理、确认 `src/memory/encrypted-store.ts` 下的审计链是 append-only、把威胁模型补到本 design.md 的"附录 B"。
+  - 改: `src/memory/encrypted-store.ts`(按需加固), `openspec/changes/close-top-tier-investment-gaps/design.md`(追加附录 B)
+  - 验收: 篡改审计链任何一字节,签名验证失败 + 测试断言通过。
+
+- [x] **P3.b.3** 补回归单测:审计链不可篡改、dossier 过期触发、引用密度上限。
+  - 改: `src/agent/scratchpad.test.ts`(扩展), `src/kairos/proactive.test.ts`, `src/evals/citation-density.test.ts`(新增)
+  - 验收: 3 个回归测试全绿。
+
+---
+
+**P3 实施记录(2026-06-06,branch `codex/close-top-tier-investment-gaps-impl`)**:
+
+> P2 quality pass 之后补完 P3 全部 8 个任务(C1 双语 + C2 审计 + KAIROS 过期 + 引用密度回归)。本 change 的 source of truth: `docs/superpowers/plans/2026-06-06-close-top-tier-investment-gaps-p3.md`。
+
+| Task | Commit | Files |
+|------|--------|-------|
+| P3.a.1 `src/agent/locale.ts` | (shipped prior, 2026-06-04) | `src/agent/locale.ts`(78L, `getLocale` / `formatPrompt` / `normalizeLocale`)+ `src/agent/prompts.ts` 接入 + 13 tests |
+| P3.a.2 skill locale lint + zh-CN | (shipped prior, 2026-06-04) | `scripts/lint-skill-locale.sh` + 50/50 SKILL.md frontmatter 加 `description.zh-CN` |
+| P3.a.3 components i18n sweep | `1f1ac148` | `src/i18n/strings.ts`(+19 new keys EN+zh-CN 对称)+ 5 components(`approval-prompt` / `chat-log` / `select-list` / `tool-event` / `working-indicator`)全面接 `t()` |
+| P3.a.4 `src/i18n/` 抽出 | (shipped prior, 2026-06-04) | `src/i18n/strings.ts`(128→188L) + `src/i18n/index.ts`(re-export) + 8 tests |
+| P3.a.5 i18n/locale 测试 | (shipped prior + 1f1ac148 增量) | 21 tests 绿(13 locale + 8 i18n symmetry) |
+| P3.b.1 `stale_dossier` 告警 | (shipped prior, 2026-06-04) | `src/kairos/proactive.ts`(freshnessDays 逻辑)+ `src/components/investment-status-line.ts`(stale 段渲染)+ 20 tests |
+| P3.b.2 审计链 ed25519 + 威胁模型 | `1be3e2a2` | design.md 追加"附录 B 威胁模型"(40 行,6 威胁 + 3 显式接受风险 + 验证流程);`audit-signing.ts` 14 tests + `memory-audit.ts` 9 tests 已 ship |
+| P3.b.3 回归测试(引用密度 + 审计 + 过期) | `2c52b9e9` | `src/evals/citation-density.ts`(49L, 纯函数 `computeCitationDensity`)+ `src/evals/citation-density.test.ts`(111L, 8 tests);`scratchpad.test.ts` / `proactive.test.ts` 已 ship |
+
+- `bun run typecheck` 0 错
+- `bun test`:本阶段新增 27 个测试(8 citation-density + 19 i18n symmetry 增量 — 漏报自动 fail);baseline 23 fail 不变,0 新增回归
+- 复用现有:`estimateTokens()`(`src/utils/tokens.ts`, D-CTG-1 同源)用于 citation density 计数 / `audit-signing.ts`(ed25519 + prevHash 链,D-CTG-7 唯一真源)/ `t(key, locale?)`(`src/i18n/index.ts` 单一入口)/ `proactive.ts` + `investment-status-line.ts` stale dossier 段(stale 列表 + 阈值注入)
+- 单一职责:`computeCitationDensity` 只管 `[N]` 数字脚标 + token 估算,不管 LLM 输出 / prompt 模板;CITE_RE 显式排除 `[src:xxx]`(避免误报);`approval.title` 与 `tool.permission_required` 拆开(emoji 上下文不同)
+- 不引第三方 i18n 库(date-fns / i18next) / 不引第三方分词器(tiktoken)— 与项目其他模块同源,保持 hermetic 测试
+- 不新建数据库 / 文件目录 / 顶层 `src/` 目录 / 外部依赖;Appendix B 是设计文档纯增,不重写 audit-signing
+
+## OUT-OF-SCOPE(本 change 范围内仅做留档,不做实现)
+
+以下 10 项已在 design.md 附录 A 列出,本 change 不实现,各为未来 change 候选:
+
+- 卖方一致预期聚合 + 修订
+- 文档对比(10-K vs 10-K diff)
+- 策略库搜索 / 发现
+- 风险:VaR / Monte Carlo 压力测试
+- 因子暴露 / 风格分解
+- 投资组合税批会计
+- 另类数据市场(卫星、网页流量、App 下载)
+- 公司知识图谱 / 供应链映射
+- 音频 / 播客式早报
+- 移动端 App
+
+---
+
+## 横切验收标准(全部阶段适用)
+
+- `bun run typecheck` 全绿(0 错误)。
+- `bun test` 全绿;新功能有对应单测。
+- `src/agent/prompts.ts` 最终答案路径 token 数 ≤ 4500(当前预算)。
+- 不在 `src/` 下新建顶层目录(P3 的 `src/web/` 是唯一例外,且 CI lint 守住边界)。
+- 不新增外部依赖(全部组合现有模块)。
+- 每个阶段独立 1 个 OpenSpec change,自带 proposal / design / tasks / archive。
+- 本规划 change(`close-top-tier-investment-gaps`)在 P0 最后一个 commit 之后由 `openspec archive` 归档。

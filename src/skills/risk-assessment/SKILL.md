@@ -1,6 +1,7 @@
 ---
 name: risk-assessment
 description: Comprehensive risk assessment for investments. Triggers on 风险, risk, 风险评估, risk assessment, 风险分析, risk analysis.
+description.zh-CN: 投资综合风险评估。触发关键词: 风险, risk, 风险评估, risk assessment, 风险分析, risk analysis.
 triggers:
   - 风险
   - risk

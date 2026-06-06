@@ -69,6 +69,21 @@ export const CAPABILITY_GROUPS: CapabilityGroup[] = [
     competitorRefs: ["bloomberg", "wind", "joinquant", "uqer"],
   },
   {
+    id: "citation",
+    title: "Source-attributed answer infrastructure (Gap G1)",
+    prefixes: ["citation_"],
+    blurb:
+      "In-process CitationRegistry for numbering and rendering `[src:N]` markdown links in the final answer. Density is bounded to 1 citation per 60 tokens.",
+    whenToUse: [
+      "Register a citation: CitationRegistry.add({ url, kind, snippet })",
+      "Render an inline link: registry.getMarkdownLink(N)",
+      "Inspect coverage: extractCitationRefs(text)",
+      "Assert density budget: estimateCitationDensity(text, count)",
+      "Snapshot for MCP resource / audit: registry.toJSON()",
+    ],
+    competitorRefs: ["alpha-sense", "finchat", "hebbia", "bloomberg"],
+  },
+  {
     id: "trading",
     title: "Paper / live trading (sandbox default)",
     prefixes: ["place_trade_", "cancel_trade_", "get_trading_", "get_trade_"],
@@ -80,6 +95,19 @@ export const CAPABILITY_GROUPS: CapabilityGroup[] = [
       "Check positions / balance / quote: get_trading_positions / get_trading_balance / get_trade_quote",
     ],
     competitorRefs: ["bloomberg", "joinquant", "uqer"],
+  },
+  {
+    id: "screening",
+    title: "Natural-language stock screening (Gap G4)",
+    prefixes: ["nl_"],
+    blurb:
+      "Two-stage natural-language stock screener. Stage 1: NL → typed FilterSpec (Zod-validated). Stage 2: deterministic execution → ranked rows with a 1-line thesis per result. Universe is pluggable; static fixture ships by default for hermetic tests.",
+    whenToUse: [
+      "Free-form screening query: nl_screen",
+      "Override universe / parser: pass deps to createNlScreenTool",
+      "Use realtime RSI/price-change fields: pass realtime=true",
+    ],
+    competitorRefs: ["alpha-sense", "finchat", "hebbia", "joinquant"],
   },
   {
     id: "multimodal",

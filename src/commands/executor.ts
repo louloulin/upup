@@ -62,42 +62,29 @@ export async function executeSlashCommand(
     // Import @upup/commands dynamically
     const commandsModule = await import('@upup/commands');
 
-    // Try executeCommand first (main entry point)
-    if (commandsModule.executeCommand) {
-      const result = await commandsModule.executeCommand(commandName, args, context);
-
+    // Single execution path through @upup/commands. The previous
+    // findCommand+execute fallback was removed (P1.8) because:
+    //   1. executeCommand handles all builtin + dynamic commands
+    //   2. Local skills are resolved upstream by the unified-registry bridge
+    //      which feeds listAllCommands() — they appear as dynamic commands
+    //   3. Two paths means double the surface area to test
+    if (!commandsModule.executeCommand) {
       return {
-        success: true,
-        type: result.type as ExecutionResult['type'],
-        text: (result as any).text,
-        message: (result as any).message,
-        component: (result as any).component,
-        command: (result as any).command,
+        success: false,
+        type: 'error',
+        message: `executeCommand not available in @upup/commands`,
       };
     }
 
-    // Fallback: use findCommand and execute directly
-    const findCommand = commandsModule.findCommand;
-    if (findCommand) {
-      const command = findCommand(commandName);
-      if (command && typeof (command as any).execute === 'function') {
-        const result = await (command as any).execute(args, context);
-
-        return {
-          success: true,
-          type: (result.type || 'output') as ExecutionResult['type'],
-          text: result.text,
-          message: result.message,
-          component: result.component,
-          command: result.command,
-        };
-      }
-    }
+    const result = await commandsModule.executeCommand(commandName, args, context);
 
     return {
-      success: false,
-      type: 'error',
-      message: `Command /${commandName} not found`,
+      success: true,
+      type: result.type as ExecutionResult['type'],
+      text: (result as any).text,
+      message: (result as any).message,
+      component: (result as any).component,
+      command: (result as any).command,
     };
   } catch (error) {
     return {

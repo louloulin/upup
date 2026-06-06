@@ -1,6 +1,7 @@
 ---
 name: a-share-analysis
 description: Comprehensive analysis workflow for A-share (Chinese) and HK stocks. Triggers on A股分析, 分析股票, 港股分析, Chinese stock research, A-share deep dive.
+description.zh-CN: 面向 A 股和港股的深度研究工作流。触发关键词: A股分析, 分析股票, 港股分析, Chinese stock research, A-share deep dive.
 triggers:
   - analyze A-share
   - analyze Chinese stock

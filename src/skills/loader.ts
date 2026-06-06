@@ -228,6 +228,10 @@ export function parseSkillFile(content: string, path: string, source: SkillSourc
   return {
     name: data.name,
     description: data.description,
+    descriptionZhCn:
+      typeof data['description.zh-CN'] === 'string'
+        ? (data['description.zh-CN'] as string)
+        : undefined,
     path,
     source,
     model: parseModelField(data.model),
@@ -283,6 +287,10 @@ export function extractSkillMetadata(path: string, source: SkillSource): SkillMe
     // === Core Fields (Required) ===
     name: data.name,
     description: data.description,
+    descriptionZhCn:
+      typeof data['description.zh-CN'] === 'string'
+        ? (data['description.zh-CN'] as string)
+        : undefined,
     path,
     source,
 

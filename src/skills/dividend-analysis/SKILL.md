@@ -1,6 +1,7 @@
 ---
 name: dividend-analysis
 description: Dividend investing analysis. Triggers on 分红, dividend, 股息, 股息率, dividend yield, 高股息, 价值投资.
+description.zh-CN: 股息投资分析。触发关键词: 分红, dividend, 股息, 股息率, dividend yield, 高股息, 价值投资.
 triggers:
   - 分红
   - dividend

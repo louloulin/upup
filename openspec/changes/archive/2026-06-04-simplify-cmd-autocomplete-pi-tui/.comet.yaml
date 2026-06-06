@@ -1,0 +1,16 @@
+workflow: full
+phase: build
+build_mode: executing-plans
+isolation: branch
+verify_mode: null
+base_ref: 7dce0a1a82ef99c6ae1635c28de8c8aa1b1b9ef1
+design_doc: docs/superpowers/specs/2026-06-04-simplify-cmd-autocomplete-pi-tui-design.md
+plan: docs/superpowers/plans/2026-06-04-simplify-cmd-autocomplete-pi-tui.md
+verify_result: pending
+verification_report: null
+branch_status: pending
+created_at: 2026-06-04
+verified_at: null
+archived: false
+handoff_context: openspec/changes/simplify-cmd-autocomplete-pi-tui/.comet/handoff/design-context.json
+handoff_hash: d5e7fe4f38236062ef6f58adcad3cc58b0bc7e8effad2be151d91ca15fd1779a

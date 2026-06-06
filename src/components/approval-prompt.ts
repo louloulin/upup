@@ -3,6 +3,7 @@ import type { ApprovalDecision } from '../agent/types.js';
 import { createApprovalSelector } from './select-list.js';
 import { theme } from '../theme.js';
 import { BorderBox } from './BorderBox.js';
+import { t } from '../i18n/index.js';
 
 function formatToolLabel(tool: string): string {
   return tool
@@ -22,7 +23,7 @@ export class ApprovalPromptComponent extends Container {
 
     // Header using BorderBox
     const headerBox = new BorderBox(
-      [new Text(theme.warning(theme.bold('⚠️  Permission Required')))],
+      [new Text(theme.warning(theme.bold(t('approval.title'))))],
       { style: 'single', paddingX: 1 }
     );
 
@@ -32,7 +33,7 @@ export class ApprovalPromptComponent extends Container {
         new Text(formatToolLabel(tool), 0, 0),
         new Text(theme.primary(path), 0, 0),
         new Text('', 0, 0),
-        new Text(theme.muted('Do you want to allow this?'), 0, 0),
+        new Text(theme.muted(t('approval.question')), 0, 0),
       ],
       { style: 'single', paddingX: 1 }
     );
@@ -45,6 +46,6 @@ export class ApprovalPromptComponent extends Container {
     this.addChild(new Text(''));
     this.addChild(this.selector);
     this.addChild(new Text(''));
-    this.addChild(new Text(theme.muted('Enter to confirm · esc to deny'), 0, 0));
+    this.addChild(new Text(theme.muted(t('approval.hint_enter_esc')), 0, 0));
   }
 }

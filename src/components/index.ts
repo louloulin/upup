@@ -17,7 +17,7 @@ export {
 } from './select-list.js';
 export { ToolEventComponent, getApprovalCursor, setApprovalCursor } from './tool-event.js';
 export { UserQueryComponent } from './user-query.js';
-export { HintBarComponent } from './hint-bar.js';
+export { StatusHintComponent, type StatusHintState } from './status-hint.js';
 export { WorkingIndicatorComponent } from './working-indicator.js';
 
 // Re-export fullscreen approval overlay

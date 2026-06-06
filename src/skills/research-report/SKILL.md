@@ -1,6 +1,7 @@
 ---
 name: research-report
 description: Generate comprehensive investment research reports. Triggers on 研究报告, 生成报告, research report, investment report, 分析报告, 深度报告.
+description.zh-CN: 生成综合性投研报告。触发关键词: 研究报告, 生成报告, research report, investment report, 分析报告, 深度报告.
 triggers:
   - 研究报告
   - 生成报告

@@ -76,6 +76,28 @@
 - Final answer: generated in a separate LLM call with full scratchpad context (no tools bound).
 - Events: agent yields typed events (`tool_start`, `tool_end`, `thinking`, `answer_start`, `done`, etc.) for real-time UI updates.
 
+## Slash Autocomplete
+
+- Slash command completion (and `@`-prefixed file completion) is delegated to pi-tui's
+  `CombinedAutocompleteProvider`, wired once in `src/cli.ts` via:
+  ```ts
+  editor.setAutocompleteProvider(
+    new CombinedAutocompleteProvider(listAllCommands(), process.cwd()),
+  );
+  editor.setAutocompleteMaxVisible(8);
+  ```
+- The `Editor` (from `@earendil-works/pi-tui`) is the single source of truth for the
+  autocomplete popup — upup does not mirror its state in any shadow store.
+- The single-line status hint (esc / processing / permission-mode) lives in
+  `src/components/status-hint.ts` (replaces the old `hint-bar.ts` which mixed single-line
+  status with suggestion / pagination / category UI — all of those moved to pi-tui).
+- **Behavioral note (SCAP-012)**: pressing Enter on a selected completion now submits
+  the line directly, matching codex / claude code. Previously required Tab to insert
+  + Enter to fire, which was unique to upup.
+- `src/commands/unified-registry.ts` is a 22-line thin wrapper (`listAllCommands()` +
+  `findCommand()`) that delegates to `@upup/commands`. The legacy `UnifiedCommandRegistry`
+  class with Fuse / CATEGORY_MAP / usage cache was removed.
+
 ## Environment Variables
 
 - LLM keys: `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`, `XAI_API_KEY`, `OPENROUTER_API_KEY`

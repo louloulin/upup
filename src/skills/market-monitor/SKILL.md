@@ -1,6 +1,7 @@
 ---
 name: market-monitor
 description: Real-time market monitoring and alerts. Triggers on 监控, monitor, 市场监控, market watch, 价格警报, price alert, 涨跌监控.
+description.zh-CN: 实时市场监控与告警。触发关键词: 监控, monitor, 市场监控, market watch, 价格警报, price alert, 涨跌监控.
 triggers:
   - 监控
   - monitor

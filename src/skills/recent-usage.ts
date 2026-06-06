@@ -159,6 +159,23 @@ export async function getAllRecentScores(): Promise<Map<string, number>> {
 }
 
 /**
+ * Get all skills with their raw recent use counts (no decay).
+ * Returns: Map<lowercase-name, useCount>.
+ * Use this when you want to show the user "how many times" they used
+ * a skill, not the half-life-decayed score used for sorting.
+ */
+export async function getAllRecentCounts(): Promise<Map<string, number>> {
+  const data = await loadUsageData();
+  const counts = new Map<string, number>();
+
+  for (const [key, record] of Object.entries(data.records)) {
+    counts.set(key, record.useCount);
+  }
+
+  return counts;
+}
+
+/**
  * Clear usage data (for testing)
  */
 export async function clearUsageData(): Promise<void> {

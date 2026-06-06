@@ -1,6 +1,7 @@
 ---
 name: valuation-comparison
 description: Valuation comparison across stocks and history. Triggers on 估值, 估值对比, 历史估值, 分位数, 便宜还是贵.
+description.zh-CN: 股票与历史估值的对比。触发关键词: 估值, 估值对比, 历史估值, 分位数, 便宜还是贵.
 triggers:
   - 估值
   - 估值对比

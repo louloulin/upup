@@ -219,7 +219,7 @@ describe('investment: registry includes /invest', () => {
     expect(isInvestmentCommand('invest')).toBe(true);
     expect(isInvestmentCommand('wf')).toBe(true);
     expect(isInvestmentCommand('workflow')).toBe(true);
-    expect(INVESTMENT_COMMANDS.length).toBe(6);
+    expect(INVESTMENT_COMMANDS.length).toBe(7);  // 5 + /invest + /dossier (P0.5)
   });
 
   test('runInvestmentCommand returns text for invest', async () => {

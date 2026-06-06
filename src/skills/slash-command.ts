@@ -296,6 +296,51 @@ export class SkillCommandRegistry {
   }
 
   /**
+   * Unregister a single skill by name. Removes from all three maps
+   * (commands / skills / skillCommands) including any trigger aliases
+   * that were registered for it.
+   *
+   * Returns true if a skill was removed, false if it wasn't registered.
+   * (P1.5/P1.6 — added in unify-skills-and-plugins-registries)
+   */
+  unregister(name: string): boolean {
+    const key = (name || '').toLowerCase();
+    if (!key) return false;
+
+    const skill = this.skills.get(key);
+    if (!skill) {
+      // Still try to clean up command/command entries (defensive)
+      this.commands.delete(key);
+      this.skillCommands.delete(key);
+      return false;
+    }
+
+    // 1. Remove the primary name from all three maps
+    this.commands.delete(key);
+    this.skills.delete(key);
+    this.skillCommands.delete(key);
+
+    // 2. Remove any trigger aliases that were auto-registered for this skill
+    const triggers = skill.triggers ?? [];
+    for (const trigger of triggers) {
+      const triggerKey = trigger.replace(/^\//, '').toLowerCase();
+      if (triggerKey !== key) {
+        // Only remove if the command/skillCommand entry points back to this skill
+        const cmd = this.commands.get(triggerKey);
+        if (cmd?.metadata?.name?.toLowerCase() === key) {
+          this.commands.delete(triggerKey);
+        }
+        this.skillCommands.delete(triggerKey);
+      }
+    }
+
+    // 3. Invalidate search index (fuzzy index is now stale)
+    this.searchIndexInitialized = false;
+
+    return true;
+  }
+
+  /**
    * Get command count (for autocomplete)
    */
   get size(): number {

@@ -1,6 +1,7 @@
 ---
 name: financial-report-analysis
 description: Analyzes Chinese A-share financial reports (annual reports, quarterly reports) to extract key insights. Triggers on 财报分析, 年报解读, 季报分析, financial report review, 业绩预告.
+description.zh-CN: A 股财报(年报、季报)分析, 提取关键洞察。触发关键词: 财报分析, 年报解读, 季报分析, financial report review, 业绩预告.
 triggers:
   - 财报分析
   - 年报解读

@@ -4,6 +4,7 @@ import packageJson from '../../package.json';
 import { getModelDisplayName } from '../utils/model.js';
 import { theme } from '../theme.js';
 import { validateConfig } from '../utils/config-validation.js';
+import { t } from '../i18n/index.js';
 
 const INTRO_WIDTH = 50;
 
@@ -14,7 +15,7 @@ export class IntroComponent extends Container {
   constructor(model: string) {
     super();
 
-    const welcomeText = 'Welcome to UpUp';
+    const welcomeText = t('intro.welcome');
     const versionText = ` v${packageJson.version}`;
 
     // Create header box using BorderBox component (double border)
@@ -46,7 +47,7 @@ export class IntroComponent extends Container {
     );
 
     this.addChild(new Spacer(1));
-    this.addChild(new Text('Your AI assistant for deep financial research.', 0, 0));
+    this.addChild(new Text(t('intro.subtitle'), 0, 0));
     this.modelText = new Text('', 0, 0);
     this.addChild(this.modelText);
 

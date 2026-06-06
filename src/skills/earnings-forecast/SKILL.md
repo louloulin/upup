@@ -1,6 +1,7 @@
 ---
 name: earnings-forecast
 description: Earnings forecast and financial projections. Triggers on 盈利预测, earnings forecast, 财报预测, financial projection, 业绩预测.
+description.zh-CN: 盈利预测与财务预测。触发关键词: 盈利预测, earnings forecast, 财报预测, financial projection, 业绩预测.
 triggers:
   - 盈利预测
   - earnings forecast

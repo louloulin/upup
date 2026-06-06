@@ -1,6 +1,7 @@
 ---
 name: sector-rotation
 description: Sector rotation analysis for market timing. Triggers on 板块轮动, 行业轮动, 热点切换, 资金轮动, 风格切换.
+description.zh-CN: 板块轮动分析, 服务择时。触发关键词: 板块轮动, 行业轮动, 热点切换, 资金轮动, 风格切换.
 triggers:
   - 板块轮动
   - 行业轮动

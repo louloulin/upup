@@ -1,6 +1,7 @@
 ---
 name: alert-management
 description: Manage fund price alerts - create, list, delete alerts. Triggers on 基金警报, alert management, 价格提醒, 警报设置.
+description.zh-CN: 管理基金价格提醒 — 新建、列出、删除提醒。触发关键词: 基金警报, alert management, 价格提醒, 警报设置.
 triggers:
   - 基金警报
   - alert management

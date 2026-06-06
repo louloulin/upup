@@ -1,6 +1,7 @@
 ---
 name: money-flow
 description: Money flow analysis. Triggers on 资金流向, 主力资金, 净流入, 超大单, 大单, 中单, 小单.
+description.zh-CN: 资金流向分析。触发关键词: 资金流向, 主力资金, 净流入, 超大单, 大单, 中单, 小单.
 triggers:
   - 资金流向
   - 主力资金

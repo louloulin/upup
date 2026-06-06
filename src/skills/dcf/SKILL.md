@@ -1,6 +1,7 @@
 ---
 name: dcf-valuation
 description: Performs discounted cash flow (DCF) valuation analysis to estimate intrinsic value per share. Triggers when user asks for fair value, intrinsic value, DCF, valuation, "what is X worth", price target, undervalued/overvalued analysis, or wants to compare current price to fundamental value.
+description.zh-CN: 现金流折现 (DCF) 估值分析, 估算每股内在价值。触发关键词: fair value, intrinsic value, DCF, valuation, what is X worth, price target, undervalued/overvalued.
 ---
 
 # DCF Valuation Skill

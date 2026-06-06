@@ -129,14 +129,14 @@ describe('investment: morning-brief', () => {
 describe('investment: earnings-preview', () => {
   test('runEarningsPreview without ticker shows usage', async () => {
     const { runEarningsPreview } = await import('./earnings-preview.js');
-    const text = runEarningsPreview('');
+    const text = await runEarningsPreview('');
     expect(text).toContain('用法');
     expect(text).toContain('示例');
   });
 
   test('runEarningsPreview with ticker renders framework', async () => {
     const { runEarningsPreview } = await import('./earnings-preview.js');
-    const text = runEarningsPreview('NVDA');
+    const text = await runEarningsPreview('NVDA');
     expect(text).toContain('Earnings Preview');
     expect(text).toContain('NVDA');
     expect(text).toContain('研究计划');
@@ -145,7 +145,7 @@ describe('investment: earnings-preview', () => {
 
   test('runEarningsPreview with A-share ticker', async () => {
     const { runEarningsPreview } = await import('./earnings-preview.js');
-    const text = runEarningsPreview('600519.SH');
+    const text = await runEarningsPreview('600519.SH');
     expect(text).toContain('600519.SH');
   });
 });
@@ -191,15 +191,21 @@ describe('investment: registry', () => {
     expect(isInvestmentCommand('brief')).toBe(true);
     expect(isInvestmentCommand('earnings-preview')).toBe(true);
     expect(isInvestmentCommand('ep')).toBe(true);
+    expect(isInvestmentCommand('earnings')).toBe(true);
     expect(isInvestmentCommand('risk-dashboard')).toBe(true);
     expect(isInvestmentCommand('risk')).toBe(true);
     expect(isInvestmentCommand('portfolio-review')).toBe(true);
     expect(isInvestmentCommand('watchlist-edit')).toBe(true);
     expect(isInvestmentCommand('wl')).toBe(true);
+    expect(isInvestmentCommand('dossier')).toBe(true);
+    expect(isInvestmentCommand('doss')).toBe(true);
+    expect(isInvestmentCommand('strategy')).toBe(true);
+    expect(isInvestmentCommand('strat')).toBe(true);
     expect(isInvestmentCommand('status')).toBe(false);
     expect(isInvestmentCommand('unknown-cmd')).toBe(false);
 
-    expect(INVESTMENT_COMMANDS.length).toBe(6);  // 5 + /invest (Sprint 3)
+    expect(INVESTMENT_COMMANDS.length).toBe(9);  // 8 + /strategy (P2.a.5)
+    // P2.a.5 adds /strategy as a new top-level command with alias /strat.
   });
 
   test('runInvestmentCommand returns text for known, null for unknown', async () => {
@@ -209,5 +215,121 @@ describe('investment: registry', () => {
     expect(text).toContain('Morning Brief');
 
     expect(await runInvestmentCommand('status', '')).toBeNull();
+  });
+
+  test('runInvestmentCommand dispatches /earnings alias to runEarningsPreview', async () => {
+    const { runInvestmentCommand } = await import('./registry.js');
+    const text = await runInvestmentCommand('earnings', 'NVDA');
+    expect(typeof text).toBe('string');
+    expect(text).toContain('Earnings Preview');
+    expect(text).toContain('NVDA');
+    expect(text).toContain('upup://earnings-preview/NVDA');
+  });
+});
+
+// =====================================================================
+// /dossier (P0.5)
+// =====================================================================
+
+describe('investment: /dossier', () => {
+  test('without args shows usage', async () => {
+    const { runDossier } = await import('./dossier.js');
+    const { DossierStore } = await import('../../memory/dossier.js');
+    const tmpStore = new DossierStore({ inMemory: true });
+    const text = runDossier('', tmpStore);
+    expect(text).toContain('用法: /dossier <TICKER>');
+  });
+
+  test('unknown ticker shows helpful empty-state', async () => {
+    const { runDossier } = await import('./dossier.js');
+    const { DossierStore } = await import('../../memory/dossier.js');
+    const emptyStore = new DossierStore({ inMemory: true });
+    const text = runDossier('ZZZZZ', emptyStore);
+    expect(text).toContain('✗ 暂无 ZZZZZ 的 dossier');
+    expect(text).toContain('/invest ZZZZZ');
+  });
+
+  test('renders snapshot + freshness + theses for an existing dossier', async () => {
+    const { runDossier } = await import('./dossier.js');
+    const { DossierStore } = await import('../../memory/dossier.js');
+    const { join } = await import('node:path');
+    const { tmpdir } = await import('node:os');
+    const path = join(tmpdir(), `upup-dossier-cmd-test-${Date.now()}.jsonl`);
+    const s = new DossierStore({ filePath: path, inMemory: false, now: () => 1_000_000 });
+    s.create('NVDA', { name: 'NVIDIA', sector: 'Tech', marketCap: 3_000_000_000_000, oneLiner: 'AI 加速器龙头' });
+    s.appendThesis('NVDA', {
+      author: 'agent',
+      intent: '分析 NVDA',
+      claims: ['AI 需求强劲', '毛利率扩张'],
+      evidenceRefs: ['1', '2'],
+      confidence: 0.85,
+    });
+    s.addTrigger('NVDA', { description: '股价破 200', condition: { metric: 'price', op: '<', value: 200 } });
+
+    const text = runDossier('NVDA', s);
+    expect(text).toContain('Dossier: NVDA');
+    expect(text).toContain('NVIDIA');
+    expect(text).toContain('AI 加速器龙头');
+    expect(text).toContain('AI 需求强劲');
+    expect(text).toContain('盯盘触发器');
+    expect(text).toContain('upup://dossier/NVDA');
+  });
+});
+
+// =====================================================================
+// screen (P1.b.4)
+// =====================================================================
+
+describe('investment: screen', () => {
+  test('runScreen without args shows usage', async () => {
+    const { runScreen } = await import('./screen.js');
+    const text = await runScreen('');
+    expect(text).toContain('用法');
+    expect(text).toContain('/screen');
+  });
+
+  test('runScreen with NL query renders results table', async () => {
+    const { runScreen } = await import('./screen.js');
+    const text = await runScreen('AAPL-like');
+    expect(text).toContain('/screen');
+    expect(text).toContain('AAPL');
+    expect(text).toContain('Source');
+    expect(text).toContain('Universe');
+  });
+
+  test('runScreen parses universe=cn flag', async () => {
+    const { runScreen } = await import('./screen.js');
+    const text = await runScreen('universe=cn PE < 15');
+    expect(text).toContain('Universe: cn');
+  });
+
+  test('runScreen parses realtime=true flag', async () => {
+    const { runScreen } = await import('./screen.js');
+    const text = await runScreen('realtime=true RSI < 50');
+    // realtime=true is plumbed to the tool but doesn't change text output
+    // beyond the result count — just verify no error / no usage prompt.
+    expect(text).toContain('/screen');
+    expect(text).not.toContain('用法');
+  });
+
+  test('runScreen with no matches renders empty-message', async () => {
+    const { runScreen } = await import('./screen.js');
+    // No real ticker matches market cap $1B-$2B in the default universe
+    const text = await runScreen('市值 $1B-$2B');
+    expect(text).toContain('(无结果');
+  });
+
+  test('INVESTMENT_COMMANDS includes screen (P1.b.4 follow-up)', async () => {
+    const { INVESTMENT_COMMANDS } = await import('./registry.js');
+    const screen = INVESTMENT_COMMANDS.find(c => c.name === 'screen');
+    expect(screen).toBeDefined();
+    expect(screen?.aliases).toContain('scr');
+  });
+
+  test('runInvestmentCommand dispatches screen (P1.b.4 integration)', async () => {
+    const { runInvestmentCommand } = await import('./registry.js');
+    const text = await runInvestmentCommand('screen', 'AAPL-like');
+    expect(text).toContain('/screen');
+    expect(text).toContain('AAPL');
   });
 });

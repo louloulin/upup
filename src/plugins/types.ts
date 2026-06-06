@@ -37,6 +37,34 @@ export type SandboxLevel = 'process' | 'wasm' | 'mcp' | 'none';
 // Plugin Configuration
 // ============================================================================
 
+/**
+ * Skill manifest entry for plugins (P1.7 — added in
+ * unify-skills-and-plugins-registries). Plugins can declare skills in
+ * their upup.plugin.json instead of forking the codebase. The shape is
+ * a strict subset of SkillMetadata (no path/instructions required —
+ * plugins register fully-formed Skills via the SDK at runtime).
+ */
+export interface PluginSkillEntry {
+  /** Unique skill name (lowercase, hyphenated) */
+  name: string;
+  /** Short description shown in autocomplete + system prompt */
+  description: string;
+  /** Optional argument hint (e.g. "<ticker>") */
+  argumentHint?: string;
+  /** Optional slash command triggers (e.g. ["my", "ma"]) */
+  aliases?: string[];
+  /** Preferred model for this skill (sonnet | haiku | opus | default) */
+  model?: 'sonnet' | 'haiku' | 'opus' | 'default';
+  /** Whether this skill is user-invocable (default: true) */
+  userInvocable?: boolean;
+  /** Execution mode */
+  context?: 'inline' | 'fork';
+  /** Allowed tools */
+  allowedTools?: string[];
+  /** Markdown body — full instructions loaded into the skill */
+  instructions: string;
+}
+
 export interface PluginManifest {
   schemaVersion: string;
   id: string;
@@ -51,6 +79,8 @@ export interface PluginManifest {
   entry: string;
   hooks?: string;
   tools?: string;
+  /** Skills declared in the manifest (registered on plugin load) */
+  skills?: PluginSkillEntry[];
   dependencies?: string[];
   peerDependencies?: Record<string, string>;
   security?: PluginSecurity;
@@ -96,6 +126,24 @@ export interface UpUpPluginApi {
   // === Tool Registration ===
   registerTool(tool: AgentTool, options?: ToolOptions): void;
   registerTools(tools: AgentTool[], options?: ToolOptions): void;
+
+  // === Skill Registration (P1.7) ===
+  /**
+   * Register a skill at runtime. The skill becomes immediately available
+   * in /cmd autocomplete, the local SkillCommandRegistry, and the system
+   * prompt. Unregister via the returned cleanup function.
+   */
+  registerSkill(skill: {
+    name: string;
+    description: string;
+    instructions: string;
+    argumentHint?: string;
+    aliases?: string[];
+    model?: 'sonnet' | 'haiku' | 'opus' | 'default';
+    context?: 'inline' | 'fork';
+    allowedTools?: string[];
+    userInvocable?: boolean;
+  }): () => void;
 
   // === Hook Registration ===
   registerHook(events: string[], handler: HookHandler, options?: HookOptions): void;

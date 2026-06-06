@@ -8,7 +8,14 @@ import { buildInvestmentCapabilitiesSection, CAPABILITY_GROUPS } from "./capabil
 describe("CAPABILITY_GROUPS", () => {
   test("has 5 well-known groups covering all P1/P2 capabilities", () => {
     const ids = CAPABILITY_GROUPS.map((g) => g.id);
-    expect(ids).toEqual(["realtime", "coordinator", "kairos", "trading", "multimodal"]);
+    expect(ids).toEqual([
+      "realtime",
+      "coordinator",
+      "kairos",
+      "citation",
+      "trading",
+      "multimodal",
+    ]);
   });
 
   test("every group has non-empty title / prefixes / blurb / whenToUse", () => {

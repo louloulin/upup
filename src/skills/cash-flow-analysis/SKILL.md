@@ -1,6 +1,7 @@
 ---
 name: cash-flow-analysis
 description: Cash flow analysis for investment decisions. Triggers on 现金流, cash flow, 经营现金流, 投资现金流, 筹资现金流.
+description.zh-CN: 投资决策中的现金流分析。触发关键词: 现金流, cash flow, 经营现金流, 投资现金流, 筹资现金流.
 triggers:
   - 现金流
   - cash flow

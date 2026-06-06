@@ -1,6 +1,7 @@
 ---
 name: sector-analysis
 description: Sector and industry analysis. Triggers on 板块, sector, 行业分析, industry analysis, 板块轮动, sector rotation.
+description.zh-CN: 板块与行业分析。触发关键词: 板块, sector, 行业分析, industry analysis, 板块轮动, sector rotation.
 triggers:
   - 板块
   - sector

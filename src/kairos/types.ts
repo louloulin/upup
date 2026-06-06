@@ -9,7 +9,8 @@ export type OpportunityKind =
   | 'technical-breakout'
   | 'valuation-rerating'
   | 'sentiment-shift'
-  | 'capital-flow-anomaly';
+  | 'capital-flow-anomaly'
+  | 'stale-dossier';
 
 export interface Opportunity {
   symbol: string;

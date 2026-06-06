@@ -1,6 +1,7 @@
 ---
 name: backtest-dca
 description: DCA (Dollar-Cost Averaging) backtest skill for mutual funds. Triggers on 回测, 定投回测, DCA, dollar-cost averaging.
+description.zh-CN: 基金的定投 (DCA) 回测。触发关键词: 回测, 定投回测, DCA, dollar-cost averaging.
 triggers:
   - 回测
   - 定投回测

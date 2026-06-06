@@ -19,6 +19,21 @@ import {
 } from './types.js';
 import { ProactiveState } from './proactiveState.js';
 
+/**
+ * A watchlist dossier that has not been refreshed for more than the staleness
+ * threshold. Injected into the proactive scanner so the detector does not
+ * depend on `src/memory/dossier.ts` directly (avoids Layer 3 → Layer 3
+ * coupling). The CLI / TUI integration is responsible for reading the
+ * dossier store and translating it into this shape.
+ */
+export interface StaleDossierEntry {
+  ticker: string;
+  /** Whole days since the dossier was last refreshed. */
+  freshnessDays: number;
+  /** Optional source label (e.g. 'dossier-store', 'mock'). */
+  source?: string;
+}
+
 export interface MarketSnapshot {
   symbol: string;
   last: number;
@@ -54,6 +69,15 @@ export interface ProactiveDeps {
    * idle-threshold check only.
    */
   state?: ProactiveState;
+  /**
+   * Optional fetcher for watchlist dossiers that have gone stale
+   * (freshness > staleAfterDays, default 30). When provided the
+   * detector emits a `stale-dossier` opportunity for each entry. The
+   * dependency is injected to avoid a direct edge from
+   * `src/kairos/proactive.ts` (Layer 3) into
+   * `src/memory/dossier.ts` (also Layer 3).
+   */
+  fetchStaleDossiers?: () => Promise<StaleDossierEntry[]>;
 }
 
 const HIGH_VOLUME_MULT = 2.0;
@@ -136,6 +160,29 @@ function detectFlowAnomaly(snap: MarketSnapshot, now: number): Opportunity | nul
   };
 }
 
+function detectStaleDossier(
+  entry: StaleDossierEntry,
+  now: number,
+): Opportunity | null {
+  if (!Number.isFinite(entry.freshnessDays) || entry.freshnessDays <= 0) {
+    return null;
+  }
+  // Confidence scales with how far past the threshold we are. Capped at
+  // 0.99 so we never appear as a 'certain' signal.
+  const confidence = Math.min(0.99, 0.5 + Math.min(0.5, entry.freshnessDays / 365));
+  return {
+    symbol: entry.ticker,
+    kind: 'stale-dossier',
+    confidence,
+    headline:
+      `${entry.ticker} dossier 未刷新 ${entry.freshnessDays} 天` +
+      `(建议重读 8-K / 业绩预告 / 同业更新)`,
+    data: { freshnessDays: entry.freshnessDays, source: entry.source ?? 'dossier-store' },
+    source: 'stale-dossier-detector',
+    detectedAt: now,
+  };
+}
+
 const DETECTORS: Array<(s: MarketSnapshot, now: number) => Opportunity | null> = [
   detectBreakout,
   detectValuationRerating,
@@ -201,6 +248,25 @@ export function createProactiveScanner(deps: ProactiveDeps): ProactiveScanner {
         }
       }
 
+      // Stale-dossier detector has its own data source (dossier store,
+      // not market snapshot). Fail soft if the fetcher is missing or
+      // throws — opportunity detection must not break the rest of the
+      // scan.
+      if (deps.fetchStaleDossiers) {
+        let stale: StaleDossierEntry[] = [];
+        try {
+          stale = await deps.fetchStaleDossiers();
+        } catch {
+          stale = [];
+        }
+        for (const entry of stale) {
+          const opp = detectStaleDossier(entry, ts);
+          if (opp && opp.confidence >= cfg.minConfidence) {
+            found.push(opp);
+          }
+        }
+      }
+
       // Rank by confidence desc, then by symbol for stable ordering.
       found.sort((a, b) => {
         if (b.confidence !== a.confidence) return b.confidence - a.confidence;
@@ -229,4 +295,5 @@ export const _internal = {
   detectValuationRerating,
   detectSentimentShift,
   detectFlowAnomaly,
+  detectStaleDossier,
 };

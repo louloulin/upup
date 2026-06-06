@@ -1,6 +1,7 @@
 ---
 name: fund-analysis
 description: Comprehensive fund analysis workflow for Chinese mutual funds. Triggers on 基金分析, 基金研究, fund analysis, mutual fund research.
+description.zh-CN: 中国公募基金综合分析工作流。触发关键词: 基金分析, 基金研究, fund analysis, mutual fund research.
 triggers:
   - 基金分析
   - 基金研究
