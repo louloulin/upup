@@ -700,6 +700,24 @@ export async function runCli(options: RunCliOptions = {}) {
       return
     }
 
+    // /skills — list installed skills with usage stats (P1.7 — round 2)
+    if (commandName === 'skills') {
+      try {
+        const { listInstalledSkills } = await import('./skills/skills-menu.js');
+        const text = await listInstalledSkills({ limit: 50 });
+        chatLog.addChild(new Spacer(1));
+        for (const line of text.split('\n')) {
+          chatLog.addChild(new Text(line, 0, 0));
+        }
+        tui.requestRender();
+      } catch (e) {
+        chatLog.addChild(new Spacer(1));
+        chatLog.addChild(new Text(theme.error(`Failed to list skills: ${String(e)}`), 0, 0));
+        tui.requestRender();
+      }
+      return
+    }
+
     // All other commands use the unified command system from @upup/commands
     try {
       // Get state for command execution

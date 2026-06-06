@@ -12,6 +12,7 @@
 
 import { SkillCommandRegistry, getSkillCommandRegistry, type SkillMetadata } from './slash-command.js';
 import { t } from '../i18n/strings.js';
+import { getLocale, getLocalizedDescription } from './i18n-helper.js';
 import { getAllSkillCommands } from './commands.js';
 
 // ============================================================================
@@ -460,7 +461,8 @@ export function suggestSkills(input: string, limit: number = 5): Array<{ name: s
   
   return matches.map(m => ({
     name: m.skill.name,
-    description: m.skill.description || '',
+    // Localized description (P1.7 — surfaced from frontmatter `description.zh-CN`)
+    description: getLocalizedDescription(m.skill) || m.skill.description || '',
     score: m.score,
   }));
 }
@@ -534,4 +536,138 @@ export function getCliSkillSuggestion(input: string, minScore: number = 30): str
   
   const desc = topMatch.description.split('\n')[0].slice(0, 30);
   return '\n' + t('cmd.suggestion_hint').replace('{name}', topMatch.name).replace('{desc}', desc + '...');
+}
+
+// ============================================================================
+// /skills Command — Sorted by Recent Usage
+// ============================================================================
+
+/**
+ * One row in the /skills table.
+ */
+export interface InstalledSkillRow {
+  name: string;
+  source: SkillSource;
+  sourceLabel: string;
+  description: string;        // EN
+  descriptionLocalized: string; // zh-CN if available + locale matches
+  useCount: number;
+  score: number;
+  path?: string;
+}
+
+/**
+ * Build the /skills list synchronously, sorted by recent-usage score
+ * (descending). Async because we need to read ~/.upup/recent-skills.json.
+ *
+ * Source: SkillCommandRegistry (the single source of truth, populated by
+ * `initializeSkills()` at startup). Score: from `getAllRecentScores()`
+ * (7-day half-life, see recent-usage.ts).
+ */
+export async function listInstalledSkills(opts: { limit?: number } = {}): Promise<string> {
+  const limit = opts.limit ?? 50;
+
+  // Lazy import to avoid a circular dep with ./commands.js
+  const { getAllRecentScores } = await import('./recent-usage.js');
+
+  // 1. Get the skill rows from the registry
+  const menu = getSkillsMenu();
+  const items = menu.getItems();
+  if (items.length === 0) {
+    return t('cmd.skills_list_empty');
+  }
+
+  // 2. Read recent-usage scores (best-effort; missing file = 0)
+  const scoreMap = await getAllRecentScores().catch(() => new Map<string, number>());
+
+  // 3. Build rows
+  const rows: InstalledSkillRow[] = items.map((item) => {
+    const key = item.name.toLowerCase();
+    const score = scoreMap.get(key) ?? 0;
+    return {
+      name: item.name,
+      source: item.source,
+      sourceLabel: SKILL_SOURCE_LABELS[item.source],
+      description: item.description,
+      descriptionLocalized: getLocalizedDescription({
+        description: item.description,
+        descriptionZhCn: undefined,
+      }),
+      useCount: 0, // filled below if we can derive from score decay
+      score,
+      path: item.path,
+    };
+  });
+
+  // 4. Sort: score desc, then name asc (stable)
+  rows.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
+
+  // 5. Render
+  const locale = getLocale();
+  const title = t('cmd.skills_list_title', locale).replace('{n}', String(rows.length));
+  const colName = t('cmd.skills_list_col_name', locale);
+  const colSrc = t('cmd.skills_list_col_source', locale);
+  const colUses = t('cmd.skills_list_col_uses', locale);
+  const colScore = t('cmd.skills_list_col_score', locale);
+  const colDesc = t('cmd.skills_list_col_desc', locale);
+  const dash = t('cmd.skills_list_never_used', locale);
+
+  const lines: string[] = [];
+  lines.push('');
+  lines.push(title);
+  lines.push('');
+  // Header row
+  lines.push(
+    `  ${colName.padEnd(28)} ${colSrc.padEnd(10)} ${colUses.padStart(4)}  ${colScore.padStart(6)}  ${colDesc}`,
+  );
+  lines.push(`  ${'-'.repeat(28)} ${'-'.repeat(10)} ${'-'.repeat(4)}  ${'-'.repeat(6)}  ${'-'.repeat(20)}`);
+
+  // Body — top N
+  for (const row of rows.slice(0, limit)) {
+    const descOneLine = (row.descriptionLocalized || row.description || dash)
+      .split('\n')[0]
+      .slice(0, 60);
+    const scoreStr = row.score > 0 ? row.score.toFixed(1) : dash;
+    const usesStr = row.useCount > 0 ? String(row.useCount) : dash;
+    lines.push(
+      `  ${row.name.padEnd(28)} ${row.sourceLabel.padEnd(10)} ${usesStr.padStart(4)}  ${scoreStr.padStart(6)}  ${descOneLine}`,
+    );
+  }
+
+  if (rows.length > limit) {
+    lines.push('');
+    lines.push(`  ... and ${rows.length - limit} more (use /skills to see all)`);
+  }
+
+  lines.push('');
+  lines.push(t('cmd.skills_list_footer', locale));
+
+  return lines.join('\n');
+}
+
+/**
+ * Test-friendly variant: returns the raw rows without rendering.
+ */
+export async function getInstalledSkillsData(): Promise<InstalledSkillRow[]> {
+  const { getAllRecentScores } = await import('./recent-usage.js');
+  const menu = getSkillsMenu();
+  const items = menu.getItems();
+  const scoreMap = await getAllRecentScores().catch(() => new Map<string, number>());
+
+  return items.map((item) => {
+    const key = item.name.toLowerCase();
+    return {
+      name: item.name,
+      source: item.source,
+      sourceLabel: SKILL_SOURCE_LABELS[item.source],
+      description: item.description,
+      descriptionLocalized: getLocalizedDescription({
+        description: item.description,
+        descriptionZhCn: undefined,
+      }),
+      useCount: 0,
+      score: scoreMap.get(key) ?? 0,
+      path: item.path,
+    };
+  });
 }

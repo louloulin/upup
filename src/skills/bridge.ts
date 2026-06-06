@@ -21,6 +21,7 @@ import {
 } from '@upup/commands';
 import type { Skill, SkillCommand } from './types.js';
 import { getSkillCommandRegistry } from './slash-command.js';
+import { getLocalizedDescription } from './i18n-helper.js';
 
 // ============================================================================
 // Track Published Names (for idempotent unregister)
@@ -41,7 +42,9 @@ export function publishSkill(skill: Skill, command: SkillCommand): void {
   const slashCommand: SlashCommand = {
     type: 'prompt',
     name: skill.name,
-    description: skill.description ?? '',
+    // Use localized description (zh-CN when available, else EN) so
+    // /cmd autocomplete matches the user's locale.
+    description: getLocalizedDescription(skill),
     userInvocable: true,
     isHidden: false,
     aliases: skill.aliases,

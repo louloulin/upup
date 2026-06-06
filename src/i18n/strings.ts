@@ -73,6 +73,15 @@ export type StringKey =
   | 'cmd.invoke_hint'
   | 'cmd.dedupe_warn'
   | 'cmd.no_skill_suggestions'
+  | 'cmd.skills_list_title'
+  | 'cmd.skills_list_empty'
+  | 'cmd.skills_list_col_name'
+  | 'cmd.skills_list_col_source'
+  | 'cmd.skills_list_col_uses'
+  | 'cmd.skills_list_col_score'
+  | 'cmd.skills_list_col_desc'
+  | 'cmd.skills_list_never_used'
+  | 'cmd.skills_list_footer'
 ;
 
 /**
@@ -133,6 +142,15 @@ export const STRINGS: Record<Locale, Record<StringKey, string>> = {
     'cmd.invoke_hint': 'Use /<name> to invoke',
     'cmd.dedupe_warn': 'Static command /{name} shadowed by local skill',
     'cmd.no_skill_suggestions': 'No skill suggestions available.',
+    'cmd.skills_list_title': '📚 Installed Skills ({n})',
+    'cmd.skills_list_empty': 'No skills installed. Use /help to see available commands.',
+    'cmd.skills_list_col_name': 'name',
+    'cmd.skills_list_col_source': 'source',
+    'cmd.skills_list_col_uses': 'uses',
+    'cmd.skills_list_col_score': 'score',
+    'cmd.skills_list_col_desc': 'description',
+    'cmd.skills_list_never_used': '—',
+    'cmd.skills_list_footer': '  Tip: type /<name> to invoke, or /skills --help for details.',
   },
   'zh-CN': {
     'intro.welcome': '欢迎使用 UpUp',
@@ -187,6 +205,15 @@ export const STRINGS: Record<Locale, Record<StringKey, string>> = {
     'cmd.invoke_hint': '使用 /<name> 调用',
     'cmd.dedupe_warn': '静态命令 /{name} 被本地技能遮蔽',
     'cmd.no_skill_suggestions': '没有可推荐的技能。',
+    'cmd.skills_list_title': '📚 已安装技能 ({n})',
+    'cmd.skills_list_empty': '未安装任何技能。输入 /help 查看可用命令。',
+    'cmd.skills_list_col_name': '名称',
+    'cmd.skills_list_col_source': '来源',
+    'cmd.skills_list_col_uses': '次数',
+    'cmd.skills_list_col_score': '评分',
+    'cmd.skills_list_col_desc': '说明',
+    'cmd.skills_list_never_used': '—',
+    'cmd.skills_list_footer': '  提示: 输入 /<name> 调用；/skills --help 查看详情。',
   },
 };
 
