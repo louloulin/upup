@@ -1,4 +1,3 @@
-// @ts-nocheck - temporary during modularization migration
 import { Container, ProcessTerminal, Spacer, Text, TUI, Key, matchesKey } from '@earendil-works/pi-tui';
 
 // ============================================================================

@@ -1,4 +1,3 @@
-// @ts-nocheck - temporary during modularization migration
 /**
  * Commands System - Slash command framework
  *
@@ -317,7 +316,7 @@ export class CommandRegistry {
 
     // Record command in queue for metrics/tracking
     if (this.commandQueue) {
-      this.commandQueue.enqueue(parsed.name, { args: parsed.args });
+      this.commandQueue.enqueue(parsed.name);
     }
 
     try {
