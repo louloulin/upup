@@ -1,4 +1,3 @@
-// @ts-nocheck - temporary during modularization migration
 import { AIMessage, AIMessageChunk, SystemMessage, HumanMessage, ToolMessage, type BaseMessage } from '@langchain/core/messages';
 import type { StructuredToolInterface } from '@langchain/core/tools';
 import { callLlmWithMessages, streamLlmWithMessages } from '@upup/llm';
@@ -848,12 +847,11 @@ export class Agent {
 
         // Telemetry: record successful tool call
         recordToolCallOk({
-          type: 'tool_end',
           tool: event.tool,
-          args: event.args || {},
-          result: event.result,
-          duration: event.duration ?? 0,
-          toolCallId: event.toolCallId,
+          input: event.args ?? {},
+          outputBytes: typeof event.result === 'string' ? event.result.length : 0,
+          durationMs: event.duration ?? 0,
+          timestamp: Date.now(),
         });
 
         // Record observation for memory extraction (Claude Code PostToolUse pattern)
@@ -885,15 +883,15 @@ export class Agent {
 
         // Telemetry: record failed tool call (duration computed from start time)
         const startedAt = toolStartTimes.get(event.toolCallId) ?? null;
-        recordToolCallErr(
-          {
-            type: 'tool_error',
-            tool: event.tool,
-            error: event.error ?? 'unknown',
-            toolCallId: event.toolCallId,
-          },
-          startedAt,
-        );
+        const errorDurationMs = startedAt ? Date.now() - startedAt : 0
+        recordToolCallErr({
+          tool: event.tool,
+          input: {},
+          outputBytes: 0,
+          durationMs: errorDurationMs,
+          timestamp: Date.now(),
+          errorCode: event.error ?? 'unknown',
+        });
 
         // Record error observation for memory extraction
         obsBuffer.recordObservation({
