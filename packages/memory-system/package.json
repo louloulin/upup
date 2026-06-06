@@ -134,6 +134,10 @@
       "types": "./src/memvid-rag.ts",
       "default": "./src/memvid-rag.ts"
     },
+    "./*.js": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
+    },
     "./*": {
       "types": "./src/*.ts",
       "default": "./src/*.ts"

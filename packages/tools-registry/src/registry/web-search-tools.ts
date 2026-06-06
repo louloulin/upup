@@ -2,8 +2,8 @@
  * Web, search, and browser tool registrations.
  */
 
-import type { RegisteredTool } from './types.js';
-import { networkMetadata } from './types.js';
+import type { RegisteredTool } from '../types.js';
+import { networkMetadata } from '../types.js';
 import { webFetchTool, WEB_FETCH_DESCRIPTION } from '../fetch/web-fetch.js';
 import { browserTool, BROWSER_DESCRIPTION } from '../browser/browser.js';
 import { exaSearch, perplexitySearch, tavilySearch, WEB_SEARCH_DESCRIPTION, xSearchTool, X_SEARCH_DESCRIPTION } from '../search/index.js';

@@ -170,6 +170,10 @@
       "types": "./src/channels/whatsapp/index.ts",
       "default": "./src/channels/whatsapp/index.ts"
     },
+    "./*.js": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
+    },
     "./*": {
       "types": "./src/*.ts",
       "default": "./src/*.ts"

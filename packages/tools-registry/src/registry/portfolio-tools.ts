@@ -12,8 +12,8 @@ import { tool } from 'langchain';
 import { z } from 'zod';
 import { attribution } from '../portfolio/attribution.js';
 import type { Portfolio, Benchmark } from '../portfolio/types.js';
-import { computationMetadata } from './types.js';
-import type { RegisteredTool } from './types.js';
+import { computationMetadata } from '../types.js';
+import type { RegisteredTool } from '../types.js';
 
 const HoldingSchema = z.object({
   sector: z.string().describe('Sector / industry key (e.g. shenwan-l1: 食品饮料)'),

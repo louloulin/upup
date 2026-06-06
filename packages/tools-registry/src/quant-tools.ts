@@ -26,7 +26,7 @@ import {
   createCompareDataSourcesTool, COMPARE_DATA_SOURCES_DESCRIPTION,
   createCorrelationMatrixTool, CALCULATE_CORRELATION_MATRIX_DESCRIPTION,
   createCalculateCorrelationTool, CALCULATE_CORRELATION_DESCRIPTION,
-} from './index';
+} from './quant/index.js';
 
 export function loadQuantTools(): RegisteredTool[] {
   const tools: RegisteredTool[] = [];

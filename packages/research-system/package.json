@@ -138,6 +138,10 @@
       "types": "./src/coach/channels/index.ts",
       "default": "./src/coach/channels/index.ts"
     },
+    "./*.js": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
+    },
     "./*": {
       "types": "./src/*.ts",
       "default": "./src/*.ts"

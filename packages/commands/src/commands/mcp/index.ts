@@ -14,8 +14,7 @@ export const mcpCommand: LocalJSXCommand = {
   name: 'mcp',
   description: 'Show MCP server status and tools',
   aliases: ['mcp-status'],
-  supportsNonInteractive: true,
-  load: () => import('./mcp.tsx'),
+  load: () => import('./mcp.tsx') as any,
 }
 
 export default mcpCommand

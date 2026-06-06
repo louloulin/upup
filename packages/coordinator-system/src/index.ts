@@ -51,3 +51,29 @@ export async function dispatchParallel(
     durationMs: 0,
   }));
 }
+
+// ===== Multi-agent / coordinator types =====
+//
+// Re-exported from src/multi-agent/types.ts for convenience. The canonical
+// definitions live there; this re-export lets consumers import from the
+// package root.
+export type {
+  TeamMember,
+  TeamFile,
+  CreateTeamParams,
+  AgentInstance,
+  SpawnAgentParams,
+  AgentMessage,
+  BackendType,
+  Backend,
+  CoordinatorEvent,
+  CoordinatorEventListener,
+  TeamCreateInput,
+  TeamCreateOutput,
+  AgentSpawnInput,
+  AgentSpawnOutput,
+  AgentMessageInput,
+  AgentMessageOutput,
+  AgentResultsInput,
+  AgentResultsOutput,
+} from './multi-agent/types.js';

@@ -10,10 +10,10 @@
  * Design: docs/superpowers/specs/2026-06-04-top-tier-investment-assistant-v2-design.md D18
  */
 
-import type { RegisteredTool } from './types.js';
-import { networkMetadata } from './types.js';
-import { DragonTigerAdapter } from '@upup/data/alt/dragon-tiger';
-import { NorthBoundAdapter } from '@upup/data/alt/north-bound';
+import type { RegisteredTool } from '../types.js';
+import { networkMetadata } from '../types.js';
+import { DragonTigerAdapter } from '@upup/finance-tools/alt/dragon-tiger.js';
+import { NorthBoundAdapter } from '@upup/finance-tools/alt/north-bound.js';
 import {
   createAltDataFetchTool,
   createAltDataSearchTool,

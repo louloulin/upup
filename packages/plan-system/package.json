@@ -34,6 +34,10 @@
       "types": "./src/tasks/index.ts",
       "default": "./src/tasks/index.ts"
     },
+    "./*.js": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
+    },
     "./*": {
       "types": "./src/*.ts",
       "default": "./src/*.ts"

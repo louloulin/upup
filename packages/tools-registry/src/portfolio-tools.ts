@@ -10,8 +10,8 @@
 
 import { tool } from 'langchain';
 import { z } from 'zod';
-import { attribution } from '@upup/./attribution';
-import type { Portfolio, Benchmark } from './types';
+import { attribution } from './portfolio/attribution.js';
+import type { PortfolioLike as Portfolio, BenchmarkLike as Benchmark } from './types';
 import { computationMetadata } from './types.js';
 import type { RegisteredTool } from './types.js';
 

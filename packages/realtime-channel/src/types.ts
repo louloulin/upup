@@ -70,3 +70,5 @@ export interface RealtimeFeed {
 
 export const DEFAULT_THROTTLE_MS = 1000;
 export const DEFAULT_AGGREGATE_MS = 0; // 0 = no aggregation
+
+export type FeedSource = "eastmoney" | "mock" | "throttled";

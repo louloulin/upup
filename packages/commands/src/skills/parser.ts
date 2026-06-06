@@ -53,7 +53,7 @@ export function parseFrontmatter(content: string): { frontmatter: SkillFrontmatt
   }
 
   return {
-    frontmatter: frontmatter as SkillFrontmatter,
+    frontmatter: frontmatter as unknown as SkillFrontmatter,
     body: body.trim(),
   }
 }

@@ -222,6 +222,8 @@ export interface CommandBase {
   isHidden?: boolean
   /** 别名列表 */
   aliases?: string[]
+  /** 如果此命令是另一个命令的别名,则指向被别名的命令 */
+  aliasOf?: string
   /** 参数提示 (灰色显示在命令后) */
   argumentHint?: string
   /** 使用场景描述 */

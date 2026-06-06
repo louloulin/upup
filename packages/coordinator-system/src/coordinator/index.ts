@@ -34,3 +34,9 @@ export {
   type WorkerConfig,
   type WorkerRole,
 } from './types.js';
+
+// CLI Session Controllers (moved from src/controllers/)
+export { AgentRunnerController } from './agent-runner.js';
+export { InputHistoryController } from './input-history.js';
+export { ModelSelectionController } from './model-selection.js';
+export { SessionSelectionController } from './session-selection.js';

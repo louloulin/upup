@@ -166,6 +166,10 @@
       "types": "./src/bundled/index.ts",
       "default": "./src/bundled/index.ts"
     },
+    "./*.js": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
+    },
     "./*": {
       "types": "./src/*.ts",
       "default": "./src/*.ts"

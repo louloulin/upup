@@ -1,7 +1,7 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { z } from 'zod';
-import { getTushareClient, getToday } from '@upup/astock/tushare-client';
-import { screenStocks as astockScreenStocks } from '@upup/astock/screener-client';
+import { getTushareClient, getToday } from '@upup/finance-tools/astock/tushare-client';
+import { screenStocks as astockScreenStocks } from '@upup/finance-tools/astock/screener-client';
 // ScreenInput 类型已内联定义
 import type { StructuredToolInterface } from '@langchain/core/tools';
 

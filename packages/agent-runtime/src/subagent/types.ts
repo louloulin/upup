@@ -22,7 +22,7 @@ import type {
   SubagentResult,
   SubagentTask,
   SubagentTaskStatus,
-} from '@upup/.';
+} from '../index.js';
 import { info, warn } from '@upup/utils/logging';
 import { randomUUID } from 'crypto';
 

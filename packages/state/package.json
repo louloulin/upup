@@ -14,6 +14,10 @@
       "types": "./src/state.ts",
       "default": "./src/state.ts"
     },
+    "./*.js": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
+    },
     "./*": {
       "types": "./src/*.ts",
       "default": "./src/*.ts"

@@ -14,7 +14,7 @@ import {
   createRemovePositionTool, createGetPortfolioTool,
   ADD_POSITION_DESCRIPTION, UPDATE_POSITION_DESCRIPTION,
   REMOVE_POSITION_DESCRIPTION, GET_PORTFOLIO_DESCRIPTION,
-} from './index';
+} from './portfolio/index.js';
 import {
   createWorktreeTool, removeWorktreeTool, listWorktreeTool,
   CREATE_WORKTREE_DESCRIPTION, REMOVE_WORKTREE_DESCRIPTION, LIST_WORKTREE_DESCRIPTION,
@@ -324,7 +324,7 @@ async function loadDynamicDomainTools(tools: RegisteredTool[]): Promise<void> {
 
   // Benchmark
   try {
-    const bm = await import('@upup/benchmark/index');
+    const bm = await import('./benchmark/index.js');
     tools.push({ name: 'list_benchmarks', tool: bm.createListBenchmarksTool(), description: bm.LIST_BENCHMARKS_DESCRIPTION, compactDescription: 'List available market benchmarks (SPX, CSI300, NDX)', concurrencySafe: true });
     tools.push({ name: 'compare_to_benchmark', tool: bm.createCompareBenchmarkTool(), description: bm.COMPARE_BENCHMARK_DESCRIPTION, compactDescription: 'Compare portfolio return vs benchmarks for alpha', concurrencySafe: true });
     tools.push({ name: 'calculate_alpha', tool: bm.createCalculateAlphaTool(), description: bm.CALCULATE_ALPHA_DESCRIPTION, compactDescription: 'Calculate portfolio alpha vs a benchmark', concurrencySafe: true });
@@ -332,7 +332,7 @@ async function loadDynamicDomainTools(tools: RegisteredTool[]): Promise<void> {
 
   // FX Currency
   try {
-    const fx = await import('@upup/fx/index');
+    const fx = await import('./fx/index.js');
     tools.push({ name: 'convert_currency', tool: fx.createConvertCurrencyTool(), description: fx.CONVERT_CURRENCY_DESCRIPTION, compactDescription: 'Convert between currencies (USD/CNY/HKD/EUR/GBP)', concurrencySafe: true });
     tools.push({ name: 'list_currencies', tool: fx.createListCurrenciesTool(), description: fx.LIST_CURRENCIES_DESCRIPTION, compactDescription: 'List supported currencies for conversion', concurrencySafe: true });
     tools.push({ name: 'get_exchange_rate', tool: fx.createGetRateTool(), description: fx.GET_EXCHANGE_RATE_DESCRIPTION, compactDescription: 'Get current exchange rate between two currencies', concurrencySafe: true });
@@ -340,7 +340,7 @@ async function loadDynamicDomainTools(tools: RegisteredTool[]): Promise<void> {
 
   // Multi-Portfolio
   try {
-    const mp = await import('@upup/tools-registry/portfolio/multi-portfolio');
+    const mp = await import('./portfolio/multi-portfolio.js');
     const mpTools = mp.multiPortfolioTools;
     for (const pt of mpTools) {
       if (!pt?.name) continue;
@@ -359,7 +359,7 @@ async function loadDynamicDomainTools(tools: RegisteredTool[]): Promise<void> {
 
   // Calendar
   try {
-    const cal = await import('@upup/calendar/index');
+    const cal = await import('./calendar/index.js');
     tools.push({ name: 'check_trading_day', tool: cal.createCheckTradingDayTool(), description: cal.CHECK_TRADING_DAY_DESCRIPTION, compactDescription: 'Check if a date is a trading day for US/China/HK markets', concurrencySafe: true });
     tools.push({ name: 'get_upcoming_holidays', tool: cal.createGetUpcomingHolidaysTool(), description: cal.GET_UPCOMING_HOLIDAYS_DESCRIPTION, compactDescription: 'Get upcoming market holidays for US/China/HK', concurrencySafe: true });
     tools.push({ name: 'get_next_trading_day', tool: cal.createGetNextTradingDayTool(), description: cal.GET_NEXT_TRADING_DAY_DESCRIPTION, compactDescription: 'Find next trading day after a given date', concurrencySafe: true });
@@ -368,7 +368,7 @@ async function loadDynamicDomainTools(tools: RegisteredTool[]): Promise<void> {
 
   // Short Interest
   try {
-    const si = await import('@upup/tools-registry/short-interest');
+    const si = await import('./short-interest/index.js');
     tools.push({ name: 'get_short_interest', tool: si.createGetShortInterestTool(), description: si.GET_SHORT_INTEREST_DESCRIPTION, compactDescription: 'Get short interest data and squeeze risk analysis', concurrencySafe: true });
     tools.push({ name: 'calculate_short_interest_ratio', tool: si.createCalculateShortInterestRatioTool(), description: si.CALCULATE_SHORT_INTEREST_RATIO_DESCRIPTION, compactDescription: 'Calculate position squeeze risk from short interest', concurrencySafe: true });
     tools.push({ name: 'detect_short_squeeze', tool: si.createDetectShortSqueezeTool(), description: si.DETECT_SHORT_SQUEEZE_DESCRIPTION, compactDescription: 'Screen stocks for short squeeze potential', concurrencySafe: true });
@@ -376,7 +376,7 @@ async function loadDynamicDomainTools(tools: RegisteredTool[]): Promise<void> {
 
   // Backtest
   try {
-    const bt = await import('@upup/backtest/index');
+    const bt = await import('./backtest/index.js');
     tools.push({ name: 'evaluate_trade', tool: bt.createEvaluateTradeTool(), description: bt.EVALUATE_TRADE_DESCRIPTION, compactDescription: 'Evaluate single historical trade against forward price data', concurrencySafe: true });
     tools.push({ name: 'run_backtest', tool: bt.createRunBacktestTool(), description: bt.RUN_BACKTEST_DESCRIPTION, compactDescription: 'Run batch backtest on multiple historical trades', concurrencySafe: true });
     tools.push({ name: 'get_backtest_summary', tool: bt.createGetBacktestSummaryTool(), description: bt.GET_BACKTEST_SUMMARY_DESCRIPTION, compactDescription: 'Get guidance on backtest summary metrics interpretation', concurrencySafe: true });
@@ -385,7 +385,7 @@ async function loadDynamicDomainTools(tools: RegisteredTool[]): Promise<void> {
 
   // Cache
   try {
-    const cache = await import('@upup/cache/index');
+    const cache = await import('./cache/index.js');
     tools.push({ name: 'get_cache_stats', tool: cache.createGetCacheStatsTool(), description: cache.GET_CACHE_STATS_DESCRIPTION, compactDescription: 'Get market data cache statistics', concurrencySafe: true });
     tools.push({ name: 'clear_cache', tool: cache.createClearCacheTool(), description: cache.CLEAR_CACHE_DESCRIPTION, compactDescription: 'Clear the market data cache', concurrencySafe: true });
     tools.push({ name: 'invalidate_cache', tool: cache.createInvalidateCacheTool(), description: cache.INVALIDATE_CACHE_DESCRIPTION, compactDescription: 'Invalidate specific cache entries by prefix', concurrencySafe: true });

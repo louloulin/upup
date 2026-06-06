@@ -210,6 +210,10 @@
       "types": "./src/logging/index.ts",
       "default": "./src/logging/index.ts"
     },
+    "./*.js": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
+    },
     "./*": {
       "types": "./src/*.ts",
       "default": "./src/*.ts"

@@ -24,7 +24,8 @@ import {
   type CommandBase,
 } from './types/command-types.js'
 
-import type { Command } from './types/command-types.js'
+import type { Command } from './types/command-types.js';
+export type { Command };
 import type { CommandContext, CommandResult } from './commands.js'
 
 // ============================================================================
@@ -364,6 +365,11 @@ export interface SlashCommand {
   description: string
   category: CommandCategory
   aliases?: string[]
+  aliasOf?: string
+  type?: string
+  load?: () => Promise<unknown>
+  getPromptForCommand?: (args: string) => string
+  execute?: (args: string, context: unknown) => Promise<unknown>
 }
 
 export const SLASH_COMMANDS: SlashCommand[] = [
@@ -447,7 +453,7 @@ export async function executeCommand(
   if (cmd) {
     try {
       if (cmd.type === 'local') {
-        const module = await cmd.load()
+        const module: any = await cmd.load!()
         // Build context with state support
         const localContext: Record<string, unknown> = {
           cwd: context.cwd,
@@ -485,7 +491,7 @@ export async function executeCommand(
       }
 
       if (cmd.type === 'local-jsx') {
-        const module = await cmd.load()
+        const module: any = await cmd.load!()
 
         // Create onDone callback
         const onDone = (result?: string) => {
@@ -510,7 +516,7 @@ export async function executeCommand(
       }
 
       if (cmd.type === 'prompt') {
-        const text = await cmd.getPromptForCommand(args, {
+        const text = await cmd.getPromptForCommand!(args, {
           cwd: context.cwd,
           env: context.env,
           sessionId: context.sessionId,

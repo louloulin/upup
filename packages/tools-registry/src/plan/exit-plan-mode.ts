@@ -13,13 +13,13 @@ import {
   formatPlanChecklist,
   calculateProgress,
   PlanContext,
-} from '@upup/plan/plan-context';
+} from '@upup/plan-system/plan/plan-context';
 import {
   getPlanFromMemory,
   listPlans,
   planMemory,
 } from './enter-plan-mode.js';
-import { getPlanModeState } from '@upup/agent/plan-mode-state';
+import { getPlanModeState } from '@upup/agent-runtime/plan-mode-state';
 
 export const EXIT_PLAN_MODE_DESCRIPTION = `
 Exit Plan Mode and either save or discard the current plan.

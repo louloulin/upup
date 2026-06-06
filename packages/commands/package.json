@@ -697,6 +697,14 @@
     "./skills": {
       "types": "./src/skills/index.ts",
       "default": "./src/skills/index.ts"
+    },
+    "./*.js": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
+    },
+    "./*": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
     }
   },
   "scripts": {

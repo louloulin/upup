@@ -38,6 +38,10 @@
       "types": "./src/integration.test.ts",
       "default": "./src/integration.test.ts"
     },
+    "./*.js": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
+    },
     "./*": {
       "types": "./src/*.ts",
       "default": "./src/*.ts"

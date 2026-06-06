@@ -39,6 +39,7 @@ export {
   fuzzyMatchCommands,
   type CommandCategory,
   type SlashCommand,
+  type Command,
   // Dynamic command registration
   registerDynamicCommand,
   unregisterDynamicCommand,
@@ -139,3 +140,4 @@ export {
   type CommandContext,
   type CommandResult,
 } from './commands.js'
+

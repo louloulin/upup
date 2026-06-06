@@ -7,21 +7,21 @@ import { buildAgentTool, AGENT_TOOL_DESCRIPTION, AGENT_TOOL_COMPACT_DESCRIPTION 
 import {
   createEnterPlanModeTool, createExitPlanModeTool,
   createAddPlanStepTool, createUpdatePlanStepTool, createListPlanStepsTool,
-} from '@upup/plan-system/plan';
+} from '../plan/index.js';
 import {
   createCreateTodoTool, createUpdateTodoTool,
   createListTodosTool, createDeleteTodoTool,
-} from '@upup/tools-registry/todo/todo-tool';
+} from '../todo/todo-tool.js';
 import {
   createTaskCreateTool, createTaskGetTool,
   createTaskListTool, createTaskStopTool, createTaskUpdateTool,
-} from '@upup/tools-registry/task/task-tool';
+} from '../task/task-tool.js';
 import {
   createAskConfirmTool, createAskSelectTool,
   createAskMultiSelectTool, createAskInputTool, createAskResponseTool,
   ASK_CONFIRM_DESCRIPTION, ASK_SELECT_DESCRIPTION,
   ASK_MULTI_SELECT_DESCRIPTION, ASK_INPUT_DESCRIPTION, ASK_RESPONSE_DESCRIPTION,
-} from '@upup/ask/ask-tool';
+} from '../ask/ask-tool.js';
 
 export async function loadAgentPlanningTools(): Promise<RegisteredTool[]> {
   const tools: RegisteredTool[] = [];

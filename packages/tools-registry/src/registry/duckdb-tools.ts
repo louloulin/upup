@@ -13,7 +13,7 @@
 
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import type { StructuredToolInterface } from '@langchain/core/tools';
-import type { RegisteredTool } from './types.js';
+import type { RegisteredTool } from '../types.js';
 import { DuckDBPlugin } from '@upup/plugins/data/duckdb-plugin';
 
 /** Lazy singleton for DuckDB plugin */

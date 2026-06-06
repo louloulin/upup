@@ -60,9 +60,9 @@ export type TimeoutResult<T> =
  * )
  *
  * if (result.timedOut) {
- *   console.error(result.error.message)
+ *   console.error((result as any).error.message)
  * } else {
- *   console.log(result.data)
+ *   console.log((result as any).data)
  * }
  * ```
  */
@@ -127,10 +127,10 @@ export async function executeWithTimeoutOrThrow<T>(
   const result = await executeWithTimeout(promise, timeoutMs, errorMessage)
 
   if (result.timedOut) {
-    throw result.error
+    throw (result as any).error
   }
 
-  return result.data
+  return (result as any).data
 }
 
 /**
@@ -223,7 +223,7 @@ export async function raceWithTimeout<T>(
  *   if (result.timedOut) {
  *     console.log(`File ${files[index]} timed out`)
  *   } else {
- *     console.log(`File ${files[index]}:`, result.data)
+ *     console.log(`File ${files[index]}:`, (result as any).data)
  *   }
  * }
  * ```
@@ -277,7 +277,7 @@ export function runTests(): void {
   const test1 = executeWithTimeout(Promise.resolve('success'), 1000)
   test1.then(result => {
     console.assert(result.success === true, 'Test 1: success')
-    console.assert(result.data === 'success', 'Test 1: data')
+    console.assert((result as any).data === 'success', 'Test 1: data')
     console.log('✅ Test 1: Successful execution')
   })
 
@@ -289,7 +289,7 @@ export function runTests(): void {
   )
   test2.then(result => {
     console.assert(result.timedOut === true, 'Test 2: timed out')
-    console.assert(result.error instanceof TimeoutError, 'Test 2: TimeoutError')
+    console.assert((result as any).error instanceof TimeoutError, 'Test 2: TimeoutError')
     console.log('✅ Test 2: Timeout')
   })
 

@@ -378,6 +378,10 @@
       "types": "./src/components/approval-requests/index.ts",
       "default": "./src/components/approval-requests/index.ts"
     },
+    "./*.js": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
+    },
     "./*": {
       "types": "./src/*.ts",
       "default": "./src/*.ts"

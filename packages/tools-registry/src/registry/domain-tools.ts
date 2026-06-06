@@ -6,8 +6,8 @@
  * backtest, cache.
  */
 
-import type { RegisteredTool } from './types.js';
-import { systemMetadata } from './types.js';
+import type { RegisteredTool } from '../types.js';
+import { systemMetadata } from '../types.js';
 import { isFeatureCompiledIn } from '@upup/agent-runtime/feature-gates';
 import {
   createAddPositionTool, createUpdatePositionTool,
@@ -76,7 +76,7 @@ import {
   createAgentMemoryTool, createListAgentsTool, createRunBuiltInAgentTool,
   FORK_SUBAGENT_DESCRIPTION, RESUME_AGENT_DESCRIPTION,
   AGENT_MEMORY_DESCRIPTION, LIST_AGENTS_DESCRIPTION, RUN_BUILTIN_AGENT_DESCRIPTION,
-} from '@upup/agent/subagent/types';
+} from '@upup/agent-runtime/subagent/types.js';
 
 // Research tool descriptions (placeholders)
 const ANALYZE_SENTIMENT_DESCRIPTION = "Analyze sentiment from financial text.";

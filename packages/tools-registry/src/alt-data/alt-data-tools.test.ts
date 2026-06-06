@@ -6,10 +6,10 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { DragonTigerAdapter } from '@upup/data/alt/dragon-tiger';
-import { NorthBoundAdapter } from '@upup/data/alt/north-bound';
-import { mockDragonTigerResponse, mockNorthBoundResponse } from '@upup/data/alt/_test-fixtures';
-import type { NormalizedEvent } from '@upup/data/alt/types';
+import { DragonTigerAdapter } from '@upup/finance-tools/alt/dragon-tiger';
+import { NorthBoundAdapter } from '@upup/finance-tools/alt/north-bound';
+import { mockDragonTigerResponse, mockNorthBoundResponse } from '@upup/finance-tools/alt/_test-fixtures';
+import type { NormalizedEvent } from '@upup/finance-tools/alt/types';
 import { createAltDataFetchTool, createAltDataSearchTool } from './alt-data-tools.js';
 
 const unwrap = async (raw: string | AsyncGenerator<unknown, string, unknown>): Promise<any> => {

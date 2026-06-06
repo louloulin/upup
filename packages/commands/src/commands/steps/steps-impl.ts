@@ -9,7 +9,7 @@ import { getPlanModePortLocal } from '../../agent-port.js'
 
 export const call = async (
   _args: string,
-  _context: ToolUseContext,
+  _convalue: ToolUseContext,
 ): Promise<LocalCommandResult> => {
   // Use the port registry — no fragile deep import needed
   const planMode = getPlanModePortLocal()
@@ -36,8 +36,8 @@ export const call = async (
 
   // In plan mode - show status
   return {
-    type: 'query',
-    text: 'list_plan_steps',
+    type: 'text',
+    value: 'list_plan_steps',
   }
 }
 

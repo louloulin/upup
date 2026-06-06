@@ -30,6 +30,10 @@
       "types": "./src/eastmoney-feed.ts",
       "default": "./src/eastmoney-feed.ts"
     },
+    "./*.js": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
+    },
     "./*": {
       "types": "./src/*.ts",
       "default": "./src/*.ts"

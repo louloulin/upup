@@ -58,8 +58,8 @@ export const call = async (
   const stepText = args.trim()
 
   return {
-    type: 'query',
-    text: `add_plan_step ${stepText}`,
+    type: 'text',
+    value: `add_plan_step ${stepText}`,
   }
 }
 

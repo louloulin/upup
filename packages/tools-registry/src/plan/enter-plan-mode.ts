@@ -11,8 +11,8 @@ import {
   createPlan,
   addStep,
   PLAN_STORAGE_DIR,
-} from '@upup/plan/plan-context';
-import { getPlanModeState } from '@upup/agent/plan-mode-state';
+} from '@upup/plan-system/plan/plan-context';
+import { getPlanModeState } from '@upup/agent-runtime/plan-mode-state';
 
 export const ENTER_PLAN_MODE_DESCRIPTION = `
 Enter Plan Mode to create a structured plan for a complex task.

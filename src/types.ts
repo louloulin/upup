@@ -1,52 +1,6 @@
 /**
- * UpUp TypeScript Types
+ * src/types.ts - Application entry shell for shared types.
  *
- * Re-exports shared types from @upup/types and defines UpUp-specific types.
+ * All type definitions live in `@upup/types`.
  */
-
-import type { DisplayEvent, TokenUsage } from './agent/types.js';
-
-// Re-export shared types from @upup/types
-export type {
-  AgentTool,
-  ToolOptions,
-  HookConfig,
-  HookContext,
-  HookResult,
-  ProviderConfig,
-  LlmOptions,
-  LlmResponse,
-  SessionConfig,
-  Session,
-  Message,
-  MemoryEntry,
-  SearchResult,
-  SearchOptions,
-  UpupError,
-  PluginError,
-  ToolError,
-  ProviderError,
-} from '@upup/types';
-
-// ===== UpUp-specific Types =====
-
-export type WorkingState =
-  | { status: 'idle' }
-  | { status: 'thinking' }
-  | { status: 'tool'; toolName: string }
-  | { status: 'approval'; toolName: string };
-
-export type HistoryItemStatus = 'processing' | 'complete' | 'error' | 'interrupted';
-
-export interface HistoryItem {
-  id: string;
-  query: string;
-  events: DisplayEvent[];
-  answer: string;
-  status: HistoryItemStatus;
-  activeToolId?: string;
-  startTime?: number;
-  duration?: number;
-  tokenUsage?: TokenUsage;
-  tokensPerSecond?: number;
-}
+export type * from '@upup/types';

@@ -10,7 +10,7 @@
 import { z } from 'zod';
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { HumanMessage, AIMessage, SystemMessage } from '@langchain/core/messages';
-import { snipMessages, shouldSnip, estimateSnipSavings } from '@upup/tools-registry/snip-tool';
+import { snipMessages, shouldSnip, estimateSnipSavings } from '@upup/agent-runtime/snip.js';
 
 // ============================================================================
 // Schema & Description
@@ -151,4 +151,4 @@ export function createSnipTool(): DynamicStructuredTool {
 // Module Exports
 // ============================================================================
 
-export { snipMessages, shouldSnip, estimateSnipSavings } from '@upup/tools-registry/snip-tool';
+export { snipMessages, shouldSnip, estimateSnipSavings } from '@upup/agent-runtime/snip.js';

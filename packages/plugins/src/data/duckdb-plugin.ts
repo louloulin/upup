@@ -14,13 +14,13 @@
 
 import { resolve } from 'path';
 import { info, warn } from '@upup/utils/logging';
+import type { AgentTool } from '../types.js';
 import type {
   PluginAdapter,
   PluginManifest,
   LoadedPlugin,
   UpUpPluginApi,
   PluginService,
-  AgentTool,
   HookHandler,
 } from '@upup/types';
 

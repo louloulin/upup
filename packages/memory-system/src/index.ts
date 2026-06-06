@@ -401,3 +401,13 @@ export class MemoryManager {
     return `${year}-${month}-${day}.md`;
   }
 }
+
+// Memory tool re-exports (migrated from src/tools/memory/)
+export {
+  memorySearchTool,
+  MEMORY_SEARCH_DESCRIPTION,
+  memoryGetTool,
+  MEMORY_GET_DESCRIPTION,
+  memoryUpdateTool,
+  MEMORY_UPDATE_DESCRIPTION,
+} from './memory-tools/index.js';

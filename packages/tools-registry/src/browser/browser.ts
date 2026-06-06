@@ -1,7 +1,7 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { z } from 'zod';
 import { formatToolResult } from '../types.js';
-import { logger } from '@/utils';
+import { logger } from '@upup/utils';
 
 // Dynamic import for playwright - allows bundling without playwright
 type BrowserType = Awaited<ReturnType<typeof import('playwright').chromium['launch']>>;

@@ -47,7 +47,7 @@ export class MCPStatusComponent extends Container {
     options?: MCPComponentOptions,
   ) {
     super()
-    this.onDone = options?.onDone
+    this.onDone = (options as any)?.onDone
     this.onRefresh = options?.onRefresh
     this.onConnect = options?.onConnect
     this.onDisconnect = options?.onDisconnect

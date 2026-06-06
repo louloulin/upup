@@ -9,8 +9,8 @@
 
 import { z } from 'zod';
 import { DynamicStructuredTool } from '@langchain/core/tools';
-import { getDefaultSubagentRunner } from '@upup/agent/subagent-runner';
-import type { SubagentConfig, SubagentContext } from '@upup/agent/subagent';
+import { getDefaultSubagentRunner } from '@upup/agent-runtime/subagent-runner';
+import type { SubagentConfig, SubagentContext } from '@upup/agent-runtime/subagent';
 import type { StructuredToolInterface } from '@langchain/core/tools';
 import type { AgentEvent } from '@upup/agent-runtime/types';
 

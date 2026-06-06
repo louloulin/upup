@@ -1,7 +1,7 @@
 import { Container, Input, SelectList, Text, type SelectItem, getKeybindings } from '@earendil-works/pi-tui';
 import { PROVIDERS, type Model } from '@upup/utils/model.js';
 import type { ApprovalDecision } from '@upup/agent-runtime';
-import type { SessionSummary } from '@upup/session/types';
+import type { SessionSummary } from '@upup/session-system/types';
 import { selectListTheme, theme } from '../theme.js';
 import { formatRelativeTime } from '@upup/utils/time.js';
 // Simple wrapper that just uses native SelectList - no custom input handling needed

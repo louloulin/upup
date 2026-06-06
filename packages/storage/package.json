@@ -38,6 +38,10 @@
       "types": "./src/fund-storage.ts",
       "default": "./src/fund-storage.ts"
     },
+    "./*.js": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
+    },
     "./*": {
       "types": "./src/*.ts",
       "default": "./src/*.ts"

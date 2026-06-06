@@ -185,8 +185,11 @@
       "name": "@upup/index-app",
       "version": "0.3.0",
       "dependencies": {
+        "@upup/bridge-system": "workspace:*",
         "@upup/cli": "workspace:*",
+        "@upup/coordinator-system": "workspace:*",
         "@upup/types": "workspace:*",
+        "dotenv": "^17.3.1",
       },
       "devDependencies": {
         "@types/bun": "latest",

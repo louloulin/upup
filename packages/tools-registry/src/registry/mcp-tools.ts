@@ -2,8 +2,8 @@
  * MCP (Model Context Protocol) tool registrations.
  */
 
-import type { RegisteredTool } from './types.js';
-import { networkMetadata, systemMetadata } from './types.js';
+import type { RegisteredTool } from '../types.js';
+import { networkMetadata, systemMetadata } from '../types.js';
 import { getMCPStatus, mcpToolsToRegisteredTools } from '@upup/mcp/index';
 import { getDefaultMCPClient } from '@upup/mcp/client';
 import { listMcpResourcesTool, readMcpResourceTool, LIST_MCP_RESOURCES_DESCRIPTION, READ_MCP_RESOURCE_DESCRIPTION } from '@upup/mcp/resource-tools';

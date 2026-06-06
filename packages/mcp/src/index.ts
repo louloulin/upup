@@ -24,3 +24,7 @@ export {
 
 // Note: auth-tool.ts requires project-specific paths and is not exported
 // Note: registry.ts depends on agent-hooks and is not included in this package
+
+// MCP registry ports (status reporting + tool conversion)
+export { getMCPStatus, mcpToolsToRegisteredTools } from './registry.js';
+export type { MCPRegisteredTool } from './registry.js';

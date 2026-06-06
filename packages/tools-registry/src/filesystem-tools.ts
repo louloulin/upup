@@ -4,13 +4,13 @@
 
 import type { RegisteredTool } from './types.js';
 import { fileWriteMetadata, fileReadMetadata, memoryMetadata } from './types.js';
-import { readFileTool, READ_FILE_DESCRIPTION } from '@upup/./read-file';
-import { writeFileTool, WRITE_FILE_DESCRIPTION } from '@upup/./write-file';
-import { editFileTool, EDIT_FILE_DESCRIPTION } from '@upup/./edit-file';
-import { globTool } from '@upup/./glob';
-import { grepTool } from '@upup/./grep';
-import { sendUserFileTool, SEND_USER_FILE_DESCRIPTION } from '@upup/./send-user-file';
-import { heartbeatTool, HEARTBEAT_TOOL_DESCRIPTION } from '@upup/./heartbeat-tool';
+import { readFileTool, READ_FILE_DESCRIPTION } from '@upup/tools-registry/filesystem/read-file.js';
+import { writeFileTool, WRITE_FILE_DESCRIPTION } from '@upup/tools-registry/filesystem/write-file.js';
+import { editFileTool, EDIT_FILE_DESCRIPTION } from '@upup/tools-registry/filesystem/edit-file.js';
+import { globTool } from '@upup/tools-registry/filesystem/glob.js';
+import { grepTool } from '@upup/tools-registry/filesystem/grep.js';
+import { sendUserFileTool, SEND_USER_FILE_DESCRIPTION } from '@upup/tools-registry/filesystem/send-user-file.js';
+import { heartbeatTool, HEARTBEAT_TOOL_DESCRIPTION } from './filesystem/heartbeat-tool.js';
 import { cronTool, CRON_TOOL_DESCRIPTION } from '@upup/tools-registry/cron/cron-tool';
 import { memoryGetTool, MEMORY_GET_DESCRIPTION, memorySearchTool, MEMORY_SEARCH_DESCRIPTION, memoryUpdateTool, MEMORY_UPDATE_DESCRIPTION } from '@upup/memory-system/index';
 import { bashTool, BASH_TOOL_NAME } from './bash/index';

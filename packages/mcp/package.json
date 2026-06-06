@@ -22,6 +22,10 @@
       "types": "./src/resource-tools.ts",
       "default": "./src/resource-tools.ts"
     },
+    "./*.js": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
+    },
     "./*": {
       "types": "./src/*.ts",
       "default": "./src/*.ts"

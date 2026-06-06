@@ -5,8 +5,8 @@
  */
 
 import type { StructuredToolInterface } from '@langchain/core/tools';
-import type { RegisteredTool } from './types.js';
-import { financialReadMetadata, financialWriteMetadata } from './types.js';
+import type { RegisteredTool } from '../types.js';
+import { financialReadMetadata, financialWriteMetadata } from '../types.js';
 import {
   // Basic tools
   fundSearchTool,

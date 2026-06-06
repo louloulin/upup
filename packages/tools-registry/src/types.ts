@@ -239,3 +239,43 @@ export function parseSearchResults(result: unknown): { parsed: unknown; urls: st
   extractUrls(parsed);
   return { parsed, urls };
 }
+
+// Portfolio/Benchmark types
+export interface Portfolio {
+  id: string;
+  name: string;
+  positions: Array<{ symbol: string; shares: number; costBasis: number }>;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface Benchmark {
+  symbol: string;
+  name: string;
+  returnPct: number;
+  startDate: string;
+  endDate: string;
+}
+
+// Override Portfolio/Benchmark to be more permissive for test data
+// TODO: reconcile with actual usage
+export type PortfolioLike = {
+  id?: string;
+  name?: string;
+  positions?: Array<{ symbol: string; shares: number; costBasis: number }>;
+  totalReturn?: number;
+  holdings?: Array<{ return: number; sector: string; weight: number }>;
+  createdAt?: number;
+  updatedAt?: number;
+  [key: string]: unknown;
+};
+export type BenchmarkLike = {
+  symbol?: string;
+  name?: string;
+  returnPct?: number;
+  startDate?: string;
+  endDate?: string;
+  totalReturn?: number;
+  holdings?: Array<{ return: number; sector: string; weight: number }>;
+  [key: string]: unknown;
+};

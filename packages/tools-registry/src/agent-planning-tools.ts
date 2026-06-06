@@ -7,7 +7,7 @@ import { buildAgentTool, AGENT_TOOL_DESCRIPTION, AGENT_TOOL_COMPACT_DESCRIPTION 
 import {
   createEnterPlanModeTool, createExitPlanModeTool,
   createAddPlanStepTool, createUpdatePlanStepTool, createListPlanStepsTool,
-} from '@upup/plan-system/index';
+} from './plan/index.js';
 import {
   createCreateTodoTool, createUpdateTodoTool,
   createListTodosTool, createDeleteTodoTool,

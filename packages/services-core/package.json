@@ -62,17 +62,25 @@
       "types": "./src/services/analytics/index.ts",
       "default": "./src/services/analytics/index.ts"
     },
+    "./*.js": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
+    },
     "./*": {
       "types": "./src/*.ts",
       "default": "./src/*.ts"
     },
-    "./services-core/permissions/permissionSetup": {
+    "./permissions/permissionSetup": {
       "types": "./src/permissions/permissionSetup.ts",
       "default": "./src/permissions/permissionSetup.ts"
     },
-    "./services-core/permissions/types": {
+    "./permissions/types": {
       "types": "./src/permissions/types.ts",
       "default": "./src/permissions/types.ts"
+    },
+    "./permissions/approvalConfig": {
+      "types": "./src/permissions/approvalConfig.ts",
+      "default": "./src/permissions/approvalConfig.ts"
     }
   },
   "scripts": {

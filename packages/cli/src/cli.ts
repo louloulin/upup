@@ -57,7 +57,7 @@ import {
   ModelSelectionController,
   SessionSelectionController,
 } from '@upup/coordinator-system/coordinator';
-import type { RenderableMessage } from '@upup/./session/render/index';
+import type { RenderableMessage } from '@upup/session-system/render/index.js';
 import {
   ApiKeyInputComponent,
   ApprovalPromptComponent,
@@ -84,8 +84,8 @@ import { type SlashCommand } from './commands/index.js';
 import { getCliCommands } from './commands/unified-registry.js';
 import { initSpinner } from '@upup/utils/spinner';
 // Phase 50: 统一使用 input-state，移除 command-state
-import { inputStore, inputSelectors, inputActions } from '@upup/tui-renderer/state/input-state';
-import { initializeSkills, getSkillCommandRegistry, getRegisteredCommandCount } from '@upup/tools-registry/skills';
+import { inputStore, inputSelectors, inputActions } from '@upup/tui-renderer/tui/state/input-state.js';
+import { initializeSkills, getSkillCommandRegistry, getRegisteredCommandCount } from '@upup/skills/index.js';
 
 
 // Stores the user's approval decision when Enter/Esc is pressed before the
@@ -518,7 +518,7 @@ export async function runCli(options: RunCliOptions = {}) {
       throttledRender();
     },
     undefined,
-    (msg: from '@upup/./session/render/index'.RenderableMessage) => {
+    (msg: any) => {
       // Session 2.0: Render history messages when resuming
       renderHistoryMessage(msg, chatLog, theme);
     },
@@ -584,7 +584,7 @@ export async function runCli(options: RunCliOptions = {}) {
 
     // Check if this is a skill command
     try {
-      const { executeSkillCommand } = await import('@upup/./skills/executor');
+      const { executeSkillCommand } = await import('@upup/skills/executor.js');
       const skillCommand = await executeSkillCommand(commandName, commandArgs, {
         cwd: process.cwd(),
         env: process.env as Record<string, string>,
@@ -640,7 +640,7 @@ export async function runCli(options: RunCliOptions = {}) {
       const searchTerm = args.replace('--fork', '').trim();
 
       if (searchTerm) {
-        const { resolveResumeTarget } = await import('@upup/./session/restore');
+        const { resolveResumeTarget } = await import('@upup/session-system/restore.js');
         const targetId = await resolveResumeTarget(searchTerm, process.cwd());
         if (targetId) {
           chatLog.addChild(new Spacer(1));
@@ -670,7 +670,7 @@ export async function runCli(options: RunCliOptions = {}) {
     }
 
     if (commandName === 'continue') {
-      const { getMostRecentSession } = await import('@upup/./session/restore');
+      const { getMostRecentSession } = await import('@upup/session-system/restore.js');
       const lastSessionId = await getMostRecentSession(process.cwd());
       if (lastSessionId && lastSessionId !== agentRunner.sessionId) {
         chatLog.addChild(new Spacer(1));
@@ -725,9 +725,9 @@ export async function runCli(options: RunCliOptions = {}) {
         state,
       })
 
-      if (result.type === 'output' && result.text) {
+      if (result.type === 'output' && (result as any).text) {
         chatLog.addChild(new Spacer(1))
-        chatLog.addChild(new Text(result.text, 0, 0))
+        chatLog.addChild(new Text((result as any).text, 0, 0))
       } else if (result.type === 'error') {
         chatLog.addChild(new Spacer(1))
         chatLog.addChild(new Text(theme.error(result.message || 'Unknown error'), 0, 0))
@@ -737,9 +737,9 @@ export async function runCli(options: RunCliOptions = {}) {
         await agentRunner.runQuery('Please compact the conversation context now.')
       } else if (result.type === 'jsx') {
         // For local-jsx commands, render the TUI component as an overlay
-        if (result.component) {
+        if ((result as any).component) {
           // Create a wrapper container for the JSX component
-          const component = result.component as Container
+          const component = (result as any).component as Container
           jsxOverlayComponent = component
           jsxOverlayActive = true
 
@@ -874,7 +874,7 @@ export async function runCli(options: RunCliOptions = {}) {
     
     // Show skill suggestion for future queries (after response is generated)
     try {
-      const { getCliSkillSuggestion } = await import('@upup/./skills/skills-menu');
+      const { getCliSkillSuggestion } = await import('@upup/skills/skills-menu.js');
       const suggestion = getCliSkillSuggestion(query, 40);
       if (suggestion) {
         chatLog.addChild(new Text(suggestion, 0, 0));
@@ -988,7 +988,7 @@ export async function runCli(options: RunCliOptions = {}) {
       if (sState.appState === 'session_list') {
         const selector = createSessionSelector(
           sState.sessions,
-          async (sessionId) => {
+          async (sessionId: string) => {
             // Resume the selected session
             sessionSelection.cancel();
             chatLog.addChild(new Spacer(1));
@@ -997,7 +997,7 @@ export async function runCli(options: RunCliOptions = {}) {
             await agentRunner?.resumeFromSession(sessionId);
           },
           () => sessionSelection.cancel(),
-        );
+        ) as any;
         showScreenView(
           'Sessions',
           `${sState.sessions.length} session${sState.sessions.length !== 1 ? 's' : ''} available`,
@@ -1118,9 +1118,9 @@ export async function runCli(options: RunCliOptions = {}) {
       const selector = createModelSelector(
         state.pendingModels,
         modelSelection.provider === state.pendingProvider ? modelSelection.model : undefined,
-        (modelId) => modelSelection.handleModelSelect(modelId),
+        (modelId: string) => modelSelection.handleModelSelect(modelId),
         state.pendingProvider,
-      );
+      ) as any;
       showScreenView(
         `Select model for ${getProviderDisplayName(state.pendingProvider)}`,
         '',
@@ -1595,7 +1595,7 @@ export async function runCli(options: RunCliOptions = {}) {
     const cwd = process.cwd();
     if (options.resumeTarget) {
       // Try to resolve the resume target
-      const { resolveResumeTarget } = await import('@upup/./session/restore');
+      const { resolveResumeTarget } = await import('@upup/session-system/restore.js');
       const targetId = await resolveResumeTarget(options.resumeTarget, cwd);
       if (targetId) {
         chatLog.addChild(new Spacer(1));
@@ -1619,7 +1619,7 @@ export async function runCli(options: RunCliOptions = {}) {
       }
     } else if (options.continue) {
       // Continue the most recent session
-      const { getMostRecentSession } = await import('@upup/./session/restore');
+      const { getMostRecentSession } = await import('@upup/session-system/restore.js');
       const lastId = await getMostRecentSession(cwd);
       if (lastId) {
         chatLog.addChild(new Spacer(1));

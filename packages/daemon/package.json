@@ -46,6 +46,10 @@
       "types": "./src/worker-pool.ts",
       "default": "./src/worker-pool.ts"
     },
+    "./*.js": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
+    },
     "./*": {
       "types": "./src/*.ts",
       "default": "./src/*.ts"

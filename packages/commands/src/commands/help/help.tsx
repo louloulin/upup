@@ -104,7 +104,7 @@ export class HelpV2Component extends Container {
 
   private updateCommandList(): void {
     const items = this.buildCommandItems()
-    this.commandList.setItems(items)
+    (this.commandList as any).setItems(items)
     this.commandList.setSelectedIndex(0)
   }
 
@@ -131,7 +131,7 @@ export class HelpV2Component extends Container {
     // Direct Enter check
     if (keyData === '\r' || keyData === '\n' || keyData === 'enter' || keyData === 'Enter') {
       console.log('[HelpV2Component] Direct Enter check: triggering select')
-      const selectedItem = this.commandList.filteredItems[this.commandList.selectedIndex]
+      const selectedItem = (this.commandList as any).filteredItems[(this.commandList as any).selectedIndex]
       if (selectedItem && this.commandList.onSelect) {
         console.log('[HelpV2Component] Calling onSelect with:', selectedItem)
         this.commandList.onSelect(selectedItem)

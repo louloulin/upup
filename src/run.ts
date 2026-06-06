@@ -1,101 +1,34 @@
 #!/usr/bin/env bun
 /**
- * Non-interactive agent runner for Paperclip adapter.
+ * src/run.ts - Non-interactive agent runner (used by adapters and
+ * integration tests). All logic lives in `@upup/agent-runtime`.
+ *
  * Usage: bun run src/run.ts "your prompt here"
  */
-
 import { config } from 'dotenv';
-import { Agent } from './agent/agent.js';
+import { Agent } from '@upup/agent-runtime';
 
 config({ quiet: true });
 
-// Get prompt from command line
 const prompt = process.argv.slice(2).join(' ');
 if (!prompt) {
   console.error('Usage: bun run src/run.ts "your prompt here"');
   process.exit(1);
 }
 
-// Get model from environment or use default
 const model = process.env.DEFAULT_MODEL || 'deepseek-v4-flash';
+const agent = new Agent({
+  model,
+  system: 'You are UpUp, an AI agent for deep financial research.',
+});
 
-async function main() {
-  const startTime = Date.now();
-
-  // Emit start event
-  console.log(JSON.stringify({
-    type: 'acpx.result',
-    summary: 'Agent started',
-    stopReason: 'started',
-  }));
-
+(async () => {
   try {
-    const agent = await Agent.create({ model });
-
-    const stream = agent.run(prompt);
-
-    for await (const event of stream) {
-      switch (event.type) {
-        case 'thinking':
-          console.log(JSON.stringify({
-            type: 'acpx.text_delta',
-            text: event.message,
-            channel: 'thought',
-          }));
-          break;
-
-        case 'tool_start':
-          console.log(JSON.stringify({
-            type: 'acpx.tool_call',
-            name: event.tool,
-            toolCallId: event.toolCallId,
-            status: 'pending',
-            text: JSON.stringify(event.args),
-          }));
-          break;
-
-        case 'tool_end':
-          console.log(JSON.stringify({
-            type: 'acpx.tool_call',
-            name: event.tool,
-            toolCallId: event.toolCallId,
-            status: 'completed',
-            text: event.result.slice(0, 500),
-          }));
-          break;
-
-        case 'tool_error':
-          console.log(JSON.stringify({
-            type: 'acpx.error',
-            message: event.error,
-            code: 'tool_error',
-          }));
-          break;
-
-        case 'done':
-          const totalTime = Date.now() - startTime;
-          console.log(JSON.stringify({
-            type: 'acpx.result',
-            summary: event.answer.slice(0, 500),
-            stopReason: `completed_after_${event.iterations}_iterations`,
-            usage: event.tokenUsage,
-            totalTimeMs: totalTime,
-          }));
-          // Exit with success code
-          process.exit(0);
-          break;
-      }
-    }
-  } catch (error) {
-    const err = error as Error;
-    console.log(JSON.stringify({
-      type: 'acpx.error',
-      message: err.message,
-      code: 'agent_error',
-    }));
-    // Exit with error code
+    const result = await agent.run(prompt);
+    console.log(result);
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error('Error:', msg);
     process.exit(1);
   }
-}
-
-main();
+})();

@@ -38,8 +38,8 @@ export const call = async (
     try {
       planMode.exit()
       return {
-        type: 'query',
-        text: 'exit_plan_mode',
+        type: 'text',
+        value: 'exit_plan_mode',
       }
     } catch {
       // Fall through to fallback

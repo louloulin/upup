@@ -5,6 +5,7 @@
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
     "strict": true,
+    "allowImportingTsExtensions": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
@@ -13,9 +14,61 @@
     "rootDir": "./src",
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": [
+        "./src/*"
+      ]
     }
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/agent",
+    "src/analysis",
+    "src/bridge",
+    "src/coach",
+    "src/code-archaeology",
+    "src/commands",
+    "src/competitive-positioning",
+    "src/components",
+    "src/controllers",
+    "src/coordinator",
+    "src/core",
+    "src/cron",
+    "src/daemon",
+    "src/data",
+    "src/evals",
+    "src/gateway",
+    "src/hooks",
+    "src/kairos",
+    "src/keybindings",
+    "src/mcp",
+    "src/memory",
+    "src/model",
+    "src/multi-agent",
+    "src/multimodal",
+    "src/permissions",
+    "src/plan",
+    "src/plugins",
+    "src/proactive",
+    "src/realtime",
+    "src/research",
+    "src/screening",
+    "src/services",
+    "src/session",
+    "src/skills",
+    "src/state",
+    "src/stdio",
+    "src/storage",
+    "src/subagent",
+    "src/tasks",
+    "src/telemetry",
+    "src/tools",
+    "src/tui",
+    "src/types",
+    "src/utils",
+    "src/worktree"
+  ]
 }

@@ -322,3 +322,34 @@ export interface DisplayEvent {
   endEvent?: AgentEvent;
   progressMessage?: string;
 }
+
+/**
+ * HistoryItem — a single query run in the agent.
+ *
+ * Lives here (next to DisplayEvent) because every event on this item is a
+ * DisplayEvent, and both types are part of the agent-runtime public API.
+ *
+ * NOTE: tui-renderer/src/tui/state/history-store.ts defines a different
+ * `HistoryItem` for its local store (events: HistoryMessage[]). That one is
+ * intentionally NOT re-exported as the canonical HistoryItem.
+ */
+export interface HistoryItem {
+  /** Unique identifier (typically the start time as string). */
+  id: string;
+  /** The user query that produced this history item. */
+  query: string;
+  /** Ordered list of display events for this query. */
+  events: DisplayEvent[];
+  /** Final answer from the agent (filled in when status reaches 'complete'). */
+  answer: string;
+  /** Current processing status. */
+  status: 'processing' | 'complete' | 'interrupted' | 'error';
+  /** Wall-clock start time (ms since epoch). */
+  startTime: number;
+  /** Total wall-clock duration in ms (filled in on completion). */
+  duration?: number;
+  /** Cumulative token usage for this query. */
+  tokenUsage?: { inputTokens: number; outputTokens: number; totalTokens: number };
+  /** Average tokens/second for the response. */
+  tokensPerSecond?: number;
+}

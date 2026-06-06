@@ -74,6 +74,10 @@
       "types": "./src/elicitation.test.ts",
       "default": "./src/elicitation.test.ts"
     },
+    "./*.js": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
+    },
     "./*": {
       "types": "./src/*.ts",
       "default": "./src/*.ts"

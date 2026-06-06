@@ -9,7 +9,7 @@
  * Type: local-jsx (renders TUI component)
  */
 
-import { Container, Text, Spacer, Box, ScrollView } from '@earendil-works/pi-tui';
+import { Container, Text, Spacer, Box } from '@earendil-works/pi-tui';
 import { theme } from '../../theme.js';
 
 interface DiffFile {

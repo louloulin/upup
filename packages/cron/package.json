@@ -34,6 +34,10 @@
       "types": "./src/store.ts",
       "default": "./src/store.ts"
     },
+    "./*.js": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
+    },
     "./*": {
       "types": "./src/*.ts",
       "default": "./src/*.ts"

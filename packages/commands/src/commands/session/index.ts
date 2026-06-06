@@ -14,8 +14,7 @@ export const sessionCommand: LocalJSXCommand = {
   name: 'session',
   description: 'Manage sessions',
   aliases: ['sess'],
-  supportsNonInteractive: true,
-  load: () => import('./session.tsx'),
+  load: () => import('./session.tsx') as any,
 }
 
 export default sessionCommand

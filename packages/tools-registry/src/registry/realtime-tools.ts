@@ -14,8 +14,8 @@ import type { RegisteredTool } from "./types.js";
 import { networkMetadata } from "./types.js";
 import {
   createRealtimeFeed,
-  type RealtimeFeedBundle,
   type FeedSource,
+  type RealtimeFeedBundle,
 } from "@upup/realtime-channel/realtime";
 import { getDefaultBus } from "@upup/agent-runtime/event-bus";
 import { DynamicStructuredTool } from "@langchain/core/tools";

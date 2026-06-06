@@ -98,6 +98,10 @@
       "types": "./src/data/index.ts",
       "default": "./src/data/index.ts"
     },
+    "./*.js": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
+    },
     "./*": {
       "types": "./src/*.ts",
       "default": "./src/*.ts"

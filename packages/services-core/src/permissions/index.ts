@@ -850,3 +850,11 @@ export function resetPermissions(): void {
   permissionEvaluator = null;
   sessionManager = null;
 }
+// Re-export approval config helpers
+import { isHardDenyCommand as _isHardDenyCommand } from './permissionSetup.js';
+export { _isHardDenyCommand as isHardDenyCommand };
+export {
+  getToolDangerLevel,
+  getApprovalConfig,
+  getTimeoutForTool,
+} from './approvalConfig.js';

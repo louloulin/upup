@@ -21,7 +21,7 @@ import {
 import type { Transport } from '../transport/transport.js'
 import { PermissionManager, type PermissionMode, type CanUseTool } from '../permissions/index.js'
 import { ToolRegistry, type Tool } from '../tools/index.js'
-import { HookExecutor, type HookEvent, type HookInput, type HookMap } from '../hooks/index.js'
+import { HookExecutor, type HookEvent, type HookInput, type HookMap } from '@upup/hooks'
 import { UpupSessionManager, type SessionConfig, type SessionInfo, type RpcTransport as SessionRpcTransport } from '../session/index.js'
 import { ProcessPool, type ProcessPoolConfig } from '../pool/index.js'
 import { BetaAPI, createBetaAPI } from '../beta/index.js'

@@ -143,14 +143,14 @@ export class CommandPaletteComponent extends Container {
 
     // Create category selector
     const categoryItems = this.buildCategoryItems()
-    this.categoryList = new SelectList(categoryItems, Math.min(10, categoryItems.length), selectListTheme)
+    this.categoryList = new (SelectList as any)(categoryItems, Math.min(10, categoryItems.length), selectListTheme)
 
     // Create command list
     const commandItems = this.buildCommandItems()
-    this.commandList = new SelectList(commandItems, 15, selectListTheme)
+    this.commandList = new (SelectList as any)(commandItems, 15, selectListTheme)
 
     // Wire up interactions
-    this.searchInput.onChange = () => {
+    (this.searchInput as any).onChange = () => {
       this.searchQuery = this.searchInput.getValue().toLowerCase()
       this.filterCommands()
     }
@@ -259,7 +259,7 @@ export class CommandPaletteComponent extends Container {
 
   private updateCommandList(): void {
     const items = this.buildCommandItems()
-    this.commandList.setItems(items)
+    (this.commandList as any).setItems(items)
     this.commandList.setSelectedIndex(0)
   }
 

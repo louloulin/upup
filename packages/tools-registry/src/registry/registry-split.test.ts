@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect } from 'bun:test';
-import { RegisteredTool } from './types.js';
+import { RegisteredTool } from '../types.js';
 import { loadFinanceTools } from './finance-tools.js';
 import { loadFilesystemTools } from './filesystem-tools.js';
 import { loadQuantTools } from './quant-tools.js';

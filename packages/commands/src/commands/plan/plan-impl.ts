@@ -21,7 +21,7 @@ export interface PlanContext extends ToolUseContext {
 
 export const call = async (
   args: string,
-  _context: PlanContext,
+  _convalue: PlanContext,
 ): Promise<LocalCommandResult> => {
   // Read plan-mode state via the public port (no cross-package import).
   let isActive = false
@@ -72,8 +72,8 @@ export const call = async (
     lines.push('')
 
     return {
-      type: 'query',
-      text: `enter_plan_mode goal="${args.trim()}"`,
+      type: 'text',
+      value: `enter_plan_mode goal="${args.trim()}"`,
     }
   }
 

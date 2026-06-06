@@ -85,7 +85,15 @@
       "types": "./src/cli/index.ts",
       "default": "./src/cli/index.ts"
     },
-    "./ui-parser": "./ui-parser.js"
+    "./ui-parser": "./ui-parser.js",
+    "./*.js": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
+    },
+    "./*": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
+    }
   },
   "scripts": {
     "build": "echo 'TypeScript sources ready - no compilation needed for bun'",

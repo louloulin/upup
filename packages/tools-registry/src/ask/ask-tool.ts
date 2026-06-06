@@ -15,7 +15,7 @@
 import { z } from 'zod';
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { getElicitationManager, ElicitationRequest, ElicitationResponse, ElicitationChoice } from '@upup/hooks/elicitation';
-import { BorderBox } from '@upup/components/BorderBox';
+import { BorderBox } from '@upup/tui-renderer/components/BorderBox';
 import { Text } from '@earendil-works/pi-tui';
 import { theme } from '@upup/tui-renderer/theme';
 

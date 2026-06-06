@@ -14,8 +14,8 @@
  *      openspec/changes/top-tier-investment-assistant/specs/trading-sandbox
  */
 
-import type { RegisteredTool } from './types.js';
-import { financialReadMetadata, financialWriteMetadata } from './types.js';
+import type { RegisteredTool } from '../types.js';
+import { financialReadMetadata, financialWriteMetadata } from '../types.js';
 import {
   createPlaceTradeOrderTool,
   createCancelTradeOrderTool,

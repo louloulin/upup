@@ -161,6 +161,14 @@
     "./session": {
       "types": "./src/session/index.ts",
       "default": "./src/session/index.ts"
+    },
+    "./*.js": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
+    },
+    "./*": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
     }
   },
   "scripts": {

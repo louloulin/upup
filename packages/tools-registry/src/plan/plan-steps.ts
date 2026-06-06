@@ -13,7 +13,7 @@ import {
   calculateProgress,
   PlanContext,
   PlanStepStatus,
-} from '@upup/plan/plan-context';
+} from '@upup/plan-system/plan/plan-context';
 import {
   getPlanFromMemory,
   listPlans,

@@ -12,13 +12,13 @@
 
 import type { RegisteredTool } from './types.js';
 import { networkMetadata } from './types.js';
-import { DragonTigerAdapter } from '@upup/./alt/dragon-tiger';
-import { NorthBoundAdapter } from '@upup/./alt/north-bound';
+import { DragonTigerAdapter } from '@upup/finance-tools/alt/dragon-tiger';
+import { NorthBoundAdapter } from '@upup/finance-tools/alt/north-bound';
 import {
   createAltDataFetchTool,
   createAltDataSearchTool,
   type AltDataToolDeps,
-} from './index';
+} from './alt-data/index.js';
 
 export function loadAltDataTools(): RegisteredTool[] {
   const read = networkMetadata();

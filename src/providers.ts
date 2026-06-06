@@ -1,14 +1,6 @@
 /**
- * Canonical provider registry — single source of truth for all provider metadata.
- * When adding a new provider, add a single entry here; all other modules derive from this.
+ * src/providers.ts - Application entry shell for LLM providers.
  *
- * @deprecated Use @upup/llm directly instead
- * Re-exports from @upup/llm for backward compatibility
+ * Provider detection and creation lives in `@upup/llm`.
  */
-
-export type { ProviderDef } from '@upup/llm';
-export {
-  PROVIDERS,
-  resolveProvider,
-  getProviderById,
-} from '@upup/llm';
+export * from '@upup/llm';

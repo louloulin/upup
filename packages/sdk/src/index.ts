@@ -131,7 +131,7 @@ export type {
 
 export {
   SessionManager,
-} from './session/index.js'
+} from './session.tsx'
 
 export type {
   SessionStatus,
@@ -141,7 +141,7 @@ export type {
   SessionMessage,
   SessionEvent,
   SessionEventData,
-} from './session/index.js'
+} from './session.tsx'
 
 // ============ Pool (Phase 5) ============
 

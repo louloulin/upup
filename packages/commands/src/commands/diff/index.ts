@@ -14,8 +14,7 @@ export const diffCommand: LocalJSXCommand = {
   name: 'diff',
   description: 'Show git diff of staged/unstaged changes',
   aliases: ['d'],
-  supportsNonInteractive: true,
-  load: () => import('./diff.tsx'),
+  load: () => import('./diff.tsx') as any,
 }
 
 export default diffCommand

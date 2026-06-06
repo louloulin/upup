@@ -121,3 +121,7 @@ export async function buildCompactToolDescriptions(model: string): Promise<strin
     .map((t) => `- **${t!.name}**: ${t!.compactDescription}`)
     .join('\n');
 }
+
+// Re-export additional types/functions from the tool-types module
+export { formatToolResult, parseSearchResults } from './types.js';
+export type { ToolResult } from './types.js';

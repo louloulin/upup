@@ -82,6 +82,10 @@
       "types": "./src/agent-planning-tools.ts",
       "default": "./src/agent-planning-tools.ts"
     },
+    "./*.js": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
+    },
     "./*": {
       "types": "./src/*.ts",
       "default": "./src/*.ts"
@@ -165,6 +169,30 @@
     "./browser": {
       "types": "./src/browser.ts",
       "default": "./src/browser.ts"
+    },
+    "./workflow": {
+      "types": "./src/workflow/index.ts",
+      "default": "./src/workflow/index.ts"
+    },
+    "./watchlist": {
+      "types": "./src/watchlist/index.ts",
+      "default": "./src/watchlist/index.ts"
+    },
+    "./valuation": {
+      "types": "./src/valuation/index.ts",
+      "default": "./src/valuation/index.ts"
+    },
+    "./short-interest": {
+      "types": "./src/short-interest/index.ts",
+      "default": "./src/short-interest/index.ts"
+    },
+    "./registry": {
+      "types": "./src/registry/index.ts",
+      "default": "./src/registry/index.ts"
+    },
+    "./quant": {
+      "types": "./src/quant/index.ts",
+      "default": "./src/quant/index.ts"
     }
   },
   "scripts": {

@@ -3,8 +3,8 @@
  */
 
 import type { StructuredToolInterface } from '@langchain/core/tools';
-import type { RegisteredTool } from './types.js';
-import { investmentKnowledgeTools } from '@upup/agent/investment-knowledge-tools';
+import type { RegisteredTool } from '../types.js';
+import { investmentKnowledgeTools } from './investment-knowledge-tools.js';
 
 /**
  * Load investment knowledge management tools.

@@ -175,3 +175,79 @@ export interface TokenUsage {
   totalTokens: number;
 }
 
+
+// ===== UpUp-specific Types =====
+//
+// These types live in their canonical packages and are re-exported here for
+// backward compatibility with code that imports from @upup/types.
+export type { DisplayEvent } from '@upup/agent-runtime';
+export type { HistoryItemStatus, WorkingState } from '@upup/tui-renderer';
+// Legacy alias for code that imports the tui-renderer local-store HistoryItem
+// (events: HistoryMessage[]). Not the same as the agent-runtime HistoryItem
+// above; prefer the agent-runtime one for agent code.
+export type { HistoryItem as TuiHistoryItem } from '@upup/tui-renderer';
+
+// ===== Coordinator / multi-agent types =====
+//
+// Re-exported from @upup/coordinator-system for convenience. The canonical
+// definitions live in packages/coordinator-system/src/multi-agent/types.ts.
+export type {
+  TeamMember,
+  TeamFile,
+  CreateTeamParams,
+  AgentInstance,
+  SpawnAgentParams,
+  AgentMessage,
+  BackendType,
+  Backend,
+  CoordinatorConfig,
+  CoordinatorEvent,
+  CoordinatorEventListener,
+  TeamCreateInput,
+  TeamCreateOutput,
+  AgentSpawnInput,
+  AgentSpawnOutput,
+  AgentMessageInput,
+  AgentMessageOutput,
+  AgentResultsInput,
+  AgentResultsOutput,
+} from '@upup/coordinator-system';
+
+// ===== Tool result formatting =====
+//
+// Re-exported from @upup/tools-registry for convenience. The canonical
+// implementation lives in packages/tools-registry/src/types.ts.
+export { formatToolResult } from '@upup/tools-registry';
+export { parseSearchResults } from '@upup/tools-registry';
+export type { ToolResult, ToolSideEffects, ToolConcurrencyMetadata, RegisteredTool, ToolSafetyLevel, ToolCategory } from '@upup/tools-registry';
+
+// ===== Working state / history types =====
+//
+// Some legacy code imports `WorkingState` from @upup/types. The canonical
+// definition now lives in @upup/tui-renderer; re-export for compat.
+
+// ===== Plugin types =====
+//
+// Re-exported from @upup/plugins for convenience.
+export type {
+  PluginAdapter,
+  PluginManifest,
+  LoadedPlugin,
+  UpUpPluginApi,
+  PluginService,
+  HookHandler,
+} from '@upup/plugins';
+
+// Session message types
+export interface SessionMessage {
+  id: string;
+  sessionId: string;
+  role: 'user' | 'assistant' | 'system';
+  content: string;
+  timestamp: number;
+  metadata?: Record<string, unknown>;
+}
+
+// Portfolio/Benchmark types (re-exported from tools-registry)
+export type { Portfolio, Benchmark } from '@upup/tools-registry/types.js';
+

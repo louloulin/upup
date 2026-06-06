@@ -15,7 +15,7 @@
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { z } from 'zod';
 import { formatToolResult } from '../types.js';
-import type { AltDataAdapter, AltDataSource, NormalizedEvent } from '@upup/data/alt/types';
+import type { AltDataAdapter, AltDataSource, NormalizedEvent } from '@upup/finance-tools/alt/types';
 
 export interface AltDataToolDeps {
   adapters: Partial<Record<AltDataSource, AltDataAdapter>>;

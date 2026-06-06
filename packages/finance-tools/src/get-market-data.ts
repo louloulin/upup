@@ -8,8 +8,8 @@ import { getCurrentDate } from '@upup/agent-runtime/prompts';
 import { withTimeout, SUB_TOOL_TIMEOUT_MS } from './utils.js';
 import { MARKET_DATA_FORMATTERS } from './formatters.js';
 import { isAShare, isHKStock, parseStockCode } from '@upup/utils/stock-code';
-import { getAStockPrice } from '@upup/astock/get-astock-price';
-import { getAStockNews } from '@upup/astock/get-astock-news';
+import { getAStockPrice } from '@upup/finance-tools/astock/get-astock-price';
+import { getAStockNews } from '@upup/finance-tools/astock/get-astock-news';
 
 /**
  * Rich description for the get_market_data tool.

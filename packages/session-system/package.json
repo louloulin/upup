@@ -78,6 +78,10 @@
       "types": "./src/render/index.ts",
       "default": "./src/render/index.ts"
     },
+    "./*.js": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
+    },
     "./*": {
       "types": "./src/*.ts",
       "default": "./src/*.ts"

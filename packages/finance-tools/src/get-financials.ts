@@ -8,7 +8,7 @@ import { getCurrentDate } from '@upup/agent-runtime/prompts';
 import { withTimeout, SUB_TOOL_TIMEOUT_MS } from './utils.js';
 import { FINANCIAL_FORMATTERS } from './formatters.js';
 import { parseStockCode } from '@upup/utils/stock-code';
-import { getAStockFinancials } from '@upup/astock/get-astock-financials';
+import { getAStockFinancials } from '@upup/finance-tools/astock/get-astock-financials';
 
 /**
  * Rich description for the get_financials tool.

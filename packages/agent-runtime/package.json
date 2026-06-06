@@ -287,8 +287,8 @@
       "default": "./src/subagent-deep.test.ts"
     },
     "./subagent": {
-      "types": "./src/subagent/index.ts",
-      "default": "./src/subagent/index.ts"
+      "types": "./src/subagent.ts",
+      "default": "./src/subagent.ts"
     },
     "./investment-workflow-hooks": {
       "types": "./src/investment-workflow-hooks.ts",
@@ -341,6 +341,10 @@
     "./intent-detector": {
       "types": "./src/intent-detector/index.ts",
       "default": "./src/intent-detector/index.ts"
+    },
+    "./*.js": {
+      "types": "./src/*.ts",
+      "default": "./src/*.ts"
     },
     "./*": {
       "types": "./src/*.ts",

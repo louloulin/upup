@@ -420,4 +420,4 @@ export class PluginConfigError extends PluginError {
   constructor(message: string, pluginId?: string) {
     super(message, 'PLUGIN_CONFIG_ERROR', pluginId);
   }
-}
+}export type { ServiceContext } from './services.js';
