@@ -69,6 +69,8 @@
     "src/tui",
     "src/types",
     "src/utils",
-    "src/worktree"
+    "src/worktree",
+    "src/bundled-runner.ts",
+    "src/run.ts"
   ]
 }

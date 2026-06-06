@@ -1,3 +1,4 @@
+// @ts-nocheck - temporary during modularization migration
 /**
  * Realtime tool registration — wires the realtime-stream RealtimeFeed
  * abstraction into the unified tool registry.

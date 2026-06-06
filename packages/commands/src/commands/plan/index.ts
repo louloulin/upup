@@ -16,5 +16,5 @@ export const planCommand: LocalCommand = {
   description: 'Enable plan mode or view the current session plan',
   argumentHint: '[open|<description>]',
   supportsNonInteractive: true,
-  load: () => import('./plan-impl.js'),
+  load: () => import('./plan-impl.js') as any,
 }

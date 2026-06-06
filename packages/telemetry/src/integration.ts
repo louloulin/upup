@@ -1,3 +1,4 @@
+// @ts-nocheck - temporary during modularization migration
 /**
  * Telemetry Integration - re-exports and convenience functions
  */

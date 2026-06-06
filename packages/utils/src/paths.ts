@@ -6,8 +6,8 @@
  */
 
 import { join, resolve, relative, isAbsolute } from 'node:path';
+import { existsSync, mkdirSync } from 'node:fs';
 import { getCwd } from './cwd.js';
-import { existsSync, mkdirSync } from 'fs';
 import { getUpupDir, globalUpupPath } from './storage-paths.js';
 
 // Re-export from storage-paths for compatibility
@@ -76,3 +76,5 @@ export function ensureDir(dirPath: string): void {
 export function hasGlobalConfig(): boolean {
   return existsSync(getUpupDir());
 }
+
+export { getCwd } from './cwd.js';

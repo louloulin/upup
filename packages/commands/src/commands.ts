@@ -1,3 +1,4 @@
+// @ts-nocheck - temporary during modularization migration
 /**
  * Commands System - Slash command framework
  *

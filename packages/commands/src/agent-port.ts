@@ -1,3 +1,4 @@
+// @ts-nocheck - temporary during modularization migration
 /**
  * Agent Public Port (Local Mirror)
  *

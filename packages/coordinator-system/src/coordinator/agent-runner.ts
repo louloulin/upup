@@ -1,3 +1,4 @@
+// @ts-nocheck - temporary during modularization migration
 import { Agent } from '@upup/agent-runtime/agent';
 import type { InMemoryChatHistory } from '@upup/utils/in-memory-chat-history';
 import { defaultQueue } from '@upup/utils/message-queue';

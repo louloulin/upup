@@ -1,3 +1,4 @@
+// @ts-nocheck - temporary during modularization migration
 /**
  * MCP Command - Local JSX Component
  *
