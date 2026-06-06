@@ -2,7 +2,7 @@
   "name": "upup",
   "version": "2026.05.15",
   "private": true,
-  "description": "UpUp - AI agent for deep financial research (涨涨 — 深度金融研究 AI 智能体).",
+  "description": "UpUp (涨涨) — Chinese-language deep financial research AI agent. 中国版 Dexter：forked from virattt/dexter, 面向 A 股 / 港股 / 中文投研场景，扩展 50 个投资分析 skill、5 阶段 /invest 工作流、4 runtime 插件、EN+zh-CN i18n。",
   "type": "module",
   "workspaces": [
     "packages/*"
@@ -115,7 +115,17 @@
     "agent",
     "financial",
     "research",
-    "cli"
+    "cli",
+    "dexter-fork",
+    "a-share",
+    "chinese-finance",
+    "investment-agent",
+    "i18n",
+    "plugin-runtime",
+    "cli-agent",
+    "tushare",
+    "akshare",
+    "deepseek"
   ],
   "release": {
     "github": {
@@ -152,5 +162,6 @@
     "ts-jest": "^29.4.6",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
-  }
+  },
+  "homepage": "https://github.com/louloulin/upup#readme"
 }

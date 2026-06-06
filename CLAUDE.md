@@ -1,12 +1,26 @@
 # UpUp (涨涨) - AI Agent Project Guide
 
-> Deep Financial Research AI Agent — Based on Dexter, Inspired by Claude Code
+> **中国版 Dexter** — 中文金融研究 AI 智能体
+> Forked from [virattt/dexter](https://github.com/virattt/dexter), 针对 A 股 / 港股 / 中文投研场景深度改造
 
 ## Project Overview
 
-**UpUp** is a deep financial research AI agent that combines:
-- **Dexter**: Financial analysis framework, tool system, multi-source data integration
-- **Claude Code**: Permission management, session state, TUI design, plugin architecture
+**UpUp (涨涨)** 是基于 [Dexter](https://github.com/virattt/dexter) 的 fork，**不是**简单的换皮或翻译。在保留 dexter 整体金融研究框架（MIT）的基础上，UpUp 针对**中文投研场景**做了 8 个维度的实质性扩展：
+
+- **A 股数据栈**：Tushare Pro + AKShare 接入
+- **50 个投资分析 Skill** + 14 bundled skill
+- **5 阶段投资工作流** (`/invest`)：detect → plan → execute → verify → report
+- **4 runtime 插件**：bun / jiti / wasm / mcp
+- **i18n**：EN + zh-CN 双语，强类型 key
+- **多 Agent 协同**：subagent 并行拉数据
+- **Session 2.0**：计划模式、自动压缩、Loop 恢复、停止 hook（参考 Claude Code）
+- **18 个 workspace package** + 8 轮 Sprint 持续打磨
+
+完整增量清单见 [README.md](./README.md) 的 "UpUp's Additions" 段。
+
+- This fork: https://github.com/louloulin/upup
+- Mirror: https://gitcode.com/lumosaigroup/upup
+- Upstream: https://github.com/virattt/dexter
 
 ## Quick Links
 
@@ -51,14 +65,17 @@ bun test              # Run tests
 
 | Path | Purpose |
 |------|---------|
-| `src/cli.ts` | Main CLI entry (~1540 lines); slash autocomplete is delegated to pi-tui's `CombinedAutocompleteProvider` (3-line wiring) |
-| `src/agent/` | Agent core logic |
-| `src/session/` | Session state management |
-| `src/components/` | TUI components |
-| `src/tools/` | Tool system (64+ tools) |
-| `src/skills/` | Skill loader |
-| `src/hooks/` | Hook system |
-| `packages/sdk/` | Plugin SDK |
+| `src/cli.ts` | Main CLI entry; slash autocomplete is delegated to pi-tui's `CombinedAutocompleteProvider` (3-line wiring) |
+| `src/agent/` | Agent core (loop, plan mode, subagent, memory flush, investment workflow) |
+| `src/commands/investment/` | 5-phase /invest workflow + dossier / strategy / earnings-preview / morning-brief / portfolio-review / risk-dashboard / watchlist-edit / screen |
+| `src/skills/` | 50 SKILL.md + 14 bundled skills (registry, hot-reload, i18n) |
+| `src/tools/finance/` | 20 finance tools (prices, fundamentals, filings, A-share, screen, key ratios, estimates, segments, news, earnings transcripts, crypto) |
+| `src/plugins/adapters/` | 4 plugin runtime adapters: bun, jiti, wasm, mcp |
+| `src/i18n/strings.ts` | EN + zh-CN string table, strongly-typed keys |
+| `src/session/` | Session state + permission mode (Claude Code-inspired) |
+| `src/components/` | TUI components (Ink) |
+| `packages/plugin-sdk/` | Plugin SDK for third-party plugin authors |
+| `packages/llm/`, `packages/memory/`, `packages/gateway/` | Workspace packages |
 
 ## Permission System
 
@@ -74,13 +91,18 @@ Key files:
 
 ## Financial Features
 
-| Skill | Function |
-|-------|----------|
-| `medfish` | Medical/pharmaceutical analysis |
-| `technical-analysis` | RSI, MACD, Bollinger Bands |
-| `backtesting` | Strategy backtesting |
-| `risk-management` | Risk tools |
-| `sentiment-analysis` | Sentiment analysis |
+详细 50 个 skill 列表见 [README.md#skills-概览50--14-bundled](./README.md#skills-概览50--14-bundled) 与 `ls src/skills/*/SKILL.md`。节选核心场景：
+
+| 类别 | 代表 Skill |
+|------|-----------|
+| 估值 | `dcf`, `valuation-comparison`, `valuation-alert`, `earnings-forecast` |
+| 技术 / 量价 | `technical-analysis`, `money-flow`, `momentum-investing` |
+| 行业 / 主题 | `sector-analysis`, `sector-rotation`, `macro-analysis` |
+| 风格 | `value-investing`, `growth-investing` |
+| 基金 / 机构 | `fund-analysis`, `fund-comparison`, `manager-analysis` |
+| 组合 | `portfolio-management`, `portfolio-rebalancing` |
+| A 股专属 | `a-share-analysis` + 市场结构 / 资金流向 |
+| 内置动态 (bundled) | `research`, `fund`, `portfolio`, `risk-assessment`, `alert`, `batch`, `stock-screen`, `dream`, `hunter`, `sandbox`, `verify` |
 
 ## Development Notes
 

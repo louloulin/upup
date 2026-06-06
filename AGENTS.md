@@ -1,24 +1,42 @@
 # Repository Guidelines
 
-- Repo: https://github.com/virattt/upup
-- UpUp is a CLI-based AI agent for deep financial research, built with TypeScript, Ink (React for CLI), and LangChain.
+> UpUp (涨涨) 是基于 [virattt/dexter](https://github.com/virattt/dexter) 的 fork，遵循 MIT 协议。
+> 保留所有上游 dexter 的工程约束，本节仅为真实仓库地址 + 定位说明做更新。
+
+- This fork: https://github.com/louloulin/upup
+- Mirror: https://gitcode.com/lumosaigroup/upup
+- Upstream (forked from): https://github.com/virattt/dexter
+- UpUp (涨涨) is a CLI-based AI agent for **Chinese-language deep financial research**, built on top of the [Dexter](https://github.com/virattt/dexter) framework, with TypeScript, Ink (React for CLI), and LangChain. It is **not** a thin reskin of Dexter — see "UpUp's Additions" in [README.md](./README.md) for the full delta (A-share data stack, 50 investment skills, 5-phase /invest workflow, 4-runtime plugin system, EN+zh-CN i18n, multi-agent coordination, Session 2.0, 18 workspace packages, etc.).
+
+## 上游归属 (Upstream Attribution)
+
+UpUp (涨涨) 是基于 [virattt/dexter](https://github.com/virattt/dexter) 的 fork，遵循 MIT 协议。
+
+- **上游协议**：MIT（同 UpUp）
+- **上游贡献**：整体金融研究框架、Tool registry、Agent loop、SKILL.md 协议、Ink 渲染层、Ink + pi-tui 集成
+- **UpUp 的独立贡献**：A 股数据栈（Tushare Pro / AKShare）、50 个 SKILL.md 投资分析 skill、14 个 bundled skill、5 阶段投资工作流 (`/invest`)、4 runtime 插件系统（bun/jiti/wasm/mcp）、EN+zh-CN 双语 i18n、多 Agent 协同、Session 2.0 / Permission 体系、18 个 workspace package、8 轮 Sprint 持续打磨。详见 [README.md](./README.md) 的 "UpUp's Additions" 段。
+- **修改上游代码**：请保留协议头；新增模块时直接以 UpUp 名义贡献。
+- **上游同步**：若上游 dexter 发布新版本，UpUp 团队会在 PR 中评估 cherry-pick（见 `docs/sync-plan.md`）。
+
 
 ## Project Structure
 
 - Source code: `src/`
-  - Agent core: `src/agent/` (agent loop, prompts, scratchpad, token counting, types)
+  - Agent core: `src/agent/` (agent loop, prompts, scratchpad, token counting, types, plan mode, subagent, memory flush, investment workflow)
   - CLI interface: `src/cli.tsx` (Ink/React), entry point: `src/index.tsx`
+  - Commands: `src/commands/` (slash commands); investment workflow in `src/commands/investment/` (dossier, strategy, earnings-preview, morning-brief, portfolio-review, risk-dashboard, watchlist-edit, invest, screen)
   - Components: `src/components/` (Ink UI components)
-  - Hooks: `src/hooks/` (React hooks for agent runner, model selection, input history)
-  - Model/LLM: `src/model/llm.ts` (multi-provider LLM abstraction)
-  - Tools: `src/tools/` (financial search, web search, browser, skill tool)
-  - Tool descriptions: `src/tools/descriptions/` (rich descriptions injected into system prompt)
-  - Finance tools: `src/tools/finance/` (prices, fundamentals, filings, insider trades, etc.)
-  - Search tools: `src/tools/search/` (Exa preferred, Tavily fallback)
-  - Browser: `src/tools/browser/` (Playwright-based web scraping)
-  - Skills: `src/skills/` (SKILL.md-based extensible workflows, e.g. DCF valuation)
+  - Hooks: `src/hooks/` (React hooks for agent runner, model selection, input history, agent-hooks)
+  - Model/LLM: `src/model/llm.ts` (multi-provider LLM abstraction) + `packages/llm/`
+  - Tools: `src/tools/` — `finance/` (prices, fundamentals, filings, insider trades, screen, key ratios, estimates, segments, news, earnings transcripts, crypto, A-share), `search/` (Exa preferred, Tavily fallback), `browser/` (Playwright)
+  - Plugins: `src/plugins/` (4 runtime adapters: bun, jiti, wasm, mcp) + `packages/plugin-sdk/`
+  - Skills: `src/skills/` (50 SKILL.md + 14 bundled) + `packages/skills/`
+  - i18n: `src/i18n/strings.ts` (EN + zh-CN, strongly-typed keys, missing-locale tests fail)
+  - Session / plan / memory / worktree: `src/session/`, `src/plan/`, `src/memory/`, `src/worktree/`
   - Utils: `src/utils/` (env, config, caching, token estimation, markdown tables)
-  - Evals: `src/evals/` (LangSmith evaluation runner with Ink UI)
+  - Web / gateway: `src/web/` + `packages/gateway/` (read-only JSON snapshots)
+  - Evals: `src/evals/` + `evals/` (LangSmith evaluation runner with Ink UI)
+- 18 workspace packages under `packages/`: adapter-paperclip, agent-core, commands, cron, daemon, gateway, hooks, keybindings, llm, mcp, memory, plugin-sdk, plugins, sdk, skills, state, types, utils
 - Config: `.upup/settings.json` (persisted model/provider selection)
 - Environment: `.env` (API keys; see `env.example`)
 - Scripts: `scripts/release.sh`
