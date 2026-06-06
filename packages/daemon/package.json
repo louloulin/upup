@@ -75,5 +75,12 @@
     "upup",
     "agent"
   ],
-  "private": false
+  "private": false,
+  "dependencies": {
+    "@upup/agent-runtime": "workspace:*",
+    "@upup/cron": "workspace:*",
+    "@upup/storage": "workspace:*",
+    "@upup/tools-registry": "workspace:*",
+    "@upup/utils": "workspace:*"
+  }
 }

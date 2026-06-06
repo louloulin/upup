@@ -255,35 +255,76 @@ UpUp has built-in financial research Skills:
 
 ## Directory Structure
 
+UpUp is organized as a **bun workspace monorepo** with 34 packages across 7 architectural layers. The `src/` directory contains only 5 thin shell files; all business logic lives in workspace packages.
+
 ```
-dexter/                          # Project root
-├── src/
-│   ├── agent/                   # Agent core
-│   │   ├── agent.ts
-│   │   ├── capability-registry.ts
-│   │   └── fallback-handler.ts
-│   ├── tools/                   # Tool system (64+)
-│   │   ├── bash/               # Bash tool (from Claude Code)
-│   │   ├── filesystem/          # Filesystem tools
-│   │   ├── financial/          # Financial tools
-│   │   └── types.ts
-│   ├── session/                # Session management (from Claude Code)
-│   │   ├── session-state.ts
-│   │   └── render/
-│   ├── components/              # TUI components (from Claude Code)
-│   ├── commands/               # Slash commands
-│   ├── hooks/                  # Hook system
-│   ├── skills/                 # Skill loader
-│   ├── cli.ts                 # CLI entry
-│   └── run.ts                  # Bundled Runner
-├── packages/
-│   ├── sdk/                   # UpUp Plugin SDK
-│   ├── llm/                   # LLM adapters
-│   ├── memory/                 # Memory system
-│   └── plugins/                # Plugin infrastructure
-├── docs/                       # Documentation
-├── tests/                     # Tests
-└── package.json
+upup/
+├── src/                          # Application shell (5 files only)
+│   ├── index.tsx                 # Entry point → @upup/index-app
+│   ├── cli.ts                    # CLI re-export → @upup/cli
+│   ├── run.ts                    # Non-interactive runner → @upup/agent-runtime
+│   ├── bundled-runner.ts         # Bundled binary entry → @upup/agent-runtime
+│   └── theme.ts                  # Theme re-export → @upup/tui-renderer/theme
+├── packages/                     # Bun workspace packages
+│   ├── L1 (foundations)
+│   │   ├── types/                # Shared type definitions
+│   │   └── utils/                # Shared utilities
+│   ├── L2 (core abstractions)
+│   │   ├── llm/                  # Multi-provider LLM abstraction
+│   │   ├── hooks/                # Agent hook system
+│   │   ├── keybindings/          # Key binding parser/resolver
+│   │   ├── state/                # TUI state store
+│   │   ├── tui-renderer/         # TUI components and rendering
+│   │   ├── agent-runtime/        # Agent loop, scratchpad, tools
+│   │   └── memory-system/        # Memory management
+│   ├── L3 (infrastructure)
+│   │   ├── storage/              # SQLite + DuckDB persistence
+│   │   └── telemetry/            # Event recording and tracing
+│   ├── L4 (runtime capabilities)
+│   │   ├── tools-registry/       # Tool registry and dispatch
+│   │   ├── finance-tools/        # Financial data tools
+│   │   ├── skills/               # SKILL.md workflow system
+│   │   ├── mcp/                  # Model Context Protocol
+│   │   ├── plugins/              # Plugin loader
+│   │   ├── cron/                 # Scheduled tasks
+│   │   ├── daemon/               # Background daemon
+│   │   ├── session-system/       # Session tracking
+│   │   ├── realtime-channel/     # Real-time data feeds
+│   │   ├── bridge-system/        # WebSocket bridge
+│   │   ├── coordinator-system/   # Multi-agent coordination
+│   │   ├── plan-system/          # Planning system
+│   │   ├── research-system/      # Research workflows
+│   │   ├── multimodal-system/    # Multimodal processing
+│   │   └── gateway/              # API gateway
+│   ├── L5 (application services)
+│   │   └── services-core/        # Permissions + services
+│   ├── L6 (application shell)
+│   │   ├── cli/                  # Interactive CLI + commands
+│   │   └── commands/             # Command implementations
+│   ├── L7 (entry shell)
+│   │   └── index-app/            # Subcommands, --stdio, --bridge
+│   └── SDK packages
+│       ├── sdk/                  # Plugin SDK
+│       ├── plugin-sdk/           # Plugin authoring API
+│       ├── memory/               # Memory SDK
+│       └── adapter-paperclip/    # Paperclip platform adapter
+├── scripts/                      # Build and lint scripts
+│   ├── build-packages.ts         # DAG topological typecheck
+│   ├── lint-boundaries.ts        # Boundary enforcement
+│   └── check-scc.ts              # Source code complexity check
+├── docs/                         # Documentation
+└── package.json                  # Root workspace config
+```
+
+### Workspace Commands
+
+```bash
+bun install                      # Install all workspace dependencies
+bun run typecheck                # Typecheck src/ shell files
+bun run build:packages           # Typecheck all 34 packages in topological order
+bun run lint:boundaries          # Enforce workspace boundary rules
+bun test                         # Run all tests across packages
+bun run build:compile            # Compile standalone binary to dist/upup
 ```
 
 ---

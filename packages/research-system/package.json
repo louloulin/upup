@@ -153,6 +153,8 @@
     "test": "bun test"
   },
   "dependencies": {
+    "@upup/agent-runtime": "workspace:*",
+    "@upup/memory-system": "workspace:*",
     "@upup/types": "workspace:*",
     "@upup/utils": "workspace:*"
   },

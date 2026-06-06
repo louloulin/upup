@@ -149,7 +149,11 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@upup/types": "workspace:*"
+    "@upup/agent-runtime": "workspace:*",
+    "@upup/llm": "workspace:*",
+    "@upup/tools-registry": "workspace:*",
+    "@upup/types": "workspace:*",
+    "@upup/utils": "workspace:*"
   },
   "devDependencies": {
     "@types/bun": "latest"

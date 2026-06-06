@@ -201,6 +201,22 @@
     "test": "bun test"
   },
   "dependencies": {
+    "@upup/agent-runtime": "workspace:*",
+    "@upup/coordinator-system": "workspace:*",
+    "@upup/cron": "workspace:*",
+    "@upup/finance-tools": "workspace:*",
+    "@upup/gateway": "workspace:*",
+    "@upup/hooks": "workspace:*",
+    "@upup/llm": "workspace:*",
+    "@upup/mcp": "workspace:*",
+    "@upup/memory-system": "workspace:*",
+    "@upup/plan-system": "workspace:*",
+    "@upup/plugins": "workspace:*",
+    "@upup/realtime-channel": "workspace:*",
+    "@upup/research-system": "workspace:*",
+    "@upup/skills": "workspace:*",
+    "@upup/storage": "workspace:*",
+    "@upup/tui-renderer": "workspace:*",
     "@upup/types": "workspace:*",
     "@upup/utils": "workspace:*"
   },

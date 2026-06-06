@@ -27,5 +27,12 @@
   "files": [
     "dist"
   ],
-  "private": false
+  "private": false,
+  "dependencies": {
+    "@upup/agent-runtime": "workspace:*",
+    "@upup/coordinator-system": "workspace:*",
+    "@upup/plugins": "workspace:*",
+    "@upup/tools-registry": "workspace:*",
+    "@upup/tui-renderer": "workspace:*"
+  }
 }

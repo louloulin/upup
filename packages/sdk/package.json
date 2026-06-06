@@ -179,6 +179,8 @@
     "test": "bun test"
   },
   "dependencies": {
+    "@upup/hooks": "workspace:*",
+    "@upup/memory": "workspace:*",
     "@upup/types": "workspace:*"
   },
   "files": [

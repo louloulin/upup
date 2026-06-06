@@ -93,6 +93,7 @@
     "test": "bun test"
   },
   "dependencies": {
+    "@upup/tui-renderer": "workspace:*",
     "@upup/types": "workspace:*",
     "@upup/utils": "workspace:*"
   },

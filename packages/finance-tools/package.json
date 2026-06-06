@@ -25,6 +25,8 @@
     "test": "bun test"
   },
   "dependencies": {
+    "@upup/agent-runtime": "workspace:*",
+    "@upup/llm": "workspace:*",
     "@upup/types": "workspace:*",
     "@upup/utils": "workspace:*"
   },

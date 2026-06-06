@@ -357,7 +357,16 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@upup/types": "workspace:*"
+    "@upup/hooks": "workspace:*",
+    "@upup/llm": "workspace:*",
+    "@upup/memory-system": "workspace:*",
+    "@upup/plan-system": "workspace:*",
+    "@upup/session-system": "workspace:*",
+    "@upup/skills": "workspace:*",
+    "@upup/telemetry": "workspace:*",
+    "@upup/tools-registry": "workspace:*",
+    "@upup/types": "workspace:*",
+    "@upup/utils": "workspace:*"
   },
   "peerDependencies": {},
   "devDependencies": {

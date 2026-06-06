@@ -199,5 +199,11 @@
     "channel",
     "upup"
   ],
-  "private": false
+  "private": false,
+  "dependencies": {
+    "@upup/agent-runtime": "workspace:*",
+    "@upup/cron": "workspace:*",
+    "@upup/types": "workspace:*",
+    "@upup/utils": "workspace:*"
+  }
 }

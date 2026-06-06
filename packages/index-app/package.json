@@ -30,6 +30,7 @@
     "test": "bun test"
   },
   "dependencies": {
+    "@upup/agent-runtime": "workspace:*",
     "@upup/bridge-system": "workspace:*",
     "@upup/cli": "workspace:*",
     "@upup/coordinator-system": "workspace:*",

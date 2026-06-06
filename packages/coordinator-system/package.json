@@ -237,6 +237,13 @@
     "test": "bun test"
   },
   "dependencies": {
+    "@upup/agent-runtime": "workspace:*",
+    "@upup/llm": "workspace:*",
+    "@upup/services-core": "workspace:*",
+    "@upup/session-system": "workspace:*",
+    "@upup/skills": "workspace:*",
+    "@upup/storage": "workspace:*",
+    "@upup/tui-renderer": "workspace:*",
     "@upup/types": "workspace:*",
     "@upup/utils": "workspace:*"
   },

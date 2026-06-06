@@ -1,64 +1,64 @@
 {
   "help": {
     "name": "help",
-    "totalCalls": 662,
-    "successCount": 662,
+    "totalCalls": 665,
+    "successCount": 665,
     "errorCount": 0,
-    "totalDurationMs": 12708,
+    "totalDurationMs": 12727,
     "avgDurationMs": 19,
     "minDurationMs": 0,
     "maxDurationMs": 2372,
-    "lastCalled": 1780706148270,
-    "lastSuccess": 1780706148270
+    "lastCalled": 1780715550064,
+    "lastSuccess": 1780715550064
   },
   "status": {
     "name": "status",
-    "totalCalls": 636,
-    "successCount": 636,
+    "totalCalls": 639,
+    "successCount": 639,
     "errorCount": 0,
-    "totalDurationMs": 3406,
+    "totalDurationMs": 3413,
     "avgDurationMs": 5,
     "minDurationMs": 0,
     "maxDurationMs": 575,
-    "lastCalled": 1780706148270,
-    "lastSuccess": 1780706148270
+    "lastCalled": 1780715550071,
+    "lastSuccess": 1780715550071
   },
   "h": {
     "name": "h",
-    "totalCalls": 618,
-    "successCount": 618,
+    "totalCalls": 621,
+    "successCount": 621,
     "errorCount": 0,
-    "totalDurationMs": 424,
+    "totalDurationMs": 425,
     "avgDurationMs": 1,
     "minDurationMs": 0,
     "maxDurationMs": 52,
-    "lastCalled": 1780706148271,
-    "lastSuccess": 1780706148271
+    "lastCalled": 1780715550072,
+    "lastSuccess": 1780715550072
   },
   "c": {
     "name": "c",
-    "totalCalls": 614,
-    "successCount": 614,
+    "totalCalls": 617,
+    "successCount": 617,
     "errorCount": 0,
-    "totalDurationMs": 3471,
+    "totalDurationMs": 3473,
     "avgDurationMs": 6,
     "minDurationMs": 0,
     "maxDurationMs": 269,
-    "lastCalled": 1780706148271,
-    "lastSuccess": 1780706148271
+    "lastCalled": 1780715550073,
+    "lastSuccess": 1780715550073
   },
   "unknown": {
     "name": "unknown",
-    "totalCalls": 559,
+    "totalCalls": 562,
     "successCount": 0,
-    "errorCount": 559,
+    "errorCount": 562,
     "totalDurationMs": 143,
     "avgDurationMs": 0,
     "minDurationMs": 0,
     "maxDurationMs": 11,
-    "lastCalled": 1780706148271,
+    "lastCalled": 1780715550073,
     "lastSuccess": 0,
-    "lastError": "Command /unknown failed: builtin.execute is not a function. (In 'builtin.execute(args, context)', 'builtin.execute' is undefined)"
+    "lastError": "Command /unknown failed: builtin.load is not a function. (In 'builtin.load()', 'builtin.load' is undefined)"
   },
   "commands": {
     "name": "commands",

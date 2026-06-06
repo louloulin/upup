@@ -49,8 +49,11 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@langchain/core": "^0.3.0",
+    "@langchain/core": "^1.1.44",
     "@modelcontextprotocol/sdk": "^1.0.0",
+    "@upup/agent-runtime": "workspace:*",
+    "@upup/hooks": "workspace:*",
+    "@upup/utils": "workspace:*",
     "zod": "^3.0.0"
   },
   "peerDependencies": {

@@ -5,7 +5,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import { registerSubagentTask, updateSubagentTask } from './task/task-tool.js';
 import { createTaskListTool } from './task/task-tool.js';
-import { resetDefaultSubagentRunner } from '@upup/agent/subagent-runner';
+import { resetDefaultSubagentRunner } from '@upup/agent-runtime/subagent-runner';
 
 describe('Task Bridge: SubagentTaskStore ↔ TaskStore', () => {
   afterEach(() => {

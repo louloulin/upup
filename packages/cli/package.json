@@ -105,7 +105,20 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@upup/types": "workspace:*"
+    "@upup/agent-runtime": "workspace:*",
+    "@upup/commands": "workspace:*",
+    "@upup/coordinator-system": "workspace:*",
+    "@upup/llm": "workspace:*",
+    "@upup/mcp": "workspace:*",
+    "@upup/plan-system": "workspace:*",
+    "@upup/plugins": "workspace:*",
+    "@upup/services-core": "workspace:*",
+    "@upup/session-system": "workspace:*",
+    "@upup/skills": "workspace:*",
+    "@upup/tools-registry": "workspace:*",
+    "@upup/tui-renderer": "workspace:*",
+    "@upup/types": "workspace:*",
+    "@upup/utils": "workspace:*"
   },
   "devDependencies": {
     "@types/bun": "latest"

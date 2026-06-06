@@ -34,7 +34,7 @@ import {
   type IntentResult,
   type IntentDetector,
   type IntentScore,
-} from '@upup/agent/intent-detector/index';
+} from '@upup/agent-runtime/intent-detector/index';
 import {
   getAgentRegistry,
   type AgentDefinition,

@@ -716,5 +716,8 @@
   "files": [
     "dist"
   ],
-  "private": false
+  "private": false,
+  "dependencies": {
+    "@upup/agent-runtime": "workspace:*"
+  }
 }

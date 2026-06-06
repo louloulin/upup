@@ -16,7 +16,7 @@ import { z } from 'zod';
 import { DynamicStructuredTool } from '@langchain/core/tools';
 import { discoverSkills, getSkill } from '@upup/skills/registry';
 import type { SkillMetadata, Skill, SkillContext } from '@upup/skills/types';
-import type { SubagentRunner } from '@upup/agent/subagent';
+import type { SubagentRunner } from '@upup/agent-runtime/subagent';
 import { executeSkill, getExecutionMode, shouldUseForkMode } from '@upup/skills/executor';
 
 // ============================================================================

@@ -397,12 +397,17 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@upup/types": "workspace:*",
-    "@upup/utils": "workspace:*",
+    "@earendil-works/pi-tui": "0.76.0",
+    "@upup/agent-runtime": "workspace:*",
+    "@upup/commands": "workspace:*",
     "@upup/hooks": "workspace:*",
-    "@upup/state": "workspace:*",
     "@upup/keybindings": "workspace:*",
-    "@earendil-works/pi-tui": "0.76.0"
+    "@upup/memory-system": "workspace:*",
+    "@upup/services-core": "workspace:*",
+    "@upup/session-system": "workspace:*",
+    "@upup/state": "workspace:*",
+    "@upup/types": "workspace:*",
+    "@upup/utils": "workspace:*"
   },
   "devDependencies": {
     "@types/bun": "latest"

@@ -63,7 +63,7 @@ export async function testEnvironment(
 
   // ── Required packages ─────────────────────────────────────────────────
   const requiredModules = [
-    '@upup/agent-core',
+    '@upup/agent-runtime',
     '@upup/state',
     '@upup/types',
   ];

@@ -51,6 +51,8 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@upup/gateway": "workspace:*",
+    "@upup/utils": "workspace:*",
     "croner": "^9.1.0"
   },
   "peerDependencies": {
