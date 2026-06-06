@@ -1,4 +1,3 @@
-// @ts-nocheck - temporary during modularization migration
 /**
  * MCP Command - Local JSX Component
  *
@@ -210,14 +209,14 @@ export const call = async (
 
   try {
     const { getDefaultMCPClient } = await import('@upup/mcp/client')
-    const { getMCPStatus } = await import('@upup/tools-registry/registry')
+    const { getMCPStatus } = await import('@upup/mcp')
 
     const client = getDefaultMCPClient()
     const status = getMCPStatus(client)
 
-    servers = status.servers.map(s => ({
+    servers = status.servers.map((s: { name: string; state: string; toolCount: number }) => ({
       name: s.name,
-      state: s.state,
+      state: s.state as MCPServer["state"],
       toolCount: s.toolCount,
     }))
   } catch {

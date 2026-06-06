@@ -1,4 +1,3 @@
-// @ts-nocheck - temporary during modularization migration
 /**
  * HelpV2 Command - Interactive Help Component
  *
