@@ -1,92 +1,35 @@
-// @ts-nocheck - temporary during modularization migration
 /**
- * Agent Public Port (Local Mirror)
+ * Agent Public Port (Local Accessors)
  *
- * Cross-package boundary between packages/commands/ and src/agent/.
- *
- * The canonical interface lives in src/agent/agent-port.ts.
- * This file duplicates the small shape (4 lines) and reads from
- * globalThis to avoid a fragile 4-level `await import` chain.
- *
- * The risk of interface drift is mitigated by the test suite in
- * src/agent/agent-port.test.ts (planned for v6).
+ * Convenience accessors that read from the global `__upupAgentPorts`
+ * registry populated by `@upup/agent-runtime/agent-port`. The canonical
+ * type definitions and the registry itself live there; this module just
+ * provides a thin read-side facade that returns `null` if a port is
+ * missing, so callers can null-check without importing the registry.
  */
 
-export interface PlanModePortLocal {
-  isActive(): boolean;
-  getPlanId(): string | undefined;
-  enter(planId: string): void;
-  exit(): void;
+import type {
+  AgentPorts,
+  PlanModePort,
+  SubagentPort,
+  McpRegistryPort,
+  StatePort,
+} from '@upup/agent-runtime/agent-port';
+
+export type { PlanModePort, SubagentPort, McpRegistryPort, StatePort };
+
+export function getPlanModePortLocal(): PlanModePort | null {
+  return (globalThis as { __upupAgentPorts?: AgentPorts }).__upupAgentPorts?.planMode ?? null;
 }
 
-
-
-export interface SubagentTaskSummaryLocal {
-  id: string;
-  status: string;
-  prompt: string;
+export function getSubagentPortLocal(): SubagentPort | null {
+  return (globalThis as { __upupAgentPorts?: AgentPorts }).__upupAgentPorts?.subagent ?? null;
 }
 
-export interface SubagentPortLocal {
-  createTask(config: { description: string; prompt: string; runInBackground?: boolean }): Promise<{ id: string }>;
-  getAllTasks(): SubagentTaskSummaryLocal[];
+export function getMcpRegistryPortLocal(): McpRegistryPort | null {
+  return (globalThis as { __upupAgentPorts?: AgentPorts }).__upupAgentPorts?.mcpRegistry ?? null;
 }
 
-export interface McpServerStatusLocal {
-  name: string;
-  state: string;
-  toolCount: number;
-  error?: string;
-}
-
-export interface McpStatusLocal {
-  totalServers: number;
-  connectedServers: number;
-  totalTools: number;
-  servers: McpServerStatusLocal[];
-}
-
-export interface McpRegistryPortLocal {
-  getStatus(): McpStatusLocal;
-}
-
-export interface SessionSummaryLocal {
-  id: string;
-  customTitle?: string;
-  firstPrompt?: string;
-}
-
-export interface StatePortLocal {
-  getAppState(): { getState(): Record<string, unknown>; [k: string]: unknown };
-  formatCost(cost: number): string;
-  formatTokens(tokens: number): string;
-  getSessionManager(): { listSessions(limit: number): Promise<SessionSummaryLocal[]> };
-}
-
-interface AgentPortsLocal {
-  planMode?: PlanModePortLocal;
-  subagent?: SubagentPortLocal;
-  mcpRegistry?: McpRegistryPortLocal;
-  state?: StatePortLocal;
-}
-
-declare global {
-  // eslint-disable-next-line no-var
-  var __upupAgentPorts: AgentPortsLocal | undefined;
-}
-
-export function getPlanModePortLocal(): PlanModePortLocal | null {
-  return globalThis.__upupAgentPorts?.planMode ?? null;
-}
-
-export function getSubagentPortLocal(): SubagentPortLocal | null {
-  return globalThis.__upupAgentPorts?.subagent ?? null;
-}
-
-export function getMcpRegistryPortLocal(): McpRegistryPortLocal | null {
-  return globalThis.__upupAgentPorts?.mcpRegistry ?? null;
-}
-
-export function getStatePortLocal(): StatePortLocal | null {
-  return globalThis.__upupAgentPorts?.state ?? null;
+export function getStatePortLocal(): StatePort | null {
+  return (globalThis as { __upupAgentPorts?: AgentPorts }).__upupAgentPorts?.state ?? null;
 }

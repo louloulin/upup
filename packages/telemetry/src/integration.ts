@@ -1,4 +1,3 @@
-// @ts-nocheck - temporary during modularization migration
 /**
  * Telemetry Integration - re-exports and convenience functions
  */
@@ -10,47 +9,53 @@ export {
   type RecorderOptions,
 } from './recorder.js';
 
-import { TelemetryRecorder } from './recorder.js';
+import { TelemetryRecorder, hashTelemetryInput } from './recorder.js';
+import type { FeatureGateEvent, ToolCallEvent } from './types.js';
 
 const _defaultRecorder = new TelemetryRecorder();
 
-export function recordFeatureGate(args: { feature: string; value: boolean; source: string }): void {
-  _defaultRecorder.recordFeatureGate(args);
+/**
+ * Record a feature gate check.
+ *
+ * @param feature Feature name
+ * @param value Whether the feature is enabled
+ * @param source Where the value came from (compile/env/growthbook/default)
+ */
+export function recordFeatureGate(feature: string, value: boolean, source: FeatureGateEvent['source']): void {
+  _defaultRecorder.recordFeatureGate({ feature, value, source });
 }
 
-export function recordToolCallOk(record: { tool: string; args: Record<string, unknown>; durationMs: number; timestamp: number }): void {
-  _defaultRecorder.recordToolCall({ ...record, success: true });
+/**
+ * Record a successful tool call. Computes inputHash from the canonicalized input.
+ */
+export function recordToolCallOk(args: { tool: string; input: unknown; outputBytes: number; durationMs: number; timestamp: number }): void {
+  _defaultRecorder.recordToolCall({
+    tool: args.tool,
+    inputHash: hashTelemetryInput(args.input),
+    outputBytes: args.outputBytes,
+    durationMs: args.durationMs,
+    ok: true,
+  });
 }
 
-export function recordToolCallErr(record: { tool: string; args: Record<string, unknown>; durationMs: number; timestamp: number; error: string }): void {
-  _defaultRecorder.recordToolCall({ ...record, success: false });
+/**
+ * Record a failed tool call. Computes inputHash from the canonicalized input.
+ */
+export function recordToolCallErr(args: { tool: string; input: unknown; outputBytes: number; durationMs: number; timestamp: number; errorCode: string }): void {
+  _defaultRecorder.recordToolCall({
+    tool: args.tool,
+    inputHash: hashTelemetryInput(args.input),
+    outputBytes: args.outputBytes,
+    durationMs: args.durationMs,
+    ok: false,
+    errorCode: args.errorCode,
+  });
 }
 
-export function recordEvent(event: { type: string; data: Record<string, unknown>; timestamp: number }): void {
-  _defaultRecorder.recordEvent(event);
-}
-
-export type ToolCallRecord = {
-  tool: string;
-  args: Record<string, unknown>;
-  durationMs: number;
-  success: boolean;
-  error?: string;
-  timestamp: number;
-};
+export type ToolCallRecord = ToolCallEvent;
 
 export type TelemetryEvent = {
   type: string;
   data: Record<string, unknown>;
   timestamp: number;
-};
-
-export type FeatureGateEvent = {
-  feature: string;
-  value: boolean;
-  source: string;
-  ts: number;
-  sessionId: string;
-  runId: string;
-  kind: 'feature_gate';
 };
