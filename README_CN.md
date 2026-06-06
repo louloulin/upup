@@ -8,6 +8,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Fork](https://img.shields.io/badge/fork-dexter-blueviolet.svg)](https://github.com/virattt/dexter)
 [![i18n: EN | zh-CN](https://img.shields.io/badge/i18n-EN%20%7C%20zh--CN-ff69b4.svg)](#i18n)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](./CONTRIBUTING.md)
+[![GitHub stars](https://img.shields.io/github/stars/louloulin/upup.svg)](https://github.com/louloulin/upup/stargazers)
+[![Discord](https://img.shields.io/discord/placeholder.svg)](#社区)
 
 [English](./README.md) · [中文](#) · [变更日志](./CHANGELOG.md) · [贡献指南](./CONTRIBUTING.md)
 
@@ -69,6 +72,28 @@
 | **Sprint v1–v8 持续打磨** | 投研 Claude Code 改造、Round 1-3 skills/plugins 整合、网关层、网关登录 |
 
 ---
+
+## 核心特性
+
+| 类别 | 特性 |
+|---|---|
+| 🇨🇳 **A 股原生** | Tushare Pro + AKShare + 东方财富，覆盖 5000+ 标的 |
+| 🤖 **Agent Loop** | Claude Code 风格的工具调用 + Scratchpad + 自动压缩 + Loop 恢复 |
+| 📊 **50+ 投资 Skill** | DCF / 技术 / 回测 / 行业 / 风险 / 估值 / 组合 / 阿尔法 — 完整文件级 SKILL.md |
+| 🎯 **5 阶段投资工作流** | `/invest`：detect → plan → execute → verify → report |
+| 🔌 **4 运行时插件** | `bun` / `jiti` / `wasm` / `mcp`，安全 / 性能可调 |
+| 🌍 **EN + zh-CN i18n** | 56+ 强类型 key，双语对称，缺译编译 fail |
+| 🧠 **7 个 LLM Provider** | OpenAI / Anthropic / Google / xAI / OpenRouter / Ollama / **DeepSeek**（默认） |
+| 🛡 **3 层权限防护** | 静态白名单 + 工具级模式 + 会话级模式，默认 `ask` |
+| 🧩 **多 Agent 协同** | 5 个投资 Subagent（Explore / Plan / Risk / Trade / Review）并行拉数据 |
+| 💾 **持久化记忆** | SQLite 长期记忆 + 观察缓冲 + 抽取 hook + 审计链 |
+| 📡 **Web 网关** | Read-only JSON snapshot + 监控 |
+| 📈 **KAIROS 主动监控** | 财报触发器 + 持仓监控 |
+| 🧪 **评估框架** | LangSmith 240+ 题目 + 引用密度计数器 + Ink UI |
+| 📦 **18 个 Workspace Package** | 完整分层 + 独立可发布 |
+| 🛠 **可观测** | Telemetry + Hook 系统 + 审计签名 |
+
+更多真实输出示例见 [docs/showcase.md](./docs/showcase.md)。
 
 ## 快速开始
 
@@ -322,6 +347,56 @@ upup/
 切换模型：CLI 内 `/model` 命令，或 `.upup/settings.json`。
 
 ---
+
+## 文档 (Documentation)
+
+完整文档索引见 **[docs/index.md](./docs/index.md)**。按场景速查：
+
+### 🚀 新用户
+- [docs/quickstart.md](./docs/quickstart.md) — 10 分钟上手
+- [docs/a-share.md](./docs/a-share.md) — A 股专属（Tushare / AKShare / 北向 / 龙虎榜）
+- [docs/showcase.md](./docs/showcase.md) — 真实输出样例
+- [docs/faq.md](./docs/faq.md) — 常见问题
+
+### 🔍 功能参考
+- [docs/commands.md](./docs/commands.md) — 47+ slash 命令
+- [docs/skills.md](./docs/skills.md) — 50+ skill + 编写指南
+- [docs/investment-workflow.md](./docs/investment-workflow.md) — 5 阶段 `/invest` 拆解
+- [docs/i18n.md](./docs/i18n.md) — 双语 i18n 说明
+- [docs/session-and-permissions.md](./docs/session-and-permissions.md) — 权限 / 计划模式 / 沙箱
+
+### 🛠 扩展开发
+- [docs/plugins.md](./docs/plugins.md) — 4 runtime 插件开发
+- [docs/architecture-overview.md](./docs/architecture-overview.md) — 高层架构
+- [ARCHITECTURE.md](./ARCHITECTURE.md) — 334 行分层规则（canonical）
+
+### 🤝 社区 / 贡献
+- [CONTRIBUTING.md](./CONTRIBUTING.md) — 如何贡献
+- [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) — 社区准则（含投研合规要求）
+- [SECURITY.md](./SECURITY.md) — 漏洞披露 + 威胁模型
+- [CHANGELOG.md](./CHANGELOG.md) — 发布历史
+- [.github/ISSUE_TEMPLATE/](./.github/ISSUE_TEMPLATE/) — Bug / Feature / Question 模板
+- [.github/PULL_REQUEST_TEMPLATE.md](./.github/PULL_REQUEST_TEMPLATE.md) — PR 模板
+
+### 📊 评估 / 对比 / 路线图
+- [docs/benchmarks.md](./docs/benchmarks.md) — 评估框架 + 早期结果
+- [docs/comparison.md](./docs/comparison.md) — vs Dexter / Claude Code / Cursor / Aider / Kimi / Wind 等
+- [docs/roadmap.md](./docs/roadmap.md) — 2026 Q2-Q4 路线图
+
+## 社区
+
+- 💬 **GitHub Discussions** — 提问 / 想法 / 展示
+- 🐛 **GitHub Issues** — Bug 报告 / Feature 建议（用模板）
+- 🇨🇳 **中文社区** — 欢迎 PR / 翻译 / 案例分享
+- 📜 **行为准则** — [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md)
+
+## 安全
+
+UpUp 默认在 `ask` 权限模式下运行，从不绕过。详见 [SECURITY.md](./SECURITY.md)。
+
+- 漏洞披露：`security@upup.dev`
+- 威胁模型、API Key 卫生、权限加固都在 SECURITY.md
+- 已知不重做：Dexter 上游的 LLM provider bug / `--dangerously` 误用
 
 ## 致谢
 

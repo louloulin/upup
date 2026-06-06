@@ -1,0 +1,258 @@
+# Investment Workflow
+
+> **The heart of UpUp.** The 5-phase `/invest` workflow turns "I want to know about X" into a structured, verifiable research report. This page explains the architecture and how to customize each phase.
+
+---
+
+## Why a 5-Phase Workflow?
+
+LLMs in a single pass tend to:
+- **Hallucinate numbers** without cross-validation
+- **Skip the boring steps** (fetching data, sanity-checking)
+- **Jumping to conclusions** based on insufficient evidence
+
+The 5-phase pattern (borrowed from production agent design) decomposes the problem:
+
+```
+[Phase 1] detect   意图识别 + scope 定义
+[Phase 2] plan     拆解为可执行子任务
+[Phase 3] execute  并发拉数据 / 跑模型
+[Phase 4] verify   多源对比 + 关键数字交叉验证
+[Phase 5] report   结构化报告 + 引用 + 风险
+```
+
+Each phase has its own success criteria and failure mode. If a phase fails, the workflow halts and asks the user for input — it never silently ships a bad report.
+
+---
+
+## Phase 1: `detect`
+
+**Goal**: Figure out *what* the user is actually asking.
+
+**Inputs**: Raw user query (e.g., "/invest 600519.SH 2025Q3")
+
+**Output**: A typed `InvestmentIntent`:
+```ts
+{
+  market: 'A-share',
+  ticker: '600519.SH',
+  name: '贵州茅台',
+  scope: 'deep-dive' | 'quick-dossier' | 'screen' | 'strategy' | 'review',
+  horizon: 'intraday' | 'short' | 'mid' | 'long',
+  focus: ['financials', 'valuation', 'flow', 'risk', 'news'] | string[],
+  language: 'en' | 'zh-CN',
+  confidence: number,  // 0-1
+  followups: string[],
+}
+```
+
+**Subagent**: `Investment Explore Agent` — gathers market context, resolves ticker ambiguity, and proposes the scope.
+
+**Failure mode**: Low confidence (e.g., ambiguous query) → ask user for clarification.
+
+---
+
+## Phase 2: `plan`
+
+**Goal**: Break the intent into 5-10 executable sub-tasks.
+
+**Output**: A `TaskPlan`:
+```ts
+{
+  phases: [
+    { id: 'fetch-financials', tool: 'tushare', parallel: true, deps: [] },
+    { id: 'fetch-flow',        tool: 'akshare', parallel: true, deps: [] },
+    { id: 'fetch-filings',     tool: 'browser', parallel: true, deps: [] },
+    { id: 'compute-valuation', skill: 'dcf',    parallel: false, deps: ['fetch-financials'] },
+    { id: 'sector-compare',    skill: 'sector-analysis', parallel: true, deps: ['fetch-financials'] },
+    { id: 'risk-check',        skill: 'risk-assessment', parallel: true, deps: ['fetch-financials', 'fetch-flow'] },
+    { id: 'cross-validate',    tool: 'verify',  parallel: false, deps: ['*'] },
+    { id: 'compose-report',    tool: 'compose', parallel: false, deps: ['*'] },
+  ],
+}
+```
+
+**Subagent**: `Investment Plan Agent` — uses the 5 phase handlers in `src/commands/investment/phase-handlers.ts` to pick the right tools and skills.
+
+**Failure mode**: User sees the plan, can edit it (`/plan edit`), then approves → Phase 3.
+
+---
+
+## Phase 3: `execute`
+
+**Goal**: Run all `parallel: true` tasks concurrently, then `parallel: false` in topo order.
+
+**Executor**: `src/commands/investment/invest.ts` uses the LangGraph-style state machine (`src/agent/investment-workflow.ts`).
+
+**Subagents** (run in parallel where possible):
+- `Investment Explore Agent` — industry context, peer screening
+- `Investment Plan Agent` — strategy framing
+- `Investment Risk Agent` — risk indicators, red flags
+- `Investment Trade Agent` — execution / backtest feasibility
+- `Investment Review Agent` — sanity check, consistency
+
+**Output**: A `Scratchpad` (`src/agent/scratchpad.ts`) — single source of truth for all intermediate results.
+
+**Failure mode**: Tool error / API rate limit → retry with exponential backoff, max 3 attempts. Persistent failure → halt and surface to user.
+
+---
+
+## Phase 4: `verify`
+
+**Goal**: Cross-check critical numbers across sources.
+
+**Examples of verification**:
+- `revenue 2024` from Tushare vs AKShare vs 东财 — must match within 1%
+- `total shares outstanding` from Tushare vs 巨潮 filing
+- `net income 2024` from `income statement` vs `cashflow statement` (via indirect calc)
+- `PE ratio` computed from market cap + EPS vs Tushare's `pe_ttm` field
+
+**Tools**:
+- `src/tools/finance/formatters.ts` — table formatting
+- `src/skills/bundled/verify.ts` — cross-validation logic
+- `src/evals/citation-density.ts` — counts cited claims per 100 words
+
+**Output**: A `VerificationReport`:
+```ts
+{
+  checks: [
+    { claim: 'revenue 2024 = 1738.5 亿', sources: ['tushare', 'akshare'], status: 'match' },
+    { claim: 'total shares = 19.4 亿',     sources: ['tushare', 'cninfo'], status: 'match' },
+    { claim: 'PE TTM = 28.4',              sources: ['tushare', 'computed'], status: 'mismatch', delta: 0.3 },
+  ],
+  passRate: 0.97,
+}
+```
+
+**Failure mode**: Mismatch rate > 5% → flag in report, allow user to inspect.
+
+---
+
+## Phase 5: `report`
+
+**Goal**: Compose the final markdown report.
+
+**Output**:
+- Printed to stdout
+- Saved to `.upup/reports/<session-id>/<ticker>_<date>.md`
+- Indexable via [docs/showcase.md](./showcase.md) (if shared publicly)
+
+**Template** (see `src/skills/bundled/research.ts`):
+```markdown
+# <Company Name> (<Ticker>) — <Report Type>
+
+> Generated by UpUp on <date> using <model>
+> Citation density: <X> claims / 100 words
+
+## 摘要 (TL;DR)
+3-5 bullets with the bottom line.
+
+## 投资观点
+Buy / Hold / Sell with target price and confidence.
+
+## 公司画像
+- 主营业务
+- 股东结构
+- 管理层
+
+## 财务分析
+- 三表 (income / balance / cashflow)
+- 关键指标 (PE / PB / ROE / 杠杆)
+- 同比 / 环比
+
+## 估值
+- DCF (assumptions explicit)
+- 相对估值 (vs sector)
+
+## 资金流
+- 北向 / 主力 / 散户
+- 融资融券
+
+## 风险
+- 业务风险
+- 财务风险
+- 监管风险
+
+## 数据来源
+- [1] Tushare income statement, 2025-10-25
+- [2] AKShare flow data, 2025-10-26
+- [3] 巨潮 filing, 2025-10-25
+```
+
+**Subagent**: `Investment Review Agent` — final pass for tone, citation density, and risk disclaimers.
+
+---
+
+## Customizing the Workflow
+
+### Add a new phase
+
+Edit `src/commands/investment/phase-handlers.ts`:
+
+```ts
+export const phaseHandlers: Record<Phase, PhaseHandler> = {
+  detect: handleDetect,
+  plan: handlePlan,
+  execute: handleExecute,
+  verify: handleVerify,
+  report: handleReport,
+  // add yours:
+  'pre-flight': handlePreFlight,
+};
+```
+
+Update `src/commands/investment/invest.ts` to wire it in.
+
+### Add a new subagent
+
+Edit `src/agent/investment-subagents.ts`:
+
+```ts
+{
+  name: 'Investment Macro Agent',
+  description: 'Adds macro context (CPI, PMI, M2) to the research scope',
+  tools: ['macro-analysis', 'policy-events'],
+  trigger: (intent) => intent.scope === 'deep-dive',
+}
+```
+
+### Override a default plan
+
+```ts
+// src/config/investment.config.ts
+export const customPlans: Record<string, TaskPlan> = {
+  'morning-brief': {
+    phases: [/* … */],
+    ttl: 60 * 60 * 1000,  // 1 hour
+  },
+};
+```
+
+---
+
+## Related Commands
+
+| Command | Workflow subset |
+|---|---|
+| `/invest <code>` | Full 5 phases |
+| `/dossier <code>` | detect + plan (limited) + report |
+| `/earnings-preview <code>` | detect + plan (limited) + execute + report |
+| `/morning-brief` | Custom 3-phase (scan + brief + report) |
+| `/portfolio-review` | detect + execute + report |
+| `/risk-dashboard` | execute (parallel) + report |
+| `/screen` | detect + execute (SQL) + report |
+| `/strategy` | Full 5 phases + version / audit / publish |
+
+---
+
+## See Also
+
+- [docs/a-share.md](./a-share.md) — A-share specific
+- [docs/commands.md](./commands.md) — full command reference
+- `src/commands/investment/` — implementation
+- `src/agent/investment-workflow.ts` — state machine
+- `src/agent/subagent.ts` — subagent runner
+
+---
+
+<p align="center"><strong>5 phases. Every report. Every time.</strong></p>
