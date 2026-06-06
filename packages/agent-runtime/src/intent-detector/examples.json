@@ -1,0 +1,28 @@
+{
+  "examples": [
+    { "query": "分析一下 600519 该不该买", "intents": ["analysis", "trade"] },
+    { "query": "看一下苹果的财报和估值", "intents": ["analysis"] },
+    { "query": "这家公司财务健康吗", "intents": ["analysis"] },
+    { "query": "研报里怎么看宁德时代", "intents": ["analysis"] },
+
+    { "query": "帮我找出 PE < 10 的银行股", "intents": ["stock-selection"] },
+    { "query": "推荐几个低估值蓝筹", "intents": ["stock-selection"] },
+    { "query": "哪些是赛道股", "intents": ["stock-selection"] },
+    { "query": "screen for low P/B value stocks", "intents": ["stock-selection"] },
+
+    { "query": "用双均线策略回测 000001 过去 5 年", "intents": ["backtest"] },
+    { "query": "回测一下这个策略", "intents": ["backtest"] },
+    { "query": "backtest a 20/50 day MA crossover on SPY", "intents": ["backtest"] },
+    { "query": "历史数据模拟跑一遍", "intents": ["backtest"] },
+
+    { "query": "买入 100 股 600519 限价 1800", "intents": ["trade"] },
+    { "query": "市价卖出苹果", "intents": ["trade"] },
+    { "query": "撤单 12345", "intents": ["trade"] },
+    { "query": "place a stop-loss at 95 for my AAPL position", "intents": ["trade", "monitor"] },
+
+    { "query": "把 600519 加进自选,跌破 1700 提醒我", "intents": ["monitor"] },
+    { "query": "盯盘腾讯,到 400 提醒我", "intents": ["monitor"] },
+    { "query": "notify me when TSLA breaks 250", "intents": ["monitor"] },
+    { "query": "我的持仓今天表现怎么样", "intents": ["monitor"] }
+  ]
+}

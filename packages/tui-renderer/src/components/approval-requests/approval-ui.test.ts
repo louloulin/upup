@@ -7,7 +7,7 @@
 import { describe, it, expect, beforeEach } from 'bun:test'
 import { getApprovalConfig, setApprovalConfig, getTimeoutForTool } from '@upup/services-core/permissions'
 import { ApprovalFeedback, createFeedback, formatFeedback, recordFeedback, clearFeedbackHistory, getFeedbackHistory } from './ApprovalFeedback.js'
-import { getApprovalManager } from '@upup/utils/permissions/ApprovalManager'
+import { getApprovalManager } from '@upup/services-core/permissions/ApprovalManager'
 
 describe('ApprovalConfig', () => {
   beforeEach(() => {

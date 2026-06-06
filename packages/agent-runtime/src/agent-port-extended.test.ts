@@ -10,8 +10,8 @@
 import { describe, test, expect } from 'bun:test';
 import { getSubagentPort, getMcpRegistryPort, getStatePort } from './agent-port.js';
 import './subagent-runner.js';
-import '../mcp/registry.js';
-import '../state/index.js';
+import '@upup/mcp/registry';
+import '@upup/state';
 
 describe('v7-2b: extended port registry', () => {
   test('subagent-runner self-registers SubagentPort on import', () => {

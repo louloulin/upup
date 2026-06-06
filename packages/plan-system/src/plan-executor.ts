@@ -103,6 +103,7 @@ export function loadPlan(planId: string): ResearchPlan | null {
 /** 列出所有 plan id(按 mtime 倒序) */
 export function listPlans(): string[] {
   ensurePlansDir();
+  if (!existsSync(PLANS_DIR)) return [];
   const files = readdirSync(PLANS_DIR)
     .filter(f => f.endsWith('.json'))
     .map(f => {

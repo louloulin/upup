@@ -20,7 +20,7 @@ import {
   planFilePath,
   readAuditLog,
 } from './plan-executor.js';
-import { PLANS_DIR } from '../utils/storage-paths.js';
+import { PLANS_DIR } from '@upup/utils/storage-paths';
 
 let testPlanId = '';
 

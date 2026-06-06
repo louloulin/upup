@@ -36,10 +36,10 @@ afterAll(() => {
 // =====================================================================
 
 describe('investment-workflow: module boundary', () => {
-  test('does not import from src/tools/ (循环依赖验证)', async () => {
-    const src = await Bun.file('src/agent/investment-workflow.ts').text();
+  test('does not import from tools-registry (循环依赖验证)', async () => {
+    const src = await Bun.file('packages/agent-runtime/src/investment-workflow.ts').text();
+    expect(src).not.toMatch(/from\s+['"]@upup\/tools-registry/);
     expect(src).not.toMatch(/from\s+['"]\.\.\/\.\.\/tools\//);
-    expect(src).not.toMatch(/import\s*\(\s*['"][^'"]*src\/tools/);
   });
 });
 
@@ -166,7 +166,7 @@ describe('investment-workflow: resumeWorkflow', () => {
 
 describe('investment: /invest CLI', () => {
   test('runInvest with ticker renders 5 phase progress', async () => {
-    const { runInvest } = await import('@upup/commands/investment/invest');
+    const { runInvest } = await import('@upup/cli/commands/investment/invest');
     const text = await runInvest('NVDA');
     expect(text).toContain('Investment Workflow');
     expect(text).toContain('Ticker: NVDA');
@@ -179,31 +179,31 @@ describe('investment: /invest CLI', () => {
   });
 
   test('runInvest without args shows default intent', async () => {
-    const { runInvest } = await import('@upup/commands/investment/invest');
+    const { runInvest } = await import('@upup/cli/commands/investment/invest');
     const text = await runInvest('');
     expect(text).toContain('Intent:');
   });
 
   test('runInvest --list renders plan list', async () => {
-    const { runInvest } = await import('@upup/commands/investment/invest');
+    const { runInvest } = await import('@upup/cli/commands/investment/invest');
     const text = await runInvest('--list');
     expect(text).toMatch(/Plans|无 plan/);
   });
 
   test('runInvest --resume without planId shows usage', async () => {
-    const { runInvest } = await import('@upup/commands/investment/invest');
+    const { runInvest } = await import('@upup/cli/commands/investment/invest');
     const text = await runInvest('--resume');
     expect(text).toContain('用法');
   });
 
   test('runInvest --resume with unknown planId shows error', async () => {
-    const { runInvest } = await import('@upup/commands/investment/invest');
+    const { runInvest } = await import('@upup/cli/commands/investment/invest');
     const text = await runInvest('--resume nonexistent');
     expect(text).toMatch(/Resume 失败/);
   });
 
   test('runInvest with A-share ticker', async () => {
-    const { runInvest } = await import('@upup/commands/investment/invest');
+    const { runInvest } = await import('@upup/cli/commands/investment/invest');
     const text = await runInvest('600519.SH');
     expect(text).toContain('600519.SH');
   });
@@ -215,7 +215,7 @@ describe('investment: /invest CLI', () => {
 
 describe('investment: registry includes /invest', () => {
   test('isInvestmentCommand recognizes invest + aliases', async () => {
-    const { isInvestmentCommand, runInvestmentCommand, INVESTMENT_COMMANDS } = await import('@upup/commands/investment/registry');
+    const { isInvestmentCommand, runInvestmentCommand, INVESTMENT_COMMANDS } = await import('@upup/cli/commands/investment/registry');
     expect(isInvestmentCommand('invest')).toBe(true);
     expect(isInvestmentCommand('wf')).toBe(true);
     expect(isInvestmentCommand('workflow')).toBe(true);
@@ -223,7 +223,7 @@ describe('investment: registry includes /invest', () => {
   });
 
   test('runInvestmentCommand returns text for invest', async () => {
-    const { runInvestmentCommand } = await import('@upup/commands/investment/registry');
+    const { runInvestmentCommand } = await import('@upup/cli/commands/investment/registry');
     const text = await runInvestmentCommand('invest', 'AAPL');
     expect(typeof text).toBe('string');
     expect(text).toContain('Ticker: AAPL');
