@@ -17,13 +17,10 @@ if (!prompt) {
 }
 
 const model = process.env.DEFAULT_MODEL || 'deepseek-v4-flash';
-const agent = new Agent({
-  model,
-  system: 'You are UpUp, an AI agent for deep financial research.',
-});
 
 (async () => {
   try {
+    const agent = await Agent.create({ model });
     const result = await agent.run(prompt);
     console.log(result);
   } catch (e: unknown) {
