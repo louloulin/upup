@@ -568,7 +568,7 @@ export async function listInstalledSkills(opts: { limit?: number } = {}): Promis
   const limit = opts.limit ?? 50;
 
   // Lazy import to avoid a circular dep with ./commands.js
-  const { getAllRecentScores } = await import('./recent-usage.js');
+  const { getAllRecentScores, getAllRecentCounts } = await import('./recent-usage.js');
 
   // 1. Get the skill rows from the registry
   const menu = getSkillsMenu();
@@ -577,13 +577,15 @@ export async function listInstalledSkills(opts: { limit?: number } = {}): Promis
     return t('cmd.skills_list_empty');
   }
 
-  // 2. Read recent-usage scores (best-effort; missing file = 0)
-  const scoreMap = await getAllRecentScores().catch(() => new Map<string, number>());
+  // 2. Read recent-usage data (best-effort; missing file = empty)
+  const [scoreMap, countMap] = await Promise.all([
+    getAllRecentScores().catch(() => new Map<string, number>()),
+    getAllRecentCounts().catch(() => new Map<string, number>()),
+  ]);
 
   // 3. Build rows
   const rows: InstalledSkillRow[] = items.map((item) => {
     const key = item.name.toLowerCase();
-    const score = scoreMap.get(key) ?? 0;
     return {
       name: item.name,
       source: item.source,
@@ -593,8 +595,8 @@ export async function listInstalledSkills(opts: { limit?: number } = {}): Promis
         description: item.description,
         descriptionZhCn: undefined,
       }),
-      useCount: 0, // filled below if we can derive from score decay
-      score,
+      useCount: countMap.get(key) ?? 0,
+      score: scoreMap.get(key) ?? 0,
       path: item.path,
     };
   });
@@ -649,10 +651,13 @@ export async function listInstalledSkills(opts: { limit?: number } = {}): Promis
  * Test-friendly variant: returns the raw rows without rendering.
  */
 export async function getInstalledSkillsData(): Promise<InstalledSkillRow[]> {
-  const { getAllRecentScores } = await import('./recent-usage.js');
+  const { getAllRecentScores, getAllRecentCounts } = await import('./recent-usage.js');
   const menu = getSkillsMenu();
   const items = menu.getItems();
-  const scoreMap = await getAllRecentScores().catch(() => new Map<string, number>());
+  const [scoreMap, countMap] = await Promise.all([
+    getAllRecentScores().catch(() => new Map<string, number>()),
+    getAllRecentCounts().catch(() => new Map<string, number>()),
+  ]);
 
   return items.map((item) => {
     const key = item.name.toLowerCase();
@@ -665,7 +670,7 @@ export async function getInstalledSkillsData(): Promise<InstalledSkillRow[]> {
         description: item.description,
         descriptionZhCn: undefined,
       }),
-      useCount: 0,
+      useCount: countMap.get(key) ?? 0,
       score: scoreMap.get(key) ?? 0,
       path: item.path,
     };
