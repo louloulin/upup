@@ -77,7 +77,7 @@ export class HelpV2Component extends Container {
         console.log('[HelpV2Component] onSelect: invalid index', idx)
       }
     }
-    console.log('[HelpV2Component] onSelect callback registered, count:', this.commandList.onSelect ? 1 : 0)
+    console.log('[HelpV2Component] onSelect callback registered')
   }
 
   private buildCommandItems(): SelectItem[] {
@@ -100,12 +100,6 @@ export class HelpV2Component extends Container {
         label: `${icon} /${cmd.name}${usageStr}${aliasStr} — ${cmd.description}`
       }
     })
-  }
-
-  private updateCommandList(): void {
-    const items: any = this.buildCommandItems()
-    (this.commandList as any).setItems(items)
-    this.commandList.setSelectedIndex(0)
   }
 
   handleInput(keyData: string): void {
