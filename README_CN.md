@@ -243,7 +243,7 @@ registerFactory       ← locator 工厂
 
 ```
 upup/
-├── src/                          # 主体代码（约 70+ 子目录）
+├── src/                          # 主体代码（约 55 个子目录）
 │   ├── agent/                    # Agent loop、Plan mode、Memory flush、Subagent
 │   ├── cli.tsx                   # CLI 入口
 │   ├── index.tsx                 # 包入口
@@ -254,7 +254,7 @@ upup/
 │   │                             #     risk-dashboard / watchlist-edit / invest
 │   ├── skills/                   # 50 个 SKILL.md + 14 个 bundled skill
 │   ├── tools/
-│   │   ├── finance/              # 20 个金融数据工具
+│   │   ├── finance/              # 20+ 金融数据工具（prices, fundamentals, filings, A-share, screen, key ratios, estimates, segments, news, earnings transcripts, crypto）
 │   │   ├── search/               # Exa / Tavily
 │   │   └── browser/              # Playwright
 │   ├── plugins/                  # 4 runtime adapter + 插件系统

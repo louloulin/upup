@@ -69,7 +69,7 @@ bun test              # Run tests
 | `src/agent/` | Agent core (loop, plan mode, subagent, memory flush, investment workflow) |
 | `src/commands/investment/` | 5-phase /invest workflow + dossier / strategy / earnings-preview / morning-brief / portfolio-review / risk-dashboard / watchlist-edit / screen |
 | `src/skills/` | 50 SKILL.md + 14 bundled skills (registry, hot-reload, i18n) |
-| `src/tools/finance/` | 20 finance tools (prices, fundamentals, filings, A-share, screen, key ratios, estimates, segments, news, earnings transcripts, crypto) |
+| `src/tools/finance/` | 20+ 金融工具文件 (prices, fundamentals, filings, A-share, screen, key ratios, estimates, segments, news, earnings transcripts, crypto) |
 | `src/plugins/adapters/` | 4 plugin runtime adapters: bun, jiti, wasm, mcp |
 | `src/i18n/strings.ts` | EN + zh-CN string table, strongly-typed keys |
 | `src/session/` | Session state + permission mode (Claude Code-inspired) |
