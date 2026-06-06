@@ -255,35 +255,76 @@ UpUp 内置丰富的金融研究技能：
 
 ## 目录结构
 
+UpUp 采用 **bun workspace monorepo** 架构，包含 34 个 package，分为 7 个架构层。`src/` 目录仅包含 5 个薄壳文件；所有业务逻辑位于 workspace packages 中。
+
 ```
-dexter/                          # 项目根目录
-├── src/
-│   ├── agent/                   # Agent 核心
-│   │   ├── agent.ts
-│   │   ├── capability-registry.ts
-│   │   └── fallback-handler.ts
-│   ├── tools/                   # 工具系统 (64+)
-│   │   ├── bash/               # Bash 工具 (来自 Claude Code)
-│   │   ├── filesystem/          # 文件系统工具
-│   │   ├── financial/          # 金融工具
-│   │   └── types.ts
-│   ├── session/                # Session 管理 (来自 Claude Code)
-│   │   ├── session-state.ts
-│   │   └── render/
-│   ├── components/              # TUI 组件 (来自 Claude Code)
-│   ├── commands/               # Slash 命令
-│   ├── hooks/                  # Hook 系统
-│   ├── skills/                 # 技能加载器
-│   ├── cli.ts                 # CLI 入口
-│   └── run.ts                  # Bundled Runner
-├── packages/
-│   ├── sdk/                   # UpUp 插件 SDK
-│   ├── llm/                   # LLM 适配器
-│   ├── memory/                 # 记忆系统
-│   └── plugins/               # 插件基础设施
-├── docs/                       # 文档
-├── tests/                      # 测试
-└── package.json
+upup/
+├── src/                          # 应用入口壳（仅 5 个文件）
+│   ├── index.tsx                 # 入口 → @upup/index-app
+│   ├── cli.ts                    # CLI 转发 → @upup/cli
+│   ├── run.ts                    # 非交互式 runner → @upup/agent-runtime
+│   ├── bundled-runner.ts         # 打包二进制入口 → @upup/agent-runtime
+│   └── theme.ts                  # 主题转发 → @upup/tui-renderer/theme
+├── packages/                     # Bun workspace packages
+│   ├── L1（基础层）
+│   │   ├── types/                # 共享类型定义
+│   │   └── utils/                # 共享工具函数
+│   ├── L2（核心抽象）
+│   │   ├── llm/                  # 多 LLM 提供商抽象
+│   │   ├── hooks/                # Agent 钩子系统
+│   │   ├── keybindings/          # 按键绑定解析
+│   │   ├── state/                # TUI 状态存储
+│   │   ├── tui-renderer/         # TUI 组件与渲染
+│   │   ├── agent-runtime/        # Agent 循环、scratchpad、工具
+│   │   └── memory-system/        # 记忆管理
+│   ├── L3（基础设施）
+│   │   ├── storage/              # SQLite + DuckDB 持久化
+│   │   └── telemetry/            # 事件记录与追踪
+│   ├── L4（运行时能力）
+│   │   ├── tools-registry/       # 工具注册中心
+│   │   ├── finance-tools/        # 金融数据工具
+│   │   ├── skills/               # SKILL.md 工作流
+│   │   ├── mcp/                  # Model Context Protocol
+│   │   ├── plugins/              # 插件加载器
+│   │   ├── cron/                 # 定时任务
+│   │   ├── daemon/               # 后台守护进程
+│   │   ├── session-system/       # 会话跟踪
+│   │   ├── realtime-channel/     # 实时数据推送
+│   │   ├── bridge-system/        # WebSocket bridge
+│   │   ├── coordinator-system/   # 多 Agent 协调
+│   │   ├── plan-system/          # 计划系统
+│   │   ├── research-system/      # 研究工作流
+│   │   ├── multimodal-system/    # 多模态处理
+│   │   └── gateway/              # API 网关
+│   ├── L5（应用服务）
+│   │   └── services-core/        # 权限 + 服务
+│   ├── L6（应用壳）
+│   │   ├── cli/                  # 交互式 CLI + 命令
+│   │   └── commands/             # 命令实现
+│   ├── L7（入口壳）
+│   │   └── index-app/            # 子命令、--stdio、--bridge
+│   └── SDK 包
+│       ├── sdk/                  # 插件 SDK
+│       ├── plugin-sdk/           # 插件创作 API
+│       ├── memory/               # 记忆 SDK
+│       └── adapter-paperclip/    # Paperclip 平台适配器
+├── scripts/                      # 构建与 lint 脚本
+│   ├── build-packages.ts         # DAG 拓扑类型检查
+│   ├── lint-boundaries.ts        # 边界规则校验
+│   └── check-scc.ts              # 源码复杂度检查
+├── docs/                         # 文档
+└── package.json                  # 根 workspace 配置
+```
+
+### Workspace 命令
+
+```bash
+bun install                      # 安装所有 workspace 依赖
+bun run typecheck                # 类型检查 src/ 壳文件
+bun run build:packages           # 按拓扑顺序类型检查全部 34 个 package
+bun run lint:boundaries          # 强制 workspace 边界规则
+bun test                         # 运行所有 package 的测试
+bun run build:compile            # 编译独立二进制到 dist/upup
 ```
 
 ---
