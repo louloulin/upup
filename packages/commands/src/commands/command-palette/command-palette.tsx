@@ -10,15 +10,11 @@
  * Type: local-jsx
  */
 
-import {
-  Container,
-  Text,
-  Input,
-  SelectList,
-  type SelectItem,
-} from '@earendil-works/pi-tui'
-import { theme, selectListTheme } from '../../theme.js'
-import { getCommandUsage, isFrequentlyUsed } from '../../command-usage.js'
+import { Container, Text, Input } from "@earendil-works/pi-tui"
+import { SelectList } from "@earendil-works/pi-tui/dist/components/select-list.js"
+import type { SelectItem } from "@earendil-works/pi-tui"
+import { theme, selectListTheme } from "../../theme.js"
+import { getCommandUsage, isFrequentlyUsed } from "../../command-usage.js"
 
 // Inline category inference
 function inferCategory(name: string): string {
@@ -143,10 +139,12 @@ export class CommandPaletteComponent extends Container {
 
     // Create category selector
     const categoryItems = this.buildCategoryItems()
+    // @ts-ignore — pi-tui re-exports SelectList as a type-only export; constructor call works at runtime
     this.categoryList = new (SelectList as any)(categoryItems, Math.min(10, categoryItems.length), selectListTheme)
 
     // Create command list
     const commandItems = this.buildCommandItems()
+    // @ts-ignore — same as categoryList above
     this.commandList = new (SelectList as any)(commandItems, 15, selectListTheme)
 
     // Wire up interactions
@@ -258,9 +256,17 @@ export class CommandPaletteComponent extends Container {
   }
 
   private updateCommandList(): void {
-    const items: any = this.buildCommandItems()
-    (this.commandList as any).setItems(items)
-    this.commandList.setSelectedIndex(0)
+    // pi-tui SelectList does not expose setItems, so rebuild it.
+    // The render() method reads this.commandList directly, so reassigning
+    // is sufficient — no container add/remove needed.
+    // @ts-ignore — same as categoryList above
+    this.commandList = new (SelectList as any)(this.buildCommandItems(), 15, selectListTheme)
+    this.commandList.onSelect = (item) => {
+      const idx = parseInt(item.value, 10) - 1
+      if (idx >= 0 && idx < this.filteredCommands.length) {
+        this.executeCommand(this.filteredCommands[idx]!)
+      }
+    }
   }
 
   private executeCommand(cmd: CommandInfo): void {
