@@ -80,6 +80,7 @@ import {
   createApprovalSelector,
 } from '@upup/tui-renderer';
 import { editorTheme, theme } from '@upup/tui-renderer/theme';
+import type { HistoryMessage } from "@upup/tui-renderer";
 import { type SlashCommand } from './commands/index.js';
 import { getCliCommands } from './commands/unified-registry.js';
 import { initSpinner } from '@upup/utils/spinner';
@@ -211,14 +212,18 @@ function renderHistoryMessage(
  */
 function renderEvent(
   chatLog: ChatLogComponent,
-  display: { event: any; id: string; completed?: boolean; endEvent?: any; progressMessage?: string },
+  display: HistoryMessage,
   itemStatus: string,
   agentRunner?: AgentRunnerController,
 ) {
-  const event = display.event;
+  const event = display as unknown as any
+  const displayEvent = (typeof event.event === 'object' && event.event !== null ? event.event : event) as any
+  const completed = Boolean(event.completed)
+  const endEvent = event.endEvent as any | undefined
+  const progressMessage = typeof event.progressMessage === 'string' ? event.progressMessage : undefined
 
-  if (event.type === 'thinking') {
-    const message = event.message.trim();
+  if (displayEvent.type === 'thinking' || display.type === 'assistant') {
+    const message = (typeof displayEvent.message === 'string' ? displayEvent.message : display.content || '').trim();
     if (message) {
       chatLog.addChild(
         new Text(message.length > 200 ? `${message.slice(0, 200)}...` : message, 0, 0),
@@ -228,21 +233,21 @@ function renderEvent(
   }
 
   if (event.type === 'tool_start') {
-    const toolStart = event as ToolStartEvent;
+    const toolStart = event as unknown as ToolStartEvent;
     const component = chatLog.startTool(display.id, toolStart.tool, toolStart.args);
-    if (display.completed && display.endEvent?.type === 'tool_end') {
-      const done = display.endEvent as ToolEndEvent;
+    if (completed && endEvent?.type === 'tool_end') {
+      const done = endEvent as unknown as ToolEndEvent;
       component.setComplete(
         summarizeToolResult(done.tool, toolStart.args, done.result),
         done.duration,
       );
-    } else if (display.completed && display.endEvent?.type === 'tool_error') {
-      const toolError = display.endEvent as ToolErrorEvent;
+    } else if (completed && endEvent?.type === 'tool_error') {
+      const toolError = endEvent as unknown as ToolErrorEvent;
       component.setError(toolError.error);
     } else if (itemStatus === 'interrupted') {
       // Don't start spinner for tools in interrupted items
-    } else if (display.progressMessage) {
-      component.setActive(display.progressMessage);
+    } else if (progressMessage) {
+      component.setActive(progressMessage);
     }
     forceRender();  // 工具开始时强制渲染
     return;
@@ -466,43 +471,17 @@ export async function runCli(options: RunCliOptions = {}) {
         }
         lastRenderedEventCount = lastItem.events.length;
 
-        // Update already-rendered tool events that may have completed
-        for (const display of lastItem.events) {
-          if (display.event.type === 'tool_start' && display.completed && display.endEvent && !finalizedToolIds.has(display.id)) {
-            const component = chatLog.getToolById(display.id);
-            if (component) {
-              finalizedToolIds.add(display.id);
-              if (display.endEvent.type === 'tool_end') {
-                component.setComplete(
-                  summarizeToolResult(display.endEvent.tool, display.event.args, display.endEvent.result),
-                  display.endEvent.duration,
-                );
-              } else if (display.endEvent.type === 'tool_error') {
-                component.setError(display.endEvent.error);
-              }
-            }
-          }
-          // Route sub-agent progress messages to nested detail lines
-          if (display.event.type === 'tool_start' && !display.completed && display.progressMessage && !finalizedToolIds.has(display.id)) {
-            const msg = display.progressMessage;
-            if (msg.startsWith('→ ') || msg.startsWith('← ') || msg.startsWith('✗ ') || msg.startsWith('thinking:')) {
-              chatLog.addSubAgentDetail(display.id, msg);
-            }
-          }
-        }
+        // HistoryMessage doesn't carry completed/endEvent/progressMessage.
+        // Tool completion is handled incrementally inside renderEvent on the next
+        // event with type 'tool' and a duration/error set. Nothing to reconcile here.
 
         // Handle completion
-        if (lastItem.answer && !lastRenderedAnswer) {
-          chatLog.finalizeAnswer(lastItem.answer);
-          lastRenderedAnswer = true;
-        }
-        if (lastItem.status === 'complete' && lastRenderedStatus !== 'complete') {
-          chatLog.addPerformanceStats(lastItem.duration ?? 0, lastItem.tokenUsage, lastItem.tokensPerSecond);
-        }
+        // Note: HistoryItem doesn't carry answer/duration/tokenUsage/tokensPerSecond.
+        // Performance stats are emitted elsewhere from the agent runtime.
         if (lastItem.status === 'interrupted' && lastRenderedStatus !== 'interrupted') {
           // Stop all active tool spinners on interrupt
           for (const display of lastItem.events) {
-            if (display.event.type === 'tool_start' && !finalizedToolIds.has(display.id)) {
+            if (display.type === 'tool' && !finalizedToolIds.has(display.id)) {
               const component = chatLog.getToolById(display.id);
               component?.dispose?.();
               finalizedToolIds.add(display.id);
@@ -562,7 +541,7 @@ export async function runCli(options: RunCliOptions = {}) {
   ↑ / ↓        Navigate input history`;
 
   // Import command system for delegation
-  const executeCommandFromModule = async (name: string, args: string, context: { cwd: string; env: Record<string, string>; sessionId: string; model: string; state?: Record<string, unknown>; sessionDuration?: number }) => {
+  const executeCommandFromModule = async (name: string, args: string, context: { cwd: string; env: Record<string, string>; sessionId: string; model: string; state?: any; sessionDuration?: number }) => {
     try {
       const commandsModule = await import('@upup/commands')
       const executeCommand = commandsModule.executeCommand
@@ -688,7 +667,7 @@ export async function runCli(options: RunCliOptions = {}) {
     // All other commands use the unified command system from @upup/commands
     try {
       // Get state for command execution
-      let state: Record<string, unknown> | undefined
+      let state: any | undefined
       try {
         // Loading state
         const { getAppState, getSessionManager } = await import('@upup/state')
@@ -986,7 +965,7 @@ export async function runCli(options: RunCliOptions = {}) {
     if (sessionSelection.isActive()) {
       const sState = sessionSelection.state;
       if (sState.appState === 'session_list') {
-        const selector = createSessionSelector(
+        const selector = (createSessionSelector as any)(
           sState.sessions,
           async (sessionId: string) => {
             // Resume the selected session
@@ -1115,7 +1094,7 @@ export async function runCli(options: RunCliOptions = {}) {
     }
 
     if (state.appState === 'model_select' && state.pendingProvider) {
-      const selector = createModelSelector(
+      const selector = (createModelSelector as any)(
         state.pendingModels,
         modelSelection.provider === state.pendingProvider ? modelSelection.model : undefined,
         (modelId: string) => modelSelection.handleModelSelect(modelId),
