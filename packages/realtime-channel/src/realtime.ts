@@ -4,13 +4,14 @@
 import { createEastmoneyFeed, type EastmoneyFeedOptions } from './eastmoney-feed.js';
 import { createMockFeed, type MockFeedOptions } from './mock-feed.js';
 import { createThrottledFeed } from './throttled-feed.js';
-import { aggregateToBars } from './aggregator.js';
+import { aggregateToBars, type AggregatorHandle } from './aggregator.js';
 import type { RealtimeFeed, FeedSource, SubscribeOptions } from './types.js';
 
 export { createEastmoneyFeed } from './eastmoney-feed.js';
 export { createMockFeed } from './mock-feed.js';
 export { createThrottledFeed } from './throttled-feed.js';
 export { aggregateToBars } from './aggregator.js';
+export type { AggregatorHandle } from './aggregator.js';
 export type {
   RealtimeFeed,
   FeedEvent,
@@ -27,8 +28,8 @@ export type {
 export interface RealtimeFeedBundle {
   feed: RealtimeFeed;
   source: FeedSource;
-  aggregator?: { aggregate(bar: unknown): void };
-  close(): void;
+  aggregator?: AggregatorHandle;
+  close(): Promise<void>;
 }
 
 /**
@@ -63,9 +64,18 @@ export function createRealtimeFeed(config: CreateRealtimeFeedConfig): RealtimeFe
       feed = createMockFeed(config.mock);
       break;
   }
+
+  const aggregator = config.aggregateMs && config.aggregateMs > 0
+    ? aggregateToBars(feed, { periodMs: config.aggregateMs })
+    : undefined;
+
   return {
     feed,
     source: config.source,
-    close: () => feed.close(),
+    aggregator,
+    close: async () => {
+      aggregator?.stop();
+      await feed.close();
+    },
   };
 }
