@@ -66,6 +66,13 @@ export type StringKey =
   | 'tool.denied'
   | 'tool.permission_required'
   | 'working.waiting_approval'
+  // P0 fix — skills registry i18n
+  | 'cmd.skills_loaded'
+  | 'cmd.suggestion_hint'
+  | 'cmd.suggestions_title'
+  | 'cmd.invoke_hint'
+  | 'cmd.dedupe_warn'
+  | 'cmd.no_skill_suggestions'
 ;
 
 /**
@@ -119,6 +126,13 @@ export const STRINGS: Record<Locale, Record<StringKey, string>> = {
     'tool.denied': 'Denied',
     'tool.permission_required': 'Permission required',
     'working.waiting_approval': 'Waiting for approval...',
+    // P0 fix — skills registry i18n
+    'cmd.skills_loaded': '✓ Loaded {n} skills',
+    'cmd.suggestion_hint': '💡 Try /{name} to {desc}',
+    'cmd.suggestions_title': '🎯 Skill Suggestions',
+    'cmd.invoke_hint': 'Use /<name> to invoke',
+    'cmd.dedupe_warn': 'Static command /{name} shadowed by local skill',
+    'cmd.no_skill_suggestions': 'No skill suggestions available.',
   },
   'zh-CN': {
     'intro.welcome': '欢迎使用 UpUp',
@@ -166,6 +180,13 @@ export const STRINGS: Record<Locale, Record<StringKey, string>> = {
     'tool.denied': '已拒绝',
     'tool.permission_required': '需要授权',
     'working.waiting_approval': '等待授权中...',
+    // P0 fix — skills registry i18n
+    'cmd.skills_loaded': '✓ 已加载 {n} 个技能',
+    'cmd.suggestion_hint': '💡 试试 /{name} {desc}',
+    'cmd.suggestions_title': '🎯 技能推荐',
+    'cmd.invoke_hint': '使用 /<name> 调用',
+    'cmd.dedupe_warn': '静态命令 /{name} 被本地技能遮蔽',
+    'cmd.no_skill_suggestions': '没有可推荐的技能。',
   },
 };
 

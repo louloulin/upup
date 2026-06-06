@@ -26,6 +26,10 @@ export type {
 
 export { validateManifest, loadManifest } from '@upup/plugin-sdk';
 
+// Re-export the unified skill registration API for plugin authors
+// (P1.7 — added in unify-skills-and-plugins-registries)
+export { registerSkill, unregisterSkill } from '../../skills/register.js';
+
 // Re-export types from @upup/types
 export type {
   AgentTool,

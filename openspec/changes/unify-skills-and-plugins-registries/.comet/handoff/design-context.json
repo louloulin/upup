@@ -1,0 +1,13 @@
+{
+  "change": "unify-skills-and-plugins-registries",
+  "phase": "design",
+  "mode": "compact",
+  "canonical_spec": "openspec",
+  "generated_by": "comet-handoff.sh",
+  "context_hash": "4ff71238b9b6b6373a37fcd9632439252be945dc73bdcb4766686f982a355a74",
+  "files": [
+    { "path": "openspec/changes/unify-skills-and-plugins-registries/proposal.md", "sha256": "6d5f7203535fa133fc40648c7b79104e9416d511c9289219aa442ace3ec1c1b7" },
+    { "path": "openspec/changes/unify-skills-and-plugins-registries/design.md", "sha256": "e8b1c622d2a6cc5701f9b958ce602c2c22a59e8cdb2600965f5b028829b61a0b" },
+    { "path": "openspec/changes/unify-skills-and-plugins-registries/tasks.md", "sha256": "21c1ce0a8f80e20b3ce97064d39fb009c66eb6dc80eb510bc3e05650c1855c20" }
+  ]
+}

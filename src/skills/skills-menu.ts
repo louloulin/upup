@@ -11,6 +11,7 @@
  */
 
 import { SkillCommandRegistry, getSkillCommandRegistry, type SkillMetadata } from './slash-command.js';
+import { t } from '../i18n/strings.js';
 import { getAllSkillCommands } from './commands.js';
 
 // ============================================================================
@@ -471,10 +472,10 @@ export function suggestSkills(input: string, limit: number = 5): Array<{ name: s
  */
 export function formatSkillSuggestions(suggestions: Array<{ name: string; description: string; score: number }>): string {
   if (suggestions.length === 0) {
-    return 'No skill suggestions available.';
+    return t('cmd.no_skill_suggestions');
   }
   
-  const lines = ['\n🎯 Skill Suggestions:'];
+  const lines = ['\n' + t('cmd.suggestions_title') + ':'];
   
   suggestions.forEach((s, i) => {
     lines.push(`  ${i + 1}. ${s.name} (score: ${s.score})`);
@@ -485,7 +486,7 @@ export function formatSkillSuggestions(suggestions: Array<{ name: string; descri
     }
   });
   
-  lines.push('\n  Use /<skill-name> to invoke a skill.');
+  lines.push('\n  ' + t('cmd.invoke_hint') + '.');
   
   return lines.join('\n');
 }
@@ -531,5 +532,6 @@ export function getCliSkillSuggestion(input: string, minScore: number = 30): str
     return '';
   }
   
-  return `\n💡 提示: 考虑使用 /${topMatch.name} 来 ${topMatch.description.split('\n')[0].slice(0, 30)}...`;
+  const desc = topMatch.description.split('\n')[0].slice(0, 30);
+  return '\n' + t('cmd.suggestion_hint').replace('{name}', topMatch.name).replace('{desc}', desc + '...');
 }

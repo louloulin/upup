@@ -327,7 +327,14 @@ export async function runCli(options: RunCliOptions = {}) {
 
   // Initialize skills system - registers dynamic commands used by getAllSlashCommands()
   try {
-    await initializeSkills();
+    const n = await initializeSkills();
+    // P0 fix: surface a startup message so users see how many skills are
+    // actually available (they were silently registered before, causing
+    // the "/cmd shows nothing" complaint).
+    if (process.env.UPUP_QUIET_SKILLS_LOAD !== '1') {
+      const { t } = await import('./i18n/strings.js');
+      console.log(t('cmd.skills_loaded').replace('{n}', String(n)));
+    }
   } catch (e) {
     console.warn('[Skills] Failed to initialize:', e);
   }

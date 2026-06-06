@@ -91,6 +91,52 @@ class UpUpPluginApiImpl implements UpUpPluginApi {
     }
   }
 
+  // === Skill Registration (P1.7) ===
+  registerSkill(skill: {
+    name: string;
+    description: string;
+    instructions: string;
+    argumentHint?: string;
+    aliases?: string[];
+    model?: 'sonnet' | 'haiku' | 'opus' | 'default';
+    context?: 'inline' | 'fork';
+    allowedTools?: string[];
+    userInvocable?: boolean;
+  }): () => void {
+    if (!skill || !skill.name) {
+      this.logger.warn('registerSkill called with empty skill/name');
+      return () => {};
+    }
+    try {
+      // Lazy require to avoid pulling in skills graph at adapter init
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { registerSkill: doRegister, unregisterSkill: doUnregister } = require('../skills/register.js');
+      doRegister(
+        {
+          name: skill.name,
+          description: skill.description,
+          path: `plugin:${this.id}#${skill.name}`,
+          triggers: skill.aliases ?? [],
+          userInvocable: skill.userInvocable ?? true,
+          model: skill.model,
+          context: skill.context,
+          allowedTools: skill.allowedTools,
+          argumentHint: skill.argumentHint,
+          instructions: skill.instructions,
+          aliases: skill.aliases,
+          source: 'plugin',
+        },
+        `plugin:${this.id}`,
+      );
+      info('default', `Registered skill: ${skill.name} (plugin ${this.id})`);
+      // Return cleanup function
+      return () => doUnregister(skill.name);
+    } catch (e) {
+      this.logger.error(`registerSkill failed for '${skill.name}': ${(e as Error).message}`);
+      return () => {};
+    }
+  }
+
   // === Hook Registration ===
   registerHook(events: string[], handler: HookHandler, options?: any): void {
     for (const event of events) {
@@ -207,6 +253,38 @@ export class PluginLoader {
       throw new Error(`Invalid plugin config for: ${manifest.id}`);
     }
 
+    // Register skills declared in the manifest (P1.7)
+    // Goes through the unified registerSkill() so the local SST + the
+    // @upup/commands bridge stay in sync.
+    if (manifest.skills && manifest.skills.length > 0) {
+      try {
+        // Lazy require to avoid pulling in the full skills graph at load time
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const { registerSkill } = require('../skills/register.js');
+        for (const entry of manifest.skills) {
+          registerSkill(
+            {
+              name: entry.name,
+              description: entry.description,
+              path: `plugin:${manifest.id}#${entry.name}`,
+              triggers: entry.aliases ?? [],
+              userInvocable: entry.userInvocable ?? true,
+              model: entry.model,
+              context: entry.context,
+              allowedTools: entry.allowedTools,
+              argumentHint: entry.argumentHint,
+              instructions: entry.instructions,
+              aliases: entry.aliases,
+              source: 'plugin',
+            },
+            `plugin:${manifest.id}`,
+          );
+        }
+      } catch (e) {
+        warn('default', `Plugin ${manifest.id} skill registration failed: ${(e as Error).message}`);
+      }
+    }
+
     // Load via adapter
     const plugin = await adapter.load(manifest, api);
 
@@ -237,6 +315,24 @@ export class PluginLoader {
 
     this.loaded.delete(pluginId);
     this.apiCache.delete(pluginId);
+
+    // Unregister skills owned by this plugin (P1.7 cleanup)
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { getSkillCommandRegistry } = require('../skills/slash-command.js');
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { unpublishSkill } = require('../skills/bridge.js');
+      const registry = getSkillCommandRegistry();
+      const allSkills = registry.getAllSkills();
+      for (const s of allSkills) {
+        if (s.path === `plugin:${pluginId}#${s.name}` || s.path?.startsWith(`plugin:${pluginId}#`)) {
+          registry.unregister?.(s.name);
+          unpublishSkill(s.name);
+        }
+      }
+    } catch {
+      // Skill subsystem not loaded in this context; safe to ignore
+    }
   }
 
   /**

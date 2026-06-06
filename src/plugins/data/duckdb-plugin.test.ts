@@ -170,6 +170,8 @@ function createMockPluginApi() {
     registerService: (_s: any) => {},
     registerDataSource: () => {},
     resolvePath: (_p: string) => _p,
+    // P1.7 — added in unify-skills-and-plugins-registries
+    registerSkill: (_s: any) => () => {},
   };
 }
 

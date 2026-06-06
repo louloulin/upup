@@ -23,6 +23,7 @@ import { SkillCommandRegistry, getSkillCommandRegistry } from './slash-command.j
 import { registerBuiltinSkills } from './builtin-skills.js';
 import { initInvestmentSkills } from './bundled/index.js';
 import { initializeAgentCommands } from './agent-commands.js';
+import { publishAll as publishAllToBridge } from './bridge.js';
 
 
 // ============================================================================
@@ -136,6 +137,15 @@ export async function initializeSkills(
   // Step 3: Register agent skills from ~/.claude/skills/
   const agentCount = await initializeAgentCommands();
   count += agentCount;
+
+  // Step 4: Publish all skills to @upup/commands dynamic registry
+  // so /cmd autocomplete can see them. P0 fix.
+  try {
+    publishAllToBridge();
+  } catch (e) {
+    console.warn('[skills] Failed to publish skills to /cmd bridge:', e);
+  }
+
   initialized = true;
   return count;
 }
@@ -161,6 +171,15 @@ export function isInitialized(): boolean {
 export function resetInitialization(): void {
   initialized = false;
   getSkillCommandRegistry().clear();
+  // Also clear the upstream bridge so tests start clean
+  try {
+    // Lazy require to avoid circular import at module load
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { clearBridge } = require('./bridge.js');
+    clearBridge();
+  } catch {
+    // Bridge not initialized in this context; safe to ignore
+  }
 }
 
 /**
