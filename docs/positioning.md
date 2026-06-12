@@ -1,3 +1,11 @@
+---
+> 📌 **中国版定位 (2026-06-12 升级)**: 完整、权威的"中国版 dexter"定位表述已迁移到
+> [`docs/upup-china-edition-positioning.md`](./upup-china-edition-positioning.md)。
+> 当本文件与白皮书冲突时,以白皮书为准。
+> 数字与"vs dexter"对比请引用
+> [`docs/upup-vs-dexter-audit.md`](./openspec/changes/upup-vs-dexter-comprehensive-audit-and-doc-refresh/docs/upup-vs-dexter-audit.md)。
+---
+
 # upup 投研 AI 助手 — 完整版定位 (v5.6)
 
 > 顶级投资助手的 CLI AI Agent — CLI-first / Open-source / 全市场 / 三件套

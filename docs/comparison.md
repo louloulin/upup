@@ -28,12 +28,12 @@
 |---|---|---|
 | Origin | Original | Fork + 8 dimensions of additions |
 | A-share | ❌ US-focused | ✅ Tushare + AKShare native |
-| Skills | ~10 (US-centric) | 50+ (A-share + global) |
+| Skills | 3 (US-centric) | 50 + 14 bundled (A-share + global + i18n) |
 | 5-phase /invest | ❌ | ✅ |
 | i18n | English | EN + zh-CN (symmetric) |
-| Plugin system | Limited | 4 runtimes (bun/jiti/wasm/mcp) |
-| LLM providers | 4 | 7 (added DeepSeek default) |
-| Investment commands | 5 | 11 |
+| Plugin system | ❌ None | 4 runtimes (bun/jiti/wasm/mcp) |
+| LLM providers | 8 metadata (OpenAI 默认) | 8 metadata (DeepSeek 设为中文场景默认) |
+| Investment commands | 0 | 11 (+ 4 test) |
 | Subagents | 2 | 5+ investment subagents |
 | Session 2.0 | Basic | Plan mode, loop recovery, audit |
 | Memory | None | Full (observation buffer, extraction, audit chain) |
@@ -173,3 +173,10 @@ Aider is the gold standard for AI pair programming in the terminal.
 ---
 
 <p align="center"><strong>UpUp — 投资研究的瑞士军刀。</strong></p>
+
+---
+
+> 📊 **数据来源 (2026-06-12 更新)**: 本页所有 "vs virattt/dexter" 数字均以
+> [`upup-vs-dexter-audit.md`](./openspec/changes/upup-vs-dexter-comprehensive-audit-and-doc-refresh/docs/upup-vs-dexter-audit.md) 为准。
+> 完整可复现 shell 命令 + 提交 SHA pin 见该文档。
+> 中国版定位的权威表述见 [`upup-china-edition-positioning.md`](./upup-china-edition-positioning.md)。

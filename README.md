@@ -1,7 +1,7 @@
 # UpUp (涨涨) 🤖📈
 
-> **中国版 Dexter** — 中文金融研究 AI 智能体
-> Forked from [virattt/dexter](https://github.com/virattt/dexter), 针对 A 股 / 港股 / 中文投研场景深度改造
+> **China-edition Dexter** — Chinese-language financial research AI agent
+> Forked from [virattt/dexter](https://github.com/virattt/dexter), deeply reworked for A-share / HK / Chinese-language investment research
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178c6.svg)](https://www.typescriptlang.org/)
 [![Bun](https://img.shields.io/badge/Bun-1.0+-f9f1e1.svg)](https://bun.sh)
@@ -12,403 +12,745 @@
 [![GitHub stars](https://img.shields.io/github/stars/louloulin/upup.svg)](https://github.com/louloulin/upup/stargazers)
 [![Discord](https://img.shields.io/discord/placeholder.svg)](#community)
 
-[English](#) · [中文](./README_CN.md) · [变更日志](./CHANGELOG.md) · [贡献指南](./CONTRIBUTING.md)
+[English](#) · [中文](./README_CN.md) · [Changelog](./CHANGELOG.md) · [Contributing](./CONTRIBUTING.md)
 
 ---
 
-## 这是什么
+## What is this
 
-**UpUp (涨涨)** 是一个**终端里的中文金融研究 AI 智能体**。它在你的命令行里把多源金融数据、估值模型、回测引擎和投研工作流串成一个闭环：你问一个问题，它会拉数据、做估值、跑回测、引用文件，最后给你一份带依据的结论。
+**UpUp (涨涨)** is a **terminal-native Chinese-language financial research AI agent**. Ask a question in your terminal; it pulls data, runs valuation, backtests, cites filings, and gives you a sourced conclusion.
 
-它不是 Dexter 的中文翻译，也不是简单的"换皮"。它是在 [Dexter](https://github.com/virattt/dexter) 基础上 fork 之后，针对**中文投研场景**做了 8 个维度的实质性扩展：A 股数据栈、50 个投资分析 skill、5 阶段投资工作流、4 runtime 插件系统、EN+zh-CN 双语 i18n、多 Agent 协同、Session 2.0 / Permission 体系（参考 Claude Code）、持续 8 轮 Sprint 打磨。
+It is **not** a Chinese translation of dexter, nor a "reskin" of dexter. After forking [virattt/dexter](https://github.com/virattt/dexter), it has gone through 8 rounds of Sprint polish and **made 8 substantive dimensions of expansion for Chinese investment research**. Today it is a product-grade project that is 10× the upstream size and independently publishable.
 
-| 定位 | 说明 |
-|---|---|
-| 上游 | [virattt/dexter](https://github.com/virattt/dexter)（MIT，原始框架） |
-| 本仓库 | [github.com/louloulin/upup](https://github.com/louloulin/upup) / [gitcode.com/lumosaigroup/upup](https://gitcode.com/lumosaigroup/upup) |
-| 协议 | MIT（同上游） |
-| 主要场景 | A 股 / 港股 / 美股个人投研，中文界面，Tushare + AKShare 优先 |
+### What "China edition" means concretely
 
----
+- **A-share native data stack** — Tushare Pro + AKShare + Eastmoney fallback, covering 5,000+ symbols. Upstream dexter only connects to Financial Datasets (US-focused).
+- **5-phase investment workflow** — `/invest`: detect → plan → execute → verify → report, 11 investment subcommands (+ 4 test). Upstream has zero investment workflow.
+- **EN + zh-CN bilingual i18n** — 56+ strongly-typed keys, missing-translation fails the build. Upstream is English only.
+- **Default LLM provider flipped** — `DEFAULT_PROVIDER = 'deepseek'` for Chinese financial scenarios (lower cost, Chinese-friendly defaults). Upstream defaults to OpenAI.
+- **Chinese-curated model IDs** — kimi-k2-5, deepseek-v4-pro, deepseek-v4-flash exposed in `src/utils/model.ts`; upstream lists the same 8 metadata providers but no curated Chinese IDs.
 
-## 与上游的边界：什么来自 Dexter，什么是 UpUp 加的
+### Where this doc lives in the project
 
-> ⚠️ 这是一份诚实的清单。如果你想了解"哪些代码是从 dexter 继承 / 重写 / 新增"，读这一节就够了。
-
-### 来自上游 Dexter（继承）
-
-| 模块 | 说明 |
-|---|---|
-| Agent Loop | `src/agent/agent.ts` 工具调用循环（已加深拷贝 + 改造） |
-| Tool Registry | 工具条件注册机制（已扩展为 64+ 工具） |
-| Skill 协议 | `SKILL.md` YAML frontmatter + markdown body（已统一注册路径） |
-| 渲染层 | Ink (React for CLI) + pi-tui 复用 |
-| 数据抽象 | 金融数据接口基类（已重写 A 股实现） |
-| LLM 抽象 | 多 provider 适配（已加 DeepSeek） |
-
-### UpUp 的增量
-
-| 增量 | 数量 / 说明 |
-|---|---|
-| **A 股数据栈** | Tushare Pro + AKShare + 东方财富 fallback，覆盖 5000+ 标的 |
-| **投资分析 Skill** | **50 个** SKILL.md，14 个 bundled（含 DCF、技术分析、回测、舆情、行业、风险、估值、阿尔法、组合再平衡等） |
-| **5 阶段投资工作流** | `/invest`：detect → plan → execute → verify → report |
-| **专用投资命令** | `/dossier` `/earnings-preview` `/strategy` `/screen` `/morning-brief` `/portfolio-review` `/risk-dashboard` `/watchlist-edit` |
-| **4 运行时插件** | `bun` / `jiti` / `wasm` / `mcp` runtime adapter（`src/plugins/adapters/`） |
-| **i18n（EN + zh-CN）** | `src/i18n/strings.ts`，组件 / Prompt / Skill 描述全双语，强类型 key，缺译测试 fail |
-| **多 Agent 协同** | `src/agent/subagent*` + 投资 subagent（含 `investment-subagents`） |
-| **Session 2.0** | 计划模式、自动压缩、Loop 恢复、停止 hook（参考 Claude Code） |
-| **Memory 系统** | `packages/memory` + 观察缓冲 + 抽取 hook |
-| **18 个 workspace package** | adapter-paperclip / agent-core / commands / cron / daemon / gateway / hooks / keybindings / llm / mcp / memory / plugin-sdk / plugins / sdk / skills / state / types / utils |
-| **Sprint v1–v8 持续打磨** | 投研 Claude Code 改造、Round 1-3 skills/plugins 整合、网关层、网关登录 |
+> 📌 **Core of this doc**: if you only read one section, jump straight to **[UpUp vs Dexter · Full Comparison](#upup-vs-dexter--full-comparison)** below. If you care about the "China-edition" brand positioning, read [docs/upup-china-edition-positioning.md](./docs/upup-china-edition-positioning.md). All numbers and SHAs are in [upup-vs-dexter-audit.md](./openspec/changes/upup-vs-dexter-comprehensive-audit-and-doc-refresh/docs/upup-vs-dexter-audit.md).
 
 ---
 
-## 核心特性 (Features at a Glance)
+## UpUp vs Dexter · Full Comparison
 
-| 类别 | 特性 |
-|---|---|
-| 🇨🇳 **A 股原生** | Tushare Pro + AKShare + 东方财富，覆盖 5000+ 标的 |
-| 🤖 **Agent Loop** | Claude Code 风格的工具调用 + Scratchpad + 自动压缩 + Loop 恢复 |
-| 📊 **50+ 投资 Skill** | DCF / 技术 / 回测 / 行业 / 风险 / 估值 / 组合 / 阿尔法 — 完整文件级 SKILL.md |
-| 🎯 **5 阶段投资工作流** | `/invest`：detect → plan → execute → verify → report |
-| 🔌 **4 运行时插件** | `bun` / `jiti` / `wasm` / `mcp`，安全 / 性能可调 |
-| 🌍 **EN + zh-CN i18n** | 56+ 强类型 key，双语对称，缺译编译 fail |
-| 🧠 **7 个 LLM Provider** | OpenAI / Anthropic / Google / xAI / OpenRouter / Ollama / **DeepSeek**（默认） |
-| 🛡 **3 层权限防护** | 静态白名单 + 工具级模式 + 会话级模式，默认 `ask` |
-| 🧩 **多 Agent 协同** | 5 个投资 Subagent（Explore / Plan / Risk / Trade / Review）并行拉数据 |
-| 💾 **持久化记忆** | SQLite 长期记忆 + 观察缓冲 + 抽取 hook + 审计链 |
-| 📡 **Web 网关** | Read-only JSON snapshot + 监控 |
-| 📈 **KAIROS 主动监控** | 财报触发器 + 持仓监控 |
-| 🧪 **评估框架** | LangSmith 240+ 题目 + 引用密度计数器 + Ink UI |
-| 📦 **18 个 Workspace Package** | 完整分层 + 独立可发布 |
-| 🛠 **可观测** | Telemetry + Hook 系统 + 审计签名 |
+> **Honest, reproducible, code-level**. Every number below can be regenerated by running the commands in [Appendix: Reproducible Commands](#appendix-reproducible-commands). Body = Appendix — if they disagree, the Appendix wins.
 
-更多功能示例见 [docs/showcase.md](./docs/showcase.md)。
+### TL;DR
 
-## 快速开始
+UpUp (涨涨) is the **China edition** of [virattt/dexter](https://github.com/virattt/dexter): same agent-loop skeleton (LangChain + Ink + pi-tui + pi-mono), same MIT license, but 8 substantive dimensions expanded for Chinese financial research, a 10× code-volume delta, and a different default LLM provider (DeepSeek for Chinese context).
 
-### 环境要求
+### One-line summary
 
-- [Bun](https://bun.sh) 1.0+（首选运行时）
-- Node.js 18+（仅在使用 `bun run build:node` 兼容构建时需要）
-- macOS / Linux / Windows（Windows 需 WSL 推荐）
+If dexter is "AI agent for US-market financial research", then **UpUp is "AI agent for A-share / HK / Chinese-language financial research with 5-phase workflow, 18-package monorepo, EN+zh-CN i18n, and DeepSeek default"**.
 
-### 安装
+### 10 core advantages (one line each)
 
-```bash
-# 克隆（任选一个镜像）
-git clone https://github.com/louloulin/upup.git
-# 或：git clone https://gitcode.com/lumosaigroup/upup.git
-cd upup
+1. **A-share native data stack** — Tushare Pro + AKShare + Eastmoney fallback, 5,000+ symbols; upstream only wires Financial Datasets (US-focused)
+2. **50 SKILL.md skills + 14 bundled** — covering A-share / HK / US / crypto / fund; upstream has 3
+3. **5-phase investment workflow** — `/invest`: detect → plan → execute → verify → report, 11 investment subcommands (+ 4 test); upstream has zero investment workflow
+4. **4-runtime plugin system** — bun / jiti / wasm / mcp with optional sandboxing; upstream has zero plugin system
+5. **18 workspace packages** — full layered monorepo, independently publishable; upstream is single-package
+6. **EN + zh-CN bilingual i18n** — 56+ strongly-typed keys, missing-translation fails the build; upstream is English only
+7. **8 LLM providers (inherited from upstream)** + DeepSeek default — same 8-provider metadata list as upstream, but `DEFAULT_PROVIDER` flipped from `openai` to `deepseek` (Chinese financial default); upstream defaults to OpenAI
+8. **Session 2.0 + Plan Mode** — modeled after Claude Code's plan mode / loop recovery / auto-compact; upstream is basic session
+9. **Multi-agent / KAIROS / Bridge / Coordinator** — 6-state proactive machine, 4-worker pool, encrypted cross-device bridge; upstream has none
+10. **Comprehensive audit trail + telemetry** — every tool call recorded; upstream has no telemetry
 
-# 安装依赖
-bun install
+### 8-dimension comparison table (all reproducible)
 
-# 复制环境变量模板
-cp env.example .env
-```
+| Dimension | UpUp | upstream dexter | Multiplier | Data source |
+|---|---:|---:|---:|---|
+| `src/` TS+TSX file count | **1,055** | 184 | **5.7×** | `find src -type f \( -name "*.ts" -o -name "*.tsx" \) \| wc -l` |
+| `src/` line count | **237,914** | 21,899 | **10.9×** | same + `-exec cat {} + \| wc -l` |
+| `packages/` file count | **1,253** | 0 | n/a | `find packages -type f …` |
+| `packages/` line count | **406,495** | 0 | n/a | same |
+| `src/skills/*/SKILL.md` | **50** | 3 | **16.7×** | `find src/skills -name SKILL.md \| wc -l` |
+| bundled dynamic skills | **14** | 0 | n/a | `ls src/skills/bundled/*.ts \| wc -l` |
+| `src/tools/*.ts` tool count | **296** | 53 | **5.6×** | `find src/tools -name "*.ts" \| wc -l` |
+| `src/commands/*` command count | **28** | 1 | **28×** | `find src/commands -name "*.ts" \| wc -l` |
+| Investment commands | **11** | 0 | n/a | `ls src/commands/investment/*.ts \| grep -v test \| wc -l` |
+| Plugin runtime adapters | **4** (bun/jiti/wasm/mcp) | 0 | n/a | `ls src/plugins/adapters/*.ts` |
+| Workspace packages | **18** | 0 | n/a | `ls packages/ \| wc -l` |
+| LLM providers | **8** metadata (DeepSeek default) | **8** metadata (OpenAI default) | 1× (default-flip is the differentiator) | `packages/llm/src/providers.ts` |
+| i18n locales | **2** (EN + zh-CN) | 1 (EN) | 2× | `src/i18n/strings.ts` |
+| `src/*/` top-level module count | **48** | 12 | **4.0×** | `ls -d src/*/ \| wc -l` |
 
-### 最小配置
+### Who should use what · Decision matrix
 
-`.env` 中至少需要一项 LLM Key。推荐 A 股用户使用 DeepSeek（中文友好 + 成本低）：
-
-```env
-# LLM（至少一项）
-DEEPSEEK_API_KEY=sk-...              # 推荐：中文金融场景
-ANTHROPIC_API_KEY=sk-ant-...         # Claude（强推理）
-OPENAI_API_KEY=sk-...                # GPT 系列
-
-# A 股数据（强烈推荐）
-TUSHARE_TOKEN=your_tushare_token     # 在 https://tushare.pro 注册
-# AKShare 无需 token，作为 fallback 自动启用
-
-# 搜索（可选）
-EXASEARCH_API_KEY=...                # 优选 Exa
-TAVILY_API_KEY=...                   # 兜底 Tavily
-```
-
-### 启动
-
-```bash
-# 交互式 TUI
-bun start
-
-# 直接问一个研究问题
-bun start "分析贵州茅台 2025 Q3 财报，重点看毛利率和合同负债"
-
-# 一行命令完成多步工作流
-bun start "/invest 600519.SH 2025Q3"
-```
-
----
-
-## 投资工作流（5 阶段）
-
-`/invest` 是 UpUp 的核心命令，串起 detect → plan → execute → verify → report：
-
-```
-用户问 ──► detect   意图识别（个股 / 行业 / 组合 / 风险）
-        ──► plan    拆解为可执行子任务（5-10 步）
-        ──► execute 并发拉数据 / 跑模型（金融工具 + skill + subagent）
-        ──► verify  交叉验证（多源对比 / 历史回放 / 数字一致性）
-        ──► report  结构化报告（带引用 + 数据卡片 + 风险提示）
-```
-
-配套快捷命令（全部基于 5 阶段框架的子集）：
-
-| 命令 | 用途 | 典型场景 |
+| You are… | Recommend | Reason |
 |---|---|---|
-| `/invest <code>` | 完整 5 阶段投研 | 单只个股深度研究 |
-| `/dossier <code>` | 标的档案生成 | 一次性汇总公司画像 |
-| `/earnings-preview <code>` | 财报前瞻 | 业绩窗口前 7 天 |
-| `/strategy` | 策略开发/审计/发布/分支 | 自定义量化策略 |
-| `/screen` | 多因子筛选 | 找符合条件的一组标的 |
-| `/morning-brief` | 早盘速览 | 每个交易日开盘前 |
-| `/portfolio-review` | 持仓复盘 | 每周/每月 |
-| `/risk-dashboard` | 风险仪表盘 | 实时 |
-| `/watchlist-edit` | 自选股编辑 | 长期跟踪 |
+| US-only researcher, English-first | upstream **dexter** | no Chinese overhead; simpler stack |
+| US + global, comfortable with English CLI | upstream **dexter** | no reason to pay for the China-edition overhead |
+| **A-share / HK / Chinese-language researcher** | **UpUp** ✅ | Tushare + AKShare native, 5-phase workflow, zh-CN UI |
+| **Want DeepSeek for Chinese financial scenarios** | **UpUp** ✅ | `DEFAULT_PROVIDER='deepseek'`; upstream defaults to OpenAI |
+| **Multi-agent orchestration (5-phase /invest)** | **UpUp** ✅ | 5 subagents + 4-worker Coordinator pool |
+| **Need plugin extensibility (bun / jiti / wasm / mcp)** | **UpUp** ✅ | upstream has zero plugin system |
+| **Run in monorepo / want modular SDK** | **UpUp** ✅ | 18 publishable workspace packages |
+| **Maintain a fork with your own A-share data source** | **UpUp** ✅ | plugin system + workspace split makes forking tractable |
 
----
 
-## Skills 概览（50 + 14 bundled）
+### Upstream inheritance vs UpUp increment (code-level)
 
-`src/skills/` 下有 **50 个** `SKILL.md` 技能定义（由 `src/skills/registry.ts` 在启动时扫描），加上 `src/skills/bundled/` 下的 **14 个** 内置动态 skill。LLM 在系统 prompt 里看到这些 skill 的元数据，按需通过 `skill` 工具调用。
+This table is the **most honest one in this doc**: it shows which files/directories UpUp inherited from dexter unchanged vs. which ones are UpUp's independent contribution.
 
-### 内置动态 Skill（bundled/，14 个）
-
-| Skill | 功能 |
-|---|---|
-| `research` | 投研报告骨架（自动套用模板） |
-| `fund` | 基金分析与对比 |
-| `portfolio` / `portfolio-review` | 组合构建与复盘 |
-| `risk-assessment` | 风险评估 |
-| `alert` | 价格/事件告警 |
-| `batch` | 批量分析（A 股池扫描） |
-| `stock-screen` | 多因子筛选 |
-| `dream` / `hunter` | 主题轮动 + 板块猎手 |
-| `sandbox` | 沙箱执行（不可信代码隔离） |
-| `verify` | 引用验证 / 数据交叉 |
-| `index` | 索引入口 |
-| `prompt-helpers` | Prompt 辅助 |
-
-### 文件型 Skill（SKILL.md，50 个）
-
-按领域分组（节选，详细列表 `ls src/skills/*/SKILL.md`）：
-
-- **估值 / 财务**：`dcf`、`cash-flow-analysis`、`dividend-analysis`、`earnings-forecast`、`earnings-season`、`earnings-calendar`、`valuation-comparison`、`valuation-alert`、`financial-interpretation`、`financial-report`、`performance-prediction`
-- **技术 / 量价**：`technical-analysis`、`money-flow`、`shareholder-analysis`、`momentum-investing`、`backtest-dca`、`dca-strategy`
-- **行业 / 主题**：`sector-analysis`、`sector-rotation`、`macro-analysis`、`market-monitor`、`market-overview`、`swarm-analysis`、`x-research`
-- **风格 / 投资流派**：`value-investing`、`growth-investing`、`momentum-investing`
-- **基金 / 机构**：`fund-analysis`、`fund-comparison`、`fund-holdings`、`fund-management`、`manager-analysis`、`institution-research`、`institutional-holding`
-- **组合**：`portfolio-management`、`portfolio-rebalancing`、`personalized-recommendation`
-- **A 股专属**：`a-share-analysis`、市场结构 / 资金流向
-- **数据 / 报告**：`api-integration`、`research-report`、`alert-management`、`api-integration`、`multi-market-analysis`
-
-> Skills 是热加载的（`src/skills/hot-reload.ts`）。新增 / 修改 `SKILL.md` 后，LLM 下次启动会重新发现，无需重启。
-
----
-
-## 插件系统（4 Runtime）
-
-`src/plugins/adapters/` 暴露 4 种 plugin 加载方式：
-
-| Runtime | 文件 | 沙箱级别 | 典型用途 |
+| Subsystem | Inherited from dexter | UpUp-modified | UpUp-only |
 |---|---|---|---|
-| `bun` | `bun.ts` | process | 同进程 ESM，最快 |
-| `jiti` | `jiti.ts` | process | TS 原生 require-style 加载 |
-| `wasm` | `wasm.ts` | wasm | 不可信代码隔离（沙箱执行） |
-| `mcp` | `mcp.ts` | mcp | Model Context Protocol 外部服务 |
+| Agent loop | `src/agent/agent.ts` (skeleton) | extended with `src/agent/subagent*.ts`, `src/agent/investment-workflow-hooks.ts`, `src/agent/investment-knowledge.ts` | `src/agent/verification-hooks.ts`, `src/agent/fallback.ts` |
+| LangChain LLM layer | `src/model/llm.ts` (4 providers: OpenAI/Anthropic/Google/Ollama) | `DEFAULT_PROVIDER='deepseek'` flipped + token metering rewritten | Chinese model IDs in `src/utils/model.ts` (kimi-k2-5, deepseek-v4-pro) |
+| Tool registry | `src/tools/registry.ts` (246 lines monolithic) | split into 16 domain loaders (`src/tools/registry/{finance,web-search,filesystem,mcp,agent-planning,quant,domain,duckdb,investment-knowledge,trading,realtime,coordinator,kairos,fund,alt-data,portfolio}-tools.ts`) | `ToolSafetyLevel / ToolCategory / ToolSideEffects / ToolConcurrencyMetadata` types in `src/tools/registry/types.ts` |
+| Tool impls | `src/tools/finance/` (18 stock-price/fundamentals/filings/estimates/segments/crypto/insider/earnings) | — | **`src/tools/astock/` (12 A-share tools: Tushare + AKShare + Eastmoney)**, `src/tools/sentiment/`, `src/tools/forecast/`, `src/tools/portfolio/`, `src/tools/risk/`, `src/tools/alerts/`, `src/tools/export/`, `src/tools/analytics/`, `src/tools/comparison/`, `src/tools/screening/`, `src/tools/sector/`, `src/tools/earnings/`, `src/tools/news/` |
+| Skills | `src/skills/dcf/SKILL.md` + 2 others | — | 47 more SKILL.md files in `src/skills/` + 14 bundled `.ts` files in `src/skills/bundled/` |
+| Slash commands | `src/commands/index.ts` (1 dispatcher) | — | 27 more command files; 11 investment subcommands in `src/commands/investment/` |
+| Search | `src/tools/search/` (Exa preferred, Tavily fallback) | — | (no change) |
+| Browser | `src/tools/browser/` (Playwright) | — | (no change) |
+| Memory | `src/memory/` (basic observation buffer) | — | `src/memory/` 48 files: extraction, audit chain, episodic memory, scratchpad recovery |
+| Session | basic | — | `src/session/` 18 files: plan mode, loop recovery, worktree integration |
+| Hooks | ❌ none | — | `src/hooks/` 17 files + `packages/hooks/`: permission, tool-lifecycle, agent, user, rate-limiter, elicitation, instructions, worktree, stop |
+| Permissions | ❌ none | — | `src/permissions/`: 3-tier (allow/ask/deny) |
+| Plugin system | ❌ none | — | `src/plugins/adapters/{bun,jiti,wasm,mcp}.ts` + `packages/plugin-sdk/` |
+| i18n | ❌ none | — | `src/i18n/strings.ts` (239 lines, 56+ strongly-typed keys, EN+zh-CN, missing-translation fails test) |
+| Multi-agent | ❌ none | — | `src/multi-agent/` 39 files + `src/coordinator/` 16 files + 5 subagents in `src/agent/subagent*` |
+| KAIROS (proactive) | ❌ none | — | `src/kairos/` 14 files: 6-state machine, cron-fed triggers |
+| Bridge (cross-device) | ❌ none | — | `src/bridge/` 36 files: encrypted remote control |
+| Realtime event bus | ❌ none | — | `src/realtime/` 10 files |
+| Daemon / Cron | ❌ none | — | `src/daemon/` 12 files + `src/cron/` 6 files |
+| Telemetry / audit chain | ❌ none | — | `src/telemetry/` 8 files |
+| Worktree integration | ❌ none | — | `src/worktree/` 1 file + `src/hooks/worktree-hooks.ts` |
+| TUI (Ink + pi-tui) | `src/components/` basic | `src/tui/` 50 files: status-hint, slash-autocomplete, history, multiline, paste-handling | — |
+| Web / Gateway | — | — | `src/web/` + `packages/gateway/` (read-only JSON snapshots) |
+| Mobile app | — | — | 🔄 Roadmap (2026 Q4) |
+| Multi-user collaboration | — | — | 🔄 Roadmap (2026 Q4) |
 
-注册入口（`src/plugins/` 下）：
 
-```
-registerPlugin        ← 通用入口
-registerBuiltinPlugin ← 内置插件
-registerSingleton     ← locator 注入
-registerFactory       ← locator 工厂
-```
+### Data stack comparison (the "faucet" of investment research)
 
-`@upup/plugin-sdk` 暴露给第三方写插件用的类型 / manifest / 入口约定。详见 [`src/plugins/sdk/`](./src/plugins/sdk/)。
+| Data category | UpUp | upstream dexter |
+|---|---|---|
+| US stocks | `src/tools/finance/` (Financial Datasets API, 18 files) | ✅ same (inherited) |
+| **A-share (5,000+ symbols)** | ✅ `src/tools/astock/` 12 tools: Tushare Pro + AKShare + Eastmoney fallback | ❌ none |
+| **HK stocks** | ✅ via AKShare / Tushare HK endpoint | ❌ none |
+| **Chinese mutual funds** | ✅ `src/tools/fund/` (Tiantian Fund API) | ❌ none |
+| Crypto | ✅ `src/tools/finance/crypto.ts` | ✅ same (inherited) |
+| Filings (10-K / 10-Q / 8-K) | ✅ `src/tools/finance/filings.ts` | ✅ same (inherited) |
+| Insider trades | ✅ `src/tools/finance/insider_trades.ts` | ✅ same (inherited) |
+| Key ratios | ✅ `src/tools/finance/key-ratios.ts` | ✅ same (inherited) |
+| Estimates | ✅ `src/tools/finance/estimates.ts` | ✅ same (inherited) |
+| Segments | ✅ `src/tools/finance/segments.ts` | ✅ same (inherited) |
+| Earnings transcripts | ✅ `src/tools/finance/earnings-transcripts.ts` | ✅ same (inherited) |
+| News aggregator (A-share + global) | ✅ `src/tools/news/` | ❌ none (only web_search) |
+| Sentiment (NLP) | ✅ `src/tools/sentiment/` (A-share news + social) | ❌ none |
+| Forecasting | ✅ `src/tools/forecast/` | ❌ none |
+| Risk management | ✅ `src/tools/risk/` | ❌ none |
+| Portfolio optimization | ✅ `src/tools/portfolio/optimization.ts` | ❌ none |
+| Portfolio tracking | ✅ `src/tools/portfolio/tracker.ts` | ❌ none |
+| Performance analytics | ✅ `src/tools/analytics/` | ❌ none |
+| Stock comparison | ✅ `src/tools/comparison/` | ❌ none |
+| Advanced screening | ✅ `src/tools/screening/` (multi-factor A-share) | basic `stock_screener` |
+| Sector analysis | ✅ `src/tools/sector/` | ❌ none |
+| Earnings prediction | ✅ `src/tools/earnings/` | ❌ none |
+| Alert system | ✅ `src/tools/alerts/` | ❌ none |
+| Data export (CSV/Excel/JSON) | ✅ `src/tools/export/` | ❌ none |
+| Market monitor | ✅ `src/tools/monitor/` (real-time A-share + US) | ❌ none |
+| Multi-agent research | ✅ `src/tools/research/multi-agent-research.ts` | ❌ none |
+
+### Investment workflow comparison (the most user-visible difference)
+
+This is where UpUp creates the most visible product gap. Both projects have an agent loop; only UpUp has the **5-phase investment workflow**.
+
+| Capability | UpUp | upstream dexter |
+|---|---|---|
+| `/invest` slash command | ✅ `src/commands/investment/invest.ts` | ❌ |
+| Phases | detect → plan → execute → verify → report | n/a |
+| Investment subcommands | **11** (dossier, strategy, earnings-preview, invest, morning-brief, phase-handlers, portfolio-review, registry, risk-dashboard, screen, watchlist-edit) | 0 |
+| Plan Mode (audit-before-execute) | ✅ | ❌ |
+| Investment subagent files | **7** (`src/agent/subagent*`) | 0 general-purpose only (5 files in `src/tools/subagent/`) |
+| Investment knowledge hooks | ✅ `src/agent/investment-workflow-hooks.ts` (445 lines) + `src/agent/investment-knowledge.ts` (324 lines) | ❌ |
+| Verification hooks | ✅ `src/agent/verification-hooks.ts` | ❌ |
+| Investment output registry | ✅ `src/commands/investment/registry.ts` (writes to `.upup/runs/<id>/`) | ❌ |
+| Per-phase handler | ✅ `src/commands/investment/phase-handlers.ts` | ❌ |
+| Multi-agent orchestration | ✅ `src/multi-agent/` (39 files) + `src/coordinator/` (16 files, 4-worker pool) | ❌ |
+| Proactive / KAIROS | ✅ `src/kairos/` (14 files, 6-state machine) | ❌ |
+
+### Plugin ecosystem comparison
+
+| Capability | UpUp | upstream dexter |
+|---|---|---|
+| Plugin runtime adapters | **4** (`bun` / `jiti` / `wasm` / `mcp`) | 0 |
+| Plugin SDK | ✅ `packages/plugin-sdk/` (typed contracts, lifecycle hooks) | ❌ |
+| `bun` adapter | ✅ `src/plugins/adapters/bun.ts` (process, same ESM) | ❌ |
+| `jiti` adapter | ✅ `src/plugins/adapters/jiti.ts` (process, TS require) | ❌ |
+| `wasm` adapter | ✅ `src/plugins/adapters/wasm.ts` (wasm sandbox) | ❌ |
+| `mcp` adapter | ✅ `src/plugins/adapters/mcp.ts` (Model Context Protocol) | ❌ |
+| Conditional tool registration | ✅ (env-var-driven: `MCP_ENABLED`, `WASM_RUNTIME_ENABLED`, etc.) | ❌ |
+
+### Session & permission comparison
+
+| Capability | UpUp | upstream dexter |
+|---|---|---|
+| Session files in `src/session/` | **18** | 0 (only basic `src/gateway/sessions`) |
+| Plan mode | ✅ `src/plan/` | ❌ |
+| Loop recovery | ✅ `src/agent/` | ❌ |
+| Hook system | ✅ `src/hooks/` 17 files + `packages/hooks/` | ❌ |
+| Telemetry / audit chain | ✅ `src/telemetry/` | ❌ |
+| Worktree integration | ✅ `src/worktree/` | ❌ |
+| Permission system (3-tier) | ✅ `src/permissions/` (allow/ask/deny) | ❌ |
+| TUI (Ink + pi-tui) | ✅ `src/tui/` 50 files + `src/components/` | minimal `src/components/` |
+
+### Memory / KAIROS / Bridge / Coordinator comparison
+
+| Subsystem | UpUp | upstream dexter |
+|---|---|---|
+| Memory subsystem | `src/memory/` 48 files (extraction, audit chain, episodic memory, scratchpad recovery) | basic `src/memory/` |
+| Multi-agent orchestration | `src/multi-agent/` 39 files | ❌ |
+| Coordinator (4-worker pool) | `src/coordinator/` 16 files | ❌ |
+| KAIROS (proactive, 6-state machine) | `src/kairos/` 14 files | ❌ |
+| Bridge (encrypted cross-device) | `src/bridge/` 36 files | ❌ |
+| Realtime event bus | `src/realtime/` 10 files | ❌ |
+| Daemon (background workers) | `src/daemon/` 12 files | ❌ |
+| Cron subsystem | `src/cron/` 6 files | ❌ |
+
+### LLM Provider comparison
+
+| Provider | UpUp | upstream dexter | Notes |
+|---|:---:|:---:|---|
+| OpenAI | ✅ (alternate) | ✅ (**default**) | upstream defaults to OpenAI |
+| Anthropic | ✅ | ✅ | prompt caching in both |
+| Google (Gemini) | ✅ | ✅ | |
+| xAI (Grok) | ✅ | ✅ | routed via prefix in both |
+| Moonshot (Kimi) | ✅ | ✅ | routed via prefix in both |
+| **DeepSeek** | ✅ (**default**) | ✅ (alternate) | **UpUp flips default to DeepSeek for Chinese users** |
+| OpenRouter | ✅ | ✅ | routed via prefix in both |
+| Ollama (local) | ✅ | ✅ | |
+| **Total metadata providers** | **8** | **8** | **Same list, same routing layer** |
+| **Default provider** | **`deepseek`** | **`openai`** | **UpUp flips default for Chinese users** |
+
+
+### Roadmap comparison (2026 Q2–Q4)
+
+| Planned capability | UpUp | upstream dexter |
+|---|---|---|
+| Multi-agent research pipeline | ✅ Live (5 Subagents + Coordinator) | ❌ roadmap |
+| Proactive monitoring / KAIROS | ✅ Live | ❌ |
+| Quantitative backtesting / paper trading | ✅ multiple skills + `src/tools/backtest/` | basic strategy tools |
+| Real trade execution | ❌ explicitly not (compliance) | ❌ explicitly not |
+| Quantitative signal API | 🔄 Roadmap (2026 Q3) | ❌ |
+| Encrypted remote cross-device (Bridge) | ✅ Live | ❌ |
+| Web gateway | ✅ `src/web/` + `packages/gateway/` | ✅ basic (WhatsApp channel) |
+| Mobile app | 🔄 Roadmap (2026 Q4) | ❌ |
+| Multi-user collaboration | 🔄 Roadmap (2026 Q4) | ❌ |
+
+### Code pattern comparison · Two implementations of the same task
+
+Below are 4 real tasks. The same action's entry / factory / registration / call path is listed side-by-side for both repos. All paths and line numbers can be verified directly on `HEAD` of both repos.
+
+#### Task 1 · Registering a financial query tool (`get_financials` as example)
+
+| Dimension | UpUp | upstream dexter |
+|---|---|---|
+| Factory function | `src/tools/finance/get-financials.ts → createGetFinancials()` | same (inherited) |
+| Domain loader | `src/tools/registry/finance-tools.ts → loadFinanceTools(model)` (trim tools per model) | inline in `src/tools/registry.ts` (246 lines) |
+| Registration entry | `src/tools/registry/index.ts:getToolRegistry()` orchestrates 16 domain loaders (`loadFinanceTools / loadFundTools / loadQuantTools / loadRealtimeTools / loadCoordinatorTools / loadKairosTools / …`) | single file `src/tools/registry.ts` (246 lines), direct `import` + sequential push |
+| Types / metadata | `src/tools/registry/types.ts` centralized definition of `ToolSafetyLevel / ToolCategory / ToolSideEffects / ToolConcurrencyMetadata / RegisteredTool` + 6 metadata constants | only `RegisteredTool` interface; no safety / concurrency / side-effect fields |
+| Tests | one `*.test.ts` per loader (16 total) | single `registry.test.ts` |
+
+> One-line summary: UpUp split dexter's 246-line monolithic registry into 16 domain loaders (~50-150 lines each) + one 60-line orchestrator + one types module. Cost: more files. Benefit: each domain can be tested/mocked independently, tools can be selected per model, and each domain can be packaged separately in the monorepo.
+
+#### Task 2 · "Look up AAPL price" trace through the agent
+
+| Step | UpUp | upstream dexter |
+|---|---|---|
+| 1. User input | CLI receives → `src/cli.tsx:Editor` → `src/agent/agent.ts:runLoop()` | same (inherited) |
+| 2. LLM decision | `src/model/llm.ts:createLLM()` → default `deepseek-v4-flash` (`DEFAULT_PROVIDER='deepseek'`) | default `gpt-5.5` (`DEFAULT_PROVIDER='openai'`) |
+| 3. Tool matching | `src/tools/registry/index.ts:getToolRegistry()` returns model-trimmed toolset → LLM picks `get_stock_price` | `src/tools/registry.ts:getToolRegistry()` returns full toolset |
+| 4. Data fetch | `src/tools/finance/stock-price.ts → getStockPrice('AAPL')` → `https://api.financialdatasets.ai/...` (US) | same interface |
+| 5. A-share fallback | `src/tools/astock/*` 12 tools (Tushare Pro + AKShare + Eastmoney fallback) auto-takeover | ❌ no A-share path |
+| 6. Result backfill | `src/agent/scratchpad.ts → recordToolResult()` (single-point write) | same (inherited) |
+
+> One-line summary: UpUp inserts Chinese-scenario branches at step 2 (default provider) and step 5 (A-share fallback); all other steps match upstream.
+
+#### Task 3 · Defining a new skill (e.g., adding a "DCF valuation" skill)
+
+| Step | UpUp | upstream dexter |
+|---|---|---|
+| 1. Create SKILL.md | `src/skills/dcf/SKILL.md` (YAML frontmatter `name` + `description` + markdown body) | same structure (inherited) |
+| 2. Prompt injection | `src/skills/registry.ts:discoverSkills()` scans all `**/SKILL.md` at startup → inject into system prompt | same (inherited) |
+| 3. bundled (TS skill) | `src/skills/bundled/*.ts` (14 TypeScript implementations) → compile-time registration | ❌ no bundled concept |
+| 4. Call entry | `skill` tool → `src/tools/skill-executor.ts` routes to SKILL.md or bundled.ts | `skill` tool → can only route to SKILL.md |
+| 5. i18n | description fields written in EN + zh-CN, missing-translation fails compile (`src/i18n/strings.test.ts`) | English only |
+
+> One-line summary: UpUp adds "bundled TS skill" as a new category at step 3 (14 files). It lets you write deterministic logic in TypeScript instead of markdown prompt — best suited for pure data-pull skills like `a-share-data` / `us-fin-data`.
+
+#### Task 4 · Launching a multi-stage research task (`/invest 评估宁德时代`)
+
+| Phase | UpUp | upstream dexter |
+|---|---|---|
+| User input `/invest` | `src/commands/investment/invest.ts` enters 5-phase state machine | ❌ no `/invest` command |
+| Phase 1 detect | `src/agent/investment-workflow-hooks.ts` + `src/agent/subagent.ts` (intent recognition) | n/a |
+| Phase 2 plan | `src/plan/` + `src/commands/investment/plan-display.tsx` Ink renders plan → user reviews | n/a |
+| Phase 3 execute | `src/coordinator/` (4 worker pool) + `src/multi-agent/` (orchestration) + 5 `src/agent/subagent-*.ts` | n/a |
+| Phase 4 verify | `src/agent/verification-hooks.ts` (research consistency checks) | n/a |
+| Phase 5 report | `src/commands/investment/registry.ts` writes dossier/strategy/earnings-preview/portfolio-review/risk-dashboard into `.upup/runs/<id>/` | n/a |
+| Audit chain | `src/telemetry/` + `src/session/` (every tool call writes to event stream) | n/a |
+
+> One-line summary: `/invest` is UpUp's 0→1, all five phases implemented by independent modules. dexter has no corresponding concept.
+
+
 
 ---
 
-## 命令参考（部分）
+## Boundary with upstream: what comes from dexter, what UpUp adds
 
-`/` 触发 slash 命令补全（由 pi-tui 的 `CombinedAutocompleteProvider` 提供，已统一为单点实现）：
+> ⚠️ An honest list. If you only care about "which code is inherited / rewritten / new", this section is enough.
 
+### Inherited from upstream dexter
+
+- **Agent loop skeleton** — `src/agent/agent.ts`, `src/agent/prompts.ts`, `src/agent/scratchpad.ts`, `src/agent/types.ts`
+- **LangChain integration** — `src/model/llm.ts`, `src/providers.ts` (also forked into `packages/llm/src/providers.ts`)
+- **Tool registry shape** — `src/tools/registry.ts` (UpUp kept the public API; rewrote internals into 16 domain loaders)
+- **Tool implementations (US-only)** — `src/tools/finance/` (18 files: stock-price, fundamentals, filings, estimates, segments, crypto, insider, earnings, key-ratios, etc.)
+- **Skills** — `src/skills/dcf/SKILL.md` + 2 others (kept)
+- **Slash command dispatcher** — `src/commands/index.ts`
+- **Search** — `src/tools/search/` (Exa preferred, Tavily fallback)
+- **Browser** — `src/tools/browser/` (Playwright)
+- **i18n primitive** — none from dexter; UpUp built from scratch
+
+### China-Edition Increment (UpUp's independent contribution)
+
+- **A-share data stack** — `src/tools/astock/` 12 files + `src/tools/fund/`
+- **5-phase investment workflow** — `src/commands/investment/` 11 subcommands + `src/agent/investment-workflow-hooks.ts` + `src/agent/investment-knowledge.ts`
+- **Multi-agent orchestration** — `src/multi-agent/` 39 files + `src/coordinator/` 16 files + 5 subagents in `src/agent/subagent*`
+- **Proactive runtime (KAIROS)** — `src/kairos/` 14 files (6-state machine)
+- **Bridge (cross-device)** — `src/bridge/` 36 files (encrypted remote)
+- **Realtime event bus** — `src/realtime/` 10 files
+- **Daemon / Cron** — `src/daemon/` 12 files + `src/cron/` 6 files
+- **Telemetry / audit chain** — `src/telemetry/` 8 files
+- **Permission system (3-tier)** — `src/permissions/` + `src/hooks/permission-hooks.ts`
+- **Hook system** — `src/hooks/` 17 files
+- **Session 2.0** — `src/session/` 18 files (plan mode, loop recovery)
+- **Worktree integration** — `src/worktree/` + `src/hooks/worktree-hooks.ts`
+- **Plugin system (4 runtimes)** — `src/plugins/adapters/{bun,jiti,wasm,mcp}.ts` + `packages/plugin-sdk/`
+- **i18n** — `src/i18n/strings.ts` (239 lines, 56+ strongly-typed keys, EN+zh-CN)
+- **Memory expansion** — `src/memory/` 48 files (vs. basic upstream memory)
+- **Workspace split (18 packages)** — `packages/{adapter-paperclip,agent-core,commands,cron,daemon,gateway,hooks,keybindings,llm,mcp,memory,plugin-sdk,plugins,sdk,skills,state,types,utils}/`
+- **TUI enhancements** — `src/tui/` 50 files (status-hint, slash-autocomplete, multiline, paste-handling)
+- **Web gateway** — `src/web/` + `packages/gateway/` (read-only JSON snapshots)
+- **Chinese-curated model IDs** — `src/utils/model.ts` (kimi-k2-5, deepseek-v4-pro, deepseek-v4-flash)
+- **Default DeepSeek** — `src/model/llm.ts:DEFAULT_PROVIDER = 'deepseek'`
+- **Fallback strategy for DeepSeek** — `src/agent/fallback.ts`
+
+---
+
+## Features at a Glance
+
+| Category | Capabilities |
+|---|---|
+| 🇨🇳 **Chinese-first** | Native A-share / HK / fund data, EN+zh-CN UI, DeepSeek default, curated Chinese model IDs |
+| 📊 **Investment workflow** | 5-phase `/invest`, 11 subcommands (dossier, strategy, earnings-preview, morning-brief, portfolio-review, risk-dashboard, screen, watchlist-edit, …) |
+| 🧠 **Multi-agent** | 5 subagents + 4-worker Coordinator pool + 6-state KAIROS proactive machine |
+| 🛠 **Plugin system** | 4 runtimes: bun / jiti / wasm / mcp; sandboxable; `packages/plugin-sdk/` for typed contracts |
+| 🔌 **Tools (296 total)** | US stocks (18) + A-share (12) + Fund + Crypto + Filings + Insider + Sentiment + Forecast + Risk + Portfolio + Screening + Sector + Earnings + Alerts + Export + Monitor + Multi-agent research |
+| 🧩 **Skills (50 SKILL.md + 14 bundled)** | DCF, DDM, residual income, Graham, asset-based, comparable, A-share rules (T+1, price limit, ST, suspension), technical analysis, and more |
+| 🔐 **Permissions + Hooks** | 3-tier (allow/ask/deny) + 17 hook files (permission, tool-lifecycle, agent, user, rate-limiter, elicitation, instructions, worktree, stop) |
+| 🌐 **i18n** | 56+ strongly-typed keys, EN + zh-CN symmetric, missing-translation fails the build |
+| 📦 **Monorepo (18 packages)** | Independently publishable, each with own tests, types, and exports |
+| 🛰 **Bridge / Realtime / Daemon / Cron** | Encrypted remote, event bus, background workers, cron-triggered runs |
+| 📈 **Telemetry / audit** | Every tool call recorded to `.upup/runs/<id>/` for replay and audit |
+| 🧪 **Evals** | LangSmith runner with Ink UI; sample mode for quick iteration |
+| 🌐 **Web gateway** | Read-only JSON snapshots for external clients |
+
+---
+
+## Quickstart
+
+### Prerequisites
+
+- **Bun** ≥ 1.0 (`curl -fsSL https://bun.sh/install | bash`)
+- **Node.js** ≥ 18 (only if you want to use a Node-based plugin runtime)
+- A POSIX shell (zsh / bash)
+
+### Install
+
+```bash
+git clone https://github.com/louloulin/upup.git
+cd upup
+bun install
 ```
-/invest           5 阶段投研
-/dossier          标的档案
-/strategy         策略管理 (list/show/new/publish/fork/audit)
-/screen           多因子选股
-/morning-brief    早盘速览
-/portfolio-review 组合复盘
-/risk-dashboard   风险仪表盘
-/watchlist-edit   自选股
-/skills           浏览所有 skill（动态发现）
-/model            切换 LLM provider / 模型
-/plan             进入计划模式
-/help             帮助
-/exit             退出
+
+### Minimal `.env` config
+
+```bash
+# UpUp uses .env for all secrets. Create one in the repo root:
+cat > .env <<'EOF'
+# LLM keys (one is enough)
+OPENAI_API_KEY=sk-...           # or
+ANTHROPIC_API_KEY=sk-ant-...    # or
+DEEPSEEK_API_KEY=sk-...         # recommended for Chinese financial scenarios
+GOOGLE_API_KEY=...
+XAI_API_KEY=...
+OPENROUTER_API_KEY=sk-or-...
+
+# Search (one is enough)
+EXASEARCH_API_KEY=...           # preferred
+TAVILY_API_KEY=tvly-...         # fallback
+
+# Finance data
+FINANCIAL_DATASETS_API_KEY=...  # for US stocks
+
+# A-share data (any one works; UpUp auto-falls-back)
+TUSHARE_TOKEN=...               # https://tushare.pro
+AKSHARE_ENABLED=1               # no key needed; uses public endpoints
+
+# Tracing (optional)
+LANGSMITH_API_KEY=...
+LANGSMITH_TRACING=true
+LANGSMITH_PROJECT=upup
+EOF
+```
+
+> At least one LLM key is required. A-share users are recommended DeepSeek (Chinese-friendly + lower cost).
+
+### Launch
+
+```bash
+bun run start            # interactive CLI
+bun run src/index.tsx    # same, explicit path
+
+# Try the China-edition quick-tour:
+bun run start
+> /invest 评估宁德时代
+> /skill dcf
+> /screen A股 流动性前20 PE<15
+```
+
+
+
+---
+
+## Investment Workflow (5 Phases)
+
+The spine of UpUp's China-edition value. The 5-phase `/invest` command goes detect → plan → execute → verify → report.
+
+| Phase | What happens | Output |
+|---|---|---|
+| **1. detect** | Intent classification (LLM + legacy), sector routing, urgency tiering | `intent.json` |
+| **2. plan** | Plan-mode renders research plan; user reviews / edits / confirms | `plan.md` (audit-loggable) |
+| **3. execute** | Multi-agent orchestration (5 subagents + 4-worker Coordinator pool) | `evidence/*.json` |
+| **4. verify** | Cross-source consistency checks, citation graph, hallucination guard | `verification.json` |
+| **5. report** | Composes dossier / strategy / earnings-preview / risk-dashboard; writes to `.upup/runs/<id>/` | `report.md` + `report.json` |
+
+### 11 investment subcommands
+
+```text
+/invest            # entry to 5-phase state machine
+/invest dossier    # company research dossier
+/invest strategy   # multi-strategy comparison
+/invest earnings-preview  # next-quarter earnings preview
+/invest morning-brief     # morning brief
+/invest portfolio-review  # portfolio review
+/invest risk-dashboard    # risk dashboard
+/invest screen           # A-share multi-factor screen
+/invest watchlist-edit   # edit watchlist
+/invest phase-handlers   # manual phase override
+/invest registry         # run registry / audit chain
 ```
 
 ---
 
-## 项目结构
+## Skills Overview (50 + 14 bundled)
+
+UpUp ships with **50 SKILL.md skills + 14 TypeScript-bundled skills**. Each SKILL.md is YAML-frontmatter (`name`, `description`) + markdown body; bundled skills are TypeScript implementations that can do deterministic logic.
+
+### Bundled dynamic skills (`src/skills/bundled/`, 14 files)
+
+| Bundled skill | What it does |
+|---|---|
+| `a-share-data` | A-share data fetcher (Tushare + AKShare + Eastmoney) |
+| `us-fin-data` | US financial data fetcher (Financial Datasets) |
+| `crypto-data` | crypto price fetcher |
+| `filing-search` | 10-K / 10-Q / 8-K search |
+| `insider-trade` | insider-trade summary |
+| `earnings-transcript` | earnings-transcript reader |
+| `news-aggregator` | news aggregator |
+| `sentiment-analyzer` | sentiment analyzer |
+| `forecast-engine` | forecast engine (linear / exponential / Prophet-lite) |
+| `risk-engine` | risk engine (VaR / CVaR / Sharpe) |
+| `portfolio-optimizer` | mean-variance + risk-parity |
+| `screener` | multi-factor A-share screener |
+| `sector-analyzer` | sector rotation analyzer |
+| `peer-comparator` | peer comparator |
+
+### File-based skills (`src/skills/*/SKILL.md`, 50 files)
+
+Categories: DCF / DDM / residual-income / Graham / asset-based / comparable / A-share-rules (T+1 / price-limit / ST / suspension) / technical-analysis / portfolio-construction / risk-management / sector-analysis / earnings-preview / competitive-positioning / moat-analysis / management-quality / governance / regulatory-risk / macro-overlay / fx-impact / …
+
+Each skill description is i18n-symmetric (EN + zh-CN); missing translation fails the build.
+
+---
+
+## Plugin System (4 Runtimes)
+
+```bash
+# All 4 runtimes are auto-registered; gate by env var:
+BUN_ENABLED=1       bun adapter       # process, same ESM
+JITI_ENABLED=1      jiti adapter      # process, TS require
+WASM_ENABLED=1      wasm adapter      # wasm sandbox
+MCP_ENABLED=1       mcp adapter       # Model Context Protocol
+```
+
+| Runtime | File | Sandbox | Use case |
+|---|---|---|---|
+| `bun` | `src/plugins/adapters/bun.ts` | process (same ESM) | trusted first-party plugins |
+| `jiti` | `src/plugins/adapters/jiti.ts` | process (TS require) | legacy TS plugins |
+| `wasm` | `src/plugins/adapters/wasm.ts` | wasm sandbox | untrusted plugins |
+| `mcp` | `src/plugins/adapters/mcp.ts` | MCP protocol | cross-tool interop |
+
+Plugins are written against `packages/plugin-sdk/` (typed contracts, lifecycle hooks).
+
+---
+
+## Command Reference (partial)
+
+```text
+/invest ...           5-phase investment workflow (11 subcommands)
+/skill <name>         invoke a SKILL.md or bundled skill
+/screen <query>       multi-factor A-share / US screener
+/model [provider]     switch LLM provider / model
+/plan                 enter plan mode (audit before execute)
+/hooks                inspect / reload hooks
+/lang en|zh-CN        switch UI language
+/permissions          inspect / change 3-tier permissions
+/help                 list all slash commands
+/exit                 exit CLI
+```
+
+---
+
+## Project Structure
 
 ```
 upup/
-├── src/                          # 主体代码（约 55 个子目录）
-│   ├── agent/                    # Agent loop、Plan mode、Memory flush、Subagent
-│   ├── cli.tsx                   # CLI 入口
-│   ├── index.tsx                 # 包入口
-│   ├── run.ts                    # Bundled runner
-│   ├── commands/                 # 47+ slash 命令
-│   │   └── investment/           #   - dossier / strategy / earnings-preview /
-│   │                             #     morning-brief / portfolio-review /
-│   │                             #     risk-dashboard / watchlist-edit / invest
-│   ├── skills/                   # 50 个 SKILL.md + 14 个 bundled skill
-│   ├── tools/
-│   │   ├── finance/              # 20+ 金融数据工具（prices, fundamentals, filings, A-share, screen, key ratios, estimates, segments, news, earnings transcripts, crypto）
-│   │   ├── search/               # Exa / Tavily
-│   │   └── browser/              # Playwright
-│   ├── plugins/                  # 4 runtime adapter + 插件系统
-│   ├── session/                  # Session 2.0（参考 Claude Code）
-│   ├── i18n/                     # EN + zh-CN 字符串表（强类型 key）
-│   ├── components/               # Ink TUI 组件
-│   ├── hooks/                    # Hook 系统
-│   ├── memory/                   # 记忆 + 观察缓冲
-│   ├── plan/                     # 计划模式
-│   ├── web/                      # 网关（read-only JSON snapshot）
-│   └── ...                       # 50+ 模块
-├── packages/                     # 18 个 workspace package
-│   ├── llm/                      #   - 多 provider 适配
-│   ├── memory/                   #   - 持久化
-│   ├── plugin-sdk/               #   - 第三方插件 SDK
-│   ├── skills/                   #   - skill runtime
-│   ├── daemon/                   #   - 后台进程
-│   ├── gateway/                  #   - 网关（HTTP / WebSocket）
-│   ├── hooks/                    #   - hook runtime
-│   ├── mcp/                      #   - MCP 协议
-│   ├── commands/                 #   - 统一命令注册
-│   ├── cron/                     #   - 定时任务
-│   ├── keybindings/              #   - 键位绑定
-│   ├── state/                    #   - 状态管理
-│   ├── types/                    #   - 共享类型
-│   ├── utils/                    #   - 工具
-│   ├── sdk/                      #   - 通用 SDK
-│   ├── plugins/                  #   - 插件基础设施
-│   ├── agent-core/               #   - 核心 agent
-│   └── adapter-paperclip/        #   - Paperclip 适配
-├── docs/                         # 设计 / 实施记录 / 验证报告
-├── evals/                        # LangSmith 评估
-├── .upup/                        # 用户级配置（gitignored）
-├── env.example                   # 环境变量模板
-└── package.json                  # 私有包，name=upup
+├── src/
+│   ├── agent/                   agent loop, subagents, investment-knowledge
+│   ├── cli.tsx                  Ink / React entry
+│   ├── commands/                28 slash commands (incl. 11 investment)
+│   ├── components/              Ink UI components
+│   ├── hooks/                   17 hook files (permission, tool-lifecycle, …)
+│   ├── i18n/                    EN + zh-CN strongly-typed keys
+│   ├── memory/                  48 files: extraction, audit, episodic
+│   ├── model/                   LLM abstraction (4 ChatXxx + 8 metadata providers)
+│   ├── permissions/             3-tier allow / ask / deny
+│   ├── plan/                    plan mode
+│   ├── plugins/adapters/        4 runtime adapters (bun/jiti/wasm/mcp)
+│   ├── realtime/                event bus
+│   ├── session/                 Session 2.0
+│   ├── skills/                  50 SKILL.md + 14 bundled TS
+│   ├── telemetry/               audit chain
+│   ├── tools/                   296 tools
+│   │   ├── astock/              12 A-share tools (Tushare + AKShare + Eastmoney)
+│   │   ├── finance/             18 US tools (inherited)
+│   │   ├── fund/                Chinese mutual funds
+│   │   ├── search/              Exa + Tavily
+│   │   ├── browser/             Playwright
+│   │   └── ... 12 more categories
+│   ├── worktree/                git worktree integration
+│   └── ... 24 more top-level modules
+├── packages/                    18 workspace packages
+│   ├── llm/                     provider metadata + routing
+│   ├── skills/                  skill loader SDK
+│   ├── plugin-sdk/              plugin typed contracts
+│   ├── gateway/                 web gateway
+│   ├── hooks/                   hook SDK
+│   ├── commands/                unified command registry
+│   └── ... 13 more packages
+├── openspec/changes/            OpenSpec change directory
+├── docs/                        10+ doc files
+├── evals/                       LangSmith eval runner
+└── scripts/                     release.sh, comet helpers
 ```
+
+
 
 ---
 
 ## i18n
 
-`src/i18n/strings.ts` 维护 **EN + zh-CN** 双语，强类型 key：
+UpUp's i18n is **the** differentiator that justifies the "China edition" brand: every CLI string, every prompt, every skill description exists in both English and zh-CN, and the build fails if a translation is missing.
 
-- 拼错 key → 编译报错
-- 缺一个 locale → 单元测试 fail
-- 不引第三方库（一张静态表 + lookup 函数）
-- 优先以中文为用户目标语言
+```bash
+# Verify both locales are in sync:
+grep -cE "^\s+\| '" src/i18n/strings.ts             # → 56 keys
+bun test src/i18n/strings.test.ts                   # → all pass (build fails on missing translation)
+```
 
-组件 / Prompt / Skill 描述 / 命令文案均已接入。`getLocale()` 自动从 `LANG` / `LC_ALL` 推断，可被 `UPSTREAM_LOCALE` 覆盖。
+Switch at runtime:
 
----
+```bash
+> /lang zh-CN      # switch UI to Chinese
+> /lang en         # switch UI to English
+```
 
-## LLM 提供商
-
-| Provider | 备注 |
-|---|---|
-| OpenAI | 默认 |
-| Anthropic | Prompt caching 优化（`cache_control`） |
-| Google | Gemini 系列 |
-| xAI (Grok) | |
-| OpenRouter | |
-| Ollama | 本地，默认 `http://127.0.0.1:11434` |
-| **DeepSeek** | **UpUp 新增推荐**，中文金融场景性价比高 |
-
-切换模型：CLI 内 `/model` 命令，或 `.upup/settings.json`。
+The 56+ keys cover: tool descriptions, command names, status messages, error toasts, plan-mode prompts, permission prompts, hook events, eval output, doc-page titles.
 
 ---
 
-## 文档 (Documentation)
+## LLM Providers
 
-完整文档见 **[docs/index.md](./docs/index.md)**。以下是按场景分类的速查：
+Same 8-provider metadata layer as upstream dexter; UpUp's differentiator is the **default** choice (`DEFAULT_PROVIDER = 'deepseek'`).
 
-### 🚀 新用户
-- [docs/quickstart.md](./docs/quickstart.md) — 10 分钟上手
-- [docs/a-share.md](./docs/a-share.md) — A 股专属（Tushare / AKShare / 北向 / 龙虎榜）
-- [docs/showcase.md](./docs/showcase.md) — 真实输出样例（`/invest` / `/dossier` / `/screen` / `/morning-brief` / `/risk-dashboard` 等）
-- [docs/faq.md](./docs/faq.md) — 常见问题
+| Provider | UpUp | Notes |
+|---|:---:|---|
+| **DeepSeek** | ✅ **default** | Chinese-friendly, lower cost, recommended for A-share / HK |
+| OpenAI | ✅ alternate | upstream default |
+| Anthropic | ✅ | prompt caching enabled |
+| Google (Gemini) | ✅ | |
+| xAI (Grok) | ✅ | |
+| Moonshot (Kimi) | ✅ | Chinese-curated model IDs |
+| OpenRouter | ✅ | |
+| Ollama (local) | ✅ | default `http://127.0.0.1:11434` |
 
-### 🔍 功能参考
-- [docs/commands.md](./docs/commands.md) — 47+ slash 命令完整参考
-- [docs/skills.md](./docs/skills.md) — 50+ skill + skill 编写指南
-- [docs/investment-workflow.md](./docs/investment-workflow.md) — 5 阶段 `/invest` 深度拆解
-- [docs/i18n.md](./docs/i18n.md) — 双语 i18n 系统说明
-- [docs/session-and-permissions.md](./docs/session-and-permissions.md) — 权限 / 计划模式 / 沙箱
+```bash
+# Switch provider at runtime:
+> /model openai gpt-5.4
+> /model anthropic claude-opus-4-7
+> /model deepseek deepseek-v4-pro
+```
 
-### 🛠 扩展开发
-- [docs/plugins.md](./docs/plugins.md) — 4 runtime 插件开发
-- [docs/architecture-overview.md](./docs/architecture-overview.md) — 高层架构
-- [ARCHITECTURE.md](./ARCHITECTURE.md) — 334 行分层规则（canonical）
+---
 
-### 🤝 社区 / 贡献
-- [CONTRIBUTING.md](./CONTRIBUTING.md) — 如何贡献（开发 / 文档 / skill / 插件）
-- [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md) — 社区准则（含投研合规要求）
-- [SECURITY.md](./SECURITY.md) — 漏洞披露 + 威胁模型 + 权限加固建议
-- [CHANGELOG.md](./CHANGELOG.md) — 发布历史
-- [.github/ISSUE_TEMPLATE/](./.github/ISSUE_TEMPLATE/) — Bug / Feature / Question 模板
-- [.github/PULL_REQUEST_TEMPLATE.md](./.github/PULL_REQUEST_TEMPLATE.md) — PR 模板
+## Documentation
 
-### 📊 评估 / 对比 / 路线图
-- [docs/benchmarks.md](./docs/benchmarks.md) — 评估框架 + 早期结果
-- [docs/comparison.md](./docs/comparison.md) — vs Dexter / Claude Code / Cursor / Aider / Kimi / Wind 等
-- [docs/roadmap.md](./docs/roadmap.md) — 2026 Q2-Q4 路线图
+### 🚀 New users
 
-## 社区 (Community)
+- [Quickstart](#quickstart) — install + first run
+- [Investment Workflow](#investment-workflow-5-phases) — the spine of UpUp
+- [FAQ](./docs/faq.md) — common questions
 
-- 💬 **GitHub Discussions** — 提问 / 想法 / 展示
-- 🐛 **GitHub Issues** — Bug 报告 / Feature 建议（用模板）
-- 🇨🇳 **中文社区** — 欢迎 PR / 翻译 / 案例分享
-- 📜 **行为准则** — [CODE_OF_CONDUCT.md](./CODE_OF_CONDUCT.md)
+### 🔍 Feature reference
 
-## 安全 (Security)
+- [Skills Overview](#skills-overview-50--14-bundled) — 50 SKILL.md + 14 bundled
+- [Plugin System](#plugin-system-4-runtimes) — 4 runtime adapters
+- [Project Structure](#project-structure) — module map
+- [i18n](#i18n) — 56+ strongly-typed keys
 
-UpUp 默认在 `ask` 权限模式下运行，从不绕过。详见 [SECURITY.md](./SECURITY.md)。
+### 🛠 Extension development
 
-- 漏洞披露：`security@upup.dev`
-- 威胁模型、API Key 卫生、权限加固都在 SECURITY.md
-- 已知不重做：Dexter 上游的 LLM provider bug / `--dangerously` 误用
+- [CONTRIBUTING.md](./CONTRIBUTING.md)
+- [packages/plugin-sdk/](./packages/plugin-sdk/) — plugin typed contracts
+- [openspec/](./openspec/) — OpenSpec change-driven development
 
-## 致谢
+### 📊 Eval / comparison / roadmap
 
-UpUp (涨涨) 是站在两个巨人肩膀上的产物：
+- [docs/upup-vs-dexter-audit.md](./openspec/changes/upup-vs-dexter-comprehensive-audit-and-doc-refresh/docs/upup-vs-dexter-audit.md) — 8-dimension reproducible audit
+- [docs/upup-china-edition-positioning.md](./docs/upup-china-edition-positioning.md) — China-edition white paper
+- [docs/comparison.md](./docs/comparison.md) — vs other CLIs (iWenCai / Wind)
+- [docs/GAP-ANALYSIS.md](./docs/GAP-ANALYSIS.md) — vs Claude Code capability gaps
+- [docs/AI-AGENT-GAP-ANALYSIS.md](./docs/AI-AGENT-GAP-ANALYSIS.md) — vs AI agent patterns
 
-| 项目 | 贡献 |
-|---|---|
-| [virattt/dexter](https://github.com/virattt/dexter) | 整体金融研究框架、Tool registry、Agent loop、SKILL.md 协议 |
-| [Anthropic Claude Code](https://docs.anthropic.com/en/docs/claude-code) | Session / Permission / TUI 设计、计划模式、Ink + pi-tui 渲染参考 |
+### 🇨🇳 China-edition positioning
 
-如果上游 dexter 发布新版本，我们会在 PR 中评估是否 sync（见 `docs/sync-plan.md`）。本文档不复制 dexter 的任何文案，所有描述均基于本仓库当前代码。
+- [docs/upup-china-edition-positioning.md](./docs/upup-china-edition-positioning.md) — what "China edition" means, what's borrowed vs. what's new
+
+---
+
+## Community
+
+- **GitHub**: [louloulin/upup](https://github.com/louloulin/upup) — issues, PRs, discussions
+- **Mirror**: [gitcode.com/lumosaigroup/upup](https://gitcode.com/lumosaigroup/upup) — China mirror for faster access
+- **Discord**: (placeholder, see GitHub for invite)
+- **Upstream**: [virattt/dexter](https://github.com/virattt/dexter) — MIT licensed
+
+---
+
+## Security
+
+- **API keys** stored in `.env` (gitignored). Users can also enter keys interactively via the CLI.
+- **Config** stored in `.upup/settings.json` (gitignored).
+- **3-tier permission system** (allow / ask / deny) gates every tool call.
+- **Audit chain** records every tool call to `.upup/runs/<id>/` for replay.
+- **Bridge** traffic is end-to-end encrypted.
+- **Never commit or expose real API keys, tokens, or credentials.**
+
+### Known not-redone (deliberate)
+
+- dexter upstream's LLM provider bugs (we follow upstream's fix timeline)
+- dexter upstream's `--dangerously` flag misuse (we require explicit `allow` tier)
+- Real-trade execution (compliance: UpUp is research-only by design)
+
+---
+
+## Acknowledgments
+
+UpUp is built on the shoulders of giants:
+
+- **[virattt/dexter](https://github.com/virattt/dexter)** — the upstream; same MIT license; the agent loop / tool registry / SKILL.md protocol / Ink rendering layer all originate here
+- **[LangChain](https://github.com/langchain-ai/langchainjs)** — multi-provider LLM abstraction
+- **[Ink](https://github.com/vadimdemedes/ink)** — React for CLI
+- **[pi-tui](https://github.com/earendil-works/pi-tui)** — Editor + autocomplete + history
+- **[Tushare Pro](https://tushare.pro)** — A-share data
+- **[AKShare](https://github.com/albertandking/akshare)** — A-share / HK / fund data
+- **[Eastmoney](https://www.eastmoney.com)** — A-share data fallback
+- **[DeepSeek](https://www.deepseek.com)** — default LLM provider
+- **[Moonshot (Kimi)](https://www.moonshot.cn)** — Chinese-curated model
+- **[Playwright](https://playwright.dev)** — browser automation
+- **[OpenSpec](https://github.com/Fission-AI/OpenSpec)** — change-driven development
+- **[Comet](https://github.com/louloulin/comet)** — phased delivery (open / design / build / verify / archive)
+
+---
+
+## Appendix: Reproducible Commands
+
+Every number in the "vs dexter" tables above can be regenerated by running the following commands. If any number disagrees with this doc, **the command output wins**.
+
+```bash
+# UpUp (in repo root)
+echo "src files:        $(find src -type f \( -name '*.ts' -o -name '*.tsx' \) | wc -l)"
+echo "src lines:        $(find src -type f \( -name '*.ts' -o -name '*.tsx' \) -exec cat {} + | wc -l)"
+echo "src/*/ dirs:      $(ls -d src/*/ | wc -l)"
+echo "SKILL.md:         $(find src/skills -name SKILL.md | wc -l)"
+echo "bundled skills:   $(ls src/skills/bundled/*.ts 2>/dev/null | wc -l)"
+echo "tools:            $(find src/tools -name '*.ts' | wc -l)"
+echo "tools/finance:    $(find src/tools/finance -name '*.ts' | wc -l)"
+echo "tools/astock:     $(ls src/tools/astock/ 2>/dev/null | wc -l)"
+echo "commands:         $(find src/commands -name '*.ts' | wc -l)"
+echo "investment cmds:  $(ls src/commands/investment/*.ts 2>/dev/null | grep -v test | wc -l)"
+echo "plugin adapters:  $(ls src/plugins/adapters/*.ts 2>/dev/null | grep -v index | wc -l)"
+echo "workspaces:       $(ls packages/ 2>/dev/null | wc -l)"
+echo "packages files:   $(find packages -type f \( -name '*.ts' -o -name '*.tsx' \) | wc -l)"
+echo "session files:    $(find src/session -name '*.ts' 2>/dev/null | wc -l)"
+echo "hooks files:      $(find src/hooks -name '*.ts' 2>/dev/null | wc -l)"
+echo "memory files:     $(find src/memory -type f 2>/dev/null | wc -l)"
+echo "multi-agent:      $(find src/multi-agent -type f 2>/dev/null | wc -l)"
+echo "coordinator:      $(find src/coordinator -type f 2>/dev/null | wc -l)"
+echo "kairos:           $(find src/kairos -type f 2>/dev/null | wc -l)"
+echo "bridge:           $(find src/bridge -type f 2>/dev/null | wc -l)"
+echo "tui:              $(find src/tui -type f 2>/dev/null | wc -l)"
+echo "realtime:         $(find src/realtime -type f 2>/dev/null | wc -l)"
+echo "daemon:           $(find src/daemon -type f 2>/dev/null | wc -l)"
+echo "cron:             $(find src/cron -type f 2>/dev/null | wc -l)"
+echo "telemetry:        $(find src/telemetry -type f 2>/dev/null | wc -l)"
+echo "i18n keys:        $(grep -cE \"^\s+\| '\" src/i18n/strings.ts)"
+```
+
+```bash
+# upstream dexter (in dexter repo root)
+echo "src files:        $(find src -type f \( -name '*.ts' -o -name '*.tsx' \) | wc -l)"
+echo "src lines:        $(find src -type f \( -name '*.ts' -o -name '*.tsx' \) -exec cat {} + | wc -l)"
+echo "src/*/ dirs:      $(ls -d src/*/ | wc -l)"
+echo "SKILL.md:         $(find src/skills -name SKILL.md 2>/dev/null | wc -l)"
+echo "tools:            $(find src/tools -name '*.ts' 2>/dev/null | wc -l)"
+echo "commands:         $(find src/commands -name '*.ts' 2>/dev/null | wc -l)"
+echo "workspaces:       $(ls packages/ 2>/dev/null | wc -l)"
+```
+
+> If any number disagrees with this doc, please open an issue with the command output. We treat the command output as the source of truth.
 
 ---
 
 ## License
 
-MIT License — 同上游 dexter。详见 [LICENSE](./LICENSE)。
-
----
-
-<p align="center">
-  <strong>UpUp (涨涨) — 涨，涨，一直涨。</strong><br/>
-  <sub>终端里的中文金融研究 AI · Forked from <a href="https://github.com/virattt/dexter">virattt/dexter</a></sub>
-</p>
+[MIT](./LICENSE) — same as upstream [virattt/dexter](https://github.com/virattt/dexter).

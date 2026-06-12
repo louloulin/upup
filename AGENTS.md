@@ -6,7 +6,10 @@
 - This fork: https://github.com/louloulin/upup
 - Mirror: https://gitcode.com/lumosaigroup/upup
 - Upstream (forked from): https://github.com/virattt/dexter
-- UpUp (涨涨) is a CLI-based AI agent for **Chinese-language deep financial research**, built on top of the [Dexter](https://github.com/virattt/dexter) framework, with TypeScript, Ink (React for CLI), and LangChain. It is **not** a thin reskin of Dexter — see "UpUp's Additions" in [README.md](./README.md) for the full delta (A-share data stack, 50 investment skills, 5-phase /invest workflow, 4-runtime plugin system, EN+zh-CN i18n, multi-agent coordination, Session 2.0, 18 workspace packages, etc.).
+- UpUp (涨涨) is a CLI-based AI agent for **Chinese-language deep financial research**, built on top of the [Dexter](https://github.com/virattt/dexter) framework, with TypeScript, Ink (React for CLI), and LangChain. It is **not** a thin reskin of Dexter — see "China-Edition Increment" in [README.md](./README.md) for the full delta (A-share data stack, 50 investment skills, 5-phase /invest workflow, 4-runtime plugin system, EN+zh-CN i18n, multi-agent coordination, Session 2.0, 18 workspace packages, etc.).
+
+> 📌 **中国版定位 (2026-06-12 升级)**: 完整权威的"中国版 dexter"白皮书见 [docs/upup-china-edition-positioning.md](./docs/upup-china-edition-positioning.md)。8 维度 vs 上游 dexter 的全量审计见 [upup-vs-dexter-audit.md](./openspec/changes/upup-vs-dexter-comprehensive-audit-and-doc-refresh/docs/upup-vs-dexter-audit.md)。本文件 (AGENTS.md) 中的"UpUp's Additions"段已重命名为 **China-Edition Increment**。
+
 
 ## 上游归属 (Upstream Attribution)
 
@@ -14,7 +17,7 @@ UpUp (涨涨) 是基于 [virattt/dexter](https://github.com/virattt/dexter) 的 
 
 - **上游协议**：MIT（同 UpUp）
 - **上游贡献**：整体金融研究框架、Tool registry、Agent loop、SKILL.md 协议、Ink 渲染层、Ink + pi-tui 集成
-- **UpUp 的独立贡献**：A 股数据栈（Tushare Pro / AKShare）、50 个 SKILL.md 投资分析 skill、14 个 bundled skill、5 阶段投资工作流 (`/invest`)、4 runtime 插件系统（bun/jiti/wasm/mcp）、EN+zh-CN 双语 i18n、多 Agent 协同、Session 2.0 / Permission 体系、18 个 workspace package、8 轮 Sprint 持续打磨。详见 [README.md](./README.md) 的 "UpUp's Additions" 段。
+- **UpUp 的独立贡献**：A 股数据栈（Tushare Pro / AKShare）、50 个 SKILL.md 投资分析 skill、14 个 bundled skill、5 阶段投资工作流 (`/invest`)、4 runtime 插件系统（bun/jiti/wasm/mcp）、EN+zh-CN 双语 i18n、多 Agent 协同、Session 2.0 / Permission 体系、18 个 workspace package、8 轮 Sprint 持续打磨。详见 [README.md](./README.md) 的 "China-Edition Increment" 段。
 - **修改上游代码**：请保留协议头；新增模块时直接以 UpUp 名义贡献。
 - **上游同步**：若上游 dexter 发布新版本，UpUp 团队会在 PR 中评估 cherry-pick（见 `docs/sync-plan.md`）。
 

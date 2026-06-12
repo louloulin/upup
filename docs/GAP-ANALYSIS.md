@@ -1,3 +1,13 @@
+---
+> ⚠️ **Superseded** (2026-06-12): this document is kept for historical reference.
+> The canonical "upup vs upstream" comparison now lives in
+> [`openspec/changes/upup-vs-dexter-comprehensive-audit-and-doc-refresh/docs/upup-vs-dexter-audit.md`](./openspec/changes/upup-vs-dexter-comprehensive-audit-and-doc-refresh/docs/upup-vs-dexter-audit.md)
+> with reproducible shell commands and pinned commit SHAs.
+> The canonical "中国版" positioning lives in
+> [`docs/upup-china-edition-positioning.md`](./upup-china-edition-positioning.md).
+> When in doubt, those two docs win.
+---
+
 # UpUp 投研 Claude Code 差距分析与 v5 行动方案
 
 > **生成时间**: 2026-06-04
