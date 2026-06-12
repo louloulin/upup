@@ -1,0 +1,16 @@
+workflow: full
+phase: design
+build_mode: null
+isolation: null
+verify_mode: null
+base_ref: 59b4ee2d48a03651c513d6279adfb599ee1cfd96
+design_doc: null
+plan: null
+verify_result: pending
+verification_report: null
+branch_status: pending
+created_at: 2026-06-12
+verified_at: null
+archived: false
+handoff_context: openspec/changes/replace-loucode-engine-with-upup/.comet/handoff/design-context.json
+handoff_hash: 5e5c289d2e58ed9a38922c285bbab467c0d3ad6de29cd491e68dc2e24e3f1436

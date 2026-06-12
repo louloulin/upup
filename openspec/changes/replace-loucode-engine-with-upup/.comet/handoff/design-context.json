@@ -1,0 +1,13 @@
+{
+  "change": "replace-loucode-engine-with-upup",
+  "phase": "design",
+  "mode": "compact",
+  "canonical_spec": "openspec",
+  "generated_by": "comet-handoff.sh",
+  "context_hash": "5e5c289d2e58ed9a38922c285bbab467c0d3ad6de29cd491e68dc2e24e3f1436",
+  "files": [
+    { "path": "openspec/changes/replace-loucode-engine-with-upup/proposal.md", "sha256": "f89620f64c6089649e6d9e145f5185d142cc0a573b9f084a4062d89b9331a033" },
+    { "path": "openspec/changes/replace-loucode-engine-with-upup/design.md", "sha256": "e5a7eccffc66600c279fa1d3cf04f0a41d167b9b3adda0b03c2305d81aca7d32" },
+    { "path": "openspec/changes/replace-loucode-engine-with-upup/tasks.md", "sha256": "a33c330892caf4d8ba604ecef4d9801984856533f01135dd8826d215396f456c" }
+  ]
+}

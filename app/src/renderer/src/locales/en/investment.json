@@ -1,0 +1,105 @@
+{
+  "workbench": {
+    "tab": "Investment Workbench",
+    "title": "Investment Workbench",
+    "subtitle": "Powered by UpUp Research Engine",
+    "engineBadge": "UpUp Engine",
+    "loading": "Loading investment data…",
+    "errorTitle": "Cannot reach UpUp engine",
+    "errorBody": "Please confirm the UpUp engine is selected in Settings and the API key is configured.",
+    "refresh": "Refresh",
+    "refreshAll": "Refresh all"
+  },
+  "market": {
+    "indices": "Major indices",
+    "watchlist": "Watchlist",
+    "lastUpdate": "Updated at {{time}}",
+    "connecting": "Connecting to market…",
+    "retry": "Retry",
+    "upLimit": "Limit up",
+    "downLimit": "Limit down"
+  },
+  "portfolio": {
+    "title": "Portfolio",
+    "totalAssets": "Total assets",
+    "todayPnl": "Today P&L",
+    "totalPnl": "Total P&L",
+    "holdingsCount": "{{count}} positions",
+    "cashRatio": "Cash ratio",
+    "top5": "Top 5 holdings",
+    "empty": "No positions yet — try /dcf for valuation or add to watchlist",
+    "noData": "No data"
+  },
+  "watchlist": {
+    "title": "Watchlist",
+    "add": "Add",
+    "symbol": "Symbol",
+    "symbolPlaceholder": "e.g. 600519 / AAPL / 0700.HK",
+    "remove": "Remove",
+    "rename": "Rename group",
+    "sort": "Sort",
+    "empty": "No symbols yet — enter a symbol to start",
+    "loadFailed": "Load failed, click to retry",
+    "confirmRemove": "Remove {{symbol}}?"
+  },
+  "risk": {
+    "title": "Risk dashboard",
+    "sectorExposure": "Top 5 sector exposure",
+    "maxDrawdown": "Top 3 max drawdown",
+    "beta": "Portfolio beta",
+    "low": "Low risk",
+    "mid": "Mid risk",
+    "high": "High risk",
+    "noData": "No data"
+  },
+  "research": {
+    "title": "Research notes",
+    "publisher": "Publisher",
+    "date": "Date",
+    "summary": "Summary",
+    "expand": "Expand",
+    "collapse": "Collapse",
+    "empty": "No research notes"
+  },
+  "skills": {
+    "title": "Investment skills",
+    "subtitle": "50 SKILLs one-click launch",
+    "launch": "Launch",
+    "categories": {
+      "valuation": "Valuation",
+      "screening": "Screening",
+      "brief": "Brief",
+      "review": "Review",
+      "risk": "Risk",
+      "earnings": "Earnings",
+      "research": "Research",
+      "other": "Other"
+    },
+    "recentTitle": "Recent",
+    "noRecent": "No usage history yet"
+  },
+  "workflow": {
+    "title": "/invest workflow",
+    "stages": {
+      "dossier": "Dossier",
+      "strategy": "Strategy",
+      "earningsPreview": "Earnings preview",
+      "morningBrief": "Morning brief",
+      "portfolioReview": "Portfolio review"
+    },
+    "status": {
+      "todo": "To do",
+      "inProgress": "In progress",
+      "done": "Done"
+    },
+    "jump": "Jump to stage",
+    "confirmJump": "A new thread will open with a pre-filled prompt. Continue?"
+  },
+  "common": {
+    "loading": "Loading…",
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "close": "Close"
+  }
+}

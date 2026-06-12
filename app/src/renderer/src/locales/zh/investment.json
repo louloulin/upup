@@ -1,0 +1,105 @@
+{
+  "workbench": {
+    "tab": "投资工作台",
+    "title": "投资工作台",
+    "subtitle": "由 UpUp 投研引擎驱动",
+    "engineBadge": "UpUp 引擎",
+    "loading": "正在加载投资数据…",
+    "errorTitle": "无法连接 UpUp 引擎",
+    "errorBody": "请确认已在设置中选择 UpUp 引擎，且 API Key 配置正确。",
+    "refresh": "刷新",
+    "refreshAll": "全部刷新"
+  },
+  "market": {
+    "indices": "主要指数",
+    "watchlist": "自选股",
+    "lastUpdate": "更新于 {{time}}",
+    "connecting": "正在连接行情…",
+    "retry": "重试",
+    "upLimit": "涨停",
+    "downLimit": "跌停"
+  },
+  "portfolio": {
+    "title": "投资组合",
+    "totalAssets": "总资产",
+    "todayPnl": "当日盈亏",
+    "totalPnl": "累计盈亏",
+    "holdingsCount": "持仓 {{count}} 只",
+    "cashRatio": "现金占比",
+    "top5": "前 5 大持仓",
+    "empty": "暂无持仓 — 请使用 /dcf 试试估值，或先添加自选",
+    "noData": "暂无数据"
+  },
+  "watchlist": {
+    "title": "自选股",
+    "add": "新增自选",
+    "symbol": "代码",
+    "symbolPlaceholder": "如 600519 / AAPL / 0700.HK",
+    "remove": "删除",
+    "rename": "重命名分组",
+    "sort": "排序",
+    "empty": "还没有自选股 — 输入代码开始",
+    "loadFailed": "加载失败，点击重试",
+    "confirmRemove": "确认删除 {{symbol}} 吗？"
+  },
+  "risk": {
+    "title": "风险仪表盘",
+    "sectorExposure": "行业暴露 Top 5",
+    "maxDrawdown": "个股最大回撤 Top 3",
+    "beta": "组合贝塔",
+    "low": "低风险",
+    "mid": "中等风险",
+    "high": "高风险",
+    "noData": "暂无数据"
+  },
+  "research": {
+    "title": "研报速读",
+    "publisher": "券商",
+    "date": "发布日期",
+    "summary": "摘要",
+    "expand": "展开全文",
+    "collapse": "收起",
+    "empty": "暂无研报"
+  },
+  "skills": {
+    "title": "投资技能",
+    "subtitle": "50 个 SKILL 一键启动",
+    "launch": "启动",
+    "categories": {
+      "valuation": "估值",
+      "screening": "筛选",
+      "brief": "简报",
+      "review": "复盘",
+      "risk": "风险",
+      "earnings": "财报",
+      "research": "研报",
+      "other": "其他"
+    },
+    "recentTitle": "最近使用",
+    "noRecent": "还没有使用记录"
+  },
+  "workflow": {
+    "title": "/invest 工作流",
+    "stages": {
+      "dossier": "档案",
+      "strategy": "策略",
+      "earningsPreview": "财报预览",
+      "morningBrief": "早间简报",
+      "portfolioReview": "持仓复盘"
+    },
+    "status": {
+      "todo": "待办",
+      "inProgress": "进行中",
+      "done": "完成"
+    },
+    "jump": "跳到此阶段",
+    "confirmJump": "将打开新会话并预填提示词，确认继续？"
+  },
+  "common": {
+    "loading": "加载中…",
+    "save": "保存",
+    "cancel": "取消",
+    "confirm": "确认",
+    "close": "关闭"
+  }
+}
