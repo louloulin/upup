@@ -14,6 +14,9 @@
 
 [English](#) · [中文](./README_CN.md) · [Changelog](./CHANGELOG.md) · [Contributing](./CONTRIBUTING.md)
 
+
+![UpUp CLI welcome screen — model DeepSeek V4 Flash, version 2026.6.12](./docs/images/upup-welcome.png)
+
 ---
 
 ## What is this

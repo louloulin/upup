@@ -16,6 +16,9 @@
 
 > 🇨🇳 **本文件是中文用户默认入口。** 英文用户请读 [README.md](./README.md)。
 
+
+![UpUp CLI welcome screen — model DeepSeek V4 Flash, version 2026.6.12](./docs/images/upup-welcome.png)
+
 ---
 
 ## 这是什么
