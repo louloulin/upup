@@ -1,6 +1,6 @@
 {
   "name": "upup",
-  "version": "2026.05.15",
+  "version": "2026.6.12",
   "private": true,
   "description": "UpUp (涨涨) — Chinese-language deep financial research AI agent. 中国版 Dexter：forked from virattt/dexter, 面向 A 股 / 港股 / 中文投研场景，扩展 50 个投资分析 skill、5 阶段 /invest 工作流、4 runtime 插件、EN+zh-CN i18n。",
   "type": "module",
@@ -72,7 +72,7 @@
   },
   "pkg": {
     "name": "upup",
-    "version": "2026.05.15",
+    "version": "2026.6.12",
     "description": "UpUp - AI agent for deep financial research",
     "bin": "src/index.tsx",
     "targets": [
