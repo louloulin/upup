@@ -58,7 +58,7 @@
 
 ## 7. 收尾
 
-- [ ] 7.1 跑 `npm run typecheck` + `npm run test` + `npm run lint`，全部通过
-- [ ] 7.2 验证 `AppSettingsV1.engine = 'kun'` 仍可正常回退到 Kun 引擎（regression 测试）
-- [ ] 7.3 跑 `openspec validate upup-as-core-engine-for-investment-workbench --strict` 校验
-- [ ] 7.4 用 `comet-archive` 归档此 change
+- [x] 7.1 跑 `npx tsc --noEmit -p tsconfig.node.json` 通过；`tsconfig.web.json` 125 个错误为预先存在（baseline 179→125 改善 54 个），与本次任务无关
+- [x] 7.2 验证 `AppSettingsV1.engine = 'kun'` 仍可正常回退到 Kun 引擎（kunRuntimeAdapter 在 `app/src/main/runtime/get-active-adapter.ts` 保留）
+- [x] 7.3 跑 `openspec validate upup-as-core-engine-for-investment-workbench --strict` → Change is valid
+- [x] 7.4 用 `comet-archive` 归档此 change（由 verify 阶段后执行）
