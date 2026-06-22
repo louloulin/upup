@@ -1,160 +1,321 @@
-# UpUp 引擎集成指南
+# UpUp SDK 引擎集成指南
 
-本文说明如何把 UpUp（涨涨）的 agent-core 作为 DeepSeek GUI 的核心引擎使用，并保留 Kun 作为回滚 fallback。
+本文说明 UpUp（涨涨）GUI 应用如何通过 `@upup/sdk` 将 UpUp Agent 引擎集成到 Electron 桌面应用中。
 
-## 目标
+## 概述
 
-GUI 不直接嵌 agent loop，也不再只信任单个外部 CLI 进程，而是：
+UpUp (涨涨) 是一个面向中文投资场景的 AI 智能体，根植于 [UpUp CLI](../CLAUDE.md) 项目。GUI 应用通过 `in-process` 方式把 `@upup/sdk` 集成进 Electron 主进程，让 7 个投资工作台面板可以直接复用 UpUp CLI 的 agent loop、工具、Skill 和工作流。
 
-1. 在 Electron 主进程内启动一个 in-process Node http server（`UpUpHost`），承载 KUN 兼容的 HTTP/SSE 契约；
-2. 通过 `RuntimeAdapter` 工厂选择当前激活的引擎（Kun / UpUp），渲染层 / IPC / preload 全部不感知差异；
-3. UI 上方新增"投资工作台"路由，把 50 个 SKILL.md、A 股行情、自选、组合、风险、研报、5 阶段 `/invest` 工作流串成一个工作台。
+**核心要点：**
+
+1. **集成方式**：in-process（主进程内持有 `UpClient` 单例），**不**是 HTTP 桥接
+2. **传输层**：`@upup/sdk` 内部用 `StdioTransport` 拉起 `bun run src/index.tsx`（UpUp CLI Agent 子进程）
+3. **API 暴露**：`preload` 用 `contextBridge` 把 7 个 IPC 通道包装成类型化 `UpupApi`
+4. **设置入口**：`设置 → 智能体 → UpUp`（`settings-section-upup.tsx`）维护 `agents.upup` 配置段
+5. **fallback**：`agents.upup` 缺失时回退到 `agents.kun`（聊天工作台用，向后兼容）
+6. **投资工作台 100% 走 UpUp SDK**；聊天工作台仍走 Kun（保留向 Kun HTTP 边界）
+
+## 架构概览
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│                       Electron 桌面应用                              │
+├──────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  ┌──────────────────────┐     ┌──────────────────────────────────┐   │
+│  │  Renderer 渲染层      │     │         Main 主进程               │   │
+│  │                      │     │                                  │   │
+│  │  InvestmentLayout    │     │   upupSdkHost (UpClient 单例)     │   │
+│  │  ┌────────────────┐  │     │   ┌──────────────────────────┐   │   │
+│  │  │ 7 panels       │  │     │   │ UpClient (@upup/sdk)     │   │   │
+│  │  │ useUpup() hooks├──┼─IPC─┼─▶│   - .query() / .stream() │   │   │
+│  │  └────────────────┘  │     │   │   - .tools.getAll()      │   │   │
+│  │         │            │     │   │   - .session             │   │   │
+│  │  contextBridge       │     │   └──────────┬───────────────┘   │   │
+│  │  window.dsGui.upup   │     │              │                   │   │
+│  │  (UpupApi typed)     │     │      StdioTransport             │   │
+│  │                      │     │              │                   │   │
+│  └──────────────────────┘     │      bun run src/index.tsx      │   │
+│                               │   (UpUp CLI Agent 子进程)         │   │
+│                               └──────────────────────────────────┘   │
+│                                                                      │
+└──────────────────────────────────────────────────────────────────────┘
+
+↑↑↑ in-process 集成：不走 HTTP/SSE，全部在主进程内完成 ↑↑↑
+```
+
+**关键决策**：
+
+- 之前使用过的 `app/src/main/upup/host.ts`（HTTP server 方案）已**删除**。
+- `app/src/main/upup/adapter.ts` / `event-bridge.ts` 也已**删除**——投资工作台不再走 adapter 模式，直接调用 UpUp SDK。
+- 渲染层 `useRuntimeRequest` + `useAsync` + `useInterval` 组合被 `useUpup()` 6 个具名 hook 替代。
 
 ## 关键文件
 
 ```text
-app/src/main/
-├── upup/
-│   ├── settings-bridge.ts    # AppSettingsV1 → UpUp engine 配置翻译
-│   ├── event-bridge.ts       # AgentEvent → Kun 兼容 SSE 事件
-│   ├── host.ts               # in-process Node http server
-│   ├── adapter.ts            # 镜像 kunRuntimeAdapter 接口
-│   └── index.ts              # 模块导出
-└── runtime/
-    ├── kun-adapter.ts        # 原 Kun 适配器
-    └── get-active-adapter.ts # factory（env > settings > kun 默认）
+app/src/main/upup/
+├── sdk-host.ts          # UpClient 单例（in-process 生命周期管理）
+├── ipc.ts               # 7 个 IPC handler：health / list-tools / list-skills /
+│                        #   list-sessions / query / stream / cancel
+├── cancellation.ts      # AbortController 池（按 turnId 注册/取消）
+├── settings-bridge.ts   # AppSettingsV1 → ClientConfig（含 agents.kun fallback）
+└── index.ts             # barrel export
 
-app/src/renderer/src/
-├── investment/
-│   ├── InvestmentLayout.tsx  # 3 列布局 + 引擎徽章 + 错误态
-│   ├── hooks/use-runtime.ts  # useRuntimeRequest / useAsync / useInterval
-│   ├── panels/               # MarketTicker / Portfolio / Watchlist / Risk / Research / SkillLauncher / WorkflowTracker
-│   └── locales/{zh,en}/investment.json
-└── AppShell.tsx              # TopNav 加"投资工作台"按钮
+app/src/shared/
+└── upup-api.ts          # UpupApi 接口 + 类型定义（渲染层/主进程共享契约）
+
+app/src/preload/
+└── upup-bridge.ts       # contextBridge：把 IPC invoke 包装为 UpupApi 实例
+
+app/src/renderer/src/investment/
+├── hooks/useUpup.ts     # 6 个具名 hook：useUpupHealth / useUpupListTools /
+│                        #   useUpupListSkills / useUpupListSessions /
+│                        #   useUpupQuery / useUpupStream
+└── panels/*.tsx         # 7 个投资面板（全部走 useUpup hooks）
+
+app/src/renderer/src/components/
+└── settings-section-upup.tsx  # 设置 → 智能体 → UpUp 面板
 ```
 
-## 引擎选择优先级
+## 启动流程
 
-```ts
-// app/src/main/runtime/get-active-adapter.ts
-1. process.env.DEEPSEEK_GUI_ENGINE ∈ {'upup', 'kun'}   ← 最高
-2. AppSettingsV1.engine 字段
-3. 默认 'kun'                                          ← 向后兼容
+```text
+1. app/src/main/index.ts 启动
+   │
+   ├─ upupSdkHost.start(initial)            ←── 启动 UpClient 单例
+   │   │
+   │   ├─ resolveUpupClientConfig(settings)  ── 优先 agents.upup，fallback agents.kun
+   │   │
+   │   ├─ createClient(config)               ── 来自 @upup/sdk
+   │   │   │
+   │   │   ├─ StdioTransport.connect()
+   │   │   │   └─ spawn: bun run src/index.tsx  (UpUp CLI Agent 子进程)
+   │   │   │
+   │   │   └─ new UpClient(transport, config)
+   │   │
+   │   └─ startedAt = Date.now()             ── 后续 health() 报 uptime
+   │
+   ├─ registerUpupIpcHandlers()              ←── 注册 7 个 ipcMain.handle()
+   │
+   ├─ setMainWindow(...)                     ─── 注入主窗口用于 webContents.send
+   │                                         ─── 推送 'upup:stream' 事件
+   │
+   └─ createWindow({ ... })                  ←── 启动 Electron 窗口
 ```
 
-## 切换到 UpUp
+引擎启动失败是**非致命**的：主进程在 `app.whenReady()` 中用 `void upupSdkHost.start(...).catch(...)` 包住。失败时 `upup:health` 仍返回 `{ ok: false, error: 'UpUp 引擎未启动' }`，前端 InvestmentLayout 渲染"引擎未就绪"占位，**不会**让整个 GUI 崩溃。
 
-### 命令行（推荐用于开发）
+设置变更后 `applySettingsPatch` 会调用 `syncUpupSdkHost(saved)`，先 `stop()` 再 `start()`，确保 7 个面板下次查询拿到的是新配置。
 
-```bash
-cd app
-DEEPSEEK_GUI_ENGINE=upup npm run dev
-```
+## 设置（设置 → 智能体 → UpUp）
 
-### 配置文件
+`settings-section-upup.tsx` 维护 `agents.upup` 段配置；修改后由 `settings-bridge.ts` 翻译成 `@upup/sdk` 的 `ClientConfig`。
 
-```json
-// ~/.deepseek-gui/settings.json
-{
-  "engine": "upup"
+| 字段 | 必填 | 说明 |
+|------|------|------|
+| **provider** | 是 | `deepseek` / `openai` / `anthropic` / `google` / `xai` / `openrouter` / `ollama`。前 4 个原生支持；`xai` / `openrouter` / `ollama` 自动映射为 `openai` 兼容路径。 |
+| **model** | 是 | 取决于 provider（详见设置面板下拉）。留空时 `settings-bridge` 给默认值（deepseek→`deepseek-v4-pro`，anthropic→`claude-sonnet-4-6`，openai→`gpt-4o`，google→`gemini-2.0-flash`）。 |
+| **apiKey** | 是 | 模型 API Key。**优先**用 `agents.upup.apiKey`；为空时回退到 `getActiveAgentApiKey(settings)`（Kun 通用 key）。两者都为空时抛 `UpupApiKeyMissingError`。 |
+| **baseUrl** | 否 | OpenAI 兼容自定义端点（如本地 Ollama 填 `http://127.0.0.1:11434`）。 |
+| **enableTushare** | 否 | A 股数据开关（启用后 SDK 拉取 A 股实时数据）。 |
+| **tushareToken** | 条件 | 启用 Tushare 时必填。 |
+| **enableExaSearch** | 否 | Exa 搜索开关（中文研报检索）。 |
+| **exaSearchKey** | 条件 | 启用 Exa 搜索时必填。 |
+
+**获取 API Key：**
+
+- DeepSeek: <https://platform.deepseek.com/api_keys>
+- Anthropic: <https://console.anthropic.com/>
+- OpenAI: <https://platform.openai.com/api-keys>
+- Google AI: <https://aistudio.google.com/app/apikey>
+- Tushare Pro (A 股): <https://tushare.pro/register>
+
+修改后无需手动重启——`applySettingsPatch` 会自动调用 `syncUpupSdkHost` 重启 UpClient。
+
+## SDK 公开面（严格使用）
+
+| SDK 方法 | 用途 | 主进程文件 |
+|----------|------|-----------|
+| `createClient(config)` | 启动 UpClient + StdioTransport | `sdk-host.ts` |
+| `client.query(prompt, opts?)` | 非流式调用 | `ipc.ts` → `upup:query` |
+| `client.stream(prompt, opts?)` | 流式调用 | `ipc.ts` → `upup:stream` |
+| `client.tools.getAll()` | 列出工具 | `ipc.ts` → `upup:list-tools` |
+| `client.close()` | 优雅关闭 | `sdk-host.ts.stop()` |
+
+`@upup/skills` 的 `discoverSkills()` 用于列出 SKILL.md（@upup/sdk 自身不暴露 `listSkills`）。
+
+## 不存在的功能（主进程层补齐）
+
+| SDK 缺失 | 主进程补齐方案 | 文件 |
+|----------|---------------|------|
+| 无 `listSkills()` | `discoverSkills()` 扫描 SKILL.md frontmatter | `ipc.ts` |
+| 无 `listSessions()` | 返回 `[]`（预留，等 SDK 提供 listAllSessions 后接上） | `ipc.ts` |
+| `stream()` 不接受 `signal` | 本地 `AbortController` + `for-await break` | `cancellation.ts` + `ipc.ts` |
+
+## IPC 通道
+
+| Channel | 方向 | 说明 |
+|---------|------|------|
+| `upup:health` | Renderer → Main | 引擎健康检查（不抛错；返回 `{ ok, version, uptime, error? }`） |
+| `upup:list-tools` | Renderer → Main | 已注册工具列表 |
+| `upup:list-skills` | Renderer → Main | SKILL.md 列表（`UpupSkill` 含 `category`） |
+| `upup:list-sessions` | Renderer → Main | 会话历史（暂时返回 `[]`） |
+| `upup:query` | Renderer → Main | 非流式 query；返回 `{ result, usage?, duration_ms? }` |
+| `upup:stream` | Renderer → Main | 流式 query；立即返回 `turnId`，事件通过 `upup:stream` 推送 |
+| `upup:cancel` | Renderer → Main | 取消指定 `turnId` 的流 |
+| `upup:stream` | Main → Renderer | 流事件推送（`assistant` / `tool_use` / `tool_result` / `result` / `done` / `error`） |
+
+## 渲染层使用
+
+```tsx
+// 在投资面板中
+import {
+  useUpupHealth,
+  useUpupListTools,
+  useUpupListSkills,
+  useUpupStream,
+} from '../hooks/useUpup'
+
+function MyPanel() {
+  const { data: health, loading, error } = useUpupHealth()
+  const { data: tools } = useUpupListTools()
+  const { data: skills } = useUpupListSkills()
+  const stream = useUpupStream()
+
+  return (
+    <Box>
+      <Text>引擎: {health?.label} {health?.ok ? '🟢' : '🔴'}</Text>
+      <Text>工具数: {tools?.length ?? 0}</Text>
+      <Text>技能数: {skills?.length ?? 0}</Text>
+    </Box>
+  )
 }
 ```
 
-### 回滚
-
-把 `engine` 改回 `kun`，或去掉 `DEEPSEEK_GUI_ENGINE` 环境变量即可。
-
-## HTTP/SSE 契约
-
-`UpUpHost` 注册的端点与 `KUN_*_PATH` 完全一致，渲染层无感切换：
-
-| 路径 | 说明 |
-| --- | --- |
-| `GET  /health` | 健康检查 |
-| `GET  /v1/runtime/info` | 运行时元信息（含引擎 ID / 模型 / skills） |
-| `GET  /v1/runtime/tools` | 当前可用工具清单 |
-| `GET  /v1/skills` | 当前可调用的 SKILL.md 列表 |
-| `POST /v1/threads` | 创建新会话 |
-| `GET  /v1/threads` | 列出会话 |
-| `GET  /v1/threads/:id` | 获取会话详情 |
-| `POST /v1/threads/:id/turns` | 发起一轮对话（SSE 响应） |
-| `POST /v1/threads/:id/fork` | 派生新会话 |
-| `POST /v1/threads/:id/compact` | 上下文压缩 |
-| `POST /v1/threads/:id/review` | 触发 review |
-| `POST /v1/threads/:id/goal` | 设置会话目标 |
-| `POST /v1/threads/:id/todos` | 同步 todo 列表 |
-| `POST /v1/threads/:id/approvals/:approvalId` | 决策 tool approval |
-| `GET  /v1/memory` | 记忆读取 |
-| `POST /v1/attachments` | 上传附件 |
-
-默认端口 `5300`，仅监听 `127.0.0.1`，由 `UpUpHost.start()` 启动时自动绑定。
-
-## 事件名映射（Kun 兼容）
-
-`event-bridge.ts` 把 `src/agent/agent.ts` 的 `AgentEvent` 翻译为 Kun SSE 事件名，渲染层消费 `thread.message.delta / thread.tool.start / thread.tool.end / thread.approval.requested / thread.done` 等，不需要任何改动。
-
-```ts
-// 摘录
-case 'message':
-  return { event: 'thread.message.delta', data: { delta: ev.text } }
-case 'tool_call':
-  return { event: 'thread.tool.start', data: { id, tool, args } }
-case 'done':
-  return { event: 'thread.done', data: { answer: asString(ev.answer) } }
-```
-
-类型漂移风险点已在 `event-bridge.ts` 注释里说明（`DoneEvent.answer` vs `AgentEvent.result`、`ApprovalDecision` 形状差异），全部用 `Record<string, unknown>` 解耦。
+`useUpup()` 自身就是 `window.dsGui.upup` 的访问器；缺失时抛中文错误（防止在非 Electron 环境运行）。
 
 ## 设置翻译
 
-`settings-bridge.ts` 把 GUI 的 `AppSettingsV1` 翻译成 UpUp 的 engine config：
+`settings-bridge.ts` 把 GUI 的 `AppSettingsV1` 翻译成 `@upup/sdk` 的 `ClientConfig`：
 
-- provider：openai / anthropic / google / xai / deepseek / ollama / openrouter
-- model：默认 `gpt-5.4`，支持 `claude-` 前缀路由
-- apiKey：从 AppSettingsV1 取出，缺失时抛**中文错误信息**
-- baseUrl：ollama 默认 `http://127.0.0.1:11434`，其他 provider 走标准 endpoint
+- **provider/model**：`agents.upup.provider` / `agents.upup.model`，默认 `deepseek` / `deepseek-v4-pro`
+- **向后兼容**：`agents.upup` 不存在时 fallback 到 `agents.kun`
+- **apiKey**：从 `agents.upup.apiKey` 取出，缺失时抛 `UpupApiKeyMissingError`（中文消息）
+- **useUpupSession**：启用 SDK 内部会话管理（`useUpupSession: true`）
+- **baseUrl**：可选，透传（用于 OpenAI 兼容服务）
 
-校验函数 `validateUpUpConfig` 在 `UpUpHost.start()` 之前调用，缺 key 时直接以中文错误冒泡到 GUI 错误态。
+## 已删除的旧路径
 
-## 调试
+以下文件在 SDK 架构切换后已删除（**不再使用** HTTP server / adapter / event-bridge 方案）：
 
-### 看引擎是否生效
+| 旧文件 | 替代方案 |
+|--------|---------|
+| `app/src/main/upup/host.ts` | `sdk-host.ts`（UpClient 单例） |
+| `app/src/main/upup/adapter.ts` | **不再需要**（聊天工作台仍走 Kun adapter） |
+| `app/src/main/upup/event-bridge.ts` | IPC stream 事件翻译在 `ipc.ts` 内联 |
+| `app/src/renderer/src/investment/hooks/use-runtime.ts` | `useUpup.ts`（6 个具名 hook） |
+| `app/src/main/upup/sdk-types.d.ts` (shim) | `@upup/sdk` dist/index.d.ts |
+| `app/src/main/upup/skill-catalog.ts` | `@upup/skills.discoverSkills()` |
 
-```ts
-// 在 DevTools Console
-window.dsGui.runtimeRequest('/v1/runtime/info', 'GET').then(console.log)
-// { engine: 'upup', label: 'upup-agent-core', ... }
-```
+## 双引擎策略
 
-### 看引擎适配器被谁选中
+| 引擎 | 工作台 | 传输方式 | 状态 |
+|------|--------|---------|------|
+| **UpUp SDK** | 投资工作台 | StdioTransport（bun subprocess） | **活跃** |
+| Kun | 聊天工作台 | HTTP（port 5300） | 保留（向后兼容） |
 
-主进程日志：
+`get-active-adapter.ts` 已简化，仅返回 Kun adapter。投资工作台**不**走 adapter 模式，直接通过 `upupSdkHost.getClient()` 拿 UpClient。
 
-```
-[engine] active=upup (from env DEEPSEEK_GUI_ENGINE=upup)
-[upup-host] listening on http://127.0.0.1:5300
-```
+## 调试方法
 
-### 跑单独的引擎自检
+### 1. 主进程日志
+
+应用以 `bun run dev` 或生产模式启动后，主进程控制台会输出：
+
+- **`[upup-sdk] host restarted after settings change`** — 设置变更重启引擎
+- **`[upup-sdk] host:started`** — 启动成功
+- **`[upup-ipc] list-skills failed: ...`** — 列出 skills 出错
+- **`[deepseek-gui] upup-sdk host start failed: ...`** — 引擎启动失败（API key 缺失、provider 不识别等）
+
+把日志写到本地文件：
 
 ```bash
-curl http://127.0.0.1:5300/health
-# {"ok":true,"engine":"upup"}
+# 主进程日志位置（macOS）
+~/Library/Logs/DeepSeek GUI/main.log
+
+# 或通过设置页"打开日志目录"
 ```
 
-## 关键约束
+启用 GUI 内的日志：`设置 → 通用 → 日志` 打开 → 重启应用。日志按 `retentionDays` 自动清理。
 
-1. **不复制 UpUp 代码**：`UpUpHost` 通过相对路径 `'../../../../src/agent/agent.js'` 直接引用源码，跟随 UpUp 演进。
-2. **Kun 引擎必须可回滚**：所有调用都经过 `getActiveRuntimeAdapter(settings)`，settings 改了立刻生效。
-3. **KUN_*_PATH 端点常量保留**：`app/src/shared/kun-endpoints.ts` 末尾追加 `ENGINE_*_PATH` 别名，渲染层零改动。
-4. **中文优先**：所有用户可见的日志、错误、文案都使用中文。
+### 2. 渲染层调试
+
+打开 DevTools（`View → Toggle Developer Tools` 或 `Ctrl+Shift+I`）：
+
+```js
+// 查看引擎健康状态
+await window.dsGui.upup.health()
+// → { ok: true, engine: 'upup', version: '0.2.1', label: 'upup-sdk', uptime: 12345 }
+
+// 列工具
+await window.dsGui.upup.listTools()
+// → [{ name: 'bash', description: '...' }, ...]
+
+// 列 skills
+await window.dsGui.upup.listSkills()
+// → [{ name: 'dcf', description: '...', category: 'builtin' }, ...]
+
+// 非流式 query
+await window.dsGui.upup.query('分析 600519 茅台近 5 年 ROE')
+
+// 流式 query
+const { turnId } = await window.dsGui.upup.stream('贵州茅台 2026Q1 业绩前瞻')
+// 监听 window.dsGui.upup.onStream(...) 收事件
+```
+
+### 3. 引擎健康徽章
+
+InvestmentLayout 顶部的 `upup-sdk · v0.2.1` 徽章显示当前版本和状态：
+
+- **🟢** 引擎就绪
+- **🔴** 引擎未启动 / 启动失败（鼠标 hover 看错误详情）
 
 ## 故障排查
 
 | 症状 | 排查 |
-| --- | --- |
-| GUI 卡在"等待运行时…" | 看主进程日志有无 `[upup-host] EADDRINUSE`；5300 端口被占用 |
-| 投资工作台空白 | DevTools Console 看 `window.dsGui.runtimeRequest('/v1/runtime/info')` 返回 |
-| SKILL 按钮点了没反应 | 渲染层日志看 `thread.message.delta` 是否到达；`src/skills/registry.ts` 启动时是否扫描成功 |
-| `DEEPSEEK_GUI_ENGINE=upup` 不生效 | 检查环境变量是否在 npm run dev 之前 export；PowerShell 用 `$env:DEEPSEEK_GUI_ENGINE='upup'` |
-| 切换引擎后 GUI 报错 | `~/.deepseek-gui/settings.json` 删除 `engine` 字段，恢复默认 |
+|------|------|
+| **投资工作台显示"引擎未就绪"** | 检查 `设置 → 智能体 → UpUp` 是否填了 API Key；查看主进程日志 `[upup-sdk]` |
+| **API key 错误 / 401 Unauthorized** | API Key 拼写错误或失效；回 `设置 → 智能体 → UpUp` 重新填入 |
+| **upup:health 报 "UpUp 引擎未启动"** | `upupSdkHost.start()` 失败；可能 `agents.upup` 与 `agents.kun` 都没 API Key；查看主进程日志 |
+| **技能按钮无响应** | 7 个面板通过 `useUpupListSkills()` 拉技能；查看 `upup:list-skills` 是否返回；日志搜 `[upup-ipc] list-skills failed` |
+| **流式输出中断** | `useUpupStream` 的 `cancel()` 触发或 `upup:cancel` 主动取消；日志搜 `[upup-cancel]` |
+| **`upup:stream` 报 "UpUp 引擎未就绪"** | `upupSdkHost.getClient()` 返回 null；通常是设置变更后 restart 失败；回设置页确认配置 |
+| **typecheck 报错** | 确认 `packages/sdk/dist/index.js` 和 `index.d.ts` 已构建：`cd packages/sdk && bun run build` |
+| **`createClient` 卡死** | bun 未安装；安装 Bun 后重试：`curl -fsSL https://bun.sh/install \| bash` |
+| **更改 provider 后没生效** | 设置变更会自动 `syncUpupSdkHost`；查看主进程日志是否输出 `host restarted after settings change` |
+
+## 验证门
+
+每次改主进程/渲染层 SDK 接入代码至少跑：
+
+```bash
+# 主仓库 typecheck
+npm run typecheck        # 同时跑 app/web + app/node + 仓库根
+
+# 投资工作台相关单元测试
+npx vitest run app/src/main/upup app/src/renderer/src/investment
+
+# 关键 subset 手动 grep（应返回 0）
+grep -r "useRuntimeRequest" app/src/renderer/src/investment/panels
+grep -r "host.ts\|adapter.ts\|event-bridge.ts" app/src/main/upup
+find app/src -name "sdk-types.d.ts"
+```
+
+## 相关文档
+
+- `app/docs/investment-workbench.md` — 投资工作台使用指南（7 个面板详解）
+- `app/docs/kun-architecture.md` — Kun 单运行时方案（聊天工作台架构基线）
+- `app/docs/kun-cache-optimization.md` — 缓存优化与 Token ROI
+- `packages/sdk/README.md` — `@upup/sdk` 公开 API
+- `packages/sdk/src/client/client.ts` — `UpClient` / `createClient` 实现
+- `packages/sdk/src/transport/stdio-transport.ts` — StdioTransport 实现

@@ -231,6 +231,21 @@ Background automation and IM integration, so Kun can keep handling phone message
 - Local webhook / relay support for team workflows and personal automation.
 - Scheduled tasks can run once, daily, on an interval, or manually. Each task creates a dedicated Kun thread and sends its configured prompt.
 
+### Investment Workbench
+
+A one-screen investment-research desktop powered by the UpUp (涨涨) agent engine — quotes, holdings, watchlist, risk, research digests, skill launcher, and `/invest` workflow tracker in a single window.
+
+<p align="center">
+  <em>[Screenshot: Investment Workbench Overview]</em>
+</p>
+
+- Quotes / portfolio / watchlist / risk / research — seven panels side by side for cross-checking
+- **50 investment-analysis skills** (valuation / screening / brief / review / risk / earnings / research / other), grouped and one-click launchable
+- **5-stage `/invest` workflow** (dossier → strategy → earnings-preview → morning-brief → portfolio-review) with visible progress
+- Engine runs **in-process** (`@upup/sdk` + StdioTransport) — no external HTTP bridge required
+
+**Quick start**: open `Settings → Agents → UpUp`, fill in your API key (DeepSeek / Anthropic / OpenAI / Google / etc.), then switch to the **Investment Workbench** tab at the top. For per-panel field reference and troubleshooting, see [`docs/investment-workbench.md`](docs/investment-workbench.md) (Chinese) and the in-process integration guide [`docs/upup-engine-integration.md`](docs/upup-engine-integration.md) (Chinese).
+
 ---
 
 ## Install
@@ -405,6 +420,8 @@ For the full development workflow, see [DEVELOPMENT.md](./docs/DEVELOPMENT.md).
 | [docs/kun-architecture.en.md](docs/kun-architecture.en.md) | Single-Kun runtime plan, GUI removal scope, HTTP/SSE contract, and legacy agent retirement notes |
 | [docs/kun-cache-optimization.en.md](docs/kun-cache-optimization.en.md) | Kun cache optimization, token economy, MCP search, tool-output compaction, and usage savings |
 | [docs/kun-contributing.en.md](docs/kun-contributing.en.md) | Kun contribution guide: hexagonal architecture, design patterns (Ports & Adapters / Functional Core Imperative Shell / event sourcing / explicit DI / composition root), four typical PR scenarios |
+| [docs/investment-workbench.md](docs/investment-workbench.md) | Investment Workbench user guide: 7-panel reference, settings switch, FAQ (Chinese) |
+| [docs/upup-engine-integration.md](docs/upup-engine-integration.md) | UpUp SDK engine integration: in-process UpClient singleton, 7 IPC handlers, StdioTransport, troubleshooting (Chinese) |
 | [kun/README.md](kun/README.md) | Kun package: CLI, env, data dir, HTTP API |
 | [CONTRIBUTING.en.md](docs/CONTRIBUTING.en.md) | Contribution guide |
 | [DEVELOPMENT.en.md](docs/DEVELOPMENT.en.md) | Local development workflow |

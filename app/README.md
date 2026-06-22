@@ -214,6 +214,21 @@ Kun 运行时与设置，但会话、工作区和界面布局彼此独立，可�
 - 支持本地 webhook / relay，适合把 DeepSeek 接到团队协作或个人自动化流程中。
 - 定时任务可设置一次性、每日、间隔或手动运行，任务会创建独立 Kun thread，并按配置发送 prompt。
 
+### 投资工作台
+
+UpUp（涨涨）Agent 引擎驱动的"一屏式投研桌面"——把行情、持仓、自选、风险、研报、Skill 启动器和 `/invest` 工作流整合到同一窗口。
+
+<p align="center">
+  <em>[Screenshot: Investment Workbench Overview]</em>
+</p>
+
+- 行情 / 持仓 / 自选 / 风险 / 研报——7 个面板同屏对照
+- **50 个投资分析 Skill**（估值/筛选/简报/复盘/风险/财报/研报/其他）按分类一键启动
+- **5 阶段 `/invest` 工作流**（dossier → strategy → earnings-preview → morning-brief → portfolio-review）进度可视
+- 引擎内嵌（in-process `@upup/sdk` + StdioTransport），不依赖外网 HTTP 桥接
+
+**快速开始**：`设置 → 智能体 → UpUp` 中填入 API Key（[DeepSeek](https://platform.deepseek.com/api_keys) / [Anthropic](https://console.anthropic.com/) / OpenAI / Google 等）后，切到顶部 **"投资工作台"** Tab 即可使用。详细使用与每个面板的字段说明见 [`docs/investment-workbench.md`](docs/investment-workbench.md)；in-process 集成方式、7 个 IPC 通道与故障排查见 [`docs/upup-engine-integration.md`](docs/upup-engine-integration.md)。
+
 ---
 
 ## 下载安装
@@ -388,6 +403,8 @@ npm run release:win     # 手动兜底：构建并上传 Windows release 资源
 | [docs/kun-architecture.md](docs/kun-architecture.md) | Kun 单运行时方案、GUI 拆改范围、HTTP/SSE 合约、旧 agent 拆除说明 |
 | [docs/kun-cache-optimization.md](docs/kun-cache-optimization.md) | Kun 缓存优化、token economy、MCP search、工具输出压缩与用量收益统计 |
 | [docs/kun-contributing.md](docs/kun-contributing.md) | Kun 贡献指南：六边形架构、设计模式（Ports & Adapters / Functional Core Imperative Shell / 事件溯源 / 显式 DI / Composition Root）、4 个典型 PR 场景 |
+| [docs/investment-workbench.md](docs/investment-workbench.md) | 投资工作台使用指南：7 个面板详解、设置切换、常见问题 |
+| [docs/upup-engine-integration.md](docs/upup-engine-integration.md) | UpUp SDK 引擎集成：in-process UpClient 单例、7 个 IPC handler、StdioTransport、故障排查 |
 | [kun/README.md](kun/README.md) | Kun 包：CLI、env、data dir、HTTP API |
 | [CONTRIBUTING.zh-CN.md](docs/CONTRIBUTING.zh-CN.md) | 贡献说明 |
 | [DEVELOPMENT.zh-CN.md](docs/DEVELOPMENT.zh-CN.md) | 本地开发与协作流程 |
