@@ -6,7 +6,18 @@
     "strict": true,
     "noEmit": true,
     "skipLibCheck": true,
-    "types": ["node", "electron-vite/node", "vite/client"]
+    "allowImportingTsExtensions": true,
+    "types": ["node", "electron-vite/node", "vite/client"],
+    "baseUrl": ".",
+    "paths": {
+      "@upup-src/*": ["../../src/*"]
+    }
   },
-  "include": ["electron.vite.config.ts", "src/main/**/*", "src/preload/**/*", "src/shared/**/*"]
+  "include": [
+    "electron.vite.config.ts",
+    "src/main/**/*",
+    "src/preload/**/*",
+    "src/shared/**/*"
+  ],
+  "exclude": ["src/**/__tests__/**", "src/**/*.test.ts", "src/**/*.test.tsx"]
 }

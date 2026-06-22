@@ -61,6 +61,8 @@ logs/
 coverage.json
 dexter
 upup
+!app/src/main/upup/
+!app/src/main/upup/**
 .serena/cache/
 .playwright-mcp/
 packages/sdk/.upup

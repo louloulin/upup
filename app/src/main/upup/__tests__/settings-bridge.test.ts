@@ -5,7 +5,7 @@
  * 参考: resolve-kun-binary.test.ts (纯函数不需要 mock), app-identity.test.ts (vi.mock 模式)
  */
 import { describe, expect, it } from 'vitest'
-import type { AppSettingsV1 } from '../../shared/app-settings-types'
+import type { AppSettingsV1 } from '../../../shared/app-settings'
 
 // 直接 import 源函数 — settings-bridge 无副作用依赖
 import { resolveUpupClientConfig, UpupApiKeyMissingError } from '../settings-bridge'
