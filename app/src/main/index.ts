@@ -61,6 +61,7 @@ import {
 } from './claw-platform-install'
 import { registerRuntimeSseIpc } from './runtime-sse-ipc'
 import { getActiveRuntimeAdapter, getActiveEngineId } from './runtime/get-active-adapter'
+import { upupSdkHost, registerUpupIpcHandlers, setMainWindow } from './upup'
 import {
   configureWeixinBridgeRuntimeContextProvider,
   ensureWeixinBridgeRpcUrl,
@@ -107,6 +108,17 @@ function shouldStartWeixinBridgeRuntime(settings: AppSettingsV1): boolean {
   return settings.claw.enabled &&
     settings.claw.im.enabled &&
     settings.claw.channels.some((channel) => channel.enabled && channel.provider === 'weixin')
+}
+
+/** Restart UpUp SDK host when settings change */
+function syncUpupSdkHost(settings: AppSettingsV1): void {
+  void upupSdkHost.stop().then(() => {
+    return upupSdkHost.start(settings)
+  }).then(() => {
+    if (!app.isPackaged) console.log('[upup-sdk] host restarted after settings change')
+  }).catch((err) => {
+    console.warn('[deepseek-gui] upup-sdk host restart failed:', err instanceof Error ? err.message : err)
+  })
 }
 
 function syncWeixinBridgeRuntime(settings: AppSettingsV1): void {
@@ -874,6 +886,7 @@ app.whenReady().then(async () => {
   setActiveSettings(initial)
   traceStartup('settings load:done')
   appBehavior = initial.appBehavior
+  syncUpupSdkHost(initial)
   syncLoginItemSettings(initial)
   syncTray(initial)
   await syncClawScheduleMcpConfig(initial, getClawScheduleMcpLaunchConfig()).catch((error) => {
@@ -950,6 +963,7 @@ app.whenReady().then(async () => {
     scheduleRuntime?.sync(saved)
     clawRuntime?.sync(saved)
     syncWeixinBridgeRuntime(saved)
+    syncUpupSdkHost(saved)
     syncLoginItemSettings(saved)
     syncTray(saved)
     return saved
@@ -994,9 +1008,19 @@ app.whenReady().then(async () => {
   })
 
   registerRuntimeSseIpc({ ipcMain, store, ensureRuntime, logError })
+  registerUpupIpcHandlers()
+  traceStartup('upup-sdk ipc registration:done')
   traceStartup('ipc registration:done')
 
+  // 启动 UpUp SDK 引擎（最佳努力，失败降级为'引擎未就绪'）
+  void upupSdkHost.start(initial).then(() => {
+    traceStartup('upup-sdk host:started')
+  }).catch((err) => {
+    console.warn('[deepseek-gui] upup-sdk host start failed:', err instanceof Error ? err.message : err)
+  })
   createWindow({ suppressInitialShow: shouldStartHidden(initial) })
+  // 把主窗口注入 upup ipc 模块,用于 webContents.send('upup:stream', ...) 推送事件
+  setMainWindow(BrowserWindow.getAllWindows()[0] ?? null)
   traceStartup('createWindow:returned')
 
   void pruneOnStartup().catch((err) => {
