@@ -1,127 +1,87 @@
 /**
  * 5 阶段 /invest 工作流追踪。
+ *
+ * 数据源：`useUpupListSessions()`（每个 session 是一轮 /invest 阶段）。
  */
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { useAsync, useRuntimeRequest } from '../hooks/use-runtime'
+import { useUpupListSessions, useUpupStream } from '../hooks/useUpup'
 
-const STAGE_IDS = ['dossier', 'strategy', 'earningsPreview', 'morningBrief', 'portfolioReview'] as const
-type StageId = (typeof STAGE_IDS)[number]
-type StageStatus = 'todo' | 'inProgress' | 'done'
+const STAGES = [
+  { id: 'dossier', label: '个股档案', hint: '梳理个股基本面' },
+  { id: 'strategy', label: '策略生成', hint: '形成投资策略' },
+  { id: 'earningsPreview', label: '财报前瞻', hint: '跟踪业绩预期' },
+  { id: 'morningBrief', label: '早间简报', hint: '每日市场快讯' },
+  { id: 'portfolioReview', label: '组合复盘', hint: '周度组合评估' }
+] as const
 
-type WorkflowState = {
-  activeThreadId?: string
-  stages: Record<StageId, { status: StageStatus; updatedAt: number }>
-}
-
-const EMPTY: WorkflowState = {
-  stages: STAGE_IDS.reduce((acc, s) => {
-    acc[s] = { status: 'todo', updatedAt: 0 }
-    return acc
-  }, {} as WorkflowState['stages'])
+function statusOf(sessions: Array<{ id: string; title: string; status: string }>, stage: string): 'todo' | 'inProgress' | 'done' {
+  const s = sessions.find((sess) => sess.title.includes(stage))
+  if (!s) return 'todo'
+  if (s.status === 'running' || s.status === 'inProgress') return 'inProgress'
+  return 'done'
 }
 
 export function WorkflowTracker(): React.ReactElement {
   const { t } = useTranslation('investment')
-  const req = useRuntimeRequest()
-  const [confirmStage, setConfirmStage] = React.useState<StageId | null>(null)
+  const { data: sessions = [] } = useUpupListSessions()
+  const stream = useUpupStream()
 
-  const { data, refresh } = useAsync<WorkflowState>(
-    async () => {
-      try {
-        return ((await req('/v1/workflow', 'GET')) as WorkflowState) || EMPTY
-      } catch {
-        return EMPTY
-      }
-    },
-    []
-  )
-
-  const stages = data?.stages || EMPTY.stages
-
-  const statusColor = (s: StageStatus): string => {
-    if (s === 'done') return 'bg-emerald-500 text-white'
-    if (s === 'inProgress') return 'bg-blue-500 text-white animate-pulse'
-    return 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
-  }
-
-  const onJump = async (stage: StageId): Promise<void> => {
-    setConfirmStage(null)
-    try {
-      await req('/v1/threads', 'POST', { title: `/invest — ${t(`workflow.stages.${stage}`)}` })
-    } catch {
-      // local only
-    }
-    refresh()
+  const startStage = async (stageId: string, label: string, hint: string): Promise<void> => {
+    await stream.start(`/invest ${stageId}：${label}（${hint}）`)
   }
 
   return (
     <section className="bg-white dark:bg-slate-900 rounded-lg shadow-sm p-4">
-      <header className="mb-3">
+      <header className="flex items-center justify-between mb-3">
         <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">
           {t('workflow.title')}
         </h2>
       </header>
-      <ol className="space-y-2">
-        {STAGE_IDS.map((id, idx) => {
-          const stage = stages[id]
+      <ol className="space-y-1.5">
+        {STAGES.map((stage, i) => {
+          const status = statusOf(sessions ?? [], stage.id)
           return (
-            <li
-              key={id}
-              className="flex items-center gap-2 text-sm py-1.5 border-b border-slate-50 dark:border-slate-800 last:border-b-0"
-            >
+            <li key={stage.id} className="flex items-start gap-2">
               <div
-                className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-mono ${statusColor(stage.status)}`}
+                className={`mt-0.5 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-mono ${
+                  status === 'done'
+                    ? 'bg-emerald-500 text-white'
+                    : status === 'inProgress'
+                    ? 'bg-blue-500 text-white animate-pulse'
+                    : 'bg-slate-200 dark:bg-slate-700 text-slate-500'
+                }`}
               >
-                {idx + 1}
+                {i + 1}
               </div>
-              <span className="flex-1 text-slate-800 dark:text-slate-100">
-                {t(`workflow.stages.${id}`)}
-              </span>
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500">
-                {t(`workflow.status.${stage.status}`)}
-              </span>
-              <button
-                onClick={() => setConfirmStage(id)}
-                className="text-[10px] text-blue-500 hover:underline"
-              >
-                {t('workflow.jump')}
-              </button>
+              <div className="flex-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-slate-800 dark:text-slate-100">{stage.label}</span>
+                  <button
+                    onClick={() => void startStage(stage.id, stage.label, stage.hint)}
+                    disabled={stream.loading}
+                    className="text-[10px] px-1.5 py-0.5 rounded border border-slate-200 dark:border-slate-700 hover:border-blue-500 hover:text-blue-500 disabled:opacity-50"
+                  >
+                    {status === 'inProgress' ? '进行中' : '启动'}
+                  </button>
+                </div>
+                <div className="text-[10px] text-slate-500 dark:text-slate-400">{stage.hint}</div>
+              </div>
             </li>
           )
         })}
       </ol>
-      {confirmStage && (
-        <div
-          className="fixed inset-0 bg-black/30 flex items-center justify-center z-50"
-          onClick={() => setConfirmStage(null)}
-        >
-          <div
-            className="bg-white dark:bg-slate-800 rounded-lg p-4 max-w-sm mx-4 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="text-sm text-slate-800 dark:text-slate-100 mb-3">
-              {t('workflow.confirmJump')}
-            </div>
-            <div className="flex gap-2 justify-end">
-              <button
-                onClick={() => setConfirmStage(null)}
-                className="px-3 py-1 text-xs border border-slate-200 dark:border-slate-600 rounded"
-              >
-                {t('common.cancel')}
-              </button>
-              <button
-                onClick={() => void onJump(confirmStage)}
-                className="px-3 py-1 text-xs bg-blue-500 text-white rounded"
-              >
-                {t('common.confirm')}
-              </button>
-            </div>
-          </div>
+      {stream.loading && (
+        <div className="mt-3 p-2 rounded bg-blue-50 dark:bg-blue-950 text-[10px] text-blue-700 dark:text-blue-300 max-h-32 overflow-auto">
+          {stream.events
+            .map((e) => {
+              if (e.event === 'assistant') return e.data.text
+              if (e.event === 'tool_use') return `[工具] ${e.data.name}`
+              return ''
+            })
+            .join('')}
         </div>
       )}
     </section>
   )
 }
-
-export default WorkflowTracker

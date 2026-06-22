@@ -15,7 +15,7 @@ import { spawn, ChildProcess, execSync } from 'child_process'
 import { existsSync, readFileSync } from 'fs'
 import { dirname, join } from 'path'
 import { homedir } from 'os'
-import { createInterface, type ReadlineInterface } from 'readline'
+import { createInterface, type Interface as ReadlineInterface } from 'readline'
 import type {
   Transport,
   StdioTransportConfig,

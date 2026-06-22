@@ -3,6 +3,8 @@
  *   - 顶部标题 + 引擎徽章 + 刷新
  *   - 主区域：左侧（行情+持仓+风险+自选），右侧（研报+技能+工作流）
  *   - 引擎不可达时显示统一错误
+ *
+ * 数据源：UpUp SDK（@upup/sdk）通过 `useUpupHealth()` 获取引擎状态
  */
 import React from 'react'
 import { useTranslation } from 'react-i18next'
@@ -13,27 +15,11 @@ import { RiskDashboard } from './panels/RiskDashboard'
 import { ResearchPanel } from './panels/ResearchPanel'
 import { SkillLauncher } from './panels/SkillLauncher'
 import { WorkflowTracker } from './panels/WorkflowTracker'
-import { useAsync, useRuntimeRequest } from './hooks/use-runtime'
-
-type HealthResponse = {
-  status: string
-  engine: string
-  version: string
-}
+import { useUpupHealth } from './hooks/useUpup'
 
 export function InvestmentLayout(): React.ReactElement {
   const { t } = useTranslation('investment')
-  const req = useRuntimeRequest()
-  const { data: health, loading, error } = useAsync<HealthResponse | null>(
-    async () => {
-      try {
-        return (await req('/health', 'GET')) as HealthResponse
-      } catch {
-        return null
-      }
-    },
-    []
-  )
+  const { data: health, loading, error } = useUpupHealth()
 
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950">
@@ -58,16 +44,16 @@ export function InvestmentLayout(): React.ReactElement {
         <div className="flex-1 flex items-center justify-center text-slate-400 text-sm">
           {t('workbench.loading')}
         </div>
-      ) : !health ? (
+      ) : !health?.ok ? (
         <div className="flex-1 flex flex-col items-center justify-center text-slate-500 text-sm p-8">
           <div className="text-rose-500 font-medium mb-2">
             {t('workbench.errorTitle')}
           </div>
-          <div className="text-xs text-center max-w-md">{t('workbench.errorBody')}</div>
+          <div className="text-xs text-center max-w-md">
+            {health?.error ?? t('workbench.errorBody')}
+          </div>
           {error && (
-            <pre className="mt-4 text-[10px] text-slate-400 max-w-md overflow-auto">
-              {error}
-            </pre>
+            <pre className="mt-4 text-[10px] text-slate-400 max-w-md overflow-auto">{error}</pre>
           )}
         </div>
       ) : (

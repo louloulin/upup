@@ -44,7 +44,7 @@ export type {
   PromptOptions,
   UpupConfig,
   BinaryLocation,
-  StdioTransportConfig,
+
 } from './client/client.js'
 
 // ============ Transport ============
@@ -60,7 +60,7 @@ export {
 export type {
   Transport,
   TransportConfig,
-  StdioTransportConfig,
+
   HttpTransportConfig,
   TransportMessage,
   EventHandler,
@@ -130,7 +130,7 @@ export type {
 // ============ Session (Phase 4) ============
 
 export {
-  SessionManager,
+  UpupSessionManager,
 } from './session/index.js'
 
 export type {

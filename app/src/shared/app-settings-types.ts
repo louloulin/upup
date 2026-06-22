@@ -173,6 +173,30 @@ export type KunRuntimeTuningSettingsV1 = {
  */
 export type KunSettingsEnvelopeV1 = {
   kun: KunRuntimeSettingsV1
+  upup?: UpupRuntimeSettingsV1
+}
+
+/**
+ * UpUp 引擎运行时设置（投资工作台）。
+ * 与 Kun 设置并列存储在 agents.upup 下。
+ */
+export type UpupRuntimeSettingsV1 = {
+  /** LLM provider */
+  provider?: 'anthropic' | 'deepseek' | 'openai' | 'google' | 'xai' | 'openrouter' | 'ollama'
+  /** 模型 ID */
+  model?: string
+  /** API Key */
+  apiKey?: string
+  /** Base URL */
+  baseUrl?: string
+  /** 是否开启 Tushare（A 股数据） */
+  enableTushare?: boolean
+  /** Tushare token */
+  tushareToken?: string
+  /** 是否开启 ExaSearch */
+  enableExaSearch?: boolean
+  /** ExaSearch key */
+  exaSearchKey?: string
 }
 
 /** @deprecated Use `KunSettingsEnvelopeV1`. */
@@ -204,6 +228,7 @@ export type KunRuntimeSettingsPatchV1 = Partial<
 
 export type KunSettingsEnvelopePatchV1 = {
   kun?: KunRuntimeSettingsPatchV1
+  upup?: Partial<UpupRuntimeSettingsV1>
 }
 
 export type LogConfigV1 = {

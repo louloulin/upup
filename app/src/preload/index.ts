@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
+import { createUpupApi } from './upup-bridge'
 import type { DsGuiApi } from '../shared/ds-gui-api'
 
 const api = {
@@ -6,6 +7,7 @@ const api = {
   getSettings: () => ipcRenderer.invoke('settings:get'),
   setSettings: (partial) =>
     ipcRenderer.invoke('settings:set', partial),
+  upup: createUpupApi(ipcRenderer),
   runtimeRequest: (path, method, body) =>
     ipcRenderer.invoke('runtime:request', { path, method, body }),
   fetchUpstreamModels: () => ipcRenderer.invoke('upstream:models'),

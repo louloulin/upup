@@ -1,3 +1,4 @@
+import type { UpupApi } from "./upup-api"
 import type {
   AppSettingsPatch,
   AppSettingsV1,
@@ -128,6 +129,7 @@ export type DsGuiApi = {
   getSettings: () => Promise<AppSettingsV1>
   setSettings: (partial: AppSettingsPatch) => Promise<AppSettingsV1>
   runtimeRequest: (path: string, method?: string, body?: string) => Promise<RuntimeRequestResult>
+  upup: UpupApi
   fetchUpstreamModels: () => Promise<UpstreamModelsResult>
   getClawStatus: () => Promise<ClawRuntimeStatus>
   runClawTask: (taskId: string) => Promise<ClawRunResult>

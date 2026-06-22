@@ -608,7 +608,7 @@ export class UpClient extends EventEmitter implements AsyncDisposable {
   /**
    * 注册事件处理器
    */
-  on(event: string, handler: (event: unknown) => void): void {
+  on(event: string, handler: (event: unknown) => void): this {
     let handlers = this.transport.eventHandlers.get(event)
     if (!handlers) {
       handlers = new Set()
@@ -620,7 +620,7 @@ export class UpClient extends EventEmitter implements AsyncDisposable {
   /**
    * 移除事件处理器
    */
-  off(event: string, handler: (event: unknown) => void): void {
+  off(event: string, handler: (event: unknown) => void): this {
     this.transport.eventHandlers.get(event)?.delete(handler)
   }
 

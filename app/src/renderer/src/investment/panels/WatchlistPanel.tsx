@@ -3,58 +3,66 @@
  */
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { useAsync, useRuntimeRequest } from '../hooks/use-runtime'
+import { useUpupQuery } from '../hooks/useUpup'
 
 type WatchItem = {
   symbol: string
   name?: string
   price?: number
   changePct?: number
-  loading?: boolean
-  error?: boolean
+}
+
+const STORAGE_KEY = 'upup.investment.watchlist'
+
+function loadFromStorage(): WatchItem[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY)
+    if (raw) return JSON.parse(raw) as WatchItem[]
+  } catch { /* ignore */ }
+  return []
+}
+
+function saveToStorage(items: WatchItem[]): void {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(items))
+  } catch { /* ignore */ }
 }
 
 export function WatchlistPanel(): React.ReactElement {
   const { t } = useTranslation('investment')
-  const req = useRuntimeRequest()
-  const [input, setInput] = React.useState('')
-  const [items, setItems] = React.useState<WatchItem[]>([])
+  const { call } = useUpupQuery()
+  const [items, setItems] = React.useState<WatchItem[]>(loadFromStorage)
+  const [newSymbol, setNewSymbol] = React.useState('')
 
-  const persist = async (next: WatchItem[]): Promise<void> => {
-    try {
-      await req('/v1/watchlist', 'POST', { symbols: next.map((i) => i.symbol) })
-    } catch {
-      // engine not ready — keep local state
-    }
-  }
+  React.useEffect(() => {
+    saveToStorage(items)
+  }, [items])
 
-  const add = async (): Promise<void> => {
-    const sym = input.trim()
-    if (!sym) return
-    if (items.some((i) => i.symbol === sym)) {
-      setInput('')
+  const addItem = async (): Promise<void> => {
+    const s = newSymbol.trim()
+    if (!s) return
+    if (items.some((i) => i.symbol === s)) {
+      setNewSymbol('')
       return
     }
-    const next = [...items, { symbol: sym, loading: true }]
-    setItems(next)
-    setInput('')
-    await persist(next)
-    // 模拟报价拉取
-    setTimeout(() => {
-      setItems((prev) =>
-        prev.map((i) =>
-          i.symbol === sym
-            ? { ...i, loading: false, price: 100, changePct: Math.random() * 6 - 3 }
-            : i
-        )
-      )
-    }, 800)
+    setItems((prev) => [...prev, { symbol: s }])
+    setNewSymbol('')
+    const r = await call(`查询 ${s} 的名称，仅返回 JSON：{symbol,name}`)
+    if (r) {
+      const m = r.result.match(/\{[\s\S]*\}/)
+      if (m) {
+        try {
+          const obj = JSON.parse(m[0])
+          setItems((prev) =>
+            prev.map((i) => (i.symbol === s ? { ...i, name: obj.name || i.name } : i))
+          )
+        } catch { /* ignore */ }
+      }
+    }
   }
 
-  const remove = async (sym: string): Promise<void> => {
-    const next = items.filter((i) => i.symbol !== sym)
-    setItems(next)
-    await persist(next)
+  const removeItem = (sym: string): void => {
+    setItems((prev) => prev.filter((i) => i.symbol !== sym))
   }
 
   return (
@@ -63,59 +71,50 @@ export function WatchlistPanel(): React.ReactElement {
         <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">
           {t('watchlist.title')}
         </h2>
-        <span className="text-xs text-slate-400">{items.length}</span>
+        <span className="text-[10px] text-slate-500 dark:text-slate-400">
+          {items.length}
+        </span>
       </header>
-      <div className="flex gap-2 mb-3">
+      <div className="flex gap-2 mb-2">
         <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') void add() }}
-          placeholder={t('watchlist.symbolPlaceholder')}
-          className="flex-1 px-2 py-1 text-sm border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100"
+          value={newSymbol}
+          onChange={(e) => setNewSymbol(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') void addItem()
+          }}
+          placeholder={t('watchlist.addPlaceholder')}
+          className="flex-1 text-xs px-2 py-1 rounded border border-slate-200 dark:border-slate-700 bg-transparent"
         />
         <button
-          onClick={() => void add()}
-          className="px-3 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600"
+          onClick={() => void addItem()}
+          className="text-xs px-2 py-1 rounded bg-blue-500 text-white hover:bg-blue-600"
         >
           {t('watchlist.add')}
         </button>
       </div>
-      {items.length === 0 ? (
-        <div className="text-xs text-slate-400">{t('watchlist.empty')}</div>
-      ) : (
-        <ul className="space-y-1">
-          {items.map((it) => {
-            const up = (it.changePct ?? 0) >= 0
-            return (
-              <li
-                key={it.symbol}
-                className="flex items-center justify-between text-sm py-1 border-b border-slate-50 dark:border-slate-800 last:border-b-0"
+      <ul className="space-y-1 max-h-40 overflow-auto">
+        {items.length === 0 ? (
+          <li className="text-xs text-slate-400">{t('watchlist.empty')}</li>
+        ) : (
+          items.map((it) => (
+            <li
+              key={it.symbol}
+              className="flex items-center justify-between text-xs group"
+            >
+              <span className="font-mono text-slate-700 dark:text-slate-200">
+                {it.name || it.symbol}
+              </span>
+              <button
+                onClick={() => removeItem(it.symbol)}
+                className="text-slate-400 hover:text-rose-500 opacity-0 group-hover:opacity-100"
+                aria-label="remove"
               >
-                <span className="font-mono">{it.symbol}</span>
-                <span className="text-xs text-slate-500">
-                  {it.loading ? '…' : it.error ? t('watchlist.loadFailed') : it.price?.toFixed(2)}
-                </span>
-                <span
-                  className={`text-xs font-mono ${
-                    up ? 'text-rose-500' : 'text-emerald-500'
-                  }`}
-                >
-                  {it.changePct !== undefined ? `${up ? '+' : ''}${it.changePct.toFixed(2)}%` : '—'}
-                </span>
-                <button
-                  onClick={() => void remove(it.symbol)}
-                  className="text-xs text-slate-400 hover:text-rose-500"
-                  aria-label={t('watchlist.remove')}
-                >
-                  ✕
-                </button>
-              </li>
-            )
-          })}
-        </ul>
-      )}
+                ✕
+              </button>
+            </li>
+          ))
+        )}
+      </ul>
     </section>
   )
 }
-
-export default WatchlistPanel

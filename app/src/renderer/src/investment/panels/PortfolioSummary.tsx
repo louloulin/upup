@@ -3,65 +3,56 @@
  */
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { useAsync, useRuntimeRequest } from '../hooks/use-runtime'
+import { useUpupQuery } from '../hooks/useUpup'
 
 type Holding = {
   symbol: string
   name?: string
   weight: number
-  dayPnl: number
-  dayPnlPct: number
-  price: number
-  sparkline?: number[]
+  pnl: number
+  pnlPct: number
 }
 
-type Portfolio = {
+type PortfolioData = {
   totalAssets: number
-  todayPnl: number
-  todayPnlPct: number
+  dailyPnl: number
   totalPnl: number
-  cashRatio: number
-  holdingsCount: number
-  top5: Holding[]
+  holdings: Holding[]
 }
 
-function fmtCNY(n: number): string {
-  return n.toLocaleString('zh-CN', { style: 'currency', currency: 'CNY', maximumFractionDigits: 0 })
+const DEFAULT_DATA: PortfolioData = {
+  totalAssets: 0,
+  dailyPnl: 0,
+  totalPnl: 0,
+  holdings: []
 }
 
-function Sparkline({ points }: { points?: number[] }): React.ReactElement {
-  if (!points || points.length < 2) return <div className="h-6" />
-  const min = Math.min(...points)
-  const max = Math.max(...points)
-  const range = max - min || 1
-  const w = 80, h = 24
-  const path = points.map((p, i) => {
-    const x = (i / (points.length - 1)) * w
-    const y = h - ((p - min) / range) * h
-    return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`
-  }).join(' ')
-  const up = points[points.length - 1] >= points[0]
-  return (
-    <svg width={w} height={h} className={up ? 'text-rose-500' : 'text-emerald-500'}>
-      <path d={path} fill="none" stroke="currentColor" strokeWidth="1.5" />
-    </svg>
-  )
+function fmtMoney(n: number): string {
+  return n.toLocaleString('zh-CN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+}
+
+function tryParse(text: string): PortfolioData {
+  const m = text.match(/\{[\s\S]*\}/)
+  if (m) {
+    try {
+      return JSON.parse(m[0]) as PortfolioData
+    } catch { /* fall through */ }
+  }
+  return DEFAULT_DATA
 }
 
 export function PortfolioSummary(): React.ReactElement {
   const { t } = useTranslation('investment')
-  const req = useRuntimeRequest()
-  const { data, loading, error, refresh } = useAsync<Portfolio | null>(
-    async () => {
-      try {
-        return (await req('/v1/portfolio', 'GET')) as Portfolio
-      } catch {
-        // 引擎未挂载 portfolio 端点时返回 null
-        return null
-      }
-    },
-    []
-  )
+  const { call, loading, error } = useUpupQuery()
+  const [data, setData] = React.useState<PortfolioData>(DEFAULT_DATA)
+
+  React.useEffect(() => {
+    void call('查询当前组合的持仓摘要（总资产/当日盈亏/累计盈亏/Top5 持仓），仅返回 JSON').then((r) => {
+      if (r) setData(tryParse(r.result))
+    })
+  }, [call])
+
+  const dailyUp = data.dailyPnl >= 0
 
   return (
     <section className="bg-white dark:bg-slate-900 rounded-lg shadow-sm p-4">
@@ -69,101 +60,58 @@ export function PortfolioSummary(): React.ReactElement {
         <h2 className="text-sm font-semibold text-slate-700 dark:text-slate-200">
           {t('portfolio.title')}
         </h2>
-        <button
-          onClick={refresh}
-          className="text-xs text-slate-500 hover:text-blue-500"
-          aria-label={t('workbench.refresh')}
-        >
-          ↻
-        </button>
+        {loading && <span className="text-xs text-slate-400">{t('workbench.loading')}</span>}
       </header>
-      {loading && !data ? (
-        <div className="text-xs text-slate-400">{t('common.loading')}</div>
-      ) : !data ? (
-        <div className="text-xs text-slate-500 dark:text-slate-400">
-          {error || t('portfolio.empty')}
+      {error && <div className="text-xs text-rose-500 mb-2">{error}</div>}
+      <div className="grid grid-cols-3 gap-3 mb-3">
+        <div>
+          <div className="text-[10px] text-slate-500 dark:text-slate-400">
+            {t('portfolio.totalAssets')}
+          </div>
+          <div className="text-lg font-mono text-slate-800 dark:text-slate-100">
+            ¥{fmtMoney(data.totalAssets)}
+          </div>
         </div>
-      ) : (
-        <>
-          <div className="grid grid-cols-2 gap-3 mb-3">
-            <div>
-              <div className="text-xs text-slate-500 dark:text-slate-400">
-                {t('portfolio.totalAssets')}
-              </div>
-              <div className="text-lg font-semibold text-slate-800 dark:text-slate-100">
-                {fmtCNY(data.totalAssets)}
-              </div>
-            </div>
-            <div>
-              <div className="text-xs text-slate-500 dark:text-slate-400">
-                {t('portfolio.todayPnl')}
-              </div>
-              <div
-                className={`text-lg font-semibold ${
-                  data.todayPnl >= 0 ? 'text-rose-500' : 'text-emerald-500'
-                }`}
+        <div>
+          <div className="text-[10px] text-slate-500 dark:text-slate-400">
+            {t('portfolio.dailyPnl')}
+          </div>
+          <div className={`text-lg font-mono ${dailyUp ? 'text-rose-500' : 'text-emerald-500'}`}>
+            {dailyUp ? '+' : ''}¥{fmtMoney(data.dailyPnl)}
+          </div>
+        </div>
+        <div>
+          <div className="text-[10px] text-slate-500 dark:text-slate-400">
+            {t('portfolio.totalPnl')}
+          </div>
+          <div className={`text-lg font-mono ${data.totalPnl >= 0 ? 'text-rose-500' : 'text-emerald-500'}`}>
+            {data.totalPnl >= 0 ? '+' : ''}¥{fmtMoney(data.totalPnl)}
+          </div>
+        </div>
+      </div>
+      {data.holdings.length > 0 && (
+        <div>
+          <div className="text-[10px] text-slate-500 dark:text-slate-400 mb-1">
+            {t('portfolio.top5')}
+          </div>
+          <ul className="space-y-1">
+            {data.holdings.slice(0, 5).map((h) => (
+              <li
+                key={h.symbol}
+                className="flex items-center justify-between text-xs"
               >
-                {data.todayPnl >= 0 ? '+' : ''}
-                {fmtCNY(data.todayPnl)} ({data.todayPnlPct.toFixed(2)}%)
-              </div>
-            </div>
-            <div>
-              <div className="text-xs text-slate-500 dark:text-slate-400">
-                {t('portfolio.holdingsCount', { count: data.holdingsCount })}
-              </div>
-              <div className="text-sm text-slate-700 dark:text-slate-200">
-                {data.holdingsCount}
-              </div>
-            </div>
-            <div>
-              <div className="text-xs text-slate-500 dark:text-slate-400">
-                {t('portfolio.cashRatio')}
-              </div>
-              <div className="text-sm text-slate-700 dark:text-slate-200">
-                {(data.cashRatio * 100).toFixed(1)}%
-              </div>
-            </div>
-          </div>
-          <div className="border-t border-slate-100 dark:border-slate-700 pt-3">
-            <div className="text-xs text-slate-500 dark:text-slate-400 mb-2">
-              {t('portfolio.top5')}
-            </div>
-            <div className="space-y-1">
-              {data.top5.map((h) => (
-                <div
-                  key={h.symbol}
-                  className="flex items-center justify-between text-sm py-1"
-                >
-                  <div className="flex-1 truncate">
-                    <span className="font-mono">{h.symbol}</span>
-                    {h.name && (
-                      <span className="text-xs text-slate-500 dark:text-slate-400 ml-2">
-                        {h.name}
-                      </span>
-                    )}
-                  </div>
-                  <div className="w-20 text-right text-xs text-slate-500">
-                    {(h.weight * 100).toFixed(1)}%
-                  </div>
-                  <div className="w-20 text-right">
-                    <Sparkline points={h.sparkline} />
-                  </div>
-                  <div
-                    className={`w-20 text-right font-mono ${
-                      h.dayPnl >= 0 ? 'text-rose-500' : 'text-emerald-500'
-                    }`}
-                  >
-                    {h.dayPnl >= 0 ? '+' : ''}
-                    {h.dayPnlPct.toFixed(2)}%
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </>
+                <span className="font-mono text-slate-700 dark:text-slate-200">{h.name || h.symbol}</span>
+                <span className="text-slate-500 dark:text-slate-400">
+                  {(h.weight * 100).toFixed(1)}%
+                </span>
+                <span className={`font-mono ${h.pnl >= 0 ? 'text-rose-500' : 'text-emerald-500'}`}>
+                  {h.pnlPct >= 0 ? '+' : ''}{h.pnlPct.toFixed(2)}%
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </section>
   )
 }
-
-export default PortfolioSummary

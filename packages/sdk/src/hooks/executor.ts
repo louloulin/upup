@@ -78,7 +78,7 @@ export class HookExecutor {
   /**
    * 批量注册 Hooks
    */
-  registerAll(hooksMap: Record<HookEvent, HookMatcher[]>): void {
+  registerAll(hooksMap: Partial<Record<HookEvent, HookMatcher[]>>): void {
     for (const [event, matchers] of Object.entries(hooksMap)) {
       for (const matcher of matchers) {
         this.register(event as HookEvent, matcher)

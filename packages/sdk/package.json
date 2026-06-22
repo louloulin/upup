@@ -3,16 +3,19 @@
   "version": "0.2.1",
   "description": "UP SDK - Agent SDK with stdio communication",
   "type": "module",
-  "main": "./dist/index.js",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs",
+      "default": "./dist/index.mjs"
     }
   },
   "scripts": {
-    "build": "bun build src/index.ts --outdir=dist --target=bun && bun build src/index.ts --outdir=dist --target=node --format=cjs",
+    "build": "bun build src/index.ts --outdir=dist --target=bun --format=esm && mv dist/index.js dist/index.mjs && bun build src/index.ts --outdir=dist --target=node --format=cjs && mv dist/index.js dist/index.cjs",
     "typecheck": "tsc --noEmit",
     "types": "tsc --declaration --emitDeclarationOnly --outDir dist",
     "dev": "bun build src/index.ts --outdir=dist --watch --target=bun",

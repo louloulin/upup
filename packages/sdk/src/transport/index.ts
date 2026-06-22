@@ -6,21 +6,22 @@ export {
   StdioTransport,
   createStdioTransport,
   loadUpupConfig,
-  type StdioTransportConfig,
-  type UpupConfig,
-  type BinaryLocation,
 } from './stdio-transport.js'
 
 export {
   HttpTransport,
   createHttpTransport,
-  type HttpTransportConfig,
 } from './http-transport.js'
 
 export type {
   Transport,
   TransportConfig,
-  TransportMessage,
-  EventHandler,
+  StdioTransportConfig,
   RpcTransport,
+  HttpTransportConfig,
 } from './transport.js'
+
+export type {
+  UpupConfig,
+  BinaryLocation,
+} from './stdio-transport.js'

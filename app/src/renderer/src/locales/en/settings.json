@@ -486,5 +486,21 @@
   "logRetentionSeven": "7 days",
   "loading": "Loading…",
   "loadFailed": "Could not load settings: {{message}}",
-  "preloadBridgeError": "The app bridge is not available. Restart the application or check the preload path."
+  "preloadBridgeError": "The app bridge is not available. Restart the application or check the preload path.",
+  "upupSection": "Investment Agent (UpUp)",
+  "upupProvider": "LLM Provider",
+  "upupProviderDesc": "LLM provider for the Investment Workbench",
+  "upupModel": "Model ID",
+  "upupModelDesc": "e.g. deepseek-v4-pro, claude-sonnet-4-6",
+  "upupApiKey": "API Key",
+  "upupApiKeyDesc": "API Key for the selected provider (or set via env var)",
+  "upupBaseUrl": "Base URL",
+  "upupBaseUrlDesc": "API server URL (usually no change needed)",
+  "upupEnableTushare": "Enable Tushare (A-Share data)",
+  "upupEnableTushareDesc": "Enable A-share real-time quotes and financial data",
+  "upupTushareToken": "Tushare Token",
+  "upupEnableExaSearch": "Enable ExaSearch",
+  "upupEnableExaSearchDesc": "Enhanced search capability (requires separate API key)",
+  "upupExaSearchKey": "ExaSearch Key",
+  "agentsQuickUpup": "Investment Agent"
 }

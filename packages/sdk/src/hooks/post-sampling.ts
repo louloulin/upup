@@ -333,10 +333,3 @@ export function createAugmentHook(
 }
 
 // ============ Exports ============
-
-export type {
-  PostSamplingInput,
-  PostSamplingOutput,
-  PostSamplingCallback,
-  PostSamplingConfig,
-} from './post-sampling.js'

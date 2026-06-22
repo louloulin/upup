@@ -486,5 +486,21 @@
   "logRetentionSeven": "7 天",
   "loading": "加载中…",
   "loadFailed": "无法加载设置：{{message}}",
-  "preloadBridgeError": "应用桥接不可用。请重启应用或检查预加载脚本路径。"
+  "preloadBridgeError": "应用桥接不可用。请重启应用或检查预加载脚本路径。",
+  "upupSection": "投资 Agent (UpUp)",
+  "upupProvider": "LLM Provider",
+  "upupProviderDesc": "投资工作台使用的 LLM 服务商",
+  "upupModel": "模型 ID",
+  "upupModelDesc": "如 deepseek-v4-pro、claude-sonnet-4-6 等",
+  "upupApiKey": "API Key",
+  "upupApiKeyDesc": "对应 Provider 的 API Key（也可通过环境变量设置）",
+  "upupBaseUrl": "Base URL",
+  "upupBaseUrlDesc": "API 服务器地址（一般无需修改）",
+  "upupEnableTushare": "开启 Tushare（A 股数据）",
+  "upupEnableTushareDesc": "开启后可查询 A 股实时行情、财务数据",
+  "upupTushareToken": "Tushare Token",
+  "upupEnableExaSearch": "开启 ExaSearch",
+  "upupEnableExaSearchDesc": "增强搜索能力（需单独申请 API Key）",
+  "upupExaSearchKey": "ExaSearch Key",
+  "agentsQuickUpup": "投资 Agent"
 }

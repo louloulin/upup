@@ -1,9 +1,12 @@
 /**
  * 行情条：主要指数 + 自选股，红涨绿跌（中文惯例）。
+ *
+ * 数据源：UpUp SDK —— 通过 `useUpupQuery` 调 agent 取得 JSON 报价。
+ * 轮询：每 15s 触发一次 refetch。
  */
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { useAsync, useInterval, useRuntimeRequest } from '../hooks/use-runtime'
+import { useUpupQuery } from '../hooks/useUpup'
 
 type Quote = {
   symbol: string
@@ -22,6 +25,8 @@ const DEFAULT_INDICES = [
   { symbol: 'IXIC', name: '纳斯达克' }
 ]
 
+const POLL_INTERVAL_MS = 15_000
+
 function fmtPrice(n: number): string {
   return n.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
@@ -31,29 +36,41 @@ function fmtPct(n: number): string {
   return `${sign}${n.toFixed(2)}%`
 }
 
+function parseQuotes(text: string): Quote[] {
+  // 从 agent 文本结果中提取结构化 JSON
+  const match = text.match(/\{[\s\S]*\}/)
+  if (match) {
+    try {
+      const obj = JSON.parse(match[0])
+      if (Array.isArray(obj.quotes)) return obj.quotes as Quote[]
+    } catch { /* fall through */ }
+  }
+  return []
+}
+
 export function MarketTicker(): React.ReactElement {
   const { t } = useTranslation('investment')
-  const req = useRuntimeRequest()
+  const { call, loading, error } = useUpupQuery()
+  const [quotes, setQuotes] = React.useState<Quote[]>([])
   const [tick, setTick] = React.useState(0)
 
-  // 每 15s 触发一次轮询
-  useInterval(() => setTick((n) => n + 1), 15_000)
+  // 拉取数据
+  React.useEffect(() => {
+    const symbols = DEFAULT_INDICES.map((i) => i.symbol).join(',')
+    let cancelled = false
+    void call(`查询下列指数的实时报价，仅返回 JSON：${symbols}`).then((r) => {
+      if (!cancelled && r) setQuotes(parseQuotes(r.result))
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [tick, call])
 
-  // 通过工具调用获取指数报价
-  const { data, loading, error, refresh } = useAsync<{ quotes: Quote[]; watchlist: Quote[] }>(
-    async () => {
-      try {
-        // 调用 @upup/tools 的 finance 工具 — 委托给引擎
-        const r = await req('/v1/runtime/tools/quote', 'POST', { symbols: DEFAULT_INDICES.map(i => i.symbol) })
-        const quotes = (r as { quotes?: Quote[] })?.quotes || []
-        return { quotes, watchlist: [] }
-      } catch {
-        // 引擎未就绪时返回占位
-        return { quotes: [], watchlist: [] }
-      }
-    },
-    [tick]
-  )
+  // 轮询
+  React.useEffect(() => {
+    const id = setInterval(() => setTick((n) => n + 1), POLL_INTERVAL_MS)
+    return () => clearInterval(id)
+  }, [])
 
   return (
     <section className="bg-white dark:bg-slate-900 rounded-lg shadow-sm p-4">
@@ -62,34 +79,36 @@ export function MarketTicker(): React.ReactElement {
           {t('market.indices')}
         </h2>
         <button
-          onClick={refresh}
+          onClick={() => setTick((n) => n + 1)}
           className="text-xs text-slate-500 hover:text-blue-500"
           aria-label={t('workbench.refresh')}
         >
           ↻ {t('workbench.refresh')}
         </button>
       </header>
-      {loading && !data ? (
+      {loading && quotes.length === 0 ? (
         <div className="text-xs text-slate-400">{t('market.connecting')}</div>
       ) : error ? (
         <div className="text-xs text-rose-500">{error}</div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
           {DEFAULT_INDICES.map((idx, i) => {
-            const q = data?.quotes?.[i]
+            const q = quotes[i]
             const up = (q?.change ?? 0) >= 0
             return (
               <div
                 key={idx.symbol}
-                className="border border-slate-200 dark:border-slate-700 rounded-md p-2"
+                className="rounded border border-slate-200 dark:border-slate-700 p-2"
               >
-                <div className="text-xs text-slate-500 dark:text-slate-400">{idx.name}</div>
-                <div className="text-sm font-mono text-slate-800 dark:text-slate-100">
+                <div className="text-[10px] text-slate-500 dark:text-slate-400">{idx.name}</div>
+                <div className={`text-sm font-mono ${up ? 'text-rose-500' : 'text-emerald-500'}`}>
                   {q ? fmtPrice(q.price) : '—'}
                 </div>
-                <div className={`text-xs font-mono ${up ? 'text-rose-500' : 'text-emerald-500'}`}>
-                  {q ? fmtPct(q.changePct) : '—'}
-                </div>
+                {q && (
+                  <div className={`text-[10px] font-mono ${up ? 'text-rose-500' : 'text-emerald-500'}`}>
+                    {fmtPct(q.changePct)}
+                  </div>
+                )}
               </div>
             )
           })}
@@ -98,5 +117,3 @@ export function MarketTicker(): React.ReactElement {
     </section>
   )
 }
-
-export default MarketTicker

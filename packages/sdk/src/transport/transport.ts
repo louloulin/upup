@@ -219,6 +219,16 @@ export interface EventNotification extends SDKMessage {
   }
 }
 
+
+// ============ 消息和事件类型 ============
+
+export interface TransportMessage {
+  type: string
+  payload?: unknown
+  [key: string]: unknown
+}
+
+export type EventHandler = (event: TransportMessage) => void
 // ============ 工厂函数类型 ============
 
 export type TransportFactory = (config?: StdioTransportConfig) => Transport

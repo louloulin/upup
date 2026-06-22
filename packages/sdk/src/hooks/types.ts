@@ -78,7 +78,7 @@ export interface HookInput {
   /** 工具使用 ID */
   tool_use_id?: string
   /** 用户输入的消息 (UserPromptSubmit) */
-  message?: string
+  message?: string | Record<string, unknown>
   /** 扩展后的消息 (UserPromptExpansion) */
   expanded_message?: string
   /** 通知内容 (Notification) */

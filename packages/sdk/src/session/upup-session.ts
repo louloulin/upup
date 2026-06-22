@@ -20,6 +20,7 @@ export interface RpcTransport {
 type UpupSessionState = 'idle' | 'running' | 'waiting' | 'completed' | 'error' | 'canceled';
 
 interface UpupSessionMetadata {
+  [key: string]: unknown;
   turnCount: number;
   toolUseCount: number;
   tokenUsage?: { input: number; output: number };

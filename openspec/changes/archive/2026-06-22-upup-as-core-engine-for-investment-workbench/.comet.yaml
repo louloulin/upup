@@ -12,7 +12,7 @@ verification_report: docs/superpowers/reports/2026-06-22-upup-as-core-engine-for
 branch_status: handled
 created_at: 2026-06-12
 verified_at: 2026-06-22
-archived: false
+archived: true
 subagent_dispatch: confirmed
 tdd_mode: direct
 review_mode: standard
