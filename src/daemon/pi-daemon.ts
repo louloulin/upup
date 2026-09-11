@@ -1,17 +1,14 @@
 import { Supervisor } from './supervisor.js';
+import type { PiUpupExtensionApi } from '../pi-main.js';
 
-export interface DaemonExtensionApi {
-  registerTool(tool: {
-    name: string;
-    label?: string;
-    description?: string;
-    parameters?: unknown;
-    execute?: (...args: any[]) => Promise<any> | any;
-  }): void;
-  registerCommand(name: string, options: { description?: string; handler?: (...args: any[]) => Promise<void> | void }): void;
-}
+/**
+ * The daemon extension registers against the upup extension contract —
+ * the same `PiUpupExtensionApi` shape the Pi Fake API implements. See
+ * `src/realtime/pi-realtime.ts` for the rationale behind the narrow contract.
+ */
+export type DaemonExtensionApi = PiUpupExtensionApi;
 
-export function registerDaemonExtension(pi: DaemonExtensionApi): void {
+export function registerDaemonExtension(pi: PiUpupExtensionApi): void {
   const supervisor = new Supervisor();
 
   pi.registerTool({

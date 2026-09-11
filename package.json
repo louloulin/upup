@@ -43,6 +43,8 @@
   },
   "dependencies": {
     "@duckdb/duckdb-wasm": "^1.33.1-dev45.0",
+    "@earendil-works/pi-coding-agent": "^0.85.1",
+    "@earendil-works/pi-tui": "0.76.0",
     "@langchain/anthropic": "^1.3.25",
     "@langchain/core": "^1.1.44",
     "@langchain/exa": "^1.0.1",
@@ -50,7 +52,6 @@
     "@langchain/ollama": "^1.2.6",
     "@langchain/openai": "^1.3.1",
     "@langchain/tavily": "^1.2.0",
-    "@earendil-works/pi-tui": "0.76.0",
     "@memvid/sdk": "^2.0.120",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@mozilla/readability": "^0.6.0",

@@ -1,17 +1,21 @@
 import { createRealtimeFeed } from './index.js';
+import type { PiUpupExtensionApi } from '../pi-main.js';
 
-export interface RealtimeExtensionApi {
-  registerTool(tool: {
-    name: string;
-    label?: string;
-    description?: string;
-    parameters?: unknown;
-    execute?: (...args: any[]) => Promise<any> | any;
-  }): void;
-  registerCommand(name: string, options: { description?: string; handler?: (...args: any[]) => Promise<void> | void }): void;
-}
+/**
+ * The realtime extension registers against the upup extension contract —
+ * the same `PiUpupExtensionApi` shape the Pi Fake API implements. This is
+ * intentionally a narrow contract (not the full Pi `ExtensionAPI`) because
+ * realtime only needs `registerTool` + `registerCommand`; making it
+ * `ExtensionAPI` would force the internal tools to satisfy pi's strict
+ * `ToolDefinition` schema (`parameters: TypeBox`, 5-arg execute signature,
+ * etc.) which is out of scope for this iteration.
+ *
+ * The `RealtimeExtensionApi` alias is kept for callers that prefer the
+ * narrow historical name; both refer to the same upup contract.
+ */
+export type RealtimeExtensionApi = PiUpupExtensionApi;
 
-export function registerRealtimeExtension(pi: RealtimeExtensionApi): void {
+export function registerRealtimeExtension(pi: PiUpupExtensionApi): void {
   let currentFeed: ReturnType<typeof createRealtimeFeed> | null = null;
 
   pi.registerTool({
@@ -41,7 +45,8 @@ export function registerRealtimeExtension(pi: RealtimeExtensionApi): void {
     name: 'realtime_quote',
     label: 'Realtime Quote',
     description: 'Subscribe to realtime quotes for a symbol and return the first tick',
-    async execute(params: { symbol: string }) {
+    async execute(rawParams) {
+      const params = rawParams as { symbol: string } | undefined;
       if (!currentFeed) {
         currentFeed = createRealtimeFeed({ source: 'mock' });
       }
@@ -60,7 +65,7 @@ export function registerRealtimeExtension(pi: RealtimeExtensionApi): void {
       await currentFeed.feed.subscribe([symbol]);
 
       // Mock feed: push one quote so the consumer observes a tick.
-      const inner = currentFeed.feed as unknown as { pushQuote: (q: any) => void };
+      const inner = currentFeed.feed as unknown as { pushQuote: (q: unknown) => void };
       inner.pushQuote({ symbol, last: 100, volume: 1, timestamp: Date.now() });
 
       const quote = await Promise.race([
