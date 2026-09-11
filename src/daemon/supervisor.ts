@@ -152,6 +152,14 @@ export class PriorityTaskQueue {
     return undefined;
   }
 
+  findById(taskId: string): Task | undefined {
+    for (const queue of this.queues.values()) {
+      const task = queue.find(t => t.id === taskId);
+      if (task) return task;
+    }
+    return undefined;
+  }
+
   remove(taskId: string): boolean {
     for (const queue of this.queues.values()) {
       const index = queue.findIndex(t => t.id === taskId);
@@ -338,7 +346,7 @@ export class Supervisor extends EventEmitter {
     if (active) return active.status;
 
     // Task might still be in queue
-    if (this.queue.peek()?.id === taskId) return 'pending';
+    if (this.queue.findById(taskId)) return 'pending';
 
     return undefined;
   }

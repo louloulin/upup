@@ -64,3 +64,7 @@ upup
 .serena/cache/
 .playwright-mcp/
 packages/sdk/.upup
+
+# Pi migration local investigation artefacts (kept locally, not part of build)
+_pi_pkg/
+mariozechner-pi-coding-agent-*.tgz
