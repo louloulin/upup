@@ -49,6 +49,8 @@ import { registerConfigExtension } from './daemon/pi-config-extension.js';
 import { registerAstockExtension } from './astock/pi-astock-extension.js';
 import { registerTradingExtension } from './trading/pi-trading-extension.js';
 import { registerPortfolioExtension } from './portfolio/pi-portfolio-extension.js';
+import { registerWatchlistPiExtension } from './watchlist/pi-watchlist-extension.js';
+import { registerAlertsExtension } from './alerts/pi-alerts-tool.js';
 import { createRealtimeFeed } from './realtime/index.js';
 import type { RealtimeExtensionApi } from './realtime/pi-realtime.js';
 import type { DaemonExtensionApi } from './daemon/pi-daemon.js';
@@ -591,6 +593,18 @@ function createPortfolioAdapter(): Omit<LoadedExtension, 'name'> {
   return recordedState(api);
 }
 
+function createWatchlistAdapter(): Omit<LoadedExtension, 'name'> {
+  const api = createFakeApi();
+  registerWatchlistPiExtension(api);
+  return recordedState(api);
+}
+
+function createAlertsAdapter(): Omit<LoadedExtension, 'name'> {
+  const api = createFakeApi();
+  registerAlertsExtension(api);
+  return recordedState(api);
+}
+
 function realtimeFactory(pi: PiUpupExtensionApi): void {
   registerRealtimeExtension(pi as unknown as RealtimeExtensionApi);
 }
@@ -615,6 +629,14 @@ function portfolioFactory(pi: PiUpupExtensionApi): void {
   registerPortfolioExtension(pi);
 }
 
+function watchlistFactory(pi: PiUpupExtensionApi): void {
+  registerWatchlistPiExtension(pi);
+}
+
+function alertsFactory(pi: PiUpupExtensionApi): void {
+  registerAlertsExtension(pi);
+}
+
 /** ---------------------------------------------------------------------------
  * Public entry point.
  * ------------------------------------------------------------------------ */
@@ -627,6 +649,8 @@ export function createPiMain(options: PiMainOptions): PiMainResult {
     ['astock', createAstockAdapter],
     ['trading', createTradingAdapter],
     ['portfolio', createPortfolioAdapter],
+    ['watchlist', createWatchlistAdapter],
+    ['alerts', createAlertsAdapter],
   ]);
 
   const knownFactories = new Map<string, (pi: PiUpupExtensionApi) => void | Promise<void>>([
@@ -636,6 +660,8 @@ export function createPiMain(options: PiMainOptions): PiMainResult {
     ['astock', astockFactory],
     ['trading', tradingFactory],
     ['portfolio', portfolioFactory],
+    ['watchlist', watchlistFactory],
+    ['alerts', alertsFactory],
   ]);
 
   const extensionOverrides = new Map(

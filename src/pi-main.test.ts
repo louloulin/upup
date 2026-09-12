@@ -12,7 +12,7 @@ describe('pi main entry', () => {
   it('exposes the built-in pi extensions', () => {
     const main = createPiMain({ extensions: [] });
 
-    expect(main.extensions).toEqual(['realtime', 'daemon', 'config', 'astock', 'trading', 'portfolio']);
+    expect(main.extensions).toEqual(['realtime', 'daemon', 'config', 'astock', 'trading', 'portfolio', 'watchlist', 'alerts']);
     expect(typeof main.load).toBe('function');
   });
 
@@ -20,7 +20,7 @@ describe('pi main entry', () => {
     const main = createPiMain({ extensions: [] });
     const loaded = main.load();
 
-    expect(loaded.length).toBe(6);
+    expect(loaded.length).toBe(8);
 
     const realtime = loaded.find((ext) => ext.name === 'realtime');
     const daemon = loaded.find((ext) => ext.name === 'daemon');
@@ -28,6 +28,8 @@ describe('pi main entry', () => {
     const astock = loaded.find((ext) => ext.name === 'astock');
     const trading = loaded.find((ext) => ext.name === 'trading');
     const portfolio = loaded.find((ext) => ext.name === 'portfolio');
+    const watchlist = loaded.find((ext) => ext.name === 'watchlist');
+    const alerts = loaded.find((ext) => ext.name === 'alerts');
 
     expect(realtime).toBeDefined();
     expect(daemon).toBeDefined();
@@ -35,6 +37,8 @@ describe('pi main entry', () => {
     expect(astock).toBeDefined();
     expect(trading).toBeDefined();
     expect(portfolio).toBeDefined();
+    expect(watchlist).toBeDefined();
+    expect(alerts).toBeDefined();
 
     expect(realtime!.registeredTools.map((t) => t.name)).toContain('realtime_status');
     expect(realtime!.registeredCommands.map((c) => c.name)).toContain('realtime');
@@ -79,6 +83,17 @@ describe('pi main entry', () => {
       'get_transactions',
       'get_portfolio',
     ]);
+
+    expect(watchlist!.registeredTools.map((t) => t.name)).toEqual([
+      'add_to_watchlist',
+      'remove_from_watchlist',
+      'get_watchlist',
+      'add_watchlist_alert',
+      'check_watchlist_alerts',
+      'clear_watchlist_alert',
+    ]);
+
+    expect(alerts!.registeredTools.map((t) => t.name)).toEqual(['alert_system']);
   });
 
   it('exposes Pi ExtensionFactory entries that can be loaded by a Pi loader', () => {
@@ -87,7 +102,7 @@ describe('pi main entry', () => {
     expect(typeof main.extensionFactories).toBe('function');
 
     const factories = main.extensionFactories();
-    expect(factories.length).toBe(6);
+    expect(factories.length).toBe(8);
 
     const realtime = factories.find((f) => f.name === 'realtime');
     const daemon = factories.find((f) => f.name === 'daemon');
@@ -95,6 +110,7 @@ describe('pi main entry', () => {
     const astock = factories.find((f) => f.name === 'astock');
     const trading = factories.find((f) => f.name === 'trading');
     const portfolio = factories.find((f) => f.name === 'portfolio');
+    const watchlist = factories.find((f) => f.name === 'watchlist');
 
     expect(typeof realtime?.factory).toBe('function');
     expect(typeof daemon?.factory).toBe('function');
@@ -102,6 +118,7 @@ describe('pi main entry', () => {
     expect(typeof astock?.factory).toBe('function');
     expect(typeof trading?.factory).toBe('function');
     expect(typeof portfolio?.factory).toBe('function');
+    expect(typeof watchlist?.factory).toBe('function');
   });
 
   it('loadWith runs each built-in factory through a real Pi api and forwards the result to the loader', async () => {
@@ -118,8 +135,8 @@ describe('pi main entry', () => {
 
     const result = await main.loadWith(fakeLoader);
 
-    expect(result.length).toBe(6);
-    expect(capturedApis.length).toBe(6);
+    expect(result.length).toBe(8);
+    expect(capturedApis.length).toBe(8);
 
     for (const api of capturedApis) {
       // The fake api exposes the full upup extension contract surface.
@@ -250,7 +267,7 @@ describe('pi main entry', () => {
     };
 
     const result = await main.loadWith(fakeLoader);
-    expect(result.length).toBe(6);
+    expect(result.length).toBe(8);
 
     const realtime = toolExecutions.find((t) => t.name === 'realtime_quote');
     expect(realtime).toBeDefined();
@@ -276,14 +293,15 @@ describe('pi main entry', () => {
 
     const result = await main.loadWith(fakeLoader);
 
-    expect(result.length).toBe(6);
-
+    expect(result.length).toBe(8);
     const realtime = result.find((r) => r.name === 'realtime');
     const daemon = result.find((r) => r.name === 'daemon');
     const config = result.find((r) => r.name === 'config');
     const astock = result.find((r) => r.name === 'astock');
     const trading = result.find((r) => r.name === 'trading');
     const portfolio = result.find((r) => r.name === 'portfolio');
+    const watchlist = result.find((r) => r.name === 'watchlist');
+    const alerts = result.find((r) => r.name === 'alerts');
 
     expect(realtime).toBeDefined();
     expect(daemon).toBeDefined();
@@ -291,6 +309,8 @@ describe('pi main entry', () => {
     expect(astock).toBeDefined();
     expect(trading).toBeDefined();
     expect(portfolio).toBeDefined();
+    expect(watchlist).toBeDefined();
+    expect(alerts).toBeDefined();
 
     expect(realtime!.tools).toContain('realtime_status');
     expect(realtime!.tools).toContain('realtime_quote');
@@ -333,6 +353,12 @@ describe('pi main entry', () => {
       'get_portfolio',
     ]);
 
+    expect(watchlist!.tools).toEqual([
+      'add_to_watchlist', 'remove_from_watchlist', 'get_watchlist',
+      'add_watchlist_alert', 'check_watchlist_alerts', 'clear_watchlist_alert',
+    ]);
+    expect(alerts!.tools).toEqual(['alert_system']);
+
     for (const entry of result) {
       expect(entry.ok).toBe(true);
     }
@@ -344,7 +370,7 @@ describe('pi main entry', () => {
 
     const result = await main.loadWith(loader);
 
-    expect(result.length).toBe(6);
+    expect(result.length).toBe(8);
     const realtime = result.find((r) => r.name === 'realtime')!;
     const daemon = result.find((r) => r.name === 'daemon')!;
     const config = result.find((r) => r.name === 'config')!;
