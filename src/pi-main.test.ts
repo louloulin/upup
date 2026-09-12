@@ -293,4 +293,40 @@ describe('pi fake api', () => {
     expect(api.subscribedEvents[0]?.event).toBe('session_start');
     expect(api.subscribedEvents[1]?.event).toBe('session_shutdown');
   });
+
+  it('accepts a real pi ToolDefinition (defineTool + TypeBox schema) via registerTool', async () => {
+    // This is the prototype migration proof: the fake api accepts a tool
+    // built with pi's `defineTool()` and a TypeBox parameters schema — the
+    // exact shape pi-coding-agent's runtime expects. The migrated
+    // `daemon_stats` tool from src/daemon/pi-daemon-stats-tool.ts is the
+    // exemplar; the same call site works for any future TypeBox-migrated
+    // upup tool.
+    const { daemonStatsTool } = await import('./daemon/pi-daemon-stats-tool.js');
+    const api = createFakeApi();
+
+    api.registerTool(daemonStatsTool);
+
+    expect(api.tools.length).toBe(1);
+    const recorded = api.tools[0]!;
+    expect(recorded.name).toBe('daemon_stats');
+    expect(recorded.label).toBe('Daemon Stats');
+    expect(recorded.description).toContain('supervisor');
+    expect(recorded.parameters).toBeDefined();
+
+    // Invoke via the strict 5-arg pi signature — verifies the recorded tool
+    // still exposes the real `execute` function with the right arity.
+    const result = await (recorded.execute as (
+      toolCallId: string,
+      params: unknown,
+    ) => Promise<{ content: Array<{ type: string; text: string }>; details: unknown }>)(
+      'tool-call-1',
+      {},
+    );
+    expect(result.content[0]?.type).toBe('text');
+    const stats = JSON.parse(result.content[0]!.text);
+    expect(stats).toHaveProperty('queueSize');
+    expect(stats).toHaveProperty('activeTasks');
+    expect(stats).toHaveProperty('workers');
+    expect(result.details).toEqual(stats);
+  });
 });

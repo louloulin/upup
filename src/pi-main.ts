@@ -61,13 +61,33 @@ import { createExtensionRuntime } from '@earendil-works/pi-coding-agent';
  * don't have to take on a full schema-validated tool pipeline yet.
  * ------------------------------------------------------------------------ */
 
+/**
+ * Tool registration contract for the upup extension API. This is the
+ * duck-typed shape that BOTH the historic loose form (`{ name, description,
+ * execute() }`) AND pi-coding-agent's strict `ToolDefinition<TSchema,
+ * TDetails, TState>` satisfy via structural subtyping — the latter has
+ * extra optional fields (`label`, `parameters`, `prepareArguments`,
+ * `renderCall`, `renderResult`, etc.) which TypeScript checks
+ * positionally. The fake api accepts either; the loose form is the
+ * path-of-least-resistance for internal extensions still on the historic
+ * shape, while the strict form is what a fully-pi-migrated extension uses.
+ *
+ * The fake api does NOT call `execute` itself — call sites either invoke
+ * the historic form (`execute()`) or the pi-runtime form
+ * (`execute(toolCallId, params, signal, onUpdate, ctx)`). Each call site
+ * type-checks against the concrete tool definition it imports.
+ */
 export interface PiUpupTool {
   name: string;
   label?: string;
   description?: string;
   parameters?: unknown;
-  execute?: (...args: unknown[]) => unknown;
+  execute?: (...args: any[]) => any;
   prepareArguments?: (args: unknown) => unknown;
+  renderCall?: (...args: any[]) => any;
+  renderResult?: (...args: any[]) => any;
+  promptSnippet?: string;
+  promptGuidelines?: unknown;
 }
 
 export interface PiUpupCommand {
