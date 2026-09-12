@@ -142,6 +142,11 @@ export function createConfigGetTool() {
     name: 'config_get',
     label: 'Config Get',
     description: `Read a configuration value from UpUp settings. Use to check current model, memory, or any configuration value. Dot notation supported: 'memory.enabled', 'modelId', etc. Empty key returns whole config.`,
+    promptSnippet: 'Read a configuration value by dot-notation key (e.g. modelId, memory.enabled)',
+    promptGuidelines: [
+      'Use config_get to inspect the current model, memory settings, or any other configuration value before deciding to change anything.',
+      "When the user does not know the exact key name, call config_list first with a prefix to discover candidate keys before calling config_get.",
+    ],
     parameters: configGetParams,
     async execute(
       _toolCallId,
@@ -196,6 +201,11 @@ export function createConfigSetTool() {
     name: 'config_set',
     label: 'Config Set',
     description: `Write a configuration value to UpUp settings. Use to change model, enable/disable features, update memory settings. Dot notation supported. Some changes require restart.`,
+    promptSnippet: 'Write a configuration value (string, number, boolean, or nested object)',
+    promptGuidelines: [
+      'Use config_set to update a single configuration value. For multi-key changes, prefer one config_set call per key so each write is observable in the session log.',
+      'Before calling config_set with a new modelId or feature flag, call config_get first to confirm the current value and surface what will change. Some changes (modelId, enable*) require UpUp to be restarted to take effect.',
+    ],
     parameters: configSetParams,
     async execute(
       _toolCallId,
@@ -243,6 +253,10 @@ export function createConfigListTool() {
     name: 'config_list',
     label: 'Config List',
     description: `List all configuration keys and values from UpUp settings. Use to see available options, find keys, or audit current settings. Optional prefix filter (e.g. 'memory', 'model').`,
+    promptSnippet: 'List all configuration keys (with optional prefix filter)',
+    promptGuidelines: [
+      "Use config_list when the user wants to see what configuration is available or audit the current settings. Pass a prefix (e.g. 'memory') to narrow the result.",
+    ],
     parameters: configListParams,
     async execute(
       _toolCallId,

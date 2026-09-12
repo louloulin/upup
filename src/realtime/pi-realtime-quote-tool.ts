@@ -58,6 +58,11 @@ export function createRealtimeQuoteTool(): ReturnType<typeof defineTool> {
     name: 'realtime_quote',
     label: 'Realtime Quote',
     description: 'Subscribe to realtime quotes for a symbol and return the first tick',
+    promptSnippet: 'Get the latest quote for a symbol from the realtime feed',
+    promptGuidelines: [
+      'Use realtime_quote to fetch the current market price for a single symbol (e.g. AAPL, 600519).',
+      "When the user asks for multiple symbols, call realtime_quote once per symbol rather than guessing a batch API — the realtime tool surface only supports one-symbol-at-a-time lookups in this version.",
+    ],
     parameters: realtimeQuoteParams,
     async execute(
       _toolCallId,

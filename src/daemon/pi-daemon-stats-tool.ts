@@ -53,6 +53,11 @@ export const daemonStatsTool = defineTool({
   label: 'Daemon Stats',
   description:
     'Return a snapshot of the daemon supervisor (queue size, active tasks, workers, totals).',
+  promptSnippet: 'Read daemon supervisor stats (queue size, active tasks, workers)',
+  promptGuidelines: [
+    'Use daemon_stats to inspect the supervisor state when the user asks about background jobs, queue depth, or worker availability.',
+    'Use daemon_stats before deciding whether to enqueue new work — if queueSize is high or workers is 0, prefer waiting or reporting back instead of running more tasks in parallel.',
+  ],
   parameters: daemonStatsParams,
   async execute(
     _toolCallId,
