@@ -12,7 +12,7 @@ describe('pi main entry', () => {
   it('exposes the built-in pi extensions', () => {
     const main = createPiMain({ extensions: [] });
 
-    expect(main.extensions).toEqual(['realtime', 'daemon', 'config']);
+    expect(main.extensions).toEqual(['realtime', 'daemon', 'config', 'astock']);
     expect(typeof main.load).toBe('function');
   });
 
@@ -20,15 +20,17 @@ describe('pi main entry', () => {
     const main = createPiMain({ extensions: [] });
     const loaded = main.load();
 
-    expect(loaded.length).toBe(3);
+    expect(loaded.length).toBe(4);
 
     const realtime = loaded.find((ext) => ext.name === 'realtime');
     const daemon = loaded.find((ext) => ext.name === 'daemon');
     const config = loaded.find((ext) => ext.name === 'config');
+    const astock = loaded.find((ext) => ext.name === 'astock');
 
     expect(realtime).toBeDefined();
     expect(daemon).toBeDefined();
     expect(config).toBeDefined();
+    expect(astock).toBeDefined();
 
     expect(realtime!.registeredTools.map((t) => t.name)).toContain('realtime_status');
     expect(realtime!.registeredCommands.map((c) => c.name)).toContain('realtime');
@@ -41,6 +43,11 @@ describe('pi main entry', () => {
       'config_set',
       'config_list',
     ]);
+
+    expect(astock!.registeredTools.map((t) => t.name)).toEqual([
+      'get_astock_price',
+      'get_market_structure',
+    ]);
   });
 
   it('exposes Pi ExtensionFactory entries that can be loaded by a Pi loader', () => {
@@ -49,15 +56,17 @@ describe('pi main entry', () => {
     expect(typeof main.extensionFactories).toBe('function');
 
     const factories = main.extensionFactories();
-    expect(factories.length).toBe(3);
+    expect(factories.length).toBe(4);
 
     const realtime = factories.find((f) => f.name === 'realtime');
     const daemon = factories.find((f) => f.name === 'daemon');
     const config = factories.find((f) => f.name === 'config');
+    const astock = factories.find((f) => f.name === 'astock');
 
     expect(typeof realtime?.factory).toBe('function');
     expect(typeof daemon?.factory).toBe('function');
     expect(typeof config?.factory).toBe('function');
+    expect(typeof astock?.factory).toBe('function');
   });
 
   it('loadWith runs each built-in factory through a real Pi api and forwards the result to the loader', async () => {
@@ -74,8 +83,8 @@ describe('pi main entry', () => {
 
     const result = await main.loadWith(fakeLoader);
 
-    expect(result.length).toBe(3);
-    expect(capturedApis.length).toBe(3);
+    expect(result.length).toBe(4);
+    expect(capturedApis.length).toBe(4);
 
     for (const api of capturedApis) {
       // The fake api exposes the full upup extension contract surface.
@@ -142,7 +151,13 @@ describe('pi main entry', () => {
             params: unknown,
           ) => Promise<{ content: Array<{ type: string; text: string }> }>)(
             'loader-tool-call',
-            tool.name === 'realtime_quote' ? { symbol: '600519' } : {},
+            tool.name === 'realtime_quote'
+              ? { symbol: '600519' }
+              : tool.name === 'get_astock_price'
+                ? { code: '002594.SZ' }
+                : tool.name === 'get_market_structure'
+                  ? { type: 'top_list' }
+                  : {},
           )) as {
             content: Array<{ type: string; text: string }>;
           };
@@ -156,7 +171,7 @@ describe('pi main entry', () => {
     };
 
     const result = await main.loadWith(fakeLoader);
-    expect(result.length).toBe(3);
+    expect(result.length).toBe(4);
 
     const realtime = toolExecutions.find((t) => t.name === 'realtime_quote');
     expect(realtime).toBeDefined();
@@ -182,15 +197,17 @@ describe('pi main entry', () => {
 
     const result = await main.loadWith(fakeLoader);
 
-    expect(result.length).toBe(3);
+    expect(result.length).toBe(4);
 
     const realtime = result.find((r) => r.name === 'realtime');
     const daemon = result.find((r) => r.name === 'daemon');
     const config = result.find((r) => r.name === 'config');
+    const astock = result.find((r) => r.name === 'astock');
 
     expect(realtime).toBeDefined();
     expect(daemon).toBeDefined();
     expect(config).toBeDefined();
+    expect(astock).toBeDefined();
 
     expect(realtime!.tools).toContain('realtime_status');
     expect(realtime!.tools).toContain('realtime_quote');
@@ -200,6 +217,8 @@ describe('pi main entry', () => {
     expect(daemon!.commands).toContain('daemon');
 
     expect(config!.tools).toEqual(['config_get', 'config_set', 'config_list']);
+
+    expect(astock!.tools).toEqual(['get_astock_price', 'get_market_structure']);
 
     for (const entry of result) {
       expect(entry.ok).toBe(true);
@@ -212,10 +231,11 @@ describe('pi main entry', () => {
 
     const result = await main.loadWith(loader);
 
-    expect(result.length).toBe(3);
+    expect(result.length).toBe(4);
     const realtime = result.find((r) => r.name === 'realtime')!;
     const daemon = result.find((r) => r.name === 'daemon')!;
     const config = result.find((r) => r.name === 'config')!;
+    const astock = result.find((r) => r.name === 'astock')!;
 
     expect(realtime.ok).toBe(true);
     expect(realtime.tools).toContain('realtime_status');
@@ -228,6 +248,9 @@ describe('pi main entry', () => {
 
     expect(config.ok).toBe(true);
     expect(config.tools).toEqual(['config_get', 'config_set', 'config_list']);
+
+    expect(astock.ok).toBe(true);
+    expect(astock.tools).toEqual(['get_astock_price', 'get_market_structure']);
   });
 });
 
