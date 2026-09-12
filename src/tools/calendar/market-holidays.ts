@@ -159,7 +159,7 @@ const HK_HOLIDAYS: Record<string, string> = {
 // Helper Functions
 // ============================================================================
 
-function getMarketHolidays(market: string): Record<string, string> {
+export function getMarketHolidays(market: string): Record<string, string> {
   switch (market.toLowerCase()) {
     case 'us':
     case 'usa':
@@ -180,16 +180,16 @@ function getMarketHolidays(market: string): Record<string, string> {
   }
 }
 
-function isWeekend(date: Date): boolean {
+export function isWeekend(date: Date): boolean {
   const day = date.getDay();
   return day === 0 || day === 6; // Sunday or Saturday
 }
 
-function formatDate(date: Date): string {
+export function formatDate(date: Date): string {
   return date.toISOString().split('T')[0];
 }
 
-function isHoliday(dateStr: string, market: string): { isHoliday: boolean; name: string | null } {
+export function isHoliday(dateStr: string, market: string): { isHoliday: boolean; name: string | null } {
   const holidays = getMarketHolidays(market);
   const name = holidays[dateStr] || null;
   return { isHoliday: !!name, name };

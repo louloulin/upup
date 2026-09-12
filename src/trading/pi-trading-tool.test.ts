@@ -333,18 +333,12 @@ describe('pi trading extension', () => {
     });
   });
 
-  describe('registerTradingExtension — fake api integration', () => {
-    it('registers exactly the five Batch 3 trading tools', () => {
+  describe('registerTradingExtension — fake api integration (full Pass 11 + Pass 12)', () => {
+    it('registers 10 trading tools (5 Pass 11 + 5 Pass 12)', () => {
       const api = createFakeApi();
       registerTradingExtension(api);
 
-      expect(api.tools.length).toBe(5);
-      const names = api.tools.map((t) => t.name);
-      expect(names).toContain('place_trade_order');
-      expect(names).toContain('cancel_trade_order');
-      expect(names).toContain('get_trading_positions');
-      expect(names).toContain('get_trading_balance');
-      expect(names).toContain('get_trade_quote');
+      expect(api.tools.length).toBe(10);
     });
 
     it('each tool has promptSnippet + promptGuidelines defined', () => {

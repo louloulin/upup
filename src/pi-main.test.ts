@@ -12,7 +12,7 @@ describe('pi main entry', () => {
   it('exposes the built-in pi extensions', () => {
     const main = createPiMain({ extensions: [] });
 
-    expect(main.extensions).toEqual(['realtime', 'daemon', 'config', 'astock', 'trading']);
+    expect(main.extensions).toEqual(['realtime', 'daemon', 'config', 'astock', 'trading', 'portfolio']);
     expect(typeof main.load).toBe('function');
   });
 
@@ -20,19 +20,21 @@ describe('pi main entry', () => {
     const main = createPiMain({ extensions: [] });
     const loaded = main.load();
 
-    expect(loaded.length).toBe(5);
+    expect(loaded.length).toBe(6);
 
     const realtime = loaded.find((ext) => ext.name === 'realtime');
     const daemon = loaded.find((ext) => ext.name === 'daemon');
     const config = loaded.find((ext) => ext.name === 'config');
     const astock = loaded.find((ext) => ext.name === 'astock');
     const trading = loaded.find((ext) => ext.name === 'trading');
+    const portfolio = loaded.find((ext) => ext.name === 'portfolio');
 
     expect(realtime).toBeDefined();
     expect(daemon).toBeDefined();
     expect(config).toBeDefined();
     expect(astock).toBeDefined();
     expect(trading).toBeDefined();
+    expect(portfolio).toBeDefined();
 
     expect(realtime!.registeredTools.map((t) => t.name)).toContain('realtime_status');
     expect(realtime!.registeredCommands.map((c) => c.name)).toContain('realtime');
@@ -62,6 +64,20 @@ describe('pi main entry', () => {
       'get_trading_positions',
       'get_trading_balance',
       'get_trade_quote',
+      'evaluate_trade',
+      'check_trading_day',
+      'get_upcoming_holidays',
+      'get_next_trading_day',
+      'get_trading_days',
+    ]);
+
+    expect(portfolio!.registeredTools.map((t) => t.name)).toEqual([
+      'add_position',
+      'update_position',
+      'remove_position',
+      'set_cash',
+      'get_transactions',
+      'get_portfolio',
     ]);
   });
 
@@ -71,19 +87,21 @@ describe('pi main entry', () => {
     expect(typeof main.extensionFactories).toBe('function');
 
     const factories = main.extensionFactories();
-    expect(factories.length).toBe(5);
+    expect(factories.length).toBe(6);
 
     const realtime = factories.find((f) => f.name === 'realtime');
     const daemon = factories.find((f) => f.name === 'daemon');
     const config = factories.find((f) => f.name === 'config');
     const astock = factories.find((f) => f.name === 'astock');
     const trading = factories.find((f) => f.name === 'trading');
+    const portfolio = factories.find((f) => f.name === 'portfolio');
 
     expect(typeof realtime?.factory).toBe('function');
     expect(typeof daemon?.factory).toBe('function');
     expect(typeof config?.factory).toBe('function');
     expect(typeof astock?.factory).toBe('function');
     expect(typeof trading?.factory).toBe('function');
+    expect(typeof portfolio?.factory).toBe('function');
   });
 
   it('loadWith runs each built-in factory through a real Pi api and forwards the result to the loader', async () => {
@@ -100,8 +118,8 @@ describe('pi main entry', () => {
 
     const result = await main.loadWith(fakeLoader);
 
-    expect(result.length).toBe(5);
-    expect(capturedApis.length).toBe(5);
+    expect(result.length).toBe(6);
+    expect(capturedApis.length).toBe(6);
 
     for (const api of capturedApis) {
       // The fake api exposes the full upup extension contract surface.
@@ -181,6 +199,34 @@ describe('pi main entry', () => {
                 return { orderId: 'ord-fake' };
               case 'get_trade_quote':
                 return { symbol: 'AAPL' };
+              case 'evaluate_trade':
+                return {
+                  symbol: 'AAPL',
+                  analysisDate: '2024-01-01',
+                  operationAdvice: '买入',
+                  entryPrice: 100,
+                  forwardBars: [{ date: '2024-01-02', close: 105 }],
+                };
+              case 'check_trading_day':
+                return { date: '2024-01-15', market: 'us' };
+              case 'get_upcoming_holidays':
+                return { market: 'us' };
+              case 'get_next_trading_day':
+                return { fromDate: '2024-01-15', skipDays: 1 };
+              case 'get_trading_days':
+                return { startDate: '2024-01-01', endDate: '2024-01-31', market: 'us' };
+              case 'add_position':
+                return { symbol: 'AAPL', quantity: 10, avgCost: 100 };
+              case 'update_position':
+                return { symbol: 'AAPL', quantity: 20 };
+              case 'remove_position':
+                return { symbol: 'AAPL' };
+              case 'set_cash':
+                return { amount: 10000 };
+              case 'get_transactions':
+                return { limit: 10 };
+              case 'get_portfolio':
+                return {};
               default:
                 return {};
             }
@@ -204,7 +250,7 @@ describe('pi main entry', () => {
     };
 
     const result = await main.loadWith(fakeLoader);
-    expect(result.length).toBe(5);
+    expect(result.length).toBe(6);
 
     const realtime = toolExecutions.find((t) => t.name === 'realtime_quote');
     expect(realtime).toBeDefined();
@@ -230,19 +276,21 @@ describe('pi main entry', () => {
 
     const result = await main.loadWith(fakeLoader);
 
-    expect(result.length).toBe(5);
+    expect(result.length).toBe(6);
 
     const realtime = result.find((r) => r.name === 'realtime');
     const daemon = result.find((r) => r.name === 'daemon');
     const config = result.find((r) => r.name === 'config');
     const astock = result.find((r) => r.name === 'astock');
     const trading = result.find((r) => r.name === 'trading');
+    const portfolio = result.find((r) => r.name === 'portfolio');
 
     expect(realtime).toBeDefined();
     expect(daemon).toBeDefined();
     expect(config).toBeDefined();
     expect(astock).toBeDefined();
     expect(trading).toBeDefined();
+    expect(portfolio).toBeDefined();
 
     expect(realtime!.tools).toContain('realtime_status');
     expect(realtime!.tools).toContain('realtime_quote');
@@ -269,6 +317,20 @@ describe('pi main entry', () => {
       'get_trading_positions',
       'get_trading_balance',
       'get_trade_quote',
+      'evaluate_trade',
+      'check_trading_day',
+      'get_upcoming_holidays',
+      'get_next_trading_day',
+      'get_trading_days',
+    ]);
+
+    expect(portfolio!.tools).toEqual([
+      'add_position',
+      'update_position',
+      'remove_position',
+      'set_cash',
+      'get_transactions',
+      'get_portfolio',
     ]);
 
     for (const entry of result) {
@@ -282,12 +344,13 @@ describe('pi main entry', () => {
 
     const result = await main.loadWith(loader);
 
-    expect(result.length).toBe(5);
+    expect(result.length).toBe(6);
     const realtime = result.find((r) => r.name === 'realtime')!;
     const daemon = result.find((r) => r.name === 'daemon')!;
     const config = result.find((r) => r.name === 'config')!;
     const astock = result.find((r) => r.name === 'astock')!;
     const trading = result.find((r) => r.name === 'trading')!;
+    const portfolio = result.find((r) => r.name === 'portfolio')!;
 
     expect(realtime.ok).toBe(true);
     expect(realtime.tools).toContain('realtime_status');
@@ -319,6 +382,21 @@ describe('pi main entry', () => {
       'get_trading_positions',
       'get_trading_balance',
       'get_trade_quote',
+      'evaluate_trade',
+      'check_trading_day',
+      'get_upcoming_holidays',
+      'get_next_trading_day',
+      'get_trading_days',
+    ]);
+
+    expect(portfolio.ok).toBe(true);
+    expect(portfolio.tools).toEqual([
+      'add_position',
+      'update_position',
+      'remove_position',
+      'set_cash',
+      'get_transactions',
+      'get_portfolio',
     ]);
   });
 });

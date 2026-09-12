@@ -17,6 +17,13 @@ import {
   createGetTradingBalanceTool,
   createGetTradeQuoteTool,
 } from './pi-trading-tool.js';
+import {
+  createEvaluateTradeTool,
+  createCheckTradingDayTool,
+  createGetUpcomingHolidaysTool,
+  createGetNextTradingDayTool,
+  createGetTradingDaysTool,
+} from './pi-trading-readonly-tool.js';
 
 export type TradingExtensionApi = PiUpupExtensionApi;
 
@@ -29,6 +36,13 @@ export function registerTradingExtension(pi: PiUpupExtensionApi): void {
   pi.registerTool(createGetTradingPositionsTool());
   pi.registerTool(createGetTradingBalanceTool());
   pi.registerTool(createGetTradeQuoteTool());
+
+  // Read-only trade evaluation + calendar awareness (Pass 12).
+  pi.registerTool(createEvaluateTradeTool());
+  pi.registerTool(createCheckTradingDayTool());
+  pi.registerTool(createGetUpcomingHolidaysTool());
+  pi.registerTool(createGetNextTradingDayTool());
+  pi.registerTool(createGetTradingDaysTool());
 
   // No slash command for trading in this pass — tool surface is
   // sufficient. Future passes can add `pi.registerCommand('trading', ...)`

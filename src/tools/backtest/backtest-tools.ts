@@ -68,7 +68,7 @@ const calculateWinRateSchema = z.object({
 // Tool Handlers
 // ============================================================================
 
-function handleEvaluateTrade(params: z.infer<typeof evaluateTradeSchema>) {
+export function handleEvaluateTrade(params: z.infer<typeof evaluateTradeSchema>) {
   const config: EvaluationConfig = {
     evalWindowDays: params.evalWindowDays,
     neutralBandPct: params.neutralBandPct,

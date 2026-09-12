@@ -48,6 +48,7 @@ import { registerDaemonExtension } from './daemon/pi-daemon.js';
 import { registerConfigExtension } from './daemon/pi-config-extension.js';
 import { registerAstockExtension } from './astock/pi-astock-extension.js';
 import { registerTradingExtension } from './trading/pi-trading-extension.js';
+import { registerPortfolioExtension } from './portfolio/pi-portfolio-extension.js';
 import { createRealtimeFeed } from './realtime/index.js';
 import type { RealtimeExtensionApi } from './realtime/pi-realtime.js';
 import type { DaemonExtensionApi } from './daemon/pi-daemon.js';
@@ -584,6 +585,12 @@ function createTradingAdapter(): Omit<LoadedExtension, 'name'> {
   return recordedState(api);
 }
 
+function createPortfolioAdapter(): Omit<LoadedExtension, 'name'> {
+  const api = createFakeApi();
+  registerPortfolioExtension(api);
+  return recordedState(api);
+}
+
 function realtimeFactory(pi: PiUpupExtensionApi): void {
   registerRealtimeExtension(pi as unknown as RealtimeExtensionApi);
 }
@@ -604,6 +611,10 @@ function tradingFactory(pi: PiUpupExtensionApi): void {
   registerTradingExtension(pi);
 }
 
+function portfolioFactory(pi: PiUpupExtensionApi): void {
+  registerPortfolioExtension(pi);
+}
+
 /** ---------------------------------------------------------------------------
  * Public entry point.
  * ------------------------------------------------------------------------ */
@@ -615,6 +626,7 @@ export function createPiMain(options: PiMainOptions): PiMainResult {
     ['config', createConfigAdapter],
     ['astock', createAstockAdapter],
     ['trading', createTradingAdapter],
+    ['portfolio', createPortfolioAdapter],
   ]);
 
   const knownFactories = new Map<string, (pi: PiUpupExtensionApi) => void | Promise<void>>([
@@ -623,6 +635,7 @@ export function createPiMain(options: PiMainOptions): PiMainResult {
     ['config', configFactory],
     ['astock', astockFactory],
     ['trading', tradingFactory],
+    ['portfolio', portfolioFactory],
   ]);
 
   const extensionOverrides = new Map(
