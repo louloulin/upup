@@ -1,4 +1,4 @@
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { api } from './api.js';
 import { formatToolResult } from '../types.js';
@@ -15,7 +15,7 @@ const CompanyNewsInputSchema = z.object({
     .describe('Maximum number of news articles to return (default: 5, max: 10).'),
 });
 
-export const getCompanyNews = new DynamicStructuredTool({
+export const getCompanyNews = new PiTool({
   name: 'get_company_news',
   description:
     'Retrieves recent news headlines, including title, source, publication date, and URL. Pass a ticker for company-specific news, or omit the ticker for broad market news covering macro, rates, earnings, geopolitics, and more. Also useful when trying to explain broad price moves — omit the ticker to check for market-wide catalysts.',

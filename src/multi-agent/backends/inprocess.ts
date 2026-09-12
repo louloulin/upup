@@ -1,15 +1,13 @@
 /**
  * InProcessBackend - 进程内执行后端
  * 
- * 集成UpUp Agent系统进行真实子Agent执行
- * 使用SubagentRunner进行Agent生命周期管理
+ * 使用 Pi AgentSession 进行真实子 Agent 执行。
  */
 
 import type { AgentInstance, SpawnAgentParams } from '../types.js';
 import { Backend } from './index.js';
 import { randomUUID } from 'crypto';
-import { getDefaultSubagentRunner, type SubagentRunner } from '../../agent/subagent-runner.js';
-import type { SubagentConfig, SubagentType } from '../../agent/subagent.js';
+import { PiAgentSessionFactory, type UpUpAgentSession, type UpUpAgentSpec } from '../../runtime/pi/index.js';
 import { info, warn, error as logError } from '../../utils/logging/logger.js';
 
 export class InProcessBackend implements Backend {
@@ -17,11 +15,8 @@ export class InProcessBackend implements Backend {
   readonly name = 'In-Process Backend';
   
   private agents: Map<string, AgentInstance> = new Map();
-  private runner: SubagentRunner;
-  
-  constructor() {
-    this.runner = getDefaultSubagentRunner();
-  }
+  private sessions: Map<string, UpUpAgentSession> = new Map();
+  private readonly runtime = new PiAgentSessionFactory();
   
   isAvailable(): boolean {
     return true;
@@ -60,43 +55,30 @@ export class InProcessBackend implements Backend {
       
       info('backend', `Starting agent execution: ${agent.name}`);
       
-      // Map role to SubagentType
-      const agentType = this.mapRoleToSubagentType(params.role);
-      
-      // 构建Agent配置
-      const config: SubagentConfig = {
-        type: agentType,
-        tools: params.tools === '*' ? '*' : (params.tools || []),
-        timeoutMs: timeout,
-        maxTurns: params.maxTurns ?? 10,
-        model: params.model,
-        cwd: params.cwd,
-        systemPrompt: params.prompt ? `${params.prompt}\n\nYou are ${params.role || 'agent'} named ${params.name}.` : undefined,
-      };
-      
-      // 执行Agent
       const prompt = params.prompt || `You are a ${params.role || 'agent'} named ${params.name}. Complete the assigned task.`;
-      
-      const result = await this.runner.run(
-        config,
-        prompt,
-        undefined,
-        (event) => {
-          // Forward events
-        }
-      );
-      
-      // 更新Agent状态
-      if (result.success) {
+      const session = await this.runtime.createSession(this.createSpec(params, timeout), {
+        cwd: params.cwd,
+        loadRegisteredTools: false,
+        ...(params.piModel ? { model: params.piModel } : {}),
+        ...(params.piModelRuntime ? { modelRuntime: params.piModelRuntime } : {}),
+      });
+      this.sessions.set(agent.id, session);
+      agent.piSpec = session.spec;
+      agent.piSessionId = session.id;
+      agent.piToolNames = session.getAvailableToolNames();
+      await session.prompt(prompt);
+      await session.waitForIdle();
+      const result = extractAssistantText(session.getMessages());
+      if (result) {
         agent.status = 'completed';
         agent.completedAt = Date.now();
-        agent.result = result.output;
-        info('backend', `Agent completed: ${agent.name} in ${result.duration}ms`);
+        agent.result = result;
+        info('backend', `Agent completed: ${agent.name} in ${Date.now() - (agent.startedAt ?? Date.now())}ms`);
       } else {
         agent.status = 'failed';
-        agent.error = result.error;
+        agent.error = 'Pi session completed without an assistant result';
         agent.completedAt = Date.now();
-        warn('backend', `Agent failed: ${agent.name} - ${result.error}`);
+        warn('backend', `Agent failed: ${agent.name} - no assistant result`);
       }
       
     } catch (error) {
@@ -107,24 +89,39 @@ export class InProcessBackend implements Backend {
     }
   }
   
-  /**
-   * Map role to SubagentType
-   */
-  private mapRoleToSubagentType(role: string): SubagentType {
-    const roleMap: Record<string, SubagentType> = {
-      'researcher': 'specialized',
-      'reviewer': 'specialized',
-      'debugger': 'specialized',
-      'coordinator': 'general',
-      'executor': 'general',
-      'analyst': 'specialized',
+  private createSpec(params: SpawnAgentParams, timeoutMs: number): UpUpAgentSpec {
+    if (params.spec) return { ...params.spec, timeoutMs: params.spec.timeoutMs ?? timeoutMs };
+    return {
+      id: `worker-${params.role.toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'agent'}`,
+      version: '1.0.0',
+      name: params.name,
+      description: `Pi worker for ${params.role || 'general'} tasks`,
+      systemPrompt: params.prompt,
+      tools: params.tools ?? '*',
+      model: params.model,
+      mode: 'worker',
+      capabilities: [params.role || 'general'],
+      taskTypes: [params.role || 'general'],
+      permissions: {
+        id: 'multi-agent-read-only',
+        allow: ['safe', 'warning'],
+        requireApproval: [],
+        deny: ['dangerous', 'critical'],
+        allowExternalNetwork: true,
+        allowCredentialAccess: false,
+        allowFinancialWrites: false,
+      },
+      timeoutMs,
+      outputContract: 'markdown',
     };
-    return roleMap[role] || 'general';
   }
   
   async terminate(agentId: string): Promise<void> {
     const agent = this.agents.get(agentId);
     if (agent) {
+      await this.sessions.get(agentId)?.abort();
+      this.sessions.get(agentId)?.dispose();
+      this.sessions.delete(agentId);
       agent.status = 'cancelled';
       agent.completedAt = Date.now();
       this.agents.delete(agentId);
@@ -140,4 +137,20 @@ export class InProcessBackend implements Backend {
     const agent = this.agents.get(agentId);
     return agent?.result;
   }
+}
+
+function extractAssistantText(messages: readonly unknown[]): string | undefined {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (!message || typeof message !== 'object' || !('role' in message) || message.role !== 'assistant') continue;
+    const content = 'content' in message ? message.content : undefined;
+    if (!Array.isArray(content)) continue;
+    const text = content
+      .filter((part): part is { type: 'text'; text: string } => Boolean(part && typeof part === 'object' && 'type' in part && part.type === 'text' && 'text' in part && typeof part.text === 'string'))
+      .map((part) => part.text)
+      .join('\n')
+      .trim();
+    if (text) return text;
+  }
+  return undefined;
 }

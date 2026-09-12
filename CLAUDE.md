@@ -53,7 +53,7 @@ bun test              # Run tests
 ┌─────────────────────────────────────────────────────────────┐
 │                      Core Layers                           │
 ├─────────────────────────────────────────────────────────────┤
-│  CLI/TUI → Agent Core → Tools/Skills/Components          │
+│  CLI/TUI → Pi Runtime Adapter → Tools/Skills/Components  │
 │                              │                              │
 │  ┌─────────┐  ┌─────────┐  ┌─────────┐  ┌─────────┐   │
 │  │   llm   │  │ memory  │  │   sdk   │  │ plugins │   │
@@ -66,7 +66,7 @@ bun test              # Run tests
 | Path | Purpose |
 |------|---------|
 | `src/cli.ts` | Main CLI entry; slash autocomplete is delegated to pi-tui's `CombinedAutocompleteProvider` (3-line wiring) |
-| `src/agent/` | Agent core (loop, plan mode, subagent, memory flush, investment workflow) |
+| `src/runtime/pi/` | Production Pi AgentSession runtime, adapters, profiles, sessions, and investment workers |
 | `src/commands/investment/` | 5-phase /invest workflow + dossier / strategy / earnings-preview / morning-brief / portfolio-review / risk-dashboard / watchlist-edit / screen |
 | `src/skills/` | 50 SKILL.md + 14 bundled skills (registry, hot-reload, i18n) |
 | `src/tools/finance/` | 20+ 金融工具文件 (prices, fundamentals, filings, A-share, screen, key ratios, estimates, segments, news, earnings transcripts, crypto) |
@@ -108,7 +108,7 @@ Key files:
 
 1. **TypeScript First**: All code is TypeScript, strict mode enabled
 2. **Bun Runtime**: Primary runtime, also supports Node.js
-3. **LangChain**: LLM integration via LangChain
+3. **Pi Runtime**: LLM, streaming, tool execution, sessions, and compaction come from the pinned Pi packages; UpUp only owns financial adapters and policy
 4. **Permission Safety**: All dangerous operations require explicit approval
 
 ## Environment Variables

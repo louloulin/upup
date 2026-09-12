@@ -1,4 +1,4 @@
-import { callLlm } from '../model/llm.js';
+import { callLlm } from '../runtime/pi/model.js';
 import { MemoryManager } from './index.js';
 import { CONTEXT_THRESHOLD } from '../utils/tokens.js';
 

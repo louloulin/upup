@@ -6,8 +6,10 @@
  */
 
 import { z } from 'zod';
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../runtime/pi/tool.js';
 import { getToolRegistry, type RegisteredTool } from './registry/index.js';
+
+export type ToolRegistryLoader = (model: string) => Promise<RegisteredTool[]>;
 
 // ============================================================================
 // Schema & Description
@@ -70,13 +72,13 @@ Returns all tools with their names and compact descriptions.`;
 // Tool Factories
 // ============================================================================
 
-export function createToolSearchTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createToolSearchTool(loadTools: ToolRegistryLoader = getToolRegistry): PiTool {
+  return new PiTool({
     name: 'tool_search',
     description: TOOL_SEARCH_DESCRIPTION,
     schema: ToolSearchSchema,
     async func(input, runManager): Promise<string> {
-      const tools = await getToolRegistry('dummy');
+      const tools = await loadTools('dummy');
 
       const filtered = tools.filter((tool: RegisteredTool) => {
         if (input.query !== undefined) {
@@ -122,8 +124,8 @@ export function createToolSearchTool(): DynamicStructuredTool {
   });
 }
 
-export function createToolGetTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createToolGetTool(loadTools: ToolRegistryLoader = getToolRegistry): PiTool {
+  return new PiTool({
     name: 'tool_get',
     description: TOOL_GET_DESCRIPTION,
     schema: z.object({
@@ -131,7 +133,7 @@ export function createToolGetTool(): DynamicStructuredTool {
       name: z.string().describe('Name of the tool to retrieve'),
     }),
     async func(input): Promise<string> {
-      const tools = await getToolRegistry('dummy');
+      const tools = await loadTools('dummy');
       const tool = tools.find((t: RegisteredTool) => t.name === input.name);
 
       if (!tool) {
@@ -170,8 +172,8 @@ export function createToolGetTool(): DynamicStructuredTool {
   });
 }
 
-export function createToolListTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createToolListTool(loadTools: ToolRegistryLoader = getToolRegistry): PiTool {
+  return new PiTool({
     name: 'tool_list',
     description: TOOL_LIST_DESCRIPTION,
     schema: z.object({
@@ -181,7 +183,7 @@ export function createToolListTool(): DynamicStructuredTool {
       limit: z.number().optional().describe('Maximum number of tools to return'),
     }),
     async func(input): Promise<string> {
-      const tools = await getToolRegistry('dummy');
+      const tools = await loadTools('dummy');
 
       let filtered = tools;
       if (input.prefix !== undefined) {

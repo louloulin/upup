@@ -5,18 +5,9 @@
  * Part of Plan12 P1 implementation.
  */
 
-import { describe, it, expect, beforeEach, vi } from 'bun:test';
-
-// Mock the validateConfig function
-vi.mock('../utils/config-validation.js', () => ({
-  validateConfig: vi.fn(),
-}));
+import { describe, it, expect } from 'bun:test';
 
 describe('IntroComponent', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   it('should be importable', async () => {
     const { IntroComponent } = await import('./intro.js');
     expect(typeof IntroComponent).toBe('function');

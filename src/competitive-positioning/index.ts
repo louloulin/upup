@@ -13,7 +13,7 @@
  * 编译开关: BUN_CONFIG_FEATURE_COMPETITIVE_POSITIONING=0 排除整模块。
  */
 
-import { isFeatureCompiledIn } from '../agent/feature-gates.js';
+import { isFeatureCompiledIn } from '../runtime/pi/feature-gates.js';
 
 import { COMPETITORS, validateMatrix, groupByTier, leadCountByDim } from './matrix.js';
 import { collectFourUniques, makeReportFromMetrics } from './four-uniques.js';

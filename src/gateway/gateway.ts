@@ -21,7 +21,7 @@ import {
   noteGroupMember,
   formatGroupMembersList,
 } from './group/index.js';
-import type { GroupContext } from '../agent/prompts.js';
+import type { GroupContext } from '../runtime/pi/prompts.js';
 import { appendFileSync } from 'node:fs';
 import { upupPath } from '../utils/paths.js';
 import { getConfiguredModelId, getConfiguredProvider } from '../utils/config.js';
@@ -238,4 +238,3 @@ export async function startGateway(params: { configPath?: string } = {}): Promis
     snapshot: () => manager.getSnapshot(),
   };
 }
-

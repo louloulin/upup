@@ -11,8 +11,7 @@
  * - Ad-hoc SQL queries against loaded data
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
-import type { StructuredToolInterface } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import type { RegisteredTool } from './types.js';
 import { DuckDBPlugin } from '../../plugins/data/duckdb-plugin.js';
 
@@ -35,13 +34,13 @@ export async function loadDuckDBTools(): Promise<RegisteredTool[]> {
     const plugin = getDuckDBPlugin();
     const pluginTools = plugin.getTools();
 
-    // Convert AgentTool (Plugin format) to DynamicStructuredTool (LangChain format)
+    // Convert the plugin tool into UpUp's Pi-compatible tool shape.
     // This ensures tools have proper .toJSON() with 'type' field for OpenAI SDK compatibility
     const registeredTools: RegisteredTool[] = pluginTools.map((tool: any) => {
-      const langChainTool = new DynamicStructuredTool({
+      const piTool = new PiTool({
         name: tool.name,
         description: tool.description,
-        schema: tool.schema,
+        schema: tool.schema ?? { type: 'object', properties: {} },
         func: tool.execute,
       });
 
@@ -49,7 +48,7 @@ export async function loadDuckDBTools(): Promise<RegisteredTool[]> {
         name: tool.name,
         description: tool.description,
         compactDescription: `[DuckDB] ${tool.description.substring(0, 100)}`,
-        tool: langChainTool as unknown as StructuredToolInterface,
+        tool: piTool as unknown as PiTool,
         concurrencySafe: true, // DuckDB handles concurrent queries
       };
     });

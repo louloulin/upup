@@ -16,6 +16,19 @@ import { SandboxBroker } from './sandbox-engine.js';
 export type BuiltinBrokerName = 'sandbox' | 'ibkr' | 'xueqiu';
 export type BrokerName = string;
 
+export const LIVE_TRADING_DISABLED_MESSAGE =
+  'Live trading is disabled by default. Set UPUP_TRADING_MODE=live and UPUP_ALLOW_LIVE_TRADING=true only in an explicitly approved environment.';
+
+export function isLiveTradingEnabled(): boolean {
+  return process.env.UPUP_TRADING_MODE === 'live' && process.env.UPUP_ALLOW_LIVE_TRADING === 'true';
+}
+
+function assertLiveTradingEnabled(name: BrokerName): void {
+  if (name !== 'sandbox' && !isLiveTradingEnabled()) {
+    throw new Error(`${LIVE_TRADING_DISABLED_MESSAGE} Broker: ${name}`);
+  }
+}
+
 const REGISTRY = new Map<BrokerName, (config?: BrokerConfig) => BrokerAdapter>();
 
 export function registerBroker(
@@ -84,6 +97,11 @@ export async function createBrokerAsync(
   name: BrokerName,
   config?: BrokerConfig,
 ): Promise<BrokerAdapter> {
+  if (name !== 'sandbox' && name !== 'ibkr' && name !== 'xueqiu') {
+    const available = listBrokers().join(', ') || '(none)';
+    throw new Error(`Broker "${name}" is not registered. Available: ${available}`);
+  }
+  assertLiveTradingEnabled(name);
   if (name === 'sandbox') return createBroker('sandbox', config);
 
   switch (name) {

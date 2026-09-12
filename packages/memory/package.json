@@ -1,7 +1,7 @@
 {
   "name": "@upup/memory",
   "version": "0.2.0",
-  "description": "UpUp Memory SDK - Memvid-based storage with BM25 search",
+  "description": "UpUp Memory SDK - Pi-compatible JSONL storage with deterministic keyword search",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -18,7 +18,6 @@
   },
   "dependencies": {
     "@upup/types": "workspace:*",
-    "@memvid/sdk": "^2.0.120"
   },
   "files": [
     "dist",

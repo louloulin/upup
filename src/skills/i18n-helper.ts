@@ -10,7 +10,7 @@
  */
 
 import type { SkillMetadata } from './types.js';
-import { getLocale, type Locale } from '../agent/locale.js';
+import { getLocale, type Locale } from '../runtime/pi/locale.js';
 import { DEFAULT_LOCALE } from '../i18n/strings.js';
 
 /**
@@ -40,5 +40,5 @@ export function localizeSkill(
 }
 
 // Re-export the locale types so callers don't need a second import.
-export { getLocale, type Locale } from '../agent/locale.js';
+export { getLocale, type Locale } from '../runtime/pi/locale.js';
 export { DEFAULT_LOCALE } from '../i18n/strings.js';

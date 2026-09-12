@@ -8,14 +8,12 @@
 
 import 'dotenv/config';
 import { ProcessTerminal, TUI } from '@earendil-works/pi-tui';
-import { Client } from 'langsmith';
-import type { EvaluationResult } from 'langsmith/evaluation';
-import { ChatOpenAI } from '@langchain/openai';
+import { callStructuredLlm } from '../runtime/pi/model.js';
 import { z } from 'zod';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { Agent } from '../agent/agent.js';
+import { streamPiAgent } from '../runtime/pi/event-stream.js';
 import { EvalApp, type EvalProgressEvent } from './components/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -25,6 +23,12 @@ const __dirname = path.dirname(__filename);
 interface Example {
   inputs: { question: string };
   outputs: { answer: string };
+}
+
+interface EvaluationResult {
+  key: string;
+  score: number;
+  comment: string;
 }
 
 // ============================================================================
@@ -141,10 +145,9 @@ function shuffleArray<T>(array: T[]): T[] {
 // ============================================================================
 
 async function target(inputs: { question: string }): Promise<{ answer: string }> {
-  const agent = await Agent.create({ model: 'gpt-5.4', maxIterations: 10 });
   let answer = '';
   
-  for await (const event of agent.run(inputs.question)) {
+  for await (const event of streamPiAgent(inputs.question, { model: 'gpt-5.4', maxIterations: 10 })) {
     if (event.type === 'done') {
       answer = event.answer;
     }
@@ -162,12 +165,6 @@ const EvaluatorOutputSchema = z.object({
   comment: z.string(),
 });
 
-const llm = new ChatOpenAI({
-  model: 'gpt-5.4',
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
-const structuredLlm = llm.withStructuredOutput(EvaluatorOutputSchema);
 
 async function correctnessEvaluator({
   outputs,
@@ -195,7 +192,7 @@ Evaluate and provide:
 - comment: brief explanation of why the answer is correct or incorrect`;
 
   try {
-    const result = await structuredLlm.invoke(prompt);
+    const result = await callStructuredLlm(prompt, EvaluatorOutputSchema, { model: 'gpt-5.4' });
     return {
       key: 'correctness',
       score: result.score,
@@ -227,9 +224,6 @@ function createEvaluationRunner(sampleSize?: number) {
       examples = shuffleArray(examples).slice(0, sampleSize);
     }
 
-    // Create LangSmith client
-    const client = new Client();
-
     // Create a unique dataset name for this run (sampling creates different datasets)
     const datasetName = sampleSize 
       ? `upup-finance-eval-sample-${sampleSize}-${Date.now()}`
@@ -241,33 +235,6 @@ function createEvaluationRunner(sampleSize?: number) {
       total: examples.length,
       datasetName: sampleSize ? `finance_agent (sample ${sampleSize}/${totalCount})` : 'finance_agent',
     };
-
-    // Check if dataset exists (only for full runs)
-    let dataset;
-    if (!sampleSize) {
-      try {
-        dataset = await client.readDataset({ datasetName });
-      } catch {
-        // Dataset doesn't exist, will create
-        dataset = null;
-      }
-    }
-
-    // Create dataset if needed
-    if (!dataset) {
-      dataset = await client.createDataset(datasetName, {
-        description: sampleSize 
-          ? `Finance agent evaluation (sample of ${sampleSize})`
-          : 'Finance agent evaluation dataset',
-      });
-
-      // Upload examples
-      await client.createExamples({
-        datasetId: dataset.id,
-        inputs: examples.map((e) => e.inputs),
-        outputs: examples.map((e) => e.outputs),
-      });
-    }
 
     // Generate experiment name for tracking
     const experimentName = `upup-eval-${Date.now().toString(36)}`;
@@ -294,24 +261,9 @@ function createEvaluationRunner(sampleSize?: number) {
         referenceOutputs: example.outputs,
       });
 
-      // Log to LangSmith for tracking
-      await client.createRun({
-        name: 'upup-eval-run',
-        run_type: 'chain',
-        inputs: example.inputs,
-        outputs,
-        start_time: startTime,
-        end_time: endTime,
-        project_name: experimentName,
-        extra: {
-          dataset: datasetName,
-          reference_outputs: example.outputs,
-          evaluation: {
-            score: evalResult.score,
-            comment: evalResult.comment,
-          },
-        },
-      });
+      const resultPath = path.join(process.cwd(), '.upup', `${experimentName}.jsonl`);
+      fs.mkdirSync(path.dirname(resultPath), { recursive: true });
+      fs.appendFileSync(resultPath, `${JSON.stringify({ datasetName, question, outputs, reference: example.outputs, evaluation: evalResult, startTime, endTime })}\n`);
 
       // Yield question end with result - UI updates progress bar
       yield {

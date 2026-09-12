@@ -7,7 +7,7 @@
  * - Get skill details
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { formatToolResult } from '../types.js';
 import { readdir, readFile } from 'fs/promises';
@@ -122,7 +122,7 @@ const getSkillSchema = z.object({
  * Create list skills tool
  */
 export function createListSkillsTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'list_skills',
     description: 'List all available skills in the system',
     schema: listSkillsSchema,
@@ -171,7 +171,7 @@ export function createListSkillsTool() {
  * Create search skills tool
  */
 export function createSearchSkillsTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'search_skills',
     description: 'Search for skills by keyword',
     schema: searchSkillsSchema,
@@ -216,7 +216,7 @@ export function createSearchSkillsTool() {
  * Create get skill tool
  */
 export function createGetSkillTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'get_skill',
     description: 'Get detailed information about a specific skill',
     schema: getSkillSchema,

@@ -111,7 +111,7 @@ Layer 8:  packages/commands/  旧命令容器(只允许消费 ports)
 ```
 src/tools/portfolio/store.ts          → 无 src/ 内部依赖 (纯数据层)
 src/tools/portfolio/service.ts        → store.ts + astock/tushare-client.ts (业务逻辑)
-src/tools/portfolio/tracker.ts        → service.ts + store.ts (LangChain tool 包装)
+src/tools/portfolio/tracker.ts        → service.ts + store.ts (Pi tool adapter 包装)
 src/tools/portfolio/{brinson,sector,style}-attribution.ts → types.ts
 src/tools/portfolio/portfolio-tools.ts → types.ts + utils/storage-paths.ts
 ```
@@ -194,7 +194,7 @@ src/tools/portfolio/portfolio-tools.ts → types.ts + utils/storage-paths.ts
 #### 9.3.1 重构前
 
 `src/tools/portfolio/tracker.ts` (212 行) 三个关注点混在一起:
-- LangChain tool 绑定 + schema(50 行)
+- Pi tool 绑定 + schema(50 行)
 - 业务逻辑:add / remove / list / performance / summaryBySector (140 行)
 - 模块级单例状态:`portfolioStore: Map`, `positionIdCounter`(20 行)
 - 还有一个未使用的 `_model` 参数
@@ -209,7 +209,7 @@ src/tools/portfolio/
                           + getDefaultPortfolioRepository (保留向后兼容)
   service.ts      241 行  PortfolioService (业务逻辑)
                           + PriceProvider 接口 + TusharePriceProvider + NullPriceProvider
-  tracker.ts      155 行  createPortfolioTracker (LangChain tool wrapper, 80 行真逻辑)
+  tracker.ts      155 行  createPortfolioTracker (Pi tool wrapper, 80 行真逻辑)
   store.test.ts    8 测试 纯数据层 CRUD + 单例管理
   service.test.ts 10 测试 业务逻辑 + 假 PriceProvider (零 tushare / 零网络)
 ```
@@ -251,8 +251,8 @@ v7-2a / v7-2b 阶段手工梳理了 6 个端口 + tracker.ts 三层拆分,但缺
 |---|---|---|---|
 | 1 | `src/utils/` | 纯函数、path/fs helper | `stock-code.ts`, `config-merge.ts` |
 | 2 | `src/state/`, `src/session/`, `src/portfolio/`, `src/storage/`, `src/telemetry/`, `src/hooks/`, `src/mcp/` | 基础服务 + 持久化 | `AppStateStore`, `SessionManager`, `PortfolioRepository` |
-| 3 | `src/tools/`, `src/skills/` | 业务工具 (LangChain wrappers, 计算函数) | `sandbox-engine.ts`, `attribution.ts`, `financial_search` |
-| 4 | `src/plan/`, `src/agent/`, `src/multi-agent/`, `src/worktree/`, `src/daemon/`, `src/code-archaeology/` | 业务编排 + agent loop | `agent.ts`, `plan-executor.ts`, `investment-workflow.ts` |
+| 3 | `src/tools/`, `src/skills/` | 业务工具 (Pi adapters, 计算函数) | `sandbox-engine.ts`, `attribution.ts`, `financial_search` |
+| 4 | `src/runtime/pi/`, `src/plan/`, `src/agent/`, `src/multi-agent/`, `src/worktree/`, `src/daemon/`, `src/code-archaeology/` | Pi-backed 业务编排 | `agent-session-factory.ts`, `plan-executor.ts`, `investment-workflow.ts` |
 | 5 | `src/commands/`, `src/controllers/`, `src/cli.tsx`, `src/bridge/`, `src/stdio/`, `src/gateway/` | 顶层入口 (CLI/commands/MCP bridge) | `cli.tsx`, `commands.ts`, `bridgeStatusUtil.ts` |
 
 **规则**:
@@ -300,8 +300,8 @@ src/utils/config-merge.test.ts (L1) → src/agent/investment-config.ts (L4)
 ```
 <feature>/
   store.ts          纯数据层,CRUD + 单例,零外部依赖
-  service.ts        业务逻辑层,持有 store + provider,零 LangChain
-  <feature>.ts      工具包装层,LangChain tool / CLI 绑定
+  service.ts        业务逻辑层,持有 store + provider,零 Agent runtime 依赖
+  <feature>.ts      工具包装层,Pi tool / CLI 绑定
   *.test.ts         按代码所在层放,严格遵守层约束
 ```
 

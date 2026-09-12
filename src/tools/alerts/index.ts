@@ -9,10 +9,9 @@
  * - Portfolio alerts
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { getTushareClient, getToday } from '../astock/tushare-client';
-import type { StructuredToolInterface } from '@langchain/core/tools';
 
 export const ALERT_SYSTEM_DESCRIPTION = `## alert_system
 Manage price alerts and notifications for A-shares stocks.
@@ -103,8 +102,8 @@ async function checkAlertTriggered(alert: Alert, client: any): Promise<boolean> 
   }
 }
 
-export function createAlertSystem(_model: string): StructuredToolInterface {
-  return new DynamicStructuredTool({
+export function createAlertSystem(_model: string): PiTool {
+  return new PiTool({
     name: 'alert_system',
     description: ALERT_SYSTEM_DESCRIPTION,
     schema: AlertSystemSchema,

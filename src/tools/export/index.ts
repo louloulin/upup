@@ -8,10 +8,9 @@
  * - Excel-ready data
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { getTushareClient, getToday } from '../astock/tushare-client';
-import type { StructuredToolInterface } from '@langchain/core/tools';
 
 export const DATA_EXPORT_DESCRIPTION = `## data_export
 Export financial data in various formats.
@@ -95,8 +94,8 @@ function formatNumber(val: unknown): string {
   return num.toFixed(2);
 }
 
-export function createDataExport(_model: string): StructuredToolInterface {
-  return new DynamicStructuredTool({
+export function createDataExport(_model: string): PiTool {
+  return new PiTool({
     name: 'data_export',
     description: DATA_EXPORT_DESCRIPTION,
     schema: DataExportSchema,
@@ -229,28 +228,20 @@ export function createDataExport(_model: string): StructuredToolInterface {
 
 export default createDataExport;
 
-// Placeholder exports for domain-tools.ts compatibility
-// These tools are planned for future implementation
 export const EXPORT_PORTFOLIO_DESCRIPTION = `## export_portfolio
 Export portfolio data in various formats.
-Note: This feature is planned for future implementation.`;
+Exports the current tracked positions with an auditable output path.`;
 
 export const EXPORT_WATCHLIST_DESCRIPTION = `## export_watchlist
 Export watchlist data in various formats.
-Note: This feature is planned for future implementation.`;
+Exports the current watchlist and optional alert configuration.`;
 
 export const EXPORT_DATA_DESCRIPTION = `## export_data
 Export financial data in various formats.
-Note: This feature is planned for future implementation.`;
+Exports caller-provided analysis rows to a local CSV or JSON file.`;
 
-export function createExportPortfolioTool() {
-  return null as any;
-}
-
-export function createExportWatchlistTool() {
-  return null as any;
-}
-
-export function createExportDataTool() {
-  return null as any;
-}
+export {
+  createExportPortfolioTool,
+  createExportWatchlistTool,
+  createExportDataTool,
+} from './export-tools.js';

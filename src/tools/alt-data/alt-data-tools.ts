@@ -1,5 +1,5 @@
 /**
- * Alt-Data Tools (LangChain wrapper)
+ * Alt-Data Tools (Pi-compatible wrapper)
  *
  * Spec: openspec/changes/top-tier-investment-assistant-v2/specs/alt-data
  *      → Requirement: Alt-Data Tools Registration
@@ -12,7 +12,7 @@
  * (with API keys) and tests can plug in mock responses.
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { formatToolResult } from '../types.js';
 import type { AltDataAdapter, AltDataSource, NormalizedEvent } from '../../data/alt/types.js';
@@ -31,7 +31,7 @@ const fetchSchema = z.object({
 });
 
 export const createAltDataFetchTool = (deps: AltDataToolDeps) =>
-  new DynamicStructuredTool({
+  new PiTool({
     name: 'alt_data_fetch',
     description: `抓取另类数据(龙虎榜 / 北向资金)。source 支持 dragon-tiger (龙虎榜+大宗交易) / north-bound (北向+融资融券)。可通过 symbols 限定标的,dateRange 限定时间窗口(毫秒)。返回 NormalizedEvent 列表(已按 id 去重)。`,
     schema: fetchSchema,
@@ -62,7 +62,7 @@ const searchSchema = z.object({
 });
 
 export const createAltDataSearchTool = (deps: AltDataToolDeps) =>
-  new DynamicStructuredTool({
+  new PiTool({
     name: 'alt_data_search',
     description: `跨源搜索另类数据。query 关键词匹配 title 或 symbols。返回最相关的 N 条 NormalizedEvent。`,
     schema: searchSchema,

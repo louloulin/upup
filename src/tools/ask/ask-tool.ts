@@ -13,7 +13,7 @@
  */
 
 import { z } from 'zod';
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { getElicitationManager, ElicitationRequest, ElicitationResponse, ElicitationChoice } from '../../hooks/elicitation.js';
 import { BorderBox } from '../../components/BorderBox.js';
 import { Text } from '@earendil-works/pi-tui';
@@ -561,8 +561,8 @@ export const AskInputSchema = z.object({
 // Tool Factories
 // ============================================================================
 
-export function createAskConfirmTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createAskConfirmTool(): PiTool {
+  return new PiTool({
     name: 'ask_confirm',
     description: ASK_CONFIRM_DESCRIPTION,
     schema: AskConfirmSchema,
@@ -575,8 +575,8 @@ export function createAskConfirmTool(): DynamicStructuredTool {
   });
 }
 
-export function createAskSelectTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createAskSelectTool(): PiTool {
+  return new PiTool({
     name: 'ask_select',
     description: ASK_SELECT_DESCRIPTION,
     schema: AskSelectSchema,
@@ -599,8 +599,8 @@ export function createAskSelectTool(): DynamicStructuredTool {
   });
 }
 
-export function createAskMultiSelectTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createAskMultiSelectTool(): PiTool {
+  return new PiTool({
     name: 'ask_multi_select',
     description: ASK_MULTI_SELECT_DESCRIPTION,
     schema: AskMultiSelectSchema,
@@ -624,8 +624,8 @@ export function createAskMultiSelectTool(): DynamicStructuredTool {
   });
 }
 
-export function createAskInputTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createAskInputTool(): PiTool {
+  return new PiTool({
     name: 'ask_input',
     description: ASK_INPUT_DESCRIPTION,
     schema: AskInputSchema,
@@ -643,8 +643,8 @@ export function createAskInputTool(): DynamicStructuredTool {
   });
 }
 
-export function createAskResponseTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createAskResponseTool(): PiTool {
+  return new PiTool({
     name: 'ask_response',
     description: ASK_RESPONSE_DESCRIPTION,
     schema: AskResponseSchema,

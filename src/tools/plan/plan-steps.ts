@@ -5,7 +5,7 @@
  */
 
 import { z } from 'zod';
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import {
   addStep as addPlanStep,
   updateStepStatus as updatePlanStepStatus,
@@ -130,8 +130,8 @@ function getPlan(planId?: string): PlanContext | undefined {
 /**
  * Create the AddPlanStep tool
  */
-export function createAddPlanStepTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createAddPlanStepTool(): PiTool {
+  return new PiTool({
     name: 'add_plan_step',
     description: ADD_PLAN_STEP_DESCRIPTION,
     schema: AddPlanStepSchema,
@@ -160,8 +160,8 @@ Total steps: ${plan.steps.length}`;
 /**
  * Create the UpdatePlanStep tool
  */
-export function createUpdatePlanStepTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createUpdatePlanStepTool(): PiTool {
+  return new PiTool({
     name: 'update_plan_step',
     description: UPDATE_PLAN_STEP_DESCRIPTION,
     schema: UpdatePlanStepSchema,
@@ -192,8 +192,8 @@ ${input.result ? `**Result:** ${input.result}\n` : ''}
 /**
  * Create the ListPlanSteps tool
  */
-export function createListPlanStepsTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createListPlanStepsTool(): PiTool {
+  return new PiTool({
     name: 'list_plan_steps',
     description: LIST_PLAN_STEPS_DESCRIPTION,
     schema: ListPlanStepsSchema,

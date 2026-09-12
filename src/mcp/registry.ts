@@ -5,7 +5,7 @@
  * with the tool registry.
  */
 
-import type { StructuredToolInterface } from '@langchain/core/tools';
+import type { PiTool } from '../runtime/pi/tool.js';
 import type { MCPClientManager, MCPServerConnection } from './client.js';
 import { useMergedClients } from '../hooks/agent-hooks.js';
 
@@ -14,7 +14,7 @@ import { useMergedClients } from '../hooks/agent-hooks.js';
  */
 export interface MCPRegisteredTool {
   name: string;
-  tool: StructuredToolInterface;
+  tool: PiTool;
   description: string;
   compactDescription: string;
   serverName: string;
@@ -41,11 +41,11 @@ export function mcpToolsToRegisteredTools(
 
     for (const mcpTool of connection.tools || []) {
       if (!mcpTool?.name) continue;
-      const langChainTool = client.getToolsForServer(connection.name).find(
+      const piTool = client.getToolsForServer(connection.name).find(
         t => t.name === `mcp__${connection.name}__${mcpTool.name}`
       );
 
-      if (!langChainTool) continue;
+      if (!piTool) continue;
 
       // Create compact description
       const compactDesc = mcpTool.description
@@ -53,8 +53,8 @@ export function mcpToolsToRegisteredTools(
         : `MCP tool from ${connection.name}`;
 
       tools.push({
-        name: langChainTool.name,
-        tool: langChainTool,
+        name: piTool.name,
+        tool: piTool,
         description: mcpTool.description || `MCP tool: ${mcpTool.name}`,
         compactDescription: compactDesc,
         serverName: connection.name,
@@ -145,7 +145,7 @@ import {
   registerMcpRegistryPort,
   type McpRegistryPort,
   type McpStatus,
-} from '../agent/agent-port.js';
+} from '../runtime/pi/agent-port.js';
 
 function registerSelf(): void {
   const port: McpRegistryPort = {

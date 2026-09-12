@@ -103,10 +103,10 @@ export function loadPlan(planId: string): ResearchPlan | null {
 /** 列出所有 plan id(按 mtime 倒序) */
 export function listPlans(): string[] {
   ensurePlansDir();
-  const files = readdirSync(PLANS_DIR)
+  const files = readdirSync(getPlansDir())
     .filter(f => f.endsWith('.json'))
     .map(f => {
-      const full = join(PLANS_DIR, f);
+      const full = join(getPlansDir(), f);
       return { id: f.replace(/\.json$/, ''), mtime: existsSync(full) ? require('node:fs').statSync(full).mtimeMs : 0 };
     })
     .sort((a, b) => b.mtime - a.mtime);

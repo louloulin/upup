@@ -4,7 +4,7 @@
  * Plan33: Complete implementation (11 tools + 2 skills)
  */
 
-import type { StructuredToolInterface } from '@langchain/core/tools';
+import type { PiTool } from '../../runtime/pi/tool.js';
 import type { RegisteredTool } from './types.js';
 import { financialReadMetadata, financialWriteMetadata } from './types.js';
 import {
@@ -82,23 +82,23 @@ Use when: 删除警报, 移除警报, fund alert delete`;
 export function loadFundTools(): RegisteredTool[] {
   return [
     // Read tools (basic 4 + screen 2)
-    { name: 'fund_search', tool: fundSearchTool as unknown as StructuredToolInterface, description: FUND_SEARCH_DESCRIPTION, compactDescription: 'Search mutual funds', concurrencySafe: true, concurrencyMetadata: financialReadMetadata() },
-    { name: 'fund_detail', tool: fundDetailTool as unknown as StructuredToolInterface, description: FUND_DETAIL_DESCRIPTION, compactDescription: 'Get fund details', concurrencySafe: true, concurrencyMetadata: financialReadMetadata() },
-    { name: 'fund_performance', tool: fundPerformanceTool as unknown as StructuredToolInterface, description: FUND_PERFORMANCE_DESCRIPTION, compactDescription: 'Get fund performance', concurrencySafe: true, concurrencyMetadata: financialReadMetadata() },
-    { name: 'fund_holdings', tool: fundHoldingsTool as unknown as StructuredToolInterface, description: FUND_HOLDINGS_DESCRIPTION, compactDescription: 'Get fund holdings', concurrencySafe: true, concurrencyMetadata: financialReadMetadata() },
-    { name: 'fund_manager', tool: fundManagerTool as unknown as StructuredToolInterface, description: FUND_MANAGER_DESCRIPTION, compactDescription: 'Get fund manager', concurrencySafe: true, concurrencyMetadata: financialReadMetadata() },
-    { name: 'fund_compare', tool: fundCompareTool as unknown as StructuredToolInterface, description: FUND_COMPARE_DESCRIPTION, compactDescription: 'Compare funds', concurrencySafe: true, concurrencyMetadata: financialReadMetadata() },
-    { name: 'fund_screen', tool: fundScreenTool as unknown as StructuredToolInterface, description: FUND_SCREEN_DESCRIPTION, compactDescription: 'Screen funds', concurrencySafe: true, concurrencyMetadata: financialReadMetadata() },
-    { name: 'fund_top', tool: fundTopTool as unknown as StructuredToolInterface, description: FUND_TOP_DESCRIPTION, compactDescription: 'Get top funds', concurrencySafe: true, concurrencyMetadata: financialReadMetadata() },
+    { name: 'fund_search', tool: fundSearchTool as unknown as PiTool, description: FUND_SEARCH_DESCRIPTION, compactDescription: 'Search mutual funds', concurrencySafe: true, concurrencyMetadata: financialReadMetadata() },
+    { name: 'fund_detail', tool: fundDetailTool as unknown as PiTool, description: FUND_DETAIL_DESCRIPTION, compactDescription: 'Get fund details', concurrencySafe: true, concurrencyMetadata: financialReadMetadata() },
+    { name: 'fund_performance', tool: fundPerformanceTool as unknown as PiTool, description: FUND_PERFORMANCE_DESCRIPTION, compactDescription: 'Get fund performance', concurrencySafe: true, concurrencyMetadata: financialReadMetadata() },
+    { name: 'fund_holdings', tool: fundHoldingsTool as unknown as PiTool, description: FUND_HOLDINGS_DESCRIPTION, compactDescription: 'Get fund holdings', concurrencySafe: true, concurrencyMetadata: financialReadMetadata() },
+    { name: 'fund_manager', tool: fundManagerTool as unknown as PiTool, description: FUND_MANAGER_DESCRIPTION, compactDescription: 'Get fund manager', concurrencySafe: true, concurrencyMetadata: financialReadMetadata() },
+    { name: 'fund_compare', tool: fundCompareTool as unknown as PiTool, description: FUND_COMPARE_DESCRIPTION, compactDescription: 'Compare funds', concurrencySafe: true, concurrencyMetadata: financialReadMetadata() },
+    { name: 'fund_screen', tool: fundScreenTool as unknown as PiTool, description: FUND_SCREEN_DESCRIPTION, compactDescription: 'Screen funds', concurrencySafe: true, concurrencyMetadata: financialReadMetadata() },
+    { name: 'fund_top', tool: fundTopTool as unknown as PiTool, description: FUND_TOP_DESCRIPTION, compactDescription: 'Get top funds', concurrencySafe: true, concurrencyMetadata: financialReadMetadata() },
     // Write tools (follow/unfollow)
-    { name: 'fund_follow', tool: fundFollowTool as unknown as StructuredToolInterface, description: FUND_FOLLOW_DESCRIPTION, compactDescription: 'Follow fund', concurrencySafe: true, concurrencyMetadata: financialWriteMetadata() },
-    { name: 'fund_unfollow', tool: fundUnfollowTool as unknown as StructuredToolInterface, description: FUND_UNFOLLOW_DESCRIPTION, compactDescription: 'Unfollow fund', concurrencySafe: true, concurrencyMetadata: financialWriteMetadata() },
+    { name: 'fund_follow', tool: fundFollowTool as unknown as PiTool, description: FUND_FOLLOW_DESCRIPTION, compactDescription: 'Follow fund', concurrencySafe: true, concurrencyMetadata: financialWriteMetadata() },
+    { name: 'fund_unfollow', tool: fundUnfollowTool as unknown as PiTool, description: FUND_UNFOLLOW_DESCRIPTION, compactDescription: 'Unfollow fund', concurrencySafe: true, concurrencyMetadata: financialWriteMetadata() },
     // List tool
-    { name: 'fund_list', tool: fundListTool as unknown as StructuredToolInterface, description: FUND_LIST_DESCRIPTION, compactDescription: 'List followed funds', concurrencySafe: true, concurrencyMetadata: financialReadMetadata() },
+    { name: 'fund_list', tool: fundListTool as unknown as PiTool, description: FUND_LIST_DESCRIPTION, compactDescription: 'List followed funds', concurrencySafe: true, concurrencyMetadata: financialReadMetadata() },
     // Alert tools (write)
-    { name: 'fund_alert_create', tool: fundAlertCreateTool as unknown as StructuredToolInterface, description: FUND_ALERT_CREATE_DESCRIPTION, compactDescription: 'Create alert', concurrencySafe: true, concurrencyMetadata: financialWriteMetadata() },
-    { name: 'fund_alert_list', tool: fundAlertListTool as unknown as StructuredToolInterface, description: FUND_ALERT_LIST_DESCRIPTION, compactDescription: 'List alerts', concurrencySafe: true, concurrencyMetadata: financialReadMetadata() },
-    { name: 'fund_alert_delete', tool: fundAlertDeleteTool as unknown as StructuredToolInterface, description: FUND_ALERT_DELETE_DESCRIPTION, compactDescription: 'Delete alert', concurrencySafe: true, concurrencyMetadata: financialWriteMetadata() },
+    { name: 'fund_alert_create', tool: fundAlertCreateTool as unknown as PiTool, description: FUND_ALERT_CREATE_DESCRIPTION, compactDescription: 'Create alert', concurrencySafe: true, concurrencyMetadata: financialWriteMetadata() },
+    { name: 'fund_alert_list', tool: fundAlertListTool as unknown as PiTool, description: FUND_ALERT_LIST_DESCRIPTION, compactDescription: 'List alerts', concurrencySafe: true, concurrencyMetadata: financialReadMetadata() },
+    { name: 'fund_alert_delete', tool: fundAlertDeleteTool as unknown as PiTool, description: FUND_ALERT_DELETE_DESCRIPTION, compactDescription: 'Delete alert', concurrencySafe: true, concurrencyMetadata: financialWriteMetadata() },
   ];
 }
 
@@ -117,7 +117,7 @@ Use when: 条件触发回测, 均线策略回测`;
 // Add to loadFundTools function at the end:
 /*
     // Backtest tools
-    { name: 'backtest_dca', tool: backtestDCATool as unknown as StructuredToolInterface, description: BACKTEST_DCA_DESCRIPTION, compactDescription: 'DCA backtest', concurrencySafe: true, concurrencyMetadata: financialReadMetadata() },
-    { name: 'backtest_lumpsum', tool: backtestLumpSumTool as unknown as StructuredToolInterface, description: BACKTEST_LUMPSUM_DESCRIPTION, compactDescription: 'Lump sum backtest', concurrencySafe: true, concurrencyMetadata: financialReadMetadata() },
-    { name: 'backtest_threshold', tool: backtestThresholdTool as unknown as StructuredToolInterface, description: BACKTEST_THRESHOLD_DESCRIPTION, compactDescription: 'Threshold backtest', concurrencySafe: true, concurrencyMetadata: financialReadMetadata() },
+    { name: 'backtest_dca', tool: backtestDCATool as unknown as PiTool, description: BACKTEST_DCA_DESCRIPTION, compactDescription: 'DCA backtest', concurrencySafe: true, concurrencyMetadata: financialReadMetadata() },
+    { name: 'backtest_lumpsum', tool: backtestLumpSumTool as unknown as PiTool, description: BACKTEST_LUMPSUM_DESCRIPTION, compactDescription: 'Lump sum backtest', concurrencySafe: true, concurrencyMetadata: financialReadMetadata() },
+    { name: 'backtest_threshold', tool: backtestThresholdTool as unknown as PiTool, description: BACKTEST_THRESHOLD_DESCRIPTION, compactDescription: 'Threshold backtest', concurrencySafe: true, concurrencyMetadata: financialReadMetadata() },
 */

@@ -5,7 +5,7 @@
  * Supports conditional steps, result passing, and error handling.
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { formatToolResult } from '../types.js';
 
@@ -107,7 +107,7 @@ function handleRunWorkflow(params: z.infer<typeof runWorkflowSchema>) {
 // ============================================================================
 
 export function createRunWorkflowTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'run_workflow',
     description: 'Execute a multi-step workflow as a single atomic operation',
     schema: runWorkflowSchema,

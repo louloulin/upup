@@ -6,7 +6,7 @@
  */
 
 import { z } from 'zod';
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 
 // ============================================================================
 // Types & Store
@@ -159,8 +159,8 @@ Returns all subscriptions with their details.`;
 // Tool Factories
 // ============================================================================
 
-export function createSubscribePRTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createSubscribePRTool(): PiTool {
+  return new PiTool({
     name: 'subscribe_pr',
     description: SUBSCRIBE_PR_DESCRIPTION,
     schema: SubscribePRSchema,
@@ -174,8 +174,8 @@ export function createSubscribePRTool(): DynamicStructuredTool {
   });
 }
 
-export function createUnsubscribePRTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createUnsubscribePRTool(): PiTool {
+  return new PiTool({
     name: 'unsubscribe_pr',
     description: UNSUBSCRIBE_PR_DESCRIPTION,
     schema: UnsubscribePRSchema,
@@ -189,8 +189,8 @@ export function createUnsubscribePRTool(): DynamicStructuredTool {
   });
 }
 
-export function createListPRSubscriptionsTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createListPRSubscriptionsTool(): PiTool {
+  return new PiTool({
     name: 'list_pr_subscriptions',
     description: LIST_PR_SUBSCRIPTIONS_DESCRIPTION,
     schema: ListPRSubscriptionsSchema,

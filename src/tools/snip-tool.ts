@@ -8,9 +8,9 @@
  */
 
 import { z } from 'zod';
-import { DynamicStructuredTool } from '@langchain/core/tools';
-import { HumanMessage, AIMessage, SystemMessage } from '@langchain/core/messages';
-import { snipMessages, shouldSnip, estimateSnipSavings } from '../agent/snip.js';
+import { PiTool } from '../runtime/pi/tool.js';
+import type { Message } from '@earendil-works/pi-ai';
+import { snipMessages, shouldSnip, estimateSnipSavings } from '../runtime/pi/snip.js';
 
 // ============================================================================
 // Schema & Description
@@ -63,27 +63,29 @@ Examples:
  */
 function generateSampleMessages() {
   return [
-    new SystemMessage('You are a helpful coding assistant.'),
-    new HumanMessage('Can you help me write a function to calculate fibonacci?'),
-    new AIMessage('I can help you write a fibonacci function. Here\'s a recursive approach...'),
-    new HumanMessage('Sure, continue'),
-    new HumanMessage('Thanks'),
-    new HumanMessage('Got it'),
-    new AIMessage('I\'ve shown you the recursive approach. Want me to also show an iterative version for better performance?'),
-    new HumanMessage('Yes please'),
-    new HumanMessage('Sounds good'),
-    new HumanMessage('Okay, let me try that'),
-    new HumanMessage('Can you explain the time complexity?'),
-    new AIMessage('The recursive approach has O(2^n) time complexity due to overlapping subproblems...'),
-  ];
+    { role: 'assistant', content: [{ type: 'text', text: 'You are a helpful coding assistant.' }], api: 'openai-completions', provider: 'openai', model: 'fixture', usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } }, stopReason: 'stop', timestamp: Date.now() },
+    ...['Can you help me write a function to calculate fibonacci?', 'Sure, continue', 'Thanks', 'Got it', 'Yes please', 'Sounds good', 'Okay, let me try that', 'Can you explain the time complexity?'].map((text) => ({ role: 'user' as const, content: text, timestamp: Date.now() })),
+    { role: 'assistant', content: [{ type: 'text', text: 'I can help you write a fibonacci function. Here\'s a recursive approach...' }], api: 'openai-completions', provider: 'openai', model: 'fixture', usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } }, stopReason: 'stop', timestamp: Date.now() },
+    { role: 'assistant', content: [{ type: 'text', text: 'The recursive approach has O(2^n) time complexity due to overlapping subproblems...' }], api: 'openai-completions', provider: 'openai', model: 'fixture', usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } }, stopReason: 'stop', timestamp: Date.now() },
+  ] satisfies Message[];
+}
+
+function messageKind(message: Message | { role?: string; content: string | unknown[] }): string {
+  return message.role === 'user' ? 'human' : message.role === 'assistant' ? 'ai' : 'tool';
+}
+
+function messageContent(message: Message | { role?: string; content: string | unknown[] }): string {
+  return typeof message.content === 'string'
+    ? message.content
+    : (message.content as unknown[]).filter((part): part is { type: 'text'; text: string } => typeof part === 'object' && part !== null && 'type' in part && part.type === 'text' && 'text' in part).map((part) => part.text).join('\n');
 }
 
 // ============================================================================
 // Tool Factory
 // ============================================================================
 
-export function createSnipTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createSnipTool(): PiTool {
+  return new PiTool({
     name: 'snip_tool',
     description: SNIP_TOOL_DESCRIPTION,
     schema: SnipToolSchema,
@@ -117,7 +119,7 @@ export function createSnipTool(): DynamicStructuredTool {
             `Sample low-value messages found:\n` +
             messages
               .filter((_, i) => removedIndices.includes(i))
-              .map(m => `  - [${m._getType()}] "${String(m.content).slice(0, 50)}"`)
+              .map(m => `  - [${messageKind(m)}] "${messageContent(m).slice(0, 50)}"`)
               .join('\n') || '  (none identified in sample)';
         } else {
           // Actually snip the sample messages
@@ -136,8 +138,8 @@ export function createSnipTool(): DynamicStructuredTool {
             `Estimated tokens saved: ~${savings.estimatedTokensSaved}\n\n` +
             `Sample Conversation (${snipped.length} messages):\n` +
             snipped
-              .slice(input.preserve_first, Math.max(input.preserve_first, snipped.length - input.preserve_last))
-              .map(m => `  [${m._getType()}] "${String(m.content).slice(0, 60)}${String(m.content).length > 60 ? '...' : ''}"`)
+              .slice(input.preserve_first ?? 1, Math.max(input.preserve_first ?? 1, snipped.length - (input.preserve_last ?? 2)))
+              .map(m => `  [${messageKind(m)}] "${messageContent(m).slice(0, 60)}${messageContent(m).length > 60 ? '...' : ''}"`)
               .join('\n') || '  (all messages preserved)';
         }
       } catch (err) {
@@ -151,4 +153,4 @@ export function createSnipTool(): DynamicStructuredTool {
 // Module Exports
 // ============================================================================
 
-export { snipMessages, shouldSnip, estimateSnipSavings } from '../agent/snip.js';
+export { snipMessages, shouldSnip, estimateSnipSavings } from '../runtime/pi/snip.js';

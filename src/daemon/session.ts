@@ -12,7 +12,7 @@
  */
 
 import { info, warn, error } from '../utils/logging/logger.js';
-import { HumanMessage, AIMessage, SystemMessage, type BaseMessage } from '@langchain/core/messages';
+import type { Message } from '@earendil-works/pi-ai';
 
 // ============================================================================
 // Types
@@ -691,46 +691,52 @@ export class SessionManager {
 // ============================================================================
 
 /**
- * Serialize a LangChain message to storable format
+ * Serialize a model message to storable format
  */
-export function serializeMessage(message: BaseMessage): SerializedMessage {
+export function serializeMessage(message: Message | { _getType?: () => string; content: string | unknown[] }): SerializedMessage {
+  const legacyMessage = message as unknown as { _getType?: () => string; content: string | unknown[] };
+  const type = legacyMessage._getType?.() === 'human'
+    ? 'human'
+    : legacyMessage._getType?.() === 'system'
+      ? 'system'
+      : 'role' in message && message.role === 'user'
+        ? 'human'
+        : 'role' in message && message.role === 'assistant'
+          ? 'ai'
+          : 'tool';
+  const content = typeof legacyMessage.content === 'string'
+    ? legacyMessage.content
+    : Array.isArray(legacyMessage.content)
+      ? legacyMessage.content.filter((part): part is { type: 'text'; text: string } => typeof part === 'object' && part !== null && 'type' in part && part.type === 'text' && 'text' in part).map((part) => part.text).join('\n')
+      : String(legacyMessage.content);
   return {
-    type: message._getType(),
-    content: typeof message.content === 'string'
-      ? message.content
-      : JSON.stringify(message.content),
-    additional_kwargs: message.additional_kwargs,
-    response_metadata: message.response_metadata,
+    type,
+    content,
   };
 }
 
 /**
  * Deserialize a message from storage
  */
-export function deserializeMessage(data: SerializedMessage): BaseMessage {
-  // Create the correct LangChain message type based on the type field
+export function deserializeMessage(data: SerializedMessage): Message {
   switch (data.type) {
     case 'human':
-      return new HumanMessage(data.content);
-
+      return { role: 'user', content: data.content, timestamp: Date.now() };
     case 'ai':
-      // For AI messages, we store them as text-only (no tool calls)
-      return new AIMessage({
-        content: data.content,
-        tool_calls: undefined,
-      });
-
-    case 'system':
-      return new SystemMessage(data.content);
-
-    default:
-      // Fallback: create a generic message with the correct type
       return {
-        _getType: () => data.type,
-        content: data.content,
-        additional_kwargs: data.additional_kwargs || {},
-        response_metadata: data.response_metadata || {},
-      } as unknown as BaseMessage;
+        role: 'assistant',
+        content: [{ type: 'text', text: data.content }],
+        api: 'openai-completions',
+        provider: 'openai',
+        model: 'unknown',
+        usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } },
+        stopReason: 'stop',
+        timestamp: Date.now(),
+      };
+    case 'system':
+      return { role: 'user', content: data.content, timestamp: Date.now() };
+    default:
+      return { role: 'user', content: data.content, timestamp: Date.now() };
   }
 }
 

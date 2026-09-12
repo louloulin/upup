@@ -8,11 +8,11 @@
  */
 
 import { z } from 'zod';
-import { DynamicStructuredTool } from '@langchain/core/tools';
-import { getDefaultSubagentRunner } from '../agent/subagent-runner.js';
-import type { SubagentConfig, SubagentContext } from '../agent/subagent.js';
-import type { StructuredToolInterface } from '@langchain/core/tools';
-import type { AgentEvent } from '../agent/types.js';
+import { PiTool } from '../runtime/pi/tool.js';
+import { getPiBackgroundService } from '../runtime/pi/background-service.js';
+import { getDefaultSubagentRunner } from '../runtime/pi/subagent.js';
+import type { AgentEvent } from '../runtime/pi/legacy-events.js';
+import { runPiPrompt } from '../runtime/pi/runner.js';
 
 /**
  * AgentTool descriptions for registry
@@ -55,8 +55,8 @@ export type AgentToolInput = z.infer<typeof AgentToolInputSchema>;
 /**
  * Build the AgentTool for inclusion in the tool registry
  */
-export function buildAgentTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function buildAgentTool(): PiTool {
+  return new PiTool({
     name: 'agent',
     description: AGENT_TOOL_DESCRIPTION,
     schema: AgentToolInputSchema,
@@ -64,27 +64,6 @@ export function buildAgentTool(): DynamicStructuredTool {
       input: AgentToolInput,
       runManager?
     ): Promise<string> {
-      const runner = getDefaultSubagentRunner();
-
-      // Build subagent config
-      const config: SubagentConfig = {
-        type: (input.subagent_type as SubagentConfig['type']) || 'general',
-        tools: input.tools || '*',
-        maxTurns: input.max_turns,
-        model: input.model,
-        isolation: input.isolation as SubagentConfig['isolation'],
-        cwd: input.cwd,
-        runInBackground: input.run_in_background,
-      };
-
-      // Build context from current process state
-      const context: SubagentContext = {
-        sessionId: process.env.UPUP_SESSION_ID || 'default',
-        cwd: input.cwd || process.cwd(),
-        tools: [],  // Will be populated by SubagentRunner if needed
-        systemPrompt: undefined,
-      };
-
       // Create event callback that forwards sub-agent events as tool progress
       // Access metadata via type assertion as BaseRunManager.metadata is protected
       const metadata = runManager ? (runManager as unknown as { metadata: Record<string, unknown> }).metadata : undefined;
@@ -100,18 +79,23 @@ export function buildAgentTool(): DynamicStructuredTool {
       };
 
       if (input.run_in_background) {
-        // Run asynchronously
-        const taskId = await runner.runAsync(config, input.prompt, context);
+        const taskId = await getPiBackgroundService().start(input.prompt, {
+          model: input.model,
+          toolFilter: input.tools?.length === 1 && input.tools[0] === '*' ? '*' : input.tools,
+          cwd: input.cwd,
+        });
         return `Agent task started in background: ${taskId}\nDescription: ${input.description}\n\nUse the task_id to check progress or get results.`;
       } else {
-        // Run synchronously with event forwarding
-        const result = await runner.run(config, input.prompt, context, eventCallback);
-
-        if (result.success) {
-          return result.output || 'Task completed successfully.';
-        } else {
-          return `Task failed: ${result.error}`;
-        }
+        const result = await runPiPrompt(input.prompt, {
+          model: input.model,
+          cwd: input.cwd,
+          toolFilter: input.tools?.length === 1 && input.tools[0] === '*' ? '*' : input.tools,
+          onEvent: (event) => {
+            if (event.type === 'tool_start') eventCallback({ type: 'tool_start', tool: event.toolName, args: event.input as Record<string, unknown>, toolCallId: event.toolCallId });
+            if (event.type === 'tool_end') eventCallback({ type: 'tool_end', tool: event.toolName, args: {}, result: '', duration: 0, toolCallId: event.toolCallId });
+          },
+        });
+        return result || 'Task completed successfully.';
       }
     },
   });
@@ -120,9 +104,9 @@ export function buildAgentTool(): DynamicStructuredTool {
 /**
  * Get the singleton AgentTool instance
  */
-let agentToolInstance: DynamicStructuredTool | null = null;
+let agentToolInstance: PiTool | null = null;
 
-export function getAgentTool(): DynamicStructuredTool {
+export function getAgentTool(): PiTool {
   if (!agentToolInstance) {
     agentToolInstance = buildAgentTool();
   }
@@ -166,15 +150,14 @@ export const TaskResultToolInputSchema = z.object({
   task_id: z.string().describe('The task ID returned when the agent was started in background'),
 });
 
-export function buildTaskResultTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function buildTaskResultTool(): PiTool {
+  return new PiTool({
     name: 'task_result',
     description:
       'Get the result of a background agent task. Use this to check if a previously started background task has completed and retrieve its output.',
     schema: TaskResultToolInputSchema,
     async func(input: { task_id: string }): Promise<string> {
-      const runner = getDefaultSubagentRunner();
-      const task = runner.getTask(input.task_id);
+      const task = getPiBackgroundService().get(input.task_id) ?? getDefaultSubagentRunner().getTask(input.task_id);
 
       if (!task) {
         return `Task not found: ${input.task_id}`;
@@ -184,11 +167,13 @@ export function buildTaskResultTool(): DynamicStructuredTool {
         case 'pending':
           return `Task ${input.task_id} is still pending (waiting to start).`;
         case 'running':
-          return `Task ${input.task_id} is still running. ${task.progress || 'No progress info available.'}`;
+          return `Task ${input.task_id} is still running.`;
         case 'completed':
-          return task.result?.output || 'Task completed with no output.';
+          return typeof task.result === 'string'
+            ? task.result
+            : task.result?.output || 'Task completed with no output.';
         case 'failed':
-          return `Task failed: ${task.result?.error || 'Unknown error'}`;
+          return `Task failed: ${('error' in task && task.error) || (typeof task.result === 'object' && task.result?.error) || 'Unknown error'}`;
         case 'cancelled':
           return `Task ${input.task_id} was cancelled.`;
         default:
@@ -198,9 +183,9 @@ export function buildTaskResultTool(): DynamicStructuredTool {
   });
 }
 
-let taskResultToolInstance: DynamicStructuredTool | null = null;
+let taskResultToolInstance: PiTool | null = null;
 
-export function getTaskResultTool(): DynamicStructuredTool {
+export function getTaskResultTool(): PiTool {
   if (!taskResultToolInstance) {
     taskResultToolInstance = buildTaskResultTool();
   }

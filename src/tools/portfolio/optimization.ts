@@ -10,10 +10,9 @@
  * Supports A-shares, HK stocks, and US stocks.
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { getTushareClient, getToday } from '../astock/tushare-client';
-import type { StructuredToolInterface } from '@langchain/core/tools';
 
 export const PORTFOLIO_OPTIMIZE_DESCRIPTION = `## portfolio_optimize
 Optimize investment portfolio using Modern Portfolio Theory.
@@ -250,8 +249,8 @@ function calculatePortfolioMetrics(
   return { expected_return: expectedReturn, volatility, sharpe_ratio: sharpeRatio };
 }
 
-export function createPortfolioOptimize(_model: string): StructuredToolInterface {
-  return new DynamicStructuredTool({
+export function createPortfolioOptimize(_model: string): PiTool {
+  return new PiTool({
     name: 'portfolio_optimize',
     description: PORTFOLIO_OPTIMIZE_DESCRIPTION,
     schema: PortfolioOptimizeSchema,

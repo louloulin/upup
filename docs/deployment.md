@@ -156,13 +156,13 @@ bun run typecheck
 # 单跑某个模块
 bun test src/plan/
 bun test src/commands/investment/
-bun test src/agent/investment-workflow.test.ts
+bun test src/runtime/pi/investment-workflow.test.ts
 
 # 全量
 bun test
 ```
 
-已知:`bun test` 全量有 3 个预存 langchain `@langchain/core/utils/uuid` 失败,与本次改动无关。
+当前基线：`bun test`、`bun run typecheck`、Pi 迁移门禁和 Pi Package 门禁均可重复执行；真实模型/外部金融 API 仍需显式 opt-in。
 
 ## 8. 数据持久化
 
@@ -186,11 +186,11 @@ bun test
 
 | 症状 | 解决 |
 |------|------|
-| `Cannot find module '@langchain/core/utils/uuid'` | 已知问题,与本次改动无关。`bun install` 修复依赖即可 |
+| Pi provider/session 初始化失败 | 检查 Node `>=22.19.0`、锁定的 Pi 包版本和 provider API key；不要回退到旧 Agent runtime |
 | 投资命令输出 "数据不可用" | 缺 FINANCIAL_DATASETS_API_KEY / TUSHARE_TOKEN,接 API 后自动填充 |
 | 全量 test 偶发 12 个 fail | 测试隔离问题(共享 process.env),单跑模块可绕过 |
 | 投资命令不识别 | 确认 `src/commands/executor.ts` 已加载 `investment/registry.ts` |
-| Plan Mode 不触发 | 检查 `src/agent/plan-mode-state.ts` 是否被 agent.ts:756 调用 |
+| Plan Mode 不触发 | 检查 `src/runtime/pi/plan-mode-state.ts` 与 Pi Session workflow adapter 是否已加载 |
 
 ## 10. 升级
 

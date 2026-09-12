@@ -10,7 +10,7 @@
  * - Performance metrics
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { formatToolResult } from '../types.js';
 import { PORTFOLIO_FILE as DEFAULT_PORTFOLIO_FILE } from '../../utils/storage-paths.js';
@@ -402,7 +402,7 @@ const getTransactionsSchema = z.object({
  * Create add position tool
  */
 export function createAddPositionTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'add_position',
     description: 'Add a new position to the portfolio tracking system. Cash is deducted automatically.',
     schema: addPositionSchema,
@@ -435,7 +435,7 @@ export function createAddPositionTool() {
  * Create update position tool
  */
 export function createUpdatePositionTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'update_position',
     description: 'Update an existing position quantity or cost basis',
     schema: updatePositionSchema,
@@ -462,7 +462,7 @@ export function createUpdatePositionTool() {
  * Create remove position tool
  */
 export function createRemovePositionTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'remove_position',
     description: 'Remove a position from portfolio tracking. Proceeds are credited to cash.',
     schema: removePositionSchema,
@@ -494,7 +494,7 @@ export function createRemovePositionTool() {
  * Create set cash tool
  */
 export function createSetCashTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'set_cash',
     description: 'Set the initial cash balance for the portfolio',
     schema: setCashSchema,
@@ -518,7 +518,7 @@ export function createSetCashTool() {
  * Create get transactions tool
  */
 export function createGetTransactionsTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'get_transactions',
     description: 'Get recent transaction history',
     schema: getTransactionsSchema,
@@ -548,7 +548,7 @@ export function createGetTransactionsTool() {
  * Create get portfolio tool
  */
 export function createGetPortfolioTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'get_portfolio',
     description: 'Get current portfolio positions with P&L calculations',
     schema: getPortfolioSchema,

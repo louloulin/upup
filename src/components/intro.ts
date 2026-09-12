@@ -3,16 +3,18 @@ import { BorderBox } from './BorderBox.js';
 import packageJson from '../../package.json';
 import { getModelDisplayName } from '../utils/model.js';
 import { theme } from '../theme.js';
-import { validateConfig } from '../utils/config-validation.js';
+import { validateConfig, type ConfigValidationResult } from '../utils/config-validation.js';
 import { t } from '../i18n/index.js';
 
 const INTRO_WIDTH = 50;
+
+export type ConfigValidator = () => ConfigValidationResult;
 
 export class IntroComponent extends Container {
   private readonly modelText: Text;
   private readonly configStatusText: Text;
 
-  constructor(model: string) {
+  constructor(model: string, validate: ConfigValidator = validateConfig) {
     super();
 
     const welcomeText = t('intro.welcome');
@@ -56,7 +58,7 @@ export class IntroComponent extends Container {
     this.addChild(this.configStatusText);
 
     this.setModel(model);
-    this.updateConfigStatus();
+    this.updateConfigStatus(validate);
   }
 
   setModel(model: string) {
@@ -66,8 +68,8 @@ export class IntroComponent extends Container {
   }
 
   // P1-10: Update config status based on validation
-  updateConfigStatus() {
-    const validation = validateConfig();
+  updateConfigStatus(validate: ConfigValidator = validateConfig) {
+    const validation = validate();
 
     if (validation.valid) {
       // All good

@@ -1,0 +1,9 @@
+{
+  "name": "finance-evidence-contract",
+  "version": "1",
+  "cases": [
+    { "id": "quote-has-evidence", "requires": ["evidence", "source", "retrievedAt", "asOf", "auditId"] },
+    { "id": "secrets-redacted", "forbidden": ["api_key", "authorization", "access_token"] },
+    { "id": "live-trading-denied", "requires": ["UPUP_TRADING_MODE=live", "UPUP_ALLOW_LIVE_TRADING=true"] }
+  ]
+}

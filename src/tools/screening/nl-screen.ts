@@ -23,9 +23,8 @@
  *   No new dependencies, no network in the default path.
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
-import type { StructuredToolInterface } from '@langchain/core/tools';
 import { MarketDataCache } from '../cache/market-cache.js';
 import {
   type FilterSpec,
@@ -410,14 +409,14 @@ export interface NlScreenDeps {
   cacheTtlSeconds?: number;
 }
 
-export function createNlScreenTool(deps: NlScreenDeps = {}): StructuredToolInterface {
+export function createNlScreenTool(deps: NlScreenDeps = {}): PiTool {
   const parser = deps.parser ?? deterministicNlParser;
   const universe = deps.universe ?? DEFAULT_UNIVERSE;
   const validateSpec = deps.validateSpec ?? true;
   const cache = deps.cache;
   const cacheTtl = deps.cacheTtlSeconds ?? 60;
 
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'nl_screen',
     description: NL_SCREEN_DESCRIPTION,
     schema: NlScreenSchema,

@@ -11,7 +11,7 @@
  */
 
 import { z } from 'zod';
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../runtime/pi/tool.js';
 
 // ============================================================================
 // Schema & Description
@@ -45,8 +45,8 @@ Examples:
 // Tool Factory
 // ============================================================================
 
-export function createSleepTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createSleepTool(): PiTool {
+  return new PiTool({
     name: 'sleep',
     description: SLEEP_TOOL_DESCRIPTION,
     schema: SleepToolSchema,

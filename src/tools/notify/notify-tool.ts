@@ -5,7 +5,7 @@
  */
 
 import { z } from 'zod';
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 
 // ============================================================================
 // Types & Store
@@ -106,8 +106,8 @@ Returns the most recent notifications with status and timestamps.`;
 // Tool Factories
 // ============================================================================
 
-export function createNotifyTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createNotifyTool(): PiTool {
+  return new PiTool({
     name: 'notify',
     description: NOTIFY_DESCRIPTION,
     schema: NotifySchema,
@@ -174,8 +174,8 @@ export function createNotifyTool(): DynamicStructuredTool {
   });
 }
 
-export function createNotifyListTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createNotifyListTool(): PiTool {
+  return new PiTool({
     name: 'notify_list',
     description: NOTIFY_LIST_DESCRIPTION,
     schema: NotifyListSchema,

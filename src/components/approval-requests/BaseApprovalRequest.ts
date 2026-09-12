@@ -5,7 +5,7 @@
  */
 
 import { Container, Text, getKeybindings } from '@earendil-works/pi-tui';
-import type { ApprovalDecision } from '../../agent/types.js';
+import type { ApprovalDecision } from '../../runtime/pi/legacy-events.js';
 import { getToolDangerLevel, getApprovalConfig, isHardDenyCommand } from '../../utils/permissions/index.js';
 import { theme } from '../../theme.js';
 

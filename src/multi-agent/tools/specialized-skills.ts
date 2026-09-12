@@ -10,14 +10,14 @@
  * Phase 3: 集成EnhancedSkillDefinition
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { getAllSpecializedSkills, getSkillByName } from '../../skills/bundled/index.js';
 
 /**
  * Execute specialized skill
  */
-export const executeSkillTool = new DynamicStructuredTool({
+export const executeSkillTool = new PiTool({
   name: 'execute_skill',
   description: 'Execute a specialized skill for specific tasks. Skills like /dream (autonomous exploration), /verify (validation), /hunter (bug finding), /batch (bulk execution) provide focused capabilities.',
   
@@ -59,7 +59,7 @@ export const executeSkillTool = new DynamicStructuredTool({
 /**
  * List available specialized skills
  */
-export const listSkillsTool = new DynamicStructuredTool({
+export const listSkillsTool = new PiTool({
   name: 'list_skills',
   description: 'List all available specialized skills with their descriptions and aliases.',
   
@@ -90,7 +90,7 @@ export const listSkillsTool = new DynamicStructuredTool({
 /**
  * Get skill details
  */
-export const skillInfoTool = new DynamicStructuredTool({
+export const skillInfoTool = new PiTool({
   name: 'skill_info',
   description: 'Get detailed information about a specific skill including its usage instructions.',
   

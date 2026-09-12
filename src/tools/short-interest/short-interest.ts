@@ -6,7 +6,7 @@
  * Short interest ratio = short interest / average daily volume
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { formatToolResult } from '../types.js';
 
@@ -198,7 +198,7 @@ const detectShortSqueezeSchema = z.object({
 // ============================================================================
 
 export function createGetShortInterestTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'get_short_interest',
     description: 'Get short interest data for a stock including days to cover, short percent of float, and squeeze risk analysis.',
     schema: getShortInterestSchema,
@@ -249,7 +249,7 @@ export function createGetShortInterestTool() {
 }
 
 export function createCalculateShortInterestRatioTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'calculate_short_interest_ratio',
     description: 'Calculate short interest ratio (days to cover) and position squeeze risk for your holdings.',
     schema: getShortInterestRatioSchema,
@@ -296,7 +296,7 @@ export function createCalculateShortInterestRatioTool() {
 }
 
 export function createDetectShortSqueezeTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'detect_short_squeeze',
     description: 'Screen multiple stocks for short squeeze potential based on high short interest and days to cover.',
     schema: detectShortSqueezeSchema,

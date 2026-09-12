@@ -6,7 +6,7 @@
 - This fork: https://github.com/louloulin/upup
 - Mirror: https://gitcode.com/lumosaigroup/upup
 - Upstream (forked from): https://github.com/virattt/dexter
-- UpUp (涨涨) is a CLI-based AI agent for **Chinese-language deep financial research**, built on top of the [Dexter](https://github.com/virattt/dexter) framework, with TypeScript, Ink (React for CLI), and LangChain. It is **not** a thin reskin of Dexter — see "China-Edition Increment" in [README.md](./README.md) for the full delta (A-share data stack, 50 investment skills, 5-phase /invest workflow, 4-runtime plugin system, EN+zh-CN i18n, multi-agent coordination, Session 2.0, 18 workspace packages, etc.).
+- UpUp (涨涨) is a CLI-based AI agent for **Chinese-language deep financial research**, built on top of the [Dexter](https://github.com/virattt/dexter) framework and now powered by the Pi Runtime, with TypeScript and Ink (React for CLI). It is **not** a thin reskin of Dexter — see "China-Edition Increment" in [README.md](./README.md) for the full delta (A-share data stack, 50 investment skills, 5-phase /invest workflow, Pi Package ecosystem, 4-runtime plugin system, EN+zh-CN i18n, multi-agent coordination, Session 2.0, 18 workspace packages, etc.).
 
 > 📌 **中国版定位 (2026-06-12 升级)**: 完整权威的"中国版 dexter"白皮书见 [docs/upup-china-edition-positioning.md](./docs/upup-china-edition-positioning.md)。8 维度 vs 上游 dexter 的全量审计见 [upup-vs-dexter-audit.md](./openspec/changes/upup-vs-dexter-comprehensive-audit-and-doc-refresh/docs/upup-vs-dexter-audit.md)。本文件 (AGENTS.md) 中的"UpUp's Additions"段已重命名为 **China-Edition Increment**。
 
@@ -25,12 +25,12 @@ UpUp (涨涨) 是基于 [virattt/dexter](https://github.com/virattt/dexter) 的 
 ## Project Structure
 
 - Source code: `src/`
-  - Agent core: `src/agent/` (agent loop, prompts, scratchpad, token counting, types, plan mode, subagent, memory flush, investment workflow)
+  - Agent core: `src/runtime/pi/` (Pi AgentSession factory, Pi runner, agent specs, tools, packages, permissions, subagents, workflows, and session services); the former `src/agent/` implementation has been deleted
   - CLI interface: `src/cli.tsx` (Ink/React), entry point: `src/index.tsx`
   - Commands: `src/commands/` (slash commands); investment workflow in `src/commands/investment/` (dossier, strategy, earnings-preview, morning-brief, portfolio-review, risk-dashboard, watchlist-edit, invest, screen)
   - Components: `src/components/` (Ink UI components)
   - Hooks: `src/hooks/` (React hooks for agent runner, model selection, input history, agent-hooks)
-  - Model/LLM: `src/model/llm.ts` (multi-provider LLM abstraction) + `packages/llm/`
+  - Model/LLM: `src/runtime/pi/model.ts` and `@earendil-works/pi-ai`; the deleted `src/model/llm.ts` is not a production entry point
   - Tools: `src/tools/` — `finance/` (prices, fundamentals, filings, insider trades, screen, key ratios, estimates, segments, news, earnings transcripts, crypto, A-share), `search/` (Exa preferred, Tavily fallback), `browser/` (Playwright)
   - Plugins: `src/plugins/` (4 runtime adapters: bun, jiti, wasm, mcp) + `packages/plugin-sdk/`
   - Skills: `src/skills/` (50 SKILL.md + 14 bundled) + `packages/skills/`
@@ -38,7 +38,7 @@ UpUp (涨涨) 是基于 [virattt/dexter](https://github.com/virattt/dexter) 的 
   - Session / plan / memory / worktree: `src/session/`, `src/plan/`, `src/memory/`, `src/worktree/`
   - Utils: `src/utils/` (env, config, caching, token estimation, markdown tables)
   - Web / gateway: `src/web/` + `packages/gateway/` (read-only JSON snapshots)
-  - Evals: `src/evals/` + `evals/` (LangSmith evaluation runner with Ink UI)
+  - Evals: `src/evals/` + Pi Package eval contracts under `packages/pi-finance-sdk/evals/`
 - 18 workspace packages under `packages/`: adapter-paperclip, agent-core, commands, cron, daemon, gateway, hooks, keybindings, llm, mcp, memory, plugin-sdk, plugins, sdk, skills, state, types, utils
 - Config: `.upup/settings.json` (persisted model/provider selection)
 - Environment: `.env` (API keys; see `env.example`)
@@ -68,7 +68,7 @@ UpUp (涨涨) 是基于 [virattt/dexter](https://github.com/virattt/dexter) 的 
 
 - Supported: OpenAI (default), Anthropic, Google, xAI (Grok), OpenRouter, Ollama (local).
 - Default model: `gpt-5.4`. Provider detection is prefix-based (`claude-` -> Anthropic, `gemini-` -> Google, etc.).
-- Fast models for lightweight tasks: see `FAST_MODELS` map in `src/model/llm.ts`.
+- Fast models for lightweight tasks: use the Pi model registry in `src/runtime/pi/model.ts`.
 - Anthropic uses explicit `cache_control` on system prompt for prompt caching cost savings.
 - Users switch providers/models via `/model` command in the CLI.
 
@@ -91,10 +91,10 @@ UpUp (涨涨) 是基于 [virattt/dexter](https://github.com/virattt/dexter) 的 
 
 ## Agent Architecture
 
-- Agent loop: `src/agent/agent.ts`. Iterative tool-calling loop with configurable max iterations (default 10).
-- Scratchpad: `src/agent/scratchpad.ts`. Single source of truth for all tool results within a query.
+- Agent loop: Pi `AgentSession`/`pi-agent-core`, created exclusively through `src/runtime/pi/agent-session-factory.ts`.
+- Context and result state: Pi Session entries plus the adapters under `src/runtime/pi/`; do not add a second scratchpad or agent loop.
 - Context management: Anthropic-style. Full tool results kept in context; oldest results cleared when token threshold exceeded.
-- Final answer: generated in a separate LLM call with full scratchpad context (no tools bound).
+- Final answer and tool rounds are emitted by Pi; UpUp only adapts events and injects financial policy/evidence rules.
 - Events: agent yields typed events (`tool_start`, `tool_end`, `thinking`, `answer_start`, `done`, etc.) for real-time UI updates.
 
 ## Slash Autocomplete

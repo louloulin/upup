@@ -116,6 +116,7 @@ describe('Tax Tool Creation', () => {
         purchasePrice: 150,
         sellPrice: 175,
       }],
+      currency: 'USD',
     });
     expect(result).toBeDefined();
     expect(result).toContain('AAPL');
@@ -130,6 +131,7 @@ describe('Tax Tool Creation', () => {
         purchasePrice: 200,
         sellPrice: 150,
       }],
+      currency: 'USD',
     });
     expect(result).toBeDefined();
     expect(result).toContain('TSLA');

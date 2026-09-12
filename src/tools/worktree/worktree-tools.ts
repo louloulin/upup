@@ -8,7 +8,7 @@
  * - Enter/exit worktree context
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { execSync, exec } from 'child_process';
 import { z } from 'zod';
 import { formatToolResult } from '../types.js';
@@ -109,7 +109,7 @@ const listWorktreeSchema = z.object({
  * Create worktree tool
  */
 export function createWorktreeTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'create_worktree',
     description: 'Create a new git worktree for isolated development',
     schema: createWorktreeSchema,
@@ -156,7 +156,7 @@ export function createWorktreeTool() {
  * Remove worktree tool
  */
 export function removeWorktreeTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'remove_worktree',
     description: 'Remove a git worktree',
     schema: removeWorktreeSchema,
@@ -195,7 +195,7 @@ export function removeWorktreeTool() {
  * List worktree tool
  */
 export function listWorktreeTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'list_worktree',
     description: 'List all git worktrees',
     schema: listWorktreeSchema,

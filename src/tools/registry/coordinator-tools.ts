@@ -7,8 +7,8 @@
  *  - list_research_tasks  (read — no side effects)
  *
  * The coordinator is a module-level singleton: a WorkerExecutor can be
- * injected via `setCoordinatorExecutor()` (used by the agent loop to wire
- * real LangChain agents) and a default no-op executor is used otherwise so
+ * injected via `setCoordinatorExecutor()` (used by the Pi runtime to wire
+ * real Pi workers) and a default no-op executor is used otherwise so
  * tests and offline runs can exercise the tool without an LLM in the loop.
  *
  * Spec: openspec/changes/top-tier-investment-assistant/specs/coordinator-mode
@@ -28,7 +28,7 @@ import {
   type WorkerExecutor,
 } from "../../coordinator/index.js";
 import type { WorkerResumePolicy } from "../../coordinator/worker-resume.js";
-import { DynamicStructuredTool } from "@langchain/core/tools";
+import { PiTool } from "../../runtime/pi/tool.js";
 import { z } from "zod";
 
 let executor: WorkerExecutor | null = null;
@@ -87,7 +87,7 @@ const defaultExecutor: WorkerExecutor = {
       symbol,
       findings: {
         summary: `[${role}] stub finding for ${symbol}`,
-        note: "Default executor — setCoordinatorExecutor() for real LangChain workers.",
+        note: "Default executor — setCoordinatorExecutor() for real Pi workers.",
       },
       confidence: 0.5,
       completedAt: Date.now(),
@@ -171,15 +171,14 @@ Coordinator — 4-worker investment analysis orchestrator (v2).
 
 ## Notes
 - In the default wiring the executor returns stub findings. Production
-  should call \`setCoordinatorExecutor()\` at startup to wire real LangChain
-  agents as the 4 workers.
+  should call \`setCoordinatorExecutor()\` at startup to wire real Pi workers.
 - Tests can call \`setCoordinatorOptions({ verificationRunner: fake })\` to
   avoid spawning real tsc / bun test processes.
 - workers filter is optional — omit to run all 4.
 `;
 
 export function createAnalyzeSymbolTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: "analyze_symbol",
     description: "Run the 4-worker investment-analysis coordinator for a symbol. Returns a structured CoordinatorRunResult with worker findings, synthesis, and recommendation.",
     schema: z.object({
@@ -207,7 +206,7 @@ export function createAnalyzeSymbolTool() {
 }
 
 export function createListResearchTasksTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: "list_research_tasks",
     description: "List the tasks persisted by the most recent coordinator run (research / synthesis / implementation / verification).",
     schema: z.object({

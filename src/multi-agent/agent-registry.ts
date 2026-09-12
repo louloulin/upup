@@ -1,20 +1,17 @@
-import type { AgentCapability } from '../agent/registry.js';
-/**
- * Custom Agent Registry - 自定义Agent注册系统 (v1.0)
- * 
- * 支持自定义Agent的创建、注册、管理
- * 与现有的AgentRegistry和SwarmCoordinator集成
- */
+import type { AgentCapability } from '../runtime/pi/registry.js';
 
-import type { AgentDefinition } from '../agent/registry.js';
-import { getAgentRegistry } from '../agent/registry.js';
+import type { PiAgentMetadata } from '../runtime/pi/registry.js';
+import { getAgentRegistry } from '../runtime/pi/registry.js';
 import { info, warn, error as logError } from '../utils/logging/logger.js';
+import type { UpUpAgentSpec } from '../runtime/pi/types.js';
+import { agentDefinitionToPiSpec } from '../runtime/pi/agent-spec.js';
+import { PiAgentCatalog } from '../runtime/pi/agent-catalog.js';
 
 // ============================================================================
-// Custom Agent Types
+// Pi Agent Types
 // ============================================================================
 
-export interface CustomAgentConfig {
+export interface PiAgentSpecInput {
   /** Unique ID for the agent */
   id: string;
   /** Display name */
@@ -43,7 +40,7 @@ export interface CustomAgentConfig {
   taskTypes?: string[];
 }
 
-export interface CustomAgent {
+export interface PiAgentRecord {
   /** Unique agent ID */
   id: string;
   /** Display name */
@@ -70,6 +67,8 @@ export interface CustomAgent {
   lastUsedAt?: number;
   /** Usage count */
   usageCount: number;
+  /** Authoritative Pi executable specification. */
+  spec: UpUpAgentSpec;
 }
 
 // ============================================================================
@@ -84,7 +83,7 @@ export interface AgentTemplate {
   /** Template description */
   description: string;
   /** Default configuration */
-  defaultConfig: Partial<CustomAgentConfig>;
+  defaultConfig: Partial<PiAgentSpecInput>;
   /** Category */
   category: 'research' | 'analysis' | 'execution' | 'coordination' | 'custom';
 }
@@ -166,12 +165,13 @@ const AGENT_TEMPLATES: AgentTemplate[] = [
 ];
 
 // ============================================================================
-// Custom Agent Registry
+// Pi Agent Registry
 // ============================================================================
 
-export class CustomAgentRegistry {
-  private static instance: CustomAgentRegistry | null = null;
-  private customAgents: Map<string, CustomAgent> = new Map();
+export class PiAgentRegistry {
+  private static instance: PiAgentRegistry | null = null;
+  private readonly catalog = new PiAgentCatalog('');
+  private readonly usage = new Map<string, { createdAt: number; usageCount: number; lastUsedAt?: number }>();
   private templates: Map<string, AgentTemplate> = new Map();
 
   private constructor() {
@@ -185,42 +185,41 @@ export class CustomAgentRegistry {
   /**
    * Get singleton instance
    */
-  static getInstance(): CustomAgentRegistry {
-    if (!CustomAgentRegistry.instance) {
-      CustomAgentRegistry.instance = new CustomAgentRegistry();
+  static getInstance(): PiAgentRegistry {
+    if (!PiAgentRegistry.instance) {
+      PiAgentRegistry.instance = new PiAgentRegistry();
     }
-    return CustomAgentRegistry.instance;
+    return PiAgentRegistry.instance;
   }
 
   /**
-   * Register a custom agent
+   * Register a Pi agent
    */
-  register(config: CustomAgentConfig): CustomAgent {
-    if (this.customAgents.has(config.id)) {
+  register(config: PiAgentSpecInput): PiAgentRecord {
+    if (this.catalog.has(config.id)) {
       warn('agent-registry', `Agent ${config.id} already registered, updating`);
     }
 
-    const agent: CustomAgent = {
+    const systemPrompt = this.renderTemplate(config.systemPrompt, config.variables || {});
+    const spec = agentDefinitionToPiSpec({
       id: config.id,
       name: config.name,
       description: config.description,
-      systemPrompt: this.renderTemplate(config.systemPrompt, config.variables || {}),
-      tools: config.tools || [],
-      model: config.model,
-      agentType: config.agentType || 'executor',
-      context: config.context || 'inline',
-      maxIterations: config.maxIterations || 10,
-      timeoutMs: config.timeoutMs || 300000,
-      createdAt: Date.now(),
-      usageCount: 0,
-    };
-
-    this.customAgents.set(agent.id, agent);
+      systemPrompt,
+      preferredModel: config.model,
+      capabilities: config.capabilities,
+      taskTypes: config.taskTypes,
+      config: config.tools?.length ? { tools: config.tools } : undefined,
+    });
+    this.catalog.register(spec, { source: 'pi-agent' });
+    const previous = this.usage.get(config.id);
+    this.usage.set(config.id, previous ?? { createdAt: Date.now(), usageCount: 0 });
+    const agent = this.toAgentRecord(spec);
     
     // Also register with global agent registry
     try {
       const registry = getAgentRegistry();
-      registry.registerCustomAgent({
+      registry.registerPiAgent({
         id: agent.id,
         name: agent.name,
         description: agent.description,
@@ -236,7 +235,7 @@ export class CustomAgentRegistry {
           context: agent.context,
         },
       });
-      info('agent-registry', `Registered custom agent: ${agent.name}`);
+      info('agent-registry', `Registered Pi agent: ${agent.name}`);
     } catch (error) {
       logError('agent-registry', `Failed to register with global registry`, error instanceof Error ? error : undefined);
     }
@@ -245,10 +244,12 @@ export class CustomAgentRegistry {
   }
 
   /**
-   * Unregister a custom agent
+   * Unregister a Pi agent
    */
   unregister(agentId: string): boolean {
-    const deleted = this.customAgents.delete(agentId);
+    const deleted = this.catalog.unregister(agentId, true);
+    this.usage.delete(agentId);
+    getAgentRegistry().unregister(agentId, true);
     if (deleted) {
       info('agent-registry', `Unregistered agent: ${agentId}`);
     }
@@ -256,30 +257,31 @@ export class CustomAgentRegistry {
   }
 
   /**
-   * Get a custom agent by ID
+   * Get a Pi agent by ID
    */
-  getAgent(agentId: string): CustomAgent | undefined {
-    return this.customAgents.get(agentId);
+  getAgent(agentId: string): PiAgentRecord | undefined {
+    const record = this.catalog.get(agentId);
+    return record ? this.toAgentRecord(record.spec) : undefined;
   }
 
   /**
-   * Get all custom agents
+   * Get all Pi agents
    */
-  getAllAgents(): CustomAgent[] {
-    return Array.from(this.customAgents.values());
+  getAllAgents(): PiAgentRecord[] {
+    return this.catalog.getAll().map(({ spec }) => this.toAgentRecord(spec));
   }
 
   /**
    * Get agents by type
    */
-  getAgentsByType(agentType: string): CustomAgent[] {
+  getAgentsByType(agentType: string): PiAgentRecord[] {
     return this.getAllAgents().filter(a => a.agentType === agentType);
   }
 
   /**
    * Get agents by context
    */
-  getAgentsByContext(context: string): CustomAgent[] {
+  getAgentsByContext(context: string): PiAgentRecord[] {
     return this.getAllAgents().filter(a => a.context === context);
   }
 
@@ -287,25 +289,25 @@ export class CustomAgentRegistry {
    * Update agent usage stats
    */
   recordUsage(agentId: string): void {
-    const agent = this.customAgents.get(agentId);
-    if (agent) {
-      agent.usageCount++;
-      agent.lastUsedAt = Date.now();
+    const stats = this.usage.get(agentId);
+    if (stats) {
+      stats.usageCount++;
+      stats.lastUsedAt = Date.now();
     }
   }
 
   /**
    * Create agent from template
    */
-  createFromTemplate(templateId: string, overrides?: Partial<CustomAgentConfig>): CustomAgent | null {
+  createFromTemplate(templateId: string, overrides?: Partial<PiAgentSpecInput>): PiAgentRecord | null {
     const template = this.templates.get(templateId);
     if (!template) {
       warn('agent-registry', `Template not found: ${templateId}`);
       return null;
     }
 
-    const config: CustomAgentConfig = {
-      id: `custom-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    const config: PiAgentSpecInput = {
+      id: `pi-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       name: overrides?.name || template.name,
       description: overrides?.description || template.description,
       systemPrompt: overrides?.systemPrompt || this.getDefaultSystemPrompt(template),
@@ -333,10 +335,31 @@ export class CustomAgentRegistry {
   /**
    * Get most used agents
    */
-  getMostUsed(limit: number = 5): CustomAgent[] {
+  getMostUsed(limit: number = 5): PiAgentRecord[] {
     return this.getAllAgents()
       .sort((a, b) => b.usageCount - a.usageCount)
       .slice(0, limit);
+  }
+
+  private toAgentRecord(spec: UpUpAgentSpec): PiAgentRecord {
+    const stats = this.usage.get(spec.id) ?? { createdAt: Date.now(), usageCount: 0 };
+    const agentType = spec.capabilities[0] ?? 'executor';
+    return {
+      id: spec.id,
+      name: spec.name,
+      description: spec.description,
+      systemPrompt: spec.systemPrompt ?? '',
+      tools: spec.tools === '*' ? [] : [...spec.tools],
+      ...(spec.model ? { model: spec.model } : {}),
+      agentType,
+      context: spec.mode === 'worker' ? 'swarm' : 'inline',
+      maxIterations: 10,
+      timeoutMs: spec.timeoutMs ?? 300000,
+      createdAt: stats.createdAt,
+      ...(stats.lastUsedAt ? { lastUsedAt: stats.lastUsedAt } : {}),
+      usageCount: stats.usageCount,
+      spec,
+    };
   }
 
   /**
@@ -421,7 +444,7 @@ Guidelines:
   /**
    * Export all agents as config
    */
-  exportConfig(): CustomAgentConfig[] {
+  exportConfig(): PiAgentSpecInput[] {
     return this.getAllAgents().map(agent => ({
       id: agent.id,
       name: agent.name,
@@ -439,7 +462,7 @@ Guidelines:
   /**
    * Import agents from config
    */
-  importConfig(configs: CustomAgentConfig[]): number {
+  importConfig(configs: PiAgentSpecInput[]): number {
     let imported = 0;
     for (const config of configs) {
       try {
@@ -456,14 +479,18 @@ Guidelines:
    * Reset registry
    */
   reset(): void {
-    this.customAgents.clear();
+    for (const record of this.catalog.getAll()) {
+      this.catalog.unregister(record.spec.id, true);
+      getAgentRegistry().unregister(record.spec.id, true);
+    }
+    this.usage.clear();
     info('agent-registry', 'Registry reset');
   }
 }
 
 /**
- * Get custom agent registry instance
+ * Get Pi agent registry instance
  */
-export function getCustomAgentRegistry(): CustomAgentRegistry {
-  return CustomAgentRegistry.getInstance();
+export function getPiAgentRegistry(): PiAgentRegistry {
+  return PiAgentRegistry.getInstance();
 }

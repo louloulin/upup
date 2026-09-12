@@ -10,7 +10,10 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
-    "./logging": "./dist/logging/index.js"
+    "./logging": {
+      "types": "./dist/logging/logger.d.ts",
+      "default": "./dist/logging/index.js"
+    }
   },
   "scripts": {
     "build": "bun build src/index.ts --outdir=dist --target=node && npx tsc --emitDeclarationOnly --declaration --declarationMap --outDir dist",

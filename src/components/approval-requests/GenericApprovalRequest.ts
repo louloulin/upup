@@ -7,7 +7,7 @@
 
 import { Container, Text, Spacer } from '@earendil-works/pi-tui';
 import { BorderBox } from '../BorderBox.js';
-import type { ApprovalDecision } from '../../agent/types.js';
+import type { ApprovalDecision } from '../../runtime/pi/legacy-events.js';
 import { getToolDangerLevel } from '../../utils/permissions/index.js';
 import { theme } from '../../theme.js';
 import type { ApprovalRequestData, ApprovalRequestOptions } from './BaseApprovalRequest.js';

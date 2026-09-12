@@ -1,6 +1,6 @@
 # UpUp (涨涨) 🤖📈
 
-> **China-edition Dexter** — Chinese-language financial research AI agent
+> **China-edition Dexter powered by Pi** — Chinese-language financial research AI agent
 > Forked from [virattt/dexter](https://github.com/virattt/dexter), deeply reworked for A-share / HK / Chinese-language investment research
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178c6.svg)](https://www.typescriptlang.org/)
@@ -45,7 +45,7 @@ It is **not** a Chinese translation of dexter, nor a "reskin" of dexter. After f
 
 ### TL;DR
 
-UpUp (涨涨) is the **China edition** of [virattt/dexter](https://github.com/virattt/dexter): same agent-loop skeleton (LangChain + Ink + pi-tui + pi-mono), same MIT license, but 8 substantive dimensions expanded for Chinese financial research, a 10× code-volume delta, and a different default LLM provider (DeepSeek for Chinese context).
+UpUp (涨涨) is the **China edition** of [virattt/dexter](https://github.com/virattt/dexter): the original CLI/product lineage is retained, while the production Agent loop and model/tool protocol are now provided by the version-pinned Pi Runtime (`pi-agent-core`, `pi-ai`, `pi-coding-agent`). UpUp adds 8 substantive dimensions for Chinese financial research, a 10× code-volume delta, and a different default model provider (DeepSeek for Chinese context).
 
 ### One-line summary
 
@@ -103,8 +103,8 @@ This table is the **most honest one in this doc**: it shows which files/director
 
 | Subsystem | Inherited from dexter | UpUp-modified | UpUp-only |
 |---|---|---|---|
-| Agent loop | `src/agent/agent.ts` (skeleton) | extended with `src/agent/subagent*.ts`, `src/agent/investment-workflow-hooks.ts`, `src/agent/investment-knowledge.ts` | `src/agent/verification-hooks.ts`, `src/agent/fallback.ts` |
-| LangChain LLM layer | `src/model/llm.ts` (4 providers: OpenAI/Anthropic/Google/Ollama) | `DEFAULT_PROVIDER='deepseek'` flipped + token metering rewritten | Chinese model IDs in `src/utils/model.ts` (kimi-k2-5, deepseek-v4-pro) |
+| Agent loop | dexter's historical loop shape | `src/runtime/pi/` adapter, event/session compatibility and investment orchestration | Pi-backed runtime contracts and `packages/pi-finance-sdk/` |
+| Pi Runtime | `src/runtime/pi/` (`AgentSession`, `pi-ai`, Pi tool/event/session adapters) | Version-pinned runtime, financial permissions, evidence and Package loading | Pi Package ecosystem under `packages/pi-finance-sdk/` |
 | Tool registry | `src/tools/registry.ts` (246 lines monolithic) | split into 16 domain loaders (`src/tools/registry/{finance,web-search,filesystem,mcp,agent-planning,quant,domain,duckdb,investment-knowledge,trading,realtime,coordinator,kairos,fund,alt-data,portfolio}-tools.ts`) | `ToolSafetyLevel / ToolCategory / ToolSideEffects / ToolConcurrencyMetadata` types in `src/tools/registry/types.ts` |
 | Tool impls | `src/tools/finance/` (18 stock-price/fundamentals/filings/estimates/segments/crypto/insider/earnings) | — | **`src/tools/astock/` (12 A-share tools: Tushare + AKShare + Eastmoney)**, `src/tools/sentiment/`, `src/tools/forecast/`, `src/tools/portfolio/`, `src/tools/risk/`, `src/tools/alerts/`, `src/tools/export/`, `src/tools/analytics/`, `src/tools/comparison/`, `src/tools/screening/`, `src/tools/sector/`, `src/tools/earnings/`, `src/tools/news/` |
 | Skills | `src/skills/dcf/SKILL.md` + 2 others | — | 47 more SKILL.md files in `src/skills/` + 14 bundled `.ts` files in `src/skills/bundled/` |
@@ -171,9 +171,9 @@ This is where UpUp creates the most visible product gap. Both projects have an a
 | Phases | detect → plan → execute → verify → report | n/a |
 | Investment subcommands | **11** (dossier, strategy, earnings-preview, invest, morning-brief, phase-handlers, portfolio-review, registry, risk-dashboard, screen, watchlist-edit) | 0 |
 | Plan Mode (audit-before-execute) | ✅ | ❌ |
-| Investment subagent files | **7** (`src/agent/subagent*`) | 0 general-purpose only (5 files in `src/tools/subagent/`) |
-| Investment knowledge hooks | ✅ `src/agent/investment-workflow-hooks.ts` (445 lines) + `src/agent/investment-knowledge.ts` (324 lines) | ❌ |
-| Verification hooks | ✅ `src/agent/verification-hooks.ts` | ❌ |
+| Investment subagent files | **5 Pi profiles** (`src/runtime/pi/investment-subagents.ts`) | 0 general-purpose only (5 files in `src/tools/subagent/`) |
+| Investment knowledge hooks | ✅ `src/runtime/pi/investment-knowledge.ts` + Pi workflow entries | ❌ |
+| Verification hooks | ✅ Pi workflow and evidence adapters under `src/runtime/pi/` | ❌ |
 | Investment output registry | ✅ `src/commands/investment/registry.ts` (writes to `.upup/runs/<id>/`) | ❌ |
 | Per-phase handler | ✅ `src/commands/investment/phase-handlers.ts` | ❌ |
 | Multi-agent orchestration | ✅ `src/multi-agent/` (39 files) + `src/coordinator/` (16 files, 4-worker pool) | ❌ |
@@ -197,7 +197,7 @@ This is where UpUp creates the most visible product gap. Both projects have an a
 |---|---|---|
 | Session files in `src/session/` | **18** | 0 (only basic `src/gateway/sessions`) |
 | Plan mode | ✅ `src/plan/` | ❌ |
-| Loop recovery | ✅ `src/agent/` | ❌ |
+| Loop recovery | ✅ Pi Session tree, resume, compact and recovery adapters | ❌ |
 | Hook system | ✅ `src/hooks/` 17 files + `packages/hooks/` | ❌ |
 | Telemetry / audit chain | ✅ `src/telemetry/` | ❌ |
 | Worktree integration | ✅ `src/worktree/` | ❌ |
@@ -267,12 +267,12 @@ Below are 4 real tasks. The same action's entry / factory / registration / call 
 
 | Step | UpUp | upstream dexter |
 |---|---|---|
-| 1. User input | CLI receives → `src/cli.tsx:Editor` → `src/agent/agent.ts:runLoop()` | same (inherited) |
-| 2. LLM decision | `src/model/llm.ts:createLLM()` → default `deepseek-v4-flash` (`DEFAULT_PROVIDER='deepseek'`) | default `gpt-5.5` (`DEFAULT_PROVIDER='openai'`) |
+| 1. User input | CLI receives → `src/cli.tsx:Editor` → `src/runtime/pi/event-stream.ts` → Pi `AgentSession` | same (inherited) |
+| 2. LLM decision | Pi `pi-ai` model/provider stream → configured DeepSeek-compatible model | default `gpt-5.5` (`DEFAULT_PROVIDER='openai'`) |
 | 3. Tool matching | `src/tools/registry/index.ts:getToolRegistry()` returns model-trimmed toolset → LLM picks `get_stock_price` | `src/tools/registry.ts:getToolRegistry()` returns full toolset |
 | 4. Data fetch | `src/tools/finance/stock-price.ts → getStockPrice('AAPL')` → `https://api.financialdatasets.ai/...` (US) | same interface |
 | 5. A-share fallback | `src/tools/astock/*` 12 tools (Tushare Pro + AKShare + Eastmoney fallback) auto-takeover | ❌ no A-share path |
-| 6. Result backfill | `src/agent/scratchpad.ts → recordToolResult()` (single-point write) | same (inherited) |
+| 6. Result backfill | Pi session entries plus UpUp evidence/audit metadata | same (inherited) |
 
 > One-line summary: UpUp inserts Chinese-scenario branches at step 2 (default provider) and step 5 (A-share fallback); all other steps match upstream.
 
@@ -293,10 +293,10 @@ Below are 4 real tasks. The same action's entry / factory / registration / call 
 | Phase | UpUp | upstream dexter |
 |---|---|---|
 | User input `/invest` | `src/commands/investment/invest.ts` enters 5-phase state machine | ❌ no `/invest` command |
-| Phase 1 detect | `src/agent/investment-workflow-hooks.ts` + `src/agent/subagent.ts` (intent recognition) | n/a |
+| Phase 1 detect | `src/runtime/pi/intent-detector/` + `src/runtime/pi/investment-subagents.ts` | n/a |
 | Phase 2 plan | `src/plan/` + `src/commands/investment/plan-display.tsx` Ink renders plan → user reviews | n/a |
-| Phase 3 execute | `src/coordinator/` (4 worker pool) + `src/multi-agent/` (orchestration) + 5 `src/agent/subagent-*.ts` | n/a |
-| Phase 4 verify | `src/agent/verification-hooks.ts` (research consistency checks) | n/a |
+| Phase 3 execute | `src/coordinator/` + `src/multi-agent/` with Pi-backed workers | n/a |
+| Phase 4 verify | Pi workflow/evidence adapters under `src/runtime/pi/` | n/a |
 | Phase 5 report | `src/commands/investment/registry.ts` writes dossier/strategy/earnings-preview/portfolio-review/risk-dashboard into `.upup/runs/<id>/` | n/a |
 | Audit chain | `src/telemetry/` + `src/session/` (every tool call writes to event stream) | n/a |
 
@@ -312,8 +312,8 @@ Below are 4 real tasks. The same action's entry / factory / registration / call 
 
 ### Inherited from upstream dexter
 
-- **Agent loop skeleton** — `src/agent/agent.ts`, `src/agent/prompts.ts`, `src/agent/scratchpad.ts`, `src/agent/types.ts`
-- **LangChain integration** — `src/model/llm.ts`, `src/providers.ts` (also forked into `packages/llm/src/providers.ts`)
+- **Historical Agent loop shape** — retained only as project lineage; the custom implementation is deleted and is not the production runtime
+- **Pi Runtime** — `src/runtime/pi/`, `@earendil-works/pi-ai`, `@earendil-works/pi-agent-core`, and `@earendil-works/pi-coding-agent` provide the production Agent loop
 - **Tool registry shape** — `src/tools/registry.ts` (UpUp kept the public API; rewrote internals into 16 domain loaders)
 - **Tool implementations (US-only)** — `src/tools/finance/` (18 files: stock-price, fundamentals, filings, estimates, segments, crypto, insider, earnings, key-ratios, etc.)
 - **Skills** — `src/skills/dcf/SKILL.md` + 2 others (kept)
@@ -325,8 +325,8 @@ Below are 4 real tasks. The same action's entry / factory / registration / call 
 ### China-Edition Increment (UpUp's independent contribution)
 
 - **A-share data stack** — `src/tools/astock/` 12 files + `src/tools/fund/`
-- **5-phase investment workflow** — `src/commands/investment/` 11 subcommands + `src/agent/investment-workflow-hooks.ts` + `src/agent/investment-knowledge.ts`
-- **Multi-agent orchestration** — `src/multi-agent/` 39 files + `src/coordinator/` 16 files + 5 subagents in `src/agent/subagent*`
+- **5-phase investment workflow** — `src/commands/investment/` 11 subcommands + Pi workflow/evidence adapters
+- **Multi-agent orchestration** — `src/multi-agent/` + `src/coordinator/` with Pi-backed investment profiles and workers
 - **Proactive runtime (KAIROS)** — `src/kairos/` 14 files (6-state machine)
 - **Bridge (cross-device)** — `src/bridge/` 36 files (encrypted remote)
 - **Realtime event bus** — `src/realtime/` 10 files
@@ -343,8 +343,8 @@ Below are 4 real tasks. The same action's entry / factory / registration / call 
 - **TUI enhancements** — `src/tui/` 50 files (status-hint, slash-autocomplete, multiline, paste-handling)
 - **Web gateway** — `src/web/` + `packages/gateway/` (read-only JSON snapshots)
 - **Chinese-curated model IDs** — `src/utils/model.ts` (kimi-k2-5, deepseek-v4-pro, deepseek-v4-flash)
-- **Default DeepSeek** — `src/model/llm.ts:DEFAULT_PROVIDER = 'deepseek'`
-- **Fallback strategy for DeepSeek** — `src/agent/fallback.ts`
+- **Default DeepSeek-compatible model** — configured through the Pi model/provider registry in `src/runtime/pi/model.ts`
+- **Provider fallback strategy** — Pi model/provider adapter in `src/runtime/pi/model.ts`
 
 ---
 
@@ -691,7 +691,7 @@ Same 8-provider metadata layer as upstream dexter; UpUp's differentiator is the 
 UpUp is built on the shoulders of giants:
 
 - **[virattt/dexter](https://github.com/virattt/dexter)** — the upstream; same MIT license; the agent loop / tool registry / SKILL.md protocol / Ink rendering layer all originate here
-- **[LangChain](https://github.com/langchain-ai/langchainjs)** — multi-provider LLM abstraction
+- **[Pi](https://pi.dev/)** — version-pinned AgentSession, model, tool, extension, session, and TUI runtime
 - **[Ink](https://github.com/vadimdemedes/ink)** — React for CLI
 - **[pi-tui](https://github.com/earendil-works/pi-tui)** — Editor + autocomplete + history
 - **[Tushare Pro](https://tushare.pro)** — A-share data

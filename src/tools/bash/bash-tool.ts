@@ -14,7 +14,7 @@
  */
 
 import { z } from 'zod';
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { getCwd } from '../../utils/cwd.js';
@@ -414,10 +414,10 @@ export function formatBashResult(result: BashToolResult): string {
 }
 
 /**
- * Create the BashTool instance using DynamicStructuredTool
+ * Create the BashTool instance using PiTool
  */
-export function createBashTool(options: BashToolOptions = {}): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createBashTool(options: BashToolOptions = {}): PiTool {
+  return new PiTool({
     name: BASH_TOOL_NAME,
     description: getBashToolDescription(),
     schema: inputSchema,

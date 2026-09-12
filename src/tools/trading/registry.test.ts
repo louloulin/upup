@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import {
   createBroker,
   createBrokerAsync,
+  LIVE_TRADING_DISABLED_MESSAGE,
   listBrokers,
   registerBroker,
   resolveActiveBroker,
@@ -20,6 +21,8 @@ describe('broker registry', () => {
 
   beforeEach(() => {
     delete process.env.UPUP_BROKER;
+    delete process.env.UPUP_TRADING_MODE;
+    delete process.env.UPUP_ALLOW_LIVE_TRADING;
   });
 
   afterEach(() => {
@@ -28,6 +31,14 @@ describe('broker registry', () => {
     } else {
       process.env.UPUP_BROKER = originalBroker;
     }
+  });
+
+  test('live broker construction is denied unless both explicit safety flags are enabled', async () => {
+    await expect(createBrokerAsync('ibkr')).rejects.toThrow(LIVE_TRADING_DISABLED_MESSAGE);
+    process.env.UPUP_TRADING_MODE = 'live';
+    await expect(createBrokerAsync('ibkr')).rejects.toThrow(LIVE_TRADING_DISABLED_MESSAGE);
+    process.env.UPUP_ALLOW_LIVE_TRADING = 'true';
+    await expect(createBrokerAsync('ibkr')).resolves.toMatchObject({ name: 'ibkr' });
   });
 
   test('default registration includes sandbox, ibkr, xueqiu', () => {
@@ -74,11 +85,15 @@ describe('broker registry', () => {
   });
 
   test('createBrokerAsync("ibkr") returns an IbkrAdapter with name "ibkr"', async () => {
+    process.env.UPUP_TRADING_MODE = 'live';
+    process.env.UPUP_ALLOW_LIVE_TRADING = 'true';
     const broker = await createBrokerAsync('ibkr');
     expect(broker.name).toBe('ibkr');
   });
 
   test('createBrokerAsync("xueqiu") returns a XueqiuAdapter with name "xueqiu"', async () => {
+    process.env.UPUP_TRADING_MODE = 'live';
+    process.env.UPUP_ALLOW_LIVE_TRADING = 'true';
     const broker = await createBrokerAsync('xueqiu');
     expect(broker.name).toBe('xueqiu');
   });
@@ -105,6 +120,8 @@ describe('broker registry', () => {
   });
 
   test('IBKR adapter implements the full BrokerAdapter contract', async () => {
+    process.env.UPUP_TRADING_MODE = 'live';
+    process.env.UPUP_ALLOW_LIVE_TRADING = 'true';
     const broker = await createBrokerAsync('ibkr');
     const order = await broker.placeOrder({
       symbol: 'AAPL',
@@ -136,6 +153,8 @@ describe('broker registry', () => {
   });
 
   test('Xueqiu adapter implements the full BrokerAdapter contract', async () => {
+    process.env.UPUP_TRADING_MODE = 'live';
+    process.env.UPUP_ALLOW_LIVE_TRADING = 'true';
     const broker = await createBrokerAsync('xueqiu');
     const order = await broker.placeOrder({
       symbol: '600519.SH',

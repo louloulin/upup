@@ -3,7 +3,7 @@
  *
  * High-cohesion design: this module owns the *behavior* over positions
  * (CRUD, P&L calculation, sector summary, performance metrics). It is
- * unaware of LangChain, of the LLM, and of the tushare HTTP client.
+ * unaware of Pi, of the model, and of the tushare HTTP client.
  *
  * Dependencies (all injected):
  *   - PortfolioRepository — data access

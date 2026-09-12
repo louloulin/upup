@@ -1,5 +1,5 @@
-import { HumanMessage, AIMessage, type BaseMessage } from '@langchain/core/messages';
-import { callLlm, DEFAULT_MODEL } from '../model/llm.js';
+import type { Message as PiMessage } from '@earendil-works/pi-ai';
+import { callLlm, DEFAULT_MODEL } from '../runtime/pi/model.js';
 
 const DEFAULT_HISTORY_LIMIT = 10;
 const FULL_ANSWER_TURNS = 3;
@@ -96,10 +96,10 @@ Generate a brief 1-2 sentence summary of this answer.`;
   }
 
   /**
-   * Returns recent completed turns as proper LangChain BaseMessage objects.
+   * Returns recent completed turns as model message objects.
    * Recent turns get full answers; older turns get summaries.
    */
-  getRecentTurnsAsMessages(limit: number = this.maxTurns): BaseMessage[] {
+  getRecentTurnsAsMessages(limit: number = this.maxTurns): PiMessage[] {
     const boundedLimit = Math.max(0, limit);
     if (boundedLimit === 0) {
       return [];
@@ -115,8 +115,17 @@ Generate a brief 1-2 sentence summary of this answer.`;
         : (message.summary ?? message.answer);
 
       return [
-        new HumanMessage(message.query),
-        new AIMessage(assistantContent ?? ''),
+        { role: 'user', content: message.query, timestamp: Date.now() },
+        {
+          role: 'assistant',
+          content: [{ type: 'text', text: assistantContent ?? '' }],
+          api: 'openai-completions',
+          provider: 'openai',
+          model: this.model,
+          usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, totalTokens: 0, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } },
+          stopReason: 'stop',
+          timestamp: Date.now(),
+        },
       ];
     });
   }

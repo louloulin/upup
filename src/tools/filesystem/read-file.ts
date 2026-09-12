@@ -1,4 +1,4 @@
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { constants } from 'node:fs';
 import { access, readFile } from 'node:fs/promises';
 import { z } from 'zod';
@@ -37,7 +37,7 @@ const readFileSchema = z.object({
   limit: z.number().optional().describe('Maximum number of lines to read from the offset.'),
 });
 
-export const readFileTool = new DynamicStructuredTool({
+export const readFileTool = new PiTool({
   name: 'read_file',
   description:
     'Read text file contents safely from workspace paths. Supports offset/limit pagination for large files.',

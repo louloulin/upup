@@ -8,7 +8,7 @@
 
 import type { RegisteredTool } from './types.js';
 import { systemMetadata } from './types.js';
-import { isFeatureCompiledIn } from '../../agent/feature-gates.js';
+import { isFeatureCompiledIn } from '../../runtime/pi/feature-gates.js';
 import {
   createAddPositionTool, createUpdatePositionTool,
   createRemovePositionTool, createGetPortfolioTool,
@@ -42,6 +42,7 @@ import {
 import {
   createValuationRatiosTool, createDCFTool, createPeerComparisonTool,
   createDecisionDashboardTool, createCalculateTargetPriceTool, createQuickTargetPriceTool,
+  createDDMTool,
   VALUATION_RATIOS_DESCRIPTION, DCF_MODEL_DESCRIPTION, PEER_COMPARISON_DESCRIPTION,
   DECISION_DASHBOARD_DESCRIPTION, CALCULATE_TARGET_PRICE_DESCRIPTION, QUICK_TARGET_PRICE_DESCRIPTION,
 } from '../valuation/index.js';
@@ -76,7 +77,7 @@ import {
   createAgentMemoryTool, createListAgentsTool, createRunBuiltInAgentTool,
   FORK_SUBAGENT_DESCRIPTION, RESUME_AGENT_DESCRIPTION,
   AGENT_MEMORY_DESCRIPTION, LIST_AGENTS_DESCRIPTION, RUN_BUILTIN_AGENT_DESCRIPTION,
-} from '../../agent/subagent/types.js';
+} from '../../runtime/pi/subagent-types.js';
 
 // Research tool descriptions (placeholders)
 const ANALYZE_SENTIMENT_DESCRIPTION = "Analyze sentiment from financial text.";
@@ -148,6 +149,7 @@ export async function loadDomainTools(): Promise<RegisteredTool[]> {
   // Valuation
   tools.push({ name: 'valuation_ratios', tool: createValuationRatiosTool(), description: VALUATION_RATIOS_DESCRIPTION, compactDescription: 'Calculate PE, PB, PCF ratios and market cap', concurrencySafe: true });
   tools.push({ name: 'dcf_model', tool: createDCFTool(), description: DCF_MODEL_DESCRIPTION, compactDescription: 'DCF intrinsic value calculation with terminal value', concurrencySafe: true });
+  tools.push({ name: 'ddm_model', tool: createDDMTool(), description: 'Dividend Discount Model valuation with Gordon-growth terminal value', compactDescription: 'DDM dividend valuation', concurrencySafe: true });
   tools.push({ name: 'peer_comparison', tool: createPeerComparisonTool(), description: PEER_COMPARISON_DESCRIPTION, compactDescription: 'Compare company metrics against industry peers', concurrencySafe: true });
   tools.push({ name: 'decision_dashboard', tool: createDecisionDashboardTool(), description: DECISION_DASHBOARD_DESCRIPTION, compactDescription: 'Four-dimension scoring (technical/fundamental/sentiment/risk) with buy/sell signal', concurrencySafe: true });
   tools.push({ name: 'calculate_target_price', tool: createCalculateTargetPriceTool(), description: CALCULATE_TARGET_PRICE_DESCRIPTION, compactDescription: 'Calculate fair value target price using DCF, PE, or SOTP methods', concurrencySafe: true });

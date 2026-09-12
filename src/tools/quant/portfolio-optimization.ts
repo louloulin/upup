@@ -7,7 +7,7 @@
  * - Mean-Variance Optimization (efficient frontier)
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { formatToolResult } from '../types.js';
 
@@ -170,7 +170,7 @@ const meanVarianceSchema = z.object({
 // ============================================================================
 
 export function createCalculateKellyTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'calculate_kelly',
     description: 'Calculate optimal position size using Kelly Criterion. Returns full Kelly, half-Kelly (safer), and position sizing.',
     schema: kellySchema,
@@ -206,7 +206,7 @@ export function createCalculateKellyTool() {
 }
 
 export function createCalculateRiskParityTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'calculate_risk_parity',
     description: 'Calculate risk parity portfolio allocation. Each asset contributes equally to total risk.',
     schema: riskParitySchema,
@@ -226,7 +226,7 @@ export function createCalculateRiskParityTool() {
 }
 
 export function createCalculateMeanVarianceTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'calculate_mean_variance',
     description: 'Calculate mean-variance optimized portfolio (tangency portfolio). Maximize Sharpe ratio.',
     schema: meanVarianceSchema,

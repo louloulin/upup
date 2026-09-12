@@ -13,7 +13,7 @@
  *   multi-portfolio.ts (Layer 3) → service.ts (Layer 3, 同层, OK)
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { formatToolResult } from '../types.js';
 import fs from 'node:fs';
@@ -653,7 +653,7 @@ async function handleGetPortfolioMulti(params: z.infer<typeof getPortfolioMultiS
 // ============================================================================
 
 export function createListPortfoliosTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'list_portfolios',
     description: 'List all available portfolios and show which one is active',
     schema: listPortfoliosSchema,
@@ -662,7 +662,7 @@ export function createListPortfoliosTool() {
 }
 
 export function createCreatePortfolioTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'create_portfolio',
     description: 'Create a new named portfolio for tracking separate investment strategies',
     schema: createPortfolioSchema,
@@ -671,7 +671,7 @@ export function createCreatePortfolioTool() {
 }
 
 export function createDeletePortfolioTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'delete_portfolio',
     description: 'Delete a named portfolio. Cannot delete the last remaining portfolio.',
     schema: deletePortfolioSchema,
@@ -680,7 +680,7 @@ export function createDeletePortfolioTool() {
 }
 
 export function createSwitchPortfolioTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'switch_portfolio',
     description: 'Switch the active portfolio for subsequent operations',
     schema: switchPortfolioSchema,
@@ -689,7 +689,7 @@ export function createSwitchPortfolioTool() {
 }
 
 export function createAddPositionMultiTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'add_position_multi',
     description: 'Add a position to a specific portfolio (defaults to active portfolio)',
     schema: addPositionMultiSchema,
@@ -698,7 +698,7 @@ export function createAddPositionMultiTool() {
 }
 
 export function createRemovePositionMultiTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'remove_position_multi',
     description: 'Remove a position from a specific portfolio (defaults to active portfolio)',
     schema: removePositionMultiSchema,
@@ -707,7 +707,7 @@ export function createRemovePositionMultiTool() {
 }
 
 export function createGetPortfolioMultiTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'get_portfolio_multi',
     description: 'Get detailed view of a specific portfolio with P&L calculations',
     schema: getPortfolioMultiSchema,

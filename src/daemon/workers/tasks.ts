@@ -10,8 +10,8 @@ import { loadCronStore, saveCronStore } from '../../cron/store.js';
 import { computeNextRunAtMs } from '../../cron/schedule.js';
 import { executeCronJob } from '../../cron/executor.js';
 import type { CronJob } from '../../cron/types.js';
-import { getDefaultSubagentRunner } from '../../agent/subagent-runner.js';
-import type { SubagentConfig } from '../../agent/subagent.js';
+import type { PiSubagentConfig } from '../../runtime/pi/subagent.js';
+import { getPiBackgroundService } from '../../runtime/pi/background-service.js';
 
 /**
  * Tasks worker kind identifier
@@ -163,27 +163,17 @@ export class TasksWorker implements Worker {
   private async executeBackgroundAgent(task: Task): Promise<TaskResult> {
     const { prompt, config } = task.payload as {
       prompt: string;
-      config: Partial<SubagentConfig>;
+      config: Partial<PiSubagentConfig>;
     };
 
     console.log(`[TasksWorker] Background agent task: ${prompt.substring(0, 50)}...`);
 
     try {
-      const runner = getDefaultSubagentRunner();
-
-      // Run agent asynchronously (non-blocking)
-      const taskId = await runner.runAsync(
-        {
-          type: config.type || 'general',
-          tools: config.tools || '*',
-          maxTurns: config.maxTurns,
-          model: config.model,
-          isolation: config.isolation,
-          cwd: config.cwd,
-        },
-        prompt,
-        undefined // No parent context for daemon tasks
-      );
+      const taskId = await getPiBackgroundService().start(prompt, {
+        model: config.model,
+        toolFilter: config.tools || '*',
+        cwd: config.cwd,
+      });
 
       this.tasksProcessed++;
       return {
@@ -217,18 +207,17 @@ export class TasksWorker implements Worker {
     console.log(`[TasksWorker] Scheduled agent task: ${message.substring(0, 50)}...`);
 
     try {
-      // Import Agent dynamically to avoid circular dependency
-      const { Agent } = await import('../../agent/agent.js');
+      const { streamPiAgent } = await import('../../runtime/pi/event-stream.js');
 
-      // Create agent instance with specified model
-      const agent = await Agent.create({
+      // Execute the task through a Pi session with the requested model.
+      const stream = streamPiAgent(message, {
         model,
         modelProvider,
       });
 
       // Run agent synchronously
       let result = '';
-      for await (const event of agent.run(message)) {
+      for await (const event of stream) {
         if (event.type === 'done') {
           result = event.answer;
         }

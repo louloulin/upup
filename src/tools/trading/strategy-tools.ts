@@ -1,5 +1,5 @@
 /**
- * Strategy Tools (LangChain wrapper)
+ * Strategy Tools (Pi-compatible wrapper)
  *
  * Spec: openspec/changes/top-tier-investment-assistant-v2/specs/algo-trading
  *      → Requirement: Algo Tools Registration
@@ -15,7 +15,7 @@
  *   can be built today.
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { formatToolResult } from '../types.js';
 import { SandboxBroker } from './sandbox-engine.js';
@@ -120,7 +120,7 @@ const ALGO_METADATA: Array<{
 ];
 
 export const createStrategyRunPaperTool = () =>
-  new DynamicStructuredTool({
+  new PiTool({
     name: 'strategy_run_paper',
     description: `Execute a parent order against the sandbox broker using a chosen execution algorithm. The algo splits the parent into child orders scheduled over the configured duration, then submits each to the sandbox. Returns a final report with filled quantity, average fill price, slippage in bps, and per-child detail.
 
@@ -192,7 +192,7 @@ Supports 4 algos: twap, vwap, pov, is. Each runs synchronously to completion (us
   });
 
 export const createStrategyListTool = () =>
-  new DynamicStructuredTool({
+  new PiTool({
     name: 'strategy_list',
     description: 'List the 4 built-in execution algorithms (twap, vwap, pov, is) with their parameters, descriptions, best-for guidance, and the most recent paper-trade results. Use this when the user asks "有哪些执行算法" or before choosing an algo.',
     schema: listSchema,
@@ -207,7 +207,7 @@ export const createStrategyListTool = () =>
   });
 
 export const createStrategyBacktestTool = () =>
-  new DynamicStructuredTool({
+  new PiTool({
     name: 'strategy_backtest',
     description: `Run a historical backtest of an execution algorithm over a date range. Returns mock metrics in this iteration; a future iteration will wire it to the v1 backtest engine with real historical data.
 

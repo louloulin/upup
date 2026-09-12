@@ -5,7 +5,7 @@
 import {
   getAgentLoader,
   resetAgentLoader,
-  type MarkdownAgentDefinition,
+  type PiAgentFileSpec,
 } from './agent-loader.js';
 import { getAllSpecializedSkills } from '../skills/bundled/index.js';
 import { info } from '../utils/logging/logger.js';

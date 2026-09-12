@@ -60,7 +60,7 @@ export interface SessionConfig {
   /** 元数据 */
   metadata?: Record<string, unknown>
   // ============ Stream + Session 一体架构新增配置 ============
-  /** 自动同步 Stream 消息到 Session (默认 true) */
+  /** 自动同步 Stream 消息到 Pi Session (默认 true) */
   autoSync?: boolean
   /** 启用 checkpoint (默认 false) */
   enableCheckpoint?: boolean

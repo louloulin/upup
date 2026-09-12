@@ -7,7 +7,7 @@
  *   - `ScreenCriteria`       : criteria shape compatible with the existing
  *                              `src/tools/screening` advanced_screening engine
  *   - `formatCriteriaZh`     : human-readable Chinese explanation
- *   - `createNlScreenTool`   : LangChain tool factory
+ *   - `createNlScreenTool`   : Pi-compatible tool factory
  *
  * Design:
  *   - **Rule-based first**: a curated set of CN+EN regex patterns extract
@@ -20,10 +20,9 @@
  *     explanation. The actual stock filtering is delegated to
  *     `advanced_screening` / `screen_stocks` (which need real data sources).
  */
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../runtime/pi/tool.js';
 import { z } from 'zod';
-import type { StructuredToolInterface } from '@langchain/core/tools';
-import { isFeatureCompiledIn } from '../agent/feature-gates.js';
+import { isFeatureCompiledIn } from '../runtime/pi/feature-gates.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -615,9 +614,9 @@ function matchCandidate(c: NonNullable<z.infer<typeof NlScreenSchema>['candidate
   return true;
 }
 
-export function createNlScreenTool(opts: { llmTranslate?: LLMTranslateFn } = {}): StructuredToolInterface {
+export function createNlScreenTool(opts: { llmTranslate?: LLMTranslateFn } = {}): PiTool {
   const screener = new NLScreener(opts);
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'nl_screen',
     description: NL_SCREEN_DESCRIPTION,
     schema: NlScreenSchema,

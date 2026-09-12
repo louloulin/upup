@@ -1,4 +1,4 @@
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { formatToolResult } from '../types.js';
 
@@ -242,7 +242,7 @@ const schema = z.object({
     .describe('Number of pages to fetch for search (1 page ≈ 100 tweets, default: 1)'),
 });
 
-export const xSearchTool = new DynamicStructuredTool({
+export const xSearchTool = new PiTool({
   name: 'x_search',
   description:
     'Search X/Twitter for real-time public sentiment, news, and expert opinions. ' +

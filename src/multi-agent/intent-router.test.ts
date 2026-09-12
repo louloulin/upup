@@ -16,13 +16,13 @@ import {
   unregisterInvestmentSubagents,
   registerInvestmentSubagents,
   areInvestmentSubagentsRegistered,
-} from '../agent/investment-subagents.js';
+} from '../runtime/pi/investment-subagents.js';
 import type {
   Intent,
   IntentResult,
   IntentScore,
   IntentDetector,
-} from '../agent/intent-detector/index.js';
+} from '../runtime/pi/intent-detector/index.js';
 
 // ---------------------------------------------------------------------------
 // 1. 路由表:7 种 Intent → 5 种 invest-* subagent

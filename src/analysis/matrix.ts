@@ -6,7 +6,7 @@
  *   - `renderVerdict`      : per-dimension template-driven short verdict
  *   - `toCSV` / `toMarkdown`: pivoted export
  *   - `DEFAULT_TICKERS_UNIVERSE` : 50-ticker default (25 A-share + 25 US)
- *   - `buildMatrixAnalysisTool` : LangChain tool factory
+ *   - `buildMatrixAnalysisTool` : Pi-compatible tool factory
  *
  * Design:
  *   - The engine does NOT fetch data — it consumes cells produced upstream
@@ -17,10 +17,9 @@
  *   - Verdicts are templated, not LLM-generated, so they are fast and
  *     deterministic. The LLM can later enrich them via the agent loop.
  */
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../runtime/pi/tool.js';
 import { z } from 'zod';
-import type { StructuredToolInterface } from '@langchain/core/tools';
-import { isFeatureCompiledIn } from '../agent/feature-gates.js';
+import { isFeatureCompiledIn } from '../runtime/pi/feature-gates.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -534,8 +533,8 @@ Hebbia-style cross-ticker × cross-dimension matrix analysis.
 
 export function buildMatrixAnalysisTool(
   resolver?: CellResolver,
-): StructuredToolInterface {
-  return new DynamicStructuredTool({
+): PiTool {
+  return new PiTool({
     name: 'matrix_analysis',
     description: MATRIX_ANALYSIS_DESCRIPTION,
     schema: MatrixAnalysisSchema,
@@ -601,4 +600,4 @@ export function buildMatrixAnalysisTool(
 }
 
 /** Default factory — no resolver. Cells must be provided in input. */
-export const createMatrixAnalysisTool = (): StructuredToolInterface => buildMatrixAnalysisTool();
+export const createMatrixAnalysisTool = (): PiTool => buildMatrixAnalysisTool();

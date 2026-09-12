@@ -15,7 +15,7 @@
  */
 
 import { z } from 'zod';
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 
 // ============================================================================
 // LSP Client Interface
@@ -213,8 +213,8 @@ Useful for finding and fixing problems in code.`;
 // Tool Factories
 // ============================================================================
 
-export function createLSPCompleteTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createLSPCompleteTool(): PiTool {
+  return new PiTool({
     name: 'lsp_complete',
     description: LSP_COMPLETE_DESCRIPTION,
     schema: LSPCompleteSchema,
@@ -236,8 +236,8 @@ export function createLSPCompleteTool(): DynamicStructuredTool {
   });
 }
 
-export function createLSPDefinitionTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createLSPDefinitionTool(): PiTool {
+  return new PiTool({
     name: 'lsp_definition',
     description: LSP_DEFINITION_DESCRIPTION,
     schema: LSPDefinitionSchema,
@@ -256,8 +256,8 @@ export function createLSPDefinitionTool(): DynamicStructuredTool {
   });
 }
 
-export function createLSPReferencesTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createLSPReferencesTool(): PiTool {
+  return new PiTool({
     name: 'lsp_references',
     description: LSP_REFERENCES_DESCRIPTION,
     schema: LSPReferencesSchema,
@@ -277,8 +277,8 @@ export function createLSPReferencesTool(): DynamicStructuredTool {
   });
 }
 
-export function createLSPHoverTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createLSPHoverTool(): PiTool {
+  return new PiTool({
     name: 'lsp_hover',
     description: LSP_HOVER_DESCRIPTION,
     schema: LSPHoverSchema,
@@ -297,8 +297,8 @@ export function createLSPHoverTool(): DynamicStructuredTool {
   });
 }
 
-export function createLSPDiagnosticsTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createLSPDiagnosticsTool(): PiTool {
+  return new PiTool({
     name: 'lsp_diagnostics',
     description: LSP_DIAGNOSTICS_DESCRIPTION,
     schema: LSPDiagnosticsSchema,

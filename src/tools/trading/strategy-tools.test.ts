@@ -21,9 +21,9 @@ const runPaper = createStrategyRunPaperTool();
 const list = createStrategyListTool();
 const backtest = createStrategyBacktestTool();
 
-// DynamicStructuredTool.func may return string | AsyncGenerator, but our
+// PiTool.func may return string | AsyncGenerator, but our
 // strategy tools always return a JSON string via formatToolResult. Coerce
-// defensively so this works regardless of LangChain's evolving signature.
+// defensively so this remains stable across Pi tool signature changes.
 // Returns `any` deliberately — tests drill into the payload with property
 // accessors; precise typing here would force casts at every assertion site.
 const unwrap = async (raw: string | AsyncGenerator<unknown, string, unknown>): Promise<any> => {

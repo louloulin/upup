@@ -10,7 +10,7 @@
  */
 
 import { warn, error, info, debug } from '../utils/logging/logger.js';
-import type { BaseMessage } from '@langchain/core/messages';
+import type { Message } from '@earendil-works/pi-ai';
 
 // ============================================================================
 // Stop Hook Types
@@ -21,7 +21,7 @@ import type { BaseMessage } from '@langchain/core/messages';
  */
 export interface StopHookContext {
   /** All messages in current conversation */
-  messages: BaseMessage[];
+  messages: Message[];
   /** Session ID for this conversation */
   sessionId: string;
   /** Turn count within session */
@@ -329,7 +329,7 @@ export function createMemoryExtractionHook(): StopHook {
         } else {
           // Fallback: extract from conversation messages
           const messageData = context.messages.map(m => ({
-            role: m.getType(),
+            role: m.role,
             content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content),
           }));
 

@@ -17,7 +17,7 @@ import {
   type Component,
 } from '@earendil-works/pi-tui';
 import { BorderBox } from '../BorderBox.js';
-import type { ApprovalDecision } from '../../agent/types.js';
+import type { ApprovalDecision } from '../../runtime/pi/legacy-events.js';
 import { getToolDangerLevel, isHardDenyCommand } from '../../utils/permissions/index.js';
 import { theme } from '../../theme.js';
 import type { ApprovalRequestData } from './BaseApprovalRequest.js';

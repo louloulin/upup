@@ -1,4 +1,4 @@
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { MemoryManager } from '../../memory/index.js';
 import { formatToolResult } from '../types.js';
@@ -24,7 +24,7 @@ const memorySearchSchema = z.object({
   use_rag: z.boolean().optional().describe('When true and memory.memvidRag is enabled, also synthesize a Memvid RAG answer.'),
 });
 
-export const memorySearchTool = new DynamicStructuredTool({
+export const memorySearchTool = new PiTool({
   name: 'memory_search',
   description:
     'Search persistent memory (MEMORY.md + daily logs + past conversation transcripts) with hybrid semantic + keyword retrieval.',

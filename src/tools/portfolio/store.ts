@@ -2,7 +2,7 @@
  * Portfolio Repository — pure data layer
  *
  * High-cohesion design: this module owns position data and nothing else.
- * No tushare calls, no LangChain, no formatting. Other modules (service,
+ * No tushare calls, no model-runtime dependency, no formatting. Other modules (service,
  * tracker tool) inject a `PortfolioRepository` instead of reaching into a
  * hidden module-level singleton.
  *
@@ -80,7 +80,7 @@ export class InMemoryPortfolioRepository implements PortfolioRepository {
 // ---------------------------------------------------------------------------
 // Default singleton accessor
 // ---------------------------------------------------------------------------
-// Kept as the default for the LangChain tool wrapper. Tests should construct
+// Kept as the default for the Pi tool wrapper. Tests should construct
 // their own repository to avoid global state pollution.
 
 let defaultRepo: InMemoryPortfolioRepository | null = null;

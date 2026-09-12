@@ -5,7 +5,7 @@
  *
  * Module boundary: this file lives in packages/commands/ and must NOT
  * import from src/agent/ directly. It consumes the PlanMode port via the
- * globalThis registry populated by src/agent/plan-mode-state.ts at startup.
+* globalThis registry populated by src/runtime/pi/plan-mode-state.ts at startup.
  */
 
 import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types.js'

@@ -27,13 +27,13 @@ await esbuild.build({
   outfile: path.join(standaloneDir, 'agent-bundle.js'),
   // Externalize all node_modules to avoid native module issues
   external: [
-    // LangChain and core
-    '@langchain/core',
-    '@langchain/anthropic',
-    '@langchain/openai',
-    'langchain',
+    // Pi runtime and native dependencies
+    '@earendil-works/pi-agent-core',
+    '@earendil-works/pi-ai',
+    '@earendil-works/pi-coding-agent',
     // Native modules
-    '@memvid/sdk',
+    'chromium*',
+    'playwright*',
     // Other node_modules
     'dotenv',
     'chalk',

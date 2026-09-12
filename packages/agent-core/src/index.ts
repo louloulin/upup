@@ -1,7 +1,9 @@
 /**
- * @upup/agent-core - Agent Core Runtime
+ * @upup/agent-core - Pi Runtime Compatibility Types
  *
- * This package exports Agent core functionality for use by adapters and SDK consumers.
+ * The production agent executor is Pi (`@earendil-works/pi-agent-core` and
+ * `@earendil-works/pi-coding-agent`). This package remains only as a small
+ * compatibility surface for adapters that consume the historical DTO shapes.
  */
 
 // Re-export from @upup/types
@@ -14,7 +16,7 @@ export type {
   Session,
 } from '@upup/types';
 
-// ===== Agent Core Types =====
+// ===== Compatibility DTOs (no execution semantics) =====
 
 export type StreamMode = 'delta' | 'full';
 

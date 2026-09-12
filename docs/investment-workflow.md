@@ -82,7 +82,7 @@ Each phase has its own success criteria and failure mode. If a phase fails, the 
 
 **Goal**: Run all `parallel: true` tasks concurrently, then `parallel: false` in topo order.
 
-**Executor**: `src/commands/investment/invest.ts` uses the LangGraph-style state machine (`src/agent/investment-workflow.ts`).
+**Executor**: `src/commands/investment/invest.ts` uses the Pi-backed workflow state machine (`src/runtime/pi/investment-workflow.ts`).
 
 **Subagents** (run in parallel where possible):
 - `Investment Explore Agent` — industry context, peer screening
@@ -91,7 +91,7 @@ Each phase has its own success criteria and failure mode. If a phase fails, the 
 - `Investment Trade Agent` — execution / backtest feasibility
 - `Investment Review Agent` — sanity check, consistency
 
-**Output**: A `Scratchpad` (`src/agent/scratchpad.ts`) — single source of truth for all intermediate results.
+**Output**: Pi Session entries plus financial evidence records — the single source of truth for intermediate results and audit metadata.
 
 **Failure mode**: Tool error / API rate limit → retry with exponential backoff, max 3 attempts. Persistent failure → halt and surface to user.
 
@@ -205,7 +205,7 @@ Update `src/commands/investment/invest.ts` to wire it in.
 
 ### Add a new subagent
 
-Edit `src/agent/investment-subagents.ts`:
+Edit the Pi profiles in `src/runtime/pi/investment-subagents.ts`:
 
 ```ts
 {
@@ -250,8 +250,8 @@ export const customPlans: Record<string, TaskPlan> = {
 - [docs/a-share.md](./a-share.md) — A-share specific
 - [docs/commands.md](./commands.md) — full command reference
 - `src/commands/investment/` — implementation
-- `src/agent/investment-workflow.ts` — state machine
-- `src/agent/subagent.ts` — subagent runner
+- `src/runtime/pi/investment-workflow.ts` — Pi Session workflow state machine
+- `src/runtime/pi/subagent-runner.ts` — Pi-backed subagent runner
 
 ---
 

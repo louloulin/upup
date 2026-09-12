@@ -5,7 +5,7 @@
  * ModelSelectionController's pattern for overlay-based selection.
  */
 
-import { getSessionSummaries, filterResumableSessions } from '../session/storage.js';
+import { getPiSessionService } from '../runtime/pi/session-service.js';
 import type { SessionSummary } from '../session/types.js';
 
 export type SessionAppState =
@@ -66,8 +66,8 @@ export class SessionSelectionController {
   async startSelection(projectPath?: string, currentSessionId?: string): Promise<void> {
     this.currentProjectPath = projectPath;
     this.currentSessionId = currentSessionId;
-    const allSessions = await getSessionSummaries({ projectPath });
-    this.sessionsValue = filterResumableSessions(allSessions, currentSessionId);
+    const allSessions = await getPiSessionService().list(projectPath ?? process.cwd());
+    this.sessionsValue = allSessions.filter((session) => !session.isSidechain && session.id !== currentSessionId);
     this.selectedIndexValue = 0;
     this.appStateValue = 'session_list';
     this.emitChange();
@@ -129,8 +129,7 @@ export class SessionSelectionController {
    */
   async confirmDelete(): Promise<void> {
     if (!this.pendingSessionIdValue) return;
-    const { deleteSession } = await import('../session/storage.js');
-    await deleteSession(this.pendingSessionIdValue);
+    await getPiSessionService().remove(this.pendingSessionIdValue);
     this.cancel();
     // Reload sessions
     await this.startSelection(this.currentProjectPath, this.currentSessionId);
@@ -166,8 +165,7 @@ export class SessionSelectionController {
       this.cancel();
       return;
     }
-    const { renameSession } = await import('../session/storage.js');
-    await renameSession(this.pendingSessionIdValue, newTitle.trim());
+    await getPiSessionService().rename(this.pendingSessionIdValue, newTitle.trim());
     this.cancel();
     await this.startSelection(this.currentProjectPath, this.currentSessionId);
   }
@@ -199,8 +197,7 @@ export class SessionSelectionController {
    */
   async submitTag(tag: string): Promise<void> {
     if (!this.pendingSessionIdValue) return;
-    const { tagSession } = await import('../session/storage.js');
-    await tagSession(this.pendingSessionIdValue, tag.trim() || null);
+    await getPiSessionService().tag(this.pendingSessionIdValue, tag.trim() || null);
     this.cancel();
     await this.startSelection(this.currentProjectPath, this.currentSessionId);
   }

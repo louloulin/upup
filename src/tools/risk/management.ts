@@ -8,10 +8,9 @@
  * - Stop-loss recommendations
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { getTushareClient, getToday } from '../astock/tushare-client';
-import type { StructuredToolInterface } from '@langchain/core/tools';
 
 export const RISK_MANAGEMENT_DESCRIPTION = `## risk_management
 Comprehensive risk assessment and management tool.
@@ -195,8 +194,8 @@ function calculateMaxDrawdown(prices: number[]): number {
   return maxDrawdown;
 }
 
-export function createRiskManagement(_model: string): StructuredToolInterface {
-  return new DynamicStructuredTool({
+export function createRiskManagement(_model: string): PiTool {
+  return new PiTool({
     name: 'risk_management',
     description: RISK_MANAGEMENT_DESCRIPTION,
     schema: RiskManagementSchema,

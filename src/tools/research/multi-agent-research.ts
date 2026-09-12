@@ -10,10 +10,9 @@
  * Each agent processes data independently and results are synthesized.
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { getTushareClient, getToday } from '../astock/tushare-client';
-import type { StructuredToolInterface } from '@langchain/core/tools';
 
 export const MULTI_AGENT_RESEARCH_DESCRIPTION = `## multi_agent_research
 Conduct comprehensive stock research using multiple AI agents in parallel.
@@ -400,8 +399,8 @@ async function analyzeRisk(code: string, client: any): Promise<{score: number; f
   }
 }
 
-export function createMultiAgentResearch(_model: string): StructuredToolInterface {
-  return new DynamicStructuredTool({
+export function createMultiAgentResearch(_model: string): PiTool {
+  return new PiTool({
     name: 'multi_agent_research',
     description: MULTI_AGENT_RESEARCH_DESCRIPTION,
     schema: MultiAgentResearchSchema,

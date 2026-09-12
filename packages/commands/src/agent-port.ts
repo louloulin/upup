@@ -1,14 +1,14 @@
 /**
  * Agent Public Port (Local Mirror)
  *
- * Cross-package boundary between packages/commands/ and src/agent/.
+ * Cross-package boundary between packages/commands/ and the Pi runtime.
  *
- * The canonical interface lives in src/agent/agent-port.ts.
+ * The canonical interface lives in src/runtime/pi/agent-port.ts.
  * This file duplicates the small shape (4 lines) and reads from
  * globalThis to avoid a fragile 4-level `await import` chain.
  *
  * The risk of interface drift is mitigated by the test suite in
- * src/agent/agent-port.test.ts (planned for v6).
+ * Pi runtime port contract tests cover the shared shape.
  */
 
 export interface PlanModePortLocal {
@@ -29,6 +29,7 @@ export interface SubagentTaskSummaryLocal {
 export interface SubagentPortLocal {
   createTask(config: { description: string; prompt: string; runInBackground?: boolean }): Promise<{ id: string }>;
   getAllTasks(): SubagentTaskSummaryLocal[];
+  cancelTask?(id: string): Promise<boolean>;
 }
 
 export interface McpServerStatusLocal {

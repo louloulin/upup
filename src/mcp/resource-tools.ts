@@ -4,7 +4,7 @@
  * These tools let the agent discover and read resources exposed by connected MCP servers.
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../runtime/pi/tool.js';
 import { z } from 'zod';
 import { getDefaultMCPClient } from './client.js';
 import { listUpupResourceTemplates, parseUpupUri, readUpupResource } from './upup-resources.js';
@@ -50,14 +50,23 @@ Read a specific resource from an MCP server by URI.
 - Returns resource content (text or binary)
 `.trim();
 
-export const listMcpResourcesTool = new DynamicStructuredTool({
+interface McpResourceClient {
+  listResources(serverName?: string): Promise<Array<{ server: string; resources: Array<Record<string, unknown>> }>>;
+  readResource(uri: string, serverName?: string): Promise<{ server: string; contents: Array<Record<string, unknown>> }>;
+}
+
+export function createMcpResourceTools(getClient: () => McpResourceClient = getDefaultMCPClient): {
+  listMcpResourcesTool: PiTool;
+  readMcpResourceTool: PiTool;
+} {
+const listMcpResourcesTool = new PiTool({
   name: 'list_mcp_resources',
   description: 'List available resources from connected MCP servers.',
   schema: z.object({
     server: z.string().optional().describe('Optional server name to filter results.'),
   }),
   func: async (input) => {
-    const client = getDefaultMCPClient();
+    const client = getClient();
     const [results] = await Promise.all([client.listResources(input.server)]);
     const upupResources = listUpupResourceTemplates();
 
@@ -88,7 +97,7 @@ export const listMcpResourcesTool = new DynamicStructuredTool({
   },
 });
 
-export const readMcpResourceTool = new DynamicStructuredTool({
+const readMcpResourceTool = new PiTool({
   name: 'read_mcp_resource',
   description: 'Read a specific resource from an MCP server by URI.',
   schema: z.object({
@@ -114,7 +123,7 @@ export const readMcpResourceTool = new DynamicStructuredTool({
       });
     }
 
-    const client = getDefaultMCPClient();
+    const client = getClient();
     const result = await client.readResource(input.uri, input.server);
 
     return JSON.stringify({
@@ -129,3 +138,10 @@ export const readMcpResourceTool = new DynamicStructuredTool({
     });
   },
 });
+
+return { listMcpResourcesTool, readMcpResourceTool };
+}
+
+const defaultMcpResourceTools = createMcpResourceTools();
+export const listMcpResourcesTool = defaultMcpResourceTools.listMcpResourcesTool;
+export const readMcpResourceTool = defaultMcpResourceTools.readMcpResourceTool;

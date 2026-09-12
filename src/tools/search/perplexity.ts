@@ -1,4 +1,4 @@
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { formatToolResult } from '../types.js';
 import { logger } from '@/utils';
@@ -48,7 +48,7 @@ async function callPerplexity(query: string): Promise<PerplexityCompletionRespon
   return response.json() as Promise<PerplexityCompletionResponse>;
 }
 
-export const perplexitySearch = new DynamicStructuredTool({
+export const perplexitySearch = new PiTool({
   name: 'web_search',
   description:
     'Search the web for current information on any topic. Returns a grounded, citation-backed answer with source URLs.',

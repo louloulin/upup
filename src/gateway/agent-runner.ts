@@ -1,12 +1,12 @@
-import { Agent } from '../agent/agent.js';
-import { InMemoryChatHistory } from '../utils/in-memory-chat-history.js';
 import { createMessageQueue, type MessageQueue, type QueuePriority } from '../utils/message-queue.js';
 import { HEARTBEAT_OK_TOKEN } from './heartbeat/suppression.js';
-import type { AgentEvent } from '../agent/types.js';
-import type { GroupContext } from '../agent/prompts.js';
+import type { AgentEvent, GroupContext } from '../runtime/pi/legacy-events.js';
+import type { UpUpAgentEvent } from '../runtime/pi/types.js';
+import { isPiSessionRunning, runPiPrompt } from '../runtime/pi/index.js';
+import type { Model } from '@earendil-works/pi-ai';
+import type { ModelRuntime } from '@earendil-works/pi-coding-agent';
 
 type SessionState = {
-  history: InMemoryChatHistory;
   tail: Promise<void>;
   queue: MessageQueue;
   isRunning: boolean;
@@ -20,7 +20,6 @@ function getSession(sessionKey: string, model: string): SessionState {
     return existing;
   }
   const created: SessionState = {
-    history: new InMemoryChatHistory(model),
     tail: Promise.resolve(),
     queue: createMessageQueue(),
     isRunning: false,
@@ -34,7 +33,7 @@ function getSession(sessionKey: string, model: string): SessionState {
  * Used by the gateway to decide whether to enqueue or start a new turn.
  */
 export function isSessionRunning(sessionKey: string): boolean {
-  return sessions.get(sessionKey)?.isRunning ?? false;
+  return isPiSessionRunning(sessionKey) || (sessions.get(sessionKey)?.isRunning ?? false);
 }
 
 /**
@@ -69,7 +68,20 @@ export type AgentRunRequest = {
   isolatedSession?: boolean;
   channel?: string;
   groupContext?: GroupContext;
+  /** Deterministic Pi injection used by contract tests and local adapters. */
+  piModel?: Model<any>;
+  piModelRuntime?: ModelRuntime;
 };
+
+function toLegacyEvent(event: UpUpAgentEvent): AgentEvent | undefined {
+  if (event.type === 'tool_start') return { type: 'tool_start', tool: event.toolName, args: (event.input ?? {}) as Record<string, unknown>, toolCallId: event.toolCallId };
+  if (event.type === 'tool_update') return { type: 'tool_progress', tool: event.toolName, message: event.text };
+  if (event.type === 'tool_end') return event.error
+    ? { type: 'tool_error', tool: event.toolName, error: event.error, toolCallId: event.toolCallId }
+    : { type: 'tool_end', tool: event.toolName, args: {}, result: '', duration: 0, toolCallId: event.toolCallId };
+  if (event.type === 'text_delta') return { type: 'stream_progress', charDelta: event.delta.length, mode: 'responding', textContent: event.delta };
+  return undefined;
+}
 
 export async function runAgentForMessage(req: AgentRunRequest): Promise<string> {
   const isolated = req.isolatedSession ?? false;
@@ -79,64 +91,51 @@ export async function runAgentForMessage(req: AgentRunRequest): Promise<string> 
   const run = async () => {
     if (session) {
       session.isRunning = true;
-      session.history.saveUserQuery(req.query);
     }
-
-    const agent = await Agent.create({
-      model: req.model,
-      modelProvider: req.modelProvider,
-      maxIterations: req.maxIterations ?? 10,
-      signal: req.signal,
-      channel: req.channel,
-      groupContext: req.groupContext,
-      memoryEnabled: !isolated,
-      messageQueue: session?.queue,
-    });
-
-    for await (const event of agent.run(req.query, { inMemoryHistory: session?.history })) {
-      await req.onEvent?.(event);
-      if (event.type === 'done') {
-        finalAnswer = event.answer;
-      }
-    }
-
-    // Post-run: drain any messages that arrived after the agent's last check
-    if (session && !session.queue.isEmpty()) {
-      const remaining = session.queue.dequeueAll();
-      const mergedText = remaining.map(m => m.text).join('\n\n');
-      session.history.saveUserQuery(mergedText);
-
-      const followUp = await Agent.create({
+    try {
+      finalAnswer = await runPiPrompt(req.query, {
+        sessionKey: isolated ? undefined : req.sessionKey,
         model: req.model,
         modelProvider: req.modelProvider,
-        maxIterations: req.maxIterations ?? 10,
+        modelInstance: req.piModel,
+        modelRuntime: req.piModelRuntime,
         signal: req.signal,
-        channel: req.channel,
-        groupContext: req.groupContext,
-        memoryEnabled: !isolated,
-        messageQueue: session.queue,
+        onEvent: async (event) => {
+          const legacy = toLegacyEvent(event);
+          if (legacy) await req.onEvent?.(legacy);
+        },
       });
 
-      for await (const event of followUp.run(mergedText, { inMemoryHistory: session.history })) {
-        await req.onEvent?.(event);
-        if (event.type === 'done') {
-          finalAnswer = event.answer;
-        }
+      // Post-run: drain any messages that arrived after the agent's last check
+      if (session && !session.queue.isEmpty()) {
+        const remaining = session.queue.dequeueAll();
+        const mergedText = remaining.map(m => m.text).join('\n\n');
+        finalAnswer = await runPiPrompt(mergedText, {
+          sessionKey: isolated ? undefined : req.sessionKey,
+          model: req.model,
+          modelProvider: req.modelProvider,
+          modelInstance: req.piModel,
+          modelRuntime: req.piModelRuntime,
+          signal: req.signal,
+        });
       }
+
+      // Prune HEARTBEAT_OK turns to avoid context pollution
+      if (session && req.isHeartbeat && finalAnswer.trim().toUpperCase().includes(HEARTBEAT_OK_TOKEN)) {
+        finalAnswer = '';
+      }
+
+      await req.onEvent?.({
+        type: 'done',
+        answer: finalAnswer,
+        toolCalls: [],
+        iterations: 0,
+        totalTime: 0,
+      });
+    } finally {
+      if (session) session.isRunning = false;
     }
 
-    if (finalAnswer && session) {
-      await session.history.saveAnswer(finalAnswer);
-    }
-
-    // Prune HEARTBEAT_OK turns to avoid context pollution
-    if (session && req.isHeartbeat && finalAnswer.trim().toUpperCase().includes(HEARTBEAT_OK_TOKEN)) {
-      session.history.pruneLastTurn();
-    }
-
-    if (session) {
-      session.isRunning = false;
-    }
   };
 
   if (session) {

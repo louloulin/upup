@@ -41,7 +41,7 @@ import type {
   ToolEndEvent,
   ToolErrorEvent,
   ToolStartEvent,
-} from './agent/index.js';
+} from './runtime/pi/legacy-events.js';
 import { initialPermissionModeFromCLI } from './utils/permissions/permissionSetup.js'
 import { setPermissionMode } from './session/session-state.js'
 import type { PermissionCliArgs } from './utils/permissions/types.js'

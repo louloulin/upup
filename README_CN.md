@@ -98,10 +98,10 @@
 
 | 模块 / 文件 | 上游 dexter | UpUp 现状 | 改动类型 |
 |---|---|---|---|
-| `src/agent/agent.ts` | 692 行的工具调用循环 | 加深拷贝 + Plan Mode 钩子 + 投资 subagent 编排 | 增强 |
+| `src/agent/agent.ts` | 历史自定义工具调用循环 | 已删除；生产执行统一由 `src/runtime/pi/` 的 Pi AgentSession 提供 | 替换 |
 | `src/tools/registry.ts` | 简单注册表 | 64+ 工具,3 层权限校验,env-var 条件启用 | 大幅扩展 |
 | `src/skills/registry.ts` | 扫描 `src/skills/` | + `bundled/` 目录 + 热重载 + i18n helper + 最近使用计数 | 重写 |
-| `src/model/llm.ts` | 4 provider 路由 | + `DEFAULT_PROVIDER='deepseek'` 翻转 + Anthropic prompt caching 优化 + token 计量重写 + Chinese 模型 ID (kimi-k2-5 / deepseek-v4-pro) | 扩展 |
+| `src/model/llm.ts` | 历史 4 provider 路由 | 已删除；模型与 streaming 统一由 `src/runtime/pi/model.ts` / `pi-ai` 提供 | 替换 |
 | 金融数据接口 | Financial Datasets(美股) | Tushare + AKShare + 东方财富 fallback,统一抽象层 | 重写 |
 | `src/components/` | Ink 渲染 | + `status-hint.ts` 单行状态 + Ink + pi-tui 单点接管 | 替换 |
 | 渲染层 | Ink | Ink + pi-tui 复用 + `CombinedAutocompleteProvider` 单点 | 复用 + 单点化 |
@@ -242,12 +242,12 @@
 
 | 步骤 | UpUp | upstream dexter |
 |---|---|---|
-| 1. 用户输入 | CLI 接收 → `src/cli.tsx:Editor` → `src/agent/agent.ts:runLoop()` | 同上(继承) |
-| 2. LLM 决策 | `src/model/llm.ts:createLLM()` → 默认 `deepseek-v4-flash`(`DEFAULT_PROVIDER='deepseek'`) | 默认 `gpt-5.5`(`DEFAULT_PROVIDER='openai'`) |
+| 1. 用户输入 | CLI 接收 → `src/cli.tsx:Editor` → `src/runtime/pi/event-stream.ts` | Pi AgentSession |
+| 2. LLM 决策 | `src/runtime/pi/model.ts` → Pi provider/model registry | Pi `pi-ai` streaming |
 | 3. 工具匹配 | `src/tools/registry/index.ts:getToolRegistry()` 返回按模型裁剪后的工具集 → LLM 选 `get_stock_price` | `src/tools/registry.ts:getToolRegistry()` 返回全量工具 |
 | 4. 数据获取 | `src/tools/finance/stock-price.ts → getStockPrice('AAPL')` → `https://api.financialdatasets.ai/...`(美股) | 同接口 |
 | 5. A 股 fallback | `src/tools/astock/*` 12 个工具(Tushare Pro + AKShare + 东方财富 fallback)自动接管 | ❌ 无 A 股路径 |
-| 6. 结果回填 | `src/agent/scratchpad.ts → recordToolResult()`(单点写入) | 同上(继承) |
+| 6. 结果回填 | Pi tool result / Session entries → UpUp event and evidence adapters | Pi Session 单一状态源 |
 
 > 一句话总结:UpUp 在第 2 步(默认 provider)与第 5 步(A 股 fallback)插入了中国场景分支,其他步骤与上游一致。
 
@@ -268,10 +268,10 @@
 | 阶段 | UpUp | upstream dexter |
 |---|---|---|
 | 用户输入 `/invest` | `src/commands/investment/invest.ts` 进入 5 阶段状态机 | ❌ 无 `/invest` 命令 |
-| Phase 1 detect | `src/agent/investment-workflow-hooks.ts` + `src/agent/subagent.ts`(意图识别) | n/a |
+| Phase 1 detect | `src/runtime/pi/intent-detector/` + Pi investment profiles(意图识别) | n/a |
 | Phase 2 plan | `src/plan/` + `src/commands/investment/plan-display.tsx` Ink 渲染计划 → 用户审阅 | n/a |
-| Phase 3 execute | `src/coordinator/`(4 worker pool)+ `src/multi-agent/`(编排)+ 5 个 `src/agent/subagent-*.ts` | n/a |
-| Phase 4 verify | `src/agent/verification-hooks.ts`(投研一致性检查) | n/a |
+| Phase 3 execute | `src/coordinator/`(4 worker pool)+ `src/multi-agent/`(编排)+ Pi-backed workers | n/a |
+| Phase 4 verify | `src/runtime/pi/` workflow/evidence adapters(投研一致性检查) | n/a |
 | Phase 5 report | `src/commands/investment/registry.ts` 把 dossier/strategy/earnings-preview/portfolio-review/risk-dashboard 写入 `.upup/runs/<id>/` | n/a |
 | 审计链 | `src/telemetry/` + `src/session/`(每次 tool call 写入事件流) | n/a |
 
@@ -287,7 +287,7 @@
 
 | 模块 | 说明 |
 |---|---|
-| Agent Loop | `src/agent/agent.ts` 工具调用循环(已加深拷贝 + 改造) |
+| Agent Loop | Pi `AgentSession` / `pi-agent-core` 工具调用循环；UpUp 不再维护自定义 loop |
 | Tool Registry | 工具条件注册机制(已扩展为 296 个) |
 | Skill 协议 | `SKILL.md` YAML frontmatter + markdown body(已统一注册路径) |
 | 渲染层 | Ink(React for CLI)+ pi-tui 复用 |
@@ -304,7 +304,7 @@
 | **专用投资命令** | `/dossier` `/earnings-preview` `/strategy` `/screen` `/morning-brief` `/portfolio-review` `/risk-dashboard` `/watchlist-edit` |
 | **4 运行时插件** | `bun` / `jiti` / `wasm` / `mcp` runtime adapter(`src/plugins/adapters/`) |
 | **i18n(EN + zh-CN)** | `src/i18n/strings.ts`,组件 / Prompt / Skill 描述全双语,强类型 key,缺译测试 fail |
-| **多 Agent 协同** | `src/agent/subagent*` + 投资 subagent(含 `investment-subagents`) |
+| **多 Agent 协同** | `src/multi-agent/` + `src/coordinator/` + Pi 投资 profiles(含 `investment-subagents`) |
 | **Session 2.0** | 计划模式、自动压缩、Loop 恢复、停止 hook(参考 Claude Code) |
 | **Memory 系统** | `packages/memory` + 观察缓冲 + 抽取 hook |
 | **18 个 workspace package** | adapter-paperclip / agent-core / commands / cron / daemon / gateway / hooks / keybindings / llm / mcp / memory / plugin-sdk / plugins / sdk / skills / state / types / utils |
@@ -318,7 +318,7 @@
 | 类别 | 特性 |
 |---|---|
 | 🇨🇳 **A 股原生** | Tushare Pro + AKShare + 东方财富,覆盖 5000+ 标的 |
-| 🤖 **Agent Loop** | Claude Code 风格的工具调用 + Scratchpad + 自动压缩 + Loop 恢复 |
+| 🤖 **Agent Loop** | Pi AgentSession 工具调用 + Session tree + 自动压缩 + Loop 恢复 |
 | 📊 **50+ 投资 Skill** | DCF / 技术 / 回测 / 行业 / 风险 / 估值 / 组合 / 阿尔法 — 完整文件级 SKILL.md |
 | 🎯 **5 阶段投资工作流** | `/invest`:detect → plan → execute → verify → report |
 | 🔌 **4 运行时插件** | `bun` / `jiti` / `wasm` / `mcp`,安全 / 性能可调 |

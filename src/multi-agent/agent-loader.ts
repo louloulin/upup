@@ -10,7 +10,7 @@
  * 格式参考SKILL.md:
  * ---
  * name: my-agent
- * description: My custom agent
+ * description: My Pi agent
  * agentType: researcher
  * context: fork
  * model: gpt-5.4
@@ -28,10 +28,10 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'fs';
 import { join, basename } from 'path';
 import { AGENTS_DIR, projectAgentsDir, projectAgentsDirAlt } from '../utils/storage-paths.js';
 import { info, warn, error as logError } from '../utils/logging/logger.js';
-import { getCustomAgentRegistry, type CustomAgentConfig } from './agent-registry.js';
+import { getPiAgentRegistry, type PiAgentSpecInput } from './agent-registry.js';
 import { getAllSpecializedSkills } from '../skills/bundled/index.js';
 
-export interface MarkdownAgentDefinition {
+export interface PiAgentFileSpec {
   /** Unique agent ID (from filename or frontmatter) */
   id: string;
   /** Agent name (from frontmatter or filename) */
@@ -126,7 +126,7 @@ function parseFrontmatter(content: string): { frontmatter: Record<string, unknow
 /**
  * Load a single markdown agent file
  */
-function loadMarkdownAgent(filePath: string, scope: 'global' | 'project'): MarkdownAgentDefinition | null {
+function loadMarkdownAgent(filePath: string, scope: 'global' | 'project'): PiAgentFileSpec | null {
   try {
     if (!existsSync(filePath)) {
       return null;
@@ -151,12 +151,12 @@ function loadMarkdownAgent(filePath: string, scope: 'global' | 'project'): Markd
       skills = extractSkillsFromBody(body);
     }
 
-    const agent: MarkdownAgentDefinition = {
+    const agent: PiAgentFileSpec = {
       id,
       name,
       description: (frontmatter.description as string) || '',
-      agentType: frontmatter.agentType as MarkdownAgentDefinition['agentType'],
-      context: frontmatter.context as MarkdownAgentDefinition['context'],
+      agentType: frontmatter.agentType as PiAgentFileSpec['agentType'],
+      context: frontmatter.context as PiAgentFileSpec['context'],
       model: frontmatter.model as string,
       tools: frontmatter.tools as string[] | undefined,
       skills,
@@ -252,7 +252,7 @@ function findAgentFiles(dir: string, extensions: string[]): string[] {
  */
 export class AgentLoader {
   private config: AgentLoaderConfig;
-  private loadedAgents: Map<string, MarkdownAgentDefinition> = new Map();
+  private loadedAgents: Map<string, PiAgentFileSpec> = new Map();
   private globalDir: string;
   private projectDirs: string[];
 
@@ -265,8 +265,8 @@ export class AgentLoader {
   /**
    * Load all agents from configured sources
    */
-  loadAll(): MarkdownAgentDefinition[] {
-    const agents: MarkdownAgentDefinition[] = [];
+  loadAll(): PiAgentFileSpec[] {
+    const agents: PiAgentFileSpec[] = [];
 
     // Load global agents
     if (this.config.enableGlobal) {
@@ -294,9 +294,9 @@ export class AgentLoader {
   /**
    * Load agents from global directory (~/.upup/agents/)
    */
-  loadGlobalAgents(): MarkdownAgentDefinition[] {
+  loadGlobalAgents(): PiAgentFileSpec[] {
     const files = findAgentFiles(this.globalDir, this.config.extensions || ['.md', '.markdown']);
-    const agents: MarkdownAgentDefinition[] = [];
+    const agents: PiAgentFileSpec[] = [];
 
     for (const file of files) {
       const agent = loadMarkdownAgent(file, 'global');
@@ -312,8 +312,8 @@ export class AgentLoader {
   /**
    * Load agents from project directories (.agents/ or agents/)
    */
-  loadProjectAgents(): MarkdownAgentDefinition[] {
-    const agents: MarkdownAgentDefinition[] = [];
+  loadProjectAgents(): PiAgentFileSpec[] {
+    const agents: PiAgentFileSpec[] = [];
 
     for (const dir of this.projectDirs) {
       const files = findAgentFiles(dir, this.config.extensions || ['.md', '.markdown']);
@@ -333,28 +333,28 @@ export class AgentLoader {
   /**
    * Get a specific agent by ID
    */
-  getAgent(id: string): MarkdownAgentDefinition | undefined {
+  getAgent(id: string): PiAgentFileSpec | undefined {
     return this.loadedAgents.get(id);
   }
 
   /**
    * Get all loaded agents
    */
-  getAllAgents(): MarkdownAgentDefinition[] {
+  getAllAgents(): PiAgentFileSpec[] {
     return Array.from(this.loadedAgents.values());
   }
 
   /**
    * Get agents by scope
    */
-  getAgentsByScope(scope: 'global' | 'project'): MarkdownAgentDefinition[] {
+  getAgentsByScope(scope: 'global' | 'project'): PiAgentFileSpec[] {
     return this.getAllAgents().filter(a => a.scope === scope);
   }
 
   /**
    * Get agents by skill
    */
-  getAgentsBySkill(skillName: string): MarkdownAgentDefinition[] {
+  getAgentsBySkill(skillName: string): PiAgentFileSpec[] {
     return this.getAllAgents().filter(a => 
       a.skills && a.skills.some(s => s.toLowerCase() === skillName.toLowerCase())
     );
@@ -363,21 +363,21 @@ export class AgentLoader {
   /**
    * Reload all agents
    */
-  reload(): MarkdownAgentDefinition[] {
+  reload(): PiAgentFileSpec[] {
     this.loadedAgents.clear();
     return this.loadAll();
   }
 
   /**
-   * Register loaded agents with CustomAgentRegistry
+   * Register loaded agents with PiAgentRegistry
    */
   registerAll(): number {
-    const registry = getCustomAgentRegistry();
+    const registry = getPiAgentRegistry();
     let registered = 0;
 
     for (const agentDef of this.loadedAgents.values()) {
       try {
-        const config: CustomAgentConfig = {
+        const config: PiAgentSpecInput = {
           id: agentDef.id,
           name: agentDef.name,
           description: agentDef.description,
@@ -404,7 +404,7 @@ export class AgentLoader {
   /**
    * Build system prompt with skills section
    */
-  buildSystemPromptWithSkills(agent: MarkdownAgentDefinition): string {
+  buildSystemPromptWithSkills(agent: PiAgentFileSpec): string {
     let prompt = agent.systemPrompt;
     
     if (agent.skills && agent.skills.length > 0) {

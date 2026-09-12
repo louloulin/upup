@@ -10,9 +10,8 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import type { Tool as MCPTool } from '@modelcontextprotocol/sdk/types.js';
 import { ToolListChangedNotificationSchema, ResourceListChangedNotificationSchema } from '@modelcontextprotocol/sdk/types.js';
-import type { StructuredToolInterface } from '@langchain/core/tools';
 import { z } from 'zod';
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../runtime/pi/tool.js';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { EventEmitter } from 'events';
@@ -98,8 +97,8 @@ export class MCPClientManager extends EventEmitter {
   private transports: Map<string, any> = new Map();
   private connections: Map<string, MCPServerConnection> = new Map();
   private config: MCPClientConfig;
-  private tools: StructuredToolInterface[] = [];
-  private toolCallbacks: Set<(tools: StructuredToolInterface[]) => void> = new Set();
+  private tools: PiTool[] = [];
+  private toolCallbacks: Set<(tools: PiTool[]) => void> = new Set();
   private healthCheckInterval: ReturnType<typeof setInterval> | null = null;
   private reconnectAttempts: Map<string, number> = new Map();
   private readonly MAX_RECONNECT_ATTEMPTS = 3;
@@ -262,8 +261,8 @@ export class MCPClientManager extends EventEmitter {
         connection.tools = toolsResult.tools || [];
       }
 
-      // Convert MCP tools to LangChain tools
-      await this.updateLangChainTools(serverName);
+      // Convert MCP tools to Pi-compatible tools.
+      await this.updatePiTools(serverName);
 
     } catch (error) {
       logError('mcp', `Failed to refresh tools from ${serverName}: ${error instanceof Error ? error.message : String(error)}`);
@@ -271,13 +270,13 @@ export class MCPClientManager extends EventEmitter {
   }
 
   /**
-   * Convert MCP tool to LangChain DynamicStructuredTool
+   * Convert MCP tool to the Pi-compatible tool contract.
    */
-  private mcpToolToLangChainTool(
+  private mcpToolToPiTool(
     mcpTool: MCPTool,
     serverName: string,
     client: any
-  ): StructuredToolInterface {
+  ): PiTool {
     const toolName = `mcp__${serverName}__${mcpTool.name}`;
     const description = mcpTool.description || `MCP tool: ${mcpTool.name}`;
 
@@ -317,7 +316,7 @@ export class MCPClientManager extends EventEmitter {
       }
     }
 
-    return new DynamicStructuredTool({
+    return new PiTool({
       name: toolName,
       description,
       schema,
@@ -346,20 +345,20 @@ export class MCPClientManager extends EventEmitter {
   }
 
   /**
-   * Update LangChain tools from all servers
+   * Update Pi tools from all servers
    */
-  private async updateLangChainTools(serverName: string): Promise<void> {
+  private async updatePiTools(serverName: string): Promise<void> {
     const client = this.clients.get(serverName);
     const connection = this.connections.get(serverName);
     if (!client || !connection) return;
 
-    const langChainTools = connection.tools.map(tool =>
-      this.mcpToolToLangChainTool(tool, serverName, client)
+    const piTools = connection.tools.map(tool =>
+      this.mcpToolToPiTool(tool, serverName, client)
     );
 
     // Update or add tools for this server
     this.tools = this.tools.filter(t => !t.name.startsWith(`mcp__${serverName}__`));
-    this.tools.push(...langChainTools);
+    this.tools.push(...piTools);
 
     // Notify listeners
     this.toolCallbacks.forEach(cb => cb(this.tools));
@@ -438,16 +437,16 @@ export class MCPClientManager extends EventEmitter {
   }
 
   /**
-   * Get all LangChain tools from all connected servers
+   * Get all Pi tools from all connected servers
    */
-  getTools(): StructuredToolInterface[] {
+  getTools(): PiTool[] {
     return this.tools;
   }
 
   /**
    * Get tools for a specific server
    */
-  getToolsForServer(serverName: string): StructuredToolInterface[] {
+  getToolsForServer(serverName: string): PiTool[] {
     return this.tools.filter(t => t.name.startsWith(`mcp__${serverName}__`));
   }
 
@@ -485,7 +484,7 @@ export class MCPClientManager extends EventEmitter {
   /**
    * Subscribe to tool updates
    */
-  onToolsChange(callback: (tools: StructuredToolInterface[]) => void): () => void {
+  onToolsChange(callback: (tools: PiTool[]) => void): () => void {
     this.toolCallbacks.add(callback);
     return () => this.toolCallbacks.delete(callback);
   }

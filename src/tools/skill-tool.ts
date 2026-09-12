@@ -13,11 +13,18 @@
  */
 
 import { z } from 'zod';
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../runtime/pi/tool.js';
 import { discoverSkills, getSkill } from '../skills/registry.js';
 import type { SkillMetadata, Skill, SkillContext } from '../skills/types.js';
-import type { SubagentRunner } from '../agent/subagent.js';
+import type { PiSubagentService } from '../runtime/pi/subagent.js';
 import { executeSkill, getExecutionMode, shouldUseForkMode } from '../skills/executor.js';
+
+export interface SkillToolDependencies {
+  discoverSkills: () => SkillMetadata[];
+  getSkill: (name: string) => Skill | undefined;
+}
+
+const defaultSkillToolDependencies: SkillToolDependencies = { discoverSkills, getSkill };
 
 // ============================================================================
 // Schemas
@@ -197,14 +204,14 @@ function formatSkillInstructions(skill: Skill, args?: string): string {
 // Tool Factories
 // ============================================================================
 
-export function createSkillListTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createSkillListTool(dependencies: SkillToolDependencies = defaultSkillToolDependencies): PiTool {
+  return new PiTool({
     name: 'skill_list',
     description: SKILL_LIST_DESCRIPTION,
     schema: SkillListSchema,
     async func(input): Promise<string> {
       try {
-        let skills = discoverSkills();
+        let skills = dependencies.discoverSkills();
 
         if (input.category) {
           const cat = input.category.toLowerCase();
@@ -219,14 +226,14 @@ export function createSkillListTool(): DynamicStructuredTool {
   });
 }
 
-export function createSkillExecuteTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createSkillExecuteTool(dependencies: SkillToolDependencies = defaultSkillToolDependencies): PiTool {
+  return new PiTool({
     name: 'skill_execute',
     description: SKILL_EXECUTE_DESCRIPTION,
     schema: SkillExecuteSchema,
     async func(input): Promise<string> {
       try {
-        const skill = getSkill(input.name);
+        const skill = dependencies.getSkill(input.name);
 
         if (!skill) {
           return `Skill not found: "${input.name}". Use skill_list to see available skills.`;
@@ -254,14 +261,14 @@ export function createSkillExecuteTool(): DynamicStructuredTool {
   });
 }
 
-export function createSkillInfoTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createSkillInfoTool(dependencies: SkillToolDependencies = defaultSkillToolDependencies): PiTool {
+  return new PiTool({
     name: 'skill_info',
     description: SKILL_INFO_DESCRIPTION,
     schema: SkillInfoSchema,
     async func(input): Promise<string> {
       try {
-        const skills = discoverSkills();
+        const skills = dependencies.discoverSkills();
         const skill = skills.find((s) => s.name === input.name);
 
         if (!skill) {
@@ -276,14 +283,14 @@ export function createSkillInfoTool(): DynamicStructuredTool {
   });
 }
 
-export function createSkillSearchTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createSkillSearchTool(dependencies: SkillToolDependencies = defaultSkillToolDependencies): PiTool {
+  return new PiTool({
     name: 'skill_search',
     description: SKILL_SEARCH_DESCRIPTION,
     schema: SkillSearchSchema,
     async func(input): Promise<string> {
       try {
-        const skills = discoverSkills();
+        const skills = dependencies.discoverSkills();
         const query = input.query.toLowerCase();
         const limit = input.limit || 5;
 

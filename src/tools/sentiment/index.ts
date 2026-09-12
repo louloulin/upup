@@ -10,10 +10,9 @@
  * This tool uses LLM-based sentiment analysis on fetched data.
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { getTushareClient } from '../astock/tushare-client';
-import type { StructuredToolInterface } from '@langchain/core/tools';
 
 export const GET_SENTIMENT_DESCRIPTION = `## get_sentiment
 Analyze market sentiment for Chinese A-share stocks.
@@ -99,8 +98,8 @@ function getSentimentLabel(score: number): string {
   return 'Very Bearish (强烈看空)';
 }
 
-export function createGetSentiment(_model: string): StructuredToolInterface {
-  return new DynamicStructuredTool({
+export function createGetSentiment(_model: string): PiTool {
+  return new PiTool({
     name: 'get_sentiment',
     description: GET_SENTIMENT_DESCRIPTION,
     schema: GetSentimentSchema,

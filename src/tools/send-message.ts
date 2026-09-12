@@ -8,7 +8,7 @@
  */
 
 import { z } from 'zod';
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../runtime/pi/tool.js';
 import { getTeamCoordinator } from '../subagent/team-coordination.js';
 
 // ============================================================================
@@ -144,8 +144,8 @@ const messageStore = new AgentMessageStore();
 // Tool Factory
 // ============================================================================
 
-export function createSendMessageTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createSendMessageTool(): PiTool {
+  return new PiTool({
     name: 'send_message',
     description: SEND_MESSAGE_DESCRIPTION,
     schema: SendMessageSchema,

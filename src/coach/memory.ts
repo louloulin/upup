@@ -15,7 +15,7 @@
 import { createHash } from 'node:crypto';
 import { EncryptedMemoryStore } from '../memory/encrypted-store.js';
 import { upupPath, globalUpupPath } from '../utils/paths.js';
-import { isCoachEnabled } from '../agent/role-system.js';
+import { isCoachEnabled } from '../runtime/pi/role-system.js';
 
 // ---------------------------------------------------------------------------
 // Types

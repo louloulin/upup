@@ -6,7 +6,7 @@
  */
 
 import { z } from 'zod';
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 
 // ============================================================================
 // Types
@@ -304,8 +304,8 @@ Returns a markdown report with signal and recommendation.`;
 // Tool Factory
 // ============================================================================
 
-export function createDecisionDashboardTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createDecisionDashboardTool(): PiTool {
+  return new PiTool({
     name: 'decision_dashboard',
     description: DECISION_DASHBOARD_DESCRIPTION,
     schema: DecisionDashboardSchema,

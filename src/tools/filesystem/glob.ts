@@ -5,7 +5,7 @@
  * Uses native glob patterns to find files matching the specified pattern.
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import G from 'glob';
 const globSync = G.sync;
@@ -55,8 +55,8 @@ Examples:
 /**
  * Build the GlobTool
  */
-export function buildGlobTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function buildGlobTool(): PiTool {
+  return new PiTool({
     name: GLOB_TOOL_NAME,
     description: GLOB_TOOL_DESCRIPTION,
     schema: GlobToolInputSchema,
@@ -131,9 +131,9 @@ export function buildGlobTool(): DynamicStructuredTool {
 /**
  * Get the singleton GlobTool instance
  */
-let globToolInstance: DynamicStructuredTool | null = null;
+let globToolInstance: PiTool | null = null;
 
-export function getGlobTool(): DynamicStructuredTool {
+export function getGlobTool(): PiTool {
   if (!globToolInstance) {
     globToolInstance = buildGlobTool();
   }

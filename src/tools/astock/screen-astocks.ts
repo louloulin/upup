@@ -1,4 +1,4 @@
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { getTushareClient } from './tushare-client';
 import { screenStocks } from './screener-client';
@@ -26,7 +26,7 @@ const ScreenAStocksSchema = z.object({
   limit: z.number().optional().describe('Max results to return (default: 50)'),
 });
 
-export const screenAstocks = new DynamicStructuredTool({
+export const screenAstocks = new PiTool({
   name: 'screen_astocks',
   description: SCREEN_ASTOCKS_DESCRIPTION,
   schema: ScreenAStocksSchema,

@@ -9,7 +9,7 @@
  */
 
 import { z } from 'zod';
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { randomUUID } from 'crypto';
 
 // ============================================================================
@@ -241,8 +241,8 @@ export const DeleteTodoSchema = z.object({
 /**
  * Create the CreateTodo tool
  */
-export function createCreateTodoTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createCreateTodoTool(): PiTool {
+  return new PiTool({
     name: 'create_todo',
     description: CREATE_TODO_DESCRIPTION,
     schema: CreateTodoSchema,
@@ -266,8 +266,8 @@ Stats: ${stats.pending} pending, ${stats.inProgress} in progress, ${stats.comple
 /**
  * Create the UpdateTodo tool
  */
-export function createUpdateTodoTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createUpdateTodoTool(): PiTool {
+  return new PiTool({
     name: 'update_todo',
     description: UPDATE_TODO_DESCRIPTION,
     schema: UpdateTodoSchema,
@@ -306,8 +306,8 @@ Stats: ${stats.pending} pending, ${stats.inProgress} in progress, ${stats.comple
 /**
  * Create the ListTodos tool
  */
-export function createListTodosTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createListTodosTool(): PiTool {
+  return new PiTool({
     name: 'list_todos',
     description: LIST_TODOS_DESCRIPTION,
     schema: ListTodosSchema,
@@ -348,8 +348,8 @@ export function createListTodosTool(): DynamicStructuredTool {
 /**
  * Create the DeleteTodo tool
  */
-export function createDeleteTodoTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createDeleteTodoTool(): PiTool {
+  return new PiTool({
     name: 'delete_todo',
     description: DELETE_TODO_DESCRIPTION,
     schema: DeleteTodoSchema,

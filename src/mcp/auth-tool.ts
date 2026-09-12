@@ -10,7 +10,7 @@
  */
 
 import { z } from 'zod';
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../runtime/pi/tool.js';
 import { upupPath, ensureDir } from '../utils/paths.js';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join } from 'path';
@@ -136,8 +136,8 @@ Use this when:
 // Tool Factories
 // ============================================================================
 
-export function createMcpAuthSetTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createMcpAuthSetTool(): PiTool {
+  return new PiTool({
     name: 'mcp_auth_set',
     description: MCP_AUTH_SET_DESCRIPTION,
     schema: McpAuthSetSchema,
@@ -162,8 +162,8 @@ export function createMcpAuthSetTool(): DynamicStructuredTool {
   });
 }
 
-export function createMcpAuthGetTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createMcpAuthGetTool(): PiTool {
+  return new PiTool({
     name: 'mcp_auth_get',
     description: MCP_AUTH_GET_DESCRIPTION,
     schema: McpAuthGetSchema,
@@ -191,8 +191,8 @@ export function createMcpAuthGetTool(): DynamicStructuredTool {
   });
 }
 
-export function createMcpAuthClearTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createMcpAuthClearTool(): PiTool {
+  return new PiTool({
     name: 'mcp_auth_clear',
     description: MCP_AUTH_CLEAR_DESCRIPTION,
     schema: McpAuthClearSchema,

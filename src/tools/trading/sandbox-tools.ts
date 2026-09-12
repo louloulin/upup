@@ -1,13 +1,13 @@
 /**
- * Sandbox Trading Tools (LangChain wrapper)
+ * Sandbox Trading Tools (Pi-compatible wrapper)
  *
- * Wraps SandboxBroker as LangChain tools so the UpUp agent can place paper
+ * Wraps SandboxBroker as Pi tools so the UpUp agent can place paper
  * trades. Companion to sandbox-engine.ts.
  *
  * Spec: openspec/changes/top-tier-investment-assistant/specs/broker-adapter
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { formatToolResult } from '../types.js';
 import { SandboxBroker } from './sandbox-engine.js';
@@ -50,7 +50,7 @@ const getQuoteSchema = z.object({
 // ============================================================================
 
 export const createPlaceTradeOrderTool = () =>
-  new DynamicStructuredTool({
+  new PiTool({
     name: 'place_trade_order',
     description: `Place a paper trade order in the sandbox broker. Use this to simulate buying or selling a stock without using real money. Returns order status (filled / pending / rejected), fill price, and commission.
 
@@ -75,7 +75,7 @@ Common usage:
   });
 
 export const createCancelTradeOrderTool = () =>
-  new DynamicStructuredTool({
+  new PiTool({
     name: 'cancel_trade_order',
     description: 'Cancel a pending sandbox order. Cannot cancel filled or already-cancelled orders.',
     schema: cancelOrderSchema,
@@ -91,7 +91,7 @@ export const createCancelTradeOrderTool = () =>
   });
 
 export const createGetTradingPositionsTool = () =>
-  new DynamicStructuredTool({
+  new PiTool({
     name: 'get_trading_positions',
     description: `Get current open positions in the sandbox broker. Returns array of {symbol, quantity, avgCost, realizedPnL, openedAt}. Use this to see what's currently held in the paper trading account.`,
     schema: z.object({}),
@@ -103,7 +103,7 @@ export const createGetTradingPositionsTool = () =>
   });
 
 export const createGetTradingBalanceTool = () =>
-  new DynamicStructuredTool({
+  new PiTool({
     name: 'get_trading_balance',
     description: `Get sandbox broker account balance: {cash, marketValue, totalEquity, currency}. Use to see available buying power and total portfolio value.`,
     schema: z.object({}),
@@ -114,7 +114,7 @@ export const createGetTradingBalanceTool = () =>
   });
 
 export const createGetTradeQuoteTool = () =>
-  new DynamicStructuredTool({
+  new PiTool({
     name: 'get_trade_quote',
     description: 'Get current quote (bid / ask / last) for a symbol in the sandbox. Useful to check price before placing an order.',
     schema: getQuoteSchema,

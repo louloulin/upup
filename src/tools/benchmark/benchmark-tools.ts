@@ -9,7 +9,7 @@
  * - Tracking error
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 
 export interface BenchmarkReturn {
@@ -128,7 +128,7 @@ export function compareToBenchmarks(
 const listBenchmarksSchema = z.object({});
 
 export function createListBenchmarksTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'list_benchmarks',
     description: 'List available market benchmarks for performance comparison.',
     schema: listBenchmarksSchema,
@@ -149,7 +149,7 @@ const compareBenchmarkSchema = z.object({
 });
 
 export function createCompareBenchmarkTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'compare_to_benchmark',
     description: 'Compare portfolio performance against market benchmarks to measure alpha.',
     schema: compareBenchmarkSchema,
@@ -183,7 +183,7 @@ const calculateAlphaSchema = z.object({
 });
 
 export function createCalculateAlphaTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'calculate_alpha',
     description: 'Calculate portfolio alpha (excess return) relative to a benchmark.',
     schema: calculateAlphaSchema,

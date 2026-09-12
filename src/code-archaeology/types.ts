@@ -4,7 +4,7 @@
  * 目标:把 upup 整个 src/ 扫成结构化数据,生成 docs/CODE-MAP.md + 模块依赖图。
  * 与 loucode "自动读 code + 总结" 能力对标。
  */
-import type { CapabilityGroup } from '../agent/capability-manifest.js';
+import type { CapabilityGroup } from '../runtime/pi/capability-manifest.js';
 
 /** 5 层架构(来自 v3 claude-code-5layer spec) */
 export type Layer = 'L1' | 'L2' | 'L3' | 'L4' | 'L5' | 'other';

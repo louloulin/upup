@@ -26,7 +26,7 @@
  *        loucode CLAUDE_CODE_COORDINATOR_MODE pattern).
  */
 
-import { featureGates } from '../agent/feature-gates.js';
+import { featureGates } from '../runtime/pi/feature-gates.js';
 
 export const COORDINATOR_MODE_GATE = 'COORDINATOR_MODE' as const;
 

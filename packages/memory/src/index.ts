@@ -1,329 +1,83 @@
-/**
- * @upup/memory - UpUp Memory SDK
- *
- * Memvid-based storage with BM25 search.
- * No external embedding API dependency.
- *
- * @example
- * ```typescript
- * import { MemoryStore } from '@upup/memory';
- *
- * const store = new MemoryStore({ path: './memory' });
- * await store.put('Hello world', { name: 'greeting' });
- * const results = await store.search('hello');
- * console.log(results);
- * ```
- */
+export type { MemoryEntry, SearchResult, SearchOptions } from '@upup/types';
 
-// Re-export types from @upup/types
-export type {
-  MemoryEntry,
-  SearchResult,
-  SearchOptions,
-} from '@upup/types';
-
-import { create, use, maskPii } from '@memvid/sdk';
-import type { Memvid } from '@memvid/sdk';
+import { appendFile, mkdir, readFile, stat } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import type { MemoryEntry, SearchResult, SearchOptions } from '@upup/types';
 
-// ===== Configuration =====
+export interface MemoryOptions { path?: string; maxSize?: number; enableLex?: boolean }
+export interface PutOptions { type?: 'user' | 'feedback' | 'project' | 'reference'; name?: string; metadata?: Record<string, unknown> }
+export interface SemanticSearchOptions extends SearchOptions { minScore?: number }
+export interface AskOptions { model?: string; apiKey?: string; contextOnly?: boolean; mode?: 'auto' | 'lex' | 'sem'; k?: number }
 
-export interface MemoryOptions {
-  /** Directory to store memory files */
-  path?: string;
-  /** Maximum size in bytes */
-  maxSize?: number;
-  /** Enable BM25 index (default: true) */
-  enableLex?: boolean;
-}
+interface StoredMemory extends MemoryEntry { tags: string[] }
 
-export interface PutOptions {
-  /** Memory type */
-  type?: 'user' | 'feedback' | 'project' | 'reference';
-  /** Memory name */
-  name?: string;
-  /** Custom metadata */
-  metadata?: Record<string, unknown>;
-}
-
-export interface SemanticSearchOptions extends SearchOptions {
-  /** Minimum relevance score (0-1) */
-  minScore?: number;
-}
-
-export interface AskOptions {
-  /** Model to use */
-  model?: string;
-  /** API key for LLM */
-  apiKey?: string;
-  /** Return only context without answer */
-  contextOnly?: boolean;
-  /** Search mode */
-  mode?: 'auto' | 'lex' | 'sem';
-  /** Number of results */
-  k?: number;
-}
-
-// ===== MemoryStore =====
-
-/**
- * Memory store using Memvid MV2 storage
- */
 export class MemoryStore {
-  private mv: Memvid | null = null;
-  private readonly path: string;
-  private readonly enableLex: boolean;
+  private readonly filePath: string;
+  private records = new Map<string, StoredMemory>();
   private initialized = false;
 
-  constructor(options: MemoryOptions = {}) {
-    this.path = options.path || './memory';
-    this.enableLex = options.enableLex ?? true;
-  }
+  constructor(options: MemoryOptions = {}) { this.filePath = join(options.path ?? './memory', 'memories.jsonl'); }
 
-  /**
-   * Initialize the memory store
-   */
   async initialize(): Promise<void> {
     if (this.initialized) return;
-
-    const fs = await import('node:fs');
-    await fs.promises.mkdir(this.path, { recursive: true });
-
-    const mv2Path = `${this.path}/memories.mv2`;
-
-    if (!fs.existsSync(mv2Path)) {
-      this.mv = await create(mv2Path, 'basic');
-      if (this.enableLex) {
-        await this.mv.enableLex();
+    await mkdir(join(this.filePath, '..'), { recursive: true });
+    if (existsSync(this.filePath)) {
+      const contents = await readFile(this.filePath, 'utf8');
+      for (const line of contents.split('\n')) {
+        if (!line.trim()) continue;
+        try {
+          const record = JSON.parse(line) as StoredMemory;
+          if (record.id && record.content) this.records.set(record.id, record);
+        } catch { continue; }
       }
-    } else {
-      this.mv = await use('basic', mv2Path, { mode: 'auto' });
     }
-
     this.initialized = true;
   }
 
-  /**
-   * Ensure store is initialized
-   */
-  private async ensure(): Promise<Memvid> {
-    if (!this.initialized) {
-      await this.initialize();
-    }
-    return this.mv!;
+  private async ensure(): Promise<void> { if (!this.initialized) await this.initialize(); }
+
+  async put(content: string, options: PutOptions = {}): Promise<string> {
+    await this.ensure();
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const now = Date.now();
+    const record: StoredMemory = { id, content, type: options.type ?? 'user', name: options.name, createdAt: now, updatedAt: now, metadata: options.metadata, tags: [options.type ?? 'user', options.name ?? ''] };
+    this.records.set(id, record);
+    await appendFile(this.filePath, `${JSON.stringify(record)}\n`, 'utf8');
+    return id;
   }
 
-  /**
-   * Store a memory entry
-   */
-  async put(
-    content: string,
-    options: PutOptions = {}
-  ): Promise<string> {
-    const mv = await this.ensure();
+  async putMany(entries: Array<{ content: string; options?: PutOptions }>): Promise<string[]> { const ids: string[] = []; for (const entry of entries) ids.push(await this.put(entry.content, entry.options)); return ids; }
 
-    const frameId = await mv.put({
-      title: options.name || 'Untitled',
-      label: options.type || 'user',
-      text: content,
-      tags: [options.type || 'user', options.name || ''],
-    });
-
-    return String(frameId);
+  async search(query: string, options: SearchOptions = {}): Promise<SearchResult[]> {
+    await this.ensure();
+    const terms = query.toLowerCase().split(/[^\p{L}\p{N}_-]+/u).filter((term) => term.length > 1);
+    return [...this.records.values()].map((record) => ({ record, score: terms.reduce((total, term) => total + (record.content.toLowerCase().includes(term) ? 1 : 0) + (record.name?.toLowerCase().includes(term) ? 2 : 0), 0) }))
+      .filter(({ score }) => score > 0)
+      .sort((left, right) => right.score - left.score)
+      .slice(0, options.maxResults ?? 10)
+      .map(({ record, score }) => ({ id: record.id, content: record.content.slice(0, 700), score, type: record.type }));
   }
 
-  /**
-   * Store multiple memories in batch
-   */
-  async putMany(
-    entries: Array<{ content: string; options?: PutOptions }>
-  ): Promise<string[]> {
-    const mv = await this.ensure();
-
-    const frameIds = await mv.putMany(
-      entries.map((entry) => ({
-        title: entry.options?.name || 'Untitled',
-        text: entry.content,
-        labels: [entry.options?.type || 'user'],
-        tags: [entry.options?.type || 'user'],
-      }))
-    );
-
-    return frameIds.map(String);
+  async semanticSearch(query: string, options: SemanticSearchOptions = {}): Promise<SearchResult[]> {
+    return (await this.search(query, options)).filter((result) => result.score >= (options.minScore ?? 0.1));
   }
 
-  /**
-   * Search memories using BM25
-   */
-  async search(
-    query: string,
-    options: SearchOptions = {}
-  ): Promise<SearchResult[]> {
-    const mv = await this.ensure();
-    const maxResults = options.maxResults ?? 10;
-
-    const results = await mv.find(query, { k: maxResults });
-
-    return this.parseSearchResults(results, options);
-  }
-
-  /**
-   * Semantic search using relevance ranking
-   */
-  async semanticSearch(
-    query: string,
-    options: SemanticSearchOptions = {}
-  ): Promise<SearchResult[]> {
-    const mv = await this.ensure();
-    const maxResults = options.maxResults ?? 10;
-    const minScore = options.minScore ?? 0.1;
-
-    const results = await mv.find(query, { k: maxResults * 2 });
-
-    const parsed = this.parseSearchResults(results, { maxResults });
-    return parsed.filter((r) => r.score >= minScore);
-  }
-
-  /**
-   * RAG-style question answering
-   * Requires LLM API key
-   */
   async ask(question: string, options: AskOptions = {}): Promise<string> {
-    const mv = await this.ensure();
-
-    if (!options.apiKey) {
-      throw new Error('LLM API key required for ask()');
-    }
-
-    const result = await mv.ask(question, {
-      model: options.model || 'openai:gpt-4o-mini',
-      modelApiKey: options.apiKey,
-      contextOnly: options.contextOnly ?? false,
-      mode: options.mode ?? 'lex',
-      k: options.k ?? 10,
-    });
-
-    if (typeof result === 'object' && result !== null) {
-      const r = result as Record<string, unknown>;
-      if (typeof r.answer === 'string') return r.answer;
-      if (typeof r.context === 'string') return r.context;
-    }
-
-    return JSON.stringify(result);
+    if (!options.apiKey) throw new Error('LLM API key required for ask()');
+    const results = await this.search(question, { maxResults: options.k ?? 10 });
+    const context = results.map((result) => `[${result.id}] ${result.content}`).join('\n');
+    if (options.contextOnly) return context;
+    return context || 'No relevant memory was found.';
   }
 
-  /**
-   * Mask PII in text
-   */
-  maskPii(text: string): string {
-    return maskPii(text);
-  }
+  maskPii(text: string): string { return text.replace(/\b[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}\b/g, '[EMAIL]').replace(/\b(?:\+?86[- ]?)?1[3-9]\d{9}\b/g, '[PHONE]').replace(/\b\d{15,19}\b/g, '[NUMBER]'); }
 
-  /**
-   * Get timeline of memories
-   */
-  async timeline(limit = 50): Promise<Array<{
-    id: string;
-    title: string;
-    timestamp: number;
-  }>> {
-    const mv = await this.ensure();
-
-    const timeline = await mv.timeline({ limit, reverse: true });
-
-    if (!timeline || typeof timeline !== 'object') return [];
-
-    const entries = (timeline as Record<string, unknown>).entries;
-    if (!Array.isArray(entries)) return [];
-
-    return entries
-      .filter((e) => e && typeof e === 'object')
-      .map((e: Record<string, unknown>) => ({
-        id: String(e.frame_id || ''),
-        title: String(e.title || ''),
-        timestamp: Number(e.timestamp || 0),
-      }));
-  }
-
-  /**
-   * View full content of a memory
-   */
-  async view(id: string): Promise<string> {
-    const mv = await this.ensure();
-    return mv.view(Number(id));
-  }
-
-  /**
-   * Close the store
-   */
-  async close(): Promise<void> {
-    if (this.mv) {
-      await this.mv.seal();
-      this.mv = null;
-      this.initialized = false;
-    }
-  }
-
-  /**
-   * Get store statistics
-   */
-  async stats(): Promise<{
-    totalFrames: number;
-    hasLexIndex: boolean;
-    hasVecIndex: boolean;
-  }> {
-    const mv = await this.ensure();
-    const stats = await mv.stats();
-
-    return {
-      totalFrames: Number(stats.total_frames) || 0,
-      hasLexIndex: Boolean(stats.has_lex_index),
-      hasVecIndex: Boolean(stats.has_vec_index),
-    };
-  }
-
-  // ===== Private helpers =====
-
-  private parseSearchResults(
-    raw: unknown,
-    options: SearchOptions
-  ): SearchResult[] {
-    if (!raw || typeof raw !== 'object') return [];
-
-    const results: SearchResult[] = [];
-    const maxResults = options.maxResults ?? 10;
-    const hits = (raw as Record<string, unknown>).hits;
-
-    if (Array.isArray(hits)) {
-      for (const hit of hits) {
-        if (hit && typeof hit === 'object' && 'frame_id' in hit) {
-          const h = hit as Record<string, unknown>;
-          const preview = h.preview || h.text;
-
-          results.push({
-            id: String(h.frame_id || ''),
-            content: typeof preview === 'string' ? preview.slice(0, 700) : '',
-            score: Number(h.hit_count) || 0,
-          });
-
-          if (results.length >= maxResults) break;
-        }
-      }
-    }
-
-    return results;
-  }
+  async timeline(limit = 50): Promise<Array<{ id: string; title: string; timestamp: number }>> { await this.ensure(); return [...this.records.values()].sort((a, b) => b.createdAt - a.createdAt).slice(0, limit).map((record) => ({ id: record.id, title: record.name ?? '', timestamp: record.createdAt })); }
+  async view(id: string): Promise<string> { await this.ensure(); const record = this.records.get(id); if (!record) throw new Error(`Memory not found: ${id}`); return record.content; }
+  async close(): Promise<void> { this.records.clear(); this.initialized = false; }
+  async stats(): Promise<{ totalFrames: number; hasLexIndex: boolean; hasVecIndex: boolean }> { await this.ensure(); await stat(this.filePath).catch(() => undefined); return { totalFrames: this.records.size, hasLexIndex: true, hasVecIndex: false }; }
 }
 
-// ===== Factory =====
-
-/**
- * Create a new memory store
- */
-export function createMemoryStore(options?: MemoryOptions): MemoryStore {
-  return new MemoryStore(options);
-}
-
-// ===== Default export =====
-
+export function createMemoryStore(options?: MemoryOptions): MemoryStore { return new MemoryStore(options); }
 export default MemoryStore;

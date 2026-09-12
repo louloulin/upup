@@ -1,4 +1,4 @@
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { getTushareClient, getToday } from './tushare-client';
 import { parseStockCode, resolveNameToCode, searchStockByName } from '../../utils/stock-code';
@@ -23,7 +23,7 @@ const GetTechnicalDataSchema = z.object({
   period: z.enum(['daily', 'weekly', 'monthly']).optional().describe('K-line period (default: daily)'),
 });
 
-export const getTechnicalData = new DynamicStructuredTool({
+export const getTechnicalData = new PiTool({
   name: 'get_technical_data',
   description: GET_TECHNICAL_DATA_DESCRIPTION,
   schema: GetTechnicalDataSchema,

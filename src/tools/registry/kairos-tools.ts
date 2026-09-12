@@ -21,7 +21,7 @@
 import type { RegisteredTool } from "./types.js";
 import { computationMetadata } from "./types.js";
 import { getDefaultBus, type BusEvent } from "../../core/event-bus.js";
-import { DynamicStructuredTool } from "@langchain/core/tools";
+import { PiTool } from "../../runtime/pi/tool.js";
 import { z } from "zod";
 
 const KIND_TOPICS: Record<string, string[]> = {
@@ -76,7 +76,7 @@ KAIROS — proactive + position-monitor + event-scanner visibility tools.
 `;
 
 export function createKairosRecentOpportunitiesTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: "kairos_recent_opportunities",
     description: "Read the most recent opportunity events from the KAIROS proactive scanner (breakouts, valuation reratings, sentiment shifts, capital-flow anomalies).",
     schema: z.object({
@@ -92,7 +92,7 @@ export function createKairosRecentOpportunitiesTool() {
 }
 
 export function createKairosRecentAlertsTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: "kairos_recent_position_alerts",
     description: "Read the most recent position-alert events emitted by the KAIROS position monitor (stop-loss / take-profit / risk-budget).",
     schema: z.object({
@@ -108,7 +108,7 @@ export function createKairosRecentAlertsTool() {
 }
 
 export function createKairosRecentScannerEventsTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: "kairos_recent_scanner_events",
     description: "Read the most recent scanner events from the KAIROS event scanner (price-anomaly, volume-spike, breaking-news, large-order, overnight-gap).",
     schema: z.object({
@@ -124,7 +124,7 @@ export function createKairosRecentScannerEventsTool() {
 }
 
 export function createKairosSummaryTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: "kairos_summary",
     description: "Return KAIROS subsystem activity counts and the most recent event of each kind.",
     schema: z.object({

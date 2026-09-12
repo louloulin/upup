@@ -1,4 +1,4 @@
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { MemoryManager } from '../../memory/index.js';
 import { formatToolResult } from '../types.js';
@@ -23,7 +23,7 @@ const memoryGetSchema = z.object({
   lines: z.number().optional().describe('Maximum number of lines to read.'),
 });
 
-export const memoryGetTool = new DynamicStructuredTool({
+export const memoryGetTool = new PiTool({
   name: 'memory_get',
   description:
     'Read a specific memory file segment from persistent memory storage for precise citation-backed recall.',

@@ -25,7 +25,7 @@ import {
   buildManifest,
   buildTypedManifest,
 } from './scanner.js';
-import { getChatModel, DEFAULT_MODEL } from '../model/llm.js';
+import { callStructuredLlm, DEFAULT_MODEL } from '../runtime/pi/model.js';
 import { getUpupDir } from '../utils/paths.js';
 import { MEMORY_TYPES, type MemoryFileMeta } from './types.js';
 import { error } from '../utils/logging/logger.js';
@@ -191,19 +191,11 @@ async function selectRelevantMemories(
   const manifest = buildTypedManifest(memories);
 
   try {
-    const llm = getChatModel(model ?? DEFAULT_MODEL, false);
-    const runnable = llm.withStructuredOutput(SELECT_MEMORIES_OUTPUT_SCHEMA, { strict: false });
-
-    const messages = [
-      { role: 'system' as const, content: SELECT_SYSTEM_PROMPT },
-      {
-        role: 'user' as const,
-        content: buildSelectionPrompt(query, manifest, recentTools),
-      },
-    ];
-
-    const invokeOpts = signal ? { signal } : undefined;
-    const result = await runnable.invoke(messages, invokeOpts);
+    const result = await callStructuredLlm(buildSelectionPrompt(query, manifest, recentTools), SELECT_MEMORIES_OUTPUT_SCHEMA, {
+      model: model ?? DEFAULT_MODEL,
+      systemPrompt: SELECT_SYSTEM_PROMPT,
+      signal,
+    });
 
     if (!result || !Array.isArray(result.selected_memories)) {
       return [];

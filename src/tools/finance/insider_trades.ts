@@ -1,4 +1,4 @@
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { api, stripFieldsDeep } from './api.js';
 import { formatToolResult } from '../types.js';
@@ -40,7 +40,7 @@ const InsiderTradesInputSchema = z.object({
     .describe("Filter by insider name (e.g., 'HUANG JEN HSUN'). Names can be discovered via the /insider-trades/names/?ticker={ticker} endpoint."),
 });
 
-export const getInsiderTrades = new DynamicStructuredTool({
+export const getInsiderTrades = new PiTool({
   name: 'get_insider_trades',
   description: `Retrieves insider trading transactions for a given company ticker. Insider trades include purchases and sales of company stock by executives, directors, and other insiders. This data is sourced from SEC Form 4 filings. Use filing_date filters to narrow down results by date range. Use the name parameter to filter by a specific insider.`,
   schema: InsiderTradesInputSchema,

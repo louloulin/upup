@@ -8,9 +8,8 @@
  * - Risk assessment
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
-import type { StructuredToolInterface } from '@langchain/core/tools';
 
 // Report section types
 interface ReportSection {
@@ -157,8 +156,8 @@ export async function compareStocks(
   return comparison;
 }
 
-export function createGenerateResearchReportTool(): StructuredToolInterface {
-  return new DynamicStructuredTool({
+export function createGenerateResearchReportTool(): PiTool {
+  return new PiTool({
     name: 'generate_research_report',
     description: GenerateResearchReportDescription,
     schema: GenerateReportSchema,
@@ -175,8 +174,8 @@ export function createGenerateResearchReportTool(): StructuredToolInterface {
   });
 }
 
-export function createCompareStocksTool(): StructuredToolInterface {
-  return new DynamicStructuredTool({
+export function createCompareStocksTool(): PiTool {
+  return new PiTool({
     name: 'compare_stocks',
     description: `## compare_stocks
 Compare multiple stocks side by side across key metrics.

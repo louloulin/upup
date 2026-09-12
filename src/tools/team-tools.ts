@@ -11,7 +11,7 @@
  */
 
 import { z } from 'zod';
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../runtime/pi/tool.js';
 import { getTeamManager } from '../multi-agent/team-manager.js';
 
 // ============================================================================
@@ -94,8 +94,8 @@ export const TeamUpdateStatusSchema = z.object({
 // Tool Creators
 // ============================================================================
 
-export function createTeamCreateTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createTeamCreateTool(): PiTool {
+  return new PiTool({
     name: 'team_create',
     description: TEAM_CREATE_DESCRIPTION,
     schema: TeamCreateSchema,
@@ -127,8 +127,8 @@ export function createTeamCreateTool(): DynamicStructuredTool {
   });
 }
 
-export function createTeamDeleteTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createTeamDeleteTool(): PiTool {
+  return new PiTool({
     name: 'team_delete',
     description: TEAM_DELETE_DESCRIPTION,
     schema: TeamDeleteSchema,
@@ -148,8 +148,8 @@ export function createTeamDeleteTool(): DynamicStructuredTool {
   });
 }
 
-export function createTeamListTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createTeamListTool(): PiTool {
+  return new PiTool({
     name: 'team_list',
     description: TEAM_LIST_DESCRIPTION,
     schema: TeamListSchema,
@@ -200,8 +200,8 @@ export function createTeamListTool(): DynamicStructuredTool {
   });
 }
 
-export function createTeamAddMemberTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createTeamAddMemberTool(): PiTool {
+  return new PiTool({
     name: 'team_add_member',
     description: TEAM_ADD_MEMBER_DESCRIPTION,
     schema: TeamAddMemberSchema,
@@ -231,8 +231,8 @@ export function createTeamAddMemberTool(): DynamicStructuredTool {
   });
 }
 
-export function createTeamRemoveMemberTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createTeamRemoveMemberTool(): PiTool {
+  return new PiTool({
     name: 'team_remove_member',
     description: TEAM_REMOVE_MEMBER_DESCRIPTION,
     schema: TeamRemoveMemberSchema,
@@ -264,8 +264,8 @@ export function createTeamRemoveMemberTool(): DynamicStructuredTool {
   });
 }
 
-export function createTeamStatusTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createTeamStatusTool(): PiTool {
+  return new PiTool({
     name: 'team_status',
     description: TEAM_STATUS_DESCRIPTION,
     schema: TeamStatusSchema,
@@ -307,8 +307,8 @@ export function createTeamStatusTool(): DynamicStructuredTool {
   });
 }
 
-export function createTeamUpdateStatusTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createTeamUpdateStatusTool(): PiTool {
+  return new PiTool({
     name: 'team_update_status',
     description: TEAM_UPDATE_STATUS_DESCRIPTION,
     schema: TeamUpdateStatusSchema,

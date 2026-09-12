@@ -7,7 +7,7 @@
  * - Analysis results export
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -144,7 +144,7 @@ async function loadWatchlistData(): Promise<{ entries: Record<string, any>; upda
  * Export portfolio data to CSV/JSON
  */
 export function createExportPortfolioTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'export_portfolio',
     description: 'Export portfolio positions and P&L data to CSV or JSON format for sharing and backup.',
     schema: exportPortfolioSchema,
@@ -219,7 +219,7 @@ export function createExportPortfolioTool() {
  * Export watchlist data to CSV/JSON
  */
 export function createExportWatchlistTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'export_watchlist',
     description: 'Export watchlist with symbols, notes, and alerts to CSV or JSON format.',
     schema: exportWatchlistSchema,
@@ -303,7 +303,7 @@ export function createExportWatchlistTool() {
  * Export arbitrary analysis data to CSV/JSON
  */
 export function createExportDataTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'export_data',
     description: 'Export arbitrary analysis results or data tables to CSV or JSON format.',
     schema: exportAnalysisSchema,

@@ -2,16 +2,15 @@
  * Research module — public API.
  *
  * Exposes the AlphaSense-style deep-search engine, NLP claim extraction,
- * synonym expansion, and a LangChain tool factory for the agent loop.
+ * synonym expansion, and a Pi-compatible tool factory for the agent runtime.
  *
  * Wiring: `registerResearchTools` is invoked by `src/tools/registry/` (or
  * whichever aggregator lists v2 capabilities). Tool is feature-gated by
- * `research_deep_search` (see `src/agent/feature-gates.ts`).
+ * `research_deep_search` (see `src/runtime/pi/feature-gates.ts`).
  */
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../runtime/pi/tool.js';
 import { z } from 'zod';
-import type { StructuredToolInterface } from '@langchain/core/tools';
-import { isFeatureCompiledIn } from '../agent/feature-gates.js';
+import { isFeatureCompiledIn } from '../runtime/pi/feature-gates.js';
 import {
   DeepSearchEngine,
   type Document,
@@ -152,8 +151,8 @@ function compactResult(result: SearchResult, limit: number): Record<string, unkn
   };
 }
 
-export function createResearchDeepSearchTool(): StructuredToolInterface {
-  return new DynamicStructuredTool({
+export function createResearchDeepSearchTool(): PiTool {
+  return new PiTool({
     name: 'research_deep_search',
     description: RESEARCH_DEEP_SEARCH_DESCRIPTION,
     schema: ResearchDeepSearchSchema,

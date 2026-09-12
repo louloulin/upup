@@ -8,10 +8,9 @@
  * - Market sentiment tracking
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { getTushareClient, getToday } from '../astock/tushare-client';
-import type { StructuredToolInterface } from '@langchain/core/tools';
 
 export const MARKET_MONITOR_DESCRIPTION = `## market_monitor
 Real-time market monitoring for A-shares including indices, sectors, and alerts.
@@ -101,8 +100,8 @@ function isMarketOpen(): { status: 'open' | 'closed' | 'pre_open' | 'post_close'
   return { status: 'closed', isTradingDay: true };
 }
 
-export function createMarketMonitor(_model: string): StructuredToolInterface {
-  return new DynamicStructuredTool({
+export function createMarketMonitor(_model: string): PiTool {
+  return new PiTool({
     name: 'market_monitor',
     description: MARKET_MONITOR_DESCRIPTION,
     schema: MarketMonitorSchema,

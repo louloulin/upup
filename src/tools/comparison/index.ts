@@ -8,10 +8,9 @@
  * - Technical comparison
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { getTushareClient, getToday } from '../astock/tushare-client';
-import type { StructuredToolInterface } from '@langchain/core/tools';
 
 export const STOCK_COMPARISON_DESCRIPTION = `## stock_comparison
 Compare multiple stocks across financial metrics.
@@ -59,8 +58,8 @@ function normalizeScore(values: number[], higherIsBetter: boolean = true): numbe
   });
 }
 
-export function createStockComparison(_model: string): StructuredToolInterface {
-  return new DynamicStructuredTool({
+export function createStockComparison(_model: string): PiTool {
+  return new PiTool({
     name: 'stock_comparison',
     description: STOCK_COMPARISON_DESCRIPTION,
     schema: StockComparisonSchema,

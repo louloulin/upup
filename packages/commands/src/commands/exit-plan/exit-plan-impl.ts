@@ -62,6 +62,11 @@ export const call = async (
 
 `,
     }
+  } catch {
+    return {
+      type: 'text',
+      value: `Unable to exit plan mode${planId ? ` for plan ${planId}` : ''}.`,
+    }
   }
 }
 

@@ -1,9 +1,8 @@
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { getTushareClient, getToday } from '../astock/tushare-client';
 import { screenStocks as astockScreenStocks } from '../astock/screener-client';
 // ScreenInput 类型已内联定义
-import type { StructuredToolInterface } from '@langchain/core/tools';
 
 /**
  * Stock screening input interface
@@ -50,8 +49,8 @@ const ScreenStocksSchema = z.object({
   limit: z.number().optional().describe('Max results (default: 20)'),
 });
 
-export function createScreenStocks(_model: string): StructuredToolInterface {
-  return new DynamicStructuredTool({
+export function createScreenStocks(_model: string): PiTool {
+  return new PiTool({
     name: 'screen_stocks',
     description: SCREEN_STOCKS_DESCRIPTION,
     schema: ScreenStocksSchema,
@@ -106,8 +105,8 @@ const ScreenMultiSchema = z.object({
   limit: z.number().optional().describe('Max results (default: 20, max: 100)'),
 });
 
-export function createScreenStocksMulti(_model: string): StructuredToolInterface {
-  return new DynamicStructuredTool({
+export function createScreenStocksMulti(_model: string): PiTool {
+  return new PiTool({
     name: 'screen_stocks_multi',
     description: MULTI_MARKET_SCREEN_DESCRIPTION,
     schema: ScreenMultiSchema,
@@ -282,4 +281,3 @@ export function createScreenStocksMulti(_model: string): StructuredToolInterface
     },
   });
 }
-

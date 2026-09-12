@@ -5,7 +5,7 @@
  * Uses ripgrep (rg) for fast searching when available, falls back to JavaScript.
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { exec } from 'child_process';
 import { promisify } from 'util';
@@ -363,8 +363,8 @@ function matchGlob(filename: string, pattern: string): boolean {
 /**
  * Build the GrepTool
  */
-export function buildGrepTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function buildGrepTool(): PiTool {
+  return new PiTool({
     name: GREP_TOOL_NAME,
     description: GREP_TOOL_DESCRIPTION,
     schema: GrepToolInputSchema,
@@ -422,9 +422,9 @@ export function buildGrepTool(): DynamicStructuredTool {
 /**
  * Get the singleton GrepTool instance
  */
-let grepToolInstance: DynamicStructuredTool | null = null;
+let grepToolInstance: PiTool | null = null;
 
-export function getGrepTool(): DynamicStructuredTool {
+export function getGrepTool(): PiTool {
   if (!grepToolInstance) {
     grepToolInstance = buildGrepTool();
   }

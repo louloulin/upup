@@ -8,8 +8,7 @@
  * Design: docs/superpowers/specs/2026-06-04-top-tier-investment-assistant-v2-design.md D19
  */
 
-import { tool } from 'langchain';
-import { z } from 'zod';
+import { tool, z } from '../../runtime/pi/tool.js';
 import { attribution } from '../portfolio/attribution.js';
 import type { Portfolio, Benchmark } from '../portfolio/types.js';
 import { computationMetadata } from './types.js';

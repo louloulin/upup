@@ -8,7 +8,7 @@
  *   - 健康检查: healthCheck() 验证可达性(可选实现)
  *   - 编译开关: feature('COACH_MODE') 启用整组,feature('KAIROS_CHANNELS') 启用推送
  */
-import { isFeatureCompiledIn } from '../../agent/feature-gates.js';
+import { isFeatureCompiledIn } from '../../runtime/pi/feature-gates.js';
 
 // ---------------------------------------------------------------------------
 // 推送 payload

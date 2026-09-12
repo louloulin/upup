@@ -65,11 +65,11 @@ function computeLayerStats(scan: ScanResult): LayerStat[] {
 
 /** 单次完整运行:扫 + 渲染 + 写文件 + 写缓存 */
 export async function run(opts: RunOptions): Promise<CodeMapReport | null> {
-  // 动态 import feature-gates(避免触发 telemetry/langchain 静态链)
+  // 动态 import feature-gates(避免触发 telemetry/运行时静态链)
   // 失败时视为 always-on(CLI 场景)
   let isFeatureCompiledIn: ((name: string) => boolean) | null = null;
   try {
-    const mod = await import('../agent/feature-gates.js');
+    const mod = await import('../runtime/pi/feature-gates.js');
     isFeatureCompiledIn = mod.isFeatureCompiledIn;
   } catch { /* fallback: 视为 enabled */ }
   if (isFeatureCompiledIn && !isFeatureCompiledIn('CODE_ARCHAEOLOGY')) {

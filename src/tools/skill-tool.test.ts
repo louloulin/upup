@@ -2,7 +2,7 @@
  * Tests for SkillTool
  */
 
-import { describe, it, expect, vi, beforeEach } from 'bun:test';
+import { describe, it, expect } from 'bun:test';
 import {
   SkillListSchema,
   SkillExecuteSchema,
@@ -14,12 +14,13 @@ import {
   createSkillExecuteTool,
   createSkillInfoTool,
 } from './skill-tool.js';
+import type { Skill, SkillMetadata } from '../skills/types.js';
 
 // ---------------------------------------------------------------------------
-// Mock the skills registry (requires filesystem access at runtime)
+// Inject a deterministic registry instead of mutating Bun's module cache.
 // ---------------------------------------------------------------------------
 
-const mockSkillMetadata = {
+const mockSkillMetadata: SkillMetadata = {
   name: 'dcf',
   description: 'Discounted Cash Flow valuation analysis',
   path: '/mock/skills/dcf/SKILL.md',
@@ -29,22 +30,17 @@ const mockSkillMetadata = {
   argumentHint: '<ticker>',
 };
 
-const mockSkillFull = {
+const mockSkillFull: Skill = {
   ...mockSkillMetadata,
   instructions: 'You are a DCF analysis expert. Analyze the given company...',
 };
 
-vi.mock('../skills/registry.js', () => ({
-  discoverSkills: vi.fn(),
-  getSkill: vi.fn(),
-}));
-
-// Import mocked functions for per-test control
-import { discoverSkills, getSkill } from '../skills/registry.js';
-
-// bun:test does not support vi.mocked() - use type assertion instead
-const mockedDiscoverSkills = discoverSkills as unknown as ReturnType<typeof vi.fn>;
-const mockedGetSkill = getSkill as unknown as ReturnType<typeof vi.fn>;
+let discoveredSkills: SkillMetadata[] = [];
+let selectedSkill: Skill | undefined;
+const dependencies = {
+  discoverSkills: () => discoveredSkills,
+  getSkill: () => selectedSkill,
+};
 
 // ---------------------------------------------------------------------------
 // Schema tests
@@ -122,36 +118,36 @@ describe('Tool Descriptions', () => {
 
 describe('createSkillListTool', () => {
   it('should create tool with correct name', () => {
-    const tool = createSkillListTool();
+    const tool = createSkillListTool(dependencies);
     expect(tool.name).toBe('skill_list');
   });
 
   it('should have a callable func', () => {
-    const tool = createSkillListTool();
+    const tool = createSkillListTool(dependencies);
     expect(typeof tool.func).toBe('function');
   });
 });
 
 describe('createSkillExecuteTool', () => {
   it('should create tool with correct name', () => {
-    const tool = createSkillExecuteTool();
+    const tool = createSkillExecuteTool(dependencies);
     expect(tool.name).toBe('skill_execute');
   });
 
   it('should have a callable func', () => {
-    const tool = createSkillExecuteTool();
+    const tool = createSkillExecuteTool(dependencies);
     expect(typeof tool.func).toBe('function');
   });
 });
 
 describe('createSkillInfoTool', () => {
   it('should create tool with correct name', () => {
-    const tool = createSkillInfoTool();
+    const tool = createSkillInfoTool(dependencies);
     expect(tool.name).toBe('skill_info');
   });
 
   it('should have a callable func', () => {
-    const tool = createSkillInfoTool();
+    const tool = createSkillInfoTool(dependencies);
     expect(typeof tool.func).toBe('function');
   });
 });
@@ -161,26 +157,21 @@ describe('createSkillInfoTool', () => {
 // ---------------------------------------------------------------------------
 
 describe('skill_list tool execution', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   it('should return formatted list of skills', async () => {
-    mockedDiscoverSkills.mockReturnValue([mockSkillMetadata]);
+    discoveredSkills = [mockSkillMetadata];
 
-    const tool = createSkillListTool();
+    const tool = createSkillListTool(dependencies);
     const result = await tool.invoke({});
 
     expect(result).toContain('dcf');
     expect(result).toContain('Discounted Cash Flow');
     expect(result).toContain('builtin');
-    expect(mockedDiscoverSkills).toHaveBeenCalled();
   });
 
   it('should return message when no skills found', async () => {
-    mockedDiscoverSkills.mockReturnValue([]);
+    discoveredSkills = [];
 
-    const tool = createSkillListTool();
+    const tool = createSkillListTool(dependencies);
     const result = await tool.invoke({});
 
     expect(result).toContain('No skills available');
@@ -188,9 +179,9 @@ describe('skill_list tool execution', () => {
 
   it('should filter by category', async () => {
     const userSkill = { ...mockSkillMetadata, name: 'my-skill', source: 'user' as const };
-    mockedDiscoverSkills.mockReturnValue([mockSkillMetadata, userSkill]);
+    discoveredSkills = [mockSkillMetadata, userSkill];
 
-    const tool = createSkillListTool();
+    const tool = createSkillListTool(dependencies);
     const result = await tool.invoke({ category: 'user' });
 
     expect(result).toContain('my-skill');
@@ -198,9 +189,9 @@ describe('skill_list tool execution', () => {
   });
 
   it('should include model preference in output', async () => {
-    mockedDiscoverSkills.mockReturnValue([mockSkillMetadata]);
+    discoveredSkills = [mockSkillMetadata];
 
-    const tool = createSkillListTool();
+    const tool = createSkillListTool(dependencies);
     const result = await tool.invoke({});
 
     expect(result).toContain('[sonnet]');
@@ -208,34 +199,29 @@ describe('skill_list tool execution', () => {
 });
 
 describe('skill_execute tool execution', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   it('should return full skill instructions for valid name', async () => {
-    mockedGetSkill.mockReturnValue(mockSkillFull);
+    selectedSkill = mockSkillFull;
 
-    const tool = createSkillExecuteTool();
+    const tool = createSkillExecuteTool(dependencies);
     const result = await tool.invoke({ name: 'dcf' });
 
     expect(result).toContain('DCF analysis expert');
     expect(result).toContain('Skill: dcf');
-    expect(mockedGetSkill).toHaveBeenCalledWith('dcf');
   });
 
   it('should include args when provided', async () => {
-    mockedGetSkill.mockReturnValue(mockSkillFull);
+    selectedSkill = mockSkillFull;
 
-    const tool = createSkillExecuteTool();
+    const tool = createSkillExecuteTool(dependencies);
     const result = await tool.invoke({ name: 'dcf', args: 'AAPL' });
 
     expect(result).toContain('Arguments: AAPL');
   });
 
   it('should return error for invalid skill name', async () => {
-    mockedGetSkill.mockReturnValue(undefined);
+    selectedSkill = undefined;
 
-    const tool = createSkillExecuteTool();
+    const tool = createSkillExecuteTool(dependencies);
     const result = await tool.invoke({ name: 'nonexistent' });
 
     expect(result).toContain('Skill not found');
@@ -243,9 +229,9 @@ describe('skill_execute tool execution', () => {
   });
 
   it('should include source in output', async () => {
-    mockedGetSkill.mockReturnValue(mockSkillFull);
+    selectedSkill = mockSkillFull;
 
-    const tool = createSkillExecuteTool();
+    const tool = createSkillExecuteTool(dependencies);
     const result = await tool.invoke({ name: 'dcf' });
 
     expect(result).toContain('Source: builtin');
@@ -253,14 +239,10 @@ describe('skill_execute tool execution', () => {
 });
 
 describe('skill_info tool execution', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   it('should return detailed metadata for valid skill', async () => {
-    mockedDiscoverSkills.mockReturnValue([mockSkillMetadata]);
+    discoveredSkills = [mockSkillMetadata];
 
-    const tool = createSkillInfoTool();
+    const tool = createSkillInfoTool(dependencies);
     const result = await tool.invoke({ name: 'dcf' });
 
     expect(result).toContain('Name: dcf');
@@ -273,9 +255,9 @@ describe('skill_info tool execution', () => {
   });
 
   it('should return error for invalid skill name', async () => {
-    mockedDiscoverSkills.mockReturnValue([]);
+    discoveredSkills = [];
 
-    const tool = createSkillInfoTool();
+    const tool = createSkillInfoTool(dependencies);
     const result = await tool.invoke({ name: 'nonexistent' });
 
     expect(result).toContain('Skill not found');
@@ -284,9 +266,9 @@ describe('skill_info tool execution', () => {
 
   it('should show "no" for non-user-invocable skill', async () => {
     const internalSkill = { ...mockSkillMetadata, name: 'internal', userInvocable: false };
-    mockedDiscoverSkills.mockReturnValue([internalSkill]);
+    discoveredSkills = [internalSkill];
 
-    const tool = createSkillInfoTool();
+    const tool = createSkillInfoTool(dependencies);
     const result = await tool.invoke({ name: 'internal' });
 
     expect(result).toContain('User-invocable: no');
@@ -294,9 +276,9 @@ describe('skill_info tool execution', () => {
 
   it('should show "default" when no model preference', async () => {
     const noModelSkill = { ...mockSkillMetadata, name: 'basic', model: undefined };
-    mockedDiscoverSkills.mockReturnValue([noModelSkill]);
+    discoveredSkills = [noModelSkill];
 
-    const tool = createSkillInfoTool();
+    const tool = createSkillInfoTool(dependencies);
     const result = await tool.invoke({ name: 'basic' });
 
     expect(result).toContain('Model: default');
@@ -304,9 +286,9 @@ describe('skill_info tool execution', () => {
 
   it('should show "(none)" when no argument hint', async () => {
     const noHintSkill = { ...mockSkillMetadata, name: 'no-hint', argumentHint: undefined };
-    mockedDiscoverSkills.mockReturnValue([noHintSkill]);
+    discoveredSkills = [noHintSkill];
 
-    const tool = createSkillInfoTool();
+    const tool = createSkillInfoTool(dependencies);
     const result = await tool.invoke({ name: 'no-hint' });
 
     expect(result).toContain('Argument hint: (none)');

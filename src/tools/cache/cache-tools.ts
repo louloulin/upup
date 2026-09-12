@@ -4,7 +4,7 @@
  * Tools for managing the market data cache.
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { formatToolResult } from '../types.js';
 import { globalCacheManager, globalCache, CACHE_PRESETS } from './market-cache.js';
@@ -154,7 +154,7 @@ function handleCacheInfo() {
 // ============================================================================
 
 export function createGetCacheStatsTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'get_cache_stats',
     description: 'Get statistics about the market data cache. Shows hit counts, entry counts, and TTL settings for each cache type.',
     schema: getCacheStatsSchema,
@@ -163,7 +163,7 @@ export function createGetCacheStatsTool() {
 }
 
 export function createClearCacheTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'clear_cache',
     description: 'Clear the market data cache. Use to force fresh data fetch or when cache becomes stale. Requires confirm=true.',
     schema: clearCacheSchema,
@@ -172,7 +172,7 @@ export function createClearCacheTool() {
 }
 
 export function createInvalidateCacheTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'invalidate_cache',
     description: 'Invalidate specific cache entries by prefix. Useful when you know certain data has changed and want to force refresh.',
     schema: invalidateSchema,
@@ -181,7 +181,7 @@ export function createInvalidateCacheTool() {
 }
 
 export function createCacheInfoTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'get_cache_info',
     description: 'Get information about available cache types and their TTL settings.',
     schema: cacheInfoSchema,

@@ -7,7 +7,9 @@
  * - Backend registry for multiple execution backends
  */
 
-import type { StructuredToolInterface } from '@langchain/core/tools';
+import type { UpUpAgentSpec } from '../runtime/pi/types.js';
+import type { Model } from '@earendil-works/pi-ai';
+import type { ModelRuntime } from '@earendil-works/pi-coding-agent';
 
 // ============================================================================
 // Team Types
@@ -53,6 +55,12 @@ export interface AgentInstance {
   lastActivity?: number;
   result?: string;
   error?: string;
+  /** The executable Pi specification used for this worker. */
+  piSpec?: UpUpAgentSpec;
+  /** Pi session identity, retained for lifecycle/audit inspection. */
+  piSessionId?: string;
+  /** Names of tools exposed by the worker's Pi session. */
+  piToolNames?: readonly string[];
 }
 
 export interface SpawnAgentParams {
@@ -66,6 +74,11 @@ export interface SpawnAgentParams {
   model?: string;
   maxTurns?: number;
   timeoutMs?: number;
+  /** Fully resolved Pi spec for custom/loaded agents. */
+  spec?: UpUpAgentSpec;
+  /** Deterministic Pi model injection for local workers and contract tests. */
+  piModel?: Model<any>;
+  piModelRuntime?: ModelRuntime;
 }
 
 export interface AgentMessage {

@@ -1,4 +1,4 @@
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { api } from './api.js';
 import { formatToolResult } from '../types.js';
@@ -10,7 +10,7 @@ const EarningsInputSchema = z.object({
     .describe("The stock ticker symbol to fetch the latest earnings for. For example, 'AAPL' for Apple."),
 });
 
-export const getEarnings = new DynamicStructuredTool({
+export const getEarnings = new PiTool({
   name: 'get_earnings',
   description:
     'Fetches the most recent earnings snapshot for a company, including key income statement, balance sheet, and cash flow figures from the 8-K earnings release, plus analyst estimate comparisons (revenue and EPS surprise) when available.',

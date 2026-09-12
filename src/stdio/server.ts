@@ -5,8 +5,10 @@
  * Spawned by adapter-paperclip via subprocess to provide Agent functionality.
  */
 
-import { Agent } from '../agent/agent.js';
-import type { AgentEvent } from '../agent/types.js';
+import { streamPiAgent } from '../runtime/pi/event-stream.js';
+import { getPiSessionService } from '../runtime/pi/session-service.js';
+import type { UpUpAgentEvent } from '../runtime/pi/types.js';
+import type { AgentEvent } from '../runtime/pi/legacy-events.js';
 import type {
   JsonRpcRequest,
   JsonRpcResponse,
@@ -22,6 +24,9 @@ import type {
   SessionMessagesParams,
   SessionUpdateParams,
   SessionEndParams,
+  SessionCompactParams,
+  SessionForkParams,
+  SessionExportParams,
 } from './protocol.js';
 
 // ============ StdioServer Implementation ============
@@ -38,9 +43,9 @@ interface ActiveRun {
 }
 
 export function createStdioServer(): StdioServer {
-  let agent: Agent | null = null;
   let activeRun: ActiveRun | null = null;
   let initialized = false;
+  const piSessions = getPiSessionService();
 
   // Helper to send JSON-RPC response
   function sendResponse(id: JsonRpcRequest['id'], result?: unknown, error?: JsonRpcError): void {
@@ -166,6 +171,29 @@ export function createStdioServer(): StdioServer {
     }
   }
 
+  function mapPiEvent(event: UpUpAgentEvent): ServerEvent | null {
+    switch (event.type) {
+      case 'thinking':
+        return { type: 'thinking', message: event.text };
+      case 'tool_start':
+        return { type: 'tool_start', tool: event.toolName, args: (event.input ?? {}) as Record<string, unknown>, toolCallId: event.toolCallId };
+      case 'tool_update':
+        return { type: 'tool_progress', tool: event.toolName, message: event.text };
+      case 'tool_end':
+        return event.error
+          ? { type: 'tool_error', tool: event.toolName, error: event.error, toolCallId: event.toolCallId }
+          : { type: 'tool_end', tool: event.toolName, args: {}, result: '', duration: 0, toolCallId: event.toolCallId };
+      case 'text_delta':
+        return { type: 'stream_progress', charDelta: event.delta.length, mode: 'responding', content: event.delta };
+      case 'compaction_start':
+        return { type: 'compaction', phase: 'start' };
+      case 'compaction_end':
+        return { type: 'compaction', phase: 'end', success: event.success };
+      default:
+        return null;
+    }
+  }
+
   // Handle incoming JSON-RPC request
   async function handleRequest(req: JsonRpcRequest): Promise<void> {
     try {
@@ -179,8 +207,6 @@ export function createStdioServer(): StdioServer {
             return;
           }
 
-          // Create agent instance
-          agent = await Agent.create();
           initialized = true;
 
           sendResponse(req.id, {
@@ -197,14 +223,13 @@ export function createStdioServer(): StdioServer {
 
         case JsonRpcMethod.Shutdown: {
           activeRun = null;
-          agent = null;
           initialized = false;
           sendResponse(req.id, { success: true });
           break;
         }
 
         case JsonRpcMethod.Run: {
-          if (!agent) {
+          if (!initialized) {
             sendResponse(req.id, undefined, {
               code: JsonRpcErrorCode.InternalError,
               message: 'Agent not initialized. Call initialize first.',
@@ -217,21 +242,30 @@ export function createStdioServer(): StdioServer {
           const startTime = Date.now();
 
           try {
-            const stream = agent.run(params.prompt, { sessionId: params.sessionId });
             let iterations = 0;
             let totalTime = 0;
             let tokenUsage: { inputTokens: number; outputTokens: number; totalTokens: number } | undefined;
-
-            for await (const event of stream) {
-              if (event.type === 'done') {
-                iterations = event.iterations;
-                totalTime = event.totalTime;
-                tokenUsage = event.tokenUsage;
-              }
-
-              const serverEvent = mapAgentEvent(event);
-              if (serverEvent) {
-                sendEvent(serverEvent);
+            if (params.sessionId) {
+              const start = Date.now();
+              const output = await piSessions.run(params.sessionId, params.prompt, {
+                model: params.model,
+                onEvent: (event) => {
+                  const serverEvent = mapPiEvent(event);
+                  if (serverEvent) sendEvent(serverEvent);
+                },
+              });
+              totalTime = Date.now() - start;
+              sendEvent({ type: 'done', answer: output, toolCalls: [], iterations, totalTime });
+            } else {
+              const stream = streamPiAgent(params.prompt, { model: params.model, maxIterations: params.maxIterations });
+              for await (const event of stream) {
+                if (event.type === 'done') {
+                  iterations = event.iterations;
+                  totalTime = event.totalTime;
+                  tokenUsage = event.tokenUsage;
+                }
+                const serverEvent = mapAgentEvent(event);
+                if (serverEvent) sendEvent(serverEvent);
               }
             }
 
@@ -251,7 +285,7 @@ export function createStdioServer(): StdioServer {
         }
 
         case JsonRpcMethod.Stream: {
-          if (!agent) {
+          if (!initialized) {
             sendResponse(req.id, undefined, {
               code: JsonRpcErrorCode.InternalError,
               message: 'Agent not initialized. Call initialize first.',
@@ -272,12 +306,25 @@ export function createStdioServer(): StdioServer {
           sendResponse(req.id, { runId, status: 'streaming' });
 
           try {
-            const stream = agent.run(params.prompt, { sessionId: params.sessionId });
-
-            for await (const event of stream) {
-              const serverEvent = mapAgentEvent(event);
-              if (serverEvent) {
-                sendEvent(serverEvent);
+            if (params.sessionId) {
+              const output = await piSessions.run(params.sessionId, params.prompt, {
+                model: params.model,
+                signal: activeRun.abortController.signal,
+                onEvent: (event) => {
+                  const serverEvent = mapPiEvent(event);
+                  if (serverEvent) sendEvent(serverEvent);
+                },
+              });
+              sendEvent({ type: 'done', answer: output, toolCalls: [], iterations: 0, totalTime: Date.now() - activeRun.startTime });
+            } else {
+              const stream = streamPiAgent(params.prompt, {
+                model: params.model,
+                maxIterations: params.maxIterations,
+                signal: activeRun.abortController.signal,
+              });
+              for await (const event of stream) {
+                const serverEvent = mapAgentEvent(event);
+                if (serverEvent) sendEvent(serverEvent);
               }
             }
 
@@ -308,19 +355,14 @@ export function createStdioServer(): StdioServer {
 
         case JsonRpcMethod.SessionCreate: {
           try {
-            const { getSessionManager } = await import('../daemon/session.js');
-            const sessionMgr = getSessionManager();
-
             const params = req.params as SessionCreateParams;
-
-            const session = await sessionMgr.create({
+            const session = await piSessions.create({
               id: params.id,
-              context: {
-                projectSlug: params.context?.projectSlug || 'sdk',
-                projectPath: params.context?.projectPath || process.cwd(),
-                model: params.context?.model,
-                systemPrompt: params.context?.systemPrompt,
-              },
+              cwd: params.context?.projectPath || process.cwd(),
+              model: params.context?.model,
+              systemPrompt: params.context?.systemPrompt,
+              tools: params.context?.tools,
+              metadata: params.metadata,
             });
 
             sendResponse(req.id, {
@@ -339,18 +381,14 @@ export function createStdioServer(): StdioServer {
 
         case JsonRpcMethod.SessionResume: {
           try {
-            const { getSessionManager } = await import('../daemon/session.js');
-            const sessionMgr = getSessionManager();
-
             const params = req.params as unknown as SessionResumeParams;
-
-            const session = await sessionMgr.resume(params.id);
+            const session = await piSessions.resume(params.id);
 
             sendResponse(req.id, {
-              id: session.id,
-              state: session.state,
-              messages: session.messages,
-              metadata: session.metadata,
+              id: session.summary.id,
+              state: session.summary.state,
+              messages: await piSessions.messages(params.id),
+              metadata: session.summary.metadata,
             });
           } catch (err) {
             sendResponse(req.id, undefined, {
@@ -363,12 +401,8 @@ export function createStdioServer(): StdioServer {
 
         case JsonRpcMethod.SessionGet: {
           try {
-            const { getSessionManager } = await import('../daemon/session.js');
-            const sessionMgr = getSessionManager();
-
             const params = req.params as unknown as SessionGetParams;
-
-            const session = sessionMgr.get(params.id);
+            const session = await piSessions.get(params.id);
             if (!session) {
               sendResponse(req.id, undefined, {
                 code: JsonRpcErrorCode.InvalidParams,
@@ -395,22 +429,9 @@ export function createStdioServer(): StdioServer {
 
         case JsonRpcMethod.SessionMessages: {
           try {
-            const { getSessionManager } = await import('../daemon/session.js');
-            const sessionMgr = getSessionManager();
-
             const params = req.params as unknown as SessionMessagesParams;
-
-            const session = sessionMgr.get(params.id);
-            if (!session) {
-              sendResponse(req.id, undefined, {
-                code: JsonRpcErrorCode.InvalidParams,
-                message: 'Session not found',
-              });
-              return;
-            }
-
             sendResponse(req.id, {
-              messages: session.messages,
+              messages: await piSessions.messages(params.id),
             });
           } catch (err) {
             sendResponse(req.id, undefined, {
@@ -423,22 +444,8 @@ export function createStdioServer(): StdioServer {
 
         case JsonRpcMethod.SessionUpdate: {
           try {
-            const { getSessionManager } = await import('../daemon/session.js');
-            const sessionMgr = getSessionManager();
-
             const params = req.params as unknown as SessionUpdateParams;
-
-            if (params.state === 'running') {
-              await sessionMgr.startSession(params.id);
-            } else if (params.state === 'waiting') {
-              await sessionMgr.pause(params.id);
-            } else if (params.state === 'completed') {
-              await sessionMgr.complete(params.id);
-            }
-
-            if (params.metadata) {
-              await sessionMgr.update(params.id, { metadata: params.metadata as any });
-            }
+            await piSessions.update(params.id, params.state, params.metadata);
 
             sendResponse(req.id, { success: true });
           } catch (err) {
@@ -452,14 +459,51 @@ export function createStdioServer(): StdioServer {
 
         case JsonRpcMethod.SessionEnd: {
           try {
-            const { getSessionManager } = await import('../daemon/session.js');
-            const sessionMgr = getSessionManager();
-
             const params = req.params as unknown as SessionEndParams;
-
-            await sessionMgr.complete(params.id);
+            await piSessions.end(params.id);
 
             sendResponse(req.id, { success: true });
+          } catch (err) {
+            sendResponse(req.id, undefined, {
+              code: JsonRpcErrorCode.ServerError,
+              message: err instanceof Error ? err.message : String(err),
+            });
+          }
+          break;
+        }
+
+        case JsonRpcMethod.SessionCompact: {
+          try {
+            const params = req.params as unknown as SessionCompactParams;
+            await piSessions.compact(params.id, params.instructions);
+            sendResponse(req.id, { success: true });
+          } catch (err) {
+            sendResponse(req.id, undefined, {
+              code: JsonRpcErrorCode.ServerError,
+              message: err instanceof Error ? err.message : String(err),
+            });
+          }
+          break;
+        }
+
+        case JsonRpcMethod.SessionFork: {
+          try {
+            const params = req.params as unknown as SessionForkParams;
+            sendResponse(req.id, await piSessions.fork(params.id, params.entryId));
+          } catch (err) {
+            sendResponse(req.id, undefined, {
+              code: JsonRpcErrorCode.ServerError,
+              message: err instanceof Error ? err.message : String(err),
+            });
+          }
+          break;
+        }
+
+        case JsonRpcMethod.SessionExport: {
+          try {
+            const params = req.params as unknown as SessionExportParams;
+            const format = params.format ?? 'jsonl';
+            sendResponse(req.id, { path: await piSessions.exportSession(params.id, format, params.outputPath) });
           } catch (err) {
             sendResponse(req.id, undefined, {
               code: JsonRpcErrorCode.ServerError,
@@ -519,7 +563,6 @@ export function createStdioServer(): StdioServer {
       activeRun.abortController.abort();
     }
     activeRun = null;
-    agent = null;
     initialized = false;
   }
 

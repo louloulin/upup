@@ -1,4 +1,4 @@
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { api } from './api.js';
 import { formatToolResult } from '../types.js';
@@ -13,7 +13,7 @@ const StockPriceInputSchema = z.object({
     .describe("The stock ticker symbol to fetch current price for. For example, 'AAPL' for Apple."),
 });
 
-export const getStockPrice = new DynamicStructuredTool({
+export const getStockPrice = new PiTool({
   name: 'get_stock_price',
   description:
     'Fetches the current stock price snapshot for an equity ticker, including open, high, low, close prices, volume, and market cap.',
@@ -38,7 +38,7 @@ const StockPricesInputSchema = z.object({
   end_date: z.string().describe('End date in YYYY-MM-DD format. Required.'),
 });
 
-export const getStockPrices = new DynamicStructuredTool({
+export const getStockPrices = new PiTool({
   name: 'get_stock_prices',
   description:
     'Retrieves historical price data for a stock over a specified date range, including open, high, low, close prices and volume.',
@@ -59,7 +59,7 @@ export const getStockPrices = new DynamicStructuredTool({
   },
 });
 
-export const getStockTickers = new DynamicStructuredTool({
+export const getStockTickers = new PiTool({
   name: 'get_available_stock_tickers',
   description: 'Retrieves the list of available stock tickers that can be used with the stock price tools.',
   schema: z.object({}),

@@ -46,3 +46,12 @@ export {
   createDecisionDashboardTool,
   DECISION_DASHBOARD_DESCRIPTION,
 } from './decision-dashboard.js';
+
+export {
+  calculateDDM,
+  createDDMTool,
+  DDM_MODEL_DESCRIPTION,
+  DdmModelSchema,
+  type DdmModelInput,
+  type DdmResult,
+} from './ddm.js';

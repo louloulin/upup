@@ -6,7 +6,7 @@ import {
   getAgentLoader,
   resetAgentLoader,
 } from './agent-loader.js';
-import { getCustomAgentRegistry } from './agent-registry.js';
+import { getPiAgentRegistry } from './agent-registry.js';
 import { info } from '../utils/logging/logger.js';
 
 interface VerificationResult {
@@ -110,7 +110,7 @@ async function runVerification(): Promise<void> {
     });
 
     // 9. Verify registry integration
-    const registry = getCustomAgentRegistry();
+    const registry = getPiAgentRegistry();
     const customAgents = registry.getAllAgents();
     addResult({
       name: 'Registry Integration',

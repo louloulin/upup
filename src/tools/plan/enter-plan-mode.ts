@@ -6,13 +6,13 @@
  */
 
 import { z } from 'zod';
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import {
   createPlan,
   addStep,
   PLAN_STORAGE_DIR,
 } from '../../plan/plan-context.js';
-import { getPlanModeState } from '../../agent/plan-mode-state.js';
+import { getPlanModeState } from '../../runtime/pi/plan-mode-state.js';
 
 export const ENTER_PLAN_MODE_DESCRIPTION = `
 Enter Plan Mode to create a structured plan for a complex task.
@@ -59,8 +59,8 @@ export const EnterPlanModeSchema = z.object({
 /**
  * Create the EnterPlanMode tool
  */
-export function createEnterPlanModeTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createEnterPlanModeTool(): PiTool {
+  return new PiTool({
     name: 'enter_plan_mode',
     description: ENTER_PLAN_MODE_DESCRIPTION,
     schema: EnterPlanModeSchema,

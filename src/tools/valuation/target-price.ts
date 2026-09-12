@@ -7,7 +7,7 @@
  * - Sum-of-Parts (SOTP)
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { formatToolResult } from '../types.js';
 
@@ -255,7 +255,7 @@ const quickTargetSchema = z.object({
 // ============================================================================
 
 export function createCalculateTargetPriceTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'calculate_target_price',
     description: 'Calculate fair value target price using DCF, PE multiples, or Sum-of-Parts. Returns upside/downside from current price.',
     schema: targetPriceSchema,
@@ -345,7 +345,7 @@ export function createCalculateTargetPriceTool() {
 }
 
 export function createQuickTargetPriceTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'quick_target_price',
     description: 'Quick target price with minimal params (EPS + growth rate). Estimates using PE method.',
     schema: quickTargetSchema,

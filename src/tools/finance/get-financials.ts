@@ -1,10 +1,10 @@
-import { DynamicStructuredTool, StructuredToolInterface } from '@langchain/core/tools';
-import type { RunnableConfig } from '@langchain/core/runnables';
-import { AIMessage, ToolCall } from '@langchain/core/messages';
+import { PiTool } from '../../runtime/pi/tool.js';
+import type { RunnableConfig } from '../../runtime/pi/tool.js';
+import { getPiToolCalls, type PiToolCall } from '../../runtime/pi/model.js';
 import { z } from 'zod';
-import { callLlm } from '../../model/llm.js';
+import { callLlm } from '../../runtime/pi/model.js';
 import { formatToolResult } from '../types.js';
-import { getCurrentDate } from '../../agent/prompts.js';
+import { getCurrentDate } from '../../runtime/pi/prompts.js';
 import { withTimeout, SUB_TOOL_TIMEOUT_MS } from './utils.js';
 import { FINANCIAL_FORMATTERS } from './formatters.js';
 import { parseStockCode } from '../../utils/stock-code.js';
@@ -61,7 +61,7 @@ import { getFinancialSegments } from './segments.js';
 import { getEarnings } from './earnings.js';
 
 // All finance tools available for routing
-const FINANCE_TOOLS: StructuredToolInterface[] = [
+const FINANCE_TOOLS: PiTool[] = [
   // Fundamentals
   getIncomeStatements,
   getBalanceSheets,
@@ -130,8 +130,8 @@ const GetFinancialsInputSchema = z.object({
  * Create a get_financials tool configured with the specified model.
  * Uses native LLM tool calling for routing queries to finance tools.
  */
-export function createGetFinancials(model: string): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createGetFinancials(model: string): PiTool {
+  return new PiTool({
     name: 'get_financials',
     description: `Intelligent meta-tool for retrieving company financial data. Takes a natural language query and automatically routes to appropriate financial data tools. Use for:
 - Company financials (income statements, balance sheets, cash flow)
@@ -163,10 +163,10 @@ export function createGetFinancials(model: string): DynamicStructuredTool {
         systemPrompt: buildRouterPrompt(),
         tools: FINANCE_TOOLS,
       });
-      const aiMessage = response as AIMessage;
+      const aiMessage = response as import('@earendil-works/pi-ai').AssistantMessage;
 
       // 2. Check for tool calls
-      const toolCalls = aiMessage.tool_calls as ToolCall[];
+      const toolCalls = getPiToolCalls(aiMessage) as readonly PiToolCall[];
       if (!toolCalls || toolCalls.length === 0) {
         return formatToolResult({ error: 'No tools selected for query' }, []);
       }
@@ -181,12 +181,12 @@ export function createGetFinancials(model: string): DynamicStructuredTool {
             if (!tool) {
               throw new Error(`Tool '${tc.name}' not found`);
             }
-            const rawResult = await withTimeout(tool.invoke(tc.args), SUB_TOOL_TIMEOUT_MS, tc.name);
+            const rawResult = await withTimeout(tool.invoke(tc.arguments), SUB_TOOL_TIMEOUT_MS, tc.name);
             const result = typeof rawResult === 'string' ? rawResult : JSON.stringify(rawResult);
             const parsed = JSON.parse(result);
             return {
               tool: tc.name,
-              args: tc.args,
+              args: tc.arguments,
               data: parsed.data,
               sourceUrls: parsed.sourceUrls || [],
               error: null,
@@ -194,7 +194,7 @@ export function createGetFinancials(model: string): DynamicStructuredTool {
           } catch (error) {
             return {
               tool: tc.name,
-              args: tc.args,
+              args: tc.arguments,
               data: null,
               sourceUrls: [],
               error: error instanceof Error ? error.message : String(error),

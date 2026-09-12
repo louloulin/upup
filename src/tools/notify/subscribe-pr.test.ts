@@ -248,7 +248,7 @@ describe('listSubscriptions function', () => {
 });
 
 describe('createSubscribePRTool', () => {
-  it('should create a DynamicStructuredTool', () => {
+  it('should create a PiTool', () => {
     const tool = createSubscribePRTool();
     expect(tool.name).toBe('subscribe_pr');
     expect(tool.description).toBeTruthy();
@@ -271,7 +271,7 @@ describe('createSubscribePRTool', () => {
 });
 
 describe('createUnsubscribePRTool', () => {
-  it('should create a DynamicStructuredTool', () => {
+  it('should create a PiTool', () => {
     const tool = createUnsubscribePRTool();
     expect(tool.name).toBe('unsubscribe_pr');
   });
@@ -294,7 +294,7 @@ describe('createUnsubscribePRTool', () => {
 });
 
 describe('createListPRSubscriptionsTool', () => {
-  it('should create a DynamicStructuredTool', () => {
+  it('should create a PiTool', () => {
     const tool = createListPRSubscriptionsTool();
     expect(tool.name).toBe('list_pr_subscriptions');
   });

@@ -1,4 +1,4 @@
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { constants } from 'node:fs';
 import { access, readFile, writeFile } from 'node:fs/promises';
 import { z } from 'zod';
@@ -44,7 +44,7 @@ const editFileSchema = z.object({
   replace_all: z.boolean().default(false).describe('Replace all occurrences (default: false, requires unique match)'),
 });
 
-export const editFileTool = new DynamicStructuredTool({
+export const editFileTool = new PiTool({
   name: 'edit_file',
   description:
     'Make precise text replacements in a file. The target text must be unique in the file to avoid ambiguous edits.',

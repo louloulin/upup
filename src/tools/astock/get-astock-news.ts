@@ -1,4 +1,4 @@
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { getTushareClient } from './tushare-client';
 import { fetchStockNews, fetchMarketNews } from './news-client';
@@ -18,7 +18,7 @@ const GetAStockNewsSchema = z.object({
   limit: z.number().optional().describe('Number of results to return (default: 20)'),
 });
 
-export const getAStockNews = new DynamicStructuredTool({
+export const getAStockNews = new PiTool({
   name: 'get_astock_news',
   description: GET_ASTOCK_NEWS_DESCRIPTION,
   schema: GetAStockNewsSchema,

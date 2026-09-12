@@ -8,7 +8,7 @@
  * - File-based persistence
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -247,7 +247,7 @@ const addToWatchlistSchema = z.object({
 });
 
 export function createAddToWatchlistTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'add_to_watchlist',
     description: 'Add a stock symbol to your investment watchlist for tracking and alerts.',
     schema: addToWatchlistSchema,
@@ -263,7 +263,7 @@ const removeFromWatchlistSchema = z.object({
 });
 
 export function createRemoveFromWatchlistTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'remove_from_watchlist',
     description: 'Remove a stock symbol from your investment watchlist.',
     schema: removeFromWatchlistSchema,
@@ -279,7 +279,7 @@ const getWatchlistSchema = z.object({
 });
 
 export function createGetWatchlistTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'get_watchlist',
     description: 'Get your current investment watchlist with all tracked symbols and alerts.',
     schema: getWatchlistSchema,
@@ -307,7 +307,7 @@ const addAlertSchema = z.object({
 });
 
 export function createAddAlertTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'add_watchlist_alert',
     description: 'Add a price alert to a watchlist symbol. Alerts trigger when conditions are met.',
     schema: addAlertSchema,
@@ -323,7 +323,7 @@ const checkAlertsSchema = z.object({
 });
 
 export function createCheckAlertsTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'check_watchlist_alerts',
     description: 'Check watchlist alerts against current prices and return any triggered alerts.',
     schema: checkAlertsSchema,
@@ -346,7 +346,7 @@ const clearAlertSchema = z.object({
 });
 
 export function createClearAlertTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'clear_watchlist_alert',
     description: 'Clear/silence a triggered watchlist alert.',
     schema: clearAlertSchema,

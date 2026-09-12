@@ -34,7 +34,7 @@ describe("loadRealtimeTools", () => {
     }
   });
 
-  test("each tool exposes a callable StructuredToolInterface", () => {
+  test("each tool exposes a callable PiTool", () => {
     const tools = loadRealtimeTools();
     for (const t of tools) {
       expect(t.tool).toBeTruthy();

@@ -8,10 +8,9 @@
  * - Drawdown analysis
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { getTushareClient, getToday } from '../astock/tushare-client';
-import type { StructuredToolInterface } from '@langchain/core/tools';
 
 export const PERFORMANCE_ANALYTICS_DESCRIPTION = `## performance_analytics
 Calculate investment performance and risk metrics.
@@ -31,8 +30,8 @@ const PerformanceAnalyticsSchema = z.object({
   period_days: z.number().optional().describe('Analysis period in days'),
 });
 
-export function createPerformanceAnalytics(_model: string): StructuredToolInterface {
-  return new DynamicStructuredTool({
+export function createPerformanceAnalytics(_model: string): PiTool {
+  return new PiTool({
     name: 'performance_analytics',
     description: PERFORMANCE_ANALYTICS_DESCRIPTION,
     schema: PerformanceAnalyticsSchema,

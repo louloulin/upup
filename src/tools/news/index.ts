@@ -8,10 +8,9 @@
  * - Sentiment analysis
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { getTushareClient } from '../astock/tushare-client';
-import type { StructuredToolInterface } from '@langchain/core/tools';
 
 export const NEWS_AGGREGATOR_DESCRIPTION = `## news_aggregator
 Aggregate and analyze financial news.
@@ -50,8 +49,8 @@ function analyzeSentiment(text: string): number {
   return Math.max(-100, Math.min(100, score));
 }
 
-export function createNewsAggregator(_model: string): StructuredToolInterface {
-  return new DynamicStructuredTool({
+export function createNewsAggregator(_model: string): PiTool {
+  return new PiTool({
     name: 'news_aggregator',
     description: NEWS_AGGREGATOR_DESCRIPTION,
     schema: NewsAggregatorSchema,

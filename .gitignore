@@ -64,3 +64,8 @@ upup
 .serena/cache/
 .playwright-mcp/
 packages/sdk/.upup
+# >>> Comet managed project state >>>
+!/.comet/
+/.comet/*
+!/.comet/config.yaml
+# <<< Comet managed project state <<<

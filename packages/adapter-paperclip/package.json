@@ -33,9 +33,6 @@
     "@upup/sdk": "workspace:*",
     "@upup/state": "workspace:*"
   },
-  "peerDependencies": {
-    "@upup/llm": "workspace:*"
-  },
   "files": [
     "src"
   ],

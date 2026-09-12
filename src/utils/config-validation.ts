@@ -14,7 +14,7 @@ import { join } from 'path';
 import { homedir } from 'os';
 import { getSetting } from './config.js';
 import { checkApiKeyExistsForProvider, getProviderDisplayName } from './env.js';
-import { DEFAULT_MODEL, DEFAULT_PROVIDER } from '../model/llm.js';
+import { DEFAULT_MODEL, DEFAULT_PROVIDER } from '../runtime/pi/model.js';
 
 /**
  * Configuration validation result

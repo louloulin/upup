@@ -15,7 +15,7 @@ import { join, resolve } from 'node:path';
 import type { FourUniquesReport, UniqueEvidence } from './types.js';
 
 // ---------------------------------------------------------------------------
-// Helpers(纯 fs 工具,不依赖 agent 模块,避免 langchain 静态 import 链)
+// Helpers(纯 fs 工具,不依赖 agent 模块,避免运行时静态依赖链)
 // ---------------------------------------------------------------------------
 
 function countFilesMatching(dir: string, predicate: (name: string) => boolean): number {
@@ -86,7 +86,7 @@ function checkD1(root: string): UniqueEvidence {
   const commandsDir = join(root, 'src/commands');
   const tsxCount = countFilesMatching(commandsDir, (n) => n.endsWith('.tsx'));
   const tsCount = countFilesMatching(commandsDir, (n) => n.endsWith('.ts') || n.endsWith('.tsx'));
-  const flagCount = countGrepOccurrences(join(root, 'src/agent/feature-gates.ts'), 'name:');
+  const flagCount = countGrepOccurrences(join(root, 'src/runtime/pi/feature-gates.ts'), 'name:');
   const hasIndex = hasFile(join(root, 'src/index.tsx'));
   const cliEntryOk = hasIndex;
 
@@ -192,7 +192,7 @@ function checkD3(root: string): UniqueEvidence {
   let hasMarketsField = false;
   let marketsList: string[] = [];
   try {
-    const manifest = readFileSync(join(root, 'src/agent/capability-manifest.ts'), 'utf-8');
+    const manifest = readFileSync(join(root, 'src/runtime/pi/capability-manifest.ts'), 'utf-8');
     const m = /id:\s*['"]realtime['"][\s\S]*?markets:\s*\[([^\]]+)\]/.exec(manifest);
     if (m) {
       hasMarketsField = true;

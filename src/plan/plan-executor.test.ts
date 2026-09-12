@@ -2,7 +2,7 @@
  * Investment Research Plan Executor tests
  *
  * v5 Sprint 1.1.6 — 覆盖 persistPlan / loadPlan / executePlan / auditLog
- * 不依赖 langchain(避开 @langchain/core/utils/uuid 已知问题)。
+ * 不依赖外部 Agent runtime，保持计划执行测试确定性。
  */
 
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';

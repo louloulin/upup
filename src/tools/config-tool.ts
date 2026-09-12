@@ -10,7 +10,7 @@
  */
 
 import { z } from 'zod';
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../runtime/pi/tool.js';
 import { loadConfig, saveConfig } from '../utils/config.js';
 import { useDynamicConfig } from '../hooks/agent-hooks.js';
 
@@ -143,8 +143,8 @@ function formatValue(value: unknown, indent = 0): string {
 // Tool Factories
 // ============================================================================
 
-export function createConfigGetTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createConfigGetTool(): PiTool {
+  return new PiTool({
     name: 'config_get',
     description: CONFIG_TOOL_GET_DESCRIPTION,
     schema: ConfigToolGetSchema,
@@ -170,8 +170,8 @@ export function createConfigGetTool(): DynamicStructuredTool {
   });
 }
 
-export function createConfigSetTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createConfigSetTool(): PiTool {
+  return new PiTool({
     name: 'config_set',
     description: CONFIG_TOOL_SET_DESCRIPTION,
     schema: ConfigToolSetSchema,
@@ -200,8 +200,8 @@ export function createConfigSetTool(): DynamicStructuredTool {
   });
 }
 
-export function createConfigListTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createConfigListTool(): PiTool {
+  return new PiTool({
     name: 'config_list',
     description: CONFIG_TOOL_LIST_DESCRIPTION,
     schema: ConfigToolListSchema,

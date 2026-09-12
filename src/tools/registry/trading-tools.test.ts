@@ -29,6 +29,8 @@ describe('loadTradingTools', () => {
     expect(cancel.concurrencySafe).toBe(false);
     expect(place.concurrencyMetadata?.sideEffects.hasFinancialImpact).toBe(true);
     expect(place.concurrencyMetadata?.sideEffects.modifiesState).toBe(true);
+    expect(place.concurrencyMetadata?.safetyLevel).toBe('dangerous');
+    expect(cancel.concurrencyMetadata?.safetyLevel).toBe('dangerous');
   });
 
   test('read tools (positions/balance/quote) are concurrency-safe', () => {
@@ -48,7 +50,7 @@ describe('loadTradingTools', () => {
     }
   });
 
-  test('each tool exposes a callable StructuredToolInterface', () => {
+  test('each tool exposes a callable PiTool', () => {
     const tools = loadTradingTools();
     for (const t of tools) {
       expect(t.tool).toBeTruthy();
@@ -56,4 +58,3 @@ describe('loadTradingTools', () => {
     }
   });
 });
-

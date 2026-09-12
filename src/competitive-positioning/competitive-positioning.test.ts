@@ -167,15 +167,15 @@ describe('decision-path completeness', () => {
 // ---------------------------------------------------------------------------
 
 describe('manifest integration', () => {
-  // 用 dynamic import + try/catch 隔离 langchain 静态链
+  // 用 dynamic import + try/catch 隔离可选运行时静态链
   async function tryLoadManifest() {
     try {
-      return await import('../agent/capability-manifest.js');
+      return await import('../runtime/pi/capability-manifest.js');
     } catch (e) {
-      // langchain 静态 import 链触发 uuid 错误时,降级读源码 fallback
+      // 可选运行时静态 import 链失败时,降级读源码 fallback
       const fs = await import('node:fs');
       const path = await import('node:path');
-      const src = fs.readFileSync(path.join(ROOT, 'src/agent/capability-manifest.ts'), 'utf-8');
+      const src = fs.readFileSync(path.join(ROOT, 'src/runtime/pi/capability-manifest.ts'), 'utf-8');
       // 简易解析:抓 id/markets/competitorRefs
       const groups: Array<{ id: string; markets?: string[]; competitorRefs?: string[] }> = [];
       const blockRe = /\{\s*id:\s*["']([^"']+)["'][\s\S]*?\}/g;
@@ -191,7 +191,7 @@ describe('manifest integration', () => {
           competitorRefs: refsM ? refsM[1]!.split(',').map((s) => s.trim().replace(/["']/g, '')) : [],
         });
       }
-      return { CAPABILITY_GROUPS: groups } as typeof import('../agent/capability-manifest.js');
+      return { CAPABILITY_GROUPS: groups } as typeof import('../runtime/pi/capability-manifest.js');
     }
   }
 
@@ -277,7 +277,7 @@ describe('sologan bundle', () => {
 
 describe('feature flag', () => {
   test('COMPETITIVE_POSITIONING is registered and compiled-in by default', async () => {
-    const gates = await import('../agent/feature-gates.js');
+    const gates = await import('../runtime/pi/feature-gates.js');
     // 用 isFeatureCompiledIn (fallback defaultEnabled=true),不依赖 v1 engine state
     expect(gates.isFeatureCompiledIn('COMPETITIVE_POSITIONING')).toBe(true);
     expect(gates.getFeatureFlag('COMPETITIVE_POSITIONING')?.defaultEnabled).toBe(true);

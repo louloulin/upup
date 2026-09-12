@@ -4,7 +4,7 @@
  */
 
 import { z } from 'zod';
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { searchFunds, getFundBasic, getFundEstimatedValue, getFundUnitValue, getFundPerformance, getFundHoldings, getFollowedFunds } from './fund-api';
 
 export const FUND_SEARCH_DESCRIPTION = `Search for mutual funds by keyword (name or code).
@@ -79,7 +79,7 @@ const FundCodeSchema = z.object({
   fund_code: z.string().describe('Fund code (6 digits, e.g., 110022)'),
 });
 
-export const fundSearchTool = new DynamicStructuredTool({
+export const fundSearchTool = new PiTool({
   name: 'fund_search',
   description: FUND_SEARCH_DESCRIPTION,
   schema: FundSearchSchema,
@@ -96,7 +96,7 @@ export const fundSearchTool = new DynamicStructuredTool({
   },
 });
 
-export const fundDetailTool = new DynamicStructuredTool({
+export const fundDetailTool = new PiTool({
   name: 'fund_detail',
   description: FUND_DETAIL_DESCRIPTION,
   schema: FundCodeSchema,
@@ -152,7 +152,7 @@ export const fundDetailTool = new DynamicStructuredTool({
   },
 });
 
-export const fundPerformanceTool = new DynamicStructuredTool({
+export const fundPerformanceTool = new PiTool({
   name: 'fund_performance',
   description: FUND_PERFORMANCE_DESCRIPTION,
   schema: FundCodeSchema,
@@ -193,7 +193,7 @@ export const fundPerformanceTool = new DynamicStructuredTool({
   },
 });
 
-export const fundHoldingsTool = new DynamicStructuredTool({
+export const fundHoldingsTool = new PiTool({
   name: 'fund_holdings',
   description: FUND_HOLDINGS_DESCRIPTION,
   schema: FundCodeSchema,
@@ -247,7 +247,7 @@ const FundListSchema = z.object({
 });
 
 // Fund follow tool
-export const fundFollowTool = new DynamicStructuredTool({
+export const fundFollowTool = new PiTool({
   name: 'fund_follow',
   description: `Follow a mutual fund to add it to your watchlist.
   
@@ -306,7 +306,7 @@ Examples:
 });
 
 // Fund unfollow tool
-export const fundUnfollowTool = new DynamicStructuredTool({
+export const fundUnfollowTool = new PiTool({
   name: 'fund_unfollow',
   description: `Unfollow a mutual fund to remove it from your watchlist.
   
@@ -343,7 +343,7 @@ Examples:
 });
 
 // Fund list tool (show followed funds)
-export const fundListTool = new DynamicStructuredTool({
+export const fundListTool = new PiTool({
   name: 'fund_list',
   description: `List all followed mutual funds in your watchlist.
   
@@ -407,7 +407,7 @@ const FundManagerSchema = z.object({
 });
 
 // Fund manager tool
-export const fundManagerTool = new DynamicStructuredTool({
+export const fundManagerTool = new PiTool({
   name: 'fund_manager',
   description: `Get fund manager information and historical performance.
 
@@ -467,7 +467,7 @@ const FundCompareSchema = z.object({
 });
 
 // Fund compare tool
-export const fundCompareTool = new DynamicStructuredTool({
+export const fundCompareTool = new PiTool({
   name: 'fund_compare',
   description: `Compare multiple mutual funds side by side.
 
@@ -582,7 +582,7 @@ const FundScreenSchema = z.object({
 });
 
 // Fund screen tool
-export const fundScreenTool = new DynamicStructuredTool({
+export const fundScreenTool = new PiTool({
   name: 'fund_screen',
   description: `Screen mutual funds based on criteria.
 
@@ -652,7 +652,7 @@ const FundTopSchema = z.object({
   limit: z.number().optional().describe('返回数量 (默认 10)'),
 });
 
-export const fundTopTool = new DynamicStructuredTool({
+export const fundTopTool = new PiTool({
   name: 'fund_top',
   description: `Get top performing mutual funds.
 
@@ -732,7 +732,7 @@ const FundAlertDeleteSchema = z.object({
 });
 
 // Fund alert create tool
-export const fundAlertCreateTool = new DynamicStructuredTool({
+export const fundAlertCreateTool = new PiTool({
   name: 'fund_alert_create',
   description: `Create a price alert for a followed fund.
 
@@ -794,7 +794,7 @@ Examples:
 });
 
 // Fund alert list tool
-export const fundAlertListTool = new DynamicStructuredTool({
+export const fundAlertListTool = new PiTool({
   name: 'fund_alert_list',
   description: `List all fund price alerts.
 
@@ -846,7 +846,7 @@ ${rows}
 });
 
 // Fund alert delete tool
-export const fundAlertDeleteTool = new DynamicStructuredTool({
+export const fundAlertDeleteTool = new PiTool({
   name: 'fund_alert_delete',
   description: `Delete a fund price alert.
 
@@ -902,7 +902,7 @@ const BacktestThresholdSchema = z.object({
 });
 
 // Backtest DCA tool
-export const backtestDCATool = new DynamicStructuredTool({
+export const backtestDCATool = new PiTool({
   name: 'backtest_dca',
   description: `Run Dollar-Cost Averaging (DCA) backtest for a fund.
 
@@ -931,7 +931,7 @@ Examples:
 });
 
 // Backtest Lump Sum tool
-export const backtestLumpSumTool = new DynamicStructuredTool({
+export const backtestLumpSumTool = new PiTool({
   name: 'backtest_lumpsum',
   description: `Run Lump Sum investment backtest for a fund.
 
@@ -958,7 +958,7 @@ Examples:
 });
 
 // Backtest Threshold tool
-export const backtestThresholdTool = new DynamicStructuredTool({
+export const backtestThresholdTool = new PiTool({
   name: 'backtest_threshold',
   description: `Run threshold-based trading backtest for a fund.
 

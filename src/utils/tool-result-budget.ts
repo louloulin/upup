@@ -6,7 +6,7 @@
  * persisted to disk first.
  */
 
-import { ToolMessage } from '@langchain/core/messages';
+import type { ToolResultMessage } from '@earendil-works/pi-ai';
 import { persistLargeResult, buildPersistedContent } from './tool-result-storage.js';
 
 /** Maximum total characters across all tool results in a single turn. */
@@ -18,7 +18,7 @@ export const MAX_TURN_RESULT_CHARS = 200_000;
  *
  * Returns the original array if already under budget.
  */
-export function enforceResultBudget(toolMessages: ToolMessage[]): ToolMessage[] {
+export function enforceResultBudget(toolMessages: ToolResultMessage[]): ToolResultMessage[] {
   const totalChars = toolMessages.reduce((sum, tm) => {
     const content = typeof tm.content === 'string' ? tm.content : JSON.stringify(tm.content);
     return sum + content.length;
@@ -54,14 +54,13 @@ export function enforceResultBudget(toolMessages: ToolMessage[]): ToolMessage[] 
 
     const content = typeof tm.content === 'string' ? tm.content : JSON.stringify(tm.content);
     const { preview, filePath } = persistLargeResult(
-      tm.name ?? 'unknown',
-      tm.tool_call_id,
+      tm.toolName ?? 'unknown',
+      tm.toolCallId,
       content,
     );
-    return new ToolMessage({
-      content: buildPersistedContent(filePath, preview, content.length),
-      tool_call_id: tm.tool_call_id,
-      name: tm.name,
-    });
+    return {
+      ...tm,
+      content: [{ type: 'text', text: buildPersistedContent(filePath, preview, content.length) }],
+    };
   });
 }

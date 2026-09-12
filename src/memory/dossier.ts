@@ -13,7 +13,7 @@
  *      dossier.ts (Layer 3) → utils/storage-paths (Layer 1) + node:crypto
  *   4. 测试友好:接受 filePath 注入 + inMemory 模式
  *
- * 生命周期(由 src/agent/investment-workflow 通过 createDossierHook 注入):
+ * 生命周期(由 src/runtime/pi/investment-workflow 通过 createDossierHook 注入):
  *   pre-phase  →  dossier.read(ticker) 把 snapshot + 最新 thesis 注入 workflow context
  *   post-phase →  dossier.appendThesis(ticker, { claims, evidenceRefs, ... })
  *                 → 更新 freshnessTs + versionHash

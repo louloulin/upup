@@ -6,7 +6,7 @@
 
 ## Evaluation Framework
 
-We use [LangSmith](https://www.langchain.com/langsmith) with a custom Ink UI (`src/evals/`). The framework:
+We use the Pi-backed evaluation runner with a custom Ink UI (`src/evals/`). The runner evaluates Pi session events, tool calls, evidence metadata and final investment reports:
 
 ```bash
 # Run full eval suite (200+ questions, takes ~30 min)

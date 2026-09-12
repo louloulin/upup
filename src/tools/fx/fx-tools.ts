@@ -7,7 +7,7 @@
  * - Investment-specific conversions
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 
 // Standard exchange rates (USD base, approximate as of 2024)
@@ -118,7 +118,7 @@ const convertSchema = z.object({
 });
 
 export function createConvertCurrencyTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'convert_currency',
     description: 'Convert amounts between currencies (USD, CNY, HKD, JPY, EUR, GBP, KRW).',
     schema: convertSchema,
@@ -159,7 +159,7 @@ export function createConvertCurrencyTool() {
 const listCurrenciesSchema = z.object({});
 
 export function createListCurrenciesTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'list_currencies',
     description: 'List all supported currencies for conversion.',
     schema: listCurrenciesSchema,
@@ -187,7 +187,7 @@ const getRateSchema = z.object({
 });
 
 export function createGetRateTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'get_exchange_rate',
     description: 'Get current exchange rate between two currencies.',
     schema: getRateSchema,

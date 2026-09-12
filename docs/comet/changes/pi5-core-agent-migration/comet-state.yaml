@@ -1,0 +1,242 @@
+schema: comet.native.v4
+name: pi5-core-agent-migration
+language: zh-CN
+phase: verify
+status: active
+state_version: 4
+brief: brief.md
+spec_changes: []
+workspace:
+  isolation: current
+  change_branch: main
+  target_branch: main
+  finish: null
+loop:
+  stage: verify-ready
+  goal_cycle: 1
+  iteration: 1
+  attempt: 1
+  retry_epoch: 0
+  failed_iteration_count: 0
+  no_progress_count: 0
+  execution_failure_count: 0
+  previous_unresolved_ids: []
+  next_action: await-verifier-result
+acceptance:
+  - id: A1
+    source: brief.md
+    text: "**A1 Runtime 唯一性**：生产入口 CLI、print、stdio、SDK、Gateway、Cron、Daemon、Bridge 和
+      Eval 均通过 `AgentSession` 或 `AgentSessionRuntime`；静态检查不能发现第二个生产 Agent loop。"
+    result: pending
+    reason: null
+  - id: A2
+    source: brief.md
+    text: "**A2 旧核心退出**：默认生产路径不 import/instantiate `src/agent/agent.ts`，不调用
+      `callLlmWithMessages()`；旧实现只存在于明确的迁移/兼容目录。"
+    result: pending
+    reason: null
+  - id: A3
+    source: brief.md
+    text: "**A3 Pi 版本与运行时**：Pi 包版本锁定；Node `>=22.19.0` 与 Bun 策略有可执行 CI 检查；不兼容时使用 Pi
+      Node worker/RPC，而不是隐式降级。"
+    result: pending
+    reason: null
+  - id: A4
+    source: brief.md
+    text: "**A4 Runtime Adapter**：`src/runtime/pi/` 暴露唯一 Session Factory 和 Runtime
+      接口；Agent、Subagent、Worker、Gateway 不直接创建旧 Agent。"
+    result: pending
+    reason: null
+  - id: A5
+    source: brief.md
+    text: "**A5 Agent Spec**：普通、投资、Custom、Subagent、Worker 都能序列化为带
+      version、tools、skills、permissions、workflow 的 `UpUpAgentSpec`。"
+    result: pending
+    reason: null
+  - id: A6
+    source: brief.md
+    text: "**A6 Pi Agent loop**：一次真实 fixture 证明 Pi 处理多轮 streaming、多个 Tool
+      Call、steer/follow-up、abort、timeout、错误和最终消息。"
+    result: pending
+    reason: null
+  - id: A7
+    source: brief.md
+    text: "**A7 Pi Model protocol**：核心使用 `pi-ai`
+      Model/Provider/usage/stream；LangChain message classes 不在生产 Runtime Adapter
+      中出现。"
+    result: pending
+    reason: null
+  - id: A8
+    source: brief.md
+    text: "**A8 Pi Session/Compaction**：Session
+      tree、fork、resume、compact、export、crash recovery 通过；金融摘要保留
+      ticker、market、asOf、assumption、risk、evidence 和未完成阶段。"
+    result: pending
+    reason: null
+  - id: A9
+    source: brief.md
+    text: "**A9 Tool Adapter**：至少行情、基本面、新闻、搜索、交易日五个真实 fixture 工具通过 Pi
+      `registerTool()` 执行，并保留 safety、concurrency、progress、details、AbortSignal。"
+    result: pending
+    reason: null
+  - id: A10
+    source: brief.md
+    text: "**A10 金融证据**：金融工具结果包含 evidence
+      ID、source、retrievedAt、asOf、freshness、warnings 和 auditId；secret
+      不进入结果、Session 或 telemetry。"
+    result: pending
+    reason: null
+  - id: A11
+    source: brief.md
+    text: "**A11 投资
+      Profiles**：`invest-explore`、`invest-plan`、`invest-risk`、`invest-trade`、`i\
+      nvest-review` 使用 Pi Session 和工具 allowlist；越权 Tool Call 被阻止并审计。"
+    result: pending
+    reason: null
+  - id: A12
+    source: brief.md
+    text: "**A12 Pi 生态**：纯知识 Skill、Extension Tool、Prompt Template 和 Pi Package
+      能分别加载；新增投资能力不修改 Pi Runtime；Package 依赖 pinned 且来源 allowlist 生效。"
+    result: pending
+    reason: null
+  - id: A13
+    source: brief.md
+    text: "**A13 金融权限**：safe/warning/dangerous/critical
+      四级策略覆盖读数据、筛选/回测、计划/组合草案、模拟交易/外发；critical 默认拒绝或逐次确认。"
+    result: pending
+    reason: null
+  - id: A14
+    source: brief.md
+    text: "**A14 插件安全**：第三方或未审查 Package 不自动加载；敏感工具运行在受控进程/sandbox；凭证访问和网络范围可审计。"
+    result: pending
+    reason: null
+  - id: A15
+    source: brief.md
+    text: "**A15 Session 迁移**：旧 JSON/JSONL 可 dry-run、备份、迁移、Pi
+      回读、tree/fork/compact/export；失败不覆盖源文件并生成 hash/report。"
+    result: pending
+    reason: null
+  - id: A16
+    source: brief.md
+    text: "**A16 投研工作流**：`/invest` detect→plan→execute→verify→report 五阶段使用 Pi
+      Session，可暂停、恢复、fork、幂等和审计。"
+    result: pending
+    reason: null
+  - id: A17
+    source: brief.md
+    text: "**A17 多 Agent**：Coordinator 只负责分解、spawn、消息、聚合、生命周期和回收；底层每个 worker 的
+      LLM、Tool、Session、Compaction 来自 Pi。"
+    result: pending
+    reason: null
+  - id: A18
+    source: brief.md
+    text: "**A18 外围入口**：Gateway、Cron、Daemon、Bridge、stdio、SDK、Eval 都通过同一 Runtime
+      Adapter，事件、错误、usage 和取消语义一致。"
+    result: pending
+    reason: null
+  - id: A19
+    source: brief.md
+    text: "**A19 验证门禁**：类型检查、静态依赖检查、Adapter contract tests、双运行时 fixture、金融
+      E2E、权限测试、性能/恢复测试全部有可重复命令和结果。"
+    result: pending
+    reason: null
+  - id: A20
+    source: brief.md
+    text: "**A20 架构留档与计划更新**：正式架构图、数据流图、插件生态图和迁移状态落盘；每个通过的 ID 在 `pi5.md`
+      的完成矩阵中标记并链接证据。"
+    result: pending
+    reason: null
+builder_handoff:
+  candidate_id: bf0f9bf3-5c0a-496f-b1e5-96928dd8d004
+  identity_provider: skill-coordinated
+  builder_execution_ref: skill-coordinated:builder:97c0dc41-51c5-497f-b390-d3f18c4436f4
+  iteration: 1
+  summary:
+    text: "Implemented and tested the first Pi runtime migration slice:
+      version-pinned Pi dependencies, UpUpAgentSpec and permission contracts, Pi
+      AgentSession factory with DefaultResourceLoader extension registration,
+      profile-based tool allowlists, abort/timeout handling, event mapping, five
+      deterministic finance adapter fixtures with evidence metadata, and
+      architecture documentation. Legacy production entry points remain
+      unmigrated and are explicitly not claimed complete."
+    truncated: false
+  addressed_acceptance_ids:
+    - A3
+    - A4
+    - A5
+    - A10
+    - A13
+    - A20
+  checks:
+    - name:
+        text: Pi runtime and finance contract tests
+        truncated: false
+      result: passed
+      note:
+        text: "bun test src/runtime/pi src/extensions/upup: 10 passed, 0 failed"
+        truncated: false
+    - name:
+        text: Pi migration static gate
+        truncated: false
+      result: passed
+      note:
+        text: "bun run check:pi-migration: 7 exact Pi package versions, forbidden
+          runtime imports absent, finance metadata present"
+        truncated: false
+    - name:
+        text: Pi AgentSession construction smoke test
+        truncated: false
+      result: passed
+      note:
+        text: In-memory AgentSession created through createAgentSession and
+          DefaultResourceLoader extensionFactories
+        truncated: false
+    - name:
+        text: Full project typecheck
+        truncated: false
+      result: failed
+      note:
+        text: Existing workspace package declaration/build-output errors and unrelated
+          implicit-any errors remain; no errors reported from src/runtime/pi or
+          src/extensions/upup
+        truncated: false
+    - name:
+        text: Production entry migration
+        truncated: false
+      result: not-run
+      note:
+        text: Gateway, cron, daemon, bridge, SDK, CLI, and old Agent loop are not yet
+          migrated
+        truncated: false
+  checks_truncated: false
+  known_limits:
+    - text: A1/A2/A6/A7/A8/A9/A11/A12/A14/A15/A16/A17/A18/A19 are not complete; they
+        require production entry migration, real Pi model fixture, session
+        migration, package loading, coordinator/workflow integration, and
+        independent verification.
+      truncated: false
+    - text: Finance fixtures are deterministic contract fixtures, not live data
+        adapters; no real trading is enabled.
+      truncated: false
+    - text: Do not mark pi5.md completion checkboxes until the independent verifier
+        supplies evidence.
+      truncated: false
+  known_limits_truncated: false
+  submitted_at: 2026-09-12T16:32:30.249Z
+blockers: []
+verification: null
+history: []
+history_overflow:
+  dropped_entries: 0
+  first_dropped_at: null
+  last_dropped_at: null
+  outcome_counts:
+    pass: 0
+    fail: 0
+    blocked: 0
+    execution-error: 0
+    recovery: 0
+verification_result: pending
+verification_report: null
+archived: false
+created_at: 2026-09-12T16:20:45.195Z

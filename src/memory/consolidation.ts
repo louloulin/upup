@@ -14,7 +14,7 @@ import {
   CONSOLIDATION_SYSTEM_PROMPT,
   buildConsolidationPrompt,
 } from './prompts.js';
-import { getChatModel, DEFAULT_MODEL } from '../model/llm.js';
+import { callStructuredLlm, DEFAULT_MODEL } from '../runtime/pi/model.js';
 import { getUpupDir } from '../utils/paths.js';
 import { MEMORY_TYPES, type MemoryType } from './types.js';
 import { z } from 'zod';
@@ -303,23 +303,15 @@ async function performConsolidation(
   options: { model?: string; signal?: AbortSignal },
 ): Promise<z.infer<typeof CONSOLIDATION_OUTPUT_SCHEMA>> {
   try {
-    const llm = getChatModel(options.model ?? DEFAULT_MODEL, false);
-    const runnable = llm.withStructuredOutput(CONSOLIDATION_OUTPUT_SCHEMA, { strict: false });
-
-    const systemMessage = { role: 'system' as const, content: CONSOLIDATION_SYSTEM_PROMPT };
-    const userMessage = {
-      role: 'user' as const,
-      content: buildConsolidationPrompt(memories.map(m => ({
+    return await callStructuredLlm(buildConsolidationPrompt(memories.map(m => ({
         name: m.name,
         type: m.type,
         content: m.content,
-      }))),
-    };
-
-    const invokeOpts = options.signal ? { signal: options.signal } : undefined;
-    const result = await runnable.invoke([systemMessage, userMessage], invokeOpts);
-
-    return result || { merged_memories: [], delete_files: [] };
+      }))), CONSOLIDATION_OUTPUT_SCHEMA, {
+        model: options.model ?? DEFAULT_MODEL,
+        systemPrompt: CONSOLIDATION_SYSTEM_PROMPT,
+        signal: options.signal,
+      });
   } catch (e) {
     error('memory', 'LLM consolidation failed', e instanceof Error ? e : undefined);
     return { merged_memories: [], delete_files: [] };

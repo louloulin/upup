@@ -27,7 +27,7 @@ import {
 
 export function loadTradingTools(): RegisteredTool[] {
   const read = financialReadMetadata();
-  const write = financialWriteMetadata();
+  const write = { ...financialWriteMetadata(), safetyLevel: 'dangerous' as const };
 
   return [
     {

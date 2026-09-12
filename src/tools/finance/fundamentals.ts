@@ -1,4 +1,4 @@
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { api, stripFieldsDeep } from './api.js';
 import { formatToolResult } from '../types.js';
@@ -57,7 +57,7 @@ function createParams(input: z.infer<typeof FinancialStatementsInputSchema>): Re
   };
 }
 
-export const getIncomeStatements = new DynamicStructuredTool({
+export const getIncomeStatements = new PiTool({
   name: 'get_income_statements',
   description: `Fetches a company's income statements, detailing its revenues, expenses, net income, etc. over a reporting period. Useful for evaluating a company's profitability and operational efficiency.`,
   schema: FinancialStatementsInputSchema,
@@ -71,7 +71,7 @@ export const getIncomeStatements = new DynamicStructuredTool({
   },
 });
 
-export const getBalanceSheets = new DynamicStructuredTool({
+export const getBalanceSheets = new PiTool({
   name: 'get_balance_sheets',
   description: `Retrieves a company's balance sheets, providing a snapshot of its assets, liabilities, shareholders' equity, etc. at a specific point in time. Useful for assessing a company's financial position.`,
   schema: FinancialStatementsInputSchema,
@@ -85,7 +85,7 @@ export const getBalanceSheets = new DynamicStructuredTool({
   },
 });
 
-export const getCashFlowStatements = new DynamicStructuredTool({
+export const getCashFlowStatements = new PiTool({
   name: 'get_cash_flow_statements',
   description: `Retrieves a company's cash flow statements, showing how cash is generated and used across operating, investing, and financing activities. Useful for understanding a company's liquidity and solvency.`,
   schema: FinancialStatementsInputSchema,
@@ -99,7 +99,7 @@ export const getCashFlowStatements = new DynamicStructuredTool({
   },
 });
 
-export const getAllFinancialStatements = new DynamicStructuredTool({
+export const getAllFinancialStatements = new PiTool({
   name: 'get_all_financial_statements',
   description: `Retrieves all three financial statements (income statements, balance sheets, and cash flow statements) for a company in a single API call. This is more efficient than calling each statement type separately when you need all three for comprehensive financial analysis.`,
   schema: FinancialStatementsInputSchema,
@@ -112,4 +112,3 @@ export const getAllFinancialStatements = new DynamicStructuredTool({
     );
   },
 });
-

@@ -212,7 +212,7 @@ export class EvalApp extends Container {
     const resultsBox = new BorderBox(resultItems, { style: 'single', paddingX: 1, paddingY: 0 });
     this.addChild(resultsBox);
     this.addChild(new Spacer(1));
-    this.addChild(new Text(theme.muted('View full results: https://smith.langchain.com'), 0, 0));
+    this.addChild(new Text(theme.muted('View full results in the configured evaluation dashboard'), 0, 0));
   }
 
   private truncate(value: string, maxLength: number): string {

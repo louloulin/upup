@@ -71,7 +71,7 @@ export interface ClientConfig {
   hooks?: HookMap
   /** 会话配置 */
   session?: SessionConfig
-  /** 是否使用 upup 核心 Session (SDK v4, 默认 false) */
+  /** 是否使用 Pi-backed Session (默认 true；保留旧字段仅为兼容配置) */
   useUpupSession?: boolean
 
   // ============ Phase 5: 进程池 ============
@@ -265,7 +265,7 @@ export class UpClient extends EventEmitter implements AsyncDisposable {
     super()
     this.transport = transport
     this.config = config
-    this.useUpupSession = config.useUpupSession ?? false
+    this.useUpupSession = config.useUpupSession ?? true
     this.toolRegistry = new ToolRegistry()
     this.permissionManager = new PermissionManager({
       mode: config.permissionMode,
@@ -494,8 +494,7 @@ export class UpClient extends EventEmitter implements AsyncDisposable {
     query: string,
     options?: PromptOptions
   ): AsyncGenerator<SDKMessage> {
-    // ✅ SDK v5: 使用 UpupSessionManager 的 sessionId
-    const sessionId = this.upupSessionManager?.getSessionId()
+    const sessionId = await this.ensurePiSession(options)
 
     // 触发 StreamStart Hook
     await this.hookExecutor.execute('StreamStart', {
@@ -546,6 +545,21 @@ export class UpClient extends EventEmitter implements AsyncDisposable {
       hook_event_name: 'StreamEnd',
       session_id: sessionId || undefined
     })
+  }
+
+  private async ensurePiSession(options?: PromptOptions): Promise<string | undefined> {
+    if (!this.upupSessionManager) return undefined
+    const current = this.upupSessionManager.getSessionId()
+    if (current) return current
+    const created = await this.upupSessionManager.create({
+      id: this.config.session?.resumeFrom,
+      metadata: {
+        ...(this.config.session?.metadata ?? {}),
+        model: options?.model ?? this.config.model,
+        systemPrompt: options?.systemPrompt,
+      },
+    })
+    return created.id
   }
 
   /**

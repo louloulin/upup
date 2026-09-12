@@ -12,7 +12,7 @@
  */
 
 import { z } from 'zod';
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { getCwd } from '../../utils/cwd.js';
@@ -371,10 +371,10 @@ export function formatPowerShellSummary(result: PowerShellToolResult): string {
 // ============================================================================
 
 /**
- * Create the PowerShellTool instance using DynamicStructuredTool
+ * Create the PowerShellTool instance using PiTool
  */
-export function createPowerShellTool(options: PowerShellToolOptions = {}): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createPowerShellTool(options: PowerShellToolOptions = {}): PiTool {
+  return new PiTool({
     name: POWERSHELL_TOOL_NAME,
     description: getPowerShellToolDescription(),
     schema: inputSchema,

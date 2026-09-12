@@ -1,4 +1,4 @@
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { api } from './api.js';
 import { formatToolResult } from '../types.js';
@@ -16,7 +16,7 @@ const AnalystEstimatesInputSchema = z.object({
     .describe("The period for the estimates, either 'annual' or 'quarterly'."),
 });
 
-export const getAnalystEstimates = new DynamicStructuredTool({
+export const getAnalystEstimates = new PiTool({
   name: 'get_analyst_estimates',
   description: `Retrieves analyst estimates for a given company ticker, including metrics like estimated EPS. Useful for understanding consensus expectations, assessing future growth prospects, and performing valuation analysis.`,
   schema: AnalystEstimatesInputSchema,
@@ -29,4 +29,3 @@ export const getAnalystEstimates = new DynamicStructuredTool({
     return formatToolResult(data.analyst_estimates || [], [url]);
   },
 });
-

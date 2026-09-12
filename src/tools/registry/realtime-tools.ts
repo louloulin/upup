@@ -18,7 +18,7 @@ import {
   type FeedSource,
 } from "../../realtime/index.js";
 import { getDefaultBus } from "../../core/event-bus.js";
-import { DynamicStructuredTool } from "@langchain/core/tools";
+import { PiTool } from "../../runtime/pi/tool.js";
 import { z } from "zod";
 
 interface ActiveSubscription {
@@ -98,7 +98,7 @@ Realtime stream tools for live market data.
 `;
 
 export function createRealtimeSubscribeTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: "realtime_subscribe",
     description: "Open a realtime feed subscription for one or more symbols. Returns a subscription id; quote and bar events are emitted to the event bus under realtime.quote / realtime.bar.",
     schema: z.object({
@@ -169,7 +169,7 @@ export function createRealtimeSubscribeTool() {
 }
 
 export function createRealtimeUnsubscribeTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: "realtime_unsubscribe",
     description: "Close a previously-opened realtime subscription by id.",
     schema: z.object({
@@ -196,7 +196,7 @@ export function createRealtimeUnsubscribeTool() {
 }
 
 export function createRealtimeListSubscriptionsTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: "realtime_list_subscriptions",
     description: "List all active realtime subscriptions managed by this process.",
     schema: z.object({}),

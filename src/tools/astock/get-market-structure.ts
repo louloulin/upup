@@ -1,4 +1,4 @@
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { getTushareClient, getToday } from './tushare-client';
 
@@ -20,7 +20,7 @@ const GetMarketStructureSchema = z.object({
   end_date: z.string().optional().describe('End date (YYYYMMDD, default: today)'),
 });
 
-export const getMarketStructure = new DynamicStructuredTool({
+export const getMarketStructure = new PiTool({
   name: 'get_market_structure',
   description: GET_MARKET_STRUCTURE_DESCRIPTION,
   schema: GetMarketStructureSchema,

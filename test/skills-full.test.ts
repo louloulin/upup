@@ -152,7 +152,7 @@ describe('Skill Command Creation', () => {
 
     expect(cmd.skillRoot).toBeDefined();
     expect(cmd.skillRoot).not.toContain('SKILL.md');
-    expect(cmd.skillRoot).toContain(skill.name);
+    expect(cmd.skillRoot).toBe(skill.path.replace(/\/SKILL\.md$/, ''));
   });
 
   it('should have getPromptForCommand method', () => {

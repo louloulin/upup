@@ -1,4 +1,4 @@
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { formatToolResult } from '../types.js';
 import { logger } from '@/utils';
@@ -266,7 +266,7 @@ const actRequestSchema = z.object({
   timeMs: z.number().optional().describe('Wait time in milliseconds'),
 });
 
-export const browserTool = new DynamicStructuredTool({
+export const browserTool = new PiTool({
   name: 'browser',
   description: 'Navigate websites, read content, and interact with pages. Use for accessing company websites, earnings reports, and dynamic content.',
   schema: z.object({

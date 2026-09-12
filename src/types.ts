@@ -4,7 +4,7 @@
  * Re-exports shared types from @upup/types and defines UpUp-specific types.
  */
 
-import type { DisplayEvent, TokenUsage } from './agent/types.js';
+import type { DisplayEvent, TokenUsage } from './runtime/pi/legacy-events.js';
 
 // Re-export shared types from @upup/types
 export type {

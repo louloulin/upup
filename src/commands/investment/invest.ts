@@ -6,11 +6,11 @@
  * /invest NVDA 估值            → fast lane(只跑估值相关 phase)
  * /invest --resume <planId>    → 从 checkpoint 恢复
  *
- * 调 src/agent/investment-workflow.runInvestmentWorkflow()
+ * 调 Pi-backed investment workflow
  * 纯本地 + phaseHandler stub(无 src/tools/* 依赖,无 LLM,< 1s 框架跑通)
  *
  * 模块边界:
- * - 调 src/agent/investment-workflow(无 src/tools 依赖)
+ * - 调 src/runtime/pi/investment-workflow(无 src/tools 依赖)
  * - 调 src/plan/plan-executor(读 plan 状态)
  * - 零跨包
  */
@@ -22,7 +22,7 @@ import {
   runInvestmentWorkflow,
   WORKFLOW_PHASES,
   type WorkflowResult,
-} from '../../agent/investment-workflow.js';
+} from '../../runtime/pi/investment-workflow.js';
 import { createPhaseHandlerMap } from './phase-handlers.js';
 import { loadPlan } from '../../plan/plan-executor.js';
 import { extractTicker } from '../../plan/plan-builder.js';

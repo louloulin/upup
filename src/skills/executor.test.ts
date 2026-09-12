@@ -271,7 +271,7 @@ describe('shouldUseForkMode', () => {
     expect(shouldUseForkMode(TEST_SKILL_FORK)).toBe(true);
   });
 
-  it('should return true for skills with custom agent', () => {
+  it('should return true for skills with Pi agent', () => {
     expect(shouldUseForkMode(TEST_SKILL_FORK)).toBe(true);
   });
 

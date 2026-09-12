@@ -1,4 +1,4 @@
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { getTushareClient } from './tushare-client';
 import { parseStockCode } from '../../utils/stock-code';
@@ -15,7 +15,7 @@ const GetSectorDataSchema = z.object({
   type: z.enum(['stock', 'concept', 'industry']).optional().describe('Query type: stock (get sector for a code), concept (get stocks in a concept), industry (get industry info)'),
 });
 
-export const getSectorData = new DynamicStructuredTool({
+export const getSectorData = new PiTool({
   name: 'get_sector_data',
   description: GET_SECTOR_DATA_DESCRIPTION,
   schema: GetSectorDataSchema,

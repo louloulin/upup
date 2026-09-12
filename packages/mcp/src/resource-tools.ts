@@ -4,7 +4,7 @@
  * These tools let the agent discover and read resources exposed by connected MCP servers.
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { createPiMcpTool } from './pi-tool.js';
 import { z } from 'zod';
 import { getDefaultMCPClient } from './client.js';
 
@@ -47,13 +47,13 @@ Read a specific resource from an MCP server by URI.
 - Returns resource content (text or binary)
 `.trim();
 
-export const listMcpResourcesTool = new DynamicStructuredTool({
+export const listMcpResourcesTool = createPiMcpTool({
   name: 'list_mcp_resources',
   description: 'List available resources from connected MCP servers.',
   schema: z.object({
     server: z.string().optional().describe('Optional server name to filter results.'),
   }),
-  func: async (input) => {
+  execute: async (input) => {
     const client = getDefaultMCPClient();
     const results = await client.listResources(input.server);
 
@@ -82,14 +82,14 @@ export const listMcpResourcesTool = new DynamicStructuredTool({
   },
 });
 
-export const readMcpResourceTool = new DynamicStructuredTool({
+export const readMcpResourceTool = createPiMcpTool({
   name: 'read_mcp_resource',
   description: 'Read a specific resource from an MCP server by URI.',
   schema: z.object({
     uri: z.string().describe('URI of the resource to read.'),
     server: z.string().optional().describe('Optional server name (auto-detected if omitted).'),
   }),
-  func: async (input) => {
+  execute: async (input) => {
     const client = getDefaultMCPClient();
     const result = await client.readResource(input.uri, input.server);
 

@@ -5,7 +5,7 @@
  */
 
 import { config } from 'dotenv';
-import { Agent } from './agent/agent.js';
+import { streamPiAgent } from './runtime/pi/event-stream.js';
 
 config({ quiet: true });
 
@@ -30,9 +30,7 @@ async function main() {
   }));
 
   try {
-    const agent = await Agent.create({ model });
-
-    const stream = agent.run(prompt);
+    const stream = streamPiAgent(prompt, { model });
 
     for await (const event of stream) {
       switch (event.type) {

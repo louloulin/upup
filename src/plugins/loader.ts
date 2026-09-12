@@ -223,7 +223,7 @@ export class PluginLoader {
   /**
    * Load a plugin from a manifest
    */
-  async load(manifest: PluginManifest, config: Record<string, unknown>, cwd: string): Promise<LoadedPlugin> {
+  async load(manifest: PluginManifest, config: Record<string, unknown>, cwd: string, pluginRoot = cwd): Promise<LoadedPlugin> {
     const adapter = this.adapters.get(manifest.runtime);
     if (!adapter) {
       throw new Error(`No adapter registered for runtime: ${manifest.runtime}`);
@@ -242,7 +242,7 @@ export class PluginLoader {
         warn: (msg: string) => warn('default', `[${manifest.name}] ${msg}`),
         error: (msg: string) => error('default', `[${manifest.name}] ${msg}`),
       },
-      pluginRoot: cwd,
+      pluginRoot,
     });
 
     // Cache the API
@@ -287,6 +287,8 @@ export class PluginLoader {
 
     // Load via adapter
     const plugin = await adapter.load(manifest, api);
+
+    plugin.path = pluginRoot;
 
     // Track loaded
     this.loaded.set(manifest.id, plugin);
@@ -515,18 +517,19 @@ export interface PluginLifecycleOptions {
   config: Record<string, unknown>;
   cwd: string;
   stateDir?: string;
+  pluginRoot?: string;
 }
 
 /**
  * Load and start a plugin with full lifecycle
  */
 export async function loadAndStartPlugin(options: PluginLifecycleOptions): Promise<LoadedPlugin> {
-  const { manifest, config, cwd, stateDir = cwd + '/.upup-state' } = options;
+  const { manifest, config, cwd, stateDir = cwd + '/.upup-state', pluginRoot = cwd } = options;
   const registry = getPluginRegistry();
 
   try {
     const loader = getPluginLoader();
-    const plugin = await loader.load(manifest, config, cwd);
+    const plugin = await loader.load(manifest, config, cwd, pluginRoot);
 
     // Start services
     const serviceManager = getServiceManager();

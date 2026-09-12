@@ -7,7 +7,7 @@
  */
 
 import { z } from 'zod';
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import {
   formatPlanMarkdown,
   formatPlanChecklist,
@@ -19,7 +19,7 @@ import {
   listPlans,
   planMemory,
 } from './enter-plan-mode.js';
-import { getPlanModeState } from '../../agent/plan-mode-state.js';
+import { getPlanModeState } from '../../runtime/pi/plan-mode-state.js';
 
 export const EXIT_PLAN_MODE_DESCRIPTION = `
 Exit Plan Mode and either save or discard the current plan.
@@ -64,8 +64,8 @@ export const ExitPlanModeSchema = z.object({
 /**
  * Create the ExitPlanMode tool
  */
-export function createExitPlanModeTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createExitPlanModeTool(): PiTool {
+  return new PiTool({
     name: 'exit_plan_mode',
     description: EXIT_PLAN_MODE_DESCRIPTION,
     schema: ExitPlanModeSchema,

@@ -5,9 +5,7 @@
  * Provides highest performance for trusted local plugins.
  */
 
-import { resolve } from 'path';
 import { info, warn, error } from '../../utils/logging/logger.js';
-import { isPathInside } from '../path-safety.js';
 import type {
   PluginAdapter,
   PluginManifest,
@@ -30,12 +28,7 @@ export class BunAdapter implements PluginAdapter {
   }
 
   async load(manifest: PluginManifest, api: UpUpPluginApi): Promise<LoadedPlugin> {
-    const entryPath = resolve(process.cwd(), manifest.entry);
-
-    // Path safety check
-    if (!isPathInside(entryPath, process.cwd())) {
-      throw new Error(`Plugin entry escapes working directory: ${manifest.entry}`);
-    }
+    const entryPath = api.resolvePath(manifest.entry);
 
     info('default', `Loading Bun plugin: ${manifest.name} from ${manifest.entry}`);
 

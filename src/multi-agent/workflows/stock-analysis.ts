@@ -185,10 +185,10 @@ export async function runStockAnalysis(
  * 创建股票分析Skill的工具
  */
 export function createStockAnalysisTool() {
-  const { DynamicStructuredTool } = require('@langchain/core/tools');
+  const { PiTool } = require('../../runtime/pi/tool.js');
   const { z } = require('zod');
 
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'stock_analysis',
     description: `[SWARM] Run multi-agent stock analysis using a team of agents.
     

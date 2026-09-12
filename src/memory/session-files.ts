@@ -1,5 +1,4 @@
-import type { Message } from '../agent/types.js';
-import type { BaseMessage } from '@langchain/core/messages';
+import type { Message } from '@earendil-works/pi-ai';
 
 /**
  * Parses UpUp's chat_history.json into indexable text chunks for memory search.
@@ -104,8 +103,14 @@ interface UpdateResult {
  * Updates session memory with recent conversation messages.
  * Extracts meaningful content from messages and records the update timestamp.
  */
-export async function updateSessionMemory(messages: BaseMessage[]): Promise<UpdateResult> {
-  const tokenCount = messages.reduce((sum, m) => sum + Math.ceil((m.content?.length ?? 0) / 4), 0);
+export async function updateSessionMemory(messages: Message[]): Promise<UpdateResult> {
+  const tokenCount = messages.reduce((sum, m) => {
+    const content = typeof m.content === 'string' ? m.content : m.content;
+    const text = typeof content === 'string'
+      ? content
+      : content.filter((part): part is { type: 'text'; text: string } => part.type === 'text').map((part) => part.text).join('\n');
+    return sum + Math.ceil(text.length / 4);
+  }, 0);
   const messageCount = messages.length;
   lastUpdateTimestamp = Date.now();
   return { tokenCount, messageCount };

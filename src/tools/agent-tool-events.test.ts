@@ -4,7 +4,7 @@
 
 import { describe, it, expect } from 'bun:test';
 import { formatSubagentEvent } from './agent-tool.js';
-import type { AgentEvent } from '../agent/types.js';
+import type { AgentEvent } from '../runtime/pi/legacy-events.js';
 
 describe('formatSubagentEvent', () => {
   it('formats thinking events', () => {

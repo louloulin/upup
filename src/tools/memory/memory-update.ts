@@ -1,4 +1,4 @@
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { MemoryManager } from '../../memory/index.js';
 import { formatToolResult } from '../types.js';
@@ -56,7 +56,7 @@ const memoryUpdateSchema = z.object({
     .describe('Replacement text. Required for "edit" action.'),
 });
 
-export const memoryUpdateTool = new DynamicStructuredTool({
+export const memoryUpdateTool = new PiTool({
   name: 'memory_update',
   description:
     'Add, edit, or delete persistent memory entries in MEMORY.md or daily logs.',

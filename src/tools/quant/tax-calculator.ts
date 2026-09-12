@@ -8,7 +8,7 @@
  * - Simple P&L calculation
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { formatToolResult } from '../types.js';
 
@@ -165,7 +165,7 @@ const calculatePnLSchema = z.object({
  * Create tax estimation tool
  */
 export function createCalculateTaxTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'calculate_capital_gains_tax',
     description: 'Estimate capital gains tax for a stock position. Supports US, China, Hong Kong, and UK tax rules.',
     schema: calculateTaxSchema,
@@ -221,7 +221,7 @@ export function createCalculateTaxTool() {
  * Create multi-trade tax calculation tool
  */
 export function createCalculateTradesTaxTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'calculate_trades_tax',
     description: 'Calculate capital gains tax for multiple completed trades in one call.',
     schema: calculateTradesTaxSchema,
@@ -293,7 +293,7 @@ export function createCalculateTradesTaxTool() {
  * Create simple P&L calculator
  */
 export function createCalculatePnLTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'calculate_pnl',
     description: 'Calculate profit and loss for completed trades without tax implications.',
     schema: calculatePnLSchema,

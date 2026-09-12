@@ -6,7 +6,7 @@
  *
  * 架构说明:
  * - SDK Session (UpupSessionManager) 用于追踪 sessionId 和 token 使用
- * - upup 核心 Session (daemon/session.ts) 用于存储消息历史
+ * - Pi JSONL Session 用于存储消息历史
  * - 通过 sessionId 关联两者
  */
 

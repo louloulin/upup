@@ -4,17 +4,29 @@
  * falling back to character-based estimation.
  */
 
-import type { BaseMessage } from '@langchain/core/messages';
-import { resolveProvider } from '@upup/llm';
+import type { Message } from '@earendil-works/pi-ai';
+const PROVIDER_CONTEXT_WINDOWS: ReadonlyArray<readonly [string, number]> = [
+  ['claude-', 200_000],
+  ['gemini-', 1_000_000],
+  ['grok-', 131_072],
+  ['kimi-', 131_072],
+  ['deepseek-', 1_000_000],
+  ['openrouter:', 128_000],
+  ['ollama:', 128_000],
+];
+
+function resolveContextWindow(model: string): number {
+  return PROVIDER_CONTEXT_WINDOWS.find(([prefix]) => model.startsWith(prefix))?.[1] ?? 1_047_576;
+}
 
 // ---------------------------------------------------------------------------
 // Message serialization
 // ---------------------------------------------------------------------------
 
 /**
- * Serialize an array of BaseMessage objects into a single string for token estimation.
+ * Serialize Pi Message objects into a single string for token estimation.
  */
-function messagesToString(messages: BaseMessage[]): string {
+function messagesToString(messages: Message[]): string {
   return messages
     .map((msg) => {
       const content = typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content);
@@ -32,9 +44,9 @@ function messagesToString(messages: BaseMessage[]): string {
  * JSON is denser than prose, so we use ~3.5 chars per token.
  * This is conservative - better to underestimate available space.
  *
- * Accepts either a plain string or an array of BaseMessage objects.
+ * Accepts either a plain string or an array of Pi Message objects.
  */
-export function estimateTokens(textOrMessages: string | BaseMessage[]): number {
+export function estimateTokens(textOrMessages: string | Message[]): number {
   const text = typeof textOrMessages === 'string' ? textOrMessages : messagesToString(textOrMessages);
   return Math.ceil(text.length / 3.5);
 }
@@ -57,8 +69,7 @@ const DEFAULT_CONTEXT_WINDOW = 128_000;
  * reserved output tokens.
  */
 export function getEffectiveContextWindow(model: string): number {
-  const provider = resolveProvider(model);
-  const contextWindow = provider.contextWindow ?? DEFAULT_CONTEXT_WINDOW;
+  const contextWindow = resolveContextWindow(model) ?? DEFAULT_CONTEXT_WINDOW;
   return contextWindow - MAX_OUTPUT_TOKENS_FOR_SUMMARY;
 }
 

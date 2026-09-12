@@ -1,10 +1,10 @@
-import { DynamicStructuredTool, StructuredToolInterface } from '@langchain/core/tools';
-import type { RunnableConfig } from '@langchain/core/runnables';
-import { AIMessage, ToolCall } from '@langchain/core/messages';
+import { PiTool } from '../../runtime/pi/tool.js';
+import type { RunnableConfig } from '../../runtime/pi/tool.js';
+import { getPiToolCalls, type PiToolCall } from '../../runtime/pi/model.js';
 import { z } from 'zod';
-import { callLlm } from '../../model/llm.js';
+import { callLlm } from '../../runtime/pi/model.js';
 import { formatToolResult } from '../types.js';
-import { getCurrentDate } from '../../agent/prompts.js';
+import { getCurrentDate } from '../../runtime/pi/prompts.js';
 import { withTimeout, SUB_TOOL_TIMEOUT_MS } from './utils.js';
 import { MARKET_DATA_FORMATTERS } from './formatters.js';
 import { isAShare, isHKStock, parseStockCode } from '../../utils/stock-code.js';
@@ -62,7 +62,7 @@ import { getCompanyNews } from './news.js';
 import { getInsiderTrades } from './insider_trades.js';
 
 // All market data tools available for routing
-const MARKET_DATA_TOOLS: StructuredToolInterface[] = [
+const MARKET_DATA_TOOLS: PiTool[] = [
   // Stock Prices
   getStockPrice,
   getStockPrices,
@@ -129,8 +129,8 @@ const GetMarketDataInputSchema = z.object({
  * Create a get_market_data tool configured with the specified model.
  * Uses native LLM tool calling for routing queries to market data tools.
  */
-export function createGetMarketData(model: string): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createGetMarketData(model: string): PiTool {
+  return new PiTool({
     name: 'get_market_data',
     description: `Intelligent meta-tool for retrieving market data including prices, news, and insider activity. Takes a natural language query and automatically routes to appropriate market data tools. Use for:
 - Current and historical stock prices
@@ -170,16 +170,16 @@ export function createGetMarketData(model: string): DynamicStructuredTool {
         systemPrompt: buildRouterPrompt(),
         tools: MARKET_DATA_TOOLS,
       });
-      const aiMessage = response as AIMessage;
+      const aiMessage = response as import('@earendil-works/pi-ai').AssistantMessage;
 
       // 2. Check for tool calls
-      const toolCalls = aiMessage.tool_calls as ToolCall[];
+      const toolCalls = getPiToolCalls(aiMessage) as readonly PiToolCall[];
       if (!toolCalls || toolCalls.length === 0) {
         return formatToolResult({ error: 'No tools selected for query' }, []);
       }
 
       // 3. Execute tool calls in parallel
-      const toolNames = [...new Set(toolCalls.map(tc => formatSubToolName(tc.name)))];
+      const toolNames = [...new Set(toolCalls.map((tc) => formatSubToolName(tc.name)))];
       onProgress?.(`Fetching from ${toolNames.join(', ')}...`);
       const results = await Promise.all(
         toolCalls.map(async (tc) => {
@@ -188,12 +188,12 @@ export function createGetMarketData(model: string): DynamicStructuredTool {
             if (!tool) {
               throw new Error(`Tool '${tc.name}' not found`);
             }
-            const rawResult = await withTimeout(tool.invoke(tc.args), SUB_TOOL_TIMEOUT_MS, tc.name);
+            const rawResult = await withTimeout(tool.invoke(tc.arguments), SUB_TOOL_TIMEOUT_MS, tc.name);
             const result = typeof rawResult === 'string' ? rawResult : JSON.stringify(rawResult);
             const parsed = JSON.parse(result);
             return {
               tool: tc.name,
-              args: tc.args,
+              args: tc.arguments,
               data: parsed.data,
               sourceUrls: parsed.sourceUrls || [],
               error: null,
@@ -201,7 +201,7 @@ export function createGetMarketData(model: string): DynamicStructuredTool {
           } catch (error) {
             return {
               tool: tc.name,
-              args: tc.args,
+              args: tc.arguments,
               data: null,
               sourceUrls: [],
               error: error instanceof Error ? error.message : String(error),

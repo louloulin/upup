@@ -8,7 +8,7 @@
  * - Monitoring system for real-time metrics
  * - Skill tracking for execution analytics
  * - Health checking for backend availability
- * - Custom Agent Registry and Factory for user-defined agents
+ * - Pi Agent Registry and Factory for user-defined agents
  * - Markdown Agent Loader for project/global agents
  * - Agent Scheduler for priority-based scheduling
  * - Agent Lifecycle Manager for state management
@@ -40,12 +40,12 @@ export { MultiAgentMonitor, getMultiAgentMonitor, type AgentMetrics, type System
 // Skill tracking exports
 export { SkillExecutionTracker, getSkillTracker, type SkillExecutionRecord } from './skill-tracker.js';
 
-// Custom agent exports
+// Pi agent registry exports
 export { 
-  CustomAgentRegistry, 
-  getCustomAgentRegistry,
-  type CustomAgentConfig,
-  type CustomAgent,
+  PiAgentRegistry, 
+  getPiAgentRegistry,
+  type PiAgentSpecInput,
+  type PiAgentRecord,
   type AgentTemplate,
 } from './agent-registry.js';
 export * from './agent-factory.js';
@@ -55,7 +55,7 @@ export {
   AgentLoader, 
   getAgentLoader,
   resetAgentLoader,
-  type MarkdownAgentDefinition,
+  type PiAgentFileSpec,
 } from './agent-loader.js';
 
 // Scheduler exports

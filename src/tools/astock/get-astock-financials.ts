@@ -1,4 +1,4 @@
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { getTushareClient } from './tushare-client';
 import { parseStockCode, resolveNameToCode, searchStockByName } from '../../utils/stock-code';
@@ -17,7 +17,7 @@ const GetAStockFinancialsSchema = z.object({
   end_date: z.string().optional().describe('End date (YYYYMMDD)'),
 });
 
-export const getAStockFinancials = new DynamicStructuredTool({
+export const getAStockFinancials = new PiTool({
   name: 'get_astock_financials',
   description: GET_ASTOCK_FINANCIALS_DESCRIPTION,
   schema: GetAStockFinancialsSchema,

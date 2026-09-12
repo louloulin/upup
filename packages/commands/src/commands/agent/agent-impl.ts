@@ -35,8 +35,7 @@ Examples:
   /agent research latest AI developments
   /agent debug memory issue --background
 
-Note: The actual agent spawning requires integration with the
-agent runner system in src/agent/subagent-runner.js
+Note: Tasks are executed by the Pi background-session service.
 `,
     }
   }
@@ -63,6 +62,11 @@ agent runner system in src/agent/subagent-runner.js
 
   try {
     // Fallback: describe what would happen
+    return {
+      type: 'text',
+      value: `🤖 Would spawn agent for: ${description}\n\n   Mode: ${isBackground ? 'background' : 'foreground'}\n\n   Note: Agent system not fully initialized.\n   Check /status for agent availability.`,
+    }
+  } catch {
     return {
       type: 'text',
       value: `🤖 Would spawn agent for: ${description}\n\n   Mode: ${isBackground ? 'background' : 'foreground'}\n\n   Note: Agent system not fully initialized.\n   Check /status for agent availability.`,

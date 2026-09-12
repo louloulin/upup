@@ -7,7 +7,7 @@ import { getBackendRegistry, initializeBackends } from './backends/index.js';
 import { getMultiAgentMonitor } from './monitor.js';
 import { getSkillTracker } from './skill-tracker.js';
 import { getBackendHealthChecker } from './backends/health-check.js';
-import { getCustomAgentRegistry } from './agent-registry.js';
+import { getPiAgentRegistry } from './agent-registry.js';
 import { getAgentLoader } from './agent-loader.js';
 import { getAllSpecializedSkills } from '../skills/bundled/index.js';
 
@@ -146,12 +146,12 @@ async function runFullVerification(): Promise<void> {
   }
 
   // ========================================================================
-  // Custom Agents
+  // Pi Agents
   // ========================================================================
-  console.log('\n\x1b[36m=== Custom Agents ===\x1b[0m');
+  console.log('\n\x1b[36m=== Pi Agents ===\x1b[0m');
 
   try {
-    const registry = getCustomAgentRegistry();
+    const registry = getPiAgentRegistry();
     const templates = registry.getTemplates();
     allResults.push({
       name: 'Agent Templates',
@@ -169,7 +169,7 @@ async function runFullVerification(): Promise<void> {
       context: 'fork',
     });
     allResults.push({
-      name: 'Custom Agent Creation',
+      name: 'Pi Agent Creation',
       passed: !!custom,
       message: `Created: ${custom.name}`,
       details: `Type: ${custom.agentType}`,
@@ -189,7 +189,7 @@ async function runFullVerification(): Promise<void> {
       message: `Exported ${exported.length} agents`,
     });
   } catch (e) {
-    allResults.push({ name: 'Custom Agents', passed: false, message: `Error: ${e}` });
+    allResults.push({ name: 'Pi Agents', passed: false, message: `Error: ${e}` });
   }
 
   // ========================================================================

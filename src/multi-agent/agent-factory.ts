@@ -1,29 +1,29 @@
 /**
- * Custom Agent Factory - 自定义Agent工厂 (v1.0)
+ * Pi Agent Factory - Pi Agent 工厂 (v1.0)
  * 
- * 动态创建和管理自定义Agent
+ * 动态创建和管理 Pi Agent Spec
  * 支持模板、变量注入、配置覆盖
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../runtime/pi/tool.js';
 import { z } from 'zod';
-import { getCustomAgentRegistry, type CustomAgentConfig, type CustomAgent } from './agent-registry.js';
+import { getPiAgentRegistry, type PiAgentSpecInput, type PiAgentRecord } from './agent-registry.js';
 import { getSwarmCoordinator } from './coordinator.js';
 import { info, warn } from '../utils/logging/logger.js';
 
 /**
- * Create custom agent tool
+ * Create Pi agent tool
  */
-export const createAgentTool = new DynamicStructuredTool({
+export const createAgentTool = new PiTool({
   name: 'agent_create',
-  description: `Create a new custom agent for specialized tasks.
+  description: `Create a new Pi agent for specialized tasks.
 Use this to create agents with specific capabilities like:
 - Financial researcher for stock analysis
 - Code reviewer for PR reviews
 - Bug hunter for debugging
 - Task coordinator for managing other agents
 
-Each custom agent can have:
+Each Pi agent can have:
 - Custom system prompt with variable substitution
 - Specific tools and permissions
 - Preferred model and iteration limits`,
@@ -51,8 +51,8 @@ Each custom agent can have:
 
   func: async ({ name, description, agent_type, system_prompt, variables, tools, model, context, max_iterations, template_id }): Promise<string> => {
     try {
-      const registry = getCustomAgentRegistry();
-      let agent: CustomAgent;
+      const registry = getPiAgentRegistry();
+      let agent: PiAgentRecord;
 
       if (template_id) {
         // Create from template
@@ -68,8 +68,8 @@ Each custom agent can have:
           maxIterations: max_iterations,
         })!;
       } else {
-        // Create custom agent
-        const config: CustomAgentConfig = {
+        // Create Pi agent
+        const config: PiAgentSpecInput = {
           id: `agent-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
           name,
           description,
@@ -104,11 +104,11 @@ Each custom agent can have:
 });
 
 /**
- * List custom agents tool
+ * List Pi agents tool
  */
-export const listAgentsTool = new DynamicStructuredTool({
+export const listAgentsTool = new PiTool({
   name: 'agent_list',
-  description: 'List all custom agents, optionally filtered by type or context',
+  description: 'List all Pi agents, optionally filtered by type or context',
   
   schema: z.object({
     type: z.enum(['researcher', 'reviewer', 'debugger', 'coordinator', 'executor', 'analyst']).optional()
@@ -121,7 +121,7 @@ export const listAgentsTool = new DynamicStructuredTool({
 
   func: async ({ type, context, include_usage }): Promise<string> => {
     try {
-      const registry = getCustomAgentRegistry();
+      const registry = getPiAgentRegistry();
       let agents = registry.getAllAgents();
 
       if (type) {
@@ -155,9 +155,9 @@ export const listAgentsTool = new DynamicStructuredTool({
 /**
  * Get agent details tool
  */
-export const getAgentTool = new DynamicStructuredTool({
+export const getAgentTool = new PiTool({
   name: 'agent_get',
-  description: 'Get details of a specific custom agent',
+  description: 'Get details of a specific Pi agent',
   
   schema: z.object({
     agent_id: z.string().describe('Agent ID to retrieve'),
@@ -165,7 +165,7 @@ export const getAgentTool = new DynamicStructuredTool({
 
   func: async ({ agent_id }): Promise<string> => {
     try {
-      const registry = getCustomAgentRegistry();
+      const registry = getPiAgentRegistry();
       const agent = registry.getAgent(agent_id);
 
       if (!agent) {
@@ -203,21 +203,21 @@ export const getAgentTool = new DynamicStructuredTool({
 });
 
 /**
- * Spawn custom agent tool
+ * Spawn Pi agent tool
  */
-export const spawnAgentTool = new DynamicStructuredTool({
-  name: 'agent_spawn_custom',
-  description: 'Spawn a custom agent in a team for execution',
+export const spawnAgentTool = new PiTool({
+  name: 'agent_spawn',
+  description: 'Spawn a Pi agent in a team for execution',
   
   schema: z.object({
     team_id: z.string().describe('Team ID to spawn agent in'),
-    agent_id: z.string().describe('Custom agent ID to spawn'),
+    agent_id: z.string().describe('Pi agent ID to spawn'),
     task: z.string().describe('Task description for the agent'),
   }),
 
   func: async ({ team_id, agent_id, task }): Promise<string> => {
     try {
-      const registry = getCustomAgentRegistry();
+      const registry = getPiAgentRegistry();
       const agent = registry.getAgent(agent_id);
 
       if (!agent) {
@@ -237,6 +237,7 @@ export const spawnAgentTool = new DynamicStructuredTool({
         name: agent.name,
         role: agent.agentType,
         prompt: `${agent.systemPrompt}\n\nTask: ${task}`,
+        spec: agent.spec,
         tools: agent.tools.length > 0 ? agent.tools : undefined,
         model: agent.model,
         maxTurns: agent.maxIterations,
@@ -261,11 +262,11 @@ export const spawnAgentTool = new DynamicStructuredTool({
 });
 
 /**
- * Delete custom agent tool
+ * Delete Pi agent tool
  */
-export const deleteAgentTool = new DynamicStructuredTool({
+export const deleteAgentTool = new PiTool({
   name: 'agent_delete',
-  description: 'Delete a custom agent',
+  description: 'Delete a Pi agent',
   
   schema: z.object({
     agent_id: z.string().describe('Agent ID to delete'),
@@ -273,7 +274,7 @@ export const deleteAgentTool = new DynamicStructuredTool({
 
   func: async ({ agent_id }): Promise<string> => {
     try {
-      const registry = getCustomAgentRegistry();
+      const registry = getPiAgentRegistry();
       const deleted = registry.unregister(agent_id);
 
       return JSON.stringify({
@@ -292,7 +293,7 @@ export const deleteAgentTool = new DynamicStructuredTool({
 /**
  * List agent templates tool
  */
-export const listTemplatesTool = new DynamicStructuredTool({
+export const listTemplatesTool = new PiTool({
   name: 'agent_templates',
   description: 'List available agent templates for quick creation',
   
@@ -303,7 +304,7 @@ export const listTemplatesTool = new DynamicStructuredTool({
 
   func: async ({ category }): Promise<string> => {
     try {
-      const registry = getCustomAgentRegistry();
+      const registry = getPiAgentRegistry();
       let templates = registry.getTemplates();
 
       if (category) {
@@ -329,17 +330,17 @@ export const listTemplatesTool = new DynamicStructuredTool({
 });
 
 /**
- * Export all custom agents tool
+ * Export all Pi agents tool
  */
-export const exportAgentsTool = new DynamicStructuredTool({
+export const exportAgentsTool = new PiTool({
   name: 'agent_export',
-  description: 'Export all custom agents as configuration',
+  description: 'Export all Pi agents as configuration',
   
   schema: z.object({}),
 
   func: async (): Promise<string> => {
     try {
-      const registry = getCustomAgentRegistry();
+      const registry = getPiAgentRegistry();
       const config = registry.exportConfig();
 
       return JSON.stringify({
@@ -355,11 +356,11 @@ export const exportAgentsTool = new DynamicStructuredTool({
 });
 
 /**
- * Import custom agents tool
+ * Import Pi agents tool
  */
-export const importAgentsTool = new DynamicStructuredTool({
+export const importAgentsTool = new PiTool({
   name: 'agent_import',
-  description: 'Import custom agents from configuration',
+  description: 'Import Pi agents from configuration',
   
   schema: z.object({
     agents: z.array(z.object({
@@ -378,7 +379,7 @@ export const importAgentsTool = new DynamicStructuredTool({
 
   func: async ({ agents }): Promise<string> => {
     try {
-      const registry = getCustomAgentRegistry();
+      const registry = getPiAgentRegistry();
       const imported = registry.importConfig(agents.map(a => ({
         ...a,
         agentType: a.agentType as any,
@@ -399,7 +400,7 @@ export const importAgentsTool = new DynamicStructuredTool({
   },
 });
 
-// Export all custom agent tools
+// Export all Pi agent tools
 export const customAgentTools = [
   createAgentTool,
   listAgentsTool,

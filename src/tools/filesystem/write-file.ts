@@ -1,4 +1,4 @@
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { mkdir, writeFile, readFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { z } from 'zod';
@@ -33,7 +33,7 @@ const writeFileSchema = z.object({
   content: z.string().describe('Content to write to the file.'),
 });
 
-export const writeFileTool = new DynamicStructuredTool({
+export const writeFileTool = new PiTool({
   name: 'write_file',
   description:
     'Create or overwrite a file inside the workspace. Automatically creates parent directories when needed. Skips write if content unchanged.',

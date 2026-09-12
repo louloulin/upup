@@ -1,7 +1,7 @@
 /**
- * Portfolio Tracker — LangChain tool wrapper
+ * Portfolio Tracker — Pi-compatible tool wrapper
  *
- * High-cohesion design: this module owns the LangChain tool binding and
+ * High-cohesion design: this module owns the Pi tool binding and
  * schema only. All business logic is delegated to PortfolioService
  * (./service.js), which delegates to PortfolioRepository (./store.js).
  *
@@ -12,15 +12,14 @@
  * Why split:
  *   1. The old 212-line file mixed tool schema, business logic, and
  *      module-level singleton state. Hard to test, hard to swap.
- *   2. After split: store can be unit-tested without LangChain, service
+ *   2. After split: store can be unit-tested without Pi, service
  *      can be unit-tested with a NullPriceProvider, tracker stays a
  *      80-line pure wrapper.
  *   3. Future: drop in a FileBackedPortfolioRepository or a
  *      MultiPortfolioRepository without touching this file.
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
-import type { StructuredToolInterface } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 
 import {
@@ -86,13 +85,13 @@ export function createPortfolioTracker(
     priceProvider?: PriceProvider;
     repository?: InMemoryPortfolioRepository;
   } = {},
-): StructuredToolInterface {
+): PiTool {
   // Resolve dependency graph: explicit overrides > defaults
   const repository = overrides.repository ?? getDefaultPortfolioRepository();
   const priceProvider = overrides.priceProvider ?? new TusharePriceProvider();
   const service = overrides.service ?? new PortfolioService(repository, priceProvider);
 
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'portfolio_tracker',
     description: PORTFOLIO_TRACKER_DESCRIPTION,
     schema: PortfolioTrackerSchema,

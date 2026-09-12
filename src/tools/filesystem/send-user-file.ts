@@ -5,7 +5,7 @@
  * Used for investment research results export.
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -40,7 +40,7 @@ const sendUserFileSchema = z.object({
 });
 
 export function createSendUserFileTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'send_user_file',
     description: 'Send a file to the user by copying it to a convenient location',
     schema: sendUserFileSchema,

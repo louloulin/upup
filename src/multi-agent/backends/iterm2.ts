@@ -11,8 +11,8 @@ import { randomUUID } from 'crypto';
 import { exec, execSync } from 'child_process';
 import { promisify } from 'util';
 import { info, warn, error as logError } from '../../utils/logging/logger.js';
-import { getDefaultSubagentRunner, type SubagentRunner } from '../../agent/subagent-runner.js';
-import type { SubagentConfig, SubagentType } from '../../agent/subagent.js';
+import { createPiWorker, extractPiAssistantText } from './pi-worker.js';
+import type { UpUpAgentSession } from '../../runtime/pi/index.js';
 
 const execAsync = promisify(exec);
 
@@ -21,11 +21,7 @@ export class ITerm2Backend implements Backend {
   readonly name = 'iTerm2 Backend';
   
   private agents: Map<string, AgentInstance & { sessionId?: string }> = new Map();
-  private runner: SubagentRunner;
-  
-  constructor() {
-    this.runner = getDefaultSubagentRunner();
-  }
+  private sessions: Map<string, UpUpAgentSession> = new Map();
   
   isAvailable(): boolean {
     try {
@@ -81,55 +77,32 @@ export class ITerm2Backend implements Backend {
       
       info('iterm2', `iTerm2 session created for: ${agent.name}`);
       
-      // Map role to SubagentType
-      const agentType = this.mapRoleToSubagentType(params.role);
-      
-      // 执行真实Agent
-      const config: SubagentConfig = {
-        type: agentType,
-        tools: params.tools === '*' ? '*' : (params.tools || []),
-        timeoutMs: timeout,
-        maxTurns: params.maxTurns ?? 10,
-        model: params.model,
-        cwd: params.cwd,
-        systemPrompt: params.prompt ? `${params.prompt}\n\nYou are ${params.role || 'agent'} named ${params.name}.` : undefined,
-      };
-      
       const prompt = params.prompt || `You are a ${params.role || 'agent'} named ${params.name}.`;
-      
-      const result = await this.runner.run(config, prompt);
-      
-      if (result.success) {
+      const session = await createPiWorker(params);
+      this.sessions.set(agent.id, session);
+      agent.piSpec = session.spec;
+      agent.piSessionId = session.id;
+      agent.piToolNames = session.getAvailableToolNames();
+      await session.prompt(prompt);
+      await session.waitForIdle();
+      const output = extractPiAssistantText(session.getMessages());
+      if (output) {
         agent.status = 'completed';
-        agent.result = result.output;
+        agent.result = output;
       } else {
         agent.status = 'failed';
-        agent.error = result.error;
+        agent.error = 'Pi session completed without an assistant result';
       }
       agent.completedAt = Date.now();
-      
-      info('iterm2', `iTerm2 agent completed: ${agent.name} in ${result.duration}ms`);
+      session.dispose();
+      this.sessions.delete(agent.id);
+      info('iterm2', `iTerm2 Pi agent completed: ${agent.name} in ${Date.now() - (agent.startedAt ?? Date.now())}ms`);
       
     } catch (error) {
       agent.status = 'failed';
       agent.error = error instanceof Error ? error.message : String(error);
       agent.completedAt = Date.now();
     }
-  }
-  
-  /**
-   * Map role to SubagentType
-   */
-  private mapRoleToSubagentType(role: string): SubagentType {
-    const roleMap: Record<string, SubagentType> = {
-      'researcher': 'specialized',
-      'reviewer': 'specialized',
-      'debugger': 'specialized',
-      'coordinator': 'general',
-      'executor': 'general',
-      'analyst': 'specialized',
-    };
-    return roleMap[role] || 'general';
   }
   
   private async checkITerm2Running(): Promise<boolean> {
@@ -182,6 +155,9 @@ export class ITerm2Backend implements Backend {
     const agent = this.agents.get(agentId);
     if (!agent) return;
     
+    await this.sessions.get(agentId)?.abort();
+    this.sessions.get(agentId)?.dispose();
+    this.sessions.delete(agentId);
     try {
       const escapedName = agent.name.replace(/"/g, '\\"');
       const script = `osascript -e '

@@ -40,6 +40,14 @@ export type {
   ProviderError,
 } from '@upup/types';
 
+import type {
+  HookContext,
+  HookResult,
+  ProviderConfig,
+  ToolOptions,
+} from '@upup/types';
+import type { PluginSkillRegistration } from './manifest.js';
+
 // ===== Plugin API =====
 
 /**

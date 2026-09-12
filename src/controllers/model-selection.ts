@@ -10,7 +10,7 @@ import {
   type Model,
 } from '../utils/model.js';
 import { getOllamaModels } from '../utils/ollama.js';
-import { DEFAULT_MODEL, DEFAULT_PROVIDER } from '../model/llm.js';
+import { DEFAULT_MODEL, DEFAULT_PROVIDER } from '../runtime/pi/model.js';
 import { InMemoryChatHistory } from '../utils/in-memory-chat-history.js';
 
 const SELECTION_STATES = [

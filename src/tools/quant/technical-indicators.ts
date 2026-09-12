@@ -10,7 +10,7 @@
  * - OBV (On Balance Volume)
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { formatToolResult } from '../types.js';
 
@@ -322,7 +322,7 @@ const singleIndicatorSchema = z.object({
 // ============================================================================
 
 export function createCalculateIndicatorsTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'calculate_technical_indicators',
     description: 'Calculate technical indicators (KDJ, BOLL, WR, CCI, ATR, OBV) from OHLCV data. Returns values with buy/sell signals.',
     schema: ohlcvDataSchema,
@@ -404,7 +404,7 @@ export function createCalculateIndicatorsTool() {
 }
 
 export function createCalculateKDJTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'calculate_kdj',
     description: 'Calculate KDJ (Stochastic Oscillator) indicator from OHLCV data.',
     schema: singleIndicatorSchema,
@@ -424,7 +424,7 @@ export function createCalculateKDJTool() {
 }
 
 export function createCalculateBOLLTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'calculate_boll',
     description: 'Calculate Bollinger Bands from OHLCV data. Returns upper/middle/lower bands with bandwidth and %B.',
     schema: singleIndicatorSchema,

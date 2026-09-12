@@ -11,7 +11,9 @@ import {
   shouldSnip,
   estimateSnipSavings,
 } from './snip-tool.js';
-import { HumanMessage, AIMessage, SystemMessage } from '@langchain/core/messages';
+const systemMessage = (content: string) => ({ _getType: () => 'system', content });
+const userMessage = (content: string) => ({ role: 'user' as const, content, timestamp: 0 });
+const assistantMessage = (content: string) => ({ _getType: () => 'ai', content });
 
 describe('SnipToolSchema', () => {
   it('should parse valid input with defaults', () => {
@@ -130,9 +132,9 @@ describe('shouldSnip', () => {
 
   it('should return false when below threshold', () => {
     const messages = [
-      new SystemMessage('You are a helpful assistant'),
-      new HumanMessage('Hello'),
-      new HumanMessage('How are you?'),
+      systemMessage('You are a helpful assistant'),
+      userMessage('Hello'),
+      userMessage('How are you?'),
     ];
 
     const result = shouldSnip(messages, 3);
@@ -142,9 +144,9 @@ describe('shouldSnip', () => {
 
   it('should respect custom threshold', () => {
     const messages = [
-      new SystemMessage('System'),
-      new HumanMessage('Sure'),
-      new HumanMessage('Okay'),
+      systemMessage('System'),
+      userMessage('Sure'),
+      userMessage('Okay'),
     ];
 
     // At threshold 1, should recommend snipping
@@ -156,10 +158,10 @@ describe('shouldSnip', () => {
 describe('estimateSnipSavings', () => {
   it('should estimate savings for sample messages', () => {
     const messages = [
-      new SystemMessage('System'),
-      new HumanMessage('Sure, go ahead'),
-      new HumanMessage('Got it'),
-      new AIMessage('Here you go!'),
+      systemMessage('System'),
+      userMessage('Sure, go ahead'),
+      userMessage('Got it'),
+      assistantMessage('Here you go!'),
     ];
 
     const savings = estimateSnipSavings(messages, 50);
@@ -177,22 +179,22 @@ describe('estimateSnipSavings', () => {
 describe('snipMessages', () => {
   it('should preserve system message by default', () => {
     const messages = [
-      new SystemMessage('You are a helpful assistant'),
-      new HumanMessage('Sure, go ahead'),
-      new HumanMessage('Analyze the code'),
+      systemMessage('You are a helpful assistant'),
+      userMessage('Sure, go ahead'),
+      userMessage('Analyze the code'),
     ];
 
     const result = snipMessages(messages, { preserveFirstN: 1 });
-    expect(result.snipped[0]).toBeInstanceOf(SystemMessage);
+    expect((result.snipped[0] as { _getType?: () => string })._getType?.()).toBe('system');
     expect(result.snipped[0].content).toContain('helpful');
   });
 
   it('should preserve recent messages', () => {
     const messages = [
-      new SystemMessage('System'),
-      new HumanMessage('Sure'),
-      new HumanMessage('Analyze this'),
-      new HumanMessage('This is important'),
+      systemMessage('System'),
+      userMessage('Sure'),
+      userMessage('Analyze this'),
+      userMessage('This is important'),
     ];
 
     const result = snipMessages(messages, { preserveLastN: 1 });
@@ -204,10 +206,10 @@ describe('snipMessages', () => {
   it('should remove low-value messages without meaningful content', () => {
     // Test with empty/very short messages (these are always removed)
     const messages = [
-      new SystemMessage('System'),
-      new HumanMessage('Thanks'),
-      new HumanMessage('Got it'),
-      new HumanMessage('Analyze the code and suggest improvements'),
+      systemMessage('System'),
+      userMessage('Thanks'),
+      userMessage('Got it'),
+      userMessage('Analyze the code and suggest improvements'),
     ];
 
     const result = snipMessages(messages, {
@@ -224,12 +226,12 @@ describe('snipMessages', () => {
 
   it('should respect maxRemove limit', () => {
     const messages = [
-      new SystemMessage('System'),
-      new HumanMessage('Sure'),
-      new HumanMessage('Okay'),
-      new HumanMessage('Got it'),
-      new HumanMessage('Thanks'),
-      new HumanMessage('Analyze this'),
+      systemMessage('System'),
+      userMessage('Sure'),
+      userMessage('Okay'),
+      userMessage('Got it'),
+      userMessage('Thanks'),
+      userMessage('Analyze this'),
     ];
 
     const result = snipMessages(messages, {
@@ -243,9 +245,9 @@ describe('snipMessages', () => {
 
   it('should not remove messages with meaningful content', () => {
     const messages = [
-      new SystemMessage('System'),
-      new HumanMessage('Sure, analyze the code'),
-      new HumanMessage('Thanks for the explanation'),
+      systemMessage('System'),
+      userMessage('Sure, analyze the code'),
+      userMessage('Thanks for the explanation'),
     ];
 
     // "Sure, analyze the code" has meaningful content
@@ -266,8 +268,8 @@ describe('snipMessages', () => {
 
   it('should handle messages shorter than preserve range', () => {
     const messages = [
-      new SystemMessage('System'),
-      new HumanMessage('Hello'),
+      systemMessage('System'),
+      userMessage('Hello'),
     ];
 
     const result = snipMessages(messages, {
@@ -281,10 +283,10 @@ describe('snipMessages', () => {
 
   it('should return removal reasons', () => {
     const messages = [
-      new SystemMessage('System'),
-      new HumanMessage(''),
-      new HumanMessage('a'),
-      new HumanMessage('Analyze'),
+      systemMessage('System'),
+      userMessage(''),
+      userMessage('a'),
+      userMessage('Analyze'),
     ];
 
     const result = snipMessages(messages, {

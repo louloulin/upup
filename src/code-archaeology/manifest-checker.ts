@@ -12,12 +12,12 @@ import { join } from 'node:path';
 import type { ManifestCoverage } from './types.js';
 
 /**
- * CAPABILITY_GROUPS 通过 dynamic import 获取(避免触发 langchain 静态链)。
+ * CAPABILITY_GROUPS 通过 dynamic import 获取(避免触发运行时静态链)。
  * 失败时降级为内嵌的 5 group 最小集,保证 manifest-checker 仍可用。
  */
 async function loadCapabilityGroups(): Promise<Array<{ id: string; title: string; prefixes: string[] }>> {
   try {
-    const mod = await import('../agent/capability-manifest.js');
+    const mod = await import('../runtime/pi/capability-manifest.js');
     return mod.CAPABILITY_GROUPS as Array<{ id: string; title: string; prefixes: string[] }>;
   } catch {
     // 降级:5 group 最小集

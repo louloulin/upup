@@ -5,7 +5,7 @@
  * Based on daily_stock_analysis backtest architecture.
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { formatToolResult } from '../types.js';
 import { BacktestEngine, DailyBar, EvaluationConfig, BacktestTrade, BacktestSummary, EvaluationResult } from './backtest-engine.js';
@@ -317,7 +317,7 @@ function getWinRateInterpretation(winRate: number): string {
 // ============================================================================
 
 export function createEvaluateTradeTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'evaluate_trade',
     description: 'Evaluate a single historical trade analysis against forward price data. Calculate win/loss, direction accuracy, and simulate stop-loss/take-profit outcomes.',
     schema: evaluateTradeSchema,
@@ -326,7 +326,7 @@ export function createEvaluateTradeTool() {
 }
 
 export function createRunBacktestTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'run_backtest',
     description: 'Run batch backtest on multiple historical trades. Evaluate strategy performance with win rate, direction accuracy, and risk metrics.',
     schema: runBacktestSchema,
@@ -335,7 +335,7 @@ export function createRunBacktestTool() {
 }
 
 export function createGetBacktestSummaryTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'get_backtest_summary',
     description: 'Get guidance on backtest summary metrics and interpretation. Learn what win rate, direction accuracy, and risk metrics mean.',
     schema: getBacktestSummarySchema,
@@ -344,7 +344,7 @@ export function createGetBacktestSummaryTool() {
 }
 
 export function createCalculateWinRateTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'calculate_win_rate',
     description: 'Calculate win rate and related statistics from a list of trade outcomes.',
     schema: calculateWinRateSchema,

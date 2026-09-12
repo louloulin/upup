@@ -42,7 +42,7 @@
 /invest --resume <planId>       → 从 checkpoint 继续
 ```
 
-5 步 phase 顺序(在 `src/agent/investment-workflow.ts` 中编排):
+5 步 phase 顺序(在 `src/runtime/pi/investment-workflow.ts` 中编排):
 1. **research** — 基础面 + 消息面(财务指标 + 10-K + 近期新闻)
 2. **valuation** — DCF 估值 + 多倍对比 + 同业 benchmark
 3. **backtest** — 策略历史回测(胜率/收益/Sharpe/MaxDD)
@@ -80,11 +80,11 @@
 ## 7. 技术栈 — 严格模块高内聚
 
 - **Bun** runtime + TypeScript strict
-- **LangChain** `@langchain/core` 多 provider(OpenAI / Anthropic / Google / xAI / OpenRouter / Ollama)
+- **Pi Runtime** `pi-agent-core` + `pi-ai` + `pi-coding-agent`，统一承载 Agent loop、provider stream、Tool Call、Session、Compaction 与 Extension
 - **Ink** CLI 渲染(React 风格)
 - **Playwright** headless browser 富页读取
-- **Plan Mode** 已有 `src/agent/plan-mode-state.ts`(集成在 `agent.ts:756`)
-- **Multi-Agent** Coordinator 4 worker(`src/coordinator/`)
+- **Plan Mode** 由 Pi Session + `src/plan/` / 投资工作流适配器共同实现
+- **Multi-Agent** Coordinator 4 worker，底层 worker 通过 `src/runtime/pi/` 创建 Pi Session
 - **Kairos** 6 状态机主动模式(`src/kairos/`)
 
 ### 模块依赖图(零循环)
@@ -95,7 +95,7 @@ src/commands/executor.ts
     → 5 + 1 个 CLI(morning-brief / earnings-preview / risk-dashboard
        / portfolio-review / watchlist-edit / invest)
       → src/plan/{plan-builder, plan-executor, plan-context, research-plan}.js
-      → src/agent/investment-workflow.js
+      → src/runtime/pi/investment-workflow.js
       → src/utils/storage-paths.js
       → node:fs / node:path
 ```

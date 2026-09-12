@@ -1,4 +1,4 @@
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { getTushareClient, getToday } from './tushare-client';
 import { getRealtimeQuote, toTencentSymbol } from './realtime-client';
@@ -24,7 +24,7 @@ const GetAStockPriceSchema = z.object({
   end_date: z.string().optional().describe('End date (YYYYMMDD, default: today)'),
 });
 
-export const getAStockPrice = new DynamicStructuredTool({
+export const getAStockPrice = new PiTool({
   name: 'get_astock_price',
   description: GET_ASTOCK_PRICE_DESCRIPTION,
   schema: GetAStockPriceSchema,

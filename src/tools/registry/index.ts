@@ -7,7 +7,7 @@
  * Previous: 1978 lines monolithic → Now: ~60 lines orchestration
  */
 
-import type { StructuredToolInterface } from '@langchain/core/tools';
+import type { PiTool } from '../../runtime/pi/tool.js';
 
 // Re-export types from sub-module
 export type { ToolSafetyLevel, ToolCategory, ToolSideEffects, ToolConcurrencyMetadata, RegisteredTool } from './types.js';
@@ -106,7 +106,7 @@ export async function getToolConcurrencyMap(model: string): Promise<Map<string, 
 /**
  * Get just the tool instances for binding to the LLM.
  */
-export async function getTools(model: string): Promise<StructuredToolInterface[]> {
+export async function getTools(model: string): Promise<PiTool[]> {
   const tools = await getToolRegistry(model);
   return tools.filter(t => t?.tool).map(t => t!.tool);
 }

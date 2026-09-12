@@ -1,4 +1,4 @@
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { randomBytes } from 'node:crypto';
 import { z } from 'zod';
 import { loadCronStore, saveCronStore } from '../../cron/store.js';
@@ -84,7 +84,7 @@ const cronToolSchema = z.object({
   enabled: z.boolean().optional().describe('Enable/disable a job (for update)'),
 });
 
-export const cronTool = new DynamicStructuredTool({
+export const cronTool = new PiTool({
   name: 'cron',
   description: 'Create, list, update, remove, or run scheduled jobs.',
   schema: cronToolSchema,

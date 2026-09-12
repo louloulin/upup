@@ -8,10 +8,9 @@
  * - Sector correlation analysis
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { getTushareClient, getToday } from '../astock/tushare-client';
-import type { StructuredToolInterface } from '@langchain/core/tools';
 
 export const SECTOR_ANALYSIS_DESCRIPTION = `## sector_analysis
 Analyze market sectors and industries.
@@ -44,8 +43,8 @@ const COMMON_SECTORS = [
   '家用电器', '酿酒行业', '新能源', '半导体', '云计算', '人工智能'
 ];
 
-export function createSectorAnalysis(_model: string): StructuredToolInterface {
-  return new DynamicStructuredTool({
+export function createSectorAnalysis(_model: string): PiTool {
+  return new PiTool({
     name: 'sector_analysis',
     description: SECTOR_ANALYSIS_DESCRIPTION,
     schema: SectorAnalysisSchema,

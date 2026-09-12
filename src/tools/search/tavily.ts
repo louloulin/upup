@@ -1,20 +1,27 @@
-import { DynamicStructuredTool } from '@langchain/core/tools';
-import { TavilySearch } from '@langchain/tavily';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { formatToolResult, parseSearchResults } from '../types.js';
 import { logger } from '../../utils/logger.js';
 
 // Lazily initialized to avoid errors when API key is not set
-let tavilyClient: TavilySearch | null = null;
+let tavilyClient: { invoke: (input: { query: string }) => Promise<unknown> } | null = null;
 
-function getTavilyClient(): TavilySearch {
+function getTavilyClient(): { invoke: (input: { query: string }) => Promise<unknown> } {
   if (!tavilyClient) {
-    tavilyClient = new TavilySearch({ maxResults: 5 });
+    tavilyClient = { invoke: async ({ query }) => {
+      const response = await fetch('https://api.tavily.com/search', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ api_key: process.env.TAVILY_API_KEY, query, max_results: 5 }),
+      });
+      if (!response.ok) throw new Error(`Tavily request failed with ${response.status}`);
+      return response.json();
+    }};
   }
   return tavilyClient;
 }
 
-export const tavilySearch = new DynamicStructuredTool({
+export const tavilySearch = new PiTool({
   name: 'web_search',
   description:
     'Search the web for current information on any topic. Returns relevant search results with URLs and content snippets.',

@@ -24,7 +24,7 @@
 | File | LOC | Exports | Imports | Layer |
 |------|-----|---------|---------|-------|
 | `src/cli.ts` | 1349 | 2 | 19 | other |
-| `src/agent/agent.ts` | 941 | 2 | 32 | L1 |
+| `src/runtime/pi/agent-session-factory.ts` | 459 | 2 | 13 | L1 |
 | `src/storage/project-storage.ts` | 929 | 28 | 4 | other |
 | `src/coordinator/coordinator.test.ts` | 788 | 9 | 6 | L3 |
 | `src/tools/research/research-tools.ts` | 754 | 13 | 3 | L2 |

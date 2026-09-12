@@ -2,8 +2,9 @@
  * Behavior tests for ToolSearchTool (requires mocking getToolRegistry)
  */
 
-import { describe, it, expect, vi, beforeEach } from 'bun:test';
+import { describe, it, expect } from 'bun:test';
 import type { RegisteredTool } from './registry/index.js';
+import { createToolGetTool, createToolListTool, createToolSearchTool } from './tool-search-tool.js';
 
 const MOCK_TOOLS: RegisteredTool[] = [
   {
@@ -36,39 +37,28 @@ const MOCK_TOOLS: RegisteredTool[] = [
   },
 ];
 
-// Reset module state between tests
-vi.mock('./registry/index.js', () => ({
-  getToolRegistry: vi.fn(() => Promise.resolve(MOCK_TOOLS)),
-}));
-
-beforeEach(() => {
-  vi.clearAllMocks();
-});
+const loadMockTools = async (): Promise<RegisteredTool[]> => MOCK_TOOLS;
 
 describe('createToolSearchTool behavior', () => {
   it('should create tool with name tool_search', async () => {
-    const { createToolSearchTool } = await import('./tool-search-tool.js');
-    const tool = createToolSearchTool();
+    const tool = createToolSearchTool(loadMockTools);
     expect(tool.name).toBe('tool_search');
   });
 
   it('should have callable func', async () => {
-    const { createToolSearchTool } = await import('./tool-search-tool.js');
-    const tool = createToolSearchTool();
+    const tool = createToolSearchTool(loadMockTools);
     expect(typeof tool.func).toBe('function');
   });
 
   it('should return matching tools for query', async () => {
-    const { createToolSearchTool } = await import('./tool-search-tool.js');
-    const tool = createToolSearchTool();
+    const tool = createToolSearchTool(loadMockTools);
     const result = await tool.func({ query: 'file' });
     expect(result).toContain('read_file');
     expect(result).not.toContain('browser');
   });
 
   it('should return all tools for empty query', async () => {
-    const { createToolSearchTool } = await import('./tool-search-tool.js');
-    const tool = createToolSearchTool();
+    const tool = createToolSearchTool(loadMockTools);
     const result = await tool.func({});
     expect(result).toContain('get_financials');
     expect(result).toContain('browser');
@@ -77,32 +67,28 @@ describe('createToolSearchTool behavior', () => {
   });
 
   it('should filter by name prefix', async () => {
-    const { createToolSearchTool } = await import('./tool-search-tool.js');
-    const tool = createToolSearchTool();
+    const tool = createToolSearchTool(loadMockTools);
     const result = await tool.func({ name: 'get' });
     expect(result).toContain('get_financials');
     expect(result).not.toContain('browser');
   });
 
   it('should filter by concurrencySafe=false', async () => {
-    const { createToolSearchTool } = await import('./tool-search-tool.js');
-    const tool = createToolSearchTool();
+    const tool = createToolSearchTool(loadMockTools);
     const result = await tool.func({ concurrencySafe: false });
     expect(result).toContain('browser');
     expect(result).not.toContain('get_financials');
   });
 
   it('should indicate concurrency safety with emoji', async () => {
-    const { createToolSearchTool } = await import('./tool-search-tool.js');
-    const tool = createToolSearchTool();
+    const tool = createToolSearchTool(loadMockTools);
     const result = await tool.func({});
     expect(result).toContain('✅');
     expect(result).toContain('browser'); // has ⚠️
   });
 
   it('should return no tools found message', async () => {
-    const { createToolSearchTool } = await import('./tool-search-tool.js');
-    const tool = createToolSearchTool();
+    const tool = createToolSearchTool(loadMockTools);
     const result = await tool.func({ query: 'xyznonexistent' });
     expect(result).toContain('No tools found');
     expect(result).toContain('4'); // total tools count
@@ -111,20 +97,17 @@ describe('createToolSearchTool behavior', () => {
 
 describe('createToolGetTool behavior', () => {
   it('should create tool with name tool_get', async () => {
-    const { createToolGetTool } = await import('./tool-search-tool.js');
-    const tool = createToolGetTool();
+    const tool = createToolGetTool(loadMockTools);
     expect(tool.name).toBe('tool_get');
   });
 
   it('should have callable func', async () => {
-    const { createToolGetTool } = await import('./tool-search-tool.js');
-    const tool = createToolGetTool();
+    const tool = createToolGetTool(loadMockTools);
     expect(typeof tool.func).toBe('function');
   });
 
   it('should return tool details for existing tool', async () => {
-    const { createToolGetTool } = await import('./tool-search-tool.js');
-    const tool = createToolGetTool();
+    const tool = createToolGetTool(loadMockTools);
     const result = await tool.func({ name: 'get_financials' });
     expect(result).toContain('=== Tool: get_financials ===');
     expect(result).toContain('Financial data retrieval');
@@ -133,24 +116,21 @@ describe('createToolGetTool behavior', () => {
   });
 
   it('should return not found for unknown tool', async () => {
-    const { createToolGetTool } = await import('./tool-search-tool.js');
-    const tool = createToolGetTool();
+    const tool = createToolGetTool(loadMockTools);
     const result = await tool.func({ name: 'nonexistent' });
     expect(result).toContain('not found');
     expect(result).toContain('Run tool_list');
   });
 
   it('should show concurrency-safe status', async () => {
-    const { createToolGetTool } = await import('./tool-search-tool.js');
-    const tool = createToolGetTool();
+    const tool = createToolGetTool(loadMockTools);
     const result = await tool.func({ name: 'browser' });
     expect(result).toContain('⚠️');
     expect(result).toContain('Not concurrency-safe');
   });
 
   it('should show concurrency-safe for safe tool', async () => {
-    const { createToolGetTool } = await import('./tool-search-tool.js');
-    const tool = createToolGetTool();
+    const tool = createToolGetTool(loadMockTools);
     const result = await tool.func({ name: 'get_financials' });
     expect(result).toContain('✅');
     expect(result).toContain('Concurrency-safe');
@@ -159,20 +139,17 @@ describe('createToolGetTool behavior', () => {
 
 describe('createToolListTool behavior', () => {
   it('should create tool with name tool_list', async () => {
-    const { createToolListTool } = await import('./tool-search-tool.js');
-    const tool = createToolListTool();
+    const tool = createToolListTool(loadMockTools);
     expect(tool.name).toBe('tool_list');
   });
 
   it('should have callable func', async () => {
-    const { createToolListTool } = await import('./tool-search-tool.js');
-    const tool = createToolListTool();
+    const tool = createToolListTool(loadMockTools);
     expect(typeof tool.func).toBe('function');
   });
 
   it('should list all tools', async () => {
-    const { createToolListTool } = await import('./tool-search-tool.js');
-    const tool = createToolListTool();
+    const tool = createToolListTool(loadMockTools);
     const result = await tool.func({});
     expect(result).toContain('Total: 4 tools');
     expect(result).toContain('get_financials');
@@ -180,8 +157,7 @@ describe('createToolListTool behavior', () => {
   });
 
   it('should filter by prefix', async () => {
-    const { createToolListTool } = await import('./tool-search-tool.js');
-    const tool = createToolListTool();
+    const tool = createToolListTool(loadMockTools);
     const result = await tool.func({ prefix: 'get' });
     expect(result).toContain("(1 matching 'get')");
     expect(result).toContain('get_financials');
@@ -189,24 +165,21 @@ describe('createToolListTool behavior', () => {
   });
 
   it('should limit results', async () => {
-    const { createToolListTool } = await import('./tool-search-tool.js');
-    const tool = createToolListTool();
+    const tool = createToolListTool(loadMockTools);
     const result = await tool.func({ limit: 2 });
     expect(result).toContain('showing first 2');
     expect(result).not.toContain('showing first 4');
   });
 
   it('should show concurrency safety emoji', async () => {
-    const { createToolListTool } = await import('./tool-search-tool.js');
-    const tool = createToolListTool();
+    const tool = createToolListTool(loadMockTools);
     const result = await tool.func({});
     expect(result).toContain('✅');
     expect(result).toContain('⚠️');
   });
 
   it('should show skipped count when limit is applied to all tools', async () => {
-    const { createToolListTool } = await import('./tool-search-tool.js');
-    const tool = createToolListTool();
+    const tool = createToolListTool(loadMockTools);
     const result = await tool.func({ limit: 2 });
     expect(result).toContain('... and 2 more');
   });

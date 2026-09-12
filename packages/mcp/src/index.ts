@@ -5,6 +5,7 @@ export type {
   MCPConnectionState,
   MCPServerConnection,
 } from './client.js';
+export type { PiMcpTool } from './pi-tool.js';
 
 // MCP Client classes and functions
 export {

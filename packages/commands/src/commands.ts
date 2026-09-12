@@ -16,6 +16,8 @@
 // Types
 // ============================================================================
 
+import { getSubagentPortLocal } from './agent-port.js';
+
 export type CommandPermission = 'admin' | 'user' | 'readonly';
 
 export interface Command {
@@ -748,33 +750,6 @@ const gitBranchCommand: Command = {
 // Agent / Team Commands
 // ============================================================================
 
-const agentCommand: Command = {
-  name: 'agent',
-  description: 'Manage subagents',
-  usage: '/agent [list|status]',
-  async execute(_args): Promise<CommandResult> {
-    // Dynamic import to avoid circular dependency
-    try {
-      const { getDefaultSubagentRunner } = await import('../agent/subagent-runner.js');
-      const runner = getDefaultSubagentRunner();
-      const tasks = runner.getAllTasks();
-
-      if (tasks.length === 0) {
-        return { type: 'output', text: 'No active subagents.' };
-      }
-
-      const lines = ['Subagent tasks:', ''];
-      for (const t of tasks) {
-        const icon = t.status === 'running' ? '⏳' : t.status === 'completed' ? '✓' : t.status === 'failed' ? '✗' : '○';
-        lines.push(`  ${icon} ${t.id.substring(0, 8)} (${t.status})`);
-      }
-      return { type: 'output', text: lines.join('\n') };
-    } catch {
-      return { type: 'output', text: 'No active subagents.' };
-    }
-  },
-};
-
 const teamCommand: Command = {
   name: 'team',
   description: 'List agent teams',
@@ -918,7 +893,7 @@ const doctorCommand: Command = {
 
     // Memory
     try {
-      const { agentMemoryStore } = await import('../agent/subagent/types.js');
+      const { agentMemoryStore } = await import('../../../src/runtime/pi/subagent-types.js');
       const count = agentMemoryStore.getContext('system').length;
       lines.push(`Memory: ${count > 0 ? `${count} context(s)` : '✓ available'}`);
     } catch {
@@ -985,22 +960,23 @@ const tasksCommand: Command = {
   description: 'List background agent tasks, or stop a task with /tasks stop <id>',
   async execute(args, _context): Promise<CommandResult> {
     try {
-      const { getDefaultSubagentRunner } = await import('../agent/subagent-runner.js');
-      const runner = getDefaultSubagentRunner();
+      const port = getSubagentPortLocal();
+      if (!port) return { type: 'error', message: 'Pi task system not available' };
 
       // /tasks stop <id>
       const parts = args.trim().split(/\s+/);
       if (parts[0] === 'stop' && parts[1]) {
         const taskId = parts[1];
         try {
-          await runner.cancelTask(taskId);
+          const cancelled = await port.cancelTask?.(taskId);
+          if (!cancelled) return { type: 'error', message: `Task ${taskId} not found or already finished.` };
           return { type: 'output', text: `Task ${taskId} cancelled.` };
         } catch (e) {
           return { type: 'error', message: `Failed to cancel task ${taskId}: ${(e as Error).message}` };
         }
       }
 
-      const tasks = runner.getAllTasks();
+      const tasks = port.getAllTasks();
 
       if (tasks.length === 0) {
         return { type: 'output', text: 'No active background tasks.' };
@@ -1335,18 +1311,6 @@ async function getMemoryStats(): Promise<{ count: number; types: string[] }> {
 }
 
 /**
- * Get subagent runner.
- */
-async function getSubagentRunner(): Promise<SubagentRunner | null> {
-  try {
-    const mod = await importInternal<{ getDefaultSubagentRunner: () => SubagentRunner }>('../agent/subagent-runner.js');
-    return mod?.getDefaultSubagentRunner?.() ?? null;
-  } catch {
-    return null;
-  }
-}
-
-/**
  * Get MCP client.
  */
 async function getMCPClient(): Promise<MCPClient | null> {
@@ -1447,8 +1411,8 @@ export function registerBuiltinCommands(registry: CommandRegistry): void {
   registry.register(gitDiffCommand);
   registry.register(gitCommitCommand);
   registry.register(gitBranchCommand);
-  // Agent/Team commands
-  registry.register(agentCommand);
+  // Team command. Agent spawning is owned by the Pi-backed command module;
+  // the legacy registry must not register a second Agent implementation.
   registry.register(teamCommand);
 
   // --- Migrated from cli.ts switch (Phase 4 command unification) ---

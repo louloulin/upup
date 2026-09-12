@@ -1,4 +1,4 @@
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { api, stripFieldsDeep } from './api.js';
 import { formatToolResult } from '../types.js';
@@ -12,7 +12,7 @@ const KeyRatiosInputSchema = z.object({
     .describe("The stock ticker symbol to fetch key ratios for. For example, 'AAPL' for Apple."),
 });
 
-export const getKeyRatios = new DynamicStructuredTool({
+export const getKeyRatios = new PiTool({
   name: 'get_key_ratios',
   description:
     'Fetches the latest financial metrics snapshot for a company, including valuation ratios (P/E, P/B, P/S, EV/EBITDA, PEG), profitability (margins, ROE, ROA, ROIC), liquidity (current/quick/cash ratios), leverage (debt/equity, debt/assets), per-share metrics (EPS, book value, FCF), and growth rates (revenue, earnings, EPS, FCF, EBITDA).',
@@ -67,7 +67,7 @@ const HistoricalKeyRatiosInputSchema = z.object({
     ),
 });
 
-export const getHistoricalKeyRatios = new DynamicStructuredTool({
+export const getHistoricalKeyRatios = new PiTool({
   name: 'get_historical_key_ratios',
   description: `Retrieves historical key ratios for a company, such as P/E ratio, revenue per share, and enterprise value, over a specified period. Useful for trend analysis and historical performance evaluation.`,
   schema: HistoricalKeyRatiosInputSchema,

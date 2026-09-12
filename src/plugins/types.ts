@@ -8,6 +8,7 @@
  */
 
 import type { ServiceContext } from './services.js';
+import type { TSchema } from 'typebox';
 
 // ============================================================================
 // Plugin Runtime Types
@@ -32,6 +33,8 @@ export type HookExecutionMode = 'parallel' | 'sequential' | 'sync';
 
 /** Security sandbox levels */
 export type SandboxLevel = 'process' | 'wasm' | 'mcp' | 'none';
+
+export type PluginToolSafetyLevel = 'safe' | 'warning' | 'dangerous' | 'critical';
 
 // ============================================================================
 // Plugin Configuration
@@ -184,7 +187,10 @@ export interface AgentTool {
   name: string;
   description?: string;
   execute(args: Record<string, unknown>): Promise<unknown>;
-  schema?: Record<string, unknown>;
+  schema?: TSchema;
+  /** Pi permission metadata. Unspecified plugin tools are read-only warnings. */
+  safetyLevel?: PluginToolSafetyLevel;
+  hasFinancialImpact?: boolean;
 }
 
 export interface ToolOptions {

@@ -1,5 +1,9 @@
 # Architecture Overview
 
+> Production Agent execution is Pi-backed. The former `src/agent/` custom loop and
+> LangChain runtime are removed; use `docs/architecture/pi5-runtime.md` as the
+> canonical migration architecture and `pi5.md` for acceptance evidence.
+
 > **The full architecture is in [ARCHITECTURE.md](./ARCHITECTURE.md)** (the canonical document, 334 lines, layers + boundaries). This page is the user-facing overview.
 
 ---
@@ -19,11 +23,11 @@
 └───────────────────────────┬────────────────────────────────────┘
                             │
 ┌───────────────────────────▼────────────────────────────────────┐
-│  Agent Loop (src/agent/)                                        │
-│    • Iterative tool-calling (max 10 iters)                     │
-│    • Scratchpad (single source of truth)                       │
-│    • Plan mode / Loop recovery / Auto-compact                  │
-│    • 5 Investment Subagents (Explore/Plan/Risk/Trade/Review)  │
+│  Pi Runtime Adapter (src/runtime/pi/)                          │
+│    • Pi AgentSession and pi-agent-core tool loop               │
+│    • Pi session tree / compaction / streaming events           │
+│    • UpUp policy, evidence, audit and compatibility adapters   │
+│    • Investment profiles and Pi-backed subagent workers        │
 └─────┬──────────┬──────────┬──────────┬──────────┬──────────┐
       │          │          │          │          │           │
       ▼          ▼          ▼          ▼          ▼           ▼
@@ -51,10 +55,10 @@ The architecture follows a strict 8-layer pattern (see [ARCHITECTURE.md](./ARCHI
 | L1 | `src/utils/` | Pure utilities, no business logic |
 | L2 | `src/types/` | Pure types |
 | L3 | `src/storage/` | Persistence (SQLite, JSON, DuckDB) |
-| L4 | `src/model/` | LLM abstraction |
+| L4 | `src/runtime/pi/` | Pi AgentSession, model and event adapter |
 | L5 | `src/tools/` | External actions (bash, finance tools, search, browser) |
 | L6 | `src/skills/` | Domain knowledge (SKILL.md + bundled) |
-| L7 | `src/agent/` | Orchestration (loop, plan, subagent) |
+| L7 | `src/runtime/pi/`, `src/commands/`, `src/coordinator/` | Pi-backed orchestration and investment workflows |
 | L8 | `src/cli.tsx` | User interface |
 
 Dependencies flow strictly upward. A Layer-N module can only import from Layer-0 through Layer-N.
@@ -63,30 +67,28 @@ Dependencies flow strictly upward. A Layer-N module can only import from Layer-0
 
 ## Agent Loop
 
-`src/agent/agent.ts` is the heart. Each iteration:
+The production loop is Pi's `AgentSession`/`pi-agent-core`, created through `src/runtime/pi/agent-session-factory.ts`. Each turn:
 
 ```
-1. Read messages + scratchpad
-2. Call LLM with tools bound
-3. LLM returns: text + tool_calls
-4. Execute tool_calls (parallel where independent)
-5. Write results to scratchpad
-6. Yield events (tool_start, tool_end, thinking, answer_start, done)
-7. If LLM says done → finalize answer
-8. Else → goto 1 (until max iters or stop signal)
+1. Pi reads the session tree and current context
+2. Pi streams the provider response through `pi-ai`
+3. Pi executes registered tools with `AbortSignal`, progress and details
+4. UpUp adapters apply profile permissions and attach evidence/audit metadata
+5. Pi appends messages and tool results to the session
+6. UpUp maps Pi events to CLI/Gateway/SDK event contracts
 ```
 
-After the loop, a **separate LLM call** generates the final answer with full scratchpad context (no tools bound). This forces the agent to synthesize rather than keep digging.
+Final synthesis is emitted by the Pi session; UpUp does not maintain a second LangChain or custom Agent loop.
 
 ---
 
 ## Scratchpad
 
-`src/agent/scratchpad.ts` is the single source of truth for tool results within a query. Anthropic-style context management:
+Pi's session tree is the source of truth for messages and tool results. UpUp's evidence and workflow entries add financial traceability:
 
-- All tool results kept in scratchpad
-- When token count exceeds threshold → auto-compact (oldest results cleared/summarized)
-- Final answer call gets full scratchpad
+- Tool results are appended as Pi session entries
+- Pi compaction preserves the active branch and context summary
+- Financial entries retain ticker, market, `asOf`, assumptions, risks and evidence IDs
 
 This is more deterministic than rolling-window truncation.
 
@@ -177,14 +179,14 @@ Each phase yields events that the CLI renders in real-time.
 
 | Package | Purpose |
 |---|---|
-| `agent-core` | Agent loop, prompts, scratchpad |
+| `agent-core` | Compatibility/domain contracts; production loop is provided by Pi |
 | `commands` | Unified command registry |
 | `cron` | Scheduled tasks |
 | `daemon` | Background process |
 | `gateway` | HTTP / WebSocket gateway |
 | `hooks` | Hook runtime |
 | `keybindings` | Key bindings |
-| `llm` | LLM adapters |
+| `llm` | Provider/configuration compatibility helpers; production model protocol is `pi-ai` |
 | `mcp` | MCP client/server |
 | `memory` | Persistent memory |
 | `plugin-sdk` | Plugin author SDK |

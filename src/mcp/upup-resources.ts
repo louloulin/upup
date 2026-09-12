@@ -19,7 +19,7 @@
 
 import { DossierStore } from '../memory/dossier.js';
 import { AuditChain } from '../memory/audit-signing.js';
-import { CitationRegistry } from '../agent/citation.js';
+import { CitationRegistry } from '../runtime/pi/citation.js';
 import { buildEarningsPreview, buildEarningsPreviewAsync, type EarningsPreview } from '../commands/investment/earnings-preview.js';
 import { StrategyStore } from '../memory/strategy-store.js';
 

@@ -1,4 +1,4 @@
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { z } from 'zod';
@@ -80,7 +80,7 @@ async function syncHeartbeatCronJob(): Promise<void> {
   saveCronStore(store);
 }
 
-export const heartbeatTool = new DynamicStructuredTool({
+export const heartbeatTool = new PiTool({
   name: 'heartbeat',
   description:
     'View or update the heartbeat checklist (.upup/HEARTBEAT.md) that controls periodic monitoring.',

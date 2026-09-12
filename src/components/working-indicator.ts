@@ -1,7 +1,7 @@
 import { Container, Spacer, Text } from '@earendil-works/pi-tui';
 import { t } from '../i18n/index.js';
 import type { WorkingState } from '../types.js';
-import type { StreamMode } from '../agent/types.js';
+import type { StreamMode } from '../runtime/pi/legacy-events.js';
 import { getRandomThinkingVerb } from '../utils/thinking-verbs.js';
 import { theme } from '../theme.js';
 import { subscribeSpinner, currentSpinnerFrame } from '../utils/spinner.js';

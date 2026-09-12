@@ -8,7 +8,7 @@
  * 4. Token 使用量跟踪
  *
  * 注意: SDK Session 主要用于追踪 sessionId 和 token 使用
- * 消息历史由 upup 核心 SessionManager 维护 (通过 daemon/session.ts)
+ * 消息历史由 Pi SessionManager 维护 (通过 stdio RPC)
  * SDK 通过 IPC 调用获取消息，而不是自己存储
  */
 

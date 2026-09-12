@@ -14,7 +14,7 @@
  * - 与team-tools.ts保持接口一致
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { getSwarmCoordinator } from '../coordinator.js';
 import { getTeamManager } from '../team-manager.js';
@@ -53,7 +53,7 @@ const SWARM_TEAM_LIST_DESCRIPTION = `[SWARM] List all existing teams and their s
 // Team Create Tool
 // ============================================================================
 
-export const teamCreateTool = new DynamicStructuredTool({
+export const teamCreateTool = new PiTool({
   name: 'swarm_team_create',
   description: SWARM_TEAM_CREATE_DESCRIPTION,
   
@@ -91,7 +91,7 @@ export const teamCreateTool = new DynamicStructuredTool({
 // Agent Spawn Tool
 // ============================================================================
 
-export const agentSpawnTool = new DynamicStructuredTool({
+export const agentSpawnTool = new PiTool({
   name: 'swarm_agent_spawn',
   description: SWARM_AGENT_SPAWN_DESCRIPTION,
   
@@ -138,7 +138,7 @@ export const agentSpawnTool = new DynamicStructuredTool({
 // Agent Message Tool
 // ============================================================================
 
-export const agentMessageTool = new DynamicStructuredTool({
+export const agentMessageTool = new PiTool({
   name: 'swarm_agent_message',
   description: SWARM_AGENT_MESSAGE_DESCRIPTION,
   
@@ -177,7 +177,7 @@ export const agentMessageTool = new DynamicStructuredTool({
 // Agent Results Tool
 // ============================================================================
 
-export const agentResultsTool = new DynamicStructuredTool({
+export const agentResultsTool = new PiTool({
   name: 'swarm_agent_results',
   description: SWARM_AGENT_RESULTS_DESCRIPTION,
   
@@ -214,7 +214,7 @@ export const agentResultsTool = new DynamicStructuredTool({
 // Team List Tool
 // ============================================================================
 
-export const teamListTool = new DynamicStructuredTool({
+export const teamListTool = new PiTool({
   name: 'swarm_team_list',
   description: SWARM_TEAM_LIST_DESCRIPTION,
   

@@ -6,7 +6,7 @@
  */
 
 import { z } from 'zod';
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 
 // ============================================================================
 // PE/PB/PCF Analysis
@@ -304,8 +304,8 @@ Examples:
 // Tool Factories
 // ============================================================================
 
-export function createValuationRatiosTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createValuationRatiosTool(): PiTool {
+  return new PiTool({
     name: 'valuation_ratios',
     description: VALUATION_RATIOS_DESCRIPTION,
     schema: ValuationRatiosSchema,
@@ -351,8 +351,8 @@ export function createValuationRatiosTool(): DynamicStructuredTool {
   });
 }
 
-export function createDCFTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createDCFTool(): PiTool {
+  return new PiTool({
     name: 'dcf_model',
     description: DCF_MODEL_DESCRIPTION,
     schema: DcfModelSchema,
@@ -402,8 +402,8 @@ export function createDCFTool(): DynamicStructuredTool {
   });
 }
 
-export function createPeerComparisonTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createPeerComparisonTool(): PiTool {
+  return new PiTool({
     name: 'peer_comparison',
     description: PEER_COMPARISON_DESCRIPTION,
     schema: PeerComparisonSchema,

@@ -1,8 +1,8 @@
 /**
- * @upup/sdk - 基于 upup 核心的 Session 实现 (SDK v5)
+ * @upup/sdk - 基于 Pi JSONL 的 Session 薄包装
  *
  * 策略: SDK 只做薄包装，不自己实现 Session 逻辑
- * 所有消息存储由 upup 核心 SessionManager 管理
+ * 所有消息存储由 UpUp 的 Pi SessionManager 管理
  * 通过 IPC 调用获取消息历史
  */
 
@@ -26,14 +26,14 @@ interface UpupSessionMetadata {
   tags?: string[];
 }
 
-// ============ UpupSessionManager 实现 (SDK v5 简化版) ============
+// ============ PiSessionClient 实现 (兼容旧导出名) ============
 
 export interface UpupSessionManagerConfig extends SessionConfig {
   transport: RpcTransport;
 }
 
 /**
- * SDK v5 Session Manager - 完全基于 upup 核心
+ * SDK Session Client - 完全基于 Pi-backed RPC
  *
  * 简化策略:
  * 1. SDK 只追踪 sessionId，不存储消息
@@ -62,6 +62,8 @@ export class UpupSessionManager {
       context: {
         projectSlug: (params.metadata?.projectSlug as string) || 'sdk',
         projectPath: (params.metadata?.projectPath as string) || process.cwd(),
+        model: params.metadata?.model as string | undefined,
+        systemPrompt: params.metadata?.systemPrompt as string | undefined,
       },
       id: params.id,
     }) as { id: string; state: UpupSessionState; createdAt: number };
@@ -243,6 +245,24 @@ export class UpupSessionManager {
 
     this.sessionId = null;
     this.tokenUsage = undefined;
+  }
+
+  async compact(instructions?: string): Promise<void> {
+    if (!this.sessionId) return;
+    await this.transport.request('session/compact', { id: this.sessionId, instructions });
+  }
+
+  async fork(entryId?: string): Promise<string> {
+    if (!this.sessionId) throw new Error('No active Pi session');
+    const result = await this.transport.request('session/fork', { id: this.sessionId, entryId }) as { id: string };
+    this.sessionId = result.id;
+    return result.id;
+  }
+
+  async export(format: 'jsonl' | 'html' = 'jsonl', outputPath?: string): Promise<string> {
+    if (!this.sessionId) throw new Error('No active Pi session');
+    const result = await this.transport.request('session/export', { id: this.sessionId, format, outputPath }) as { path: string };
+    return result.path;
   }
 
   // ============ 辅助方法 ============

@@ -8,7 +8,7 @@
  * used for documentation / `listExperiments()` introspection (no global state
  * affects assignment).
  */
-import { fnv1a } from '../../agent/feature-gates.js';
+import { fnv1a } from '../../runtime/pi/feature-gates.js';
 
 export interface ExperimentVariant {
   key: string;

@@ -2,13 +2,11 @@
  * Tests for MCP Resource Tools
  */
 
-import { describe, it, expect, vi, beforeEach } from 'bun:test';
-import { listMcpResourcesTool, readMcpResourceTool } from './resource-tools.js';
+import { describe, it, expect } from 'bun:test';
+import { createMcpResourceTools } from './resource-tools.js';
 
-// Mock the MCP client
-vi.mock('./client.js', () => ({
-  getDefaultMCPClient: vi.fn(() => ({
-    listResources: vi.fn(async (serverName?: string) => {
+const getClient = () => ({
+    listResources: async (serverName?: string) => {
       if (serverName === 'empty-server') {
         return [];
       }
@@ -31,8 +29,8 @@ vi.mock('./client.js', () => ({
           ],
         },
       ];
-    }),
-    readResource: vi.fn(async (uri: string, serverName?: string) => ({
+    },
+    readResource: async (uri: string, serverName?: string) => ({
       server: serverName || 'test-server',
       contents: [
         {
@@ -41,9 +39,10 @@ vi.mock('./client.js', () => ({
           text: 'Hello, world!',
         },
       ],
-    })),
-  })),
-}));
+    }),
+});
+
+const { listMcpResourcesTool, readMcpResourceTool } = createMcpResourceTools(getClient);
 
 describe('listMcpResourcesTool', () => {
   it('lists resources from all servers', async () => {
@@ -61,12 +60,9 @@ describe('listMcpResourcesTool', () => {
 
   it('handles no connected servers gracefully', async () => {
     // Override mock for this test
-    const { getDefaultMCPClient } = await import('./client.js');
-    (getDefaultMCPClient as any).mockReturnValueOnce({
-      listResources: async () => [],
-    });
+    const emptyTools = createMcpResourceTools(() => ({ listResources: async () => [], readResource: async () => ({ server: 'empty', contents: [] }) }));
 
-    const result = await listMcpResourcesTool.invoke({});
+    const result = await emptyTools.listMcpResourcesTool.invoke({});
     const parsed = JSON.parse(result as string);
 
     // No 'message' fallback because upup:// templates are always available.

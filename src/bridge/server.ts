@@ -7,6 +7,8 @@ import { appendFileSync } from 'node:fs';
 import { timingSafeEqual } from 'node:crypto';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { runAgentForMessage, type AgentRunRequest } from '../gateway/agent-runner.js';
+import { getConfiguredModelId, getConfiguredProvider } from '../utils/config.js';
 
 /**
  * Build a JSON response with the correct content-type. Centralized so
@@ -66,6 +68,8 @@ export interface BridgeServerConfig {
    * is unaffected).
    */
   dossiers?: DossierStore;
+  /** Pi-backed message execution hook. Defaults to the production Gateway runner. */
+  agentRunner?: (request: AgentRunRequest) => Promise<string>;
 }
 
 export interface BridgeServer {
@@ -88,6 +92,7 @@ export async function startBridgeServer(cfg: BridgeServerConfig): Promise<Bridge
       storageDir: cfg.sessionStorageDir ?? join(homedir(), '.upup', 'sessions'),
     });
   const bind = cfg.bind ?? '127.0.0.1';
+  const agentRunner = cfg.agentRunner ?? runAgentForMessage;
 
   // P2.b.2: snapshot endpoints need the *actual* bound port (cfg.port
   // is 0 when the caller asked for an ephemeral one). Explicit type
@@ -222,23 +227,92 @@ export async function startBridgeServer(cfg: BridgeServerConfig): Promise<Bridge
           timestamp: Date.now(),
           payload: { phase: 'thinking' },
         };
-        const idle: BridgeMessage = {
-          kind: 'status',
-          seq: msg.seq,
-          sessionId: data.sessionId,
-          timestamp: Date.now() + 1,
-          payload: { phase: 'idle' },
-        };
         try {
           ws.send(encodeMessage(thinking));
-          ws.send(encodeMessage(idle));
         } catch {
           // best-effort
         }
-        // Best-effort persistence: read-modify-write the snapshot under
-        // data.sessionId so cross-device clients can resume. Errors are
-        // swallowed — persistence is advisory, not on the hot path.
-        persistAfterMessage(sync, sessions, data.sessionId, data.clientId);
+        if (msg.kind === 'chat' && msg.payload.role === 'user') {
+          const request: AgentRunRequest = {
+            sessionKey: data.sessionId,
+            query: msg.payload.content,
+            model: getConfiguredModelId(),
+            modelProvider: getConfiguredProvider(),
+            onEvent: async (event) => {
+              if (event.type === 'tool_start') {
+                sendBridge(ws, {
+                  kind: 'status',
+                  seq: msg.seq,
+                  sessionId: data.sessionId,
+                  timestamp: Date.now(),
+                  payload: { phase: 'tool' },
+                });
+              } else if (event.type === 'tool_end' || event.type === 'tool_error') {
+                sendBridge(ws, {
+                  kind: 'output',
+                  seq: msg.seq,
+                  sessionId: data.sessionId,
+                  timestamp: Date.now(),
+                  payload: {
+                    tool: event.tool,
+                    result: event.type === 'tool_end' ? event.result : event.error,
+                    latencyMs: 0,
+                  },
+                });
+              }
+            },
+          };
+          void agentRunner(request).then((answer) => {
+            if (answer.trim()) {
+              const assistant: BridgeMessage = {
+                kind: 'chat',
+                seq: msg.seq,
+                sessionId: data.sessionId,
+                timestamp: Date.now(),
+                payload: { role: 'assistant', content: answer },
+              };
+              sessions.recordEvent(data.sessionId, assistant.kind, assistant.payload);
+              sendBridge(ws, assistant);
+            }
+            sendBridge(ws, {
+              kind: 'status',
+              seq: msg.seq,
+              sessionId: data.sessionId,
+              timestamp: Date.now(),
+              payload: { phase: 'done' },
+            });
+            sendBridge(ws, {
+              kind: 'status',
+              seq: msg.seq,
+              sessionId: data.sessionId,
+              timestamp: Date.now() + 1,
+              payload: { phase: 'idle' },
+            });
+            persistAfterMessage(sync, sessions, data.sessionId, data.clientId);
+          }).catch((error: unknown) => {
+            audit(cfg.auditPath, 'agent-error', {
+              sessionId: data.sessionId,
+              error: error instanceof Error ? error.message : String(error),
+            });
+            sendBridge(ws, {
+              kind: 'status',
+              seq: msg.seq,
+              sessionId: data.sessionId,
+              timestamp: Date.now(),
+              payload: { phase: 'idle' },
+            });
+            persistAfterMessage(sync, sessions, data.sessionId, data.clientId);
+          });
+        } else {
+          sendBridge(ws, {
+            kind: 'status',
+            seq: msg.seq,
+            sessionId: data.sessionId,
+            timestamp: Date.now() + 1,
+            payload: { phase: 'idle' },
+          });
+          persistAfterMessage(sync, sessions, data.sessionId, data.clientId);
+        }
       },
       close(ws) {
         const data = ws.data;
@@ -270,6 +344,14 @@ function audit(path: string, event: string, data: Record<string, unknown>): void
     appendFileSync(path, line);
   } catch {
     // best-effort
+  }
+}
+
+function sendBridge(ws: { send(data: Uint8Array): void }, message: BridgeMessage): void {
+  try {
+    ws.send(encodeMessage(message));
+  } catch {
+    // The client may disconnect while a Pi turn is still finishing.
   }
 }
 

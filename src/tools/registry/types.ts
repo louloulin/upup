@@ -2,7 +2,7 @@
  * Shared types for tool registry modules.
  */
 
-import type { StructuredToolInterface } from '@langchain/core/tools';
+import type { PiTool } from '../../runtime/pi/tool.js';
 
 export type ToolSafetyLevel = 'safe' | 'warning' | 'dangerous' | 'critical';
 
@@ -42,7 +42,7 @@ export interface ToolConcurrencyMetadata {
 
 export interface RegisteredTool {
   name: string;
-  tool: StructuredToolInterface;
+  tool: PiTool;
   description?: string;
   compactDescription?: string;
   concurrencySafe: boolean;

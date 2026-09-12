@@ -4,7 +4,7 @@
  * Provides trading day/holiday detection for US, China, and HK markets.
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { formatToolResult } from '../types.js';
 
@@ -227,7 +227,7 @@ const getTradingDaysSchema = z.object({
 // ============================================================================
 
 export function createCheckTradingDayTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'check_trading_day',
     description: 'Check if a given date is a trading day (not weekend, not holiday) for US, China, or HK markets.',
     schema: checkTradingDaySchema,
@@ -285,7 +285,7 @@ export function createCheckTradingDayTool() {
 }
 
 export function createGetUpcomingHolidaysTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'get_upcoming_holidays',
     description: 'Get upcoming market holidays for US, China, or HK markets.',
     schema: getUpcomingHolidaysSchema,
@@ -329,7 +329,7 @@ export function createGetUpcomingHolidaysTool() {
 }
 
 export function createGetNextTradingDayTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'get_next_trading_day',
     description: 'Find the next trading day after a given date, skipping weekends and holidays.',
     schema: getNextTradingDaySchema,
@@ -370,7 +370,7 @@ export function createGetNextTradingDayTool() {
 }
 
 export function createGetTradingDaysTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'get_trading_days',
     description: 'Get a list of all trading days between two dates (inclusive).',
     schema: getTradingDaysSchema,

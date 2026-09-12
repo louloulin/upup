@@ -16,7 +16,7 @@
     }
   },
   "scripts": {
-    "build": "bun build src/index.ts src/manifest.ts --outdir=dist --target=bun && bun build src/index.ts src/manifest.ts --outdir=dist --target=node --format=cjs && rm -rf dist/*.map",
+    "build": "bun build src/index.ts src/manifest.ts --outdir=dist --target=bun && bun build src/index.ts src/manifest.ts --outdir=dist --target=node --format=cjs && tsc --emitDeclarationOnly --declaration --declarationMap --outDir dist && rm -rf dist/*.map",
     "dev": "bun build src/index.ts src/manifest.ts --outdir=dist --watch --target=bun",
     "test": "bun test"
   },

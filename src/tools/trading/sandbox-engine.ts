@@ -2,7 +2,7 @@
  * Sandbox Broker Engine
  *
  * Simulates a broker for paper trading and backtest-to-live transition.
- * Pure logic, no LangChain / LLM dependencies.
+ * Pure logic, no Pi / model dependencies.
  *
  * Spec: openspec/changes/top-tier-investment-assistant/specs/trading-sandbox
  *

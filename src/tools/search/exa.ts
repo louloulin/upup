@@ -1,6 +1,4 @@
-import { DynamicStructuredTool } from '@langchain/core/tools';
-import { ExaSearchResults } from '@langchain/exa';
-import Exa from 'exa-js';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { formatToolResult, parseSearchResults } from '../types.js';
 import { logger } from '@/utils';
@@ -10,19 +8,20 @@ let exaTool: { invoke: (query: string) => Promise<unknown> } | null = null;
 
 function getExaTool(): { invoke: (query: string) => Promise<unknown> } {
   if (!exaTool) {
-    const client = new Exa(process.env.EXASEARCH_API_KEY);
-    // exa-js@2.x (root) vs exa-js@1.x (inside @langchain/exa) have
-    // incompatible private fields but are compatible at runtime.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    exaTool = new ExaSearchResults({
-      client: client as any,
-      searchArgs: { numResults: 5, highlights: true },
-    });
+    exaTool = { invoke: async (query) => {
+      const response = await fetch('https://api.exa.ai/search', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-api-key': process.env.EXASEARCH_API_KEY ?? '' },
+        body: JSON.stringify({ query, numResults: 5, contents: { highlights: true } }),
+      });
+      if (!response.ok) throw new Error(`Exa request failed with ${response.status}`);
+      return response.json();
+    }};
   }
   return exaTool!;
 }
 
-export const exaSearch = new DynamicStructuredTool({
+export const exaSearch = new PiTool({
   name: 'web_search',
   description:
     'Search the web for current information on any topic. Returns relevant search results with URLs and content snippets.',

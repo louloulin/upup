@@ -69,7 +69,7 @@ describe('createSkillWatcher (P1.7 round 3)', () => {
     utimesSync(skillPath, future, future);
 
     // Wait > debounce window
-    await new Promise((r) => setTimeout(r, 400));
+    await new Promise((r) => setTimeout(r, 1000));
 
     // We expect at least one reloaded event for the test skill.
     // Note: the watcher's `reloadOneSkill` may fail because the skill

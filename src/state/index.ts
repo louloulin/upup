@@ -26,14 +26,13 @@ export {
 // ============================================================================
 // Allows packages/commands/ to access state singletons without a fragile
 // 4-level `await import('../../../../../src/state/index.js')` path.
-// Note: this re-export module sits at the src/state/ boundary; importing
-// src/agent/agent-port here is intentional — the port registry is a
-// package-boundary crossing mechanism, not a layer violation.
+// The Pi runtime owns the port registry; this module only registers the
+// state capability at the package boundary.
 import {
   registerStatePort,
   type StatePort,
   type SessionSummary,
-} from '../agent/agent-port.js';
+} from '../runtime/pi/agent-port.js';
 import {
   getAppState,
   formatCost,

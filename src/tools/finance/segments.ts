@@ -1,4 +1,4 @@
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { api, stripFieldsDeep } from './api.js';
 import { formatToolResult } from '../types.js';
@@ -20,7 +20,7 @@ const FinancialSegmentsInputSchema = z.object({
   limit: z.number().default(4).describe('The number of past periods to retrieve (default: 4). Increase when broader historical segment trends are required.'),
 });
 
-export const getFinancialSegments = new DynamicStructuredTool({
+export const getFinancialSegments = new PiTool({
   name: 'get_financial_segments',
   description: `Provides a detailed breakdown of a company's financials by operating segments, such as products, services, or geographic regions. Useful for analyzing the composition of a company's revenue and other segment-level metrics.`,
   schema: FinancialSegmentsInputSchema,

@@ -1,9 +1,9 @@
 /**
- * Custom Agent Verifier - 自定义Agent系统验证
+ * Pi Agent Verifier - 自定义Agent系统验证
  */
 
 import {
-  getCustomAgentRegistry,
+  getPiAgentRegistry,
   getSwarmCoordinator,
 } from './index.js';
 import { info } from '../utils/logging/logger.js';
@@ -17,7 +17,7 @@ interface VerificationResult {
 
 async function runVerification(): Promise<void> {
   console.log('\n\x1b[36m============================================================');
-  console.log('  Custom Agent System Verification (v1.0)');
+  console.log('  Pi Agent System Verification (v1.0)');
   console.log('============================================================\x1b[0m\n');
 
   const results: VerificationResult[] = [];
@@ -30,7 +30,7 @@ async function runVerification(): Promise<void> {
 
   try {
     // Initialize registry
-    const registry = getCustomAgentRegistry();
+    const registry = getPiAgentRegistry();
 
     // 1. Test templates
     const templates = registry.getTemplates();
@@ -41,11 +41,11 @@ async function runVerification(): Promise<void> {
       details: templates.map(t => t.name).join(', '),
     });
 
-    // 2. Test custom agent creation
+    // 2. Test Pi agent creation
     const customAgent = registry.register({
-      id: 'test-custom-agent',
-      name: 'Test Custom Agent',
-      description: 'A test custom agent',
+      id: 'test-pi-agent',
+      name: 'Test Pi Agent',
+      description: 'A test Pi agent',
       systemPrompt: 'You are a test agent. Role: {role}',
       agentType: 'researcher',
       context: 'fork',
@@ -53,7 +53,7 @@ async function runVerification(): Promise<void> {
       maxIterations: 5,
     });
     addResult({
-      name: 'Custom Agent Creation',
+      name: 'Pi Agent Creation',
       passed: !!customAgent,
       message: `Created: ${customAgent.name}`,
       details: `Type: ${customAgent.agentType}, Context: ${customAgent.context}`,
@@ -72,7 +72,7 @@ async function runVerification(): Promise<void> {
     });
 
     // 4. Test agent retrieval
-    const retrievedAgent = registry.getAgent('test-custom-agent');
+    const retrievedAgent = registry.getAgent('test-pi-agent');
     addResult({
       name: 'Agent Retrieval',
       passed: !!retrievedAgent,
@@ -89,8 +89,8 @@ async function runVerification(): Promise<void> {
     });
 
     // 6. Test usage recording
-    registry.recordUsage('test-custom-agent');
-    const afterUsage = registry.getAgent('test-custom-agent');
+    registry.recordUsage('test-pi-agent');
+    const afterUsage = registry.getAgent('test-pi-agent');
     addResult({
       name: 'Usage Recording',
       passed: (afterUsage?.usageCount || 0) > 0,
@@ -100,7 +100,7 @@ async function runVerification(): Promise<void> {
     // 7. Test team integration
     const coordinator = getSwarmCoordinator();
     await coordinator.initialize();
-    const teamName = `custom-agent-team-${Date.now()}`;
+    const teamName = `pi-agent-team-${Date.now()}`;
     const team = coordinator.createTeam(teamName, 'Custom agent test team');
     addResult({
       name: 'Team Integration',
@@ -117,7 +117,7 @@ async function runVerification(): Promise<void> {
     });
 
     // 9. Test agent deletion
-    const deleted = registry.unregister('test-custom-agent');
+    const deleted = registry.unregister('test-pi-agent');
     addResult({
       name: 'Agent Deletion',
       passed: deleted,
@@ -150,7 +150,7 @@ async function runVerification(): Promise<void> {
   console.log(`\x1b[32m验证结果: ${passed}/${total} 通过 (${pct}%)\x1b[0m`);
   
   if (pct >= 90) {
-    console.log('\x1b[32m🎉 Custom Agent系统验证通过！\x1b[0m');
+    console.log('\x1b[32m🎉 Pi Agent系统验证通过！\x1b[0m');
   } else if (pct >= 70) {
     console.log('\x1b[33m⚠️ 部分验证通过\x1b[0m');
   } else {

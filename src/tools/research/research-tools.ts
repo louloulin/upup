@@ -8,7 +8,7 @@
  * - Multi-lingual entity extraction (US tickers, Chinese stocks, units)
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { formatToolResult } from '../types.js';
 
@@ -802,7 +802,7 @@ const extractEntitiesSchema = z.object({
  * Falls back to quickSentimentScan for fast pre-filter mode.
  */
 export function createAnalyzeSentimentTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'analyze_sentiment',
     description: 'Analyze text sentiment for financial news and reports. Supports deep investment-grade analysis with negation detection, per-sentence scoring, and risk assessment.',
     schema: analyzeSentimentSchema,
@@ -884,7 +884,7 @@ export function createAnalyzeSentimentTool() {
  * severity assessment (major / minor).
  */
 export function createDetectEventsTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'detect_events',
     description: 'Detect investment-related events from text with severity and extracted values',
     schema: detectEventsSchema,
@@ -943,7 +943,7 @@ export function createDetectEventsTool() {
  * and time period extraction (Q1, FY2024, etc.).
  */
 export function createExtractEntitiesTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'extract_entities',
     description: 'Extract stock tickers, numbers, periods, and dates from financial text',
     schema: extractEntitiesSchema,

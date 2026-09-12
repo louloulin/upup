@@ -21,7 +21,7 @@ import {
   isChannelsCompiledIn,
 } from './index.js';
 import type { PushChannel, PushPayload } from './types.js';
-import { featureGates } from '../../agent/feature-gates.js';
+import { featureGates } from '../../runtime/pi/feature-gates.js';
 
 // 集中管理: 任何渠道相关 env,测试前后清零,避免污染
 const ENV_KEYS = [

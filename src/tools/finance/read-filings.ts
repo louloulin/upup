@@ -1,10 +1,10 @@
-import { DynamicStructuredTool, StructuredToolInterface } from '@langchain/core/tools';
-import type { RunnableConfig } from '@langchain/core/runnables';
-import { AIMessage, ToolCall } from '@langchain/core/messages';
+import { PiTool } from '../../runtime/pi/tool.js';
+import type { RunnableConfig } from '../../runtime/pi/tool.js';
+import { getPiToolCalls, type PiToolCall } from '../../runtime/pi/model.js';
 import { z } from 'zod';
-import { callLlm } from '../../model/llm.js';
+import { callLlm } from '../../runtime/pi/model.js';
 import { formatToolResult } from '../types.js';
-import { getCurrentDate } from '../../agent/prompts.js';
+import { getCurrentDate } from '../../runtime/pi/prompts.js';
 import { getFilings, get10KFilingItems, get10QFilingItems, get8KFilingItems, getFilingItemTypes, type FilingItemTypes } from './filings.js';
 import { withTimeout, SUB_TOOL_TIMEOUT_MS } from './utils.js';
 
@@ -40,7 +40,7 @@ Intelligent meta-tool for reading SEC filing content. Takes a natural language q
 - Intelligently retrieves specific sections when query targets particular content, full filing otherwise
 `.trim();
 
-// Escape curly braces for LangChain template interpolation
+// Escape curly braces for prompt template interpolation
 function escapeTemplateVars(str: string): string {
   return str.replace(/\{/g, '{{').replace(/\}/g, '}}');
 }
@@ -66,7 +66,7 @@ const FilingPlanSchema = z.object({
 type FilingPlan = z.infer<typeof FilingPlanSchema>;
 
 // Step 2 tools: read filing content
-const STEP2_TOOLS: StructuredToolInterface[] = [
+const STEP2_TOOLS: PiTool[] = [
   get10KFilingItems,
   get10QFilingItems,
   get8KFilingItems,
@@ -160,8 +160,8 @@ const ReadFilingsInputSchema = z.object({
  * Create a read_filings tool configured with the specified model.
  * Two-LLM-call workflow: structured output planning, then tool-calling item selection.
  */
-export function createReadFilings(model: string): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createReadFilings(model: string): PiTool {
+  return new PiTool({
     name: 'read_filings',
     description: `Intelligent tool for reading SEC filing content. Takes a natural language query and retrieves full text from 10-K, 10-Q, or 8-K filings. Use for:
 - Reading annual reports (10-K): business description, risk factors, MD&A
@@ -250,9 +250,9 @@ export function createReadFilings(model: string): DynamicStructuredTool {
         systemPrompt: buildStep2Prompt(input.query, filingsResult.data, itemTypes),
         tools: STEP2_TOOLS,
       });
-      const step2Message = step2Response as AIMessage;
+      const step2Message = step2Response as import('@earendil-works/pi-ai').AssistantMessage;
 
-      const step2ToolCalls = step2Message.tool_calls as ToolCall[];
+      const step2ToolCalls = getPiToolCalls(step2Message) as readonly PiToolCall[];
       if (!step2ToolCalls || step2ToolCalls.length === 0) {
         return formatToolResult({ 
           error: 'Failed to select filings to read',
@@ -271,12 +271,12 @@ export function createReadFilings(model: string): DynamicStructuredTool {
             if (!tool) {
               throw new Error(`Tool '${tc.name}' not found`);
             }
-            const rawResult = await withTimeout(tool.invoke(tc.args), SUB_TOOL_TIMEOUT_MS, tc.name);
+            const rawResult = await withTimeout(tool.invoke(tc.arguments), SUB_TOOL_TIMEOUT_MS, tc.name);
             const result = typeof rawResult === 'string' ? rawResult : JSON.stringify(rawResult);
             const parsed = JSON.parse(result);
             return {
               tool: tc.name,
-              args: tc.args,
+              args: tc.arguments,
               data: parsed.data,
               sourceUrls: parsed.sourceUrls || [],
               error: null,
@@ -284,7 +284,7 @@ export function createReadFilings(model: string): DynamicStructuredTool {
           } catch (error) {
             return {
               tool: tc.name,
-              args: tc.args,
+              args: tc.arguments,
               data: null,
               sourceUrls: [],
               error: error instanceof Error ? error.message : String(error),

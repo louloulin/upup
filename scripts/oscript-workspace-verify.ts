@@ -6,10 +6,9 @@
  * 1. @upup/types 包
  * 2. @upup/plugin-sdk 包
  * 3. @upup/memory 包
- * 4. @upup/llm 包
- * 5. @upup/hooks 包
- * 6. src/types.ts 使用 @upup/types
- * 7. src/plugins/sdk 使用 @upup/plugin-sdk
+ * 4. @upup/hooks 包
+ * 5. src/types.ts 使用 @upup/types
+ * 6. src/plugins/sdk 使用 @upup/plugin-sdk
  */
 
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
@@ -186,13 +185,8 @@ console.log('\n📦 4. 检查 @upup/memory 包');
 checkPackage('memory', 'packages/memory');
 checkDistFiles('packages/memory', ['index.js']);
 
-// 5. 检查 @upup/llm 包
-console.log('\n📦 5. 检查 @upup/llm 包');
-checkPackage('llm', 'packages/llm');
-checkDistFiles('packages/llm', ['index.js']);
-
-// 6. 检查 @upup/hooks 包
-console.log('\n📦 6. 检查 @upup/hooks 包');
+// 5. 检查 @upup/hooks 包
+console.log('\n📦 5. 检查 @upup/hooks 包');
 checkPackage('hooks', 'packages/hooks');
 checkDistFiles('packages/hooks', ['index.js']);
 

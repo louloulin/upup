@@ -127,6 +127,7 @@ describe('Mean-Variance Optimization', () => {
         { symbol: 'A', volatility: 0.15, expectedReturn: 0.08 },
         { symbol: 'B', volatility: 0.20, expectedReturn: 0.12 },
       ],
+      riskFreeRate: 0.02,
     });
 
     expect(result).toContain('expectedReturn');
@@ -140,6 +141,7 @@ describe('Mean-Variance Optimization', () => {
         { symbol: 'Y', volatility: 0.20, expectedReturn: 0.12 },
       ],
       correlations: [[1, 0.5], [0.5, 1]],
+      riskFreeRate: 0.02,
     });
 
     expect(result).toContain('sharpeRatio');
@@ -150,6 +152,7 @@ describe('Mean-Variance Optimization', () => {
       assets: [
         { symbol: 'SOLO', volatility: 0.20, expectedReturn: 0.10 },
       ],
+      riskFreeRate: 0.02,
     });
 
     expect(result).toContain('SOLO');

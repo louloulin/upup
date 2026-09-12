@@ -1,47 +1,29 @@
-/**
- * Memvid Store - MV2 storage + BM25 search for UpUp Memory
- *
- * Uses @memvid/sdk for:
- * - MV2 single-file storage (append-optimized, versioned)
- * - BM25 keyword search (mode: 'lex') - prebuilt binary available
- * - RAG synthesis (mode: 'ask') - requires LLM API key
- *
- * Note: Vector search (mode: 'sem') requires compiling memvid-core from source
- * with 'vec' feature. Prebuilt binary has no text embeddings.
- */
-
-import { join } from 'node:path';
-import { mkdir } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
+import { appendFile, mkdir, readFile, stat, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { getSetting } from '../utils/config.js';
-import { create, use, maskPii } from '@memvid/sdk';
-import type { Memvid } from '@memvid/sdk';
 import type { MemoryType, MemoryWriteRequest, MemoryFileMeta } from './types.js';
 import { getUpupDir } from '../utils/paths.js';
 
-// ============================================================================
-// Constants
-// ============================================================================
-
 const MEMORY_DIRNAME = 'memory';
-const MV2_FILENAME = 'memories.mv2';
-
-/** Default number of search results */
+const STORE_FILENAME = 'memories.jsonl';
 const DEFAULT_K = 10;
-
-/** Snippet character limit for search results */
 const SNIPPET_CHARS = 500;
 
-// ============================================================================
-// Types
-// ============================================================================
+interface StoredMemory {
+  id: number;
+  title: string;
+  type: MemoryType;
+  content: string;
+  createdAt: number;
+  updatedAt: number;
+  tags: string[];
+}
 
 export interface MemvidSearchResult {
-  /** Memory metadata */
   memory: MemoryFileMeta;
-  /** Snippet from search result */
   snippet: string;
-  /** Relevance score */
   score: number;
 }
 
@@ -52,339 +34,169 @@ export interface MemvidStats {
   capacityBytes: number;
 }
 
-// ============================================================================
-// MemvidStore
-// ============================================================================
-
 export class MemvidStore {
-  private mv: Memvid | null = null;
-  private readonly mv2Path: string;
+  private readonly storePath: string;
+  private records = new Map<number, StoredMemory>();
+  private nextId = 1;
+  private initialized = false;
 
   constructor(private readonly baseDir: string = getUpupDir()) {
-    this.mv2Path = join(baseDir, MEMORY_DIRNAME, MV2_FILENAME);
+    this.storePath = join(baseDir, MEMORY_DIRNAME, STORE_FILENAME);
   }
 
-  /**
-   * Initialize the Memvid store.
-   * Creates MV2 file if it doesn't exist.
-   */
   async initialize(): Promise<void> {
-    if (this.mv) return;
-
-    // Ensure directory exists
+    if (this.initialized) return;
     await mkdir(join(this.baseDir, MEMORY_DIRNAME), { recursive: true });
-
-    // Check if MV2 file exists
-    if (!existsSync(this.mv2Path)) {
-      // Create new MV2 file
-      this.mv = await create(this.mv2Path, 'basic');
-      await this.mv.enableLex(); // Ensure BM25 index is enabled
-    } else {
-      // Open existing MV2 file
-      this.mv = await use('basic', this.mv2Path, { mode: 'auto' });
-    }
-  }
-
-  /**
-   * Get or create the Memvid instance.
-   */
-  private async getMv(): Promise<Memvid> {
-    if (!this.mv) {
-      await this.initialize();
-    }
-    return this.mv!;
-  }
-
-  /**
-   * Get store statistics.
-   */
-  async getStats(): Promise<MemvidStats> {
-    const mv = await this.getMv();
-    const stats = await mv.stats();
-
-    return {
-      totalFrames: (stats.total_frames as number) || 0,
-      hasLexIndex: (stats.has_lex_index as boolean) || false,
-      hasVecIndex: (stats.has_vec_index as boolean) || false,
-      capacityBytes: (stats.capacity_bytes as number) || 0,
-    };
-  }
-
-  /**
-   * Store a memory in MV2 format.
-   */
-  async putMemory(request: MemoryWriteRequest): Promise<string> {
-    const mv = await this.getMv();
-
-    const frameId = await mv.put({
-      title: request.name,
-      label: request.type,
-      text: request.content,
-      tags: [request.type, request.name],
-      // enableEmbedding: true, // Note: prebuilt binary ignores this
-    });
-
-    return frameId;
-  }
-
-  /**
-   * Store multiple memories in batch (more efficient).
-   */
-  async putMemories(requests: MemoryWriteRequest[]): Promise<string[]> {
-    const mv = await this.getMv();
-
-    const frameIds = await mv.putMany(
-      requests.map(req => ({
-        title: req.name,
-        text: req.content,
-        labels: [req.type],
-        tags: [req.type, req.name],
-      })),
-    );
-
-    return frameIds;
-  }
-
-  /**
-   * Search memories using BM25 (prebuilt binary available).
-   *
-   * @param query - Search query
-   * @param k - Number of results to return
-   * @param typeFilter - Optional memory type filter
-   */
-  async search(
-    query: string,
-    k: number = DEFAULT_K,
-    typeFilter?: MemoryType,
-  ): Promise<MemvidSearchResult[]> {
-    const mv = await this.getMv();
-
-    const results = await mv.find(query, {
-      k,
-      snippetChars: SNIPPET_CHARS,
-    });
-
-    // Parse and filter results
-    const parsed = this.parseSearchResults(results, typeFilter);
-    return parsed.slice(0, k);
-  }
-
-  /**
-   * RAG synthesis using Memvid ask.
-   * Requires LLM API key.
-   */
-  async ask(
-    question: string,
-    options: {
-      model?: string;
-      apiKey?: string;
-      contextOnly?: boolean;
-      mode?: 'auto' | 'lex' | 'sem';
-      k?: number;
-    } = {},
-  ): Promise<string> {
-    const mv = await this.getMv();
-
-    if (!options.apiKey) {
-      throw new Error('LLM API key required for RAG synthesis');
-    }
-
-    // Get configured model
-    const configuredModelId = getSetting('modelId', 'deepseek-v4-flash') as string;
-    const configuredProvider = getSetting('provider', 'deepseek') as string;
-    const modelSpec = `${configuredProvider}:${configuredModelId}`;
-
-    const result = await mv.ask(question, {
-      model: options.model || modelSpec,
-      modelApiKey: options.apiKey,
-      contextOnly: options.contextOnly ?? true,
-      mode: options.mode ?? 'lex',
-      k: options.k ?? 10,
-      snippetChars: 1000,
-    });
-
-    return this.parseAskResult(result);
-  }
-
-  /**
-   * Semantic search using Memvid find with enhanced ranking.
-   * Returns ranked results from semantic understanding.
-   *
-   * @param query - Search query
-   * @param k - Number of results
-   * @param typeFilter - Optional memory type filter
-   * @returns Search results with relevance scores
-   */
-  async semanticSearch(
-    query: string,
-    k: number = DEFAULT_K,
-    typeFilter?: MemoryType,
-  ): Promise<MemvidSearchResult[]> {
-    const mv = await this.getMv();
-
-    // Memvid find provides hybrid BM25 + relevance ranking
-    const results = await mv.find(query, {
-      k,
-      snippetChars: SNIPPET_CHARS,
-    });
-
-    return this.parseSearchResults(results, typeFilter);
-  }
-
-  /**
-   * Mask PII in text using Memvid's built-in masking.
-   */
-  maskPii(text: string): string {
-    return maskPii(text);
-  }
-
-  /**
-   * Get timeline of memories (chronological order).
-   */
-  async getTimeline(
-    limit: number = 50,
-  ): Promise<{ frameId: number; title: string; timestamp: number }[]> {
-    const mv = await this.getMv();
-
-    const timeline = await mv.timeline({ limit, reverse: true });
-
-    return this.parseTimeline(timeline);
-  }
-
-  /**
-   * View full content of a frame.
-   */
-  async viewFrame(frameId: number): Promise<string> {
-    const mv = await this.getMv();
-    return mv.view(frameId);
-  }
-
-  /**
-   * Close the MV2 file (flush writes).
-   */
-  async close(): Promise<void> {
-    if (this.mv) {
-      await this.mv.seal();
-      this.mv = null;
-    }
-  }
-
-  // ============================================================================
-  // Private parsing helpers
-  // ============================================================================
-
-  private parseSearchResults(
-    raw: unknown,
-    typeFilter?: MemoryType,
-  ): MemvidSearchResult[] {
-    if (!raw || typeof raw !== 'object') return [];
-
-    const results: MemvidSearchResult[] = [];
-
-    // Handle different result formats
-    const hits = (raw as Record<string, unknown>).hits;
-    if (Array.isArray(hits)) {
-      for (const hit of hits) {
-        if (this.isValidHit(hit)) {
-          const frameId = hit.frame_id as number;
-          const title = (hit.title as string) || '';
-          const type = this.extractTypeFromHit(hit) as MemoryType;
-          const snippet = this.extractSnippet(hit);
-
-          if (typeFilter && type !== typeFilter) continue;
-
-          results.push({
-            memory: {
-              filename: `${type}_${title}.md`,
-              type,
-              description: title,
-              name: title,
-              filePath: join(this.baseDir, MEMORY_DIRNAME, type, `${title}.md`),
-              mtimeMs: Date.now(),
-            },
-            snippet,
-            score: (hit.hit_count as number) || 0,
-          });
+    if (existsSync(this.storePath)) {
+      const contents = await readFile(this.storePath, 'utf8');
+      for (const line of contents.split('\n')) {
+        if (!line.trim()) continue;
+        try {
+          const record = JSON.parse(line) as StoredMemory;
+          if (this.isStoredMemory(record)) {
+            this.records.set(record.id, record);
+            this.nextId = Math.max(this.nextId, record.id + 1);
+          }
+        } catch {
+          continue;
         }
       }
     }
-
-    return results;
+    this.initialized = true;
   }
 
-  private isValidHit(hit: unknown): hit is Record<string, unknown> {
-    return (
-      typeof hit === 'object' &&
-      hit !== null &&
-      'frame_id' in hit
-    );
+  private async ensureInitialized(): Promise<void> {
+    if (!this.initialized) await this.initialize();
   }
 
-  private extractTypeFromHit(hit: Record<string, unknown>): string {
-    // Try to extract type from labels or tags
-    const labels = hit.labels;
-    if (Array.isArray(labels) && labels.length > 0) {
-      return String(labels[0]);
-    }
-
-    const tags = hit.tags;
-    if (Array.isArray(tags)) {
-      const type = tags.find((t: unknown) =>
-        ['user', 'feedback', 'project', 'reference'].includes(String(t))
-      );
-      if (type) return String(type);
-    }
-
-    return 'project'; // Default type
+  async getStats(): Promise<MemvidStats> {
+    await this.ensureInitialized();
+    const file = await stat(this.storePath).catch(() => ({ size: 0 }));
+    return {
+      totalFrames: this.records.size,
+      hasLexIndex: true,
+      hasVecIndex: false,
+      capacityBytes: file.size,
+    };
   }
 
-  private extractSnippet(hit: Record<string, unknown>): string {
-    const preview = hit.preview;
-    if (typeof preview === 'string' && preview.length > 0) {
-      return preview;
-    }
-
-    const text = hit.text;
-    if (typeof text === 'string') {
-      return text.slice(0, SNIPPET_CHARS) + (text.length > SNIPPET_CHARS ? '...' : '');
-    }
-
-    return '';
+  async putMemory(request: MemoryWriteRequest): Promise<string> {
+    await this.ensureInitialized();
+    const now = Date.now();
+    const record: StoredMemory = {
+      id: this.nextId++,
+      title: request.name,
+      type: request.type,
+      content: request.content,
+      createdAt: now,
+      updatedAt: now,
+      tags: [request.type, request.name],
+    };
+    this.records.set(record.id, record);
+    await appendFile(this.storePath, `${JSON.stringify(record)}\n`, 'utf8');
+    return String(record.id);
   }
 
-  private parseAskResult(raw: unknown): string {
-    if (!raw || typeof raw !== 'object') return '';
-
-    const answer = (raw as Record<string, unknown>).answer;
-    if (typeof answer === 'string') return answer;
-
-    const context = (raw as Record<string, unknown>).context;
-    if (typeof context === 'string') return context;
-
-    return JSON.stringify(raw);
+  async putMemories(requests: MemoryWriteRequest[]): Promise<string[]> {
+    const ids: string[] = [];
+    for (const request of requests) ids.push(await this.putMemory(request));
+    return ids;
   }
 
-  private parseTimeline(
-    raw: unknown,
-  ): { frameId: number; title: string; timestamp: number }[] {
-    if (!raw || typeof raw !== 'object') return [];
+  async search(query: string, k: number = DEFAULT_K, typeFilter?: MemoryType): Promise<MemvidSearchResult[]> {
+    await this.ensureInitialized();
+    return this.rank(query, k, typeFilter);
+  }
 
-    const entries = (raw as Record<string, unknown>).entries;
-    if (!Array.isArray(entries)) return [];
+  async semanticSearch(query: string, k: number = DEFAULT_K, typeFilter?: MemoryType): Promise<MemvidSearchResult[]> {
+    await this.ensureInitialized();
+    return this.rank(query, k, typeFilter);
+  }
 
-    return entries
-      .filter(e => e && typeof e === 'object')
-      .map((e: Record<string, unknown>) => ({
-        frameId: (e.frame_id as number) || 0,
-        title: (e.title as string) || '',
-        timestamp: (e.timestamp as number) || 0,
+  async ask(
+    question: string,
+    options: { model?: string; apiKey?: string; contextOnly?: boolean; mode?: 'auto' | 'lex' | 'sem'; k?: number } = {},
+  ): Promise<string> {
+    if (!options.apiKey) throw new Error('LLM API key required for RAG synthesis');
+    const results = await this.search(question, options.k ?? DEFAULT_K);
+    const context = results.map((result) => `[${result.memory.name}] ${result.snippet}`).join('\n');
+    if (options.contextOnly) return context;
+    if (!context) return 'No relevant memory was found.';
+    const { runPiPrompt } = await import('../runtime/pi/runner.js');
+    const model = options.model ?? `${getSetting('provider', 'deepseek')}:${getSetting('modelId', 'deepseek-v4-flash')}`;
+    return runPiPrompt(`Answer the question using only the memory context below. Cite the memory names.\n\nQuestion: ${question}\n\nContext:\n${context}`, {
+      model,
+      sessionKey: `memory-rag:${createHash('sha256').update(question).digest('hex').slice(0, 16)}`,
+    });
+  }
+
+  maskPii(text: string): string {
+    return text
+      .replace(/\b[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}\b/g, '[EMAIL]')
+      .replace(/\b(?:\+?86[- ]?)?1[3-9]\d{9}\b/g, '[PHONE]')
+      .replace(/\b\d{15,19}\b/g, '[NUMBER]');
+  }
+
+  async getTimeline(limit = 50): Promise<{ frameId: number; title: string; timestamp: number }[]> {
+    await this.ensureInitialized();
+    return [...this.records.values()]
+      .sort((left, right) => right.createdAt - left.createdAt)
+      .slice(0, limit)
+      .map((record) => ({ frameId: record.id, title: record.title, timestamp: record.createdAt }));
+  }
+
+  async viewFrame(frameId: number): Promise<string> {
+    await this.ensureInitialized();
+    const record = this.records.get(frameId);
+    if (!record) throw new Error(`Memory frame not found: ${frameId}`);
+    return record.content;
+  }
+
+  async close(): Promise<void> {
+    this.records.clear();
+    this.initialized = false;
+  }
+
+  private rank(query: string, k: number, typeFilter?: MemoryType): MemvidSearchResult[] {
+    const terms = tokenize(query);
+    return [...this.records.values()]
+      .filter((record) => !typeFilter || record.type === typeFilter)
+      .map((record) => ({ record, score: scoreRecord(record, terms) }))
+      .filter(({ score }) => score > 0)
+      .sort((left, right) => right.score - left.score || right.record.updatedAt - left.record.updatedAt)
+      .slice(0, k)
+      .map(({ record, score }) => ({
+        memory: {
+          filename: `${record.type}_${record.title}.md`,
+          type: record.type,
+          description: record.title,
+          name: record.title,
+          filePath: join(this.baseDir, MEMORY_DIRNAME, record.type, `${record.title}.md`),
+          mtimeMs: record.updatedAt,
+        },
+        snippet: record.content.slice(0, SNIPPET_CHARS) + (record.content.length > SNIPPET_CHARS ? '...' : ''),
+        score,
       }));
+  }
+
+  private isStoredMemory(value: unknown): value is StoredMemory {
+    if (!value || typeof value !== 'object') return false;
+    const record = value as Partial<StoredMemory>;
+    return typeof record.id === 'number' && typeof record.title === 'string' && typeof record.content === 'string' && typeof record.createdAt === 'number';
   }
 }
 
-// ============================================================================
-// Singleton instance
-// ============================================================================
+function tokenize(value: string): string[] {
+  return value.toLowerCase().split(/[^\p{L}\p{N}_-]+/u).filter((term) => term.length > 1);
+}
+
+function scoreRecord(record: StoredMemory, terms: readonly string[]): number {
+  if (terms.length === 0) return 0;
+  const title = tokenize(record.title).join(' ');
+  const content = tokenize(record.content).join(' ');
+  const tags = tokenize(record.tags.join(' ')).join(' ');
+  return terms.reduce((score, term) => score + (title.includes(term) ? 3 : 0) + (tags.includes(term) ? 2 : 0) + (content.includes(term) ? 1 : 0), 0) / terms.length;
+}
 
 let globalStore: MemvidStore | null = null;
 

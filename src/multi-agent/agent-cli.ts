@@ -8,9 +8,9 @@
  * - 查看调度策略
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../runtime/pi/tool.js';
 import { z } from 'zod';
-import { getCustomAgentRegistry } from './agent-registry.js';
+import { getPiAgentRegistry } from './agent-registry.js';
 import { getAgentLoader } from './agent-loader.js';
 import { getAgentScheduler } from './scheduler.js';
 import { getSwarmCoordinator } from './coordinator.js';
@@ -18,7 +18,7 @@ import { getSwarmCoordinator } from './coordinator.js';
 /**
  * List all agents tool
  */
-export const listAllAgentsTool = new DynamicStructuredTool({
+export const listAllAgentsTool = new PiTool({
   name: 'agent_list_all',
   description: 'List all agents including custom, bundled, and queued agents with their status',
   
@@ -32,7 +32,7 @@ export const listAllAgentsTool = new DynamicStructuredTool({
   func: async ({ filter = 'all', format = 'summary' }): Promise<string> => {
     try {
       const results: string[] = [];
-      const registry = getCustomAgentRegistry();
+      const registry = getPiAgentRegistry();
       const loader = getAgentLoader();
       const scheduler = getAgentScheduler();
       const coordinator = getSwarmCoordinator();
@@ -42,7 +42,7 @@ export const listAllAgentsTool = new DynamicStructuredTool({
       // Custom agents
       if (filter === 'all' || filter === 'custom') {
         const customAgents = registry.getAllAgents();
-        results.push(`Custom Agents (${customAgents.length}):`);
+        results.push(`Pi Agents (${customAgents.length}):`);
         for (const agent of customAgents.slice(0, 10)) {
           results.push(`  - ${agent.name} (${agent.agentType}) - ${agent.usageCount} uses`);
         }
@@ -92,7 +92,7 @@ export const listAllAgentsTool = new DynamicStructuredTool({
 /**
  * Get agent status tool
  */
-export const getAgentStatusTool = new DynamicStructuredTool({
+export const getAgentStatusTool = new PiTool({
   name: 'agent_status',
   description: 'Get detailed status of a specific agent or the overall system',
   
@@ -110,7 +110,7 @@ export const getAgentStatusTool = new DynamicStructuredTool({
       
       if (agent_id) {
         // Find specific agent
-        const registry = getCustomAgentRegistry();
+        const registry = getPiAgentRegistry();
         const agent = registry.getAgent(agent_id);
         
         if (!agent) {
@@ -161,7 +161,7 @@ export const getAgentStatusTool = new DynamicStructuredTool({
 /**
  * Manage scheduler tool
  */
-export const manageSchedulerTool = new DynamicStructuredTool({
+export const manageSchedulerTool = new PiTool({
   name: 'agent_scheduler',
   description: 'Manage the agent scheduler - view or update scheduling policy',
   
@@ -236,9 +236,9 @@ export const manageSchedulerTool = new DynamicStructuredTool({
 /**
  * Create agent from template tool
  */
-export const createFromTemplateTool = new DynamicStructuredTool({
+export const createFromTemplateTool = new PiTool({
   name: 'agent_create_from_template',
-  description: 'Create a new custom agent from a predefined template',
+  description: 'Create a new Pi agent from a predefined template',
   
   schema: z.object({
     template_id: z.string()
@@ -251,7 +251,7 @@ export const createFromTemplateTool = new DynamicStructuredTool({
 
   func: async ({ template_id, name, description }): Promise<string> => {
     try {
-      const registry = getCustomAgentRegistry();
+      const registry = getPiAgentRegistry();
       const agent = registry.createFromTemplate(template_id, { name, description });
 
       if (!agent) {
@@ -283,9 +283,9 @@ export const createFromTemplateTool = new DynamicStructuredTool({
 /**
  * Export/Import agents tool
  */
-export const exportAgentsConfigTool = new DynamicStructuredTool({
+export const exportAgentsConfigTool = new PiTool({
   name: 'agent_export_import',
-  description: 'Export all custom agents to config or import from config',
+  description: 'Export all Pi agents to config or import from config',
   
   schema: z.object({
     action: z.enum(['export', 'import', 'list_templates']).optional()
@@ -307,7 +307,7 @@ export const exportAgentsConfigTool = new DynamicStructuredTool({
 
   func: async ({ action = 'export', agents }): Promise<string> => {
     try {
-      const registry = getCustomAgentRegistry();
+      const registry = getPiAgentRegistry();
 
       if (action === 'export') {
         const config = registry.exportConfig();

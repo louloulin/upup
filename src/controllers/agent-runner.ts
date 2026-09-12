@@ -1,4 +1,4 @@
-import { Agent } from '../agent/agent.js';
+import { streamPiAgent } from '../runtime/pi/event-stream.js';
 import type { InMemoryChatHistory } from '../utils/in-memory-chat-history.js';
 import { defaultQueue } from '../utils/message-queue.js';
 import type {
@@ -6,12 +6,11 @@ import type {
   AgentEvent,
   ApprovalDecision,
   DoneEvent,
-} from '../agent/index.js';
-import type { DisplayEvent, StreamMode, ToolEndEvent, ToolErrorEvent } from '../agent/types.js';
+} from '../runtime/pi/legacy-events.js';
+import type { DisplayEvent, StreamMode } from '../runtime/pi/legacy-events.js';
 import type { HistoryItem, HistoryItemStatus, WorkingState } from '../types.js';
-import type { SessionMessage } from '../session/types.js';
 import { getSessionTracker } from '../session/session-tracker.js';
-import { createSession, addSessionMessage } from '../session/storage.js';
+import { getPiSessionService } from '../runtime/pi/session-service.js';
 import { recordFileHistorySnapshot, getFileHistoryManager } from '../storage/file-history.js';
 import { renderMessages, type RenderableMessage } from '../session/render/index.js';
 import { getTimeoutForTool } from '../utils/permissions/index.js';
@@ -90,27 +89,20 @@ export class AgentRunnerController {
    */
   async resumeFromSession(sessionId: string, fork: boolean = false): Promise<string> {
     let targetId = sessionId;
+    const piSessions = getPiSessionService();
 
     // Fork: create a copy with a new ID
     if (fork) {
-      const { forkSession } = await import('../session/storage.js');
-      const newId = await forkSession(sessionId);
-      if (!newId) {
-        throw new Error(`Failed to fork session: ${sessionId}`);
-      }
-      targetId = newId;
+      targetId = (await piSessions.fork(sessionId)).id;
     }
-
-    const { loadSessionForResume, processResumedConversation } = await import('../session/restore.js');
-    const result = await loadSessionForResume(targetId);
-    if (!result) {
-      throw new Error(`Session not found: ${targetId}`);
-    }
-
-    const processed = await processResumedConversation(targetId);
-    if (!processed) {
-      throw new Error(`Failed to process session: ${targetId}`);
-    }
+    const messages = (await piSessions.messages(targetId)).map((message, index) => ({
+      id: `${targetId}-${index}`,
+      type: message.type === 'toolResult' ? 'tool' : message.type,
+      content: message.content,
+      timestamp: Date.now() + index,
+    })).filter((message) =>
+      ['user', 'assistant', 'tool', 'system', 'error'].includes(message.type),
+    );
 
     this.sessionIdValue = targetId;
 
@@ -119,15 +111,18 @@ export class AgentRunnerController {
     await tracker.startSession(targetId);
 
     // Render and display history messages (Session 2.0)
-    if (processed.messages.length > 0) {
-      const rendered = renderMessages(processed.messages);
+    if (messages.length > 0) {
+      const rendered = renderMessages(messages.map((message) => ({
+        ...message,
+        type: message.type as 'user' | 'assistant' | 'tool' | 'system',
+      })));
       this.displayHistory(rendered);
     }
 
     // Load messages into chat history
     this.inMemoryChatHistory.clear();
     this.inMemoryChatHistory.setMessages(
-      processed.messages.map(m => ({ type: m.type, content: m.content }))
+      messages.map(m => ({ type: m.type, content: m.content }))
     );
 
     this.emitChange();
@@ -225,11 +220,12 @@ export class AgentRunnerController {
     this.emitChange();
 
     try {
-      // Create a new session using storage.ts (Phase 1 of plan11.0)
+      const piSessions = getPiSessionService();
       if (!this.sessionIdValue) {
-        const sessionMeta = await createSession({
-          projectPath: process.cwd(),
+        const sessionMeta = await piSessions.create({
+          cwd: process.cwd(),
           firstPrompt: query.slice(0, 200),
+          metadata: { projectPath: process.cwd() },
         });
         this.sessionIdValue = sessionMeta.id;
 
@@ -237,12 +233,6 @@ export class AgentRunnerController {
         const fileHistoryMgr = getFileHistoryManager(this.sessionIdValue);
         fileHistoryMgr.setSessionId(this.sessionIdValue);
       }
-
-      // Save user message
-      await addSessionMessage(this.sessionIdValue, {
-        type: 'user',
-        content: query,
-      }, process.cwd());
 
       // Restore approved tools from SessionTracker so they survive restarts
       const tracker = getSessionTracker();
@@ -254,7 +244,7 @@ export class AgentRunnerController {
         }
       }
 
-      const agent = await Agent.create({
+      const stream = streamPiAgent(query, {
         ...this.agentConfig,
         signal: this.abortController.signal,
         requestToolApproval: this.requestToolApproval,
@@ -265,8 +255,7 @@ export class AgentRunnerController {
           // Needed so the next run (which gets a fresh executor) inherits approved tools.
           this.sessionApprovedTools.add(tool);
         },
-      });
-      const stream = agent.run(query, { inMemoryHistory: this.inMemoryChatHistory });
+      }, { sessionId: this.sessionIdValue, inMemoryHistory: this.inMemoryChatHistory });
       for await (const event of stream) {
         if (event.type === 'done') {
           finalAnswer = (event as DoneEvent).answer;
@@ -279,14 +268,6 @@ export class AgentRunnerController {
         const remaining = defaultQueue.dequeueAll();
         const mergedText = remaining.map(m => m.text).join('\n\n');
         return this.runQuery(mergedText);
-      }
-
-      // Save assistant response to session
-      if (finalAnswer && this.sessionIdValue) {
-        await addSessionMessage(this.sessionIdValue, {
-          type: 'assistant',
-          content: finalAnswer,
-        }, process.cwd());
       }
 
       // Record file history snapshot for file recovery (Phase 3 of plan11.0)
@@ -429,12 +410,6 @@ export class AgentRunnerController {
         }));
         this.workingStateValue = { status: 'thinking' };
 
-        // Save tool result to session storage for resume
-        if (this.sessionIdValue) {
-          await this.saveToolResultToSession(event).catch((err: unknown) => {
-            console.error('[agent-runner] Failed to save tool result:', err);
-          });
-        }
         break;
       }
       case 'tool_error': {
@@ -447,12 +422,6 @@ export class AgentRunnerController {
         }));
         this.workingStateValue = { status: 'thinking' };
 
-        // Save tool error to session storage for resume
-        if (this.sessionIdValue) {
-          await this.saveToolErrorToSession(event).catch((err: unknown) => {
-            console.error('[agent-runner] Failed to save tool error:', err);
-          });
-        }
         break;
       }
       case 'tool_approval':
@@ -537,42 +506,6 @@ export class AgentRunnerController {
 
   private emitChange() {
     this.onChange?.();
-  }
-
-  /**
-   * Save tool result to session storage for resume.
-   * This ensures tool messages appear in the resumed conversation history.
-   */
-  private async saveToolResultToSession(event: ToolEndEvent): Promise<void> {
-    if (!this.sessionIdValue) return;
-
-    const toolMessage: Omit<SessionMessage, 'id' | 'timestamp'> = {
-      type: 'tool',
-      content: event.result,
-      parentUuid: this.getLastItem()?.id,
-      toolName: event.tool,
-      toolUseId: event.toolCallId,
-    };
-
-    await addSessionMessage(this.sessionIdValue, toolMessage, process.cwd());
-  }
-
-  /**
-   * Save tool error to session storage for resume.
-   * This ensures error messages appear in the resumed conversation history.
-   */
-  private async saveToolErrorToSession(event: ToolErrorEvent): Promise<void> {
-    if (!this.sessionIdValue) return;
-
-    const errorMessage: Omit<SessionMessage, 'id' | 'timestamp'> = {
-      type: 'error',
-      content: `Tool '${event.tool}' failed: ${event.error}`,
-      parentUuid: this.getLastItem()?.id,
-      toolName: event.tool,
-      toolUseId: event.toolCallId,
-    };
-
-    await addSessionMessage(this.sessionIdValue, errorMessage, process.cwd());
   }
 
   /**

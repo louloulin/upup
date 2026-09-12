@@ -8,10 +8,9 @@
  * - Technical criteria (Price, Volume trends)
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { getTushareClient } from '../astock/tushare-client';
-import type { StructuredToolInterface } from '@langchain/core/tools';
 
 export const ADVANCED_SCREENING_DESCRIPTION = `## advanced_screening
 Screen stocks with multiple financial criteria.
@@ -110,8 +109,8 @@ function calculateScore(stock: any, criteria: any): { score: number; matched: st
   return { score, matched };
 }
 
-export function createAdvancedScreening(_model: string): StructuredToolInterface {
-  return new DynamicStructuredTool({
+export function createAdvancedScreening(_model: string): PiTool {
+  return new PiTool({
     name: 'advanced_screening',
     description: ADVANCED_SCREENING_DESCRIPTION,
     schema: AdvancedScreeningSchema,

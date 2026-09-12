@@ -63,6 +63,9 @@ export const JsonRpcMethod = {
   SessionMessages: 'session/messages',
   SessionUpdate: 'session/update',
   SessionEnd: 'session/end',
+  SessionCompact: 'session/compact',
+  SessionFork: 'session/fork',
+  SessionExport: 'session/export',
 
   // Events (server -> client notifications)
   Event: 'event',
@@ -245,6 +248,22 @@ export interface SessionEndParams {
 
 export interface SessionEndResult {
   success: boolean;
+}
+
+export interface SessionCompactParams {
+  id: string;
+  instructions?: string;
+}
+
+export interface SessionForkParams {
+  id: string;
+  entryId?: string;
+}
+
+export interface SessionExportParams {
+  id: string;
+  format?: 'jsonl' | 'html';
+  outputPath?: string;
 }
 
 // ============ Event Type Mapping ============

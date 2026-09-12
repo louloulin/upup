@@ -4,8 +4,6 @@
  * Type definitions for session management, mirroring Claude Code's patterns.
  */
 
-import type { BaseMessage } from '@langchain/core/messages';
-
 /**
  * Session metadata - lightweight summary for listing
  */

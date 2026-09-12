@@ -1,4 +1,4 @@
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { api } from './api.js';
 import { formatToolResult } from '../types.js';
@@ -54,7 +54,7 @@ const FilingsInputSchema = z.object({
     ),
 });
 
-export const getFilings = new DynamicStructuredTool({
+export const getFilings = new PiTool({
   name: 'get_filings',
   description: `Retrieves metadata for SEC filings for a company. Returns accession numbers, filing types, and document URLs. This tool ONLY returns metadata - it does NOT return the actual text content from filings. To retrieve text content, use the specific filing items tools: get_10K_filing_items, get_10Q_filing_items, or get_8K_filing_items.`,
   schema: FilingsInputSchema,
@@ -84,7 +84,7 @@ const Filing10KItemsInputSchema = z.object({
     ),
 });
 
-export const get10KFilingItems = new DynamicStructuredTool({
+export const get10KFilingItems = new PiTool({
   name: 'get_10K_filing_items',
   description: `Retrieves sections (items) from a company's 10-K annual report. Specify items to retrieve only specific sections, or omit to get all. Common items: Item-1 (Business), Item-1A (Risk Factors), Item-7 (MD&A), Item-8 (Financial Statements). The accession_number can be retrieved using the get_filings tool.`,
   schema: Filing10KItemsInputSchema,
@@ -116,7 +116,7 @@ const Filing10QItemsInputSchema = z.object({
     ),
 });
 
-export const get10QFilingItems = new DynamicStructuredTool({
+export const get10QFilingItems = new PiTool({
   name: 'get_10Q_filing_items',
   description: `Retrieves sections (items) from a company's 10-Q quarterly report. Specify items to retrieve only specific sections, or omit to get all. Common items: Part-1,Item-1 (Financial Statements), Part-1,Item-2 (MD&A), Part-1,Item-3 (Market Risk), Part-2,Item-1A (Risk Factors). The accession_number can be retrieved using the get_filings tool.`,
   schema: Filing10QItemsInputSchema,
@@ -142,7 +142,7 @@ const Filing8KItemsInputSchema = z.object({
     ),
 });
 
-export const get8KFilingItems = new DynamicStructuredTool({
+export const get8KFilingItems = new PiTool({
   name: 'get_8K_filing_items',
   description: `Retrieves specific sections (items) from a company's 8-K current report. 8-K filings report material events such as acquisitions, financial results, management changes, and other significant corporate events. The accession_number parameter can be retrieved using the get_filings tool by filtering for 8-K filings.`,
   schema: Filing8KItemsInputSchema,
@@ -157,4 +157,3 @@ export const get8KFilingItems = new DynamicStructuredTool({
     return formatToolResult(data, [url]);
   },
 });
-

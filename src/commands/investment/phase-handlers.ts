@@ -34,24 +34,24 @@ import {
   getAnalystEstimates,
   getEarnings,
   getFilings,
-} from '../../tools/finance/index.js';
+} from './phase-finance-dependencies.js';
 import {
   calculateValuationRatios,
   calculateDCF,
-} from '../../tools/valuation/valuation-tools.js';
+} from './phase-valuation-dependencies.js';
 import {
   backtestLumpSum,
   generateBacktestReport,
-} from '../../tools/fund/fund-backtest.js';
-import { SandboxBroker } from '../../tools/trading/sandbox-engine.js';
-import { attribution } from '../../tools/portfolio/attribution.js';
+} from './phase-fund-dependencies.js';
+import { SandboxBroker } from './phase-trading-dependencies.js';
+import { attribution } from './phase-portfolio-dependencies.js';
 import type {
   Holding,
   Portfolio,
   Benchmark,
 } from '../../tools/portfolio/types.js';
 import type { ResearchPhase, ResearchPlan } from '../../plan/research-plan.js';
-import type { PhaseHandler } from '../../agent/investment-workflow.js';
+import type { PhaseHandler } from '../../runtime/pi/investment-workflow.js';
 
 // ---------------------------------------------------------------------------
 // Sandbox singleton (mirrors pattern from src/tools/trading/sandbox-tools.ts)
@@ -73,11 +73,39 @@ export function __resetSandboxForTests(): void {
   sandboxInstance = null;
 }
 
+export interface PhaseHandlerDependencies {
+  getStockPrice: typeof getStockPrice;
+  getKeyRatios: typeof getKeyRatios;
+  getAnalystEstimates: typeof getAnalystEstimates;
+  getEarnings: typeof getEarnings;
+  getFilings: typeof getFilings;
+  calculateValuationRatios: typeof calculateValuationRatios;
+  calculateDCF: typeof calculateDCF;
+  backtestLumpSum: typeof backtestLumpSum;
+  generateBacktestReport: typeof generateBacktestReport;
+  getSandbox: () => Promise<SandboxBroker>;
+  attribution: typeof attribution;
+}
+
+const productionDependencies: PhaseHandlerDependencies = {
+  getStockPrice,
+  getKeyRatios,
+  getAnalystEstimates,
+  getEarnings,
+  getFilings,
+  calculateValuationRatios,
+  calculateDCF,
+  backtestLumpSum,
+  generateBacktestReport,
+  getSandbox,
+  attribution,
+};
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** 安全调用 DynamicStructuredTool: 失败返回 null,永不抛出 */
+/** 安全调用 PiTool: 失败返回 null,永不抛出 */
 async function safeInvoke<T = unknown>(
   tool: { invoke: (input: unknown) => Promise<T> } | undefined,
   input: unknown,
@@ -131,6 +159,7 @@ function guessSector(symbol: string): string {
 async function researchHandler(
   plan: ResearchPlan,
   _phase: ResearchPhase,
+  deps: PhaseHandlerDependencies,
 ): Promise<{ output: string; error?: string }> {
   const ticker = planTicker(plan);
   if (!ticker) {
@@ -138,11 +167,11 @@ async function researchHandler(
   }
 
   const [price, ratios, estimates, earnings, filings] = await Promise.all([
-    safeInvoke(getStockPrice as any, { ticker }),
-    safeInvoke(getKeyRatios as any, { ticker }),
-    safeInvoke(getAnalystEstimates as any, { ticker }),
-    safeInvoke(getEarnings as any, { ticker }),
-    safeInvoke(getFilings as any, { ticker }),
+    safeInvoke(deps.getStockPrice as any, { ticker }),
+    safeInvoke(deps.getKeyRatios as any, { ticker }),
+    safeInvoke(deps.getAnalystEstimates as any, { ticker }),
+    safeInvoke(deps.getEarnings as any, { ticker }),
+    safeInvoke(deps.getFilings as any, { ticker }),
   ]);
 
   const lines: string[] = [
@@ -166,6 +195,7 @@ async function researchHandler(
 async function valuationHandler(
   plan: ResearchPlan,
   _phase: ResearchPhase,
+  deps: PhaseHandlerDependencies,
 ): Promise<{ output: string; error?: string }> {
   const ticker = planTicker(plan);
   if (!ticker) {
@@ -182,7 +212,7 @@ async function valuationHandler(
   ];
 
   try {
-    const ratios = calculateValuationRatios({
+    const ratios = deps.calculateValuationRatios({
       price: stubPrice,
       eps: stubEps,
       book_value_per_share: stubEps * 3,
@@ -201,7 +231,7 @@ async function valuationHandler(
   }
 
   try {
-    const dcf = calculateDCF({
+    const dcf = deps.calculateDCF({
       current_fcf: stubFcf,
       growth_rate: 0.08,
       discount_rate: 0.10,
@@ -231,6 +261,7 @@ async function valuationHandler(
 async function backtestHandler(
   plan: ResearchPlan,
   _phase: ResearchPhase,
+  deps: PhaseHandlerDependencies,
 ): Promise<{ output: string; error?: string }> {
   const ticker = planTicker(plan);
   if (!ticker) {
@@ -243,8 +274,8 @@ async function backtestHandler(
   ];
 
   try {
-    const result = await backtestLumpSum(ticker, 12, 10_000);
-    const report = generateBacktestReport(result);
+    const result = await deps.backtestLumpSum(ticker, 12, 10_000);
+    const report = deps.generateBacktestReport(result);
     lines.push('```');
     lines.push(report.slice(0, 1500));
     lines.push('```');
@@ -264,6 +295,7 @@ async function backtestHandler(
 async function tradeHandler(
   plan: ResearchPlan,
   _phase: ResearchPhase,
+  deps: PhaseHandlerDependencies,
 ): Promise<{ output: string; error?: string }> {
   const ticker = planTicker(plan);
   if (!ticker) {
@@ -278,7 +310,7 @@ async function tradeHandler(
 
   let sandbox: SandboxBroker;
   try {
-    sandbox = await getSandbox();
+    sandbox = await deps.getSandbox();
   } catch (e) {
     lines.push('');
     lines.push(`Sandbox 初始化失败: ${e instanceof Error ? e.message : String(e)}`);
@@ -403,6 +435,7 @@ async function tradeHandler(
 async function reviewHandler(
   plan: ResearchPlan,
   _phase: ResearchPhase,
+  deps: PhaseHandlerDependencies,
 ): Promise<{ output: string; error?: string }> {
   const lines: string[] = [
     '## Review',
@@ -411,7 +444,7 @@ async function reviewHandler(
 
   let sandbox: SandboxBroker;
   try {
-    sandbox = await getSandbox();
+    sandbox = await deps.getSandbox();
   } catch (e) {
     lines.push(`Sandbox 初始化失败: ${e instanceof Error ? e.message : String(e)}`);
     return { output: lines.join('\n'), error: 'sandbox_init_failed' };
@@ -475,7 +508,7 @@ async function reviewHandler(
   const benchmark: Benchmark = { holdings: benchmarkHoldings, totalReturn: benchReturn };
 
   try {
-    const result = attribution({ method: 'combined', portfolio, benchmark });
+    const result = deps.attribution({ method: 'combined', portfolio, benchmark });
 
     if (result.method === 'combined') {
       const b = result.result.brinson;
@@ -523,18 +556,19 @@ export interface PhaseHandlers {
   review: PhaseHandler;
 }
 
-export function createPhaseHandlers(): PhaseHandlers {
+export function createPhaseHandlers(overrides: Partial<PhaseHandlerDependencies> = {}): PhaseHandlers {
+  const deps = { ...productionDependencies, ...overrides };
   return {
-    research: researchHandler,
-    valuation: valuationHandler,
-    backtest: backtestHandler,
-    trade: tradeHandler,
-    review: reviewHandler,
+    research: (plan, phase) => researchHandler(plan, phase, deps),
+    valuation: (plan, phase) => valuationHandler(plan, phase, deps),
+    backtest: (plan, phase) => backtestHandler(plan, phase, deps),
+    trade: (plan, phase) => tradeHandler(plan, phase, deps),
+    review: (plan, phase) => reviewHandler(plan, phase, deps),
   };
 }
 
-export function createPhaseHandlerMap(): Partial<Record<ResearchPhase, PhaseHandler>> {
-  const h = createPhaseHandlers();
+export function createPhaseHandlerMap(overrides: Partial<PhaseHandlerDependencies> = {}): Partial<Record<ResearchPhase, PhaseHandler>> {
+  const h = createPhaseHandlers(overrides);
   return {
     research: h.research,
     valuation: h.valuation,

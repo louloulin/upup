@@ -396,19 +396,19 @@ describe('extractEntities', () => {
 // ---------------------------------------------------------------------------
 
 describe('Tool factories', () => {
-  it('createAnalyzeSentimentTool returns a DynamicStructuredTool', () => {
+  it('createAnalyzeSentimentTool returns a PiTool', () => {
     const tool = createAnalyzeSentimentTool();
     expect(tool.name).toBe('analyze_sentiment');
     expect(typeof tool.func).toBe('function');
   });
 
-  it('createDetectEventsTool returns a DynamicStructuredTool', () => {
+  it('createDetectEventsTool returns a PiTool', () => {
     const tool = createDetectEventsTool();
     expect(tool.name).toBe('detect_events');
     expect(typeof tool.func).toBe('function');
   });
 
-  it('createExtractEntitiesTool returns a DynamicStructuredTool', () => {
+  it('createExtractEntitiesTool returns a PiTool', () => {
     const tool = createExtractEntitiesTool();
     expect(tool.name).toBe('extract_entities');
     expect(typeof tool.func).toBe('function');

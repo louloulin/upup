@@ -1,4 +1,4 @@
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../runtime/pi/tool.js';
 import { dirname, resolve } from 'path';
 import { z } from 'zod';
 import { getSkill, discoverSkills } from '../skills/index.js';
@@ -34,7 +34,7 @@ Execute a skill to get specialized instructions for complex tasks.
  * Skill invocation tool.
  * Loads and returns skill instructions for the agent to follow.
  */
-export const skillTool = new DynamicStructuredTool({
+export const skillTool = new PiTool({
   name: 'skill',
   description: 'Execute a skill to get specialized instructions for a task. Returns instructions to follow.',
   schema: z.object({

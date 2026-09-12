@@ -1,6 +1,3 @@
-import { GoogleGenerativeAIEmbeddings } from '@langchain/google-genai';
-import { OllamaEmbeddings } from '@langchain/ollama';
-import { OpenAIEmbeddings } from '@langchain/openai';
 import type { EmbeddingProviderId, MemoryEmbeddingClient } from './types.js';
 
 const DEFAULT_OPENAI_MODEL = 'text-embedding-3-small';
@@ -77,43 +74,44 @@ export function createEmbeddingClient(params: {
 
   if (resolved === 'openai') {
     const model = params.model || DEFAULT_OPENAI_MODEL;
-    const embeddings = new OpenAIEmbeddings({
-      apiKey: process.env.OPENAI_API_KEY,
-      model,
-    });
+    const embed = async (batch: string[]) => requestEmbeddings('https://api.openai.com/v1/embeddings', process.env.OPENAI_API_KEY, model, batch);
     return {
       provider: 'openai',
       model,
       embed: async (texts: string[]) =>
-        embedInBatches(texts, async (batch) => embeddings.embedDocuments(batch)),
+        embedInBatches(texts, embed),
     };
   }
 
   if (resolved === 'gemini') {
     const model = params.model || DEFAULT_GEMINI_MODEL;
-    const embeddings = new GoogleGenerativeAIEmbeddings({
-      apiKey: process.env.GOOGLE_API_KEY,
-      model,
-    });
+    const embed = async (batch: string[]) => requestEmbeddings(`https://generativelanguage.googleapis.com/v1beta/models/${model}:batchEmbedContents?key=${process.env.GOOGLE_API_KEY}`, undefined, model, batch, 'google');
     return {
       provider: 'gemini',
       model,
       embed: async (texts: string[]) =>
-        embedInBatches(texts, async (batch) => embeddings.embedDocuments(batch)),
+        embedInBatches(texts, embed),
     };
   }
 
   const model = params.model || DEFAULT_OLLAMA_MODEL;
-  const embeddings = new OllamaEmbeddings({
-    baseUrl: process.env.OLLAMA_BASE_URL,
-    model,
-  });
+  const embed = async (batch: string[]) => requestEmbeddings(`${process.env.OLLAMA_BASE_URL ?? 'http://127.0.0.1:11434'}/api/embed`, undefined, model, batch, 'ollama');
   return {
     provider: 'ollama',
     model,
     embed: async (texts: string[]) =>
-      embedInBatches(texts, async (batch) => embeddings.embedDocuments(batch)),
+      embedInBatches(texts, embed),
   };
+}
+
+async function requestEmbeddings(url: string, apiKey: string | undefined, model: string, input: string[], provider?: string): Promise<number[][]> {
+  const headers: Record<string, string> = { 'content-type': 'application/json' };
+  if (apiKey) headers.authorization = `Bearer ${apiKey}`;
+  const body = provider === 'ollama' ? { model, input } : provider === 'google' ? { requests: input.map((text) => ({ model: `models/${model}`, content: { parts: [{ text }] } })) } : { model, input };
+  const response = await fetch(url, { method: 'POST', headers, body: JSON.stringify(body) });
+  if (!response.ok) throw new Error(`Embedding request failed with ${response.status}`);
+  const data = await response.json() as { data?: Array<{ embedding: number[] }>; embeddings?: number[][]; embedding?: number[]; };
+  return data.data?.map((item) => item.embedding) ?? data.embeddings ?? (data.embedding ? [data.embedding] : []);
 }
 
 export async function embedSingleQuery(

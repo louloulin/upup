@@ -184,6 +184,8 @@ describe('Tool Creation', () => {
         { source: 'yahoo', latency: 100, freshness: 1, coverage: 90, accuracy: 95, priceDeviation: 0.2 },
         { source: 'bloomberg', latency: 200, freshness: 0.5, coverage: 95, accuracy: 98, priceDeviation: 0.1 },
       ],
+      preferLowLatency: true,
+      preferAccurate: true,
     });
     expect(result).toBeDefined();
     expect(result).toContain('yahoo');

@@ -2,15 +2,15 @@
  * web_fetch tool — lightweight one-shot page reader with caching.
  *
  * Core extraction logic ported from OpenClaw's src/agents/tools/web-fetch.ts (MIT license).
- * Adapted for UpUp's LangChain DynamicStructuredTool + Zod framework.
+ * Adapted for UpUp's Pi-compatible structured tool + Zod framework.
  *
  * Differences from OpenClaw:
  * - fetchWithSsrFGuard replaced with plain fetch + manual redirect handling
  * - Firecrawl fallback removed (falls back to htmlToMarkdown instead)
  * - Config resolution replaced with hardcoded defaults
- * - Tool wrapper uses LangChain DynamicStructuredTool + Zod (not AnyAgentTool + TypeBox)
+ * - Tool wrapper uses the local Pi compatibility layer with Zod schemas
  */
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { formatToolResult } from '../types.js';
 import { wrapExternalContent, wrapWebContent } from './external-content.js';
@@ -384,10 +384,10 @@ async function runWebFetch(params: {
 }
 
 // ============================================================================
-// Tool definition (adapted for UpUp's LangChain + Zod framework)
+// Tool definition (adapted for UpUp's Pi + Zod framework)
 // ============================================================================
 
-export const webFetchTool = new DynamicStructuredTool({
+export const webFetchTool = new PiTool({
   name: 'web_fetch',
   description:
     'Fetch and extract readable content from a URL (HTML → markdown/text). Use for lightweight page access without browser automation.',

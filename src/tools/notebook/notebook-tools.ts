@@ -6,7 +6,7 @@
  */
 
 import { z } from 'zod';
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import fs from 'fs/promises';
 import path from 'path';
 
@@ -174,8 +174,8 @@ Specify the 0-based cell index to delete.`;
 // Tool Factories
 // ============================================================================
 
-export function createNotebookReadTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createNotebookReadTool(): PiTool {
+  return new PiTool({
     name: 'notebook_read',
     description: NOTEBOOK_READ_DESCRIPTION,
     schema: NotebookReadSchema,
@@ -204,8 +204,8 @@ export function createNotebookReadTool(): DynamicStructuredTool {
   });
 }
 
-export function createNotebookCreateTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createNotebookCreateTool(): PiTool {
+  return new PiTool({
     name: 'notebook_create',
     description: NOTEBOOK_CREATE_DESCRIPTION,
     schema: NotebookCreateSchema,
@@ -228,8 +228,8 @@ export function createNotebookCreateTool(): DynamicStructuredTool {
   });
 }
 
-export function createNotebookEditCellTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createNotebookEditCellTool(): PiTool {
+  return new PiTool({
     name: 'notebook_edit_cell',
     description: NOTEBOOK_EDIT_CELL_DESCRIPTION,
     schema: NotebookEditCellSchema,
@@ -261,8 +261,8 @@ export function createNotebookEditCellTool(): DynamicStructuredTool {
   });
 }
 
-export function createNotebookInsertCellTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createNotebookInsertCellTool(): PiTool {
+  return new PiTool({
     name: 'notebook_insert_cell',
     description: NOTEBOOK_INSERT_CELL_DESCRIPTION,
     schema: NotebookInsertCellSchema,
@@ -282,8 +282,8 @@ export function createNotebookInsertCellTool(): DynamicStructuredTool {
   });
 }
 
-export function createNotebookDeleteCellTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createNotebookDeleteCellTool(): PiTool {
+  return new PiTool({
     name: 'notebook_delete_cell',
     description: NOTEBOOK_DELETE_CELL_DESCRIPTION,
     schema: NotebookDeleteCellSchema,

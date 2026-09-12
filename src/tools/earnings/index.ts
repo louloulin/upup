@@ -8,10 +8,9 @@
  * - Historical earnings patterns
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { getTushareClient } from '../astock/tushare-client';
-import type { StructuredToolInterface } from '@langchain/core/tools';
 
 export const EARNINGS_PREDICTION_DESCRIPTION = `## earnings_prediction
 Predict earnings and analyze earnings reports.
@@ -28,8 +27,8 @@ const EarningsPredictionSchema = z.object({
   period: z.string().optional().describe('Forecast period (e.g., 2024Q2)'),
 });
 
-export function createEarningsPrediction(_model: string): StructuredToolInterface {
-  return new DynamicStructuredTool({
+export function createEarningsPrediction(_model: string): PiTool {
+  return new PiTool({
     name: 'earnings_prediction',
     description: EARNINGS_PREDICTION_DESCRIPTION,
     schema: EarningsPredictionSchema,

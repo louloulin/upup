@@ -11,6 +11,8 @@ import { randomUUID } from 'crypto';
 import { exec, spawn, execSync as nodeExecSync } from 'child_process';
 import { promisify } from 'util';
 import { info, warn, error as logError } from '../../utils/logging/logger.js';
+import { createPiWorker, extractPiAssistantText } from './pi-worker.js';
+import type { UpUpAgentSession } from '../../runtime/pi/index.js';
 
 const execAsync = promisify(exec);
 
@@ -19,6 +21,7 @@ export class TmuxBackend implements Backend {
   readonly name = 'Tmux Backend';
   
   private agents: Map<string, AgentInstance & { sessionName?: string }> = new Map();
+  private sessions: Map<string, UpUpAgentSession> = new Map();
   
   /**
    * 检查Tmux是否可用
@@ -94,31 +97,32 @@ export class TmuxBackend implements Backend {
       
       info('agent', `Tmux session created: ${agent.sessionName} for agent ${agent.name}`);
       
-      // 发送命令到会话
-      const sendCmd = `tmux send-keys -t "${agent.sessionName}" "echo 'Agent ${agent.name} executing...'" Enter`;
-      await execAsync(sendCmd);
-      
-      // 模拟执行
-      await new Promise(resolve => setTimeout(resolve, 200));
-      
-      // 检查超时
+      const session = await createPiWorker(params);
+      this.sessions.set(agent.id, session);
+      agent.piSpec = session.spec;
+      agent.piSessionId = session.id;
+      agent.piToolNames = session.getAvailableToolNames();
+      await session.prompt(params.prompt || `You are a ${params.role || 'agent'} named ${params.name}.`);
+      await session.waitForIdle();
       if (Date.now() - startTime > timeout) {
         agent.status = 'failed';
         agent.error = 'Timeout exceeded';
-        return;
+      } else if (extractPiAssistantText(session.getMessages())) {
+        agent.status = 'completed';
+        agent.result = extractPiAssistantText(session.getMessages());
+      } else {
+        agent.status = 'failed';
+        agent.error = 'Pi session completed without an assistant result';
       }
-      
-      // 模拟完成
-      agent.status = 'completed';
       agent.completedAt = Date.now();
-      agent.result = `Agent ${agent.name} completed via Tmux`;
-      
       info('agent', `Tmux agent completed: ${agent.name}`);
       
     } catch (error) {
       agent.status = 'failed';
       agent.error = error instanceof Error ? error.message : String(error);
     } finally {
+      this.sessions.get(agent.id)?.dispose();
+      this.sessions.delete(agent.id);
       // 清理Tmux会话
       try {
         await execAsync(`tmux kill-session -t "${agent.sessionName}" 2>/dev/null || true`);
@@ -136,6 +140,9 @@ export class TmuxBackend implements Backend {
     if (!agent) return;
     
     try {
+      await this.sessions.get(agentId)?.abort();
+      this.sessions.get(agentId)?.dispose();
+      this.sessions.delete(agentId);
       if (agent.sessionName) {
         await execAsync(`tmux kill-session -t "${agent.sessionName}" 2>/dev/null || true`);
       }

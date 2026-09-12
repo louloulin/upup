@@ -4,7 +4,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import { buildTaskResultTool } from './agent-tool.js';
-import { getDefaultSubagentRunner, resetDefaultSubagentRunner } from '../agent/subagent-runner.js';
+import { getDefaultSubagentRunner, resetDefaultSubagentRunner } from '../runtime/pi/subagent-runner.js';
 
 describe('task_result tool', () => {
   let tool: ReturnType<typeof buildTaskResultTool>;

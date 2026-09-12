@@ -7,7 +7,7 @@
 
 import os from 'os';
 import { z } from 'zod';
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../runtime/pi/tool.js';
 
 // ============================================================================
 // Schema & Description
@@ -181,8 +181,8 @@ function formatUptimeInfo(): string {
 // Tool Factory
 // ============================================================================
 
-export function createMonitorTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createMonitorTool(): PiTool {
+  return new PiTool({
     name: 'monitor',
     description: MONITOR_TOOL_DESCRIPTION,
     schema: MonitorToolSchema,

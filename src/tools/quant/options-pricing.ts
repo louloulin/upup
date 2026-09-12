@@ -7,7 +7,7 @@
  * - Implied volatility solver
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { formatToolResult } from '../types.js';
 
@@ -267,7 +267,7 @@ const calculateImpliedVolSchema = z.object({
  * Create Black-Scholes option pricing tool
  */
 export function createCalculateOptionPriceTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'calculate_option_price',
     description: 'Calculate Black-Scholes option price for calls and puts. Uses standard Black-Scholes formula with continuous dividends.',
     schema: calculateOptionPriceSchema,
@@ -308,7 +308,7 @@ export function createCalculateOptionPriceTool() {
  * Create Greeks calculation tool
  */
 export function createCalculateGreeksTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'calculate_option_greeks',
     description: 'Calculate option Greeks (Delta, Gamma, Theta, Vega, Rho). Measure sensitivity to various factors.',
     schema: calculateGreeksSchema,
@@ -357,7 +357,7 @@ export function createCalculateGreeksTool() {
  * Create implied volatility tool
  */
 export function createCalculateImpliedVolTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'calculate_implied_volatility',
     description: 'Calculate implied volatility from market option price using Newton-Raphson method. Essential for options analysis.',
     schema: calculateImpliedVolSchema,

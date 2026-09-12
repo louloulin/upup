@@ -15,7 +15,7 @@ import {
   EXTRACTION_SYSTEM_PROMPT,
   buildExtractionPrompt,
 } from './prompts.js';
-import { getChatModel, DEFAULT_MODEL } from '../model/llm.js';
+import { callStructuredLlm, DEFAULT_MODEL } from '../runtime/pi/model.js';
 import { getUpupDir } from '../utils/paths.js';
 import { MEMORY_TYPES, type MemoryType, type MemoryWriteRequest } from './types.js';
 import { z } from 'zod';
@@ -78,17 +78,11 @@ export async function extractMemories(
   const existingMemories = await readExistingMemories();
 
   try {
-    const llm = getChatModel(options.model ?? DEFAULT_MODEL, false);
-    const runnable = llm.withStructuredOutput(EXTRACTION_OUTPUT_SCHEMA, { strict: false });
-
-    const systemMessage = { role: 'system' as const, content: EXTRACTION_SYSTEM_PROMPT };
-    const userMessage = {
-      role: 'user' as const,
-      content: buildExtractionPrompt(messages, existingMemories),
-    };
-
-    const invokeOpts = options.signal ? { signal: options.signal } : undefined;
-    const result = await runnable.invoke([systemMessage, userMessage], invokeOpts);
+    const result = await callStructuredLlm(buildExtractionPrompt(messages, existingMemories), EXTRACTION_OUTPUT_SCHEMA, {
+      model: options.model ?? DEFAULT_MODEL,
+      systemPrompt: EXTRACTION_SYSTEM_PROMPT,
+      signal: options.signal,
+    });
 
     if (!result || !result.memories || result.memories.length === 0) {
       return [];

@@ -24,7 +24,7 @@
  *
  * 模块边界 (零循环):
  *   intent-router.ts (Layer 4) → agent/intent-detector/ (Layer 4, 同层 OK)
- *                              → agent/registry (Layer 4, 同层 OK)
+ *                              → runtime/pi/registry (Pi catalog boundary)
  *   不 import coordinator 内部实现 (避免反向),coordinator 调本模块即可。
  */
 
@@ -34,11 +34,12 @@ import {
   type IntentResult,
   type IntentDetector,
   type IntentScore,
-} from '../agent/intent-detector/index.js';
+} from '../runtime/pi/intent-detector/index.js';
 import {
   getAgentRegistry,
-  type AgentDefinition,
-} from '../agent/registry.js';
+  type PiAgentMetadata,
+} from '../runtime/pi/registry.js';
+import { registerInvestmentSubagents } from '../runtime/pi/investment-subagents.js';
 
 // ---------------------------------------------------------------------------
 // Routing table (纯数据,易扩展)
@@ -57,6 +58,8 @@ export const INTENT_TO_SUBAGENT: Readonly<Record<Intent, string>> = {
 
 /** 当主路由命中 subagent 不存在 (e.g. tests without v7-7) 时的兜底 */
 export const FALLBACK_SUBAGENT_ID = 'invest-explore';
+
+registerInvestmentSubagents();
 
 // ---------------------------------------------------------------------------
 // Public types
@@ -83,7 +86,7 @@ export interface RouteDecision {
   /** 完整 IntentResult (供调用方审计/展示) */
   intentResult: IntentResult;
   /** 选中的 subagent 定义 (可能 undefined,当 subagent 未注册) */
-  subagent: AgentDefinition | undefined;
+  subagent: PiAgentMetadata | undefined;
 }
 
 // ---------------------------------------------------------------------------

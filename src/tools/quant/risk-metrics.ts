@@ -8,7 +8,7 @@
  * - Maximum Drawdown
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { formatToolResult } from '../types.js';
 
@@ -220,7 +220,7 @@ const calculateMaxDrawdownSchema = z.object({
  * Create VaR calculation tool
  */
 export function createCalculateVaRTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'calculate_var',
     description: 'Calculate Value at Risk (VaR) for a portfolio. Measures potential loss at a given confidence level.',
     schema: calculateVarSchema,
@@ -245,7 +245,7 @@ export function createCalculateVaRTool() {
  * Create Sharpe Ratio tool
  */
 export function createCalculateSharpeTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'calculate_sharpe',
     description: 'Calculate Sharpe Ratio - risk-adjusted return metric. Higher is better (>1 is good, >2 is excellent).',
     schema: calculateSharpeSchema,
@@ -279,7 +279,7 @@ export function createCalculateSharpeTool() {
  * Create Sortino Ratio tool
  */
 export function createCalculateSortinoTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'calculate_sortino',
     description: 'Calculate Sortino Ratio - focuses only on downside risk. Better for asymmetric return distributions.',
     schema: calculateSortinoSchema,
@@ -301,7 +301,7 @@ export function createCalculateSortinoTool() {
  * Create Max Drawdown tool
  */
 export function createCalculateMaxDrawdownTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'calculate_max_drawdown',
     description: 'Calculate Maximum Drawdown - largest peak-to-trough decline. Measures worst-case historical loss.',
     schema: calculateMaxDrawdownSchema,

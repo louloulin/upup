@@ -3,9 +3,9 @@
  * 包装 Agent 用于 stdio 服务
  */
 
-// 直接从根目录 src 导入（workspace 内模块引用）
-import { Agent } from '../../src/agent/agent.js'
-import type { AgentEvent } from '../../src/agent/types.js'
+// 直接从根目录导入唯一的 Pi-backed stream runtime。
+import { streamPiAgent } from '../../src/runtime/pi/event-stream.js'
+import type { AgentEvent } from '../../src/runtime/pi/legacy-events.js'
 
 export interface AgentRunParams {
   query: string
@@ -32,13 +32,11 @@ export async function runAgent(
   let output = ''
   let toolCalls = 0
 
-  const agent = await Agent.create({
+  for await (const event of streamPiAgent(params.query, {
     model: params.model,
     maxIterations: params.maxIterations,
     signal: params.signal,
-  })
-
-  for await (const event of agent.run(params.query)) {
+  })) {
     switch (event.type) {
       case 'display':
         if (event.event === 'thinking') {
@@ -72,13 +70,11 @@ export async function *runAgentStream(
   let output = ''
   let toolCalls = 0
 
-  const agent = await Agent.create({
+  const result = streamPiAgent(params.query, {
     model: params.model,
     maxIterations: params.maxIterations,
     signal: params.signal,
   })
-
-  const result = agent.run(params.query)
 
   let finalResult: AgentRunResult = {
     output: '',

@@ -32,7 +32,7 @@ describe("loadCoordinatorTools", () => {
     }
   });
 
-  test("each tool exposes a callable StructuredToolInterface", () => {
+  test("each tool exposes a callable PiTool", () => {
     const tools = loadCoordinatorTools();
     for (const t of tools) {
       expect(t.tool).toBeTruthy();

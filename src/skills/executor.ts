@@ -20,7 +20,7 @@ import type {
   SkillSource,
   HooksSettings,
 } from './types.js';
-import type { SubagentConfig, SubagentResult, SubagentRunner } from '../agent/subagent.js';
+import type { PiSubagentConfig, SubagentResult, PiSubagentService } from '../runtime/pi/subagent.js';
 import { executeShellCommandsInPrompt, containsShellCommands } from './promptShellExecution.js';
 import { hasPermissionsToUseTool, createSkillPermissionContext } from './permissions.js';
 import { processToolResultBlock } from './toolResultStorage.js';
@@ -213,12 +213,12 @@ export async function executeSkillInline(
 /**
  * Execute a skill in fork mode (subagent context)
  *
- * Uses the SubagentRunner to spawn a child agent with the skill's
+ * Uses the PiSubagentService to spawn a child Pi session with the skill's
  * instructions and configuration.
  */
 export async function executeSkillFork(
   options: SkillExecutionOptions,
-  subagentRunner: SubagentRunner,
+  subagentRunner: PiSubagentService,
   progressCallback?: ProgressCallback
 ): Promise<SkillExecutionResult> {
   const startTime = Date.now();
@@ -269,7 +269,7 @@ export async function executeSkillFork(
  */
 export async function executeSkill(
   options: SkillExecutionOptions,
-  subagentRunner?: SubagentRunner,
+  subagentRunner?: PiSubagentService,
   progressCallback?: ProgressCallback
 ): Promise<SkillExecutionResult> {
   // Determine execution mode
@@ -281,7 +281,7 @@ export async function executeSkill(
       return {
         success: false,
         output: '',
-        error: 'Fork mode requires SubagentRunner',
+        error: 'Fork mode requires SubagentRunner (PiSubagentService)',
         duration: 0,
       };
     }
@@ -305,7 +305,7 @@ export async function executeSkill(
  */
 export async function executeSkillSwarm(
   options: SkillExecutionOptions,
-  subagentRunner?: SubagentRunner,
+  subagentRunner?: PiSubagentService,
   progressCallback?: ProgressCallback
 ): Promise<SkillExecutionResult> {
   const startTime = Date.now();
@@ -449,9 +449,9 @@ export function buildSubagentConfig(
     allowedTools?: string[];
     maxTokens?: number;
   }
-): SubagentConfig {
+): PiSubagentConfig {
   // Determine agent type from skill metadata
-  const agentType = skill.agent as SubagentConfig['type'] || 'general';
+  const agentType = skill.agent as PiSubagentConfig['type'] || 'general';
 
   // Build tools list
   const tools = skill.allowedTools || options.allowedTools || ['*'];
@@ -473,7 +473,7 @@ export function buildSubagentConfig(
     systemPrompt,
     cwd: options.cwd || process.cwd(),
     ...options.agentConfig,
-  } as SubagentConfig;
+  } as PiSubagentConfig;
 }
 
 /**
@@ -541,7 +541,7 @@ export function getExecutionMode(skill: Skill): SkillContext {
  * Heuristics for automatic mode selection:
  * - Complex skills (long instructions) → fork
  * - Skills with allowedTools restrictions → fork
- * - Skills with custom agent → fork
+ * - Skills with Pi agent → fork
  * - Simple data query skills → inline
  */
 export function shouldUseForkMode(skill: Skill): boolean {

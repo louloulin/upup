@@ -6,7 +6,7 @@
  * - Multi-asset correlation matrix
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { formatToolResult } from '../types.js';
 
@@ -211,7 +211,7 @@ const correlationForPairSchema = z.object({
 // ============================================================================
 
 export function createScoreDataSourceTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'score_data_source',
     description: 'Calculate reliability score for a market data source. Returns A-F grade with factor breakdown.',
     schema: scoreDataSourceSchema,
@@ -233,7 +233,7 @@ export function createScoreDataSourceTool() {
 }
 
 export function createCompareDataSourcesTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'compare_data_sources',
     description: 'Compare multiple data sources and recommend the best for different use cases.',
     schema: scoreMultipleSourcesSchema,
@@ -275,7 +275,7 @@ export function createCompareDataSourcesTool() {
 }
 
 export function createCorrelationMatrixTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'calculate_correlation_matrix',
     description: 'Calculate correlation matrix for multiple assets from historical returns.',
     schema: correlationMatrixSchema,
@@ -307,7 +307,7 @@ export function createCorrelationMatrixTool() {
 }
 
 export function createCalculateCorrelationTool() {
-  return new DynamicStructuredTool({
+  return new PiTool({
     name: 'calculate_correlation',
     description: 'Calculate Pearson correlation between two asset return series.',
     schema: correlationForPairSchema,

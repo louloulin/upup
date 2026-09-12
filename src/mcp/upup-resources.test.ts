@@ -23,7 +23,7 @@ import {
 } from './upup-resources.js';
 import { DossierStore } from '../memory/dossier.js';
 import { AuditChain } from '../memory/audit-signing.js';
-import { CitationRegistry } from '../agent/citation.js';
+import { CitationRegistry } from '../runtime/pi/citation.js';
 import { StrategyStore, computeStrategyPrevHash } from '../memory/strategy-store.js';
 
 const TMP = join(tmpdir(), `upup-mcp-resources-${process.pid}-${Date.now()}`);

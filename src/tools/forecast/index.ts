@@ -11,10 +11,9 @@
  * decisions, consider professional financial advice.
  */
 
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { z } from 'zod';
 import { getTushareClient, getToday } from '../astock/tushare-client';
-import type { StructuredToolInterface } from '@langchain/core/tools';
 
 export const FORECAST_DESCRIPTION = `## financial_forecast
 Generate automated financial forecasts for A-share stocks.
@@ -102,8 +101,8 @@ function calculateAverageGrowth(values: number[]): number {
     : 0;
 }
 
-export function createFinancialForecast(_model: string): StructuredToolInterface {
-  return new DynamicStructuredTool({
+export function createFinancialForecast(_model: string): PiTool {
+  return new PiTool({
     name: 'financial_forecast',
     description: FORECAST_DESCRIPTION,
     schema: ForecastSchema,

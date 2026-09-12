@@ -8,7 +8,7 @@
  *   );
  *   editor.setAutocompleteMaxVisible(8);
  *
- * We don't test pi-tui's CombinedAutocompleteProvider behaviour — that's
+ * We don't test custom-tui's CombinedAutocompleteProvider behaviour — that's
  * upstream's responsibility. We only assert that:
  *  1. setAutocompleteProvider stores the instance on the editor.
  *  2. setAutocompleteMaxVisible(8) is observable via getAutocompleteMaxVisible().
@@ -139,7 +139,7 @@ describe('CustomEditor autocomplete up/down navigation (SCAP-005 regression)', (
 
 
   it('down arrow moves the selected item in the popup', async () => {
-    // pi-tui's SelectList hardcodes the selected prefix to U+2192 followed
+    // custom-tui's SelectList hardcodes the selected prefix to U+2192 followed
     // by a space. The popup is appended to editor.render() as padded lines
     // (border + content + padding). We look for the line that contains the
     // arrow marker; before vs after down arrow should be different lines.

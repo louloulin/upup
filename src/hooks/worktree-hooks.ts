@@ -9,7 +9,6 @@
  */
 
 import { info, warn, debug } from '../utils/logging/logger.js';
-import type { BaseMessage } from '@langchain/core/messages';
 
 // ============================================================================
 // Hook Types

@@ -11,7 +11,7 @@ import {
 } from './integration.js';
 import { TelemetryRecorder } from './recorder.js';
 import { telemetry } from './index.js';
-import type { ToolEndEvent, ToolErrorEvent } from '../agent/types.js';
+import type { ToolEndEvent, ToolErrorEvent } from '../runtime/pi/legacy-events.js';
 
 let tmpDir: string;
 

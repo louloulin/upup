@@ -17,8 +17,8 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@langchain/core": "^0.3.0",
     "@modelcontextprotocol/sdk": "^1.0.0",
+    "typebox": "1.3.7",
     "zod": "^3.0.0"
   },
   "peerDependencies": {

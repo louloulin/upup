@@ -12,7 +12,7 @@
  */
 
 import { z } from 'zod';
-import { DynamicStructuredTool } from '@langchain/core/tools';
+import { PiTool } from '../../runtime/pi/tool.js';
 import { randomUUID } from 'crypto';
 
 // ============================================================================
@@ -399,8 +399,8 @@ export const TaskUpdateSchema = z.object({
 // Tool Factories
 // ============================================================================
 
-export function createTaskCreateTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createTaskCreateTool(): PiTool {
+  return new PiTool({
     name: 'task_create',
     description: TASK_CREATE_DESCRIPTION,
     schema: TaskCreateSchema,
@@ -421,8 +421,8 @@ Stats: ${stats.pending} pending, ${stats.running} running, ${stats.completed} do
   });
 }
 
-export function createTaskGetTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createTaskGetTool(): PiTool {
+  return new PiTool({
     name: 'task_get',
     description: TASK_GET_DESCRIPTION,
     schema: TaskGetSchema,
@@ -471,8 +471,8 @@ export function createTaskGetTool(): DynamicStructuredTool {
   });
 }
 
-export function createTaskListTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createTaskListTool(): PiTool {
+  return new PiTool({
     name: 'task_list',
     description: TASK_LIST_DESCRIPTION,
     schema: TaskListSchema,
@@ -516,8 +516,8 @@ export function createTaskListTool(): DynamicStructuredTool {
   });
 }
 
-export function createTaskStopTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createTaskStopTool(): PiTool {
+  return new PiTool({
     name: 'task_stop',
     description: TASK_STOP_DESCRIPTION,
     schema: TaskStopSchema,
@@ -549,8 +549,8 @@ Stats: ${stats.pending} pending, ${stats.running} running, ${stats.completed} do
   });
 }
 
-export function createTaskUpdateTool(): DynamicStructuredTool {
-  return new DynamicStructuredTool({
+export function createTaskUpdateTool(): PiTool {
+  return new PiTool({
     name: 'task_update',
     description: TASK_UPDATE_DESCRIPTION,
     schema: TaskUpdateSchema,

@@ -13,6 +13,8 @@ import { upupPath } from '../utils/paths.js';
 import { saveCronStore } from './store.js';
 import { computeNextRunAtMs } from './schedule.js';
 import type { ActiveHours, CronJob, CronStore } from './types.js';
+import type { Model } from '@earendil-works/pi-ai';
+import type { ModelRuntime } from '@earendil-works/pi-coding-agent';
 
 const LOG_PATH = upupPath('gateway-debug.log');
 
@@ -94,7 +96,15 @@ function findTargetSession(): SessionEntry | null {
 export async function executeCronJob(
   job: CronJob,
   store: CronStore,
-  _params: { configPath?: string },
+  params: {
+    configPath?: string;
+    runAgent?: typeof runAgentForMessage;
+    sendMessage?: typeof sendMessageWhatsApp;
+    targetSession?: SessionEntry;
+    validateOutbound?: (target: { to: string; accountId: string }) => void;
+    piModel?: Model<any>;
+    piModelRuntime?: ModelRuntime;
+  } = {},
 ): Promise<void> {
   const startedAt = Date.now();
 
@@ -108,7 +118,7 @@ export async function executeCronJob(
   debugLog(`[cron] executing job "${job.name}" (${job.id})`);
 
   // 1. Find WhatsApp delivery target
-  const session = findTargetSession();
+  const session = params.targetSession ?? findTargetSession();
   if (!session?.lastTo || !session?.lastAccountId) {
     debugLog(`[cron] job ${job.id}: no delivery target, skipping`);
     scheduleNextRun(job, store);
@@ -117,7 +127,7 @@ export async function executeCronJob(
 
   // 2. Verify outbound allowed
   try {
-    assertOutboundAllowed({ to: session.lastTo, accountId: session.lastAccountId });
+    (params.validateOutbound ?? ((target) => assertOutboundAllowed(target)))({ to: session.lastTo, accountId: session.lastAccountId });
   } catch {
     debugLog(`[cron] job ${job.id}: outbound blocked, skipping`);
     scheduleNextRun(job, store);
@@ -138,7 +148,7 @@ export async function executeCronJob(
   // 5. Run agent
   let answer: string;
   try {
-    answer = await runAgentForMessage({
+    answer = await (params.runAgent ?? runAgentForMessage)({
       sessionKey: `cron:${job.id}`,
       query,
       model,
@@ -146,6 +156,8 @@ export async function executeCronJob(
       maxIterations: 6,
       isolatedSession: true,
       channel: 'whatsapp',
+      piModel: params.piModel,
+      piModelRuntime: params.piModelRuntime,
     });
   } catch (err) {
     handleJobError(job, store, err, startedAt);
@@ -171,7 +183,7 @@ export async function executeCronJob(
 
     // Deliver via WhatsApp
     const cleaned = cleanMarkdownForWhatsApp(suppResult.cleanedText);
-    await sendMessageWhatsApp({
+    await (params.sendMessage ?? sendMessageWhatsApp)({
       to: session.lastTo,
       body: cleaned,
       accountId: session.lastAccountId,

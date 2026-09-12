@@ -13,8 +13,10 @@ import {
   type AgentSession,
   type SessionState,
 } from './session.js';
-import type { BaseMessage } from '@langchain/core/messages';
-import { HumanMessage, SystemMessage } from '@langchain/core/messages';
+import type { UserMessage } from '@earendil-works/pi-ai';
+
+const userMessage = (content: string): UserMessage => ({ role: 'user', content, timestamp: 0 });
+const legacySystemMessage = (content: string) => ({ _getType: () => 'system', content });
 
 describe('MemoryKVStore', () => {
   let store: MemoryKVStore;
@@ -316,7 +318,7 @@ describe('SessionManager', () => {
 
 describe('Message serialization', () => {
   test('serializeMessage converts BaseMessage', () => {
-    const message = new HumanMessage('Hello world');
+    const message = userMessage('Hello world');
     const serialized = serializeMessage(message);
 
     expect(serialized.type).toBe('human');
@@ -324,7 +326,7 @@ describe('Message serialization', () => {
   });
 
   test('serializeMessage handles system message', () => {
-    const message = new SystemMessage('You are helpful');
+    const message = legacySystemMessage('You are helpful');
     const serialized = serializeMessage(message);
 
     expect(serialized.type).toBe('system');

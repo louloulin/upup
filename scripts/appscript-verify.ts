@@ -176,7 +176,7 @@ async function runAllVerifications() {
   console.log('\n\x1b[36m>>> Phase 5: 多Agent并发测试\x1b[0m\n');
 
   try {
-    const { getDefaultSubagentRunner } = await import('../src/agent/subagent-runner.js');
+    const { getDefaultSubagentRunner } = await import('../src/runtime/pi/subagent-runner.js');
     const runner = getDefaultSubagentRunner();
     
     const concurrencySupported = runner && typeof runner.run === 'function';

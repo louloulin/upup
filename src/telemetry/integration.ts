@@ -11,7 +11,7 @@
  * let the recorder's `enabled` flag decide whether to actually emit.
  */
 import { telemetry, hashTelemetryInput, type TelemetryRecorder } from './index.js';
-import type { ToolEndEvent, ToolErrorEvent } from '../agent/types.js';
+import type { ToolEndEvent, ToolErrorEvent } from '../runtime/pi/legacy-events.js';
 
 /** Approximate byte size of an arbitrary value. */
 function byteSize(value: unknown): number {

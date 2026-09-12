@@ -4,7 +4,7 @@
  * 授权状态管理改进
  */
 
-import type { ApprovalDecision } from '../../agent/types.js'
+import type { ApprovalDecision } from '../../runtime/pi/legacy-events.js'
 import type { ApprovalRequestData } from '../../components/approval-requests/BaseApprovalRequest.js'
 
 // ============================================================================
