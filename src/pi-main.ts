@@ -45,6 +45,7 @@
  */
 import { registerRealtimeExtension } from './realtime/pi-realtime.js';
 import { registerDaemonExtension } from './daemon/pi-daemon.js';
+import { registerConfigExtension } from './daemon/pi-config-extension.js';
 import { createRealtimeFeed } from './realtime/index.js';
 import type { RealtimeExtensionApi } from './realtime/pi-realtime.js';
 import type { DaemonExtensionApi } from './daemon/pi-daemon.js';
@@ -563,12 +564,22 @@ function createDaemonAdapter(): Omit<LoadedExtension, 'name'> {
   return recordedState(api);
 }
 
+function createConfigAdapter(): Omit<LoadedExtension, 'name'> {
+  const api = createFakeApi();
+  registerConfigExtension(api);
+  return recordedState(api);
+}
+
 function realtimeFactory(pi: PiUpupExtensionApi): void {
   registerRealtimeExtension(pi as unknown as RealtimeExtensionApi);
 }
 
 function daemonFactory(pi: PiUpupExtensionApi): void {
   registerDaemonExtension(pi as unknown as DaemonExtensionApi);
+}
+
+function configFactory(pi: PiUpupExtensionApi): void {
+  registerConfigExtension(pi);
 }
 
 /** ---------------------------------------------------------------------------
@@ -579,11 +590,13 @@ export function createPiMain(options: PiMainOptions): PiMainResult {
   const knownAdapters = new Map<string, () => Omit<LoadedExtension, 'name'>>([
     ['realtime', createRealtimeAdapter],
     ['daemon', createDaemonAdapter],
+    ['config', createConfigAdapter],
   ]);
 
   const knownFactories = new Map<string, (pi: PiUpupExtensionApi) => void | Promise<void>>([
     ['realtime', realtimeFactory],
     ['daemon', daemonFactory],
+    ['config', configFactory],
   ]);
 
   const extensionOverrides = new Map(

@@ -12,7 +12,7 @@ describe('pi main entry', () => {
   it('exposes the built-in pi extensions', () => {
     const main = createPiMain({ extensions: [] });
 
-    expect(main.extensions).toEqual(['realtime', 'daemon']);
+    expect(main.extensions).toEqual(['realtime', 'daemon', 'config']);
     expect(typeof main.load).toBe('function');
   });
 
@@ -20,19 +20,27 @@ describe('pi main entry', () => {
     const main = createPiMain({ extensions: [] });
     const loaded = main.load();
 
-    expect(loaded.length).toBe(2);
+    expect(loaded.length).toBe(3);
 
     const realtime = loaded.find((ext) => ext.name === 'realtime');
     const daemon = loaded.find((ext) => ext.name === 'daemon');
+    const config = loaded.find((ext) => ext.name === 'config');
 
     expect(realtime).toBeDefined();
     expect(daemon).toBeDefined();
+    expect(config).toBeDefined();
 
     expect(realtime!.registeredTools.map((t) => t.name)).toContain('realtime_status');
     expect(realtime!.registeredCommands.map((c) => c.name)).toContain('realtime');
 
     expect(daemon!.registeredTools.map((t) => t.name)).toContain('daemon_stats');
     expect(daemon!.registeredCommands.map((c) => c.name)).toContain('daemon');
+
+    expect(config!.registeredTools.map((t) => t.name)).toEqual([
+      'config_get',
+      'config_set',
+      'config_list',
+    ]);
   });
 
   it('exposes Pi ExtensionFactory entries that can be loaded by a Pi loader', () => {
@@ -41,13 +49,15 @@ describe('pi main entry', () => {
     expect(typeof main.extensionFactories).toBe('function');
 
     const factories = main.extensionFactories();
-    expect(factories.length).toBe(2);
+    expect(factories.length).toBe(3);
 
     const realtime = factories.find((f) => f.name === 'realtime');
     const daemon = factories.find((f) => f.name === 'daemon');
+    const config = factories.find((f) => f.name === 'config');
 
     expect(typeof realtime?.factory).toBe('function');
     expect(typeof daemon?.factory).toBe('function');
+    expect(typeof config?.factory).toBe('function');
   });
 
   it('loadWith runs each built-in factory through a real Pi api and forwards the result to the loader', async () => {
@@ -64,8 +74,8 @@ describe('pi main entry', () => {
 
     const result = await main.loadWith(fakeLoader);
 
-    expect(result.length).toBe(2);
-    expect(capturedApis.length).toBe(2);
+    expect(result.length).toBe(3);
+    expect(capturedApis.length).toBe(3);
 
     for (const api of capturedApis) {
       // The fake api exposes the full upup extension contract surface.
@@ -93,19 +103,20 @@ describe('pi main entry', () => {
       expect(typeof api.events).toBe('object');
     }
 
-    const realtimeTools = new Set([
-      ...capturedApis[0]!.tools.map((t) => t.name),
-      ...capturedApis[1]!.tools.map((t) => t.name),
-    ]);
-    const realtimeCommands = new Set([
-      ...capturedApis[0]!.commands.map((c) => c.name),
-      ...capturedApis[1]!.commands.map((c) => c.name),
-    ]);
+    const allTools = new Set(
+      capturedApis.flatMap((api) => api.tools.map((t) => t.name)),
+    );
+    const allCommands = new Set(
+      capturedApis.flatMap((api) => api.commands.map((c) => c.name)),
+    );
 
-    expect(realtimeTools.has('realtime_status')).toBe(true);
-    expect(realtimeTools.has('daemon_stats')).toBe(true);
-    expect(realtimeCommands.has('realtime')).toBe(true);
-    expect(realtimeCommands.has('daemon')).toBe(true);
+    expect(allTools.has('realtime_status')).toBe(true);
+    expect(allTools.has('daemon_stats')).toBe(true);
+    expect(allTools.has('config_get')).toBe(true);
+    expect(allTools.has('config_set')).toBe(true);
+    expect(allTools.has('config_list')).toBe(true);
+    expect(allCommands.has('realtime')).toBe(true);
+    expect(allCommands.has('daemon')).toBe(true);
 
     for (const entry of result) {
       expect(entry.ok).toBe(true);
@@ -145,7 +156,7 @@ describe('pi main entry', () => {
     };
 
     const result = await main.loadWith(fakeLoader);
-    expect(result.length).toBe(2);
+    expect(result.length).toBe(3);
 
     const realtime = toolExecutions.find((t) => t.name === 'realtime_quote');
     expect(realtime).toBeDefined();
@@ -171,13 +182,15 @@ describe('pi main entry', () => {
 
     const result = await main.loadWith(fakeLoader);
 
-    expect(result.length).toBe(2);
+    expect(result.length).toBe(3);
 
     const realtime = result.find((r) => r.name === 'realtime');
     const daemon = result.find((r) => r.name === 'daemon');
+    const config = result.find((r) => r.name === 'config');
 
     expect(realtime).toBeDefined();
     expect(daemon).toBeDefined();
+    expect(config).toBeDefined();
 
     expect(realtime!.tools).toContain('realtime_status');
     expect(realtime!.tools).toContain('realtime_quote');
@@ -185,6 +198,8 @@ describe('pi main entry', () => {
 
     expect(daemon!.tools).toContain('daemon_stats');
     expect(daemon!.commands).toContain('daemon');
+
+    expect(config!.tools).toEqual(['config_get', 'config_set', 'config_list']);
 
     for (const entry of result) {
       expect(entry.ok).toBe(true);
@@ -197,9 +212,10 @@ describe('pi main entry', () => {
 
     const result = await main.loadWith(loader);
 
-    expect(result.length).toBe(2);
+    expect(result.length).toBe(3);
     const realtime = result.find((r) => r.name === 'realtime')!;
     const daemon = result.find((r) => r.name === 'daemon')!;
+    const config = result.find((r) => r.name === 'config')!;
 
     expect(realtime.ok).toBe(true);
     expect(realtime.tools).toContain('realtime_status');
@@ -209,6 +225,9 @@ describe('pi main entry', () => {
     expect(daemon.ok).toBe(true);
     expect(daemon.tools).toContain('daemon_stats');
     expect(daemon.commands).toContain('daemon');
+
+    expect(config.ok).toBe(true);
+    expect(config.tools).toEqual(['config_get', 'config_set', 'config_list']);
   });
 });
 
