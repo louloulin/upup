@@ -1,14 +1,22 @@
-import { createRealtimeFeed } from './index.js';
 import type { PiUpupExtensionApi } from '../pi-main.js';
+import { createRealtimeFeed } from './index.js';
+import { createRealtimeQuoteTool } from './pi-realtime-quote-tool.js';
 
 /**
  * The realtime extension registers against the upup extension contract —
  * the same `PiUpupExtensionApi` shape the Pi Fake API implements. This is
- * intentionally a narrow contract (not the full Pi `ExtensionAPI`) because
- * realtime only needs `registerTool` + `registerCommand`; making it
- * `ExtensionAPI` would force the internal tools to satisfy pi's strict
- * `ToolDefinition` schema (`parameters: TypeBox`, 5-arg execute signature,
- * etc.) which is out of scope for this iteration.
+ * intentionally a narrow contract (not the full Pi `ExtensionAPI`):
+ *
+ *   - `realtime_status` — arg-less tool, kept on the historic loose
+ *     shape `{ name, description, execute() }`. No schema to validate.
+ *   - `realtime_quote` — migrated to the strict Pi `ToolDefinition`
+ *     shape with TypeBox `parameters: { symbol: string }` and 5-arg
+ *     execute. See `pi-realtime-quote-tool.ts`.
+ *
+ * Mixing shapes inside one extension is supported by the fake api's
+ * `registerTool` overload: it accepts both loose and strict forms, so
+ * stateful and arg-less tools can coexist with schema-validated tools
+ * without a forced migration of the whole extension.
  *
  * The `RealtimeExtensionApi` alias is kept for callers that prefer the
  * narrow historical name; both refer to the same upup contract.
@@ -16,14 +24,18 @@ import type { PiUpupExtensionApi } from '../pi-main.js';
 export type RealtimeExtensionApi = PiUpupExtensionApi;
 
 export function registerRealtimeExtension(pi: PiUpupExtensionApi): void {
-  let currentFeed: ReturnType<typeof createRealtimeFeed> | null = null;
+  // Loose-shape `realtime_status` keeps its own feed reference for
+  // backward-compat with the existing test. The migrated
+  // `realtime_quote` tool owns its feed reference in its closure (see
+  // pi-realtime-quote-tool.ts); each tool is self-contained.
+  let statusFeed: ReturnType<typeof createRealtimeFeed> | null = null;
 
   pi.registerTool({
     name: 'realtime_status',
     label: 'Realtime Status',
     description: 'Show realtime feed status for mock or eastmoney source',
     async execute() {
-      if (!currentFeed) {
+      if (!statusFeed) {
         return { content: [{ type: 'text', text: 'Realtime feed not initialized' }] };
       }
 
@@ -32,8 +44,8 @@ export function registerRealtimeExtension(pi: PiUpupExtensionApi): void {
           {
             type: 'text',
             text: JSON.stringify({
-              source: currentFeed.feed.source,
-              isConnected: currentFeed.feed.isConnected,
+              source: statusFeed.feed.source,
+              isConnected: statusFeed.feed.isConnected,
             }),
           },
         ],
@@ -41,53 +53,13 @@ export function registerRealtimeExtension(pi: PiUpupExtensionApi): void {
     },
   });
 
-  pi.registerTool({
-    name: 'realtime_quote',
-    label: 'Realtime Quote',
-    description: 'Subscribe to realtime quotes for a symbol and return the first tick',
-    async execute(rawParams) {
-      const params = rawParams as { symbol: string } | undefined;
-      if (!currentFeed) {
-        currentFeed = createRealtimeFeed({ source: 'mock' });
-      }
-
-      const symbol = params?.symbol ?? 'AAPL';
-
-      const firstQuote: Promise<unknown> = new Promise((resolve) => {
-        const off = currentFeed!.feed.on('quote', (event) => {
-          if (event.type !== 'quote') return;
-          if (event.payload.symbol !== symbol) return;
-          off();
-          resolve(event.payload);
-        });
-      });
-
-      await currentFeed.feed.subscribe([symbol]);
-
-      // Mock feed: push one quote so the consumer observes a tick.
-      const inner = currentFeed.feed as unknown as { pushQuote: (q: unknown) => void };
-      inner.pushQuote({ symbol, last: 100, volume: 1, timestamp: Date.now() });
-
-      const quote = await Promise.race([
-        firstQuote,
-        new Promise((resolve) => setTimeout(() => resolve(null), 50)),
-      ]);
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify({ symbol, quote }),
-          },
-        ],
-      };
-    },
-  });
+  // Migrated tool — strict `ToolDefinition` with TypeBox schema.
+  pi.registerTool(createRealtimeQuoteTool());
 
   pi.registerCommand('realtime', {
     description: 'Start a minimal realtime session',
     handler: async () => {
-      currentFeed = createRealtimeFeed({ source: 'mock' });
+      statusFeed = createRealtimeFeed({ source: 'mock' });
     },
   });
 }

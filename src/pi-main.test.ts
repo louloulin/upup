@@ -121,7 +121,18 @@ describe('pi main entry', () => {
         await entry.factory(api);
         for (const tool of api.tools) {
           if (!tool.execute) continue;
-          const result = (await tool.execute({ symbol: '600519' })) as {
+          // The migrated `realtime_quote` tool has the strict 5-arg
+          // `(toolCallId, params, signal, onUpdate, ctx)` signature. The
+          // loose-shape tools accept whatever we pass through. We unify
+          // on the strict shape here so the loader test exercises the
+          // same call site pi's runtime would use.
+          const result = (await (tool.execute as (
+            toolCallId: string,
+            params: unknown,
+          ) => Promise<{ content: Array<{ type: string; text: string }> }>)(
+            'loader-tool-call',
+            tool.name === 'realtime_quote' ? { symbol: '600519' } : {},
+          )) as {
             content: Array<{ type: string; text: string }>;
           };
           toolExecutions.push({
@@ -328,5 +339,35 @@ describe('pi fake api', () => {
     expect(stats).toHaveProperty('activeTasks');
     expect(stats).toHaveProperty('workers');
     expect(result.details).toEqual(stats);
+  });
+
+  it('accepts a real pi ToolDefinition with a non-empty TypeBox schema', async () => {
+    // The second migration: `realtime_quote` takes a required
+    // `symbol: string` parameter. The fake api records both the tool
+    // shape AND its non-empty schema — and the strict 5-arg invocation
+    // returns the `{ content, details }` shape with typed `details`.
+    const { createRealtimeQuoteTool } = await import(
+      './realtime/pi-realtime-quote-tool.js'
+    );
+    const tool = createRealtimeQuoteTool();
+    const api = createFakeApi();
+
+    api.registerTool(tool);
+
+    expect(api.tools.length).toBe(1);
+    expect(api.tools[0]?.name).toBe('realtime_quote');
+    expect(api.tools[0]?.parameters).toBeDefined();
+
+    const result = await (api.tools[0]!.execute as (
+      toolCallId: string,
+      params: { symbol: string },
+    ) => Promise<{ content: Array<{ type: string; text: string }>; details: unknown }>)(
+      'tool-call-2',
+      { symbol: '600519' },
+    );
+
+    expect(result.content[0]?.type).toBe('text');
+    expect((result.details as { symbol: string }).symbol).toBe('600519');
+    expect((result.details as { quote: { last: number } | null }).quote?.last).toBe(100);
   });
 });

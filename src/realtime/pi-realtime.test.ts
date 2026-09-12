@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'bun:test';
 import { registerRealtimeExtension, type RealtimeExtensionApi } from './pi-realtime.js';
 import { createFakeApi, type PiFakeApi } from '../pi-main.js';
+import { createRealtimeQuoteTool } from './pi-realtime-quote-tool.js';
 
 describe('pi realtime extension', () => {
   it('registers a realtime status tool and command under the full Pi extension surface', () => {
@@ -24,9 +25,16 @@ describe('pi realtime extension', () => {
     expect(quoteTool).toBeDefined();
     expect(quoteTool.execute).toBeDefined();
 
-    const result = (await quoteTool.execute!({ symbol: '600519' })) as {
-      content: Array<{ type: string; text: string }>;
-    };
+    // The migrated `realtime_quote` is a real pi `ToolDefinition` with a
+    // strict 5-arg execute signature. Invoke it through the same shape
+    // pi's runtime uses.
+    const result = (await (quoteTool.execute as (
+      toolCallId: string,
+      params: { symbol: string },
+    ) => Promise<{ content: Array<{ type: string; text: string }> }>)(
+      'tool-call-1',
+      { symbol: '600519' },
+    ));
     const text = result?.content?.[0]?.text ?? '';
 
     expect(text).toContain('symbol');
@@ -41,5 +49,40 @@ describe('pi realtime extension', () => {
     const api: PiFakeApi = createFakeApi();
     registerRealtimeExtension(api);
     expect(api.tools.length).toBeGreaterThan(0);
+  });
+
+  it('realtime_quote tool is a real pi ToolDefinition with a non-empty TypeBox schema', async () => {
+    // The migrated `realtime_quote` validates the non-empty schema path:
+    // it requires a `symbol: string` parameter, validated by pi's runtime
+    // against the TypeBox schema before execute runs.
+    const tool = createRealtimeQuoteTool();
+    expect(tool.name).toBe('realtime_quote');
+    expect(tool.label).toBe('Realtime Quote');
+    expect(tool.parameters).toBeDefined();
+
+    type QuoteDetails = {
+      content: Array<{ type: 'text'; text: string }>;
+      details: { symbol: string; quote: { last: number; symbol: string } | null };
+    };
+    const result: QuoteDetails = await (tool.execute as (
+      toolCallId: string,
+      params: { symbol: string },
+      signal: AbortSignal | undefined,
+      onUpdate: unknown,
+      ctx: unknown,
+    ) => Promise<QuoteDetails>)(
+      'tool-call-2',
+      { symbol: 'AAPL' },
+      undefined,
+      undefined,
+      undefined,
+    );
+
+    expect(result.content[0]?.type).toBe('text');
+    expect(result.details.symbol).toBe('AAPL');
+    // The mock feed pushes exactly one tick matching the requested symbol,
+    // so `details.quote` is the first observed tick (with `last: 100`).
+    expect(result.details.quote).not.toBeNull();
+    expect(result.details.quote?.symbol).toBe('AAPL');
   });
 });
