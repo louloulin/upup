@@ -46,7 +46,12 @@ describe('pi main entry', () => {
 
     expect(astock!.registeredTools.map((t) => t.name)).toEqual([
       'get_astock_price',
+      'get_astock_financials',
+      'get_astock_news',
       'get_market_structure',
+      'get_sector_data',
+      'get_technical_data',
+      'screen_astocks',
     ]);
   });
 
@@ -146,18 +151,28 @@ describe('pi main entry', () => {
           // loose-shape tools accept whatever we pass through. We unify
           // on the strict shape here so the loader test exercises the
           // same call site pi's runtime would use.
+          const paramsFor = (toolName: string): Record<string, unknown> => {
+            switch (toolName) {
+              case 'realtime_quote':
+                return { symbol: '600519' };
+              case 'get_astock_price':
+              case 'get_astock_financials':
+              case 'get_technical_data':
+                return { code: '002594.SZ' };
+              case 'get_astock_news':
+                return { code: 'market' };
+              case 'get_market_structure':
+                return { type: 'top_list' };
+              default:
+                return {};
+            }
+          };
           const result = (await (tool.execute as (
             toolCallId: string,
             params: unknown,
           ) => Promise<{ content: Array<{ type: string; text: string }> }>)(
             'loader-tool-call',
-            tool.name === 'realtime_quote'
-              ? { symbol: '600519' }
-              : tool.name === 'get_astock_price'
-                ? { code: '002594.SZ' }
-                : tool.name === 'get_market_structure'
-                  ? { type: 'top_list' }
-                  : {},
+            paramsFor(tool.name),
           )) as {
             content: Array<{ type: string; text: string }>;
           };
@@ -218,7 +233,15 @@ describe('pi main entry', () => {
 
     expect(config!.tools).toEqual(['config_get', 'config_set', 'config_list']);
 
-    expect(astock!.tools).toEqual(['get_astock_price', 'get_market_structure']);
+    expect(astock!.tools).toEqual([
+      'get_astock_price',
+      'get_astock_financials',
+      'get_astock_news',
+      'get_market_structure',
+      'get_sector_data',
+      'get_technical_data',
+      'screen_astocks',
+    ]);
 
     for (const entry of result) {
       expect(entry.ok).toBe(true);
@@ -250,7 +273,15 @@ describe('pi main entry', () => {
     expect(config.tools).toEqual(['config_get', 'config_set', 'config_list']);
 
     expect(astock.ok).toBe(true);
-    expect(astock.tools).toEqual(['get_astock_price', 'get_market_structure']);
+    expect(astock.tools).toEqual([
+      'get_astock_price',
+      'get_astock_financials',
+      'get_astock_news',
+      'get_market_structure',
+      'get_sector_data',
+      'get_technical_data',
+      'screen_astocks',
+    ]);
   });
 });
 
