@@ -1,5 +1,5 @@
 export type Market = 'cn' | 'hk' | 'us' | 'fund' | 'crypto';
-export type MarketFreshness = 'historical' | 'cached' | 'delayed' | 'realtime';
+export type MarketFreshness = 'historical' | 'cached' | 'delayed' | 'realtime' | 'offline';
 
 export interface MarketQuote {
   symbol: string;
@@ -116,3 +116,34 @@ export {
   type RealtimeSubscription,
   type RealtimeSubscriptionManagerOptions,
 } from './realtime/index.js';
+
+export {
+  DRY_RUN_AUDIT_TAG,
+  DRY_RUN_FRESHNESS,
+  DRY_RUN_SOURCE_HISTORY,
+  DRY_RUN_SOURCE_QUOTE,
+  DryRunMarketHistoryClient,
+  DryRunMarketQuoteClient,
+  dryRunQuoteSnapshot,
+  isDryRunSource,
+  isResolvedMarketHistoryDryRun,
+  isResolvedMarketQuoteDryRun,
+  makeDryRunHistoryResult,
+  makeDryRunQuoteResult,
+  quoteMarketFromSymbol,
+  resolveDryRunActivation,
+  resolveMarketHistoryClient,
+  resolveMarketQuoteClient,
+  shouldAutoActivateDryRun,
+} from './dry-run.js';
+export type {
+  DryRunClientMetrics,
+  DryRunHistoryResult,
+  DryRunOptions,
+  DryRunQuoteResult,
+  DryRunQuoteSnapshot,
+  ResolveMarketHistoryClientOptions,
+  ResolveMarketQuoteClientOptions,
+  ResolvedMarketHistoryClient,
+  ResolvedMarketQuoteClient,
+} from './dry-run.js';

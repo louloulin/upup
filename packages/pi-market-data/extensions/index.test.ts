@@ -248,3 +248,63 @@ describe('Pi market-data extension', () => {
     expect(result.content[0].text).toMatch(/socket factory/i);
   });
 });
+
+describe('Pi market-data extension dry-run smoke', () => {
+  test('market_data_quote returns dry-run fixture when UPUP_DRY_RUN=1 is set', async () => {
+    const tools = new Map<string, { execute: (...args: any[]) => Promise<any> }>();
+    const previousEnv = process.env.UPUP_DRY_RUN;
+    const previousFetch = globalThis.fetch;
+    process.env.UPUP_DRY_RUN = '1';
+    globalThis.fetch = (async () => {
+      throw new Error('fetch must not be called in dry-run mode');
+    }) as typeof fetch;
+    try {
+      marketDataExtension({ registerTool: (tool: { name: string; execute: (...args: any[]) => Promise<any> }) => tools.set(tool.name, tool) } as never);
+      const tool = tools.get('market_data_quote');
+      expect(tool).toBeDefined();
+      const result = await tool!.execute('quote-dry-1', { symbol: '600519.SH', market: 'cn' }, new AbortController().signal);
+      const value = JSON.parse(result.content[0].text);
+      expect(value.symbol).toBe('600519.SH');
+      expect(value.market).toBe('cn');
+      expect(value.currency).toBe('CNY');
+      expect(value.price).toBeGreaterThan(0);
+      expect(result.details).toMatchObject({ auditId: 'quote-dry-1' });
+      expect(result.details.evidence[0].source).toMatch(/^dry-run:\/\//);
+      expect(result.details.evidence[0].dataFreshness).toBe('offline');
+    } finally {
+      if (previousEnv === undefined) delete process.env.UPUP_DRY_RUN;
+      else process.env.UPUP_DRY_RUN = previousEnv;
+      globalThis.fetch = previousFetch;
+    }
+  });
+
+  test('market_data_history returns dry-run fixture when UPUP_DRY_RUN=1 is set', async () => {
+    const tools = new Map<string, { execute: (...args: any[]) => Promise<any> }>();
+    const previousEnv = process.env.UPUP_DRY_RUN;
+    const previousFetch = globalThis.fetch;
+    process.env.UPUP_DRY_RUN = '1';
+    globalThis.fetch = (async () => {
+      throw new Error('fetch must not be called in dry-run mode');
+    }) as typeof fetch;
+    try {
+      marketDataExtension({ registerTool: (tool: { name: string; execute: (...args: any[]) => Promise<any> }) => tools.set(tool.name, tool) } as never);
+      const tool = tools.get('market_data_history');
+      expect(tool).toBeDefined();
+      const result = await tool!.execute('history-dry-1', { symbol: '600519.SH', startDate: '2026-09-07', endDate: '2026-09-13' }, new AbortController().signal);
+      const value = JSON.parse(result.content[0].text);
+      expect(Array.isArray(value)).toBe(true);
+      expect(value.length).toBeGreaterThanOrEqual(2);
+      for (const bar of value) {
+        expect(bar.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+        expect(bar.close).toBeGreaterThan(0);
+        expect(bar.high).toBeGreaterThanOrEqual(bar.low);
+      }
+      expect(result.details.evidence[0].source).toMatch(/^dry-run:\/\//);
+      expect(result.details.evidence[0].dataFreshness).toBe('offline');
+    } finally {
+      if (previousEnv === undefined) delete process.env.UPUP_DRY_RUN;
+      else process.env.UPUP_DRY_RUN = previousEnv;
+      globalThis.fetch = previousFetch;
+    }
+  });
+});

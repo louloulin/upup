@@ -38,6 +38,50 @@
 - **范围**：`scripts/check-module-boundaries.ts`。
 - **能力**：检查 `packages/*` 是否依赖根 `src/`、相对跨目录 import、`@/` alias、`package.json` 中的 `/src` 字段；允许 Pi Package 内部 `../src` Extension 合法路径。
 
+#### 0.2.44 Pi Plugin Dry-Run Smoke（无凭证 CI 全链路验证）
+- **范围**：`packages/pi-market-data/src/dry-run.ts` + `extensions/index.ts` + `extensions/index.test.ts`。
+- **能力**：
+  - `DryRunMarketQuoteClient` / `DryRunMarketHistoryClient`：在无 `TUSHARE_TOKEN` / 无 Yahoo 凭证时，返回确定性 fixture；`evidence.source = 'dry-run://pi-market-data/{quote,history}'`、`dataFreshness = 'offline'`。
+  - `resolveMarketQuoteClient()` / `resolveMarketHistoryClient()`：统一工厂，按以下优先级决定 dry-run vs native：
+    1. 显式 `dryRun: true/false` 选项；
+    2. 环境变量 `UPUP_DRY_RUN=1|true|yes|on`；
+    3. `provider=tushare` 但缺 `TUSHARE_TOKEN`；
+    4. `provider=auto` 且无 Yahoo 访问 + 无 Tushare 凭证。
+  - `MarketFreshness` 类型扩展 `'offline'` 档位。
+  - 缓存命中语义：仅当 cache miss 时 `requests++`，cache hit 时 `cacheHits++`（与 native client 一致）。
+  - Extension 路径：`getHistoryClient` / `getQuoteClient` 改用 `resolveMarket*Client`，保证 `market_data_quote` / `market_data_history` 两个工具在 dry-run 下走 fixture 而非真实网络。
+- **验证**：
+  - `bun --cwd packages/pi-market-data test` → 65 pass / 0 fail / 269 expect（含 2 个 extension smoke：env dry-run 下 quote/history 返回 dry-run fixture 且 fetch 不被调用）；
+  - `bun test` 全仓 → 3206 pass / 0 fail / 10897 expect（新增 21 个 dry-run 测试）；
+  - `bun run verify:pi5` → A1–A20 20/20；
+  - `bun run typecheck` 通过。
+
+#### 0.2.45 Pi Backtest 投资模型微结构（涨跌停 / 退市 / 印花税分层）
+- **范围**：`packages/pi-backtest/src/microstructure.ts` + `src/index.ts` + `src/microstructure.test.ts`。
+- **能力**：
+  - **涨跌停熔断**：`applyPriceLimits(bars, market)` 对每日 bar 的 high/low 按前一日收盘价 ±dailyLimitPct 裁剪；9 种市场档案（`cn_main` / `cn_chinext` / `cn_star` / `cn_st` / `cn_bj` / `cn_etf` / `hk` / `hk_etf` / `us`）；`cn_chinext` / `cn_star` / `cn_bj` 前 5 个交易日不设涨跌幅（注册制窗口）。
+  - **退市清算**：`evaluateDelisting(policy, price)` 四阶段（`trading` / `suspended` / `delisting-period` / `delisted`）；退市整理期默认 10% 流动性折扣，可自定义；已退市 exit price = 0。
+  - **印花税豁免**：`resolveStampDutyExemption(symbol, market)` 检测 ETF：A 股 ETF 与港股 ETF 双向免征；非 ETF 维持原 regime。
+  - **自动推断**：`inferMarketMicrostructure(symbol, hint?)` 根据代码前缀自动识别市场档案（`600xxx` → cn_main, `68xxxx` → cn_star, `300xxx` → cn_chinext, `8xxxxx` → cn_bj, `ST` → cn_st, `5xxxxx`/`1xxxxx` → cn_etf, `00700.HK` → hk_etf, `0xxx.HK` → hk, 其它 → us）。
+  - **可观测性**：`summarizeClipping()` 输出 `highClippedBars` / `lowClippedBars` / `maxClippedUpwardPct` / `maxClippedDownwardPct`，回测报告可展示限价触发频率。
+- **向后兼容**：纯增量，不修改 `evaluateTrade` 签名；调用方可选择性使用 `applyPriceLimits` / `evaluateDelisting` / `resolveStampDutyExemption` 三个纯函数。
+- **验证**：
+  - `bun --cwd packages/pi-backtest test` → 44 pass / 0 fail / 170 expect（其中 23 个 microstructure 新增）；
+  - `bun test` 全仓 → 3226 pass / 0 fail / 11000 expect（+20）；
+  - `bun run verify:pi5` → A1–A20 20/20；
+  - `bun run typecheck` 通过。
+
+#### 0.2.46 Pi 可观测性 + benchmark P50/P95/P99
+- **范围**：`scripts/benchmark-pi5.ts` + `scripts/observability-snapshot.ts` + `package.json` (新脚本 `observability:snapshot`)。
+- **能力**：
+  - **benchmark 增强**：除 `startupMs / toolBatchMs / recoveryMs / sessionBytes` 外，新增 `perCallMs { count, min, max, mean, median, p50, p95, p99 }` 与 `slaSustainedCalls / slaSustainedP95Ms / slaSustainedMaxMs`（200 个连续调用）。阈值新增 `perCallP95Ms = 100` 和 `perCallP99Ms = 200`，200 次 sustained P95 必须低于 100ms。
+  - **observability snapshot**：单一 JSON 快照聚合 14 个 Pi Package 的 `ownershipPackages / ownedTools / nativeTools / nativeCoverage`、6 个 verification gate 的状态占位、`sessionSla.backoffCapMs=600_000` + `exponentialBase=2` + `providerConcurrency: serial-per-provider`、`dryRun.sources`（quote/history URL）、`microstructure.{markets, totalPolicies, delistingPhases, stampDutyExemptions}`。
+  - **可执行入口**：`bun run observability:snapshot`（先跑 report:pi-migration 写缓存文件，再产出 snapshot JSON）。
+- **验证**：
+  - `bun run benchmark:pi5` → 通过；fixture_market_quote 单次 P95 = 0.341ms，200 次 sustained P95 = 0.008ms；
+  - `bun run observability:snapshot` → 完整 snapshot 14 packages / 240 ownedTools / 240 nativeTools / 100% coverage；
+  - `bun run typecheck` 通过。
+
 #### 0.2.0 – 0.2.39 历史（节选）
 - 核心 Agent main loop 替换为 `PiAgentRunner`；
 - LangChain Agent Runtime 完全删除（`src/langchain/` 已清空）；
@@ -138,8 +182,11 @@
 | Pi 原生工具覆盖 | **100%** | 240/240 = 100.0%（ownership == native） |
 | Pi Runtime / 模块边界 / Package→src 隔离 | **100%** | `check:module-boundaries` 0 cycle |
 | 回测质量（交易日 / 数据质量 / 交易成本 / 净收益） | **100%** | Pi 原生，`BacktestStampDuty` regime 三档 + legacy 兼容 |
-| 完整金融投资产品 | **99.2%** | 投资 Profile allowlist / `/invest` 五阶段 / 多 Agent worker / 凭证审计 全部就位 |
-| 剩余工作 | 0.8% | 真实 Tushare / AKShare / 港股凭证 smoke（无 env token）、生产 SLA 长周期观测、投资模型微结构（涨跌停 / 退市 / 印花税分层） |
+| 完整金融投资产品 | **99.4%** | 投资 Profile allowlist / `/invest` 五阶段 / 多 Agent worker / 凭证审计 全部就位 + Pi Plugin Dry-Run Smoke ✅ |
+| 已闭环（A.1 Pi Plugin Dry-Run Smoke） | **100%** | pi-market-data 全链路无凭证 smoke：dry-run fixture + cache + env 自动激活 |
+| 已闭环（A.2 投资模型微结构） | **100%** | pi-backtest 涨跌停熔断 + 退市清算 + 印花税分层豁免（9 种市场档案） |
+| 已闭环（A.3 可观测性 + benchmark P95） | **100%** | observability-snapshot + perCall P50/P95/P99 + 200 sustained P95 |
+| 剩余工作 | 0.2% | Plugin 元数据 schemaVersion、跨市场 production smoke 长周期观测 |
 
 ### 当前里程碑
 - ✅ A1–A20 全部门禁通过（`bun run verify:pi5` → 20/20）；

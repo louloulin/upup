@@ -1,6 +1,6 @@
 import { Type } from 'typebox';
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
-import { buildTechnicalSnapshot, createDefaultMarketQuoteClient, FixedWindowMarketHistoryRateLimiter, InMemoryMarketHistoryCache, NativeMarketHistoryClient, isTradingDay, normalizeMarket, providerSla, JsonFileProviderSlaStore, type Market, type MarketHistoryProvider, type NativeMarketQuoteTrendStore } from '../src/index.js';
+import { buildTechnicalSnapshot, createDefaultMarketQuoteClient, FixedWindowMarketHistoryRateLimiter, InMemoryMarketHistoryCache, isTradingDay, normalizeMarket, providerSla, resolveMarketHistoryClient, resolveMarketQuoteClient, JsonFileProviderSlaStore, type Market, type MarketHistoryProvider, type NativeMarketQuoteTrendStore } from '../src/index.js';
 import { calendarTradingDays, isCalendarTradingDay, nextCalendarTradingDay, upcomingCalendarHolidays, type CalendarMarket } from '../src/calendar.js';
 import { screenStockSnapshot, type StockScreenInput } from '../src/screener.js';
 import { getMarketStructureSnapshot, querySectorSnapshot, type MarketStructureType, type SectorQueryType } from '../src/market-insights.js';
@@ -174,21 +174,28 @@ function calendarResult(toolCallId: string, query: string, value: unknown) {
 export default function marketDataExtension(pi: ExtensionAPI): void {
   registerHostTools(pi);
   const transport = hostTransport();
-  const historyClients = new Map<MarketHistoryProvider, NativeMarketHistoryClient>();
-  const quoteClients = new Map<MarketHistoryProvider, ReturnType<typeof createDefaultMarketQuoteClient>>();
-  const getHistoryClient = (provider: MarketHistoryProvider): NativeMarketHistoryClient => {
+  const historyClients = new Map<MarketHistoryProvider, ReturnType<typeof resolveMarketHistoryClient>>();
+  const quoteClients = new Map<MarketHistoryProvider, ReturnType<typeof resolveMarketQuoteClient>>();
+  const getHistoryClient = (provider: MarketHistoryProvider) => {
     const existing = historyClients.get(provider);
-    if (existing) return existing;
-    const created = new NativeMarketHistoryClient({ provider, cache: new InMemoryMarketHistoryCache(), rateLimiter: new FixedWindowMarketHistoryRateLimiter(30, 60_000), ...(transport.history ? { fetcher: transport.history } : {}) });
+    if (existing) return existing.client;
+    const created = resolveMarketHistoryClient({
+      provider,
+      ...(transport.history ? { fetcher: transport.history } : {}),
+    });
     historyClients.set(provider, created);
-    return created;
+    return created.client;
   };
   const getQuoteClient = (provider: MarketHistoryProvider) => {
     const existing = quoteClients.get(provider);
-    if (existing) return existing;
-    const created = createDefaultMarketQuoteClient({ provider, ...(transport.quote ? { fetcher: transport.quote } : {}), ...(transport.trendStore ? { trendStore: transport.trendStore } : {}) });
+    if (existing) return existing.client;
+    const created = resolveMarketQuoteClient({
+      provider,
+      ...(transport.quote ? { fetcher: transport.quote } : {}),
+      ...(transport.trendStore ? { trendStore: transport.trendStore } : {}),
+    });
     quoteClients.set(provider, created);
-    return created;
+    return created.client;
   };
   let recordKairosEvent: ((topic: string, payload: unknown, timestamp?: number) => void) | undefined;
   const realtime = createRealtimeSubscriptionManager({

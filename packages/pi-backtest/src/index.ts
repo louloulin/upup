@@ -119,6 +119,8 @@ export function calculateWinRate(outcomes: readonly Outcome[], includeNeutral = 
 export { validateMethodology } from './methodology.js';
 export type { FactorSource, MethodologyDisclosure, MethodologyValidation, OutOfSampleResult, WalkForwardFold } from './methodology.js';
 export { calculateTransactionCosts } from './cost-model.js';
+export { applyPriceLimits, evaluateDelisting, inferMarketMicrostructure, resolveStampDutyExemption, summarizeClipping } from './microstructure.js';
+export type { DelistingEvaluation, DelistingPhase, DelistingPolicy, MarketMicrostructure, PriceLimitedBar, PriceLimitPolicy, PriceLimitClippingStats, StampDutyExemption, StampDutyResolution } from './microstructure.js';
 export type { BacktestCostModel, BacktestTransactionCosts } from './cost-model.js';
 export { validateForwardBars } from './data-quality.js';
 export type { BacktestDataQualityMode, BacktestDataQualityOptions, BacktestDataQualityReport } from './data-quality.js';
