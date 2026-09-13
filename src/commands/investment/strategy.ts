@@ -12,7 +12,7 @@
  *
  * 模块边界:
  *   strategy.ts (Layer 4) → strategy-store (Layer 3) + backtest-report (Layer 3)
- *   不依赖 src/agent/* (避免反向)
+ *   不依赖 src/runtime/pi/* 内部实现 (避免反向)
  *
  * 复用:
  *   - validateMethodology() 单一来源

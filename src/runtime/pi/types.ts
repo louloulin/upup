@@ -97,6 +97,16 @@ export interface FinancialToolDetails {
   auditId: string;
 }
 
+export interface UpUpFinanceSessionContext {
+  ticker?: string;
+  market?: string;
+  asOf?: string;
+  assumptions: Readonly<Record<string, string | number | boolean>>;
+  risks: readonly string[];
+  evidence: readonly FinancialEvidenceRecord[];
+  unfinishedPhases: readonly string[];
+}
+
 export interface UpUpToolContract<TInput = unknown, TResult = unknown> {
   name: string;
   label: string;
@@ -162,6 +172,8 @@ export interface UpUpAgentSession {
   fork(entryId?: string): string | undefined;
   appendEntry<T = unknown>(customType: string, data?: T): void;
   appendSessionInfo(name: string): void;
+  setFinanceContext(context: Partial<UpUpFinanceSessionContext>): void;
+  getFinanceContext(): UpUpFinanceSessionContext;
   getCustomEntries(customType?: string): readonly unknown[];
   getAvailableToolNames(): readonly string[];
   executeTool(name: string, toolCallId: string, input: unknown, signal?: AbortSignal): Promise<AgentToolResult<unknown>>;

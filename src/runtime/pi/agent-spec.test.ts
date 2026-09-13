@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { agentDefinitionToPiSpec, getInvestmentAgentSpec, serializeAgentSpec, validateAgentSpec } from './agent-spec.js';
+import { agentDefinitionToPiSpec, getInvestmentAgentSpec, serializeAgentSpec, subagentConfigToPiSpec, validateAgentSpec } from './agent-spec.js';
 
 describe('Pi investment agent specs', () => {
   test('serializes a versioned investment profile', () => {
@@ -32,6 +32,36 @@ describe('Pi investment agent specs', () => {
     expect(spec.mode).toBe('subagent');
   });
 
+  test('preserves custom Agent permissions and workflow metadata at the Pi boundary', () => {
+    const spec = agentDefinitionToPiSpec({
+      id: 'trade-worker',
+      name: 'Trade Worker',
+      description: 'Sandbox trade planner',
+      mode: 'worker',
+      workflow: 'invest',
+      dataPolicy: 'offline',
+      outputContract: 'json',
+      timeoutMs: 1000,
+      permissions: {
+        id: 'sandbox-trade',
+        allow: ['safe', 'warning', 'dangerous'],
+        requireApproval: ['dangerous'],
+        deny: ['critical'],
+        allowExternalNetwork: false,
+        allowCredentialAccess: false,
+        allowFinancialWrites: false,
+      },
+    });
+    expect(spec).toMatchObject({
+      mode: 'worker',
+      workflow: 'invest',
+      dataPolicy: 'offline',
+      outputContract: 'json',
+      timeoutMs: 1000,
+      permissions: { id: 'sandbox-trade', allowExternalNetwork: false },
+    });
+  });
+
   test('preserves legacy investment allowlists without widening them to all tools', () => {
     const spec = agentDefinitionToPiSpec({
       id: 'invest-explore',
@@ -40,5 +70,29 @@ describe('Pi investment agent specs', () => {
       config: { toolWhitelist: ['financial_metrics', 'web_search'] },
     });
     expect(spec.tools).toEqual(['financial_metrics', 'web_search']);
+  });
+
+  test('converts every subagent boundary into a complete Pi spec', () => {
+    const spec = subagentConfigToPiSpec({
+      id: 'risk-worker',
+      name: 'Risk Worker',
+      type: 'specialized',
+      tools: ['calculate_var'],
+      skills: ['risk-management'],
+      capabilities: ['risk'],
+      taskTypes: ['stress-test'],
+      workflow: 'invest',
+      timeoutMs: 5000,
+    });
+    expect(spec).toMatchObject({
+      id: 'risk-worker',
+      mode: 'worker',
+      tools: ['calculate_var'],
+      skills: ['risk-management'],
+      workflow: 'invest',
+      permissions: { deny: ['critical'], requireApproval: ['dangerous'] },
+      timeoutMs: 5000,
+    });
+    validateAgentSpec(spec);
   });
 });

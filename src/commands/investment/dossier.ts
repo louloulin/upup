@@ -10,7 +10,7 @@
  *
  * 模块边界:
  *   dossier.ts (Layer 3) → memory/dossier.ts (Layer 2) + utils/storage-paths (Layer 1)
- *   不依赖 src/tools/*(避免反向),不依赖 src/agent/*(避免反向)
+ *   不依赖 src/tools/*(避免反向),不依赖 src/runtime/pi/* 内部实现(避免反向)
  *
  * 用法:
  *   /dossier NVDA

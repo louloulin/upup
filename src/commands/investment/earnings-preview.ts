@@ -10,7 +10,7 @@
  * 模块边界(关键 — 避免循环依赖):
  * - buildEarningsPreview(同步,只读 .upup/plans/)→ 零 src/tools 依赖
  * - buildEarningsPreviewAsync(异步,调用 fetchers)→ 调 src/search + src/tools/finance
- * - 不依赖 src/agent/*(避免反向)
+ * - 不依赖 src/runtime/pi/* 内部实现(避免反向)
  * - P1.a.5+ 的 EarningsPreview 暴露给 mcp/upup-resources.ts 用作 upup:// 资源
  */
 

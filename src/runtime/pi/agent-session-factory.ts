@@ -17,6 +17,7 @@ import type {
   UpUpCreateSessionOptions,
   UpUpToolContract,
   UpUpAgentEvent,
+  UpUpFinanceSessionContext,
   UpUpToolPolicyAudit,
 } from './types.js';
 import { validateAgentSpec } from './agent-spec.js';
@@ -233,19 +234,56 @@ async function reloadFinancePackageResources(
   }
 }
 
-function createFinanceSessionExtension(): InlineExtension {
+const FINANCE_CONTEXT_ENTRY = 'upup_finance_context';
+
+function emptyFinanceSessionContext(): UpUpFinanceSessionContext {
+  return { assumptions: {}, risks: [], evidence: [], unfinishedPhases: [] };
+}
+
+function mergeFinanceSessionContext(
+  current: UpUpFinanceSessionContext,
+  update: Partial<UpUpFinanceSessionContext>,
+): UpUpFinanceSessionContext {
+  return {
+    ...current,
+    ...(update.ticker !== undefined ? { ticker: update.ticker } : {}),
+    ...(update.market !== undefined ? { market: update.market } : {}),
+    ...(update.asOf !== undefined ? { asOf: update.asOf } : {}),
+    ...(update.assumptions ? { assumptions: { ...current.assumptions, ...update.assumptions } } : {}),
+    ...(update.risks ? { risks: [...new Set(update.risks)] } : {}),
+    ...(update.evidence ? { evidence: [...update.evidence] } : {}),
+    ...(update.unfinishedPhases ? { unfinishedPhases: [...new Set(update.unfinishedPhases)] } : {}),
+  };
+}
+
+export function serializeFinanceSessionContext(
+  context: UpUpFinanceSessionContext,
+  reason: string,
+  instructions?: string,
+): string {
+  return JSON.stringify({
+    schema: 1,
+    domain: 'finance',
+    ticker: context.ticker ?? null,
+    market: context.market ?? null,
+    asOf: context.asOf ?? null,
+    assumptions: context.assumptions,
+    risks: context.risks,
+    evidence: context.evidence,
+    unfinishedPhases: context.unfinishedPhases,
+    compactionReason: reason,
+    customInstructions: instructions ?? null,
+  });
+}
+
+function createFinanceSessionExtension(context: { current: UpUpFinanceSessionContext }): InlineExtension {
   return {
     name: 'upup-finance-session-policy',
     hidden: true,
     factory: (pi: ExtensionAPI) => {
       pi.on('session_before_compact', async (event) => ({
         compaction: {
-          summary: [
-            'UpUp financial session summary:',
-            'Preserve ticker, market, currency, as-of date, valuation assumptions, risk conclusions, evidence IDs, audit IDs, and unfinished workflow phases.',
-            `Compaction reason: ${event.reason}.`,
-            event.customInstructions ? `Additional instructions: ${event.customInstructions}` : '',
-          ].filter(Boolean).join('\n'),
+          summary: serializeFinanceSessionContext(context.current, event.reason, event.customInstructions),
           firstKeptEntryId: event.preparation.firstKeptEntryId,
           tokensBefore: event.preparation.tokensBefore,
           details: { domain: 'investment', schema: 1 },
@@ -264,13 +302,15 @@ class PiAgentSession implements UpUpAgentSession {
   private readonly resourceTrustAudit: readonly PiResourceTrustAudit[];
   private readonly packageResources: readonly PiPackageResourceSnapshot[];
   private readonly packageContracts: PiPackageContracts;
+  private financeContext: UpUpFinanceSessionContext;
 
-  constructor(spec: UpUpAgentSpec, session: AgentSession, resourceTrustAudit: readonly PiResourceTrustAudit[], packageResources: readonly PiPackageResourceSnapshot[], packageContracts: PiPackageContracts) {
+  constructor(spec: UpUpAgentSpec, session: AgentSession, resourceTrustAudit: readonly PiResourceTrustAudit[], packageResources: readonly PiPackageResourceSnapshot[], packageContracts: PiPackageContracts, financeContext: UpUpFinanceSessionContext) {
     this.id = session.sessionManager.getSessionId();
     this.spec = spec;
     this.resourceTrustAudit = resourceTrustAudit;
     this.packageResources = packageResources;
     this.packageContracts = packageContracts;
+    this.financeContext = financeContext;
     this.session = session;
     this.unsubscribe = session.subscribe((event) => {
       const mapped = eventToUpUpEvent(this.id, event);
@@ -320,6 +360,21 @@ class PiAgentSession implements UpUpAgentSession {
     this.session.sessionManager.appendSessionInfo(name);
     const sessionFile = this.session.sessionManager.getSessionFile();
     if (sessionFile) this.session.exportToJsonl(sessionFile);
+  }
+
+  setFinanceContext(context: Partial<UpUpFinanceSessionContext>): void {
+    this.financeContext = mergeFinanceSessionContext(this.financeContext, context);
+    this.appendEntry(FINANCE_CONTEXT_ENTRY, this.financeContext);
+  }
+
+  getFinanceContext(): UpUpFinanceSessionContext {
+    return {
+      ...this.financeContext,
+      assumptions: { ...this.financeContext.assumptions },
+      risks: [...this.financeContext.risks],
+      evidence: [...this.financeContext.evidence],
+      unfinishedPhases: [...this.financeContext.unfinishedPhases],
+    };
   }
 
   getCustomEntries(customType?: string): readonly unknown[] {
@@ -414,6 +469,17 @@ export class PiAgentSessionFactory implements UpUpAgentRuntime {
       : options.sessionDir || options.sessionId
         ? SessionManager.create(cwd, options.sessionDir, options.sessionId ? { id: options.sessionId } : undefined)
       : SessionManager.inMemory(cwd);
+    const persistedFinanceContext = [...sessionManager.getEntries()]
+      .filter((entry) => entry.type === 'custom' && entry.customType === FINANCE_CONTEXT_ENTRY)
+      .at(-1);
+    const financeContext = {
+      current: mergeFinanceSessionContext(
+        emptyFinanceSessionContext(),
+        persistedFinanceContext && 'data' in persistedFinanceContext && persistedFinanceContext.data && typeof persistedFinanceContext.data === 'object'
+          ? persistedFinanceContext.data as Partial<UpUpFinanceSessionContext>
+          : {},
+      ),
+    };
     const sessionFileBeforeInitialization = sessionManager.getSessionFile();
     const settingsManager = SettingsManager.inMemory();
     const resourceLoader = new DefaultResourceLoader({
@@ -421,7 +487,7 @@ export class PiAgentSessionFactory implements UpUpAgentRuntime {
       agentDir: cwd,
       settingsManager,
       extensionFactories: [
-        createFinanceSessionExtension(),
+        createFinanceSessionExtension(financeContext),
         ...(financePackageEnabled ? [] : [createFinanceExtension(spec, tools, options.requestToolApproval)]),
         ...createPiPluginExtensions(trustedPlugins.map(({ binding }) => binding)),
       ],
@@ -432,8 +498,8 @@ export class PiAgentSessionFactory implements UpUpAgentRuntime {
       noPromptTemplates: trustedPrompts.paths.length === 0,
       noThemes: true,
       noContextFiles: true,
-      systemPrompt: spec.systemPrompt ?? PI_DEFAULT_SYSTEM_PROMPT,
-      appendSystemPrompt: [
+      systemPromptOverride: () => spec.systemPrompt ?? PI_DEFAULT_SYSTEM_PROMPT,
+      appendSystemPromptOverride: () => [
         `You are the ${spec.name} investment agent. ${spec.description}`,
         `Data policy: ${spec.dataPolicy ?? 'live'}. Output contract: ${spec.outputContract ?? 'report'}.`,
         `Capabilities: ${spec.capabilities.join(', ')}.`,
@@ -476,7 +542,7 @@ export class PiAgentSessionFactory implements UpUpAgentRuntime {
       ...trustedExtensions.audits,
       ...trustedDomainResources.audits,
       ...trustedPlugins.flatMap(({ audit }) => audit.audits),
-    ], packageCatalog.readResources(), packageContracts);
+    ], packageCatalog.readResources(), packageContracts, financeContext.current);
   }
 }
 

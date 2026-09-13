@@ -21,6 +21,7 @@
     "lint:scc": "bun run scripts/check-scc.ts",
     "check:pi-migration": "bun run scripts/check-pi-migration.ts",
     "check:pi-packages": "bun run scripts/check-pi-packages.ts",
+    "check:pi-runtime": "bun run scripts/check-pi-runtime.ts",
     "test:pi-contracts": "bun test src/runtime/pi src/extensions/upup src/print.test.ts src/session/pi-migration.test.ts src/gateway/agent-runner.pi.test.ts src/cron/executor.pi.test.ts src/controllers/agent-runner.pi.test.ts && bun --cwd packages/pi-finance-sdk test",
     "session:migrate-to-pi": "bun run src/session/migrate-to-pi.ts",
     "lint": "bun run lint:scc",

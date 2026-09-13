@@ -87,6 +87,27 @@ async function findSessionFile(id: string, directory: string): Promise<string | 
   return undefined;
 }
 
+async function readSessionTags(path: string): Promise<string[] | undefined> {
+  try {
+    const entries = (await readFile(path, 'utf8')).split('\n');
+    let metadata: Record<string, unknown> | undefined;
+    for (const line of entries) {
+      if (!line.trim()) continue;
+      const entry = JSON.parse(line) as { type?: string; customType?: string; data?: unknown };
+      if (entry.type !== 'custom' || entry.customType !== 'upup_session_metadata') continue;
+      if (entry.data && typeof entry.data === 'object') metadata = entry.data as Record<string, unknown>;
+    }
+    const rawTags = metadata?.tags ?? metadata?.tag;
+    if (Array.isArray(rawTags)) {
+      const tags = rawTags.filter((tag): tag is string => typeof tag === 'string' && tag.length > 0);
+      return tags.length > 0 ? tags : undefined;
+    }
+    return typeof rawTags === 'string' && rawTags.length > 0 ? [rawTags] : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function textFromContent(content: unknown): string {
   if (typeof content === 'string') return content;
   if (!Array.isArray(content)) return '';
@@ -162,16 +183,20 @@ export class PiSessionService {
     const resolvedCwd = resolve(cwd);
     const directory = sessionDirectory(resolvedCwd);
     const sessions = await SessionManager.list(resolvedCwd, directory);
-    return sessions.map((session) => ({
-      id: session.id,
-      title: session.name ?? (session.firstMessage.slice(0, 80) || session.id),
-      modified: session.modified,
-      created: session.created,
-      firstPrompt: session.firstMessage || undefined,
-      customTitle: session.name,
-      projectPath: resolvedCwd,
-      messageCount: session.messageCount,
-      isSidechain: false,
+    return Promise.all(sessions.map(async (session) => {
+      const tags = await readSessionTags(session.path);
+      return {
+        ...(tags ? { tags } : {}),
+        id: session.id,
+        title: session.name ?? (session.firstMessage.slice(0, 80) || session.id),
+        modified: session.modified,
+        created: session.created,
+        firstPrompt: session.firstMessage || undefined,
+        customTitle: session.name,
+        projectPath: resolvedCwd,
+        messageCount: session.messageCount,
+        isSidechain: false,
+      };
     }));
   }
 

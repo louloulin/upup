@@ -138,7 +138,7 @@ EOGP"
     end if
 
     -- Check investment-config.ts
-    set CONFIG_FILE to TEST_DIR & "/src/agent/investment-config.ts"
+    set CONFIG_FILE to TEST_DIR & "/src/runtime/pi/investment-config.ts"
     set MERGED_COUNT to do shell script "grep -c 'loadMergedInvestmentConfig' " & quoted form of CONFIG_FILE & " 2>/dev/null || echo '0'"
     if (MERGED_COUNT as integer) > 0 then
         log GREEN & " loadMergedInvestmentConfig() found"

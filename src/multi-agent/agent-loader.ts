@@ -30,6 +30,7 @@ import { AGENTS_DIR, projectAgentsDir, projectAgentsDirAlt } from '../utils/stor
 import { info, warn, error as logError } from '../utils/logging/logger.js';
 import { getPiAgentRegistry, type PiAgentSpecInput } from './agent-registry.js';
 import { getAllSpecializedSkills } from '../skills/bundled/index.js';
+import type { UpUpAgentMode, UpUpDataPolicy, UpUpOutputContract, UpUpPermissionProfile } from '../runtime/pi/types.js';
 
 export interface PiAgentFileSpec {
   /** Unique agent ID (from filename or frontmatter) */
@@ -52,6 +53,12 @@ export interface PiAgentFileSpec {
   maxIterations?: number;
   /** Timeout in ms */
   timeoutMs?: number;
+  /** Full Pi execution metadata from optional frontmatter */
+  mode?: UpUpAgentMode;
+  workflow?: string;
+  dataPolicy?: UpUpDataPolicy;
+  outputContract?: UpUpOutputContract;
+  permissions?: UpUpPermissionProfile;
   /** System prompt from markdown body */
   systemPrompt: string;
   /** Source file path */
@@ -162,6 +169,10 @@ function loadMarkdownAgent(filePath: string, scope: 'global' | 'project'): PiAge
       skills,
       maxIterations: frontmatter.maxIterations as number | undefined,
       timeoutMs: frontmatter.timeoutMs as number | undefined,
+      mode: frontmatter.mode as PiAgentFileSpec['mode'],
+      workflow: frontmatter.workflow as string | undefined,
+      dataPolicy: frontmatter.dataPolicy as PiAgentFileSpec['dataPolicy'],
+      outputContract: frontmatter.outputContract as PiAgentFileSpec['outputContract'],
       systemPrompt: body.trim(),
       source: filePath,
       scope,
@@ -387,7 +398,13 @@ export class AgentLoader {
           maxIterations: agentDef.maxIterations,
           timeoutMs: agentDef.timeoutMs,
           tools: agentDef.tools,
+          skills: agentDef.skills,
           model: agentDef.model,
+          mode: agentDef.mode,
+          workflow: agentDef.workflow,
+          dataPolicy: agentDef.dataPolicy,
+          outputContract: agentDef.outputContract,
+          permissions: agentDef.permissions,
         };
 
         registry.register(config);

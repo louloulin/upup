@@ -11,6 +11,7 @@
 
 import { Container, Text, Spacer, Input, SelectList, type SelectItem } from '@earendil-works/pi-tui';
 import { theme } from '../../theme.js';
+import { getStatePortLocal } from '../../agent-port.js';
 
 interface Session {
   id: string
@@ -180,16 +181,12 @@ export const call = async (
   let sessions: Session[] = []
 
   try {
-    // Import session management functions
-    const { getSessionManager } = await import('../../../session/manager.js')
-    const sessionManager = getSessionManager()
-
-    // Get all sessions
-    const allSessions = sessionManager.listSessions?.() ?? []
+    const sessionManager = getStatePortLocal()?.getSessionManager();
+    const allSessions = sessionManager ? await sessionManager.listSessions(0) : [];
     sessions = allSessions.map(s => ({
       id: s.id,
-      title: s.title,
-      timestamp: s.lastActivity,
+      title: s.customTitle ?? s.firstPrompt,
+      timestamp: s.modified?.getTime() ?? s.created?.getTime(),
       messageCount: s.messageCount,
       tags: s.tags,
     }))

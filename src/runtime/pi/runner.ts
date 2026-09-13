@@ -7,6 +7,7 @@ import type { UpUpAgentEvent, UpUpAgentSpec, UpUpAgentSession } from './types.js
 import { resolveProvider } from '../../providers.js';
 import { getPiSessionService } from './session-service.js';
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { resolveConfiguredPiPackages } from './package-config.js';
 import type { PiPluginTrustPolicy } from './plugin-trust.js';
 
@@ -31,10 +32,40 @@ export interface PiPromptOptions {
   }) => boolean | Promise<boolean>;
   piPackagePaths?: readonly string[];
   piPackageTrust?: PiPluginTrustPolicy;
+  agentSpec?: UpUpAgentSpec;
 }
 
-const sessions = new Map<string, { session: UpUpAgentSession; tail: Promise<void>; running: boolean }>();
+interface PiRunnerSessionState {
+  session: UpUpAgentSession;
+  tail: Promise<void>;
+  running: boolean;
+  specHash: string;
+}
+
+const sessions = new Map<string, PiRunnerSessionState>();
+const sessionInitializations = new Map<string, { specHash: string; promise: Promise<PiRunnerSessionState> }>();
 const runtime = createPiAgentRuntime();
+
+function specFingerprint(spec: UpUpAgentSpec): string {
+  return createHash('sha256').update(JSON.stringify(spec)).digest('hex');
+}
+
+const SPEC_ENTRY = 'upup_agent_spec';
+
+function persistedSpecFingerprint(sessionPath: string): string | undefined {
+  try {
+    const entries = readFileSync(sessionPath, 'utf8').split('\n').filter(Boolean);
+    for (let index = entries.length - 1; index >= 0; index -= 1) {
+      const entry = JSON.parse(entries[index]) as { type?: string; customType?: string; data?: { hash?: unknown } };
+      if (entry.type === 'custom' && entry.customType === SPEC_ENTRY && typeof entry.data?.hash === 'string') {
+        return entry.data.hash;
+      }
+    }
+  } catch {
+    return undefined;
+  }
+  return undefined;
+}
 
 export function toPiSessionId(sessionKey: string): string {
   const normalized = sessionKey.replace(/[^A-Za-z0-9_.-]+/g, '-').replace(/^[^A-Za-z0-9]+|[^A-Za-z0-9]+$/g, '');
@@ -44,6 +75,24 @@ export function toPiSessionId(sessionKey: string): string {
 
 function createSpec(options: PiPromptOptions): UpUpAgentSpec {
   const model = options.model ?? process.env.DEFAULT_MODEL ?? 'deepseek-v4-flash';
+  if (options.agentSpec) {
+    const configuredTools = options.agentSpec.tools === '*'
+      ? '*'
+      : [...options.agentSpec.tools];
+    const tools = options.toolFilter && options.toolFilter !== '*'
+      ? configuredTools === '*'
+        ? options.toolFilter
+        : configuredTools.filter((tool) => options.toolFilter?.includes(tool))
+      : configuredTools;
+    const spec: UpUpAgentSpec = {
+      ...options.agentSpec,
+      ...(options.systemPrompt !== undefined ? { systemPrompt: options.systemPrompt } : {}),
+      ...(options.model ? { model: options.model } : {}),
+      tools,
+    };
+    validateAgentSpec(spec);
+    return spec;
+  }
   const spec: UpUpAgentSpec = {
     id: 'upup-primary',
     version: '1.0.0',
@@ -89,16 +138,21 @@ function answerFromSession(session: UpUpAgentSession): string {
   return '';
 }
 
-async function createPromptSession(options: PiPromptOptions): Promise<UpUpAgentSession> {
+async function createPromptSession(options: PiPromptOptions, spec: UpUpAgentSpec): Promise<UpUpAgentSession> {
   const cwd = options.cwd ?? process.cwd();
   const sessionId = options.sessionKey ? toPiSessionId(options.sessionKey) : undefined;
   const existingSessionPath = sessionId
     ? await getPiSessionService().getSessionFile(sessionId, cwd)
     : undefined;
+  const fingerprint = specFingerprint(spec);
+  const persisted = existingSessionPath ? persistedSpecFingerprint(existingSessionPath) : undefined;
+  if (persisted && persisted !== fingerprint) {
+    throw new Error(`Pi session key ${options.sessionKey ?? sessionId} is persisted with a different AgentSpec; use a new session key when changing profile, permissions, or tools`);
+  }
   const configuredPackages = options.piPackagePaths === undefined ? resolveConfiguredPiPackages() : undefined;
   const piPackagePaths = options.piPackagePaths ?? configuredPackages?.piPackagePaths;
   const piPackageTrust = options.piPackageTrust ?? configuredPackages?.piPackageTrust;
-  return runtime.createSession(createSpec(options), {
+  const session = await runtime.createSession(spec, {
     cwd,
     ...(existingSessionPath ? { sessionPath: existingSessionPath } : {}),
     ...(sessionId && !existingSessionPath ? { sessionId } : {}),
@@ -109,6 +163,8 @@ async function createPromptSession(options: PiPromptOptions): Promise<UpUpAgentS
     ...(piPackagePaths?.length ? { piPackagePaths } : {}),
     ...(piPackageTrust ? { piPackageTrust } : {}),
   });
+  if (!persisted) session.appendEntry(SPEC_ENTRY, { hash: fingerprint, agentId: spec.id, version: spec.version });
+  return session;
 }
 
 export function isPiSessionRunning(sessionKey: string): boolean {
@@ -117,11 +173,35 @@ export function isPiSessionRunning(sessionKey: string): boolean {
 
 export async function runPiPrompt(prompt: string, options: PiPromptOptions = {}): Promise<string> {
   const key = options.sessionKey;
+  const requestedSpec = createSpec(options);
+  const requestedSpecHash = specFingerprint(requestedSpec);
   let state = key ? sessions.get(key) : undefined;
+  if (state && state.specHash !== requestedSpecHash) {
+    throw new Error(`Pi session key ${key} is already bound to a different AgentSpec; use a new session key when changing profile, permissions, or tools`);
+  }
   if (!state) {
-    const session = await createPromptSession(options);
-    state = { session, tail: Promise.resolve(), running: false };
-    if (key) sessions.set(key, state);
+    const pending = key ? sessionInitializations.get(key) : undefined;
+    if (pending) {
+      if (pending.specHash !== requestedSpecHash) {
+        throw new Error(`Pi session key ${key} is initializing with a different AgentSpec; use a new session key when changing profile, permissions, or tools`);
+      }
+      state = await pending.promise;
+    } else if (key) {
+      const promise = createPromptSession(options, requestedSpec).then((session) => {
+        const initialized: PiRunnerSessionState = { session, tail: Promise.resolve(), running: false, specHash: requestedSpecHash };
+        sessions.set(key, initialized);
+        return initialized;
+      });
+      sessionInitializations.set(key, { specHash: requestedSpecHash, promise });
+      try {
+        state = await promise;
+      } finally {
+        if (sessionInitializations.get(key)?.promise === promise) sessionInitializations.delete(key);
+      }
+    } else {
+      const session = await createPromptSession(options, requestedSpec);
+      state = { session, tail: Promise.resolve(), running: false, specHash: requestedSpecHash };
+    }
   }
   const current = state;
   let answer = '';
@@ -146,4 +226,5 @@ export async function runPiPrompt(prompt: string, options: PiPromptOptions = {})
 export function disposePiSessions(): void {
   for (const state of sessions.values()) state.session.dispose();
   sessions.clear();
+  sessionInitializations.clear();
 }

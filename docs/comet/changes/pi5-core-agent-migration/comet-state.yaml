@@ -3,7 +3,7 @@ name: pi5-core-agent-migration
 language: zh-CN
 phase: verify
 status: active
-state_version: 51
+state_version: 119
 brief: brief.md
 spec_changes: []
 workspace:
@@ -14,14 +14,14 @@ workspace:
 loop:
   stage: verify-ready
   goal_cycle: 1
-  iteration: 7
-  attempt: 8
-  retry_epoch: 3
+  iteration: 8
+  attempt: 0
+  retry_epoch: 12
   failed_iteration_count: 0
   no_progress_count: 0
-  execution_failure_count: 1
+  execution_failure_count: 0
   previous_unresolved_ids: []
-  next_action: await-verifier-result
+  next_action: run-required-checks-and-dispatch-verifier
 acceptance:
   - id: A1
     source: brief.md
@@ -147,29 +147,34 @@ acceptance:
     result: pending
     reason: null
 builder_handoff:
-  candidate_id: 59b27623-58ba-4793-9b84-6c6d98db96fc
+  candidate_id: f32596ec-7bd4-4478-9e29-16d27f25ba79
   identity_provider: skill-coordinated
-  builder_execution_ref: skill-coordinated:builder:e4e41af4-f6b1-4313-b8ad-3056113bb4f4
-  iteration: 7
+  builder_execution_ref: skill-coordinated:builder:bcb496e3-c8bc-4fdb-9b68-0db56472b37b
+  iteration: 8
   summary:
-    text: 在旧候选基础上，将受信任 @upup/pi-finance-sdk Extension 接入受控 host bridge：Finance
-      Package 自己调用 Pi registerTool() 注册经 UpUp policy/evidence 包装的生产金融合同；未加载
-      Package 时才保留 Runtime fallback；增加并发 Package reload 隔离及双 Session 工具不串用回归，更新
-      pi5.md。Paperclip、重复 agent-core、upup-agent、旧 bundled runner 与旧 llm
-      包均保持物理删除。
+    text: 修复 A9 Pi Tool Contract 语义缺口：五个 Finance fixture 显式声明
+      maxConcurrent，统一在执行入口检查 AbortSignal；行情 fixture 保留 progress/onUpdate。新增 Pi
+      registerTool 执行回归，确保 safety、concurrency、progress、details、AbortSignal
+      均被真实验证。旧 Agent loop、LangChain Runtime、Paperclip 和重复 Pi Factory 仍保持删除/禁止。
     truncated: false
   addressed_acceptance_ids:
     - A1
     - A2
     - A3
     - A4
+    - A5
     - A6
     - A7
+    - A8
     - A9
     - A10
+    - A11
     - A12
     - A13
     - A14
+    - A15
+    - A16
+    - A17
     - A18
     - A19
     - A20
@@ -189,6 +194,13 @@ builder_handoff:
         text: bun run check:pi-packages
         truncated: false
     - name:
+        text: Pi runtime gate
+        truncated: false
+      result: passed
+      note:
+        text: bun run check:pi-runtime
+        truncated: false
+    - name:
         text: Typecheck
         truncated: false
       result: passed
@@ -196,31 +208,26 @@ builder_handoff:
         text: bun run typecheck
         truncated: false
     - name:
-        text: Pi Finance Package host bridge
+        text: Pi fixture and finance contracts
         truncated: false
       result: passed
       note:
-        text: "bun test src/runtime/pi/agent-session-factory.test.ts
-          packages/pi-finance-sdk/extensions/index.test.ts: 13 pass / 0 fail;
-          trusted Package registers host production tool through Pi and
-          concurrent sessions stay isolated"
-        truncated: false
-    - name:
-        text: Print and production entry contract
-        truncated: false
-      result: passed
-      note:
-        text: "bun test src/print.test.ts
-          src/runtime/pi/production-entry-contract.test.ts: 6 pass / 0 fail"
+        text: Pi contract suite 111 pass / 0 fail after A9 regression; Finance SDK 2
+          pass / 0 fail
         truncated: false
     - name:
         text: Full regression suite
         truncated: false
       result: passed
       note:
-        text: "previous Runtime run: 4179 pass / 0 fail; targeted concurrent bridge
-          regression now 13 pass / 0 fail; Runtime must rerun full suite for
-          this candidate"
+        text: "bun test: 4191 pass / 0 fail, 13422 assertions, 290 files"
+        truncated: false
+    - name:
+        text: Distributable build
+        truncated: false
+      result: passed
+      note:
+        text: bun run build; dist/upup compiled successfully
         truncated: false
     - name:
         text: Diff hygiene
@@ -231,13 +238,13 @@ builder_handoff:
         truncated: false
   checks_truncated: false
   known_limits:
-    - text: 独立语义 Verifier 尚未运行；当前环境无法连接 Codex Host Runtime endpoint/token。
+    - text: 独立语义 Verifier 尚未对本轮 A9 修复给出逐项结论；A1-A20 仍需 Runtime 重新派发后独立审查。
       truncated: false
     - text: 真实外部行情、真实券商交易和 live trading 未启用；金融验证使用 deterministic fixtures 和 sandbox
         policy。
       truncated: false
   known_limits_truncated: false
-  submitted_at: 2026-09-13T01:57:18.926Z
+  submitted_at: 2026-09-13T10:23:31.839Z
 blockers: []
 verification: null
 history:
@@ -437,6 +444,296 @@ history:
         独立语义验收结果。候选实现、最新本地门禁证据和 acceptance state 均保持不变。
       truncated: false
     completed_at: 2026-09-13T04:29:05.623Z
+  - goal_cycle: 1
+    iteration: 7
+    attempt: 8
+    outcome: execution-error
+    unresolved_ids: []
+    summary:
+      text: Attempt 8 的 Verifier execution 已从本机进程表消失，Comet 仍报告 running；未收到 A1-A20
+        独立语义验收结果。候选实现、pi5.md 本地证据和 acceptance state 均保持不变。
+      truncated: false
+    completed_at: 2026-09-13T04:31:51.838Z
+  - goal_cycle: 1
+    iteration: 7
+    attempt: 9
+    outcome: execution-error
+    unresolved_ids: []
+    summary:
+      text: Attempt 9 的 Verifier execution 已从本机进程表消失，Comet 仍报告 running；未收到 A1-A20
+        独立语义验收结果。恢复周期内 Attempt 7、8、9 连续三次同类执行错误。候选实现、pi5.md 本地证据和 acceptance
+        state 均保持不变。
+      truncated: false
+    completed_at: 2026-09-13T04:40:24.380Z
+  - goal_cycle: 1
+    iteration: 7
+    attempt: 10
+    outcome: execution-error
+    unresolved_ids: []
+    summary:
+      text: Attempt 10 的 Verifier execution 已从本机进程表消失，Comet 仍报告 running；未收到 A1-A20
+        独立语义验收结果。候选实现、pi5.md 本地证据和 acceptance state 均保持不变。
+      truncated: false
+    completed_at: 2026-09-13T05:05:42.932Z
+  - goal_cycle: 1
+    iteration: 7
+    attempt: 11
+    outcome: execution-error
+    unresolved_ids: []
+    summary:
+      text: Attempt 11 的 Verifier execution 已从本机进程表消失，Comet 仍报告 running；未收到 A1-A20
+        独立语义验收结果。候选实现、pi5.md 本地证据和 acceptance state 均保持不变。
+      truncated: false
+    completed_at: 2026-09-13T05:15:12.387Z
+  - goal_cycle: 1
+    iteration: 7
+    attempt: 12
+    outcome: execution-error
+    unresolved_ids: []
+    summary:
+      text: Attempt 12 的 Verifier execution 已从本机进程表消失，Comet 仍报告 running；未收到 A1-A20
+        独立语义验收结果。候选实现、pi5.md 本地证据和 acceptance state 均保持不变。
+      truncated: false
+    completed_at: 2026-09-13T05:24:49.810Z
+  - goal_cycle: 1
+    iteration: 7
+    attempt: 13
+    outcome: execution-error
+    unresolved_ids: []
+    summary:
+      text: Attempt 13 的 Verifier execution 已从本机进程表消失，Comet 仍报告 running；未收到 A1-A20
+        独立语义验收结果。候选实现、pi5.md 本地证据和 acceptance state 均保持不变。
+      truncated: false
+    completed_at: 2026-09-13T05:48:38.935Z
+  - goal_cycle: 1
+    iteration: 7
+    attempt: 14
+    outcome: execution-error
+    unresolved_ids: []
+    summary:
+      text: Attempt 14 的 Verifier execution 已从本机进程表消失，Comet 仍报告 running；未收到 A1-A20
+        独立语义验收结果。候选实现、pi5.md 本地证据和 acceptance state 均保持不变。
+      truncated: false
+    completed_at: 2026-09-13T05:58:11.349Z
+  - goal_cycle: 1
+    iteration: 7
+    attempt: 15
+    outcome: execution-error
+    unresolved_ids: []
+    summary:
+      text: Attempt 15 的 Verifier execution 已从本机进程表消失，Comet 仍报告 running；未收到 A1-A20
+        独立语义验收结果。候选实现、pi5.md 本地证据和 acceptance state 均保持不变。
+      truncated: false
+    completed_at: 2026-09-13T06:07:39.293Z
+  - goal_cycle: 1
+    iteration: 7
+    attempt: 16
+    outcome: execution-error
+    unresolved_ids: []
+    summary:
+      text: Attempt 16 的独立 Verifier execution 已从本机进程表消失，Comet 仍报告 running；未收到 A1-A20
+        独立语义验收结果。本轮本地 Pi 合约 100/100、Finance SDK 2/2、迁移门禁、包门禁和类型检查均通过，但不将其冒充独立验收。
+      truncated: false
+    completed_at: 2026-09-13T06:15:03.213Z
+  - goal_cycle: 1
+    iteration: 7
+    attempt: 17
+    outcome: execution-error
+    unresolved_ids: []
+    summary:
+      text: Attempt 17 的独立 Verifier execution 已从本机进程表消失，Comet 仍报告 running；未收到 A1-A20
+        独立语义验收结果。本轮改动后的 Pi 合约 102/102、代码考古 17/17、SCC 四项零违规、迁移门禁、包门禁、类型检查和全量回归
+        4180/4180 均通过，但不将本地结果冒充独立验收。
+      truncated: false
+    completed_at: 2026-09-13T06:21:32.123Z
+  - goal_cycle: 1
+    iteration: 7
+    attempt: 18
+    outcome: execution-error
+    unresolved_ids: []
+    summary:
+      text: Attempt 18 的独立 Verifier execution 已从本机进程表消失，Comet 仍报告 running；未收到 A1-A20
+        独立语义验收结果。恢复周期内 Attempt 16、17、18 连续三次同类执行故障。代码候选保持可验证：Pi 合约 102/102、代码考古
+        17/17、SCC 四项零违规、迁移门禁、包门禁、类型检查和全量回归 4180/4180 均通过，但独立验收基础设施不可用。
+      truncated: false
+    completed_at: 2026-09-13T06:23:21.663Z
+  - goal_cycle: 1
+    iteration: 7
+    attempt: 19
+    outcome: execution-error
+    unresolved_ids: []
+    summary:
+      text: 恢复后的 Attempt 19 独立 Verifier execution 已从本机进程表消失，Comet 仍报告 running；未收到
+        A1-A20 独立语义验收结果。本轮新增金融 Session Context/Compaction 已通过 Pi 合约
+        102/102、Finance SDK 2/2、类型检查、迁移门禁、包门禁、SCC 和发行构建，但不将本地结果冒充独立验收。
+      truncated: false
+    completed_at: 2026-09-13T06:31:51.618Z
+  - goal_cycle: 1
+    iteration: 7
+    attempt: 20
+    outcome: execution-error
+    unresolved_ids: []
+    summary:
+      text: 恢复周期 Attempt 20 的独立 Verifier execution 已从本机进程表消失，Comet 仍报告 running；未收到
+        A1-A20 独立语义验收结果。本轮
+        check:pi-runtime、check:pi-migration、check:pi-packages、typecheck、git diff
+        --check 和金融上下文/Factory/reliability 15 项测试均通过，但不将本地结果冒充独立验收。
+      truncated: false
+    completed_at: 2026-09-13T06:35:03.303Z
+  - goal_cycle: 1
+    iteration: 7
+    attempt: 21
+    outcome: execution-error
+    unresolved_ids: []
+    summary:
+      text: 恢复周期 Attempt 21 的独立 Verifier execution 已从本机进程表消失，Comet 仍报告 running；未收到
+        A1-A20 独立语义验收结果。恢复周期 Attempt 19、20、21 连续三次同类执行故障。本轮金融上下文、Pi
+        运行时门禁和完整本地回归均通过，但独立验收基础设施不可用。
+      truncated: false
+    completed_at: 2026-09-13T06:39:42.033Z
+  - goal_cycle: 1
+    iteration: 7
+    attempt: 22
+    outcome: execution-error
+    unresolved_ids: []
+    summary:
+      text: Attempt 22 的独立 Verifier execution 已从本机进程表消失，Comet 仍报告 running；未收到 A1-A20
+        独立语义验收结果。当前 Runtime 七项检查全部通过，但独立 Verifier 未返回 final-result。
+      truncated: false
+    completed_at: 2026-09-13T09:07:48.142Z
+  - goal_cycle: 1
+    iteration: 7
+    attempt: 23
+    outcome: execution-error
+    unresolved_ids: []
+    summary:
+      text: Attempt 23 的独立 Verifier execution 已从本机进程表消失，Comet 仍报告 running；未收到 A1-A20
+        独立语义验收结果。当前 Runtime 七项检查全部通过，但独立 Verifier 未返回 final-result。
+      truncated: false
+    completed_at: 2026-09-13T09:16:30.379Z
+  - goal_cycle: 1
+    iteration: 7
+    attempt: 24
+    outcome: execution-error
+    unresolved_ids: []
+    summary:
+      text: Attempt 24 的独立 Verifier execution 已从本机进程表消失，Comet 仍报告 running；未收到 A1-A20
+        独立语义验收结果。当前 Runtime 七项检查全部通过，但独立 Verifier 未返回 final-result。恢复周期 Attempt
+        22、23、24 连续三次同类执行故障。
+      truncated: false
+    completed_at: 2026-09-13T09:20:23.814Z
+  - goal_cycle: 1
+    iteration: 7
+    attempt: 25
+    outcome: execution-error
+    unresolved_ids: []
+    summary:
+      text: Attempt 25 的独立 Verifier execution 已从本机进程表消失，但 Comet 仍报告 running；未收到 A1-A20
+        独立语义验收结果。本轮 Session Port 日期类型修复、Pi 迁移门禁、Pi
+        包门禁、运行时门禁、类型检查和定向回归均通过；不将本地结果冒充独立语义验收。
+      truncated: false
+    completed_at: 2026-09-13T09:33:34.262Z
+  - goal_cycle: 1
+    iteration: 7
+    attempt: 26
+    outcome: execution-error
+    unresolved_ids: []
+    summary:
+      text: Attempt 26 的独立 Verifier execution 仍由 Comet 报告 running，但本机进程表中已没有对应执行进程；未收到
+        A1-A20 独立语义验收结果。Runtime 管理的 Pi 合约、迁移门禁、包门禁、类型检查、全量回归、构建烟测和 diff check
+        均已通过；不将本地结果冒充独立语义验收。
+      truncated: false
+    completed_at: 2026-09-13T09:39:14.143Z
+  - goal_cycle: 1
+    iteration: 7
+    attempt: 27
+    outcome: execution-error
+    unresolved_ids: []
+    summary:
+      text: Attempt 27 的独立 Verifier execution 仍由 Comet 报告 running，但本机进程表中已没有对应执行进程；未收到
+        A1-A20 独立语义验收结果。Runtime 管理的 Pi 合约、迁移门禁、包门禁、类型检查、全量回归、构建烟测和 diff check
+        均通过；本轮新增 Pi Session 标签 metadata 投影并通过 5/5 定向测试，不将本地结果冒充独立语义验收。
+      truncated: false
+    completed_at: 2026-09-13T09:42:09.679Z
+  - goal_cycle: 1
+    iteration: 7
+    attempt: 28
+    outcome: execution-error
+    unresolved_ids: []
+    summary:
+      text: Attempt 28 的独立 Verifier execution 已从本机进程表消失，Comet 仍报告 running；未收到 A1-A20
+        独立语义验收结果。Runtime 管理的 Pi 合约、迁移门禁、包门禁、类型检查、全量回归、构建烟测和 diff check
+        均通过；不将本地结果冒充独立语义验收。
+      truncated: false
+    completed_at: 2026-09-13T09:43:47.173Z
+  - goal_cycle: 1
+    iteration: 7
+    attempt: 29
+    outcome: execution-error
+    unresolved_ids: []
+    summary:
+      text: Attempt 29 的独立 Verifier execution 已从本机进程表消失，Comet 仍报告 running；未收到 A1-A20
+        独立语义验收结果。Attempt 29 启动后工作区新增了统一 Agent Spec 保真改动，因此其运行结果也不能证明当前候选。最新本地 Pi
+        合约 104 pass / 0 fail、Finance SDK 2 pass / 0 fail，迁移门禁、包门禁、运行时门禁、类型检查和
+        diff check 均通过；不将本地结果冒充独立语义验收。
+      truncated: false
+    completed_at: 2026-09-13T09:49:13.360Z
+  - goal_cycle: 1
+    iteration: 7
+    attempt: 30
+    outcome: execution-error
+    unresolved_ids: []
+    summary:
+      text: Attempt 30 的独立 Verifier execution 已从本机进程表消失，Comet 仍报告 running；未收到 A1-A20
+        独立语义验收结果。Attempt 30 之后最新工作区仍只获得本地证据：Pi 合约 106 pass / 0 fail、Finance SDK
+        2 pass / 0 fail、全量回归 4187 pass / 0 fail、类型检查、迁移门禁、包门禁、运行时门禁、构建和 diff
+        check 均通过；不将本地结果冒充独立语义验收。
+      truncated: false
+    completed_at: 2026-09-13T09:53:46.528Z
+  - goal_cycle: 1
+    iteration: 7
+    attempt: 33
+    outcome: execution-error
+    unresolved_ids: []
+    summary:
+      text: Attempt 33 的独立 Verifier execution 已从本机进程表消失，Comet 仍报告 running；未收到 A1-A20
+        独立语义验收结果。当前候选的本地 Pi 合约 108 pass / 0 fail、Finance SDK 2 pass / 0
+        fail、全量回归 4189 pass / 0 fail、类型检查、迁移门禁、包门禁、运行时门禁和构建均通过；不将本地结果冒充独立语义验收。
+      truncated: false
+    completed_at: 2026-09-13T10:10:29.629Z
+  - goal_cycle: 1
+    iteration: 7
+    attempt: 34
+    outcome: execution-error
+    unresolved_ids: []
+    summary:
+      text: Attempt 34 的独立 Verifier execution 已从本机进程表消失，Comet 仍报告 running；未收到 A1-A20
+        独立语义验收结果。当前候选的本地 Pi 合约 108 pass / 0 fail、Finance SDK 2 pass / 0
+        fail、全量回归 4189 pass / 0 fail、类型检查、迁移门禁、包门禁、运行时门禁和构建均通过；不将本地结果冒充独立语义验收。
+      truncated: false
+    completed_at: 2026-09-13T10:11:30.609Z
+  - goal_cycle: 1
+    iteration: 7
+    attempt: 35
+    outcome: execution-error
+    unresolved_ids: []
+    summary:
+      text: Attempt 35 的独立 Verifier execution 已从本机进程表消失，Comet 仍报告 running；未收到 A1-A20
+        独立语义验收结果。当前候选的本地 Pi 合约 108 pass / 0 fail、Finance SDK 2 pass / 0
+        fail、全量回归 4189 pass / 0 fail、类型检查、迁移门禁、包门禁、运行时门禁和构建均通过；不将本地结果冒充独立语义验收。
+      truncated: false
+    completed_at: 2026-09-13T10:12:29.627Z
+  - goal_cycle: 1
+    iteration: 7
+    attempt: 36
+    outcome: recovery
+    unresolved_ids: []
+    summary:
+      text: Attempt 36 派发后发现并修复 A9 契约缺口：五个 Finance fixture 现在显式提供 maxConcurrent，统一检查
+        AbortSignal，行情 fixture 保留 progress 回调；新增 Pi registerTool
+        执行回归。最新本地门禁、类型检查、构建和完整回归 4191/0 全部通过。保留 A1-A20 需求，当前候选需要重新生成并重新独立验收。
+      truncated: false
+    completed_at: 2026-09-13T10:23:22.843Z
 history_overflow:
   dropped_entries: 0
   first_dropped_at: null

@@ -12,7 +12,7 @@
  *   Layer 1: src/utils/         (pure helpers)
  *   Layer 2: src/state/, src/session/, src/portfolio/ (基础服务)
  *   Layer 3: src/tools/         (业务工具)
- *   Layer 4: src/plan/, src/skills/, src/agent/ (业务编排)
+ *   Layer 4: src/plan/, src/runtime/pi/, src/multi-agent/ (业务编排)
  *   Layer 5: src/commands/, src/controllers/, src/cli.tsx (顶层入口)
  *
  * 用法:
@@ -51,7 +51,7 @@ const LAYER_RULES: Array<{ prefix: string; layer: number }> = [
   { prefix: 'src/skills/', layer: 3 },
   { prefix: 'src/tools/', layer: 3 },
   { prefix: 'src/plan/', layer: 4 },
-  { prefix: 'src/agent/', layer: 4 },
+  { prefix: 'src/runtime/pi/', layer: 4 },
   { prefix: 'src/multi-agent/', layer: 4 },
   { prefix: 'src/worktree/', layer: 4 },
   { prefix: 'src/daemon/', layer: 4 },

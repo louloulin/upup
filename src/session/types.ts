@@ -107,6 +107,7 @@ export interface SessionSummary {
   projectPath: string;
   gitBranch?: string;
   messageCount: number;
+  tags?: string[];
   isSidechain?: boolean;
 }
 

@@ -156,6 +156,87 @@ describe('Pi runner end-to-end (fauxProvider)', () => {
     });
   });
 
+  test('rejects reusing a session key with a different Pi AgentSpec', async () => {
+    await withTempDir('runner-spec-isolation-', async () => {
+      const faux = fauxProvider({
+        provider: 'upup-runner-spec-isolation',
+        models: [{ id: 'runner-spec-isolation-model', reasoning: false }],
+      });
+      faux.setResponses([fauxAssistantMessage([fauxText('readonly')])]);
+      const runtime = await ModelRuntime.create({ refreshOnCreate: false });
+      runtime.registerNativeProvider(faux.provider);
+      const sessionKey = 'profile:shared';
+      await runPiPrompt('first', {
+        sessionKey,
+        model: faux.getModel().id,
+        modelInstance: faux.getModel(),
+        modelRuntime: runtime,
+        cwd: process.cwd(),
+        toolFilter: ['fixture_market_quote'],
+      });
+      await expect(runPiPrompt('second', {
+        sessionKey,
+        model: faux.getModel().id,
+        modelInstance: faux.getModel(),
+        modelRuntime: runtime,
+        cwd: process.cwd(),
+        toolFilter: ['fixture_fundamentals'],
+      })).rejects.toThrow('different AgentSpec');
+    });
+  });
+
+  test('persists AgentSpec isolation across runner disposal and reopen', async () => {
+    await withTempDir('runner-persisted-spec-isolation-', async () => {
+      const faux = fauxProvider({
+        provider: 'upup-runner-persisted-spec-isolation',
+        models: [{ id: 'runner-persisted-spec-isolation-model', reasoning: false }],
+      });
+      faux.setResponses([fauxAssistantMessage([fauxText('first')])]);
+      const runtime = await ModelRuntime.create({ refreshOnCreate: false });
+      runtime.registerNativeProvider(faux.provider);
+      const options = {
+        sessionKey: 'profile:persisted',
+        model: faux.getModel().id,
+        modelInstance: faux.getModel(),
+        modelRuntime: runtime,
+        cwd: process.cwd(),
+      };
+      await runPiPrompt('first', { ...options, toolFilter: ['fixture_market_quote'] });
+      disposePiSessions();
+      await expect(runPiPrompt('second', { ...options, toolFilter: ['fixture_fundamentals'] }))
+        .rejects.toThrow('persisted with a different AgentSpec');
+    });
+  });
+
+  test('serializes concurrent first prompts onto one Pi session per session key', async () => {
+    await withTempDir('runner-concurrent-init-', async () => {
+      const faux = fauxProvider({
+        provider: 'upup-runner-concurrent-init',
+        models: [{ id: 'runner-concurrent-init-model', reasoning: false }],
+      });
+      faux.setResponses([
+        fauxAssistantMessage([fauxText('first response')]),
+        fauxAssistantMessage([fauxText('second response')]),
+      ]);
+      const runtime = await ModelRuntime.create({ refreshOnCreate: false });
+      runtime.registerNativeProvider(faux.provider);
+      const options = {
+        sessionKey: 'profile:concurrent',
+        model: faux.getModel().id,
+        modelInstance: faux.getModel(),
+        modelRuntime: runtime,
+        cwd: process.cwd(),
+      };
+      const [first, second] = await Promise.all([
+        runPiPrompt('first', options),
+        runPiPrompt('second', options),
+      ]);
+      expect(first).toContain('first response');
+      expect(second).toContain('second response');
+      expect(isPiSessionRunning(options.sessionKey)).toBe(false);
+    });
+  });
+
   test('emits session events through onEvent for the faux model tool call', async () => {
     await withTempDir('runner-e2e-tool-', async () => {
       const faux = fauxProvider({

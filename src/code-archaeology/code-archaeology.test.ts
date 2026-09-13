@@ -27,9 +27,9 @@ afterEach(async () => {
 // ---------------------------------------------------------------------------
 
 describe('layer-detector', () => {
-  test('L1 for src/agent/*', () => {
-    expect(detectLayer('src/agent/agent.ts')).toBe('L1');
-    expect(detectLayer('src/agent/role-system.ts')).toBe('L1');
+  test('L1 for src/runtime/pi/*', () => {
+    expect(detectLayer('src/runtime/pi/runner.ts')).toBe('L1');
+    expect(detectLayer('src/runtime/pi/role-system.ts')).toBe('L1');
   });
 
   test('L2 for src/tools/* and src/skills/*', () => {
@@ -59,7 +59,7 @@ describe('layer-detector', () => {
   });
 
   test('refineLayer: import-based 推断', () => {
-    const content = `import { Agent } from '../../agent/agent.js';`;
+    const content = `import { runPiPrompt } from '../../runtime/pi/runner.js';`;
     expect(refineLayer('src/utils/x.ts', 'other', content)).toBe('L1');
   });
 });
@@ -162,7 +162,7 @@ describe('markdown-renderer', () => {
       root: '/repo', scannedAt: '2026-06-04T12:00:00Z',
       totalFiles: 3, totalLoc: 200, totalBytes: 6000,
       files: [
-        { path: '/repo/src/agent/a.ts', relPath: 'src/agent/a.ts', bytes: 200, loc: 100,
+        { path: '/repo/src/runtime/pi/a.ts', relPath: 'src/runtime/pi/a.ts', bytes: 200, loc: 100,
           exports: [{ name: 'A', kind: 'class', line: 1 }], imports: [],
           layer: 'L1', mtime: 0, hash: 'h' },
         { path: '/repo/src/tools/b.ts', relPath: 'src/tools/b.ts', bytes: 200, loc: 50,
@@ -184,7 +184,7 @@ describe('markdown-renderer', () => {
       { path: '/repo/src/utils/c.ts', relPath: 'src/utils/c.ts', layer: 'other', loc: 50, reason: 'no-inbound' },
     ],
     hotspots: [
-      { path: '/repo/src/agent/a.ts', relPath: 'src/agent/a.ts', layer: 'L1', inboundCount: 5 },
+        { path: '/repo/src/runtime/pi/a.ts', relPath: 'src/runtime/pi/a.ts', layer: 'L1', inboundCount: 5 },
     ],
     groups: [],
   };
@@ -211,7 +211,7 @@ describe('markdown-renderer', () => {
   test('renders hot spots ranking', () => {
     const md = renderCodeMap(baseReport);
     expect(md).toContain('| 1 |');
-    expect(md).toContain('src/agent/a.ts');
+    expect(md).toContain('src/runtime/pi/a.ts');
     expect(md).toContain('5'); // inboundCount
   });
 

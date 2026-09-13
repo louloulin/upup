@@ -2,7 +2,12 @@ import { PiAgentSessionFactory, type UpUpAgentSession, type UpUpAgentSpec } from
 import type { SpawnAgentParams } from '../types.js';
 
 export function createPiWorkerSpec(params: SpawnAgentParams): UpUpAgentSpec {
-  if (params.spec) return params.spec;
+  if (params.spec) {
+    return {
+      ...params.spec,
+      timeoutMs: params.spec.timeoutMs ?? params.timeoutMs ?? 300000,
+    };
+  }
   const role = params.role || 'general';
   const id = `worker-${role.toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'agent'}`;
   return {

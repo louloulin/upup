@@ -57,6 +57,7 @@ describe('Pi runtime deterministic fixture', () => {
     try {
       for (const tool of FINANCE_FIXTURE_TOOLS) {
         expect(session.getAvailableToolNames()).toContain(tool.name);
+        expect(tool.maxConcurrent).toBeGreaterThan(0);
         const result = await session.executeTool(
           tool.name,
           `fixture-call-${tool.name}`,
@@ -79,6 +80,30 @@ describe('Pi runtime deterministic fixture', () => {
     } finally {
       session.dispose();
     }
+  });
+
+  test('preserves fixture concurrency metadata, progress, and AbortSignal semantics', async () => {
+    const updates: Array<{ text: string; progress?: number }> = [];
+    const quote = FINANCE_FIXTURE_TOOLS.find((tool) => tool.name === 'fixture_market_quote');
+    expect(quote).toBeDefined();
+    const controller = new AbortController();
+    const result = await quote!.execute({ symbol: '600519.SH' }, {
+      agent: getInvestmentAgentSpec('invest-explore'),
+      toolCallId: 'fixture-contract-call',
+      signal: controller.signal,
+      auditId: 'fixture-contract-audit',
+      onUpdate: (update) => updates.push(update),
+    });
+    expect(result.details?.auditId).toContain('fixture-audit');
+    expect(updates).toEqual([{ text: 'Loading quote for 600519.SH', progress: 0.5 }]);
+
+    controller.abort();
+    await expect(quote!.execute({ symbol: '600519.SH' }, {
+      agent: getInvestmentAgentSpec('invest-explore'),
+      toolCallId: 'fixture-aborted-call',
+      signal: controller.signal,
+      auditId: 'fixture-aborted-audit',
+    })).rejects.toMatchObject({ name: 'AbortError' });
   });
 
   test('runs a multi-turn tool call and exposes session lifecycle operations', async () => {

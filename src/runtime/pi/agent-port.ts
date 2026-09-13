@@ -56,6 +56,10 @@ export interface SessionSummary {
   id: string;
   customTitle?: string;
   firstPrompt?: string;
+  created?: Date;
+  modified?: Date;
+  messageCount?: number;
+  tags?: string[];
 }
 
 export interface StatePort {

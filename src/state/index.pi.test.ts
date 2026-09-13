@@ -55,6 +55,7 @@ describe('StatePort -> PiSessionService bridge', () => {
     });
     try {
       await service.rename(created.id, 'Maotai review');
+      await service.tag(created.id, 'watchlist');
 
       expect(port).not.toBeNull();
 
@@ -64,6 +65,7 @@ describe('StatePort -> PiSessionService bridge', () => {
       expect(match).toBeDefined();
       expect(match!.customTitle).toBe('Maotai review');
       expect(match!.firstPrompt).toBeDefined();
+      expect(match!.tags).toEqual(['watchlist']);
     } finally {
       await service.remove(created.id);
       await service.dispose();

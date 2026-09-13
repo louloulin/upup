@@ -77,9 +77,9 @@ else
     fail "Unit tests failed"
 fi
 
-subsection "1.3 Investment Config Module"
-if bun test src/agent/investment-config.test.ts > /tmp/upup-test-config.log 2>&1; then
-    pass "Investment config tests passed"
+subsection "1.3 Pi Agent Profile Module"
+if bun test src/runtime/pi/agent-spec.test.ts src/runtime/pi/agent-catalog.test.ts > /tmp/upup-test-config.log 2>&1; then
+    pass "Pi agent profile tests passed"
 else
     fail "Investment config tests failed"
 fi
@@ -176,32 +176,32 @@ fi
 ###############################################################################
 # SECTION 3: Investment Features (plan6.md Phase 2)
 ###############################################################################
-section "3. INVESTMENT FEATURES (Phase 2)"
+section "3. PI INVESTMENT FEATURES"
 
-subsection "3.1 Agent Module Tests"
-if bun test src/agent/*.test.ts > /tmp/upup-test-knowledge.log 2>&1; then
-    pass "Agent tests passed"
+subsection "3.1 Pi Runtime Contract Tests"
+if bun test src/runtime/pi > /tmp/upup-test-knowledge.log 2>&1; then
+    pass "Pi runtime contract tests passed"
 else
     fail "Agent tests failed"
 fi
 
-subsection "3.2 Investment Knowledge Tools"
-if bun test src/agent/investment-knowledge-tools.test.ts > /tmp/upup-test-knowledge-tools.log 2>&1; then
-    pass "Investment knowledge tools tests passed"
+subsection "3.2 Finance Tool Adapters"
+if bun test src/runtime/pi/finance-e2e.test.ts src/extensions/upup/index.test.ts > /tmp/upup-test-knowledge-tools.log 2>&1; then
+    pass "Finance tool adapter tests passed"
 else
     info "Test file may not exist - checking with agent tests"
 fi
 
-subsection "3.3 Capability Registry"
-if bun test src/agent/capability-registry.test.ts > /tmp/upup-test-capability.log 2>&1; then
-    pass "Capability registry tests passed"
+subsection "3.3 Pi Capability Registry"
+if bun test src/runtime/pi/registry-adapter.test.ts src/runtime/pi/package-catalog.test.ts > /tmp/upup-test-capability.log 2>&1; then
+    pass "Pi capability registry tests passed"
 else
     fail "Capability registry tests failed"
 fi
 
-subsection "3.4 Investment Workflow Hooks"
-if bun test src/agent/investment-workflow-hooks.test.ts > /tmp/upup-test-hooks.log 2>&1; then
-    pass "Investment workflow hooks tests passed"
+subsection "3.4 Investment Workflow"
+if bun test src/runtime/pi/investment-workflow.test.ts > /tmp/upup-test-hooks.log 2>&1; then
+    pass "Pi investment workflow tests passed"
 else
     fail "Investment workflow hooks tests failed"
 fi
@@ -290,18 +290,18 @@ fi
 ###############################################################################
 # SECTION 8: Agent System
 ###############################################################################
-section "8. AGENT SYSTEM"
+section "8. PI AGENT SYSTEM"
 
-subsection "8.1 Agent Module"
-if bun test src/agent/*.test.ts > /tmp/upup-test-agent.log 2>&1; then
-    pass "Agent tests passed"
+subsection "8.1 Pi Agent Session"
+if bun test src/runtime/pi/runner.test.ts src/runtime/pi/session-service.test.ts > /tmp/upup-test-agent.log 2>&1; then
+    pass "Pi agent session tests passed"
 else
     fail "Agent tests failed"
 fi
 
-subsection "8.2 Tool Executor"
-if bun test src/agent/tool-executor.test.ts > /tmp/upup-test-executor.log 2>&1; then
-    pass "Tool executor tests passed"
+subsection "8.2 Pi Tool Contract"
+if bun test src/runtime/pi/tool-contract.test.ts src/runtime/pi/production-finance-contract.test.ts > /tmp/upup-test-executor.log 2>&1; then
+    pass "Pi tool contract tests passed"
 else
     info "Tool executor may be part of agent tests"
 fi

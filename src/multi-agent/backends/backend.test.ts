@@ -121,7 +121,7 @@ describe('InProcessBackend', () => {
     expect(await backend.getResult(agent.id)).toContain('Pi worker');
     expect(agent.piSpec?.mode).toBe('worker');
     expect(agent.piSessionId).toBeString();
-    expect(agent.piToolNames).toBeDefined();
+    expect(agent.piToolNames).toContain('finance_evidence_quote');
   });
 
   it('runs a worker-pool task through the same Pi session contract', async () => {

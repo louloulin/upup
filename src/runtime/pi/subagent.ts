@@ -9,6 +9,8 @@
  */
 
 import type { PiTool } from './tool.js';
+import type { UpUpAgentSpec, UpUpPermissionProfile } from './types.js';
+import { subagentConfigToPiSpec } from './agent-spec.js';
 
 export {
   getPiSubagentService,
@@ -70,6 +72,20 @@ export interface PiSubagentConfig {
   runInBackground?: boolean;
   /** Timeout in milliseconds (default: 300000 = 5 minutes) */
   timeoutMs?: number;
+  /** Fully resolved Pi specification. When present it is authoritative. */
+  spec?: UpUpAgentSpec;
+  /** Pi resources and domain metadata for configs converted at the runtime boundary. */
+  skills?: readonly string[];
+  capabilities?: readonly string[];
+  taskTypes?: readonly string[];
+  workflow?: string;
+  permissions?: UpUpPermissionProfile;
+  dataPolicy?: UpUpAgentSpec['dataPolicy'];
+  outputContract?: UpUpAgentSpec['outputContract'];
+}
+
+export function toPiSubagentSpec(config: PiSubagentConfig): UpUpAgentSpec {
+  return config.spec ?? subagentConfigToPiSpec(config);
 }
 
 /**

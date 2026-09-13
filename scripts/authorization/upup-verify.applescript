@@ -34,7 +34,7 @@ end try
 
 -- 验证 4: Agent 模块
 try
-    set agents to do shell script "ls " & projectPath & "/src/agent/ | wc -l"
+    set agents to do shell script "ls " & projectPath & "/src/runtime/pi/ | wc -l"
     display dialog "✅ Agent 模块: " & agents buttons {"继续"} default button 1
 on error errMsg
     display dialog "❌ Agent 错误: " & errMsg buttons {"退出"} default button 1

@@ -61,6 +61,10 @@ export function __registerStatePort(): void {
           id: s.id,
           ...(s.customTitle ? { customTitle: s.customTitle } : {}),
           ...(s.firstPrompt ? { firstPrompt: s.firstPrompt } : {}),
+          ...(s.created !== undefined ? { created: s.created } : {}),
+          ...(s.modified !== undefined ? { modified: s.modified } : {}),
+          ...(s.messageCount !== undefined ? { messageCount: s.messageCount } : {}),
+          ...(s.tags !== undefined ? { tags: s.tags } : {}),
         }));
       },
     }),

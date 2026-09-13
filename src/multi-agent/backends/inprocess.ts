@@ -7,7 +7,8 @@
 import type { AgentInstance, SpawnAgentParams } from '../types.js';
 import { Backend } from './index.js';
 import { randomUUID } from 'crypto';
-import { PiAgentSessionFactory, type UpUpAgentSession, type UpUpAgentSpec } from '../../runtime/pi/index.js';
+import type { UpUpAgentSession } from '../../runtime/pi/index.js';
+import { createPiWorker, extractPiAssistantText } from './pi-worker.js';
 import { info, warn, error as logError } from '../../utils/logging/logger.js';
 
 export class InProcessBackend implements Backend {
@@ -16,7 +17,6 @@ export class InProcessBackend implements Backend {
   
   private agents: Map<string, AgentInstance> = new Map();
   private sessions: Map<string, UpUpAgentSession> = new Map();
-  private readonly runtime = new PiAgentSessionFactory();
   
   isAvailable(): boolean {
     return true;
@@ -56,19 +56,14 @@ export class InProcessBackend implements Backend {
       info('backend', `Starting agent execution: ${agent.name}`);
       
       const prompt = params.prompt || `You are a ${params.role || 'agent'} named ${params.name}. Complete the assigned task.`;
-      const session = await this.runtime.createSession(this.createSpec(params, timeout), {
-        cwd: params.cwd,
-        loadRegisteredTools: false,
-        ...(params.piModel ? { model: params.piModel } : {}),
-        ...(params.piModelRuntime ? { modelRuntime: params.piModelRuntime } : {}),
-      });
+      const session = await createPiWorker({ ...params, timeoutMs: timeout });
       this.sessions.set(agent.id, session);
       agent.piSpec = session.spec;
       agent.piSessionId = session.id;
       agent.piToolNames = session.getAvailableToolNames();
       await session.prompt(prompt);
       await session.waitForIdle();
-      const result = extractAssistantText(session.getMessages());
+      const result = extractPiAssistantText(session.getMessages());
       if (result) {
         agent.status = 'completed';
         agent.completedAt = Date.now();
@@ -87,33 +82,6 @@ export class InProcessBackend implements Backend {
       agent.completedAt = Date.now();
       logError('backend', `Agent error: ${agent.name}`, error instanceof Error ? error : undefined);
     }
-  }
-  
-  private createSpec(params: SpawnAgentParams, timeoutMs: number): UpUpAgentSpec {
-    if (params.spec) return { ...params.spec, timeoutMs: params.spec.timeoutMs ?? timeoutMs };
-    return {
-      id: `worker-${params.role.toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'agent'}`,
-      version: '1.0.0',
-      name: params.name,
-      description: `Pi worker for ${params.role || 'general'} tasks`,
-      systemPrompt: params.prompt,
-      tools: params.tools ?? '*',
-      model: params.model,
-      mode: 'worker',
-      capabilities: [params.role || 'general'],
-      taskTypes: [params.role || 'general'],
-      permissions: {
-        id: 'multi-agent-read-only',
-        allow: ['safe', 'warning'],
-        requireApproval: [],
-        deny: ['dangerous', 'critical'],
-        allowExternalNetwork: true,
-        allowCredentialAccess: false,
-        allowFinancialWrites: false,
-      },
-      timeoutMs,
-      outputContract: 'markdown',
-    };
   }
   
   async terminate(agentId: string): Promise<void> {
@@ -137,20 +105,4 @@ export class InProcessBackend implements Backend {
     const agent = this.agents.get(agentId);
     return agent?.result;
   }
-}
-
-function extractAssistantText(messages: readonly unknown[]): string | undefined {
-  for (let index = messages.length - 1; index >= 0; index -= 1) {
-    const message = messages[index];
-    if (!message || typeof message !== 'object' || !('role' in message) || message.role !== 'assistant') continue;
-    const content = 'content' in message ? message.content : undefined;
-    if (!Array.isArray(content)) continue;
-    const text = content
-      .filter((part): part is { type: 'text'; text: string } => Boolean(part && typeof part === 'object' && 'type' in part && part.type === 'text' && 'text' in part && typeof part.text === 'string'))
-      .map((part) => part.text)
-      .join('\n')
-      .trim();
-    if (text) return text;
-  }
-  return undefined;
 }

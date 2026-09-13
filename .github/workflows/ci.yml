@@ -16,6 +16,8 @@ jobs:
         include:
           - task: lint-scc
             command: bun run lint:scc
+          - task: pi-runtime
+            command: bun run check:pi-runtime
           - task: typecheck
             command: bun run typecheck
           - task: test

@@ -131,7 +131,7 @@ EOF"
     end if
 
     -- Test: Verify investment-config.ts has loadMergedInvestmentConfig
-    set CONFIG_FILE to TEST_DIR & "/src/agent/investment-config.ts"
+    set CONFIG_FILE to TEST_DIR & "/src/runtime/pi/investment-config.ts"
     set CONFIG_CONTENT to do shell script "cat " & quoted form of CONFIG_FILE & " 2>/dev/null || echo ''"
 
     if CONFIG_CONTENT contains "loadMergedInvestmentConfig" then
@@ -141,7 +141,7 @@ EOF"
     end if
 
     -- Test: Verify prompts.ts uses global config
-    set PROMPTS_FILE to TEST_DIR & "/src/agent/prompts.ts"
+    set PROMPTS_FILE to TEST_DIR & "/src/runtime/pi/prompts.ts"
     set PROMPTS_CONTENT to do shell script "cat " & quoted form of PROMPTS_FILE & " 2>/dev/null || echo ''"
 
     if PROMPTS_CONTENT contains "globalUpupPath" then

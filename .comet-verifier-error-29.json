@@ -1,0 +1,8 @@
+{
+  "kind": "verifier-execution-error",
+  "summary": "Attempt 29 的独立 Verifier execution 已从本机进程表消失，Comet 仍报告 running；未收到 A1-A20 独立语义验收结果。Attempt 29 启动后工作区新增了统一 Agent Spec 保真改动，因此其运行结果也不能证明当前候选。最新本地 Pi 合约 104 pass / 0 fail、Finance SDK 2 pass / 0 fail，迁移门禁、包门禁、运行时门禁、类型检查和 diff check 均通过；不将本地结果冒充独立语义验收。",
+  "stateVersion": 100,
+  "iteration": 7,
+  "attempt": 29,
+  "verifierExecutionRef": "skill-coordinated:verifier:395a0d7d-ae6f-4a2f-ab1a-01fb3875ebf1"
+}

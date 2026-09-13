@@ -17,7 +17,7 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@upup/types": "workspace:*",
+    "@upup/types": "workspace:*"
   },
   "files": [
     "dist",

@@ -3,7 +3,13 @@ import type { AgentCapability } from '../runtime/pi/registry.js';
 import type { PiAgentMetadata } from '../runtime/pi/registry.js';
 import { getAgentRegistry } from '../runtime/pi/registry.js';
 import { info, warn, error as logError } from '../utils/logging/logger.js';
-import type { UpUpAgentSpec } from '../runtime/pi/types.js';
+import type {
+  UpUpAgentMode,
+  UpUpAgentSpec,
+  UpUpDataPolicy,
+  UpUpOutputContract,
+  UpUpPermissionProfile,
+} from '../runtime/pi/types.js';
 import { agentDefinitionToPiSpec } from '../runtime/pi/agent-spec.js';
 import { PiAgentCatalog } from '../runtime/pi/agent-catalog.js';
 
@@ -38,6 +44,13 @@ export interface PiAgentSpecInput {
   capabilities?: string[];
   /** Task types */
   taskTypes?: string[];
+  /** Pi-native skills and workflow resources */
+  skills?: string[];
+  workflow?: string;
+  mode?: UpUpAgentMode;
+  permissions?: UpUpPermissionProfile;
+  dataPolicy?: UpUpDataPolicy;
+  outputContract?: UpUpOutputContract;
 }
 
 export interface PiAgentRecord {
@@ -209,6 +222,13 @@ export class PiAgentRegistry {
       preferredModel: config.model,
       capabilities: config.capabilities,
       taskTypes: config.taskTypes,
+      skills: config.skills,
+      mode: config.mode,
+      permissions: config.permissions,
+      workflow: config.workflow,
+      dataPolicy: config.dataPolicy,
+      outputContract: config.outputContract,
+      timeoutMs: config.timeoutMs,
       config: config.tools?.length ? { tools: config.tools } : undefined,
     });
     this.catalog.register(spec, { source: 'pi-agent' });
@@ -445,17 +465,25 @@ Guidelines:
    * Export all agents as config
    */
   exportConfig(): PiAgentSpecInput[] {
-    return this.getAllAgents().map(agent => ({
-      id: agent.id,
-      name: agent.name,
-      description: agent.description,
-      systemPrompt: agent.systemPrompt,
-      tools: agent.tools,
-      model: agent.model,
-      agentType: agent.agentType as any,
-      context: agent.context as any,
-      maxIterations: agent.maxIterations,
-      timeoutMs: agent.timeoutMs,
+    return this.catalog.getAll().map(({ spec }) => ({
+      id: spec.id,
+      name: spec.name,
+      description: spec.description,
+      systemPrompt: spec.systemPrompt ?? '',
+      tools: spec.tools === '*' ? undefined : [...spec.tools],
+      model: spec.model,
+      agentType: spec.capabilities[0] as PiAgentSpecInput['agentType'],
+      context: spec.mode === 'worker' ? 'swarm' : spec.mode === 'subagent' ? 'fork' : 'inline',
+      maxIterations: 10,
+      timeoutMs: spec.timeoutMs,
+      skills: spec.skills ? [...spec.skills] : undefined,
+      capabilities: [...spec.capabilities],
+      taskTypes: [...spec.taskTypes],
+      mode: spec.mode,
+      permissions: spec.permissions,
+      workflow: spec.workflow,
+      dataPolicy: spec.dataPolicy,
+      outputContract: spec.outputContract,
     }));
   }
 

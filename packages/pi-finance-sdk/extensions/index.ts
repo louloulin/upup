@@ -70,13 +70,30 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
     pi.registerTool(definition as never);
   }
 
-  pi.on('session_before_compact', async (event) => {
+  pi.on('session_before_compact', async (event, context) => {
+    const financeContextEntry = [...context.sessionManager.getEntries()]
+      .filter((entry) => entry.type === 'custom' && entry.customType === 'upup_finance_context')
+      .at(-1);
+    const financeContext = financeContextEntry && 'data' in financeContextEntry && financeContextEntry.data && typeof financeContextEntry.data === 'object'
+      ? financeContextEntry.data
+      : {
+        ticker: null,
+        market: null,
+        asOf: null,
+        assumptions: {},
+        risks: [],
+        evidence: [],
+        unfinishedPhases: [],
+      };
     const summary = [
-      'UpUp financial session compaction summary:',
-      'Preserve ticker, market, currency, as-of date, assumptions, risks, evidence IDs, and unfinished workflow phases.',
-      `Compaction reason: ${event.reason}.`,
-      event.customInstructions ? `User instructions: ${event.customInstructions}` : '',
-    ].filter(Boolean).join('\n');
+      JSON.stringify({
+        schema: 1,
+        domain: 'finance',
+        ...financeContext,
+        compactionReason: event.reason,
+        customInstructions: event.customInstructions ?? null,
+      }),
+    ].join('\n');
     return {
       compaction: {
         summary,

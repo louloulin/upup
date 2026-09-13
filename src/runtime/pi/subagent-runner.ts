@@ -6,7 +6,7 @@
  */
 
 import { randomUUID } from 'crypto';
-import type {
+import {
   PiSubagentConfig,
   SubagentResult,
   SubagentTask,
@@ -15,6 +15,7 @@ import type {
   SubagentEventListener,
   SubagentContext,
   SubagentEventType,
+  toPiSubagentSpec,
 } from './subagent.js';
 import { DEFAULT_SUBAGENT_CONFIG } from './subagent.js';
 import { error as logError } from '../../utils/logging/logger.js';
@@ -118,11 +119,13 @@ export class PiSubagentService {
 
     try {
       const mergedConfig = this.mergeConfig(config);
+      const agentSpec = toPiSubagentSpec(mergedConfig);
       const result = await runPiPrompt(this.createExecContext(mergedConfig, context, prompt), {
         model: mergedConfig.model === 'inherit' ? undefined : mergedConfig.model,
         cwd: mergedConfig.cwd ?? context?.cwd,
         toolFilter: mergedConfig.tools,
         systemPrompt: mergedConfig.systemPrompt,
+        agentSpec,
         sessionKey: `subagent:${randomUUID()}`,
         onEvent: (event) => {
           const mapped = this.mapPiEvent(event);
@@ -340,11 +343,13 @@ export class PiSubagentService {
     this.emitEvent('started', taskId, {});
 
     try {
+      const agentSpec = toPiSubagentSpec(config);
       const result = await runPiPrompt(this.createExecContext(config, context, prompt), {
         model: config.model === 'inherit' ? undefined : config.model,
         cwd: config.cwd ?? context?.cwd,
         toolFilter: config.tools,
         systemPrompt: config.systemPrompt,
+        agentSpec,
         sessionKey: `subagent:${taskId}`,
         signal: controller.signal,
       });

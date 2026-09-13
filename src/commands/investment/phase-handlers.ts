@@ -12,7 +12,7 @@
  *
  * 模块边界(关键 — 零循环):
  *   - 位于 src/commands/investment/ (Layer 6),允许 import src/tools/* (Layer 4)
- *   - 不 import src/agent/* 内部实现(避免反向引用)
+ *   - 不 import src/runtime/pi/* 内部实现(避免反向引用)
  *   - 不 import packages/commands/* (避免跨包)
  *   - 工具调用全部 try/catch 隔离,失败回退到优雅的占位输出
  *

@@ -25,4 +25,52 @@ describe('Pi agent Pi catalog boundary', () => {
     expect(registry.getAgent(agent.id)).toBeUndefined();
     expect(getAgentRegistry().get(agent.id)).toBeUndefined();
   });
+
+  test('round-trips complete Pi execution metadata through export and import', () => {
+    const registry = getPiAgentRegistry();
+    registry.register({
+      id: 'pi-roundtrip-fixture',
+      name: 'Pi Roundtrip Fixture',
+      description: 'Preserves package metadata across persistence boundaries',
+      systemPrompt: 'Use trusted finance resources.',
+      tools: ['finance_evidence_quote'],
+      skills: ['finance-evidence'],
+      capabilities: ['financial-research'],
+      taskTypes: ['evidence'],
+      mode: 'worker',
+      workflow: 'invest',
+      dataPolicy: 'historical',
+      outputContract: 'evidence',
+      permissions: {
+        id: 'roundtrip-readonly',
+        allow: ['safe', 'warning'],
+        requireApproval: [],
+        deny: ['dangerous', 'critical'],
+        allowExternalNetwork: false,
+        allowCredentialAccess: false,
+        allowFinancialWrites: false,
+      },
+    });
+
+    const exported = registry.exportConfig();
+    const saved = exported.find((config) => config.id === 'pi-roundtrip-fixture');
+    expect(saved).toMatchObject({
+      skills: ['finance-evidence'],
+      mode: 'worker',
+      workflow: 'invest',
+      dataPolicy: 'historical',
+      outputContract: 'evidence',
+      permissions: { id: 'roundtrip-readonly', allowExternalNetwork: false },
+    });
+
+    registry.reset();
+    expect(registry.importConfig([saved!])).toBe(1);
+    expect(registry.getAgent('pi-roundtrip-fixture')?.spec).toMatchObject({
+      tools: ['finance_evidence_quote'],
+      skills: ['finance-evidence'],
+      mode: 'worker',
+      permissions: { id: 'roundtrip-readonly', allowExternalNetwork: false },
+      workflow: 'invest',
+    });
+  });
 });

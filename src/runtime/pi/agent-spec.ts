@@ -12,6 +12,23 @@ export const READ_ONLY_PERMISSION_PROFILE: UpUpPermissionProfile = {
   allowFinancialWrites: false,
 };
 
+export interface PiSubagentSpecInput {
+  id?: string;
+  name?: string;
+  type?: 'general' | 'specialized' | 'fork';
+  tools: readonly string[] | '*';
+  model?: string | 'inherit';
+  systemPrompt?: string;
+  timeoutMs?: number;
+  skills?: readonly string[];
+  capabilities?: readonly string[];
+  taskTypes?: readonly string[];
+  workflow?: string;
+  permissions?: UpUpPermissionProfile;
+  dataPolicy?: UpUpAgentSpec['dataPolicy'];
+  outputContract?: UpUpAgentSpec['outputContract'];
+}
+
 export const INVESTMENT_PROFILES: Readonly<Record<string, UpUpAgentSpec>> = {
   'invest-explore': {
     id: 'invest-explore',
@@ -128,6 +145,39 @@ export function serializeAgentSpec(spec: UpUpAgentSpec): string {
   return JSON.stringify(spec, null, 2);
 }
 
+export function subagentConfigToPiSpec(config: PiSubagentSpecInput): UpUpAgentSpec {
+  const type = config.type ?? 'general';
+  const rawId = config.id ?? `subagent-${type}`;
+  const id = rawId.toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '') || 'subagent-general';
+  const permissions = config.permissions ?? {
+    id: `subagent-${type}-readonly`,
+    allow: ['safe', 'warning'],
+    requireApproval: ['dangerous'],
+    deny: ['critical'],
+    allowExternalNetwork: true,
+    allowCredentialAccess: false,
+    allowFinancialWrites: false,
+  } satisfies UpUpPermissionProfile;
+  return {
+    id,
+    version: '1.0.0',
+    name: config.name?.trim() || `Pi ${type} subagent`,
+    description: `Pi-backed ${type} subagent`,
+    ...(config.systemPrompt ? { systemPrompt: config.systemPrompt } : {}),
+    ...(config.skills ? { skills: [...config.skills] } : {}),
+    tools: config.tools,
+    ...(config.model && config.model !== 'inherit' ? { model: config.model } : {}),
+    mode: type === 'fork' ? 'subagent' : 'worker',
+    capabilities: [...(config.capabilities ?? [type])],
+    taskTypes: [...(config.taskTypes ?? [type])],
+    permissions,
+    ...(config.workflow ? { workflow: config.workflow } : {}),
+    ...(config.timeoutMs !== undefined ? { timeoutMs: config.timeoutMs } : {}),
+    ...(config.dataPolicy ? { dataPolicy: config.dataPolicy } : {}),
+    outputContract: config.outputContract ?? 'markdown',
+  };
+}
+
 /** Convert a legacy registry definition into the only executable Pi shape. */
 export function agentDefinitionToPiSpec(definition: {
   id: string;
@@ -138,6 +188,13 @@ export function agentDefinitionToPiSpec(definition: {
   taskTypes?: readonly string[];
   systemPrompt?: string;
   preferredModel?: string;
+  skills?: readonly string[];
+  mode?: UpUpAgentSpec['mode'];
+  permissions?: UpUpPermissionProfile;
+  workflow?: string;
+  dataPolicy?: UpUpAgentSpec['dataPolicy'];
+  outputContract?: UpUpAgentSpec['outputContract'];
+  timeoutMs?: number;
   config?: Record<string, unknown>;
 }): UpUpAgentSpec {
   const configuredTools = definition.config?.tools ?? definition.config?.toolWhitelist;
@@ -151,13 +208,17 @@ export function agentDefinitionToPiSpec(definition: {
     name: definition.name,
     description: definition.description,
     ...(definition.systemPrompt ? { systemPrompt: definition.systemPrompt } : {}),
+    ...(definition.skills ? { skills: [...definition.skills] } : {}),
     ...(definition.preferredModel ? { model: definition.preferredModel } : {}),
     tools,
-    mode: 'subagent',
+    mode: definition.mode ?? 'subagent',
     capabilities: definition.capabilities ?? [],
     taskTypes: definition.taskTypes ?? [],
-    permissions: READ_ONLY_PERMISSION_PROFILE,
-    outputContract: 'report',
+    permissions: definition.permissions ?? READ_ONLY_PERMISSION_PROFILE,
+    ...(definition.workflow ? { workflow: definition.workflow } : {}),
+    ...(definition.dataPolicy ? { dataPolicy: definition.dataPolicy } : {}),
+    outputContract: definition.outputContract ?? 'report',
+    ...(definition.timeoutMs !== undefined ? { timeoutMs: definition.timeoutMs } : {}),
   };
 }
 

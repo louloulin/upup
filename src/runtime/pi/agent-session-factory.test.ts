@@ -42,6 +42,39 @@ describe('PiAgentSessionFactory', () => {
     session.dispose();
   });
 
+  test('treats AgentSpec system prompts as content even when they match a directory', async () => {
+    const session = await new PiAgentSessionFactory().createSession({
+      ...getInvestmentAgentSpec('invest-explore'),
+      systemPrompt: process.cwd(),
+      tools: '*',
+    }, {
+      cwd: process.cwd(),
+      loadRegisteredTools: false,
+    });
+    try {
+      expect((session as unknown as { session: { systemPrompt: string } }).session.systemPrompt).toContain(process.cwd());
+    } finally {
+      session.dispose();
+    }
+  });
+
+  test('keeps generated identity instructions as prompt content', async () => {
+    const session = await new PiAgentSessionFactory().createSession({
+      ...getInvestmentAgentSpec('invest-explore'),
+      name: process.cwd(),
+      tools: '*',
+    }, {
+      cwd: process.cwd(),
+      loadRegisteredTools: false,
+    });
+    try {
+      const prompt = (session as unknown as { session: { systemPrompt: string } }).session.systemPrompt;
+      expect(prompt).toContain(`You are the ${process.cwd()} investment agent.`);
+    } finally {
+      session.dispose();
+    }
+  });
+
   test('enforces profile tool allowlists before Pi registration', async () => {
     const session = await new PiAgentSessionFactory().createSession({
       ...getInvestmentAgentSpec('invest-plan'),
