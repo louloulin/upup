@@ -1,8 +1,0 @@
-{
-  "kind": "verifier-execution-error",
-  "summary": "Attempt 30 的独立 Verifier execution 已从本机进程表消失，Comet 仍报告 running；未收到 A1-A20 独立语义验收结果。Attempt 30 之后最新工作区仍只获得本地证据：Pi 合约 106 pass / 0 fail、Finance SDK 2 pass / 0 fail、全量回归 4187 pass / 0 fail、类型检查、迁移门禁、包门禁、运行时门禁、构建和 diff check 均通过；不将本地结果冒充独立语义验收。",
-  "stateVersion": 102,
-  "iteration": 7,
-  "attempt": 30,
-  "verifierExecutionRef": "skill-coordinated:verifier:246e41dc-ca41-41a5-bf35-7fe596c89cc3"
-}

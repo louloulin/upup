@@ -3,8 +3,20 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { JsonFileMarketQuoteTrendStore, NativeMarketQuoteClient } from './quote.js';
-import { JsonFileProviderSlaStore, providerSla, runProviderSlaJob, type ProviderSlaJob } from './provider-sla.js';
+import { JsonFileProviderSlaStore, providerSla, runProviderSlaJob, __test__ as providerSlaTest, type ProviderSlaJob } from './provider-sla.js';
 import { startProviderSlaRunner } from './provider-sla-runner.js';
+
+describe('provider SLA exponential backoff helper', () => {
+  test('returns base everyMs when there are no errors', () => {
+    expect(providerSlaTest.backoffMs(60_000, 0)).toBe(60_000);
+  });
+  test('doubles per consecutive error and caps at 32x', () => {
+    expect(providerSlaTest.backoffMs(60_000, 1)).toBe(120_000);
+    expect(providerSlaTest.backoffMs(60_000, 2)).toBe(240_000);
+    expect(providerSlaTest.backoffMs(60_000, 5)).toBe(60_000 * 32);
+    expect(providerSlaTest.backoffMs(60_000, 100)).toBe(60_000 * 32);
+  });
+});
 
 function job(id = 'sla-1'): ProviderSlaJob {
   return {
@@ -74,6 +86,58 @@ describe('provider SLA package runtime', () => {
       try {
         const results = await runner.runDue();
         expect(results).toMatchObject([{ jobId: 'sla-1', status: 'error', errorClass: 'forbidden' }]);
+      } finally {
+        runner.stop();
+      }
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  test('applies exponential backoff on consecutive failures and recovers after a success', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'upup-provider-sla-backoff-'));
+    try {
+      const store = new JsonFileProviderSlaStore(join(root, 'jobs.json'));
+      const failing = new NativeMarketQuoteClient({ fetcher: async () => new Response('forbidden', { status: 403 }) });
+      const ok = new NativeMarketQuoteClient({ fetcher: async () => new Response(JSON.stringify({ chart: { result: [{ meta: { symbol: 'AAPL', regularMarketPrice: 200, regularMarketTime: 1_757_808_000 } }] } }), { status: 200 }) });
+      const failingJob: ProviderSlaJob = { ...job('sla-fail'), state: { nextRunAtMs: 1_000, consecutiveErrors: 0 } };
+      store.save([failingJob]);
+      const first = await runProviderSlaJob('sla-fail', failing, store, undefined, 1_000);
+      expect(first).toMatchObject({ status: 'error', errorClass: 'forbidden' });
+      const afterFirst = store.load()[0]!;
+      expect(afterFirst.state.consecutiveErrors).toBe(1);
+      expect(afterFirst.state.nextRunAtMs).toBe(1_000 + 60_000 * 2);
+      const second = await runProviderSlaJob('sla-fail', failing, store, undefined, 1_000);
+      const afterSecond = store.load()[0]!;
+      expect(afterSecond.state.consecutiveErrors).toBe(2);
+      expect(afterSecond.state.nextRunAtMs).toBe(1_000 + 60_000 * 4);
+      await runProviderSlaJob('sla-fail', ok, store, undefined, 1_000);
+      const recovered = store.load()[0]!;
+      expect(recovered.state.consecutiveErrors).toBe(0);
+      expect(recovered.state.lastRunStatus).toBe('ok');
+      expect(recovered.state.nextRunAtMs).toBe(1_000 + 60_000);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  test('runner groups due jobs by provider without interleaving quotes on the same client', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'upup-provider-sla-grouping-'));
+    try {
+      const store = new JsonFileProviderSlaStore(join(root, 'jobs.json'));
+      const now = Date.now();
+      store.save([
+        { ...job('sla-yahoo-1'), state: { nextRunAtMs: now - 5, consecutiveErrors: 0 } },
+        { ...job('sla-yahoo-2'), state: { nextRunAtMs: now - 3, consecutiveErrors: 0 } },
+      ]);
+      let active = 0;
+      let peak = 0;
+      const client = new NativeMarketQuoteClient({ fetcher: async () => { active += 1; peak = Math.max(peak, active); await new Promise((resolve) => setTimeout(resolve, 5)); active -= 1; return new Response('forbidden', { status: 403 }); } });
+      const runner = startProviderSlaRunner({ store, maxTimerDelayMs: 60_000, createClient: () => client });
+      try {
+        const results = await runner.runDue();
+        expect(results).toHaveLength(2);
+        expect(peak).toBe(1);
       } finally {
         runner.stop();
       }

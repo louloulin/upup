@@ -1,8 +1,0 @@
-{
-  "kind": "verifier-execution-error",
-  "summary": "iteration 10 Attempt 1 的独立 Verifier execution 已从本机进程表消失，Comet 仍报告 running；未收到 A1-A20 独立语义验收结果。Runtime-owned checks 已全部通过，不能将其替代独立语义验收。",
-  "stateVersion": 128,
-  "iteration": 10,
-  "attempt": 1,
-  "verifierExecutionRef": "skill-coordinated:verifier:0f6da877-8887-401f-8150-a85af02b01e4"
-}

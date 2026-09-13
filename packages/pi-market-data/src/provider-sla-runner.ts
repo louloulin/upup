@@ -47,9 +47,18 @@ export function startProviderSlaRunner(options: ProviderSlaRunnerOptions = {}): 
     try {
       const now = Date.now();
       const due = store.load().filter((job) => job.enabled && job.state.nextRunAtMs !== undefined && job.state.nextRunAtMs <= now);
+      const grouped = new Map<MarketHistoryProvider, typeof due>();
       for (const job of due) {
+        const bucket = grouped.get(job.provider) ?? [];
+        bucket.push(job);
+        grouped.set(job.provider, bucket);
+      }
+      for (const group of grouped.values()) {
         if (stopped) break;
-        results.push(await runProviderSlaJob(job.id, clientFor(job.provider), store, signal, now));
+        for (const job of group) {
+          if (stopped || (signal?.aborted ?? false)) break;
+          results.push(await runProviderSlaJob(job.id, clientFor(job.provider), store, signal, now));
+        }
       }
       return results;
     } finally {

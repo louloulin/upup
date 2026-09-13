@@ -46,7 +46,8 @@ describe('pi-backtest', () => {
     expect(result.outcome).toBe('win');
     expect(result.firstHit).toBe('take_profit');
     expect(result.simulatedExitPrice).toBe(109);
-    expect(result.simulatedReturnPct).toBeCloseTo(9, 8);
+    expect(result.simulatedReturnPct).toBeCloseTo(0, 8);
+    expect(result.grossSimulatedReturnPct).toBeCloseTo(9, 8);
   });
   test('marks insufficient data and cash position deterministically', () => {
     const insufficient = evaluateTrade({ symbol: 'AAPL', analysisDate: '2026-01-01', operationAdvice: '观望', entryPrice: 100, quantity: 1 }, bars.slice(0, 2), config);

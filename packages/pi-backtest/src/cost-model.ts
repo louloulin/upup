@@ -2,10 +2,34 @@ export interface BacktestCostModel {
   readonly id?: string;
   readonly commissionBps?: number;
   readonly minimumCommission?: number;
-  readonly stampDutyBps?: number;
-  readonly applyStampDutyOnSell?: boolean;
+  readonly stampDuty?: BacktestStampDuty;
   readonly slippageBps?: number;
 }
+
+export interface BacktestLegacyStampDuty { readonly stampDutyBps?: number; readonly applyStampDutyOnSell?: boolean }
+export type BacktestCostModelInput = BacktestCostModel & BacktestLegacyStampDuty;
+export type BacktestStampDutyRegime = 'cn_a_share' | 'hk' | 'none';
+
+export interface BacktestStampDuty {
+  readonly regime?: BacktestStampDutyRegime;
+  readonly buyBps?: number;
+  readonly sellBps?: number;
+  readonly buyOnly?: boolean;
+}
+
+export interface BacktestStampDutyBreakdown {
+  readonly regime: BacktestStampDutyRegime;
+  readonly buyBps: number;
+  readonly sellBps: number;
+  readonly buyDuty: number;
+  readonly sellDuty: number;
+}
+
+export const DEFAULT_STAMP_DUTY: Readonly<Record<BacktestStampDutyRegime, { buyBps: number; sellBps: number }>> = {
+  cn_a_share: { buyBps: 0, sellBps: 5 },
+  hk: { buyBps: 13, sellBps: 13 },
+  none: { buyBps: 0, sellBps: 0 },
+};
 
 export interface BacktestTransactionCosts {
   readonly entryPrice: number;
@@ -16,7 +40,9 @@ export interface BacktestTransactionCosts {
   readonly exitNotional: number;
   readonly entryCommission: number;
   readonly exitCommission: number;
-  readonly stampDuty: number;
+  readonly stampDuty: BacktestStampDutyBreakdown;
+  readonly entryStampDuty: number;
+  readonly exitStampDuty: number;
   readonly slippageCost: number;
   readonly totalCost: number;
   readonly grossPnl: number;
@@ -43,7 +69,7 @@ export function calculateTransactionCosts(
   entryPrice: number,
   exitPrice: number,
   quantity: number,
-  model: BacktestCostModel,
+  model: BacktestCostModelInput,
 ): BacktestTransactionCosts {
   if (!Number.isFinite(entryPrice) || entryPrice <= 0) throw new Error('entryPrice must be finite and positive');
   if (!Number.isFinite(exitPrice) || exitPrice <= 0) throw new Error('exitPrice must be finite and positive');
@@ -55,12 +81,10 @@ export function calculateTransactionCosts(
   const exitNotional = exitFillPrice * quantity;
   const entryCommission = commission(entryNotional, model);
   const exitCommission = commission(exitNotional, model);
-  const stampDuty = model.applyStampDutyOnSell === false
-    ? 0
-    : exitNotional * nonNegative(model.stampDutyBps, 'stampDutyBps') / 10_000;
+  const stampDuty = resolveStampDuty(model, entryNotional, exitNotional);
   const slippageCost = (Math.abs(entryFillPrice - entryPrice) + Math.abs(exitPrice - exitFillPrice)) * quantity;
   const grossPnl = (exitPrice - entryPrice) * quantity;
-  const totalCost = entryCommission + exitCommission + stampDuty + slippageCost;
+  const totalCost = entryCommission + exitCommission + stampDuty.buyDuty + stampDuty.sellDuty + slippageCost;
   const netPnl = grossPnl - totalCost;
   const grossReturnPct = (grossPnl / (entryPrice * quantity)) * 100;
   const netReturnPct = (netPnl / (entryPrice * quantity + entryCommission)) * 100;
@@ -73,7 +97,9 @@ export function calculateTransactionCosts(
     exitNotional: round(exitNotional),
     entryCommission: round(entryCommission),
     exitCommission: round(exitCommission),
-    stampDuty: round(stampDuty),
+    stampDuty,
+    entryStampDuty: round(stampDuty.buyDuty),
+    exitStampDuty: round(stampDuty.sellDuty),
     slippageCost: round(slippageCost),
     totalCost: round(totalCost),
     grossPnl: round(grossPnl),
@@ -83,3 +109,16 @@ export function calculateTransactionCosts(
   };
 }
 
+export function resolveStampDuty(model: BacktestStampDuty | BacktestLegacyStampDuty | undefined, entryNotional: number, exitNotional: number): BacktestStampDutyBreakdown {
+  const stampDuty = (model ?? {}) as BacktestStampDuty & BacktestLegacyStampDuty;
+  const hasNewDuty = stampDuty && typeof stampDuty === 'object' && 'regime' in stampDuty && stampDuty.regime !== undefined;
+  const legacyBps = stampDuty.stampDutyBps;
+  const regime: BacktestStampDutyRegime = hasNewDuty ? stampDuty.regime as BacktestStampDutyRegime : (legacyBps === undefined ? 'none' : (stampDuty.applyStampDutyOnSell === false ? 'cn_a_share' : 'cn_a_share'));
+  const defaults = DEFAULT_STAMP_DUTY[regime];
+  const buyBps = nonNegative(hasNewDuty ? stampDuty.buyBps ?? defaults.buyBps : 0, 'stampDuty.buyBps');
+  const sellBps = nonNegative(hasNewDuty ? stampDuty.sellBps ?? defaults.sellBps : legacyBps ?? defaults.sellBps, 'stampDuty.sellBps');
+  const buyOnly = stampDuty.buyOnly === true || (legacyBps !== undefined && stampDuty.applyStampDutyOnSell === false);
+  const buyDuty = buyOnly ? 0 : entryNotional * buyBps / 10_000;
+  const sellDuty = exitNotional * sellBps / 10_000;
+  return { regime, buyBps, sellBps, buyDuty: round(buyDuty), sellDuty: round(sellDuty) };
+}

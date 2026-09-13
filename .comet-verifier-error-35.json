@@ -1,8 +1,0 @@
-{
-  "kind": "verifier-execution-error",
-  "summary": "Attempt 35 的独立 Verifier execution 已从本机进程表消失，Comet 仍报告 running；未收到 A1-A20 独立语义验收结果。当前候选的本地 Pi 合约 108 pass / 0 fail、Finance SDK 2 pass / 0 fail、全量回归 4189 pass / 0 fail、类型检查、迁移门禁、包门禁、运行时门禁和构建均通过；不将本地结果冒充独立语义验收。",
-  "stateVersion": 113,
-  "iteration": 7,
-  "attempt": 35,
-  "verifierExecutionRef": "skill-coordinated:verifier:8f41fe22-8944-4cf9-932d-3523f5c060ed"
-}

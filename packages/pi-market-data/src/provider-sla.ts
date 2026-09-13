@@ -111,6 +111,12 @@ function errorClass(metrics: ReturnType<NativeMarketQuoteClient['getMetrics']>):
   return metrics.lastErrorClass ?? 'unknown';
 }
 
+function backoffMs(everyMs: number, consecutiveErrors: number): number {
+  if (consecutiveErrors <= 0) return everyMs;
+  const multiplier = Math.min(32, 2 ** consecutiveErrors);
+  return Math.min(everyMs * 32, everyMs * multiplier);
+}
+
 function probeInstrument(provider: MarketHistoryProvider, probe: ProviderSlaProbe): { symbol: string; market: string } {
   if (probe === 'us') return { symbol: 'AAPL', market: 'us' };
   if (probe === 'cn') return { symbol: '600519.SH', market: 'cn' };
@@ -143,7 +149,7 @@ export async function runProviderSlaJob(
     return { jobId: job.id, name: job.name, provider: job.provider, status: 'ok', latencyMs, nextRunAtMs, policy: 'no-synthetic-fallback' };
   } catch (error) {
     const latencyMs = Math.max(0, Date.now() - startedAt);
-    const nextRunAtMs = now + job.everyMs;
+    const nextRunAtMs = now + backoffMs(job.everyMs, job.state.consecutiveErrors + 1);
     const metrics = client.getMetrics();
     const classification = errorClass(metrics);
     jobs[index] = { ...job, updatedAtMs: now, state: { ...job.state, nextRunAtMs, lastRunAtMs: now, lastRunStatus: 'error', lastErrorClass: classification, lastLatencyMs: latencyMs, consecutiveErrors: job.state.consecutiveErrors + 1 } };
@@ -205,3 +211,5 @@ export async function providerSla(
   store.save(jobs);
   return { jobId: updated.id, status: 'updated', enabled: updated.enabled, nextRunAtMs: updated.state.nextRunAtMs };
 }
+
+export const __test__ = { backoffMs };

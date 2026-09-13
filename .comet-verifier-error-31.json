@@ -1,8 +1,0 @@
-{
-  "kind": "verifier-execution-error",
-  "summary": "Attempt 31 的独立 Verifier execution 已从本机进程表消失，Comet 仍报告 running；未收到 A1-A20 独立语义验收结果。该 Attempt 启动后补充了 InProcess Pi worker 工具加载和 AgentSpec system prompt 内容边界修复，因此其结果不能证明当前候选。最新本地 Pi 合约 108 pass / 0 fail、Finance SDK 2 pass / 0 fail、全量回归 4189 pass / 0 fail、类型检查、迁移门禁、包门禁、运行时门禁和构建均通过；不将本地结果冒充独立语义验收。",
-  "stateVersion": 105,
-  "iteration": 7,
-  "attempt": 31,
-  "verifierExecutionRef": "skill-coordinated:verifier:47f43220-c813-4622-b8b9-4ea1fb9e980a"
-}
