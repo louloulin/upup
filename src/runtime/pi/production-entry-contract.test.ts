@@ -29,6 +29,7 @@ describe('Pi production entry contract', () => {
       expect(source).not.toContain("src/agent/agent.js");
       expect(source).not.toContain('callLlmWithMessages');
     }
+    expect(readFileSync(join(process.cwd(), 'src/runtime/pi/prompts.ts'), 'utf8')).not.toMatch(/from ['"](?:\.\.?\/)+'skills/);
   });
 
   test('legacy Plugin Loader and runtime adapters are not production execution paths', () => {

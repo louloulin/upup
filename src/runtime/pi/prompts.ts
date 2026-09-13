@@ -1,4 +1,3 @@
-import { buildSkillMetadataSection, discoverSkills } from '../../skills/index.js';
 import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -86,14 +85,19 @@ export async function loadRulesDocument(): Promise<string | null> {
  * Build the skills section for the system prompt.
  * Only includes skill metadata if skills are available.
  */
-function buildSkillsSection(): string {
-  const skills = discoverSkills();
-  
+export interface PiPromptSkillMetadata {
+  readonly name: string;
+  readonly description: string;
+}
+
+function buildSkillsSection(skills: readonly PiPromptSkillMetadata[] = []): string {
   if (skills.length === 0) {
     return '';
   }
 
-  const skillList = buildSkillMetadataSection();
+  const skillList = skills
+    .map((skill) => `- **${skill.name}**: ${skill.description}`)
+    .join('\n');
   
   return `## Available Skills
 
@@ -248,6 +252,7 @@ export async function buildSystemPrompt(
    * UPUP_LOCALE / LC_ALL / LANG.
    */
   locale?: PromptLocale,
+  availableSkills: readonly PiPromptSkillMetadata[] = [],
 ): Promise<string> {
   const { buildCompactToolDescriptions } = await import('../../tools/registry/index.js');
   const toolDescriptions = await buildCompactToolDescriptions(model);
@@ -313,7 +318,7 @@ Use the grep tool for text content search:
 Use read_file for reading individual files:
 - read_file with path → read_file
 
-${buildSkillsSection()}
+${buildSkillsSection(availableSkills)}
 
 ${buildMemorySection(memoryFiles ?? [], memoryContext)}
 

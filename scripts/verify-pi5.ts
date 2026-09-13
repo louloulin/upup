@@ -61,6 +61,22 @@ function verifyArchitectureDocs(): void {
       throw new Error(`finance Pi package does not declare ${resourceKind}`);
     }
   }
+  const marketDataManifest = JSON.parse(readFileSync(join(root, 'packages/pi-market-data/package.json'), 'utf8')) as {
+    pi?: Record<string, unknown>;
+  };
+  for (const resourceKind of ['extensions', 'skills', 'prompts', 'workflows', 'policies', 'evals']) {
+    if (!Array.isArray(marketDataManifest.pi?.[resourceKind]) || marketDataManifest.pi?.[resourceKind].length === 0) {
+      throw new Error(`market-data Pi package does not declare ${resourceKind}`);
+    }
+  }
+  const investmentAnalysisManifest = JSON.parse(readFileSync(join(root, 'packages/pi-investment-analysis/package.json'), 'utf8')) as {
+    pi?: Record<string, unknown>;
+  };
+  for (const resourceKind of ['extensions', 'skills', 'prompts', 'workflows', 'policies', 'evals']) {
+    if (!Array.isArray(investmentAnalysisManifest.pi?.[resourceKind]) || investmentAnalysisManifest.pi?.[resourceKind].length === 0) {
+      throw new Error(`investment-analysis Pi package does not declare ${resourceKind}`);
+    }
+  }
 }
 
 const checks: readonly Check[] = [
@@ -78,6 +94,8 @@ const checks: readonly Check[] = [
   { id: 'A12', name: 'Pi Package/Extension/Skill/Prompt 生态', commands: [
     ['bun', 'run', 'check:pi-packages'],
     ['bun', '--cwd', 'packages/pi-finance-sdk', 'test'],
+    ['bun', '--cwd', 'packages/pi-market-data', 'test'],
+    ['bun', '--cwd', 'packages/pi-investment-analysis', 'test'],
     ['bun', 'test', 'src/runtime/pi/finance-host-contract.test.ts', 'src/runtime/pi/package-catalog.test.ts', 'src/runtime/pi/agent-spec.test.ts', 'src/runtime/pi/agent-session-factory.test.ts', 'packages/pi-finance-sdk/extensions/index.test.ts'],
   ] },
   { id: 'A13', name: '四级金融权限策略', command: 'bun', args: ['test', 'src/runtime/pi/tool-contract.test.ts', 'src/runtime/pi/production-finance-contract.test.ts'] },

@@ -112,6 +112,11 @@ const legacyAgentImports = await new Promise<string>((resolve) => {
   new Response(proc.stdout).text().then(resolve);
 });
 if (legacyAgentImports.trim()) failures.push(`production code still imports src/agent compatibility modules: ${legacyAgentImports.trim().split('\n').join(', ')}`);
+const piRuntimeLegacySkillImports = await new Promise<string>((resolve) => {
+  const proc = Bun.spawn(['rg', '-l', "from ['\"](?:\.\.?/)+skills(?:/|['\"])", `${root}/src/runtime/pi`, '--glob', '!**/*.test.ts', '--glob', '!**/*.bak', '--glob', '!**/*.tsbuildinfo']);
+  new Response(proc.stdout).text().then(resolve);
+});
+if (piRuntimeLegacySkillImports.trim()) failures.push(`Pi runtime must load skills from Pi ResourceLoader/Package resources, not legacy src/skills: ${piRuntimeLegacySkillImports.trim().split('\n').join(', ')}`);
 if (existsSync(join(root, 'src/agent/agent.ts'))) failures.push('legacy src/agent/agent.ts must remain deleted');
 if (existsSync(join(root, 'package-lock.json'))) failures.push('obsolete npm package-lock.json must remain deleted; Bun is the only lockfile');
 const compatPath = join(root, 'src/runtime/pi/tool-compat.ts');

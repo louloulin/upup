@@ -21,31 +21,47 @@ const SOURCE_FINANCE_PACKAGE_PATH = resolve(
   dirname(fileURLToPath(import.meta.url)),
   '../../../packages/pi-finance-sdk',
 );
+const SOURCE_MARKET_DATA_PACKAGE_PATH = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  '../../../packages/pi-market-data',
+);
+const SOURCE_INVESTMENT_ANALYSIS_PACKAGE_PATH = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  '../../../packages/pi-investment-analysis',
+);
 
-function builtinFinancePackageCandidates(cwd: string): string[] {
+function builtinPackageCandidates(cwd: string, packageName: string, sourcePath: string): string[] {
   const executableDirectory = dirname(process.execPath);
   return [
-    resolve(cwd, 'packages/pi-finance-sdk'),
-    resolve(cwd, 'dist/pi-finance-sdk'),
-    resolve(executableDirectory, 'pi-finance-sdk'),
-    resolve(executableDirectory, '../share/upup/pi-finance-sdk'),
-    SOURCE_FINANCE_PACKAGE_PATH,
+    resolve(cwd, `packages/${packageName}`),
+    resolve(cwd, `dist/${packageName}`),
+    resolve(executableDirectory, packageName),
+    resolve(executableDirectory, `../share/upup/${packageName}`),
+    sourcePath,
   ];
 }
 
 export function getBuiltinPiPackageOptions(cwd = process.cwd()): ConfiguredPiPackageOptions | undefined {
-  const packagePath = builtinFinancePackageCandidates(cwd).find((candidate) => existsSync(join(candidate, 'package.json')));
-  if (!packagePath) return undefined;
+  const candidates = [
+    { directory: 'pi-finance-sdk', name: '@upup/pi-finance-sdk', version: '0.1.0', sourcePath: SOURCE_FINANCE_PACKAGE_PATH, source: 'builtin:upup' },
+    { directory: 'pi-market-data', name: '@upup/pi-market-data', version: '0.1.0', sourcePath: SOURCE_MARKET_DATA_PACKAGE_PATH, source: 'builtin:upup' },
+    { directory: 'pi-investment-analysis', name: '@upup/pi-investment-analysis', version: '0.1.0', sourcePath: SOURCE_INVESTMENT_ANALYSIS_PACKAGE_PATH, source: 'builtin:upup' },
+  ].map((candidate) => ({
+    ...candidate,
+    path: builtinPackageCandidates(cwd, candidate.directory, candidate.sourcePath).find((path) => existsSync(join(path, 'package.json'))),
+  })).filter((candidate): candidate is typeof candidate & { path: string } => Boolean(candidate.path));
+  if (candidates.length === 0) return undefined;
+  const packagePaths = candidates.map((candidate) => candidate.path);
   return {
-    piPackagePaths: [packagePath],
+    piPackagePaths: packagePaths,
     piPackageTrust: {
-      trustedPaths: [packagePath],
+      trustedPaths: packagePaths,
       pinnedPackages: {
-        '@upup/pi-finance-sdk': '0.1.0',
+        ...Object.fromEntries(candidates.map((candidate) => [candidate.name, candidate.version])),
         '@earendil-works/pi-coding-agent': '0.84.3',
         typebox: '1.3.7',
       },
-      allowedSources: { '@upup/pi-finance-sdk': ['builtin:upup'] },
+      allowedSources: Object.fromEntries(candidates.map((candidate) => [candidate.name, [candidate.source]])),
     },
   };
 }

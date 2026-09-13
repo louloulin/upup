@@ -1,0 +1,8 @@
+{
+  "name": "investment-analysis-contract",
+  "version": "1.0.0",
+  "cases": [
+    { "id": "dcf-has-assumptions", "requires": ["assumptions", "fairValuePerShare"] },
+    { "id": "not-a-trade-signal", "forbidden": ["guaranteed return", "automatic order"] }
+  ]
+}

@@ -487,6 +487,81 @@ describe('PiAgentSessionFactory', () => {
     }
   });
 
+  test('loads the market-data Package through an explicit Pi Package allowlist', async () => {
+    const packageRoot = join(process.cwd(), 'packages');
+    const session = await new PiAgentSessionFactory().createSession({
+      ...getInvestmentAgentSpec('invest-explore'),
+      packages: ['@upup/pi-market-data'],
+      skills: ['market-data'],
+      tools: ['market_data_quote', 'market_data_history', 'market_trading_day'],
+    }, {
+      cwd: process.cwd(),
+      loadRegisteredTools: false,
+      piPackagePaths: [join(packageRoot, 'pi-finance-sdk'), join(packageRoot, 'pi-market-data')],
+      piPackageTrust: {
+        trustedPaths: [join(packageRoot, 'pi-finance-sdk'), join(packageRoot, 'pi-market-data')],
+        pinnedPackages: {
+          '@upup/pi-finance-sdk': '0.1.0',
+          '@upup/pi-market-data': '0.1.0',
+          '@earendil-works/pi-coding-agent': '0.84.3',
+          typebox: '1.3.7',
+        },
+        allowedSources: {
+          '@upup/pi-finance-sdk': ['builtin:upup'],
+          '@upup/pi-market-data': ['builtin:upup'],
+        },
+      },
+    });
+    try {
+      expect(session.getAvailableToolNames()).toEqual(['market_data_quote', 'market_data_history', 'market_trading_day']);
+      expect(session.getLoadedPackageResources().some((resource) => resource.packageName === '@upup/pi-market-data' && resource.kind === 'skill')).toBe(true);
+      expect(session.getLoadedPackageResources().some((resource) => resource.packageName === '@upup/pi-finance-sdk')).toBe(false);
+      const result = await session.executeTool('market_data_quote', 'market-package-quote', { symbol: '600519.SH', market: 'cn' });
+      expect(result).toMatchObject({ details: { auditId: 'market-package-quote', dataFreshness: 'historical' } });
+      expect(result.content[0]).toMatchObject({ type: 'text' });
+    } finally {
+      session.dispose();
+    }
+  });
+
+  test('loads investment-analysis with its market-data dependency closure', async () => {
+    const packageRoot = join(process.cwd(), 'packages');
+    const session = await new PiAgentSessionFactory().createSession({
+      ...getInvestmentAgentSpec('invest-plan'),
+      packages: ['@upup/pi-investment-analysis'],
+      skills: ['investment-analysis'],
+      tools: ['investment_dcf', 'investment_technical_signal'],
+    }, {
+      cwd: process.cwd(),
+      loadRegisteredTools: false,
+      piPackagePaths: [join(packageRoot, 'pi-market-data'), join(packageRoot, 'pi-investment-analysis')],
+      piPackageTrust: {
+        trustedPaths: [join(packageRoot, 'pi-market-data'), join(packageRoot, 'pi-investment-analysis')],
+        pinnedPackages: {
+          '@upup/pi-market-data': '0.1.0',
+          '@upup/pi-investment-analysis': '0.1.0',
+          '@earendil-works/pi-coding-agent': '0.84.3',
+          typebox: '1.3.7',
+        },
+        allowedSources: {
+          '@upup/pi-market-data': ['builtin:upup'],
+          '@upup/pi-investment-analysis': ['builtin:upup'],
+        },
+      },
+    });
+    try {
+      expect(session.getAvailableToolNames()).toEqual(['investment_dcf', 'investment_technical_signal']);
+      expect(session.getLoadedPackageResources().some((resource) => resource.packageName === '@upup/pi-market-data')).toBe(true);
+      expect(session.getLoadedPackageResources().some((resource) => resource.packageName === '@upup/pi-investment-analysis' && resource.kind === 'skill')).toBe(true);
+      const result = await session.executeTool('investment_dcf', 'analysis-package-dcf', {
+        currentFcf: 100, growthRate: 0.08, discountRate: 0.1, terminalGrowthRate: 0.03, projectionYears: 5, sharesOutstanding: 10,
+      });
+      expect(result).toMatchObject({ details: { auditId: 'analysis-package-dcf', dataFreshness: 'historical' } });
+    } finally {
+      session.dispose();
+    }
+  });
+
   test('rejects a Pi package when its declared command is not registered', async () => {
     const cwd = await mkdtemp(join(process.cwd(), '.upup', 'pi-project-package-invalid-'));
     try {

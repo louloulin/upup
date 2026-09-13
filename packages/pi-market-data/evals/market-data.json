@@ -1,0 +1,8 @@
+{
+  "name": "market-data-contract",
+  "version": "1.0.0",
+  "cases": [
+    { "id": "quote-has-as-of", "requires": ["asOf", "source", "freshness"] },
+    { "id": "no-live-claim-for-fixture", "forbidden": ["realtime quote guaranteed"] }
+  ]
+}

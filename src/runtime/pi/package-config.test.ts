@@ -25,26 +25,40 @@ describe('configured Pi packages', () => {
   test('resolves a distributable built-in finance package root', () => {
     const options = getBuiltinPiPackageOptions(process.cwd());
     expect(options?.piPackagePaths[0]).toContain('pi-finance-sdk');
+    expect(options?.piPackagePaths).toEqual(expect.arrayContaining([expect.stringContaining('pi-market-data')]));
+    expect(options?.piPackagePaths).toEqual(expect.arrayContaining([expect.stringContaining('pi-investment-analysis')]));
     expect(options?.piPackageTrust.pinnedPackages).toEqual({
       '@upup/pi-finance-sdk': '0.1.0',
+      '@upup/pi-market-data': '0.1.0',
+      '@upup/pi-investment-analysis': '0.1.0',
       '@earendil-works/pi-coding-agent': '0.84.3',
       typebox: '1.3.7',
     });
-    expect(options?.piPackageTrust.allowedSources).toEqual({ '@upup/pi-finance-sdk': ['builtin:upup'] });
+    expect(options?.piPackageTrust.allowedSources).toEqual({
+      '@upup/pi-finance-sdk': ['builtin:upup'],
+      '@upup/pi-market-data': ['builtin:upup'],
+      '@upup/pi-investment-analysis': ['builtin:upup'],
+    });
   });
 
   test('loads the pinned built-in finance package by default', () => {
     delete process.env.UPUP_PI_PACKAGE_PATHS;
     expect(resolveConfiguredPiPackages()).toEqual({
-      piPackagePaths: [expect.stringContaining('/packages/pi-finance-sdk')],
+      piPackagePaths: expect.arrayContaining([expect.stringContaining('/packages/pi-finance-sdk'), expect.stringContaining('/packages/pi-market-data'), expect.stringContaining('/packages/pi-investment-analysis')]),
       piPackageTrust: {
-        trustedPaths: [expect.stringContaining('/packages/pi-finance-sdk')],
+        trustedPaths: expect.arrayContaining([expect.stringContaining('/packages/pi-finance-sdk'), expect.stringContaining('/packages/pi-market-data'), expect.stringContaining('/packages/pi-investment-analysis')]),
         pinnedPackages: {
           '@upup/pi-finance-sdk': '0.1.0',
+          '@upup/pi-market-data': '0.1.0',
+          '@upup/pi-investment-analysis': '0.1.0',
           '@earendil-works/pi-coding-agent': '0.84.3',
           typebox: '1.3.7',
         },
-        allowedSources: { '@upup/pi-finance-sdk': ['builtin:upup'] },
+        allowedSources: {
+          '@upup/pi-finance-sdk': ['builtin:upup'],
+          '@upup/pi-market-data': ['builtin:upup'],
+          '@upup/pi-investment-analysis': ['builtin:upup'],
+        },
       },
     });
   });

@@ -133,6 +133,23 @@
         "typebox": "1.3.7",
       },
     },
+    "packages/pi-investment-analysis": {
+      "name": "@upup/pi-investment-analysis",
+      "version": "0.1.0",
+      "peerDependencies": {
+        "@earendil-works/pi-coding-agent": "0.84.3",
+        "@upup/pi-market-data": "0.1.0",
+        "typebox": "1.3.7",
+      },
+    },
+    "packages/pi-market-data": {
+      "name": "@upup/pi-market-data",
+      "version": "0.1.0",
+      "peerDependencies": {
+        "@earendil-works/pi-coding-agent": "0.84.3",
+        "typebox": "1.3.7",
+      },
+    },
     "packages/plugin-sdk": {
       "name": "@upup/plugin-sdk",
       "version": "0.2.0",
@@ -795,6 +812,10 @@
     "@upup/memory": ["@upup/memory@workspace:packages/memory"],
 
     "@upup/pi-finance-sdk": ["@upup/pi-finance-sdk@workspace:packages/pi-finance-sdk"],
+
+    "@upup/pi-investment-analysis": ["@upup/pi-investment-analysis@workspace:packages/pi-investment-analysis"],
+
+    "@upup/pi-market-data": ["@upup/pi-market-data@workspace:packages/pi-market-data"],
 
     "@upup/plugin-sdk": ["@upup/plugin-sdk@workspace:packages/plugin-sdk"],
 
