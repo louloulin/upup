@@ -29,6 +29,7 @@ import { verifyPiResourceTrust, type PiResourceTrustAudit } from './plugin-trust
 import { createPiPluginExtensions, getLoadedPiPluginBindings } from './plugin-adapter.js';
 import { PiPackageCatalog, type PiPackageResourceSnapshot } from './package-catalog.js';
 import { evaluatePiPackage, type PiEvalResult, type PiPackageContracts } from './package-contracts.js';
+import { getBuiltinPiPackageOptions } from './package-config.js';
 
 function eventToUpUpEvent(sessionId: string, event: AgentSessionEvent): UpUpAgentEvent | undefined {
   switch (event.type) {
@@ -192,6 +193,46 @@ function createFinanceExtension(spec: UpUpAgentSpec, tools: readonly UpUpToolCon
   };
 }
 
+const PI_FINANCE_HOST_KEY = '__upupPiFinanceToolHost';
+let piFinancePackageLoadTail: Promise<void> = Promise.resolve();
+
+function installPiFinanceToolHost(
+  spec: UpUpAgentSpec,
+  tools: readonly UpUpToolContract[],
+  requestToolApproval?: UpUpCreateSessionOptions['requestToolApproval'],
+): () => void {
+  const globalState = globalThis as typeof globalThis & {
+    __upupPiFinanceToolHost?: { getToolDefinitions: () => readonly ToolDefinition[] };
+  };
+  const previous = globalState[PI_FINANCE_HOST_KEY];
+  globalState[PI_FINANCE_HOST_KEY] = {
+    getToolDefinitions: () => tools.map((tool) => toPiTool(spec, tool, requestToolApproval)),
+  };
+  return () => {
+    if (previous) globalState[PI_FINANCE_HOST_KEY] = previous;
+    else delete globalState[PI_FINANCE_HOST_KEY];
+  };
+}
+
+async function reloadFinancePackageResources(
+  resourceLoader: DefaultResourceLoader,
+  spec: UpUpAgentSpec,
+  tools: readonly UpUpToolContract[],
+  requestToolApproval?: UpUpCreateSessionOptions['requestToolApproval'],
+): Promise<void> {
+  const previous = piFinancePackageLoadTail;
+  let release!: () => void;
+  piFinancePackageLoadTail = new Promise<void>((resolve) => { release = resolve; });
+  await previous;
+  const restore = installPiFinanceToolHost(spec, tools, requestToolApproval);
+  try {
+    await resourceLoader.reload();
+  } finally {
+    restore();
+    release();
+  }
+}
+
 function createFinanceSessionExtension(): InlineExtension {
   return {
     name: 'upup-finance-session-policy',
@@ -335,20 +376,25 @@ export class PiAgentSessionFactory implements UpUpAgentRuntime {
         : await import('./registry-adapter.js').then(({ loadRegisteredPiToolContracts }) => loadRegisteredPiToolContracts(spec.model ?? process.env.DEFAULT_MODEL ?? 'deepseek-v4-flash'));
     const tools = sourceTools.filter((tool) => spec.tools === '*' || spec.tools.includes(tool.name));
     const packageCatalog = new PiPackageCatalog();
-    if ((options.piPackagePaths?.length ?? 0) > 0) {
-      if (!options.piPackageTrust) throw new Error('Pi package loading requires an explicit piPackageTrust policy');
-      for (const packagePath of options.piPackagePaths ?? []) packageCatalog.register(packagePath, options.piPackageTrust, cwd);
+    const builtinPackages = options.piPackagePaths === undefined ? getBuiltinPiPackageOptions(cwd) : undefined;
+    const piPackagePaths = options.piPackagePaths ?? builtinPackages?.piPackagePaths;
+    const piPackageTrust = options.piPackageTrust ?? builtinPackages?.piPackageTrust;
+    if ((piPackagePaths?.length ?? 0) > 0) {
+      if (!piPackageTrust) throw new Error('Pi package loading requires an explicit piPackageTrust policy');
+      for (const packagePath of piPackagePaths ?? []) packageCatalog.register(packagePath, piPackageTrust, cwd);
     }
     const packageResources = packageCatalog.resources();
-    const trustedSkills = verifyPiResourceTrust([...packageResources.skills, ...(options.additionalSkillPaths ?? [])], options.pluginTrust ?? options.piPackageTrust, cwd);
-    const trustedPrompts = verifyPiResourceTrust([...packageResources.prompts, ...(options.additionalPromptTemplatePaths ?? [])], options.pluginTrust ?? options.piPackageTrust, cwd);
-    const trustedExtensions = verifyPiResourceTrust([...packageResources.extensions, ...(options.additionalExtensionPaths ?? [])], options.pluginTrust ?? options.piPackageTrust, cwd);
+    const resourceTrust = options.pluginTrust ?? piPackageTrust;
+    const trustedSkills = verifyPiResourceTrust([...packageResources.skills, ...(options.additionalSkillPaths ?? [])], resourceTrust, cwd);
+    const trustedPrompts = verifyPiResourceTrust([...packageResources.prompts, ...(options.additionalPromptTemplatePaths ?? [])], resourceTrust, cwd);
+    const trustedExtensions = verifyPiResourceTrust([...packageResources.extensions, ...(options.additionalExtensionPaths ?? [])], resourceTrust, cwd);
     const trustedDomainResources = verifyPiResourceTrust([
       ...packageResources.workflows,
       ...packageResources.policies,
       ...packageResources.evals,
-    ], options.pluginTrust ?? options.piPackageTrust, cwd);
+    ], resourceTrust, cwd);
     const packageContracts = packageCatalog.contracts();
+    const financePackageEnabled = packageCatalog.get('@upup/pi-finance-sdk')?.enabled === true;
     const pluginBindings = options.piPlugins ?? (options.pluginTrust ? getLoadedPiPluginBindings(spec, options.requestToolApproval) : []);
     const trustedPlugins = pluginBindings.map((binding) => {
       const audit = verifyPiResourceTrust([binding.path], options.pluginTrust, cwd);
@@ -376,7 +422,7 @@ export class PiAgentSessionFactory implements UpUpAgentRuntime {
       settingsManager,
       extensionFactories: [
         createFinanceSessionExtension(),
-        createFinanceExtension(spec, tools, options.requestToolApproval),
+        ...(financePackageEnabled ? [] : [createFinanceExtension(spec, tools, options.requestToolApproval)]),
         ...createPiPluginExtensions(trustedPlugins.map(({ binding }) => binding)),
       ],
       additionalExtensionPaths: trustedExtensions.paths.length ? [...trustedExtensions.paths] : undefined,
@@ -395,7 +441,11 @@ export class PiAgentSessionFactory implements UpUpAgentRuntime {
         ...packageContracts.policies.map((policy) => `Trusted Pi policy ${policy.name} (${policy.packageName}@${policy.packageVersion}):\n${policy.rules.join('\n')}`),
       ],
     });
-    await resourceLoader.reload();
+    if (financePackageEnabled) {
+      await reloadFinancePackageResources(resourceLoader, spec, tools, options.requestToolApproval);
+    } else {
+      await resourceLoader.reload();
+    }
     const result = await createAgentSession({
       cwd,
       sessionManager,

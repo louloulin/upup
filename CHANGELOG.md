@@ -27,7 +27,7 @@
 ### Not changed
 - **No `src/` or `packages/` source code** — this is a documentation-only release.
 - **No `package.json` / `bun.lock`** — no dependency change.
-- **No public API** — `@upup/plugin-sdk`, `packages/llm`, etc. unchanged.
+- **No public API** — `@upup/plugin-sdk` and the remaining workspace packages are unchanged.
 - **No version bump** — still on `2026.05.15`; the audit and white paper are docs, not features.
 
 ## [2026.05.15] - 2026-05-15
@@ -39,7 +39,7 @@
   - SKILL.md hot-reload — no restart needed
   - `recent-usage` real counts surfaced in `/skills`
   - Sample plugin (`@upup/example-plugin`) demonstrating all 4 runtimes
-- 18 workspace packages published (adapter-paperclip, agent-core, commands, cron, daemon, gateway, hooks, keybindings, llm, mcp, memory, plugin-sdk, plugins, sdk, skills, state, types, utils)
+- 16 workspace packages published (commands, cron, daemon, gateway, hooks, keybindings, mcp, memory, pi-finance-sdk, plugin-sdk, plugins, sdk, skills, state, types, utils)
 
 ### Changed
 - README — honest "Forked from virattt/dexter" attribution, "中国版 Dexter" positioning

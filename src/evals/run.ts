@@ -1,5 +1,5 @@
 /**
- * LangSmith Evaluation Runner for UpUp
+ * Pi-native evaluation runner for UpUp
  * 
  * Usage:
  *   bun run src/evals/run.ts              # Run on all questions
@@ -7,7 +7,7 @@
  */
 
 import 'dotenv/config';
-import { ProcessTerminal, TUI } from '@earendil-works/pi-tui';
+import { ProcessTerminal, TuiMainScreen } from '@earendil-works/pi-tui';
 import { callStructuredLlm } from '../runtime/pi/model.js';
 import { z } from 'zod';
 import fs from 'fs';
@@ -295,7 +295,7 @@ async function main() {
   // Create the evaluation runner with the sample size
   const runEvaluation = createEvaluationRunner(sampleSize);
 
-  const tui = new TUI(new ProcessTerminal());
+  const tui = new TuiMainScreen(new ProcessTerminal());
   const evalApp = new EvalApp(tui, runEvaluation);
 
   tui.addChild(evalApp);

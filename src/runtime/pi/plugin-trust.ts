@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
+import { existsSync, lstatSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 
 export interface PiPluginTrustPolicy {
@@ -17,7 +17,10 @@ export interface PiResourceTrustAudit {
 }
 
 function filesUnder(path: string): string[] {
-  const stat = statSync(path);
+  const stat = lstatSync(path);
+  if (stat.isSymbolicLink()) {
+    throw new Error(`Trusted Pi resource cannot contain a symbolic link: ${path}`);
+  }
   if (stat.isFile()) return [path];
   return readdirSync(path, { withFileTypes: true })
     .filter((entry) => !DYNAMIC_DIRECTORY_NAMES.has(entry.name))
@@ -74,6 +77,9 @@ export function verifyPiResourceTrust(
       throw new Error(`Pi resource is outside the trusted allowlist: ${resolved}`);
     }
     if (!existsSync(resolved)) throw new Error(`Trusted Pi resource does not exist: ${resolved}`);
+    if (lstatSync(resolved).isSymbolicLink()) {
+      throw new Error(`Trusted Pi resource cannot be a symbolic link: ${resolved}`);
+    }
     const contentHash = hashPath(resolved);
     const expectedHash = policy.allowedHashes?.[resolved] ?? policy.allowedHashes?.[path];
     if (expectedHash && expectedHash !== contentHash) {

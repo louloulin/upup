@@ -78,7 +78,7 @@ The production loop is Pi's `AgentSession`/`pi-agent-core`, created through `src
 6. UpUp maps Pi events to CLI/Gateway/SDK event contracts
 ```
 
-Final synthesis is emitted by the Pi session; UpUp does not maintain a second LangChain or custom Agent loop.
+Final synthesis is emitted by the Pi session; UpUp does not maintain a second model runtime or custom Agent loop.
 
 ---
 
@@ -175,11 +175,11 @@ Each phase yields events that the CLI renders in real-time.
 
 ---
 
-## 18 Workspace Packages
+## 16 Workspace Packages
 
 | Package | Purpose |
 |---|---|
-| `agent-core` | Compatibility/domain contracts; production loop is provided by Pi |
+| `pi-finance-sdk` | Pi-native financial extensions, skills, prompts and eval contracts |
 | `commands` | Unified command registry |
 | `cron` | Scheduled tasks |
 | `daemon` | Background process |
@@ -196,7 +196,6 @@ Each phase yields events that the CLI renders in real-time.
 | `state` | State management |
 | `types` | Shared types |
 | `utils` | Utilities |
-| `adapter-paperclip` | Paperclip adapter |
 
 ---
 

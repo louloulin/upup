@@ -1,4 +1,4 @@
-import { CombinedAutocompleteProvider, Container, ProcessTerminal, Spacer, Text, TUI, Key, matchesKey } from '@earendil-works/pi-tui';
+import { CombinedAutocompleteProvider, Container, ProcessTerminal, Spacer, Text, TuiMainScreen, Key, matchesKey, type TUI } from '@earendil-works/pi-tui';
 
 // ============================================================================
 // 全局渲染控制 - FIXED: 防止丢失渲染请求
@@ -339,7 +339,7 @@ export async function runCli(options: RunCliOptions = {}) {
     console.warn('[Skills] Failed to initialize:', e);
   }
 
-  const tui = new TUI(new ProcessTerminal());
+  const tui = new TuiMainScreen(new ProcessTerminal());
   _tuiInstance = tui;  // 注册全局 TUI 实例用于渲染函数
   const root = new Container();
   const chatLog = new ChatLogComponent(tui);

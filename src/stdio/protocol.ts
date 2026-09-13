@@ -2,7 +2,7 @@
  * UpUp Stdio Protocol - JSON-RPC Types
  *
  * Defines the JSON-RPC 2.0 protocol for stdio communication between
- * adapter-paperclip (client) and upup (server).
+ * external clients and the UpUp Pi runtime server.
  */
 
 // ============ JSON-RPC Base Types ============

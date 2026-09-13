@@ -7,7 +7,7 @@
  */
 
 import {
-  TUI,
+  TuiMainScreen,
   Container,
   Box,
   Text,
@@ -16,6 +16,7 @@ import {
   Key,
   type Component,
   type OverlayHandle,
+  type TUI,
 } from '@earendil-works/pi-tui';
 
 // InputListener result type (from pi-tui)
@@ -97,7 +98,7 @@ export class TUIMain {
     this.terminal = new ProcessTerminal();
 
     // 创建 TUI 实例 (pi-tui 差分渲染引擎)
-    this.tui = new TUI(this.terminal);
+    const tui = this.tui = new TuiMainScreen(this.terminal);
 
     // 创建根容器
     this.rootContainer = new Container();
@@ -106,10 +107,10 @@ export class TUIMain {
     this.buildLayout();
 
     // 添加到 TUI
-    this.tui.addChild(this.rootContainer);
+    tui.addChild(this.rootContainer);
 
     // 注册键盘输入监听
-    this.inputUnsubscribe = this.tui.addInputListener((data): InputListenerResult => {
+    this.inputUnsubscribe = tui.addInputListener((data): InputListenerResult => {
       return this.handleInputListener(data);
     });
   }

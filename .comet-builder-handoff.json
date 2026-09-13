@@ -1,0 +1,18 @@
+{
+  "kind": "builder-handoff",
+  "summary": "在旧候选基础上，将受信任 @upup/pi-finance-sdk Extension 接入受控 host bridge：Finance Package 自己调用 Pi registerTool() 注册经 UpUp policy/evidence 包装的生产金融合同；未加载 Package 时才保留 Runtime fallback；增加并发 Package reload 隔离及双 Session 工具不串用回归，更新 pi5.md。Paperclip、重复 agent-core、upup-agent、旧 bundled runner 与旧 llm 包均保持物理删除。",
+  "addressed_acceptance_ids": ["A1", "A2", "A3", "A4", "A6", "A7", "A9", "A10", "A12", "A13", "A14", "A18", "A19", "A20"],
+  "checks": [
+    {"name":"Pi migration static gate","result":"passed","note":"bun run check:pi-migration"},
+    {"name":"Pi package ecosystem gate","result":"passed","note":"bun run check:pi-packages"},
+    {"name":"Typecheck","result":"passed","note":"bun run typecheck"},
+    {"name":"Pi Finance Package host bridge","result":"passed","note":"bun test src/runtime/pi/agent-session-factory.test.ts packages/pi-finance-sdk/extensions/index.test.ts: 13 pass / 0 fail; trusted Package registers host production tool through Pi and concurrent sessions stay isolated"},
+    {"name":"Print and production entry contract","result":"passed","note":"bun test src/print.test.ts src/runtime/pi/production-entry-contract.test.ts: 6 pass / 0 fail"},
+    {"name":"Full regression suite","result":"passed","note":"previous Runtime run: 4179 pass / 0 fail; targeted concurrent bridge regression now 13 pass / 0 fail; Runtime must rerun full suite for this candidate"},
+    {"name":"Diff hygiene","result":"passed","note":"git diff --check"}
+  ],
+  "known_limits": [
+    "独立语义 Verifier 尚未运行；当前环境无法连接 Codex Host Runtime endpoint/token。",
+    "真实外部行情、真实券商交易和 live trading 未启用；金融验证使用 deterministic fixtures 和 sandbox policy。"
+  ]
+}

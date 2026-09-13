@@ -12,12 +12,13 @@
  */
 
 import {
-  TUI,
+  TuiMainScreen,
   Text,
   Container,
   Spacer,
   type Component,
   type OverlayHandle,
+  type TUI,
   ProcessTerminal,
 } from '@earendil-works/pi-tui';
 import chalk from 'chalk';
@@ -276,7 +277,7 @@ export class MCPUI {
   constructor(options: MCPUIOptions = {}) {
     this.options = options;
     this.terminal = new ProcessTerminal();
-    this.tui = new TUI(this.terminal);
+    this.tui = new TuiMainScreen(this.terminal);
     this.serverList = new MCPServerList();
     this.serverDetail = new MCPServerDetail();
 

@@ -15,9 +15,7 @@ import type { OrphanCandidate, ScanResult, SourceFile } from './types.js';
 const ENTRY_FILES = new Set([
   'src/index.tsx',
   'src/cli.tsx',
-  'src/run.ts',
   'src/providers.ts',
-  'src/bundled-runner.ts',
 ]);
 
 /** 找出所有被引用的 relPath(去 .ts/.tsx 扩展) */

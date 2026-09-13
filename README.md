@@ -57,7 +57,7 @@ If dexter is "AI agent for US-market financial research", then **UpUp is "AI age
 2. **50 SKILL.md skills + 14 bundled** — covering A-share / HK / US / crypto / fund; upstream has 3
 3. **5-phase investment workflow** — `/invest`: detect → plan → execute → verify → report, 11 investment subcommands (+ 4 test); upstream has zero investment workflow
 4. **4-runtime plugin system** — bun / jiti / wasm / mcp with optional sandboxing; upstream has zero plugin system
-5. **18 workspace packages** — full layered monorepo, independently publishable; upstream is single-package
+5. **16 workspace packages** — full layered monorepo, independently publishable; upstream is single-package
 6. **EN + zh-CN bilingual i18n** — 56+ strongly-typed keys, missing-translation fails the build; upstream is English only
 7. **8 LLM providers (inherited from upstream)** + DeepSeek default — same 8-provider metadata list as upstream, but `DEFAULT_PROVIDER` flipped from `openai` to `deepseek` (Chinese financial default); upstream defaults to OpenAI
 8. **Session 2.0 + Plan Mode** — modeled after Claude Code's plan mode / loop recovery / auto-compact; upstream is basic session
@@ -78,8 +78,8 @@ If dexter is "AI agent for US-market financial research", then **UpUp is "AI age
 | `src/commands/*` command count | **28** | 1 | **28×** | `find src/commands -name "*.ts" \| wc -l` |
 | Investment commands | **11** | 0 | n/a | `ls src/commands/investment/*.ts \| grep -v test \| wc -l` |
 | Plugin runtime adapters | **4** (bun/jiti/wasm/mcp) | 0 | n/a | `ls src/plugins/adapters/*.ts` |
-| Workspace packages | **18** | 0 | n/a | `ls packages/ \| wc -l` |
-| LLM providers | **8** metadata (DeepSeek default) | **8** metadata (OpenAI default) | 1× (default-flip is the differentiator) | `packages/llm/src/providers.ts` |
+| Workspace packages | **15** | 0 | n/a | `ls packages/ \| wc -l` |
+| LLM providers | **8** metadata (DeepSeek default) | **8** metadata (OpenAI default) | 1× (default-flip is the differentiator) | `src/providers.ts` + Pi model registry |
 | i18n locales | **2** (EN + zh-CN) | 1 (EN) | 2× | `src/i18n/strings.ts` |
 | `src/*/` top-level module count | **48** | 12 | **4.0×** | `ls -d src/*/ \| wc -l` |
 
@@ -93,7 +93,7 @@ If dexter is "AI agent for US-market financial research", then **UpUp is "AI age
 | **Want DeepSeek for Chinese financial scenarios** | **UpUp** ✅ | `DEFAULT_PROVIDER='deepseek'`; upstream defaults to OpenAI |
 | **Multi-agent orchestration (5-phase /invest)** | **UpUp** ✅ | 5 subagents + 4-worker Coordinator pool |
 | **Need plugin extensibility (bun / jiti / wasm / mcp)** | **UpUp** ✅ | upstream has zero plugin system |
-| **Run in monorepo / want modular SDK** | **UpUp** ✅ | 18 publishable workspace packages |
+| **Run in monorepo / want modular SDK** | **UpUp** ✅ | 15 publishable workspace packages |
 | **Maintain a fork with your own A-share data source** | **UpUp** ✅ | plugin system + workspace split makes forking tractable |
 
 
@@ -339,7 +339,7 @@ Below are 4 real tasks. The same action's entry / factory / registration / call 
 - **Plugin system (4 runtimes)** — `src/plugins/adapters/{bun,jiti,wasm,mcp}.ts` + `packages/plugin-sdk/`
 - **i18n** — `src/i18n/strings.ts` (239 lines, 56+ strongly-typed keys, EN+zh-CN)
 - **Memory expansion** — `src/memory/` 48 files (vs. basic upstream memory)
-- **Workspace split (18 packages)** — `packages/{adapter-paperclip,agent-core,commands,cron,daemon,gateway,hooks,keybindings,llm,mcp,memory,plugin-sdk,plugins,sdk,skills,state,types,utils}/`
+- **Workspace split (15 packages)** — `packages/{commands,cron,daemon,gateway,hooks,keybindings,mcp,memory,pi-finance-sdk,plugin-sdk,plugins,sdk,skills,state,types,utils}/`
 - **TUI enhancements** — `src/tui/` 50 files (status-hint, slash-autocomplete, multiline, paste-handling)
 - **Web gateway** — `src/web/` + `packages/gateway/` (read-only JSON snapshots)
 - **Chinese-curated model IDs** — `src/utils/model.ts` (kimi-k2-5, deepseek-v4-pro, deepseek-v4-flash)
@@ -360,10 +360,10 @@ Below are 4 real tasks. The same action's entry / factory / registration / call 
 | 🧩 **Skills (50 SKILL.md + 14 bundled)** | DCF, DDM, residual income, Graham, asset-based, comparable, A-share rules (T+1, price limit, ST, suspension), technical analysis, and more |
 | 🔐 **Permissions + Hooks** | 3-tier (allow/ask/deny) + 17 hook files (permission, tool-lifecycle, agent, user, rate-limiter, elicitation, instructions, worktree, stop) |
 | 🌐 **i18n** | 56+ strongly-typed keys, EN + zh-CN symmetric, missing-translation fails the build |
-| 📦 **Monorepo (18 packages)** | Independently publishable, each with own tests, types, and exports |
+| 📦 **Monorepo (15 packages)** | Independently publishable, each with own tests, types, and exports |
 | 🛰 **Bridge / Realtime / Daemon / Cron** | Encrypted remote, event bus, background workers, cron-triggered runs |
 | 📈 **Telemetry / audit** | Every tool call recorded to `.upup/runs/<id>/` for replay and audit |
-| 🧪 **Evals** | LangSmith runner with Ink UI; sample mode for quick iteration |
+| 🧪 **Evals** | Pi-native runner with Ink UI; sample mode for quick iteration |
 | 🌐 **Web gateway** | Read-only JSON snapshots for external clients |
 
 ---
@@ -409,9 +409,7 @@ TUSHARE_TOKEN=...               # https://tushare.pro
 AKSHARE_ENABLED=1               # no key needed; uses public endpoints
 
 # Tracing (optional)
-LANGSMITH_API_KEY=...
-LANGSMITH_TRACING=true
-LANGSMITH_PROJECT=upup
+UPUP_TELEMETRY=local
 EOF
 ```
 
@@ -562,8 +560,8 @@ upup/
 │   │   └── ... 12 more categories
 │   ├── worktree/                git worktree integration
 │   └── ... 24 more top-level modules
-├── packages/                    18 workspace packages
-│   ├── llm/                     provider metadata + routing
+├── packages/                    16 workspace packages
+│   ├── pi-finance-sdk/          Pi-native financial extensions and eval contracts
 │   ├── skills/                  skill loader SDK
 │   ├── plugin-sdk/              plugin typed contracts
 │   ├── gateway/                 web gateway
@@ -572,7 +570,7 @@ upup/
 │   └── ... 13 more packages
 ├── openspec/changes/            OpenSpec change directory
 ├── docs/                        10+ doc files
-├── evals/                       LangSmith eval runner
+├── evals/                       Pi-native financial evaluation runner
 └── scripts/                     release.sh, comet helpers
 ```
 

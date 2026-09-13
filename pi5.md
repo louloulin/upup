@@ -301,7 +301,7 @@ Pi `pi-agent-core` 的 `agentLoop()` 已负责：
 - `StructuredToolInterface`；
 - LangChain ChatModel 作为 Agent Runtime 输入。
 
-LangChain 不必第一阶段立即从所有数据工具中删除，但它不能继续作为核心 Agent message/tool 协议。数据源中若仍使用 LangChain，必须隔离在 domain adapter 内。
+LangChain 已从生产依赖和运行路径移除。金融数据适配器只使用 UpUp/Pi Tool Contract；不得新增 LangChain message、tool 或 model 依赖。
 
 ### 3.3 Session、Tree、Fork、Compaction
 
@@ -743,8 +743,8 @@ bun run src/session/migrate-to-pi.ts --all --backup-dir <dir>
 |---|---|---|---|
 | `src/index.tsx` | CLI 分发和旧 Agent | Pi-backed CLI bootstrap | 保留 setup/doctor/config |
 | 当前 CLI | Ink/React + UpUp runner | Pi TUI 或 Pi TUI Adapter | 先保持输出，再逐步换组件 |
-| `src/run.ts` | 直接 new UpUp Agent | Pi SDK print session | 无 UI、可测试 |
-| `src/bundled-runner.ts` | bundled UpUp Agent | Pi runtime bundle/worker | 处理全局 env/settings |
+| 非交互 print 入口 | 旧 `src/run.ts` | `src/runtime/pi/event-stream.ts` / `runPiPrompt()` | 无 UI、可测试 |
+| 打包/worker 入口 | 旧 bundled runner | Pi Runtime 原生构建与 worker/RPC | 不保留第二套 Agent loop |
 | `src/stdio/server.ts` | 自研 JSON-RPC | Pi protocol/client 或 Pi-backed adapter | 保留 UpUp 外部 schema 兼容 |
 | `src/gateway/gateway.ts` | 直接调用 `runAgentForMessage` | session factory + Pi prompt | Gateway 不拥有 Agent loop |
 | `src/cron/runner.ts` | 调度 UpUp Agent | 调度 Pi Session run | 每次任务独立 session/lease |
@@ -898,22 +898,54 @@ invest-cron-run
 
 - 已完成本轮实现：Pi 依赖锁定、唯一 `src/runtime/pi/` Session Factory、金融 Tool Adapter/证据审计、统一 Pi prompt/model runner、CLI/Gateway/Daemon/stdio/SDK 入口切换、MCP/共享工具 Pi 化、生产 LangChain import 门禁、旧核心 loop 删除、Pi-backed `/invest` 五阶段工作流、Pi custom-entry checkpoint、pause/resume/fork/idempotency、共享 Pi worker 后端、Custom Agent → `UpUpAgentSpec` 出口、插件工具 allowlist/安全策略/路径审计和架构图留档。
 - 本轮新增：`PiSessionService` 将 CLI、stdio `session/*` RPC 统一落到 Pi JSONL `SessionManager`；CLI resume/fork/list/rename/tag/delete 不再调用 legacy `src/session/storage.ts`，Pi session metadata/lifecycle 以 custom entries 持久化；`PiBackgroundService` 将 Daemon 和 Agent 工具的 background task 统一落到 Pi prompt/session；Subagent 执行路径已去除重复 AgentSession/worktree/timeout loop，统一委托 Pi runner。
-- 已验证：`bun run check:pi-migration`、`bun run check:pi-packages` 均通过；Pi runtime、金融 fixture、权限、插件信任、Pi Package 的 extension/skill/prompt 发现、Session migration、`/invest`、MCP、DuckDB、多 Agent backend、AgentSpec、Daemon session 和 snip 消息适配通过；最新 Pi 合约套件为 `61 pass / 0 fail`，Finance SDK 独立测试为 `1 pass / 0 fail`，新增 deterministic 金融 E2E 覆盖 A/H/美股、基金、财报、DCF、可比估值、技术指标、回测、组合归因、VaR 和模拟交易审批。
+- 已验证：`bun run check:pi-migration`、`bun run check:pi-packages` 均通过；Pi runtime、金融 fixture、权限、插件信任、Pi Package 的五个金融 Extension 工具、Skill/Prompt 发现、Session migration、`/invest`、MCP、DuckDB、多 Agent backend、AgentSpec、Daemon session 和 snip 消息适配通过；最新 Pi 合约套件为 `100 pass / 0 fail`，Finance SDK 独立测试为 `2 pass / 0 fail`，新增 deterministic 金融 E2E 覆盖 A/H/美股、基金、财报、DCF、可比估值、技术指标、回测、组合归因、VaR 和模拟交易审批。
 - 本轮修复：PiTool 现在同时接受 Zod 和原生 JSON Schema，DuckDB 无参数工具可正常注册；Skill fork 错误保留 `SubagentRunner` 兼容语义；Phase Handler 改为显式金融依赖注入，避免测试 mock 污染 Pi Registry；`bunx tsc --noEmit --pretty false`、Pi 迁移门禁和 Pi Package 门禁均通过。
 - 本轮契约补充：`src/cron/executor.pi.test.ts` 验证 Cron 使用注入的 Pi-backed runner、固定 `cron:<job.id>` session key、消息投递和 heartbeat suppression；`src/multi-agent/backends/backend.test.ts` 验证 InProcess worker 真实创建 Pi session 并返回 assistant；SDK、Gateway、Bridge、stdio session 契约继续通过。
 - 本轮 Agent 定义收口：新增 `src/runtime/pi/agent-catalog.ts`，以 `UpUpAgentSpec` 作为唯一可执行 Agent 存储；`AgentRegistry` 只在边界处投影元数据，不再维护第二个可执行定义存储。用户 Agent、Markdown Agent 文件和 Subagent 配置现在均以 `PiAgentSpecInput`、`PiAgentFileSpec`、`PiSubagentConfig` 命名，注册和执行统一进入 Pi catalog/session；兼容字段只用于输入/结果 DTO。
-- 已验证补充：`bun run typecheck` 已通过；完整 `bun test` 为 `4174 pass / 0 fail`（282 files）；Pi 定向合约套件为 `63 pass / 0 fail`，Finance SDK 为 `1 pass / 0 fail`；`packages/adapter-paperclip/standalone/agent-bundle.js` 已从根目录重建并审计，不再包含 `@memvid/sdk`、LangChain 或 `@langchain` 字符串；交易 registry 的下单/撤单工具已提升为 `dangerous`，`invest-trade` 仅暴露 sandbox-shaped 工具并要求逐次审批。
+- 已验证补充：`bun run typecheck` 已通过；Pi 定向合约套件为 `100 pass / 0 fail`，Finance SDK 为 `2 pass / 0 fail`，最新本地全量回归为 `4180 pass / 0 fail`（当前候选的 Runtime 快照为 `4179 pass / 0 fail`）；发行构建已实际生成 `dist/upup` 与 `dist/pi-finance-sdk`，并通过 `dist/upup --version` 烟测；Finance Extension 已改为自包含协议实现，不依赖工作区源码，且可通过受控 host bridge 注册生产金融合同，包门禁对此有静态检查；Paperclip 适配层、重复 `agent-core` DTO 包、`upup-agent` 和旧 bundled runner 已物理删除；交易 registry 的下单/撤单工具已提升为 `dangerous`，`invest-trade` 仅暴露 sandbox-shaped 工具并要求逐次审批。
+- 本轮 Pi Package 接入：默认生产 Session 自动加载受信任且固定 `@upup/pi-finance-sdk@0.1.0`，同时加载其 Extension、Skill、Prompt、Workflow、Policy 和 Eval；Finance Extension 通过受控 host bridge 注册经 UpUp 权限审计的生产金融 Tool Contract，Runtime 仅在未加载 Finance Package 时使用内置 fallback；`UPUP_PI_PACKAGE_PATHS` 仍可显式替换包集合，但所有包继续要求 trusted paths、精确版本 pin 和资源审计。新增测试证明默认 Session 暴露 `finance_evidence_quote`，以及受信任 Package 能注册 host production tool 并保留 policy/evidence 审计。
 - 已知限制：真实模型和真实外部金融数据仍未在本地 E2E 中调用；性能/恢复基准和生产依赖图仍需独立 verifier 复核。旧 `src/agent/` 目录已物理删除，投资 Profile、Subagent 注册、意图路由和生命周期能力均归入 `src/runtime/pi/`；历史测试中的顶层 `vi.mock` 已改为依赖注入，串行全量测试已覆盖删除后的生产树。
 - 架构留档：`docs/architecture/pi5-runtime.md` 固化 Runtime/session、金融 evidence、Pi 生态、插件信任权限和多 Agent worker 数据流图。
 - 当前 Comet 验收：`pi5-core-agent-migration` 仍为 `phase=verify`、`verificationResult=pending`，A1–A20 不在本地文档中提前勾选；独立 verifier 返回最终证据后再更新完成矩阵。
-- 已知边界：`PiAgentRegistry`、Markdown loader 和 `PiSubagentConfig` 仅作为 Pi 输入/结果 DTO 与目录适配；所有执行委托 `PiBackgroundService`/`runPiPrompt`，不再存在旧 Agent loop。生产源码和锁文件已无 LangChain runtime 依赖；记忆目录中的 `memvid` 命名是 UpUp 本地记忆实现，不是 LangChain Agent runtime。standalone generated bundle 已按 build script 重生成并审计。不得恢复旧 Agent loop。
+- 已知边界：`PiAgentRegistry`、Markdown loader 和 `PiSubagentConfig` 仅作为 Pi 输入/结果 DTO 与目录适配；所有执行委托 `PiBackgroundService`/`runPiPrompt`，不再存在旧 Agent loop。生产源码、锁文件和包清单均不含旧模型/Agent runtime。不得恢复旧 Agent loop。
 - 本轮新增（State Port Pi-化 & 旧 Daemon Session 拆除）：
   - `src/state/index.ts` 不再调用 legacy `@upup/state` `SessionManager.listSessions` 收集 Session 元数据；StatePort `getSessionManager().listSessions` 直接代理到 `PiSessionService.list(cwd)` 并按 limit 切片，保证 CLI/SDK 看到的 Session 列表与 Pi JSONL 持久化完全一致。
   - 新增 `src/state/index.pi.test.ts`，断言 StatePort 在隔离 `.upup` 临时目录里通过 PiSessionService 创建/重命名/删除会话并按需切片，验证 `formatCost/formatTokens` 仍然可用。
   - `src/state/index.ts` 暴露 `__registerStatePort()`，允许测试在 `__resetAgentPorts()` 后重新注入 StatePort。
   - 物理删除 `src/daemon/session.ts` 与 `src/daemon/session.test.ts`；通过 `rg "daemon/session"` 确认生产代码没有任何 import 残留，`SessionManager`/`MemoryKVStore` 仅存于 `@upup/state` 的领域 Session 计时（CLI 当前命令会话时长），不再承担 Session 生命周期职责。
-  - 复跑 `bun run check:pi-migration`、`bun run check:pi-packages`、`bun run typecheck` 全通过；State/runtime/session 多文件测试 305 例全部 0 fail；Pi 合约套件 63/63 通过，Finance SDK 1/1 通过。
+  - 复跑 `bun run check:pi-migration`、`bun run check:pi-packages`、`bun run typecheck` 全通过；State/runtime/session 多文件测试 305 例全部 0 fail；最新 Pi 合约套件 100/100 通过，Finance SDK 2/2 通过；最新本地全量回归 4180/4180 通过。
 
+
+
+
+### A1–A20 实现证据矩阵（2026-09-13 审计）
+
+> 每项验收的本地证据可在 `bun run check:pi-migration` / `bun run check:pi-packages` / `bun run test:pi-contracts` / `bun test` 中复现；Comet verifier 仍为 `phase=verify / verificationResult=pending`、A1–A20 `result=pending`，待独立 verifier 给出最终结论。
+
+| ID | 主题 | 实施证据 | 验证命令 | 状态 |
+|---|---|---|---|---|
+| A1 | Runtime 唯一性 | CLI、Pi-native `print`、stdio、SDK、Gateway、Cron、Daemon、Bridge、Eval 均通过 `runtime/pi`；无第二套 Agent loop | `src/runtime/pi/production-entry-contract.test.ts` + `src/print.test.ts` | ✅ 实施 / ⏳ 验证 |
+| A2 | 旧核心退出 | `src/agent/`、`src/model/llm.ts`、`src/runtime/pi/message-compat.ts` 全部物理删除；`callLlmWithMessages` 仅在测试断言中保留 | `bun run check:pi-migration` | ✅ 实施 / ⏳ 验证 |
+| A3 | Pi 版本与运行时 | 7 个 Pi 包均 `0.84.3`；`engines.node = ">=22.19.0"`；`build:pkg` 走 `node22-*`；check 门禁 | `bun run check:pi-migration` | ✅ 实施 / ⏳ 验证 |
+| A4 | Runtime Adapter | `src/runtime/pi/` 57 个 `.ts` 文件（Factory / Runner / SessionService / BackgroundService / ToolAdapter / Subagent / PackageCatalog / InvestmentWorkflow / Permissions / AgentCatalog） | `src/runtime/pi/agent-session-factory.test.ts` | ✅ 实施 / ⏳ 验证 |
+| A5 | Agent Spec | `UpUpAgentSpec` 出现在 14 个文件（runner / tool-contract / registry / agent-catalog / plugin-adapter / …） | `src/runtime/pi/agent-spec.test.ts` | ✅ 实施 / ⏳ 验证 |
+| A6 | Pi Agent loop | `pi-fixture.test.ts`（198 行）覆盖多轮 streaming、多个 Tool Call、steer/follow-up、abort、timeout、error、final answer；`event-stream.test.ts`（3 tests）覆盖 `streamPiAgent` 公共 API 的 done/stream_progress 映射；`runner.test.ts`（7 tests）覆盖 `toPiSessionId` / `isPiSessionRunning` / `disposePiSessions` / `runPiPrompt` end-to-end | `bun test src/runtime/pi/pi-fixture.test.ts src/runtime/pi/event-stream.test.ts src/runtime/pi/runner.test.ts` | ✅ 实施 / ⏳ 验证 |
+| A7 | Pi Model protocol | `@earendil-works/pi-ai` 0.84.3 锁定；生产代码 `rg "langchain"` 0 命中 | `bun run check:pi-migration` | ✅ 实施 / ⏳ 验证 |
+| A8 | Session/Compaction | `PiSessionService`：list / create / resume / get / fork / compact / rename / tag / remove / export / dispose 全部覆盖；`reliability.test.ts` 验证 crash recovery | `bun test src/runtime/pi/session-service.test.ts src/runtime/pi/reliability.test.ts` | ✅ 实施 / ⏳ 验证 |
+| A9 | Tool Adapter | `finance-fixtures.ts`：`fixture_market_quote` / `fixture_fundamentals` / `fixture_news` / `fixture_search` / `fixture_trading_day`；携带 `safetyLevel` / `parameters` / `hasFinancialImpact` / `auditId` / `retrievedAt` / `dataFreshness` | `src/extensions/upup/index.test.ts` | ✅ 实施 / ⏳ 验证 |
+| A10 | 金融证据 | 工具结果统一带 `evidence[].id/source/retrievedAt/asOf/query`、`dataFreshness`、`auditId`；`secrets` 走 `production-finance-contract.test.ts` 断言不进入结果 | `src/runtime/pi/production-finance-contract.test.ts` | ✅ 实施 / ⏳ 验证 |
+| A11 | 投资 Profiles | `agent-spec.ts`：`invest-explore` / `invest-plan` / `invest-risk` / `invest-trade` / `invest-review` 全部走 Pi Session 与工具 allowlist | `src/runtime/pi/agent-spec.test.ts` | ✅ 实施 / ⏳ 验证 |
+| A12 | Pi 生态 | `packages/pi-finance-sdk` 6 类资源 + 5 个 Pi `registerTool()` 金融 Extension；默认受信任固定包自动加载，新增金融能力不修改 Agent loop | `bun run check:pi-packages` + `bun --cwd packages/pi-finance-sdk test` + `bun test src/runtime/pi/package-catalog.test.ts src/runtime/pi/package-config.test.ts src/runtime/pi/agent-session-factory.test.ts` | ✅ 实施 / ⏳ 验证 |
+| A13 | 金融权限 | `safe` / `warning` / `dangerous` / `critical` 四级；critical 走 `production-finance-contract.test.ts` 越权拒绝；`tool-contract.test.ts` 验证只读策略 | `src/runtime/pi/production-finance-contract.test.ts src/runtime/pi/tool-contract.test.ts` | ✅ 实施 / ⏳ 验证 |
+| A14 | 插件安全 | `plugin-trust.ts` 含 path / hash / package pin 校验；`plugin-trust.test.ts` 覆盖 allowlist、符号链接拒绝、disable、rollback；旧 standalone bundle 已删除 | `bun test src/runtime/pi/plugin-trust.test.ts` + `bun run check:pi-migration` | ✅ 实施 / ⏳ 验证 |
+| A15 | Session 迁移 | `src/session/migrate-to-pi.ts` 支持 `--dry-run` / `--backup-dir` / hash / report；原文件只读；`pi-migration.test.ts` 验证 Pi 回读 | `bun test src/session/pi-migration.test.ts` | ✅ 实施 / ⏳ 验证 |
+| A16 | /invest 5 阶段 | `investment-workflow.ts` 5 阶段（research / valuation / backtest / trade / review）+ 状态机（detect / plan / paused / [*]）；checkpoint 走 Pi custom entry `upup-investment-workflow`；`investment-workflow.test.ts` 覆盖 pause/resume/fork/idempotency；状态机见 `docs/architecture/invest-workflow.md` | `bun test src/runtime/pi/investment-workflow.test.ts` | ✅ 实施 / ⏳ 验证 |
+| A17 | 多 Agent | `subagent.ts` / `subagent-runner.ts` / `subagent-types.ts` 委托 `PiBackgroundService` + `runPiPrompt`；`coordinator.ts` 仅负责分解 / spawn / 聚合 / 生命周期 | `src/multi-agent/backends/backend.test.ts` | ✅ 实施 / ⏳ 验证 |
+| A18 | 外围入口 | CLI / Pi-native print / stdio / Gateway / Cron / Daemon / Bridge / SDK / Eval 全部走 `streamPiAgent` / `runPiPrompt` / `PiSessionService` / `PiBackgroundService`；print 有 faux provider 端到端契约 | `src/runtime/pi/production-entry-contract.test.ts` + `src/print.test.ts` + `src/runtime/pi/event-stream.test.ts` + `src/runtime/pi/runner.test.ts` | ✅ 实施 / ⏳ 验证 |
+| A19 | 验证门禁 | `check:pi-migration` / `check:pi-packages` / `typecheck` / `test:pi-contracts` / `bun test` 全部可重复；新增五工具 Package Extension、print/package-config 回归与 faux Pi fixture | 见 `package.json` scripts | ✅ 实施 / ⏳ 验证 |
+| A20 | 架构留档 | `docs/architecture/` 6 份（`pi5-runtime.md` / `plugin-ecosystem.md` / `finance-dataflow.md` / `session-lifecycle.md` / `multi-agent-dataflow.md` / `invest-workflow.md`），覆盖 Runtime / Plugin / 金融数据流 / Session 生命周期 / Multi-Agent / /invest 状态机 | `wc -l docs/architecture/*.md` | ✅ 实施 / ⏳ 验证 |
+
+> 综合实施进度：**20/20 = 100% 实施**；**本地可重复门禁：100% 通过**（迁移门禁、包门禁、类型检查、Pi 合约 100+2、最新本地全量回归 4180/0、发行构建烟测通过）；**独立语义验证：0/20**（Comet verifier 仍 pending；当前环境没有可用的独立 Codex Host Runtime 引用，不能提前勾选验证状态）。按“实现完成 + 独立验证”口径，当前整体进度为 **50%（实现 100%，正式验收 0%）**。
 
 
 ### Runtime 完成
@@ -1024,6 +1056,7 @@ UpUp = 中国金融投资领域的 Data + Tools + Skills + Workflow + Risk Produ
 - `docs/architecture/finance-dataflow.md` — 端到端金融数据流图、Evidence / Freshness 契约、`/invest` 五阶段状态图、Audit / Report 边界、失败隔离。
 - `docs/architecture/session-lifecycle.md` — Session 写/读/迁移路径、`PiSessionService` 操作矩阵、并发写策略、Crash / Recovery 不变量、Legacy → Pi 迁移规则。
 - `docs/architecture/multi-agent-dataflow.md` — Coordinator 任务分解图、Worker 生命周期时序、Tool allowlist / 隔离、并发、聚合与 Reviewer、失败抑制。
+- `docs/architecture/invest-workflow.md` — `/invest` 状态机（research / valuation / backtest / trade / review + detect / plan / paused / [*]）、phase 数据结构、idempotency、pause / resume / fork、audit / evidence 边界、failure containment。
 
 ## 16. 参考资料
 

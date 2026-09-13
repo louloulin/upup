@@ -17,20 +17,25 @@ describe('PiAgentSessionFactory', () => {
   test('creates an in-memory Pi session with the finance extension', async () => {
     const session = await new PiAgentSessionFactory().createSession({
       ...getInvestmentAgentSpec('invest-explore'),
-      tools: FINANCE_FIXTURE_TOOLS.map((tool) => tool.name),
+      tools: '*',
     }, {
       cwd: process.cwd(),
       tools: FINANCE_FIXTURE_TOOLS,
     });
     expect(session.id).toMatch(/^[0-9a-f-]{36}$/);
     expect(session.spec.id).toBe('invest-explore');
-    expect(session.getAvailableToolNames()).toEqual([
+    expect(session.getAvailableToolNames()).toEqual(expect.arrayContaining([
       'fixture_market_quote',
       'fixture_fundamentals',
       'fixture_news',
       'fixture_search',
       'fixture_trading_day',
-    ]);
+      'finance_evidence_quote',
+      'finance_evidence_fundamentals',
+      'finance_evidence_news',
+      'finance_evidence_search',
+      'finance_evidence_trading_day',
+    ]));
     const events: string[] = [];
     session.subscribe((event) => events.push(event.type));
     expect(events).toContain('session_start');
@@ -199,13 +204,105 @@ describe('PiAgentSessionFactory', () => {
     expect(result.details).toMatchObject({
       auditId: 'package-quote-1',
       evidence: [expect.objectContaining({
-        id: 'pi-finance-quote-600519.sh',
+        id: 'pi-finance-quote-600519-sh',
         source: 'upup-fixture://pi-finance-sdk/quote',
         freshness: 'historical',
       })],
     });
     expect(session.getResourceTrustAudit().some((audit) => audit.path === extensionPath)).toBe(true);
     session.dispose();
+  });
+
+  test('lets the trusted finance package register a host production tool through Pi', async () => {
+    const tool: UpUpToolContract = {
+      name: 'host_production_quote',
+      label: 'Host production quote',
+      description: 'A host-owned production finance contract registered by the Pi package.',
+      category: 'market',
+      safetyLevel: 'safe',
+      parameters: FINANCE_FIXTURE_TOOLS[0].parameters,
+      hasFinancialImpact: false,
+      async execute(input, context) {
+        return {
+          value: input,
+          text: JSON.stringify(input),
+          details: {
+            evidence: [{
+              id: `${context.auditId}:evidence:0`,
+              source: 'upup-host://production-quote',
+              retrievedAt: '2026-09-13T00:00:00.000Z',
+              asOf: '2026-09-12',
+              query: 'host_production_quote',
+              confidence: 'high',
+            }],
+            dataFreshness: 'historical',
+            auditId: context.auditId,
+          },
+        };
+      },
+    };
+    const session = await new PiAgentSessionFactory().createSession({
+      ...getInvestmentAgentSpec('invest-explore'),
+      tools: ['host_production_quote'],
+    }, {
+      cwd: process.cwd(),
+      tools: [tool],
+    });
+    try {
+      expect(session.getAvailableToolNames()).toContain('host_production_quote');
+      const result = await session.executeTool('host_production_quote', 'host-quote-1', { symbol: '600519.SH' }) as AgentToolResultWithError;
+      expect(result.isError).not.toBe(true);
+      expect(result.details).toMatchObject({
+        auditId: expect.stringMatching(/^[0-9a-f-]{36}$/),
+        policyAudit: { decision: 'allowed', tool: 'host_production_quote' },
+      });
+    } finally {
+      session.dispose();
+    }
+  });
+
+  test('isolates host finance tools when multiple Pi sessions load the package concurrently', async () => {
+    const createTool = (name: string): UpUpToolContract => ({
+      name,
+      label: name,
+      description: `Concurrent host tool ${name}`,
+      category: 'market',
+      safetyLevel: 'safe',
+      parameters: FINANCE_FIXTURE_TOOLS[0].parameters,
+      hasFinancialImpact: false,
+      async execute(input, context) {
+        return {
+          value: input,
+          text: JSON.stringify(input),
+          details: {
+            evidence: [{
+              id: `${context.auditId}:evidence:0`,
+              source: `upup-host://${name}`,
+              retrievedAt: '2026-09-13T00:00:00.000Z',
+              asOf: '2026-09-12',
+              query: name,
+              confidence: 'high',
+            }],
+            dataFreshness: 'historical',
+            auditId: context.auditId,
+          },
+        };
+      },
+    });
+    const factory = new PiAgentSessionFactory();
+    const [left, right] = await Promise.all([
+      factory.createSession({ ...getInvestmentAgentSpec('invest-explore'), tools: ['host_left'] }, { tools: [createTool('host_left')] }),
+      factory.createSession({ ...getInvestmentAgentSpec('invest-explore'), tools: ['host_right'] }, { tools: [createTool('host_right')] }),
+    ]);
+    try {
+      expect(left.getAvailableToolNames()).toContain('host_left');
+      expect(left.getAvailableToolNames()).not.toContain('host_right');
+      expect(right.getAvailableToolNames()).toContain('host_right');
+      expect(right.getAvailableToolNames()).not.toContain('host_left');
+    } finally {
+      left.dispose();
+      right.dispose();
+    }
   });
 
   test('discovers the package skill and prompt resources', async () => {

@@ -7,6 +7,8 @@ import type { UpUpAgentEvent, UpUpAgentSpec, UpUpAgentSession } from './types.js
 import { resolveProvider } from '../../providers.js';
 import { getPiSessionService } from './session-service.js';
 import { createHash } from 'node:crypto';
+import { resolveConfiguredPiPackages } from './package-config.js';
+import type { PiPluginTrustPolicy } from './plugin-trust.js';
 
 export interface PiPromptOptions {
   model?: string;
@@ -27,6 +29,8 @@ export interface PiPromptOptions {
     auditId: string;
     permissionProfile: string;
   }) => boolean | Promise<boolean>;
+  piPackagePaths?: readonly string[];
+  piPackageTrust?: PiPluginTrustPolicy;
 }
 
 const sessions = new Map<string, { session: UpUpAgentSession; tail: Promise<void>; running: boolean }>();
@@ -91,6 +95,9 @@ async function createPromptSession(options: PiPromptOptions): Promise<UpUpAgentS
   const existingSessionPath = sessionId
     ? await getPiSessionService().getSessionFile(sessionId, cwd)
     : undefined;
+  const configuredPackages = options.piPackagePaths === undefined ? resolveConfiguredPiPackages() : undefined;
+  const piPackagePaths = options.piPackagePaths ?? configuredPackages?.piPackagePaths;
+  const piPackageTrust = options.piPackageTrust ?? configuredPackages?.piPackageTrust;
   return runtime.createSession(createSpec(options), {
     cwd,
     ...(existingSessionPath ? { sessionPath: existingSessionPath } : {}),
@@ -99,6 +106,8 @@ async function createPromptSession(options: PiPromptOptions): Promise<UpUpAgentS
     ...(options.modelInstance ? { model: options.modelInstance } : {}),
     ...(options.modelRuntime ? { modelRuntime: options.modelRuntime } : {}),
     ...(options.requestToolApproval ? { requestToolApproval: options.requestToolApproval } : {}),
+    ...(piPackagePaths?.length ? { piPackagePaths } : {}),
+    ...(piPackageTrust ? { piPackageTrust } : {}),
   });
 }
 

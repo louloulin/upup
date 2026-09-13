@@ -14,6 +14,7 @@ const requiredPiPackages = [
   '@earendil-works/pi-protocol',
   '@earendil-works/pi-server',
   '@earendil-works/pi-telemetry',
+  '@earendil-works/pi-tui',
 ];
 const failures: string[] = [];
 
@@ -45,9 +46,6 @@ const runtimeFiles = [
 ];
 const runtimeBuildFiles = [
   'package.json',
-  'packages/adapter-paperclip/build-adapter.mjs',
-  'packages/adapter-paperclip/build-standalone.mjs',
-  'packages/adapter-paperclip/build-standalone-v3.mjs',
 ];
 const forbiddenRuntimeImports = [
   /from ['"][^'"]*src\/agent\/agent\.js['"]/,
@@ -114,12 +112,8 @@ for (const requiredField of ['safetyLevel', 'parameters', 'hasFinancialImpact', 
   if (!fixtureSource.includes(requiredField)) failures.push(`finance fixtures must declare ${requiredField}`);
 }
 
-const standaloneBundle = join(root, 'packages/adapter-paperclip/standalone/agent-bundle.js');
-if (existsSync(standaloneBundle)) {
-  const bundleSource = readFileSync(standaloneBundle, 'utf8');
-  for (const pattern of [/src\/agent\//, /@langchain\//, /LangChain/, /src\/model\/llm/]) {
-    if (pattern.test(bundleSource)) failures.push(`standalone Pi bundle contains forbidden legacy marker: ${pattern}`);
-  }
+for (const removedPath of ['packages/adapter-paperclip', 'packages/agent-core', 'packages/llm', 'upup-agent']) {
+  if (existsSync(join(root, removedPath))) failures.push(`${removedPath} must remain deleted; use the Pi runtime and SDK instead`);
 }
 
 if (failures.length > 0) {

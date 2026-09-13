@@ -58,7 +58,7 @@
 7. **8 个 LLM provider**(继承上游)+ DeepSeek 默认 — 与上游同 8 个 provider 列表,把默认 provider 翻转为 DeepSeek(中文金融场景);上游默认 OpenAI
 8. **EN + zh-CN 双语 i18n** — 56+ 强类型 key,缺译编译 fail;上游仅英文
 9. **Session 2.0 + Plan Mode** — 参考 Claude Code 的计划模式 / Loop 恢复 / 自动压缩;上游是基础 session
-10. **18 个 workspace package** — 完整分层,独立可发布;上游是单包
+10. **16 个 workspace package** — 完整分层,独立可发布;上游是单包
 
 ### 8 维度对比表(全部可复现)
 
@@ -74,8 +74,8 @@
 | `src/commands/*` 命令数 | **28** | 1 | **28×** | `find src/commands -name "*.ts" \| wc -l` |
 | 投资命令数 | **11** | 0 | n/a | `ls src/commands/investment/*.ts \| grep -v test \| wc -l` |
 | Plugin runtime adapters | **4**(bun/jiti/wasm/mcp) | 0 | n/a | `ls src/plugins/adapters/*.ts` |
-| Workspace packages | **18** | 0 | n/a | `ls packages/ \| wc -l` |
-| LLM providers | **8** metadata (DeepSeek 默认) | **8** metadata (OpenAI 默认) | 1× (默认 provider 翻转) | `packages/llm/src/providers.ts` |
+| Workspace packages | **15** | 0 | n/a | `ls packages/ \| wc -l` |
+| LLM providers | **8** metadata (DeepSeek 默认) | **8** metadata (OpenAI 默认) | 1× (默认 provider 翻转) | `src/providers.ts` + Pi model registry |
 | i18n locales | **2**(EN + zh-CN) | 1(EN) | 2× | `src/i18n/strings.ts` |
 | `src/*/` 顶层模块数 | **48** | 12 | **4.0×** | `ls -d src/*/ \| wc -l` |
 
@@ -92,7 +92,7 @@
 | 想做多 Agent 投研流水线 | **UpUp** ✅ | Coordinator 4 worker + 5 投资 Subagent |
 | 想做生产级量化 / 主动监控 | **UpUp** ✅ | KAIROS 6 状态机 + Cron + Daemon |
 | 只想跑一次单标的的 DCF 估值 | 两者都行 | 都有 `dcf` skill,UpUp 多 10 倍中文工具 |
-| 想长期维护 + 自己 fork 改 | **UpUp** ✅ | 18 workspace package + 4 runtime 插件 + SDK |
+| 想长期维护 + 自己 fork 改 | **UpUp** ✅ | 16 workspace package + 4 runtime 插件 + SDK |
 
 ### 上游继承 vs UpUp 增量(代码级)
 
@@ -113,7 +113,7 @@
 | Session / Plan / Loop | 基础 | Session 2.0(参考 Claude Code) | 全新 |
 | 多 Agent | 5 个 subagent | + 5 个投资 Subagent + Coordinator 4 worker | 大幅扩展 |
 | Memory | 简单 | 48 文件 + 观察缓冲 + 抽取 hook + 审计链 | 重写 |
-| Workspace | 0 个 | 18 个 | 全新 |
+| Workspace | 0 个 | 15 个 | 全新 |
 | KAIROS / Bridge / Realtime / Daemon | 无 | 全部 upup-only | 全新 |
 | 测试 | 7 文件 | 7 文件(`src/**` 范围) | 持平(待补) |
 
@@ -307,7 +307,7 @@
 | **多 Agent 协同** | `src/multi-agent/` + `src/coordinator/` + Pi 投资 profiles(含 `investment-subagents`) |
 | **Session 2.0** | 计划模式、自动压缩、Loop 恢复、停止 hook(参考 Claude Code) |
 | **Memory 系统** | `packages/memory` + 观察缓冲 + 抽取 hook |
-| **18 个 workspace package** | adapter-paperclip / agent-core / commands / cron / daemon / gateway / hooks / keybindings / llm / mcp / memory / plugin-sdk / plugins / sdk / skills / state / types / utils |
+| **16 个 workspace package** | commands / cron / daemon / gateway / hooks / keybindings / mcp / memory / pi-finance-sdk / plugin-sdk / plugins / sdk / skills / state / types / utils |
 | **KAIROS / Bridge / Coordinator / Realtime / Daemon / Cron / Hooks** | 全部 upup-only,共 200+ 文件 |
 | **Sprint v1–v8 持续打磨** | 投研 Claude Code 改造、Round 1-3 skills/plugins 整合、网关层、网关登录 |
 
@@ -329,8 +329,8 @@
 | 💾 **持久化记忆** | SQLite 长期记忆 + 观察缓冲 + 抽取 hook + 审计链 |
 | 📡 **Web 网关** | Read-only JSON snapshot + 监控 |
 | 📈 **KAIROS 主动监控** | 财报触发器 + 持仓监控 |
-| 🧪 **评估框架** | LangSmith 240+ 题目 + 引用密度计数器 + Ink UI |
-| 📦 **18 个 Workspace Package** | 完整分层 + 独立可发布 |
+| 🧪 **评估框架** | Pi-native evaluation runner + 240+ 题目 + 引用密度计数器 + Ink UI |
+| 📦 **15 个 Workspace Package** | 完整分层 + 独立可发布 |
 | 🛠 **可观测** | Telemetry + Hook 系统 + 审计签名 |
 
 更多真实输出示例见 [docs/showcase.md](./docs/showcase.md)。
@@ -544,8 +544,8 @@ upup/
 │   ├── web/                      # 网关(read-only JSON snapshot)
 │   ├── tui/                      # 50 个 Ink + pi-tui 渲染文件
 │   └── ...                       # 共 48 个子目录(vs 上游 12)
-├── packages/                     # 18 个 workspace package / 1,253 文件 / 406,495 行
-│   ├── llm/                      #   - 多 provider 适配
+├── packages/                     # 16 个 workspace package
+│   ├── pi-finance-sdk/           #   - Pi 金融扩展、skill、prompt、eval
 │   ├── memory/                   #   - 持久化
 │   ├── plugin-sdk/               #   - 第三方插件 SDK
 │   ├── skills/                   #   - skill runtime
@@ -561,10 +561,8 @@ upup/
 │   ├── utils/                    #   - 工具
 │   ├── sdk/                      #   - 通用 SDK
 │   ├── plugins/                  #   - 插件基础设施
-│   ├── agent-core/               #   - 核心 agent
-│   └── adapter-paperclip/        #   - Paperclip 适配
 ├── docs/                         # 设计 / 实施记录 / 验证报告(含 upup-china-edition-positioning)
-├── evals/                        # LangSmith 评估
+├── evals/                        # Pi 原生金融评估
 ├── .upup/                        # 用户级配置(gitignored)
 ├── env.example                   # 环境变量模板
 └── package.json                  # 私有包,name=upup

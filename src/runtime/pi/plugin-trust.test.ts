@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { verifyPiResourceTrust } from './plugin-trust.js';
@@ -32,6 +32,16 @@ describe('Pi plugin trust policy', () => {
     mkdirSync(join(root, 'other'));
     expect(() => verifyPiResourceTrust([join(root, 'other')], { trustedPaths: [resources] }, root)).toThrow('outside');
     expect(() => verifyPiResourceTrust([resources], { trustedPaths: [resources], allowedHashes: { [resources]: 'bad' } }, root)).toThrow('hash mismatch');
+  });
+
+  test('rejects symbolic links in trusted resources', () => {
+    const { root, resources } = fixture();
+    const link = join(root, 'resource-link');
+    symlinkSync(resources, link);
+    expect(() => verifyPiResourceTrust([link], { trustedPaths: [root] }, root)).toThrow('symbolic link');
+    const nestedLink = join(resources, 'nested-link');
+    symlinkSync(join(root, 'outside.txt'), nestedLink);
+    expect(() => verifyPiResourceTrust([resources], { trustedPaths: [resources] }, root)).toThrow('symbolic link');
   });
 
   test('enforces pinned package versions', () => {

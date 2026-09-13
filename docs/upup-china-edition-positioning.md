@@ -104,7 +104,7 @@ UpUp (涨涨) 不是 dexter 的中文化翻译,也不是 dexter 的换皮。它�
 | 协议 | MIT(同上游) |
 | 归属 | 显著标注 "Forked from [virattt/dexter](https://github.com/virattt/dexter)",保留 LICENSE |
 | 上游贡献 | 整体金融研究框架、Tool registry、Agent loop、SKILL.md 协议、Ink + pi-tui 渲染层 |
-| UpUp 独立贡献 | A 股数据栈、50 投资 skill、5 阶段工作流、4 runtime 插件、EN+zh-CN i18n、多 Agent、Session 2.0、Memory、18 workspace package |
+| UpUp 独立贡献 | A 股数据栈、50 投资 skill、5 阶段工作流、4 runtime 插件、EN+zh-CN i18n、多 Agent、Session 2.0、Memory、16 workspace package |
 | 上游同步 | 上游发布新版本时,在 PR 中评估 cherry-pick(详见 `docs/sync-plan.md`) |
 | 上游 issue | 不镜像;只在新功能/重大 bug 时通知上游 |
 
@@ -138,7 +138,7 @@ UpUp 是**研究工具**,不是投资顾问。所有输出仅供学习与决策�
 | 5 | 4 runtime 插件 | ✅ (bun/jiti/wasm/mcp) | ❌ | n/a |
 | 6 | i18n (EN + zh-CN) | ✅ | ❌ | n/a |
 | 7 | Session 2.0 / Plan Mode | ✅ | ❌ | n/a |
-| 8 | Workspace 生态 (multi-agent / KAIROS / Bridge / 18 packages) | ✅ | ❌ | n/a |
+| 8 | Workspace 生态 (multi-agent / KAIROS / Bridge / 15 packages) | ✅ | ❌ | n/a |
 
 ---
 

@@ -53,7 +53,7 @@ export class TmuxBackend implements Backend {
    */
   async spawn(params: SpawnAgentParams): Promise<AgentInstance> {
     const agentId = randomUUID();
-    const sessionName = `upup-agent-${agentId.slice(0, 8)}`;
+    const sessionName = `upup-worker-${agentId.slice(0, 8)}`;
     
     const agent: AgentInstance & { sessionName: string } = {
       id: agentId,

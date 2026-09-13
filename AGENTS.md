@@ -6,7 +6,7 @@
 - This fork: https://github.com/louloulin/upup
 - Mirror: https://gitcode.com/lumosaigroup/upup
 - Upstream (forked from): https://github.com/virattt/dexter
-- UpUp (涨涨) is a CLI-based AI agent for **Chinese-language deep financial research**, built on top of the [Dexter](https://github.com/virattt/dexter) framework and now powered by the Pi Runtime, with TypeScript and Ink (React for CLI). It is **not** a thin reskin of Dexter — see "China-Edition Increment" in [README.md](./README.md) for the full delta (A-share data stack, 50 investment skills, 5-phase /invest workflow, Pi Package ecosystem, 4-runtime plugin system, EN+zh-CN i18n, multi-agent coordination, Session 2.0, 18 workspace packages, etc.).
+- UpUp (涨涨) is a CLI-based AI agent for **Chinese-language deep financial research**, built on top of the [Dexter](https://github.com/virattt/dexter) framework and now powered by the Pi Runtime, with TypeScript and Ink (React for CLI). It is **not** a thin reskin of Dexter — see "China-Edition Increment" in [README.md](./README.md) for the full delta (A-share data stack, 50 investment skills, 5-phase /invest workflow, Pi Package ecosystem, 4-runtime plugin system, EN+zh-CN i18n, multi-agent coordination, Session 2.0, 16 workspace packages, etc.).
 
 > 📌 **中国版定位 (2026-06-12 升级)**: 完整权威的"中国版 dexter"白皮书见 [docs/upup-china-edition-positioning.md](./docs/upup-china-edition-positioning.md)。8 维度 vs 上游 dexter 的全量审计见 [upup-vs-dexter-audit.md](./openspec/changes/upup-vs-dexter-comprehensive-audit-and-doc-refresh/docs/upup-vs-dexter-audit.md)。本文件 (AGENTS.md) 中的"UpUp's Additions"段已重命名为 **China-Edition Increment**。
 
@@ -17,7 +17,7 @@ UpUp (涨涨) 是基于 [virattt/dexter](https://github.com/virattt/dexter) 的 
 
 - **上游协议**：MIT（同 UpUp）
 - **上游贡献**：整体金融研究框架、Tool registry、Agent loop、SKILL.md 协议、Ink 渲染层、Ink + pi-tui 集成
-- **UpUp 的独立贡献**：A 股数据栈（Tushare Pro / AKShare）、50 个 SKILL.md 投资分析 skill、14 个 bundled skill、5 阶段投资工作流 (`/invest`)、4 runtime 插件系统（bun/jiti/wasm/mcp）、EN+zh-CN 双语 i18n、多 Agent 协同、Session 2.0 / Permission 体系、18 个 workspace package、8 轮 Sprint 持续打磨。详见 [README.md](./README.md) 的 "China-Edition Increment" 段。
+- **UpUp 的独立贡献**：A 股数据栈（Tushare Pro / AKShare）、50 个 SKILL.md 投资分析 skill、14 个 bundled skill、5 阶段投资工作流 (`/invest`)、4 runtime 插件系统（bun/jiti/wasm/mcp）、EN+zh-CN 双语 i18n、多 Agent 协同、Session 2.0 / Permission 体系、16 个 workspace package、8 轮 Sprint 持续打磨。详见 [README.md](./README.md) 的 "China-Edition Increment" 段。
 - **修改上游代码**：请保留协议头；新增模块时直接以 UpUp 名义贡献。
 - **上游同步**：若上游 dexter 发布新版本，UpUp 团队会在 PR 中评估 cherry-pick（见 `docs/sync-plan.md`）。
 
@@ -39,7 +39,7 @@ UpUp (涨涨) 是基于 [virattt/dexter](https://github.com/virattt/dexter) 的 
   - Utils: `src/utils/` (env, config, caching, token estimation, markdown tables)
   - Web / gateway: `src/web/` + `packages/gateway/` (read-only JSON snapshots)
   - Evals: `src/evals/` + Pi Package eval contracts under `packages/pi-finance-sdk/evals/`
-- 18 workspace packages under `packages/`: adapter-paperclip, agent-core, commands, cron, daemon, gateway, hooks, keybindings, llm, mcp, memory, plugin-sdk, plugins, sdk, skills, state, types, utils
+- 16 workspace packages under `packages/`: commands, cron, daemon, gateway, hooks, keybindings, mcp, memory, pi-finance-sdk, plugin-sdk, plugins, sdk, skills, state, types, utils
 - Config: `.upup/settings.json` (persisted model/provider selection)
 - Environment: `.env` (API keys; see `env.example`)
 - Scripts: `scripts/release.sh`
@@ -125,7 +125,7 @@ UpUp (涨涨) 是基于 [virattt/dexter](https://github.com/virattt/dexter) 的 
 - Ollama: `OLLAMA_BASE_URL` (default `http://127.0.0.1:11434`)
 - Finance: `FINANCIAL_DATASETS_API_KEY`
 - Search: `EXASEARCH_API_KEY` (preferred), `TAVILY_API_KEY` (fallback)
-- Tracing: `LANGSMITH_API_KEY`, `LANGSMITH_ENDPOINT`, `LANGSMITH_PROJECT`, `LANGSMITH_TRACING`
+- Tracing: UpUp telemetry and Pi event/audit streams; no LangChain/LangSmith runtime dependency
 - Never commit `.env` files or real API keys.
 
 ## Version & Release

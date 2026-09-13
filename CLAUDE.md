@@ -14,7 +14,7 @@
 - **i18n**：EN + zh-CN 双语，强类型 key
 - **多 Agent 协同**：subagent 并行拉数据
 - **Session 2.0**：计划模式、自动压缩、Loop 恢复、停止 hook（参考 Claude Code）
-- **18 个 workspace package** + 8 轮 Sprint 持续打磨
+- **16 个 workspace package** + 8 轮 Sprint 持续打磨
 
 完整增量清单见 [README.md](./README.md) 的 "UpUp's Additions" 段。
 
@@ -75,7 +75,7 @@ bun test              # Run tests
 | `src/session/` | Session state + permission mode (Claude Code-inspired) |
 | `src/components/` | TUI components (Ink) |
 | `packages/plugin-sdk/` | Plugin SDK for third-party plugin authors |
-| `packages/llm/`, `packages/memory/`, `packages/gateway/` | Workspace packages |
+| `packages/pi-finance-sdk/`, `packages/memory/`, `packages/gateway/` | Workspace packages |
 
 ## Permission System
 

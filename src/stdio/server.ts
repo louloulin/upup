@@ -2,7 +2,7 @@
  * UpUp Stdio Server
  *
  * Implements JSON-RPC 2.0 protocol over stdio for external tool integration.
- * Spawned by adapter-paperclip via subprocess to provide Agent functionality.
+ * Provides a Pi-backed Agent session API to external clients.
  */
 
 import { streamPiAgent } from '../runtime/pi/event-stream.js';

@@ -3,8 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const productionEntryImports: Record<string, readonly string[]> = {
-  'src/run.ts': ['runtime/pi/event-stream'],
-  'src/bundled-runner.ts': ['runtime/pi/event-stream'],
+  'src/print.ts': ['runtime/pi/event-stream'],
   'src/controllers/agent-runner.ts': ['runtime/pi/event-stream', 'runtime/pi/session-service'],
   'src/gateway/agent-runner.ts': ['runtime/pi/index'],
   'src/cron/executor.ts': ['gateway/agent-runner'],
@@ -17,6 +16,12 @@ const productionEntryImports: Record<string, readonly string[]> = {
 };
 
 describe('Pi production entry contract', () => {
+  test('removed custom agent entrypoints stay absent', () => {
+    for (const file of ['src/agent', 'src/model/llm.ts', 'packages/adapter-paperclip', 'packages/agent-core', 'packages/llm', 'upup-agent']) {
+      expect(() => readFileSync(join(process.cwd(), file), 'utf8')).toThrow();
+    }
+  });
+
   test('all production entry adapters point to the single Pi runtime boundary', () => {
     for (const [file, requiredImports] of Object.entries(productionEntryImports)) {
       const source = readFileSync(join(process.cwd(), file), 'utf8');
