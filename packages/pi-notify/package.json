@@ -1,0 +1,14 @@
+{
+  "name": "@upup/pi-notify",
+  "version": "0.1.0",
+  "description": "UpUp Pi-native notifications and current-session subscriptions",
+  "type": "module",
+  "keywords": ["pi-package", "platform", "notify"],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
+  "scripts": { "build": "bun build src/index.ts --outdir=dist --target=node && bun build extensions/index.ts --outdir=dist/extensions --target=node && tsc --emitDeclarationOnly --declaration --declarationMap --outDir dist", "test": "bun test ./test.ts ./extensions/index.test.ts" },
+  "files": ["dist", "extensions", "skills", "prompts", "workflows", "policies", "evals", "package.json"],
+  "peerDependencies": { "@earendil-works/pi-coding-agent": "0.84.3", "typebox": "1.3.7" },
+  "pi": { "source": "builtin:upup", "extensions": ["./extensions"], "skills": ["./skills/pi-notify"], "prompts": ["./prompts/pi-notify.md"], "workflows": ["./workflows/pi-notify.md"], "policies": ["./policies/pi-notify.md"], "evals": ["./evals/pi-notify.json"] }
+}

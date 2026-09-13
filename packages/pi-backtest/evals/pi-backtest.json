@@ -1,0 +1,10 @@
+{
+  "name": "pi-backtest-contract",
+  "version": "1.0.0",
+  "cases": [
+    { "id": "evaluation-exposes-window", "requires": ["evalWindowDays", "engineVersion", "evalStatus"] },
+    { "id": "targets-expose-chronology", "requires": ["firstHit", "simulatedExitReason"] },
+    { "id": "batch-exposes-summary", "requires": ["completedCount", "winRatePct", "adviceBreakdown"] },
+    { "id": "no-automatic-trade", "forbidden": ["guaranteed return", "place order", "automatic order"] }
+  ]
+}

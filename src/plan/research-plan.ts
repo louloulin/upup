@@ -30,7 +30,7 @@ export type ResearchPlanState =
   | 'review'       // 执行完成,等待复盘
   | 'done';        // 全流程结束(可归档)
 
-/** plan 中每个 step 关联的工具名(投资域工具白名单,来自 src/tools/finance) */
+/** plan 中每个 step 关联的工具名（投资域工具白名单，来自 Pi Package ownership）。 */
 export interface ResearchToolBinding {
   tool: string;
   params: Record<string, unknown>;

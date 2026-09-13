@@ -19,7 +19,7 @@ import { getUpupDir } from '../paths.js';
 // ============================================================================
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
-export type LogCategory = 'memory' | 'agent-loader' | 'powershell' | 'agent-registry' | 'backend' | 'iterm2' | 'coordinator' | 'team-manager' | 'verifier' | 'health-check' | 'event-bus' | 'lifecycle' | 'scheduler' | 'persistence' | 'skills' | 'monitor' | 'skill-tracker' | 'monitor' | 'agent' | 'tools' | 'subagent' | 'mcp' | 'daemon' | 'system' | 'default' | 'compaction' | 'orchestrator' | 'post-cleanup' | 'session-compact' | 'bash' | 'hooks' | 'agent-memory' | 'worktree-hooks' | 'instructions-hooks';
+export type LogCategory = 'memory' | 'agent-loader' | 'powershell' | 'agent-registry' | 'backend' | 'iterm2' | 'health-check' | 'event-bus' | 'lifecycle' | 'scheduler' | 'persistence' | 'skills' | 'monitor' | 'skill-tracker' | 'agent' | 'tools' | 'subagent' | 'mcp' | 'daemon' | 'system' | 'default' | 'compaction' | 'orchestrator' | 'post-cleanup' | 'session-compact' | 'bash' | 'hooks' | 'agent-memory' | 'worktree-hooks' | 'instructions-hooks';
 
 export interface LogEntry {
   id: string;
@@ -86,9 +86,6 @@ const DEFAULT_CONFIG: LoggerConfig = {
     'agent-registry': true,
     backend: true,
     iterm2: true,
-    coordinator: true,
-    'team-manager': true,
-    verifier: true,
     'health-check': true,
     'event-bus': true,
     lifecycle: true,
@@ -411,4 +408,3 @@ export function error(category: LogCategory, message: string, error?: Error, dat
 export function perf(category: LogCategory, message: string, durationMs: number, data?: unknown): void {
   getLogger().perf(category, message, durationMs, data);
 }
-

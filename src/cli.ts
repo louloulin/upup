@@ -85,7 +85,8 @@ import { listAllCommands } from './commands/unified-registry.js';
 import { initSpinner } from './utils/spinner.js';
 // Phase 50: 统一使用 input-state，移除 command-state
 import { inputStore, inputSelectors, inputActions } from './tui/state/input-state.js';
-import { initializeSkills, getSkillCommandRegistry, getRegisteredCommandCount } from './skills/index.js';
+import { isPiSkillCommand, toPiSkillPrompt } from './runtime/pi/skill-commands.js';
+import { getPiSessionTools } from './runtime/pi/runner.js';
 
 
 // Stores the user's approval decision when Enter/Esc is pressed before the
@@ -323,20 +324,6 @@ export async function runCli(options: RunCliOptions = {}) {
 
   if (notification) {
     console.log(`[Permissions] ${notification}`)
-  }
-
-  // Initialize skills system - registers dynamic commands used by getAllSlashCommands()
-  try {
-    const n = await initializeSkills();
-    // P0 fix: surface a startup message so users see how many skills are
-    // actually available (they were silently registered before, causing
-    // the "/cmd shows nothing" complaint).
-    if (process.env.UPUP_QUIET_SKILLS_LOAD !== '1') {
-      const { t } = await import('./i18n/strings.js');
-      console.log(t('cmd.skills_loaded').replace('{n}', String(n)));
-    }
-  } catch (e) {
-    console.warn('[Skills] Failed to initialize:', e);
   }
 
   const tui = new TuiMainScreen(new ProcessTerminal());
@@ -577,7 +564,7 @@ export async function runCli(options: RunCliOptions = {}) {
   ↑ / ↓        Navigate input history`;
 
   // Import command system for delegation
-  const executeCommandFromModule = async (name: string, args: string, context: { cwd: string; env: Record<string, string>; sessionId: string; model: string; state?: Record<string, unknown>; sessionDuration?: number }) => {
+  const executeCommandFromModule = async (name: string, args: string, context: { cwd: string; env: Record<string, string>; sessionId: string; model: string; state?: Record<string, unknown>; sessionDuration?: number; tools?: readonly { name: string; description: string }[] }) => {
     try {
       const commandsModule = await import('@upup/commands')
       const executeCommand = commandsModule.executeCommand
@@ -597,30 +584,15 @@ export async function runCli(options: RunCliOptions = {}) {
     // Track redirect chain for cycle detection (reset at top-level command)
     const redirectChain = new Set<string>()
 
-    // Check if this is a skill command
+    // Pi owns Skill expansion and execution. The legacy SkillExecutor is not
+    // part of the CLI production path anymore.
     try {
-      const { executeSkillCommand } = await import('./skills/executor.js');
-      const skillCommand = await executeSkillCommand(commandName, commandArgs, {
-        cwd: process.cwd(),
-        env: process.env as Record<string, string>,
-        sessionId: agentRunner.sessionId,
-        model: modelSelection.model,
-      });
-
-      if (skillCommand) {
-        if (skillCommand.type === 'query' && skillCommand.text) {
-          chatLog.addChild(new Spacer(1));
-          chatLog.addChild(new Text(theme.primary(`Executing /${commandName}...`), 0, 0));
-          tui.requestRender();
-          await agentRunner.runQuery(skillCommand.text);
-        } else if (skillCommand.type === 'output' && skillCommand.text) {
-          chatLog.addChild(new Spacer(1));
-          chatLog.addChild(new Text(skillCommand.text, 0, 0));
-        } else if (skillCommand.type === 'error' && skillCommand.message) {
-          chatLog.addChild(new Spacer(1));
-          chatLog.addChild(new Text(theme.error(skillCommand.message), 0, 0));
-        }
+      const piSkillName = commandName.replace(/^skill:/i, '');
+      if (await isPiSkillCommand(piSkillName, process.cwd())) {
+        chatLog.addChild(new Spacer(1));
+        chatLog.addChild(new Text(theme.primary(`Executing /${commandName} through Pi...`), 0, 0));
         tui.requestRender();
+        await agentRunner.runQuery(toPiSkillPrompt(piSkillName, commandArgs));
         return;
       }
     } catch (e) {
@@ -703,8 +675,10 @@ export async function runCli(options: RunCliOptions = {}) {
     // /skills — list installed skills with usage stats (P1.7 — round 2)
     if (commandName === 'skills') {
       try {
-        const { listInstalledSkills } = await import('./skills/skills-menu.js');
-        const text = await listInstalledSkills({ limit: 50 });
+        const skills = await (await import('./runtime/pi/skill-commands.js')).listPiSkillCommands(process.cwd());
+        const text = skills.length === 0
+          ? 'No Pi skills found.'
+          : ['Pi skills:', ...skills.slice(0, 50).map((skill) => `  /skill:${skill.name} — ${skill.description}`)].join('\n');
         chatLog.addChild(new Spacer(1));
         for (const line of text.split('\n')) {
           chatLog.addChild(new Text(line, 0, 0));
@@ -756,6 +730,7 @@ export async function runCli(options: RunCliOptions = {}) {
         sessionId: agentRunner.sessionId,
         model: modelSelection.model,
         state,
+        tools: getPiSessionTools(agentRunner.sessionId),
       })
 
       if (result.type === 'output' && result.text) {
@@ -903,17 +878,6 @@ export async function runCli(options: RunCliOptions = {}) {
     const result = await agentRunner.runQuery(query);
     if (result?.answer) {
       await inputHistory.updateAgentResponse(result.answer);
-    }
-    
-    // Show skill suggestion for future queries (after response is generated)
-    try {
-      const { getCliSkillSuggestion } = await import('./skills/skills-menu.js');
-      const suggestion = getCliSkillSuggestion(query, 40);
-      if (suggestion) {
-        chatLog.addChild(new Text(suggestion, 0, 0));
-      }
-    } catch {
-      // Ignore errors in skill suggestions
     }
     
     refreshError();

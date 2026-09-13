@@ -88,7 +88,6 @@ describe('Pi session migration', () => {
     const session = await new PiAgentSessionFactory().createSession(getInvestmentAgentSpec('invest-explore'), {
       cwd: dir,
       sessionPath: target,
-      loadRegisteredTools: false,
     });
     session.exportToJsonl(exported);
     session.dispose();

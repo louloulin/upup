@@ -1,0 +1,8 @@
+{
+  "name": "pi-platform",
+  "version": "1.0.0",
+  "cases": [
+    { "id": "session-scoped", "requires": ["session"] },
+    { "id": "no-financial-write", "forbidden": ["place_trade_order"] }
+  ]
+}

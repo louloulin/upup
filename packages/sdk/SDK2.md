@@ -731,7 +731,7 @@ await transport.close()
 ### 7.3 Phase 3: 工具和权限 ✅ 已完成 (2026-05-12)
 
 - [x] Tool 类型定义 ✅
-- [x] ToolRegistry 工具注册表 ✅
+- [x] Pi Package Extension 工具注册与 Session 隔离 ✅
 - [x] PermissionManager 权限管理器 ✅
 - [x] 权限模式 (default/acceptEdits/bypassPermissions/plan) ✅
 - [x] canUseTool 回调 ✅
@@ -741,7 +741,7 @@ await transport.close()
 
 **新增文件:**
 - `src/tools/types.ts` - 工具类型定义
-- `src/tools/index.ts` - 工具模块导出
+- `src/runtime/pi/agent-session-factory.ts` - Pi Session 工具装配边界
 - `src/permissions/types.ts` - 权限类型定义
 - `src/permissions/manager.ts` - 权限管理器
 - `src/permissions/index.ts` - 权限模块导出

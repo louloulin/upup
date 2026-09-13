@@ -127,14 +127,18 @@ describe('buildEarningsPreviewAsync (P1.a.1)', () => {
     expect(p.transcripts).toEqual([]);
   });
 
-  test('mock x-search produces at least 1 tweet (no API key required)', async () => {
+  test('does not synthesize X posts without an API key', async () => {
     const { buildEarningsPreviewAsync } = await import('./earnings-preview.js');
-    const p = await buildEarningsPreviewAsync('NVDA', { offline: false, now: () => 1_700_000_000_000 });
-    // Without FINANCIAL_DATASETS_API_KEY, consensus will be empty,
-    // but x-search mock always returns. So source is at least 'partial'.
-    expect(p.recentTweets.length).toBeGreaterThanOrEqual(1);
-    expect(p.recentTweets[0]!.url).toMatch(/^https:\/\/x\.com\//);
-    expect(p.source).not.toBe('framework');
+    const previous = process.env.X_BEARER_TOKEN;
+    delete process.env.X_BEARER_TOKEN;
+    try {
+      const p = await buildEarningsPreviewAsync('NVDA', { offline: false, now: () => 1_700_000_000_000 });
+      expect(p.recentTweets).toEqual([]);
+      expect(p.source).toBe('framework');
+    } finally {
+      if (previous === undefined) delete process.env.X_BEARER_TOKEN;
+      else process.env.X_BEARER_TOKEN = previous;
+    }
   });
 
   test('transcript fetcher injection: custom data flows through', async () => {

@@ -8,7 +8,7 @@
 
 import 'dotenv/config';
 import { ProcessTerminal, TuiMainScreen } from '@earendil-works/pi-tui';
-import { callStructuredLlm } from '../runtime/pi/model.js';
+import { callStructuredLlm } from '../runtime/pi/prompt-service.js';
 import { z } from 'zod';
 import fs from 'fs';
 import path from 'path';

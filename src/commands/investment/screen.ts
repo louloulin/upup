@@ -3,13 +3,12 @@
  *
  * v5 Sprint 2.3 + P1.b.4 — 自然语言选股 (Gap G4)
  *
- * Wraps the `nl_screen` tool from `src/tools/screening/nl-screen.ts` and
+ * Wraps the natural-language screener from `@upup/pi-market-data` and
  * renders the result as a one-pager in the CLI. Module boundary:
- *   screen.ts (Layer 4 CLI) → tools/screening (Layer 3) + plan/filter-spec (Layer 2)
- *   No new dependencies; the heavy lifting lives in nl_screen.
+ *   screen.ts (Layer 4 CLI) → @upup/pi-market-data public API.
  */
 
-import { createNlScreenTool, type NlScreenOutput } from '../../tools/screening/nl-screen.js';
+import { runNaturalLanguageScreen, type NaturalLanguageScreenOutput } from '@upup/pi-market-data';
 
 const USAGE = [
   '',
@@ -44,7 +43,7 @@ function parseScreenArgs(args: string): { query: string; universe: 'us' | 'cn' |
   return { query: rest, universe, realtime };
 }
 
-function renderResultsBlock(out: NlScreenOutput): string[] {
+function renderResultsBlock(out: NaturalLanguageScreenOutput): string[] {
   const lines: string[] = [];
   lines.push('');
   lines.push(`  Source: ${out.source}  ·  Universe: ${out.universe}` + (out.template ? `  ·  Template: ${out.template}` : ''));
@@ -73,29 +72,18 @@ function renderResultsBlock(out: NlScreenOutput): string[] {
 export async function runScreen(args: string): Promise<string> {
   const parsed = parseScreenArgs(args);
   if (!parsed) return USAGE;
-  const tool = createNlScreenTool();
-  let out: NlScreenOutput;
+  let out: NaturalLanguageScreenOutput;
   try {
-    const raw = await tool.invoke({
-      query: parsed.query,
+    out = await runNaturalLanguageScreen(parsed.query, {
       universe: parsed.universe,
       limit: DEFAULT_LIMIT,
       realtime: parsed.realtime,
     });
-    out = JSON.parse(raw as string) as NlScreenOutput;
   } catch (err) {
     return [
       '',
       '  /screen 执行失败:',
       `  ${err instanceof Error ? err.message : String(err)}`,
-      '',
-    ].join('\n');
-  }
-  if ((out as unknown as { error?: string }).error) {
-    return [
-      '',
-      '  /screen FilterSpec 校验失败:',
-      `  ${(out as unknown as { error: string }).error}`,
       '',
     ].join('\n');
   }
@@ -106,7 +94,7 @@ export async function runScreen(args: string): Promise<string> {
     '═══════════════════════════════════════',
     ...renderResultsBlock(out),
     '',
-    `  MCP 路径: 走 nl_screen 工具(能力组: screening,前缀 nl_)`,
+    '  Pi 路径: 使用 @upup/pi-market-data 的 native screener',
     '',
   ].join('\n');
 }

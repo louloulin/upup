@@ -12,8 +12,7 @@
  * - Security validation
  */
 
-import { executeBashCommand } from '../tools/bash/bash-tool.js';
-import { executePowerShellCommand } from '../tools/powershell/powershell-tool.js';
+import { platformBash, platformPowerShell } from '@upup/pi-platform';
 import { hasPermissionsToUseTool, createSkillPermissionContext, type Tool } from './permissions.js';
 
 // Pattern for code blocks: ```! command ``` (loucode style)
@@ -47,9 +46,7 @@ export interface ShellExecutionResult {
  */
 async function executeBash(command: string): Promise<ShellExecutionResult> {
   try {
-    const result = await executeBashCommand(command, {
-      timeout: 30000,
-    });
+    const result = await platformBash({ command, timeout: 30000 });
     return {
       stdout: result.stdout || '',
       stderr: result.stderr || '',
@@ -75,9 +72,7 @@ async function executeShell(
 ): Promise<ShellExecutionResult> {
   if (shell === 'powershell') {
     try {
-      const result = await executePowerShellCommand(command, {
-        timeout: 30000,
-      });
+      const result = await platformPowerShell(command, { timeout: 30000 });
       return {
         stdout: result.stdout || '',
         stderr: result.stderr || '',

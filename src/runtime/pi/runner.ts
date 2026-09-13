@@ -171,6 +171,17 @@ export function isPiSessionRunning(sessionKey: string): boolean {
   return sessions.get(sessionKey)?.running ?? false;
 }
 
+export interface PiSessionToolInfo {
+  name: string;
+  description: string;
+}
+
+export function getPiSessionTools(sessionKey: string): readonly PiSessionToolInfo[] {
+  const state = sessions.get(sessionKey);
+  if (!state) return [];
+  return state.session.getAvailableToolNames().map((name) => ({ name, description: name }));
+}
+
 export async function runPiPrompt(prompt: string, options: PiPromptOptions = {}): Promise<string> {
   const key = options.sessionKey;
   const requestedSpec = createSpec(options);

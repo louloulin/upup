@@ -44,7 +44,7 @@
 | 端口注册表 (跨包解耦) | `src/agent/agent-port.ts` (6 端口) | — | ✅ 完整 |
 | SCC + Layer 校验 | `scripts/check-scc.ts` (v7-4) | 355 | ✅ 完整 |
 | 5 步投资 phase 真实工具 | `src/commands/investment/phase-handlers.ts` (v7-3) | 545 | ✅ 完整 |
-| Multi-portfolio 实时 P&L | `src/tools/portfolio/multi-portfolio.ts` (v7-5) | 660+ | ✅ 完整 |
+| Multi-portfolio 实时 P&L | `@upup/pi-portfolio` Pi Session Extension | native | ✅ 完整 |
 
 **核心结论**: upup 的 AI Agent 基础设施 **比 claude code 入门级更扎实** (零 TODO, 端口注册表比 claude code 严格)。
 差距集中在 **"投资场景专用化"**, 而非 "AI 能力本身"。
@@ -202,14 +202,14 @@ v8-2   投资记忆 schema             ✅ (本文件 §9)
 v8-3   投资 status line            ✅ (本文件 §11)
 ```
 
-## 8. 循环依赖审计 (用户原话 `await import('../../../../src/tools/portfolio/tracker.js')`)
+## 8. 循环依赖审计 (历史问题：旧根 Portfolio 实现的深层 import)
 
 **结论**: 该模式已被 v7-2b commit (`端口注册表扩展 + 8 个深层 import 清除`) 全部清除。
 
 **现状审计**:
 - `grep -rEn "['\"]\.\./\.\./\.\./\.\." src/ packages/` → **0 命中**
 - `scripts/check-scc.ts` (v7-4) 已加 "3+ 级 ../" 规则,任何新引入会被 CI 拦截
-- `tracker.ts` 本身在 v7-2a 已拆为 store/service/tracker 三层(零循环)
+- Portfolio 状态现在由 `@upup/pi-portfolio` Session Extension 管理；根 `src/tools/portfolio` 的旧实现已删除，当前只允许通过 Pi Package public API 访问。
 
 **架构原则** (Sprint 持续强化):
 - 跨包: `globalThis` 端口注册表 (`src/agent/agent-port.ts` 等 6 端口)

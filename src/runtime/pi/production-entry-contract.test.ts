@@ -5,14 +5,12 @@ import { join } from 'node:path';
 const productionEntryImports: Record<string, readonly string[]> = {
   'src/print.ts': ['runtime/pi/event-stream'],
   'src/controllers/agent-runner.ts': ['runtime/pi/event-stream', 'runtime/pi/session-service'],
-  'src/gateway/agent-runner.ts': ['runtime/pi/index'],
+  'src/gateway/agent-runner.ts': ['runtime/pi/runner'],
   'src/cron/executor.ts': ['gateway/agent-runner'],
   'src/daemon/workers/tasks.ts': ['runtime/pi/background-service'],
   'src/bridge/server.ts': ['gateway/agent-runner'],
   'src/stdio/server.ts': ['runtime/pi/event-stream', 'runtime/pi/session-service'],
   'src/evals/run.ts': ['runtime/pi/event-stream'],
-  'src/multi-agent/backends/inprocess.ts': ['runtime/pi/index'],
-  'src/multi-agent/backends/pi-worker.ts': ['runtime/pi/index'],
 };
 
 describe('Pi production entry contract', () => {
@@ -32,6 +30,15 @@ describe('Pi production entry contract', () => {
     expect(readFileSync(join(process.cwd(), 'src/runtime/pi/prompts.ts'), 'utf8')).not.toMatch(/from ['"](?:\.\.?\/)+'skills/);
   });
 
+  test('CLI Skill execution stays on the Pi ResourceLoader path', () => {
+    for (const file of ['src/cli.ts', 'src/commands/unified-registry.ts']) {
+      const source = readFileSync(join(process.cwd(), file), 'utf8');
+      expect(source).not.toContain('./skills/executor.js');
+      expect(source).not.toContain('./skills/index.js');
+      expect(source).not.toContain('../skills/slash-command.js');
+    }
+  });
+
   test('legacy Plugin Loader and runtime adapters are not production execution paths', () => {
     const productionFiles = [...new Bun.Glob('src/**/*.{ts,tsx}').scanSync({ cwd: process.cwd(), absolute: true })]
       .filter((file) => !file.endsWith('.test.ts') && !file.endsWith('.spec.ts') && !file.includes('/src/plugins/'));
@@ -40,5 +47,21 @@ describe('Pi production entry contract', () => {
       const source = readFileSync(file, 'utf8');
       expect(source).not.toMatch(/\b(?:loadAndStartPlugin|stopAndUnloadPlugin|registerAllAdapters|discoverPlugins)\s*\(/);
     }
+  });
+
+  test('Pi Package extensions are the default tool source', () => {
+    const source = readFileSync(join(process.cwd(), 'src/runtime/pi/agent-session-factory.ts'), 'utf8');
+    expect(source).toContain('const sourceTools: readonly UpUpToolContract[] = options.tools ?? []');
+    expect(source).not.toContain('registry-adapter');
+    expect(source).not.toContain('loadRegisteredTools');
+  });
+
+  test('Pi prompt capability discovery does not import the legacy root registry', () => {
+    const manifest = readFileSync(join(process.cwd(), 'src/runtime/pi/capability-manifest.ts'), 'utf8');
+    const prompts = readFileSync(join(process.cwd(), 'src/runtime/pi/prompts.ts'), 'utf8');
+    expect(manifest).not.toContain('tools/registry');
+    expect(prompts).not.toContain('tools/registry');
+    expect(manifest).toContain('availableToolNames');
+    expect(prompts).toContain('availableTools');
   });
 });

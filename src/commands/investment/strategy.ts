@@ -20,7 +20,7 @@
  */
 
 import { StrategyStore, computeStrategyPrevHash, type StrategyRecord, type StrategyRecordInput } from '../../memory/strategy-store.js';
-import { validateMethodology, type MethodologyDisclosure } from '../../tools/backtest/backtest-report.js';
+import { validateMethodology, type MethodologyDisclosure } from '@upup/pi-backtest';
 
 
 /**
@@ -65,7 +65,7 @@ function formatTs(ts: number): string {
   return new Date(ts).toISOString().slice(0, 16).replace('T', ' ');
 }
 
-function formatMethodologyBadge(valid: { ok: boolean; missing: string[] }): string {
+function formatMethodologyBadge(valid: { ok: boolean; missing: readonly string[] }): string {
   return valid.ok ? '✓ 合规' : `✗ 缺: ${valid.missing.join(', ')}`;
 }
 
@@ -136,7 +136,7 @@ function cmdNew(rest: string[]): string {
     methodology: {
       factorSources: [
         // 至少 1 个, 不然 audit fail
-        { name: 'EXAMPLE_FACTOR', source: 'src/tools/finance/...', description: '描述因子计算方法' },
+        { name: 'EXAMPLE_FACTOR', source: '@upup/pi-finance-sdk/...', description: '描述因子计算方法' },
       ],
       lookAheadBiasCheck: 'pass',
       walkForward: {

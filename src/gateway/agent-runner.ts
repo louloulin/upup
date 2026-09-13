@@ -2,7 +2,7 @@ import { createMessageQueue, type MessageQueue, type QueuePriority } from '../ut
 import { HEARTBEAT_OK_TOKEN } from './heartbeat/suppression.js';
 import type { AgentEvent, GroupContext } from '../runtime/pi/legacy-events.js';
 import type { UpUpAgentEvent } from '../runtime/pi/types.js';
-import { isPiSessionRunning, runPiPrompt } from '../runtime/pi/index.js';
+import { isPiSessionRunning, runPiPrompt } from '../runtime/pi/runner.js';
 import type { Model } from '@earendil-works/pi-ai';
 import type { ModelRuntime } from '@earendil-works/pi-coding-agent';
 

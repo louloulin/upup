@@ -2,7 +2,7 @@
  * Intent → Subagent Router (Sprint v8-1)
  *
  * 高内聚模块:把意图分类结果 (Intent) 映射到具体的投资 subagent ID
- * (v7-7 预定义的 5 个 invest-* subagent),供 SwarmCoordinator / investment-workflow
+ * (v7-7 预定义的 5 个 invest-* Pi subagent),供投资工作流
  * 做自动路由。
  *
  * 设计原则:
@@ -141,7 +141,7 @@ export async function routeByIntent(
 
 /**
  * 不重新调分类器,直接根据已有 IntentResult 查表 + 校验。
- * 供 SwarmCoordinator 等已经缓存 IntentResult 的调用方使用。
+ * 供已经缓存 IntentResult 的 Pi 调用方使用。
  */
 export function routeFromIntentResult(
   intentResult: IntentResult,

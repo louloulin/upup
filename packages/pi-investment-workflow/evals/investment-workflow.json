@@ -1,0 +1,8 @@
+{
+  "name": "investment-workflow-contract",
+  "version": "1.0.0",
+  "cases": [
+    { "id": "evidence", "requires": ["evidence"] },
+    { "id": "sandbox", "requires": ["sandbox"] }
+  ]
+}

@@ -29,6 +29,50 @@ const SOURCE_INVESTMENT_ANALYSIS_PACKAGE_PATH = resolve(
   dirname(fileURLToPath(import.meta.url)),
   '../../../packages/pi-investment-analysis',
 );
+const SOURCE_RISK_PACKAGE_PATH = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  '../../../packages/pi-risk',
+);
+const SOURCE_PORTFOLIO_PACKAGE_PATH = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  '../../../packages/pi-portfolio',
+);
+const SOURCE_BACKTEST_PACKAGE_PATH = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  '../../../packages/pi-backtest',
+);
+const SOURCE_PLATFORM_PACKAGE_PATH = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  '../../../packages/pi-platform',
+);
+const SOURCE_RESEARCH_PACKAGE_PATH = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  '../../../packages/pi-research',
+);
+const SOURCE_BROWSER_PACKAGE_PATH = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  '../../../packages/pi-browser',
+);
+const SOURCE_CONFIG_PACKAGE_PATH = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  '../../../packages/pi-config',
+);
+const SOURCE_CACHE_PACKAGE_PATH = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  '../../../packages/pi-cache',
+);
+const SOURCE_NOTIFY_PACKAGE_PATH = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  '../../../packages/pi-notify',
+);
+const SOURCE_INVESTMENT_WORKFLOW_PACKAGE_PATH = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  '../../../packages/pi-investment-workflow',
+);
+const SOURCE_MANAGEMENT_PACKAGE_PATH = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  '../../../packages/pi-management',
+);
 
 function builtinPackageCandidates(cwd: string, packageName: string, sourcePath: string): string[] {
   const executableDirectory = dirname(process.execPath);
@@ -46,6 +90,17 @@ export function getBuiltinPiPackageOptions(cwd = process.cwd()): ConfiguredPiPac
     { directory: 'pi-finance-sdk', name: '@upup/pi-finance-sdk', version: '0.1.0', sourcePath: SOURCE_FINANCE_PACKAGE_PATH, source: 'builtin:upup' },
     { directory: 'pi-market-data', name: '@upup/pi-market-data', version: '0.1.0', sourcePath: SOURCE_MARKET_DATA_PACKAGE_PATH, source: 'builtin:upup' },
     { directory: 'pi-investment-analysis', name: '@upup/pi-investment-analysis', version: '0.1.0', sourcePath: SOURCE_INVESTMENT_ANALYSIS_PACKAGE_PATH, source: 'builtin:upup' },
+    { directory: 'pi-risk', name: '@upup/pi-risk', version: '0.1.0', sourcePath: SOURCE_RISK_PACKAGE_PATH, source: 'builtin:upup' },
+    { directory: 'pi-portfolio', name: '@upup/pi-portfolio', version: '0.1.0', sourcePath: SOURCE_PORTFOLIO_PACKAGE_PATH, source: 'builtin:upup' },
+    { directory: 'pi-backtest', name: '@upup/pi-backtest', version: '0.1.0', sourcePath: SOURCE_BACKTEST_PACKAGE_PATH, source: 'builtin:upup' },
+    { directory: 'pi-platform', name: '@upup/pi-platform', version: '0.1.0', sourcePath: SOURCE_PLATFORM_PACKAGE_PATH, source: 'builtin:upup' },
+    { directory: 'pi-research', name: '@upup/pi-research', version: '0.1.0', sourcePath: SOURCE_RESEARCH_PACKAGE_PATH, source: 'builtin:upup' },
+    { directory: 'pi-browser', name: '@upup/pi-browser', version: '0.1.0', sourcePath: SOURCE_BROWSER_PACKAGE_PATH, source: 'builtin:upup' },
+    { directory: 'pi-config', name: '@upup/pi-config', version: '0.1.0', sourcePath: SOURCE_CONFIG_PACKAGE_PATH, source: 'builtin:upup' },
+    { directory: 'pi-cache', name: '@upup/pi-cache', version: '0.1.0', sourcePath: SOURCE_CACHE_PACKAGE_PATH, source: 'builtin:upup' },
+    { directory: 'pi-notify', name: '@upup/pi-notify', version: '0.1.0', sourcePath: SOURCE_NOTIFY_PACKAGE_PATH, source: 'builtin:upup' },
+    { directory: 'pi-investment-workflow', name: '@upup/pi-investment-workflow', version: '0.1.0', sourcePath: SOURCE_INVESTMENT_WORKFLOW_PACKAGE_PATH, source: 'builtin:upup' },
+    { directory: 'pi-management', name: '@upup/pi-management', version: '0.1.0', sourcePath: SOURCE_MANAGEMENT_PACKAGE_PATH, source: 'builtin:upup' },
   ].map((candidate) => ({
     ...candidate,
     path: builtinPackageCandidates(cwd, candidate.directory, candidate.sourcePath).find((path) => existsSync(join(path, 'package.json'))),

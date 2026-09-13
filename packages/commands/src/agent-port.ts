@@ -67,11 +67,29 @@ export interface StatePortLocal {
   getSessionManager(): { listSessions(limit: number): Promise<SessionSummaryLocal[]> };
 }
 
+export interface SandboxPortLocal {
+  getStatus(): { mode: string; enabled: boolean; autoAllow: boolean; additionalDirs: string[] };
+  checkDependencies(): Promise<{
+    available: boolean;
+    errors: string[];
+    warnings: string[];
+    platform: string;
+    nodeVersion: string;
+    capabilities: { filesystem: boolean; network: boolean; process: boolean; sandbox: boolean };
+  }>;
+}
+
+export interface AgentMemoryPortLocal {
+  getContext(agentId: string): string;
+}
+
 interface AgentPortsLocal {
   planMode?: PlanModePortLocal;
   subagent?: SubagentPortLocal;
   mcpRegistry?: McpRegistryPortLocal;
   state?: StatePortLocal;
+  sandbox?: SandboxPortLocal;
+  agentMemory?: AgentMemoryPortLocal;
 }
 
 declare global {
@@ -93,4 +111,12 @@ export function getMcpRegistryPortLocal(): McpRegistryPortLocal | null {
 
 export function getStatePortLocal(): StatePortLocal | null {
   return globalThis.__upupAgentPorts?.state ?? null;
+}
+
+export function getSandboxPortLocal(): SandboxPortLocal | null {
+  return globalThis.__upupAgentPorts?.sandbox ?? null;
+}
+
+export function getAgentMemoryPortLocal(): AgentMemoryPortLocal | null {
+  return globalThis.__upupAgentPorts?.agentMemory ?? null;
 }

@@ -1,0 +1,25 @@
+{
+  "name": "@upup/pi-platform",
+  "version": "0.1.0",
+  "description": "UpUp Pi-native platform tools for files, memory, planning, tasks, MCP, and collaboration",
+  "type": "module",
+  "keywords": ["pi-package", "platform", "upup"],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
+  "scripts": {
+    "build": "bun build src/index.ts --outdir=dist --target=node && bun build extensions/index.ts --outdir=dist/extensions --target=node && tsc -p tsconfig.json",
+    "test": "bun test ./test.ts ./src/swarm.test.ts ./src/watchlist.test.ts ./src/lsp.test.ts ./src/tool-discovery.test.ts ./src/export-data.test.ts ./src/skill-discovery.test.ts ./src/filesystem.test.ts ./src/memory.test.ts ./src/heartbeat.test.ts ./src/cron.test.ts ./src/planning.test.ts ./src/notebook.test.ts ./src/mcp.test.ts ./src/tasks.test.ts ./src/sleep.test.ts ./src/monitor.test.ts ./src/messages.test.ts ./src/snipping.test.ts ./src/ask.test.ts ./src/agents.test.ts ./src/workflow.test.ts ./src/powershell.test.ts ./extensions/index.test.ts"
+  },
+  "files": ["dist", "extensions", "skills", "prompts", "workflows", "policies", "evals", "package.json"],
+  "peerDependencies": { "@earendil-works/pi-coding-agent": "0.84.3", "typebox": "1.3.7" },
+  "pi": {
+    "source": "builtin:upup",
+    "extensions": ["./extensions/index.ts"],
+    "skills": ["./skills/pi-platform"],
+    "prompts": ["./prompts/pi-platform.md"],
+    "workflows": ["./workflows/pi-platform.md"],
+    "policies": ["./policies/pi-platform.md"],
+    "evals": ["./evals/pi-platform.json"]
+  }
+}

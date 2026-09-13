@@ -6,6 +6,7 @@ import type { UpUpAgentSession, UpUpToolContract } from './types.js';
 
 const symbolParameters = Type.Object({ symbol: Type.String() });
 const portfolioParameters = Type.Object({ portfolio: Type.String() });
+const backtestParameters = Type.Object({ trades: Type.Array(Type.Object({ symbol: Type.String() })), forwardPriceData: Type.Record(Type.String(), Type.Array(Type.Object({ date: Type.String() }))), evalWindowDays: Type.Number(), neutralBandPct: Type.Number() });
 
 function financeFixture(
   name: string,
@@ -55,30 +56,48 @@ describe('Pi financial domain behavior', () => {
       financeFixture('ddm_model', { targetPrice: 42, terminalGrowth: 0.03 }),
       financeFixture('calculate_target_price', { targetPrice: 195, method: 'comparable' }),
       financeFixture('calculate_technical_indicators', { rsi: 54, macd: 1.2 }),
-      financeFixture('run_backtest', { annualizedReturn: 0.12, maxDrawdown: -0.08 }, portfolioParameters),
+      financeFixture('run_backtest', { annualizedReturn: 0.12, maxDrawdown: -0.08 }, backtestParameters),
       financeFixture('portfolio_attribution', { activeReturn: 0.02, allocation: 0.01, selection: 0.008 }),
-      financeFixture('calculate_var', { confidence: 0.95, var: 0.035 }, portfolioParameters),
+      financeFixture('calculate_var', { confidence: 0.95, var: 0.035 }, Type.Object({ returns: Type.Array(Type.Number()) })),
     ];
     const names = tools.map((tool) => tool.name);
     const session = await new PiAgentSessionFactory().createSession({
       ...getInvestmentAgentSpec('invest-explore'),
       id: 'invest-finance-e2e',
+      packages: [],
+      skills: [],
       tools: names,
     }, { cwd: process.cwd(), tools });
     try {
       for (const tool of tools) {
-        const input = tool.name === 'run_backtest' || tool.name === 'calculate_var'
-          ? { portfolio: 'fixture-portfolio' }
+        const input = tool.name === 'run_backtest'
+          ? { trades: [{ symbol: 'A', analysisDate: '2026-01-01', operationAdvice: '买入', entryPrice: 100, quantity: 1 }], forwardPriceData: { A: [{ date: '2026-01-02', high: 105, low: 99, close: 104 }] }, evalWindowDays: 1, neutralBandPct: 2 }
+          : tool.name === 'calculate_var'
+            ? { returns: [0.01, -0.02, 0.015, -0.005, 0.008] }
+          : tool.name === 'get_market_data'
+            ? { query: 'AAPL price' }
+          : tool.name === 'get_astock_price'
+            ? { code: '600519.SH' }
+          : tool.name === 'dcf_model'
+            ? { current_fcf: 100, growth_rate: 0.08, discount_rate: 0.1, terminal_growth_rate: 0.03, projection_years: 5, shares_outstanding: 10 }
+          : tool.name === 'calculate_target_price'
+            ? { symbol: 'AAPL', currentPrice: 150, method: 'pe', currentEps: 6, forwardEps: 7, targetPe: 25, peYears: 3 }
+          : tool.name === 'ddm_model'
+            ? { symbol: '600519.SH', current_dividend: 2, growth_rate: 0.05, required_return: 0.1, terminal_growth_rate: 0.03, projection_years: 5, current_price: 30 }
+          : tool.name === 'calculate_target_price'
+            ? { source: 'upup-pi://investment-analysis/target-price' }
+          : tool.name === 'calculate_technical_indicators'
+            ? { data: Array.from({ length: 25 }, (_, index) => ({ date: `2026-09-${String(index + 1).padStart(2, '0')}`, open: 100 + index, high: 102 + index, low: 99 + index, close: 101 + index, volume: 1000 + index * 10 })), indicators: ['kdj', 'boll', 'atr'] }
+          : tool.name === 'portfolio_attribution'
+            ? { method: 'combined', portfolio: { totalReturn: 0.1, holdings: [{ sector: 'Technology', weight: 1, return: 0.1 }] }, benchmark: { totalReturn: 0.08, holdings: [{ sector: 'Technology', weight: 1, return: 0.08 }] } }
           : { symbol: tool.name === 'get_market_data' ? 'AAPL' : '600519.SH' };
         const result = await session.executeTool(tool.name, `e2e-${tool.name}`, input) as Awaited<ReturnType<UpUpAgentSession['executeTool']>> & { isError?: boolean };
         expect(result.isError).not.toBe(true);
+        const expectedEvidence = { source: `upup-fixture://finance/${tool.name}`, dataHash: 'a'.repeat(64) };
         expect(result.details).toMatchObject({
           auditId: expect.any(String),
           dataFreshness: expect.any(String),
-          evidence: [expect.objectContaining({
-            source: `upup-fixture://finance/${tool.name}`,
-            dataHash: 'a'.repeat(64),
-          })],
+          evidence: [expect.objectContaining(expectedEvidence)],
         });
       }
     } finally {
@@ -102,7 +121,7 @@ describe('Pi financial domain behavior', () => {
         details: { evidence: [], dataFreshness: 'offline', auditId: context.auditId },
       };
     };
-    const spec = { ...getInvestmentAgentSpec('invest-trade'), tools: ['place_trade_order'] };
+    const spec = { ...getInvestmentAgentSpec('invest-trade'), packages: [], skills: [], tools: ['place_trade_order'] };
     const denied = await new PiAgentSessionFactory().createSession(spec, {
       cwd: process.cwd(),
       tools: [order],

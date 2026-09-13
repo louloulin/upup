@@ -69,12 +69,50 @@ function verifyArchitectureDocs(): void {
       throw new Error(`market-data Pi package does not declare ${resourceKind}`);
     }
   }
+  const marketDataExtension = readFileSync(join(root, 'packages/pi-market-data/extensions/index.ts'), 'utf8');
+  for (const toolName of ['stock_screener', 'screen_astocks', 'get_sector_data', 'get_market_structure', 'get_technical_data', 'check_trading_day', 'get_upcoming_holidays', 'get_next_trading_day', 'get_trading_days']) {
+    if (!marketDataExtension.includes(`name: '${toolName}'`)) throw new Error(`market-data native calendar tool is not registered: ${toolName}`);
+  }
+  const ownership = readFileSync(join(root, 'src/runtime/pi/package-tool-ownership.ts'), 'utf8');
+  if (!ownership.includes('packageProvidesNativeTool') || !ownership.includes("'check_trading_day'")) {
+    throw new Error('market-data native ownership boundary is missing');
+  }
   const investmentAnalysisManifest = JSON.parse(readFileSync(join(root, 'packages/pi-investment-analysis/package.json'), 'utf8')) as {
     pi?: Record<string, unknown>;
   };
   for (const resourceKind of ['extensions', 'skills', 'prompts', 'workflows', 'policies', 'evals']) {
     if (!Array.isArray(investmentAnalysisManifest.pi?.[resourceKind]) || investmentAnalysisManifest.pi?.[resourceKind].length === 0) {
       throw new Error(`investment-analysis Pi package does not declare ${resourceKind}`);
+    }
+  }
+  const riskManifest = JSON.parse(readFileSync(join(root, 'packages/pi-risk/package.json'), 'utf8')) as {
+    pi?: Record<string, unknown>;
+  };
+  for (const resourceKind of ['extensions', 'skills', 'prompts', 'workflows', 'policies', 'evals']) {
+    if (!Array.isArray(riskManifest.pi?.[resourceKind]) || riskManifest.pi?.[resourceKind].length === 0) {
+      throw new Error(`risk Pi package does not declare ${resourceKind}`);
+    }
+  }
+  const portfolioManifest = JSON.parse(readFileSync(join(root, 'packages/pi-portfolio/package.json'), 'utf8')) as {
+    pi?: Record<string, unknown>;
+  };
+  for (const resourceKind of ['extensions', 'skills', 'prompts', 'workflows', 'policies', 'evals']) {
+    if (!Array.isArray(portfolioManifest.pi?.[resourceKind]) || portfolioManifest.pi?.[resourceKind].length === 0) {
+      throw new Error(`portfolio Pi package does not declare ${resourceKind}`);
+    }
+  }
+  const backtestManifest = JSON.parse(readFileSync(join(root, 'packages/pi-backtest/package.json'), 'utf8')) as {
+    pi?: Record<string, unknown>;
+  };
+  for (const resourceKind of ['extensions', 'skills', 'prompts', 'workflows', 'policies', 'evals']) {
+    if (!Array.isArray(backtestManifest.pi?.[resourceKind]) || backtestManifest.pi?.[resourceKind].length === 0) {
+      throw new Error(`backtest Pi package does not declare ${resourceKind}`);
+    }
+  }
+  const platformManifest = JSON.parse(readFileSync(join(root, 'packages/pi-platform/package.json'), 'utf8')) as { pi?: Record<string, unknown> };
+  for (const resourceKind of ['extensions', 'skills', 'prompts', 'workflows', 'policies', 'evals']) {
+    if (!Array.isArray(platformManifest.pi?.[resourceKind]) || platformManifest.pi?.[resourceKind].length === 0) {
+      throw new Error(`platform Pi package does not declare ${resourceKind}`);
     }
   }
 }
@@ -96,13 +134,17 @@ const checks: readonly Check[] = [
     ['bun', '--cwd', 'packages/pi-finance-sdk', 'test'],
     ['bun', '--cwd', 'packages/pi-market-data', 'test'],
     ['bun', '--cwd', 'packages/pi-investment-analysis', 'test'],
-    ['bun', 'test', 'src/runtime/pi/finance-host-contract.test.ts', 'src/runtime/pi/package-catalog.test.ts', 'src/runtime/pi/agent-spec.test.ts', 'src/runtime/pi/agent-session-factory.test.ts', 'packages/pi-finance-sdk/extensions/index.test.ts'],
+    ['bun', '--cwd', 'packages/pi-risk', 'test'],
+    ['bun', '--cwd', 'packages/pi-portfolio', 'test'],
+    ['bun', '--cwd', 'packages/pi-backtest', 'test'],
+    ['bun', '--cwd', 'packages/pi-platform', 'test'],
+    ['bun', 'test', 'src/runtime/pi/finance-host-contract.test.ts', 'src/runtime/pi/package-catalog.test.ts', 'src/runtime/pi/package-tool-ownership.test.ts', 'src/runtime/pi/agent-spec.test.ts', 'src/runtime/pi/agent-session-factory.test.ts', 'packages/pi-finance-sdk/extensions/index.test.ts', 'src/runtime/pi/host-contract.test.ts', 'packages/pi-risk/extensions/index.test.ts', 'packages/pi-portfolio/extensions/index.test.ts', 'packages/pi-backtest/extensions/index.test.ts', 'packages/pi-platform/extensions/index.test.ts'],
   ] },
   { id: 'A13', name: '四级金融权限策略', command: 'bun', args: ['test', 'src/runtime/pi/tool-contract.test.ts', 'src/runtime/pi/production-finance-contract.test.ts'] },
   { id: 'A14', name: '插件来源/沙箱/网络/凭证审计', command: 'bun', args: ['test', 'src/runtime/pi/plugin-trust.test.ts', 'src/runtime/pi/plugin-adapter.test.ts', 'src/runtime/pi/package-config.test.ts'] },
   { id: 'A15', name: '旧 Session → Pi 迁移', command: 'bun', args: ['test', 'src/session/pi-migration.test.ts'] },
   { id: 'A16', name: '/invest 五阶段状态机与命名投研场景', command: 'bun', args: ['test', 'src/runtime/pi/investment-workflow.test.ts', 'src/runtime/pi/investment-scenarios.pi.test.ts'] },
-  { id: 'A17', name: 'Pi 多 Agent worker 生命周期', command: 'bun', args: ['test', 'src/multi-agent/backends/backend.test.ts'] },
+  { id: 'A17', name: 'Pi 多 Agent worker 生命周期', command: 'bun', args: ['test', 'src/runtime/pi/agent-session-factory.test.ts', 'packages/pi-platform/extensions/index.test.ts'] },
   { id: 'A18', name: 'CLI/Gateway/Cron/Daemon/Bridge/SDK/Eval 入口与命名场景', command: 'bun', args: ['test', 'src/runtime/pi/production-entry-contract.test.ts', 'src/gateway/agent-runner.pi.test.ts', 'src/cron/executor.pi.test.ts', 'src/controllers/agent-runner.pi.test.ts', 'src/components/chat-log.pi.test.ts', 'src/runtime/pi/investment-scenarios.pi.test.ts'] },
   {
     id: 'A19',

@@ -14,8 +14,6 @@ export * from './agent-catalog.js';
 export * from './package-catalog.js';
 export * from './package-contracts.js';
 export * from './agent-port.js';
-export * from './subagent.js';
-export * from './subagent-types.js';
 export * from './investment-subagents.js';
 export {
   getAgentRegistry,

@@ -3,11 +3,10 @@
 #
 # 强制: `src/web/**` 只能 import 白名单内的模块(bridge + react*),禁止
 # import 业务模块(agent / tools / skills / memory / realtime / kairos /
-# coordinator / plan)。
+# coordinator / plan)。页面只能消费管理 API，不能绕过 Gateway 访问 Agent。
 #
-# 设计动机见 design.md D-CTG-8 (C3 Web UI 严格边界)。C3 Web UI 当前
-# 是占位实现,真正的 Vite+React 工程量超出本 change 的范围;这个 lint
-# 是 CI 门禁 — 它在我们交付 P2.b 之前已经能保护边界不被破坏。
+# 设计动机见 design.md D-CTG-8 (C3 Web UI 严格边界)。这个 lint
+# 是 CI 门禁，保护页面不绕过 Gateway 管理 API 直接依赖金融运行时。
 #
 # 调用方:
 #   bash scripts/lint-web-boundary.sh                  # 扫描 src/web/
@@ -39,7 +38,6 @@ FORBIDDEN_PATTERNS=(
   "src/memory/"
   "src/realtime/"
   "src/kairos/"
-  "src/coordinator/"
   "src/plan/"
 )
 

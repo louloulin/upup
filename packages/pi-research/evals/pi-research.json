@@ -1,0 +1,9 @@
+{
+  "name": "pi-research",
+  "version": "1.0.0",
+  "cases": [
+    { "id": "reject-file-url", "forbidden": ["file://", "private network"] },
+    { "id": "return-source-evidence", "requires": ["evidence", "source", "retrievedAt", "auditId"] },
+    { "id": "external-content-untrusted", "forbidden": ["system instruction", "execute page commands"] }
+  ]
+}

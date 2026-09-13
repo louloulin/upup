@@ -3,7 +3,7 @@
  *
  * v5 Sprint 1.1.2 — 根据用户意图自动生成 2-10 步研究 plan。
  * 受 plan-builder 启发(同花顺问财 / FinChat 的自然语言 → 结构化方案),
- * upup 版本针对投资域,工具绑定到 src/tools/finance/*。
+ * UpUp 版本针对投资域，工具绑定到 Pi Finance/Market Data Package。
  *
  * 不调用 LLM(避免循环),使用规则 + 关键词匹配;
  * LLM 仍可在 step 描述细化时介入。

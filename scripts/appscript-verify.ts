@@ -70,18 +70,14 @@ async function runAllVerifications() {
   console.log('\n\x1b[36m>>> Phase 2: 后端注册表检查\x1b[0m\n');
 
   try {
-    const { getBackendRegistry, initializeBackends } = await import('../src/multi-agent/backends/index.js');
-    initializeBackends();
-    const registry = getBackendRegistry();
-    const backends = registry.list();
-    const available = backends.filter(b => b.available).length;
-    
+    const { getPiBackgroundService } = await import('../src/runtime/pi/background-service.js');
+    const tasks = getPiBackgroundService().list();
     results.push({
-      name: '后端注册表',
-      passed: backends.length > 0,
-      details: `${available}/${backends.length} 后端可用`,
+      name: 'Pi Background Service',
+      passed: Array.isArray(tasks),
+      details: `${tasks.length} Pi tasks`,
     });
-    console.log('✅', '后端注册表:', available, '/', backends.length, '后端可用');
+    console.log('✅', 'Pi Background Service:', tasks.length, 'tasks');
   } catch (error: any) {
     results.push({
       name: '后端注册表',
@@ -91,42 +87,27 @@ async function runAllVerifications() {
     console.log('❌', '后端注册表加载失败:', error.message);
   }
 
-  // Phase 3: Agent System Verification
-  console.log('\n\x1b[36m>>> Phase 3: Agent系统验证\x1b[0m\n');
-
+  // Phase 3: Pi Agent Runtime Verification
+  console.log('\n\x1b[36m>>> Phase 3: Pi Agent系统验证\x1b[0m\n');
   try {
-    const { getSwarmCoordinator, getTeamManager } = await import('../src/multi-agent/index.js');
-    const coordinator = getSwarmCoordinator();
-    const teamManager = getTeamManager();
-    
-    await coordinator.initialize();
-    await teamManager.initialize();
-    
-    // Create a test team
-    const team = coordinator.createTeam('verify-team', 'Verification Test');
-    results.push({
-      name: '团队创建',
-      passed: !!team,
-      details: team ? `团队创建成功: ${team.name}` : '创建失败',
-    });
-    console.log(team ? '✅' : '❌', '团队创建:', team ? '成功' : '失败');
-
-    // Check team persistence
-    const retrievedTeam = teamManager.getTeam('verify-team');
-    results.push({
-      name: '团队持久性',
-      passed: !!retrievedTeam,
-      details: retrievedTeam ? `团队ID: ${retrievedTeam.name}` : '团队未找到',
-    });
-    console.log(retrievedTeam ? '✅' : '❌', '团队持久性:', retrievedTeam ? '正常' : '异常');
-
+    const { PiAgentSessionFactory } = await import('../src/runtime/pi/agent-session-factory.js');
+    const { getInvestmentAgentSpec } = await import('../src/runtime/pi/agent-spec.js');
+    const session = await new PiAgentSessionFactory().createSession({
+      ...getInvestmentAgentSpec('invest-explore'),
+      id: `appscript-verify-${Date.now()}`,
+      skills: [],
+      tools: [],
+    }, { cwd: process.cwd() });
+    try {
+      const passed = session.spec.mode === 'primary' && session.getAvailableToolNames().length === 0;
+      results.push({ name: 'Pi Agent Session', passed, details: `session=${session.id}` });
+      console.log(passed ? '✅' : '❌', 'Pi Agent Session:', passed ? '正常' : '异常');
+    } finally {
+      session.dispose();
+    }
   } catch (error: any) {
-    results.push({
-      name: 'Agent系统',
-      passed: false,
-      error: error.message,
-    });
-    console.log('❌', 'Agent系统加载失败:', error.message);
+    results.push({ name: 'Pi Agent Session', passed: false, error: error.message });
+    console.log('❌', 'Pi Agent Session加载失败:', error.message);
   }
 
   // Phase 4: Skill System Check
@@ -176,15 +157,14 @@ async function runAllVerifications() {
   console.log('\n\x1b[36m>>> Phase 5: 多Agent并发测试\x1b[0m\n');
 
   try {
-    const { getDefaultSubagentRunner } = await import('../src/runtime/pi/subagent-runner.js');
-    const runner = getDefaultSubagentRunner();
-    
-    const concurrencySupported = runner && typeof runner.run === 'function';
+    const { getPiBackgroundService } = await import('../src/runtime/pi/background-service.js');
+    const service = getPiBackgroundService();
+    const concurrencySupported = service && typeof service.start === 'function';
     
     results.push({
       name: '并发Agent支持',
       passed: concurrencySupported,
-      details: concurrencySupported ? 'SubagentRunner支持并发执行' : '并发执行受限',
+      details: concurrencySupported ? 'Pi background-session service支持并发执行' : '并发执行受限',
     });
     console.log(concurrencySupported ? '✅' : '⚠️', '并发Agent支持:', concurrencySupported ? '支持' : '受限');
   } catch (error: any) {
@@ -217,35 +197,6 @@ async function runAllVerifications() {
       details: '编译通过',
     });
     console.log('✅', 'TypeScript编译: 编译通过');
-  }
-
-  // Phase 7: Backend Tests
-  console.log('\n\x1b[36m>>> Phase 7: Backend单元测试\x1b[0m\n');
-
-  try {
-    const testResult = execSync('bun test src/multi-agent/backends/backend.test.ts 2>&1', { 
-      encoding: 'utf-8', 
-      timeout: 60000 
-    });
-    const passMatch = testResult.match(/(\d+) pass/);
-    const failMatch = testResult.match(/(\d+) fail/);
-    
-    const passed = passMatch ? parseInt(passMatch[1]) : 0;
-    const failed = failMatch ? parseInt(failMatch[1]) : 0;
-    
-    results.push({
-      name: 'Backend测试',
-      passed: failed === 0 && passed > 0,
-      details: `${passed} 通过, ${failed} 失败`,
-    });
-    console.log('✅', 'Backend测试:', passed, '通过,', failed, '失败');
-  } catch (error: any) {
-    results.push({
-      name: 'Backend测试',
-      passed: false,
-      error: error.message,
-    });
-    console.log('❌', 'Backend测试失败:', error.message);
   }
 
   // Summary

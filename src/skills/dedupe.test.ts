@@ -53,10 +53,11 @@ describe('unified-registry dedupe', () => {
     resetSkillCommandRegistry();
   });
 
-  it('listAllCommands returns all upstream commands when no skills are loaded', () => {
+  it('listAllCommands includes upstream and Pi-native skill commands', () => {
     const cmds = listAllCommands();
-    const upstreamStatic = SLASH_COMMANDS.length;
-    expect(cmds.length).toBe(upstreamStatic);
+    const upstreamCommands = SLASH_COMMANDS.length;
+    expect(cmds.length).toBeGreaterThan(upstreamCommands);
+    expect(cmds.some((command) => command.name.startsWith('skill:'))).toBe(true);
   });
 
   it('listAllCommands deduplicates: local skill "wins" over static of same name', () => {

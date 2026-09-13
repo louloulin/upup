@@ -39,13 +39,6 @@ export interface WorkflowResult {
   paused?: boolean;
 }
 
-export type PhaseHandler = (
-  plan: ResearchPlan,
-  phase: ResearchPhase,
-) => Promise<{ output: string; error?: string }>;
-
-export type PhaseHandlerMap = Partial<Record<ResearchPhase, PhaseHandler>>;
-
 export const WORKFLOW_PHASES: ReadonlyArray<ResearchPhase> = [
   'research', 'valuation', 'backtest', 'trade', 'review',
 ] as const;
@@ -55,8 +48,6 @@ const WORKFLOW_ENTRY = 'upup-investment-workflow';
 export interface InvestmentWorkflowOptions {
   ticker?: string;
   phases?: ResearchPhase[];
-  phaseHandler?: PhaseHandler;
-  phaseHandlerMap?: PhaseHandlerMap;
   mode?: 'fast' | 'full';
   pauseAfterPhase?: ResearchPhase;
   idempotencyKey?: string;
@@ -70,7 +61,6 @@ async function openWorkflowSession(planId: string): Promise<UpUpAgentSession> {
   return createPiAgentRuntime().createSession(getInvestmentAgentSpec('invest-plan'), {
     cwd: process.cwd(),
     sessionPath: workflowSessionPath(planId),
-    loadRegisteredTools: false,
   });
 }
 
@@ -79,19 +69,6 @@ function appendWorkflowEntry(session: UpUpAgentSession, event: Record<string, un
     schema: 1,
     recordedAt: new Date().toISOString(),
     ...event,
-  });
-}
-
-function defaultPhaseHandler(plan: ResearchPlan, phase: ResearchPhase): Promise<{ output: string }> {
-  const descriptions: Record<ResearchPhase, string> = {
-    research: '基础面 + 消息面调研(财务指标 + 10-K + 近期新闻)',
-    valuation: 'DCF 估值 + 多倍对比 + 同业 benchmark',
-    backtest: '策略历史回测(胜率/收益/Sharpe/MaxDD)',
-    trade: '交易建议(风险检查 + 仓位 + 止损/止盈)',
-    review: '复盘(Brinson 归因 + 复利到 coach memory)',
-  };
-  return Promise.resolve({
-    output: `[${phase}] ${plan.ticker ?? '?'} — ${descriptions[phase]}\n框架已就绪,接入工具后自动填充数据。`,
   });
 }
 
@@ -109,9 +86,6 @@ async function executeWorkflow(
 ): Promise<WorkflowResult> {
   const start = Date.now();
   const session = await openWorkflowSession(plan.id);
-  const handlerMap = options.phaseHandlerMap ?? {};
-  const handler = options.phaseHandler ?? defaultPhaseHandler;
-  const resolveHandler = (phase: ResearchPhase): PhaseHandler => handlerMap[phase] ?? handler;
   appendWorkflowEntry(session, {
     action: resumed ? 'resume' : 'start',
     planId: plan.id,
@@ -130,7 +104,18 @@ async function executeWorkflow(
     const stepIds = phaseStepIds(plan, phase);
     let result: PhaseResult;
     try {
-      const output = await resolveHandler(phase)(plan, phase);
+      const toolResult = await session.executeTool('invest_workflow_phase', `${session.id}:${plan.id}:${phase}`, {
+        phase,
+        ...(plan.ticker === undefined ? {} : { ticker: plan.ticker }),
+        goal: plan.goal,
+      });
+      const output = {
+        output: toolResult.content
+          .filter((part): part is { type: 'text'; text: string } => Boolean(part && typeof part === 'object' && 'type' in part && part.type === 'text' && 'text' in part && typeof part.text === 'string'))
+          .map((part) => part.text)
+          .join('\n'),
+        ...((toolResult as { isError?: boolean }).isError ? { error: 'investment_workflow_phase_failed' } : {}),
+      };
       result = {
         phase,
         status: output.error ? 'failed' : 'completed',

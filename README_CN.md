@@ -101,7 +101,7 @@
 | `src/agent/agent.ts` | 历史自定义工具调用循环 | 已删除；生产执行统一由 `src/runtime/pi/` 的 Pi AgentSession 提供 | 替换 |
 | `src/tools/registry.ts` | 简单注册表 | 64+ 工具,3 层权限校验,env-var 条件启用 | 大幅扩展 |
 | `src/skills/registry.ts` | 扫描 `src/skills/` | + `bundled/` 目录 + 热重载 + i18n helper + 最近使用计数 | 重写 |
-| `src/model/llm.ts` | 历史 4 provider 路由 | 已删除；模型与 streaming 统一由 `src/runtime/pi/model.ts` / `pi-ai` 提供 | 替换 |
+| `src/model/llm.ts` | 历史 4 provider 路由 | 已删除；模型调用统一由 `src/runtime/pi/prompt-service.ts` 经 Pi `runPiPrompt` 提供，默认模型与 provider 配置位于 `src/runtime/pi/model-config.ts` | 替换 |
 | 金融数据接口 | Financial Datasets(美股) | Tushare + AKShare + 东方财富 fallback,统一抽象层 | 重写 |
 | `src/components/` | Ink 渲染 | + `status-hint.ts` 单行状态 + Ink + pi-tui 单点接管 | 替换 |
 | 渲染层 | Ink | Ink + pi-tui 复用 + `CombinedAutocompleteProvider` 单点 | 复用 + 单点化 |
@@ -230,11 +230,11 @@
 
 | 维度 | UpUp | upstream dexter |
 |---|---|---|
-| 工厂函数 | `src/tools/finance/get-financials.ts → createGetFinancials()` | 同上(继承) |
-| 领域加载器 | `src/tools/registry/finance-tools.ts → loadFinanceTools(model)`(按模型裁剪工具集) | 内联在 `src/tools/registry.ts` 第 246 行内 |
-| 注册入口 | `src/tools/registry/index.ts:getToolRegistry()` 编排 16 个领域 loader(`loadFinanceTools / loadFundTools / loadQuantTools / loadRealtimeTools / loadCoordinatorTools / loadKairosTools / …`) | 单文件 `src/tools/registry.ts`(246 行)直接 `import` + 顺序 push |
-| 类型 / 元数据 | `src/tools/registry/types.ts` 集中定义 `ToolSafetyLevel / ToolCategory / ToolSideEffects / ToolConcurrencyMetadata / RegisteredTool` + 6 个 metadata 常量 | 仅 `RegisteredTool` interface,无 safety / concurrency / side-effect 字段 |
-| 测试 | 每个 loader 一个 `*.test.ts`(共 16 个) | 单个 `registry.test.ts` |
+| 工厂函数 | `packages/pi-finance-sdk/extensions/index.ts` → Pi Extension tool definition | 同上(继承) |
+| 领域加载器 | Pi Package `extensions/index.ts` + `PiPackageCatalog` 按 Session 信任策略加载 | 内联在 `src/tools/registry.ts` 第 246 行内 |
+| 注册入口 | `PiAgentSessionFactory` → `createAgentSession()`，仅注册显式启用且通过信任校验的 Package Extension | 单文件 `src/tools/registry.ts`(246 行)直接 `import` + 顺序 push |
+| 类型 / 元数据 | `src/runtime/pi/types.ts` + Package Extension 的 Pi `ToolDefinition`，包含权限、审计、金融证据和 Session 隔离 | 仅 `RegisteredTool` interface,无 safety / concurrency / side-effect 字段 |
+| 测试 | 每个 Package Extension/Host capability 一个契约测试，覆盖隔离、权限和审计 | 单个 `registry.test.ts` |
 
 > 一句话总结:UpUp 把 dexter 的 246 行单一 registry 拆成 16 个领域 loader(每个 ~50-150 行)+ 1 个 60 行编排器 + 1 个类型模块。代价是文件数变多,收益是:每个领域可独立测试、可独立 mock、可按模型选择性加载、可在 monorepo 里单独打包。
 
@@ -243,8 +243,8 @@
 | 步骤 | UpUp | upstream dexter |
 |---|---|---|
 | 1. 用户输入 | CLI 接收 → `src/cli.tsx:Editor` → `src/runtime/pi/event-stream.ts` | Pi AgentSession |
-| 2. LLM 决策 | `src/runtime/pi/model.ts` → Pi provider/model registry | Pi `pi-ai` streaming |
-| 3. 工具匹配 | `src/tools/registry/index.ts:getToolRegistry()` 返回按模型裁剪后的工具集 → LLM 选 `get_stock_price` | `src/tools/registry.ts:getToolRegistry()` 返回全量工具 |
+| 2. LLM 决策 | `src/runtime/pi/prompt-service.ts` → `src/runtime/pi/runner.ts` → Pi provider/model registry | Pi `pi-ai` streaming |
+| 3. 工具匹配 | Pi Session 只暴露显式 Package allowlist 的 Extension → LLM 选 `get_market_data` | `src/tools/registry.ts:getToolRegistry()` 返回全量工具 |
 | 4. 数据获取 | `src/tools/finance/stock-price.ts → getStockPrice('AAPL')` → `https://api.financialdatasets.ai/...`(美股) | 同接口 |
 | 5. A 股 fallback | `src/tools/astock/*` 12 个工具(Tushare Pro + AKShare + 东方财富 fallback)自动接管 | ❌ 无 A 股路径 |
 | 6. 结果回填 | Pi tool result / Session entries → UpUp event and evidence adapters | Pi Session 单一状态源 |

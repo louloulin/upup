@@ -13,18 +13,16 @@
  *
  * Usage:
  * ```typescript
- * import { bashTool, executeBashCommand } from './bash';
+ * import { executeBashCommand } from './bash';
  *
  * // Direct execution
  * const result = await executeBashCommand('ls -la');
  *
- * // As tool
- * const tool = createBashTool();
- * const result = await tool.invoke({ command: 'ls -la' });
+ * // Agent tool entry: @upup/pi-platform's native `bash` Extension.
  * ```
  */
 
-export { bashTool, createBashTool, executeBashCommand, formatBashResult, isDangerousCommand } from './bash-tool.js';
+export { executeBashCommand, formatBashResult, isDangerousCommand } from './bash-tool.js';
 export { BASH_TOOL_NAME } from './bash-tool.js';
 
 export {
@@ -69,11 +67,7 @@ export {
 } from './permission-mode.js';
 
 // Re-export types
-export type {
-  BashToolOptions,
-  BashToolResult,
-  BashToolInput,
-} from './bash-tool.js';
+export type { BashToolOptions, BashToolResult, BashToolInput } from './bash-tool.js';
 
 export type {
   SecurityValidationResult,

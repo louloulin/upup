@@ -20,7 +20,8 @@ import type {
   SkillSource,
   HooksSettings,
 } from './types.js';
-import type { PiSubagentConfig, SubagentResult, PiSubagentService } from '../runtime/pi/subagent.js';
+import { runPiPrompt } from '../runtime/pi/runner.js';
+import type { UpUpAgentSpec } from '../runtime/pi/types.js';
 import { executeShellCommandsInPrompt, containsShellCommands } from './promptShellExecution.js';
 import { hasPermissionsToUseTool, createSkillPermissionContext } from './permissions.js';
 import { processToolResultBlock } from './toolResultStorage.js';
@@ -213,12 +214,12 @@ export async function executeSkillInline(
 /**
  * Execute a skill in fork mode (subagent context)
  *
- * Uses the PiSubagentService to spawn a child Pi session with the skill's
+ * Uses the Pi worker runtime to spawn a child Pi session with the skill's
  * instructions and configuration.
  */
 export async function executeSkillFork(
   options: SkillExecutionOptions,
-  subagentRunner: PiSubagentService,
+  _workerRuntime?: unknown,
   progressCallback?: ProgressCallback
 ): Promise<SkillExecutionResult> {
   const startTime = Date.now();
@@ -230,8 +231,7 @@ export async function executeSkillFork(
       progressCallback(skill.progressMessage);
     }
 
-    // Build subagent config from skill metadata
-    const subagentConfig = buildSubagentConfig(skill, {
+    const agentSpec = buildSubagentConfig(skill, {
       cwd,
       agentConfig,
       allowedTools,
@@ -240,15 +240,19 @@ export async function executeSkillFork(
     // Build the skill execution prompt
     const prompt = buildSkillPrompt(skill, args);
 
-    // Execute in subagent
-    const result = await subagentRunner.run(subagentConfig, prompt, {
-      sessionId: `skill-${skill.name}-${Date.now()}`,
+    const output = await runPiPrompt(prompt, {
       cwd: cwd || process.cwd(),
-      tools: [], // Will be populated by the subagent runner
+      signal: options.signal,
+      sessionKey: `skill-${skill.name}-${Date.now()}`,
+      agentSpec,
+      toolFilter: agentSpec.tools === '*' ? '*' : [...agentSpec.tools],
     });
 
-    // Convert SubagentResult to SkillExecutionResult
-    return convertResult(result, startTime);
+    return {
+      success: true,
+      output,
+      duration: Date.now() - startTime,
+    };
   } catch (error) {
     return {
       success: false,
@@ -269,28 +273,28 @@ export async function executeSkillFork(
  */
 export async function executeSkill(
   options: SkillExecutionOptions,
-  subagentRunner?: PiSubagentService,
+  workerRuntime?: unknown,
   progressCallback?: ProgressCallback
 ): Promise<SkillExecutionResult> {
   // Determine execution mode
   const mode = options.mode || options.skill.context || 'inline';
 
-  // Fork mode requires SubagentRunner
+  // Fork mode requires an explicitly initialized Pi worker runtime.
   if (mode === 'fork') {
-    if (!subagentRunner) {
+    if (!workerRuntime) {
       return {
         success: false,
         output: '',
-        error: 'Fork mode requires SubagentRunner (PiSubagentService)',
+        error: 'Fork mode requires an initialized Pi worker runtime',
         duration: 0,
       };
     }
-    return executeSkillFork(options, subagentRunner, progressCallback);
+    return executeSkillFork(options, workerRuntime, progressCallback);
   }
 
   // Swarm mode - multi-agent execution
   if (mode === 'swarm') {
-    return executeSkillSwarm(options, subagentRunner, progressCallback);
+    return executeSkillSwarm(options, workerRuntime, progressCallback);
   }
 
   // Inline mode
@@ -305,7 +309,7 @@ export async function executeSkill(
  */
 export async function executeSkillSwarm(
   options: SkillExecutionOptions,
-  subagentRunner?: PiSubagentService,
+  workerRuntime?: unknown,
   progressCallback?: ProgressCallback
 ): Promise<SkillExecutionResult> {
   const startTime = Date.now();
@@ -337,28 +341,24 @@ export async function executeSkillSwarm(
     // For now, use fork mode as a fallback since full swarm implementation
     // would require the complete swarm infrastructure (tmux coordination,
     // teammate spawning, permission bridging, etc.)
-    if (subagentRunner) {
-      const subagentConfig = buildSubagentConfig(skill, {
+    if (workerRuntime) {
+      const agentSpec = buildSubagentConfig(skill, {
         cwd,
         agentConfig,
         allowedTools,
       });
-      subagentConfig.name = `${skill.name}-swarm-leader`;
-      subagentConfig.type = 'specialized';
-
-      const result = await subagentRunner.run(subagentConfig, prompt, {
-        sessionId: `swarm-${skill.name}-${Date.now()}`,
+      const output = await runPiPrompt(prompt, {
         cwd: cwd || process.cwd(),
-        tools: [],
+        signal: options.signal,
+        sessionKey: `swarm-${skill.name}-${Date.now()}`,
+        agentSpec: { ...agentSpec, id: `${agentSpec.id}-swarm-leader`, name: `${skill.name}-swarm-leader` },
+        toolFilter: agentSpec.tools === '*' ? '*' : [...agentSpec.tools],
       });
 
       return {
-        success: result.success,
-        output: result.output || '',
-        error: result.error,
-        duration: result.duration || Date.now() - startTime,
-        tokens: result.tokens,
-        toolCalls: result.toolCalls,
+        success: true,
+        output,
+        duration: Date.now() - startTime,
       };
     }
 
@@ -449,9 +449,7 @@ export function buildSubagentConfig(
     allowedTools?: string[];
     maxTokens?: number;
   }
-): PiSubagentConfig {
-  // Determine agent type from skill metadata
-  const agentType = skill.agent as PiSubagentConfig['type'] || 'general';
+): UpUpAgentSpec {
 
   // Build tools list
   const tools = skill.allowedTools || options.allowedTools || ['*'];
@@ -463,17 +461,31 @@ export function buildSubagentConfig(
   // Options take precedence for explicit override
   const maxTokens = options.maxTokens ?? skill.maxTokens;
 
-  return {
-    type: agentType,
+  const config = {
+    id: `skill-${skill.name}`,
+    version: '1.0.0',
+    description: skill.description,
+    mode: 'subagent',
+    capabilities: ['skill-execution'],
+    taskTypes: ['skill'],
+    permissions: {
+      id: `skill-${skill.name}-readonly`,
+      allow: ['safe', 'warning'],
+      requireApproval: ['dangerous'],
+      deny: ['critical'],
+      allowExternalNetwork: true,
+      allowCredentialAccess: false,
+      allowFinancialWrites: false,
+    },
+    outputContract: 'markdown',
     name: skill.name,
     tools,
-    maxTurns: 50,
-    maxTokens,
-    model: skill.model || 'inherit',
+    ...(maxTokens !== undefined ? { maxTokens } : {}),
     systemPrompt,
-    cwd: options.cwd || process.cwd(),
-    ...options.agentConfig,
-  } as PiSubagentConfig;
+    ...(typeof options.agentConfig?.model === 'string' ? { model: options.agentConfig.model } : {}),
+    ...(typeof options.agentConfig?.timeoutMs === 'number' ? { timeoutMs: options.agentConfig.timeoutMs } : {}),
+  } satisfies UpUpAgentSpec;
+  return config;
 }
 
 /**
@@ -503,20 +515,6 @@ function buildSkillSystemPrompt(skill: Skill): string {
   }
 
   return lines.join('\n');
-}
-
-/**
- * Convert SubagentResult to SkillExecutionResult
- */
-function convertResult(result: SubagentResult, startTime: number): SkillExecutionResult {
-  return {
-    success: result.success,
-    output: result.output || '',
-    error: result.error,
-    duration: result.duration || Date.now() - startTime,
-    tokens: result.tokens,
-    toolCalls: result.toolCalls,
-  };
 }
 
 /**

@@ -1,8 +1,9 @@
 /**
  * Investment Capability Manifest — surfaces the specialized investment-agent
  * capabilities (realtime / coordinator / kairos / trading / multimodal) to
- * the LLM so it knows which tool to reach for at runtime. Auto-derived
- * from the tool registry by tool-name prefix.
+ * the LLM so it knows which tool to reach for at runtime. Visibility is
+ * derived from the active Pi Package tool names, never from the legacy root
+ * registry.
  *
  * v4 扩展(Sprint v4-7):
  *   - `competitorRefs?: string[]`  关联 13 竞品矩阵中的竞品 id,
@@ -10,8 +11,6 @@
  *   - `markets?: string[]`  realtime 组新增 4 市场标签
  *     (a-share / us / hk / crypto),用于 4 唯一 D3 evidence。
  */
-
-import { getToolRegistry } from "../../tools/registry/index.js";
 
 export interface CapabilityGroup {
   id: string;
@@ -46,7 +45,7 @@ export const CAPABILITY_GROUPS: CapabilityGroup[] = [
     title: "Multi-worker investment analysis",
     prefixes: ["analyze_", "list_research_"],
     blurb:
-      "Spawns up to 4 parallel research workers (technical / fundamental / capital-flow / sentiment) and walks research to synthesis to implementation to verification on a shared task list.",
+      "Runs up to 4 parallel Pi-backed research workers (technical / fundamental / capital-flow / sentiment) and persists task state in the active Pi Session journal.",
     whenToUse: [
       "Comprehensively analyze a symbol: analyze_symbol",
       "Inspect the latest coordinator trail: list_research_tasks",
@@ -103,8 +102,8 @@ export const CAPABILITY_GROUPS: CapabilityGroup[] = [
     blurb:
       "Two-stage natural-language stock screener. Stage 1: NL → typed FilterSpec (Zod-validated). Stage 2: deterministic execution → ranked rows with a 1-line thesis per result. Universe is pluggable; static fixture ships by default for hermetic tests.",
     whenToUse: [
-      "Free-form screening query: nl_screen",
-      "Override universe / parser: pass deps to createNlScreenTool",
+      "Use the native stock_screener or screen_astocks tools for structured screening; use the /screen command for free-form queries.",
+      "Use the native market-data screener for structured filters; the /screen command owns free-form query parsing.",
       "Use realtime RSI/price-change fields: pass realtime=true",
     ],
     competitorRefs: ["alpha-sense", "finchat", "hebbia", "joinquant"],
@@ -128,15 +127,8 @@ export const CAPABILITY_GROUPS: CapabilityGroup[] = [
  * filtered to only include groups that have at least one registered tool.
  * Returns "" if the registry is unavailable or no groups are visible.
  */
-export async function buildInvestmentCapabilitiesSection(): Promise<string> {
-  let registered: Array<{ name: string }>;
-  try {
-    const tools = await getToolRegistry("noop");
-    registered = tools.map((t) => ({ name: t.name }));
-  } catch {
-    return "";
-  }
-  const registeredNames = new Set(registered.map((t) => t.name));
+export function buildInvestmentCapabilitiesSection(availableToolNames: readonly string[] = []): string {
+  const registeredNames = new Set(availableToolNames);
 
   const visible: Array<{ group: CapabilityGroup; tools: string[] }> = [];
   for (const g of CAPABILITY_GROUPS) {

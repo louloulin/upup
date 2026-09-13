@@ -26,11 +26,22 @@ describe('configured Pi packages', () => {
     const options = getBuiltinPiPackageOptions(process.cwd());
     expect(options?.piPackagePaths[0]).toContain('pi-finance-sdk');
     expect(options?.piPackagePaths).toEqual(expect.arrayContaining([expect.stringContaining('pi-market-data')]));
-    expect(options?.piPackagePaths).toEqual(expect.arrayContaining([expect.stringContaining('pi-investment-analysis')]));
+    expect(options?.piPackagePaths).toEqual(expect.arrayContaining([expect.stringContaining('pi-investment-analysis'), expect.stringContaining('pi-browser')]));
     expect(options?.piPackageTrust.pinnedPackages).toEqual({
       '@upup/pi-finance-sdk': '0.1.0',
       '@upup/pi-market-data': '0.1.0',
       '@upup/pi-investment-analysis': '0.1.0',
+      '@upup/pi-risk': '0.1.0',
+      '@upup/pi-portfolio': '0.1.0',
+      '@upup/pi-backtest': '0.1.0',
+      '@upup/pi-platform': '0.1.0',
+      '@upup/pi-research': '0.1.0',
+      '@upup/pi-browser': '0.1.0',
+      '@upup/pi-config': '0.1.0',
+      '@upup/pi-cache': '0.1.0',
+      '@upup/pi-notify': '0.1.0',
+      '@upup/pi-investment-workflow': '0.1.0',
+      '@upup/pi-management': '0.1.0',
       '@earendil-works/pi-coding-agent': '0.84.3',
       typebox: '1.3.7',
     });
@@ -38,19 +49,41 @@ describe('configured Pi packages', () => {
       '@upup/pi-finance-sdk': ['builtin:upup'],
       '@upup/pi-market-data': ['builtin:upup'],
       '@upup/pi-investment-analysis': ['builtin:upup'],
+      '@upup/pi-risk': ['builtin:upup'],
+      '@upup/pi-portfolio': ['builtin:upup'],
+      '@upup/pi-backtest': ['builtin:upup'],
+      '@upup/pi-platform': ['builtin:upup'],
+      '@upup/pi-research': ['builtin:upup'],
+      '@upup/pi-browser': ['builtin:upup'],
+      '@upup/pi-config': ['builtin:upup'],
+      '@upup/pi-cache': ['builtin:upup'],
+      '@upup/pi-notify': ['builtin:upup'],
+      '@upup/pi-investment-workflow': ['builtin:upup'],
+      '@upup/pi-management': ['builtin:upup'],
     });
   });
 
   test('loads the pinned built-in finance package by default', () => {
     delete process.env.UPUP_PI_PACKAGE_PATHS;
     expect(resolveConfiguredPiPackages()).toEqual({
-      piPackagePaths: expect.arrayContaining([expect.stringContaining('/packages/pi-finance-sdk'), expect.stringContaining('/packages/pi-market-data'), expect.stringContaining('/packages/pi-investment-analysis')]),
+      piPackagePaths: expect.arrayContaining([expect.stringContaining('/packages/pi-finance-sdk'), expect.stringContaining('/packages/pi-market-data'), expect.stringContaining('/packages/pi-investment-analysis'), expect.stringContaining('/packages/pi-risk'), expect.stringContaining('/packages/pi-portfolio'), expect.stringContaining('/packages/pi-backtest'), expect.stringContaining('/packages/pi-platform'), expect.stringContaining('/packages/pi-research'), expect.stringContaining('/packages/pi-browser'), expect.stringContaining('/packages/pi-config'), expect.stringContaining('/packages/pi-cache'), expect.stringContaining('/packages/pi-notify'), expect.stringContaining('/packages/pi-investment-workflow'), expect.stringContaining('/packages/pi-management')]),
       piPackageTrust: {
-        trustedPaths: expect.arrayContaining([expect.stringContaining('/packages/pi-finance-sdk'), expect.stringContaining('/packages/pi-market-data'), expect.stringContaining('/packages/pi-investment-analysis')]),
+        trustedPaths: expect.arrayContaining([expect.stringContaining('/packages/pi-finance-sdk'), expect.stringContaining('/packages/pi-market-data'), expect.stringContaining('/packages/pi-investment-analysis'), expect.stringContaining('/packages/pi-risk'), expect.stringContaining('/packages/pi-portfolio'), expect.stringContaining('/packages/pi-backtest'), expect.stringContaining('/packages/pi-platform'), expect.stringContaining('/packages/pi-research'), expect.stringContaining('/packages/pi-browser'), expect.stringContaining('/packages/pi-config'), expect.stringContaining('/packages/pi-cache'), expect.stringContaining('/packages/pi-notify'), expect.stringContaining('/packages/pi-investment-workflow'), expect.stringContaining('/packages/pi-management')]),
         pinnedPackages: {
           '@upup/pi-finance-sdk': '0.1.0',
           '@upup/pi-market-data': '0.1.0',
           '@upup/pi-investment-analysis': '0.1.0',
+          '@upup/pi-risk': '0.1.0',
+      '@upup/pi-portfolio': '0.1.0',
+          '@upup/pi-backtest': '0.1.0',
+          '@upup/pi-platform': '0.1.0',
+      '@upup/pi-research': '0.1.0',
+          '@upup/pi-browser': '0.1.0',
+          '@upup/pi-config': '0.1.0',
+          '@upup/pi-cache': '0.1.0',
+          '@upup/pi-notify': '0.1.0',
+          '@upup/pi-investment-workflow': '0.1.0',
+          '@upup/pi-management': '0.1.0',
           '@earendil-works/pi-coding-agent': '0.84.3',
           typebox: '1.3.7',
         },
@@ -58,6 +91,17 @@ describe('configured Pi packages', () => {
           '@upup/pi-finance-sdk': ['builtin:upup'],
           '@upup/pi-market-data': ['builtin:upup'],
           '@upup/pi-investment-analysis': ['builtin:upup'],
+          '@upup/pi-risk': ['builtin:upup'],
+      '@upup/pi-portfolio': ['builtin:upup'],
+          '@upup/pi-backtest': ['builtin:upup'],
+          '@upup/pi-platform': ['builtin:upup'],
+          '@upup/pi-research': ['builtin:upup'],
+          '@upup/pi-browser': ['builtin:upup'],
+          '@upup/pi-config': ['builtin:upup'],
+          '@upup/pi-cache': ['builtin:upup'],
+          '@upup/pi-notify': ['builtin:upup'],
+          '@upup/pi-investment-workflow': ['builtin:upup'],
+          '@upup/pi-management': ['builtin:upup'],
         },
       },
     });

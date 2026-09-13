@@ -149,8 +149,8 @@ This table is the **most honest one in this doc**: it shows which files/director
 | Sentiment (NLP) | ✅ `src/tools/sentiment/` (A-share news + social) | ❌ none |
 | Forecasting | ✅ `src/tools/forecast/` | ❌ none |
 | Risk management | ✅ `src/tools/risk/` | ❌ none |
-| Portfolio optimization | ✅ `src/tools/portfolio/optimization.ts` | ❌ none |
-| Portfolio tracking | ✅ `src/tools/portfolio/tracker.ts` | ❌ none |
+| Portfolio optimization | ✅ `@upup/pi-portfolio` Pi Extension | ❌ none |
+| Portfolio tracking | ✅ `@upup/pi-portfolio` Pi Session Extension | ❌ none |
 | Performance analytics | ✅ `src/tools/analytics/` | ❌ none |
 | Stock comparison | ✅ `src/tools/comparison/` | ❌ none |
 | Advanced screening | ✅ `src/tools/screening/` (multi-factor A-share) | basic `stock_screener` |
@@ -172,7 +172,7 @@ This is where UpUp creates the most visible product gap. Both projects have an a
 | Investment subcommands | **11** (dossier, strategy, earnings-preview, invest, morning-brief, phase-handlers, portfolio-review, registry, risk-dashboard, screen, watchlist-edit) | 0 |
 | Plan Mode (audit-before-execute) | ✅ | ❌ |
 | Investment subagent files | **5 Pi profiles** (`src/runtime/pi/investment-subagents.ts`) | 0 general-purpose only (5 files in `src/tools/subagent/`) |
-| Investment knowledge hooks | ✅ `src/runtime/pi/investment-knowledge.ts` + Pi workflow entries | ❌ |
+| Investment knowledge hooks | ✅ `@upup/pi-finance-sdk` Session journal + Pi workflow entries | ❌ |
 | Verification hooks | ✅ Pi workflow and evidence adapters under `src/runtime/pi/` | ❌ |
 | Investment output registry | ✅ `src/commands/investment/registry.ts` (writes to `.upup/runs/<id>/`) | ❌ |
 | Per-phase handler | ✅ `src/commands/investment/phase-handlers.ts` | ❌ |
@@ -255,11 +255,11 @@ Below are 4 real tasks. The same action's entry / factory / registration / call 
 
 | Dimension | UpUp | upstream dexter |
 |---|---|---|
-| Factory function | `src/tools/finance/get-financials.ts → createGetFinancials()` | same (inherited) |
-| Domain loader | `src/tools/registry/finance-tools.ts → loadFinanceTools(model)` (trim tools per model) | inline in `src/tools/registry.ts` (246 lines) |
-| Registration entry | `src/tools/registry/index.ts:getToolRegistry()` orchestrates 16 domain loaders (`loadFinanceTools / loadFundTools / loadQuantTools / loadRealtimeTools / loadCoordinatorTools / loadKairosTools / …`) | single file `src/tools/registry.ts` (246 lines), direct `import` + sequential push |
-| Types / metadata | `src/tools/registry/types.ts` centralized definition of `ToolSafetyLevel / ToolCategory / ToolSideEffects / ToolConcurrencyMetadata / RegisteredTool` + 6 metadata constants | only `RegisteredTool` interface; no safety / concurrency / side-effect fields |
-| Tests | one `*.test.ts` per loader (16 total) | single `registry.test.ts` |
+| Factory function | `packages/pi-finance-sdk/extensions/index.ts` → Pi Extension tool definition | same (inherited) |
+| Domain loader | Pi Package `extensions/index.ts` + `PiPackageCatalog`, loaded per Session trust policy | inline in `src/tools/registry.ts` (246 lines) |
+| Registration entry | `PiAgentSessionFactory` → `createAgentSession()`, registering only trusted, explicitly enabled Package Extensions | single `src/tools/registry.ts` (246 lines), direct `import` + sequential push |
+| Types / metadata | `src/runtime/pi/types.ts` + Pi `ToolDefinition`, including permissions, audit, financial evidence, and Session isolation | only `RegisteredTool` interface; no safety / concurrency / side-effect fields |
+| Tests | Package Extension/Host capability contracts cover isolation, permissions, and audit evidence | single `registry.test.ts` |
 
 > One-line summary: UpUp split dexter's 246-line monolithic registry into 16 domain loaders (~50-150 lines each) + one 60-line orchestrator + one types module. Cost: more files. Benefit: each domain can be tested/mocked independently, tools can be selected per model, and each domain can be packaged separately in the monorepo.
 
@@ -269,7 +269,7 @@ Below are 4 real tasks. The same action's entry / factory / registration / call 
 |---|---|---|
 | 1. User input | CLI receives → `src/cli.tsx:Editor` → `src/runtime/pi/event-stream.ts` → Pi `AgentSession` | same (inherited) |
 | 2. LLM decision | Pi `pi-ai` model/provider stream → configured DeepSeek-compatible model | default `gpt-5.5` (`DEFAULT_PROVIDER='openai'`) |
-| 3. Tool matching | `src/tools/registry/index.ts:getToolRegistry()` returns model-trimmed toolset → LLM picks `get_stock_price` | `src/tools/registry.ts:getToolRegistry()` returns full toolset |
+| 3. Tool matching | Pi Session exposes only the explicit Package allowlist → LLM picks `get_market_data` | `src/tools/registry.ts:getToolRegistry()` returns full toolset |
 | 4. Data fetch | `src/tools/finance/stock-price.ts → getStockPrice('AAPL')` → `https://api.financialdatasets.ai/...` (US) | same interface |
 | 5. A-share fallback | `src/tools/astock/*` 12 tools (Tushare Pro + AKShare + Eastmoney fallback) auto-takeover | ❌ no A-share path |
 | 6. Result backfill | Pi session entries plus UpUp evidence/audit metadata | same (inherited) |
@@ -343,8 +343,8 @@ Below are 4 real tasks. The same action's entry / factory / registration / call 
 - **TUI enhancements** — `src/tui/` 50 files (status-hint, slash-autocomplete, multiline, paste-handling)
 - **Web gateway** — `src/web/` + `packages/gateway/` (read-only JSON snapshots)
 - **Chinese-curated model IDs** — `src/utils/model.ts` (kimi-k2-5, deepseek-v4-pro, deepseek-v4-flash)
-- **Default DeepSeek-compatible model** — configured through the Pi model/provider registry in `src/runtime/pi/model.ts`
-- **Provider fallback strategy** — Pi model/provider adapter in `src/runtime/pi/model.ts`
+- **Default DeepSeek-compatible model** — configured in `src/runtime/pi/model-config.ts` and executed through the Pi prompt service
+- **Provider fallback strategy** — resolved by `src/runtime/pi/prompt-service.ts` and the Pi model/provider registry
 
 ---
 

@@ -13,12 +13,9 @@
  * Reference: Loucode's BashTool (10,894 lines across 15 files)
  */
 
-import { z } from 'zod';
-import { PiTool } from '../../runtime/pi/tool.js';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import { getCwd } from '../../utils/cwd.js';
-import { info, warn, error } from '../../utils/logging/logger.js';
 import {
   checkDangerousPatterns,
   validateCommandSecurity,
@@ -49,7 +46,6 @@ export const BASH_TOOL_NAME = 'bash';
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 const MAX_OUTPUT_LENGTH = 100_000;
-const LONG_OUTPUT_THRESHOLD = 10_000;
 
 // Dangerous commands that require explicit confirmation
 const DANGEROUS_COMMANDS = new Set([
@@ -126,12 +122,6 @@ export interface BashToolInput {
 // ============================================================================
 // Input Schema
 // ============================================================================
-
-const inputSchema = z.object({
-  command: z.string().describe('The shell command to execute'),
-  description: z.string().optional().describe('Description of what this command does'),
-  timeout: z.number().min(1).max(300).optional().describe('Timeout in seconds (default: 30, max: 300)'),
-});
 
 // ============================================================================
 // Core Functions
@@ -414,46 +404,6 @@ export function formatBashResult(result: BashToolResult): string {
 }
 
 /**
- * Create the BashTool instance using PiTool
- */
-export function createBashTool(options: BashToolOptions = {}): PiTool {
-  return new PiTool({
-    name: BASH_TOOL_NAME,
-    description: getBashToolDescription(),
-    schema: inputSchema,
-    async func({ command, description, timeout = 30 }: BashToolInput): Promise<string> {
-      info('bash', `Executing: ${command}`);
-      try {
-        // Execute command
-        const result = await executeBashCommand(command, {
-          ...options,
-          timeout: timeout * 1000, // Convert to ms
-        });
-
-        // Format result - use summary for short output, full format for long output
-        const totalOutput = result.stdout.length + result.stderr.length;
-        const output = totalOutput > 10000
-          ? formatBashOutput(result)
-          : formatBashSummary(result);
-
-        // Check if dangerous
-        const isDangerous = isDangerousCommand(command);
-
-        if (isDangerous && result.exitCode === 0) {
-          warn('bash', `Dangerous command executed successfully: ${command}`);
-        }
-
-        return output;
-      } catch (err) {
-        const errorMsg = err instanceof Error ? err.message : String(err);
-        error('bash', `Command failed: ${errorMsg}`);
-        throw err;
-      }
-    },
-  });
-}
-
-/**
  * Check if a command is considered dangerous
  */
 export function isDangerousCommand(command: string): boolean {
@@ -495,32 +445,3 @@ function isSensitivePathError(reason: string): boolean {
   // 始终返回 false，让所有路径都可以通过（带警告）
   return false;
 }
-
-/**
- * Get the tool description for system prompt
- */
-function getBashToolDescription(): string {
-  return `Execute shell commands in the terminal. Use for:
-- Running build/test commands (npm, yarn, make, cargo, etc.)
-- File operations (ls, cat, grep, find, etc.)
-- System operations (ps, top, df, etc.)
-- Network operations (curl, wget, ssh, etc.)
-- Git operations
-
-Security:
-- Dangerous commands (rm -rf, dd, fork bombs) require extra caution
-- Path traversal and injection attacks are blocked
-- Commands are logged for security audit
-
-Examples:
-- \`ls -la\`
-- \`grep -r "pattern" src/\`
-- \`npm test\`
-- \`curl https://api.example.com\``;
-}
-
-// ============================================================================
-// Module exports
-// ============================================================================
-
-export const bashTool = createBashTool();

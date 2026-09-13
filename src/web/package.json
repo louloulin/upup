@@ -2,6 +2,6 @@
   "name": "@upup/web",
   "version": "0.0.0",
   "private": true,
-  "description": "Placeholder for C3 Web UI (P2.b). Vite+React scaffold is deferred to a follow-up change — see design.md D-CTG-8.",
+  "description": "Read-only UpUp Pi management page rendered behind the local management API.",
   "type": "module"
 }

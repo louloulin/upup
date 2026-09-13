@@ -165,6 +165,21 @@ describe('Built-in Commands', () => {
     })
   })
 
+  describe('/tools', () => {
+    it('lists tools supplied by the active Pi Session', async () => {
+      const result = await registry.execute('/tools', {
+        ...defaultContext,
+        tools: [{ name: 'get_market_data', description: 'Read market data' }],
+      });
+      expect(result).toEqual({ type: 'output', text: 'Registered Tools (1):\n\n  get_market_data          Read market data' });
+    });
+
+    it('does not fall back to a root tool registry', async () => {
+      const result = await registry.execute('/tools', defaultContext);
+      expect(result).toEqual({ type: 'output', text: 'No tools are available in the active Pi Session.' });
+    });
+  });
+
   describe('/compact', () => {
     it('should return compact result', async () => {
       const result = await registry.execute('/compact', defaultContext)

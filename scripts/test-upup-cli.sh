@@ -193,7 +193,7 @@ else
 fi
 
 subsection "3.3 Pi Capability Registry"
-if bun test src/runtime/pi/registry-adapter.test.ts src/runtime/pi/package-catalog.test.ts > /tmp/upup-test-capability.log 2>&1; then
+if bun test src/runtime/pi/package-catalog.test.ts src/runtime/pi/package-tool-ownership.test.ts > /tmp/upup-test-capability.log 2>&1; then
     pass "Pi capability registry tests passed"
 else
     fail "Capability registry tests failed"
@@ -274,7 +274,7 @@ fi
 section "7. TOOLS SYSTEM"
 
 subsection "7.1 Tool Registry"
-if bun test src/tools/registry/*.test.ts > /tmp/upup-test-tools.log 2>&1; then
+if bun test src/runtime/pi/package-tool-ownership.test.ts > /tmp/upup-test-tools.log 2>&1; then
     pass "Tool registry tests passed"
 else
     fail "Tool registry tests failed"

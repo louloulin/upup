@@ -14,7 +14,8 @@ import {
   CONSOLIDATION_SYSTEM_PROMPT,
   buildConsolidationPrompt,
 } from './prompts.js';
-import { callStructuredLlm, DEFAULT_MODEL } from '../runtime/pi/model.js';
+import { callStructuredLlm } from '../runtime/pi/prompt-service.js';
+import { DEFAULT_MODEL } from '../runtime/pi/model-config.js';
 import { getUpupDir } from '../utils/paths.js';
 import { MEMORY_TYPES, type MemoryType } from './types.js';
 import { z } from 'zod';

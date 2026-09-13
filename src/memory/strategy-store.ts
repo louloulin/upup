@@ -46,7 +46,7 @@ export interface StrategyDependency {
   strategyId?: string;
   /** 依赖的策略版本 (默认 latest) */
   version?: number;
-  /** 依赖的外部数据源 / API (e.g. "fmp-api", "src/tools/finance/earnings-transcripts.ts") */
+  /** 依赖的外部数据源 / API (e.g. "fmp-api", "@upup/pi-finance-sdk/earnings-transcripts") */
   dataSource?: string;
   /** 自由文本 (人读) */
   note?: string;

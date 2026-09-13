@@ -89,14 +89,6 @@ const HARDCODED_PATHS: HardcodedPath[] = [
   },
   // P2: Should fix (using global but non-unified)
   {
-    file: 'src/tools/portfolio/multi-portfolio.ts:41',
-    line: 41,
-    hardcodedPath: '".upup/portfolios"',
-    issue: 'Hardcoded relative path, should use PORTFOLIOS_DIR',
-    shouldBe: 'PORTFOLIOS_DIR',
-    severity: 'P2-should-fix',
-  },
-  {
     file: 'src/tools/export/export-tools.ts:85',
     line: 85,
     hardcodedPath: '".upup/exports"',
@@ -391,13 +383,12 @@ function generateFixRecommendations(): void {
   console.log('P2 - Should Fix:');
   console.log('─────────────────────────────────────────────────────────────');
   console.log(`
-1. src/tools/portfolio/multi-portfolio.ts
-   Before: ".upup/portfolios"
-   After:  PORTFOLIOS_DIR (already imported but not used correctly)
-
-2. src/tools/export/export-tools.ts
+1. src/tools/export/export-tools.ts
    Before: ".upup/exports"
    After:  EXPORTS_DIR (already imported but not used correctly)
+
+2. @upup/pi-portfolio
+   Portfolio state is owned by the Pi Session extension; no root src/tools path is scanned.
 
 3. src/tools/portfolio/portfolio-tools.ts
    Before: ".upup/portfolio.json"

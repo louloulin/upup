@@ -8,6 +8,7 @@ import {
   type ExtensionAPI,
   type InlineExtension,
   type ToolDefinition,
+  type ModelRuntime,
 } from '@earendil-works/pi-coding-agent';
 import { canUseTool, createToolContext, requiresApproval } from './tool-contract.js';
 import type {
@@ -22,7 +23,7 @@ import type {
 } from './types.js';
 import { validateAgentSpec } from './agent-spec.js';
 import { getModel, getModels } from '@earendil-works/pi-ai/compat';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import { dirname, relative, resolve, sep } from 'node:path';
 import { PI_DEFAULT_SYSTEM_PROMPT } from './default-prompt.js';
@@ -31,7 +32,13 @@ import { createPiPluginExtensions, getLoadedPiPluginBindings } from './plugin-ad
 import { PiPackageCatalog, type PiPackageResourceSnapshot } from './package-catalog.js';
 import { evaluatePiPackage, type PiEvalResult, type PiPackageContracts } from './package-contracts.js';
 import { resolveConfiguredPiPackages } from './package-config.js';
-import { createPiFinanceHostBridge, type PiFinanceHostBridge } from './finance-host-contract.js';
+import { createPiHostBridge, PI_HOST_REGISTRY_GLOBAL_KEY, type PiHostBridge, type PiHostRegistry, type PiManagementSnapshot } from './host-contract.js';
+import { getOwnedToolNames, packageOwnsTool, packageProvidesNativeTool } from './package-tool-ownership.js';
+import { NativeResearchDataClient, NativeSandboxBroker, getNativeFundHistoryForRange } from '@upup/pi-finance-sdk';
+import { createDefaultMarketQuoteClient, FixedWindowMarketHistoryRateLimiter, InMemoryMarketHistoryCache, JsonFileMarketQuoteTrendStore, loadProviderSlaStore, NativeMarketHistoryClient } from '@upup/pi-market-data';
+import type { NativeMarketQuoteTrendStore } from '@upup/pi-market-data';
+import type { InvestmentWorkflowServices } from '@upup/pi-investment-workflow';
+import { globalUpupPath } from '../../utils/storage-paths.js';
 
 function eventToUpUpEvent(sessionId: string, event: AgentSessionEvent): UpUpAgentEvent | undefined {
   switch (event.type) {
@@ -195,41 +202,275 @@ function createFinanceExtension(spec: UpUpAgentSpec, tools: readonly UpUpToolCon
   };
 }
 
-const PI_FINANCE_HOST_KEY = '__upupPiFinanceToolHost';
-let piFinancePackageLoadTail: Promise<void> = Promise.resolve();
+let piPackageLoadTail: Promise<void> = Promise.resolve();
 
-function installPiFinanceToolHost(
+function installPiPackageToolHosts(
   sessionId: string,
   spec: UpUpAgentSpec,
   tools: readonly UpUpToolContract[],
+  packages: readonly { name: string; version: string }[],
   requestToolApproval?: UpUpCreateSessionOptions['requestToolApproval'],
+  modelInstance?: import('@earendil-works/pi-ai').Model<any>,
+  modelRuntime?: ModelRuntime,
+  marketHistoryFetcher?: UpUpCreateSessionOptions['marketHistoryFetcher'],
+  marketQuoteFetcher?: UpUpCreateSessionOptions['marketQuoteFetcher'],
+  marketQuoteTrendStore?: NativeMarketQuoteTrendStore,
+  getSkillDefinitions?: () => readonly import('./host-contract.js').PiSkillDefinition[],
 ): () => void {
   const globalState = globalThis as typeof globalThis & {
-    __upupPiFinanceToolHost?: PiFinanceHostBridge;
+    __upupPiHosts?: PiHostRegistry;
   };
-  const previous = globalState[PI_FINANCE_HOST_KEY];
-  globalState[PI_FINANCE_HOST_KEY] = createPiFinanceHostBridge(
-    sessionId,
-    () => tools.map((tool) => toPiTool(spec, tool, requestToolApproval)),
-  );
+  const previousRegistry = globalState[PI_HOST_REGISTRY_GLOBAL_KEY];
+  const registry = new Map<string, PiHostBridge>();
+  const effectiveTrendStore = marketQuoteTrendStore
+    ?? new JsonFileMarketQuoteTrendStore(process.env.UPUP_PROVIDER_METRICS_PATH?.trim() || globalUpupPath('metrics', 'market-provider-trend.json'));
+  const sessionQuoteClient = createDefaultMarketQuoteClient({ ...(marketQuoteFetcher ? { fetcher: marketQuoteFetcher } : {}), trendStore: effectiveTrendStore });
+  const getManagementSnapshot = (): PiManagementSnapshot => {
+    const enabledPackages = packages.map(({ name, version }) => ({ name, version, enabled: true as const }));
+    const ownedToolNames = new Set(packages.flatMap(({ name }) => getOwnedToolNames(name)));
+    const sourceToolNames = new Set(tools.map((tool) => tool.name));
+    const availableToolNames = new Set([...sourceToolNames, ...ownedToolNames]);
+    const nativeToolNames = new Set([...ownedToolNames].filter((name) => packages.some((pkg) => packageProvidesNativeTool(pkg.name, name))));
+    const capturedAt = new Date().toISOString();
+    return {
+      schema: 1,
+      sessionId: sessionId.slice(-12),
+      capturedAt,
+      runtime: { name: 'pi', contract: 'upup.pi.host.v1', version: '0.84.3' },
+      permissions: {
+        policyId: spec.permissions.id,
+        allowFinancialWrites: spec.permissions.allowFinancialWrites,
+        requireApprovalCount: spec.permissions.requireApproval.length,
+        deniedRiskLevels: [...spec.permissions.deny],
+      },
+      packages: enabledPackages,
+      tools: { available: availableToolNames.size, native: nativeToolNames.size, packageOwned: ownedToolNames.size },
+      providers: {
+        marketData: {
+          providers: [
+            { name: 'yahoo', configured: true },
+            { name: 'tushare', configured: Boolean(process.env.TUSHARE_TOKEN?.trim()) },
+          ],
+          metrics: sessionQuoteClient.getMetrics(),
+          providerSla: {
+            jobs: loadProviderSlaStore().map(({ state, ...job }) => ({
+              ...job,
+              ...state,
+            })),
+          },
+        },
+      },
+      evidence: [{ source: 'upup-pi://management/session', retrievedAt: capturedAt }],
+    };
+  };
+  for (const pkg of packages) {
+    const packageTools = tools.filter((tool) => packageOwnsTool(pkg.name, tool.name) && !packageProvidesNativeTool(pkg.name, tool.name));
+    const runResearchWorker = pkg.name === '@upup/pi-investment-analysis'
+      ? async (request: import('./host-contract.js').PiResearchWorkerRequest, signal: AbortSignal) => {
+        const { runPiPrompt } = await import('./runner.js');
+        const workerSessionId = `${sessionId}:research:${request.role}`;
+        const workerSpec: UpUpAgentSpec = {
+          ...spec,
+          id: `research-worker-${request.role}`,
+          name: `Research Worker: ${request.role}`,
+          description: request.systemPrompt,
+          mode: 'subagent',
+          tools: [...request.allowedTools],
+          capabilities: ['financial-research', request.role],
+          taskTypes: ['research'],
+          permissions: { ...spec.permissions, allowFinancialWrites: false, deny: ['dangerous', 'critical'] },
+          outputContract: 'evidence',
+        };
+        const output = await runPiPrompt(`请分析 ${request.symbol}。研究问题：${request.question}`, {
+          model: workerSpec.model,
+          cwd: process.cwd(),
+          signal,
+          sessionKey: workerSessionId,
+          systemPrompt: request.systemPrompt,
+          toolFilter: [...request.allowedTools],
+          agentSpec: workerSpec,
+          ...(modelInstance ? { modelInstance } : {}),
+          ...(modelRuntime ? { modelRuntime } : {}),
+        });
+        return { role: request.role, output, evidence: [{ source: `upup-pi://research-worker/${request.role}`, sessionId: workerSessionId }], sessionId: workerSessionId };
+      }
+      : undefined;
+    const runAgentWorker = pkg.name === '@upup/pi-platform'
+      ? async (request: import('./host-contract.js').PiAgentWorkerRequest, signal: AbortSignal) => {
+        const { runPiPrompt } = await import('./runner.js');
+        const safeAgentId = request.agentId.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').slice(0, 120) || 'agent-worker';
+        const workerSessionId = `${sessionId}:agent:${safeAgentId}`;
+        const workerSpec: UpUpAgentSpec = {
+          ...spec,
+          id: `platform-worker-${safeAgentId}`,
+          name: request.name,
+          description: `Pi platform worker: ${request.role}`,
+          mode: 'worker',
+          tools: request.tools === '*' ? '*' : [...request.tools],
+          ...(request.model ? { model: request.model } : {}),
+          capabilities: ['platform-worker', request.role],
+          taskTypes: ['platform-worker'],
+          permissions: { ...spec.permissions, id: 'pi-platform-worker-read-only', allow: ['safe', 'warning'], requireApproval: [], deny: ['dangerous', 'critical'], allowFinancialWrites: false },
+          outputContract: 'markdown',
+        };
+        const output = await runPiPrompt(request.prompt, { model: workerSpec.model, signal, sessionKey: workerSessionId, toolFilter: request.tools === '*' ? '*' : [...request.tools], agentSpec: workerSpec, ...(modelInstance ? { modelInstance } : {}), ...(modelRuntime ? { modelRuntime } : {}) });
+        return { agentId: request.agentId, output, sessionId: workerSessionId };
+      }
+      : undefined;
+    const runCronJob = pkg.name === '@upup/pi-platform'
+      ? async (request: import('./host-contract.js').PiCronRunRequest, signal: AbortSignal) => {
+        if (signal.aborted) throw new Error('cron run request aborted');
+        const { loadCronStore } = await import('../../cron/store.js');
+        const { executeCronJob } = await import('../../cron/executor.js');
+        const store = loadCronStore();
+        if (!request.job || typeof request.job !== 'object' || typeof (request.job as { id?: unknown }).id !== 'string') throw new Error('cron runner received an invalid job');
+        const job = store.jobs.find((candidate) => candidate.id === (request.job as { id: string }).id);
+        if (!job) throw new Error(`cron job ${(request.job as { id: string }).id} not found`);
+        await executeCronJob(job, store, { piModel: modelInstance, piModelRuntime: modelRuntime });
+      }
+      : undefined;
+    const listMcpResources = pkg.name === '@upup/pi-platform'
+      ? async (server: string | undefined, signal: AbortSignal) => {
+        if (signal.aborted) throw new Error('MCP resource request aborted');
+        const { getDefaultMCPClient } = await import('../../mcp/client.js');
+        return getDefaultMCPClient().listResources(server);
+      }
+      : undefined;
+    const readMcpResource = pkg.name === '@upup/pi-platform'
+      ? async (uri: string, server: string | undefined, signal: AbortSignal) => {
+        if (signal.aborted) throw new Error('MCP resource request aborted');
+        const { getDefaultMCPClient } = await import('../../mcp/client.js');
+        return getDefaultMCPClient().readResource(uri, server);
+      }
+      : undefined;
+    const getInvestmentWorkflowServices = pkg.name === '@upup/pi-investment-workflow'
+      ? (() => {
+        const research = new NativeResearchDataClient();
+        const quoteClient = createDefaultMarketQuoteClient({ ...(marketQuoteFetcher ? { fetcher: marketQuoteFetcher } : {}), trendStore: effectiveTrendStore });
+        const sandbox = new NativeSandboxBroker({
+          quoteProvider: async (symbol) => {
+            const quote = await quoteClient.getQuote(symbol, undefined, undefined, `${sessionId}:sandbox-quote`);
+            return { symbol: quote.value.symbol, bid: quote.value.bid, ask: quote.value.ask, last: quote.value.last, timestamp: Date.parse(`${quote.value.asOf}T00:00:00Z`) };
+          },
+        });
+        const marketHistory = new NativeMarketHistoryClient({
+          cache: new InMemoryMarketHistoryCache(),
+          rateLimiter: new FixedWindowMarketHistoryRateLimiter(30, 60_000),
+          ...(marketHistoryFetcher ? { fetcher: marketHistoryFetcher } : {}),
+        });
+        let loaded = false;
+        const ensureSandbox = async () => {
+          if (!loaded) {
+            await sandbox.loadState();
+            loaded = true;
+          }
+          return sandbox;
+        };
+        const services: InvestmentWorkflowServices = {
+          getResearchData: async (ticker, signal) => {
+            const [price, ratios, estimates, earnings, filings] = await Promise.all([
+              research.getStockPrice({ ticker }, signal),
+              research.getKeyRatios({ ticker }, signal),
+              research.getAnalystEstimates({ ticker }, signal),
+              research.getEarnings({ ticker }, signal),
+              research.getFilings({ ticker }, signal),
+            ]);
+            return { price, ratios, estimates, earnings, filings };
+          },
+          getFundHistory: (fundCode, startDate, endDate, signal) => getNativeFundHistoryForRange(fundCode, startDate, endDate, { signal }),
+          getMarketHistory: async (symbol, startDate, signal) => {
+            if (signal.aborted) throw new Error('investment workflow market history request aborted');
+            const endDate = new Date().toISOString().slice(0, 10);
+            const result = await marketHistory.getHistory(symbol, startDate, endDate, signal, `${sessionId}:market-history`);
+            return { bars: result.value, evidence: result.evidence };
+          },
+          getSandboxState: async (signal) => {
+            if (signal.aborted) throw new Error('investment workflow sandbox request aborted');
+            const broker = await ensureSandbox();
+            const [positions, balance] = await Promise.all([broker.getPositions(), broker.getBalance()]);
+            return {
+              positions: positions.map((position) => ({ symbol: position.symbol, quantity: position.quantity, avgCost: position.avgCost, realizedPnL: position.realizedPnL })),
+              balance,
+              getQuote: async (symbol, quoteSignal) => {
+                if (quoteSignal.aborted) throw new Error('investment workflow quote request aborted');
+                return broker.getQuote(symbol);
+              },
+            };
+          },
+          placePaperOrder: async (input, signal) => {
+            if (signal.aborted) throw new Error('investment workflow paper order aborted');
+            const broker = await ensureSandbox();
+            const order = await broker.placeOrder({ symbol: input.symbol, side: input.side, quantity: input.quantity, type: 'market' });
+            return {
+              id: order.id,
+              status: order.status,
+              quantity: order.quantity,
+              filledQuantity: order.filledQuantity,
+              ...(order.avgFillPrice === undefined ? {} : { avgFillPrice: order.avgFillPrice }),
+              ...(order.commission === undefined ? {} : { commission: order.commission }),
+            };
+          },
+        };
+        return () => services;
+      })()
+      : undefined;
+    registry.set(pkg.name, createPiHostBridge(
+      sessionId,
+      pkg.name,
+      pkg.version,
+      () => packageTools.map((tool) => toPiTool(spec, tool, requestToolApproval)),
+      runResearchWorker,
+      runAgentWorker,
+      () => tools.map((tool) => ({
+        name: tool.name,
+        description: tool.description,
+        compactDescription: tool.compactDescription,
+        concurrencySafe: tool.maxConcurrent !== 1,
+      })),
+      getSkillDefinitions,
+      runCronJob,
+      listMcpResources,
+      readMcpResource,
+      getInvestmentWorkflowServices,
+      pkg.name === '@upup/pi-market-data' && marketHistoryFetcher ? () => marketHistoryFetcher : undefined,
+      (pkg.name === '@upup/pi-market-data' || pkg.name === '@upup/pi-finance-sdk') && marketQuoteFetcher ? () => marketQuoteFetcher : undefined,
+      (pkg.name === '@upup/pi-market-data' || pkg.name === '@upup/pi-finance-sdk') ? () => effectiveTrendStore : undefined,
+      pkg.name === '@upup/pi-finance-sdk'
+        ? (symbol, requestedMarket, signal, auditId) => sessionQuoteClient.getQuote(symbol, requestedMarket, signal, auditId)
+        : undefined,
+      pkg.name === '@upup/pi-management' ? getManagementSnapshot : undefined,
+    ));
+  }
+  globalState[PI_HOST_REGISTRY_GLOBAL_KEY] = registry;
   return () => {
-    if (previous) globalState[PI_FINANCE_HOST_KEY] = previous;
-    else delete globalState[PI_FINANCE_HOST_KEY];
+    if (previousRegistry) globalState[PI_HOST_REGISTRY_GLOBAL_KEY] = previousRegistry;
+    else delete globalState[PI_HOST_REGISTRY_GLOBAL_KEY];
   };
 }
 
-async function reloadFinancePackageResources(
+async function reloadPiPackageResources(
   resourceLoader: DefaultResourceLoader,
   sessionId: string,
   spec: UpUpAgentSpec,
   tools: readonly UpUpToolContract[],
+  packages: readonly { name: string; version: string }[],
   requestToolApproval?: UpUpCreateSessionOptions['requestToolApproval'],
+  modelInstance?: import('@earendil-works/pi-ai').Model<any>,
+  modelRuntime?: ModelRuntime,
+  marketHistoryFetcher?: UpUpCreateSessionOptions['marketHistoryFetcher'],
+  marketQuoteFetcher?: UpUpCreateSessionOptions['marketQuoteFetcher'],
+  marketQuoteTrendStore?: NativeMarketQuoteTrendStore,
 ): Promise<void> {
-  const previous = piFinancePackageLoadTail;
+  const previous = piPackageLoadTail;
   let release!: () => void;
-  piFinancePackageLoadTail = new Promise<void>((resolve) => { release = resolve; });
+  piPackageLoadTail = new Promise<void>((resolve) => { release = resolve; });
   await previous;
-  const restore = installPiFinanceToolHost(sessionId, spec, tools, requestToolApproval);
+  const restore = installPiPackageToolHosts(sessionId, spec, tools, packages, requestToolApproval, modelInstance, modelRuntime, marketHistoryFetcher, marketQuoteFetcher, marketQuoteTrendStore, () => resourceLoader.getSkills().skills.map((skill) => ({
+    name: skill.name,
+    description: skill.description,
+    instructions: (() => { try { return readFileSync(skill.filePath, 'utf8'); } catch { return undefined; } })(),
+    disableModelInvocation: skill.disableModelInvocation,
+  })));
   try {
     await resourceLoader.reload();
   } finally {
@@ -395,7 +636,7 @@ class PiAgentSession implements UpUpAgentSession {
   async executeTool(name: string, toolCallId: string, input: unknown, signal = new AbortController().signal) {
     const definition = this.session.getToolDefinition(name);
     if (!definition) throw new Error(`Pi tool not registered: ${name}`);
-    return definition.execute(toolCallId, input, signal, undefined, {} as never);
+    return definition.execute(toolCallId, input, signal, undefined, { cwd: this.session.sessionManager.getCwd(), sessionManager: this.session.sessionManager } as never);
   }
 
   getMessages(): readonly unknown[] {
@@ -428,11 +669,7 @@ export class PiAgentSessionFactory implements UpUpAgentRuntime {
   async createSession(spec: UpUpAgentSpec, options: UpUpCreateSessionOptions = {}): Promise<UpUpAgentSession> {
     validateAgentSpec(spec);
     const cwd = options.cwd ?? process.cwd();
-    const sourceTools: readonly UpUpToolContract[] = options.tools
-      ? options.tools
-      : options.loadRegisteredTools === false
-        ? []
-        : await import('./registry-adapter.js').then(({ loadRegisteredPiToolContracts }) => loadRegisteredPiToolContracts(spec.model ?? process.env.DEFAULT_MODEL ?? 'deepseek-v4-flash'));
+    const sourceTools: readonly UpUpToolContract[] = options.tools ?? [];
     const tools = sourceTools.filter((tool) => spec.tools === '*' || spec.tools.includes(tool.name));
     const packageCatalog = new PiPackageCatalog();
     const configuredPackages = options.piPackagePaths === undefined && options.piPackageTrust === undefined
@@ -514,7 +751,9 @@ export class PiAgentSessionFactory implements UpUpAgentRuntime {
       settingsManager,
       extensionFactories: [
         createFinanceSessionExtension(financeContext),
-        ...(financePackageEnabled || packageSelectionExplicit ? [] : [createFinanceExtension(spec, tools, options.requestToolApproval)]),
+        ...(options.tools !== undefined || (!financePackageEnabled && !packageSelectionExplicit)
+          ? [createFinanceExtension(spec, tools, options.requestToolApproval)]
+          : []),
         ...createPiPluginExtensions(trustedPlugins.map(({ binding }) => binding)),
       ],
       additionalExtensionPaths: trustedExtensions.paths.length ? [...trustedExtensions.paths] : undefined,
@@ -541,8 +780,20 @@ export class PiAgentSessionFactory implements UpUpAgentRuntime {
         ...packageContracts.policies.map((policy) => `Trusted Pi policy ${policy.name} (${policy.packageName}@${policy.packageVersion}):\n${policy.rules.join('\n')}`),
       ],
     });
-    if (financePackageEnabled) {
-      await reloadFinancePackageResources(resourceLoader, sessionManager.getSessionId(), spec, tools, options.requestToolApproval);
+    if (packageCatalog.listEnabled().length > 0) {
+      await reloadPiPackageResources(
+        resourceLoader,
+        sessionManager.getSessionId(),
+        spec,
+        tools,
+        packageCatalog.listEnabled().map(({ manifest }) => ({ name: manifest.name, version: manifest.version })),
+        options.requestToolApproval,
+        options.model,
+        options.modelRuntime,
+        options.marketHistoryFetcher,
+        options.marketQuoteFetcher,
+        options.marketQuoteTrendStore,
+      );
     } else {
       await resourceLoader.reload();
     }

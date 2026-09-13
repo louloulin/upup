@@ -1,0 +1,11 @@
+{
+  "name": "pi-risk-contract",
+  "version": "1.0.0",
+  "cases": [
+    { "id": "var-exposes-assumptions", "requires": ["assumptions", "valueAtRisk", "observations"] },
+    { "id": "sharpe-exposes-rating", "requires": ["sharpe", "rating", "observations"] },
+    { "id": "sortino-exposes-downside", "requires": ["sortino", "downsideDeviation"] },
+    { "id": "drawdown-exposes-indices", "requires": ["maxDrawdown", "peakIndex", "troughIndex"] },
+    { "id": "no-trade-language", "forbidden": ["buy", "sell", "place order"] }
+  ]
+}

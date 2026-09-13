@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { getChannelProfile } from './channels.js';
 import { formatPrompt, getLocale, type Locale as PromptLocale } from './locale.js';
-import { upupPath, globalUpupPath } from '../../utils/paths.js';
+import { getGlobalUpupPath, getProjectUpupPath } from '../../utils/config-paths.js';
 import { loadMergedInvestmentConfig, formatInvestmentConfig } from './investment-config.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -32,7 +32,7 @@ export function getCurrentDate(): string {
  */
 export async function loadSoulDocument(): Promise<string | null> {
   // 1. Try project config first
-  const userSoulPath = upupPath('SOUL.md');
+  const userSoulPath = getProjectUpupPath('SOUL.md');
   try {
     return await readFile(userSoulPath, 'utf-8');
   } catch {
@@ -40,7 +40,7 @@ export async function loadSoulDocument(): Promise<string | null> {
   }
 
   // 2. Try global config
-  const globalSoulPath = globalUpupPath('SOUL.md');
+  const globalSoulPath = getGlobalUpupPath('SOUL.md');
   try {
     return await readFile(globalSoulPath, 'utf-8');
   } catch {
@@ -65,7 +65,7 @@ export async function loadSoulDocument(): Promise<string | null> {
  */
 export async function loadRulesDocument(): Promise<string | null> {
   // 1. Try project config first
-  const rulesPath = upupPath('RULES.md');
+  const rulesPath = getProjectUpupPath('RULES.md');
   try {
     return await readFile(rulesPath, 'utf-8');
   } catch {
@@ -73,7 +73,7 @@ export async function loadRulesDocument(): Promise<string | null> {
   }
 
   // 2. Try global config
-  const globalRulesPath = globalUpupPath('RULES.md');
+  const globalRulesPath = getGlobalUpupPath('RULES.md');
   try {
     return await readFile(globalRulesPath, 'utf-8');
   } catch {
@@ -253,11 +253,11 @@ export async function buildSystemPrompt(
    */
   locale?: PromptLocale,
   availableSkills: readonly PiPromptSkillMetadata[] = [],
+  availableTools: readonly { name: string; description?: string; compactDescription?: string }[] = [],
 ): Promise<string> {
-  const { buildCompactToolDescriptions } = await import('../../tools/registry/index.js');
-  const toolDescriptions = await buildCompactToolDescriptions(model);
   const { buildInvestmentCapabilitiesSection } = await import('./capability-manifest.js');
-  const investmentCapabilities = await buildInvestmentCapabilitiesSection();
+  const toolDescriptions = availableTools.map((tool) => `- **${tool.name}**: ${tool.compactDescription ?? tool.description ?? tool.name}`).join('\n');
+  const investmentCapabilities = buildInvestmentCapabilitiesSection(availableTools.map((tool) => tool.name));
   const profile = getChannelProfile(channel);
 
   const resolvedLocale: PromptLocale = locale ?? getLocale();

@@ -25,11 +25,15 @@ import type { GroupContext } from '../runtime/pi/prompts.js';
 import { appendFileSync } from 'node:fs';
 import { upupPath } from '../utils/paths.js';
 import { getConfiguredModelId, getConfiguredProvider } from '../utils/config.js';
+import { JsonFileMarketQuoteTrendStore, startProviderSlaRunner, type ProviderSlaRunner } from '@upup/pi-market-data';
+import { globalUpupPath } from '../utils/storage-paths.js';
 
 const LOG_PATH = upupPath('gateway-debug.log');
 function debugLog(msg: string) {
   appendFileSync(LOG_PATH, `${new Date().toISOString()} ${msg}\n`);
 }
+
+let slaStopped = false;
 
 export type GatewayService = {
   stop: () => Promise<void>;
@@ -229,10 +233,17 @@ export async function startGateway(params: { configPath?: string } = {}): Promis
 
   ensureHeartbeatCronJob(params.configPath);
   const cron = startCronRunner({ configPath: params.configPath });
+  const slaOptions: Parameters<typeof startProviderSlaRunner>[0] = { trendStore: new JsonFileMarketQuoteTrendStore(process.env.UPUP_PROVIDER_METRICS_PATH?.trim() || globalUpupPath('metrics', 'market-provider-trend.json')) };
+  const hookBag = (globalThis as { __upupGatewayTestHooks?: { createSlaRunner?: (options: Parameters<typeof startProviderSlaRunner>[0]) => ProviderSlaRunner; onSlaRunner?: (runner: ProviderSlaRunner) => void } }).__upupGatewayTestHooks;
+  const providerSlaRunner: ProviderSlaRunner = hookBag?.createSlaRunner ? hookBag.createSlaRunner(slaOptions) : startProviderSlaRunner(slaOptions);
+  const slaStop = providerSlaRunner.stop.bind(providerSlaRunner);
+  slaStopped = false;
+  if (hookBag?.onSlaRunner) hookBag.onSlaRunner(providerSlaRunner);
 
   return {
     stop: async () => {
       cron.stop();
+      if (!slaStopped) { slaStop(); slaStopped = true; }
       await manager.stopAll();
     },
     snapshot: () => manager.getSnapshot(),

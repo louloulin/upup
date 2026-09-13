@@ -1,16 +1,17 @@
 import { describe, expect, test } from 'bun:test';
-import { getToolRegistry } from '../../tools/registry/index.js';
 import { getInvestmentAgentSpec, INVESTMENT_PROFILES } from './agent-spec.js';
 import { PiAgentSessionFactory } from './agent-session-factory.js';
+import { packageProvidesNativeTool, PI_FINANCE_PACKAGE_NAMES } from './package-tool-ownership.js';
 
-describe('Pi investment profiles against the production registry', () => {
+describe('Pi investment profiles against native Package ownership', () => {
   test('every explicit profile tool is registered and no profile names a removed tool', async () => {
-    const registered = new Set((await getToolRegistry('deepseek-v4-flash')).map((tool) => tool.name));
     for (const spec of Object.values(INVESTMENT_PROFILES)) {
       expect(spec.tools).not.toBe('*');
-      for (const toolName of spec.tools) expect(registered.has(toolName)).toBe(true);
+      for (const toolName of spec.tools) {
+        const nativePiTool = PI_FINANCE_PACKAGE_NAMES.some((packageName) => packageProvidesNativeTool(packageName, toolName));
+        expect(nativePiTool).toBe(true);
+      }
     }
-    expect(registered.has('web_search')).toBe(false);
   });
 
   test('each profile activates only its production allowlist through Pi', async () => {

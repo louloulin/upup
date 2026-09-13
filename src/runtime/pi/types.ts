@@ -6,6 +6,7 @@ import type { PiPluginTrustPolicy, PiResourceTrustAudit } from './plugin-trust.j
 import type { PiEvalResult, PiPackageContracts } from './package-contracts.js';
 import type { PiPackageResourceSnapshot } from './package-catalog.js';
 import type { PiPluginBinding } from './plugin-adapter.js';
+import type { NativeMarketQuoteTrendStore } from '@upup/pi-market-data';
 
 export type UpUpAgentMode = 'primary' | 'subagent' | 'worker' | 'reviewer';
 
@@ -113,6 +114,7 @@ export interface UpUpToolContract<TInput = unknown, TResult = unknown> {
   name: string;
   label: string;
   description: string;
+  compactDescription?: string;
   category: UpUpToolCategory;
   safetyLevel: UpUpToolSafetyLevel;
   parameters: TSchema;
@@ -198,7 +200,6 @@ export interface UpUpCreateSessionOptions {
   sessionDir?: string;
   sessionId?: string;
   tools?: readonly UpUpToolContract[];
-  loadRegisteredTools?: boolean;
   signal?: AbortSignal;
   model?: Model<any>;
   modelRuntime?: ModelRuntime;
@@ -217,4 +218,10 @@ export interface UpUpCreateSessionOptions {
   piPackageTrust?: PiPluginTrustPolicy;
   pluginTrust?: PiPluginTrustPolicy;
   piPlugins?: readonly PiPluginBinding[];
+  /** Optional deterministic transport for package-owned market history tests. Production uses the package default fetcher. */
+  marketHistoryFetcher?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+  /** Optional deterministic transport for package-owned market quote tests. */
+  marketQuoteFetcher?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+  /** Optional redacted market-provider trend store. */
+  marketQuoteTrendStore?: NativeMarketQuoteTrendStore;
 }

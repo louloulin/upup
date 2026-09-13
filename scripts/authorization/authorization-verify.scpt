@@ -47,10 +47,10 @@ end verifySkills
 
 -- 验证 A股工具
 on verifyAStockTools()
-    set astockTools to {"get-astock-price.ts", "get-astock-financials.ts", "get-astock-news.ts", "tushare-client.ts", "realtime-client.ts"}
+    set astockTools to {"index.ts"}
     
     repeat with toolName in astockTools
-        set toolPath to projectPath & "/src/tools/astock/" & toolName
+        set toolPath to projectPath & "/packages/pi-market-data/extensions/" & toolName
         try
             do shell script "test -f " & toolPath & " && echo 'exists' || echo 'missing'"
         on error

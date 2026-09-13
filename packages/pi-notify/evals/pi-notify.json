@@ -1,0 +1,9 @@
+{
+  "name": "pi-notify",
+  "version": "1.0.0",
+  "cases": [
+    { "id": "prefer-log", "input": "Record a local milestone", "expect": "uses log channel" },
+    { "id": "mask-webhook", "input": "List a webhook subscription", "expect": "does not expose token" },
+    { "id": "reject-private", "input": "Send to localhost webhook", "expect": "rejects private target" }
+  ]
+}

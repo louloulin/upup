@@ -10,7 +10,6 @@ import { loadCronStore, saveCronStore } from '../../cron/store.js';
 import { computeNextRunAtMs } from '../../cron/schedule.js';
 import { executeCronJob } from '../../cron/executor.js';
 import type { CronJob } from '../../cron/types.js';
-import type { PiSubagentConfig } from '../../runtime/pi/subagent.js';
 import { getPiBackgroundService } from '../../runtime/pi/background-service.js';
 
 /**
@@ -163,7 +162,11 @@ export class TasksWorker implements Worker {
   private async executeBackgroundAgent(task: Task): Promise<TaskResult> {
     const { prompt, config } = task.payload as {
       prompt: string;
-      config: Partial<PiSubagentConfig>;
+      config: {
+        model?: string;
+        tools?: string[] | '*';
+        cwd?: string;
+      };
     };
 
     console.log(`[TasksWorker] Background agent task: ${prompt.substring(0, 50)}...`);

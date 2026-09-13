@@ -24,7 +24,6 @@ describe('Pi runtime reliability contract', () => {
       sessionPath,
       model: faux.getModel(),
       modelRuntime,
-      loadRegisteredTools: false,
     });
     await first.prompt('保存第一阶段');
     await first.waitForIdle();
@@ -35,7 +34,6 @@ describe('Pi runtime reliability contract', () => {
       sessionPath,
       model: faux.getModel(),
       modelRuntime,
-      loadRegisteredTools: false,
     });
     try {
       expect(recovered.getMessages().some((message) => typeof message === 'object' && message !== null && 'role' in message && message.role === 'assistant')).toBe(true);

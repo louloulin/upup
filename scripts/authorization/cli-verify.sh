@@ -28,8 +28,8 @@ bun test 2>&1 | tail -2 | grep -E 'pass|fail'
 # 4. A股工具验证
 echo ""
 echo "📊 4. A股工具"
-astock_tools=$(ls src/tools/astock/*.ts 2>/dev/null | wc -l)
-echo "   ✅ A股工具文件: $astock_tools"
+astock_tools=$(grep -Ec "name: '(get_astock_|screen_astocks|get_sector_data|get_technical_data|get_market_structure)" packages/pi-market-data/extensions/index.ts)
+echo "   ✅ Pi Market Data A股工具注册数: $astock_tools"
 
 # 5. AppScript 验证脚本
 echo ""
@@ -43,7 +43,7 @@ echo "🔧 6. 新增模块"
 modules=(
   "src/skills/cli-commands.ts"
   "src/skills/context-manager.ts"
-  "src/tools/astock/data-cache.ts"
+  "packages/pi-market-data/extensions/index.ts"
 )
 for mod in "${modules[@]}"; do
   if [ -f "$mod" ]; then

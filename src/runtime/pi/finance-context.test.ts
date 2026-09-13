@@ -27,7 +27,6 @@ describe('Pi finance session context', () => {
     const first = await factory.createSession(getInvestmentAgentSpec('invest-review'), {
       cwd: directory,
       sessionPath,
-      loadRegisteredTools: false,
     });
     first.setFinanceContext(context);
     expect(first.getFinanceContext()).toMatchObject(context);
@@ -36,7 +35,6 @@ describe('Pi finance session context', () => {
     const recovered = await factory.createSession(getInvestmentAgentSpec('invest-review'), {
       cwd: directory,
       sessionPath,
-      loadRegisteredTools: false,
     });
     try {
       expect(recovered.getFinanceContext()).toMatchObject(context);

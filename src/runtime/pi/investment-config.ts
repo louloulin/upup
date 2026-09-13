@@ -13,7 +13,7 @@
 import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { upupPath } from '../../utils/paths.js';
+import { getGlobalUpupDir, getProjectUpupDir } from '../../utils/config-paths.js';
 
 // ============================================================================
 // Type Definitions
@@ -357,7 +357,7 @@ async function loadGovernFile(dir: string): Promise<GovernanceRules | null> {
  * @returns InvestmentConfig with parsed goals, rules, and governance
  */
 export async function loadInvestmentConfig(configDir?: string): Promise<InvestmentConfig> {
-  const dir = configDir || upupPath('');
+  const dir = configDir || getProjectUpupDir();
 
   const [goals, rules, governance] = await Promise.all([
     loadGoalsFile(dir),
@@ -378,16 +378,14 @@ export async function loadInvestmentConfig(configDir?: string): Promise<Investme
  * 3. Project config overrides global config where present
  */
 export async function loadMergedInvestmentConfig(): Promise<InvestmentConfig> {
-  // Dynamically import to avoid circular dependency
-  const { globalUpupPath, upupPath } = await import('../../utils/paths.js');
-
-  // Check if global config exists
-  const globalExists = existsSync(globalUpupPath(''));
+  const globalDir = getGlobalUpupDir();
+  const projectDir = getProjectUpupDir();
+  const globalExists = existsSync(globalDir);
 
   // Load both configs in parallel
   const [globalConfig, projectConfig] = await Promise.all([
-    globalExists ? loadInvestmentConfig(globalUpupPath('')) : Promise.resolve({ goals: null, rules: null, governance: null }),
-    loadInvestmentConfig(upupPath('')),
+    globalExists ? loadInvestmentConfig(globalDir) : Promise.resolve({ goals: null, rules: null, governance: null }),
+    loadInvestmentConfig(projectDir),
   ]);
 
   // Merge: project config takes precedence

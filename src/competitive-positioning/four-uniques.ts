@@ -4,7 +4,7 @@
  * 4 个 unique(来自 design.md):
  *   D1 — CLI-first:        commands 文件 + feature flag 数 + CLI 入口
  *   D2 — 开源 + 自托管:    LICENSE + Dockerfile + docker-compose + 配置可持久
- *   D3 — 全市场覆盖:       tools/finance 子模块数 + manifest markets 字段
+ *   D3 — 全市场覆盖:       Pi Finance/Market Data Package 子模块数 + manifest markets 字段
  *   D4 — 三件套(投研 Claude + KAIROS + Bridge):   coordinator/kairos/bridge 文件数 + coach channels
  *
  * 证据从 repo 真实文件系统扫描得出,**所有数字可被外部命令复现**(spec REQ-2 Scenarios)。
@@ -166,23 +166,24 @@ function checkD2(root: string): UniqueEvidence {
 // ---------------------------------------------------------------------------
 
 function checkD3(root: string): UniqueEvidence {
-  const financeDir = join(root, 'src/tools/finance');
-  const allFinance = countAllTsFiles(financeDir);
+  const financeDirs = [
+    join(root, 'packages/pi-finance-sdk/src'),
+    join(root, 'packages/pi-finance-sdk/extensions'),
+    join(root, 'packages/pi-market-data/src'),
+    join(root, 'packages/pi-market-data/extensions'),
+  ];
+  const allFinance = financeDirs.reduce((total, directory) => total + countAllTsFiles(directory), 0);
 
   // 子市场分组(a-share / us / hk / crypto)
   // 文件名前缀启发式(不依赖目录结构)
   const subGroups = {
     'a-share': 0, 'us': 0, 'hk': 0, 'crypto': 0,
   };
-  if (existsSync(financeDir)) {
-    for (const name of readdirSync(financeDir)) {
-      const lc = name.toLowerCase();
-      if (lc.includes('a-share') || lc.includes('astock') || lc.includes('cn')) subGroups['a-share']++;
-      else if (lc.includes('us') || lc.includes('sec') || lc.includes('us-stock')) subGroups['us']++;
-      else if (lc.includes('hk') || lc.includes('hkex')) subGroups['hk']++;
-      else if (lc.includes('crypto') || lc.includes('btc') || lc.includes('eth')) subGroups['crypto']++;
-    }
-  }
+  subGroups['a-share'] = countGrepOccurrences(join(root, 'packages/pi-finance-sdk/extensions/index.ts'), "name: 'get_astock_financials'")
+    + countGrepOccurrences(join(root, 'packages/pi-market-data/extensions/index.ts'), "name: 'get_astock_price'");
+  subGroups.us = countGrepOccurrences(join(root, 'packages/pi-finance-sdk/extensions/index.ts'), "name: 'get_financials'");
+  subGroups.hk = subGroups['a-share'];
+  subGroups.crypto = countGrepOccurrences(join(root, 'packages/pi-market-data/extensions/index.ts'), "name: 'get_market_data'");
 
   // 现实:upup 用统一 financial_datasets API 覆盖 4 市场,不强制 4 子目录
   // spec 要求 ≥ 18 文件 + 4 子组 + manifest.realtime.markets
@@ -224,7 +225,7 @@ function checkD3(root: string): UniqueEvidence {
 // ---------------------------------------------------------------------------
 
 function checkD4(root: string): UniqueEvidence {
-  const coordinatorTs = countAllTsFiles(join(root, 'src/coordinator'));
+  const coordinatorTs = countAllTsFiles(join(root, 'src/multi-agent'));
   const kairosTs = countAllTsFiles(join(root, 'src/kairos'));
   const bridgeTs = countAllTsFiles(join(root, 'src/bridge'));
   const channelsDir = join(root, 'src/coach/channels');

@@ -13,8 +13,8 @@
     }
   },
   "scripts": {
-    "build": "bun build src/index.ts --outdir=dist --target=node && bun build extensions/index.ts --outdir=dist/extensions --target=node && tsc --emitDeclarationOnly --declaration --declarationMap --outDir dist",
-    "test": "bun test ./test.ts ./extensions/index.test.ts"
+    "build": "bun build src/index.ts --outdir=dist --target=node && bun build extensions/index.ts --outdir=dist/extensions --target=node && tsc --project tsconfig.json",
+    "test": "bun test ./test.ts ./src/research-journal.test.ts ./src/research-coordinator.test.ts ./src/stock-analysis.test.ts ./src/matrix.test.ts ./extensions/index.test.ts"
   },
   "files": ["dist", "extensions", "skills", "prompts", "workflows", "policies", "evals", "package.json"],
   "peerDependencies": {

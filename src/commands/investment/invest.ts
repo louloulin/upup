@@ -7,7 +7,7 @@
  * /invest --resume <planId>    → 从 checkpoint 恢复
  *
  * 调 Pi-backed investment workflow
- * 纯本地 + phaseHandler stub(无 src/tools/* 依赖,无 LLM,< 1s 框架跑通)
+ * 通过 Pi Session 调用 investment-workflow Package 的五阶段工具。
  *
  * 模块边界:
  * - 调 src/runtime/pi/investment-workflow(无 src/tools 依赖)
@@ -23,7 +23,6 @@ import {
   WORKFLOW_PHASES,
   type WorkflowResult,
 } from '../../runtime/pi/investment-workflow.js';
-import { createPhaseHandlerMap } from './phase-handlers.js';
 import { loadPlan } from '../../plan/plan-executor.js';
 import { extractTicker } from '../../plan/plan-builder.js';
 import { getDefaultAuditChain, type AuditAction } from '../../memory/audit-signing.js';
@@ -191,7 +190,6 @@ export async function runInvest(args: string): Promise<string> {
   const result = await runInvestmentWorkflow(intent, {
     ...(ticker ? { ticker } : {}),
     mode,
-    phaseHandlerMap: createPhaseHandlerMap(),
   });
   recordTradeAuditIfApplicable(result);
   return renderResult(result);

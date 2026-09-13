@@ -60,7 +60,7 @@ const COUNTER_PYTHON: CounterArgument = {
     'Python 自建能解决回测,但解决不了"投研 Claude"这个 80% 的高频场景:' +
     '看研报 / 写纪要 / 风险问答 / 持仓复盘——这些是 LLM 强项,Python 代码要 1 周+;' +
     'UpUp 已内置 75 个 tests + 5 维架构,接你自己的数据源(financial_datasets API)就能用。',
-  evidence: 'src/coordinator/(multi-agent 6 文件)+ src/runtime/pi/(role-system + manifest + feature-gates) + 75+ tests + bun run typecheck 0 error',
+  evidence: 'src/multi-agent/ Pi-backed worker orchestration + src/runtime/pi/ + investment-analysis Package + 75+ tests + bun run typecheck 0 error',
 };
 
 /** 3 条反驳(顺序固定) */

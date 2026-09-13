@@ -69,7 +69,6 @@ async function runReadonlyScenario(scenario: (typeof READONLY_SCENARIOS)[number]
   }, {
     cwd: process.cwd(),
     tools: [tool],
-    loadRegisteredTools: false,
   });
   try {
     const result = await session.executeTool(tool.name, `scenario-${scenario.id}`, { symbol: scenario.id }) as Awaited<ReturnType<typeof session.executeTool>> & { isError?: boolean };
@@ -101,11 +100,11 @@ describe('named Pi investment scenarios', () => {
     const tool = scenarioTool(scenario);
     const spec = { ...getInvestmentAgentSpec('invest-explore'), id: 'invest-session-resume', tools: [tool.name] };
     const factory = new PiAgentSessionFactory();
-    const first = await factory.createSession(spec, { cwd: directory, sessionPath, tools: [tool], loadRegisteredTools: false });
+    const first = await factory.createSession(spec, { cwd: directory, sessionPath, tools: [tool] });
     const firstId = first.id;
     await first.executeTool(tool.name, 'scenario-resume-call', { symbol: '600519.SH' });
     first.dispose();
-    const resumed = await factory.createSession(spec, { cwd: directory, sessionPath, tools: [tool], loadRegisteredTools: false });
+    const resumed = await factory.createSession(spec, { cwd: directory, sessionPath, tools: [tool] });
     try {
       expect(resumed.id).toBe(firstId);
       expect(resumed.getSessionTree().length).toBeGreaterThan(0);
@@ -123,8 +122,8 @@ describe('named Pi investment scenarios', () => {
     const firstTool = scenarioTool(firstScenario);
     const secondTool = scenarioTool(secondScenario);
     const [first, second] = await Promise.all([
-      factory.createSession({ ...getInvestmentAgentSpec('invest-explore'), id: 'scenario-worker-cn', tools: [firstTool.name] }, { cwd: directory, sessionPath: join(directory, 'cn.jsonl'), tools: [firstTool], loadRegisteredTools: false }),
-      factory.createSession({ ...getInvestmentAgentSpec('invest-explore'), id: 'scenario-worker-us', tools: [secondTool.name] }, { cwd: directory, sessionPath: join(directory, 'us.jsonl'), tools: [secondTool], loadRegisteredTools: false }),
+      factory.createSession({ ...getInvestmentAgentSpec('invest-explore'), id: 'scenario-worker-cn', tools: [firstTool.name] }, { cwd: directory, sessionPath: join(directory, 'cn.jsonl'), tools: [firstTool] }),
+      factory.createSession({ ...getInvestmentAgentSpec('invest-explore'), id: 'scenario-worker-us', tools: [secondTool.name] }, { cwd: directory, sessionPath: join(directory, 'us.jsonl'), tools: [secondTool] }),
     ]);
     try {
       const results = await Promise.all([

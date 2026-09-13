@@ -1,46 +1,23 @@
+import { createPiHostBridge, PI_HOST_CAPABILITIES, PI_HOST_CONTRACT } from './host-contract.js';
+import type { PiHostBridge, PiHostRequest, PiMarketQuoteResult } from './host-contract.js';
 import type { ToolDefinition } from '@earendil-works/pi-coding-agent';
 
-export const PI_FINANCE_HOST_CONTRACT = 'upup.pi.finance.host.v1' as const;
+export const PI_FINANCE_HOST_CONTRACT = PI_HOST_CONTRACT;
 export const PI_FINANCE_PACKAGE_NAME = '@upup/pi-finance-sdk' as const;
 export const PI_FINANCE_PACKAGE_VERSION = '0.1.0' as const;
-export const PI_FINANCE_HOST_CAPABILITIES = ['tool-definitions'] as const;
+export const PI_FINANCE_HOST_CAPABILITIES = PI_HOST_CAPABILITIES;
 
 export type PiFinanceHostCapability = (typeof PI_FINANCE_HOST_CAPABILITIES)[number];
 
-export interface PiFinanceHostRequest {
-  readonly contract: typeof PI_FINANCE_HOST_CONTRACT;
-  readonly packageName: typeof PI_FINANCE_PACKAGE_NAME;
-  readonly packageVersion: typeof PI_FINANCE_PACKAGE_VERSION;
-  readonly sessionId: string;
-  readonly capability: PiFinanceHostCapability;
-}
+export type PiFinanceHostRequest = PiHostRequest;
 
-export interface PiFinanceHostBridge {
-  readonly contract: typeof PI_FINANCE_HOST_CONTRACT;
-  readonly packageName: typeof PI_FINANCE_PACKAGE_NAME;
-  readonly packageVersion: typeof PI_FINANCE_PACKAGE_VERSION;
-  readonly sessionId: string;
-  readonly capabilities: readonly PiFinanceHostCapability[];
-  getToolDefinitions(request: PiFinanceHostRequest): readonly ToolDefinition[];
-}
+export type PiFinanceHostBridge = PiHostBridge;
 
 export function createPiFinanceHostBridge(
   sessionId: string,
   getToolDefinitions: () => readonly ToolDefinition[],
+  getMarketQuoteFetcher?: () => (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>,
+  getMarketQuote?: (symbol: string, requestedMarket: string | undefined, signal: AbortSignal | undefined, auditId: string) => Promise<PiMarketQuoteResult>,
 ): PiFinanceHostBridge {
-  return {
-    contract: PI_FINANCE_HOST_CONTRACT,
-    packageName: PI_FINANCE_PACKAGE_NAME,
-    packageVersion: PI_FINANCE_PACKAGE_VERSION,
-    sessionId,
-    capabilities: PI_FINANCE_HOST_CAPABILITIES,
-    getToolDefinitions(request) {
-      if (request.contract !== PI_FINANCE_HOST_CONTRACT) return [];
-      if (request.packageName !== PI_FINANCE_PACKAGE_NAME) return [];
-      if (request.packageVersion !== PI_FINANCE_PACKAGE_VERSION) return [];
-      if (request.sessionId !== sessionId) return [];
-      if (request.capability !== 'tool-definitions') return [];
-      return getToolDefinitions();
-    },
-  };
+  return createPiHostBridge(sessionId, PI_FINANCE_PACKAGE_NAME, PI_FINANCE_PACKAGE_VERSION, getToolDefinitions, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, getMarketQuoteFetcher, undefined, getMarketQuote);
 }

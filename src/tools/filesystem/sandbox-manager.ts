@@ -7,6 +7,7 @@
 import { loadSandboxConfig, type SandboxConfig, type SandboxMode } from './sandbox-config.js';
 import { getSandboxRulesManager, type RuleScope } from './sandbox-rules.js';
 import { logger } from '../../utils/logger.js';
+import { registerSandboxPort } from '../../runtime/pi/agent-port.js';
 
 export class SandboxManager {
   private config: SandboxConfig;
@@ -165,3 +166,16 @@ export class SandboxManager {
 export function getSandboxManager(): SandboxManager {
   return SandboxManager.getInstance();
 }
+
+registerSandboxPort({
+  getStatus: () => {
+    const manager = getSandboxManager();
+    return {
+      mode: manager.getMode(),
+      enabled: manager.isEnabled(),
+      autoAllow: manager.isAutoAllowEnabled(),
+      additionalDirs: manager.getAdditionalDirs(),
+    };
+  },
+  checkDependencies: () => getSandboxManager().runDependencyCheck(),
+});

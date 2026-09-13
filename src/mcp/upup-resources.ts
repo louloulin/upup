@@ -158,7 +158,7 @@ export interface EarningsCacheOptions {
  * Read (or compute + cache) the earnings preview for a ticker.
  *
  * Async because P1.a.1 introduced network-touching fetchers (estimates,
- * x-search, 8-K). The framework-only sync builder is still used as the
+ * Pi research X search, 8-K). The framework-only sync builder is still used as the
  * cache's "last-known" fallback so reads never fail.
  */
 export async function readEarningsPreviewCached(

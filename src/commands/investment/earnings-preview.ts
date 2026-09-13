@@ -4,12 +4,12 @@
  * v5 Sprint 2.2 + P1.a — 财报前瞻
  *
  *  P1.a.5 引入 EarningsPreview 数据类型 + buildEarningsPreview 构造器(框架模式)
- *  P1.a.1 引入 buildEarningsPreviewAsync(完整模式,接入 estimates + x-search + 8-K)
+ *  P1.a.1 引入 buildEarningsPreviewAsync(完整模式,接入 estimates + Pi research + 8-K)
  *  P1.a.4 引入 diff_against_prior_call(对比上次财报会)
  *
  * 模块边界(关键 — 避免循环依赖):
  * - buildEarningsPreview(同步,只读 .upup/plans/)→ 零 src/tools 依赖
- * - buildEarningsPreviewAsync(异步,调用 fetchers)→ 调 src/search + src/tools/finance
+ * - buildEarningsPreviewAsync(异步,调用 fetchers)→ 调 Pi Research/Finance Package adapters
  * - 不依赖 src/runtime/pi/* 内部实现(避免反向)
  * - P1.a.5+ 的 EarningsPreview 暴露给 mcp/upup-resources.ts 用作 upup:// 资源
  */
@@ -19,12 +19,7 @@ import { PLANS_DIR } from '../../utils/storage-paths.js';
 import { buildResearchPlan, extractTicker } from '../../plan/plan-builder.js';
 import { loadPlan } from '../../plan/plan-executor.js';
 import type { ResearchPlan } from '../../plan/research-plan.js';
-import { searchX, type XSearchResult } from '../../search/x-search.js';
-import {
-  fetchEarningsTranscripts,
-  type TranscriptFetcher,
-} from '../../tools/finance/earnings-transcripts.js';
-import { getAnalystEstimates } from '../../tools/finance/estimates.js';
+import { buildEarningsPreview as buildPiEarningsPreview } from '@upup/pi-research';
 import type { DossierStore, EarningsCallNote } from '../../memory/dossier.js';
 
 // ---------------------------------------------------------------------------
@@ -50,7 +45,7 @@ export interface ConsensusEstimate {
   currency?: string;
 }
 
-/** Tweet / X post (P1.a.1 x-search). */
+/** Tweet / X post (P1.a.1 Pi research X search). */
 export interface TweetRef {
   handle: string;
   tweetId: string;
@@ -93,6 +88,8 @@ export interface EarningsPreview {
     lastCallTs?: number;
   };
 }
+
+export type TranscriptFetcher = (ticker: string, opts: { limit: number; windowDays: number }) => Promise<TranscriptRef[]>;
 
 export interface BuildEarningsPreviewOptions {
   /** Override PLANS_DIR for tests. */
@@ -145,18 +142,6 @@ function loadTickerHistory(ticker: string, plansDir: string): ResearchPlan[] {
   return plans.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 }
 
-/** Convert an XSearchResult to our TweetRef (shape is identical). */
-function toTweetRef(r: XSearchResult): TweetRef {
-  return {
-    handle: r.handle,
-    tweetId: r.tweetId,
-    url: r.url,
-    ts: r.ts,
-    authorKind: r.authorKind,
-    snippet: r.snippet,
-  };
-}
-
 // ---------------------------------------------------------------------------
 // Async fetchers (P1.a.1)
 // ---------------------------------------------------------------------------
@@ -165,76 +150,6 @@ function toTweetRef(r: XSearchResult): TweetRef {
  * Pull consensus estimates via the existing getAnalystEstimates tool.
  * Returns [] on error or missing API key — best-effort, never throws.
  */
-async function fetchConsensus(
-  ticker: string,
-  offline: boolean,
-): Promise<ConsensusEstimate[]> {
-  if (offline) return [];
-  if (!process.env['FINANCIAL_DATASETS_API_KEY']) return [];
-  try {
-    const raw = await getAnalystEstimates.invoke({ ticker, period: 'quarterly' });
-    return parseAnalystEstimates(raw);
-  } catch {
-    return [];
-  }
-}
-
-interface AnalystEstimateRow {
-  period?: string;
-  estimated_revenue?: number;
-  estimated_eps?: number;
-  estimated_ebitda?: number;
-  estimated_net_income?: number;
-  revenue_estimate?: number;
-  eps_estimate?: number;
-  revenue?: number;
-  eps?: number;
-  consensus?: number;
-  prior_period_value?: number;
-  revision_pct?: number;
-  currency?: string;
-}
-
-function parseAnalystEstimates(raw: unknown): ConsensusEstimate[] {
-  let rows: AnalystEstimateRow[] = [];
-  if (typeof raw === 'string') {
-    try {
-      const parsed = JSON.parse(raw) as unknown;
-      if (Array.isArray(parsed)) rows = parsed as AnalystEstimateRow[];
-      else if (parsed && typeof parsed === 'object' && Array.isArray((parsed as { analyst_estimates?: unknown[] }).analyst_estimates)) {
-        rows = (parsed as { analyst_estimates: AnalystEstimateRow[] }).analyst_estimates;
-      }
-    } catch { return []; }
-  } else if (Array.isArray(raw)) {
-    rows = raw as AnalystEstimateRow[];
-  }
-  const out: ConsensusEstimate[] = [];
-  for (const r of rows.slice(0, 4)) {
-    const period = r.period ?? '?';
-    if (typeof r.estimated_revenue === 'number' || typeof r.revenue_estimate === 'number' || typeof r.revenue === 'number') {
-      out.push({
-        period,
-        metric: 'revenue',
-        consensus: r.estimated_revenue ?? r.revenue_estimate ?? r.revenue ?? 0,
-        prior: r.prior_period_value,
-        revisionPct: r.revision_pct,
-        currency: r.currency ?? 'USD',
-      });
-    }
-    if (typeof r.estimated_eps === 'number' || typeof r.eps_estimate === 'number' || typeof r.eps === 'number') {
-      out.push({
-        period,
-        metric: 'eps',
-        consensus: r.estimated_eps ?? r.eps_estimate ?? r.eps ?? 0,
-        prior: r.prior_period_value,
-        revisionPct: r.revision_pct,
-        currency: r.currency ?? 'USD',
-      });
-    }
-  }
-  return out;
-}
-
 // ---------------------------------------------------------------------------
 // Diff + persistence helpers (P1.a.4)
 // ---------------------------------------------------------------------------
@@ -371,7 +286,7 @@ export function buildEarningsPreview(
 /**
  * Build the full preview by running fetchers in parallel:
  *   - consensus: getAnalystEstimates (network)
- *   - recentTweets: searchX (mock by default — see src/search/x-search.ts)
+ *   - recentTweets: Pi research X search (requires a real X credential)
  *   - transcripts: fetchEarningsTranscripts (network; injectable for tests)
  *
  * Errors in any fetcher degrade that field to [] — the preview is still
@@ -384,39 +299,25 @@ export async function buildEarningsPreviewAsync(
   ticker: string,
   opts: BuildEarningsPreviewOptions = {},
 ): Promise<EarningsPreview> {
-  const base = buildEarningsPreview(ticker, opts);
-  const now = opts.now ?? (() => Date.now());
-
-  const upper = ticker.toUpperCase();
-
-  const offline = opts.offline ?? false;
-  const [consensus, tweets, transcripts] = await Promise.all([
-    fetchConsensus(upper, offline),
-    offline
-      ? Promise.resolve([] as TweetRef[])
-      : searchX(upper, { now: opts.now }).then(rs => rs.map(toTweetRef)).catch(() => [] as TweetRef[]),
-    // transcripts: always call fetchEarningsTranscripts (which itself is
-    // hermetic with a no-op default fetcher when no API key is set, and
-    // an injected fetcher lets tests provide canned data even when offline).
-    fetchEarningsTranscripts(upper, {
-      fetcher: opts.transcriptFetcher,
-      limit: 4,
-      windowDays: 90,
+  const preview = await buildPiEarningsPreview(ticker, {
+    now: opts.now,
+    offline: opts.offline,
+    transcriptFetcher: opts.transcriptFetcher,
+  });
+  const result: EarningsPreview = {
+    ...preview,
+    consensus: [...preview.consensus],
+    recentTweets: [...preview.recentTweets],
+    transcripts: [...preview.transcripts],
+    history: loadTickerHistory(ticker, opts.plansDir ?? PLANS_DIR),
+    planFramework: buildResearchPlan(`分析 ${ticker} 估值与财报`, {
+      description: `财报前瞻: 下次财报日期 + 共识预期 + 历史 surprise 平均`,
+      ticker,
+      phases: ['research', 'valuation'],
     }),
-  ]);
-
-  const reached = [consensus.length > 0, tweets.length > 0, transcripts.length > 0].filter(Boolean).length;
-  const source: EarningsPreviewSource =
-    reached === 3 ? 'full' : reached >= 1 ? 'partial' : 'framework';
-
-  return {
-    ...base,
-    generatedAt: now(),
-    source,
-    consensus,
-    recentTweets: tweets,
-    transcripts,
   };
+  populateEarningsDiff(result, opts.dossiers);
+  return result;
 }
 
 // ---------------------------------------------------------------------------

@@ -123,7 +123,6 @@ describe('lint-web-boundary.sh', () => {
       '../../src/memory/dossier.js',
       '../../src/realtime/feed.js',
       '../../src/kairos/proactive.js',
-      '../../src/coordinator/orchestrator.js',
       '../../src/plan/workflow.js',
     ];
     const wd = join(root, 'web-each');
@@ -144,7 +143,6 @@ describe('lint-web-boundary.sh', () => {
       'src/memory/',
       'src/realtime/',
       'src/kairos/',
-      'src/coordinator/',
       'src/plan/',
     ]) {
       expect(r.stderr).toContain(p);

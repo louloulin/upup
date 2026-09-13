@@ -6,7 +6,7 @@
  *
  * 数据源 (注入避免硬依赖):
  *   - memory:   v8-2 InvestmentMemory (持仓 / 自选 / 决策)
- *   - portfolio: src/tools/portfolio/multi-portfolio (组合 / 持仓数 / 总值)
+ *   - portfolio: @upup/pi-portfolio public API (组合 / 持仓数 / 总值)
  *
  * 默认输出 (中文 + ASCII, 兼容 CJK/英文终端):
  *   组合: 3 (default) | 持仓: 5 | 自选: 8 | 决策: 12 (3 持仓中)
@@ -149,23 +149,21 @@ export function formatInvestmentStatusLine(opts: StatusLineOptions = {}): string
 // ---------------------------------------------------------------------------
 
 /**
- * 便捷封装: 从 src/tools/portfolio/multi-portfolio 读摘要 + 调用 formatInvestmentStatusLine
+ * 便捷封装: 从 Pi Portfolio public API 读摘要 + 调用 formatInvestmentStatusLine
  *
- * 注意: 用 dynamic import 避免 multi-portfolio 副作用在 status line 加载时启动
- * (multi-portfolio 启动时 init price provider 等)。
+ * 注意: 状态由 Pi Session Extension 管理；此纯格式化 helper 不启动旧全局组合单例。
  */
 export async function formatInvestmentStatusLineFromMultiPortfolio(
   opts: Omit<StatusLineOptions, 'portfolio'> = {},
 ): Promise<string> {
   let portfolio: PortfolioSummary | undefined;
   try {
-    const { listPortfolios, getActivePortfolio } = await import(
-      '../tools/portfolio/multi-portfolio.js'
-    );
-    const list = listPortfolios() as Array<{ name: string }>;
+    const { createInitialMultiPortfolioState, listMultiPortfolios } = await import('@upup/pi-portfolio');
+    const state = createInitialMultiPortfolioState();
+    const list = listMultiPortfolios(state);
     portfolio = {
       total: list.length,
-      activeName: getActivePortfolio(),
+      activeName: state.activePortfolio,
     };
   } catch {
     // multi-portfolio 不可用 (e.g., 测试) — 回退到 0 / undefined

@@ -1,0 +1,10 @@
+{
+  "name": "pi-portfolio-contract",
+  "version": "1.0.0",
+  "cases": [
+    { "id": "brinson-reconciles", "requires": ["allocation", "selection", "interaction", "activeReturn"] },
+    { "id": "style-exposes-residual", "requires": ["factors", "residual"] },
+    { "id": "sector-exposes-classification", "requires": ["classification", "sectors"] },
+    { "id": "no-automatic-trade", "forbidden": ["place order", "automatic rebalance"] }
+  ]
+}

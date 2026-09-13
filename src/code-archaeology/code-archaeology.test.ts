@@ -37,8 +37,8 @@ describe('layer-detector', () => {
     expect(detectLayer('src/skills/dcf/index.ts')).toBe('L2');
   });
 
-  test('L3 for src/coordinator/*', () => {
-    expect(detectLayer('src/coordinator/coordinatorMode.ts')).toBe('L3');
+  test('L3 for Pi-backed multi-agent orchestration', () => {
+    expect(detectLayer('src/multi-agent/agent-factory.ts')).toBe('L3');
     expect(detectLayer('src/subagent/runner.ts')).toBe('L3');
   });
 

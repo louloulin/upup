@@ -72,9 +72,6 @@ const runtimeFiles = [
   'src/runtime/pi/tool-contract.ts',
   'src/runtime/pi/types.ts',
   'src/runtime/pi/registry.ts',
-  'src/runtime/pi/subagent.ts',
-  'src/runtime/pi/subagent-types.ts',
-  'src/runtime/pi/subagent-runner.ts',
   'src/runtime/pi/package-contracts.ts',
 ];
 const runtimeBuildFiles = [
@@ -134,7 +131,7 @@ for (const file of runtimeBuildFiles) {
   }
 }
 const runtimeSource = runtimeFiles.map((file) => readFileSync(join(root, file), 'utf8')).join('\n');
-if (/from ['"][^'"]*(?:src\/)?agent\/(?:registry|subagent|subagent-runner|agent-port)\.js['"]/.test(runtimeSource)) {
+if (/from ['"][^'"]*(?:src\/)?agent\/(?:registry|subagent|subagent-runner)\.js['"]/.test(runtimeSource)) {
   failures.push('Pi runtime must not import executable implementations from src/agent');
 }
 const productionFiles = Array.from(new Bun.Glob('src/**/*.{ts,tsx}').scanSync({ cwd: root, absolute: true }))
@@ -153,12 +150,17 @@ const allowedSessionFactoryFile = join(root, 'src/runtime/pi/agent-session-facto
 if (directSessionFactoryCalls.length !== 1 || directSessionFactoryCalls[0] !== allowedSessionFactoryFile) {
   failures.push(`Pi AgentSession must have exactly one production createAgentSession call in ${allowedSessionFactoryFile}; found ${directSessionFactoryCalls.join(', ') || 'none'}`);
 }
-const workerBackendSource = readFileSync(join(root, 'src/multi-agent/backends/inprocess.ts'), 'utf8');
-if (!workerBackendSource.includes("from './pi-worker.js'")) {
-  failures.push('InProcessBackend must use the shared Pi worker factory');
+const factorySource = readFileSync(join(root, 'src/runtime/pi/agent-session-factory.ts'), 'utf8');
+if (factorySource.includes('registry-adapter') || factorySource.includes('loadRegisteredTools')) {
+  failures.push('Pi AgentSession must not retain the removed root Registry compatibility path');
 }
-if (workerBackendSource.includes('new PiAgentSessionFactory') || workerBackendSource.includes('private createSpec(')) {
-  failures.push('InProcessBackend must not maintain a duplicate Pi Session/AgentSpec construction path');
+for (const file of ['src/runtime/pi/capability-manifest.ts', 'src/runtime/pi/prompts.ts']) {
+  const source = readFileSync(join(root, file), 'utf8');
+  if (source.includes('tools/registry')) failures.push(`${file} must not import the legacy root tool registry`);
+}
+const platformSource = readFileSync(join(root, 'packages/pi-platform/extensions/index.ts'), 'utf8');
+if (!platformSource.includes("capabilities.includes('agent-worker')") || !platformSource.includes('runAgentWorker')) {
+  failures.push('Pi platform swarm must use the versioned Host agent-worker capability');
 }
 const registrySource = readFileSync(join(root, 'src/runtime/pi/registry.ts'), 'utf8');
 if (!registrySource.includes('PiAgentCatalog')) failures.push('Pi registry must use PiAgentCatalog as its storage boundary');
@@ -175,6 +177,12 @@ for (const requiredField of ['safetyLevel', 'parameters', 'hasFinancialImpact', 
 
 for (const removedPath of ['packages/adapter-paperclip', 'packages/agent-core', 'packages/llm', 'upup-agent']) {
   if (existsSync(join(root, removedPath))) failures.push(`${removedPath} must remain deleted; use the Pi runtime and SDK instead`);
+}
+for (const removedPath of ['src/runtime/pi/subagent-types.ts', 'src/tools/agent-tool.ts']) {
+  if (existsSync(join(root, removedPath))) failures.push(`${removedPath} must remain removed; Agent tools are provided by the Pi Platform Extension`);
+}
+for (const removedPath of ['src/multi-agent/agent-factory.ts', 'src/multi-agent/agent-registry.ts']) {
+  if (existsSync(join(root, removedPath))) failures.push(`${removedPath} must remain removed; custom Agent registries are not part of the Pi runtime`);
 }
 
 if (failures.length > 0) {

@@ -1,0 +1,25 @@
+{
+  "name": "@upup/pi-backtest",
+  "version": "0.1.0",
+  "description": "UpUp Pi-native historical strategy evaluation tools",
+  "type": "module",
+  "keywords": ["pi-package", "finance", "backtest", "strategy", "historical"],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
+  "scripts": {
+    "build": "bun build src/index.ts --outdir=dist --target=node && bun build extensions/index.ts --outdir=dist/extensions --target=node && tsc --emitDeclarationOnly --project tsconfig.json",
+    "test": "bun test ./test.ts ./src/methodology.test.ts ./src/cost-model.test.ts ./src/data-quality.test.ts ./extensions/index.test.ts"
+  },
+  "files": ["dist", "extensions", "skills", "prompts", "workflows", "policies", "evals", "package.json"],
+  "peerDependencies": { "@earendil-works/pi-coding-agent": "0.84.3", "typebox": "1.3.7" },
+  "pi": {
+    "source": "builtin:upup",
+    "extensions": ["./extensions/index.ts"],
+    "skills": ["./skills/pi-backtest"],
+    "prompts": ["./prompts/pi-backtest.md"],
+    "workflows": ["./workflows/pi-backtest.md"],
+    "policies": ["./policies/pi-backtest.md"],
+    "evals": ["./evals/pi-backtest.json"]
+  }
+}

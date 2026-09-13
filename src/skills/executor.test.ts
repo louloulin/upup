@@ -4,7 +4,7 @@
  * Tests the skill execution system including:
  * - Skill type extensions (context, agent, allowedTools)
  * - Inline execution mode
- * - Fork execution mode (requires SubagentRunner mock)
+ * - Fork execution mode (requires an initialized Pi worker runtime)
  * - Skill loader parsing of new fields
  * - SkillTracker
  * - Bundled skill registration
@@ -163,21 +163,21 @@ describe('executeSkillInline', () => {
 // ============================================================================
 
 describe('executeSkillFork', () => {
-  it('should require SubagentRunner for fork mode', async () => {
+  it('should require a Pi worker runtime for fork mode', async () => {
     const result = await executeSkill(
       {
         skill: TEST_SKILL_FORK,
         mode: 'fork',
       },
-      undefined // No SubagentRunner
+      undefined // No Pi worker runtime
     );
 
     expect(result.success).toBe(false);
-    expect(result.error).toContain('SubagentRunner');
+    expect(result.error).toContain('Pi worker runtime');
   });
 
   it('should return skill prompt for fork mode', async () => {
-    // For now, fork mode without SubagentRunner should fail
+    // Fork mode without a Pi worker runtime should fail
     // Integration tests will cover full fork functionality
     const result = await executeSkill({
       skill: TEST_SKILL_FORK,
@@ -209,7 +209,7 @@ describe('executeSkill', () => {
     });
     expect(result1.success).toBe(true);
 
-    // Fork skill without SubagentRunner should fail
+    // Fork skill without a Pi worker runtime should fail
     const result2 = await executeSkill({
       skill: TEST_SKILL_FORK,
       mode: 'fork',

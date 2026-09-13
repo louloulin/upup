@@ -20,7 +20,6 @@ describe('Pi runtime performance gate', () => {
         cwd: directory,
         sessionPath,
         tools: [quoteTool!],
-        loadRegisteredTools: false,
       },
     );
     const startupMs = performance.now() - startupAt;
@@ -54,7 +53,6 @@ describe('Pi runtime performance gate', () => {
         cwd: directory,
         sessionPath,
         tools: [quoteTool!],
-        loadRegisteredTools: false,
       },
     );
     expect(recovered.id).toBe(session.id);

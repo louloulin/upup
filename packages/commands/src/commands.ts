@@ -16,7 +16,7 @@
 // Types
 // ============================================================================
 
-import { getSubagentPortLocal } from './agent-port.js';
+import { getAgentMemoryPortLocal, getSandboxPortLocal, getSubagentPortLocal } from './agent-port.js';
 
 export type CommandPermission = 'admin' | 'user' | 'readonly';
 
@@ -65,6 +65,8 @@ export interface CommandContext {
   };
   /** Session duration in milliseconds */
   sessionDuration?: number;
+  /** Tools exposed by the active Pi Session. */
+  tools?: readonly ToolInfo[];
 }
 
 /**
@@ -117,20 +119,9 @@ export interface ToolInfo {
   description: string;
 }
 
-export interface ToolRegistry {
-  getTools(name: string): Promise<ToolInfo[]>;
-}
-
-export type GetToolsFn = (name: string) => Promise<ToolInfo[]>;
-
 /** Memory manager interface */
 export interface MemoryManager {
   getRecentMemories(): Promise<Array<{ content: string; timestamp: number }>>;
-}
-
-/** Subagent runner interface */
-export interface SubagentRunner {
-  run(query: string, options?: { maxIterations?: number }): Promise<{ answer: string }>;
 }
 
 /** MCP client interface */
@@ -433,10 +424,10 @@ const toolsCommand: Command = {
   description: 'List all registered tools',
   aliases: ['tls'],
   usage: '/tools',
-  async execute(): Promise<CommandResult> {
-    const tools = await getTools();
+  async execute(_args, context): Promise<CommandResult> {
+    const tools = context.tools ?? [];
     if (tools.length === 0) {
-      return { type: 'output', text: 'No tools registered or tools registry not available.' };
+      return { type: 'output', text: 'No tools are available in the active Pi Session.' };
     }
     const lines = [`Registered Tools (${tools.length}):`, ''];
     for (const tool of tools) {
@@ -532,27 +523,13 @@ const sandboxCommand: Command = {
   aliases: ['sb'],
   usage: '/sandbox [strict|relaxed|enable|disable|auto|check|reset]',
   async execute(args): Promise<CommandResult> {
-    // Dynamic import for real sandbox manager
-    let sandboxInfo: { mode: string; enabled: boolean; autoAllow: boolean; additionalDirs: string[] } | null = null;
-
-    try {
-      const { getSandboxManager } = await import('../../../src/tools/filesystem/sandbox-manager.js');
-      const manager = getSandboxManager();
-      sandboxInfo = {
-        mode: manager.getMode(),
-        enabled: manager.isEnabled(),
-        autoAllow: manager.isAutoAllowEnabled(),
-        additionalDirs: manager.getAdditionalDirs(),
-      };
-    } catch {
-      // Fallback to env vars if manager not available
-      sandboxInfo = {
-        mode: process.env.UPUP_SANDBOX || 'relaxed',
-        enabled: process.env.UPUP_SANDBOX !== 'disabled',
-        autoAllow: process.env.UPUP_SANDBOX_AUTO_ALLOW === 'true',
-        additionalDirs: (process.env.UPUP_SANDBOX_ADDITIONAL_DIRS || '').split(':').filter(Boolean),
-      };
-    }
+    const sandboxPort = getSandboxPortLocal();
+    const sandboxInfo = sandboxPort?.getStatus() ?? {
+      mode: process.env.UPUP_SANDBOX || 'relaxed',
+      enabled: process.env.UPUP_SANDBOX !== 'disabled',
+      autoAllow: process.env.UPUP_SANDBOX_AUTO_ALLOW === 'true',
+      additionalDirs: (process.env.UPUP_SANDBOX_ADDITIONAL_DIRS || '').split(':').filter(Boolean),
+    };
 
     const subcommand = args?.trim().toLowerCase();
 
@@ -595,8 +572,8 @@ const sandboxCommand: Command = {
     // Handle dependency check
     if (subcommand === 'check') {
       try {
-        const { checkSandboxDependencies } = await import('../../../src/tools/filesystem/sandbox-dependencies.js');
-        const check = await checkSandboxDependencies();
+        const check = await sandboxPort?.checkDependencies();
+        if (!check) return { type: 'error', message: 'Sandbox dependency port is unavailable' };
 
         const lines = [
           'Sandbox Dependency Check',
@@ -755,13 +732,7 @@ const teamCommand: Command = {
   description: 'List agent teams',
   usage: '/team',
   async execute(): Promise<CommandResult> {
-    try {
-      const mod = await import('../tools/team-tools.js');
-      // Team store is internal — provide basic info
-      return { type: 'output', text: 'Team management available via team_create/team_list tools.' };
-    } catch {
-      return { type: 'output', text: 'Team tools not available.' };
-    }
+    return { type: 'output', text: 'Pi team management is available via swarm_team_create and swarm_team_list.' };
   },
 };
 
@@ -893,8 +864,9 @@ const doctorCommand: Command = {
 
     // Memory
     try {
-      const { agentMemoryStore } = await import('../../../src/runtime/pi/subagent-types.js');
-      const count = agentMemoryStore.getContext('system').length;
+      const memoryPort = getAgentMemoryPortLocal();
+      if (!memoryPort) throw new Error('Agent memory port unavailable');
+      const count = memoryPort.getContext('system').length;
       lines.push(`Memory: ${count > 0 ? `${count} context(s)` : '✓ available'}`);
     } catch {
       lines.push('Memory: ✗ unavailable');
@@ -1282,18 +1254,6 @@ async function getCommandQueue(): Promise<CommandQueue | null> {
     return mod?.useCommandQueue?.() ?? null;
   } catch {
     return null;
-  }
-}
-
-/**
- * Get tools from the registry.
- */
-async function getTools(): Promise<ToolInfo[]> {
-  try {
-    const mod = await importInternal<{ getTools: (name: string) => Promise<ToolInfo[]> }>('../tools/registry/index.js');
-    return mod?.getTools?.('default') ?? [];
-  } catch {
-    return [];
   }
 }
 

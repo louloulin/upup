@@ -26,7 +26,6 @@ async function main(): Promise<void> {
     cwd: directory,
     sessionPath,
     tools: [quoteTool],
-    loadRegisteredTools: false,
   });
   const startupMs = elapsed(startupStart);
 
@@ -51,7 +50,6 @@ async function main(): Promise<void> {
     cwd: directory,
     sessionPath,
     tools: [quoteTool],
-    loadRegisteredTools: false,
   });
   const recoveryMs = elapsed(recoveryStart);
   const sessionId = recovered.id;

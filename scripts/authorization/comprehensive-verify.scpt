@@ -30,14 +30,10 @@ end verifyPhase1
 on verifyPhase2()
     display dialog "📊 Phase 2: A股数据验证" buttons {"继续"} default button 1 with title "数据验证"
     
-    -- 验证 Tushare 客户端
-    set clientPath to projectPath & "/src/tools/astock/tushare-client.ts"
-    do shell script "test -f " & clientPath & " && echo '✅ Tushare 客户端存在' || echo '❌ 缺失'"
-    
-    -- 验证 A股工具目录
-    set astockPath to projectPath & "/src/tools/astock"
-    set toolCount to do shell script "ls " & astockPath & "/*.ts 2>/dev/null | wc -l"
-    display dialog "✅ A股工具: " & toolCount & " 个 TypeScript 文件" buttons {"继续"} default button 1
+    -- 验证 Pi Market Data A股 Extension
+    set extensionPath to projectPath & "/packages/pi-market-data/extensions/index.ts"
+    set toolCount to do shell script "grep -Ec \"name: '(get_astock_|screen_astocks|get_sector_data|get_technical_data|get_market_structure)\" " & extensionPath
+    display dialog "✅ Pi Market Data A股工具注册数: " & toolCount buttons {"继续"} default button 1
 end verifyPhase2
 
 -- Phase 3: TypeScript 验证

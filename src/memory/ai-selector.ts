@@ -25,7 +25,8 @@ import {
   buildManifest,
   buildTypedManifest,
 } from './scanner.js';
-import { callStructuredLlm, DEFAULT_MODEL } from '../runtime/pi/model.js';
+import { callStructuredLlm } from '../runtime/pi/prompt-service.js';
+import { DEFAULT_MODEL } from '../runtime/pi/model-config.js';
 import { getUpupDir } from '../utils/paths.js';
 import { MEMORY_TYPES, type MemoryFileMeta } from './types.js';
 import { error } from '../utils/logging/logger.js';

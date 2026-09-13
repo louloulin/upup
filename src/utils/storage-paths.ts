@@ -6,14 +6,17 @@
  */
 
 import { join } from 'path';
-import { homedir } from 'os';
 import { existsSync, mkdirSync } from 'fs';
+import {
+  getGlobalUpupDir,
+  getGlobalUpupPath,
+  getProjectUpupDir,
+  getProjectUpupPath,
+} from './config-paths.js';
 
 // ============================================================================
 // Constants
 // ============================================================================
-
-const UPUP_DIR_NAME = '.upup';
 
 // ============================================================================
 // Core Functions
@@ -24,7 +27,7 @@ const UPUP_DIR_NAME = '.upup';
  * Creates the directory if it doesn't exist.
  */
 export function getUpupDir(): string {
-  const dir = join(homedir(), UPUP_DIR_NAME);
+  const dir = getGlobalUpupDir();
   if (!existsSync(dir)) {
     mkdirSync(dir, { recursive: true });
   }
@@ -35,8 +38,11 @@ export function getUpupDir(): string {
  * Get path within global UpUp directory
  */
 export function globalUpupPath(...segments: string[]): string {
-  return join(getUpupDir(), ...segments);
+  getUpupDir();
+  return getGlobalUpupPath(...segments);
 }
+
+export { getGlobalUpupDir, getGlobalUpupPath, getProjectUpupDir, getProjectUpupPath };
 
 /**
  * Alias for globalUpupPath for backwards compatibility

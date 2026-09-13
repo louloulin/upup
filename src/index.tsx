@@ -18,6 +18,8 @@ const command = args[0]?.toLowerCase();
 // Parse global flags
 function getFlag(flags: string[]): string | undefined {
   for (const flag of flags) {
+    const inline = args.find((arg) => arg.startsWith(`${flag}=`));
+    if (inline) return inline.slice(flag.length + 1);
     const idx = args.indexOf(flag);
     if (idx >= 0) {
       // Return next arg if it doesn't look like a flag
@@ -42,6 +44,33 @@ async function main() {
     // Keep process alive - server handles its own lifecycle
     // Use a promise that never resolves to keep the process running
     await new Promise(() => {});
+    return;
+  }
+
+  if (command === 'management' || hasFlag(['--management'])) {
+    const portRaw = getFlag(['--management-port']) ?? '18081';
+    const port = Number.parseInt(portRaw, 10);
+    if (!Number.isFinite(port) || port < 0 || port > 65535) {
+      console.error(`Invalid --management-port: ${portRaw}`);
+      process.exit(1);
+    }
+    const bind = getFlag(['--management-bind']) ?? '127.0.0.1';
+    const explicitToken = getFlag(['--management-token']);
+    const token = explicitToken && explicitToken.length >= 8 ? explicitToken : crypto.randomUUID().replace(/-/g, '').slice(0, 32);
+    const { createManagementSnapshotProvider } = await import('./management/snapshot-provider.js');
+    const { startManagementServer } = await import('./management/server.js');
+    const provider = await createManagementSnapshotProvider();
+    const server = await startManagementServer({ port, bind, token, snapshotProvider: provider });
+    console.log(`[management] 管理页面: http://${bind}:${server.port}/?token=${token}\n[management] API: http://${bind}:${server.port}/api/management/snapshot?token=${token}`);
+    if (hasFlag(['--management-once'])) {
+      await server.stop();
+      return;
+    }
+    await new Promise<void>((resolve) => {
+      const shutdown = () => { void server.stop().finally(resolve); };
+      process.once('SIGINT', shutdown);
+      process.once('SIGTERM', shutdown);
+    });
     return;
   }
 
@@ -180,31 +209,17 @@ Examples:
   upup --bridge                                  # default port 7333, auto token
   upup --bridge --bridge-port 0                  # OS-assigned free port
   upup --bridge-only                             # bridge without CLI TUI
+
+Management Mode:
+  upup management [--management-port=18081] [--management-token=<secret>] [--management-bind=127.0.0.1]
+         Start the read-only Pi management page and JSON API. The default page is http://127.0.0.1:18081/.
+
+Examples:
+  upup management --management-token=change-me    # page + authenticated management API
 `);
 }
 
 main().catch((e) => {
   console.error('Error:', e.message);
   process.exit(1);
-});
-
-// Import session cleanup (for process exit hooks)
-import { cleanupSessionTeams } from './multi-agent/session-cleanup.js';
-import { getTeamManager } from './multi-agent/team-manager.js';
-
-// Register process exit hooks for session cleanup
-process.on('SIGINT', async () => {
-  console.log('\n🧹 Cleaning up session teams...');
-  await cleanupSessionTeams((name) => getTeamManager().deleteTeam(name));
-  process.exit(0);
-});
-
-process.on('SIGTERM', async () => {
-  await cleanupSessionTeams((name) => getTeamManager().deleteTeam(name));
-  process.exit(0);
-});
-
-process.on('SIGHUP', async () => {
-  await cleanupSessionTeams((name) => getTeamManager().deleteTeam(name));
-  process.exit(0);
 });

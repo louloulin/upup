@@ -4,7 +4,7 @@
  * v3 claude-code-5layer spec REQ-1:
  *   L1 基础循环(Pi runtime)
  *   L2 工具 + 技能(tools / skills)
- *   L3 多 Agent 编排(coordinator / subagent / tasks)
+ *   L3 多 Agent 编排(Pi-backed multi-agent / subagent / tasks)
  *   L4 远程协同(bridge / session)
  *   L5 持续自主(kairos / proactive / telemetry / coach)
  *
@@ -18,7 +18,7 @@ import type { Layer } from './types.js';
 const LAYER_PREFIXES: Array<{ layer: Layer; prefixes: string[]; weight: number }> = [
   { layer: 'L1', prefixes: ['src/runtime/pi/', 'src/cli.tsx', 'src/index.tsx'], weight: 5 },
   { layer: 'L2', prefixes: ['src/tools/', 'src/skills/', 'src/data/', 'src/research/', 'src/analysis/', 'src/screening/'], weight: 5 },
-  { layer: 'L3', prefixes: ['src/coordinator/', 'src/subagent/', 'src/tasks/', 'src/worktree/', 'src/multi-agent/'], weight: 5 },
+  { layer: 'L3', prefixes: ['src/subagent/', 'src/tasks/', 'src/worktree/', 'src/multi-agent/'], weight: 5 },
   { layer: 'L4', prefixes: ['src/bridge/', 'src/session/', 'src/daemon/', 'src/gateway/'], weight: 5 },
   { layer: 'L5', prefixes: ['src/kairos/', 'src/proactive/', 'src/telemetry/', 'src/coach/', 'src/cron/'], weight: 5 },
 ];
@@ -26,7 +26,7 @@ const LAYER_PREFIXES: Array<{ layer: Layer; prefixes: string[]; weight: number }
 /** 关键模块 import 模式(被这些模块 import 暗示该文件属于对应 layer) */
 const LAYER_IMPORTS: Array<{ layer: Layer; patterns: RegExp[]; weight: number }> = [
   { layer: 'L1', patterns: [/\/runtime\/pi\/(?:runner|agent-session-factory)(\.tsx?)?/, /\/runtime\/pi\/role-system/], weight: 2 },
-  { layer: 'L3', patterns: [/\/coordinator\//, /\/subagent\//, /\/tasks\//], weight: 2 },
+  { layer: 'L3', patterns: [/\/subagent\//, /\/tasks\//], weight: 2 },
   { layer: 'L4', patterns: [/\/bridge\//, /\/session\//], weight: 2 },
   { layer: 'L5', patterns: [/\/kairos\//, /\/proactive\//, /\/telemetry\//, /\/coach\//], weight: 2 },
 ];

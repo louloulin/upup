@@ -5,19 +5,19 @@ echo "=========================================="
 echo "UpUp A股数据验证"
 echo "=========================================="
 
-cd /Users/louloulin/Documents/linchong/touzhi/dexter
+cd "$(dirname "$0")/.." || exit 1
 
 echo ""
-echo "1. 检查 Tushare 客户端..."
-if [ -f "src/tools/astock/tushare-client.ts" ]; then
-    echo "✅ Tushare 客户端存在"
+echo "1. 检查 Pi Market Data Extension..."
+if [ -f "packages/pi-market-data/extensions/index.ts" ]; then
+    echo "✅ Pi Market Data Extension 存在"
 else
     echo "❌ Tushare 客户端不存在"
 fi
 
 echo ""
-echo "2. 检查 A股工具..."
-ls -la src/tools/astock/ 2>/dev/null | head -10
+echo "2. 检查 A股工具注册..."
+grep -En "name: '(get_astock_|screen_astocks|get_sector_data|get_technical_data|get_market_structure)" packages/pi-market-data/extensions/index.ts
 
 echo ""
 echo "3. 常用A股股票代码..."

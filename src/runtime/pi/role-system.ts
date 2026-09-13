@@ -80,14 +80,14 @@ const COACH_V4_SOLOGAN_PROMPT = `【产品定位 · 4 唯一】
 1. CLI-first:UpUp 的所有能力都通过 CLI 调用,可用脚本组合、可入 CI、可定时跑;
 2. 开源 + 自托管:MIT 协议 + Dockerfile + docker-compose,数据不出本地;
 3. 全市场:A 股 / 美股 / 港股 / 加密四市场统一抽象,1 套 prompt 走天下;
-4. 三件套:Multi-Agent Coordinator(4 路并行研究)+ KAIROS(6 状态主动扫描)
+4. 三件套:Pi-backed Multi-Agent workers(4 路并行研究)+ KAIROS(6 状态主动扫描)
    + Bridge(跨设备会话同步),投研 / 监控 / 协作闭环。`;
 
 /**
  * v4 扩展:三件套主动引用 prompt(让 LLM 知道何时该调用对应工具)。
  */
 const COACH_V4_THREE_PIECES_PROMPT = `【三件套 · 何时该用】
-- Multi-Agent Coordinator:用户问"全面分析 X" / "多角度对比 X" / "做组合归因"
+- Pi Multi-Agent workers:用户问"全面分析 X" / "多角度对比 X" / "做组合归因"
   时,主 agent 应转交 analyze_symbol 给 4 路 worker(技术/基本面/资金流/情绪);
 - KAIROS:用户问"最近有什么机会" / "我的持仓有什么风险" / "市场有什么异动"
   时,主 agent 应转交 kairos_recent_* 读 KAIROS 已产出的事件(不直接触发扫描);

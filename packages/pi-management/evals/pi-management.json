@@ -1,0 +1,8 @@
+{
+  "name": "pi-management",
+  "version": "1.0.0",
+  "cases": [
+    { "id": "redacted-snapshot", "requires": ["management_system_snapshot", "read-only"] },
+    { "id": "fail-closed", "requires": ["management_provider_status", "fail-closed"] }
+  ]
+}
