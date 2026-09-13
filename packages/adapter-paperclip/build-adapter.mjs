@@ -44,7 +44,7 @@ await esbuild.build({
   outfile: path.join(distDir, 'index.js'),
   sourcemap: true,
   minify: false,
-  target: 'node18',
+  target: 'node22',
   plugins: [workspacePlugin],
 });
 
@@ -57,7 +57,7 @@ await esbuild.build({
   outfile: path.join(distDir, 'server/index.js'),
   sourcemap: true,
   minify: false,
-  target: 'node18',
+  target: 'node22',
   plugins: [workspacePlugin],
 });
 

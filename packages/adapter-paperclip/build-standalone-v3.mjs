@@ -25,6 +25,12 @@ await esbuild.build({
   platform: 'node',
   format: 'esm',
   outfile: path.join(standaloneDir, 'agent-bundle.js'),
+  // Bundle the current command source instead of resolving the workspace
+  // package to a potentially stale dist/ artifact. The source package is
+  // required here because skills/bridge.ts is part of the embedded runtime.
+  alias: {
+    '@upup/commands': path.resolve(__dirname, '../commands/src/index.ts'),
+  },
   // Externalize all node_modules to avoid native module issues
   external: [
     // Pi runtime and native dependencies
@@ -75,7 +81,7 @@ await esbuild.build({
   ],
   sourcemap: false,
   minify: false,
-  target: 'node18',
+  target: 'node22',
   loader: {
     '.ts': 'ts',
     '.md': 'text',
@@ -110,7 +116,7 @@ await esbuild.build({
   ],
   sourcemap: false,
   minify: false,
-  target: 'node18',
+  target: 'node22',
   logLevel: 'info',
 });
 

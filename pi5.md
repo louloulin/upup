@@ -907,6 +907,14 @@ invest-cron-run
 - 架构留档：`docs/architecture/pi5-runtime.md` 固化 Runtime/session、金融 evidence、Pi 生态、插件信任权限和多 Agent worker 数据流图。
 - 当前 Comet 验收：`pi5-core-agent-migration` 仍为 `phase=verify`、`verificationResult=pending`，A1–A20 不在本地文档中提前勾选；独立 verifier 返回最终证据后再更新完成矩阵。
 - 已知边界：`PiAgentRegistry`、Markdown loader 和 `PiSubagentConfig` 仅作为 Pi 输入/结果 DTO 与目录适配；所有执行委托 `PiBackgroundService`/`runPiPrompt`，不再存在旧 Agent loop。生产源码和锁文件已无 LangChain runtime 依赖；记忆目录中的 `memvid` 命名是 UpUp 本地记忆实现，不是 LangChain Agent runtime。standalone generated bundle 已按 build script 重生成并审计。不得恢复旧 Agent loop。
+- 本轮新增（State Port Pi-化 & 旧 Daemon Session 拆除）：
+  - `src/state/index.ts` 不再调用 legacy `@upup/state` `SessionManager.listSessions` 收集 Session 元数据；StatePort `getSessionManager().listSessions` 直接代理到 `PiSessionService.list(cwd)` 并按 limit 切片，保证 CLI/SDK 看到的 Session 列表与 Pi JSONL 持久化完全一致。
+  - 新增 `src/state/index.pi.test.ts`，断言 StatePort 在隔离 `.upup` 临时目录里通过 PiSessionService 创建/重命名/删除会话并按需切片，验证 `formatCost/formatTokens` 仍然可用。
+  - `src/state/index.ts` 暴露 `__registerStatePort()`，允许测试在 `__resetAgentPorts()` 后重新注入 StatePort。
+  - 物理删除 `src/daemon/session.ts` 与 `src/daemon/session.test.ts`；通过 `rg "daemon/session"` 确认生产代码没有任何 import 残留，`SessionManager`/`MemoryKVStore` 仅存于 `@upup/state` 的领域 Session 计时（CLI 当前命令会话时长），不再承担 Session 生命周期职责。
+  - 复跑 `bun run check:pi-migration`、`bun run check:pi-packages`、`bun run typecheck` 全通过；State/runtime/session 多文件测试 305 例全部 0 fail；Pi 合约套件 63/63 通过，Finance SDK 1/1 通过。
+
+
 
 ### Runtime 完成
 
@@ -1007,6 +1015,15 @@ UpUp = 中国金融投资领域的 Data + Tools + Skills + Workflow + Risk Produ
 - 通用 SDK/RPC；
 - 通用 Extension 生命周期；
 - 通用 TUI 基础组件。
+
+
+### UpUp 架构留档（docs/architecture/）
+
+- `docs/architecture/pi5-runtime.md` — Runtime / Session 主流程图、金融 evidence 数据流、Pi 生态分层、信任/权限边界、Multi-Agent worker 生命周期。
+- `docs/architecture/plugin-ecosystem.md` — Pi Package / Extension / Skill / Prompt 分层、信任流水线、Skill/Tool/Workflow 职责矩阵、Pinning 规则、失败模式。
+- `docs/architecture/finance-dataflow.md` — 端到端金融数据流图、Evidence / Freshness 契约、`/invest` 五阶段状态图、Audit / Report 边界、失败隔离。
+- `docs/architecture/session-lifecycle.md` — Session 写/读/迁移路径、`PiSessionService` 操作矩阵、并发写策略、Crash / Recovery 不变量、Legacy → Pi 迁移规则。
+- `docs/architecture/multi-agent-dataflow.md` — Coordinator 任务分解图、Worker 生命周期时序、Tool allowlist / 隔离、并发、聚合与 Reviewer、失败抑制。
 
 ## 16. 参考资料
 

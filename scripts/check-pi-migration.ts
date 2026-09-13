@@ -43,6 +43,12 @@ const runtimeFiles = [
   'src/runtime/pi/subagent-runner.ts',
   'src/runtime/pi/package-contracts.ts',
 ];
+const runtimeBuildFiles = [
+  'package.json',
+  'packages/adapter-paperclip/build-adapter.mjs',
+  'packages/adapter-paperclip/build-standalone.mjs',
+  'packages/adapter-paperclip/build-standalone-v3.mjs',
+];
 const forbiddenRuntimeImports = [
   /from ['"][^'"]*src\/agent\/agent\.js['"]/,
   /from ['"][^'"]*\.\.\/agent\/agent\.js['"]/,
@@ -83,6 +89,12 @@ for (const file of runtimeFiles) {
   const source = readFileSync(join(root, file), 'utf8');
   for (const pattern of forbiddenRuntimeImports) {
     if (pattern.test(source)) failures.push(`${file} contains forbidden legacy runtime dependency: ${pattern}`);
+  }
+}
+for (const file of runtimeBuildFiles) {
+  const source = readFileSync(join(root, file), 'utf8');
+  if (/node18|node-version:\s*18/i.test(source)) {
+    failures.push(`${file} still targets Node 18; Pi requires Node >=22.19.0`);
   }
 }
 const runtimeSource = runtimeFiles.map((file) => readFileSync(join(root, file), 'utf8')).join('\n');

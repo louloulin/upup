@@ -3,7 +3,7 @@ name: pi5-core-agent-migration
 language: zh-CN
 phase: verify
 status: active
-state_version: 4
+state_version: 5
 brief: brief.md
 spec_changes: []
 workspace:
@@ -19,9 +19,9 @@ loop:
   retry_epoch: 0
   failed_iteration_count: 0
   no_progress_count: 0
-  execution_failure_count: 0
+  execution_failure_count: 1
   previous_unresolved_ids: []
-  next_action: await-verifier-result
+  next_action: dispatch-new-verifier
 acceptance:
   - id: A1
     source: brief.md
@@ -225,7 +225,19 @@ builder_handoff:
   submitted_at: 2026-09-12T16:32:30.249Z
 blockers: []
 verification: null
-history: []
+history:
+  - goal_cycle: 1
+    iteration: 1
+    attempt: 1
+    outcome: execution-error
+    unresolved_ids: []
+    summary:
+      text: The previously dispatched verifier execution is no longer present in the
+        local process table, while Runtime still reports it as running. No
+        verifier result was received; implementation and acceptance state are
+        preserved for a Runtime-directed retry.
+      truncated: false
+    completed_at: 2026-09-12T23:36:26.459Z
 history_overflow:
   dropped_entries: 0
   first_dropped_at: null

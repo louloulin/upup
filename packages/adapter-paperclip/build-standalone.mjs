@@ -20,7 +20,7 @@ await esbuild.build({
   external: ['@paperclipai/adapter-utils'],
   sourcemap: true,
   minify: false,
-  target: 'node18',
+  target: 'node22',
   format: 'esm',
 });
 

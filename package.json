@@ -35,14 +35,14 @@
     "build:memory": "cd packages/memory && bun build src/index.ts --outdir=dist --target=bun",
     "build:plugin-sdk": "cd packages/plugin-sdk && bun build src/index.ts --outdir=dist --target=bun",
     "build:bun": "bun run typecheck && echo '✅ Bun build complete - run: bun start'",
-  "build:node": "npx esbuild src/index.tsx --bundle --target=node18 --platform=node --outfile=dist/index.js --external:better-sqlite3 --external:@duckdb/duckdb-wasm --external:playwright --external:playwright-core --external:dotenv --external:zod --external:@earendil-works/pi-tui --external:gray-matter --external:fs --external:path --external:os --external:crypto --external:stream --external:events --external:readline --external:tty --external:util --external:url --external:http --external:https --external:zlib --external:buffer --external:child_process --external:module --external:net --external:tls --external:dgram --external:dns --external:http2 --external:inspector --external:punycode --external:querystring --external:string_decoder --external:sys --external:timers --external:stream/promises --external:path/posix --external:path/win32 --alias:gray-matter=/tmp/shims/gray-matter.js --format=esm --inject:/tmp/node-shim.js --log-level=error && echo '✅ Node.js build complete: dist/index.js'",
+    "build:node": "npx esbuild src/index.tsx --bundle --target=node22 --platform=node --outfile=dist/index.js --external:better-sqlite3 --external:@duckdb/duckdb-wasm --external:playwright --external:playwright-core --external:dotenv --external:zod --external:@earendil-works/pi-tui --external:gray-matter --external:fs --external:path --external:os --external:crypto --external:stream --external:events --external:readline --external:tty --external:util --external:url --external:http --external:https --external:zlib --external:buffer --external:child_process --external:module --external:net --external:tls --external:dgram --external:dns --external:http2 --external:inspector --external:punycode --external:querystring --external:string_decoder --external:sys --external:timers --external:stream/promises --external:path/posix --external:path/win32 --alias:gray-matter=/tmp/shims/gray-matter.js --format=esm --inject:/tmp/node-shim.js --log-level=error && echo '✅ Node.js build complete: dist/index.js'",
     "build:node:win": "bun build src/index.tsx --target=node --outfile=dist/upup.exe --external=dotenv --external=zod && echo '✅ Windows build complete'",
     "build:compile": "bun build --compile --target=bun --outfile=upup src/index.tsx --external=playwright --external=playwright-core && chmod +x upup && echo '✅ Binary compile complete - run: ./upup'",
     "build:compile:win": "bun build --compile --target=bun --outfile=upup.exe src/index.tsx && echo '✅ Windows binary compile complete'",
-    "build:pkg": "pkg . --targets node18-linux-x64,node18-macos-x64,node18-win-x64 --output dist/upup-pkg",
-    "build:pkg:linux": "pkg . --targets node18-linux-x64 --output dist/upup-linux",
-    "build:pkg:mac": "pkg . --targets node18-macos-x64 --output dist/upup-macos",
-    "build:pkg:win": "pkg . --targets node18-win-x64 --output dist/upup.exe",
+    "build:pkg": "pkg . --targets node22-linux-x64,node22-macos-x64,node22-win-x64 --output dist/upup-pkg",
+    "build:pkg:linux": "pkg . --targets node22-linux-x64 --output dist/upup-linux",
+    "build:pkg:mac": "pkg . --targets node22-macos-x64 --output dist/upup-macos",
+    "build:pkg:win": "pkg . --targets node22-win-x64 --output dist/upup.exe",
     "dist": "bun run build:compile && ./upup --version",
     "prepack": "bun run build:compile",
     "code-archaeology": "bun run scripts/code-archaeology.ts"
@@ -81,9 +81,9 @@
     "description": "UpUp - AI agent for deep financial research",
     "bin": "src/index.tsx",
     "targets": [
-      "node18-linux-x64",
-      "node18-macos-x64",
-      "node18-win-x64"
+      "node22-linux-x64",
+      "node22-macos-x64",
+      "node22-win-x64"
     ],
     "outputPath": "dist",
     "public": true,

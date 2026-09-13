@@ -55,21 +55,16 @@ Note: Tasks are executed by the Pi background-session service.
           ? `✅ Agent spawned in background (ID: ${task.id})\n   Task: ${description}`
           : `🤖 Agent started (ID: ${task.id})\n   Task: ${description}\n\nUse /tasks to check status.`,
       }
-    } catch {
-      // Fall through to fallback
+    } catch (error) {
+      return {
+        type: 'error',
+        message: `Pi background-session service failed: ${error instanceof Error ? error.message : String(error)}`,
+      }
     }
   }
 
-  try {
-    // Fallback: describe what would happen
-    return {
-      type: 'text',
-      value: `🤖 Would spawn agent for: ${description}\n\n   Mode: ${isBackground ? 'background' : 'foreground'}\n\n   Note: Agent system not fully initialized.\n   Check /status for agent availability.`,
-    }
-  } catch {
-    return {
-      type: 'text',
-      value: `🤖 Would spawn agent for: ${description}\n\n   Mode: ${isBackground ? 'background' : 'foreground'}\n\n   Note: Agent system not fully initialized.\n   Check /status for agent availability.`,
-    }
+  return {
+    type: 'error',
+    message: 'Pi background-session service is not initialized; no alternate Agent runtime is available.',
   }
 }
