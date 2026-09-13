@@ -58,6 +58,8 @@ const MANIFEST_SCHEMA = {
       properties: {
         sandbox: { type: 'string', enum: ['process', 'wasm', 'mcp', 'none'] },
         permissions: { type: 'array', items: { type: 'string' } },
+        networkDomains: { type: 'array', items: { type: 'string' } },
+        credentialScopes: { type: 'array', items: { type: 'string' } },
       },
     },
     runtimeConfig: { type: 'object' },
@@ -164,6 +166,18 @@ export class ManifestLoader {
 
     if (!m.entry || typeof m.entry !== 'string') {
       throw new Error(`Missing or invalid entry${source ? ` (${source})` : ''}`);
+    }
+
+    if (m.security !== undefined) {
+      if (!m.security || typeof m.security !== 'object' || Array.isArray(m.security)) {
+        throw new Error(`Invalid security declaration${source ? ` (${source})` : ''}`);
+      }
+      const security = m.security as Record<string, unknown>;
+      for (const field of ['permissions', 'networkDomains', 'credentialScopes']) {
+        if (security[field] !== undefined && (!Array.isArray(security[field]) || security[field].some((item) => typeof item !== 'string' || !item.trim()))) {
+          throw new Error(`Invalid security.${field}: expected an array of non-empty strings${source ? ` (${source})` : ''}`);
+        }
+      }
     }
 
     // Version format

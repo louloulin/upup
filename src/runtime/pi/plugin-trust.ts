@@ -6,6 +6,8 @@ export interface PiPluginTrustPolicy {
   trustedPaths: readonly string[];
   allowedHashes?: Readonly<Record<string, string>>;
   pinnedPackages?: Readonly<Record<string, string>>;
+  /** Exact package source identifiers permitted by the deployment policy. */
+  allowedSources?: Readonly<Record<string, readonly string[]>>;
 }
 
 export interface PiResourceTrustAudit {
@@ -13,6 +15,7 @@ export interface PiResourceTrustAudit {
   contentHash: string;
   packageName?: string;
   packageVersion?: string;
+  packageSource?: string;
   decision: 'trusted';
 }
 
@@ -41,14 +44,30 @@ function hashPath(path: string): string {
   return hash.digest('hex');
 }
 
-function packageMetadata(path: string): { name?: string; version?: string } {
+function packageMetadata(path: string): { name?: string; version?: string; source?: string } {
   const packagePath = statSync(path).isDirectory() ? join(path, 'package.json') : join(dirname(path), 'package.json');
   if (!existsSync(packagePath)) return {};
   try {
-    const parsed = JSON.parse(readFileSync(packagePath, 'utf8')) as { name?: unknown; version?: unknown };
+    const parsed = JSON.parse(readFileSync(packagePath, 'utf8')) as {
+      name?: unknown;
+      version?: unknown;
+      source?: unknown;
+      pi?: { source?: unknown };
+      repository?: unknown;
+    };
+    const repository = typeof parsed.repository === 'string'
+      ? parsed.repository
+      : parsed.repository && typeof parsed.repository === 'object' && 'url' in parsed.repository && typeof parsed.repository.url === 'string'
+        ? parsed.repository.url
+        : undefined;
     return {
       name: typeof parsed.name === 'string' ? parsed.name : undefined,
       version: typeof parsed.version === 'string' ? parsed.version : undefined,
+      source: typeof parsed.source === 'string'
+        ? parsed.source
+        : typeof parsed.pi?.source === 'string'
+          ? parsed.pi.source
+          : repository,
     };
   } catch {
     throw new Error(`Invalid package.json for trusted Pi resource: ${packagePath}`);
@@ -92,7 +111,14 @@ export function verifyPiResourceTrust(
     if (metadata.name && !policy.pinnedPackages?.[metadata.name]) {
       throw new Error(`Pi package is not in the pinned package allowlist: ${metadata.name}`);
     }
-    audits.push({ path: resolved, contentHash, packageName: metadata.name, packageVersion: metadata.version, decision: 'trusted' });
+    const allowedSources = metadata.name ? policy.allowedSources?.[metadata.name] : undefined;
+    if (policy.allowedSources && metadata.name && (!allowedSources || allowedSources.length === 0)) {
+      throw new Error(`Pi package is not in the allowed source allowlist: ${metadata.name}`);
+    }
+    if (allowedSources && (!metadata.source || !allowedSources.includes(metadata.source))) {
+      throw new Error(`Pi package source is not allowlisted: ${metadata.name ?? resolved}@${metadata.source ?? 'unknown'}`);
+    }
+    audits.push({ path: resolved, contentHash, packageName: metadata.name, packageVersion: metadata.version, packageSource: metadata.source, decision: 'trusted' });
     return resolved;
   });
   return { paths: normalized, audits };

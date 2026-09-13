@@ -23,8 +23,15 @@
  *   - SKILL_DIRECTORIES   in src/skills/registry.ts (the list of dirs)
  */
 
-import { watch, type FSWatcher, existsSync } from 'fs';
-import { join, dirname } from 'path';
+import {
+  watch,
+  type FSWatcher,
+  type Dirent,
+  existsSync,
+  readdirSync,
+  statSync,
+} from 'fs';
+import { isAbsolute, join } from 'path';
 import { readFileSync } from 'fs';
 import matter from 'gray-matter';
 import { info, warn } from '../utils/logging/logger.js';
@@ -130,11 +137,11 @@ function watchDirectory(
   // debounce per file
   const pending = new Map<string, NodeJS.Timeout>();
 
-  const onChange = (filename: string | Buffer | null) => {
+  const onChange = (filename: string | Buffer | null, baseDir = dir) => {
     const nameStr = filename ? filename.toString() : '';
-    if (!nameStr.endsWith(SKILL_FILENAME)) return;
+    const fullPath = isAbsolute(nameStr) ? nameStr : join(baseDir, nameStr);
+    if (!fullPath.endsWith(SKILL_FILENAME)) return;
 
-    const fullPath = join(dir, nameStr);
     if (!existsSync(fullPath)) {
       // File deleted — try to find and unregister the skill
       const key = pending.get(fullPath);
@@ -200,21 +207,107 @@ function watchDirectory(
     );
   };
 
-  let watcher: FSWatcher;
+  const watchers = new Map<string, FSWatcher>();
+  let pollTimer: NodeJS.Timeout | undefined;
+  const watchOneDirectory = (directory: string): void => {
+    if (watchers.has(directory) || !existsSync(directory)) return;
+    let directoryWatcher: FSWatcher;
+    try {
+      directoryWatcher = watch(directory, {}, (_event, filename) => {
+        onChange(filename, directory);
+        scanDirectories();
+      });
+      watchers.set(directory, directoryWatcher);
+    } catch {
+      return;
+    }
+  };
+  const scanDirectories = (): void => {
+    watchOneDirectory(dir);
+    const pendingDirectories = [dir];
+    while (pendingDirectories.length > 0) {
+      const current = pendingDirectories.pop()!;
+      let entries: Dirent[];
+      try {
+        entries = readdirSync(current, { withFileTypes: true }) as unknown as Dirent[];
+      } catch {
+        continue;
+      }
+      for (const entry of entries) {
+        if (entry.isDirectory()) {
+          const child = join(current, entry.name);
+          watchOneDirectory(child);
+          pendingDirectories.push(child);
+        }
+      }
+    }
+  };
+
+  let recursiveWatcher: FSWatcher | undefined;
+  const snapshot = new Map<string, string>();
+  const collectSkillFiles = (): Map<string, string> => {
+    const current = new Map<string, string>();
+    const directories = [dir];
+    while (directories.length > 0) {
+      const currentDirectory = directories.pop()!;
+      let entries: Dirent[];
+      try {
+        entries = readdirSync(currentDirectory, { withFileTypes: true }) as unknown as Dirent[];
+      } catch {
+        continue;
+      }
+      for (const entry of entries) {
+        const entryPath = join(currentDirectory, entry.name);
+        if (entry.isDirectory()) {
+          directories.push(entryPath);
+        } else if (entry.name === SKILL_FILENAME) {
+          try {
+            const stats = statSync(entryPath);
+            current.set(entryPath, `${stats.mtimeMs}:${stats.size}`);
+          } catch {
+            // The file may disappear between directory and stat calls.
+          }
+        }
+      }
+    }
+    return current;
+  };
+
+  const pollSkillFiles = (): void => {
+    const current = collectSkillFiles();
+    for (const [path, signature] of current) {
+      if (snapshot.get(path) !== signature) onChange(path);
+    }
+    for (const path of snapshot.keys()) {
+      if (!current.has(path)) onChange(path);
+    }
+    snapshot.clear();
+    for (const [path, signature] of current) snapshot.set(path, signature);
+  };
+
+  for (const [path, signature] of collectSkillFiles()) snapshot.set(path, signature);
+  pollTimer = setInterval(pollSkillFiles, 100);
+
   try {
-    watcher = watch(dir, { recursive: true }, (_event, filename) => onChange(filename));
+    recursiveWatcher = watch(dir, { recursive: true }, (_event, filename) => onChange(filename));
+    watchers.set(dir, recursiveWatcher);
   } catch (e) {
-    // Some platforms / FSes don't support {recursive:true} on fs.watch.
-    // Fall back to non-recursive + manual subdir scan.
     warn('default', `Recursive watch on ${dir} failed (${(e as Error).message}); using non-recursive fallback.`);
-    watcher = watch(dir, {}, (_event, filename) => onChange(filename));
+    scanDirectories();
   }
 
   return () => {
-    try {
-      watcher.close();
-    } catch {
-      /* noop */
+    for (const watcher of watchers.values()) {
+      try {
+        watcher.close();
+      } catch {
+        /* noop */
+      }
+    }
+    watchers.clear();
+    if (pollTimer) {
+      clearInterval(pollTimer);
+      pollTimer = undefined;
     }
     for (const t of pending.values()) clearTimeout(t);
     pending.clear();

@@ -35,6 +35,45 @@ cp -r ./dist/* ~/.upup/plugins/my-plugin/
 | `wasm` | ⚡ Slower (compiled WASM) | `wasm` | Untrusted code, sandboxed execution |
 | `mcp` | 🌐 Network (external process) | `mcp` | MCP servers, third-party tools |
 
+### Sensitive tool sandbox requirement
+
+Pi registers plugin tools only after validating the manifest security boundary. A
+plugin's `security.sandbox` must match its runtime (`process` for `bun`/`jiti`,
+`wasm` for `wasm`, and `mcp` for `mcp`). Because Bun/Jiti plugins execute
+in-process, tools marked `dangerous` or `critical`, or tools with financial
+impact, must use the `wasm` or `mcp` isolation runtime; declaring `process` is
+not sufficient. The Pi bridge rejects sensitive in-process tools before
+registration. Trust paths, pinned versions, tool allowlists, approvals,
+credential redaction, and audit evidence remain separate controls and are all
+required for production finance plugins.
+
+Sensitive tools must also declare `networkDomains` and `credentialScopes` in
+the manifest. Pi tool results include these declarations in a redacted
+`securityAudit` record; credential values are never copied into the record.
+
+Pi Packages must declare a stable `pi.source`; the deployment trust policy maps
+each package name to exact allowed source identifiers. Package dependencies,
+peer dependencies, and optional dependencies must use exact semver values and
+must be present in the deployment `pinnedPackages` map. Before a session loads
+an enabled Package, UpUp also resolves declared internal `@upup/*` runtime
+dependencies against the same trusted catalog, including exact version and
+enabled-state checks. Conflicting declarations across dependency sections and
+internal dependency cycles are rejected as well. A missing, disabled, cyclic,
+or mismatched dependency aborts loading rather than leaving a partially
+functional extension.
+
+The built-in finance Extension uses an additional host boundary. Its
+`upup.pi.finance.host.v1` request must include the exact package identity
+`@upup/pi-finance-sdk@0.1.0`, the owning Pi Session ID, and a declared
+capability. UpUp returns production tool definitions only when all four values
+match; mismatches return an empty capability response without calling the host.
+This keeps third-party Packages from impersonating the built-in finance SDK.
+The Package catalog also rejects duplicate slash-command declarations across
+enabled Packages during registration, enablement, or selection, and restores
+the previous catalog state when that check fails. Explicit AgentSpec Package
+allowlists defer the check until selection, allowing unrelated unselected
+Packages to coexist without weakening validation of the final enabled set.
+
 ### `bun` (default)
 
 ```ts
@@ -233,6 +272,27 @@ UpUp scans these directories in order of precedence (later overrides earlier):
 3. `.upup/plugins/<name>/` — project-local
 
 Manifest validation happens at startup. Invalid plugins are logged and skipped (don't crash UpUp).
+
+### Pi Package project settings
+
+Pi-native finance packages can be enabled from a project-local `.pi/settings.json`. UpUp only accepts local paths inside the project root and requires an explicit `upupPiPackages` trust policy with exact package versions and source identifiers:
+
+```json
+{
+  "packages": [{ "source": "./packages/pi-finance-sdk", "autoload": true }],
+  "upupPiPackages": {
+    "trustedPaths": ["./packages/pi-finance-sdk"],
+    "pinnedPackages": {
+      "@upup/pi-finance-sdk": "0.1.0",
+      "@earendil-works/pi-coding-agent": "0.84.3",
+      "typebox": "1.3.7"
+    },
+    "allowedSources": { "@upup/pi-finance-sdk": ["builtin:upup"] }
+  }
+}
+```
+
+Remote npm/git/HTTP sources and paths escaping the project root are rejected by the UpUp Pi package boundary. The package's Extension, Skill, Prompt, Workflow, Policy and Eval resources are loaded only after path, hash, version and source checks pass.
 
 ---
 

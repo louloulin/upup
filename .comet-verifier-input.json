@@ -1,19 +1,14 @@
 {
-  "kind": "builder-handoff",
-  "summary": "修复 A9 Pi Tool Contract 语义缺口：五个 Finance fixture 显式声明 maxConcurrent，统一在执行入口检查 AbortSignal；行情 fixture 保留 progress/onUpdate。新增 Pi registerTool 执行回归，确保 safety、concurrency、progress、details、AbortSignal 均被真实验证。旧 Agent loop、LangChain Runtime、Paperclip 和重复 Pi Factory 仍保持删除/禁止。",
-  "addressed_acceptance_ids": ["A1","A2","A3","A4","A5","A6","A7","A8","A9","A10","A11","A12","A13","A14","A15","A16","A17","A18","A19","A20"],
+  "kind": "dispatch-verifier",
   "checks": [
-    {"name":"Pi migration static gate","result":"passed","note":"bun run check:pi-migration"},
-    {"name":"Pi package ecosystem gate","result":"passed","note":"bun run check:pi-packages"},
-    {"name":"Pi runtime gate","result":"passed","note":"bun run check:pi-runtime"},
-    {"name":"Typecheck","result":"passed","note":"bun run typecheck"},
-    {"name":"Pi fixture and finance contracts","result":"passed","note":"Pi contract suite 111 pass / 0 fail after A9 regression; Finance SDK 2 pass / 0 fail"},
-    {"name":"Full regression suite","result":"passed","note":"bun test: 4191 pass / 0 fail, 13422 assertions, 290 files"},
-    {"name":"Distributable build","result":"passed","note":"bun run build; dist/upup compiled successfully"},
-    {"name":"Diff hygiene","result":"passed","note":"git diff --check"}
-  ],
-  "known_limits": [
-    "独立语义 Verifier 尚未对本轮 A9 修复给出逐项结论；A1-A20 仍需 Runtime 重新派发后独立审查。",
-    "真实外部行情、真实券商交易和 live trading 未启用；金融验证使用 deterministic fixtures 和 sandbox policy。"
+    {"id":"pi-contracts","name":"Pi contract and finance suite including A9/A14 semantics","executable":"bun","argv":["run","test:pi-contracts"],"cwdRef":".","timeoutMs":180000,"repeatable":true},
+    {"id":"plugin-security-targeted","name":"Plugin trust and sandbox targeted regression","executable":"bun","argv":["test","src/runtime/pi/plugin-adapter.test.ts","src/runtime/pi/plugin-trust.test.ts"],"cwdRef":".","timeoutMs":120000,"repeatable":true},
+    {"id":"pi-migration-gate","name":"Pi migration static gate","executable":"bun","argv":["run","check:pi-migration"],"cwdRef":".","timeoutMs":120000,"repeatable":true},
+    {"id":"pi-package-gate","name":"Pi package ecosystem gate","executable":"bun","argv":["run","check:pi-packages"],"cwdRef":".","timeoutMs":120000,"repeatable":true},
+    {"id":"pi-runtime-gate","name":"Pi runtime compatibility gate","executable":"bun","argv":["run","check:pi-runtime"],"cwdRef":".","timeoutMs":120000,"repeatable":true},
+    {"id":"typecheck","name":"Typecheck","executable":"bun","argv":["run","typecheck"],"cwdRef":".","timeoutMs":120000,"repeatable":true},
+    {"id":"full-test","name":"Full regression suite","executable":"bun","argv":["test"],"cwdRef":".","timeoutMs":240000,"repeatable":true},
+    {"id":"build-smoke","name":"Distributable build and version smoke","executable":"bun","argv":["run","build"],"cwdRef":".","timeoutMs":240000,"repeatable":true},
+    {"id":"diff-hygiene","name":"Diff hygiene","executable":"git","argv":["diff","--check"],"cwdRef":".","timeoutMs":120000,"repeatable":true}
   ]
 }

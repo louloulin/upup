@@ -12,6 +12,8 @@ export const READ_ONLY_PERMISSION_PROFILE: UpUpPermissionProfile = {
   allowFinancialWrites: false,
 };
 
+const PI_FINANCE_PACKAGE = '@upup/pi-finance-sdk';
+
 export interface PiSubagentSpecInput {
   id?: string;
   name?: string;
@@ -21,6 +23,7 @@ export interface PiSubagentSpecInput {
   systemPrompt?: string;
   timeoutMs?: number;
   skills?: readonly string[];
+  packages?: readonly string[];
   capabilities?: readonly string[];
   taskTypes?: readonly string[];
   workflow?: string;
@@ -35,7 +38,8 @@ export const INVESTMENT_PROFILES: Readonly<Record<string, UpUpAgentSpec>> = {
     version: '1.0.0',
     name: 'Investment Explorer',
     description: 'Collects financial evidence without changing user state.',
-    skills: ['financial-research', 'fundamental-analysis', 'market-data'],
+    packages: [PI_FINANCE_PACKAGE],
+    skills: ['finance-evidence', 'financial-research', 'fundamental-analysis', 'market-data'],
     tools: [
       'get_financials', 'get_market_data', 'read_filings', 'stock_screener',
       'get_astock_price', 'get_astock_financials', 'get_astock_news', 'screen_astocks',
@@ -56,7 +60,8 @@ export const INVESTMENT_PROFILES: Readonly<Record<string, UpUpAgentSpec>> = {
     version: '1.0.0',
     name: 'Investment Planner',
     description: 'Builds and audits deterministic investment research plans.',
-    skills: ['investment-workflow', 'research-planning'],
+    packages: [PI_FINANCE_PACKAGE],
+    skills: ['finance-evidence', 'investment-workflow', 'research-planning'],
     tools: ['get_market_data', 'get_financials', 'read_filings', 'web_fetch', 'dcf_model', 'ddm_model', 'calculate_target_price'],
     mode: 'subagent',
     capabilities: ['planning', 'task-decomposition'],
@@ -76,7 +81,8 @@ export const INVESTMENT_PROFILES: Readonly<Record<string, UpUpAgentSpec>> = {
     version: '1.0.0',
     name: 'Investment Risk Analyst',
     description: 'Analyzes portfolio, market, and scenario risk using read-only data.',
-    skills: ['risk-management', 'portfolio-management', 'a-share-risk'],
+    packages: [PI_FINANCE_PACKAGE],
+    skills: ['finance-evidence', 'risk-management', 'portfolio-management', 'a-share-risk'],
     tools: ['get_market_data', 'get_financials', 'portfolio_attribution', 'calculate_var', 'calculate_max_drawdown', 'run_backtest', 'calculate_technical_indicators'],
     mode: 'subagent',
     capabilities: ['risk', 'portfolio', 'scenario-analysis'],
@@ -90,7 +96,8 @@ export const INVESTMENT_PROFILES: Readonly<Record<string, UpUpAgentSpec>> = {
     version: '1.0.0',
     name: 'Investment Trade Simulator',
     description: 'Prepares and validates simulated trades without real execution.',
-    skills: ['trade-execution', 'position-management'],
+    packages: [PI_FINANCE_PACKAGE],
+    skills: ['finance-evidence', 'trade-execution', 'position-management'],
     tools: ['run_backtest', 'portfolio_attribution', 'place_trade_order', 'cancel_trade_order', 'get_trading_positions', 'get_trading_balance', 'get_trade_quote'],
     mode: 'subagent',
     capabilities: ['simulation', 'trade-draft'],
@@ -110,7 +117,8 @@ export const INVESTMENT_PROFILES: Readonly<Record<string, UpUpAgentSpec>> = {
     version: '1.0.0',
     name: 'Investment Reviewer',
     description: 'Checks evidence, calculations, citations, and report consistency.',
-    skills: ['research-report-writing', 'citation-quality', 'verification'],
+    packages: [PI_FINANCE_PACKAGE],
+    skills: ['finance-evidence', 'research-report-writing', 'citation-quality', 'verification'],
     tools: ['get_market_data', 'get_financials', 'read_filings', 'dcf_model', 'ddm_model', 'calculate_target_price', 'portfolio_attribution'],
     mode: 'reviewer',
     capabilities: ['verification', 'citations', 'reporting'],
@@ -125,6 +133,12 @@ export function validateAgentSpec(spec: UpUpAgentSpec): void {
   if (!/^[a-z0-9][a-z0-9-]*$/.test(spec.id)) throw new Error(`Invalid agent id: ${spec.id}`);
   if (!/^\d+\.\d+\.\d+$/.test(spec.version)) throw new Error(`Invalid agent version: ${spec.version}`);
   if (!spec.name.trim() || !spec.description.trim()) throw new Error(`Agent ${spec.id} requires name and description`);
+  if (spec.packages?.some((name) => !/^(@[a-z0-9-]+\/)?[a-z0-9][a-z0-9._-]*$/.test(name))) {
+    throw new Error(`Agent ${spec.id} contains an invalid Pi package name`);
+  }
+  if (spec.packages && new Set(spec.packages).size !== spec.packages.length) {
+    throw new Error(`Agent ${spec.id} contains duplicate Pi package names`);
+  }
   if (spec.tools !== '*' && spec.tools.length === 0) throw new Error(`Agent ${spec.id} must declare tools or *`);
   if (spec.permissions.deny.some((level) => !SAFETY_LEVELS.includes(level))) {
     throw new Error(`Agent ${spec.id} contains an unknown denied safety level`);
@@ -165,6 +179,7 @@ export function subagentConfigToPiSpec(config: PiSubagentSpecInput): UpUpAgentSp
     description: `Pi-backed ${type} subagent`,
     ...(config.systemPrompt ? { systemPrompt: config.systemPrompt } : {}),
     ...(config.skills ? { skills: [...config.skills] } : {}),
+    ...(config.packages ? { packages: [...config.packages] } : {}),
     tools: config.tools,
     ...(config.model && config.model !== 'inherit' ? { model: config.model } : {}),
     mode: type === 'fork' ? 'subagent' : 'worker',
@@ -189,6 +204,7 @@ export function agentDefinitionToPiSpec(definition: {
   systemPrompt?: string;
   preferredModel?: string;
   skills?: readonly string[];
+  packages?: readonly string[];
   mode?: UpUpAgentSpec['mode'];
   permissions?: UpUpPermissionProfile;
   workflow?: string;
@@ -198,6 +214,9 @@ export function agentDefinitionToPiSpec(definition: {
   config?: Record<string, unknown>;
 }): UpUpAgentSpec {
   const configuredTools = definition.config?.tools ?? definition.config?.toolWhitelist;
+  const configuredPackages = definition.packages ?? (Array.isArray(definition.config?.packages)
+    ? definition.config.packages.filter((packageName): packageName is string => typeof packageName === 'string')
+    : undefined);
   const configuredToolNames = Array.isArray(configuredTools)
     ? configuredTools.filter((tool): tool is string => typeof tool === 'string')
     : [];
@@ -209,6 +228,7 @@ export function agentDefinitionToPiSpec(definition: {
     description: definition.description,
     ...(definition.systemPrompt ? { systemPrompt: definition.systemPrompt } : {}),
     ...(definition.skills ? { skills: [...definition.skills] } : {}),
+    ...(configuredPackages ? { packages: [...configuredPackages] } : {}),
     ...(definition.preferredModel ? { model: definition.preferredModel } : {}),
     tools,
     mode: definition.mode ?? 'subagent',

@@ -1,0 +1,8 @@
+{
+  "kind": "verifier-execution-error",
+  "summary": "iteration 10 Attempt 2 的独立 Verifier execution 已从本机进程表消失，Comet 仍报告 running；未收到 A1-A20 独立语义验收结果。该候选之后又完成了 Pi Package 来源/依赖锁定和插件网络/凭证审计修复，因此必须基于最新工作区重新生成候选。",
+  "stateVersion": 130,
+  "iteration": 10,
+  "attempt": 2,
+  "verifierExecutionRef": "skill-coordinated:verifier:b01e902d-53f5-4a39-b83c-0bfddab00885"
+}

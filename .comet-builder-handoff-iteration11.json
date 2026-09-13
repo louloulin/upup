@@ -1,0 +1,24 @@
+{
+  "kind": "builder-handoff",
+  "summary": "当前候选基于最新工作区：Pi Runtime 仍是唯一生产 Agent 核心，旧 Agent/LangChain/Paperclip 路径保持删除或被门禁阻断。新增 A12/A14 包与插件安全边界：Pi Package 必须声明 pi.source，部署策略按包名精确 allowedSources 校验；dependencies、devDependencies、peerDependencies、optionalDependencies 必须 exact semver；敏感插件工具必须声明 networkDomains 与 credentialScopes，Pi 工具结果携带不含凭证值的 securityAudit。新增来源、依赖范围、敏感声明和审计快照回归。",
+  "addressed_acceptance_ids": [
+    "A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10",
+    "A11", "A12", "A13", "A14", "A15", "A16", "A17", "A18", "A19", "A20"
+  ],
+  "checks": [
+    {"name":"Pi migration static gate","result":"passed","note":"bun run check:pi-migration"},
+    {"name":"Pi package ecosystem gate","result":"passed","note":"bun run check:pi-packages; pi.source and exact dependency checks included"},
+    {"name":"Pi runtime gate","result":"passed","note":"bun run check:pi-runtime"},
+    {"name":"Typecheck","result":"passed","note":"bun run typecheck"},
+    {"name":"Pi contract and finance suite","result":"passed","note":"Pi contracts 118 pass / 0 fail; Finance SDK 2 pass / 0 fail"},
+    {"name":"Plugin trust, package, sandbox and security audit regression","result":"passed","note":"targeted suite 20 pass / 0 fail; source allowlist, exact dependency, sandbox, networkDomains, credentialScopes and securityAudit covered"},
+    {"name":"Build smoke","result":"passed","note":"bun run build; dist/upup compiled successfully"},
+    {"name":"Diff hygiene","result":"passed","note":"git diff --check"},
+    {"name":"Full regression suite","result":"not-run","note":"latest full run 4198 pass / 1 fail due to existing createSkillWatcher filesystem timing race; isolated rerun of src/skills/hot-reload.test.ts passed 5/5"}
+  ],
+  "known_limits": [
+    "独立语义 Verifier 尚未对当前候选给出逐项结论；A1-A20 需独立审查。",
+    "真实外部行情、真实券商交易和 live trading 未启用；金融验证使用 deterministic fixtures 和 sandbox policy。",
+    "全量测试存在与本轮 Pi 改动无关的文件监听时序波动，孤立重跑通过，不能冒充全量 0 fail。"
+  ]
+}

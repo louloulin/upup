@@ -5,6 +5,7 @@ import { FINANCE_FIXTURE_TOOLS } from '../../extensions/upup/finance-fixtures.js
 import type { UpUpAgentSession, UpUpToolContract } from './types.js';
 import { toPiTool } from './agent-session-factory.js';
 import { join } from 'node:path';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 
 type AgentToolResultWithError = Awaited<ReturnType<UpUpAgentSession['executeTool']>> & { isError?: boolean };
 
@@ -228,7 +229,7 @@ describe('PiAgentSessionFactory', () => {
     const session = await new PiAgentSessionFactory().createSession({ ...getInvestmentAgentSpec('invest-explore'), tools: ['finance_evidence_quote'] }, {
       cwd: process.cwd(),
       loadRegisteredTools: false,
-      additionalExtensionPaths: [extensionPath],
+      additionalExtensionPaths: [join(extensionPath, 'extensions', 'index.ts')],
       pluginTrust: { trustedPaths: [process.cwd()], pinnedPackages: { '@upup/pi-finance-sdk': '0.1.0' } },
     });
     expect(session.getAvailableToolNames()).toContain('finance_evidence_quote');
@@ -343,7 +344,7 @@ describe('PiAgentSessionFactory', () => {
     const session = await new PiAgentSessionFactory().createSession({ ...getInvestmentAgentSpec('invest-explore'), tools: ['finance_evidence_quote'] }, {
       cwd: process.cwd(),
       loadRegisteredTools: false,
-      additionalExtensionPaths: [extensionPath],
+      additionalExtensionPaths: [join(extensionPath, 'extensions', 'index.ts')],
       additionalSkillPaths: [join(extensionPath, 'skills')],
       additionalPromptTemplatePaths: [join(extensionPath, 'prompts')],
       pluginTrust: { trustedPaths: [process.cwd()], pinnedPackages: { '@upup/pi-finance-sdk': '0.1.0' } },
@@ -354,13 +355,64 @@ describe('PiAgentSessionFactory', () => {
     session.dispose();
   });
 
+  test('enforces an explicit empty AgentSpec skill allowlist', async () => {
+    const extensionPath = join(process.cwd(), 'packages/pi-finance-sdk');
+    const session = await new PiAgentSessionFactory().createSession({
+      ...getInvestmentAgentSpec('invest-explore'),
+      skills: [],
+      tools: ['finance_evidence_quote'],
+    }, {
+      cwd: process.cwd(),
+      loadRegisteredTools: false,
+      additionalExtensionPaths: [join(extensionPath, 'extensions', 'index.ts')],
+      additionalSkillPaths: [join(extensionPath, 'skills')],
+      pluginTrust: { trustedPaths: [process.cwd()], pinnedPackages: { '@upup/pi-finance-sdk': '0.1.0' } },
+    });
+    try {
+      const nativeSession = session as unknown as { session: { resourceLoader: { getSkills(): { skills: readonly { name: string }[] } } } };
+      expect(nativeSession.session.resourceLoader.getSkills().skills).toEqual([]);
+    } finally {
+      session.dispose();
+    }
+  });
+
+  test('rejects an AgentSpec when a declared Skill is unavailable', async () => {
+    await expect(new PiAgentSessionFactory().createSession({
+      ...getInvestmentAgentSpec('invest-explore'),
+      skills: ['missing-finance-skill'],
+      packages: [],
+      tools: '*',
+    }, {
+      cwd: process.cwd(),
+      loadRegisteredTools: false,
+      piPackagePaths: [join(process.cwd(), 'packages/pi-finance-sdk')],
+      piPackageTrust: {
+        trustedPaths: [process.cwd()],
+        pinnedPackages: {
+          '@upup/pi-finance-sdk': '0.1.0',
+          '@earendil-works/pi-coding-agent': '0.84.3',
+          typebox: '1.3.7',
+        },
+        allowedSources: { '@upup/pi-finance-sdk': ['builtin:upup'] },
+      },
+    })).rejects.toThrow('skills are not loaded');
+  });
+
   test('loads package-declared resources through the pinned package catalog', async () => {
     const packagePath = join(process.cwd(), 'packages/pi-finance-sdk');
     const session = await new PiAgentSessionFactory().createSession({ ...getInvestmentAgentSpec('invest-explore'), tools: ['finance_evidence_quote'] }, {
       cwd: process.cwd(),
       loadRegisteredTools: false,
       piPackagePaths: [packagePath],
-      piPackageTrust: { trustedPaths: [process.cwd()], pinnedPackages: { '@upup/pi-finance-sdk': '0.1.0' } },
+      piPackageTrust: {
+        trustedPaths: [process.cwd()],
+        pinnedPackages: {
+          '@upup/pi-finance-sdk': '0.1.0',
+          '@earendil-works/pi-coding-agent': '0.84.3',
+          typebox: '1.3.7',
+        },
+        allowedSources: { '@upup/pi-finance-sdk': ['builtin:upup'] },
+      },
     });
     expect(session.getAvailableToolNames()).toContain('finance_evidence_quote');
     expect(session.getResourceTrustAudit().some((audit) => audit.packageName === '@upup/pi-finance-sdk')).toBe(true);
@@ -379,5 +431,131 @@ describe('PiAgentSessionFactory', () => {
     expect((session as unknown as { session: { systemPrompt: string } }).session.systemPrompt).toContain('Trusted Pi workflow');
     expect((session as unknown as { session: { systemPrompt: string } }).session.systemPrompt).toContain('Trusted Pi policy');
     session.dispose();
+  });
+
+  test('loads a project .pi/settings.json package into a real Pi session', async () => {
+    const cwd = await mkdtemp(join(process.cwd(), '.upup', 'pi-project-package-'));
+    try {
+      const packageRoot = join(cwd, 'packages', 'fixture');
+      await mkdir(join(cwd, '.pi'), { recursive: true });
+      await mkdir(join(packageRoot, 'extensions'), { recursive: true });
+      await writeFile(join(packageRoot, 'package.json'), JSON.stringify({
+        name: '@upup/project-fixture',
+        version: '1.0.0',
+        peerDependencies: { '@earendil-works/pi-coding-agent': '0.84.3' },
+        pi: { source: 'internal:project', extensions: ['./extensions'], commands: ['project-fixture-command'] },
+      }));
+      await writeFile(join(packageRoot, 'extensions', 'index.js'), `export default function fixtureExtension(pi) {
+        pi.registerCommand('project-fixture-command', { description: 'Project fixture command', handler: async () => {} });
+        pi.registerTool({
+          name: 'project_fixture_tool',
+          label: 'Project fixture tool',
+          description: 'A project-local Pi package fixture tool.',
+          parameters: { type: 'object', properties: { value: { type: 'string' } }, required: ['value'], additionalProperties: false },
+          async execute(toolCallId, params) { return { content: [{ type: 'text', text: params.value }], details: { auditId: toolCallId } }; },
+        });
+      }`);
+      await writeFile(join(cwd, '.pi', 'settings.json'), JSON.stringify({
+        packages: [{ source: './packages/fixture', autoload: true }],
+        upupPiPackages: {
+          trustedPaths: ['./packages/fixture'],
+          pinnedPackages: {
+            '@upup/project-fixture': '1.0.0',
+            '@earendil-works/pi-coding-agent': '0.84.3',
+          },
+          allowedSources: { '@upup/project-fixture': ['internal:project'] },
+        },
+      }));
+
+      const session = await new PiAgentSessionFactory().createSession({
+        ...getInvestmentAgentSpec('invest-explore'),
+        skills: [],
+        packages: ['@upup/project-fixture'],
+        tools: ['project_fixture_tool'],
+      }, { cwd, loadRegisteredTools: false });
+      try {
+        expect(session.getAvailableToolNames()).toContain('project_fixture_tool');
+        const result = await session.executeTool('project_fixture_tool', 'project-call-1', { value: 'loaded-from-project-settings' });
+        expect(result.content).toEqual([{ type: 'text', text: 'loaded-from-project-settings' }]);
+        expect(result.details).toMatchObject({ auditId: 'project-call-1' });
+        expect(session.getResourceTrustAudit().some((audit) => audit.packageName === '@upup/project-fixture' && audit.packageSource === 'internal:project')).toBe(true);
+      } finally {
+        session.dispose();
+      }
+    } finally {
+      await rm(cwd, { recursive: true, force: true });
+    }
+  });
+
+  test('rejects a Pi package when its declared command is not registered', async () => {
+    const cwd = await mkdtemp(join(process.cwd(), '.upup', 'pi-project-package-invalid-'));
+    try {
+      const packageRoot = join(cwd, 'packages', 'fixture');
+      await mkdir(join(cwd, '.pi'), { recursive: true });
+      await mkdir(join(packageRoot, 'extensions'), { recursive: true });
+      await writeFile(join(packageRoot, 'package.json'), JSON.stringify({
+        name: '@upup/project-invalid-fixture',
+        version: '1.0.0',
+        peerDependencies: { '@earendil-works/pi-coding-agent': '0.84.3' },
+        pi: { source: 'internal:project', extensions: ['./extensions'], commands: ['missing-command'] },
+      }));
+      await writeFile(join(packageRoot, 'extensions', 'index.js'), 'export default function fixtureExtension() {}');
+      await writeFile(join(cwd, '.pi', 'settings.json'), JSON.stringify({
+        packages: [{ source: './packages/fixture', autoload: true }],
+        upupPiPackages: {
+          trustedPaths: ['./packages/fixture'],
+          pinnedPackages: {
+            '@upup/project-invalid-fixture': '1.0.0',
+            '@earendil-works/pi-coding-agent': '0.84.3',
+          },
+          allowedSources: { '@upup/project-invalid-fixture': ['internal:project'] },
+        },
+      }));
+      await expect(new PiAgentSessionFactory().createSession({
+        ...getInvestmentAgentSpec('invest-explore'),
+        packages: ['@upup/project-invalid-fixture'],
+        skills: [],
+        tools: '*',
+      }, { cwd, loadRegisteredTools: false })).rejects.toThrow('commands were not registered');
+    } finally {
+      await rm(cwd, { recursive: true, force: true });
+    }
+  });
+
+  test('does not load the finance fallback when an Agent explicitly excludes all Packages', async () => {
+    const packagePath = join(process.cwd(), 'packages/pi-finance-sdk');
+    const session = await new PiAgentSessionFactory().createSession({
+      ...getInvestmentAgentSpec('invest-explore'),
+      packages: [],
+      skills: [],
+      tools: ['finance_evidence_quote'],
+    }, {
+      cwd: process.cwd(),
+      loadRegisteredTools: false,
+      piPackagePaths: [packagePath],
+      piPackageTrust: {
+        trustedPaths: [process.cwd()],
+        pinnedPackages: {
+          '@upup/pi-finance-sdk': '0.1.0',
+          '@earendil-works/pi-coding-agent': '0.84.3',
+          typebox: '1.3.7',
+        },
+        allowedSources: { '@upup/pi-finance-sdk': ['builtin:upup'] },
+      },
+    });
+    expect(session.getAvailableToolNames()).not.toContain('finance_evidence_quote');
+    session.dispose();
+  });
+
+  test('rejects a non-empty Package allowlist when no Packages are configured', async () => {
+    await expect(new PiAgentSessionFactory().createSession({
+      ...getInvestmentAgentSpec('invest-explore'),
+      packages: ['@upup/pi-finance-sdk'],
+      tools: '*',
+    }, {
+      cwd: process.cwd(),
+      loadRegisteredTools: false,
+      piPackagePaths: [],
+    })).rejects.toThrow('Pi AgentSpec declares Packages but none are configured');
   });
 });

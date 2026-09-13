@@ -64,6 +64,8 @@ export interface UpUpAgentSpec {
   systemPrompt?: string;
   promptFiles?: readonly string[];
   skills?: readonly string[];
+  /** Explicit Pi Package allowlist; selected packages include their internal runtime dependency closure. */
+  packages?: readonly string[];
   tools: readonly string[] | '*';
   model?: string;
   thinkingLevel?: UpUpThinkingLevel;

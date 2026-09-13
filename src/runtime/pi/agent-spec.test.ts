@@ -7,7 +7,7 @@ describe('Pi investment agent specs', () => {
     expect(JSON.parse(serializeAgentSpec(spec))).toMatchObject({
       id: 'invest-explore',
       version: '1.0.0',
-      skills: ['financial-research', 'fundamental-analysis', 'market-data'],
+      skills: ['finance-evidence', 'financial-research', 'fundamental-analysis', 'market-data'],
       permissions: { allowFinancialWrites: false },
     });
   });
@@ -16,6 +16,13 @@ describe('Pi investment agent specs', () => {
     const spec = getInvestmentAgentSpec('invest-plan');
     expect(() => validateAgentSpec({ ...spec, version: '1' })).toThrow();
     expect(() => validateAgentSpec({ ...spec, tools: [] })).toThrow();
+  });
+
+  test('validates explicit Pi Package allowlists', () => {
+    const spec = getInvestmentAgentSpec('invest-explore');
+    validateAgentSpec({ ...spec, packages: ['@upup/pi-finance-sdk'] });
+    expect(() => validateAgentSpec({ ...spec, packages: ['@upup/pi-finance-sdk', '@upup/pi-finance-sdk'] })).toThrow('duplicate');
+    expect(() => validateAgentSpec({ ...spec, packages: ['../untrusted'] })).toThrow('invalid Pi package name');
   });
 
   test('converts legacy registry metadata into an executable Pi spec', () => {
@@ -79,6 +86,7 @@ describe('Pi investment agent specs', () => {
       type: 'specialized',
       tools: ['calculate_var'],
       skills: ['risk-management'],
+      packages: ['@upup/pi-finance-sdk'],
       capabilities: ['risk'],
       taskTypes: ['stress-test'],
       workflow: 'invest',
@@ -89,10 +97,22 @@ describe('Pi investment agent specs', () => {
       mode: 'worker',
       tools: ['calculate_var'],
       skills: ['risk-management'],
+      packages: ['@upup/pi-finance-sdk'],
       workflow: 'invest',
       permissions: { deny: ['critical'], requireApproval: ['dangerous'] },
       timeoutMs: 5000,
     });
     validateAgentSpec(spec);
+  });
+
+  test('preserves Package allowlists from custom Agent definitions', () => {
+    const spec = agentDefinitionToPiSpec({
+      id: 'package-worker',
+      name: 'Package Worker',
+      description: 'Uses a declared Pi Package',
+      packages: ['@upup/pi-finance-sdk'],
+      config: { packages: ['@upup/ignored-by-explicit-field'] },
+    });
+    expect(spec.packages).toEqual(['@upup/pi-finance-sdk']);
   });
 });

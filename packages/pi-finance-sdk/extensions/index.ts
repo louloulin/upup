@@ -1,12 +1,20 @@
 import { Type } from 'typebox';
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
+import {
+  PI_FINANCE_HOST_CAPABILITIES,
+  PI_FINANCE_HOST_CONTRACT,
+  PI_FINANCE_PACKAGE_NAME,
+  PI_FINANCE_PACKAGE_VERSION,
+  type PiFinanceHostBridge,
+} from './host-contract.js';
+import { registerPiFinanceCommands } from './commands.js';
 
-interface PiFinanceToolHost {
-  getToolDefinitions(): readonly unknown[];
-}
-
-function getPiFinanceToolHost(): PiFinanceToolHost | undefined {
-  return (globalThis as typeof globalThis & { __upupPiFinanceToolHost?: PiFinanceToolHost }).__upupPiFinanceToolHost;
+function getPiFinanceToolHost(): PiFinanceHostBridge | undefined {
+  const host = (globalThis as typeof globalThis & { __upupPiFinanceToolHost?: PiFinanceHostBridge }).__upupPiFinanceToolHost;
+  if (!host || host.contract !== PI_FINANCE_HOST_CONTRACT) return undefined;
+  if (host.packageName !== PI_FINANCE_PACKAGE_NAME || host.packageVersion !== PI_FINANCE_PACKAGE_VERSION) return undefined;
+  if (!host.sessionId || !PI_FINANCE_HOST_CAPABILITIES.every((capability) => host.capabilities.includes(capability))) return undefined;
+  return host;
 }
 
 type FinanceFreshness = 'realtime' | 'delayed' | 'historical' | 'cached' | 'offline';
@@ -65,8 +73,15 @@ function resultText(value: unknown): string {
 }
 
 export default function financeEvidenceExtension(pi: ExtensionAPI): void {
+  registerPiFinanceCommands(pi);
   const host = getPiFinanceToolHost();
-  for (const definition of host?.getToolDefinitions() ?? []) {
+  for (const definition of host?.getToolDefinitions({
+    contract: PI_FINANCE_HOST_CONTRACT,
+    packageName: PI_FINANCE_PACKAGE_NAME,
+    packageVersion: PI_FINANCE_PACKAGE_VERSION,
+    sessionId: host.sessionId,
+    capability: 'tool-definitions',
+  }) ?? []) {
     pi.registerTool(definition as never);
   }
 

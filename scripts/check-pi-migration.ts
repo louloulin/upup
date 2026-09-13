@@ -134,6 +134,15 @@ if (/from ['"][^'"]*(?:src\/)?agent\/(?:registry|subagent|subagent-runner|agent-
 }
 const productionFiles = Array.from(new Bun.Glob('src/**/*.{ts,tsx}').scanSync({ cwd: root, absolute: true }))
   .filter((file) => !file.endsWith('.test.ts') && !file.endsWith('.spec.ts') && !file.endsWith('.tsbuildinfo'));
+const legacyPluginExecutionCalls = productionFiles.filter((file) => {
+  if (file.includes('/src/plugins/')) return false;
+  if (file.endsWith('/src/runtime/pi/plugin-adapter.ts')) return false;
+  const source = readFileSync(file, 'utf8');
+  return /\b(?:loadAndStartPlugin|stopAndUnloadPlugin|registerAllAdapters|discoverPlugins)\s*\(/.test(source);
+});
+if (legacyPluginExecutionCalls.length > 0) {
+  failures.push(`production code must not execute the legacy Plugin Loader/Adapter path; use Pi plugin-adapter: ${legacyPluginExecutionCalls.join(', ')}`);
+}
 const directSessionFactoryCalls = productionFiles.filter((file) => /\bcreateAgentSession\s*\(/.test(readFileSync(file, 'utf8')));
 const allowedSessionFactoryFile = join(root, 'src/runtime/pi/agent-session-factory.ts');
 if (directSessionFactoryCalls.length !== 1 || directSessionFactoryCalls[0] !== allowedSessionFactoryFile) {

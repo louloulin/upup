@@ -149,7 +149,7 @@ async function createPromptSession(options: PiPromptOptions, spec: UpUpAgentSpec
   if (persisted && persisted !== fingerprint) {
     throw new Error(`Pi session key ${options.sessionKey ?? sessionId} is persisted with a different AgentSpec; use a new session key when changing profile, permissions, or tools`);
   }
-  const configuredPackages = options.piPackagePaths === undefined ? resolveConfiguredPiPackages() : undefined;
+  const configuredPackages = options.piPackagePaths === undefined && options.piPackageTrust === undefined ? resolveConfiguredPiPackages(cwd) : undefined;
   const piPackagePaths = options.piPackagePaths ?? configuredPackages?.piPackagePaths;
   const piPackageTrust = options.piPackageTrust ?? configuredPackages?.piPackageTrust;
   const session = await runtime.createSession(spec, {

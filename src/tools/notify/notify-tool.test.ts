@@ -10,6 +10,8 @@ import {
   NOTIFY_LIST_DESCRIPTION,
   createNotifyTool,
   createNotifyListTool,
+  createNotificationStore,
+  type NotificationStore,
 } from './notify-tool.js';
 
 describe('NotifySchema', () => {
@@ -153,21 +155,24 @@ describe('createNotifyTool', () => {
 });
 
 describe('createNotifyListTool', () => {
+  let store: NotificationStore;
+
   beforeEach(async () => {
+    store = createNotificationStore();
     // Send a few log notifications
-    const tool = createNotifyTool();
+    const tool = createNotifyTool({ store });
     await tool.func({ channel: 'log', title: 'First', message: 'm1' });
     await tool.func({ channel: 'log', title: 'Second', message: 'm2', level: 'warning' });
     await tool.func({ channel: 'log', title: 'Third', message: 'm3', level: 'error' });
   });
 
   it('should create tool with name notify_list', () => {
-    const tool = createNotifyListTool();
+    const tool = createNotifyListTool({ store });
     expect(tool.name).toBe('notify_list');
   });
 
   it('should list notifications', async () => {
-    const tool = createNotifyListTool();
+    const tool = createNotifyListTool({ store });
     const result = await tool.func({});
     expect(result).toContain('Notifications');
     expect(result).toContain('First');
@@ -176,20 +181,20 @@ describe('createNotifyListTool', () => {
   });
 
   it('should filter by channel', async () => {
-    const tool = createNotifyListTool();
+    const tool = createNotifyListTool({ store });
     const result = await tool.func({ channel: 'log' });
     expect(result).toContain('Notifications');
   });
 
   it('should filter by level', async () => {
-    const tool = createNotifyListTool();
+    const tool = createNotifyListTool({ store });
     const result = await tool.func({ level: 'error' });
     expect(result).toContain('Third');
     expect(result).not.toContain('First');
   });
 
   it('should respect limit', async () => {
-    const tool = createNotifyListTool();
+    const tool = createNotifyListTool({ store });
     const result = await tool.func({ limit: 1 });
     expect(result).toContain('Notifications (1)');
     // Only 1 notification shown

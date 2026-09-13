@@ -274,6 +274,40 @@ describe('Manifest', () => {
 
     expect(() => loader.load(testDir)).toThrow('empty capabilities');
   });
+
+  it('should load explicit network and credential security scopes', () => {
+    const manifest = {
+      schemaVersion: '1.0',
+      id: 'scoped-plugin',
+      name: 'Scoped Plugin',
+      version: '1.0.0',
+      runtime: 'mcp',
+      capabilities: ['tools'],
+      entry: './index.js',
+      security: {
+        sandbox: 'mcp',
+        networkDomains: ['broker.example'],
+        credentialScopes: ['paper-trading'],
+      },
+    };
+    writeFileSync(resolve(testDir, 'upup.plugin.json'), JSON.stringify(manifest));
+    expect(loader.load(testDir).security).toEqual({ ...manifest.security, sandbox: 'mcp' });
+  });
+
+  it('should reject malformed security scope declarations', () => {
+    const manifest = {
+      schemaVersion: '1.0',
+      id: 'invalid-scope-plugin',
+      name: 'Invalid Scope Plugin',
+      version: '1.0.0',
+      runtime: 'mcp',
+      capabilities: ['tools'],
+      entry: './index.js',
+      security: { sandbox: 'mcp', networkDomains: [''] },
+    };
+    writeFileSync(resolve(testDir, 'upup.plugin.json'), JSON.stringify(manifest));
+    expect(() => loader.load(testDir)).toThrow('security.networkDomains');
+  });
 });
 
 // ============================================================================

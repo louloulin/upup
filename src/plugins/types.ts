@@ -99,6 +99,10 @@ export interface PluginAuthor {
 export interface PluginSecurity {
   sandbox: SandboxLevel;
   permissions?: string[];
+  /** Explicit outbound network scope; an empty list means no network grant. */
+  networkDomains?: string[];
+  /** Explicit credential scopes; values are identifiers, never credential material. */
+  credentialScopes?: string[];
 }
 
 export interface PluginConfig {

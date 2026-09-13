@@ -98,4 +98,72 @@ describe('Pi plugin bridge', () => {
     expect(tool).toBe('plugin_evidence_quote');
     session.dispose();
   });
+
+  test('rejects sensitive plugin tools without an explicit sandbox declaration', async () => {
+    const plugin: LoadedPlugin = {
+      id: 'sensitive-plugin', runtime: 'bun',
+      manifest: { schemaVersion: '1.0', id: 'sensitive-plugin', name: 'Sensitive', version: '1.0.0', runtime: 'bun', capabilities: ['tools'], entry: 'index.ts' },
+      instance: {}, services: [], hooks: new Map(),
+      tools: [{ name: 'place_order', description: 'order', safetyLevel: 'dangerous', hasFinancialImpact: true, async execute() { return 'ok'; } }],
+    };
+    await expect(new PiAgentSessionFactory().createSession({ ...getInvestmentAgentSpec('invest-trade'), tools: ['place_order'] }, {
+      cwd: process.cwd(), piPlugins: [{ plugin, path: process.cwd() }],
+      pluginTrust: { trustedPaths: [process.cwd()], pinnedPackages: { upup: '2026.6.12' } },
+    })).rejects.toThrow('requires an explicit process sandbox declaration');
+  });
+
+  test('rejects a plugin whose declared sandbox does not match its runtime', async () => {
+    const plugin: LoadedPlugin = {
+      id: 'mismatched-plugin', runtime: 'mcp',
+      manifest: { schemaVersion: '1.0', id: 'mismatched-plugin', name: 'Mismatched', version: '1.0.0', runtime: 'mcp', capabilities: ['tools'], entry: 'index.ts', security: { sandbox: 'wasm' } },
+      instance: {}, services: [], hooks: new Map(),
+      tools: [{ name: 'quote', description: 'quote', async execute() { return 'ok'; } }],
+    };
+    await expect(new PiAgentSessionFactory().createSession({ ...getInvestmentAgentSpec('invest-explore'), tools: ['quote'] }, {
+      cwd: process.cwd(), piPlugins: [{ plugin, path: process.cwd() }],
+      pluginTrust: { trustedPaths: [process.cwd()], pinnedPackages: { upup: '2026.6.12' } },
+    })).rejects.toThrow('declares sandbox wasm, but runtime mcp requires mcp');
+  });
+
+  test('rejects sensitive tools in the in-process Bun runtime even with process declaration', async () => {
+    const plugin: LoadedPlugin = {
+      id: 'in-process-sensitive-plugin', runtime: 'bun',
+      manifest: { schemaVersion: '1.0', id: 'in-process-sensitive-plugin', name: 'In Process Sensitive', version: '1.0.0', runtime: 'bun', capabilities: ['tools'], entry: 'index.ts', security: { sandbox: 'process' } },
+      instance: {}, services: [], hooks: new Map(),
+      tools: [{ name: 'send_order', description: 'order', safetyLevel: 'critical', hasFinancialImpact: true, async execute() { return 'ok'; } }],
+    };
+    await expect(new PiAgentSessionFactory().createSession({ ...getInvestmentAgentSpec('invest-trade'), tools: ['send_order'] }, {
+      cwd: process.cwd(), piPlugins: [{ plugin, path: process.cwd() }],
+      pluginTrust: { trustedPaths: [process.cwd()], pinnedPackages: { upup: '2026.6.12' } },
+    })).rejects.toThrow('cannot run in-process; use wasm or mcp isolation');
+  });
+
+  test('requires sensitive plugins to declare network and credential scopes', async () => {
+    const plugin: LoadedPlugin = {
+      id: 'isolated-sensitive-plugin', runtime: 'mcp',
+      manifest: { schemaVersion: '1.0', id: 'isolated-sensitive-plugin', name: 'Isolated Sensitive', version: '1.0.0', runtime: 'mcp', capabilities: ['tools'], entry: 'index.ts', security: { sandbox: 'mcp' } },
+      instance: {}, services: [], hooks: new Map(),
+      tools: [{ name: 'send_order', description: 'order', safetyLevel: 'critical', hasFinancialImpact: true, async execute() { return 'ok'; } }],
+    };
+    await expect(new PiAgentSessionFactory().createSession({ ...getInvestmentAgentSpec('invest-trade'), tools: ['send_order'] }, {
+      cwd: process.cwd(), piPlugins: [{ plugin, path: process.cwd() }],
+      pluginTrust: { trustedPaths: [process.cwd()], pinnedPackages: { upup: '2026.6.12' } },
+    })).rejects.toThrow('networkDomains and credentialScopes');
+  });
+
+  test('records declared plugin security scopes in tool details', async () => {
+    const plugin: LoadedPlugin = {
+      id: 'scoped-plugin', runtime: 'mcp',
+      manifest: { schemaVersion: '1.0', id: 'scoped-plugin', name: 'Scoped', version: '1.0.0', runtime: 'mcp', capabilities: ['tools'], entry: 'index.ts', security: { sandbox: 'mcp', networkDomains: ['broker.example'], credentialScopes: ['paper-trading'] } },
+      instance: {}, services: [], hooks: new Map(),
+      tools: [{ name: 'quote', description: 'quote', async execute() { return { close: 100 }; } }],
+    };
+    const session = await new PiAgentSessionFactory().createSession({ ...getInvestmentAgentSpec('invest-explore'), tools: ['quote'] }, {
+      cwd: process.cwd(), piPlugins: [{ plugin, path: process.cwd() }],
+      pluginTrust: { trustedPaths: [process.cwd()], pinnedPackages: { upup: '2026.6.12' } },
+    });
+    const result = await session.executeTool('quote', 'scoped-call', {});
+    expect(result.details).toMatchObject({ securityAudit: { sandbox: 'mcp', networkDomains: ['broker.example'], credentialScopes: ['paper-trading'] } });
+    session.dispose();
+  });
 });

@@ -215,6 +215,7 @@ class LogFileManager {
   write(entry: LogEntry): void {
     if (!this.config.enableFile) return;
 
+    this.ensureLogDir();
     this.rotateIfNeeded();
 
     const line = formatJsonMessage(entry) + '\n';
@@ -410,5 +411,4 @@ export function error(category: LogCategory, message: string, error?: Error, dat
 export function perf(category: LogCategory, message: string, durationMs: number, data?: unknown): void {
   getLogger().perf(category, message, durationMs, data);
 }
-
 

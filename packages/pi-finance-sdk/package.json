@@ -22,7 +22,9 @@
     "typebox": "1.3.7"
   },
   "pi": {
+    "source": "builtin:upup",
     "extensions": ["./extensions"],
+    "commands": ["invest", "dossier", "strategy", "risk-dashboard", "portfolio-review"],
     "skills": ["./skills"],
     "prompts": ["./prompts"],
     "workflows": ["./workflows"],

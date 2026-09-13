@@ -24,13 +24,14 @@ import { validateAgentSpec } from './agent-spec.js';
 import { getModel, getModels } from '@earendil-works/pi-ai/compat';
 import { existsSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
-import { dirname } from 'node:path';
+import { dirname, relative, resolve, sep } from 'node:path';
 import { PI_DEFAULT_SYSTEM_PROMPT } from './default-prompt.js';
 import { verifyPiResourceTrust, type PiResourceTrustAudit } from './plugin-trust.js';
 import { createPiPluginExtensions, getLoadedPiPluginBindings } from './plugin-adapter.js';
 import { PiPackageCatalog, type PiPackageResourceSnapshot } from './package-catalog.js';
 import { evaluatePiPackage, type PiEvalResult, type PiPackageContracts } from './package-contracts.js';
-import { getBuiltinPiPackageOptions } from './package-config.js';
+import { resolveConfiguredPiPackages } from './package-config.js';
+import { createPiFinanceHostBridge, type PiFinanceHostBridge } from './finance-host-contract.js';
 
 function eventToUpUpEvent(sessionId: string, event: AgentSessionEvent): UpUpAgentEvent | undefined {
   switch (event.type) {
@@ -198,17 +199,19 @@ const PI_FINANCE_HOST_KEY = '__upupPiFinanceToolHost';
 let piFinancePackageLoadTail: Promise<void> = Promise.resolve();
 
 function installPiFinanceToolHost(
+  sessionId: string,
   spec: UpUpAgentSpec,
   tools: readonly UpUpToolContract[],
   requestToolApproval?: UpUpCreateSessionOptions['requestToolApproval'],
 ): () => void {
   const globalState = globalThis as typeof globalThis & {
-    __upupPiFinanceToolHost?: { getToolDefinitions: () => readonly ToolDefinition[] };
+    __upupPiFinanceToolHost?: PiFinanceHostBridge;
   };
   const previous = globalState[PI_FINANCE_HOST_KEY];
-  globalState[PI_FINANCE_HOST_KEY] = {
-    getToolDefinitions: () => tools.map((tool) => toPiTool(spec, tool, requestToolApproval)),
-  };
+  globalState[PI_FINANCE_HOST_KEY] = createPiFinanceHostBridge(
+    sessionId,
+    () => tools.map((tool) => toPiTool(spec, tool, requestToolApproval)),
+  );
   return () => {
     if (previous) globalState[PI_FINANCE_HOST_KEY] = previous;
     else delete globalState[PI_FINANCE_HOST_KEY];
@@ -217,6 +220,7 @@ function installPiFinanceToolHost(
 
 async function reloadFinancePackageResources(
   resourceLoader: DefaultResourceLoader,
+  sessionId: string,
   spec: UpUpAgentSpec,
   tools: readonly UpUpToolContract[],
   requestToolApproval?: UpUpCreateSessionOptions['requestToolApproval'],
@@ -225,7 +229,7 @@ async function reloadFinancePackageResources(
   let release!: () => void;
   piFinancePackageLoadTail = new Promise<void>((resolve) => { release = resolve; });
   await previous;
-  const restore = installPiFinanceToolHost(spec, tools, requestToolApproval);
+  const restore = installPiFinanceToolHost(sessionId, spec, tools, requestToolApproval);
   try {
     await resourceLoader.reload();
   } finally {
@@ -431,18 +435,39 @@ export class PiAgentSessionFactory implements UpUpAgentRuntime {
         : await import('./registry-adapter.js').then(({ loadRegisteredPiToolContracts }) => loadRegisteredPiToolContracts(spec.model ?? process.env.DEFAULT_MODEL ?? 'deepseek-v4-flash'));
     const tools = sourceTools.filter((tool) => spec.tools === '*' || spec.tools.includes(tool.name));
     const packageCatalog = new PiPackageCatalog();
-    const builtinPackages = options.piPackagePaths === undefined ? getBuiltinPiPackageOptions(cwd) : undefined;
-    const piPackagePaths = options.piPackagePaths ?? builtinPackages?.piPackagePaths;
-    const piPackageTrust = options.piPackageTrust ?? builtinPackages?.piPackageTrust;
+    const configuredPackages = options.piPackagePaths === undefined && options.piPackageTrust === undefined
+      ? resolveConfiguredPiPackages(cwd)
+      : undefined;
+    const piPackagePaths = options.piPackagePaths ?? configuredPackages?.piPackagePaths;
+    const piPackageTrust = options.piPackageTrust ?? configuredPackages?.piPackageTrust;
+    if ((spec.packages?.length ?? 0) > 0 && (piPackagePaths?.length ?? 0) === 0) {
+      throw new Error(`Pi AgentSpec declares Packages but none are configured: ${spec.packages?.join(', ')}`);
+    }
     if ((piPackagePaths?.length ?? 0) > 0) {
       if (!piPackageTrust) throw new Error('Pi package loading requires an explicit piPackageTrust policy');
-      for (const packagePath of piPackagePaths ?? []) packageCatalog.register(packagePath, piPackageTrust, cwd);
+      for (const packagePath of piPackagePaths ?? []) {
+        packageCatalog.register(packagePath, piPackageTrust, cwd, {
+          deferCommandValidation: spec.packages !== undefined,
+        });
+      }
+      if (spec.packages) packageCatalog.select(spec.packages);
+      packageCatalog.validateDependencies();
     }
     const packageResources = packageCatalog.resources();
     const resourceTrust = options.pluginTrust ?? piPackageTrust;
     const trustedSkills = verifyPiResourceTrust([...packageResources.skills, ...(options.additionalSkillPaths ?? [])], resourceTrust, cwd);
     const trustedPrompts = verifyPiResourceTrust([...packageResources.prompts, ...(options.additionalPromptTemplatePaths ?? [])], resourceTrust, cwd);
-    const trustedExtensions = verifyPiResourceTrust([...packageResources.extensions, ...(options.additionalExtensionPaths ?? [])], resourceTrust, cwd);
+    const packageRoots = [...packageCatalog.listEnabled().map((record) => resolve(record.manifest.root))];
+    const packageExtensionRoots = new Set(packageResources.extensions.map((path) => resolve(path)));
+    const isWithinPackage = (path: string): boolean => packageRoots.some((root) => {
+      const child = relative(root, path);
+      return child === '' || (!child.startsWith(`..${sep}`) && child !== '..' && !child.startsWith('/'));
+    });
+    const additionalExtensionPaths = (options.additionalExtensionPaths ?? []).filter((path) => {
+      const resolvedPath = resolve(cwd, path);
+      return !isWithinPackage(resolvedPath) && !packageExtensionRoots.has(resolvedPath);
+    });
+    const trustedExtensions = verifyPiResourceTrust([...new Set([...packageResources.extensions, ...additionalExtensionPaths])], resourceTrust, cwd);
     const trustedDomainResources = verifyPiResourceTrust([
       ...packageResources.workflows,
       ...packageResources.policies,
@@ -450,6 +475,7 @@ export class PiAgentSessionFactory implements UpUpAgentRuntime {
     ], resourceTrust, cwd);
     const packageContracts = packageCatalog.contracts();
     const financePackageEnabled = packageCatalog.get('@upup/pi-finance-sdk')?.enabled === true;
+    const packageSelectionExplicit = spec.packages !== undefined;
     const pluginBindings = options.piPlugins ?? (options.pluginTrust ? getLoadedPiPluginBindings(spec, options.requestToolApproval) : []);
     const trustedPlugins = pluginBindings.map((binding) => {
       const audit = verifyPiResourceTrust([binding.path], options.pluginTrust, cwd);
@@ -488,12 +514,20 @@ export class PiAgentSessionFactory implements UpUpAgentRuntime {
       settingsManager,
       extensionFactories: [
         createFinanceSessionExtension(financeContext),
-        ...(financePackageEnabled ? [] : [createFinanceExtension(spec, tools, options.requestToolApproval)]),
+        ...(financePackageEnabled || packageSelectionExplicit ? [] : [createFinanceExtension(spec, tools, options.requestToolApproval)]),
         ...createPiPluginExtensions(trustedPlugins.map(({ binding }) => binding)),
       ],
       additionalExtensionPaths: trustedExtensions.paths.length ? [...trustedExtensions.paths] : undefined,
       additionalSkillPaths: trustedSkills.paths.length ? trustedSkills.paths : undefined,
       additionalPromptTemplatePaths: trustedPrompts.paths.length ? trustedPrompts.paths : undefined,
+      skillsOverride: (base) => {
+        if (spec.skills === undefined) return base;
+        const allowedSkills = new Set(spec.skills);
+        return {
+          ...base,
+          skills: base.skills.filter((skill) => allowedSkills.has(skill.name)),
+        };
+      },
       noSkills: trustedSkills.paths.length === 0,
       noPromptTemplates: trustedPrompts.paths.length === 0,
       noThemes: true,
@@ -508,10 +542,18 @@ export class PiAgentSessionFactory implements UpUpAgentRuntime {
       ],
     });
     if (financePackageEnabled) {
-      await reloadFinancePackageResources(resourceLoader, spec, tools, options.requestToolApproval);
+      await reloadFinancePackageResources(resourceLoader, sessionManager.getSessionId(), spec, tools, options.requestToolApproval);
     } else {
       await resourceLoader.reload();
     }
+    if (spec.skills !== undefined) {
+      const loadedSkillNames = new Set(resourceLoader.getSkills().skills.map((skill) => skill.name));
+      const missingSkills = spec.skills.filter((skill) => !loadedSkillNames.has(skill));
+      if (missingSkills.length > 0) {
+        throw new Error(`Pi AgentSpec skills are not loaded: ${missingSkills.join(', ')}`);
+      }
+    }
+    packageCatalog.validateExtensionLoad(resourceLoader.getExtensions(), cwd);
     const result = await createAgentSession({
       cwd,
       sessionManager,

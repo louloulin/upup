@@ -30,4 +30,14 @@ describe('Pi production entry contract', () => {
       expect(source).not.toContain('callLlmWithMessages');
     }
   });
+
+  test('legacy Plugin Loader and runtime adapters are not production execution paths', () => {
+    const productionFiles = [...new Bun.Glob('src/**/*.{ts,tsx}').scanSync({ cwd: process.cwd(), absolute: true })]
+      .filter((file) => !file.endsWith('.test.ts') && !file.endsWith('.spec.ts') && !file.includes('/src/plugins/'));
+    for (const file of productionFiles) {
+      if (file.endsWith('/src/runtime/pi/plugin-adapter.ts')) continue;
+      const source = readFileSync(file, 'utf8');
+      expect(source).not.toMatch(/\b(?:loadAndStartPlugin|stopAndUnloadPlugin|registerAllAdapters|discoverPlugins)\s*\(/);
+    }
+  });
 });

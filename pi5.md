@@ -777,6 +777,10 @@ check-no-unpinned-pi-package
 - Pi Package 不能加载未列入 allowlist 的远程资源；
 - Extension 不能在加载时读写用户凭证或执行未声明的外部命令。
 
+### 10.1.1 A1–A20 语义验收命令
+
+`bun run verify:pi5` 逐项执行 A1–A19 的 Pi 契约/迁移/安全测试，并对 A20 校验六份架构文档和 Finance Pi Package 的六类资源。该命令输出每个验收 ID 的 PASS/FAIL，当前基线为 `20/20 passed`；它是仓库内可重复语义验收，仍需与 Comet 独立 Verifier 的外部结论分开记录。
+
 ### 10.2 单元和契约测试
 
 新增测试目录：
@@ -896,9 +900,16 @@ invest-cron-run
 
 ### 当前执行状态（2026-09-13）
 
+#### 进度量化
+
+- **仓库实现进度：100%**：Pi Runtime 唯一入口、旧 Agent/LangChain/Paperclip 生产路径退出、金融 Package/Extension/Skill/Prompt/Workflow/Policy/Eval、权限与供应链边界、外围入口和恢复能力均已落地。
+- **本地验证进度：100%**：A1–A20 仓库内语义验收 `20/20 PASS`；最新完整回归 `4247 pass / 0 fail`（`14289 expect()`、`294 files`），Pi Contract 套件为 `156 pass / 0 fail`，Finance SDK 为 `5 pass / 0 fail`，新增 Pi Package Extension 命令注册/加载失败硬门禁回归，类型检查、构建和 diff 校验通过。
+- **Comet 独立语义验收：0%**：当前 `phase=verify`、`verificationResult=pending`，A1–A20 尚未获得独立 Verifier 的逐项结论。
+- **正式综合进度：50%**：按“本地实现/验证 50% + 独立验收 50%”计算；不能用本地测试结果替代独立验收。真实外部行情、真实券商交易和 live trading 仍保持关闭，使用 deterministic fixtures 与 sandbox policy。
+
 - 已完成本轮实现：Pi 依赖锁定、唯一 `src/runtime/pi/` Session Factory、金融 Tool Adapter/证据审计、统一 Pi prompt/model runner、CLI/Gateway/Daemon/stdio/SDK 入口切换、MCP/共享工具 Pi 化、生产 LangChain import 门禁、旧核心 loop 删除、Pi-backed `/invest` 五阶段工作流、Pi custom-entry checkpoint、pause/resume/fork/idempotency、共享 Pi worker 后端、Custom Agent → `UpUpAgentSpec` 出口、插件工具 allowlist/安全策略/路径审计和架构图留档。
 - 本轮新增：`PiSessionService` 将 CLI、stdio `session/*` RPC 统一落到 Pi JSONL `SessionManager`；CLI resume/fork/list/rename/tag/delete 不再调用 legacy `src/session/storage.ts`，Pi session metadata/lifecycle 以 custom entries 持久化；`PiBackgroundService` 将 Daemon 和 Agent 工具的 background task 统一落到 Pi prompt/session；Subagent 执行路径已去除重复 AgentSession/worktree/timeout loop，统一委托 Pi runner。
-- 已验证：`bun run check:pi-migration`、`bun run check:pi-packages`、`bun run check:pi-runtime`、`bun run typecheck`、`bun run build` 均通过；Pi runtime、金融 fixture、权限、插件信任、Pi Package 的五个金融 Extension 工具、Skill/Prompt 发现、Session migration、`/invest`、MCP、DuckDB、多 Agent backend、AgentSpec、Daemon session 和 snip 消息适配通过；最新 Pi 合约套件为 `109 pass / 0 fail`，Finance SDK 独立测试为 `2 pass / 0 fail`，新增 deterministic 金融 E2E 覆盖 A/H/美股、基金、财报、DCF、可比估值、技术指标、回测、组合归因、VaR 和模拟交易审批。
+- 已验证：`bun run check:pi-migration`、`bun run check:pi-packages`、`bun run check:pi-runtime`、`bun run typecheck`、`bun run build` 均通过；Pi runtime、金融 fixture、权限、插件信任、Pi Package 的五个金融 Extension 工具、Skill/Prompt 发现、Session migration、`/invest`、MCP、DuckDB、多 Agent backend、AgentSpec、Daemon session 和 snip 消息适配通过；最新 Pi 合约套件为 `154 pass / 0 fail`，Finance SDK 独立测试为 `5 pass / 0 fail`，新增 deterministic 金融 E2E 覆盖 A/H/美股、基金、财报、DCF、可比估值、技术指标、回测、组合归因、VaR 和模拟交易审批。
 - 本轮修复：PiTool 现在同时接受 Zod 和原生 JSON Schema，DuckDB 无参数工具可正常注册；Skill fork 错误保留 `SubagentRunner` 兼容语义；Phase Handler 改为显式金融依赖注入，避免测试 mock 污染 Pi Registry；`bunx tsc --noEmit --pretty false`、Pi 迁移门禁和 Pi Package 门禁均通过。
 - 本轮契约补充：`src/cron/executor.pi.test.ts` 验证 Cron 使用注入的 Pi-backed runner、固定 `cron:<job.id>` session key、消息投递和 heartbeat suppression；`src/multi-agent/backends/backend.test.ts` 验证 InProcess worker 真实创建 Pi session 并返回 assistant；SDK、Gateway、Bridge、stdio session 契约继续通过。
 - 本轮 Agent 定义收口：新增 `src/runtime/pi/agent-catalog.ts`，以 `UpUpAgentSpec` 作为唯一可执行 Agent 存储；`AgentRegistry` 只在边界处投影元数据，不再维护第二个可执行定义存储。用户 Agent、Markdown Agent 文件和 Subagent 配置现在均以 `PiAgentSpecInput`、`PiAgentFileSpec`、`PiSubagentConfig` 命名，注册和执行统一进入 Pi catalog/session；兼容字段只用于输入/结果 DTO。
@@ -910,6 +921,8 @@ invest-cron-run
 - 本轮收口 Worker Factory：`InProcessBackend` 与 `WorkerPoolBackend` 统一调用 `src/multi-agent/backends/pi-worker.ts`，迁移门禁禁止重复创建 Worker Session/AgentSpec，避免多 Agent 执行路径漂移。
 - 本轮补强 Worker Spec 保真：共享 Pi Worker Factory 在传入完整 `UpUpAgentSpec` 时保留其全部字段，并仅在原 Spec 未声明时补充请求级 `timeoutMs`，避免 Worker 超时配置在后端收口时丢失。
 - 本轮新增迁移门禁：生产代码中的 `createAgentSession()` 只能存在于 `src/runtime/pi/agent-session-factory.ts`，InProcess worker 必须复用共享 `pi-worker.ts`，并禁止重复的 Pi Session Factory/Spec 创建路径；`check:pi-migration` 已通过。
+- 本轮补强 A9 Pi Tool Contract：五个 Finance fixture 显式声明 `maxConcurrent`，统一在执行入口检查 `AbortSignal`；行情 fixture 保留 `onUpdate`/progress。新增回归验证五个工具通过 Pi `registerTool()` 执行时同时满足 safety、concurrency、progress、details、AbortSignal 语义。
+- 本轮补强 A14 插件沙箱：`validatePluginSandbox()` 在 Pi Plugin Bridge 注册前校验 manifest `security.sandbox` 与 runtime 匹配（`bun/jiti→process`、`wasm→wasm`、`mcp→mcp`）；由于 Bun/Jiti 是进程内执行，`dangerous`/`critical` 或有金融影响的插件工具即使声明 `process` 也会被拒绝，必须使用 WASM/MCP 隔离；缺少 sandbox、声明 `none` 或 runtime/sandbox 不匹配同样拒绝。新增三条安全回归；普通只读插件保持兼容。
 - 当前候选说明：上述 Agent Spec 保真改动发生在 Attempt 29 独立 Verifier 启动之后，因此 Attempt 29 的结果不能证明本轮变更；必须在该执行结束后按最新工作区重新派发独立语义验收，A1–A20 在独立结果返回前继续保持 `pending`。
 - 当前候选说明（Attempt 31）：Attempt 31 派发后又加入了 InProcess worker 工具加载和 system prompt 内容边界修复；即使 Attempt 31 返回结果，也不能覆盖这些新增改动，必须在 Comet 允许的最新 continuation 下重新派发独立验收。
 - 当前 Comet 验收状态（Attempt 33–35）：三次独立 Verifier execution 均从本机进程表消失，Comet 已记录 `execution_failure_count=3`、`status=blocked`、`next_action=retry-verifier`；没有收到 A1–A20 独立语义结果，A1–A20 必须继续保持 `pending`。这是独立验收基础设施阻塞，不是代码测试失败；恢复时必须使用 Comet continuation 提供的 `stateVersion=114` 和 `retry-verifier`。
@@ -931,43 +944,69 @@ invest-cron-run
 - 本轮新增（Pi 运行时门禁）：新增 `bun run check:pi-runtime`，可执行校验 Node `>=22.19.0`、当前 Bun 版本、`build:node` 的 `node22` 目标和 `build:pkg` 的 Node 22 targets，并接入 CI matrix；A3/A19 的运行时兼容性不再只依赖 manifest 文本。
 - 本轮新增（依赖级 LangChain 防回归门禁）：`check:pi-migration` 现在扫描根及所有 `packages/*/package.json` 的 dependencies/devDependencies/peerDependencies/optionalDependencies，并检查 `bun.lock`，禁止 LangChain 包重新进入 workspace；同时将非法 Package manifest 作为明确门禁失败报告。该门禁首次运行发现并修复 `packages/memory/package.json` 的非法尾逗号，之后迁移门禁、包门禁、类型检查和构建均通过。
 - 本轮新增（Pi Session metadata 完整投影）：`PiSessionService.list()` 现在从 Pi JSONL 的 `upup_session_metadata` custom entry 回读 `tag/tags`，StatePort 和 `/session` UI 可稳定显示标签；新增 StatePort 标签 round-trip 回归，避免 Session 列表只显示标题和时间而丢失投资工作流标签。
-- 当前 Comet 验收状态（2026-09-13，Attempt 27）：Runtime 管理的 Pi 合约、迁移门禁、包门禁、类型检查、全量回归、构建烟测和 diff check 均通过；Attempt 25、26、27 的独立 Verifier execution 均从本机进程表消失，Comet 已按三次连续执行故障进入 `status=blocked`、`execution_failure_count=3`。A1–A20 继续保持 `pending`，正式综合进度仍为 **50%**；这属于独立验收基础设施阻塞，不是代码测试失败，恢复后从 `retry-verifier` 继续。
+- 当前 Comet 验收状态（2026-09-13，iteration 12 / attempt 3）：Runtime 管理的旧候选检查已完成，但独立 Verifier operation 正在运行，尚未返回当前工作区 A1–A20 的逐项结论；Comet 状态为 `active`、`verificationResult=pending`。A1–A20 继续保持 `pending`，正式综合进度仍为 **50%**；这代表独立语义验收尚未完成，不等同于代码测试失败。
 - 当前 Comet 恢复周期阻塞（2026-09-13）：恢复后的 Attempt 19、20、21 独立 Verifier execution 均从本机进程表消失，Comet 在第三次同类故障后再次进入 `status=blocked`、`execution_failure_count=3`；没有收到 A1–A20 独立语义结果，因此完成矩阵仍全部 `pending`。这是独立验收基础设施阻塞，不是本地实现或测试失败；恢复后应从 `retry-verifier` 继续。
 - 当前 Comet 验收阻塞（2026-09-13）：Attempt 16、17、18 的独立 Verifier execution 均从本机进程表消失，Comet 在第三次同类故障后进入 `status=blocked`、`execution_failure_count=3`；没有收到任何 A1–A20 独立语义结果，因此 A1–A20 必须继续保持 `pending`。阻塞原因是 Verifier 基础设施不可用，不是代码测试失败；恢复后应从 `retry-verifier` 继续，不能把本地门禁替代独立验收。
 - 当前 Comet 验收状态（Attempt 33–35，stateVersion `114`）：三次独立 Verifier execution 均从本机进程表消失，当前为 `phase=verify`、`status=blocked`、`next_action=retry-verifier`、`verificationResult=pending`、`execution_failure_count=3`；A1–A20 全部保持 `pending`。这是独立验收基础设施阻塞，不是代码测试失败；恢复时必须使用 Comet continuation 提供的最新 stateVersion/action 重新派发，不能把旧 Attempt 或本地结果冒充独立语义验收。
-- 本轮最新本地验证：Pi 迁移/包/runtime 三项门禁、类型检查、Pi 合约 `109 pass / 0 fail`、Finance SDK `2 pass / 0 fail`、完整回归 `4190 pass / 0 fail`（`13413 assertions`、`290 files`）、发行构建和 `git diff --check` 均通过；完整回归期间仅出现既有日志目录缺失告警，无测试失败。
+- 当前 Comet 验收状态（iteration 8，Attempt 1，stateVersion `120`）：A9 修复后已重新生成候选，Runtime 已执行全部检查并通过，当前等待独立 Verifier 返回 A1–A20 逐项结果；A1–A20 仍全部保持 `pending`，不能把 Runtime 检查替代独立语义验收。
+- 当前 Comet 验收状态（iteration 11，Attempt 1，stateVersion `135`）：A12/A14 包来源、依赖锁定、插件安全审计和 Manifest scope 回归已完成；Runtime 检查与全量回归均通过，当前需要基于最新工作区重新生成候选后再等待独立 Verifier；A1–A20 仍全部保持 `pending`，不能把 Runtime 检查替代独立语义验收。
+- 本轮新增 A14 安全审计：敏感插件工具必须声明 `networkDomains` 与 `credentialScopes`；每次 Pi 工具结果携带不含凭证值的 `securityAudit` 快照。来源 allowlist 已通过 `allowedSources`（包名→精确来源标识）强制校验。
+- 本轮新增 A12/A14 包边界：Pi Package 必须声明 `pi.source`，部署策略按包名精确 allowlist 来源；dependencies、peerDependencies、optionalDependencies 统一要求 exact semver。
+- 本轮新增 Package Catalog 注册边界：同名 Pi Package 从不同根目录重复注册会被拒绝，避免未审查路径覆盖已加载包；只有显式 `rollback()` 允许按同名包替换，并保留失败时恢复原记录。新增同名不同根目录回归，Package/Trust/Session 定向套件当前为 `34 pass / 0 fail`。
+- 本轮补强 Package Catalog 供应链边界：运行时注册现在同时要求 Package 自身 `name@version` 出现在 `pinnedPackages`；显式 rollback 保留原有启用/禁用状态，避免回滚意外启用已禁用 Package。新增缺失自身版本 pin 和禁用状态回滚回归，Package Catalog 定向测试当前为 `9 pass / 0 fail`。
+- 本轮新增 Package 运行时依赖图门禁：Catalog 区分 dev 与运行时依赖，并在 Pi Session 加载前解析 `@upup/*` 依赖的实际注册记录、exact version 和 enabled 状态；仅 pin 但未加载的内部依赖会拒绝启动，避免出现半加载金融生态。新增缺失依赖和完整依赖图回归，Pi Package/Session 定向套件当前为 `26 pass / 0 fail`。
+- 本轮继续收紧 Package 供应链：跨 `dependencies`/`peerDependencies`/`optionalDependencies` 的 exact version 冲突、内部 `@upup/*` 循环依赖，以及已注册但 disabled 的依赖均在 Session 加载前拒绝；定向 Package/Session 套件新增到 `28 pass / 0 fail`。
+- 本轮补齐 Package 回滚事务：`rollback()` 替换候选后先重新验证完整依赖图；若候选会造成缺失/禁用/版本错误/循环依赖，则恢复当前 Package 记录，避免“回滚成功但运行时依赖断裂”。新增回滚失败保留当前版本回归，Package/Session 定向套件当前为 `30 pass / 0 fail`。
+- 本轮完成按需 Package 接线：`UpUpAgentSpec` 新增 `packages` allowlist，自动加载内部依赖闭包并关闭未选 Package；五个内置投资 Profile 默认声明 `@upup/pi-finance-sdk`，显式 `packages: []` 时不会偷偷启用旧 Finance fallback Extension。Custom Agent/Subagent 转换保留 Package 元数据，新增真实 Session 回归。
+- 本轮验收接线：A12 现在直接覆盖 `agent-spec`、Package Catalog 和 Session Factory 的按需加载回归，避免只验证 Package 静态资源而遗漏 Agent 实际选择面。
+- 本轮新增（金融 Package Host Contract）：新增 `src/runtime/pi/finance-host-contract.ts` 与同名 Pi SDK Host Contract，Finance Extension 不再读取无版本的宿主全局对象；宿主必须声明 `upup.pi.finance.host.v1`、精确 Package 身份 `@upup/pi-finance-sdk@0.1.0`、session ID 和 `tool-definitions` capability，跨 Session、错误包身份或未知 Contract 的请求返回空工具集且不调用宿主。新增 Host Contract、Package Extension 和并发 Session 回归，确保金融工具仍由 Pi Package 注册且生命周期隔离。
+- 本轮新增（Pi 原生金融命令）：Finance Package manifest 声明并由 Extension 注册 `/invest`、`/dossier`、`/strategy`、`/risk-dashboard`、`/portfolio-review`；命令只将结构化投资意图发送到当前 Pi Session，状态机和金融工具仍由 Pi Workflow/Extension 提供，不再复制 `src/commands` 执行逻辑。Package Catalog 解析命令清单，门禁校验稳定命令集合。
+- 本轮新增（跨平台稳定性与 CLI TUI fixture）：`createSkillWatcher` 在 `fs.watch` 成功但丢失平台事件时也通过 `SKILL.md` 快照轮询兜底，递归 fallback 同时维护子目录 watcher；通知工具支持显式 `NotificationStore`，消除测试/并发 Session 的模块级共享状态耦合；新增 `src/components/chat-log.pi.test.ts`，覆盖 Pi 金融 Tool 的查询、开始、进度、完成和答案渲染链。
+- 本轮新增（10 个命名投研 E2E 场景）：新增 `src/runtime/pi/investment-scenarios.pi.test.ts`，默认离线且禁止真实下单/外部网络，真实执行 `invest-cn-stock-readonly`、`invest-us-stock-readonly`、`invest-fund-portfolio-readonly`、`invest-dcf-with-evidence`、`invest-risk-dashboard`、`invest-backtest`、`invest-session-resume`、`invest-subagent-parallel`、`invest-gateway-message`、`invest-cron-run`；覆盖跨市场金融证据、Session 恢复、并行 Pi worker、Gateway 和 Cron 投递。
+- 本轮新增安全边界：Pi Package manifest 的名称/版本必须合法且版本为 exact semver；Extension/Skill/Prompt/Workflow/Policy/Eval 资源必须是非空声明、位于 Package 根目录内且不能重复，防止路径穿越和资源覆盖；新增 Package Catalog 负向回归覆盖非 exact 版本、资源路径逃逸、空声明和重复声明。定向安全回归 `26 pass / 0 fail`。
+- 本轮补强依赖供应链边界：Package manifest 中的 `dependencies`、`devDependencies`、`peerDependencies`、`optionalDependencies` 每个依赖都必须在 `pinnedPackages` 中以相同 exact semver 显式锁定；缺失或版本不一致时在 Pi Extension 加载前拒绝。新增缺失依赖 pin 负向回归，Package/Session/Trust 定向套件 `33 pass / 0 fail`。
+- 本轮补强外围入口可靠性：日志目录被外部删除后，Pi Daemon/多 Agent/工具错误路径会在每次写入前自动恢复目录；新增 logger 生命周期回归 `1 pass / 0 fail`，消除全量运行中观察到的 `ENOENT` 噪声。
+- 本轮最新验证：Pi 迁移/包/runtime 三项门禁、类型检查、Pi 合约 `154 pass / 0 fail`、Finance SDK `5 pass / 0 fail`、插件/信任/包/沙箱/依赖图/按需 Package/命令冲突/延迟选择定向回归 `43 pass / 0 fail`、Finance Host Contract 定向套件 `7 pass / 0 fail`、Manifest scope 回归 `2 pass / 0 fail` 均通过；完整串行回归 `4245 pass / 0 fail`（`14286 assertions`、`294 files`）；`bun run verify:pi5` A1–A20 `20/20 PASS`；`bun run benchmark:pi5` 本轮真实基准通过（10 次金融工具调用：启动 `48.31ms`、批量调用 `0.25ms`、恢复 `24.84ms`、Session JSONL `455 bytes`，均低于 `500/1000/500ms` 门槛）；发行构建和 `git diff --check` 均通过。
+- 本轮补强 AgentSpec Package 边界：当 `spec.packages` 声明非空 allowlist、但没有任何 `piPackagePaths` 或项目/内置 Package 配置时，`PiAgentSessionFactory` 现在显式拒绝创建会话，不再静默启动缺少领域能力的 Session；新增回归后定向 Agent/Package/Session 套件为 `41 pass / 0 fail`，类型检查和 `git diff --check` 通过。
+- 本轮补强 Finance Pi Extension 宿主边界：`upup.pi.finance.host.v1` 现在同时校验精确 Package 身份 `@upup/pi-finance-sdk@0.1.0`、Session 身份和 capability；合同、包名、版本、Session 或 capability 任一不匹配都返回空能力且不调用宿主 Provider，防止第三方 Extension 冒用内置金融包获取生产工具。新增 Runtime/SDK 身份错配回归，相关定向套件 `23 pass / 0 fail`，类型检查、Package 门禁和 `git diff --check` 通过。
+- 本轮补强 Pi Package 命令生态边界：启用 Package 之间不得声明同名 slash command；Catalog 在 register、enable 和 allowlist select 阶段检查命令所有权，冲突时事务性恢复旧状态，避免加载顺序导致命令覆盖。新增重复命令负向回归，Package/Session 定向套件 `34 pass / 0 fail`，类型检查和 `git diff --check` 通过。
+- 本轮修正按需 Package 与命令冲突的组合语义：AgentSpec 使用显式 Package allowlist 时，候选 Package 注册允许延迟命令冲突检查，最终 `select()` 只对 enabled 闭包强制校验并在冲突时事务性恢复；未选中的同名命令不再阻塞最小 Session。新增延迟选择回归，Package/Session 定向套件 `35 pass / 0 fail`，类型检查和 `git diff --check` 通过。
+- 本轮新增旧 Plugin Loader 退出门禁：生产源码不得调用 `loadAndStartPlugin`、`stopAndUnloadPlugin`、`registerAllAdapters` 或 `discoverPlugins` 形成第二套执行路径；旧插件管理/数据适配器仅保留为兼容边界，真正进入 Agent 的插件必须经过 `src/runtime/pi/plugin-adapter.ts` 的 Pi 注册、allowlist、权限、sandbox 和 evidence 审计。新增生产入口契约与迁移静态检查，防止后续绕过 Pi Runtime。
+- 本轮新增 Pi Package Extension 完整性门禁：`PiPackageCatalog.validateExtensionLoad()` 在 Session 创建前检查每个已启用 Package 的 Extension 是否实际加载、是否产生加载错误，以及 manifest 声明的每个 slash command 是否由 Extension 真正注册；任一不满足即阻断 Session，避免“资源已信任但能力半加载”的不一致状态。新增第三方项目 `.pi/settings.json` Package 成功加载与命令缺失失败回归，并修复内置 Package 与显式 Extension 路径重复加载导致的工具冲突。
+- 本轮新增（A1–A20 仓库内语义验收）：新增 `scripts/verify-pi5.ts` 与 `bun run verify:pi5`，逐项绑定 Runtime 入口、旧核心退出、Pi Agent loop、Session、金融 Tool/evidence、投资 Profile、Pi Package、权限、插件安全、迁移、`/invest`、多 Agent、外围入口、门禁和架构文档；最新结果为 **20/20 PASS**。该结果证明当前工作区的 A1–A20 本地语义契约全部满足，但不替代 Comet 独立 Verifier。
+- 本轮新增（项目级 Pi Package 配置）：`src/runtime/pi/package-config.ts` 读取项目 `.pi/settings.json` 的 `packages`，但只接受项目根目录内的本地路径；`upupPiPackages.trustedPaths`、`pinnedPackages`、`allowedSources` 均为必填且严格校验，远程 npm/git/HTTP 源和路径穿越直接拒绝；`PiAgentSessionFactory` 与 `runPiPrompt` 自动使用该受信配置。新增 6 个配置回归，证明项目级包配置不会绕过 Pi/UpUp 信任边界。
 
 
 
 
 ### A1–A20 实现证据矩阵（2026-09-13 审计）
 
-> 每项验收的本地证据可在 `bun run check:pi-migration` / `bun run check:pi-packages` / `bun run test:pi-contracts` / `bun test` 中复现；Comet verifier 仍为 `phase=verify / verificationResult=pending`、A1–A20 `result=pending`，待独立 verifier 给出最终结论。
+> 每项验收的本地证据可在 `bun run check:pi-migration` / `bun run check:pi-packages` / `bun run test:pi-contracts` / `bun test` 中复现；Comet verifier 仍为 `phase=verify / verificationResult=pending`、A1–A20 `result=pending`，待独立 verifier 给出最终结论。当前正式综合进度为 **50%**，其中仓库实现/本地验证 **100%**，独立语义验收 **0%**。
 
-| ID | 主题 | 实施证据 | 验证命令 | 状态 |
+| ID | 主题 | 实施证据 | 本地验证命令 | 状态（本地 / 独立） |
 |---|---|---|---|---|
-| A1 | Runtime 唯一性 | CLI、Pi-native `print`、stdio、SDK、Gateway、Cron、Daemon、Bridge、Eval 均通过 `runtime/pi`；无第二套 Agent loop | `src/runtime/pi/production-entry-contract.test.ts` + `src/print.test.ts` | ✅ 实施 / ⏳ 验证 |
-| A2 | 旧核心退出 | `src/agent/`、`src/model/llm.ts`、`src/runtime/pi/message-compat.ts` 全部物理删除；`callLlmWithMessages` 仅在测试断言中保留 | `bun run check:pi-migration` | ✅ 实施 / ⏳ 验证 |
-| A3 | Pi 版本与运行时 | 7 个 Pi 包均 `0.84.3`；`engines.node = ">=22.19.0"`；`build:pkg` 走 `node22-*`；`check:pi-runtime` 实际校验 Node/Bun 与 Node22 构建目标 | `bun run check:pi-migration` + `bun run check:pi-runtime` | ✅ 实施 / ⏳ 验证 |
-| A4 | Runtime Adapter | `src/runtime/pi/` 57 个 `.ts` 文件（Factory / Runner / SessionService / BackgroundService / ToolAdapter / Subagent / PackageCatalog / InvestmentWorkflow / Permissions / AgentCatalog） | `src/runtime/pi/agent-session-factory.test.ts` | ✅ 实施 / ⏳ 验证 |
-| A5 | Agent Spec | `UpUpAgentSpec` 出现在 14 个文件（runner / tool-contract / registry / agent-catalog / plugin-adapter / …） | `src/runtime/pi/agent-spec.test.ts` | ✅ 实施 / ⏳ 验证 |
-| A6 | Pi Agent loop | `pi-fixture.test.ts`（198 行）覆盖多轮 streaming、多个 Tool Call、steer/follow-up、abort、timeout、error、final answer；`event-stream.test.ts`（3 tests）覆盖 `streamPiAgent` 公共 API 的 done/stream_progress 映射；`runner.test.ts`（7 tests）覆盖 `toPiSessionId` / `isPiSessionRunning` / `disposePiSessions` / `runPiPrompt` end-to-end | `bun test src/runtime/pi/pi-fixture.test.ts src/runtime/pi/event-stream.test.ts src/runtime/pi/runner.test.ts` | ✅ 实施 / ⏳ 验证 |
-| A7 | Pi Model protocol | `@earendil-works/pi-ai` 0.84.3 锁定；生产代码 `rg "langchain"` 0 命中 | `bun run check:pi-migration` | ✅ 实施 / ⏳ 验证 |
-| A8 | Session/Compaction | `PiSessionService`：list / create / resume / get / fork / compact / rename / tag / remove / export / dispose 全部覆盖；`reliability.test.ts` 验证 crash recovery；`upup_finance_context` 保留 ticker、market、asOf、assumptions、risks、evidence、unfinishedPhases 并在恢复后回读 | `bun test src/runtime/pi/session-service.test.ts src/runtime/pi/reliability.test.ts src/runtime/pi/finance-context.test.ts` | ✅ 实施 / ⏳ 验证 |
-| A9 | Tool Adapter | `finance-fixtures.ts`：`fixture_market_quote` / `fixture_fundamentals` / `fixture_news` / `fixture_search` / `fixture_trading_day`；携带 `safetyLevel` / `parameters` / `hasFinancialImpact` / `auditId` / `retrievedAt` / `dataFreshness` | `src/extensions/upup/index.test.ts` | ✅ 实施 / ⏳ 验证 |
-| A10 | 金融证据 | 工具结果统一带 `evidence[].id/source/retrievedAt/asOf/query`、`dataFreshness`、`auditId`；`secrets` 走 `production-finance-contract.test.ts` 断言不进入结果 | `src/runtime/pi/production-finance-contract.test.ts` | ✅ 实施 / ⏳ 验证 |
-| A11 | 投资 Profiles | `agent-spec.ts`：`invest-explore` / `invest-plan` / `invest-risk` / `invest-trade` / `invest-review` 全部走 Pi Session 与工具 allowlist | `src/runtime/pi/agent-spec.test.ts` | ✅ 实施 / ⏳ 验证 |
-| A12 | Pi 生态 | `packages/pi-finance-sdk` 6 类资源 + 5 个 Pi `registerTool()` 金融 Extension；默认受信任固定包自动加载，新增金融能力不修改 Agent loop | `bun run check:pi-packages` + `bun --cwd packages/pi-finance-sdk test` + `bun test src/runtime/pi/package-catalog.test.ts src/runtime/pi/package-config.test.ts src/runtime/pi/agent-session-factory.test.ts` | ✅ 实施 / ⏳ 验证 |
-| A13 | 金融权限 | `safe` / `warning` / `dangerous` / `critical` 四级；critical 走 `production-finance-contract.test.ts` 越权拒绝；`tool-contract.test.ts` 验证只读策略 | `src/runtime/pi/production-finance-contract.test.ts src/runtime/pi/tool-contract.test.ts` | ✅ 实施 / ⏳ 验证 |
-| A14 | 插件安全 | `plugin-trust.ts` 含 path / hash / package pin 校验；`plugin-trust.test.ts` 覆盖 allowlist、符号链接拒绝、disable、rollback；旧 standalone bundle 已删除 | `bun test src/runtime/pi/plugin-trust.test.ts` + `bun run check:pi-migration` | ✅ 实施 / ⏳ 验证 |
-| A15 | Session 迁移 | `src/session/migrate-to-pi.ts` 支持 `--dry-run` / `--backup-dir` / hash / report；原文件只读；`pi-migration.test.ts` 验证 Pi 回读 | `bun test src/session/pi-migration.test.ts` | ✅ 实施 / ⏳ 验证 |
-| A16 | /invest 5 阶段 | `investment-workflow.ts` 5 阶段（research / valuation / backtest / trade / review）+ 状态机（detect / plan / paused / [*]）；checkpoint 走 Pi custom entry `upup-investment-workflow`；`investment-workflow.test.ts` 覆盖 pause/resume/fork/idempotency；状态机见 `docs/architecture/invest-workflow.md` | `bun test src/runtime/pi/investment-workflow.test.ts` | ✅ 实施 / ⏳ 验证 |
-| A17 | 多 Agent | `subagent.ts` / `subagent-runner.ts` / `subagent-types.ts` 委托 `PiBackgroundService` + `runPiPrompt`；`coordinator.ts` 仅负责分解 / spawn / 聚合 / 生命周期 | `src/multi-agent/backends/backend.test.ts` | ✅ 实施 / ⏳ 验证 |
-| A18 | 外围入口 | CLI / Pi-native print / stdio / Gateway / Cron / Daemon / Bridge / SDK / Eval 全部走 `streamPiAgent` / `runPiPrompt` / `PiSessionService` / `PiBackgroundService`；print 有 faux provider 端到端契约 | `src/runtime/pi/production-entry-contract.test.ts` + `src/print.test.ts` + `src/runtime/pi/event-stream.test.ts` + `src/runtime/pi/runner.test.ts` | ✅ 实施 / ⏳ 验证 |
-| A19 | 验证门禁 | `check:pi-migration` / `check:pi-packages` / `typecheck` / `test:pi-contracts` / `bun test` 全部可重复；新增五工具 Package Extension、print/package-config 回归与 faux Pi fixture | 见 `package.json` scripts | ✅ 实施 / ⏳ 验证 |
-| A20 | 架构留档 | `docs/architecture/` 6 份（`pi5-runtime.md` / `plugin-ecosystem.md` / `finance-dataflow.md` / `session-lifecycle.md` / `multi-agent-dataflow.md` / `invest-workflow.md`），覆盖 Runtime / Plugin / 金融数据流 / Session 生命周期 / Multi-Agent / /invest 状态机 | `wc -l docs/architecture/*.md` | ✅ 实施 / ⏳ 验证 |
+| A1 | Runtime 唯一性 | CLI、Pi-native `print`、stdio、SDK、Gateway、Cron、Daemon、Bridge、Eval 均通过 `runtime/pi`；无第二套 Agent loop | `src/runtime/pi/production-entry-contract.test.ts` + `src/print.test.ts` | ✅ / ⏳ |
+| A2 | 旧核心退出 | `src/agent/`、`src/model/llm.ts`、`src/runtime/pi/message-compat.ts` 全部物理删除；`callLlmWithMessages` 仅在测试断言中保留 | `bun run check:pi-migration` | ✅ / ⏳ |
+| A3 | Pi 版本与运行时 | 7 个 Pi 包均 `0.84.3`；`engines.node = ">=22.19.0"`；`build:pkg` 走 `node22-*`；`check:pi-runtime` 实际校验 Node/Bun 与 Node22 构建目标 | `bun run check:pi-migration` + `bun run check:pi-runtime` | ✅ / ⏳ |
+| A4 | Runtime Adapter | `src/runtime/pi/` 57 个 `.ts` 文件（Factory / Runner / SessionService / BackgroundService / ToolAdapter / Subagent / PackageCatalog / InvestmentWorkflow / Permissions / AgentCatalog） | `src/runtime/pi/agent-session-factory.test.ts` | ✅ / ⏳ |
+| A5 | Agent Spec | `UpUpAgentSpec` 出现在 14 个文件（runner / tool-contract / registry / agent-catalog / plugin-adapter / …） | `src/runtime/pi/agent-spec.test.ts` | ✅ / ⏳ |
+| A6 | Pi Agent loop | `pi-fixture.test.ts`（198 行）覆盖多轮 streaming、多个 Tool Call、steer/follow-up、abort、timeout、error、final answer；`event-stream.test.ts`（3 tests）覆盖 `streamPiAgent` 公共 API 的 done/stream_progress 映射；`runner.test.ts`（7 tests）覆盖 `toPiSessionId` / `isPiSessionRunning` / `disposePiSessions` / `runPiPrompt` end-to-end | `bun test src/runtime/pi/pi-fixture.test.ts src/runtime/pi/event-stream.test.ts src/runtime/pi/runner.test.ts` | ✅ / ⏳ |
+| A7 | Pi Model protocol | `@earendil-works/pi-ai` 0.84.3 锁定；生产代码 `rg "langchain"` 0 命中 | `bun run check:pi-migration` | ✅ / ⏳ |
+| A8 | Session/Compaction | `PiSessionService`：list / create / resume / get / fork / compact / rename / tag / remove / export / dispose 全部覆盖；`reliability.test.ts` 验证 crash recovery；`upup_finance_context` 保留 ticker、market、asOf、assumptions、risks、evidence、unfinishedPhases 并在恢复后回读 | `bun test src/runtime/pi/session-service.test.ts src/runtime/pi/reliability.test.ts src/runtime/pi/finance-context.test.ts` | ✅ / ⏳ |
+| A9 | Tool Adapter | `finance-fixtures.ts`：`fixture_market_quote` / `fixture_fundamentals` / `fixture_news` / `fixture_search` / `fixture_trading_day`；携带 `safetyLevel` / `parameters` / `hasFinancialImpact` / `auditId` / `retrievedAt` / `dataFreshness` | `src/extensions/upup/index.test.ts` | ✅ / ⏳ |
+| A10 | 金融证据 | 工具结果统一带 `evidence[].id/source/retrievedAt/asOf/query`、`dataFreshness`、`auditId`；`secrets` 走 `production-finance-contract.test.ts` 断言不进入结果 | `src/runtime/pi/production-finance-contract.test.ts` | ✅ / ⏳ |
+| A11 | 投资 Profiles | `agent-spec.ts`：`invest-explore` / `invest-plan` / `invest-risk` / `invest-trade` / `invest-review` 全部走 Pi Session 与工具 allowlist | `src/runtime/pi/agent-spec.test.ts` | ✅ / ⏳ |
+| A12 | Pi 生态 | `packages/pi-finance-sdk` 6 类资源 + 5 个 Pi `registerTool()` 金融 Extension + 5 个 Pi 原生 `registerCommand()` 命令；版本化 `upup.pi.finance.host.v1` Host Contract 提供 session/capability 隔离；Package slash command 冲突在 Catalog 中事务性拒绝；Extension 加载失败或 manifest 命令未实际注册时在 Session 创建前硬失败；默认受信任固定包和项目 `.pi/settings.json` 包配置自动加载；`pi.source` 按包名 `allowedSources` 精确 allowlist；包自身及其 dependencies、peer/optional/dev dependencies 必须在 `pinnedPackages` 中显式以相同 exact semver 锁定；新增金融能力不修改 Agent loop | `bun run check:pi-packages` + `bun --cwd packages/pi-finance-sdk test` + `bun test src/runtime/pi/finance-host-contract.test.ts src/runtime/pi/package-catalog.test.ts src/runtime/pi/package-config.test.ts src/runtime/pi/agent-session-factory.test.ts` | ✅ / ⏳ |
+| A13 | 金融权限 | `safe` / `warning` / `dangerous` / `critical` 四级；critical 走 `production-finance-contract.test.ts` 越权拒绝；`tool-contract.test.ts` 验证只读策略 | `src/runtime/pi/production-finance-contract.test.ts src/runtime/pi/tool-contract.test.ts` | ✅ / ⏳ |
+| A14 | 插件安全 | `plugin-trust.ts` 含 path / hash / package pin / source allowlist 校验；敏感工具强制 WASM/MCP 隔离、manifest `networkDomains`/`credentialScopes` 声明；Pi 结果携带脱敏 `securityAudit`；回归覆盖符号链接、disable、rollback、sandbox mismatch、进程内敏感工具、来源和安全 scope；旧 standalone bundle 已删除 | `bun test src/runtime/pi/plugin-trust.test.ts src/runtime/pi/plugin-adapter.test.ts src/runtime/pi/package-catalog.test.ts` + `bun run check:pi-migration` | ✅ / ⏳ |
+| A15 | Session 迁移 | `src/session/migrate-to-pi.ts` 支持 `--dry-run` / `--backup-dir` / hash / report；原文件只读；`pi-migration.test.ts` 验证 Pi 回读 | `bun test src/session/pi-migration.test.ts` | ✅ / ⏳ |
+| A16 | /invest 5 阶段 | `investment-workflow.ts` 5 阶段（research / valuation / backtest / trade / review）+ 状态机（detect / plan / paused / [*]）；checkpoint 走 Pi custom entry `upup-investment-workflow`；`investment-workflow.test.ts` 覆盖 pause/resume/fork/idempotency；新增 10 个命名投研 E2E 场景覆盖金融、恢复和外围入口 | `bun test src/runtime/pi/investment-workflow.test.ts src/runtime/pi/investment-scenarios.pi.test.ts` | ✅ / ⏳ |
+| A17 | 多 Agent | `subagent.ts` / `subagent-runner.ts` / `subagent-types.ts` 委托 `PiBackgroundService` + `runPiPrompt`；`coordinator.ts` 仅负责分解 / spawn / 聚合 / 生命周期 | `src/multi-agent/backends/backend.test.ts` | ✅ / ⏳ |
+| A18 | 外围入口 | CLI / Pi-native print / stdio / Gateway / Cron / Daemon / Bridge / SDK / Eval 全部走 `streamPiAgent` / `runPiPrompt` / `PiSessionService` / `PiBackgroundService`；`chat-log.pi.test.ts` 覆盖 CLI TUI 渲染；10 个命名场景覆盖 Gateway、Cron、并行 worker 和 Session 恢复 | `src/runtime/pi/production-entry-contract.test.ts` + `src/print.test.ts` + `src/runtime/pi/event-stream.test.ts` + `src/runtime/pi/runner.test.ts` + `src/components/chat-log.pi.test.ts` + `src/runtime/pi/investment-scenarios.pi.test.ts` | ✅ / ⏳ |
+| A19 | 验证门禁 | `check:pi-migration` / `check:pi-packages` / `check:pi-runtime` / `typecheck` / `benchmark:pi5` / `test:pi-contracts` / `verify:pi5` / `bun test` 全部可重复；新增五工具/五命令 Package Extension、Host Contract、Package Catalog manifest、Extension 完整性、print/package-config 回归与 faux Pi fixture | 见 `package.json` scripts | ✅ / ⏳ |
+| A20 | 架构留档 | `docs/architecture/` 6 份（`pi5-runtime.md` / `plugin-ecosystem.md` / `finance-dataflow.md` / `session-lifecycle.md` / `multi-agent-dataflow.md` / `invest-workflow.md`），覆盖 Runtime / Plugin / 金融数据流 / Session 生命周期 / Multi-Agent / /invest 状态机 | `wc -l docs/architecture/*.md` | ✅ / ⏳ |
 
-> 综合实施进度：**20/20 = 100% 实施**；**本地可重复门禁：100% 通过**（迁移门禁、包门禁、运行时门禁、类型检查、Pi 合约 109+2、最新本地全量回归 4190/0、发行构建烟测通过）；**独立语义验证：0/20**（Comet 当前 `status=blocked`，A1–A20 全部 pending，不能提前勾选验证状态）。按“实现完成 + 独立验证”口径，当前整体进度为 **50%（实现 100%，正式验收 0%）**。
+> 综合实施进度：**20/20 = 100% 实施**；**Runtime 定向自动验证：100% 通过**（迁移门禁、包门禁、运行时门禁、类型检查、Pi 合约 156+5、插件/信任/包/沙箱/依赖图/按需 Package/命令冲突/延迟选择/Extension 完整性定向回归、Finance Host Contract、Manifest scope、logger 生命周期、CLI TUI 渲染 fixture、`benchmark:pi5` 性能/恢复基准、发行构建和 `git diff --check` 均通过）；**Runtime 全量回归：4247/4247 通过**（`14289 assertions`、`294 files`）；**仓库内 A1–A20 语义验收：20/20 通过**（`bun run verify:pi5`）；**Comet 独立语义验证：0/20**（当前 `phase=verify`、`verificationResult=pending`，A1–A20 尚未返回逐项最终结论，不能将本地结果替代独立验收）。按“实现完成 + 独立验证”口径，当前整体正式进度仍为 **50%（实现 100%，正式独立验收 0%）**；若按当前代码和可重复本地证据衡量，工程实现、本地语义验收和全量回归均为 **100%**。
 
 
 ### Runtime 完成
@@ -1005,11 +1044,11 @@ invest-cron-run
 ### 数据和质量完成
 
 - [x] 旧 Session 可迁移，原文件不被覆盖。
-- [x] Session tree/fork/compact/resume/export 已有 Pi runtime/stdio/SDK 契约覆盖；完整 CLI UI fixture 仍待补齐。
+- [x] Session tree/fork/compact/resume/export 已有 Pi runtime/stdio/SDK 契约覆盖；`src/components/chat-log.pi.test.ts` 已补齐 Pi 金融 Tool 事件到 CLI TUI 的查询、进度、完成和答案渲染 fixture。
 - [x] Gateway、Cron、Daemon、Bridge、stdio、SDK 全部通过独立契约测试证明使用 Pi-backed runtime。
 - [x] stdio `session/create|resume|get|messages|update|end` 已使用 `PiSessionService` 和 Pi JSONL。
 - [x] Daemon background task 与 Agent tool background 分支已使用 `PiBackgroundService`。
-- [x] 运行时、工具、权限、数据 freshness、报告引用和性能门禁全部通过（`src/runtime/pi/performance.test.ts`、Pi contract suite、full test suite）。
+- [x] 运行时、工具、权限、数据 freshness、报告引用和性能门禁全部通过（`src/runtime/pi/performance.test.ts`、`bun run benchmark:pi5`、Pi contract suite、full test suite）；基准输出包含启动、工具批量调用、Session JSONL 持久化和恢复耗时，可重复验证阈值。
 
 ## 14. 建议的第一批实施 Issue
 

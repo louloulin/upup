@@ -25,6 +25,36 @@ function pluginSafetyLevel(tool: AgentTool): UpUpToolSafetyLevel {
   return tool.safetyLevel ?? 'warning';
 }
 
+function expectedSandbox(runtime: LoadedPlugin['runtime']): 'process' | 'wasm' | 'mcp' {
+  if (runtime === 'wasm') return 'wasm';
+  if (runtime === 'mcp') return 'mcp';
+  return 'process';
+}
+
+/** Enforce the manifest/runtime boundary before a plugin tool reaches Pi. */
+export function validatePluginSandbox(plugin: LoadedPlugin, tool: AgentTool): void {
+  const declaredSandbox = plugin.manifest.security?.sandbox;
+  const requiredSandbox = expectedSandbox(plugin.runtime);
+  const safetyLevel = pluginSafetyLevel(tool);
+  const sensitive = safetyLevel === 'dangerous' || safetyLevel === 'critical' || tool.hasFinancialImpact === true;
+  const missingOrNone = declaredSandbox === undefined || declaredSandbox === 'none';
+
+  if (declaredSandbox && declaredSandbox !== requiredSandbox) {
+    throw new Error(
+      `Plugin ${plugin.id} declares sandbox ${declaredSandbox}, but runtime ${plugin.runtime} requires ${requiredSandbox}`,
+    );
+  }
+  if (sensitive && missingOrNone) {
+    throw new Error(`Sensitive plugin tool ${plugin.id}:${tool.name} requires an explicit ${requiredSandbox} sandbox declaration`);
+  }
+  if (sensitive && (plugin.runtime === 'bun' || plugin.runtime === 'jiti')) {
+    throw new Error(`Sensitive plugin tool ${plugin.id}:${tool.name} cannot run in-process; use wasm or mcp isolation`);
+  }
+  if (sensitive && (!plugin.manifest.security || !Array.isArray(plugin.manifest.security.networkDomains) || !Array.isArray(plugin.manifest.security.credentialScopes))) {
+    throw new Error(`Sensitive plugin tool ${plugin.id}:${tool.name} requires explicit networkDomains and credentialScopes declarations`);
+  }
+}
+
 const SENSITIVE_KEYS = new Set(['api_key', 'apikey', 'authorization', 'credential', 'password', 'secret', 'token', 'access_token', 'refresh_token']);
 
 function sanitize(value: unknown, key?: string): unknown {
@@ -54,6 +84,12 @@ function pluginTool(
   requestToolApproval?: UpUpCreateSessionOptions['requestToolApproval'],
 ): ToolDefinition {
   const safetyLevel = pluginSafetyLevel(tool);
+  const security = plugin.manifest.security;
+  const securityAudit = {
+    sandbox: security?.sandbox ?? 'none',
+    networkDomains: [...(security?.networkDomains ?? [])],
+    credentialScopes: [...(security?.credentialScopes ?? [])],
+  } as const;
   return {
     name: tool.name,
     label: `${plugin.manifest.id}:${tool.name}`,
@@ -77,7 +113,7 @@ function pluginTool(
         return {
           content: [{ type: 'text', text: `Plugin tool ${tool.name} is denied by permission profile ${spec.permissions.id}` }],
           isError: true,
-          details: { pluginId: plugin.manifest.id, audit: audit('denied', 'plugin tool safety level is not allowed') },
+          details: { pluginId: plugin.manifest.id, securityAudit, audit: audit('denied', 'plugin tool safety level is not allowed') },
         };
       }
       if (spec.permissions.requireApproval.includes(safetyLevel)) {
@@ -88,12 +124,12 @@ function pluginTool(
           return {
             content: [{ type: 'text', text: `Plugin tool ${tool.name} requires explicit approval` }],
             isError: true,
-            details: { pluginId: plugin.manifest.id, audit: audit('approval_denied', 'approval was not granted') },
+            details: { pluginId: plugin.manifest.id, securityAudit, audit: audit('approval_denied', 'approval was not granted') },
           };
         }
       }
       if (signal?.aborted) {
-        return { content: [{ type: 'text', text: 'Plugin tool execution aborted' }], isError: true, details: { audit: audit('denied', 'aborted before execution') } };
+        return { content: [{ type: 'text', text: 'Plugin tool execution aborted' }], isError: true, details: { securityAudit, audit: audit('denied', 'aborted before execution') } };
       }
       try {
         const value = await tool.execute(params as Record<string, unknown>);
@@ -116,6 +152,7 @@ function pluginTool(
             pluginId: plugin.manifest.id,
             pluginVersion: plugin.manifest.version,
             runtime: plugin.runtime,
+            securityAudit,
             evidence: [evidence],
             dataFreshness: 'live',
             auditId,
@@ -126,7 +163,7 @@ function pluginTool(
         return {
           content: [{ type: 'text', text: error instanceof Error ? error.message : String(error) }],
           isError: true,
-          details: { pluginId: plugin.manifest.id, pluginVersion: plugin.manifest.version, runtime: plugin.runtime, audit: audit('allowed', 'plugin tool failed after policy approval') },
+          details: { pluginId: plugin.manifest.id, pluginVersion: plugin.manifest.version, runtime: plugin.runtime, securityAudit, audit: audit('allowed', 'plugin tool failed after policy approval') },
         };
       }
     },
@@ -149,7 +186,10 @@ export function createPiPluginExtension(binding: PiPluginBinding): InlineExtensi
     hidden: true,
     factory: (pi: ExtensionAPI) => {
       if (!binding.spec) throw new Error(`Pi plugin ${plugin.manifest.id} requires an agent spec`);
-      for (const tool of plugin.tools) pi.registerTool(pluginTool(binding.spec, plugin, tool, binding.requestToolApproval));
+      for (const tool of plugin.tools) {
+        validatePluginSandbox(plugin, tool);
+        pi.registerTool(pluginTool(binding.spec, plugin, tool, binding.requestToolApproval));
+      }
 
       const instructions = skillPrompt(plugin);
       if (instructions) {
@@ -172,6 +212,9 @@ export function createPiPluginExtension(binding: PiPluginBinding): InlineExtensi
 }
 
 export function createPiPluginExtensions(bindings: readonly PiPluginBinding[]): InlineExtension[] {
+  for (const binding of bindings) {
+    for (const tool of binding.plugin.tools) validatePluginSandbox(binding.plugin, tool);
+  }
   return bindings.map(createPiPluginExtension);
 }
 

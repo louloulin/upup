@@ -26,7 +26,11 @@ flowchart TB
 
   EX --> TM[Tool Registry]
   TM --> SP[UpUpAgentSpec tool allowlist]
-  SP --> SF[Safety policy: safe / warning / dangerous / critical]
+SP --> SF[Safety policy: safe / warning / dangerous / critical]
+
+  SF --> PA[AgentSpec packages allowlist]
+  PA --> DC[Dependency closure: exact version / enabled / cycle-free]
+  EXR --> HC[Host contract handshake: package name / exact version / capability]
 ```
 
 ## Trust and package flow
@@ -69,7 +73,29 @@ sequenceDiagram
   `.pi/settings.json` (validated by `check-pi-packages`).
 - No remote HEAD; production never auto-fetches unknown commits.
 - Allowlist is enforced before any extension code is `require`d.
+- `UpUpAgentSpec.packages` can explicitly select the Package surface for a
+  session. The loader enables only that allowlist plus its internal `@upup/*`
+  runtime dependency closure; conflicting versions, missing/disabled
+  dependencies, and cycles fail before Pi session creation. If rollback would
+  violate the closure, the catalog restores the previous record transactionally.
 - Skill forks fail loud (`SubagentRunner` compat preserved during migration).
+- Host-backed finance Extensions must complete the versioned `upup.pi.finance.host.v1`
+  handshake with the exact package identity `@upup/pi-finance-sdk@0.1.0` and an
+  allowlisted capability before receiving UpUp production tool definitions. A
+  contract, package identity, session identity, or capability mismatch returns no
+  definitions and never invokes the host provider. This prevents a third-party
+  Extension from impersonating the built-in finance Package.
+- Enabled Packages must not declare the same slash command. The catalog checks
+  command ownership during registration, enablement, and allowlist selection;
+  conflicts fail transactionally so a load-order-dependent command override can
+  never reach Pi. When an AgentSpec uses an explicit Package allowlist, catalog
+  registration may defer this check until selection so an unselected Package
+  cannot block an otherwise valid minimal Session.
+- The legacy UpUp Plugin Loader and runtime adapters are not production Agent
+  execution paths. Existing plugin management/data adapters remain compatibility
+  boundaries, but a loaded plugin reaches an Agent only through
+  `src/runtime/pi/plugin-adapter.ts`, where Pi tool registration, allowlists,
+  permissions, sandbox checks, and evidence auditing are applied.
 
 ## Failure modes
 

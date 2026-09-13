@@ -22,8 +22,24 @@ export interface Notification {
   error?: string;
 }
 
-const notificationLog: Notification[] = [];
 const MAX_LOG = 100;
+
+export interface NotificationStore {
+  readonly notifications: Notification[];
+}
+
+export function createNotificationStore(): NotificationStore {
+  return { notifications: [] };
+}
+
+const defaultNotificationStore = createNotificationStore();
+
+function appendNotification(store: NotificationStore, notification: Notification): void {
+  store.notifications.push(notification);
+  if (store.notifications.length > MAX_LOG) {
+    store.notifications.splice(0, store.notifications.length - MAX_LOG);
+  }
+}
 
 // Webhook sender (no external deps)
 async function sendWebhook(url: string, payload: Record<string, unknown>): Promise<{ ok: boolean; error?: string }> {
@@ -106,7 +122,8 @@ Returns the most recent notifications with status and timestamps.`;
 // Tool Factories
 // ============================================================================
 
-export function createNotifyTool(): PiTool {
+export function createNotifyTool(options: { store?: NotificationStore } = {}): PiTool {
+  const store = options.store ?? defaultNotificationStore;
   return new PiTool({
     name: 'notify',
     description: NOTIFY_DESCRIPTION,
@@ -128,7 +145,7 @@ export function createNotifyTool(): PiTool {
           if (!input.url) {
             notification.status = 'failed';
             notification.error = 'URL required for webhook channel';
-            notificationLog.push(notification);
+            appendNotification(store, notification);
             return `Error: URL required for webhook channel.`;
           }
           const result = await sendWebhook(input.url, {
@@ -143,7 +160,7 @@ export function createNotifyTool(): PiTool {
           if (!input.url) {
             notification.status = 'failed';
             notification.error = 'URL required for feishu channel';
-            notificationLog.push(notification);
+            appendNotification(store, notification);
             return `Error: URL required for feishu channel.`;
           }
           const result = await sendWebhook(input.url, {
@@ -161,10 +178,7 @@ export function createNotifyTool(): PiTool {
         notification.error = err instanceof Error ? err.message : String(err);
       }
 
-      notificationLog.push(notification);
-      if (notificationLog.length > MAX_LOG) {
-        notificationLog.splice(0, notificationLog.length - MAX_LOG);
-      }
+      appendNotification(store, notification);
 
       if (notification.status === 'sent') {
         return `Notification sent via ${input.channel}.\nID: ${notification.id}\nLevel: ${level}\nTitle: ${input.title}`;
@@ -174,13 +188,14 @@ export function createNotifyTool(): PiTool {
   });
 }
 
-export function createNotifyListTool(): PiTool {
+export function createNotifyListTool(options: { store?: NotificationStore } = {}): PiTool {
+  const store = options.store ?? defaultNotificationStore;
   return new PiTool({
     name: 'notify_list',
     description: NOTIFY_LIST_DESCRIPTION,
     schema: NotifyListSchema,
     async func(input): Promise<string> {
-      let filtered = [...notificationLog];
+      let filtered = [...store.notifications];
 
       if (input.channel) {
         filtered = filtered.filter(n => n.channel === input.channel);
@@ -189,7 +204,7 @@ export function createNotifyListTool(): PiTool {
         filtered = filtered.filter(n => n.level === input.level);
       }
 
-      filtered.sort((a, b) => b.timestamp - a.timestamp);
+      filtered.sort((a, b) => b.timestamp - a.timestamp || b.id.localeCompare(a.id));
 
       const limit = input.limit ?? 20;
       const shown = filtered.slice(0, limit);

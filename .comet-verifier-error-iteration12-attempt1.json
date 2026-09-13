@@ -1,0 +1,8 @@
+{
+  "kind": "verifier-execution-error",
+  "summary": "iteration 12 Attempt 1 的独立 Verifier execution 已从本机进程表消失，Comet 仍报告 running；该候选的 Runtime 检查曾因 Manifest 测试夹具字面量类型错误导致 typecheck/full-test/build 失败，随后已修复并重新验证为 typecheck 通过、全量回归 4201/0、构建通过。未收到 A1-A20 独立语义验收结果，必须基于修复后的最新工作区重新生成候选。",
+  "stateVersion": 138,
+  "iteration": 12,
+  "attempt": 1,
+  "verifierExecutionRef": "skill-coordinated:verifier:82e58ba2-fe86-48a1-a77f-02fa85653474"
+}

@@ -48,9 +48,22 @@ describe('Pi plugin trust policy', () => {
     const { root } = fixture();
     const packageDir = join(root, 'package');
     mkdirSync(packageDir);
-    writeFileSync(join(packageDir, 'package.json'), JSON.stringify({ name: 'pi-finance-fixture', version: '1.2.3' }));
+    writeFileSync(join(packageDir, 'package.json'), JSON.stringify({ name: 'pi-finance-fixture', version: '1.2.3', pi: { source: 'fixture:test' } }));
     writeFileSync(join(packageDir, 'index.md'), 'finance');
     expect(() => verifyPiResourceTrust([packageDir], { trustedPaths: [packageDir], pinnedPackages: {} }, root)).toThrow('pinned package allowlist');
-    expect(verifyPiResourceTrust([packageDir], { trustedPaths: [packageDir], pinnedPackages: { 'pi-finance-fixture': '1.2.3' } }, root).audits[0]).toMatchObject({ packageName: 'pi-finance-fixture', packageVersion: '1.2.3' });
+    expect(verifyPiResourceTrust([packageDir], { trustedPaths: [packageDir], pinnedPackages: { 'pi-finance-fixture': '1.2.3' }, allowedSources: { 'pi-finance-fixture': ['fixture:test'] } }, root).audits[0]).toMatchObject({ packageName: 'pi-finance-fixture', packageVersion: '1.2.3', packageSource: 'fixture:test' });
+  });
+
+  test('rejects a pinned package from an unallowlisted source', () => {
+    const { root } = fixture();
+    const packageDir = join(root, 'package-source');
+    mkdirSync(packageDir);
+    writeFileSync(join(packageDir, 'package.json'), JSON.stringify({ name: 'pi-finance-fixture', version: '1.2.3', pi: { source: 'untrusted:registry' } }));
+    writeFileSync(join(packageDir, 'index.md'), 'finance');
+    expect(() => verifyPiResourceTrust([packageDir], {
+      trustedPaths: [packageDir],
+      pinnedPackages: { 'pi-finance-fixture': '1.2.3' },
+      allowedSources: { 'pi-finance-fixture': ['fixture:test'] },
+    }, root)).toThrow('not allowlisted');
   });
 });

@@ -3,7 +3,7 @@ name: pi5-core-agent-migration
 language: zh-CN
 phase: verify
 status: active
-state_version: 119
+state_version: 142
 brief: brief.md
 spec_changes: []
 workspace:
@@ -14,14 +14,14 @@ workspace:
 loop:
   stage: verify-ready
   goal_cycle: 1
-  iteration: 8
-  attempt: 0
+  iteration: 12
+  attempt: 3
   retry_epoch: 12
   failed_iteration_count: 0
   no_progress_count: 0
-  execution_failure_count: 0
+  execution_failure_count: 2
   previous_unresolved_ids: []
-  next_action: run-required-checks-and-dispatch-verifier
+  next_action: await-verifier-result
 acceptance:
   - id: A1
     source: brief.md
@@ -147,15 +147,19 @@ acceptance:
     result: pending
     reason: null
 builder_handoff:
-  candidate_id: f32596ec-7bd4-4478-9e29-16d27f25ba79
+  candidate_id: 6380f6b1-3341-4b69-9183-35c442f5bdbf
   identity_provider: skill-coordinated
-  builder_execution_ref: skill-coordinated:builder:bcb496e3-c8bc-4fdb-9b68-0db56472b37b
-  iteration: 8
+  builder_execution_ref: skill-coordinated:builder:7ed55c61-d80f-44cf-b34c-4e2b42737f8a
+  iteration: 12
   summary:
-    text: 修复 A9 Pi Tool Contract 语义缺口：五个 Finance fixture 显式声明
-      maxConcurrent，统一在执行入口检查 AbortSignal；行情 fixture 保留 progress/onUpdate。新增 Pi
-      registerTool 执行回归，确保 safety、concurrency、progress、details、AbortSignal
-      均被真实验证。旧 Agent loop、LangChain Runtime、Paperclip 和重复 Pi Factory 仍保持删除/禁止。
+    text: 最新候选覆盖当前全部工作区改动：Pi Runtime 是唯一生产 Agent 核心，旧 Agent/LangChain/Paperclip
+      路径保持删除或由门禁阻断。金融能力继续通过 Pi
+      Package/Extension/Skill/Prompt/Workflow/Policy/Eval 提供。本轮新增并验证 A12/A14
+      安全边界：Pi Package 必须声明 pi.source，部署策略按包名精确 allowedSources
+      校验；dependencies、devDependencies、peerDependencies、optionalDependencies 必须
+      exact semver；敏感插件工具必须使用 WASM/MCP 隔离并声明 networkDomains 与
+      credentialScopes，Pi 结果携带脱敏 securityAudit；Manifest 直接校验合法 scope 与空 scope
+      拒绝。
     truncated: false
   addressed_acceptance_ids:
     - A1
@@ -191,7 +195,7 @@ builder_handoff:
         truncated: false
       result: passed
       note:
-        text: bun run check:pi-packages
+        text: bun run check:pi-packages with pi.source and exact dependency checks
         truncated: false
     - name:
         text: Pi runtime gate
@@ -208,19 +212,33 @@ builder_handoff:
         text: bun run typecheck
         truncated: false
     - name:
-        text: Pi fixture and finance contracts
+        text: Pi contract and finance suite
         truncated: false
       result: passed
       note:
-        text: Pi contract suite 111 pass / 0 fail after A9 regression; Finance SDK 2
-          pass / 0 fail
+        text: Pi contracts 118 pass / 0 fail; Finance SDK 2 pass / 0 fail
+        truncated: false
+    - name:
+        text: Plugin trust/package/sandbox/security regression
+        truncated: false
+      result: passed
+      note:
+        text: 20 pass / 0 fail; source allowlist, exact dependency, sandbox,
+          networkDomains, credentialScopes and securityAudit covered
+        truncated: false
+    - name:
+        text: Manifest security scope regression
+        truncated: false
+      result: passed
+      note:
+        text: 2 pass / 0 fail; valid declarations load and malformed empty scopes reject
         truncated: false
     - name:
         text: Full regression suite
         truncated: false
       result: passed
       note:
-        text: "bun test: 4191 pass / 0 fail, 13422 assertions, 290 files"
+        text: 4201 pass / 0 fail, 13434 assertions, 290 files
         truncated: false
     - name:
         text: Distributable build
@@ -238,67 +256,16 @@ builder_handoff:
         truncated: false
   checks_truncated: false
   known_limits:
-    - text: 独立语义 Verifier 尚未对本轮 A9 修复给出逐项结论；A1-A20 仍需 Runtime 重新派发后独立审查。
+    - text: 独立语义 Verifier 尚未对当前候选给出逐项结论；A1-A20 需独立审查。
       truncated: false
     - text: 真实外部行情、真实券商交易和 live trading 未启用；金融验证使用 deterministic fixtures 和 sandbox
         policy。
       truncated: false
   known_limits_truncated: false
-  submitted_at: 2026-09-13T10:23:31.839Z
+  submitted_at: 2026-09-13T10:53:33.227Z
 blockers: []
 verification: null
 history:
-  - goal_cycle: 1
-    iteration: 1
-    attempt: 1
-    outcome: execution-error
-    unresolved_ids: []
-    summary:
-      text: The previously dispatched verifier execution is no longer present in the
-        local process table, while Runtime still reports it as running. No
-        verifier result was received; implementation and acceptance state are
-        preserved for a Runtime-directed retry.
-      truncated: false
-    completed_at: 2026-09-12T23:36:26.459Z
-  - goal_cycle: 1
-    iteration: 1
-    attempt: 2
-    outcome: execution-error
-    unresolved_ids: []
-    summary:
-      text: Runtime-owned verifier checks were interrupted immediately because the
-        resolved cwd was /Users/louloulin/appx/upup/project-root, which does not
-        exist in the bound current workspace /Users/louloulin/appx/upup. All
-        four checks exited -2 within 2-6ms before executing; no code-level
-        result was produced.
-      truncated: false
-    completed_at: 2026-09-13T00:37:06.690Z
-  - goal_cycle: 1
-    iteration: 1
-    attempt: 3
-    outcome: execution-error
-    unresolved_ids: []
-    summary:
-      text: "The independent Verifier process is no longer present while Runtime still
-        reports it as running. Attempt 3 produced Runtime check results before
-        the semantic process disappeared: static gate and typecheck passed;
-        adapter suite failed only because the temporary project-root symlink
-        caused plugin trust hashing to recurse with ELOOP; architecture check
-        failed because its resolved command still referenced the stale
-        docs/architecture/pi-runtime.md path. The symlink has been removed and
-        plugin trust now rejects symlinks; local plugin regression is 18/0."
-      truncated: false
-    completed_at: 2026-09-13T00:46:44.924Z
-  - goal_cycle: 1
-    iteration: 1
-    attempt: 3
-    outcome: recovery
-    unresolved_ids: []
-    summary:
-      text: Verifier 检查暴露了插件信任哈希会跟随符号链接并触发递归/路径逃逸；已在 plugin-trust 中拒绝顶层和嵌套符号链接，并新增回归测试
-        18/0。另需重新生成不含旧项目根路径和旧架构文件名的 Runtime 验证计划。
-      truncated: false
-    completed_at: 2026-09-13T00:47:32.505Z
   - goal_cycle: 1
     iteration: 2
     attempt: 1
@@ -734,16 +701,120 @@ history:
         执行回归。最新本地门禁、类型检查、构建和完整回归 4191/0 全部通过。保留 A1-A20 需求，当前候选需要重新生成并重新独立验收。
       truncated: false
     completed_at: 2026-09-13T10:23:22.843Z
+  - goal_cycle: 1
+    iteration: 8
+    attempt: 1
+    outcome: recovery
+    unresolved_ids: []
+    summary:
+      text: Attempt 1 派发后发现并修复 A14 插件安全边界：Pi Plugin Bridge 现在强制校验 manifest
+        security.sandbox 与 runtime 匹配；dangerous/critical 或有金融影响的插件工具若缺少显式
+        process/wasm/mcp sandbox 则在注册 Pi 前拒绝，并新增两条回归。最新本地门禁、类型检查、构建和完整回归 4193/0
+        全部通过。保留 A1-A20 需求，当前候选需要重新生成并重新独立验收。
+      truncated: false
+    completed_at: 2026-09-13T10:30:32.679Z
+  - goal_cycle: 1
+    iteration: 9
+    attempt: 1
+    outcome: recovery
+    unresolved_ids: []
+    summary:
+      text: A14 第二轮隔离修复已完成：敏感金融插件工具禁止 Bun/Jiti 进程内执行，必须使用 WASM 或 MCP 隔离运行时；A9 fixture
+        契约修复继续保留。当前本地门禁、类型检查、Pi 合约、定向安全回归、完整回归、构建和 diff hygiene
+        均通过。请基于当前工作区重新生成候选并重新独立验收 A1-A20。
+      truncated: false
+    completed_at: 2026-09-13T10:36:10.982Z
+  - goal_cycle: 1
+    iteration: 10
+    attempt: 1
+    outcome: execution-error
+    unresolved_ids: []
+    summary:
+      text: iteration 10 Attempt 1 的独立 Verifier execution 已从本机进程表消失，Comet 仍报告
+        running；未收到 A1-A20 独立语义验收结果。Runtime-owned checks 已全部通过，不能将其替代独立语义验收。
+      truncated: false
+    completed_at: 2026-09-13T10:40:01.928Z
+  - goal_cycle: 1
+    iteration: 10
+    attempt: 2
+    outcome: execution-error
+    unresolved_ids: []
+    summary:
+      text: iteration 10 Attempt 2 的独立 Verifier execution 已从本机进程表消失，Comet 仍报告
+        running；未收到 A1-A20 独立语义验收结果。该候选之后又完成了 Pi Package
+        来源/依赖锁定和插件网络/凭证审计修复，因此必须基于最新工作区重新生成候选。
+      truncated: false
+    completed_at: 2026-09-13T10:46:58.921Z
+  - goal_cycle: 1
+    iteration: 10
+    attempt: 2
+    outcome: recovery
+    unresolved_ids: []
+    summary:
+      text: 当前工作区新增并已验证 A12/A14 强化：Pi Package 必须声明 pi.source，部署策略按包名精确 allowedSources
+        校验；dependencies、devDependencies、peerDependencies、optionalDependencies 必须
+        exact semver；敏感插件工具必须声明 networkDomains 与 credentialScopes，Pi 结果携带脱敏
+        securityAudit。Pi 合约 118/0，Finance SDK 2/0，定向插件/信任/包回归
+        20/0，门禁、类型检查、构建通过；全量回归仅一次性文件监听测试偶发失败，单独重跑通过。请重新生成最新候选。
+      truncated: false
+    completed_at: 2026-09-13T10:47:02.300Z
+  - goal_cycle: 1
+    iteration: 11
+    attempt: 1
+    outcome: execution-error
+    unresolved_ids: []
+    summary:
+      text: iteration 11 Attempt 1 的独立 Verifier execution 已从本机进程表消失，Comet 仍报告
+        running；未收到 A1-A20 独立语义验收结果。Runtime-owned checks 已全部通过，但 A1-A20
+        不能据此标记为独立验证通过。
+      truncated: false
+    completed_at: 2026-09-13T10:51:29.317Z
+  - goal_cycle: 1
+    iteration: 11
+    attempt: 1
+    outcome: recovery
+    unresolved_ids: []
+    summary:
+      text: 最新工作区已完成并验证 Manifest 安全 scope 回归：networkDomains/credentialScopes 合法声明可加载，空
+        scope 被拒绝。当前真实结果：Pi 合约 118/0、Finance SDK 2/0、插件/信任/包/沙箱/安全审计定向回归
+        20/0、Manifest scope 回归 2/0、完整回归 4201/0（13434 assertions，290
+        files）、门禁/类型检查/构建/diff check 全部通过。请基于当前工作区重新生成候选。
+      truncated: false
+    completed_at: 2026-09-13T10:53:27.829Z
+  - goal_cycle: 1
+    iteration: 12
+    attempt: 1
+    outcome: execution-error
+    unresolved_ids: []
+    summary:
+      text: iteration 12 Attempt 1 的独立 Verifier execution 已从本机进程表消失，Comet 仍报告
+        running；该候选的 Runtime 检查曾因 Manifest 测试夹具字面量类型错误导致
+        typecheck/full-test/build 失败，随后已修复并重新验证为 typecheck 通过、全量回归
+        4201/0、构建通过。未收到 A1-A20 独立语义验收结果，必须基于修复后的最新工作区重新生成候选。
+      truncated: false
+    completed_at: 2026-09-13T10:57:23.621Z
+  - goal_cycle: 1
+    iteration: 12
+    attempt: 2
+    outcome: execution-error
+    unresolved_ids: []
+    summary:
+      text: Independent Verifier execution disappeared before returning a semantic
+        A1-A20 result. The old candidate was submitted before the latest Package
+        Catalog security changes; do not treat its missing result or its older
+        checks as validation of the current workspace.
+      truncated: false
+    completed_at: 2026-09-13T11:57:13.563Z
 history_overflow:
-  dropped_entries: 0
-  first_dropped_at: null
-  last_dropped_at: null
+  dropped_entries: 4
+  first_dropped_at: 2026-09-12T23:36:26.459Z
+  last_dropped_at: 2026-09-13T00:47:32.505Z
   outcome_counts:
     pass: 0
     fail: 0
     blocked: 0
-    execution-error: 0
-    recovery: 0
+    execution-error: 3
+    recovery: 1
 verification_result: pending
 verification_report: null
 archived: false

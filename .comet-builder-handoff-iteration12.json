@@ -1,0 +1,21 @@
+{
+  "kind": "builder-handoff",
+  "summary": "最新候选覆盖当前全部工作区改动：Pi Runtime 是唯一生产 Agent 核心，旧 Agent/LangChain/Paperclip 路径保持删除或由门禁阻断。金融能力继续通过 Pi Package/Extension/Skill/Prompt/Workflow/Policy/Eval 提供。本轮新增并验证 A12/A14 安全边界：Pi Package 必须声明 pi.source，部署策略按包名精确 allowedSources 校验；dependencies、devDependencies、peerDependencies、optionalDependencies 必须 exact semver；敏感插件工具必须使用 WASM/MCP 隔离并声明 networkDomains 与 credentialScopes，Pi 结果携带脱敏 securityAudit；Manifest 直接校验合法 scope 与空 scope 拒绝。",
+  "addressed_acceptance_ids": ["A1","A2","A3","A4","A5","A6","A7","A8","A9","A10","A11","A12","A13","A14","A15","A16","A17","A18","A19","A20"],
+  "checks": [
+    {"name":"Pi migration static gate","result":"passed","note":"bun run check:pi-migration"},
+    {"name":"Pi package ecosystem gate","result":"passed","note":"bun run check:pi-packages with pi.source and exact dependency checks"},
+    {"name":"Pi runtime gate","result":"passed","note":"bun run check:pi-runtime"},
+    {"name":"Typecheck","result":"passed","note":"bun run typecheck"},
+    {"name":"Pi contract and finance suite","result":"passed","note":"Pi contracts 118 pass / 0 fail; Finance SDK 2 pass / 0 fail"},
+    {"name":"Plugin trust/package/sandbox/security regression","result":"passed","note":"20 pass / 0 fail; source allowlist, exact dependency, sandbox, networkDomains, credentialScopes and securityAudit covered"},
+    {"name":"Manifest security scope regression","result":"passed","note":"2 pass / 0 fail; valid declarations load and malformed empty scopes reject"},
+    {"name":"Full regression suite","result":"passed","note":"4201 pass / 0 fail, 13434 assertions, 290 files"},
+    {"name":"Distributable build","result":"passed","note":"bun run build; dist/upup compiled successfully"},
+    {"name":"Diff hygiene","result":"passed","note":"git diff --check"}
+  ],
+  "known_limits": [
+    "独立语义 Verifier 尚未对当前候选给出逐项结论；A1-A20 需独立审查。",
+    "真实外部行情、真实券商交易和 live trading 未启用；金融验证使用 deterministic fixtures 和 sandbox policy。"
+  ]
+}
