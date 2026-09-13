@@ -1,7 +1,0 @@
-{"type":"session","version":3,"id":"sdk-pi-fixture","timestamp":"2026-09-13T21:05:00.807Z","cwd":"/Users/louloulin/appx/upup"}
-{"type":"model_change","id":"fded2faa","parentId":null,"timestamp":"2026-09-13T21:05:00.715Z","provider":"deepseek","modelId":"deepseek-v4-flash"}
-{"type":"thinking_level_change","id":"2bb9ec28","parentId":"fded2faa","timestamp":"2026-09-13T21:05:00.715Z","thinkingLevel":"high"}
-{"type":"model_change","id":"eb0bdbff","parentId":"2bb9ec28","timestamp":"2026-09-13T21:05:00.765Z","provider":"deepseek","modelId":"deepseek-v4-flash"}
-{"type":"thinking_level_change","id":"f98b089f","parentId":"eb0bdbff","timestamp":"2026-09-13T21:05:00.766Z","thinkingLevel":"high"}
-{"type":"model_change","id":"3f9f0986","parentId":"f98b089f","timestamp":"2026-09-13T21:05:00.805Z","provider":"deepseek","modelId":"deepseek-v4-flash"}
-{"type":"thinking_level_change","id":"b1d4a3d8","parentId":"3f9f0986","timestamp":"2026-09-13T21:05:00.805Z","thinkingLevel":"high"}

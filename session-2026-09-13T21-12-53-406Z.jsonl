@@ -1,7 +1,0 @@
-{"type":"session","version":3,"id":"sdk-pi-fixture","timestamp":"2026-09-13T21:12:53.406Z","cwd":"/Users/louloulin/appx/upup"}
-{"type":"model_change","id":"11680357","parentId":null,"timestamp":"2026-09-13T21:12:53.320Z","provider":"deepseek","modelId":"deepseek-v4-flash"}
-{"type":"thinking_level_change","id":"d73a1cb3","parentId":"11680357","timestamp":"2026-09-13T21:12:53.320Z","thinkingLevel":"high"}
-{"type":"model_change","id":"97609921","parentId":"d73a1cb3","timestamp":"2026-09-13T21:12:53.367Z","provider":"deepseek","modelId":"deepseek-v4-flash"}
-{"type":"thinking_level_change","id":"526a9934","parentId":"97609921","timestamp":"2026-09-13T21:12:53.367Z","thinkingLevel":"high"}
-{"type":"model_change","id":"b0fca529","parentId":"526a9934","timestamp":"2026-09-13T21:12:53.404Z","provider":"deepseek","modelId":"deepseek-v4-flash"}
-{"type":"thinking_level_change","id":"8630c474","parentId":"b0fca529","timestamp":"2026-09-13T21:12:53.404Z","thinkingLevel":"high"}

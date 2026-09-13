@@ -1,3 +1,0 @@
-{"type":"session","version":3,"id":"sdk-pi-fixture","timestamp":"2026-09-12T18:11:23.102Z","cwd":"/Users/louloulin/appx/upup"}
-{"type":"model_change","id":"1ca5ca3f","parentId":null,"timestamp":"2026-09-12T18:11:23.099Z","provider":"deepseek","modelId":"deepseek-v4-flash"}
-{"type":"thinking_level_change","id":"5d06fc6b","parentId":"1ca5ca3f","timestamp":"2026-09-12T18:11:23.099Z","thinkingLevel":"high"}

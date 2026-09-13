@@ -81,7 +81,8 @@ export function calculateTransactionCosts(
   const exitNotional = exitFillPrice * quantity;
   const entryCommission = commission(entryNotional, model);
   const exitCommission = commission(exitNotional, model);
-  const stampDuty = resolveStampDuty(model, entryNotional, exitNotional);
+  const stampDutyField = (model.stampDuty ?? model) as BacktestStampDuty & BacktestLegacyStampDuty;
+  const stampDuty = resolveStampDuty(stampDutyField, entryNotional, exitNotional);
   const slippageCost = (Math.abs(entryFillPrice - entryPrice) + Math.abs(exitPrice - exitFillPrice)) * quantity;
   const grossPnl = (exitPrice - entryPrice) * quantity;
   const totalCost = entryCommission + exitCommission + stampDuty.buyDuty + stampDuty.sellDuty + slippageCost;
@@ -110,14 +111,14 @@ export function calculateTransactionCosts(
 }
 
 export function resolveStampDuty(model: BacktestStampDuty | BacktestLegacyStampDuty | undefined, entryNotional: number, exitNotional: number): BacktestStampDutyBreakdown {
-  const stampDuty = (model ?? {}) as BacktestStampDuty & BacktestLegacyStampDuty;
-  const hasNewDuty = stampDuty && typeof stampDuty === 'object' && 'regime' in stampDuty && stampDuty.regime !== undefined;
-  const legacyBps = stampDuty.stampDutyBps;
-  const regime: BacktestStampDutyRegime = hasNewDuty ? stampDuty.regime as BacktestStampDutyRegime : (legacyBps === undefined ? 'none' : (stampDuty.applyStampDutyOnSell === false ? 'cn_a_share' : 'cn_a_share'));
+  const input = (model ?? {}) as BacktestStampDuty & BacktestLegacyStampDuty;
+  const hasNewDuty = input && typeof input === 'object' && 'regime' in input && input.regime !== undefined;
+  const legacyBps = input.stampDutyBps;
+  const regime: BacktestStampDutyRegime = hasNewDuty ? input.regime as BacktestStampDutyRegime : (legacyBps === undefined ? 'none' : (input.applyStampDutyOnSell === false ? 'cn_a_share' : 'cn_a_share'));
   const defaults = DEFAULT_STAMP_DUTY[regime];
-  const buyBps = nonNegative(hasNewDuty ? stampDuty.buyBps ?? defaults.buyBps : 0, 'stampDuty.buyBps');
-  const sellBps = nonNegative(hasNewDuty ? stampDuty.sellBps ?? defaults.sellBps : legacyBps ?? defaults.sellBps, 'stampDuty.sellBps');
-  const buyOnly = stampDuty.buyOnly === true || (legacyBps !== undefined && stampDuty.applyStampDutyOnSell === false);
+  const buyBps = nonNegative(hasNewDuty ? input.buyBps ?? defaults.buyBps : 0, 'stampDuty.buyBps');
+  const sellBps = nonNegative(hasNewDuty ? input.sellBps ?? defaults.sellBps : legacyBps ?? defaults.sellBps, 'stampDuty.sellBps');
+  const buyOnly = input.buyOnly === true || (legacyBps !== undefined && input.applyStampDutyOnSell === false);
   const buyDuty = buyOnly ? 0 : entryNotional * buyBps / 10_000;
   const sellDuty = exitNotional * sellBps / 10_000;
   return { regime, buyBps, sellBps, buyDuty: round(buyDuty), sellDuty: round(sellDuty) };

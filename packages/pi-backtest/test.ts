@@ -8,6 +8,12 @@ const bars = [
 ];
 const config = { evalWindowDays: 3, neutralBandPct: 2, engineVersion: 'v1' };
 
+const tradingDayBars = [
+  { date: '2026-01-05', high: 105, low: 99, close: 104 },
+  { date: '2026-01-06', high: 110, low: 103, close: 108 },
+  { date: '2026-01-07', high: 112, low: 106, close: 110 },
+];
+
 describe('pi-backtest', () => {
   test('runs a deterministic lump-sum fund NAV backtest without a data source', () => {
     const result = runFundBacktest({ fundCode: '000300', startDate: '2026-01-01', endDate: '2026-01-04', initialAmount: 10_000, strategy: 'lump_sum' }, [
@@ -41,21 +47,21 @@ describe('pi-backtest', () => {
     expect(inferPosition('观望')).toBe('cash');
   });
   test('evaluates long trade and take-profit target', () => {
-    const result = evaluateTrade({ symbol: '600519.SH', analysisDate: '2026-01-01', operationAdvice: '买入', entryPrice: 100, takeProfit: 109, quantity: 100 }, bars, config);
+    const result = evaluateTrade({ symbol: '600519.SH', analysisDate: '2026-01-02', operationAdvice: '买入', entryPrice: 100, takeProfit: 109, quantity: 100 }, tradingDayBars, config);
     expect(result.evalStatus).toBe('completed');
     expect(result.outcome).toBe('win');
     expect(result.firstHit).toBe('take_profit');
     expect(result.simulatedExitPrice).toBe(109);
-    expect(result.simulatedReturnPct).toBeCloseTo(0, 8);
-    expect(result.grossSimulatedReturnPct).toBeCloseTo(9, 8);
+    expect(result.simulatedReturnPct).toBeCloseTo(9, 4);
+    expect(result.grossSimulatedReturnPct).toBeCloseTo(9, 4);
   });
   test('marks insufficient data and cash position deterministically', () => {
-    const insufficient = evaluateTrade({ symbol: 'AAPL', analysisDate: '2026-01-01', operationAdvice: '观望', entryPrice: 100, quantity: 1 }, bars.slice(0, 2), config);
+    const insufficient = evaluateTrade({ symbol: 'AAPL', analysisDate: '2026-01-02', operationAdvice: '观望', entryPrice: 100, quantity: 1 }, bars.slice(0, 2), config);
     expect(insufficient.evalStatus).toBe('insufficient_data');
     expect(insufficient.positionRecommendation).toBe('cash');
   });
   test('computes summary and win rate without hidden data', () => {
-    const results = [evaluateTrade({ symbol: 'A', analysisDate: '2026-01-01', operationAdvice: '买入', entryPrice: 100, quantity: 1 }, bars, config), evaluateTrade({ symbol: 'B', analysisDate: '2026-01-01', operationAdvice: '观望', entryPrice: 100, quantity: 1 }, bars.slice(0, 2), config)];
+    const results = [evaluateTrade({ symbol: 'A', analysisDate: '2026-01-02', operationAdvice: '买入', entryPrice: 100, quantity: 1 }, bars, config), evaluateTrade({ symbol: 'B', analysisDate: '2026-01-02', operationAdvice: '观望', entryPrice: 100, quantity: 1 }, bars.slice(0, 2), config)];
     const summary = computeSummary(results, 'batch', 3, 'v1');
     expect(summary.totalEvaluations).toBe(2);
     expect(summary.completedCount).toBe(1);
