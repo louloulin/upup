@@ -12,8 +12,8 @@ import {
   MCPServerDetail,
   MCPUI,
   printMCPServers,
-} from './mcp-ui.js';
-import { saveMCPConfig, loadMCPConfig } from '../commands/mcp.js';
+} from '../src/mcp-ui.js';
+import { saveMCPConfig, loadMCPConfig } from '../src/mcp-ui.js';
 import type { McpServerConfig, MCPServerStatus } from '@upup/mcp';
 
 describe('MCPServerList', () => {

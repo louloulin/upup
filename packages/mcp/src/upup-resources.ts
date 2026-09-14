@@ -18,8 +18,8 @@
  */
 
 import { DossierStore, AuditChain, StrategyStore } from '@upup/pi-storage';
-import { CitationRegistry } from '../runtime/pi/citation.js';
-import { buildEarningsPreview, buildEarningsPreviewAsync, type EarningsPreview } from '../commands/investment/earnings-preview.js';
+import { CitationRegistry } from '@upup/pi-runtime';
+import { buildEarningsPreview, type EarningsPreview } from '@upup/pi-research';
 
 // ---------------------------------------------------------------------------
 // URI parsing
@@ -169,12 +169,12 @@ export async function readEarningsPreviewCached(
     return cached.value;
   }
   try {
-    const value = await buildEarningsPreviewAsync(ticker, { plansDir: opts.plansDir });
+    const value = await buildEarningsPreview(ticker);
     earningsCache.set(ticker, { ts: now, value });
     return value;
   } catch {
     // Fall back to framework-only if the async pipeline throws.
-    const fallback = buildEarningsPreview(ticker, { plansDir: opts.plansDir });
+    const fallback = await buildEarningsPreview(ticker, { offline: true });
     earningsCache.set(ticker, { ts: now, value: fallback });
     return fallback;
   }

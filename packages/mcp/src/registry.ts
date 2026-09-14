@@ -6,8 +6,13 @@
  */
 
 import type { PiMcpTool } from '@upup/mcp';
-import type { MCPClientManager, MCPServerConnection } from '@upup/mcp';
-import { useMergedClients } from '../hooks/agent-hooks.js';
+import type { MCPClientManager, MCPServerConnection } from './client.js';
+import { getDefaultMCPClient } from './client.js';
+import { registerPiRuntimePort } from '@upup/pi-runtime';
+
+interface McpServerStatus { name: string; state: string; toolCount: number; error?: string }
+interface McpStatus { totalServers: number; connectedServers: number; totalTools: number; servers: McpServerStatus[] }
+interface McpRegistryPort { getStatus(): McpStatus }
 
 /**
  * MCP Registered Tool format
@@ -29,15 +34,8 @@ export function mcpToolsToRegisteredTools(
 ): MCPRegisteredTool[] {
   const tools: MCPRegisteredTool[] = [];
 
-  // Register connected servers with the merged client registry
-  const mergedClients = useMergedClients();
-
   for (const connection of client.getAllConnections()) {
     if (connection.state !== 'connected') continue;
-
-    // Register this server's tools in the merged registry
-    const serverToolNames = (connection.tools || []).map(t => t?.name ? `mcp__${connection.name}__${t.name}` : null).filter((n): n is string => n !== null);
-    mergedClients.register(connection.name, serverToolNames);
 
     for (const mcpTool of connection.tools || []) {
       if (!mcpTool?.name) continue;
@@ -134,35 +132,9 @@ export function getMCPStatus(client: MCPClientManager): {
 }
 
 
-// ============================================================================
-// Self-registration with public port registry
-// ============================================================================
-// Allows packages/commands/ to access MCP status without a fragile
-// 4-level `await import('../../../../../src/mcp/registry.js')` path.
-// Builds the status from the same MergedClientRegistry that the rest of the
-// module already uses.
-import {
-  registerMcpRegistryPort,
-  type McpRegistryPort,
-  type McpStatus,
-} from '../runtime/pi/agent-port.js';
 
 function registerSelf(): void {
-  const port: McpRegistryPort = {
-    getStatus(): McpStatus {
-      const merged = useMergedClients();
-      const clients = merged.getClients();
-      const totalServers = clients.length;
-      const connectedServers = clients.filter((c) => c.connected).length;
-      const totalTools = clients.reduce((sum, c) => sum + c.tools.length, 0);
-      const servers = clients.map((c) => ({
-        name: c.name,
-        state: c.connected ? 'connected' : 'disconnected',
-        toolCount: c.tools.length,
-      }));
-      return { totalServers, connectedServers, totalTools, servers };
-    },
-  };
-  registerMcpRegistryPort(port);
+  const port: McpRegistryPort = { getStatus(): McpStatus { return getMCPStatus(getDefaultMCPClient()); } };
+  registerPiRuntimePort('platform.mcp-registry', port);
 }
 registerSelf();

@@ -20,11 +20,11 @@ import {
   publishCitationSnapshot,
   readCitationSnapshot,
   readUpupResource,
-} from './upup-resources.js';
-import { DossierStore } from '../memory/dossier.js';
-import { AuditChain } from '../memory/audit-signing.js';
-import { CitationRegistry } from '../runtime/pi/citation.js';
-import { StrategyStore, computeStrategyPrevHash } from '../memory/strategy-store.js';
+} from '../src/upup-resources.js';
+import { DossierStore } from '@upup/pi-storage';
+import { AuditChain } from '@upup/pi-storage';
+import { CitationRegistry } from '@upup/pi-runtime';
+import { StrategyStore, computeStrategyPrevHash } from '@upup/pi-storage';
 
 const TMP = join(tmpdir(), `upup-mcp-resources-${process.pid}-${Date.now()}`);
 

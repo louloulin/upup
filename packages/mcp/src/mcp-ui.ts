@@ -23,9 +23,16 @@ import {
 } from '@earendil-works/pi-tui';
 import chalk from 'chalk';
 import type { McpServerConfig, MCPServerStatus } from '@upup/mcp';
-import { loadMCPConfig, getConfigPath } from '../commands/mcp.js';
-import { theme as appTheme } from '../theme.js';
-import { BorderBox, type BorderStyle } from '../components/BorderBox.js';
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { dirname, join } from 'node:path';
+import { upupPath } from '@upup/utils';
+import { BorderBox } from './border-box.js';
+
+const appTheme = { primary: (text: string) => text };
+export function getConfigPath(scope: 'project' | 'user' = 'project'): string { return scope === 'project' ? '.mcp.json' : join(homedir(), '.config', 'upup', 'mcp-servers.json'); }
+export function loadMCPConfig(configPath?: string): Record<string, McpServerConfig> { const path = configPath ?? upupPath('mcp-config.json'); try { const parsed = JSON.parse(readFileSync(path, 'utf8')) as { mcpServers?: Record<string, McpServerConfig>; servers?: Record<string, McpServerConfig> }; return parsed.mcpServers ?? parsed.servers ?? {}; } catch { return {}; } }
+export function saveMCPConfig(servers: Record<string, McpServerConfig>, configPath?: string): void { const path = configPath ?? upupPath('mcp-config.json'); mkdirSync(dirname(path), { recursive: true }); writeFileSync(path, JSON.stringify({ version: '1.0', mcpServers: servers }, null, 2)); }
 
 // ============================================================================
 // Theme - using pi-tui compatible chalk theme
@@ -108,7 +115,7 @@ export class MCPServerList extends Container {
       children.push(new Text(mcpTheme.muted('No servers configured'), 0, 0));
     } else {
       for (let i = 0; i < this.servers.length; i++) {
-        const server = this.servers[i];
+        const server = this.servers[i]!;
         const isSelected = i === this.selectedIndex;
         const statusIcon = this.getStatusIcon(server);
         const prefix = isSelected ? appTheme.primary('▶ ') : '  ';

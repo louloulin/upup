@@ -13,7 +13,7 @@ import {
   extractCitationRefs,
   renderCitationFooter,
   type CitationRef,
-} from './citation.js';
+} from '@upup/pi-runtime';
 
 describe('CitationRegistry', () => {
   test('numbers citations 1-based and rejects missing required fields', () => {

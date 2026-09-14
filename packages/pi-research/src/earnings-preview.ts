@@ -1,12 +1,13 @@
 import { NativeEarningsTranscriptClient, createNativeResearchDataAdapters } from '@upup/pi-finance-sdk';
 import type { NativeTranscriptRef } from '@upup/pi-finance-sdk';
+import { buildResearchPlan, type ResearchPlan } from '@upup/pi-planning';
 import { searchX as searchPackageX } from './search.js';
 
 export type EarningsPreviewSource = 'framework' | 'partial' | 'full';
 export interface ConsensusEstimate { readonly period: string; readonly metric: string; readonly consensus: number; readonly prior?: number; readonly revisionPct?: number; readonly currency?: string; }
 export interface TweetRef { readonly handle: string; readonly tweetId: string; readonly url: string; readonly ts: number; readonly authorKind: 'analyst-sell' | 'analyst-buy' | 'analyst-other' | 'company' | 'other'; readonly snippet: string; }
 export type TranscriptRef = NativeTranscriptRef;
-export interface EarningsPreview { readonly ticker: string; readonly generatedAt: number; readonly source: EarningsPreviewSource; readonly consensus: readonly ConsensusEstimate[]; readonly recentTweets: readonly TweetRef[]; readonly transcripts: readonly TranscriptRef[]; }
+export interface EarningsPreview { readonly ticker: string; readonly generatedAt: number; readonly source: EarningsPreviewSource; readonly consensus: readonly ConsensusEstimate[]; readonly recentTweets: readonly TweetRef[]; readonly transcripts: readonly TranscriptRef[]; readonly planFramework: ResearchPlan; }
 export type TranscriptFetcher = (ticker: string, options: { readonly limit: number; readonly windowDays: number }) => Promise<readonly TranscriptRef[]>;
 export interface BuildEarningsPreviewOptions { readonly now?: () => number; readonly offline?: boolean; readonly transcriptFetcher?: TranscriptFetcher; readonly researchApiKey?: string; }
 
@@ -58,5 +59,17 @@ export async function buildEarningsPreview(ticker: string, options: BuildEarning
     fetchTranscripts(normalized, options),
   ]);
   const reached = [consensus.length > 0, tweets.length > 0, transcripts.length > 0].filter(Boolean).length;
-  return { ticker: normalized, generatedAt: now(), source: reached === 3 ? 'full' : reached > 0 ? 'partial' : 'framework', consensus, recentTweets: tweets, transcripts };
+  return {
+    ticker: normalized,
+    generatedAt: now(),
+    source: reached === 3 ? 'full' : reached > 0 ? 'partial' : 'framework',
+    consensus,
+    recentTweets: tweets,
+    transcripts,
+    planFramework: buildResearchPlan(`分析 ${normalized} 估值与财报`, {
+      description: `财报前瞻: 下次财报日期 + 共识预期 + 历史 surprise 平均`,
+      ticker: normalized,
+      phases: ['research', 'valuation'],
+    }),
+  };
 }

@@ -502,3 +502,5 @@ export function createFinanceSessionExtension(context: FinanceSessionExtensionCo
     },
   };
 }
+
+export * from './citation.js';

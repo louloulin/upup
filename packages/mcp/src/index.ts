@@ -44,6 +44,10 @@ export type {
 } from './client.js';
 export type { PiMcpTool } from './pi-tool.js';
 export { isInvestmentMcpConfigured } from './investment-data.js';
+export * from './mcp-ui.js';
+export * from './registry.js';
+export * from './plugin-integration.js';
+export * from './upup-resources.js';
 
 // MCP Client classes and functions
 export {
