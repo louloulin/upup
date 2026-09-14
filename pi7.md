@@ -225,3 +225,44 @@ src bootstrap
 - 第八轮：`src/tui` / `src/components` → `@upup/pi-tui-app`，CLI/transport 降为 bootstrap。
 - 第九轮：删除 `legacy-events`、旧 facade 和所有无消费者兼容层。
 - 第十轮：全仓测试、构建、入口 smoke、并发恢复验证和真实 provider smoke。
+
+## 11. 第五轮 Pi7 实施结果（@upup/skills core 物理下沉）
+
+### 11.1 src/skills/{types,slash-command,recent-usage,search} 物理迁移
+
+- `git mv` 4 个文件至 `packages/skills/src/`：
+  - `src/skills/types.ts` → `packages/skills/src/types.ts`（328 行）
+  - `src/skills/slash-command.ts` → `packages/skills/src/slash-command.ts`（671 行）
+  - `src/skills/recent-usage.ts` → `packages/skills/src/recent-usage.ts`（211 行）
+  - `src/skills/search.ts` → `packages/skills/src/search.ts`（298 行）
+- 内部类型 `SlashSkillMetadata` 统一替换外部 `SkillMetadata`，解决 `user_invocable` (snake_case YAML) 与 `userInvocable` (camelCase Public API) 字段冲突；`SkillCommandRegistry` 全部 Map / getter / setter / registerSkill 方法签名同步对齐。
+- `@upup/skills/src/index.ts` 新增 SlashSkillMetadata / ParsedSkillCommand / SkillCommandRegistration 类型与 `parseSlashCommand` / `isSlashCommand` / `getSkillName` / `routeSlashCommand` / `SkillCommandRegistry` / `getSkillCommandRegistry` / `resetSkillCommandRegistry` / `registerSkillsFromDirectory` / `discoverAndRegisterSkills` 公共导出。
+- 26 个 root 端文件改用 `@upup/skills` 公共 API，移除 `src/skills/*.js` 相对 import：
+  - root `src/skills/*` 文件（26 个，含 11 个生产 + 7 个测试）；
+  - `src/commands/executor.ts` 动态 import；
+  - `src/mcp/skills.ts`、`src/plugins/builtin-plugins.ts`、`src/plugins/example-plugin.test.ts`；
+  - `src/tools/skill-executor.ts` 显式 import `initializeSkills` / `getSkillCommand`；
+  - `test/skills-suggestions.test.ts`。
+- `src/skills/{types,slash-command,recent-usage,search}.ts` 已从 git index 移除；`packages/skills/src/` 是唯一生产路径。
+
+### 11.2 本轮验证
+
+| 验证项 | 结果 |
+|---|---|
+| `bun run typecheck` | 通过 |
+| `bun run check:pi7` | 通过：40 manifests、唯一 Pi AgentSession factory、无生产 global registry |
+| `bun run check:module-boundaries` | 通过：40 packages、543 root modules（−4） |
+| `bun run --cwd packages/skills build` | 215.79 KB bundle、dist 同步生成 |
+| `bun run test:pi-contracts` | 通过 |
+| `bun test src/skills` | 286 pass、0 fail、892 assertions、18 files |
+| `bun test`（全仓） | 3685 pass、5 fail（pre-existing 网络超时 + stdio session `mkdtemp` 路径缺失）；354 files |
+| `git diff --check` | 通过 |
+| `bun run report:pi7` | 根生产行数 117259 → 115757（净减 1502 行）；rootSourceFiles 737 → 722（−15）；rootProductionFiles 552 → 543（−9） |
+
+### 11.3 后续轮次
+
+- 第六轮：`src/session` / `src/memory` / `src/permissions` / `src/plan` / `src/storage` / `src/telemetry` → `@upup/pi-memory` / `@upup/pi-permissions` / `@upup/pi-observability` / `@upup/pi-planning` / `@upup/pi-storage`；同时把 `src/skills/{commands,executor,register,permissions,toolResultStorage,promptShellExecution,bridge,hot-reload,scheduler}.ts` 和 `src/skills/{investment,builted,bundled,builtin}/` 拆分到 `@upup/pi-skill-loader` / `@upup/pi-skill-executor` / `@upup/pi-investment-bundled` 包。
+- 第七轮：`src/tools` 中 `bash/permission-mode.ts`、`filesystem/sandbox-manager.ts`、`filesystem/sandbox-config.ts`、`trading/*`、`cron/*` 等基础设施工具 → `@upup/pi-platform`；`src/mcp` / `src/plugins` / `src/gateway` / `src/bridge` / `src/stdio` / `src/cron` / `src/daemon` / `src/subagent` / `src/multi-agent` → 对应 Pi transport packages。
+- 第八轮：`src/tui` / `src/components` → `@upup/pi-tui-app`，CLI/transport 降为 bootstrap。
+- 第九轮：删除 `legacy-events`、旧 facade 和所有无消费者兼容层。
+- 第十轮：全仓测试、构建、入口 smoke、并发恢复验证和真实 provider smoke。

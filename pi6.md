@@ -1327,3 +1327,51 @@ Factory 拆分、`src/tools`、`src/skills`、`src/commands/investment`、Sessio
 ### 34.3 当前剩余项
 
 `src/tools` 中 `bash/permission-mode.ts`、`filesystem/sandbox-manager.ts`、`filesystem/sandbox-config.ts`、`trading/*`、`cron/*` 等基础设施工具属 Pi Platform 范畴，留待 Round 7（Pi Platform 拆分）；`src/tools/finance/` 已空，`src/tools/fund/` 已删；`src/tools/registry/` 为空。后续轮次继续按 `pi7.md` 迁移矩阵推进。
+
+## 35. Pi7 第五轮实施结果（2026-09-14）
+
+本轮完成 `src/skills` 核心模块（`types` / `slash-command` / `recent-usage` / `search`）物理迁移到 `@upup/skills` 包，并统一 Skill metadata 类型契约。
+
+### 35.1 已完成
+
+- `git mv` 已将以下源文件迁入 `packages/skills/src/`：
+  - `src/skills/types.ts` → `packages/skills/src/types.ts`（328 行，含扩展 `SkillCommand` metadata interface）
+  - `src/skills/slash-command.ts` → `packages/skills/src/slash-command.ts`（671 行）
+  - `src/skills/recent-usage.ts` → `packages/skills/src/recent-usage.ts`（211 行）
+  - `src/skills/search.ts` → `packages/skills/src/search.ts`（298 行）
+- `slash-command.ts` 内部类型 `SlashSkillMetadata` 统一替换外部 `SkillMetadata` 引用，解决 `user_invocable` (snake_case) 与 `userInvocable` (camelCase) 字段冲突：
+  - 接口定义 `SlashSkillMetadata` 包含 `user_invocable`、`userInvocable`、`argument_hint`、`argumentHint` 双形态；
+  - `SkillCommandRegistry` 全部 `Map` / `getSkill*` / `registerSkill` 方法签名统一改为 `SlashSkillMetadata`；
+  - `getSkillsByTrigger` / `routeSlashCommand` / `registerSkillsFromDirectory` 返回值类型同步对齐。
+- `@upup/skills/src/index.ts` 新增导出：
+  - `SlashSkillMetadata`、`ParsedSkillCommand`、`SkillCommandRegistration` 类型；
+  - `parseSlashCommand`、`isSlashCommand`、`getSkillName`、`routeSlashCommand`；
+  - `getSkillCommandRegistry`、`resetSkillCommandRegistry`、`SkillCommandRegistry` 类；
+  - `registerSkillsFromDirectory`、`discoverAndRegisterSkills`（用于自动发现并注册 `.claude/skills`、`.upup/skills`、`src/skills`）。
+- 26 个 root 端文件更新为 `@upup/skills` 公共 API import，移除 `src/skills/*.js` 相对路径：
+  - `src/skills/{bridge,builtin-skills,commands,dependency,executor,files,hot-reload,i18n-helper,index,loader,mcp-skills,register,registry,skills-menu,dedupe.test,dependency.test,executor.test,files.test,i18n-helper.test,list-skills.test,recent-usage.test,registry.test,bridge.test,bundled/fund,bundled/index,agent-commands}.ts(x)`
+  - `src/commands/executor.ts`（动态 import）
+  - `src/mcp/skills.ts`、`src/plugins/builtin-plugins.ts`、`src/plugins/example-plugin.test.ts`
+  - `src/tools/skill-executor.ts` 显式 import `initializeSkills` / `getSkillCommand`
+  - `test/skills-suggestions.test.ts`
+
+### 35.2 验证
+
+| 验证项 | 结果 |
+|---|---|
+| `bun run typecheck` | 通过 |
+| `bun run check:pi7` | 通过：40 manifests、唯一 Pi AgentSession factory、无生产 global registry |
+| `bun run check:module-boundaries` | 通过：40 packages、543 root modules（−4） |
+| `bun run --cwd packages/skills build` | 215.79 KB bundle，dist 同步生成 |
+| `bun run test:pi-contracts` | 通过 |
+| `bun test src/skills` | 286 pass、0 fail、892 assertions、18 files |
+| `bun test`（全仓） | 3685 pass、5 fail（pre-existing 网络超时 + stdio `mkdtemp` 路径缺失，与本轮无关）；354 files |
+| `git diff --check` | 通过 |
+| `bun run report:pi7` | 根生产行数 117259 → 115757（净减 1502 行）；rootSourceFiles 737 → 722（−15）；rootProductionFiles 552 → 543（−9） |
+
+### 35.3 当前剩余项
+
+- `src/skills` 仍保留：`commands.ts`（含 `initializeSkills` / `getSkillCommand`，依赖 builtin-skills / bundled / agent-commands / bridge）、`register.ts`、`executor.ts`、`permissions.ts`、`toolResultStorage.ts`、`promptShellExecution.ts`、`bridge.ts`、`hot-reload.ts`、`scheduler.ts` 等与 builtin 资源紧耦合的实现。这些需在 Round 6 中与 `src/skills/investment/`、`src/skills/bundled/`、`src/skills/builtin/` 一起拆分到独立的 `@upup/pi-skill-loader` / `@upup/pi-skill-executor` / `@upup/pi-investment-bundled` 包。
+- `src/commands/investment/`、`src/skills/investment/` 投资工作流尚未迁移到 `@upup/pi-investment-workflow`，仍由 root 直接加载；该包当前只暴露 canonical `invest_workflow` extension 与 7 个 Agent Profile。
+- `legacy-events` 仍有 8 个生产消费者（`src/print.ts`、`src/runtime/pi/channels.ts`、`src/runtime/pi/event-stream.ts`、`src/runtime/pi/index.ts`、`src/cli.ts`、`src/stdio/server.ts`、`src/controllers/agent-runner.ts`、`src/gateway/agent-runner.ts`）；将在 Round 6–9 中由 `@upup/pi-event-adapter` 全部接管。
+- `src/session` / `src/memory` / `src/permissions` / `src/plan` / `src/storage` / `src/telemetry` 仍待物理迁移；规划在 Round 6 一次性拆分到 `@upup/pi-memory` / `@upup/pi-permissions` / `@upup/pi-observability` / `@upup/pi-planning` / `@upup/pi-storage`。
