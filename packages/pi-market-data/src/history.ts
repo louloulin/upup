@@ -1,18 +1,31 @@
 import type { MarketBar, MarketEvidence } from './index.js';
+import { executeWithProviderRetry, type ProviderRetryPolicy } from '@upup/pi-observability';
 
 export type MarketHistoryFetcher = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
-export type MarketHistoryProvider = 'auto' | 'yahoo' | 'tushare';
+export type MarketHistoryProvider = 'auto' | 'yahoo' | 'tushare' | 'financial-datasets';
+type MarketHistoryMarket = 'cn' | 'hk' | 'us' | 'fund' | 'crypto';
 
 export interface NativeMarketHistoryClientOptions {
   readonly fetcher?: MarketHistoryFetcher;
+  readonly marketFetchers?: Partial<Record<'cn' | 'hk' | 'us' | 'fund' | 'crypto', MarketHistoryFetcher>>;
   readonly baseUrl?: string;
+  readonly marketBaseUrls?: Partial<Record<'cn' | 'hk' | 'us' | 'fund' | 'crypto', string>>;
   readonly provider?: MarketHistoryProvider;
+  readonly marketProviders?: Partial<Record<'cn' | 'hk' | 'us' | 'fund' | 'crypto', MarketHistoryProvider>>;
   readonly tushareToken?: string;
+  readonly marketApiKeys?: Partial<Record<'cn' | 'hk' | 'us' | 'fund' | 'crypto', string>>;
   readonly now?: () => string;
   readonly maxBars?: number;
   readonly cache?: MarketHistoryCache;
   readonly rateLimiter?: MarketHistoryRateLimiter;
+  readonly retry?: Omit<ProviderRetryPolicy, 'provider' | 'operation'>;
 }
+
+const DEFAULT_PROVIDER_RETRY: Omit<ProviderRetryPolicy, 'provider' | 'operation'> = {
+  maxAttempts: 3,
+  baseDelayMs: 100,
+  maxDelayMs: 2_000,
+};
 
 export interface MarketHistoryCache {
   get(key: string, now: number): NativeMarketHistoryResult | undefined;
@@ -78,6 +91,11 @@ interface TusharePayload {
   readonly data?: { readonly fields?: readonly string[]; readonly items?: readonly (readonly unknown[])[] } | null;
 }
 
+interface FinancialDatasetsPayload {
+  readonly data?: unknown;
+  readonly historical_prices?: unknown;
+}
+
 function assertIsoDate(value: string, name: string): void {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || Number.isNaN(Date.parse(`${value}T00:00:00Z`))) {
     throw new Error(`${name} must be an ISO date (YYYY-MM-DD)`);
@@ -110,6 +128,13 @@ function tushareSymbol(symbol: string): string {
   throw new Error(`Tushare requires an A-share symbol with exchange suffix: ${symbol}`);
 }
 
+function tushareHongKongSymbol(symbol: string): string {
+  const normalized = symbol.trim().toUpperCase();
+  if (/^\d{1,5}\.HK$/.test(normalized)) return normalized;
+  if (/^\d{1,5}$/.test(normalized)) return `${normalized}.HK`;
+  throw new Error(`unsupported Hong Kong market symbol: ${symbol}`);
+}
+
 function yyyymmdd(value: string): string { return value.replaceAll('-', ''); }
 
 function dateFromUnixSeconds(value: number): string {
@@ -126,52 +151,75 @@ function finite(value: number | null | undefined): value is number {
 
 export class NativeMarketHistoryClient {
   private readonly fetcher: MarketHistoryFetcher;
+  private readonly marketFetchers: NativeMarketHistoryClientOptions['marketFetchers'];
   private readonly baseUrl: string;
+  private readonly marketBaseUrls: NativeMarketHistoryClientOptions['marketBaseUrls'];
   private readonly provider: MarketHistoryProvider;
+  private readonly marketProviders: NativeMarketHistoryClientOptions['marketProviders'];
   private readonly tushareToken: string;
+  private readonly marketApiKeys: NativeMarketHistoryClientOptions['marketApiKeys'];
   private readonly now: () => string;
   private readonly maxBars: number;
   private readonly cache?: MarketHistoryCache;
   private readonly rateLimiter?: MarketHistoryRateLimiter;
   private readonly cacheTtlMs: number;
+  private readonly retry?: NativeMarketHistoryClientOptions['retry'];
 
   constructor(options: NativeMarketHistoryClientOptions = {}) {
     this.fetcher = options.fetcher ?? ((input, init) => fetch(input, init));
+    this.marketFetchers = options.marketFetchers ?? {};
     this.baseUrl = (options.baseUrl ?? 'https://query1.finance.yahoo.com/v8/finance/chart').replace(/\/$/, '');
+    this.marketBaseUrls = options.marketBaseUrls ?? {};
     this.provider = options.provider ?? 'auto';
+    this.marketProviders = options.marketProviders ?? {};
     this.tushareToken = options.tushareToken ?? process.env.TUSHARE_TOKEN ?? '';
+    this.marketApiKeys = options.marketApiKeys ?? {};
     this.now = options.now ?? (() => new Date().toISOString());
     this.maxBars = options.maxBars ?? 5_000;
     this.cache = options.cache;
     this.rateLimiter = options.rateLimiter;
     this.cacheTtlMs = 60_000;
+    this.retry = options.retry ?? DEFAULT_PROVIDER_RETRY;
     if (!Number.isInteger(this.maxBars) || this.maxBars < 2 || this.maxBars > 20_000) throw new Error('maxBars must be an integer between 2 and 20000');
   }
 
-  async getHistory(symbol: string, startDate: string, endDate: string, signal?: AbortSignal, auditId = 'market-history'): Promise<NativeMarketHistoryResult> {
+  async getHistory(symbol: string, startDate: string, endDate: string, signal?: AbortSignal, auditId = 'market-history', requestedMarket?: string): Promise<NativeMarketHistoryResult> {
     assertIsoDate(startDate, 'startDate');
     assertIsoDate(endDate, 'endDate');
     if (startDate > endDate) throw new Error('startDate must not be after endDate');
     if (signal?.aborted) throw new Error('market history request aborted');
-    const isChinaSymbol = /^(?:\d{6}(?:\.(?:SH|SZ|BJ))?|[0368]\d{5})$/i.test(symbol.trim());
-    const selectedProvider = this.provider === 'auto' && isChinaSymbol && this.tushareToken ? 'tushare' : this.provider === 'auto' ? 'yahoo' : this.provider;
-    const cacheKey = `${selectedProvider}:${symbol}:${startDate}:${endDate}`;
+    const normalizedMarket = requestedMarket?.trim().toLowerCase();
+    if (normalizedMarket !== undefined && !['cn', 'hk', 'us', 'fund', 'crypto'].includes(normalizedMarket)) throw new Error(`unsupported market: ${requestedMarket}`);
+    const isChinaMarket = normalizedMarket === 'cn' || (normalizedMarket === undefined && /^(?:\d{6}(?:\.(?:SH|SZ|BJ))?|[0368]\d{5})$/i.test(symbol.trim()));
+    const marketKey = (normalizedMarket ?? (isChinaMarket ? 'cn' : undefined)) as MarketHistoryMarket | undefined;
+    const configuredProvider = marketKey ? this.marketProviders?.[marketKey] : undefined;
+    const marketToken = marketKey ? this.marketApiKeys?.[marketKey] ?? this.tushareToken : this.tushareToken;
+    const selectedProvider = configuredProvider ?? (this.provider === 'auto' && (isChinaMarket || marketKey === 'hk') && marketToken ? 'tushare' : this.provider === 'auto' && marketKey === 'us' && marketToken ? 'financial-datasets' : this.provider === 'auto' ? 'yahoo' : this.provider);
+    if (selectedProvider === 'tushare' && normalizedMarket !== undefined && normalizedMarket !== 'cn' && normalizedMarket !== 'hk') throw new Error(`Tushare history requires market=cn or market=hk, received ${normalizedMarket}`);
+    if (selectedProvider === 'tushare' && !marketToken) throw new Error(`Tushare history requires a token for market=${marketKey ?? 'cn'}`);
+    if (selectedProvider === 'financial-datasets' && !marketToken) throw new Error('Financial Datasets history requires FINANCIAL_DATASETS_API_KEY');
+    const requestFetcher = marketKey ? this.marketFetchers?.[marketKey] ?? this.fetcher : this.fetcher;
+    const requestBaseUrl = selectedProvider === 'tushare'
+      ? (marketKey ? this.marketBaseUrls?.[marketKey] : undefined) ?? 'https://api.tushare.pro'
+      : (marketKey ? this.marketBaseUrls?.[marketKey] : undefined) ?? this.baseUrl;
+    const cacheKey = `${selectedProvider}:${normalizedMarket ?? 'inferred'}:${symbol}:${startDate}:${endDate}`;
     const now = Date.now();
     const cached = this.cache?.get(cacheKey, now);
     if (cached) return { value: cached.value, evidence: { ...cached.evidence, auditId, query: cached.evidence.query, source: `${cached.evidence.source}#cache`, dataFreshness: 'cached' } };
     await this.rateLimiter?.acquire(selectedProvider, now);
-    if (selectedProvider === 'tushare') return this.getTushareHistory(symbol, startDate, endDate, signal, auditId, cacheKey);
+    if (selectedProvider === 'tushare') return this.getTushareHistory(symbol, startDate, endDate, signal, auditId, cacheKey, marketKey === 'hk' ? 'hk' : 'cn', marketToken, requestFetcher, requestBaseUrl);
+    if (selectedProvider === 'financial-datasets') return this.getFinancialDatasetsHistory(symbol, startDate, endDate, signal, auditId, cacheKey, marketToken, requestFetcher, requestBaseUrl);
     const resolvedSymbol = yahooSymbol(symbol);
-    const url = new URL(`${this.baseUrl}/${encodeURIComponent(resolvedSymbol)}`);
+    const url = new URL(`${requestBaseUrl}/${encodeURIComponent(resolvedSymbol)}`);
     url.searchParams.set('period1', String(Math.floor(Date.parse(`${startDate}T00:00:00Z`) / 1000)));
     url.searchParams.set('period2', String(Math.floor(Date.parse(`${nextDay(endDate)}T00:00:00Z`) / 1000)));
     url.searchParams.set('interval', '1d');
     url.searchParams.set('events', 'history');
     url.searchParams.set('includeAdjustedClose', 'true');
-    const response = await this.fetcher(url, {
+    const response = await this.fetchWithRetry(url, {
       signal,
       headers: { Accept: 'application/json', 'User-Agent': 'UpUp-Pi-Market-Data/1.0' },
-    });
+    }, 'yahoo', 'history', signal, requestFetcher);
     if (!response.ok) throw new Error(`market history request failed: ${response.status} ${response.statusText}`);
     const payload = await response.json() as YahooChartPayload;
     const chart = payload.chart?.result?.[0];
@@ -197,10 +245,11 @@ export class NativeMarketHistoryClient {
       value: bars,
       evidence: {
         id: `market-data:${auditId}:history`,
-        source: 'https://query1.finance.yahoo.com/v8/finance/chart',
+        source: requestBaseUrl,
+        provider: 'yahoo',
         retrievedAt,
         asOf: bars.at(-1)!.date,
-        query: `${resolvedSymbol}:${startDate}:${endDate}`,
+        query: `${resolvedSymbol}:${normalizedMarket ?? 'inferred'}:${startDate}:${endDate}`,
         dataFreshness: 'historical' as const,
         auditId,
       },
@@ -209,15 +258,15 @@ export class NativeMarketHistoryClient {
     return result;
   }
 
-  private async getTushareHistory(symbol: string, startDate: string, endDate: string, signal: AbortSignal | undefined, auditId: string, cacheKey: string): Promise<NativeMarketHistoryResult> {
-    if (!this.tushareToken) throw new Error('Tushare provider requires TUSHARE_TOKEN');
-    const resolvedSymbol = tushareSymbol(symbol);
-    const response = await this.fetcher('https://api.tushare.pro', {
+  private async getTushareHistory(symbol: string, startDate: string, endDate: string, signal: AbortSignal | undefined, auditId: string, cacheKey: string, market: 'cn' | 'hk', token: string, requestFetcher: MarketHistoryFetcher, requestBaseUrl: string): Promise<NativeMarketHistoryResult> {
+    const resolvedSymbol = market === 'hk' ? tushareHongKongSymbol(symbol) : tushareSymbol(symbol);
+    const endpoint = market === 'hk' ? 'hk_daily' : 'daily';
+    const response = await this.fetchWithRetry(requestBaseUrl, {
       method: 'POST',
       signal,
       headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'User-Agent': 'UpUp-Pi-Market-Data/1.0' },
-      body: JSON.stringify({ api_name: 'daily', token: this.tushareToken, params: { ts_code: resolvedSymbol, start_date: yyyymmdd(startDate), end_date: yyyymmdd(endDate) }, fields: 'ts_code,trade_date,open,high,low,close,vol' }),
-    });
+      body: JSON.stringify({ api_name: endpoint, token, params: { ts_code: resolvedSymbol, start_date: yyyymmdd(startDate), end_date: yyyymmdd(endDate) }, fields: 'ts_code,trade_date,open,high,low,close,vol' }),
+    }, 'tushare', 'history', signal, requestFetcher);
     if (!response.ok) throw new Error(`Tushare market history request failed: ${response.status} ${response.statusText}`);
     const payload = await response.json() as TusharePayload;
     if (payload.code !== 0) throw new Error(`Tushare market history request failed: ${payload.msg ?? `code ${payload.code ?? 'unknown'}`}`);
@@ -239,12 +288,74 @@ export class NativeMarketHistoryClient {
     const result: NativeMarketHistoryResult = {
       value: bars,
       evidence: {
-        id: `market-data:${auditId}:history`, source: 'https://api.tushare.pro', retrievedAt, asOf: bars.at(-1)!.date,
-        query: `${resolvedSymbol}:${startDate}:${endDate}`, dataFreshness: 'historical', auditId,
+        id: `market-data:${auditId}:history`, source: requestBaseUrl, provider: 'tushare', retrievedAt, asOf: bars.at(-1)!.date,
+        query: `${resolvedSymbol}:${market}:${startDate}:${endDate}`, dataFreshness: 'historical', auditId,
       },
     };
     this.cache?.set(cacheKey, result, Date.now() + this.cacheTtlMs);
     return result;
+  }
+
+  private async getFinancialDatasetsHistory(symbol: string, startDate: string, endDate: string, signal: AbortSignal | undefined, auditId: string, cacheKey: string, apiKey: string, requestFetcher: MarketHistoryFetcher, requestBaseUrl: string): Promise<NativeMarketHistoryResult> {
+    const ticker = symbol.trim().toUpperCase().replace(/\.US$/, '');
+    if (!/^[A-Z][A-Z0-9.-]{0,9}$/.test(ticker)) throw new Error(`unsupported US market symbol: ${symbol}`);
+    const url = new URL(`${requestBaseUrl.replace(/\/$/, '')}/prices/historical/`);
+    url.searchParams.set('ticker', ticker);
+    url.searchParams.set('start_date', startDate);
+    url.searchParams.set('end_date', endDate);
+    const response = await this.fetchWithRetry(url, {
+      signal,
+      headers: { Accept: 'application/json', 'User-Agent': 'UpUp-Pi-Market-Data/1.0', 'x-api-key': apiKey },
+    }, 'financial-datasets', 'history', signal, requestFetcher);
+    const payload = await response.json() as FinancialDatasetsPayload;
+    const rows = Array.isArray(payload.historical_prices) ? payload.historical_prices : Array.isArray(payload.data) ? payload.data : [];
+    const toNumber = (value: unknown): number | undefined => {
+      const number = typeof value === 'number' ? value : typeof value === 'string' && value.trim() ? Number(value) : Number.NaN;
+      return Number.isFinite(number) ? number : undefined;
+    };
+    const toDate = (value: unknown): string | undefined => {
+      if (typeof value === 'string') return value.slice(0, 10);
+      if (typeof value === 'number' && Number.isFinite(value)) return dateFromUnixSeconds(value > 10_000_000_000 ? value / 1000 : value);
+      return undefined;
+    };
+    const bars = rows.map((row): MarketBar | undefined => {
+      if (!row || typeof row !== 'object' || Array.isArray(row)) return undefined;
+      const record = row as Record<string, unknown>;
+      const date = toDate(record.date ?? record.timestamp ?? record.datetime);
+      const open = toNumber(record.open);
+      const high = toNumber(record.high);
+      const low = toNumber(record.low);
+      const close = toNumber(record.close ?? record.adj_close ?? record.adjusted_close);
+      const volume = toNumber(record.volume) ?? 0;
+      if (!date || date < startDate || date > endDate || open === undefined || high === undefined || low === undefined || close === undefined) return undefined;
+      return { date, open, high, low, close, volume };
+    }).filter((bar): bar is MarketBar => Boolean(bar)).sort((left, right) => left.date.localeCompare(right.date)).slice(-this.maxBars);
+    if (bars.length < 2) throw new Error(`Financial Datasets returned fewer than two complete bars for ${ticker}`);
+    const retrievedAt = this.now();
+    const result: NativeMarketHistoryResult = {
+      value: bars,
+      evidence: {
+        id: `market-data:${auditId}:history`, source: url.toString(), provider: 'financial-datasets', retrievedAt, asOf: bars.at(-1)!.date,
+        query: `${ticker}:us:${startDate}:${endDate}`, dataFreshness: 'historical', auditId,
+      },
+    };
+    this.cache?.set(cacheKey, result, Date.now() + this.cacheTtlMs);
+    return result;
+  }
+
+  private async fetchWithRetry(input: RequestInfo | URL, init: RequestInit, provider: MarketHistoryProvider, operation: string, signal?: AbortSignal, requestFetcher: MarketHistoryFetcher = this.fetcher): Promise<Response> {
+    const execute = async (retrySignal?: AbortSignal) => {
+      const response = await requestFetcher(input, { ...init, ...(retrySignal ? { signal: retrySignal } : {}) });
+      if (!response.ok) throw new Error(`${provider} market ${operation} request failed: ${response.status} ${response.statusText}`);
+      return response;
+    };
+    if (!this.retry) return execute(signal);
+    return (await executeWithProviderRetry((_, retrySignal) => execute(retrySignal), {
+      provider,
+      operation,
+      signal,
+      ...this.retry,
+    })).value;
   }
 }
 

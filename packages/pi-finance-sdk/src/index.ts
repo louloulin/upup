@@ -62,18 +62,16 @@ export { NativeFilingsClient, readNativeFilings } from './filings.js';
 export type { NativeFilingType, NativeFilingRecord, NativeReadFilingsInput, NativeReadFilingsResult, NativeFilingsClientOptions } from './filings.js';
 export { NativeAltDataClient } from './alt-data.js';
 export type { NativeAltDataSource, NativeAltDataEvent, NativeAltDataInput, NativeAltDataSearchInput, NativeAltDataFetcher, NativeAltDataClientOptions } from './alt-data.js';
-export { NativeResearchDataClient, createNativeResearchDataAdapters } from './research-data.js';
-export type { ResearchDataClientOptions, ResearchDataEnvelope, ResearchDataFreshness } from './research-data.js';
+export { NativeResearchDataClient, createNativeResearchDataAdapters, createTushareResearchDataFetcher } from './research-data.js';
+export type { ResearchDataClientOptions, ResearchDataEnvelope, ResearchDataFreshness, ResearchMarket, TushareResearchFetcherOptions } from './research-data.js';
 export { NativeEarningsTranscriptClient } from './earnings-transcripts.js';
 export type { NativeEarningsTranscriptClientOptions, NativeEarningsTranscriptQuery, NativeTranscriptRef } from './earnings-transcripts.js';
 export { NativeFundHistoryClient, getNativeFundHistoryForRange } from './fund-history.js';
 export type { NativeFundHistoryClientOptions, NativeFundHistoryPoint } from './fund-history.js';
 
 // ============================================================================
-// Legacy fund API (天天基金 daily estimate + portfolio screens + trade sim)
-// Migrated from src/tools/fund/* in Pi7 Round 4. Kept under their original
-// names so downstream package callers can move off `src/tools/fund/*` without
-// rewriting consumers.
+// Fund capabilities owned by this Pi Package. Public names remain stable for
+// callers while implementation stays behind the package contract.
 // ============================================================================
 export {
   searchFunds,

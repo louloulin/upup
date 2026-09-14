@@ -2,8 +2,7 @@
  * Investment Research Plan Types
  *
  * v5 Sprint 1 — Plan Mode 投资研究工作流
- * 扩展 src/plan/plan-context.ts(已有 PlanContext/PlanStep)以支持
- * 投资研究 plan:研究 → 估值 → 回测 → 交易 → 复盘 五步闭环。
+ * 扩展 PlanContext/PlanStep 以支持 Pi Native 投资闭环。
  *
  * 设计要点:
  * - 不重写 plan-mode-state.ts(已有 session state API)
@@ -14,20 +13,23 @@
 
 import type { PlanContext, PlanStep, PlanStatus } from './plan-context.js';
 
-/** 投资研究 plan 的 5 步环节(用于工作流编排,见 v5 spec:investment-workflow) */
+/** Pi Native 投资 plan 的唯一五阶段状态机。 */
 export type ResearchPhase =
-  | 'research'      // 基础面 + 消息面
-  | 'valuation'     // DCF + 多倍
-  | 'backtest'      // 策略回测
-  | 'trade'         // 交易建议
-  | 'review';       // 复盘
+  | 'detect'
+  | 'plan'
+  | 'execute'
+  | 'verify'
+  | 'report';
+
+export const RESEARCH_PHASES: readonly ResearchPhase[] = ['detect', 'plan', 'execute', 'verify', 'report'];
+export type ResearchMarket = 'cn' | 'hk' | 'us' | 'fund' | 'crypto';
 
 /** plan 执行状态机(5 态) */
 export type ResearchPlanState =
   | 'plan'         // 生成 plan,等用户确认
   | 'confirm'      // 用户已确认,准备执行
   | 'execute'      // 正在执行 steps
-  | 'review'       // 执行完成,等待复盘
+  | 'review'       // 执行完成,等待人工审阅
   | 'done';        // 全流程结束(可归档)
 
 /** plan 中每个 step 关联的工具名（投资域工具白名单，来自 Pi Package ownership）。 */
@@ -45,9 +47,13 @@ export interface ResearchToolBinding {
 export interface ResearchPlan extends PlanContext {
   /** 标的 ticker,例如 "NVDA" / "AAPL" / "600519.SH" */
   ticker?: string;
+  /** Configured market; omitted only when the market is inferred from ticker. */
+  market?: ResearchMarket;
   /** 当前执行阶段 */
   phase: ResearchPlanState;
-  /** plan 涉及的 5 步环节(可少于 5 步) */
+  /** 当前投研 canonical 阶段；与 plan 生命周期 phase 分离。 */
+  currentPhase: ResearchPhase;
+  /** plan 涉及的 canonical 五阶段(可少于 5 步) */
   phases: ResearchPhase[];
   /** 每 step 关联的工具绑定(step.id → tool binding) */
   toolBindings: Record<string, ResearchToolBinding>;
@@ -116,8 +122,12 @@ export function deserializeResearchPlan(raw: string): ResearchPlan {
     confirmedAt?: string;
     steps: Array<PlanStep & { createdAt: string; completedAt?: string }>;
   };
+  const currentPhase = isResearchPhase(o.currentPhase)
+    ? o.currentPhase
+    : inferCurrentPhase(o.phases, o.steps);
   return {
     ...o,
+    currentPhase,
     createdAt: new Date(o.createdAt),
     updatedAt: new Date(o.updatedAt),
     completedAt: o.completedAt ? new Date(o.completedAt) : undefined,
@@ -128,6 +138,19 @@ export function deserializeResearchPlan(raw: string): ResearchPlan {
       completedAt: s.completedAt ? new Date(s.completedAt) : undefined,
     })),
   };
+}
+
+function isResearchPhase(value: unknown): value is ResearchPhase {
+  return typeof value === 'string' && RESEARCH_PHASES.includes(value as ResearchPhase);
+}
+
+function inferCurrentPhase(phases: readonly ResearchPhase[] | undefined, steps: readonly { description: string; status: string }[]): ResearchPhase {
+  const ordered = phases?.filter(isResearchPhase) ?? [];
+  for (const phase of ordered) {
+    const phaseSteps = steps.filter((step) => step.description.startsWith(`[${phase}]`));
+    if (phaseSteps.some((step) => step.status !== 'completed' && step.status !== 'skipped' && step.status !== 'failed')) return phase;
+  }
+  return ordered.at(-1) ?? 'detect';
 }
 
 /** PlanStatus 兼容映射(PlanContext 6 态 → ResearchPlanState 5 态) */

@@ -17,7 +17,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Project directory
-PROJECT_DIR="/Users/louloulin/Documents/linchong/touzhi/dexter"
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$PROJECT_DIR"
 
 # Counter
@@ -72,19 +72,19 @@ else
 fi
 
 # Check session files
-if [ -f "$PROJECT_DIR/src/session/storage.ts" ]; then
+if [ -f "$PROJECT_DIR/packages/pi-session/src/storage.ts" ]; then
     log_success "Session storage module exists"
 else
     log_fail "Session storage module not found"
 fi
 
-if [ -f "$PROJECT_DIR/src/session/restore.ts" ]; then
+if [ -f "$PROJECT_DIR/packages/pi-session/src/restore.ts" ]; then
     log_success "Session restore module exists"
 else
     log_fail "Session restore module not found"
 fi
 
-if [ -f "$PROJECT_DIR/src/session/selector.ts" ]; then
+if [ -f "$PROJECT_DIR/packages/pi-session/src/selector.ts" ]; then
     log_success "Session selector module exists"
 else
     log_fail "Session selector module not found"
@@ -97,11 +97,11 @@ fi
 log_section "TypeScript Compilation Check"
 
 log_info "Running TypeScript type checking..."
-if npx tsc --noEmit 2>&1 | grep -q "src/session"; then
-    ERRORS=$(npx tsc --noEmit 2>&1 | grep "src/session" | grep -c "error" || echo "0")
+if npx tsc --noEmit 2>&1 | grep -q "packages/pi-session"; then
+    ERRORS=$(npx tsc --noEmit 2>&1 | grep "packages/pi-session" | grep -c "error" || echo "0")
     if [ "$ERRORS" -gt 0 ]; then
         log_fail "TypeScript errors found in session files"
-        npx tsc --noEmit 2>&1 | grep "src/session" | grep "error" | head -5
+    npx tsc --noEmit 2>&1 | grep "packages/pi-session" | grep "error" | head -5
     else
         log_success "No TypeScript errors in session files"
     fi
@@ -171,12 +171,12 @@ fi
 log_section "File Structure Check"
 
 FILES=(
-    "src/session/types.ts"
-    "src/session/storage.ts"
-    "src/session/restore.ts"
-    "src/session/selector.ts"
-    "src/session/index.ts"
-    "src/controllers/session-selection.ts"
+    "packages/pi-session/src/session-types.ts"
+    "packages/pi-session/src/storage.ts"
+    "packages/pi-session/src/restore.ts"
+    "packages/pi-session/src/selector.ts"
+    "packages/pi-session/src/index.ts"
+    "packages/pi-tui-app/src/tui/session-selection.ts"
     "src/utils/time.ts"
 )
 
@@ -208,7 +208,7 @@ FUNCTIONS=(
 )
 
 for func in "${FUNCTIONS[@]}"; do
-    if grep -q "export.*function $func\|export.*async function $func" "$PROJECT_DIR/src/session/storage.ts"; then
+    if grep -q "export.*function $func\|export.*async function $func" "$PROJECT_DIR/packages/pi-session/src/storage.ts"; then
         log_success "storage.ts: $func() defined"
     else
         log_fail "storage.ts: $func() not found"
@@ -224,7 +224,7 @@ RESTORE_FUNCTIONS=(
 )
 
 for func in "${RESTORE_FUNCTIONS[@]}"; do
-    if grep -q "export.*function $func\|export.*async function $func" "$PROJECT_DIR/src/session/restore.ts"; then
+    if grep -q "export.*function $func\|export.*async function $func" "$PROJECT_DIR/packages/pi-session/src/restore.ts"; then
         log_success "restore.ts: $func() defined"
     else
         log_fail "restore.ts: $func() not found"
@@ -245,14 +245,14 @@ else
 fi
 
 # Check for session selection controller
-if grep -q "SessionSelectionController" "$PROJECT_DIR/src/cli.ts"; then
+if grep -q "SessionSelectionController" "$PROJECT_DIR/packages/pi-tui-app/src/cli.ts"; then
     log_success "cli.ts: SessionSelectionController used"
 else
     log_fail "cli.ts: SessionSelectionController not used"
 fi
 
 # Check for resumeFromSession in agent-runner
-if grep -q "resumeFromSession" "$PROJECT_DIR/src/controllers/agent-runner.ts"; then
+if grep -q "resumeFromSession" "$PROJECT_DIR/packages/pi-tui-app/src/tui/agent-runner.ts"; then
     log_success "agent-runner.ts: resumeFromSession() defined"
 else
     log_fail "agent-runner.ts: resumeFromSession() not found"

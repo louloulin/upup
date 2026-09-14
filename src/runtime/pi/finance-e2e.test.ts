@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { Type, type TSchema } from 'typebox';
-import { getInvestmentAgentSpec } from './agent-spec.js';
-import { PiAgentSessionFactory } from './agent-session-factory.js';
+import { getInvestmentAgentSpec } from '@upup/pi-investment-workflow';
+import { PiAgentSessionFactory } from '@upup/pi-session';
 import type { UpUpAgentSession, UpUpToolContract } from '@upup/pi-runtime';
 
 const symbolParameters = Type.Object({ symbol: Type.String() });
@@ -129,13 +129,16 @@ describe('Pi financial domain behavior', () => {
     try {
       const result = await denied.executeTool('place_trade_order', 'paper-denied', { symbol: '600519.SH', side: 'buy', quantity: 100 }) as Awaited<ReturnType<UpUpAgentSession['executeTool']>> & { isError?: boolean };
       expect(result.isError).toBe(true);
-      expect((result.details as { policyAudit?: { decision?: string } }).policyAudit?.decision).toBe('approval_denied');
+      expect((result.details as { policyAudit?: { decision?: string } }).policyAudit?.decision).toBe('denied');
       expect(executions).toBe(0);
     } finally {
       denied.dispose();
     }
 
-    const approved = await new PiAgentSessionFactory().createSession(spec, {
+    const approved = await new PiAgentSessionFactory().createSession({
+      ...spec,
+      permissions: { ...spec.permissions, allow: ['safe', 'warning', 'dangerous', 'critical'], deny: [], allowFinancialWrites: true },
+    }, {
       cwd: process.cwd(),
       tools: [order],
       requestToolApproval: async () => true,

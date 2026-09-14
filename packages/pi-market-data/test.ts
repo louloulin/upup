@@ -135,6 +135,61 @@ test('selects Tushare explicitly and normalizes its response without fallback', 
   expect(result.evidence).toMatchObject({ source: 'https://api.tushare.pro', auditId: 'tushare-test' });
 });
 
+test('uses an explicit market to select and audit the history provider', async () => {
+  const urls: string[] = [];
+  const client = new NativeMarketHistoryClient({ provider: 'auto', tushareToken: 'fixture-token', fetcher: async (input) => {
+    urls.push(String(input));
+    if (String(input).includes('api.tushare.pro')) return new Response(JSON.stringify({ code: 0, data: { fields: ['ts_code', 'trade_date', 'open', 'high', 'low', 'close', 'vol'], items: [['600519.SH', '20260130', 1, 2, 0.5, 1.5, 100], ['600519.SH', '20260131', 1.5, 2.5, 1, 2, 120]] } }), { status: 200 });
+    return new Response(JSON.stringify({ chart: { result: [{ timestamp: [Date.parse('2026-01-30T00:00:00Z') / 1000, Date.parse('2026-01-31T00:00:00Z') / 1000], indicators: { quote: [{ open: [1, 2], high: [2, 3], low: [0.5, 1], close: [1.5, 2.5], volume: [100, 120] }] } }] } }), { status: 200 });
+  } });
+  const cn = await client.getHistory('600519.SH', '2026-01-01', '2026-01-31', undefined, 'explicit-cn', 'cn');
+  const hk = await client.getHistory('00700.HK', '2026-01-01', '2026-01-31', undefined, 'explicit-hk', 'hk');
+  expect(cn.evidence.source).toContain('tushare');
+  expect(cn.evidence.query).toContain(':cn:');
+  expect(hk.evidence.source).toContain('tushare');
+  expect(hk.evidence.query).toContain(':hk:');
+  expect(urls.some((url) => url.includes('api.tushare.pro'))).toBe(true);
+});
+
+test('routes Hong Kong history to hk_daily with market-scoped configuration', async () => {
+  let requestUrl = '';
+  let requestBody: Record<string, unknown> | undefined;
+  const client = new NativeMarketHistoryClient({
+    provider: 'auto',
+    marketProviders: { hk: 'tushare' },
+    marketApiKeys: { hk: 'hk-token' },
+    marketBaseUrls: { hk: 'https://tushare.test/pro' },
+    marketFetchers: { hk: async (input, init) => {
+      requestUrl = String(input);
+      requestBody = JSON.parse(String(init?.body)) as Record<string, unknown>;
+      return new Response(JSON.stringify({ code: 0, data: { fields: ['ts_code', 'trade_date', 'open', 'high', 'low', 'close', 'vol'], items: [['00700.HK', '20260130', 10, 11, 9, 10.5, 100], ['00700.HK', '20260131', 10.5, 11.5, 10, 11, 120]] } }), { status: 200 });
+    } },
+  });
+  const result = await client.getHistory('00700.HK', '2026-01-01', '2026-01-31', undefined, 'hk-history', 'hk');
+  expect(requestUrl).toBe('https://tushare.test/pro');
+  expect(requestBody).toMatchObject({ api_name: 'hk_daily', token: 'hk-token', params: { ts_code: '00700.HK' } });
+  expect(result.evidence).toMatchObject({ source: 'https://tushare.test/pro', query: '00700.HK:hk:2026-01-01:2026-01-31' });
+});
+
+test('routes US history to Financial Datasets when explicitly configured', async () => {
+  const client = new NativeMarketHistoryClient({
+    provider: 'financial-datasets',
+    marketApiKeys: { us: 'fds-token' },
+    marketBaseUrls: { us: 'https://datasets.test' },
+    marketFetchers: { us: async (input, init) => {
+      expect(String(input)).toContain('https://datasets.test/prices/historical/?ticker=AAPL');
+      expect((init?.headers as Record<string, string>)['x-api-key']).toBe('fds-token');
+      return new Response(JSON.stringify({ historical_prices: [
+        { date: '2026-01-30', open: 100, high: 102, low: 99, close: 101, volume: 1000 },
+        { date: '2026-01-31', open: 101, high: 103, low: 100, close: 102, volume: 1100 },
+      ] }), { status: 200 });
+    } },
+  });
+  const result = await client.getHistory('AAPL', '2026-01-01', '2026-01-31', undefined, 'fds-history', 'us');
+  expect(result.evidence).toMatchObject({ provider: 'financial-datasets', source: 'https://datasets.test/prices/historical/?ticker=AAPL&start_date=2026-01-01&end_date=2026-01-31', query: 'AAPL:us:2026-01-01:2026-01-31' });
+  expect(result.value).toHaveLength(2);
+});
+
 test('enforces explicit cache and rate-limit policy', async () => {
   let calls = 0;
   const client = new NativeMarketHistoryClient({ cache: new InMemoryMarketHistoryCache(), rateLimiter: new FixedWindowMarketHistoryRateLimiter(1, 60_000), fetcher: async () => { calls += 1; return new Response(JSON.stringify({ chart: { result: [{ timestamp: [1_767_312_000, 1_767_398_400], indicators: { quote: [{ open: [100, 101], high: [102, 103], low: [99, 100], close: [101, 102], volume: [1000, 1100] }] } }] } }), { status: 200 }); } });

@@ -14,7 +14,7 @@ import {
   CONSOLIDATION_SYSTEM_PROMPT,
   buildConsolidationPrompt,
 } from './prompts.js';
-import { callStructuredLlm } from '@upup/utils';
+import { callStructuredLlm, type PromptRunner } from '@upup/utils';
 import { DEFAULT_MODEL } from '@upup/utils';
 import { getUpupDir } from '@upup/utils';
 import { MEMORY_TYPES, type MemoryType } from './types.js';
@@ -70,6 +70,7 @@ const CONSOLIDATION_OUTPUT_SCHEMA = z.object({
 export async function consolidateMemories(options: {
   model?: string;
   signal?: AbortSignal;
+  runner?: PromptRunner;
 } = {}): Promise<ConsolidationResult> {
   // Acquire lock
   const lockAcquired = await acquireLock();
@@ -312,6 +313,7 @@ async function performConsolidation(
         model: options.model ?? DEFAULT_MODEL,
         systemPrompt: CONSOLIDATION_SYSTEM_PROMPT,
         signal: options.signal,
+        runner: options.runner,
       });
   } catch (e) {
     error('memory', 'LLM consolidation failed', e instanceof Error ? e : undefined);

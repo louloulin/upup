@@ -70,8 +70,8 @@ async function runAllVerifications() {
   console.log('\n\x1b[36m>>> Phase 2: 后端注册表检查\x1b[0m\n');
 
   try {
-    await import('../src/runtime/pi/bootstrap.js').then((m) => m.bootstrapPiNativeServices());
-    const { getPiBackgroundService } = await import('../src/runtime/pi/background-service.js');
+    await import('@upup/pi-app/default').then((m) => m.bootstrapPiNativeServices());
+    const { getPiBackgroundService } = await import('@upup/pi-session');
     const tasks = getPiBackgroundService().list();
     results.push({
       name: 'Pi Background Service',
@@ -91,8 +91,8 @@ async function runAllVerifications() {
   // Phase 3: Pi Agent Runtime Verification
   console.log('\n\x1b[36m>>> Phase 3: Pi Agent系统验证\x1b[0m\n');
   try {
-    const { PiAgentSessionFactory } = await import('../src/runtime/pi/agent-session-factory.js');
-    const { getInvestmentAgentSpec } = await import('../src/runtime/pi/agent-spec.js');
+    const { PiAgentSessionFactory } = await import('@upup/pi-session');
+    const { getInvestmentAgentSpec } = await import('@upup/pi-investment-workflow');
     const session = await new PiAgentSessionFactory().createSession({
       ...getInvestmentAgentSpec('invest-explore'),
       id: `appscript-verify-${Date.now()}`,
@@ -158,8 +158,8 @@ async function runAllVerifications() {
   console.log('\n\x1b[36m>>> Phase 5: 多Agent并发测试\x1b[0m\n');
 
   try {
-    await import('../src/runtime/pi/bootstrap.js').then((m) => m.bootstrapPiNativeServices());
-    const { getPiBackgroundService } = await import('../src/runtime/pi/background-service.js');
+    await import('@upup/pi-app/default').then((m) => m.bootstrapPiNativeServices());
+    const { getPiBackgroundService } = await import('@upup/pi-session');
     const service = getPiBackgroundService();
     const concurrencySupported = service && typeof service.start === 'function';
     

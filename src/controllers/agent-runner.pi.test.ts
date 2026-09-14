@@ -3,10 +3,14 @@ import { fauxAssistantMessage, fauxProvider, fauxText } from '@earendil-works/pi
 import { ModelRuntime } from '@earendil-works/pi-coding-agent';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { AgentRunnerController } from './agent-runner.js';
-import { InMemoryChatHistory } from '../utils/in-memory-chat-history.js';
-import { disposePiSessions } from '../runtime/pi/runner.js';
-import { bootstrapPiNativeServices } from '../runtime/pi/bootstrap.js';
+import { AgentRunnerController, InMemoryChatHistory } from '@upup/pi-tui-app';
+import { createTestPorts } from './agent-runner-test-ports.test.js';
+import { getPiNativeApp, bootstrapPiNativeServices } from '@upup/pi-app/default';
+import { getPiSessionService, getSessionTracker } from '@upup/pi-session';
+import { createMessageQueue } from '@upup/utils';
+import { getFileHistoryManager, recordFileHistorySnapshot } from '@upup/pi-storage';
+import { renderMessages } from '@upup/pi-session';
+import { disposePiSessions } from '@upup/pi-session';
 
 beforeAll(() => bootstrapPiNativeServices());
 
@@ -25,7 +29,17 @@ describe('AgentRunnerController Pi contract', () => {
       modelProvider: 'upup-controller-fixture',
       modelInstance: faux.getModel(),
       modelRuntime,
-    }, history);
+    }, history, createTestPorts({
+      stream: getPiNativeApp().getTuiEventStream().stream,
+      sessionService: getPiSessionService(),
+      sessionTracker: getSessionTracker(),
+      fileHistory: {
+        initialize: (sessionId) => getFileHistoryManager(sessionId).setSessionId(sessionId),
+        record: recordFileHistorySnapshot,
+      },
+      messageQueue: createMessageQueue(),
+      renderMessages,
+    }));
     try {
       const result = await controller.runQuery('执行 CLI Pi fixture');
       expect(result).toEqual({ answer: 'CLI 已通过 Pi Session 完成。' });

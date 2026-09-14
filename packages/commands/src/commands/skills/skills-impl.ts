@@ -6,8 +6,7 @@
  */
 
 import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types.js'
-import { getGlobalSkillsRegistry } from '../../skills/registry.js'
-import { generateSkillHelp, skillNameToCommandName } from '../../skills/skill-to-command.js'
+import { listPiSkillCommands } from '@upup/pi-resource-composition'
 
 export interface SkillsContext extends ToolUseContext {
   cwd: string
@@ -17,15 +16,7 @@ export const call = async (
   _args: string,
   context: SkillsContext,
 ): Promise<LocalCommandResult> => {
-  const registry = getGlobalSkillsRegistry()
-
-  // Load skills if not already loaded
-  if (!registry.isLoaded()) {
-    await registry.loadAll(context.cwd)
-  }
-
-  const skills = registry.list()
-  const visibleSkills = registry.listVisible()
+  const skills = await listPiSkillCommands(context.cwd)
 
   const lines: string[] = []
 
@@ -44,30 +35,13 @@ export const call = async (
     lines.push('')
     lines.push('  See /help skills for more info.')
   } else {
-    lines.push(`  ${visibleSkills.length} skill(s) available`)
+    lines.push(`  ${skills.length} skill(s) available`)
     lines.push('')
-
-    // Group skills by source
-    const bundled = skills.filter(s => s.bundled)
-    const user = skills.filter(s => !s.bundled)
-
-    if (bundled.length > 0) {
-      lines.push('  ─── Bundled Skills ───')
-      for (const skill of bundled) {
-        const cmdName = skillNameToCommandName(skill.name)
-        lines.push(`    /${cmdName.padEnd(16)} ${skill.description}`)
-      }
-      lines.push('')
+    lines.push('  ─── Pi Skills ───')
+    for (const skill of skills) {
+      lines.push(`    /${skill.name.padEnd(16)} ${skill.description}`)
     }
-
-    if (user.length > 0) {
-      lines.push('  ─── User Skills ───')
-      for (const skill of user) {
-        const cmdName = skillNameToCommandName(skill.name)
-        lines.push(`    /${cmdName.padEnd(16)} ${skill.description}`)
-      }
-      lines.push('')
-    }
+    lines.push('')
 
     lines.push('  Use /help <skill-name> for details.')
   }

@@ -127,16 +127,18 @@ export {
   type MetricsSummary,
 } from './command-metrics.js'
 
-// Command registry (legacy support)
 export {
-  getGlobalRegistry,
-  registerBuiltinCommands,
-  resetGlobalRegistry,
-  parseMacroFile,
-  expandMacro,
-  loadUserCommands,
-  loadMacros,
-  type CommandRegistry,
   type CommandContext,
   type CommandResult,
-} from './commands.js'
+  type CommandPermission,
+} from './command-contract.js'
+
+export type {
+  AgentPortsLocal,
+  PlanModePortLocal,
+  SubagentPortLocal,
+  McpRegistryPortLocal,
+  StatePortLocal,
+  SandboxPortLocal,
+  AgentMemoryPortLocal,
+} from './agent-port.js';

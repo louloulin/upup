@@ -31,6 +31,7 @@ const spec: UpUpAgentSpec = {
 function createFakeSession() {
   let listener: ((event: never) => void) | undefined;
   let disposed = false;
+  let abortCalls = 0;
   const entries: Array<{ type: string; customType?: string; data?: unknown }> = [];
   const sessionManager = {
     getSessionId: () => 'session-test-id',
@@ -53,7 +54,7 @@ function createFakeSession() {
     prompt: async () => undefined,
     steer: async () => undefined,
     followUp: async () => undefined,
-    abort: async () => undefined,
+    abort: async () => { abortCalls += 1; },
     waitForIdle: async () => undefined,
     compact: async () => undefined,
     exportToJsonl: () => '/tmp/session-test.jsonl',
@@ -67,6 +68,7 @@ function createFakeSession() {
     emit: (event: unknown) => listener?.(event as never),
     entries,
     isDisposed: () => disposed,
+    abortCalls: () => abortCalls,
   };
 }
 
@@ -158,6 +160,20 @@ describe('@upup/pi-session', () => {
   test('dispose tears down the upstream session', () => {
     const { adapter, fake } = createAdapter();
     adapter.dispose();
+    expect(fake.isDisposed()).toBe(true);
+  });
+
+  test('abort signal cancels the upstream session and dispose is idempotent', async () => {
+    const { adapter, fake } = createAdapter();
+    const controller = new AbortController();
+    const prompt = adapter.prompt('long-running', { signal: controller.signal });
+    controller.abort();
+    await prompt;
+    expect(fake.abortCalls()).toBe(1);
+    adapter.dispose();
+    adapter.dispose();
+    await expect(adapter.waitForIdle()).resolves.toBeUndefined();
+    await expect(adapter.prompt('after-dispose')).rejects.toThrow('disposed');
     expect(fake.isDisposed()).toBe(true);
   });
 });

@@ -7,13 +7,22 @@ import {
   PI_FINANCE_PACKAGE_VERSION,
 } from './host-contract.js';
 import { PI_FINANCE_COMMANDS } from './commands.js';
+import { createEventBus } from '@earendil-works/pi-coding-agent';
+import { publishPiCapabilityHosts } from '@upup/pi-capability-registry';
+
+function eventBus() { return createEventBus(); }
+function publishHost(events: ReturnType<typeof createEventBus>, host: Record<string, unknown>) {
+  return publishPiCapabilityHosts(events, String(host.sessionId), new Map([[String(host.packageName), host as never]]));
+}
 
 describe('Pi finance SDK extension', () => {
   test('registers Pi-native investment commands that dispatch intents to the current session', async () => {
     const commands = new Map<string, { handler: (args: string) => Promise<void> }>();
     const messages: string[] = [];
     const entries: Array<{ type: string; data: unknown }> = [];
+    const events = eventBus();
     financeEvidenceExtension({
+      events,
       on: () => undefined,
       registerTool: () => undefined,
       registerCommand: (name, options) => commands.set(name, options),
@@ -33,26 +42,36 @@ describe('Pi finance SDK extension', () => {
 
   test('registers the native read_filings tool with a bounded API contract', () => {
     const tools = new Map<string, { name: string }>();
-    financeEvidenceExtension({ on: () => undefined, registerTool: (tool: { name: string }) => tools.set(tool.name, tool), registerCommand: () => undefined, sendUserMessage: () => undefined, appendEntry: () => undefined } as never);
+    const events = eventBus();
+    financeEvidenceExtension({ events, on: () => undefined, registerTool: (tool: { name: string }) => tools.set(tool.name, tool), registerCommand: () => undefined, sendUserMessage: () => undefined, appendEntry: () => undefined } as never);
     expect(tools.has('read_filings')).toBe(true);
   });
 
+  test('declares market-aware schemas for live research tools', () => {
+    const tools = new Map<string, { name: string; parameters: { properties?: Record<string, unknown> } }>();
+    const events = eventBus();
+    financeEvidenceExtension({ events, on: () => undefined, registerTool: (tool: { name: string; parameters: { properties?: Record<string, unknown> } }) => tools.set(tool.name, tool), registerCommand: () => undefined, sendUserMessage: () => undefined, appendEntry: () => undefined } as never);
+    for (const name of ['get_stock_price', 'get_key_ratios', 'get_analyst_estimates', 'get_earnings', 'get_filings']) {
+      expect(tools.get(name)?.parameters.properties).toHaveProperty('market');
+    }
+  });
+
   test('accepts only the versioned host contract and requests declared capabilities', async () => {
-    const previous = (globalThis as typeof globalThis & { __upupPiHosts?: unknown }).__upupPiHosts;
     const requests: unknown[] = [];
-    (globalThis as typeof globalThis & { __upupPiHosts?: unknown }).__upupPiHosts = new Map([['@upup/pi-finance-sdk', {
+    const events = eventBus();
+    const releaseHost = publishHost(events, {
       contract: PI_FINANCE_HOST_CONTRACT,
       packageName: PI_FINANCE_PACKAGE_NAME,
       packageVersion: PI_FINANCE_PACKAGE_VERSION,
       sessionId: 'contract-session',
       capabilities: PI_FINANCE_HOST_CAPABILITIES,
-      getToolDefinitions(request: unknown) {
+      providers: { tools: { getToolDefinitions(request: unknown) {
         requests.push(request);
         return [];
-      },
-    }]]);
+      } } },
+    });
     try {
-      financeEvidenceExtension({ on: () => undefined, registerTool: () => undefined, registerCommand: () => undefined, sendUserMessage: () => undefined, appendEntry: () => undefined } as never);
+      financeEvidenceExtension({ events, on: () => undefined, registerTool: () => undefined, registerCommand: () => undefined, sendUserMessage: () => undefined, appendEntry: () => undefined } as never);
       expect(requests).toEqual([{
         contract: PI_FINANCE_HOST_CONTRACT,
         packageName: PI_FINANCE_PACKAGE_NAME,
@@ -61,28 +80,28 @@ describe('Pi finance SDK extension', () => {
         capability: 'tool-definitions',
       }]);
     } finally {
-      if (previous === undefined) delete (globalThis as typeof globalThis & { __upupPiHosts?: unknown }).__upupPiHosts;
-      else (globalThis as typeof globalThis & { __upupPiHosts?: unknown }).__upupPiHosts = previous;
+      releaseHost?.();
     }
   });
 
   test('does not request host tools when the package identity is not exact', () => {
-    const previous = (globalThis as typeof globalThis & { __upupPiHosts?: unknown }).__upupPiHosts;
     const requests: unknown[] = [];
-    (globalThis as typeof globalThis & { __upupPiHosts?: unknown }).__upupPiHosts = new Map([['@upup/pi-finance-sdk', {
+    const events = eventBus();
+    const releaseHost = publishHost(events, { packageName: PI_FINANCE_PACKAGE_NAME,
       contract: PI_FINANCE_HOST_CONTRACT,
       packageName: '@upup/impersonator',
       packageVersion: PI_FINANCE_PACKAGE_VERSION,
       sessionId: 'contract-session',
       capabilities: PI_FINANCE_HOST_CAPABILITIES,
-      getToolDefinitions(request: unknown) {
+      providers: { tools: { getToolDefinitions(request: unknown) {
         requests.push(request);
         return [{ name: 'must-not-load' }];
-      },
-    }]]);
+      } } },
+    });
     try {
       const tools = new Map<string, unknown>();
       financeEvidenceExtension({
+        events,
         on: () => undefined,
         registerTool: (tool: { name: string }) => tools.set(tool.name, tool),
         registerCommand: () => undefined,
@@ -92,25 +111,24 @@ describe('Pi finance SDK extension', () => {
       expect(requests).toEqual([]);
       expect(tools.has('must-not-load')).toBe(false);
     } finally {
-      if (previous === undefined) delete (globalThis as typeof globalThis & { __upupPiHosts?: unknown }).__upupPiHosts;
-      else (globalThis as typeof globalThis & { __upupPiHosts?: unknown }).__upupPiHosts = previous;
+      releaseHost?.();
     }
   });
 
   test('registers the complete deterministic finance tool set', async () => {
-    const previous = (globalThis as typeof globalThis & { __upupPiHosts?: unknown }).__upupPiHosts;
-    (globalThis as typeof globalThis & { __upupPiHosts?: unknown }).__upupPiHosts = new Map([[PI_FINANCE_PACKAGE_NAME, {
+    const events = eventBus();
+    const releaseHost = publishHost(events, {
       contract: PI_FINANCE_HOST_CONTRACT,
       packageName: PI_FINANCE_PACKAGE_NAME,
       packageVersion: PI_FINANCE_PACKAGE_VERSION,
       sessionId: 'finance-test-session',
       capabilities: PI_FINANCE_HOST_CAPABILITIES,
-      getToolDefinitions: () => [],
-      getMarketQuoteFetcher: () => async () => new Response(JSON.stringify({ chart: { result: [{ meta: { regularMarketPrice: 1600, regularMarketTime: Date.parse('2026-09-13T00:00:00Z') / 1000 } }] } }), { status: 200 }),
-    }]]);
+      providers: { tools: { getToolDefinitions: () => [] }, marketData: { getMarketQuoteFetcher: () => async () => new Response(JSON.stringify({ chart: { result: [{ meta: { regularMarketPrice: 1600, regularMarketTime: Date.parse('2026-09-13T00:00:00Z') / 1000 } }] } }), { status: 200 }) } },
+    });
     const tools = new Map<string, { execute: (...args: any[]) => Promise<any> }>();
     try {
       financeEvidenceExtension({
+        events,
         on: () => undefined,
         registerTool: (tool: { name: string; execute: (...args: any[]) => Promise<any> }) => tools.set(tool.name, tool),
         registerCommand: () => undefined,
@@ -250,25 +268,24 @@ describe('Pi finance SDK extension', () => {
     const deletedAlert = await tools.get('fund_alert_delete')!.execute('alert-delete-native-1', { alert_id: 'alert-alert-native-1' }, new AbortController().signal);
     expect(JSON.parse(deletedAlert.content[0].text).value.deleted).toBe(true);
     } finally {
-      if (previous === undefined) delete (globalThis as typeof globalThis & { __upupPiHosts?: unknown }).__upupPiHosts;
-      else (globalThis as typeof globalThis & { __upupPiHosts?: unknown }).__upupPiHosts = previous;
+      releaseHost?.();
     }
   });
 
   test('reads sandbox trading state natively with auditable evidence', async () => {
-    const previous = (globalThis as typeof globalThis & { __upupPiHosts?: unknown }).__upupPiHosts;
-    (globalThis as typeof globalThis & { __upupPiHosts?: unknown }).__upupPiHosts = new Map([[PI_FINANCE_PACKAGE_NAME, {
+    const events = eventBus();
+    const releaseHost = publishHost(events, {
       contract: PI_FINANCE_HOST_CONTRACT,
       packageName: PI_FINANCE_PACKAGE_NAME,
       packageVersion: PI_FINANCE_PACKAGE_VERSION,
       sessionId: 'finance-test-session',
       capabilities: PI_FINANCE_HOST_CAPABILITIES,
-      getToolDefinitions: () => [],
-      getMarketQuoteFetcher: () => async () => new Response(JSON.stringify({ chart: { result: [{ meta: { regularMarketPrice: 1600, regularMarketTime: Date.parse('2026-09-13T00:00:00Z') / 1000 } }] } }), { status: 200 }),
-    }]]);
+      providers: { tools: { getToolDefinitions: () => [] }, marketData: { getMarketQuoteFetcher: () => async () => new Response(JSON.stringify({ chart: { result: [{ meta: { regularMarketPrice: 1600, regularMarketTime: Date.parse('2026-09-13T00:00:00Z') / 1000 } }] } }), { status: 200 }) } },
+    });
     const tools = new Map<string, { execute: (...args: any[]) => Promise<any> }>();
     try {
       financeEvidenceExtension({
+        events,
         on: () => undefined,
         registerTool: (tool: { name: string; execute: (...args: any[]) => Promise<any> }) => tools.set(tool.name, tool),
         registerCommand: () => undefined,
@@ -282,42 +299,41 @@ describe('Pi finance SDK extension', () => {
       expect(tools.has('get_trading_positions')).toBe(true);
       expect(tools.has('get_trading_balance')).toBe(true);
     } finally {
-      if (previous === undefined) delete (globalThis as typeof globalThis & { __upupPiHosts?: unknown }).__upupPiHosts;
-      else (globalThis as typeof globalThis & { __upupPiHosts?: unknown }).__upupPiHosts = previous;
+      releaseHost?.();
     }
   });
 
   test('uses the structured market quote Host service when available', async () => {
-    const previous = (globalThis as typeof globalThis & { __upupPiHosts?: unknown }).__upupPiHosts;
     let rawFetchCalled = false;
-    (globalThis as typeof globalThis & { __upupPiHosts?: unknown }).__upupPiHosts = new Map([[PI_FINANCE_PACKAGE_NAME, {
+    const events = eventBus();
+    const releaseHost = publishHost(events, {
       contract: PI_FINANCE_HOST_CONTRACT,
       packageName: PI_FINANCE_PACKAGE_NAME,
       packageVersion: PI_FINANCE_PACKAGE_VERSION,
       sessionId: 'structured-quote-session',
       capabilities: PI_FINANCE_HOST_CAPABILITIES,
-      getToolDefinitions: () => [],
-      getMarketQuoteFetcher: () => async () => { rawFetchCalled = true; return new Response('{}', { status: 500 }); },
+      providers: { tools: { getToolDefinitions: () => [] }, marketData: { getMarketQuoteFetcher: () => async () => { rawFetchCalled = true; return new Response('{}', { status: 500 }); },
       getMarketQuote: async (symbol: string, _market: string | undefined, _signal: AbortSignal | undefined, auditId: string) => ({
         value: { symbol, market: 'cn' as const, price: 1601, bid: 1600.5, ask: 1601.5, last: 1601, currency: 'CNY' as const, asOf: '2026-09-13', source: 'https://api.tushare.pro', freshness: 'delayed' as const, indicative: true },
         evidence: { id: `market-data:${auditId}:quote`, source: 'https://api.tushare.pro', retrievedAt: '2026-09-13T00:00:00.000Z', asOf: '2026-09-13', query: symbol, dataFreshness: 'delayed' as const, auditId },
-      }),
-    }]]);
+      }) } },
+    });
     const tools = new Map<string, { execute: (...args: any[]) => Promise<any> }>();
     try {
-      financeEvidenceExtension({ on: () => undefined, registerTool: (tool: { name: string; execute: (...args: any[]) => Promise<any> }) => tools.set(tool.name, tool), registerCommand: () => undefined, sendUserMessage: () => undefined, appendEntry: () => undefined } as never);
+      financeEvidenceExtension({ events, on: () => undefined, registerTool: (tool: { name: string; execute: (...args: any[]) => Promise<any> }) => tools.set(tool.name, tool), registerCommand: () => undefined, sendUserMessage: () => undefined, appendEntry: () => undefined } as never);
       const result = await tools.get('finance_evidence_quote')!.execute('structured-quote-1', { symbol: '600519.SH' }, new AbortController().signal);
       expect(rawFetchCalled).toBe(false);
       expect(result).toMatchObject({ details: { value: { symbol: '600519.SH', last: 1601 }, evidence: [{ source: 'https://api.tushare.pro', freshness: 'delayed', auditId: 'structured-quote-1' }] } });
     } finally {
-      if (previous === undefined) delete (globalThis as typeof globalThis & { __upupPiHosts?: unknown }).__upupPiHosts;
-      else (globalThis as typeof globalThis & { __upupPiHosts?: unknown }).__upupPiHosts = previous;
+      releaseHost?.();
     }
   });
 
   test('denies native trading writes without interactive approval', async () => {
     const tools = new Map<string, { execute: (...args: any[]) => Promise<any> }>();
+    const events = eventBus();
     financeEvidenceExtension({
+      events,
       on: () => undefined,
       registerTool: (tool: { name: string; execute: (...args: any[]) => Promise<any> }) => tools.set(tool.name, tool),
       registerCommand: () => undefined,
@@ -331,19 +347,19 @@ describe('Pi finance SDK extension', () => {
   });
 
   test('executes native sandbox writes only after interactive approval', async () => {
-    const previousHost = (globalThis as typeof globalThis & { __upupPiHosts?: unknown }).__upupPiHosts;
-    (globalThis as typeof globalThis & { __upupPiHosts?: unknown }).__upupPiHosts = new Map([[PI_FINANCE_PACKAGE_NAME, {
+    const events = eventBus();
+    const releaseHost = publishHost(events, {
       contract: PI_FINANCE_HOST_CONTRACT,
       packageName: PI_FINANCE_PACKAGE_NAME,
       packageVersion: PI_FINANCE_PACKAGE_VERSION,
       sessionId: 'finance-trade-test-session',
       capabilities: PI_FINANCE_HOST_CAPABILITIES,
-      getToolDefinitions: () => [],
-      getMarketQuoteFetcher: () => async () => new Response(JSON.stringify({ chart: { result: [{ meta: { regularMarketPrice: 1600, regularMarketTime: Date.parse('2026-09-13T00:00:00Z') / 1000 } }] } }), { status: 200 }),
-    }]]);
+      providers: { tools: { getToolDefinitions: () => [] }, marketData: { getMarketQuoteFetcher: () => async () => new Response(JSON.stringify({ chart: { result: [{ meta: { regularMarketPrice: 1600, regularMarketTime: Date.parse('2026-09-13T00:00:00Z') / 1000 } }] } }), { status: 200 }) } },
+    });
     const tools = new Map<string, { execute: (...args: any[]) => Promise<any> }>();
     try {
       financeEvidenceExtension({
+        events,
         on: () => undefined,
         registerTool: (tool: { name: string; execute: (...args: any[]) => Promise<any> }) => tools.set(tool.name, tool),
         registerCommand: () => undefined,
@@ -362,8 +378,7 @@ describe('Pi finance SDK extension', () => {
       else process.env.UPUP_SANDBOX_STATE_FILE = previous;
       await Bun.file(stateFile).delete().catch(() => undefined);
     } finally {
-      if (previousHost === undefined) delete (globalThis as typeof globalThis & { __upupPiHosts?: unknown }).__upupPiHosts;
-      else (globalThis as typeof globalThis & { __upupPiHosts?: unknown }).__upupPiHosts = previousHost;
+      releaseHost?.();
     }
   });
 });

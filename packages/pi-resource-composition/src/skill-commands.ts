@@ -1,7 +1,7 @@
 import { DefaultResourceLoader, loadSkills } from '@earendil-works/pi-coding-agent';
 import { resolveConfiguredPiPackages } from './package-config.js';
-import { PiPackageCatalog } from '@upup/pi-resource-composition';
-import { verifyPiResourceTrust } from '@upup/pi-resource-composition';
+import { PiPackageCatalog } from './package-catalog.js';
+import { verifyPiResourceTrust } from './plugin-trust.js';
 
 export interface PiSkillCommand {
   readonly name: string;

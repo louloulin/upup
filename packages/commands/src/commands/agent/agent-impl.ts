@@ -9,11 +9,10 @@
  */
 
 import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types.js'
-import { getSubagentPortLocal } from '../../agent-port.js'
 
 export const call = async (
   args: string,
-  _context: ToolUseContext,
+  context: ToolUseContext,
 ): Promise<LocalCommandResult> => {
   const parts = args.trim().split(/\s+/)
   const description = parts[0] || ''
@@ -42,7 +41,7 @@ Note: Tasks are executed by the Pi background-session service.
   }
 
   // Use the port registry — no fragile deep import needed
-  const subagent = getSubagentPortLocal()
+  const subagent = context.capabilities?.subagent
   if (subagent) {
     try {
       const task = await subagent.createTask({

@@ -16,11 +16,13 @@
         "@earendil-works/pi-tui": "0.84.3",
         "@modelcontextprotocol/sdk": "^1.29.0",
         "@mozilla/readability": "^0.6.0",
+        "@upup/pi-app": "workspace:*",
         "@upup/pi-backtest": "workspace:*",
         "@upup/pi-cache": "workspace:*",
         "@upup/pi-capability-registry": "workspace:*",
         "@upup/pi-config": "workspace:*",
         "@upup/pi-corporate-actions": "workspace:*",
+        "@upup/pi-evals": "workspace:*",
         "@upup/pi-finance-composition": "workspace:*",
         "@upup/pi-finance-sdk": "workspace:*",
         "@upup/pi-investment-analysis": "workspace:*",
@@ -79,6 +81,9 @@
     "packages/commands": {
       "name": "@upup/commands",
       "version": "0.2.0",
+      "dependencies": {
+        "@upup/pi-resource-composition": "0.1.0",
+      },
       "peerDependencies": {
         "@upup/pi-runtime": "0.1.0",
       },
@@ -106,7 +111,6 @@
         "@upup/gateway": "0.2.0",
         "@upup/pi-event-adapter": "0.1.0",
         "@upup/pi-runtime": "0.1.0",
-        "@upup/pi-session": "0.1.0",
         "@upup/utils": "0.2.0",
       },
     },
@@ -116,13 +120,13 @@
       "dependencies": {
         "@earendil-works/pi-ai": "0.84.3",
         "@earendil-works/pi-coding-agent": "0.84.3",
-        "@upup/pi-event-adapter": "workspace:*",
-        "@upup/pi-market-data": "workspace:*",
-        "@upup/pi-runtime": "workspace:*",
-        "@upup/utils": "workspace:*",
+        "@upup/pi-event-adapter": "0.1.0",
+        "@upup/pi-market-data": "0.1.0",
+        "@upup/pi-runtime": "0.1.0",
+        "@upup/utils": "0.2.0",
         "@whiskeysockets/baileys": "7.0.0-rc.9",
-        "qrcode-terminal": "^0.12.0",
-        "zod": "^3.23.8",
+        "qrcode-terminal": "0.12.0",
+        "zod": "3.25.76",
       },
       "devDependencies": {
         "@types/bun": "latest",
@@ -136,37 +140,53 @@
       "name": "@upup/i18n",
       "version": "0.1.0",
       "dependencies": {
-        "@upup/types": "workspace:*",
+        "@upup/types": "0.2.0",
       },
     },
     "packages/keybindings": {
       "name": "@upup/keybindings",
       "version": "0.2.0",
       "dependencies": {
-        "eventemitter3": "^5.0.0",
+        "eventemitter3": "5.0.4",
       },
     },
     "packages/mcp": {
       "name": "@upup/mcp",
       "version": "0.2.0",
       "dependencies": {
-        "@modelcontextprotocol/sdk": "^1.0.0",
-        "@upup/pi-research": "workspace:*",
-        "@upup/pi-runtime": "workspace:*",
-        "@upup/pi-storage": "workspace:*",
-        "@upup/skills": "workspace:*",
-        "@upup/utils": "workspace:*",
+        "@modelcontextprotocol/sdk": "1.29.0",
+        "@upup/pi-research": "0.1.0",
+        "@upup/pi-runtime": "0.1.0",
+        "@upup/pi-storage": "0.2.0",
+        "@upup/utils": "0.2.0",
         "typebox": "1.3.7",
-        "zod": "^3.0.0",
+        "zod": "3.25.76",
       },
     },
     "packages/memory": {
       "name": "@upup/memory",
       "version": "0.2.0",
       "dependencies": {
-        "@upup/types": "workspace:*",
-        "gray-matter": "^4.0.3",
-        "zod": "^3.22.0",
+        "@upup/types": "0.2.0",
+        "gray-matter": "4.0.3",
+        "zod": "3.25.76",
+      },
+    },
+    "packages/pi-app": {
+      "name": "@upup/pi-app",
+      "version": "0.1.0",
+      "dependencies": {
+        "@upup/commands": "0.2.0",
+        "@upup/cron": "0.2.0",
+        "@upup/gateway": "0.2.0",
+        "@upup/mcp": "0.2.0",
+        "@upup/pi-event-adapter": "0.1.0",
+        "@upup/pi-finance-sdk": "0.1.0",
+        "@upup/pi-investment-workflow": "0.1.0",
+        "@upup/pi-platform": "0.1.0",
+        "@upup/pi-runtime": "0.1.0",
+        "@upup/pi-session": "0.1.0",
+        "@upup/pi-tui-app": "0.1.0",
       },
     },
     "packages/pi-backtest": {
@@ -237,13 +257,24 @@
         "typebox": "1.3.7",
       },
     },
+    "packages/pi-evals": {
+      "name": "@upup/pi-evals",
+      "version": "0.1.0",
+      "dependencies": {
+        "@earendil-works/pi-tui": "0.84.3",
+        "@upup/pi-app": "0.1.0",
+        "@upup/pi-tui-app": "0.1.0",
+        "@upup/utils": "0.2.0",
+        "zod": "3.25.76",
+      },
+    },
     "packages/pi-event-adapter": {
       "name": "@upup/pi-event-adapter",
       "version": "0.1.0",
       "dependencies": {
+        "@earendil-works/pi-ai": "0.84.3",
         "@earendil-works/pi-coding-agent": "0.84.3",
         "@upup/pi-runtime": "0.1.0",
-        "@upup/utils": "0.2.0",
       },
     },
     "packages/pi-finance-composition": {
@@ -260,6 +291,8 @@
       "version": "0.1.0",
       "dependencies": {
         "@upup/pi-capability-registry": "0.1.0",
+        "@upup/pi-observability": "0.1.0",
+        "@upup/pi-runtime": "0.1.0",
       },
       "peerDependencies": {
         "@earendil-works/pi-coding-agent": "0.84.3",
@@ -287,6 +320,7 @@
         "@upup/pi-market-data": "0.1.0",
         "@upup/pi-planning": "0.1.0",
         "@upup/pi-research": "0.1.0",
+        "@upup/pi-runtime": "0.1.0",
         "@upup/pi-storage": "0.2.0",
         "@upup/types": "0.2.0",
         "@upup/utils": "0.2.0",
@@ -297,6 +331,7 @@
         "@upup/pi-investment-analysis": "0.1.0",
         "@upup/pi-market-data": "0.1.0",
         "@upup/pi-portfolio": "0.1.0",
+        "@upup/pi-risk": "0.1.0",
         "typebox": "1.3.7",
       },
     },
@@ -305,6 +340,11 @@
       "version": "0.1.0",
       "dependencies": {
         "@upup/pi-capability-registry": "0.1.0",
+        "@upup/pi-market-data": "0.1.0",
+        "@upup/pi-resource-composition": "0.1.0",
+        "@upup/pi-runtime": "0.1.0",
+        "@upup/pi-session": "0.1.0",
+        "@upup/utils": "0.2.0",
       },
       "peerDependencies": {
         "@earendil-works/pi-coding-agent": "0.84.3",
@@ -316,6 +356,8 @@
       "version": "0.1.0",
       "dependencies": {
         "@upup/pi-capability-registry": "0.1.0",
+        "@upup/pi-observability": "0.1.0",
+        "@upup/types": "0.2.0",
       },
       "peerDependencies": {
         "@earendil-works/pi-coding-agent": "0.84.3",
@@ -335,15 +377,15 @@
       "name": "@upup/pi-observability",
       "version": "0.1.0",
       "dependencies": {
-        "@upup/pi-event-adapter": "workspace:*",
+        "@upup/pi-runtime": "0.1.0",
       },
     },
     "packages/pi-permissions": {
       "name": "@upup/pi-permissions",
       "version": "0.1.0",
       "dependencies": {
-        "@upup/pi-event-adapter": "workspace:*",
-        "@upup/utils": "workspace:*",
+        "@upup/pi-runtime": "0.1.0",
+        "@upup/utils": "0.2.0",
       },
     },
     "packages/pi-planning": {
@@ -392,10 +434,10 @@
       "name": "@upup/pi-prompt-config",
       "version": "0.1.0",
       "dependencies": {
-        "@upup/i18n": "workspace:*",
-        "@upup/pi-event-adapter": "workspace:*",
-        "@upup/pi-observability": "workspace:*",
-        "@upup/utils": "workspace:*",
+        "@upup/i18n": "0.1.0",
+        "@upup/pi-observability": "0.1.0",
+        "@upup/pi-runtime": "0.1.0",
+        "@upup/utils": "0.2.0",
       },
       "peerDependencies": {
         "@earendil-works/pi-coding-agent": "0.84.3",
@@ -456,12 +498,20 @@
       "name": "@upup/pi-session",
       "version": "0.1.0",
       "dependencies": {
+        "@earendil-works/pi-ai": "0.84.3",
         "@earendil-works/pi-coding-agent": "0.84.3",
-        "@upup/commands": "workspace:*",
+        "@upup/commands": "0.2.0",
+        "@upup/cron": "0.2.0",
+        "@upup/pi-capability-registry": "0.1.0",
         "@upup/pi-event-adapter": "0.1.0",
+        "@upup/pi-finance-composition": "0.1.0",
         "@upup/pi-investment-workflow": "0.1.0",
         "@upup/pi-market-data": "0.1.0",
+        "@upup/pi-platform-composition": "0.1.0",
+        "@upup/pi-resource-composition": "0.1.0",
         "@upup/pi-runtime": "0.1.0",
+        "@upup/types": "0.2.0",
+        "@upup/utils": "0.2.0",
       },
     },
     "packages/pi-stdio": {
@@ -477,8 +527,8 @@
       "name": "@upup/pi-storage",
       "version": "0.2.0",
       "dependencies": {
-        "@upup/pi-finance-sdk": "workspace:*",
-        "@upup/utils": "workspace:*",
+        "@upup/pi-finance-sdk": "0.1.0",
+        "@upup/utils": "0.2.0",
       },
     },
     "packages/pi-technical": {
@@ -496,47 +546,25 @@
       "name": "@upup/pi-tui-app",
       "version": "0.1.0",
       "dependencies": {
-        "@upup/commands": "workspace:*",
-        "@upup/hooks": "workspace:*",
-        "@upup/i18n": "workspace:*",
-        "@upup/memory": "workspace:*",
-        "@upup/pi-capability-registry": "workspace:*",
-        "@upup/pi-event-adapter": "workspace:*",
-        "@upup/pi-permissions": "workspace:*",
-        "@upup/pi-resource-composition": "workspace:*",
-        "@upup/pi-runtime": "workspace:*",
-        "@upup/pi-session": "workspace:*",
-        "@upup/types": "workspace:*",
-        "@upup/utils": "workspace:*",
-        "chalk": "^5.0.0",
-        "react": "^18.0.0",
+        "@earendil-works/pi-ai": "0.84.3",
+        "@upup/commands": "0.2.0",
+        "@upup/hooks": "0.2.0",
+        "@upup/i18n": "0.1.0",
+        "@upup/memory": "0.2.0",
+        "@upup/pi-capability-registry": "0.1.0",
+        "@upup/pi-permissions": "0.1.0",
+        "@upup/pi-resource-composition": "0.1.0",
+        "@upup/pi-runtime": "0.1.0",
+        "@upup/pi-session": "0.1.0",
+        "@upup/pi-storage": "0.2.0",
+        "@upup/types": "0.2.0",
+        "@upup/utils": "0.2.0",
+        "chalk": "5.6.2",
+        "react": "18.3.1",
       },
       "peerDependencies": {
-        "@earendil-works/pi-tui": "*",
-        "ink": "*",
-      },
-    },
-    "packages/plugin-sdk": {
-      "name": "@upup/plugin-sdk",
-      "version": "0.2.0",
-      "dependencies": {
-        "@upup/types": "workspace:*",
-      },
-    },
-    "packages/plugins": {
-      "name": "@upup/plugins",
-      "version": "0.2.0",
-      "dependencies": {
-        "@upup/plugin-sdk": "workspace:*",
-        "@upup/skills": "workspace:*",
-        "@upup/types": "workspace:*",
-        "@upup/utils": "workspace:*",
-        "typebox": "1.3.7",
-        "zod": "^3.23.8",
-      },
-      "devDependencies": {
-        "@types/bun": "latest",
-        "@upup/types": "workspace:*",
+        "@earendil-works/pi-tui": "0.84.3",
+        "ink": "7.1.1",
       },
     },
     "packages/sdk": {
@@ -546,21 +574,11 @@
         "@upup/types": "workspace:*",
       },
     },
-    "packages/skills": {
-      "name": "@upup/skills",
-      "version": "0.2.0",
-      "dependencies": {
-        "gray-matter": "^4.0.3",
-      },
-      "peerDependencies": {
-        "@upup/utils": "workspace:*",
-      },
-    },
     "packages/state": {
       "name": "@upup/state",
       "version": "0.2.0",
       "dependencies": {
-        "eventemitter3": "^5.0.0",
+        "eventemitter3": "5.0.4",
       },
     },
     "packages/types": {
@@ -571,13 +589,13 @@
       "name": "@upup/utils",
       "version": "0.2.0",
       "dependencies": {
-        "@upup/pi-config": "workspace:*",
-        "chalk": "^5.0.0",
-        "dotenv": "^16.0.0",
-        "eventemitter3": "^5.0.0",
+        "@upup/pi-config": "0.1.0",
+        "chalk": "5.6.2",
+        "dotenv": "17.3.1",
+        "eventemitter3": "5.0.4",
       },
       "peerDependencies": {
-        "@upup/types": "workspace:*",
+        "@upup/types": "0.2.0",
       },
     },
   },
@@ -1184,6 +1202,8 @@
 
     "@upup/memory": ["@upup/memory@workspace:packages/memory"],
 
+    "@upup/pi-app": ["@upup/pi-app@workspace:packages/pi-app"],
+
     "@upup/pi-backtest": ["@upup/pi-backtest@workspace:packages/pi-backtest"],
 
     "@upup/pi-bridge": ["@upup/pi-bridge@workspace:packages/pi-bridge"],
@@ -1199,6 +1219,8 @@
     "@upup/pi-config": ["@upup/pi-config@workspace:packages/pi-config"],
 
     "@upup/pi-corporate-actions": ["@upup/pi-corporate-actions@workspace:packages/pi-corporate-actions"],
+
+    "@upup/pi-evals": ["@upup/pi-evals@workspace:packages/pi-evals"],
 
     "@upup/pi-event-adapter": ["@upup/pi-event-adapter@workspace:packages/pi-event-adapter"],
 
@@ -1250,13 +1272,7 @@
 
     "@upup/pi-tui-app": ["@upup/pi-tui-app@workspace:packages/pi-tui-app"],
 
-    "@upup/plugin-sdk": ["@upup/plugin-sdk@workspace:packages/plugin-sdk"],
-
-    "@upup/plugins": ["@upup/plugins@workspace:packages/plugins"],
-
     "@upup/sdk": ["@upup/sdk@workspace:packages/sdk"],
-
-    "@upup/skills": ["@upup/skills@workspace:packages/skills"],
 
     "@upup/state": ["@upup/state@workspace:packages/state"],
 
@@ -2462,10 +2478,6 @@
 
     "@upup/gateway/@types/bun": ["@types/bun@1.4.2", "https://registry.npmmirror.com/@types/bun/-/bun-1.4.2.tgz", { "dependencies": { "bun-types": "1.4.2" } }, "sha512-GimotNn7+ZV0uVArItBbriZsR1oNf0+WTzPkdcFrzShI7k2norL0uzEaJT8T33dWr7O/c9ZDuAFQrctKCi72oQ=="],
 
-    "@upup/plugins/@types/bun": ["@types/bun@1.4.2", "https://registry.npmmirror.com/@types/bun/-/bun-1.4.2.tgz", { "dependencies": { "bun-types": "1.4.2" } }, "sha512-GimotNn7+ZV0uVArItBbriZsR1oNf0+WTzPkdcFrzShI7k2norL0uzEaJT8T33dWr7O/c9ZDuAFQrctKCi72oQ=="],
-
-    "@upup/utils/dotenv": ["dotenv@16.4.7", "https://registry.npmmirror.com/dotenv/-/dotenv-16.4.7.tgz", {}, "sha512-47qPchRCykZC03FhkYAhrvwU4xDBFIj1QPqaarj6mdM/hgUzfPHcpkHJOn3mJAufFeeAxAzeGsr5X0M4k6fLZQ=="],
-
     "apache-arrow/@types/node": ["@types/node@20.19.40", "https://registry.npmmirror.com/@types/node/-/node-20.19.40.tgz", { "dependencies": { "undici-types": "~6.21.0" } }, "sha512-xxx6M2IpSTnnKcR0cMvIiohkiCx20/oRPtWGbenFygKCGl3zqUzdNjQ/1V4solq1LU+dgv0nQzeGOuqkqZGg0Q=="],
 
     "babel-jest/chalk": ["chalk@4.1.2", "https://registry.npmmirror.com/chalk/-/chalk-4.1.2.tgz", { "dependencies": { "ansi-styles": "^4.1.0", "supports-color": "^7.1.0" } }, "sha512-oKnbhFyRIXpUuez8iBMmyEa4nbj4IOQyuhc/wy9kY7/WVPcwIO9VA668Pu8RkO7+0G76SLROeyw9CpQ061i4mA=="],
@@ -2727,8 +2739,6 @@
     "@upup/cron/@types/bun/bun-types": ["bun-types@1.4.2", "https://registry.npmmirror.com/bun-types/-/bun-types-1.4.2.tgz", { "dependencies": { "@types/node": "*" } }, "sha512-bxV1FgK7yBIzjRe5zBozIM4Bem11ZJcCXSrjWRG3YWLt8yFDePu4cLjpebO8OvPeIE9trbyPF4fuj3Cia4Fj3w=="],
 
     "@upup/gateway/@types/bun/bun-types": ["bun-types@1.4.2", "https://registry.npmmirror.com/bun-types/-/bun-types-1.4.2.tgz", { "dependencies": { "@types/node": "*" } }, "sha512-bxV1FgK7yBIzjRe5zBozIM4Bem11ZJcCXSrjWRG3YWLt8yFDePu4cLjpebO8OvPeIE9trbyPF4fuj3Cia4Fj3w=="],
-
-    "@upup/plugins/@types/bun/bun-types": ["bun-types@1.4.2", "https://registry.npmmirror.com/bun-types/-/bun-types-1.4.2.tgz", { "dependencies": { "@types/node": "*" } }, "sha512-bxV1FgK7yBIzjRe5zBozIM4Bem11ZJcCXSrjWRG3YWLt8yFDePu4cLjpebO8OvPeIE9trbyPF4fuj3Cia4Fj3w=="],
 
     "apache-arrow/@types/node/undici-types": ["undici-types@6.21.0", "https://registry.npmmirror.com/undici-types/-/undici-types-6.21.0.tgz", {}, "sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ=="],
 

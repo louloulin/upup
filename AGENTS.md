@@ -37,7 +37,7 @@ UpUp (涨涨) 是基于 [virattt/dexter](https://github.com/virattt/dexter) 的 
   - i18n: `src/i18n/strings.ts` (EN + zh-CN, strongly-typed keys, missing-locale tests fail)
   - Session / plan / memory / worktree: `src/session/`, `src/plan/`, `src/memory/`, `src/worktree/`
   - Utils: `src/utils/` (env, config, caching, token estimation, markdown tables)
-  - Web / gateway: `src/web/` + `packages/gateway/` (read-only JSON snapshots)
+  - Management UI / gateway: `packages/pi-management/` + `packages/gateway/` (read-only JSON snapshots)
   - Evals: `src/evals/` + Pi Package eval contracts under `packages/pi-finance-sdk/evals/`
 - 16 workspace packages under `packages/`: commands, cron, daemon, gateway, hooks, keybindings, mcp, memory, pi-finance-sdk, plugin-sdk, plugins, sdk, skills, state, types, utils
 - Config: `.upup/settings.json` (persisted model/provider selection)

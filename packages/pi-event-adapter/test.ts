@@ -2,11 +2,10 @@
  * @upup/pi-event-adapter contract tests.
  *
  * These tests pin:
- *   - Every Pi canonical event type has a deterministic legacy/server
- *     mapping (or an explicit decision that it has none).
- *   - The mapping functions preserve the same field semantics as the four
- *     pre-Phase-2 inline adapters in `src/runtime/pi/event-stream.ts`,
- *     `src/gateway/agent-runner.ts`, and `src/stdio/server.ts`.
+ *   - Every Pi canonical event type has a deterministic server mapping (or
+ *     an explicit decision that it has none).
+ *   - The mapping functions preserve the field semantics required by the
+ *     stdio/gateway JSON-RPC contract.
  *   - The async adapter streams consume both sync and async iterables.
  *   - The contract version matches `@upup/pi-runtime`.
  */
@@ -16,14 +15,9 @@ import { PI_EVENTS_CONTRACT } from '@upup/pi-runtime';
 import type { UpUpAgentEvent } from '@upup/pi-runtime';
 import {
   PI_EVENT_ADAPTER_CONTRACT,
-  adaptPiEventsToLegacy,
   adaptPiEventsToServer,
-  buildLegacyDoneEvent,
-  hasLegacyMapping,
   hasServerMapping,
-  mapPiEventToLegacy,
   mapPiEventToServer,
-  type LegacyAgentEvent,
 } from './src/index';
 
 describe('@upup/pi-event-adapter', () => {
@@ -31,39 +25,22 @@ describe('@upup/pi-event-adapter', () => {
     expect(PI_EVENT_ADAPTER_CONTRACT).toBe(PI_EVENTS_CONTRACT);
   });
 
-  test('thinking event maps to legacy & server thinking', () => {
+  test('thinking event maps to server thinking', () => {
     const event: UpUpAgentEvent = { type: 'thinking', sessionId: 's', text: 'considering' };
-    expect(mapPiEventToLegacy(event)).toEqual({ type: 'thinking', message: 'considering' });
     expect(mapPiEventToServer(event)).toEqual({ type: 'thinking', message: 'considering' });
   });
 
-  test('text_delta maps to stream_progress with textContent/content', () => {
+  test('text_delta maps to stream_progress with content', () => {
     const event: UpUpAgentEvent = { type: 'text_delta', sessionId: 's', delta: 'hello' };
-    const legacy = mapPiEventToLegacy(event) as Extract<LegacyAgentEvent, { type: 'stream_progress' }>;
-    expect(legacy.type).toBe('stream_progress');
-    expect(legacy.charDelta).toBe(5);
-    expect(legacy.mode).toBe('responding');
-    expect(legacy.textContent).toBe('hello');
-
     const server = mapPiEventToServer(event)!;
     expect(server.type).toBe('stream_progress');
     expect((server as Record<string, unknown>).content).toBe('hello');
     expect((server as Record<string, unknown>).charDelta).toBe(5);
   });
 
-  test('empty text_delta is dropped from legacy but still yields server event', () => {
+  test('empty text_delta still yields a server event', () => {
     const event: UpUpAgentEvent = { type: 'text_delta', sessionId: 's', delta: '' };
-    expect(mapPiEventToLegacy(event)).toBeUndefined();
     expect(mapPiEventToServer(event)).not.toBeNull();
-  });
-
-  test('text_delta honours ctx.defaultMode', () => {
-    const event: UpUpAgentEvent = { type: 'text_delta', sessionId: 's', delta: 'x' };
-    const legacy = mapPiEventToLegacy(event, { defaultMode: 'thinking' }) as Extract<
-      LegacyAgentEvent,
-      { type: 'stream_progress' }
-    >;
-    expect(legacy.mode).toBe('thinking');
   });
 
   test('tool_start maps to tool_start with normalized args', () => {
@@ -74,15 +51,11 @@ describe('@upup/pi-event-adapter', () => {
       toolCallId: 'tc-1',
       input: { command: 'ls' },
     };
-    const legacy = mapPiEventToLegacy(event) as Extract<LegacyAgentEvent, { type: 'tool_start' }>;
-    expect(legacy.type).toBe('tool_start');
-    expect(legacy.tool).toBe('bash');
-    expect(legacy.args).toEqual({ command: 'ls' });
-    expect(legacy.toolCallId).toBe('tc-1');
-
     const server = mapPiEventToServer(event)!;
     expect(server.type).toBe('tool_start');
     expect((server as Record<string, unknown>).tool).toBe('bash');
+    expect((server as Record<string, unknown>).args).toEqual({ command: 'ls' });
+    expect((server as Record<string, unknown>).toolCallId).toBe('tc-1');
   });
 
   test('tool_start with null/undefined input maps to empty args object', () => {
@@ -93,8 +66,7 @@ describe('@upup/pi-event-adapter', () => {
       toolCallId: 'tc-2',
       input: null as unknown,
     };
-    const legacy = mapPiEventToLegacy(event) as Extract<LegacyAgentEvent, { type: 'tool_start' }>;
-    expect(legacy.args).toEqual({});
+    expect((mapPiEventToServer(event) as Record<string, unknown>).args).toEqual({});
   });
 
   test('tool_update maps to tool_progress', () => {
@@ -104,9 +76,7 @@ describe('@upup/pi-event-adapter', () => {
       toolName: 'bash',
       text: 'working',
     };
-    const legacy = mapPiEventToLegacy(event) as Extract<LegacyAgentEvent, { type: 'tool_progress' }>;
-    expect(legacy.type).toBe('tool_progress');
-    expect(legacy.message).toBe('working');
+    expect(mapPiEventToServer(event)).toEqual({ type: 'tool_progress', tool: 'bash', message: 'working' });
   });
 
   test('tool_end success maps to tool_end', () => {
@@ -116,17 +86,12 @@ describe('@upup/pi-event-adapter', () => {
       toolName: 'bash',
       toolCallId: 'tc-1',
     };
-    const legacy = mapPiEventToLegacy(event) as Extract<LegacyAgentEvent, { type: 'tool_end' }>;
-    expect(legacy.type).toBe('tool_end');
-    expect(legacy.tool).toBe('bash');
-    expect(legacy.toolCallId).toBe('tc-1');
-    expect(legacy.duration).toBe(0);
-
     const server = mapPiEventToServer(event)!;
     expect(server.type).toBe('tool_end');
+    expect((server as Record<string, unknown>).toolCallId).toBe('tc-1');
   });
 
-  test('tool_end with error maps to tool_error (both legacy and server)', () => {
+  test('tool_end with error maps to tool_error', () => {
     const event: UpUpAgentEvent = {
       type: 'tool_end',
       sessionId: 's',
@@ -134,10 +99,6 @@ describe('@upup/pi-event-adapter', () => {
       toolCallId: 'tc-1',
       error: 'boom',
     };
-    const legacy = mapPiEventToLegacy(event) as Extract<LegacyAgentEvent, { type: 'tool_error' }>;
-    expect(legacy.type).toBe('tool_error');
-    expect(legacy.error).toBe('boom');
-
     const server = mapPiEventToServer(event)!;
     expect(server.type).toBe('tool_error');
     expect((server as Record<string, unknown>).error).toBe('boom');
@@ -146,8 +107,6 @@ describe('@upup/pi-event-adapter', () => {
   test('compaction_start/end maps to compaction phase events', () => {
     const start: UpUpAgentEvent = { type: 'compaction_start', sessionId: 's', reason: 'token-limit' };
     const end: UpUpAgentEvent = { type: 'compaction_end', sessionId: 's', success: true };
-    expect(mapPiEventToLegacy(start)).toEqual({ type: 'compaction', phase: 'start' });
-    expect(mapPiEventToLegacy(end)).toEqual({ type: 'compaction', phase: 'end', success: true });
     expect(mapPiEventToServer(start)).toEqual({ type: 'compaction', phase: 'start' });
     expect(mapPiEventToServer(end)).toEqual({ type: 'compaction', phase: 'end', success: true });
   });
@@ -163,53 +122,8 @@ describe('@upup/pi-event-adapter', () => {
       { type: 'session_error', sessionId: 's', error: 'x' },
     ];
     for (const event of lifecycles) {
-      expect(hasLegacyMapping(event)).toBe(false);
       expect(hasServerMapping(event)).toBe(false);
     }
-  });
-
-  test('buildLegacyDoneEvent produces a complete done event', () => {
-    const done = buildLegacyDoneEvent({
-      answer: 'final',
-      toolCalls: [{ tool: 'bash', args: {}, result: 'ok' }],
-      iterations: 3,
-      totalTime: 1234,
-      tokenUsage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
-      tokensPerSecond: 12.5,
-    });
-    expect(done.type).toBe('done');
-    expect(done.answer).toBe('final');
-    expect(done.iterations).toBe(3);
-    expect(done.totalTime).toBe(1234);
-    expect(done.tokenUsage?.totalTokens).toBe(30);
-    expect(done.tokensPerSecond).toBe(12.5);
-  });
-
-  test('buildLegacyDoneEvent omits optional fields when absent', () => {
-    const done = buildLegacyDoneEvent({ answer: 'x', totalTime: 1 });
-    expect(done.toolCalls).toEqual([]);
-    expect(done.iterations).toBe(0);
-    expect(done.tokenUsage).toBeUndefined();
-    expect(done.tokensPerSecond).toBeUndefined();
-  });
-
-  test('adaptPiEventsToLegacy consumes sync iterable and drops un-mapped events', async () => {
-    const events: UpUpAgentEvent[] = [
-      { type: 'session_start', sessionId: 's', agentId: 'a' },
-      { type: 'thinking', sessionId: 's', text: 't' },
-      { type: 'text_delta', sessionId: 's', delta: 'a' },
-      { type: 'text_delta', sessionId: 's', delta: '' },
-      { type: 'tool_start', sessionId: 's', toolName: 'bash', toolCallId: '1', input: {} },
-      { type: 'tool_end', sessionId: 's', toolName: 'bash', toolCallId: '1' },
-    ];
-    const out: LegacyAgentEvent[] = [];
-    for await (const ev of adaptPiEventsToLegacy(events)) out.push(ev);
-    expect(out.map((e) => e.type)).toEqual([
-      'thinking',
-      'stream_progress',
-      'tool_start',
-      'tool_end',
-    ]);
   });
 
   test('adaptPiEventsToServer consumes async iterable', async () => {
@@ -224,7 +138,7 @@ describe('@upup/pi-event-adapter', () => {
     expect((out[1] as { type: string }).type).toBe('tool_start');
   });
 
-  test('every mapable Pi event type maps to a non-null legacy event', () => {
+  test('every mappable Pi event type maps to a non-null server event', () => {
     const mapable: UpUpAgentEvent[] = [
       { type: 'thinking', sessionId: 's', text: 'x' },
       { type: 'text_delta', sessionId: 's', delta: 'x' },
@@ -235,92 +149,8 @@ describe('@upup/pi-event-adapter', () => {
       { type: 'compaction_end', sessionId: 's', success: true },
     ];
     for (const event of mapable) {
-      expect(hasLegacyMapping(event)).toBe(true);
       expect(hasServerMapping(event)).toBe(true);
     }
-  });
-});
-
-describe('@upup/pi-event-adapter — legacy → server', () => {
-  test('legacy thinking maps to server thinking', async () => {
-    const { mapLegacyAgentEventToServer } = await import('./src/index');
-    const out = mapLegacyAgentEventToServer({ type: 'thinking', message: 't' });
-    expect(out).toEqual({ type: 'thinking', message: 't' });
-  });
-
-  test('legacy tool_end maps to server tool_end', async () => {
-    const { mapLegacyAgentEventToServer } = await import('./src/index');
-    const out = mapLegacyAgentEventToServer({
-      type: 'tool_end',
-      tool: 'bash',
-      args: {},
-      result: 'ok',
-      duration: 5,
-      toolCallId: 'tc',
-    });
-    expect(out).toEqual({
-      type: 'tool_end',
-      tool: 'bash',
-      args: {},
-      result: 'ok',
-      duration: 5,
-      toolCallId: 'tc',
-    });
-  });
-
-  test('legacy stream_progress with textContent maps to server content', async () => {
-    const { mapLegacyAgentEventToServer } = await import('./src/index');
-    const out = mapLegacyAgentEventToServer({
-      type: 'stream_progress',
-      charDelta: 3,
-      mode: 'responding',
-      textContent: 'foo',
-    });
-    expect(out).not.toBeNull();
-    expect((out as Record<string, unknown>).type).toBe('stream_progress');
-    expect((out as Record<string, unknown>).content).toBe('foo');
-  });
-
-  test('legacy done maps to server done preserving token usage', async () => {
-    const { mapLegacyAgentEventToServer } = await import('./src/index');
-    const out = mapLegacyAgentEventToServer({
-      type: 'done',
-      answer: 'a',
-      toolCalls: [{ tool: 'bash', args: {}, result: '' }],
-      iterations: 2,
-      totalTime: 100,
-      tokenUsage: { inputTokens: 1, outputTokens: 2, totalTokens: 3 },
-      tokensPerSecond: 5,
-    });
-    expect(out).toEqual({
-      type: 'done',
-      answer: 'a',
-      toolCalls: [{ tool: 'bash', args: {}, result: '' }],
-      iterations: 2,
-      totalTime: 100,
-      tokenUsage: { inputTokens: 1, outputTokens: 2, totalTokens: 3 },
-      tokensPerSecond: 5,
-    });
-  });
-
-  test('legacy compaction with all fields maps to server', async () => {
-    const { mapLegacyAgentEventToServer } = await import('./src/index');
-    const out = mapLegacyAgentEventToServer({
-      type: 'compaction',
-      phase: 'end',
-      success: true,
-      preCompactTokens: 100,
-      postCompactTokens: 50,
-      compactionModel: 'gpt-5.4',
-    });
-    expect(out).toEqual({
-      type: 'compaction',
-      phase: 'end',
-      success: true,
-      preCompactTokens: 100,
-      postCompactTokens: 50,
-      compactionModel: 'gpt-5.4',
-    });
   });
 });
 
@@ -345,25 +175,21 @@ describe('@upup/pi-event-adapter — coverage audit', () => {
     ];
     const report = auditAdapterCoverage(fixtures);
     // Lifecycle-only events (no UI representation) should be in dropped lists
-    expect(report.droppedFromLegacy).toContain('session_start');
-    expect(report.droppedFromLegacy).toContain('agent_start');
-    expect(report.droppedFromLegacy).toContain('turn_start');
-    expect(report.droppedFromLegacy).toContain('message_end');
-    expect(report.droppedFromLegacy).toContain('turn_end');
-    expect(report.droppedFromLegacy).toContain('agent_end');
-    expect(report.droppedFromLegacy).toContain('session_error');
+    expect(report.droppedFromServer).toContain('session_start');
+    expect(report.droppedFromServer).toContain('agent_start');
+    expect(report.droppedFromServer).toContain('turn_start');
+    expect(report.droppedFromServer).toContain('message_end');
+    expect(report.droppedFromServer).toContain('turn_end');
+    expect(report.droppedFromServer).toContain('agent_end');
+    expect(report.droppedFromServer).toContain('session_error');
     // Tool/text/thinking events should be in mapped lists
-    expect(report.mappedToLegacy).toContain('text_delta');
-    expect(report.mappedToLegacy).toContain('tool_start');
-    expect(report.mappedToLegacy).toContain('tool_update');
-    expect(report.mappedToLegacy).toContain('tool_end');
-    expect(report.mappedToLegacy).toContain('thinking');
-    expect(report.mappedToLegacy).toContain('compaction_start');
-    expect(report.mappedToLegacy).toContain('compaction_end');
-    // Server mapping should match legacy for the same set
-    expect(report.mappedToServer.sort()).toEqual(report.mappedToLegacy.sort());
-    expect(report.droppedFromServer.sort()).toEqual(report.droppedFromLegacy.sort());
-    expect(report.hasAnyLegacyMapping).toBe(true);
+    expect(report.mappedToServer).toContain('text_delta');
+    expect(report.mappedToServer).toContain('tool_start');
+    expect(report.mappedToServer).toContain('tool_update');
+    expect(report.mappedToServer).toContain('tool_end');
+    expect(report.mappedToServer).toContain('thinking');
+    expect(report.mappedToServer).toContain('compaction_start');
+    expect(report.mappedToServer).toContain('compaction_end');
     expect(report.hasAnyServerMapping).toBe(true);
   });
 });
@@ -822,4 +648,25 @@ describe('@upup/pi-event-adapter — createFinanceExtension', () => {
     ext.factory({ registerTool: (tool) => { registered.push(tool); } } as never);
     expect(registered.map((t) => t.name)).toEqual(['a', 'b']);
   });
+});
+
+describe('@upup/pi-event-adapter — injected stream runner', () => {
+  test('canonical stream preserves every Pi event and emits run_end after the runner resolves', async () => {
+    const { createPiCanonicalEventStream } = await import('./src/stream.js');
+    const events: UpUpAgentEvent[] = [];
+    const stream = createPiCanonicalEventStream(async (_prompt, options) => {
+      options.onEvent?.({ type: 'session_start', sessionId: 'canonical', agentId: 'fixture' });
+      options.onEvent?.({ type: 'text_delta', sessionId: 'canonical', delta: 'answer' });
+      options.onEvent?.({ type: 'message_end', sessionId: 'canonical', role: 'assistant', text: 'answer' });
+      return 'answer';
+    });
+    for await (const event of stream('fixture prompt', { model: 'fixture-model' })) events.push(event);
+    expect(events).toEqual([
+      { type: 'session_start', sessionId: 'canonical', agentId: 'fixture' },
+      { type: 'text_delta', sessionId: 'canonical', delta: 'answer' },
+      { type: 'message_end', sessionId: 'canonical', role: 'assistant', text: 'answer' },
+      expect.objectContaining({ type: 'run_end', sessionId: 'canonical', answer: 'answer' }),
+    ]);
+  });
+
 });

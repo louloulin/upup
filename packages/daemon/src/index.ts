@@ -50,6 +50,7 @@ export {
   TASKS_WORKER_KIND,
   TasksWorker,
   createTasksWorker,
+  type DaemonBackgroundRuntimePort,
 } from './workers/tasks.js';
 
 // Additional worker types and factories

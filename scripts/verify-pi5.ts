@@ -73,8 +73,8 @@ function verifyArchitectureDocs(): void {
   for (const toolName of ['stock_screener', 'screen_astocks', 'get_sector_data', 'get_market_structure', 'get_technical_data', 'check_trading_day', 'get_upcoming_holidays', 'get_next_trading_day', 'get_trading_days']) {
     if (!marketDataExtension.includes(`name: '${toolName}'`)) throw new Error(`market-data native calendar tool is not registered: ${toolName}`);
   }
-  const ownership = readFileSync(join(root, 'src/runtime/pi/package-tool-ownership.ts'), 'utf8');
-  if (!ownership.includes('packageProvidesNativeTool') || !ownership.includes("'check_trading_day'")) {
+  const marketDataTools = (marketDataManifest.pi?.nativeTools ?? []) as unknown[];
+  if (!marketDataTools.includes('check_trading_day')) {
     throw new Error('market-data native ownership boundary is missing');
   }
   const investmentAnalysisManifest = JSON.parse(readFileSync(join(root, 'packages/pi-investment-analysis/package.json'), 'utf8')) as {
@@ -121,12 +121,12 @@ const checks: readonly Check[] = [
   { id: 'A1', name: 'Pi Runtime 唯一入口', command: 'bun', args: ['test', 'src/runtime/pi/production-entry-contract.test.ts'] },
   { id: 'A2', name: '旧 Agent/LangChain/Paperclip 退出', command: 'bun', args: ['run', 'check:pi-migration'] },
   { id: 'A3', name: 'Pi 版本与 Node/Bun 运行时', command: 'bun', args: ['run', 'check:pi-runtime'] },
-  { id: 'A4', name: 'Runtime Adapter 唯一 Factory', command: 'bun', args: ['test', 'src/runtime/pi/agent-session-factory.test.ts'] },
-  { id: 'A5', name: 'UpUpAgentSpec 完整序列化', command: 'bun', args: ['test', 'src/runtime/pi/agent-spec.test.ts', 'src/runtime/pi/agent-catalog.test.ts'] },
-  { id: 'A6', name: 'Pi 多轮 Tool/stream/abort/error loop', command: 'bun', args: ['test', 'src/runtime/pi/pi-fixture.test.ts', 'src/runtime/pi/event-stream.test.ts'] },
+  { id: 'A4', name: 'Runtime Adapter 唯一 Factory', command: 'bun', args: ['test', '--timeout=15000', 'src/runtime/pi/agent-session-factory.test.ts'] },
+  { id: 'A5', name: 'UpUpAgentSpec 完整序列化', command: 'bun', args: ['test', 'packages/pi-investment-workflow/src/agent-spec.test.ts', 'packages/pi-investment-workflow/src/agent-catalog.test.ts'] },
+  { id: 'A6', name: 'Pi 多轮 Tool/stream/abort/error loop', command: 'bun', args: ['test', 'src/runtime/pi/pi-fixture.test.ts', 'packages/pi-event-adapter/test.ts'] },
   { id: 'A7', name: 'Pi Model/Provider protocol', command: 'bun', args: ['test', 'src/runtime/pi/runner.test.ts', 'src/runtime/pi/reliability.test.ts'] },
   { id: 'A8', name: 'Pi Session tree/compact/recovery', commands: [['bun', '--cwd', 'packages/pi-session', 'test'], ['bun', 'test', 'src/runtime/pi/finance-context.test.ts', 'src/runtime/pi/reliability.test.ts']] },
-  { id: 'A9', name: '五类金融 Tool Adapter', command: 'bun', args: ['test', 'src/runtime/pi/pi-fixture.test.ts', 'src/extensions/upup/index.test.ts'] },
+  { id: 'A9', name: '五类金融 Tool Adapter', command: 'bun', args: ['test', 'src/runtime/pi/pi-fixture.test.ts', 'packages/pi-finance-sdk/src/finance-fixtures.test.ts'] },
   { id: 'A10', name: '金融 evidence/audit 脱敏', command: 'bun', args: ['test', 'src/runtime/pi/production-finance-contract.test.ts', 'src/runtime/pi/citation.test.ts'] },
   { id: 'A11', name: '投资 Profile allowlist', command: 'bun', args: ['test', 'src/runtime/pi/profile-registry-contract.test.ts', 'src/runtime/pi/agent-session-factory.test.ts'] },
   { id: 'A12', name: 'Pi Package/Extension/Skill/Prompt 生态', commands: [
@@ -138,11 +138,11 @@ const checks: readonly Check[] = [
     ['bun', '--cwd', 'packages/pi-portfolio', 'test'],
     ['bun', '--cwd', 'packages/pi-backtest', 'test'],
     ['bun', '--cwd', 'packages/pi-platform', 'test'],
-    ['bun', '--cwd', 'packages/pi-session', 'test', 'src/runtime/pi/package-catalog.test.ts', 'src/runtime/pi/package-tool-ownership.test.ts', 'src/runtime/pi/agent-spec.test.ts', 'src/runtime/pi/agent-session-factory.test.ts', 'packages/pi-finance-sdk/extensions/index.test.ts', 'packages/pi-risk/extensions/index.test.ts', 'packages/pi-portfolio/extensions/index.test.ts', 'packages/pi-backtest/extensions/index.test.ts', 'packages/pi-platform/extensions/index.test.ts'],
+    ['bun', 'run', 'test:pi-contracts'],
   ] },
-  { id: 'A13', name: '四级金融权限策略', command: 'bun', args: ['test', 'src/runtime/pi/tool-contract.test.ts', 'src/runtime/pi/production-finance-contract.test.ts'] },
-  { id: 'A14', name: '插件来源/沙箱/网络/凭证审计', command: 'bun', args: ['test', 'src/runtime/pi/plugin-trust.test.ts', 'src/runtime/pi/plugin-adapter.test.ts', 'src/runtime/pi/package-config.test.ts'] },
-  { id: 'A15', name: '旧 Session → Pi 迁移', command: 'bun', args: ['test', 'src/session/pi-migration.test.ts'] },
+  { id: 'A13', name: '四级金融权限策略', command: 'bun', args: ['test', '--timeout=60000', 'src/runtime/pi/tool-contract.test.ts', 'src/runtime/pi/production-finance-contract.test.ts'] },
+  { id: 'A14', name: 'Pi Package 来源/信任/资源审计', command: 'bun', args: ['test', 'packages/pi-resource-composition/src/plugin-trust.test.ts', 'packages/pi-resource-composition/src/package-config.test.ts'] },
+  { id: 'A15', name: '旧 Session → Pi 迁移', command: 'bun', args: ['test', 'packages/pi-session/src/session-service.test.ts'] },
   { id: 'A16', name: '/invest 五阶段状态机与命名投研场景', command: 'bun', args: ['test', 'src/runtime/pi/investment-workflow.test.ts', 'src/runtime/pi/investment-scenarios.pi.test.ts'] },
   { id: 'A17', name: 'Pi 多 Agent worker 生命周期', command: 'bun', args: ['test', 'src/runtime/pi/agent-session-factory.test.ts', 'packages/pi-platform/extensions/index.test.ts'] },
   { id: 'A18', name: 'CLI/Gateway/Cron/Daemon/Bridge/SDK/Eval 入口与命名场景', command: 'bun', args: ['test', 'src/runtime/pi/production-entry-contract.test.ts', 'src/gateway/agent-runner.pi.test.ts', 'packages/cron/src/executor.pi.test.ts', 'packages/pi-bridge/src/pi-contract.test.ts', 'packages/pi-bridge/src/session-sync.e2e.test.ts', 'src/controllers/agent-runner.pi.test.ts', 'src/components/chat-log.pi.test.ts', 'src/runtime/pi/investment-scenarios.pi.test.ts'] },

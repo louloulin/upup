@@ -4,12 +4,14 @@ import { NativeSandboxBroker } from './sandbox-trading.js';
 import { listNativeExecutionStrategies, runNativeStrategyBacktest, runNativeStrategyPaper } from './strategy-execution.js';
 
 describe('native execution strategies', () => {
-  test('lists all four strategies and returns a deterministic backtest', () => {
+  test('lists all four strategies and runs only on explicit historical bars', () => {
     expect(listNativeExecutionStrategies()).toHaveLength(4);
-    const report = runNativeStrategyBacktest({ algo: 'pov', symbol: '600519.SH', side: 'buy', quantity: 1000, startDate: '2026-05-01', endDate: '2026-05-31', participationRate: 0.2 });
-    expect(report._stub).toBe(true);
+    const report = runNativeStrategyBacktest({ algo: 'pov', symbol: '600519.SH', side: 'buy', quantity: 1000, startDate: '2026-05-01', endDate: '2026-05-31', participationRate: 0.2, bars: [{ date: '2026-05-01', close: 100, volume: 2_000 }, { date: '2026-05-04', close: 101, volume: 3_000 }, { date: '2026-05-05', close: 99, volume: 2_000 }] });
+    expect(report.status).toBe('completed');
+    expect(report.dataSource).toBe('caller-provided-historical-bars');
     expect(report.filledQuantity).toBeGreaterThan(0);
-    expect(report.slippageBps).toBeGreaterThan(0);
+    expect(Number.isFinite(report.slippageBps)).toBe(true);
+    expect(() => runNativeStrategyBacktest({ algo: 'twap', symbol: 'AAPL', side: 'buy', quantity: 10, startDate: '2026-05-01', endDate: '2026-05-31', bars: [] })).toThrow('historical bars');
   });
 
   test('runs paper execution through the native sandbox broker', async () => {

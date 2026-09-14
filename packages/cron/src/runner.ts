@@ -21,7 +21,7 @@ export type CronRunner = {
  * enabled jobs, executes due jobs serially, then re-arms.
  * Re-reads jobs.json each tick so tool-driven changes take effect immediately.
  */
-export function startCronRunner(params: { configPath?: string }): CronRunner {
+export function startCronRunner(params: { configPath?: string; runtime: import('@upup/gateway').GatewayRuntime }): CronRunner {
   let stopped = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let running = false;

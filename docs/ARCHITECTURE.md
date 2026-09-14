@@ -37,7 +37,7 @@ Layer 5  src/commands/ src/controllers/     CLI 与业务入口
 | 单次执行 | `runPiPrompt` / `streamPiAgent` | Prompt、Model、Tool Call、Streaming、Abort、Timeout 和错误事件 |
 | Session 生命周期 | `PiSessionService` | create、resume、fork、compact、rename、tag、export、remove、recovery |
 | 后台任务 | `PiBackgroundService` | Daemon、Agent Tool 和 Worker 的 Pi Session 执行 |
-| Agent 定义 | `PiAgentCatalog` | `UpUpAgentSpec` 的唯一可执行存储 |
+| Agent 定义 | `@upup/pi-investment-workflow` 的 `PiAgentCatalog` | `UpUpAgentSpec` 的唯一可执行存储 |
 | 工具协议 | Pi Tool Contract | schema、AbortSignal、progress、details、safety 和 evidence |
 | Package 目录 | `PiPackageCatalog` | pinned 版本、trusted path、hash、资源发现、disable、rollback |
 

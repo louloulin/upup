@@ -4,7 +4,7 @@
  * 授权状态管理改进
  */
 
-import type { ApprovalDecision } from '@upup/pi-event-adapter'
+import type { ApprovalDecision } from '@upup/pi-runtime'
 import type { ApprovalRequestData } from '../components/approval-requests/BaseApprovalRequest.js'
 
 // ============================================================================

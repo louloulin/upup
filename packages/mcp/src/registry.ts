@@ -7,12 +7,6 @@
 
 import type { PiMcpTool } from '@upup/mcp';
 import type { MCPClientManager, MCPServerConnection } from './client.js';
-import { getDefaultMCPClient } from './client.js';
-import { registerPiRuntimePort } from '@upup/pi-runtime';
-
-interface McpServerStatus { name: string; state: string; toolCount: number; error?: string }
-interface McpStatus { totalServers: number; connectedServers: number; totalTools: number; servers: McpServerStatus[] }
-interface McpRegistryPort { getStatus(): McpStatus }
 
 /**
  * MCP Registered Tool format
@@ -130,11 +124,3 @@ export function getMCPStatus(client: MCPClientManager): {
     })),
   };
 }
-
-
-
-function registerSelf(): void {
-  const port: McpRegistryPort = { getStatus(): McpStatus { return getMCPStatus(getDefaultMCPClient()); } };
-  registerPiRuntimePort('platform.mcp-registry', port);
-}
-registerSelf();

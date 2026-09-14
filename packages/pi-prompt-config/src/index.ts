@@ -9,7 +9,7 @@
  * `@upup/pi-prompt-config`.
  */
 
-export type { ChannelProfile } from '@upup/pi-event-adapter';
+export type { ChannelProfile } from '@upup/pi-runtime';
 export { getChannelProfile } from './channels.js';
 
 export type { Locale } from './locale.js';

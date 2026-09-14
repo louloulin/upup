@@ -55,22 +55,22 @@ import {
   type NativeKnowledgeJournalState,
 } from '../src/knowledge-journal.js';
 
-function getPiFinanceToolHost(): PiFinanceHostBridge | undefined {
-  const host = resolvePiCapabilityHost<PiFinanceHostBridge>(PI_FINANCE_PACKAGE_NAME, undefined);
+function getPiFinanceToolHost(events: { emit(channel: string, data: unknown): void; on(channel: string, handler: (data: unknown) => void): () => void }): PiFinanceHostBridge | undefined {
+  const host = resolvePiCapabilityHost<PiFinanceHostBridge>(events, PI_FINANCE_PACKAGE_NAME, undefined);
   if (!host || host.contract !== PI_FINANCE_HOST_CONTRACT) return undefined;
   if (host.packageName !== PI_FINANCE_PACKAGE_NAME || host.packageVersion !== PI_FINANCE_PACKAGE_VERSION) return undefined;
   if (!host.sessionId || !PI_FINANCE_HOST_CAPABILITIES.every((capability) => host.capabilities.includes(capability))) return undefined;
   return host;
 }
 
-async function fetchNativeQuote(symbol: string, signal: AbortSignal, auditId: string, injectedFetcher?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>, injectedQuote?: PiFinanceHostBridge['getMarketQuote']): Promise<{ symbol: string; bid: number; ask: number; last: number; timestamp: number; source: string; asOf: string; freshness: FinanceFreshness; evidence?: FinanceEvidence }> {
-  const host = getPiFinanceToolHost();
-  const structured = injectedQuote ?? host?.getMarketQuote;
+async function fetchNativeQuote(symbol: string, signal: AbortSignal, auditId: string, injectedFetcher?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>, injectedQuote?: PiFinanceHostBridge['providers']['marketData']['getMarketQuote'], events?: { emit(channel: string, data: unknown): void; on(channel: string, handler: (data: unknown) => void): () => void }): Promise<{ symbol: string; bid: number; ask: number; last: number; timestamp: number; source: string; asOf: string; freshness: FinanceFreshness; evidence?: FinanceEvidence }> {
+  const host = events ? getPiFinanceToolHost(events) : undefined;
+  const structured = injectedQuote ?? host?.providers.marketData?.getMarketQuote;
   if (structured) {
     const result = await structured(symbol, undefined, signal, auditId);
     return { symbol: result.value.symbol, bid: result.value.bid, ask: result.value.ask, last: result.value.last, timestamp: Date.parse(`${result.value.asOf}T00:00:00Z`), source: result.evidence.source, asOf: result.value.asOf, freshness: result.value.freshness, evidence: createEvidence({ id: result.evidence.id, source: result.evidence.source, retrievedAt: result.evidence.retrievedAt, asOf: result.evidence.asOf, query: result.evidence.query, freshness: result.evidence.dataFreshness, auditId: result.evidence.auditId }) };
   }
-  const fetcher = injectedFetcher ?? host?.getMarketQuoteFetcher?.();
+  const fetcher = injectedFetcher ?? host?.providers.marketData?.getMarketQuoteFetcher?.();
   if (!fetcher) throw new Error('finance quote requires the session market-data transport');
   const normalized = symbol.trim().toUpperCase();
   const yahoo = /^\d{6}\.SH$/i.test(normalized) ? `${normalized.slice(0, -3)}.SS` : /^\d{6}\.(SZ|BJ)$/i.test(normalized) ? normalized : normalized;
@@ -89,6 +89,8 @@ type FinanceFreshness = 'realtime' | 'delayed' | 'historical' | 'cached' | 'offl
 interface FinanceEvidence {
   id: string;
   source: string;
+  market?: string;
+  provider?: string;
   retrievedAt: string;
   asOf?: string;
   query: string;
@@ -126,9 +128,10 @@ const readFilingsParameters = Type.Object({
   limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 10 })),
   items: Type.Optional(Type.Array(Type.String({ minLength: 1, maxLength: 32 }), { minItems: 1, maxItems: 10 })),
 });
-const researchTickerParameters = Type.Object({ ticker: Type.String({ minLength: 1, maxLength: 10 }) });
-const estimatesParameters = Type.Object({ ticker: Type.String({ minLength: 1, maxLength: 10 }), period: Type.Optional(Type.Union([Type.Literal('annual'), Type.Literal('quarterly')])) });
-const researchFilingsParameters = Type.Object({ ticker: Type.String({ minLength: 1, maxLength: 10 }), filing_type: Type.Optional(Type.Array(Type.Union([Type.Literal('10-K'), Type.Literal('10-Q'), Type.Literal('8-K')]), { minItems: 1, maxItems: 3 })), limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 10 })) });
+const researchMarketParameter = Type.Optional(Type.Union([Type.Literal('cn'), Type.Literal('hk'), Type.Literal('us'), Type.Literal('fund'), Type.Literal('crypto')]));
+const researchTickerParameters = Type.Object({ ticker: Type.String({ minLength: 1, maxLength: 16 }), market: researchMarketParameter });
+const estimatesParameters = Type.Object({ ticker: Type.String({ minLength: 1, maxLength: 16 }), market: researchMarketParameter, period: Type.Optional(Type.Union([Type.Literal('annual'), Type.Literal('quarterly')])) });
+const researchFilingsParameters = Type.Object({ ticker: Type.String({ minLength: 1, maxLength: 16 }), market: researchMarketParameter, filing_type: Type.Optional(Type.Array(Type.Union([Type.Literal('10-K'), Type.Literal('10-Q'), Type.Literal('8-K')]), { minItems: 1, maxItems: 3 })), limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 10 })) });
 const altDataFetchParameters = Type.Object({
   source: Type.Union([Type.Literal('dragon-tiger'), Type.Literal('north-bound')]),
   symbols: Type.Optional(Type.Array(Type.String({ minLength: 1, maxLength: 20 }), { maxItems: 50 })),
@@ -180,6 +183,7 @@ const strategyBacktestParameters = Type.Object({
   startDate: Type.String({ minLength: 10, maxLength: 10 }),
   endDate: Type.String({ minLength: 10, maxLength: 10 }),
   participationRate: Type.Optional(Type.Number({ exclusiveMinimum: 0, maximum: 1 })),
+  bars: Type.Array(Type.Object({ date: Type.String({ minLength: 10, maxLength: 10 }), close: Type.Number({ exclusiveMinimum: 0 }), volume: Type.Optional(Type.Number({ minimum: 0 })) }), { minItems: 2, maxItems: 10_000 }),
 });
 const fundSearchParameters = Type.Object({ keyword: Type.String({ minLength: 1, description: 'Fund name, code, or fund type' }) });
 const fundScreenParameters = Type.Object({
@@ -283,8 +287,8 @@ async function executeResearchTool(toolCallId: string, signal: AbortSignal, sour
   if (signal.aborted) return { content: [{ type: 'text', text: `${source} request aborted` }], isError: true, details: { auditId: toolCallId } };
   try {
     const raw = await action(createResearchClient());
-    const envelope = JSON.parse(raw) as { data: unknown; sourceUrls: string[]; freshness: string; retrievedAt: string };
-    const evidence = createEvidence({ id: `pi-finance:${toolCallId}:${source}`, source: envelope.sourceUrls[0] ?? 'https://api.financialdatasets.ai', retrievedAt: envelope.retrievedAt, query: source, freshness: envelope.freshness as FinanceFreshness, warnings: ['Network data requires source-date verification before investment decisions.'], auditId: toolCallId });
+    const envelope = JSON.parse(raw) as { data: unknown; sourceUrls: string[]; market?: string; provider?: string; freshness: string; retrievedAt: string };
+    const evidence = createEvidence({ id: `pi-finance:${toolCallId}:${source}`, source: envelope.sourceUrls[0] ?? 'https://api.financialdatasets.ai', ...(envelope.market ? { market: envelope.market } : {}), ...(envelope.provider ? { provider: envelope.provider } : {}), retrievedAt: envelope.retrievedAt, query: source, freshness: envelope.freshness as FinanceFreshness, warnings: ['Network data requires source-date verification before investment decisions.'], auditId: toolCallId });
     const result = createFinanceResult(envelope.data, [evidence], toolCallId);
     return { content: [{ type: 'text', text: resultText(result) }], details: result };
   } catch (error) {
@@ -292,7 +296,7 @@ async function executeResearchTool(toolCallId: string, signal: AbortSignal, sour
   }
 }
 
-function createNativeSandboxBrokerLoader(quoteFetcher?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>, quoteService?: PiFinanceHostBridge['getMarketQuote']): () => Promise<NativeSandboxBroker> {
+function createNativeSandboxBrokerLoader(quoteFetcher?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>, quoteService?: PiFinanceHostBridge['providers']['marketData']['getMarketQuote']): () => Promise<NativeSandboxBroker> {
   let broker: NativeSandboxBroker | undefined;
   return async () => {
     if (!broker) {
@@ -316,9 +320,9 @@ async function confirmNativeTrade(context: Pick<ExtensionContext, 'hasUI' | 'ui'
 }
 
 export default function financeEvidenceExtension(pi: ExtensionAPI): void {
-  const host = getPiFinanceToolHost();
-  const quoteFetcher = host?.getMarketQuoteFetcher?.();
-  const quoteService = host?.getMarketQuote;
+  const host = getPiFinanceToolHost(pi.events);
+  const quoteFetcher = host?.providers.marketData?.getMarketQuoteFetcher?.();
+  const quoteService = host?.providers.marketData?.getMarketQuote;
   const getNativeSandboxBroker = createNativeSandboxBrokerLoader(quoteFetcher, quoteService);
   registerPiFinanceCommands(pi);
   const altData = new NativeAltDataClient();
@@ -474,7 +478,7 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
     if (typeof pi.appendEntry === 'function') pi.appendEntry(FUND_ALERTS_ENTRY, state);
   };
   if (typeof pi.on === 'function') pi.on('session_start', (_event, context) => { watchlistState = undefined; alertState = undefined; readWatchlistState(context); readAlertState(context); });
-  for (const definition of host?.getToolDefinitions({
+  for (const definition of host?.providers.tools.getToolDefinitions({
     contract: PI_FINANCE_HOST_CONTRACT,
     packageName: PI_FINANCE_PACKAGE_NAME,
     packageVersion: PI_FINANCE_PACKAGE_VERSION,
@@ -660,13 +664,13 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
   pi.registerTool({
     name: 'strategy_backtest',
     label: 'Backtest execution strategy',
-    description: 'Run a deterministic execution-strategy backtest snapshot. Results are educational and are not a historical market-data backtest or investment advice.',
+    description: 'Run an execution-strategy backtest over caller-provided historical daily bars. Synthetic prices and provider fallback are rejected.',
     parameters: strategyBacktestParameters,
     async execute(toolCallId, params, signal) {
       if (signal.aborted) return { content: [{ type: 'text', text: 'Strategy backtest request aborted' }], isError: true };
       try {
         const report = runNativeStrategyBacktest({ ...params, algo: params.algo as NativeAlgoKind, side: params.side as NativeOrderSide });
-        const evidence = createEvidence({ id: `pi-finance:${toolCallId}:strategy-backtest`, source: 'upup-pi://finance-sdk/strategy-backtest', retrievedAt: new Date().toISOString(), query: JSON.stringify(params), freshness: 'historical', warnings: ['Deterministic strategy snapshot; not a historical market-data backtest.'], auditId: toolCallId });
+        const evidence = createEvidence({ id: `pi-finance:${toolCallId}:strategy-backtest`, source: 'upup-pi://finance-sdk/strategy-backtest', retrievedAt: new Date().toISOString(), asOf: params.bars.at(-1)?.date, query: JSON.stringify({ ...params, bars: `${params.bars.length} historical bars` }), freshness: 'historical', warnings: ['Backtest uses caller-provided historical bars; verify source and as-of date before decisions.'], auditId: toolCallId });
         const result = createFinanceResult(report, [evidence], toolCallId);
         return { content: [{ type: 'text', text: resultText(result) }], details: result };
       } catch (error) {

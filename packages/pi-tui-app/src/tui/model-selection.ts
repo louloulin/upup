@@ -1,17 +1,21 @@
-import { getSetting, setSetting } from '@upup/utils';
-import {
-  checkApiKeyExistsForProvider,
-  getProviderDisplayName,
-  saveApiKeyForProvider,
-} from '@upup/utils';
 import {
   getDefaultModelForProvider,
   getModelsForProvider,
   type Model,
-} from '@upup/pi-tui-app';
-import { getOllamaModels } from '@upup/utils';
+} from '../utils/model.js';
 import { DEFAULT_MODEL, DEFAULT_PROVIDER } from '@upup/utils';
-import { InMemoryChatHistory } from '../utils/in-memory-chat-history.js';
+import { InMemoryChatHistory } from './in-memory-chat-history.js';
+import type { PromptRunner } from '@upup/utils';
+
+export interface ModelSelectionDependencies {
+  getSetting<T>(key: string, defaultValue: T): T;
+  setSetting(key: string, value: unknown): boolean;
+  checkApiKeyExistsForProvider(providerId: string): boolean;
+  getProviderDisplayName(providerId: string): string;
+  saveApiKeyForProvider(providerId: string, apiKey: string): boolean;
+  getOllamaModels(): Promise<string[]>;
+  promptRunner: PromptRunner;
+}
 
 const SELECTION_STATES = [
   'provider_select',
@@ -41,13 +45,20 @@ export class ModelSelectionController {
   private pendingSelectedModelId: string | null = null;
   private readonly onError: (message: string) => void;
   private readonly onChange?: ChangeListener;
-  private readonly chatHistory = new InMemoryChatHistory(DEFAULT_MODEL);
+  private readonly dependencies: ModelSelectionDependencies;
+  private readonly chatHistory: InMemoryChatHistory;
 
-  constructor(onError: (message: string) => void, onChange?: ChangeListener) {
+  constructor(
+    onError: (message: string) => void,
+    dependencies: ModelSelectionDependencies,
+    onChange?: ChangeListener,
+  ) {
     this.onError = onError;
     this.onChange = onChange;
-    this.providerValue = getSetting('provider', DEFAULT_PROVIDER);
-    const savedModel = getSetting('modelId', null) as string | null;
+    this.dependencies = dependencies;
+    this.chatHistory = new InMemoryChatHistory(DEFAULT_MODEL, undefined, dependencies.promptRunner);
+    this.providerValue = dependencies.getSetting('provider', DEFAULT_PROVIDER);
+    const savedModel = dependencies.getSetting('modelId', null) as string | null;
     this.modelValue =
       savedModel ?? getDefaultModelForProvider(this.providerValue) ?? DEFAULT_MODEL;
     this.chatHistory.setModel(this.modelValue);
@@ -102,7 +113,7 @@ export class ModelSelectionController {
     }
 
     if (providerId === 'ollama') {
-      const ollamaModelIds = await getOllamaModels();
+      const ollamaModelIds = await this.dependencies.getOllamaModels();
       this.pendingModelsValue = ollamaModelIds.map((id) => ({ id, displayName: id }));
       this.appStateValue = 'model_select';
       this.emitChange();
@@ -129,7 +140,7 @@ export class ModelSelectionController {
       return;
     }
 
-    if (checkApiKeyExistsForProvider(this.pendingProviderValue)) {
+    if (this.dependencies.checkApiKeyExistsForProvider(this.pendingProviderValue)) {
       this.completeModelSwitch(this.pendingProviderValue, modelId);
       return;
     }
@@ -150,7 +161,7 @@ export class ModelSelectionController {
     }
 
     const fullModelId = `${this.pendingProviderValue}:${modelName}`;
-    if (checkApiKeyExistsForProvider(this.pendingProviderValue)) {
+    if (this.dependencies.checkApiKeyExistsForProvider(this.pendingProviderValue)) {
       this.completeModelSwitch(this.pendingProviderValue, fullModelId);
       return;
     }
@@ -170,7 +181,7 @@ export class ModelSelectionController {
     if (
       this.pendingProviderValue &&
       this.pendingSelectedModelId &&
-      checkApiKeyExistsForProvider(this.pendingProviderValue)
+      this.dependencies.checkApiKeyExistsForProvider(this.pendingProviderValue)
     ) {
       this.completeModelSwitch(this.pendingProviderValue, this.pendingSelectedModelId);
       return;
@@ -178,7 +189,9 @@ export class ModelSelectionController {
 
     this.onError(
       `Cannot use ${
-        this.pendingProviderValue ? getProviderDisplayName(this.pendingProviderValue) : 'provider'
+        this.pendingProviderValue
+          ? this.dependencies.getProviderDisplayName(this.pendingProviderValue)
+          : 'provider'
       } without an API key.`,
     );
     this.resetPendingState();
@@ -192,7 +205,7 @@ export class ModelSelectionController {
     }
 
     if (apiKey && this.pendingProviderValue) {
-      const saved = saveApiKeyForProvider(this.pendingProviderValue, apiKey);
+      const saved = this.dependencies.saveApiKeyForProvider(this.pendingProviderValue, apiKey);
       if (saved) {
         this.completeModelSwitch(this.pendingProviderValue, this.pendingSelectedModelId);
       } else {
@@ -205,7 +218,7 @@ export class ModelSelectionController {
     if (
       !apiKey &&
       this.pendingProviderValue &&
-      checkApiKeyExistsForProvider(this.pendingProviderValue)
+      this.dependencies.checkApiKeyExistsForProvider(this.pendingProviderValue)
     ) {
       this.completeModelSwitch(this.pendingProviderValue, this.pendingSelectedModelId);
       return;
@@ -218,8 +231,8 @@ export class ModelSelectionController {
   private completeModelSwitch(newProvider: string, newModelId: string) {
     this.providerValue = newProvider;
     this.modelValue = newModelId;
-    setSetting('provider', newProvider);
-    setSetting('modelId', newModelId);
+    this.dependencies.setSetting('provider', newProvider);
+    this.dependencies.setSetting('modelId', newModelId);
     this.chatHistory.setModel(newModelId);
     this.pendingProviderValue = null;
     this.pendingModelsValue = [];

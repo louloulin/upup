@@ -29,5 +29,4 @@ export * from './providers.js';
 export * from './config.js';
 export * from './env.js';
 export * from './prompt-service.js';
-export * from './prompt-service.js';
 export * from './model-defaults.js';

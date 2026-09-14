@@ -1,18 +1,16 @@
 import { describe, expect, test } from 'bun:test';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { registerGatewayConfigRuntime } from '@upup/gateway';
+import type { GatewayRuntime } from '@upup/gateway';
 import { startBridgeServer, type BridgeServer } from './server.js';
 import { encodeMessage, type BridgeMessage } from './protocol.js';
 import { SessionSync } from './session-sync.js';
 
-function installFixtureConfigRuntime(): () => void {
-  registerGatewayConfigRuntime({
-    getConfiguredModelId: () => 'bridge-pi-fixture-model',
-    getConfiguredProvider: () => 'upup-bridge-pi-fixture',
-  });
-  return () => {
-    // registry teardown is shared via resetPiRuntimePorts where tests run isolated
+function fixtureRuntime(): GatewayRuntime {
+  return {
+    agent: { isSessionRunning: () => false, runPrompt: async () => '' },
+    config: { getConfiguredModelId: () => 'bridge-pi-fixture-model', getConfiguredProvider: () => 'upup-bridge-pi-fixture' },
+    cron: { ensureHeartbeatCronJob: () => undefined, startCronRunner: () => ({ stop: () => undefined }) },
   };
 }
 
@@ -45,7 +43,7 @@ function waitOpen(ws: WebSocket): Promise<void> {
 
 describe('Bridge Pi execution contract', () => {
   test('executes user chat through the injected Pi-backed runner and persists assistant output', async () => {
-    installFixtureConfigRuntime();
+    const runtime = fixtureRuntime();
     const root = await mkdtemp(join(process.cwd(), '.upup-bridge-pi-contract-'));
     const sync = new SessionSync({ storageDir: root });
     const auditPath = join(root, 'audit.log');
@@ -57,10 +55,15 @@ describe('Bridge Pi execution contract', () => {
         port: 0,
         token: 'bridge-fixture-token',
         auditPath,
+        runtime,
         sessionSync: sync,
         agentRunner: async (request) => {
           calls.push(request.query);
-          await request.onEvent?.({ type: 'stream_progress', charDelta: 7, mode: 'responding', textContent: 'fixture' });
+          await request.onEvent?.({
+            type: 'text_delta',
+            sessionId: request.sessionKey,
+            delta: 'fixture',
+          });
           return 'Pi bridge answer';
         },
       });

@@ -16,6 +16,7 @@ import {
   type PlanStep,
 } from './plan-context.js';
 import type {
+  ResearchMarket,
   ResearchPhase,
   ResearchPlan,
   ResearchToolBinding,
@@ -23,11 +24,11 @@ import type {
 
 /** 投资意图关键词 → phase 优先级映射 */
 const PHASE_KEYWORDS: ReadonlyArray<{ phase: ResearchPhase; keywords: ReadonlyArray<string> }> = [
-  { phase: 'research',  keywords: ['分析', '调研', '基本面', '研究', 'analyze', 'research', 'fundamentals'] },
-  { phase: 'valuation', keywords: ['估值', '价值', 'DCF', '合理价', '目标价', 'valuation', 'dcf', 'target price'] },
-  { phase: 'backtest',  keywords: ['回测', '策略', '历史表现', 'backtest', 'strategy', 'historical'] },
-  { phase: 'trade',     keywords: ['交易', '买入', '卖出', '建仓', '止损', 'trade', 'buy', 'sell', 'position'] },
-  { phase: 'review',    keywords: ['复盘', '复利', '归因', 'review', 'attribution', 'performance'] },
+  { phase: 'detect',  keywords: ['分析', '调研', '基本面', '研究', 'analyze', 'research', 'fundamentals'] },
+  { phase: 'plan',   keywords: ['估值', '价值', 'DCF', '合理价', '目标价', 'valuation', 'dcf', 'target price'] },
+  { phase: 'execute', keywords: ['回测', '策略', '历史表现', '交易', '买入', '卖出', '建仓', '止损', 'backtest', 'strategy', 'historical', 'trade', 'buy', 'sell', 'position'] },
+  { phase: 'verify', keywords: ['复盘', '归因', '风险', '校验', 'review', 'attribution', 'performance', 'verify', 'risk'] },
+  { phase: 'report', keywords: ['报告', '汇总', '导出', 'report', 'summary', 'export'] },
 ];
 
 /** 标的代码正则: 美股 NVDA / 港股 0700.HK / A 股 600519.SH / 600519 / 000001.SZ */
@@ -56,25 +57,25 @@ export function extractTicker(input: string): string | undefined {
 /** 根据关键词抽取相关 phase(去重保序) */
 /** phase → 工具绑定模板(每 phase 1-3 步,合计 2-10 步) */
 const PHASE_TEMPLATES: Readonly<Record<ResearchPhase, ReadonlyArray<ResearchToolBinding>>> = {
-  research: [
+  detect: [
     { tool: 'financial_metrics',     params: {},                 expectedOutput: '市值/PE/PB/收入/EPS/股息' },
     { tool: 'read_filings',          params: { form: '10-K' },   expectedOutput: '最新 10-K 业务风险摘要' },
     { tool: 'research_deep_search',  params: {},                 expectedOutput: '近期新闻 + 管理层指引' },
   ],
-  valuation: [
+  plan: [
     { tool: 'dcf_valuation',         params: {},                 expectedOutput: 'DCF 内在价值 + 敏感性表' },
     { tool: 'comparison',            params: {},                 expectedOutput: '同业 PE/PB/PS 对比表' },
   ],
-  backtest: [
+  execute: [
     { tool: 'backtest_strategy',     params: {},                 expectedOutput: '胜率/收益/Sharpe/MaxDD' },
-  ],
-  trade: [
     { tool: 'risk_check',            params: {},                 expectedOutput: '组合集中度/单股风险' },
-    { tool: 'trading_sandbox',       params: {},                 expectedOutput: '建议仓位 + 止损/止盈' },
   ],
-  review: [
+  verify: [
     { tool: 'portfolio_attribution', params: {},                 expectedOutput: 'Brinson 归因 + 贡献' },
-    { tool: 'coach_memory',          params: {},                 expectedOutput: '复利到 memory,下次自动调用' },
+    { tool: 'coach_memory',          params: {},                 expectedOutput: '证据和风险校验结果' },
+  ],
+  report: [
+    { tool: 'report_dossier',        params: {},                 expectedOutput: '可审计结构化投研 dossier' },
   ],
 };
 
@@ -88,8 +89,8 @@ export function detectPhases(input: string): ResearchPhase[] {
       ordered.push(phase);
     }
   }
-  // 默认包含 research
-  if (ordered.length === 0) ordered.push('research');
+  // 默认从 detect 开始；完整 /invest 由 workflow 入口显式使用五阶段。
+  if (ordered.length === 0) ordered.push('detect');
   return ordered;
 }
 
@@ -102,7 +103,7 @@ export function detectPhases(input: string): ResearchPhase[] {
  */
 export function buildResearchPlan(
   intent: string,
-  options?: { description?: string; ticker?: string; phases?: ResearchPhase[] },
+  options?: { description?: string; ticker?: string; market?: ResearchMarket; phases?: ResearchPhase[] },
 ): ResearchPlan {
   const ticker = options?.ticker ?? extractTicker(intent);
   const phases = options?.phases ?? detectPhases(intent);
@@ -115,7 +116,9 @@ export function buildResearchPlan(
   // 升格为 ResearchPlan(通过 Object.assign + 类型断言;不破坏 plan-context.ts)
   const plan: ResearchPlan = Object.assign(ctx, {
     ...(ticker !== undefined ? { ticker } : {}),
+    ...(options?.market !== undefined ? { market: options.market } : {}),
     phase: 'plan' as const,
+    currentPhase: phases[0] ?? 'detect',
     phases,
     toolBindings: {} as Record<string, ResearchToolBinding>,
     stepResults: {} as Record<string, string>,

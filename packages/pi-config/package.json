@@ -3,12 +3,84 @@
   "version": "0.1.0",
   "description": "UpUp Pi-native layered global configuration tools",
   "type": "module",
-  "keywords": ["pi-package", "platform", "config"],
+  "keywords": [
+    "pi-package",
+    "platform",
+    "config"
+  ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
-  "scripts": { "build": "bun build src/index.ts --outdir=dist --target=node && bun build extensions/index.ts --outdir=dist/extensions --target=node && tsc --emitDeclarationOnly --declaration --declarationMap --outDir dist", "test": "bun test ./test.ts ./extensions/index.test.ts" },
-  "files": ["dist", "extensions", "skills", "prompts", "workflows", "policies", "evals", "package.json"],
-  "peerDependencies": { "@earendil-works/pi-coding-agent": "0.84.3", "typebox": "1.3.7" },
-  "pi": { "source": "builtin:upup", "extensions": ["./extensions"], "skills": ["./skills/pi-config"], "prompts": ["./prompts/pi-config.md"], "workflows": ["./workflows/pi-config.md"], "policies": ["./policies/pi-config.md"], "evals": ["./evals/pi-config.json"] }
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "prebuild": "bun run ../../scripts/clean-pi-package-dist.ts",
+    "build": "bun build src/index.ts --outdir=dist --target=node && bun build extensions/index.ts --outdir=dist/extensions --target=node && tsc --emitDeclarationOnly --declaration --declarationMap --outDir dist",
+    "test": "bun test ./test.ts ./extensions/index.test.ts"
+  },
+  "files": [
+    "dist",
+    "extensions",
+    "skills",
+    "prompts",
+    "workflows",
+    "policies",
+    "evals",
+    "package.json"
+  ],
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "0.84.3",
+    "typebox": "1.3.7"
+  },
+  "pi": {
+    "contract": "upup.pi.runtime.v1",
+    "source": "builtin:upup",
+    "trust": {
+      "mode": "builtin",
+      "filesystem": true
+    },
+    "lifecycle": {
+      "scope": "session"
+    },
+    "extensions": [
+      "./extensions"
+    ],
+    "skills": [
+      "./skills/pi-config"
+    ],
+    "prompts": [
+      "./prompts/pi-config.md"
+    ],
+    "workflows": [
+      "./workflows/pi-config.md"
+    ],
+    "policies": [
+      "./policies/pi-config.md"
+    ],
+    "evals": [
+      "./evals/pi-config.json"
+    ],
+    "tools": [
+      "config_get",
+      "config_set",
+      "config_list"
+    ],
+    "nativeTools": [
+      "config_get",
+      "config_set",
+      "config_list"
+    ],
+    "sideEffects": [
+      {
+        "tools": [
+          "config_set"
+        ],
+        "effect": "filesystem-write",
+        "safetyLevel": "dangerous"
+      }
+    ]
+  }
 }

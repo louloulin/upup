@@ -17,8 +17,8 @@
     "test": "bun test ./test.ts"
   },
   "dependencies": {
-    "@upup/utils": "workspace:*",
-    "@upup/pi-finance-sdk": "workspace:*"
+    "@upup/utils": "0.2.0",
+    "@upup/pi-finance-sdk": "0.1.0"
   },
   "files": ["dist", "package.json"],
   "pi": {
@@ -26,6 +26,9 @@
     "source": "builtin:upup",
     "trust": { "mode": "builtin", "filesystem": true },
     "lifecycle": { "scope": "session" },
+    "capabilities": [
+      { "name": "storage.session", "version": "1.0.0", "scope": "session", "trust": { "mode": "builtin", "filesystem": true }, "lifecycle": { "scope": "session" } }
+    ],
     "extensions": [],
     "skills": [],
     "prompts": [],

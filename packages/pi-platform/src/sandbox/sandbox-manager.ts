@@ -7,7 +7,6 @@
 import { loadSandboxConfig, type SandboxConfig, type SandboxMode } from './sandbox-config.js';
 import { getSandboxRulesManager, type RuleScope } from './sandbox-rules.js';
 import { getLogger } from '@upup/utils/logging';
-import { registerPiRuntimePort } from '@upup/pi-runtime';
 
 export class SandboxManager {
   private config: SandboxConfig;
@@ -166,16 +165,3 @@ export class SandboxManager {
 export function getSandboxManager(): SandboxManager {
   return SandboxManager.getInstance();
 }
-
-registerPiRuntimePort('platform.sandbox',{
-  getStatus: () => {
-    const manager = getSandboxManager();
-    return {
-      mode: manager.getMode(),
-      enabled: manager.isEnabled(),
-      autoAllow: manager.isAutoAllowEnabled(),
-      additionalDirs: manager.getAdditionalDirs(),
-    };
-  },
-  checkDependencies: () => getSandboxManager().runDependencyCheck(),
-});

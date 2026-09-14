@@ -1,7 +1,7 @@
 import { createMessageQueue, type MessageQueue, type QueuePriority } from '@upup/utils';
 import { HEARTBEAT_OK_TOKEN } from './heartbeat/suppression.js';
-import { mapPiEventToLegacy, type LegacyAgentEvent } from '@upup/pi-event-adapter';
-import { getGatewayAgentRuntime } from './runtime-port.js';
+import type { GatewayAgentRuntimePort } from './runtime-port.js';
+import type { UpUpAgentEvent } from '@upup/pi-runtime';
 import type { Model } from '@earendil-works/pi-ai';
 import type { ModelRuntime } from '@earendil-works/pi-coding-agent';
 
@@ -37,8 +37,8 @@ function getSession(sessionKey: string, model: string): SessionState {
  * Check whether an agent is currently running for a given session.
  * Used by the gateway to decide whether to enqueue or start a new turn.
  */
-export function isSessionRunning(sessionKey: string): boolean {
-  return getGatewayAgentRuntime().isSessionRunning(sessionKey) || (sessions.get(sessionKey)?.isRunning ?? false);
+export function isSessionRunning(sessionKey: string, runtime: GatewayAgentRuntimePort): boolean {
+  return runtime.isSessionRunning(sessionKey) || (sessions.get(sessionKey)?.isRunning ?? false);
 }
 
 /**
@@ -67,7 +67,7 @@ export type AgentRunRequest = {
   modelProvider: string;
   maxIterations?: number;
   signal?: AbortSignal;
-  onEvent?: (event: LegacyAgentEvent) => void | Promise<void>;
+  onEvent?: (event: UpUpAgentEvent) => void | Promise<void>;
   isHeartbeat?: boolean;
   /** Run without persistent session history or memory (minimal context, ~95% token savings). */
   isolatedSession?: boolean;
@@ -80,8 +80,7 @@ export type AgentRunRequest = {
 
 
 
-export async function runAgentForMessage(req: AgentRunRequest): Promise<string> {
-  const runtime = getGatewayAgentRuntime();
+export async function runAgentForMessage(req: AgentRunRequest, runtime: GatewayAgentRuntimePort): Promise<string> {
   const isolated = req.isolatedSession ?? false;
   const session = isolated ? null : getSession(req.sessionKey, req.model);
   let finalAnswer = '';
@@ -98,10 +97,7 @@ export async function runAgentForMessage(req: AgentRunRequest): Promise<string> 
         modelInstance: req.piModel,
         modelRuntime: req.piModelRuntime,
         signal: req.signal,
-        onEvent: async (event) => {
-          const legacy = mapPiEventToLegacy(event);
-          if (legacy) await req.onEvent?.(legacy);
-        },
+        onEvent: req.onEvent,
       });
 
       // Post-run: drain any messages that arrived after the agent's last check
@@ -122,14 +118,6 @@ export async function runAgentForMessage(req: AgentRunRequest): Promise<string> 
       if (session && req.isHeartbeat && finalAnswer.trim().toUpperCase().includes(HEARTBEAT_OK_TOKEN)) {
         finalAnswer = '';
       }
-
-      await req.onEvent?.({
-        type: 'done',
-        answer: finalAnswer,
-        toolCalls: [],
-        iterations: 0,
-        totalTime: 0,
-      });
     } finally {
       if (session) session.isRunning = false;
     }

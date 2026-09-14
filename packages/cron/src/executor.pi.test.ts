@@ -1,20 +1,14 @@
 import { describe, expect, test } from 'bun:test';
 import { fauxAssistantMessage, fauxProvider, fauxText } from '@earendil-works/pi-ai';
 import { ModelRuntime } from '@earendil-works/pi-coding-agent';
-import {
-  registerGatewayAgentRuntime,
-  registerGatewayConfigRuntime,
-  runAgentForMessage,
-  type AgentRunRequest,
-} from '@upup/gateway';
-import { resetPiRuntimePorts } from '@upup/pi-runtime';
+import { runAgentForMessage, type AgentRunRequest, type GatewayRuntime } from '@upup/gateway';
 import type { CronJob, CronStore } from './types.js';
 import { executeCronJob } from './executor.js';
 
-function installFixtureDeps(): void {
-  registerGatewayAgentRuntime({
+function fixtureRuntime(): GatewayRuntime {
+  const agent = {
     isSessionRunning: () => false,
-    runPrompt: async (query, options) => {
+    runPrompt: async (query: string, options: Parameters<GatewayRuntime['agent']['runPrompt']>[1]) => {
       const text = options.modelInstance ? '发现可行动的 fixture 信号。' : 'noop';
       await options.onEvent?.({
         type: 'message_end',
@@ -26,18 +20,12 @@ function installFixtureDeps(): void {
       await options.onEvent?.({ type: 'agent_end', sessionId: 'cron-fixture' });
       return text;
     },
-  });
-  registerGatewayConfigRuntime({
+  };
+  const config = {
     getConfiguredModelId: () => 'cron-fixture-model',
     getConfiguredProvider: () => 'upup-cron-fixture',
-  });
-}
-
-function withFixtureDeps<T>(run: () => Promise<T>): Promise<T> {
-  installFixtureDeps();
-  return run().finally(() => {
-    resetPiRuntimePorts();
-  });
+  };
+  return { agent, config, cron: { ensureHeartbeatCronJob: () => undefined, startCronRunner: () => ({ stop: () => undefined }) } };
 }
 
 function createJob(): CronJob {
@@ -57,7 +45,7 @@ function createJob(): CronJob {
 
 describe('Cron Pi contract', () => {
   test('executes through the injected Pi runner and delivers actionable output', async () => {
-    return withFixtureDeps(async () => {
+    const runtime = fixtureRuntime();
     const faux = fauxProvider({ provider: 'upup-cron-fixture', models: [{ id: 'cron-fixture-model', reasoning: false }] });
     faux.setResponses([fauxAssistantMessage([fauxText('发现可行动的 fixture 信号。')])]);
     const modelRuntime = await ModelRuntime.create({ refreshOnCreate: false });
@@ -80,7 +68,7 @@ describe('Cron Pi contract', () => {
       validateOutbound: () => undefined,
       runAgent: async (request) => {
         requests.push(request);
-        return runAgentForMessage(request);
+        return runAgentForMessage(request, runtime.agent);
       },
       sendMessage: async (message) => {
         deliveries.push(message);
@@ -88,6 +76,7 @@ describe('Cron Pi contract', () => {
       },
       piModel: faux.getModel(),
       piModelRuntime: modelRuntime,
+      runtime,
     });
 
     expect(requests).toHaveLength(1);
@@ -100,11 +89,10 @@ describe('Cron Pi contract', () => {
       accountId: 'fixture-account',
     }]);
     expect(job.state.lastRunStatus).toBe('ok');
-    });
   });
 
   test('suppresses the Pi heartbeat token without delivery', async () => {
-    return withFixtureDeps(async () => {
+    const runtime = fixtureRuntime();
     const job = createJob();
     const store: CronStore = { version: 1, jobs: [job] };
     let deliveryCount = 0;
@@ -125,10 +113,10 @@ describe('Cron Pi contract', () => {
         deliveryCount += 1;
         return { messageId: 'fixture-message', toJid: '+8613800000000' };
       },
+      runtime,
     });
 
     expect(deliveryCount).toBe(0);
     expect(job.state.lastRunStatus).toBe('suppressed');
-    });
   });
 });

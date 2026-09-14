@@ -10,7 +10,6 @@
  */
 
 import type { LocalCommandResult, ToolUseContext } from '../../types/command-types.js'
-import { getPlanModePortLocal } from '../../agent-port.js'
 
 export interface PlanContext extends ToolUseContext {
   state?: {
@@ -22,13 +21,13 @@ export interface PlanContext extends ToolUseContext {
 
 export const call = async (
   args: string,
-  _context: PlanContext,
+  context: PlanContext,
 ): Promise<LocalCommandResult> => {
   // Read plan-mode state via the public port (no cross-package import).
   let isActive = false
   let planId: string | undefined
 
-  const port = getPlanModePortLocal()
+  const port = context.capabilities?.planMode
   if (port) {
     isActive = port.isActive()
     planId = port.getPlanId()

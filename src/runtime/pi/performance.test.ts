@@ -1,9 +1,9 @@
 import { describe, expect, test } from 'bun:test';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { getInvestmentAgentSpec } from './agent-spec.js';
-import { PiAgentSessionFactory } from './agent-session-factory.js';
-import { FINANCE_FIXTURE_TOOLS } from '../../extensions/upup/finance-fixtures.js';
+import { getInvestmentAgentSpec } from '@upup/pi-investment-workflow';
+import { PiAgentSessionFactory } from '@upup/pi-session';
+import { FINANCE_FIXTURE_TOOLS } from '@upup/pi-finance-sdk/finance-fixtures';
 
 describe('Pi runtime performance gate', () => {
   test('keeps deterministic session startup, tool throughput, and recovery within budget', async () => {

@@ -7,7 +7,7 @@
  *   - estimateCitationDensity: enforce the 1 citation per 60 tokens upper bound
  *
  * Module boundary (zero coupling):
- *   - No imports from src/tools/*, src/memory/*, or legacy agent modules
+ *   - No imports from finance tool implementations, memory internals, or agent loop modules
  *   - Pure data types + string ops; safe to import anywhere in the agent core
  *
  * See design doc D-CTG-4 and D-CTG-5.

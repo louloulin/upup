@@ -6,14 +6,13 @@
  */
 
 import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types.js'
-import { getPlanModePortLocal } from '../../agent-port.js'
 
 export const call = async (
   _args: string,
-  _context: ToolUseContext,
+  context: ToolUseContext,
 ): Promise<LocalCommandResult> => {
   // Use the port registry — no fragile deep import needed
-  const planMode = getPlanModePortLocal()
+  const planMode = context.capabilities?.planMode
   const isActive = planMode?.isActive() ?? false
   const planId = planMode?.getPlanId()
 

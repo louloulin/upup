@@ -20,7 +20,7 @@ import {
 } from '../transport/stdio-transport.js'
 import type { Transport } from '../transport/transport.js'
 import { PermissionManager, type PermissionMode, type CanUseTool } from '../permissions/index.js'
-import { ToolRegistry, type Tool } from '../tools/index.js'
+import { ToolConfiguration, type Tool } from '../tools/index.js'
 import { HookExecutor, type HookEvent, type HookInput, type HookMap } from '../hooks/index.js'
 import { UpupSessionManager, type SessionConfig, type SessionInfo, type RpcTransport as SessionRpcTransport } from '../session/index.js'
 import { ProcessPool, type ProcessPoolConfig } from '../pool/index.js'
@@ -192,7 +192,7 @@ export class UpClient extends EventEmitter implements AsyncDisposable {
   private transport: StdioTransport
   private config: ClientConfig
   private _connected = false
-  private toolRegistry: ToolRegistry
+  private readonly toolConfiguration: ToolConfiguration
   private permissionManager: PermissionManager
   private hookExecutor: HookExecutor
   private upupSessionManager: UpupSessionManager | null = null
@@ -208,9 +208,9 @@ export class UpClient extends EventEmitter implements AsyncDisposable {
     return this.transport.binarySource
   }
 
-  /** 获取工具注册表 */
-  get tools(): ToolRegistry {
-    return this.toolRegistry
+  /** 获取创建客户端时绑定的工具配置。 */
+  get tools(): ToolConfiguration {
+    return this.toolConfiguration
   }
 
   /** 获取权限管理器 */
@@ -266,7 +266,7 @@ export class UpClient extends EventEmitter implements AsyncDisposable {
     this.transport = transport
     this.config = config
     this.useUpupSession = config.useUpupSession ?? true
-    this.toolRegistry = new ToolRegistry()
+    this.toolConfiguration = new ToolConfiguration(config.tools)
     this.permissionManager = new PermissionManager({
       mode: config.permissionMode,
       allowedTools: config.allowedTools,
@@ -280,11 +280,6 @@ export class UpClient extends EventEmitter implements AsyncDisposable {
       transport: transport as unknown as SessionRpcTransport,
       ...config.session,
     })
-
-    // 注册工具
-    if (config.tools) {
-      this.toolRegistry.registerAll(config.tools)
-    }
 
     // 注册 Hooks
     if (config.hooks) {
@@ -645,48 +640,25 @@ export class UpClient extends EventEmitter implements AsyncDisposable {
     await this.transport.interrupt()
   }
 
-  // ============ Phase 3: 工具管理 ============
-
-  /**
-   * 注册工具
-   */
-  registerTool(tool: Tool): void {
-    this.toolRegistry.register(tool)
-  }
-
-  /**
-   * 批量注册工具
-   */
-  registerTools(tools: Tool[]): void {
-    this.toolRegistry.registerAll(tools)
-  }
-
   /**
    * 获取工具
    */
   getTool(name: string): Tool | undefined {
-    return this.toolRegistry.get(name)
+    return this.toolConfiguration.get(name)
   }
 
   /**
    * 获取所有工具
    */
   getTools(): Tool[] {
-    return this.toolRegistry.getAll()
-  }
-
-  /**
-   * 移除工具
-   */
-  unregisterTool(name: string): boolean {
-    return this.toolRegistry.unregister(name)
+    return this.toolConfiguration.getAll()
   }
 
   /**
    * 获取工具名称列表
    */
   getToolNames(): string[] {
-    return this.toolRegistry.getNames()
+    return this.toolConfiguration.getNames()
   }
 
   // ============ Phase 3: 权限管理 ============

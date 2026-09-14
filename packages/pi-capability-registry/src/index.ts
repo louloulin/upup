@@ -1,5 +1,12 @@
 export const PI_CAPABILITY_REGISTRY_CONTRACT = 'upup.pi.capability-registry.v1' as const;
 
+export const PI_CAPABILITY_RESOLVE_CHANNEL = 'upup.pi.capability.resolve.v1' as const;
+
+export interface PiCapabilityEventBus {
+  emit(channel: string, data: unknown): void;
+  on(channel: string, handler: (data: unknown) => void): () => void;
+}
+
 export interface PiCapabilityHostRecord {
   readonly contract: string;
   readonly packageName: string;
@@ -17,16 +24,6 @@ export interface PiCapabilityRegistrySnapshot {
 
 export class PiCapabilityRegistry {
   private readonly sessions = new Map<string, Map<string, PiCapabilityHostRecord>>();
-  private activeSessionId: string | undefined;
-
-  private selectActiveSession(preferredSessionId?: string): void {
-    if (preferredSessionId && this.sessions.has(preferredSessionId)) {
-      this.activeSessionId = preferredSessionId;
-      return;
-    }
-    this.activeSessionId = [...this.sessions.keys()].at(-1);
-  }
-
   registerSession(sessionId: string, hosts: ReadonlyMap<string, PiCapabilityHostRecord>): () => void {
     if (!sessionId.trim()) throw new Error('Pi capability session id is required');
     const sessionHosts = new Map<string, PiCapabilityHostRecord>();
@@ -35,33 +32,25 @@ export class PiCapabilityRegistry {
       sessionHosts.set(packageName, host);
     }
     const previous = this.sessions.get(sessionId);
-    const previousActiveSessionId = this.activeSessionId;
     this.sessions.set(sessionId, sessionHosts);
-    this.activeSessionId = sessionId;
     let restored = false;
     return () => {
       if (restored) return;
       restored = true;
       if (previous) this.sessions.set(sessionId, previous);
       else this.sessions.delete(sessionId);
-      this.selectActiveSession(previousActiveSessionId);
     };
   }
 
-  disposeSession(sessionId: string): void {
-    this.sessions.delete(sessionId);
-    if (this.activeSessionId === sessionId) this.selectActiveSession();
-  }
+  disposeSession(sessionId: string): void { this.sessions.delete(sessionId); }
 
-  resolve<T extends PiCapabilityHostRecord = PiCapabilityHostRecord>(sessionId: string | undefined, packageName: string): T | undefined {
-    const effectiveSessionId = sessionId ?? this.activeSessionId;
-    if (!effectiveSessionId) return undefined;
-    const host = this.sessions.get(effectiveSessionId)?.get(packageName);
-    if (!host || host.packageName !== packageName || host.sessionId !== effectiveSessionId || host.contract.length === 0) return undefined;
+  resolve<T extends PiCapabilityHostRecord = PiCapabilityHostRecord>(sessionId: string, packageName: string): T | undefined {
+    const host = this.sessions.get(sessionId)?.get(packageName);
+    if (!host || host.packageName !== packageName || host.sessionId !== sessionId || host.contract.length === 0) return undefined;
     return host as T;
   }
 
-  has(sessionId: string | undefined, packageName: string, capability?: string): boolean {
+  has(sessionId: string, packageName: string, capability?: string): boolean {
     const host = this.resolve(sessionId, packageName);
     return Boolean(host && (capability === undefined || host.capabilities.includes(capability)));
   }
@@ -77,10 +66,9 @@ export class PiCapabilityRegistry {
   clear(sessionId: string): void { this.disposeSession(sessionId); }
 }
 
-export const defaultPiCapabilityRegistry = new PiCapabilityRegistry();
-
 export interface PiCapabilityExtensionApi {
   readonly registerTool: (tool: unknown) => void;
+  readonly events: PiCapabilityEventBus;
   readonly on?: (event: string, handler: (event: unknown, context: { sessionManager: { getSessionId(): string } }) => void) => void;
 }
 
@@ -95,18 +83,42 @@ export function registerPiCapabilityHost<T extends PiCapabilityHostRecord>(
     registered = host;
     register(host);
   };
-  bind(resolvePiCapabilityHost<T>(packageName, undefined));
+  bind(resolvePiCapabilityHost<T>(pi.events, packageName, undefined));
   if (typeof pi.on === 'function') {
     pi.on('session_start', (_event, context) => {
-      bind(resolvePiCapabilityHost<T>(packageName, context.sessionManager.getSessionId()));
+      bind(resolvePiCapabilityHost<T>(pi.events, packageName, context.sessionManager.getSessionId()));
     });
   }
 }
 
 export function resolvePiCapabilityHost<T extends PiCapabilityHostRecord = PiCapabilityHostRecord>(
+  events: PiCapabilityEventBus,
   packageName: string,
   sessionId: string | undefined,
 ): T | undefined {
-  const explicit = defaultPiCapabilityRegistry.resolve<T>(sessionId, packageName);
-  return explicit;
+  let resolved: T | undefined;
+  events.emit(PI_CAPABILITY_RESOLVE_CHANNEL, {
+    packageName,
+    sessionId,
+    resolve: (host: PiCapabilityHostRecord | undefined) => { resolved = host as T | undefined; },
+  });
+  return resolved;
+}
+
+export function publishPiCapabilityHosts(
+  events: PiCapabilityEventBus,
+  sessionId: string,
+  hosts: ReadonlyMap<string, PiCapabilityHostRecord>,
+): () => void {
+  for (const [packageName, host] of hosts) {
+    if (host.packageName !== packageName || host.sessionId !== sessionId) throw new Error(`Pi capability host identity mismatch: ${packageName}`);
+  }
+  const handler = (value: unknown): void => {
+    if (!value || typeof value !== 'object') return;
+    const request = value as { packageName?: unknown; sessionId?: unknown; resolve?: (host: PiCapabilityHostRecord | undefined) => void };
+    if (request.packageName !== undefined && typeof request.resolve === 'function' && (request.sessionId === undefined || request.sessionId === sessionId)) {
+      request.resolve(hosts.get(request.packageName as string));
+    }
+  };
+  return events.on(PI_CAPABILITY_RESOLVE_CHANNEL, handler);
 }

@@ -9,7 +9,10 @@ for (const packageName of ['pi-finance-sdk', 'pi-market-data', 'pi-investment-an
   mkdirSync(targetRoot, { recursive: true });
   cpSync(join(sourceRoot, 'package.json'), join(targetRoot, 'package.json'));
   for (const resource of ['extensions', 'skills', 'prompts', 'workflows', 'policies', 'evals', 'src']) {
-    cpSync(join(sourceRoot, resource), join(targetRoot, resource), { recursive: true });
+    cpSync(join(sourceRoot, resource), join(targetRoot, resource), {
+      recursive: true,
+      filter: (source) => !/\.(test|spec)\.(ts|tsx|js|jsx)$/.test(source),
+    });
   }
   console.log(`Copied Pi package resources to ${targetRoot}`);
 }

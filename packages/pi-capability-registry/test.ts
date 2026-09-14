@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
-import { defaultPiCapabilityRegistry, PiCapabilityRegistry, registerPiCapabilityHost } from './src/index.js';
+import { PiCapabilityRegistry, publishPiCapabilityHosts, registerPiCapabilityHost, resolvePiCapabilityHost } from './src/index.js';
+import { createEventBus } from '@earendil-works/pi-coding-agent';
 
 describe('@upup/pi-capability-registry', () => {
   test('isolates sessions and restores previous registration on dispose', () => {
@@ -15,11 +16,26 @@ describe('@upup/pi-capability-registry', () => {
 
   test('binds an already active explicit session before session_start', () => {
     const host = { contract: 'upup.pi.host.v1', packageName: '@upup/test', packageVersion: '0.1.0', sessionId: 'active', capabilities: ['tool-definitions'] };
-    const restore = defaultPiCapabilityRegistry.registerSession('active', new Map([[host.packageName, host]]));
+    const events = createEventBus();
+    const restore = registerCapabilityHosts(events, 'active', host);
     const registered: unknown[] = [];
-    registerPiCapabilityHost({ registerTool: () => {}, on: () => {} }, host.packageName, (value) => registered.push(value));
+    registerPiCapabilityHost({ registerTool: () => {}, events, on: () => {} }, host.packageName, (value) => registered.push(value));
     expect(registered).toEqual([host]);
     restore();
+  });
+
+  test('uses event-bus scope instead of process-global active session state', () => {
+    const hostA = { contract: 'upup.pi.host.v1', packageName: '@upup/a', packageVersion: '0.1.0', sessionId: 'a', capabilities: ['a'] };
+    const hostB = { contract: 'upup.pi.host.v1', packageName: '@upup/a', packageVersion: '0.1.0', sessionId: 'b', capabilities: ['b'] };
+    const eventsA = createEventBus();
+    const eventsB = createEventBus();
+    const releaseA = registerCapabilityHosts(eventsA, 'a', hostA);
+    const releaseB = registerCapabilityHosts(eventsB, 'b', hostB);
+    expect(resolveCapabilityHost(eventsA, '@upup/a', 'a')).toBe(hostA);
+    expect(resolveCapabilityHost(eventsA, '@upup/a', 'b')).toBeUndefined();
+    expect(resolveCapabilityHost(eventsB, '@upup/a', 'b')).toBe(hostB);
+    releaseA();
+    releaseB();
   });
 
   test('keeps concurrent sessions isolated while active session changes', () => {
@@ -32,10 +48,10 @@ describe('@upup/pi-capability-registry', () => {
     expect(registry.resolve('a', hostA.packageName)).toBe(hostA);
     expect(registry.resolve('a', hostB.packageName)).toBeUndefined();
     expect(registry.resolve('b', hostB.packageName)).toBe(hostB);
-    expect(registry.resolve(undefined, hostB.packageName)).toBe(hostB);
+    expect(registry.resolve('b', hostB.packageName)).toBe(hostB);
 
     restoreB();
-    expect(registry.resolve(undefined, hostA.packageName)).toBe(hostA);
+    expect(registry.resolve('a', hostA.packageName)).toBe(hostA);
     expect(registry.resolve('b', hostB.packageName)).toBeUndefined();
     restoreA();
     expect(registry.snapshot('a').packages).toEqual([]);
@@ -49,7 +65,7 @@ describe('@upup/pi-capability-registry', () => {
     const restoreB = registry.registerSession('b', new Map([[hostB.packageName, hostB]]));
 
     restoreA();
-    expect(registry.resolve(undefined, hostB.packageName)).toBe(hostB);
+    expect(registry.resolve('b', hostB.packageName)).toBe(hostB);
     restoreB();
     expect(registry.resolve(undefined, hostB.packageName)).toBeUndefined();
   });
@@ -64,3 +80,11 @@ describe('@upup/pi-capability-registry', () => {
     ]))).toThrow('identity mismatch');
   });
 });
+
+function registerCapabilityHosts(events: ReturnType<typeof createEventBus>, sessionId: string, host: { contract: string; packageName: string; packageVersion: string; sessionId: string; capabilities: readonly string[] }): () => void {
+  return publishPiCapabilityHosts(events, sessionId, new Map([[host.packageName, host]]));
+}
+
+function resolveCapabilityHost(events: ReturnType<typeof createEventBus>, packageName: string, sessionId: string): unknown {
+  return resolvePiCapabilityHost(events, packageName, sessionId);
+}

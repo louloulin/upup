@@ -4,9 +4,9 @@ import { ModelRuntime } from '@earendil-works/pi-coding-agent';
 import { Type } from 'typebox';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { getInvestmentAgentSpec } from './agent-spec.js';
-import { PiAgentSessionFactory } from './agent-session-factory.js';
-import { FINANCE_FIXTURE_TOOLS } from '../../extensions/upup/finance-fixtures.js';
+import { getInvestmentAgentSpec } from '@upup/pi-investment-workflow';
+import { PiAgentSessionFactory } from '@upup/pi-session';
+import { FINANCE_FIXTURE_TOOLS } from '@upup/pi-finance-sdk/finance-fixtures';
 import type { UpUpToolContract } from '@upup/pi-runtime';
 
 const fixtureTool: UpUpToolContract = {

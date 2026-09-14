@@ -8,6 +8,7 @@
  */
 
 import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/index.mjs'
+import type { AgentPortsLocal } from '../agent-port.js'
 
 // ============================================================================
 // Tool Use Context (基础上下文)
@@ -35,6 +36,7 @@ export interface ToolUseContext {
   sessionDuration?: number
   /** Additional context providers */
   getAppState?: () => { getState: () => Record<string, unknown> }
+  capabilities?: AgentPortsLocal
 }
 
 // ============================================================================
@@ -356,13 +358,3 @@ export function isBridgeSafeCommand(cmd: Command): boolean {
   ])
   return cmd.type === 'prompt' || BRIDGE_SAFE.has(cmd.name)
 }
-
-// ============================================================================
-// Re-export from commands.ts for compatibility
-// ============================================================================
-
-export type {
-  Command as LegacyCommand,
-  CommandContext,
-  CommandResult,
-} from '../commands.js'

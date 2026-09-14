@@ -21,6 +21,26 @@ const requiredPiPackages = [
 ];
 const failures: string[] = [];
 
+const forbiddenRemovedPathReferences = [
+  'src/session/',
+  'src/plugins/',
+  'src/skills/',
+  'src/tools/',
+  '@upup/plugins',
+  '@upup/plugin-sdk',
+  '@upup/skills',
+  'build:plugin-sdk',
+  'build:sdk',
+];
+
+for (const [name, command] of Object.entries(packageJson.scripts ?? {})) {
+  for (const forbidden of forbiddenRemovedPathReferences) {
+    if (command.includes(forbidden)) {
+      failures.push(`package.json script ${name} still references removed Pi migration path ${forbidden}`);
+    }
+  }
+}
+
 const forbiddenLangChainPackage = /(?:^|[\\/@-])langchain(?:$|[\\/@-])/i;
 const dependencySections = ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies'] as const;
 const manifestPaths = [
@@ -65,10 +85,7 @@ for (const name of requiredPiPackages) {
 }
 
 const runtimeFiles = [
-  'src/runtime/pi/agent-session-factory.ts',
-  'src/runtime/pi/agent-spec.ts',
-  'src/runtime/pi/agent-catalog.ts',
-  'src/runtime/pi/registry.ts',
+  'packages/pi-session/src/agent-session-factory.ts',
 ];
 const runtimeBuildFiles = [
   'package.json',
@@ -130,46 +147,44 @@ const runtimeSource = runtimeFiles.map((file) => readFileSync(join(root, file), 
 if (/from ['"][^'"]*(?:src\/)?agent\/(?:registry|subagent|subagent-runner)\.js['"]/.test(runtimeSource)) {
   failures.push('Pi runtime must not import executable implementations from src/agent');
 }
-const productionFiles = Array.from(new Bun.Glob('src/**/*.{ts,tsx}').scanSync({ cwd: root, absolute: true }))
+const productionFiles = [
+  ...Array.from(new Bun.Glob('src/**/*.{ts,tsx}').scanSync({ cwd: root, absolute: true })),
+  ...Array.from(new Bun.Glob('packages/*/src/**/*.{ts,tsx}').scanSync({ cwd: root, absolute: true })),
+]
   .filter((file) => !file.endsWith('.test.ts') && !file.endsWith('.spec.ts') && !file.endsWith('.tsbuildinfo'));
 const legacyPluginExecutionCalls = productionFiles.filter((file) => {
-  if (file.includes('/src/plugins/')) return false;
-  if (file.endsWith('/src/runtime/pi/plugin-adapter.ts')) return false;
+  if (file.includes('/src/plugins/') || file.includes('/packages/plugins/')) return false;
   const source = readFileSync(file, 'utf8');
   return /\b(?:loadAndStartPlugin|stopAndUnloadPlugin|registerAllAdapters|discoverPlugins)\s*\(/.test(source);
 });
 if (legacyPluginExecutionCalls.length > 0) {
-  failures.push(`production code must not execute the legacy Plugin Loader/Adapter path; use Pi plugin-adapter: ${legacyPluginExecutionCalls.join(', ')}`);
+  failures.push(`production code must not execute the removed legacy Plugin Loader/Adapter path: ${legacyPluginExecutionCalls.join(', ')}`);
 }
 const directSessionFactoryCalls = productionFiles.filter((file) => /\bcreateAgentSession\s*\(/.test(readFileSync(file, 'utf8')));
-const allowedSessionFactoryFile = join(root, 'src/runtime/pi/agent-session-factory.ts');
+const allowedSessionFactoryFile = join(root, 'packages/pi-session/src/agent-session-factory.ts');
 if (directSessionFactoryCalls.length !== 1 || directSessionFactoryCalls[0] !== allowedSessionFactoryFile) {
   failures.push(`Pi AgentSession must have exactly one production createAgentSession call in ${allowedSessionFactoryFile}; found ${directSessionFactoryCalls.join(', ') || 'none'}`);
 }
-const factorySource = readFileSync(join(root, 'src/runtime/pi/agent-session-factory.ts'), 'utf8');
+const factorySource = readFileSync(allowedSessionFactoryFile, 'utf8');
 if (factorySource.includes('registry-adapter') || factorySource.includes('loadRegisteredTools')) {
   failures.push('Pi AgentSession must not retain the removed root Registry compatibility path');
 }
-for (const file of ['src/runtime/pi/prompts.ts']) {
-  const source = readFileSync(join(root, file), 'utf8');
-  if (source.includes('tools/registry')) failures.push(`${file} must not import the legacy root tool registry`);
-}
+const promptManifestSource = readFileSync(join(root, 'packages/pi-prompt-config/src/capability-manifest.ts'), 'utf8');
+if (promptManifestSource.includes('tools/registry')) failures.push('Pi prompt capability manifest must not import the legacy root tool registry');
 const platformSource = readFileSync(join(root, 'packages/pi-platform/extensions/index.ts'), 'utf8');
 if (!platformSource.includes("capabilities.includes('agent-worker')") || !platformSource.includes('runAgentWorker')) {
   failures.push('Pi platform swarm must use the versioned Host agent-worker capability');
 }
-const registrySource = readFileSync(join(root, 'src/runtime/pi/registry.ts'), 'utf8');
-if (!registrySource.includes('PiAgentCatalog')) failures.push('Pi registry must use PiAgentCatalog as its storage boundary');
-if (/new Map<string, AgentDefinition>/.test(registrySource)) failures.push('Pi registry must not maintain a second executable AgentDefinition store');
+if (existsSync(join(root, 'src/runtime/pi/registry.ts'))) failures.push('old root Pi registry must be physically removed; use Package public AgentSpec/Profile APIs');
 const packageCatalogPath = existsSync(join(root, 'packages/pi-resource-composition/src/index.ts'))
   ? join(root, 'packages/pi-resource-composition/src/index.ts')
   : join(root, 'src/runtime/pi/package-catalog.ts');
 const packageCatalogSource = readFileSync(packageCatalogPath, 'utf8') + readFileSync(join(root, 'packages/pi-resource-composition/src/package-catalog.ts'), 'utf8');
-for (const requiredSymbol of ['PiPackageCatalog', 'PiPluginTrustPolicy', 'rollback', 'resources']) {
+for (const requiredSymbol of ['PiPackageCatalog', 'PiPackageTrustPolicy', 'rollback', 'resources']) {
   if (!packageCatalogSource.toLowerCase().includes(requiredSymbol.toLowerCase())) failures.push(`Pi package catalog must expose ${requiredSymbol}`);
 }
 
-const fixtureSource = readFileSync(join(root, 'src/extensions/upup/finance-fixtures.ts'), 'utf8');
+const fixtureSource = readFileSync(join(root, 'packages/pi-finance-sdk/src/finance-fixtures.ts'), 'utf8');
 for (const requiredField of ['safetyLevel', 'parameters', 'hasFinancialImpact', 'auditId', 'retrievedAt', 'dataFreshness']) {
   if (!fixtureSource.includes(requiredField)) failures.push(`finance fixtures must declare ${requiredField}`);
 }

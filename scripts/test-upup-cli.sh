@@ -78,7 +78,7 @@ else
 fi
 
 subsection "1.3 Pi Agent Profile Module"
-if bun test src/runtime/pi/agent-spec.test.ts src/runtime/pi/agent-catalog.test.ts > /tmp/upup-test-config.log 2>&1; then
+if bun test packages/pi-investment-workflow/src/agent-spec.test.ts packages/pi-investment-workflow/src/agent-catalog.test.ts > /tmp/upup-test-config.log 2>&1; then
     pass "Pi agent profile tests passed"
 else
     fail "Investment config tests failed"
@@ -186,21 +186,21 @@ else
 fi
 
 subsection "3.2 Finance Tool Adapters"
-if bun test src/runtime/pi/finance-e2e.test.ts src/extensions/upup/index.test.ts > /tmp/upup-test-knowledge-tools.log 2>&1; then
+if bun test src/runtime/pi/finance-e2e.test.ts packages/pi-finance-sdk/src/finance-fixtures.test.ts > /tmp/upup-test-knowledge-tools.log 2>&1; then
     pass "Finance tool adapter tests passed"
 else
     info "Test file may not exist - checking with agent tests"
 fi
 
 subsection "3.3 Pi Capability Registry"
-if bun test src/runtime/pi/package-catalog.test.ts src/runtime/pi/package-tool-ownership.test.ts > /tmp/upup-test-capability.log 2>&1; then
+if bun test packages/pi-resource-composition/src/package-catalog.test.ts src/runtime/pi/package-tool-ownership.test.ts > /tmp/upup-test-capability.log 2>&1; then
     pass "Pi capability registry tests passed"
 else
     fail "Capability registry tests failed"
 fi
 
 subsection "3.4 Investment Workflow"
-if bun test src/runtime/pi/investment-workflow.test.ts > /tmp/upup-test-hooks.log 2>&1; then
+if bun test packages/pi-investment-workflow/src/workflow.test.ts packages/pi-investment-workflow/src/investment.test.ts > /tmp/upup-test-hooks.log 2>&1; then
     pass "Pi investment workflow tests passed"
 else
     fail "Investment workflow hooks tests failed"
@@ -293,7 +293,7 @@ fi
 section "8. PI AGENT SYSTEM"
 
 subsection "8.1 Pi Agent Session"
-if bun test src/runtime/pi/runner.test.ts src/runtime/pi/session-service.test.ts > /tmp/upup-test-agent.log 2>&1; then
+if bun test src/runtime/pi/runner.test.ts packages/pi-session/src/session-service.test.ts > /tmp/upup-test-agent.log 2>&1; then
     pass "Pi agent session tests passed"
 else
     fail "Agent tests failed"

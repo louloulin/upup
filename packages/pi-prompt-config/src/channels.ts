@@ -1,4 +1,4 @@
-import type { ChannelProfile } from '@upup/pi-event-adapter';
+import type { ChannelProfile } from '@upup/pi-runtime';
 
 // ============================================================================
 // Channel Profiles — add new channels here

@@ -27,7 +27,7 @@ import type {
   MemoryType,
   MemoryWriteRequest,
 } from './types.js';
-import { getSetting } from '@upup/utils';
+import { getSetting, type PromptRunner } from '@upup/utils';
 import { resolveMemvidRagSettings, type MemvidRagFlag, type ResolvedMemvidRagSettings } from './memvid-rag.js';
 import { getApiKeyNameForProvider } from '@upup/utils';
 import { getConfiguredModelId, getConfiguredProvider } from '@upup/utils';
@@ -284,7 +284,7 @@ export class MemoryManager {
     });
   }
 
-  async askMemory(query: string): Promise<string | null> {
+  async askMemory(query: string, runner: PromptRunner): Promise<string | null> {
     await this.initialize();
 
     const rag = this.getMemvidRagSettings();
@@ -305,6 +305,7 @@ export class MemoryManager {
       contextOnly: rag.contextOnly,
       mode: rag.mode,
       k: rag.k,
+      runner,
     });
   }
 

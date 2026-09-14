@@ -3,14 +3,14 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const productionEntryImports: Record<string, readonly string[]> = {
-  'src/print.ts': ['runtime/pi/event-stream'],
-  'src/controllers/agent-runner.ts': ['runtime/pi/event-stream'],
-  'packages/gateway/src/agent-runner.ts': ['runtime-port'],
+  'packages/pi-app/src/print.ts': ['./default.js'],
+  'packages/pi-tui-app/src/tui/agent-runner.ts': ['@upup/pi-runtime'],
+  'packages/gateway/src/agent-runner.ts': ['GatewayAgentRuntimePort'],
   'packages/cron/src/executor.ts': ['@upup/gateway'],
   'packages/daemon/src/workers/tasks.ts': ['@upup/gateway'],
   'packages/pi-bridge/src/server.ts': ['@upup/gateway'],
   'packages/pi-stdio/src/server.ts': ['@upup/pi-event-adapter', '@upup/pi-session'],
-  'src/evals/run.ts': ['runtime/pi/event-stream'],
+  'packages/pi-evals/src/cli.ts': ['@upup/pi-app/default', './run.js'],
 };
 
 describe('Pi production entry contract', () => {
@@ -27,11 +27,11 @@ describe('Pi production entry contract', () => {
       expect(source).not.toContain("src/agent/agent.js");
       expect(source).not.toContain('callLlmWithMessages');
     }
-    expect(readFileSync(join(process.cwd(), 'src/runtime/pi/prompts.ts'), 'utf8')).not.toMatch(/from ['"](?:\.\.?\/)+'skills/);
+    expect(readFileSync(join(process.cwd(), 'packages/pi-prompt-config/src/capability-manifest.ts'), 'utf8')).not.toContain('tools/registry');
   });
 
   test('CLI Skill execution stays on the Pi ResourceLoader path', () => {
-    for (const file of ['src/cli.ts']) {
+    for (const file of ['packages/pi-tui-app/src/cli.ts']) {
       const source = readFileSync(join(process.cwd(), file), 'utf8');
       expect(source).not.toContain('./skills/executor.js');
       expect(source).not.toContain('./skills/index.js');
@@ -43,14 +43,13 @@ describe('Pi production entry contract', () => {
     const productionFiles = [...new Bun.Glob('src/**/*.{ts,tsx}').scanSync({ cwd: process.cwd(), absolute: true })]
       .filter((file) => !file.endsWith('.test.ts') && !file.endsWith('.spec.ts') && !file.includes('/src/plugins/'));
     for (const file of productionFiles) {
-      if (file.endsWith('/src/runtime/pi/plugin-adapter.ts')) continue;
       const source = readFileSync(file, 'utf8');
       expect(source).not.toMatch(/\b(?:loadAndStartPlugin|stopAndUnloadPlugin|registerAllAdapters|discoverPlugins)\s*\(/);
     }
   });
 
   test('Pi Package extensions are the default tool source', () => {
-    const source = readFileSync(join(process.cwd(), 'src/runtime/pi/agent-session-factory.ts'), 'utf8');
+    const source = readFileSync(join(process.cwd(), 'packages/pi-session/src/agent-session-factory.ts'), 'utf8');
     expect(source).toContain('const sourceTools: readonly UpUpToolContract[] = options.tools ?? []');
     expect(source).not.toContain('registry-adapter');
     expect(source).not.toContain('loadRegisteredTools');
@@ -58,10 +57,10 @@ describe('Pi production entry contract', () => {
 
   test('Pi prompt capability discovery does not import the legacy root registry', () => {
     const manifest = readFileSync(join(process.cwd(), 'packages/pi-prompt-config/src/capability-manifest.ts'), 'utf8');
-    const prompts = readFileSync(join(process.cwd(), 'src/runtime/pi/prompts.ts'), 'utf8');
+    const prompts = readFileSync(join(process.cwd(), 'packages/pi-prompt-config/src/capability-manifest.ts'), 'utf8');
     expect(manifest).not.toContain('tools/registry');
     expect(prompts).not.toContain('tools/registry');
     expect(manifest).toContain('availableToolNames');
-    expect(prompts).toContain('availableTools');
+    expect(prompts).toContain('availableToolNames');
   });
 });

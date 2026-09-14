@@ -52,8 +52,8 @@ describe('buildEarningsPreview', () => {
     const prevEnv = process.env['UPUP_PLANS_DIR'];
     process.env['UPUP_PLANS_DIR'] = isolated;
     try {
-      const a = buildResearchPlan('分析 NVDA 估值', { ticker: 'NVDA', phases: ['research'] });
-      const b = buildResearchPlan('NVDA 复盘', { ticker: 'NVDA', phases: ['research'] });
+      const a = buildResearchPlan('分析 NVDA 估值', { ticker: 'NVDA', phases: ['detect'] });
+      const b = buildResearchPlan('NVDA 复盘', { ticker: 'NVDA', phases: ['detect'] });
       a.createdAt = new Date(1_700_000_000_000);
       b.createdAt = new Date(1_700_000_500_000);
       writeFileSync(join(isolated, `${a.id}.json`), JSON.stringify({

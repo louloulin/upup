@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { READ_ONLY_PERMISSION_PROFILE } from './agent-spec.js';
+import { READ_ONLY_PERMISSION_PROFILE } from '@upup/pi-investment-workflow';
 import { canUseTool, createToolContext, defaultToolParameters, requiresApproval } from '@upup/pi-runtime';
 
 describe('Pi tool contracts', () => {

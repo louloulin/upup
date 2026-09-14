@@ -1,11 +1,12 @@
 import { describe, expect, test } from 'bun:test';
+import { createEventBus } from '@earendil-works/pi-coding-agent';
 import riskExtension from './index.js';
 
 type RegisteredTool = { name: string; execute: (...args: any[]) => Promise<any> };
 
 function makeHost() {
   const tools = new Map<string, RegisteredTool>();
-  const host = { registerTool: (tool: RegisteredTool) => tools.set(tool.name, tool) } as never;
+  const host = { events: createEventBus(), registerTool: (tool: RegisteredTool) => tools.set(tool.name, tool) } as never;
   return { host, tools };
 }
 

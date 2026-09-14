@@ -9,7 +9,7 @@ const VERSION = '0.1.0';
 function registerHostTools(pi: ExtensionAPI): void {
   registerPiCapabilityHost(pi, PACKAGE, (host) => {
     if (host.packageVersion !== VERSION || !host.sessionId || !host.capabilities.includes('tool-definitions')) return;
-    for (const tool of host.getToolDefinitions({ contract: 'upup.pi.host.v1', packageName: PACKAGE, packageVersion: VERSION, sessionId: host.sessionId, capability: 'tool-definitions' })) pi.registerTool(tool as never);
+    for (const tool of host.providers.tools.getToolDefinitions({ contract: 'upup.pi.host.v1', packageName: PACKAGE, packageVersion: VERSION, sessionId: host.sessionId, capability: 'tool-definitions' })) pi.registerTool(tool as never);
   });
 }
 const dcfParameters = Type.Object({
@@ -149,8 +149,8 @@ function ddmEvidence(toolCallId: string) {
 
 export default function investmentAnalysisExtension(pi: ExtensionAPI): void {
   registerHostTools(pi);
-  const runtimeHost = resolvePiCapabilityHost<{ packageName: string; packageVersion: string; sessionId: string; capabilities: readonly string[]; runResearchWorker?: (request: unknown, signal: AbortSignal) => Promise<{ role: ResearchRole; output: string; evidence: readonly unknown[]; sessionId?: string }> }>(PACKAGE, undefined);
-  const platformHost = resolvePiCapabilityHost<{ packageName?: string; capabilities?: readonly string[]; runAgentWorker?: (request: unknown, signal: AbortSignal) => Promise<{ agentId: string; output: string; sessionId: string }> }>('@upup/pi-platform', undefined);
+  const runtimeHost = resolvePiCapabilityHost<{ packageName: string; packageVersion: string; sessionId: string; capabilities: readonly string[]; providers: { workers?: { runResearchWorker?: (request: unknown, signal: AbortSignal) => Promise<{ role: ResearchRole; output: string; evidence: readonly unknown[]; sessionId?: string }> } } }>(pi.events, PACKAGE, undefined);
+  const platformHost = resolvePiCapabilityHost<{ packageName?: string; capabilities?: readonly string[]; providers: { workers?: { runAgentWorker?: (request: unknown, signal: AbortSignal) => Promise<{ agentId: string; output: string; sessionId: string }> } } }>(pi.events, '@upup/pi-platform', undefined);
   const RESEARCH_ENTRY = 'upup_pi_research_tasks';
   let researchState = parseResearchJournalState(undefined);
   const readResearchState = (context?: { sessionManager?: { getEntries(): readonly unknown[] } }) => {
@@ -195,11 +195,11 @@ export default function investmentAnalysisExtension(pi: ExtensionAPI): void {
     parameters: stockAnalysisParameters,
     async execute(toolCallId, params, signal, _onUpdate, context) {
       if (signal.aborted) return { content: [{ type: 'text', text: 'stock_analysis request aborted' }], isError: true, details: { auditId: toolCallId } };
-      if (!platformHost || platformHost.packageName !== '@upup/pi-platform' || !platformHost.capabilities?.includes('agent-worker') || !platformHost.runAgentWorker) {
+      if (!platformHost || platformHost.packageName !== '@upup/pi-platform' || !platformHost.capabilities?.includes('agent-worker') || !platformHost.providers.workers?.runAgentWorker) {
         return { content: [{ type: 'text', text: 'agent-worker capability is unavailable; stock_analysis is fail-closed' }], isError: true, details: { auditId: toolCallId, capability: 'agent-worker', policy: 'fail-closed' } };
       }
       try {
-        const value = await runNativeStockAnalysis(params, async (request, workerSignal) => platformHost.runAgentWorker!(request, workerSignal), signal);
+        const value = await runNativeStockAnalysis(params, async (request, workerSignal) => platformHost.providers.workers?.runAgentWorker!(request, workerSignal), signal);
         const manager = context?.sessionManager as { appendCustomEntry?: (customType: string, data?: unknown) => void } | undefined;
         manager?.appendCustomEntry?.('upup_pi_stock_analysis', { schema: 1, toolCallId, value });
         const retrievedAt = new Date().toISOString();
@@ -218,11 +218,11 @@ export default function investmentAnalysisExtension(pi: ExtensionAPI): void {
     async execute(toolCallId, params, signal, _onUpdate, context) {
       if (signal.aborted) return { content: [{ type: 'text', text: 'analyze_symbol request aborted' }], isError: true, details: { auditId: toolCallId } };
       const host = runtimeHost;
-      if (!host || host.packageName !== PACKAGE || host.packageVersion !== VERSION || !host.capabilities.includes('research-worker') || !host.runResearchWorker) {
+      if (!host || host.packageName !== PACKAGE || host.packageVersion !== VERSION || !host.capabilities.includes('research-worker') || !host.providers.workers?.runResearchWorker) {
         return { content: [{ type: 'text', text: 'research-worker capability is unavailable; analyze_symbol is fail-closed' }], isError: true, details: { auditId: toolCallId, capability: 'research-worker', policy: 'fail-closed' } };
       }
       try {
-        const result = await runResearchCoordinator(params.symbol, params.question, host.runResearchWorker as never, { workers: params.workers as ResearchRole[] | undefined, signal });
+        const result = await runResearchCoordinator(params.symbol, params.question, host.providers.workers.runResearchWorker as never, { workers: params.workers as ResearchRole[] | undefined, signal });
         const tasks = result.workers.map((worker) => ({ id: `research:${toolCallId}:${worker.role}`, title: `${params.symbol} ${worker.role}`, phase: 'research' as const, status: worker.status === 'completed' ? 'completed' as const : worker.status, assignee: worker.role, notes: worker.error ?? worker.output?.slice(0, 4_000), artifacts: worker.sessionId ? [worker.sessionId] : [], createdAt: worker.startedAt, updatedAt: worker.completedAt ?? worker.startedAt }));
         const manager = context?.sessionManager as { appendCustomEntry?: (customType: string, data?: unknown) => void } | undefined;
         manager?.appendCustomEntry?.(RESEARCH_ENTRY, { schema: 1, tasks });

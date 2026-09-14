@@ -1,19 +1,81 @@
-import { streamPiAgent } from '../runtime/pi/event-stream.js';
-import type { InMemoryChatHistory } from '../utils/in-memory-chat-history.js';
-import { defaultQueue } from '@upup/utils';
-import type {
-  AgentConfig,
-  AgentEvent,
-  ApprovalDecision,
-  DoneEvent,
-} from '@upup/pi-event-adapter';
-import type { DisplayEvent, StreamMode } from '@upup/pi-event-adapter';
-import type { HistoryItem, HistoryItemStatus, WorkingState } from '../types.js';
-import { getSessionTracker } from '@upup/pi-session';
-import { getPiSessionService } from '@upup/pi-session';
-import { recordFileHistorySnapshot, getFileHistoryManager } from '@upup/pi-storage';
-import { renderMessages, type RenderableMessage } from '@upup/pi-session';
-import { getTimeoutForTool } from '@upup/pi-tui-app';
+import type { InMemoryChatHistory } from './in-memory-chat-history.js';
+import type { UpUpAgentEvent } from '@upup/pi-runtime';
+import type { AgentConfig, ApprovalDecision, DisplayEvent, DoneEvent, StreamMode, UiEvent } from './agent-runner-types.js';
+import type { MessageQueue } from '@upup/utils';
+import type { PromptRunner } from '@upup/utils';
+import type { PiSessionService } from '@upup/pi-session';
+import type { AgentPortsLocal } from '@upup/commands';
+export type TuiCommandCapabilities = AgentPortsLocal;
+import type { HistoryItem, HistoryItemStatus, WorkingState } from './agent-runner-types.js';
+export type { AgentConfig, ApprovalDecision, HistoryItem, HistoryItemStatus, StreamMode, WorkingState } from './agent-runner-types.js';
+import { getTimeoutForTool } from '../permissions/index.js';
+
+function toUiEvent(event: UpUpAgentEvent): UiEvent | undefined {
+  switch (event.type) {
+    case 'thinking':
+      return { type: 'thinking', message: event.text };
+    case 'text_delta':
+      return event.delta.length === 0 ? undefined : { type: 'stream_progress', charDelta: event.delta.length, mode: 'responding', textContent: event.delta };
+    case 'tool_start':
+      return { type: 'tool_start', tool: event.toolName, args: (event.input ?? {}) as Record<string, unknown>, toolCallId: event.toolCallId };
+    case 'tool_update':
+      return { type: 'tool_progress', tool: event.toolName, message: event.text };
+    case 'tool_end':
+      return event.error
+        ? { type: 'tool_error', tool: event.toolName, error: event.error, toolCallId: event.toolCallId }
+        : { type: 'tool_end', tool: event.toolName, args: {}, result: '', duration: 0, toolCallId: event.toolCallId };
+    case 'compaction_start':
+      return { type: 'compaction', phase: 'start' };
+    case 'compaction_end':
+      return { type: 'compaction', phase: 'end', success: event.success };
+    case 'run_end':
+      return { type: 'done', answer: event.answer, toolCalls: [], iterations: event.iterations, totalTime: event.totalTime, tokenUsage: event.tokenUsage };
+    default:
+      return undefined;
+  }
+}
+
+export interface AgentRunnerSessionService {
+  create(input: { cwd: string; firstPrompt: string; metadata: Record<string, unknown> }): Promise<{ id: string }>;
+  fork(id: string): Promise<{ id: string }>;
+  messages(id: string): Promise<Array<{ type: string; content: string; additional_kwargs?: Record<string, unknown> }>>;
+}
+
+export interface AgentRunnerSessionTracker {
+  startSession(sessionId: string): Promise<string>;
+  isToolApproved(toolName: string): boolean;
+}
+
+export interface AgentRunnerFileHistory {
+  initialize(sessionId: string): void;
+  record(itemId: string, sessionId: string): void;
+}
+
+export interface AgentRunnerStreamOptions {
+  sessionId: string;
+  inMemoryHistory: InMemoryChatHistory;
+}
+
+export interface AgentRunnerPorts {
+  stream(
+    prompt: string,
+    config: AgentConfig,
+    options: AgentRunnerStreamOptions,
+  ): AsyncGenerator<UpUpAgentEvent>;
+  sessionService: AgentRunnerSessionService;
+  sessionTracker: AgentRunnerSessionTracker;
+  fileHistory: AgentRunnerFileHistory;
+  messageQueue: MessageQueue;
+  renderMessages(messages: Array<{ id: string; type: string; content: string; timestamp: number }>): RenderableMessage[];
+}
+
+export interface TuiRuntime {
+  sessionService: AgentRunnerSessionService & Pick<PiSessionService, 'list' | 'remove' | 'rename' | 'tag'>;
+  sessionTracker: AgentRunnerSessionTracker;
+  getSessionTools: (sessionId: string) => readonly { name: string; description: string }[];
+  renderMessages: AgentRunnerPorts['renderMessages'];
+  promptRunner: PromptRunner;
+}
 
 export interface TurnStats {
   turnStartMs: number;
@@ -22,6 +84,18 @@ export interface TurnStats {
 }
 
 type ChangeListener = () => void;
+export type RenderableMessage = {
+  id: string;
+  type: 'user' | 'assistant' | 'tool' | 'system';
+  content: string;
+  timestamp?: number;
+  toolName?: string;
+  toolResult?: string;
+  isStreaming?: boolean;
+  depth: number;
+  parentId?: string;
+  toolUseId?: string;
+};
 type HistoryMessageListener = (msg: RenderableMessage) => void;
 
 export interface RunQueryResult {
@@ -38,6 +112,7 @@ export class AgentRunnerController {
   private streamModeValue: StreamMode | null = null;
   private agentConfig: AgentConfig;
   private readonly inMemoryChatHistory: InMemoryChatHistory;
+  private readonly ports: AgentRunnerPorts;
   private readonly onChange?: ChangeListener;
   private abortController: AbortController | null = null;
   private approvalResolve: ((decision: ApprovalDecision) => void) | null = null;
@@ -52,12 +127,14 @@ export class AgentRunnerController {
   constructor(
     agentConfig: AgentConfig,
     inMemoryChatHistory: InMemoryChatHistory,
+    ports: AgentRunnerPorts,
     onChange?: ChangeListener,
     sessionId?: string,
     onHistoryMessage?: HistoryMessageListener,
   ) {
     this.agentConfig = agentConfig;
     this.inMemoryChatHistory = inMemoryChatHistory;
+    this.ports = ports;
     this.onChange = onChange;
     this.sessionIdValue = sessionId || '';
     this.historyMessageListener = onHistoryMessage;
@@ -89,7 +166,7 @@ export class AgentRunnerController {
    */
   async resumeFromSession(sessionId: string, fork: boolean = false): Promise<string> {
     let targetId = sessionId;
-    const piSessions = getPiSessionService();
+    const piSessions = this.ports.sessionService;
 
     // Fork: create a copy with a new ID
     if (fork) {
@@ -107,12 +184,12 @@ export class AgentRunnerController {
     this.sessionIdValue = targetId;
 
     // Update session tracker
-    const tracker = getSessionTracker();
+    const tracker = this.ports.sessionTracker;
     await tracker.startSession(targetId);
 
     // Render and display history messages (Session 2.0)
     if (messages.length > 0) {
-      const rendered = renderMessages(messages.map((message) => ({
+      const rendered = this.ports.renderMessages(messages.map((message) => ({
         ...message,
         type: message.type as 'user' | 'assistant' | 'tool' | 'system',
       })));
@@ -220,7 +297,7 @@ export class AgentRunnerController {
     this.emitChange();
 
     try {
-      const piSessions = getPiSessionService();
+      const piSessions = this.ports.sessionService;
       if (!this.sessionIdValue) {
         const sessionMeta = await piSessions.create({
           cwd: process.cwd(),
@@ -230,12 +307,11 @@ export class AgentRunnerController {
         this.sessionIdValue = sessionMeta.id;
 
         // Initialize file history manager for this session (Phase 3 of plan11.0)
-        const fileHistoryMgr = getFileHistoryManager(this.sessionIdValue);
-        fileHistoryMgr.setSessionId(this.sessionIdValue);
+        this.ports.fileHistory.initialize(this.sessionIdValue);
       }
 
       // Restore approved tools from SessionTracker so they survive restarts
-      const tracker = getSessionTracker();
+      const tracker = this.ports.sessionTracker;
       await tracker.startSession(this.sessionIdValue);
       const TOOLS_REQUIRING_APPROVAL = ['write_file', 'edit_file', 'bash'] as const;
       for (const tool of TOOLS_REQUIRING_APPROVAL) {
@@ -244,12 +320,12 @@ export class AgentRunnerController {
         }
       }
 
-      const stream = streamPiAgent(query, {
+      const stream = this.ports.stream(query, {
         ...this.agentConfig,
         signal: this.abortController.signal,
         requestToolApproval: this.requestToolApproval,
         sessionApprovedTools: this.sessionApprovedTools,
-        messageQueue: defaultQueue,
+        messageQueue: this.ports.messageQueue,
         onToolApproval: (tool: string) => {
           // Keep AgentRunner's in-memory Set in sync with the executor's decisions.
           // Needed so the next run (which gets a fresh executor) inherits approved tools.
@@ -257,15 +333,15 @@ export class AgentRunnerController {
         },
       }, { sessionId: this.sessionIdValue, inMemoryHistory: this.inMemoryChatHistory });
       for await (const event of stream) {
-        if (event.type === 'done') {
-          finalAnswer = (event as DoneEvent).answer;
+        if (event.type === 'run_end') {
+          finalAnswer = event.answer;
         }
         await this.handleEvent(event);
       }
 
       // Post-run: if messages arrived after the agent's last drain, start a new turn
-      if (!defaultQueue.isEmpty()) {
-        const remaining = defaultQueue.dequeueAll();
+      if (!this.ports.messageQueue.isEmpty()) {
+        const remaining = this.ports.messageQueue.dequeueAll();
         const mergedText = remaining.map(m => m.text).join('\n\n');
         return this.runQuery(mergedText);
       }
@@ -274,7 +350,7 @@ export class AgentRunnerController {
       if (this.sessionIdValue) {
         const itemId = String(startTime);
         try {
-          recordFileHistorySnapshot(itemId, this.sessionIdValue);
+          this.ports.fileHistory.record(itemId, this.sessionIdValue);
         } catch (err) {
           console.error('[agent-runner] Failed to record file history snapshot:', err);
         }
@@ -365,19 +441,21 @@ export class AgentRunnerController {
     }
   }
 
-  private async handleEvent(event: AgentEvent) {
-    switch (event.type) {
+  private async handleEvent(event: UpUpAgentEvent) {
+    const uiEvent = toUiEvent(event);
+    if (!uiEvent) return;
+    switch (uiEvent.type) {
       case 'thinking':
         this.workingStateValue = { status: 'thinking' };
         this.pushEvent({
           id: `thinking-${Date.now()}`,
-          event,
+          event: uiEvent,
           completed: true,
         });
         break;
       case 'tool_start': {
-        const toolId = event.toolCallId ?? `tool-${event.tool}-${Date.now()}`;
-        this.workingStateValue = { status: 'tool', toolName: event.tool };
+        const toolId = uiEvent.toolCallId ?? `tool-${uiEvent.tool}-${Date.now()}`;
+        this.workingStateValue = { status: 'tool', toolName: uiEvent.tool };
         this.updateLastItem((last) => ({
           ...last,
           activeToolId: toolId,
@@ -385,7 +463,7 @@ export class AgentRunnerController {
             ...last.events,
             {
               id: toolId,
-              event,
+              event: uiEvent,
               completed: false,
             } as DisplayEvent,
           ],
@@ -396,16 +474,16 @@ export class AgentRunnerController {
         this.updateLastItem((last) => ({
           ...last,
           events: last.events.map((entry) =>
-            entry.id === last.activeToolId ? { ...entry, progressMessage: event.message } : entry,
+            entry.id === last.activeToolId ? { ...entry, progressMessage: uiEvent.message } : entry,
           ),
         }));
         break;
       case 'tool_end': {
-        const endToolId = event.toolCallId ?? this.getLastItem()?.activeToolId;
+        const endToolId = uiEvent.toolCallId ?? this.getLastItem()?.activeToolId;
         this.updateLastItem((last) => ({
           ...last,
           events: last.events.map((entry) =>
-            entry.id === endToolId ? { ...entry, completed: true, endEvent: event } : entry,
+            entry.id === endToolId ? { ...entry, completed: true, endEvent: uiEvent } : entry,
           ),
         }));
         this.workingStateValue = { status: 'thinking' };
@@ -413,11 +491,11 @@ export class AgentRunnerController {
         break;
       }
       case 'tool_error': {
-        const errToolId = event.toolCallId ?? this.getLastItem()?.activeToolId;
+        const errToolId = uiEvent.toolCallId ?? this.getLastItem()?.activeToolId;
         this.updateLastItem((last) => ({
           ...last,
           events: last.events.map((entry) =>
-            entry.id === errToolId ? { ...entry, completed: true, endEvent: event } : entry,
+            entry.id === errToolId ? { ...entry, completed: true, endEvent: uiEvent } : entry,
           ),
         }));
         this.workingStateValue = { status: 'thinking' };
@@ -426,15 +504,15 @@ export class AgentRunnerController {
       }
       case 'tool_approval':
         this.pushEvent({
-          id: `approval-${event.tool}-${Date.now()}`,
-          event,
+          id: `approval-${uiEvent.tool}-${Date.now()}`,
+          event: uiEvent,
           completed: true,
         });
         break;
       case 'tool_denied':
         this.pushEvent({
-          id: `denied-${event.tool}-${Date.now()}`,
-          event,
+          id: `denied-${uiEvent.tool}-${Date.now()}`,
+          event: uiEvent,
           completed: true,
         });
         break;
@@ -446,8 +524,8 @@ export class AgentRunnerController {
       case 'memory_flush':
       case 'memory_recalled':
         this.pushEvent({
-          id: `${event.type}-${Date.now()}`,
-          event,
+          id: `${uiEvent.type}-${Date.now()}`,
+          event: uiEvent,
           completed: true,
         });
         break;
@@ -455,11 +533,11 @@ export class AgentRunnerController {
         // Update accumulators without firing onChange — the working indicator
         // pulls turnStats on its own spinner tick. Avoids a per-chunk emitChange
         // storm that stutters input.
-        this.streamedCharsValue += event.charDelta;
-        this.streamModeValue = event.mode;
+        this.streamedCharsValue += uiEvent.charDelta;
+        this.streamModeValue = uiEvent.mode;
         return;
       case 'done': {
-        const done = event as DoneEvent;
+        const done = uiEvent as DoneEvent;
         if (done.answer) {
           await this.inMemoryChatHistory.saveAnswer(done.answer).catch(() => {});
         }

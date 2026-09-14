@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { JsonFileMarketQuoteTrendStore, NativeMarketQuoteClient } from './quote.js';
 import { JsonFileProviderSlaStore, providerSla, runProviderSlaJob, __test__ as providerSlaTest, type ProviderSlaJob } from './provider-sla.js';
 import { startProviderSlaRunner } from './provider-sla-runner.js';
+import { TelemetryRecorder } from '@upup/pi-observability';
 
 describe('provider SLA exponential backoff helper', () => {
   test('returns base everyMs when there are no errors', () => {
@@ -15,6 +16,32 @@ describe('provider SLA exponential backoff helper', () => {
     expect(providerSlaTest.backoffMs(60_000, 2)).toBe(240_000);
     expect(providerSlaTest.backoffMs(60_000, 5)).toBe(60_000 * 32);
     expect(providerSlaTest.backoffMs(60_000, 100)).toBe(60_000 * 32);
+  });
+});
+
+describe('native provider retry integration', () => {
+  test('retries transient quote responses and does not retry forbidden responses', async () => {
+    const recorder = new TelemetryRecorder({ enabled: true, sinkConfig: { dir: await mkdtemp(join(tmpdir(), 'upup-market-retry-')), flushEveryNEvents: 1 } });
+    let calls = 0;
+    const client = new NativeMarketQuoteClient({
+      retry: { maxAttempts: 3, baseDelayMs: 1, sleep: async () => {} , recorder },
+      fetcher: async () => {
+        calls++;
+        if (calls < 3) return new Response('upstream unavailable', { status: 503 });
+        return new Response(JSON.stringify({ chart: { result: [{ meta: { symbol: 'AAPL', regularMarketPrice: 200, regularMarketTime: 1_757_808_000 } }] } }), { status: 200 });
+      },
+    });
+    await expect(client.getQuote('AAPL', 'us')).resolves.toMatchObject({ value: { last: 200 } });
+    expect(calls).toBe(3);
+
+    let forbiddenCalls = 0;
+    const forbidden = new NativeMarketQuoteClient({
+      retry: { maxAttempts: 3, baseDelayMs: 1, sleep: async () => {}, recorder },
+      fetcher: async () => { forbiddenCalls++; return new Response('forbidden', { status: 403 }); },
+    });
+    await expect(forbidden.getQuote('AAPL', 'us')).rejects.toThrow(/403/);
+    expect(forbiddenCalls).toBe(1);
+    await recorder.flush();
   });
 });
 

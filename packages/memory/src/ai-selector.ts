@@ -25,7 +25,7 @@ import {
   buildManifest,
   buildTypedManifest,
 } from './scanner.js';
-import { callStructuredLlm } from '@upup/utils';
+import { callStructuredLlm, type PromptRunner } from '@upup/utils';
 import { DEFAULT_MODEL } from '@upup/utils';
 import { getUpupDir } from '@upup/utils';
 import { MEMORY_TYPES, type MemoryFileMeta } from './types.js';
@@ -53,6 +53,7 @@ export interface FindRelevantMemoriesOptions {
   signal?: AbortSignal;
   /** Filter by memory type */
   typeFilter?: 'user' | 'feedback' | 'project' | 'reference';
+  runner?: PromptRunner;
 }
 
 export interface SelectedMemory {
@@ -117,6 +118,7 @@ export async function findRelevantMemories(
     model,
     signal,
     typeFilter,
+    runner,
   } = options;
 
   // Try to read MEMORY.md index first
@@ -154,6 +156,7 @@ export async function findRelevantMemories(
     signal,
     recentTools,
     model,
+    runner,
   );
 
   // Map selected filenames back to memory metadata
@@ -184,6 +187,7 @@ async function selectRelevantMemories(
   signal?: AbortSignal,
   recentTools?: readonly string[],
   model?: string,
+  runner?: PromptRunner,
 ): Promise<string[]> {
   const validFilenames = new Set(
     memories.map(m => `${m.type}/${m.filename}`)
@@ -196,6 +200,7 @@ async function selectRelevantMemories(
       model: model ?? DEFAULT_MODEL,
       systemPrompt: SELECT_SYSTEM_PROMPT,
       signal,
+      runner,
     });
 
     if (!result || !Array.isArray(result.selected_memories)) {

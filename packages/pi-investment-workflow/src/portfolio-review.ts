@@ -5,9 +5,9 @@
  * 从 .upup/plans/*.json 拉最近完成 plan,展示复盘框架
  *
  * 模块边界:
- * - 只依赖 src/plan/plan-executor(只读) + src/utils/storage-paths + src/plan/plan-context
- * - 不依赖 src/tools/portfolio/brinson(避免 finance → agent 反向引用循环)
- * - 复用 src/plan/plan-context.calculateProgress
+ * - 只依赖 planning/storage package 的只读 API
+ * - 不依赖 portfolio tool internals(避免 finance → agent 反向引用循环)
+ * - 复用 planning package 的 progress API
  */
 
 import { existsSync, readdirSync } from 'node:fs';
@@ -102,7 +102,7 @@ export function runPortfolioReview(_args: string): string {
   lines.push('');
 
   // Brinson 框架占位
-  lines.push('  🏛️  Brinson 归因框架(接入 src/tools/portfolio/brinson 后自动填充)');
+  lines.push('  🏛️  Brinson 归因框架(接入 portfolio capability provider 后自动填充)');
   lines.push('  • Allocation Effect   — 行业配置贡献  (待计算)');
   lines.push('  • Selection Effect    — 行业内选股贡献 (待计算)');
   lines.push('  • Interaction Effect  — 配置×选股交叉   (待计算)');

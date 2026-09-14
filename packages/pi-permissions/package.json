@@ -17,8 +17,8 @@
     "test": "bun test ./test.ts"
   },
   "dependencies": {
-    "@upup/pi-event-adapter": "workspace:*",
-    "@upup/utils": "workspace:*"
+    "@upup/pi-runtime": "0.1.0",
+    "@upup/utils": "0.2.0"
   },
   "files": ["dist", "package.json"],
   "private": false,
@@ -33,6 +33,9 @@
     "lifecycle": {
       "scope": "session"
     },
+    "capabilities": [
+      { "name": "permissions.policy", "version": "1.0.0", "scope": "session", "trust": { "mode": "builtin" }, "lifecycle": { "scope": "session" } }
+    ],
     "extensions": [],
     "skills": [],
     "prompts": [],

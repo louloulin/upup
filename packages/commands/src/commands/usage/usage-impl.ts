@@ -6,7 +6,6 @@
  */
 
 import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types.js'
-import { getStatePortLocal } from '../../agent-port.js'
 
 export const call = async (
   args: string,
@@ -21,7 +20,7 @@ export const call = async (
   ]
 
   // Use the port registry — no fragile deep import needed
-  const statePort = getStatePortLocal()
+  const statePort = context.capabilities?.state
   if (statePort) {
     try {
       const appState = statePort.getAppState()

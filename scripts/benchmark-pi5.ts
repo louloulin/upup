@@ -1,7 +1,8 @@
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { getInvestmentAgentSpec, PiAgentSessionFactory } from '../src/runtime/pi/index.js';
-import { FINANCE_FIXTURE_TOOLS } from '../src/extensions/upup/finance-fixtures.js';
+import { getInvestmentAgentSpec } from '@upup/pi-investment-workflow';
+import { PiAgentSessionFactory } from '@upup/pi-session';
+import { FINANCE_FIXTURE_TOOLS } from '@upup/pi-finance-sdk/finance-fixtures';
 
 const thresholds = {
   startupMs: 500,

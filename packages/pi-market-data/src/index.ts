@@ -23,6 +23,7 @@ export interface MarketBar {
 export interface MarketEvidence {
   id: string;
   source: string;
+  readonly provider?: string;
   retrievedAt: string;
   asOf: string;
   query: string;
@@ -60,7 +61,7 @@ export function makeFixtureQuote(symbol: string, marketValue: string | undefined
   const asOf = '2026-09-12';
   return {
     value: { symbol, market, price, currency: currencyForMarket(market), asOf, source: 'upup-fixture://market-data/quote', freshness: 'historical' },
-    evidence: { id: `market-data:${auditId}:quote`, source: 'upup-fixture://market-data/quote', retrievedAt: '2026-09-13T00:00:00.000Z', asOf, query: symbol, dataFreshness: 'historical', auditId },
+    evidence: { id: `market-data:${auditId}:quote`, source: 'upup-fixture://market-data/quote', provider: 'fixture-market-data', retrievedAt: '2026-09-13T00:00:00.000Z', asOf, query: symbol, dataFreshness: 'historical', auditId },
   };
 }
 
@@ -73,7 +74,7 @@ export function makeFixtureBars(symbol: string, startDate: string, limit: number
   });
   return {
     value,
-    evidence: { id: `market-data:${auditId}:history`, source: 'upup-fixture://market-data/history', retrievedAt: '2026-09-13T00:00:00.000Z', asOf: value.at(-1)?.date ?? startDate, query: `${symbol}:${startDate}`, dataFreshness: 'historical', auditId },
+    evidence: { id: `market-data:${auditId}:history`, source: 'upup-fixture://market-data/history', provider: 'fixture-market-data', retrievedAt: '2026-09-13T00:00:00.000Z', asOf: value.at(-1)?.date ?? startDate, query: `${symbol}:${startDate}`, dataFreshness: 'historical', auditId },
   };
 }
 

@@ -24,8 +24,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { registerGatewayConfigRuntime } from '@upup/gateway';
-import { resetPiRuntimePorts } from '@upup/pi-runtime';
+import type { GatewayRuntime } from '@upup/gateway';
 import { startBridgeServer, type BridgeServer } from './server.js';
 import { SessionSync, type SessionState } from './session-sync.js';
 import { encodeMessage, type BridgeMessage } from './protocol.js';
@@ -35,15 +34,16 @@ let auditPath: string;
 let storageDir: string;
 let server: BridgeServer | null = null;
 let trackedWs: WebSocket | null = null;
+const runtime: GatewayRuntime = {
+  agent: { isSessionRunning: () => false, runPrompt: async () => '' },
+  config: { getConfiguredModelId: () => 'bridge-e2e-fixture-model', getConfiguredProvider: () => 'upup-bridge-e2e-fixture' },
+  cron: { ensureHeartbeatCronJob: () => undefined, startCronRunner: () => ({ stop: () => undefined }) },
+};
 
 beforeEach(() => {
   tmpDir = mkdtempSync(join(tmpdir(), 'e2e-sync-'));
   storageDir = join(tmpDir, 'sessions');
   auditPath = join(tmpDir, 'audit.log');
-  registerGatewayConfigRuntime({
-    getConfiguredModelId: () => 'bridge-e2e-fixture-model',
-    getConfiguredProvider: () => 'upup-bridge-e2e-fixture',
-  });
 });
 
 afterEach(async () => {
@@ -56,11 +56,25 @@ afterEach(async () => {
     server = null;
   }
   rmSync(tmpDir, { recursive: true, force: true });
-  resetPiRuntimePorts();
 });
 
 function openWs(port: number, query: string): WebSocket {
-  return new WebSocket(`ws://127.0.0.1:${port}/bridge${query}`);
+  const ws = new WebSocket(`ws://127.0.0.1:${port}/bridge${query}`);
+  const messages: BridgeMessage[] = [];
+  const waiters: Array<(message: BridgeMessage) => void> = [];
+  Object.assign(ws, { __bridgeMessages: messages, __bridgeWaiters: waiters });
+  ws.addEventListener('message', async (event) => {
+    try {
+      const buf = await readFrame(event);
+      const env = JSON.parse(new TextDecoder().decode(buf)) as { msg: BridgeMessage };
+      const waiter = waiters.shift();
+      if (waiter) waiter(env.msg);
+      else messages.push(env.msg);
+    } catch {
+      // nextMessage will report a timeout for malformed frames.
+    }
+  });
+  return ws;
 }
 
 function waitOpen(ws: WebSocket): Promise<void> {
@@ -98,18 +112,20 @@ async function readFrame(e: MessageEvent): Promise<ArrayBuffer> {
 }
 
 function nextMessage(ws: WebSocket, timeoutMs = 2000): Promise<BridgeMessage> {
+  const state = ws as WebSocket & {
+    __bridgeMessages?: BridgeMessage[];
+    __bridgeWaiters?: Array<(message: BridgeMessage) => void>;
+  };
+  const messages = state.__bridgeMessages ?? [];
+  const waiters = state.__bridgeWaiters ?? [];
+  const queued = messages.shift();
+  if (queued) return Promise.resolve(queued);
   return new Promise((res, rej) => {
     const t = setTimeout(() => rej(new Error('ws message timeout')), timeoutMs);
-    ws.onmessage = async (e) => {
+    waiters.push((message) => {
       clearTimeout(t);
-      try {
-        const buf = await readFrame(e);
-        const env = JSON.parse(new TextDecoder().decode(buf));
-        res(env.msg as BridgeMessage);
-      } catch (err) {
-        rej(err as Error);
-      }
-    };
+      res(message);
+    });
   });
 }
 
@@ -146,7 +162,9 @@ describe('session-sync e2e', () => {
       port: 0,
       token: TOKEN,
       auditPath,
+      runtime,
       sessionSync: sync,
+      agentRunner: async () => 'bridge-session-sync-fixture',
     });
     server = srv;
 

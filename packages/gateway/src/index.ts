@@ -51,7 +51,6 @@ export { resolveSessionStorePath, loadSessionStore, saveSessionStore, upsertSess
 export type { SessionEntry } from './sessions/store.js';
 export { assertOutboundAllowed, sendComposing, sendMessageWhatsApp } from './channels/whatsapp/index.js';
 export { startGateway } from './gateway.js';
-export { registerGatewayAgentRuntime, registerGatewayConfigRuntime, registerGatewayCronRuntime, getGatewayAgentRuntime, getGatewayCronRuntime, getGatewayConfigRuntime } from './runtime-port.js';
-export type { GatewayAgentRuntimePort, GatewayConfigRuntimePort, GatewayCronRuntimePort } from './runtime-port.js';
+export type { GatewayAgentRuntimePort, GatewayConfigRuntimePort, GatewayCronRuntimePort, GatewayRuntime } from './runtime-port.js';
 export { loginWhatsApp } from './channels/whatsapp/login.js';
 export { runGatewayCli } from './cli.js';

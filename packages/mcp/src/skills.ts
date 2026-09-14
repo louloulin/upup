@@ -5,7 +5,14 @@
  * Currently a placeholder - full implementation requires MCP server integration.
  */
 
-import type { SkillCommand } from '@upup/skills';
+export interface McpSkillCommand {
+  readonly type: 'prompt';
+  readonly name: string;
+  readonly description: string;
+  readonly contentLength: number;
+  readonly userInvocable?: boolean;
+  readonly argumentHint?: string;
+}
 
 /**
  * Fetch skills from MCP servers.
@@ -17,7 +24,7 @@ import type { SkillCommand } from '@upup/skills';
  *
  * @returns Promise resolving to array of skill commands from MCP servers
  */
-export async function fetchMcpSkillsForClient(): Promise<SkillCommand[]> {
+export async function fetchMcpSkillsForClient(): Promise<McpSkillCommand[]> {
   // Placeholder: Return empty array until MCP server integration is complete
   // Full implementation would:
   // 1. Connect to configured MCP servers

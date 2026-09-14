@@ -4,8 +4,7 @@
  * Public surface for the UpUp bridge transport that fans out messages
  * between paired devices and the Pi-native AgentSession runtime. All
  * bridge runtime configuration is injected through the gateway config
- * runtime port (`getGatewayConfigRuntime`) so the package never reads
- * root utils directly.
+ * runtime contract so the package never reads root utils directly.
  */
 export {
   PROTOCOL_VERSION,

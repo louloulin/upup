@@ -69,7 +69,7 @@ export type {
 // ============ Tools ============
 
 export {
-  ToolRegistry,
+  ToolConfiguration,
 } from './tools/index.js'
 
 export type {

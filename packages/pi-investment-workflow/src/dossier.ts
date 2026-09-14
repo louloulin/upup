@@ -1,7 +1,7 @@
 /**
  * /dossier <TICKER> — one-pager persistent research dossier (Gap G2)
  *
- * Reads the per-ticker dossier from src/memory/dossier.ts and renders:
+ * Reads the per-ticker dossier from the investment memory package and renders:
  *   - Company snapshot (name / sector / market cap / one-liner)
  *   - Freshness (days since last update + versionHash)
  *   - Most recent 3 theses (with claim counts, evidence refs, confidence)
@@ -10,7 +10,7 @@
  *
  * 模块边界:
  *   dossier.ts (Layer 3) → memory/dossier.ts (Layer 2) + utils/storage-paths (Layer 1)
- *   不依赖 src/tools/*(避免反向),不依赖 src/runtime/pi/* 内部实现(避免反向)
+ *   不依赖工具内部实现(避免反向),不依赖 runtime 内部实现(避免反向)
  *
  * 用法:
  *   /dossier NVDA

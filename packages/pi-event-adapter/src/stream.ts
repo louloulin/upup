@@ -4,13 +4,26 @@
  * Wires the Pi prompt runner (injected) to the canonical event adapter so
  * that Gateway, stdio, Bridge and the controller share one implementation.
  *
- * The runner is injected via {@link createPiEventStream} so this package has
+ * The runner is injected via {@link createPiCanonicalEventStream} so this package has
  * no dependency on root src/runtime/pi.
  */
 
-import type { UpUpAgentEvent, UpUpToolSafetyLevel } from '@upup/pi-runtime';
-import { buildLegacyDoneEvent, mapPiEventToLegacy } from './index.js';
-import type { AgentConfig, AgentEvent } from './index.js';
+import type { Model } from '@earendil-works/pi-ai';
+import type { ModelRuntime } from '@earendil-works/pi-coding-agent';
+import type { ApprovalDecision, UpUpAgentEvent, UpUpToolSafetyLevel } from '@upup/pi-runtime';
+
+export interface PiStreamConfig {
+  model?: string;
+  modelProvider?: string;
+  maxIterations?: number;
+  signal?: AbortSignal;
+  requestToolApproval?: (request: { tool: string; args: Record<string, unknown> }) => Promise<ApprovalDecision>;
+  sessionApprovedTools?: Set<string>;
+  onToolApproval?: (tool: string) => void;
+  toolFilter?: string[] | '*';
+  modelInstance?: Model<any>;
+  modelRuntime?: ModelRuntime;
+}
 
 export interface PiStreamOptions {
   sessionId?: string;
@@ -41,22 +54,39 @@ export type PiPromptRunner = (
   options: PiPromptRunnerOptions,
 ) => Promise<string>;
 
-export async function* streamPiAgentWithRunner(
+export type PiCanonicalEventStream = (
   prompt: string,
-  config: AgentConfig,
+  config?: PiStreamConfig,
+  options?: PiStreamOptions,
+) => AsyncGenerator<UpUpAgentEvent>;
+
+/**
+ * Stream the Pi-native event contract without converting through a second event protocol.
+ * The terminal run_end event is emitted by this transport boundary because
+ * AgentSession itself reports lifecycle events but does not carry the prompt
+ * runner's aggregate answer and timing metadata.
+ */
+export function createPiCanonicalEventStream(runner: PiPromptRunner): PiCanonicalEventStream {
+  return (prompt, config = {}, options = {}) => streamPiCanonicalEvents(prompt, config, options, runner);
+}
+
+export async function* streamPiCanonicalEvents(
+  prompt: string,
+  config: PiStreamConfig,
   options: PiStreamOptions,
   runner: PiPromptRunner,
-): AsyncGenerator<AgentEvent> {
+): AsyncGenerator<UpUpAgentEvent> {
   const start = Date.now();
   let answer = '';
-  let settled = false;
+  let sessionId = options.sessionId ?? '';
   let failure: unknown;
-  const queue: AgentEvent[] = [];
-  const waiters: Array<(result: IteratorResult<AgentEvent>) => void> = [];
-  const push = (event: AgentEvent) => {
-    const waiter = waiters.shift();
-    if (waiter) waiter({ value: event, done: false });
-    else queue.push(event);
+  const queue: UpUpAgentEvent[] = [];
+  const waiters: Array<() => void> = [];
+  let settled = false;
+  const push = (event: UpUpAgentEvent) => {
+    sessionId = event.sessionId;
+    queue.push(event);
+    waiters.shift()?.();
   };
   const execution = runner(prompt, {
     model: config.model,
@@ -79,16 +109,24 @@ export async function* streamPiAgentWithRunner(
           return decision !== 'deny';
         }
       : undefined,
-    onEvent: (event: UpUpAgentEvent) => {
-      const mapped = mapPiEventToLegacy(event);
-      if (mapped) push(mapped);
+    onEvent: (event) => {
+      push(event);
+      if (event.type === 'message_end' && event.role === 'assistant') answer = event.text;
     },
   })
     .then((result) => { answer = result; }, (error) => { failure = error; })
-    .finally(() => {
+    .then(() => {
+      if (!failure) {
+        push({
+          type: 'run_end',
+          sessionId,
+          answer,
+          iterations: 0,
+          totalTime: Date.now() - start,
+        });
+      }
       settled = true;
-      const waiter = waiters.shift();
-      waiter?.({ value: undefined as never, done: true });
+      waiters.shift()?.();
     });
   while (!settled || queue.length > 0) {
     if (queue.length > 0) {
@@ -96,15 +134,9 @@ export async function* streamPiAgentWithRunner(
       continue;
     }
     if (settled) break;
-    await new Promise<IteratorResult<AgentEvent>>((resolve) => waiters.push(resolve));
+    await new Promise<void>((resolve) => waiters.push(resolve));
     if (failure) throw failure;
   }
   await execution;
   if (failure) throw failure;
-  yield buildLegacyDoneEvent({
-    answer,
-    toolCalls: [],
-    iterations: 0,
-    totalTime: Date.now() - start,
-  });
 }

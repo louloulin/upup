@@ -1,18 +1,22 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
-import type { PiPluginTrustPolicy, PiResourceTrustAudit } from './plugin-trust.js';
+import type { PiPackageTrustPolicy, PiResourceTrustAudit } from './plugin-trust.js';
 import { verifyPiResourceTrust } from './plugin-trust.js';
 import { loadPiPackageContracts, type PiPackageContracts } from './package-contracts.js';
-import { PI_RUNTIME_CONTRACT, validatePiPackageManifest, type PiPackageManifestContract } from '@upup/pi-runtime';
+import { PI_RUNTIME_CONTRACT, validatePiPackageManifest, type PiCapabilityDescriptor, type PiPackageCapabilityRequirement, type PiPackageManifestContract, type PiSideEffectDeclaration } from '@upup/pi-runtime';
 
-export type { PiPluginTrustPolicy } from './plugin-trust.js';
+export type { PiPackageTrustPolicy } from './plugin-trust.js';
 
 // Foundation packages that may be declared as runtimeDependencies without being
 // loaded as Pi Packages. These are runtime contracts and capability context
 // packages that don't ship extensions/skills/prompts.
 const RUNTIME_FOUNDATION_PACKAGES: ReadonlySet<string> = new Set([
   '@upup/pi-runtime',
+  '@upup/pi-event-adapter',
+  '@upup/pi-observability',
   '@upup/pi-capability-registry',
+  '@upup/pi-resource-composition',
+  '@upup/pi-session',
   '@upup/pi-planning',
   '@upup/utils',
   '@upup/types',
@@ -37,7 +41,11 @@ export interface PiPackageManifest {
   readonly policies: readonly string[];
   readonly evals: readonly string[];
   readonly extension?: string;
-  readonly capabilities: readonly { readonly name: string; readonly version: string; readonly optional?: boolean }[];
+  readonly hostCapabilities: readonly string[];
+  readonly tools: readonly string[];
+  readonly nativeTools: readonly string[];
+  readonly sideEffects: readonly PiSideEffectDeclaration[];
+  readonly capabilities: readonly PiPackageCapabilityRequirement[];
   readonly trust: { readonly mode: 'builtin' | 'trusted' | 'sandboxed'; readonly network?: boolean; readonly credentials?: boolean; readonly filesystem?: boolean };
   readonly lifecycle: { readonly scope: 'runtime' | 'session' | 'process'; readonly initialize?: string; readonly reload?: string; readonly dispose?: string };
 }
@@ -76,6 +84,14 @@ export interface PiPackageExtensionLoadResult {
   readonly errors: readonly { readonly path: string; readonly error: string }[];
 }
 
+export interface PiCapabilityRequirementResolution {
+  readonly packageName: string;
+  readonly capability: string;
+  readonly version: string;
+  readonly optional: boolean;
+  readonly resolved: boolean;
+}
+
 function readResource(path: string): string {
   const stat = statSync(path);
   if (stat.isFile()) return readFileSync(path, 'utf8');
@@ -99,26 +115,26 @@ function isInside(path: string, root: string): boolean {
 }
 
 function exactSemver(value: unknown): value is string {
-  return typeof value === 'string' && /^\d+\.\d+\.\d+$/.test(value);
+  return typeof value === 'string' && /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/.test(value);
 }
 
 export class PiPackageCatalog {
   private readonly records = new Map<string, PiPackageRecord>();
 
-  register(root: string, trust: PiPluginTrustPolicy, cwd = process.cwd(), options: { deferCommandValidation?: boolean } = {}): PiPackageRecord {
+  register(root: string, trust: PiPackageTrustPolicy, cwd = process.cwd(), options: { deferCommandValidation?: boolean } = {}): PiPackageRecord {
     return this.registerAtRoot(root, trust, cwd, options);
   }
 
   private registerAtRoot(
     root: string,
-    trust: PiPluginTrustPolicy,
+    trust: PiPackageTrustPolicy,
     cwd: string,
     options: { allowReplacement?: boolean; expectedName?: string; deferCommandValidation?: boolean } = {},
   ): PiPackageRecord {
     const resolvedRoot = resolve(cwd, root);
     const parsed = JSON.parse(readFileSync(join(resolvedRoot, 'package.json'), 'utf8')) as {
       name?: unknown; version?: unknown; dependencies?: unknown; devDependencies?: unknown; peerDependencies?: unknown; optionalDependencies?: unknown; pi?: {
-        contract?: unknown; extension?: unknown; capabilities?: unknown[]; trust?: unknown; lifecycle?: unknown;
+        contract?: unknown; extension?: unknown; hostCapabilities?: unknown[]; tools?: unknown[]; nativeTools?: unknown[]; sideEffects?: unknown[]; capabilities?: unknown[]; trust?: unknown; lifecycle?: unknown;
         source?: unknown;
         commands?: unknown[];
         extensions?: unknown[]; skills?: unknown[]; prompts?: unknown[];
@@ -154,7 +170,7 @@ export class PiPackageCatalog {
       if (section === undefined) continue;
       if (!section || typeof section !== 'object' || Array.isArray(section)) throw new Error(`Pi package dependencies are invalid: ${resolvedRoot}`);
       for (const [name, range] of Object.entries(section as Record<string, unknown>)) {
-        if (typeof range !== 'string' || !/^\d+\.\d+\.\d+$/.test(range)) {
+        if (typeof range !== 'string' || !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/.test(range)) {
           throw new Error(`Pi package dependency ${name} must use an exact semver: ${resolvedRoot}`);
         }
         const previous = dependencies[name];
@@ -179,7 +195,7 @@ export class PiPackageCatalog {
     const relativeResources = (key: 'extensions' | 'skills' | 'prompts' | 'workflows' | 'policies' | 'evals'): string[] => {
       const declared = parsed.pi?.[key];
       if (declared === undefined) return [];
-      if (!Array.isArray(declared) || declared.length === 0 || declared.some((item) => typeof item !== 'string' || !item.trim())) {
+      if (!Array.isArray(declared) || declared.some((item) => typeof item !== 'string' || !item.trim())) {
         throw new Error(`Pi package ${key} resources are invalid: ${resolvedRoot}`);
       }
       const resources = declared as string[];
@@ -212,6 +228,10 @@ export class PiPackageCatalog {
     const trustResult = verifyPiResourceTrust([resolvedRoot, ...resources], trust, cwd);
     const contract = typeof parsed.pi.contract === 'string' ? parsed.pi.contract : PI_RUNTIME_CONTRACT;
     const capabilities = Array.isArray(parsed.pi.capabilities) ? parsed.pi.capabilities : [];
+    const hostCapabilities = Array.isArray(parsed.pi.hostCapabilities) ? parsed.pi.hostCapabilities : [];
+    const tools = Array.isArray(parsed.pi.tools) ? parsed.pi.tools : [];
+    const nativeTools = Array.isArray(parsed.pi.nativeTools) ? parsed.pi.nativeTools : [];
+    const sideEffects = Array.isArray(parsed.pi.sideEffects) ? parsed.pi.sideEffects as PiSideEffectDeclaration[] : [];
     const trustContract = parsed.pi.trust && typeof parsed.pi.trust === 'object' ? parsed.pi.trust : { mode: 'builtin' };
     const lifecycle = parsed.pi.lifecycle && typeof parsed.pi.lifecycle === 'object' ? parsed.pi.lifecycle : { scope: 'session' };
     validatePiPackageManifest({
@@ -221,12 +241,16 @@ export class PiPackageCatalog {
       source: parsed.pi.source,
       dependencies,
       extension: typeof parsed.pi.extension === 'string' ? parsed.pi.extension : undefined,
+      hostCapabilities: hostCapabilities as PiPackageManifestContract['hostCapabilities'],
+      tools: tools as PiPackageManifestContract['tools'],
+      nativeTools: nativeTools as PiPackageManifestContract['nativeTools'],
+      sideEffects,
       capabilities: capabilities as PiPackageManifestContract['capabilities'],
       trust: trustContract as PiPackageManifestContract['trust'],
       lifecycle: lifecycle as PiPackageManifestContract['lifecycle'],
       resources: { extensions, skills, prompts, workflows, policies, evals },
     });
-    const manifest: PiPackageManifest = { name: parsed.name, version: parsed.version, contract, source: parsed.pi.source, dependencies, runtimeDependencies, commands, root: resolvedRoot, extensions, skills, prompts, workflows, policies, evals, extension: typeof parsed.pi.extension === 'string' ? parsed.pi.extension : undefined, capabilities: capabilities as PiPackageManifest['capabilities'], trust: trustContract as PiPackageManifest['trust'], lifecycle: lifecycle as PiPackageManifest['lifecycle'] };
+    const manifest: PiPackageManifest = { name: parsed.name, version: parsed.version, contract, source: parsed.pi.source, dependencies, runtimeDependencies, commands, root: resolvedRoot, extensions, skills, prompts, workflows, policies, evals, extension: typeof parsed.pi.extension === 'string' ? parsed.pi.extension : undefined, hostCapabilities: hostCapabilities as PiPackageManifest['hostCapabilities'], tools: tools as PiPackageManifest['tools'], nativeTools: nativeTools as PiPackageManifest['nativeTools'], sideEffects, capabilities: capabilities as PiPackageManifest['capabilities'], trust: trustContract as PiPackageManifest['trust'], lifecycle: lifecycle as PiPackageManifest['lifecycle'] };
     const record: PiPackageRecord = { manifest, enabled: true, audits: trustResult.audits };
     const previousRecord = this.records.get(parsed.name);
     this.records.set(parsed.name, record);
@@ -258,7 +282,7 @@ export class PiPackageCatalog {
     this.records.set(name, { ...record, enabled: false });
   }
 
-  rollback(name: string, previousRoot: string, trust: PiPluginTrustPolicy, cwd = process.cwd()): PiPackageRecord {
+  rollback(name: string, previousRoot: string, trust: PiPackageTrustPolicy, cwd = process.cwd()): PiPackageRecord {
     const current = this.records.get(name);
     try {
       const previous = this.registerAtRoot(previousRoot, trust, cwd, { allowReplacement: true, expectedName: name });
@@ -328,6 +352,74 @@ export class PiPackageCatalog {
     for (const record of this.records.values()) {
       visit(record.manifest.name);
     }
+  }
+
+  validateLifecycleContracts(): void {
+    for (const record of this.listEnabled()) {
+      const lifecycle = record.manifest.lifecycle;
+      if (lifecycle.scope === 'process' && !lifecycle.dispose) {
+        throw new Error(`Pi package process lifecycle is missing dispose: ${record.manifest.name}`);
+      }
+      if (lifecycle.reload && !lifecycle.initialize) {
+        throw new Error(`Pi package reload lifecycle requires initialize: ${record.manifest.name}`);
+      }
+    }
+  }
+
+  negotiateCapabilities(
+    available: ReadonlyMap<string, string> | Readonly<Record<string, string>> = new Map(),
+  ): readonly PiCapabilityRequirementResolution[] {
+    this.validateLifecycleContracts();
+    const versions = available instanceof Map ? available : new Map(Object.entries(available));
+    const resolutions: PiCapabilityRequirementResolution[] = [];
+    for (const record of this.listEnabled()) {
+      for (const requirement of record.manifest.capabilities) {
+        const version = versions.get(requirement.name);
+        const resolved = version === requirement.version;
+        if (!resolved && !requirement.optional) {
+          throw new Error(`Pi package capability is unavailable: ${record.manifest.name} requires ${requirement.name}@${requirement.version}`);
+        }
+        resolutions.push({
+          packageName: record.manifest.name,
+          capability: requirement.name,
+          version: requirement.version,
+          optional: requirement.optional === true,
+          resolved,
+        });
+      }
+    }
+    return resolutions;
+  }
+
+  negotiateCapabilityCatalog(available: readonly PiCapabilityDescriptor[]): readonly PiCapabilityRequirementResolution[] {
+    const descriptors = new Map(available.map((descriptor) => [descriptor.name, descriptor] as const));
+    const matches = (requirement: NonNullable<PiPackageManifest['capabilities']>[number], descriptor: PiCapabilityDescriptor): boolean => {
+      if (descriptor.version !== requirement.version) return false;
+      if (requirement.scope !== undefined && descriptor.scope !== requirement.scope) return false;
+      if (requirement.trust !== undefined) {
+        for (const key of ['mode', 'network', 'credentials', 'filesystem'] as const) {
+          if (requirement.trust[key] !== undefined && descriptor.trust[key] !== requirement.trust[key]) return false;
+        }
+      }
+      if (requirement.lifecycle !== undefined) {
+        for (const key of ['scope', 'initialize', 'reload', 'dispose'] as const) {
+          if (requirement.lifecycle[key] !== undefined && descriptor.lifecycle[key] !== requirement.lifecycle[key]) return false;
+        }
+      }
+      return true;
+    };
+    const resolutions: PiCapabilityRequirementResolution[] = [];
+    for (const record of this.listEnabled()) {
+      for (const requirement of record.manifest.capabilities) {
+        const descriptor = descriptors.get(requirement.name);
+        const resolved = descriptor !== undefined && matches(requirement, descriptor);
+        if (!resolved && !requirement.optional) {
+          throw new Error(`Pi package capability contract is unavailable: ${record.manifest.name} requires ${requirement.name}@${requirement.version}`);
+        }
+        resolutions.push({ packageName: record.manifest.name, capability: requirement.name, version: requirement.version, optional: requirement.optional === true, resolved });
+      }
+    }
+    return resolutions;
   }
 
   validateCommands(): void {

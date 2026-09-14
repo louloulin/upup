@@ -26,13 +26,13 @@
   "dependencies": {
     "@earendil-works/pi-ai": "0.84.3",
     "@earendil-works/pi-coding-agent": "0.84.3",
-    "@upup/pi-event-adapter": "workspace:*",
-    "@upup/pi-market-data": "workspace:*",
-    "@upup/pi-runtime": "workspace:*",
-    "@upup/utils": "workspace:*",
+    "@upup/pi-event-adapter": "0.1.0",
+    "@upup/pi-market-data": "0.1.0",
+    "@upup/pi-runtime": "0.1.0",
+    "@upup/utils": "0.2.0",
     "@whiskeysockets/baileys": "7.0.0-rc.9",
-    "qrcode-terminal": "^0.12.0",
-    "zod": "^3.23.8"
+    "qrcode-terminal": "0.12.0",
+    "zod": "3.25.76"
   },
   "devDependencies": {
     "@types/bun": "latest"
@@ -44,4 +44,5 @@
     "upup"
   ],
   "private": false
+  ,"pi": { "contract": "upup.pi.runtime.v1", "source": "builtin:upup", "trust": { "mode": "builtin", "network": true, "credentials": true }, "lifecycle": { "scope": "runtime" }, "extensions": [], "skills": [], "prompts": [], "workflows": [], "policies": [], "evals": [] }
 }

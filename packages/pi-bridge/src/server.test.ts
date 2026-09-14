@@ -14,8 +14,7 @@ import { describe, expect, test, beforeEach, afterEach } from 'bun:test';
 import { mkdtempSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { registerGatewayConfigRuntime } from '@upup/gateway';
-import { resetPiRuntimePorts } from '@upup/pi-runtime';
+import type { GatewayRuntime } from '@upup/gateway';
 import { startBridgeServer, type BridgeServer } from './server.js';
 import { encodeMessage, type BridgeMessage } from './protocol.js';
 
@@ -23,14 +22,15 @@ let tmpDir: string;
 let auditPath: string;
 let server: BridgeServer | null = null;
 let trackedWs: WebSocket | null = null;
+const runtime: GatewayRuntime = {
+  agent: { isSessionRunning: () => false, runPrompt: async () => '' },
+  config: { getConfiguredModelId: () => 'bridge-fixture-model', getConfiguredProvider: () => 'upup-bridge-fixture' },
+  cron: { ensureHeartbeatCronJob: () => undefined, startCronRunner: () => ({ stop: () => undefined }) },
+};
 
 beforeEach(() => {
   tmpDir = mkdtempSync(join(tmpdir(), 'bridge-srv-'));
   auditPath = join(tmpDir, 'audit.log');
-  registerGatewayConfigRuntime({
-    getConfiguredModelId: () => 'bridge-fixture-model',
-    getConfiguredProvider: () => 'upup-bridge-fixture',
-  });
 });
 
 afterEach(async () => {
@@ -43,11 +43,10 @@ afterEach(async () => {
     server = null;
   }
   rmSync(tmpDir, { recursive: true, force: true });
-  resetPiRuntimePorts();
 });
 
 async function startWithToken(token: string): Promise<{ srv: BridgeServer; port: number }> {
-  const srv = await startBridgeServer({ port: 0, token, auditPath });
+  const srv = await startBridgeServer({ port: 0, token, auditPath, runtime });
   server = srv;
   return { srv, port: srv.port };
 }
@@ -219,6 +218,7 @@ describe('startBridgeServer — read-only snapshot endpoints (P2.b.2)', () => {
       port: 0,
       token,
       auditPath,
+      runtime,
       dossiers,
     });
     const port = server.port;
@@ -238,6 +238,7 @@ describe('startBridgeServer — read-only snapshot endpoints (P2.b.2)', () => {
       port: 0,
       token,
       auditPath,
+      runtime,
       dossiers,
     });
     const port = server.port;

@@ -1,6 +1,3 @@
-// @ts-nocheck
-import { getPiRuntimePort } from '@upup/pi-runtime';
-
 export interface PlanModePortLocal {
   isActive(): boolean;
   getPlanId(): string | undefined;
@@ -73,35 +70,11 @@ export interface AgentMemoryPortLocal {
   getContext(agentId: string): string;
 }
 
-interface AgentPortsLocal {
+export interface AgentPortsLocal {
   planMode?: PlanModePortLocal;
   subagent?: SubagentPortLocal;
   mcpRegistry?: McpRegistryPortLocal;
   state?: StatePortLocal;
   sandbox?: SandboxPortLocal;
   agentMemory?: AgentMemoryPortLocal;
-}
-
-export function getPlanModePortLocal(): PlanModePortLocal | null {
-  return getPiRuntimePort<PlanModePortLocal>('platform.plan-mode') ?? null;
-}
-
-export function getSubagentPortLocal(): SubagentPortLocal | null {
-  return getPiRuntimePort<SubagentPortLocal>('platform.subagent') ?? null;
-}
-
-export function getMcpRegistryPortLocal(): McpRegistryPortLocal | null {
-  return getPiRuntimePort<McpRegistryPortLocal>('platform.mcp-registry') ?? null;
-}
-
-export function getStatePortLocal(): StatePortLocal | null {
-  return getPiRuntimePort<StatePortLocal>('platform.state') ?? null;
-}
-
-export function getSandboxPortLocal(): SandboxPortLocal | null {
-  return getPiRuntimePort<SandboxPortLocal>('platform.sandbox') ?? null;
-}
-
-export function getAgentMemoryPortLocal(): AgentMemoryPortLocal | null {
-  return getPiRuntimePort<AgentMemoryPortLocal>('platform.agent-memory') ?? null;
 }

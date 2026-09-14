@@ -3,6 +3,8 @@ import { currencyForMarket, normalizeMarket, type Market, type MarketEvidence, t
 import { dirname } from 'node:path';
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
+import { executeWithProviderRetry, type ProviderRetryPolicy } from '@upup/pi-observability';
+import type { PiMarketTrendStore } from '@upup/types';
 
 export interface NativeMarketQuote extends MarketQuote {
   readonly bid: number;
@@ -52,10 +54,7 @@ export interface NativeMarketQuoteTrendBucket {
   readonly sloStatus: 'healthy' | 'degraded' | 'unhealthy' | 'unknown';
 }
 
-export interface NativeMarketQuoteTrendStore {
-  load(): readonly NativeMarketQuoteTrendBucket[];
-  save(buckets: readonly NativeMarketQuoteTrendBucket[]): void;
-}
+export interface NativeMarketQuoteTrendStore extends PiMarketTrendStore {}
 
 interface PersistedTrendFile {
   readonly schema: 1;
@@ -121,7 +120,14 @@ export interface NativeMarketQuoteClientOptions {
   readonly cache?: MarketQuoteCache;
   readonly rateLimiter?: MarketHistoryRateLimiter;
   readonly trendStore?: NativeMarketQuoteTrendStore;
+  readonly retry?: Omit<ProviderRetryPolicy, 'provider' | 'operation'>;
 }
+
+const DEFAULT_PROVIDER_RETRY: Omit<ProviderRetryPolicy, 'provider' | 'operation'> = {
+  maxAttempts: 3,
+  baseDelayMs: 100,
+  maxDelayMs: 2_000,
+};
 
 interface YahooQuotePayload {
   readonly chart?: {
@@ -229,6 +235,7 @@ export class NativeMarketQuoteClient {
   private readonly recentSamples: NativeMarketQuoteSample[] = [];
   private readonly trendBuckets = new Map<string, { requests: number; cacheHits: number; successes: number; failures: number; latencyTotalMs: number; sampleCount: number }>();
   private readonly trendStore?: NativeMarketQuoteTrendStore;
+  private readonly retry?: NativeMarketQuoteClientOptions['retry'];
 
   constructor(options: NativeMarketQuoteClientOptions = {}) {
     this.fetcher = options.fetcher ?? ((input, init) => fetch(input, init));
@@ -238,6 +245,7 @@ export class NativeMarketQuoteClient {
     this.cache = options.cache;
     this.rateLimiter = options.rateLimiter;
     this.trendStore = options.trendStore ?? (process.env.UPUP_PROVIDER_METRICS_PATH?.trim() ? new JsonFileMarketQuoteTrendStore(process.env.UPUP_PROVIDER_METRICS_PATH.trim()) : undefined);
+    this.retry = options.retry ?? DEFAULT_PROVIDER_RETRY;
     for (const bucket of this.trendStore?.load() ?? []) {
       this.trendBuckets.set(bucket.startAt, {
         requests: bucket.requests,
@@ -372,7 +380,7 @@ export class NativeMarketQuoteClient {
     const url = new URL(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(resolved)}`);
     url.searchParams.set('range', '5d');
     url.searchParams.set('interval', '1d');
-    const response = await this.fetcher(url, { signal, headers: { Accept: 'application/json', 'User-Agent': 'UpUp-Pi-Market-Data/1.0' } });
+    const response = await this.fetchWithRetry(url, { signal, headers: { Accept: 'application/json', 'User-Agent': 'UpUp-Pi-Market-Data/1.0' } }, 'yahoo', 'quote', signal);
     if (!response.ok) throw new Error(`market quote request failed: ${response.status} ${response.statusText}`);
     const payload = await response.json() as YahooQuotePayload;
     const meta = payload.chart?.result?.[0]?.meta;
@@ -390,7 +398,7 @@ export class NativeMarketQuoteClient {
   private async getTushareQuote(symbol: string, requestedMarket: string | undefined, signal: AbortSignal | undefined, auditId: string, key: string): Promise<NativeMarketQuoteResult> {
     if (!this.tushareToken) throw new Error('Tushare provider requires TUSHARE_TOKEN');
     const resolved = tushareSymbol(symbol);
-    const response = await this.fetcher('https://api.tushare.pro', { method: 'POST', signal, headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'User-Agent': 'UpUp-Pi-Market-Data/1.0' }, body: JSON.stringify({ api_name: 'daily', token: this.tushareToken, params: { ts_code: resolved }, fields: 'ts_code,trade_date,close,pre_close' }) });
+    const response = await this.fetchWithRetry('https://api.tushare.pro', { method: 'POST', signal, headers: { Accept: 'application/json', 'Content-Type': 'application/json', 'User-Agent': 'UpUp-Pi-Market-Data/1.0' }, body: JSON.stringify({ api_name: 'daily', token: this.tushareToken, params: { ts_code: resolved }, fields: 'ts_code,trade_date,close,pre_close' }) }, 'tushare', 'quote', signal);
     if (!response.ok) throw new Error(`Tushare market quote request failed: ${response.status} ${response.statusText}`);
     const payload = await response.json() as TusharePayload;
     if (payload.code !== 0) throw new Error(`Tushare market quote request failed: ${payload.msg ?? `code ${payload.code ?? 'unknown'}`}`);
@@ -408,6 +416,21 @@ export class NativeMarketQuoteClient {
     const output = result(native, native.source, `${resolved}:${Number.isFinite(previous) ? previous : last}`, this.now(), auditId);
     this.cache?.set(key, output, Date.now() + this.cacheTtlMs);
     return output;
+  }
+
+  private async fetchWithRetry(input: RequestInfo | URL, init: RequestInit, provider: MarketHistoryProvider, operation: string, signal?: AbortSignal): Promise<Response> {
+    const execute = async (retrySignal?: AbortSignal) => {
+      const response = await this.fetcher(input, { ...init, ...(retrySignal ? { signal: retrySignal } : {}) });
+      if (!response.ok) throw new Error(`${provider} market ${operation} request failed: ${response.status} ${response.statusText}`);
+      return response;
+    };
+    if (!this.retry) return execute(signal);
+    return (await executeWithProviderRetry((_, retrySignal) => execute(retrySignal), {
+      provider,
+      operation,
+      signal,
+      ...this.retry,
+    })).value;
   }
 }
 

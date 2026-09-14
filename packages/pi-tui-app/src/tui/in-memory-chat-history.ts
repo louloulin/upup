@@ -1,5 +1,5 @@
 import type { Message as PiMessage } from '@earendil-works/pi-ai';
-import { callLlm } from '../runtime/pi/prompt-service.js';
+import { callLlm, type PromptRunner } from '@upup/utils';
 import { DEFAULT_MODEL } from '@upup/utils';
 
 const DEFAULT_HISTORY_LIMIT = 10;
@@ -30,7 +30,7 @@ export class InMemoryChatHistory {
   private model: string;
   private readonly maxTurns: number;
 
-  constructor(model: string = DEFAULT_MODEL, maxTurns: number = DEFAULT_HISTORY_LIMIT) {
+  constructor(model: string = DEFAULT_MODEL, maxTurns: number = DEFAULT_HISTORY_LIMIT, private readonly promptRunner?: PromptRunner) {
     this.model = model;
     this.maxTurns = maxTurns;
   }
@@ -57,6 +57,7 @@ Generate a brief 1-2 sentence summary of this answer.`;
       const { response } = await callLlm(prompt, {
         systemPrompt: MESSAGE_SUMMARY_SYSTEM_PROMPT,
         model: this.model,
+        runner: this.promptRunner,
       });
       return typeof response === 'string' ? response.trim() : String(response).trim();
     } catch {

@@ -16,6 +16,9 @@
     "dev": "bun build src/index.ts --outdir=dist --watch --target=bun",
     "test": "bun test"
   },
+  "dependencies": {
+    "@upup/pi-resource-composition": "0.1.0"
+  },
   "peerDependencies": { "@upup/pi-runtime": "0.1.0" },
   "files": [
     "dist"

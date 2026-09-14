@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { registerGatewayConfigRuntime, registerGatewayCronRuntime } from './runtime-port.js';
+import type { GatewayRuntime } from './runtime-port.js';
 
 interface CapturedRunner { stopCalls: number; created: number; }
 interface GatewayHookBag { previous: unknown; }
@@ -10,7 +10,7 @@ interface GatewayHookBag { previous: unknown; }
 const capture: CapturedRunner = { stopCalls: 0, created: 0 };
 const hooks: GatewayHookBag = { previous: undefined };
 
-function loadStartGateway(): (params?: { configPath?: string }) => Promise<{ stop: () => Promise<void>; snapshot: () => Record<string, unknown> }> {
+function loadStartGateway(): (params: { configPath?: string; runtime: GatewayRuntime }) => Promise<{ stop: () => Promise<void>; snapshot: () => Record<string, unknown> }> {
   return require('./gateway.js').startGateway as (params?: { configPath?: string }) => Promise<{ stop: () => Promise<void>; snapshot: () => Record<string, unknown> }>;
 }
 
@@ -34,16 +34,20 @@ function uninstallHook(): void {
 
 describe('Gateway provider SLA runner integration', () => {
   let rootDir = '';
+  let runtime: GatewayRuntime;
 
   beforeEach(() => {
-    registerGatewayConfigRuntime({
+    const config = {
       getConfiguredModelId: () => 'gateway-fixture-model',
       getConfiguredProvider: () => 'gateway-fixture-provider',
-    });
-    registerGatewayCronRuntime({
+    };
+    const cron = {
       ensureHeartbeatCronJob: () => undefined,
       startCronRunner: () => ({ stop: () => undefined }),
-    });
+    };
+    runtime = {
+      agent: { isSessionRunning: () => false, runPrompt: async () => '' }, config, cron,
+    };
     capture.stopCalls = 0;
     capture.created = 0;
     installHook();
@@ -57,6 +61,7 @@ describe('Gateway provider SLA runner integration', () => {
     delete process.env.UPUP_HOME;
     delete process.env.UPUP_PROVIDER_METRICS_PATH;
     if (rootDir) { rmSync(rootDir, { recursive: true, force: true }); rootDir = ''; }
+    runtime = undefined as never;
   });
 
   function writeConfig(): string {
@@ -66,7 +71,7 @@ describe('Gateway provider SLA runner integration', () => {
   }
 
   test('startGateway creates one SLA runner and stop releases it exactly once', async () => {
-    const service = await loadStartGateway()({ configPath: writeConfig() });
+    const service = await loadStartGateway()({ configPath: writeConfig(), runtime });
     await new Promise((resolve) => setTimeout(resolve, 5));
     expect(capture.created).toBe(1);
     expect(capture.stopCalls).toBe(0);
@@ -75,7 +80,7 @@ describe('Gateway provider SLA runner integration', () => {
   });
 
   test('repeated stop calls do not invoke the SLA runner more than once', async () => {
-    const service = await loadStartGateway()({ configPath: writeConfig() });
+    const service = await loadStartGateway()({ configPath: writeConfig(), runtime });
     await service.stop();
     const firstStopCalls = capture.stopCalls;
     await service.stop();

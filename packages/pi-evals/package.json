@@ -1,0 +1,47 @@
+{
+  "name": "@upup/pi-evals",
+  "version": "0.1.0",
+  "description": "Pi Native evaluation runner and finance evaluation contracts for UpUp",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./citation-density": {
+      "types": "./dist/citation-density.d.ts",
+      "default": "./dist/citation-density.js"
+    },
+    "./cli": {
+      "types": "./dist/cli.d.ts",
+      "default": "./dist/cli.js"
+    }
+  },
+  "scripts": {
+    "build": "bun build src/index.ts --outdir=dist --target=node --external '@upup/*' --external '@earendil-works/*' && bun build src/cli.ts --outdir=dist --target=node --external '@upup/*' --external '@earendil-works/*' && cp -R src/dataset dist/dataset && tsc --emitDeclarationOnly --project tsconfig.json",
+    "test": "bun test src/citation-density.test.ts"
+  },
+  "files": ["dist", "src/dataset", "package.json"],
+  "private": false,
+  "dependencies": {
+    "@upup/pi-app": "0.1.0",
+    "@upup/pi-tui-app": "0.1.0",
+    "@upup/utils": "0.2.0",
+    "@earendil-works/pi-tui": "0.84.3",
+    "zod": "3.25.76"
+  },
+  "pi": {
+    "contract": "upup.pi.runtime.v1",
+    "source": "builtin:upup",
+    "trust": { "mode": "builtin", "filesystem": true, "network": true, "credentials": true },
+    "lifecycle": { "scope": "process", "dispose": "./src/index.ts#dispose" },
+    "extensions": [],
+    "skills": [],
+    "prompts": [],
+    "workflows": [],
+    "policies": [],
+    "evals": ["./src/dataset/finance_agent.csv"]
+  }
+}

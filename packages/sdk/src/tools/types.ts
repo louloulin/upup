@@ -126,80 +126,54 @@ export interface ToolErrorEvent {
   error: string
 }
 
-// ============ 工具注册表 ============
+// ============ SDK 工具配置 ============
 
 /**
- * 工具注册表 - 管理可用工具
+ * SDK 请求边界的不可变工具配置。
+ *
+ * 工具的执行、发现和所有权属于 Pi Package/AgentSession；SDK 只保存
+ * 创建客户端时传入的声明，不提供第二套运行时 registry 或动态注册 API。
  */
-export class ToolRegistry {
-  private tools: Map<string, Tool> = new Map()
+export class ToolConfiguration {
+  private readonly tools: readonly Tool[]
 
-  /**
-   * 注册工具
-   */
-  register(tool: Tool): void {
-    if (tool.disabled) {
-      return
-    }
-    this.tools.set(tool.name, tool)
-  }
-
-  /**
-   * 批量注册工具
-   */
-  registerAll(tools: Tool[]): void {
-    for (const tool of tools) {
-      this.register(tool)
-    }
+  constructor(tools: readonly Tool[] = []) {
+    const enabled = tools.filter((tool) => !tool.disabled)
+    const byName = new Map<string, Tool>()
+    for (const tool of enabled) byName.set(tool.name, tool)
+    this.tools = Object.freeze([...byName.values()])
   }
 
   /**
    * 获取工具
    */
   get(name: string): Tool | undefined {
-    return this.tools.get(name)
+    return this.tools.find((tool) => tool.name === name)
   }
 
   /**
    * 获取所有工具
    */
   getAll(): Tool[] {
-    return Array.from(this.tools.values())
+    return [...this.tools]
   }
 
   /**
    * 获取工具名称列表
    */
   getNames(): string[] {
-    return Array.from(this.tools.keys())
+    return this.tools.map((tool) => tool.name)
   }
 
   /**
    * 检查工具是否存在
    */
   has(name: string): boolean {
-    return this.tools.has(name)
+    return this.tools.some((tool) => tool.name === name)
   }
 
-  /**
-   * 移除工具
-   */
-  unregister(name: string): boolean {
-    return this.tools.delete(name)
-  }
-
-  /**
-   * 清空所有工具
-   */
-  clear(): void {
-    this.tools.clear()
-  }
-
-  /**
-   * 获取工具数量
-   */
   size(): number {
-    return this.tools.size
+    return this.tools.length
   }
 
   /**

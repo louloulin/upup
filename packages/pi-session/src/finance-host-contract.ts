@@ -1,5 +1,6 @@
 import { createPiHostBridge, PI_HOST_CAPABILITIES, PI_HOST_CONTRACT } from './host-contract.js';
-import type { PiHostBridge, PiHostRequest, PiMarketQuoteResult } from './host-contract.js';
+import type { PiHostBridge, PiHostRequest } from './host-contract.js';
+import type { PiMarketQuoteResult } from '@upup/types';
 import type { ToolDefinition } from '@earendil-works/pi-coding-agent';
 
 export const PI_FINANCE_HOST_CONTRACT = PI_HOST_CONTRACT;
@@ -23,8 +24,9 @@ export function createPiFinanceHostBridge(
     sessionId,
     packageName: PI_FINANCE_PACKAGE_NAME,
     packageVersion: PI_FINANCE_PACKAGE_VERSION,
-    getToolDefinitions,
-    ...(getMarketQuoteFetcher ? { getMarketQuoteFetcher } : {}),
-    ...(getMarketQuote ? { getMarketQuote } : {}),
+    providers: {
+      tools: { getToolDefinitions, getToolMetadata: () => [] },
+      marketData: { ...(getMarketQuoteFetcher ? { getMarketQuoteFetcher } : {}), ...(getMarketQuote ? { getMarketQuote } : {}) },
+    },
   });
 }

@@ -4,9 +4,9 @@
  * v5 Sprint 2 — 5 个 fast lane 投资 CLI 中央注册表。
  *
  * 模块边界(关键 — 避免循环依赖):
- * - 5 个 CLI 完全在 src/commands/investment/ 内(同包,无跨包)
- * - 只依赖 src/utils/storage-paths + src/plan/* + node:fs
- * - 零 src/tools/* 依赖(避免 finance → agent 反向引用循环)
+ * - 投资命令完全在 investment workflow package 内(无跨包)
+ * - 只依赖 storage/planning package 与 node:fs
+ * - 零工具内部实现依赖(避免 finance → agent 反向引用循环)
  * - 零 packages/commands 依赖(避免跨包 + tsconfig rootDir 限制)
  *
  * TUI/executor 拦截规则:
@@ -23,9 +23,9 @@ import { runDossier } from './dossier.js';
 import { runScreen } from './screen.js';
 import { runStrategy } from './strategy.js';
 
-// 'invest' command lives in src/commands/investment/ (depends on the root Factory).
+// The invest command remains in this package and uses the shared Pi factory contract.
 // The root bootstrap injects the handler via setInvestCommandHandler() before any
-// TUI or executor dispatch. This keeps the package free of root src/* imports.
+// TUI or executor dispatch. This keeps the package free of root imports.
 let _investHandler: InvestmentCommandHandler | null = null;
 export function setInvestCommandHandler(handler: InvestmentCommandHandler | null): void {
   _investHandler = handler;

@@ -5,7 +5,7 @@
  */
 
 import { Container, Text, getKeybindings } from '@earendil-works/pi-tui';
-import type { ApprovalDecision } from '@upup/pi-event-adapter';
+import type { ApprovalDecision } from '@upup/pi-runtime';
 import { getToolDangerLevel, getApprovalConfig, isHardDenyCommand } from '../../permissions/index.js';
 import { theme } from '@upup/utils';
 

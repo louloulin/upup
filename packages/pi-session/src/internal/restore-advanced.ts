@@ -77,6 +77,11 @@ export interface ContextCollapseSnapshotEntry {
   latestSummary: string;
 }
 
+export interface ContextCollapseState {
+  commits: ContextCollapseCommitEntry[];
+  snapshot?: ContextCollapseSnapshotEntry;
+}
+
 /**
  * Restore result from session log
  */
@@ -202,7 +207,8 @@ export function restoreAttributionFromLog(
  */
 export function restoreContextCollapseFromLog(
   commits: ContextCollapseCommitEntry[],
-  snapshot?: ContextCollapseSnapshotEntry
+  snapshot: ContextCollapseSnapshotEntry | undefined,
+  state: ContextCollapseState,
 ): void {
   if (!commits || commits.length === 0) {
     return;
@@ -210,11 +216,8 @@ export function restoreContextCollapseFromLog(
 
   console.log(`[restore-advanced] Restoring ${commits.length} context collapse commits`);
 
-  // Store in global state for later use
-  (globalThis as Record<string, unknown>).__contextCollapseCommits = commits;
-  if (snapshot) {
-    (globalThis as Record<string, unknown>).__contextCollapseSnapshot = snapshot;
-  }
+  state.commits = [...commits];
+  state.snapshot = snapshot;
 }
 
 /**
@@ -222,8 +225,8 @@ export function restoreContextCollapseFromLog(
  *
  * @returns Array of context collapse commits or empty array
  */
-export function getContextCollapseCommits(): ContextCollapseCommitEntry[] {
-  return ((globalThis as Record<string, unknown>).__contextCollapseCommits as ContextCollapseCommitEntry[]) || [];
+export function getContextCollapseCommits(state: ContextCollapseState): ContextCollapseCommitEntry[] {
+  return [...state.commits];
 }
 
 /**
@@ -231,8 +234,12 @@ export function getContextCollapseCommits(): ContextCollapseCommitEntry[] {
  *
  * @returns Context collapse snapshot or undefined
  */
-export function getContextCollapseSnapshot(): ContextCollapseSnapshotEntry | undefined {
-  return (globalThis as Record<string, unknown>).__contextCollapseSnapshot as ContextCollapseSnapshotEntry | undefined;
+export function getContextCollapseSnapshot(state: ContextCollapseState): ContextCollapseSnapshotEntry | undefined {
+  return state.snapshot;
+}
+
+export function createContextCollapseState(): ContextCollapseState {
+  return { commits: [] };
 }
 
 // ============================================================================
@@ -331,7 +338,8 @@ function extractTextContent(content: unknown): string | null {
  */
 export function restoreSessionStateFromLog(
   result: RestoreResult,
-  setAppState: AppStateSetter<unknown>
+  setAppState: AppStateSetter<unknown>,
+  contextCollapseState: ContextCollapseState,
 ): void {
   console.log('[restore-advanced] Starting complete session state hydration');
 
@@ -349,7 +357,8 @@ export function restoreSessionStateFromLog(
   if (result.contextCollapseCommits && result.contextCollapseCommits.length > 0) {
     restoreContextCollapseFromLog(
       result.contextCollapseCommits,
-      result.contextCollapseSnapshot
+      result.contextCollapseSnapshot,
+      contextCollapseState,
     );
   }
 
@@ -374,9 +383,9 @@ export function restoreSessionStateFromLog(
 /**
  * Clear all restored session state.
  */
-export function clearRestoredState(): void {
-  delete (globalThis as Record<string, unknown>).__contextCollapseCommits;
-  delete (globalThis as Record<string, unknown>).__contextCollapseSnapshot;
+export function clearRestoredState(state: ContextCollapseState): void {
+  state.commits = [];
+  delete state.snapshot;
 }
 
 /**
@@ -384,11 +393,8 @@ export function clearRestoredState(): void {
  *
  * @returns True if state was restored
  */
-export function isStateRestored(): boolean {
-  return (
-    (globalThis as Record<string, unknown>).__contextCollapseCommits !== undefined ||
-    (globalThis as Record<string, unknown>).__contextCollapseSnapshot !== undefined
-  );
+export function isStateRestored(state: ContextCollapseState): boolean {
+  return state.commits.length > 0 || state.snapshot !== undefined;
 }
 
 // ============================================================================
@@ -448,6 +454,7 @@ export default {
   },
   restoreAttributionFromLog,
   restoreContextCollapseFromLog,
+  createContextCollapseState,
   getContextCollapseCommits,
   getContextCollapseSnapshot,
   // TODOs

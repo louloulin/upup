@@ -43,20 +43,7 @@ async function testPhase3() {
   console.log(`   - 获取 get_stock_price: ${client.getTool('get_stock_price')?.name}`)
   console.log()
 
-  // 动态注册工具
-  const searchTool: Tool = {
-    name: 'web_search',
-    description: '网络搜索',
-    input_schema: {
-      type: 'object',
-      properties: {
-        query: { type: 'string', description: '搜索关键词' },
-      },
-      required: ['query'],
-    },
-  }
-  client.registerTool(searchTool)
-  console.log(`   - 注册后工具数量: ${client.getToolNames().length}`)
+  console.log('   - 工具配置在 createClient() 时绑定，执行和发现由 Pi Package/AgentSession 负责')
   console.log()
 
   // 测试权限管理

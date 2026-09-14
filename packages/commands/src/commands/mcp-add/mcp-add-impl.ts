@@ -6,7 +6,6 @@
  */
 
 import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types.js'
-import { getMcpRegistryPortLocal } from '../../agent-port.js'
 
 export const call = async (
   args: string,
@@ -31,7 +30,7 @@ export const call = async (
   ]
 
   // Use the port registry — no fragile deep import needed
-  const mcp = getMcpRegistryPortLocal()
+  const mcp = context.capabilities?.mcpRegistry
   if (mcp) {
     try {
       const status = mcp.getStatus()

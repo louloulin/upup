@@ -11,6 +11,7 @@ import {
   TelemetrySink,
   hashTelemetryInput,
   buildErrorPayload,
+  executeWithProviderRetry,
 } from './src/index.ts';
 import { isTelemetryEventKind, type TelemetryEvent } from './src/types.ts';
 
@@ -271,5 +272,60 @@ describe('TelemetryRecorder', () => {
     const s1 = rec.getSessionId();
     rec.newRun();
     expect(rec.getSessionId()).toBe(s1);
+  });
+});
+
+describe('provider retry contract', () => {
+  test('retries transient errors with deterministic exponential backoff and records serializable audit', async () => {
+    const recorder = new TelemetryRecorder({ enabled: true, sinkConfig: { dir: tmpDir, flushEveryNEvents: 100 } });
+    const delays: number[] = [];
+    let calls = 0;
+    const result = await executeWithProviderRetry(
+      async () => {
+        calls++;
+        if (calls < 3) throw new Error('temporary network timeout');
+        return 'ok';
+      },
+      { provider: 'fixture', operation: 'quote', maxAttempts: 3, baseDelayMs: 10, maxDelayMs: 50, recorder, sleep: async (delay) => { delays.push(delay); } },
+    );
+    expect(result).toEqual({ value: 'ok', attempts: 3 });
+    expect(delays).toEqual([10, 20]);
+    await recorder.flush();
+    const file = readdirSync(tmpDir).find((name) => name.startsWith('events-'))!;
+    const events = readFileSync(join(tmpDir, file), 'utf8').trim().split('\n').map((line) => JSON.parse(line));
+    expect(events.map((event) => [event.kind, event.outcome])).toEqual([
+      ['provider_retry', 'retry_scheduled'],
+      ['provider_retry', 'retry_scheduled'],
+      ['provider_retry', 'succeeded'],
+    ]);
+    expect(events[0]).toMatchObject({ schema: 'upup.pi.provider-retry.v1', provider: 'fixture', operation: 'quote', attempt: 1, delayMs: 10 });
+  });
+
+  test('does not retry permanent errors and records the terminal classification', async () => {
+    const recorder = new TelemetryRecorder({ enabled: true, sinkConfig: { dir: tmpDir, flushEveryNEvents: 1 } });
+    await expect(executeWithProviderRetry(async () => { throw new Error('invalid symbol'); }, { provider: 'fixture', operation: 'filing', recorder, sleep: async () => {} })).rejects.toThrow('invalid symbol');
+    await recorder.flush();
+    const file = readdirSync(tmpDir).find((name) => name.startsWith('events-'))!;
+    const event = JSON.parse(readFileSync(join(tmpDir, file), 'utf8').trim());
+    expect(event).toMatchObject({ kind: 'provider_retry', classification: 'permanent', outcome: 'failed', attempt: 1, delayMs: 0 });
+  });
+
+  test('stops on abort during backoff and emits an abort audit without leaking secrets', async () => {
+    const recorder = new TelemetryRecorder({ enabled: true, sinkConfig: { dir: tmpDir, flushEveryNEvents: 1 } });
+    const controller = new AbortController();
+    let calls = 0;
+    await expect(executeWithProviderRetry(async () => {
+      calls++;
+      throw new Error('temporary token=sk-abcdefghijklmnop1234');
+    }, {
+      provider: 'fixture', operation: 'history', maxAttempts: 3, recorder,
+      sleep: async () => { controller.abort(); }, signal: controller.signal,
+    })).rejects.toThrow();
+    expect(calls).toBe(1);
+    await recorder.flush();
+    const file = readdirSync(tmpDir).find((name) => name.startsWith('events-'))!;
+    const text = readFileSync(join(tmpDir, file), 'utf8');
+    expect(text).not.toContain('sk-abcdefghijklmnop1234');
+    expect(text).toContain('provider_retry');
   });
 });

@@ -9,6 +9,19 @@
  */
 
 export * from './workflow.js';
+export * from './investment-dossier.js';
+export * from './investment-verification.js';
+export {
+  INVESTMENT_PROFILES,
+  READ_ONLY_PERMISSION_PROFILE,
+  agentDefinitionToPiSpec,
+  getInvestmentAgentSpec,
+  serializeAgentSpec,
+  subagentConfigToPiSpec,
+  validateAgentSpec,
+} from './agent-spec.js';
+export type { PiSubagentSpecInput } from './agent-spec.js';
+export { PiAgentCatalog, createPiAgentCatalog, type PiAgentCatalogRecord } from './agent-catalog.js';
 export {
   runInvestmentWorkflow,
   resumeWorkflow,

@@ -40,7 +40,7 @@ const VERSION = '0.1.0';
 function registerHostTools(pi: ExtensionAPI): void {
   registerPiCapabilityHost(pi, PACKAGE, (host) => {
     if (host.packageVersion !== VERSION || !host.sessionId || !host.capabilities.includes('tool-definitions')) return;
-    for (const tool of host.getToolDefinitions({ contract: 'upup.pi.host.v1', packageName: PACKAGE, packageVersion: VERSION, sessionId: host.sessionId, capability: 'tool-definitions' })) pi.registerTool(tool as never);
+    for (const tool of host.providers.tools.getToolDefinitions({ contract: 'upup.pi.host.v1', packageName: PACKAGE, packageVersion: VERSION, sessionId: host.sessionId, capability: 'tool-definitions' })) pi.registerTool(tool as never);
   });
 }
 

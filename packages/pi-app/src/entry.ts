@@ -1,18 +1,10 @@
 #!/usr/bin/env bun
 import { config } from 'dotenv';
-import { runCli } from './cli.js';
-import { runOnboarding, runDoctor, runConfigCommand } from '@upup/pi-cli-bootstrap';
-import { createStdioServer } from '@upup/pi-stdio';
-import { streamPiAgent } from './runtime/pi/event-stream.js';
-import { getPiSessionService } from '@upup/pi-session';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { mkdirSync } from 'node:fs';
 
 config({ quiet: true });
-
-// Bootstrap Pi native services once at process startup.
-await import('./runtime/pi/bootstrap.js').then((m) => m.bootstrapPiNativeServices());
 
 // Parse CLI subcommands
 const args = process.argv.slice(2);
@@ -42,11 +34,11 @@ async function main() {
   // Check for --stdio mode (for external tool integration)
   // In stdio mode, we run a pure JSON-RPC server without any CLI UI
   if (args.includes('--stdio')) {
-    const server = createStdioServer({ streamPiAgent, sessionService: getPiSessionService() });
+    const { createStdioServer } = await import('@upup/pi-stdio');
+    const { getPiStdioRuntime } = await import('@upup/pi-app/stdio');
+    const server = createStdioServer(getPiStdioRuntime());
     server.start();
-    // Keep process alive - server handles its own lifecycle
-    // Use a promise that never resolves to keep the process running
-    await new Promise(() => {});
+    await server.waitForStop();
     return;
   }
 
@@ -60,9 +52,9 @@ async function main() {
     const bind = getFlag(['--management-bind']) ?? '127.0.0.1';
     const explicitToken = getFlag(['--management-token']);
     const token = explicitToken && explicitToken.length >= 8 ? explicitToken : crypto.randomUUID().replace(/-/g, '').slice(0, 32);
-    const { createManagementSnapshotProvider } = await import('./management/snapshot-provider.js');
-    const { startManagementServer } = await import('./management/server.js');
-    const provider = await createManagementSnapshotProvider();
+    const { createManagementSnapshotProvider, startManagementServer } = await import('@upup/pi-management');
+    const { getPiNativeApp } = await import('@upup/pi-app/default');
+    const provider = await createManagementSnapshotProvider({ sessionFactory: getPiNativeApp().getSessionFactory() });
     const server = await startManagementServer({ port, bind, token, snapshotProvider: provider });
     console.log(`[management] 管理页面: http://${bind}:${server.port}/?token=${token}\n[management] API: http://${bind}:${server.port}/api/management/snapshot?token=${token}`);
     if (hasFlag(['--management-once'])) {
@@ -96,7 +88,9 @@ async function main() {
     const auditPath = join(homedir(), '.upup', 'bridge-audit.log');
     mkdirSync(dirname(auditPath), { recursive: true });
     const { startBridgeServer } = await import('@upup/pi-bridge');
-    const srv = await startBridgeServer({ port, bind, token, auditPath });
+    const { getPiNativeApp } = await import('@upup/pi-app/default');
+    const app = getPiNativeApp();
+    const srv = await startBridgeServer({ port, bind, token, auditPath, runtime: app.getGatewayRuntime() });
     console.log(
       `[bridge] listening on ws://${bind}:${srv.port}/bridge?token=${token}\n` +
         `[bridge] audit: ${auditPath}\n` +
@@ -117,18 +111,21 @@ async function main() {
   switch (command) {
     case 'setup':
       // Interactive setup wizard
+      const { runOnboarding } = await import('@upup/pi-cli-bootstrap');
       await runOnboarding();
       process.exit(0);
       break;
 
     case 'doctor':
       // Health check
+      const { runDoctor } = await import('@upup/pi-cli-bootstrap');
       await runDoctor();
       process.exit(0);
       break;
 
     case 'config':
       // Configuration management
+      const { runConfigCommand } = await import('@upup/pi-cli-bootstrap');
       const configArgs = args.slice(1);
       const configSubCommand = configArgs[0] || 'help';
       const configSubArgs = configArgs.slice(1);
@@ -157,10 +154,17 @@ async function main() {
         process.exit(1);
       }
       // Start interactive CLI with resume context
+      const { getPiNativeApp } = await import('@upup/pi-app/default');
+      const { runCli } = await import('@upup/pi-tui-app');
+      const app = getPiNativeApp();
+      app.getInvestmentWorkflow();
       await runCli({
         resumeTarget: resumeTarget ?? undefined,
         continue: shouldContinue,
         fork: shouldFork,
+        stream: app.getTuiEventStream().stream,
+        runtime: app.getTuiRuntime(),
+        capabilities: app.getCommandCapabilities(),
       });
     }
   }

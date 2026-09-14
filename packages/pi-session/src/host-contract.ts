@@ -1,7 +1,6 @@
 import type { PiCapabilityContext } from '@upup/pi-runtime';
 import type { ToolDefinition } from '@earendil-works/pi-coding-agent';
-import type { InvestmentWorkflowServices } from '@upup/pi-investment-workflow';
-import type { NativeMarketQuoteTrendStore } from '@upup/pi-market-data';
+import type { PiInvestmentWorkflowServices, PiMarketQuoteResult, PiMarketTrendStore } from '@upup/types';
 
 export const PI_HOST_CONTRACT = 'upup.pi.host.v1' as const;
 export const PI_HOST_CAPABILITIES = ['tool-definitions', 'research-worker', 'agent-worker', 'cron-runner', 'mcp-resources', 'investment-workflow', 'market-data-transport', 'management-snapshot'] as const;
@@ -60,32 +59,7 @@ export interface PiMcpResourceRead {
   readonly contents: readonly Record<string, unknown>[];
 }
 
-export interface PiMarketQuoteValue {
-  readonly symbol: string;
-  readonly market: 'cn' | 'hk' | 'us' | 'fund' | 'crypto';
-  readonly price: number;
-  readonly bid: number;
-  readonly ask: number;
-  readonly last: number;
-  readonly currency: 'CNY' | 'HKD' | 'USD';
-  readonly asOf: string;
-  readonly source: string;
-  readonly freshness: 'historical' | 'cached' | 'delayed' | 'realtime';
-  readonly indicative: boolean;
-}
-
-export interface PiMarketQuoteResult {
-  readonly value: PiMarketQuoteValue;
-  readonly evidence: {
-    readonly id: string;
-    readonly source: string;
-    readonly retrievedAt: string;
-    readonly asOf: string;
-    readonly query: string;
-    readonly dataFreshness: PiMarketQuoteValue['freshness'];
-    readonly auditId: string;
-  };
-}
+export type { PiInvestmentWorkflowServices, PiMarketQuoteResult, PiMarketTrendStore } from '@upup/types';
 
 export interface PiManagementSnapshot {
   readonly schema: 1;
@@ -162,27 +136,77 @@ export interface PiManagementSnapshot {
   readonly evidence: readonly { readonly source: string; readonly retrievedAt: string }[];
 }
 
-export interface PiHostBridge {
+export interface PiHostIdentity {
   readonly contract: typeof PI_HOST_CONTRACT;
   readonly packageName: string;
   readonly packageVersion: string;
   readonly sessionId: string;
   readonly capabilities: readonly PiHostCapability[];
+  readonly providerContract: PiProviderContract;
+}
+
+export interface PiProviderContract {
+  readonly contract: 'upup.pi.provider.v1';
+  readonly version: string;
+  readonly state: 'active' | 'reloading' | 'disposed';
+  reload(): Promise<void>;
+  dispose(): Promise<void>;
+}
+
+export function negotiatePiProviderContract(contract: PiProviderContract, expectedVersion: string): void {
+  if (contract.contract !== 'upup.pi.provider.v1') throw new Error('Unsupported Pi provider contract');
+  if (contract.version !== expectedVersion) throw new Error(`Pi provider version mismatch: ${contract.version}, expected ${expectedVersion}`);
+  if (contract.state !== 'active') throw new Error(`Pi provider is not active: ${contract.state}`);
+}
+
+export interface PiToolCapabilityProvider {
   getToolDefinitions(request: PiHostRequest): readonly ToolDefinition[];
   getToolMetadata(request: PiHostRequest): readonly PiToolMetadata[];
   getSkillDefinitions?(request: PiHostRequest): readonly PiSkillDefinition[];
+}
+
+export interface PiWorkerCapabilityProvider {
   runResearchWorker?(request: PiResearchWorkerRequest, signal: AbortSignal): Promise<PiResearchWorkerResult>;
   runAgentWorker?(request: PiAgentWorkerRequest, signal: AbortSignal): Promise<PiAgentWorkerResult>;
+}
+
+export interface PiSchedulingCapabilityProvider {
   runCronJob?(request: PiCronRunRequest, signal: AbortSignal): Promise<void>;
+}
+
+export interface PiMcpCapabilityProvider {
   listMcpResources?(server?: string, signal?: AbortSignal): Promise<readonly PiMcpResourceGroup[]>;
   readMcpResource?(uri: string, server?: string, signal?: AbortSignal): Promise<PiMcpResourceRead>;
-  getInvestmentWorkflowServices?(): InvestmentWorkflowServices;
+}
+
+export interface PiInvestmentWorkflowCapabilityProvider {
+  getInvestmentWorkflowServices?(): PiInvestmentWorkflowServices;
+}
+
+export interface PiMarketDataCapabilityProvider {
   getMarketHistoryFetcher?(): (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
   getMarketQuoteFetcher?(): (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
-  getMarketQuoteTrendStore?(): NativeMarketQuoteTrendStore;
+  getMarketQuoteTrendStore?(): PiMarketTrendStore;
   getMarketQuote?(symbol: string, requestedMarket: string | undefined, signal: AbortSignal | undefined, auditId: string): Promise<PiMarketQuoteResult>;
   readonly capabilityContext?: PiCapabilityContext;
+}
+
+export interface PiManagementCapabilityProvider {
   getManagementSnapshot?(): PiManagementSnapshot;
+}
+
+export interface PiHostProviders {
+  readonly tools: PiToolCapabilityProvider;
+  readonly workers?: PiWorkerCapabilityProvider;
+  readonly scheduling?: PiSchedulingCapabilityProvider;
+  readonly mcp?: PiMcpCapabilityProvider;
+  readonly workflow?: PiInvestmentWorkflowCapabilityProvider;
+  readonly marketData?: PiMarketDataCapabilityProvider;
+  readonly management?: PiManagementCapabilityProvider;
+}
+
+export interface PiHostBridge extends PiHostIdentity {
+  readonly providers: PiHostProviders;
 }
 
 export interface PiToolMetadata {
@@ -205,21 +229,8 @@ export interface PiHostBridgeOptions {
   readonly sessionId: string;
   readonly packageName: string;
   readonly packageVersion: string;
-  readonly getToolDefinitions: () => readonly ToolDefinition[];
-  readonly runResearchWorker?: PiHostBridge['runResearchWorker'];
-  readonly runAgentWorker?: PiHostBridge['runAgentWorker'];
-  readonly getToolMetadata?: () => readonly PiToolMetadata[];
-  readonly getSkillDefinitions?: () => readonly PiSkillDefinition[];
-  readonly runCronJob?: PiHostBridge['runCronJob'];
-  readonly listMcpResources?: PiHostBridge['listMcpResources'];
-  readonly readMcpResource?: PiHostBridge['readMcpResource'];
-  readonly getInvestmentWorkflowServices?: PiHostBridge['getInvestmentWorkflowServices'];
-  readonly getMarketHistoryFetcher?: PiHostBridge['getMarketHistoryFetcher'];
-  readonly getMarketQuoteFetcher?: PiHostBridge['getMarketQuoteFetcher'];
-  readonly getMarketQuoteTrendStore?: PiHostBridge['getMarketQuoteTrendStore'];
-  readonly getMarketQuote?: PiHostBridge['getMarketQuote'];
-  readonly getManagementSnapshot?: PiHostBridge['getManagementSnapshot'];
-  readonly capabilityContext?: PiCapabilityContext;
+  readonly providers: PiHostProviders;
+  readonly providerVersion?: string;
 }
 
 export function getPiHostFromRegistry(
@@ -232,59 +243,92 @@ export function getPiHostFromRegistry(
 }
 
 export function createPiHostBridge(options: PiHostBridgeOptions): PiHostBridge {
-  const {
-    sessionId, packageName, packageVersion, getToolDefinitions,
-    runResearchWorker, runAgentWorker, getToolMetadata = () => [], getSkillDefinitions = () => [],
-    runCronJob, listMcpResources, readMcpResource, getInvestmentWorkflowServices,
-    getMarketHistoryFetcher, getMarketQuoteFetcher, getMarketQuoteTrendStore, getMarketQuote,
-    getManagementSnapshot, capabilityContext,
-  } = options;
+  const { sessionId, packageName, packageVersion, providers } = options;
+  let disposed = false;
+  let reloading = false;
+  const providerVersion = options.providerVersion ?? '1.0.0';
+  const ensureActive = (): void => {
+    if (disposed) throw new Error(`Pi provider is disposed: ${packageName}`);
+    if (reloading) throw new Error(`Pi provider is reloading: ${packageName}`);
+  };
+  const guard = <T extends object>(provider: T): T => new Proxy(provider, {
+    get(target, property, receiver) {
+      const value = Reflect.get(target, property, receiver);
+      if (typeof value !== 'function') return value;
+      return (...args: unknown[]) => {
+        ensureActive();
+        const result = value.apply(target, args);
+        return typeof result === 'function'
+          ? (...nestedArgs: unknown[]) => { ensureActive(); return result(...nestedArgs); }
+          : result;
+      };
+    },
+  });
   const capabilities: PiHostCapability[] = ['tool-definitions'];
-  if (runResearchWorker) capabilities.push('research-worker');
-  if (runAgentWorker) capabilities.push('agent-worker');
-  if (runCronJob) capabilities.push('cron-runner');
-  if (listMcpResources && readMcpResource) capabilities.push('mcp-resources');
-  if (getInvestmentWorkflowServices) capabilities.push('investment-workflow');
-  if (getMarketHistoryFetcher || getMarketQuoteFetcher || getMarketQuote || getMarketQuoteTrendStore || capabilityContext) capabilities.push('market-data-transport');
-  if (getManagementSnapshot) capabilities.push('management-snapshot');
+  if (providers.workers?.runResearchWorker) capabilities.push('research-worker');
+  if (providers.workers?.runAgentWorker) capabilities.push('agent-worker');
+  if (providers.scheduling?.runCronJob) capabilities.push('cron-runner');
+  if (providers.mcp?.listMcpResources && providers.mcp.readMcpResource) capabilities.push('mcp-resources');
+  if (providers.workflow?.getInvestmentWorkflowServices) capabilities.push('investment-workflow');
+  if (providers.marketData?.getMarketHistoryFetcher || providers.marketData?.getMarketQuoteFetcher || providers.marketData?.getMarketQuote || providers.marketData?.getMarketQuoteTrendStore || providers.marketData?.capabilityContext) capabilities.push('market-data-transport');
+  if (providers.management?.getManagementSnapshot) capabilities.push('management-snapshot');
+  const tools: PiToolCapabilityProvider = guard({
+    getToolDefinitions(request) {
+      if (request.contract !== PI_HOST_CONTRACT || request.packageName !== packageName || request.packageVersion !== packageVersion || request.sessionId !== sessionId || request.capability !== 'tool-definitions') return [];
+      return providers.tools.getToolDefinitions(request);
+    },
+    getToolMetadata(request) {
+      if (request.contract !== PI_HOST_CONTRACT || request.packageName !== packageName || request.packageVersion !== packageVersion || request.sessionId !== sessionId || request.capability !== 'tool-definitions') return [];
+      return providers.tools.getToolMetadata(request);
+    },
+    ...(providers.tools.getSkillDefinitions ? { getSkillDefinitions: (request: PiHostRequest) => {
+      if (request.contract !== PI_HOST_CONTRACT || request.packageName !== packageName || request.packageVersion !== packageVersion || request.sessionId !== sessionId || request.capability !== 'tool-definitions') return [];
+      return providers.tools.getSkillDefinitions!(request);
+    } } : {}),
+  });
   return {
     contract: PI_HOST_CONTRACT,
     packageName,
     packageVersion,
     sessionId,
     capabilities,
-    ...(runResearchWorker ? { runResearchWorker } : {}),
-    ...(runAgentWorker ? { runAgentWorker } : {}),
-    ...(runCronJob ? { runCronJob } : {}),
-    ...(listMcpResources ? { listMcpResources } : {}),
-    ...(readMcpResource ? { readMcpResource } : {}),
-    ...(getInvestmentWorkflowServices ? { getInvestmentWorkflowServices } : {}),
-    ...(getMarketHistoryFetcher ? { getMarketHistoryFetcher } : {}),
-    ...(getMarketQuoteFetcher ? { getMarketQuoteFetcher } : {}),
-    ...(getMarketQuoteTrendStore ? { getMarketQuoteTrendStore } : {}),
-    ...(getMarketQuote ? { getMarketQuote } : {}),
-    ...(capabilityContext ? { capabilityContext } : {}),
-    ...(getManagementSnapshot ? { getManagementSnapshot } : {}),
-    getToolDefinitions(request) {
-      if (request.contract !== PI_HOST_CONTRACT) return [];
-      if (request.packageName !== packageName || request.packageVersion !== packageVersion) return [];
-      if (request.sessionId !== sessionId) return [];
-      if (request.capability !== 'tool-definitions') return [];
-      return getToolDefinitions();
+    providerContract: {
+      contract: 'upup.pi.provider.v1',
+      version: providerVersion,
+      get state() { return disposed ? 'disposed' : reloading ? 'reloading' : 'active'; },
+      async reload() {
+        ensureActive();
+        reloading = true;
+        await Promise.resolve();
+        reloading = false;
+      },
+      async dispose() {
+        if (disposed) return;
+        disposed = true;
+        await Promise.resolve();
+      },
     },
-    getToolMetadata(request) {
-      if (request.contract !== PI_HOST_CONTRACT) return [];
-      if (request.packageName !== packageName || request.packageVersion !== packageVersion) return [];
-      if (request.sessionId !== sessionId) return [];
-      if (request.capability !== 'tool-definitions') return [];
-      return getToolMetadata();
-    },
-    getSkillDefinitions(request) {
-      if (request.contract !== PI_HOST_CONTRACT) return [];
-      if (request.packageName !== packageName || request.packageVersion !== packageVersion) return [];
-      if (request.sessionId !== sessionId) return [];
-      if (request.capability !== 'tool-definitions') return [];
-      return getSkillDefinitions();
+    providers: {
+      ...providers,
+      tools,
+      ...(providers.workers ? { workers: guard(providers.workers) } : {}),
+      ...(providers.scheduling ? { scheduling: guard(providers.scheduling) } : {}),
+      ...(providers.mcp ? { mcp: guard(providers.mcp) } : {}),
+      ...(providers.workflow ? { workflow: guard(providers.workflow) } : {}),
+      ...(providers.marketData ? { marketData: guard(providers.marketData) } : {}),
+      ...(providers.management ? { management: guard(providers.management) } : {}),
     },
   };
+}
+
+export async function disposePiHostBridge(host: PiHostBridge): Promise<void> {
+  await host.providerContract.dispose();
+}
+
+export function getPiHostToolDefinitions(host: PiHostBridge, request: PiHostRequest): readonly ToolDefinition[] {
+  if (request.contract !== PI_HOST_CONTRACT) return [];
+  if (request.packageName !== host.packageName || request.packageVersion !== host.packageVersion) return [];
+  if (request.sessionId !== host.sessionId) return [];
+  if (request.capability !== 'tool-definitions') return [];
+  return host.providers.tools.getToolDefinitions(request);
 }

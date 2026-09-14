@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
-import { streamPiAgent } from './runtime/pi/event-stream.js';
-import type { AgentEvent } from '@upup/pi-event-adapter';
+import { getPiNativeApp } from './default.js';
+import type { UpUpAgentEvent } from '@upup/pi-runtime';
 import type { Model } from '@earendil-works/pi-ai';
 import type { ModelRuntime } from '@earendil-works/pi-coding-agent';
 
@@ -12,6 +12,8 @@ export interface PrintOptions {
   modelInstance?: Model<any>;
   modelRuntime?: ModelRuntime;
 }
+
+type EventStream = ReturnType<ReturnType<typeof getPiNativeApp>['getEventStream']>;
 
 export function parsePrintArgs(args: readonly string[]): PrintOptions {
   const promptParts: string[] = [];
@@ -43,7 +45,7 @@ export function parsePrintArgs(args: readonly string[]): PrintOptions {
       promptParts.push(...args.slice(index + 1));
       break;
     }
-    promptParts.push(arg);
+    if (arg !== undefined) promptParts.push(arg);
   }
 
   const prompt = promptParts.join(' ').trim();
@@ -51,19 +53,23 @@ export function parsePrintArgs(args: readonly string[]): PrintOptions {
   return { prompt, ...(model ? { model } : {}), ...(sessionId ? { sessionId } : {}), ...(maxIterations ? { maxIterations } : {}) };
 }
 
-export async function runPrint(options: PrintOptions, write: (text: string) => void = process.stdout.write.bind(process.stdout)): Promise<string> {
+export async function runPrint(
+  options: PrintOptions,
+  write: (text: string) => void = process.stdout.write.bind(process.stdout),
+  eventStream: EventStream = getPiNativeApp().getEventStream(),
+): Promise<string> {
   let answer = '';
   let streamed = false;
-  for await (const event of streamPiAgent(options.prompt, {
+  for await (const event of eventStream.stream(options.prompt, {
     ...(options.model ? { model: options.model } : {}),
     ...(options.maxIterations ? { maxIterations: options.maxIterations } : {}),
     ...(options.modelInstance ? { modelInstance: options.modelInstance } : {}),
     ...(options.modelRuntime ? { modelRuntime: options.modelRuntime } : {}),
   }, options.sessionId ? { sessionId: options.sessionId } : {})) {
-    if (event.type === 'done') answer = event.answer;
-    if (event.type === 'stream_progress') {
+    if (event.type === 'run_end') answer = event.answer;
+    if (event.type === 'text_delta') {
       streamed = true;
-      write(event.textContent ?? '');
+      write(event.delta);
     }
   }
   if (!streamed && answer) write(answer);
@@ -78,11 +84,9 @@ async function main(): Promise<void> {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     process.stderr.write(`upup print: ${message}\n`);
-    process.stderr.write('Usage: bun run src/print.ts [--model <id>] [--session <id>] [--max-iterations <n>] <prompt>\n');
+    process.stderr.write('Usage: bun run packages/pi-app/src/print.ts [--model <id>] [--session <id>] [--max-iterations <n>] <prompt>\n');
     process.exitCode = 1;
   }
 }
 
 if (import.meta.main) void main();
-
-export type { AgentEvent };

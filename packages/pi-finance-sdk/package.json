@@ -15,10 +15,15 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./finance-fixtures": {
+      "types": "./dist/finance-fixtures.d.ts",
+      "default": "./dist/finance-fixtures.js"
     }
   },
   "scripts": {
-    "build": "bun build src/index.ts --outdir=dist --target=node && bun build extensions/index.ts --outdir=dist/extensions --target=node && tsc --emitDeclarationOnly --project tsconfig.json",
+    "prebuild": "bun run ../../scripts/clean-pi-package-dist.ts",
+    "build": "bun build src/index.ts --outdir=dist --target=node && bun build src/finance-fixtures.ts --outdir=dist --target=node && bun build extensions/index.ts --outdir=dist/extensions --target=node && tsc --emitDeclarationOnly --project tsconfig.json",
     "test": "bun test ./test.ts ./src/filings.test.ts ./src/alt-data.test.ts ./src/research-data.test.ts ./src/earnings-transcripts.test.ts ./src/strategy-execution.test.ts ./src/fund-history.test.ts ./extensions/index.test.ts"
   },
   "files": [
@@ -36,7 +41,135 @@
     "typebox": "1.3.7"
   },
   "pi": {
+    "contract": "upup.pi.runtime.v1",
     "source": "builtin:upup",
+    "tools": [
+      "get_financials",
+      "read_filings",
+      "get_stock_price",
+      "get_key_ratios",
+      "get_analyst_estimates",
+      "get_earnings",
+      "get_filings",
+      "get_astock_financials",
+      "get_astock_news",
+      "fund_search",
+      "fund_detail",
+      "fund_performance",
+      "fund_holdings",
+      "fund_manager",
+      "fund_compare",
+      "fund_screen",
+      "fund_top",
+      "fund_follow",
+      "fund_unfollow",
+      "fund_list",
+      "fund_alert_create",
+      "fund_alert_list",
+      "fund_alert_delete",
+      "alt_data_fetch",
+      "alt_data_search",
+      "get_company_profile",
+      "get_investment_strategies",
+      "track_company",
+      "track_sector",
+      "get_knowledge_summary",
+      "get_risks",
+      "get_sectors",
+      "calculate_trades_tax",
+      "calculate_capital_gains_tax",
+      "calculate_pnl",
+      "get_trading_positions",
+      "get_trading_balance",
+      "get_trade_quote",
+      "place_trade_order",
+      "cancel_trade_order",
+      "strategy_run_paper",
+      "strategy_list",
+      "strategy_backtest"
+    ],
+    "nativeTools": [
+      "get_financials",
+      "read_filings",
+      "get_stock_price",
+      "get_key_ratios",
+      "get_analyst_estimates",
+      "get_earnings",
+      "get_filings",
+      "get_astock_financials",
+      "get_astock_news",
+      "fund_search",
+      "fund_detail",
+      "fund_performance",
+      "fund_holdings",
+      "fund_manager",
+      "fund_compare",
+      "fund_screen",
+      "fund_top",
+      "fund_follow",
+      "fund_unfollow",
+      "fund_list",
+      "fund_alert_create",
+      "fund_alert_list",
+      "fund_alert_delete",
+      "alt_data_fetch",
+      "alt_data_search",
+      "get_company_profile",
+      "get_investment_strategies",
+      "track_company",
+      "track_sector",
+      "get_knowledge_summary",
+      "get_risks",
+      "get_sectors",
+      "calculate_trades_tax",
+      "calculate_capital_gains_tax",
+      "calculate_pnl",
+      "get_trading_positions",
+      "get_trading_balance",
+      "get_trade_quote",
+      "place_trade_order",
+      "cancel_trade_order",
+      "strategy_run_paper",
+      "strategy_list",
+      "strategy_backtest"
+    ],
+    "trust": {
+      "mode": "builtin",
+      "network": true,
+      "credentials": true,
+      "filesystem": true
+    },
+    "hostCapabilities": [
+      "market-data-transport"
+    ],
+    "capabilities": [
+      {
+        "name": "financial.evidence",
+        "version": "1.0.0",
+        "scope": "session",
+        "trust": {
+          "mode": "builtin"
+        },
+        "lifecycle": {
+          "scope": "session"
+        }
+      },
+      {
+        "name": "financial.audit",
+        "version": "1.0.0",
+        "scope": "session",
+        "trust": {
+          "mode": "builtin",
+          "filesystem": true
+        },
+        "lifecycle": {
+          "scope": "session"
+        }
+      }
+    ],
+    "lifecycle": {
+      "scope": "session"
+    },
     "extensions": [
       "./extensions"
     ],
@@ -61,9 +194,33 @@
     ],
     "evals": [
       "./evals"
+    ],
+    "dependencies": {
+      "@upup/pi-capability-registry": "0.1.0",
+      "@upup/pi-observability": "0.1.0",
+      "@upup/pi-runtime": "0.1.0"
+    },
+    "sideEffects": [
+      {
+        "tools": [
+          "place_trade_order",
+          "cancel_trade_order"
+        ],
+        "effect": "financial-write",
+        "safetyLevel": "critical"
+      },
+      {
+        "tools": [
+          "strategy_run_paper"
+        ],
+        "effect": "financial-write",
+        "safetyLevel": "dangerous"
+      }
     ]
   },
   "dependencies": {
-    "@upup/pi-capability-registry": "0.1.0"
+    "@upup/pi-capability-registry": "0.1.0",
+    "@upup/pi-observability": "0.1.0",
+    "@upup/pi-runtime": "0.1.0"
   }
 }

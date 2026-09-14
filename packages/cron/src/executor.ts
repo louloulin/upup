@@ -3,12 +3,13 @@ import {
   assertOutboundAllowed,
   cleanMarkdownForWhatsApp,
   evaluateSuppression,
-  getGatewayConfigRuntime,
   HEARTBEAT_OK_TOKEN,
   loadSessionStore,
   resolveSessionStorePath,
   runAgentForMessage,
   sendMessageWhatsApp,
+  type AgentRunRequest,
+  type GatewayAgentRuntimePort,
   type SessionEntry,
   type SuppressionState,
 } from '@upup/gateway';
@@ -48,6 +49,14 @@ const BACKOFF_SCHEDULE_MS = [
 
 const MAX_AT_RETRIES = 3;
 const SCHEDULE_ERROR_DISABLE_THRESHOLD = 3;
+
+export interface CronExecutionRuntime {
+  readonly agent: GatewayAgentRuntimePort;
+  readonly config: {
+    getConfiguredModelId: (fallback?: string) => string;
+    getConfiguredProvider: (fallback?: string) => string;
+  };
+}
 
 function getSuppressionState(jobId: string): SuppressionState {
   let state = suppressionStates.get(jobId);
@@ -111,16 +120,17 @@ export async function executeCronJob(
   store: CronStore,
   params: {
     configPath?: string;
-    runAgent?: typeof runAgentForMessage;
+    runAgent?: (req: AgentRunRequest, runtime: GatewayAgentRuntimePort) => Promise<string>;
     sendMessage?: typeof sendMessageWhatsApp;
     targetSession?: SessionEntry;
     validateOutbound?: (target: { to: string; accountId: string }) => void;
     piModel?: Model<any>;
     piModelRuntime?: ModelRuntime;
-  } = {},
+    runtime: CronExecutionRuntime;
+  },
 ): Promise<void> {
   const startedAt = Date.now();
-  const configRuntime = getGatewayConfigRuntime();
+  const configRuntime = params.runtime.config;
 
   // 0. Check active hours
   if (!isWithinActiveHours(job.activeHours)) {
@@ -172,7 +182,7 @@ export async function executeCronJob(
       channel: 'whatsapp',
       piModel: params.piModel,
       piModelRuntime: params.piModelRuntime,
-    });
+    }, params.runtime.agent);
   } catch (err) {
     handleJobError(job, store, err, startedAt);
     return;

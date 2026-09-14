@@ -1,5 +1,5 @@
 import { Container, Text } from '@earendil-works/pi-tui';
-import type { ApprovalDecision } from '@upup/pi-event-adapter';
+import type { ApprovalDecision } from '@upup/pi-runtime';
 import { createApprovalSelector } from './select-list.js';
 import { theme } from '@upup/utils';
 import { BorderBox } from './BorderBox.js';

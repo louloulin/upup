@@ -5,10 +5,10 @@
  * Provides a Pi-backed Agent session API to external clients.
  */
 
-import { mapLegacyAgentEventToServer, mapPiEventToServer } from '@upup/pi-event-adapter';
+import { mapPiEventToServer } from '@upup/pi-event-adapter';
+import { createInterface, type Interface } from 'node:readline';
 import type { UpUpAgentEvent } from '@upup/pi-runtime';
 import type { PiSessionService } from '@upup/pi-session';
-import type { AgentEvent } from '@upup/pi-event-adapter';
 import type {
   JsonRpcRequest,
   JsonRpcResponse,
@@ -34,10 +34,11 @@ import type {
 export interface StdioServer {
   start(): void;
   stop(): void;
+  waitForStop(): Promise<void>;
 }
 
 export interface StdioRuntimePort {
-  streamPiAgent: (prompt: string, config?: Record<string, unknown>, options?: { sessionId?: string }) => AsyncGenerator<AgentEvent>;
+  streamPiEvents: (prompt: string, config?: Record<string, unknown>, options?: { sessionId?: string }) => AsyncGenerator<UpUpAgentEvent>;
   sessionService: PiSessionService;
 }
 
@@ -50,6 +51,10 @@ interface ActiveRun {
 export function createStdioServer(runtime: StdioRuntimePort): StdioServer {
   let activeRun: ActiveRun | null = null;
   let initialized = false;
+  let readlineInterface: Interface | null = null;
+  let stopped = false;
+  let resolveStopped: (() => void) | undefined;
+  const stoppedPromise = new Promise<void>((resolve) => { resolveStopped = resolve; });
   const piSessions = runtime.sessionService;
 
   // Helper to send JSON-RPC response
@@ -144,14 +149,14 @@ export function createStdioServer(runtime: StdioRuntimePort): StdioServer {
               totalTime = Date.now() - start;
               sendEvent({ type: 'done', answer: output, toolCalls: [], iterations, totalTime });
             } else {
-              const stream = runtime.streamPiAgent(params.prompt, { model: params.model, maxIterations: params.maxIterations });
+              const stream = runtime.streamPiEvents(params.prompt, { model: params.model, maxIterations: params.maxIterations });
               for await (const event of stream) {
-                if (event.type === 'done') {
+                if (event.type === 'run_end') {
                   iterations = event.iterations;
                   totalTime = event.totalTime;
                   tokenUsage = event.tokenUsage;
                 }
-                const serverEvent = mapLegacyAgentEventToServer(event);
+                const serverEvent = mapPiEventToServer(event);
                 if (serverEvent) sendEvent(serverEvent);
               }
             }
@@ -204,13 +209,13 @@ export function createStdioServer(runtime: StdioRuntimePort): StdioServer {
               });
               sendEvent({ type: 'done', answer: output, toolCalls: [], iterations: 0, totalTime: Date.now() - activeRun.startTime });
             } else {
-              const stream = runtime.streamPiAgent(params.prompt, {
+              const stream = runtime.streamPiEvents(params.prompt, {
                 model: params.model,
                 maxIterations: params.maxIterations,
                 signal: activeRun.abortController.signal,
               });
               for await (const event of stream) {
-                const serverEvent = mapLegacyAgentEventToServer(event);
+                const serverEvent = mapPiEventToServer(event);
                 if (serverEvent) sendEvent(serverEvent);
               }
             }
@@ -446,33 +451,28 @@ export function createStdioServer(runtime: StdioRuntimePort): StdioServer {
 
   // Cleanup function
   function cleanup(): void {
+    if (stopped) return;
+    stopped = true;
     if (activeRun?.abortController) {
       activeRun.abortController.abort();
     }
     activeRun = null;
     initialized = false;
+    readlineInterface?.close();
+    readlineInterface = null;
+    resolveStopped?.();
+    resolveStopped = undefined;
   }
 
   return {
     start() {
-      // Use readline for reliable line reading
-      import('readline').then(({ createInterface }) => {
-        const rl = createInterface({
-          input: process.stdin,
-          crlfDelay: Infinity,
-        });
-
-        rl.on('line', (line: string) => {
-          processLine(line);
-        });
-
-        rl.on('close', () => {
-          // stdin closed, cleanup
-          cleanup();
-        });
-      });
+      if (readlineInterface || stopped) return;
+      readlineInterface = createInterface({ input: process.stdin, crlfDelay: Infinity });
+      readlineInterface.on('line', processLine);
+      readlineInterface.on('close', cleanup);
     },
 
     stop: cleanup,
+    waitForStop: () => stoppedPromise,
   };
 }

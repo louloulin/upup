@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, lstatSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 
-export interface PiPluginTrustPolicy {
+export interface PiPackageTrustPolicy {
   trustedPaths: readonly string[];
   allowedHashes?: Readonly<Record<string, string>>;
   pinnedPackages?: Readonly<Record<string, string>>;
@@ -81,7 +81,7 @@ function isInside(path: string, root: string): boolean {
 
 export function verifyPiResourceTrust(
   paths: readonly string[],
-  policy: PiPluginTrustPolicy | undefined,
+  policy: PiPackageTrustPolicy | undefined,
   cwd: string,
 ): { paths: string[]; audits: PiResourceTrustAudit[] } {
   if (paths.length === 0) return { paths: [], audits: [] };

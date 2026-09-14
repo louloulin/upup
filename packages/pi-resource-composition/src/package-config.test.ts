@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { getBuiltinPiPackageOptions, getProjectPiPackageOptions, resolveConfiguredPiPackages } from './package-config.js';
+import { getBuiltinPiPackageOptions, getProjectPiPackageOptions, mergePiPackageTrust, resolveConfiguredPiPackages } from './package-config.js';
 
 const previous = {
   paths: process.env.UPUP_PI_PACKAGE_PATHS,
@@ -79,6 +79,21 @@ describe('configured Pi packages', () => {
         pinnedPackages: { '@upup/pi-finance-sdk': '0.1.0' },
         allowedSources: { '@upup/pi-finance-sdk': ['npm:@upup/pi-finance-sdk'] },
       },
+    });
+  });
+
+  test('merges explicit trust overrides with builtin dependency pins and sources', () => {
+    expect(mergePiPackageTrust({
+      trustedPaths: ['/builtin'],
+      pinnedPackages: { '@upup/pi-finance-sdk': '0.1.0', '@earendil-works/pi-coding-agent': '0.84.3' },
+      allowedSources: { '@upup/pi-finance-sdk': ['builtin:upup'] },
+    }, {
+      trustedPaths: ['/project'],
+      pinnedPackages: { '@upup/pi-finance-sdk': '0.1.0' },
+    })).toEqual({
+      trustedPaths: ['/project'],
+      pinnedPackages: { '@upup/pi-finance-sdk': '0.1.0', '@earendil-works/pi-coding-agent': '0.84.3' },
+      allowedSources: { '@upup/pi-finance-sdk': ['builtin:upup'] },
     });
   });
 

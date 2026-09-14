@@ -35,7 +35,12 @@
     "typebox": "1.3.7"
   },
   "pi": {
-    "source": "builtin:upup",
+    "contract": "upup.pi.runtime.v1",
+   "source": "builtin:upup",
+    "tools": ["compute_indicators","compute_macd","compute_kdj","compute_boll","compute_atr","compute_rsi","compute_obv","compute_cci"],
+    "nativeTools": ["compute_indicators","compute_macd","compute_kdj","compute_boll","compute_atr","compute_rsi","compute_obv","compute_cci"],
+    "trust": { "mode": "builtin", "network": true },
+    "lifecycle": { "scope": "session" },
     "extensions": [
       "./extensions"
     ],

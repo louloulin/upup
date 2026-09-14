@@ -172,12 +172,7 @@ await agent.connect(command?: string, args?: string[])
 // 断开连接
 await agent.disconnect()
 
-// 注册工具
-agent.registerTool(tool: ToolDefinition)
-agent.registerTools(tools: ToolDefinition[])
-
-// 移除工具
-agent.removeTool(name: string)
+// 工具在 createClient({ tools }) 时一次性绑定；执行和发现由 Pi Package/AgentSession 负责
 
 // 注册 Hook
 agent.useHook(event: HookEvent, handler: HookHandler)

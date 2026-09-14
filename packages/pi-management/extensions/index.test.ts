@@ -1,4 +1,6 @@
 import { describe, expect, test } from 'bun:test';
+import { createEventBus } from '@earendil-works/pi-coding-agent';
+import { publishPiCapabilityHosts } from '@upup/pi-capability-registry';
 import managementExtension from './index.js';
 
 const snapshot = {
@@ -16,18 +18,19 @@ const snapshot = {
 describe('pi-management extension', () => {
   test('registers read-only management tools and exposes redacted status', async () => {
     const tools = new Map<string, any>();
-    (globalThis as typeof globalThis & { __upupPiHosts?: ReadonlyMap<string, unknown> }).__upupPiHosts = new Map([['@upup/pi-management', { contract: 'upup.pi.host.v1', packageName: '@upup/pi-management', packageVersion: '0.1.0', sessionId: 'session-tail', capabilities: ['management-snapshot'], getManagementSnapshot: () => snapshot }]]);
-    managementExtension({ registerTool: (tool) => tools.set(tool.name, tool) } as never);
+    const events = createEventBus();
+    const dispose = publishPiCapabilityHosts(events, 'session-tail', new Map([['@upup/pi-management', { contract: 'upup.pi.host.v1', packageName: '@upup/pi-management', packageVersion: '0.1.0', sessionId: 'session-tail', capabilities: ['management-snapshot'], providers: { management: { getManagementSnapshot: () => snapshot } } }]]));
+    managementExtension({ events, registerTool: (tool) => tools.set(tool.name, tool) } as never);
     expect([...tools.keys()]).toEqual(['management_system_snapshot', 'management_provider_status', 'management_package_status', 'management_runtime_status']);
     const result = await tools.get('management_provider_status').execute('management-1', { provider: 'tushare' }, new AbortController().signal);
     expect(JSON.parse(result.content[0].text)).toEqual({ providers: [{ name: 'tushare', configured: false }], metrics: snapshot.providers.marketData.metrics, capturedAt: snapshot.capturedAt });
     expect(result.content[0].text).not.toContain('TOKEN');
-    delete (globalThis as typeof globalThis & { __upupPiHosts?: unknown }).__upupPiHosts;
+    dispose();
   });
 
   test('fails closed when the host capability is missing', async () => {
     const tools = new Map<string, any>();
-    managementExtension({ registerTool: (tool) => tools.set(tool.name, tool) } as never);
+    managementExtension({ events: createEventBus(), registerTool: (tool) => tools.set(tool.name, tool) } as never);
     const result = await tools.get('management_system_snapshot').execute('management-2', {}, new AbortController().signal);
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain('fail-closed');

@@ -1,0 +1,18 @@
+{
+  "name": "@example/example-pi-package",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "pi": {
+    "contract": "upup.pi.runtime.v1",
+    "source": "local:example-pi-package",
+    "trust": { "mode": "trusted", "network": false, "credentials": false, "filesystem": false },
+    "lifecycle": { "scope": "session" },
+    "extensions": ["./extensions"],
+    "skills": ["./skills/example-greet"],
+    "prompts": [],
+    "workflows": [],
+    "policies": [],
+    "evals": []
+  }
+}

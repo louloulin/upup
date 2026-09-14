@@ -257,7 +257,7 @@ export class StdioTransport implements Transport {
   private proc: ChildProcess | null = null
   private reader: ReadlineInterface | null = null
   private requestId = 0
-  private pending = new Map<number, (res: object) => void>()
+  private pending = new Map<number, { resolve: (res: object) => void; reject: (error: Error) => void }>()
   // 事件处理器 - 公开以支持外部注册
   eventHandlers: Map<string, Set<(event: unknown) => void>> = new Map()
   // 消息队列 - 用于 messages() 生成器
@@ -268,6 +268,21 @@ export class StdioTransport implements Transport {
   private globalConfig: UpupConfig = {}
   private abortController: AbortController | null = null
   private runtime: 'bun' | 'node' = 'node'
+  private readonly initialConfig?: StdioTransportConfig
+  private processFailure: Error | null = null
+
+  private terminateProcess(): void {
+    const proc = this.proc
+    this.proc = null
+    if (!proc) return
+    if (!proc.killed) {
+      proc.kill('SIGTERM')
+      const forceTimer = setTimeout(() => {
+        if (!proc.killed) proc.kill('SIGKILL')
+      }, 5_000)
+      forceTimer.unref?.()
+    }
+  }
 
   get connected(): boolean {
     return this._connected
@@ -283,25 +298,27 @@ export class StdioTransport implements Transport {
   constructor(config?: StdioTransportConfig) {
     this.debug = config?.debug ?? false
     this.runtime = config?.runtime || detectRuntime()
+    this.initialConfig = config
   }
 
   /**
    * 连接到 upup 进程
    */
   async connect(config?: StdioTransportConfig): Promise<void> {
+    const effectiveConfig = config ?? this.initialConfig
     // 加载全局配置
     this.globalConfig = loadUpupConfig()
 
     // 确定二进制位置
     let binary: BinaryLocation
-    if (config?.executablePath) {
+    if (effectiveConfig?.executablePath) {
       binary = {
-        command: config.executablePath,
-        args: ['--stdio'],
+        command: effectiveConfig.executablePath,
+        args: effectiveConfig.args?.length ? [...effectiveConfig.args] : ['--stdio'],
         source: 'explicit',
       }
-    } else if (config?.runtime) {
-      binary = findUpupBinary(config.runtime)
+    } else if (effectiveConfig?.runtime) {
+      binary = findUpupBinary(effectiveConfig.runtime)
     } else {
       binary = findUpupBinary()
     }
@@ -322,12 +339,12 @@ export class StdioTransport implements Transport {
     Object.assign(mergedEnv, configToEnv(this.globalConfig))
 
     // 添加用户配置的环境变量
-    if (config?.env) {
-      Object.assign(mergedEnv, config.env)
+    if (effectiveConfig?.env) {
+      Object.assign(mergedEnv, effectiveConfig.env)
     }
 
     // 启动进程
-    await this.startProcess(binary, mergedEnv, config?.cwd)
+    await this.startProcess(binary, mergedEnv, effectiveConfig?.cwd)
   }
 
   /**
@@ -344,10 +361,23 @@ export class StdioTransport implements Transport {
       stringEnv[key] = value ?? ''
     }
 
+    this.processFailure = null
     this.proc = spawn(binary.command, binary.args, {
       stdio: ['pipe', 'pipe', 'pipe'],
       env: stringEnv,
       cwd: cwd || process.cwd(),
+    })
+
+    const rejectPending = (error: Error) => {
+      this.processFailure = error
+      for (const [id, request] of this.pending) {
+        this.pending.delete(id)
+        request.reject(error)
+      }
+    }
+    this.proc.once('error', (error) => {
+      this._connected = false
+      rejectPending(error instanceof Error ? error : new Error(String(error)))
     })
 
     // 消息队列 - 用于 messages() 方法
@@ -381,6 +411,7 @@ export class StdioTransport implements Transport {
     // 进程退出处理
     this.proc.on('exit', (code) => {
       this._connected = false
+      rejectPending(new Error(`upup stdio process exited with code ${code ?? 'unknown'}`))
       if (this.debug) {
         console.log(`[upup/transport process exited with code ${code}]`)
       }
@@ -395,7 +426,7 @@ export class StdioTransport implements Transport {
       })
       this._connected = true
     } catch (err) {
-      this.proc.kill()
+      this.terminateProcess()
       throw new Error(`Failed to initialize transport: ${err}`)
     }
   }
@@ -405,20 +436,24 @@ export class StdioTransport implements Transport {
    */
   async request(method: string, params?: Record<string, unknown>): Promise<unknown> {
     if (!this.proc?.stdin) {
-      throw new Error('Transport not connected')
+      throw this.processFailure ?? new Error('Transport not connected')
     }
+    if (this.processFailure) throw this.processFailure
 
     const id = ++this.requestId
     const msg = { jsonrpc: '2.0', id, method, params }
 
     return new Promise((resolve, reject) => {
-      this.pending.set(id, (res) => {
+      this.pending.set(id, {
+        resolve: (res) => {
         const response = res as { error?: { code: number; message: string }; result?: unknown }
         if (response.error) {
           reject(new Error(`${response.error.code}: ${response.error.message}`))
         } else {
           resolve(response.result)
         }
+        },
+        reject,
       })
 
       try {
@@ -636,7 +671,7 @@ export class StdioTransport implements Transport {
       const resolve = this.pending.get(message.id)
       if (resolve) {
         this.pending.delete(message.id)
-        resolve(message)
+        resolve.resolve(message)
       }
       return
     }
@@ -726,18 +761,9 @@ export class StdioTransport implements Transport {
     }
 
     if (this.proc) {
-      // 发送 SIGTERM
-      this.proc.kill('SIGTERM')
-
-      // 5 秒后强制终止
-      setTimeout(() => {
-        if (this.proc && !this.proc.killed) {
-          this.proc.kill('SIGKILL')
-        }
-      }, 5000)
-
-      this.proc = null
+      this.terminateProcess()
     }
+    this.processFailure = null
 
     if (this.reader) {
       this.reader.close()

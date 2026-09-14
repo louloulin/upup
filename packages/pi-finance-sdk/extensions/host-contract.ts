@@ -20,9 +20,11 @@ export interface PiFinanceHostBridge {
   readonly packageVersion: typeof PI_FINANCE_PACKAGE_VERSION;
   readonly sessionId: string;
   readonly capabilities: readonly PiFinanceHostCapability[];
-  getToolDefinitions(request: PiFinanceHostRequest): readonly unknown[];
-  getMarketQuoteFetcher?(): (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
-  getMarketQuote?(symbol: string, requestedMarket: string | undefined, signal: AbortSignal | undefined, auditId: string): Promise<{
+  readonly providers: {
+    readonly tools: { getToolDefinitions(request: PiFinanceHostRequest): readonly unknown[] };
+    readonly marketData?: {
+      getMarketQuoteFetcher?(): (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+      getMarketQuote?(symbol: string, requestedMarket: string | undefined, signal: AbortSignal | undefined, auditId: string): Promise<{
     value: {
       symbol: string;
       market: 'cn' | 'hk' | 'us' | 'fund' | 'crypto';
@@ -37,5 +39,7 @@ export interface PiFinanceHostBridge {
       indicative: boolean;
     };
     evidence: { id: string; source: string; retrievedAt: string; asOf: string; query: string; dataFreshness: 'historical' | 'cached' | 'delayed' | 'realtime'; auditId: string };
-  }>;
+      }>;
+    };
+  };
 }

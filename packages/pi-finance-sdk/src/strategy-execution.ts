@@ -23,6 +23,7 @@ export interface NativeStrategyBacktestInput {
   readonly startDate: string;
   readonly endDate: string;
   readonly participationRate?: number;
+  readonly bars: readonly { readonly date: string; readonly close: number; readonly volume?: number }[];
 }
 
 export interface NativeStrategyPaperTrade {
@@ -49,7 +50,7 @@ export interface NativeStrategyReport extends NativeStrategyPaperTrade {
 }
 
 export interface NativeStrategyBacktestReport {
-  readonly _stub: true;
+  readonly status: 'completed';
   readonly algo: NativeAlgoKind;
   readonly symbol: string;
   readonly side: NativeOrderSide;
@@ -60,6 +61,9 @@ export interface NativeStrategyBacktestReport {
   readonly referencePrice: number;
   readonly slippageBps: number;
   readonly tradingDays: number;
+  readonly firstDate: string;
+  readonly lastDate: string;
+  readonly dataSource: 'caller-provided-historical-bars';
   readonly notes: readonly string[];
 }
 
@@ -154,13 +158,33 @@ export function runNativeStrategyBacktest(input: NativeStrategyBacktestInput): N
   const end = Date.parse(input.endDate);
   if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) throw new Error('startDate and endDate must be valid ISO dates with endDate >= startDate');
   if (!Number.isInteger(input.quantity) || input.quantity <= 0) throw new Error('quantity must be a positive integer');
-  const days = Math.max(1, Math.ceil((end - start) / 86_400_000));
-  const algoHash = [...input.algo].reduce((sum, character) => sum + character.charCodeAt(0), 0);
-  const symbolHash = [...input.symbol].reduce((sum, character) => sum + character.charCodeAt(0), 0);
-  const baseSlippageBps = 5 + (algoHash % 8);
-  const slippageBps = baseSlippageBps + (input.algo === 'pov' && input.participationRate ? Math.round(input.participationRate * 5) : 0);
-  const fillRate = input.algo === 'twap' ? 0.99 : input.algo === 'vwap' ? 0.98 : input.algo === 'pov' ? 0.97 : 0.96;
-  const referencePrice = 100 + (symbolHash % 200) / 10;
-  const averageFillPrice = input.side === 'buy' ? referencePrice * (1 + slippageBps / 10_000) : referencePrice * (1 - slippageBps / 10_000);
-  return { _stub: true, algo: input.algo, symbol: input.symbol, side: input.side, requestedQuantity: input.quantity, filledQuantity: Math.floor(input.quantity * fillRate), fillRate, averageFillPrice: Number(averageFillPrice.toFixed(4)), referencePrice: Number(referencePrice.toFixed(2)), slippageBps, tradingDays: days, notes: ['Deterministic paper backtest snapshot; it is not a historical market-data backtest or investment advice.'] };
+  if (input.bars.length < 2) throw new Error('historical bars must contain at least two observations');
+  for (let index = 0; index < input.bars.length; index += 1) {
+    const bar = input.bars[index]!;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(bar.date) || !Number.isFinite(bar.close) || bar.close <= 0) throw new Error(`historical bar ${index} has an invalid date or close`);
+    if (bar.volume !== undefined && (!Number.isFinite(bar.volume) || bar.volume < 0)) throw new Error(`historical bar ${index} volume must be finite and non-negative`);
+  }
+  for (let index = 1; index < input.bars.length; index += 1) if (input.bars[index]!.date <= input.bars[index - 1]!.date) throw new Error('historical bars must be strictly ordered and unique');
+  const bars = input.bars.filter((bar) => {
+    const timestamp = Date.parse(`${bar.date}T00:00:00Z`);
+    return timestamp >= start && timestamp <= end;
+  });
+  if (bars.length < 2) throw new Error('historical bars do not cover the requested date range');
+  if (input.algo === 'vwap' && bars.some((bar) => bar.volume === undefined)) throw new Error('vwap backtest requires volume on every historical bar');
+  const weights = bars.map((bar, index) => input.algo === 'twap' ? 1 : input.algo === 'vwap' ? bar.volume! : input.algo === 'is' ? index + 1 : Math.max(0.01, input.participationRate ?? 0.1));
+  const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+  const available = input.algo === 'pov' ? bars.reduce((sum, bar) => sum + Math.floor((bar.volume ?? 0) * (input.participationRate ?? 0.1)), 0) : input.quantity;
+  const filledQuantity = Math.min(input.quantity, available);
+  if (filledQuantity <= 0) throw new Error('historical volume is insufficient for a POV backtest');
+  let allocated = 0;
+  let notional = 0;
+  for (let index = 0; index < bars.length; index += 1) {
+    const quantity = index === bars.length - 1 ? filledQuantity - allocated : Math.min(filledQuantity - allocated, Math.max(0, Math.floor(filledQuantity * (weights[index]! / totalWeight))));
+    allocated += quantity;
+    notional += quantity * bars[index]!.close;
+  }
+  const referencePrice = bars[0]!.close;
+  const averageFillPrice = notional / filledQuantity;
+  const signedSlippage = ((averageFillPrice - referencePrice) / referencePrice) * 10_000 * (input.side === 'buy' ? 1 : -1);
+  return { status: 'completed', algo: input.algo, symbol: input.symbol.trim().toUpperCase(), side: input.side, requestedQuantity: input.quantity, filledQuantity, fillRate: Number((filledQuantity / input.quantity).toFixed(6)), averageFillPrice: Number(averageFillPrice.toFixed(4)), referencePrice: Number(referencePrice.toFixed(4)), slippageBps: Number(signedSlippage.toFixed(4)), tradingDays: bars.length, firstDate: bars[0]!.date, lastDate: bars.at(-1)!.date, dataSource: 'caller-provided-historical-bars', notes: ['Backtest uses caller-provided historical bars; no synthetic prices or provider fallback were used.'] };
 }

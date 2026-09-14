@@ -13,7 +13,7 @@ interface CliOptions {
 
 function usage(): never {
   console.error([
-    'Usage: bun run src/session/migrate-to-pi.ts [options]',
+    'Usage: bun run packages/pi-session/src/migrate-to-pi.ts [options]',
     '',
     '  --session <path>       migrate one legacy JSON/JSONL file',
     '  --all                  migrate every JSON/JSONL file under --source-dir',

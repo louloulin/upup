@@ -47,7 +47,7 @@ export type { PlatformWorkflowErrorPolicy, PlatformWorkflowPlan, PlatformWorkflo
 export { addPlatformAgentMemory, clearPlatformAgentMemories, createInitialPlatformAgentState, createPlatformAgent, getPlatformAgent, getPlatformAgentMemory, listPlatformAgentMemories, listPlatformAgents, parsePlatformAgentState, PLATFORM_BUILTIN_AGENTS, updatePlatformAgent } from './agents.js';
 export type { PlatformAgentMemory, PlatformAgentMemoryType, PlatformAgentRecord, PlatformAgentState, PlatformAgentStatus, PlatformBuiltinAgent } from './agents.js';
 
-// Bash tool (migrated from src/tools/bash)
+// Bash capability owned by the platform Pi Package.
 export {
   executeBashCommand,
   formatBashResult,
@@ -112,7 +112,7 @@ export type {
   PermissionMode,
 } from './bash/index.js';
 
-// Trading tool (migrated from src/tools/trading)
+// Trading capability owned by the platform Pi Package.
 export {
   SandboxBroker,
   createBroker,
@@ -145,7 +145,7 @@ export type {
   TimeInForce,
 } from './trading/index.js';
 
-// Sandbox manager (migrated from src/tools/filesystem)
+// Sandbox manager owned by the platform Pi Package.
 export {
   DEFAULT_SANDBOX_CONFIG,
   loadSandboxConfig,

@@ -27,6 +27,6 @@ export {
 } from './schedule.js';
 
 export { loadCronStore, saveCronStore, getCronStorePath } from './store.js';
-export { executeCronJob } from './executor.js';
+export { executeCronJob, type CronExecutionRuntime } from './executor.js';
 export { startCronRunner, type CronRunner } from './runner.js';
 export { ensureHeartbeatCronJob } from './heartbeat-migration.js';

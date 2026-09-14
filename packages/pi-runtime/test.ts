@@ -1,12 +1,16 @@
 import { describe, expect, test } from 'bun:test';
 import {
   PI_CAPABILITIES_CONTRACT,
+  PI_CAPABILITY_CATALOG,
   PI_EVENTS_CONTRACT,
   createPiCapabilityContext,
+  classifyPiSideEffect,
+  createPiSideEffectPolicyExtension,
   serializeAgentSpec,
   toCanonicalAgentEvent,
   validateAgentSpec,
   validatePiPackageManifest,
+  validatePiCapabilityCatalog,
   type UpUpAgentSpec,
 } from './src/index.js';
 
@@ -35,10 +39,51 @@ describe('pi-runtime contracts', () => {
     await context.dispose();
     expect(disposed).toBe(1);
     expect(() => context.get('quote')).toThrow('disposed');
+    expect(context.catalog()).toEqual([]);
+  });
+  test('validates the serializable capability catalog and lifecycle isolation', async () => {
+    validatePiCapabilityCatalog(PI_CAPABILITY_CATALOG);
+    const context = createPiCapabilityContext({ sessionId: 'catalog-session', catalog: PI_CAPABILITY_CATALOG });
+    expect(context.describe('storage.session')).toMatchObject({ scope: 'session', trust: { mode: 'builtin', filesystem: true }, lifecycle: { scope: 'session' } });
+    expect(() => validatePiCapabilityCatalog([{ ...PI_CAPABILITY_CATALOG[0]!, name: 'bad-sandbox', trust: { mode: 'sandboxed', credentials: true } }])).toThrow('credentials');
+    expect(() => validatePiCapabilityCatalog([{ ...PI_CAPABILITY_CATALOG[0]!, name: 'bad-scope', lifecycle: { scope: 'runtime' } }])).toThrow('scope mismatch');
+    await context.dispose();
+    expect(context.describe('storage.session')).toBeUndefined();
   });
   test('validates package manifest resource uniqueness and versions', () => {
     validatePiPackageManifest({ name: '@upup/pi-runtime', version: '0.1.0', source: 'builtin:upup', resources: { extensions: ['./extensions'], skills: ['./skills'], prompts: ['./prompts'], workflows: ['./workflows'], policies: ['./policies'], evals: ['./evals'] } });
     expect(() => validatePiPackageManifest({ name: '@upup/pi-runtime', version: '0.1.0', source: '', resources: { extensions: [], skills: [], prompts: [], workflows: [], policies: [], evals: [] } })).toThrow('source');
+  });
+  test('validates manifest-owned side-effect declarations', () => {
+    const base = { name: '@upup/pi-runtime', version: '0.1.0', source: 'builtin:upup', tools: ['write_file', 'place_trade_order'], resources: { extensions: [], skills: [], prompts: [], workflows: [], policies: [], evals: [] } } as const;
+    validatePiPackageManifest({ ...base, sideEffects: [{ tools: ['write_file'], effect: 'filesystem-write', safetyLevel: 'warning' }] });
+    expect(() => validatePiPackageManifest({ ...base, sideEffects: [{ tools: ['missing_tool'], effect: 'filesystem-write', safetyLevel: 'warning' }] })).toThrow('must be declared in tools');
+    expect(() => validatePiPackageManifest({ ...base, sideEffects: [{ tools: ['write_file', 'write_file'], effect: 'filesystem-write', safetyLevel: 'warning' }] })).toThrow('contain duplicate tools');
+  });
+  test('requires disposal for process-scoped packages and rejects sandbox credentials', () => {
+    const base = { name: '@upup/pi-runtime', version: '0.1.0', source: 'builtin:upup', resources: { extensions: [], skills: [], prompts: [], workflows: [], policies: [], evals: [] } } as const;
+    expect(() => validatePiPackageManifest({ ...base, lifecycle: { scope: 'process' } })).toThrow('dispose lifecycle');
+    expect(() => validatePiPackageManifest({ ...base, trust: { mode: 'sandboxed', credentials: true } })).toThrow('credentials');
+  });
+  test('rejects duplicate capabilities and malformed lifecycle entrypoints', () => {
+    const base = { name: '@upup/pi-runtime', version: '0.1.0', source: 'builtin:upup', resources: { extensions: [], skills: [], prompts: [], workflows: [], policies: [], evals: [] } } as const;
+    expect(() => validatePiPackageManifest({ ...base, capabilities: [{ name: 'quote', version: '1.0.0' }, { name: 'quote', version: '1.0.0' }] })).toThrow('capabilities contain duplicates');
+    expect(() => validatePiPackageManifest({ ...base, lifecycle: { scope: 'session', dispose: 'dispose' } })).toThrow('module#export');
+  });
+  test('classifies side effects and blocks non-interactive execution with a session audit', async () => {
+    const declarations = [{ tools: ['place_trade_order'], effect: 'financial-write' as const, safetyLevel: 'critical' as const }];
+    expect(classifyPiSideEffect('place_trade_order', declarations)).toEqual(declarations[0]);
+    expect(classifyPiSideEffect('read_file', declarations)).toBeUndefined();
+    const audits: unknown[] = [];
+    const extension = createPiSideEffectPolicyExtension({ spec, sessionId: 'policy-session', declarations });
+    if (typeof extension === 'function') throw new Error('expected a named InlineExtension');
+    const registered: Array<(event: { toolName: string; toolCallId: string }, context: { hasUI: boolean; sessionManager: { appendCustomEntry: (type: string, data: unknown) => void } }) => Promise<unknown>> = [];
+    extension.factory({
+      on: (_event: string, handler: (event: never, context: never) => Promise<unknown>) => registered.push(handler as never),
+    } as never);
+    const blocked = await registered[0]!({ toolName: 'place_trade_order', toolCallId: 'policy-call' }, { hasUI: false, sessionManager: { appendCustomEntry: (_type, data) => audits.push(data) } });
+    expect(blocked).toMatchObject({ block: true });
+    expect(audits[0]).toMatchObject({ contract: 'upup.pi.side-effect-policy.v1', decision: 'denied' });
   });
 });
 

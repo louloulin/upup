@@ -86,6 +86,12 @@ export class PiBackgroundService {
     return true;
   }
 
+  dispose(): void {
+    for (const id of [...controllers.keys()]) this.cancel(id);
+    controllers.clear();
+    tasks.clear();
+  }
+
   private async execute(task: PiBackgroundTask, controller: AbortController, options: PiBackgroundTaskOptions): Promise<void> {
     task.status = 'running';
     try {
@@ -116,8 +122,15 @@ let service: PiBackgroundService | undefined;
 let runnerFactory: (() => PiBackgroundPromptRunner) | undefined;
 
 export function configurePiBackgroundService(factory: () => PiBackgroundPromptRunner): void {
+  service?.dispose();
   runnerFactory = factory;
   service = undefined;
+}
+
+export function disposePiBackgroundService(): void {
+  service?.dispose();
+  service = undefined;
+  runnerFactory = undefined;
 }
 
 export function getPiBackgroundService(): PiBackgroundService {
@@ -128,4 +141,8 @@ export function getPiBackgroundService(): PiBackgroundService {
     service = new PiBackgroundService({ runner: runnerFactory() });
   }
   return service;
+}
+
+export function isPiBackgroundServiceConfigured(): boolean {
+  return runnerFactory !== undefined;
 }

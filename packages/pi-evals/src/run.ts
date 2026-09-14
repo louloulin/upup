@@ -2,18 +2,18 @@
  * Pi-native evaluation runner for UpUp
  * 
  * Usage:
- *   bun run src/evals/run.ts              # Run on all questions
- *   bun run src/evals/run.ts --sample 10  # Run on random sample of 10 questions
+ *   bun run packages/pi-evals/src/run.ts              # Run on all questions
+ *   bun run packages/pi-evals/src/run.ts --sample 10  # Run on random sample of 10 questions
  */
 
 import 'dotenv/config';
 import { ProcessTerminal, TuiMainScreen } from '@earendil-works/pi-tui';
-import { callStructuredLlm } from '../runtime/pi/prompt-service.js';
+import { callStructuredLlm, type PromptRunner } from '@upup/utils';
 import { z } from 'zod';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { streamPiAgent } from '../runtime/pi/event-stream.js';
+import type { PiEventStreamPort } from '@upup/pi-app';
 import { EvalApp, type EvalProgressEvent } from './components/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -144,11 +144,11 @@ function shuffleArray<T>(array: T[]): T[] {
 // Target function - wraps UpUp agent
 // ============================================================================
 
-async function target(inputs: { question: string }): Promise<{ answer: string }> {
+async function target(eventStream: PiEventStreamPort, inputs: { question: string }): Promise<{ answer: string }> {
   let answer = '';
-  
-  for await (const event of streamPiAgent(inputs.question, { model: 'gpt-5.4', maxIterations: 10 })) {
-    if (event.type === 'done') {
+
+  for await (const event of eventStream.stream(inputs.question, { model: 'gpt-5.4', maxIterations: 10 })) {
+    if (event.type === 'run_end') {
       answer = event.answer;
     }
   }
@@ -169,10 +169,12 @@ const EvaluatorOutputSchema = z.object({
 async function correctnessEvaluator({
   outputs,
   referenceOutputs,
+  promptRunner,
 }: {
   inputs: Record<string, unknown>;
   outputs: Record<string, unknown>;
   referenceOutputs?: Record<string, unknown>;
+  promptRunner: PromptRunner;
 }): Promise<EvaluationResult> {
   const actualAnswer = (outputs?.answer as string) || '';
   const expectedAnswer = (referenceOutputs?.answer as string) || '';
@@ -192,7 +194,7 @@ Evaluate and provide:
 - comment: brief explanation of why the answer is correct or incorrect`;
 
   try {
-    const result = await callStructuredLlm(prompt, EvaluatorOutputSchema, { model: 'gpt-5.4' });
+    const result = await callStructuredLlm(prompt, EvaluatorOutputSchema, { model: 'gpt-5.4', runner: promptRunner });
     return {
       key: 'correctness',
       score: result.score,
@@ -211,7 +213,7 @@ Evaluate and provide:
 // Evaluation generator - yields progress events for the UI
 // ============================================================================
 
-function createEvaluationRunner(sampleSize?: number) {
+export function createEvaluationRunner(eventStream: PiEventStreamPort, promptRunner: PromptRunner, sampleSize?: number) {
   return async function* runEvaluation(): AsyncGenerator<EvalProgressEvent, void, unknown> {
     // Load and parse dataset
     const csvPath = path.join(__dirname, 'dataset', 'finance_agent.csv');
@@ -251,13 +253,14 @@ function createEvaluationRunner(sampleSize?: number) {
 
       // Run the agent to get an answer
       const startTime = Date.now();
-      const outputs = await target(example.inputs);
+      const outputs = await target(eventStream, example.inputs);
       const endTime = Date.now();
 
       // Run the correctness evaluator
       const evalResult = await correctnessEvaluator({
         inputs: example.inputs,
         outputs,
+        promptRunner,
         referenceOutputs: example.outputs,
       });
 
@@ -286,14 +289,13 @@ function createEvaluationRunner(sampleSize?: number) {
 // Main entry point
 // ============================================================================
 
-async function main() {
+export async function runEvaluationCli(eventStream: PiEventStreamPort, promptRunner: PromptRunner, args: readonly string[] = process.argv.slice(2)): Promise<void> {
   // Parse CLI arguments
-  const args = process.argv.slice(2);
   const sampleIndex = args.indexOf('--sample');
   const sampleSize = sampleIndex !== -1 ? parseInt(args[sampleIndex + 1]) : undefined;
 
   // Create the evaluation runner with the sample size
-  const runEvaluation = createEvaluationRunner(sampleSize);
+  const runEvaluation = createEvaluationRunner(eventStream, promptRunner, sampleSize);
 
   const tui = new TuiMainScreen(new ProcessTerminal());
   const evalApp = new EvalApp(tui, runEvaluation);
@@ -308,5 +310,3 @@ async function main() {
     tui.stop();
   }
 }
-
-main().catch(console.error);

@@ -293,13 +293,3 @@ export function getSessionTracker(): SessionTracker {
 export function resetSessionTracker(): void {
   _sessionTracker = null;
 }
-
-// ============================================================================
-// Backward Compatibility Export (deprecated)
-// ============================================================================
-
-/**
- * @deprecated Use getSessionTracker() instead.
- * This alias exists for backward compatibility during the transition.
- */
-export const getSessionManager = getSessionTracker;

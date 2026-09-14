@@ -40,7 +40,240 @@
     "@upup/pi-runtime": "0.1.0"
   },
   "pi": {
+    "contract": "upup.pi.runtime.v1",
     "source": "builtin:upup",
+    "tools": [
+      "skill",
+      "bash",
+      "read_file",
+      "write_file",
+      "edit_file",
+      "glob",
+      "grep",
+      "send_user_file",
+      "agent",
+      "fork_subagent",
+      "resume_agent",
+      "agent_memory",
+      "list_agents",
+      "run_builtin_agent",
+      "heartbeat",
+      "cron",
+      "memory_search",
+      "memory_get",
+      "memory_update",
+      "list_mcp_resources",
+      "read_mcp_resource",
+      "mcp_auth_set",
+      "mcp_auth_get",
+      "mcp_auth_clear",
+      "enter_plan_mode",
+      "exit_plan_mode",
+      "add_plan_step",
+      "update_plan_step",
+      "list_plan_steps",
+      "create_todo",
+      "update_todo",
+      "list_todos",
+      "delete_todo",
+      "notebook_read",
+      "notebook_create",
+      "notebook_edit_cell",
+      "notebook_insert_cell",
+      "notebook_delete_cell",
+      "task_create",
+      "task_get",
+      "task_list",
+      "task_stop",
+      "task_update",
+      "task_result",
+      "ask_confirm",
+      "ask_select",
+      "ask_multi_select",
+      "ask_input",
+      "ask_response",
+      "create_worktree",
+      "remove_worktree",
+      "list_worktree",
+      "search_skills",
+      "get_skill",
+      "send_message",
+      "snip_tool",
+      "sleep",
+      "monitor",
+      "tool_search",
+      "tool_get",
+      "tool_list",
+      "lsp_complete",
+      "lsp_definition",
+      "lsp_references",
+      "lsp_hover",
+      "lsp_diagnostics",
+      "export_watchlist",
+      "export_data",
+      "run_workflow",
+      "add_to_watchlist",
+      "remove_from_watchlist",
+      "get_watchlist",
+      "add_watchlist_alert",
+      "check_watchlist_alerts",
+      "clear_watchlist_alert",
+      "swarm_team_create",
+      "swarm_agent_spawn",
+      "swarm_agent_message",
+      "swarm_agent_results",
+      "swarm_team_list",
+      "execute_skill",
+      "list_skills",
+      "skill_info"
+    ],
+    "nativeTools": [
+      "skill",
+      "bash",
+      "read_file",
+      "write_file",
+      "edit_file",
+      "glob",
+      "grep",
+      "send_user_file",
+      "agent",
+      "fork_subagent",
+      "resume_agent",
+      "agent_memory",
+      "list_agents",
+      "run_builtin_agent",
+      "heartbeat",
+      "cron",
+      "memory_search",
+      "memory_get",
+      "memory_update",
+      "list_mcp_resources",
+      "read_mcp_resource",
+      "mcp_auth_set",
+      "mcp_auth_get",
+      "mcp_auth_clear",
+      "enter_plan_mode",
+      "exit_plan_mode",
+      "add_plan_step",
+      "update_plan_step",
+      "list_plan_steps",
+      "create_todo",
+      "update_todo",
+      "list_todos",
+      "delete_todo",
+      "notebook_read",
+      "notebook_create",
+      "notebook_edit_cell",
+      "notebook_insert_cell",
+      "notebook_delete_cell",
+      "task_create",
+      "task_get",
+      "task_list",
+      "task_stop",
+      "task_update",
+      "task_result",
+      "ask_confirm",
+      "ask_select",
+      "ask_multi_select",
+      "ask_input",
+      "ask_response",
+      "create_worktree",
+      "remove_worktree",
+      "list_worktree",
+      "search_skills",
+      "get_skill",
+      "send_message",
+      "snip_tool",
+      "sleep",
+      "monitor",
+      "tool_search",
+      "tool_get",
+      "tool_list",
+      "lsp_complete",
+      "lsp_definition",
+      "lsp_references",
+      "lsp_hover",
+      "lsp_diagnostics",
+      "export_watchlist",
+      "export_data",
+      "run_workflow",
+      "add_to_watchlist",
+      "remove_from_watchlist",
+      "get_watchlist",
+      "add_watchlist_alert",
+      "check_watchlist_alerts",
+      "clear_watchlist_alert",
+      "swarm_team_create",
+      "swarm_agent_spawn",
+      "swarm_agent_message",
+      "swarm_agent_results",
+      "swarm_team_list",
+      "execute_skill",
+      "list_skills",
+      "skill_info"
+    ],
+    "trust": {
+      "mode": "builtin",
+      "filesystem": true,
+      "network": true
+    },
+    "hostCapabilities": [
+      "agent-worker",
+      "cron-runner",
+      "mcp-resources"
+    ],
+    "lifecycle": {
+      "scope": "session"
+    },
+    "capabilities": [
+      {
+        "name": "memory.session",
+        "version": "1.0.0",
+        "scope": "session",
+        "trust": {
+          "mode": "builtin",
+          "filesystem": true
+        },
+        "lifecycle": {
+          "scope": "session"
+        }
+      },
+      {
+        "name": "planning.workflow",
+        "version": "1.0.0",
+        "scope": "session",
+        "trust": {
+          "mode": "builtin"
+        },
+        "lifecycle": {
+          "scope": "session"
+        }
+      },
+      {
+        "name": "mcp.client",
+        "version": "1.0.0",
+        "scope": "session",
+        "trust": {
+          "mode": "sandboxed",
+          "network": true
+        },
+        "lifecycle": {
+          "scope": "session"
+        }
+      },
+      {
+        "name": "sandbox.filesystem",
+        "version": "1.0.0",
+        "scope": "session",
+        "trust": {
+          "mode": "sandboxed",
+          "filesystem": true
+        },
+        "lifecycle": {
+          "scope": "session"
+        }
+      }
+    ],
     "extensions": [
       "./extensions/index.ts"
     ],
@@ -65,6 +298,64 @@
       "@upup/utils": "0.2.0",
       "@upup/types": "0.2.0",
       "@upup/memory": "0.2.0"
-    }
+    },
+    "sideEffects": [
+      {
+        "tools": [
+          "write_file",
+          "edit_file",
+          "export_data",
+          "export_watchlist",
+          "memory_update",
+          "notebook_create",
+          "notebook_edit_cell",
+          "notebook_insert_cell",
+          "notebook_delete_cell",
+          "heartbeat",
+          "cron",
+          "bash"
+        ],
+        "effect": "filesystem-write",
+        "safetyLevel": "warning"
+      },
+      {
+        "tools": [
+          "send_user_file",
+          "create_worktree"
+        ],
+        "effect": "filesystem-write",
+        "safetyLevel": "dangerous"
+      },
+      {
+        "tools": [
+          "remove_worktree"
+        ],
+        "effect": "filesystem-write",
+        "safetyLevel": "critical"
+      },
+      {
+        "tools": [
+          "mcp_auth_get"
+        ],
+        "effect": "credential-access",
+        "safetyLevel": "dangerous"
+      },
+      {
+        "tools": [
+          "mcp_auth_set",
+          "mcp_auth_clear"
+        ],
+        "effect": "credential-access",
+        "safetyLevel": "critical"
+      },
+      {
+        "tools": [
+          "list_mcp_resources",
+          "read_mcp_resource"
+        ],
+        "effect": "external-network",
+        "safetyLevel": "dangerous"
+      }
+    ]
   }
 }

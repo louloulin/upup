@@ -5,8 +5,9 @@
  * ModelSelectionController's pattern for overlay-based selection.
  */
 
-import { getPiSessionService } from '@upup/pi-session';
-import type { SessionSummary } from '@upup/pi-session';
+import type { PiSessionService, SessionSummary } from '@upup/pi-session';
+
+export type SessionSelectionService = Pick<PiSessionService, 'list' | 'remove' | 'rename' | 'tag'>;
 
 export type SessionAppState =
   | 'idle'
@@ -32,10 +33,12 @@ export class SessionSelectionController {
   private pendingSessionIdValue: string | null = null;
   private pendingActionValue: 'delete' | 'rename' | 'tag' | null = null;
   private readonly onChange?: ChangeListener;
+  private readonly sessionService: SessionSelectionService;
   private currentProjectPath?: string;
   private currentSessionId?: string;
 
-  constructor(onChange?: ChangeListener) {
+  constructor(sessionService: SessionSelectionService, onChange?: ChangeListener) {
+    this.sessionService = sessionService;
     this.onChange = onChange;
   }
 
@@ -66,7 +69,7 @@ export class SessionSelectionController {
   async startSelection(projectPath?: string, currentSessionId?: string): Promise<void> {
     this.currentProjectPath = projectPath;
     this.currentSessionId = currentSessionId;
-    const allSessions = await getPiSessionService().list(projectPath ?? process.cwd());
+    const allSessions = await this.sessionService.list(projectPath ?? process.cwd());
     this.sessionsValue = allSessions.filter((session) => !session.isSidechain && session.id !== currentSessionId);
     this.selectedIndexValue = 0;
     this.appStateValue = 'session_list';
@@ -129,7 +132,7 @@ export class SessionSelectionController {
    */
   async confirmDelete(): Promise<void> {
     if (!this.pendingSessionIdValue) return;
-    await getPiSessionService().remove(this.pendingSessionIdValue);
+    await this.sessionService.remove(this.pendingSessionIdValue);
     this.cancel();
     // Reload sessions
     await this.startSelection(this.currentProjectPath, this.currentSessionId);
@@ -165,7 +168,7 @@ export class SessionSelectionController {
       this.cancel();
       return;
     }
-    await getPiSessionService().rename(this.pendingSessionIdValue, newTitle.trim());
+    await this.sessionService.rename(this.pendingSessionIdValue, newTitle.trim());
     this.cancel();
     await this.startSelection(this.currentProjectPath, this.currentSessionId);
   }
@@ -197,7 +200,7 @@ export class SessionSelectionController {
    */
   async submitTag(tag: string): Promise<void> {
     if (!this.pendingSessionIdValue) return;
-    await getPiSessionService().tag(this.pendingSessionIdValue, tag.trim() || null);
+    await this.sessionService.tag(this.pendingSessionIdValue, tag.trim() || null);
     this.cancel();
     await this.startSelection(this.currentProjectPath, this.currentSessionId);
   }

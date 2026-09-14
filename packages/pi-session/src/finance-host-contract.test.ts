@@ -14,14 +14,14 @@ describe('Pi finance host contract', () => {
     expect(bridge.contract).toBe(PI_FINANCE_HOST_CONTRACT);
     expect(bridge.packageName).toBe(PI_FINANCE_PACKAGE_NAME);
     expect(bridge.packageVersion).toBe(PI_FINANCE_PACKAGE_VERSION);
-    expect(bridge.getToolDefinitions({
+    expect(bridge.providers.tools.getToolDefinitions({
       contract: PI_FINANCE_HOST_CONTRACT,
       packageName: PI_FINANCE_PACKAGE_NAME,
       packageVersion: PI_FINANCE_PACKAGE_VERSION,
       sessionId: 'session-a',
       capability: 'tool-definitions',
     })).toBe(definitions);
-    expect(bridge.getToolDefinitions({
+    expect(bridge.providers.tools.getToolDefinitions({
       contract: PI_FINANCE_HOST_CONTRACT,
       packageName: PI_FINANCE_PACKAGE_NAME,
       packageVersion: PI_FINANCE_PACKAGE_VERSION,
@@ -36,14 +36,14 @@ describe('Pi finance host contract', () => {
       calls += 1;
       return [];
     });
-    expect(bridge.getToolDefinitions({
+    expect(bridge.providers.tools.getToolDefinitions({
       contract: 'upup.pi.finance.host.v0' as typeof PI_FINANCE_HOST_CONTRACT,
       packageName: PI_FINANCE_PACKAGE_NAME,
       packageVersion: PI_FINANCE_PACKAGE_VERSION,
       sessionId: 'session-a',
       capability: 'tool-definitions',
     })).toEqual([]);
-    expect(bridge.getToolDefinitions({
+    expect(bridge.providers.tools.getToolDefinitions({
       contract: PI_FINANCE_HOST_CONTRACT,
       packageName: PI_FINANCE_PACKAGE_NAME,
       packageVersion: PI_FINANCE_PACKAGE_VERSION,
@@ -59,14 +59,14 @@ describe('Pi finance host contract', () => {
       calls += 1;
       return [];
     });
-    expect(bridge.getToolDefinitions({
+    expect(bridge.providers.tools.getToolDefinitions({
       contract: PI_FINANCE_HOST_CONTRACT,
       packageName: '@upup/other-finance-package' as typeof PI_FINANCE_PACKAGE_NAME,
       packageVersion: PI_FINANCE_PACKAGE_VERSION,
       sessionId: 'session-a',
       capability: 'tool-definitions',
     })).toEqual([]);
-    expect(bridge.getToolDefinitions({
+    expect(bridge.providers.tools.getToolDefinitions({
       contract: PI_FINANCE_HOST_CONTRACT,
       packageName: PI_FINANCE_PACKAGE_NAME,
       packageVersion: '0.2.0' as typeof PI_FINANCE_PACKAGE_VERSION,

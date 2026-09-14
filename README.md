@@ -125,7 +125,7 @@ This table is the **most honest one in this doc**: it shows which files/director
 | Telemetry / audit chain | ❌ none | — | `src/telemetry/` 8 files |
 | Worktree integration | ❌ none | — | `src/worktree/` 1 file + `src/hooks/worktree-hooks.ts` |
 | TUI (Ink + pi-tui) | `src/components/` basic | `src/tui/` 50 files: status-hint, slash-autocomplete, history, multiline, paste-handling | — |
-| Web / Gateway | — | — | `src/web/` + `packages/gateway/` (read-only JSON snapshots) |
+| Management UI / Gateway | — | — | `packages/pi-management/` + `packages/gateway/` (read-only JSON snapshots) |
 | Mobile app | — | — | 🔄 Roadmap (2026 Q4) |
 | Multi-user collaboration | — | — | 🔄 Roadmap (2026 Q4) |
 
@@ -243,7 +243,7 @@ This is where UpUp creates the most visible product gap. Both projects have an a
 | Real trade execution | ❌ explicitly not (compliance) | ❌ explicitly not |
 | Quantitative signal API | 🔄 Roadmap (2026 Q3) | ❌ |
 | Encrypted remote cross-device (Bridge) | ✅ Live | ❌ |
-| Web gateway | ✅ `src/web/` + `packages/gateway/` | ✅ basic (WhatsApp channel) |
+| Management gateway | ✅ `packages/pi-management/` + `packages/gateway/` | ✅ basic (WhatsApp channel) |
 | Mobile app | 🔄 Roadmap (2026 Q4) | ❌ |
 | Multi-user collaboration | 🔄 Roadmap (2026 Q4) | ❌ |
 
@@ -341,7 +341,7 @@ Below are 4 real tasks. The same action's entry / factory / registration / call 
 - **Memory expansion** — `src/memory/` 48 files (vs. basic upstream memory)
 - **Workspace split (15 packages)** — `packages/{commands,cron,daemon,gateway,hooks,keybindings,mcp,memory,pi-finance-sdk,plugin-sdk,plugins,sdk,skills,state,types,utils}/`
 - **TUI enhancements** — `src/tui/` 50 files (status-hint, slash-autocomplete, multiline, paste-handling)
-- **Web gateway** — `src/web/` + `packages/gateway/` (read-only JSON snapshots)
+- **Management gateway** — `packages/pi-management/` + `packages/gateway/` (read-only JSON snapshots)
 - **Chinese-curated model IDs** — `src/utils/model.ts` (kimi-k2-5, deepseek-v4-pro, deepseek-v4-flash)
 - **Default DeepSeek-compatible model** — configured in `src/runtime/pi/model-config.ts` and executed through the Pi prompt service
 - **Provider fallback strategy** — resolved by `src/runtime/pi/prompt-service.ts` and the Pi model/provider registry

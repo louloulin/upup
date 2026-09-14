@@ -11,7 +11,15 @@
  * let the recorder's `enabled` flag decide whether to actually emit.
  */
 import { telemetry, hashTelemetryInput, type TelemetryRecorder } from './index.js';
-import type { ToolEndEvent, ToolErrorEvent } from '@upup/pi-event-adapter';
+import type { UpUpAgentEvent } from '@upup/pi-runtime';
+
+type CanonicalToolEndEvent = Extract<UpUpAgentEvent, { type: 'tool_end' }>;
+
+export interface ToolTelemetryContext {
+  input?: unknown;
+  result?: unknown;
+  durationMs?: number;
+}
 
 /** Approximate byte size of an arbitrary value. */
 function byteSize(value: unknown): number {
@@ -29,13 +37,13 @@ function byteSize(value: unknown): number {
 }
 
 /** Record a successful tool call. Safe to call from hot paths. */
-export function recordToolCallOk(event: ToolEndEvent): void {
+export function recordToolCallOk(event: CanonicalToolEndEvent, context: ToolTelemetryContext = {}): void {
   try {
     telemetry.recordToolCall({
-      tool: event.tool,
-      inputHash: hashTelemetryInput(event.args),
-      outputBytes: byteSize(event.result),
-      durationMs: event.duration,
+      tool: event.toolName,
+      inputHash: hashTelemetryInput(context.input ?? {}),
+      outputBytes: byteSize(context.result),
+      durationMs: context.durationMs ?? 0,
       ok: true,
     });
   } catch {
@@ -47,16 +55,16 @@ export function recordToolCallOk(event: ToolEndEvent): void {
  * Record a failed tool call. The caller passes the start time so we can
  * compute the duration (ToolErrorEvent does not carry it).
  */
-export function recordToolCallErr(event: ToolErrorEvent, startedAt: number | null): void {
+export function recordToolCallErr(event: CanonicalToolEndEvent, startedAt: number | null): void {
   try {
     const durationMs = startedAt !== null ? Date.now() - startedAt : 0;
     telemetry.recordToolCall({
-      tool: event.tool,
+      tool: event.toolName,
       inputHash: '', // args not present on ToolErrorEvent
       outputBytes: 0,
       durationMs,
       ok: false,
-      errorCode: classifyErrorCode(event.error),
+      errorCode: classifyErrorCode(event.error ?? ''),
     });
   } catch {
     // telemetry must never crash the host

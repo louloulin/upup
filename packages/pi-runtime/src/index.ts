@@ -9,6 +9,23 @@ export const PI_RUNTIME_CONTRACT = 'upup.pi.runtime.v1' as const;
 export const PI_EVENTS_CONTRACT = 'upup.pi.events.v1' as const;
 export const PI_CAPABILITIES_CONTRACT = 'upup.pi.capabilities.v1' as const;
 export const PI_MARKET_DATA_CAPABILITIES_CONTRACT = 'upup.pi.market-data.v1' as const;
+export const PI_MARKET_DATA_CAPABILITY_VERSION = '1.0.0' as const;
+
+export type ApprovalDecision = 'allow-once' | 'allow-session' | 'deny';
+export type StreamMode = 'requesting' | 'thinking' | 'responding' | 'tool-input' | 'tool-use';
+export interface TokenUsage {
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+}
+
+export interface ChannelProfile {
+  readonly label: string;
+  readonly preamble: string;
+  readonly behavior: readonly string[];
+  readonly responseFormat: readonly string[];
+  readonly tables: string | null;
+}
 
 export const PI_MARKET_DATA_CAPABILITY_NAMES = {
   historyFetcher: 'market-data.history-fetcher',
@@ -36,6 +53,91 @@ export interface UpUpPermissionProfile {
 }
 
 export type UpUpToolPolicyDecision = 'allowed' | 'denied' | 'approval_required' | 'approval_granted' | 'approval_denied';
+
+export type PiSideEffectKind = 'filesystem-write' | 'external-network' | 'credential-access' | 'financial-write';
+
+export interface PiSideEffectPolicyAudit {
+  readonly contract: 'upup.pi.side-effect-policy.v1';
+  readonly auditId: string;
+  readonly sessionId: string;
+  readonly tool: string;
+  readonly effect: PiSideEffectKind;
+  readonly safetyLevel: UpUpToolSafetyLevel;
+  readonly permissionProfile: string;
+  readonly decision: 'denied' | 'approval_required' | 'approval_granted' | 'approval_denied';
+  readonly reason: string;
+  readonly recordedAt: string;
+}
+
+export interface PiSideEffectDeclaration {
+  readonly tools: readonly string[];
+  readonly effect: PiSideEffectKind;
+  readonly safetyLevel: UpUpToolSafetyLevel;
+}
+
+export function classifyPiSideEffect(tool: string, declarations: readonly PiSideEffectDeclaration[]): PiSideEffectDeclaration | undefined {
+  return declarations.find((declaration) => declaration.tools.includes(tool));
+}
+
+export function createPiSideEffectPolicyExtension(options: { spec: UpUpAgentSpec; sessionId: string; declarations: readonly PiSideEffectDeclaration[] }): InlineExtension {
+  return {
+    name: 'upup-pi-side-effect-policy',
+    hidden: true,
+    factory: (pi) => {
+      pi.on('tool_call', async (event, context) => {
+        const classification = classifyPiSideEffect(event.toolName, options.declarations);
+        if (!classification) return undefined;
+        const auditId = event.toolCallId;
+        const record = (decision: PiSideEffectPolicyAudit['decision'], reason: string): PiSideEffectPolicyAudit => ({
+          contract: 'upup.pi.side-effect-policy.v1',
+          auditId,
+          sessionId: options.sessionId,
+          tool: event.toolName,
+          effect: classification.effect,
+          safetyLevel: classification.safetyLevel,
+          permissionProfile: options.spec.permissions.id,
+          decision,
+          reason,
+          recordedAt: new Date().toISOString(),
+        });
+        const append = (audit: PiSideEffectPolicyAudit) => {
+          (context.sessionManager as unknown as { appendCustomEntry: (customType: string, data: unknown) => string }).appendCustomEntry('upup_pi_policy_audit', audit);
+        };
+        const denied = (reason: string) => {
+          append(record('denied', reason));
+          return { block: true, terminate: true, reason: `Pi side-effect policy denied ${event.toolName}: ${reason}` };
+        };
+        if (!canUseTool(options.spec.permissions, classification.safetyLevel)) {
+          return denied(`safety level ${classification.safetyLevel} is not allowed by ${options.spec.permissions.id}`);
+        }
+        if (classification.effect === 'credential-access' && !options.spec.permissions.allowCredentialAccess) {
+          return denied('credential access is disabled for this Agent Profile');
+        }
+        if (classification.effect === 'financial-write' && !options.spec.permissions.allowFinancialWrites) {
+          return denied('financial writes are disabled; use an explicitly approved sandbox policy');
+        }
+        if (classification.effect === 'external-network' && !options.spec.permissions.allowExternalNetwork) {
+          return denied('external network access is disabled for this Agent Profile');
+        }
+        if (!context.hasUI || !context.ui) {
+          append(record('approval_required', 'side effects require interactive approval in the active Pi UI'));
+          return { block: true, terminate: true, reason: `Pi side-effect policy requires interactive approval for ${event.toolName}` };
+        }
+        const approved = await context.ui.confirm(
+          `Approve ${classification.effect}`,
+          `Allow ${event.toolName} to perform a ${classification.effect} side effect?`,
+          { signal: context.signal },
+        );
+        if (!approved) {
+          append(record('approval_denied', 'interactive approval was denied'));
+          return { block: true, terminate: true, reason: `Pi side-effect policy approval denied for ${event.toolName}` };
+        }
+        append(record('approval_granted', 'interactive approval granted by the active Pi UI'));
+        return undefined;
+      });
+    },
+  };
+}
 
 export interface UpUpToolPolicyAudit {
   auditId: string;
@@ -167,6 +269,14 @@ export type UpUpAgentEvent =
   | { type: 'compaction_end'; sessionId: string; success: boolean; error?: string }
   | { type: 'turn_end'; sessionId: string }
   | { type: 'agent_end'; sessionId: string }
+  | {
+      type: 'run_end';
+      sessionId: string;
+      answer: string;
+      iterations: number;
+      totalTime: number;
+      tokenUsage?: { inputTokens: number; outputTokens: number; totalTokens: number };
+    }
   | { type: 'session_error'; sessionId: string; error: string };
 
 export interface UpUpAgentSession {
@@ -200,7 +310,7 @@ export interface UpUpAgentSession {
   dispose(): void;
 }
 
-export interface PiPluginTrustPolicy {
+export interface PiPackageTrustPolicy {
   trustedPaths: readonly string[];
   allowedHashes?: Readonly<Record<string, string>>;
   pinnedPackages?: Readonly<Record<string, string>>;
@@ -240,11 +350,18 @@ export interface UpUpCreateSessionOptions {
   additionalPromptTemplatePaths?: readonly string[];
   additionalExtensionPaths?: readonly string[];
   piPackagePaths?: readonly string[];
-  piPackageTrust?: PiPluginTrustPolicy;
-  pluginTrust?: PiPluginTrustPolicy;
-  piPlugins?: readonly unknown[];
+  piPackageTrust?: PiPackageTrustPolicy;
   marketHistoryFetcher?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+  marketHistoryFetchers?: Readonly<Record<string, (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>>;
+  marketHistoryProviders?: Readonly<Record<string, 'auto' | 'yahoo' | 'tushare' | 'financial-datasets'>>;
+  marketHistoryApiKeys?: Readonly<Record<string, string>>;
+  marketHistoryBaseUrls?: Readonly<Record<string, string>>;
   marketQuoteFetcher?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+  researchDataFetcher?: typeof fetch;
+  researchDataFetchers?: Readonly<Record<string, typeof fetch>>;
+  researchDataProviders?: Readonly<Record<string, string>>;
+  researchDataApiKeys?: Readonly<Record<string, string>>;
+  researchDataBaseUrls?: Readonly<Record<string, string>>;
   marketQuoteTrendStore?: any;
 }
 export interface UpUpAgentRuntime { createSession(spec: UpUpAgentSpec, options?: UpUpCreateSessionOptions): Promise<UpUpAgentSession> }
@@ -273,7 +390,75 @@ export function defaultToolParameters(): TSchema { return Type.Object({}); }
 export type CanonicalAgentEvent = UpUpAgentEvent & { contract: typeof PI_EVENTS_CONTRACT };
 export function toCanonicalAgentEvent(event: UpUpAgentEvent): CanonicalAgentEvent { return { ...event, contract: PI_EVENTS_CONTRACT }; }
 
-export interface PiCapability<T = unknown> { readonly version: string; readonly value: T; readonly dispose?: () => void | Promise<void> }
+export type PiCapabilityScope = 'runtime' | 'session' | 'process';
+export type PiCapabilityTrustMode = 'builtin' | 'trusted' | 'sandboxed';
+export interface PiCapabilityTrustContract {
+  readonly mode: PiCapabilityTrustMode;
+  readonly network?: boolean;
+  readonly credentials?: boolean;
+  readonly filesystem?: boolean;
+}
+export interface PiCapabilityLifecycleContract {
+  readonly scope: PiCapabilityScope;
+  readonly initialize?: string;
+  readonly reload?: string;
+  readonly dispose?: string;
+}
+export interface PiCapabilityDescriptor {
+  readonly name: string;
+  readonly version: string;
+  readonly scope: PiCapabilityScope;
+  readonly trust: PiCapabilityTrustContract;
+  readonly lifecycle: PiCapabilityLifecycleContract;
+}
+export interface PiCapability<T = unknown> {
+  readonly version: string;
+  readonly value: T;
+  readonly descriptor?: PiCapabilityDescriptor;
+  readonly dispose?: () => void | Promise<void>;
+}
+
+const capability = (name: string, scope: PiCapabilityScope, trust: PiCapabilityTrustContract, lifecycle: PiCapabilityLifecycleContract = { scope }): PiCapabilityDescriptor => ({ name, version: '1.0.0', scope, trust, lifecycle });
+
+export const PI_CAPABILITY_CATALOG: readonly PiCapabilityDescriptor[] = Object.freeze([
+  capability('market-data.history-fetcher', 'session', { mode: 'trusted', network: true, credentials: true }),
+  capability('market-data.quote-fetcher', 'session', { mode: 'trusted', network: true, credentials: true }),
+  capability('market-data.quote-trend-store', 'session', { mode: 'builtin', filesystem: true }),
+  capability('financial.evidence', 'session', { mode: 'builtin' }),
+  capability('financial.audit', 'session', { mode: 'builtin', filesystem: true }),
+  capability('memory.session', 'session', { mode: 'builtin', filesystem: true }),
+  capability('permissions.policy', 'session', { mode: 'builtin' }),
+  capability('storage.session', 'session', { mode: 'builtin', filesystem: true }),
+  capability('planning.workflow', 'session', { mode: 'builtin' }),
+  capability('subagent.worker', 'session', { mode: 'sandboxed' }),
+  capability('mcp.client', 'session', { mode: 'sandboxed', network: true }),
+  capability('sandbox.filesystem', 'session', { mode: 'sandboxed', filesystem: true }),
+  capability('observability.telemetry', 'session', { mode: 'builtin', filesystem: true }),
+]);
+
+export function validatePiCapabilityDescriptor(descriptor: PiCapabilityDescriptor): void {
+  if (!descriptor.name.trim()) throw new Error('Pi capability name is missing');
+  if (!/^\d+\.\d+\.\d+$/.test(descriptor.version)) throw new Error(`Pi capability version is invalid: ${descriptor.name}`);
+  if (descriptor.trust.mode === 'sandboxed' && descriptor.trust.credentials) throw new Error(`Sandboxed Pi capability cannot access credentials: ${descriptor.name}`);
+  if (descriptor.lifecycle.scope !== descriptor.scope) throw new Error(`Pi capability lifecycle scope mismatch: ${descriptor.name}`);
+  if (descriptor.lifecycle.reload && !descriptor.lifecycle.initialize) throw new Error(`Pi capability reload requires initialize: ${descriptor.name}`);
+  for (const [name, entry] of Object.entries(descriptor.lifecycle)) {
+    if (name === 'scope' || entry === undefined) continue;
+    if (typeof entry !== 'string' || !/^\.\/[A-Za-z0-9_./-]+#[A-Za-z0-9_$.-]+$/.test(entry)) throw new Error(`Pi capability lifecycle ${name} must use ./module#export syntax: ${descriptor.name}`);
+  }
+}
+
+export function validatePiCapabilityCatalog(catalog: readonly PiCapabilityDescriptor[]): void {
+  const names = new Set<string>();
+  for (const descriptor of catalog) {
+    validatePiCapabilityDescriptor(descriptor);
+    if (names.has(descriptor.name)) throw new Error(`Pi capability catalog contains duplicates: ${descriptor.name}`);
+    names.add(descriptor.name);
+  }
+}
+
+validatePiCapabilityCatalog(PI_CAPABILITY_CATALOG);
+
 export interface PiCapabilityContext {
   readonly contract: typeof PI_CAPABILITIES_CONTRACT;
   readonly sessionId: string;
@@ -281,25 +466,26 @@ export interface PiCapabilityContext {
   readonly audit: Readonly<Record<string, string>>;
   get<T>(name: string, expectedVersion?: string): T;
   has(name: string, expectedVersion?: string): boolean;
+  describe(name: string): PiCapabilityDescriptor | undefined;
+  catalog(): readonly PiCapabilityDescriptor[];
   dispose(): Promise<void>;
 }
 
-const runtimePorts = new Map<string, unknown>();
-
-export function registerPiRuntimePort<T>(name: string, port: T): void {
-  if (!name.trim()) throw new Error('Pi runtime port name is required');
-  runtimePorts.set(name, port);
+export interface PiPromptPortOptions {
+  readonly model?: string;
+  readonly systemPrompt?: string;
+  readonly signal?: AbortSignal;
+  readonly sessionKey?: string;
+  readonly toolFilter?: readonly string[] | '*';
 }
 
-export function getPiRuntimePort<T>(name: string): T | undefined {
-  return runtimePorts.get(name) as T | undefined;
+export interface PiPromptPort {
+  runPrompt(prompt: string, options?: PiPromptPortOptions): Promise<string>;
 }
-
-export function resetPiRuntimePorts(): void {
-  runtimePorts.clear();
-}
-export function createPiCapabilityContext(input: { sessionId: string; signal?: AbortSignal; audit?: Readonly<Record<string, string>>; capabilities?: Readonly<Record<string, PiCapability>> }): PiCapabilityContext {
+export function createPiCapabilityContext(input: { sessionId: string; signal?: AbortSignal; audit?: Readonly<Record<string, string>>; capabilities?: Readonly<Record<string, PiCapability>>; catalog?: readonly PiCapabilityDescriptor[] }): PiCapabilityContext {
   const values = new Map(Object.entries(input.capabilities ?? {}));
+  const descriptors = new Map((input.catalog ?? PI_CAPABILITY_CATALOG).map((descriptor) => [descriptor.name, descriptor] as const));
+  validatePiCapabilityCatalog([...descriptors.values()]);
   let disposed = false;
   return {
     contract: PI_CAPABILITIES_CONTRACT,
@@ -318,11 +504,19 @@ export function createPiCapabilityContext(input: { sessionId: string; signal?: A
       const capability = values.get(name);
       return Boolean(capability && (expectedVersion === undefined || capability.version === expectedVersion));
     },
+    describe(name: string) {
+      if (disposed) return undefined;
+      return descriptors.get(name);
+    },
+    catalog() {
+      return disposed ? [] : [...descriptors.values()];
+    },
     async dispose() {
       if (disposed) return;
       disposed = true;
       for (const capability of values.values()) await capability.dispose?.();
       values.clear();
+      descriptors.clear();
     },
   };
 }
@@ -344,6 +538,9 @@ export interface PiPackageCapabilityRequirement {
   readonly name: string;
   readonly version: string;
   readonly optional?: boolean;
+  readonly scope?: PiCapabilityScope;
+  readonly trust?: PiCapabilityTrustContract;
+  readonly lifecycle?: PiCapabilityLifecycleContract;
 }
 
 export interface PiPackageTrustContract {
@@ -367,6 +564,10 @@ export interface PiPackageManifestContract {
   readonly source: string;
   readonly dependencies?: Readonly<Record<string, string>>;
   readonly extension?: string;
+  readonly hostCapabilities?: readonly string[];
+  readonly tools?: readonly string[];
+  readonly nativeTools?: readonly string[];
+  readonly sideEffects?: readonly PiSideEffectDeclaration[];
   readonly capabilities?: readonly PiPackageCapabilityRequirement[];
   readonly trust?: PiPackageTrustContract;
   readonly lifecycle?: PiPackageLifecycleContract;
@@ -382,15 +583,53 @@ export function validatePiPackageManifest(manifest: PiPackageManifestContract): 
   if (!/^\d+\.\d+\.\d+$/.test(manifest.version)) throw new Error(`Invalid Pi package version: ${manifest.version}`);
   if (manifest.contract !== undefined && manifest.contract !== PI_RUNTIME_CONTRACT) throw new Error(`Unsupported Pi package contract: ${manifest.contract}`);
   if (!manifest.source.trim()) throw new Error(`Pi package source is missing: ${manifest.name}`);
+  if (manifest.hostCapabilities !== undefined) {
+    if (manifest.hostCapabilities.some((capability) => typeof capability !== 'string' || !capability.trim())) throw new Error(`Pi package host capabilities are invalid: ${manifest.name}`);
+    if (new Set(manifest.hostCapabilities).size !== manifest.hostCapabilities.length) throw new Error(`Pi package host capabilities contain duplicates: ${manifest.name}`);
+  }
+  for (const [field, tools] of [['tools', manifest.tools], ['nativeTools', manifest.nativeTools]] as const) {
+    if (tools === undefined) continue;
+    if (tools.some((tool) => typeof tool !== 'string' || !tool.trim())) throw new Error(`Pi package ${field} are invalid: ${manifest.name}`);
+    if (new Set(tools).size !== tools.length) throw new Error(`Pi package ${field} contain duplicates: ${manifest.name}`);
+  }
+  if (manifest.nativeTools?.some((tool) => !manifest.tools?.includes(tool))) throw new Error(`Pi package nativeTools must be a subset of tools: ${manifest.name}`);
+  const sideEffectTools = new Set<string>();
+  for (const declaration of manifest.sideEffects ?? []) {
+    if (declaration.tools.length === 0 || declaration.tools.some((tool) => !tool.trim())) throw new Error(`Pi package sideEffects tools are invalid: ${manifest.name}`);
+    if (declaration.tools.some((tool) => !manifest.tools?.includes(tool))) throw new Error(`Pi package sideEffects tools must be declared in tools: ${manifest.name}`);
+    for (const tool of declaration.tools) {
+      if (sideEffectTools.has(tool)) throw new Error(`Pi package sideEffects contain duplicate tools: ${tool}`);
+      sideEffectTools.add(tool);
+    }
+    if (!['filesystem-write', 'external-network', 'credential-access', 'financial-write'].includes(declaration.effect)) throw new Error(`Pi package sideEffects effect is invalid: ${manifest.name}`);
+    if (!['safe', 'warning', 'dangerous', 'critical'].includes(declaration.safetyLevel)) throw new Error(`Pi package sideEffects safety level is invalid: ${manifest.name}`);
+  }
   const all = Object.values(manifest.resources).flat();
   if (new Set(all).size !== all.length) throw new Error(`Pi package resources contain duplicates: ${manifest.name}`);
-  for (const [name, version] of Object.entries(manifest.dependencies ?? {})) if (!/^\d+\.\d+\.\d+$/.test(version)) throw new Error(`Pi package dependency ${name} must use an exact semver`);
+  for (const [name, version] of Object.entries(manifest.dependencies ?? {})) if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/.test(version)) throw new Error(`Pi package dependency ${name} must use an exact semver`);
   for (const capability of manifest.capabilities ?? []) {
     if (!capability.name.trim()) throw new Error(`Pi package capability name is missing: ${manifest.name}`);
     if (!/^\d+\.\d+\.\d+$/.test(capability.version)) throw new Error(`Pi package capability ${capability.name} must use an exact semver`);
+    if (capability.scope !== undefined && !['runtime', 'session', 'process'].includes(capability.scope)) throw new Error(`Pi package capability scope is invalid: ${capability.name}`);
+    if (capability.trust !== undefined) {
+      if (!['builtin', 'trusted', 'sandboxed'].includes(capability.trust.mode)) throw new Error(`Pi package capability trust mode is invalid: ${capability.name}`);
+      if (capability.trust.mode === 'sandboxed' && capability.trust.credentials) throw new Error(`Sandboxed Pi package capability cannot access credentials: ${capability.name}`);
+    }
+    if (capability.lifecycle !== undefined) {
+      validatePiCapabilityDescriptor({ name: capability.name, version: capability.version, scope: capability.scope ?? capability.lifecycle.scope, trust: capability.trust ?? { mode: 'builtin' }, lifecycle: capability.lifecycle });
+    }
+  }
+  if (new Set((manifest.capabilities ?? []).map((capability) => capability.name)).size !== (manifest.capabilities ?? []).length) {
+    throw new Error(`Pi package capabilities contain duplicates: ${manifest.name}`);
   }
   if (manifest.trust?.mode === 'sandboxed' && manifest.trust.credentials) throw new Error(`Sandboxed Pi package cannot access credentials: ${manifest.name}`);
   if (manifest.lifecycle?.scope === 'process' && manifest.lifecycle.dispose === undefined) throw new Error(`Process-scoped Pi package requires dispose lifecycle: ${manifest.name}`);
+  for (const [name, entry] of Object.entries(manifest.lifecycle ?? {})) {
+    if (name === 'scope' || entry === undefined) continue;
+    if (typeof entry !== 'string' || !/^\.\/[A-Za-z0-9_./-]+#[A-Za-z0-9_$.-]+$/.test(entry)) {
+      throw new Error(`Pi package lifecycle ${name} must use ./module#export syntax: ${manifest.name}`);
+    }
+  }
 }
 export interface PiSessionFactory { createSession(spec: UpUpAgentSpec, options?: UpUpCreateSessionOptions): Promise<UpUpAgentSession> }
 
@@ -405,7 +644,7 @@ export interface PiSessionFactory { createSession(spec: UpUpAgentSpec, options?:
 // the bridge session-sync transport, and any future evaluation harness).
 //
 // Before this contract was lifted out, the helpers were inlined inside
-// `src/runtime/pi/agent-session-factory.ts` and depended on private
+// the former root AgentSession factory and depended on private
 // identifiers from the runtime composition root.
 // ---------------------------------------------------------------------------
 

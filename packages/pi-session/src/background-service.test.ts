@@ -1,9 +1,16 @@
 import { describe, expect, test } from 'bun:test';
 import {
   configurePiBackgroundService,
+  disposePiBackgroundService,
   getPiBackgroundService,
   type PiBackgroundPromptRunner,
 } from './background-service.js';
+
+import { afterEach } from 'bun:test';
+
+afterEach(() => {
+  disposePiBackgroundService();
+});
 
 describe('Pi background service contract', () => {
   test('executes a daemon-style task through an injected Pi runner', async () => {
@@ -36,5 +43,16 @@ describe('Pi background service contract', () => {
     resolveRunner?.('done');
     const task = service.get(id);
     expect(task?.status).toBe('cancelled');
+  });
+
+  test('dispose cancels and removes all active tasks', async () => {
+    let resolveRunner: ((value: string) => void) | undefined;
+    configurePiBackgroundService(() => () => new Promise<string>((resolve) => { resolveRunner = resolve; }));
+    const service = getPiBackgroundService();
+    const id = await service.start('dispose-me');
+    service.dispose();
+    resolveRunner?.('late-result');
+    expect(service.list()).toEqual([]);
+    expect(service.get(id)).toBeUndefined();
   });
 });

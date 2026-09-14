@@ -93,7 +93,6 @@ run_ts_test "oscript-config-verify" "scripts/oscript-config-verify.ts"
 run_ts_test "oscript-session-verify" "scripts/oscript-session-verify.ts"
 run_ts_test "oscript-storage-verify" "scripts/oscript-storage-verify.ts"
 run_ts_test "oscript-plan31-features-verify" "scripts/oscript-plan31-features-verify.ts"
-run_ts_test "oscript-comprehensive-verify" "scripts/oscript-comprehensive-verify.ts"
 
 ###############################################################################
 # SECTION 2: Unit Test

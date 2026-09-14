@@ -69,7 +69,7 @@ export async function buildEarningsPreview(ticker: string, options: BuildEarning
     planFramework: buildResearchPlan(`分析 ${normalized} 估值与财报`, {
       description: `财报前瞻: 下次财报日期 + 共识预期 + 历史 surprise 平均`,
       ticker: normalized,
-      phases: ['research', 'valuation'],
+      phases: ['detect', 'plan'],
     }),
   };
 }

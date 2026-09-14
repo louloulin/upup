@@ -13,7 +13,7 @@
     "dev": "bun build src/index.ts --outdir=dist --watch --target=bun --external @upup/types",
     "test": "bun test"
   },
-  "dependencies": { "@upup/types": "workspace:*" },
+  "dependencies": { "@upup/types": "0.2.0" },
   "files": ["dist", "!dist/*.node"],
   "private": false,
   "pi": {

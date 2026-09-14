@@ -1,4 +1,4 @@
-import { callLlm } from '@upup/utils';
+import { callLlm, type PromptRunner } from '@upup/utils';
 import { MemoryManager } from './index.js';
 import { CONTEXT_THRESHOLD } from '@upup/utils';
 
@@ -42,6 +42,7 @@ export async function runMemoryFlush(params: {
   query: string;
   toolResults: string;
   signal?: AbortSignal;
+  runner: PromptRunner;
 }): Promise<{ flushed: boolean; written: boolean; content?: string }> {
   const prompt = `
 Original user query:
@@ -57,6 +58,7 @@ ${MEMORY_FLUSH_PROMPT}
     model: params.model,
     systemPrompt: params.systemPrompt,
     signal: params.signal,
+    runner: params.runner,
   });
   const response = typeof result.response === 'string' ? result.response.trim() : '';
   if (!response || response === MEMORY_FLUSH_TOKEN) {

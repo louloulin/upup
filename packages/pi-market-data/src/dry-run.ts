@@ -62,6 +62,7 @@ export function makeDryRunQuoteResult(symbol: string, requestedMarket: string | 
   const evidence: MarketEvidence = {
     id: `market-data:${auditId}:quote`,
     source: DRY_RUN_SOURCE_QUOTE,
+    provider: 'dry-run',
     retrievedAt,
     asOf: snapshot.asOf,
     query,
@@ -124,6 +125,7 @@ export function makeDryRunHistoryResult(symbol: string, startDate: string, endDa
   const evidence: MarketEvidence = {
     id: `market-data:${auditId}:history`,
     source: DRY_RUN_SOURCE_HISTORY,
+    provider: 'dry-run',
     retrievedAt,
     asOf: bars.at(-1)?.date ?? endDate,
     query: `${normalized}:${startDate}:${endDate}`,
@@ -290,7 +292,7 @@ export interface DryRunActivationContext {
   readonly env: NodeJS.ProcessEnv;
   readonly hasTushareToken: boolean;
   readonly hasYahooAccess: boolean;
-  readonly provider: 'auto' | 'yahoo' | 'tushare';
+  readonly provider: 'auto' | 'yahoo' | 'tushare' | 'financial-datasets';
 }
 
 export function resolveDryRunActivation(context: DryRunActivationContext): { active: boolean; activatedBy: 'option' | 'env' | 'missing-credentials' | undefined } {

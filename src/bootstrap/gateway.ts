@@ -1,4 +1,4 @@
-import '../runtime/pi/bootstrap.js';
+import { getPiNativeApp } from '@upup/pi-app/default';
 import { runGatewayCli } from '@upup/gateway';
 
-void runGatewayCli();
+void runGatewayCli({ runtime: getPiNativeApp().getGatewayRuntime() });

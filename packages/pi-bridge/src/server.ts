@@ -7,8 +7,8 @@ import { appendFileSync } from 'node:fs';
 import { timingSafeEqual } from 'node:crypto';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { runAgentForMessage, type AgentRunRequest } from '@upup/gateway';
-import { getGatewayConfigRuntime } from '@upup/gateway';
+import { runAgentForMessage, type AgentRunRequest, type GatewayRuntime } from '@upup/gateway';
+import type { UpUpAgentEvent } from '@upup/pi-runtime';
 
 /**
  * Build a JSON response with the correct content-type. Centralized so
@@ -70,6 +70,7 @@ export interface BridgeServerConfig {
   dossiers?: DossierStore;
   /** Pi-backed message execution hook. Defaults to the production Gateway runner. */
   agentRunner?: (request: AgentRunRequest) => Promise<string>;
+  runtime: GatewayRuntime;
 }
 
 export interface BridgeServer {
@@ -92,7 +93,7 @@ export async function startBridgeServer(cfg: BridgeServerConfig): Promise<Bridge
       storageDir: cfg.sessionStorageDir ?? join(homedir(), '.upup', 'sessions'),
     });
   const bind = cfg.bind ?? '127.0.0.1';
-  const agentRunner = cfg.agentRunner ?? runAgentForMessage;
+  const agentRunner = cfg.agentRunner ?? ((request) => runAgentForMessage(request, cfg.runtime.agent));
 
   // P2.b.2: snapshot endpoints need the *actual* bound port (cfg.port
   // is 0 when the caller asked for an ephemeral one). Explicit type
@@ -187,13 +188,11 @@ export async function startBridgeServer(cfg: BridgeServerConfig): Promise<Bridge
           timestamp: Date.now(),
           payload: { phase: 'idle' },
         };
-        try {
-          ws.send(encodeMessage(status));
-        } catch {
-          // best-effort
-        }
+        // The queued microtask runs after Bun finishes the open callback,
+        // while preserving handshake-before-chat ordering on this socket.
+        sendBridge(ws, status);
       },
-      message(ws, raw) {
+      async message(ws, raw) {
         const data = ws.data;
         const rl = auth.rateLimit(data.ip);
         if (!rl.ok) {
@@ -227,19 +226,15 @@ export async function startBridgeServer(cfg: BridgeServerConfig): Promise<Bridge
           timestamp: Date.now(),
           payload: { phase: 'thinking' },
         };
-        try {
-          ws.send(encodeMessage(thinking));
-        } catch {
-          // best-effort
-        }
+        sendBridge(ws, thinking);
         if (msg.kind === 'chat' && msg.payload.role === 'user') {
-          const configRuntime = getGatewayConfigRuntime();
+          const configRuntime = cfg.runtime.config;
           const request: AgentRunRequest = {
             sessionKey: data.sessionId,
             query: msg.payload.content,
             model: configRuntime.getConfiguredModelId(),
             modelProvider: configRuntime.getConfiguredProvider(),
-            onEvent: async (event) => {
+            onEvent: async (event: UpUpAgentEvent) => {
               if (event.type === 'tool_start') {
                 sendBridge(ws, {
                   kind: 'status',
@@ -255,15 +250,15 @@ export async function startBridgeServer(cfg: BridgeServerConfig): Promise<Bridge
                   sessionId: data.sessionId,
                   timestamp: Date.now(),
                   payload: {
-                    tool: event.tool,
-                    result: event.type === 'tool_end' ? event.result : event.error,
+                    tool: event.toolName,
+                    result: event.type === 'tool_end' ? 'completed' : event.error,
                     latencyMs: 0,
                   },
                 });
               }
             },
           };
-          void agentRunner(request).then((answer) => {
+          void agentRunner(request).then(async (answer) => {
             if (answer.trim()) {
               const assistant: BridgeMessage = {
                 kind: 'chat',
@@ -282,6 +277,7 @@ export async function startBridgeServer(cfg: BridgeServerConfig): Promise<Bridge
               timestamp: Date.now(),
               payload: { phase: 'done' },
             });
+            await persistAfterMessage(sync, sessions, data.sessionId, data.clientId);
             sendBridge(ws, {
               kind: 'status',
               seq: msg.seq,
@@ -289,12 +285,12 @@ export async function startBridgeServer(cfg: BridgeServerConfig): Promise<Bridge
               timestamp: Date.now() + 1,
               payload: { phase: 'idle' },
             });
-            persistAfterMessage(sync, sessions, data.sessionId, data.clientId);
-          }).catch((error: unknown) => {
+          }).catch(async (error: unknown) => {
             audit(cfg.auditPath, 'agent-error', {
               sessionId: data.sessionId,
               error: error instanceof Error ? error.message : String(error),
             });
+            await persistAfterMessage(sync, sessions, data.sessionId, data.clientId);
             sendBridge(ws, {
               kind: 'status',
               seq: msg.seq,
@@ -302,9 +298,9 @@ export async function startBridgeServer(cfg: BridgeServerConfig): Promise<Bridge
               timestamp: Date.now(),
               payload: { phase: 'idle' },
             });
-            persistAfterMessage(sync, sessions, data.sessionId, data.clientId);
           });
         } else {
+          await persistAfterMessage(sync, sessions, data.sessionId, data.clientId);
           sendBridge(ws, {
             kind: 'status',
             seq: msg.seq,
@@ -312,11 +308,11 @@ export async function startBridgeServer(cfg: BridgeServerConfig): Promise<Bridge
             timestamp: Date.now() + 1,
             payload: { phase: 'idle' },
           });
-          persistAfterMessage(sync, sessions, data.sessionId, data.clientId);
         }
       },
       close(ws) {
         const data = ws.data;
+        bridgeSendQueues.delete(ws as object);
         if (data.sessionId) sessions.shutdown(data.sessionId);
         audit(cfg.auditPath, 'disconnect', {
           clientId: data.clientId,
@@ -348,12 +344,22 @@ function audit(path: string, event: string, data: Record<string, unknown>): void
   }
 }
 
+const bridgeSendQueues = new WeakMap<object, Promise<void>>();
+
 function sendBridge(ws: { send(data: Uint8Array): void }, message: BridgeMessage): void {
-  try {
-    ws.send(encodeMessage(message));
-  } catch {
-    // The client may disconnect while a Pi turn is still finishing.
-  }
+  const socket = ws as object;
+  const previous = bridgeSendQueues.get(socket) ?? Promise.resolve();
+  const next = previous
+    .catch(() => undefined)
+    .then(() => {
+      try {
+        ws.send(encodeMessage(message));
+      } catch {
+        // The client may disconnect while a Pi turn is still finishing.
+      }
+    });
+  bridgeSendQueues.set(socket, next);
+  void next.catch(() => undefined);
 }
 
 /**
@@ -488,34 +494,32 @@ function adoptMessageSessionId(
  * Swallows all errors: persistence is advisory, the WS round-trip is
  * the source of truth.
  */
-function persistAfterMessage(
+async function persistAfterMessage(
   sync: SessionSync,
   sessions: BridgeSessionStore,
   sessionId: string,
   clientId: string,
-): void {
-  void sync
-    .load(sessionId)
-    .then((existing) => {
-      const inMemory = sessions.get(sessionId);
-      if (!inMemory) return;
-      const now = Date.now();
-      const next: SessionState = {
-        sessionId,
-        createdAt: existing?.createdAt ?? inMemory.createdAt,
-        updatedAt: now,
-        clientId,
-        status: inMemory.status,
-        history: inMemory.history,
-        messages: existing?.messages ?? [],
-        toolHistory: existing?.toolHistory ?? [],
-        scratchpad: existing?.scratchpad ?? '',
-        featureGates: existing?.featureGates ?? {},
-        metadata: existing?.metadata ?? {},
-      };
-      return sync.save(next);
-    })
-    .catch(() => {
-      // best-effort
-    });
+): Promise<void> {
+  try {
+    const existing = await sync.load(sessionId);
+    const inMemory = sessions.get(sessionId);
+    if (!inMemory) return;
+    const now = Date.now();
+    const next: SessionState = {
+      sessionId,
+      createdAt: existing?.createdAt ?? inMemory.createdAt,
+      updatedAt: now,
+      clientId,
+      status: inMemory.status,
+      history: inMemory.history,
+      messages: existing?.messages ?? [],
+      toolHistory: existing?.toolHistory ?? [],
+      scratchpad: existing?.scratchpad ?? '',
+      featureGates: existing?.featureGates ?? {},
+      metadata: existing?.metadata ?? {},
+    };
+    await sync.save(next);
+  } catch {
+    // best-effort: persistence is advisory, the WS round-trip is the source of truth.
+  }
 }

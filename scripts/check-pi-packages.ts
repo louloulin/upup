@@ -1,5 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { findSideEffectCoverageGaps, readWorkspaceManifests } from './check-pi-side-effects.ts';
 
 const root = process.cwd();
 const packageRoot = join(root, 'packages', 'pi-finance-sdk');
@@ -20,9 +21,14 @@ const technicalPackageRoot = join(root, 'packages', 'pi-technical');
 const corporateActionsPackageRoot = join(root, 'packages', 'pi-corporate-actions');
 
 const failures: string[] = [];
+failures.push(...findSideEffectCoverageGaps(readWorkspaceManifests(root)));
 const rootBuildScript = readFileSync(join(root, 'package.json'), 'utf8');
 const resourceCopyScript = readFileSync(join(root, 'scripts', 'copy-pi-package-resources.ts'), 'utf8');
-const ownershipSource = readFileSync(join(root, 'src/runtime/pi/package-tool-ownership.ts'), 'utf8');
+const declaredTools = new Set<string>();
+for (const entry of ['pi-investment-workflow', 'pi-finance-sdk', 'pi-market-data', 'pi-investment-analysis', 'pi-risk', 'pi-portfolio', 'pi-backtest', 'pi-platform', 'pi-research', 'pi-technical', 'pi-browser', 'pi-corporate-actions', 'pi-quant', 'pi-config', 'pi-cache', 'pi-notify', 'pi-management']) {
+  const manifest = JSON.parse(readFileSync(join(root, 'packages', entry, 'package.json'), 'utf8')) as { pi?: { tools?: unknown } };
+  for (const tool of manifest.pi?.tools ?? []) if (typeof tool === 'string') declaredTools.add(tool);
+}
 const shipsPackage = (packageName: string): boolean => resourceCopyScript.includes(`'${packageName}'`)
   && (rootBuildScript.includes('copy-pi-package-resources.ts') || rootBuildScript.includes(`dist/${packageName}/package.json`));
 const packageExtensionFiles = [
@@ -60,11 +66,13 @@ if (investmentWorkflowManifest.version !== '0.1.0') failures.push('investment wo
 if (!investmentWorkflowManifest.keywords?.includes('pi-package')) failures.push('investment workflow package must declare pi-package keyword');
 if (investmentWorkflowManifest.peerDependencies?.['@earendil-works/pi-coding-agent'] !== '0.84.3') failures.push('investment workflow Pi coding-agent peer must be pinned to 0.84.3');
 if (investmentWorkflowManifest.pi?.source !== 'builtin:upup') failures.push('investment workflow package must declare builtin:upup source');
-if (!investmentWorkflowManifest.scripts?.test?.includes('bun test') || !investmentWorkflowManifest.scripts.test.includes('./test.ts')) failures.push('investment workflow package test script must execute ./test.ts');
+if (!investmentWorkflowManifest.scripts?.test?.includes('bun test') || !investmentWorkflowManifest.scripts.test.includes('./src')) failures.push('investment workflow package test script must execute the package src test suite');
 if (!investmentWorkflowManifest.scripts?.build?.includes('tsc --emitDeclarationOnly')) failures.push('investment workflow package build must emit declarations');
 if (!resourceCopyScript.includes("'pi-investment-workflow'")) failures.push('production build must ship investment workflow Pi resources');
 const investmentWorkflowExtensionSource = readFileSync(join(investmentWorkflowPackageRoot, 'extensions', 'index.ts'), 'utf8');
-if (!investmentWorkflowExtensionSource.includes("name: 'invest_workflow_phase'") || !ownershipSource.includes("'invest_workflow_phase'")) failures.push('investment workflow package must natively register and own invest_workflow_phase');
+for (const toolName of ['invest_workflow_phase', 'invest_workflow']) {
+  if (!investmentWorkflowExtensionSource.includes(`name: '${toolName}'`) || !declaredTools.has(toolName)) failures.push(`investment workflow package must natively register and own ${toolName}`);
+}
 if (/from ['"](?:\.\.\/){2,}src\//.test(investmentWorkflowExtensionSource)) failures.push('investment workflow Pi extension must not depend on workspace source modules');
 for (const relative of [
   ...(investmentWorkflowManifest.pi?.extensions ?? []), ...(investmentWorkflowManifest.pi?.skills ?? []), ...(investmentWorkflowManifest.pi?.prompts ?? []),
@@ -87,11 +95,11 @@ for (const extensionPath of packageExtensionFiles) {
   const isNativePlatformExtension = extensionPath.endsWith('packages/pi-platform/extensions/index.ts') && nativePlatformTools.every((toolName) => source.includes(`name: '${toolName}'`));
   const usesExplicitCapabilityRegistry = source.includes('@upup/pi-capability-registry')
     && (source.includes('registerPiCapabilityHost') || source.includes('resolvePiCapabilityHost'));
-  if (!isPureNativeRiskExtension && !isNativeMarketExtension && !isNativeResearchExtension && !isNativeBrowserExtension && !isNativeConfigExtension && !isNativeCacheExtension && !isNativeNotifyExtension && !isNativePlatformExtension && !usesExplicitCapabilityRegistry && !source.includes('__upupPiHosts')) failures.push(`Pi extension must use the package-scoped host registry: ${extensionPath}`);
-  if (source.includes('__upupPiHost') && !source.includes('__upupPiHosts') && !usesExplicitCapabilityRegistry) failures.push(`Pi extension uses a legacy single-host global: ${extensionPath}`);
+  if (source.includes('__upupPiHosts') || source.includes('__upupPiHost') || source.includes('globalThis')) failures.push(`Pi extension uses a forbidden global capability registry: ${extensionPath}`);
+  if (!isPureNativeRiskExtension && !isNativeMarketExtension && !isNativeResearchExtension && !isNativeBrowserExtension && !isNativeConfigExtension && !isNativeCacheExtension && !isNativeNotifyExtension && !isNativePlatformExtension && !usesExplicitCapabilityRegistry) failures.push(`Pi extension must use the explicit session capability contract: ${extensionPath}`);
 }
 for (const toolName of ['get_trading_positions', 'get_trading_balance', 'get_trade_quote', 'place_trade_order', 'cancel_trade_order']) {
-  if (!ownershipSource.includes(`'${toolName}'`)) failures.push(`production trading tool has no Pi package ownership: ${toolName}`);
+  if (!declaredTools.has(toolName)) failures.push(`production trading tool has no Pi package ownership: ${toolName}`);
 }
 const financeExtensionSource = readFileSync(join(packageRoot, 'extensions', 'index.ts'), 'utf8');
 if (!financeExtensionSource.includes("name: 'get_trade_quote'")) failures.push('finance Pi package must natively register get_trade_quote');
@@ -109,22 +117,22 @@ if (!financeExtensionSource.includes("name: 'read_filings'")) failures.push('fin
 if (!existsSync(join(packageRoot, 'src', 'filings.ts'))) failures.push('finance package native filings implementation is missing');
 for (const toolName of nativeFinanceTools) {
   if (!financeExtensionSource.includes(`name: '${toolName}'`)) failures.push(`finance Pi package must natively register ${toolName}`);
-  if (!ownershipSource.includes(`'${toolName}'`)) failures.push(`finance tool has no Pi package ownership: ${toolName}`);
+  if (!declaredTools.has(toolName)) failures.push(`finance tool has no Pi package ownership: ${toolName}`);
 }
 if (!existsSync(join(packageRoot, 'src', 'alt-data.ts'))) failures.push('finance package native alternative-data implementation is missing');
 if (!financeExtensionSource.includes("name: 'get_astock_news'")) failures.push('finance Pi package must natively register get_astock_news');
 if (!financeExtensionSource.includes("name: 'get_investment_strategies'")) failures.push('finance Pi package must natively register get_investment_strategies');
 for (const toolName of ['track_company', 'track_sector', 'get_knowledge_summary']) {
   if (!financeExtensionSource.includes(`name: '${toolName}'`)) failures.push(`finance Pi package must natively register ${toolName}`);
-  if (!ownershipSource.includes(`'${toolName}'`)) failures.push(`finance native ownership is missing ${toolName}`);
+  if (!declaredTools.has(toolName)) failures.push(`finance native ownership is missing ${toolName}`);
 }
 for (const toolName of ['get_company_profile', 'get_risks', 'get_sectors']) {
   if (!financeExtensionSource.includes(`name: '${toolName}'`)) failures.push(`finance Pi package must natively register ${toolName}`);
-  if (!ownershipSource.includes(`'${toolName}'`)) failures.push(`finance native ownership is missing ${toolName}`);
+  if (!declaredTools.has(toolName)) failures.push(`finance native ownership is missing ${toolName}`);
 }
 for (const toolName of ['calculate_capital_gains_tax', 'calculate_trades_tax', 'calculate_pnl']) {
   if (!financeExtensionSource.includes(`name: '${toolName}'`)) failures.push(`finance Pi package must natively register ${toolName}`);
-  if (!ownershipSource.includes(`'${toolName}'`)) failures.push(`finance native ownership is missing ${toolName}`);
+  if (!declaredTools.has(toolName)) failures.push(`finance native ownership is missing ${toolName}`);
 }
 for (const toolName of ['fund_detail', 'fund_performance', 'fund_holdings', 'fund_manager']) {
   if (!financeExtensionSource.includes(`name: '${toolName}'`)) failures.push(`finance Pi package must natively register ${toolName}`);
@@ -261,11 +269,11 @@ for (const toolName of ['dcf_model', 'ddm_model', 'valuation_ratios', 'peer_comp
   if (!analysisExtensionSource.includes(`name: '${toolName}'`)) failures.push(`investment-analysis Pi tool is not registered: ${toolName}`);
 }
 if (!analysisExtensionSource.includes("name: 'list_research_tasks'")) failures.push('investment-analysis Pi tool is not registered: list_research_tasks');
-if (!ownershipSource.includes("'list_research_tasks'")) failures.push('investment-analysis research journal tool has no Pi package ownership');
+if (!declaredTools.has('list_research_tasks')) failures.push('investment-analysis research journal tool has no Pi package ownership');
 if (!existsSync(join(investmentAnalysisPackageRoot, 'src', 'research-journal.ts'))) failures.push('investment-analysis native research journal implementation is missing');
 for (const toolName of nativeInvestmentAnalysisTools) {
   if (!analysisExtensionSource.includes(`name: '${toolName}'`)) failures.push(`investment-analysis native option tool is not registered: ${toolName}`);
-  if (!ownershipSource.includes(`'${toolName}'`)) failures.push(`investment-analysis option tool has no Pi package ownership: ${toolName}`);
+  if (!declaredTools.has(toolName)) failures.push(`investment-analysis option tool has no Pi package ownership: ${toolName}`);
 }
 if (/from ['"](?:\.\.\/){2,}src\//.test(analysisExtensionSource)) failures.push('investment-analysis Pi extension must not depend on workspace source modules');
 
@@ -340,7 +348,7 @@ for (const toolName of ['portfolio_attribution', 'portfolio_brinson_attribution'
 }
 for (const toolName of nativePortfolioTools) {
   if (!portfolioExtensionSource.includes(`name: '${toolName}'`)) failures.push(`portfolio DuckDB Pi tool is not registered: ${toolName}`);
-  if (!ownershipSource.includes(`'${toolName}'`)) failures.push(`portfolio DuckDB tool has no Pi package ownership: ${toolName}`);
+  if (!declaredTools.has(toolName)) failures.push(`portfolio DuckDB tool has no Pi package ownership: ${toolName}`);
 }
 if (!existsSync(join(portfolioPackageRoot, 'src', 'duckdb.ts'))) failures.push('portfolio package native DuckDB implementation is missing');
 if (/from ['"](?:\.\.\/){2,}src\//.test(portfolioExtensionSource)) failures.push('portfolio Pi extension must not depend on workspace source modules');
@@ -392,10 +400,10 @@ for (const relative of [
 }
 const platformExtensionSource = readFileSync(join(platformPackageRoot, 'extensions', 'index.ts'), 'utf8');
 for (const toolName of ['read_file', 'memory_search', 'enter_plan_mode', 'task_create', 'list_mcp_resources']) {
-  if (!platformExtensionSource.includes('getToolDefinitions') || !ownershipSource.includes(`'${toolName}'`)) failures.push(`platform Pi tool is not owned: ${toolName}`);
+  if (!platformExtensionSource.includes('getToolDefinitions') || !declaredTools.has(toolName)) failures.push(`platform Pi tool is not owned: ${toolName}`);
 }
 for (const toolName of nativePlatformTools) {
-  if (!platformExtensionSource.includes(`name: '${toolName}'`) || !ownershipSource.includes(`'${toolName}'`)) failures.push(`platform Pi package must natively register and own ${toolName}`);
+  if (!platformExtensionSource.includes(`name: '${toolName}'`) || !declaredTools.has(toolName)) failures.push(`platform Pi package must natively register and own ${toolName}`);
 }
 
 const researchManifest = JSON.parse(readFileSync(join(researchPackageRoot, 'package.json'), 'utf8')) as {
@@ -410,7 +418,7 @@ if (researchManifest.peerDependencies?.['@earendil-works/pi-coding-agent'] !== '
 if (researchManifest.pi?.source !== 'builtin:upup') failures.push('research package must declare the allowlisted builtin:upup source');
 if (!researchManifest.scripts?.test?.includes('bun test') || !researchManifest.scripts.test.includes('./test.ts')) failures.push('research package test script must execute ./test.ts');
 if (!researchManifest.scripts?.build?.includes('tsc --emitDeclarationOnly')) failures.push('research package build must emit declarations');
-if (!ownershipSource.includes("'web_fetch'")) failures.push('research web_fetch tool has no Pi package ownership');
+if (!declaredTools.has('web_fetch')) failures.push('research web_fetch tool has no Pi package ownership');
 for (const relative of [
   ...(researchManifest.pi?.extensions ?? []), ...(researchManifest.pi?.skills ?? []), ...(researchManifest.pi?.prompts ?? []),
   ...(researchManifest.pi?.workflows ?? []), ...(researchManifest.pi?.policies ?? []), ...(researchManifest.pi?.evals ?? []),
@@ -458,7 +466,7 @@ if (!configManifest.scripts?.test?.includes('bun test') || !configManifest.scrip
 if (!configManifest.scripts?.build?.includes('tsc --emitDeclarationOnly')) failures.push('config package build must emit declarations');
 if (!rootBuildScript.includes('packages/pi-config')) failures.push('production build must ship the built-in config Pi package resources');
 const configExtensionSource = readFileSync(join(configPackageRoot, 'extensions', 'index.ts'), 'utf8');
-for (const toolName of ['config_get', 'config_set', 'config_list']) if (!configExtensionSource.includes(`name: '${toolName}'`) || !ownershipSource.includes(`'${toolName}'`)) failures.push(`config Pi package must natively register and own ${toolName}`);
+for (const toolName of ['config_get', 'config_set', 'config_list']) if (!configExtensionSource.includes(`name: '${toolName}'`) || !declaredTools.has(toolName)) failures.push(`config Pi package must natively register and own ${toolName}`);
 if (/from ['"](?:\.\.\/){2,}src\//.test(configExtensionSource)) failures.push('config Pi extension must not depend on workspace source modules');
 for (const relative of [
   ...(configManifest.pi?.extensions ?? []), ...(configManifest.pi?.skills ?? []), ...(configManifest.pi?.prompts ?? []),
@@ -481,7 +489,7 @@ if (!cacheManifest.scripts?.test?.includes('bun test') || !cacheManifest.scripts
 if (!cacheManifest.scripts?.build?.includes('tsc --emitDeclarationOnly')) failures.push('cache package build must emit declarations');
 if (!rootBuildScript.includes('packages/pi-cache')) failures.push('production build must ship the built-in cache Pi package resources');
 const cacheExtensionSource = readFileSync(join(cachePackageRoot, 'extensions', 'index.ts'), 'utf8');
-for (const toolName of ['get_cache_stats', 'clear_cache', 'invalidate_cache', 'get_cache_info']) if (!cacheExtensionSource.includes(`name: '${toolName}'`) || !ownershipSource.includes(`'${toolName}'`)) failures.push(`cache Pi package must natively register and own ${toolName}`);
+for (const toolName of ['get_cache_stats', 'clear_cache', 'invalidate_cache', 'get_cache_info']) if (!cacheExtensionSource.includes(`name: '${toolName}'`) || !declaredTools.has(toolName)) failures.push(`cache Pi package must natively register and own ${toolName}`);
 if (/from ['"](?:\.\.\/){2,}src\//.test(cacheExtensionSource)) failures.push('cache Pi extension must not depend on workspace source modules');
 for (const relative of [
   ...(cacheManifest.pi?.extensions ?? []), ...(cacheManifest.pi?.skills ?? []), ...(cacheManifest.pi?.prompts ?? []),
@@ -504,7 +512,7 @@ if (!notifyManifest.scripts?.test?.includes('bun test') || !notifyManifest.scrip
 if (!notifyManifest.scripts?.build?.includes('tsc --emitDeclarationOnly')) failures.push('notify package build must emit declarations');
 if (!rootBuildScript.includes('packages/pi-notify')) failures.push('production build must ship the built-in notify Pi package resources');
 const notifyExtensionSource = readFileSync(join(notifyPackageRoot, 'extensions', 'index.ts'), 'utf8');
-for (const toolName of ['notify', 'notify_list', 'subscribe_pr', 'unsubscribe_pr', 'list_pr_subscriptions']) if (!notifyExtensionSource.includes(`name: '${toolName}'`) || !ownershipSource.includes(`'${toolName}'`)) failures.push(`notify Pi package must natively register and own ${toolName}`);
+for (const toolName of ['notify', 'notify_list', 'subscribe_pr', 'unsubscribe_pr', 'list_pr_subscriptions']) if (!notifyExtensionSource.includes(`name: '${toolName}'`) || !declaredTools.has(toolName)) failures.push(`notify Pi package must natively register and own ${toolName}`);
 if (/from ['"](?:\.\.\/){2,}src\//.test(notifyExtensionSource)) failures.push('notify Pi extension must not depend on workspace source modules');
 for (const relative of [
   ...(notifyManifest.pi?.extensions ?? []), ...(notifyManifest.pi?.skills ?? []), ...(notifyManifest.pi?.prompts ?? []),
@@ -527,7 +535,7 @@ if (!managementManifest.scripts?.test?.includes('bun test') || !managementManife
 if (!managementManifest.scripts?.build?.includes('tsc --emitDeclarationOnly')) failures.push('management package build must emit declarations');
 if (!shipsPackage('pi-management')) failures.push('production build must ship the built-in management Pi package resources');
 const managementExtensionSource = readFileSync(join(managementPackageRoot, 'extensions', 'index.ts'), 'utf8');
-for (const toolName of ['management_system_snapshot', 'management_provider_status', 'management_package_status', 'management_runtime_status']) if (!managementExtensionSource.includes(`name: '${toolName}'`) || !ownershipSource.includes(`'${toolName}'`)) failures.push(`management Pi package must natively register and own ${toolName}`);
+for (const toolName of ['management_system_snapshot', 'management_provider_status', 'management_package_status', 'management_runtime_status']) if (!managementExtensionSource.includes(`name: '${toolName}'`) || !declaredTools.has(toolName)) failures.push(`management Pi package must natively register and own ${toolName}`);
 if (/from ['"](?:\.\.\/){2,}src\//.test(managementExtensionSource)) failures.push('management Pi extension must not depend on workspace source modules');
 for (const relative of [
   ...(managementManifest.pi?.extensions ?? []), ...(managementManifest.pi?.skills ?? []), ...(managementManifest.pi?.prompts ?? []),

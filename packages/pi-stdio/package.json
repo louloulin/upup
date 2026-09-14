@@ -30,7 +30,7 @@
     "contract": "upup.pi.runtime.v1",
     "source": "builtin:upup",
     "trust": { "mode": "builtin", "filesystem": false, "network": false },
-    "lifecycle": { "scope": "process" },
+    "lifecycle": { "scope": "process", "dispose": "./src/server.ts#shutdown" },
     "extensions": [],
     "skills": [],
     "prompts": [],

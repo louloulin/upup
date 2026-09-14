@@ -26,7 +26,7 @@ import {
 } from './types/command-types.js'
 
 import type { Command } from './types/command-types.js'
-import type { CommandContext, CommandResult } from './commands.js'
+import type { CommandContext, CommandResult } from './command-contract.js'
 
 // ============================================================================
 // UNIFIED COMMAND ALIASES (merged from slash-commands.ts)
@@ -462,6 +462,7 @@ export async function executeCommand(
         if (context.sessionDuration !== undefined) {
           localContext.sessionDuration = context.sessionDuration
         }
+        localContext.capabilities = context.capabilities
         const result = await module.call(args, localContext as any)
 
         if (result.type === 'text') {
@@ -802,4 +803,4 @@ export function fuzzyMatchCommands(input: string, maxResults: number = 10): Slas
 // Import for usage tracking in fuzzyMatchCommands
 import { getCommandUsage } from './command-usage.js'
 
-// Types are imported from './commands.js'
+// Command contracts are defined independently from the removed legacy registry.

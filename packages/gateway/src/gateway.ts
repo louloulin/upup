@@ -24,7 +24,7 @@ import { appendFileSync } from 'node:fs';
 import { upupPath } from '@upup/utils';
 import { JsonFileMarketQuoteTrendStore, startProviderSlaRunner, type ProviderSlaRunner } from '@upup/pi-market-data';
 import { globalUpupPath } from '@upup/utils';
-import { getGatewayConfigRuntime, getGatewayCronRuntime } from './runtime-port.js';
+import type { GatewayRuntime } from './runtime-port.js';
 
 const LOG_PATH = upupPath('gateway-debug.log');
 function debugLog(msg: string) {
@@ -43,7 +43,7 @@ function elide(text: string, maxLen: number): string {
   return text.slice(0, maxLen - 3) + '...';
 }
 
-async function handleInbound(cfg: GatewayConfig, inbound: WhatsAppInboundMessage): Promise<void> {
+async function handleInbound(cfg: GatewayConfig, inbound: WhatsAppInboundMessage, runtime: GatewayRuntime): Promise<void> {
   const bodyPreview = elide(inbound.body.replace(/\n/g, ' '), 50);
   const isGroup = inbound.chatType === 'group';
   console.log(`Inbound message ${inbound.from} (${inbound.chatType}, ${inbound.body.length} chars): "${bodyPreview}"`);
@@ -159,11 +159,11 @@ async function handleInbound(cfg: GatewayConfig, inbound: WhatsAppInboundMessage
     }
 
     console.log(`Processing message with agent...`);
-    const model = getGatewayConfigRuntime().getConfiguredModelId();
-    const modelProvider = getGatewayConfigRuntime().getConfiguredProvider();
+    const model = runtime.config.getConfiguredModelId();
+    const modelProvider = runtime.config.getConfiguredProvider();
 
     // If agent is already running for this session, enqueue for mid-run injection
-    if (isSessionRunning(route.sessionKey)) {
+    if (isSessionRunning(route.sessionKey, runtime.agent)) {
       debugLog(`[gateway] agent busy for session=${route.sessionKey}, enqueueing`);
       enqueueForSession(route.sessionKey, model, query);
       return;
@@ -178,7 +178,7 @@ async function handleInbound(cfg: GatewayConfig, inbound: WhatsAppInboundMessage
       modelProvider,
       channel: 'whatsapp',
       groupContext,
-    });
+    }, runtime.agent);
     const durationMs = Date.now() - startedAt;
     debugLog(`[gateway] agent answer length=${answer.length}`);
 
@@ -214,13 +214,14 @@ async function handleInbound(cfg: GatewayConfig, inbound: WhatsAppInboundMessage
   }
 }
 
-export async function startGateway(params: { configPath?: string } = {}): Promise<GatewayService> {
+export async function startGateway(params: { configPath?: string; runtime: GatewayRuntime }): Promise<GatewayService> {
+  const runtime = params.runtime;
   const cfg = loadGatewayConfig(params.configPath);
   const plugin = createWhatsAppPlugin({
     loadConfig: () => loadGatewayConfig(params.configPath),
     onMessage: async (inbound) => {
       const current = loadGatewayConfig(params.configPath);
-      await handleInbound(current, inbound);
+      await handleInbound(current, inbound, runtime);
     },
   });
   const manager = createChannelManager({
@@ -229,9 +230,8 @@ export async function startGateway(params: { configPath?: string } = {}): Promis
   });
   await manager.startAll();
 
-  const cronRuntime = getGatewayCronRuntime();
-  await cronRuntime.ensureHeartbeatCronJob(params.configPath);
-  const cron = cronRuntime.startCronRunner({ configPath: params.configPath });
+  await runtime.cron.ensureHeartbeatCronJob(params.configPath);
+  const cron = runtime.cron.startCronRunner({ configPath: params.configPath, runtime });
   const slaOptions: Parameters<typeof startProviderSlaRunner>[0] = { trendStore: new JsonFileMarketQuoteTrendStore(process.env.UPUP_PROVIDER_METRICS_PATH?.trim() || globalUpupPath('metrics', 'market-provider-trend.json')) };
   const hookBag = (globalThis as { __upupGatewayTestHooks?: { createSlaRunner?: (options: Parameters<typeof startProviderSlaRunner>[0]) => ProviderSlaRunner; onSlaRunner?: (runner: ProviderSlaRunner) => void } }).__upupGatewayTestHooks;
   const providerSlaRunner: ProviderSlaRunner = hookBag?.createSlaRunner ? hookBag.createSlaRunner(slaOptions) : startProviderSlaRunner(slaOptions);

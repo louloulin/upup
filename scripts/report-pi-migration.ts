@@ -3,11 +3,15 @@ import { join, resolve } from 'node:path';
 
 const root = process.cwd();
 const packagesRoot = resolve(root, 'packages');
-const ownershipSource = readFileSync(resolve(root, 'src/runtime/pi/package-tool-ownership.ts'), 'utf8');
-const ownershipTable = ownershipSource.slice(ownershipSource.indexOf('const ownership:'));
 const ownedTools = new Set<string>();
-for (const match of ownershipTable.matchAll(/\[\w+_PACKAGE\]: \[(.*?)\],/gs)) {
-  for (const tool of match[1].matchAll(/'([^']+)'/g)) ownedTools.add(tool[1]);
+for (const packageDirectory of readdirSync(packagesRoot)) {
+  const manifestPath = join(packagesRoot, packageDirectory, 'package.json');
+  try {
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as { pi?: { tools?: unknown } };
+    for (const tool of manifest.pi?.tools ?? []) if (typeof tool === 'string') ownedTools.add(tool);
+  } catch {
+    continue;
+  }
 }
 
 const extensionTools = new Map<string, Set<string>>();

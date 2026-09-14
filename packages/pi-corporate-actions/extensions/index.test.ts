@@ -1,6 +1,6 @@
 import { describe, expect, test, beforeEach } from 'bun:test';
-
-const HOSTS = '__upupPiHosts';
+import { createEventBus } from '@earendil-works/pi-coding-agent';
+import { publishPiCapabilityHosts } from '@upup/pi-capability-registry';
 
 const HOST_REG = {
   packageName: '@upup/pi-corporate-actions',
@@ -9,12 +9,13 @@ const HOST_REG = {
   capabilities: ['extensions', 'skills', 'prompts', 'workflows', 'policies', 'evals'],
 };
 
-function setHost(map: Map<string, typeof HOST_REG>): void {
-  (globalThis as unknown as Record<string, unknown>)[HOSTS] = map;
+function setHost(map: Map<string, typeof HOST_REG>) {
+  const events = createEventBus();
+  const dispose = publishPiCapabilityHosts(events, HOST_REG.sessionId, map);
+  return { events, dispose };
 }
 
 beforeEach(() => {
-  setHost(new Map());
 });
 
 describe('pi-corporate-actions extension registration', () => {
@@ -25,9 +26,10 @@ describe('pi-corporate-actions extension registration', () => {
         tools.set(def.name, { execute: def.execute, description: def.description });
       },
     };
-    setHost(new Map([['@upup/pi-corporate-actions', HOST_REG]]));
+    const { events, dispose } = setHost(new Map([['@upup/pi-corporate-actions', HOST_REG]]));
     const mod = await import('./index.js');
-    mod.default(fakePi as unknown as Parameters<typeof mod.default>[0]);
+    mod.default({ ...fakePi, events } as unknown as Parameters<typeof mod.default>[0]);
+    dispose();
     expect(tools.size).toBe(8);
     expect(tools.has('corporate_actions_dividends')).toBe(true);
     expect(tools.has('corporate_actions_splits')).toBe(true);
@@ -40,9 +42,11 @@ describe('pi-corporate-actions extension registration', () => {
   });
 
   test('registerHostTools is a no-op when host is missing', async () => {
-    setHost(new Map());
+    const { events, dispose } = setHost(new Map());
     const mod = await import('./index.js');
     expect(typeof mod.default).toBe('function');
+    mod.default({ registerTool: () => undefined, events } as unknown as Parameters<typeof mod.default>[0]);
+    dispose();
   });
 
   test('corporate_actions_dividends returns dry-run evidence for 600519.SH', async () => {
@@ -52,9 +56,9 @@ describe('pi-corporate-actions extension registration', () => {
         tools.set(def.name, { execute: def.execute as never });
       },
     };
-    setHost(new Map([['@upup/pi-corporate-actions', HOST_REG]]));
+    const { events, dispose } = setHost(new Map([['@upup/pi-corporate-actions', HOST_REG]]));
     const mod = await import('./index.js');
-    mod.default(fakePi as unknown as Parameters<typeof mod.default>[0]);
+    mod.default({ ...fakePi, events } as unknown as Parameters<typeof mod.default>[0]);
     const tool = tools.get('corporate_actions_dividends');
     expect(tool).toBeDefined();
     const ctrl = new AbortController();
@@ -73,13 +77,14 @@ describe('pi-corporate-actions extension registration', () => {
         tools.set(def.name, { execute: def.execute as never });
       },
     };
-    setHost(new Map([['@upup/pi-corporate-actions', HOST_REG]]));
+    const { events, dispose } = setHost(new Map([['@upup/pi-corporate-actions', HOST_REG]]));
     const mod = await import('./index.js');
-    mod.default(fakePi as unknown as Parameters<typeof mod.default>[0]);
+    mod.default({ ...fakePi, events } as unknown as Parameters<typeof mod.default>[0]);
     const ctrl = new AbortController();
     ctrl.abort();
     const out = await tools.get('corporate_actions_splits')!.execute('audit-2', { symbol: 'AAPL' }, ctrl.signal);
     expect(out.isError).toBe(true);
     expect(out.content[0].text).toContain('aborted');
+    dispose();
   });
 });

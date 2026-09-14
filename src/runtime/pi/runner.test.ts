@@ -15,9 +15,9 @@ import { join } from 'node:path';
 import { fauxAssistantMessage, fauxProvider, fauxText, fauxToolCall } from '@earendil-works/pi-ai';
 import { ModelRuntime } from '@earendil-works/pi-coding-agent';
 import { Type } from 'typebox';
-import { disposePiSessions, isPiSessionRunning, runPiPrompt, toPiSessionId } from './runner.js';
-import { getPiSessionService } from '@upup/pi-session';
-import { bootstrapPiNativeServices } from './bootstrap.js';
+import { disposePiSessions, isPiSessionRunning, runPiPrompt, toPiSessionId } from '@upup/pi-session';
+import { disposePiSessionService } from '@upup/pi-session';
+import { bootstrapPiNativeServices, getPiNativeApp } from '@upup/pi-app/default';
 
 bootstrapPiNativeServices();
 import type { UpUpToolContract } from '@upup/pi-runtime';
@@ -58,7 +58,8 @@ async function withTempDir<T>(prefix: string, body: () => Promise<T>): Promise<T
   } finally {
     if (previous === undefined) delete process.env.UPUP_SESSION_DIR;
     else process.env.UPUP_SESSION_DIR = previous;
-    await getPiSessionService().dispose();
+    await getPiNativeApp().dispose();
+    bootstrapPiNativeServices();
     await rm(dir, { recursive: true, force: true });
   }
 }

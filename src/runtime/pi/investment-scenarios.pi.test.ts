@@ -1,19 +1,19 @@
-import { beforeAll, describe, expect, test } from 'bun:test';
+import { describe, expect, test } from 'bun:test';
 import { fauxAssistantMessage, fauxProvider, fauxText } from '@earendil-works/pi-ai';
 import { ModelRuntime } from '@earendil-works/pi-coding-agent';
-import { registerGatewayAgentRuntime, registerGatewayConfigRuntime } from '@upup/gateway';
+import type { GatewayRuntime } from '@upup/gateway';
 import { Type } from 'typebox';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { getInvestmentAgentSpec } from './agent-spec.js';
-import { PiAgentSessionFactory } from './agent-session-factory.js';
+import { getInvestmentAgentSpec } from '@upup/pi-investment-workflow';
+import { PiAgentSessionFactory } from '@upup/pi-session';
 import type { UpUpToolContract } from '@upup/pi-runtime';
-import { disposePiSessions } from './runner.js';
+import { disposePiSessions } from '@upup/pi-session';
 import { runAgentForMessage } from '@upup/gateway';
 import { executeCronJob, type CronJob, type CronStore } from '@upup/cron';
 
-beforeAll(() => {
-  registerGatewayAgentRuntime({
+const scenarioRuntime: GatewayRuntime = {
+  agent: {
     isSessionRunning: () => false,
     runPrompt: async (_query, options) => {
       const text = 'noop-fixture';
@@ -27,12 +27,13 @@ beforeAll(() => {
       await options.onEvent?.({ type: 'agent_end', sessionId: 'scenario-fixture' });
       return text;
     },
-  });
-  registerGatewayConfigRuntime({
+  },
+  config: {
     getConfiguredModelId: () => 'scenario-fixture-model',
     getConfiguredProvider: () => 'upup-scenario-fixture',
-  });
-});
+  },
+  cron: { ensureHeartbeatCronJob: () => undefined, startCronRunner: () => ({ stop: () => undefined }) },
+};
 
 const scenarioInput = Type.Object({
   symbol: Type.Optional(Type.String()),
@@ -165,7 +166,9 @@ describe('named Pi investment scenarios', () => {
     const directory = await mkdtemp(join(process.cwd(), '.upup', 'scenario-gateway-'));
     const previousDir = process.env.UPUP_SESSION_DIR;
     process.env.UPUP_SESSION_DIR = directory;
-    registerGatewayAgentRuntime({
+    const runtime: GatewayRuntime = {
+      ...scenarioRuntime,
+      agent: {
       isSessionRunning: () => false,
       runPrompt: async (_query, options) => {
         const text = 'Gateway scenario completed through Pi.';
@@ -179,7 +182,8 @@ describe('named Pi investment scenarios', () => {
         await options.onEvent?.({ type: 'agent_end', sessionId: 'scenario-gateway' });
         return text;
       },
-    });
+      },
+    };
     const faux = fauxProvider({ provider: 'upup-scenario-gateway', models: [{ id: 'scenario-gateway-model', reasoning: false }] });
     faux.setResponses([fauxAssistantMessage([fauxText('Gateway scenario completed through Pi.')])]);
     const modelRuntime = await ModelRuntime.create({ refreshOnCreate: false });
@@ -192,7 +196,7 @@ describe('named Pi investment scenarios', () => {
         modelProvider: 'upup-scenario-gateway',
         piModel: faux.getModel(),
         piModelRuntime: modelRuntime,
-      });
+      }, runtime.agent);
       expect(answer).toContain('Gateway scenario completed through Pi.');
     } finally {
       disposePiSessions();
@@ -203,10 +207,10 @@ describe('named Pi investment scenarios', () => {
   });
 
   test('invest-cron-run', async () => {
-    registerGatewayConfigRuntime({
-      getConfiguredModelId: () => 'scenario-cron-model',
-      getConfiguredProvider: () => 'upup-scenario-cron',
-    });
+    const runtime: GatewayRuntime = {
+      ...scenarioRuntime,
+      config: { getConfiguredModelId: () => 'scenario-cron-model', getConfiguredProvider: () => 'upup-scenario-cron' },
+    };
     const now = Date.now();
     const job: CronJob = {
       id: 'scenario-cron-run',
@@ -237,6 +241,7 @@ describe('named Pi investment scenarios', () => {
         deliveries.push(message.body);
         return { messageId: 'scenario-cron-message', toJid: message.to };
       },
+      runtime,
     });
     expect(deliveries).toEqual(['Cron scenario completed through Pi.']);
     expect(job.state.lastRunStatus).toBe('ok');

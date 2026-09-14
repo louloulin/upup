@@ -17,14 +17,14 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@upup/types": "workspace:*",
-    "gray-matter": "^4.0.3",
-    "zod": "^3.22.0"
+    "@upup/types": "0.2.0",
+    "gray-matter": "4.0.3",
+    "zod": "3.25.76"
   },
   "files": [
     "dist",
     "!dist/*.node"
   ],
   "private": false,
-  "pi": { "contract": "upup.pi.runtime.v1", "source": "builtin:upup", "trust": { "mode": "builtin", "filesystem": true }, "lifecycle": { "scope": "session" }, "extensions": [], "skills": [], "prompts": [], "workflows": [], "policies": [], "evals": [] }
+  "pi": { "contract": "upup.pi.runtime.v1", "source": "builtin:upup", "trust": { "mode": "builtin", "filesystem": true }, "lifecycle": { "scope": "session" }, "capabilities": [{ "name": "memory.session", "version": "1.0.0", "scope": "session", "trust": { "mode": "builtin", "filesystem": true }, "lifecycle": { "scope": "session" } }], "extensions": [], "skills": [], "prompts": [], "workflows": [], "policies": [], "evals": [] }
 }

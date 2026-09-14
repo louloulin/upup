@@ -270,7 +270,7 @@ export function buildEarningsPreview(
     planFramework: buildResearchPlan(`分析 ${ticker} 估值与财报`, {
       description: `财报前瞻: 下次财报日期 + 共识预期 + 历史 surprise 平均`,
       ticker,
-      phases: ['research', 'valuation'],
+      phases: ['detect', 'plan'],
     }),
   };
   // P1.a.4: read last prior call from dossier (sync, in-memory) and
@@ -313,7 +313,7 @@ export async function buildEarningsPreviewAsync(
     planFramework: buildResearchPlan(`分析 ${ticker} 估值与财报`, {
       description: `财报前瞻: 下次财报日期 + 共识预期 + 历史 surprise 平均`,
       ticker,
-      phases: ['research', 'valuation'],
+      phases: ['detect', 'plan'],
     }),
   };
   populateEarningsDiff(result, opts.dossiers);

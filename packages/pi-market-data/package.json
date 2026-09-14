@@ -17,6 +17,7 @@
     }
   },
   "scripts": {
+    "prebuild": "bun run ../../scripts/clean-pi-package-dist.ts",
     "build": "bun build src/index.ts --outdir=dist --target=node && bun build extensions/index.ts --outdir=dist/extensions --target=node && tsc --emitDeclarationOnly --declaration --declarationMap --outDir dist",
     "test": "bun test ./test.ts ./src/provider-sla.test.ts ./src/dry-run.test.ts ./extensions/index.test.ts"
   },
@@ -36,7 +37,16 @@
     "typebox": "1.3.7"
   },
   "pi": {
-    "source": "builtin:upup",
+    "contract": "upup.pi.runtime.v1",
+   "source": "builtin:upup",
+    "tools": ["get_market_data","stock_screener","get_astock_price","screen_astocks","get_sector_data","get_market_structure","get_technical_data","market_data_quote","market_data_history","market_trading_day","check_trading_day","get_upcoming_holidays","get_next_trading_day","get_trading_days","market_data_provider_health","market_data_provider_trend","market_data_provider_sla","realtime_subscribe","realtime_unsubscribe","realtime_list_subscriptions","kairos_recent_opportunities","kairos_recent_position_alerts","kairos_recent_scanner_events","kairos_summary"],
+    "nativeTools": ["get_market_data","stock_screener","get_astock_price","screen_astocks","get_sector_data","get_market_structure","get_technical_data","market_data_quote","market_data_history","market_trading_day","check_trading_day","get_upcoming_holidays","get_next_trading_day","get_trading_days","market_data_provider_health","market_data_provider_trend","market_data_provider_sla","realtime_subscribe","realtime_unsubscribe","realtime_list_subscriptions","kairos_recent_opportunities","kairos_recent_position_alerts","kairos_recent_scanner_events","kairos_summary"],
+    "trust": { "mode": "builtin", "network": true, "credentials": true },
+    "hostCapabilities": ["market-data-transport"],
+    "capabilities": [
+      { "name": "market-data.quote-trend-store", "version": "1.0.0", "scope": "session", "trust": { "mode": "builtin", "filesystem": true }, "lifecycle": { "scope": "session" } }
+    ],
+    "lifecycle": { "scope": "session" },
     "extensions": [
       "./extensions"
     ],
@@ -54,9 +64,15 @@
     ],
     "evals": [
       "./evals"
-    ]
+    ],
+    "dependencies": {
+      "@upup/pi-capability-registry": "0.1.0",
+      "@upup/pi-observability": "0.1.0"
+    }
   },
   "dependencies": {
-    "@upup/pi-capability-registry": "0.1.0"
+    "@upup/types": "0.2.0",
+    "@upup/pi-capability-registry": "0.1.0",
+    "@upup/pi-observability": "0.1.0"
   }
 }

@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { appendFile, mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { getSetting } from '@upup/utils';
+import { getSetting, type PromptRunner } from '@upup/utils';
 import type { MemoryType, MemoryWriteRequest, MemoryFileMeta } from './types.js';
 import { getUpupDir } from '@upup/utils';
 
@@ -115,16 +115,16 @@ export class MemvidStore {
 
   async ask(
     question: string,
-    options: { model?: string; apiKey?: string; contextOnly?: boolean; mode?: 'auto' | 'lex' | 'sem'; k?: number } = {},
+    options: { model?: string; apiKey?: string; contextOnly?: boolean; mode?: 'auto' | 'lex' | 'sem'; k?: number; runner?: PromptRunner } = {},
   ): Promise<string> {
     if (!options.apiKey) throw new Error('LLM API key required for RAG synthesis');
     const results = await this.search(question, options.k ?? DEFAULT_K);
     const context = results.map((result) => `[${result.memory.name}] ${result.snippet}`).join('\n');
     if (options.contextOnly) return context;
     if (!context) return 'No relevant memory was found.';
-    const { runPiPrompt } = await import('@upup/utils');
+    if (!options.runner) throw new Error('Pi prompt runner must be injected for memory RAG synthesis');
     const model = options.model ?? `${getSetting('provider', 'deepseek')}:${getSetting('modelId', 'deepseek-v4-flash')}`;
-    return runPiPrompt(`Answer the question using only the memory context below. Cite the memory names.\n\nQuestion: ${question}\n\nContext:\n${context}`, {
+    return options.runner(`Answer the question using only the memory context below. Cite the memory names.\n\nQuestion: ${question}\n\nContext:\n${context}`, {
       model,
       sessionKey: `memory-rag:${createHash('sha256').update(question).digest('hex').slice(0, 16)}`,
     });

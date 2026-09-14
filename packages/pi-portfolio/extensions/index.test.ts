@@ -1,11 +1,12 @@
 import { describe, expect, test } from 'bun:test';
+import { createEventBus } from '@earendil-works/pi-coding-agent';
 import portfolioExtension from './index.js';
 
 type RegisteredTool = { name: string; execute: (...args: any[]) => Promise<any> };
 function makeTools() {
   const tools = new Map<string, RegisteredTool>();
   const entries: unknown[] = [];
-  portfolioExtension({ registerTool: (tool: RegisteredTool) => tools.set(tool.name, tool), appendEntry: (_type: string, data: unknown) => entries.push({ type: 'custom', customType: _type, data }) } as never);
+  portfolioExtension({ events: createEventBus(), registerTool: (tool: RegisteredTool) => tools.set(tool.name, tool), appendEntry: (_type: string, data: unknown) => entries.push({ type: 'custom', customType: _type, data }) } as never);
   return tools;
 }
 const book = [{ sector: 'Technology', weight: 1, return: 0.1 }];

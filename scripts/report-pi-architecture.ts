@@ -17,7 +17,9 @@ function walk(directory: string): string[] {
 }
 
 function productionFiles(directory: string): string[] {
-  return walk(directory).filter((file) => !/\.(test|spec)\.(ts|tsx)$/.test(file));
+  return existsSync(directory)
+    ? walk(directory).filter((file) => !/\.(test|spec)\.(ts|tsx)$/.test(file))
+    : [];
 }
 
 function read(path: string): string {
@@ -28,11 +30,14 @@ function percent(value: number): string {
   return `${(value * 100).toFixed(1)}%`;
 }
 
-const ownershipSource = read(join(root, 'src/runtime/pi/package-tool-ownership.ts'));
-const ownershipTable = ownershipSource.slice(ownershipSource.indexOf('const ownership:'));
 const ownedTools = new Set<string>();
-for (const match of ownershipTable.matchAll(/\[\w+_PACKAGE\]: \[(.*?)\],/gs)) {
-  for (const tool of match[1].matchAll(/'([^']+)'/g)) ownedTools.add(tool[1]);
+for (const packageDirectory of readdirSync(packagesRoot)) {
+  const manifestPath = join(packagesRoot, packageDirectory, 'package.json');
+  if (!existsSync(manifestPath)) continue;
+  const manifest = JSON.parse(read(manifestPath)) as { pi?: { tools?: unknown } };
+  if (Array.isArray(manifest.pi?.tools)) {
+    for (const tool of manifest.pi.tools) if (typeof tool === 'string') ownedTools.add(tool);
+  }
 }
 
 const extensionTools = new Set<string>();
@@ -49,10 +54,11 @@ const runtimeFiles = productionFiles(join(root, 'src/runtime/pi'));
 const runtimeRegistryImports = runtimeFiles.filter((file) => /tools\/registry|registry-adapter|loadRegisteredTools/.test(read(file)));
 const runtimeRegistryDecoupled = runtimeRegistryImports.length === 0;
 
-const factorySource = read(join(root, 'src/runtime/pi/agent-session-factory.ts'));
+const factorySource = read(join(root, 'packages/pi-session/src/agent-session-factory.ts'));
 const rootRegistryRemoved = !factorySource.includes('loadRegisteredTools');
 
-const investmentCommandFiles = productionFiles(join(root, 'src/commands/investment'));
+const investmentCommandFiles = productionFiles(join(root, 'packages/pi-investment-workflow/src'))
+  .filter((file) => /(?:^|\/)(invest|orchestration|registry|workflow)\.ts$/.test(file));
 const directToolImports = investmentCommandFiles.filter((file) => /(?:from|import)\s*[^;\n]*['"](?:\.\.\/)+tools\//.test(read(file)));
 const directToolDependencyScore = 1 / (1 + directToolImports.length);
 

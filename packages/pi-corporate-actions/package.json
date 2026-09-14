@@ -36,7 +36,12 @@
     "typebox": "1.3.7"
   },
   "pi": {
-    "source": "builtin:upup",
+    "contract": "upup.pi.runtime.v1",
+   "source": "builtin:upup",
+    "tools": ["corporate_actions_dividends","corporate_actions_splits","corporate_actions_rights","corporate_actions_list_all","corporate_actions_adjust_prices","corporate_actions_total_return","corporate_actions_dividend_yield","corporate_actions_ex_price"],
+    "nativeTools": ["corporate_actions_dividends","corporate_actions_splits","corporate_actions_rights","corporate_actions_list_all","corporate_actions_adjust_prices","corporate_actions_total_return","corporate_actions_dividend_yield","corporate_actions_ex_price"],
+    "trust": { "mode": "builtin", "network": true },
+    "lifecycle": { "scope": "session" },
     "extensions": [
       "./extensions"
     ],

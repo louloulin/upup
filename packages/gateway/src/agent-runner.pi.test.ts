@@ -1,18 +1,15 @@
-import { beforeAll, describe, expect, test } from 'bun:test';
+import { describe, expect, test } from 'bun:test';
 import { fauxAssistantMessage, fauxProvider, fauxText } from '@earendil-works/pi-ai';
 import { ModelRuntime } from '@earendil-works/pi-coding-agent';
 import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { configurePiSessionService } from '@upup/pi-session';
-import { registerGatewayAgentRuntime } from './runtime-port.js';
-import { createPiAgentRuntime } from '../../../src/runtime/pi/agent-session-factory.js';
-import { disposePiSessions } from '../../../src/runtime/pi/runner.js';
-import { runPiPrompt, isPiSessionRunning } from '../../../src/runtime/pi/runner.js';
+import { createPiAgentRuntime, disposePiSessions, runPiPrompt, isPiSessionRunning } from '@upup/pi-session';
 
-beforeAll(() => {
+function fixtureRuntime() {
   configurePiSessionService(() => createPiAgentRuntime());
-  registerGatewayAgentRuntime({ isSessionRunning: isPiSessionRunning, runPrompt: runPiPrompt });
-});
+  return { isSessionRunning: isPiSessionRunning, runPrompt: runPiPrompt };
+}
 import { runAgentForMessage } from './agent-runner.js';
 
 describe('Gateway Pi runner contract', () => {
@@ -30,6 +27,7 @@ describe('Gateway Pi runner contract', () => {
     modelRuntime.registerNativeProvider(faux.provider);
     const events: string[] = [];
     try {
+      const runtime = fixtureRuntime();
       const first = await runAgentForMessage({
         sessionKey: 'gateway-fixture-session',
         query: '执行第一轮',
@@ -38,7 +36,7 @@ describe('Gateway Pi runner contract', () => {
         piModel: faux.getModel(),
         piModelRuntime: modelRuntime,
         onEvent: (event) => { events.push(event.type); },
-      });
+      }, runtime);
       const second = await runAgentForMessage({
         sessionKey: 'gateway-fixture-session',
         query: '执行第二轮',
@@ -46,11 +44,11 @@ describe('Gateway Pi runner contract', () => {
         modelProvider: 'upup-gateway-fixture',
         piModel: faux.getModel(),
         piModelRuntime: modelRuntime,
-      });
+      }, runtime);
       expect(first).toBe('第一轮已通过 Pi。');
       expect(second).toBe('第二轮恢复成功。');
-      expect(events).toContain('stream_progress');
-      expect(events).toContain('done');
+      expect(events).toContain('text_delta');
+      expect(events).toContain('agent_end');
       const files = await Array.fromAsync(new Bun.Glob('*.jsonl').scan({ cwd: tempDir }));
       expect(files.length).toBeGreaterThan(0);
       const jsonl = await Bun.file(join(tempDir, files[0]!)).text();

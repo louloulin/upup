@@ -15,12 +15,12 @@ interface PlatformHost {
   readonly packageVersion: string;
   readonly sessionId: string;
   readonly capabilities: readonly string[];
-  getToolDefinitions(request: unknown): readonly unknown[];
-  getToolMetadata(request: unknown): readonly PlatformToolMetadata[];
-  getSkillDefinitions?(request: unknown): readonly PlatformSkillDefinition[];
-  runAgentWorker?: (request: { agentId: string; name: string; role: string; prompt: string; tools: readonly string[] | '*'; model?: string }, signal: AbortSignal) => Promise<{ agentId: string; output: string; sessionId: string }>;
-  listMcpResources?: (server?: string, signal?: AbortSignal) => Promise<readonly { server: string; resources: readonly Record<string, unknown>[] }[]>;
-  readMcpResource?: (uri: string, server?: string, signal?: AbortSignal) => Promise<{ server: string; contents: readonly Record<string, unknown>[] }>;
+  providers: {
+    tools: { getToolDefinitions(request: unknown): readonly unknown[]; getToolMetadata(request: unknown): readonly PlatformToolMetadata[]; getSkillDefinitions?(request: unknown): readonly PlatformSkillDefinition[] };
+    workers?: { runAgentWorker?: (request: { agentId: string; name: string; role: string; prompt: string; tools: readonly string[] | '*'; model?: string }, signal: AbortSignal) => Promise<{ agentId: string; output: string; sessionId: string }> };
+    scheduling?: { runCronJob?: (request: { job: unknown }, signal: AbortSignal) => Promise<void> };
+    mcp?: { listMcpResources?: (server?: string, signal?: AbortSignal) => Promise<readonly { server: string; resources: readonly Record<string, unknown>[] }[]>; readMcpResource?: (uri: string, server?: string, signal?: AbortSignal) => Promise<{ server: string; contents: readonly Record<string, unknown>[] }> };
+  };
 }
 
 const SWARM_ENTRY = 'upup_pi_platform_swarm';
@@ -226,18 +226,18 @@ function result(toolCallId: string, value: unknown, extra: Record<string, unknow
 
 function registerPlatformExtension(pi: ExtensionAPI, host: PlatformHost): void {
   if (host.contract !== 'upup.pi.host.v1' || host.packageName !== PACKAGE || host.packageVersion !== VERSION || !host.sessionId || !host.capabilities.includes('tool-definitions')) return;
-  const tools = host.getToolDefinitions({
+  const tools = host.providers.tools.getToolDefinitions({
     contract: 'upup.pi.host.v1',
     packageName: PACKAGE,
     packageVersion: VERSION,
     sessionId: host.sessionId,
     capability: 'tool-definitions',
   });
-  const toolMetadata = host.getToolMetadata({
+  const toolMetadata = host.providers.tools.getToolMetadata({
     contract: 'upup.pi.host.v1', packageName: PACKAGE, packageVersion: VERSION, sessionId: host.sessionId, capability: 'tool-definitions',
   });
   const skillRequest = { contract: 'upup.pi.host.v1' as const, packageName: PACKAGE, packageVersion: VERSION, sessionId: host.sessionId, capability: 'tool-definitions' as const };
-  const loadSkillDefinitions = () => host.getSkillDefinitions?.(skillRequest) ?? [];
+  const loadSkillDefinitions = () => host.providers.tools.getSkillDefinitions?.(skillRequest) ?? [];
   for (const tool of tools) pi.registerTool(tool as never);
   const sessionHost = host;
 
@@ -408,9 +408,9 @@ function registerPlatformExtension(pi: ExtensionAPI, host: PlatformHost): void {
     const task = createPlatformTask({ name: params.name, description: params.description, metadata: params.metadata });
     taskState.tasks.push(task); appendTaskState(context, taskState);
     if (params.prompt) {
-      if (!sessionHost.capabilities.includes('agent-worker') || !sessionHost.runAgentWorker) return result(id, { task, warning: 'agent-worker capability is unavailable; task remains pending', policy: 'fail-closed' });
+      if (!sessionHost.capabilities.includes('agent-worker') || !sessionHost.providers.workers?.runAgentWorker) return result(id, { task, warning: 'agent-worker capability is unavailable; task remains pending', policy: 'fail-closed' });
       const controller = new AbortController(); taskAbortControllers.set(task.id, controller); updatePlatformTask(taskState, task.id, { status: 'running' }); appendTaskState(context, taskState);
-      void sessionHost.runAgentWorker({ agentId: task.id, name: params.name, role: 'background-task', prompt: params.prompt, tools: params.tools ?? '*', model: params.model }, controller.signal).then((worker) => {
+      void sessionHost.providers.workers?.runAgentWorker({ agentId: task.id, name: params.name, role: 'background-task', prompt: params.prompt, tools: params.tools ?? '*', model: params.model }, controller.signal).then((worker) => {
         taskState = getTaskState(context); updatePlatformTask(taskState, task.id, { status: 'completed', result: worker.output, progress: 100 }); appendTaskState(context, taskState); taskAbortControllers.delete(task.id);
       }).catch((error: unknown) => {
         taskState = getTaskState(context); updatePlatformTask(taskState, task.id, { status: controller.signal.aborted ? 'cancelled' : 'failed', error: error instanceof Error ? error.message : String(error) }); appendTaskState(context, taskState); taskAbortControllers.delete(task.id);
@@ -447,13 +447,13 @@ function registerPlatformExtension(pi: ExtensionAPI, host: PlatformHost): void {
   } });
   pi.registerTool({ name: 'list_mcp_resources', label: 'List MCP Resources', description: 'List resources from the current Session MCP host.', parameters: mcpListResourcesParameters, async execute(id, params, signal) {
     if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
-    if (!sessionHost.capabilities.includes('mcp-resources') || !sessionHost.listMcpResources) return result(id, { error: 'mcp-resources capability is unavailable' }, { isError: true, capability: 'mcp-resources', policy: 'fail-closed' });
-    try { return result(id, await platformMcpListResources(params, (server) => sessionHost.listMcpResources!(server, signal))); } catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true }); }
+    if (!sessionHost.capabilities.includes('mcp-resources') || !sessionHost.providers.mcp?.listMcpResources) return result(id, { error: 'mcp-resources capability is unavailable' }, { isError: true, capability: 'mcp-resources', policy: 'fail-closed' });
+    try { return result(id, await platformMcpListResources(params, (server) => sessionHost.providers.mcp?.listMcpResources!(server, signal))); } catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true }); }
   } });
   pi.registerTool({ name: 'read_mcp_resource', label: 'Read MCP Resource', description: 'Read a resource through the current Session MCP host.', parameters: mcpReadResourceParameters, async execute(id, params, signal) {
     if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
-    if (!sessionHost.capabilities.includes('mcp-resources') || !sessionHost.readMcpResource) return result(id, { error: 'mcp-resources capability is unavailable' }, { isError: true, capability: 'mcp-resources', policy: 'fail-closed' });
-    try { return result(id, await platformMcpReadResource(params, (uri, server) => sessionHost.readMcpResource!(uri, server, signal))); } catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true }); }
+    if (!sessionHost.capabilities.includes('mcp-resources') || !sessionHost.providers.mcp?.readMcpResource) return result(id, { error: 'mcp-resources capability is unavailable' }, { isError: true, capability: 'mcp-resources', policy: 'fail-closed' });
+    try { return result(id, await platformMcpReadResource(params, (uri, server) => sessionHost.providers.mcp?.readMcpResource!(uri, server, signal))); } catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true }); }
   } });
   pi.registerTool({ name: 'heartbeat', label: 'Manage Heartbeat', description: 'View or update the persistent heartbeat checklist and synchronize its gateway settings.', parameters: heartbeatParameters, async execute(id, params, signal) {
     if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
@@ -559,12 +559,12 @@ function registerPlatformExtension(pi: ExtensionAPI, host: PlatformHost): void {
     return result(id, { request_id: params.request_id, ...(value !== undefined ? { value } : {}), skipped: response.skipped, already_submitted: false });
   } });
   const runAgent = async (agentId: string, name: string, role: string, prompt: string, tools: readonly string[] | '*', model: string | undefined, background: boolean, context: { sessionManager?: { getEntries(): readonly unknown[]; appendCustomEntry?: (customType: string, data?: unknown) => void } } | undefined, signal: AbortSignal) => {
-    if (!sessionHost.capabilities.includes('agent-worker') || !sessionHost.runAgentWorker) throw new Error('agent-worker capability is unavailable; agent execution is fail-closed');
+    if (!sessionHost.capabilities.includes('agent-worker') || !sessionHost.providers.workers?.runAgentWorker) throw new Error('agent-worker capability is unavailable; agent execution is fail-closed');
     const current = context ? getAgentState(context) : agentState;
     agentState = createPlatformAgent(current, { id: agentId, name, role, prompt, tools, ...(model ? { model } : {}), createdAt: Date.now() });
     agentState = updatePlatformAgent(agentState, agentId, { status: 'running' });
     appendAgentState(context, agentState);
-    const execute = sessionHost.runAgentWorker!({ agentId, name, role, prompt, tools, ...(model ? { model } : {}) }, signal).then((worker) => {
+    const execute = sessionHost.providers.workers?.runAgentWorker!({ agentId, name, role, prompt, tools, ...(model ? { model } : {}) }, signal).then((worker) => {
       agentState = updatePlatformAgent(getAgentState(context), agentId, { status: 'completed', output: worker.output, sessionId: worker.sessionId });
       appendAgentState(context, agentState);
       return worker;
@@ -622,7 +622,7 @@ function registerPlatformExtension(pi: ExtensionAPI, host: PlatformHost): void {
   pi.registerTool({ name: 'cron', label: 'Manage Cron Jobs', description: 'Create, list, update, remove, or run Pi-backed scheduled jobs.', parameters: cronParameters, async execute(id, params, signal) {
     if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
     try {
-      const runner = sessionHost.capabilities.includes('cron-runner') && sessionHost.runCronJob ? (request: { job: PlatformCronJob }, abortSignal: AbortSignal) => sessionHost.runCronJob!({ job: request.job }, abortSignal) : undefined;
+      const runner = sessionHost.capabilities.includes('cron-runner') && sessionHost.providers.scheduling?.runCronJob ? (request: { job: PlatformCronJob }, abortSignal: AbortSignal) => sessionHost.providers.scheduling?.runCronJob!({ job: request.job }, abortSignal) : undefined;
       return result(id, await platformCron(params, runner, signal));
     } catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true }); }
   } });
@@ -806,11 +806,11 @@ function registerPlatformExtension(pi: ExtensionAPI, host: PlatformHost): void {
       const current = context ? readState(context) : state;
       if (signal.aborted) return result(toolCallId, { error: 'request aborted' }, { isError: true });
       if (!current.teams.some((team) => team.name === params.team_name)) return result(toolCallId, { error: `team not found: ${params.team_name}` }, { isError: true });
-      if (!sessionHost.capabilities.includes('agent-worker') || !sessionHost.runAgentWorker) return result(toolCallId, { error: 'agent-worker capability is unavailable; swarm_agent_spawn is fail-closed' }, { isError: true, capability: 'agent-worker', policy: 'fail-closed' });
+      if (!sessionHost.capabilities.includes('agent-worker') || !sessionHost.providers.workers?.runAgentWorker) return result(toolCallId, { error: 'agent-worker capability is unavailable; swarm_agent_spawn is fail-closed' }, { isError: true, capability: 'agent-worker', policy: 'fail-closed' });
       const agentId = randomUUID();
       state = addPlatformSwarmAgent(current, { id: agentId, teamName: params.team_name, name: params.agent_name, role: params.role }, Date.now());
       appendSessionState(context, state);
-      void sessionHost.runAgentWorker({ agentId, name: params.agent_name, role: params.role, prompt: params.prompt, tools: params.tools ?? '*', model: params.model }, signal).then((worker) => {
+      void sessionHost.providers.workers?.runAgentWorker({ agentId, name: params.agent_name, role: params.role, prompt: params.prompt, tools: params.tools ?? '*', model: params.model }, signal).then((worker) => {
         state = updatePlatformSwarmAgent(state, agentId, { status: 'completed', result: worker.output, completedAt: Date.now() }, Date.now());
         appendSessionState(context, state);
       }).catch((error: unknown) => {
@@ -857,12 +857,12 @@ export default function platformExtension(pi: ExtensionAPI): void {
     initialized = true;
     registerPlatformExtension(pi, host);
   };
-  initialize(resolvePiCapabilityHost<PlatformHost>(PACKAGE, undefined));
+  initialize(resolvePiCapabilityHost<PlatformHost>(pi.events, PACKAGE, undefined));
   if (typeof pi.on === 'function') {
     pi.on('session_start', (_event, context) => {
-      initialize(resolvePiCapabilityHost<PlatformHost>(PACKAGE, context.sessionManager.getSessionId()));
+      initialize(resolvePiCapabilityHost<PlatformHost>(pi.events, PACKAGE, context.sessionManager.getSessionId()));
     });
   } else {
-    initialize(resolvePiCapabilityHost<PlatformHost>(PACKAGE, undefined));
+    initialize(resolvePiCapabilityHost<PlatformHost>(pi.events, PACKAGE, undefined));
   }
 }

@@ -161,7 +161,7 @@ packages/sdk/src/
 │   ├── http-transport.ts    # HttpTransport 实现 (Phase 5)
 │   └── index.ts            # Transport 模块导出
 ├── tools/               # Phase 3: 工具系统
-│   ├── types.ts        # Tool, ToolRegistry 类型
+│   ├── types.ts        # Tool, ToolConfiguration 类型
 │   └── index.ts
 ├── permissions/         # Phase 3: 权限系统
 │   ├── types.ts        # PermissionMode, CanUseTool 类型
@@ -304,7 +304,7 @@ const HOOK_EVENTS = readonly [
 | type 字段标准化 | ✅ | ✅ | Phase 1 |
 | **工具系统** |
 | 工具定义 | ✅ | ✅ | Phase 3 |
-| ToolRegistry | ✅ | ✅ | Phase 3 |
+| ToolConfiguration（创建时绑定） | ✅ | ✅ | Phase 3 |
 | canUseTool 回调 | ✅ | ✅ | Phase 3 |
 | MCP 服务器 | ✅ | ❌ | 待实现 |
 | **权限系统** |
@@ -351,7 +351,7 @@ Claude Code 执行工具 (在进程内)
 
 **Up SDK 当前:**
 ```
-应用代码 → createClient() → registerTool({handler: ...})
+应用代码 → createClient({ tools: [...] })
     ↓
 Transport (spawn upup --stdio)
     ↓
@@ -429,14 +429,15 @@ if (event?.type === 'done') {
 
 **当前设计:**
 ```typescript
-// agent.ts 定义了 handler
-agent.registerTool(defineTool({
+// SDK 不在本地注册或执行 handler；工具由 Pi Package 提供
+createClient({ tools: [{
   name: 'get_stock',
-  handler: async ({ ticker }) => ({ price: 1800 })  // 永远不执行
-}))
+  description: '获取股票数据',
+  input_schema: { type: 'object' },
+}] })
 ```
 
-**问题:** 工具在 upup 进程中运行，但 handler 在 SDK 进程。
+**结论:** 工具声明只在客户端创建时传入；执行、发现和所有权由 Pi Package/AgentSession 负责，SDK 不提供本地 handler 注册表。
 
 **需要重新设计:**
 - 方案 A: 移除 SDK 端 handler，工具描述传递到 upup
@@ -866,7 +867,7 @@ bun run examples/phase5-pool-transport.ts
 │  ├── query() - 单次查询                                     │
 │  ├── stream() - 流式查询                                    │
 │  ├── interrupt() - 中断请求                                  │
-│  ├── registerTool() - 注册工具                               │
+│  ├── tools - 创建时绑定的工具声明                             │
 │  ├── registerHook() - 注册 Hook                              │
 │  ├── createSession() - 会话管理                              │
 │  └── getPoolStatus() - 进程池状态                           │

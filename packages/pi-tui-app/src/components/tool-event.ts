@@ -1,5 +1,5 @@
 import { Container, Spacer, Text, type TUI } from '@earendil-works/pi-tui';
-import type { ApprovalDecision } from '@upup/pi-event-adapter';
+import type { ApprovalDecision } from '@upup/pi-runtime';
 import { theme } from '@upup/utils';
 import { t } from '@upup/i18n';
 import { subscribeSpinner, SPINNER_INTERVAL_MS } from '@upup/utils';

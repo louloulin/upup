@@ -12,11 +12,11 @@ type ManagementHost = {
   readonly packageVersion: string;
   readonly sessionId: string;
   readonly capabilities: readonly string[];
-  getManagementSnapshot?: () => PiManagementSnapshot;
+  providers: { management?: { getManagementSnapshot?: () => PiManagementSnapshot } };
 };
 
-function getHost(): ManagementHost | undefined {
-  const host = resolvePiCapabilityHost<ManagementHost>(PI_MANAGEMENT_PACKAGE_NAME, undefined);
+function getHost(events: { emit(channel: string, data: unknown): void; on(channel: string, handler: (data: unknown) => void): () => void }): ManagementHost | undefined {
+  const host = resolvePiCapabilityHost<ManagementHost>(events, PI_MANAGEMENT_PACKAGE_NAME, undefined);
   if (!host || host.contract !== PI_MANAGEMENT_HOST_CONTRACT || host.packageName !== PI_MANAGEMENT_PACKAGE_NAME || host.packageVersion !== PI_MANAGEMENT_PACKAGE_VERSION || !host.sessionId || !host.capabilities.includes('management-snapshot')) return undefined;
   return host;
 }
@@ -30,12 +30,12 @@ function result(id: string, value: unknown, isError = false) {
 }
 
 function snapshotOrError(id: string, host: ManagementHost | undefined): { value?: PiManagementSnapshot; error?: ReturnType<typeof result> } {
-  const snapshot = host?.getManagementSnapshot?.();
+  const snapshot = host?.providers.management?.getManagementSnapshot?.();
   return snapshot ? { value: snapshot } : { error: result(id, { error: 'management snapshot capability is unavailable', policy: 'fail-closed' }, true) };
 }
 
 export default function managementExtension(pi: ExtensionAPI): void {
-  const host = getHost();
+  const host = getHost(pi.events);
   pi.registerTool({ name: 'management_system_snapshot', label: 'System Snapshot', description: 'Read a redacted, read-only snapshot of the current Pi investment runtime.', parameters: emptyParameters, async execute(id, _params, signal) { if (signal.aborted) return result(id, { error: 'request aborted' }, true); const output = snapshotOrError(id, host); return output.error ?? result(id, output.value); } });
   pi.registerTool({ name: 'management_provider_status', label: 'Provider Status', description: 'Inspect configured market-data provider status and session metrics without secrets or raw responses.', parameters: providerParameters, async execute(id, params, signal) { if (signal.aborted) return result(id, { error: 'request aborted' }, true); const output = snapshotOrError(id, host); if (output.error) return output.error; const providers = output.value!.providers.marketData.providers.filter((provider) => !params.provider || provider.name === params.provider); return result(id, { providers, metrics: output.value!.providers.marketData.metrics, capturedAt: output.value!.capturedAt }); } });
   pi.registerTool({ name: 'management_package_status', label: 'Package Status', description: 'List enabled trusted Pi packages and their versions for the current session.', parameters: emptyParameters, async execute(id, _params, signal) { if (signal.aborted) return result(id, { error: 'request aborted' }, true); const output = snapshotOrError(id, host); return output.error ?? result(id, { packages: output.value!.packages, capturedAt: output.value!.capturedAt }); } });

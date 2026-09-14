@@ -4,12 +4,10 @@
  * Single production implementation that maps the Pi canonical event stream
  * (`@upup/pi-runtime`'s `UpUpAgentEvent`) to:
  *
- *   1. The legacy `AgentEvent` protocol consumed by CLI, controllers, and
- *      historical UpUp components (`AgentRunnerController`, in-memory UI).
- *   2. The stdio/gateway JSON-RPC `ServerEvent` shape consumed by external
+ *   1. The stdio/gateway JSON-RPC `ServerEvent` shape consumed by external
  *      clients (stdio server, gateway runner, bridge).
  *
- * Before this package, the same Pi→legacy mapping was duplicated in four
+ * Before this package, the same Pi→server mapping was duplicated in four
  * places (`event-stream.ts`, `gateway/agent-runner.ts`, `stdio/server.ts`
  * with two near-identical adapters). Phase 2 collapses those four adapters
  * into this single source of truth. All entry points (CLI, Gateway, stdio,
@@ -18,198 +16,9 @@
  * Contract version: `upup.pi.events.v1` (declared by `@upup/pi-runtime`).
  */
 
-import type { MessageQueue } from '@upup/utils';
-import type { Model } from '@earendil-works/pi-ai';
-import type { ModelRuntime } from '@earendil-works/pi-coding-agent';
-import type { UpUpAgentEvent } from '@upup/pi-runtime';
-
-// ---------------------------------------------------------------------------
-// Public transport event contract. This is the single owner for event types
-// consumed by CLI, controller, print, stdio, and external adapters.
-// ---------------------------------------------------------------------------
-
-export type ApprovalDecision = 'allow-once' | 'allow-session' | 'deny';
-
-export type GroupContext = {
-  groupName?: string;
-  membersList?: string;
-  activationMode: 'mention';
-};
-
-export interface ChannelProfile {
-  label: string;
-  preamble: string;
-  behavior: string[];
-  responseFormat: string[];
-  tables: string | null;
-}
-
-export interface AgentConfig {
-  model?: string;
-  modelProvider?: string;
-  maxIterations?: number;
-  signal?: AbortSignal;
-  channel?: string;
-  groupContext?: GroupContext;
-  requestToolApproval?: (request: { tool: string; args: Record<string, unknown> }) => Promise<ApprovalDecision>;
-  sessionApprovedTools?: Set<string>;
-  onToolApproval?: (tool: string) => void;
-  memoryEnabled?: boolean;
-  messageQueue?: MessageQueue;
-  sessionId?: string;
-  toolFilter?: string[] | '*';
-  modelInstance?: Model<any>;
-  modelRuntime?: ModelRuntime;
-}
-
-export interface ThinkingEvent {
-  type: 'thinking';
-  message: string;
-}
-
-export interface ToolStartEvent {
-  type: 'tool_start';
-  tool: string;
-  args: Record<string, unknown>;
-  toolCallId?: string;
-}
-
-export interface ToolEndEvent {
-  type: 'tool_end';
-  tool: string;
-  args: Record<string, unknown>;
-  result: string;
-  duration: number;
-  toolCallId?: string;
-}
-
-export interface ToolErrorEvent {
-  type: 'tool_error';
-  tool: string;
-  error: string;
-  toolCallId?: string;
-}
-
-export interface ToolProgressEvent {
-  type: 'tool_progress';
-  tool: string;
-  message: string;
-}
-
-export interface ToolApprovalEvent {
-  type: 'tool_approval';
-  tool: string;
-  args: Record<string, unknown>;
-  approved: ApprovalDecision;
-}
-
-export interface ToolDeniedEvent {
-  type: 'tool_denied';
-  tool: string;
-  args: Record<string, unknown>;
-  toolCallId?: string;
-}
-
-export interface ContextClearedEvent {
-  type: 'context_cleared';
-  clearedCount: number;
-  keptCount: number;
-}
-
-export interface MemoryRecalledEvent {
-  type: 'memory_recalled';
-  filesLoaded: string[];
-  tokenCount: number;
-}
-
-export interface MemoryFlushEvent {
-  type: 'memory_flush';
-  phase: 'start' | 'end';
-  filesWritten?: string[];
-}
-
-export type StreamMode =
-  | 'requesting'
-  | 'thinking'
-  | 'responding'
-  | 'tool-input'
-  | 'tool-use';
-
-export interface StreamProgressEvent {
-  type: 'stream_progress';
-  charDelta: number;
-  mode: StreamMode;
-  toolName?: string;
-  partialJson?: string;
-  toolCallId?: string;
-  /** Legacy alias preserved for controllers/print.ts consumers. */
-  textContent?: string;
-}
-
-export interface QueueDrainEvent {
-  type: 'queue_drain';
-  messageCount: number;
-  mergedText: string;
-}
-
-export interface MicrocompactEvent {
-  type: 'microcompact';
-  cleared: number;
-  tokensSaved: number;
-}
-
-export interface CompactionEvent {
-  type: 'compaction';
-  phase: 'start' | 'end';
-  success?: boolean;
-  preCompactTokens?: number;
-  postCompactTokens?: number;
-  compactionModel?: string;
-}
-
-export interface TokenUsage {
-  inputTokens: number;
-  outputTokens: number;
-  totalTokens: number;
-}
-
-export interface DoneEvent {
-  type: 'done';
-  answer: string;
-  toolCalls: Array<{ tool: string; args: Record<string, unknown>; result: string }>;
-  iterations: number;
-  totalTime: number;
-  tokenUsage?: TokenUsage;
-  tokensPerSecond?: number;
-}
-
-export interface ToolLimitEvent {
-  type: 'tool_limit';
-  tool: string;
-  warning?: string;
-  blocked: boolean;
-}
-
-export type LegacyAgentEvent =
-  | ThinkingEvent
-  | ToolStartEvent
-  | ToolProgressEvent
-  | ToolEndEvent
-  | ToolErrorEvent
-  | ToolApprovalEvent
-  | ToolDeniedEvent
-  | ToolLimitEvent
-  | ContextClearedEvent
-  | QueueDrainEvent
-  | MicrocompactEvent
-  | CompactionEvent
-  | MemoryRecalledEvent
-  | MemoryFlushEvent
-  | StreamProgressEvent
-  | DoneEvent;
-
-/** Compatibility name for transport consumers; the adapter package owns it. */
-export type AgentEvent = LegacyAgentEvent;
+import type {
+  UpUpAgentEvent,
+} from '@upup/pi-runtime';
 
 // ---------------------------------------------------------------------------
 // Public contract: stdio/gateway `ServerEvent` shape (preserved verbatim from
@@ -240,102 +49,6 @@ export interface ServerEvent {
 // ---------------------------------------------------------------------------
 // Mapping rules (single source of truth).
 // ---------------------------------------------------------------------------
-
-export interface LegacyMappingContext {
-  /** Accumulated answer text for the eventual `done` event. */
-  answer?: string;
-  /** Stream-mode the consumer currently wants to display (e.g. 'thinking'). */
-  defaultMode?: StreamMode;
-}
-
-const DEFAULT_LEGACY_CONTEXT: Required<Pick<LegacyMappingContext, 'defaultMode'>> = {
-  defaultMode: 'responding',
-};
-
-/**
- * Map one Pi canonical event to the legacy `AgentEvent` protocol.
- *
- * Returns `undefined` when the event has no legacy equivalent (e.g. pure
- * Pi lifecycle events like `session_start`, `turn_start`, `agent_end`,
- * `session_error`, `message_end`). Callers should drop `undefined`.
- *
- * This function is the single replacement for the four inline adapters
- * previously inlined in `event-stream.ts`, `gateway/agent-runner.ts`,
- * `stdio/server.ts` (twice).
- */
-export function mapPiEventToLegacy(
-  event: UpUpAgentEvent,
-  ctx: LegacyMappingContext = {},
-): LegacyAgentEvent | undefined {
-  const defaultMode = ctx.defaultMode ?? DEFAULT_LEGACY_CONTEXT.defaultMode;
-
-  switch (event.type) {
-    case 'thinking':
-      return { type: 'thinking', message: event.text };
-
-    case 'text_delta': {
-      const delta = event.delta ?? '';
-      if (delta.length === 0) return undefined;
-      return {
-        type: 'stream_progress',
-        charDelta: delta.length,
-        mode: defaultMode,
-        textContent: delta,
-      };
-    }
-
-    case 'tool_start': {
-      const input = (event.input ?? {}) as Record<string, unknown>;
-      return {
-        type: 'tool_start',
-        tool: event.toolName,
-        args: input,
-        toolCallId: event.toolCallId,
-      };
-    }
-
-    case 'tool_update':
-      return {
-        type: 'tool_progress',
-        tool: event.toolName,
-        message: event.text,
-      };
-
-    case 'tool_end': {
-      if (event.error) {
-        return {
-          type: 'tool_error',
-          tool: event.toolName,
-          error: event.error,
-          toolCallId: event.toolCallId,
-        };
-      }
-      return {
-        type: 'tool_end',
-        tool: event.toolName,
-        args: {},
-        result: '',
-        duration: 0,
-        toolCallId: event.toolCallId,
-      };
-    }
-
-    case 'compaction_start':
-      return { type: 'compaction', phase: 'start' };
-
-    case 'compaction_end':
-      return {
-        type: 'compaction',
-        phase: 'end',
-        success: event.success,
-      };
-
-    default:
-      // No legacy equivalent for session_start / agent_start / turn_start /
-      // message_end / turn_end / agent_end / session_error.
-      return undefined;
-  }
-}
 
 /**
  * Map one Pi canonical event to the stdio/gateway `ServerEvent` shape.
@@ -386,6 +99,16 @@ export function mapPiEventToServer(event: UpUpAgentEvent): ServerEvent | null {
             toolCallId: event.toolCallId,
           };
 
+    case 'run_end':
+      return {
+        type: 'done',
+        answer: event.answer,
+        toolCalls: [],
+        iterations: event.iterations,
+        totalTime: event.totalTime,
+        tokenUsage: event.tokenUsage,
+      };
+
     case 'compaction_start':
       return { type: 'compaction', phase: 'start' };
 
@@ -394,46 +117,6 @@ export function mapPiEventToServer(event: UpUpAgentEvent): ServerEvent | null {
 
     default:
       return null;
-  }
-}
-
-/**
- * Build a terminal `done` event for the legacy protocol. This is normally
- * emitted by `streamPiAgent` (and equivalents) once the upstream Pi
- * execution has settled, with the accumulated answer, tool-call list,
- * iteration count, and total time.
- */
-export function buildLegacyDoneEvent(input: {
-  answer: string;
-  toolCalls?: DoneEvent['toolCalls'];
-  iterations?: number;
-  totalTime: number;
-  tokenUsage?: TokenUsage;
-  tokensPerSecond?: number;
-}): DoneEvent {
-  return {
-    type: 'done',
-    answer: input.answer,
-    toolCalls: input.toolCalls ?? [],
-    iterations: input.iterations ?? 0,
-    totalTime: input.totalTime,
-    ...(input.tokenUsage ? { tokenUsage: input.tokenUsage } : {}),
-    ...(input.tokensPerSecond !== undefined ? { tokensPerSecond: input.tokensPerSecond } : {}),
-  };
-}
-
-/**
- * Adapter stream — yields legacy events for every Pi event that has a
- * legacy equivalent. Use this when a caller wants to consume the canonical
- * Pi stream directly without re-implementing the mapping.
- */
-export async function* adaptPiEventsToLegacy(
-  source: Iterable<UpUpAgentEvent> | AsyncIterable<UpUpAgentEvent>,
-  ctx: LegacyMappingContext = {},
-): AsyncGenerator<LegacyAgentEvent, void, void> {
-  for await (const event of source) {
-    const mapped = mapPiEventToLegacy(event, ctx);
-    if (mapped) yield mapped;
   }
 }
 
@@ -460,15 +143,6 @@ export const PI_EVENT_ADAPTER_CONTRACT = 'upup.pi.events.v1' as const;
 export type PiEventAdapterContract = typeof PI_EVENT_ADAPTER_CONTRACT;
 
 /**
- * Test/contract helper: assert a Pi event has a legacy mapping. Used by
- * `verify:pi5` contract tests to ensure no Pi event silently disappears
- * when the legacy adapter is replaced by the canonical adapter.
- */
-export function hasLegacyMapping(event: UpUpAgentEvent): boolean {
-  return mapPiEventToLegacy(event) !== undefined;
-}
-
-/**
  * Test/contract helper: assert a Pi event has a server mapping.
  */
 export function hasServerMapping(event: UpUpAgentEvent): boolean {
@@ -476,162 +150,11 @@ export function hasServerMapping(event: UpUpAgentEvent): boolean {
 }
 
 // ---------------------------------------------------------------------------
-// Legacy AgentEvent → ServerEvent mapping.
-//
-// This is the second half of the canonical event adapter: once a Pi
-// canonical event has been mapped into the legacy `AgentEvent` protocol by
-// `mapPiEventToLegacy`, downstream transports (stdio/gateway JSON-RPC,
-// external clients) convert the legacy event into the public `ServerEvent`
-// shape. Before this package, this conversion was duplicated inside
-// `src/stdio/server.ts` and (in part) inside `src/gateway/agent-runner.ts`.
-// We keep the two halves as separate functions so consumers can stay
-// protocol-aware (e.g. controller stays on legacy; stdio converts to
-// ServerEvent).
-// ---------------------------------------------------------------------------
-
-export function mapLegacyAgentEventToServer(event: LegacyAgentEvent): ServerEvent | null {
-  switch (event.type) {
-    case 'thinking':
-      return { type: 'thinking', message: event.message };
-
-    case 'tool_start':
-      return {
-        type: 'tool_start',
-        tool: event.tool,
-        args: event.args,
-        toolCallId: event.toolCallId,
-      };
-
-    case 'tool_progress':
-      return { type: 'tool_progress', tool: event.tool, message: event.message };
-
-    case 'tool_end':
-      return {
-        type: 'tool_end',
-        tool: event.tool,
-        args: event.args,
-        result: event.result,
-        duration: event.duration,
-        toolCallId: event.toolCallId,
-      };
-
-    case 'tool_error':
-      return {
-        type: 'tool_error',
-        tool: event.tool,
-        error: event.error,
-        toolCallId: event.toolCallId,
-      };
-
-    case 'tool_limit':
-      return {
-        type: 'tool_limit',
-        tool: event.tool,
-        warning: event.warning,
-        blocked: event.blocked,
-      };
-
-    case 'tool_approval':
-      return {
-        type: 'tool_approval',
-        tool: event.tool,
-        args: event.args,
-        approved: event.approved,
-      };
-
-    case 'tool_denied':
-      return {
-        type: 'tool_denied',
-        tool: event.tool,
-        args: event.args,
-        toolCallId: event.toolCallId,
-      };
-
-    case 'context_cleared':
-      return {
-        type: 'context_cleared',
-        clearedCount: event.clearedCount,
-        keptCount: event.keptCount,
-      };
-
-    case 'memory_recalled':
-      return {
-        type: 'memory_recalled',
-        filesLoaded: event.filesLoaded,
-        tokenCount: event.tokenCount,
-      };
-
-    case 'memory_flush':
-      return {
-        type: 'memory_flush',
-        phase: event.phase,
-        filesWritten: event.filesWritten,
-      };
-
-    case 'queue_drain':
-      return {
-        type: 'queue_drain',
-        messageCount: event.messageCount,
-        mergedText: event.mergedText,
-      };
-
-    case 'microcompact':
-      return {
-        type: 'microcompact',
-        cleared: event.cleared,
-        tokensSaved: event.tokensSaved,
-      };
-
-    case 'compaction':
-      return {
-        type: 'compaction',
-        phase: event.phase,
-        success: event.success,
-        preCompactTokens: event.preCompactTokens,
-        postCompactTokens: event.postCompactTokens,
-        compactionModel: event.compactionModel,
-      };
-
-    case 'stream_progress':
-      return {
-        type: 'stream_progress',
-        charDelta: event.charDelta,
-        mode: event.mode,
-        toolName: event.toolName,
-        partialJson: event.partialJson,
-        toolCallId: event.toolCallId,
-        // Compatibility: legacy AgentEvent may carry either textContent
-        // (from the legacy adapter) or content (from older shape). Take the
-        // first defined string.
-        content:
-          (event as { textContent?: string; content?: string }).textContent ??
-          (event as { content?: string }).content ??
-          '',
-      };
-
-    case 'done':
-      return {
-        type: 'done',
-        answer: event.answer,
-        toolCalls: event.toolCalls,
-        iterations: event.iterations,
-        totalTime: event.totalTime,
-        tokenUsage: event.tokenUsage,
-        tokensPerSecond: event.tokensPerSecond,
-      };
-
-    default:
-      return null;
-  }
-}
-
-// ---------------------------------------------------------------------------
 // Coverage audit.
 //
-// The two helpers above (`hasLegacyMapping`, `hasServerMapping`) work on a
-// single event. Phase 2 also needs a way to assert that every event type in
-// the Pi canonical stream has been *considered* by the adapter, even if the
-// final decision is "no mapping" (which is what lifecycle events return).
+// The helper above works on a single event. Phase 2 also needs a way to
+// assert that every event type in the Pi canonical stream has been considered
+// by the adapter, even if the final decision is "no mapping".
 //
 // `auditAdapterCoverage` consumes the union of all Pi event types via a
 // list of representative fixtures and reports whether each fixture was
@@ -641,16 +164,10 @@ export function mapLegacyAgentEventToServer(event: LegacyAgentEvent): ServerEven
 // ---------------------------------------------------------------------------
 
 export interface AdapterCoverageReport {
-  /** Every Pi event type that has a non-undefined legacy mapping. */
-  mappedToLegacy: readonly string[];
-  /** Every Pi event type that has no legacy mapping (intentionally dropped). */
-  droppedFromLegacy: readonly string[];
   /** Every Pi event type that has a non-null server mapping. */
   mappedToServer: readonly string[];
   /** Every Pi event type that has no server mapping (intentionally dropped). */
   droppedFromServer: readonly string[];
-  /** True when both lists contain at least one mapped event. */
-  hasAnyLegacyMapping: boolean;
   /** True when both lists contain at least one mapped event. */
   hasAnyServerMapping: boolean;
 }
@@ -658,43 +175,17 @@ export interface AdapterCoverageReport {
 export function auditAdapterCoverage(
   fixtures: readonly UpUpAgentEvent[],
 ): AdapterCoverageReport {
-  const mappedToLegacy = new Set<string>();
-  const droppedFromLegacy = new Set<string>();
   const mappedToServer = new Set<string>();
   const droppedFromServer = new Set<string>();
   for (const event of fixtures) {
-    if (hasLegacyMapping(event)) mappedToLegacy.add(event.type);
-    else droppedFromLegacy.add(event.type);
     if (hasServerMapping(event)) mappedToServer.add(event.type);
     else droppedFromServer.add(event.type);
   }
   return {
-    mappedToLegacy: [...mappedToLegacy].sort(),
-    droppedFromLegacy: [...droppedFromLegacy].sort(),
     mappedToServer: [...mappedToServer].sort(),
     droppedFromServer: [...droppedFromServer].sort(),
-    hasAnyLegacyMapping: mappedToLegacy.size > 0,
     hasAnyServerMapping: mappedToServer.size > 0,
   };
-}
-
-// ---------------------------------------------------------------------------
-// Display event wrapper.
-//
-// `DisplayEvent` is the unit passed from `streamPiAgent` into CLI/UI
-// controllers: a wrapped legacy `AgentEvent` plus UI metadata (id, completed
-// flag, endEvent for terminal events, and an optional progressMessage).
-// Defining it here keeps all event-protocol-related types colocated in the
-// adapter package; legacy-events.ts can later re-export from here without
-// changing consumer imports.
-// ---------------------------------------------------------------------------
-
-export interface DisplayEvent {
-  id: string;
-  event: LegacyAgentEvent;
-  completed?: boolean;
-  endEvent?: LegacyAgentEvent;
-  progressMessage?: string;
 }
 
 // ---------------------------------------------------------------------------

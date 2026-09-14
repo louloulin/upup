@@ -15,7 +15,7 @@ import {
   EXTRACTION_SYSTEM_PROMPT,
   buildExtractionPrompt,
 } from './prompts.js';
-import { callStructuredLlm } from '@upup/utils';
+import { callStructuredLlm, type PromptRunner } from '@upup/utils';
 import { DEFAULT_MODEL } from '@upup/utils';
 import { getUpupDir } from '@upup/utils';
 import { MEMORY_TYPES, type MemoryType, type MemoryWriteRequest } from './types.js';
@@ -68,6 +68,7 @@ export async function extractMemories(
   options: {
     model?: string;
     signal?: AbortSignal;
+    runner?: PromptRunner;
   } = {},
 ): Promise<ExtractionResult[]> {
   // Check if we have meaningful messages to analyze
@@ -83,6 +84,7 @@ export async function extractMemories(
       model: options.model ?? DEFAULT_MODEL,
       systemPrompt: EXTRACTION_SYSTEM_PROMPT,
       signal: options.signal,
+      runner: options.runner,
     });
 
     if (!result || !result.memories || result.memories.length === 0) {
@@ -244,7 +246,8 @@ export function createExtractionHook(
   options: {
     minTurnsBetweenExtractions?: number;
     maxMemoriesPerExtraction?: number;
-  } = {},
+    runner: PromptRunner;
+  },
 ) {
   let turnsSinceLastExtraction = 0;
   let lastExtractionTime = 0;
@@ -283,6 +286,6 @@ export function createExtractionHook(
     turnsSinceLastExtraction = 0;
     lastExtractionTime = now;
 
-    return extractMemories(messages, { signal });
+    return extractMemories(messages, { signal, runner: options.runner });
   };
 }

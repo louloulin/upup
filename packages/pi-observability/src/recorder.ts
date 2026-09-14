@@ -24,6 +24,7 @@ import type {
   ErrorEvent,
   FeatureGateEvent,
   LatencyEvent,
+  ProviderRetryEvent,
   TelemetryEvent,
   ToolCallEvent,
 } from './types.js';
@@ -137,6 +138,16 @@ export class TelemetryRecorder {
     });
   }
 
+  recordProviderRetry(args: Omit<ProviderRetryEvent, 'ts' | 'sessionId' | 'runId' | 'kind'>): void {
+    this.emit({
+      ts: Date.now(),
+      sessionId: this.sessionId,
+      runId: this.runId,
+      kind: 'provider_retry',
+      ...args,
+    });
+  }
+
   /** Flush pending events (call before process exit). */
   async flush(): Promise<void> {
     await this.sink.flush();
@@ -172,3 +183,5 @@ export function buildErrorPayload(code: string, err: unknown): Omit<ErrorEvent, 
     stackHead: stack ? anonymizeStack(stack) : undefined,
   };
 }
+
+export const telemetry = new TelemetryRecorder();

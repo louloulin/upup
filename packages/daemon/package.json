@@ -12,7 +12,7 @@
     }
   },
   "scripts": {
-    "build": "bun build src/index.ts --outdir=dist --target=bun --external @upup/pi-runtime --external @upup/pi-event-adapter --external @upup/pi-session --external @upup/gateway --external @upup/cron --external @upup/utils --external @earendil-works/pi-ai --external @earendil-works/pi-coding-agent && tsc --emitDeclarationOnly --declaration --declarationMap --outDir dist",
+    "build": "bun build src/index.ts --outdir=dist --target=bun --external @upup/pi-runtime --external @upup/pi-event-adapter --external @upup/gateway --external @upup/cron --external @upup/utils --external @earendil-works/pi-ai --external @earendil-works/pi-coding-agent && tsc --emitDeclarationOnly --declaration --declarationMap --outDir dist",
     "test": "bun test ./src",
     "clean": "rm -rf dist"
   },
@@ -21,7 +21,6 @@
     "@upup/gateway": "0.2.0",
     "@upup/pi-event-adapter": "0.1.0",
     "@upup/pi-runtime": "0.1.0",
-    "@upup/pi-session": "0.1.0",
     "@upup/utils": "0.2.0"
   },
   "files": [

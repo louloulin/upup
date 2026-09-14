@@ -1,61 +1,20 @@
-# Example Skill Plugin
+# Example Pi Package
 
-A minimal reference plugin that demonstrates how to extend UpUp with
-custom skills.
+这是一个最小的 Pi Package 示例，不使用旧 Plugin Registry、旧 Plugin SDK 或独立 Skill Registry。
 
-## What it does
+## 本地加载
 
-Declares two skills in `upup.plugin.json`:
+在 `.pi/settings.json` 中声明本地路径、精确版本和允许来源：
 
-| Skill | Slash | Purpose |
-|---|---|---|
-| `example-greet` | `/greet <name>`, `/hello` | Friendly greeting, useful for verifying the plugin is loaded |
-| `example-ping` | `/example-ping` | Returns `pong` — a minimal smoke-test |
-
-Both skills are also localized: the manifest includes
-`description.zh-CN`, which `getLocalizedDescription()` picks up when
-`UPUP_LOCALE=zh-CN`.
-
-## Try it
-
-```sh
-# 1. Copy into your local plugins dir
-mkdir -p ~/.upup/plugins
-cp -R examples/plugins/example-skill-plugin ~/.upup/plugins/
-
-# 2. Run UpUp and type:
-/skills                       # see both example skills in the list
-/greet world                  # → "Hello, world! This skill was loaded from the example-skill-plugin."
-/example-ping                 # → "pong"
+```json
+{
+  "packages": ["./examples/plugins/example-skill-plugin"],
+  "upupPiPackages": {
+    "trustedPaths": ["./examples/plugins/example-skill-plugin"],
+    "pinnedPackages": { "@example/example-pi-package": "1.0.0" },
+    "allowedSources": { "@example/example-pi-package": ["local:example-pi-package"] }
+  }
+}
 ```
 
-## Anatomy
-
-```
-example-skill-plugin/
-├── upup.plugin.json     ← manifest (capabilities + skills[])
-├── index.js             ← entry; default export receives the PluginAPI
-└── README.md            ← this file
-```
-
-The host loader (`src/plugins/loader.ts:loadPlugin`) reads the
-manifest, calls `validatePluginSkills()` (type guard) on the
-`skills[]` array, then registers each entry through the unified
-`registerSkill()` so the local SkillCommandRegistry + the
-`@upup/commands` bridge stay in sync.
-
-You do **not** need to call `api.registerSkill()` manually for static
-manifests — the host does it for you. The runtime API is for
-dynamic skills (e.g. built from config or user input).
-
-## Build your own
-
-1. Copy this directory and rename it.
-2. Change `id`, `name`, `version` in `upup.plugin.json`.
-3. Edit the `skills[]` array — at minimum each entry needs
-   `name`, `description`, `instructions`.
-4. (Optional) Use `api.registerSkill()` in `index.js` for dynamic
-   registration.
-
-See `packages/plugin-sdk/` for the full TypeScript shape of
-`PluginAPI`.
+运行 `bun run check:pi-package-audit` 和 `bun run check:module-boundaries` 验证 manifest、trust 和边界。

@@ -68,24 +68,6 @@ declare module '@upup/commands' {
     execute(args: string, context: CommandContext): Promise<CommandResult>;
   }
 
-  export interface CommandRegistry {
-    get(name: string): Command | undefined;
-    list(): Command[];
-    register(command: Command): void;
-  }
-
-  export type MacroStep = {
-    command: string;
-    args?: string;
-    delayMs?: number;
-  };
-
-  export type MacroDefinition = {
-    name: string;
-    description: string;
-    steps: MacroStep[];
-  };
-
   export type CommandPermission = 'admin' | 'user' | 'readonly';
 
   export interface UIContext {
@@ -111,15 +93,7 @@ declare module '@upup/commands' {
   export const builtInCommandNames: Set<string>;
   export const SLASH_COMMANDS: SLASH_COMMAND[];
   export function findCommand(name: string): unknown;
-  export function getGlobalRegistry(): CommandRegistry;
-  export function registerBuiltinCommands(registry: CommandRegistry): void;
-  export function resetGlobalRegistry(): void;
-  export function loadUserCommands(registry: CommandRegistry): Promise<number>;
-  export function loadMacros(registry: CommandRegistry): Promise<number>;
-  export function parseMacroFile(content: string, name: string): MacroDefinition;
-  export function expandMacro(macro: MacroDefinition): string[];
-
-  // Dynamic command registration (consumed by src/skills/bridge.ts)
+  // Dynamic command registration is owned by the Pi command/resource layer.
   export function registerDynamicCommand(cmd: SlashCommand): () => void;
   export function unregisterDynamicCommand(name: string): boolean;
   export function getDynamicCommands(): SlashCommand[];

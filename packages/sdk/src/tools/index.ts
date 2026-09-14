@@ -3,7 +3,7 @@
  */
 
 export {
-  ToolRegistry,
+  ToolConfiguration,
   type Tool,
   type ToolInputSchema,
   type ToolUseResult,

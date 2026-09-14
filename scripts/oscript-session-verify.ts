@@ -12,7 +12,7 @@
  * Run: bun run scripts/oscript-session-verify.ts
  */
 
-import { getGlobalRegistry } from '@upup/commands';
+import { getAllSlashCommands } from '@upup/commands';
 import type { CommandContext } from '@upup/commands';
 import {
   createSession,
@@ -37,8 +37,7 @@ import {
 // Test Setup
 // ============================================================================
 
-const registry = getGlobalRegistry();
-const commands = registry.list();
+const commands = getAllSlashCommands();
 const testSessionIds: string[] = [];
 
 console.log('═══════════════════════════════════════════════════════════════════');

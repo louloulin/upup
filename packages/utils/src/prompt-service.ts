@@ -2,7 +2,7 @@
  * LLM Prompt Service — Pi Runtime bridge.
  *
  * Thin wrapper that runs structured / unstructured prompts through the root
- * `src/runtime/pi/runner` (Pi AgentSession.prompt). The root is the single
+ * `@upup/pi-session` prompt runner (Pi AgentSession.prompt). The package is the single
  * place where the runner is exposed; packages depending on `@upup/utils` can
  * call this through dynamic import and avoid hard-coding the runner path.
  */
@@ -12,7 +12,6 @@ import { classifyError, isNonRetryableError } from './errors.js';
 import { error as logError } from './logging/logger.js';
 import { resolveProvider } from './providers.js';
 import { DEFAULT_MODEL } from './model-defaults.js';
-
 export interface PiPromptOptions {
   readonly model?: string;
   readonly systemPrompt?: string;
@@ -21,24 +20,18 @@ export interface PiPromptOptions {
   readonly toolFilter?: readonly string[];
 }
 
+export type PromptRunner = (prompt: string, options?: PiPromptOptions) => Promise<string>;
+
 export interface CallLlmOptions {
   readonly model?: string;
   readonly systemPrompt?: string;
   readonly outputSchema?: ZodType<unknown>;
   readonly signal?: AbortSignal;
+  readonly runner?: PromptRunner;
 }
 
 export interface LlmResult {
   readonly response: string | unknown;
-}
-
-async function loadRunner(): Promise<(prompt: string, options: PiPromptOptions) => Promise<string>> {
-  // Resolve the root runtime runner through the package-relative path. This
-  // keeps `@upup/utils` from importing root `src/*` statically while still
-  // providing prompt-service consumers (memory extraction, ai-selector,
-  // consolidation, flush) a stable entry point.
-  const mod = await import(new URL('../../../src/runtime/pi/runner.ts', import.meta.url).pathname);
-  return mod.runPiPrompt as (prompt: string, options: PiPromptOptions) => Promise<string>;
 }
 
 function providerForModel(modelName: string): string {
@@ -66,11 +59,16 @@ function parseJson(text: string): unknown {
   return JSON.parse(text.replace(/^```(?:json)?\s*|\s*```$/g, '').trim());
 }
 
-export async function runPiPrompt(prompt: string, options: PiPromptOptions = {}): Promise<string> { const runner = await loadRunner(); return withRetry(() => runner(prompt, options), providerForModel(options.model ?? DEFAULT_MODEL)); }
+export async function runPiPrompt(prompt: string, options: PiPromptOptions & { runner: PromptRunner }): Promise<string> {
+  if (!options.runner) throw new Error('Pi prompt runner must be injected');
+  const { runner, ...runnerOptions } = options;
+  return withRetry(() => runner(prompt, runnerOptions), providerForModel(options.model ?? DEFAULT_MODEL));
+}
 
 export async function callLlm(prompt: string, options: CallLlmOptions = {}): Promise<LlmResult> {
   const model = options.model ?? DEFAULT_MODEL;
-  const runner = await loadRunner();
+  const runner = options.runner;
+  if (!runner) throw new Error('Pi prompt runner must be injected');
   const answer = await withRetry(
     () => runner(prompt, {
       model,

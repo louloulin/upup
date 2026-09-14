@@ -1,6 +1,6 @@
 import { Container, Input, SelectList, Text, type SelectItem, getKeybindings } from '@earendil-works/pi-tui';
 import { PROVIDERS, type Model } from '../utils/model.js';
-import type { ApprovalDecision } from '@upup/pi-event-adapter';
+import type { ApprovalDecision } from '@upup/pi-runtime';
 import type { SessionSummary } from '@upup/pi-session';
 import { selectListTheme, theme } from '@upup/utils';
 import { t } from '@upup/i18n';
@@ -51,7 +51,7 @@ export function createProviderSelector(
   return list;
 }
 
-export function createLegacyModelSelector(
+export function createModelSelectList(
   models: Model[],
   currentModel: string | undefined,
   onSelect: (modelId: string | null) => void,
@@ -161,7 +161,7 @@ function formatSessionLabel(session: SessionSummary): string {
   return `${title}${tag} ${theme.muted(`[${timeAgo}] ${msgs}`)}`;
 }
 
-export function createLegacySessionSelector(
+export function createSessionSelectList(
   sessions: SessionSummary[],
   onSelect: (sessionId: string) => void,
   onCancel: () => void,

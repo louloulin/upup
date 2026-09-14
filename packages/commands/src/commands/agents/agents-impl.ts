@@ -6,7 +6,6 @@
  */
 
 import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types.js'
-import { getSubagentPortLocal } from '../../agent-port.js'
 
 export const call = async (
   args: string,
@@ -23,7 +22,7 @@ export const call = async (
   ]
 
   // Use the port registry — no fragile deep import needed
-  const subagent = getSubagentPortLocal()
+  const subagent = context.capabilities?.subagent
   if (subagent) {
     try {
       const tasks = subagent.getAllTasks()

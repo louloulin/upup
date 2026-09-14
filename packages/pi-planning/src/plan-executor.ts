@@ -171,7 +171,7 @@ export async function executePlan(
   const failedSteps: string[] = [];
   plan.phase = 'execute';
   plan.status = 'active';
-  auditLog({ planId: plan.id, action: 'phase_advanced', phase: 'research' });
+  auditLog({ planId: plan.id, action: 'phase_advanced', phase: 'detect' });
   persistPlan(plan);
 
   for (const step of plan.steps) {

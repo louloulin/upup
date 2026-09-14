@@ -4,7 +4,7 @@
  * 授权相关配置，支持可配置的授权超时、选项等
  */
 
-import type { ApprovalDecision } from '@upup/pi-event-adapter'
+import type { ApprovalDecision } from '@upup/pi-runtime'
 
 // ============================================================================
 // Types

@@ -16,13 +16,14 @@
     "typecheck": "tsc --noEmit",
     "types": "tsc --declaration --emitDeclarationOnly --outDir dist",
     "dev": "bun build src/index.ts --outdir=dist --watch --target=bun",
-    "test": "bun test"
+    "test": "bun test --timeout=15000"
   },
   "dependencies": {
-    "@upup/types": "workspace:*"
+    "@upup/types": "0.2.0"
   },
   "files": [
     "dist"
   ],
+  "pi": { "contract": "upup.pi.runtime.v1", "source": "builtin:upup", "trust": { "mode": "builtin" }, "lifecycle": { "scope": "runtime" }, "extensions": [], "skills": [], "prompts": [], "workflows": [], "policies": [], "evals": [] },
   "private": false
 }

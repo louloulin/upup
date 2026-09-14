@@ -22,6 +22,54 @@ function makePackage(version: string, command = 'fixture-research'): { root: str
 function read(root: string, path: string): Buffer { return readFileSync(join(root, path)); }
 
 describe('PiPackageCatalog', () => {
+  test('accepts foundational packages with explicitly empty resource arrays', () => {
+    const packageFixture = makePackage('1.0.0');
+    const manifestPath = join(packageFixture.root, 'package.json');
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as { pi: Record<string, unknown> };
+    manifest.pi.commands = [];
+    for (const key of ['extensions', 'skills', 'prompts', 'workflows', 'policies', 'evals']) manifest.pi[key] = [];
+    writeFileSync(manifestPath, JSON.stringify(manifest));
+    const catalog = new PiPackageCatalog();
+    const record = catalog.register(packageFixture.root, {
+      trustedPaths: [packageFixture.root],
+      pinnedPackages: { '@upup/fixture-package': '1.0.0', '@earendil-works/pi-coding-agent': '0.84.3' },
+      allowedSources: { '@upup/fixture-package': ['fixture:test'] },
+    });
+    expect(record.manifest.extensions).toEqual([]);
+    expect(catalog.resources()).toEqual({ extensions: [], skills: [], prompts: [], workflows: [], policies: [], evals: [] });
+  });
+
+  test('retains manifest-declared host capabilities for runtime binding', () => {
+    const packageFixture = makePackage('1.0.0');
+    const manifestPath = join(packageFixture.root, 'package.json');
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as { pi: Record<string, unknown> };
+    manifest.pi.hostCapabilities = ['agent-worker', 'mcp-resources'];
+    writeFileSync(manifestPath, JSON.stringify(manifest));
+    const catalog = new PiPackageCatalog();
+    const record = catalog.register(packageFixture.root, {
+      trustedPaths: [packageFixture.root],
+      pinnedPackages: { '@upup/fixture-package': '1.0.0', '@earendil-works/pi-coding-agent': '0.84.3' },
+      allowedSources: { '@upup/fixture-package': ['fixture:test'] },
+    });
+    expect(record.manifest.hostCapabilities).toEqual(['agent-worker', 'mcp-resources']);
+  });
+
+  test('loads manifest-owned side-effect declarations for runtime policy binding', () => {
+    const packageFixture = makePackage('1.0.0');
+    const manifestPath = join(packageFixture.root, 'package.json');
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as { pi: Record<string, unknown> };
+    manifest.pi.tools = ['fixture_write'];
+    manifest.pi.sideEffects = [{ tools: ['fixture_write'], effect: 'filesystem-write', safetyLevel: 'dangerous' }];
+    writeFileSync(manifestPath, JSON.stringify(manifest));
+    const catalog = new PiPackageCatalog();
+    const record = catalog.register(packageFixture.root, {
+      trustedPaths: [packageFixture.root],
+      pinnedPackages: { '@upup/fixture-package': '1.0.0', '@earendil-works/pi-coding-agent': '0.84.3' },
+      allowedSources: { '@upup/fixture-package': ['fixture:test'] },
+    });
+    expect(record.manifest.sideEffects).toEqual([{ tools: ['fixture_write'], effect: 'filesystem-write', safetyLevel: 'dangerous' }]);
+  });
+
   test('pins, audits, disables and rolls back a Pi package', () => {
     const first = makePackage('1.0.0');
     const second = makePackage('1.1.0');
@@ -176,6 +224,63 @@ describe('PiPackageCatalog', () => {
       allowedSources: { '@upup/fixture-package': ['fixture:test'] },
     });
     expect(() => catalog.validateDependencies()).toThrow('dependency is not loaded');
+  });
+
+  test('negotiates required and optional capabilities fail-closed', () => {
+    const packageFixture = makePackage('1.0.0');
+    const manifestPath = join(packageFixture.root, 'package.json');
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as { pi: Record<string, unknown> };
+    manifest.pi.capabilities = [
+      { name: 'quote-provider', version: '1.0.0' },
+      { name: 'optional-news', version: '1.0.0', optional: true },
+    ];
+    writeFileSync(manifestPath, JSON.stringify(manifest));
+    const trust = {
+      trustedPaths: [packageFixture.root],
+      pinnedPackages: { '@upup/fixture-package': '1.0.0', '@earendil-works/pi-coding-agent': '0.84.3' },
+      allowedSources: { '@upup/fixture-package': ['fixture:test'] },
+    };
+    const catalog = new PiPackageCatalog();
+    catalog.register(packageFixture.root, trust);
+    expect(() => catalog.negotiateCapabilities()).toThrow('quote-provider@1.0.0');
+    const resolutions = catalog.negotiateCapabilities({ 'quote-provider': '1.0.0' });
+    expect(resolutions).toEqual([
+      { packageName: '@upup/fixture-package', capability: 'quote-provider', version: '1.0.0', optional: false, resolved: true },
+      { packageName: '@upup/fixture-package', capability: 'optional-news', version: '1.0.0', optional: true, resolved: false },
+    ]);
+  });
+
+  test('negotiates capability scope, trust, and lifecycle contracts', () => {
+    const packageFixture = makePackage('1.0.0');
+    const manifestPath = join(packageFixture.root, 'package.json');
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as { pi: Record<string, unknown> };
+    manifest.pi.capabilities = [{ name: 'storage.session', version: '1.0.0', scope: 'session', trust: { mode: 'builtin', filesystem: true }, lifecycle: { scope: 'session' } }];
+    writeFileSync(manifestPath, JSON.stringify(manifest));
+    const trust = { trustedPaths: [packageFixture.root], pinnedPackages: { '@upup/fixture-package': '1.0.0', '@earendil-works/pi-coding-agent': '0.84.3' }, allowedSources: { '@upup/fixture-package': ['fixture:test'] } };
+    const catalog = new PiPackageCatalog();
+    catalog.register(packageFixture.root, trust);
+    expect(catalog.negotiateCapabilityCatalog([{ name: 'storage.session', version: '1.0.0', scope: 'session', trust: { mode: 'builtin', filesystem: true }, lifecycle: { scope: 'session' } }])).toMatchObject([{ resolved: true, capability: 'storage.session' }]);
+    expect(() => catalog.negotiateCapabilityCatalog([{ name: 'storage.session', version: '1.0.0', scope: 'runtime', trust: { mode: 'builtin' }, lifecycle: { scope: 'runtime' } }])).toThrow('capability contract is unavailable');
+  });
+
+  test('rejects reload lifecycle without initialize', () => {
+    const packageFixture = makePackage('1.0.0');
+    const manifestPath = join(packageFixture.root, 'package.json');
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as { pi: Record<string, unknown> };
+    manifest.pi.lifecycle = { scope: 'session', reload: './index.ts#reload' };
+    writeFileSync(manifestPath, JSON.stringify(manifest));
+    expect(() => new PiPackageCatalog().register(packageFixture.root, {
+      trustedPaths: [packageFixture.root],
+      pinnedPackages: { '@upup/fixture-package': '1.0.0', '@earendil-works/pi-coding-agent': '0.84.3' },
+      allowedSources: { '@upup/fixture-package': ['fixture:test'] },
+    })).not.toThrow();
+    const catalog = new PiPackageCatalog();
+    catalog.register(packageFixture.root, {
+      trustedPaths: [packageFixture.root],
+      pinnedPackages: { '@upup/fixture-package': '1.0.0', '@earendil-works/pi-coding-agent': '0.84.3' },
+      allowedSources: { '@upup/fixture-package': ['fixture:test'] },
+    });
+    expect(() => catalog.validateLifecycleContracts()).toThrow('requires initialize');
   });
 
   test('accepts an explicitly loaded exact-version UpUp dependency graph', () => {

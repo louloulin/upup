@@ -8,7 +8,7 @@ import { getMarketStructureSnapshot, querySectorSnapshot, type MarketStructureTy
 import { type TechnicalPeriod } from '../src/technical.js';
 import { createRealtimeSubscriptionManager, type FeedSource } from '../src/realtime/index.js';
 import { appendKairosEvent, createInitialKairosJournalState, listKairosEvents, summarizeKairos, type KairosEventKind, type NativeKairosJournalState } from '../src/kairos-journal.js';
-import { PI_MARKET_DATA_CAPABILITIES_CONTRACT, PI_MARKET_DATA_CAPABILITY_NAMES, type PiAuditCapability, type PiCapabilityContext, type PiEvidenceCapability } from '@upup/pi-runtime';
+import { PI_MARKET_DATA_CAPABILITY_VERSION, PI_MARKET_DATA_CAPABILITY_NAMES, type PiAuditCapability, type PiCapabilityContext, type PiEvidenceCapability } from '@upup/pi-runtime';
 
 const PACKAGE = '@upup/pi-market-data';
 const VERSION = '0.1.0';
@@ -16,20 +16,20 @@ const VERSION = '0.1.0';
 function registerHostTools(pi: ExtensionAPI): void {
   registerPiCapabilityHost(pi, PACKAGE, (host) => {
     if (host.packageVersion !== VERSION || !host.sessionId || !host.capabilities.includes('tool-definitions')) return;
-    for (const tool of host.getToolDefinitions({ contract: 'upup.pi.host.v1', packageName: PACKAGE, packageVersion: VERSION, sessionId: host.sessionId, capability: 'tool-definitions' })) pi.registerTool(tool as never);
+    for (const tool of host.providers.tools.getToolDefinitions({ contract: 'upup.pi.host.v1', packageName: PACKAGE, packageVersion: VERSION, sessionId: host.sessionId, capability: 'tool-definitions' })) pi.registerTool(tool as never);
   });
 }
 
 function capability<T>(context: PiCapabilityContext | undefined, name: string): T | undefined {
-  return context?.has(name, PI_MARKET_DATA_CAPABILITIES_CONTRACT)
-    ? context.get<T>(name, PI_MARKET_DATA_CAPABILITIES_CONTRACT)
+  return context?.has(name, PI_MARKET_DATA_CAPABILITY_VERSION)
+    ? context.get<T>(name, PI_MARKET_DATA_CAPABILITY_VERSION)
     : undefined;
 }
 
-function hostTransport(): { context?: PiCapabilityContext; history?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>; quote?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>; trendStore?: NativeMarketQuoteTrendStore } {
-  const host = resolvePiCapabilityHost<{ packageName: string; packageVersion: string; capabilities: readonly string[]; capabilityContext?: PiCapabilityContext; getMarketHistoryFetcher?: () => (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>; getMarketQuoteFetcher?: () => (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>; getMarketQuoteTrendStore?: () => NativeMarketQuoteTrendStore }>(PACKAGE, undefined);
+function hostTransport(events: { emit(channel: string, data: unknown): void; on(channel: string, handler: (data: unknown) => void): () => void }): { context?: PiCapabilityContext; history?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>; quote?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>; trendStore?: NativeMarketQuoteTrendStore } {
+  const host = resolvePiCapabilityHost<{ packageName: string; packageVersion: string; capabilities: readonly string[]; providers: { marketData?: { capabilityContext?: PiCapabilityContext; getMarketHistoryFetcher?: () => (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>; getMarketQuoteFetcher?: () => (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>; getMarketQuoteTrendStore?: () => NativeMarketQuoteTrendStore } } }>(events, PACKAGE, undefined);
   if (!host || host.packageName !== PACKAGE || host.packageVersion !== VERSION || !host.capabilities.includes('market-data-transport')) return {};
-  return { context: host.capabilityContext, history: host.getMarketHistoryFetcher?.(), quote: host.getMarketQuoteFetcher?.(), trendStore: host.getMarketQuoteTrendStore?.() };
+  return { context: host.providers.marketData?.capabilityContext, history: host.providers.marketData?.getMarketHistoryFetcher?.(), quote: host.providers.marketData?.getMarketQuoteFetcher?.(), trendStore: host.providers.marketData?.getMarketQuoteTrendStore?.() };
 }
 
 const quoteParameters = Type.Object({
@@ -182,7 +182,7 @@ function calendarResult(toolCallId: string, query: string, value: unknown, evide
 
 export default function marketDataExtension(pi: ExtensionAPI): void {
   registerHostTools(pi);
-  const transport = hostTransport();
+  const transport = hostTransport(pi.events);
   const context = transport.context;
   const contextHistory = capability<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(context, PI_MARKET_DATA_CAPABILITY_NAMES.historyFetcher);
   const contextQuote = capability<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(context, PI_MARKET_DATA_CAPABILITY_NAMES.quoteFetcher);

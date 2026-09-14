@@ -1,5 +1,4 @@
-import type { UpUpAgentSession } from '@upup/pi-runtime';
-import { PiAgentSessionFactory } from '../runtime/pi/agent-session-factory.js';
+import type { PiSessionFactory, UpUpAgentSession } from '@upup/pi-runtime';
 import { getBuiltinPiPackageOptions } from '@upup/pi-resource-composition';
 import type { PiManagementSnapshot } from '@upup/pi-session';
 import { globalUpupPath } from '@upup/utils';
@@ -20,6 +19,7 @@ export interface ManagementSnapshotProvider {
 export interface CreateManagementSnapshotProviderOptions {
   readonly cwd?: string;
   readonly sessionId?: string;
+  readonly sessionFactory: PiSessionFactory;
   readonly marketQuoteTrendStore?: import('@upup/pi-market-data').NativeMarketQuoteTrendStore;
 }
 
@@ -57,7 +57,7 @@ function createManagementSpec() {
 }
 
 export async function createManagementSnapshotProvider(
-  options: CreateManagementSnapshotProviderOptions = {},
+  options: CreateManagementSnapshotProviderOptions,
 ): Promise<ManagementSnapshotProvider> {
   const cwd = options.cwd ?? process.cwd();
   const trendStore = options.marketQuoteTrendStore ?? new JsonFileMarketQuoteTrendStore(globalUpupPath('metrics', 'market-provider-trend.json'));
@@ -65,7 +65,7 @@ export async function createManagementSnapshotProvider(
   if (!configured) throw new Error('Pi built-in packages are unavailable; management dashboard is fail-closed');
   let session: UpUpAgentSession;
   try {
-    session = await new PiAgentSessionFactory().createSession(createManagementSpec(), {
+    session = await options.sessionFactory.createSession(createManagementSpec(), {
       cwd,
       sessionId: options.sessionId ?? 'upup-management-dashboard',
       piPackagePaths: configured.piPackagePaths,

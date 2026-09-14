@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import { createEventBus } from '@earendil-works/pi-coding-agent';
 import technicalExtension from './index.js';
 
 const fixtureBars = [
@@ -14,9 +15,9 @@ const fixtureBars = [
   { date: '2026-09-10', open: 110, high: 112, low: 108, close: 109, volume: 950 },
 ];
 
-function makeHost(): { host: { registerTool: (tool: { name: string; execute: (...args: unknown[]) => Promise<unknown> }) => void }; tools: Map<string, { name: string; execute: (...args: unknown[]) => Promise<unknown> }> } {
+function makeHost(): { host: { events: ReturnType<typeof createEventBus>; registerTool: (tool: { name: string; execute: (...args: unknown[]) => Promise<unknown> }) => void }; tools: Map<string, { name: string; execute: (...args: unknown[]) => Promise<unknown> }> } {
   const tools = new Map<string, { name: string; execute: (...args: unknown[]) => Promise<unknown> }>();
-  return { host: { registerTool: (tool: { name: string; execute: (...args: unknown[]) => Promise<unknown> }) => tools.set(tool.name, tool) } as never, tools };
+  return { host: { events: createEventBus(), registerTool: (tool: { name: string; execute: (...args: unknown[]) => Promise<unknown> }) => tools.set(tool.name, tool) } as never, tools };
 }
 
 describe('Pi technical extension', () => {

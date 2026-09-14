@@ -33,19 +33,19 @@ describe('plan-builder: extractTicker', () => {
 
 describe('plan-builder: detectPhases', () => {
   test('detects single phase from Chinese keyword', () => {
-    expect(detectPhases('分析 NVDA')).toContain('research');
+    expect(detectPhases('分析 NVDA')).toContain('detect');
   });
 
   test('detects multiple phases preserving order', () => {
     const phases = detectPhases('分析 NVDA 估值并回测,准备交易');
-    expect(phases).toContain('research');
-    expect(phases).toContain('valuation');
-    expect(phases).toContain('backtest');
-    expect(phases).toContain('trade');
+    expect(phases).toContain('detect');
+    expect(phases).toContain('plan');
+    expect(phases).toContain('execute');
+    expect(phases).toContain('execute');
   });
 
   test('defaults to research when no keyword', () => {
-    expect(detectPhases('NVDA 怎么样')).toEqual(['research']);
+    expect(detectPhases('NVDA 怎么样')).toEqual(['detect']);
   });
 });
 
@@ -56,7 +56,8 @@ describe('plan-builder: buildResearchPlan', () => {
     expect(plan.steps.length).toBeLessThanOrEqual(10);
     expect(plan.ticker).toBe('NVDA');
     expect(plan.phase).toBe('plan');
-    expect(plan.phases).toContain('research');
+    expect(plan.currentPhase).toBe('detect');
+    expect(plan.phases).toContain('detect');
   });
 
   test('every step has a tool binding', () => {
@@ -68,8 +69,14 @@ describe('plan-builder: buildResearchPlan', () => {
   });
 
   test('explicit phases override detected', () => {
-    const plan = buildResearchPlan('看 NVDA', { phases: ['valuation'] });
-    expect(plan.phases).toEqual(['valuation']);
+    const plan = buildResearchPlan('看 NVDA', { phases: ['plan'] });
+    expect(plan.phases).toEqual(['plan']);
+  });
+
+  test('persists an explicit market on the plan and tool bindings', () => {
+    const plan = buildResearchPlan('分析 600519.SH', { market: 'cn' });
+    expect(plan.market).toBe('cn');
+    for (const binding of Object.values(plan.toolBindings)) expect(binding.params.ticker).toBe('600519.SH');
   });
 
   test('caps at 10 steps', () => {

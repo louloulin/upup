@@ -11,7 +11,7 @@
  * Run: bun run scripts/oscript-verify.ts
  */
 
-import { getGlobalRegistry } from '@upup/commands';
+import { getAllSlashCommands, executeCommand } from '@upup/commands';
 import type { CommandContext } from '@upup/commands';
 
 // ============================================================================
@@ -31,8 +31,7 @@ interface TestResult {
 // Test Setup
 // ============================================================================
 
-const registry = getGlobalRegistry();
-const commands = registry.list();
+const commands = getAllSlashCommands();
 
 console.log('════════════════════════════════════════════════════════');
 console.log('  UpUp Interactive Command Verification (oscript)');
@@ -107,7 +106,7 @@ for (const test of testCases) {
   const start = Date.now();
   try {
     const input = `/${test.command}${test.args ? ' ' + test.args : ''}`;
-    const result = await registry.execute(input, mockContext);
+    const result = await executeCommand(input, mockContext);
     const durationMs = Date.now() - start;
 
     // Verify result has expected shape

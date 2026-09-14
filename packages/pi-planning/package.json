@@ -33,6 +33,14 @@
     "lifecycle": {
       "scope": "session"
     },
-    "extensions": ["./src/index.ts"]
+    "capabilities": [
+      { "name": "planning.workflow", "version": "1.0.0", "scope": "session", "trust": { "mode": "builtin" }, "lifecycle": { "scope": "session" } }
+    ],
+    "extensions": ["./src/index.ts"],
+    "skills": [],
+    "prompts": [],
+    "workflows": [],
+    "policies": [],
+    "evals": []
   }
 }

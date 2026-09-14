@@ -134,6 +134,130 @@ export interface SearchOptions {
   type?: 'keyword' | 'semantic' | 'hybrid';
 }
 
+// ===== Pi Domain Contracts =====
+
+export type PiMarket = 'cn' | 'hk' | 'us' | 'fund' | 'crypto';
+export type PiMarketFreshness = 'historical' | 'cached' | 'delayed' | 'realtime' | 'offline';
+export type PiHistoricalMarketFreshness = Exclude<PiMarketFreshness, 'offline'>;
+export type PiMarketCurrency = 'CNY' | 'HKD' | 'USD';
+
+export interface PiMarketQuoteValue {
+  readonly symbol: string;
+  readonly market: PiMarket;
+  readonly price: number;
+  readonly bid: number;
+  readonly ask: number;
+  readonly last: number;
+  readonly currency: PiMarketCurrency;
+  readonly asOf: string;
+  readonly source: string;
+  readonly freshness: PiMarketFreshness;
+  readonly indicative: boolean;
+}
+
+export interface PiMarketQuoteResult {
+  readonly value: PiMarketQuoteValue;
+  readonly evidence: {
+    readonly id: string;
+    readonly source: string;
+    readonly retrievedAt: string;
+    readonly asOf: string;
+    readonly query: string;
+    readonly dataFreshness: PiMarketFreshness;
+    readonly auditId: string;
+  };
+}
+
+export interface PiMarketTrendBucket {
+  readonly startAt: string;
+  readonly requests: number;
+  readonly cacheHits: number;
+  readonly successes: number;
+  readonly failures: number;
+  readonly successRatePct: number;
+  readonly avgLatencyMs?: number;
+  readonly sloStatus: 'healthy' | 'degraded' | 'unhealthy' | 'unknown';
+}
+
+export interface PiMarketTrendStore {
+  load(): readonly PiMarketTrendBucket[];
+  save(buckets: readonly PiMarketTrendBucket[]): void;
+}
+
+export interface PiInvestmentResearchData {
+  readonly price?: unknown;
+  readonly ratios?: unknown;
+  readonly estimates?: unknown;
+  readonly earnings?: unknown;
+  readonly filings?: unknown;
+}
+
+export interface PiInvestmentMarketHistoryPoint {
+  readonly date: string;
+  readonly open: number;
+  readonly high: number;
+  readonly low: number;
+  readonly close: number;
+  readonly volume: number;
+}
+
+export interface PiInvestmentMarketHistoryEvidence {
+  readonly source: string;
+  readonly provider?: string;
+  readonly retrievedAt: string;
+  readonly asOf: string;
+  readonly query: string;
+  readonly dataFreshness: PiHistoricalMarketFreshness;
+  readonly auditId: string;
+}
+
+export interface PiInvestmentMarketHistory {
+  readonly bars: readonly PiInvestmentMarketHistoryPoint[];
+  readonly evidence: PiInvestmentMarketHistoryEvidence;
+}
+
+export interface PiInvestmentPosition {
+  readonly symbol: string;
+  readonly quantity: number;
+  readonly avgCost: number;
+  readonly realizedPnL?: number;
+}
+
+export interface PiInvestmentQuote {
+  readonly symbol: string;
+  readonly bid: number;
+  readonly ask: number;
+  readonly last: number;
+}
+
+export interface PiInvestmentBalance {
+  readonly cash: number;
+  readonly marketValue: number;
+  readonly totalEquity: number;
+  readonly currency: string;
+}
+
+export interface PiInvestmentOrder {
+  readonly id: string;
+  readonly status: string;
+  readonly quantity: number;
+  readonly filledQuantity: number;
+  readonly avgFillPrice?: number;
+  readonly commission?: number;
+}
+
+export interface PiInvestmentWorkflowServices {
+  readonly getResearchData: (ticker: string, signal: AbortSignal, market?: PiMarket) => Promise<PiInvestmentResearchData>;
+  readonly getFundHistory: (fundCode: string, startDate: string, endDate: string, signal: AbortSignal) => Promise<readonly { readonly date: string; readonly nav: number }[]>;
+  readonly getMarketHistory: (symbol: string, startDate: string, signal: AbortSignal, market?: PiMarket) => Promise<PiInvestmentMarketHistory>;
+  readonly getSandboxState: (signal: AbortSignal) => Promise<{
+    readonly positions: readonly PiInvestmentPosition[];
+    readonly balance: PiInvestmentBalance;
+    readonly getQuote: (symbol: string, signal: AbortSignal, market?: PiMarket) => Promise<PiInvestmentQuote>;
+  }>;
+  readonly placePaperOrder: (input: { readonly symbol: string; readonly side: 'buy' | 'sell'; readonly quantity: number }, signal: AbortSignal) => Promise<PiInvestmentOrder>;
+}
+
 // ===== Error Types =====
 
 export class UpupError extends Error {

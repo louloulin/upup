@@ -22,6 +22,7 @@ export const TELEMETRY_EVENT_KINDS = [
   'feature_gate',
   'error',
   'latency',
+  'provider_retry',
 ] as const;
 
 export type TelemetryEventKind = (typeof TELEMETRY_EVENT_KINDS)[number];
@@ -85,12 +86,29 @@ export interface LatencyEvent extends EventBase {
   metadata?: Record<string, unknown>;
 }
 
+export type ProviderRetryClassification = 'transient' | 'permanent' | 'abort';
+export type ProviderRetryOutcome = 'retry_scheduled' | 'succeeded' | 'failed' | 'aborted';
+
+export interface ProviderRetryEvent extends EventBase {
+  kind: 'provider_retry';
+  schema: 'upup.pi.provider-retry.v1';
+  provider: string;
+  operation: string;
+  attempt: number;
+  maxAttempts: number;
+  classification: ProviderRetryClassification;
+  outcome: ProviderRetryOutcome;
+  delayMs: number;
+  errorCode?: string;
+}
+
 export type TelemetryEvent =
   | ToolCallEvent
   | DecisionEvent
   | FeatureGateEvent
   | ErrorEvent
-  | LatencyEvent;
+  | LatencyEvent
+  | ProviderRetryEvent;
 
 export function isTelemetryEventKind(s: string): s is TelemetryEventKind {
   return (TELEMETRY_EVENT_KINDS as readonly string[]).includes(s);

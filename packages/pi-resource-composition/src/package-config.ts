@@ -1,11 +1,33 @@
 import { delimiter, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { existsSync, readFileSync } from 'node:fs';
-import type { PiPluginTrustPolicy } from '@upup/pi-resource-composition';
+import type { PiPackageTrustPolicy } from '@upup/pi-runtime';
 
 export interface ConfiguredPiPackageOptions {
   readonly piPackagePaths: readonly string[];
-  readonly piPackageTrust: PiPluginTrustPolicy;
+  readonly piPackageTrust: PiPackageTrustPolicy;
+}
+
+export function mergePiPackageTrust(
+  base: PiPackageTrustPolicy | undefined,
+  override: PiPackageTrustPolicy | undefined,
+): PiPackageTrustPolicy | undefined {
+  if (!base) return override;
+  if (!override) return base;
+  return {
+    ...base,
+    ...override,
+    trustedPaths: override.trustedPaths,
+    ...(base.allowedHashes || override.allowedHashes
+      ? { allowedHashes: { ...base.allowedHashes, ...override.allowedHashes } }
+      : {}),
+    ...(base.pinnedPackages || override.pinnedPackages
+      ? { pinnedPackages: { ...base.pinnedPackages, ...override.pinnedPackages } }
+      : {}),
+    ...(base.allowedSources || override.allowedSources
+      ? { allowedSources: { ...base.allowedSources, ...override.allowedSources } }
+      : {}),
+  };
 }
 
 interface ProjectPiPackageSettings {
@@ -24,6 +46,14 @@ const SOURCE_FINANCE_PACKAGE_PATH = resolve(
 const SOURCE_MARKET_DATA_PACKAGE_PATH = resolve(
   dirname(fileURLToPath(import.meta.url)),
   '../../pi-market-data',
+);
+const SOURCE_OBSERVABILITY_PACKAGE_PATH = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  '../../pi-observability',
+);
+const SOURCE_EVENT_ADAPTER_PACKAGE_PATH = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  '../../pi-event-adapter',
 );
 const SOURCE_INVESTMENT_ANALYSIS_PACKAGE_PATH = resolve(
   dirname(fileURLToPath(import.meta.url)),
@@ -116,6 +146,8 @@ export function getBuiltinPiPackageOptions(cwd = process.cwd()): ConfiguredPiPac
     { directory: 'pi-technical', name: '@upup/pi-technical', version: '0.1.0', sourcePath: SOURCE_TECHNICAL_PACKAGE_PATH, source: 'builtin:upup' },
     { directory: 'pi-corporate-actions', name: '@upup/pi-corporate-actions', version: '0.1.0', sourcePath: SOURCE_CORPORATE_ACTIONS_PACKAGE_PATH, source: 'builtin:upup' },
     { directory: 'pi-quant', name: '@upup/pi-quant', version: '0.1.0', sourcePath: SOURCE_QUANT_PACKAGE_PATH, source: 'builtin:upup' },
+    { directory: 'pi-event-adapter', name: '@upup/pi-event-adapter', version: '0.1.0', sourcePath: SOURCE_EVENT_ADAPTER_PACKAGE_PATH, source: 'builtin:upup' },
+    { directory: 'pi-observability', name: '@upup/pi-observability', version: '0.1.0', sourcePath: SOURCE_OBSERVABILITY_PACKAGE_PATH, source: 'builtin:upup' },
   ].map((candidate) => ({
     ...candidate,
     path: builtinPackageCandidates(cwd, candidate.directory, candidate.sourcePath).find((path) => existsSync(join(path, 'package.json'))),
@@ -128,6 +160,7 @@ export function getBuiltinPiPackageOptions(cwd = process.cwd()): ConfiguredPiPac
       trustedPaths: packagePaths,
       pinnedPackages: {
         ...Object.fromEntries(candidates.map((candidate) => [candidate.name, candidate.version])),
+        '@earendil-works/pi-ai': '0.84.3',
         '@earendil-works/pi-coding-agent': '0.84.3',
         '@upup/pi-runtime': '0.1.0',
         '@upup/utils': '0.2.0',
@@ -138,6 +171,10 @@ export function getBuiltinPiPackageOptions(cwd = process.cwd()): ConfiguredPiPac
         '@upup/pi-planning': '0.1.0',
         '@upup/pi-research': '0.1.0',
         '@upup/pi-market-data': '0.1.0',
+        '@upup/pi-resource-composition': '0.1.0',
+        '@upup/pi-session': '0.1.0',
+        '@upup/pi-observability': '0.1.0',
+        '@upup/pi-event-adapter': '0.1.0',
         zod: '3.25.76',
         typebox: '1.3.7',
       },
@@ -227,7 +264,7 @@ function projectPackagePaths(settings: ProjectPiPackageSettings, cwd: string): s
   });
 }
 
-function projectTrustPolicy(settings: ProjectPiPackageSettings, packagePaths: readonly string[], cwd: string): PiPluginTrustPolicy {
+function projectTrustPolicy(settings: ProjectPiPackageSettings, packagePaths: readonly string[], cwd: string): PiPackageTrustPolicy {
   const trust = settings.upupPiPackages;
   if (!trust || !Array.isArray(trust.trustedPaths) || trust.trustedPaths.length === 0) {
     throw new Error('.pi/settings.json upupPiPackages.trustedPaths is required for project Pi packages');

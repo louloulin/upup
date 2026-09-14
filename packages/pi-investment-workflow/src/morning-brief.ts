@@ -5,8 +5,8 @@
  * Fast lane(< 1s,纯本地状态读取)
  *
  * 模块边界:
- * - 只依赖 src/utils/storage-paths + src/plan/plan-executor(只读 plan)
- * - 不依赖 src/tools/*
+ * - 只依赖 storage/planning package 的只读 API
+ * - 不依赖外部工具实现
  */
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs';

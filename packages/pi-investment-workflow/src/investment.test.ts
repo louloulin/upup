@@ -161,7 +161,17 @@ describe('investment: risk-dashboard', () => {
     expect(text).toContain('Risk Dashboard');
     expect(text).toContain('⚙️');
     expect(text).toContain('📊');
-    expect(text).toContain('框架指标');
+    expect(text).toContain('Pi Risk');
+  });
+
+  test('runRiskDashboard calculates metrics only from explicit historical inputs', async () => {
+    const { runRiskDashboard } = await import('@upup/pi-investment-workflow');
+    const text = runRiskDashboard(JSON.stringify({ returns: [0.01, -0.02, 0.03], prices: [100, 110, 90], weights: { AAPL: 0.6, MSFT: 0.4 } }));
+    expect(text).toContain('VaR (95%, 1d)');
+    expect(text).toContain('Sharpe');
+    expect(text).toContain('Max Drawdown');
+    expect(text).toContain('集中度 HHI');
+    expect(text).not.toContain('待计算');
   });
 });
 

@@ -1,5 +1,5 @@
 import { timingSafeEqual } from 'node:crypto';
-import { renderManagementPage } from '../web/index.js';
+import { renderManagementPage } from './management-page.js';
 import type { ManagementSnapshotProvider } from './snapshot-provider.js';
 
 export interface ManagementServerConfig {

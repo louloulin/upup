@@ -10,8 +10,10 @@ import {
   recordLatency,
 } from './src/integration.ts';
 import { TelemetryRecorder } from './src/recorder.ts';
-import { telemetry } from './src/index.ts';
-import type { ToolEndEvent, ToolErrorEvent } from '@upup/pi-event-adapter';
+import { telemetry, hashTelemetryInput } from './src/index.ts';
+import type { UpUpAgentEvent } from '@upup/pi-runtime';
+
+type ToolEndEvent = Extract<UpUpAgentEvent, { type: 'tool_end' }>;
 
 let tmpDir: string;
 
@@ -28,21 +30,17 @@ afterEach(() => {
 describe('recordToolCallOk', () => {
   test('emits a tool_call event with byte-sized output', async () => {
     const rec = new TelemetryRecorder({ enabled: true, sinkConfig: { dir: tmpDir, flushEveryNEvents: 1 } });
-    // Replace the module-scoped recorder's behavior — we test via a fresh recorder
-    // by re-implementing the same call against our local instance.
     const event: ToolEndEvent = {
       type: 'tool_end',
-      tool: 'analyze_symbol',
-      args: { symbol: 'AAPL', email: 'a@b.com' },
-      result: 'recommendation: buy',
-      duration: 142,
+      sessionId: 's-1',
+      toolName: 'analyze_symbol',
       toolCallId: 'tc-1',
     };
     rec.recordToolCall({
-      tool: event.tool,
-      inputHash: await import('./src/index.ts').then((m) => m.hashTelemetryInput(event.args)),
-      outputBytes: event.result.length,
-      durationMs: event.duration,
+      tool: event.toolName,
+      inputHash: hashTelemetryInput({ symbol: 'AAPL', email: 'a@b.com' }),
+      outputBytes: 19,
+      durationMs: 142,
       ok: true,
     });
     await rec.flush();
@@ -62,26 +60,12 @@ describe('recordToolCallOk', () => {
     const rec = new TelemetryRecorder({ enabled: true, sinkConfig: { dir: tmpDir, flushEveryNEvents: 1 } });
     const event: ToolEndEvent = {
       type: 'tool_end',
-      tool: 't',
-      args: { email: 'secret@example.com' },
-      result: 'x',
-      duration: 1,
+      sessionId: 's-1',
+      toolName: 't',
       toolCallId: 'tc-1',
     };
-    rec.recordToolCall({
-      tool: event.tool,
-      inputHash: await import('./src/index.ts').then((m) => m.hashTelemetryInput(event.args)),
-      outputBytes: 1,
-      durationMs: 1,
-      ok: true,
-    });
-    rec.recordToolCall({
-      tool: event.tool,
-      inputHash: await import('./src/index.ts').then((m) => m.hashTelemetryInput({ email: 'secret@example.com' })),
-      outputBytes: 1,
-      durationMs: 1,
-      ok: true,
-    });
+    rec.recordToolCall({ tool: event.toolName, inputHash: hashTelemetryInput({ email: 'secret@example.com' }), outputBytes: 1, durationMs: 1, ok: true });
+    rec.recordToolCall({ tool: event.toolName, inputHash: hashTelemetryInput({ email: 'secret@example.com' }), outputBytes: 1, durationMs: 1, ok: true });
     await rec.flush();
     const files = readdirSync(tmpDir).filter((f) => f.startsWith('events-'));
     const content = readFileSync(join(tmpDir, files[0]!), 'utf8');
@@ -97,20 +81,21 @@ describe('recordToolCallOk', () => {
 describe('recordToolCallErr', () => {
   test('emits a tool_call event with ok=false and a classified error code', async () => {
     const rec = new TelemetryRecorder({ enabled: true, sinkConfig: { dir: tmpDir, flushEveryNEvents: 1 } });
-    const event: ToolErrorEvent = {
+    const event: ToolEndEvent = {
       type: 'tool_error',
-      tool: 'analyze_symbol',
+      sessionId: 's-1',
+      toolName: 'analyze_symbol',
       error: 'TIMEOUT: request exceeded 30s',
       toolCallId: 'tc-1',
     };
     const startedAt = Date.now() - 50;
     rec.recordToolCall({
-      tool: event.tool,
+      tool: event.toolName,
       inputHash: '',
       outputBytes: 0,
       durationMs: Date.now() - startedAt,
       ok: false,
-      errorCode: event.error.split(/[\s:]/, 2)[0]!.toLowerCase(),
+      errorCode: event.error!.split(/[\s:]/, 2)[0]!.toLowerCase(),
     });
     await rec.flush();
     const files = readdirSync(tmpDir).filter((f) => f.startsWith('events-'));
@@ -177,19 +162,18 @@ describe('integration helpers — safety guarantees', () => {
     // Wrap a tool_end event with circular args
     const event: ToolEndEvent = {
       type: 'tool_end',
-      tool: 't',
-      args,
-      result: 'ok',
-      duration: 1,
+      sessionId: 's-1',
+      toolName: 't',
       toolCallId: 'tc-x',
     };
-    expect(() => recordToolCallOk(event)).not.toThrow();
+    expect(() => recordToolCallOk(event, { input: args, result: 'ok', durationMs: 1 })).not.toThrow();
   });
 
   test('recordToolCallErr does not throw on weird error strings', () => {
-    const event: ToolErrorEvent = {
-      type: 'tool_error',
-      tool: 't',
+    const event: ToolEndEvent = {
+      type: 'tool_end',
+      sessionId: 's-1',
+      toolName: 't',
       error: '',
       toolCallId: 'tc-x',
     };

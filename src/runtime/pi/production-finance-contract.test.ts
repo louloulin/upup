@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
-import { getInvestmentAgentSpec } from './agent-spec.js';
-import { PiAgentSessionFactory } from './agent-session-factory.js';
+import { getInvestmentAgentSpec } from '@upup/pi-investment-workflow';
+import { PiAgentSessionFactory } from '@upup/pi-session';
 import { fauxAssistantMessage, fauxProvider, fauxText } from '@earendil-works/pi-ai';
 import { ModelRuntime } from '@earendil-works/pi-coding-agent';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -74,7 +74,7 @@ describe('production finance Pi adapter contract', () => {
         symbol: '600519.SH', side: 'buy', quantity: 1, type: 'market',
       }) as { isError?: boolean; details?: { policyAudit?: { decision?: string } } };
       expect(result.isError).toBe(true);
-      expect(result.details?.policyAudit?.decision).toBe('approval_denied');
+      expect(result.details?.policyAudit?.decision).toBe('denied');
     } finally {
       session.dispose();
     }
@@ -107,6 +107,11 @@ describe('production finance Pi adapter contract', () => {
         quantity: 1000,
         startDate: '2026-05-01',
         endDate: '2026-05-31',
+        bars: [
+          { date: '2026-05-01', close: 100, volume: 10000 },
+          { date: '2026-05-04', close: 101, volume: 12000 },
+          { date: '2026-05-05', close: 102, volume: 11000 },
+        ],
       });
       expect(backtest).toMatchObject({
         details: {
@@ -118,7 +123,8 @@ describe('production finance Pi adapter contract', () => {
         },
       });
       expect(JSON.parse((backtest.content[0] as { type: string; text: string }).text).value).toMatchObject({
-        _stub: true,
+        status: 'completed',
+        dataSource: 'caller-provided-historical-bars',
         algo: 'twap',
         symbol: '600519.SH',
       });
@@ -131,7 +137,7 @@ describe('production finance Pi adapter contract', () => {
         durationMinutes: 1,
       }) as { isError?: boolean; details?: { policyAudit?: { decision?: string } } };
       expect(denied.isError).toBe(true);
-      expect(denied.details?.policyAudit?.decision).toBe('approval_denied');
+      expect(denied.details?.policyAudit?.decision).toBe('denied');
     } finally {
       session.dispose();
     }

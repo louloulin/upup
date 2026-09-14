@@ -3,7 +3,9 @@ import { readdir, readFile, unlink } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { SessionManager } from '@earendil-works/pi-coding-agent';
 
-import type { UpUpAgentEvent, UpUpAgentRuntime, UpUpAgentSession, UpUpAgentSpec } from '@upup/pi-runtime';
+import type { UpUpAgentEvent, UpUpAgentRuntime, UpUpAgentSession, UpUpAgentSpec, UpUpCreateSessionOptions } from '@upup/pi-runtime';
+import { PiSessionRegistry } from './session-registry.js';
+import { withPiFileLock } from './file-lock.js';
 
 
 export interface PiSessionCreateInput {
@@ -46,10 +48,12 @@ interface PiSessionRecord {
   metadata: Record<string, unknown>;
 }
 
-const records = new Map<string, PiSessionRecord>();
+function sessionDirectory(cwd: string, configuredDirectory?: string): string {
+  return resolve(configuredDirectory ?? join(cwd, '.upup', 'sessions'));
+}
 
-function sessionDirectory(cwd: string): string {
-  return resolve(process.env.UPUP_SESSION_DIR ?? join(cwd, '.upup', 'sessions'));
+function sessionLockPath(directory: string, id: string): string {
+  return join(directory, `.${id}.pi-lock`);
 }
 
 function specFor(input: PiSessionCreateInput): UpUpAgentSpec {
@@ -140,9 +144,13 @@ function toSerializedMessages(session: UpUpAgentSession): Array<{ type: string; 
   });
 }
 
-async function createRecord(input: PiSessionCreateInput, runtime: UpUpAgentRuntime): Promise<PiSessionRecord> {
+async function createRecord(
+  input: PiSessionCreateInput,
+  runtime: UpUpAgentRuntime,
+  records: Map<string, PiSessionRecord>,
+  directory: string,
+): Promise<PiSessionRecord> {
   const cwd = resolve(input.cwd ?? process.cwd());
-  const directory = sessionDirectory(cwd);
   const existingPath = input.id ? await findSessionFile(input.id, directory) : undefined;
   const session = await runtime.createSession(specFor(input), {
     cwd,
@@ -165,7 +173,7 @@ async function createRecord(input: PiSessionCreateInput, runtime: UpUpAgentRunti
   const summary: PiSessionSummary = {
     id: session.id,
     state: 'idle',
-    createdAt: now,
+    createdAt: createdAtFromSession(session, now),
     lastActivity: now,
     metadata,
   };
@@ -175,37 +183,139 @@ async function createRecord(input: PiSessionCreateInput, runtime: UpUpAgentRunti
   return record;
 }
 
+function createdAtFromSession(session: UpUpAgentSession, fallback: number): number {
+  const timestamp = session.getSessionHeader()?.timestamp;
+  if (!timestamp) return fallback;
+  const parsed = Date.parse(timestamp);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
 export interface PiSessionServiceOptions {
   runtime: UpUpAgentRuntime;
+  sessionDirectory?: string;
 }
 
 export class PiSessionService {
   private readonly runtime: UpUpAgentRuntime;
+  private readonly records = new Map<string, PiSessionRecord>();
+  private readonly recordInitializations = new Map<string, Promise<PiSessionRecord>>();
+  private readonly runnerRegistry = new PiSessionRegistry();
+  private readonly configuredSessionDirectory: string | undefined;
+  private disposed = false;
 
   constructor(options: PiSessionServiceOptions) {
     this.runtime = options.runtime;
+    this.configuredSessionDirectory = options.sessionDirectory ?? process.env.UPUP_SESSION_DIR;
+  }
+
+  private directory(cwd: string): string {
+    return sessionDirectory(cwd, this.configuredSessionDirectory);
+  }
+
+  private withSessionLock<T>(id: string, cwd: string, operation: () => Promise<T>): Promise<T> {
+    return withPiFileLock(sessionLockPath(this.directory(cwd), id), operation);
+  }
+
+  private createRecordWithLock(input: PiSessionCreateInput, cwd: string): Promise<PiSessionRecord> {
+    const directory = this.directory(cwd);
+    const key = input.id ? `${directory}:${input.id}` : undefined;
+    if (!key) return createRecord(input, this.runtime, this.records, directory);
+    const existing = this.records.get(input.id!);
+    if (existing) return Promise.resolve(existing);
+    const pending = this.recordInitializations.get(key);
+    if (pending) return pending;
+    const initialization = this.withSessionLock(input.id!, cwd, () => this.createRecordOnce(input, cwd, true));
+    this.recordInitializations.set(key, initialization);
+    void initialization.then(() => undefined, () => undefined).finally(() => {
+      if (this.recordInitializations.get(key) === initialization) this.recordInitializations.delete(key);
+    });
+    return initialization;
+  }
+
+  private ensureActive(): void {
+    if (this.disposed) throw new Error('PiSessionService is disposed');
+  }
+
+  createRuntimeSession(spec: UpUpAgentSpec, options: UpUpCreateSessionOptions = {}): Promise<UpUpAgentSession> {
+    this.ensureActive();
+    return this.runtime.createSession(spec, options);
+  }
+
+  getRunnerRegistry(): PiSessionRegistry {
+    this.ensureActive();
+    return this.runnerRegistry;
+  }
+
+  private async createRecordOnce(input: PiSessionCreateInput, cwd: string, skipPending = false): Promise<PiSessionRecord> {
+    const directory = this.directory(cwd);
+    const key = input.id ? `${directory}:${input.id}` : undefined;
+    if (!key) {
+      const record = await createRecord(input, this.runtime, this.records, directory);
+      if (this.disposed) {
+        record.session.dispose();
+        this.records.delete(record.session.id);
+        throw new Error('PiSessionService is disposed');
+      }
+      return record;
+    }
+    const existing = this.records.get(input.id!);
+    if (existing) return existing;
+    if (skipPending) {
+      const record = await createRecord(input, this.runtime, this.records, directory);
+      if (this.disposed) {
+        record.session.dispose();
+        for (const [recordKey, value] of this.records) if (value === record) this.records.delete(recordKey);
+        throw new Error('PiSessionService is disposed');
+      }
+      return record;
+    }
+    if (!skipPending) {
+      const pending = this.recordInitializations.get(key);
+      if (pending) return pending;
+    }
+    const initialization = createRecord(input, this.runtime, this.records, directory);
+    this.recordInitializations.set(key, initialization);
+    try {
+      const record = await initialization;
+      if (this.disposed) {
+        record.session.dispose();
+        for (const [recordKey, value] of this.records) if (value === record) this.records.delete(recordKey);
+        throw new Error('PiSessionService is disposed');
+      }
+      return record;
+    } finally {
+      if (this.recordInitializations.get(key) === initialization) this.recordInitializations.delete(key);
+    }
   }
 
   async create(input: PiSessionCreateInput = {}): Promise<PiSessionSummary> {
-    const record = input.id ? records.get(input.id) : undefined;
-    return (record ?? await createRecord(input, this.runtime)).summary;
+    this.ensureActive();
+    const cwd = resolve(input.cwd ?? process.cwd());
+    const record = input.id ? this.records.get(input.id) : undefined;
+    if (record || !input.id) return (record ?? await this.createRecordOnce(input, cwd)).summary;
+    return (await this.createRecordWithLock(input, cwd)).summary;
   }
 
   async get(id: string): Promise<PiSessionSummary | null> {
-    const record = records.get(id);
+    this.ensureActive();
+    const record = this.records.get(id);
     if (record) {
       record.summary.lastActivity = Date.now();
       return record.summary;
     }
     const cwd = resolve(process.cwd());
-    const existingPath = await findSessionFile(id, sessionDirectory(cwd));
+    const directory = this.directory(cwd);
+    const pending = this.recordInitializations.get(`${directory}:${id}`);
+    if (pending) return (await pending).summary;
+    const existingPath = await findSessionFile(id, directory);
     if (!existingPath) return null;
-    return (await createRecord({ id, cwd }, this.runtime)).summary;
+    return (await this.createRecordWithLock({ id, cwd }, cwd)).summary;
   }
 
   async list(cwd = process.cwd()): Promise<PiSessionListItem[]> {
+    this.ensureActive();
     const resolvedCwd = resolve(cwd);
-    const directory = sessionDirectory(resolvedCwd);
+    const directory = this.directory(resolvedCwd);
     const sessions = await SessionManager.list(resolvedCwd, directory);
     return Promise.all(sessions.map(async (session) => {
       const tags = await readSessionTags(session.path);
@@ -224,21 +334,27 @@ export class PiSessionService {
     }));
   }
 
-  async getSessionFile(id: string, cwd = process.cwd()): Promise<string | undefined> {
-    return records.get(id)?.session.getSessionFile() ?? findSessionFile(id, sessionDirectory(resolve(cwd)));
+  async getSessionFile(id: string, cwd = process.cwd(), sessionDirectoryOverride?: string): Promise<string | undefined> {
+    this.ensureActive();
+    return this.records.get(id)?.session.getSessionFile() ?? findSessionFile(id, sessionDirectory(resolve(cwd), sessionDirectoryOverride ?? this.configuredSessionDirectory));
   }
 
   async updateMetadata(id: string, metadata: Record<string, unknown>): Promise<void> {
-    const record = await this.resume(id);
-    Object.assign(record.metadata, metadata);
-    record.summary.metadata = record.metadata;
-    record.session.appendEntry('upup_session_metadata', record.metadata);
+    this.ensureActive();
+    await this.withSessionLock(id, process.cwd(), async () => {
+      const record = await this.resumeRecord(id);
+      Object.assign(record.metadata, metadata);
+      record.summary.metadata = record.metadata;
+      record.session.appendEntry('upup_session_metadata', record.metadata);
+    });
   }
 
   async rename(id: string, title: string): Promise<void> {
     await this.updateMetadata(id, { customTitle: title });
-    const record = await this.resume(id);
-    record.session.appendSessionInfo(title);
+    await this.withSessionLock(id, process.cwd(), async () => {
+      const record = await this.resumeRecord(id);
+      record.session.appendSessionInfo(title);
+    });
   }
 
   async tag(id: string, tag: string | null): Promise<void> {
@@ -246,13 +362,16 @@ export class PiSessionService {
   }
 
   async remove(id: string): Promise<boolean> {
-    const record = records.get(id);
-    const file = record?.session.getSessionFile() ?? await findSessionFile(id, sessionDirectory(process.cwd()));
-    if (!file) return false;
-    record?.session.dispose();
-    for (const [key, value] of records) if (value === record) records.delete(key);
-    await unlink(file).catch(() => undefined);
-    return true;
+    this.ensureActive();
+    return this.withSessionLock(id, process.cwd(), async () => {
+      const record = this.records.get(id);
+      const file = record?.session.getSessionFile() ?? await findSessionFile(id, this.directory(process.cwd()));
+      if (!file) return false;
+      record?.session.dispose();
+      for (const [key, value] of this.records) if (value === record) this.records.delete(key);
+      await unlink(file).catch(() => undefined);
+      return true;
+    });
   }
 
   async appendMetadata(id: string, metadata: Record<string, unknown>): Promise<void> {
@@ -260,7 +379,14 @@ export class PiSessionService {
   }
 
   async resume(id: string): Promise<PiSessionRecord> {
-    const existing = records.get(id);
+    this.ensureActive();
+    const pending = this.recordInitializations.get(`${this.directory(process.cwd())}:${id}`);
+    if (pending) return pending;
+    return this.withSessionLock(id, process.cwd(), () => this.resumeRecord(id));
+  }
+
+  private async resumeRecord(id: string): Promise<PiSessionRecord> {
+    const existing = this.records.get(id);
     const record = existing ?? await this.openExisting(id);
     record.summary.state = 'idle';
     record.summary.lastActivity = Date.now();
@@ -269,54 +395,66 @@ export class PiSessionService {
 
   private async openExisting(id: string): Promise<PiSessionRecord> {
     const cwd = resolve(process.cwd());
-    const existingPath = await findSessionFile(id, sessionDirectory(cwd));
+    const directory = this.directory(cwd);
+    const pending = this.recordInitializations.get(`${directory}:${id}`);
+    if (pending) return pending;
+    const existingPath = await findSessionFile(id, directory);
     if (!existingPath) throw new Error(`Pi session not found: ${id}`);
-    return createRecord({ id, cwd }, this.runtime);
+    return this.createRecordOnce({ id, cwd }, cwd);
   }
 
   async messages(id: string): Promise<Array<{ type: string; content: string; additional_kwargs?: Record<string, unknown> }>> {
-    const current = records.get(id);
+    this.ensureActive();
+    const current = this.records.get(id);
     if (current) {
       current.session.dispose();
-      for (const [key, value] of records) if (value === current) records.delete(key);
+      for (const [key, value] of this.records) if (value === current) this.records.delete(key);
     }
-    const record = await this.openExisting(id);
-    return toSerializedMessages(record.session);
+    return this.withSessionLock(id, process.cwd(), async () => {
+      const record = await this.openExisting(id);
+      return toSerializedMessages(record.session);
+    });
   }
 
   async run(id: string, prompt: string, options: { model?: string; signal?: AbortSignal; onEvent?: (event: UpUpAgentEvent) => void }): Promise<string> {
-    const record = await this.resume(id);
-    record.summary.state = 'running';
-    record.summary.lastActivity = Date.now();
-    const unsubscribe = options.onEvent ? record.session.subscribe(options.onEvent) : undefined;
-    try {
-      await record.session.prompt(prompt, { signal: options.signal });
-      await record.session.waitForIdle();
-      record.summary.state = 'idle';
-      return [...record.session.getMessages()].reverse().find((message) =>
-        Boolean(message && typeof message === 'object' && 'role' in message && message.role === 'assistant'))
-        ? textFromContent((([...record.session.getMessages()].reverse().find((message) => Boolean(message && typeof message === 'object' && 'role' in message && message.role === 'assistant')) as { content?: unknown }).content))
-        : '';
-    } catch (error) {
-      record.summary.state = 'error';
-      throw error;
-    } finally {
+    this.ensureActive();
+    return this.withSessionLock(id, process.cwd(), async () => {
+      const record = await this.resumeRecord(id);
+      record.summary.state = 'running';
       record.summary.lastActivity = Date.now();
-      unsubscribe?.();
-    }
+      const unsubscribe = options.onEvent ? record.session.subscribe(options.onEvent) : undefined;
+      try {
+        await record.session.prompt(prompt, { signal: options.signal });
+        await record.session.waitForIdle();
+        record.summary.state = 'idle';
+        return [...record.session.getMessages()].reverse().find((message) =>
+          Boolean(message && typeof message === 'object' && 'role' in message && message.role === 'assistant'))
+          ? textFromContent((([...record.session.getMessages()].reverse().find((message) => Boolean(message && typeof message === 'object' && 'role' in message && message.role === 'assistant')) as { content?: unknown }).content))
+          : '';
+      } catch (error) {
+        record.summary.state = 'error';
+        throw error;
+      } finally {
+        record.summary.lastActivity = Date.now();
+        unsubscribe?.();
+      }
+    });
   }
 
   async update(id: string, state?: PiSessionSummary['state'], metadata?: Record<string, unknown>): Promise<void> {
-    const record = await this.resume(id);
-    if (state) record.summary.state = state;
-    if (metadata) {
-      Object.assign(record.metadata, metadata);
-      record.summary.metadata = record.metadata;
-    }
-    record.session.appendEntry('upup_session_lifecycle', {
-      state: record.summary.state,
-      metadata: record.summary.metadata,
-      recordedAt: new Date().toISOString(),
+    this.ensureActive();
+    await this.withSessionLock(id, process.cwd(), async () => {
+      const record = await this.resumeRecord(id);
+      if (state) record.summary.state = state;
+      if (metadata) {
+        Object.assign(record.metadata, metadata);
+        record.summary.metadata = record.metadata;
+      }
+      record.session.appendEntry('upup_session_lifecycle', {
+        state: record.summary.state,
+        metadata: record.summary.metadata,
+        recordedAt: new Date().toISOString(),
+      });
     });
   }
 
@@ -325,31 +463,46 @@ export class PiSessionService {
   }
 
   async compact(id: string, instructions?: string): Promise<void> {
-    const record = await this.resume(id);
-    await record.session.compact(instructions);
+    this.ensureActive();
+    await this.withSessionLock(id, process.cwd(), async () => {
+      const record = await this.resumeRecord(id);
+      await record.session.compact(instructions);
+    });
   }
 
   async fork(id: string, entryId?: string): Promise<{ id: string; sessionFile?: string }> {
-    const record = await this.resume(id);
-    const sessionFile = record.session.fork(entryId);
-    if (!sessionFile) throw new Error(`Pi session ${id} cannot be forked without persistence`);
-    const firstLine = (await readFile(sessionFile, 'utf8')).split('\n', 1)[0];
-    const header = JSON.parse(firstLine) as { id?: string };
-    if (!header.id) throw new Error(`Forked Pi session has no session id: ${sessionFile}`);
-    return { id: header.id, sessionFile };
+    this.ensureActive();
+    return this.withSessionLock(id, process.cwd(), async () => {
+      const record = await this.resumeRecord(id);
+      const sessionFile = record.session.fork(entryId);
+      if (!sessionFile) throw new Error(`Pi session ${id} cannot be forked without persistence`);
+      const firstLine = (await readFile(sessionFile, 'utf8')).split('\n', 1)[0];
+      const header = JSON.parse(firstLine) as { id?: string };
+      if (!header.id) throw new Error(`Forked Pi session has no session id: ${sessionFile}`);
+      return { id: header.id, sessionFile };
+    });
   }
 
   async exportSession(id: string, format: 'jsonl' | 'html', outputPath?: string): Promise<string> {
-    const record = await this.resume(id);
-    return format === 'html'
-      ? await record.session.exportToHtml(outputPath)
-      : record.session.exportToJsonl(outputPath);
+    this.ensureActive();
+    return this.withSessionLock(id, process.cwd(), async () => {
+      const record = await this.resumeRecord(id);
+      return format === 'html'
+        ? await record.session.exportToHtml(outputPath)
+        : record.session.exportToJsonl(outputPath);
+    });
   }
 
   async dispose(): Promise<void> {
-    for (const record of new Set(records.values())) record.session.dispose();
-    records.clear();
+    if (this.disposed) return;
+    this.disposed = true;
+    this.runnerRegistry.dispose();
+    for (const record of new Set(this.records.values())) record.session.dispose();
+    this.records.clear();
+    this.recordInitializations.clear();
   }
+
+  disposeRunnerSessions(): void { this.runnerRegistry.dispose(); }
 }
 
 let service: PiSessionService | undefined;
@@ -360,8 +513,16 @@ export interface PiSessionServiceFactory {
 let runtimeFactory: PiSessionServiceFactory | undefined;
 
 export function configurePiSessionService(factory: PiSessionServiceFactory): void {
+  void service?.dispose();
   runtimeFactory = factory;
   service = undefined;
+}
+
+export async function disposePiSessionService(): Promise<void> {
+  const current = service;
+  service = undefined;
+  runtimeFactory = undefined;
+  await current?.dispose();
 }
 
 export function getPiSessionService(): PiSessionService {
@@ -372,4 +533,8 @@ export function getPiSessionService(): PiSessionService {
     service = new PiSessionService({ runtime: runtimeFactory() });
   }
   return service;
+}
+
+export function isPiSessionServiceConfigured(): boolean {
+  return runtimeFactory !== undefined;
 }

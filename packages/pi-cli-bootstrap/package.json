@@ -17,8 +17,8 @@
     "test": "bun test"
   },
   "dependencies": {
-    "@upup/utils": "workspace:*",
-    "@upup/pi-tui-app": "workspace:*"
+    "@upup/utils": "0.2.0",
+    "@upup/pi-tui-app": "0.1.0"
   },
   "files": ["dist"],
   "private": false,

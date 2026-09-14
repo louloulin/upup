@@ -37,7 +37,12 @@
     "typebox": "1.3.7"
   },
   "pi": {
-    "source": "builtin:upup",
+    "contract": "upup.pi.runtime.v1",
+   "source": "builtin:upup",
+    "tools": ["quant_factor_library","quant_factor_compute","quant_factor_normalize","quant_factor_ic","quant_factor_returns","quant_factor_orthogonalize","quant_factor_score","quant_factor_backtest"],
+    "nativeTools": ["quant_factor_library","quant_factor_compute","quant_factor_normalize","quant_factor_ic","quant_factor_returns","quant_factor_orthogonalize","quant_factor_score","quant_factor_backtest"],
+    "trust": { "mode": "builtin", "network": true, "credentials": true },
+    "lifecycle": { "scope": "session" },
     "extensions": [
       "./extensions"
     ],

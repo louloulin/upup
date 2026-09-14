@@ -7,8 +7,15 @@
 
 import type { Worker, WorkerHealth, Task, TaskResult } from '../supervisor.js';
 import { computeNextRunAtMs, executeCronJob, loadCronStore, saveCronStore, type CronJob } from '@upup/cron';
-import { getPiBackgroundService } from '@upup/pi-session';
-import { getGatewayAgentRuntime } from '@upup/gateway';
+import type { GatewayAgentRuntimePort, GatewayRuntime } from '@upup/gateway';
+
+export interface DaemonBackgroundRuntimePort {
+  start(prompt: string, options?: {
+    model?: string;
+    toolFilter?: string[] | '*';
+    cwd?: string;
+  }): Promise<string>;
+}
 
 /**
  * Tasks worker kind identifier
@@ -37,6 +44,12 @@ export class TasksWorker implements Worker {
   private tasksFailed: number = 0;
   private startTime: Date = new Date();
   private initialized: boolean = false;
+
+  constructor(
+    private readonly runtime: GatewayAgentRuntimePort,
+    private readonly gatewayRuntime: GatewayRuntime,
+    private readonly backgroundRuntime: DaemonBackgroundRuntimePort,
+  ) {}
 
   /**
    * Initialize the worker
@@ -90,7 +103,7 @@ export class TasksWorker implements Worker {
     console.log(`[TasksWorker] Executing cron job: ${job.name}`);
 
     try {
-      await executeCronJob(job, store, {});
+      await executeCronJob(job, store, { runtime: this.gatewayRuntime });
 
       // Update job statistics
       const jobIndex = store.jobs.findIndex(j => j.id === jobId);
@@ -170,7 +183,7 @@ export class TasksWorker implements Worker {
     console.log(`[TasksWorker] Background agent task: ${prompt.substring(0, 50)}...`);
 
     try {
-      const taskId = await getPiBackgroundService().start(prompt, {
+      const taskId = await this.backgroundRuntime.start(prompt, {
         model: config.model,
         toolFilter: config.tools || '*',
         cwd: config.cwd,
@@ -208,7 +221,7 @@ export class TasksWorker implements Worker {
     console.log(`[TasksWorker] Scheduled agent task: ${message.substring(0, 50)}...`);
 
     try {
-      const gatewayAgent = getGatewayAgentRuntime();
+      const gatewayAgent = this.runtime;
       const result = await gatewayAgent.runPrompt(message, {
         ...(model ? { model } : {}),
         ...(modelProvider ? { modelProvider } : {}),
@@ -268,6 +281,6 @@ export class TasksWorker implements Worker {
 /**
  * Create the default TasksWorker instance
  */
-export function createTasksWorker(): TasksWorker {
-  return new TasksWorker();
+export function createTasksWorker(runtime: GatewayRuntime, backgroundRuntime: DaemonBackgroundRuntimePort): TasksWorker {
+  return new TasksWorker(runtime.agent, runtime, backgroundRuntime);
 }

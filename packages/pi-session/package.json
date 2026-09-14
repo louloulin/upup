@@ -18,8 +18,8 @@
     }
   },
   "scripts": {
-    "build": "bun build src/index.ts --outdir=dist --target=node --external 'playwright*' --external 'playwright-core*' --external 'chromium*' --external 'electron*' && tsc --emitDeclarationOnly --project tsconfig.json",
-    "test": "bun test ./test.ts ./src/host-contract.test.ts ./src/session2.test.ts ./src/finance-host-contract.test.ts ./src/session-service.test.ts ./src/background-service.test.ts"
+    "build": "bun build src/index.ts --outdir=dist --target=node --external '@upup/*' --external '@earendil-works/*' --external 'playwright*' --external 'playwright-core*' --external 'chromium*' --external 'electron*' && tsc --emitDeclarationOnly --project tsconfig.json",
+    "test": "bun test ./test.ts ./src/host-contract.test.ts ./src/session2.test.ts ./src/restore-advanced.test.ts ./src/finance-host-contract.test.ts ./src/session-service.test.ts ./src/background-service.test.ts"
   },
   "files": [
     "dist",
@@ -44,10 +44,18 @@
   },
   "dependencies": {
     "@earendil-works/pi-coding-agent": "0.84.3",
-    "@upup/commands": "workspace:*",
+    "@upup/commands": "0.2.0",
     "@upup/pi-event-adapter": "0.1.0",
     "@upup/pi-runtime": "0.1.0",
+    "@upup/types": "0.2.0",
     "@upup/pi-investment-workflow": "0.1.0",
-    "@upup/pi-market-data": "0.1.0"
+    "@upup/pi-market-data": "0.1.0",
+    "@upup/pi-resource-composition": "0.1.0",
+    "@upup/pi-finance-composition": "0.1.0",
+    "@upup/pi-platform-composition": "0.1.0",
+    "@upup/pi-capability-registry": "0.1.0",
+    "@upup/cron": "0.2.0",
+    "@upup/utils": "0.2.0",
+    "@earendil-works/pi-ai": "0.84.3"
   }
 }

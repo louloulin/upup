@@ -37,6 +37,7 @@ export {
   type ResearchPlanState,
   type ResearchToolBinding,
   type ResearchPlan,
+  type ResearchMarket,
   type PlanAuditEntry,
 } from './research-plan.js';
 

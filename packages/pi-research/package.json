@@ -26,7 +26,12 @@
     "@upup/pi-planning": "0.1.0"
   },
   "pi": {
-    "source": "builtin:upup",
+    "contract": "upup.pi.runtime.v1",
+   "source": "builtin:upup",
+    "tools": ["web_fetch","web_search","x_search","analyze_sentiment","detect_events","extract_entities","research_deep_search","earnings_preview"],
+    "nativeTools": ["web_fetch","web_search","x_search","analyze_sentiment","detect_events","extract_entities","research_deep_search","earnings_preview"],
+    "trust": { "mode": "builtin", "network": true, "credentials": true },
+    "lifecycle": { "scope": "session" },
     "extensions": ["./extensions"],
     "skills": ["./skills/pi-research"],
     "prompts": ["./prompts/pi-research.md"],

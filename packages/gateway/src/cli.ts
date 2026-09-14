@@ -11,10 +11,7 @@ import {
 } from './config.js';
 import { loginWhatsApp } from './channels/whatsapp/login.js';
 import { startGateway } from './gateway.js';
-import { getPiRuntimePort } from '@upup/pi-runtime';
-
-const runtime = getPiRuntimePort<{ bootstrap?: () => void }>('gateway.bootstrap');
-runtime?.bootstrap?.();
+import type { GatewayRuntime } from './runtime-port.js';
 
 // Suppress noisy Baileys Signal protocol session logs
 const SUPPRESSED_PREFIXES = [
@@ -96,7 +93,7 @@ async function promptSetupMode(cfg: GatewayConfig, linkedPhone: string): Promise
   }
 }
 
-export async function runGatewayCli(): Promise<void> {
+export async function runGatewayCli(params: { runtime: GatewayRuntime }): Promise<void> {
   const args = process.argv.slice(2);
   const command = args[0] ?? 'run';
 
@@ -127,7 +124,7 @@ export async function runGatewayCli(): Promise<void> {
     return;
   }
 
-  const server = await startGateway();
+  const server = await startGateway({ runtime: params.runtime });
   console.log('UpUp gateway running. Press Ctrl+C to stop.');
 
   const shutdown = async () => {

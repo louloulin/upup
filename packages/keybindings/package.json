@@ -17,11 +17,12 @@
     "test": "bun test"
   },
   "dependencies": {
-    "eventemitter3": "^5.0.0"
+    "eventemitter3": "5.0.4"
   },
   "peerDependencies": {},
   "files": [
     "dist"
   ],
+  "pi": { "contract": "upup.pi.runtime.v1", "source": "builtin:upup", "trust": { "mode": "builtin" }, "lifecycle": { "scope": "session" }, "extensions": [], "skills": [], "prompts": [], "workflows": [], "policies": [], "evals": [] },
   "private": false
 }

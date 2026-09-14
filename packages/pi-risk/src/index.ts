@@ -162,9 +162,15 @@ export function calculateKellyCriterion(input: KellyInput): KellyResult {
   const kellyFraction = input.winRate - ((1 - input.winRate) / winLossRatio);
   const optimalSize = Math.max(0, kellyFraction);
   const safeFraction = optimalSize * 0.5;
-  const result: KellyResult = { kellyFraction: riskRound(kellyFraction * 100, 2), optimalSize: riskRound(optimalSize * 100, 2), safeFraction: riskRound(safeFraction * 100, 2), winLossRatio: riskRound(winLossRatio, 4) };
-  if (input.capital !== undefined) result.positionSizing = { fullKelly: riskRound(input.capital * optimalSize, 2), halfKelly: riskRound(input.capital * safeFraction, 2) };
-  return result;
+  return {
+    kellyFraction: riskRound(kellyFraction * 100, 2),
+    optimalSize: riskRound(optimalSize * 100, 2),
+    safeFraction: riskRound(safeFraction * 100, 2),
+    winLossRatio: riskRound(winLossRatio, 4),
+    ...(input.capital !== undefined
+      ? { positionSizing: { fullKelly: riskRound(input.capital * optimalSize, 2), halfKelly: riskRound(input.capital * safeFraction, 2) } }
+      : {}),
+  };
 }
 
 export function calculateRiskParity(assets: readonly RiskParityAsset[]): RiskParityResult {

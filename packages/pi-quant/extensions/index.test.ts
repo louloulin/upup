@@ -1,6 +1,6 @@
 import { describe, expect, test, beforeEach } from 'bun:test';
-
-const HOSTS = '__upupPiHosts';
+import { createEventBus } from '@earendil-works/pi-coding-agent';
+import { publishPiCapabilityHosts } from '@upup/pi-capability-registry';
 
 const HOST_REG = {
   packageName: '@upup/pi-quant',
@@ -9,13 +9,13 @@ const HOST_REG = {
   capabilities: ['extensions', 'skills', 'prompts', 'workflows', 'policies', 'evals'],
 };
 
-function setHost(map: Map<string, typeof HOST_REG>): void {
-  (globalThis as unknown as Record<string, unknown>)[HOSTS] = map;
+function setHost(map: Map<string, typeof HOST_REG>) {
+  const events = createEventBus();
+  const dispose = publishPiCapabilityHosts(events, HOST_REG.sessionId, map);
+  return { events, dispose };
 }
 
-beforeEach(() => {
-  setHost(new Map());
-});
+beforeEach(() => undefined);
 
 describe('pi-quant extension registration', () => {
   test('registers all 8 native tools when host is present', async () => {
@@ -25,9 +25,10 @@ describe('pi-quant extension registration', () => {
         tools.set(def.name, { execute: def.execute, description: def.description });
       },
     };
-    setHost(new Map([['@upup/pi-quant', HOST_REG]]));
+    const { events, dispose } = setHost(new Map([['@upup/pi-quant', HOST_REG]]));
     const mod = await import('./index.js');
-    mod.default(fakePi as unknown as Parameters<typeof mod.default>[0]);
+    mod.default({ ...fakePi, events } as unknown as Parameters<typeof mod.default>[0]);
+    dispose();
     expect(tools.size).toBe(8);
     expect(tools.has('quant_factor_library')).toBe(true);
     expect(tools.has('quant_factor_compute')).toBe(true);
@@ -46,9 +47,9 @@ describe('pi-quant extension registration', () => {
         tools.set(def.name, { execute: def.execute as never });
       },
     };
-    setHost(new Map([['@upup/pi-quant', HOST_REG]]));
+    const { events, dispose } = setHost(new Map([['@upup/pi-quant', HOST_REG]]));
     const mod = await import('./index.js');
-    mod.default(fakePi as unknown as Parameters<typeof mod.default>[0]);
+    mod.default({ ...fakePi, events } as unknown as Parameters<typeof mod.default>[0]);
     const ctrl = new AbortController();
     const out = await tools.get('quant_factor_normalize')!.execute('a-1', { values: [1, 2, 3, 4, 5], method: 'zscore' }, ctrl.signal);
     const parsed = JSON.parse(out.content[0].text);
@@ -65,19 +66,22 @@ describe('pi-quant extension registration', () => {
         tools.set(def.name, { execute: def.execute as never });
       },
     };
-    setHost(new Map([['@upup/pi-quant', HOST_REG]]));
+    const { events, dispose } = setHost(new Map([['@upup/pi-quant', HOST_REG]]));
     const mod = await import('./index.js');
-    mod.default(fakePi as unknown as Parameters<typeof mod.default>[0]);
+    mod.default({ ...fakePi, events } as unknown as Parameters<typeof mod.default>[0]);
     const ctrl = new AbortController();
     ctrl.abort();
     const out = await tools.get('quant_factor_library')!.execute('a-2', {}, ctrl.signal);
     expect(out.isError).toBe(true);
     expect(out.content[0].text).toContain('aborted');
+    dispose();
   });
 
   test('registerHostTools is a no-op when host is missing', async () => {
-    setHost(new Map());
+    const { events, dispose } = setHost(new Map());
     const mod = await import('./index.js');
     expect(typeof mod.default).toBe('function');
+    mod.default({ registerTool: () => undefined, events } as unknown as Parameters<typeof mod.default>[0]);
+    dispose();
   });
 });

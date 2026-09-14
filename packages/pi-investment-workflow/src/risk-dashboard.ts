@@ -3,11 +3,11 @@
  *
  * v5 Sprint 2.3 — 风险面板
  * 从 .upup/plans/*.json 拉 active plan 步骤进度 + 组合集中度
- * 纯本地状态(无 src/tools/* 依赖,无 API)
+ * 纯本地状态(无外部工具实现依赖,无 API)
  *
  * 模块边界:
- * - 只依赖 src/plan/plan-executor(只读) + src/utils/storage-paths
- * - 不依赖 src/tools/portfolio(避免 finance → agent 反向引用循环)
+ * - 只依赖 planning/storage package 的只读 API
+ * - 不依赖 portfolio tool internals(避免 finance → agent 反向引用循环)
  */
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
@@ -16,11 +16,32 @@ import { loadPlan } from '@upup/pi-planning';
 import type { ResearchPlan } from '@upup/pi-planning';
 import { calculateProgress } from '@upup/pi-planning';
 import { readWatchlist } from './watchlist-edit.js';
+import { calculateMaxDrawdown, calculateSharpeRatio, calculateValueAtRisk } from '@upup/pi-risk';
 
 interface RiskSettings {
   riskPreference?: 'conservative' | 'moderate' | 'aggressive';
   maxPositionPct?: number;
   maxSectorPct?: number;
+}
+
+interface RiskDashboardInput {
+  readonly returns?: readonly number[];
+  readonly prices?: readonly number[];
+  readonly weights?: Readonly<Record<string, number>>;
+}
+
+function parseRiskInput(args: string): RiskDashboardInput {
+  if (!args.trim()) return {};
+  try {
+    const parsed = JSON.parse(args) as RiskDashboardInput;
+    return {
+      ...(Array.isArray(parsed.returns) ? { returns: parsed.returns } : {}),
+      ...(Array.isArray(parsed.prices) ? { prices: parsed.prices } : {}),
+      ...(parsed.weights && typeof parsed.weights === 'object' ? { weights: parsed.weights } : {}),
+    };
+  } catch {
+    return {};
+  }
 }
 
 function readRiskSettings(): RiskSettings {
@@ -81,7 +102,8 @@ function watchlistConcentration(): { count: number; topSymbol: string | undefine
 }
 
 /** CLI 入口 */
-export function runRiskDashboard(_args: string): string {
+export function runRiskDashboard(args: string): string {
+  const input = parseRiskInput(args);
   const settings = readRiskSettings();
   const active = collectActivePlans();
   const conc = watchlistConcentration();
@@ -135,12 +157,29 @@ export function runRiskDashboard(_args: string): string {
   lines.push(`  • 告警数:    ${conc.alerts}`);
   lines.push('');
 
-  // 4. 框架占位(接入 src/tools/risk 后自动填充)
-  lines.push('  📈 框架指标(接入 src/tools/risk/management 后自动填充)');
-  lines.push('  • Portfolio β (weighted)         — 待计算');
-  lines.push('  • VaR (95%, 1d)                 — 待计算');
-  lines.push('  • Max Drawdown (252d)           — 待计算');
-  lines.push('  • 行业集中度 (HHI)              — 待计算');
+  lines.push('  📈 风险指标（Pi Risk，输入为显式历史数据）');
+  if (input.returns && input.returns.length > 1) {
+    const varResult = calculateValueAtRisk({ returns: input.returns, confidence: 0.95, method: 'historical' });
+    const sharpe = calculateSharpeRatio({ returns: input.returns });
+    lines.push(`  • VaR (95%, 1d)                 ${varResult.valueAtRiskPercent.toFixed(4)}% (${varResult.observations} observations)`);
+    lines.push(`  • Sharpe                        ${sharpe.sharpe.toFixed(4)} (${sharpe.rating})`);
+  } else {
+    lines.push('  • VaR / Sharpe                   — 缺少至少 2 个历史收益率 observations');
+  }
+  if (input.prices && input.prices.length > 1) {
+    const drawdown = calculateMaxDrawdown({ prices: input.prices });
+    lines.push(`  • Max Drawdown                  ${drawdown.maxDrawdownPercent.toFixed(4)}% (${drawdown.observations} observations)`);
+  } else {
+    lines.push('  • Max Drawdown                  — 缺少至少 2 个历史价格 observations');
+  }
+  const weights = input.weights ? Object.values(input.weights).filter((weight) => Number.isFinite(weight) && weight >= 0) : [];
+  const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+  if (weights.length > 0 && totalWeight > 0) {
+    const hhi = weights.reduce((sum, weight) => sum + (weight / totalWeight) ** 2, 0);
+    lines.push(`  • 集中度 HHI                   ${hhi.toFixed(4)} (${weights.length} positions)`);
+  } else {
+    lines.push('  • 集中度 HHI                   — 缺少显式 position weights');
+  }
   lines.push('');
 
   return lines.join('\n');

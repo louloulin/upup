@@ -1,10 +1,10 @@
 import { beforeAll, describe, expect, test } from 'bun:test';
-import { getInvestmentAgentSpec } from './agent-spec.js';
-import { PiAgentSessionFactory } from './agent-session-factory.js';
-import { bootstrapPiNativeServices } from './bootstrap.js';
+import { getInvestmentAgentSpec } from '@upup/pi-investment-workflow';
+import { PiAgentSessionFactory } from '@upup/pi-session';
+import { bootstrapPiNativeServices } from '@upup/pi-app/default';
 
 beforeAll(() => bootstrapPiNativeServices());
-import { FINANCE_FIXTURE_TOOLS } from '../../extensions/upup/finance-fixtures.js';
+import { FINANCE_FIXTURE_TOOLS } from '@upup/pi-finance-sdk/finance-fixtures';
 import type { UpUpAgentSession, UpUpToolContract } from '@upup/pi-runtime';
 import { toPiTool } from '@upup/pi-event-adapter';
 import { join } from 'node:path';
@@ -62,19 +62,23 @@ describe('PiAgentSessionFactory', () => {
   test('loads management tools through the Pi Package host contract', async () => {
     const packageRoot = join(process.cwd(), 'packages');
     const trust = {
-      trustedPaths: [join(packageRoot, 'pi-management')],
-      pinnedPackages: { '@upup/pi-management': '0.1.0', '@earendil-works/pi-coding-agent': '0.84.3', '@upup/types': '0.2.0', typebox: '1.3.7' },
-      allowedSources: { '@upup/pi-management': ['builtin:upup'] },
+      trustedPaths: [join(packageRoot, 'pi-management'), join(packageRoot, 'pi-market-data')],
+      pinnedPackages: { '@upup/pi-management': '0.1.0', '@upup/pi-market-data': '0.1.0', '@upup/pi-resource-composition': '0.1.0', '@upup/pi-session': '0.1.0', '@upup/pi-runtime': '0.1.0', '@upup/utils': '0.2.0', '@upup/pi-capability-registry': '0.1.0', '@earendil-works/pi-coding-agent': '0.84.3', '@upup/types': '0.2.0', typebox: '1.3.7' },
+      allowedSources: { '@upup/pi-management': ['builtin:upup'], '@upup/pi-market-data': ['builtin:upup'] },
     };
     const session = await new PiAgentSessionFactory().createSession({
       ...getInvestmentAgentSpec('invest-explore'), packages: ['@upup/pi-management'], skills: [], tools: ['management_system_snapshot', 'management_provider_status', 'management_package_status', 'management_runtime_status'],
-    }, { cwd: process.cwd(), piPackagePaths: [join(packageRoot, 'pi-management')], piPackageTrust: trust });
+    }, { cwd: process.cwd(), piPackagePaths: [join(packageRoot, 'pi-management'), join(packageRoot, 'pi-market-data')], piPackageTrust: trust });
     try {
       expect(session.getAvailableToolNames()).toEqual(['management_system_snapshot', 'management_provider_status', 'management_package_status', 'management_runtime_status']);
       const result = await session.executeTool('management_system_snapshot', 'management-session-1', {});
       const text = result.content.find((part): part is { type: 'text'; text: string } => part.type === 'text')?.text;
       expect(text).toBeDefined();
-      expect(JSON.parse(text!)).toMatchObject({ schema: 1, runtime: { name: 'pi', contract: 'upup.pi.host.v1' }, packages: [{ name: '@upup/pi-management', version: '0.1.0' }] });
+      const snapshot = JSON.parse(text!) as { schema: number; runtime: { name: string; contract: string; version: string }; packages: readonly { name: string; version: string }[] };
+      expect(snapshot.schema).toBe(1);
+      expect(snapshot.runtime).toEqual({ name: 'pi', contract: 'upup.pi.host.v1', version: '0.84.3' });
+      expect(snapshot.packages.some((pkg) => pkg.name === '@upup/pi-management' && pkg.version === '0.1.0')).toBe(true);
+      expect(snapshot.packages.some((pkg) => pkg.name === '@upup/pi-market-data' && pkg.version === '0.1.0')).toBe(true);
     } finally {
       session.dispose();
     }
@@ -91,13 +95,13 @@ describe('PiAgentSessionFactory', () => {
       createdAtMs: 1, updatedAtMs: 1, state: { nextRunAtMs: 2, lastRunStatus: 'error', lastErrorClass: 'forbidden', consecutiveErrors: 1 },
     }]);
     const trust = {
-      trustedPaths: [join(packageRoot, 'pi-management')],
-      pinnedPackages: { '@upup/pi-management': '0.1.0', '@earendil-works/pi-coding-agent': '0.84.3', '@upup/types': '0.2.0', typebox: '1.3.7' },
-      allowedSources: { '@upup/pi-management': ['builtin:upup'] },
+      trustedPaths: [join(packageRoot, 'pi-management'), join(packageRoot, 'pi-market-data')],
+      pinnedPackages: { '@upup/pi-management': '0.1.0', '@upup/pi-market-data': '0.1.0', '@upup/pi-resource-composition': '0.1.0', '@upup/pi-session': '0.1.0', '@upup/pi-runtime': '0.1.0', '@upup/utils': '0.2.0', '@upup/pi-capability-registry': '0.1.0', '@earendil-works/pi-coding-agent': '0.84.3', '@upup/types': '0.2.0', typebox: '1.3.7' },
+      allowedSources: { '@upup/pi-management': ['builtin:upup'], '@upup/pi-market-data': ['builtin:upup'] },
     };
     const session = await new PiAgentSessionFactory().createSession({
       ...getInvestmentAgentSpec('invest-explore'), packages: ['@upup/pi-management'], skills: [], tools: ['management_system_snapshot'],
-    }, { cwd: process.cwd(), piPackagePaths: [join(packageRoot, 'pi-management')], piPackageTrust: trust });
+    }, { cwd: process.cwd(), piPackagePaths: [join(packageRoot, 'pi-management'), join(packageRoot, 'pi-market-data')], piPackageTrust: trust });
     try {
       const result = await session.executeTool('management_system_snapshot', 'management-sla-snapshot', {});
       const snapshot = JSON.parse(result.content.find((part): part is { type: 'text'; text: string } => part.type === 'text')!.text) as { providers: { marketData: { providerSla?: { jobs: readonly Record<string, unknown>[] } } } };
@@ -134,7 +138,7 @@ describe('PiAgentSessionFactory', () => {
       pinnedPackages: { '@upup/pi-notify': '0.1.0', '@earendil-works/pi-coding-agent': '0.84.3', '@upup/types': '0.2.0', typebox: '1.3.7' },
       allowedSources: { '@upup/pi-notify': ['builtin:upup'] },
     };
-    const enabled = await new PiAgentSessionFactory().createSession({ ...getInvestmentAgentSpec('invest-explore'), packages: ['@upup/pi-notify'], skills: [], tools: ['notify', 'notify_list', 'subscribe_pr', 'unsubscribe_pr', 'list_pr_subscriptions'] }, { cwd: process.cwd(), piPackagePaths: [join(packageRoot, 'pi-notify')], piPackageTrust: trust });
+    const enabled = await new PiAgentSessionFactory().createSession({ ...getInvestmentAgentSpec('invest-explore'), packages: ['@upup/pi-notify'], skills: [], tools: ['notify', 'notify_list', 'subscribe_pr', 'unsubscribe_pr', 'list_pr_subscriptions'] }, { cwd: process.cwd(), requestToolApproval: async () => true, piPackagePaths: [join(packageRoot, 'pi-notify')], piPackageTrust: trust });
     try {
       expect(enabled.getAvailableToolNames()).toEqual(['notify', 'notify_list', 'subscribe_pr', 'unsubscribe_pr', 'list_pr_subscriptions']);
       const log = await enabled.executeTool('notify', 'notify-log-1', { channel: 'log', title: 'test', message: 'ok' });
@@ -240,7 +244,7 @@ describe('PiAgentSessionFactory', () => {
     const trust = { trustedPaths: [join(packageRoot, 'pi-platform')], pinnedPackages: { '@upup/pi-platform': '0.1.0', '@earendil-works/pi-coding-agent': '0.84.3', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-platform': ['builtin:upup'] } };
     try {
       await writeFile(join(directory, 'input.txt'), 'alpha\nbeta\n');
-      const enabled = await new PiAgentSessionFactory().createSession(spec, { cwd: directory, piPackagePaths: [join(packageRoot, 'pi-platform')], piPackageTrust: trust });
+      const enabled = await new PiAgentSessionFactory().createSession(spec, { cwd: directory, requestToolApproval: async () => true, piPackagePaths: [join(packageRoot, 'pi-platform')], piPackageTrust: trust });
       try {
         expect(enabled.getAvailableToolNames()).toEqual(spec.tools);
         const read = await enabled.executeTool('read_file', 'platform-read', { path: 'input.txt' });
@@ -265,7 +269,7 @@ describe('PiAgentSessionFactory', () => {
     const spec = { ...getInvestmentAgentSpec('invest-explore'), id: 'platform-memory-session', packages: ['@upup/pi-platform'], skills: [], tools: ['memory_search', 'memory_get', 'memory_update'] };
     const trust = { trustedPaths: [join(packageRoot, 'pi-platform')], pinnedPackages: { '@upup/pi-platform': '0.1.0', '@earendil-works/pi-coding-agent': '0.84.3', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-platform': ['builtin:upup'] } };
     try {
-      const enabled = await new PiAgentSessionFactory().createSession(spec, { cwd: process.cwd(), piPackagePaths: [join(packageRoot, 'pi-platform')], piPackageTrust: trust });
+      const enabled = await new PiAgentSessionFactory().createSession(spec, { cwd: process.cwd(), requestToolApproval: async () => true, piPackagePaths: [join(packageRoot, 'pi-platform')], piPackageTrust: trust });
       try {
         expect(enabled.getAvailableToolNames()).toEqual(spec.tools);
         const updated = await enabled.executeTool('memory_update', 'platform-memory-update', { content: 'User prefers evidence-backed position sizing.', file: 'long_term' });
@@ -294,7 +298,7 @@ describe('PiAgentSessionFactory', () => {
     const spec = { ...getInvestmentAgentSpec('invest-explore'), id: 'platform-heartbeat-session', packages: ['@upup/pi-platform'], skills: [], tools: ['heartbeat'] };
     const trust = { trustedPaths: [join(packageRoot, 'pi-platform')], pinnedPackages: { '@upup/pi-platform': '0.1.0', '@earendil-works/pi-coding-agent': '0.84.3', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-platform': ['builtin:upup'] } };
     try {
-      const enabled = await new PiAgentSessionFactory().createSession(spec, { cwd: process.cwd(), piPackagePaths: [join(packageRoot, 'pi-platform')], piPackageTrust: trust });
+      const enabled = await new PiAgentSessionFactory().createSession(spec, { cwd: process.cwd(), requestToolApproval: async () => true, piPackagePaths: [join(packageRoot, 'pi-platform')], piPackageTrust: trust });
       try {
         expect(enabled.getAvailableToolNames()).toEqual(['heartbeat']);
         const update = await enabled.executeTool('heartbeat', 'platform-heartbeat-update', { action: 'update', content: '- Check unusual A-share volatility' });
@@ -320,7 +324,7 @@ describe('PiAgentSessionFactory', () => {
     const spec = { ...getInvestmentAgentSpec('invest-explore'), id: 'platform-cron-session', packages: ['@upup/pi-platform'], skills: [], tools: ['cron'] };
     const trust = { trustedPaths: [join(packageRoot, 'pi-platform')], pinnedPackages: { '@upup/pi-platform': '0.1.0', '@earendil-works/pi-coding-agent': '0.84.3', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-platform': ['builtin:upup'] } };
     try {
-      const enabled = await new PiAgentSessionFactory().createSession(spec, { cwd: process.cwd(), piPackagePaths: [join(packageRoot, 'pi-platform')], piPackageTrust: trust });
+      const enabled = await new PiAgentSessionFactory().createSession(spec, { cwd: process.cwd(), requestToolApproval: async () => true, piPackagePaths: [join(packageRoot, 'pi-platform')], piPackageTrust: trust });
       try {
         expect(enabled.getAvailableToolNames()).toEqual(['cron']);
         const created = await enabled.executeTool('cron', 'platform-cron-add', { action: 'add', name: 'session-cron', schedule: { kind: 'every', everyMs: 60_000 }, message: 'test cron job' });
@@ -376,7 +380,7 @@ describe('PiAgentSessionFactory', () => {
     const directory = await mkdtemp(join(process.cwd(), '.tmp-pi-platform-notebook-'));
     const spec = { ...getInvestmentAgentSpec('invest-plan'), id: 'platform-notebook-session', packages: ['@upup/pi-platform'], skills: [], tools: ['notebook_read', 'notebook_create', 'notebook_edit_cell', 'notebook_insert_cell', 'notebook_delete_cell'] };
     const trust = { trustedPaths: [join(packageRoot, 'pi-platform')], pinnedPackages: { '@upup/pi-platform': '0.1.0', '@earendil-works/pi-coding-agent': '0.84.3', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-platform': ['builtin:upup'] } };
-    const session = await new PiAgentSessionFactory().createSession(spec, { cwd: directory, piPackagePaths: [join(packageRoot, 'pi-platform')], piPackageTrust: trust });
+      const session = await new PiAgentSessionFactory().createSession(spec, { cwd: directory, requestToolApproval: async () => true, piPackagePaths: [join(packageRoot, 'pi-platform')], piPackageTrust: trust });
     try {
       expect(session.getAvailableToolNames()).toEqual(spec.tools);
       const text = (value: Awaited<ReturnType<UpUpAgentSession['executeTool']>>) => value.content.find((part): part is { type: 'text'; text: string } => part.type === 'text')!.text;
@@ -397,9 +401,9 @@ describe('PiAgentSessionFactory', () => {
     const packageRoot = join(process.cwd(), 'packages');
     const home = await mkdtemp(join(process.cwd(), '.tmp-pi-platform-mcp-home-'));
     const previousHome = process.env.UPUP_HOME; process.env.UPUP_HOME = home;
-    const spec = { ...getInvestmentAgentSpec('invest-explore'), id: 'platform-mcp-session', packages: ['@upup/pi-platform'], skills: [], tools: ['mcp_auth_set', 'mcp_auth_get', 'mcp_auth_clear', 'list_mcp_resources', 'read_mcp_resource'] };
+    const spec = { ...getInvestmentAgentSpec('invest-explore'), id: 'platform-mcp-session', packages: ['@upup/pi-platform'], skills: [], tools: ['mcp_auth_set', 'mcp_auth_get', 'mcp_auth_clear', 'list_mcp_resources', 'read_mcp_resource'], permissions: { ...getInvestmentAgentSpec('invest-explore').permissions, allow: ['safe', 'warning', 'dangerous', 'critical'] as const, deny: [] as const, allowCredentialAccess: true } };
     const trust = { trustedPaths: [join(packageRoot, 'pi-platform')], pinnedPackages: { '@upup/pi-platform': '0.1.0', '@earendil-works/pi-coding-agent': '0.84.3', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-platform': ['builtin:upup'] } };
-    const session = await new PiAgentSessionFactory().createSession(spec, { cwd: process.cwd(), piPackagePaths: [join(packageRoot, 'pi-platform')], piPackageTrust: trust });
+    const session = await new PiAgentSessionFactory().createSession({ ...spec, permissions: { ...spec.permissions, allow: ['safe', 'warning', 'dangerous', 'critical'], allowCredentialAccess: true } }, { cwd: process.cwd(), requestToolApproval: async () => true, piPackagePaths: [join(packageRoot, 'pi-platform')], piPackageTrust: trust });
     try {
       expect(session.getAvailableToolNames()).toEqual(spec.tools);
       const text = (value: Awaited<ReturnType<UpUpAgentSession['executeTool']>>) => value.content.find((part): part is { type: 'text'; text: string } => part.type === 'text')!.text;
@@ -446,7 +450,7 @@ describe('PiAgentSessionFactory', () => {
     const directory = await mkdtemp(join(process.cwd(), '.upup', 'platform-export-session-'));
     const spec = { ...getInvestmentAgentSpec('invest-explore'), id: 'platform-export-session', packages: ['@upup/pi-platform'], skills: [], tools: ['export_data'] };
     const trust = { trustedPaths: [join(packageRoot, 'pi-platform')], pinnedPackages: { '@upup/pi-platform': '0.1.0', '@earendil-works/pi-coding-agent': '0.84.3', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-platform': ['builtin:upup'] } };
-    const enabled = await new PiAgentSessionFactory().createSession(spec, { cwd: directory, piPackagePaths: [join(packageRoot, 'pi-platform')], piPackageTrust: trust });
+    const enabled = await new PiAgentSessionFactory().createSession(spec, { cwd: directory, requestToolApproval: async () => true, piPackagePaths: [join(packageRoot, 'pi-platform')], piPackageTrust: trust });
     try {
       expect(enabled.getAvailableToolNames()).toEqual(['export_data']);
       const exported = await enabled.executeTool('export_data', 'platform-export-1', { data: [{ symbol: 'AAPL', price: 123 }], filename: 'session-export', format: 'json' });
@@ -694,7 +698,7 @@ describe('PiAgentSessionFactory', () => {
       cwd: process.cwd(),
       marketQuoteFetcher: async () => new Response(JSON.stringify({ chart: { result: [{ meta: { regularMarketPrice: 1600, regularMarketTime: Date.parse('2026-09-13T00:00:00Z') / 1000 } }] } }), { status: 200 }),
       additionalExtensionPaths: [join(extensionPath, 'extensions', 'index.ts')],
-      pluginTrust: { trustedPaths: [process.cwd()], pinnedPackages: { '@upup/pi-finance-sdk': '0.1.0' } },
+      piPackageTrust: { trustedPaths: [process.cwd()], pinnedPackages: { '@upup/pi-finance-sdk': '0.1.0' } },
     });
     expect(session.getAvailableToolNames()).toContain('finance_evidence_quote');
     expect(session.getAvailableToolNames()).toContain('fund_search');
@@ -879,7 +883,7 @@ describe('PiAgentSessionFactory', () => {
       additionalExtensionPaths: [join(extensionPath, 'extensions', 'index.ts')],
       additionalSkillPaths: [join(extensionPath, 'skills')],
       additionalPromptTemplatePaths: [join(extensionPath, 'prompts')],
-      pluginTrust: { trustedPaths: [process.cwd()], pinnedPackages: { '@upup/pi-finance-sdk': '0.1.0' } },
+      piPackageTrust: { trustedPaths: [process.cwd()], pinnedPackages: { '@upup/pi-finance-sdk': '0.1.0' } },
     });
     const nativeSession = session as unknown as { session: { promptTemplates: readonly { name: string }[]; resourceLoader: { getSkills(): { skills: readonly { name: string }[] } } } };
     expect(nativeSession.session.resourceLoader.getSkills().skills.map((skill) => skill.name)).toContain('finance-evidence');
@@ -897,7 +901,7 @@ describe('PiAgentSessionFactory', () => {
       cwd: process.cwd(),
       additionalExtensionPaths: [join(extensionPath, 'extensions', 'index.ts')],
       additionalSkillPaths: [join(extensionPath, 'skills')],
-      pluginTrust: { trustedPaths: [process.cwd()], pinnedPackages: { '@upup/pi-finance-sdk': '0.1.0' } },
+      piPackageTrust: { trustedPaths: [process.cwd()], pinnedPackages: { '@upup/pi-finance-sdk': '0.1.0' } },
     });
     try {
       const nativeSession = session as unknown as { session: { resourceLoader: { getSkills(): { skills: readonly { name: string }[] } } } };
@@ -1661,7 +1665,7 @@ describe('PiAgentSessionFactory', () => {
       expect(session.getAvailableToolNames()).toEqual(expect.arrayContaining(['place_trade_order', 'cancel_trade_order']));
       const result = await session.executeTool('place_trade_order', 'native-trade-denied', { symbol: '600519.SH', side: 'buy', quantity: 100 }) as AgentToolResultWithError & { details?: { policyAudit?: { decision?: string } } };
       expect(result.isError).toBe(true);
-      expect(result.details?.policyAudit?.decision).toBe('approval_denied');
+      expect(result.details?.policyAudit?.decision).toBe('denied');
     } finally {
       session.dispose();
     }

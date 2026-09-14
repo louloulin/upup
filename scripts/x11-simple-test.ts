@@ -82,7 +82,7 @@ async function main() {
   for (const tc of testCases) {
     const start = Date.now();
     try {
-      // 从SkillCommandRegistry获取命令
+      // Pi resource loader owns skill command discovery.
       const cmd = getSkillCommand(tc.name);
       if (!cmd) {
         results.push({ 

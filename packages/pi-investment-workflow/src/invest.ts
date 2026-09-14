@@ -2,15 +2,15 @@
  * /invest [TICKER] [intent]
  *
  * v5 Sprint 3.2 — 5 步研究闭环命令
- * /invest NVDA                 → 5 步全跑(research/valuation/backtest/trade/review)
+ * /invest NVDA                 → 5 步全跑(detect/plan/execute/verify/report)
  * /invest NVDA 估值            → fast lane(只跑估值相关 phase)
  * /invest --resume <planId>    → 从 checkpoint 恢复
  *
  * 调 Pi-backed investment workflow
- * 通过 Pi Session 调用 investment-workflow Package 的五阶段工具。
+ * 通过 Pi Session 调用 investment-workflow Package 的 canonical 五阶段工具。
  *
  * 模块边界:
- * - 调 src/runtime/pi/investment-workflow(无 src/tools 依赖)
+ * - 通过注入的 InvestmentSessionFactory 使用 Pi Session（无 root src 依赖）
  * - 调 src/plan/plan-executor(读 plan 状态)
  * - 零跨包
  */
@@ -21,51 +21,16 @@ import {
   resumeWorkflow,
   runInvestmentWorkflow,
   WORKFLOW_PHASES,
+  type InvestmentWorkflowOptions,
   type WorkflowResult,
 } from './orchestration.js';
 import { loadPlan } from '@upup/pi-planning';
 import { extractTicker } from '@upup/pi-planning';
-import { getDefaultAuditChain, type AuditAction } from '@upup/pi-storage';
-import { globalUpupPath } from '@upup/utils';
-import { randomUUID } from 'node:crypto';
 
 export type InvestMode = 'full' | 'fast' | 'resume';
 
 
 
-/**
- * Emit a signed audit record for the trade phase of a workflow result, if any
- * tool output contains an explicit BUY/SELL/COVER recommendation.
- *
- * Heuristic: scan each phase's output for the keyword + ticker. Only the first
- * match is recorded; absent match, no audit is emitted (so this is safe to
- * always call).
- */
-function recordTradeAuditIfApplicable(result: WorkflowResult): void {
-  const tradePhase = result.phases.find(p => p.phase === 'trade' && p.status === 'completed');
-  if (!tradePhase) return;
-  const out = tradePhase.output;
-  const ticker = result.ticker;
-  if (!ticker) return;
-  const matched = out.match(/\b(BUY|SELL|COVER|HOLD|CANCEL)\b/i);
-  if (!matched) return;
-  const action = matched[1]!.toUpperCase() as AuditAction;
-  try {
-    getDefaultAuditChain(false, {
-      filePath: globalUpupPath('audit-chain.jsonl'),
-      keyPath: globalUpupPath('audit-key.json'),
-    }).append({
-      intentId: `invest-${result.planId}`,
-      author: 'agent',
-      action,
-      ticker,
-      evidenceRefs: [],
-      agentChain: [{ agentId: 'investment-workflow', toolCalls: ['runInvestmentWorkflow'], modelVersion: 'unknown' }],
-    });
-  } catch {
-    // audit is best-effort; do not fail the workflow on signing error
-  }
-}
 function parseArgs(input: string): { mode: InvestMode; ticker?: string; intent: string; planId?: string } {
   const trimmed = input.trim();
   if (!trimmed) return { mode: 'full', intent: '分析投资机会' };
@@ -109,7 +74,7 @@ function renderResult(result: WorkflowResult): string {
   if (result.phases.length === 0) {
     lines.push('  (无 phase 结果)');
   } else {
-    lines.push(`  5 步 phase 进度:`);
+    lines.push(`  5 步 canonical phase 进度:`);
     lines.push('');
     for (const p of result.phases) {
       const icon = p.status === 'completed' ? '✓' : p.status === 'failed' ? '✗' : p.status === 'skipped' ? '⊘' : '○';
@@ -140,9 +105,9 @@ function renderResult(result: WorkflowResult): string {
 
 /** 渲染列表:当前所有 plan 的 5 步状态(给 /invest --list 用) */
 function renderList(): string {
-  if (!existsSync(PLANS_DIR)) return '\n  (无 plan — /invest NVDA 开始 5 步研究)\n';
+  if (!existsSync(PLANS_DIR)) return '\n  (无 plan — /invest NVDA 开始五阶段投研)\n';
   const files = readdirSync(PLANS_DIR).filter(f => f.endsWith('.json'));
-  if (files.length === 0) return '\n  (无 plan — /invest NVDA 开始 5 步研究)\n';
+  if (files.length === 0) return '\n  (无 plan — /invest NVDA 开始五阶段投研)\n';
 
   const lines: string[] = [
     '',
@@ -166,7 +131,7 @@ function renderList(): string {
 }
 
 /** CLI 入口 */
-export async function runInvest(args: string): Promise<string> {
+export async function runInvest(args: string, options: InvestmentWorkflowOptions = {}): Promise<string> {
   const trimmed = args.trim();
 
   // --list
@@ -184,7 +149,7 @@ export async function runInvest(args: string): Promise<string> {
       ].join('\n');
     }
     try {
-      const result = await resumeWorkflow(planId);
+      const result = await resumeWorkflow(planId, options);
       return renderResult(result);
     } catch (e) {
       return `\n  ✗ Resume 失败: ${e instanceof Error ? e.message : String(e)}\n`;
@@ -192,10 +157,10 @@ export async function runInvest(args: string): Promise<string> {
   }
 
   const result = await runInvestmentWorkflow(intent, {
+    ...options,
     ...(ticker ? { ticker } : {}),
     mode,
   });
-  recordTradeAuditIfApplicable(result);
   return renderResult(result);
 }
 

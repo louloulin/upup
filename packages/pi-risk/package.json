@@ -21,6 +21,7 @@
     }
   },
   "scripts": {
+    "prebuild": "bun run ../../scripts/clean-pi-package-dist.ts",
     "build": "bun build src/index.ts --outdir=dist --target=node && bun build extensions/index.ts --outdir=dist/extensions --target=node && tsc --emitDeclarationOnly --declaration --declarationMap --outDir dist",
     "test": "bun test ./test.ts ./extensions/index.test.ts"
   },
@@ -39,7 +40,12 @@
     "typebox": "1.3.7"
   },
   "pi": {
-    "source": "builtin:upup",
+    "contract": "upup.pi.runtime.v1",
+   "source": "builtin:upup",
+    "tools": ["calculate_var","calculate_sharpe","calculate_sortino","calculate_max_drawdown","calculate_kelly","calculate_risk_parity","calculate_mean_variance","calculate_correlation_matrix","calculate_correlation","score_data_source","compare_data_sources","track_risk","get_short_interest","calculate_short_interest_ratio","detect_short_squeeze"],
+    "nativeTools": ["calculate_var","calculate_sharpe","calculate_sortino","calculate_max_drawdown","calculate_kelly","calculate_risk_parity","calculate_mean_variance","calculate_correlation_matrix","calculate_correlation","score_data_source","compare_data_sources","track_risk","get_short_interest","calculate_short_interest_ratio","detect_short_squeeze"],
+    "trust": { "mode": "builtin", "filesystem": true },
+    "lifecycle": { "scope": "session" },
     "extensions": [
       "./extensions/index.ts"
     ],

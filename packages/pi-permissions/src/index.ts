@@ -11,7 +11,7 @@
  * - Rule import/export
  */
 
-import type { ApprovalDecision } from '@upup/pi-event-adapter';
+import type { ApprovalDecision } from '@upup/pi-runtime';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { upupPath } from '@upup/utils';

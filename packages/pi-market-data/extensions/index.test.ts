@@ -1,11 +1,13 @@
 import { describe, expect, test } from 'bun:test';
 import marketDataExtension from './index.js';
+import { createEventBus } from '@earendil-works/pi-coding-agent';
+import { publishPiCapabilityHosts } from '@upup/pi-capability-registry';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
   createPiCapabilityContext,
-  PI_MARKET_DATA_CAPABILITIES_CONTRACT,
+  PI_MARKET_DATA_CAPABILITY_VERSION,
   PI_MARKET_DATA_CAPABILITY_NAMES,
   type PiAuditCapability,
   type PiEvidenceCapability,
@@ -15,7 +17,8 @@ type RegisteredTool = { name: string; execute: (...args: any[]) => Promise<any> 
 
 function makeHost() {
   const tools = new Map<string, RegisteredTool>();
-  return { host: { registerTool: (tool: RegisteredTool) => tools.set(tool.name, tool) } as never, tools };
+  const events = createEventBus();
+  return { host: { events, registerTool: (tool: RegisteredTool) => tools.set(tool.name, tool) } as never, tools };
 }
 
 describe('Pi market-data extension', () => {
@@ -37,38 +40,38 @@ describe('Pi market-data extension', () => {
     const context = createPiCapabilityContext({
       sessionId: 'market-data-test-session',
       capabilities: {
-        [PI_MARKET_DATA_CAPABILITY_NAMES.quoteFetcher]: { version: PI_MARKET_DATA_CAPABILITIES_CONTRACT, value: contextFetch },
-        [PI_MARKET_DATA_CAPABILITY_NAMES.evidence]: { version: PI_MARKET_DATA_CAPABILITIES_CONTRACT, value: evidenceCapability },
-        [PI_MARKET_DATA_CAPABILITY_NAMES.audit]: { version: PI_MARKET_DATA_CAPABILITIES_CONTRACT, value: auditCapability },
+        [PI_MARKET_DATA_CAPABILITY_NAMES.quoteFetcher]: { version: PI_MARKET_DATA_CAPABILITY_VERSION, value: contextFetch },
+        [PI_MARKET_DATA_CAPABILITY_NAMES.evidence]: { version: PI_MARKET_DATA_CAPABILITY_VERSION, value: evidenceCapability },
+        [PI_MARKET_DATA_CAPABILITY_NAMES.audit]: { version: PI_MARKET_DATA_CAPABILITY_VERSION, value: auditCapability },
       },
     });
-    const previousRegistry = (globalThis as typeof globalThis & { __upupPiHosts?: ReadonlyMap<string, unknown> }).__upupPiHosts;
-    (globalThis as typeof globalThis & { __upupPiHosts?: ReadonlyMap<string, unknown> }).__upupPiHosts = new Map([
+    const events = createEventBus();
+    const dispose = publishPiCapabilityHosts(events, 'market-data-test-session', new Map([
       ['@upup/pi-market-data', {
+        contract: 'upup.pi.host.v1',
         packageName: '@upup/pi-market-data',
         packageVersion: '0.1.0',
+        sessionId: 'market-data-test-session',
         capabilities: ['market-data-transport'],
-        capabilityContext: context,
-        getMarketQuoteFetcher: () => legacyFetch,
+        providers: { marketData: { capabilityContext: context, getMarketQuoteFetcher: () => legacyFetch } },
       }],
-    ]);
+    ]));
     try {
-      marketDataExtension({ registerTool: (tool: RegisteredTool) => tools.set(tool.name, tool) } as never);
+      marketDataExtension({ events, registerTool: (tool: RegisteredTool) => tools.set(tool.name, tool) } as never);
       const result = await tools.get('market_data_quote')!.execute('quote-context-1', { symbol: 'AAPL', market: 'us', provider: 'yahoo' }, new AbortController().signal);
       expect(JSON.parse(result.content[0].text)).toMatchObject({ symbol: 'AAPL', last: 210 });
       expect(result.details).toMatchObject({ auditId: 'quote-context-1', evidence: [{ source: 'https://query1.finance.yahoo.com/v8/finance/chart' }] });
       const offline = await tools.get('stock_screener')!.execute('screen-context-1', { market: 'cn', limit: 1 }, new AbortController().signal);
       expect(offline.details).toMatchObject({ auditId: 'audit:screen-context-1', evidence: [{ id: 'evidence:market-data:screen-context-1:stock-screener', source: 'capability://upup-pi://market-data/stock-screener' }] });
     } finally {
-      if (previousRegistry === undefined) delete (globalThis as typeof globalThis & { __upupPiHosts?: ReadonlyMap<string, unknown> }).__upupPiHosts;
-      else (globalThis as typeof globalThis & { __upupPiHosts?: ReadonlyMap<string, unknown> }).__upupPiHosts = previousRegistry;
+      dispose();
       await context.dispose();
     }
   });
 
   test('registers native auditable market tools', async () => {
     const tools = new Map<string, { execute: (...args: any[]) => Promise<any> }>();
-    marketDataExtension({ registerTool: (tool: { name: string; execute: (...args: any[]) => Promise<any> }) => tools.set(tool.name, tool) } as never);
+    marketDataExtension({ events: createEventBus(), registerTool: (tool: { name: string; execute: (...args: any[]) => Promise<any> }) => tools.set(tool.name, tool) } as never);
     expect([...tools.keys()]).toEqual(['kairos_recent_opportunities', 'kairos_recent_position_alerts', 'kairos_recent_scanner_events', 'kairos_summary', 'get_market_data', 'realtime_subscribe', 'realtime_unsubscribe', 'realtime_list_subscriptions', 'get_sector_data', 'get_market_structure', 'stock_screener', 'screen_astocks', 'get_astock_price', 'get_technical_data', 'market_data_quote', 'market_data_provider_health', 'market_data_provider_trend', 'market_data_provider_sla', 'market_data_history', 'market_trading_day', 'check_trading_day', 'get_upcoming_holidays', 'get_next_trading_day', 'get_trading_days']);
     const previousFetch = globalThis.fetch;
     globalThis.fetch = (async (input) => {
@@ -150,7 +153,7 @@ describe('Pi market-data extension', () => {
 
   test('registers the calendar vertical slice without registry host injection', async () => {
     const tools = new Map<string, { execute: (...args: any[]) => Promise<any> }>();
-    marketDataExtension({ registerTool: (tool: { name: string; execute: (...args: any[]) => Promise<any> }) => tools.set(tool.name, tool) } as never);
+    marketDataExtension({ events: createEventBus(), registerTool: (tool: { name: string; execute: (...args: any[]) => Promise<any> }) => tools.set(tool.name, tool) } as never);
     const result = await tools.get('check_trading_day')!.execute('calendar-1', { date: '2026-09-14', market: 'us' }, new AbortController().signal);
     expect(JSON.parse(result.content[0].text)).toMatchObject({ date: '2026-09-14', market: 'US', isTradingDay: true });
     expect(result.details).toMatchObject({ auditId: 'calendar-1', evidence: [{ source: 'upup-pi://market-data/calendar' }] });
@@ -161,7 +164,7 @@ describe('Pi market-data extension', () => {
 
   test('honors abort signals before doing work', async () => {
     const tools = new Map<string, { execute: (...args: any[]) => Promise<any> }>();
-    marketDataExtension({ registerTool: (tool: { name: string; execute: (...args: any[]) => Promise<any> }) => tools.set(tool.name, tool) } as never);
+    marketDataExtension({ events: createEventBus(), registerTool: (tool: { name: string; execute: (...args: any[]) => Promise<any> }) => tools.set(tool.name, tool) } as never);
     const controller = new AbortController();
     controller.abort();
     const result = await tools.get('market_data_history')!.execute('history-1', { symbol: 'AAPL', startDate: '2026-09-01', limit: 3 }, controller.signal);
@@ -170,7 +173,7 @@ describe('Pi market-data extension', () => {
 
   test('uses the native historical provider and never substitutes synthetic bars on failure', async () => {
     const tools = new Map<string, { execute: (...args: any[]) => Promise<any> }>();
-    marketDataExtension({ registerTool: (tool: { name: string; execute: (...args: any[]) => Promise<any> }) => tools.set(tool.name, tool) } as never);
+    marketDataExtension({ events: createEventBus(), registerTool: (tool: { name: string; execute: (...args: any[]) => Promise<any> }) => tools.set(tool.name, tool) } as never);
     const previousFetch = globalThis.fetch;
     globalThis.fetch = (async (input) => {
       expect(String(input)).toContain('AAPL');
@@ -313,7 +316,7 @@ describe('Pi market-data extension dry-run smoke', () => {
       throw new Error('fetch must not be called in dry-run mode');
     }) as typeof fetch;
     try {
-      marketDataExtension({ registerTool: (tool: { name: string; execute: (...args: any[]) => Promise<any> }) => tools.set(tool.name, tool) } as never);
+      marketDataExtension({ events: createEventBus(), registerTool: (tool: { name: string; execute: (...args: any[]) => Promise<any> }) => tools.set(tool.name, tool) } as never);
       const tool = tools.get('market_data_quote');
       expect(tool).toBeDefined();
       const result = await tool!.execute('quote-dry-1', { symbol: '600519.SH', market: 'cn' }, new AbortController().signal);
@@ -341,7 +344,7 @@ describe('Pi market-data extension dry-run smoke', () => {
       throw new Error('fetch must not be called in dry-run mode');
     }) as typeof fetch;
     try {
-      marketDataExtension({ registerTool: (tool: { name: string; execute: (...args: any[]) => Promise<any> }) => tools.set(tool.name, tool) } as never);
+      marketDataExtension({ events: createEventBus(), registerTool: (tool: { name: string; execute: (...args: any[]) => Promise<any> }) => tools.set(tool.name, tool) } as never);
       const tool = tools.get('market_data_history');
       expect(tool).toBeDefined();
       const result = await tool!.execute('history-dry-1', { symbol: '600519.SH', startDate: '2026-09-07', endDate: '2026-09-13' }, new AbortController().signal);

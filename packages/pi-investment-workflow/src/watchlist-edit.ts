@@ -4,9 +4,9 @@
  * v5 Sprint 2.5 — fast lane 投资 CLI(不进 LLM,直接读 .upup/watchlist.json)
  *
  * 模块边界:
- * - 只依赖 src/utils/storage-paths(读 WATCHLIST_FILE)
+ * - 只依赖 storage package 的只读 API(读 WATCHLIST_FILE)
  * - 只依赖 node:fs / node:path
- * - 不依赖 src/tools/*(避免 finance → agent 反向引用循环)
+ * - 不依赖外部工具实现(避免 finance → agent 反向引用循环)
  * - 不依赖 packages/commands(避免跨包)
  */
 
