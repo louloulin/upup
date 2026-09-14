@@ -1375,3 +1375,36 @@ Factory 拆分、`src/tools`、`src/skills`、`src/commands/investment`、Sessio
 - `src/commands/investment/`、`src/skills/investment/` 投资工作流尚未迁移到 `@upup/pi-investment-workflow`，仍由 root 直接加载；该包当前只暴露 canonical `invest_workflow` extension 与 7 个 Agent Profile。
 - `legacy-events` 仍有 8 个生产消费者（`src/print.ts`、`src/runtime/pi/channels.ts`、`src/runtime/pi/event-stream.ts`、`src/runtime/pi/index.ts`、`src/cli.ts`、`src/stdio/server.ts`、`src/controllers/agent-runner.ts`、`src/gateway/agent-runner.ts`）；将在 Round 6–9 中由 `@upup/pi-event-adapter` 全部接管。
 - `src/session` / `src/memory` / `src/permissions` / `src/plan` / `src/storage` / `src/telemetry` 仍待物理迁移；规划在 Round 6 一次性拆分到 `@upup/pi-memory` / `@upup/pi-permissions` / `@upup/pi-observability` / `@upup/pi-planning` / `@upup/pi-storage`。
+
+## 36. Pi7 第六轮第一段实施结果（2026-09-14）
+
+本轮开始拆分 root 持久层、状态机和审计模块。第一段聚焦 `@upup/pi-observability`，把 telemetry 全部 7 个源文件 + 2 个测试迁入独立 Pi Package。
+
+### 36.1 已完成
+
+- 新增 `@upup/pi-observability` workspace package：
+  - `packages/pi-observability/src/{anonymizer,recorder,sink,types,index,integration}.ts`
+  - `packages/pi-observability/{test,test-integration.test,package.json,tsconfig.json}.ts`
+  - 暴露 `'.'` 和 `'.integration'` 两个 subpath export。
+  - Pi manifest 已声明 builtin trust、session lifecycle、零 resources（observability 是 foundation）。
+- `types.ts` 引入 `TaskKindFallback = string` 以避免包级循环依赖，保留与原 `src/tasks/types.ts` `TaskKind` 的形态兼容。
+- `git mv` 7 个 telemetry 源文件 → `packages/pi-observability/src/`；`telemetry.test.ts` → `test.ts`、`integration.test.ts` → `test-integration.test.ts`。
+- root `src/telemetry/{index,integration}.ts` 退化为 2 行 `@deprecated` facade。
+- `src/runtime/pi/{feature-gates,role-system}.ts` 改用 `@upup/pi-observability/integration`。
+
+### 36.2 验证
+
+| 验证项 | 结果 |
+|---|---|
+| `bun run typecheck` | 通过 |
+| `bun run check:pi7` | 通过：41 manifests（+1）、唯一 Pi AgentSession factory、无生产 global registry |
+| `bun run check:module-boundaries` | 通过：41 packages、539 root modules（−4） |
+| `bun run --cwd packages/pi-observability build` | index 8.30 KB + integration 9.12 KB；dist 同步生成 |
+| `bun --cwd packages/pi-observability test` | 40 pass（29 core + 11 integration）、0 fail |
+| `bun run test:pi-contracts` | 通过 |
+| `bun run report:pi7` | workspacePackages 40 → 41；rootProductionLines 115757 → 115102（净减 655 行）；rootSourceFiles 722 → 716（−6）；rootProductionFiles 543 → 539（−4） |
+
+### 36.3 当前剩余项
+
+- `src/memory` 47 个源文件（~11k 行）、`src/session` 22 个文件（~5.9k 行）、`src/storage` 7 个文件（~4.4k 行）、`src/plan` 7 个文件（~1.2k 行）、`src/permissions` 1 个文件（852 行）仍待 Round 6 后半段迁移。
+- 这些模块普遍依赖 `src/utils/paths.ts`、`@upup/types`、`@upup/utils` 等根级路径，必须先把它们的依赖理清或继续平移到目标包内。

@@ -266,3 +266,40 @@ src bootstrap
 - 第八轮：`src/tui` / `src/components` → `@upup/pi-tui-app`，CLI/transport 降为 bootstrap。
 - 第九轮：删除 `legacy-events`、旧 facade 和所有无消费者兼容层。
 - 第十轮：全仓测试、构建、入口 smoke、并发恢复验证和真实 provider smoke。
+
+## 12. 第六轮 Pi7 实施结果（@upup/pi-observability 可观测性下沉）
+
+### 12.1 src/telemetry/* 物理下沉
+
+- `git mv` 7 个源文件 + 2 个测试文件至 `packages/pi-observability/`：
+  - `anonymizer.ts`（71 行）
+  - `index.ts`（30 行）
+  - `integration.ts`（106 行）
+  - `recorder.ts`（174 行）
+  - `sink.ts`（181 行）
+  - `types.ts`（97 行，原 import `TaskKind` 改为本地 `TaskKindFallback = string`）
+  - `telemetry.test.ts`（275 行）→ `test.ts`
+  - `integration.test.ts`（250 行）→ `test-integration.test.ts`
+- 新增 workspace package `@upup/pi-observability` v0.1.0，含 `.` 和 `.integration` 两个 subpath export。
+- root `src/telemetry/{index,integration}.ts` 退化为 2 行 `@deprecated` facade。
+- `src/runtime/pi/{feature-gates,role-system}.ts` 改用 `@upup/pi-observability/integration`。
+
+### 12.2 本轮验证
+
+| 验证项 | 结果 |
+|---|---|
+| `bun run typecheck` | 通过 |
+| `bun run check:pi7` | 通过：41 manifests（+1）、唯一 Pi AgentSession factory、无生产 global registry |
+| `bun run check:module-boundaries` | 通过：41 packages、539 root modules（−4） |
+| `bun run --cwd packages/pi-observability build` | index 8.30 KB + integration 9.12 KB |
+| `bun --cwd packages/pi-observability test` | 40 pass（29 core + 11 integration）、0 fail |
+| `bun run test:pi-contracts` | 通过 |
+| `bun run report:pi7` | workspacePackages 40 → 41；rootProductionLines 115757 → 115102（净减 655 行）；rootSourceFiles 722 → 716；rootProductionFiles 543 → 539 |
+
+### 12.3 后续轮次
+
+- 第六轮第二段：继续把 `src/memory` / `src/session` / `src/storage` / `src/plan` / `src/permissions` 拆分到 `@upup/pi-memory` / `@upup/pi-session-extensions` / `@upup/pi-storage-extensions` / `@upup/pi-planning` / `@upup/pi-permissions`，统一先解决对 `src/utils/paths.ts` 的依赖。
+- 第七轮：`src/mcp` / `src/plugins` / `src/gateway` / `src/bridge` / `src/stdio` / `src/cron` / `src/daemon` / `src/subagent` / `src/multi-agent` → 对应 transport packages。
+- 第八轮：`src/tui` / `src/components` → `@upup/pi-tui-app`，CLI/transport 降为 bootstrap。
+- 第九轮：删除 `legacy-events`、旧 facade 和所有无消费者兼容层。
+- 第十轮：全仓测试、构建、入口 smoke、并发恢复验证和真实 provider smoke。
