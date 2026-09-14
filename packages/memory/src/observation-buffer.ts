@@ -11,7 +11,7 @@
  * Phase 2: Extract memories from observations (extraction.ts)
  */
 
-import { info } from '../utils/logging/logger.js';
+import { info } from '@upup/utils/logging';
 
 /**
  * An observation captured after a tool call completes

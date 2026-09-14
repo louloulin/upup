@@ -9,10 +9,10 @@ import { createInterface } from 'readline';
 import { homedir } from 'os';
 import { join } from 'path';
 import { config } from 'dotenv';
-import { PROVIDERS, type ProviderDef } from '../providers.js';
+import { PROVIDERS, type ProviderDef } from '@upup/utils';
 import { getModelsForProvider } from '../utils/model.js';
-import { saveApiKeyToEnv, getApiKeyNameForProvider } from '../utils/env.js';
-import { setSetting } from '../utils/config.js';
+import { saveApiKeyToEnv, getApiKeyNameForProvider } from '@upup/utils';
+import { setSetting } from '@upup/utils';
 
 // ANSI colors
 const dim = (text: string) => `\x1b[2m${text}\x1b[0m`;

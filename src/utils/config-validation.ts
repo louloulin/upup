@@ -12,8 +12,8 @@
 import { existsSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
-import { getSetting } from './config.js';
-import { checkApiKeyExistsForProvider, getProviderDisplayName } from './env.js';
+import { getSetting } from '@upup/utils';
+import { checkApiKeyExistsForProvider, getProviderDisplayName } from '@upup/utils';
 import { DEFAULT_MODEL, DEFAULT_PROVIDER } from '../runtime/pi/model-config.js';
 
 /**

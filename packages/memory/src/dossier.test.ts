@@ -19,7 +19,7 @@ import {
   hashDossier,
   type Dossier,
   type Thesis,
-} from './dossier.js';
+} from '@upup/memory';
 
 const TMP = join(tmpdir(), `upup-dossier-test-${process.pid}-${Date.now()}`);
 

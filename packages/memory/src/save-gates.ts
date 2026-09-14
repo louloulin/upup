@@ -10,7 +10,7 @@
  * Reference: Loucode's memdir.ts and memoryTypes.ts
  */
 
-import { info, warn } from '../utils/logging/logger.js';
+import { info, warn } from '@upup/utils/logging';
 
 // ============================================================================
 // Constants

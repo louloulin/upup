@@ -10,7 +10,7 @@
  * Reference: Loucode's memoryTypes.ts denial rules
  */
 
-import { warn, info } from '../utils/logging/logger.js';
+import { warn, info } from '@upup/utils/logging';
 
 // ============================================================================
 // Deny Rule Types

@@ -9,7 +9,7 @@
 
 import { existsSync, readFileSync, writeFileSync, copyFileSync } from 'fs';
 import { join } from 'path';
-import { getSetting, setSetting, getConfigSources, getFinalConfig } from '../utils/config.js';
+import { getSetting, setSetting, getConfigSources, getFinalConfig } from '@upup/utils';
 import { validateConfig } from '../utils/config-validation.js';
 import { SETTINGS_FILE, SETTINGS_BACKUPS_DIR, globalUpupPath } from '../utils/storage-paths.js';
 

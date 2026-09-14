@@ -1,21 +1,44 @@
+/**
+ * LLM Prompt Service — Pi Runtime bridge.
+ *
+ * Thin wrapper that runs structured / unstructured prompts through the root
+ * `src/runtime/pi/runner` (Pi AgentSession.prompt). The root is the single
+ * place where the runner is exposed; packages depending on `@upup/utils` can
+ * call this through dynamic import and avoid hard-coding the runner path.
+ */
+
 import { z, type ZodType } from 'zod';
-import { classifyError, isNonRetryableError } from '../../utils/errors.js';
-import { error as logError } from '../../utils/logging/logger.js';
-import { resolveProvider } from '@upup/utils';
-import { runPiPrompt } from './runner.js';
-import { DEFAULT_MODEL } from './model-config.js';
-import type { PiTool } from './tool.js';
+import { classifyError, isNonRetryableError } from './errors.js';
+import { error as logError } from './logging/logger.js';
+import { resolveProvider } from './providers.js';
+import { DEFAULT_MODEL } from './model-defaults.js';
+
+export interface PiPromptOptions {
+  readonly model?: string;
+  readonly systemPrompt?: string;
+  readonly signal?: AbortSignal;
+  readonly sessionKey?: string;
+  readonly toolFilter?: readonly string[];
+}
 
 export interface CallLlmOptions {
   readonly model?: string;
   readonly systemPrompt?: string;
   readonly outputSchema?: ZodType<unknown>;
-  readonly tools?: readonly PiTool[];
   readonly signal?: AbortSignal;
 }
 
 export interface LlmResult {
   readonly response: string | unknown;
+}
+
+async function loadRunner(): Promise<(prompt: string, options: PiPromptOptions) => Promise<string>> {
+  // Resolve the root runtime runner through the package-relative path. This
+  // keeps `@upup/utils` from importing root `src/*` statically while still
+  // providing prompt-service consumers (memory extraction, ai-selector,
+  // consolidation, flush) a stable entry point.
+  const mod = await import(new URL('../../../src/runtime/pi/runner.ts', import.meta.url).pathname);
+  return mod.runPiPrompt as (prompt: string, options: PiPromptOptions) => Promise<string>;
 }
 
 function providerForModel(modelName: string): string {
@@ -44,12 +67,10 @@ function parseJson(text: string): unknown {
 }
 
 export async function callLlm(prompt: string, options: CallLlmOptions = {}): Promise<LlmResult> {
-  if (options.tools?.length) {
-    throw new Error('Prompt service does not accept ad-hoc tools; declare a Pi Package and execute through a Pi AgentSession');
-  }
   const model = options.model ?? DEFAULT_MODEL;
+  const runner = await loadRunner();
   const answer = await withRetry(
-    () => runPiPrompt(prompt, {
+    () => runner(prompt, {
       model,
       systemPrompt: options.systemPrompt,
       signal: options.signal,
@@ -69,5 +90,5 @@ export async function callStructuredLlm<T>(
   return schema.parse(typeof result.response === 'string' ? parseJson(result.response) : result.response);
 }
 
-export { DEFAULT_MODEL } from './model-config.js';
+export { DEFAULT_MODEL };
 export { z };

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test } from 'bun:test';
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { migrateLegacyMemories } from './migration.js';
+import { migrateLegacyMemories } from '@upup/memory';
 
 const tempDirs: string[] = [];
 

@@ -10,7 +10,7 @@ import {
   getAuditLogger,
   resetAuditLogger,
   type MemoryAuditEntry,
-} from './memory-audit.js';
+} from '@upup/memory';
 
 describe('MemoryAuditLogger', () => {
   const testPath = '/tmp/test-memory-audit.log';

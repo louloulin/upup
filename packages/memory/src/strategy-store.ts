@@ -10,7 +10,7 @@ import type {
   StrategyRecordInput,
   StrategyStoreOptions,
 } from '@upup/pi-storage';
-import { globalUpupPath } from '../utils/storage-paths.js';
+import { globalUpupPath } from '@upup/utils';
 
 const DEFAULT_FILE = 'strategies.jsonl';
 const DEFAULT_KEY = 'strategy-key.json';

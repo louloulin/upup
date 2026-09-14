@@ -29,12 +29,12 @@ describe('getConfigSources', () => {
   });
 
   it('should be defined and exported', async () => {
-    const module = await import('./config.js');
+    const module = await import('@upup/utils');
     expect(typeof module.getConfigSources).toBe('function');
   });
 
   it('should return an array of ConfigSourceInfo', async () => {
-    const module = await import('./config.js');
+    const module = await import('@upup/utils');
     const sources = module.getConfigSources();
     expect(Array.isArray(sources)).toBe(true);
   });
@@ -64,7 +64,7 @@ describe('getConfigSources', () => {
     writeFileSync(settingsFile, JSON.stringify(testData, null, 2));
 
     // Re-import to get fresh state
-    const module = await import('./config.js');
+    const module = await import('@upup/utils');
     module.clearConfigCache(); // Clear cache before testing
     const sources = module.getConfigSources();
 
@@ -85,7 +85,7 @@ describe('getConfigSources', () => {
   });
 
   it('should return ConfigSourceInfo interface structure', async () => {
-    const module = await import('./config.js');
+    const module = await import('@upup/utils');
     const sources = module.getConfigSources();
     
     // All sources should have required properties
@@ -100,7 +100,7 @@ describe('getConfigSources', () => {
 
 describe('ConfigSourceInfo interface', () => {
   it('should have correct structure', async () => {
-    const module = await import('./config.js');
+    const module = await import('@upup/utils');
     const sources = module.getConfigSources();
     
     // Each source should be an object with key, value, and source

@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import matter from 'gray-matter';
 import { MEMORY_TYPES, type MemoryType } from './types.js';
 import { buildTypedManifest, scanTypedMemoryFiles } from './scanner.js';
-import { getUpupDir } from '../utils/paths.js';
+import { getUpupDir } from '@upup/utils';
 
 const MEMORY_DIRNAME = 'memory';
 const LEGACY_DIRNAME = 'legacy';

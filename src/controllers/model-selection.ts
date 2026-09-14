@@ -1,9 +1,9 @@
-import { getSetting, setSetting } from '../utils/config.js';
+import { getSetting, setSetting } from '@upup/utils';
 import {
   checkApiKeyExistsForProvider,
   getProviderDisplayName,
   saveApiKeyForProvider,
-} from '../utils/env.js';
+} from '@upup/utils';
 import {
   getDefaultModelForProvider,
   getModelsForProvider,

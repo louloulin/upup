@@ -17,7 +17,7 @@ import type {
   Thesis,
   WatchTrigger,
 } from '@upup/pi-storage';
-import { globalUpupPath } from '../utils/storage-paths.js';
+import { globalUpupPath } from '@upup/utils';
 
 const DEFAULT_FILENAME = 'dossiers.jsonl';
 

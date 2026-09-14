@@ -13,7 +13,7 @@ import type {
   AuditRecord,
   AuditVerifyResult,
 } from '@upup/pi-storage';
-import { globalUpupPath } from '../utils/storage-paths.js';
+import { globalUpupPath } from '@upup/utils';
 
 const DEFAULT_FILENAME = 'audit-chain.jsonl';
 const DEFAULT_KEY_FILENAME = 'audit-key.json';

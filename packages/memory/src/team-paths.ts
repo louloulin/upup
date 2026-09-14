@@ -11,7 +11,7 @@
  */
 
 import { join } from 'node:path';
-import { TEAMS_DIR } from '../utils/storage-paths.js';
+import { TEAMS_DIR } from '@upup/utils';
 
 // ============================================================================
 // Types

@@ -10,7 +10,7 @@ import {
   getNestedMemoryPaths,
   resetNestedMemoryPaths,
   registerDefaultMemoryPaths,
-} from './nested-paths.js';
+} from '@upup/memory';
 
 const TEST_DIR = '/tmp/dexter-nested-paths-test';
 

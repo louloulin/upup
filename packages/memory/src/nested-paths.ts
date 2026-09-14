@@ -11,7 +11,7 @@
 
 import { join, relative, resolve, isAbsolute, dirname } from 'path';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
-import { getUpupDir } from '../utils/storage-paths.js';
+import { getUpupDir } from '@upup/utils';
 
 // ============================================================================
 // Types

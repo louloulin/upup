@@ -11,7 +11,7 @@ import {
   useInvestmentMemory,
   __resetInvestmentMemory,
   type InvestmentDecision,
-} from './investment-memory.js';
+} from '@upup/memory';
 
 // 固定时间 + 固定 ID, 测试可重现
 let _now = 1700000000000;

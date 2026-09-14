@@ -12,12 +12,14 @@
     }
   },
   "scripts": {
-    "build": "bun build src/index.ts --outdir=dist --target=bun && bun build src/index.ts --outdir=dist --target=node --format=cjs && rm -rf dist/*.map && rm -rf dist/*.node",
-    "dev": "bun build src/index.ts --outdir=dist --watch --target=bun",
+    "build": "bun build src/index.ts --outdir=dist --target=bun --external zod --external gray-matter",
+    "dev": "bun build src/index.ts --outdir=dist --watch --target=bun --external zod --external gray-matter",
     "test": "bun test"
   },
   "dependencies": {
-    "@upup/types": "workspace:*"
+    "@upup/types": "workspace:*",
+    "gray-matter": "^4.0.3",
+    "zod": "^3.22.0"
   },
   "files": [
     "dist",

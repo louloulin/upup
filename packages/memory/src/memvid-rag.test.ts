@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { resolveMemvidRagSettings, toMemvidModelSpec } from './memvid-rag.js';
+import { resolveMemvidRagSettings, toMemvidModelSpec } from '@upup/memory';
 
 describe('memvid RAG settings', () => {
   test('disables RAG by default', () => {

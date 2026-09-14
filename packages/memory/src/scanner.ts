@@ -16,7 +16,7 @@ import { join } from 'node:path';
 import matter from 'gray-matter';
 import type { MemoryFileMeta, MemoryType, MemoryScope, ScopedScanOptions } from './types.js';
 import { MEMORY_TYPES, parseMemoryType } from './types.js';
-import { getUpupDir } from '../utils/paths.js';
+import { getUpupDir } from '@upup/utils';
 import { getProjectMemoryPaths, getGlobalMemoryDir, extractProjectSlug } from './project-paths.js';
 import { getTeamMemoryPaths } from './team-paths.js';
 

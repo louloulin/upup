@@ -1,4 +1,4 @@
-import { PROVIDERS as PROVIDER_DEFS } from '@/providers';
+import { PROVIDERS as PROVIDER_DEFS } from '@upup/utils';
 
 export interface Model {
   id: string;

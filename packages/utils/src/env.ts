@@ -2,7 +2,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { config } from 'dotenv';
 import { homedir } from 'os';
 import { join } from 'path';
-import { getProviderById } from '@/providers';
+import { getProviderById } from './providers.js';
 
 // Global config directory
 const GLOBAL_CONFIG_DIR = join(homedir(), '.upup');
@@ -10,10 +10,10 @@ const GLOBAL_ENV_FILE = join(GLOBAL_CONFIG_DIR, '.env');
 
 // Load .env from global directory on module import
 try {
-  config({ path: GLOBAL_ENV_FILE, quiet: true });
+  config({ path: GLOBAL_ENV_FILE, });
 } catch {
   // Fallback to current directory .env
-  config({ path: '.env', quiet: true });
+  config({ path: '.env', });
 }
 
 export function getApiKeyNameForProvider(providerId: string): string | undefined {
@@ -142,7 +142,7 @@ export function saveApiKeyToEnv(apiKeyName: string, apiKeyValue: string): boolea
     writeFileSync(GLOBAL_ENV_FILE, lines.join('\n'));
 
     // Reload environment variables
-    config({ path: GLOBAL_ENV_FILE, override: true, quiet: true });
+    config({ path: GLOBAL_ENV_FILE, override: true, });
 
     return true;
   } catch {

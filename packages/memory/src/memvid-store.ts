@@ -2,9 +2,9 @@ import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { appendFile, mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { getSetting } from '../utils/config.js';
+import { getSetting } from '@upup/utils';
 import type { MemoryType, MemoryWriteRequest, MemoryFileMeta } from './types.js';
-import { getUpupDir } from '../utils/paths.js';
+import { getUpupDir } from '@upup/utils';
 
 const MEMORY_DIRNAME = 'memory';
 const STORE_FILENAME = 'memories.jsonl';
@@ -122,7 +122,7 @@ export class MemvidStore {
     const context = results.map((result) => `[${result.memory.name}] ${result.snippet}`).join('\n');
     if (options.contextOnly) return context;
     if (!context) return 'No relevant memory was found.';
-    const { runPiPrompt } = await import('../runtime/pi/runner.js');
+    const { runPiPrompt } = await import('@upup/utils');
     const model = options.model ?? `${getSetting('provider', 'deepseek')}:${getSetting('modelId', 'deepseek-v4-flash')}`;
     return runPiPrompt(`Answer the question using only the memory context below. Cite the memory names.\n\nQuestion: ${question}\n\nContext:\n${context}`, {
       model,

@@ -13,7 +13,7 @@ import { registerPiRuntimePort } from '@upup/pi-runtime';
 import { createPiAgentRuntime } from './agent-session-factory.js';
 import { runPiPrompt } from './runner.js';
 import { isPiSessionRunning } from './runner.js';
-import { getConfiguredModelId, getConfiguredProvider } from '../../utils/config.js';
+import { getConfiguredModelId, getConfiguredProvider } from '@upup/utils';
 import { ensureHeartbeatCronJob, startCronRunner } from '@upup/cron';
 
 let bootstrapped = false;

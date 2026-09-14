@@ -47,7 +47,7 @@ import { setPermissionMode } from '@upup/pi-session'
 import type { PermissionCliArgs } from './utils/permissions/types.js'
 
 import { renderToolResult } from './tools/tool-renderers.js';
-import { getApiKeyNameForProvider, getProviderDisplayName } from './utils/env.js';
+import { getApiKeyNameForProvider, getProviderDisplayName } from '@upup/utils';
 import { defaultQueue } from './utils/message-queue.js';
 import { logger } from './utils/logger.js';
 import { validateConfig, isFirstTimeUse } from './utils/config-validation.js';

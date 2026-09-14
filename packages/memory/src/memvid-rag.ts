@@ -1,4 +1,4 @@
-import { getProviderById, resolveProvider } from '../providers.js';
+import { getProviderById, resolveProvider } from '@upup/utils';
 
 export type MemvidRagMode = 'auto' | 'lex' | 'sem';
 

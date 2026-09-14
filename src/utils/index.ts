@@ -74,7 +74,7 @@ export {
   getProviderDisplayName,
   checkApiKeyExistsForProvider,
   saveApiKeyForProvider,
-} from './env.js';
+} from '@upup/utils';
 export { InMemoryChatHistory } from './in-memory-chat-history.js';
 
 // LongTermChatHistory moved to @upup/utils

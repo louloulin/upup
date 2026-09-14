@@ -211,18 +211,18 @@ describe('Config Commands', () => {
 
 describe('Config Hot Reload', () => {
   it('should export reloadConfig function', async () => {
-    const module = await import('../utils/config.js');
+    const module = await import('@upup/utils');
     expect(typeof module.reloadConfig).toBe('function');
   });
 
   it('should reload config and return fresh data', async () => {
-    const module = await import('../utils/config.js');
+    const module = await import('@upup/utils');
     const config = module.reloadConfig();
     expect(typeof config).toBe('object');
   });
 
   it('should export clearConfigCache function', async () => {
-    const module = await import('../utils/config.js');
+    const module = await import('@upup/utils');
     expect(typeof module.clearConfigCache).toBe('function');
   });
 });

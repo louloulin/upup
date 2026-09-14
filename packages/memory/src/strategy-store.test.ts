@@ -6,7 +6,7 @@ import { afterEach, describe, expect, test } from 'bun:test';
 import { existsSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { StrategyStore, computeStrategyPrevHash, type StrategyRecordInput } from './strategy-store.js';
+import { StrategyStore, computeStrategyPrevHash, type StrategyRecordInput } from '@upup/memory';
 
 const TMP = join(tmpdir(), `upup-strategy-test-${process.pid}-${Date.now()}`);
 

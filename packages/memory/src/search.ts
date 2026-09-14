@@ -22,7 +22,7 @@ import type {
 } from './types.js';
 import { applyTemporalDecay } from './temporal-decay.js';
 import { applyMMRToHybridResults } from './mmr.js';
-import { warn, error } from '../utils/logging/logger.js';
+import { warn, error } from '@upup/utils/logging';
 
 // ============================================================================
 // Types

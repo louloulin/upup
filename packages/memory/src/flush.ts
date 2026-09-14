@@ -1,6 +1,6 @@
-import { callLlm } from '../runtime/pi/prompt-service.js';
+import { callLlm } from '@upup/utils';
 import { MemoryManager } from './index.js';
-import { CONTEXT_THRESHOLD } from '../utils/tokens.js';
+import { CONTEXT_THRESHOLD } from '@upup/utils';
 
 export const MEMORY_FLUSH_TOKEN = 'NO_MEMORY_TO_FLUSH';
 

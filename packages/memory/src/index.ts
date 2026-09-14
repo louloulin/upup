@@ -27,10 +27,10 @@ import type {
   MemoryType,
   MemoryWriteRequest,
 } from './types.js';
-import { getSetting } from '../utils/config.js';
+import { getSetting } from '@upup/utils';
 import { resolveMemvidRagSettings, type MemvidRagFlag, type ResolvedMemvidRagSettings } from './memvid-rag.js';
-import { getApiKeyNameForProvider } from '../utils/env.js';
-import { getConfiguredModelId, getConfiguredProvider } from '../utils/config.js';
+import { getApiKeyNameForProvider } from '@upup/utils';
+import { getConfiguredModelId, getConfiguredProvider } from '@upup/utils';
 
 // Re-export AI Memory Selector
 export {
@@ -179,6 +179,24 @@ function resolveConfig(): MemoryRuntimeConfig {
 // Memory Manager
 // ============================================================================
 
+
+// =============================================================================
+// Storage / Search / Dossier re-exports
+// =============================================================================
+export {
+  scanSearch,
+  hybridSearch,
+  keywordSearch,
+  vectorSearch,
+  tfidfSearch,
+  MemoryStore,
+  MemoryDatabase,
+  MemoryIndexer,
+  DossierStore,
+  EncryptedMemoryStore,
+  AuditChain,
+  canonicalJson,
+} from './search.js';
 export class MemoryManager {
   private static instance: MemoryManager | null = null;
 

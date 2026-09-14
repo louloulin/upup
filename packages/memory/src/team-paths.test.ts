@@ -9,7 +9,7 @@ import {
   getTeamMemoryPaths,
   resetTeamMemoryPaths,
   generateTeamPrompt,
-} from './team-paths.js';
+} from '@upup/memory';
 
 describe('TeamMemoryPaths', () => {
   const TEST_BASE_DIR = '/tmp/upup-team-test';

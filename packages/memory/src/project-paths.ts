@@ -11,7 +11,7 @@
 
 import { join } from 'node:path';
 import { existsSync, readdirSync, mkdirSync, statSync } from 'node:fs';
-import { getUpupDir } from '../utils/storage-paths.js';
+import { getUpupDir } from '@upup/utils';
 
 // ============================================================================
 // Types

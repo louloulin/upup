@@ -11,7 +11,7 @@ import {
   isMemoryDenied,
   getDenialReason,
   type MemoryDenyRule,
-} from './memory-deny.js';
+} from '@upup/memory';
 
 describe('MemoryDenyManager', () => {
   let manager: MemoryDenyManager;

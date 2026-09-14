@@ -6,7 +6,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'bun:test';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { mkdirSync, rmSync, writeFileSync } from 'fs';
-import * as searchModule from './search.js';
+import * as searchModule from '@upup/memory';
 
 describe('TF-IDF Search Integration', () => {
   describe('tfidfSearch', () => {

@@ -5,7 +5,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import { existsSync, unlinkSync, mkdirSync, writeFileSync } from 'fs';
 import { join } from 'path';
-import { EncryptedMemoryStore } from './encrypted-store.js';
+import { EncryptedMemoryStore } from '@upup/memory';
 
 describe('EncryptedMemoryStore', () => {
   const TEST_DIR = join('/tmp', `upup-encrypted-store-test-${process.pid}`);

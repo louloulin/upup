@@ -15,8 +15,8 @@ import { existsSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
-import { AuditChain, type AuditRecord } from './audit-signing.js';
-import { canonicalJson } from './dossier.js';
+import { AuditChain, type AuditRecord } from '@upup/memory';
+import { canonicalJson } from '@upup/memory';
 
 const TMP = join(tmpdir(), `upup-audit-test-${process.pid}-${Date.now()}`);
 const FILE = join(TMP, 'audit-chain.jsonl');

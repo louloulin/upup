@@ -28,7 +28,7 @@
 import { randomUUID } from 'node:crypto';
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { globalUpupPath } from '../utils/storage-paths.js';
+import { globalUpupPath } from '@upup/utils';
 
 // ---------------------------------------------------------------------------
 // Types

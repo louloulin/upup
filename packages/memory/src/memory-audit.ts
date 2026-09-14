@@ -8,7 +8,7 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
-import { upupPath } from '../utils/paths.js';
+import { upupPath } from '@upup/utils';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -29,7 +29,7 @@ export interface MemoryAuditEntry {
 /**
  * Audit logger for memory access operations
  */
-import { LOGS_DIR } from '../utils/storage-paths.js';
+import { LOGS_DIR } from '@upup/utils';
 
 export class MemoryAuditLogger {
   private auditPath: string;

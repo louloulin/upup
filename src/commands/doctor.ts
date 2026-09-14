@@ -10,10 +10,10 @@
 import { existsSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
-import { PROVIDERS } from '../providers.js';
-import { checkApiKeyExists } from '../utils/env.js';
+import { PROVIDERS } from '@upup/utils';
+import { checkApiKeyExists } from '@upup/utils';
 import { validateConfig, isFirstTimeUse, getConfigSummary } from '../utils/config-validation.js';
-import { getConfigSources } from '../utils/config.js';
+import { getConfigSources } from '@upup/utils';
 import { SETTINGS_FILE, ENV_FILE, SETTINGS_DIR } from '../utils/storage-paths.js';
 
 const dim = (text: string) => `\x1b[2m${text}\x1b[0m`;

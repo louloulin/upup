@@ -5,7 +5,7 @@
  */
 
 import type { Message } from '@earendil-works/pi-ai';
-import { resolveProvider } from '../providers.js';
+import { resolveProvider } from '@upup/utils';
 
 // ---------------------------------------------------------------------------
 // Message serialization
