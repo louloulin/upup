@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { z } from 'zod';
 import { normalizeE164 } from './utils.js';
-import { upupPath } from '../utils/paths.js';
+import { upupPath } from '@upup/utils';
 
 const DEFAULT_GATEWAY_PATH = upupPath('gateway.json');
 const DmPolicySchema = z.enum(['pairing', 'allowlist', 'open', 'disabled']);

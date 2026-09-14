@@ -14,9 +14,9 @@ import {
   validatePluginEntry,
   resolvePluginPath,
   pluginFileExists,
-} from './path-safety';
-import { loadPluginManifest, validatePluginConfig, getManifestLoader } from './manifest';
-import { getServiceManager, resetServiceManager } from './services';
+} from '../src/path-safety.js';
+import { loadPluginManifest, validatePluginConfig, getManifestLoader } from '../src/manifest.js';
+import { getServiceManager, resetServiceManager } from '../src/services.js';
 
 // ============================================================================
 // Path Safety Tests

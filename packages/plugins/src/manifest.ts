@@ -7,7 +7,7 @@
 
 import { readFileSync } from 'fs';
 import { resolve, dirname } from 'path';
-import { warn, info } from '../utils/logging/logger.js';
+import { warn, info } from '@upup/utils/logging';
 import { pluginFileExists, isPathInside } from './path-safety.js';
 import type { PluginManifest, PluginRuntime, PluginCapability } from './types.js';
 

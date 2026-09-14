@@ -208,7 +208,7 @@ export const call = async (
   let servers: MCPServer[] = []
 
   try {
-    const { getDefaultMCPClient } = await import('../../../mcp/client.js')
+    const { getDefaultMCPClient } = await import('@upup/mcp')
     const { getMCPStatus } = await import('../../../mcp/registry.js')
 
     const client = getDefaultMCPClient()

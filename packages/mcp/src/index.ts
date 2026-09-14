@@ -1,11 +1,49 @@
+// MCP Server config types
+export {
+  ConfigScopeSchema,
+  TransportSchema,
+  McpStdioServerConfigSchema,
+  McpOAuthConfigSchema,
+  McpSSEServerConfigSchema,
+  McpHTTPServerConfigSchema,
+  McpWebSocketServerConfigSchema,
+  McpServerConfigSchema,
+  type ConfigScope,
+  type Transport,
+  type McpStdioServerConfig,
+  type McpOAuthConfig,
+  type McpSSEServerConfig,
+  type McpHTTPServerConfig,
+  type McpWebSocketServerConfig,
+  type McpServerConfig,
+  type MCPServerState,
+  type MCPServerStatus,
+  type MCPConfigFile,
+  getTransportType,
+  supportsOAuth,
+  isStdioConfig,
+  isHttpConfig,
+  getServerEndpoint,
+  getTransportDisplayName,
+} from './types.js';
+
 // MCP Client types and exports
 export type {
   MCPServerConfig,
   MCPClientConfig,
   MCPConnectionState,
   MCPServerConnection,
+  MCPOAuthConfig,
+  MCPPrompt,
+  MCPPromptArgument,
+  MCPPromptResult,
+  MCPSamplingMessage,
+  MCPSamplingContent,
+  SamplingParams,
+  SamplingResult,
 } from './client.js';
 export type { PiMcpTool } from './pi-tool.js';
+export { isInvestmentMcpConfigured } from './investment-data.js';
 
 // MCP Client classes and functions
 export {

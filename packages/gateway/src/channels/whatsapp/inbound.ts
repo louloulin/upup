@@ -14,7 +14,7 @@ import { readSelfId } from './auth-store.js';
 import { checkInboundAccessControl } from '../../access-control.js';
 import { resolveJidToPhoneJid, type LidLookup } from './lid.js';
 import { appendFileSync } from 'node:fs';
-import { upupPath } from '../../../utils/paths.js';
+import { upupPath } from '@upup/utils';
 
 const LOG_PATH = upupPath('gateway-debug.log');
 function debugLog(msg: string) {

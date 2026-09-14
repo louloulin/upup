@@ -16,7 +16,7 @@ import { join } from 'path';
 import { homedir } from 'os';
 import { MCPClientManager } from '@upup/mcp';
 import {
-  MCPServerConfig,
+  type McpServerConfig,
   ConfigScope,
   ConfigScopeSchema,
   McpStdioServerConfigSchema,
@@ -46,9 +46,9 @@ export interface ServeOptions extends MCPCommandOptions {
 // ============================================================================
 
 /**
- * Convert Record<string, MCPServerConfig> to legacy MCPServerConfig[] format
+ * Convert Record<string, McpServerConfig> to legacy McpServerConfig[] format
  */
-function toLegacyServerConfigs(servers: Record<string, MCPServerConfig>): { name: string; command?: string; args?: string[]; env?: Record<string, string>; url?: string; autoConnect?: boolean }[] {
+function toLegacyServerConfigs(servers: Record<string, McpServerConfig>): { name: string; command?: string; args?: string[]; env?: Record<string, string>; url?: string; autoConnect?: boolean }[] {
   return Object.entries(servers).map(([name, config]) => {
     if (config.type === 'stdio') {
       return { name, command: config.command, args: config.args, env: config.env, autoConnect: config.autoConnect };
@@ -67,7 +67,7 @@ const DEFAULT_PROJECT_CONFIG_PATH = '.mcp.json';
 /**
  * Load MCP server configurations from file
  */
-export function loadMCPConfig(configPath?: string): Record<string, MCPServerConfig> {
+export function loadMCPConfig(configPath?: string): Record<string, McpServerConfig> {
   const paths = [
     configPath,
     DEFAULT_PROJECT_CONFIG_PATH,
@@ -93,7 +93,7 @@ export function loadMCPConfig(configPath?: string): Record<string, MCPServerConf
  * Save MCP server configurations to file
  */
 export function saveMCPConfig(
-  servers: Record<string, MCPServerConfig>,
+  servers: Record<string, McpServerConfig>,
   configPath: string
 ): void {
   const dir = join(configPath, '..');
@@ -141,7 +141,7 @@ export async function serveCommand(options: ServeOptions): Promise<void> {
   }
 
   // Create server config
-  const serverConfig: MCPServerConfig = servers[name] || {
+  const serverConfig: McpServerConfig = servers[name] || {
     type: 'stdio',
     command: command!,
     args: args || [],
@@ -296,7 +296,7 @@ export async function addCommand(options: AddOptions): Promise<void> {
   }
 
   // Build server config
-  let serverConfig: MCPServerConfig;
+  let serverConfig: McpServerConfig;
 
   if (type === 'stdio') {
     serverConfig = McpStdioServerConfigSchema.parse({

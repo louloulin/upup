@@ -1,11 +1,15 @@
-import { createMessageQueue, type MessageQueue, type QueuePriority } from '../utils/message-queue.js';
+import { createMessageQueue, type MessageQueue, type QueuePriority } from '@upup/utils';
 import { HEARTBEAT_OK_TOKEN } from './heartbeat/suppression.js';
-import type { AgentEvent, GroupContext } from '../runtime/pi/legacy-events.js';
-import { mapPiEventToLegacy } from '@upup/pi-event-adapter';
-import type { UpUpAgentEvent } from '@upup/pi-runtime';
-import { isPiSessionRunning, runPiPrompt } from '../runtime/pi/runner.js';
+import { mapPiEventToLegacy, type LegacyAgentEvent } from '@upup/pi-event-adapter';
+import { getGatewayAgentRuntime } from './runtime-port.js';
 import type { Model } from '@earendil-works/pi-ai';
 import type { ModelRuntime } from '@earendil-works/pi-coding-agent';
+
+export type GroupContext = {
+  groupName?: string;
+  membersList?: string;
+  activationMode: 'mention';
+};
 
 type SessionState = {
   tail: Promise<void>;
@@ -34,7 +38,7 @@ function getSession(sessionKey: string, model: string): SessionState {
  * Used by the gateway to decide whether to enqueue or start a new turn.
  */
 export function isSessionRunning(sessionKey: string): boolean {
-  return isPiSessionRunning(sessionKey) || (sessions.get(sessionKey)?.isRunning ?? false);
+  return getGatewayAgentRuntime().isSessionRunning(sessionKey) || (sessions.get(sessionKey)?.isRunning ?? false);
 }
 
 /**
@@ -63,7 +67,7 @@ export type AgentRunRequest = {
   modelProvider: string;
   maxIterations?: number;
   signal?: AbortSignal;
-  onEvent?: (event: AgentEvent) => void | Promise<void>;
+  onEvent?: (event: LegacyAgentEvent) => void | Promise<void>;
   isHeartbeat?: boolean;
   /** Run without persistent session history or memory (minimal context, ~95% token savings). */
   isolatedSession?: boolean;
@@ -77,6 +81,7 @@ export type AgentRunRequest = {
 
 
 export async function runAgentForMessage(req: AgentRunRequest): Promise<string> {
+  const runtime = getGatewayAgentRuntime();
   const isolated = req.isolatedSession ?? false;
   const session = isolated ? null : getSession(req.sessionKey, req.model);
   let finalAnswer = '';
@@ -86,7 +91,7 @@ export async function runAgentForMessage(req: AgentRunRequest): Promise<string> 
       session.isRunning = true;
     }
     try {
-      finalAnswer = await runPiPrompt(req.query, {
+      finalAnswer = await runtime.runPrompt(req.query, {
         sessionKey: isolated ? undefined : req.sessionKey,
         model: req.model,
         modelProvider: req.modelProvider,
@@ -103,7 +108,7 @@ export async function runAgentForMessage(req: AgentRunRequest): Promise<string> 
       if (session && !session.queue.isEmpty()) {
         const remaining = session.queue.dequeueAll();
         const mergedText = remaining.map(m => m.text).join('\n\n');
-        finalAnswer = await runPiPrompt(mergedText, {
+        finalAnswer = await runtime.runPrompt(mergedText, {
           sessionKey: isolated ? undefined : req.sessionKey,
           model: req.model,
           modelProvider: req.modelProvider,

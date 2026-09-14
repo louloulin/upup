@@ -3,7 +3,7 @@ import { fauxAssistantMessage, fauxProvider, fauxText } from '@earendil-works/pi
 import { ModelRuntime } from '@earendil-works/pi-coding-agent';
 import type { CronJob, CronStore } from './types.js';
 import { executeCronJob } from './executor.js';
-import type { AgentRunRequest } from '../gateway/agent-runner.js';
+import type { AgentRunRequest } from '@upup/gateway';
 
 function createJob(): CronJob {
   const now = Date.now();

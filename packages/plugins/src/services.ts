@@ -5,7 +5,7 @@
  * Based on OpenClaw's service lifecycle: start in registration order, stop in reverse.
  */
 
-import { info, warn, error } from '../utils/logging/logger.js';
+import { info, warn, error } from '@upup/utils/logging';
 import type { PluginService } from './types.js';
 
 // ============================================================================

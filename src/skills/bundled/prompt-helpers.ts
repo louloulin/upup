@@ -13,7 +13,7 @@
 
 import { existsSync, readdirSync } from 'fs';
 import { join } from 'path';
-import { isInvestmentMcpConfigured } from '../../mcp/investment-data.js';
+import { isInvestmentMcpConfigured } from '@upup/mcp';
 
 // ============================================================================
 // Feature Flags (Aligned with Loucode's feature system)

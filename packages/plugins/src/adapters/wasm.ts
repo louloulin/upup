@@ -6,7 +6,7 @@
  */
 
 import { resolve } from 'path';
-import { info, warn } from '../../utils/logging/logger.js';
+import { info, warn } from '@upup/utils/logging';
 import { isPathInside } from '../path-safety.js';
 import type {
   PluginAdapter,

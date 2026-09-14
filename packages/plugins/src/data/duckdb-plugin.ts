@@ -13,7 +13,7 @@
  */
 
 import { resolve } from 'path';
-import { info, warn } from '../../utils/logging/logger.js';
+import { info, warn } from '@upup/utils/logging';
 import type {
   PluginAdapter,
   PluginManifest,

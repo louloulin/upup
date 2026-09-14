@@ -5,7 +5,7 @@
  * Provides highest performance for trusted local plugins.
  */
 
-import { info, warn, error } from '../../utils/logging/logger.js';
+import { info, warn, error } from '@upup/utils/logging';
 import type {
   PluginAdapter,
   PluginManifest,

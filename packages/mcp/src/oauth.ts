@@ -198,12 +198,17 @@ export async function discoverOAuthServerMetadata(
       return null;
     }
 
-    const metadata = await response.json();
+    const metadata = await response.json() as { authorization_endpoint?: unknown; token_endpoint?: unknown; issuer?: unknown; scopes_supported?: unknown };
+    if (typeof metadata.authorization_endpoint !== 'string' || typeof metadata.token_endpoint !== 'string') {
+      return null;
+    }
     return {
       authorizationEndpoint: metadata.authorization_endpoint,
       tokenEndpoint: metadata.token_endpoint,
-      issuer: metadata.issuer,
-      scopesSupported: metadata.scopes_supported,
+      issuer: typeof metadata.issuer === 'string' ? metadata.issuer : undefined,
+      scopesSupported: Array.isArray(metadata.scopes_supported)
+        ? metadata.scopes_supported.filter((scope): scope is string => typeof scope === 'string')
+        : undefined,
     };
   } catch {
     return null;

@@ -106,8 +106,8 @@ function installPiPackageToolHosts(
       if (!found) throw new Error(`cron job ${(job as { id: string }).id} not found`);
       await executeCronJob(found, store, { piModel: model as import('@earendil-works/pi-ai').Model<any> | undefined, piModelRuntime: runtime });
     },
-    listMcpResources: async (server) => (await (await import('../../mcp/client.js')).getDefaultMCPClient().listResources(server)),
-    readMcpResource: async (uri, server) => (await (await import('../../mcp/client.js')).getDefaultMCPClient().readResource(uri, server)),
+    listMcpResources: async (server) => (await (await import('@upup/mcp')).getDefaultMCPClient().listResources(server)),
+    readMcpResource: async (uri, server) => (await (await import('@upup/mcp')).getDefaultMCPClient().readResource(uri, server)),
   });
   const getManagementSnapshot = (): PiManagementSnapshot => {
     const enabledPackages = packages.map(({ name, version }) => ({ name, version, enabled: true as const }));

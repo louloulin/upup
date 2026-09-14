@@ -874,7 +874,7 @@ const doctorCommand: Command = {
 
     // MCP
     try {
-      const { getDefaultMCPClient } = await import('../mcp/client.js');
+      const { getDefaultMCPClient } = await import('@upup/mcp');
       const client = getDefaultMCPClient();
       lines.push(`MCP: client available`);
     } catch {
@@ -1028,7 +1028,7 @@ const mcpCommand: Command = {
   description: 'MCP server management — status, list, resources, connect, disconnect',
   async execute(args, _context): Promise<CommandResult> {
     try {
-      const { getDefaultMCPClient } = await import('../mcp/client.js');
+      const { getDefaultMCPClient } = await import('@upup/mcp');
       const client = getDefaultMCPClient();
       const sub = args.trim().split(/\s+/)[0] || 'status';
 
@@ -1275,7 +1275,7 @@ async function getMemoryStats(): Promise<{ count: number; types: string[] }> {
  */
 async function getMCPClient(): Promise<MCPClient | null> {
   try {
-    const mod = await importInternal<{ getDefaultMCPClient: () => MCPClient }>('../mcp/client.js');
+    const mod = await importInternal<{ getDefaultMCPClient: () => MCPClient }>('@upup/mcp');
     return mod?.getDefaultMCPClient?.() ?? null;
   } catch {
     return null;

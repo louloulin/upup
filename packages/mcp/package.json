@@ -17,17 +17,36 @@
     "test": "bun test"
   },
   "dependencies": {
+    "@upup/pi-research": "workspace:*",
+    "@upup/pi-runtime": "workspace:*",
+    "@upup/pi-storage": "workspace:*",
+    "@upup/skills": "workspace:*",
+    "@upup/utils": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.0.0",
     "typebox": "1.3.7",
-    "zod": "^3.0.0"
-  },
-  "peerDependencies": {
+    "zod": "^3.0.0",
     "@upup/utils": "workspace:*",
-    "@upup/hooks": "workspace:*"
+    "@upup/skills": "workspace:*"
   },
   "files": [
     "dist"
   ],
   "private": false,
-  "pi": { "contract": "upup.pi.runtime.v1", "source": "builtin:upup", "trust": { "mode": "sandboxed", "network": true }, "lifecycle": { "scope": "session" }, "extensions": [], "skills": [], "prompts": [], "workflows": [], "policies": [], "evals": [] }
+  "pi": {
+    "contract": "upup.pi.runtime.v1",
+    "source": "builtin:upup",
+    "trust": {
+      "mode": "sandboxed",
+      "network": true
+    },
+    "lifecycle": {
+      "scope": "session"
+    },
+    "extensions": [],
+    "skills": [],
+    "prompts": [],
+    "workflows": [],
+    "policies": [],
+    "evals": []
+  }
 }

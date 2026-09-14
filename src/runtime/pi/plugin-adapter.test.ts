@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { Type } from 'typebox';
-import type { LoadedPlugin } from '../../plugins/types.js';
+import type { LoadedPlugin } from '@upup/plugins';
 import { getInvestmentAgentSpec } from './agent-spec.js';
 import { PiAgentSessionFactory } from './agent-session-factory.js';
 

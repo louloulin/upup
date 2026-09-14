@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { HEARTBEAT_OK_TOKEN } from './suppression.js';
-import { upupPath } from '../../utils/paths.js';
+import { upupPath } from '@upup/utils';
 
 const HEARTBEAT_MD_PATH = upupPath('HEARTBEAT.md');
 

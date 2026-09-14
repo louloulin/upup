@@ -10,9 +10,9 @@
  */
 
 import { Command, CommandContext, CommandResult } from '@upup/commands';
-import { getPluginRegistry } from '../plugins/registry.js';
-import { isBuiltinPluginEnabled, setBuiltinPluginEnabled, getBuiltinPlugin, getAllBuiltinPlugins } from '../plugins/builtin-plugins.js';
-import type { PluginManifest, PluginCapability } from '../plugins/types.js';
+import { getPluginRegistry } from '@upup/plugins';
+import { isBuiltinPluginEnabled, setBuiltinPluginEnabled, getBuiltinPlugin, getAllBuiltinPlugins } from '@upup/plugins';
+import type { PluginManifest, PluginCapability } from '@upup/plugins';
 
 // ============================================================================
 // Plugin List Command

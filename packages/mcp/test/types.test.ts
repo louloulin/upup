@@ -18,7 +18,7 @@ import {
   isHttpConfig,
   getServerEndpoint,
   getTransportDisplayName,
-} from './types.js';
+} from '../src/types.js';
 
 describe('McpStdioServerConfigSchema', () => {
   it('should validate valid stdio config', () => {

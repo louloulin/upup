@@ -12,7 +12,7 @@ import {
   getConfigPath,
   MCPCommandOptions,
 } from './mcp.js';
-import type { MCPServerConfig } from '@upup/mcp';
+import type { McpServerConfig } from '@upup/mcp';
 
 describe('MCP Commands', () => {
   const testDir = join(tmpdir(), 'test-mcp-commands');
@@ -109,7 +109,7 @@ describe('MCP Commands', () => {
 
   describe('ConfigScope handling', () => {
     it('should validate config scope', async () => {
-      const { ConfigScopeSchema } = await import('../mcp/types.js');
+      const { ConfigScopeSchema } = await import('@upup/mcp');
 
       const validScopes = ['local', 'user', 'project', 'dynamic', 'enterprise'] as const;
       for (const scope of validScopes) {
@@ -121,7 +121,7 @@ describe('MCP Commands', () => {
 
   describe('Server config parsing', () => {
     it('should parse stdio config', async () => {
-      const { McpStdioServerConfigSchema } = await import('../mcp/types.js');
+      const { McpStdioServerConfigSchema } = await import('@upup/mcp');
 
       const config = McpStdioServerConfigSchema.parse({
         type: 'stdio',
@@ -137,7 +137,7 @@ describe('MCP Commands', () => {
     });
 
     it('should parse SSE config', async () => {
-      const { McpSSEServerConfigSchema } = await import('../mcp/types.js');
+      const { McpSSEServerConfigSchema } = await import('@upup/mcp');
 
       const config = McpSSEServerConfigSchema.parse({
         type: 'sse',
@@ -151,7 +151,7 @@ describe('MCP Commands', () => {
     });
 
     it('should parse HTTP config', async () => {
-      const { McpHTTPServerConfigSchema } = await import('../mcp/types.js');
+      const { McpHTTPServerConfigSchema } = await import('@upup/mcp');
 
       const config = McpHTTPServerConfigSchema.parse({
         type: 'http',
@@ -165,26 +165,26 @@ describe('MCP Commands', () => {
 
   describe('Transport detection', () => {
     it('should detect stdio transport', async () => {
-      const { getTransportType, isStdioConfig } = await import('../mcp/types.js');
+      const { getTransportType, isStdioConfig } = await import('@upup/mcp');
 
-      const config = { type: 'stdio', command: 'echo', args: [] } as MCPServerConfig;
+      const config = { type: 'stdio', command: 'echo', args: [] } as McpServerConfig;
       expect(getTransportType(config)).toBe('stdio');
       expect(isStdioConfig(config)).toBe(true);
     });
 
     it('should detect HTTP transport', async () => {
-      const { getTransportType, isHttpConfig } = await import('../mcp/types.js');
+      const { getTransportType, isHttpConfig } = await import('@upup/mcp');
 
-      const config = { type: 'sse', url: 'https://example.com/mcp' } as MCPServerConfig;
+      const config = { type: 'sse', url: 'https://example.com/mcp' } as McpServerConfig;
       expect(getTransportType(config)).toBe('sse');
       expect(isHttpConfig(config)).toBe(true);
     });
 
     it('should check OAuth support', async () => {
-      const { supportsOAuth } = await import('../mcp/types.js');
+      const { supportsOAuth } = await import('@upup/mcp');
 
-      const withOAuth = { type: 'sse', url: 'https://example.com', oauth: { clientId: 'test' } } as MCPServerConfig;
-      const withoutOAuth = { type: 'stdio', command: 'echo', args: [] } as MCPServerConfig;
+      const withOAuth = { type: 'sse', url: 'https://example.com', oauth: { clientId: 'test' } } as McpServerConfig;
+      const withoutOAuth = { type: 'stdio', command: 'echo', args: [] } as McpServerConfig;
 
       expect(supportsOAuth(withOAuth)).toBe(true);
       expect(supportsOAuth(withoutOAuth)).toBe(false);

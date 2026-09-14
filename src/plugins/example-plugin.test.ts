@@ -12,7 +12,7 @@ import {
   loadPluginManifest,
   getManifestLoader,
   validatePluginSkills,
-} from './manifest.js';
+} from '@upup/plugins';
 import { registerSkill, unregisterSkill } from '../skills/register.js';
 import { getSkillCommandRegistry } from '@upup/skills';
 

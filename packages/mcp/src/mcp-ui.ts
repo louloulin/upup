@@ -22,7 +22,7 @@ import {
   ProcessTerminal,
 } from '@earendil-works/pi-tui';
 import chalk from 'chalk';
-import type { McpServerConfig, MCPServerStatus } from './types.js';
+import type { McpServerConfig, MCPServerStatus } from '@upup/mcp';
 import { loadMCPConfig, getConfigPath } from '../commands/mcp.js';
 import { theme as appTheme } from '../theme.js';
 import { BorderBox, type BorderStyle } from '../components/BorderBox.js';

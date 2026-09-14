@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import type { WaSocket } from './session.js';
 import { loadGatewayConfig, resolveWhatsAppAccount } from '../../config.js';
 import { normalizeE164, toWhatsappJid } from '../../utils.js';
-import { upupPath } from '../../../utils/paths.js';
+import { upupPath } from '@upup/utils';
 
 function debugLog(msg: string) {
   try {

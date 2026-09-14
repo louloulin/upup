@@ -15,14 +15,22 @@
     "dist"
   ],
   "scripts": {
-    "build": "bun build src/index.ts --outdir=dist --target=bun && tsc --emitDeclarationOnly --declaration --declarationMap --outDir dist",
+    "build": "bun build src/index.ts --outdir=dist --target=node && tsc --emitDeclarationOnly --project tsconfig.json",
+    "test": "bun test src/**/*.test.ts",
     "clean": "rm -rf dist"
   },
-  "peerDependencies": {
-    "@upup/utils": "workspace:*"
+  "dependencies": {
+    "@earendil-works/pi-ai": "0.84.3",
+    "@earendil-works/pi-coding-agent": "0.84.3",
+    "@upup/pi-event-adapter": "workspace:*",
+    "@upup/pi-market-data": "workspace:*",
+    "@upup/pi-runtime": "workspace:*",
+    "@upup/utils": "workspace:*",
+    "@whiskeysockets/baileys": "7.0.0-rc.9",
+    "qrcode-terminal": "^0.12.0",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@upup/utils": "workspace:*",
     "@types/bun": "latest"
   },
   "keywords": [

@@ -6,7 +6,7 @@
  */
 
 import { resolve, dirname } from 'path';
-import { info, warn, error } from '../utils/logging/logger.js';
+import { info, warn, error } from '@upup/utils/logging';
 import { isPathInside, safeRealpathOrResolve, safeStatSync } from './path-safety.js';
 import { loadPluginManifest, validatePluginConfig, getManifestLoader } from './manifest.js';
 import { getServiceManager } from './services.js';

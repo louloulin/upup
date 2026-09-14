@@ -11,8 +11,6 @@ import { resolveSessionStorePath, upsertSessionMeta } from './sessions/store.js'
 import { loadGatewayConfig, type GatewayConfig } from './config.js';
 import { runAgentForMessage, isSessionRunning, enqueueForSession } from './agent-runner.js';
 import { cleanMarkdownForWhatsApp } from './utils.js';
-import { startCronRunner } from '../cron/runner.js';
-import { ensureHeartbeatCronJob } from '../cron/heartbeat-migration.js';
 import {
   isBotMentioned,
   recordGroupMessage,
@@ -21,12 +19,12 @@ import {
   noteGroupMember,
   formatGroupMembersList,
 } from './group/index.js';
-import type { GroupContext } from '../runtime/pi/prompts.js';
+import type { GroupContext } from './agent-runner.js';
 import { appendFileSync } from 'node:fs';
-import { upupPath } from '../utils/paths.js';
-import { getConfiguredModelId, getConfiguredProvider } from '../utils/config.js';
+import { upupPath } from '@upup/utils';
 import { JsonFileMarketQuoteTrendStore, startProviderSlaRunner, type ProviderSlaRunner } from '@upup/pi-market-data';
-import { globalUpupPath } from '../utils/storage-paths.js';
+import { globalUpupPath } from '@upup/utils';
+import { getGatewayConfigRuntime, getGatewayCronRuntime } from './runtime-port.js';
 
 const LOG_PATH = upupPath('gateway-debug.log');
 function debugLog(msg: string) {
@@ -161,8 +159,8 @@ async function handleInbound(cfg: GatewayConfig, inbound: WhatsAppInboundMessage
     }
 
     console.log(`Processing message with agent...`);
-    const model = getConfiguredModelId();
-    const modelProvider = getConfiguredProvider();
+    const model = getGatewayConfigRuntime().getConfiguredModelId();
+    const modelProvider = getGatewayConfigRuntime().getConfiguredProvider();
 
     // If agent is already running for this session, enqueue for mid-run injection
     if (isSessionRunning(route.sessionKey)) {
@@ -231,8 +229,9 @@ export async function startGateway(params: { configPath?: string } = {}): Promis
   });
   await manager.startAll();
 
-  ensureHeartbeatCronJob(params.configPath);
-  const cron = startCronRunner({ configPath: params.configPath });
+  const cronRuntime = getGatewayCronRuntime();
+  await cronRuntime.ensureHeartbeatCronJob(params.configPath);
+  const cron = cronRuntime.startCronRunner({ configPath: params.configPath });
   const slaOptions: Parameters<typeof startProviderSlaRunner>[0] = { trendStore: new JsonFileMarketQuoteTrendStore(process.env.UPUP_PROVIDER_METRICS_PATH?.trim() || globalUpupPath('metrics', 'market-provider-trend.json')) };
   const hookBag = (globalThis as { __upupGatewayTestHooks?: { createSlaRunner?: (options: Parameters<typeof startProviderSlaRunner>[0]) => ProviderSlaRunner; onSlaRunner?: (runner: ProviderSlaRunner) => void } }).__upupGatewayTestHooks;
   const providerSlaRunner: ProviderSlaRunner = hookBag?.createSlaRunner ? hookBag.createSlaRunner(slaOptions) : startProviderSlaRunner(slaOptions);

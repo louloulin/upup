@@ -5,8 +5,8 @@
  * with the tool registry.
  */
 
-import type { PiTool } from '../runtime/pi/tool.js';
-import type { MCPClientManager, MCPServerConnection } from './client.js';
+import type { PiMcpTool } from '@upup/mcp';
+import type { MCPClientManager, MCPServerConnection } from '@upup/mcp';
 import { useMergedClients } from '../hooks/agent-hooks.js';
 
 /**
@@ -14,7 +14,7 @@ import { useMergedClients } from '../hooks/agent-hooks.js';
  */
 export interface MCPRegisteredTool {
   name: string;
-  tool: PiTool;
+  tool: PiMcpTool;
   description: string;
   compactDescription: string;
   serverName: string;

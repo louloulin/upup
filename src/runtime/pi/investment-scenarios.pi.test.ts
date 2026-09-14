@@ -8,7 +8,7 @@ import { getInvestmentAgentSpec } from './agent-spec.js';
 import { PiAgentSessionFactory } from './agent-session-factory.js';
 import type { UpUpToolContract } from './types.js';
 import { disposePiSessions } from './runner.js';
-import { runAgentForMessage } from '../../gateway/agent-runner.js';
+import { runAgentForMessage } from '@upup/gateway';
 import { executeCronJob } from '../../cron/executor.js';
 import type { CronJob, CronStore } from '../../cron/types.js';
 

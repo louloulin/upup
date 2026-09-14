@@ -430,7 +430,7 @@ export async function discoverWorktreesFromGit(
 // Hook Integration with HookRegistry
 // ============================================================================
 
-import { getHookRegistry, type HookContext } from '../plugins/hook-events.js';
+import { getHookRegistry, type HookContext } from '@upup/plugins';
 
 /**
  * Register worktree hooks with the global hook registry

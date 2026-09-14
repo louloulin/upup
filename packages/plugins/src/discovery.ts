@@ -7,7 +7,7 @@
 
 import { existsSync, readdirSync, statSync } from 'fs';
 import { resolve, dirname } from 'path';
-import { info, warn } from '../utils/logging/logger.js';
+import { info, warn } from '@upup/utils/logging';
 import { loadPluginManifest, getManifestLoader } from './manifest.js';
 import { isPathInside, safeStatSync } from './path-safety.js';
 import type { DiscoveredPlugin, PluginSource, PluginManifest } from './types.js';

@@ -8,7 +8,7 @@ import {
   convertPluginSkills,
   PluginBundledSkill,
 } from './loader.js';
-import { PluginCapability } from '../plugins/types.js';
+import { PluginCapability } from '@upup/plugins';
 
 describe('Plugin Skill Integration', () => {
   describe('convertPluginSkill', () => {

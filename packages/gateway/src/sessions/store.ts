@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { upupPath } from '../../utils/paths.js';
+import { upupPath } from '@upup/utils';
 
 export type SessionEntry = {
   sessionKey: string;

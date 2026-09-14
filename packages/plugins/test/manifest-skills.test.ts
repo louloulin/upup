@@ -6,7 +6,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { validatePluginSkills } from './manifest.js';
+import { validatePluginSkills } from '../src/manifest.js';
 
 describe('validatePluginSkills (P1.7 round 2)', () => {
   test('accepts an empty array', () => {

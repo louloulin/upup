@@ -11,7 +11,7 @@ import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import type { Tool as MCPTool } from '@modelcontextprotocol/sdk/types.js';
 import { ToolListChangedNotificationSchema, ResourceListChangedNotificationSchema } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
-import { PiTool } from '../runtime/pi/tool.js';
+import { createPiMcpTool, type PiMcpTool } from './pi-tool.js';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { EventEmitter } from 'events';
@@ -97,8 +97,8 @@ export class MCPClientManager extends EventEmitter {
   private transports: Map<string, any> = new Map();
   private connections: Map<string, MCPServerConnection> = new Map();
   private config: MCPClientConfig;
-  private tools: PiTool[] = [];
-  private toolCallbacks: Set<(tools: PiTool[]) => void> = new Set();
+  private tools: PiMcpTool[] = [];
+  private toolCallbacks: Set<(tools: PiMcpTool[]) => void> = new Set();
   private healthCheckInterval: ReturnType<typeof setInterval> | null = null;
   private reconnectAttempts: Map<string, number> = new Map();
   private readonly MAX_RECONNECT_ATTEMPTS = 3;
@@ -276,7 +276,7 @@ export class MCPClientManager extends EventEmitter {
     mcpTool: MCPTool,
     serverName: string,
     client: any
-  ): PiTool {
+  ): PiMcpTool {
     const toolName = `mcp__${serverName}__${mcpTool.name}`;
     const description = mcpTool.description || `MCP tool: ${mcpTool.name}`;
 
@@ -316,11 +316,11 @@ export class MCPClientManager extends EventEmitter {
       }
     }
 
-    return new PiTool({
+    return createPiMcpTool({
       name: toolName,
       description,
       schema,
-      async func(args: Record<string, unknown>) {
+      async execute(args: Record<string, unknown>, signal?: AbortSignal) {
         try {
           const result = await client.request(
             { method: 'tools/call' },
@@ -439,14 +439,14 @@ export class MCPClientManager extends EventEmitter {
   /**
    * Get all Pi tools from all connected servers
    */
-  getTools(): PiTool[] {
+  getTools(): PiMcpTool[] {
     return this.tools;
   }
 
   /**
    * Get tools for a specific server
    */
-  getToolsForServer(serverName: string): PiTool[] {
+  getToolsForServer(serverName: string): PiMcpTool[] {
     return this.tools.filter(t => t.name.startsWith(`mcp__${serverName}__`));
   }
 
@@ -484,7 +484,7 @@ export class MCPClientManager extends EventEmitter {
   /**
    * Subscribe to tool updates
    */
-  onToolsChange(callback: (tools: PiTool[]) => void): () => void {
+  onToolsChange(callback: (tools: PiMcpTool[]) => void): () => void {
     this.toolCallbacks.add(callback);
     return () => this.toolCallbacks.delete(callback);
   }

@@ -7,7 +7,7 @@
 
 import { statSync, realpathSync, existsSync } from 'fs';
 import { resolve, dirname } from 'path';
-import { warn } from '../utils/logging/logger.js';
+import { warn } from '@upup/utils/logging';
 
 // ============================================================================
 // Path Safety Functions

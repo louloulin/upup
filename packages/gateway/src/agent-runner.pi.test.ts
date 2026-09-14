@@ -3,8 +3,8 @@ import { fauxAssistantMessage, fauxProvider, fauxText } from '@earendil-works/pi
 import { ModelRuntime } from '@earendil-works/pi-coding-agent';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { disposePiSessions } from '../runtime/pi/runner.js';
-import { bootstrapPiNativeServices } from '../runtime/pi/bootstrap.js';
+import { disposePiSessions } from '@upup/pi-session';
+import { bootstrapPiNativeServices } from '@upup/pi-session';
 
 beforeAll(() => bootstrapPiNativeServices());
 import { runAgentForMessage } from './agent-runner.js';

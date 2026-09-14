@@ -7,7 +7,7 @@ import { appendFileSync } from 'node:fs';
 import { timingSafeEqual } from 'node:crypto';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { runAgentForMessage, type AgentRunRequest } from '../gateway/agent-runner.js';
+import { runAgentForMessage, type AgentRunRequest } from '@upup/gateway';
 import { getConfiguredModelId, getConfiguredProvider } from '../utils/config.js';
 
 /**

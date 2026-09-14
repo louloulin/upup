@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
-import { loadGatewayConfig } from '../gateway/config.js';
-import { buildHeartbeatQuery } from '../gateway/heartbeat/prompt.js';
+import { loadGatewayConfig } from '@upup/gateway';
+import { buildHeartbeatQuery } from '@upup/gateway';
 import { loadCronStore, saveCronStore } from './store.js';
 import { computeNextRunAtMs } from './schedule.js';
 import type { CronJob } from './types.js';

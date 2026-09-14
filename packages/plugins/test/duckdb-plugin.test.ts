@@ -5,8 +5,8 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 
 // Import DuckDB plugin components
-import { DuckDBPlugin, DuckDBAdapter } from './duckdb-plugin';
-import type { PluginManifest } from '../types.js';
+import { DuckDBPlugin, DuckDBAdapter } from '../src/data/duckdb-plugin.js';
+import type { PluginManifest } from '../src/types.js';
 
 // ============================================================================
 // DuckDB Plugin Tests

@@ -211,7 +211,7 @@ export async function importServersFromDesktop(
 
   return filter
     .filter((name) => servers[name])
-    .map((name) => ({ name, config: servers[name] }));
+    .map((name) => ({ name, config: servers[name]! }));
 }
 
 /**

@@ -39,3 +39,17 @@ export {
   type WhatsAppInboundMessage,
   type WhatsAppCloseReason,
 } from './channel-types.js';
+export { runAgentForMessage, enqueueForSession, isSessionRunning } from './agent-runner.js';
+export type { AgentRunRequest } from './agent-runner.js';
+export { loadGatewayConfig, saveGatewayConfig, getGatewayConfigPath, listWhatsAppAccountIds, resolveWhatsAppAccount } from './config.js';
+export type { GatewayConfig } from './config.js';
+export { normalizeE164, isSelfChatMode, cleanMarkdownForWhatsApp, toWhatsappJid } from './utils.js';
+export { buildHeartbeatQuery, loadHeartbeatDocument, isHeartbeatContentEmpty } from './heartbeat/prompt.js';
+export { evaluateSuppression, HEARTBEAT_OK_TOKEN } from './heartbeat/suppression.js';
+export type { SuppressionResult, SuppressionState } from './heartbeat/suppression.js';
+export { resolveSessionStorePath, loadSessionStore, saveSessionStore, upsertSessionMeta } from './sessions/store.js';
+export type { SessionEntry } from './sessions/store.js';
+export { assertOutboundAllowed, sendComposing, sendMessageWhatsApp } from './channels/whatsapp/index.js';
+export { startGateway } from './gateway.js';
+export { registerGatewayAgentRuntime, registerGatewayConfigRuntime, registerGatewayCronRuntime } from './runtime-port.js';
+export type { GatewayAgentRuntimePort, GatewayConfigRuntimePort, GatewayCronRuntimePort } from './runtime-port.js';

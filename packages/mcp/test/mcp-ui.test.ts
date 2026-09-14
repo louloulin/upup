@@ -14,7 +14,7 @@ import {
   printMCPServers,
 } from './mcp-ui.js';
 import { saveMCPConfig, loadMCPConfig } from '../commands/mcp.js';
-import type { McpServerConfig, MCPServerStatus } from './types.js';
+import type { McpServerConfig, MCPServerStatus } from '@upup/mcp';
 
 describe('MCPServerList', () => {
   let list: MCPServerList;

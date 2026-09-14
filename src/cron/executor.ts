@@ -1,13 +1,13 @@
 import { appendFileSync } from 'node:fs';
-import { runAgentForMessage } from '../gateway/agent-runner.js';
+import { runAgentForMessage } from '@upup/gateway';
 import {
   evaluateSuppression,
   HEARTBEAT_OK_TOKEN,
   type SuppressionState,
-} from '../gateway/heartbeat/suppression.js';
-import { assertOutboundAllowed, sendMessageWhatsApp } from '../gateway/channels/whatsapp/index.js';
-import { resolveSessionStorePath, loadSessionStore, type SessionEntry } from '../gateway/sessions/store.js';
-import { cleanMarkdownForWhatsApp } from '../gateway/utils.js';
+} from '@upup/gateway';
+import { assertOutboundAllowed, sendMessageWhatsApp } from '@upup/gateway';
+import { resolveSessionStorePath, loadSessionStore, type SessionEntry } from '@upup/gateway';
+import { cleanMarkdownForWhatsApp } from '@upup/gateway';
 import { getSetting, getConfiguredModelId, getConfiguredProvider } from '../utils/config.js';
 import { upupPath } from '../utils/paths.js';
 import { saveCronStore } from './store.js';
