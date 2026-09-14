@@ -79,7 +79,7 @@ import {
   createFullscreenApproval,
   createApprovalSelector,
 } from './components/index.js';
-import { editorTheme, theme } from './theme.js';
+import { editorTheme, theme } from '@upup/utils';
 import { type SlashCommand } from './commands/index.js';
 import { listAllCommands } from './commands/unified-registry.js';
 import { initSpinner } from './utils/spinner.js';

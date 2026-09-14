@@ -1,5 +1,5 @@
 import { Container, Text, type TUI } from '@earendil-works/pi-tui';
-import { theme } from '../../theme.js';
+import { theme } from '@upup/utils';
 
 function formatElapsed(startTime: number): string {
   const elapsed = Math.floor((Date.now() - startTime) / 1000);

@@ -1,6 +1,6 @@
 import { Container, Text, SelectList } from '@earendil-works/pi-tui';
 import type { ApprovalDecision } from '@upup/pi-event-adapter';
-import { theme } from '../theme.js';
+import { theme } from '@upup/utils';
 import { createApprovalSelector } from './select-list.js';
 
 /**

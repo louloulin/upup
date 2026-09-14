@@ -2,7 +2,7 @@ import { Container, Input, SelectList, Text, type SelectItem, getKeybindings } f
 import { PROVIDERS, type Model } from '../utils/model.js';
 import type { ApprovalDecision } from '@upup/pi-event-adapter';
 import type { SessionSummary } from '@upup/pi-session';
-import { selectListTheme, theme } from '../theme.js';
+import { selectListTheme, theme } from '@upup/utils';
 import { t } from '../i18n/index.js';
 import { formatRelativeTime } from '@upup/utils';
 // Simple wrapper that just uses native SelectList - no custom input handling needed

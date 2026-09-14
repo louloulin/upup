@@ -14,7 +14,7 @@ import {
   type SelectItem,
   getKeybindings,
 } from '@earendil-works/pi-tui';
-import { theme } from '@upup/commands';
+import { theme } from '@upup/utils';
 import type { SessionSummary } from '@upup/pi-session';
 import { formatDuration, formatRelativeTime } from '@upup/utils';
 

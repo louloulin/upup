@@ -84,7 +84,7 @@ export {
   theme,
   editorTheme,
   selectListTheme,
-} from './theme.js'
+} from '@upup/utils'
 
 // Argument parsing
 export {

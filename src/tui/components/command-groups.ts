@@ -6,7 +6,7 @@
  */
 
 import { Container, Text, Box } from '@earendil-works/pi-tui';
-import { theme } from '../../theme.js';
+import { theme } from '@upup/utils';
 import type { SlashCommand } from '../../commands/index.js';
 
 // ============================================================================

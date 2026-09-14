@@ -1,6 +1,6 @@
 import { Container, Spacer, Text, type TUI, type Component } from '@earendil-works/pi-tui';
 import type { TokenUsage } from '@upup/pi-event-adapter';
-import { theme } from '../theme.js';
+import { theme } from '@upup/utils';
 import { t } from '../i18n/index.js';
 import { AnswerBoxComponent } from './answer-box.js';
 import { ToolEventComponent } from './tool-event.js';

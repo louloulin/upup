@@ -1,6 +1,6 @@
 import { Container, Spacer, Text, type TUI } from '@earendil-works/pi-tui';
 import type { ApprovalDecision } from '@upup/pi-event-adapter';
-import { theme } from '../theme.js';
+import { theme } from '@upup/utils';
 import { t } from '../i18n/index.js';
 import { subscribeSpinner, SPINNER_INTERVAL_MS } from '../utils/spinner.js';
 

@@ -9,7 +9,7 @@ import { Container, Text, Spacer } from '@earendil-works/pi-tui';
 import { BorderBox } from '../BorderBox.js';
 import type { ApprovalDecision } from '@upup/pi-event-adapter';
 import { getToolDangerLevel } from '../../utils/permissions/index.js';
-import { theme } from '../../theme.js';
+import { theme } from '@upup/utils';
 import type { ApprovalRequestData, ApprovalRequestOptions } from './BaseApprovalRequest.js';
 
 export class GenericApprovalRequest extends Container {

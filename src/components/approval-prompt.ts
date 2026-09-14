@@ -1,7 +1,7 @@
 import { Container, Text } from '@earendil-works/pi-tui';
 import type { ApprovalDecision } from '@upup/pi-event-adapter';
 import { createApprovalSelector } from './select-list.js';
-import { theme } from '../theme.js';
+import { theme } from '@upup/utils';
 import { BorderBox } from './BorderBox.js';
 import { t } from '../i18n/index.js';
 

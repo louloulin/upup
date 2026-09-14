@@ -1,5 +1,5 @@
 import { Container, Loader, type TUI } from '@earendil-works/pi-tui';
-import { theme } from '../../theme.js';
+import { theme } from '@upup/utils';
 
 function truncateAtWord(str: string, maxLength: number): string {
   if (str.length <= maxLength) {

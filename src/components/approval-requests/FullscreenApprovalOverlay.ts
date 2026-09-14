@@ -19,7 +19,7 @@ import {
 import { BorderBox } from '../BorderBox.js';
 import type { ApprovalDecision } from '@upup/pi-event-adapter';
 import { getToolDangerLevel, isHardDenyCommand } from '../../utils/permissions/index.js';
-import { theme } from '../../theme.js';
+import { theme } from '@upup/utils';
 import type { ApprovalRequestData } from './BaseApprovalRequest.js';
 
 // Re-use the factory from GenericApprovalRequest

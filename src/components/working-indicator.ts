@@ -3,7 +3,7 @@ import { t } from '../i18n/index.js';
 import type { WorkingState } from '../types.js';
 import type { StreamMode } from '@upup/pi-event-adapter';
 import { getRandomThinkingVerb } from '../utils/thinking-verbs.js';
-import { theme } from '../theme.js';
+import { theme } from '@upup/utils';
 import { subscribeSpinner, currentSpinnerFrame } from '../utils/spinner.js';
 import { formatTurnDuration, formatTokensCompact } from '../utils/format.js';
 
