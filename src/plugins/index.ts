@@ -1,5 +1,2 @@
-/**
- * @deprecated Use @upup/plugins instead
- * Re-exports from @upup/plugins for backward compatibility
- */
+/** @deprecated Use @upup/plugins instead. */
 export * from '@upup/plugins';
