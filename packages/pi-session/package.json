@@ -40,13 +40,17 @@
     "prompts": [],
     "workflows": [],
     "policies": [],
-    "evals": []
+    "evals": [],
+    "dependencies": {
+      "@upup/pi-prompt-config": "0.1.0"
+    }
   },
   "dependencies": {
     "@earendil-works/pi-coding-agent": "0.84.3",
     "@upup/commands": "0.2.0",
     "@upup/pi-event-adapter": "0.1.0",
     "@upup/pi-runtime": "0.1.0",
+    "@upup/pi-prompt-config": "0.1.0",
     "@upup/types": "0.2.0",
     "@upup/pi-investment-workflow": "0.1.0",
     "@upup/pi-market-data": "0.1.0",

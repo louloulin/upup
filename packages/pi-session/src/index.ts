@@ -172,6 +172,7 @@ export class PiSessionAdapter implements UpUpAgentSession {
       const audit = (decision: UpUpToolPolicyAudit['decision'], reason: string) => ({
         auditId: toolCallId,
         tool: name,
+        effect: sideEffect.effect,
         safetyLevel: sideEffect.safetyLevel,
         permissionProfile: this.spec.permissions.id,
         decision,
@@ -300,3 +301,7 @@ export { PiSessionRegistry } from './session-registry.js';
 export type { PiRunnerSessionState, PiSessionInitialization } from './session-registry.js';
 export { withPiFileLock } from './file-lock.js';
 export type { PiFileLockOptions } from './file-lock.js';
+
+// Explicit composition boundary for PiApp and deterministic fixtures.
+export { builtinSessionComposition } from './builtin-composition.js';
+export type { PiSessionCompositionProviders } from './builtin-composition.js';

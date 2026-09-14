@@ -1,7 +1,7 @@
 import type { AgentMessage } from '@earendil-works/pi-agent-core';
 import type { Model } from '@earendil-works/pi-ai';
 import type { ModelRuntime } from '@earendil-works/pi-coding-agent';
-import { validateAgentSpec } from '@upup/pi-investment-workflow';
+import { validateAgentSpec } from '@upup/pi-runtime';
 import type { UpUpAgentEvent, UpUpAgentSpec, UpUpAgentSession, UpUpToolSafetyLevel } from '@upup/pi-runtime';
 import { resolveProvider } from '@upup/utils';
 import { getPiSessionService } from '@upup/pi-session';

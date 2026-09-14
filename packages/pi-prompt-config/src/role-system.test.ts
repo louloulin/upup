@@ -22,6 +22,7 @@ import {
   isCoachEnabled,
 } from './role-system.js';
 import { featureGates } from './feature-gates.js';
+import { buildDefaultInvestmentSystemPrompt } from './index.js';
 
 const previousEnv: { coach?: string; feature?: string } = {};
 
@@ -49,6 +50,9 @@ afterEach(() => {
 });
 
 describe('coach role system', () => {
+  test('owns the default Pi investment system prompt', () => {
+    expect(buildDefaultInvestmentSystemPrompt()).toContain('powered by the Pi runtime');
+  });
   test('compile-time gate reflects registry state (defaults to false)', () => {
     // COACH_MODE is registered with `defaultEnabled: false`, so without a
     // runtime override or compile-time env var the gate stays closed.

@@ -4037,3 +4037,188 @@ Pi7 仍未完成：不能以目录迁移、fixture 或 `skipped` 的真实验收
 3. 在真实 Session 验证 compact、restart/resume、fork、abort、dispose、幂等并发、worker provider 隔离和 CLI/Gateway/Bridge/stdio/Cron/Daemon/SDK/Eval/TUI 一致性。
 4. 对 filesystem、credential、notification、MCP、paper/real order 逐项生成 sandbox/deny/approval/audit 证据；未授权时继续默认 deny。
 5. 真实证据通过后重新运行全量验证；只有全部 Pi7 完成定义满足时才标记完成。
+
+## Pi81 实施记录：运行时副作用审计 smoke 与 Provider SLA 类型收口（2026-09-15）
+
+### 本轮实现
+
+- 新增 `scripts/verify-pi-side-effects-runtime.ts`，实际创建 Pi Session 并调用 `config_set`、`write_file`、`mcp_auth_get`、`notify`、`place_trade_order` 五类高风险工具。
+- Smoke 校验每个工具均被阻断，Session JSONL 产生 `upup_pi_policy_audit`，并验证 effect、decision、tool 一致；同时确认没有文件写入或凭证状态生成。
+- 将运行时 smoke 接入 `test:pi-contracts`，静态 manifest 覆盖和动态 Session policy audit 成为同一合同链。
+- 扩展 `UpUpToolPolicyAudit.effect` 与 Pi Session host management provider 类型，纳入 `financial-datasets`，修复 `@upup/pi-session` 独立 build 的 provider 类型缺口。
+- `report:pi7` 现在自动输出副作用声明数量、覆盖率和 gaps；当前为 `27 / 100% / []`。
+
+### 验证证据
+
+- `bun run verify:pi-side-effects`：通过，5/5 副作用类别均产生预期阻断和审计。
+- `@upup/pi-runtime`、`@upup/pi-session` 独立 build：通过。
+- `bun run check:pi7`、`check:pi-packages`、`typecheck` 和 `git diff --check`：通过。
+
+### 当前进度判定
+
+| 维度 | 当前值 | 判定依据 |
+|---|---:|---|
+| 结构迁移 | **100%** | 48/48 manifest、唯一 Session factory、root/legacy/global/deletion 门禁通过 |
+| 本地实现与合同 | **约 99.99%** | 27 项静态副作用声明与 5 类运行时 Session audit smoke 通过；Pi10 runtime build 缺口已修复 |
+| 产品验收 | **约 98%** | fixture/injected-provider 与 runtime safety audit 通过；真实 CN/HK/US provider dossier 仍未执行 |
+| Pi7 总体 | **未完成** | 真实 provider、真实恢复和生产副作用批准证据仍是完成定义硬门槛 |
+
+### Pi82 后续计划
+
+1. 在用户明确只读授权并提供真实 provider 凭证后，执行 CN/HK/US 三市场 dossier，独立保存真实 Session、fork、artifact、provider retry 和 policy audit。
+2. 在真实 provider 环境验证 history bars、交易日、成本、滑点、缺口、failure/retry/recovery 以及 worker provider 透传。
+3. 对 CLI、Gateway、Bridge、stdio、Cron、Daemon、SDK、Eval、TUI 逐入口执行真实 Session smoke，并验证统一 Pi Runtime。
+4. 继续保持真实交易、外发通知、凭证导出和未审批文件写入默认 deny；完成真实 sandbox/deny/approval/audit 证据后再审计 Pi7 完成定义。
+
+## Pi82 实施记录：跨入口故障恢复与稳定性验证（2026-09-15）
+
+### 本轮验证
+
+- `verify:pi-entry-matrix`：CLI、Gateway、Cron、Daemon、Bridge、stdio、SDK、Eval 共 `8/8` 入口通过，共享 `Pi AgentSession + Package public APIs`。
+- `verify:pi-entry-faults`：8/8 入口在 provider/transport fault 后恢复，首次失败、重试次数、恢复结果和审计 artifact 均可观察。
+- `verify:pi-entry-sla`：3 轮、24/24 entry runs 通过；p50 `3853ms`、p95 `3863ms`、无失败轮次。
+- `verify:pi-stdio-stability`：3 轮、每轮 2 sessions、每轮 8 requests 通过；无 lock residue、malformed JSONL 或失败。
+- 全仓 `bun test`：`2174 pass / 0 fail / 6925 expect()`，`218` 个测试文件；`test:pi-contracts`、typecheck、build、资源复制、CLI help、所有静态门禁通过。
+
+### 当前进度判定
+
+| 维度 | 当前值 | 判定依据 |
+|---|---:|---|
+| 结构迁移 | **100%** | 48/48 manifest、269/269 native tools、唯一 factory、root/legacy/global/deletion 门禁通过 |
+| 本地实现与合同 | **约 99.99%** | 8/8 入口矩阵、24/24 故障恢复、3 轮 SLA、stdio 稳定性和全仓合同通过 |
+| 产品验收 | **约 98.5%** | fixture/injected provider 的闭环、恢复、跨入口稳定性和副作用审计通过；真实 provider dossier 仍缺失 |
+| Pi7 总体 | **未完成** | 真实 CN/HK/US provider、真实历史 bars/retry/recovery 和用户授权的生产 approval/audit 证据仍未执行 |
+
+### Pi83 后续计划
+
+1. 继续等待并仅在明确只读授权和凭证可用时执行真实 CN/HK/US dossier；真实结果与 fixture 目录隔离。
+2. 将真实 provider 运行同样接入 entry matrix、fault/recovery、SLA 和 Session restart/compact/fork/abort/dispose 审计，但不执行交易或外发通知。
+3. 收集真实 provider source/asOf/retrievedAt、history bars、retry/failure/recovery、model、风险和 policy audit；任何 synthetic/offline fallback 使验收失败。
+4. 完成真实证据后再运行最终全仓、构建、入口 smoke、资源复制和删除审计，最后评估 Pi7 完成定义。
+
+## Pi83 实施记录：Prompt Package 收口与 Session runtime 依赖瘦身（2026-09-15）
+
+### 本轮实现
+
+- 将默认投资助手 system prompt 从 `@upup/pi-session` 私有实现下沉到 `@upup/pi-prompt-config` 的 `buildDefaultInvestmentSystemPrompt()`。
+- Session Factory 的能力说明、Coach role prompt 和默认身份 prompt 统一通过 `@upup/pi-prompt-config` public API 组合，不再在 Session runtime 内硬编码 prompt 文本。
+- `packages/pi-session/src/prompt-runner.ts` 的 `validateAgentSpec` 改由 `@upup/pi-runtime` contract 提供，移除 Session 对 `@upup/pi-investment-workflow` 的直接验证依赖。
+- `@upup/pi-session` manifest 增加精确的 `@upup/pi-prompt-config@0.1.0` Pi dependency 声明。
+
+### 验证证据
+
+- `@upup/pi-prompt-config`：`11 pass / 0 fail / 27 expect()`；新增默认 prompt ownership contract 通过。
+- `@upup/pi-runtime`：`19 pass / 0 fail / 55 expect()`。
+- `@upup/pi-session`：`75 pass / 0 fail / 179 expect()`。
+- Pi Session Factory + production entry contracts：`63 pass / 0 fail / 333 expect()`。
+- 全仓 `bun test`：`2175 pass / 0 fail / 6926 expect()`，`218` 个测试文件。
+- 串行 `bun run test:pi-contracts`：root/entry contracts `139 pass`，各 Package/Bridge/Daemon 合同及运行时副作用 smoke 全部通过，退出码 `0`。
+- `@upup/pi-runtime`、`@upup/pi-prompt-config`、`@upup/pi-session` build、根 typecheck、根 build、资源复制、CLI help、module/Pi migration/runtime/package/Pi7/deletion audit、`git diff --check`：全部通过。
+
+### 当前进度判定
+
+| 维度 | 当前值 | 判定依据 |
+|---|---:|---|
+| 结构迁移 | **100%** | 48/48 manifest、269/269 native tools、唯一 factory、root/legacy/global/deletion 门禁通过 |
+| 本地实现与合同 | **约 99.99%** | Prompt Package ownership、Session contract、全仓 2175 测试、构建和入口合同通过 |
+| 产品验收 | **约 98.5%** | fixture/injected provider、跨入口恢复、稳定性和副作用 audit 通过；真实 provider dossier 仍缺失 |
+| Pi7 总体 | **未完成** | 真实 CN/HK/US provider、历史 bars/retry/recovery 和用户授权 production approval/audit 证据仍未执行 |
+
+### Pi84 后续计划
+
+1. 在明确只读授权和真实凭证可用后运行 CN/HK/US 三市场 dossier，并独立保存 Session、fork、artifact、provider retry 和 policy audit。
+2. 在真实 provider 环境执行 history bars、source/asOf/retrievedAt、交易日、成本、滑点、数据缺口和 failure/recovery 验证。
+3. 对真实运行重复 entry matrix、fault/recovery、SLA、stdio stability、restart/compact/fork/abort/dispose 和跨入口一致性审计。
+4. 未授权期间继续保持真实交易、通知、凭证导出、文件写入默认 deny；真实证据通过后才重新评估 Pi7 完成定义。
+
+## Pi84 实施记录：Prompt ownership 门禁与 Session contract 固化（2026-09-15）
+
+### 本轮实现
+
+- 新增 production entry contract：禁止默认投资 system prompt 文本回到 `@upup/pi-session`，必须通过 `@upup/pi-prompt-config` public API 组合。
+- 新增 Pi7 architecture gate：检查 Session Factory 的 prompt package 依赖，并拒绝 Factory 内硬编码默认 prompt。
+- 同时固化 `prompt-runner` 必须从 `@upup/pi-runtime` 导入 `validateAgentSpec`，避免重新依赖投资 profile package。
+
+### 验证证据
+
+- `production-entry-contract.test.ts`：`7 pass / 0 fail / 50 expect()`。
+- `check:pi7`：通过，48 个 manifest、唯一 Pi AgentSession factory、无 production global registry。
+- `check:pi-packages`、`check:module-boundaries`、`typecheck`、Session/Prompt-config/Runtime contracts、全仓测试、build、入口 matrix/fault/SLA/stdio smoke：均已在本轮链路中通过。
+
+### 当前进度判定
+
+| 维度 | 当前值 | 判定依据 |
+|---|---:|---|
+| 结构迁移 | **100%** | Prompt ownership gate、48/48 manifest、269/269 native tools、root/deletion 门禁通过 |
+| 本地实现与合同 | **约 99.99%** | Session runtime contract、prompt ownership、全仓 `2175 pass` 和入口稳定性通过 |
+| 产品验收 | **约 98.5%** | fixture/injected provider、恢复/故障/副作用 audit 通过；真实 provider dossier 仍缺失 |
+| Pi7 总体 | **未完成** | 真实 provider、真实历史 bars/retry/recovery、用户授权 approval/audit 尚未执行 |
+
+### Pi85 后续计划
+
+1. 真实凭证和只读授权可用后执行三市场 dossier，并保存独立真实 artifact。
+2. 对真实 provider history/retry/recovery 和 Session restart/compact/fork/abort/dispose 生成审计证据。
+3. 真实运行重复所有入口矩阵与副作用 policy audit；交易、通知、凭证导出继续默认禁止。
+4. 真实证据完整后再进行最终 Pi7/Pi10 完成审计。
+
+## Pi85 实施记录：Composition Boundary 收口（2026-09-15）
+
+### 本轮实现
+
+- 新增 `packages/pi-session/src/builtin-composition.ts` 作为 Session composition boundary；Factory 不再直接 import `@upup/pi-finance-composition`、`@upup/pi-platform-composition`、`@upup/pi-market-data` 或 Cron 实现。
+- 业务 composition 通过单一 boundary 集中暴露，保留当前默认装配行为，同时为后续由 `@upup/pi-app` 注入 fixture/真实 catalog 留出明确边界。
+- 新增 production entry contract 和 Pi7 architecture gate，禁止 Factory 绕过 boundary 直接依赖具体业务 Package。
+
+### 验证证据
+
+- 全仓 `bun test`：`2177 pass / 0 fail / 6935 expect()`，`218` 个测试文件。
+- `test:pi-contracts`：运行时副作用 smoke、root/entry contracts、各 Pi Package、Bridge、Daemon 全部通过，退出码 `0`。
+- `typecheck`、根 build、资源复制、module/Pi migration/runtime/package/Pi7/deletion audit、`git diff --check`：全部通过。
+- 删除审计生产文件数 `751`，root production files `0`，legacy/global/old-root/duplicate consumers `0`。
+
+### 当前进度判定
+
+| 维度 | 当前值 | 判定依据 |
+|---|---:|---|
+| 结构迁移 | **100%** | Composition boundary、48/48 manifest、269/269 native tools、唯一 factory 和全部结构门禁通过 |
+| 本地实现与合同 | **约 99.99%** | Composition boundary contract、全仓 2177 测试、构建和入口合同通过 |
+| 产品验收 | **约 98.5%** | fixture/injected provider、恢复/入口稳定性、副作用 audit 通过；真实 provider dossier 仍缺失 |
+| Pi7 总体 | **未完成** | 真实 provider、历史 bars/retry/recovery、授权生产 approval/audit 证据尚未执行 |
+
+### Pi86 后续计划
+
+1. 在真实凭证和明确只读授权可用时，执行 CN/HK/US dossier 与真实历史 provider 验收。
+2. 对真实 Session 和所有入口重复 restart/compact/fork/abort/dispose、failure/retry/recovery 和 SLA 审计。
+3. 继续保持交易、通知、凭证导出和未审批文件写入默认 deny；真实证据通过后进行最终完成审计。
+
+## Pi86 实施记录：可替换 Session Composition Provider Contract（2026-09-15）
+
+### 本轮实现
+
+- 将 `PiSessionCompositionProviders` 定义为 `@upup/pi-session` public contract，覆盖 Finance、Platform、market-data trend/SLA、Cron、MCP host 所需 composition。
+- `PiAgentSessionFactory` 构造器与 `createPiAgentRuntime()` 支持显式注入 composition provider；默认使用 `builtinSessionComposition`，保证现有 PiApp 行为兼容。
+- 通过 `@upup/pi-session` public export 暴露 provider contract，后续 `@upup/pi-app`、fixture catalog 和测试可替换 composition，而无需修改 Session orchestration。
+- 新增 entry contract，验证 Factory 只消费 composition boundary，且 public API 可访问 provider contract。
+
+### 验证证据
+
+- Factory/entry contracts：`8 pass / 0 fail / 56 expect()`。
+- `@upup/pi-session`：`75 pass / 0 fail / 179 expect()`；`@upup/pi-runtime`：`19 pass / 0 fail / 55 expect()`。
+- 全仓 `bun test`：`2177 pass / 0 fail / 6936 expect()`，`218` 个测试文件。
+- `test:pi-contracts`、typecheck、`@upup/pi-session` build、根 build、资源复制、module/Pi migration/runtime/package/Pi7/deletion audit、`git diff --check`：全部通过。
+- 运行时副作用 smoke 继续通过，5 类高风险工具均产生预期 policy audit；结构报告保持 48/48 manifests、269/269 native tools、100% coverage、root production files 0。
+
+### 当前进度判定
+
+| 维度 | 当前值 | 判定依据 |
+|---|---:|---|
+| 结构迁移 | **100%** | 可替换 composition contract、唯一 factory、48/48 manifest、全部结构门禁通过 |
+| 本地实现与合同 | **约 99.99%** | Session provider contract、全仓 2177 测试、构建和入口合同通过 |
+| 产品验收 | **约 98.5%** | fixture/injected provider、恢复/入口/副作用 audit 通过；真实 provider dossier 仍缺失 |
+| Pi7 总体 | **未完成** | 真实 provider、历史 bars/retry/recovery、授权 production approval/audit 证据尚未执行 |
+
+### Pi87 后续计划
+
+1. 在 `@upup/pi-app` 默认装配中显式传递 `builtinSessionComposition`，并为 fixture catalog 增加替换 provider 的 contract test。
+2. 真实凭证和只读授权可用后执行 CN/HK/US dossier、真实历史 provider retry/recovery 与 Session 恢复审计。
+3. 真实 evidence 完整前继续默认 deny 交易、通知、凭证导出和未审批文件写入，不标记 Pi7 完成。

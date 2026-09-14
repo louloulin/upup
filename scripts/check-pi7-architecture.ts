@@ -76,6 +76,11 @@ if (existsSync(sessionFactoryPath)) {
   if (!source.includes('providers: {') || !source.includes('marketData:') || !source.includes('workers:')) {
     failures.push(`${sessionFactoryPath}: host binding must compose explicit capability providers`);
   }
+  if (!source.includes('@upup/pi-prompt-config')) failures.push(`${sessionFactoryPath}: prompt composition must come from @upup/pi-prompt-config`);
+  if (source.includes('You are UpUp, a Chinese-language financial research assistant')) failures.push(`${sessionFactoryPath}: default prompt text must not live in the Session Factory`);
+  for (const forbidden of ['@upup/pi-finance-composition', '@upup/pi-platform-composition', '@upup/pi-market-data', "from '@upup/cron'"]) {
+    if (source.includes(forbidden)) failures.push(`${sessionFactoryPath}: concrete business composition import must use builtin-composition boundary: ${forbidden}`);
+  }
 }
 
 const hostContractPath = resolve(root, 'packages/pi-session/src/host-contract.ts');

@@ -53,7 +53,8 @@ import {
   FINANCE_CONTEXT_ENTRY_TYPE,
   type SerializedFinanceContext,
 } from '@upup/pi-runtime';
-import { validateAgentSpec } from '@upup/pi-investment-workflow';
+import { validateAgentSpec } from '@upup/pi-runtime';
+import { buildDefaultInvestmentSystemPrompt, buildInvestmentCapabilitiesSection, buildCoachSystemPrompt } from '@upup/pi-prompt-config';
 import { getModel, getModels } from '@earendil-works/pi-ai/compat';
 import { existsSync, readFileSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
@@ -64,23 +65,9 @@ import { evaluatePiPackage } from '@upup/pi-resource-composition';
 
 import { createPiHostBridge, disposePiHostBridge, type PiHostBridge, type PiManagementSnapshot } from './host-contract.js';
 
-import { JsonFileMarketQuoteTrendStore, loadProviderSlaStore } from '@upup/pi-market-data';
-import type { NativeMarketQuoteTrendStore } from '@upup/pi-market-data';
-import { globalUpupPath, getConfiguredModelId, getConfiguredProvider } from '@upup/utils';
-import { createFinanceComposition } from '@upup/pi-finance-composition';
-import { createPlatformComposition } from '@upup/pi-platform-composition';
+import { builtinSessionComposition, type PiSessionCompositionProviders } from './builtin-composition.js';
+import type { NativeMarketQuoteTrendStore, GatewayAgentRuntimePort, GatewayRuntime } from './builtin-composition.js';
 import { publishPiCapabilityHosts, type PiCapabilityEventBus } from '@upup/pi-capability-registry';
-import { ensureHeartbeatCronJob, executeCronJob, loadCronStore, startCronRunner } from '@upup/cron';
-import type { GatewayAgentRuntimePort, GatewayRuntime } from '@upup/gateway';
-
-const PI_DEFAULT_SYSTEM_PROMPT = [
-  'You are UpUp, a Chinese-language financial research assistant powered by the Pi runtime.',
-  'Use registered tools only when they improve the answer and distinguish facts, assumptions, and uncertainty.',
-  'For financial data, preserve source, as-of date, freshness, warnings, and audit evidence in the result.',
-  'Never place a real financial order, disclose credentials, or send external messages without an explicit approved policy.',
-  'Prefer concise, structured reports with risks and next actions.',
-].join('\n');
-
 
 function installPiPackageToolHosts(
 
@@ -107,13 +94,14 @@ function installPiPackageToolHosts(
   runWorkerPrompt?: (prompt: string, options: Parameters<NonNullable<Parameters<typeof createPlatformComposition>[0]['runPrompt']>>[1]) => Promise<string>,
   capabilityContext?: PiCapabilityContext,
   events?: PiCapabilityEventBus,
+  composition: PiSessionCompositionProviders = builtinSessionComposition,
 ): { release: () => void; dispose: () => Promise<void> } {
   const registry = new Map<string, PiHostBridge>();
   const effectiveTrendStore = marketQuoteTrendStore
-    ?? new JsonFileMarketQuoteTrendStore(process.env.UPUP_PROVIDER_METRICS_PATH?.trim() || globalUpupPath('metrics', 'market-provider-trend.json'));
-  const financeComposition = createFinanceComposition({ sessionId, ...(marketHistoryFetcher ? { marketHistoryFetcher } : {}), ...(marketHistoryFetchers ? { marketHistoryFetchers } : {}), ...(marketHistoryProviders ? { marketHistoryProviders } : {}), ...(marketHistoryApiKeys ? { marketHistoryApiKeys } : {}), ...(marketHistoryBaseUrls ? { marketHistoryBaseUrls } : {}), ...(marketQuoteFetcher ? { marketQuoteFetcher } : {}), ...(researchDataFetcher ? { researchDataFetcher } : {}), ...(researchDataFetchers ? { researchDataFetchers } : {}), ...(researchDataProviders ? { researchDataProviders } : {}), ...(researchDataApiKeys ? { researchDataApiKeys } : {}), ...(researchDataBaseUrls ? { researchDataBaseUrls } : {}), marketQuoteTrendStore: effectiveTrendStore });
+    ?? new composition.JsonFileMarketQuoteTrendStore(process.env.UPUP_PROVIDER_METRICS_PATH?.trim() || composition.globalUpupPath('metrics', 'market-provider-trend.json'));
+  const financeComposition = composition.createFinanceComposition({ sessionId, ...(marketHistoryFetcher ? { marketHistoryFetcher } : {}), ...(marketHistoryFetchers ? { marketHistoryFetchers } : {}), ...(marketHistoryProviders ? { marketHistoryProviders } : {}), ...(marketHistoryApiKeys ? { marketHistoryApiKeys } : {}), ...(marketHistoryBaseUrls ? { marketHistoryBaseUrls } : {}), ...(marketQuoteFetcher ? { marketQuoteFetcher } : {}), ...(researchDataFetcher ? { researchDataFetcher } : {}), ...(researchDataFetchers ? { researchDataFetchers } : {}), ...(researchDataProviders ? { researchDataProviders } : {}), ...(researchDataApiKeys ? { researchDataApiKeys } : {}), ...(researchDataBaseUrls ? { researchDataBaseUrls } : {}), marketQuoteTrendStore: effectiveTrendStore });
   const sessionQuoteClient = financeComposition.quoteClient;
-  const platformComposition = createPlatformComposition({
+  const platformComposition = composition.createPlatformComposition({
     sessionId,
     spec,
     ...(modelInstance ? { modelInstance } : {}),
@@ -123,7 +111,7 @@ function installPiPackageToolHosts(
       return runWorkerPrompt(prompt, workerOptions);
     },
     runCron: async (job, model, runtime) => {
-      const store = loadCronStore();
+      const store = composition.loadCronStore();
       if (!job || typeof job !== 'object' || typeof (job as { id?: unknown }).id !== 'string') throw new Error('cron runner received an invalid job');
       const found = store.jobs.find((candidate) => candidate.id === (job as { id: string }).id);
       if (!found) throw new Error(`cron job ${(job as { id: string }).id} not found`);
@@ -137,17 +125,17 @@ function installPiPackageToolHosts(
           return runPiPrompt(prompt, { ...options, modelInstance: options.modelInstance, modelRuntime: options.modelRuntime });
         },
       };
-      const cronConfig = { getConfiguredModelId, getConfiguredProvider };
+      const cronConfig = { getConfiguredModelId: composition.getConfiguredModelId, getConfiguredProvider: composition.getConfiguredProvider };
       let cronRuntime: GatewayRuntime;
       cronRuntime = {
         agent: cronAgent,
         config: cronConfig,
         cron: {
-          ensureHeartbeatCronJob,
-          startCronRunner: (params) => startCronRunner({ configPath: params.configPath, runtime: params.runtime ?? cronRuntime }),
+          ensureHeartbeatCronJob: composition.ensureHeartbeatCronJob,
+          startCronRunner: (params) => composition.startCronRunner({ configPath: params.configPath, runtime: params.runtime ?? cronRuntime }),
         },
       };
-      await executeCronJob(found, store, {
+      await composition.executeCronJob(found, store, {
         piModel: model as import('@earendil-works/pi-ai').Model<any> | undefined,
         piModelRuntime: runtime,
         runtime: cronRuntime,
@@ -181,6 +169,7 @@ function installPiPackageToolHosts(
           providers: [
             { name: 'yahoo', configured: true },
             { name: 'tushare', configured: Boolean(process.env.TUSHARE_TOKEN?.trim()) },
+            { name: 'financial-datasets', configured: Boolean(process.env.FINANCIAL_DATASETS_API_KEY?.trim()) },
           ],
           metrics: sessionQuoteClient.getMetrics(),
           providerSla: {
@@ -247,6 +236,8 @@ function installPiPackageToolHosts(
 const FINANCE_CONTEXT_ENTRY = FINANCE_CONTEXT_ENTRY_TYPE;
 
 export class PiAgentSessionFactory implements UpUpAgentRuntime {
+  constructor(private readonly composition: PiSessionCompositionProviders = builtinSessionComposition) {}
+
   async createSession(spec: UpUpAgentSpec, options: UpUpCreateSessionOptions = {}): Promise<UpUpAgentSession> {
     validateAgentSpec(spec);
     const cwd = options.cwd ?? process.cwd();
@@ -425,13 +416,15 @@ export class PiAgentSessionFactory implements UpUpAgentRuntime {
       noPromptTemplates: trustedPrompts.paths.length === 0,
       noThemes: true,
       noContextFiles: true,
-      systemPromptOverride: () => spec.systemPrompt ?? PI_DEFAULT_SYSTEM_PROMPT,
+      systemPromptOverride: () => spec.systemPrompt ?? buildDefaultInvestmentSystemPrompt(),
       appendSystemPromptOverride: () => [
         `You are the ${spec.name} investment agent. ${spec.description}`,
         `Data policy: ${spec.dataPolicy ?? 'live'}. Output contract: ${spec.outputContract ?? 'report'}.`,
         `Capabilities: ${spec.capabilities.join(', ')}.`,
         ...packageContracts.workflows.map((workflow) => `Trusted Pi workflow ${workflow.name} (${workflow.packageName}@${workflow.packageVersion}) phases: ${workflow.phases.join(' → ')}.`),
         ...packageContracts.policies.map((policy) => `Trusted Pi policy ${policy.name} (${policy.packageName}@${policy.packageVersion}):\n${policy.rules.join('\n')}`),
+        buildInvestmentCapabilitiesSection(tools.map((tool) => tool.name)),
+        buildCoachSystemPrompt(),
       ],
     });
     if (packageCatalog.listEnabled().length > 0) {
@@ -466,6 +459,7 @@ export class PiAgentSessionFactory implements UpUpAgentRuntime {
           runWorkerPrompt,
           capabilityContext,
           capabilityEvents,
+          this.composition,
           );
           disposePackageHosts = hosts.dispose;
           return hosts.release;
@@ -535,6 +529,6 @@ export class PiAgentSessionFactory implements UpUpAgentRuntime {
   }
 }
 
-export function createPiAgentRuntime(): UpUpAgentRuntime {
-  return new PiAgentSessionFactory();
+export function createPiAgentRuntime(composition: PiSessionCompositionProviders = builtinSessionComposition): UpUpAgentRuntime {
+  return new PiAgentSessionFactory(composition);
 }

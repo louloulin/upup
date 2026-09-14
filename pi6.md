@@ -4551,3 +4551,41 @@ Pi7 仍未完成，缺口仅按完成定义保留：真实只读 provider dossie
 - typecheck、build、resource copy、CLI help、module/Pi migration/runtime/package/deletion audit、`git diff --check` 全部通过；结构报告仍为 `48/48` manifests、`269/269` native tools、`100.0%` native coverage、root production files `0`、legacy/global/old-root/duplicate-registry consumers `0`。
 - 真实 provider 未获用户明确只读授权和凭证，本轮没有访问真实 CN/HK/US provider、交易、通知或未审批文件写入；Pi7 仍未完成。当前分层进度：结构迁移 `100%`，本地实现/合同约 `99.99%`，产品验收约 `98%`。
 - 下一轮按 Pi81 执行真实三市场 dossier、历史 provider/retry/recovery、Session 恢复/并发、跨入口一致性和副作用 sandbox/deny/approval/audit；不得以 fixture 或 `status=skipped` 替代。
+
+## Pi81 验证同步（2026-09-15）
+
+- 新增运行时副作用 smoke：真实 Pi Session 调用 config/file/credential/notification/financial 五类高风险工具，均按策略阻断并写入 effect/decision/tool 审计；未生成文件或凭证状态。
+- `verify:pi-side-effects` 已接入 `test:pi-contracts`；`report:pi7` 自动报告副作用声明 `27`、覆盖率 `100%`、gaps `[]`。
+- 修复 `@upup/pi-session` 独立 build 对 `financial-datasets` provider 的管理快照类型缺口；runtime/session build、typecheck、Pi7/package 门禁和 `git diff --check` 通过。
+- Pi7 仍未完成：没有用户明确真实 provider 只读授权和凭证，本轮未访问真实 CN/HK/US 数据或生产副作用；产品验收继续约 `98%`，结构迁移保持 `100%`。
+
+## Pi82 验证同步（2026-09-15）
+
+- `verify:pi-entry-matrix`：CLI/Gateway/Cron/Daemon/Bridge/stdio/SDK/Eval `8/8` 通过；`verify:pi-entry-faults`：`8/8` 故障恢复通过；`verify:pi-entry-sla`：3 轮 `24/24` 通过，p50 `3853ms`、p95 `3863ms`；`verify:pi-stdio-stability`：3 轮稳定性通过。
+- 全仓 `bun test` 仍为 `2174 pass / 0 fail / 6925 expect()`；typecheck/build/资源复制/CLI help/全部 Pi 静态门禁通过。
+- 当前分层进度：结构迁移 `100%`，本地实现/合同约 `99.99%`，产品验收约 `98.5%`。真实 provider dossier、真实历史数据 retry/recovery 和用户授权的生产 approval/audit 仍缺失，Pi7 继续未完成。
+
+## Pi83 验证同步（2026-09-15）
+
+- 默认投资 system prompt 已下沉到 `@upup/pi-prompt-config`；`@upup/pi-session` 不再持有该 prompt 文本。`prompt-runner` 的 `validateAgentSpec` 改由 `@upup/pi-runtime` contract 提供，并补齐 Pi manifest dependency。
+- 定向结果：prompt-config `11 pass`、runtime `19 pass`、session `75 pass`、Factory/entry contracts `63 pass`；全仓 `2175 pass / 0 fail / 6926 expect()`，`218` 个测试文件。
+- `test:pi-contracts` 最终退出码 `0`；typecheck/build/resource copy/CLI help/全部 Pi 门禁和 `git diff --check` 通过。
+- 当前分层进度：结构迁移 `100%`，本地实现/合同约 `99.99%`，产品验收约 `98.5%`。真实 provider dossier、真实历史 bars/retry/recovery 和授权 production approval/audit 仍缺失，Pi7 继续未完成。
+
+## Pi84 验证同步（2026-09-15）
+
+- 新增 Prompt ownership 结构门禁：默认 prompt 必须由 `@upup/pi-prompt-config` 提供，`@upup/pi-session` 不得硬编码；`prompt-runner` 的 AgentSpec validation 必须来自 `@upup/pi-runtime`。
+- production entry contract：`7 pass / 0 fail / 50 expect()`；Pi7 architecture、Package/module/deletion 门禁通过。
+- 全仓最新结果保持 `2175 pass / 0 fail / 6926 expect()`；真实 provider dossier 和授权 approval/audit 仍缺失，Pi7 继续未完成。
+
+## Pi85 验证同步（2026-09-15）
+
+- 新增 `@upup/pi-session` composition boundary，Factory 不再直接导入金融/平台/market-data/Cron 具体 composition 实现；新增 entry contract 与 Pi7 gate。
+- 全仓 `bun test`：`2177 pass / 0 fail / 6935 expect()`，`218` 个测试文件；`test:pi-contracts`、typecheck、build、资源复制和全部门禁通过。
+- 当前分层进度：结构迁移 `100%`，本地实现/合同约 `99.99%`，产品验收约 `98.5%`；真实 provider dossier 与授权生产 audit 仍缺失，Pi7 未完成。
+
+## Pi86 验证同步（2026-09-15）
+
+- 新增 `PiSessionCompositionProviders` public contract，`PiAgentSessionFactory`/`createPiAgentRuntime` 支持显式 composition 注入，默认行为保持兼容；新增 Factory boundary contract。
+- 全仓 `2177 pass / 0 fail / 6936 expect()`，`218` 个测试文件；test:pi-contracts、typecheck/build、全部 Pi 门禁和副作用 smoke 通过。
+- 当前分层进度：结构迁移 `100%`，本地实现/合同约 `99.99%`，产品验收约 `98.5%`；真实 provider dossier 与授权生产 audit 仍缺失，Pi7 未完成。

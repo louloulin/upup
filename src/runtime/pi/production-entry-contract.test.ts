@@ -55,6 +55,24 @@ describe('Pi production entry contract', () => {
     expect(source).not.toContain('loadRegisteredTools');
   });
 
+  test('prompt composition and AgentSpec validation stay in public contracts', () => {
+    const factory = readFileSync(join(process.cwd(), 'packages/pi-session/src/agent-session-factory.ts'), 'utf8');
+    const runner = readFileSync(join(process.cwd(), 'packages/pi-session/src/prompt-runner.ts'), 'utf8');
+    expect(factory).toContain('@upup/pi-prompt-config');
+    expect(factory).not.toContain('You are UpUp, a Chinese-language financial research assistant');
+    expect(runner).toContain("from '@upup/pi-runtime'");
+    expect(runner).not.toContain("from '@upup/pi-investment-workflow'");
+  });
+
+  test('Session Factory consumes the composition boundary, not concrete business packages', () => {
+    const source = readFileSync(join(process.cwd(), 'packages/pi-session/src/agent-session-factory.ts'), 'utf8');
+    for (const forbidden of ['@upup/pi-finance-composition', '@upup/pi-platform-composition', '@upup/pi-market-data', "from '@upup/cron'"]) {
+      expect(source).not.toContain(forbidden);
+    }
+    expect(source).toContain('./builtin-composition.js');
+    expect(readFileSync(join(process.cwd(), 'packages/pi-session/src/index.ts'), 'utf8')).toContain('PiSessionCompositionProviders');
+  });
+
   test('Pi prompt capability discovery does not import the legacy root registry', () => {
     const manifest = readFileSync(join(process.cwd(), 'packages/pi-prompt-config/src/capability-manifest.ts'), 'utf8');
     const prompts = readFileSync(join(process.cwd(), 'packages/pi-prompt-config/src/capability-manifest.ts'), 'utf8');

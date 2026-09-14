@@ -142,6 +142,7 @@ export function createPiSideEffectPolicyExtension(options: { spec: UpUpAgentSpec
 export interface UpUpToolPolicyAudit {
   auditId: string;
   tool: string;
+  effect?: PiSideEffectKind;
   safetyLevel: UpUpToolSafetyLevel;
   permissionProfile: string;
   decision: UpUpToolPolicyDecision;
