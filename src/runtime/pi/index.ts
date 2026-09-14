@@ -17,8 +17,6 @@ export * from './runner.js';
 export { verifyPiResourceTrust } from '@upup/pi-resource-composition';
 export * from './investment-workflow.js';
 export * from './plugin-adapter.js';
-export * from './session-service.js';
-export * from './background-service.js';
 export * from './agent-catalog.js';
 export {
   PiPackageCatalog,

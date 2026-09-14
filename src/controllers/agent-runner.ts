@@ -10,7 +10,7 @@ import type {
 import type { DisplayEvent, StreamMode } from '@upup/pi-event-adapter';
 import type { HistoryItem, HistoryItemStatus, WorkingState } from '../types.js';
 import { getSessionTracker } from '../session/session-tracker.js';
-import { getPiSessionService } from '../runtime/pi/session-service.js';
+import { getPiSessionService } from '@upup/pi-session';
 import { recordFileHistorySnapshot, getFileHistoryManager } from '../storage/file-history.js';
 import { renderMessages, type RenderableMessage } from '../session/render/index.js';
 import { getTimeoutForTool } from '../utils/permissions/index.js';

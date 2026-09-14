@@ -1,9 +1,12 @@
-import { describe, expect, test } from 'bun:test';
+import { beforeAll, describe, expect, test } from 'bun:test';
 import { fauxAssistantMessage, fauxProvider, fauxText } from '@earendil-works/pi-ai';
 import { ModelRuntime } from '@earendil-works/pi-coding-agent';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { disposePiSessions } from '../runtime/pi/runner.js';
+import { bootstrapPiNativeServices } from '../runtime/pi/bootstrap.js';
+
+beforeAll(() => bootstrapPiNativeServices());
 import { runAgentForMessage } from './agent-runner.js';
 
 describe('Gateway Pi runner contract', () => {

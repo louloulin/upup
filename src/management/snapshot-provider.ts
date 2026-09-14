@@ -1,7 +1,7 @@
 import type { UpUpAgentSession } from '../runtime/pi/types.js';
 import { PiAgentSessionFactory } from '../runtime/pi/agent-session-factory.js';
 import { getBuiltinPiPackageOptions } from '../runtime/pi/package-config.js';
-import type { PiManagementSnapshot } from '../runtime/pi/host-contract.js';
+import type { PiManagementSnapshot } from '@upup/pi-session';
 import { globalUpupPath } from '../utils/storage-paths.js';
 import { JsonFileMarketQuoteTrendStore } from '@upup/pi-market-data';
 

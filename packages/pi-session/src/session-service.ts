@@ -2,9 +2,9 @@ import { existsSync } from 'node:fs';
 import { readdir, readFile, unlink } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { SessionManager } from '@earendil-works/pi-coding-agent';
-import { createPiAgentRuntime } from './agent-session-factory.js';
-import type { UpUpAgentEvent, UpUpAgentSession, UpUpAgentSpec } from '@upup/pi-runtime';
-import type { SessionSummary } from '../../session/types.js';
+
+import type { UpUpAgentEvent, UpUpAgentRuntime, UpUpAgentSession, UpUpAgentSpec } from '@upup/pi-runtime';
+
 
 export interface PiSessionCreateInput {
   id?: string;
@@ -24,6 +24,21 @@ export interface PiSessionSummary {
   metadata: Record<string, unknown>;
 }
 
+export interface PiSessionListItem {
+  id: string;
+  title: string;
+  modified: Date;
+  created: Date;
+  firstPrompt?: string;
+  customTitle?: string;
+  tag?: string;
+  projectPath: string;
+  gitBranch?: string;
+  messageCount: number;
+  tags?: string[];
+  isSidechain?: boolean;
+}
+
 interface PiSessionRecord {
   session: UpUpAgentSession;
   summary: PiSessionSummary;
@@ -31,7 +46,6 @@ interface PiSessionRecord {
   metadata: Record<string, unknown>;
 }
 
-const runtime = createPiAgentRuntime();
 const records = new Map<string, PiSessionRecord>();
 
 function sessionDirectory(cwd: string): string {
@@ -126,7 +140,7 @@ function toSerializedMessages(session: UpUpAgentSession): Array<{ type: string; 
   });
 }
 
-async function createRecord(input: PiSessionCreateInput): Promise<PiSessionRecord> {
+async function createRecord(input: PiSessionCreateInput, runtime: UpUpAgentRuntime): Promise<PiSessionRecord> {
   const cwd = resolve(input.cwd ?? process.cwd());
   const directory = sessionDirectory(cwd);
   const existingPath = input.id ? await findSessionFile(input.id, directory) : undefined;
@@ -161,10 +175,20 @@ async function createRecord(input: PiSessionCreateInput): Promise<PiSessionRecor
   return record;
 }
 
+export interface PiSessionServiceOptions {
+  runtime: UpUpAgentRuntime;
+}
+
 export class PiSessionService {
+  private readonly runtime: UpUpAgentRuntime;
+
+  constructor(options: PiSessionServiceOptions) {
+    this.runtime = options.runtime;
+  }
+
   async create(input: PiSessionCreateInput = {}): Promise<PiSessionSummary> {
     const record = input.id ? records.get(input.id) : undefined;
-    return (record ?? await createRecord(input)).summary;
+    return (record ?? await createRecord(input, this.runtime)).summary;
   }
 
   async get(id: string): Promise<PiSessionSummary | null> {
@@ -176,10 +200,10 @@ export class PiSessionService {
     const cwd = resolve(process.cwd());
     const existingPath = await findSessionFile(id, sessionDirectory(cwd));
     if (!existingPath) return null;
-    return (await createRecord({ id, cwd })).summary;
+    return (await createRecord({ id, cwd }, this.runtime)).summary;
   }
 
-  async list(cwd = process.cwd()): Promise<SessionSummary[]> {
+  async list(cwd = process.cwd()): Promise<PiSessionListItem[]> {
     const resolvedCwd = resolve(cwd);
     const directory = sessionDirectory(resolvedCwd);
     const sessions = await SessionManager.list(resolvedCwd, directory);
@@ -247,7 +271,7 @@ export class PiSessionService {
     const cwd = resolve(process.cwd());
     const existingPath = await findSessionFile(id, sessionDirectory(cwd));
     if (!existingPath) throw new Error(`Pi session not found: ${id}`);
-    return createRecord({ id, cwd });
+    return createRecord({ id, cwd }, this.runtime);
   }
 
   async messages(id: string): Promise<Array<{ type: string; content: string; additional_kwargs?: Record<string, unknown> }>> {
@@ -329,7 +353,23 @@ export class PiSessionService {
 }
 
 let service: PiSessionService | undefined;
+export interface PiSessionServiceFactory {
+  (): UpUpAgentRuntime;
+}
+
+let runtimeFactory: PiSessionServiceFactory | undefined;
+
+export function configurePiSessionService(factory: PiSessionServiceFactory): void {
+  runtimeFactory = factory;
+  service = undefined;
+}
+
 export function getPiSessionService(): PiSessionService {
-  service ??= new PiSessionService();
+  if (!service) {
+    if (!runtimeFactory) {
+      throw new Error('PiSessionService is not configured: call configurePiSessionService() with a runtime factory before getPiSessionService()');
+    }
+    service = new PiSessionService({ runtime: runtimeFactory() });
+  }
   return service;
 }

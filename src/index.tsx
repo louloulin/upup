@@ -11,6 +11,9 @@ import { mkdirSync } from 'node:fs';
 
 config({ quiet: true });
 
+// Bootstrap Pi native services once at process startup.
+await import('./runtime/pi/bootstrap.js').then((m) => m.bootstrapPiNativeServices());
+
 // Parse CLI subcommands
 const args = process.argv.slice(2);
 const command = args[0]?.toLowerCase();

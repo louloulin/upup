@@ -16,7 +16,10 @@ import { fauxAssistantMessage, fauxProvider, fauxText, fauxToolCall } from '@ear
 import { ModelRuntime } from '@earendil-works/pi-coding-agent';
 import { Type } from 'typebox';
 import { disposePiSessions, isPiSessionRunning, runPiPrompt, toPiSessionId } from './runner.js';
-import { getPiSessionService } from './session-service.js';
+import { getPiSessionService } from '@upup/pi-session';
+import { bootstrapPiNativeServices } from './bootstrap.js';
+
+bootstrapPiNativeServices();
 import type { UpUpToolContract } from './types.js';
 
 const quoteTool: UpUpToolContract = {

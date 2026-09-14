@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'bun:test';
+import { beforeAll, describe, expect, test } from 'bun:test';
 import { fauxAssistantMessage, fauxProvider, fauxText } from '@earendil-works/pi-ai';
 import { ModelRuntime } from '@earendil-works/pi-coding-agent';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -6,6 +6,9 @@ import { join } from 'node:path';
 import { AgentRunnerController } from './agent-runner.js';
 import { InMemoryChatHistory } from '../utils/in-memory-chat-history.js';
 import { disposePiSessions } from '../runtime/pi/runner.js';
+import { bootstrapPiNativeServices } from '../runtime/pi/bootstrap.js';
+
+beforeAll(() => bootstrapPiNativeServices());
 
 describe('AgentRunnerController Pi contract', () => {
   test('drives the CLI controller through a real Pi AgentSession fixture', async () => {

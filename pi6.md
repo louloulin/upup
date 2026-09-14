@@ -1230,3 +1230,30 @@ root Factory 保留 domain-specific `installPiPackageToolHosts`，但删除进�
 ### 31.3 当前剩余项
 
 root `src/tools`、`src/skills`、Session/Memory/Permissions、MCP/Plugin、Gateway/Bridge/stdio、Cron/Daemon、TUI/components 和 `legacy-events` 消费者仍需按 `pi7.md` 迁移矩阵继续物理迁移；本轮不宣称全仓 Pi Native 已完成。真实 provider smoke 仍需凭证环境单独执行。
+
+## 32. Pi7 第二轮实施结果（2026-09-14）
+
+本轮完成 Pi Package resource/trust/contract 的物理下沉到 `@upup/pi-resource-composition`：
+
+### 32.1 已完成
+
+- `src/runtime/pi/{package-catalog,plugin-trust,package-contracts}.ts`（含 `.test.ts`）已 `git mv` 到 `packages/pi-resource-composition/src/`；root 仅保留 2 行 `@deprecated` facade。
+- `@upup/pi-resource-composition` 同时承载 `withSerializedPiResourceReload` 与 catalog/trust/contracts，作为 Pi Package resource 的唯一来源。
+- 所有生产消费者（Factory、Runner、skill-commands、package-config、`src/runtime/pi/index.ts`）改用 `@upup/pi-resource-composition` Package API。
+- 根 `src/runtime/pi` 生产行数净减 662 行。
+
+### 32.2 验证
+
+| 验证项 | 结果 |
+|---|---|
+| `bun run typecheck` | 通过 |
+| `bun run check:pi7` | 通过：40 manifests、唯一 Pi AgentSession factory、无生产 global registry |
+| `bun run check:module-boundaries` | 通过：40 packages、552 root modules |
+| `bun --cwd packages/pi-resource-composition test` | 5 pass、15 assertions |
+| `bun test src/runtime/pi` | 170 pass、2074 assertions、28 files |
+| `bun run test:pi-contracts` | 通过 |
+| `git diff --check` | 通过 |
+
+### 32.3 当前剩余项
+
+Factory 拆分、`src/tools`、`src/skills`、`src/commands/investment`、Session/Memory/Permissions、MCP/Plugin、Gateway/Bridge/stdio、Cron/Daemon、TUI/components 和 `legacy-events` 消费者仍待后续轮次迁移；本轮不宣称全仓 Pi Native 已完成。

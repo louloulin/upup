@@ -5,7 +5,7 @@ import { createPiAgentRuntime } from './agent-session-factory.js';
 import { validateAgentSpec } from './agent-spec.js';
 import type { UpUpAgentEvent, UpUpAgentSpec, UpUpAgentSession, UpUpToolSafetyLevel } from '@upup/pi-runtime';
 import { resolveProvider } from '../../providers.js';
-import { getPiSessionService } from './session-service.js';
+import { getPiSessionService } from '@upup/pi-session';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { resolveConfiguredPiPackages } from './package-config.js';

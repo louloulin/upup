@@ -1,6 +1,9 @@
-import { describe, expect, test } from 'bun:test';
+import { beforeAll, describe, expect, test } from 'bun:test';
 import { getInvestmentAgentSpec } from './agent-spec.js';
 import { PiAgentSessionFactory } from './agent-session-factory.js';
+import { bootstrapPiNativeServices } from './bootstrap.js';
+
+beforeAll(() => bootstrapPiNativeServices());
 import { FINANCE_FIXTURE_TOOLS } from '../../extensions/upup/finance-fixtures.js';
 import type { UpUpAgentSession, UpUpToolContract } from './types.js';
 import { toPiTool } from '@upup/pi-event-adapter';

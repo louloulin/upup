@@ -105,7 +105,8 @@
     "@upup/pi-technical": "workspace:*",
     "@upup/pi-runtime": "workspace:*",
     "@upup/pi-resource-composition": "workspace:*",
-    "@upup/pi-storage": "workspace:*"
+    "@upup/pi-storage": "workspace:*",
+    "@upup/pi-session": "workspace:*"
   },
   "pkg": {
     "name": "upup",

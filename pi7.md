@@ -116,3 +116,30 @@ src bootstrap
 5. 迁移 TUI/components，并把 CLI 降为 bootstrap。
 6. 删除 `legacy-events`、旧 facade 和所有无消费者兼容层。
 7. 执行全仓测试、构建、入口 smoke、并发恢复验证和配置凭证 provider smoke。
+
+## 8. 第二轮已完成项
+
+### 8.1 Pi Package resource/trust/contract 物理迁移
+
+- `git mv` 已将以下源文件移入 `@upup/pi-resource-composition`：
+  - `src/runtime/pi/package-catalog.ts` → `packages/pi-resource-composition/src/package-catalog.ts`（416 行）
+  - `src/runtime/pi/plugin-trust.ts` → `packages/pi-resource-composition/src/plugin-trust.ts`（125 行）
+  - `src/runtime/pi/package-contracts.ts` → `packages/pi-resource-composition/src/package-contracts.ts`（136 行）
+  - `src/runtime/pi/package-catalog.test.ts` → `packages/pi-resource-composition/src/package-catalog.test.ts`
+  - `src/runtime/pi/plugin-trust.test.ts` → `packages/pi-resource-composition/src/plugin-trust.test.ts`
+- `@upup/pi-resource-composition/src/index.ts` 统一 re-export `withSerializedPiResourceReload`、catalog、trust、contracts。
+- `src/runtime/pi/{package-catalog,plugin-trust,package-contracts}.ts` 改为 2 行 `@deprecated` facade，保留向后兼容。
+- 生产消费者已切换为 Package API：`src/runtime/pi/agent-session-factory.ts`、`src/runtime/pi/runner.ts`、`src/runtime/pi/skill-commands.ts`、`src/runtime/pi/package-config.ts`、`src/runtime/pi/index.ts`。
+- 根 `src/runtime/pi` 生产行数从 121329 下降到 120667（净减 662 行）。
+
+### 8.2 本轮验证
+
+| 验证项 | 结果 |
+|---|---|
+| `bun run typecheck` | 通过 |
+| `bun run check:pi7` | 通过：40 manifests、唯一 Pi AgentSession factory、无生产 global registry |
+| `bun run check:module-boundaries` | 通过：40 packages、552 root modules |
+| `bun --cwd packages/pi-resource-composition test` | 5 pass、15 assertions |
+| `bun test src/runtime/pi` | 170 pass、2074 assertions、28 files |
+| `bun run test:pi-contracts` | 通过（`pi-session`、`pi-resource-composition`、`pi-finance-composition`、`pi-platform-composition`、`pi-capability-registry` 等） |
+| `git diff --check` | 通过 |

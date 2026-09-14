@@ -4,12 +4,12 @@ import { join } from 'node:path';
 
 const productionEntryImports: Record<string, readonly string[]> = {
   'src/print.ts': ['runtime/pi/event-stream'],
-  'src/controllers/agent-runner.ts': ['runtime/pi/event-stream', 'runtime/pi/session-service'],
+  'src/controllers/agent-runner.ts': ['runtime/pi/event-stream'],
   'src/gateway/agent-runner.ts': ['runtime/pi/runner'],
   'src/cron/executor.ts': ['gateway/agent-runner'],
-  'src/daemon/workers/tasks.ts': ['runtime/pi/background-service'],
+  'src/daemon/workers/tasks.ts': ['runtime/pi/bootstrap'],
   'src/bridge/server.ts': ['gateway/agent-runner'],
-  'src/stdio/server.ts': ['runtime/pi/event-stream', 'runtime/pi/session-service'],
+  'src/stdio/server.ts': ['runtime/pi/event-stream'],
   'src/evals/run.ts': ['runtime/pi/event-stream'],
 };
 

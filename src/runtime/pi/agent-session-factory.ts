@@ -55,12 +55,11 @@ import { existsSync, readFileSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import { dirname, relative, resolve, sep } from 'node:path';
 import { PI_DEFAULT_SYSTEM_PROMPT } from './default-prompt.js';
-import { verifyPiResourceTrust } from './plugin-trust.js';
+import { PiPackageCatalog, verifyPiResourceTrust } from '@upup/pi-resource-composition';
 import { createPiPluginExtensions, getLoadedPiPluginBindings, type PiPluginBinding } from './plugin-adapter.js';
-import { PiPackageCatalog } from './package-catalog.js';
-import { evaluatePiPackage } from './package-contracts.js';
+import { evaluatePiPackage } from '@upup/pi-resource-composition';
 import { resolveConfiguredPiPackages } from './package-config.js';
-import { createPiHostBridge, type PiHostBridge, type PiManagementSnapshot } from './host-contract.js';
+import { createPiHostBridge, type PiHostBridge, type PiManagementSnapshot } from '@upup/pi-session';
 import { getOwnedToolNames, packageOwnsTool, packageProvidesNativeTool } from './package-tool-ownership.js';
 import { JsonFileMarketQuoteTrendStore, loadProviderSlaStore } from '@upup/pi-market-data';
 import type { NativeMarketQuoteTrendStore } from '@upup/pi-market-data';
@@ -81,7 +80,7 @@ function installPiPackageToolHosts(
   marketHistoryFetcher?: UpUpCreateSessionOptions['marketHistoryFetcher'],
   marketQuoteFetcher?: UpUpCreateSessionOptions['marketQuoteFetcher'],
   marketQuoteTrendStore?: NativeMarketQuoteTrendStore,
-  getSkillDefinitions?: () => readonly import('./host-contract.js').PiSkillDefinition[],
+  getSkillDefinitions?: () => readonly import('@upup/pi-session').PiSkillDefinition[],
   capabilityContext?: PiCapabilityContext,
 ): () => void {
   const registry = new Map<string, PiHostBridge>();

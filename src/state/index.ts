@@ -30,7 +30,7 @@ export {
 // state capability at the package boundary.
 //
 // Session list enumeration (`getSessionManager().listSessions`) is delegated
-// to the Pi `PiSessionService` (`src/runtime/pi/session-service.ts`), which is
+// to the Pi `PiSessionService` (`@upup/pi-session` package), which is
 // the single source of truth for persisted session lifecycle (resume, fork,
 // compact, remove). The legacy `@upup/state` SessionManager still owns the
 // short-lived CLI command session duration / token counters; this is a
@@ -45,7 +45,7 @@ import {
   formatCost,
   formatTokens,
 } from '@upup/state';
-import { getPiSessionService } from '../runtime/pi/session-service.js';
+import { getPiSessionService } from '@upup/pi-session';
 
 export function __registerStatePort(): void {
   const port: StatePort = {

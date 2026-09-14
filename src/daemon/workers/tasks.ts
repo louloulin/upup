@@ -10,7 +10,10 @@ import { loadCronStore, saveCronStore } from '../../cron/store.js';
 import { computeNextRunAtMs } from '../../cron/schedule.js';
 import { executeCronJob } from '../../cron/executor.js';
 import type { CronJob } from '../../cron/types.js';
-import { getPiBackgroundService } from '../../runtime/pi/background-service.js';
+import { getPiBackgroundService } from '@upup/pi-session';
+import { bootstrapPiNativeServices } from '../../runtime/pi/bootstrap.js';
+
+bootstrapPiNativeServices();
 
 /**
  * Tasks worker kind identifier

@@ -1,4 +1,4 @@
-import { getPiBackgroundService, type PiBackgroundTask } from '../runtime/pi/background-service.js';
+import { getPiBackgroundService, type PiBackgroundTask } from '@upup/pi-session';
 
 export interface AgentMetrics {
   agentId: string;

@@ -3,7 +3,12 @@
   "version": "0.1.0",
   "description": "UpUp Pi session lifecycle adapter and session contract implementation",
   "type": "module",
-  "keywords": ["pi-package", "session", "runtime", "finance"],
+  "keywords": [
+    "pi-package",
+    "session",
+    "runtime",
+    "finance"
+  ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -14,13 +19,34 @@
   },
   "scripts": {
     "build": "bun build src/index.ts --outdir=dist --target=node && tsc --emitDeclarationOnly --project tsconfig.json",
-    "test": "bun test ./test.ts"
+    "test": "bun test ./test.ts ./src/host-contract.test.ts ./src/finance-host-contract.test.ts ./src/session-service.test.ts ./src/background-service.test.ts"
   },
-  "files": ["dist", "package.json"],
-  "pi": { "contract": "upup.pi.runtime.v1", "source": "builtin:upup", "trust": { "mode": "builtin", "filesystem": true }, "lifecycle": { "scope": "session" }, "extensions": [], "skills": [], "prompts": [], "workflows": [], "policies": [], "evals": [] },
+  "files": [
+    "dist",
+    "package.json"
+  ],
+  "pi": {
+    "contract": "upup.pi.runtime.v1",
+    "source": "builtin:upup",
+    "trust": {
+      "mode": "builtin",
+      "filesystem": true
+    },
+    "lifecycle": {
+      "scope": "session"
+    },
+    "extensions": [],
+    "skills": [],
+    "prompts": [],
+    "workflows": [],
+    "policies": [],
+    "evals": []
+  },
   "dependencies": {
     "@earendil-works/pi-coding-agent": "0.84.3",
     "@upup/pi-event-adapter": "0.1.0",
-    "@upup/pi-runtime": "0.1.0"
+    "@upup/pi-runtime": "0.1.0",
+    "@upup/pi-investment-workflow": "0.1.0",
+    "@upup/pi-market-data": "0.1.0"
   }
 }

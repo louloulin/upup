@@ -70,6 +70,7 @@ async function runAllVerifications() {
   console.log('\n\x1b[36m>>> Phase 2: 后端注册表检查\x1b[0m\n');
 
   try {
+    await import('../src/runtime/pi/bootstrap.js').then((m) => m.bootstrapPiNativeServices());
     const { getPiBackgroundService } = await import('../src/runtime/pi/background-service.js');
     const tasks = getPiBackgroundService().list();
     results.push({
@@ -157,6 +158,7 @@ async function runAllVerifications() {
   console.log('\n\x1b[36m>>> Phase 5: 多Agent并发测试\x1b[0m\n');
 
   try {
+    await import('../src/runtime/pi/bootstrap.js').then((m) => m.bootstrapPiNativeServices());
     const { getPiBackgroundService } = await import('../src/runtime/pi/background-service.js');
     const service = getPiBackgroundService();
     const concurrencySupported = service && typeof service.start === 'function';

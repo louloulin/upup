@@ -5,7 +5,7 @@
  * ModelSelectionController's pattern for overlay-based selection.
  */
 
-import { getPiSessionService } from '../runtime/pi/session-service.js';
+import { getPiSessionService } from '@upup/pi-session';
 import type { SessionSummary } from '../session/types.js';
 
 export type SessionAppState =

@@ -179,3 +179,19 @@ export class PiSessionAdapter implements UpUpAgentSession {
     void this.capabilityContext.dispose();
   }
 }
+
+// =============================================================================
+// Pi Host Bridge contract (foundation for finance + session capability bridge)
+// =============================================================================
+export * from './host-contract.js';
+
+// =============================================================================
+// Finance host contract (thin convenience wrapper for finance capability)
+// =============================================================================
+export * from './finance-host-contract.js';
+
+// =============================================================================
+// Persistent session service (background tasks + persistent sessions)
+// =============================================================================
+export * from './background-service.js';
+export * from './session-service.js';

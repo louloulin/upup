@@ -6,7 +6,7 @@
  */
 
 import { streamPiAgent } from '../runtime/pi/event-stream.js';
-import { getPiSessionService } from '../runtime/pi/session-service.js';
+import { getPiSessionService } from '@upup/pi-session';
 import { mapLegacyAgentEventToServer, mapPiEventToServer } from '@upup/pi-event-adapter';
 import type { UpUpAgentEvent } from '@upup/pi-runtime';
 import type { AgentEvent } from '../runtime/pi/legacy-events.js';
