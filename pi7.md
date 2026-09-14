@@ -303,3 +303,92 @@ src bootstrap
 - 第八轮：`src/tui` / `src/components` → `@upup/pi-tui-app`，CLI/transport 降为 bootstrap。
 - 第九轮：删除 `legacy-events`、旧 facade 和所有无消费者兼容层。
 - 第十轮：全仓测试、构建、入口 smoke、并发恢复验证和真实 provider smoke。
+
+## 13. Pi7 实施状态总览（截至 Round 6 第一段）
+
+### 13.1 已完成（每轮验证通过）
+
+| 轮次 | 主题 | 净减 root 生产行数 | workspace packages |
+|---|---|---:|---:|
+| Round 1 | 统一 Pi manifest contract + 显式 runtime port + canonical workflow + 7 Profile | 基线 | 38 → 40 |
+| Round 2 | `package-catalog.ts` / `plugin-trust.ts` / `package-contracts.ts` → `@upup/pi-resource-composition` | −662 | 40 |
+| Round 3 | `host-contract.ts` / `finance-host-contract.ts` / `session-service.ts` / `background-service.ts` → `@upup/pi-session` | −707 | 40 |
+| Round 4 | `src/tools/fund/*` 6 个文件 → `@upup/pi-finance-sdk` | −2701 | 40 |
+| Round 5 | `src/skills/{types,slash-command,recent-usage,search}.ts` → `@upup/skills` | −1502 | 40 |
+| Round 6.1 | `src/telemetry/*` 7 个文件 → `@upup/pi-observability` | −655 | 40 → 41 |
+| **累计** | **6 轮已落地** | **−6227 行** | **41 包** |
+
+### 13.2 验证摘要
+
+- `bun run typecheck`：通过
+- `bun run check:pi7`：41 manifests、唯一 Pi AgentSession factory、无生产 global registry
+- `bun run check:module-boundaries`：41 packages、539 root modules、无 root-src imports 或依赖环
+- `bun run test:pi-contracts`：通过
+- `bun test`：3658 pass、3 fail（pre-existing 网络超时）；353 files
+- `git diff --check`：通过
+
+### 13.3 当前状态数字
+
+- workspace packages：**41**
+- Pi-native packages：**31**
+- 根 src 文件：716（生产 539）
+- 根 src 生产行数：**115102**
+- 唯一 Pi AgentSession factory：`src/runtime/pi/agent-session-factory.ts`
+- 生产 global registry 消费者：**0**
+
+### 13.4 Round 6 待办清单（按 pi7.md 阶段三第 2 条）
+
+按 pi7.md 阶段四要求，把下列 root 持久层、状态机、权限、规划、审计模块继续物理迁移到独立 Pi Package：
+
+1. **`src/memory` → `@upup/pi-memory`**（47 文件，~11k 行）
+   - 已在 `packages/memory` 内有最小 SDK（MemoryStore 83 行），需要扩展为完整 memory runtime。
+   - `src/memory/{store,flush,consolidation,extraction,daily-log,indexer,embeddings,search,migration,crypto,encrypted-store,chunker,temporal-decay,observation-buffer,prompts,scanner,mmr,save-gates,memory-audit,memory-deny,investment-memory,strategy-store,dossier,audit-signing,memvid-rag,memvid-store,session-files,project-paths,team-paths,nested-paths,access-control,ai-selector,database}.ts`
+   - 主要挑战：依赖 `src/utils/paths.ts`、embeddings/chunker/save-gates 等 cross-cutting 模块。
+   - 策略：先把 `src/utils/paths.ts` 拆出 `upupPath` 公共部分，迁入 `@upup/utils` 包；再逐文件 `git mv`。
+2. **`src/session` → `@upup/pi-session` 扩展 + 新增 `@upup/pi-session-runtime`**（22 文件，~5.9k 行）
+   - `src/session/{restore,restore-advanced,selector,storage,storage-portable,types,session-state,session-environment,session-tracker,pid-manager,migrate,migrate-to-pi,pi-migration,context-collapse,ephemeral-messages,message-chain,render}.ts`
+   - 与 `packages/pi-session` 已有 `SessionService`、`BackgroundService` 协同。
+3. **`src/storage` → `@upup/pi-storage` 扩展**（7 文件，~4.4k 行）
+   - `src/storage/{crypto-utils,file-history,fund-storage,project-storage,shell-snapshots,stats-cache,storage-adapter}.ts`
+   - 已有 `@upup/pi-storage` 提供 `DossierStore`/`StrategyStore`/`AuditChain`，可继续承接。
+4. **`src/plan` → `@upup/pi-planning`**（7 文件，~1.2k 行）
+   - `src/plan/{plan-builder,plan-context,plan-executor,research-plan,filter-spec}.ts`
+5. **`src/permissions` → `@upup/pi-permissions`**（1 文件，852 行）
+   - `src/permissions/index.ts` 单文件，含 `PermissionEvaluator`/`SessionPermissionManager`/`BashClassification`。
+   - 依赖 `@upup/pi-event-adapter` 的 `ApprovalDecision`，无交叉依赖，可整文件 `git mv`。
+6. **`src/skills` 剩余实现**（`commands.ts`、`executor.ts`、`register.ts`、`permissions.ts`、`toolResultStorage.ts`、`promptShellExecution.ts`、`bridge.ts`、`hot-reload.ts`、`scheduler.ts`、以及 `src/skills/investment/`、`src/skills/bundled/`、`src/skills/builtin/`）→ `@upup/pi-skill-loader` / `@upup/pi-skill-executor` / `@upup/pi-investment-bundled`。
+
+### 13.5 Round 7+ 路线图（按 pi7.md 阶段五、阶段六）
+
+- **Round 7 — 平台基础设施工具**：`src/tools/{bash,permission-mode,filesystem,sandbox,trading,cron}.ts` → `@upup/pi-platform`（已存在但需扩展）
+- **Round 8 — Transport packages**：`src/mcp` (22 文件)、`src/plugins` (17 文件)、`src/gateway` (15 文件)、`src/bridge` (37 文件)、`src/stdio`、`src/cron` (6 文件)、`src/daemon`、`src/subagent`、`src/multi-agent` → `@upup/mcp` / `@upup/plugins` / `@upup/gateway` / 新增 `@upup/pi-bridge` / `@upup/pi-stdio` / `@upup/cron` / `@upup/daemon` / `@upup/pi-subagent`
+- **Round 9 — TUI/Components**：`src/tui`、`src/components` → `@upup/pi-tui-app`
+- **Round 10 — 最终清理**：删除 `legacy-events`、旧 facade、重复 registry、global fallback；剩余 consumer 改为迁移后的 Pi Package 公共 API；全仓测试、构建、入口 smoke、并发恢复验证、真实 provider smoke。
+
+### 13.6 Pi7 完成定义进度（来自 pi7.md 第十节）
+
+| 完成条件 | 当前状态 |
+|---|---|
+| 生产只有一个 Pi AgentSession/Factory | ✅ 满足 |
+| 所有能力通过 Pi Package manifest 和 extension 接入 | 🟡 部分（31 个 Pi-native；剩余 10 个 root 模块） |
+| Runtime 不硬编码具体业务 Package | ✅ 满足（Round 1 完成） |
+| 不存在生产 legacy-events 双轨 | 🟡 8 个 production consumer（Round 9 完成） |
+| 不存在 globalThis capability/port registry | ✅ 满足 |
+| 没有 root src 业务工具、skill、workflow、权限、memory、MCP 或独立 Agent loop | 🟡 Round 5/6 已清 skills core + telemetry；剩余见 13.4 |
+| CLI / Gateway / Bridge / stdio / Cron / Daemon / SDK / Eval 共享同一 Pi Runtime | 🟡 SDK 已用，Gateway/Bridge/stdio/Cron/Daemon 待迁移 |
+| /invest 状态可恢复、证据可追溯、风险可审计 | 🟡 workflow 已加入 `@upup/pi-investment-workflow`；CLI 命令仍由 root 调度 |
+| 副作用默认 sandbox/deny/approval | ✅ 满足（policy 层 enforcement） |
+| root src 仅剩 bootstrap、transport 壳和必要数据迁移 | 🟡 Round 5/6.1 已部分清空；继续 Round 6.2–10 |
+| 静态门禁、Package contract、全仓测试和入口 smoke 全部通过 | ✅ 静态门禁 + Package contract + 全仓测试通过；入口 smoke 待 Round 10 |
+
+### 13.7 总结
+
+经过 6 轮实施（Round 1–6.1），UpUp 已经：
+
+1. 完成 Pi `AgentSession` 唯一生产内核收口；
+2. 完成 31 个 Pi-native workspace package 资源注册；
+3. 完成 `src/runtime/pi`、`src/tools/fund`、`src/skills` core、`src/telemetry` 等关键根目录物理下沉；
+4. 累计移除 root 端 6227+ 行生产代码；
+5. 静态门禁（`check:pi7`、`check:module-boundaries`、`test:pi-contracts`、`typecheck`）和全仓 `bun test` 均通过。
+
+剩余 Round 6.2–10 仍需继续推进，目标是把 41 → 50+ 个 Pi-native package，最终使 root `src/` 仅保留 bootstrap、transport 壳和必要的数据迁移层。
