@@ -3,6 +3,7 @@ import { homedir } from 'node:os';
 import { join, basename } from 'node:path';
 import { migrateSessionFile } from './pi-migration.js';
 
+if (import.meta.main) {
 const sourceDir = join(homedir(), '.upup', 'sessions');
 const targetDir = join(homedir(), '.pi', 'agent', 'sessions', 'upup-migrated');
 const dryRun = process.argv.includes('--dry-run');
@@ -21,4 +22,6 @@ if (!existsSync(sourceDir)) {
       console.error(JSON.stringify({ source, error: error instanceof Error ? error.message : String(error) }));
     }
   }
+}
+
 }

@@ -17,8 +17,8 @@ import type {
   SessionSummary,
   CreateSessionParams,
 } from '@upup/pi-session';
-import { globalUpupPath, upupPath, ensureDir } from '../utils/paths.js';
-import { SESSIONS_DIR, PID_SESSIONS_DIR, getProjectSessionsDir, sanitizePath } from '../utils/storage-paths.js';
+import { globalUpupPath, upupPath, ensureDir } from '@upup/utils';
+import { SESSIONS_DIR, PID_SESSIONS_DIR, getProjectSessionsDir, sanitizePath } from '@upup/utils';
 
 // ============================================================================
 // Constants
@@ -144,7 +144,7 @@ export async function createSession(params: CreateSessionParams): Promise<Sessio
  * @param sessionId - The session ID
  * @param projectPath - Optional project path for project-isolated storage
  */
-export async function getSessionMetadata(sessionId: string, projectPath?: string): Promise<SessionMetadata | null> {
+export async function storageGetSessionMetadata(sessionId: string, projectPath?: string): Promise<SessionMetadata | null> {
   const sessionPath = getSessionPath(sessionId, projectPath);
   if (!existsSync(sessionPath)) {
     return null;
@@ -271,7 +271,7 @@ export async function getSession(sessionId: string, projectPath?: string): Promi
  * @param updates - Metadata updates
  * @param projectPath - Optional project path for project-isolated storage
  */
-export async function updateSessionMetadata(
+export async function storageUpdateSessionMetadata(
   sessionId: string,
   updates: Partial<SessionMetadata>,
   projectPath?: string
@@ -481,9 +481,9 @@ export async function addSessionMessage(
     await appendToFile(sessionPath, line + '\n');
 
     // Update message count
-    const metadata = await getSessionMetadata(sessionId, projectPath);
+    const metadata = await storageGetSessionMetadata(sessionId, projectPath);
     if (metadata) {
-      await updateSessionMetadata(sessionId, {
+      await storageUpdateSessionMetadata(sessionId, {
         messageCount: metadata.messageCount + 1,
         lastQuery: message.type === 'user' ? message.content.slice(0, 200) : metadata.lastQuery,
       }, projectPath);
@@ -557,14 +557,14 @@ export function filterResumableSessions(
  * Rename a session (set custom title)
  */
 export async function renameSession(sessionId: string, title: string): Promise<void> {
-  await updateSessionMetadata(sessionId, { customTitle: title });
+  await storageUpdateSessionMetadata(sessionId, { customTitle: title });
 }
 
 /**
  * Tag a session
  */
 export async function tagSession(sessionId: string, tag: string | null): Promise<void> {
-  await updateSessionMetadata(sessionId, { tag: tag ?? undefined });
+  await storageUpdateSessionMetadata(sessionId, { tag: tag ?? undefined });
 }
 
 /**

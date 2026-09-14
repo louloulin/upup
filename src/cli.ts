@@ -627,7 +627,7 @@ export async function runCli(options: RunCliOptions = {}) {
       const searchTerm = args.replace('--fork', '').trim();
 
       if (searchTerm) {
-        const { resolveResumeTarget } = await import('./session/restore.js');
+        const { resolveResumeTarget } = await import('@upup/pi-session');
         const targetId = await resolveResumeTarget(searchTerm, process.cwd());
         if (targetId) {
           chatLog.addChild(new Spacer(1));
@@ -657,7 +657,7 @@ export async function runCli(options: RunCliOptions = {}) {
     }
 
     if (commandName === 'continue') {
-      const { getMostRecentSession } = await import('./session/restore.js');
+      const { getMostRecentSession } = await import('@upup/pi-session');
       const lastSessionId = await getMostRecentSession(process.cwd());
       if (lastSessionId && lastSessionId !== agentRunner.sessionId) {
         chatLog.addChild(new Spacer(1));
@@ -1457,7 +1457,7 @@ export async function runCli(options: RunCliOptions = {}) {
     const cwd = process.cwd();
     if (options.resumeTarget) {
       // Try to resolve the resume target
-      const { resolveResumeTarget } = await import('./session/restore.js');
+      const { resolveResumeTarget } = await import('@upup/pi-session');
       const targetId = await resolveResumeTarget(options.resumeTarget, cwd);
       if (targetId) {
         chatLog.addChild(new Spacer(1));
@@ -1481,7 +1481,7 @@ export async function runCli(options: RunCliOptions = {}) {
       }
     } else if (options.continue) {
       // Continue the most recent session
-      const { getMostRecentSession } = await import('./session/restore.js');
+      const { getMostRecentSession } = await import('@upup/pi-session');
       const lastId = await getMostRecentSession(cwd);
       if (lastId) {
         chatLog.addChild(new Spacer(1));

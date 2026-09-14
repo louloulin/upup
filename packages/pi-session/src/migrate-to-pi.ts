@@ -79,9 +79,11 @@ function migrate(options: CliOptions): void {
   }
 }
 
-try {
-  migrate(parseArgs(process.argv.slice(2)));
-} catch (error) {
-  console.error(error instanceof Error ? error.message : String(error));
-  process.exitCode = 1;
+if (import.meta.main) {
+  try {
+    migrate(parseArgs(process.argv.slice(2)));
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exitCode = 1;
+  }
 }

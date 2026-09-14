@@ -14,9 +14,9 @@ import {
   type SelectItem,
   getKeybindings,
 } from '@earendil-works/pi-tui';
-import { theme } from '../theme.js';
+import { theme } from '@upup/commands';
 import type { SessionSummary } from '@upup/pi-session';
-import { formatDuration, formatRelativeTime } from '../utils/time.js';
+import { formatDuration, formatRelativeTime } from '@upup/utils';
 
 export interface SessionSelectorCallbacks {
   onSelect: (session: SessionSummary) => void;

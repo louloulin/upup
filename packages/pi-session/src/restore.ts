@@ -14,7 +14,7 @@
 
 import type { SessionData, SessionMessage, FileHistorySnapshot } from '@upup/pi-session';
 import { getSession } from './storage.js';
-import { SESSIONS_DIR } from '../utils/storage-paths.js';
+import { SESSIONS_DIR } from '@upup/utils';
 import { readdirSync, existsSync } from 'fs';
 import { join } from 'path';
 

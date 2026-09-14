@@ -1,0 +1,27 @@
+{
+  "help": {
+    "command": "help",
+    "count": 1,
+    "lastUsed": 1789376769525
+  },
+  "status": {
+    "command": "status",
+    "count": 1,
+    "lastUsed": 1789376769525
+  },
+  "h": {
+    "command": "h",
+    "count": 1,
+    "lastUsed": 1789376769526
+  },
+  "c": {
+    "command": "c",
+    "count": 1,
+    "lastUsed": 1789376769526
+  },
+  "unknown": {
+    "command": "unknown",
+    "count": 1,
+    "lastUsed": 1789376769526
+  }
+}

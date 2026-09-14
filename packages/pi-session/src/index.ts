@@ -209,3 +209,19 @@ export * from './session-types.js';
 // Session message renderer (used by CLI)
 // =============================================================================
 export * from './render/message-renderer.js';
+
+// =============================================================================
+// Legacy session migration helpers (one-shot data migration)
+// =============================================================================
+export * from './pi-migration.js';
+export * from './migrate.js';
+export * from './migrate-to-pi.js';
+export * from './storage-portable.js';
+
+// =============================================================================
+// Persistent storage helpers (JSONL-backed session storage)
+// =============================================================================
+export * from './storage.js';
+export * from './restore.js';
+export * from './pid-manager.js';
+export * from './selector.js';

@@ -93,3 +93,44 @@ export const LOGS_DIR = globalUpupPath('logs');
 export const TOOL_RESULTS_DIR = globalUpupPath('tool-results');
 export const SCRATCHPAD_DIR = globalUpupPath('scratchpad');
 export const EXPORTS_DIR = globalUpupPath('exports');
+
+/**
+ * Session storage paths (consolidated from src/utils/storage-paths.ts).
+ */
+export const DATA_DIR = globalUpupPath('data');
+export const SESSIONS_DIR = globalUpupPath('data', 'sessions');
+export const PID_SESSIONS_DIR = globalUpupPath('sessions');
+export const MESSAGES_DIR = globalUpupPath('messages');
+export const TEAMS_DIR = globalUpupPath('teams');
+export const AGENTS_DIR = globalUpupPath('agents');
+export const PORTFOLIO_FILE = globalUpupPath('portfolio.json');
+export const SETTINGS_FILE = globalUpupPath('settings.json');
+export const SETTINGS_LOCAL_FILE = globalUpupPath('settings.local.json');
+export const SETTINGS_DIR = globalUpupPath('settings.d');
+export const SETTINGS_BACKUPS_DIR = globalUpupPath('backups');
+export const SETTINGS_LOCK_FILE = globalUpupPath('settings.json.lock');
+
+/**
+ * Sanitize a project path into a filesystem-safe slug.
+ */
+export function sanitizePath(pathStr: string): string {
+  return pathStr
+    .replace(/[^a-zA-Z0-9._/-]/g, '_')
+    .replace(/\/+/g, '/')
+    .replace(/^\/+|\/+$/g, '');
+}
+
+/**
+ * Get the per-project sessions directory.
+ */
+export function getProjectSessionsDir(projectPath: string): string {
+  const sanitized = sanitizePath(projectPath);
+  return globalUpupPath('data', 'sessions', sanitized);
+}
+
+/**
+ * Get the default (no-project) sessions directory.
+ */
+export function getDefaultSessionsDir(): string {
+  return globalUpupPath('data', 'sessions', 'default');
+}

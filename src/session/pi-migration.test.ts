@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { migrateSessionFile } from './pi-migration.js';
+import { migrateSessionFile } from '@upup/pi-session';
 import { SessionManager } from '@earendil-works/pi-coding-agent';
 import { PiAgentSessionFactory } from '../runtime/pi/agent-session-factory.js';
 import { getInvestmentAgentSpec } from '../runtime/pi/agent-spec.js';

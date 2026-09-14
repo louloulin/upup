@@ -1,10 +1,7 @@
 /**
  * Session Module
  *
- * Main export for the session management system.
+ * Compatibility facade. New consumers should import from `@upup/pi-session`.
  */
 
-export * from './storage.js';
-export * from './restore.js';
-export * from './selector.js';
-export * from './pid-manager.js';
+export * from '@upup/pi-session';

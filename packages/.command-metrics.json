@@ -1,0 +1,62 @@
+{
+  "help": {
+    "name": "help",
+    "totalCalls": 1,
+    "successCount": 1,
+    "errorCount": 0,
+    "totalDurationMs": 2,
+    "avgDurationMs": 2,
+    "minDurationMs": 2,
+    "maxDurationMs": 2,
+    "lastCalled": 1789376769525,
+    "lastSuccess": 1789376769525
+  },
+  "status": {
+    "name": "status",
+    "totalCalls": 1,
+    "successCount": 1,
+    "errorCount": 0,
+    "totalDurationMs": 0,
+    "avgDurationMs": 0,
+    "minDurationMs": 0,
+    "maxDurationMs": 0,
+    "lastCalled": 1789376769525,
+    "lastSuccess": 1789376769525
+  },
+  "h": {
+    "name": "h",
+    "totalCalls": 1,
+    "successCount": 1,
+    "errorCount": 0,
+    "totalDurationMs": 1,
+    "avgDurationMs": 1,
+    "minDurationMs": 1,
+    "maxDurationMs": 1,
+    "lastCalled": 1789376769526,
+    "lastSuccess": 1789376769526
+  },
+  "c": {
+    "name": "c",
+    "totalCalls": 1,
+    "successCount": 1,
+    "errorCount": 0,
+    "totalDurationMs": 0,
+    "avgDurationMs": 0,
+    "minDurationMs": 0,
+    "maxDurationMs": 0,
+    "lastCalled": 1789376769526,
+    "lastSuccess": 1789376769526
+  },
+  "unknown": {
+    "name": "unknown",
+    "totalCalls": 1,
+    "successCount": 0,
+    "errorCount": 1,
+    "totalDurationMs": 0,
+    "avgDurationMs": 0,
+    "minDurationMs": 0,
+    "maxDurationMs": 0,
+    "lastCalled": 1789376769526,
+    "lastSuccess": 0
+  }
+}

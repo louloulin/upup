@@ -7,7 +7,7 @@
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync, readdirSync } from 'fs';
 import { join } from 'path';
-import { globalUpupPath } from '../utils/paths.js';
+import { globalUpupPath } from '@upup/utils';
 
 // ============================================================================
 // Types

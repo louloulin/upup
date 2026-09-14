@@ -18,7 +18,7 @@
     }
   },
   "scripts": {
-    "build": "bun build src/index.ts --outdir=dist --target=node && tsc --emitDeclarationOnly --project tsconfig.json",
+    "build": "bun build src/index.ts --outdir=dist --target=node --external 'playwright*' --external 'playwright-core*' --external 'chromium*' --external 'electron*' && tsc --emitDeclarationOnly --project tsconfig.json",
     "test": "bun test ./test.ts ./src/host-contract.test.ts ./src/session2.test.ts ./src/finance-host-contract.test.ts ./src/session-service.test.ts ./src/background-service.test.ts"
   },
   "files": [
@@ -44,6 +44,7 @@
   },
   "dependencies": {
     "@earendil-works/pi-coding-agent": "0.84.3",
+    "@upup/commands": "workspace:*",
     "@upup/pi-event-adapter": "0.1.0",
     "@upup/pi-runtime": "0.1.0",
     "@upup/pi-investment-workflow": "0.1.0",

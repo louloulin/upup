@@ -4,7 +4,7 @@ import type { ApprovalDecision } from '@upup/pi-event-adapter';
 import type { SessionSummary } from '@upup/pi-session';
 import { selectListTheme, theme } from '../theme.js';
 import { t } from '../i18n/index.js';
-import { formatRelativeTime } from '../utils/time.js';
+import { formatRelativeTime } from '@upup/utils';
 // Simple wrapper that just uses native SelectList - no custom input handling needed
 // because pi-tui's SelectList already handles arrow keys and Enter/Esc
 class VimSelectList extends SelectList {
