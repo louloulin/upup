@@ -3,7 +3,7 @@ import { getInvestmentAgentSpec } from './agent-spec.js';
 import { PiAgentSessionFactory } from './agent-session-factory.js';
 import { FINANCE_FIXTURE_TOOLS } from '../../extensions/upup/finance-fixtures.js';
 import type { UpUpAgentSession, UpUpToolContract } from './types.js';
-import { toPiTool } from './agent-session-factory.js';
+import { toPiTool } from '@upup/pi-event-adapter';
 import { join } from 'node:path';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { fauxAssistantMessage, fauxProvider, fauxText } from '@earendil-works/pi-ai';

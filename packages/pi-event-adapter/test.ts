@@ -584,3 +584,242 @@ describe('@upup/pi-event-adapter — AgentSessionEvent → UpUpAgentEvent', () =
     expect(out).toBe('a\nb');
   });
 });
+
+import {
+  toPiTool,
+  type UpUpAgentSpec,
+  type UpUpToolContract,
+} from './src/index';
+
+const baseSpec: UpUpAgentSpec = {
+  id: 'test', version: '1.0.0', name: 'Test agent', description: 'test',
+  tools: '*', mode: 'primary', capabilities: ['market-data'], taskTypes: ['test'],
+  permissions: {
+    id: 'allow-warning',
+    allow: ['safe', 'warning'],
+    requireApproval: [],
+    deny: ['dangerous', 'critical'],
+    allowExternalNetwork: false, allowCredentialAccess: false, allowFinancialWrites: false,
+  },
+};
+
+const warningApprovalSpec: UpUpAgentSpec = {
+  ...baseSpec,
+  permissions: {
+    ...baseSpec.permissions,
+    id: 'require-approval',
+    requireApproval: ['warning'],
+  },
+};
+
+const denyCriticalSpec: UpUpAgentSpec = {
+  ...baseSpec,
+  permissions: {
+    ...baseSpec.permissions,
+    id: 'deny-dangerous',
+    deny: ['dangerous', 'critical', 'warning'],
+  },
+};
+
+function makeTool(overrides: Partial<UpUpToolContract> = {}): UpUpToolContract {
+  return {
+    name: 'sample',
+    label: 'Sample',
+    description: 'sample tool',
+    category: 'system',
+    safetyLevel: 'safe',
+    parameters: { type: 'object', properties: {} } as never,
+    hasFinancialImpact: false,
+    async execute() {
+      return { value: undefined, text: 'ok' };
+    },
+    ...overrides,
+  };
+}
+
+describe('@upup/pi-event-adapter — toPiTool bridge', () => {
+  test('exposes Pi ToolDefinition fields from UpUpToolContract', () => {
+    const bridge = toPiTool(baseSpec, makeTool());
+    expect(bridge.name).toBe('sample');
+    expect(bridge.label).toBe('Sample');
+    expect(bridge.description).toBe('sample tool');
+    expect(bridge.promptSnippet).toBe('sample tool');
+    expect(bridge.executionMode).toBe('parallel');
+  });
+
+  test('sequential executionMode when maxConcurrent is 1', () => {
+    const bridge = toPiTool(baseSpec, makeTool({ maxConcurrent: 1 }));
+    expect(bridge.executionMode).toBe('sequential');
+  });
+
+  test('execute returns the tool text and merges auditId', async () => {
+    const bridge = toPiTool(baseSpec, makeTool());
+    const result = await bridge.execute('tc-1', {}, undefined, undefined);
+    const text = (result.content[0] as { text: string }).text;
+    expect(text).toBe('ok');
+    expect(result.details).toHaveProperty('auditId');
+    expect((result.details as { policyAudit: { decision: string } }).policyAudit.decision).toBe('allowed');
+  });
+
+  test('execute denies a tool whose safetyLevel is in the deny list', async () => {
+    const bridge = toPiTool(denyCriticalSpec, makeTool({ safetyLevel: 'dangerous' }));
+    const result = await bridge.execute('tc-2', {}, undefined, undefined);
+    expect(result.isError).toBe(true);
+    const text = (result.content[0] as { text: string }).text;
+    expect(text).toContain('denied by permission profile');
+    expect((result.details as { policyAudit: { decision: string } }).policyAudit.decision).toBe('denied');
+  });
+
+  test('execute requires explicit approval for warning safetyLevel', async () => {
+    let approvalCalled = false;
+    const bridge = toPiTool(
+      warningApprovalSpec,
+      makeTool({ safetyLevel: 'warning' }),
+      async () => {
+        approvalCalled = true;
+        return true;
+      },
+    );
+    const result = await bridge.execute('tc-3', {}, undefined, undefined);
+    expect(approvalCalled).toBe(true);
+    expect((result.details as { policyAudit: { decision: string } }).policyAudit.decision).toBe('approval_granted');
+  });
+
+  test('execute records approval_denied when callback returns false', async () => {
+    const bridge = toPiTool(
+      warningApprovalSpec,
+      makeTool({ safetyLevel: 'warning' }),
+      async () => false,
+    );
+    const result = await bridge.execute('tc-4', {}, undefined, undefined);
+    expect(result.isError).toBe(true);
+    expect((result.details as { policyAudit: { decision: string } }).policyAudit.decision).toBe('approval_denied');
+  });
+
+  test('execute records approval_denied when no callback is configured', async () => {
+    const bridge = toPiTool(warningApprovalSpec, makeTool({ safetyLevel: 'warning' }));
+    const result = await bridge.execute('tc-5', {}, undefined, undefined);
+    expect(result.isError).toBe(true);
+    expect((result.details as { policyAudit: { decision: string; reason: string } }).policyAudit.reason).toContain('no approval callback');
+  });
+
+  test('execute forwards onUpdate as a content text block', async () => {
+    const updates: string[] = [];
+    const bridge = toPiTool(
+      baseSpec,
+      makeTool({
+        async execute(_input, ctx) {
+          ctx.onUpdate?.({ text: 'progress-1' });
+          ctx.onUpdate?.({ text: 'progress-2' });
+          return { value: undefined, text: 'done' };
+        },
+      }),
+    );
+    await bridge.execute('tc-6', {}, undefined, (update) => {
+      const text = (update.content[0] as { text: string }).text;
+      updates.push(text);
+    });
+    // The final tool text is emitted by the result content, not the onUpdate
+    // path (onUpdate is reserved for progress messages).
+    expect(updates).toEqual(['progress-1', 'progress-2']);
+  });
+
+  test('execute preserves existing auditId from tool result', async () => {
+    const bridge = toPiTool(
+      baseSpec,
+      makeTool({
+        async execute() {
+          return { value: undefined, text: 'with-audit', details: { auditId: 'preset-audit', dataFreshness: 'live' } };
+        },
+      }),
+    );
+    const result = await bridge.execute('tc-7', {}, undefined, undefined);
+    expect((result.details as { auditId: string }).auditId).toBe('preset-audit');
+  });
+
+  test('execute falls back to generated auditId when tool does not provide one', async () => {
+    const bridge = toPiTool(
+      baseSpec,
+      makeTool({
+        async execute() {
+          return { value: undefined, text: 'no-audit' };
+        },
+      }),
+    );
+    const result = await bridge.execute('tc-8', {}, undefined, undefined);
+    const auditId = (result.details as { auditId: string }).auditId;
+    expect(auditId).toBeTruthy();
+    expect(typeof auditId).toBe('string');
+  });
+});
+
+import { createFinanceExtension } from './src/index';
+import { detectPiProvider, resolvePiModel } from './src/pi-model-bridge';
+
+describe('@upup/pi-event-adapter — pi model bridge', () => {
+  test('detectPiProvider matches known prefixes', () => {
+    expect(detectPiProvider('claude-opus-4-7')).toBe('anthropic');
+    expect(detectPiProvider('gemini-3.0-pro')).toBe('google');
+    expect(detectPiProvider('gpt-5.4')).toBe('openai');
+    expect(detectPiProvider('kimi-k2')).toBe('moonshotai');
+    expect(detectPiProvider('grok-4')).toBe('xai');
+    expect(detectPiProvider('openrouter/anthropic/claude-opus')).toBe('openrouter');
+    expect(detectPiProvider('deepseek-v4-flash')).toBe('deepseek');
+  });
+
+  test('detectPiProvider falls back to deepseek for unknown prefixes', () => {
+    expect(detectPiProvider('some-unknown-model')).toBe('deepseek');
+  });
+
+  test('resolvePiModel respects explicit provider:model prefix', () => {
+    // Even if the model id starts with "claude-", the explicit prefix wins.
+    const model = resolvePiModel({ modelName: 'google:gemini-3.0-pro' });
+    expect(model).toBeDefined();
+  });
+
+  test('resolvePiModel falls back when DEFAULT_MODEL is unset and no override given', () => {
+    const previous = process.env.DEFAULT_MODEL;
+    delete process.env.DEFAULT_MODEL;
+    try {
+      const model = resolvePiModel();
+      expect(model).toBeDefined();
+    } finally {
+      if (previous !== undefined) process.env.DEFAULT_MODEL = previous;
+    }
+  });
+
+  test('resolvePiModel honours options.fallback override', () => {
+    const previous = process.env.DEFAULT_MODEL;
+    delete process.env.DEFAULT_MODEL;
+    try {
+      const model = resolvePiModel({ fallback: 'claude-opus-4-7' });
+      expect(model).toBeDefined();
+    } finally {
+      if (previous !== undefined) process.env.DEFAULT_MODEL = previous;
+    }
+  });
+});
+
+describe('@upup/pi-event-adapter — createFinanceExtension', () => {
+  test('produces an InlineExtension with hidden=true and unique name', () => {
+    const spec = {
+      ...baseSpec,
+      id: 'test-finance-ext',
+    };
+    const tools = [makeTool({ name: 'finance-tool-1' })];
+    const ext = createFinanceExtension({ spec, tools });
+    expect(ext.name).toBe('upup-finance-test-finance-ext');
+    expect(ext.hidden).toBe(true);
+    expect(typeof ext.factory).toBe('function');
+  });
+
+  test('factory registers every supplied tool with the Pi extension API', () => {
+    const registered: Array<{ name: string }> = [];
+    const ext = createFinanceExtension({
+      spec: { ...baseSpec, id: 'multi' },
+      tools: [makeTool({ name: 'a' }), makeTool({ name: 'b' })],
+    });
+    ext.factory({ registerTool: (tool) => { registered.push(tool); } } as never);
+    expect(registered.map((t) => t.name)).toEqual(['a', 'b']);
+  });
+});

@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { AgentToolResult } from '@earendil-works/pi-agent-core';
+import type { ExtensionAPI, InlineExtension } from '@earendil-works/pi-coding-agent';
 import type { ModelRuntime } from '@earendil-works/pi-coding-agent';
 import type { Model } from '@earendil-works/pi-ai';
 import { Type, type TSchema } from 'typebox';
@@ -327,3 +328,112 @@ export function validatePiPackageManifest(manifest: PiPackageManifestContract): 
   for (const [name, version] of Object.entries(manifest.dependencies ?? {})) if (!/^\d+\.\d+\.\d+$/.test(version)) throw new Error(`Pi package dependency ${name} must use an exact semver`);
 }
 export interface PiSessionFactory { createSession(spec: UpUpAgentSpec, options?: UpUpCreateSessionOptions): Promise<UpUpAgentSession> }
+
+// ---------------------------------------------------------------------------
+// Finance session context helpers.
+//
+// `UpUpFinanceSessionContext` is the per-session structured state carried
+// through Pi Session entries (custom entry type `upup_finance_context`) and
+// re-serialized during compaction. The shape, merge rules, and serialization
+// format live here so they can be reused by anyone who needs to build a
+// Pi session that carries investment context (e.g. the `/invest` workflow,
+// the bridge session-sync transport, and any future evaluation harness).
+//
+// Before this contract was lifted out, the helpers were inlined inside
+// `src/runtime/pi/agent-session-factory.ts` and depended on private
+// identifiers from the runtime composition root.
+// ---------------------------------------------------------------------------
+
+export const FINANCE_CONTEXT_ENTRY_TYPE = 'upup_finance_context' as const;
+export const FINANCE_CONTEXT_SCHEMA_VERSION = 1 as const;
+
+export function emptyFinanceSessionContext(): UpUpFinanceSessionContext {
+  return { assumptions: {}, risks: [], evidence: [], unfinishedPhases: [] };
+}
+
+export function mergeFinanceSessionContext(
+  current: UpUpFinanceSessionContext,
+  update: Partial<UpUpFinanceSessionContext>,
+): UpUpFinanceSessionContext {
+  return {
+    ...current,
+    ...(update.ticker !== undefined ? { ticker: update.ticker } : {}),
+    ...(update.market !== undefined ? { market: update.market } : {}),
+    ...(update.asOf !== undefined ? { asOf: update.asOf } : {}),
+    ...(update.assumptions ? { assumptions: { ...current.assumptions, ...update.assumptions } } : {}),
+    ...(update.risks ? { risks: [...new Set(update.risks)] } : {}),
+    ...(update.evidence ? { evidence: [...update.evidence] } : {}),
+    ...(update.unfinishedPhases ? { unfinishedPhases: [...new Set(update.unfinishedPhases)] } : {}),
+  };
+}
+
+export interface SerializedFinanceContext {
+  schema: typeof FINANCE_CONTEXT_SCHEMA_VERSION;
+  domain: 'finance';
+  ticker: string | null;
+  market: string | null;
+  asOf: string | null;
+  assumptions: Readonly<Record<string, string | number | boolean>>;
+  risks: readonly string[];
+  evidence: readonly FinancialEvidenceRecord[];
+  unfinishedPhases: readonly string[];
+  compactionReason: string;
+  customInstructions: string | null;
+}
+
+export function serializeFinanceSessionContext(
+  context: UpUpFinanceSessionContext,
+  reason: string,
+  instructions?: string,
+): string {
+  const payload: SerializedFinanceContext = {
+    schema: FINANCE_CONTEXT_SCHEMA_VERSION,
+    domain: 'finance',
+    ticker: context.ticker ?? null,
+    market: context.market ?? null,
+    asOf: context.asOf ?? null,
+    assumptions: context.assumptions,
+    risks: context.risks,
+    evidence: context.evidence,
+    unfinishedPhases: context.unfinishedPhases,
+    compactionReason: reason,
+    customInstructions: instructions ?? null,
+  };
+  return JSON.stringify(payload);
+}
+
+
+// ---------------------------------------------------------------------------
+// Finance session extension.
+//
+// `createFinanceSessionExtension` builds the Pi InlineExtension that
+// serializes the current `UpUpFinanceSessionContext` into the
+// `session_before_compact` payload so the finance context survives Pi
+// Session compaction. Before this contract was lifted out, the same
+// logic lived inline in `agent-session-factory.ts` and depended on a
+// local mutable `current` reference. Centralizing it in the runtime
+// package lets any downstream tool or eval harness reproduce the
+// same compaction payload without re-implementing the policy.
+// ---------------------------------------------------------------------------
+
+export interface FinanceSessionExtensionContext {
+  /** Mutable ref into the live `UpUpFinanceSessionContext`. */
+  readonly current: UpUpFinanceSessionContext;
+}
+
+export function createFinanceSessionExtension(context: FinanceSessionExtensionContext): InlineExtension {
+  return {
+    name: 'upup-finance-session-policy',
+    hidden: true,
+    factory: (pi: ExtensionAPI) => {
+      pi.on('session_before_compact', async (event) => ({
+        compaction: {
+          summary: serializeFinanceSessionContext(context.current, event.reason, event.customInstructions),
+          firstKeptEntryId: event.preparation.firstKeptEntryId,
+          tokensBefore: event.preparation.tokensBefore,
+          details: { domain: 'investment', schema: 1 },
+        },
+      }));
+    },
+  };
+}

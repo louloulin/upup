@@ -1,0 +1,19 @@
+{
+  "name": "@upup/pi-finance-composition",
+  "version": "0.1.0",
+  "description": "Pi finance host composition and investment workflow services",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
+  "scripts": {
+    "build": "bun build src/index.ts --outdir=dist --target=node && tsc --emitDeclarationOnly --project tsconfig.json",
+    "test": "bun test ./test.ts"
+  },
+  "files": ["dist", "package.json"],
+  "dependencies": {
+    "@upup/pi-finance-sdk": "0.1.0",
+    "@upup/pi-market-data": "0.1.0",
+    "@upup/pi-investment-workflow": "0.1.0"
+  }
+}

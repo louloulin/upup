@@ -20,11 +20,13 @@
         "@upup/pi-cache": "workspace:*",
         "@upup/pi-config": "workspace:*",
         "@upup/pi-corporate-actions": "workspace:*",
+        "@upup/pi-finance-composition": "workspace:*",
         "@upup/pi-finance-sdk": "workspace:*",
         "@upup/pi-investment-analysis": "workspace:*",
         "@upup/pi-investment-workflow": "workspace:*",
         "@upup/pi-market-data": "workspace:*",
         "@upup/pi-platform": "workspace:*",
+        "@upup/pi-platform-composition": "workspace:*",
         "@upup/pi-portfolio": "workspace:*",
         "@upup/pi-quant": "workspace:*",
         "@upup/pi-research": "workspace:*",
@@ -188,6 +190,15 @@
         "@upup/pi-runtime": "0.1.0",
       },
     },
+    "packages/pi-finance-composition": {
+      "name": "@upup/pi-finance-composition",
+      "version": "0.1.0",
+      "dependencies": {
+        "@upup/pi-finance-sdk": "0.1.0",
+        "@upup/pi-investment-workflow": "0.1.0",
+        "@upup/pi-market-data": "0.1.0",
+      },
+    },
     "packages/pi-finance-sdk": {
       "name": "@upup/pi-finance-sdk",
       "version": "0.1.0",
@@ -250,6 +261,16 @@
         "typebox": "1.3.7",
       },
     },
+    "packages/pi-platform-composition": {
+      "name": "@upup/pi-platform-composition",
+      "version": "0.1.0",
+      "dependencies": {
+        "@upup/pi-runtime": "0.1.0",
+      },
+      "peerDependencies": {
+        "@earendil-works/pi-coding-agent": "0.84.3",
+      },
+    },
     "packages/pi-portfolio": {
       "name": "@upup/pi-portfolio",
       "version": "0.1.0",
@@ -275,6 +296,10 @@
         "typebox": "1.3.7",
       },
     },
+    "packages/pi-resource-composition": {
+      "name": "@upup/pi-resource-composition",
+      "version": "0.1.0",
+    },
     "packages/pi-risk": {
       "name": "@upup/pi-risk",
       "version": "0.1.0",
@@ -291,6 +316,15 @@
         "@earendil-works/pi-ai": "0.84.3",
         "@earendil-works/pi-coding-agent": "0.84.3",
         "typebox": "1.3.7",
+      },
+    },
+    "packages/pi-session": {
+      "name": "@upup/pi-session",
+      "version": "0.1.0",
+      "dependencies": {
+        "@earendil-works/pi-coding-agent": "0.84.3",
+        "@upup/pi-event-adapter": "0.1.0",
+        "@upup/pi-runtime": "0.1.0",
       },
     },
     "packages/pi-storage": {
@@ -978,6 +1012,8 @@
 
     "@upup/pi-event-adapter": ["@upup/pi-event-adapter@workspace:packages/pi-event-adapter"],
 
+    "@upup/pi-finance-composition": ["@upup/pi-finance-composition@workspace:packages/pi-finance-composition"],
+
     "@upup/pi-finance-sdk": ["@upup/pi-finance-sdk@workspace:packages/pi-finance-sdk"],
 
     "@upup/pi-investment-analysis": ["@upup/pi-investment-analysis@workspace:packages/pi-investment-analysis"],
@@ -992,15 +1028,21 @@
 
     "@upup/pi-platform": ["@upup/pi-platform@workspace:packages/pi-platform"],
 
+    "@upup/pi-platform-composition": ["@upup/pi-platform-composition@workspace:packages/pi-platform-composition"],
+
     "@upup/pi-portfolio": ["@upup/pi-portfolio@workspace:packages/pi-portfolio"],
 
     "@upup/pi-quant": ["@upup/pi-quant@workspace:packages/pi-quant"],
 
     "@upup/pi-research": ["@upup/pi-research@workspace:packages/pi-research"],
 
+    "@upup/pi-resource-composition": ["@upup/pi-resource-composition@workspace:packages/pi-resource-composition"],
+
     "@upup/pi-risk": ["@upup/pi-risk@workspace:packages/pi-risk"],
 
     "@upup/pi-runtime": ["@upup/pi-runtime@workspace:packages/pi-runtime"],
+
+    "@upup/pi-session": ["@upup/pi-session@workspace:packages/pi-session"],
 
     "@upup/pi-storage": ["@upup/pi-storage@workspace:packages/pi-storage"],
 

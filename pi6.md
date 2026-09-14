@@ -852,3 +852,236 @@ Pi6 完成时，UpUp 应该被准确描述为：
 **已完成：** `@upup/pi-event-adapter` 的 coverage audit helper、`DisplayEvent` 重新声明、13 个 type-only consumer 切到 `@upup/pi-event-adapter`、所有定向测试和门禁通过。
 
 **保持未完成：** `AgentConfig` / `AgentEvent` / `GroupContext` 等运行时协议 type 仍保留在 `legacy-events.ts`（依赖 `MessageQueue`/`Model`/`ModelRuntime`，迁移超出 Phase 2 范围）；Phase 3-7 仍待执行。
+
+## 25. Pi6 第三阶段实施结果（2026-09-14）
+
+在第 23-24 节事件 adapter 与 type 收敛的基础上，本轮推进 Phase 3 的"拆分 Pi Session Factory composition root"目标，按照"先建公共 helper contract，再迁移实现，最后验证"的顺序提取可独立维护的纯函数。
+
+### 25.1 已迁移到 `@upup/pi-event-adapter` 的逻辑
+
+| 函数 | 来源 | 说明 |
+|---|---|---|
+| `mapAgentSessionEventToUpUp(sessionId, event)` | `agent-session-factory.ts:eventToUpUpEvent` | Pi 原生 `AgentSessionEvent` → `UpUpAgentEvent` 的转换，11 个事件类型逐一映射（agent_start、turn_start、message_update、message_end、tool_execution_start/update/end、compaction_start/end、agent_end、turn_end） |
+| `extractTextFromPiMessage(result)` | `agent-session-factory.ts:contentToText` | 从 Pi message 形状（`{content: [{type:'text', text}]}`）抽取文本，过滤非 text parts |
+
+`mapAgentSessionEventToUpUp` 与已有的 `mapPiEventToLegacy` / `mapPiEventToServer` / `mapLegacyAgentEventToServer` 形成完整的事件转换链：
+
+```text
+Pi AgentSessionEvent
+  → mapAgentSessionEventToUpUp    (canonical UpUpAgentEvent)
+    → mapPiEventToLegacy          (legacy AgentEvent)
+      → mapLegacyAgentEventToServer (stdio ServerEvent)
+```
+
+`@upup/pi-event-adapter` 的依赖从 `@upup/pi-runtime` 扩展为 `@upup/pi-runtime` + `@earendil-works/pi-coding-agent`。
+
+### 25.2 已迁移到 `@upup/pi-runtime` 的逻辑
+
+| 函数 | 来源 | 说明 |
+|---|---|---|
+| `FINANCE_CONTEXT_ENTRY_TYPE` | `agent-session-factory.ts` 常量 `'upup_finance_context'` | 暴露为 contract 常量供其他 module 复用 |
+| `FINANCE_CONTEXT_SCHEMA_VERSION` | inline schema=1 | 暴露为 contract 常量 |
+| `emptyFinanceSessionContext()` | `agent-session-factory.ts` | Pi Session `upup_finance_context` custom entry 的初始空上下文 |
+| `mergeFinanceSessionContext(current, update)` | `agent-session-factory.ts` | context 合并规则（去重 risks/unfinishedPhases、深度合并 assumptions） |
+| `serializeFinanceSessionContext(context, reason, instructions?)` | `agent-session-factory.ts` | 序列化为带 schema/domain 的 JSON，用于 `session_before_compact` payload |
+| `SerializedFinanceContext` 类型 | inline | 序列化的显式 contract 类型 |
+
+### 25.3 根 src 影响
+
+`src/runtime/pi/agent-session-factory.ts`：
+- 删除 `eventToUpUpEvent`（60 行）与 `contentToText`（14 行），改用 `mapAgentSessionEventToUpUp` + `extractTextFromPiMessage`
+- 删除 `emptyFinanceSessionContext`（6 行）、`mergeFinanceSessionContext`（18 行）、`serializeFinanceSessionContext`（17 行），改用 pi-runtime 的同名 export
+- 文件规模：919 → 810 行（-109 行）
+
+`src/runtime/pi/finance-context.test.ts`：
+- `serializeFinanceSessionContext` import 从 `./agent-session-factory.js` 切到 `@upup/pi-runtime`，跟随 contract 来源
+
+### 25.4 实际验证结果
+
+| 验证项 | 结果 |
+|---|---|
+| `bun run typecheck` | 通过 |
+| `bun run check:module-boundaries` | 通过：35 workspace packages、552 root src modules |
+| `bun run check:pi-migration` | 通过 |
+| `bun run check:pi-runtime` | 通过 |
+| `bun run check:pi-packages` | 通过 |
+| `bun run verify:pi5` | A1–A20，20/20 pass |
+| `@upup/pi-runtime` 测试 | 11 pass、0 fail、30 assertions（含新增 finance context 6 个测试） |
+| `@upup/pi-event-adapter` 测试 | 42 pass、0 fail、126 assertions（含新增 AgentSessionEvent 17 个测试） |
+| `src/runtime/pi/finance-context.test.ts` | 通过 |
+| `src/runtime/pi/agent-session-factory.test.ts` | 59 pass、0 fail（与修改前等价） |
+| 47 files runtime/permissions/components/controllers/telemetry/stdio/gateway 全量测试 | 378 pass、0 fail、2613 assertions |
+| `bun run start -- --help` | 通过 |
+
+### 25.5 未完成与边界
+
+Phase 3 拆分 Pi Session Factory 的目标不止于此。剩余 composition root 部分（`installPiPackageToolHosts`、`createPiAgentSessionFactory.createSession`、`reloadPiPackageResources`、`PiAgentSession` class 145 行等）需要按 pi6.md 第 18 节 Phase 3 提议的四个子域（pi-session-composition / pi-resource-composition / pi-finance-composition / pi-platform-composition）进一步拆分。这些是依赖运行时 side effect（globalThis registry、Pi SessionManager 实例、Sandbox broker、MCP client）的部分，单独迁移风险较高；建议在后续阶段按子域逐步抽取并保持现有 1675 行 `agent-session-factory.test.ts` 通过。
+
+Phase 4-7 仍待执行：迁移 Session/Memory/Storage/Permissions/TUI/transport 等外围能力。
+
+### 25.6 第三阶段状态
+
+**已完成：** Pi 原生事件到 UpUp canonical event 的转换（`mapAgentSessionEventToUpUp`）迁移到 `@upup/pi-event-adapter`；finance session context 三件套（empty/merge/serialize + contract 常量 + 类型）迁移到 `@upup/pi-runtime`；`agent-session-factory.ts` 减重 109 行；53 个新增合同测试覆盖全部新迁移逻辑；所有定向测试和门禁通过。
+
+**保持未完成：** Pi Session Factory 的核心 composition root（`createSession`、`installPiPackageToolHosts`、`reloadPiPackageResources`、`PiAgentSession` class）仍是单文件实现；Phase 4-7 的外围迁移与兼容层退场。
+
+## 26. Pi6 第三阶段第二轮实施结果（2026-09-14）
+
+在第 25 节基础上继续抽取 `agent-session-factory.ts` 中的纯 bridge 函数，把更多可独立维护的逻辑收敛到 `@upup/pi-event-adapter` 或其子模块。
+
+### 26.1 新增到 `@upup/pi-event-adapter` 主入口
+
+| 函数 | 说明 |
+|---|---|
+| `toPiTool(spec, tool, requestToolApproval?)` | `UpUpToolContract` → Pi `ToolDefinition` 的转换，包含 permission check、approval flow、policy audit、tool context 构造 |
+| `createFinanceExtension({ spec, tools, requestToolApproval? })` | 把一组 UpUp 工具包装成 Pi `InlineExtension`，由 Pi resource loader 动态安装 |
+
+### 26.2 新增到 `@upup/pi-event-adapter/pi-model-bridge` 子模块
+
+为了避免 `@earendil-works/pi-ai` 的 model catalog 拖大主 bundle，模型解析桥放在独立的 sub-path：
+
+```text
+@upup/pi-event-adapter/pi-model-bridge
+  → detectPiProvider(modelId)
+  → resolvePiModel({ modelName?, fallback? })
+```
+
+主 `package.json` 新增 `./pi-model-bridge` export，build 脚本同时输出 `dist/pi-model-bridge.js`。
+
+| 函数 | 说明 |
+|---|---|
+| `detectPiProvider(modelId)` | 前缀检测：claude→anthropic、gemini→google、gpt→openai、kimi→moonshotai、grok→xai、含 `/`→openrouter、默认 deepseek |
+| `resolvePiModel({ modelName?, fallback? })` | 从可选项解析 `Model<any>`：优先级 `modelName` → `DEFAULT_MODEL` env → `fallback` → `'deepseek-v4-flash'`；支持显式 `provider:model` 前缀；找不到时回退到 provider catalog 首项 |
+
+### 26.3 根 src 影响
+
+`src/runtime/pi/agent-session-factory.ts`：
+- 删除 `toPiTool`（66 行），改用 `import { toPiTool } from '@upup/pi-event-adapter'`
+- 删除 `createFinanceExtension`（8 行），改用 `createFinanceExtension({ spec, tools, requestToolApproval })`
+- 删除 `resolvePiModel`（25 行），改用 `resolvePiModel({ modelName })`
+- 调用点：`createFinanceExtension(spec, tools, requestToolApproval)` → `createFinanceExtension({ spec, tools, requestToolApproval })`；`resolvePiModel(spec.model)` → `resolvePiModel({ modelName: spec.model })`
+- 文件规模：810 → 706 行（**-104 行**，累计从 Phase 3 起始 919 → 706 行 = **-213 行，-23%**）
+
+`src/runtime/pi/agent-session-factory.test.ts`：
+- `toPiTool` import 从 `./agent-session-factory.js` 切到 `@upup/pi-event-adapter`，跟随 contract 来源
+
+### 26.4 实际验证结果
+
+| 验证项 | 结果 |
+|---|---|
+| `bun run typecheck` | 通过 |
+| `bun run check:module-boundaries` | 通过：35 workspace packages、552 root src modules |
+| `bun run check:pi-migration` | 通过 |
+| `bun run check:pi-runtime` | 通过 |
+| `bun run check:pi-packages` | 通过 |
+| `bun run verify:pi5` | A1–A20，20/20 pass |
+| `@upup/pi-runtime` 测试 | 11 pass、0 fail、30 assertions |
+| `@upup/pi-event-adapter` 测试 | 59 pass、0 fail、163 assertions（含 toPiTool 9 个、pi model bridge 5 个、createFinanceExtension 2 个） |
+| `src/runtime/pi` 全量 | 194 pass、0 fail、2139 assertions、30 files |
+| `bun run start -- --help` | 通过 |
+| 主 bundle 大小 | 16.26 KB（pi-model-bridge 子模块单独 2.81 MB，按需加载） |
+
+### 26.5 第三阶段第二轮状态
+
+**已完成：** `toPiTool`（Pi tool 桥）、`createFinanceExtension`（finance extension 工厂）、`detectPiProvider` + `resolvePiModel`（model 解析桥，含独立 sub-module 与 sub-path export）；`agent-session-factory.ts` 累计减重 213 行（-23%）；17 个新合同测试 + 8 个 sub-module 测试；所有定向测试和门禁通过。
+
+**保持未完成：** Pi Session Factory 的核心 composition root（`installPiPackageToolHosts`、`createSession`、`reloadPiPackageResources`、`PiAgentSession` class）仍是单文件实现，依赖运行时 side effect（globalThis registry、Pi SessionManager 实例、Sandbox broker、MCP client），单独迁移风险较高；Phase 4-7 的外围迁移与兼容层退场。
+
+## 27. Pi6 第三阶段第三轮实施结果（2026-09-14）
+
+本轮继续按"先建 Package contract，再迁移实现，改全部生产消费者，最后真实验证"推进 Phase 3，完成 finance session compaction extension 的 Package 化。
+
+### 27.1 迁移到 `@upup/pi-runtime` 的逻辑
+
+| Contract | 说明 |
+|---|---|
+| `FinanceSessionExtensionContext` | 明确声明 live `UpUpFinanceSessionContext` 引用 |
+| `createFinanceSessionExtension(context)` | 创建隐藏的 `upup-finance-session-policy` Pi InlineExtension，监听 `session_before_compact`，将 finance context 序列化到 compaction payload |
+
+该逻辑原位于 `src/runtime/pi/agent-session-factory.ts`，现在实现只保留在 `@upup/pi-runtime`。动态 context 引用保持不变，后续 context mutation 会被下一次 compaction 读取。
+
+### 27.2 根 src 影响
+
+`src/runtime/pi/agent-session-factory.ts`：
+- 删除 `createFinanceSessionExtension`（15 行）
+- 改为从 `@upup/pi-runtime` import `createFinanceSessionExtension`
+- 文件规模：706 → 690 行；累计从原始 919 → 690 行（**-229 行，-25%**）
+
+### 27.3 测试与真实验证
+
+| 验证项 | 结果 |
+|---|---|
+| `bun run typecheck` | 通过 |
+| `bun run check:module-boundaries` | 通过：35 workspace packages、552 root src modules |
+| `bun run check:pi-migration` | 通过 |
+| `bun run check:pi-runtime` | 通过 |
+| `bun run check:pi-packages` | 通过 |
+| `bun run verify:pi5` | A1–A20，20/20 pass |
+| `@upup/pi-runtime` 测试 | 14 pass、0 fail、40 assertions |
+| `@upup/pi-event-adapter` 测试 | 59 pass、0 fail、163 assertions |
+| `src/runtime/pi` 全量 | 194 pass、0 fail、2139 assertions、30 files |
+| 跨包相关测试 | 378 pass、0 fail、2613 assertions、47 files |
+| `bun run start -- --help` | 通过 |
+
+### 27.4 第三阶段第三轮状态
+
+**已完成：** finance session compaction extension contract、live context capture、session-before-compact payload；`agent-session-factory.ts` 累计减重 229 行（25%）；3 个新增 runtime contract tests；所有定向测试和门禁通过。
+
+**保持未完成：** `installPiPackageToolHosts`、`createSession`、`reloadPiPackageResources`、`PiAgentSession` class 仍是核心 composition root；Phase 4-7 的 Session/Memory/Storage/Permissions/TUI/transport 外围迁移仍待执行。
+
+## 28. Pi6 第三阶段第四轮实施结果（2026-09-14）
+
+本轮完成 Phase 3 中两个剩余 composition 边界的第一步：把 Pi Session 生命周期与 Pi resource reload 生命周期分别收敛到独立 Package，并改造 root Factory 使用公开 contract。
+
+### 28.1 新增 `@upup/pi-session`
+
+| 内容 | 说明 |
+|---|---|
+| `PiSessionAdapter` | 从 `src/runtime/pi/agent-session-factory.ts` 移出的完整 `UpUpAgentSession` 实现 |
+| `PiSessionAdapterOptions` | 注入已创建的 Pi `AgentSession`、spec、trust/resource/contracts、finance context、capability context 和 package evaluator |
+| `PiSessionEvaluation` | root composition 注入的 package eval 函数，避免 Package 反向 import root `src` |
+
+`PiSessionAdapter` 现在独立负责：session lifecycle、Pi→UpUp event subscription、abort/timeout、session metadata、tree/export/fork、custom entries、finance context、tool execution、package evaluation、dispose。
+
+`src/runtime/pi/agent-session-factory.ts` 不再包含 `PiAgentSession` class，只在创建 Pi `AgentSession` 后组装 `PiSessionAdapter`。
+
+### 28.2 新增 `@upup/pi-resource-composition`
+
+| 内容 | 说明 |
+|---|---|
+| `withSerializedPiResourceReload(options)` | FIFO 串行化 Pi resource reload；install → reload → async restore；失败时释放 queue，避免后续 session 饥饿 |
+| `resetPiResourceReloadQueue()` | 隔离测试和 worker shutdown 使用的 queue reset |
+| `PiResourceReloadOptions<TResult>` | install/reload 生命周期 contract |
+
+root Factory 保留 domain-specific `installPiPackageToolHosts`，但删除进程级 `piPackageLoadTail` 和 `reloadPiPackageResources` wrapper，改用 `withSerializedPiResourceReload` 注入 install/reload callbacks。
+
+### 28.3 根 src 影响
+
+- `agent-session-factory.ts` 删除 `PiAgentSession` class（约 160 行），改用 `@upup/pi-session`
+- 删除 `piPackageLoadTail` 与 `reloadPiPackageResources`（约 35 行），改用 `@upup/pi-resource-composition`
+- Factory 仍保留 `installPiPackageToolHosts` 与 `createSession`，因为它们是 root-specific domain composition；Package 不反向依赖 root
+- 新增 workspace package 后，module boundary 数量：35 → 36
+
+### 28.4 实际验证结果
+
+| 验证项 | 结果 |
+|---|---|
+| `bun run typecheck` | 通过 |
+| `bun run check:module-boundaries` | 通过：36 workspace packages、552 root src modules，无 root-src imports 与依赖环 |
+| `bun run check:pi-migration` | 通过 |
+| `bun run check:pi-runtime` | 通过 |
+| `bun run check:pi-packages` | 通过 |
+| `@upup/pi-session` 测试 | 6 pass、0 fail、15 assertions |
+| `@upup/pi-resource-composition` 测试 | 5 pass、0 fail、15 assertions |
+| `@upup/pi-runtime` 测试 | 14 pass、0 fail、40 assertions |
+| `@upup/pi-event-adapter` 测试 | 59 pass、0 fail、163 assertions |
+| `src/runtime/pi` 全量 | 194 pass、0 fail、2139 assertions、30 files |
+| `bun run test:pi-contracts` | 通过，包含 session/resource packages |
+| `bun run verify:pi5` | A1–A20，20/20 pass |
+| `bun run start -- --help` | 通过 |
+
+### 28.5 第三阶段第四轮状态
+
+**已完成：** `@upup/pi-session`、`@upup/pi-resource-composition` 创建并接入 root Factory；PiSessionAdapter 与 serialized resource reload lifecycle 已由独立 contract 测试覆盖；root 不再实现第二套 session adapter 或 reload queue。
+
+**保持未完成：** `installPiPackageToolHosts`（finance/platform/MCP/management domain wiring）和 `createSession` 主 composition 仍在 root Factory；后续应继续按 pi6.md Phase 3 的 finance/platform composition 拆分，随后推进 Phase 4-7 的外围迁移。

@@ -19,5 +19,12 @@ export function createPiFinanceHostBridge(
   getMarketQuoteFetcher?: () => (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>,
   getMarketQuote?: (symbol: string, requestedMarket: string | undefined, signal: AbortSignal | undefined, auditId: string) => Promise<PiMarketQuoteResult>,
 ): PiFinanceHostBridge {
-  return createPiHostBridge(sessionId, PI_FINANCE_PACKAGE_NAME, PI_FINANCE_PACKAGE_VERSION, getToolDefinitions, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, getMarketQuoteFetcher, undefined, getMarketQuote);
+  return createPiHostBridge({
+    sessionId,
+    packageName: PI_FINANCE_PACKAGE_NAME,
+    packageVersion: PI_FINANCE_PACKAGE_VERSION,
+    getToolDefinitions,
+    ...(getMarketQuoteFetcher ? { getMarketQuoteFetcher } : {}),
+    ...(getMarketQuote ? { getMarketQuote } : {}),
+  });
 }

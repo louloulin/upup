@@ -2,7 +2,8 @@ import { describe, expect, test } from 'bun:test';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { getInvestmentAgentSpec } from './agent-spec.js';
-import { PiAgentSessionFactory, serializeFinanceSessionContext } from './agent-session-factory.js';
+import { PiAgentSessionFactory } from './agent-session-factory.js';
+import { serializeFinanceSessionContext } from '@upup/pi-runtime';
 
 describe('Pi finance session context', () => {
   test('persists and restores structured investment context through Pi JSONL', async () => {

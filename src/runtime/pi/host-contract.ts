@@ -202,6 +202,27 @@ export interface PiSkillDefinition {
 
 export type PiHostRegistry = ReadonlyMap<string, PiHostBridge>;
 
+export interface PiHostBridgeOptions {
+  readonly sessionId: string;
+  readonly packageName: string;
+  readonly packageVersion: string;
+  readonly getToolDefinitions: () => readonly ToolDefinition[];
+  readonly runResearchWorker?: PiHostBridge['runResearchWorker'];
+  readonly runAgentWorker?: PiHostBridge['runAgentWorker'];
+  readonly getToolMetadata?: () => readonly PiToolMetadata[];
+  readonly getSkillDefinitions?: () => readonly PiSkillDefinition[];
+  readonly runCronJob?: PiHostBridge['runCronJob'];
+  readonly listMcpResources?: PiHostBridge['listMcpResources'];
+  readonly readMcpResource?: PiHostBridge['readMcpResource'];
+  readonly getInvestmentWorkflowServices?: PiHostBridge['getInvestmentWorkflowServices'];
+  readonly getMarketHistoryFetcher?: PiHostBridge['getMarketHistoryFetcher'];
+  readonly getMarketQuoteFetcher?: PiHostBridge['getMarketQuoteFetcher'];
+  readonly getMarketQuoteTrendStore?: PiHostBridge['getMarketQuoteTrendStore'];
+  readonly getMarketQuote?: PiHostBridge['getMarketQuote'];
+  readonly getManagementSnapshot?: PiHostBridge['getManagementSnapshot'];
+  readonly capabilityContext?: PiCapabilityContext;
+}
+
 export function getPiHostFromRegistry(
   registry: PiHostRegistry | undefined,
   packageName: string,
@@ -211,26 +232,14 @@ export function getPiHostFromRegistry(
   return host;
 }
 
-export function createPiHostBridge(
-  sessionId: string,
-  packageName: string,
-  packageVersion: string,
-  getToolDefinitions: () => readonly ToolDefinition[],
-  runResearchWorker?: (request: PiResearchWorkerRequest, signal: AbortSignal) => Promise<PiResearchWorkerResult>,
-  runAgentWorker?: (request: PiAgentWorkerRequest, signal: AbortSignal) => Promise<PiAgentWorkerResult>,
-  getToolMetadata: () => readonly PiToolMetadata[] = () => [],
-  getSkillDefinitions: () => readonly PiSkillDefinition[] = () => [],
-  runCronJob?: (request: PiCronRunRequest, signal: AbortSignal) => Promise<void>,
-  listMcpResources?: (server: string | undefined, signal: AbortSignal) => Promise<readonly PiMcpResourceGroup[]>,
-  readMcpResource?: (uri: string, server: string | undefined, signal: AbortSignal) => Promise<PiMcpResourceRead>,
-  getInvestmentWorkflowServices?: () => InvestmentWorkflowServices,
-  getMarketHistoryFetcher?: () => (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>,
-  getMarketQuoteFetcher?: () => (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>,
-  getMarketQuoteTrendStore?: () => NativeMarketQuoteTrendStore,
-  getMarketQuote?: (symbol: string, requestedMarket: string | undefined, signal: AbortSignal | undefined, auditId: string) => Promise<PiMarketQuoteResult>,
-  getManagementSnapshot?: () => PiManagementSnapshot,
-  capabilityContext?: PiCapabilityContext,
-): PiHostBridge {
+export function createPiHostBridge(options: PiHostBridgeOptions): PiHostBridge {
+  const {
+    sessionId, packageName, packageVersion, getToolDefinitions,
+    runResearchWorker, runAgentWorker, getToolMetadata = () => [], getSkillDefinitions = () => [],
+    runCronJob, listMcpResources, readMcpResource, getInvestmentWorkflowServices,
+    getMarketHistoryFetcher, getMarketQuoteFetcher, getMarketQuoteTrendStore, getMarketQuote,
+    getManagementSnapshot, capabilityContext,
+  } = options;
   const capabilities: PiHostCapability[] = ['tool-definitions'];
   if (runResearchWorker) capabilities.push('research-worker');
   if (runAgentWorker) capabilities.push('agent-worker');

@@ -770,3 +770,132 @@ export function mapAgentSessionEventToUpUp(
       return undefined;
   }
 }
+
+// ---------------------------------------------------------------------------
+// UpUpToolContract → Pi ToolDefinition bridge.
+//
+// `toPiTool` converts an UpUp-side tool contract (permission profile,
+// policy audit, financial details, tool context) into a Pi runtime
+// `ToolDefinition` (execution mode, async execute, audit, approval flow).
+//
+// Before this contract was lifted out, the bridge was inlined inside
+// `agent-session-factory.ts` as a 60-line function. Moving it into the
+// adapter package makes the UpUp→Pi tool boundary explicit and testable,
+// and lets future extension authors register their own bridges without
+// depending on the runtime composition root.
+// ---------------------------------------------------------------------------
+
+import type { ToolDefinition, InlineExtension, ExtensionAPI } from '@earendil-works/pi-coding-agent';
+import {
+  canUseTool,
+  createToolContext,
+  requiresApproval,
+  type UpUpAgentSpec,
+  type UpUpCreateSessionOptions,
+  type UpUpToolContract,
+  type UpUpToolPolicyAudit,
+} from '@upup/pi-runtime';
+
+export function toPiTool<TInput, TResult>(
+  spec: UpUpAgentSpec,
+  tool: UpUpToolContract<TInput, TResult>,
+  requestToolApproval?: UpUpCreateSessionOptions['requestToolApproval'],
+): ToolDefinition {
+  return {
+    name: tool.name,
+    label: tool.label,
+    description: tool.description,
+    promptSnippet: tool.description,
+    parameters: tool.parameters,
+    executionMode: tool.maxConcurrent === 1 ? 'sequential' : 'parallel',
+    async execute(toolCallId, params, signal, onUpdate) {
+      const auditId = createToolContext(spec, toolCallId, signal ?? new AbortController().signal).auditId;
+      const policyAudit = (
+        decision: UpUpToolPolicyAudit['decision'],
+        reason: string,
+      ): UpUpToolPolicyAudit => ({
+        auditId,
+        tool: tool.name,
+        safetyLevel: tool.safetyLevel,
+        permissionProfile: spec.permissions.id,
+        decision,
+        reason,
+        recordedAt: new Date().toISOString(),
+      });
+      if (!canUseTool(spec.permissions, tool.safetyLevel)) {
+        return {
+          content: [{ type: 'text', text: `Tool ${tool.name} is denied by permission profile ${spec.permissions.id}` }],
+          details: { auditId, policyAudit: policyAudit('denied', 'safety level is not allowed by the permission profile') },
+          isError: true,
+        };
+      }
+      if (requiresApproval(spec.permissions, tool.safetyLevel)) {
+        const approved = requestToolApproval
+          ? await requestToolApproval({
+            tool: tool.name,
+            input: params,
+            safetyLevel: tool.safetyLevel,
+            auditId,
+            permissionProfile: spec.permissions.id,
+          })
+          : false;
+        if (!approved) {
+          return {
+            content: [{ type: 'text', text: `Tool ${tool.name} requires explicit approval before execution` }],
+            details: { auditId, policyAudit: policyAudit('approval_denied', requestToolApproval ? 'approval callback denied execution' : 'no approval callback was configured') },
+            isError: true,
+          };
+        }
+        const approvalAudit = policyAudit('approval_granted', 'approval callback granted execution');
+        const context = createToolContext(spec, toolCallId, signal ?? new AbortController().signal, (update) => {
+          onUpdate?.({ content: [{ type: 'text', text: update.text }], details: {} });
+        });
+        const result = await tool.execute(params as TInput, context);
+        return {
+          content: [{ type: 'text', text: result.text }],
+          details: { ...(result.details ?? {}), auditId: result.details?.auditId ?? auditId, policyAudit: approvalAudit },
+        };
+      }
+      const context = createToolContext(spec, toolCallId, signal ?? new AbortController().signal, (update) => {
+        onUpdate?.({ content: [{ type: 'text', text: update.text }], details: {} });
+      });
+      const result = await tool.execute(params as TInput, context);
+      return {
+        content: [{ type: 'text', text: result.text }],
+        details: {
+          ...(result.details ?? {}),
+          auditId: result.details?.auditId ?? auditId,
+          policyAudit: policyAudit('allowed', 'safety level is allowed without per-call approval'),
+        },
+      };
+    },
+  };
+}
+
+
+
+// ---------------------------------------------------------------------------
+// Finance extension factory (InlineExtension bridge).
+//
+// Kept in the main entry because it only depends on the same imports as
+// `toPiTool`. The companion Pi model resolution bridge lives in a
+// separate sub-module (`./pi-model-bridge.js`) so consumers that only
+// need the adapter event helpers do not pay for `@earendil-works/pi-ai`.
+// ---------------------------------------------------------------------------
+
+export interface FinanceExtensionOptions {
+  spec: UpUpAgentSpec;
+  tools: readonly UpUpToolContract[];
+  requestToolApproval?: UpUpCreateSessionOptions['requestToolApproval'];
+}
+
+export function createFinanceExtension(options: FinanceExtensionOptions): InlineExtension {
+  const { spec, tools, requestToolApproval } = options;
+  return {
+    name: `upup-finance-${spec.id}`,
+    hidden: true,
+    factory: (pi: ExtensionAPI) => {
+      for (const tool of tools) pi.registerTool(toPiTool(spec, tool, requestToolApproval));
+    },
+  };
+}

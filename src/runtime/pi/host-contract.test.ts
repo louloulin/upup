@@ -8,7 +8,7 @@ import {
 describe('generic Pi host contract', () => {
   test('serves only the exact package and session capability request', () => {
     const definitions = [{ name: 'portfolio_host_tool' }] as never[];
-    const bridge = createPiHostBridge('session-a', '@upup/pi-portfolio', '0.1.0', () => definitions);
+    const bridge = createPiHostBridge({ sessionId: 'session-a', packageName: '@upup/pi-portfolio', packageVersion: '0.1.0', getToolDefinitions: () => definitions });
 
     expect(bridge.contract).toBe(PI_HOST_CONTRACT);
     expect(bridge.capabilities).toEqual(['tool-definitions']);
@@ -30,10 +30,10 @@ describe('generic Pi host contract', () => {
 
   test('does not invoke the provider for stale or malformed requests', () => {
     let calls = 0;
-    const bridge = createPiHostBridge('session-a', '@upup/pi-backtest', '0.1.0', () => {
+    const bridge = createPiHostBridge({ sessionId: 'session-a', packageName: '@upup/pi-backtest', packageVersion: '0.1.0', getToolDefinitions: () => {
       calls += 1;
       return [];
-    });
+    } });
 
     expect(bridge.getToolDefinitions({
       contract: 'upup.pi.host.v0' as typeof PI_HOST_CONTRACT,
