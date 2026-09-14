@@ -42,7 +42,7 @@ function ema(values: readonly number[], period: number): (number | null)[] {
   return out;
 }
 
-function sma(values: readonly number[], period: number): (number | null)[] {
+export function sma(values: readonly number[], period: number): (number | null)[] {
   if (period < 1) throw new Error('SMA period must be >= 1');
   const out: (number | null)[] = [];
   let sum = 0;

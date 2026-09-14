@@ -1,0 +1,29 @@
+{
+  "name": "@upup/pi-storage",
+  "version": "0.1.0",
+  "description": "UpUp append-only dossier, strategy, and audit storage",
+  "type": "module",
+  "keywords": ["pi-package", "finance", "storage", "audit"],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "bun build src/index.ts --outdir=dist --target=node && tsc --emitDeclarationOnly --project tsconfig.json",
+    "test": "bun test ./test.ts"
+  },
+  "files": ["dist", "package.json"],
+  "pi": {
+    "source": "builtin:upup",
+    "extensions": ["./extensions"],
+    "skills": ["./skills"],
+    "prompts": ["./prompts"],
+    "workflows": ["./workflows"],
+    "policies": ["./policies"],
+    "evals": ["./evals"]
+  }
+}

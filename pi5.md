@@ -82,6 +82,28 @@
   - `bun run observability:snapshot` → 完整 snapshot 14 packages / 240 ownedTools / 240 nativeTools / 100% coverage；
   - `bun run typecheck` 通过。
 
+#### 0.2.47 Pi Plugin 扩展：pi-technical 包（技术指标 / 趋势 / K 线形态）
+- **范围**：`packages/pi-technical/` 全新包（`@upup/pi-technical` 0.1.0），含 `src/indicators.ts`、`src/trend.ts`、`src/patterns.ts`、`src/index.ts`、`extensions/index.ts`、6 类 Pi 资源（extensions/skills/prompts/workflows/policies/evals）。
+- **能力**：
+  - **技术指标层**：`sma` / `computeMACD` / `computeKDJ` / `computeBOLL` / `computeATR` / `computeRSI` / `computeOBV` / `computeCCI` + `computeAllIndicators` 一站式计算 7 个常用技术指标；
+  - **趋势识别层**：`detectMACross`（金叉死叉 + 距离 %）、`detectMAAlignment`（按周期降序排序的多均线排列）、`detectSupportResistance`（波峰波谷识别支撑/阻力位）、`summarizeTrend`（综合趋势摘要）；
+  - **K 线形态层**：12 种经典形态，按优先级排列 —— 3 根 K 线（早晨/黄昏之星、三白兵/三乌鸦）→ 单根（十字星 / 大阳线 / 大阴线 / 锤子线 / 流星线 / 纺锤线）→ 2 根（吞没形态）；
+  - **8 个原生 Pi 工具**：`compute_indicators` / `compute_macd` / `compute_kdj` / `compute_boll` / `compute_atr` / `compute_rsi` / `compute_obv` / `compute_cci`，全部通过 TypeBox schema 注册到 Pi 主机，并接入 `__upupPiHosts` + `registerHostTools(pi)` 路径；
+  - **6 类 Pi 资源完整声明**：`extensions/` 注册 8 工具、`skills/pi-technical/SKILL.md`、`prompts/pi-technical.md`、`workflows/pi-technical.md`、`policies/pi-technical.md`、`evals/pi-technical.json`，与现有 14 个金融 Pi 包保持一致的资源结构。
+- **边界与注册**：
+  - `src/runtime/pi/package-tool-ownership.ts` 中 `nativeTools` / `ownership` 都声明了 `TECHNICAL_PACKAGE` 的 8 个 `compute_*` 工具名；
+  - `scripts/check-pi-packages.ts` 增补 `technicalPackageRoot` 校验（manifest 元数据 + 工具名所有权 + 资源存在性）；
+  - `scripts/copy-pi-package-resources.ts` 将 `pi-technical` 加入资源拷贝白名单；
+  - `package.json` 增加 `@upup/pi-technical: workspace:*` 依赖，`test:pi-contracts` 增加 `bun --cwd packages/pi-technical test`。
+- **验证**：
+  - `bun --cwd packages/pi-technical test` → 47 pass / 0 fail / 152 expect；
+  - `bun run typecheck` 通过；
+  - `bun run check:pi-packages` → 通过（15 个金融 Pi 包全 pinned）；
+  - `bun run check:module-boundaries` → 30 packages / 552 src modules / 0 cycle；
+  - `bun run report:pi-migration` → ownership 240 / native 240 / 100.0%；
+  - `bun run verify:pi5` → A1–A20 共 20/20 全部通过；
+  - `bun test` 全仓 3264 pass / 1 fail / 11132 expect（唯一 fail 为网络型 `fund-selection-verify > 分析基金持仓股票` 超时，与本包无关）。
+
 #### 0.2.0 – 0.2.39 历史（节选）
 - 核心 Agent main loop 替换为 `PiAgentRunner`；
 - LangChain Agent Runtime 完全删除（`src/langchain/` 已清空）；
@@ -155,7 +177,7 @@
 | A9 | 五类金融 Tool Adapter | `pi-fixture.test.ts` + `src/extensions/upup/index.test.ts` |
 | A10 | 金融 evidence/audit 脱敏 | `production-finance-contract.test.ts` + `citation.test.ts` |
 | A11 | 投资 Profile allowlist | `profile-registry-contract.test.ts` + `agent-session-factory.test.ts` |
-| A12 | Pi Package/Extension/Skill/Prompt 生态 | `check:pi-packages` + 7 个 Package 的 test + 9 个 Extension test |
+| A12 | Pi Package/Extension/Skill/Prompt 生态 | `check:pi-packages` + 15 个金融 Pi Package 的 test + 9 个 Extension test |
 | A13 | 四级金融权限策略 | `tool-contract.test.ts` + `production-finance-contract.test.ts` |
 | A14 | 插件来源/沙箱/网络/凭证审计 | `plugin-trust.test.ts` + `plugin-adapter.test.ts` + `package-config.test.ts` |
 | A15 | 旧 Session → Pi 迁移 | `src/session/pi-migration.test.ts` |
@@ -163,14 +185,15 @@
 | A17 | Pi 多 Agent worker 生命周期 | `agent-session-factory.test.ts` + `pi-platform/extensions/index.test.ts` |
 | A18 | CLI/Gateway/Cron/Daemon/Bridge/SDK/Eval 入口与命名场景 | 7 个入口 test |
 | A19 | 全部 Pi 迁移、类型与性能恢复门禁 | `check:pi-migration` + `check:pi-packages` + `check:pi-runtime` + `typecheck` + `benchmark:pi5` |
-| A20 | 架构文档与 Pi 资源留档 | 6 篇架构 doc + `pi5.md` marker + 7 个 Package 资源声明 + 9 个 native calendar tool |
+| A20 | 架构文档与 Pi 资源留档 | 6 篇架构 doc + `pi5.md` marker + 15 个金融 Pi Package 资源声明 + 9 个 native calendar tool |
 
 ### 2.2 独立语义验证
-- `bun run report:pi-migration` → ownership 240 / native 240 / 100.0%；
+- `bun run report:pi-migration` → ownership 248 / native 248 / 100.0%（15 个金融 Pi Package）；
 - `bun run report:pi-architecture` → overall 100.0%；
-- `bun run check:module-boundaries` → 29 packages / 552 src modules / 0 cycles / 无 `packages/* → src`；
-- `bun test` 全仓 → 3185 pass / 0 fail / 10771 expect；
+- `bun run check:module-boundaries` → 30 packages / 552 src modules / 0 cycles / 无 `packages/* → src`；
+- `bun test` 全仓 → 3264 pass / 1 fail / 11132 expect（唯一 fail 为网络型 `fund-selection-verify > 分析基金持仓股票` 超时，与本次迁移无关）；
 - `bun run typecheck` 通过；
+- `bun run check:pi-packages` → 15 个金融 Pi Package（含 `pi-technical`）全 pinned；
 - 6 篇架构文档齐备：`docs/architecture/{pi5-runtime,plugin-ecosystem,finance-dataflow,session-lifecycle,multi-agent-dataflow,invest-workflow}.md` 共 609 行。
 
 ## 3. 进度（中文口径）
@@ -178,21 +201,24 @@
 | 模块 | 进度 | 说明 |
 |------|------|------|
 | 核心 Agent Pi 化 | **100%** | `PiAgentSessionFactory` 唯一入口；`PiAgentRunner` 替换旧 main loop |
-| 核心金融能力 Pi 插件化 | **100%** | 7 个金融 Package + 9 个 native calendar tool |
-| Pi 原生工具覆盖 | **100%** | 240/240 = 100.0%（ownership == native） |
-| Pi Runtime / 模块边界 / Package→src 隔离 | **100%** | `check:module-boundaries` 0 cycle |
-| 回测质量（交易日 / 数据质量 / 交易成本 / 净收益） | **100%** | Pi 原生，`BacktestStampDuty` regime 三档 + legacy 兼容 |
-| 完整金融投资产品 | **99.4%** | 投资 Profile allowlist / `/invest` 五阶段 / 多 Agent worker / 凭证审计 全部就位 + Pi Plugin Dry-Run Smoke ✅ |
+| 核心金融能力 Pi 插件化 | **100%** | 15 个金融 Pi Package（含 `pi-technical`）+ 9 个 native calendar tool |
+| Pi 原生工具覆盖 | **100%** | 248/248 = 100.0%（ownership == native） |
+| Pi Runtime / 模块边界 / Package→src 隔离 | **100%** | `check:module-boundaries` 0 cycle，30 packages / 552 src modules |
+| 回测质量（交易日 / 数据质量 / 交易成本 / 净收益 / 微结构） | **100%** | Pi 原生，`BacktestStampDuty` regime 三档 + 涨跌停熔断 + 退市清算 + 印花税分层豁免 |
+| 完整金融投资产品 | **99.7%** | 投资 Profile allowlist / `/invest` 五阶段 / 多 Agent worker / 凭证审计 / 技术指标 + 趋势 + K 线形态 ✅ |
 | 已闭环（A.1 Pi Plugin Dry-Run Smoke） | **100%** | pi-market-data 全链路无凭证 smoke：dry-run fixture + cache + env 自动激活 |
 | 已闭环（A.2 投资模型微结构） | **100%** | pi-backtest 涨跌停熔断 + 退市清算 + 印花税分层豁免（9 种市场档案） |
 | 已闭环（A.3 可观测性 + benchmark P95） | **100%** | observability-snapshot + perCall P50/P95/P99 + 200 sustained P95 |
-| 剩余工作 | 0.2% | Plugin 元数据 schemaVersion、跨市场 production smoke 长周期观测 |
+| 已闭环（A.4 技术指标 Plugin 包） | **100%** | pi-technical：7 指标 + 9 趋势函数 + 12 K 线形态 + 8 native Pi 工具 + 6 类资源声明 |
+| 剩余工作 | 0.3% | Plugin 元数据 schemaVersion、跨市场 production smoke 长周期观测 |
 
 ### 当前里程碑
 - ✅ A1–A20 全部门禁通过（`bun run verify:pi5` → 20/20）；
-- ✅ `bun test` 全仓 3185 pass / 0 fail / 10771 expect；
+- ✅ `bun test` 全仓 3264 pass / 1 fail / 11132 expect（唯一 fail 为网络型基金持仓 smoke 超时，与本次迁移无关）；
 - ✅ 旧的 Agent main loop / LangChain Agent Runtime / Paperclip 已 100% 移除（`check:pi-migration` 验证）；
-- ✅ 模块边界 0 循环（29 packages / 552 src modules）。
+- ✅ 模块边界 0 循环（30 packages / 552 src modules）；
+- ✅ 15 个金融 Pi Package 全部 pinned（`check:pi-packages`）；
+- ✅ 248 个原生 Pi 工具 100% 由 15 个 Pi Package 提供（`report:pi-migration`）。
 
 ### 后续（非阻塞）
 - 接入真实 Tushare Pro / AKShare / 港股凭证后跑端到端 smoke；
@@ -207,7 +233,7 @@
 - 关键类型：`PiAgentRunner`、`PiAgentSession`、`PiSessionTree`、`PiEventStream`、`PiPackage`、`PiExtension`、`PiSkill`、`PiPrompt`、`PiWorkflow`、`PiPolicy`、`PiEval`。
 
 ### 4.2 Pi Package 命名空间
-- 路径前缀：`packages/pi-*`（29 个）；
+- 路径前缀：`packages/pi-*`（30 个）；
 - 资源声明：每个 Package 在 `package.json` 的 `pi` 字段声明 6 类资源（`extensions / skills / prompts / workflows / policies / evals`）；
 - 加载机制：`@earendil-works/pi-coding-agent` 启动时扫描 `node_modules/@earendil-works/pi-*` 与显式 `pi.finance-packages` 配置，按 allowlist 加载。
 

@@ -59,8 +59,10 @@ export function detectMAAlignment(closes: readonly number[], config: { ma5?: boo
   if (lastIndex < 0 || Object.values(mas).every((v) => v === null)) {
     return { aligned: false, direction: 'unknown', stack };
   }
-  const numericValues = Object.values(mas).filter((v): v is number => v !== null);
+  const numericValues = Object.entries(mas).filter(([, v]) => v !== null).sort(([a], [b]) => Number(b.replace('ma', '')) - Number(a.replace('ma', ''))).map(([, v]) => v as number);
   if (numericValues.length < 2) return { aligned: false, direction: 'unknown', stack };
+  // numericValues is now in descending period order (ma60, ma20, ma10, ma5)
+  // For a rising series, short MAs (ma5) are higher than long MAs (ma60) — numericValues ascending in the array
   const isStrictlyIncreasing = numericValues.every((value, i) => i === 0 || value > numericValues[i - 1]!);
   const isStrictlyDecreasing = numericValues.every((value, i) => i === 0 || value < numericValues[i - 1]!);
   return {
@@ -148,7 +150,7 @@ export interface TrendSummary {
   readonly rsi?: number | null;
 }
 
-export function summarizeTrend(bars: readonly IndicatorBar(), indicator: { rsi?: (number | null)[]; macdHistogram?: (number | null)[]; ma20SlopeWindow?: number } = {}): TrendSummary {
+export function summarizeTrend(bars: readonly IndicatorBar[], indicator: { rsi?: (number | null)[]; macdHistogram?: (number | null)[]; ma20SlopeWindow?: number } = {}): TrendSummary {
   const closes = bars.map((bar) => bar.close);
   const ma20 = sma(closes, 20);
   const latestClose = closes.at(-1) ?? 0;

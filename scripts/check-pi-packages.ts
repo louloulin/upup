@@ -16,6 +16,7 @@ const cachePackageRoot = join(root, 'packages', 'pi-cache');
 const notifyPackageRoot = join(root, 'packages', 'pi-notify');
 const investmentWorkflowPackageRoot = join(root, 'packages', 'pi-investment-workflow');
 const managementPackageRoot = join(root, 'packages', 'pi-management');
+const technicalPackageRoot = join(root, 'packages', 'pi-technical');
 
 const failures: string[] = [];
 const rootBuildScript = readFileSync(join(root, 'package.json'), 'utf8');
@@ -38,6 +39,7 @@ const packageExtensionFiles = [
   join(root, 'packages/pi-notify/extensions/index.ts'),
   join(root, 'packages/pi-investment-workflow/extensions/index.ts'),
   join(root, 'packages/pi-management/extensions/index.ts'),
+  join(root, 'packages/pi-technical/extensions/index.ts'),
 ];
 const nativeRiskTools = ['calculate_var', 'calculate_sharpe', 'calculate_sortino', 'calculate_max_drawdown', 'calculate_kelly', 'calculate_risk_parity', 'calculate_mean_variance', 'score_data_source', 'compare_data_sources', 'calculate_correlation_matrix', 'calculate_correlation', 'track_risk', 'get_short_interest', 'calculate_short_interest_ratio', 'detect_short_squeeze'];
 const nativeMarketTools = ['get_market_data', 'stock_screener', 'get_astock_price', 'screen_astocks', 'get_sector_data', 'get_market_structure', 'get_technical_data', 'check_trading_day', 'get_upcoming_holidays', 'get_next_trading_day', 'get_trading_days'];
@@ -530,8 +532,31 @@ for (const relative of [
   if (!existsSync(join(managementPackageRoot, relative))) failures.push(`management declared Pi resource does not exist: ${relative}`);
 }
 
+const technicalManifest = JSON.parse(readFileSync(join(technicalPackageRoot, 'package.json'), 'utf8')) as {
+  name?: string; version?: string; keywords?: string[]; peerDependencies?: Record<string, string>;
+  pi?: { source?: string; extensions?: string[]; skills?: string[]; prompts?: string[]; workflows?: string[]; policies?: string[]; evals?: string[] };
+  scripts?: { test?: string; build?: string };
+};
+if (technicalManifest.name !== '@upup/pi-technical') failures.push('technical package name is not stable');
+if (technicalManifest.version !== '0.1.0') failures.push('technical package version must be 0.1.0');
+if (!technicalManifest.keywords?.includes('pi-package')) failures.push('technical package must declare pi-package keyword');
+if (technicalManifest.peerDependencies?.['@earendil-works/pi-coding-agent'] !== '0.84.3') failures.push('technical Pi coding-agent peer must be pinned to 0.84.3');
+if (technicalManifest.pi?.source !== 'builtin:upup') failures.push('technical package must declare the allowlisted builtin:upup source');
+if (!technicalManifest.scripts?.test?.includes('bun test') || !technicalManifest.scripts.test.includes('./test.ts')) failures.push('technical package test script must execute ./test.ts');
+if (!technicalManifest.scripts?.build?.includes('tsc --emitDeclarationOnly')) failures.push('technical package build must emit declarations');
+if (!shipsPackage('pi-technical')) failures.push('production build must ship the built-in technical Pi package resources');
+const technicalExtensionSource = readFileSync(join(technicalPackageRoot, 'extensions', 'index.ts'), 'utf8');
+for (const toolName of ['compute_indicators', 'compute_macd', 'compute_kdj', 'compute_boll', 'compute_atr', 'compute_rsi', 'compute_obv', 'compute_cci']) if (!technicalExtensionSource.includes(`name: '${toolName}'`)) failures.push(`technical Pi package must natively register ${toolName}`);
+if (/from ['"](?:\.\.\/){2,}src\//.test(technicalExtensionSource)) failures.push('technical Pi extension must not depend on workspace source modules');
+for (const relative of [
+  ...(technicalManifest.pi?.extensions ?? []), ...(technicalManifest.pi?.skills ?? []), ...(technicalManifest.pi?.prompts ?? []),
+  ...(technicalManifest.pi?.workflows ?? []), ...(technicalManifest.pi?.policies ?? []), ...(technicalManifest.pi?.evals ?? []),
+]) {
+  if (!existsSync(join(technicalPackageRoot, relative))) failures.push(`technical declared Pi resource does not exist: ${relative}`);
+}
+
 if (failures.length) {
   console.error(failures.map((failure) => `FAIL: ${failure}`).join('\n'));
   process.exit(1);
 }
-console.log('Pi package checks passed: finance, market-data, investment-analysis, risk, portfolio, backtest, platform, research, browser, config, cache, notify, investment-workflow, and management Pi packages are pinned and resources are present.');
+console.log('Pi package checks passed: finance, market-data, investment-analysis, risk, portfolio, backtest, platform, research, browser, config, cache, notify, investment-workflow, management, and technical Pi packages are pinned and resources are present.');

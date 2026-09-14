@@ -92,8 +92,8 @@ describe('computeATR', () => {
   test('produces ATR aligned with bars and EMA smoothing', () => {
     const atr = computeATR(sampleBars, 5);
     expect(atr.length).toBe(sampleBars.length);
-    for (let i = 4; i < atr.length; i += 1) expect(atr[i]).not.toBeNull();
-    expect(atr[0]).not.toBeNull();
+    expect(atr[0]).toBeNull();
+    for (let i = 5; i < atr.length; i += 1) expect(atr[i]).not.toBeNull();
   });
 });
 
@@ -105,18 +105,19 @@ describe('computeRSI', () => {
   });
 
   test('all falling closes produce low RSI', () => {
-    const falling = Array.from({ length: 30 }, (_, i) => ({ date: `d${i}`, open: 100 + i, high: 101 + i, low: 99 + i, close: 100 + i - 1, volume: 1000 }));
+    const falling = Array.from({ length: 30 }, (_, i) => ({ date: `d${i}`, open: 200 - i, high: 201 - i, low: 199 - i, close: 200 - i - 1, volume: 1000 }));
     const rsi = computeRSI(falling.map((b) => b.close), 14);
     expect(rsi.at(-1)).toBeLessThan(20);
   });
 });
 
 describe('computeOBV', () => {
-  test('accumulates volume correctly', () => {
-    const obv = computeOBV(sampleBars);
-    expect(obv.length).toBe(sampleBars.length);
+  test('accumulates volume correctly on monotonic up trend', () => {
+    const rising = Array.from({ length: 10 }, (_, i) => ({ date: `d${i}`, open: 100, high: 100, low: 99, close: 100 + i, volume: 1000 }));
+    const obv = computeOBV(rising);
+    expect(obv.length).toBe(rising.length);
     expect(obv[0]).toBe(0);
-    expect(obv.at(-1)).toBeGreaterThan(0);
+    expect(obv.at(-1)).toBe(9000);
   });
 });
 

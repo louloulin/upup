@@ -1,0 +1,26 @@
+{
+  "name": "@upup/pi-runtime",
+  "version": "0.1.0",
+  "description": "UpUp Pi runtime contracts and capability context",
+  "type": "module",
+  "keywords": ["pi-package", "runtime", "contracts"],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "bun build src/index.ts --outdir=dist --target=node && tsc --emitDeclarationOnly --project tsconfig.json",
+    "test": "bun test ./test.ts"
+  },
+  "files": ["dist", "package.json"],
+  "dependencies": {
+    "@earendil-works/pi-agent-core": "0.84.3",
+    "@earendil-works/pi-coding-agent": "0.84.3",
+    "@earendil-works/pi-ai": "0.84.3",
+    "typebox": "1.3.7"
+  }
+}

@@ -14,6 +14,7 @@ describe('Pi finance package tool ownership', () => {
       '@upup/pi-backtest',
       '@upup/pi-platform',
       '@upup/pi-research',
+      '@upup/pi-technical',
       '@upup/pi-browser',
       '@upup/pi-config',
       '@upup/pi-cache',

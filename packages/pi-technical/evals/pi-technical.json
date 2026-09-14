@@ -1,0 +1,56 @@
+{
+  "schema": "upup.pi.eval.v1",
+  "package": "@upup/pi-technical",
+  "evals": [
+    {
+      "name": "compute_indicators_returns_complete_suite",
+      "kind": "unit",
+      "description": "When called with default settings, compute_indicators returns MACD / KDJ / BOLL / ATR / RSI / OBV / CCI aligned with the input bar series."
+    },
+    {
+      "name": "compute_macd_rejects_invalid_periods",
+      "kind": "unit",
+      "description": "compute_macd rejects fastPeriod >= slowPeriod and period < 1."
+    },
+    {
+      "name": "compute_kdj_invariant_j_equals_3k_minus_2d",
+      "kind": "invariant",
+      "description": "After the warmup period, KDJ J value equals 3 * K - 2 * D within rounding tolerance."
+    },
+    {
+      "name": "compute_boll_upper_gt_lower",
+      "kind": "invariant",
+      "description": "Upper band is strictly greater than middle band and middle band is strictly greater than lower band."
+    },
+    {
+      "name": "compute_rsi_bounded_0_to_100",
+      "kind": "invariant",
+      "description": "RSI values are within [0, 100] inclusive."
+    },
+    {
+      "name": "detect_macross_v_shape",
+      "kind": "scenario",
+      "description": "Given a V-shaped bar series, detectMACross emits a golden-cross event after the recovery."
+    },
+    {
+      "name": "recognize_patterns_bullish_engulfing",
+      "kind": "scenario",
+      "description": "Given a bearish then bullish bar with body that fully engulfs the previous bar, recognizePatterns emits a bullish-engulfing pattern."
+    },
+    {
+      "name": "summarize_trend_strictly_rising",
+      "kind": "scenario",
+      "description": "Given 80 strictly rising bars, summarizeTrend reports direction = uptrend with positive strength."
+    },
+    {
+      "name": "tool_honors_abort_signal",
+      "kind": "scenario",
+      "description": "Every pi-technical tool returns isError: true when the abort signal is already aborted."
+    },
+    {
+      "name": "tool_emits_audit_id",
+      "kind": "invariant",
+      "description": "Every pi-technical tool result includes details.auditId matching the input toolCallId."
+    }
+  ]
+}

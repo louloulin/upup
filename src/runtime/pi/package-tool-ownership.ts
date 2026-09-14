@@ -12,6 +12,7 @@ const CACHE_PACKAGE = '@upup/pi-cache';
 const NOTIFY_PACKAGE = '@upup/pi-notify';
 const INVESTMENT_WORKFLOW_PACKAGE = '@upup/pi-investment-workflow';
 const MANAGEMENT_PACKAGE = '@upup/pi-management';
+const TECHNICAL_PACKAGE = '@upup/pi-technical';
 
 const nativeTools: Readonly<Record<string, readonly string[]>> = {
   [INVESTMENT_WORKFLOW_PACKAGE]: ['invest_workflow_phase'],
@@ -24,6 +25,7 @@ const nativeTools: Readonly<Record<string, readonly string[]>> = {
   [BACKTEST_PACKAGE]: ['evaluate_trade', 'run_backtest', 'get_backtest_summary', 'calculate_win_rate', 'backtest_dca', 'backtest_lumpsum', 'backtest_threshold'],
   [PLATFORM_PACKAGE]: ['bash', 'read_file', 'write_file', 'edit_file', 'glob', 'grep', 'send_user_file', 'heartbeat', 'cron', 'memory_search', 'memory_get', 'memory_update', 'enter_plan_mode', 'exit_plan_mode', 'add_plan_step', 'update_plan_step', 'list_plan_steps', 'create_todo', 'update_todo', 'list_todos', 'delete_todo', 'notebook_read', 'notebook_create', 'notebook_edit_cell', 'notebook_insert_cell', 'notebook_delete_cell', 'list_mcp_resources', 'read_mcp_resource', 'mcp_auth_set', 'mcp_auth_get', 'mcp_auth_clear', 'task_create', 'task_get', 'task_list', 'task_stop', 'task_update', 'task_result', 'create_worktree', 'remove_worktree', 'list_worktree', 'add_to_watchlist', 'remove_from_watchlist', 'get_watchlist', 'add_watchlist_alert', 'check_watchlist_alerts', 'clear_watchlist_alert', 'export_watchlist', 'export_data', 'list_skills', 'search_skills', 'get_skill', 'skill_info', 'skill', 'execute_skill', 'lsp_complete', 'lsp_definition', 'lsp_references', 'lsp_hover', 'lsp_diagnostics', 'run_workflow', 'swarm_team_create', 'swarm_agent_spawn', 'swarm_agent_message', 'swarm_agent_results', 'swarm_team_list', 'tool_search', 'tool_get', 'tool_list', 'sleep', 'monitor', 'send_message', 'snip_tool', 'ask_confirm', 'ask_select', 'ask_multi_select', 'ask_input', 'ask_response', 'agent', 'fork_subagent', 'resume_agent', 'agent_memory', 'list_agents', 'run_builtin_agent'],
   [RESEARCH_PACKAGE]: ['web_fetch', 'web_search', 'x_search', 'analyze_sentiment', 'detect_events', 'extract_entities', 'research_deep_search', 'earnings_preview'],
+  [TECHNICAL_PACKAGE]: ['compute_indicators', 'compute_macd', 'compute_kdj', 'compute_boll', 'compute_atr', 'compute_rsi', 'compute_obv', 'compute_cci'],
   [BROWSER_PACKAGE]: ['browser'],
   [CONFIG_PACKAGE]: ['config_get', 'config_set', 'config_list'],
   [CACHE_PACKAGE]: ['get_cache_stats', 'clear_cache', 'invalidate_cache', 'get_cache_info'],
@@ -90,6 +92,7 @@ const ownership: Readonly<Record<string, readonly string[]>> = {
     'skill_info',
   ],
   [RESEARCH_PACKAGE]: ['web_fetch', 'web_search', 'x_search', 'analyze_sentiment', 'detect_events', 'extract_entities', 'research_deep_search', 'earnings_preview'],
+  [TECHNICAL_PACKAGE]: ['compute_indicators', 'compute_macd', 'compute_kdj', 'compute_boll', 'compute_atr', 'compute_rsi', 'compute_obv', 'compute_cci'],
   [BROWSER_PACKAGE]: ['browser'],
   [CONFIG_PACKAGE]: ['config_get', 'config_set', 'config_list'],
   [CACHE_PACKAGE]: ['get_cache_stats', 'clear_cache', 'invalidate_cache', 'get_cache_info'],
