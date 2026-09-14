@@ -3,10 +3,10 @@ import { existsSync, readdirSync } from 'fs';
 import { EventEmitter } from 'events';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import type { SkillMetadata, Skill, SkillSource } from './types.js';
+import type { SkillMetadata, Skill, SkillSource } from '@upup/skills';
 import { extractSkillMetadata, loadSkillFromPath } from './loader.js';
 import { upupPath } from '../utils/paths.js';
-import type { BundledSkillDefinition } from './types.js';
+import type { BundledSkillDefinition } from '@upup/skills';
 
 // Get the directory of this file to locate builtin skills
 const __filename = fileURLToPath(import.meta.url);

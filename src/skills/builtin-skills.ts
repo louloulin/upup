@@ -7,7 +7,7 @@
  * Reference: Loucode's src/skills/bundled/ pattern
  */
 
-import type { BundledSkillDefinition } from './types.js';
+import type { BundledSkillDefinition } from '@upup/skills';
 
 /**
  * Built-in skill definitions

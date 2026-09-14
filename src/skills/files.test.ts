@@ -12,7 +12,7 @@ import {
   SkillFilesManager,
   defaultSkillFilesManager,
 } from './files.js';
-import type { BundledSkillDefinition } from './types.js';
+import type { BundledSkillDefinition } from '@upup/skills';
 
 // Test directory
 const TEST_DIR = '/tmp/skill-files-test';

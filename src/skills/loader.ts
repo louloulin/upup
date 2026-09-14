@@ -1,6 +1,6 @@
 import { readFileSync } from 'fs';
 import matter from 'gray-matter';
-import type { Skill, SkillSource, SkillMetadata, SkillModel, HooksSettings, EffortValue } from './types.js';
+import type { Skill, SkillSource, SkillMetadata, SkillModel, HooksSettings, EffortValue } from '@upup/skills';
 
 // ============================================================================
 // Helper Functions

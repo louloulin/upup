@@ -13,10 +13,10 @@ import { listAllCommands, findCommand } from '../commands/unified-registry.js';
 import {
   getSkillCommandRegistry,
   resetSkillCommandRegistry,
-} from './slash-command.js';
+} from '@upup/skills';
 import { clearBridge, publishSkill } from './bridge.js';
 import { clearDynamicCommands, getDynamicCommands, SLASH_COMMANDS } from '@upup/commands';
-import type { Skill, SkillCommand } from './types.js';
+import type { Skill, SkillCommand } from '@upup/skills';
 
 function fakeSkill(name: string): Skill {
   return {

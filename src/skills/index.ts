@@ -24,7 +24,7 @@ export type {
   HooksSettings,
   EffortValue,
   ToolUseContext,
-} from './types.js';
+} from '@upup/skills';
 
 export {
   discoverSkills,
@@ -96,7 +96,7 @@ export {
   routeSlashCommand,
   registerSkillsFromDirectory,
   discoverAndRegisterSkills,
-} from './slash-command.js';
+} from '@upup/skills';
 
 export { SkillScheduler, useSkillScheduler } from './scheduler.js';
 
@@ -150,4 +150,4 @@ export {
   getUsageStats,
   clearUsageData,
   type UsageRecord,
-} from './recent-usage.js';
+} from '@upup/skills';

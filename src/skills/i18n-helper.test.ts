@@ -81,7 +81,7 @@ describe('getLocalizedDescription (P1.7 round 2)', () => {
 
   test('handles full SkillMetadata shape with extra fields', () => {
     setLocale('zh-CN');
-    const meta: import('./types.js').SkillMetadata = {
+    const meta: import('@upup/skills').SkillMetadata = {
       name: 'dcf',
       description: 'EN desc',
       descriptionZhCn: '中文描述',

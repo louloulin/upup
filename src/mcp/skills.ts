@@ -5,7 +5,7 @@
  * Currently a placeholder - full implementation requires MCP server integration.
  */
 
-import type { SkillCommand } from '../skills/types.js';
+import type { SkillCommand } from '@upup/skills';
 
 /**
  * Fetch skills from MCP servers.

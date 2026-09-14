@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'bun:test';
 import { resolveDependencies, getDependencyGraph, areDependenciesMet } from './dependency.js';
-import type { SkillMetadata } from './types.js';
+import type { SkillMetadata } from '@upup/skills';
 
 function makeSkill(name: string, dependsOn?: string[]): SkillMetadata {
   return {

@@ -14,7 +14,7 @@ import {
   validatePluginSkills,
 } from './manifest.js';
 import { registerSkill, unregisterSkill } from '../skills/register.js';
-import { getSkillCommandRegistry } from '../skills/slash-command.js';
+import { getSkillCommandRegistry } from '@upup/skills';
 
 const PLUGIN_DIR = resolve(
   import.meta.dir,

@@ -18,7 +18,7 @@
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'fs';
 import { join, dirname, basename } from 'path';
-import type { BundledSkillDefinition } from './types.js';
+import type { BundledSkillDefinition } from '@upup/skills';
 
 /**
  * Skill files configuration

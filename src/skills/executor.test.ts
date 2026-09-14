@@ -11,7 +11,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'bun:test';
-import type { Skill, SkillContext, BundledSkillDefinition } from './types.js';
+import type { Skill, SkillContext, BundledSkillDefinition } from '@upup/skills';
 import {
   executeSkill,
   executeSkillInline,

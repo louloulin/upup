@@ -16,7 +16,7 @@
  * - backtest: 回测引擎增强
  */
 
-import type { BundledSkillDefinition } from '../types.js';
+import type { BundledSkillDefinition } from '@upup/skills';
 import type { EnhancedSkillDefinition } from '../enhanced-types.js';
 
 // Phase 3: Specialized Skills

@@ -16,7 +16,7 @@
 /**
  * Skill command parsed from input
  */
-export interface SkillCommand {
+export interface ParsedSkillCommand {
   /** Skill name (without /) */
   name: string;
   /** Arguments after skill name */
@@ -30,7 +30,7 @@ export interface SkillCommand {
 /**
  * Skill metadata
  */
-export interface SkillMetadata {
+export interface SlashSkillMetadata {
   name: string;
   description?: string;
   path: string;
@@ -51,7 +51,7 @@ export interface SkillCommandRegistration {
   name: string;
   description: string;
   skillPath: string;
-  metadata?: SkillMetadata;
+  metadata?: SlashSkillMetadata;
 }
 
 // ============================================================================
@@ -61,14 +61,14 @@ export interface SkillCommandRegistration {
 /**
  * Parse slash command from user input
  */
-export function parseSlashCommand(input: string): SkillCommand | null {
+export function parseSlashCommand(input: string): ParsedSkillCommand | null {
   // Match /skill-name or /skill-name args
   // Support hyphens and underscores in skill names
   const match = input.match(/^\/([\w-]+)(?:\s+(.*))?$/);
   if (!match) return null;
 
   return {
-    name: match[1].toLowerCase(),
+    name: match[1]?.toLowerCase() ?? '',
     args: match[2]?.trim(),
     raw: input,
   };
@@ -107,7 +107,7 @@ export class SkillCommandRegistry {
   // For autocomplete (includes triggers as aliases)
   private commands: Map<string, SkillCommandRegistration> = new Map();
   // For metadata lookup
-  private skills: Map<string, SkillMetadata> = new Map();
+  private skills: Map<string, SlashSkillMetadata> = new Map();
   // For execution (SkillCommand with getPromptForCommand)
   private skillCommands: Map<string, import('./types.js').SkillCommand> = new Map();
   // P2: Lazy initialization flag for fuzzy search
@@ -133,7 +133,7 @@ export class SkillCommandRegistry {
    * @param metadata - Skill metadata
    * @param command - Optional SkillCommand for registering triggers to execution Map
    */
-  registerSkill(metadata: SkillMetadata, command?: import('./types.js').SkillCommand): void {
+  registerSkill(metadata: SlashSkillMetadata, command?: import('./types.js').SkillCommand): void {
     this.skills.set((metadata.name || "").toLowerCase(), metadata);
 
     // Auto-register if user_invocable
@@ -183,7 +183,7 @@ export class SkillCommandRegistry {
   /**
    * Get skill by name
    */
-  getSkill(name: string): SkillMetadata | undefined {
+  getSkill(name: string): SlashSkillMetadata | undefined {
     return this.skills.get(name.toLowerCase());
   }
 
@@ -204,14 +204,14 @@ export class SkillCommandRegistry {
   /**
    * Get all skills
    */
-  getAllSkills(): SkillMetadata[] {
+  getAllSkills(): SlashSkillMetadata[] {
     return [...this.skills.values()];
   }
 
   /**
    * Get user-invocable skills
    */
-  getUserInvocableSkills(): SkillMetadata[] {
+  getUserInvocableSkills(): SlashSkillMetadata[] {
     return this.getAllSkills().filter(s => s.user_invocable);
   }
 
@@ -367,10 +367,10 @@ export class SkillCommandRegistry {
    * @param limit - Maximum number of matches to return (default 5)
    * @returns Array of SkillMatch with score and skill metadata
    */
-  getSkillsByTrigger(input: string, limit: number = 5): Array<{ score: number; skill: SkillMetadata }> {
+  getSkillsByTrigger(input: string, limit: number = 5): Array<{ score: number; skill: SlashSkillMetadata }> {
     const normalizedInput = input.toLowerCase();
     const userKeywords = this.extractKeywords(normalizedInput);
-    const results: Array<{ score: number; skill: SkillMetadata }> = [];
+    const results: Array<{ score: number; skill: SlashSkillMetadata }> = [];
 
     for (const skill of this.getAllSkills()) {
       let score = 0;
@@ -461,7 +461,7 @@ export async function routeSlashCommand(
 ): Promise<{
   matched: boolean;
   command?: SkillCommandRegistration;
-  skill?: SkillMetadata;
+  skill?: SlashSkillMetadata;
   error?: string;
 }> {
   const parsed = parseSlashCommand(input);
@@ -523,7 +523,7 @@ export function parseSkillFrontmatter(content: string): Record<string, string> {
   if (!match) return {};
 
   const result: Record<string, string> = {};
-  const frontmatterBlock = match[1];
+  const frontmatterBlock = match[1] ?? '';
 
   // Split by lines and handle multi-line values
   const lines = frontmatterBlock.split('\n');
@@ -540,8 +540,8 @@ export function parseSkillFrontmatter(content: string): Record<string, string> {
       }
 
       // Start new key
-      currentKey = keyMatch[1];
-      currentValue = line.substring(keyMatch[0].length).trim();
+      currentKey = keyMatch[1] ?? '';
+      currentValue = line.substring(keyMatch[0]?.length ?? 0).trim();
     } else if (currentKey) {
       // Continuation of previous value (indented line)
       if (line.trim() && (line.startsWith('  ') || line.startsWith('-') || line.startsWith('['))) {
@@ -629,7 +629,7 @@ export async function registerSkillsFromDirectory(
           const frontmatter = parseSkillFrontmatter(content);
           const triggers = extractTriggers(frontmatter);
 
-          const skill: SkillMetadata = {
+          const skill: SlashSkillMetadata = {
             name: frontmatter['name'] || entry.name,
             description: frontmatter['description'],
             path: skillPath,

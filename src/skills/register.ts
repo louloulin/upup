@@ -15,8 +15,8 @@
  * loaders) MUST go through this module.
  */
 
-import type { Skill, SkillSource, SkillCommand } from './types.js';
-import { getSkillCommandRegistry } from './slash-command.js';
+import type { Skill, SkillSource, SkillCommand } from '@upup/skills';
+import { getSkillCommandRegistry } from '@upup/skills';
 import { createSkillCommand } from './executor.js';
 
 /** Explicit skill source tag for traceability. Includes categories that

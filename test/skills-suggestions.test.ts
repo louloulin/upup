@@ -6,7 +6,7 @@
 import { describe, expect, test, beforeAll } from 'bun:test';
 import { clearSkillCache } from '../src/skills/registry.ts';
 import { initializeSkills } from '../src/skills/commands.ts';
-import { getSkillCommandRegistry } from '../src/skills/slash-command.ts';
+import { getSkillCommandRegistry } from '@upup/skills';
 import { suggestSkills, formatSkillSuggestions, shouldSuggestSkills, getCliSkillSuggestion } from '../src/skills/skills-menu.ts';
 
 let initialized = false;

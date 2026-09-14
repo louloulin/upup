@@ -19,8 +19,8 @@ import {
   unregisterDynamicCommand,
   type SlashCommand,
 } from '@upup/commands';
-import type { Skill, SkillCommand } from './types.js';
-import { getSkillCommandRegistry } from './slash-command.js';
+import type { Skill, SkillCommand } from '@upup/skills';
+import { getSkillCommandRegistry } from '@upup/skills';
 import { getLocalizedDescription } from './i18n-helper.js';
 
 // ============================================================================

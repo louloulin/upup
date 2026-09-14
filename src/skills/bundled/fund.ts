@@ -5,7 +5,7 @@
  * No external Python dependencies required.
  */
 
-import type { BundledSkillDefinition } from '../types.js';
+import type { BundledSkillDefinition } from '@upup/skills';
 import { registerBundledSkill } from '../registry.js';
 
 export function createFundSkill(): BundledSkillDefinition {

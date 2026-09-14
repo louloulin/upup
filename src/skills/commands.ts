@@ -16,10 +16,10 @@
  * Reference: Loucode's getSkillDirCommands() pattern
  */
 
-import type { Skill, SkillCommand, SkillMetadata } from './types.js';
+import type { Skill, SkillCommand, SkillMetadata } from '@upup/skills';
 import { discoverSkills, getSkill, getAllBundledSkills } from './registry.js';
 import { createSkillCommand, bundledSkillToSkill } from './executor.js';
-import { SkillCommandRegistry, getSkillCommandRegistry } from './slash-command.js';
+import { SkillCommandRegistry, getSkillCommandRegistry } from '@upup/skills';
 import { registerBuiltinSkills } from './builtin-skills.js';
 import { initInvestmentSkills } from './bundled/index.js';
 import { initializeAgentCommands } from './agent-commands.js';
@@ -331,4 +331,4 @@ export function resetCommandUsageStats(): void {
 // Re-export types
 // ============================================================================
 
-export type { SkillCommand } from './types.js';
+export type { SkillCommand } from '@upup/skills';

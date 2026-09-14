@@ -18,7 +18,7 @@ import {
   initializeSkills,
   resetInitialization,
 } from './commands.js';
-import { getSkillCommandRegistry, resetSkillCommandRegistry } from './slash-command.js';
+import { getSkillCommandRegistry, resetSkillCommandRegistry } from '@upup/skills';
 import { clearBridge, getBridgeCount } from './bridge.js';
 import { clearDynamicCommands } from '@upup/commands';
 

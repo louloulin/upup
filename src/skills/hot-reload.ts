@@ -36,8 +36,8 @@ import { readFileSync } from 'fs';
 import matter from 'gray-matter';
 import { info, warn } from '../utils/logging/logger.js';
 import { reRegisterSkill, unregisterSkill } from './register.js';
-import { getSkillCommandRegistry } from './slash-command.js';
-import type { SkillSource, SkillMetadata as LoaderSkillMetadata } from './types.js';
+import { getSkillCommandRegistry } from '@upup/skills';
+import type { SkillSource, SkillMetadata as LoaderSkillMetadata } from '@upup/skills';
 import { getAllBundledSkills } from './registry.js';
 
 // ============================================================================

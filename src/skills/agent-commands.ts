@@ -7,11 +7,11 @@
 import { existsSync, readdirSync, readFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
-import { getSkillCommandRegistry } from './slash-command.js';
+import { getSkillCommandRegistry } from '@upup/skills';
 import { clearSkillCache } from './registry.js';
 import { getSkillEventEmitter } from './registry.js';
-import type { SkillCommand, ToolUseContext } from './types.js';
-import type { SkillMetadata } from './slash-command.js';
+import type { SkillCommand, ToolUseContext } from '@upup/skills';
+import type { SkillMetadata } from '@upup/skills';
 
 // ============================================================================
 // Frontmatter Parser
@@ -125,23 +125,33 @@ export function registerAgentSkillsFromDirectory(dir: string): number {
         const content = readFileSync(skillPath, 'utf-8');
         const frontmatter = parseFrontmatter(content);
 
-        const metadata: SkillMetadata = {
+        const metadata = {
           name: frontmatter['name'] || entry.name,
           description: frontmatter['description'] || '',
           path: skillPath,
-          source: 'agent',
-          triggers: [],  // Required by slash-command.ts SkillMetadata
+          source: 'agent' as const,
+          triggers: [] as string[],
           user_invocable: frontmatter['user-invocable'] !== 'false',
           userInvocable: frontmatter['user-invocable'] !== 'false',
           argumentHint: frontmatter['argument-hint'],
-          model: frontmatter['model'] as any,
-        };
+          model: frontmatter['model'],
+        } as unknown as SkillMetadata;
 
         const command = createAgentSkillCommand(metadata, skillPath);
 
         // 注册到 registry
         registry.registerSkillCommand(metadata.name, command);
-        registry.registerSkill(metadata, command);
+        registry.registerSkill({
+          name: metadata.name,
+          description: metadata.description,
+          path: metadata.path,
+          source: metadata.source,
+          triggers: metadata.triggers ?? [],
+          user_invocable: metadata.userInvocable ?? true,
+          userInvocable: metadata.userInvocable ?? true,
+          argumentHint: metadata.argumentHint,
+          model: metadata.model,
+        });
 
         count++;
       } catch (err) {

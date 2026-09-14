@@ -7,7 +7,7 @@
  * Reference: Claude Code's skill dependency graph (conceptual)
  */
 
-import type { SkillMetadata } from './types.js';
+import type { SkillMetadata } from '@upup/skills';
 
 export interface DependencyError {
   type: 'circular' | 'missing';

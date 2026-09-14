@@ -9,7 +9,7 @@
  * Falls back to EN when the zh-CN variant is missing.
  */
 
-import type { SkillMetadata } from './types.js';
+import type { SkillMetadata } from '@upup/skills';
 import { getLocale, type Locale } from '../runtime/pi/locale.js';
 import { DEFAULT_LOCALE } from '../i18n/strings.js';
 

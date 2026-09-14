@@ -110,7 +110,7 @@ export async function executeSkillCommand(
 ): Promise<ExecutionResult> {
   try {
     // Import skill registry
-    const { getSkillCommandRegistry } = await import('../skills/slash-command.js');
+    const { getSkillCommandRegistry } = await import('@upup/skills');
 
     const registry = getSkillCommandRegistry();
     const skillCommand = registry.getSkillCommand(skillName);

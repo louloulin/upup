@@ -8,7 +8,7 @@
  */
 
 import { MCPClientManager, type MCPServerConnection } from '../mcp/client.js';
-import type { Skill } from './types.js';
+import type { Skill } from '@upup/skills';
 
 // ============================================================================
 // Types

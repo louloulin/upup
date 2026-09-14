@@ -9,7 +9,7 @@
 
 import { describe, expect, test, beforeAll, beforeEach, afterEach } from 'bun:test';
 import { listInstalledSkills, getInstalledSkillsData } from './skills-menu.js';
-import { clearUsageData } from './recent-usage.js';
+import { clearUsageData } from '@upup/skills';
 import { initializeSkills } from './commands.js';
 import { clearBridge, publishAll } from './bridge.js';
 

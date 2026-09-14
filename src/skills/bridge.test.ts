@@ -20,8 +20,8 @@ import {
 import {
   resetSkillCommandRegistry,
   getSkillCommandRegistry,
-} from './slash-command.js';
-import type { Skill, SkillCommand } from './types.js';
+} from '@upup/skills';
+import type { Skill, SkillCommand } from '@upup/skills';
 
 function fakeSkill(name: string, opts: Partial<Skill> = {}): Skill {
   return {

@@ -10,7 +10,7 @@
  * Reference: Claude Code's src/components/skills/SkillsMenu.tsx
  */
 
-import { SkillCommandRegistry, getSkillCommandRegistry, type SkillMetadata } from './slash-command.js';
+import { SkillCommandRegistry, getSkillCommandRegistry, type SkillMetadata } from '@upup/skills';
 import { t } from '../i18n/strings.js';
 import { getLocale, getLocalizedDescription } from './i18n-helper.js';
 import { getAllSkillCommands } from './commands.js';
@@ -568,7 +568,7 @@ export async function listInstalledSkills(opts: { limit?: number } = {}): Promis
   const limit = opts.limit ?? 50;
 
   // Lazy import to avoid a circular dep with ./commands.js
-  const { getAllRecentScores, getAllRecentCounts } = await import('./recent-usage.js');
+  const { getAllRecentScores, getAllRecentCounts } = await import('@upup/skills');
 
   // 1. Get the skill rows from the registry
   const menu = getSkillsMenu();
@@ -651,7 +651,7 @@ export async function listInstalledSkills(opts: { limit?: number } = {}): Promis
  * Test-friendly variant: returns the raw rows without rendering.
  */
 export async function getInstalledSkillsData(): Promise<InstalledSkillRow[]> {
-  const { getAllRecentScores, getAllRecentCounts } = await import('./recent-usage.js');
+  const { getAllRecentScores, getAllRecentCounts } = await import('@upup/skills');
   const menu = getSkillsMenu();
   const items = menu.getItems();
   const [scoreMap, countMap] = await Promise.all([

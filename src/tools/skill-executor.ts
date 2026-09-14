@@ -7,10 +7,10 @@
  * 3. 上下文传递不正确
  */
 
-import { parseSlashCommand, getSkillCommandRegistry } from '../skills/slash-command.js';
-import { getSkillCommand, initializeSkills } from '../skills/commands.js';
-import { recordUsage } from '../skills/recent-usage.js';
-import type { SkillCommand } from '../skills/types.js';
+import { parseSlashCommand, getSkillCommandRegistry } from '@upup/skills';
+import { recordUsage } from '@upup/skills';
+import type { SkillCommand } from '@upup/skills';
+import { initializeSkills, getSkillCommand } from '../skills/commands.js';
 import { getSessionId } from '../skills/executor.js';
 
 // ============================================================================

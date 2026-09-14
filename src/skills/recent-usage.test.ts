@@ -12,7 +12,7 @@ import {
   getAllRecentScores,
   recordUsage,
   type UsageRecord,
-} from './recent-usage.js';
+} from '@upup/skills';
 
 describe('recent-usage (P1.7 round 3)', () => {
   beforeEach(async () => {

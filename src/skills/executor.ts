@@ -19,7 +19,7 @@ import type {
   ToolUseContext,
   SkillSource,
   HooksSettings,
-} from './types.js';
+} from '@upup/skills';
 import { runPiPrompt } from '../runtime/pi/runner.js';
 import type { UpUpAgentSpec } from '../runtime/pi/types.js';
 import { executeShellCommandsInPrompt, containsShellCommands } from './promptShellExecution.js';
@@ -983,8 +983,8 @@ export async function executeSkillCommand(
   try {
     // Import and initialize skills
     const { initializeSkills } = await import('./commands.js');
-    const { getSkillCommandRegistry } = await import('./slash-command.js');
-    const { recordUsage } = await import('./recent-usage.js');
+    const { getSkillCommandRegistry } = await import('@upup/skills');
+    const { recordUsage } = await import('@upup/skills');
     await initializeSkills();
 
     // Get SkillCommand directly from registry (P0 fix: use getSkillCommand, not getCommand)
@@ -1179,7 +1179,7 @@ export async function getMatchingSkillCommands(
   try {
     // Initialize skills if not already done
     const { initializeSkills } = await import('./commands.js');
-    const { getSkillCommandRegistry } = await import('./slash-command.js');
+    const { getSkillCommandRegistry } = await import('@upup/skills');
     await initializeSkills();
 
     const registry = getSkillCommandRegistry();
