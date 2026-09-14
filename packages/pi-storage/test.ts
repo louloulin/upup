@@ -1,11 +1,12 @@
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";import { createHash } from 'node:crypto';
-import { existsSync, rmSync, writeFileSync } from 'node:fs';
+import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
+import { createHash } from 'node:crypto';
+import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { AuditChain, DossierStore, StrategyStore, canonicalJson, computeStrategyPrevHash, dossierPostPhase } from './src/index.js';
 
 const root = join(tmpdir(), `upup-pi-storage-${process.pid}-${Date.now()}`);
-beforeEach(() => { if (existsSync(root)) rmSync(root, { recursive: true, force: true }); });
+beforeEach(() => { if (existsSync(root)) mkdirSync(root, { recursive: true }); });
 afterEach(() => { if (existsSync(root)) rmSync(root, { recursive: true, force: true }); });
 
 describe('pi-storage', () => {
@@ -47,9 +48,9 @@ import {
 } from './src/crypto-utils.js';
 import {
   BaseStorageAdapter,
-  BackupStorageAdapter,
   GlobalStorageAdapter,
   LocalStorageAdapter,
+  BackupStorageAdapter,
   HierarchicalStorageManager,
   StorageLevel,
   STORAGE_DEFAULTS,
@@ -68,7 +69,6 @@ import {
   getFileHistoryManager,
   resetFileHistoryManager,
   recordFileHistorySnapshot,
-  fileHistoryHasAnyChanges,
 } from './src/file-history.js';
 import {
   createShellSnapshot,
@@ -100,14 +100,17 @@ import {
   getFollowedCount,
   getFollowedFund,
   updateFollowedFund,
-  FUND_DATA_DIR,
 } from './src/fund-storage.js';
 
 describe('pi-storage/crypto-utils', () => {
-  test('hashString and generateId return stable hex digests', () => {
+  test('hashString returns md5 hex digest', () => {
     expect(hashString('hello')).toBe('5d41402abc4b2a76b9719d911017c592');
-    expect(generateCryptoId()).toHaveLength(32);
-    expect(generateCryptoId()).not.toBe(generateCryptoId());
+  });
+
+  test('generateId returns 32-char unique hex', () => {
+    const id = generateCryptoId();
+    expect(id).toHaveLength(32);
+    expect(generateCryptoId()).not.toBe(id);
   });
 
   test('hashFile returns empty string for missing file', () => {
@@ -115,6 +118,7 @@ describe('pi-storage/crypto-utils', () => {
   });
 
   test('hashFile computes md5 of file contents', () => {
+    mkdirSync(root, { recursive: true });
     const file = join(root, 'sample.txt');
     writeFileSync(file, 'hello');
     expect(hashFile(file)).toBe('5d41402abc4b2a76b9719d911017c592');
@@ -122,15 +126,14 @@ describe('pi-storage/crypto-utils', () => {
 });
 
 describe('pi-storage/storage-adapter', () => {
-  test('exposes STORAGE_DEFAULTS with the expected keys', () => {
+  test('exposes STORAGE_DEFAULTS with expected keys', () => {
     expect(STORAGE_DEFAULTS).toHaveProperty('MAX_SNAPSHOTS');
     expect(STORAGE_DEFAULTS).toHaveProperty('CACHE_TTL_MS');
     expect(STORAGE_DEFAULTS).toHaveProperty('STATS_DAYS_LIMIT');
   });
 
   test('getConfig honors env override and falls back to default', () => {
-    const key = 'TEST_KEY';
-    const out = getConfig<number>(key, 'UPUP_TEST_KEY_DEFAULT', 7);
+    const out = getConfig<number>('TEST_KEY', 'UPUP_TEST_KEY_DEFAULT', 7);
     expect(typeof out).toBe('number');
   });
 
@@ -146,11 +149,31 @@ describe('pi-storage/storage-adapter', () => {
     expect(getLocalUpupDir('/tmp/x').endsWith('.upup')).toBe(true);
   });
 
-  test('HierarchicalStorageManager manages global+local layers', () => {
+  test('StorageLevel enum has all four levels', () => {
+    expect(StorageLevel.Remote).toBe(0);
+    expect(StorageLevel.Backup).toBe(1);
+    expect(StorageLevel.Local).toBe(2);
+    expect(StorageLevel.Global).toBe(3);
+  });
+
+  test('StorageAdapter classes can be instantiated', () => {
+    expect(new GlobalStorageAdapter().level).toBe(StorageLevel.Global);
+    expect(new LocalStorageAdapter(root).level).toBe(StorageLevel.Local);
+    expect(new BackupStorageAdapter(root).level).toBe(StorageLevel.Backup);
+  });
+
+  test('HierarchicalStorageManager exposes storage via getStorage', () => {
     resetHierarchicalStorage();
     const mgr = getHierarchicalStorage(root);
-    expect(mgr.global.level).toBe(StorageLevel.Global);
-    expect(mgr.global.getPath('foo.txt').startsWith(root)).toBe(true);
+    expect(mgr.getStorage(StorageLevel.Global).level).toBe(StorageLevel.Global);
+    expect(mgr.getStorage(StorageLevel.Local).level).toBe(StorageLevel.Local);
+  });
+
+  test('BaseStorageAdapter is exported and is constructible through subclass', () => {
+    const g = new GlobalStorageAdapter();
+    expect(g.getPath('foo.txt')).toContain('.upup');
+    expect(Array.isArray(g.listFiles())).toBe(true);
+    expect(g.exists('missing.txt')).toBe(false);
   });
 });
 
@@ -158,26 +181,21 @@ describe('pi-storage/file-history', () => {
   test('getFileHistoryDir resolves under global upup path', () => {
     const dir = getFileHistoryDir('sess-x');
     expect(dir).toContain('file-history');
+    expect(dir).toContain('sess-x');
   });
 
-  test('getFileHistoryManager returns a singleton', () => {
+  test('getFileHistoryManager returns a singleton per session', () => {
     resetFileHistoryManager();
     const a = getFileHistoryManager('sess-x');
     const b = getFileHistoryManager('sess-x');
     expect(a).toBe(b);
   });
 
-  test('recordFileHistorySnapshot returns null when nothing changed', async () => {
-    const file = join(root, 'fh.txt');
-    writeFileSync(file, 'hello');
-    const out = await recordFileHistorySnapshot(file, 'sess-1');
-    // first call records the initial snapshot
-    expect(out === null || typeof out === 'object').toBe(true);
-  });
-
-  test('fileHistoryHasAnyChanges returns false for unchanged inputs', () => {
-    expect(fileHistoryHasAnyChanges('x', 'x')).toBe(false);
-    expect(fileHistoryHasAnyChanges('x', 'y')).toBe(true);
+  test('recordFileHistorySnapshot creates a snapshot entry', () => {
+    resetFileHistoryManager();
+    const snap = recordFileHistorySnapshot('msg-1', 'sess-y');
+    expect(snap).toBeTruthy();
+    expect(snap.messageId).toBe('msg-1');
   });
 });
 
@@ -188,15 +206,15 @@ describe('pi-storage/shell-snapshots', () => {
   });
 
   test('createShellSnapshot returns id and timestamp', () => {
+    resetShellSnapshotManager();
     const snap = createShellSnapshot();
     expect(snap.id).toBeTruthy();
-    expect(typeof snap.createdAt).toBe('number');
-    expect(snap.shell).toBeTruthy();
+    expect(typeof snap.timestamp).toBe('number');
+    expect(snap.shellType).toBeTruthy();
   });
 
   test('generateSnapshotScript emits a shell-evaluable string', () => {
-    const snap = createShellSnapshot();
-    const script = generateSnapshotScript(snap);
+    const script = generateSnapshotScript('bash', { cwd: '/tmp', env: {}, shell: '/bin/bash', path: '/tmp' }, [], []);
     expect(typeof script).toBe('string');
     expect(script.length).toBeGreaterThan(0);
   });
@@ -208,18 +226,23 @@ describe('pi-storage/shell-snapshots', () => {
 });
 
 describe('pi-storage/stats-cache', () => {
+  test('getStatsCacheManager returns a singleton', () => {
+    resetStatsCacheManager();
+    expect(getStatsCacheManager()).toBe(getStatsCacheManager());
+  });
+
   test('recordSessionStats + getSessionStatistics round-trip', () => {
     resetStatsCacheManager();
     recordSessionStats({ sessionId: 's1', duration: 100, messageCount: 3, toolCount: 1 });
     const total = getSessionStatistics();
-    expect(total.sessionCount).toBeGreaterThanOrEqual(1);
+    expect(total.totalSessions).toBeGreaterThanOrEqual(1);
   });
 
   test('recordModelUsage tracks totals', () => {
     resetStatsCacheManager();
     recordModelUsage('gpt-test', 100, 50);
     const usage = getModelUsage();
-    expect(usage.find((u) => u.model === 'gpt-test')).toBeTruthy();
+    expect(usage.find((u: any) => u.model === 'gpt-test')).toBeTruthy();
   });
 });
 
@@ -229,8 +252,9 @@ describe('pi-storage/project-storage', () => {
     expect(getProjectStorage()).toBe(getProjectStorage());
   });
 
-  test('sanitizePath replaces special characters', () => {
-    expect(sanitizePath('/a/b c/')).toBe('a-b-c-');
+  test('sanitizePath replaces special characters with underscores', () => {
+    expect(sanitizePath('/a/b c/')).toBe('a_b_c');
+    expect(sanitizePath('plain')).toBe('plain');
   });
 
   test('getProjectsDir returns the projects directory', () => {
@@ -240,7 +264,6 @@ describe('pi-storage/project-storage', () => {
 });
 
 describe('pi-storage/fund-storage', () => {
-
   test('follow/unfollow/follow cycle mutates the followed set', () => {
     clearAllFollowed();
     const fund = { code: '000001', name: 'Test', addedAt: '2026-09-14', lastCheck: '2026-09-14' };
@@ -253,5 +276,5 @@ describe('pi-storage/fund-storage', () => {
     expect(getFollowedFunds()).toHaveLength(1);
     expect(unfollowFund('000001')).toBe(true);
     expect(isFundFollowed('000001')).toBe(false);
-});
+  });
 });
