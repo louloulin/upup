@@ -11,8 +11,8 @@ import {
   TelemetrySink,
   hashTelemetryInput,
   buildErrorPayload,
-} from './index.js';
-import { isTelemetryEventKind, type TelemetryEvent } from './types.js';
+} from './src/index.ts';
+import { isTelemetryEventKind, type TelemetryEvent } from './src/types.ts';
 
 let tmpDir: string;
 

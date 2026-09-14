@@ -8,10 +8,10 @@ import {
   recordToolCallErr,
   recordFeatureGate,
   recordLatency,
-} from './integration.js';
-import { TelemetryRecorder } from './recorder.js';
-import { telemetry } from './index.js';
-import type { ToolEndEvent, ToolErrorEvent } from '../runtime/pi/legacy-events.js';
+} from './src/integration.ts';
+import { TelemetryRecorder } from './src/recorder.ts';
+import { telemetry } from './src/index.ts';
+import type { ToolEndEvent, ToolErrorEvent } from '@upup/pi-event-adapter';
 
 let tmpDir: string;
 
@@ -40,7 +40,7 @@ describe('recordToolCallOk', () => {
     };
     rec.recordToolCall({
       tool: event.tool,
-      inputHash: await import('./index.js').then((m) => m.hashTelemetryInput(event.args)),
+      inputHash: await import('./src/index.ts').then((m) => m.hashTelemetryInput(event.args)),
       outputBytes: event.result.length,
       durationMs: event.duration,
       ok: true,
@@ -70,14 +70,14 @@ describe('recordToolCallOk', () => {
     };
     rec.recordToolCall({
       tool: event.tool,
-      inputHash: await import('./index.js').then((m) => m.hashTelemetryInput(event.args)),
+      inputHash: await import('./src/index.ts').then((m) => m.hashTelemetryInput(event.args)),
       outputBytes: 1,
       durationMs: 1,
       ok: true,
     });
     rec.recordToolCall({
       tool: event.tool,
-      inputHash: await import('./index.js').then((m) => m.hashTelemetryInput({ email: 'secret@example.com' })),
+      inputHash: await import('./src/index.ts').then((m) => m.hashTelemetryInput({ email: 'secret@example.com' })),
       outputBytes: 1,
       durationMs: 1,
       ok: true,

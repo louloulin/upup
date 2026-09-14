@@ -1,0 +1,54 @@
+{
+  "name": "@upup/pi-observability",
+  "version": "0.1.0",
+  "description": "UpUp Pi observability - telemetry, anonymization, recorder, sinks",
+  "type": "module",
+  "keywords": [
+    "pi-package",
+    "observability",
+    "telemetry",
+    "audit"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./integration": {
+      "types": "./dist/integration.d.ts",
+      "default": "./dist/integration.js"
+    }
+  },
+  "scripts": {
+    "build": "bun build src/index.ts --outdir=dist --target=node && bun build src/integration.ts --outdir=dist --target=node && tsc --emitDeclarationOnly --project tsconfig.json",
+    "test": "bun test ./test.ts"
+  },
+  "dependencies": {
+    "@upup/pi-event-adapter": "workspace:*"
+  },
+  "files": [
+    "dist",
+    "package.json"
+  ],
+  "private": false,
+  "pi": {
+    "contract": "upup.pi.runtime.v1",
+    "source": "builtin:upup",
+    "trust": {
+      "mode": "builtin",
+      "filesystem": true,
+      "network": false
+    },
+    "lifecycle": {
+      "scope": "session"
+    },
+    "extensions": [],
+    "skills": [],
+    "prompts": [],
+    "workflows": [],
+    "policies": [],
+    "evals": []
+  }
+}

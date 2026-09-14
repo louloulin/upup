@@ -22,7 +22,7 @@
  *     本文件不重复事实,只生成 1 句总括 prompt 片段。
  */
 import { isFeatureCompiledIn } from './feature-gates.js';
-import { recordFeatureGate } from '../../telemetry/integration.js';
+import { recordFeatureGate } from '@upup/pi-observability/integration';
 
 // ---------------------------------------------------------------------------
 // Types

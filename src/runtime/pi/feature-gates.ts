@@ -63,7 +63,7 @@ function readStartup(name: string): boolean | null {
 }
 
 /** Deterministic 32-bit FNV-1a hash. Same input always lands in the same bucket. */
-import { recordFeatureGate } from '../../telemetry/integration.js';
+import { recordFeatureGate } from '@upup/pi-observability/integration';
 
 export function fnv1a(s: string): number {
   let h = 0x811c9dc5;

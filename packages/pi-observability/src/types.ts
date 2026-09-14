@@ -14,7 +14,7 @@
  *   - sessionId 用 hash,不存 raw session
  *   - 全部 unix-ms timestamp,不要 ISO string (省 parse)
  */
-import type { TaskKind } from '../tasks/types.js';
+export type TaskKindFallback = string;
 
 export const TELEMETRY_EVENT_KINDS = [
   'tool_call',
@@ -59,7 +59,7 @@ export interface DecisionEvent extends EventBase {
   /** sha256 hex of the LLM rationale. */
   rationaleHash: string;
   /** Optional: which task/runtime kind produced the decision. */
-  source?: TaskKind | string;
+  source?: TaskKindFallback;
 }
 
 export interface FeatureGateEvent extends EventBase {
