@@ -77,3 +77,19 @@ export function ensureDir(dirPath: string): void {
     mkdirSync(dirPath, { recursive: true });
   }
 }
+
+/**
+ * Standard UpUp storage directories (also re-exported from src/utils/storage-paths.ts).
+ */
+export const PLANS_DIR = globalUpupPath('plans');
+export const PORTFOLIOS_DIR = globalUpupPath('portfolios');
+export const WATCHLIST_FILE = globalUpupPath('watchlist.json');
+export const SKILLS_DIR = globalUpupPath('skills');
+export const PLUGINS_DIR = globalUpupPath('plugins');
+export const HOOKS_DIR = globalUpupPath('hooks');
+export const MEMORY_DIR = globalUpupPath('memory');
+export const CACHE_DIR = globalUpupPath('cache');
+export const LOGS_DIR = globalUpupPath('logs');
+export const TOOL_RESULTS_DIR = globalUpupPath('tool-results');
+export const SCRATCHPAD_DIR = globalUpupPath('scratchpad');
+export const EXPORTS_DIR = globalUpupPath('exports');

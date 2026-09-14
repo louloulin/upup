@@ -8,7 +8,7 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
 import { existsSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { buildResearchPlan } from './plan-builder.js';
+import { buildResearchPlan } from './src/plan-builder.ts';
 import {
   auditLog,
   cancelPlan,
@@ -19,8 +19,8 @@ import {
   persistPlan,
   planFilePath,
   readAuditLog,
-} from './plan-executor.js';
-import { PLANS_DIR } from '../utils/storage-paths.js';
+} from './src/plan-executor.ts';
+import { PLANS_DIR } from '@upup/utils';
 
 let testPlanId = '';
 

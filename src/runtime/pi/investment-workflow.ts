@@ -6,10 +6,10 @@
  * this module deliberately has no dependency on finance tools.
  */
 
-import { buildResearchPlan, detectPhases, extractTicker } from '../../plan/plan-builder.js';
-import { advancePhase, auditLog, listPlans, loadPlan, persistPlan, planFilePath } from '../../plan/plan-executor.js';
-import type { ResearchPhase, ResearchPlan, ResearchPlanState } from '../../plan/research-plan.js';
-import { calculateProgress, updateStepStatus } from '../../plan/plan-context.js';
+import { buildResearchPlan, detectPhases, extractTicker } from '@upup/pi-planning';
+import { advancePhase, auditLog, listPlans, loadPlan, persistPlan, planFilePath } from '@upup/pi-planning';
+import type { ResearchPhase, ResearchPlan, ResearchPlanState } from '@upup/pi-planning';
+import { calculateProgress, updateStepStatus } from '@upup/pi-planning';
 import { createPiAgentRuntime } from './agent-session-factory.js';
 import { getInvestmentAgentSpec } from './agent-spec.js';
 import type { UpUpAgentSession } from '@upup/pi-runtime';

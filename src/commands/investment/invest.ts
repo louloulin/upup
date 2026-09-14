@@ -23,8 +23,8 @@ import {
   WORKFLOW_PHASES,
   type WorkflowResult,
 } from '../../runtime/pi/investment-workflow.js';
-import { loadPlan } from '../../plan/plan-executor.js';
-import { extractTicker } from '../../plan/plan-builder.js';
+import { loadPlan } from '@upup/pi-planning';
+import { extractTicker } from '@upup/pi-planning';
 import { getDefaultAuditChain, type AuditAction } from '@upup/pi-storage';
 import { globalUpupPath } from '../../utils/storage-paths.js';
 import { randomUUID } from 'node:crypto';

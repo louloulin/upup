@@ -299,6 +299,14 @@
         "@upup/utils": "workspace:*",
       },
     },
+    "packages/pi-planning": {
+      "name": "@upup/pi-planning",
+      "version": "0.1.0",
+      "dependencies": {
+        "@upup/utils": "workspace:*",
+        "zod": "^3.0.0",
+      },
+    },
     "packages/pi-platform": {
       "name": "@upup/pi-platform",
       "version": "0.1.0",
@@ -1097,6 +1105,8 @@
     "@upup/pi-observability": ["@upup/pi-observability@workspace:packages/pi-observability"],
 
     "@upup/pi-permissions": ["@upup/pi-permissions@workspace:packages/pi-permissions"],
+
+    "@upup/pi-planning": ["@upup/pi-planning@workspace:packages/pi-planning"],
 
     "@upup/pi-platform": ["@upup/pi-platform@workspace:packages/pi-platform"],
 

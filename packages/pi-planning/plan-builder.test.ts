@@ -10,7 +10,7 @@ import {
   detectPhases,
   extractTicker,
   modifyPlan,
-} from './plan-builder.js';
+} from './src/plan-builder.ts';
 
 describe('plan-builder: extractTicker', () => {
   test('extracts US ticker', () => {

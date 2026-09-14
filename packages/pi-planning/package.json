@@ -1,0 +1,43 @@
+{
+  "name": "@upup/pi-planning",
+  "version": "0.1.0",
+  "description": "UpUp Pi planning - research plan builder, executor, context, filter spec",
+  "type": "module",
+  "keywords": ["pi-package", "planning", "workflow", "execution"],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "bun build src/index.ts --outdir=dist --target=node && tsc --emitDeclarationOnly --project tsconfig.json",
+    "test": "bun test ./test.ts"
+  },
+  "dependencies": {
+    "@upup/utils": "workspace:*",
+    "zod": "^3.0.0"
+  },
+  "files": ["dist", "package.json"],
+  "private": false,
+  "pi": {
+    "contract": "upup.pi.runtime.v1",
+    "source": "builtin:upup",
+    "trust": {
+      "mode": "builtin",
+      "filesystem": true,
+      "network": false
+    },
+    "lifecycle": {
+      "scope": "session"
+    },
+    "extensions": [],
+    "skills": [],
+    "prompts": [],
+    "workflows": [],
+    "policies": [],
+    "evals": []
+  }
+}

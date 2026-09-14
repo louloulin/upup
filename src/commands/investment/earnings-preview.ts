@@ -16,9 +16,9 @@
 
 import { existsSync, readdirSync } from 'node:fs';
 import { PLANS_DIR } from '../../utils/storage-paths.js';
-import { buildResearchPlan, extractTicker } from '../../plan/plan-builder.js';
-import { loadPlan } from '../../plan/plan-executor.js';
-import type { ResearchPlan } from '../../plan/research-plan.js';
+import { buildResearchPlan, extractTicker } from '@upup/pi-planning';
+import { loadPlan } from '@upup/pi-planning';
+import type { ResearchPlan } from '@upup/pi-planning';
 import { buildEarningsPreview as buildPiEarningsPreview } from '@upup/pi-research';
 import type { DossierStore, EarningsCallNote } from '@upup/pi-storage';
 

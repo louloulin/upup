@@ -12,8 +12,8 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { PLANS_DIR, WATCHLIST_FILE } from '../../utils/storage-paths.js';
-import { loadPlan } from '../../plan/plan-executor.js';
-import type { ResearchPlan } from '../../plan/research-plan.js';
+import { loadPlan } from '@upup/pi-planning';
+import type { ResearchPlan } from '@upup/pi-planning';
 import { readWatchlist } from './watchlist-edit.js';
 
 interface BriefSection {
