@@ -31,7 +31,9 @@
         "@upup/pi-portfolio": "workspace:*",
         "@upup/pi-quant": "workspace:*",
         "@upup/pi-research": "workspace:*",
+        "@upup/pi-resource-composition": "workspace:*",
         "@upup/pi-runtime": "workspace:*",
+        "@upup/pi-session": "workspace:*",
         "@upup/pi-storage": "workspace:*",
         "@upup/pi-technical": "workspace:*",
         "@whiskeysockets/baileys": "7.0.0-rc.9",
@@ -75,6 +77,9 @@
     "packages/commands": {
       "name": "@upup/commands",
       "version": "0.2.0",
+      "peerDependencies": {
+        "@upup/pi-runtime": "0.1.0",
+      },
     },
     "packages/cron": {
       "name": "@upup/cron",
@@ -279,6 +284,21 @@
         "typebox": "1.3.7",
       },
     },
+    "packages/pi-observability": {
+      "name": "@upup/pi-observability",
+      "version": "0.1.0",
+      "dependencies": {
+        "@upup/pi-event-adapter": "workspace:*",
+      },
+    },
+    "packages/pi-permissions": {
+      "name": "@upup/pi-permissions",
+      "version": "0.1.0",
+      "dependencies": {
+        "@upup/pi-event-adapter": "workspace:*",
+        "@upup/utils": "workspace:*",
+      },
+    },
     "packages/pi-platform": {
       "name": "@upup/pi-platform",
       "version": "0.1.0",
@@ -334,6 +354,9 @@
     "packages/pi-resource-composition": {
       "name": "@upup/pi-resource-composition",
       "version": "0.1.0",
+      "dependencies": {
+        "@upup/pi-runtime": "0.1.0",
+      },
     },
     "packages/pi-risk": {
       "name": "@upup/pi-risk",
@@ -362,6 +385,8 @@
       "dependencies": {
         "@earendil-works/pi-coding-agent": "0.84.3",
         "@upup/pi-event-adapter": "0.1.0",
+        "@upup/pi-investment-workflow": "0.1.0",
+        "@upup/pi-market-data": "0.1.0",
         "@upup/pi-runtime": "0.1.0",
       },
     },
@@ -1068,6 +1093,10 @@
     "@upup/pi-market-data": ["@upup/pi-market-data@workspace:packages/pi-market-data"],
 
     "@upup/pi-notify": ["@upup/pi-notify@workspace:packages/pi-notify"],
+
+    "@upup/pi-observability": ["@upup/pi-observability@workspace:packages/pi-observability"],
+
+    "@upup/pi-permissions": ["@upup/pi-permissions@workspace:packages/pi-permissions"],
 
     "@upup/pi-platform": ["@upup/pi-platform@workspace:packages/pi-platform"],
 

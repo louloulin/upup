@@ -1,0 +1,43 @@
+{
+  "name": "@upup/pi-permissions",
+  "version": "0.1.0",
+  "description": "UpUp Pi permissions - tool approval, auto-approval rules, bash classification, path protection",
+  "type": "module",
+  "keywords": ["pi-package", "permissions", "approval", "audit"],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "bun build src/index.ts --outdir=dist --target=node && tsc --emitDeclarationOnly --project tsconfig.json",
+    "test": "bun test ./test.ts"
+  },
+  "dependencies": {
+    "@upup/pi-event-adapter": "workspace:*",
+    "@upup/utils": "workspace:*"
+  },
+  "files": ["dist", "package.json"],
+  "private": false,
+  "pi": {
+    "contract": "upup.pi.runtime.v1",
+    "source": "builtin:upup",
+    "trust": {
+      "mode": "builtin",
+      "filesystem": true,
+      "network": false
+    },
+    "lifecycle": {
+      "scope": "session"
+    },
+    "extensions": [],
+    "skills": [],
+    "prompts": [],
+    "workflows": [],
+    "policies": [],
+    "evals": []
+  }
+}
