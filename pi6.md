@@ -1408,3 +1408,51 @@ Factory 拆分、`src/tools`、`src/skills`、`src/commands/investment`、Sessio
 
 - `src/memory` 47 个源文件（~11k 行）、`src/session` 22 个文件（~5.9k 行）、`src/storage` 7 个文件（~4.4k 行）、`src/plan` 7 个文件（~1.2k 行）、`src/permissions` 1 个文件（852 行）仍待 Round 6 后半段迁移。
 - 这些模块普遍依赖 `src/utils/paths.ts`、`@upup/types`、`@upup/utils` 等根级路径，必须先把它们的依赖理清或继续平移到目标包内。
+
+## 37. Pi7 第六轮第二段实施结果（2026-09-14）
+
+本轮第二段聚焦 root 持久层与权限模块的 Pi Package 拆分。
+
+### 37.1 `@upup/pi-permissions` 物理下沉
+
+- 新增 workspace package `@upup/pi-permissions` v0.1.0：
+  - `src/index.ts`（852 行，包含 `PermissionEvaluator` / `SessionPermissionManager` / `BashClassification` / `PathProtectionConfig` / `MCPPermissionConfig` / `PermissionRulesExport`）
+  - 9 个独立单元测试覆盖 patterns、evaluateMCPTool、isPathProtected、classifyBashCommand、exportPermissionRules、singleton 行为。
+  - 依赖 `@upup/pi-event-adapter`（ApprovalDecision）+ `@upup/utils`（upupPath）。
+- root `src/permissions/index.ts` 退化为 `@deprecated` facade（2 行 re-export）。
+
+### 37.2 `@upup/pi-planning` 物理下沉
+
+- 新增 workspace package `@upup/pi-planning` v0.1.0：
+  - 包含 `plan-context.ts` / `plan-builder.ts` / `plan-executor.ts` / `research-plan.ts` / `filter-spec.ts` 5 个源文件
+  - 7 个独立单元测试覆盖 createPlan / addStep / updateStepStatus / calculateProgress / parseFilterSpec / extractTicker / detectPhases
+  - 依赖 `@upup/utils`（PLANS_DIR）+ `zod`
+- `packages/utils/src/paths.ts` 新增 13 个标准存储目录常量（PLANS_DIR / PORTFOLIOS_DIR / WATCHLIST_FILE / SKILLS_DIR / PLUGINS_DIR / HOOKS_DIR / MEMORY_DIR / CACHE_DIR / LOGS_DIR / TOOL_RESULTS_DIR / SCRATCHPAD_DIR / EXPORTS_DIR）
+- root `src/plan/{plan-builder,plan-context,plan-executor,research-plan,filter-spec}.ts` 退化为 5 个 `@deprecated` facade。
+- 7 个 root 端文件改用 `@upup/pi-planning`：`src/runtime/pi/investment-workflow.ts`、`src/commands/investment/{risk-dashboard,morning-brief,invest,portfolio-review,earnings-preview,earnings-preview.test}.ts`
+
+### 37.3 `@upup/pi-storage` 物理下沉
+
+- 扩展现有 `@upup/pi-storage` 包，迁入 6 个 root 文件：
+  - `crypto-utils.ts`（33 行）
+  - `file-history.ts`（853 行）
+  - `fund-storage.ts`（299 行）
+  - `project-storage.ts`（1595 行）
+  - `shell-snapshots.ts`（464 行）
+  - `stats-cache.ts`（668 行）
+  - `storage-adapter.ts`（534 行）
+- `packages/pi-storage/src/index.ts` 新增对应导出；`packages/pi-storage/test.ts` 新增冒烟测试（29 pass）。
+- root `src/storage/*` 已全部退化为 facade 或被消除。
+
+### 37.4 验证
+
+| 验证项 | 结果 |
+|---|---|
+| `bun run typecheck` | 通过 |
+| `bun run check:pi7` | 通过：43 manifests（+2）、唯一 Pi AgentSession factory、无生产 global registry |
+| `bun run check:module-boundaries` | 通过：43 packages、533 root modules（−10） |
+| `bun --cwd packages/pi-permissions test` | 9 pass、0 fail、16 assertions |
+| `bun --cwd packages/pi-planning test` | 7 pass、0 fail、13 assertions |
+| `bun --cwd packages/pi-storage test` | 29 pass、0 fail、62 assertions |
+| `bun test src/commands/investment/` | 62 pass、0 fail、184 assertions |
+| `bun run test:pi-contracts` | 通过 |
