@@ -1456,3 +1456,24 @@ Factory 拆分、`src/tools`、`src/skills`、`src/commands/investment`、Sessio
 | `bun --cwd packages/pi-storage test` | 29 pass、0 fail、62 assertions |
 | `bun test src/commands/investment/` | 62 pass、0 fail、184 assertions |
 | `bun run test:pi-contracts` | 通过 |
+
+## 38. Pi7 第七轮 MCP Transport 物理迁移（2026-09-14）
+
+- 将 MCP transport 实现从 `src/mcp/` 迁入 `packages/mcp/src/`，包含 client、OAuth、server、desktop import、health manager、investment data、plugin integration、registry、UI、resources、skills、types 及 9 个测试文件。
+- `@upup/mcp` 扩展为完整公共入口，保留 client API、schema/helper API、MCP UI、registry、plugin integration 和 UpUp resources。
+- 根 `src/mcp/{index,mcp-ui,plugin-integration,registry,upup-resources}.ts` 退化为 `@deprecated` facade；生产消费者切换到 `@upup/mcp`。
+- `CitationRegistry` 迁入 `@upup/pi-runtime`，MCP resources 使用 `@upup/pi-storage`、`@upup/pi-research`、`@upup/pi-planning`，不再依赖 root `src`。
+- `@upup/mcp` 独立测试：118 pass、0 fail；build 与 root typecheck 通过。
+
+## 39. Pi7 第七轮 Plugins Transport 物理迁移（2026-09-14）
+
+- 将 plugins core、manifest、loader、registry、services、discovery、path safety、builtin plugins、commands、hook events、runtime adapters、DuckDB data adapter、SDK facade 迁入 `packages/plugins/src/`。
+- `@upup/plugins` 公共入口扩展为完整 plugin system API，明确依赖 `@upup/plugin-sdk`、`@upup/types`、`@upup/utils`、`@upup/skills` 和 `typebox`。
+- 根 `src/plugins/index.ts` 退化为 `@deprecated` facade；生产消费者改用 `@upup/plugins`。依赖 root skill registration 的历史 example test 保留在 root test 层。
+- `@upup/plugins` 独立测试：56 pass、0 fail；build 通过。
+
+## 38. Round 8.1 Gateway transport 下沉
+
+Gateway transport 已从 root `src/gateway/` 物理迁移至 `@upup/gateway` workspace package。迁移覆盖 WhatsApp channel、routing、sessions、group、heartbeat、access-control、agent-runner 和 Gateway service/test；root 目录只保留 `@deprecated` facade。Gateway 通过显式 Pi runtime ports 接入唯一 Pi AgentSession runner，cron/config 由 root composition 注入，package 本身不依赖 root `src/`。
+
+验证结果：`bun --cwd packages/gateway test` 27 pass、`bun run typecheck`、`bun run check:pi7`、`bun run check:module-boundaries`、`bun run test:pi-contracts` 全部通过；最终基线为 43 workspace packages、491 root production files、96729 root production lines。

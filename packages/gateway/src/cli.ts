@@ -11,6 +11,10 @@ import {
 } from './config.js';
 import { loginWhatsApp } from './channels/whatsapp/login.js';
 import { startGateway } from './gateway.js';
+import { getPiRuntimePort } from '@upup/pi-runtime';
+
+const runtime = getPiRuntimePort<{ bootstrap?: () => void }>('gateway.bootstrap');
+runtime?.bootstrap?.();
 
 // Suppress noisy Baileys Signal protocol session logs
 const SUPPRESSED_PREFIXES = [
@@ -92,7 +96,7 @@ async function promptSetupMode(cfg: GatewayConfig, linkedPhone: string): Promise
   }
 }
 
-async function run(): Promise<void> {
+export async function runGatewayCli(): Promise<void> {
   const args = process.argv.slice(2);
   const command = args[0] ?? 'run';
 
@@ -133,6 +137,3 @@ async function run(): Promise<void> {
   process.once('SIGINT', shutdown);
   process.once('SIGTERM', shutdown);
 }
-
-void run();
-

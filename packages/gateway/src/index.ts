@@ -53,3 +53,5 @@ export { assertOutboundAllowed, sendComposing, sendMessageWhatsApp } from './cha
 export { startGateway } from './gateway.js';
 export { registerGatewayAgentRuntime, registerGatewayConfigRuntime, registerGatewayCronRuntime } from './runtime-port.js';
 export type { GatewayAgentRuntimePort, GatewayConfigRuntimePort, GatewayCronRuntimePort } from './runtime-port.js';
+export { loginWhatsApp } from './channels/whatsapp/login.js';
+export { runGatewayCli } from './cli.js';

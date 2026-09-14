@@ -1,16 +1,23 @@
 import { beforeAll, describe, expect, test } from 'bun:test';
 import { fauxAssistantMessage, fauxProvider, fauxText } from '@earendil-works/pi-ai';
 import { ModelRuntime } from '@earendil-works/pi-coding-agent';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { disposePiSessions } from '@upup/pi-session';
-import { bootstrapPiNativeServices } from '@upup/pi-session';
+import { configurePiSessionService } from '@upup/pi-session';
+import { registerGatewayAgentRuntime } from './runtime-port.js';
+import { createPiAgentRuntime } from '../../../src/runtime/pi/agent-session-factory.js';
+import { disposePiSessions } from '../../../src/runtime/pi/runner.js';
+import { runPiPrompt, isPiSessionRunning } from '../../../src/runtime/pi/runner.js';
 
-beforeAll(() => bootstrapPiNativeServices());
+beforeAll(() => {
+  configurePiSessionService(() => createPiAgentRuntime());
+  registerGatewayAgentRuntime({ isSessionRunning: isPiSessionRunning, runPrompt: runPiPrompt });
+});
 import { runAgentForMessage } from './agent-runner.js';
 
 describe('Gateway Pi runner contract', () => {
   test('runs through Pi AgentSession, emits adapted events, and resumes the same JSONL session', async () => {
+    await mkdir(join(process.cwd(), '.upup'), { recursive: true });
     const tempDir = await mkdtemp(join(process.cwd(), '.upup', 'gateway-pi-'));
     const previousDir = process.env.UPUP_SESSION_DIR;
     process.env.UPUP_SESSION_DIR = tempDir;

@@ -447,3 +447,65 @@ src bootstrap
 - **Round 8 — Transport packages**：`src/mcp` (22 文件)、`src/plugins` (17 文件)、`src/gateway` (15 文件)、`src/bridge` (37 文件)、`src/stdio`、`src/cron` (6 文件)、`src/daemon`、`src/subagent`、`src/multi-agent` → `@upup/mcp` / `@upup/plugins` / `@upup/gateway` / 新增 `@upup/pi-bridge` / `@upup/pi-stdio` / `@upup/cron` / `@upup/daemon` / `@upup/pi-subagent`
 - **Round 9 — TUI/Components**：`src/tui`、`src/components` → `@upup/pi-tui-app`
 - **Round 10 — 最终清理**：删除 `legacy-events`、旧 facade、重复 registry、global fallback；剩余 consumer 改为迁移后的 Pi Package 公共 API；全仓测试、构建、入口 smoke、并发恢复验证、真实 provider smoke。
+
+## 15. 第七轮 MCP Transport 物理迁移结果（2026-09-14）
+
+### 15.1 `@upup/mcp`
+
+- 使用 `git mv` 迁移 12 个 MCP production source 文件与 9 个测试文件到 `packages/mcp/`；既有 `auth-tool.ts`、`pi-tool.ts`、`resource-tools.ts` 保持 package 内部实现。
+- `packages/mcp/src/index.ts` 现在公开 client、OAuth、config schemas/helpers、MCP UI、registry、plugin integration、UpUp resources。
+- `packages/mcp` 新增独立 `border-box.ts`，并通过 `@upup/pi-runtime`、`@upup/pi-storage`、`@upup/pi-research`、`@upup/pi-planning` 消除 root imports。
+- 根 `src/mcp/` 仅保留 5 个 `@deprecated` facade 文件；所有 production MCP consumers 改用 `@upup/mcp`。
+
+### 15.2 验证
+
+| 验证项 | 结果 |
+|---|---|
+| `bun run --cwd packages/mcp build` | 通过 |
+| `bun --cwd packages/mcp test` | 118 pass、0 fail |
+| `bun run typecheck` | 通过 |
+| `bun run check:pi7` | 通过：43 package manifests、唯一 Pi AgentSession factory、无 production global registry |
+| `bun run check:module-boundaries` | 通过：43 workspace packages、491 root src modules、无 root-src imports/cycles |
+| `bun run report:pi7` | workspacePackages 43；rootProductionFiles 491；rootProductionLines 96,737 |
+
+## 16. 第七轮 Plugins Transport 物理迁移结果（2026-09-14）
+
+### 16.1 `@upup/plugins`
+
+- 使用 `git mv` 迁移 plugins core、adapters、data、SDK facade 与独立测试到 `packages/plugins/`。
+- `packages/plugins/src/index.ts` 公开 manifest、loader、registry、services、discovery、path safety、hook events、builtin plugins、commands、runtime adapters、DuckDB adapter 和 SDK compatibility types。
+- 根 `src/plugins/index.ts` 退化为 `@deprecated` facade；package source 不导入 root `src`。依赖 `src/skills/register.ts` 的历史 example plugin test 保持在 root test 层，避免引入反向生产依赖。
+
+### 16.2 验证
+
+| 验证项 | 结果 |
+|---|---|
+| `bun run --cwd packages/plugins build` | 通过 |
+| `bun --cwd packages/plugins test` | 56 pass、0 fail |
+| `bun run typecheck` | 通过 |
+| `bun run check:pi7` | 通过 |
+| `bun run check:module-boundaries` | 通过 |
+| `bun run report:pi7` | workspacePackages 43；rootProductionFiles 491；rootProductionLines 96,737 |
+
+## 15. Round 8.1 Gateway transport 物理迁移（2026-09-14）
+
+本轮将 Gateway transport 从 root `src/gateway/` 物理迁入既有 `@upup/gateway` workspace package，并保留 root 兼容 facade。
+
+### 15.1 迁移内容
+
+- 使用 `git mv` 迁移 Gateway 的 access-control、agent-runner、channels、config、extension-points、gateway、group、heartbeat、routing、sessions、utils 及测试文件到 `packages/gateway/src/`。
+- `@upup/gateway` 扩展为完整 Gateway API，新增 WhatsApp transport、路由、会话、群组、heartbeat 和 `startGateway` 导出，并声明 Pi runtime、event adapter、market-data、utils、Baileys、Zod 等依赖。
+- 新增显式 `gateway.agent-runtime`、`gateway.cron-runtime`、`gateway.config-runtime` ports；Gateway package 不导入 root `src/`，由 root Pi bootstrap 注册唯一 AgentSession runner 和 cron/config composition。
+- root `src/gateway/` 仅保留 `@deprecated` facade；Gateway CLI 通过 `src/bootstrap/gateway.ts` 绑定 bootstrap 后调用 package API。
+- cron、bridge、Pi 场景测试和生产入口契约改用 `@upup/gateway`。
+
+### 15.2 验证与基线
+
+| 验证项 | 结果 |
+|---|---|
+| `bun --cwd packages/gateway test` | 27 pass、0 fail、57 assertions |
+| `bun run typecheck` | 通过 |
+| `bun run check:pi7` | 通过：43 package manifests、唯一 Pi AgentSession factory |
+| `bun run check:module-boundaries` | 通过：43 packages、491 root modules |
+| `bun run test:pi-contracts` | 通过：全套 Pi contract/package suite |
+| `bun run report:pi7` | workspacePackages 43；rootProductionFiles 491；rootProductionLines 96729 |

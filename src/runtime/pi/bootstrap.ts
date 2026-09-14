@@ -8,8 +8,14 @@
  */
 import { configurePiSessionService, type PiSessionListItem } from '@upup/pi-session';
 import { configurePiBackgroundService } from '@upup/pi-session';
+import { registerGatewayAgentRuntime, registerGatewayConfigRuntime, registerGatewayCronRuntime } from '@upup/gateway';
+import { registerPiRuntimePort } from '@upup/pi-runtime';
 import { createPiAgentRuntime } from './agent-session-factory.js';
 import { runPiPrompt } from './runner.js';
+import { isPiSessionRunning } from './runner.js';
+import { getConfiguredModelId, getConfiguredProvider } from '../../utils/config.js';
+import { ensureHeartbeatCronJob } from '../../cron/heartbeat-migration.js';
+import { startCronRunner } from '../../cron/runner.js';
 
 let bootstrapped = false;
 
@@ -18,6 +24,10 @@ export function bootstrapPiNativeServices(): void {
   bootstrapped = true;
   configurePiSessionService(() => createPiAgentRuntime());
   configurePiBackgroundService(() => runPiPrompt);
+  registerGatewayAgentRuntime({ isSessionRunning: isPiSessionRunning, runPrompt: runPiPrompt });
+  registerGatewayConfigRuntime({ getConfiguredModelId, getConfiguredProvider });
+  registerGatewayCronRuntime({ ensureHeartbeatCronJob, startCronRunner });
+  registerPiRuntimePort('gateway.bootstrap', { bootstrap: bootstrapPiNativeServices });
 }
 
 export type { PiSessionListItem };

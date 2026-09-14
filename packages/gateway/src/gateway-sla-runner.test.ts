@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { registerGatewayConfigRuntime, registerGatewayCronRuntime } from './runtime-port.js';
 
 interface CapturedRunner { stopCalls: number; created: number; }
 interface GatewayHookBag { previous: unknown; }
@@ -35,6 +36,14 @@ describe('Gateway provider SLA runner integration', () => {
   let rootDir = '';
 
   beforeEach(() => {
+    registerGatewayConfigRuntime({
+      getConfiguredModelId: () => 'gateway-fixture-model',
+      getConfiguredProvider: () => 'gateway-fixture-provider',
+    });
+    registerGatewayCronRuntime({
+      ensureHeartbeatCronJob: () => undefined,
+      startCronRunner: () => ({ stop: () => undefined }),
+    });
     capture.stopCalls = 0;
     capture.created = 0;
     installHook();

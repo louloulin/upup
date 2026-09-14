@@ -5,10 +5,10 @@ import { join } from 'node:path';
 const productionEntryImports: Record<string, readonly string[]> = {
   'src/print.ts': ['runtime/pi/event-stream'],
   'src/controllers/agent-runner.ts': ['runtime/pi/event-stream'],
-  'src/gateway/agent-runner.ts': ['runtime/pi/runner'],
-  'src/cron/executor.ts': ['gateway/agent-runner'],
+  'packages/gateway/src/agent-runner.ts': ['runtime-port'],
+  'src/cron/executor.ts': ['@upup/gateway'],
   'src/daemon/workers/tasks.ts': ['runtime/pi/bootstrap'],
-  'src/bridge/server.ts': ['gateway/agent-runner'],
+  'src/bridge/server.ts': ['@upup/gateway'],
   'src/stdio/server.ts': ['runtime/pi/event-stream'],
   'src/evals/run.ts': ['runtime/pi/event-stream'],
 };

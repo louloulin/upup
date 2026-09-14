@@ -9,6 +9,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./cli": {
+      "types": "./dist/cli.d.ts",
+      "default": "./dist/cli.js"
     }
   },
   "files": [
@@ -16,7 +20,7 @@
   ],
   "scripts": {
     "build": "bun build src/index.ts --outdir=dist --target=node && tsc --emitDeclarationOnly --project tsconfig.json",
-    "test": "bun test src/**/*.test.ts",
+    "test": "bun test src",
     "clean": "rm -rf dist"
   },
   "dependencies": {
