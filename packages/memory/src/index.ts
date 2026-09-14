@@ -1,83 +1,385 @@
-export type { MemoryEntry, SearchResult, SearchOptions } from '@upup/types';
+/**
+ * UpUp Memory Manager
+ *
+ * Based on Claude Code's memory system:
+ * - 4-type classification (user, feedback, project, reference)
+ * - AI-Selector primary recall
+ * - Memvid MV2 storage + BM25 search (no embedding API dependency)
+ * - 2-phase extraction (per-turn + consolidation)
+ */
 
-import { appendFile, mkdir, readFile, stat } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
-import { join } from 'node:path';
-import type { MemoryEntry, SearchResult, SearchOptions } from '@upup/types';
+import { MemoryDatabase } from './database.js';
+import { MemoryIndexer } from './indexer.js';
+import { scanSearch } from './search.js';
+import { MemoryStore } from './store.js';
+import { getMemvidStore } from './memvid-store.js';
+import { ensureMemoryIndex } from './scanner.js';
+import type { MemoryEmbeddingClient } from './types.js';
+import type {
+  MemoryReadOptions,
+  MemoryReadResult,
+  MemoryRuntimeConfig,
+  MemorySearchOptions,
+  MemorySearchResult,
+  MemorySessionContext,
+  TemporalDecayConfig,
+  MMRConfig,
+  MemoryType,
+  MemoryWriteRequest,
+} from './types.js';
+import { getSetting } from '../utils/config.js';
+import { resolveMemvidRagSettings, type MemvidRagFlag, type ResolvedMemvidRagSettings } from './memvid-rag.js';
+import { getApiKeyNameForProvider } from '../utils/env.js';
+import { getConfiguredModelId, getConfiguredProvider } from '../utils/config.js';
 
-export interface MemoryOptions { path?: string; maxSize?: number; enableLex?: boolean }
-export interface PutOptions { type?: 'user' | 'feedback' | 'project' | 'reference'; name?: string; metadata?: Record<string, unknown> }
-export interface SemanticSearchOptions extends SearchOptions { minScore?: number }
-export interface AskOptions { model?: string; apiKey?: string; contextOnly?: boolean; mode?: 'auto' | 'lex' | 'sem'; k?: number }
+// Re-export AI Memory Selector
+export {
+  findRelevantMemories,
+  findAndLoadRelevantMemories,
+  verifyMemory,
+  type SelectedMemory,
+  type SelectedMemoryWithContent,
+  type FindRelevantMemoriesOptions,
+} from './ai-selector.js';
 
-interface StoredMemory extends MemoryEntry { tags: string[] }
+// Re-export types
+export { MEMORY_TYPES } from './types.js';
+export type { MemoryType, MemoryWriteRequest } from './types.js';
 
-export class MemoryStore {
-  private readonly filePath: string;
-  private records = new Map<string, StoredMemory>();
-  private initialized = false;
+// Re-export extraction
+export {
+  extractMemories,
+  hasToolCalls,
+  createExtractionHook,
+  type ExtractionResult,
+} from './extraction.js';
 
-  constructor(options: MemoryOptions = {}) { this.filePath = join(options.path ?? './memory', 'memories.jsonl'); }
+// Re-export consolidation
+export {
+  consolidateMemories,
+  shouldConsolidate,
+} from './consolidation.js';
 
-  async initialize(): Promise<void> {
-    if (this.initialized) return;
-    await mkdir(join(this.filePath, '..'), { recursive: true });
-    if (existsSync(this.filePath)) {
-      const contents = await readFile(this.filePath, 'utf8');
-      for (const line of contents.split('\n')) {
-        if (!line.trim()) continue;
-        try {
-          const record = JSON.parse(line) as StoredMemory;
-          if (record.id && record.content) this.records.set(record.id, record);
-        } catch { continue; }
-      }
-    }
-    this.initialized = true;
-  }
+// Re-export scanner
+export {
+  scanMemoryFiles,
+  scanTypedMemoryFiles,
+  scanScopedMemoryFiles,
+  filterByType,
+  groupByType,
+  buildManifest,
+  buildTypedManifest,
+  buildScopedManifest,
+  ensureMemoryIndex,
+  type ScannerOptions,
+} from './scanner.js';
 
-  private async ensure(): Promise<void> { if (!this.initialized) await this.initialize(); }
+// Re-export scope types
+export {
+  MEMORY_SCOPES,
+  MEMORY_SCOPE_PRIORITY,
+  getDefaultScopeForType,
+} from './types.js';
+export type { MemoryScope, ScopedScanOptions, ScopedSearchResult } from './types.js';
 
-  async put(content: string, options: PutOptions = {}): Promise<string> {
-    await this.ensure();
-    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-    const now = Date.now();
-    const record: StoredMemory = { id, content, type: options.type ?? 'user', name: options.name, createdAt: now, updatedAt: now, metadata: options.metadata, tags: [options.type ?? 'user', options.name ?? ''] };
-    this.records.set(id, record);
-    await appendFile(this.filePath, `${JSON.stringify(record)}\n`, 'utf8');
-    return id;
-  }
+// Re-export project paths
+export {
+  getProjectMemoryPaths,
+  encodeProjectSlug,
+  decodeProjectSlug,
+  getGlobalMemoryDir,
+  isProjectMemoryPath,
+  extractProjectSlug,
+} from './project-paths.js';
 
-  async putMany(entries: Array<{ content: string; options?: PutOptions }>): Promise<string[]> { const ids: string[] = []; for (const entry of entries) ids.push(await this.put(entry.content, entry.options)); return ids; }
+// Re-export daily log
+export {
+  getDailyLogManager,
+  appendToDailyLog,
+  startSessionLog,
+  endSessionLog,
+  type DailyLogEntry,
+  type DailyLogStats,
+} from './daily-log.js';
 
-  async search(query: string, options: SearchOptions = {}): Promise<SearchResult[]> {
-    await this.ensure();
-    const terms = query.toLowerCase().split(/[^\p{L}\p{N}_-]+/u).filter((term) => term.length > 1);
-    return [...this.records.values()].map((record) => ({ record, score: terms.reduce((total, term) => total + (record.content.toLowerCase().includes(term) ? 1 : 0) + (record.name?.toLowerCase().includes(term) ? 2 : 0), 0) }))
-      .filter(({ score }) => score > 0)
-      .sort((left, right) => right.score - left.score)
-      .slice(0, options.maxResults ?? 10)
-      .map(({ record, score }) => ({ id: record.id, content: record.content.slice(0, 700), score, type: record.type }));
-  }
+// Re-export access control
+export {
+  getMemoryAccessControl,
+  canReadMemory,
+  determineMemoryScope,
+  type AccessContext,
+  type AccessPermission,
+} from './access-control.js';
 
-  async semanticSearch(query: string, options: SemanticSearchOptions = {}): Promise<SearchResult[]> {
-    return (await this.search(query, options)).filter((result) => result.score >= (options.minScore ?? 0.1));
-  }
+// Re-export prompts
+export {
+  EXTRACTION_SYSTEM_PROMPT,
+  CONSOLIDATION_SYSTEM_PROMPT,
+  SELECT_SYSTEM_PROMPT,
+} from './prompts.js';
 
-  async ask(question: string, options: AskOptions = {}): Promise<string> {
-    if (!options.apiKey) throw new Error('LLM API key required for ask()');
-    const results = await this.search(question, { maxResults: options.k ?? 10 });
-    const context = results.map((result) => `[${result.id}] ${result.content}`).join('\n');
-    if (options.contextOnly) return context;
-    return context || 'No relevant memory was found.';
-  }
+// Re-export memvid store
+export {
+  getMemvidStore,
+  type MemvidSearchResult,
+  type MemvidStats,
+} from './memvid-store.js';
+export {
+  resolveMemvidRagSettings,
+  toMemvidModelSpec,
+  type MemvidRagFlag,
+  type ResolvedMemvidRagSettings,
+} from './memvid-rag.js';
+export { migrateLegacyMemories, inferMemoryType, type MigrationResult } from './migration.js';
 
-  maskPii(text: string): string { return text.replace(/\b[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}\b/g, '[EMAIL]').replace(/\b(?:\+?86[- ]?)?1[3-9]\d{9}\b/g, '[PHONE]').replace(/\b\d{15,19}\b/g, '[NUMBER]'); }
+// ============================================================================
+// Config
+// ============================================================================
 
-  async timeline(limit = 50): Promise<Array<{ id: string; title: string; timestamp: number }>> { await this.ensure(); return [...this.records.values()].sort((a, b) => b.createdAt - a.createdAt).slice(0, limit).map((record) => ({ id: record.id, title: record.name ?? '', timestamp: record.createdAt })); }
-  async view(id: string): Promise<string> { await this.ensure(); const record = this.records.get(id); if (!record) throw new Error(`Memory not found: ${id}`); return record.content; }
-  async close(): Promise<void> { this.records.clear(); this.initialized = false; }
-  async stats(): Promise<{ totalFrames: number; hasLexIndex: boolean; hasVecIndex: boolean }> { await this.ensure(); await stat(this.filePath).catch(() => undefined); return { totalFrames: this.records.size, hasLexIndex: true, hasVecIndex: false }; }
+const DEFAULT_CONFIG: MemoryRuntimeConfig = {
+  enabled: true,
+  embeddingProvider: 'auto',
+  embeddingModel: undefined,
+  maxSessionContextTokens: 2000,
+  chunkTokens: 400,
+  chunkOverlapTokens: 80,
+  maxResults: 6,
+  minScore: 0.1,
+  vectorWeight: 0.7,
+  textWeight: 0.3,
+  watchDebounceMs: 1500,
+  temporalDecay: { enabled: true, halfLifeDays: 30 },
+  mmr: { enabled: true, lambda: 0.7 },
+  indexSessions: true,
+  memvidRag: false,
+};
+
+type MemorySettings = {
+  enabled?: boolean;
+  embeddingProvider?: MemoryRuntimeConfig['embeddingProvider'];
+  embeddingModel?: string;
+  maxSessionContextTokens?: number;
+  temporalDecay?: Partial<TemporalDecayConfig>;
+  mmr?: Partial<MMRConfig>;
+  indexSessions?: boolean;
+  memvidRag?: MemvidRagFlag;
+};
+
+function resolveConfig(): MemoryRuntimeConfig {
+  const settings = getSetting<MemorySettings | undefined>('memory', undefined);
+  return {
+    ...DEFAULT_CONFIG,
+    ...(settings ?? {}),
+    temporalDecay: { ...DEFAULT_CONFIG.temporalDecay, ...(settings?.temporalDecay ?? {}) },
+    mmr: { ...DEFAULT_CONFIG.mmr, ...(settings?.mmr ?? {}) },
+  };
 }
 
-export function createMemoryStore(options?: MemoryOptions): MemoryStore { return new MemoryStore(options); }
-export default MemoryStore;
+// ============================================================================
+// Memory Manager
+// ============================================================================
+
+export class MemoryManager {
+  private static instance: MemoryManager | null = null;
+
+  static async get(): Promise<MemoryManager> {
+    if (!MemoryManager.instance) {
+      const instance = new MemoryManager(resolveConfig());
+      await instance.initialize();
+      MemoryManager.instance = instance;
+    }
+    return MemoryManager.instance;
+  }
+
+  private readonly store = new MemoryStore();
+  private db: MemoryDatabase | null = null;
+  private indexer: MemoryIndexer | null = null;
+  private initError: string | null = null;
+
+  private constructor(private readonly config: MemoryRuntimeConfig) {}
+
+  async initialize(): Promise<void> {
+    if (!this.config.enabled) {
+      return;
+    }
+    if (this.db) {
+      return;
+    }
+
+    await this.store.ensureDirectoryExists();
+
+    // Ensure MEMORY.md index exists (creates if not found)
+    await ensureMemoryIndex();
+
+    // Don't create embedding client - use Memvid BM25 instead (no API dependency)
+    const client: MemoryEmbeddingClient | null = null;
+
+    try {
+      this.db = await MemoryDatabase.create(`${this.store.getMemoryDir()}/index.sqlite`);
+    } catch (error) {
+      this.initError = error instanceof Error ? error.message : String(error);
+      this.db = null;
+      this.indexer = null;
+      return;
+    }
+
+    this.indexer = new MemoryIndexer(this.store, this.db, {
+      chunkTokens: this.config.chunkTokens,
+      overlapTokens: this.config.chunkOverlapTokens,
+      watchDebounceMs: this.config.watchDebounceMs,
+      embeddingClient: client, // null = skip embedding, use Memvid BM25
+      indexSessions: this.config.indexSessions,
+    });
+    this.indexer.startWatching();
+    // Skip sync - Memvid BM25 doesn't need pre-indexing
+  }
+
+  isAvailable(): boolean {
+    return this.config.enabled && Boolean(this.db);
+  }
+
+  getUnavailableReason(): string | null {
+    if (!this.config.enabled) {
+      return 'Memory is disabled in settings.';
+    }
+    return this.initError;
+  }
+
+  async sync(options?: { force?: boolean }): Promise<void> {
+    await this.initialize();
+    if (!this.indexer) {
+      return;
+    }
+    await this.indexer.sync(options);
+  }
+
+  getMemvidRagSettings(): ResolvedMemvidRagSettings {
+    const providerId = getConfiguredProvider();
+    const modelId = getConfiguredModelId();
+    return resolveMemvidRagSettings({
+      flag: this.config.memvidRag,
+      providerId,
+      modelId,
+    });
+  }
+
+  async askMemory(query: string): Promise<string | null> {
+    await this.initialize();
+
+    const rag = this.getMemvidRagSettings();
+    if (!rag.enabled || !rag.supported) {
+      return null;
+    }
+
+    const apiKeyEnvVar = rag.apiKeyEnvVar ?? getApiKeyNameForProvider(rag.providerId);
+    const apiKey = apiKeyEnvVar ? process.env[apiKeyEnvVar] : undefined;
+    if (!apiKey) {
+      return null;
+    }
+
+    const memvidStore = await getMemvidStore();
+    return memvidStore.ask(query, {
+      model: rag.model,
+      apiKey,
+      contextOnly: rag.contextOnly,
+      mode: rag.mode,
+      k: rag.k,
+    });
+  }
+
+  async search(query: string, options?: MemorySearchOptions): Promise<MemorySearchResult[]> {
+    await this.initialize();
+
+    // Use Memvid BM25 search directly - no embedding API needed
+    const memvidStore = await getMemvidStore();
+    try {
+      const memvidResults = await memvidStore.search(
+        query,
+        options?.maxResults ?? this.config.maxResults,
+      );
+
+      return memvidResults.map((r: { snippet: string; memory: { filePath: string; mtimeMs: number }; score: number }) => ({
+        snippet: r.snippet,
+        path: r.memory.filePath,
+        startLine: 1,
+        endLine: 1,
+        score: r.score,
+        source: 'keyword' as const,
+        contentSource: 'memory' as const,
+        updatedAt: r.memory.mtimeMs,
+      }));
+    } catch {
+      // Fall back to scan-based search
+      const { scanSearch } = await import('./search.js');
+      return scanSearch(query, { maxResults: options?.maxResults ?? this.config.maxResults });
+    }
+  }
+
+  async get(options: MemoryReadOptions): Promise<MemoryReadResult> {
+    await this.initialize();
+    return this.store.readLines(options);
+  }
+
+  async appendLongTermMemory(text: string): Promise<void> {
+    await this.initialize();
+    await this.store.appendMemoryFile('MEMORY.md', text);
+    this.indexer?.markDirty();
+  }
+
+  async appendDailyMemory(text: string): Promise<void> {
+    await this.initialize();
+    await this.store.appendMemoryFile(this.getTodayFileName(), text);
+    this.indexer?.markDirty();
+  }
+
+  async editMemory(file: string, oldText: string, newText: string): Promise<boolean> {
+    await this.initialize();
+    const resolved = this.resolveFileAlias(file);
+    const result = await this.store.editInMemoryFile(resolved, oldText, newText);
+    if (result) {
+      this.indexer?.markDirty();
+    }
+    return result;
+  }
+
+  async deleteMemory(file: string, textToDelete: string): Promise<boolean> {
+    await this.initialize();
+    const resolved = this.resolveFileAlias(file);
+    const result = await this.store.deleteFromMemoryFile(resolved, textToDelete);
+    if (result) {
+      this.indexer?.markDirty();
+    }
+    return result;
+  }
+
+  async appendMemory(file: string, content: string): Promise<void> {
+    await this.initialize();
+    const resolved = this.resolveFileAlias(file);
+    await this.store.appendMemoryFile(resolved, content);
+    this.indexer?.markDirty();
+  }
+
+  async listFiles(): Promise<string[]> {
+    await this.initialize();
+    return this.store.listMemoryFiles();
+  }
+
+  async loadSessionContext(): Promise<MemorySessionContext> {
+    await this.initialize();
+    return this.store.loadSessionContext(this.config.maxSessionContextTokens);
+  }
+
+  private resolveFileAlias(file: string): string {
+    if (file === 'long_term') return 'MEMORY.md';
+    if (file === 'daily') return this.getTodayFileName();
+    return file;
+  }
+
+  private getTodayFileName(): string {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}.md`;
+  }
+}

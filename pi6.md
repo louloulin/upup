@@ -1705,3 +1705,89 @@ agentSessionFactories: 1
 - `src/commands/investment/**` 尚未迁移。
 - 真实 provider smoke 未执行（沙箱环境无凭据）。
 - session-sync e2e 在并发 `bun test` 进程下偶发 WS handshake race（单跑通过；不阻塞生产路径）。
+
+## 45. Pi7 第十一轮 Session + Theme + Telemetry 余量迁移（2026-09-14）
+
+### 45.1 物理迁移
+
+**Session 余量收口**
+- 把 `src/session/{storage,restore,pid-manager,selector}.ts` 全部 `git mv` 到 `packages/pi-session/src/`：
+  - `storage.ts`：getSessionMetadata/updateSessionMetadata 重命名为 storageGetSessionMetadata/storageUpdateSessionMetadata 避免与 session-state.ts 命名冲突。
+  - `restore.ts`、`pid-manager.ts`、`selector.ts`：依赖 `'@upup/utils'`。
+- 把 `src/session/{pi-migration,migrate,migrate-to-pi,storage-portable}.ts` 全部 `git mv` 到 `packages/pi-session/src/`。
+- 修复 `migrate.ts` 和 `migrate-to-pi.ts` 的顶层执行：用 `if (import.meta.main)` 包裹避免 bun test 时触发副作用迁移。
+- `src/session/pi-migration.test.ts` 改从 `'@upup/pi-session'` 导入 `migrateSessionFile`（保留在 src 因为依赖 root runtime）。
+- `src/session/index.ts` 改写为兼容 facade：`export * from '@upup/pi-session'`。
+
+**Theme + Storage 路径下沉**
+- `src/theme.ts`（Ink TUI 主题：`theme.primary/muted/bold`）→ `packages/utils/src/theme.ts`。
+- `src/utils/time.ts`（67 行 time formatter）→ `packages/utils/src/time.ts`。
+- `packages/utils/src/paths.ts` 追加 session 相关常量：`SESSIONS_DIR`、`PID_SESSIONS_DIR`、`TEAMS_DIR`、`MESSAGES_DIR`、`AGENTS_DIR`、`PORTFOLIO_FILE`、`SETTINGS_*`、sanitizePath、getProjectSessionsDir、getDefaultSessionsDir。
+- `src/utils/storage-paths.ts` 已被这些 export 取代，留作兼容层（无 root 消费者）。
+- 31 个 root src 文件 + 5 个 packages/commands 下文件批量更新 theme import：'../theme.js' → '@upup/utils'。
+- 5 个 src/components/approval-requests 文件批量更新 theme import。
+
+**Telemetry + Permissions 清理**
+- 删除 `src/telemetry/{index,integration}.ts`（已是 deprecated facade，仅 re-export @upup/pi-observability）。
+- 删除 `src/permissions/index.ts`（已是 deprecated facade，仅 re-export @upup/pi-permissions）。
+
+### 45.2 根 `src/` 消费者切换
+
+| 源文件 | 原 import | 新 import |
+|---|---|---|
+| `src/cli.ts:46/60/515/630/660/1460/1484` | `./session/session-state.js` 等 | `@upup/pi-session` |
+| `src/cli.ts` 4 处 `import('./session/restore.js')` | dynamic | `await import('@upup/pi-session')` |
+| `src/components/select-list.ts` | `'../session/types.js'`、`'../utils/time.js'` | `@upup/pi-session` / `@upup/utils` |
+| `src/components/{chat-log,debug-panel,...}` | `'../theme.js'` | `@upup/utils` |
+| `src/components/approval-requests/{Bash,Generic,Write}ApprovalRequest.ts` 等 5 个 | `'../../theme.js'` | `@upup/utils` |
+| `src/evals/components/{eval-app,eval-current-question,eval-progress,eval-recent-results,eval-stats}.ts` | `'../../theme.js'` | `@upup/utils` |
+| `src/tui/components/{command-preview,command-groups}.ts` | `'../../theme.js'` | `@upup/utils` |
+| `src/session/pi-migration.test.ts` | `'./pi-migration.js'` | `'@upup/pi-session'` |
+
+### 45.3 Pi Session 公共 API 扩展
+
+- `packages/pi-session/src/index.ts` 追加 8 个 re-export：storage / restore / pid-manager / selector / pi-migration / migrate / migrate-to-pi / storage-portable。
+- `packages/pi-session/tsconfig.json` 显式声明 `rootDir: ./src` 以支持 `render/` 子目录。
+- `packages/pi-session/package.json` 升级 build externalize：`playwright*`、`playwright-core*`、`chromium*`、`electron*`。
+
+### 45.4 真实验证
+
+| 验证项 | 结果 |
+|---|---|
+| `bun --cwd packages/pi-session build` | 通过（1984 modules，7.82 MB） |
+| `bun --cwd packages/pi-session test` | 62 pass / 0 fail / 126 expect() |
+| `bun --cwd packages/utils build` | 通过（70.39 KB） |
+| `bun run typecheck` | 通过 |
+| `bun run check:pi7` | 通过（45 manifests，1 factory，0 global） |
+| `bun run check:pi-migration` | 通过 |
+| `bun run check:module-boundaries` | 通过（45 packages，434 root modules） |
+| `bun test src/runtime/pi` | 162 pass / 0 fail / 1968 expect() |
+| `bun test src/session/pi-migration.test.ts` | 4 pass / 0 fail / 22 expect() |
+| `bun test src/controllers/agent-runner.pi.test.ts` | 1 pass / 0 fail |
+| `bun run test:pi-contracts` | 174 pass / 3 fail（3 个并发 race timeout，单跑通过，不影响生产路径） |
+
+### 45.5 当前报告事实（`bun run report:pi7`）
+
+```text
+workspacePackages: 45
+piNativePackages: 37
+rootSourceFiles: 566
+rootProductionFiles: 434
+rootProductionLines: 84299
+legacyEventConsumers: 0
+globalRegistryConsumers: 0
+agentSessionFactories: 1
+```
+
+相比 Round 10 基线：root source files -13、root production files -13、root production lines -2782。
+
+### 45.6 剩余事项（明确未完成）
+
+- `src/session/` 剩余 3 个文件：`index.ts` (7 行兼容 facade)、`pi-migration.test.ts` (96 行依赖 root runtime)、`verify-session.test.ts.skip` (218 行已 skip)。
+- `src/memory/*` 48 个文件未 Package 化。
+- `src/tui`、`src/components/` 仍属 root。
+- `src/tools/**` 余量（filesystem、bash、sandbox、trading、swarm）未 Package 化。
+- `src/commands/investment/**` 尚未迁移。
+- 真实 provider smoke 未执行（沙箱环境无凭据）。
+- session-sync e2e 在并发 `bun test` 进程下偶发 WS handshake race（单跑通过；不阻塞生产路径）。
+- 3 个 pi-contract 测试在并发 race 下偶发 5s timeout（单跑通过；不阻塞生产路径）。

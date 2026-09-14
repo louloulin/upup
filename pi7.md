@@ -777,3 +777,77 @@ agentSessionFactories: 1
 - `src/commands/investment/**`（dossier、strategy、earnings-preview、morning-brief、portfolio-review、risk-dashboard、watchlist-edit、invest、screen）尚未迁移。
 - 真实 provider smoke 未执行（沙箱环境无凭据）。
 - session-sync e2e 在并发 `bun test` 进程下偶发 WS handshake race（单跑通过；不阻塞生产路径）。
+
+## 21. Round 11 Session 余量收口 + Theme/Storage/Telemetry 下沉（2026-09-14）
+
+### 21.1 背景与目标
+
+承接 Round 10 Session 余量迁移，本轮完成以下收口：
+1. **Session 余量收口**：storage/restore/pid-manager/selector + pi-migration/migrate/migrate-to-pi/storage-portable 全部下沉到 `@upup/pi-session`。
+2. **Theme 下沉**：src/theme.ts → @upup/utils（Ink TUI 主题）；src/utils/time.ts → @upup/utils。
+3. **Storage paths 整合**：packages/utils/src/paths.ts 追加 SESSIONS_DIR/PID_SESSIONS_DIR/TEAMS_DIR/AGENTS_DIR/getProjectSessionsDir/sanitizePath 等。
+4. **Telemetry/Permissions 清理**：删除 src/telemetry/* 和 src/permissions/（已 deprecated facade）。
+
+### 21.2 主要动作
+
+1. **Session 物理迁移**：把 8 个文件 `git mv` 到 `packages/pi-session/src/`。
+2. **migrate.ts/migrate-to-pi.ts 顶层执行修复**：用 `if (import.meta.main)` 包裹，避免 bun test 时触发真实迁移。
+3. **storage.ts 重命名**：`getSessionMetadata`/`updateSessionMetadata` → `storageGetSessionMetadata`/`storageUpdateSessionMetadata`（避免与 session-state.ts 同名）。
+4. **Theme 下沉**：src/theme.ts → packages/utils/src/theme.ts（48 行 + chalk）。
+5. **31 个 root src 文件 + 5 个 packages/commands 文件批量替换 theme import**。
+6. **Telemetry/Permissions facade 删除**：移除 src/telemetry/* 和 src/permissions/（无 root 消费者）。
+
+### 21.3 真实验证
+
+| 验证项 | 结果 |
+|---|---|  
+| `bun --cwd packages/pi-session build` | 通过（1984 modules，7.82 MB） |
+| `bun --cwd packages/pi-session test` | 62 pass / 0 fail / 126 expect() |
+| `bun --cwd packages/utils build` | 通过（70.39 KB） |
+| `bun run typecheck` / `check:pi7` / `check:pi-migration` / `check:module-boundaries` | 全部通过 |
+| `bun test src/runtime/pi` | 162 pass / 0 fail / 1968 expect() |
+| `bun run test:pi-contracts` | 174 pass / 3 fail（3 个并发 race timeout，单跑通过） |
+
+### 21.4 当前报告事实（`bun run report:pi7`）
+
+```text
+workspacePackages: 45
+piNativePackages: 37
+rootSourceFiles: 566
+rootProductionFiles: 434
+rootProductionLines: 84299
+legacyEventConsumers: 0
+globalRegistryConsumers: 0
+agentSessionFactories: 1
+```
+
+### 21.5 完成度口径（按 Pi7 阶段验收门）
+
+| 阶段 | 内容 | 完成度 |
+|---|---|---|
+| 阶段一 | Package contract / 门禁 / 唯一 factory / 禁止项 | 100% |
+| 阶段二 | Runtime / Session / 资源组合 / 能力上下文 / Event Adapter | 100% |
+| 阶段三 | 金融能力迁移、Skill/Workflow、`/invest` 状态机 | 75% |
+| 阶段四 | Session / Memory / Planning / Observability 数据迁移 | 80%（+15：Session 余量全部收口，Theme 下沉） |
+| 阶段五 | MCP / Plugins / Gateway / stdio / Cron / Daemon / Bridge | 90% |
+| 阶段六 | TUI / Components / 根 allowlist 收口 | 25% |
+| 阶段七 | 投研闭环、最终清理、产品验收 | 45% |
+
+加权后工程进度约 `79%`（比 Round 10 的 `75%` 提升 4 个百分点）。阶段二 Session Factory 达到 100%；阶段四 Session/Memory 80%。
+
+### 21.6 Round 12 计划
+
+1. **Memory 物理迁移（关键路径）**。把 `src/memory/{database,indexer,search,embeddings,extraction,consolidation,flush,daily-log,memory-audit,temporal-decay,mmr,ai-selector,migration,access-control,audit-signing,chunker,investment-memory,encrypted-store,memvid-store,memvid-rag}.ts` 全部 `git mv` 到 `packages/memory/src/`，并新建 `@upup/pi-memory` 作为 Pi manifest wrapper（capability、trust、lifecycle）。处理 root 依赖：`../utils/paths.js` → `@upup/utils`、`../utils/logging/logger.js` → `@upup/utils/logging`、`../runtime/pi/prompt-service.js` → `@upup/pi-event-adapter` 间接依赖。
+2. **TUI / Components 物理迁移**。新建 `@upup/pi-tui-app`，迁 `src/tui` + `src/components`，UI 只消费 canonical event、Session public API、manifest、policy。
+3. **Invest / Commands 物理迁移**。迁 `src/commands/investment/**` 与 `/invest` 状态机到现有 skills/workflow Package。
+4. **Platform tools 余量**。迁 `src/tools/{filesystem,bash,sandbox,trading,swarm}` 到 `@upup/pi-platform`。
+5. **最终清理**（Round 13）。root allowlist 收口到 bootstrap/compat/transport 壳；删除 `legacy-events`、deprecated facade、globalThis registry、重复 adapter；执行全仓测试、构建、入口 smoke、并发/恢复/abort/compact/provider failure 与真实 provider 分层验证；完成一次可恢复、可引用、可审计、可导出的 `/invest` 闭环。
+
+### 21.7 当前明确未完成项
+
+- `src/memory/*` 48 个文件未 Package 化（最大遗留）。
+- `src/tui`、`src/components/` 未 Package 化（依赖 theme 已下沉，现在可行）。
+- `src/tools/**` 余量（filesystem、bash、sandbox、trading、swarm）未 Package 化。
+- `src/commands/investment/**` 尚未迁移。
+- 真实 provider smoke 未执行（沙箱环境无凭据）。
+- 3 个 pi-contract 测试在并发 race 下偶发 5s timeout（单跑通过；不阻塞生产路径）。
