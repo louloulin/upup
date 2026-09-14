@@ -11,11 +11,32 @@ import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import type { Tool as MCPTool } from '@modelcontextprotocol/sdk/types.js';
 import { ToolListChangedNotificationSchema, ResourceListChangedNotificationSchema } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
+import { PiTool } from '../runtime/pi/tool.js';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { EventEmitter } from 'events';
-import { info, error as logError } from '@upup/utils/logging';
-import { createPiMcpTool, type PiMcpTool } from './pi-tool.js';
+import { info, error as logError } from '../utils/logging/logger.js';
+import {
+  defaultTokenStorage,
+  isTokenExpired,
+  type OAuthTokens,
+} from './oauth.js';
+
+/**
+ * OAuth configuration for MCP server
+ */
+export interface MCPOAuthConfig {
+  /** OAuth client ID */
+  clientId?: string;
+  /** OAuth client secret */
+  clientSecret?: string;
+  /** Authorization server URL */
+  authServerUrl?: string;
+  /** Token server URL */
+  tokenServerUrl?: string;
+  /** OAuth scopes */
+  scopes?: string[];
+}
 
 /**
  * MCP Server configuration
@@ -28,8 +49,12 @@ export interface MCPServerConfig {
   env?: Record<string, string>;
   /** SSE/HTTP transport config */
   url?: string;
+  /** HTTP headers */
+  headers?: Record<string, string>;
   /** Auto-connect on startup */
   autoConnect?: boolean;
+  /** OAuth configuration */
+  oauth?: MCPOAuthConfig;
 }
 
 /**
@@ -72,8 +97,8 @@ export class MCPClientManager extends EventEmitter {
   private transports: Map<string, any> = new Map();
   private connections: Map<string, MCPServerConnection> = new Map();
   private config: MCPClientConfig;
-  private tools: PiMcpTool[] = [];
-  private toolCallbacks: Set<(tools: PiMcpTool[]) => void> = new Set();
+  private tools: PiTool[] = [];
+  private toolCallbacks: Set<(tools: PiTool[]) => void> = new Set();
   private healthCheckInterval: ReturnType<typeof setInterval> | null = null;
   private reconnectAttempts: Map<string, number> = new Map();
   private readonly MAX_RECONNECT_ATTEMPTS = 3;
@@ -88,7 +113,7 @@ export class MCPClientManager extends EventEmitter {
    * Connect to an MCP server
    */
   async connect(serverConfig: MCPServerConfig): Promise<void> {
-    const { name, command, args, env, url, autoConnect = true } = serverConfig;
+    const { name, command, args, env, url, headers, oauth } = serverConfig;
 
     if (this.clients.has(name)) {
       info('mcp', `Server ${name} already connected`);
@@ -104,6 +129,9 @@ export class MCPClientManager extends EventEmitter {
         version: this.config.clientInfo?.version || '1.0.0',
       });
 
+      // Handle OAuth authentication if configured
+      const authHeaders = await this.getAuthHeaders(name, oauth);
+
       let transport: any;
 
       if (command) {
@@ -114,14 +142,27 @@ export class MCPClientManager extends EventEmitter {
             envRecord[key] = value;
           }
         }
+        // Add OAuth token to env if available
+        if (authHeaders.Authorization) {
+          envRecord['MCP_AUTH_TOKEN'] = authHeaders.Authorization.replace('Bearer ', '');
+        }
         transport = new StdioClientTransport({
           command,
           args: args || [],
           env: Object.keys(envRecord).length > 0 ? envRecord : undefined,
         });
       } else if (url) {
-        // SSE transport (remote server)
-        transport = new SSEClientTransport(new URL(url));
+        // SSE transport (remote server) with auth headers
+        const urlObj = new URL(url);
+        const mergedHeaders: Record<string, string> = { ...headers };
+        if (authHeaders.Authorization) {
+          mergedHeaders['Authorization'] = authHeaders.Authorization;
+        }
+        transport = new SSEClientTransport(urlObj, {
+          requestInit: {
+            headers: mergedHeaders,
+          },
+        });
       } else {
         throw new Error('Server must have either command or url');
       }
@@ -220,6 +261,7 @@ export class MCPClientManager extends EventEmitter {
         connection.tools = toolsResult.tools || [];
       }
 
+      // Convert MCP tools to Pi-compatible tools.
       await this.updatePiTools(serverName);
 
     } catch (error) {
@@ -228,13 +270,13 @@ export class MCPClientManager extends EventEmitter {
   }
 
   /**
-   * Convert MCP tool to a Pi-compatible tool
+   * Convert MCP tool to the Pi-compatible tool contract.
    */
   private mcpToolToPiTool(
     mcpTool: MCPTool,
     serverName: string,
     client: any
-  ): PiMcpTool {
+  ): PiTool {
     const toolName = `mcp__${serverName}__${mcpTool.name}`;
     const description = mcpTool.description || `MCP tool: ${mcpTool.name}`;
 
@@ -274,7 +316,11 @@ export class MCPClientManager extends EventEmitter {
       }
     }
 
-    return createPiMcpTool({ name: toolName, description, schema, execute: async (args, signal) => {
+    return new PiTool({
+      name: toolName,
+      description,
+      schema,
+      async func(args: Record<string, unknown>) {
         try {
           const result = await client.request(
             { method: 'tools/call' },
@@ -294,7 +340,8 @@ export class MCPClientManager extends EventEmitter {
           const message = error instanceof Error ? error.message : String(error);
           throw new Error(`MCP tool ${toolName} failed: ${message}`);
         }
-      }});
+      },
+    });
   }
 
   /**
@@ -392,14 +439,14 @@ export class MCPClientManager extends EventEmitter {
   /**
    * Get all Pi tools from all connected servers
    */
-  getTools(): PiMcpTool[] {
+  getTools(): PiTool[] {
     return this.tools;
   }
 
   /**
    * Get tools for a specific server
    */
-  getToolsForServer(serverName: string): PiMcpTool[] {
+  getToolsForServer(serverName: string): PiTool[] {
     return this.tools.filter(t => t.name.startsWith(`mcp__${serverName}__`));
   }
 
@@ -437,7 +484,7 @@ export class MCPClientManager extends EventEmitter {
   /**
    * Subscribe to tool updates
    */
-  onToolsChange(callback: (tools: PiMcpTool[]) => void): () => void {
+  onToolsChange(callback: (tools: PiTool[]) => void): () => void {
     this.toolCallbacks.add(callback);
     return () => this.toolCallbacks.delete(callback);
   }
@@ -576,6 +623,193 @@ export class MCPClientManager extends EventEmitter {
       logError('mcp', `Reconnect failed for ${serverName}: ${message}`);
     }
   }
+
+  /**
+   * List available prompts from a server or all connected servers.
+   */
+  async listPrompts(serverName?: string): Promise<Array<{ server: string; prompts: MCPPrompt[] }>> {
+    const results: Array<{ server: string; prompts: MCPPrompt[] }> = [];
+
+    const servers = serverName
+      ? [[serverName, this.clients.get(serverName)] as const]
+      : Array.from(this.clients.entries());
+
+    for (const [name, client] of servers) {
+      if (!client) continue;
+      try {
+        const result = await client.request(
+          { method: 'prompts/list' },
+          { prompts: [] }
+        );
+        results.push({ server: name, prompts: result.prompts || [] });
+      } catch {
+        info('mcp', `Server ${name} does not support prompts`);
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Get a specific prompt from an MCP server.
+   */
+  async getPrompt(
+    serverName: string,
+    promptName: string,
+    args?: Record<string, string>
+  ): Promise<MCPPromptResult> {
+    const client = this.clients.get(serverName);
+    if (!client) {
+      throw new Error(`MCP server not found: ${serverName}`);
+    }
+
+    const result = await client.request(
+      { method: 'prompts/get' },
+      { name: promptName, arguments: args || {} }
+    );
+
+    return {
+      server: serverName,
+      description: result.description,
+      messages: result.messages || [],
+    };
+  }
+
+  /**
+   * Request a sampling completion from an MCP server.
+   */
+  async createSamplingMessage(
+    serverName: string,
+    params: SamplingParams
+  ): Promise<SamplingResult> {
+    const client = this.clients.get(serverName);
+    if (!client) {
+      throw new Error(`MCP server not found: ${serverName}`);
+    }
+
+    try {
+      const result = await client.request(
+        { method: 'sampling/createMessage' },
+        {
+          method: 'sampling/createMessage',
+          params: {
+            messages: params.messages,
+            systemPrompt: params.systemPrompt,
+            temperature: params.temperature,
+            maxTokens: params.maxTokens,
+            stopSequences: params.stopSequences,
+          },
+        }
+      );
+
+      return {
+        server: serverName,
+        content: result.content,
+        model: result.model,
+        stopReason: result.stopReason,
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(`Sampling failed for ${serverName}: ${message}`);
+    }
+  }
+
+  /**
+   * Get authorization headers for OAuth authentication
+   */
+  private async getAuthHeaders(
+    serverName: string,
+    oauth?: MCPOAuthConfig
+  ): Promise<Record<string, string>> {
+    if (!oauth) {
+      return {};
+    }
+
+    try {
+      // Try to get cached tokens
+      let tokens = await defaultTokenStorage.get(serverName);
+
+      // Check if token needs refresh
+      if (tokens && isTokenExpired(tokens)) {
+        if (tokens.refreshToken && oauth.tokenServerUrl) {
+          // Refresh the token
+          tokens = await this.refreshOAuthToken(serverName, oauth, tokens.refreshToken);
+        } else {
+          // Token expired without refresh, need new auth
+          tokens = null;
+        }
+      }
+
+      if (tokens?.accessToken) {
+        return { Authorization: `Bearer ${tokens.accessToken}` };
+      }
+
+      // No valid tokens, log warning
+      info('mcp', `No OAuth tokens for server ${serverName}, proceeding without auth`);
+      return {};
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logError('mcp', `OAuth auth error for ${serverName}: ${message}`);
+      return {};
+    }
+  }
+
+  /**
+   * Refresh OAuth token
+   */
+  private async refreshOAuthToken(
+    serverName: string,
+    oauth: MCPOAuthConfig,
+    refreshToken: string
+  ): Promise<OAuthTokens | null> {
+    if (!oauth.tokenServerUrl) {
+      return null;
+    }
+
+    try {
+      const response = await fetch(oauth.tokenServerUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          grant_type: 'refresh_token',
+          refresh_token: refreshToken,
+          client_id: oauth.clientId || '',
+        }),
+      });
+
+      if (!response.ok) {
+        logError('mcp', `Token refresh failed for ${serverName}: ${response.status}`);
+        return null;
+      }
+
+      const data = await response.json() as {
+        access_token: string;
+        refresh_token?: string;
+        expires_in?: number;
+        token_type?: string;
+      };
+
+      const tokens: OAuthTokens = {
+        accessToken: data.access_token,
+        refreshToken: data.refresh_token || refreshToken,
+        tokenType: data.token_type,
+        expiresAt: data.expires_in
+          ? Date.now() + data.expires_in * 1000
+          : undefined,
+      };
+
+      // Store updated tokens
+      await defaultTokenStorage.set(serverName, tokens);
+
+      return tokens;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logError('mcp', `Token refresh error for ${serverName}: ${message}`);
+      return null;
+    }
+  }
 }
 
 // Default client instance
@@ -618,6 +852,72 @@ export function loadMCPConfig(configPath?: string): MCPClientConfig {
     // Return empty config if file doesn't exist
     return { servers: [] };
   }
+}
+
+/**
+ * MCP Prompt definition
+ */
+export interface MCPPrompt {
+  name: string;
+  description?: string;
+  arguments?: MCPPromptArgument[];
+}
+
+/**
+ * MCP Prompt argument
+ */
+export interface MCPPromptArgument {
+  name: string;
+  description?: string;
+  required?: boolean;
+}
+
+/**
+ * MCP Prompt result
+ */
+export interface MCPPromptResult {
+  server: string;
+  description?: string;
+  messages: MCPSamplingMessage[];
+}
+
+/**
+ * Sampling message
+ */
+export interface MCPSamplingMessage {
+  role: 'user' | 'assistant';
+  content: MCPSamplingContent;
+}
+
+/**
+ * Sampling content
+ */
+export interface MCPSamplingContent {
+  type: 'text' | 'image';
+  text?: string;
+  data?: string;
+  mimeType?: string;
+}
+
+/**
+ * Sampling parameters
+ */
+export interface SamplingParams {
+  messages: MCPSamplingMessage[];
+  systemPrompt?: string;
+  temperature?: number;
+  maxTokens?: number;
+  stopSequences?: string[];
+}
+
+/**
+ * Sampling result
+ */
+export interface SamplingResult {
+  server: string;
+  content: MCPSamplingContent;
+  model?: string;
+  stopReason?: string;
 }
 
 /**
