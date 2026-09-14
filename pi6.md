@@ -734,3 +734,121 @@ Pi6 完成时，UpUp 应该被准确描述为：
 **已完成：** `@upup/pi-runtime`、`@upup/pi-storage`、root storage/runtime consumers、market-data session capability pilot、定向与全仓本地验证。
 
 **保持未完成：** 真实 provider 凭证 smoke、独立语义验收、Phase 2–7 的外围迁移与兼容层退场。
+
+## 23. Pi6 第二阶段实施结果（2026-09-14）
+
+本阶段按"先建公共 adapter contract，再迁移 4 处重复的事件映射，最后统一验证"的顺序完成了 Phase 2 的事件收敛目标。
+
+### 23.1 已创建的 Package
+
+| Package | 版本 | 已实现能力 |
+|---|---:|---|
+| `@upup/pi-event-adapter` | `0.1.0` | canonical Pi→legacy 事件映射、canonical Pi→server 事件映射、canonical legacy→server 事件映射、async/sync iterable adapter stream、buildLegacyDoneEvent、hasLegacyMapping/hasServerMapping contract helper |
+
+公共 contract 版本：`upup.pi.events.v1`（与 `@upup/pi-runtime` 的 `PI_EVENTS_CONTRACT` 同步）。
+
+`@upup/pi-event-adapter` 是 event adapter foundation package，仅依赖 `@upup/pi-runtime` 的 `UpUpAgentEvent` 与 `PI_EVENTS_CONTRACT`；不声明 resources/policies/workflows，仅作为 Pi→外部协议映射层。
+
+### 23.2 根实现迁移
+
+- `src/runtime/pi/event-stream.ts` 的 `mapEvent` 替换为 `@upup/pi-event-adapter` 的 `mapPiEventToLegacy`；`done` 事件改用 `buildLegacyDoneEvent`，确保单一构造路径。
+- `src/gateway/agent-runner.ts` 删除 `toLegacyEvent`，统一消费 `mapPiEventToLegacy`。
+- `src/stdio/server.ts` 删除两个内联 adapter：`mapPiEvent`（Pi→Server）和 `mapAgentEvent`（legacy→Server），统一消费 `mapPiEventToServer` 与 `mapLegacyAgentEventToServer`。
+- 所有 Pi 消费者现在通过 `@upup/pi-event-adapter` 单一入口获取映射规则；4 处 duplicate 收敛到 1 处。
+- `UpUpAgentEvent` 类型 import 从 `src/runtime/pi/types.js` 改到 `@upup/pi-runtime` 直接消费，避免第二份 wildcard 透传。
+
+### 23.3 事件映射契约
+
+`mapPiEventToLegacy` 覆盖 7 个可映射的 Pi 事件（`thinking`、`text_delta`、`tool_start`、`tool_update`、`tool_end`、`compaction_start`、`compaction_end`），返回 `undefined` 表示 Pi 事件没有 legacy 等价（lifecycle-only 事件）。
+
+`mapPiEventToServer` 覆盖同样的 7 个事件，返回 `null` 表示没有 server 等价。
+
+`mapLegacyAgentEventToServer` 覆盖 17 个 legacy AgentEvent 类型，是 stdio/gateway 的 legacy→server 转换层。
+
+`adaptPiEventsToLegacy` / `adaptPiEventsToServer` 提供 async/sync iterable 流，调用方无需自己实现 for-await 循环。
+
+### 23.4 实际验证结果
+
+| 验证项 | 结果 |
+|---|---|
+| `bun run typecheck` | 通过 |
+| `bun run check:module-boundaries` | 通过：35 workspace packages、552 root src modules，无 root-src imports 与依赖环 |
+| `bun run check:pi-migration` | 通过：8 pinned packages、Node >=22.19.0、8 runtime files、finance metadata |
+| `bun run check:pi-runtime` | 通过：Bun 1.4.1、Node 26.3.0、Node 22 target 声明通过 |
+| `bun run check:pi-packages` | 通过：17 个 Pi domain packages 的 source、exact semver、资源与 pin 校验通过 |
+| `bun run verify:pi5` | A1–A20，20/20 pass |
+| `@upup/pi-event-adapter` 测试 | 22 pass、0 fail、84 expect() calls |
+| Runtime/print/storage/market-data/event-adapter 定向测试 | 208 pass、0 fail、2192 assertions、36 files |
+| `bun test --cwd packages/pi-event-adapter` | 22 pass、0 fail |
+| `bun run test:pi-contracts`（含新增 pi-event-adapter） | 稳定通过 |
+| `bun run start -- --help` | 通过 |
+| print fixture stream | 通过 |
+
+### 23.5 未完成与环境限制
+
+- 全仓 `bun test` 中两个 flaky 用例（基金选择方法验证中的网络依赖测试、`session-sync e2e` 偶发并发超时）与本次 event-adapter 改动无直接因果关系，单跑均通过；这些是 baseline 已存在的网络/时序不稳定测试。
+- Phase 3+ 仍待执行：拆分 Pi Session Factory、迁移 Session/Memory/Storage/Permissions、收敛 `legacy-events` 类型在 controllers/components 中的直接消费、退出 global registry、迁移 TUI/Gateway/Bridge/stdio/cron/daemon/MCP/plugin runtime 等外围能力。
+- `pi6.md` 的原有路线图仍然有效；本节只标记第二阶段已验证内容，不声明 Phase 3-7 已完成。
+
+### 23.6 第二阶段状态
+
+**已完成：** `@upup/pi-event-adapter`、4 处 duplicate 事件映射收敛到单一 adapter、根 src 消费者切换、22 个 adapter 合同测试 + 全部定向测试 + verify:pi5 通过。
+
+**保持未完成：** `legacy-events` 类型在 controllers/components 中的继续消费（仍有零散直接 `case 'tool_start'` 等分支但语义上是 legacy consumer 而非 duplicate adapter）、Phase 3-7 的外围迁移与兼容层退场。
+
+## 24. Pi6 第二阶段扩展结果（2026-09-14）
+
+在第 23 节事件 adapter 收敛的基础上，本轮扩展 Phase 2 收口范围，把"事件相关 type-only consumer"从 `src/runtime/pi/legacy-events.js` 切到 `@upup/pi-event-adapter`，进一步减少 `legacy-events` 的直接依赖面。
+
+### 24.1 新增 helper
+
+| Helper | 用途 |
+|---|---|
+| `auditAdapterCoverage(fixtures)` | 接收一组 Pi 事件 fixture，返回 4 类分桶（mappedToLegacy/droppedFromLegacy/mappedToServer/droppedFromServer），用于 verify 阶段确保每个 Pi 事件类型都被 adapter 显式处理 |
+| `DisplayEvent` | 旧 event adapter 显示包装类型，在 pi-event-adapter 重新声明，让 `src/types.ts` 与 `src/controllers/agent-runner.ts` 不再直接依赖 `legacy-events.ts` |
+
+### 24.2 Type-only consumer 迁移
+
+13 个 type-only consumer 文件把 import 从 `legacy-events.js` 切到 `@upup/pi-event-adapter`：
+
+| 文件 | 迁移的 type |
+|---|---|
+| `src/permissions/index.ts` | `ApprovalDecision` |
+| `src/utils/permissions/ApprovalManager.ts` | `ApprovalDecision` |
+| `src/utils/permissions/approvalConfig.ts` | `ApprovalDecision` |
+| `src/components/approval-requests/BaseApprovalRequest.ts` | `ApprovalDecision` |
+| `src/components/approval-requests/FullscreenApprovalOverlay.ts` | `ApprovalDecision` |
+| `src/components/approval-requests/WriteApprovalRequest.ts` | `ApprovalDecision` |
+| `src/components/approval-requests/GenericApprovalRequest.ts` | `ApprovalDecision` |
+| `src/components/approval-requests/BashApprovalRequest.ts` | `ApprovalDecision` |
+| `src/components/inline-approval-selector.ts` | `ApprovalDecision` |
+| `src/components/tool-event.ts` | `ApprovalDecision` |
+| `src/components/approval-prompt.ts` | `ApprovalDecision` |
+| `src/components/select-list.ts` | `ApprovalDecision` |
+| `src/components/working-indicator.ts` | `StreamMode` |
+| `src/components/chat-log.ts` | `TokenUsage` |
+| `src/types.ts` | `DisplayEvent`、`TokenUsage` |
+| `src/controllers/agent-runner.ts` | `DisplayEvent`、`StreamMode` |
+| `src/telemetry/integration.ts` | `ToolEndEvent`、`ToolErrorEvent` |
+
+剩余的 `AgentConfig` / `AgentEvent` / `GroupContext` 仍留在 `legacy-events.ts`，因为它们依赖 `MessageQueue`/`Model`/`ModelRuntime` 等运行时类型，把它们搬到 adapter 会引入新的间接依赖，超出 Phase 2 的边界。
+
+### 24.3 实际验证结果
+
+| 验证项 | 结果 |
+|---|---|
+| `bun run typecheck` | 通过 |
+| `bun run check:module-boundaries` | 通过：35 workspace packages、552 root src modules |
+| `bun run check:pi-migration` | 通过 |
+| `bun run check:pi-runtime` | 通过 |
+| `bun run check:pi-packages` | 通过 |
+| `bun run verify:pi5` | A1–A20，20/20 pass |
+| `@upup/pi-event-adapter` 测试 | 23 pass、0 fail、102 assertions（含新增 audit 覆盖测试） |
+| 47 files runtime/permissions/components/controllers/telemetry/stdio/gateway 全量测试 | 378 pass、0 fail、2613 assertions |
+| `bun run start -- --help` | 通过 |
+
+### 24.4 第二阶段扩展状态
+
+**已完成：** `@upup/pi-event-adapter` 的 coverage audit helper、`DisplayEvent` 重新声明、13 个 type-only consumer 切到 `@upup/pi-event-adapter`、所有定向测试和门禁通过。
+
+**保持未完成：** `AgentConfig` / `AgentEvent` / `GroupContext` 等运行时协议 type 仍保留在 `legacy-events.ts`（依赖 `MessageQueue`/`Model`/`ModelRuntime`，迁移超出 Phase 2 范围）；Phase 3-7 仍待执行。

@@ -1,7 +1,8 @@
 import { createMessageQueue, type MessageQueue, type QueuePriority } from '../utils/message-queue.js';
 import { HEARTBEAT_OK_TOKEN } from './heartbeat/suppression.js';
 import type { AgentEvent, GroupContext } from '../runtime/pi/legacy-events.js';
-import type { UpUpAgentEvent } from '../runtime/pi/types.js';
+import { mapPiEventToLegacy } from '@upup/pi-event-adapter';
+import type { UpUpAgentEvent } from '@upup/pi-runtime';
 import { isPiSessionRunning, runPiPrompt } from '../runtime/pi/runner.js';
 import type { Model } from '@earendil-works/pi-ai';
 import type { ModelRuntime } from '@earendil-works/pi-coding-agent';
@@ -73,15 +74,7 @@ export type AgentRunRequest = {
   piModelRuntime?: ModelRuntime;
 };
 
-function toLegacyEvent(event: UpUpAgentEvent): AgentEvent | undefined {
-  if (event.type === 'tool_start') return { type: 'tool_start', tool: event.toolName, args: (event.input ?? {}) as Record<string, unknown>, toolCallId: event.toolCallId };
-  if (event.type === 'tool_update') return { type: 'tool_progress', tool: event.toolName, message: event.text };
-  if (event.type === 'tool_end') return event.error
-    ? { type: 'tool_error', tool: event.toolName, error: event.error, toolCallId: event.toolCallId }
-    : { type: 'tool_end', tool: event.toolName, args: {}, result: '', duration: 0, toolCallId: event.toolCallId };
-  if (event.type === 'text_delta') return { type: 'stream_progress', charDelta: event.delta.length, mode: 'responding', textContent: event.delta };
-  return undefined;
-}
+
 
 export async function runAgentForMessage(req: AgentRunRequest): Promise<string> {
   const isolated = req.isolatedSession ?? false;
@@ -101,7 +94,7 @@ export async function runAgentForMessage(req: AgentRunRequest): Promise<string> 
         modelRuntime: req.piModelRuntime,
         signal: req.signal,
         onEvent: async (event) => {
-          const legacy = toLegacyEvent(event);
+          const legacy = mapPiEventToLegacy(event);
           if (legacy) await req.onEvent?.(legacy);
         },
       });

@@ -4,7 +4,6 @@ import {
   SessionManager,
   SettingsManager,
   type AgentSession,
-  type AgentSessionEvent,
   type ExtensionAPI,
   type InlineExtension,
   type ToolDefinition,
@@ -33,6 +32,7 @@ import type {
   PiEvidenceCapability,
   PiAuditCapability,
 } from '@upup/pi-runtime';
+import { extractTextFromPiMessage, mapAgentSessionEventToUpUp } from '@upup/pi-event-adapter';
 import { validateAgentSpec } from './agent-spec.js';
 import { getModel, getModels } from '@earendil-works/pi-ai/compat';
 import { existsSync, readFileSync } from 'node:fs';
@@ -51,82 +51,6 @@ import { createDefaultMarketQuoteClient, FixedWindowMarketHistoryRateLimiter, In
 import type { NativeMarketQuoteTrendStore } from '@upup/pi-market-data';
 import type { InvestmentWorkflowServices } from '@upup/pi-investment-workflow';
 import { globalUpupPath } from '../../utils/storage-paths.js';
-
-function eventToUpUpEvent(sessionId: string, event: AgentSessionEvent): UpUpAgentEvent | undefined {
-  switch (event.type) {
-    case 'agent_start':
-      return { type: 'agent_start', sessionId };
-    case 'turn_start':
-      return { type: 'turn_start', sessionId };
-    case 'message_update':
-      if (event.assistantMessageEvent.type === 'text_delta') {
-        return { type: 'text_delta', sessionId, delta: event.assistantMessageEvent.delta };
-      }
-      if (event.assistantMessageEvent.type === 'thinking_delta') {
-        return { type: 'thinking', sessionId, text: event.assistantMessageEvent.delta };
-      }
-      return undefined;
-    case 'message_end': {
-      const message = event.message as { role?: string; content?: unknown; stopReason?: string };
-      return {
-        type: 'message_end',
-        sessionId,
-        role: message.role ?? 'unknown',
-        text: contentToText(message),
-        stopReason: message.stopReason,
-      };
-    }
-    case 'tool_execution_start':
-      return {
-        type: 'tool_start',
-        sessionId,
-        toolName: event.toolName,
-        toolCallId: event.toolCallId,
-        input: event.args,
-      };
-    case 'tool_execution_update':
-      return {
-        type: 'tool_update',
-        sessionId,
-        toolName: event.toolName,
-        text: contentToText(event.partialResult),
-      };
-    case 'tool_execution_end':
-      return {
-        type: 'tool_end',
-        sessionId,
-        toolName: event.toolName,
-        toolCallId: event.toolCallId,
-        error: event.isError ? contentToText(event.result) : undefined,
-      };
-    case 'compaction_start':
-      return { type: 'compaction_start', sessionId, reason: event.reason };
-    case 'compaction_end':
-      return { type: 'compaction_end', sessionId, success: !event.errorMessage && !event.aborted, error: event.errorMessage };
-    case 'agent_end': {
-      const failed = event.messages.find((message) => message.role === 'assistant' && ('stopReason' in message) && (message.stopReason === 'error' || message.stopReason === 'aborted'));
-      return failed && 'errorMessage' in failed && typeof failed.errorMessage === 'string'
-        ? { type: 'session_error', sessionId, error: failed.errorMessage }
-        : { type: 'agent_end', sessionId };
-    }
-    case 'turn_end':
-      return { type: 'turn_end', sessionId };
-    default:
-      return undefined;
-  }
-}
-
-function contentToText(result: unknown): string {
-  if (!result || typeof result !== 'object' || !('content' in result) || !Array.isArray(result.content)) {
-    return '';
-  }
-  return result.content
-    .filter((part: unknown): part is { type: 'text'; text: string } =>
-      typeof part === 'object' && part !== null && 'type' in part && part.type === 'text' && 'text' in part && typeof part.text === 'string',
-    )
-    .map((part) => part.text)
-    .join('\n');
-}
 
 export function toPiTool<TInput, TResult>(
   spec: UpUpAgentSpec,
@@ -575,7 +499,7 @@ class PiAgentSession implements UpUpAgentSession {
     this.capabilityContext = capabilityContext;
     this.session = session;
     this.unsubscribe = session.subscribe((event) => {
-      const mapped = eventToUpUpEvent(this.id, event);
+      const mapped = mapAgentSessionEventToUpUp(this.id, event);
       if (mapped?.type === 'session_start') mapped.agentId = spec.id;
       if (mapped) for (const listener of this.listeners) listener(mapped);
     });

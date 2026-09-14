@@ -1,6 +1,17 @@
+/**
+ * UpUp canonical event stream adapter (Pi6 Phase 2).
+ *
+ * This file is now a thin runtime shim that wires `runPiPrompt` (Pi-side)
+ * to the canonical event adapter (`@upup/pi-event-adapter`). The previous
+ * inline `mapEvent` function has been moved into the adapter package so
+ * that Gateway, stdio, Bridge and the controller all share one
+ * implementation.
+ */
+
 import { runPiPrompt } from './runner.js';
-import type { UpUpAgentEvent } from '@upup/pi-runtime';
 import type { AgentConfig, AgentEvent } from './legacy-events.js';
+import { buildLegacyDoneEvent, mapPiEventToLegacy } from '@upup/pi-event-adapter';
+import type { UpUpAgentEvent } from '@upup/pi-runtime';
 
 export interface PiStreamOptions {
   sessionId?: string;
@@ -44,8 +55,8 @@ export async function* streamPiAgent(
           return decision !== 'deny';
         }
       : undefined,
-    onEvent: (event) => {
-      const mapped = mapEvent(event);
+    onEvent: (event: UpUpAgentEvent) => {
+      const mapped = mapPiEventToLegacy(event);
       if (mapped) push(mapped);
     },
   }).then((result) => { answer = result; }, (error) => { failure = error; })
@@ -65,28 +76,10 @@ export async function* streamPiAgent(
   }
   await execution;
   if (failure) throw failure;
-  yield {
-    type: 'done',
+  yield buildLegacyDoneEvent({
     answer,
     toolCalls: [],
     iterations: 0,
     totalTime: Date.now() - start,
-  };
-}
-
-function mapEvent(event: UpUpAgentEvent): AgentEvent | undefined {
-  switch (event.type) {
-    case 'text_delta':
-      return { type: 'stream_progress', charDelta: event.delta.length, mode: 'responding', textContent: event.delta };
-    case 'tool_start':
-      return { type: 'tool_start', tool: event.toolName, args: (event.input ?? {}) as Record<string, unknown>, toolCallId: event.toolCallId };
-    case 'tool_update':
-      return { type: 'tool_progress', tool: event.toolName, message: event.text };
-    case 'tool_end':
-      return event.error
-        ? { type: 'tool_error', tool: event.toolName, error: event.error, toolCallId: event.toolCallId }
-        : { type: 'tool_end', tool: event.toolName, args: {}, result: '', duration: 0, toolCallId: event.toolCallId };
-    default:
-      return undefined;
-  }
+  });
 }

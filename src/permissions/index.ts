@@ -11,7 +11,7 @@
  * - Rule import/export
  */
 
-import type { ApprovalDecision } from '../runtime/pi/legacy-events.js';
+import type { ApprovalDecision } from '@upup/pi-event-adapter';
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { upupPath } from '../utils/paths.js';

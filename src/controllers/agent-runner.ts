@@ -7,7 +7,7 @@ import type {
   ApprovalDecision,
   DoneEvent,
 } from '../runtime/pi/legacy-events.js';
-import type { DisplayEvent, StreamMode } from '../runtime/pi/legacy-events.js';
+import type { DisplayEvent, StreamMode } from '@upup/pi-event-adapter';
 import type { HistoryItem, HistoryItemStatus, WorkingState } from '../types.js';
 import { getSessionTracker } from '../session/session-tracker.js';
 import { getPiSessionService } from '../runtime/pi/session-service.js';

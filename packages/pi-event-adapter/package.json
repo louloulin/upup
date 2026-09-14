@@ -1,0 +1,32 @@
+{
+  "name": "@upup/pi-event-adapter",
+  "version": "0.1.0",
+  "description": "UpUp canonical event adapter: single production Pi event \u2192 legacy/server event mapping",
+  "type": "module",
+  "keywords": [
+    "pi-package",
+    "events",
+    "adapter",
+    "contracts"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "bun build src/index.ts --outdir=dist --target=node && tsc --emitDeclarationOnly --project tsconfig.json",
+    "test": "bun test ./test.ts"
+  },
+  "files": [
+    "dist",
+    "package.json"
+  ],
+  "dependencies": {
+    "@upup/pi-runtime": "0.1.0",
+    "@earendil-works/pi-coding-agent": "0.84.3"
+  }
+}

@@ -7,7 +7,8 @@
 
 import { streamPiAgent } from '../runtime/pi/event-stream.js';
 import { getPiSessionService } from '../runtime/pi/session-service.js';
-import type { UpUpAgentEvent } from '../runtime/pi/types.js';
+import { mapLegacyAgentEventToServer, mapPiEventToServer } from '@upup/pi-event-adapter';
+import type { UpUpAgentEvent } from '@upup/pi-runtime';
 import type { AgentEvent } from '../runtime/pi/legacy-events.js';
 import type {
   JsonRpcRequest,
@@ -75,124 +76,6 @@ export function createStdioServer(): StdioServer {
     sendNotification(JsonRpcMethod.Event, { event } as Record<string, unknown>);
   }
 
-  // Map AgentEvent to ServerEvent
-  function mapAgentEvent(event: AgentEvent): ServerEvent | null {
-    switch (event.type) {
-      case 'thinking':
-        return { type: 'thinking', message: event.message };
-
-      case 'tool_start':
-        return { type: 'tool_start', tool: event.tool, args: event.args, toolCallId: event.toolCallId };
-
-      case 'tool_progress':
-        return { type: 'tool_progress', tool: event.tool, message: event.message };
-
-      case 'tool_end':
-        return {
-          type: 'tool_end',
-          tool: event.tool,
-          args: event.args,
-          result: event.result,
-          duration: event.duration,
-          toolCallId: event.toolCallId,
-        };
-
-      case 'tool_error':
-        return { type: 'tool_error', tool: event.tool, error: event.error, toolCallId: event.toolCallId };
-
-      case 'tool_limit':
-        return { type: 'tool_limit', tool: event.tool, warning: event.warning, blocked: event.blocked };
-
-      case 'tool_approval':
-        return {
-          type: 'tool_approval',
-          tool: event.tool,
-          args: event.args,
-          approved: event.approved,
-        };
-
-      case 'tool_denied':
-        return { type: 'tool_denied', tool: event.tool, args: event.args, toolCallId: event.toolCallId };
-
-      case 'context_cleared':
-        return { type: 'context_cleared', clearedCount: event.clearedCount, keptCount: event.keptCount };
-
-      case 'memory_recalled':
-        return { type: 'memory_recalled', filesLoaded: event.filesLoaded, tokenCount: event.tokenCount };
-
-      case 'memory_flush':
-        return {
-          type: 'memory_flush',
-          phase: event.phase,
-          filesWritten: event.filesWritten,
-        };
-
-      case 'queue_drain':
-        return { type: 'queue_drain', messageCount: event.messageCount, mergedText: event.mergedText };
-
-      case 'microcompact':
-        return { type: 'microcompact', cleared: event.cleared, tokensSaved: event.tokensSaved };
-
-      case 'compaction':
-        return {
-          type: 'compaction',
-          phase: event.phase,
-          success: event.success,
-          preCompactTokens: event.preCompactTokens,
-          postCompactTokens: event.postCompactTokens,
-          compactionModel: event.compactionModel,
-        };
-
-      case 'stream_progress':
-        return {
-          type: 'stream_progress',
-          charDelta: event.charDelta,
-          mode: event.mode,
-          toolName: event.toolName,
-          partialJson: event.partialJson,
-          toolCallId: event.toolCallId,
-          content: (event as any).textContent || (event as any).content || '',  // 添加: 累积的文本内容
-        };
-
-      case 'done':
-        return {
-          type: 'done',
-          answer: event.answer,
-          toolCalls: event.toolCalls,
-          iterations: event.iterations,
-          totalTime: event.totalTime,
-          tokenUsage: event.tokenUsage,
-          tokensPerSecond: event.tokensPerSecond,
-        };
-
-      default:
-        // Skip unhandled event types
-        return null;
-    }
-  }
-
-  function mapPiEvent(event: UpUpAgentEvent): ServerEvent | null {
-    switch (event.type) {
-      case 'thinking':
-        return { type: 'thinking', message: event.text };
-      case 'tool_start':
-        return { type: 'tool_start', tool: event.toolName, args: (event.input ?? {}) as Record<string, unknown>, toolCallId: event.toolCallId };
-      case 'tool_update':
-        return { type: 'tool_progress', tool: event.toolName, message: event.text };
-      case 'tool_end':
-        return event.error
-          ? { type: 'tool_error', tool: event.toolName, error: event.error, toolCallId: event.toolCallId }
-          : { type: 'tool_end', tool: event.toolName, args: {}, result: '', duration: 0, toolCallId: event.toolCallId };
-      case 'text_delta':
-        return { type: 'stream_progress', charDelta: event.delta.length, mode: 'responding', content: event.delta };
-      case 'compaction_start':
-        return { type: 'compaction', phase: 'start' };
-      case 'compaction_end':
-        return { type: 'compaction', phase: 'end', success: event.success };
-      default:
-        return null;
-    }
-  }
 
   // Handle incoming JSON-RPC request
   async function handleRequest(req: JsonRpcRequest): Promise<void> {
@@ -250,7 +133,7 @@ export function createStdioServer(): StdioServer {
               const output = await piSessions.run(params.sessionId, params.prompt, {
                 model: params.model,
                 onEvent: (event) => {
-                  const serverEvent = mapPiEvent(event);
+                  const serverEvent = mapPiEventToServer(event);
                   if (serverEvent) sendEvent(serverEvent);
                 },
               });
@@ -264,7 +147,7 @@ export function createStdioServer(): StdioServer {
                   totalTime = event.totalTime;
                   tokenUsage = event.tokenUsage;
                 }
-                const serverEvent = mapAgentEvent(event);
+                const serverEvent = mapLegacyAgentEventToServer(event);
                 if (serverEvent) sendEvent(serverEvent);
               }
             }
@@ -311,7 +194,7 @@ export function createStdioServer(): StdioServer {
                 model: params.model,
                 signal: activeRun.abortController.signal,
                 onEvent: (event) => {
-                  const serverEvent = mapPiEvent(event);
+                  const serverEvent = mapPiEventToServer(event);
                   if (serverEvent) sendEvent(serverEvent);
                 },
               });
@@ -323,7 +206,7 @@ export function createStdioServer(): StdioServer {
                 signal: activeRun.abortController.signal,
               });
               for await (const event of stream) {
-                const serverEvent = mapAgentEvent(event);
+                const serverEvent = mapLegacyAgentEventToServer(event);
                 if (serverEvent) sendEvent(serverEvent);
               }
             }
