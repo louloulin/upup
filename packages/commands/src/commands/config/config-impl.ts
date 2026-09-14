@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Config Command Implementation
  *

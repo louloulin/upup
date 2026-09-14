@@ -65,7 +65,7 @@ export {
 export type { LogEntry, LogLevel, LogCategory, LoggerConfig } from '@upup/utils/logging';
 
 // Legacy logger export from src/utils/logger.js (for backward compatibility)
-export { logger } from './logger.js';
+export { logger } from '@upup/utils/logging';
 
 // NOTE: These utilities remain in src/utils due to dependencies on @/providers
 // They will be migrated in a future phase
@@ -89,5 +89,5 @@ export {
   getModelIdsForProvider,
   getDefaultModelForProvider,
   getModelDisplayName,
-} from './model.js';
-export type { Model } from './model.js';
+  type Model,
+} from '@upup/pi-tui-app';

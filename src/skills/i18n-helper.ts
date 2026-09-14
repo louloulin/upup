@@ -11,7 +11,7 @@
 
 import type { SkillMetadata } from '@upup/skills';
 import { getLocale, type Locale } from '../runtime/pi/locale.js';
-import { DEFAULT_LOCALE } from '../i18n/strings.js';
+import { DEFAULT_LOCALE } from '@upup/i18n';
 
 /**
  * Return the description in the active locale.
@@ -41,4 +41,4 @@ export function localizeSkill(
 
 // Re-export the locale types so callers don't need a second import.
 export { getLocale, type Locale } from '../runtime/pi/locale.js';
-export { DEFAULT_LOCALE } from '../i18n/strings.js';
+export { DEFAULT_LOCALE } from '@upup/i18n';

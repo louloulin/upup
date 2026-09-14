@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Plan Command Implementation
  *

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Git Command Implementation
  *

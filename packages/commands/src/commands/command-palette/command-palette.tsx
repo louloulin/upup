@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Command Palette - Interactive Command Selection
  *

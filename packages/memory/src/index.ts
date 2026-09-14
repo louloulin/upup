@@ -183,20 +183,23 @@ function resolveConfig(): MemoryRuntimeConfig {
 // =============================================================================
 // Storage / Search / Dossier re-exports
 // =============================================================================
-export {
-  scanSearch,
-  hybridSearch,
-  keywordSearch,
-  vectorSearch,
-  tfidfSearch,
-  MemoryStore,
-  MemoryDatabase,
-  MemoryIndexer,
-  DossierStore,
-  EncryptedMemoryStore,
-  AuditChain,
-  canonicalJson,
-} from './search.js';
+export { scanSearch, hybridSearch, keywordSearch, vectorSearch, tfidfSearch } from './search.js';
+export { MemoryStore } from './store.js';
+export { MemoryDatabase } from './database.js';
+export { MemoryIndexer } from './indexer.js';
+export { DossierStore } from './dossier.js';
+export { EncryptedMemoryStore } from './encrypted-store.js';
+export { AuditChain } from './audit-signing.js';
+export { MemoryAuditLogger, getAuditLogger, readAuditLog } from './memory-audit.js';
+export { resetNestedMemoryPaths } from './nested-paths.js';
+export { resetTeamMemoryPaths } from './team-paths.js';
+export { dossierPostPhase, dossierPrePhase, canonicalJson, hashDossier } from '@upup/pi-storage';
+export type { AuditRecord } from './audit-signing.js';
+export { NestedMemoryPaths, getNestedMemoryPaths } from './nested-paths.js';
+export { getTeamMemoryPaths } from './team-paths.js';
+export { StrategyStore, computeStrategyPrevHash } from './strategy-store.js';
+export { MemoryDenyManager, getMemoryDenyManager, isMemoryDenied, getDenialReason, resetMemoryDenyManager, memoryDeny } from './memory-deny.js';
+
 export class MemoryManager {
   private static instance: MemoryManager | null = null;
 
@@ -401,3 +404,31 @@ export class MemoryManager {
     return `${year}-${month}-${day}.md`;
   }
 }
+
+// Phase 12: Re-export symbols needed by tests that were missing from index.ts
+export { registerDefaultMemoryPaths } from './nested-paths.js';
+export { generateTeamPrompt } from './team-paths.js';
+export { __resetInvestmentMemory } from './investment-memory.js';
+export { MEMORY_DENY_RULES } from './memory-deny.js';
+export type { MemoryDenyRule, MemoryDenyResult } from './memory-deny.js';
+export { resetAuditLogger } from './memory-audit.js';
+
+
+
+// Types needed by external tests
+export type { StrategyRecordInput } from './strategy-store.js';
+export type { TeamMemoryPaths } from './team-paths.js';
+
+// Phase 12: Investment memory, observation buffer, session files
+export type {
+  InvestmentMemoryItem,
+  InvestmentDecision,
+  RecordDecisionInput,
+  InvestmentMemoryOptions,
+  TradeAction,
+} from './investment-memory.js';
+export { InvestmentMemory, useInvestmentMemory } from './investment-memory.js';
+export { getObservationBuffer } from './observation-buffer.js';
+export type { ToolObservation } from './observation-buffer.js';
+export { shouldUpdateSessionMemory, updateSessionMemory } from './session-files.js';
+export type { UpdateResult, SessionMemoryFile } from './session-files.js';

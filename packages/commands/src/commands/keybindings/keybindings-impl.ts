@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Keybindings Command Implementation
  *

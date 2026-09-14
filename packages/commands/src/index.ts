@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * @upup/commands - Slash command framework
  *

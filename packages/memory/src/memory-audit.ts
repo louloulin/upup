@@ -215,3 +215,10 @@ export function getAuditLogger(): MemoryAuditLogger {
 export function resetAuditLogger(): void {
   auditLogger = null;
 }
+
+/**
+ * Standalone helper: read recent audit log entries.
+ */
+export function readAuditLog(limit?: number): MemoryAuditEntry[] {
+  return getAuditLogger().readAuditLog(limit);
+}

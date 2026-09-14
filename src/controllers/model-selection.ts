@@ -8,7 +8,7 @@ import {
   getDefaultModelForProvider,
   getModelsForProvider,
   type Model,
-} from '../utils/model.js';
+} from '@upup/pi-tui-app';
 import { getOllamaModels } from '../utils/ollama.js';
 import { DEFAULT_MODEL, DEFAULT_PROVIDER } from '../runtime/pi/model-config.js';
 import { InMemoryChatHistory } from '../utils/in-memory-chat-history.js';

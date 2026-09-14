@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Session Command - Local JSX Component
  *

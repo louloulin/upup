@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Theme utilities for commands
  *

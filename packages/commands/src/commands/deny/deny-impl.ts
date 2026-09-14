@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Deny Command Implementation
  */

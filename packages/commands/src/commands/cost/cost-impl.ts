@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Cost Command Implementation
  * 

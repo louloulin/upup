@@ -70,9 +70,9 @@ import {
   setApprovalCursor,
   WorkingIndicatorComponent,
   createApiKeyConfirmSelector,
-  createModelSelector,
+  createLegacyModelSelector,
   createProviderSelector,
-  createSessionSelector,
+  createLegacySessionSelector,
   createSessionDeleteConfirmSelector,
   SessionRenameInputComponent,
   SessionTagInputComponent,
@@ -335,7 +335,7 @@ export async function runCli(options: RunCliOptions = {}) {
 
   const onError = (message: string) => {
     lastError = message;
-    logger.error(message);
+    logger.error('system', message);
     tui.requestRender();
   };
 
@@ -975,7 +975,7 @@ export async function runCli(options: RunCliOptions = {}) {
     if (sessionSelection.isActive()) {
       const sState = sessionSelection.state;
       if (sState.appState === 'session_list') {
-        const selector = createSessionSelector(
+        const selector = createLegacySessionSelector(
           sState.sessions,
           async (sessionId) => {
             // Resume the selected session
@@ -1104,7 +1104,7 @@ export async function runCli(options: RunCliOptions = {}) {
     }
 
     if (state.appState === 'model_select' && state.pendingProvider) {
-      const selector = createModelSelector(
+      const selector = createLegacyModelSelector(
         state.pendingModels,
         modelSelection.provider === state.pendingProvider ? modelSelection.model : undefined,
         (modelId) => modelSelection.handleModelSelect(modelId),

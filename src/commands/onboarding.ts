@@ -10,7 +10,7 @@ import { homedir } from 'os';
 import { join } from 'path';
 import { config } from 'dotenv';
 import { PROVIDERS, type ProviderDef } from '@upup/utils';
-import { getModelsForProvider } from '../utils/model.js';
+import { getModelsForProvider } from '@upup/pi-tui-app';
 import { saveApiKeyToEnv, getApiKeyNameForProvider } from '@upup/utils';
 import { setSetting } from '@upup/utils';
 

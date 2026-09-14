@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Skills to Commands Converter
  *

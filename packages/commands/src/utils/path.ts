@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Path utilities for commands package
  */

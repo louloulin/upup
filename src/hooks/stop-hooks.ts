@@ -312,8 +312,8 @@ export function createMemoryExtractionHook(): StopHook {
     execute: async (context) => {
       // Lazy import to avoid circular dependencies
       try {
-        const { getObservationBuffer } = await import('../memory/observation-buffer.js');
-        const { extractMemories } = await import('../memory/extraction.js');
+        const { getObservationBuffer } = await import('@upup/memory');
+        const { extractMemories } = await import('@upup/memory');
 
         const obsBuffer = getObservationBuffer();
 
@@ -363,8 +363,8 @@ export function createSessionMemoryHook(): StopHook {
     enabled: true,
     execute: async (context) => {
       try {
-        const { shouldUpdateSessionMemory, updateSessionMemory } = await import('../memory/session-files.js');
-        const config = await import('../memory/session-files.js');
+        const { shouldUpdateSessionMemory, updateSessionMemory } = await import('@upup/memory');
+        const config = await import('@upup/memory');
 
         if (shouldUpdateSessionMemory()) {
           const result = await updateSessionMemory(context.messages);
@@ -391,7 +391,7 @@ export function createObservationBufferClearHook(): StopHook {
     enabled: true,
     execute: async (context) => {
       try {
-        const { getObservationBuffer } = await import('../memory/observation-buffer.js');
+        const { getObservationBuffer } = await import('@upup/memory');
         const buffer = getObservationBuffer();
 
         // Only clear if extraction already happened

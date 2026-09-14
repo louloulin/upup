@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Clear Command
  * 

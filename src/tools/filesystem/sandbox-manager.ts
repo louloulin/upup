@@ -6,7 +6,7 @@
 
 import { loadSandboxConfig, type SandboxConfig, type SandboxMode } from './sandbox-config.js';
 import { getSandboxRulesManager, type RuleScope } from './sandbox-rules.js';
-import { logger } from '../../utils/logger.js';
+import { logger } from '@upup/utils/logging';
 import { registerSandboxPort } from '../../runtime/pi/agent-port.js';
 
 export class SandboxManager {
@@ -68,9 +68,9 @@ export class SandboxManager {
   setConfig(config: Partial<SandboxConfig>): void {
     const oldMode = this.config.mode;
     this.config = { ...this.config, ...config };
-    logger.debug(`[sandbox] Config updated: mode=${this.config.mode}, enabled=${this.config.enabled}, autoAllow=${this.config.autoAllowBash}`);
+    logger.debug('tools', `[sandbox] Config updated: mode=${this.config.mode}, enabled=${this.config.enabled}, autoAllow=${this.config.autoAllowBash}`);
     if (oldMode !== this.config.mode) {
-      logger.info(`[sandbox] Sandbox mode changed: ${oldMode} → ${this.config.mode}`);
+      logger.info('tools', `[sandbox] Sandbox mode changed: ${oldMode} → ${this.config.mode}`);
     }
   }
 
@@ -86,7 +86,7 @@ export class SandboxManager {
    */
   reset(): void {
     this.config = loadSandboxConfig();
-    logger.debug('[sandbox] Configuration reset to defaults');
+    logger.debug('tools', '[sandbox] Configuration reset to defaults');
   }
 
   /**

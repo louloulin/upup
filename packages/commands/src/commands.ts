@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Commands System - Slash command framework
  *

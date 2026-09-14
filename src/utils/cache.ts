@@ -10,7 +10,7 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync, unlinkSync } from 'fs';
 import { join, dirname } from 'path';
 import { createHash } from 'crypto';
-import { logger } from './logger.js';
+import { logger } from '@upup/utils/logging';
 import { upupPath } from './paths.js';
 
 // ============================================================================
@@ -144,7 +144,7 @@ export function readCache(
     const parsed: unknown = JSON.parse(content);
 
     if (!isValidCacheEntry(parsed)) {
-      logger.warn(`Cache corrupted (invalid structure): ${label}`, { filepath });
+      logger.warn('default', `Cache corrupted (invalid structure): ${label}`, { filepath });
       removeCacheFile(filepath);
       return null;
     }
@@ -160,7 +160,7 @@ export function readCache(
     return { data: parsed.data, url: parsed.url };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    logger.warn(`Cache read error: ${label} — ${message}`, { filepath });
+    logger.warn('default', `Cache read error: ${label} — ${message}`, { filepath });
     removeCacheFile(filepath);
     return null;
   }
@@ -197,6 +197,6 @@ export function writeCache(
     writeFileSync(filepath, JSON.stringify(entry, null, 2));
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    logger.warn(`Cache write error: ${label} — ${message}`, { filepath });
+    logger.warn('default', `Cache write error: ${label} — ${message}`, { filepath });
   }
 }

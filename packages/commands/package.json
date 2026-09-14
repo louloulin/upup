@@ -12,7 +12,7 @@
     }
   },
   "scripts": {
-    "build": "bun build src/index.ts --outdir=dist --target=bun --external '@upup/commands' --external 'playwright*' --external 'playwright-core*' --external 'electron*' --external 'chromium*' && bun build src/all-commands.ts --outdir=dist --target=bun --external 'playwright*' --external 'playwright-core*' --external 'electron*' --external 'chromium*' && bun build src/command-usage.ts --outdir=dist --target=bun && bun build src/command-metrics.ts --outdir=dist --target=bun && bun build src/args.ts --outdir=dist --target=bun && bun build src/timeout.ts --outdir=dist --target=bun",
+    "build": "bun build src/index.ts --outdir=dist --target=bun --external '@upup/commands' --external 'playwright*' --external 'playwright-core*' --external 'electron*' --external 'chromium*' && bun build src/all-commands.ts --outdir=dist --target=bun --external 'playwright*' --external 'playwright-core*' --external 'electron*' --external 'chromium*' && bun build src/command-usage.ts --outdir=dist --target=bun && bun build src/command-metrics.ts --outdir=dist --target=bun && bun build src/args.ts --outdir=dist --target=bun && bun build src/timeout.ts --outdir=dist --target=bun && npx tsc --emitDeclarationOnly --declaration --declarationMap --outDir dist",
     "dev": "bun build src/index.ts --outdir=dist --watch --target=bun",
     "test": "bun test"
   },

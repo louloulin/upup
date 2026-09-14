@@ -94,7 +94,7 @@ export function shouldUpdateSessionMemory(): boolean {
   return Date.now() - lastUpdateTimestamp >= MIN_UPDATE_INTERVAL_MS;
 }
 
-interface UpdateResult {
+export interface UpdateResult {
   tokenCount: number;
   messageCount: number;
 }
@@ -115,3 +115,5 @@ export async function updateSessionMemory(messages: Message[]): Promise<UpdateRe
   lastUpdateTimestamp = Date.now();
   return { tokenCount, messageCount };
 }
+
+export type SessionMemoryFile = { filePath: string; content: string; mtimeMs: number };

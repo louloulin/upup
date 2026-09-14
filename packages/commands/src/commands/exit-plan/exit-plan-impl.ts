@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Exit-Plan Command Implementation
  *

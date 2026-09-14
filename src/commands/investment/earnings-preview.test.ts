@@ -231,7 +231,7 @@ describe('P1.a.4 — diff_against_prior_call + dossier persistence', () => {
 
   test('buildEarningsPreview stamps diff when dossier has prior call', async () => {
     const { buildEarningsPreview } = await import('./earnings-preview.js');
-    const { DossierStore } = await import('../../memory/dossier.js');
+    const { DossierStore } = await import('@upup/memory');
     const dossiers = new DossierStore({ inMemory: true, now: () => 1_700_000_000_000 });
     dossiers.create('NVDA', { name: 'NVIDIA', sector: 'Tech', marketCap: 1, oneLiner: 'x' });
     dossiers.appendEarningsCall('NVDA', {
@@ -252,7 +252,7 @@ describe('P1.a.4 — diff_against_prior_call + dossier persistence', () => {
 
   test('buildEarningsPreview leaves diff undefined when dossier has no prior calls', async () => {
     const { buildEarningsPreview } = await import('./earnings-preview.js');
-    const { DossierStore } = await import('../../memory/dossier.js');
+    const { DossierStore } = await import('@upup/memory');
     const dossiers = new DossierStore({ inMemory: true });
     dossiers.create('NVDA', { name: 'NVIDIA', sector: 'Tech', marketCap: 1, oneLiner: 'x' });
     const p = buildEarningsPreview('NVDA', { dossiers });
@@ -261,7 +261,7 @@ describe('P1.a.4 — diff_against_prior_call + dossier persistence', () => {
 
   test('persistEarningsCallToDossier creates dossier + appends call note', async () => {
     const { persistEarningsCallToDossier } = await import('./earnings-preview.js');
-    const { DossierStore } = await import('../../memory/dossier.js');
+    const { DossierStore } = await import('@upup/memory');
     const dossiers = new DossierStore({ inMemory: true, now: () => 1_700_000_000_000 });
     const preview = {
       ticker: 'NVDA',
@@ -285,7 +285,7 @@ describe('P1.a.4 — diff_against_prior_call + dossier persistence', () => {
 
   test('persistEarningsCallToDossier is a no-op for framework source', async () => {
     const { persistEarningsCallToDossier } = await import('./earnings-preview.js');
-    const { DossierStore } = await import('../../memory/dossier.js');
+    const { DossierStore } = await import('@upup/memory');
     const dossiers = new DossierStore({ inMemory: true });
     const preview = {
       ticker: 'NVDA',
@@ -303,7 +303,7 @@ describe('P1.a.4 — diff_against_prior_call + dossier persistence', () => {
 
   test('persistEarningsCallToDossier is a no-op for empty transcripts', async () => {
     const { persistEarningsCallToDossier } = await import('./earnings-preview.js');
-    const { DossierStore } = await import('../../memory/dossier.js');
+    const { DossierStore } = await import('@upup/memory');
     const dossiers = new DossierStore({ inMemory: true });
     const preview = {
       ticker: 'NVDA',
@@ -321,7 +321,7 @@ describe('P1.a.4 — diff_against_prior_call + dossier persistence', () => {
 
   test('persistEarningsCallToDossier appends to existing dossier (append-only)', async () => {
     const { persistEarningsCallToDossier } = await import('./earnings-preview.js');
-    const { DossierStore } = await import('../../memory/dossier.js');
+    const { DossierStore } = await import('@upup/memory');
     const dossiers = new DossierStore({ inMemory: true, now: () => 1_700_000_000_000 });
     dossiers.create('AAPL', { name: 'Apple', sector: 'Tech', marketCap: 1, oneLiner: 'x' });
     dossiers.appendEarningsCall('AAPL', {
@@ -350,7 +350,7 @@ describe('P1.a.4 — diff_against_prior_call + dossier persistence', () => {
 
   test('persistEarningsCallToDossier echoes toneDelta when set on preview', async () => {
     const { persistEarningsCallToDossier } = await import('./earnings-preview.js');
-    const { DossierStore } = await import('../../memory/dossier.js');
+    const { DossierStore } = await import('@upup/memory');
     const dossiers = new DossierStore({ inMemory: true, now: () => 1_700_000_000_000 });
     const preview = {
       ticker: 'NVDA',

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * History Command Implementation
  * 

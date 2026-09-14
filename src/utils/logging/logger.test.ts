@@ -3,7 +3,7 @@ import { existsSync, readFileSync, rmSync } from 'node:fs';
 import { mkdtempSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { createLogger } from './logger.js';
+import { createLogger } from '@upup/utils/logging';
 
 describe('logger file lifecycle', () => {
   test('recreates a log directory removed after logger initialization', () => {

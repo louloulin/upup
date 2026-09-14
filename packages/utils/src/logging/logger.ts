@@ -392,3 +392,8 @@ export function perf(category: LogCategory, message: string, durationMs: number,
 }
 
 
+
+/**
+ * Default logger singleton for quick access.
+ */
+export const logger = getLogger();

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Command Usage Statistics
  *

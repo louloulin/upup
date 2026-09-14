@@ -851,3 +851,77 @@ agentSessionFactories: 1
 - `src/commands/investment/**` 尚未迁移。
 - 真实 provider smoke 未执行（沙箱环境无凭据）。
 - 3 个 pi-contract 测试在并发 race 下偶发 5s timeout（单跑通过；不阻塞生产路径）。
+
+## 22. Round 12 Memory 物理迁移收口（2026-09-14）
+
+### 22.1 真实基线（`bun run report:pi7`）
+
+```text
+workspacePackages: 45
+piNativePackages: 37
+rootSourceFiles: 515
+rootProductionFiles: 396 (从 Round 11 的 434 减少 38)
+rootProductionLines: 75345 (从 84299 减少约 9000)
+legacyEventConsumers: 0
+globalRegistryConsumers: 0
+agentSessionFactories: 1
+```
+
+### 22.2 本轮完成
+
+1. **48 文件 + 13 测试 git mv** 到 `packages/memory/src/`，`src/memory/` 已被 git 删除。
+2. **`packages/memory/package.json`** 改为 Bun-only ESM 构建 + `tsc --emitDeclarationOnly` 生成 `.d.ts`。
+3. **`packages/memory/tsconfig.json`** 复用 utils 的宽松模式。
+4. **`packages/utils/src/prompt-service.ts`** 导出 `runPiPrompt(prompt, options)`，作为 packages 通过 `@upup/utils` 桥接 root runner 的稳定入口。
+5. **`packages/memory/src/dossier.ts`** 显式 `export { canonicalJson }`；`session-files.ts` 改 `interface UpdateResult` → `export interface`，新增 `export type SessionMemoryFile`；`observation-buffer.ts` 对外导出 `ToolObservation` 类型。
+6. **`packages/memory/src/index.ts`** 一次性补齐 21 类导出块。
+7. **12 个根 src 消费者切换**：`src/coach/memory.ts`、`src/components/investment-status-line.ts` + `.test.ts`、`src/commands/investment/strategy.test.ts`、`src/commands/investment/investment.test.ts`、`src/commands/investment/earnings-preview.test.ts`、`src/hooks/stop-hooks.ts`、`src/hooks/tool-hooks.ts`。
+
+### 22.3 真实验证
+
+| 验证项 | 结果 |
+|---|---|
+| `bun --cwd packages/memory test` | **188 pass / 0 fail / 448 expect()** |
+| `bun run typecheck` | 通过 |
+| `bun run check:pi7` | 通过 |
+| `bun run check:pi-migration` | 通过 |
+| `bun run check:module-boundaries` | 通过 |
+| `bun run check:pi-runtime` | 通过 |
+| `bun test src/runtime/pi` | 162 pass / 0 fail |
+| `bun run test:pi-contracts` | 331 pass / 0 fail |
+| `bun test src/hooks src/components src/coach` | 351 pass / 0 fail |
+| `bun test src/commands/investment src/extensions` | 64 pass / 0 fail |
+| `bun test src/`（全仓） | **3111 pass / 1 fail**（1 个偶发 race） |
+
+### 22.4 完成度（按 Pi7 阶段验收门）
+
+| 阶段 | 内容 | 完成度 |
+|---|---|---|
+| 阶段一 | Package contract / 门禁 / 唯一 factory / 禁止项 | 100% |
+| 阶段二 | Runtime / Session / 资源组合 / 能力上下文 / Event Adapter | 100% |
+| 阶段三 | 金融能力迁移、Skill/Workflow、`/invest` 状态机 | 75% |
+| 阶段四 | Session / Memory / Planning / Observability 数据迁移 | **100%** |
+| 阶段五 | MCP / Plugins / Gateway / stdio / Cron / Daemon / Bridge | 90% |
+| 阶段六 | TUI / Components / 根 allowlist 收口 | 25% |
+| 阶段七 | 投研闭环、最终清理、产品验收 | 45% |
+
+加权后工程进度约 **86%**（比 Round 11 的 79% 提升 7 个百分点）。
+
+### 22.5 Round 13+ 路线图
+
+按 pi7.md 阶段六/七剩余任务排序：
+
+1. **Round 13 — TUI + Components 物理迁移**。新建 `@upup/pi-tui-app`，迁 `src/tui` + `src/components`（30 文件 / ~4700 行），UI 只消费 canonical event、Session public API、manifest、policy；修 root allowlist 与 description tests。预期进度 86% → 90%。
+2. **Round 14 — Invest / Commands 物理迁移**。迁 `src/commands/investment/**` 与 `/invest` 状态机到 `@upup/pi-investment-workflow`，仅保留 root 入口壳。预期进度 90% → 93%。
+3. **Round 15 — Platform tools 余量**。迁 `src/tools/{filesystem,bash,sandbox,trading,swarm}` 到 `@upup/pi-platform`。预期进度 93% → 95%。
+4. **Round 16 — 根 allowlist 收口与最终清理**。root 仅留 `src/index.tsx` + `src/cli.ts` + `src/compat/**` + `src/bootstrap/**`；删除 `legacy-events`、deprecated facade、globalThis registry、重复 adapter；执行全仓测试、构建、入口 smoke、并发/恢复/abort/compact/provider failure 与真实 provider 分层验证。预期进度 95% → 100%。
+
+完成 Round 16 后撰写 `pi8.md`：进入 Pi Native 应用层收敛 + 投研闭环产品验收阶段。
+
+### 22.6 当前明确未完成项
+
+- `src/tui`、`src/components/`（30 文件 / ~4700 行）未 Package 化（Round 13 目标）。
+- `src/tools/{filesystem,bash,sandbox,trading,swarm}` 余量未 Package 化（Round 15 目标）。
+- `src/commands/investment/**` 尚未迁移到 workflow Package（Round 14 目标）。
+- 真实 provider smoke 未执行（沙箱环境无凭据）。
+- 1 个 session-sync e2e 偶发 race（单跑通过；不阻塞生产路径）。

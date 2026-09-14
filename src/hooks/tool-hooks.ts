@@ -664,7 +664,7 @@ export function createMemorySaveHook(): HookDefinition {
       const p = params as PostToolUseParams;
       // Import observation buffer lazily to avoid circular deps
       try {
-        const { getObservationBuffer } = await import('../memory/observation-buffer.js');
+        const { getObservationBuffer } = await import('@upup/memory');
         const buffer = getObservationBuffer();
 
         buffer.recordObservation({

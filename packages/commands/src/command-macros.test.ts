@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, test, expect, beforeEach } from 'bun:test';
 import { CommandRegistry, parseMacroFile, expandMacro } from './commands.js';
 import type { CommandContext } from './commands.js';

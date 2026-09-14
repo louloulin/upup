@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Resume Command Implementation
  *

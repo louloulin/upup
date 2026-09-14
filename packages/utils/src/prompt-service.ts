@@ -66,6 +66,8 @@ function parseJson(text: string): unknown {
   return JSON.parse(text.replace(/^```(?:json)?\s*|\s*```$/g, '').trim());
 }
 
+export async function runPiPrompt(prompt: string, options: PiPromptOptions = {}): Promise<string> { const runner = await loadRunner(); return withRetry(() => runner(prompt, options), providerForModel(options.model ?? DEFAULT_MODEL)); }
+
 export async function callLlm(prompt: string, options: CallLlmOptions = {}): Promise<LlmResult> {
   const model = options.model ?? DEFAULT_MODEL;
   const runner = await loadRunner();

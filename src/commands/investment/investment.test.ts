@@ -234,7 +234,7 @@ describe('investment: registry', () => {
 describe('investment: /dossier', () => {
   test('without args shows usage', async () => {
     const { runDossier } = await import('./dossier.js');
-    const { DossierStore } = await import('../../memory/dossier.js');
+    const { DossierStore } = await import('@upup/memory');
     const tmpStore = new DossierStore({ inMemory: true });
     const text = runDossier('', tmpStore);
     expect(text).toContain('用法: /dossier <TICKER>');
@@ -242,7 +242,7 @@ describe('investment: /dossier', () => {
 
   test('unknown ticker shows helpful empty-state', async () => {
     const { runDossier } = await import('./dossier.js');
-    const { DossierStore } = await import('../../memory/dossier.js');
+    const { DossierStore } = await import('@upup/memory');
     const emptyStore = new DossierStore({ inMemory: true });
     const text = runDossier('ZZZZZ', emptyStore);
     expect(text).toContain('✗ 暂无 ZZZZZ 的 dossier');
@@ -251,7 +251,7 @@ describe('investment: /dossier', () => {
 
   test('renders snapshot + freshness + theses for an existing dossier', async () => {
     const { runDossier } = await import('./dossier.js');
-    const { DossierStore } = await import('../../memory/dossier.js');
+    const { DossierStore } = await import('@upup/memory');
     const { join } = await import('node:path');
     const { tmpdir } = await import('node:os');
     const path = join(tmpdir(), `upup-dossier-cmd-test-${Date.now()}.jsonl`);

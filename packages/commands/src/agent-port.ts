@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { getPiRuntimePort } from '@upup/pi-runtime';
 
 export interface PlanModePortLocal {

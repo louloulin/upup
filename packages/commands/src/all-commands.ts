@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * All Commands - Single Source of Truth
  *

@@ -11,7 +11,7 @@
  */
 
 import { SkillCommandRegistry, getSkillCommandRegistry, type SkillMetadata } from '@upup/skills';
-import { t } from '../i18n/strings.js';
+import { t } from '@upup/i18n';
 import { getLocale, getLocalizedDescription } from './i18n-helper.js';
 import { getAllSkillCommands } from './commands.js';
 

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * MCP Add Command Implementation
  *

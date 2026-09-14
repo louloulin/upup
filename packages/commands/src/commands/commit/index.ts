@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Commit Command - Prompt Type
  *

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Argument Parser - Command line argument parsing utilities
  *

@@ -12,8 +12,8 @@
     }
   },
   "scripts": {
-    "build": "bun build src/index.ts --outdir=dist --target=bun --external zod --external gray-matter",
-    "dev": "bun build src/index.ts --outdir=dist --watch --target=bun --external zod --external gray-matter",
+    "build": "bun build src/index.ts --outdir=dist --target=bun --external zod --external gray-matter --external @upup/pi-storage --external @upup/utils --external @upup/types && npx tsc --emitDeclarationOnly --declaration --declarationMap --outDir dist",
+    "dev": "bun build src/index.ts --outdir=dist --watch --target=bun --external zod --external gray-matter --external @upup/pi-storage --external @upup/utils --external @upup/types",
     "test": "bun test"
   },
   "dependencies": {

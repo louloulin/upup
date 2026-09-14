@@ -4,8 +4,7 @@ import {
   canonicalJson,
   dossierPostPhase,
   dossierPrePhase,
-  hashDossier,
-} from '@upup/pi-storage';
+  hashDossier,} from '@upup/pi-storage';
 import type {
   CompanySnapshot,
   Dossier,
@@ -31,13 +30,9 @@ export class DossierStore extends PiDossierStore {
   }
 }
 
-export {
-  canonicalJson,
-  dossierPostPhase,
-  dossierPrePhase,
-  hashDossier,
-};
 
+
+export { canonicalJson };
 export type {
   CompanySnapshot,
   Dossier,

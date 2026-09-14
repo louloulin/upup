@@ -1,0 +1,25 @@
+{
+  "name": "@upup/i18n",
+  "version": "0.1.0",
+  "description": "UpUp i18n strings (EN + zh-CN, strongly-typed keys).",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" }
+  },
+  "scripts": {
+    "build": "bun build src/index.ts --outdir=dist --target=bun --external @upup/types && npx tsc --emitDeclarationOnly --declaration --declarationMap --outDir dist",
+    "dev": "bun build src/index.ts --outdir=dist --watch --target=bun --external @upup/types",
+    "test": "bun test"
+  },
+  "dependencies": { "@upup/types": "workspace:*" },
+  "files": ["dist", "!dist/*.node"],
+  "private": false,
+  "pi": {
+    "contract": "upup.pi.runtime.v1", "source": "builtin:upup",
+    "trust": { "mode": "builtin", "filesystem": true },
+    "lifecycle": { "scope": "session" },
+    "extensions": [], "skills": [], "prompts": [], "workflows": [], "policies": [], "evals": []
+  }
+}

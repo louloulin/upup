@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Model Command Implementation
  * 

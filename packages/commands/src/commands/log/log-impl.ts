@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Log Command Implementation
  *

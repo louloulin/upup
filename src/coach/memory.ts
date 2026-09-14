@@ -13,7 +13,7 @@
  *   - 启动期:    UPUP_COACH_MODE=0 软关闭(返回 default / null,不抛错)
  */
 import { createHash } from 'node:crypto';
-import { EncryptedMemoryStore } from '../memory/encrypted-store.js';
+import { EncryptedMemoryStore } from '@upup/memory';
 import { upupPath, globalUpupPath } from '../utils/paths.js';
 import { isCoachEnabled } from '../runtime/pi/role-system.js';
 

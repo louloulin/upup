@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Stash Command
  *

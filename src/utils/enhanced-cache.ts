@@ -10,7 +10,7 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync, unlinkSync } from 'fs';
 import { join, dirname } from 'path';
 import { createHash } from 'crypto';
-import { logger } from './logger.js';
+import { logger } from '@upup/utils/logging';
 import { upupPath } from './paths.js';
 
 // ============================================================================
@@ -213,7 +213,7 @@ export class LRUCache<K, V> {
       writeFileSync(filepath, JSON.stringify(entry, null, 2));
       this.stats.diskWrites++;
     } catch (error) {
-      logger.warn(`Cache persist error: ${error}`);
+      logger.warn('default', `Cache persist error: ${error}`);
     }
   }
 
@@ -237,7 +237,7 @@ export class LRUCache<K, V> {
       this.stats.diskReads++;
       return true;
     } catch (error) {
-      logger.warn(`Cache load error: ${error}`);
+      logger.warn('default', `Cache load error: ${error}`);
       return false;
     }
   }
@@ -399,7 +399,7 @@ export class BackgroundRefreshManager {
       try {
         await callback();
       } catch (error) {
-        logger.warn(`Background refresh failed for ${key}: ${error}`);
+        logger.warn('default', `Background refresh failed for ${key}: ${error}`);
       } finally {
         this.refreshTimers.delete(key);
       }

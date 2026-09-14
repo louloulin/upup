@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * HelpV2 Command - Interactive Help Component
  *

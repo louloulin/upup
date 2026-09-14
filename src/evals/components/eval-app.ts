@@ -1,5 +1,5 @@
 import { Container, Spacer, Text, type TUI } from '@earendil-works/pi-tui';
-import { BorderBox } from '../../components/BorderBox.js';
+import { BorderBox } from '@upup/pi-tui-app';
 import { theme } from '@upup/utils';
 import { EvalCurrentQuestion } from './eval-current-question.js';
 import { EvalProgress } from './eval-progress.js';

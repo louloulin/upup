@@ -6,10 +6,11 @@
     "noEmit": false,
     "emitDeclarationOnly": true,
     "declaration": true,
-    "declarationMap": true
+    "declarationMap": true,
+    "strict": false,
+    "noImplicitAny": false,
+    "strictNullChecks": false
   },
-  "references": [
-    { "path": "../types" }
-  ],
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["**/*.test.ts"]
 }

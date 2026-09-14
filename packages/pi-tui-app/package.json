@@ -1,0 +1,69 @@
+{
+  "name": "@upup/pi-tui-app",
+  "version": "0.1.0",
+  "description": "UpUp TUI + Components Pi Package \u2014 Ink CLI shell consuming canonical Pi events and Session public API.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./components": {
+      "types": "./dist/components/index.d.ts",
+      "default": "./dist/components/index.js"
+    },
+    "./i18n": {
+      "types": "./dist/i18n/index.d.ts",
+      "default": "./dist/i18n/index.js"
+    }
+  },
+  "scripts": {
+    "build": "bun build src/index.ts --outdir=dist --target=bun --external react --external ink --external @earendil-works/pi-tui --external @upup/utils --external @upup/types --external @upup/commands --external @upup/hooks --external @upup/i18n --external @upup/pi-event-adapter --external @upup/pi-runtime --external @upup/pi-session --external @upup/pi-resource-composition --external @upup/pi-capability-registry --external @upup/pi-permissions --external @upup/memory --external chalk && npx tsc --emitDeclarationOnly --declaration --declarationMap --outDir dist",
+    "dev": "bun build src/index.ts --outdir=dist --watch --target=bun --external react --external ink --external @earendil-works/pi-tui --external @upup/utils --external @upup/types --external @upup/commands --external @upup/hooks --external @upup/i18n --external @upup/pi-event-adapter --external @upup/pi-runtime --external @upup/pi-session --external @upup/pi-resource-composition --external @upup/pi-capability-registry --external @upup/pi-permissions --external @upup/memory --external chalk",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@upup/commands": "workspace:*",
+    "@upup/hooks": "workspace:*",
+    "@upup/i18n": "workspace:*",
+    "@upup/memory": "workspace:*",
+    "@upup/pi-capability-registry": "workspace:*",
+    "@upup/pi-event-adapter": "workspace:*",
+    "@upup/pi-permissions": "workspace:*",
+    "@upup/pi-resource-composition": "workspace:*",
+    "@upup/pi-runtime": "workspace:*",
+    "@upup/pi-session": "workspace:*",
+    "@upup/types": "workspace:*",
+    "@upup/utils": "workspace:*",
+    "chalk": "^5.0.0",
+    "react": "^18.0.0"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-tui": "*",
+    "ink": "*"
+  },
+  "files": [
+    "dist",
+    "!dist/*.node"
+  ],
+  "private": false,
+  "pi": {
+    "contract": "upup.pi.runtime.v1",
+    "source": "builtin:upup",
+    "trust": {
+      "mode": "builtin",
+      "filesystem": true
+    },
+    "lifecycle": {
+      "scope": "session"
+    },
+    "extensions": [],
+    "skills": [],
+    "prompts": [],
+    "workflows": [],
+    "policies": [],
+    "evals": []
+  }
+}

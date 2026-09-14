@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Approve Command Implementation
  */

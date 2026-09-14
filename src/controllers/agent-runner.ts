@@ -13,7 +13,7 @@ import { getSessionTracker } from '@upup/pi-session';
 import { getPiSessionService } from '@upup/pi-session';
 import { recordFileHistorySnapshot, getFileHistoryManager } from '@upup/pi-storage';
 import { renderMessages, type RenderableMessage } from '@upup/pi-session';
-import { getTimeoutForTool } from '../utils/permissions/index.js';
+import { getTimeoutForTool } from '@upup/pi-tui-app';
 
 export interface TurnStats {
   turnStartMs: number;

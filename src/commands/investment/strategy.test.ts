@@ -4,7 +4,7 @@
 
 import { describe, expect, test } from 'bun:test';
 import { runStrategy } from './strategy.js';
-import { StrategyStore } from '../../memory/strategy-store.js';
+import { StrategyStore } from '@upup/memory';
 
 function inMemStore(): StrategyStore {
   return new StrategyStore({ inMemory: true, now: () => 1_700_000_000_000 });
