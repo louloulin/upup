@@ -1,4 +1,4 @@
-import { LongTermChatHistory } from '../utils/long-term-chat-history.js';
+import { LongTermChatHistory } from '@upup/utils';
 
 type ChangeListener = () => void;
 

@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'bun:test';
 import { Type } from 'typebox';
 import type { LoadedPlugin } from '@upup/plugins';
-import { getInvestmentAgentSpec } from './agent-spec.js';
-import { PiAgentSessionFactory } from './agent-session-factory.js';
+import { getInvestmentAgentSpec } from '../../../src/runtime/pi/agent-spec.js';
+import { PiAgentSessionFactory } from '../../../src/runtime/pi/agent-session-factory.js';
 
 describe('Pi plugin bridge', () => {
   test('loads a trusted plugin tool into Pi AgentSession', async () => {

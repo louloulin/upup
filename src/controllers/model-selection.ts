@@ -9,8 +9,8 @@ import {
   getModelsForProvider,
   type Model,
 } from '@upup/pi-tui-app';
-import { getOllamaModels } from '../utils/ollama.js';
-import { DEFAULT_MODEL, DEFAULT_PROVIDER } from '../runtime/pi/model-config.js';
+import { getOllamaModels } from '@upup/utils';
+import { DEFAULT_MODEL, DEFAULT_PROVIDER } from '@upup/utils';
 import { InMemoryChatHistory } from '../utils/in-memory-chat-history.js';
 
 const SELECTION_STATES = [

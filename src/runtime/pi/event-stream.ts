@@ -1,21 +1,39 @@
 /**
- * UpUp canonical event stream adapter (Pi6 Phase 2).
+ * Root bridge: Pi canonical event stream adapter with runner injection.
  *
- * This file is now a thin runtime shim that wires `runPiPrompt` (Pi-side)
- * to the canonical event adapter (`@upup/pi-event-adapter`). The previous
- * inline `mapEvent` function has been moved into the adapter package so
- * that Gateway, stdio, Bridge and the controller all share one
- * implementation.
+ * The Pi-side runner lives in `@upup/pi-event-adapter` (Package layer).
+ * This bridge provides a thin wrapper that injects the root `runPiPrompt`
+ * so existing callers (`src/index.tsx`, `src/print.ts`, `src/evals/run.ts`,
+ * `src/controllers/agent-runner.ts`, `packages/pi-stdio/src/server.ts`)
+ * continue to use the same `streamPiAgent(prompt, config, options)` API.
+ *
+ * The package layer cannot import root src/runtime/pi/runner.ts; this is
+ * the ONLY root bridge that exposes the runner to the event-adapter.
  */
 
-import { runPiPrompt } from './runner.js';
+import { streamPiAgentWithRunner, type PiStreamOptions, type PiPromptRunner } from '@upup/pi-event-adapter';
 import type { AgentConfig, AgentEvent } from '@upup/pi-event-adapter';
-import { buildLegacyDoneEvent, mapPiEventToLegacy } from '@upup/pi-event-adapter';
-import type { UpUpAgentEvent } from '@upup/pi-runtime';
+import { runPiPrompt } from './runner.js';
 
-export interface PiStreamOptions {
-  sessionId?: string;
-  inMemoryHistory?: unknown;
+export type { PiStreamOptions };
+
+let cachedRunner: PiPromptRunner | undefined;
+function getPiPromptRunner(): PiPromptRunner {
+  if (!cachedRunner) {
+    cachedRunner = (prompt, options) => runPiPrompt(prompt, {
+      ...(options.model !== undefined ? { model: options.model } : {}),
+      ...(options.modelProvider !== undefined ? { modelProvider: options.modelProvider } : {}),
+      ...(options.sessionKey !== undefined ? { sessionKey: options.sessionKey } : {}),
+      ...(options.signal !== undefined ? { signal: options.signal } : {}),
+      ...(options.maxIterations !== undefined ? { maxIterations: options.maxIterations } : {}),
+      ...(options.toolFilter !== undefined ? { toolFilter: options.toolFilter } : {}),
+      ...(options.modelInstance !== undefined ? { modelInstance: options.modelInstance as Parameters<typeof runPiPrompt>[1] extends { modelInstance?: infer M } ? M : never } : {}),
+      ...(options.modelRuntime !== undefined ? { modelRuntime: options.modelRuntime as Parameters<typeof runPiPrompt>[1] extends { modelRuntime?: infer R } ? R : never } : {}),
+      ...(options.requestToolApproval !== undefined ? { requestToolApproval: options.requestToolApproval } : {}),
+      ...(options.onEvent !== undefined ? { onEvent: options.onEvent } : {}),
+    });
+  }
+  return cachedRunner;
 }
 
 export async function* streamPiAgent(
@@ -23,63 +41,5 @@ export async function* streamPiAgent(
   config: AgentConfig = {},
   options: PiStreamOptions = {},
 ): AsyncGenerator<AgentEvent> {
-  const start = Date.now();
-  let answer = '';
-  let settled = false;
-  let failure: unknown;
-  const queue: AgentEvent[] = [];
-  const waiters: Array<(result: IteratorResult<AgentEvent>) => void> = [];
-  const push = (event: AgentEvent) => {
-    const waiter = waiters.shift();
-    if (waiter) waiter({ value: event, done: false });
-    else queue.push(event);
-  };
-  const execution = runPiPrompt(prompt, {
-    model: config.model,
-    modelProvider: config.modelProvider,
-    sessionKey: options.sessionId,
-    signal: config.signal,
-    maxIterations: config.maxIterations,
-    toolFilter: config.toolFilter,
-    modelInstance: config.modelInstance,
-    modelRuntime: config.modelRuntime,
-    requestToolApproval: config.requestToolApproval
-      ? async (request) => {
-          if (config.sessionApprovedTools?.has(request.tool)) return true;
-          const decision = await config.requestToolApproval!({
-            tool: request.tool,
-            args: (request.input && typeof request.input === 'object' ? request.input : {}) as Record<string, unknown>,
-          });
-          if (decision !== 'deny') config.onToolApproval?.(request.tool);
-          if (decision === 'allow-session') config.sessionApprovedTools?.add(request.tool);
-          return decision !== 'deny';
-        }
-      : undefined,
-    onEvent: (event: UpUpAgentEvent) => {
-      const mapped = mapPiEventToLegacy(event);
-      if (mapped) push(mapped);
-    },
-  }).then((result) => { answer = result; }, (error) => { failure = error; })
-    .finally(() => {
-      settled = true;
-      const waiter = waiters.shift();
-      waiter?.({ value: undefined as never, done: true });
-    });
-  while (!settled || queue.length > 0) {
-    if (queue.length > 0) {
-      yield queue.shift()!;
-      continue;
-    }
-    if (settled) break;
-    await new Promise<IteratorResult<AgentEvent>>((resolve) => waiters.push(resolve));
-    if (failure) throw failure;
-  }
-  await execution;
-  if (failure) throw failure;
-  yield buildLegacyDoneEvent({
-    answer,
-    toolCalls: [],
-    iterations: 0,
-    totalTime: Date.now() - start,
-  });
+  yield* streamPiAgentWithRunner(prompt, config, options, getPiPromptRunner());
 }

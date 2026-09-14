@@ -1,0 +1,39 @@
+{
+  "name": "@upup/pi-prompt-config",
+  "version": "0.1.0",
+  "description": "UpUp Pi-native prompt composition, feature gates, channels, locale, capability manifest and role system",
+  "type": "module",
+  "keywords": [
+    "pi-package",
+    "prompt",
+    "config"
+  ],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "bun build src/index.ts --outdir=dist --target=node && tsc --emitDeclarationOnly --project tsconfig.json",
+    "test": "bun test ./src"
+  },
+  "files": [
+    "dist",
+    "package.json"
+  ],
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "0.84.3"
+  },
+  "pi": {
+    "source": "builtin:upup"
+  },
+  "dependencies": {
+    "@upup/utils": "workspace:*",
+    "@upup/i18n": "workspace:*",
+    "@upup/pi-observability": "workspace:*",
+    "@upup/pi-event-adapter": "workspace:*"
+  }
+}

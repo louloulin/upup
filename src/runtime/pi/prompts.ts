@@ -1,10 +1,9 @@
 import { readFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { getChannelProfile } from './channels.js';
-import { formatPrompt, getLocale, type Locale as PromptLocale } from './locale.js';
-import { getGlobalUpupPath, getProjectUpupPath } from '../../utils/config-paths.js';
-import { loadMergedInvestmentConfig, formatInvestmentConfig } from './investment-config.js';
+import { formatInvestmentConfig, formatPrompt, getChannelProfile, getLocale, loadMergedInvestmentConfig } from '@upup/pi-prompt-config';
+import type { Locale as PromptLocale } from '@upup/pi-prompt-config';
+import { getGlobalUpupPath, getProjectUpupPath } from '@upup/utils';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -255,7 +254,7 @@ export async function buildSystemPrompt(
   availableSkills: readonly PiPromptSkillMetadata[] = [],
   availableTools: readonly { name: string; description?: string; compactDescription?: string }[] = [],
 ): Promise<string> {
-  const { buildInvestmentCapabilitiesSection } = await import('./capability-manifest.js');
+  const { buildInvestmentCapabilitiesSection } = await import('@upup/pi-prompt-config');
   const toolDescriptions = availableTools.map((tool) => `- **${tool.name}**: ${tool.compactDescription ?? tool.description ?? tool.name}`).join('\n');
   const investmentCapabilities = buildInvestmentCapabilitiesSection(availableTools.map((tool) => tool.name));
   const profile = getChannelProfile(channel);

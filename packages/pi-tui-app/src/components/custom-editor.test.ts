@@ -4,7 +4,7 @@
  *
  * The CLI does this:
  *   editor.setAutocompleteProvider(
- *     new CombinedAutocompleteProvider(listAllCommands(), process.cwd()),
+ *     new CombinedAutocompleteProvider(getAllSlashCommands(), process.cwd()),
  *   );
  *   editor.setAutocompleteMaxVisible(8);
  *
@@ -23,7 +23,7 @@ import {
   type EditorTheme,
 } from '@earendil-works/pi-tui';
 import { CustomEditor } from './custom-editor.js';
-import { listAllCommands } from '../commands/unified-registry.js';
+import { getAllSlashCommands } from '@upup/commands';
 
 // Minimal TUI stub — Editor only calls requestRender() in normal flow.
 const stubTui = { requestRender: () => {}, terminal: { rows: 40, cols: 120 } } as unknown as TUI;
@@ -41,7 +41,7 @@ const stubTheme: EditorTheme = {
 describe('CustomEditor autocomplete wiring', () => {
   it('setAutocompleteProvider stores the CombinedAutocompleteProvider instance', () => {
     const editor = new CustomEditor(stubTui, stubTheme);
-    const provider = new CombinedAutocompleteProvider(listAllCommands(), process.cwd());
+    const provider = new CombinedAutocompleteProvider(getAllSlashCommands(), process.cwd());
     editor.setAutocompleteProvider(provider);
     // autocompleteProvider is private on the upstream Editor, but the
     // contract is observable via isShowingAutocomplete() — initially
@@ -61,7 +61,7 @@ describe('CustomEditor autocomplete wiring', () => {
   it('CombinedAutocompleteProvider accepts upup SlashCommand shape', () => {
     // If this throws a runtime type error, the wiring in cli.ts would
     // also throw at startup. Guarding it here catches shape drift early.
-    const commands = listAllCommands();
+    const commands = getAllSlashCommands();
     expect(commands.length).toBeGreaterThan(0);
     for (const c of commands) {
       expect(typeof c.name).toBe('string');
@@ -76,7 +76,7 @@ describe('CustomEditor autocomplete up/down navigation (SCAP-005 regression)', (
   const setupWithProvider = (theme: EditorTheme = stubTheme) => {
     const editor = new CustomEditor(stubTui, theme);
     const provider = new CombinedAutocompleteProvider(
-      listAllCommands(),
+      getAllSlashCommands(),
       process.cwd(),
     );
     editor.setAutocompleteProvider(provider);
@@ -101,7 +101,7 @@ describe('CustomEditor autocomplete up/down navigation (SCAP-005 regression)', (
     await waitForAutocomplete(editor);
     const lines = editor.render(120);
     // At least one registered slash command name should appear in the popup.
-    const firstCommand = listAllCommands()[0]!.name;
+    const firstCommand = getAllSlashCommands()[0]!.name;
     expect(lines.some((l) => l.includes(firstCommand))).toBe(true);
   });
 

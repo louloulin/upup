@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { getInvestmentAgentSpec, INVESTMENT_PROFILES } from './agent-spec.js';
 import { PiAgentSessionFactory } from './agent-session-factory.js';
-import { packageProvidesNativeTool, PI_FINANCE_PACKAGE_NAMES } from './package-tool-ownership.js';
+import { packageProvidesNativeTool, PI_FINANCE_PACKAGE_NAMES } from '@upup/pi-resource-composition';
 
 describe('Pi investment profiles against native Package ownership', () => {
   test('every explicit profile tool is registered and no profile names a removed tool', async () => {

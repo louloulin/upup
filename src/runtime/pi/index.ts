@@ -9,9 +9,7 @@ export {
 } from './agent-spec.js';
 export type { PiSubagentSpecInput } from './agent-spec.js';
 export * from './agent-session-factory.js';
-export * from './tool-contract.js';
 export * from './tool.js';
-export * from './types.js';
 export type {
   AgentConfig,
   AgentEvent,
@@ -23,8 +21,7 @@ export type {
 } from '@upup/pi-event-adapter';
 export * from './runner.js';
 export { verifyPiResourceTrust } from '@upup/pi-resource-composition';
-export * from './investment-workflow.js';
-export * from './plugin-adapter.js';
+export * from '@upup/pi-investment-workflow';
 export * from './agent-catalog.js';
 export {
   PiPackageCatalog,
@@ -41,7 +38,6 @@ export {
   loadPiPackageContracts,
 } from '@upup/pi-resource-composition';
 export * from './agent-port.js';
-export * from './investment-subagents.js';
 export {
   getAgentRegistry,
   toPiAgentSpec,

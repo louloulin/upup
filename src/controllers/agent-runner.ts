@@ -1,6 +1,6 @@
 import { streamPiAgent } from '../runtime/pi/event-stream.js';
 import type { InMemoryChatHistory } from '../utils/in-memory-chat-history.js';
-import { defaultQueue } from '../utils/message-queue.js';
+import { defaultQueue } from '@upup/utils';
 import type {
   AgentConfig,
   AgentEvent,

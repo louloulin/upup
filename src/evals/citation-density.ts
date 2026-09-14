@@ -16,7 +16,7 @@
  *     全部走 [src:N] 数字脚注
  */
 
-import { estimateTokens } from '../utils/tokens.js';
+import { estimateTokens } from '@upup/utils';
 
 export const CITATION_DENSITY_LIMIT = 1 / 60;
 

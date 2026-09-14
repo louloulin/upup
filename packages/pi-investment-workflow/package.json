@@ -19,7 +19,7 @@
   },
   "scripts": {
     "build": "bun build src/index.ts --outdir=dist --target=node && bun build extensions/index.ts --outdir=dist/extensions --target=node && tsc --emitDeclarationOnly --project tsconfig.json",
-    "test": "bun test ./test.ts ./src/workflow.test.ts ./extensions/index.test.ts"
+    "test": "bun test ./src ./extensions"
   },
   "files": [
     "dist",
@@ -58,9 +58,26 @@
     ],
     "evals": [
       "./evals"
-    ]
+    ],
+    "dependencies": {
+      "@upup/pi-storage": "0.2.0",
+      "@upup/pi-planning": "0.1.0",
+      "@upup/pi-research": "0.1.0",
+      "@upup/pi-market-data": "0.1.0",
+      "@upup/memory": "0.2.0",
+      "@upup/utils": "0.2.0",
+      "@upup/types": "0.2.0",
+      "@upup/pi-capability-registry": "0.1.0"
+    }
   },
   "dependencies": {
-    "@upup/pi-capability-registry": "0.1.0"
+    "@upup/pi-capability-registry": "0.1.0",
+    "@upup/pi-storage": "0.2.0",
+    "@upup/pi-planning": "0.1.0",
+    "@upup/pi-research": "0.1.0",
+    "@upup/pi-market-data": "0.1.0",
+    "@upup/memory": "0.2.0",
+    "@upup/utils": "0.2.0",
+    "@upup/types": "0.2.0"
   }
 }

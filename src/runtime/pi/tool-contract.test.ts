@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { READ_ONLY_PERMISSION_PROFILE } from './agent-spec.js';
-import { canUseTool, createToolContext, defaultToolParameters, requiresApproval } from './tool-contract.js';
+import { canUseTool, createToolContext, defaultToolParameters, requiresApproval } from '@upup/pi-runtime';
 
 describe('Pi tool contracts', () => {
   test('enforces read-only financial policy', () => {

@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { Type, type TSchema } from 'typebox';
 import { getInvestmentAgentSpec } from './agent-spec.js';
 import { PiAgentSessionFactory } from './agent-session-factory.js';
-import type { UpUpAgentSession, UpUpToolContract } from './types.js';
+import type { UpUpAgentSession, UpUpToolContract } from '@upup/pi-runtime';
 
 const symbolParameters = Type.Object({ symbol: Type.String() });
 const portfolioParameters = Type.Object({ portfolio: Type.String() });

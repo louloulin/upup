@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { getOwnedToolNames, packageOwnsTool, packageProvidesNativeTool, PI_FINANCE_PACKAGE_NAMES } from './package-tool-ownership.js';
-import { INVESTMENT_PROFILES } from './agent-spec.js';
+import { INVESTMENT_PROFILES } from '../../../src/runtime/pi/agent-spec.js';
 
 describe('Pi finance package tool ownership', () => {
   test('declares every built-in finance package with a non-empty ownership boundary', () => {

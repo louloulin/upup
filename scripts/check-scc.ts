@@ -55,13 +55,11 @@ const LAYER_RULES: Array<{ prefix: string; layer: number }> = [
   { prefix: 'src/multi-agent/', layer: 4 },
   { prefix: 'src/worktree/', layer: 4 },
   { prefix: 'src/daemon/', layer: 4 },
-  { prefix: 'src/code-archaeology/', layer: 4 },
   { prefix: 'src/controllers/', layer: 5 },
   { prefix: 'src/commands/', layer: 5 },
   { prefix: 'src/bridge/', layer: 5 },
   { prefix: 'src/stdio/', layer: 5 },
   { prefix: 'src/gateway/', layer: 5 },
-  { prefix: 'src/competitive-positioning/', layer: 5 },
   { prefix: 'src/cli', layer: 5 },
   { prefix: 'src/index', layer: 5 },
 ];

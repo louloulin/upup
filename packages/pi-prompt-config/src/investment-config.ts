@@ -13,7 +13,7 @@
 import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { getGlobalUpupDir, getProjectUpupDir } from '../../utils/config-paths.js';
+import { getGlobalUpupDir, getProjectUpupDir } from '@upup/utils';
 
 // ============================================================================
 // Type Definitions

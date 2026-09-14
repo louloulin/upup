@@ -1,8 +1,8 @@
-import type { UpUpAgentSession } from '../runtime/pi/types.js';
+import type { UpUpAgentSession } from '@upup/pi-runtime';
 import { PiAgentSessionFactory } from '../runtime/pi/agent-session-factory.js';
-import { getBuiltinPiPackageOptions } from '../runtime/pi/package-config.js';
+import { getBuiltinPiPackageOptions } from '@upup/pi-resource-composition';
 import type { PiManagementSnapshot } from '@upup/pi-session';
-import { globalUpupPath } from '../utils/storage-paths.js';
+import { globalUpupPath } from '@upup/utils';
 import { JsonFileMarketQuoteTrendStore } from '@upup/pi-market-data';
 
 const MANAGEMENT_TOOLS = [

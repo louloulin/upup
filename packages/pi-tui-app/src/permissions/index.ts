@@ -85,7 +85,7 @@ export {
   getCurrentModeNotification,
 } from '@upup/pi-session'
 
-// Bash Permission
+// Bash Permission (real implementation now lives in @upup/pi-platform)
 export {
   checkPermission,
   checkPermissionWithHardDeny,
@@ -94,7 +94,7 @@ export {
   PERMISSION_MODE_BEHAVIORS,
   isHardDenyCommand,
   HARD_DENY_PATTERNS,
-} from '../platform-bridge/bash.js'
+} from '@upup/pi-platform'
 
 // Rule Parser
 export {

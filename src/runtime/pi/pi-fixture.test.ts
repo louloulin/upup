@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { getInvestmentAgentSpec } from './agent-spec.js';
 import { PiAgentSessionFactory } from './agent-session-factory.js';
 import { FINANCE_FIXTURE_TOOLS } from '../../extensions/upup/finance-fixtures.js';
-import type { UpUpToolContract } from './types.js';
+import type { UpUpToolContract } from '@upup/pi-runtime';
 
 const fixtureTool: UpUpToolContract = {
   name: 'fixture_market_quote',

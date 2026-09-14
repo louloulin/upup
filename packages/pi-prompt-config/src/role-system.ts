@@ -18,7 +18,7 @@
  *     (Multi-Agent Coordinator + KAIROS 主动扫描 + Bridge 跨设备),
  *     让 LLM 在生成答案时,主动引用三件套能力(4 唯一 D4)。
  *   - 软降级链路:`UPUP_COACH_MODE=0` 时不注入 sologan / 三件套。
- *   - 4 唯一 D1-D3 由 capability-manifest + competitive-positioning 模块覆盖,
+ *   - 4 唯一 D1-D3 由 capability-manifest 模块覆盖,
  *     本文件不重复事实,只生成 1 句总括 prompt 片段。
  */
 import { isFeatureCompiledIn } from './feature-gates.js';
@@ -70,7 +70,7 @@ const COACH_SELF_INTRO = `你是"投研 Claude"——UpUp 投研版 Claude Code 
 财报分析、风险预算。你引用数据必带来源 URL 与时间戳,涉及投资建议必带风险提示。`;
 
 /**
- * v4 扩展:4 唯一差异化 sologan(由 competitive-positioning 模块同步)。
+ * v4 扩展:4 唯一差异化 sologan（同步生成）。
  * 这里只放 1 句总括 prompt 片段,具体事实(数字/路径)在 capability-manifest
  * 和 docs/COMPETITIVE.md 详细列出。
  */

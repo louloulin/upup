@@ -1,6 +1,6 @@
 import type { Message as PiMessage } from '@earendil-works/pi-ai';
 import { callLlm } from '../runtime/pi/prompt-service.js';
-import { DEFAULT_MODEL } from '../runtime/pi/model-config.js';
+import { DEFAULT_MODEL } from '@upup/utils';
 
 const DEFAULT_HISTORY_LIMIT = 10;
 const FULL_ANSWER_TURNS = 3;

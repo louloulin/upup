@@ -15,6 +15,34 @@ export function globalUpupPath(...segments: string[]): string {
 }
 
 /**
+ * Get the global UpUp directory absolute path (consolidated from src/utils/config-paths.ts).
+ */
+export function getGlobalUpupDir(home = homedir()): string {
+  return join(home, '.upup');
+}
+
+/**
+ * Get the project-local UpUp directory (consolidated from src/utils/config-paths.ts).
+ */
+export function getProjectUpupDir(cwd = process.cwd()): string {
+  return resolve(cwd, '.upup');
+}
+
+/**
+ * Get a path under the global UpUp directory (consolidated from src/utils/config-paths.ts).
+ */
+export function getGlobalUpupPath(...segments: string[]): string {
+  return join(getGlobalUpupDir(), ...segments);
+}
+
+/**
+ * Get a path under the project UpUp directory (consolidated from src/utils/config-paths.ts).
+ */
+export function getProjectUpupPath(...segments: string[]): string {
+  return join(getProjectUpupDir(), ...segments);
+}
+
+/**
  * Check if global configuration directory exists.
  */
 export function hasGlobalConfig(): boolean {
@@ -31,6 +59,15 @@ export function getUpupDir(): string {
 }
 
 export function upupPath(...segments: string[]): string {
+  // Default to global ~/.upup (matches src/utils/storage-paths.ts semantics).
+  // Use projectUpupPath() if you want a project-local path.
+  return join(homedir(), '.upup', ...segments);
+}
+
+/**
+ * Project-local UpUp path (defaults to .upup in cwd).
+ */
+export function projectUpupPath(...segments: string[]): string {
   return join(getUpupDir(), ...segments);
 }
 
@@ -109,6 +146,27 @@ export const SETTINGS_LOCAL_FILE = globalUpupPath('settings.local.json');
 export const SETTINGS_DIR = globalUpupPath('settings.d');
 export const SETTINGS_BACKUPS_DIR = globalUpupPath('backups');
 export const SETTINGS_LOCK_FILE = globalUpupPath('settings.json.lock');
+
+/**
+ * Additional UpUp config files (consolidated from src/utils/storage-paths.ts).
+ */
+export const ENV_FILE = globalUpupPath('.env');
+export const RULES_FILE = globalUpupPath('RULES.md');
+export const HEARTBEAT_FILE = globalUpupPath('HEARTBEAT.md');
+export const SOUL_FILE = globalUpupPath('SOUL.md');
+export const GATEWAY_FILE = globalUpupPath('gateway.json');
+export const CREDENTIALS_FILE = globalUpupPath('.credentials.json');
+export const MCP_CONFIG_FILE = globalUpupPath('mcp-config.json');
+export const MCP_SERVERS_FILE = globalUpupPath('mcp-servers.json');
+export const KEYBINDINGS_FILE = globalUpupPath('keybindings.json');
+export const PERMISSIONS_FILE = globalUpupPath('permissions.json');
+
+/**
+ * Environment variable names for storage overrides.
+ */
+export const UPUP_DATA_DIR_ENV = 'UPUP_DATA_DIR';
+export const UPUP_LOCAL_ENV = 'UPUP_LOCAL';
+
 
 /**
  * Sanitize a project path into a filesystem-safe slug.

@@ -8,8 +8,8 @@ import { resolveProvider } from '@upup/utils';
 import { getPiSessionService } from '@upup/pi-session';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { resolveConfiguredPiPackages } from './package-config.js';
-import type { PiPluginTrustPolicy } from './plugin-trust.js';
+import { resolveConfiguredPiPackages } from '@upup/pi-resource-composition';
+import type { PiPluginTrustPolicy } from '@upup/pi-resource-composition';
 
 export interface PiPromptOptions {
   model?: string;

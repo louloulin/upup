@@ -42,15 +42,15 @@ import type {
   ToolErrorEvent,
   ToolStartEvent,
 } from '@upup/pi-event-adapter';
-import { initialPermissionModeFromCLI } from './utils/permissions/permissionSetup.js'
+import { initialPermissionModeFromCLI } from '@upup/pi-tui-app'
 import { setPermissionMode } from '@upup/pi-session'
-import type { PermissionCliArgs } from './utils/permissions/types.js'
+import type { PermissionCliArgs } from '@upup/pi-tui-app'
 
-import { renderToolResult } from './tools/tool-renderers.js';
+import { renderToolResult } from '@upup/pi-tui-app';
 import { getApiKeyNameForProvider, getProviderDisplayName } from '@upup/utils';
-import { defaultQueue } from './utils/message-queue.js';
-import { logger } from './utils/logger.js';
-import { validateConfig, isFirstTimeUse } from './utils/config-validation.js';
+import { defaultQueue } from '@upup/utils';
+import { logger } from '@upup/utils/logging';
+import { validateConfig, isFirstTimeUse } from '@upup/pi-tui-app';
 import {
   AgentRunnerController,
   InputHistoryController,
@@ -78,16 +78,45 @@ import {
   SessionTagInputComponent,
   createFullscreenApproval,
   createApprovalSelector,
-} from './components/index.js';
+} from '@upup/pi-tui-app';
 import { editorTheme, theme } from '@upup/utils';
-import { type SlashCommand } from './commands/index.js';
-import { listAllCommands } from './commands/unified-registry.js';
-import { initSpinner } from './utils/spinner.js';
+import { type SlashCommand } from '@upup/commands';
+import { initSpinner } from '@upup/utils';
 // Phase 50: 统一使用 input-state，移除 command-state
-import { inputStore, inputSelectors, inputActions } from './tui/state/input-state.js';
-import { isPiSkillCommand, toPiSkillPrompt } from './runtime/pi/skill-commands.js';
+import { inputStore, inputSelectors, inputActions } from '@upup/pi-tui-app';
+import { isPiSkillCommand, toPiSkillPrompt } from '@upup/pi-resource-composition';
 import { getPiSessionTools } from './runtime/pi/runner.js';
 
+
+import { getAllSlashCommands, getDynamicCommands, type SlashCommand as SlashCommandFromCommands } from '@upup/commands';
+import { listPiSkillCommandsSync as listPiSkillCommandsSyncFromRc } from '@upup/pi-resource-composition';
+
+function buildListAllCommands(): SlashCommand[] {
+  const commands = getAllSlashCommands().filter((command, index, all) =>
+    all.findIndex((candidate) => candidate.name.toLowerCase() === command.name.toLowerCase()) === index,
+  );
+  const dynamic = getDynamicCommands();
+  const dynamicByName = new Map(dynamic.map((command) => [command.name.toLowerCase(), command]));
+  for (let index = 0; index < commands.length; index += 1) {
+    const replacement = dynamicByName.get(commands[index]!.name.toLowerCase());
+    if (replacement) commands[index] = replacement;
+  }
+  const seen = new Set(commands.map((command) => command.name.toLowerCase()));
+  for (const skill of listPiSkillCommandsSyncFromRc()) {
+    const name = `skill:${skill.name}`;
+    if (seen.has(name.toLowerCase())) continue;
+    seen.add(name.toLowerCase());
+    commands.push({
+      type: 'prompt',
+      name,
+      description: skill.description,
+      source: 'skills',
+      loadedFrom: 'skills',
+      userInvocable: true,
+    } as SlashCommand);
+  }
+  return commands;
+}
 
 // Stores the user's approval decision when Enter/Esc is pressed before the
 // inline approval UI has been rendered. Consumed by setApprovalPending.
@@ -528,7 +557,7 @@ export async function runCli(options: RunCliOptions = {}) {
   // (its own fuzzyFilter + autocomplete popup). The Editor is the single
   // source of truth for the autocomplete UI; we never mirror its state.
   editor.setAutocompleteProvider(
-    new CombinedAutocompleteProvider(listAllCommands(), process.cwd()),
+    new CombinedAutocompleteProvider(buildListAllCommands(), process.cwd()),
   );
   editor.setAutocompleteMaxVisible(8);
   const statusHint = new StatusHintComponent();
@@ -675,7 +704,7 @@ export async function runCli(options: RunCliOptions = {}) {
     // /skills — list installed skills with usage stats (P1.7 — round 2)
     if (commandName === 'skills') {
       try {
-        const skills = await (await import('./runtime/pi/skill-commands.js')).listPiSkillCommands(process.cwd());
+        const skills = await (await import('@upup/pi-resource-composition')).listPiSkillCommands(process.cwd());
         const text = skills.length === 0
           ? 'No Pi skills found.'
           : ['Pi skills:', ...skills.slice(0, 50).map((skill) => `  /skill:${skill.name} — ${skill.description}`)].join('\n');
@@ -698,7 +727,7 @@ export async function runCli(options: RunCliOptions = {}) {
       let state: Record<string, unknown> | undefined
       try {
         // Loading state
-        const { getAppState, getSessionManager } = await import('./state/index.js')
+        const { getAppState, getSessionManager } = await import('@upup/state')
 
         const appState = getAppState()
 

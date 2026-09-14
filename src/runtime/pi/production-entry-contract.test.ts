@@ -31,7 +31,7 @@ describe('Pi production entry contract', () => {
   });
 
   test('CLI Skill execution stays on the Pi ResourceLoader path', () => {
-    for (const file of ['src/cli.ts', 'src/commands/unified-registry.ts']) {
+    for (const file of ['src/cli.ts']) {
       const source = readFileSync(join(process.cwd(), file), 'utf8');
       expect(source).not.toContain('./skills/executor.js');
       expect(source).not.toContain('./skills/index.js');
@@ -57,7 +57,7 @@ describe('Pi production entry contract', () => {
   });
 
   test('Pi prompt capability discovery does not import the legacy root registry', () => {
-    const manifest = readFileSync(join(process.cwd(), 'src/runtime/pi/capability-manifest.ts'), 'utf8');
+    const manifest = readFileSync(join(process.cwd(), 'packages/pi-prompt-config/src/capability-manifest.ts'), 'utf8');
     const prompts = readFileSync(join(process.cwd(), 'src/runtime/pi/prompts.ts'), 'utf8');
     expect(manifest).not.toContain('tools/registry');
     expect(prompts).not.toContain('tools/registry');

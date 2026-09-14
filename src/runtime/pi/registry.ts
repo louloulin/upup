@@ -10,7 +10,7 @@
  * Reference: Loucode's built-in agents
  */
 
-import { info, warn } from '../../utils/logging/logger.js';
+import { info, warn } from '@upup/utils/logging';
 import { PiAgentCatalog } from './agent-catalog.js';
 import { agentDefinitionToPiSpec } from './agent-spec.js';
 import type { UpUpAgentSpec } from '@upup/pi-runtime';

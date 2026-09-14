@@ -1,27 +1,27 @@
 {
   "help": {
     "command": "help",
-    "count": 3,
-    "lastUsed": 1789385570323
+    "count": 44,
+    "lastUsed": 1789399870470
   },
   "status": {
     "command": "status",
-    "count": 3,
-    "lastUsed": 1789385570324
+    "count": 44,
+    "lastUsed": 1789399870470
   },
   "h": {
     "command": "h",
-    "count": 3,
-    "lastUsed": 1789385570325
+    "count": 44,
+    "lastUsed": 1789399870471
   },
   "c": {
     "command": "c",
-    "count": 3,
-    "lastUsed": 1789385570326
+    "count": 44,
+    "lastUsed": 1789399870471
   },
   "unknown": {
     "command": "unknown",
-    "count": 3,
-    "lastUsed": 1789385570327
+    "count": 44,
+    "lastUsed": 1789399870471
   }
 }

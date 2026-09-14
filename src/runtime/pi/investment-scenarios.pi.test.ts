@@ -7,7 +7,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { getInvestmentAgentSpec } from './agent-spec.js';
 import { PiAgentSessionFactory } from './agent-session-factory.js';
-import type { UpUpToolContract } from './types.js';
+import type { UpUpToolContract } from '@upup/pi-runtime';
 import { disposePiSessions } from './runner.js';
 import { runAgentForMessage } from '@upup/gateway';
 import { executeCronJob, type CronJob, type CronStore } from '@upup/cron';

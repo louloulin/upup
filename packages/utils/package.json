@@ -16,7 +16,7 @@
     }
   },
   "scripts": {
-    "build": "bun build src/index.ts --outdir=dist --target=node && npx tsc --emitDeclarationOnly --declaration --declarationMap --outDir dist",
+    "build": "bun build src/index.ts --outdir=dist --target=node && bun build src/logging/index.ts --outdir=dist/logging --target=node && npx tsc --emitDeclarationOnly --declaration --declarationMap --outDir dist",
     "dev": "bun build src/index.ts --outdir=dist --watch --target=node",
     "test": "bun test"
   },

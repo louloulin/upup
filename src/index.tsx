@@ -1,9 +1,7 @@
 #!/usr/bin/env bun
 import { config } from 'dotenv';
 import { runCli } from './cli.js';
-import { runOnboarding } from './commands/onboarding.js';
-import { runDoctor } from './commands/doctor.js';
-import { runConfigCommand } from './commands/config.js';
+import { runOnboarding, runDoctor, runConfigCommand } from '@upup/pi-cli-bootstrap';
 import { createStdioServer } from '@upup/pi-stdio';
 import { streamPiAgent } from './runtime/pi/event-stream.js';
 import { getPiSessionService } from '@upup/pi-session';

@@ -6,7 +6,7 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
-import { globalUpupPath, hasGlobalConfig, upupPath } from './paths';
+import { globalUpupPath, hasGlobalConfig, upupPath } from '@upup/utils';
 import { existsSync, mkdirSync, writeFileSync, rmSync } from 'fs';
 
 // Test helpers

@@ -243,9 +243,7 @@ const BUILTIN_FEATURES: ReadonlyArray<FeatureFlag> = [
   { name: 'AGENT_GUARDRAILS',       description: 'Pre-tool-call safety checks + rate limits',               category: 'agent', defaultEnabled: false, since: '2026.5.0', owner: 'core' },
   { name: 'AGENT_REFLECTION',       description: 'Self-critique pass after each turn',                      category: 'agent', defaultEnabled: false, since: '2026.6.0', owner: 'core' },
   { name: 'AGENT_CONTEXT_COMPACTION', description: 'Compress old tool results when token budget exceeded',  category: 'agent', defaultEnabled: true,  since: '2026.5.0', owner: 'core' },
-  { name: 'KAIROS_PROACTIVE',       description: 'Kairos 6-state proactive agent with autonomy mode',       category: 'agent', defaultEnabled: false, since: '2026.6.0', owner: 'kairos' },
   { name: 'COACH_MODE',            description: 'Sprint 1.1: 投研 Claude 人设注入主对话 system prompt',   category: 'agent', defaultEnabled: false, since: '2026.6.0', owner: 'coach' },
-  { name: 'CODE_ARCHAEOLOGY',     description: 'Sprint v4-1: code-archaeology 自动代码考古 (CODE-MAP.md + 5 layer 分布 + hot spots + orphans)', category: 'tools', defaultEnabled: true, since: '2026.6.0', owner: 'tools' },
   { name: 'KAIROS_CHANNELS',        description: 'Sprint 1.3: push channels 5 路 (cli/wechat/feishu/dingtalk/email) for coach + kairos', category: 'agent', defaultEnabled: false, since: '2026.6.0', owner: 'kairos' },
 
   // ---- Trading (10) ----------------------------------------------------
@@ -304,9 +302,9 @@ const BUILTIN_FEATURES: ReadonlyArray<FeatureFlag> = [
   { name: 'COMMAND_PORTFOLIO_REVIEW', description: 'Sprint 2.4: /portfolio-review — 组合复盘 (Brinson 归因 + 贡献分析 + rebalance 建议)', category: 'tools', defaultEnabled: true,  since: '2026.6.0', owner: 'cli' },
   { name: 'COMMAND_WATCHLIST_EDIT', description: 'Sprint 2.5: /watchlist-edit — watchlist 编辑 (加/删/排序)', category: 'tools', defaultEnabled: true,  since: '2026.6.0', owner: 'cli' },
   { name: 'INVESTMENT_WORKFLOW',    description: 'Sprint 3: 5 步研究闭环 (research → valuation → backtest → trade → review) 一次性跑完,checkpoint + resume', category: 'agent', defaultEnabled: true,  since: '2026.6.0', owner: 'core' },
-  { name: 'COMPETITIVE_POSITIONING',  description: 'Sprint v4-2: 13 竞品 7 维度矩阵 + 4 唯一差异化 (CLI-first/open-source/全市场/三件套) 量化证据 + 4 类投资者决策路径 + 30 字 sologan', category: 'analytics', defaultEnabled: true, since: '2026.6.0', owner: 'analytics' },];
 
 // Populate the registry at module load. Idempotent if a plugin
+];
 // re-registers with the same flag (last write wins; the metadata is
 // typically identical).
 for (const f of BUILTIN_FEATURES) {

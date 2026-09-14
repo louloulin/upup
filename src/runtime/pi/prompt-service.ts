@@ -1,9 +1,9 @@
 import { z, type ZodType } from 'zod';
-import { classifyError, isNonRetryableError } from '../../utils/errors.js';
-import { error as logError } from '../../utils/logging/logger.js';
+import { classifyError, isNonRetryableError } from '@upup/utils';
+import { error as logError } from '@upup/utils/logging';
 import { resolveProvider } from '@upup/utils';
 import { runPiPrompt } from './runner.js';
-import { DEFAULT_MODEL } from './model-config.js';
+import { DEFAULT_MODEL } from '@upup/utils';
 import type { PiTool } from './tool.js';
 
 export interface CallLlmOptions {
@@ -69,5 +69,5 @@ export async function callStructuredLlm<T>(
   return schema.parse(typeof result.response === 'string' ? parseJson(result.response) : result.response);
 }
 
-export { DEFAULT_MODEL } from './model-config.js';
+export { DEFAULT_MODEL } from '@upup/utils';
 export { z };

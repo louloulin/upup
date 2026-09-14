@@ -5,8 +5,8 @@
       "id": "cron-pi-fixture",
       "name": "Pi fixture alert",
       "enabled": true,
-      "createdAtMs": 1789385491613,
-      "updatedAtMs": 1789385491613,
+      "createdAtMs": 1789394159294,
+      "updatedAtMs": 1789394159294,
       "schedule": {
         "kind": "every",
         "everyMs": 60000
@@ -18,10 +18,10 @@
       "state": {
         "consecutiveErrors": 0,
         "scheduleErrorCount": 0,
-        "lastRunAtMs": 1789385491613,
+        "lastRunAtMs": 1789394159294,
         "lastDurationMs": 0,
         "lastRunStatus": "suppressed",
-        "nextRunAtMs": 1789385551613
+        "nextRunAtMs": 1789394219294
       }
     }
   ]

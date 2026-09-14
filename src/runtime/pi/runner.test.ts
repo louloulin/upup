@@ -20,7 +20,7 @@ import { getPiSessionService } from '@upup/pi-session';
 import { bootstrapPiNativeServices } from './bootstrap.js';
 
 bootstrapPiNativeServices();
-import type { UpUpToolContract } from './types.js';
+import type { UpUpToolContract } from '@upup/pi-runtime';
 
 const quoteTool: UpUpToolContract = {
   name: 'fixture_market_quote',

@@ -15,6 +15,9 @@ const RUNTIME_FOUNDATION_PACKAGES: ReadonlySet<string> = new Set([
   '@upup/pi-capability-registry',
   '@upup/pi-planning',
   '@upup/utils',
+  '@upup/types',
+  '@upup/memory',
+  '@upup/pi-storage',
   'zod',
 ]);
 
@@ -120,6 +123,7 @@ export class PiPackageCatalog {
         commands?: unknown[];
         extensions?: unknown[]; skills?: unknown[]; prompts?: unknown[];
         workflows?: unknown[]; policies?: unknown[]; evals?: unknown[];
+        dependencies?: unknown;
       };
     };
     if (typeof parsed.name !== 'string' || !parsed.name.trim() || !exactSemver(parsed.version)) {
@@ -141,6 +145,7 @@ export class PiPackageCatalog {
       ['devDependencies', parsed.devDependencies, false],
       ['peerDependencies', parsed.peerDependencies, true],
       ['optionalDependencies', parsed.optionalDependencies, true],
+      ['pi.dependencies', parsed.pi?.dependencies, true],
     ] as const;
     const dependencies: Record<string, string> = {};
     const runtimeDependencies: Record<string, string> = {};

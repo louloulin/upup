@@ -23,7 +23,7 @@ import {
   permissionRuleValueFromString,
 } from './permissionRuleParser.js'
 import { isHardDenyCommand } from './permissionSetup.js'
-import { checkPermissionWithHardDeny } from '../platform-bridge/bash.js'
+import { checkPermissionWithHardDeny } from '@upup/pi-platform'
 
 // ============================================================================
 // Permission Checker

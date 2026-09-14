@@ -27,6 +27,15 @@ export function bootstrapPiNativeServices(): void {
   registerGatewayConfigRuntime({ getConfiguredModelId, getConfiguredProvider });
   registerGatewayCronRuntime({ ensureHeartbeatCronJob, startCronRunner });
   registerPiRuntimePort('gateway.bootstrap', { bootstrap: bootstrapPiNativeServices });
+
+  // Inject the /invest handler into @upup/pi-investment-workflow registry.
+  // This is the ONLY place where the root Factory bridge is allowed to live.
+  void import('@upup/pi-investment-workflow').then((mod) => {
+    mod.setInvestCommandHandler(async (args: string) => {
+      const { runInvest } = await import('@upup/pi-investment-workflow');
+      return runInvest(args);
+    });
+  });
 }
 
 export type { PiSessionListItem };

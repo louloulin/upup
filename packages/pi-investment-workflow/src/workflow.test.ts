@@ -50,3 +50,119 @@ describe('Pi investment workflow package', () => {
     expect(result.evidence[0]).toMatchObject({ source: 'test://market-history', asOf: '2026-06-01', auditId: 'workflow-test', phase: 'backtest' });
   });
 });
+
+describe('Pi investment workflow risk/audit/evidence integration', () => {
+  test('emits canonical or propagated evidence URIs across all five phases with phase alignment', async () => {
+    const phaseSources: Record<string, string> = {};
+    for (const phase of ['research', 'valuation', 'backtest', 'trade', 'review'] as const) {
+      const result = await executeInvestmentPhase(phase, { ticker: 'NVDA', goal: '分析投资机会' }, services, new AbortController().signal);
+      expect(result.evidence.length).toBeGreaterThanOrEqual(1);
+      const ev = result.evidence[0]!;
+      expect(ev.phase).toBe(phase);
+      // backtest propagates the data source evidence URI (intentional: traceability)
+      // other phases emit the canonical upup-pi:// URI
+      if (phase !== 'backtest') {
+        expect(ev.source).toMatch(/^upup-pi:\/\//);
+      }
+      phaseSources[phase] = ev.source;
+    }
+    expect(Object.keys(phaseSources)).toHaveLength(5);
+    expect(phaseSources['research']).toMatch(/research/);
+    expect(phaseSources['valuation']).toMatch(/valuation/);
+    expect(phaseSources['backtest']).toMatch(/market-history/);
+    expect(phaseSources['trade']).toMatch(/trade/);
+    expect(phaseSources['review']).toMatch(/review/);
+  });
+
+  test('propagates auditId from data source evidence into backtest phase result', async () => {
+    const auditId = 'audit-trace-12345';
+    const tracedServices = {
+      ...services,
+      getMarketHistory: async () => ({
+        bars: [{ date: '2026-01-01', open: 100, high: 102, low: 99, close: 100, volume: 1000 }, { date: '2026-06-01', open: 110, high: 112, low: 109, close: 110, volume: 1200 }],
+        evidence: { source: 'test://market-history', retrievedAt: '2026-09-14T00:00:00.000Z', asOf: '2026-06-01', query: 'AAPL', dataFreshness: 'historical', auditId },
+      }),
+    };
+    const result = await executeInvestmentPhase('backtest', { ticker: 'AAPL', goal: '回测' }, tracedServices, new AbortController().signal);
+    expect(result.evidence[0]).toMatchObject({ auditId, phase: 'backtest' });
+  });
+
+  test('sandbox trade phase returns no unauthorized side effects when no decision made', async () => {
+    let placeOrderCalled = false;
+    const safeServices = {
+      ...services,
+      getSandboxState: async () => ({
+        positions: [{ symbol: 'AAPL', quantity: 10, avgCost: 100 }],
+        balance: { cash: 1000, marketValue: 1100, totalEquity: 2100, currency: 'USD' },
+        getQuote: async (symbol) => ({ symbol, bid: 109, ask: 111, last: 110 }),
+      }),
+      placePaperOrder: async () => { placeOrderCalled = true; return { id: 'never', status: 'rejected', quantity: 0, filledQuantity: 0 }; },
+    };
+    const result = await executeInvestmentPhase('trade', { ticker: 'AAPL', goal: '持有观望' }, safeServices, new AbortController().signal);
+    expect(result.output).toContain('hold');
+    expect(placeOrderCalled).toBe(false);
+    expect(result.evidence[0]).toMatchObject({ phase: 'trade' });
+  });
+
+  test('review phase produces Brinson attribution when positions exist', async () => {
+    const result = await executeInvestmentPhase('review', { ticker: 'AAPL', goal: '组合复盘' }, services, new AbortController().signal);
+    expect(result.output).toContain('Brinson');
+    expect(result.output).toMatch(/配置效应.*\d+\.\d{2}%/);
+    expect(result.output).toMatch(/选择效应.*\d+\.\d{2}%/);
+    expect(result.evidence[0]).toMatchObject({ phase: 'review' });
+  });
+
+  test('review phase returns empty dossier when portfolio is flat', async () => {
+    const flatServices = {
+      ...services,
+      getSandboxState: async () => ({
+        positions: [],
+        balance: { cash: 5000, marketValue: 0, totalEquity: 5000, currency: 'USD' },
+        getQuote: async (symbol) => ({ symbol, bid: 100, ask: 102, last: 101 }),
+      }),
+    };
+    const result = await executeInvestmentPhase('review', { ticker: 'AAPL', goal: '组合复盘' }, flatServices, new AbortController().signal);
+    expect(result.output).toContain('空组合');
+    expect(result.evidence[0]).toMatchObject({ phase: 'review' });
+  });
+
+  test('fails closed when trade phase has insufficient cash without invoking order', async () => {
+    let placeOrderCalled = false;
+    const brokeServices = {
+      ...services,
+      getSandboxState: async () => ({
+        positions: [],
+        balance: { cash: 0.5, marketValue: 0, totalEquity: 0.5, currency: 'USD' },
+        getQuote: async (symbol) => ({ symbol, bid: 500, ask: 501, last: 500 }),
+      }),
+      placePaperOrder: async () => { placeOrderCalled = true; return { id: 'never', status: 'rejected', quantity: 0, filledQuantity: 0 }; },
+    };
+    const result = await executeInvestmentPhase('trade', { ticker: 'BRK.A', goal: '建仓' }, brokeServices, new AbortController().signal);
+    expect(result.error).toBe('insufficient_cash');
+    expect(placeOrderCalled).toBe(false);
+  });
+
+  test('full pipeline: all 5 phases produce auditable, evidence-traceable results', async () => {
+    const auditTrace: { phase: string; source: string; hasEvidence: boolean; outputNonEmpty: boolean }[] = [];
+    for (const phase of ['research', 'valuation', 'backtest', 'trade', 'review'] as const) {
+      const result = await executeInvestmentPhase(phase, { ticker: 'AAPL', goal: '完整 5 步投研闭环' }, services, new AbortController().signal);
+      auditTrace.push({
+        phase,
+        source: result.evidence[0]?.source ?? '(none)',
+        hasEvidence: result.evidence.length >= 1,
+        outputNonEmpty: result.output.length > 0,
+      });
+    }
+    expect(auditTrace).toHaveLength(5);
+    for (const trace of auditTrace) {
+      expect(trace.hasEvidence).toBe(true);
+      expect(trace.outputNonEmpty).toBe(true);
+      // backtest propagates data source evidence; all others use canonical upup-pi://
+      if (trace.phase !== 'backtest') {
+        expect(trace.source).toMatch(/^upup-pi:\/\//);
+      }
+    }
+    const phasesCovered = new Set(auditTrace.map((t) => t.phase));
+    expect(phasesCovered).toEqual(new Set(['research', 'valuation', 'backtest', 'trade', 'review']));
+  });
+});

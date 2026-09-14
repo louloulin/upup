@@ -9,7 +9,7 @@ import {
   type ToolDefinition,
   type ModelRuntime,
 } from '@earendil-works/pi-coding-agent';
-import { canUseTool, createToolContext, requiresApproval } from './tool-contract.js';
+import { canUseTool, createToolContext, requiresApproval } from '@upup/pi-runtime';
 import {
   PI_MARKET_DATA_CAPABILITY_NAMES,
   PI_MARKET_DATA_CAPABILITIES_CONTRACT,
@@ -54,23 +54,31 @@ import { getModel, getModels } from '@earendil-works/pi-ai/compat';
 import { existsSync, readFileSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import { dirname, relative, resolve, sep } from 'node:path';
-import { PI_DEFAULT_SYSTEM_PROMPT } from './default-prompt.js';
 import { PiPackageCatalog, verifyPiResourceTrust } from '@upup/pi-resource-composition';
-import { createPiPluginExtensions, getLoadedPiPluginBindings, type PiPluginBinding } from './plugin-adapter.js';
+import { createPiPluginExtensions, getLoadedPiPluginBindings, type PiPluginBinding, resolveConfiguredPiPackages, getOwnedToolNames, packageOwnsTool, packageProvidesNativeTool } from '@upup/pi-resource-composition';
 import { evaluatePiPackage } from '@upup/pi-resource-composition';
-import { resolveConfiguredPiPackages } from './package-config.js';
+
 import { createPiHostBridge, type PiHostBridge, type PiManagementSnapshot } from '@upup/pi-session';
-import { getOwnedToolNames, packageOwnsTool, packageProvidesNativeTool } from './package-tool-ownership.js';
+
 import { JsonFileMarketQuoteTrendStore, loadProviderSlaStore } from '@upup/pi-market-data';
 import type { NativeMarketQuoteTrendStore } from '@upup/pi-market-data';
-import { globalUpupPath } from '../../utils/storage-paths.js';
+import { globalUpupPath } from '@upup/utils';
 import { createFinanceComposition } from '@upup/pi-finance-composition';
 import { createPlatformComposition } from '@upup/pi-platform-composition';
 import { defaultPiCapabilityRegistry } from '@upup/pi-capability-registry';
 import { executeCronJob, loadCronStore } from '@upup/cron';
 
+const PI_DEFAULT_SYSTEM_PROMPT = [
+  'You are UpUp, a Chinese-language financial research assistant powered by the Pi runtime.',
+  'Use registered tools only when they improve the answer and distinguish facts, assumptions, and uncertainty.',
+  'For financial data, preserve source, as-of date, freshness, warnings, and audit evidence in the result.',
+  'Never place a real financial order, disclose credentials, or send external messages without an explicit approved policy.',
+  'Prefer concise, structured reports with risks and next actions.',
+].join('\n');
+
 
 function installPiPackageToolHosts(
+
   sessionId: string,
   spec: UpUpAgentSpec,
   tools: readonly UpUpToolContract[],

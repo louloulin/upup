@@ -1,0 +1,37 @@
+{
+  "name": "@upup/pi-cli-bootstrap",
+  "version": "0.1.0",
+  "description": "UpUp CLI bootstrap commands — config, doctor, onboarding for the Pi Native investment assistant.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "bun build src/index.ts --outdir=dist --target=bun --external '@upup/*' --external 'dotenv' && npx tsc --emitDeclarationOnly --declaration --declarationMap --outDir dist",
+    "dev": "bun build src/index.ts --outdir=dist --watch --target=bun",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@upup/utils": "workspace:*",
+    "@upup/pi-tui-app": "workspace:*"
+  },
+  "files": ["dist"],
+  "private": false,
+  "pi": {
+    "contract": "upup.pi.runtime.v1",
+    "source": "builtin:upup",
+    "trust": { "mode": "builtin" },
+    "lifecycle": { "scope": "session" },
+    "extensions": [],
+    "skills": [],
+    "prompts": [],
+    "workflows": [],
+    "policies": [],
+    "evals": []
+  }
+}

@@ -9,7 +9,7 @@ import { describe, it, expect, beforeEach } from 'bun:test';
 import { existsSync, writeFileSync, mkdirSync, rmSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
-import { upupPath } from './storage-paths.js';
+import { upupPath } from '@upup/utils';
 
 // Test helper to get the actual config directory that getConfigSources reads from
 function getTestConfigDir() {

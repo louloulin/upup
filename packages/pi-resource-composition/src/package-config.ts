@@ -1,7 +1,7 @@
 import { delimiter, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { existsSync, readFileSync } from 'node:fs';
-import type { PiPluginTrustPolicy } from './plugin-trust.js';
+import type { PiPluginTrustPolicy } from '@upup/pi-resource-composition';
 
 export interface ConfiguredPiPackageOptions {
   readonly piPackagePaths: readonly string[];
@@ -19,71 +19,71 @@ interface ProjectPiPackageSettings {
 
 const SOURCE_FINANCE_PACKAGE_PATH = resolve(
   dirname(fileURLToPath(import.meta.url)),
-  '../../../packages/pi-finance-sdk',
+  '../../pi-finance-sdk',
 );
 const SOURCE_MARKET_DATA_PACKAGE_PATH = resolve(
   dirname(fileURLToPath(import.meta.url)),
-  '../../../packages/pi-market-data',
+  '../../pi-market-data',
 );
 const SOURCE_INVESTMENT_ANALYSIS_PACKAGE_PATH = resolve(
   dirname(fileURLToPath(import.meta.url)),
-  '../../../packages/pi-investment-analysis',
+  '../../pi-investment-analysis',
 );
 const SOURCE_RISK_PACKAGE_PATH = resolve(
   dirname(fileURLToPath(import.meta.url)),
-  '../../../packages/pi-risk',
+  '../../pi-risk',
 );
 const SOURCE_PORTFOLIO_PACKAGE_PATH = resolve(
   dirname(fileURLToPath(import.meta.url)),
-  '../../../packages/pi-portfolio',
+  '../../pi-portfolio',
 );
 const SOURCE_BACKTEST_PACKAGE_PATH = resolve(
   dirname(fileURLToPath(import.meta.url)),
-  '../../../packages/pi-backtest',
+  '../../pi-backtest',
 );
 const SOURCE_PLATFORM_PACKAGE_PATH = resolve(
   dirname(fileURLToPath(import.meta.url)),
-  '../../../packages/pi-platform',
+  '../../pi-platform',
 );
 const SOURCE_RESEARCH_PACKAGE_PATH = resolve(
   dirname(fileURLToPath(import.meta.url)),
-  '../../../packages/pi-research',
+  '../../pi-research',
 );
 const SOURCE_BROWSER_PACKAGE_PATH = resolve(
   dirname(fileURLToPath(import.meta.url)),
-  '../../../packages/pi-browser',
+  '../../pi-browser',
 );
 const SOURCE_CONFIG_PACKAGE_PATH = resolve(
   dirname(fileURLToPath(import.meta.url)),
-  '../../../packages/pi-config',
+  '../../pi-config',
 );
 const SOURCE_CACHE_PACKAGE_PATH = resolve(
   dirname(fileURLToPath(import.meta.url)),
-  '../../../packages/pi-cache',
+  '../../pi-cache',
 );
 const SOURCE_NOTIFY_PACKAGE_PATH = resolve(
   dirname(fileURLToPath(import.meta.url)),
-  '../../../packages/pi-notify',
+  '../../pi-notify',
 );
 const SOURCE_INVESTMENT_WORKFLOW_PACKAGE_PATH = resolve(
   dirname(fileURLToPath(import.meta.url)),
-  '../../../packages/pi-investment-workflow',
+  '../../pi-investment-workflow',
 );
 const SOURCE_MANAGEMENT_PACKAGE_PATH = resolve(
   dirname(fileURLToPath(import.meta.url)),
-  '../../../packages/pi-management',
+  '../../pi-management',
 );
 const SOURCE_TECHNICAL_PACKAGE_PATH = resolve(
   dirname(fileURLToPath(import.meta.url)),
-  '../../../packages/pi-technical',
+  '../../pi-technical',
 );
 const SOURCE_CORPORATE_ACTIONS_PACKAGE_PATH = resolve(
   dirname(fileURLToPath(import.meta.url)),
-  '../../../packages/pi-corporate-actions',
+  '../../pi-corporate-actions',
 );
 const SOURCE_QUANT_PACKAGE_PATH = resolve(
   dirname(fileURLToPath(import.meta.url)),
-  '../../../packages/pi-quant',
+  '../../pi-quant',
 );
 
 function builtinPackageCandidates(cwd: string, packageName: string, sourcePath: string): string[] {
@@ -131,6 +131,13 @@ export function getBuiltinPiPackageOptions(cwd = process.cwd()): ConfiguredPiPac
         '@earendil-works/pi-coding-agent': '0.84.3',
         '@upup/pi-runtime': '0.1.0',
         '@upup/utils': '0.2.0',
+        '@upup/types': '0.2.0',
+        '@upup/memory': '0.2.0',
+        
+        '@upup/pi-storage': '0.2.0',
+        '@upup/pi-planning': '0.1.0',
+        '@upup/pi-research': '0.1.0',
+        '@upup/pi-market-data': '0.1.0',
         zod: '3.25.76',
         typebox: '1.3.7',
       },

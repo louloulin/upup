@@ -68,11 +68,7 @@ const runtimeFiles = [
   'src/runtime/pi/agent-session-factory.ts',
   'src/runtime/pi/agent-spec.ts',
   'src/runtime/pi/agent-catalog.ts',
-  'src/runtime/pi/package-catalog.ts',
-  'src/runtime/pi/tool-contract.ts',
-  'src/runtime/pi/types.ts',
   'src/runtime/pi/registry.ts',
-  'src/runtime/pi/package-contracts.ts',
 ];
 const runtimeBuildFiles = [
   'package.json',
@@ -154,7 +150,7 @@ const factorySource = readFileSync(join(root, 'src/runtime/pi/agent-session-fact
 if (factorySource.includes('registry-adapter') || factorySource.includes('loadRegisteredTools')) {
   failures.push('Pi AgentSession must not retain the removed root Registry compatibility path');
 }
-for (const file of ['src/runtime/pi/capability-manifest.ts', 'src/runtime/pi/prompts.ts']) {
+for (const file of ['src/runtime/pi/prompts.ts']) {
   const source = readFileSync(join(root, file), 'utf8');
   if (source.includes('tools/registry')) failures.push(`${file} must not import the legacy root tool registry`);
 }
