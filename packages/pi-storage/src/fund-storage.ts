@@ -6,7 +6,7 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { upupPath } from '../utils/paths.js';
+import { upupPath } from '@upup/utils';
 
 // Get the directory of this file
 const __filename = fileURLToPath(import.meta.url);

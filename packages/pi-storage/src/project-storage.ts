@@ -11,7 +11,7 @@
  * Reference: Claude Code's src/utils/sessionStorage.ts
  */
 
-import { globalUpupPath } from '../utils/storage-paths.js';
+import { globalUpupPath } from '@upup/utils';
 import { getCacheTTL } from './storage-adapter.js';
 import * as fs from 'fs';
 import * as path from 'path';

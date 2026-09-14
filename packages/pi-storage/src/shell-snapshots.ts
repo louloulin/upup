@@ -9,7 +9,7 @@
  * Reference: Claude Code's src/utils/bash/ShellSnapshot.ts
  */
 
-import { globalUpupPath } from '../utils/storage-paths.js';
+import { globalUpupPath } from '@upup/utils';
 import { generateId } from './crypto-utils.js';
 import * as fs from 'fs';
 import * as path from 'path';

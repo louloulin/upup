@@ -9,7 +9,7 @@
  * Reference: Claude Code's src/utils/stats.ts and statsCache.ts
  */
 
-import { globalUpupPath } from '../utils/storage-paths.js';
+import { globalUpupPath } from '@upup/utils';
 import { getStatsDaysLimit } from './storage-adapter.js';
 import * as fs from 'fs';
 import * as path from 'path';

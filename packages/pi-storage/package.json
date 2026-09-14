@@ -1,9 +1,9 @@
 {
   "name": "@upup/pi-storage",
-  "version": "0.1.0",
-  "description": "UpUp append-only dossier, strategy, and audit storage",
+  "version": "0.2.0",
+  "description": "UpUp Pi storage - dossier, strategy, audit, file-history, project storage, shell snapshots, stats cache, fund storage, storage adapter",
   "type": "module",
-  "keywords": ["pi-package", "finance", "storage", "audit"],
+  "keywords": ["pi-package", "finance", "storage", "audit", "file-history", "project"],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -16,6 +16,21 @@
     "build": "bun build src/index.ts --outdir=dist --target=node && tsc --emitDeclarationOnly --project tsconfig.json",
     "test": "bun test ./test.ts"
   },
+  "dependencies": {
+    "@upup/utils": "workspace:*",
+    "@upup/pi-finance-sdk": "workspace:*"
+  },
   "files": ["dist", "package.json"],
-  "pi": { "contract": "upup.pi.runtime.v1", "source": "builtin:upup", "trust": { "mode": "builtin", "filesystem": true }, "lifecycle": { "scope": "session" }, "extensions": [], "skills": [], "prompts": [], "workflows": [], "policies": [], "evals": [] }
+  "pi": {
+    "contract": "upup.pi.runtime.v1",
+    "source": "builtin:upup",
+    "trust": { "mode": "builtin", "filesystem": true },
+    "lifecycle": { "scope": "session" },
+    "extensions": [],
+    "skills": [],
+    "prompts": [],
+    "workflows": [],
+    "policies": [],
+    "evals": []
+  }
 }

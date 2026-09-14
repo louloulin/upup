@@ -8,7 +8,7 @@
  * 3. Check alert conditions and trigger notifications
  */
 
-import { getFollowedFunds, updateFollowedFund } from '../storage/fund-storage.js';
+import { getFollowedFunds, updateFollowedFund } from '@upup/pi-storage';
 import { getFundEstimatedValue, type FundBasic } from '@upup/pi-finance-sdk';
 
 

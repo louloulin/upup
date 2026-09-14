@@ -13,28 +13,28 @@ import {
   getProjectStorage,
   sanitizePath,
   getProjectsDir,
-} from '../src/storage/project-storage.js';
+} from '@upup/pi-storage';
 
 import {
   FileHistoryManager,
   getFileHistoryManager,
   getFileHistoryDir,
   FileHistoryBackup,
-} from '../src/storage/file-history.js';
+} from '@upup/pi-storage';
 
 import {
   ShellSnapshotManager,
   getShellSnapshotManager,
   getShellSnapshotsDir,
   detectShellType,
-} from '../src/storage/shell-snapshots.js';
+} from '@upup/pi-storage';
 
 import {
   StatsCacheManager,
   getStatsCacheManager,
   getStatsCachePath,
   SessionStats,
-} from '../src/storage/stats-cache.js';
+} from '@upup/pi-storage';
 
 // ============================================================================
 // Project Storage Tests

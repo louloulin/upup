@@ -103,3 +103,15 @@ export class AuditChain {
 let defaultAuditChain: AuditChain | null = null;
 export function getDefaultAuditChain(rotate = false, options: Omit<AuditChainOptions, 'rotate'> = {}): AuditChain { if (!defaultAuditChain || rotate) defaultAuditChain = new AuditChain({ ...options, rotate }); return defaultAuditChain; }
 export function _resetDefaultAuditChain(): void { defaultAuditChain = null; }
+
+// ============================================================================
+// Physical modules migrated from src/storage/* (Round 6.3)
+// ============================================================================
+
+export * from './crypto-utils.js';
+export * from './storage-adapter.js';
+export * from './file-history.js';
+export * from './shell-snapshots.js';
+export * from './stats-cache.js';
+export * from './project-storage.js';
+export * from './fund-storage.js';
