@@ -11,6 +11,7 @@ export type { PiPluginTrustPolicy } from './plugin-trust.js';
 // packages that don't ship extensions/skills/prompts.
 const RUNTIME_FOUNDATION_PACKAGES: ReadonlySet<string> = new Set([
   '@upup/pi-runtime',
+  '@upup/pi-capability-registry',
 ]);
 
 export interface PiPackageManifest {

@@ -1,9 +1,9 @@
 import { Type } from 'typebox';
 import type { ExtensionAPI, ExtensionContext } from '@earendil-works/pi-coding-agent';
+import { resolvePiCapabilityHost } from '@upup/pi-capability-registry';
 import {
   PI_FINANCE_HOST_CAPABILITIES,
   PI_FINANCE_HOST_CONTRACT,
-  PI_HOST_REGISTRY_GLOBAL_KEY,
   PI_FINANCE_PACKAGE_NAME,
   PI_FINANCE_PACKAGE_VERSION,
   type PiFinanceHostBridge,
@@ -56,8 +56,7 @@ import {
 } from '../src/knowledge-journal.js';
 
 function getPiFinanceToolHost(): PiFinanceHostBridge | undefined {
-  const hosts = (globalThis as typeof globalThis & { __upupPiHosts?: ReadonlyMap<string, PiFinanceHostBridge> })[PI_HOST_REGISTRY_GLOBAL_KEY];
-  const host = hosts?.get(PI_FINANCE_PACKAGE_NAME);
+  const host = resolvePiCapabilityHost<PiFinanceHostBridge>(PI_FINANCE_PACKAGE_NAME, undefined);
   if (!host || host.contract !== PI_FINANCE_HOST_CONTRACT) return undefined;
   if (host.packageName !== PI_FINANCE_PACKAGE_NAME || host.packageVersion !== PI_FINANCE_PACKAGE_VERSION) return undefined;
   if (!host.sessionId || !PI_FINANCE_HOST_CAPABILITIES.every((capability) => host.capabilities.includes(capability))) return undefined;

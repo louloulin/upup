@@ -60,13 +60,14 @@ import { createPiPluginExtensions, getLoadedPiPluginBindings, type PiPluginBindi
 import { PiPackageCatalog } from './package-catalog.js';
 import { evaluatePiPackage } from './package-contracts.js';
 import { resolveConfiguredPiPackages } from './package-config.js';
-import { createPiHostBridge, PI_HOST_REGISTRY_GLOBAL_KEY, type PiHostBridge, type PiHostRegistry, type PiManagementSnapshot } from './host-contract.js';
+import { createPiHostBridge, type PiHostBridge, type PiManagementSnapshot } from './host-contract.js';
 import { getOwnedToolNames, packageOwnsTool, packageProvidesNativeTool } from './package-tool-ownership.js';
 import { JsonFileMarketQuoteTrendStore, loadProviderSlaStore } from '@upup/pi-market-data';
 import type { NativeMarketQuoteTrendStore } from '@upup/pi-market-data';
 import { globalUpupPath } from '../../utils/storage-paths.js';
 import { createFinanceComposition } from '@upup/pi-finance-composition';
 import { createPlatformComposition } from '@upup/pi-platform-composition';
+import { defaultPiCapabilityRegistry } from '@upup/pi-capability-registry';
 
 
 function installPiPackageToolHosts(
@@ -83,10 +84,6 @@ function installPiPackageToolHosts(
   getSkillDefinitions?: () => readonly import('./host-contract.js').PiSkillDefinition[],
   capabilityContext?: PiCapabilityContext,
 ): () => void {
-  const globalState = globalThis as typeof globalThis & {
-    __upupPiHosts?: PiHostRegistry;
-  };
-  const previousRegistry = globalState[PI_HOST_REGISTRY_GLOBAL_KEY];
   const registry = new Map<string, PiHostBridge>();
   const effectiveTrendStore = marketQuoteTrendStore
     ?? new JsonFileMarketQuoteTrendStore(process.env.UPUP_PROVIDER_METRICS_PATH?.trim() || globalUpupPath('metrics', 'market-provider-trend.json'));
@@ -185,10 +182,9 @@ function installPiPackageToolHosts(
       capabilityContext,
     }));
   }
-  globalState[PI_HOST_REGISTRY_GLOBAL_KEY] = registry;
+  const restoreExplicitRegistry = defaultPiCapabilityRegistry.registerSession(sessionId, registry as unknown as ReadonlyMap<string, import('@upup/pi-capability-registry').PiCapabilityHostRecord>);
   return () => {
-    if (previousRegistry) globalState[PI_HOST_REGISTRY_GLOBAL_KEY] = previousRegistry;
-    else delete globalState[PI_HOST_REGISTRY_GLOBAL_KEY];
+    restoreExplicitRegistry();
   };
 }
 

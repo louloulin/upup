@@ -55,5 +55,8 @@
     "evals": [
       "./evals"
     ]
+  },
+  "dependencies": {
+    "@upup/pi-capability-registry": "0.1.0"
   }
 }

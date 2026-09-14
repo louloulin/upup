@@ -3,15 +3,34 @@
   "version": "0.1.0",
   "description": "UpUp Pi-native five-phase investment workflow",
   "type": "module",
-  "keywords": ["pi-package", "finance", "investment", "workflow"],
+  "keywords": [
+    "pi-package",
+    "finance",
+    "investment",
+    "workflow"
+  ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
   "scripts": {
     "build": "bun build src/index.ts --outdir=dist --target=node && bun build extensions/index.ts --outdir=dist/extensions --target=node && tsc --emitDeclarationOnly --project tsconfig.json",
     "test": "bun test ./test.ts ./src/workflow.test.ts ./extensions/index.test.ts"
   },
-  "files": ["dist", "extensions", "skills", "prompts", "workflows", "policies", "evals", "package.json"],
+  "files": [
+    "dist",
+    "extensions",
+    "skills",
+    "prompts",
+    "workflows",
+    "policies",
+    "evals",
+    "package.json"
+  ],
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": "0.84.3",
     "@upup/pi-backtest": "0.1.0",
@@ -22,11 +41,26 @@
   },
   "pi": {
     "source": "builtin:upup",
-    "extensions": ["./extensions/index.ts"],
-    "skills": ["./skills"],
-    "prompts": ["./prompts"],
-    "workflows": ["./workflows"],
-    "policies": ["./policies"],
-    "evals": ["./evals"]
+    "extensions": [
+      "./extensions/index.ts"
+    ],
+    "skills": [
+      "./skills"
+    ],
+    "prompts": [
+      "./prompts"
+    ],
+    "workflows": [
+      "./workflows"
+    ],
+    "policies": [
+      "./policies"
+    ],
+    "evals": [
+      "./evals"
+    ]
+  },
+  "dependencies": {
+    "@upup/pi-capability-registry": "0.1.0"
   }
 }

@@ -1,0 +1,14 @@
+{
+  "name": "@upup/pi-capability-registry",
+  "version": "0.1.0",
+  "description": "Explicit session-scoped Pi capability registry with legacy read compatibility",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
+  "scripts": {
+    "build": "bun build src/index.ts --outdir=dist --target=node && tsc --emitDeclarationOnly --project tsconfig.json",
+    "test": "bun test ./test.ts"
+  },
+  "files": ["dist", "package.json"]
+}

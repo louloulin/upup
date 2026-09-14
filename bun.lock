@@ -18,6 +18,7 @@
         "@mozilla/readability": "^0.6.0",
         "@upup/pi-backtest": "workspace:*",
         "@upup/pi-cache": "workspace:*",
+        "@upup/pi-capability-registry": "workspace:*",
         "@upup/pi-config": "workspace:*",
         "@upup/pi-corporate-actions": "workspace:*",
         "@upup/pi-finance-composition": "workspace:*",
@@ -145,6 +146,9 @@
     "packages/pi-backtest": {
       "name": "@upup/pi-backtest",
       "version": "0.1.0",
+      "dependencies": {
+        "@upup/pi-capability-registry": "0.1.0",
+      },
       "peerDependencies": {
         "@earendil-works/pi-coding-agent": "0.84.3",
         "typebox": "1.3.7",
@@ -166,6 +170,10 @@
         "typebox": "1.3.7",
       },
     },
+    "packages/pi-capability-registry": {
+      "name": "@upup/pi-capability-registry",
+      "version": "0.1.0",
+    },
     "packages/pi-config": {
       "name": "@upup/pi-config",
       "version": "0.1.0",
@@ -177,6 +185,9 @@
     "packages/pi-corporate-actions": {
       "name": "@upup/pi-corporate-actions",
       "version": "0.1.0",
+      "dependencies": {
+        "@upup/pi-capability-registry": "0.1.0",
+      },
       "peerDependencies": {
         "@earendil-works/pi-coding-agent": "0.84.3",
         "typebox": "1.3.7",
@@ -202,6 +213,9 @@
     "packages/pi-finance-sdk": {
       "name": "@upup/pi-finance-sdk",
       "version": "0.1.0",
+      "dependencies": {
+        "@upup/pi-capability-registry": "0.1.0",
+      },
       "peerDependencies": {
         "@earendil-works/pi-coding-agent": "0.84.3",
         "typebox": "1.3.7",
@@ -210,6 +224,9 @@
     "packages/pi-investment-analysis": {
       "name": "@upup/pi-investment-analysis",
       "version": "0.1.0",
+      "dependencies": {
+        "@upup/pi-capability-registry": "0.1.0",
+      },
       "peerDependencies": {
         "@earendil-works/pi-coding-agent": "0.84.3",
         "@upup/pi-market-data": "0.1.0",
@@ -219,6 +236,9 @@
     "packages/pi-investment-workflow": {
       "name": "@upup/pi-investment-workflow",
       "version": "0.1.0",
+      "dependencies": {
+        "@upup/pi-capability-registry": "0.1.0",
+      },
       "peerDependencies": {
         "@earendil-works/pi-coding-agent": "0.84.3",
         "@upup/pi-backtest": "0.1.0",
@@ -231,6 +251,9 @@
     "packages/pi-management": {
       "name": "@upup/pi-management",
       "version": "0.1.0",
+      "dependencies": {
+        "@upup/pi-capability-registry": "0.1.0",
+      },
       "peerDependencies": {
         "@earendil-works/pi-coding-agent": "0.84.3",
         "typebox": "1.3.7",
@@ -239,6 +262,9 @@
     "packages/pi-market-data": {
       "name": "@upup/pi-market-data",
       "version": "0.1.0",
+      "dependencies": {
+        "@upup/pi-capability-registry": "0.1.0",
+      },
       "peerDependencies": {
         "@earendil-works/pi-coding-agent": "0.84.3",
         "@upup/pi-runtime": "0.1.0",
@@ -256,6 +282,9 @@
     "packages/pi-platform": {
       "name": "@upup/pi-platform",
       "version": "0.1.0",
+      "dependencies": {
+        "@upup/pi-capability-registry": "0.1.0",
+      },
       "peerDependencies": {
         "@earendil-works/pi-coding-agent": "0.84.3",
         "typebox": "1.3.7",
@@ -274,6 +303,9 @@
     "packages/pi-portfolio": {
       "name": "@upup/pi-portfolio",
       "version": "0.1.0",
+      "dependencies": {
+        "@upup/pi-capability-registry": "0.1.0",
+      },
       "peerDependencies": {
         "@earendil-works/pi-coding-agent": "0.84.3",
         "typebox": "1.3.7",
@@ -282,6 +314,9 @@
     "packages/pi-quant": {
       "name": "@upup/pi-quant",
       "version": "0.1.0",
+      "dependencies": {
+        "@upup/pi-capability-registry": "0.1.0",
+      },
       "peerDependencies": {
         "@earendil-works/pi-coding-agent": "0.84.3",
         "typebox": "1.3.7",
@@ -303,6 +338,9 @@
     "packages/pi-risk": {
       "name": "@upup/pi-risk",
       "version": "0.1.0",
+      "dependencies": {
+        "@upup/pi-capability-registry": "0.1.0",
+      },
       "peerDependencies": {
         "@earendil-works/pi-coding-agent": "0.84.3",
         "typebox": "1.3.7",
@@ -334,6 +372,9 @@
     "packages/pi-technical": {
       "name": "@upup/pi-technical",
       "version": "0.1.0",
+      "dependencies": {
+        "@upup/pi-capability-registry": "0.1.0",
+      },
       "peerDependencies": {
         "@earendil-works/pi-coding-agent": "0.84.3",
         "typebox": "1.3.7",
@@ -1005,6 +1046,8 @@
     "@upup/pi-browser": ["@upup/pi-browser@workspace:packages/pi-browser"],
 
     "@upup/pi-cache": ["@upup/pi-cache@workspace:packages/pi-cache"],
+
+    "@upup/pi-capability-registry": ["@upup/pi-capability-registry@workspace:packages/pi-capability-registry"],
 
     "@upup/pi-config": ["@upup/pi-config@workspace:packages/pi-config"],
 

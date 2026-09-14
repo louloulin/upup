@@ -3,7 +3,12 @@
   "version": "0.1.0",
   "description": "UpUp Pi-native valuation and technical analysis tools",
   "type": "module",
-  "keywords": ["pi-package", "finance", "valuation", "technical-analysis"],
+  "keywords": [
+    "pi-package",
+    "finance",
+    "valuation",
+    "technical-analysis"
+  ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -16,7 +21,16 @@
     "build": "bun build src/index.ts --outdir=dist --target=node && bun build extensions/index.ts --outdir=dist/extensions --target=node && tsc --project tsconfig.json",
     "test": "bun test ./test.ts ./src/research-journal.test.ts ./src/research-coordinator.test.ts ./src/stock-analysis.test.ts ./src/matrix.test.ts ./extensions/index.test.ts"
   },
-  "files": ["dist", "extensions", "skills", "prompts", "workflows", "policies", "evals", "package.json"],
+  "files": [
+    "dist",
+    "extensions",
+    "skills",
+    "prompts",
+    "workflows",
+    "policies",
+    "evals",
+    "package.json"
+  ],
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": "0.84.3",
     "@upup/pi-market-data": "0.1.0",
@@ -24,11 +38,26 @@
   },
   "pi": {
     "source": "builtin:upup",
-    "extensions": ["./extensions"],
-    "skills": ["./skills"],
-    "prompts": ["./prompts"],
-    "workflows": ["./workflows"],
-    "policies": ["./policies"],
-    "evals": ["./evals"]
+    "extensions": [
+      "./extensions"
+    ],
+    "skills": [
+      "./skills"
+    ],
+    "prompts": [
+      "./prompts"
+    ],
+    "workflows": [
+      "./workflows"
+    ],
+    "policies": [
+      "./policies"
+    ],
+    "evals": [
+      "./evals"
+    ]
+  },
+  "dependencies": {
+    "@upup/pi-capability-registry": "0.1.0"
   }
 }

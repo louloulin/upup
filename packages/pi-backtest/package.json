@@ -56,5 +56,8 @@
     "evals": [
       "./evals/pi-backtest.json"
     ]
+  },
+  "dependencies": {
+    "@upup/pi-capability-registry": "0.1.0"
   }
 }

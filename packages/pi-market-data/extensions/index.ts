@@ -1,5 +1,6 @@
 import { Type } from 'typebox';
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
+import { resolvePiCapabilityHost, registerPiCapabilityHost } from '@upup/pi-capability-registry';
 import { buildTechnicalSnapshot, createDefaultMarketQuoteClient, FixedWindowMarketHistoryRateLimiter, InMemoryMarketHistoryCache, isTradingDay, normalizeMarket, providerSla, resolveMarketHistoryClient, resolveMarketQuoteClient, JsonFileProviderSlaStore, type Market, type MarketHistoryProvider, type NativeMarketQuoteTrendStore } from '../src/index.js';
 import { calendarTradingDays, isCalendarTradingDay, nextCalendarTradingDay, upcomingCalendarHolidays, type CalendarMarket } from '../src/calendar.js';
 import { screenStockSnapshot, type StockScreenInput } from '../src/screener.js';
@@ -9,15 +10,14 @@ import { createRealtimeSubscriptionManager, type FeedSource } from '../src/realt
 import { appendKairosEvent, createInitialKairosJournalState, listKairosEvents, summarizeKairos, type KairosEventKind, type NativeKairosJournalState } from '../src/kairos-journal.js';
 import { PI_MARKET_DATA_CAPABILITIES_CONTRACT, PI_MARKET_DATA_CAPABILITY_NAMES, type PiAuditCapability, type PiCapabilityContext, type PiEvidenceCapability } from '@upup/pi-runtime';
 
-const HOSTS = '__upupPiHosts';
 const PACKAGE = '@upup/pi-market-data';
 const VERSION = '0.1.0';
 
 function registerHostTools(pi: ExtensionAPI): void {
-  const hosts = (globalThis as typeof globalThis & { __upupPiHosts?: ReadonlyMap<string, { contract: string; packageName: string; packageVersion: string; sessionId: string; capabilities: readonly string[]; getToolDefinitions(request: unknown): readonly unknown[] }> })[HOSTS];
-  const host = hosts?.get(PACKAGE);
-  if (!host || host.packageName !== PACKAGE || host.packageVersion !== VERSION || !host.sessionId || !host.capabilities.includes('tool-definitions')) return;
-  for (const tool of host.getToolDefinitions({ contract: 'upup.pi.host.v1', packageName: PACKAGE, packageVersion: VERSION, sessionId: host.sessionId, capability: 'tool-definitions' })) pi.registerTool(tool as never);
+  registerPiCapabilityHost(pi, PACKAGE, (host) => {
+    if (host.packageVersion !== VERSION || !host.sessionId || !host.capabilities.includes('tool-definitions')) return;
+    for (const tool of host.getToolDefinitions({ contract: 'upup.pi.host.v1', packageName: PACKAGE, packageVersion: VERSION, sessionId: host.sessionId, capability: 'tool-definitions' })) pi.registerTool(tool as never);
+  });
 }
 
 function capability<T>(context: PiCapabilityContext | undefined, name: string): T | undefined {
@@ -27,8 +27,7 @@ function capability<T>(context: PiCapabilityContext | undefined, name: string): 
 }
 
 function hostTransport(): { context?: PiCapabilityContext; history?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>; quote?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>; trendStore?: NativeMarketQuoteTrendStore } {
-  const hosts = (globalThis as typeof globalThis & { __upupPiHosts?: ReadonlyMap<string, { packageName: string; packageVersion: string; capabilities: readonly string[]; capabilityContext?: PiCapabilityContext; getMarketHistoryFetcher?: () => (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>; getMarketQuoteFetcher?: () => (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>; getMarketQuoteTrendStore?: () => NativeMarketQuoteTrendStore }> })[HOSTS];
-  const host = hosts?.get(PACKAGE);
+  const host = resolvePiCapabilityHost<{ packageName: string; packageVersion: string; capabilities: readonly string[]; capabilityContext?: PiCapabilityContext; getMarketHistoryFetcher?: () => (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>; getMarketQuoteFetcher?: () => (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>; getMarketQuoteTrendStore?: () => NativeMarketQuoteTrendStore }>(PACKAGE, undefined);
   if (!host || host.packageName !== PACKAGE || host.packageVersion !== VERSION || !host.capabilities.includes('market-data-transport')) return {};
   return { context: host.capabilityContext, history: host.getMarketHistoryFetcher?.(), quote: host.getMarketQuoteFetcher?.(), trendStore: host.getMarketQuoteTrendStore?.() };
 }

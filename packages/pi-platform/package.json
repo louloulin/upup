@@ -13,6 +13,7 @@
   },
   "files": ["dist", "extensions", "skills", "prompts", "workflows", "policies", "evals", "package.json"],
   "peerDependencies": { "@earendil-works/pi-coding-agent": "0.84.3", "typebox": "1.3.7" },
+  "dependencies": { "@upup/pi-capability-registry": "0.1.0" },
   "pi": {
     "source": "builtin:upup",
     "extensions": ["./extensions/index.ts"],

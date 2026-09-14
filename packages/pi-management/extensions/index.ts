@@ -1,8 +1,8 @@
 import { Type } from 'typebox';
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
+import { resolvePiCapabilityHost } from '@upup/pi-capability-registry';
 import { PI_MANAGEMENT_HOST_CONTRACT, PI_MANAGEMENT_PACKAGE_NAME, PI_MANAGEMENT_PACKAGE_VERSION, type PiManagementSnapshot } from '../src/index.js';
 
-const HOSTS = '__upupPiHosts';
 const emptyParameters = Type.Object({});
 const providerParameters = Type.Object({ provider: Type.Optional(Type.Union([Type.Literal('yahoo'), Type.Literal('tushare')])) });
 
@@ -16,8 +16,7 @@ type ManagementHost = {
 };
 
 function getHost(): ManagementHost | undefined {
-  const hosts = (globalThis as typeof globalThis & { __upupPiHosts?: ReadonlyMap<string, ManagementHost> })[HOSTS];
-  const host = hosts?.get(PI_MANAGEMENT_PACKAGE_NAME);
+  const host = resolvePiCapabilityHost<ManagementHost>(PI_MANAGEMENT_PACKAGE_NAME, undefined);
   if (!host || host.contract !== PI_MANAGEMENT_HOST_CONTRACT || host.packageName !== PI_MANAGEMENT_PACKAGE_NAME || host.packageVersion !== PI_MANAGEMENT_PACKAGE_VERSION || !host.sessionId || !host.capabilities.includes('management-snapshot')) return undefined;
   return host;
 }

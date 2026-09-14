@@ -27,7 +27,7 @@
     "check:module-boundaries": "bun run scripts/check-module-boundaries.ts",
     "verify:pi5": "bun run scripts/verify-pi5.ts",
     "benchmark:pi5": "bun run scripts/benchmark-pi5.ts",
-    "test:pi-contracts": "bun test src/runtime/pi src/extensions/upup src/print.test.ts src/session/pi-migration.test.ts src/gateway/agent-runner.pi.test.ts src/cron/executor.pi.test.ts src/controllers/agent-runner.pi.test.ts && bun --cwd packages/pi-finance-sdk test && bun --cwd packages/pi-market-data test && bun --cwd packages/pi-investment-analysis test && bun --cwd packages/pi-risk test && bun --cwd packages/pi-portfolio test && bun --cwd packages/pi-backtest test && bun --cwd packages/pi-platform test && bun --cwd packages/pi-research test && bun --cwd packages/pi-browser test && bun --cwd packages/pi-config test && bun --cwd packages/pi-cache test && bun --cwd packages/pi-notify test && bun --cwd packages/pi-investment-workflow test && bun --cwd packages/pi-management test && bun --cwd packages/pi-technical test && bun --cwd packages/pi-corporate-actions test && bun --cwd packages/pi-quant test && bun --cwd packages/pi-event-adapter test && bun --cwd packages/pi-session test && bun --cwd packages/pi-resource-composition test && bun --cwd packages/pi-finance-composition test && bun --cwd packages/pi-platform-composition test",
+    "test:pi-contracts": "bun test src/runtime/pi src/extensions/upup src/print.test.ts src/session/pi-migration.test.ts src/gateway/agent-runner.pi.test.ts src/cron/executor.pi.test.ts src/controllers/agent-runner.pi.test.ts && bun --cwd packages/pi-finance-sdk test && bun --cwd packages/pi-market-data test && bun --cwd packages/pi-investment-analysis test && bun --cwd packages/pi-risk test && bun --cwd packages/pi-portfolio test && bun --cwd packages/pi-backtest test && bun --cwd packages/pi-platform test && bun --cwd packages/pi-research test && bun --cwd packages/pi-browser test && bun --cwd packages/pi-config test && bun --cwd packages/pi-cache test && bun --cwd packages/pi-notify test && bun --cwd packages/pi-investment-workflow test && bun --cwd packages/pi-management test && bun --cwd packages/pi-technical test && bun --cwd packages/pi-corporate-actions test && bun --cwd packages/pi-quant test && bun --cwd packages/pi-event-adapter test && bun --cwd packages/pi-session test && bun --cwd packages/pi-resource-composition test && bun --cwd packages/pi-finance-composition test && bun --cwd packages/pi-platform-composition test && bun --cwd packages/pi-capability-registry test",
     "session:migrate-to-pi": "bun run src/session/migrate-to-pi.ts",
     "lint": "bun run lint:scc",
     "ci": "bun run lint && bun run typecheck && bun test",
@@ -61,6 +61,7 @@
   "dependencies": {
     "@upup/pi-finance-sdk": "workspace:*",
     "@upup/pi-finance-composition": "workspace:*",
+    "@upup/pi-capability-registry": "workspace:*",
     "@upup/pi-backtest": "workspace:*",
     "@upup/pi-cache": "workspace:*",
     "@upup/pi-config": "workspace:*",

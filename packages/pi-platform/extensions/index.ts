@@ -1,11 +1,11 @@
 import { Type } from 'typebox';
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
+import { resolvePiCapabilityHost } from '@upup/pi-capability-registry';
 import { randomUUID } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { addPlatformAgentMemory, addPlatformAskResponse, addPlatformPlanStep, addPlatformSwarmAgent, addPlatformSwarmMessage, addPlatformWatchlistAlert, addPlatformWatchlistEntry, addPlatformWorkflowPlan, appendPlatformMessage, appendPlatformAskResponse, checkPlatformWatchlistAlerts, clearPlatformWatchlistAlert, createInitialPlatformAgentState, createInitialPlatformAskState, createInitialPlatformMessageState, createInitialPlatformPlanningState, createInitialPlatformSwarmState, createInitialPlatformTaskState, createInitialPlatformWatchlistState, createInitialPlatformWorkflowState, createPlatformAgent, createPlatformPlan, createPlatformSwarmTeam, createPlatformTask, createPlatformTodo, createPlatformWorktree, createPlatformWorkflowPlan, currentPlatformWorktree, deletePlatformTodo, estimatePlatformSnipSavings, exportPlatformData, formatPlatformLspCompletions, formatPlatformLspDefinitions, formatPlatformLspDiagnostics, formatPlatformLspHover, formatPlatformLspReferences, getPlatformAgent, getPlatformAskResponse, getPlatformLspClient, getPlatformPlan, getPlatformSkill, getPlatformTask, getPlatformTool, invokePlatformSkill, listPlatformAgentMemories, listPlatformAgents, listPlatformMessages, listPlatformSkills, listPlatformTodos, listPlatformTools, listPlatformTasks, parsePlatformAgentState, parsePlatformAskState, parsePlatformMessageState, parsePlatformPlanningState, parsePlatformSwarmState, parsePlatformTaskState, parsePlatformWatchlistState, parsePlatformWorkflowState, platformMcpAuthClear, platformMcpAuthGet, platformMcpAuthSet, platformMcpListResources, platformMcpReadResource, platformSnipMessages, platformTaskStats, PLATFORM_BUILTIN_AGENTS, searchPlatformSkills, searchPlatformTools, shouldPlatformSnip, listPlatformWatchlistEntries, platformNotebookCreate, platformNotebookDeleteCell, platformNotebookEditCell, platformNotebookInsertCell, platformNotebookRead, platformPlanProgress, platformTodoStats, removePlatformWatchlistEntry, removePlatformWorktree, serializePlatformWatchlist, TOOL_GET_DESCRIPTION, TOOL_LIST_DESCRIPTION, TOOL_SEARCH_DESCRIPTION, GET_SKILL_DESCRIPTION, LIST_SKILLS_DESCRIPTION, SEARCH_SKILLS_DESCRIPTION, SKILL_EXECUTE_DESCRIPTION, SKILL_INFO_DESCRIPTION, updatePlatformAgent, updatePlatformPlanStep, updatePlatformTask, updatePlatformTodo, updatePlatformSwarmAgent, platformBash, platformEditFile, platformGlob, platformGrep, platformReadFile, platformSendUserFile, platformWriteFile, platformMemoryGet, platformMemorySearch, platformMemoryUpdate, platformHeartbeat, platformCron, platformSleep, platformMonitor, PLATFORM_SLEEP_DESCRIPTION, PLATFORM_MONITOR_DESCRIPTION, type PlatformCronJob, type PlatformExportCell, type PlatformPlanOutputFormat, type PlatformPlanStepStatus, type PlatformPlanningState, type PlatformTaskState, type PlatformTaskStatus, type PlatformTodoPriority, type PlatformTodoStatus, type PlatformSkillDefinition, type PlatformSwarmState, type PlatformToolMetadata, type PlatformWatchlistState, type PlatformWorkflowState } from '../src/index.js';
 
-const HOSTS = '__upupPiHosts';
 const PACKAGE = '@upup/pi-platform';
 const VERSION = '0.1.0';
 
@@ -224,10 +224,8 @@ function result(toolCallId: string, value: unknown, extra: Record<string, unknow
   return { content: [{ type: 'text' as const, text: JSON.stringify(value) }], ...(isError ? { isError: true } : {}), details: { auditId: toolCallId, evidence: [evidence], ...details } };
 }
 
-export default function platformExtension(pi: ExtensionAPI): void {
-  const hosts = (globalThis as typeof globalThis & { __upupPiHosts?: ReadonlyMap<string, PlatformHost> })[HOSTS];
-  const host = hosts?.get(PACKAGE);
-  if (!host || host.contract !== 'upup.pi.host.v1' || host.packageName !== PACKAGE || host.packageVersion !== VERSION || !host.sessionId || !host.capabilities.includes('tool-definitions')) return;
+function registerPlatformExtension(pi: ExtensionAPI, host: PlatformHost): void {
+  if (host.contract !== 'upup.pi.host.v1' || host.packageName !== PACKAGE || host.packageVersion !== VERSION || !host.sessionId || !host.capabilities.includes('tool-definitions')) return;
   const tools = host.getToolDefinitions({
     contract: 'upup.pi.host.v1',
     packageName: PACKAGE,
@@ -850,5 +848,21 @@ export default function platformExtension(pi: ExtensionAPI): void {
       const current = context ? readState(context) : state;
       return result(toolCallId, { teams: current.teams.map((team) => ({ name: team.name, description: team.description, member_count: team.members.length, status: team.status, created_at: new Date(team.createdAt).toISOString() })) });
     },
-  });
+  });}
+
+export default function platformExtension(pi: ExtensionAPI): void {
+  let initialized = false;
+  const initialize = (host: PlatformHost | undefined): void => {
+    if (initialized || !host) return;
+    initialized = true;
+    registerPlatformExtension(pi, host);
+  };
+  initialize(resolvePiCapabilityHost<PlatformHost>(PACKAGE, undefined));
+  if (typeof pi.on === 'function') {
+    pi.on('session_start', (_event, context) => {
+      initialize(resolvePiCapabilityHost<PlatformHost>(PACKAGE, context.sessionManager.getSessionId()));
+    });
+  } else {
+    initialize(resolvePiCapabilityHost<PlatformHost>(PACKAGE, undefined));
+  }
 }

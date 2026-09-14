@@ -85,8 +85,10 @@ for (const extensionPath of packageExtensionFiles) {
   const isNativeCacheExtension = extensionPath.endsWith('packages/pi-cache/extensions/index.ts') && source.includes("name: 'get_cache_stats'") && source.includes("name: 'clear_cache'") && source.includes("name: 'invalidate_cache'") && source.includes("name: 'get_cache_info'");
   const isNativeNotifyExtension = extensionPath.endsWith('packages/pi-notify/extensions/index.ts') && source.includes("name: 'notify'") && source.includes("name: 'notify_list'") && source.includes("name: 'subscribe_pr'");
   const isNativePlatformExtension = extensionPath.endsWith('packages/pi-platform/extensions/index.ts') && nativePlatformTools.every((toolName) => source.includes(`name: '${toolName}'`));
-  if (!isPureNativeRiskExtension && !isNativeMarketExtension && !isNativeResearchExtension && !isNativeBrowserExtension && !isNativeConfigExtension && !isNativeCacheExtension && !isNativeNotifyExtension && !isNativePlatformExtension && !source.includes('__upupPiHosts')) failures.push(`Pi extension must use the package-scoped host registry: ${extensionPath}`);
-  if (source.includes('__upupPiHost') && !source.includes('__upupPiHosts')) failures.push(`Pi extension uses a legacy single-host global: ${extensionPath}`);
+  const usesExplicitCapabilityRegistry = source.includes('@upup/pi-capability-registry')
+    && (source.includes('registerPiCapabilityHost') || source.includes('resolvePiCapabilityHost'));
+  if (!isPureNativeRiskExtension && !isNativeMarketExtension && !isNativeResearchExtension && !isNativeBrowserExtension && !isNativeConfigExtension && !isNativeCacheExtension && !isNativeNotifyExtension && !isNativePlatformExtension && !usesExplicitCapabilityRegistry && !source.includes('__upupPiHosts')) failures.push(`Pi extension must use the package-scoped host registry: ${extensionPath}`);
+  if (source.includes('__upupPiHost') && !source.includes('__upupPiHosts') && !usesExplicitCapabilityRegistry) failures.push(`Pi extension uses a legacy single-host global: ${extensionPath}`);
 }
 for (const toolName of ['get_trading_positions', 'get_trading_balance', 'get_trade_quote', 'place_trade_order', 'cancel_trade_order']) {
   if (!ownershipSource.includes(`'${toolName}'`)) failures.push(`production trading tool has no Pi package ownership: ${toolName}`);

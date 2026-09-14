@@ -1,8 +1,8 @@
 import { Type } from 'typebox';
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
+import { resolvePiCapabilityHost } from '@upup/pi-capability-registry';
 import { executeInvestmentPhase, type InvestmentWorkflowServices } from '../src/index.js';
 
-const HOSTS = '__upupPiHosts';
 const PACKAGE = '@upup/pi-investment-workflow';
 const VERSION = '0.1.0';
 const parameters = Type.Object({
@@ -12,8 +12,7 @@ const parameters = Type.Object({
 });
 
 function host(): { services?: () => InvestmentWorkflowServices } | undefined {
-  const hosts = (globalThis as typeof globalThis & { __upupPiHosts?: ReadonlyMap<string, { packageName: string; packageVersion: string; capabilities: readonly string[]; getInvestmentWorkflowServices?: () => InvestmentWorkflowServices }> })[HOSTS];
-  const value = hosts?.get(PACKAGE);
+  const value = resolvePiCapabilityHost<{ packageName: string; packageVersion: string; capabilities: readonly string[]; getInvestmentWorkflowServices?: () => InvestmentWorkflowServices }>(PACKAGE, undefined);
   if (!value || value.packageName !== PACKAGE || value.packageVersion !== VERSION || !value.capabilities.includes('investment-workflow') || !value.getInvestmentWorkflowServices) return undefined;
   return { services: value.getInvestmentWorkflowServices };
 }

@@ -1,5 +1,6 @@
 import { Type } from 'typebox';
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
+import { registerPiCapabilityHost } from '@upup/pi-capability-registry';
 import {
   calculateBrinsonAttribution,
   calculatePortfolioAttribution,
@@ -33,15 +34,14 @@ import {
 } from '../src/index.js';
 import { DuckDBClient } from '../src/duckdb.js';
 
-const HOSTS = '__upupPiHosts';
 const PACKAGE = '@upup/pi-portfolio';
 const VERSION = '0.1.0';
 
 function registerHostTools(pi: ExtensionAPI): void {
-  const hosts = (globalThis as typeof globalThis & { __upupPiHosts?: ReadonlyMap<string, { packageName: string; packageVersion: string; sessionId: string; capabilities: readonly string[]; getToolDefinitions(request: unknown): readonly unknown[] }> })[HOSTS];
-  const host = hosts?.get(PACKAGE);
-  if (!host || host.packageName !== PACKAGE || host.packageVersion !== VERSION || !host.sessionId || !host.capabilities.includes('tool-definitions')) return;
-  for (const tool of host.getToolDefinitions({ contract: 'upup.pi.host.v1', packageName: PACKAGE, packageVersion: VERSION, sessionId: host.sessionId, capability: 'tool-definitions' })) pi.registerTool(tool as never);
+  registerPiCapabilityHost(pi, PACKAGE, (host) => {
+    if (host.packageVersion !== VERSION || !host.sessionId || !host.capabilities.includes('tool-definitions')) return;
+    for (const tool of host.getToolDefinitions({ contract: 'upup.pi.host.v1', packageName: PACKAGE, packageVersion: VERSION, sessionId: host.sessionId, capability: 'tool-definitions' })) pi.registerTool(tool as never);
+  });
 }
 
 const holding = Type.Object({ sector: Type.String({ minLength: 1 }), weight: Type.Number(), return: Type.Number() });

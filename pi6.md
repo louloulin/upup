@@ -1085,3 +1085,120 @@ root Factory 保留 domain-specific `installPiPackageToolHosts`，但删除进�
 **已完成：** `@upup/pi-session`、`@upup/pi-resource-composition` 创建并接入 root Factory；PiSessionAdapter 与 serialized resource reload lifecycle 已由独立 contract 测试覆盖；root 不再实现第二套 session adapter 或 reload queue。
 
 **保持未完成：** `installPiPackageToolHosts`（finance/platform/MCP/management domain wiring）和 `createSession` 主 composition 仍在 root Factory；后续应继续按 pi6.md Phase 3 的 finance/platform composition 拆分，随后推进 Phase 4-7 的外围迁移。
+
+## 29. Pi6 第三阶段第五轮实施结果（2026-09-14）
+
+本轮继续遵循“先创建 Package contract，再迁移实现、改造生产消费者、真实验证”的顺序，完成 Session Factory 中 finance/platform composition 的第一轮下沉。
+
+### 29.1 新增 `@upup/pi-finance-composition`
+
+- 新建独立 workspace package、TypeScript contract 和测试。
+- 将 Native research data、market quote/history、sandbox broker、fund history 与 `InvestmentWorkflowServices` 的组装移出 root Factory。
+- 通过 `FinanceCompositionOptions` 注入 session id、行情 fetcher 和 trend store；Package 不依赖 root `src`。
+- 对外提供统一 quote client、trend store、investment workflow services 和 auditable market quote callback。
+
+### 29.2 新增 `@upup/pi-platform-composition`
+
+- 新建独立 workspace package、TypeScript contract 和测试。
+- 将 research worker、agent worker、cron runner、MCP resource list/read 的生命周期与错误边界移出 root Factory。
+- 通过 `PlatformCompositionOptions` 注入 `runPrompt`、cron executor、MCP client、model 和 model runtime；Package 不创建第二套 Agent loop。
+- 保留 MCP 原始 resource group/read 结果形状，支持 Platform extension 的统计、fail-closed 与错误语义。
+
+### 29.3 Host contract 与 root Factory 改造
+
+- `createPiHostBridge` 改为 `PiHostBridgeOptions` options-object contract，消除 18 参数 positional wiring，并更新 finance host 与 contract tests。
+- root Factory 只负责创建 root adapters、注入 composition callbacks、生成 session-scoped host registry 和 management snapshot。
+- 删除 root 中 Native research/sandbox/market history/investment workflow、worker/cron/MCP 的具体业务实现。
+- `agent-session-factory.ts` 当前 427 行（本轮前 550 行；相对原始 919 行累计减少 492 行，约 53.5%）。
+- workspace package 数量由 37 增至 39。
+
+### 29.4 实际验证结果
+
+| 验证项 | 结果 |
+|---|---|
+| `bun run typecheck` | 通过 |
+| `bun run check:module-boundaries` | 通过：39 workspace packages、552 root src modules，无 root-src imports 与依赖环 |
+| `bun run check:pi-migration` | 通过 |
+| `bun run check:pi-runtime` | 通过 |
+| `bun run check:pi-packages` | 通过 |
+| `@upup/pi-finance-composition` 测试 | 1 pass、0 fail、2 assertions |
+| `@upup/pi-platform-composition` 测试 | 1 pass、0 fail、2 assertions |
+| `bun run test:pi-contracts` | 通过，包含全部既有 Pi contract tests 与两个新增 composition packages |
+| `bun run verify:pi5` | A1–A20，20/20 pass |
+| `bun run start -- --help` | 通过 |
+
+### 29.5 第三阶段第五轮状态
+
+**已完成：** finance/platform composition package 的 contract、实现迁移、root consumer 改造、MCP 形状回归修复和真实生产路径验证；host bridge 已使用 options-object API。
+
+**保持未完成：** `installPiPackageToolHosts` 仍按已加载 Package 名称选择 capability，`globalThis.__upupPiHosts` 兼容 registry 仍存在；下一步应继续完成显式 capability context / registry（Phase 4），再推进 bridge、memory、MCP transport、skills、commands、TUI 和兼容层退场（Phase 5–7）。
+
+## 30. Pi6 第四阶段第一轮实施结果（2026-09-14）
+
+本轮按“先创建 Package contract，再迁移实现、改造生产消费者、真实验证”的顺序，完成 session-scoped capability registry，并将扩展 host 读取从隐式全局状态迁移到显式 registry。
+
+### 30.1 新增 `@upup/pi-capability-registry`
+
+- 新建 workspace package、TypeScript contract、构建配置和独立测试。
+- 提供 `PiCapabilityRegistry`、`registerSession`、`resolve`、`has`、`snapshot`、`clear`，按 `sessionId` 隔离 package capability host。
+- 提供 `registerPiCapabilityHost` 与 `resolvePiCapabilityHost` 扩展桥；显式 registry 优先，旧 `globalThis.__upupPiHosts` 仅作为无 session 场景的兼容 fallback。
+- registry contract 固定为 `upup.pi.capability-registry.v1`；扩展工厂会在 `session_start` 前绑定当前 active session，并支持后续 session event 重新绑定。
+
+### 30.2 Root Factory 与生产消费者迁移
+
+- `installPiPackageToolHosts` 在创建 host registry 后注册 session-scoped capability registry，并在 resource reload 完成或失败时撤销显式 registry。
+- `@upup/pi-capability-registry` 纳入 Pi runtime foundation packages、root workspace dependency 与 lockfile。
+- 已迁移生产扩展：`pi-platform`、`pi-backtest`、`pi-corporate-actions`、`pi-portfolio`、`pi-quant`、`pi-risk`、`pi-technical`、`pi-investment-analysis`、`pi-market-data`、`pi-investment-workflow`、`pi-management`、`pi-finance-sdk`。
+- `check-pi-packages` 已更新为识别显式 capability-registry API；测试 fixture 保留旧 global 只用于兼容回归覆盖。
+- 当前模块边界统计：40 个 workspace packages、552 个 root src modules；`agent-session-factory.ts` 为 430 行。
+
+### 30.3 实际验证结果
+
+| 验证项 | 结果 |
+|---|---|
+| `@upup/pi-capability-registry` | 2 pass、0 fail、5 assertions |
+| `src/runtime/pi/agent-session-factory.test.ts` | 57 pass、0 fail、284 assertions |
+| `pi-platform` 定向测试 | 56 pass、0 fail |
+| 其余 11 个迁移 Package 定向测试 | 全部通过 |
+| `bun run typecheck` | 通过 |
+| `bun run check:module-boundaries` | 通过：40 workspace packages、552 root src modules，无 root-src imports 或依赖环 |
+| `bun run check:pi-migration` | 通过 |
+| `bun run check:pi-runtime` | 通过 |
+| `bun run check:pi-packages` | 通过 |
+| `bun run test:pi-contracts` | 通过，包含 40 个 Pi contract/package 测试目标 |
+| `bun run verify:pi5` | A1–A20，20/20 passed |
+| `bun run start -- --help` | 通过 |
+
+### 30.4 第四阶段第一轮状态
+
+**已完成：** session-scoped capability registry contract、Factory register/restore lifecycle、扩展 host 生产消费者迁移、active-session 初始化时序、静态 Pi package 门禁更新和真实 Pi session 回归验证。
+
+**第一轮遗留项：** `src/runtime/pi/host-contract.ts`、`packages/pi-finance-sdk/extensions/host-contract.ts` 和测试 fixture 仍保留旧 registry 名称，用于兼容读取与回归测试；当兼容消费者完全退出后再删除该 fallback。Phase 5–7（bridge、memory、MCP transport、skills、commands、TUI 及最终兼容层退场）尚未完成。
+
+### 30.5 第四阶段第二轮实施结果（2026-09-14）
+
+本轮完成 capability registry 的生产路径收口，遵循“显式 registry 作为唯一写入路径、legacy global 只读兼容”的边界：
+
+- `installPiPackageToolHosts` 不再写入或恢复 `globalThis.__upupPiHosts`，每个 Pi Session 只注册到 `defaultPiCapabilityRegistry`；Session dispose 时撤销对应注册。
+- `PiCapabilityRegistry` 增加 `disposeSession`，并在并发 Session 非顺序销毁时重新选择仍存活的 active session，避免扩展解析被错误清空。
+- capability host identity 校验覆盖 package name、session id；扩展仍通过 `registerPiCapabilityHost` / `resolvePiCapabilityHost` 获取 host，旧 global 仅保留无 session 场景的只读 fallback。
+- 补充 registry 并发隔离、非顺序 dispose、身份错误和 active-session 恢复合同测试；整理 4 个迁移扩展的连接式格式问题。
+
+### 30.6 第二轮实际验证结果
+
+| 验证项 | 结果 |
+|---|---|
+| `@upup/pi-capability-registry` | 5 pass、0 fail、16 assertions |
+| `src/runtime/pi` + `pi-platform` 定向回归 | 248 pass、0 fail、2307 assertions、53 files |
+| `bun run typecheck` | 通过 |
+| `bun run check:module-boundaries` | 通过：40 workspace packages、552 root src modules，无 root-src imports 或依赖环 |
+| `bun run check:pi-packages` | 通过：17 个 Pi domain packages 的 source、exact semver、资源与 pin 校验通过 |
+| `bun run check:pi-runtime` | 通过 |
+| `bun run check:pi-migration` | 通过 |
+| `git diff --check` | 通过 |
+
+### 30.7 第四阶段状态更新
+
+**已完成：** capability registry 的 contract、session 隔离、并发 dispose 生命周期、Factory 显式注册/撤销、12 个生产扩展消费者迁移，以及生产路径去除 global host 写入。
+
+**保持未完成：** 旧 global registry 的只读兼容 fallback 与测试 fixture 尚未删除；Phase 5–7 的 bridge、memory、MCP transport、skills、commands、TUI 和最终兼容层退场仍待执行。真实 provider 凭证 smoke 仍需在配置凭证的环境中单独验证。

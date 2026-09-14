@@ -1,18 +1,17 @@
 import { Type } from 'typebox';
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
+import { registerPiCapabilityHost, resolvePiCapabilityHost } from '@upup/pi-capability-registry';
 import { calculateDcf, calculateProductionDcf, calculateProductionDdm, calculateTechnicalSignal, calculateQuickTargetPrice, calculateTargetPrice, calculateValuationRatios, comparePeers, calculateOptionPrice, calculateImpliedVolatility, calculateTechnicalIndicators, calculateKdj, calculateBoll, calculateWr, calculateCci, calculateAtr, calculateObv, calculateDecisionDashboard, parseResearchJournalState, queryResearchJournal, runResearchCoordinator, runNativeStockAnalysis, MatrixEngine, toCSV, toMarkdown, DEFAULT_TICKERS_UNIVERSE, DIMENSIONS, DIMENSION_LABELS_ZH, type MatrixCell, type Dimension, type DcfInput, type ProductionDcfInput, type ProductionDdmInput, type PeerComparisonInput, type TargetPriceInput, type ValuationRatiosInput, type OptionPricingInput, type TechnicalBar, type DecisionDashboardInput, type ResearchPhase, type ResearchTaskStatus, type ResearchRole } from '../src/index.js';
 
-const HOSTS = '__upupPiHosts';
 const PACKAGE = '@upup/pi-investment-analysis';
 const VERSION = '0.1.0';
 
 function registerHostTools(pi: ExtensionAPI): void {
-  const hosts = (globalThis as typeof globalThis & { __upupPiHosts?: ReadonlyMap<string, { packageName: string; packageVersion: string; sessionId: string; capabilities: readonly string[]; getToolDefinitions(request: unknown): readonly unknown[] }> })[HOSTS];
-  const host = hosts?.get(PACKAGE);
-  if (!host || host.packageName !== PACKAGE || host.packageVersion !== VERSION || !host.sessionId || !host.capabilities.includes('tool-definitions')) return;
-  for (const tool of host.getToolDefinitions({ contract: 'upup.pi.host.v1', packageName: PACKAGE, packageVersion: VERSION, sessionId: host.sessionId, capability: 'tool-definitions' })) pi.registerTool(tool as never);
+  registerPiCapabilityHost(pi, PACKAGE, (host) => {
+    if (host.packageVersion !== VERSION || !host.sessionId || !host.capabilities.includes('tool-definitions')) return;
+    for (const tool of host.getToolDefinitions({ contract: 'upup.pi.host.v1', packageName: PACKAGE, packageVersion: VERSION, sessionId: host.sessionId, capability: 'tool-definitions' })) pi.registerTool(tool as never);
+  });
 }
-
 const dcfParameters = Type.Object({
   currentFcf: Type.Number({ exclusiveMinimum: 0, description: 'Current free cash flow' }),
   growthRate: Type.Number({ description: 'Annual growth rate as a decimal' }),
@@ -150,9 +149,8 @@ function ddmEvidence(toolCallId: string) {
 
 export default function investmentAnalysisExtension(pi: ExtensionAPI): void {
   registerHostTools(pi);
-  const runtimeHosts = (globalThis as typeof globalThis & { __upupPiHosts?: ReadonlyMap<string, { packageName: string; packageVersion: string; sessionId: string; capabilities: readonly string[]; runResearchWorker?: (request: unknown, signal: AbortSignal) => Promise<{ role: ResearchRole; output: string; evidence: readonly unknown[]; sessionId?: string }> }> })[HOSTS];
-  const runtimeHost = runtimeHosts?.get(PACKAGE);
-  const platformHost = runtimeHosts?.get('@upup/pi-platform') as { packageName?: string; capabilities?: readonly string[]; runAgentWorker?: (request: unknown, signal: AbortSignal) => Promise<{ agentId: string; output: string; sessionId: string }> } | undefined;
+  const runtimeHost = resolvePiCapabilityHost<{ packageName: string; packageVersion: string; sessionId: string; capabilities: readonly string[]; runResearchWorker?: (request: unknown, signal: AbortSignal) => Promise<{ role: ResearchRole; output: string; evidence: readonly unknown[]; sessionId?: string }> }>(PACKAGE, undefined);
+  const platformHost = resolvePiCapabilityHost<{ packageName?: string; capabilities?: readonly string[]; runAgentWorker?: (request: unknown, signal: AbortSignal) => Promise<{ agentId: string; output: string; sessionId: string }> }>('@upup/pi-platform', undefined);
   const RESEARCH_ENTRY = 'upup_pi_research_tasks';
   let researchState = parseResearchJournalState(undefined);
   const readResearchState = (context?: { sessionManager?: { getEntries(): readonly unknown[] } }) => {

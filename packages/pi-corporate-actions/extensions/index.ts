@@ -1,7 +1,7 @@
 import { Type } from 'typebox';
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
+import { registerPiCapabilityHost } from '@upup/pi-capability-registry';
 
-const HOSTS = '__upupPiHosts';
 const PACKAGE = '@upup/pi-corporate-actions';
 const VERSION = '0.1.0';
 
@@ -13,11 +13,10 @@ interface PiHostRegistration {
 }
 
 function registerHostTools(pi: ExtensionAPI): void {
-  const hosts = (globalThis as typeof globalThis & { __upupPiHosts?: ReadonlyMap<string, PiHostRegistration> })[HOSTS];
-  const host = hosts?.get(PACKAGE);
-  if (!host || host.packageName !== PACKAGE || host.packageVersion !== VERSION || !host.sessionId) return;
+  registerPiCapabilityHost(pi, PACKAGE, (host) => {
+    if (host.packageVersion !== VERSION || !host.sessionId) return;
+  });
 }
-
 import {
   aggregateActions,
   annualizedDividendYield,
