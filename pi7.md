@@ -193,3 +193,35 @@ src bootstrap
 - 第八轮：`src/tui` / `src/components` → `@upup/pi-tui-app`，CLI/transport 降为 bootstrap。
 - 第九轮：删除 `legacy-events`、旧 facade 和所有无消费者兼容层。
 - 第十轮：全仓测试、构建、入口 smoke、并发恢复验证和真实 provider smoke。
+
+## 10. 第四轮 Pi7 实施结果（@upup/pi-finance-sdk 基金能力）
+
+### 10.1 src/tools/fund/* 物理下沉
+
+- `git mv` 6 个文件至 `packages/pi-finance-sdk/src/`：
+  - `fund-api.ts` / `fund-backtest.ts` / `fund-holdings-analysis.ts` / `fund-screening.ts` / `fund-trade.ts` / `types.ts`（改名 `fund-types.ts`）。
+- `@upup/pi-finance-sdk/src/index.ts` 新增 legacy fund API section（搜索/详情/业绩/持仓/经理/筛选/Top 基金/Portfolio/Trade/Backtest/历史净值）。
+- `@upup/pi-finance-sdk/src/fund-api.ts`、`fund-backtest.ts`、`fund-holdings-analysis.ts`、`fund-screening.ts`、`fund-trade.ts` 内部相对导入同步改为 `.js` 后缀。
+- root `src/storage/fund-storage.ts` / `src/daemon/fund-monitor.ts` 与 7 个 root 级 `test/fund-*.test.ts` 改用 `@upup/pi-finance-sdk`。
+- `src/tools/fund/` 目录已删除。
+
+### 10.2 本轮验证
+
+| 验证项 | 结果 |
+|---|---|
+| `bun run typecheck` | 通过 |
+| `bun run check:pi7` | 通过：40 manifests、唯一 Pi AgentSession factory、无生产 global registry |
+| `bun run check:module-boundaries` | 通过：40 packages、547 root modules |
+| `bun --cwd packages/pi-finance-sdk test` | 37 pass、176 assertions |
+| `bun run test:pi-contracts` | 通过 |
+| `bun test`（全仓） | 3686 pass、4 fail（3 个 pre-existing 网络超时 + 1 个随之 fail）；354 files |
+| `bun run report:pi7` | 根生产行数 119960 → 117259（净减 2701 行） |
+
+### 10.3 后续轮次
+
+- 第五轮：`src/skills` + `src/commands/investment` → `@upup/skills` 与 `@upup/pi-investment-workflow`，固化 `/invest` 状态机与 Agent Profile。
+- 第六轮：`src/session` / `src/memory` / `src/permissions` / `src/plan` / `src/storage` / `src/telemetry` → `@upup/pi-memory` / `@upup/pi-permissions` / `@upup/pi-observability` / `@upup/pi-planning`。
+- 第七轮：`src/tools` 中剩余基础设施工具（bash / filesystem / sandbox / trading / cron 等）→ `@upup/pi-platform`；`src/mcp` / `src/plugins` / `src/gateway` / `src/bridge` / `src/stdio` / `src/cron` / `src/daemon` / `src/subagent` / `src/multi-agent` → 对应 Pi transport packages。
+- 第八轮：`src/tui` / `src/components` → `@upup/pi-tui-app`，CLI/transport 降为 bootstrap。
+- 第九轮：删除 `legacy-events`、旧 facade 和所有无消费者兼容层。
+- 第十轮：全仓测试、构建、入口 smoke、并发恢复验证和真实 provider smoke。

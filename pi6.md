@@ -1293,3 +1293,37 @@ Factory 拆分、`src/tools`、`src/skills`、`src/commands/investment`、Sessio
 ### 33.3 当前剩余项
 
 `src/tools` 旧金融工具实现、`src/skills` 与 `src/commands/investment` 投资能力、`src/session` / `src/memory` / `src/permissions` 持久层、`src/mcp` / `src/plugins` / `src/gateway` / `src/bridge` / `src/stdio` / `src/cron` / `src/daemon` 外围进程、`src/tui` / `src/components` UI、`legacy-events` 与 root `src/agent/` 仍待后续轮次迁移；本轮不宣称全仓 Pi Native 已完成。真实 provider smoke 仍需凭证环境单独执行。
+
+## 34. Pi7 第四轮实施结果（2026-09-14）
+
+本轮完成 `src/tools/fund/*`（6 个文件，共 2700+ 行）物理下沉到 `@upup/pi-finance-sdk`，并删除 root 旧路径。
+
+### 34.1 已完成
+
+- `git mv` 已将以下源文件迁入 `packages/pi-finance-sdk/src/`：
+  - `src/tools/fund/fund-api.ts` → `packages/pi-finance-sdk/src/fund-api.ts`（895 行）
+  - `src/tools/fund/fund-backtest.ts` → `packages/pi-finance-sdk/src/fund-backtest.ts`（558 行）
+  - `src/tools/fund/fund-holdings-analysis.ts` → `packages/pi-finance-sdk/src/fund-holdings-analysis.ts`（367 行）
+  - `src/tools/fund/fund-screening.ts` → `packages/pi-finance-sdk/src/fund-screening.ts`（427 行）
+  - `src/tools/fund/fund-trade.ts` → `packages/pi-finance-sdk/src/fund-trade.ts`（317 行）
+  - `src/tools/fund/types.ts` → `packages/pi-finance-sdk/src/fund-types.ts`（131 行）
+- `@upup/pi-finance-sdk/src/index.ts` 新增 legacy fund API 导出（`searchFunds` / `getFundBasic` / `getFundEstimatedValue` / `getFundPerformance` / `getFundHoldings` / `getFundManager` / `getFundManagers` / `screenFunds` / `searchFundsByType` / `getTopFunds` / `BacktestEngine` / `backtestDCA` / `backtestLumpSum` / `backtestThreshold` / `compareBacktests` / `generateBacktestReport` / `getFundHistory` / `analyzeSectorAllocation` / `getFundHoldingAnalysis` / `getFundsHoldingStock` / `generateHoldingReport` / `getFundRecommendations` / `compareFunds` / `getScreeningStrategies` / `createPortfolio` / `getPortfolio` / `buyFund` / `sellFund` / `getTrades` / `resetPortfolio` 等）。
+- `src/storage/fund-storage.ts` 与 `src/daemon/fund-monitor.ts` 改用 `@upup/pi-finance-sdk`。
+- `test/fund-*-verify.test.ts` 与 `test/fund-backtest.test.ts` / `test/fund-backtest-multi.test.ts` 改用 `@upup/pi-finance-sdk`。
+- `src/tools/fund/` 目录删除；root `src/tools/` 已无外部生产消费者。
+
+### 34.2 验证
+
+| 验证项 | 结果 |
+|---|---|
+| `bun run typecheck` | 通过 |
+| `bun run check:pi7` | 通过：40 manifests、唯一 Pi AgentSession factory、无生产 global registry |
+| `bun run check:module-boundaries` | 通过：40 packages、547 root modules（−6） |
+| `bun --cwd packages/pi-finance-sdk test` | 37 pass、176 assertions |
+| `bun run test:pi-contracts` | 通过 |
+| `bun test`（全仓） | 3686 pass、4 fail（3 个网络超时为 pre-existing env-blocked）+ 1 个随之 fail；12250 assertions、354 files |
+| `bun run report:pi7` | 根生产行数 119960 → 117259（净减 2701 行） |
+
+### 34.3 当前剩余项
+
+`src/tools` 中 `bash/permission-mode.ts`、`filesystem/sandbox-manager.ts`、`filesystem/sandbox-config.ts`、`trading/*`、`cron/*` 等基础设施工具属 Pi Platform 范畴，留待 Round 7（Pi Platform 拆分）；`src/tools/finance/` 已空，`src/tools/fund/` 已删；`src/tools/registry/` 为空。后续轮次继续按 `pi7.md` 迁移矩阵推进。

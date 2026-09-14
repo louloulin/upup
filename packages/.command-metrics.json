@@ -1,62 +1,62 @@
 {
   "help": {
     "name": "help",
-    "totalCalls": 857,
-    "successCount": 857,
+    "totalCalls": 858,
+    "successCount": 858,
     "errorCount": 0,
-    "totalDurationMs": 13139,
+    "totalDurationMs": 13140,
     "avgDurationMs": 15,
     "minDurationMs": 0,
     "maxDurationMs": 2372,
-    "lastCalled": 1789368191142,
-    "lastSuccess": 1789368191142
+    "lastCalled": 1789368273857,
+    "lastSuccess": 1789368273857
   },
   "status": {
     "name": "status",
-    "totalCalls": 832,
-    "successCount": 832,
+    "totalCalls": 833,
+    "successCount": 833,
     "errorCount": 0,
     "totalDurationMs": 3494,
     "avgDurationMs": 4,
     "minDurationMs": 0,
     "maxDurationMs": 575,
-    "lastCalled": 1789368191143,
-    "lastSuccess": 1789368191143
+    "lastCalled": 1789368273857,
+    "lastSuccess": 1789368273857
   },
   "h": {
     "name": "h",
-    "totalCalls": 813,
-    "successCount": 813,
+    "totalCalls": 814,
+    "successCount": 814,
     "errorCount": 0,
     "totalDurationMs": 478,
     "avgDurationMs": 1,
     "minDurationMs": 0,
     "maxDurationMs": 52,
-    "lastCalled": 1789368191143,
-    "lastSuccess": 1789368191143
+    "lastCalled": 1789368273857,
+    "lastSuccess": 1789368273857
   },
   "c": {
     "name": "c",
-    "totalCalls": 809,
-    "successCount": 809,
+    "totalCalls": 810,
+    "successCount": 810,
     "errorCount": 0,
-    "totalDurationMs": 3546,
+    "totalDurationMs": 3547,
     "avgDurationMs": 4,
     "minDurationMs": 0,
     "maxDurationMs": 269,
-    "lastCalled": 1789368191143,
-    "lastSuccess": 1789368191143
+    "lastCalled": 1789368273858,
+    "lastSuccess": 1789368273858
   },
   "unknown": {
     "name": "unknown",
-    "totalCalls": 754,
+    "totalCalls": 755,
     "successCount": 0,
-    "errorCount": 754,
+    "errorCount": 755,
     "totalDurationMs": 154,
     "avgDurationMs": 0,
     "minDurationMs": 0,
     "maxDurationMs": 11,
-    "lastCalled": 1789368191143,
+    "lastCalled": 1789368273858,
     "lastSuccess": 0
   },
   "commands": {
