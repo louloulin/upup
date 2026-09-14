@@ -10,8 +10,8 @@
 import { readdir, readFile, stat } from 'fs/promises';
 import { homedir } from 'os';
 import { join } from 'path';
-import { safeParseJSON } from '../utils/json.js';
-import { getPlatform, SUPPORTED_PLATFORMS } from '../utils/platform.js';
+import { safeParseJSON } from '@upup/utils';
+import { getPlatform, SUPPORTED_PLATFORMS } from '@upup/utils';
 
 export interface DesktopMCPServerConfig {
   /** Server command */

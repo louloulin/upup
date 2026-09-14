@@ -12,7 +12,7 @@
 
 import { ChildProcess, spawn, execSync } from 'child_process';
 import { EventEmitter } from 'events';
-import { info, warn, error as logError } from '../utils/logging/logger.js';
+import { info, warn, error as logError } from '@upup/utils/logging';
 import type {
   McpServerConfig,
   MCPServerState,

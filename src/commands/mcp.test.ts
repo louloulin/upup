@@ -12,7 +12,7 @@ import {
   getConfigPath,
   MCPCommandOptions,
 } from './mcp.js';
-import type { McpServerConfig } from '../mcp/types.js';
+import type { MCPServerConfig } from '@upup/mcp';
 
 describe('MCP Commands', () => {
   const testDir = join(tmpdir(), 'test-mcp-commands');
@@ -167,7 +167,7 @@ describe('MCP Commands', () => {
     it('should detect stdio transport', async () => {
       const { getTransportType, isStdioConfig } = await import('../mcp/types.js');
 
-      const config = { type: 'stdio', command: 'echo', args: [] } as McpServerConfig;
+      const config = { type: 'stdio', command: 'echo', args: [] } as MCPServerConfig;
       expect(getTransportType(config)).toBe('stdio');
       expect(isStdioConfig(config)).toBe(true);
     });
@@ -175,7 +175,7 @@ describe('MCP Commands', () => {
     it('should detect HTTP transport', async () => {
       const { getTransportType, isHttpConfig } = await import('../mcp/types.js');
 
-      const config = { type: 'sse', url: 'https://example.com/mcp' } as McpServerConfig;
+      const config = { type: 'sse', url: 'https://example.com/mcp' } as MCPServerConfig;
       expect(getTransportType(config)).toBe('sse');
       expect(isHttpConfig(config)).toBe(true);
     });
@@ -183,8 +183,8 @@ describe('MCP Commands', () => {
     it('should check OAuth support', async () => {
       const { supportsOAuth } = await import('../mcp/types.js');
 
-      const withOAuth = { type: 'sse', url: 'https://example.com', oauth: { clientId: 'test' } } as McpServerConfig;
-      const withoutOAuth = { type: 'stdio', command: 'echo', args: [] } as McpServerConfig;
+      const withOAuth = { type: 'sse', url: 'https://example.com', oauth: { clientId: 'test' } } as MCPServerConfig;
+      const withoutOAuth = { type: 'stdio', command: 'echo', args: [] } as MCPServerConfig;
 
       expect(supportsOAuth(withOAuth)).toBe(true);
       expect(supportsOAuth(withoutOAuth)).toBe(false);

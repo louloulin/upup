@@ -15,7 +15,7 @@ import { PiTool } from '../runtime/pi/tool.js';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { EventEmitter } from 'events';
-import { info, error as logError } from '../utils/logging/logger.js';
+import { info, error as logError } from '@upup/utils/logging';
 import {
   defaultTokenStorage,
   isTokenExpired,

@@ -7,7 +7,7 @@
  * Reference: Claude Code's mcpSkills.ts and mcpSkillBuilders.ts
  */
 
-import { MCPClientManager, type MCPServerConnection } from '../mcp/client.js';
+import { MCPClientManager, type MCPServerConnection } from '@upup/mcp';
 import type { Skill } from '@upup/skills';
 
 // ============================================================================
