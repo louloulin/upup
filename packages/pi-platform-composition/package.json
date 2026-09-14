@@ -11,6 +11,7 @@
     "test": "bun test ./test.ts"
   },
   "files": ["dist", "package.json"],
+  "pi": { "contract": "upup.pi.runtime.v1", "source": "builtin:upup", "trust": { "mode": "builtin", "network": true, "filesystem": true }, "lifecycle": { "scope": "session" }, "extensions": [], "skills": [], "prompts": [], "workflows": [], "policies": [], "evals": [] },
   "dependencies": {
     "@upup/pi-runtime": "0.1.0"
   },

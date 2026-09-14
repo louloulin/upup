@@ -3,6 +3,44 @@ import { calculatePortfolioAttribution } from '@upup/pi-portfolio';
 import { calculateProductionDcf, calculateValuationRatios } from '@upup/pi-investment-analysis';
 
 export type InvestmentWorkflowPhase = 'research' | 'valuation' | 'backtest' | 'trade' | 'review';
+export type CanonicalInvestmentPhase = 'detect' | 'plan' | 'execute' | 'verify' | 'report';
+export const CANONICAL_INVESTMENT_PHASES: readonly CanonicalInvestmentPhase[] = ['detect', 'plan', 'execute', 'verify', 'report'];
+
+export type InvestmentAgentProfileId = 'researcher' | 'analyst' | 'risk-manager' | 'portfolio-manager' | 'backtest-engineer' | 'monitor' | 'reviewer';
+
+export interface InvestmentAgentProfile {
+  readonly id: InvestmentAgentProfileId;
+  readonly capabilities: readonly string[];
+  readonly allowedTools: readonly string[];
+  readonly deniedSafetyLevels: readonly ('dangerous' | 'critical')[];
+  readonly requiresApprovalFor: readonly ('warning' | 'dangerous' | 'critical')[];
+  readonly outputContract: 'evidence' | 'report' | 'json';
+}
+
+export const INVESTMENT_AGENT_PROFILES: Readonly<Record<InvestmentAgentProfileId, InvestmentAgentProfile>> = {
+  researcher: { id: 'researcher', capabilities: ['market-data', 'research'], allowedTools: ['web_search', 'web_fetch', 'financial_search', 'read_filings'], deniedSafetyLevels: ['dangerous', 'critical'], requiresApprovalFor: [], outputContract: 'evidence' },
+  analyst: { id: 'analyst', capabilities: ['market-data', 'research', 'valuation'], allowedTools: ['financial_metrics', 'read_filings', 'calculate_dcf', 'calculate_technical_indicators'], deniedSafetyLevels: ['dangerous', 'critical'], requiresApprovalFor: [], outputContract: 'report' },
+  'risk-manager': { id: 'risk-manager', capabilities: ['market-data', 'risk', 'portfolio'], allowedTools: ['calculate_var', 'calculate_sharpe', 'calculate_max_drawdown', 'calculate_risk_parity'], deniedSafetyLevels: ['dangerous', 'critical'], requiresApprovalFor: [], outputContract: 'report' },
+  'portfolio-manager': { id: 'portfolio-manager', capabilities: ['market-data', 'portfolio', 'risk'], allowedTools: ['duckdb-portfolio-analysis', 'calculate_risk_parity', 'place_trade_order'], deniedSafetyLevels: ['critical'], requiresApprovalFor: ['dangerous'], outputContract: 'report' },
+  'backtest-engineer': { id: 'backtest-engineer', capabilities: ['market-data', 'backtest'], allowedTools: ['strategy_backtest', 'backtest_run', 'backtest_evaluate_trade'], deniedSafetyLevels: ['dangerous', 'critical'], requiresApprovalFor: [], outputContract: 'evidence' },
+  monitor: { id: 'monitor', capabilities: ['market-data', 'monitoring'], allowedTools: ['get_market_data', 'check_watchlist_alerts', 'heartbeat'], deniedSafetyLevels: ['dangerous', 'critical'], requiresApprovalFor: [], outputContract: 'json' },
+  reviewer: { id: 'reviewer', capabilities: ['research', 'risk', 'audit'], allowedTools: ['score_data_source', 'compare_data_sources', 'read_filings'], deniedSafetyLevels: ['dangerous', 'critical'], requiresApprovalFor: [], outputContract: 'report' },
+};
+
+export interface InvestmentWorkflowArtifact {
+  readonly workflowId: string;
+  readonly phase: CanonicalInvestmentPhase;
+  readonly status: 'completed' | 'blocked' | 'failed';
+  readonly profile: InvestmentAgentProfileId;
+  readonly ticker?: string;
+  readonly output: string;
+  readonly evidence: readonly unknown[];
+  readonly createdAt: string;
+}
+
+export function createInvestmentWorkflowArtifact(input: Omit<InvestmentWorkflowArtifact, 'createdAt'> & { createdAt?: string }): InvestmentWorkflowArtifact {
+  return { ...input, createdAt: input.createdAt ?? new Date().toISOString() };
+}
 
 export interface InvestmentWorkflowPlan {
   readonly ticker?: string;

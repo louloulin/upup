@@ -1202,3 +1202,31 @@ root Factory 保留 domain-specific `installPiPackageToolHosts`，但删除进�
 **已完成：** capability registry 的 contract、session 隔离、并发 dispose 生命周期、Factory 显式注册/撤销、12 个生产扩展消费者迁移，以及生产路径去除 global host 写入。
 
 **保持未完成：** 旧 global registry 的只读兼容 fallback 与测试 fixture 尚未删除；Phase 5–7 的 bridge、memory、MCP transport、skills、commands、TUI 和最终兼容层退场仍待执行。真实 provider 凭证 smoke 仍需在配置凭证的环境中单独验证。
+
+## 31. Pi7 第一轮实施结果（2026-09-14）
+
+本轮开始执行 Pi7“全量 Package 拆分、复用已有包、激进移除旧运行路径”的方案，先完成基础 contract、事实门禁、显式 runtime ports 和 canonical investment workflow。
+
+### 31.1 已完成
+
+- `@upup/pi-runtime` 增加统一 `PiPackageManifestContract`、capability requirement、trust 和 lifecycle contract，并由 `PiPackageCatalog` 注册时校验。
+- 新增 `scripts/report-pi7-architecture.ts` 与 `scripts/check-pi7-architecture.ts`，报告 40 workspace packages、22 Pi manifests、737 root modules、552 root production modules，并检查唯一 `createAgentSession()` 和生产 global registry 禁止项。
+- `@upup/pi-runtime` 增加显式 runtime port registry；root `agent-port` 与 `@upup/commands` port mirror 不再依赖 `globalThis.__upupAgentPorts`。
+- `@upup/pi-capability-registry` 删除 `__upupPiHosts` legacy fallback；root/finance host contract 删除旧 global key。
+- `@upup/pi-investment-workflow` 增加 `detect → plan → execute → verify → report` canonical phases、七个 Agent Profile、workflow artifact 和 `invest_workflow` Pi extension tool。
+- `commands`、`mcp`、`memory`、`skills`、`plugins` 及 composition/foundation packages 登记统一 Pi manifest。
+
+### 31.2 实际验证
+
+| 验证项 | 结果 |
+|---|---|
+| `bun run typecheck` | 通过 |
+| `bun run check:pi7` | 通过：40 manifests、唯一 AgentSession factory、无生产 global registry |
+| `bun run check:module-boundaries` | 通过：40 packages、552 root modules、无 root-src imports/循环 |
+| `@upup/pi-runtime` | 14 pass、40 assertions |
+| `@upup/pi-capability-registry` | 5 pass、16 assertions |
+| `@upup/pi-investment-workflow` | 6 pass、23 assertions |
+
+### 31.3 当前剩余项
+
+root `src/tools`、`src/skills`、Session/Memory/Permissions、MCP/Plugin、Gateway/Bridge/stdio、Cron/Daemon、TUI/components 和 `legacy-events` 消费者仍需按 `pi7.md` 迁移矩阵继续物理迁移；本轮不宣称全仓 Pi Native 已完成。真实 provider smoke 仍需凭证环境单独执行。

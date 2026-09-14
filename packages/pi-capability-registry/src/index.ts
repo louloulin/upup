@@ -106,11 +106,7 @@ export function registerPiCapabilityHost<T extends PiCapabilityHostRecord>(
 export function resolvePiCapabilityHost<T extends PiCapabilityHostRecord = PiCapabilityHostRecord>(
   packageName: string,
   sessionId: string | undefined,
-  legacyRegistryKey = '__upupPiHosts',
 ): T | undefined {
   const explicit = defaultPiCapabilityRegistry.resolve<T>(sessionId, packageName);
-  if (explicit) return explicit;
-  if (sessionId) return undefined;
-  const legacy = (globalThis as typeof globalThis & { [key: string]: unknown })[legacyRegistryKey] as ReadonlyMap<string, PiCapabilityHostRecord> | undefined;
-  return legacy?.get(packageName) as T | undefined;
+  return explicit;
 }

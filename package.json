@@ -24,6 +24,8 @@
     "check:pi-runtime": "bun run scripts/check-pi-runtime.ts",
     "report:pi-migration": "bun run scripts/report-pi-migration.ts",
     "report:pi-architecture": "bun run scripts/report-pi-architecture.ts",
+    "report:pi7": "bun run scripts/report-pi7-architecture.ts",
+    "check:pi7": "bun run scripts/check-pi7-architecture.ts",
     "check:module-boundaries": "bun run scripts/check-module-boundaries.ts",
     "verify:pi5": "bun run scripts/verify-pi5.ts",
     "benchmark:pi5": "bun run scripts/benchmark-pi5.ts",
@@ -102,6 +104,7 @@
     "zod-v4": "npm:zod@4.3.6",
     "@upup/pi-technical": "workspace:*",
     "@upup/pi-runtime": "workspace:*",
+    "@upup/pi-resource-composition": "workspace:*",
     "@upup/pi-storage": "workspace:*"
   },
   "pkg": {

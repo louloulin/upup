@@ -4,7 +4,6 @@ import type { InvestmentWorkflowServices } from '@upup/pi-investment-workflow';
 import type { NativeMarketQuoteTrendStore } from '@upup/pi-market-data';
 
 export const PI_HOST_CONTRACT = 'upup.pi.host.v1' as const;
-export const PI_HOST_REGISTRY_GLOBAL_KEY = '__upupPiHosts' as const;
 export const PI_HOST_CAPABILITIES = ['tool-definitions', 'research-worker', 'agent-worker', 'cron-runner', 'mcp-resources', 'investment-workflow', 'market-data-transport', 'management-snapshot'] as const;
 
 export type PiHostCapability = (typeof PI_HOST_CAPABILITIES)[number];

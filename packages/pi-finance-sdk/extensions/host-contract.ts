@@ -1,5 +1,4 @@
 export const PI_HOST_CONTRACT = 'upup.pi.host.v1' as const;
-export const PI_HOST_REGISTRY_GLOBAL_KEY = '__upupPiHosts' as const;
 export const PI_FINANCE_PACKAGE_NAME = '@upup/pi-finance-sdk' as const;
 export const PI_FINANCE_PACKAGE_VERSION = '0.1.0' as const;
 export const PI_FINANCE_HOST_CONTRACT = PI_HOST_CONTRACT;

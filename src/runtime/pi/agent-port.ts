@@ -1,9 +1,6 @@
-/**
- * Pi runtime public ports shared with platform packages.
- *
- * The registry contains only lifecycle/platform capabilities. Agent
- * execution itself is provided by Pi AgentSession and never by this port.
- */
+import { getPiRuntimePort, registerPiRuntimePort, resetPiRuntimePorts } from '@upup/pi-runtime';
+
+/** Pi runtime public ports shared with platform packages. */
 
 export interface PlanModePort {
   isActive(): boolean;
@@ -98,34 +95,48 @@ export interface AgentPorts {
   agentMemory?: AgentMemoryPort;
 }
 
-declare global {
-  // eslint-disable-next-line no-var
-  var __upupAgentPorts: AgentPorts | undefined;
+const PORT_NAMES = {
+  planMode: 'platform.plan-mode', config: 'platform.config', session: 'platform.session', subagent: 'platform.subagent',
+  mcpRegistry: 'platform.mcp-registry', state: 'platform.state', sandbox: 'platform.sandbox', agentMemory: 'platform.agent-memory',
+} as const;
+
+function register<T>(name: string, port: T): void { registerPiRuntimePort(name, port); }
+function get<T>(name: string): T | null { return getPiRuntimePort<T>(name) ?? null; }
+
+export function registerPlanModePort(port: PlanModePort): void { register(PORT_NAMES.planMode, port); }
+export function registerAgentConfigPort(port: AgentConfigPort): void { register(PORT_NAMES.config, port); }
+export function registerSessionPort(port: SessionPort): void { register(PORT_NAMES.session, port); }
+export function registerSubagentPort(port: SubagentPort): void { register(PORT_NAMES.subagent, port); }
+export function registerMcpRegistryPort(port: McpRegistryPort): void { register(PORT_NAMES.mcpRegistry, port); }
+export function registerStatePort(port: StatePort): void { register(PORT_NAMES.state, port); }
+export function registerSandboxPort(port: SandboxPort): void { register(PORT_NAMES.sandbox, port); }
+export function registerAgentMemoryPort(port: AgentMemoryPort): void { register(PORT_NAMES.agentMemory, port); }
+
+export function getPlanModePort(): PlanModePort | null { return get(PORT_NAMES.planMode); }
+export function getAgentConfigPort(): AgentConfigPort | null { return get(PORT_NAMES.config); }
+export function getSessionPort(): SessionPort | null { return get(PORT_NAMES.session); }
+export function getSubagentPort(): SubagentPort | null { return get(PORT_NAMES.subagent); }
+export function getMcpRegistryPort(): McpRegistryPort | null { return get(PORT_NAMES.mcpRegistry); }
+export function getStatePort(): StatePort | null { return get(PORT_NAMES.state); }
+export function getSandboxPort(): SandboxPort | null { return get(PORT_NAMES.sandbox); }
+export function getAgentMemoryPort(): AgentMemoryPort | null { return get(PORT_NAMES.agentMemory); }
+
+export function __resetAgentPorts(): void { resetPiRuntimePorts(); }
+export function __saveAgentPorts(): AgentPorts {
+  return {
+    planMode: getPlanModePort() ?? undefined, config: getAgentConfigPort() ?? undefined, session: getSessionPort() ?? undefined,
+    subagent: getSubagentPort() ?? undefined, mcpRegistry: getMcpRegistryPort() ?? undefined, state: getStatePort() ?? undefined,
+    sandbox: getSandboxPort() ?? undefined, agentMemory: getAgentMemoryPort() ?? undefined,
+  };
 }
-
-function getRegistry(): AgentPorts {
-  globalThis.__upupAgentPorts ??= {};
-  return globalThis.__upupAgentPorts;
+export function __restoreAgentPorts(saved: AgentPorts): void {
+  __resetAgentPorts();
+  if (saved.planMode) registerPlanModePort(saved.planMode);
+  if (saved.config) registerAgentConfigPort(saved.config);
+  if (saved.session) registerSessionPort(saved.session);
+  if (saved.subagent) registerSubagentPort(saved.subagent);
+  if (saved.mcpRegistry) registerMcpRegistryPort(saved.mcpRegistry);
+  if (saved.state) registerStatePort(saved.state);
+  if (saved.sandbox) registerSandboxPort(saved.sandbox);
+  if (saved.agentMemory) registerAgentMemoryPort(saved.agentMemory);
 }
-
-export function registerPlanModePort(port: PlanModePort): void { getRegistry().planMode = port; }
-export function registerAgentConfigPort(port: AgentConfigPort): void { getRegistry().config = port; }
-export function registerSessionPort(port: SessionPort): void { getRegistry().session = port; }
-export function registerSubagentPort(port: SubagentPort): void { getRegistry().subagent = port; }
-export function registerMcpRegistryPort(port: McpRegistryPort): void { getRegistry().mcpRegistry = port; }
-export function registerStatePort(port: StatePort): void { getRegistry().state = port; }
-export function registerSandboxPort(port: SandboxPort): void { getRegistry().sandbox = port; }
-export function registerAgentMemoryPort(port: AgentMemoryPort): void { getRegistry().agentMemory = port; }
-
-export function getPlanModePort(): PlanModePort | null { return getRegistry().planMode ?? null; }
-export function getAgentConfigPort(): AgentConfigPort | null { return getRegistry().config ?? null; }
-export function getSessionPort(): SessionPort | null { return getRegistry().session ?? null; }
-export function getSubagentPort(): SubagentPort | null { return getRegistry().subagent ?? null; }
-export function getMcpRegistryPort(): McpRegistryPort | null { return getRegistry().mcpRegistry ?? null; }
-export function getStatePort(): StatePort | null { return getRegistry().state ?? null; }
-export function getSandboxPort(): SandboxPort | null { return getRegistry().sandbox ?? null; }
-export function getAgentMemoryPort(): AgentMemoryPort | null { return getRegistry().agentMemory ?? null; }
-
-export function __resetAgentPorts(): void { globalThis.__upupAgentPorts = {}; }
-export function __saveAgentPorts(): AgentPorts { return { ...(globalThis.__upupAgentPorts ?? {}) }; }
-export function __restoreAgentPorts(saved: AgentPorts): void { globalThis.__upupAgentPorts = { ...saved }; }

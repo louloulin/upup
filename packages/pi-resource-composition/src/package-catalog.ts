@@ -3,6 +3,7 @@ import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import type { PiPluginTrustPolicy, PiResourceTrustAudit } from './plugin-trust.js';
 import { verifyPiResourceTrust } from './plugin-trust.js';
 import { loadPiPackageContracts, type PiPackageContracts } from './package-contracts.js';
+import { PI_RUNTIME_CONTRACT, validatePiPackageManifest, type PiPackageManifestContract } from '@upup/pi-runtime';
 
 export type { PiPluginTrustPolicy } from './plugin-trust.js';
 
@@ -17,6 +18,7 @@ const RUNTIME_FOUNDATION_PACKAGES: ReadonlySet<string> = new Set([
 export interface PiPackageManifest {
   readonly name: string;
   readonly version: string;
+  readonly contract: string;
   readonly source: string;
   readonly dependencies: Readonly<Record<string, string>>;
   readonly runtimeDependencies: Readonly<Record<string, string>>;
@@ -28,6 +30,10 @@ export interface PiPackageManifest {
   readonly workflows: readonly string[];
   readonly policies: readonly string[];
   readonly evals: readonly string[];
+  readonly extension?: string;
+  readonly capabilities: readonly { readonly name: string; readonly version: string; readonly optional?: boolean }[];
+  readonly trust: { readonly mode: 'builtin' | 'trusted' | 'sandboxed'; readonly network?: boolean; readonly credentials?: boolean; readonly filesystem?: boolean };
+  readonly lifecycle: { readonly scope: 'runtime' | 'session' | 'process'; readonly initialize?: string; readonly reload?: string; readonly dispose?: string };
 }
 
 export interface PiPackageRecord {
@@ -106,6 +112,7 @@ export class PiPackageCatalog {
     const resolvedRoot = resolve(cwd, root);
     const parsed = JSON.parse(readFileSync(join(resolvedRoot, 'package.json'), 'utf8')) as {
       name?: unknown; version?: unknown; dependencies?: unknown; devDependencies?: unknown; peerDependencies?: unknown; optionalDependencies?: unknown; pi?: {
+        contract?: unknown; extension?: unknown; capabilities?: unknown[]; trust?: unknown; lifecycle?: unknown;
         source?: unknown;
         commands?: unknown[];
         extensions?: unknown[]; skills?: unknown[]; prompts?: unknown[];
@@ -195,7 +202,23 @@ export class PiPackageCatalog {
     }
     const resources = normalizedResources;
     const trustResult = verifyPiResourceTrust([resolvedRoot, ...resources], trust, cwd);
-    const manifest: PiPackageManifest = { name: parsed.name, version: parsed.version, source: parsed.pi.source, dependencies, runtimeDependencies, commands, root: resolvedRoot, extensions, skills, prompts, workflows, policies, evals };
+    const contract = typeof parsed.pi.contract === 'string' ? parsed.pi.contract : PI_RUNTIME_CONTRACT;
+    const capabilities = Array.isArray(parsed.pi.capabilities) ? parsed.pi.capabilities : [];
+    const trustContract = parsed.pi.trust && typeof parsed.pi.trust === 'object' ? parsed.pi.trust : { mode: 'builtin' };
+    const lifecycle = parsed.pi.lifecycle && typeof parsed.pi.lifecycle === 'object' ? parsed.pi.lifecycle : { scope: 'session' };
+    validatePiPackageManifest({
+      name: parsed.name,
+      version: parsed.version,
+      contract,
+      source: parsed.pi.source,
+      dependencies,
+      extension: typeof parsed.pi.extension === 'string' ? parsed.pi.extension : undefined,
+      capabilities: capabilities as PiPackageManifestContract['capabilities'],
+      trust: trustContract as PiPackageManifestContract['trust'],
+      lifecycle: lifecycle as PiPackageManifestContract['lifecycle'],
+      resources: { extensions, skills, prompts, workflows, policies, evals },
+    });
+    const manifest: PiPackageManifest = { name: parsed.name, version: parsed.version, contract, source: parsed.pi.source, dependencies, runtimeDependencies, commands, root: resolvedRoot, extensions, skills, prompts, workflows, policies, evals, extension: typeof parsed.pi.extension === 'string' ? parsed.pi.extension : undefined, capabilities: capabilities as PiPackageManifest['capabilities'], trust: trustContract as PiPackageManifest['trust'], lifecycle: lifecycle as PiPackageManifest['lifecycle'] };
     const record: PiPackageRecord = { manifest, enabled: true, audits: trustResult.audits };
     const previousRecord = this.records.get(parsed.name);
     this.records.set(parsed.name, record);

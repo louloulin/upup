@@ -16,9 +16,10 @@
     "dev": "bun build src/index.ts --outdir=dist --watch --target=bun",
     "test": "bun test"
   },
-  "peerDependencies": {},
+  "peerDependencies": { "@upup/pi-runtime": "0.1.0" },
   "files": [
     "dist"
   ],
-  "private": false
+  "private": false,
+  "pi": { "contract": "upup.pi.runtime.v1", "source": "builtin:upup", "trust": { "mode": "builtin" }, "lifecycle": { "scope": "session" }, "extensions": [], "skills": [], "prompts": [], "workflows": [], "policies": [], "evals": [] }
 }

@@ -1,15 +1,4 @@
-/**
- * Agent Public Port (Local Mirror)
- *
- * Cross-package boundary between packages/commands/ and the Pi runtime.
- *
- * The canonical interface lives in src/runtime/pi/agent-port.ts.
- * This file duplicates the small shape (4 lines) and reads from
- * globalThis to avoid a fragile 4-level `await import` chain.
- *
- * The risk of interface drift is mitigated by the test suite in
- * Pi runtime port contract tests cover the shared shape.
- */
+import { getPiRuntimePort } from '@upup/pi-runtime';
 
 export interface PlanModePortLocal {
   isActive(): boolean;
@@ -92,31 +81,26 @@ interface AgentPortsLocal {
   agentMemory?: AgentMemoryPortLocal;
 }
 
-declare global {
-  // eslint-disable-next-line no-var
-  var __upupAgentPorts: AgentPortsLocal | undefined;
-}
-
 export function getPlanModePortLocal(): PlanModePortLocal | null {
-  return globalThis.__upupAgentPorts?.planMode ?? null;
+  return getPiRuntimePort<PlanModePortLocal>('platform.plan-mode') ?? null;
 }
 
 export function getSubagentPortLocal(): SubagentPortLocal | null {
-  return globalThis.__upupAgentPorts?.subagent ?? null;
+  return getPiRuntimePort<SubagentPortLocal>('platform.subagent') ?? null;
 }
 
 export function getMcpRegistryPortLocal(): McpRegistryPortLocal | null {
-  return globalThis.__upupAgentPorts?.mcpRegistry ?? null;
+  return getPiRuntimePort<McpRegistryPortLocal>('platform.mcp-registry') ?? null;
 }
 
 export function getStatePortLocal(): StatePortLocal | null {
-  return globalThis.__upupAgentPorts?.state ?? null;
+  return getPiRuntimePort<StatePortLocal>('platform.state') ?? null;
 }
 
 export function getSandboxPortLocal(): SandboxPortLocal | null {
-  return globalThis.__upupAgentPorts?.sandbox ?? null;
+  return getPiRuntimePort<SandboxPortLocal>('platform.sandbox') ?? null;
 }
 
 export function getAgentMemoryPortLocal(): AgentMemoryPortLocal | null {
-  return globalThis.__upupAgentPorts?.agentMemory ?? null;
+  return getPiRuntimePort<AgentMemoryPortLocal>('platform.agent-memory') ?? null;
 }

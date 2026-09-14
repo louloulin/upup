@@ -16,5 +16,9 @@
     "build": "bun build src/index.ts --outdir=dist --target=node && tsc --emitDeclarationOnly --project tsconfig.json",
     "test": "bun test ./test.ts"
   },
-  "files": ["dist", "package.json"]
+  "files": ["dist", "package.json"],
+  "dependencies": {
+    "@upup/pi-runtime": "0.1.0"
+  },
+  "pi": { "contract": "upup.pi.runtime.v1", "source": "builtin:upup", "trust": { "mode": "builtin", "filesystem": true }, "lifecycle": { "scope": "runtime" }, "extensions": [], "skills": [], "prompts": [], "workflows": [], "policies": [], "evals": [] }
 }

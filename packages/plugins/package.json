@@ -33,5 +33,6 @@
     "upup",
     "agent"
   ],
-  "private": false
+  "private": false,
+  "pi": { "contract": "upup.pi.runtime.v1", "source": "builtin:upup", "trust": { "mode": "sandboxed" }, "lifecycle": { "scope": "session" }, "extensions": [], "skills": [], "prompts": [], "workflows": [], "policies": [], "evals": [] }
 }

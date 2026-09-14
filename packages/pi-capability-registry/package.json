@@ -1,7 +1,7 @@
 {
   "name": "@upup/pi-capability-registry",
   "version": "0.1.0",
-  "description": "Explicit session-scoped Pi capability registry with legacy read compatibility",
+  "description": "Explicit session-scoped Pi capability registry",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -10,5 +10,6 @@
     "build": "bun build src/index.ts --outdir=dist --target=node && tsc --emitDeclarationOnly --project tsconfig.json",
     "test": "bun test ./test.ts"
   },
-  "files": ["dist", "package.json"]
+  "files": ["dist", "package.json"],
+  "pi": { "contract": "upup.pi.runtime.v1", "source": "builtin:upup", "trust": { "mode": "builtin" }, "lifecycle": { "scope": "runtime" }, "extensions": [], "skills": [], "prompts": [], "workflows": [], "policies": [], "evals": [] }
 }

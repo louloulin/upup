@@ -283,6 +283,21 @@ export interface PiCapabilityContext {
   has(name: string, expectedVersion?: string): boolean;
   dispose(): Promise<void>;
 }
+
+const runtimePorts = new Map<string, unknown>();
+
+export function registerPiRuntimePort<T>(name: string, port: T): void {
+  if (!name.trim()) throw new Error('Pi runtime port name is required');
+  runtimePorts.set(name, port);
+}
+
+export function getPiRuntimePort<T>(name: string): T | undefined {
+  return runtimePorts.get(name) as T | undefined;
+}
+
+export function resetPiRuntimePorts(): void {
+  runtimePorts.clear();
+}
 export function createPiCapabilityContext(input: { sessionId: string; signal?: AbortSignal; audit?: Readonly<Record<string, string>>; capabilities?: Readonly<Record<string, PiCapability>> }): PiCapabilityContext {
   const values = new Map(Object.entries(input.capabilities ?? {}));
   let disposed = false;
@@ -312,8 +327,51 @@ export function createPiCapabilityContext(input: { sessionId: string; signal?: A
   };
 }
 
-export interface PiPackageResourceContract { readonly extensions: readonly string[]; readonly skills: readonly string[]; readonly prompts: readonly string[]; readonly workflows: readonly string[]; readonly policies: readonly string[]; readonly evals: readonly string[] }
-export interface PiPackageManifestContract { readonly name: string; readonly version: string; readonly source: string; readonly dependencies?: Readonly<Record<string, string>>; readonly resources: PiPackageResourceContract }
+export type PiPackageScope = 'runtime' | 'session' | 'process';
+export type PiPackageTrustMode = 'builtin' | 'trusted' | 'sandboxed';
+
+export interface PiPackageResourceContract {
+  readonly extensions: readonly string[];
+  readonly skills: readonly string[];
+  readonly prompts: readonly string[];
+  readonly workflows: readonly string[];
+  readonly policies: readonly string[];
+  readonly evals: readonly string[];
+  readonly resources?: readonly string[];
+}
+
+export interface PiPackageCapabilityRequirement {
+  readonly name: string;
+  readonly version: string;
+  readonly optional?: boolean;
+}
+
+export interface PiPackageTrustContract {
+  readonly mode: PiPackageTrustMode;
+  readonly network?: boolean;
+  readonly credentials?: boolean;
+  readonly filesystem?: boolean;
+}
+
+export interface PiPackageLifecycleContract {
+  readonly scope: PiPackageScope;
+  readonly initialize?: string;
+  readonly reload?: string;
+  readonly dispose?: string;
+}
+
+export interface PiPackageManifestContract {
+  readonly name: string;
+  readonly version: string;
+  readonly contract?: string;
+  readonly source: string;
+  readonly dependencies?: Readonly<Record<string, string>>;
+  readonly extension?: string;
+  readonly capabilities?: readonly PiPackageCapabilityRequirement[];
+  readonly trust?: PiPackageTrustContract;
+  readonly lifecycle?: PiPackageLifecycleContract;
+  readonly resources: PiPackageResourceContract;
+}
 export interface PiWorkflowContract { packageName: string; packageVersion: string; path: string; name: string; phases: readonly string[]; instructions: string }
 export interface PiPolicyContract { packageName: string; packageVersion: string; path: string; name: string; rules: readonly string[]; text: string }
 export interface PiEvalCase { id: string; requires?: readonly string[]; forbidden?: readonly string[] }
@@ -322,10 +380,17 @@ export interface PiPackageContracts { workflows: readonly PiWorkflowContract[]; 
 export function validatePiPackageManifest(manifest: PiPackageManifestContract): void {
   if (!/^@[a-z0-9-]+\/[a-z0-9][a-z0-9._-]*$/.test(manifest.name)) throw new Error(`Invalid Pi package name: ${manifest.name}`);
   if (!/^\d+\.\d+\.\d+$/.test(manifest.version)) throw new Error(`Invalid Pi package version: ${manifest.version}`);
+  if (manifest.contract !== undefined && manifest.contract !== PI_RUNTIME_CONTRACT) throw new Error(`Unsupported Pi package contract: ${manifest.contract}`);
   if (!manifest.source.trim()) throw new Error(`Pi package source is missing: ${manifest.name}`);
   const all = Object.values(manifest.resources).flat();
   if (new Set(all).size !== all.length) throw new Error(`Pi package resources contain duplicates: ${manifest.name}`);
   for (const [name, version] of Object.entries(manifest.dependencies ?? {})) if (!/^\d+\.\d+\.\d+$/.test(version)) throw new Error(`Pi package dependency ${name} must use an exact semver`);
+  for (const capability of manifest.capabilities ?? []) {
+    if (!capability.name.trim()) throw new Error(`Pi package capability name is missing: ${manifest.name}`);
+    if (!/^\d+\.\d+\.\d+$/.test(capability.version)) throw new Error(`Pi package capability ${capability.name} must use an exact semver`);
+  }
+  if (manifest.trust?.mode === 'sandboxed' && manifest.trust.credentials) throw new Error(`Sandboxed Pi package cannot access credentials: ${manifest.name}`);
+  if (manifest.lifecycle?.scope === 'process' && manifest.lifecycle.dispose === undefined) throw new Error(`Process-scoped Pi package requires dispose lifecycle: ${manifest.name}`);
 }
 export interface PiSessionFactory { createSession(spec: UpUpAgentSpec, options?: UpUpCreateSessionOptions): Promise<UpUpAgentSession> }
 

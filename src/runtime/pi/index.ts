@@ -14,7 +14,7 @@ export * from './tool.js';
 export * from './types.js';
 export * from './legacy-events.js';
 export * from './runner.js';
-export { verifyPiResourceTrust } from './plugin-trust.js';
+export { verifyPiResourceTrust } from '@upup/pi-resource-composition';
 export * from './investment-workflow.js';
 export * from './plugin-adapter.js';
 export * from './session-service.js';
@@ -22,18 +22,18 @@ export * from './background-service.js';
 export * from './agent-catalog.js';
 export {
   PiPackageCatalog,
-} from './package-catalog.js';
+} from '@upup/pi-resource-composition';
 export type {
   PiPackageExtensionLoadResult,
   PiPackageManifest,
   PiPackageRecord,
   PiPackageResources,
   PiPackageResourceKind,
-} from './package-catalog.js';
+} from '@upup/pi-resource-composition';
 export {
   evaluatePiPackage,
   loadPiPackageContracts,
-} from './package-contracts.js';
+} from '@upup/pi-resource-composition';
 export * from './agent-port.js';
 export * from './investment-subagents.js';
 export {

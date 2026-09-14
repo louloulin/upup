@@ -23,5 +23,6 @@
     "dist",
     "!dist/*.node"
   ],
-  "private": false
+  "private": false,
+  "pi": { "contract": "upup.pi.runtime.v1", "source": "builtin:upup", "trust": { "mode": "builtin", "filesystem": true }, "lifecycle": { "scope": "session" }, "extensions": [], "skills": [], "prompts": [], "workflows": [], "policies": [], "evals": [] }
 }

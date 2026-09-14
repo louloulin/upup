@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { executeInvestmentPhase, type InvestmentWorkflowServices } from './workflow.js';
+import { CANONICAL_INVESTMENT_PHASES, createInvestmentWorkflowArtifact, executeInvestmentPhase, INVESTMENT_AGENT_PROFILES, type InvestmentWorkflowServices } from './workflow.js';
 
 const services: InvestmentWorkflowServices = {
   getResearchData: async () => ({ price: '100', ratios: 'PE 10', estimates: 'stable', earnings: 'positive', filings: '10-K' }),
@@ -10,6 +10,12 @@ const services: InvestmentWorkflowServices = {
 };
 
 describe('Pi investment workflow package', () => {
+  test('exposes canonical Pi workflow phases and constrained agent profiles', () => {
+    expect(CANONICAL_INVESTMENT_PHASES).toEqual(['detect', 'plan', 'execute', 'verify', 'report']);
+    expect(Object.keys(INVESTMENT_AGENT_PROFILES)).toHaveLength(7);
+    expect(INVESTMENT_AGENT_PROFILES['portfolio-manager'].requiresApprovalFor).toContain('dangerous');
+    expect(createInvestmentWorkflowArtifact({ workflowId: 'w1', phase: 'report', status: 'completed', profile: 'reviewer', output: 'ok', evidence: [] }).createdAt).toBeString();
+  });
   test('executes all five phases through package-owned logic', async () => {
     for (const phase of ['research', 'valuation', 'backtest', 'trade', 'review'] as const) {
       const result = await executeInvestmentPhase(phase, { ticker: 'AAPL', goal: '分析' }, services, new AbortController().signal);
