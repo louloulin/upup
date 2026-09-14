@@ -149,15 +149,15 @@ describe('lint-web-boundary.sh', () => {
     }
   });
 
-  test('does NOT flag deep non-business imports (e.g. ../bridge/server.js)', () => {
-    // src/web/foo → ../../src/bridge/server is allowed by the boundary.
+  test('does NOT flag deep non-business imports (e.g. ../pi-bridge/server.js)', () => {
+    // src/web/foo → ../../packages/pi-bridge/src/server is allowed by the boundary.
     // We don't validate that the import resolves (that's tsc's job) — we
     // only assert the lint doesn't reject it.
     const wd = join(root, 'web-bridge-imp');
     mkdirSync(wd, { recursive: true });
     writeFileSync(
       join(wd, 'snapshot.ts'),
-      "import { startBridgeServer } from '../../src/bridge/server.js';\nexport { startBridgeServer };\n",
+      "import { startBridgeServer } from '../../packages/pi-bridge/src/server.js';\nexport { startBridgeServer };\n",
     );
     const r = runLint(wd);
     expect(r.status).toBe(0);

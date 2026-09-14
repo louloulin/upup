@@ -1477,3 +1477,231 @@ Factory 拆分、`src/tools`、`src/skills`、`src/commands/investment`、Sessio
 Gateway transport 已从 root `src/gateway/` 物理迁移至 `@upup/gateway` workspace package。迁移覆盖 WhatsApp channel、routing、sessions、group、heartbeat、access-control、agent-runner 和 Gateway service/test；root 目录只保留 `@deprecated` facade。Gateway 通过显式 Pi runtime ports 接入唯一 Pi AgentSession runner，cron/config 由 root composition 注入，package 本身不依赖 root `src/`。
 
 验证结果：`bun --cwd packages/gateway test` 27 pass、`bun run typecheck`、`bun run check:pi7`、`bun run check:module-boundaries`、`bun run test:pi-contracts` 全部通过；最终基线为 43 workspace packages、491 root production files、96729 root production lines。
+
+## 40. Pi7 Round 8.2 MCP/Research/Planning/Gateway 收口（2026-09-14）
+
+- `@upup/pi-research` 的 `EarningsPreview` 补齐 `planFramework`，通过 `@upup/pi-planning` 公共 API 生成可序列化研究计划；不再依赖 root investment command。
+- `@upup/pi-planning` manifest/依赖固定为 exact versions，并纳入 Pi resource composition 的 foundation dependency 处理；默认内置 Package trust pin 与资源校验保持一致。
+- Gateway fixture 改为显式注入 `PiSessionService`、Agent runtime port、Cron runtime port；真实 Pi session 恢复测试和 SLA 生命周期测试均通过，不使用 global fallback。
+- Gateway CLI 增加 Package public API `runGatewayCli`，root `src/gateway/index.ts` 仅保留 bootstrap/transport 壳；生产入口合同改为检查 Package runtime-port 与 `@upup/gateway`。
+- `scripts/check-pi-migration.ts` 改为检查 `@upup/pi-resource-composition` 的 Package public catalog，而不是已退化的 root facade。
+
+### 40.1 真实验证
+
+| 验证项 | 结果 |
+|---|---|
+| `bun --cwd packages/mcp test` | 118 pass、0 fail |
+| `bun --cwd packages/pi-research test` | 20 pass、0 fail |
+| `bun --cwd packages/pi-planning test` | 7 pass、0 fail |
+| `bun test packages/gateway/src/agent-runner.pi.test.ts packages/gateway/src/gateway-sla-runner.test.ts` | 3 pass、0 fail |
+| `bun run typecheck` | 通过 |
+| `bun run check:pi7` | 通过：43 manifests、唯一 Pi AgentSession factory、无生产 global registry |
+| `bun run check:module-boundaries` | 通过：43 packages、无 Package → root `src` 依赖/环 |
+| `bun run check:pi-migration` / `check:pi-packages` / `check:pi-runtime` | 全部通过 |
+| `bun run test:pi-contracts` | 176 pass、0 fail |
+| `bun run start -- --help` | 通过，CLI help 正常输出 |
+| `bun --cwd packages/gateway build` / `bun --cwd packages/mcp build` | 均通过 |
+| `git diff --check` | 通过 |
+
+### 40.2 当前报告事实
+
+由 `bun run report:pi7` 生成：workspacePackages `43`、piNativePackages `33`、rootSourceFiles `646`、rootProductionFiles `490`、rootProductionLines `96,726`；global registry consumers `0`。报告仍列出 7 个 legacy event consumers：`src/print.ts`、`src/runtime/pi/channels.ts`、`src/runtime/pi/event-stream.ts`、`src/runtime/pi/index.ts`、`src/cli.ts`、`src/stdio/server.ts`、`src/controllers/agent-runner.ts`。因此本轮不能标记 Pi7 完成。
+
+## 41. Pi7 第八轮 Cron Package 化（2026-09-14）
+
+### 41.1 物理迁移
+
+- 将 `src/cron/{executor,runner,store,heartbeat-migration,schedule,types}.ts` 和 `src/cron/executor.pi.test.ts` 全部 `git mv` 到 `packages/cron/src/`。
+- `packages/cron/package.json` 升级为完整 Pi Package：声明统一 manifest `upup.pi.runtime.v1`、source `builtin:upup`、trust `builtin + network + filesystem + credentials`、lifecycle `process`、并把 dispose 指向 `CronRunner.stop`。
+- 精确依赖固定为 `@upup/gateway@0.2.0`、`@upup/utils@0.2.0`、`croner@9.1.0`、`@earendil-works/pi-ai@0.84.3`、`@earendil-works/pi-coding-agent@0.84.3`。
+- 重新导出公共 API：`executeCronJob`、`startCronRunner`、`loadCronStore`、`saveCronStore`、`getCronStorePath`、`ensureHeartbeatCronJob`、`computeNextRunAtMs`、所有类型与错误（types 不含虚构 `CronError`，已删除无效 re-export）。
+- `executor.ts` 改用 `@upup/gateway` 公共出口（`runAgentForMessage`、`assertOutboundAllowed`、`sendMessageWhatsApp`、`resolveSessionStorePath`、`loadSessionStore`、`cleanMarkdownForWhatsApp`、`evaluateSuppression`、`HEARTBEAT_OK_TOKEN`），并通过 `getGatewayConfigRuntime()` 获取 model/provider，避免直接读取 root utils。
+- `@upup/gateway` 公共 API 增补 `getGatewayAgentRuntime` / `getGatewayCronRuntime` / `getGatewayConfigRuntime`，且 `packages/gateway` 与 `packages/cron` 的 build 都 externalize `@upup/pi-runtime` 和 `@upup/gateway`，确保共享 runtime port 注册表。
+
+### 41.2 根 `src/` 消费者切换
+
+- `src/runtime/pi/bootstrap.ts` 改为 `import { ensureHeartbeatCronJob, startCronRunner } from '@upup/cron'`。
+- `src/daemon/workers/tasks.ts` 改为 `import { computeNextRunAtMs, executeCronJob, loadCronStore, saveCronStore, type CronJob } from '@upup/cron'`。
+- `src/runtime/pi/agent-session-factory.ts` 引入 `executeCronJob, loadCronStore` from `@upup/cron`，并删除 `await import('../../cron/...')` 私有动态 import。
+- `src/runtime/pi/investment-scenarios.pi.test.ts` 改为从 `@upup/cron` 引入，并在 `beforeAll`/`test` 中通过 `registerGatewayAgentRuntime`、`registerGatewayConfigRuntime` 注入 fixture 端口。
+- `src/runtime/pi/production-entry-contract.test.ts` 把 `'src/cron/executor.ts'` 路径替换为 `'packages/cron/src/executor.ts'`。
+- `package.json` 的 `test:pi-contracts`、`devDependencies` 改为使用 `@upup/cron` 与 `packages/cron/src/executor.pi.test.ts`。
+- `scripts/verify-pi5.ts` A18 用例路径同步更新。
+
+### 41.3 删除与验证
+
+- 删除：`src/cron/{executor.ts,runner.ts,store.ts,heartbeat-migration.ts,schedule.ts,types.ts,executor.pi.test.ts}` 全部根生产文件（7 个）。
+- `bun --cwd packages/gateway build` / `bun --cwd packages/cron build`：均通过。
+- `bun --cwd packages/cron test`：2 pass、0 fail、8 expect()。
+- `bun test packages/cron/src/executor.pi.test.ts src/runtime/pi/production-entry-contract.test.ts src/runtime/pi/investment-scenarios.pi.test.ts src/controllers/agent-runner.pi.test.ts packages/gateway/src/agent-runner.pi.test.ts packages/gateway/src/gateway-sla-runner.test.ts`：22 pass、0 fail、567 expect()。
+- `bun run typecheck` / `bun run check:pi7` / `bun run check:pi-migration` / `bun run check:module-boundaries` / `bun run check:pi-runtime` / `bun run check:pi-packages`：全部通过。
+- `bun run start -- --help`：CLI help 正常输出。
+- `git diff --check`：通过。
+- 本轮未执行真实 provider 验证（沙箱环境无凭据），与之前轮次一致。
+
+### 41.4 当前报告事实（`bun run report:pi7`）
+
+```text
+workspacePackages: 44
+piNativePackages: 35
+rootSourceFiles: 637
+rootProductionFiles: 482
+rootProductionLines: 95182
+legacyEventConsumers: 0
+globalRegistryConsumers: 0
+agentSessionFactories: 1
+```
+
+相比 Round 8.2 基线：workspace packages +1（`@upup/cron`）、pi-native packages +2（cron +1 域类 +1 新增 foundation），root production files -8、root production lines -1544，legacy event consumers 维持 0。Root allowlist 仍为 `src/index.tsx`、`src/cli.ts`、`src/compat/**`、`src/bootstrap/**`。
+
+### 41.5 剩余事项（明确未完成）
+
+- Daemon worker pool / supervisor / IPC / multi-agent 仍属 root 实现（`src/daemon/*.ts`），未 Package 化。
+- Bridge transport 未 Package 化。
+- Memory / Session / Planning / Observability 剩余 root orchestration。
+- Skills executor/loader 与 `/invest` command 仍有 root 实现。
+- TUI、Components 仍为 root。
+- root tools/platform 余量未完成（filesystem、bash、sandbox、trading 等）。
+
+## 42. Pi7 第九轮 Bridge Package 化（2026-09-14）
+
+### 42.1 物理迁移
+
+- `git mv`/`mv` 将 `src/bridge/*.{ts,test.ts}` 37 个文件迁入 `packages/pi-bridge/src/`；新建 `packages/pi-bridge/{package.json,tsconfig.json,src/index.ts}`。
+- 统一 Pi manifest `upup.pi.runtime.v1`、source `builtin:upup`、trust `builtin + network + filesystem + credentials`、lifecycle `process`、dispose 指向 `BridgeServer.stop`。
+- 精确依赖：`@upup/gateway@0.2.0`、`@upup/pi-event-adapter@0.1.0`、`@upup/pi-storage@0.2.0`、`@upup/utils@0.2.0`。
+- 公共入口暴露 `startBridgeServer`、`BridgeClient`、`BridgeAuth`、`BridgeSessionStore`、`SessionSync`、`BridgeStatusTracker`、`FlushGate`、`TrustedDeviceRegistry`、`WorkSecret`、JWT/Webhook/HTTP 工具、`PROTOCOL_VERSION` 等。
+- 删 `src/bridge/` 目录，更新 `src/index.tsx` 入口为 `import('@upup/pi-bridge')`；删除 root utils 直读，改为 `getGatewayConfigRuntime()`。
+- 测试 `server.test.ts`、`session-sync.e2e.test.ts`、`pi-contract.test.ts` 在 `beforeEach` 注册 `GatewayConfigRuntime`，`afterEach` 调用 `resetPiRuntimePorts()`。
+- 描述性测试 `web-boundary.test.ts`、`code-archaeology/layer-detector.ts` 改用 `packages/pi-bridge/` 路径。
+
+### 42.2 真实验证
+
+| 验证项 | 结果 |
+|---|---|
+| `bun --cwd packages/pi-bridge build` | 通过 |
+| `bun --cwd packages/pi-bridge test` | 331 pass / 0 fail / 638 expect() |
+| `bun run typecheck` | 通过 |
+| `bun run check:pi7` / `check:pi-migration` / `check:module-boundaries` | 全部通过 |
+| `bun run start -- --help` | CLI help 正常输出 |
+
+## 43. Pi7 第九轮 Daemon Package 化（2026-09-14）
+
+### 43.1 物理迁移
+
+- 把 `src/daemon/{supervisor,worker-pool,ipc,fund-monitor,workers/tasks,workers/types}.ts` 全部迁入 `packages/daemon/src/`。
+- 把 `src/daemon/index.ts` 内容并入 `packages/daemon/src/index.ts`（统一公共入口）。
+- 统一 manifest `upup.pi.runtime.v1`、source `builtin:upup`、trust `builtin + filesystem`、lifecycle `process`、dispose 指向 `Supervisor.stop`。
+- 精确依赖：`@upup/cron@0.2.0`、`@upup/gateway@0.2.0`、`@upup/pi-event-adapter@0.1.0`、`@upup/pi-runtime@0.1.0`、`@upup/pi-session@0.1.0`、`@upup/utils@0.2.0`。
+- 修正 logger import 为 `@upup/utils/logging`；修复 `worker-pool.ts` 与 `@upup/daemon` 自循环 import；将 `workers/types.ts` 内部相对路径从 `../worker-pool.js` 改为 `../worker-pool.js` 修复深度。
+- `executeScheduledAgent` 不再动态 `import('../../runtime/pi/event-stream.js')`，改为通过 `getGatewayAgentRuntime().runPrompt` 注入式执行，避免 root `src/` 依赖。
+- 删除 `src/daemon/` 目录，更新 `src/code-archaeology/layer-detector.ts` 与 `src/runtime/pi/production-entry-contract.test.ts`，并把 daemon 包路径加入 `test:pi-contracts`、`verify-pi5.ts` A18。
+
+### 43.2 真实验证
+
+| 验证项 | 结果 |
+|---|---|
+| `bun --cwd packages/daemon build` | 通过 |
+| `bun --cwd packages/daemon test` | 74 pass / 0 fail / 117 expect() |
+| `bun test` 9 个 Pi contract 文件（生产入口、CLI/Gateway/Cron/Bridge 烟测、命名场景） | 179 pass / 1 fail（session-sync e2e 与其他测试并发时的 WS handshake race，单跑通过，不影响生产路径） |
+| `bun run typecheck` / `check:pi7` / `check:pi-migration` / `check:module-boundaries` | 全部通过 |
+| `bun run start -- --help` | 通过 |
+
+### 43.3 当前报告事实（`bun run report:pi7`）
+
+```text
+workspacePackages: 45
+piNativePackages: 37
+rootSourceFiles: 590
+rootProductionFiles: 457
+rootProductionLines: 90011
+legacyEventConsumers: 0
+globalRegistryConsumers: 0
+agentSessionFactories: 1
+```
+
+相比 Round 8.3 基线：workspace +1（`@upup/pi-bridge`）、pi-native +2（bridge +1，daemon manifest 升级）、root production files -25、root production lines -5171。Root allowlist 保持不变。
+
+### 43.4 剩余事项（明确未完成）
+
+- `src/memory/*` 48 个文件、`src/session/*` 21 个文件未 Package 化。
+- `src/telemetry`、`src/permissions/utils`、`src/tools/**` 余量未 Package 化。
+- `src/tui`、`src/components/` 未 Package 化。
+- `src/commands/investment/**`（dossier、strategy、earnings-preview、morning-brief、portfolio-review、risk-dashboard、watchlist-edit、invest、screen）尚未迁移。
+- 真实 provider smoke 未执行（沙箱环境无凭据）。
+
+## 44. Pi7 第十轮 Session 余量迁移（2026-09-14）
+
+### 44.1 物理迁移
+
+- 把 `src/session/{session-state,session-environment,session-tracker,context-collapse,ephemeral-messages,message-chain,types,render/MessageRenderer,render/index,session2.test}.ts` 全部 `git mv` 到 `packages/pi-session/src/`：
+  - `session-state.ts` / `session-environment.ts` / `session-tracker.ts` → `packages/pi-session/src/`
+  - `context-collapse.ts` / `ephemeral-messages.ts` / `message-chain.ts` / `types.ts` → `packages/pi-session/src/`
+  - `restore-advanced.ts` → `packages/pi-session/src/internal/`（避免与 `message-chain` 的 `buildMessageChain`/`getMessageDepth` 和 `session-types` 的 `FileHistorySnapshot` 重名）
+  - `render/MessageRenderer.ts` → `packages/pi-session/src/render/message-renderer.ts`
+  - `session2.test.ts` → `packages/pi-session/src/session2.test.ts`
+- `session-types.ts` 中 `SessionState` 类型重命名为 `SessionLifecycleState`（避免与 `session-state.ts` 的 `SessionState = 'idle' | 'running' | 'requires_action'` 命名冲突；两个概念不同：state 是现代运行时状态机，lifecycle 是遗留会话记录数据层）。
+- `packages/pi-session/src/index.ts` 追加 re-export：`session-state`、`session-environment`、`session-tracker`、`context-collapse`、`ephemeral-messages`、`message-chain`、`session-types`、`render/message-renderer`。
+- `packages/pi-session/package.json` `test` 脚本追加 `./src/session2.test.ts`。
+- 删除 `src/session/{session-state,session-environment,session-tracker,context-collapse,ephemeral-messages,message-chain,types,render/MessageRenderer,render/index}.ts` 与空 `src/session/render/` 目录。
+- 修正 `src/session/index.ts` 的 `export * from './types.js'` 断引用。
+- 修正 `src/session/{storage,restore,selector}.ts` 中 `./types.js` 引用为 `@upup/pi-session`。
+
+### 44.2 根 `src/` 消费者切换
+
+| 源文件 | 原 import | 新 import |
+|---|---|---|
+| `src/cli.ts:46` | `./session/session-state.js` | `@upup/pi-session` |
+| `src/cli.ts:60` | `./session/render/index.js` | `@upup/pi-session` |
+| `src/cli.ts:515` | `import('./session/render/index.js').RenderableMessage` | `import('@upup/pi-session').RenderableMessage` |
+| `src/components/select-list.ts:4` | `../session/types.js` | `@upup/pi-session` |
+| `src/controllers/agent-runner.ts:12` | `../session/session-tracker.js` | `@upup/pi-session` |
+| `src/controllers/agent-runner.ts:15` | `../session/render/index.js` | `@upup/pi-session` |
+| `src/controllers/session-selection.ts:9` | `../session/types.js` | `@upup/pi-session` |
+| `src/utils/permissions/index.ts:86` | `../../session/session-state.js` | `@upup/pi-session` |
+| `src/utils/permissions/permissions.ts:15,453` | `../../session/session-state.js` | `@upup/pi-session` |
+| `src/session/{storage,restore,selector}.ts` | `./types.js` | `@upup/pi-session` |
+
+### 44.3 真实验证
+
+| 验证项 | 结果 |
+|---|---|
+| `bun --cwd packages/pi-session build` | 通过（1977 modules，7.65 MB） |
+| `bun --cwd packages/pi-session test` | 62 pass / 0 fail / 126 expect()（包含 session2.test.ts 47 个新增） |
+| `bun run typecheck` | 通过 |
+| `bun run check:pi7` | 通过 |
+| `bun run check:pi-migration` | 通过 |
+| `bun run check:module-boundaries` | 通过（45 workspace packages，447 root src modules） |
+| `bun --cwd packages/pi-bridge test` | 331 pass / 0 fail / 647 expect() |
+| `bun --cwd packages/daemon test` | 74 pass / 0 fail / 117 expect() |
+| `bun --cwd packages/pi-runtime test` | 14 pass / 0 fail / 40 expect() |
+| `bun --cwd packages/pi-resource-composition test` | 5 pass / 0 fail / 15 expect() |
+| `bun --cwd packages/pi-event-adapter test` | 59 pass / 0 fail / 163 expect() |
+| `bun test src/runtime/pi` | 162 pass / 0 fail / 1968 expect() |
+| `bun test src/session/pi-migration.test.ts` | 4 pass / 0 fail / 22 expect() |
+| `bun test src/code-archaeology/code-archaeology.test.ts` | 17 pass / 0 fail（修正 `src/daemon/main.ts` → `packages/daemon/src/index.ts`） |
+
+### 44.4 当前报告事实（`bun run report:pi7`）
+
+```text
+workspacePackages: 45
+piNativePackages: 37
+rootSourceFiles: 579
+rootProductionFiles: 447
+rootProductionLines: 87081
+legacyEventConsumers: 0
+globalRegistryConsumers: 0
+agentSessionFactories: 1
+```
+
+相比 Round 9 基线：root source files -11、root production lines -2930（迁出 session-state、session-environment、session-tracker、context-collapse、ephemeral-messages、message-chain、types、render/MessageRenderer、render/index 共 9 个文件加 session2.test.ts）。
+
+### 44.5 剩余事项（明确未完成）
+
+- `src/session/*` 仍有 11 个文件（index、migrate、migrate-to-pi、pi-migration、pid-manager、restore、selector、storage、storage-portable、pi-migration.test、verify-session.test.ts.skip）未 Package 化。
+- `src/memory/*` 48 个文件未 Package 化。
+- `src/telemetry`、`src/permissions/utils`、`src/tools/**` 余量未 Package 化。
+- `src/tui`、`src/components/` 未 Package 化。
+- `src/commands/investment/**` 尚未迁移。
+- 真实 provider smoke 未执行（沙箱环境无凭据）。
+- session-sync e2e 在并发 `bun test` 进程下偶发 WS handshake race（单跑通过；不阻塞生产路径）。

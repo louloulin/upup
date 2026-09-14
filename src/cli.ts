@@ -41,9 +41,9 @@ import type {
   ToolEndEvent,
   ToolErrorEvent,
   ToolStartEvent,
-} from './runtime/pi/legacy-events.js';
+} from '@upup/pi-event-adapter';
 import { initialPermissionModeFromCLI } from './utils/permissions/permissionSetup.js'
-import { setPermissionMode } from './session/session-state.js'
+import { setPermissionMode } from '@upup/pi-session'
 import type { PermissionCliArgs } from './utils/permissions/types.js'
 
 import { renderToolResult } from './tools/tool-renderers.js';
@@ -57,7 +57,7 @@ import {
   ModelSelectionController,
   SessionSelectionController,
 } from './controllers/index.js';
-import type { RenderableMessage } from './session/render/index.js';
+import type { RenderableMessage } from '@upup/pi-session';
 import {
   ApiKeyInputComponent,
   ApprovalPromptComponent,
@@ -512,7 +512,7 @@ export async function runCli(options: RunCliOptions = {}) {
       throttledRender();
     },
     undefined,
-    (msg: import('./session/render/index.js').RenderableMessage) => {
+    (msg: import('@upup/pi-session').RenderableMessage) => {
       // Session 2.0: Render history messages when resuming
       renderHistoryMessage(msg, chatLog, theme);
     },

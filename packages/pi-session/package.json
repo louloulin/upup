@@ -19,7 +19,7 @@
   },
   "scripts": {
     "build": "bun build src/index.ts --outdir=dist --target=node && tsc --emitDeclarationOnly --project tsconfig.json",
-    "test": "bun test ./test.ts ./src/host-contract.test.ts ./src/finance-host-contract.test.ts ./src/session-service.test.ts ./src/background-service.test.ts"
+    "test": "bun test ./test.ts ./src/host-contract.test.ts ./src/session2.test.ts ./src/finance-host-contract.test.ts ./src/session-service.test.ts ./src/background-service.test.ts"
   },
   "files": [
     "dist",

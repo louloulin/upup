@@ -1,7 +1,7 @@
 {
   "name": "@upup/daemon",
-  "version": "0.2.0",
-  "description": "UpUp Daemon System - Worker pool types, health monitoring, and worker interfaces",
+  "version": "0.3.0",
+  "description": "UpUp Pi Native daemon - worker pool, supervisor, IPC, tasks, and Pi background runtime integration",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -11,25 +11,41 @@
       "default": "./dist/index.js"
     }
   },
-  "files": [
-    "dist"
-  ],
   "scripts": {
-    "build": "bun build src/index.ts --outdir=dist --target=bun && tsc --emitDeclarationOnly --declaration --declarationMap --outDir dist",
+    "build": "bun build src/index.ts --outdir=dist --target=bun --external @upup/pi-runtime --external @upup/pi-event-adapter --external @upup/pi-session --external @upup/gateway --external @upup/cron --external @upup/utils --external @earendil-works/pi-ai --external @earendil-works/pi-coding-agent && tsc --emitDeclarationOnly --declaration --declarationMap --outDir dist",
+    "test": "bun test ./src",
     "clean": "rm -rf dist"
   },
-  "peerDependencies": {
-    "@upup/types": "workspace:*"
+  "dependencies": {
+    "@upup/cron": "0.2.0",
+    "@upup/gateway": "0.2.0",
+    "@upup/pi-event-adapter": "0.1.0",
+    "@upup/pi-runtime": "0.1.0",
+    "@upup/pi-session": "0.1.0",
+    "@upup/utils": "0.2.0"
   },
-  "devDependencies": {
-    "@upup/types": "workspace:*",
-    "@types/bun": "latest"
-  },
-  "keywords": [
-    "daemon",
-    "worker",
-    "upup",
-    "agent"
+  "files": [
+    "dist",
+    "package.json"
   ],
-  "private": false
+  "private": false,
+  "pi": {
+    "contract": "upup.pi.runtime.v1",
+    "source": "builtin:upup",
+    "trust": {
+      "mode": "builtin",
+      "filesystem": true,
+      "network": false
+    },
+    "lifecycle": {
+      "scope": "process",
+      "dispose": "./src/index.ts#Supervisor.stop"
+    },
+    "extensions": [],
+    "skills": [],
+    "prompts": [],
+    "workflows": [],
+    "policies": [],
+    "evals": []
+  }
 }

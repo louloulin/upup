@@ -19,8 +19,8 @@ const LAYER_PREFIXES: Array<{ layer: Layer; prefixes: string[]; weight: number }
   { layer: 'L1', prefixes: ['src/runtime/pi/', 'src/cli.tsx', 'src/index.tsx'], weight: 5 },
   { layer: 'L2', prefixes: ['src/tools/', 'src/skills/', 'src/data/', 'src/research/', 'src/analysis/', 'src/screening/'], weight: 5 },
   { layer: 'L3', prefixes: ['src/subagent/', 'src/tasks/', 'src/worktree/', 'src/multi-agent/'], weight: 5 },
-  { layer: 'L4', prefixes: ['src/bridge/', 'src/session/', 'src/daemon/', 'src/gateway/'], weight: 5 },
-  { layer: 'L5', prefixes: ['src/kairos/', 'src/proactive/', 'src/telemetry/', 'src/coach/', 'src/cron/'], weight: 5 },
+  { layer: 'L4', prefixes: ['packages/pi-bridge/', 'packages/daemon/', 'src/session/', 'src/gateway/'], weight: 5 },
+  { layer: 'L5', prefixes: ['src/kairos/', 'src/proactive/', 'src/telemetry/', 'src/coach/', 'packages/cron/'], weight: 5 },
 ];
 
 /** 关键模块 import 模式(被这些模块 import 暗示该文件属于对应 layer) */

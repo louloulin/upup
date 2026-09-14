@@ -42,9 +42,9 @@ describe('layer-detector', () => {
     expect(detectLayer('src/subagent/runner.ts')).toBe('L3');
   });
 
-  test('L4 for src/bridge/*', () => {
-    expect(detectLayer('src/bridge/server.ts')).toBe('L4');
-    expect(detectLayer('src/daemon/main.ts')).toBe('L4');
+  test('L4 for packages/pi-bridge/*', () => {
+    expect(detectLayer('packages/pi-bridge/src/server.ts')).toBe('L4');
+    expect(detectLayer('packages/daemon/src/index.ts')).toBe('L4');
   });
 
   test('L5 for src/kairos/*, src/coach/*, src/telemetry/*', () => {

@@ -1,0 +1,51 @@
+{
+  "name": "@upup/pi-bridge",
+  "version": "0.1.0",
+  "description": "Pi Native device bridge transport, session sync, and webhook routing",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./protocol": {
+      "types": "./dist/protocol.d.ts",
+      "default": "./dist/protocol.js"
+    }
+  },
+  "scripts": {
+    "build": "bun build src/index.ts --outdir=dist --target=bun --external @upup/pi-runtime --external @upup/pi-event-adapter --external @upup/pi-storage --external @upup/gateway --external @earendil-works/pi-ai --external @earendil-works/pi-coding-agent && tsc --emitDeclarationOnly --declaration --declarationMap --outDir dist",
+    "test": "bun test ./src",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@upup/gateway": "0.2.0",
+    "@upup/pi-event-adapter": "0.1.0",
+    "@upup/pi-storage": "0.2.0",
+    "@upup/utils": "0.2.0"
+  },
+  "files": ["dist", "package.json"],
+  "private": false,
+  "pi": {
+    "contract": "upup.pi.runtime.v1",
+    "source": "builtin:upup",
+    "trust": {
+      "mode": "builtin",
+      "filesystem": true,
+      "network": true,
+      "credentials": true
+    },
+    "lifecycle": {
+      "scope": "process",
+      "dispose": "./src/server.ts#BridgeServer.stop"
+    },
+    "extensions": [],
+    "skills": [],
+    "prompts": [],
+    "workflows": [],
+    "policies": [],
+    "evals": []
+  }
+}

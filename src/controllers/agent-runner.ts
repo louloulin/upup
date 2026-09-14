@@ -6,13 +6,13 @@ import type {
   AgentEvent,
   ApprovalDecision,
   DoneEvent,
-} from '../runtime/pi/legacy-events.js';
+} from '@upup/pi-event-adapter';
 import type { DisplayEvent, StreamMode } from '@upup/pi-event-adapter';
 import type { HistoryItem, HistoryItemStatus, WorkingState } from '../types.js';
-import { getSessionTracker } from '../session/session-tracker.js';
+import { getSessionTracker } from '@upup/pi-session';
 import { getPiSessionService } from '@upup/pi-session';
 import { recordFileHistorySnapshot, getFileHistoryManager } from '@upup/pi-storage';
-import { renderMessages, type RenderableMessage } from '../session/render/index.js';
+import { renderMessages, type RenderableMessage } from '@upup/pi-session';
 import { getTimeoutForTool } from '../utils/permissions/index.js';
 
 export interface TurnStats {

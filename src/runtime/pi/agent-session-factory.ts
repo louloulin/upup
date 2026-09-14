@@ -67,6 +67,7 @@ import { globalUpupPath } from '../../utils/storage-paths.js';
 import { createFinanceComposition } from '@upup/pi-finance-composition';
 import { createPlatformComposition } from '@upup/pi-platform-composition';
 import { defaultPiCapabilityRegistry } from '@upup/pi-capability-registry';
+import { executeCronJob, loadCronStore } from '@upup/cron';
 
 
 function installPiPackageToolHosts(
@@ -98,8 +99,6 @@ function installPiPackageToolHosts(
       return runPiPrompt(prompt, { ...workerOptions, cwd: process.cwd(), toolFilter: workerOptions.toolFilter === '*' ? '*' : [...workerOptions.toolFilter], modelInstance: workerOptions.modelInstance as import('@earendil-works/pi-ai').Model<any> | undefined });
     },
     runCron: async (job, model, runtime) => {
-      const { loadCronStore } = await import('../../cron/store.js');
-      const { executeCronJob } = await import('../../cron/executor.js');
       const store = loadCronStore();
       if (!job || typeof job !== 'object' || typeof (job as { id?: unknown }).id !== 'string') throw new Error('cron runner received an invalid job');
       const found = store.jobs.find((candidate) => candidate.id === (job as { id: string }).id);

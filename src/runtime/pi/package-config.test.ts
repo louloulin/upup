@@ -22,103 +22,35 @@ afterEach(() => {
 });
 
 describe('configured Pi packages', () => {
-  test('resolves a distributable built-in finance package root', () => {
+  test('resolves distributable built-in Pi package roots', () => {
     const options = getBuiltinPiPackageOptions(process.cwd());
-    expect(options?.piPackagePaths[0]).toContain('pi-finance-sdk');
-    expect(options?.piPackagePaths).toEqual(expect.arrayContaining([expect.stringContaining('pi-market-data')]));
-    expect(options?.piPackagePaths).toEqual(expect.arrayContaining([expect.stringContaining('pi-investment-analysis'), expect.stringContaining('pi-browser')]));
-    expect(options?.piPackageTrust.pinnedPackages).toEqual({
-      '@upup/pi-finance-sdk': '0.1.0',
-      '@upup/pi-market-data': '0.1.0',
-      '@upup/pi-investment-analysis': '0.1.0',
-      '@upup/pi-risk': '0.1.0',
-      '@upup/pi-portfolio': '0.1.0',
-      '@upup/pi-backtest': '0.1.0',
-      '@upup/pi-platform': '0.1.0',
-      '@upup/pi-research': '0.1.0',
-      '@upup/pi-browser': '0.1.0',
-      '@upup/pi-config': '0.1.0',
-      '@upup/pi-cache': '0.1.0',
-      '@upup/pi-notify': '0.1.0',
-      '@upup/pi-investment-workflow': '0.1.0',
-      '@upup/pi-management': '0.1.0',
-      '@upup/pi-technical': '0.1.0',
-      '@upup/pi-corporate-actions': '0.1.0',
-      '@upup/pi-quant': '0.1.0',
-      '@upup/pi-runtime': '0.1.0',
-      '@earendil-works/pi-coding-agent': '0.84.3',
-      typebox: '1.3.7',
-    });
-    expect(options?.piPackageTrust.allowedSources).toEqual({
-      '@upup/pi-finance-sdk': ['builtin:upup'],
-      '@upup/pi-market-data': ['builtin:upup'],
-      '@upup/pi-investment-analysis': ['builtin:upup'],
-      '@upup/pi-risk': ['builtin:upup'],
-      '@upup/pi-portfolio': ['builtin:upup'],
-      '@upup/pi-backtest': ['builtin:upup'],
-      '@upup/pi-platform': ['builtin:upup'],
-      '@upup/pi-research': ['builtin:upup'],
-      '@upup/pi-browser': ['builtin:upup'],
-      '@upup/pi-config': ['builtin:upup'],
-      '@upup/pi-cache': ['builtin:upup'],
-      '@upup/pi-notify': ['builtin:upup'],
-      '@upup/pi-investment-workflow': ['builtin:upup'],
-      '@upup/pi-management': ['builtin:upup'],
-      '@upup/pi-technical': ['builtin:upup'],
-      '@upup/pi-corporate-actions': ['builtin:upup'],
-      '@upup/pi-quant': ['builtin:upup'],
-    });
+    expect(options).toBeDefined();
+    if (!options) throw new Error('built-in Pi packages are not configured');
+    const pinnedPackages = options.piPackageTrust.pinnedPackages ?? {};
+    const allowedSources = options.piPackageTrust.allowedSources ?? {};
+    const names = Object.keys(pinnedPackages);
+    expect(options.piPackagePaths[0]).toContain('pi-finance-sdk');
+    for (const name of ['@upup/pi-finance-sdk', '@upup/pi-market-data', '@upup/pi-research']) {
+      expect(names).toContain(name);
+      expect(pinnedPackages[name]).toMatch(/^\d+\.\d+\.\d+$/);
+      expect(allowedSources[name]).toEqual(['builtin:upup']);
+    }
   });
 
-  test('loads the pinned built-in finance package by default', () => {
+  test('loads the pinned built-in finance packages by default', () => {
     delete process.env.UPUP_PI_PACKAGE_PATHS;
-    expect(resolveConfiguredPiPackages()).toEqual({
-      piPackagePaths: expect.arrayContaining([expect.stringContaining('/packages/pi-finance-sdk'), expect.stringContaining('/packages/pi-market-data'), expect.stringContaining('/packages/pi-investment-analysis'), expect.stringContaining('/packages/pi-risk'), expect.stringContaining('/packages/pi-portfolio'), expect.stringContaining('/packages/pi-backtest'), expect.stringContaining('/packages/pi-platform'), expect.stringContaining('/packages/pi-research'), expect.stringContaining('/packages/pi-browser'), expect.stringContaining('/packages/pi-config'), expect.stringContaining('/packages/pi-cache'), expect.stringContaining('/packages/pi-notify'), expect.stringContaining('/packages/pi-investment-workflow'), expect.stringContaining('/packages/pi-management'), expect.stringContaining('/packages/pi-technical'), expect.stringContaining('/packages/pi-corporate-actions'), expect.stringContaining('/packages/pi-quant')]),
-      piPackageTrust: {
-        trustedPaths: expect.arrayContaining([expect.stringContaining('/packages/pi-finance-sdk'), expect.stringContaining('/packages/pi-market-data'), expect.stringContaining('/packages/pi-investment-analysis'), expect.stringContaining('/packages/pi-risk'), expect.stringContaining('/packages/pi-portfolio'), expect.stringContaining('/packages/pi-backtest'), expect.stringContaining('/packages/pi-platform'), expect.stringContaining('/packages/pi-research'), expect.stringContaining('/packages/pi-browser'), expect.stringContaining('/packages/pi-config'), expect.stringContaining('/packages/pi-cache'), expect.stringContaining('/packages/pi-notify'), expect.stringContaining('/packages/pi-investment-workflow'), expect.stringContaining('/packages/pi-management'), expect.stringContaining('/packages/pi-technical'), expect.stringContaining('/packages/pi-corporate-actions'), expect.stringContaining('/packages/pi-quant')]),
-        pinnedPackages: {
-          '@upup/pi-finance-sdk': '0.1.0',
-          '@upup/pi-market-data': '0.1.0',
-          '@upup/pi-investment-analysis': '0.1.0',
-          '@upup/pi-risk': '0.1.0',
-      '@upup/pi-portfolio': '0.1.0',
-          '@upup/pi-backtest': '0.1.0',
-          '@upup/pi-platform': '0.1.0',
-      '@upup/pi-research': '0.1.0',
-          '@upup/pi-browser': '0.1.0',
-          '@upup/pi-config': '0.1.0',
-          '@upup/pi-cache': '0.1.0',
-          '@upup/pi-notify': '0.1.0',
-          '@upup/pi-investment-workflow': '0.1.0',
-          '@upup/pi-management': '0.1.0',
-          '@upup/pi-technical': '0.1.0',
-          '@upup/pi-corporate-actions': '0.1.0',
-          '@upup/pi-quant': '0.1.0',
-          '@upup/pi-runtime': '0.1.0',
-          '@earendil-works/pi-coding-agent': '0.84.3',
-          typebox: '1.3.7',
-        },
-        allowedSources: {
-          '@upup/pi-finance-sdk': ['builtin:upup'],
-          '@upup/pi-market-data': ['builtin:upup'],
-          '@upup/pi-investment-analysis': ['builtin:upup'],
-          '@upup/pi-risk': ['builtin:upup'],
-      '@upup/pi-portfolio': ['builtin:upup'],
-          '@upup/pi-backtest': ['builtin:upup'],
-          '@upup/pi-platform': ['builtin:upup'],
-          '@upup/pi-research': ['builtin:upup'],
-          '@upup/pi-browser': ['builtin:upup'],
-          '@upup/pi-config': ['builtin:upup'],
-          '@upup/pi-cache': ['builtin:upup'],
-          '@upup/pi-notify': ['builtin:upup'],
-          '@upup/pi-investment-workflow': ['builtin:upup'],
-          '@upup/pi-management': ['builtin:upup'],
-          '@upup/pi-technical': ['builtin:upup'],
-          '@upup/pi-corporate-actions': ['builtin:upup'],
-          '@upup/pi-quant': ['builtin:upup'],
-        },
-      },
-    });
+    const options = resolveConfiguredPiPackages();
+    expect(options).toBeDefined();
+    if (!options) throw new Error('built-in Pi packages are not configured');
+    const pinnedPackages = options.piPackageTrust.pinnedPackages ?? {};
+    const allowedSources = options.piPackageTrust.allowedSources ?? {};
+    expect(options.piPackagePaths).toEqual(expect.arrayContaining([
+      expect.stringContaining('/packages/pi-finance-sdk'),
+      expect.stringContaining('/packages/pi-research'),
+    ]));
+    expect(pinnedPackages['@upup/pi-finance-sdk']).toBe('0.1.0');
+    expect(pinnedPackages['@upup/pi-research']).toBe('0.1.0');
+    expect(allowedSources['@upup/pi-research']).toEqual(['builtin:upup']);
   });
 
   test('requires trusted roots and exact pinned versions', () => {

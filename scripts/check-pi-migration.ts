@@ -165,7 +165,10 @@ if (!platformSource.includes("capabilities.includes('agent-worker')") || !platfo
 const registrySource = readFileSync(join(root, 'src/runtime/pi/registry.ts'), 'utf8');
 if (!registrySource.includes('PiAgentCatalog')) failures.push('Pi registry must use PiAgentCatalog as its storage boundary');
 if (/new Map<string, AgentDefinition>/.test(registrySource)) failures.push('Pi registry must not maintain a second executable AgentDefinition store');
-const packageCatalogSource = readFileSync(join(root, 'src/runtime/pi/package-catalog.ts'), 'utf8');
+const packageCatalogPath = existsSync(join(root, 'packages/pi-resource-composition/src/index.ts'))
+  ? join(root, 'packages/pi-resource-composition/src/index.ts')
+  : join(root, 'src/runtime/pi/package-catalog.ts');
+const packageCatalogSource = readFileSync(packageCatalogPath, 'utf8') + readFileSync(join(root, 'packages/pi-resource-composition/src/package-catalog.ts'), 'utf8');
 for (const requiredSymbol of ['PiPackageCatalog', 'PiPluginTrustPolicy', 'rollback', 'resources']) {
   if (!packageCatalogSource.toLowerCase().includes(requiredSymbol.toLowerCase())) failures.push(`Pi package catalog must expose ${requiredSymbol}`);
 }

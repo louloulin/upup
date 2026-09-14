@@ -12,7 +12,7 @@ import type {
   PermissionDecision,
   PermissionRuleValue,
 } from './types.js'
-import { getPermissionMode } from '../../session/session-state.js'
+import { getPermissionMode } from '@upup/pi-session'
 import {
   loadAllPermissionRulesFromDisk,
   findMatchingRules,
@@ -450,7 +450,7 @@ export function getDecisionLabel(decision: PermissionDecision): string {
 // Permission Mode Helpers
 // ============================================================================
 
-import { getPermissionMode as getSessionMode, isDangerousMode } from '../../session/session-state.js'
+import { getPermissionMode as getSessionMode, isDangerousMode } from '@upup/pi-session'
 
 /**
  * 检查当前模式是否允许操作

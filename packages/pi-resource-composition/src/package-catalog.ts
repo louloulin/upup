@@ -13,6 +13,9 @@ export type { PiPluginTrustPolicy } from './plugin-trust.js';
 const RUNTIME_FOUNDATION_PACKAGES: ReadonlySet<string> = new Set([
   '@upup/pi-runtime',
   '@upup/pi-capability-registry',
+  '@upup/pi-planning',
+  '@upup/utils',
+  'zod',
 ]);
 
 export interface PiPackageManifest {

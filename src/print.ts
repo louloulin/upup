@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { streamPiAgent } from './runtime/pi/event-stream.js';
-import type { AgentEvent } from './runtime/pi/legacy-events.js';
+import type { AgentEvent } from '@upup/pi-event-adapter';
 import type { Model } from '@earendil-works/pi-ai';
 import type { ModelRuntime } from '@earendil-works/pi-coding-agent';
 

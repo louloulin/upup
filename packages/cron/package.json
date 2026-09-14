@@ -15,15 +15,18 @@
     "dist"
   ],
   "scripts": {
-    "build": "bun build src/index.ts --outdir=dist --target=bun && tsc --emitDeclarationOnly --declaration --declarationMap --outDir dist",
+    "build": "bun build src/index.ts --outdir=dist --target=bun --external @upup/pi-runtime --external @upup/gateway --external @earendil-works/pi-ai --external @earendil-works/pi-coding-agent && tsc --emitDeclarationOnly --declaration --declarationMap --outDir dist",
+    "test": "bun test ./src/executor.pi.test.ts",
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "croner": "^9.1.0"
+    "@earendil-works/pi-ai": "0.84.3",
+    "@earendil-works/pi-coding-agent": "0.84.3",
+    "@upup/gateway": "0.2.0",
+    "@upup/utils": "0.2.0",
+    "croner": "9.1.0"
   },
-  "peerDependencies": {
-    "@upup/types": "workspace:*"
-  },
+  "peerDependencies": {},
   "devDependencies": {
     "@upup/types": "workspace:*",
     "@types/bun": "latest"
@@ -34,5 +37,25 @@
     "upup",
     "agent"
   ],
-  "private": false
+  "private": false,
+  "pi": {
+    "contract": "upup.pi.runtime.v1",
+    "source": "builtin:upup",
+    "trust": {
+      "mode": "builtin",
+      "filesystem": true,
+      "network": true,
+      "credentials": true
+    },
+    "lifecycle": {
+      "scope": "process",
+      "dispose": "./src/runner.ts#CronRunner.stop"
+    },
+    "extensions": [],
+    "skills": [],
+    "prompts": [],
+    "workflows": [],
+    "policies": [],
+    "evals": []
+  }
 }

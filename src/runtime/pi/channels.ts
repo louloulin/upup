@@ -1,4 +1,4 @@
-import type { ChannelProfile } from './legacy-events.js';
+import type { ChannelProfile } from '@upup/pi-event-adapter';
 
 // ============================================================================
 // Channel Profiles — add new channels here

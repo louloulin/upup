@@ -1,6 +1,7 @@
-import { describe, expect, test } from 'bun:test';
+import { beforeAll, describe, expect, test } from 'bun:test';
 import { fauxAssistantMessage, fauxProvider, fauxText } from '@earendil-works/pi-ai';
 import { ModelRuntime } from '@earendil-works/pi-coding-agent';
+import { registerGatewayAgentRuntime, registerGatewayConfigRuntime } from '@upup/gateway';
 import { Type } from 'typebox';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -9,8 +10,29 @@ import { PiAgentSessionFactory } from './agent-session-factory.js';
 import type { UpUpToolContract } from './types.js';
 import { disposePiSessions } from './runner.js';
 import { runAgentForMessage } from '@upup/gateway';
-import { executeCronJob } from '../../cron/executor.js';
-import type { CronJob, CronStore } from '../../cron/types.js';
+import { executeCronJob, type CronJob, type CronStore } from '@upup/cron';
+
+beforeAll(() => {
+  registerGatewayAgentRuntime({
+    isSessionRunning: () => false,
+    runPrompt: async (_query, options) => {
+      const text = 'noop-fixture';
+      await options.onEvent?.({
+        type: 'message_end',
+        sessionId: 'scenario-fixture',
+        role: 'assistant',
+        text,
+        stopReason: 'end_turn',
+      });
+      await options.onEvent?.({ type: 'agent_end', sessionId: 'scenario-fixture' });
+      return text;
+    },
+  });
+  registerGatewayConfigRuntime({
+    getConfiguredModelId: () => 'scenario-fixture-model',
+    getConfiguredProvider: () => 'upup-scenario-fixture',
+  });
+});
 
 const scenarioInput = Type.Object({
   symbol: Type.Optional(Type.String()),
@@ -143,6 +165,21 @@ describe('named Pi investment scenarios', () => {
     const directory = await mkdtemp(join(process.cwd(), '.upup', 'scenario-gateway-'));
     const previousDir = process.env.UPUP_SESSION_DIR;
     process.env.UPUP_SESSION_DIR = directory;
+    registerGatewayAgentRuntime({
+      isSessionRunning: () => false,
+      runPrompt: async (_query, options) => {
+        const text = 'Gateway scenario completed through Pi.';
+        await options.onEvent?.({
+          type: 'message_end',
+          sessionId: 'scenario-gateway',
+          role: 'assistant',
+          text,
+          stopReason: 'end_turn',
+        });
+        await options.onEvent?.({ type: 'agent_end', sessionId: 'scenario-gateway' });
+        return text;
+      },
+    });
     const faux = fauxProvider({ provider: 'upup-scenario-gateway', models: [{ id: 'scenario-gateway-model', reasoning: false }] });
     faux.setResponses([fauxAssistantMessage([fauxText('Gateway scenario completed through Pi.')])]);
     const modelRuntime = await ModelRuntime.create({ refreshOnCreate: false });
@@ -166,6 +203,10 @@ describe('named Pi investment scenarios', () => {
   });
 
   test('invest-cron-run', async () => {
+    registerGatewayConfigRuntime({
+      getConfiguredModelId: () => 'scenario-cron-model',
+      getConfiguredProvider: () => 'upup-scenario-cron',
+    });
     const now = Date.now();
     const job: CronJob = {
       id: 'scenario-cron-run',

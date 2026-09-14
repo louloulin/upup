@@ -9,7 +9,7 @@
  */
 
 import { runPiPrompt } from './runner.js';
-import type { AgentConfig, AgentEvent } from './legacy-events.js';
+import type { AgentConfig, AgentEvent } from '@upup/pi-event-adapter';
 import { buildLegacyDoneEvent, mapPiEventToLegacy } from '@upup/pi-event-adapter';
 import type { UpUpAgentEvent } from '@upup/pi-runtime';
 

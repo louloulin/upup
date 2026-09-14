@@ -31,6 +31,7 @@
   ],
   "pi": { "contract": "upup.pi.runtime.v1", "source": "builtin:upup", "trust": { "mode": "builtin" }, "lifecycle": { "scope": "runtime" }, "extensions": [], "skills": [], "prompts": [], "workflows": [], "policies": [], "evals": [] },
   "dependencies": {
+    "@upup/utils": "0.2.0",
     "@upup/pi-runtime": "0.1.0",
     "@earendil-works/pi-coding-agent": "0.84.3"
   }

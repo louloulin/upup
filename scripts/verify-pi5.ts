@@ -145,7 +145,7 @@ const checks: readonly Check[] = [
   { id: 'A15', name: '旧 Session → Pi 迁移', command: 'bun', args: ['test', 'src/session/pi-migration.test.ts'] },
   { id: 'A16', name: '/invest 五阶段状态机与命名投研场景', command: 'bun', args: ['test', 'src/runtime/pi/investment-workflow.test.ts', 'src/runtime/pi/investment-scenarios.pi.test.ts'] },
   { id: 'A17', name: 'Pi 多 Agent worker 生命周期', command: 'bun', args: ['test', 'src/runtime/pi/agent-session-factory.test.ts', 'packages/pi-platform/extensions/index.test.ts'] },
-  { id: 'A18', name: 'CLI/Gateway/Cron/Daemon/Bridge/SDK/Eval 入口与命名场景', command: 'bun', args: ['test', 'src/runtime/pi/production-entry-contract.test.ts', 'src/gateway/agent-runner.pi.test.ts', 'src/cron/executor.pi.test.ts', 'src/controllers/agent-runner.pi.test.ts', 'src/components/chat-log.pi.test.ts', 'src/runtime/pi/investment-scenarios.pi.test.ts'] },
+  { id: 'A18', name: 'CLI/Gateway/Cron/Daemon/Bridge/SDK/Eval 入口与命名场景', command: 'bun', args: ['test', 'src/runtime/pi/production-entry-contract.test.ts', 'src/gateway/agent-runner.pi.test.ts', 'packages/cron/src/executor.pi.test.ts', 'packages/pi-bridge/src/pi-contract.test.ts', 'packages/pi-bridge/src/session-sync.e2e.test.ts', 'src/controllers/agent-runner.pi.test.ts', 'src/components/chat-log.pi.test.ts', 'src/runtime/pi/investment-scenarios.pi.test.ts'] },
   {
     id: 'A19',
     name: '全部 Pi 迁移、类型与性能恢复门禁',

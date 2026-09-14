@@ -12,7 +12,15 @@ export * from './agent-session-factory.js';
 export * from './tool-contract.js';
 export * from './tool.js';
 export * from './types.js';
-export * from './legacy-events.js';
+export type {
+  AgentConfig,
+  AgentEvent,
+  ApprovalDecision,
+  ChannelProfile,
+  DisplayEvent,
+  DoneEvent,
+  GroupContext,
+} from '@upup/pi-event-adapter';
 export * from './runner.js';
 export { verifyPiResourceTrust } from '@upup/pi-resource-composition';
 export * from './investment-workflow.js';

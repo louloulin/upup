@@ -1,23 +1,83 @@
 /**
- * UpUp Daemon System
+ * @upup/daemon - Pi Native background task and worker pool runtime.
  *
- * Worker pool types, health monitoring, and worker interfaces.
+ * Public surface for the UpUp daemon: supervisor, priority task queue,
+ * worker pool, IPC router, and the bundled TasksWorker. The daemon never
+ * imports root `src/` — it talks to the Pi runtime through the gateway
+ * agent runtime port and the cron package public API. Bootstrap is the
+ * caller's responsibility (see `bootstrapPiNativeServices` in root).
  */
 
-// Core types
+// Core supervisor and queue
 export {
+  Supervisor,
+  PriorityTaskQueue,
+  TaskPriority,
+  TaskStatus,
+  DaemonEvent,
+  getDefaultSupervisor,
+  type Task,
+  type TaskResult,
+  type Worker,
   type WorkerHealth,
-  type WorkerPoolConfig,
+} from './supervisor.js';
+
+// Worker pool
+export {
+  WorkerPool,
+  getWorkerPool,
+  resetWorkerPool,
   DEFAULT_WORKER_POOL_CONFIG,
+  type WorkerPoolConfig,
   type DaemonWorker,
+} from './worker-pool.js';
+
+// IPC router
+export {
+  IPCRouter,
+  IPCClient,
+  IPCError,
+  getIPCRouter,
+  resetIPCRouter,
+  type IPCHandler,
+  type IPCMessage,
+  type IPCResponse,
+  type IPCErrorDetail,
+} from './ipc.js';
+
+// Tasks worker (bridge between Daemon and Cron Package)
+export {
+  TASKS_WORKER_KIND,
+  TasksWorker,
+  createTasksWorker,
+} from './workers/tasks.js';
+
+// Additional worker types and factories
+export {
+  MonitorWorker,
+  EvolutionWorker,
+  BridgeWorker,
+  createMonitorWorker,
+  createEvolutionWorker,
+  createBridgeWorker,
+  additionalWorkers,
+  type MonitorWorkerConfig,
+  type MonitorTarget,
+  type MonitorNotification,
+  type EvolutionWorkerConfig,
+  type EvolutionSuggestion,
+  type BridgeWorkerConfig,
+  type CCRCommand,
+  type CCRResponse,
+} from './workers/types.js';
+
+// Common types
+export {
   type WorkerStatus,
   type WorkerStats,
   type WorkerEventType,
   type WorkerEvent,
   type WorkerEventHandler,
-  type IPCMessageType,
-  type IPCMessage,
-  type IPCResponse,
   type DaemonSession,
   DaemonError,
   WorkerError,
@@ -25,18 +85,14 @@ export {
   WorkerHealthError,
 } from './types.js';
 
-// Additional worker types
+// Fund monitor
 export {
-  type MonitorTargetType,
-  type MonitorNotificationType,
-  type MonitorTarget,
-  type MonitorNotification,
-  type MonitorWorkerConfig,
-  type EvolutionSuggestionType,
-  type EvolutionSuggestion,
-  type EvolutionWorkerConfig,
-  type CCRCommandType,
-  type CCRCommand,
-  type CCRResponse,
-  type BridgeWorkerConfig,
-} from './workers.js';
+  startFundMonitor,
+  stopFundMonitor,
+  getMonitorStatus,
+  triggerUpdate,
+  updateFollowedFundValues,
+  isMarketOpen,
+  isMarketHours,
+  type FundMonitorConfig,
+} from './fund-monitor.js';

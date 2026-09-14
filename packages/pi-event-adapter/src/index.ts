@@ -18,14 +18,49 @@
  * Contract version: `upup.pi.events.v1` (declared by `@upup/pi-runtime`).
  */
 
+import type { MessageQueue } from '@upup/utils';
+import type { Model } from '@earendil-works/pi-ai';
+import type { ModelRuntime } from '@earendil-works/pi-coding-agent';
 import type { UpUpAgentEvent } from '@upup/pi-runtime';
 
 // ---------------------------------------------------------------------------
-// Public contract: legacy AgentEvent protocol (preserved verbatim from
-// `src/runtime/pi/legacy-events.ts` so existing consumers do not change).
+// Public transport event contract. This is the single owner for event types
+// consumed by CLI, controller, print, stdio, and external adapters.
 // ---------------------------------------------------------------------------
 
 export type ApprovalDecision = 'allow-once' | 'allow-session' | 'deny';
+
+export type GroupContext = {
+  groupName?: string;
+  membersList?: string;
+  activationMode: 'mention';
+};
+
+export interface ChannelProfile {
+  label: string;
+  preamble: string;
+  behavior: string[];
+  responseFormat: string[];
+  tables: string | null;
+}
+
+export interface AgentConfig {
+  model?: string;
+  modelProvider?: string;
+  maxIterations?: number;
+  signal?: AbortSignal;
+  channel?: string;
+  groupContext?: GroupContext;
+  requestToolApproval?: (request: { tool: string; args: Record<string, unknown> }) => Promise<ApprovalDecision>;
+  sessionApprovedTools?: Set<string>;
+  onToolApproval?: (tool: string) => void;
+  memoryEnabled?: boolean;
+  messageQueue?: MessageQueue;
+  sessionId?: string;
+  toolFilter?: string[] | '*';
+  modelInstance?: Model<any>;
+  modelRuntime?: ModelRuntime;
+}
 
 export interface ThinkingEvent {
   type: 'thinking';
@@ -172,6 +207,9 @@ export type LegacyAgentEvent =
   | MemoryFlushEvent
   | StreamProgressEvent
   | DoneEvent;
+
+/** Compatibility name for transport consumers; the adapter package owns it. */
+export type AgentEvent = LegacyAgentEvent;
 
 // ---------------------------------------------------------------------------
 // Public contract: stdio/gateway `ServerEvent` shape (preserved verbatim from

@@ -1,7 +1,7 @@
 import { Container, Input, SelectList, Text, type SelectItem, getKeybindings } from '@earendil-works/pi-tui';
 import { PROVIDERS, type Model } from '../utils/model.js';
 import type { ApprovalDecision } from '@upup/pi-event-adapter';
-import type { SessionSummary } from '../session/types.js';
+import type { SessionSummary } from '@upup/pi-session';
 import { selectListTheme, theme } from '../theme.js';
 import { t } from '../i18n/index.js';
 import { formatRelativeTime } from '../utils/time.js';

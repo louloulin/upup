@@ -6,10 +6,10 @@ const productionEntryImports: Record<string, readonly string[]> = {
   'src/print.ts': ['runtime/pi/event-stream'],
   'src/controllers/agent-runner.ts': ['runtime/pi/event-stream'],
   'packages/gateway/src/agent-runner.ts': ['runtime-port'],
-  'src/cron/executor.ts': ['@upup/gateway'],
-  'src/daemon/workers/tasks.ts': ['runtime/pi/bootstrap'],
-  'src/bridge/server.ts': ['@upup/gateway'],
-  'src/stdio/server.ts': ['runtime/pi/event-stream'],
+  'packages/cron/src/executor.ts': ['@upup/gateway'],
+  'packages/daemon/src/workers/tasks.ts': ['@upup/gateway'],
+  'packages/pi-bridge/src/server.ts': ['@upup/gateway'],
+  'packages/pi-stdio/src/server.ts': ['@upup/pi-event-adapter', '@upup/pi-session'],
   'src/evals/run.ts': ['runtime/pi/event-stream'],
 };
 

@@ -3,10 +3,7 @@ import type {
   AgentToolResult,
   InlineExtension,
 } from '@earendil-works/pi-coding-agent';
-import {
-  mapAgentSessionEventToUpUp,
-  type LegacyAgentEvent,
-} from '@upup/pi-event-adapter';
+import { mapAgentSessionEventToUpUp } from '@upup/pi-event-adapter';
 import {
   FINANCE_CONTEXT_ENTRY_TYPE,
   mergeFinanceSessionContext,
@@ -195,3 +192,20 @@ export * from './finance-host-contract.js';
 // =============================================================================
 export * from './background-service.js';
 export * from './session-service.js';
+
+// =============================================================================
+// Session orchestration helpers (state tracking, environment capture,
+// restore, ephemeral filtering, context collapse, message chain, shared types)
+// =============================================================================
+export * from './session-state.js';
+export * from './session-environment.js';
+export * from './session-tracker.js';
+export * from './context-collapse.js';
+export * from './ephemeral-messages.js';
+export * from './message-chain.js';
+export * from './session-types.js';
+
+// =============================================================================
+// Session message renderer (used by CLI)
+// =============================================================================
+export * from './render/message-renderer.js';

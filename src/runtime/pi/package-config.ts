@@ -130,6 +130,8 @@ export function getBuiltinPiPackageOptions(cwd = process.cwd()): ConfiguredPiPac
         ...Object.fromEntries(candidates.map((candidate) => [candidate.name, candidate.version])),
         '@earendil-works/pi-coding-agent': '0.84.3',
         '@upup/pi-runtime': '0.1.0',
+        '@upup/utils': '0.2.0',
+        zod: '3.25.76',
         typebox: '1.3.7',
       },
       allowedSources: Object.fromEntries(candidates.map((candidate) => [candidate.name, [candidate.source]])),

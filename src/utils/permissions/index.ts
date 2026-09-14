@@ -83,7 +83,7 @@ export {
   notifyPermissionModeChanged,
   getPermissionModeLabel as getSessionPermissionModeLabel,
   getCurrentModeNotification,
-} from '../../session/session-state.js'
+} from '@upup/pi-session'
 
 // Bash Permission
 export {

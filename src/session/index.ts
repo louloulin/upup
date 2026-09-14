@@ -4,7 +4,6 @@
  * Main export for the session management system.
  */
 
-export * from './types.js';
 export * from './storage.js';
 export * from './restore.js';
 export * from './selector.js';

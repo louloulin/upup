@@ -1,0 +1,41 @@
+{
+  "name": "@upup/pi-stdio",
+  "version": "0.1.0",
+  "description": "Pi Native JSON-RPC stdio transport for UpUp",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./protocol": {
+      "types": "./dist/protocol.d.ts",
+      "default": "./dist/protocol.js"
+    }
+  },
+  "scripts": {
+    "build": "bun build src/index.ts --outdir=dist --target=node && tsc --emitDeclarationOnly --project tsconfig.json",
+    "test": "bun test ./test.ts"
+  },
+  "dependencies": {
+    "@upup/pi-event-adapter": "0.1.0",
+    "@upup/pi-runtime": "0.1.0",
+    "@upup/pi-session": "0.1.0"
+  },
+  "files": ["dist", "package.json"],
+  "private": false,
+  "pi": {
+    "contract": "upup.pi.runtime.v1",
+    "source": "builtin:upup",
+    "trust": { "mode": "builtin", "filesystem": false, "network": false },
+    "lifecycle": { "scope": "process" },
+    "extensions": [],
+    "skills": [],
+    "prompts": [],
+    "workflows": [],
+    "policies": [],
+    "evals": []
+  }
+}

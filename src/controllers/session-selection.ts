@@ -6,7 +6,7 @@
  */
 
 import { getPiSessionService } from '@upup/pi-session';
-import type { SessionSummary } from '../session/types.js';
+import type { SessionSummary } from '@upup/pi-session';
 
 export type SessionAppState =
   | 'idle'

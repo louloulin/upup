@@ -17,8 +17,8 @@
     "test": "bun test ./test.ts"
   },
   "dependencies": {
-    "@upup/utils": "workspace:*",
-    "zod": "^3.0.0"
+    "@upup/utils": "0.2.0",
+    "zod": "3.25.76"
   },
   "files": ["dist", "package.json"],
   "private": false,
@@ -33,11 +33,6 @@
     "lifecycle": {
       "scope": "session"
     },
-    "extensions": [],
-    "skills": [],
-    "prompts": [],
-    "workflows": [],
-    "policies": [],
-    "evals": []
+    "extensions": ["./src/index.ts"]
   }
 }

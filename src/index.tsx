@@ -4,7 +4,9 @@ import { runCli } from './cli.js';
 import { runOnboarding } from './commands/onboarding.js';
 import { runDoctor } from './commands/doctor.js';
 import { runConfigCommand } from './commands/config.js';
-import { createStdioServer } from './stdio/server.js';
+import { createStdioServer } from '@upup/pi-stdio';
+import { streamPiAgent } from './runtime/pi/event-stream.js';
+import { getPiSessionService } from '@upup/pi-session';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { mkdirSync } from 'node:fs';
@@ -42,7 +44,7 @@ async function main() {
   // Check for --stdio mode (for external tool integration)
   // In stdio mode, we run a pure JSON-RPC server without any CLI UI
   if (args.includes('--stdio')) {
-    const server = createStdioServer();
+    const server = createStdioServer({ streamPiAgent, sessionService: getPiSessionService() });
     server.start();
     // Keep process alive - server handles its own lifecycle
     // Use a promise that never resolves to keep the process running
@@ -95,7 +97,7 @@ async function main() {
         : crypto.randomUUID().replace(/-/g, '').slice(0, 32);
     const auditPath = join(homedir(), '.upup', 'bridge-audit.log');
     mkdirSync(dirname(auditPath), { recursive: true });
-    const { startBridgeServer } = await import('./bridge/server.js');
+    const { startBridgeServer } = await import('@upup/pi-bridge');
     const srv = await startBridgeServer({ port, bind, token, auditPath });
     console.log(
       `[bridge] listening on ws://${bind}:${srv.port}/bridge?token=${token}\n` +

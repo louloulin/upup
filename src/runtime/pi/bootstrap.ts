@@ -14,8 +14,7 @@ import { createPiAgentRuntime } from './agent-session-factory.js';
 import { runPiPrompt } from './runner.js';
 import { isPiSessionRunning } from './runner.js';
 import { getConfiguredModelId, getConfiguredProvider } from '../../utils/config.js';
-import { ensureHeartbeatCronJob } from '../../cron/heartbeat-migration.js';
-import { startCronRunner } from '../../cron/runner.js';
+import { ensureHeartbeatCronJob, startCronRunner } from '@upup/cron';
 
 let bootstrapped = false;
 
