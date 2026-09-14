@@ -17,11 +17,9 @@
  *   Exposes only data — no LLM, no tool registry, no business logic.
  */
 
-import { DossierStore } from '../memory/dossier.js';
-import { AuditChain } from '../memory/audit-signing.js';
+import { DossierStore, AuditChain, StrategyStore } from '@upup/pi-storage';
 import { CitationRegistry } from '../runtime/pi/citation.js';
 import { buildEarningsPreview, buildEarningsPreviewAsync, type EarningsPreview } from '../commands/investment/earnings-preview.js';
-import { StrategyStore } from '../memory/strategy-store.js';
 
 // ---------------------------------------------------------------------------
 // URI parsing

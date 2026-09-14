@@ -1,7 +1,7 @@
 import { BridgeAuth } from './auth.js';
 import { BridgeSessionStore } from './session.js';
 import { decodeMessage, encodeMessage, type BridgeMessage } from './protocol.js';
-import { DossierStore } from '../memory/dossier.js';
+import { DossierStore } from '@upup/pi-storage';
 import { SessionSync, type SessionState } from './session-sync.js';
 import { appendFileSync } from 'node:fs';
 import { timingSafeEqual } from 'node:crypto';

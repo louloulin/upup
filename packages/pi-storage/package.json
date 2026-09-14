@@ -16,14 +16,5 @@
     "build": "bun build src/index.ts --outdir=dist --target=node && tsc --emitDeclarationOnly --project tsconfig.json",
     "test": "bun test ./test.ts"
   },
-  "files": ["dist", "package.json"],
-  "pi": {
-    "source": "builtin:upup",
-    "extensions": ["./extensions"],
-    "skills": ["./skills"],
-    "prompts": ["./prompts"],
-    "workflows": ["./workflows"],
-    "policies": ["./policies"],
-    "evals": ["./evals"]
-  }
+  "files": ["dist", "package.json"]
 }

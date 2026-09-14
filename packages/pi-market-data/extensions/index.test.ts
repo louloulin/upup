@@ -3,6 +3,13 @@ import marketDataExtension from './index.js';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import {
+  createPiCapabilityContext,
+  PI_MARKET_DATA_CAPABILITIES_CONTRACT,
+  PI_MARKET_DATA_CAPABILITY_NAMES,
+  type PiAuditCapability,
+  type PiEvidenceCapability,
+} from '@upup/pi-runtime';
 
 type RegisteredTool = { name: string; execute: (...args: any[]) => Promise<any> };
 
@@ -12,6 +19,53 @@ function makeHost() {
 }
 
 describe('Pi market-data extension', () => {
+  test('prefers session capabilities and applies evidence and audit capabilities', async () => {
+    const tools = new Map<string, RegisteredTool>();
+    const legacyFetch = (async () => {
+      throw new Error('legacy transport must not be called');
+    }) as typeof fetch;
+    const contextFetch = (async (input) => {
+      expect(String(input)).toContain('AAPL');
+      return new Response(JSON.stringify({ chart: { result: [{ meta: { symbol: 'AAPL', regularMarketPrice: 210, regularMarketTime: Date.parse('2026-09-13T00:00:00Z') / 1000, chartPreviousClose: 205 } }] } }), { status: 200 });
+    }) as typeof fetch;
+    const evidenceCapability: PiEvidenceCapability = (input) => ({
+      ...input,
+      source: `capability://${input.source}`,
+      id: `evidence:${input.id}`,
+    });
+    const auditCapability: PiAuditCapability = (input) => `audit:${input.auditId}`;
+    const context = createPiCapabilityContext({
+      sessionId: 'market-data-test-session',
+      capabilities: {
+        [PI_MARKET_DATA_CAPABILITY_NAMES.quoteFetcher]: { version: PI_MARKET_DATA_CAPABILITIES_CONTRACT, value: contextFetch },
+        [PI_MARKET_DATA_CAPABILITY_NAMES.evidence]: { version: PI_MARKET_DATA_CAPABILITIES_CONTRACT, value: evidenceCapability },
+        [PI_MARKET_DATA_CAPABILITY_NAMES.audit]: { version: PI_MARKET_DATA_CAPABILITIES_CONTRACT, value: auditCapability },
+      },
+    });
+    const previousRegistry = (globalThis as typeof globalThis & { __upupPiHosts?: ReadonlyMap<string, unknown> }).__upupPiHosts;
+    (globalThis as typeof globalThis & { __upupPiHosts?: ReadonlyMap<string, unknown> }).__upupPiHosts = new Map([
+      ['@upup/pi-market-data', {
+        packageName: '@upup/pi-market-data',
+        packageVersion: '0.1.0',
+        capabilities: ['market-data-transport'],
+        capabilityContext: context,
+        getMarketQuoteFetcher: () => legacyFetch,
+      }],
+    ]);
+    try {
+      marketDataExtension({ registerTool: (tool: RegisteredTool) => tools.set(tool.name, tool) } as never);
+      const result = await tools.get('market_data_quote')!.execute('quote-context-1', { symbol: 'AAPL', market: 'us', provider: 'yahoo' }, new AbortController().signal);
+      expect(JSON.parse(result.content[0].text)).toMatchObject({ symbol: 'AAPL', last: 210 });
+      expect(result.details).toMatchObject({ auditId: 'quote-context-1', evidence: [{ source: 'https://query1.finance.yahoo.com/v8/finance/chart' }] });
+      const offline = await tools.get('stock_screener')!.execute('screen-context-1', { market: 'cn', limit: 1 }, new AbortController().signal);
+      expect(offline.details).toMatchObject({ auditId: 'audit:screen-context-1', evidence: [{ id: 'evidence:market-data:screen-context-1:stock-screener', source: 'capability://upup-pi://market-data/stock-screener' }] });
+    } finally {
+      if (previousRegistry === undefined) delete (globalThis as typeof globalThis & { __upupPiHosts?: ReadonlyMap<string, unknown> }).__upupPiHosts;
+      else (globalThis as typeof globalThis & { __upupPiHosts?: ReadonlyMap<string, unknown> }).__upupPiHosts = previousRegistry;
+      await context.dispose();
+    }
+  });
+
   test('registers native auditable market tools', async () => {
     const tools = new Map<string, { execute: (...args: any[]) => Promise<any> }>();
     marketDataExtension({ registerTool: (tool: { name: string; execute: (...args: any[]) => Promise<any> }) => tools.set(tool.name, tool) } as never);

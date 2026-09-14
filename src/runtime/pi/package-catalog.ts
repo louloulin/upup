@@ -6,6 +6,13 @@ import { loadPiPackageContracts, type PiPackageContracts } from './package-contr
 
 export type { PiPluginTrustPolicy } from './plugin-trust.js';
 
+// Foundation packages that may be declared as runtimeDependencies without being
+// loaded as Pi Packages. These are runtime contracts and capability context
+// packages that don't ship extensions/skills/prompts.
+const RUNTIME_FOUNDATION_PACKAGES: ReadonlySet<string> = new Set([
+  '@upup/pi-runtime',
+]);
+
 export interface PiPackageManifest {
   readonly name: string;
   readonly version: string;
@@ -144,6 +151,7 @@ export class PiPackageCatalog {
       }
     }
     for (const [name, version] of Object.entries(dependencies)) {
+      if (RUNTIME_FOUNDATION_PACKAGES.has(name)) continue;
       if (trust.pinnedPackages?.[name] !== version) {
         throw new Error(`Pi package dependency is not pinned as expected: ${name}@${version}`);
       }
@@ -247,6 +255,7 @@ export class PiPackageCatalog {
         if (!record) throw new Error(`Pi package is not registered: ${name}`);
         selected.add(name);
         for (const dependencyName of Object.keys(record.manifest.runtimeDependencies)) {
+          if (RUNTIME_FOUNDATION_PACKAGES.has(dependencyName)) continue;
           if (dependencyName.startsWith('@upup/')) visit(dependencyName);
         }
       };
@@ -274,6 +283,7 @@ export class PiPackageCatalog {
       visiting.add(packageName);
       for (const dependencyName of Object.keys(record.manifest.runtimeDependencies)) {
         if (!dependencyName.startsWith('@upup/')) continue;
+        if (RUNTIME_FOUNDATION_PACKAGES.has(dependencyName)) continue;
         const dependency = this.records.get(dependencyName);
         if (!dependency || !dependency.enabled || dependency.manifest.version !== record.manifest.runtimeDependencies[dependencyName]) {
           throw new Error(`Pi package dependency is not loaded: ${record.manifest.name} requires ${dependencyName}@${record.manifest.runtimeDependencies[dependencyName]}`);

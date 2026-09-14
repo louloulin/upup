@@ -3,7 +3,7 @@ import { readdir, readFile, unlink } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { SessionManager } from '@earendil-works/pi-coding-agent';
 import { createPiAgentRuntime } from './agent-session-factory.js';
-import type { UpUpAgentEvent, UpUpAgentSession, UpUpAgentSpec } from './types.js';
+import type { UpUpAgentEvent, UpUpAgentSession, UpUpAgentSpec } from '@upup/pi-runtime';
 import type { SessionSummary } from '../../session/types.js';
 
 export interface PiSessionCreateInput {

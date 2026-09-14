@@ -12,7 +12,7 @@ import type { ResearchPhase, ResearchPlan, ResearchPlanState } from '../../plan/
 import { calculateProgress, updateStepStatus } from '../../plan/plan-context.js';
 import { createPiAgentRuntime } from './agent-session-factory.js';
 import { getInvestmentAgentSpec } from './agent-spec.js';
-import type { UpUpAgentSession } from './types.js';
+import type { UpUpAgentSession } from '@upup/pi-runtime';
 
 export type PhaseStatus = 'completed' | 'failed' | 'skipped' | 'pending';
 

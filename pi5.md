@@ -104,6 +104,36 @@
   - `bun run verify:pi5` → A1–A20 共 20/20 全部通过；
   - `bun test` 全仓 3264 pass / 1 fail / 11132 expect（唯一 fail 为网络型 `fund-selection-verify > 分析基金持仓股票` 超时，与本包无关）。
 
+#### 0.2.48 Pi Plugin 扩展：pi-corporate-actions 包（分红 / 拆股 / 配股 / 复权 / 总收益）
+- **范围**：`packages/pi-corporate-actions/` 全新包（`@upup/pi-corporate-actions` 0.1.0），含 7 个核心模块 + 1 个 dry-run fixture + 8 个原生 Pi 工具 + 6 类 Pi 资源。
+- **核心模块**：
+  - `src/dividends.ts`：`filterDividends`、`totalDividends`、`dividendYieldOnDate`、`annualizedDividendYield`（trailing 365-day naive yield）、`groupDividendsByYear`；
+  - `src/splits.ts`：`splitRatio`、`isReverseSplit`、`sortSplitsChronologically`、`cumulativeSplitFactor`、`splitEventsBetween`、`adjustPriceForSplit`；
+  - `src/rights.ts`：`rightsSubscriptionRatio`、`rightsTheoreticalExPrice`（(close + ratio·price)/(1+ratio)）、`rightsIssueCost`、`sortRightsChronologically`、`totalRightsCost`；
+  - `src/adjustments.ts`：`computeAdjustmentFactors`、`backAdjust`（中国「后复权」）、`forwardAdjust`（中国「前复权」，最新价不变，最早价按累计因子缩放）、`adjustBars`、`summarizeAdjustment`；
+  - `src/aggregate.ts`：`computeTotalReturn`（priceReturn + dividendReturn + splitContribution + rightsContribution 四段分解）、`aggregateActions`（按类型分桶）；
+  - `src/dryrun.ts`：`createDryRunClient` 确定性 fixture（600519.SH 茅台 / 000858.SZ 五粮液 分红；AAPL 7-for-1 + 4-for-1 拆股；0700.HK 腾讯 2024 配股），`dryRunEvidence`；
+  - `src/types.ts`：`CorporateAction` / `DividendEvent` / `SplitEvent` / `RightsIssueEvent` / `AdjustedPriceBar` / `TotalReturnBreakdown` / `CorporateActionsClient` / `CorporateActionsEvidence` 8 类核心类型。
+- **8 个原生 Pi 工具**：
+  - `corporate_actions_dividends` —— 列出历史分红（支持 startDate/endDate/minAmount/currency 过滤）；
+  - `corporate_actions_splits` —— 列出历史拆股（含反向拆股检测）；
+  - `corporate_actions_rights` —— 列出历史配股；
+  - `corporate_actions_list_all` —— 合并所有事件并按 exDate 排序；
+  - `corporate_actions_adjust_prices` —— 按 back-adjust 或 forward-adjust 调整价格序列，返回 `unadjustedClose + adjustedClose + adjustmentFactor`；
+  - `corporate_actions_total_return` —— 计算含分红/拆股/配股的总收益并返回四段分解；
+  - `corporate_actions_dividend_yield` —— 计算 trailing 股息率；
+  - `corporate_actions_ex_price` —— 计算配股除权参考价。
+- **6 类 Pi 资源完整声明**：`extensions/` 注册 8 工具 + `__upupPiHosts` + `registerHostTools`；`skills/pi-corporate-actions/SKILL.md`、`prompts/pi-corporate-actions.md`、`workflows/pi-corporate-actions.md`（5 阶段 discovery → events → adjust → compute → deliver）、`policies/pi-corporate-actions.md`（read 权限 / dry-run 可接受 / 跨包不变性 / forbidden 列表）、`evals/pi-corporate-actions.json`（5 个 eval scenario CA-001 ~ CA-005）。
+- **证据契约**：每个工具返回都带 `evidence = { source: 'dry-run://pi-corporate-actions', dataFreshness: 'offline' }`，与 `pi-market-data` 的 dry-run 模式一致；最终回答必须 quote 这两个字段以便审计数据来源。
+- **验证**：
+  - `bun --cwd packages/pi-corporate-actions test` → 69 pass / 0 fail / 124 expect；
+  - `bun run typecheck` 通过；
+  - `bun run check:pi-packages` → 通过（16 个金融 Pi Package 全 pinned）；
+  - `bun run check:module-boundaries` → 33 packages / 552 src modules / 0 cycle；
+  - `bun run report:pi-migration` → ownership 256 / native 256 / 100.0%（16 个金融 Pi Package）；
+  - `bun run verify:pi5` → A1–A20 共 20/20 全部通过；
+  - `bun test` 全仓 3325 pass / 1 fail / 11241 expect（唯一 fail 为网络型 `fund-selection-verify > 分析基金持仓股票` 超时，与本包无关）。
+
 #### 0.2.0 – 0.2.39 历史（节选）
 - 核心 Agent main loop 替换为 `PiAgentRunner`；
 - LangChain Agent Runtime 完全删除（`src/langchain/` 已清空）；
@@ -177,7 +207,7 @@
 | A9 | 五类金融 Tool Adapter | `pi-fixture.test.ts` + `src/extensions/upup/index.test.ts` |
 | A10 | 金融 evidence/audit 脱敏 | `production-finance-contract.test.ts` + `citation.test.ts` |
 | A11 | 投资 Profile allowlist | `profile-registry-contract.test.ts` + `agent-session-factory.test.ts` |
-| A12 | Pi Package/Extension/Skill/Prompt 生态 | `check:pi-packages` + 15 个金融 Pi Package 的 test + 9 个 Extension test |
+| A12 | Pi Package/Extension/Skill/Prompt 生态 | `check:pi-packages` + 16 个金融 Pi Package 的 test + 9 个 Extension test |
 | A13 | 四级金融权限策略 | `tool-contract.test.ts` + `production-finance-contract.test.ts` |
 | A14 | 插件来源/沙箱/网络/凭证审计 | `plugin-trust.test.ts` + `plugin-adapter.test.ts` + `package-config.test.ts` |
 | A15 | 旧 Session → Pi 迁移 | `src/session/pi-migration.test.ts` |
@@ -185,15 +215,15 @@
 | A17 | Pi 多 Agent worker 生命周期 | `agent-session-factory.test.ts` + `pi-platform/extensions/index.test.ts` |
 | A18 | CLI/Gateway/Cron/Daemon/Bridge/SDK/Eval 入口与命名场景 | 7 个入口 test |
 | A19 | 全部 Pi 迁移、类型与性能恢复门禁 | `check:pi-migration` + `check:pi-packages` + `check:pi-runtime` + `typecheck` + `benchmark:pi5` |
-| A20 | 架构文档与 Pi 资源留档 | 6 篇架构 doc + `pi5.md` marker + 15 个金融 Pi Package 资源声明 + 9 个 native calendar tool |
+| A20 | 架构文档与 Pi 资源留档 | 6 篇架构 doc + `pi5.md` marker + 16 个金融 Pi Package 资源声明 + 9 个 native calendar tool |
 
 ### 2.2 独立语义验证
-- `bun run report:pi-migration` → ownership 248 / native 248 / 100.0%（15 个金融 Pi Package）；
+- `bun run report:pi-migration` → ownership 256 / native 256 / 100.0%（16 个金融 Pi Package）；
 - `bun run report:pi-architecture` → overall 100.0%；
-- `bun run check:module-boundaries` → 30 packages / 552 src modules / 0 cycles / 无 `packages/* → src`；
-- `bun test` 全仓 → 3264 pass / 1 fail / 11132 expect（唯一 fail 为网络型 `fund-selection-verify > 分析基金持仓股票` 超时，与本次迁移无关）；
+- `bun run check:module-boundaries` → 33 packages / 552 src modules / 0 cycles / 无 `packages/* → src`；
+- `bun test` 全仓 → 3325 pass / 1 fail / 11241 expect（唯一 fail 为网络型 `fund-selection-verify > 分析基金持仓股票` 超时，与本次迁移无关）；
 - `bun run typecheck` 通过；
-- `bun run check:pi-packages` → 15 个金融 Pi Package（含 `pi-technical`）全 pinned；
+- `bun run check:pi-packages` → 16 个金融 Pi Package（含 `pi-technical` + `pi-corporate-actions`）全 pinned；
 - 6 篇架构文档齐备：`docs/architecture/{pi5-runtime,plugin-ecosystem,finance-dataflow,session-lifecycle,multi-agent-dataflow,invest-workflow}.md` 共 609 行。
 
 ## 3. 进度（中文口径）
@@ -201,24 +231,25 @@
 | 模块 | 进度 | 说明 |
 |------|------|------|
 | 核心 Agent Pi 化 | **100%** | `PiAgentSessionFactory` 唯一入口；`PiAgentRunner` 替换旧 main loop |
-| 核心金融能力 Pi 插件化 | **100%** | 15 个金融 Pi Package（含 `pi-technical`）+ 9 个 native calendar tool |
-| Pi 原生工具覆盖 | **100%** | 248/248 = 100.0%（ownership == native） |
-| Pi Runtime / 模块边界 / Package→src 隔离 | **100%** | `check:module-boundaries` 0 cycle，30 packages / 552 src modules |
+| 核心金融能力 Pi 插件化 | **100%** | 16 个金融 Pi Package（含 `pi-technical` + `pi-corporate-actions`）+ 9 个 native calendar tool |
+| Pi 原生工具覆盖 | **100%** | 256/256 = 100.0%（ownership == native） |
+| Pi Runtime / 模块边界 / Package→src 隔离 | **100%** | `check:module-boundaries` 0 cycle，33 packages / 552 src modules |
 | 回测质量（交易日 / 数据质量 / 交易成本 / 净收益 / 微结构） | **100%** | Pi 原生，`BacktestStampDuty` regime 三档 + 涨跌停熔断 + 退市清算 + 印花税分层豁免 |
 | 完整金融投资产品 | **99.7%** | 投资 Profile allowlist / `/invest` 五阶段 / 多 Agent worker / 凭证审计 / 技术指标 + 趋势 + K 线形态 ✅ |
 | 已闭环（A.1 Pi Plugin Dry-Run Smoke） | **100%** | pi-market-data 全链路无凭证 smoke：dry-run fixture + cache + env 自动激活 |
 | 已闭环（A.2 投资模型微结构） | **100%** | pi-backtest 涨跌停熔断 + 退市清算 + 印花税分层豁免（9 种市场档案） |
 | 已闭环（A.3 可观测性 + benchmark P95） | **100%** | observability-snapshot + perCall P50/P95/P99 + 200 sustained P95 |
 | 已闭环（A.4 技术指标 Plugin 包） | **100%** | pi-technical：7 指标 + 9 趋势函数 + 12 K 线形态 + 8 native Pi 工具 + 6 类资源声明 |
-| 剩余工作 | 0.3% | Plugin 元数据 schemaVersion、跨市场 production smoke 长周期观测 |
+| 已闭环（A.5 公司行动 Plugin 包） | **100%** | pi-corporate-actions：dividends + splits + rights + adjustments + total return + dividend yield + ex-price + 8 native Pi 工具 + 6 类资源声明 |
+| 剩余工作 | 0.3% | Plugin 元数据 schemaVersion、跨市场 production smoke 长周期观测、量化因子 / 舆情 / 期权 / 跨资产 Plugin 包扩展 |
 
 ### 当前里程碑
 - ✅ A1–A20 全部门禁通过（`bun run verify:pi5` → 20/20）；
-- ✅ `bun test` 全仓 3264 pass / 1 fail / 11132 expect（唯一 fail 为网络型基金持仓 smoke 超时，与本次迁移无关）；
+- ✅ `bun test` 全仓 3325 pass / 1 fail / 11241 expect（唯一 fail 为网络型基金持仓 smoke 超时，与本次迁移无关）；
 - ✅ 旧的 Agent main loop / LangChain Agent Runtime / Paperclip 已 100% 移除（`check:pi-migration` 验证）；
-- ✅ 模块边界 0 循环（30 packages / 552 src modules）；
-- ✅ 15 个金融 Pi Package 全部 pinned（`check:pi-packages`）；
-- ✅ 248 个原生 Pi 工具 100% 由 15 个 Pi Package 提供（`report:pi-migration`）。
+- ✅ 模块边界 0 循环（33 packages / 552 src modules）；
+- ✅ 16 个金融 Pi Package 全部 pinned（`check:pi-packages`）；
+- ✅ 256 个原生 Pi 工具 100% 由 16 个 Pi Package 提供（`report:pi-migration`）。
 
 ### 后续（非阻塞）
 - 接入真实 Tushare Pro / AKShare / 港股凭证后跑端到端 smoke；
@@ -233,7 +264,7 @@
 - 关键类型：`PiAgentRunner`、`PiAgentSession`、`PiSessionTree`、`PiEventStream`、`PiPackage`、`PiExtension`、`PiSkill`、`PiPrompt`、`PiWorkflow`、`PiPolicy`、`PiEval`。
 
 ### 4.2 Pi Package 命名空间
-- 路径前缀：`packages/pi-*`（30 个）；
+- 路径前缀：`packages/pi-*`（33 个）；
 - 资源声明：每个 Package 在 `package.json` 的 `pi` 字段声明 6 类资源（`extensions / skills / prompts / workflows / policies / evals`）；
 - 加载机制：`@earendil-works/pi-coding-agent` 启动时扫描 `node_modules/@earendil-works/pi-*` 与显式 `pi.finance-packages` 配置，按 allowlist 加载。
 

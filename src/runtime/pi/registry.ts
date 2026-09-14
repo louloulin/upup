@@ -13,7 +13,7 @@
 import { info, warn } from '../../utils/logging/logger.js';
 import { PiAgentCatalog } from './agent-catalog.js';
 import { agentDefinitionToPiSpec } from './agent-spec.js';
-import type { UpUpAgentSpec } from './types.js';
+import type { UpUpAgentSpec } from '@upup/pi-runtime';
 
 // ============================================================================
 // Types

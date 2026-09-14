@@ -1,0 +1,33 @@
+{
+  "name": "@upup/pi-quant",
+  "version": "0.1.0",
+  "description": "UpUp Pi-native quantitative factors package: factor library, normalization, IC analysis, returns, orthogonalization, scoring, backtest",
+  "type": "module",
+  "keywords": ["pi-package", "finance", "quantitative", "alpha", "factors"],
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "bun build src/index.ts --outdir=dist --target=node && bun build extensions/index.ts --outdir=dist/extensions --target=node && tsc --emitDeclarationOnly --declaration --declarationMap --outDir dist",
+    "test": "bun test ./test.ts ./src/factors.test.ts ./src/normalize.test.ts ./src/ic.test.ts ./src/returns.test.ts ./src/orthogonalize.test.ts ./src/score.test.ts ./src/dry-run.test.ts ./src/backtest.test.ts ./extensions/index.test.ts"
+  },
+  "files": ["dist", "extensions", "skills", "prompts", "workflows", "policies", "evals", "package.json"],
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "0.84.3",
+    "typebox": "1.3.7"
+  },
+  "pi": {
+    "source": "builtin:upup",
+    "extensions": ["./extensions"],
+    "skills": ["./skills"],
+    "prompts": ["./prompts"],
+    "workflows": ["./workflows"],
+    "policies": ["./policies"],
+    "evals": ["./evals"]
+  }
+}

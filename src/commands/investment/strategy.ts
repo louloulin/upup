@@ -19,7 +19,13 @@
  *   - renderBacktestReport 链接占位 (实际报告由用户主动 /strategy run 触发)
  */
 
-import { StrategyStore, computeStrategyPrevHash, type StrategyRecord, type StrategyRecordInput } from '../../memory/strategy-store.js';
+import {
+  StrategyStore,
+  computeStrategyPrevHash,
+  type StrategyRecord,
+  type StrategyRecordInput,
+} from '@upup/pi-storage';
+import { globalUpupPath } from '../../utils/storage-paths.js';
 import { validateMethodology, type MethodologyDisclosure } from '@upup/pi-backtest';
 
 
@@ -288,7 +294,13 @@ function cmdAudit(rest: string[], store: StrategyStore): string {
 // Entry
 // ---------------------------------------------------------------------------
 
-export function runStrategy(args: string, store: StrategyStore = new StrategyStore()): string {
+export function runStrategy(
+  args: string,
+  store: StrategyStore = new StrategyStore({
+    filePath: globalUpupPath('strategies.jsonl'),
+    keyPath: globalUpupPath('strategy-key.json'),
+  }),
+): string {
   const { subcommand, rest } = parseArgs(args);
   if (!subcommand) return USAGE.join('\n');
   switch (subcommand) {

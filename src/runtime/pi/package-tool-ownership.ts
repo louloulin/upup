@@ -13,6 +13,8 @@ const NOTIFY_PACKAGE = '@upup/pi-notify';
 const INVESTMENT_WORKFLOW_PACKAGE = '@upup/pi-investment-workflow';
 const MANAGEMENT_PACKAGE = '@upup/pi-management';
 const TECHNICAL_PACKAGE = '@upup/pi-technical';
+const CORPORATE_ACTIONS_PACKAGE = '@upup/pi-corporate-actions';
+const QUANT_PACKAGE = '@upup/pi-quant';
 
 const nativeTools: Readonly<Record<string, readonly string[]>> = {
   [INVESTMENT_WORKFLOW_PACKAGE]: ['invest_workflow_phase'],
@@ -27,6 +29,8 @@ const nativeTools: Readonly<Record<string, readonly string[]>> = {
   [RESEARCH_PACKAGE]: ['web_fetch', 'web_search', 'x_search', 'analyze_sentiment', 'detect_events', 'extract_entities', 'research_deep_search', 'earnings_preview'],
   [TECHNICAL_PACKAGE]: ['compute_indicators', 'compute_macd', 'compute_kdj', 'compute_boll', 'compute_atr', 'compute_rsi', 'compute_obv', 'compute_cci'],
   [BROWSER_PACKAGE]: ['browser'],
+  [CORPORATE_ACTIONS_PACKAGE]: ['corporate_actions_dividends', 'corporate_actions_splits', 'corporate_actions_rights', 'corporate_actions_list_all', 'corporate_actions_adjust_prices', 'corporate_actions_total_return', 'corporate_actions_dividend_yield', 'corporate_actions_ex_price'],
+  [QUANT_PACKAGE]: ['quant_factor_library', 'quant_factor_compute', 'quant_factor_normalize', 'quant_factor_ic', 'quant_factor_returns', 'quant_factor_orthogonalize', 'quant_factor_score', 'quant_factor_backtest'],
   [CONFIG_PACKAGE]: ['config_get', 'config_set', 'config_list'],
   [CACHE_PACKAGE]: ['get_cache_stats', 'clear_cache', 'invalidate_cache', 'get_cache_info'],
   [NOTIFY_PACKAGE]: ['notify', 'notify_list', 'subscribe_pr', 'unsubscribe_pr', 'list_pr_subscriptions'],
@@ -94,6 +98,8 @@ const ownership: Readonly<Record<string, readonly string[]>> = {
   [RESEARCH_PACKAGE]: ['web_fetch', 'web_search', 'x_search', 'analyze_sentiment', 'detect_events', 'extract_entities', 'research_deep_search', 'earnings_preview'],
   [TECHNICAL_PACKAGE]: ['compute_indicators', 'compute_macd', 'compute_kdj', 'compute_boll', 'compute_atr', 'compute_rsi', 'compute_obv', 'compute_cci'],
   [BROWSER_PACKAGE]: ['browser'],
+  [CORPORATE_ACTIONS_PACKAGE]: ['corporate_actions_dividends', 'corporate_actions_splits', 'corporate_actions_rights', 'corporate_actions_list_all', 'corporate_actions_adjust_prices', 'corporate_actions_total_return', 'corporate_actions_dividend_yield', 'corporate_actions_ex_price'],
+  [QUANT_PACKAGE]: ['quant_factor_library', 'quant_factor_compute', 'quant_factor_normalize', 'quant_factor_ic', 'quant_factor_returns', 'quant_factor_orthogonalize', 'quant_factor_score', 'quant_factor_backtest'],
   [CONFIG_PACKAGE]: ['config_get', 'config_set', 'config_list'],
   [CACHE_PACKAGE]: ['get_cache_stats', 'clear_cache', 'invalidate_cache', 'get_cache_info'],
   [NOTIFY_PACKAGE]: ['notify', 'notify_list', 'subscribe_pr', 'unsubscribe_pr', 'list_pr_subscriptions'],

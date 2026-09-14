@@ -1,0 +1,26 @@
+{
+  "name": "pi-quant",
+  "version": "0.1.0",
+  "cases": [
+    {
+      "id": "Q-001-library-size",
+      "requires": ["count>=20", "source=dry-run://pi-quant"]
+    },
+    {
+      "id": "Q-002-momentum-filter",
+      "requires": ["count=4"]
+    },
+    {
+      "id": "Q-003-zscore-mean-zero",
+      "requires": ["normalizedMeanApprox=0"]
+    },
+    {
+      "id": "Q-004-pearson-ic",
+      "requires": ["icMeanApprox=1"]
+    },
+    {
+      "id": "Q-005-backtest-runs",
+      "requires": ["equityPoints>=2"]
+    }
+  ]
+}

@@ -17,7 +17,8 @@
  *   /dossier 600519.SH
  */
 
-import { DossierStore, type Dossier } from '../../memory/dossier.js';
+import { DossierStore, type Dossier } from '@upup/pi-storage';
+import { globalUpupPath } from '../../utils/storage-paths.js';
 
 function parseTicker(args: string): string | undefined {
   const trimmed = args.trim();
@@ -105,7 +106,10 @@ function renderEarningsCalls(d: ReturnType<DossierStore['read']>): string[] {
 }
 
 /** CLI 入口 — 与其他 investment 命令风格对齐 */
-export function runDossier(args: string, store: DossierStore = new DossierStore()): string {
+export function runDossier(
+  args: string,
+  store: DossierStore = new DossierStore({ filePath: globalUpupPath('dossiers.jsonl') }),
+): string {
   const ticker = parseTicker(args);
   if (!ticker) {
     return [

@@ -16,6 +16,8 @@ describe('Pi finance package tool ownership', () => {
       '@upup/pi-research',
       '@upup/pi-technical',
       '@upup/pi-browser',
+      '@upup/pi-corporate-actions',
+      '@upup/pi-quant',
       '@upup/pi-config',
       '@upup/pi-cache',
       '@upup/pi-notify',

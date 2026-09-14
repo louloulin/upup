@@ -11,6 +11,11 @@ import {
   type ModelRuntime,
 } from '@earendil-works/pi-coding-agent';
 import { canUseTool, createToolContext, requiresApproval } from './tool-contract.js';
+import {
+  PI_MARKET_DATA_CAPABILITY_NAMES,
+  PI_MARKET_DATA_CAPABILITIES_CONTRACT,
+  createPiCapabilityContext,
+} from '@upup/pi-runtime';
 import type {
   UpUpAgentRuntime,
   UpUpAgentSession,
@@ -20,17 +25,24 @@ import type {
   UpUpAgentEvent,
   UpUpFinanceSessionContext,
   UpUpToolPolicyAudit,
-} from './types.js';
+  PiResourceTrustAudit,
+  PiPackageResourceSnapshot,
+  PiEvalResult,
+  PiPackageContracts,
+  PiCapabilityContext,
+  PiEvidenceCapability,
+  PiAuditCapability,
+} from '@upup/pi-runtime';
 import { validateAgentSpec } from './agent-spec.js';
 import { getModel, getModels } from '@earendil-works/pi-ai/compat';
 import { existsSync, readFileSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
 import { dirname, relative, resolve, sep } from 'node:path';
 import { PI_DEFAULT_SYSTEM_PROMPT } from './default-prompt.js';
-import { verifyPiResourceTrust, type PiResourceTrustAudit } from './plugin-trust.js';
-import { createPiPluginExtensions, getLoadedPiPluginBindings } from './plugin-adapter.js';
-import { PiPackageCatalog, type PiPackageResourceSnapshot } from './package-catalog.js';
-import { evaluatePiPackage, type PiEvalResult, type PiPackageContracts } from './package-contracts.js';
+import { verifyPiResourceTrust } from './plugin-trust.js';
+import { createPiPluginExtensions, getLoadedPiPluginBindings, type PiPluginBinding } from './plugin-adapter.js';
+import { PiPackageCatalog } from './package-catalog.js';
+import { evaluatePiPackage } from './package-contracts.js';
 import { resolveConfiguredPiPackages } from './package-config.js';
 import { createPiHostBridge, PI_HOST_REGISTRY_GLOBAL_KEY, type PiHostBridge, type PiHostRegistry, type PiManagementSnapshot } from './host-contract.js';
 import { getOwnedToolNames, packageOwnsTool, packageProvidesNativeTool } from './package-tool-ownership.js';
@@ -216,6 +228,7 @@ function installPiPackageToolHosts(
   marketQuoteFetcher?: UpUpCreateSessionOptions['marketQuoteFetcher'],
   marketQuoteTrendStore?: NativeMarketQuoteTrendStore,
   getSkillDefinitions?: () => readonly import('./host-contract.js').PiSkillDefinition[],
+  capabilityContext?: PiCapabilityContext,
 ): () => void {
   const globalState = globalThis as typeof globalThis & {
     __upupPiHosts?: PiHostRegistry;
@@ -439,6 +452,7 @@ function installPiPackageToolHosts(
         ? (symbol, requestedMarket, signal, auditId) => sessionQuoteClient.getQuote(symbol, requestedMarket, signal, auditId)
         : undefined,
       pkg.name === '@upup/pi-management' ? getManagementSnapshot : undefined,
+      capabilityContext,
     ));
   }
   globalState[PI_HOST_REGISTRY_GLOBAL_KEY] = registry;
@@ -460,6 +474,7 @@ async function reloadPiPackageResources(
   marketHistoryFetcher?: UpUpCreateSessionOptions['marketHistoryFetcher'],
   marketQuoteFetcher?: UpUpCreateSessionOptions['marketQuoteFetcher'],
   marketQuoteTrendStore?: NativeMarketQuoteTrendStore,
+  capabilityContext?: PiCapabilityContext,
 ): Promise<void> {
   const previous = piPackageLoadTail;
   let release!: () => void;
@@ -470,7 +485,7 @@ async function reloadPiPackageResources(
     description: skill.description,
     instructions: (() => { try { return readFileSync(skill.filePath, 'utf8'); } catch { return undefined; } })(),
     disableModelInvocation: skill.disableModelInvocation,
-  })));
+  })), capabilityContext);
   try {
     await resourceLoader.reload();
   } finally {
@@ -547,15 +562,17 @@ class PiAgentSession implements UpUpAgentSession {
   private readonly resourceTrustAudit: readonly PiResourceTrustAudit[];
   private readonly packageResources: readonly PiPackageResourceSnapshot[];
   private readonly packageContracts: PiPackageContracts;
+  private readonly capabilityContext: PiCapabilityContext;
   private financeContext: UpUpFinanceSessionContext;
 
-  constructor(spec: UpUpAgentSpec, session: AgentSession, resourceTrustAudit: readonly PiResourceTrustAudit[], packageResources: readonly PiPackageResourceSnapshot[], packageContracts: PiPackageContracts, financeContext: UpUpFinanceSessionContext) {
+  constructor(spec: UpUpAgentSpec, session: AgentSession, resourceTrustAudit: readonly PiResourceTrustAudit[], packageResources: readonly PiPackageResourceSnapshot[], packageContracts: PiPackageContracts, financeContext: UpUpFinanceSessionContext, capabilityContext: PiCapabilityContext) {
     this.id = session.sessionManager.getSessionId();
     this.spec = spec;
     this.resourceTrustAudit = resourceTrustAudit;
     this.packageResources = packageResources;
     this.packageContracts = packageContracts;
     this.financeContext = financeContext;
+    this.capabilityContext = capabilityContext;
     this.session = session;
     this.unsubscribe = session.subscribe((event) => {
       const mapped = eventToUpUpEvent(this.id, event);
@@ -662,6 +679,7 @@ class PiAgentSession implements UpUpAgentSession {
     this.unsubscribe();
     this.listeners.clear();
     this.session.dispose();
+    void this.capabilityContext.dispose();
   }
 }
 
@@ -713,7 +731,9 @@ export class PiAgentSessionFactory implements UpUpAgentRuntime {
     const packageContracts = packageCatalog.contracts();
     const financePackageEnabled = packageCatalog.get('@upup/pi-finance-sdk')?.enabled === true;
     const packageSelectionExplicit = spec.packages !== undefined;
-    const pluginBindings = options.piPlugins ?? (options.pluginTrust ? getLoadedPiPluginBindings(spec, options.requestToolApproval) : []);
+    const pluginBindings: readonly PiPluginBinding[] = options.piPlugins
+      ? options.piPlugins as readonly PiPluginBinding[]
+      : (options.pluginTrust ? getLoadedPiPluginBindings(spec, options.requestToolApproval) : []);
     const trustedPlugins = pluginBindings.map((binding) => {
       const audit = verifyPiResourceTrust([binding.path], options.pluginTrust, cwd);
       const filteredBinding = {
@@ -732,6 +752,36 @@ export class PiAgentSessionFactory implements UpUpAgentRuntime {
       : options.sessionDir || options.sessionId
         ? SessionManager.create(cwd, options.sessionDir, options.sessionId ? { id: options.sessionId } : undefined)
       : SessionManager.inMemory(cwd);
+    const sessionId = sessionManager.getSessionId();
+    const marketQuoteTrendStore = options.marketQuoteTrendStore
+      ?? new JsonFileMarketQuoteTrendStore(process.env.UPUP_PROVIDER_METRICS_PATH?.trim() || globalUpupPath('metrics', 'market-provider-trend.json'));
+    const marketDataCapabilities = {
+      [PI_MARKET_DATA_CAPABILITY_NAMES.historyFetcher]: options.marketHistoryFetcher ? {
+        version: PI_MARKET_DATA_CAPABILITIES_CONTRACT,
+        value: options.marketHistoryFetcher,
+      } : undefined,
+      [PI_MARKET_DATA_CAPABILITY_NAMES.quoteFetcher]: options.marketQuoteFetcher ? {
+        version: PI_MARKET_DATA_CAPABILITIES_CONTRACT,
+        value: options.marketQuoteFetcher,
+      } : undefined,
+      [PI_MARKET_DATA_CAPABILITY_NAMES.quoteTrendStore]: {
+        version: PI_MARKET_DATA_CAPABILITIES_CONTRACT,
+        value: marketQuoteTrendStore,
+      },
+      [PI_MARKET_DATA_CAPABILITY_NAMES.evidence]: {
+        version: PI_MARKET_DATA_CAPABILITIES_CONTRACT,
+        value: (input: Parameters<PiEvidenceCapability>[0]) => input,
+      },
+      [PI_MARKET_DATA_CAPABILITY_NAMES.audit]: {
+        version: PI_MARKET_DATA_CAPABILITIES_CONTRACT,
+        value: (input: Parameters<PiAuditCapability>[0]) => input.auditId,
+      },
+    };
+    const capabilityContext = createPiCapabilityContext({
+      sessionId,
+      audit: { contract: PI_MARKET_DATA_CAPABILITIES_CONTRACT },
+      capabilities: Object.fromEntries(Object.entries(marketDataCapabilities).filter((entry): entry is [string, NonNullable<typeof entry[1]>] => entry[1] !== undefined)),
+    });
     const persistedFinanceContext = [...sessionManager.getEntries()]
       .filter((entry) => entry.type === 'custom' && entry.customType === FINANCE_CONTEXT_ENTRY)
       .at(-1);
@@ -792,7 +842,8 @@ export class PiAgentSessionFactory implements UpUpAgentRuntime {
         options.modelRuntime,
         options.marketHistoryFetcher,
         options.marketQuoteFetcher,
-        options.marketQuoteTrendStore,
+        marketQuoteTrendStore,
+        capabilityContext,
       );
     } else {
       await resourceLoader.reload();
@@ -835,7 +886,7 @@ export class PiAgentSessionFactory implements UpUpAgentRuntime {
       ...trustedExtensions.audits,
       ...trustedDomainResources.audits,
       ...trustedPlugins.flatMap(({ audit }) => audit.audits),
-    ], packageCatalog.readResources(), packageContracts, financeContext.current);
+    ], packageCatalog.readResources(), packageContracts, financeContext.current, capabilityContext);
   }
 }
 

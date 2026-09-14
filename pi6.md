@@ -672,3 +672,65 @@ Pi6 完成时，UpUp 应该被准确描述为：
 而不是：
 
 > 一个仍把大部分应用逻辑放在 root `src`、只把工具注册复制到 Pi extension、再用 100% 字符串门禁宣称已经彻底模块化的应用。
+
+## 22. Pi6 第一阶段实施结果（2026-09-14）
+
+本阶段按“先建 contract，再迁移实现，修改全部生产消费者，最后验证”的顺序完成了 runtime、storage 和 market-data capability pilot。未把尚未完成的外围 Package 化描述为已完成。
+
+### 22.1 已创建的 Package
+
+| Package | 版本 | 已实现能力 |
+|---|---:|---|
+| `@upup/pi-runtime` | `0.1.0` | Runtime 常量、AgentSpec/permission、tool contract/result/context、canonical event 与映射、capability context、PiSession/PiSessionFactory、manifest/resource/dependency contract |
+| `@upup/pi-storage` | `0.1.0` | canonical JSON、dossier、strategy 签名与链、audit 签名链，均支持显式路径/时钟/key 注入 |
+
+公共 contract 版本：`upup.pi.runtime.v1`、`upup.pi.events.v1`、`upup.pi.capabilities.v1`、`upup.pi.market-data.v1`。
+
+`@upup/pi-runtime` 是 contract foundation package，不声明资源目录；`package-catalog.ts` 通过 `RUNTIME_FOUNDATION_PACKAGES` 处理其依赖，不将它误当作可加载的 Pi resource package。
+
+### 22.2 根实现迁移
+
+- `src/runtime/pi/types.ts` 改为 runtime package facade；`tool-contract.ts`、`index.ts` 和相关 runtime consumers 改为消费公共 contract，避免第二份实现与重复 wildcard export。
+- `src/memory/dossier.ts`、`strategy-store.ts`、`audit-signing.ts` 改为 `@upup/pi-storage` facade。root 只通过 `globalUpupPath()` 提供默认生产路径，保留旧 import path 与无参命令行为；持久化业务实现只保留在 package。
+- `dossier`、`strategy`、`earnings-preview`、`invest`、Bridge 和 MCP resource consumers 已切换到 package API，并显式传入 root-resolved storage paths。
+- `PiAgentSessionFactory` 仍是唯一生产 Pi Session factory，且为每个 session 创建并在 dispose 时释放 `PiCapabilityContext`。
+
+### 22.3 Market-data capability pilot
+
+`@upup/pi-market-data` 现在优先使用 session-scoped context，其次使用受控 legacy host transport，最后使用 package default provider。context 提供 history/quote fetcher、共享 trend store、financial evidence 和 financial audit capability；显式 fetcher 未注入时不会注册默认 fetch capability，避免遮蔽 legacy transport。
+
+离线/native evidence 通过 capability-aware builder 生成；真实 provider 返回的 source、freshness 和 auditId 保持不变，不用本地 fixture 覆盖生产证据。context 与 host bridge 复用同一个 trend-store 实例。
+
+<!-- PI6_IMPLEMENTATION_VALIDATION_CONTINUATION -->
+
+### 22.4 实际验证结果
+
+| 验证项 | 结果 |
+|---|---|
+| `bun run typecheck` | 通过 |
+| `bun run check:module-boundaries` | 通过：34 workspace packages、552 root src modules，无 root-src imports 与依赖环 |
+| `bun run check:pi-packages` | 通过：17 个 Pi domain packages 的 source、exact semver、资源与 pin 校验通过 |
+| `bun run check:pi-runtime` | 通过：Bun 1.4.1、Node 26.3.0、Node 22 target 声明通过 |
+| `bun run check:pi-migration` | 通过：8 pinned packages、Node >=22.19.0、8 runtime files、finance metadata |
+| Runtime/print/storage/market-data 定向测试 | 217 pass、0 fail、2234 assertions、32 files |
+| `/screen` 与 market-data extension 测试 | 43 pass、0 fail、177 assertions |
+| 全仓回归 | 3406 pass、0 fail、11419 assertions、315 files |
+| Pi5 语义验收 | A1–A20，20/20 pass |
+| Pi5 benchmark | startup 94.27ms、recovery 42.83ms、per-call p95 0.206ms、sustained p95 0.007ms |
+| `bun run start -- --help` | 通过 |
+| print fixture stream | 通过，`src/print.test.ts` 走 Pi stream 并返回 fixture answer |
+| 隔离 storage smoke | 通过：dossier 写入/重启读取，strategy 签名与 `verifyChain`，audit 写入/重启读取与链验证 |
+| storage import side effect | 通过：隔离目录 import 前后无新增目录 |
+
+### 22.5 未完成与环境限制
+
+- 真实 provider smoke 尚未执行：本机没有 DeepSeek/Tushare 凭证；`bun run print -- <prompt>` 会在 provider 初始化阶段报告缺少 DeepSeek API key。该结果不等同于 Pi print fixture 失败，也不将 fixture 结果写作真实 provider 证据。
+- 独立语义 Verifier 未返回最终 A1–A20 结论；上述结果仅为本地 Runtime-owned checks，不能冒充独立验收。
+- Phase 2+ 仍待执行：统一 Gateway/stdio/Bridge/CLI event adapter、拆分 Session Factory、收敛 legacy-events、退出 global registry、迁移 TUI/Gateway/Bridge/stdio/cron/daemon/MCP/plugin runtime 等外围能力。
+- `pi6.md` 的原有路线图仍然有效；本节只标记第一阶段已验证内容，不声明全仓已完成 Pi Package 化。
+
+### 22.6 第一阶段状态
+
+**已完成：** `@upup/pi-runtime`、`@upup/pi-storage`、root storage/runtime consumers、market-data session capability pilot、定向与全仓本地验证。
+
+**保持未完成：** 真实 provider 凭证 smoke、独立语义验收、Phase 2–7 的外围迁移与兼容层退场。

@@ -1,75 +1,26 @@
 {
   "name": "pi-corporate-actions",
   "version": "0.1.0",
-  "description": "Eval scenarios for the corporate actions package: dry-run dividends, splits, rights, price adjustment, total return, dividend yield, ex-rights price.",
-  "scenarios": [
+  "cases": [
     {
-      "id": "CA-001",
-      "name": "Maotai dividend listing",
-      "tool": "corporate_actions_dividends",
-      "input": { "symbol": "600519.SH" },
-      "expect": {
-        "count": 2,
-        "firstAmount": 30.88,
-        "firstCurrency": "CNY",
-        "evidenceSource": "dry-run://pi-corporate-actions",
-        "dataFreshness": "offline"
-      }
+      "id": "CA-001-maotai-dividends",
+      "requires": ["count=2", "amount=30.88", "currency=CNY"]
     },
     {
-      "id": "CA-002",
-      "name": "AAPL split listing",
-      "tool": "corporate_actions_splits",
-      "input": { "symbol": "AAPL" },
-      "expect": {
-        "count": 2,
-        "firstRatioFrom": 1,
-        "firstRatioTo": 4,
-        "evidenceSource": "dry-run://pi-corporate-actions"
-      }
+      "id": "CA-002-aapl-splits",
+      "requires": ["count=2", "ratio=4"]
     },
     {
-      "id": "CA-003",
-      "name": "Tencent rights issue",
-      "tool": "corporate_actions_rights",
-      "input": { "symbol": "0700.HK" },
-      "expect": {
-        "count": 1,
-        "pricePerShare": 320.0,
-        "currency": "HKD"
-      }
+      "id": "CA-003-tencent-rights",
+      "requires": ["count=1", "pricePerShare=320"]
     },
     {
-      "id": "CA-004",
-      "name": "Total return with dividend",
-      "tool": "corporate_actions_total_return",
-      "input": {
-        "symbol": "X",
-        "startDate": "2023-01-01",
-        "endDate": "2023-12-31",
-        "startPrice": 100,
-        "endPrice": 110
-      },
-      "expect": {
-        "priceReturn": 0.1,
-        "dividendReturn": 0.0
-      }
+      "id": "CA-004-total-return",
+      "requires": ["priceReturn=0.1", "dividendReturn"]
     },
     {
-      "id": "CA-005",
-      "name": "Back-adjust preserves latest close",
-      "tool": "corporate_actions_adjust_prices",
-      "input": {
-        "symbol": "AAPL",
-        "method": "back-adjust",
-        "bars": [
-          { "date": "2020-08-30", "close": 100 },
-          { "date": "2020-08-31", "close": 105 }
-        ]
-      },
-      "expect": {
-        "lastAdjustedEqualsLastUnadjusted": true
-      }
+      "id": "CA-005-back-adjust",
+      "requires": ["latestCloseEqualsLatestAdjusted"]
     }
   ]
 }

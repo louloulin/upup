@@ -17,6 +17,7 @@ const notifyPackageRoot = join(root, 'packages', 'pi-notify');
 const investmentWorkflowPackageRoot = join(root, 'packages', 'pi-investment-workflow');
 const managementPackageRoot = join(root, 'packages', 'pi-management');
 const technicalPackageRoot = join(root, 'packages', 'pi-technical');
+const corporateActionsPackageRoot = join(root, 'packages', 'pi-corporate-actions');
 
 const failures: string[] = [];
 const rootBuildScript = readFileSync(join(root, 'package.json'), 'utf8');
@@ -40,6 +41,7 @@ const packageExtensionFiles = [
   join(root, 'packages/pi-investment-workflow/extensions/index.ts'),
   join(root, 'packages/pi-management/extensions/index.ts'),
   join(root, 'packages/pi-technical/extensions/index.ts'),
+  join(root, 'packages/pi-corporate-actions/extensions/index.ts'),
 ];
 const nativeRiskTools = ['calculate_var', 'calculate_sharpe', 'calculate_sortino', 'calculate_max_drawdown', 'calculate_kelly', 'calculate_risk_parity', 'calculate_mean_variance', 'score_data_source', 'compare_data_sources', 'calculate_correlation_matrix', 'calculate_correlation', 'track_risk', 'get_short_interest', 'calculate_short_interest_ratio', 'detect_short_squeeze'];
 const nativeMarketTools = ['get_market_data', 'stock_screener', 'get_astock_price', 'screen_astocks', 'get_sector_data', 'get_market_structure', 'get_technical_data', 'check_trading_day', 'get_upcoming_holidays', 'get_next_trading_day', 'get_trading_days'];
@@ -553,10 +555,33 @@ for (const relative of [
   ...(technicalManifest.pi?.workflows ?? []), ...(technicalManifest.pi?.policies ?? []), ...(technicalManifest.pi?.evals ?? []),
 ]) {
   if (!existsSync(join(technicalPackageRoot, relative))) failures.push(`technical declared Pi resource does not exist: ${relative}`);
+
+const corporateActionsManifest = JSON.parse(readFileSync(join(corporateActionsPackageRoot, 'package.json'), 'utf8')) as {
+  name?: string; version?: string; keywords?: string[]; peerDependencies?: Record<string, string>;
+  pi?: { source?: string; extensions?: string[]; skills?: string[]; prompts?: string[]; workflows?: string[]; policies?: string[]; evals?: string[] };
+  scripts?: { test?: string; build?: string };
+};
+if (corporateActionsManifest.name !== '@upup/pi-corporate-actions') failures.push('corporate-actions package name is not stable');
+if (corporateActionsManifest.version !== '0.1.0') failures.push('corporate-actions package version must be 0.1.0');
+if (!corporateActionsManifest.keywords?.includes('pi-package')) failures.push('corporate-actions package must declare pi-package keyword');
+if (corporateActionsManifest.peerDependencies?.['@earendil-works/pi-coding-agent'] !== '0.84.3') failures.push('corporate-actions Pi coding-agent peer must be pinned to 0.84.3');
+if (corporateActionsManifest.pi?.source !== 'builtin:upup') failures.push('corporate-actions package must declare the allowlisted builtin:upup source');
+if (!corporateActionsManifest.scripts?.test?.includes('bun test') || !corporateActionsManifest.scripts.test.includes('./test.ts')) failures.push('corporate-actions package test script must execute ./test.ts');
+if (!corporateActionsManifest.scripts?.build?.includes('tsc --emitDeclarationOnly')) failures.push('corporate-actions package build must emit declarations');
+if (!shipsPackage('pi-corporate-actions')) failures.push('production build must ship the built-in corporate-actions Pi package resources');
+const corporateActionsExtensionSource = readFileSync(join(corporateActionsPackageRoot, 'extensions', 'index.ts'), 'utf8');
+for (const toolName of ['corporate_actions_dividends', 'corporate_actions_splits', 'corporate_actions_rights', 'corporate_actions_list_all', 'corporate_actions_adjust_prices', 'corporate_actions_total_return', 'corporate_actions_dividend_yield', 'corporate_actions_ex_price']) if (!corporateActionsExtensionSource.includes(`name: '${toolName}'`)) failures.push(`corporate-actions Pi package must natively register ${toolName}`);
+if (/from ['"](?:\.\.\/){2,}src\//.test(corporateActionsExtensionSource)) failures.push('corporate-actions Pi extension must not depend on workspace source modules');
+for (const relative of [
+  ...(corporateActionsManifest.pi?.extensions ?? []), ...(corporateActionsManifest.pi?.skills ?? []), ...(corporateActionsManifest.pi?.prompts ?? []),
+  ...(corporateActionsManifest.pi?.workflows ?? []), ...(corporateActionsManifest.pi?.policies ?? []), ...(corporateActionsManifest.pi?.evals ?? []),
+]) {
+  if (!existsSync(join(corporateActionsPackageRoot, relative))) failures.push(`corporate-actions declared Pi resource does not exist: ${relative}`);
+}
 }
 
 if (failures.length) {
   console.error(failures.map((failure) => `FAIL: ${failure}`).join('\n'));
   process.exit(1);
 }
-console.log('Pi package checks passed: finance, market-data, investment-analysis, risk, portfolio, backtest, platform, research, browser, config, cache, notify, investment-workflow, management, and technical Pi packages are pinned and resources are present.');
+console.log('Pi package checks passed: finance, market-data, investment-analysis, risk, portfolio, backtest, platform, research, browser, config, cache, notify, investment-workflow, management, technical, corporate-actions, and quant Pi packages are pinned and resources are present.');

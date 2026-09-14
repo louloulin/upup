@@ -1,5 +1,5 @@
 import { runPiPrompt } from './runner.js';
-import type { UpUpAgentEvent } from './types.js';
+import type { UpUpAgentEvent } from '@upup/pi-runtime';
 import type { AgentConfig, AgentEvent } from './legacy-events.js';
 
 export interface PiStreamOptions {

@@ -1,4 +1,4 @@
-import type { UpUpAgentSpec, UpUpPermissionProfile, UpUpToolSafetyLevel } from './types.js';
+import type { UpUpAgentSpec, UpUpPermissionProfile, UpUpToolSafetyLevel } from '@upup/pi-runtime';
 
 const SAFETY_LEVELS: readonly UpUpToolSafetyLevel[] = ['safe', 'warning', 'dangerous', 'critical'];
 

@@ -73,6 +73,18 @@ const SOURCE_MANAGEMENT_PACKAGE_PATH = resolve(
   dirname(fileURLToPath(import.meta.url)),
   '../../../packages/pi-management',
 );
+const SOURCE_TECHNICAL_PACKAGE_PATH = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  '../../../packages/pi-technical',
+);
+const SOURCE_CORPORATE_ACTIONS_PACKAGE_PATH = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  '../../../packages/pi-corporate-actions',
+);
+const SOURCE_QUANT_PACKAGE_PATH = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  '../../../packages/pi-quant',
+);
 
 function builtinPackageCandidates(cwd: string, packageName: string, sourcePath: string): string[] {
   const executableDirectory = dirname(process.execPath);
@@ -101,6 +113,9 @@ export function getBuiltinPiPackageOptions(cwd = process.cwd()): ConfiguredPiPac
     { directory: 'pi-notify', name: '@upup/pi-notify', version: '0.1.0', sourcePath: SOURCE_NOTIFY_PACKAGE_PATH, source: 'builtin:upup' },
     { directory: 'pi-investment-workflow', name: '@upup/pi-investment-workflow', version: '0.1.0', sourcePath: SOURCE_INVESTMENT_WORKFLOW_PACKAGE_PATH, source: 'builtin:upup' },
     { directory: 'pi-management', name: '@upup/pi-management', version: '0.1.0', sourcePath: SOURCE_MANAGEMENT_PACKAGE_PATH, source: 'builtin:upup' },
+    { directory: 'pi-technical', name: '@upup/pi-technical', version: '0.1.0', sourcePath: SOURCE_TECHNICAL_PACKAGE_PATH, source: 'builtin:upup' },
+    { directory: 'pi-corporate-actions', name: '@upup/pi-corporate-actions', version: '0.1.0', sourcePath: SOURCE_CORPORATE_ACTIONS_PACKAGE_PATH, source: 'builtin:upup' },
+    { directory: 'pi-quant', name: '@upup/pi-quant', version: '0.1.0', sourcePath: SOURCE_QUANT_PACKAGE_PATH, source: 'builtin:upup' },
   ].map((candidate) => ({
     ...candidate,
     path: builtinPackageCandidates(cwd, candidate.directory, candidate.sourcePath).find((path) => existsSync(join(path, 'package.json'))),
@@ -114,6 +129,7 @@ export function getBuiltinPiPackageOptions(cwd = process.cwd()): ConfiguredPiPac
       pinnedPackages: {
         ...Object.fromEntries(candidates.map((candidate) => [candidate.name, candidate.version])),
         '@earendil-works/pi-coding-agent': '0.84.3',
+        '@upup/pi-runtime': '0.1.0',
         typebox: '1.3.7',
       },
       allowedSources: Object.fromEntries(candidates.map((candidate) => [candidate.name, [candidate.source]])),

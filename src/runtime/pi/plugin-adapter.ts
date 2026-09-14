@@ -6,7 +6,7 @@ import type {
   ToolDefinition,
 } from '@earendil-works/pi-coding-agent';
 import type { AgentTool, LoadedPlugin } from '../../plugins/types.js';
-import type { UpUpAgentSpec, UpUpCreateSessionOptions, UpUpToolPolicyAudit, UpUpToolSafetyLevel } from './types.js';
+import type { UpUpAgentSpec, UpUpCreateSessionOptions, UpUpToolPolicyAudit, UpUpToolSafetyLevel } from '@upup/pi-runtime';
 import { getPluginRegistry } from '../../plugins/registry.js';
 
 export interface PiPluginBinding {

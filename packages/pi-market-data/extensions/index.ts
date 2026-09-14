@@ -7,6 +7,7 @@ import { getMarketStructureSnapshot, querySectorSnapshot, type MarketStructureTy
 import { type TechnicalPeriod } from '../src/technical.js';
 import { createRealtimeSubscriptionManager, type FeedSource } from '../src/realtime/index.js';
 import { appendKairosEvent, createInitialKairosJournalState, listKairosEvents, summarizeKairos, type KairosEventKind, type NativeKairosJournalState } from '../src/kairos-journal.js';
+import { PI_MARKET_DATA_CAPABILITIES_CONTRACT, PI_MARKET_DATA_CAPABILITY_NAMES, type PiAuditCapability, type PiCapabilityContext, type PiEvidenceCapability } from '@upup/pi-runtime';
 
 const HOSTS = '__upupPiHosts';
 const PACKAGE = '@upup/pi-market-data';
@@ -19,11 +20,17 @@ function registerHostTools(pi: ExtensionAPI): void {
   for (const tool of host.getToolDefinitions({ contract: 'upup.pi.host.v1', packageName: PACKAGE, packageVersion: VERSION, sessionId: host.sessionId, capability: 'tool-definitions' })) pi.registerTool(tool as never);
 }
 
-function hostTransport(): { history?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>; quote?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>; trendStore?: NativeMarketQuoteTrendStore } {
-  const hosts = (globalThis as typeof globalThis & { __upupPiHosts?: ReadonlyMap<string, { packageName: string; packageVersion: string; capabilities: readonly string[]; getMarketHistoryFetcher?: () => (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>; getMarketQuoteFetcher?: () => (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>; getMarketQuoteTrendStore?: () => NativeMarketQuoteTrendStore }> })[HOSTS];
+function capability<T>(context: PiCapabilityContext | undefined, name: string): T | undefined {
+  return context?.has(name, PI_MARKET_DATA_CAPABILITIES_CONTRACT)
+    ? context.get<T>(name, PI_MARKET_DATA_CAPABILITIES_CONTRACT)
+    : undefined;
+}
+
+function hostTransport(): { context?: PiCapabilityContext; history?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>; quote?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>; trendStore?: NativeMarketQuoteTrendStore } {
+  const hosts = (globalThis as typeof globalThis & { __upupPiHosts?: ReadonlyMap<string, { packageName: string; packageVersion: string; capabilities: readonly string[]; capabilityContext?: PiCapabilityContext; getMarketHistoryFetcher?: () => (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>; getMarketQuoteFetcher?: () => (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>; getMarketQuoteTrendStore?: () => NativeMarketQuoteTrendStore }> })[HOSTS];
   const host = hosts?.get(PACKAGE);
   if (!host || host.packageName !== PACKAGE || host.packageVersion !== VERSION || !host.capabilities.includes('market-data-transport')) return {};
-  return { history: host.getMarketHistoryFetcher?.(), quote: host.getMarketQuoteFetcher?.(), trendStore: host.getMarketQuoteTrendStore?.() };
+  return { context: host.capabilityContext, history: host.getMarketHistoryFetcher?.(), quote: host.getMarketQuoteFetcher?.(), trendStore: host.getMarketQuoteTrendStore?.() };
 }
 
 const quoteParameters = Type.Object({
@@ -135,21 +142,24 @@ const kairosSummaryParameters = Type.Object({ recentsPerKind: Type.Optional(Type
 const providerTrendParameters = Type.Object({});
 
 function text(value: unknown): string { return JSON.stringify(value); }
-function nativeEvidence(toolCallId: string, query: string, path: string, asOf?: string) {
+function nativeEvidence(toolCallId: string, query: string, path: string, asOf?: string, evidenceCapability?: PiEvidenceCapability, auditCapability?: PiAuditCapability) {
   const retrievedAt = new Date().toISOString();
-  return {
-    id: `market-data:${toolCallId}:${path}`,
-    source: `upup-pi://market-data/${path}`,
-    retrievedAt,
-    asOf: asOf ?? retrievedAt.slice(0, 10),
-    query,
-    dataFreshness: 'historical' as const,
-    auditId: toolCallId,
-  };
+  const auditId = auditCapability?.({ auditId: toolCallId, tool: path, query }) ?? toolCallId;
+  return evidenceCapability
+    ? evidenceCapability({ id: `market-data:${toolCallId}:${path}`, source: `upup-pi://market-data/${path}`, retrievedAt, asOf: asOf ?? retrievedAt.slice(0, 10), query, dataFreshness: 'historical', auditId })
+    : {
+      id: `market-data:${toolCallId}:${path}`,
+      source: `upup-pi://market-data/${path}`,
+      retrievedAt,
+      asOf: asOf ?? retrievedAt.slice(0, 10),
+      query,
+      dataFreshness: 'historical' as const,
+      auditId,
+    };
 }
-function nativeResult(toolCallId: string, query: string, path: string, value: unknown, extra: Record<string, unknown> = {}, asOf?: string) {
-  const evidence = nativeEvidence(toolCallId, query, path, asOf);
-  return { content: [{ type: 'text' as const, text: text(value) }], details: { evidence: [evidence], dataFreshness: evidence.dataFreshness, auditId: toolCallId, ...extra } };
+function nativeResult(toolCallId: string, query: string, path: string, value: unknown, extra: Record<string, unknown> = {}, asOf?: string, evidenceCapability?: PiEvidenceCapability, auditCapability?: PiAuditCapability) {
+  const evidence = nativeEvidence(toolCallId, query, path, asOf, evidenceCapability, auditCapability);
+  return { content: [{ type: 'text' as const, text: text(value) }], details: { evidence: [evidence], dataFreshness: evidence.dataFreshness, auditId: evidence.auditId, ...extra } };
 }
 function normalizeInstrumentCode(code: string): { symbol: string; market: Market } {
   const trimmed = code.trim();
@@ -166,22 +176,29 @@ function normalizeInstrumentCode(code: string): { symbol: string; market: Market
 function isoDaysAgo(date: string, days: number): string {
   return new Date(Date.parse(`${date}T00:00:00Z`) - days * 86_400_000).toISOString().slice(0, 10);
 }
-function calendarResult(toolCallId: string, query: string, value: unknown) {
-  const evidence = { id: `market-data:${toolCallId}:calendar`, source: 'upup-pi://market-data/calendar', retrievedAt: '2026-09-13T00:00:00.000Z', asOf: '2026-09-13', query, dataFreshness: 'historical' as const, auditId: toolCallId };
-  return { content: [{ type: 'text' as const, text: text(value) }], details: { evidence: [evidence], dataFreshness: evidence.dataFreshness, auditId: toolCallId } };
+function calendarResult(toolCallId: string, query: string, value: unknown, evidenceCapability?: PiEvidenceCapability, auditCapability?: PiAuditCapability) {
+  const evidence = nativeEvidence(toolCallId, query, 'calendar', '2026-09-13', evidenceCapability, auditCapability);
+  return { content: [{ type: 'text' as const, text: text(value) }], details: { evidence: [evidence], dataFreshness: evidence.dataFreshness, auditId: evidence.auditId } };
 }
 
 export default function marketDataExtension(pi: ExtensionAPI): void {
   registerHostTools(pi);
   const transport = hostTransport();
+  const context = transport.context;
+  const contextHistory = capability<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(context, PI_MARKET_DATA_CAPABILITY_NAMES.historyFetcher);
+  const contextQuote = capability<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(context, PI_MARKET_DATA_CAPABILITY_NAMES.quoteFetcher);
+  const contextTrendStore = capability<NativeMarketQuoteTrendStore>(context, PI_MARKET_DATA_CAPABILITY_NAMES.quoteTrendStore);
+  const evidenceCapability = capability<PiEvidenceCapability>(context, PI_MARKET_DATA_CAPABILITY_NAMES.evidence);
+  const auditCapability = capability<PiAuditCapability>(context, PI_MARKET_DATA_CAPABILITY_NAMES.audit);
   const historyClients = new Map<MarketHistoryProvider, ReturnType<typeof resolveMarketHistoryClient>>();
   const quoteClients = new Map<MarketHistoryProvider, ReturnType<typeof resolveMarketQuoteClient>>();
+  const nativeEvidenceResult = (toolCallId: string, query: string, path: string, value: unknown, extra: Record<string, unknown> = {}, asOf?: string) => nativeResult(toolCallId, query, path, value, extra, asOf, evidenceCapability, auditCapability);
   const getHistoryClient = (provider: MarketHistoryProvider) => {
     const existing = historyClients.get(provider);
     if (existing) return existing.client;
     const created = resolveMarketHistoryClient({
       provider,
-      ...(transport.history ? { fetcher: transport.history } : {}),
+      fetcher: contextHistory ?? transport.history,
     });
     historyClients.set(provider, created);
     return created.client;
@@ -191,8 +208,8 @@ export default function marketDataExtension(pi: ExtensionAPI): void {
     if (existing) return existing.client;
     const created = resolveMarketQuoteClient({
       provider,
-      ...(transport.quote ? { fetcher: transport.quote } : {}),
-      ...(transport.trendStore ? { trendStore: transport.trendStore } : {}),
+      fetcher: contextQuote ?? transport.quote,
+      trendStore: contextTrendStore ?? transport.trendStore,
     });
     quoteClients.set(provider, created);
     return created.client;
@@ -224,7 +241,7 @@ export default function marketDataExtension(pi: ExtensionAPI): void {
     async execute(toolCallId, params, signal, _onUpdate, context) {
       if (signal.aborted) return { content: [{ type: 'text', text: `${name} request aborted` }], isError: true };
       const events = listKairosEvents(readKairosState(context), kind, params.limit ?? 20);
-      return nativeResult(toolCallId, kind, `kairos/${kind}`, { count: events.length, events }, { warning: 'Session-scoped KAIROS journal; this tool does not trigger scans or fetch live data.' });
+      return nativeEvidenceResult(toolCallId, kind, `kairos/${kind}`, { count: events.length, events }, { warning: 'Session-scoped KAIROS journal; this tool does not trigger scans or fetch live data.' });
     },
   });
   registerKairosRead('kairos_recent_opportunities', 'opportunity', 'Read recent opportunity events recorded in the current Pi Session. This is read-only and does not trigger a scan.');
@@ -235,7 +252,7 @@ export default function marketDataExtension(pi: ExtensionAPI): void {
     async execute(toolCallId, params, signal, _onUpdate, context) {
       if (signal.aborted) return { content: [{ type: 'text', text: 'kairos_summary request aborted' }], isError: true };
       const summary = summarizeKairos(readKairosState(context), params.recentsPerKind ?? 3);
-      return nativeResult(toolCallId, 'summary', 'kairos/summary', summary, { warning: 'Session-scoped KAIROS journal; this tool does not trigger scans or fetch live data.' });
+      return nativeEvidenceResult(toolCallId, 'summary', 'kairos/summary', summary, { warning: 'Session-scoped KAIROS journal; this tool does not trigger scans or fetch live data.' });
     },
   });
   pi.registerTool({
@@ -265,7 +282,7 @@ export default function marketDataExtension(pi: ExtensionAPI): void {
       if (signal.aborted) return { content: [{ type: 'text', text: 'Realtime subscription request aborted' }], isError: true };
       try {
         const result = await realtime.subscribe({ symbols: params.symbols, throttleMs: params.throttleMs, aggregateMs: params.aggregateMs, source: params.source as FeedSource | undefined });
-        return nativeResult(toolCallId, JSON.stringify(params), 'realtime/subscribe', { ...result, note: result.source === 'mock' ? 'Deterministic mock feed; no external network.' : 'Eastmoney source requires host-injected socket and remains explicitly opt-in.' }, {}, new Date(result.createdAt).toISOString().slice(0, 10));
+        return nativeEvidenceResult(toolCallId, JSON.stringify(params), 'realtime/subscribe', { ...result, note: result.source === 'mock' ? 'Deterministic mock feed; no external network.' : 'Eastmoney source requires host-injected socket and remains explicitly opt-in.' }, {}, new Date(result.createdAt).toISOString().slice(0, 10));
       } catch (error) {
         return { content: [{ type: 'text', text: error instanceof Error ? error.message : 'Realtime subscription failed' }], isError: true };
       }
@@ -279,7 +296,7 @@ export default function marketDataExtension(pi: ExtensionAPI): void {
     async execute(toolCallId, params, signal) {
       if (signal.aborted) return { content: [{ type: 'text', text: 'Realtime unsubscribe request aborted' }], isError: true };
       const result = await realtime.unsubscribe(params.subscriptionId);
-      return nativeResult(toolCallId, params.subscriptionId, 'realtime/unsubscribe', result);
+      return nativeEvidenceResult(toolCallId, params.subscriptionId, 'realtime/unsubscribe', result);
     },
   });
   pi.registerTool({
@@ -289,7 +306,7 @@ export default function marketDataExtension(pi: ExtensionAPI): void {
     parameters: realtimeListParameters,
     async execute(toolCallId, _params, signal) {
       if (signal.aborted) return { content: [{ type: 'text', text: 'Realtime list request aborted' }], isError: true };
-      return nativeResult(toolCallId, 'current-session', 'realtime/list', { subscriptions: realtime.list() });
+      return nativeEvidenceResult(toolCallId, 'current-session', 'realtime/list', { subscriptions: realtime.list() });
     },
   });
   pi.registerTool({
@@ -301,7 +318,7 @@ export default function marketDataExtension(pi: ExtensionAPI): void {
       if (signal.aborted) return { content: [{ type: 'text', text: 'Sector data request aborted' }], isError: true };
       const type = params.type ?? 'stock';
       const value = querySectorSnapshot(params.code, type as SectorQueryType);
-      return nativeResult(toolCallId, JSON.stringify(params), 'sector-data', { source: 'upup-pi://market-data/sector-data', freshness: 'historical', ...value, warning: '离线历史快照，不是实时板块行情或投资建议。' }, {}, '2026-09-12');
+      return nativeEvidenceResult(toolCallId, JSON.stringify(params), 'sector-data', { source: 'upup-pi://market-data/sector-data', freshness: 'historical', ...value, warning: '离线历史快照，不是实时板块行情或投资建议。' }, {}, '2026-09-12');
     },
   });
   pi.registerTool({
@@ -312,7 +329,7 @@ export default function marketDataExtension(pi: ExtensionAPI): void {
     async execute(toolCallId, params, signal) {
       if (signal.aborted) return { content: [{ type: 'text', text: 'Market structure request aborted' }], isError: true };
       const value = getMarketStructureSnapshot(params.type as MarketStructureType);
-      return nativeResult(toolCallId, JSON.stringify(params), 'market-structure', { source: 'upup-pi://market-data/market-structure', freshness: 'historical', ...value, requestedDates: { trade_date: params.trade_date, start_date: params.start_date, end_date: params.end_date }, warning: '离线历史快照，不是实时资金流或交易建议。' }, {}, '2026-09-12');
+      return nativeEvidenceResult(toolCallId, JSON.stringify(params), 'market-structure', { source: 'upup-pi://market-data/market-structure', freshness: 'historical', ...value, requestedDates: { trade_date: params.trade_date, start_date: params.start_date, end_date: params.end_date }, warning: '离线历史快照，不是实时资金流或交易建议。' }, {}, '2026-09-12');
     },
   });
   pi.registerTool({
@@ -334,7 +351,7 @@ export default function marketDataExtension(pi: ExtensionAPI): void {
         limit: params.limit,
       };
       const data = screenStockSnapshot(input);
-      return nativeResult(toolCallId, JSON.stringify(params), 'stock-screener', { source: 'upup-pi://market-data/stock-snapshot', freshness: 'historical', asOf: '2026-09-12', criteria: params, count: data.length, data, warning: '离线历史快照，不是实时行情或投资建议。' }, {}, '2026-09-12');
+      return nativeEvidenceResult(toolCallId, JSON.stringify(params), 'stock-screener', { source: 'upup-pi://market-data/stock-snapshot', freshness: 'historical', asOf: '2026-09-12', criteria: params, count: data.length, data, warning: '离线历史快照，不是实时行情或投资建议。' }, {}, '2026-09-12');
     },
   });
   pi.registerTool({
@@ -345,7 +362,7 @@ export default function marketDataExtension(pi: ExtensionAPI): void {
     async execute(toolCallId, params, signal) {
       if (signal.aborted) return { content: [{ type: 'text', text: 'A-share screener request aborted' }], isError: true };
       const data = screenStockSnapshot({ market: 'cn', sector: params.sector, exchange: params.exchange, marketCapMin: params.market_cap_min, marketCapMax: params.market_cap_max, peMin: params.pe_min, peMax: params.pe_max, limit: params.limit });
-      return nativeResult(toolCallId, JSON.stringify(params), 'astock-screener', { source: 'upup-pi://market-data/stock-snapshot', freshness: 'historical', asOf: '2026-09-12', criteria: params, count: data.length, data, warning: '离线历史快照，不是实时行情或投资建议。' }, {}, '2026-09-12');
+      return nativeEvidenceResult(toolCallId, JSON.stringify(params), 'astock-screener', { source: 'upup-pi://market-data/stock-snapshot', freshness: 'historical', asOf: '2026-09-12', criteria: params, count: data.length, data, warning: '离线历史快照，不是实时行情或投资建议。' }, {}, '2026-09-12');
     },
   });
   pi.registerTool({
@@ -432,7 +449,7 @@ export default function marketDataExtension(pi: ExtensionAPI): void {
     async execute(toolCallId, _params, signal) {
       if (signal.aborted) return { content: [{ type: 'text', text: 'Market provider trend request aborted' }], isError: true };
       const metrics = getQuoteClient('auto').getMetrics();
-      return nativeResult(toolCallId, 'provider-trend', 'market-data/provider-trend', { trend: metrics.trend, sloStatus: metrics.sloStatus, successRatePct: metrics.successRatePct, sampleCount: metrics.recentSamples.length });
+      return nativeEvidenceResult(toolCallId, 'provider-trend', 'market-data/provider-trend', { trend: metrics.trend, sloStatus: metrics.sloStatus, successRatePct: metrics.successRatePct, sampleCount: metrics.recentSamples.length });
     },
   });
   pi.registerTool({
@@ -444,7 +461,7 @@ export default function marketDataExtension(pi: ExtensionAPI): void {
       if (signal.aborted) return { content: [{ type: 'text', text: 'Market provider SLA request aborted' }], isError: true };
       try {
         const output = await providerSla(params, (provider) => getQuoteClient(provider), new JsonFileProviderSlaStore(), signal);
-        return nativeResult(toolCallId, 'provider-sla', 'market-data/provider-sla', output);
+        return nativeEvidenceResult(toolCallId, 'provider-sla', 'market-data/provider-sla', output);
       } catch (error) {
         return { content: [{ type: 'text', text: error instanceof Error ? error.message : String(error) }], isError: true, details: { auditId: toolCallId, source: 'native-provider-sla', policy: 'no-synthetic-fallback' } };
       }
@@ -484,26 +501,26 @@ export default function marketDataExtension(pi: ExtensionAPI): void {
     const market = params.market ?? 'us';
     if (market === 'all') {
       const value = { date: params.date, markets: Object.fromEntries((['us', 'china', 'hk'] as const).map((candidate) => [candidate, { isTradingDay: isCalendarTradingDay(params.date, candidate) }])) };
-      return calendarResult(toolCallId, `all:${params.date}`, value);
+      return calendarResult(toolCallId, `all:${params.date}`, value, evidenceCapability, auditCapability);
     }
-    return calendarResult(toolCallId, `${market}:${params.date}`, { date: params.date, market: market.toUpperCase(), isTradingDay: isCalendarTradingDay(params.date, market as CalendarMarket) });
+    return calendarResult(toolCallId, `${market}:${params.date}`, { date: params.date, market: market.toUpperCase(), isTradingDay: isCalendarTradingDay(params.date, market as CalendarMarket) }, evidenceCapability, auditCapability);
   } });
   pi.registerTool({ name: 'get_upcoming_holidays', label: 'Upcoming Market Holidays', description: 'List upcoming holidays for a selected market.', parameters: upcomingHolidayParameters, async execute(toolCallId, params, signal) {
     if (signal.aborted) return { content: [{ type: 'text', text: 'get_upcoming_holidays request aborted' }], isError: true };
     const market = params.market ?? 'us';
     const holidays = upcomingCalendarHolidays(params.startDate, market, params.count ?? 5);
-    return calendarResult(toolCallId, `${market}:${params.startDate ?? 'default'}`, { market: market.toUpperCase(), holidays: holidays ?? [], count: holidays?.length ?? 0 });
+    return calendarResult(toolCallId, `${market}:${params.startDate ?? 'default'}`, { market: market.toUpperCase(), holidays: holidays ?? [], count: holidays?.length ?? 0 }, evidenceCapability, auditCapability);
   } });
   pi.registerTool({ name: 'get_next_trading_day', label: 'Next Trading Day', description: 'Find the next trading day after a date.', parameters: nextTradingDayParameters, async execute(toolCallId, params, signal) {
     if (signal.aborted) return { content: [{ type: 'text', text: 'get_next_trading_day request aborted' }], isError: true };
     const market = params.market ?? 'us';
     const targetTradingDay = nextCalendarTradingDay(params.fromDate, market, params.skipDays ?? 1);
-    return calendarResult(toolCallId, `${market}:${params.fromDate}`, { fromDate: params.fromDate, market: market.toUpperCase(), skipDays: params.skipDays ?? 1, targetTradingDay });
+    return calendarResult(toolCallId, `${market}:${params.fromDate}`, { fromDate: params.fromDate, market: market.toUpperCase(), skipDays: params.skipDays ?? 1, targetTradingDay }, evidenceCapability, auditCapability);
   } });
   pi.registerTool({ name: 'get_trading_days', label: 'Trading Days', description: 'List trading days in an inclusive date range.', parameters: tradingDaysParameters, async execute(toolCallId, params, signal) {
     if (signal.aborted) return { content: [{ type: 'text', text: 'get_trading_days request aborted' }], isError: true };
     const market = params.market ?? 'us';
     const tradingDays = calendarTradingDays(params.startDate, params.endDate, market);
-    return calendarResult(toolCallId, `${market}:${params.startDate}:${params.endDate}`, { startDate: params.startDate, endDate: params.endDate, market: market.toUpperCase(), tradingDays: tradingDays ?? [], totalDays: tradingDays?.length ?? 0 });
+    return calendarResult(toolCallId, `${market}:${params.startDate}:${params.endDate}`, { startDate: params.startDate, endDate: params.endDate, market: market.toUpperCase(), tradingDays: tradingDays ?? [], totalDays: tradingDays?.length ?? 0 }, evidenceCapability, auditCapability);
   } });
 }

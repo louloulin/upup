@@ -7,6 +7,15 @@ import { Type, type TSchema } from 'typebox';
 export const PI_RUNTIME_CONTRACT = 'upup.pi.runtime.v1' as const;
 export const PI_EVENTS_CONTRACT = 'upup.pi.events.v1' as const;
 export const PI_CAPABILITIES_CONTRACT = 'upup.pi.capabilities.v1' as const;
+export const PI_MARKET_DATA_CAPABILITIES_CONTRACT = 'upup.pi.market-data.v1' as const;
+
+export const PI_MARKET_DATA_CAPABILITY_NAMES = {
+  historyFetcher: 'market-data.history-fetcher',
+  quoteFetcher: 'market-data.quote-fetcher',
+  quoteTrendStore: 'market-data.quote-trend-store',
+  evidence: 'financial.evidence',
+  audit: 'financial.audit',
+} as const;
 
 export type UpUpAgentMode = 'primary' | 'subagent' | 'worker' | 'reviewer';
 export type UpUpThinkingLevel = 'off' | 'minimal' | 'low' | 'medium' | 'high';
@@ -70,6 +79,29 @@ export interface FinancialEvidenceRecord {
   dataHash?: string;
   confidence?: 'high' | 'medium' | 'low';
 }
+
+export interface PiEvidenceCapabilityInput {
+  readonly id: string;
+  readonly source: string;
+  readonly retrievedAt: string;
+  readonly asOf: string;
+  readonly query: string;
+  readonly dataFreshness: UpUpDataPolicy;
+  readonly auditId: string;
+}
+
+export type PiEvidenceCapability = (input: PiEvidenceCapabilityInput) => FinancialEvidenceRecord & {
+  readonly dataFreshness: UpUpDataPolicy;
+  readonly auditId: string;
+};
+
+export interface PiAuditCapabilityInput {
+  readonly auditId: string;
+  readonly tool: string;
+  readonly query: string;
+}
+
+export type PiAuditCapability = (input: PiAuditCapabilityInput) => string;
 
 export interface FinancialToolDetails {
   evidence: readonly FinancialEvidenceRecord[];
@@ -159,6 +191,10 @@ export interface UpUpAgentSession {
   getAvailableToolNames(): readonly string[];
   executeTool(name: string, toolCallId: string, input: unknown, signal?: AbortSignal): Promise<AgentToolResult<unknown>>;
   getMessages(): readonly unknown[];
+  getResourceTrustAudit(): readonly PiResourceTrustAudit[];
+  getLoadedPackageResources(): readonly PiPackageResourceSnapshot[];
+  getLoadedPackageContracts(): PiPackageContracts;
+  evaluatePackage(name: string, value: unknown): PiEvalResult;
   subscribe(listener: (event: UpUpAgentEvent) => void): () => void;
   dispose(): void;
 }
@@ -205,7 +241,7 @@ export interface UpUpCreateSessionOptions {
   piPackagePaths?: readonly string[];
   piPackageTrust?: PiPluginTrustPolicy;
   pluginTrust?: PiPluginTrustPolicy;
-  piPlugins?: readonly any[];
+  piPlugins?: readonly unknown[];
   marketHistoryFetcher?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
   marketQuoteFetcher?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
   marketQuoteTrendStore?: any;

@@ -25,7 +25,8 @@ import {
 } from '../../runtime/pi/investment-workflow.js';
 import { loadPlan } from '../../plan/plan-executor.js';
 import { extractTicker } from '../../plan/plan-builder.js';
-import { getDefaultAuditChain, type AuditAction } from '../../memory/audit-signing.js';
+import { getDefaultAuditChain, type AuditAction } from '@upup/pi-storage';
+import { globalUpupPath } from '../../utils/storage-paths.js';
 import { randomUUID } from 'node:crypto';
 
 export type InvestMode = 'full' | 'fast' | 'resume';
@@ -50,7 +51,10 @@ function recordTradeAuditIfApplicable(result: WorkflowResult): void {
   if (!matched) return;
   const action = matched[1]!.toUpperCase() as AuditAction;
   try {
-    getDefaultAuditChain().append({
+    getDefaultAuditChain(false, {
+      filePath: globalUpupPath('audit-chain.jsonl'),
+      keyPath: globalUpupPath('audit-key.json'),
+    }).append({
       intentId: `invest-${result.planId}`,
       author: 'agent',
       action,

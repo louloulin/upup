@@ -20,7 +20,7 @@ import { buildResearchPlan, extractTicker } from '../../plan/plan-builder.js';
 import { loadPlan } from '../../plan/plan-executor.js';
 import type { ResearchPlan } from '../../plan/research-plan.js';
 import { buildEarningsPreview as buildPiEarningsPreview } from '@upup/pi-research';
-import type { DossierStore, EarningsCallNote } from '../../memory/dossier.js';
+import type { DossierStore, EarningsCallNote } from '@upup/pi-storage';
 
 // ---------------------------------------------------------------------------
 // Public data model — exported so MCP / dossier / CLI can share

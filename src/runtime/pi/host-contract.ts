@@ -1,3 +1,4 @@
+import type { PiCapabilityContext } from '@upup/pi-runtime';
 import type { ToolDefinition } from '@earendil-works/pi-coding-agent';
 import type { InvestmentWorkflowServices } from '@upup/pi-investment-workflow';
 import type { NativeMarketQuoteTrendStore } from '@upup/pi-market-data';
@@ -181,6 +182,7 @@ export interface PiHostBridge {
   getMarketQuoteFetcher?(): (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
   getMarketQuoteTrendStore?(): NativeMarketQuoteTrendStore;
   getMarketQuote?(symbol: string, requestedMarket: string | undefined, signal: AbortSignal | undefined, auditId: string): Promise<PiMarketQuoteResult>;
+  readonly capabilityContext?: PiCapabilityContext;
   getManagementSnapshot?(): PiManagementSnapshot;
 }
 
@@ -227,6 +229,7 @@ export function createPiHostBridge(
   getMarketQuoteTrendStore?: () => NativeMarketQuoteTrendStore,
   getMarketQuote?: (symbol: string, requestedMarket: string | undefined, signal: AbortSignal | undefined, auditId: string) => Promise<PiMarketQuoteResult>,
   getManagementSnapshot?: () => PiManagementSnapshot,
+  capabilityContext?: PiCapabilityContext,
 ): PiHostBridge {
   const capabilities: PiHostCapability[] = ['tool-definitions'];
   if (runResearchWorker) capabilities.push('research-worker');
@@ -234,7 +237,7 @@ export function createPiHostBridge(
   if (runCronJob) capabilities.push('cron-runner');
   if (listMcpResources && readMcpResource) capabilities.push('mcp-resources');
   if (getInvestmentWorkflowServices) capabilities.push('investment-workflow');
-  if (getMarketHistoryFetcher || getMarketQuoteFetcher || getMarketQuote || getMarketQuoteTrendStore) capabilities.push('market-data-transport');
+  if (getMarketHistoryFetcher || getMarketQuoteFetcher || getMarketQuote || getMarketQuoteTrendStore || capabilityContext) capabilities.push('market-data-transport');
   if (getManagementSnapshot) capabilities.push('management-snapshot');
   return {
     contract: PI_HOST_CONTRACT,
@@ -252,6 +255,7 @@ export function createPiHostBridge(
     ...(getMarketQuoteFetcher ? { getMarketQuoteFetcher } : {}),
     ...(getMarketQuoteTrendStore ? { getMarketQuoteTrendStore } : {}),
     ...(getMarketQuote ? { getMarketQuote } : {}),
+    ...(capabilityContext ? { capabilityContext } : {}),
     ...(getManagementSnapshot ? { getManagementSnapshot } : {}),
     getToolDefinitions(request) {
       if (request.contract !== PI_HOST_CONTRACT) return [];

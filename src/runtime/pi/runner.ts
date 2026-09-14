@@ -3,7 +3,7 @@ import type { Model } from '@earendil-works/pi-ai';
 import type { ModelRuntime } from '@earendil-works/pi-coding-agent';
 import { createPiAgentRuntime } from './agent-session-factory.js';
 import { validateAgentSpec } from './agent-spec.js';
-import type { UpUpAgentEvent, UpUpAgentSpec, UpUpAgentSession } from './types.js';
+import type { UpUpAgentEvent, UpUpAgentSpec, UpUpAgentSession, UpUpToolSafetyLevel } from '@upup/pi-runtime';
 import { resolveProvider } from '../../providers.js';
 import { getPiSessionService } from './session-service.js';
 import { createHash } from 'node:crypto';
@@ -26,7 +26,7 @@ export interface PiPromptOptions {
   requestToolApproval?: (request: {
     tool: string;
     input: unknown;
-    safetyLevel: import('./types.js').UpUpToolSafetyLevel;
+    safetyLevel: UpUpToolSafetyLevel;
     auditId: string;
     permissionProfile: string;
   }) => boolean | Promise<boolean>;
