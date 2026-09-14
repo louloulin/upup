@@ -3,7 +3,7 @@
  * 支持DCA定投、一次性投资、条件触发交易
  */
 
-import { getFundBasic, getFundEstimatedValue } from './fund-api';
+import { getFundBasic, getFundEstimatedValue } from './fund-api.js';
 
 // ============================================================================
 // Types

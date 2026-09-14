@@ -68,3 +68,53 @@ export { NativeEarningsTranscriptClient } from './earnings-transcripts.js';
 export type { NativeEarningsTranscriptClientOptions, NativeEarningsTranscriptQuery, NativeTranscriptRef } from './earnings-transcripts.js';
 export { NativeFundHistoryClient, getNativeFundHistoryForRange } from './fund-history.js';
 export type { NativeFundHistoryClientOptions, NativeFundHistoryPoint } from './fund-history.js';
+
+// ============================================================================
+// Legacy fund API (天天基金 daily estimate + portfolio screens + trade sim)
+// Migrated from src/tools/fund/* in Pi7 Round 4. Kept under their original
+// names so downstream package callers can move off `src/tools/fund/*` without
+// rewriting consumers.
+// ============================================================================
+export {
+  searchFunds,
+  getFundBasic,
+  getFundEstimatedValue,
+  getFundPerformance,
+  getFundHoldings,
+  getFundManager,
+  getFundManagers,
+  screenFunds,
+  searchFundsByType,
+  getTopFunds,
+} from './fund-api.js';
+export { BacktestEngine, backtestDCA, backtestLumpSum, backtestThreshold, compareBacktests, generateBacktestReport, getFundHistory } from './fund-backtest.js';
+export type { BacktestConfig, BacktestResult, BacktestSnapshot } from './fund-backtest.js';
+export { analyzeSectorAllocation, getFundHoldingAnalysis, getFundsHoldingStock, generateHoldingReport } from './fund-holdings-analysis.js';
+export type { StockInfo, FundHoldingWithStock, StockFundMapping, SectorAllocation, FundHoldingAnalysis } from './fund-holdings-analysis.js';
+export {
+  screenFunds as screenFundsByCriteria,
+  getFundRecommendations,
+  compareFunds,
+  getScreeningStrategies,
+} from './fund-screening.js';
+export type { ScreeningCriteria, FundRecommendation, FundRecommendationScore } from './fund-screening.js';
+export {
+  createPortfolio,
+  getPortfolio,
+  buyFund,
+  sellFund,
+  getTrades,
+  resetPortfolio,
+} from './fund-trade.js';
+export type {
+  FundBasic,
+  FundPerformance,
+  FundHoldings,
+  FundManager,
+  FundSearchResult,
+  Portfolio,
+  PortfolioHolding,
+  SimulatedTrade,
+  FollowedFund,
+  AlertConfig,
+} from './fund-types.js';

@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import { screenFunds, getFundRecommendations } from '../src/tools/fund/fund-screening';
+import { screenFunds, getFundRecommendations } from '@upup/pi-finance-sdk';
 
 describe('基金筛选功能验证', () => {
   test('按类型筛选 - 混合型', async () => {

@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { BacktestEngine, BacktestConfig } from '../src/tools/fund/fund-backtest.ts';
+import { BacktestEngine, BacktestConfig } from '@upup/pi-finance-sdk';
 
 describe('Fund Backtest', () => {
   test('should create backtest engine', () => {
@@ -12,14 +12,14 @@ describe('Fund Backtest', () => {
   });
   
   test('should have backtest functions', async () => {
-    const { backtestDCA, backtestLumpSum, backtestThreshold } = await import('../src/tools/fund/fund-backtest.ts');
+    const { backtestDCA, backtestLumpSum, backtestThreshold } = await import('@upup/pi-finance-sdk');
     expect(typeof backtestDCA).toBe('function');
     expect(typeof backtestLumpSum).toBe('function');
     expect(typeof backtestThreshold).toBe('function');
   });
   
   test('generateBacktestReport should return string', async () => {
-    const { generateBacktestReport } = await import('../src/tools/fund/fund-backtest.ts');
+    const { generateBacktestReport } = await import('@upup/pi-finance-sdk');
     expect(typeof generateBacktestReport).toBe('function');
   });
 });

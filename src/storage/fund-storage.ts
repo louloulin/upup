@@ -221,7 +221,7 @@ export function clearAllFollowed(): void {
 // Fund Monitor Integration - Check alerts on value updates
 // ============================================================================
 
-import { getFundEstimatedValue } from '../tools/fund/fund-api.js';
+import { getFundEstimatedValue } from '@upup/pi-finance-sdk';
 
 /**
  * Check all alerts for a fund and return triggered ones

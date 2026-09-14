@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import { searchFunds, getFundHoldings, getFundBasic } from '../src/tools/fund/fund-api';
+import { searchFunds, getFundHoldings, getFundBasic } from '@upup/pi-finance-sdk';
 
 describe('基金选择方法验证', () => {
   test('按类型筛选 - 股票型基金', async () => {

@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import { getFundHistoricalNav, getFundFullHistory } from '../src/tools/fund/fund-api';
+import { getFundHistoricalNav, getFundFullHistory } from '@upup/pi-finance-sdk';
 
 describe('基金历史净值API验证', () => {
   test('获取单页历史净值 - 110022', async () => {

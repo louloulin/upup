@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import { backtestDCA } from '../src/tools/fund/fund-backtest';
+import { backtestDCA } from '@upup/pi-finance-sdk';
 
 describe('多基金回测验证', () => {
   test('易方达消费DCA回测', async () => {

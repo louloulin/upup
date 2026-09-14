@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'bun:test';
-import { backtestDCA } from '../src/tools/fund/fund-backtest';
-import { getFundEstimatedValue } from '../src/tools/fund/fund-api';
+import { backtestDCA } from '@upup/pi-finance-sdk';
+import { getFundEstimatedValue } from '@upup/pi-finance-sdk';
 
 describe('基金回测真实验证', () => {
   test('DCA定投回测 - 110022', async () => {

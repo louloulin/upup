@@ -3,8 +3,8 @@
  * 基于多维度条件的基金筛选和智能推荐
  */
 
-import type { FundBasic, FundPerformance, FundManager } from './types';
-import { searchFunds, getFundBasic, getFundPerformance, getFundManager, screenFunds as baseScreenFunds, getTopFunds } from './fund-api';
+import type { FundBasic, FundPerformance, FundManager } from './fund-types.js';
+import { searchFunds, getFundBasic, getFundPerformance, getFundManager, screenFunds as baseScreenFunds, getTopFunds } from './fund-api.js';
 
 // ============================================================================
 // Types

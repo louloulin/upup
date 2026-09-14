@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import { searchFunds, getFundBasic, getFundPerformance } from '../src/tools/fund/fund-api';
+import { searchFunds, getFundBasic, getFundPerformance } from '@upup/pi-finance-sdk';
 
 describe('基金API真实验证', () => {
   test('基金搜索 - 易方达消费', async () => {
