@@ -5,8 +5,9 @@
  */
 
 import { describe, expect, test, beforeEach, afterEach } from 'bun:test';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 
 const fakeSpec = {
@@ -44,14 +45,11 @@ async function resetAndRegister(): Promise<{
     createSession: async (_spec, options?: { sessionId?: string; sessionDir?: string }) => {
       const id = options?.sessionId ?? randomUUID();
       const sessionFilePath = join(options?.sessionDir ?? process.env.UPUP_SESSION_DIR ?? '.upup', `${id}.jsonl`);
-      if (sessionFilePath) {
-        await mkdir(dirname(sessionFilePath), { recursive: true });
-        await writeFile(sessionFilePath, JSON.stringify({ type: 'session', id, cwd: process.cwd(), timestamp: new Date().toISOString() }) + '\n');
-        console.log('Wrote session file:', sessionFilePath);
-      } else {
-        console.log('FIXME_DEBUG', id);
-      }
-      const entries: Array<Record<string, unknown>> = [];
+      const entries: Array<Record<string, unknown>> = [
+        { type: 'session', id, cwd: process.cwd(), timestamp: new Date().toISOString() },
+      ];
+      mkdirSync(dirname(sessionFilePath), { recursive: true });
+      writeFileSync(sessionFilePath, JSON.stringify(entries[0]) + '\n');
       const fake: FakeSessionHandle = {
         id,
         spec: fakeSpec,
@@ -65,21 +63,24 @@ async function resetAndRegister(): Promise<{
         getSessionHeader: () => null,
         getSessionTree: () => [],
         exportToJsonl: (p?: string) => {
-          const path = p ?? sessionFilePath;
-          if (path) {
-            // handled in createSession
+          const filePath = p ?? sessionFilePath;
+          if (filePath) {
+            try {
+              mkdirSync(dirname(filePath), { recursive: true });
+              writeFileSync(filePath, entries.map((e) => JSON.stringify(e)).join('\n') + '\n');
+            } catch {}
           }
-          return path ?? '';
+          return filePath ?? '';
         },
         exportToHtml: () => Promise.resolve(''),
         fork: () => undefined,
         appendEntry: (customType: string, data?: unknown) => {
           entries.push({ type: 'custom', customType, data });
-          void fake.exportToJsonl();
+          fake.exportToJsonl();
         },
         appendSessionInfo: (name: string) => {
-          entries.push({ type: 'session_info', data: name });
-          void fake.exportToJsonl();
+          entries.push({ type: 'session_info', name });
+          fake.exportToJsonl();
         },
         setFinanceContext: () => undefined,
         getFinanceContext: () => ({ ticker: undefined, market: undefined, assumptions: {}, risks: [], evidence: [], unfinishedPhases: [] }),
@@ -166,18 +167,6 @@ describe('StatePort -> PiSessionService bridge', () => {
     }
     try {
       const all = await port.getSessionManager().listSessions(0);
-      const fs = await import('node:fs/promises');
-      try {
-        const dirEntries = await fs.readdir(process.env.UPUP_SESSION_DIR);
-        console.log('dir entries:', dirEntries);
-      } catch (e) { console.log('readdir err:', e.message); }
-      console.log('all sessions:', JSON.stringify(all));
-      const files = await fs.readdir(process.env.UPUP_SESSION_DIR);
-      const firstFile = files[0];
-      if (firstFile) {
-        const content = await fs.readFile(`${process.env.UPUP_SESSION_DIR}/${firstFile}`, 'utf8');
-        console.log('First file content:', content);
-      }
       const ours = all.filter((s) => ids.includes(s.id));
       expect(ours.length).toBe(3);
 

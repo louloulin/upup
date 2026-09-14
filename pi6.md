@@ -1257,3 +1257,39 @@ root `src/tools`、`src/skills`、Session/Memory/Permissions、MCP/Plugin、Gate
 ### 32.3 当前剩余项
 
 Factory 拆分、`src/tools`、`src/skills`、`src/commands/investment`、Session/Memory/Permissions、MCP/Plugin、Gateway/Bridge/stdio、Cron/Daemon、TUI/components 和 `legacy-events` 消费者仍待后续轮次迁移；本轮不宣称全仓 Pi Native 已完成。
+
+## 33. Pi7 第三轮实施结果（2026-09-14）
+
+本轮完成 `host-contract` / `finance-host-contract` / `session-service` / `background-service` 的物理下沉到 `@upup/pi-session`，并显式化 Package session/background service 的依赖注入。
+
+### 33.1 已完成
+
+- `git mv` 已将以下源文件（含对应 `.test.ts`）迁入 `packages/pi-session/src/`：
+  - `src/runtime/pi/host-contract.ts`（290 行，host bridge 契约与工厂）
+  - `src/runtime/pi/finance-host-contract.ts`（30 行，finance host bridge 包装）
+  - `src/runtime/pi/session-service.ts`（335 行，persistent session 管理）
+  - `src/runtime/pi/background-service.ts`（88 行，background task service）
+- `@upup/pi-session` 暴露 `configurePiSessionService(runtimeFactory)` 与 `configurePiBackgroundService(runnerFactory)`，将 runtime 工厂与 prompt runner 注入 Package；旧 factory 直接调用 `createPiAgentRuntime` / `runPiPrompt` 的硬编码路径被替换为参数注入。
+- `PiSessionListItem` 类型内化到 Package，删除对 `src/session/types` 的反向依赖。
+- 新增 `src/runtime/pi/bootstrap.ts` 集中调用 `bootstrapPiNativeServices()`，由 `src/index.tsx` 启动时加载；`src/daemon/workers/tasks.ts` 与 root runtime/contract 测试在其 `beforeAll` / 模块加载时也调用同一 bootstrap。
+- root 全部 consumer（`src/state`、`src/controllers/agent-runner`、`src/controllers/session-selection`、`src/stdio/server`、`src/daemon/workers/tasks`、`src/multi-agent/monitor`、`src/runtime/pi/runner`、`src/runtime/pi/agent-session-factory`、`src/management/snapshot-provider`）改用 `@upup/pi-session` Package API，不再依赖 root facade。
+- root `src/runtime/pi/{host-contract,finance-host-contract,session-service,background-service}.ts` 退化为 2 行 `@deprecated` facade；`src/runtime/pi/index.ts` 同步移除旧 re-export。
+- `scripts/verify-pi5.ts` 与 `scripts/appscript-verify.ts` 已迁移到 Package 测试路径或注入 bootstrap。
+- 根 `src/runtime/pi` 生产行数净减约 707 行。
+
+### 33.2 验证
+
+| 验证项 | 结果 |
+|---|---|
+| `bun run typecheck` | 通过 |
+| `bun run check:pi7` | 通过：40 manifests、唯一 Pi AgentSession factory、无生产 global registry |
+| `bun run check:module-boundaries` | 通过：40 packages、553 root modules |
+| `bun --cwd packages/pi-session test` | 15 pass、46 assertions、5 files |
+| `bun test src/runtime/pi` | 162 pass、2044 assertions、24 files |
+| `bun run test:pi-contracts` | 通过 |
+| `bun test`（全仓） | 3691 pass、0 fail、12259 assertions、354 files |
+| `git diff --check` | 通过 |
+
+### 33.3 当前剩余项
+
+`src/tools` 旧金融工具实现、`src/skills` 与 `src/commands/investment` 投资能力、`src/session` / `src/memory` / `src/permissions` 持久层、`src/mcp` / `src/plugins` / `src/gateway` / `src/bridge` / `src/stdio` / `src/cron` / `src/daemon` 外围进程、`src/tui` / `src/components` UI、`legacy-events` 与 root `src/agent/` 仍待后续轮次迁移；本轮不宣称全仓 Pi Native 已完成。真实 provider smoke 仍需凭证环境单独执行。
