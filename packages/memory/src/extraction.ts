@@ -95,9 +95,19 @@ export async function extractMemories(
     const validMemories: ExtractionResult[] = [];
     for (const memory of result.memories) {
       try {
-        MEMORY_FRONTMATTER_SCHEMA.parse(memory);
-        await writeMemoryFile(memory);
-        validMemories.push(memory);
+        const { name, description, type } = memory;
+        if (
+          typeof name !== 'string' || name.length === 0
+          || typeof description !== 'string'
+          || typeof type !== 'string'
+          || typeof memory.content !== 'string' || memory.content.trim().length === 0
+        ) {
+          throw new Error('invalid memory frontmatter');
+        }
+        MEMORY_FRONTMATTER_SCHEMA.parse({ name, description, type });
+        const record: ExtractionResult = { name, description, type: type as MemoryType, content: memory.content };
+        await writeMemoryFile(record);
+        validMemories.push(record);
       } catch {
         // Skip invalid memories
         warn('memory', `Skipping invalid memory: ${memory.name}`);

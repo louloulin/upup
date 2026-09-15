@@ -24,11 +24,20 @@ function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promi
   });
 }
 
+/**
+ * Pi resolves Google credentials from `GEMINI_API_KEY`; `GOOGLE_API_KEY` stays
+ * accepted for `.env` files written before UpUp became Pi-native.
+ */
+function googleApiKey(): string | undefined {
+  const value = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+  return value && value.trim() ? value : undefined;
+}
+
 function resolveProvider(preferred: EmbeddingProviderId): ResolvedProvider | null {
   if (preferred === 'openai' && process.env.OPENAI_API_KEY) {
     return 'openai';
   }
-  if (preferred === 'gemini' && process.env.GOOGLE_API_KEY) {
+  if (preferred === 'gemini' && googleApiKey()) {
     return 'gemini';
   }
   if (preferred === 'ollama') {
@@ -39,7 +48,7 @@ function resolveProvider(preferred: EmbeddingProviderId): ResolvedProvider | nul
     if (process.env.OPENAI_API_KEY) {
       return 'openai';
     }
-    if (process.env.GOOGLE_API_KEY) {
+    if (googleApiKey()) {
       return 'gemini';
     }
     if (process.env.OLLAMA_BASE_URL) {
@@ -85,7 +94,7 @@ export function createEmbeddingClient(params: {
 
   if (resolved === 'gemini') {
     const model = params.model || DEFAULT_GEMINI_MODEL;
-    const embed = async (batch: string[]) => requestEmbeddings(`https://generativelanguage.googleapis.com/v1beta/models/${model}:batchEmbedContents?key=${process.env.GOOGLE_API_KEY}`, undefined, model, batch, 'google');
+    const embed = async (batch: string[]) => requestEmbeddings(`https://generativelanguage.googleapis.com/v1beta/models/${model}:batchEmbedContents?key=${googleApiKey()}`, undefined, model, batch, 'google');
     return {
       provider: 'gemini',
       model,

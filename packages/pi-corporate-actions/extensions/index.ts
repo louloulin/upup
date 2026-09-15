@@ -28,6 +28,7 @@ import {
   sortSplitsChronologically,
   totalDividends,
   type CorporateAction,
+  type CorporateActionsEvidence,
   type RawBar,
 } from '../src/index';
 
@@ -35,8 +36,8 @@ const symbolParam = Type.String({ minLength: 1, maxLength: 24, description: 'Sym
 
 function text(value: unknown): string { return JSON.stringify(value, null, 2); }
 
-function evidenceEnvelope<T>(payload: T): T & { evidence: { source: string; dataFreshness: 'offline' } } {
-  return { ...payload, evidence: { source: dryRunEvidence().source, dataFreshness: dryRunEvidence().dataFreshness } };
+function evidenceEnvelope<T>(payload: T): T & { evidence: CorporateActionsEvidence } {
+  return { ...payload, evidence: dryRunEvidence() };
 }
 
 export default function corporateActionsExtension(pi: ExtensionAPI): void {
@@ -55,7 +56,7 @@ export default function corporateActionsExtension(pi: ExtensionAPI): void {
       currency: Type.Optional(Type.String({ description: 'Currency code filter (CNY/HKD/USD/...)' })),
     }),
     async execute(toolCallId, params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'corporate_actions_dividends aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'corporate_actions_dividends aborted' }], isError: true, details: undefined };
       const all = await client.listDividends(params.symbol);
       const filtered = filterDividends(all, {
         ...(params.startDate !== undefined ? { startDate: params.startDate } : {}),
@@ -78,7 +79,7 @@ export default function corporateActionsExtension(pi: ExtensionAPI): void {
     description: 'List historical stock split events (ex-date, ratio from/to, reverse-split flag) for a symbol. Uses the dry-run client.',
     parameters: Type.Object({ symbol: symbolParam }),
     async execute(toolCallId, params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'corporate_actions_splits aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'corporate_actions_splits aborted' }], isError: true, details: undefined };
       const all = await client.listSplits(params.symbol);
       const sorted = sortSplitsChronologically(all);
       const value = evidenceEnvelope({ symbol: params.symbol, count: sorted.length, splits: sorted });
@@ -95,7 +96,7 @@ export default function corporateActionsExtension(pi: ExtensionAPI): void {
     description: 'List historical rights issue events (ex-date, ratio from/to, subscription price, currency) for a symbol. Uses the dry-run client.',
     parameters: Type.Object({ symbol: symbolParam }),
     async execute(toolCallId, params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'corporate_actions_rights aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'corporate_actions_rights aborted' }], isError: true, details: undefined };
       const all = await client.listRightsIssues(params.symbol);
       const value = evidenceEnvelope({ symbol: params.symbol, count: all.length, rightsIssues: all });
       return {
@@ -111,7 +112,7 @@ export default function corporateActionsExtension(pi: ExtensionAPI): void {
     description: 'List every corporate action (dividend / split / rights_issue / spinoff) for a symbol, sorted chronologically. Uses the dry-run client.',
     parameters: Type.Object({ symbol: symbolParam }),
     async execute(toolCallId, params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'corporate_actions_list_all aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'corporate_actions_list_all aborted' }], isError: true, details: undefined };
       const all = await client.listAll(params.symbol);
       const value = evidenceEnvelope({ symbol: params.symbol, count: all.length, actions: all });
       return {
@@ -134,7 +135,7 @@ export default function corporateActionsExtension(pi: ExtensionAPI): void {
       }), { minItems: 1, maxItems: 5000 }),
     }),
     async execute(toolCallId, params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'corporate_actions_adjust_prices aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'corporate_actions_adjust_prices aborted' }], isError: true, details: undefined };
       const splits = await client.listSplits(params.symbol);
       const actions: CorporateAction[] = splits.map((s) => ({
         symbol: s.symbol,
@@ -168,7 +169,7 @@ export default function corporateActionsExtension(pi: ExtensionAPI): void {
       endPrice: Type.Number(),
     }),
     async execute(toolCallId, params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'corporate_actions_total_return aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'corporate_actions_total_return aborted' }], isError: true, details: undefined };
       const [dividends, splits, rightsIssues] = await Promise.all([
         client.listDividends(params.symbol),
         client.listSplits(params.symbol),
@@ -202,7 +203,7 @@ export default function corporateActionsExtension(pi: ExtensionAPI): void {
       lookbackDays: Type.Optional(Type.Integer({ minimum: 1, maximum: 3650 })),
     }),
     async execute(toolCallId, params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'corporate_actions_dividend_yield aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'corporate_actions_dividend_yield aborted' }], isError: true, details: undefined };
       const dividends = await client.listDividends(params.symbol);
       const yieldPct = annualizedDividendYield(dividends, params.pricePerShare, params.lookbackDays ?? 365);
       const value = evidenceEnvelope({
@@ -227,7 +228,7 @@ export default function corporateActionsExtension(pi: ExtensionAPI): void {
       lastClose: Type.Number(),
     }),
     async execute(toolCallId, params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'corporate_actions_ex_price aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'corporate_actions_ex_price aborted' }], isError: true, details: undefined };
       const rights = await client.listRightsIssues(params.symbol);
       if (rights.length === 0) {
         return {

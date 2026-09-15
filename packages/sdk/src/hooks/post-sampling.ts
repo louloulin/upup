@@ -19,7 +19,7 @@ import type { ContentBlock, Message } from '../messages'
  * 在模型生成完整响应后触发
  * 可用于修改响应、记录日志、添加上下文等
  */
-export interface PostSamplingInput extends HookInput {
+export interface PostSamplingInput extends Omit<HookInput, 'message'> {
   /** 生成的完整消息 */
   message: Message
   /** 原始请求参数 */
@@ -208,7 +208,7 @@ export class PostSamplingHooks {
           return { continue: true }
         }
 
-        const result = await hook(input as PostSamplingInput, {})
+        const result = await hook(input as unknown as PostSamplingInput, {})
         return result
       }
     })
@@ -331,12 +331,3 @@ export function createAugmentHook(
     return { continue: true }
   }
 }
-
-// ============ Exports ============
-
-export type {
-  PostSamplingInput,
-  PostSamplingOutput,
-  PostSamplingCallback,
-  PostSamplingConfig,
-} from './post-sampling'

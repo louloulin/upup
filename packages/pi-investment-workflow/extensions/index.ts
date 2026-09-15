@@ -37,7 +37,7 @@ export default function investmentWorkflowExtension(pi: ExtensionAPI): void {
     if (!services) return { content: [{ type: 'text', text: 'investment-workflow capability is unavailable; execution is fail-closed' }], isError: true, details: { auditId: toolCallId, capability: 'investment-workflow', policy: 'fail-closed' } };
     try {
       const result = await executeInvestmentPhase(params.phase, { ...(params.ticker === undefined ? {} : { ticker: params.ticker }), ...(params.market === undefined ? {} : { market: params.market }), ...(params.goal === undefined ? {} : { goal: params.goal }) }, services(), signal);
-      return { content: [{ type: 'text', text: result.output }], ...(result.error ? { isError: true } : {}), details: { auditId: toolCallId, evidence: result.evidence, dataFreshness: params.phase === 'execute' ? 'historical' : 'live', ...(result.error ? { error: result.error } : {}) } };
+      return { content: [{ type: 'text', text: result.output }], ...(result.error ? { isError: true, details: undefined } : {}), details: { auditId: toolCallId, evidence: result.evidence, dataFreshness: params.phase === 'execute' ? 'historical' : 'live', ...(result.error ? { error: result.error } : {}) } };
     } catch (error) {
       return {
         content: [{ type: 'text', text: error instanceof Error ? error.message : String(error) }],
@@ -55,7 +55,7 @@ export default function investmentWorkflowExtension(pi: ExtensionAPI): void {
     async execute(toolCallId, params, signal) {
       if (!services) return { content: [{ type: 'text', text: 'investment-workflow capability is unavailable; execution is fail-closed' }], isError: true, details: { auditId: toolCallId, policy: 'fail-closed' } };
       const result = await executeInvestmentPhase(params.phase, { ...(params.ticker === undefined ? {} : { ticker: params.ticker }), ...(params.market === undefined ? {} : { market: params.market }), ...(params.goal === undefined ? {} : { goal: params.goal }) }, services(), signal);
-      return { content: [{ type: 'text', text: result.output }], ...(result.error ? { isError: true } : {}), details: { auditId: toolCallId, workflowId: params.workflowId, phase: params.phase, profile: params.profile as InvestmentAgentProfileId, evidence: result.evidence } };
+      return { content: [{ type: 'text', text: result.output }], ...(result.error ? { isError: true, details: undefined } : {}), details: { auditId: toolCallId, workflowId: params.workflowId, phase: params.phase, profile: params.profile as InvestmentAgentProfileId, evidence: result.evidence } };
     },
   });
 }

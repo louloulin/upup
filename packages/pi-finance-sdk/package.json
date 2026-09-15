@@ -14,11 +14,18 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
+      "bun": "./src/index.ts",
       "default": "./dist/index.js"
     },
     "./finance-fixtures": {
       "types": "./dist/finance-fixtures.d.ts",
+      "bun": "./src/finance-fixtures.ts",
       "default": "./dist/finance-fixtures.js"
+    },
+    "./extensions": {
+      "types": "./dist/extensions/index.d.ts",
+      "bun": "./extensions/index.ts",
+      "default": "./dist/extensions/index.js"
     }
   },
   "scripts": {

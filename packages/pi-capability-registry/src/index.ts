@@ -67,9 +67,20 @@ export class PiCapabilityRegistry {
 }
 
 export interface PiCapabilityExtensionApi {
-  readonly registerTool: (tool: unknown) => void;
+  /**
+   * Pi hands the concrete `ExtensionAPI` in, whose `registerTool` is generic
+   * over the tool definition. Typing this parameter as `never` keeps that
+   * implementation assignable: nothing in UpUp ever calls it through this
+   * interface, it is only forwarded.
+   */
+  readonly registerTool: (tool: never) => void;
   readonly events: PiCapabilityEventBus;
-  readonly on?: (event: string, handler: (event: unknown, context: { sessionManager: { getSessionId(): string } }) => void) => void;
+  /**
+   * Narrowed to the single lifecycle event this registry subscribes to, so the
+   * concrete `ExtensionAPI` (whose `on` is an overload set over literal event
+   * names) stays assignable.
+   */
+  readonly on?: (event: 'session_start', handler: (event: unknown, context: { sessionManager: { getSessionId(): string } }) => void) => void;
 }
 
 export function registerPiCapabilityHost<T extends PiCapabilityHostRecord>(

@@ -133,7 +133,7 @@ export class BatchClient {
    * 创建批量
    */
   async create(params: BatchCreateParams): Promise<BatchCreateResponse> {
-    const response = await this.transport.request('messages.batches.create', params)
+    const response = await this.transport.request('messages.batches.create', params as unknown as Record<string, unknown>)
     return response as BatchCreateResponse
   }
 
@@ -287,18 +287,4 @@ export class BatchToolRunner {
 
     return results
   }
-}
-
-// ============ Exports ============
-
-export type {
-  BatchRequestItem,
-  BatchRequestParams,
-  BatchCreateParams,
-  BatchProcessingStatus,
-  BatchInfo,
-  BatchResultItem,
-  BatchCreateResponse,
-  BatchToolRunnerParams,
-  BatchToolRunnerResult,
 }

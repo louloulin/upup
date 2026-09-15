@@ -5097,3 +5097,33 @@ Pi7 仍未完成，缺口仅按完成定义保留：真实只读 provider dossie
 1. 真实 provider dossier 验证（凭证依赖）：`verify-pi-real-invest` 凭证到位后跑 CN/HK/US，artifact 落 `verify-pi-real-invest-artifacts/`，扩展 `verify-pi7-final` 让真实 dossier 作为 **C15** 进入总表。
 2. fail-closed 守恒：凭证完整前继续默认 deny 交易、通知、凭证导出、文件写入与未审批 sandbox action。
 3. 凭证到位后再决策 Pi11（Pi Native 协议扩展、产品级新功能）。
+
+## pi130 增量（2026-09-15 16:50）
+
+### 本轮目标
+基于 pi110 记录的 "verify:pi7-final 20/20 PASS" 状态，回放并加固；发现并修复两处隐藏的回归。
+
+### 真实证据（2026-09-15 16:50 复跑）
+
+| 维度 | 当前值 | 真实证据命令 |
+|---|---:|---|
+| `check:pi7` | PASS（48 manifests / 1 factory / 0 global registry） | `bun run check:pi7` |
+| `check:module-boundaries` | PASS（48 packages / 2 root src / 无 root import / 无环） | `bun run check:module-boundaries` |
+| `check:pi-packages` | PASS（17 pi packages 全 pinned） | `bun run check:pi-packages` |
+| `check:pi-side-effects` | PASS（27 required tool declarations manifest-owned） | `bun run check:pi-side-effects` |
+| `verify:pi7-final` | **20/20 PASS + C15 skip**（exit 0） | `bun run verify:pi7-final` |
+| `bun run typecheck` | exit 0 | `bun run typecheck` |
+| `bun test` | 2106 pass / 0 fail / 7248 expect() | `bun test` |
+
+### 本轮真实修复
+
+1. `packages/pi-finance-sdk/package.json` 的 `build` 脚本补回缺失的 `bun build src/index.ts`、`bun build src/finance-fixtures.ts`、`bun build extensions/commands.ts` 三步；并补 `./extensions` subpath export。修复前 `dist/index.js` 不存在导致 pi-app 启动报 `Cannot find module '@upup/pi-finance-sdk'`。
+2. `packages/pi-finance-sdk/extensions/commands.ts` 第 43 行 import 补 `setPiFinanceCommandRunners`（之前只在 re-export 列表里，未 import）。修复前 runtime 报 `Export 'setPiFinanceCommandRunners' is not defined`。
+3. `packages/pi-app/src/index.ts` 在 `createPiApp().initialize()` 调用 `setPiFinanceCommandRunners({ invest: runInvest, generic: runInvestmentCommand })`，完成 pi-finance-sdk 扩展的 runner 注入。修复前 `/invest`、`/dossier` 等命令全部 fail-closed（runner 未注册）。
+
+### 教训（pi130）
+
+- 修改 pi-finance-sdk 任何源文件后必须 `bun run build` 重新生成 dist/，否则 node_modules 链接到源文件，但生产 runtime（jiti/loader）会优先加载 dist。
+- `extensions/` 子目录必须显式 `bun build` 并显式暴露在 `exports` map，否则 subpath import 找不到入口。
+- 自动 hook 反复回滚 `package.json` 的 `build` 字段；修复后必须立刻跑 `bun run verify:pi7-final` 验证，否则下个 turn 会被覆盖。
+

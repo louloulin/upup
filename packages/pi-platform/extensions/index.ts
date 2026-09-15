@@ -1,10 +1,10 @@
 import { Type } from 'typebox';
-import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
+import { buildSessionContext, type ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import { resolvePiCapabilityHost } from '@upup/pi-capability-registry';
 import { randomUUID } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { addPlatformAgentMemory, addPlatformAskResponse, addPlatformPlanStep, addPlatformSwarmAgent, addPlatformSwarmMessage, addPlatformWatchlistAlert, addPlatformWatchlistEntry, addPlatformWorkflowPlan, appendPlatformMessage, appendPlatformAskResponse, checkPlatformWatchlistAlerts, clearPlatformWatchlistAlert, createInitialPlatformAgentState, createInitialPlatformAskState, createInitialPlatformMessageState, createInitialPlatformPlanningState, createInitialPlatformSwarmState, createInitialPlatformTaskState, createInitialPlatformWatchlistState, createInitialPlatformWorkflowState, createPlatformAgent, createPlatformPlan, createPlatformSwarmTeam, createPlatformTask, createPlatformTodo, createPlatformWorktree, createPlatformWorkflowPlan, currentPlatformWorktree, deletePlatformTodo, estimatePlatformSnipSavings, exportPlatformData, formatPlatformLspCompletions, formatPlatformLspDefinitions, formatPlatformLspDiagnostics, formatPlatformLspHover, formatPlatformLspReferences, getPlatformAgent, getPlatformAskResponse, getPlatformLspClient, getPlatformPlan, getPlatformSkill, getPlatformTask, getPlatformTool, invokePlatformSkill, listPlatformAgentMemories, listPlatformAgents, listPlatformMessages, listPlatformSkills, listPlatformTodos, listPlatformTools, listPlatformTasks, parsePlatformAgentState, parsePlatformAskState, parsePlatformMessageState, parsePlatformPlanningState, parsePlatformSwarmState, parsePlatformTaskState, parsePlatformWatchlistState, parsePlatformWorkflowState, platformMcpAuthClear, platformMcpAuthGet, platformMcpAuthSet, platformMcpListResources, platformMcpReadResource, platformSnipMessages, platformTaskStats, PLATFORM_BUILTIN_AGENTS, searchPlatformSkills, searchPlatformTools, shouldPlatformSnip, listPlatformWatchlistEntries, platformNotebookCreate, platformNotebookDeleteCell, platformNotebookEditCell, platformNotebookInsertCell, platformNotebookRead, platformPlanProgress, platformTodoStats, removePlatformWatchlistEntry, removePlatformWorktree, serializePlatformWatchlist, TOOL_GET_DESCRIPTION, TOOL_LIST_DESCRIPTION, TOOL_SEARCH_DESCRIPTION, GET_SKILL_DESCRIPTION, LIST_SKILLS_DESCRIPTION, SEARCH_SKILLS_DESCRIPTION, SKILL_EXECUTE_DESCRIPTION, SKILL_INFO_DESCRIPTION, updatePlatformAgent, updatePlatformPlanStep, updatePlatformTask, updatePlatformTodo, updatePlatformSwarmAgent, platformBash, platformEditFile, platformGlob, platformGrep, platformReadFile, platformSendUserFile, platformWriteFile, platformMemoryGet, platformMemorySearch, platformMemoryUpdate, platformHeartbeat, platformCron, platformSleep, platformMonitor, PLATFORM_SLEEP_DESCRIPTION, PLATFORM_MONITOR_DESCRIPTION, type PlatformCronJob, type PlatformExportCell, type PlatformPlanOutputFormat, type PlatformPlanStepStatus, type PlatformPlanningState, type PlatformTaskState, type PlatformTaskStatus, type PlatformTodoPriority, type PlatformTodoStatus, type PlatformSkillDefinition, type PlatformSwarmState, type PlatformToolMetadata, type PlatformWatchlistState, type PlatformWorkflowState } from '../src/index';
+import { addPlatformAgentMemory, addPlatformPlanStep, addPlatformSwarmAgent, addPlatformSwarmMessage, addPlatformWatchlistAlert, addPlatformWatchlistEntry, addPlatformWorkflowPlan, appendPlatformMessage, appendPlatformAskResponse, checkPlatformWatchlistAlerts, clearPlatformWatchlistAlert, createInitialPlatformAgentState, createInitialPlatformAskState, createInitialPlatformMessageState, createInitialPlatformPlanningState, createInitialPlatformSwarmState, createInitialPlatformTaskState, createInitialPlatformWatchlistState, createInitialPlatformWorkflowState, createPlatformAgent, createPlatformPlan, createPlatformSwarmTeam, createPlatformTask, createPlatformTodo, createPlatformWorktree, createPlatformWorkflowPlan, currentPlatformWorktree, deletePlatformTodo, listPlatformWorktrees, estimatePlatformSnipSavings, exportPlatformData, formatPlatformLspCompletions, formatPlatformLspDefinitions, formatPlatformLspDiagnostics, formatPlatformLspHover, formatPlatformLspReferences, getPlatformAgent, getPlatformAskResponse, getPlatformLspClient, getPlatformPlan, getPlatformSkill, getPlatformTask, getPlatformTool, invokePlatformSkill, listPlatformAgentMemories, listPlatformAgents, listPlatformMessages, listPlatformSkills, listPlatformTodos, listPlatformTools, listPlatformTasks, parsePlatformAgentState, parsePlatformAskState, parsePlatformMessageState, parsePlatformPlanningState, parsePlatformSwarmState, parsePlatformTaskState, parsePlatformWatchlistState, parsePlatformWorkflowState, platformMcpAuthClear, platformMcpAuthGet, platformMcpAuthSet, platformMcpListResources, platformMcpReadResource, platformSnipMessages, platformTaskStats, PLATFORM_BUILTIN_AGENTS, searchPlatformSkills, searchPlatformTools, shouldPlatformSnip, listPlatformWatchlistEntries, platformNotebookCreate, platformNotebookDeleteCell, platformNotebookEditCell, platformNotebookInsertCell, platformNotebookRead, platformPlanProgress, platformTodoStats, removePlatformWatchlistEntry, removePlatformWorktree, serializePlatformWatchlist, TOOL_GET_DESCRIPTION, TOOL_LIST_DESCRIPTION, TOOL_SEARCH_DESCRIPTION, GET_SKILL_DESCRIPTION, LIST_SKILLS_DESCRIPTION, SEARCH_SKILLS_DESCRIPTION, SKILL_EXECUTE_DESCRIPTION, SKILL_INFO_DESCRIPTION, updatePlatformAgent, updatePlatformPlanStep, updatePlatformTask, updatePlatformTodo, updatePlatformSwarmAgent, platformBash, platformEditFile, platformGlob, platformGrep, platformReadFile, platformSendUserFile, platformWriteFile, platformMemoryGet, platformMemorySearch, platformMemoryUpdate, platformHeartbeat, platformCron, platformSleep, platformMonitor, PLATFORM_SLEEP_DESCRIPTION, PLATFORM_MONITOR_DESCRIPTION, type PlatformCronJob, type PlatformExportCell, type PlatformPlanOutputFormat, type PlatformPlanStepStatus, type PlatformPlanningState, type PlatformTaskState, type PlatformTaskStatus, type PlatformTodoPriority, type PlatformTodoStatus, type PlatformSkillDefinition, type PlatformSwarmState, type PlatformToolMetadata, type PlatformWatchlistState, type PlatformWorkflowState } from '../src/index';
 
 const PACKAGE = '@upup/pi-platform';
 const VERSION = '0.1.0';
@@ -221,7 +221,7 @@ function appendWorkflowState(context: { sessionManager?: { appendCustomEntry?: (
 function result(toolCallId: string, value: unknown, extra: Record<string, unknown> = {}) {
   const { isError, ...details } = extra;
   const evidence = { id: `pi-platform:${toolCallId}`, source: 'upup-pi://platform/swarm', retrievedAt: new Date().toISOString(), auditId: toolCallId };
-  return { content: [{ type: 'text' as const, text: JSON.stringify(value) }], ...(isError ? { isError: true } : {}), details: { auditId: toolCallId, evidence: [evidence], ...details } };
+  return { content: [{ type: 'text' as const, text: JSON.stringify(value) }], ...(isError ? { isError: true, details: undefined } : {}), details: { auditId: toolCallId, evidence: [evidence], ...details } };
 }
 
 function registerPlatformExtension(pi: ExtensionAPI, host: PlatformHost): void {
@@ -259,31 +259,31 @@ function registerPlatformExtension(pi: ExtensionAPI, host: PlatformHost): void {
   if (typeof pi.on === 'function') pi.on('session_start', (_event, context) => { readState(context); readWatchlistState(context); readPlanningState(context); readTaskState(context); readMessageState(context); readAskState(context); readAgentState(context); });
 
   pi.registerTool({ name: 'tool_search', label: 'Search Tools', description: TOOL_SEARCH_DESCRIPTION, parameters: toolSearchParameters, async execute(id, params, signal) {
-    if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
+    if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
     return result(id, { output: searchPlatformTools(toolMetadata, params) });
   } });
   pi.registerTool({ name: 'list_skills', label: 'List Skills', description: LIST_SKILLS_DESCRIPTION, parameters: listSkillsParameters, async execute(id, params, signal) {
-    if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
+    if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
     return result(id, listPlatformSkills(loadSkillDefinitions(), params.format));
   } });
   pi.registerTool({ name: 'search_skills', label: 'Search Skills', description: SEARCH_SKILLS_DESCRIPTION, parameters: searchSkillsParameters, async execute(id, params, signal) {
-    if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
+    if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
     return result(id, searchPlatformSkills(loadSkillDefinitions(), params.keyword));
   } });
   pi.registerTool({ name: 'get_skill', label: 'Get Skill', description: GET_SKILL_DESCRIPTION, parameters: getSkillParameters, async execute(id, params, signal) {
-    if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
+    if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
     return result(id, getPlatformSkill(loadSkillDefinitions(), params.name));
   } });
   pi.registerTool({ name: 'skill_info', label: 'Skill Info', description: SKILL_INFO_DESCRIPTION, parameters: skillInfoParameters, async execute(id, params, signal) {
-    if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
+    if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
     return result(id, getPlatformSkill(loadSkillDefinitions(), params.skill_name));
   } });
   pi.registerTool({ name: 'skill', label: 'Invoke Skill', description: SKILL_EXECUTE_DESCRIPTION, parameters: skillParameters, async execute(id, params, signal) {
-    if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
+    if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
     return result(id, invokePlatformSkill(loadSkillDefinitions(), params.skill, params.args));
   } });
   pi.registerTool({ name: 'execute_skill', label: 'Execute Skill', description: SKILL_EXECUTE_DESCRIPTION, parameters: executeSkillParameters, async execute(id, params, signal) {
-    if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
+    if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
     return result(id, invokePlatformSkill(loadSkillDefinitions(), params.skill_name, params.args));
   } });
   const filesystemTools = [
@@ -297,9 +297,9 @@ function registerPlatformExtension(pi: ExtensionAPI, host: PlatformHost): void {
   ] as const;
   for (const tool of filesystemTools) {
     pi.registerTool({ name: tool.name, label: tool.label, description: tool.description, parameters: tool.parameters, async execute(id, params, signal, _onUpdate, context) {
-      if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
+      if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
       try { return result(id, await tool.handler(params as never, context?.cwd ?? process.cwd())); }
-      catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true }); }
+      catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true, details: undefined }); }
     } });
   }
   const memoryTools = [
@@ -309,13 +309,13 @@ function registerPlatformExtension(pi: ExtensionAPI, host: PlatformHost): void {
   ] as const;
   for (const tool of memoryTools) {
     pi.registerTool({ name: tool.name, label: tool.label, description: tool.description, parameters: tool.parameters, async execute(id, params, signal) {
-      if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
+      if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
       try { return result(id, await tool.handler(params as never)); }
-      catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true }); }
+      catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true, details: undefined }); }
     } });
   }
   pi.registerTool({ name: 'enter_plan_mode', label: 'Enter Plan Mode', description: 'Create a structured plan in the current Pi Session.', parameters: enterPlanModeParameters, async execute(id, params, signal, _onUpdate, context) {
-    if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
+    if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
     planningState = getPlanningState(context);
     const plan = createPlatformPlan({ goal: params.goal, description: params.description, constraints: params.constraints, outputFormat: params.output_format });
     planningState.plans.push(plan);
@@ -324,10 +324,10 @@ function registerPlatformExtension(pi: ExtensionAPI, host: PlatformHost): void {
     return result(id, { plan_id: plan.id, goal: plan.goal, status: plan.status, message: 'Entered Plan Mode. Add steps, then save the plan with exit_plan_mode.' });
   } });
   pi.registerTool({ name: 'exit_plan_mode', label: 'Exit Plan Mode', description: 'Show, save, or discard the current Pi Session plan.', parameters: exitPlanModeParameters, async execute(id, params, signal, _onUpdate, context) {
-    if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
+    if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
     planningState = getPlanningState(context);
     const plan = getPlatformPlan(planningState, params.plan_id);
-    if (!plan) return result(id, { error: 'No active plan. Use enter_plan_mode first.' }, { isError: true });
+    if (!plan) return result(id, { error: 'No active plan. Use enter_plan_mode first.' }, { isError: true, details: undefined });
     if (params.action === 'discard') {
       planningState.plans = planningState.plans.filter((candidate) => candidate.id !== plan.id);
       planningState.todos = planningState.todos.filter((todo) => todo.planId !== plan.id);
@@ -339,31 +339,31 @@ function registerPlatformExtension(pi: ExtensionAPI, host: PlatformHost): void {
     return result(id, { plan_id: plan.id, goal: plan.goal, status: plan.status, progress: platformPlanProgress(plan), steps: plan.steps });
   } });
   pi.registerTool({ name: 'add_plan_step', label: 'Add Plan Step', description: 'Add a dependency-aware step to the current Pi Session plan.', parameters: addPlanStepParameters, async execute(id, params, signal, _onUpdate, context) {
-    if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
+    if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
     planningState = getPlanningState(context);
     const plan = getPlatformPlan(planningState, params.plan_id);
-    if (!plan) return result(id, { error: 'No active plan. Use enter_plan_mode first.' }, { isError: true });
+    if (!plan) return result(id, { error: 'No active plan. Use enter_plan_mode first.' }, { isError: true, details: undefined });
     try { const step = addPlatformPlanStep(plan, { description: params.description, dependsOn: params.depends_on, notes: params.notes }); appendPlanningState(context, planningState); return result(id, { plan_id: plan.id, step, total_steps: plan.steps.length }); }
-    catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true }); }
+    catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true, details: undefined }); }
   } });
   pi.registerTool({ name: 'update_plan_step', label: 'Update Plan Step', description: 'Update a plan step status and result.', parameters: updatePlanStepParameters, async execute(id, params, signal, _onUpdate, context) {
-    if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
+    if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
     planningState = getPlanningState(context);
     const plan = getPlatformPlan(planningState, params.plan_id);
-    if (!plan) return result(id, { error: 'No active plan. Use enter_plan_mode first.' }, { isError: true });
-    if (!updatePlatformPlanStep(plan, params.step_id, params.status, params.result)) return result(id, { error: `Step not found: ${params.step_id}` }, { isError: true });
+    if (!plan) return result(id, { error: 'No active plan. Use enter_plan_mode first.' }, { isError: true, details: undefined });
+    if (!updatePlatformPlanStep(plan, params.step_id, params.status, params.result)) return result(id, { error: `Step not found: ${params.step_id}` }, { isError: true, details: undefined });
     appendPlanningState(context, planningState);
     return result(id, { plan_id: plan.id, step_id: params.step_id, status: params.status, progress: platformPlanProgress(plan) });
   } });
   pi.registerTool({ name: 'list_plan_steps', label: 'List Plan Steps', description: 'List steps and progress for a Pi Session plan.', parameters: listPlanStepsParameters, async execute(id, params, signal, _onUpdate, context) {
-    if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
+    if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
     planningState = getPlanningState(context);
     const plan = getPlatformPlan(planningState, params.plan_id);
-    if (!plan) return result(id, { error: 'No active plan. Use enter_plan_mode first.' }, { isError: true });
+    if (!plan) return result(id, { error: 'No active plan. Use enter_plan_mode first.' }, { isError: true, details: undefined });
     return result(id, { plan_id: plan.id, goal: plan.goal, status: plan.status, progress: platformPlanProgress(plan), steps: plan.steps });
   } });
   pi.registerTool({ name: 'create_todo', label: 'Create Todo', description: 'Create a persistent Todo in the current Pi Session.', parameters: createTodoParameters, async execute(id, params, signal, _onUpdate, context) {
-    if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
+    if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
     planningState = getPlanningState(context);
     const todo = createPlatformTodo({ content: params.content, priority: params.priority, notes: params.notes, planId: params.plan_id });
     planningState.todos.push(todo); appendPlanningState(context, planningState);
@@ -371,21 +371,21 @@ function registerPlatformExtension(pi: ExtensionAPI, host: PlatformHost): void {
     return result(id, { todo, stats });
   } });
   pi.registerTool({ name: 'update_todo', label: 'Update Todo', description: 'Update a persistent Todo in the current Pi Session.', parameters: updateTodoParameters, async execute(id, params, signal, _onUpdate, context) {
-    if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
+    if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
     planningState = getPlanningState(context);
     const todo = updatePlatformTodo(planningState, params.todo_id, { status: params.status, content: params.content, priority: params.priority, notes: params.notes }, params.plan_id);
-    if (!todo) return result(id, { error: `Todo not found: ${params.todo_id}` }, { isError: true });
+    if (!todo) return result(id, { error: `Todo not found: ${params.todo_id}` }, { isError: true, details: undefined });
     appendPlanningState(context, planningState); return result(id, { todo, stats: platformTodoStats(listPlatformTodos(planningState, params.plan_id)) });
   } });
   pi.registerTool({ name: 'list_todos', label: 'List Todos', description: 'List persistent Todos from the current Pi Session.', parameters: listTodosParameters, async execute(id, params, signal, _onUpdate, context) {
-    if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
+    if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
     planningState = getPlanningState(context); const todos = listPlatformTodos(planningState, params.plan_id, params.status);
     return result(id, { todos, stats: platformTodoStats(listPlatformTodos(planningState, params.plan_id)) });
   } });
   pi.registerTool({ name: 'delete_todo', label: 'Delete Todo', description: 'Delete a persistent Todo from the current Pi Session.', parameters: deleteTodoParameters, async execute(id, params, signal, _onUpdate, context) {
-    if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
+    if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
     planningState = getPlanningState(context); const todo = deletePlatformTodo(planningState, params.todo_id, params.plan_id);
-    if (!todo) return result(id, { error: `Todo not found: ${params.todo_id}` }, { isError: true });
+    if (!todo) return result(id, { error: `Todo not found: ${params.todo_id}` }, { isError: true, details: undefined });
     appendPlanningState(context, planningState); return result(id, { deleted: todo, stats: platformTodoStats(listPlatformTodos(planningState, params.plan_id)) });
   } });
   const notebookTools = [
@@ -397,13 +397,13 @@ function registerPlatformExtension(pi: ExtensionAPI, host: PlatformHost): void {
   ] as const;
   for (const tool of notebookTools) {
     pi.registerTool({ name: tool.name, label: tool.label, description: tool.description, parameters: tool.parameters, async execute(id, params, signal, _onUpdate, context) {
-      if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
+      if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
       try { return result(id, await tool.handler(params as never, context?.cwd ?? process.cwd())); }
-      catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true }); }
+      catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true, details: undefined }); }
     } });
   }
   pi.registerTool({ name: 'task_create', label: 'Create Task', description: 'Create a Session-scoped task, optionally executed by a Pi worker.', parameters: taskCreateParameters, async execute(id, params, signal, _onUpdate, context) {
-    if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
+    if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
     taskState = getTaskState(context);
     const task = createPlatformTask({ name: params.name, description: params.description, metadata: params.metadata });
     taskState.tasks.push(task); appendTaskState(context, taskState);
@@ -419,57 +419,57 @@ function registerPlatformExtension(pi: ExtensionAPI, host: PlatformHost): void {
     return result(id, { task });
   } });
   pi.registerTool({ name: 'task_get', label: 'Get Task', description: 'Get a Session-scoped task status and result.', parameters: taskGetParameters, async execute(id, params, signal, _onUpdate, context) {
-    if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true }); taskState = getTaskState(context); const task = getPlatformTask(taskState, params.task_id); return task ? result(id, { task }) : result(id, { error: `Task not found: ${params.task_id}` }, { isError: true });
+    if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined }); taskState = getTaskState(context); const task = getPlatformTask(taskState, params.task_id); return task ? result(id, { task }) : result(id, { error: `Task not found: ${params.task_id}` }, { isError: true, details: undefined });
   } });
   pi.registerTool({ name: 'task_list', label: 'List Tasks', description: 'List Session-scoped tasks.', parameters: taskListParameters, async execute(id, params, signal, _onUpdate, context) {
-    if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true }); taskState = getTaskState(context); const tasks = listPlatformTasks(taskState, params.status); return result(id, { tasks, stats: platformTaskStats(listPlatformTasks(taskState)) });
+    if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined }); taskState = getTaskState(context); const tasks = listPlatformTasks(taskState, params.status); return result(id, { tasks, stats: platformTaskStats(listPlatformTasks(taskState)) });
   } });
   pi.registerTool({ name: 'task_stop', label: 'Stop Task', description: 'Stop a running Pi worker task.', parameters: taskStopParameters, async execute(id, params, signal, _onUpdate, context) {
-    if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true }); taskState = getTaskState(context); const task = getPlatformTask(taskState, params.task_id); if (!task) return result(id, { error: `Task not found: ${params.task_id}` }, { isError: true }); taskAbortControllers.get(task.id)?.abort(params.reason); updatePlatformTask(taskState, task.id, { status: 'cancelled', error: params.reason ?? 'Task stopped by user' }); appendTaskState(context, taskState); return result(id, { task });
+    if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined }); taskState = getTaskState(context); const task = getPlatformTask(taskState, params.task_id); if (!task) return result(id, { error: `Task not found: ${params.task_id}` }, { isError: true, details: undefined }); taskAbortControllers.get(task.id)?.abort(params.reason); updatePlatformTask(taskState, task.id, { status: 'cancelled', error: params.reason ?? 'Task stopped by user' }); appendTaskState(context, taskState); return result(id, { task });
   } });
   pi.registerTool({ name: 'task_update', label: 'Update Task', description: 'Update task progress, result, or metadata.', parameters: taskUpdateParameters, async execute(id, params, signal, _onUpdate, context) {
-    if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true }); taskState = getTaskState(context); const current = getPlatformTask(taskState, params.task_id); if (!current) return result(id, { error: `Task not found: ${params.task_id}` }, { isError: true }); const task = updatePlatformTask(taskState, params.task_id, { progress: params.progress, result: params.result, metadata: params.metadata ? { ...current.metadata, ...params.metadata } : undefined }); appendTaskState(context, taskState); return result(id, { task });
+    if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined }); taskState = getTaskState(context); const current = getPlatformTask(taskState, params.task_id); if (!current) return result(id, { error: `Task not found: ${params.task_id}` }, { isError: true, details: undefined }); const task = updatePlatformTask(taskState, params.task_id, { progress: params.progress, result: params.result, metadata: params.metadata ? { ...current.metadata, ...params.metadata } : undefined }); appendTaskState(context, taskState); return result(id, { task });
   } });
   pi.registerTool({ name: 'task_result', label: 'Get Task Result', description: 'Get the result of a Session-scoped background task.', parameters: taskResultParameters, async execute(id, params, signal, _onUpdate, context) {
-    if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true }); taskState = getTaskState(context); const task = getPlatformTask(taskState, params.task_id); if (!task) return result(id, { error: `Task not found: ${params.task_id}` }, { isError: true }); return result(id, { task, output: task.result, error: task.error });
+    if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined }); taskState = getTaskState(context); const task = getPlatformTask(taskState, params.task_id); if (!task) return result(id, { error: `Task not found: ${params.task_id}` }, { isError: true, details: undefined }); return result(id, { task, output: task.result, error: task.error });
   } });
   pi.registerTool({ name: 'mcp_auth_set', label: 'Set MCP Auth', description: 'Store local MCP server authentication with credentials masked in output.', parameters: mcpAuthSetParameters, async execute(id, params, signal) {
-    if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
-    try { return result(id, await platformMcpAuthSet(params)); } catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true }); }
+    if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
+    try { return result(id, await platformMcpAuthSet(params)); } catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true, details: undefined }); }
   } });
   pi.registerTool({ name: 'mcp_auth_get', label: 'Get MCP Auth', description: 'Inspect MCP authentication metadata without exposing credentials.', parameters: mcpAuthGetParameters, async execute(id, params, signal) {
-    if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
-    try { return result(id, await platformMcpAuthGet(params)); } catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true }); }
+    if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
+    try { return result(id, await platformMcpAuthGet(params)); } catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true, details: undefined }); }
   } });
   pi.registerTool({ name: 'mcp_auth_clear', label: 'Clear MCP Auth', description: 'Remove local MCP server authentication.', parameters: mcpAuthClearParameters, async execute(id, params, signal) {
-    if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
-    try { return result(id, await platformMcpAuthClear(params)); } catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true }); }
+    if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
+    try { return result(id, await platformMcpAuthClear(params)); } catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true, details: undefined }); }
   } });
   pi.registerTool({ name: 'list_mcp_resources', label: 'List MCP Resources', description: 'List resources from the current Session MCP host.', parameters: mcpListResourcesParameters, async execute(id, params, signal) {
-    if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
+    if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
     if (!sessionHost.capabilities.includes('mcp-resources') || !sessionHost.providers.mcp?.listMcpResources) return result(id, { error: 'mcp-resources capability is unavailable' }, { isError: true, capability: 'mcp-resources', policy: 'fail-closed' });
-    try { return result(id, await platformMcpListResources(params, (server) => sessionHost.providers.mcp?.listMcpResources!(server, signal))); } catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true }); }
+    try { return result(id, await platformMcpListResources(params, (server) => sessionHost.providers.mcp?.listMcpResources!(server, signal))); } catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true, details: undefined }); }
   } });
   pi.registerTool({ name: 'read_mcp_resource', label: 'Read MCP Resource', description: 'Read a resource through the current Session MCP host.', parameters: mcpReadResourceParameters, async execute(id, params, signal) {
-    if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
+    if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
     if (!sessionHost.capabilities.includes('mcp-resources') || !sessionHost.providers.mcp?.readMcpResource) return result(id, { error: 'mcp-resources capability is unavailable' }, { isError: true, capability: 'mcp-resources', policy: 'fail-closed' });
-    try { return result(id, await platformMcpReadResource(params, (uri, server) => sessionHost.providers.mcp?.readMcpResource!(uri, server, signal))); } catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true }); }
+    try { return result(id, await platformMcpReadResource(params, (uri, server) => sessionHost.providers.mcp?.readMcpResource!(uri, server, signal))); } catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true, details: undefined }); }
   } });
   pi.registerTool({ name: 'heartbeat', label: 'Manage Heartbeat', description: 'View or update the persistent heartbeat checklist and synchronize its gateway settings.', parameters: heartbeatParameters, async execute(id, params, signal) {
-    if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
+    if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
     try { return result(id, await platformHeartbeat(params)); }
-    catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true }); }
+    catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true, details: undefined }); }
   } });
   pi.registerTool({ name: 'sleep', label: 'Sleep', description: PLATFORM_SLEEP_DESCRIPTION, parameters: sleepParameters, async execute(id, params, signal) {
-    if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
-    try { return result(id, await platformSleep(params, signal)); } catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true }); }
+    if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
+    try { return result(id, await platformSleep(params, signal)); } catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true, details: undefined }); }
   } });
   pi.registerTool({ name: 'monitor', label: 'Monitor System', description: PLATFORM_MONITOR_DESCRIPTION, parameters: monitorParameters, async execute(id, params, signal) {
-    if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
-    try { return result(id, { metric: params.metric ?? 'all', output: platformMonitor(params.metric ?? 'all') }); } catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true }); }
+    if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
+    try { return result(id, { metric: params.metric ?? 'all', output: platformMonitor(params.metric ?? 'all') }); } catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true, details: undefined }); }
   } });
   pi.registerTool({ name: 'send_message', label: 'Send Message', description: 'Send a message to another Pi agent, task, or broadcast recipient and persist it in the current Session.', parameters: sendMessageParameters, async execute(id, params, signal, _onUpdate, context) {
-    if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
+    if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
     const current = context ? readMessageState(context) : messageState;
     const messageId = randomUUID();
     const message = { id: messageId, from: params.from?.trim() || 'main-agent', to: params.to.trim(), type: params.type ?? 'request', content: params.content, timestamp: Date.now(), ...(params.task_id ? { taskId: params.task_id } : {}) } as const;
@@ -478,8 +478,13 @@ function registerPlatformExtension(pi: ExtensionAPI, host: PlatformHost): void {
     return result(id, { success: true, message: messageState.messages.at(-1), recipient: message.to, persisted: Boolean(context?.sessionManager) });
   } });
   pi.registerTool({ name: 'snip_tool', label: 'Snip Context', description: 'Analyze and compact low-value confirmation messages from the current Pi Session context.', parameters: snipParameters, async execute(id, params, signal, _onUpdate, context) {
-    if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
-    const messages = (context?.sessionManager?.buildSessionContext?.().messages ?? []) as readonly { role?: string; content: string | readonly unknown[] }[];
+    if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
+    const sm1 = context?.sessionManager;
+    const smEntries1 = sm1 && typeof sm1.getEntries === 'function' ? sm1.getEntries() : [];
+    const smLeaf1 = sm1 && typeof sm1.getLeafId === 'function' ? sm1.getLeafId() : null;
+    const messages = (sm1
+      ? (buildSessionContext(smEntries1 as Parameters<typeof buildSessionContext>[0], smLeaf1).messages ?? [])
+      : []) as readonly { role?: string; content: string | readonly unknown[] }[];
     const options = { preserveFirstN: params.preserve_first ?? 1, preserveLastN: params.preserve_last ?? 2, maxRemove: params.max_remove ?? 10 };
     const preview = platformSnipMessages(messages, options);
     const savings = estimatePlatformSnipSavings(messages);
@@ -491,7 +496,7 @@ function registerPlatformExtension(pi: ExtensionAPI, host: PlatformHost): void {
     return result(id, { mode: 'compact_requested', total: messages.length, candidate_removals: preview.removed, estimated_tokens_saved: savings.estimatedTokensSaved, recommended });
   } });
   pi.registerTool({ name: 'ask_confirm', label: 'Ask Confirmation', description: 'Ask the user for a yes/no confirmation through the current Pi UI.', parameters: askConfirmParameters, executionMode: 'sequential', async execute(id, params, signal, _onUpdate, context) {
-    if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
+    if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
     if (!context?.hasUI) return result(id, { error: 'Pi UI is unavailable; ask_confirm is fail-closed' }, { isError: true, capability: 'ui', policy: 'fail-closed' });
     const requestId = randomUUID();
     const value = await context.ui.confirm('Confirmation required', params.question, { signal, timeout: params.timeout });
@@ -501,7 +506,7 @@ function registerPlatformExtension(pi: ExtensionAPI, host: PlatformHost): void {
     return result(id, { request_id: requestId, value: response.value, confirmed: value, skipped: false });
   } });
   pi.registerTool({ name: 'ask_select', label: 'Ask Selection', description: 'Ask the user to select one option through the current Pi UI.', parameters: askSelectParameters, executionMode: 'sequential', async execute(id, params, signal, _onUpdate, context) {
-    if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
+    if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
     if (!context?.hasUI) return result(id, { error: 'Pi UI is unavailable; ask_select is fail-closed' }, { isError: true, capability: 'ui', policy: 'fail-closed' });
     const requestId = randomUUID();
     const labels = params.options.map((option) => `${option.label}${option.recommended ? ' (recommended)' : ''}`);
@@ -514,11 +519,11 @@ function registerPlatformExtension(pi: ExtensionAPI, host: PlatformHost): void {
     return result(id, { request_id: requestId, ...(option ? { value: option.value, label: option.label } : {}), skipped: !option });
   } });
   pi.registerTool({ name: 'ask_multi_select', label: 'Ask Multiple Selection', description: 'Ask the user to select multiple options through the current Pi UI.', parameters: askMultiSelectParameters, executionMode: 'sequential', async execute(id, params, signal, _onUpdate, context) {
-    if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
+    if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
     if (!context?.hasUI) return result(id, { error: 'Pi UI is unavailable; ask_multi_select is fail-closed' }, { isError: true, capability: 'ui', policy: 'fail-closed' });
     const minimum = params.min_selections ?? 0;
     const maximum = Math.min(params.max_selections ?? params.options.length, params.options.length);
-    if (minimum > maximum) return result(id, { error: 'min_selections cannot exceed max_selections' }, { isError: true });
+    if (minimum > maximum) return result(id, { error: 'min_selections cannot exceed max_selections' }, { isError: true, details: undefined });
     const requestId = randomUUID();
     const selectedValues = new Set<string>();
     let cancelled = false;
@@ -536,7 +541,7 @@ function registerPlatformExtension(pi: ExtensionAPI, host: PlatformHost): void {
     return result(id, { request_id: requestId, value: response.value, skipped: response.skipped, min_selections: minimum, max_selections: maximum });
   } });
   pi.registerTool({ name: 'ask_input', label: 'Ask Input', description: 'Ask the user for free-form text through the current Pi UI.', parameters: askInputParameters, executionMode: 'sequential', async execute(id, params, signal, _onUpdate, context) {
-    if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
+    if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
     if (!context?.hasUI) return result(id, { error: 'Pi UI is unavailable; ask_input is fail-closed' }, { isError: true, capability: 'ui', policy: 'fail-closed' });
     const requestId = randomUUID();
     const value = await context.ui.input(params.question, params.placeholder, { signal, timeout: params.timeout });
@@ -547,11 +552,11 @@ function registerPlatformExtension(pi: ExtensionAPI, host: PlatformHost): void {
     return result(id, { request_id: requestId, ...(resolved !== undefined ? { value: resolved } : {}), skipped: resolved === undefined });
   } });
   pi.registerTool({ name: 'ask_response', label: 'Submit Ask Response', description: 'Read or persist a response for a Pi Session-scoped ask request.', parameters: askResponseParameters, async execute(id, params, signal, _onUpdate, context) {
-    if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
+    if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
     const current = context ? getAskState(context) : askState;
     const existing = getPlatformAskResponse(current, params.request_id);
     if (existing) return result(id, { request_id: params.request_id, value: existing.value, skipped: existing.skipped, already_submitted: true });
-    if (!params.skip && !params.value) return result(id, { error: 'value is required unless skip=true' }, { isError: true });
+    if (!params.skip && !params.value) return result(id, { error: 'value is required unless skip=true' }, { isError: true, details: undefined });
     const value = params.value?.includes(',') ? params.value.split(',').map((item) => item.trim()).filter(Boolean) : params.value;
     const response = { requestId: params.request_id, question: 'Submitted through ask_response', kind: Array.isArray(value) ? 'multi_select' as const : 'input' as const, ...(value !== undefined ? { value } : {}), skipped: params.skip === true, timestamp: Date.now() };
     askState = appendPlatformAskResponse(current, response);
@@ -569,7 +574,7 @@ function registerPlatformExtension(pi: ExtensionAPI, host: PlatformHost): void {
       appendAgentState(context, agentState);
       return worker;
     }).catch((error: unknown) => {
-      agentState = updatePlatformAgent(getAgentState(context), agentId, { status: signal.aborted ? 'cancelled' : 'failed', error: error instanceof Error ? error.message : String(error) });
+      agentState = updatePlatformAgent(getAgentState(context), agentId, { status: signal?.aborted ? 'cancelled' : 'failed', error: error instanceof Error ? error.message : String(error) });
       appendAgentState(context, agentState);
       throw error;
     });
@@ -578,91 +583,96 @@ function registerPlatformExtension(pi: ExtensionAPI, host: PlatformHost): void {
     return { agentId, status: 'completed' as const, output: worker.output, sessionId: worker.sessionId };
   };
   pi.registerTool({ name: 'agent', label: 'Spawn Pi Agent', description: 'Spawn a foreground or background Pi worker in the current Session.', parameters: agentParameters, async execute(id, params, signal, _onUpdate, context) {
-    if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
+    if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
     try { return result(id, await runAgent(randomUUID(), params.description, params.subagent_type ?? 'general', params.prompt, params.tools?.length === 1 && params.tools[0] === '*' ? '*' : params.tools ?? '*', params.model, params.run_in_background ?? false, context, signal), { capability: 'agent-worker' }); } catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true, capability: 'agent-worker', policy: 'fail-closed' }); }
   } });
   pi.registerTool({ name: 'fork_subagent', label: 'Fork Pi Subagent', description: 'Run a Pi worker with recent current Session context inherited.', parameters: forkSubagentParameters, async execute(id, params, signal, _onUpdate, context) {
-    if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
-    const parentMessages = context?.sessionManager?.buildSessionContext?.().messages ?? [];
+    if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
+    const sm2 = context?.sessionManager;
+    const smEntries2 = sm2 && typeof sm2.getEntries === 'function' ? sm2.getEntries() : [];
+    const smLeaf2 = sm2 && typeof sm2.getLeafId === 'function' ? sm2.getLeafId() : null;
+    const parentMessages = sm2
+      ? (buildSessionContext(smEntries2 as Parameters<typeof buildSessionContext>[0], smLeaf2).messages ?? [])
+      : [];
     const inherited = parentMessages.slice(-8).map((message: unknown) => JSON.stringify(message)).join('\n');
     try { return result(id, await runAgent(randomUUID(), 'forked-subagent', 'fork', `Inherited recent Pi Session context:\n${inherited}\n\nTask:\n${params.prompt}`, params.tools ?? '*', undefined, false, context, signal), { capability: 'agent-worker' }); } catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true, capability: 'agent-worker', policy: 'fail-closed' }); }
   } });
   pi.registerTool({ name: 'resume_agent', label: 'Resume Pi Agent', description: 'Resume a paused Pi agent recorded in the current Session.', parameters: resumeAgentParameters, async execute(id, params, signal, _onUpdate, context) {
-    if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
+    if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
     const current = context ? getAgentState(context) : agentState;
     const agent = getPlatformAgent(current, params.task_id);
-    if (!agent || agent.status !== 'paused') return result(id, { error: `No paused task found for: ${params.task_id}` }, { isError: true });
+    if (!agent || agent.status !== 'paused') return result(id, { error: `No paused task found for: ${params.task_id}` }, { isError: true, details: undefined });
     try { return result(id, await runAgent(agent.id, agent.name, agent.role, `${agent.checkpoint ?? agent.prompt}\n\nContinue from the paused state.\n${params.additional_prompt ?? ''}`, agent.tools, agent.model, false, context, signal), { capability: 'agent-worker' }); } catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true, capability: 'agent-worker', policy: 'fail-closed' }); }
   } });
   pi.registerTool({ name: 'agent_memory', label: 'Agent Memory', description: 'Store, retrieve, list, or clear memory in the current Pi Session.', parameters: agentMemoryParameters, async execute(id, params, signal, _onUpdate, context) {
-    if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
+    if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
     const current = context ? getAgentState(context) : agentState;
     const agentId = params.agent_id ?? 'main-agent';
     if (params.action === 'store') {
-      if (!params.content) return result(id, { error: 'content is required for store action' }, { isError: true });
+      if (!params.content) return result(id, { error: 'content is required for store action' }, { isError: true, details: undefined });
       agentState = addPlatformAgentMemory(current, { id: randomUUID(), agentId, content: params.content, type: params.memory_type ?? 'intermediate', createdAt: Date.now() }); appendAgentState(context, agentState); return result(id, { stored: true, agent_id: agentId, memory: agentState.memories.at(-1) });
     }
     if (params.action === 'clear') { agentState = { ...current, memories: current.memories.filter((memory) => memory.agentId !== agentId) }; appendAgentState(context, agentState); return result(id, { cleared: true, agent_id: agentId }); }
     if (params.action === 'list') return result(id, { agent_id: agentId, memories: listPlatformAgentMemories(current, agentId) });
     const memory = current.memories.find((item) => item.id === params.memory_id);
-    if (!memory) return result(id, { error: `Memory not found: ${params.memory_id ?? ''}` }, { isError: true });
+    if (!memory) return result(id, { error: `Memory not found: ${params.memory_id ?? ''}` }, { isError: true, details: undefined });
     return result(id, { memory });
   } });
   pi.registerTool({ name: 'list_agents', label: 'List Pi Agents', description: 'List built-in Pi agent profiles and Session agents.', parameters: listAgentsParameters, async execute(id, params, signal, _onUpdate, context) {
-    if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
+    if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
     const current = context ? getAgentState(context) : agentState;
     return result(id, { builtins: params.filter === 'custom' ? [] : PLATFORM_BUILTIN_AGENTS, agents: params.filter === 'builtin' ? [] : listPlatformAgents(current) });
   } });
   pi.registerTool({ name: 'run_builtin_agent', label: 'Run Built-in Pi Agent', description: 'Run a trusted built-in Pi agent profile through the worker capability.', parameters: runBuiltinAgentParameters, async execute(id, params, signal, _onUpdate, context) {
-    if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
+    if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
     const builtin = PLATFORM_BUILTIN_AGENTS.find((candidate) => candidate.name === params.agent_type);
-    if (!builtin) return result(id, { error: `Unknown agent type: ${params.agent_type}` }, { isError: true });
+    if (!builtin) return result(id, { error: `Unknown agent type: ${params.agent_type}` }, { isError: true, details: undefined });
     try { return result(id, await runAgent(randomUUID(), builtin.name, builtin.name, `${builtin.systemPrompt}\n\nTask:\n${params.prompt}`, builtin.tools, undefined, false, context, signal), { capability: 'agent-worker' }); } catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true, capability: 'agent-worker', policy: 'fail-closed' }); }
   } });
   pi.registerTool({ name: 'cron', label: 'Manage Cron Jobs', description: 'Create, list, update, remove, or run Pi-backed scheduled jobs.', parameters: cronParameters, async execute(id, params, signal) {
-    if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
+    if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
     try {
       const runner = sessionHost.capabilities.includes('cron-runner') && sessionHost.providers.scheduling?.runCronJob ? (request: { job: PlatformCronJob }, abortSignal: AbortSignal) => sessionHost.providers.scheduling?.runCronJob!({ job: request.job }, abortSignal) : undefined;
       return result(id, await platformCron(params, runner, signal));
-    } catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true }); }
+    } catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true, details: undefined }); }
   } });
   pi.registerTool({ name: 'tool_get', label: 'Get Tool Details', description: TOOL_GET_DESCRIPTION, parameters: toolGetParameters, async execute(id, params, signal) {
-    if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
+    if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
     return result(id, { output: getPlatformTool(toolMetadata, params.name) });
   } });
   pi.registerTool({ name: 'tool_list', label: 'List Tools', description: TOOL_LIST_DESCRIPTION, parameters: toolListParameters, async execute(id, params, signal) {
-    if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
+    if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
     return result(id, { output: listPlatformTools(toolMetadata, params) });
   } });
   pi.registerTool({ name: 'export_data', label: 'Export Data', description: 'Export analysis rows to a local CSV or JSON file.', parameters: exportDataParameters, async execute(id, params, signal) {
-    if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
+    if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
     try {
       return result(id, await exportPlatformData({ data: params.data as readonly Record<string, PlatformExportCell>[], filename: params.filename, format: params.format }));
     } catch (error) {
-      return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true });
+      return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true, details: undefined });
     }
   } });
 
   pi.registerTool({
     name: 'create_worktree', label: 'Create Worktree', description: 'Create a git worktree for isolated development.', parameters: createWorktreeParameters,
     async execute(id, params, signal) {
-      if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
+      if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
       try { return result(id, { type: 'Worktree Created', ...(await createPlatformWorktree(params)) }); }
-      catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true }); }
+      catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true, details: undefined }); }
     },
   });
   pi.registerTool({
     name: 'remove_worktree', label: 'Remove Worktree', description: 'Remove a git worktree; the current worktree cannot be removed.', parameters: removeWorktreeParameters,
     async execute(id, params, signal) {
-      if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
+      if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
       try { return result(id, { type: 'Worktree Removed', ...(await removePlatformWorktree(params)) }); }
-      catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true }); }
+      catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true, details: undefined }); }
     },
   });
   pi.registerTool({
     name: 'list_worktree', label: 'List Worktrees', description: 'List git worktrees in the current repository.', parameters: listWorktreeParameters,
     async execute(id, params, signal) {
-      if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
+      if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
       const worktrees = await listPlatformWorktrees();
       const current = await currentPlatformWorktree();
       return result(id, { type: params.format === 'detailed' ? 'Worktree List (Detailed)' : 'Worktree List', count: worktrees.length, worktrees: worktrees.map((worktree) => ({ ...worktree, isCurrent: worktree.path === current })) });
@@ -672,31 +682,31 @@ function registerPlatformExtension(pi: ExtensionAPI, host: PlatformHost): void {
   pi.registerTool({
     name: 'add_to_watchlist', label: 'Add to Watchlist', description: 'Add a symbol to the current Pi Session watchlist.', parameters: watchlistEntryParameters,
     async execute(id, params, signal, _onUpdate, context) {
-      if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
+      if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
       try {
         const next = addPlatformWatchlistEntry(context ? readWatchlistState(context) : watchlistState, params, new Date().toISOString());
         watchlistState = next.state;
         appendWatchlistState(context, watchlistState);
         return result(id, { success: next.added, symbol: next.symbol, message: next.added ? `Added ${next.symbol} to watchlist` : `${next.symbol} is already in watchlist` });
-      } catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true }); }
+      } catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true, details: undefined }); }
     },
   });
   pi.registerTool({
     name: 'remove_from_watchlist', label: 'Remove from Watchlist', description: 'Remove a symbol from the current Pi Session watchlist.', parameters: watchlistSymbolParameters,
     async execute(id, params, signal, _onUpdate, context) {
-      if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
+      if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
       try {
         const next = removePlatformWatchlistEntry(context ? readWatchlistState(context) : watchlistState, params.symbol, new Date().toISOString());
         watchlistState = next.state;
         appendWatchlistState(context, watchlistState);
         return result(id, { success: next.removed, symbol: next.symbol, message: next.removed ? `Removed ${next.symbol} from watchlist` : `${next.symbol} not in watchlist` });
-      } catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true }); }
+      } catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true, details: undefined }); }
     },
   });
   pi.registerTool({
     name: 'get_watchlist', label: 'Get Watchlist', description: 'List symbols and alerts from the current Pi Session watchlist.', parameters: watchlistListParameters,
     async execute(id, params, signal, _onUpdate, context) {
-      if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
+      if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
       const entries = listPlatformWatchlistEntries(context ? readWatchlistState(context) : watchlistState, params.tag);
       return result(id, { count: entries.length, entries, message: `Found ${entries.length} symbols in watchlist${params.tag ? ` tagged "${params.tag}"` : ''}` });
     },
@@ -704,20 +714,20 @@ function registerPlatformExtension(pi: ExtensionAPI, host: PlatformHost): void {
   pi.registerTool({
     name: 'add_watchlist_alert', label: 'Add Watchlist Alert', description: 'Add a price alert to a current Pi Session watchlist symbol.', parameters: watchlistAlertParameters,
     async execute(id, params, signal, _onUpdate, context) {
-      if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
+      if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
       try {
         const next = addPlatformWatchlistAlert(context ? readWatchlistState(context) : watchlistState, { symbol: params.symbol, type: params.type, value: params.value, ...(params.reference_price !== undefined ? { referencePrice: params.reference_price } : {}) }, new Date().toISOString());
-        if (!next.added) return result(id, { success: false, symbol: next.symbol, error: `${next.symbol} not in watchlist` }, { isError: true });
+        if (!next.added) return result(id, { success: false, symbol: next.symbol, error: `${next.symbol} not in watchlist` }, { isError: true, details: undefined });
         watchlistState = next.state;
         appendWatchlistState(context, watchlistState);
         return result(id, { success: true, symbol: next.symbol, alert: next.alert });
-      } catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true }); }
+      } catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true, details: undefined }); }
     },
   });
   pi.registerTool({
     name: 'check_watchlist_alerts', label: 'Check Watchlist Alerts', description: 'Evaluate current prices against alerts in the Pi Session watchlist.', parameters: watchlistCheckParameters,
     async execute(id, params, signal, _onUpdate, context) {
-      if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
+      if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
       const next = checkPlatformWatchlistAlerts(context ? readWatchlistState(context) : watchlistState, params.prices, new Date().toISOString());
       watchlistState = next.state;
       if (next.triggered.length > 0) appendWatchlistState(context, watchlistState);
@@ -727,20 +737,20 @@ function registerPlatformExtension(pi: ExtensionAPI, host: PlatformHost): void {
   pi.registerTool({
     name: 'clear_watchlist_alert', label: 'Clear Watchlist Alert', description: 'Clear a watchlist alert by symbol and zero-based index.', parameters: watchlistClearParameters,
     async execute(id, params, signal, _onUpdate, context) {
-      if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
+      if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
       try {
         const next = clearPlatformWatchlistAlert(context ? readWatchlistState(context) : watchlistState, { symbol: params.symbol, alertIndex: params.alert_index }, new Date().toISOString());
-        if (!next.cleared) return result(id, { success: false, symbol: next.symbol, error: 'watchlist entry or alert index not found' }, { isError: true });
+        if (!next.cleared) return result(id, { success: false, symbol: next.symbol, error: 'watchlist entry or alert index not found' }, { isError: true, details: undefined });
         watchlistState = next.state;
         appendWatchlistState(context, watchlistState);
         return result(id, { success: true, symbol: next.symbol, alert_index: params.alert_index });
-      } catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true }); }
+      } catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true, details: undefined }); }
     },
   });
   pi.registerTool({
     name: 'export_watchlist', label: 'Export Watchlist', description: 'Export the current Pi Session watchlist to a local CSV or JSON file.', parameters: exportWatchlistParameters,
     async execute(id, params, signal, _onUpdate, context) {
-      if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true });
+      if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
       const current = context ? readWatchlistState(context) : watchlistState;
       const format = params.format ?? 'csv';
       const includeAlerts = params.include_alerts ?? true;
@@ -753,16 +763,16 @@ function registerPlatformExtension(pi: ExtensionAPI, host: PlatformHost): void {
       return result(id, { status: 'success', format, filePath, symbols: entries.length, alerts: entries.reduce((total, entry) => total + (includeAlerts ? entry.alerts.length : 0), 0) });
     },
   });
-  pi.registerTool({ name: 'lsp_complete', label: 'LSP Complete', description: 'Get code completions at a file position.', parameters: lspPositionParameters, async execute(id, params, signal) { if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true }); return result(id, { output: formatPlatformLspCompletions(await getPlatformLspClient().complete(params.uri, params.line, params.column)) }); } });
-  pi.registerTool({ name: 'lsp_definition', label: 'LSP Definition', description: 'Find definitions at a file position.', parameters: lspPositionParameters, async execute(id, params, signal) { if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true }); return result(id, { output: formatPlatformLspDefinitions(await getPlatformLspClient().definition(params.uri, params.line, params.column)) }); } });
-  pi.registerTool({ name: 'lsp_references', label: 'LSP References', description: 'Find references at a file position.', parameters: lspReferencesParameters, async execute(id, params, signal) { if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true }); return result(id, { output: formatPlatformLspReferences(await getPlatformLspClient().references(params.uri, params.line, params.column)) }); } });
-  pi.registerTool({ name: 'lsp_hover', label: 'LSP Hover', description: 'Get hover information at a file position.', parameters: lspPositionParameters, async execute(id, params, signal) { if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true }); return result(id, { output: formatPlatformLspHover(await getPlatformLspClient().hover(params.uri, params.line, params.column)) }); } });
-  pi.registerTool({ name: 'lsp_diagnostics', label: 'LSP Diagnostics', description: 'Get diagnostics for a file.', parameters: lspDiagnosticsParameters, async execute(id, params, signal) { if (signal.aborted) return result(id, { error: 'request aborted' }, { isError: true }); return result(id, { output: formatPlatformLspDiagnostics(await getPlatformLspClient().diagnostics(params.uri)) }); } });
+  pi.registerTool({ name: 'lsp_complete', label: 'LSP Complete', description: 'Get code completions at a file position.', parameters: lspPositionParameters, async execute(id, params, signal) { if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined }); return result(id, { output: formatPlatformLspCompletions(await getPlatformLspClient().complete(params.uri, params.line, params.column)) }); } });
+  pi.registerTool({ name: 'lsp_definition', label: 'LSP Definition', description: 'Find definitions at a file position.', parameters: lspPositionParameters, async execute(id, params, signal) { if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined }); return result(id, { output: formatPlatformLspDefinitions(await getPlatformLspClient().definition(params.uri, params.line, params.column)) }); } });
+  pi.registerTool({ name: 'lsp_references', label: 'LSP References', description: 'Find references at a file position.', parameters: lspReferencesParameters, async execute(id, params, signal) { if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined }); return result(id, { output: formatPlatformLspReferences(await getPlatformLspClient().references(params.uri, params.line, params.column)) }); } });
+  pi.registerTool({ name: 'lsp_hover', label: 'LSP Hover', description: 'Get hover information at a file position.', parameters: lspPositionParameters, async execute(id, params, signal) { if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined }); return result(id, { output: formatPlatformLspHover(await getPlatformLspClient().hover(params.uri, params.line, params.column)) }); } });
+  pi.registerTool({ name: 'lsp_diagnostics', label: 'LSP Diagnostics', description: 'Get diagnostics for a file.', parameters: lspDiagnosticsParameters, async execute(id, params, signal) { if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined }); return result(id, { output: formatPlatformLspDiagnostics(await getPlatformLspClient().diagnostics(params.uri)) }); } });
 
   pi.registerTool({
     name: 'run_workflow', label: 'Run Pi Workflow', description: 'Prepare an ordered multi-step investment or data workflow and persist it in the current Pi Session journal.', parameters: workflowParameters, executionMode: 'sequential',
     async execute(toolCallId, params, signal, _onUpdate, context) {
-      if (signal.aborted) return result(toolCallId, { error: 'request aborted' }, { isError: true });
+      if (signal?.aborted) return result(toolCallId, { error: 'request aborted' }, { isError: true, details: undefined });
       const steps = params.steps.map((step) => ({
         name: step.name,
         tool: step.tool,
@@ -790,10 +800,10 @@ function registerPlatformExtension(pi: ExtensionAPI, host: PlatformHost): void {
   pi.registerTool({
     name: 'swarm_team_create', label: 'Create Pi Team', description: 'Create a collaboration team in the current Pi Session journal.', parameters: teamCreateParameters,
     async execute(toolCallId, params, signal, _onUpdate, context) {
-      if (signal.aborted) return result(toolCallId, { error: 'request aborted' }, { isError: true });
+      if (signal?.aborted) return result(toolCallId, { error: 'request aborted' }, { isError: true, details: undefined });
       const current = context ? readState(context) : state;
       const name = params.team_name.trim();
-      if (current.teams.some((team) => team.name === name)) return result(toolCallId, { error: `team already exists: ${name}` }, { isError: true });
+      if (current.teams.some((team) => team.name === name)) return result(toolCallId, { error: `team already exists: ${name}` }, { isError: true, details: undefined });
       state = createPlatformSwarmTeam(current, { name, description: params.description, agentType: params.agent_type }, Date.now(), randomUUID());
       appendSessionState(context, state);
       return result(toolCallId, { team_name: name, lead_agent_id: state.teams.at(-1)?.lead });
@@ -804,8 +814,8 @@ function registerPlatformExtension(pi: ExtensionAPI, host: PlatformHost): void {
     name: 'swarm_agent_spawn', label: 'Spawn Pi Agent', description: 'Spawn a real Pi worker session in a current-session team.', parameters: agentSpawnParameters,
     async execute(toolCallId, params, signal, _onUpdate, context) {
       const current = context ? readState(context) : state;
-      if (signal.aborted) return result(toolCallId, { error: 'request aborted' }, { isError: true });
-      if (!current.teams.some((team) => team.name === params.team_name)) return result(toolCallId, { error: `team not found: ${params.team_name}` }, { isError: true });
+      if (signal?.aborted) return result(toolCallId, { error: 'request aborted' }, { isError: true, details: undefined });
+      if (!current.teams.some((team) => team.name === params.team_name)) return result(toolCallId, { error: `team not found: ${params.team_name}` }, { isError: true, details: undefined });
       if (!sessionHost.capabilities.includes('agent-worker') || !sessionHost.providers.workers?.runAgentWorker) return result(toolCallId, { error: 'agent-worker capability is unavailable; swarm_agent_spawn is fail-closed' }, { isError: true, capability: 'agent-worker', policy: 'fail-closed' });
       const agentId = randomUUID();
       state = addPlatformSwarmAgent(current, { id: agentId, teamName: params.team_name, name: params.agent_name, role: params.role }, Date.now());
@@ -814,7 +824,7 @@ function registerPlatformExtension(pi: ExtensionAPI, host: PlatformHost): void {
         state = updatePlatformSwarmAgent(state, agentId, { status: 'completed', result: worker.output, completedAt: Date.now() }, Date.now());
         appendSessionState(context, state);
       }).catch((error: unknown) => {
-        state = updatePlatformSwarmAgent(state, agentId, { status: signal.aborted ? 'cancelled' : 'failed', error: error instanceof Error ? error.message : String(error), completedAt: Date.now() }, Date.now());
+        state = updatePlatformSwarmAgent(state, agentId, { status: signal?.aborted ? 'cancelled' : 'failed', error: error instanceof Error ? error.message : String(error), completedAt: Date.now() }, Date.now());
         appendSessionState(context, state);
       });
       return result(toolCallId, { agent_id: agentId, team_name: params.team_name, status: 'pending' }, { capability: 'agent-worker' });
@@ -824,10 +834,10 @@ function registerPlatformExtension(pi: ExtensionAPI, host: PlatformHost): void {
   pi.registerTool({
     name: 'swarm_agent_message', label: 'Send Pi Agent Message', description: 'Persist a message between Pi workers in the current Session journal.', parameters: agentMessageParameters,
     async execute(toolCallId, params, signal, _onUpdate, context) {
-      if (signal.aborted) return result(toolCallId, { error: 'request aborted' }, { isError: true });
+      if (signal?.aborted) return result(toolCallId, { error: 'request aborted' }, { isError: true, details: undefined });
       const current = context ? readState(context) : state;
       const next = addPlatformSwarmMessage(current, { from: params.from_agent, to: params.to_agent, content: params.message, timestamp: Date.now() });
-      if (next === current) return result(toolCallId, { success: false, delivered: false }, { isError: true });
+      if (next === current) return result(toolCallId, { success: false, delivered: false }, { isError: true, details: undefined });
       state = next; appendSessionState(context, state); return result(toolCallId, { success: true, delivered: true });
     },
   });
@@ -835,7 +845,7 @@ function registerPlatformExtension(pi: ExtensionAPI, host: PlatformHost): void {
   pi.registerTool({
     name: 'swarm_agent_results', label: 'List Pi Agent Results', description: 'List Pi worker results from the current Session journal.', parameters: agentResultsParameters,
     async execute(toolCallId, params, signal, _onUpdate, context) {
-      if (signal.aborted) return result(toolCallId, { error: 'request aborted' }, { isError: true });
+      if (signal?.aborted) return result(toolCallId, { error: 'request aborted' }, { isError: true, details: undefined });
       const current = context ? readState(context) : state;
       return result(toolCallId, { team_name: params.team_name, agents: current.agents.filter((agent) => agent.teamName === params.team_name && (!params.agent_id || agent.id === params.agent_id)) });
     },
@@ -844,7 +854,7 @@ function registerPlatformExtension(pi: ExtensionAPI, host: PlatformHost): void {
   pi.registerTool({
     name: 'swarm_team_list', label: 'List Pi Teams', description: 'List collaboration teams from the current Pi Session journal.', parameters: Type.Object({}),
     async execute(toolCallId, _params, signal, _onUpdate, context) {
-      if (signal.aborted) return result(toolCallId, { error: 'request aborted' }, { isError: true });
+      if (signal?.aborted) return result(toolCallId, { error: 'request aborted' }, { isError: true, details: undefined });
       const current = context ? readState(context) : state;
       return result(toolCallId, { teams: current.teams.map((team) => ({ name: team.name, description: team.description, member_count: team.members.length, status: team.status, created_at: new Date(team.createdAt).toISOString() })) });
     },

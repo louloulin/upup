@@ -135,7 +135,7 @@ export class SimpleApprovalRequest extends Container {
     this.tool = tool;
     this.args = args;
     
-    const { createSimpleApprovalSelector } = require('./select-list.js');
+    const { createSimpleApprovalSelector } = require('./select-list');
     this.selector = createSimpleApprovalSelector(onSelect);
     
     this.renderContent();

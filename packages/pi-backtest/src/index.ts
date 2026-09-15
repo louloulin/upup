@@ -1,7 +1,10 @@
 import { calculateTransactionCosts, type BacktestCostModel, type BacktestTransactionCosts } from './cost-model';
 import { validateForwardBars, type BacktestDataQualityMode, type BacktestDataQualityReport } from './data-quality';
 
-export interface DailyBar { readonly date: string; readonly high?: number; readonly low?: number; readonly close?: number; }
+// DailyBar type lives in `./types` to break a type-only cycle through
+// `./microstructure` and `./data-quality`.
+import type { DailyBar } from './types';
+export type { DailyBar } from './types';
 export interface BacktestConfig {
   readonly evalWindowDays: number;
   readonly neutralBandPct: number;

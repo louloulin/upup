@@ -51,7 +51,7 @@ export default function technicalExtension(pi: ExtensionAPI): void {
     description: 'Compute a technical indicator suite (MACD / KDJ / BOLL / ATR / RSI / OBV / CCI) from a bar series. Returns aligned arrays matching the input order; null for warmup periods.',
     parameters: computeIndicatorsParameters,
     async execute(toolCallId, params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'compute_indicators aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'compute_indicators aborted' }], isError: true, details: undefined };
       const suite = computeAllIndicators(params.bars as readonly IndicatorBar[]);
       const requested = new Set(params.indicators ?? ['macd', 'kdj', 'boll', 'atr', 'rsi', 'obv', 'cci']);
       const payload: Record<string, unknown> = {};
@@ -82,7 +82,7 @@ export default function technicalExtension(pi: ExtensionAPI): void {
       signalPeriod: Type.Optional(Type.Integer({ minimum: 1, maximum: 100 })),
     }),
     async execute(toolCallId, params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'compute_macd aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'compute_macd aborted' }], isError: true, details: undefined };
       const result = computeMACD(params.closes, params.fastPeriod ?? 12, params.slowPeriod ?? 26, params.signalPeriod ?? 9);
       return { content: [{ type: 'text', text: text(result) }], details: { auditId: toolCallId, source: 'pi-technical://macd' } };
     },
@@ -100,7 +100,7 @@ export default function technicalExtension(pi: ExtensionAPI): void {
       dSmooth: Type.Optional(Type.Integer({ minimum: 1 })),
     }),
     async execute(toolCallId, params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'compute_kdj aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'compute_kdj aborted' }], isError: true, details: undefined };
       const result = computeKDJ(params.bars as readonly IndicatorBar[], params.n ?? 9, params.kSmooth ?? 3, params.dSmooth ?? 3);
       return { content: [{ type: 'text', text: text(result) }], details: { auditId: toolCallId, source: 'pi-technical://kdj' } };
     },
@@ -117,7 +117,7 @@ export default function technicalExtension(pi: ExtensionAPI): void {
       stdDevMultiplier: Type.Optional(Type.Number({ minimum: 0.1 })),
     }),
     async execute(toolCallId, params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'compute_boll aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'compute_boll aborted' }], isError: true, details: undefined };
       const result = computeBOLL(params.closes, params.period ?? 20, params.stdDevMultiplier ?? 2);
       return { content: [{ type: 'text', text: text(result) }], details: { auditId: toolCallId, source: 'pi-technical://boll' } };
     },
@@ -133,7 +133,7 @@ export default function technicalExtension(pi: ExtensionAPI): void {
       period: Type.Optional(Type.Integer({ minimum: 1 })),
     }),
     async execute(toolCallId, params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'compute_atr aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'compute_atr aborted' }], isError: true, details: undefined };
       const result = computeATR(params.bars as readonly IndicatorBar[], params.period ?? 14);
       return { content: [{ type: 'text', text: text(result) }], details: { auditId: toolCallId, source: 'pi-technical://atr' } };
     },
@@ -149,7 +149,7 @@ export default function technicalExtension(pi: ExtensionAPI): void {
       period: Type.Optional(Type.Integer({ minimum: 1 })),
     }),
     async execute(toolCallId, params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'compute_rsi aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'compute_rsi aborted' }], isError: true, details: undefined };
       const result = computeRSI(params.closes, params.period ?? 14);
       return { content: [{ type: 'text', text: text(result) }], details: { auditId: toolCallId, source: 'pi-technical://rsi' } };
     },
@@ -164,7 +164,7 @@ export default function technicalExtension(pi: ExtensionAPI): void {
       bars: Type.Array(barSchema, { minItems: 1 }),
     }),
     async execute(toolCallId, params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'compute_obv aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'compute_obv aborted' }], isError: true, details: undefined };
       const result = computeOBV(params.bars as readonly IndicatorBar[]);
       return { content: [{ type: 'text', text: text(result) }], details: { auditId: toolCallId, source: 'pi-technical://obv' } };
     },
@@ -180,7 +180,7 @@ export default function technicalExtension(pi: ExtensionAPI): void {
       period: Type.Optional(Type.Integer({ minimum: 1 })),
     }),
     async execute(toolCallId, params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'compute_cci aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'compute_cci aborted' }], isError: true, details: undefined };
       const result = computeCCI(params.bars as readonly IndicatorBar[], params.period ?? 20);
       return { content: [{ type: 'text', text: text(result) }], details: { auditId: toolCallId, source: 'pi-technical://cci' } };
     },

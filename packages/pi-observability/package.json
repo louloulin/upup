@@ -14,10 +14,12 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
+      "bun": "./src/index.ts",
       "default": "./dist/index.js"
     },
     "./integration": {
       "types": "./dist/integration.d.ts",
+      "bun": "./src/integration.ts",
       "default": "./dist/integration.js"
     }
   },

@@ -243,7 +243,7 @@ export async function startBridgeServer(cfg: BridgeServerConfig): Promise<Bridge
                   timestamp: Date.now(),
                   payload: { phase: 'tool' },
                 });
-              } else if (event.type === 'tool_end' || event.type === 'tool_error') {
+              } else if (event.type === 'tool_end') {
                 sendBridge(ws, {
                   kind: 'output',
                   seq: msg.seq,
@@ -251,7 +251,7 @@ export async function startBridgeServer(cfg: BridgeServerConfig): Promise<Bridge
                   timestamp: Date.now(),
                   payload: {
                     tool: event.toolName,
-                    result: event.type === 'tool_end' ? 'completed' : event.error,
+                    result: event.error ?? 'completed',
                     latencyMs: 0,
                   },
                 });

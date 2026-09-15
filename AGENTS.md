@@ -6,7 +6,7 @@
 - This fork: https://github.com/louloulin/upup
 - Mirror: https://gitcode.com/lumosaigroup/upup
 - Upstream (forked from): https://github.com/virattt/dexter
-- UpUp (涨涨) is a CLI-based AI agent for **Chinese-language deep financial research**, built on top of the [Dexter](https://github.com/virattt/dexter) framework and now powered entirely by the Pi Runtime + Pi Package ecosystem, with TypeScript and Ink (React for CLI). It is **not** a thin reskin of Dexter — see "China-Edition Increment" in [README.md](./README.md) for the full delta (A-share data stack, 50 investment skills, 5-phase /invest workflow, Pi Package ecosystem, 4-runtime plugin system, EN+zh-CN i18n, multi-agent coordination, Session 2.0, 48 workspace packages, etc.).
+- UpUp (涨涨) is a CLI-based AI agent for **Chinese-language deep financial research**, built on top of the [Dexter](https://github.com/virattt/dexter) framework and now powered entirely by the Pi Runtime + Pi Package ecosystem, with TypeScript and Ink (React for CLI). It is **not** a thin reskin of Dexter — see "China-Edition Increment" in [README.md](./README.md) for the full delta (A-share data stack, 5-phase /invest workflow, Pi Package ecosystem, EN+zh-CN i18n, multi-agent coordination, Session 2.0, 48 workspace packages — 19 of them Pi-native with real Pi resources/tools).
 
 > 📌 **Pi Native 投资助手定型 (2026-09-15)**: 完整 Pi7 计划与定型记录见 [pi7.md](./pi7.md)；8 维度 vs 上游 dexter 的全量审计见 [upup-vs-dexter-audit.md](./openspec/changes/upup-vs-dexter-comprehensive-audit-and-doc-refresh/docs/upup-vs-dexter-audit.md)。当前根 `src` 已收敛为 2 个生产文件（7 行），所有能力通过 Pi Package manifest contract 接入。
 
@@ -16,7 +16,7 @@ UpUp (涨涨) 是基于 [virattt/dexter](https://github.com/virattt/dexter) 的 
 
 - **上游协议**：MIT（同 UpUp）
 - **上游贡献**：整体金融研究框架、Tool registry、Agent loop、SKILL.md 协议、Ink 渲染层、Ink + pi-tui 集成
-- **UpUp 的独立贡献**：A 股数据栈（Tushare Pro / AKShare）、50 个 SKILL.md 投资分析 skill、14 个 bundled skill、5 阶段投资工作流 (`/invest`)、4 runtime 插件系统（bun/jiti/wasm/mcp）、EN+zh-CN 双语 i18n、多 Agent 协同、Session 2.0 / Permission 体系、48 个 workspace package（35 个 Pi native + 13 个外围）、8 轮 Sprint 持续打磨。详见 [README.md](./README.md) 的 "China-Edition Increment" 段。
+- **UpUp 的独立贡献**：A 股数据栈（Tushare Pro / AKShare）、Pi Package 形式的投资 skill、5 阶段投资工作流 (`/invest`)、EN+zh-CN 双语 i18n、多 Agent 协同、Session 2.0 / Permission 体系、48 个 workspace package（19 个 Pi-native：manifest 声明 extensions/skills/prompts/workflows/policies/evals/tools/sideEffects；另 29 个仅有空 `pi` 块）、8 轮 Sprint 持续打磨。详见 [README.md](./README.md) 的 "China-Edition Increment" 段。
 - **修改上游代码**：请保留协议头；新增模块时直接以 UpUp 名义贡献。
 - **上游同步**：若上游 dexter 发布新版本，UpUp 团队会在 PR 中评估 cherry-pick（见 `docs/sync-plan.md`）。
 
@@ -45,7 +45,9 @@ UpUp (涨涨) 是基于 [virattt/dexter](https://github.com/virattt/dexter) 的 
 
 #### 13 个外围 workspace package
 
-`commands`、`cron`、`daemon`、`gateway`、`hooks`、`i18n`、`keybindings`、`mcp`、`memory`、`plugin-sdk`、`plugins`、`sdk`、`skills`、`state`、`types`、`utils`（以 Pi manifest contract 接入，不是金融业务实现）
+`commands`、`cron`、`daemon`、`gateway`、`hooks`、`i18n`、`keybindings`、`mcp`、`memory`、`sdk`、`state`、`types`、`utils`（以 Pi manifest contract 接入，不是金融业务实现）
+
+> ⚠️ 其中 29 个 package 的 `pi` 块是**空声明**（无 extensions/skills/prompts/workflows/policies/evals/tools/sideEffects）。`bun run report:pi7` 现在同时输出 `piManifestDeclaredPackages` 与 `piNativePackages`（48 vs 19），`piNative` 不再等价于「有 pi 字段」。
 
 ### Pi Runtime 与 Session
 
@@ -60,7 +62,7 @@ UpUp (涨涨) 是基于 [virattt/dexter](https://github.com/virattt/dexter) 的 
 - canonical phases：`detect → plan → execute → verify → report`
 - 7 个可序列化 Profile：researcher、analyst、risk-manager、portfolio-manager、backtest-engineer、monitor、reviewer
 - dossier / strategy / screen / risk-dashboard / portfolio-review / earnings-preview / morning-brief / watchlist 由 `@upup/pi-investment-workflow` 的 Pi extension tool 暴露
-- 跨日恢复、跨进程 dossier、policy audit、fail-closed artifact isolation 合同由 `verify:pi7-final` 一键 orchestrator 守门（20 套合同）
+- 跨日恢复、跨进程 dossier、policy audit、fail-closed artifact isolation 合同由 `verify:pi7-final` 一键 orchestrator 守门（22 套合同，其中 C15 凭证缺失时 skip）
 
 ### 静态门禁与验证
 
@@ -85,11 +87,18 @@ UpUp (涨涨) 是基于 [virattt/dexter](https://github.com/virattt/dexter) 的 
 - Install deps: `bun install`
 - Run: `bun run start` 或 `bun run src/index.tsx`
 - Dev (watch mode): `bun run dev`
-- Type-check: `bun run typecheck`
-- Tests: `bun test`（2239 测试）
-- 验证流水线：`bun run verify:pi7-final`（一键 orchestrator，20 套合同）
+- Type-check: `bun run typecheck`（= `tsc --noEmit -p tsconfig.typecheck.json`，覆盖根 `src` + `packages/*/src`）
+- Tests: `bun test`（2124 测试 / 227 文件）
+- 验证流水线：`bun run verify:pi7-final`（一键 orchestrator，22 套合同，C15 需真实凭证否则 skip）
 - Evals: `bun run evals` 或 `bun run evals --sample 10`
-- CI runs `bun run typecheck` + `bun test` + `bun run verify:pi7-final`。
+- CI（`.github/workflows/ci.yml`）跑 `lint:scc`、`check:pi-runtime`、`check:pi7`、`check:module-boundaries`、`check:pi-packages`、`check:js-suffix`、`check:pi-deletion-audit`、`check:pi-package-audit`、`typecheck`、`bun test`，外加独立的 `verify:pi7-final` job。
+- CI 不构建 `dist/`：48 个 workspace package 的 `exports` 都带 `"bun": "./src/*.ts"` 条件，`bun run` / `bun test` / CI 直接解析源码；`dist/` 仅用于发布与 `bun run build:packages`。
+
+### 已知缺口（2026-09-15 审计，尚未修复）
+
+- **Skill 来源与作用域（2026-09-15 实测）**：Pi 从三处解析 skill ——（a）Pi package manifest 的 `pi.skills`；（b）`<project>/.agents/skills` 与 `~/.agents/skills`（Pi package-manager 内建的 agent-skills 约定，见 `pi-coding-agent/dist/core/package-manager.js`）；（c）调用方显式传入的 `additionalSkillPaths`。一次 session 实测加载 **222 个 skill**：仓库内 47（19 来自 `.agents/skills`、28 来自 Pi package），用户全局 `~/.agents/skills` 175。`.claude/skills`（12，含 openspec-\* 等 Claude Code 专用）**不是** Pi 来源，不会加载。`verifyPiResourceTrust` 的 fail-closed 只约束 package 声明的 skill/prompt/extension 路径，不拦截 Pi 自身的 `.agents/skills` 自动发现。**真正的缺口是作用域**：除 `spec.skills` 显式给出白名单外，会话会把用户全局 skill 库一并暴露给模型（`skillsOverride` 仅在 `spec.skills !== undefined` 时生效）。守门测试：`src/runtime/pi/skill-reachability.contract.test.ts`。
+- **29 个空 `pi` 块**：`piManifestDeclaredPackages=48`，但 `piNativePackages=19`；空声明会让「48 个 Pi-native package」这类指标虚高。
+- **`tsconfig.typecheck.json` 未覆盖 `packages/*/extensions`**：目前只 include `packages/*/src/**/*`，extension 目录依赖各自 `tsconfig.json`。
 
 ## Coding Style & Conventions
 
@@ -102,9 +111,10 @@ UpUp (涨涨) 是基于 [virattt/dexter](https://github.com/virattt/dexter) 的 
 
 ## LLM Providers
 
-- 支持：OpenAI (default)、Anthropic、Google、xAI (Grok)、OpenRouter、Ollama (local)。
+- 支持：OpenAI (default)、Anthropic、Google、xAI (Grok)、Moonshot、DeepSeek、OpenRouter、Ollama (local)。
+- 前 7 个 provider 的 id / displayName / apiKeyEnvVars / contextWindow 全部取自 Pi catalog（`@upup/pi-runtime/model-registry`）；Ollama 不在 Pi catalog 中，由 `@upup/pi-runtime/custom-providers` 通过 Pi 的 `pi.registerProvider` 注册（OpenAI-compatible `/v1`，keyless，模型表来自 Ollama `/api/tags`），`ollama:<model>` 因此能被 Pi 正常解析与流式调用。
 - Default model: `gpt-5.4`。Provider 通过前缀识别（`claude-` → Anthropic、`gemini-` → Google 等）。
-- 轻量任务的快速模型：使用 `@upup/pi-runtime` 暴露的 Pi model registry。
+- 轻量任务的快速模型：使用 `@upup/pi-runtime/model-registry` 暴露的 Pi catalog（`builtinProviders()` / `getBuiltinModels()`）。`@upup/utils` 的 `PROVIDERS` 表由 `packages/utils/src/providers.test.ts` 对 Pi catalog 做漂移校验。
 - Anthropic 使用显式 `cache_control` 启用 prompt caching。
 - 用户通过 CLI 的 `/model` 命令切换 provider/model。
 
@@ -144,8 +154,8 @@ UpUp (涨涨) 是基于 [virattt/dexter](https://github.com/virattt/dexter) 的 
 
 ## Environment Variables
 
-- LLM keys: `OPENAI_API_KEY`、`ANTHROPIC_API_KEY`、`GOOGLE_API_KEY`、`XAI_API_KEY`、`OPENROUTER_API_KEY`
-- Ollama: `OLLAMA_BASE_URL`（默认 `http://127.0.0.1:11434`）
+- LLM keys: `OPENAI_API_KEY`、`ANTHROPIC_API_KEY`、`GEMINI_API_KEY`（Pi 的 Google 变量名，`GOOGLE_API_KEY` 仍作为向后兼容别名）、`XAI_API_KEY`、`OPENROUTER_API_KEY`、`MOONSHOT_API_KEY`、`DEEPSEEK_API_KEY`
+- Ollama: `OLLAMA_BASE_URL`（默认 `http://127.0.0.1:11434`，UpUp 自动补 `/v1`；由 Pi provider registration 消费，不再有独立 HTTP 客户端）
 - Finance: `FINANCIAL_DATASETS_API_KEY` (US)、`TUSHARE_TOKEN` (CN/HK)
 - Search: `EXASEARCH_API_KEY` (preferred)、`TAVILY_API_KEY` (fallback)
 - Real invest verifier: `UPUP_REAL_INVEST=1` + `UPUP_REAL_INVEST_CONFIRM=READ_ONLY` + `UPUP_REAL_INVEST_TICKERS=600519.SH,00700.HK,AAPL`（凭证缺失时默认 fail-closed，状态 `skipped`）

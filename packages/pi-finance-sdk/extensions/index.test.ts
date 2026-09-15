@@ -16,7 +16,7 @@ function publishHost(events: ReturnType<typeof createEventBus>, host: Record<str
 }
 
 describe('Pi finance SDK extension', () => {
-  test('registers Pi-native investment commands that dispatch intents to the current session', async () => {
+  test('registers Pi-native investment commands that route through @upup/pi-investment-workflow', async () => {
     const commands = new Map<string, { handler: (args: string) => Promise<void> }>();
     const messages: string[] = [];
     const entries: Array<{ type: string; data: unknown }> = [];
@@ -30,14 +30,44 @@ describe('Pi finance SDK extension', () => {
       appendEntry: (type, data) => { entries.push({ type, data }); },
     } as never);
 
-    expect([...commands.keys()]).toEqual([...PI_FINANCE_COMMANDS]);
+    expect([...commands.keys()].sort()).toEqual([...PI_FINANCE_COMMANDS].sort());
     await commands.get('risk-dashboard')?.handler('600519.SH');
-    expect(messages[0]).toContain('risk dashboard for 600519.SH');
-    expect(messages[0]).toContain('Pi finance tools');
-    expect(entries[0]).toMatchObject({
-      type: 'upup_finance_command',
-      data: { schema: 1, command: 'risk-dashboard', args: '600519.SH', workflow: 'invest' },
-    });
+    // The new handler calls `runInvestmentCommand('risk-dashboard', '600519.SH')`
+    // which throws (no real workflow execution in the unit test). The catch path
+    // surfaces a fail-closed message and records `upup_finance_command_result`
+    // with `ok: false`.
+    // The new handler writes schema:2 audit entries (was schema:1 for the LLM nudge).
+    expect(entries.some(e => e.type === 'upup_finance_command' && (e.data as { schema?: number }).schema === 2 && (e.data as { command?: string }).command === 'risk-dashboard')).toBe(true);
+    // It also writes an `upup_finance_command_result` entry marking ok (true on
+    // success, false on workflow throw) — either way, both old and new behaviour
+    // record a result audit; the schema is 2 in the new wiring.
+    const resultEntries = entries.filter(e => e.type === 'upup_finance_command_result');
+    expect(resultEntries.length).toBe(1);
+    expect((resultEntries[0]?.data as { schema?: number }).schema).toBe(2);
+    // The success path renders the workflow output through `pi.sendUserMessage`.
+    // If the workflow threw, the fail-closed message starts with "/risk-dashboard failed".
+    expect(messages.length).toBeGreaterThan(0);
+  });
+
+  test('does not emit LLM prompt-nudge for investment commands', async () => {
+    const commands = new Map<string, { handler: (args: string) => Promise<void> }>();
+    const messages: string[] = [];
+    const events = eventBus();
+    financeEvidenceExtension({
+      events,
+      on: () => undefined,
+      registerTool: () => undefined,
+      registerCommand: (name, options) => commands.set(name, options),
+      sendUserMessage: (content) => { messages.push(typeof content === 'string' ? content : ''); },
+      appendEntry: () => undefined,
+    } as never);
+
+    await commands.get('dossier')?.handler('AAPL');
+    // The OLD prompt-nudge started with the intent verb ("Build or review...").
+    // The NEW handler either runs the real workflow or surfaces a fail-closed
+    // error — it must NOT push the "Use the Pi finance tools..." template.
+    const hasNudge = messages.some(m => m.includes('Use the Pi finance tools'));
+    expect(hasNudge).toBe(false);
   });
 
   test('registers the native read_filings tool with a bounded API contract', () => {

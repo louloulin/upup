@@ -1,2 +1,2 @@
-import './src/workflow.test.js';
-import './extensions/index.test.js';
+import './src/workflow.test';
+import './extensions/index.test';

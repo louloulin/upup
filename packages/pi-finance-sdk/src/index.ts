@@ -116,3 +116,41 @@ export type {
   FollowedFund,
   AlertConfig,
 } from './fund-types';
+
+// ============================================================================
+// Investment-command runners (injected by pi-app at boot)
+// ============================================================================
+
+/**
+ * Runner signature for a generic investment command.
+ * Mirrors `@upup/pi-investment-workflow`'s `runInvestmentCommand`.
+ */
+export type PiFinanceCommandRunner = (name: string, args: string) => Promise<string | null>;
+
+/**
+ * Module-level state for the two runners consumed by
+ * `registerPiFinanceCommands` in `./extensions/commands`.
+ *
+ * Why this lives here (in `src/`, not `extensions/`): the `extensions/`
+ * subtree is bundled by `bun build` (no `.d.ts` emitted by `tsc` because
+ * the build's `tsconfig.json` only includes `src/`). Pi-app imports
+ * `setPiFinanceCommandRunners` from this package via `@upup/pi-finance-sdk`
+ * (the main subpath) so the function gets proper type declarations.
+ */
+let _investRunner: ((args: string) => Promise<string>) | null = null;
+let _genericRunner: PiFinanceCommandRunner | null = null;
+
+export function setPiFinanceCommandRunners(options: {
+  invest?: (args: string) => Promise<string>;
+  generic?: PiFinanceCommandRunner;
+}): void {
+  _investRunner = options.invest ?? null;
+  _genericRunner = options.generic ?? null;
+}
+
+export function getPiFinanceCommandRunners(): {
+  readonly invest: ((args: string) => Promise<string>) | null;
+  readonly generic: PiFinanceCommandRunner | null;
+} {
+  return { invest: _investRunner, generic: _genericRunner };
+}

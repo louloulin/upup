@@ -102,6 +102,12 @@ const CONTRACTS: readonly ContractSpec[] = [
     env: { UPUP_PI_PACKAGE_AUDIT_STRICT: '1' },
   },
   {
+    id: 'P0.g',
+    label: 'static gate: check:js-suffix (no internal relative-path .js / .mjs / .cjs imports)',
+    command: 'bun',
+    args: ['run', 'check:js-suffix'],
+  },
+  {
     id: 'C1',
     label: 'synthetic smoke (CN/HK/US, no network)',
     command: 'bun',

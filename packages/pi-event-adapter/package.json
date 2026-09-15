@@ -14,15 +14,17 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
+      "bun": "./src/index.ts",
       "default": "./dist/index.js"
     },
     "./pi-model-bridge": {
       "types": "./dist/pi-model-bridge.d.ts",
+      "bun": "./src/pi-model-bridge.ts",
       "default": "./dist/pi-model-bridge.js"
     }
   },
   "scripts": {
-    "build": "bun build src/index.ts --outdir=dist --target=node && bun build src/pi-model-bridge.ts --outdir=dist --target=node && tsc --emitDeclarationOnly --project tsconfig.json",
+    "build": "bun build src/index.ts --outdir=dist --target=node --external '@upup/*' --external '@earendil-works/*' && bun build src/pi-model-bridge.ts --outdir=dist --target=node --external '@upup/*' --external '@earendil-works/*' && tsc --emitDeclarationOnly --project tsconfig.json",
     "test": "bun test ./test.ts"
   },
   "files": [

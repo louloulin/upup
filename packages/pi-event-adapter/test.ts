@@ -580,7 +580,12 @@ describe('@upup/pi-event-adapter — toPiTool bridge', () => {
 });
 
 import { createFinanceExtension } from './src/index';
-import { detectPiProvider, resolvePiModel } from './src/pi-model-bridge';
+import {
+  describePiModelResolution,
+  detectPiProvider,
+  isPiCustomProviderSpec,
+  resolvePiModel,
+} from './src/pi-model-bridge';
 
 describe('@upup/pi-event-adapter — pi model bridge', () => {
   test('detectPiProvider matches known prefixes', () => {
@@ -599,8 +604,56 @@ describe('@upup/pi-event-adapter — pi model bridge', () => {
 
   test('resolvePiModel respects explicit provider:model prefix', () => {
     // Even if the model id starts with "claude-", the explicit prefix wins.
-    const model = resolvePiModel({ modelName: 'google:gemini-3.0-pro' });
-    expect(model).toBeDefined();
+    const model = resolvePiModel({ modelName: 'google:gemini-3.1-pro-preview' });
+    expect(model?.id).toBe('gemini-3.1-pro-preview');
+  });
+
+  test('resolvePiModel canonicalises UpUp provider aliases onto Pi provider ids', () => {
+    expect(resolvePiModel({ modelName: 'moonshot:kimi-k2.5' })?.id).toBe('kimi-k2.5');
+  });
+
+  test('resolvePiModel does not silently substitute an unrelated model', () => {
+    expect(resolvePiModel({ modelName: 'grok-4-0709' })).toBeUndefined();
+    expect(resolvePiModel({ modelName: 'xai:grok-4-0709' })).toBeUndefined();
+  });
+
+  test('describePiModelResolution explains unresolved ids', () => {
+    const diagnostic = describePiModelResolution({ modelName: 'xai:grok-4-0709' });
+    expect(diagnostic.reason).toBe('unknown-model');
+    expect(diagnostic.provider).toBe('xai');
+    expect(diagnostic.availableModels).toContain('grok-4.6');
+
+    const resolved = describePiModelResolution({ modelName: 'xai:grok-4.6' });
+    expect(resolved.reason).toBe('resolved');
+    expect(resolved.resolved).toBe(true);
+
+    const unknownProvider = describePiModelResolution({ modelName: 'unknown-vendor:some-model' });
+    expect(unknownProvider.reason).toBe('unknown-provider');
+  });
+
+  test('resolvePiModel serves UpUp-contributed providers from Pi itself', () => {
+    const previous = process.env.OLLAMA_BASE_URL;
+    process.env.OLLAMA_BASE_URL = 'http://127.0.0.1:11434';
+    try {
+      const model = resolvePiModel({ modelName: 'ollama:llama3.1:latest' });
+      // Pi drives local inference through its own OpenAI-compatible API adapter.
+      expect(model?.provider).toBe('ollama');
+      expect(model?.api).toBe('openai-completions');
+      expect(model?.id).toBe('llama3.1');
+      expect(model?.baseUrl).toBe('http://127.0.0.1:11434/v1');
+      expect(model?.cost).toEqual({ input: 0, output: 0, cacheRead: 0, cacheWrite: 0 });
+
+      const diagnostic = describePiModelResolution({ modelName: 'ollama:llama3.1' });
+      expect(diagnostic.reason).toBe('custom-provider');
+      expect(diagnostic.resolved).toBe(true);
+
+      expect(isPiCustomProviderSpec('ollama:llama3.1')).toBe(true);
+      expect(isPiCustomProviderSpec('openai:gpt-5.4')).toBe(false);
+      expect(isPiCustomProviderSpec(undefined)).toBe(false);
+    } finally {
+      if (previous === undefined) delete process.env.OLLAMA_BASE_URL;
+      else process.env.OLLAMA_BASE_URL = previous;
+    }
   });
 
   test('resolvePiModel falls back when DEFAULT_MODEL is unset and no override given', () => {

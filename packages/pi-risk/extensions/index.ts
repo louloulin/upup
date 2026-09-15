@@ -125,7 +125,7 @@ export default function riskExtension(pi: ExtensionAPI): void {
     description: 'Record an identified investment risk in the current Pi session. This is a session journal, not a live alert or professional investment advice.',
     parameters: trackRiskParameters,
     async execute(toolCallId, params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'track_risk request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'track_risk request aborted' }], isError: true, details: undefined };
       try {
         const risk = riskTracker.add({
           ticker: params.ticker,
@@ -149,7 +149,7 @@ export default function riskExtension(pi: ExtensionAPI): void {
     description: 'Calculate historical or parametric Value at Risk for a return series with auditable assumptions and observations.',
     parameters: varParameters,
     async execute(toolCallId, params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'calculate_var request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'calculate_var request aborted' }], isError: true, details: undefined };
       const result = calculateValueAtRisk(params as ValueAtRiskInput);
       return nativeResult(toolCallId, 'calculate_var', 'var', result, { assumptions: result.assumptions });
     },
@@ -160,7 +160,7 @@ export default function riskExtension(pi: ExtensionAPI): void {
     description: 'Read deterministic historical short-interest and squeeze-risk metrics. This offline fixture is not real-time market data or investment advice.',
     parameters: shortInterestParameters,
     async execute(toolCallId, params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'get_short_interest request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'get_short_interest request aborted' }], isError: true, details: undefined };
       const value = getNativeShortInterest(params.symbol);
       const result = params.include_squeeze_analysis === false ? { ...value, squeezeScore: undefined, squeezeRisk: undefined } : value;
       return nativeResult(toolCallId, 'get_short_interest', 'short-interest', result, { assumptions: { includeSqueezeAnalysis: params.include_squeeze_analysis !== false } });
@@ -172,7 +172,7 @@ export default function riskExtension(pi: ExtensionAPI): void {
     description: 'Calculate deterministic days-to-cover and optional position squeeze exposure from the historical short-interest fixture.',
     parameters: shortInterestRatioParameters,
     async execute(toolCallId, params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'calculate_short_interest_ratio request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'calculate_short_interest_ratio request aborted' }], isError: true, details: undefined };
       const result = calculateNativeShortInterestRatio({ symbol: params.symbol, quantity: params.quantity, avgCost: params.avg_cost });
       return nativeResult(toolCallId, 'calculate_short_interest_ratio', 'short-interest-ratio', result);
     },
@@ -183,7 +183,7 @@ export default function riskExtension(pi: ExtensionAPI): void {
     description: 'Screen a bounded symbol set for deterministic historical short-squeeze signals; results are screening evidence only.',
     parameters: shortSqueezeParameters,
     async execute(toolCallId, params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'detect_short_squeeze request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'detect_short_squeeze request aborted' }], isError: true, details: undefined };
       const result = detectNativeShortSqueeze({ symbols: params.symbols, minShortInterestRatio: params.min_short_interest_ratio, minShortPercentFloat: params.min_short_percent_float });
       return nativeResult(toolCallId, 'detect_short_squeeze', 'short-squeeze', result);
     },
@@ -195,7 +195,7 @@ export default function riskExtension(pi: ExtensionAPI): void {
     description: 'Calculate annualized Sharpe ratio and classify the rating band (negative, low, good, excellent, zero-volatility).',
     parameters: sharpeParameters,
     async execute(toolCallId, params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'calculate_sharpe request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'calculate_sharpe request aborted' }], isError: true, details: undefined };
       const result = calculateSharpeRatio(params as SharpeInput);
       return nativeResult(toolCallId, 'calculate_sharpe', 'sharpe', result, { rating: result.rating });
     },
@@ -207,7 +207,7 @@ export default function riskExtension(pi: ExtensionAPI): void {
     description: 'Calculate annualized Sortino ratio using only downside deviation, exposing target return and downside deviation.',
     parameters: sortinoParameters,
     async execute(toolCallId, params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'calculate_sortino request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'calculate_sortino request aborted' }], isError: true, details: undefined };
       const result = calculateSortinoRatio(params as SortinoInput);
       return nativeResult(toolCallId, 'calculate_sortino', 'sortino', result, { rating: result.rating });
     },
@@ -219,43 +219,43 @@ export default function riskExtension(pi: ExtensionAPI): void {
     description: 'Compute the worst peak-to-trough decline of a price series and return peak/trough indices and percentages.',
     parameters: maxDrawdownParameters,
     async execute(toolCallId, params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'calculate_max_drawdown request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'calculate_max_drawdown request aborted' }], isError: true, details: undefined };
       const result = calculateMaxDrawdown(params as MaxDrawdownInput);
       return nativeResult(toolCallId, 'calculate_max_drawdown', 'max-drawdown', result, { peakIndex: result.peakIndex, troughIndex: result.troughIndex });
     },
   });
   pi.registerTool({ name: 'calculate_kelly', label: 'Kelly Criterion', description: 'Calculate full Kelly, half-Kelly, and optional capital position sizing from historical win/loss assumptions.', parameters: kellyParameters, async execute(toolCallId, params, signal) {
-    if (signal.aborted) return { content: [{ type: 'text', text: 'calculate_kelly request aborted' }], isError: true };
+    if (signal?.aborted) return { content: [{ type: 'text', text: 'calculate_kelly request aborted' }], isError: true, details: undefined };
     const result = calculateKellyCriterion(params as KellyInput);
     return nativeResult(toolCallId, 'calculate_kelly', 'kelly', result, { assumptions: { winRate: params.winRate, avgWin: params.avgWin, avgLoss: params.avgLoss } });
   } });
   pi.registerTool({ name: 'calculate_risk_parity', label: 'Risk Parity Allocation', description: 'Calculate inverse-volatility risk parity weights and risk contributions for a bounded asset set.', parameters: riskParityParameters, async execute(toolCallId, params, signal) {
-    if (signal.aborted) return { content: [{ type: 'text', text: 'calculate_risk_parity request aborted' }], isError: true };
+    if (signal?.aborted) return { content: [{ type: 'text', text: 'calculate_risk_parity request aborted' }], isError: true, details: undefined };
     const result = calculateRiskParity(params.assets as RiskParityAsset[]);
     return nativeResult(toolCallId, 'calculate_risk_parity', 'risk-parity', result);
   } });
   pi.registerTool({ name: 'calculate_mean_variance', label: 'Mean Variance Optimization', description: 'Calculate a deterministic tangency-style portfolio using excess-return to variance scores and an optional correlation matrix.', parameters: meanVarianceParameters, async execute(toolCallId, params, signal) {
-    if (signal.aborted) return { content: [{ type: 'text', text: 'calculate_mean_variance request aborted' }], isError: true };
+    if (signal?.aborted) return { content: [{ type: 'text', text: 'calculate_mean_variance request aborted' }], isError: true, details: undefined };
     const result = calculateMeanVariance(params as MeanVarianceInput);
     return nativeResult(toolCallId, 'calculate_mean_variance', 'mean-variance', result, { assumptions: { riskFreeRate: result.riskFreeRate } });
   } });
   pi.registerTool({ name: 'score_data_source', label: 'Score Data Source', description: 'Score a market data source from latency, freshness, coverage, accuracy, and price deviation.', parameters: sourceMetric, async execute(toolCallId, params, signal) {
-    if (signal.aborted) return { content: [{ type: 'text', text: 'score_data_source request aborted' }], isError: true };
+    if (signal?.aborted) return { content: [{ type: 'text', text: 'score_data_source request aborted' }], isError: true, details: undefined };
     const result = calculateReliabilityScore(params as SourceMetrics);
     return nativeResult(toolCallId, 'score_data_source', 'data-source-score', result, { source: params.source });
   } });
   pi.registerTool({ name: 'compare_data_sources', label: 'Compare Data Sources', description: 'Rank multiple market data sources by reliability, latency, accuracy, or overall score.', parameters: sourceComparisonParameters, async execute(toolCallId, params, signal) {
-    if (signal.aborted) return { content: [{ type: 'text', text: 'compare_data_sources request aborted' }], isError: true };
+    if (signal?.aborted) return { content: [{ type: 'text', text: 'compare_data_sources request aborted' }], isError: true, details: undefined };
     const result = compareDataSources(params as DataSourceComparisonInput);
     return nativeResult(toolCallId, 'compare_data_sources', 'data-source-comparison', result);
   } });
   pi.registerTool({ name: 'calculate_correlation_matrix', label: 'Correlation Matrix', description: 'Calculate a deterministic Pearson correlation matrix and diversification interpretation for multiple assets.', parameters: correlationMatrixParameters, async execute(toolCallId, params, signal) {
-    if (signal.aborted) return { content: [{ type: 'text', text: 'calculate_correlation_matrix request aborted' }], isError: true };
+    if (signal?.aborted) return { content: [{ type: 'text', text: 'calculate_correlation_matrix request aborted' }], isError: true, details: undefined };
     const result = buildCorrelationMatrix(params.returns, params.symbols);
     return nativeResult(toolCallId, 'calculate_correlation_matrix', 'correlation-matrix', result);
   } });
   pi.registerTool({ name: 'calculate_correlation', label: 'Asset Correlation', description: 'Calculate Pearson correlation and strength between two historical return series.', parameters: correlationParameters, async execute(toolCallId, params, signal) {
-    if (signal.aborted) return { content: [{ type: 'text', text: 'calculate_correlation request aborted' }], isError: true };
+    if (signal?.aborted) return { content: [{ type: 'text', text: 'calculate_correlation request aborted' }], isError: true, details: undefined };
     const result = calculatePearsonCorrelation(params.asset1Returns, params.asset2Returns);
     return nativeResult(toolCallId, 'calculate_correlation', 'correlation', { ...result, pair: `${params.asset1Symbol}/${params.asset2Symbol}` });
   } });

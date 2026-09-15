@@ -1,3 +1,8 @@
+import {
+  findPiModelAcrossProviders,
+  getPiModelInfo,
+  listPiModels,
+} from '@upup/pi-runtime/model-registry';
 import { PROVIDERS as PROVIDER_DEFS } from '@upup/utils';
 
 export interface Model {
@@ -11,34 +16,48 @@ interface Provider {
   models: Model[];
 }
 
-const PROVIDER_MODELS: Record<string, Model[]> = {
-  openai: [
-    { id: 'gpt-5.4', displayName: 'GPT 5.4' },
-    { id: 'gpt-4.1', displayName: 'GPT 4.1' },
-  ],
-  anthropic: [
-    { id: 'claude-sonnet-4-6', displayName: 'Sonnet 4.6' },
-    { id: 'claude-opus-4-7', displayName: 'Opus 4.7' },
-  ],
-  google: [
-    { id: 'gemini-3-flash-preview', displayName: 'Gemini 3 Flash' },
-    { id: 'gemini-3.1-pro-preview', displayName: 'Gemini 3.1 Pro' },
-  ],
-  xai: [
-    { id: 'grok-4-0709', displayName: 'Grok 4' },
-    { id: 'grok-4-1-fast-reasoning', displayName: 'Grok 4.1 Fast Reasoning' },
-  ],
-  moonshot: [{ id: 'kimi-k2-5', displayName: 'Kimi K2.5' }],
-  deepseek: [
-    { id: 'deepseek-v4-pro', displayName: 'DeepSeek V4 Pro' },
-    { id: 'deepseek-v4-flash', displayName: 'DeepSeek V4 Flash' },
-  ],
+/**
+ * Curated ordering only. The model list itself comes from the Pi catalog —
+ * these ids are moved to the top so the common choices stay one keystroke away,
+ * and any id missing from Pi is skipped instead of being offered.
+ */
+const RECOMMENDED_MODELS: Record<string, readonly string[]> = {
+  openai: ['gpt-5.4', 'gpt-4.1'],
+  anthropic: ['claude-sonnet-4-6', 'claude-opus-4-7'],
+  google: ['gemini-3-flash-preview', 'gemini-3.1-pro-preview'],
+  xai: ['grok-4.6', 'grok-4.5'],
+  moonshot: ['kimi-k2.5'],
+  deepseek: ['deepseek-v4-pro', 'deepseek-v4-flash'],
 };
+
+/** Providers whose model list is supplied at runtime rather than from the catalog. */
+const DYNAMIC_MODEL_PROVIDERS = new Set(['ollama', 'openrouter']);
+
+function catalogModelsForProvider(providerId: string): Model[] {
+  const recommended = RECOMMENDED_MODELS[providerId] ?? [];
+  const seen = new Set<string>();
+  const models: Model[] = [];
+
+  for (const id of recommended) {
+    const info = getPiModelInfo(providerId, id);
+    if (!info || seen.has(info.id)) continue;
+    seen.add(info.id);
+    models.push({ id: info.id, displayName: info.name });
+  }
+
+  for (const info of listPiModels(providerId)) {
+    if (seen.has(info.id)) continue;
+    seen.add(info.id);
+    models.push({ id: info.id, displayName: info.name });
+  }
+
+  return models;
+}
 
 export const PROVIDERS: Provider[] = PROVIDER_DEFS.map((provider) => ({
   displayName: provider.displayName,
   providerId: provider.id,
-  models: PROVIDER_MODELS[provider.id] ?? [],
+  models: DYNAMIC_MODEL_PROVIDERS.has(provider.id) ? [] : catalogModelsForProvider(provider.id),
 }));
 
 export function getModelsForProvider(providerId: string): Model[] {
@@ -65,5 +84,6 @@ export function getModelDisplayName(modelId: string): string {
     }
   }
 
-  return normalizedId;
+  const catalogMatch = findPiModelAcrossProviders(normalizedId);
+  return catalogMatch?.name ?? normalizedId;
 }

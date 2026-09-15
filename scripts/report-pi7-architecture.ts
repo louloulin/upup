@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { PI_CAPABILITY_CATALOG, validatePiCapabilityCatalog } from '@upup/pi-runtime';
+import { listPiSkillCommands } from '@upup/pi-resource-composition';
 import { findSideEffectCoverageGaps, REQUIRED_SIDE_EFFECTS, readWorkspaceManifests } from './check-pi-side-effects.ts';
 
 const root = process.cwd();
@@ -32,12 +33,23 @@ const packages = packageDirectories.map((entry) => {
   const manifestPath = join(directory, 'package.json');
   const manifest = existsSync(manifestPath) ? JSON.parse(readFileSync(manifestPath, 'utf8')) as Record<string, unknown> : {};
   const pi = manifest.pi && typeof manifest.pi === 'object' ? manifest.pi as Record<string, unknown> : undefined;
+  const resources = pi
+    ? Object.fromEntries(['extensions', 'skills', 'prompts', 'workflows', 'policies', 'evals'].map((key) => [key, Array.isArray(pi[key]) ? (pi[key] as unknown[]).length : 0]))
+    : {};
+  const resourceCount = Object.values(resources).reduce((total, count) => total + count, 0);
+  const toolNames = pi && Array.isArray(pi.tools) ? pi.tools : [];
+  const sideEffects = pi && Array.isArray(pi.sideEffects) ? pi.sideEffects : [];
   return {
     name: typeof manifest.name === 'string' ? manifest.name : `@upup/${entry.name}`,
     version: typeof manifest.version === 'string' ? manifest.version : undefined,
     workspace: entry.name,
-    piNative: pi !== undefined,
-    resources: pi ? Object.fromEntries(['extensions', 'skills', 'prompts', 'workflows', 'policies', 'evals'].map((key) => [key, Array.isArray(pi[key]) ? (pi[key] as unknown[]).length : 0])) : {},
+    // A `pi` block alone is a declaration, not an implementation: peripheral
+    // packages declare one with zero resources and zero tools. Only packages
+    // that actually ship a Pi resource, tool or side-effect declaration are
+    // counted as Pi-native.
+    piManifestDeclared: pi !== undefined,
+    piNative: pi !== undefined && (resourceCount > 0 || toolNames.length > 0 || sideEffects.length > 0),
+    resources,
     hostCapabilities: pi && Array.isArray(pi.hostCapabilities) ? pi.hostCapabilities : [],
     tools: pi && Array.isArray(pi.tools) ? pi.tools : [],
     nativeTools: pi && Array.isArray(pi.nativeTools) ? pi.nativeTools : [],
@@ -59,6 +71,30 @@ const rootDomains = readdirSync(srcRoot, { withFileTypes: true }).filter((entry)
   return { directory: `src/${entry.name}`, productionFiles: productionFiles.length, testFiles: files.length - productionFiles.length, productionLines: productionFiles.reduce((total, file) => total + lineCount(file), 0) };
 });
 
+/**
+ * Skill reachability: Pi loads skills from Pi package manifests, from the
+ * `agent-skills` convention (`<project>/.agents/skills`, `~/.agents/skills`) and
+ * from explicit additional paths. Reporting the split keeps the documented
+ * numbers honest — `.claude/skills` is not a Pi source.
+ */
+async function readSkillReachability(): Promise<Record<string, unknown>> {
+  try {
+    const commands = await listPiSkillCommands(root);
+    const repoPrefix = `${root}/`;
+    let repoSkills = 0;
+    let externalSkills = 0;
+    for (const command of commands) {
+      const path = (command as { filePath?: string }).filePath;
+      if (typeof path !== 'string') continue;
+      if (path.startsWith(repoPrefix)) repoSkills += 1;
+      else externalSkills += 1;
+    }
+    return { total: commands.length, repoSkills, externalSkills };
+  } catch (error) {
+    return { unavailable: error instanceof Error ? error.message : 'unknown error' };
+  }
+}
+
 const structuralCompletion = [
   legacyEventConsumers.length === 0,
   globalRegistryConsumers.length === 0,
@@ -72,6 +108,7 @@ console.log(JSON.stringify({
   generatedAt: new Date().toISOString(),
   baseline: {
     workspacePackages: packages.length,
+    piManifestDeclaredPackages: packages.filter((pkg) => pkg.piManifestDeclared).length,
     piNativePackages: packages.filter((pkg) => pkg.piNative).length,
     rootSourceFiles: srcFiles.length,
     rootProductionFiles: srcProduction.length,
@@ -96,5 +133,6 @@ console.log(JSON.stringify({
     calculatedFrom: ['legacyEventConsumers', 'globalRegistryConsumers', 'agentSessionFactories', 'piManifestCoverage', 'rootRuntimeCompositionFiles'],
     note: 'This is a structural migration indicator, not product completion; provider and full invest-loop evidence remain separate.',
   },
+  skills: await readSkillReachability(),
   rootAllowlist: ['src/index.tsx', 'src/compat/**', 'src/bootstrap/**', 'src/types/**'],
 }, null, 2));

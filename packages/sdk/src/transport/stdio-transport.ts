@@ -15,7 +15,7 @@ import { spawn, ChildProcess, execSync } from 'child_process'
 import { existsSync, readFileSync } from 'fs'
 import { dirname, join } from 'path'
 import { homedir } from 'os'
-import { createInterface, type ReadlineInterface } from 'readline'
+import { createInterface, type Interface as ReadlineInterface } from 'readline'
 import type {
   Transport,
   StdioTransportConfig,
@@ -392,7 +392,7 @@ export class StdioTransport implements Transport {
         if (line.trim()) {
           try {
             const msg = JSON.parse(line) as object
-            this.handleMessage(msg, messageQueue)
+            this.handleMessage(msg)
           } catch {
             // 忽略解析错误
           }

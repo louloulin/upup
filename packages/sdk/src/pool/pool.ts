@@ -114,7 +114,7 @@ export class ProcessPool extends EventEmitter {
    * 预热进程池
    */
   private async prewarm(): Promise<void> {
-    const promises: Promise<void>[] = []
+    const promises: Promise<unknown>[] = []
     for (let i = 0; i < this.config.minSize; i++) {
       promises.push(this.createProcess())
     }

@@ -175,63 +175,63 @@ export default function portfolioExtension(pi: ExtensionAPI): void {
   pi.registerTool({
     name: 'export_portfolio', label: 'Export Portfolio', description: 'Export the current Pi session portfolio as auditable CSV or JSON content.', parameters: Type.Object({ format: Type.Optional(Type.Union([Type.Literal('csv'), Type.Literal('json')])), includeTransactions: Type.Optional(Type.Boolean()), prices: Type.Optional(Type.Record(Type.String(), Type.Number({ exclusiveMinimum: 0 }))) }),
     async execute(toolCallId, params, signal, _onUpdate, context) {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'export_portfolio request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'export_portfolio request aborted' }], isError: true, details: undefined };
       const state = getState(context); return nativePortfolioResult(toolCallId, 'export_portfolio', exportPortfolioState(state, { format: params.format ?? 'csv', includeTransactions: params.includeTransactions ?? false, prices: params.prices ?? {} }), state);
     },
   });
   pi.registerTool({
     name: 'list_portfolios', label: 'List Portfolios', description: 'List named portfolios and identify the active portfolio in the current Pi session.', parameters: Type.Object({}),
     async execute(toolCallId, _params, signal, _onUpdate, context) {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'list_portfolios request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'list_portfolios request aborted' }], isError: true, details: undefined };
       const state = getMultiState(context); return multiPortfolioResult(toolCallId, 'list_portfolios', { activePortfolio: state.activePortfolio, portfolios: listMultiPortfolios(state), count: Object.keys(state.portfolios).length }, state);
     },
   });
   pi.registerTool({
     name: 'create_portfolio', label: 'Create Portfolio', description: 'Create and activate a named portfolio with an optional initial cash balance.', parameters: Type.Object({ name: Type.String({ minLength: 1 }), initialCash: Type.Optional(Type.Number({ exclusiveMinimum: 0 })) }),
     async execute(toolCallId, params, signal, _onUpdate, context) {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'create_portfolio request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'create_portfolio request aborted' }], isError: true, details: undefined };
       const state = getMultiState(context); const result = createMultiPortfolio(state, params); if (result.error) return multiPortfolioResult(toolCallId, 'create_portfolio', { error: result.error }, state); commitMultiState(result.state); return multiPortfolioResult(toolCallId, 'create_portfolio', { portfolio: result.portfolio, activePortfolio: result.state.activePortfolio }, result.state);
     },
   });
   pi.registerTool({
     name: 'delete_portfolio', label: 'Delete Portfolio', description: 'Delete a named portfolio only after explicit confirmation; the last portfolio cannot be deleted.', parameters: Type.Object({ name: Type.String({ minLength: 1 }), confirm: Type.Boolean() }),
     async execute(toolCallId, params, signal, _onUpdate, context) {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'delete_portfolio request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'delete_portfolio request aborted' }], isError: true, details: undefined };
       const state = getMultiState(context); if (!params.confirm) return multiPortfolioResult(toolCallId, 'delete_portfolio', { error: 'Must confirm deletion by setting confirm=true' }, state); const result = deleteMultiPortfolio(state, params.name); if (result.error) return multiPortfolioResult(toolCallId, 'delete_portfolio', { error: result.error }, state); commitMultiState(result.state); return multiPortfolioResult(toolCallId, 'delete_portfolio', { deleted: params.name, activePortfolio: result.state.activePortfolio }, result.state);
     },
   });
   pi.registerTool({
     name: 'switch_portfolio', label: 'Switch Portfolio', description: 'Switch the active named portfolio for subsequent Pi portfolio operations.', parameters: Type.Object({ name: Type.String({ minLength: 1 }) }),
     async execute(toolCallId, params, signal, _onUpdate, context) {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'switch_portfolio request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'switch_portfolio request aborted' }], isError: true, details: undefined };
       const state = getMultiState(context); const result = switchMultiPortfolio(state, params.name); if (result.error) return multiPortfolioResult(toolCallId, 'switch_portfolio', { error: result.error }, state); commitMultiState(result.state); return multiPortfolioResult(toolCallId, 'switch_portfolio', { activePortfolio: result.state.activePortfolio }, result.state);
     },
   });
   pi.registerTool({
     name: 'add_position_multi', label: 'Add Multi-Portfolio Position', description: 'Add or average into a position in a named portfolio, defaulting to the active portfolio.', parameters: Type.Object({ symbol: Type.String({ minLength: 1 }), quantity: Type.Number({ exclusiveMinimum: 0 }), avgCost: Type.Number({ exclusiveMinimum: 0 }), purchaseDate: Type.Optional(Type.String({ minLength: 1 })), portfolio: Type.Optional(Type.String({ minLength: 1 })) }),
     async execute(toolCallId, params, signal, _onUpdate, context) {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'add_position_multi request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'add_position_multi request aborted' }], isError: true, details: undefined };
       const state = getMultiState(context); const result = addMultiPortfolioPosition(state, params); if (result.error) return multiPortfolioResult(toolCallId, 'add_position_multi', { error: result.error }, state); commitMultiState(result.state); return multiPortfolioResult(toolCallId, 'add_position_multi', { portfolio: result.portfolio }, result.state);
     },
   });
   pi.registerTool({
     name: 'remove_position_multi', label: 'Remove Multi-Portfolio Position', description: 'Remove a position from a named portfolio and credit proceeds to its cash balance.', parameters: Type.Object({ symbol: Type.String({ minLength: 1 }), atPrice: Type.Optional(Type.Number({ exclusiveMinimum: 0 })), portfolio: Type.Optional(Type.String({ minLength: 1 })) }),
     async execute(toolCallId, params, signal, _onUpdate, context) {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'remove_position_multi request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'remove_position_multi request aborted' }], isError: true, details: undefined };
       const state = getMultiState(context); const result = removeMultiPortfolioPosition(state, params); if (result.error) return multiPortfolioResult(toolCallId, 'remove_position_multi', { error: result.error }, state); commitMultiState(result.state); return multiPortfolioResult(toolCallId, 'remove_position_multi', { portfolio: result.portfolio?.name, removed: result.removed }, result.state);
     },
   });
   pi.registerTool({
     name: 'get_portfolio_multi', label: 'Get Multi-Portfolio', description: 'Read a named portfolio with optional explicit prices and deterministic P&L; defaults to the active portfolio.', parameters: Type.Object({ portfolio: Type.Optional(Type.String({ minLength: 1 })), prices: Type.Optional(Type.Record(Type.String(), Type.Number({ exclusiveMinimum: 0 }))) }),
     async execute(toolCallId, params, signal, _onUpdate, context) {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'get_portfolio_multi request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'get_portfolio_multi request aborted' }], isError: true, details: undefined };
       const state = getMultiState(context); const result = calculateMultiPortfolioReport(state, params.portfolio, params.prices ?? {}); if (!result) return multiPortfolioResult(toolCallId, 'get_portfolio_multi', { error: `Portfolio "${params.portfolio ?? state.activePortfolio}" not found` }, state); return multiPortfolioResult(toolCallId, 'get_portfolio_multi', result, state);
     },
   });
   pi.registerTool({
     name: 'add_position', label: 'Add Position', description: 'Add a position to the Pi session portfolio and deduct its cost from cash.', parameters: addPositionParameters,
     async execute(toolCallId, params, signal, _onUpdate, context) {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'add_position request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'add_position request aborted' }], isError: true, details: undefined };
       const current = getState(context); const result = addPortfolioPosition(current, params);
       if (result.error) return nativePortfolioResult(toolCallId, 'add_position', { error: result.error }, current);
       commitState(result.state); return nativePortfolioResult(toolCallId, 'add_position', { position: result.position, cash: result.state.cash, transaction: result.transaction }, result.state);
@@ -240,7 +240,7 @@ export default function portfolioExtension(pi: ExtensionAPI): void {
   pi.registerTool({
     name: 'update_position', label: 'Update Position', description: 'Update a Pi session portfolio position quantity or average cost.', parameters: updatePositionParameters,
     async execute(toolCallId, params, signal, _onUpdate, context) {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'update_position request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'update_position request aborted' }], isError: true, details: undefined };
       const current = getState(context); const result = updatePortfolioPosition(current, params);
       if (result.error) return nativePortfolioResult(toolCallId, 'update_position', { error: result.error }, current);
       commitState(result.state); return nativePortfolioResult(toolCallId, 'update_position', { position: result.position, cash: result.state.cash, transaction: result.transaction }, result.state);
@@ -249,7 +249,7 @@ export default function portfolioExtension(pi: ExtensionAPI): void {
   pi.registerTool({
     name: 'remove_position', label: 'Remove Position', description: 'Remove a Pi session portfolio position and credit proceeds to cash.', parameters: removePositionParameters,
     async execute(toolCallId, params, signal, _onUpdate, context) {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'remove_position request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'remove_position request aborted' }], isError: true, details: undefined };
       const current = getState(context); const result = removePortfolioPosition(current, params);
       if (result.error) return nativePortfolioResult(toolCallId, 'remove_position', { error: result.error }, current);
       commitState(result.state); return nativePortfolioResult(toolCallId, 'remove_position', { position: result.position, cash: result.state.cash, transaction: result.transaction }, result.state);
@@ -258,14 +258,14 @@ export default function portfolioExtension(pi: ExtensionAPI): void {
   pi.registerTool({
     name: 'get_portfolio', label: 'Get Portfolio', description: 'Read the Pi session portfolio with deterministic cost basis and optional current-price P&L.', parameters: getPortfolioParameters,
     async execute(toolCallId, params, signal, _onUpdate, context) {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'get_portfolio request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'get_portfolio request aborted' }], isError: true, details: undefined };
       const current = getState(context); return nativePortfolioResult(toolCallId, 'get_portfolio', calculatePortfolioReport(current, params.prices ?? {}), current);
     },
   });
   pi.registerTool({
     name: 'list_benchmarks', label: 'List Benchmarks', description: 'List deterministic market benchmarks available for portfolio comparison.', parameters: listBenchmarksParameters,
     async execute(toolCallId, _params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'list_benchmarks request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'list_benchmarks request aborted' }], isError: true, details: undefined };
       const result = { benchmarks: listBenchmarks(), count: listBenchmarks().length };
       const audit = makeEvidence(toolCallId, 'list_benchmarks');
       return { content: [{ type: 'text', text: JSON.stringify(result) }], details: { evidence: [audit], dataFreshness: audit.dataFreshness, auditId: toolCallId } };
@@ -274,7 +274,7 @@ export default function portfolioExtension(pi: ExtensionAPI): void {
   pi.registerTool({
     name: 'compare_to_benchmark', label: 'Compare To Benchmark', description: 'Compare portfolio return with one or more market benchmarks and calculate alpha.', parameters: compareBenchmarksParameters,
     async execute(toolCallId, params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'compare_to_benchmark request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'compare_to_benchmark request aborted' }], isError: true, details: undefined };
       const result = comparePortfolioToBenchmarks(params.portfolioReturn, params.benchmarks);
       const audit = makeEvidence(toolCallId, 'compare_to_benchmark');
       return { content: [{ type: 'text', text: JSON.stringify(result) }], details: { evidence: [audit], dataFreshness: audit.dataFreshness, auditId: toolCallId } };
@@ -283,7 +283,7 @@ export default function portfolioExtension(pi: ExtensionAPI): void {
   pi.registerTool({
     name: 'calculate_alpha', label: 'Calculate Alpha', description: 'Calculate portfolio excess return and information ratio against a benchmark.', parameters: alphaParameters,
     async execute(toolCallId, params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'calculate_alpha request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'calculate_alpha request aborted' }], isError: true, details: undefined };
       const result = calculateBenchmarkAlpha(params.portfolioReturn, params.benchmarkSymbol);
       const audit = makeEvidence(toolCallId, 'calculate_alpha');
       return { content: [{ type: 'text', text: JSON.stringify(result) }], details: { evidence: [audit], dataFreshness: audit.dataFreshness, auditId: toolCallId } };
@@ -292,9 +292,9 @@ export default function portfolioExtension(pi: ExtensionAPI): void {
   pi.registerTool({
     name: 'convert_currency', label: 'Convert Currency', description: 'Convert an amount between supported fiat currencies using deterministic USD-base rates.', parameters: conversionParameters,
     async execute(toolCallId, params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'convert_currency request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'convert_currency request aborted' }], isError: true, details: undefined };
       const result = convertCurrencyAmount(params.amount, params.from, params.to);
-      if (!result) return { content: [{ type: 'text', text: JSON.stringify({ error: `Conversion not available for ${params.from} to ${params.to}`, supported: listCurrencies().map((currency) => currency.code) }) }], isError: true };
+      if (!result) return { content: [{ type: 'text', text: JSON.stringify({ error: `Conversion not available for ${params.from} to ${params.to}`, supported: listCurrencies().map((currency) => currency.code) }) }], isError: true, details: undefined };
       const audit = makeEvidence(toolCallId, 'convert_currency');
       return { content: [{ type: 'text', text: JSON.stringify(result) }], details: { evidence: [audit], dataFreshness: audit.dataFreshness, auditId: toolCallId } };
     },
@@ -302,7 +302,7 @@ export default function portfolioExtension(pi: ExtensionAPI): void {
   pi.registerTool({
     name: 'list_currencies', label: 'List Currencies', description: 'List supported currencies for investment calculations.', parameters: listCurrenciesParameters,
     async execute(toolCallId, _params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'list_currencies request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'list_currencies request aborted' }], isError: true, details: undefined };
       const result = { currencies: listCurrencies(), count: listCurrencies().length };
       const audit = makeEvidence(toolCallId, 'list_currencies');
       return { content: [{ type: 'text', text: JSON.stringify(result) }], details: { evidence: [audit], dataFreshness: audit.dataFreshness, auditId: toolCallId } };
@@ -311,9 +311,9 @@ export default function portfolioExtension(pi: ExtensionAPI): void {
   pi.registerTool({
     name: 'get_exchange_rate', label: 'Get Exchange Rate', description: 'Get the deterministic exchange rate between two supported fiat currencies.', parameters: rateParameters,
     async execute(toolCallId, params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'get_exchange_rate request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'get_exchange_rate request aborted' }], isError: true, details: undefined };
       const rate = getCurrencyRate(params.from, params.to);
-      if (rate === null) return { content: [{ type: 'text', text: JSON.stringify({ error: `Rate not available for ${params.from} to ${params.to}` }) }], isError: true };
+      if (rate === null) return { content: [{ type: 'text', text: JSON.stringify({ error: `Rate not available for ${params.from} to ${params.to}` }) }], isError: true, details: undefined };
       const audit = makeEvidence(toolCallId, 'get_exchange_rate');
       return { content: [{ type: 'text', text: JSON.stringify({ from: params.from.toUpperCase(), to: params.to.toUpperCase(), rate, inverse: 1 / rate }) }], details: { evidence: [audit], dataFreshness: audit.dataFreshness, auditId: toolCallId } };
     },
@@ -324,7 +324,7 @@ export default function portfolioExtension(pi: ExtensionAPI): void {
     description: 'Decompose active portfolio return using Brinson, style, sector, or combined attribution.',
     parameters: productionParameters,
     async execute(toolCallId, params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'portfolio_attribution request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'portfolio_attribution request aborted' }], isError: true, details: undefined };
       const result = calculatePortfolioAttribution(params as PortfolioAttributionInput);
       const audit = makeEvidence(toolCallId, 'portfolio_attribution');
       return { content: [{ type: 'text', text: JSON.stringify(result) }], details: { evidence: [audit], dataFreshness: audit.dataFreshness, auditId: toolCallId } };
@@ -336,7 +336,7 @@ export default function portfolioExtension(pi: ExtensionAPI): void {
     description: 'Compute deterministic Brinson allocation, selection, and interaction effects from portfolio and benchmark holdings.',
     parameters: bookParameters,
     async execute(toolCallId, params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'portfolio_brinson_attribution request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'portfolio_brinson_attribution request aborted' }], isError: true, details: undefined };
       const result = calculateBrinsonAttribution({ holdings: params.portfolio as PortfolioBook['holdings'] }, { holdings: params.benchmark as PortfolioBook['holdings'] });
       const audit = makeEvidence(toolCallId, 'portfolio_brinson_attribution');
       return { content: [{ type: 'text', text: JSON.stringify(result) }], details: { evidence: [audit], dataFreshness: audit.dataFreshness, auditId: toolCallId } };
@@ -348,7 +348,7 @@ export default function portfolioExtension(pi: ExtensionAPI): void {
     description: 'Compute deterministic factor exposure contributions and residual active return.',
     parameters: styleParameters,
     async execute(toolCallId, params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'portfolio_style_attribution request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'portfolio_style_attribution request aborted' }], isError: true, details: undefined };
       const result = calculateStyleAttribution(params as StyleAttributionInput);
       const audit = makeEvidence(toolCallId, 'portfolio_style_attribution');
       return { content: [{ type: 'text', text: JSON.stringify(result) }], details: { evidence: [audit], dataFreshness: audit.dataFreshness, auditId: toolCallId } };
@@ -360,7 +360,7 @@ export default function portfolioExtension(pi: ExtensionAPI): void {
     description: 'Compute deterministic sector contribution and active return using an explicit classification.',
     parameters: sectorParameters,
     async execute(toolCallId, params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'portfolio_sector_attribution request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'portfolio_sector_attribution request aborted' }], isError: true, details: undefined };
       const result = calculateSectorAttribution({ holdings: params.portfolio as PortfolioBook['holdings'] }, { holdings: params.benchmark as PortfolioBook['holdings'] }, params.classification);
       const audit = makeEvidence(toolCallId, 'portfolio_sector_attribution');
       return { content: [{ type: 'text', text: JSON.stringify(result) }], details: { evidence: [audit], dataFreshness: audit.dataFreshness, auditId: toolCallId } };

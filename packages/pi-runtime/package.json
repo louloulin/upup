@@ -3,21 +3,59 @@
   "version": "0.1.0",
   "description": "UpUp Pi runtime contracts and capability context",
   "type": "module",
-  "keywords": ["pi-package", "runtime", "contracts"],
+  "keywords": [
+    "pi-package",
+    "runtime",
+    "contracts"
+  ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
+      "bun": "./src/index.ts",
       "default": "./dist/index.js"
+    },
+    "./custom-providers": {
+      "types": "./dist/custom-providers.d.ts",
+      "bun": "./src/custom-providers.ts",
+      "default": "./dist/custom-providers.js"
+    },
+    "./model-registry": {
+      "types": "./dist/model-registry.d.ts",
+      "bun": "./src/model-registry.ts",
+      "default": "./dist/model-registry.js"
+    },
+    "./tool-result": {
+      "types": "./dist/tool-result.d.ts",
+      "bun": "./src/tool-result.ts",
+      "default": "./dist/tool-result.js"
     }
   },
   "scripts": {
-    "build": "bun build src/index.ts --outdir=dist --target=node && tsc --emitDeclarationOnly --project tsconfig.json",
+    "build": "bun build src/index.ts --outdir=dist --target=node && bun build src/model-registry.ts --outdir=dist --target=node && bun build src/custom-providers.ts --outdir=dist --target=node && bun build src/tool-result.ts --outdir=dist --target=node && tsc --emitDeclarationOnly --project tsconfig.json",
     "test": "bun test ./test.ts"
   },
-  "files": ["dist", "package.json"],
-  "pi": { "contract": "upup.pi.runtime.v1", "source": "builtin:upup", "trust": { "mode": "builtin" }, "lifecycle": { "scope": "runtime" }, "extensions": [], "skills": [], "prompts": [], "workflows": [], "policies": [], "evals": [] },
+  "files": [
+    "dist",
+    "package.json"
+  ],
+  "pi": {
+    "contract": "upup.pi.runtime.v1",
+    "source": "builtin:upup",
+    "trust": {
+      "mode": "builtin"
+    },
+    "lifecycle": {
+      "scope": "runtime"
+    },
+    "extensions": [],
+    "skills": [],
+    "prompts": [],
+    "workflows": [],
+    "policies": [],
+    "evals": []
+  },
   "dependencies": {
     "@earendil-works/pi-agent-core": "0.85.1",
     "@earendil-works/pi-coding-agent": "0.85.1",

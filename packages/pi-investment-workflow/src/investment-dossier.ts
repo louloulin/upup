@@ -140,7 +140,7 @@ function phaseArtifact(
 ): InvestmentDossierPhase {
   const started = startedAt ?? clock();
   const completedAt = status === 'completed' || status === 'failed' || status === 'blocked' ? clock() : undefined;
-  const recordedAt = completedAt ?? startedAt;
+  const recordedAt = completedAt ?? started;
   return {
     phase,
     status,

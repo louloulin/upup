@@ -1,35 +1,8 @@
-export type Market = 'cn' | 'hk' | 'us' | 'fund' | 'crypto';
-export type MarketFreshness = 'historical' | 'cached' | 'delayed' | 'realtime' | 'offline';
-
-export interface MarketQuote {
-  symbol: string;
-  market: Market;
-  price: number;
-  currency: 'CNY' | 'HKD' | 'USD';
-  asOf: string;
-  source: string;
-  freshness: MarketFreshness;
-}
-
-export interface MarketBar {
-  date: string;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
-  volume: number;
-}
-
-export interface MarketEvidence {
-  id: string;
-  source: string;
-  readonly provider?: string;
-  retrievedAt: string;
-  asOf: string;
-  query: string;
-  dataFreshness: MarketFreshness;
-  auditId: string;
-}
+// Shared market types live in `./market-types` to break the 7-file cycle
+// through this barrel (history, quote, technical, dry-run, provider-sla,
+// provider-sla-runner all need these types).
+import type { Market, MarketBar, MarketEvidence, MarketQuote } from './market-types';
+export type { Market, MarketFreshness, MarketQuote, MarketBar, MarketEvidence } from './market-types';
 
 export { FixedWindowMarketHistoryRateLimiter, InMemoryMarketHistoryCache, NativeMarketHistoryClient, getNativeMarketHistoryForRange } from './history';
 export type { MarketHistoryCache, MarketHistoryFetcher, MarketHistoryProvider, MarketHistoryRateLimiter, NativeMarketHistoryClientOptions, NativeMarketHistoryResult } from './history';
@@ -40,20 +13,10 @@ export type { ProviderSlaJob, ProviderSlaProbe, ProviderSlaRunResult, ProviderSl
 export { startProviderSlaRunner } from './provider-sla-runner';
 export type { ProviderSlaRunner, ProviderSlaRunnerOptions } from './provider-sla-runner';
 
-export function normalizeMarket(value: string | undefined): Market {
-  if (value === 'hk' || value === 'us' || value === 'fund' || value === 'crypto') return value;
-  return 'cn';
-}
-
-export function currencyForMarket(market: Market): MarketQuote['currency'] {
-  if (market === 'hk') return 'HKD';
-  if (market === 'us' || market === 'crypto') return 'USD';
-  return 'CNY';
-}
-
-export function stableSeed(symbol: string): number {
-  return [...symbol].reduce((seed, character) => (seed * 31 + character.codePointAt(0)!) % 10000, 17);
-}
+// Shared market helpers live in `./market-utils` to break the cycle
+// between this barrel and its child modules.
+import { currencyForMarket, normalizeMarket, stableSeed } from './market-utils';
+export { normalizeMarket, currencyForMarket, stableSeed } from './market-utils';
 
 export function makeFixtureQuote(symbol: string, marketValue: string | undefined, auditId: string): { value: MarketQuote; evidence: MarketEvidence } {
   const market = normalizeMarket(marketValue);

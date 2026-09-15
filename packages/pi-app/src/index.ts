@@ -30,7 +30,8 @@ import type {
   WorkflowResult,
   InvestmentCommandHandler,
 } from '@upup/pi-investment-workflow';
-import { setInvestCommandHandler } from '@upup/pi-investment-workflow';
+import { setInvestCommandHandler, runInvest, runInvestmentCommand } from '@upup/pi-investment-workflow';
+import { setPiFinanceCommandRunners } from '@upup/pi-finance-sdk';
 import type { PiCanonicalEventStream } from '@upup/pi-event-adapter';
 import type { PiSessionService } from '@upup/pi-session';
 import type { PiBackgroundService } from '@upup/pi-session';
@@ -203,6 +204,18 @@ export function createPiApp(options: PiAppOptions): PiApp {
       configurePiSessionService(getSessionRuntime);
       configurePiBackgroundService(backgroundPromptRunner);
       setInvestCommandHandler(options.investCommandHandler ?? null);
+      // Wire the pi-finance-sdk investment command runners from the canonical
+      // @upup/pi-investment-workflow registry. This lets the extension's
+      // /invest, /dossier, /risk-dashboard etc. commands drive the real
+      // five-phase pipeline (detect -> plan -> execute -> verify -> report)
+      // instead of the previous LLM prompt-nudge. The injection lives in
+      // pi-app because declaring a direct dependency from pi-finance-sdk
+      // -> pi-investment-workflow would induce a package cycle (workflow
+      // -> pi-research -> pi-finance-sdk).
+      setPiFinanceCommandRunners({
+        invest: (args: string) => runInvest(args),
+        generic: (name: string, args: string) => runInvestmentCommand(name, args),
+      });
       // Composition is observable from initialize() even before the runtime
       // itself is resolved, while still preserving the lazy runtime factory.
       resolvedComposition = resolveComposition();
@@ -211,6 +224,7 @@ export function createPiApp(options: PiAppOptions): PiApp {
     async dispose(): Promise<void> {
       if (!initialized) return;
       setInvestCommandHandler(null);
+      setPiFinanceCommandRunners({});
       disposePiSessions();
       disposePiBackgroundService();
       await disposePiSessionService();

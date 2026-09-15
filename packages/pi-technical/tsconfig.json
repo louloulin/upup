@@ -5,6 +5,11 @@
     "outDir": "dist",
     "composite": false
   },
-  "include": ["src/**/*"],
-  "references": []
+  "include": [
+    "src/**/*"
+  ],
+  "references": [],
+  "exclude": [
+    "**/*.test.ts"
+  ]
 }

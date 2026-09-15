@@ -6,7 +6,13 @@
   "keywords": ["pi-package", "research", "browser"],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
-  "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "bun": "./src/index.ts",
+      "default": "./dist/index.js"
+    }
+  },
   "scripts": {
     "prebuild": "bun run ../../scripts/clean-pi-package-dist.ts",
     "build": "bun build src/index.ts --outdir=dist --target=node --external=playwright && bun build extensions/index.ts --outdir=dist/extensions --target=node --external=playwright && tsc --emitDeclarationOnly --declaration --declarationMap --outDir dist",

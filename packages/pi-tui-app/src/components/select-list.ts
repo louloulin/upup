@@ -161,28 +161,31 @@ function formatSessionLabel(session: SessionSummary): string {
   return `${title}${tag} ${theme.muted(`[${timeAgo}] ${msgs}`)}`;
 }
 
+/** Shown when there is no session to choose from. Escape returns to the caller. */
+class EmptySessionSelector extends Container {
+  private readonly cancelCallback: () => void;
+
+  constructor(cancel: () => void) {
+    super();
+    this.cancelCallback = cancel;
+    this.addChild(new Text(theme.muted('No sessions found.'), 0, 0));
+    this.addChild(new Text(theme.muted(t('ui.empty_session')), 0, 0));
+  }
+
+  handleInput(keyData: string): void {
+    const kb = getKeybindings();
+    if (kb.matches(keyData, 'tui.select.cancel')) {
+      this.cancelCallback();
+    }
+  }
+}
+
 export function createSessionSelectList(
   sessions: SessionSummary[],
   onSelect: (sessionId: string) => void,
   onCancel: () => void,
 ) {
   if (sessions.length === 0) {
-    // Create a custom class that handles escape key to exit
-    class EmptySessionSelector extends Container {
-      readonly cancelCallback: () => void;
-      constructor(cancel: () => void) {
-        super();
-        this.cancelCallback = cancel;
-        this.addChild(new Text(theme.muted('No sessions found.'), 0, 0));
-        this.addChild(new Text(theme.muted(t('ui.empty_session')), 0, 0));
-      }
-      handleInput(keyData: string): void {
-        const kb = getKeybindings();
-        if (kb.matches(keyData, 'tui.select.cancel')) {
-          this.cancelCallback();
-        }
-      }
-    }
     return new EmptySessionSelector(onCancel);
   }
 

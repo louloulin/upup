@@ -8,10 +8,12 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
+      "bun": "./src/index.ts",
       "default": "./dist/index.js"
     },
     "./components": {
       "types": "./dist/components/index.d.ts",
+      "bun": "./src/components/index.ts",
       "default": "./dist/components/index.js"
     },
     "./i18n": {

@@ -56,8 +56,8 @@ If dexter is "AI agent for US-market financial research", then **UpUp is "AI age
 1. **A-share native data stack** — Tushare Pro + AKShare + Eastmoney fallback, 5,000+ symbols; upstream only wires Financial Datasets (US-focused)
 2. **50 SKILL.md skills + 14 bundled** — covering A-share / HK / US / crypto / fund; upstream has 3
 3. **5-phase investment workflow** — `/invest`: detect → plan → execute → verify → report, 11 investment subcommands (+ 4 test); upstream has zero investment workflow
-4. **4-runtime plugin system** — bun / jiti / wasm / mcp with optional sandboxing; upstream has zero plugin system
-5. **16 workspace packages** — full layered monorepo, independently publishable; upstream is single-package
+4. **Pi Package ecosystem** — 48 workspace packages (19 Pi-native: they declare real Pi extensions / skills / prompts / workflows / policies / evals / tools; the other 29 are thin transport or SDK shells); upstream is a single package with zero Pi resources
+5. **`/invest` 5-phase workflow + Pi capability registry** — detect → plan → execute → verify → report, 11 investment subcommands, capability negotiation and fail-closed side-effect policy; upstream has none
 6. **EN + zh-CN bilingual i18n** — 56+ strongly-typed keys, missing-translation fails the build; upstream is English only
 7. **8 LLM providers (inherited from upstream)** + DeepSeek default — same 8-provider metadata list as upstream, but `DEFAULT_PROVIDER` flipped from `openai` to `deepseek` (Chinese financial default); upstream defaults to OpenAI
 8. **Session 2.0 + Plan Mode** — modeled after Claude Code's plan mode / loop recovery / auto-compact; upstream is basic session
@@ -68,20 +68,20 @@ If dexter is "AI agent for US-market financial research", then **UpUp is "AI age
 
 | Dimension | UpUp | upstream dexter | Multiplier | Data source |
 |---|---:|---:|---:|---|
-| `src/` TS+TSX file count | **1,055** | 184 | **5.7×** | `find src -type f \( -name "*.ts" -o -name "*.tsx" \) \| wc -l` |
-| `src/` line count | **237,914** | 21,899 | **10.9×** | same + `-exec cat {} + \| wc -l` |
-| `packages/` file count | **1,253** | 0 | n/a | `find packages -type f …` |
-| `packages/` line count | **406,495** | 0 | n/a | same |
-| `src/skills/*/SKILL.md` | **50** | 3 | **16.7×** | `find src/skills -name SKILL.md \| wc -l` |
-| bundled dynamic skills | **14** | 0 | n/a | `ls src/skills/bundled/*.ts \| wc -l` |
-| `src/tools/*.ts` tool count | **296** | 53 | **5.6×** | `find src/tools -name "*.ts" \| wc -l` |
-| `src/commands/*` command count | **28** | 1 | **28×** | `find src/commands -name "*.ts" \| wc -l` |
-| Investment commands | **11** | 0 | n/a | `ls src/commands/investment/*.ts \| grep -v test \| wc -l` |
-| Plugin runtime adapters | **4** (bun/jiti/wasm/mcp) | 0 | n/a | `ls src/plugins/adapters/*.ts` |
-| Workspace packages | **15** | 0 | n/a | `ls packages/ \| wc -l` |
-| LLM providers | **8** metadata (DeepSeek default) | **8** metadata (OpenAI default) | 1× (default-flip is the differentiator) | `src/providers.ts` + Pi model registry |
-| i18n locales | **2** (EN + zh-CN) | 1 (EN) | 2× | `src/i18n/strings.ts` |
-| `src/*/` top-level module count | **48** | 12 | **4.0×** | `ls -d src/*/ \| wc -l` |
+| `src/` TS+TSX file count | **26** | 184 | **0.14×** (moved to packages) | `find src -type f \( -name "*.ts" -o -name "*.tsx" \) \| wc -l` |
+| `src/` line count | **4,368** | 21,899 | **0.20×** (moved to packages) | same + `-exec cat {} + \| wc -l` |
+| `packages/` file count | **979** | 0 | n/a | `find packages -type f \( -name '*.ts' -o -name '*.tsx' \) \| wc -l` |
+| `packages/` line count | **159,279** | 0 | n/a | `find packages -type f \( -name '*.ts' -o -name '*.tsx' \) -exec cat {} + \| wc -l` |
+| `SKILL.md` skills reachable by the Pi agent (repo) | **47** — 19 from `.agents/skills` + 28 from Pi package manifests | 3 | **15.7×** | `src/runtime/pi/skill-reachability.contract.test.ts` |
+| bundled dynamic skills | **14** | 0 | n/a | `find packages -path '*/skills/bundled/*.ts' \| wc -l` |
+| `packages/pi-*` tool count (Pi-native) | **269** | 53 | **5.1×** | `bun run scripts/report-pi7-architecture.ts` |
+| `packages/commands/*` command count | **55+** | 1 | **55×** | `ls packages/commands/src/commands/*/index.ts \| wc -l` |
+| Investment commands | **11** | 0 | n/a | `ls packages/commands/src/commands/invest*` |
+| Pi-native packages (real Pi resources/tools) | **19** | 0 | n/a | `bun run report:pi7` (`piNativePackages`) |
+| Workspace packages (Pi manifest declared) | **48** | 0 | n/a | `bun run report:pi7` (`piManifestDeclaredPackages`) |
+| LLM providers | **8** metadata (DeepSeek default) | **8** metadata (OpenAI default) | 1× (default-flip is the differentiator) | `packages/utils/src/providers.ts` + `@upup/pi-runtime/model-registry` |
+| i18n locales | **2** (EN + zh-CN) | 1 (EN) | 2× | `packages/i18n/src/` |
+| `src/*/` top-level module count | **4** (`bootstrap`, `controllers`, `runtime`, `utils`; business code lives in `packages/`) | 12 | 0.3× | `ls -d src/*/ \| wc -l` |
 
 ### Who should use what · Decision matrix
 
@@ -92,8 +92,8 @@ If dexter is "AI agent for US-market financial research", then **UpUp is "AI age
 | **A-share / HK / Chinese-language researcher** | **UpUp** ✅ | Tushare + AKShare native, 5-phase workflow, zh-CN UI |
 | **Want DeepSeek for Chinese financial scenarios** | **UpUp** ✅ | `DEFAULT_PROVIDER='deepseek'`; upstream defaults to OpenAI |
 | **Multi-agent orchestration (5-phase /invest)** | **UpUp** ✅ | 5 subagents + 4-worker Coordinator pool |
-| **Need plugin extensibility (bun / jiti / wasm / mcp)** | **UpUp** ✅ | upstream has zero plugin system |
-| **Run in monorepo / want modular SDK** | **UpUp** ✅ | 15 publishable workspace packages |
+| **Need Pi-native extensibility (Pi Package + capability registry)** | **UpUp** ✅ | upstream has zero Pi resources |
+| **Run in monorepo / want modular SDK** | **UpUp** ✅ | 48 workspace packages (19 Pi-native) |
 | **Maintain a fork with your own A-share data source** | **UpUp** ✅ | plugin system + workspace split makes forking tractable |
 
 
@@ -533,45 +533,34 @@ Plugins are written against `packages/plugin-sdk/` (typed contracts, lifecycle h
 
 ## Project Structure
 
+> 下面这棵树是 **Pi7 之后的真实布局**（由 `bun run report:pi7` 守门）。本文件里更早的「upstream inheritance vs UpUp increment」表格记录的是 Pi7 之前的单包布局，保留仅用于对照上游 dexter。
+
 ```
 upup/
-├── src/
-│   ├── agent/                   agent loop, subagents, investment-knowledge
-│   ├── cli.tsx                  Ink / React entry
-│   ├── commands/                28 slash commands (incl. 11 investment)
-│   ├── components/              Ink UI components
-│   ├── hooks/                   17 hook files (permission, tool-lifecycle, …)
-│   ├── i18n/                    EN + zh-CN strongly-typed keys
-│   ├── memory/                  48 files: extraction, audit, episodic
-│   ├── model/                   LLM abstraction (4 ChatXxx + 8 metadata providers)
-│   ├── permissions/             3-tier allow / ask / deny
-│   ├── plan/                    plan mode
-│   ├── plugins/adapters/        4 runtime adapters (bun/jiti/wasm/mcp)
-│   ├── realtime/                event bus
-│   ├── session/                 Session 2.0
-│   ├── skills/                  50 SKILL.md + 14 bundled TS
-│   ├── telemetry/               audit chain
-│   ├── tools/                   296 tools
-│   │   ├── astock/              12 A-share tools (Tushare + AKShare + Eastmoney)
-│   │   ├── finance/             18 US tools (inherited)
-│   │   ├── fund/                Chinese mutual funds
-│   │   ├── search/              Exa + Tavily
-│   │   ├── browser/             Playwright
-│   │   └── ... 12 more categories
-│   ├── worktree/                git worktree integration
-│   └── ... 24 more top-level modules
-├── packages/                    16 workspace packages
-│   ├── pi-finance-sdk/          Pi-native financial extensions and eval contracts
-│   ├── skills/                  skill loader SDK
-│   ├── plugin-sdk/              plugin typed contracts
-│   ├── gateway/                 web gateway
-│   ├── hooks/                   hook SDK
-│   ├── commands/                unified command registry
-│   └── ... 13 more packages
-├── openspec/changes/            OpenSpec change directory
-├── docs/                        10+ doc files
-├── evals/                       Pi-native financial evaluation runner
-└── scripts/                     release.sh, comet helpers
+├── src/                          bootstrap 壳（2 个生产文件 / 7 行）
+│   ├── index.tsx                 进程入口 → @upup/pi-app/entry
+│   ├── bootstrap/gateway.ts      gateway bootstrap → runGatewayCli
+│   ├── runtime/pi/               19 个 Pi 合同测试（无生产代码）
+│   ├── controllers/              agent-runner Pi 合同测试
+│   └── utils/                    路径与 config source 测试
+├── packages/                     48 个 workspace package（19 个 Pi-native）
+│   ├── pi-app/                   default Pi catalog / Profile / policy 装配
+│   ├── pi-session/               唯一 Pi AgentSession factory
+│   ├── pi-runtime/               Pi 合同、capability context、model registry、custom providers
+│   ├── pi-event-adapter/         Pi canonical event → 外部协议唯一适配点
+│   ├── pi-resource-composition/  Pi Package catalog + resource trust
+│   ├── pi-finance-sdk/           Pi-native 金融 extension 与 eval contract
+│   ├── pi-market-data/           其余 17 个 Pi 域 package（合计 269 个 tool）
+│   ├── ... 各 package 的 skills/ 由 pi.skills 声明，Pi 直接加载
+│   ├── commands/ cron/ daemon/ gateway/ hooks/ i18n/ mcp/ memory/ ...
+│   │                             29 个传输 / SDK 壳 package（空 pi 块）
+│   └── ...
+├── .agents/skills/               19 个 skill（Pi 内建 agent-skills 约定，会话直接加载）
+├── .claude/skills/               12 个 skill（Claude Code 约定，Pi 不加载）
+├── openspec/changes/             OpenSpec change 目录
+├── docs/                         10+ 文档
+├── evals/                        Pi-native 金融评测 runner
+└── scripts/                      门禁、verifier、release.sh
 ```
 
 

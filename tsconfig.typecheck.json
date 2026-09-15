@@ -1,0 +1,171 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ],
+      "@upup/commands": [
+        "./packages/commands/src/index.ts"
+      ],
+      "@upup/cron": [
+        "./packages/cron/src/index.ts"
+      ],
+      "@upup/daemon": [
+        "./packages/daemon/src/index.ts"
+      ],
+      "@upup/gateway": [
+        "./packages/gateway/src/index.ts"
+      ],
+      "@upup/hooks": [
+        "./packages/hooks/src/index.ts"
+      ],
+      "@upup/i18n": [
+        "./packages/i18n/src/index.ts"
+      ],
+      "@upup/mcp": [
+        "./packages/mcp/src/index.ts"
+      ],
+      "@upup/memory": [
+        "./packages/memory/src/index.ts"
+      ],
+      "@upup/pi-app": [
+        "./packages/pi-app/src/index.ts"
+      ],
+      "@upup/pi-app/default": [
+        "./packages/pi-app/src/default.ts"
+      ],
+      "@upup/pi-app/print": [
+        "./packages/pi-app/src/print.ts"
+      ],
+      "@upup/pi-app/stdio": [
+        "./packages/pi-app/src/stdio.ts"
+      ],
+      "@upup/pi-backtest": [
+        "./packages/pi-backtest/src/index.ts"
+      ],
+      "@upup/pi-bridge": [
+        "./packages/pi-bridge/src/index.ts"
+      ],
+      "@upup/pi-capability-registry": [
+        "./packages/pi-capability-registry/src/index.ts"
+      ],
+      "@upup/pi-cli-bootstrap": [
+        "./packages/pi-cli-bootstrap/src/index.ts"
+      ],
+      "@upup/pi-config": [
+        "./packages/pi-config/src/index.ts"
+      ],
+      "@upup/pi-evals": [
+        "./packages/pi-evals/src/index.ts"
+      ],
+      "@upup/pi-event-adapter": [
+        "./packages/pi-event-adapter/src/index.ts"
+      ],
+      "@upup/pi-event-adapter/pi-model-bridge": [
+        "./packages/pi-event-adapter/src/pi-model-bridge.ts"
+      ],
+      "@upup/pi-finance-composition": [
+        "./packages/pi-finance-composition/src/index.ts"
+      ],
+      "@upup/pi-finance-sdk": [
+        "./packages/pi-finance-sdk/src/index.ts"
+      ],
+      "@upup/pi-finance-sdk/finance-fixtures": [
+        "./packages/pi-finance-sdk/src/finance-fixtures.ts"
+      ],
+      "@upup/pi-investment-analysis": [
+        "./packages/pi-investment-analysis/src/index.ts"
+      ],
+      "@upup/pi-investment-workflow": [
+        "./packages/pi-investment-workflow/src/index.ts"
+      ],
+      "@upup/pi-management": [
+        "./packages/pi-management/src/index.ts"
+      ],
+      "@upup/pi-market-data": [
+        "./packages/pi-market-data/src/index.ts"
+      ],
+      "@upup/pi-observability": [
+        "./packages/pi-observability/src/index.ts"
+      ],
+      "@upup/pi-observability/integration": [
+        "./packages/pi-observability/src/integration.ts"
+      ],
+      "@upup/pi-planning": [
+        "./packages/pi-planning/src/index.ts"
+      ],
+      "@upup/pi-platform": [
+        "./packages/pi-platform/src/index.ts"
+      ],
+      "@upup/pi-platform-composition": [
+        "./packages/pi-platform-composition/src/index.ts"
+      ],
+      "@upup/pi-portfolio": [
+        "./packages/pi-portfolio/src/index.ts"
+      ],
+      "@upup/pi-prompt-config": [
+        "./packages/pi-prompt-config/src/index.ts"
+      ],
+      "@upup/pi-research": [
+        "./packages/pi-research/src/index.ts"
+      ],
+      "@upup/pi-resource-composition": [
+        "./packages/pi-resource-composition/src/index.ts"
+      ],
+      "@upup/pi-risk": [
+        "./packages/pi-risk/src/index.ts"
+      ],
+      "@upup/pi-runtime": [
+        "./packages/pi-runtime/src/index.ts"
+      ],
+      "@upup/pi-runtime/custom-providers": [
+        "./packages/pi-runtime/src/custom-providers.ts"
+      ],
+      "@upup/pi-runtime/model-registry": [
+        "./packages/pi-runtime/src/model-registry.ts"
+      ],
+      "@upup/pi-session": [
+        "./packages/pi-session/src/index.ts"
+      ],
+      "@upup/pi-stdio": [
+        "./packages/pi-stdio/src/index.ts"
+      ],
+      "@upup/pi-storage": [
+        "./packages/pi-storage/src/index.ts"
+      ],
+      "@upup/pi-tui-app": [
+        "./packages/pi-tui-app/src/index.ts"
+      ],
+      "@upup/sdk": [
+        "./packages/sdk/src/index.ts"
+      ],
+      "@upup/state": [
+        "./packages/state/src/index.ts"
+      ],
+      "@upup/types": [
+        "./packages/types/src/index.ts"
+      ],
+      "@upup/utils": [
+        "./packages/utils/src/index.ts"
+      ],
+      "@upup/utils/logging": [
+        "./packages/utils/src/logging/index.ts"
+      ]
+    },
+    "noEmit": true,
+    "rootDir": ".",
+    "baseUrl": "."
+  },
+  "include": [
+    "src/**/*",
+    "packages/*/src/**/*",
+    "packages/*/extensions/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "packages/**/*.test.ts",
+    "packages/**/*.test.tsx"
+  ]
+}

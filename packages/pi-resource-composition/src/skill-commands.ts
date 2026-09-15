@@ -7,6 +7,8 @@ export interface PiSkillCommand {
   readonly name: string;
   readonly description: string;
   readonly argumentHint?: string;
+  /** Absolute path of the SKILL.md, for reachability reporting. */
+  readonly filePath?: string;
 }
 
 function packageSkillPaths(cwd: string): string[] {
@@ -20,10 +22,10 @@ function packageSkillPaths(cwd: string): string[] {
   return verifyPiResourceTrust(resources.skills, configured.piPackageTrust, cwd).paths;
 }
 
-function toSkillCommands(skills: readonly { name: string; description: string; disableModelInvocation: boolean }[]): readonly PiSkillCommand[] {
+function toSkillCommands(skills: readonly { name: string; description: string; disableModelInvocation: boolean; filePath?: string }[]): readonly PiSkillCommand[] {
   return skills
     .filter((skill) => !skill.disableModelInvocation)
-    .map((skill) => ({ name: skill.name, description: skill.description }))
+    .map((skill) => (skill.filePath ? { name: skill.name, description: skill.description, filePath: skill.filePath } : { name: skill.name, description: skill.description }))
     .sort((left, right) => left.name.localeCompare(right.name));
 }
 

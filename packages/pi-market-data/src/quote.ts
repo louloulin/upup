@@ -1,5 +1,6 @@
 import { FixedWindowMarketHistoryRateLimiter, type MarketHistoryFetcher, type MarketHistoryProvider, type MarketHistoryRateLimiter } from './history';
-import { currencyForMarket, normalizeMarket, type Market, type MarketEvidence, type MarketQuote } from './index';
+import { currencyForMarket, normalizeMarket } from './market-utils';
+import type { Market, MarketEvidence, MarketQuote } from './market-types';
 import { dirname } from 'node:path';
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';

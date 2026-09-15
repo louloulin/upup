@@ -5,7 +5,9 @@
  * @see https://docs.anthropic.com/en/docs/claude-code/api
  */
 
-import type { MemoryStore } from '@upup/memory'
+import type { getMemvidStore } from '@upup/memory'
+
+type MemvidStore = Awaited<ReturnType<typeof getMemvidStore>>
 import type { BetaTool, JsonSchema } from '../beta-tool'
 import { betaTool } from '../beta-tool'
 
@@ -21,7 +23,7 @@ export type MemoryType = 'user' | 'feedback' | 'project' | 'reference'
  */
 export interface MemoryToolOptions {
   /** 记忆存储实例 */
-  store: MemoryStore
+  store: MemvidStore
   /** 工具名称前缀 (默认: 'memory') */
   prefix?: string
   /** 默认搜索返回数量 */
@@ -88,7 +90,7 @@ export interface MemoryTools {
 // ============ Individual Tools ============
 
 function createSearchTool(
-  store: MemoryStore,
+  store: MemvidStore,
   prefix: string,
   defaultK: number,
   enableSemantic: boolean
@@ -127,22 +129,24 @@ function createSearchTool(
         semantic?: boolean
       }
 
+      const typeFilter = type === 'all' ? undefined : type
+
       const results = semantic
-        ? await store.semanticSearch(query, { maxResults: k })
-        : await store.search(query, { maxResults: k, type: type as any })
+        ? await store.semanticSearch(query, k, typeFilter)
+        : await store.search(query, k, typeFilter)
 
       if (results.length === 0) {
         return 'No memories found'
       }
 
       return results
-        .map((r, i) => `[${i + 1}] ${r.content.slice(0, 200)}... (score: ${r.score})`)
+        .map((result, i) => `[${i + 1}] ${result.snippet.slice(0, 200)} (score: ${result.score})`)
         .join('\n')
     },
   })
 }
 
-function createPutTool(store: MemoryStore, prefix: string): BetaTool {
+function createPutTool(store: MemvidStore, prefix: string): BetaTool {
   return betaTool({
     name: `${prefix}_put`,
     description: 'Store a new memory',
@@ -172,13 +176,18 @@ function createPutTool(store: MemoryStore, prefix: string): BetaTool {
         name?: string
       }
 
-      const id = await store.put(content, { type, name })
+      const id = await store.putMemory({
+        type,
+        name: name ?? `memory-${Date.now()}`,
+        description: content.split('\n')[0]?.slice(0, 120) ?? '',
+        content,
+      })
       return `Memory saved with ID: ${id}`
     },
   })
 }
 
-function createGetTool(store: MemoryStore, prefix: string): BetaTool {
+function createGetTool(store: MemvidStore, prefix: string): BetaTool {
   return betaTool({
     name: `${prefix}_get`,
     description: 'Get full content of a memory by ID',
@@ -195,9 +204,12 @@ function createGetTool(store: MemoryStore, prefix: string): BetaTool {
     run: async (input: unknown) => {
       const { id } = input as { id: string }
 
+      const frameId = Number.parseInt(id, 10)
+      if (!Number.isInteger(frameId)) {
+        return `Memory not found: ${id}`
+      }
       try {
-        const content = await store.view(id)
-        return content
+        return await store.viewFrame(frameId)
       } catch {
         return `Memory not found: ${id}`
       }
@@ -205,7 +217,7 @@ function createGetTool(store: MemoryStore, prefix: string): BetaTool {
   })
 }
 
-function createDeleteTool(store: MemoryStore, prefix: string): BetaTool {
+function createDeleteTool(_store: MemvidStore, prefix: string): BetaTool {
   return betaTool({
     name: `${prefix}_delete`,
     description: 'Delete a memory by ID',
@@ -222,14 +234,13 @@ function createDeleteTool(store: MemoryStore, prefix: string): BetaTool {
     run: async (input: unknown) => {
       const { id } = input as { id: string }
 
-      // 注意: MemoryStore 可能没有 delete 方法
-      // 这里返回一个提示信息
-      return `Delete not supported in current MemoryStore implementation. Memory ID: ${id}`
+      // MemvidStore exposes no delete operation yet.
+      return `Delete not supported by MemvidStore. Memory ID: ${id}`
     },
   })
 }
 
-function createTimelineTool(store: MemoryStore, prefix: string): BetaTool {
+function createTimelineTool(store: MemvidStore, prefix: string): BetaTool {
   return betaTool({
     name: `${prefix}_timeline`,
     description: 'Get timeline of recent memories',
@@ -246,23 +257,15 @@ function createTimelineTool(store: MemoryStore, prefix: string): BetaTool {
     run: async (input: unknown) => {
       const { limit = 10 } = input as { limit?: number }
 
-      const timeline = await store.timeline(limit)
+      const timeline = await store.getTimeline(limit)
 
       if (timeline.length === 0) {
         return 'No memories in timeline'
       }
 
       return timeline
-        .map((t, i) => `[${i + 1}] ${t.title} (${new Date(t.timestamp).toLocaleDateString()})`)
+        .map((entry, i) => `[${i + 1}] #${entry.frameId} ${entry.title} (${new Date(entry.timestamp).toLocaleDateString()})`)
         .join('\n')
     },
   })
-}
-
-// ============ Exports ============
-
-export type {
-  MemoryType,
-  MemoryToolOptions,
-  MemoryTools,
 }

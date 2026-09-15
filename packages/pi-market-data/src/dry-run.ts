@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
-import { currencyForMarket, normalizeMarket, stableSeed, type Market, type MarketBar, type MarketEvidence, type MarketFreshness, type MarketQuote } from './index';
+import { currencyForMarket, normalizeMarket, stableSeed } from './market-utils';
+import type { Market, MarketBar, MarketEvidence, MarketFreshness, MarketQuote } from './market-types';
 
 export const DRY_RUN_SOURCE_QUOTE = 'dry-run://pi-market-data/quote';
 export const DRY_RUN_SOURCE_HISTORY = 'dry-run://pi-market-data/history';

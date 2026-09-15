@@ -14,11 +14,10 @@ import {
   StdioTransport,
   createStdioTransport,
   loadUpupConfig,
-  type StdioTransportConfig,
   type UpupConfig,
   type BinaryLocation,
 } from '../transport/stdio-transport'
-import type { Transport } from '../transport/transport'
+import type { StdioTransportConfig, Transport } from '../transport/transport'
 import { PermissionManager, type PermissionMode, type CanUseTool } from '../permissions/index'
 import { ToolConfiguration, type Tool } from '../tools/index'
 import { HookExecutor, type HookEvent, type HookInput, type HookMap } from '../hooks/index'
@@ -617,20 +616,22 @@ export class UpClient extends EventEmitter implements AsyncDisposable {
   /**
    * 注册事件处理器
    */
-  on(event: string, handler: (event: unknown) => void): void {
+  on(event: string, handler: (event: unknown) => void): this {
     let handlers = this.transport.eventHandlers.get(event)
     if (!handlers) {
       handlers = new Set()
       this.transport.eventHandlers.set(event, handlers)
     }
     handlers.add(handler)
+    return this
   }
 
   /**
    * 移除事件处理器
    */
-  off(event: string, handler: (event: unknown) => void): void {
+  off(event: string, handler: (event: unknown) => void): this {
     this.transport.eventHandlers.get(event)?.delete(handler)
+    return this
   }
 
   /**
@@ -869,7 +870,6 @@ export async function createClient(
 export type {
   UpupConfig,
   BinaryLocation,
-  StdioTransportConfig,
 } from '../transport/stdio-transport'
 
-export type { Transport } from '../transport/transport'
+export type { StdioTransportConfig, Transport } from '../transport/transport'

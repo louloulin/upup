@@ -25,7 +25,7 @@ export class BashApprovalRequest extends Container {
     this.command = (data.args.command as string) || '';
     this.onSelect = options.onApprove;
 
-    const { createSimpleApprovalSelector } = require('../select-list.js');
+    const { createSimpleApprovalSelector } = require('../select-list');
     this.selector = createSimpleApprovalSelector(options.onApprove);
 
     // Create UI components

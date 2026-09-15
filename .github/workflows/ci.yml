@@ -18,6 +18,18 @@ jobs:
             command: bun run lint:scc
           - task: pi-runtime
             command: bun run check:pi-runtime
+          - task: pi7-architecture
+            command: bun run check:pi7
+          - task: module-boundaries
+            command: bun run check:module-boundaries
+          - task: pi-packages
+            command: bun run check:pi-packages
+          - task: js-suffix
+            command: bun run check:js-suffix
+          - task: pi-deletion-audit
+            command: bun run check:pi-deletion-audit
+          - task: pi-package-audit
+            command: bun run check:pi-package-audit
           - task: typecheck
             command: bun run typecheck
           - task: test
@@ -34,3 +46,19 @@ jobs:
 
       - name: Run ${{ matrix.task }}
         run: ${{ matrix.command }}
+
+  pi7-acceptance:
+    if: github.event.action != 'labeled' || github.event.label.name == 'run-ci'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile --ignore-scripts
+
+      - name: Run verify:pi7-final
+        run: bun run verify:pi7-final

@@ -13,11 +13,11 @@ export {
   Supervisor,
   PriorityTaskQueue,
   TaskPriority,
-  TaskStatus,
   DaemonEvent,
   getDefaultSupervisor,
   type Task,
   type TaskResult,
+  type TaskStatus,
   type Worker,
   type WorkerHealth,
 } from './supervisor';

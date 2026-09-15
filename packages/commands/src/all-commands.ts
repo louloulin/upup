@@ -65,6 +65,17 @@ export const COMMAND_ALIASES: Record<string, string[]> = {
   theme: ['t'],  // Conflict with 't' for tasks - keeps 't' for theme
   version: ['v', 'ver'],
 
+  // Pi-native investment commands (real workflow, not LLM stubs)
+  invest: ['inv'],
+  'morning-brief': ['mb', 'brief'],
+  'earnings-preview': ['ep', 'earnings'],
+  'risk-dashboard': ['risk', 'rd'],
+  'portfolio-review': ['review', 'pr'],
+  'watchlist-edit': ['wl', 'watchlist'],
+  dossier: ['doss'],
+  screen: ['scr'],
+  strategy: ['strat'],
+
   // Commands palette
   commands: ['cmd', 'palette'],
 }
@@ -144,6 +155,16 @@ import { feedbackCommand } from './commands/feedback/index'
 import { skillsCommand } from './commands/skills/index'
 import { reviewCommand } from './commands/review/index'
 import { initCommand } from './commands/init/index'
+import { investCommand } from './commands/invest/index'
+import { morningBriefCommand } from './commands/morning-brief/index'
+import { earningsPreviewCommand } from './commands/earnings-preview/index'
+import { riskDashboardCommand } from './commands/risk-dashboard/index'
+import { portfolioReviewCommand } from './commands/portfolio-review/index'
+import { watchlistEditCommand } from './commands/watchlist-edit/index'
+import { dossierCommand } from './commands/dossier/index'
+import { screenCommand } from './commands/screen/index'
+import { strategyCommand } from './commands/strategy/index'
+
 import { commandPaletteCommand } from './commands/command-palette/index'
 
 /**
@@ -201,6 +222,15 @@ export const ALL_COMMANDS: Command[] = [
   skillsCommand,
   reviewCommand,
   initCommand,
+  investCommand,
+  morningBriefCommand,
+  earningsPreviewCommand,
+  riskDashboardCommand,
+  portfolioReviewCommand,
+  watchlistEditCommand,
+  dossierCommand,
+  screenCommand,
+  strategyCommand,
 ]
 
 /**
@@ -286,74 +316,15 @@ export function filterCommandsForNonInteractive(commands: Command[]): Command[] 
 /**
  * Category inference for commands
  */
-export type CommandCategory = 
-  | 'core'      // help, clear, compact, model
-  | 'plan'      // plan mode commands
-  | 'agent'     // agent, fork, tasks
-  | 'mcp'       // MCP related
-  | 'permissions' // permissions, approve, deny
-  | 'system'    // status, cost, doctor, theme
-  | 'git'       // git, diff, commit, branch
-  | 'tools'     // tools, config, export
+/**
+ * Category inference re-exported from `./command-categories` so that
+ * `commands/help/help.tsx` can import `inferCategory` without
+ * inducing a cycle through this barrel.
+ */
+export type { CommandCategory } from './command-categories';
+import { inferCategory } from './command-categories';
+export { inferCategory } from './command-categories';
 
-const COMMAND_CATEGORIES: Record<string, CommandCategory> = {
-  status: 'system',
-  cost: 'system',
-  'extra-usage': 'system',
-  doctor: 'system',
-  effort: 'system',
-  feedback: 'system',
-  theme: 'system',
-  usage: 'system',
-  version: 'system',
-  help: 'core',
-  clear: 'core',
-  compact: 'core',
-  model: 'core',
-  history: 'core',
-  memory: 'core',
-  skills: 'core',
-  plan: 'plan',
-  'exit-plan': 'plan',
-  'add-step': 'plan',
-  steps: 'plan',
-  rules: 'core',
-  heartbeat: 'core',
-  agent: 'agent',
-  agents: 'agent',
-  fork: 'agent',
-  tasks: 'agent',
-  jobs: 'agent',
-  mcp: 'mcp',
-  'mcp-add': 'mcp',
-  permissions: 'permissions',
-  approve: 'permissions',
-  deny: 'permissions',
-  'reset-permissions': 'permissions',
-  git: 'git',
-  diff: 'git',
-  commit: 'git',
-  branch: 'git',
-  log: 'git',
-  stash: 'git',
-  remote: 'git',
-  review: 'git',
-  init: 'core',
-  sandbox: 'permissions',
-  proactive: 'system',
-  events: 'system',
-  session: 'core',
-  resume: 'core',
-  continue: 'core',
-  config: 'tools',
-  files: 'tools',
-  export: 'tools',
-  keybindings: 'tools',
-}
-
-export function inferCategory(commandName: string): CommandCategory {
-  return COMMAND_CATEGORIES[commandName] ?? 'tools'
-}
 
 /**
  * Slash commands for UI display
@@ -499,6 +470,10 @@ export async function executeCommand(
           env: context.env,
           sessionId: context.sessionId,
           model: context.model,
+          // Provide ALL_COMMANDS so JSX commands can render the command list
+          // without statically importing this barrel (which would create a
+          // cycle: help/index → all-commands → help.tsx → all-commands).
+          allCommands: ALL_COMMANDS,
         }
 
         // Call the JSX command module

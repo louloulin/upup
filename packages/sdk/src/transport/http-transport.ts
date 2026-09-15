@@ -75,7 +75,7 @@ export interface HttpTransportConfig {
 export class HttpTransport implements RpcTransport {
   readonly binarySource: string = 'http'
 
-  private config: Required<HttpTransportConfig>
+  private config: { url: string; apiKey: string; timeout: number; debug: boolean }
   private _connected = false
   private abortController: AbortController | null = null
   private eventHandlers: Map<string, Set<EventHandler>> = new Map()
@@ -84,7 +84,7 @@ export class HttpTransport implements RpcTransport {
   constructor(config: HttpTransportConfig) {
     this.config = {
       url: config.url,
-      apiKey: config.apiKey,
+      apiKey: config.apiKey ?? '',
       timeout: config.timeout ?? 30000,
       debug: config.debug ?? false,
     }
@@ -109,7 +109,7 @@ export class HttpTransport implements RpcTransport {
       const response = await fetch(`${this.config.url}/health`, {
         method: 'GET',
         headers: this.getHeaders(),
-        signal: AbortController.timeout ? AbortSignal.timeout(5000) : undefined,
+        signal: AbortSignal.timeout(this.config.timeout),
       })
 
       if (!response.ok && response.status !== 404) {

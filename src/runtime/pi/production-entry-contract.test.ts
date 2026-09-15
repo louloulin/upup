@@ -3,14 +3,14 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const productionEntryImports: Record<string, readonly string[]> = {
-  'packages/pi-app/src/print.ts': ['./default.js'],
+  'packages/pi-app/src/print.ts': ['./default'],
   'packages/pi-tui-app/src/tui/agent-runner.ts': ['@upup/pi-runtime'],
   'packages/gateway/src/agent-runner.ts': ['GatewayAgentRuntimePort'],
   'packages/cron/src/executor.ts': ['@upup/gateway'],
   'packages/daemon/src/workers/tasks.ts': ['@upup/gateway'],
   'packages/pi-bridge/src/server.ts': ['@upup/gateway'],
   'packages/pi-stdio/src/server.ts': ['@upup/pi-event-adapter', '@upup/pi-session'],
-  'packages/pi-evals/src/cli.ts': ['@upup/pi-app/default', './run.js'],
+  'packages/pi-evals/src/cli.ts': ['@upup/pi-app/default', './run'],
 };
 
 describe('Pi production entry contract', () => {
@@ -85,8 +85,8 @@ describe('Pi production entry contract', () => {
     for (const forbidden of ['@upup/pi-finance-composition', '@upup/pi-platform-composition', '@upup/pi-market-data', "from '@upup/cron'"]) {
       expect(source).not.toContain(forbidden);
     }
-    expect(source).toContain('./builtin-composition.js');
-    expect(readFileSync(join(process.cwd(), 'packages/pi-session/src/index.ts'), 'utf8')).toContain('PiSessionCompositionProviders');
+    expect(source).toContain('./builtin-composition');
+    expect(readFileSync(join(process.cwd(), 'packages/pi-session/src/agent-session-factory.ts'), 'utf8')).toContain('PiSessionCompositionProviders');
   });
 
   test('PiApp default bootstrap wires builtin session composition into the session runtime factory', () => {
@@ -116,7 +116,7 @@ describe('Pi production entry contract', () => {
     // The session_start synthesis contract MUST live in PiSessionAdapter.
     // No production entry adapter may re-implement subscribe or build a
     // parallel session event channel.
-    const adapter = readFileSync(join(process.cwd(), 'packages/pi-session/src/index.ts'), 'utf8');
+    const adapter = readFileSync(join(process.cwd(), 'packages/pi-session/src/session-adapter.ts'), 'utf8');
     expect(adapter).toMatch(/subscribe\(listener[^)]*\)[^{]*\{[\s\S]*listener\(\{\s*type:\s*'session_start'/);
     // No production entry adapter may define its own subscribe() that bypasses
     // PiSessionAdapter or that omits the synthesized session_start.
@@ -139,7 +139,7 @@ describe('Pi production entry contract', () => {
   });
 
   test('PiSessionAdapter source file exposes subscribe + session_start synthesis as the single contract', () => {
-    const adapter = readFileSync(join(process.cwd(), 'packages/pi-session/src/index.ts'), 'utf8');
+    const adapter = readFileSync(join(process.cwd(), 'packages/pi-session/src/session-adapter.ts'), 'utf8');
     // Contract anchors: there is exactly one place that calls
     // `listener({ type: 'session_start', ... })` and that place is the
     // `subscribe(listener)` method of PiSessionAdapter.

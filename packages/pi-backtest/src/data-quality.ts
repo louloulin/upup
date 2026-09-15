@@ -1,4 +1,4 @@
-import type { DailyBar } from './index';
+import type { DailyBar } from './types';
 
 export type BacktestDataQualityMode = 'strict' | 'permissive';
 

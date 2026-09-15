@@ -93,7 +93,7 @@ export class BetaMessagesAPI {
     const client = new MessagesClient(this.transport, { defaultModel: params.model })
     const runner = new ClientToolRunner(client, {
       messages: params.messages,
-      tools: params.tools as Tool[],
+      tools: params.tools as unknown as Tool[],
       model: params.model,
       maxTokens: params.max_tokens || 1024,
       maxIterations: params.max_iterations || 10,

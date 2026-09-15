@@ -14,7 +14,7 @@
  */
 
 import { Container, Text, Spacer, Input, SelectList, Key, matchesKey, type SelectItem } from '@earendil-works/pi-tui';
-import { ALL_COMMANDS, builtInCommandNames, inferCategory, type Command } from '../../all-commands';
+import { inferCategory, type Command } from '../../command-categories'
 import { getCommandUsage } from '../../command-usage';
 import { theme, selectListTheme } from '../../theme';
 
@@ -49,14 +49,13 @@ export class HelpV2Component extends Container {
   private selectedIndex: number = 0
   private onClose: (commandName?: string) => void
 
-  constructor(onClose: (commandName?: string) => void) {
+  constructor(onClose: (commandName?: string) => void, commands: readonly Command[]) {
     super()
     this.onClose = onClose
 
-    console.log('[HelpV2Component] Constructor called')
-
-    // Initialize commands
-    this.commands = ALL_COMMANDS.filter(cmd => !cmd.isHidden)
+    // Initialize commands (injected from caller to avoid pulling
+    // in all-commands.ts which statically imports this lazy module).
+    this.commands = commands.filter(cmd => !cmd.isHidden)
     this.filteredCommands = this.commands
 
     // Create search input
@@ -188,8 +187,10 @@ export class HelpV2Component extends Container {
 
 export const call = async (
   onDone: (result?: string) => void,
-  _context: any,
+  context: any,
   _args: string,
 ): Promise<any> => {
-  return new HelpV2Component(onDone)
+  // The executor injects ALL_COMMANDS into context to avoid a static cycle.
+  const commands: readonly Command[] = context?.allCommands ?? []
+  return new HelpV2Component(onDone, commands)
 }

@@ -42,14 +42,17 @@ import {
   mapAgentSessionEventToUpUp,
   toPiTool,
 } from '@upup/pi-event-adapter';
-import { resolvePiModel } from '@upup/pi-event-adapter/pi-model-bridge';
-import { PiSessionAdapter } from './index';
+import { isPiCustomProviderSpec, resolvePiModel } from '@upup/pi-event-adapter/pi-model-bridge';
+import { createOllamaProviderExtension } from '@upup/pi-runtime/custom-providers';
+import { PiSessionAdapter } from './session-adapter';
 import { withSerializedPiResourceReload } from '@upup/pi-resource-composition';
 import {
   createFinanceSessionExtension,
+  createPiToolErrorBridgeExtension,
   emptyFinanceSessionContext,
   mergeFinanceSessionContext,
   serializeFinanceSessionContext,
+  wrapPiExtensionToolResults,
   FINANCE_CONTEXT_ENTRY_TYPE,
   type SerializedFinanceContext,
 } from '@upup/pi-runtime';
@@ -400,6 +403,10 @@ export class PiAgentSessionFactory implements UpUpAgentRuntime {
       settingsManager,
       eventBus: capabilityEvents,
       extensionFactories: [
+        createPiToolErrorBridgeExtension(),
+        ...(isPiCustomProviderSpec(spec.model ?? process.env.DEFAULT_MODEL)
+          ? [createOllamaProviderExtension()]
+          : []),
         createFinanceSessionExtension(financeContext),
         createPiSideEffectPolicyExtension({
           spec,
@@ -413,6 +420,7 @@ export class PiAgentSessionFactory implements UpUpAgentRuntime {
           ? [createFinanceExtension({ spec: spec, tools: tools, requestToolApproval: options.requestToolApproval })]
           : []),
       ],
+      extensionsOverride: wrapPiExtensionToolResults,
       additionalExtensionPaths: trustedExtensions.paths.length ? [...trustedExtensions.paths] : undefined,
       additionalSkillPaths: trustedSkills.paths.length ? trustedSkills.paths : undefined,
       additionalPromptTemplatePaths: trustedPrompts.paths.length ? trustedPrompts.paths : undefined,

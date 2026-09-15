@@ -59,7 +59,7 @@ describe('StrategyStore — publish + version chain (P2.a.2)', () => {
     // We need v2's prevHash to be the sha256 of v1 (with empty signature slot).
     // Use the store's internal pattern: compute the hash from the stored v1.
     const crypto = require('node:crypto') as typeof import('node:crypto');
-    const { canonicalJson } = require('./dossier.js') as typeof import('./dossier');
+    const { canonicalJson } = require('./dossier') as typeof import('./dossier');
     const v1Hash = crypto.createHash('sha256').update(canonicalJson({ ...v1, signature: '' })).digest('hex');
     const v2 = s.publish(makeInput({ version: 2, prevHash: v1Hash }));
     const v2Hash = crypto.createHash('sha256').update(canonicalJson({ ...v2, signature: '' })).digest('hex');
@@ -74,7 +74,7 @@ describe('StrategyStore — publish + version chain (P2.a.2)', () => {
     const s = newStore();
     const v1 = s.publish(makeInput({ version: 1, prevHash: '0'.repeat(64) }));
     const crypto = require('node:crypto') as typeof import('node:crypto');
-    const { canonicalJson } = require('./dossier.js') as typeof import('./dossier');
+    const { canonicalJson } = require('./dossier') as typeof import('./dossier');
     const v1Hash = crypto.createHash('sha256').update(canonicalJson({ ...v1, signature: '' })).digest('hex');
     s.publish(makeInput({ version: 2, prevHash: v1Hash }));
     // Tamper: change the second record's code
@@ -121,7 +121,7 @@ describe('StrategyStore — getById / getVersions / getLatest (P2.a.2)', () => {
     const s = newStore();
     const v1 = s.publish(makeInput({ version: 1, prevHash: '0'.repeat(64) }));
     const crypto = require('node:crypto') as typeof import('node:crypto');
-    const { canonicalJson } = require('./dossier.js') as typeof import('./dossier');
+    const { canonicalJson } = require('./dossier') as typeof import('./dossier');
     const v1Hash = crypto.createHash('sha256').update(canonicalJson({ ...v1, signature: '' })).digest('hex');
     const v2 = s.publish(makeInput({ version: 2, prevHash: v1Hash }));
     const v2Hash = crypto.createHash('sha256').update(canonicalJson({ ...v2, signature: '' })).digest('hex');
@@ -148,7 +148,7 @@ describe('computeStrategyPrevHash (P2.a.5 refactor)', () => {
     });
     // Reproduce the rule inline (this is the same path publish() takes).
     const { createHash } = require('node:crypto') as typeof import('node:crypto');
-    const { canonicalJson } = require('./dossier.js') as typeof import('./dossier');
+    const { canonicalJson } = require('./dossier') as typeof import('./dossier');
     const expected = createHash('sha256')
       .update(canonicalJson({ ...v1, signature: '' }))
       .digest('hex');

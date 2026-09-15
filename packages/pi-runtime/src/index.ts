@@ -765,3 +765,11 @@ export function createFinanceSessionExtension(context: FinanceSessionExtensionCo
 }
 
 export * from './citation';
+
+export {
+  PI_TOOL_ERROR_MARKER,
+  wrapPiExtensionToolResults,
+  createPiToolErrorBridgeExtension,
+  type PiToolResult,
+  type PiToolResultDetails,
+} from './tool-result';

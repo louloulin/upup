@@ -52,7 +52,7 @@ function getPermissionModeFromSettings(): { mode: PermissionMode; source: Permis
   try {
     // Lazy import to avoid circular dependencies
     // config.js may import from here, so we defer the import
-    const configModule = require('../config.js')
+    const configModule = require('../config')
     const getSetting: <T>(key: string, defaultValue: T) => T = configModule.getSetting
     
     if (!getSetting) {

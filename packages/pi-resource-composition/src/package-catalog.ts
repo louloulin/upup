@@ -3,6 +3,7 @@ import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import type { PiPackageTrustPolicy, PiResourceTrustAudit } from './plugin-trust';
 import { verifyPiResourceTrust } from './plugin-trust';
 import { loadPiPackageContracts, type PiPackageContracts } from './package-contracts';
+import type { PiPackageResourceKind, PiPackageResourceSnapshot } from './package-resource-snapshot';
 import { PI_RUNTIME_CONTRACT, validatePiPackageManifest, type PiCapabilityDescriptor, type PiPackageCapabilityRequirement, type PiPackageManifestContract, type PiSideEffectDeclaration } from '@upup/pi-runtime';
 
 export type { PiPackageTrustPolicy } from './plugin-trust';
@@ -65,15 +66,9 @@ export interface PiPackageResources {
   readonly evals: readonly string[];
 }
 
-export interface PiPackageResourceSnapshot {
-  readonly path: string;
-  readonly content: string;
-  readonly packageName: string;
-  readonly packageVersion: string;
-  readonly kind: 'extension' | 'skill' | 'prompt' | 'workflow' | 'policy' | 'eval';
-}
-
-export type PiPackageResourceKind = PiPackageResourceSnapshot['kind'];
+// Snapshot type lives in `./package-resource-snapshot` to break a
+// type-only cycle between this file and `./package-contracts`.
+export type { PiPackageResourceSnapshot, PiPackageResourceKind } from './package-resource-snapshot';
 
 export interface PiPackageExtensionLoadResult {
   readonly extensions: readonly {

@@ -1,4 +1,4 @@
-import type { MarketBar, MarketEvidence } from './index';
+import type { MarketBar, MarketEvidence } from './market-types';
 import { executeWithProviderRetry, type ProviderRetryPolicy } from '@upup/pi-observability';
 
 export type MarketHistoryFetcher = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;

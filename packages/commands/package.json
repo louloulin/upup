@@ -8,6 +8,7 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
+      "bun": "./src/index.ts",
       "default": "./dist/index.js"
     }
   },
@@ -19,10 +20,28 @@
   "dependencies": {
     "@upup/pi-resource-composition": "0.1.0"
   },
-  "peerDependencies": { "@upup/pi-runtime": "0.1.0" },
+  "peerDependencies": {
+    "@upup/pi-runtime": "0.1.0",
+    "@upup/pi-investment-workflow": "0.1.0"
+  },
   "files": [
     "dist"
   ],
   "private": false,
-  "pi": { "contract": "upup.pi.runtime.v1", "source": "builtin:upup", "trust": { "mode": "builtin" }, "lifecycle": { "scope": "session" }, "extensions": [], "skills": [], "prompts": [], "workflows": [], "policies": [], "evals": [] }
+  "pi": {
+    "contract": "upup.pi.runtime.v1",
+    "source": "builtin:upup",
+    "trust": {
+      "mode": "builtin"
+    },
+    "lifecycle": {
+      "scope": "session"
+    },
+    "extensions": [],
+    "skills": [],
+    "prompts": [],
+    "workflows": [],
+    "policies": [],
+    "evals": []
+  }
 }

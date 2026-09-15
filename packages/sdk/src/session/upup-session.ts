@@ -24,6 +24,7 @@ interface UpupSessionMetadata {
   toolUseCount: number;
   tokenUsage?: { input: number; output: number };
   tags?: string[];
+  [key: string]: unknown;
 }
 
 // ============ PiSessionClient 实现 (兼容旧导出名) ============

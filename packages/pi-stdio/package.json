@@ -8,10 +8,12 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
+      "bun": "./src/index.ts",
       "default": "./dist/index.js"
     },
     "./protocol": {
       "types": "./dist/protocol.d.ts",
+      "bun": "./src/protocol.ts",
       "default": "./dist/protocol.js"
     }
   },

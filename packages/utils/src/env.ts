@@ -2,7 +2,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { config } from 'dotenv';
 import { homedir } from 'os';
 import { join } from 'path';
-import { getProviderById } from './providers';
+import { getProviderApiKeyEnvVars, getProviderById } from './providers';
 
 // Global config directory
 const GLOBAL_CONFIG_DIR = join(homedir(), '.upup');
@@ -17,7 +17,16 @@ try {
 }
 
 export function getApiKeyNameForProvider(providerId: string): string | undefined {
-  return getProviderById(providerId)?.apiKeyEnvVar;
+  return getApiKeyNamesForProvider(providerId)[0];
+}
+
+/**
+ * All environment variable names that can hold this provider's API key.
+ * Pi's canonical names come first, followed by UpUp's pre-Pi-native aliases
+ * (for example `GEMINI_API_KEY` then `GOOGLE_API_KEY`).
+ */
+export function getApiKeyNamesForProvider(providerId: string): string[] {
+  return [...new Set(getProviderApiKeyEnvVars(providerId))];
 }
 
 export function getProviderDisplayName(providerId: string): string {
@@ -25,9 +34,9 @@ export function getProviderDisplayName(providerId: string): string {
 }
 
 export function checkApiKeyExistsForProvider(providerId: string): boolean {
-  const apiKeyName = getApiKeyNameForProvider(providerId);
-  if (!apiKeyName) return true;
-  return checkApiKeyExists(apiKeyName);
+  const apiKeyNames = getApiKeyNamesForProvider(providerId);
+  if (apiKeyNames.length === 0) return true;
+  return apiKeyNames.some((apiKeyName) => checkApiKeyExists(apiKeyName));
 }
 
 /**

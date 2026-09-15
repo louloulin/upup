@@ -8,15 +8,17 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
+      "bun": "./src/index.ts",
       "default": "./dist/index.js"
     },
     "./logging": {
       "types": "./dist/logging/logger.d.ts",
+      "bun": "./src/logging/index.ts",
       "default": "./dist/logging/index.js"
     }
   },
   "scripts": {
-    "build": "bun build src/index.ts --outdir=dist --target=node && bun build src/logging/index.ts --outdir=dist/logging --target=node && npx tsc --emitDeclarationOnly --declaration --declarationMap --outDir dist",
+    "build": "bun build src/index.ts --outdir=dist --target=node && bun build src/logging/index.ts --outdir=dist/logging --target=node && tsc --emitDeclarationOnly --declaration --declarationMap --outDir dist",
     "dev": "bun build src/index.ts --outdir=dist --watch --target=node",
     "test": "bun test"
   },
@@ -28,6 +30,9 @@
   },
   "peerDependencies": {
     "@upup/types": "0.2.0"
+  },
+  "devDependencies": {
+    "@upup/pi-runtime": "0.1.0"
   },
   "files": [
     "dist"

@@ -160,7 +160,7 @@ function getDefaultModelForCurrentProvider(): string | null {
 
   // Import dynamically to avoid circular dependency issues
   try {
-    const { getDefaultModelForProvider } = require('./model.js');
+    const { getDefaultModelForProvider } = require('./model');
     return getDefaultModelForProvider(provider) ?? null;
   } catch {
     return DEFAULT_MODEL;

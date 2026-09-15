@@ -1,4 +1,5 @@
 import { Type } from 'typebox';
+import type { AgentToolResult } from '@earendil-works/pi-agent-core';
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import { resolvePiCapabilityHost, registerPiCapabilityHost } from '@upup/pi-capability-registry';
 import { buildTechnicalSnapshot, createDefaultMarketQuoteClient, FixedWindowMarketHistoryRateLimiter, InMemoryMarketHistoryCache, isTradingDay, normalizeMarket, providerSla, resolveMarketHistoryClient, resolveMarketQuoteClient, JsonFileProviderSlaStore, type Market, type MarketHistoryProvider, type NativeMarketQuoteTrendStore } from '../src/index';
@@ -238,7 +239,7 @@ export default function marketDataExtension(pi: ExtensionAPI): void {
   const registerKairosRead = (name: string, kind: KairosEventKind, description: string) => pi.registerTool({
     name, label: name, description, parameters: kairosLimitParameters,
     async execute(toolCallId, params, signal, _onUpdate, context) {
-      if (signal.aborted) return { content: [{ type: 'text', text: `${name} request aborted` }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: `${name} request aborted` }], isError: true, details: undefined };
       const events = listKairosEvents(readKairosState(context), kind, params.limit ?? 20);
       return nativeEvidenceResult(toolCallId, kind, `kairos/${kind}`, { count: events.length, events }, { warning: 'Session-scoped KAIROS journal; this tool does not trigger scans or fetch live data.' });
     },
@@ -249,7 +250,7 @@ export default function marketDataExtension(pi: ExtensionAPI): void {
   pi.registerTool({
     name: 'kairos_summary', label: 'kairos_summary', description: 'Summarize KAIROS events recorded in the current Pi Session without triggering scans.', parameters: kairosSummaryParameters,
     async execute(toolCallId, params, signal, _onUpdate, context) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'kairos_summary request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'kairos_summary request aborted' }], isError: true, details: undefined };
       const summary = summarizeKairos(readKairosState(context), params.recentsPerKind ?? 3);
       return nativeEvidenceResult(toolCallId, 'summary', 'kairos/summary', summary, { warning: 'Session-scoped KAIROS journal; this tool does not trigger scans or fetch live data.' });
     },
@@ -259,8 +260,8 @@ export default function marketDataExtension(pi: ExtensionAPI): void {
     label: 'Market Data',
     description: 'Read an auditable deterministic market snapshot from an explicit market query.',
     parameters: marketQueryParameters,
-    async execute(toolCallId, params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'get_market_data request aborted' }], isError: true };
+    async execute(toolCallId, params, signal): Promise<AgentToolResult<Record<string, unknown> | undefined>> {
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'get_market_data request aborted' }], isError: true, details: undefined };
       const token = params.query.match(/[A-Za-z]{1,6}(?:\.[A-Za-z]{1,3})?|\d{6}(?:\.(?:SH|SZ|BJ))?/i)?.[0] ?? params.query.trim().slice(0, 32);
       const instrument = normalizeInstrumentCode(token);
       try {
@@ -278,12 +279,12 @@ export default function marketDataExtension(pi: ExtensionAPI): void {
     description: 'Open a session-scoped realtime market-data subscription. Mock is deterministic and offline; Eastmoney requires an explicitly injected socket in the host.',
     parameters: realtimeSubscribeParameters,
     async execute(toolCallId, params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'Realtime subscription request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'Realtime subscription request aborted' }], isError: true, details: undefined };
       try {
         const result = await realtime.subscribe({ symbols: params.symbols, throttleMs: params.throttleMs, aggregateMs: params.aggregateMs, source: params.source as FeedSource | undefined });
         return nativeEvidenceResult(toolCallId, JSON.stringify(params), 'realtime/subscribe', { ...result, note: result.source === 'mock' ? 'Deterministic mock feed; no external network.' : 'Eastmoney source requires host-injected socket and remains explicitly opt-in.' }, {}, new Date(result.createdAt).toISOString().slice(0, 10));
       } catch (error) {
-        return { content: [{ type: 'text', text: error instanceof Error ? error.message : 'Realtime subscription failed' }], isError: true };
+        return { content: [{ type: 'text', text: error instanceof Error ? error.message : 'Realtime subscription failed' }], isError: true, details: undefined };
       }
     },
   });
@@ -293,7 +294,7 @@ export default function marketDataExtension(pi: ExtensionAPI): void {
     description: 'Close a realtime subscription owned by the current Pi session.',
     parameters: realtimeUnsubscribeParameters,
     async execute(toolCallId, params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'Realtime unsubscribe request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'Realtime unsubscribe request aborted' }], isError: true, details: undefined };
       const result = await realtime.unsubscribe(params.subscriptionId);
       return nativeEvidenceResult(toolCallId, params.subscriptionId, 'realtime/unsubscribe', result);
     },
@@ -304,7 +305,7 @@ export default function marketDataExtension(pi: ExtensionAPI): void {
     description: 'List realtime subscriptions owned by the current Pi session.',
     parameters: realtimeListParameters,
     async execute(toolCallId, _params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'Realtime list request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'Realtime list request aborted' }], isError: true, details: undefined };
       return nativeEvidenceResult(toolCallId, 'current-session', 'realtime/list', { subscriptions: realtime.list() });
     },
   });
@@ -314,7 +315,7 @@ export default function marketDataExtension(pi: ExtensionAPI): void {
     description: 'Read an auditable historical A-share sector snapshot. This tool is offline and does not query Tushare.',
     parameters: sectorDataParameters,
     async execute(toolCallId, params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'Sector data request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'Sector data request aborted' }], isError: true, details: undefined };
       const type = params.type ?? 'stock';
       const value = querySectorSnapshot(params.code, type as SectorQueryType);
       return nativeEvidenceResult(toolCallId, JSON.stringify(params), 'sector-data', { source: 'upup-pi://market-data/sector-data', freshness: 'historical', ...value, warning: '离线历史快照，不是实时板块行情或投资建议。' }, {}, '2026-09-12');
@@ -326,7 +327,7 @@ export default function marketDataExtension(pi: ExtensionAPI): void {
     description: 'Read an auditable historical A-share market-structure snapshot for dragon-tiger, northbound flow, money flow, or margin data.',
     parameters: marketStructureParameters,
     async execute(toolCallId, params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'Market structure request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'Market structure request aborted' }], isError: true, details: undefined };
       const value = getMarketStructureSnapshot(params.type as MarketStructureType);
       return nativeEvidenceResult(toolCallId, JSON.stringify(params), 'market-structure', { source: 'upup-pi://market-data/market-structure', freshness: 'historical', ...value, requestedDates: { trade_date: params.trade_date, start_date: params.start_date, end_date: params.end_date }, warning: '离线历史快照，不是实时资金流或交易建议。' }, {}, '2026-09-12');
     },
@@ -337,7 +338,7 @@ export default function marketDataExtension(pi: ExtensionAPI): void {
     description: 'Screen a bounded historical stock snapshot. Results are offline/historical and are not real-time quotes.',
     parameters: stockScreenerParameters,
     async execute(toolCallId, params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'Stock screener request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'Stock screener request aborted' }], isError: true, details: undefined };
       const input: StockScreenInput = {
         market: params.market,
         sector: params.sector,
@@ -359,7 +360,7 @@ export default function marketDataExtension(pi: ExtensionAPI): void {
     description: 'Screen a bounded historical A-share snapshot. Results are offline/historical and do not query Tushare or Eastmoney.',
     parameters: astockScreenerParameters,
     async execute(toolCallId, params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'A-share screener request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'A-share screener request aborted' }], isError: true, details: undefined };
       const data = screenStockSnapshot({ market: 'cn', sector: params.sector, exchange: params.exchange, marketCapMin: params.market_cap_min, marketCapMax: params.market_cap_max, peMin: params.pe_min, peMax: params.pe_max, limit: params.limit });
       return nativeEvidenceResult(toolCallId, JSON.stringify(params), 'astock-screener', { source: 'upup-pi://market-data/stock-snapshot', freshness: 'historical', asOf: '2026-09-12', criteria: params, count: data.length, data, warning: '离线历史快照，不是实时行情或投资建议。' }, {}, '2026-09-12');
     },
@@ -370,7 +371,7 @@ export default function marketDataExtension(pi: ExtensionAPI): void {
     description: 'Read an auditable A-share or Hong Kong price from the selected native market-data provider.',
     parameters: astockParameters,
     async execute(toolCallId, params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'get_astock_price request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'get_astock_price request aborted' }], isError: true, details: undefined };
       const instrument = normalizeInstrumentCode(params.code);
       try {
         const quote = await getQuoteClient((params.provider ?? 'auto') as MarketHistoryProvider).getQuote(instrument.symbol, instrument.market, signal, toolCallId);
@@ -387,7 +388,7 @@ export default function marketDataExtension(pi: ExtensionAPI): void {
     description: 'Read native historical K-line data and derive MA5/10/20, RSI6/12, and MACD indicators.',
     parameters: technicalDataParameters,
     async execute(toolCallId, params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'Technical data request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'Technical data request aborted' }], isError: true, details: undefined };
       const instrument = normalizeInstrumentCode(params.code);
       const period = params.period as TechnicalPeriod | undefined ?? 'daily';
       const endDate = params.end_date ?? new Date().toISOString().slice(0, 10);
@@ -407,7 +408,7 @@ export default function marketDataExtension(pi: ExtensionAPI): void {
     description: 'Read a market quote with an auditable as-of date and data source.',
     parameters: quoteParameters,
     async execute(toolCallId, params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'Market quote request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'Market quote request aborted' }], isError: true, details: undefined };
       try {
         const result = await getQuoteClient((params.provider ?? 'auto') as MarketHistoryProvider).getQuote(params.symbol, params.market, signal, toolCallId);
         return { content: [{ type: 'text', text: text(result.value) }], details: { evidence: [result.evidence], dataFreshness: result.evidence.dataFreshness, auditId: toolCallId, source: 'native-provider' } };
@@ -422,7 +423,7 @@ export default function marketDataExtension(pi: ExtensionAPI): void {
     description: 'Probe a configured market-data provider with a real quote request. Returns only redacted health, latency, freshness, and evidence metadata; never returns credentials or raw provider payloads.',
     parameters: providerHealthParameters,
     async execute(toolCallId, params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'Market provider health request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'Market provider health request aborted' }], isError: true, details: undefined };
       const requestedProvider = (params.provider ?? 'auto') as MarketHistoryProvider;
       const symbol = params.symbol ?? (requestedProvider === 'yahoo' ? 'AAPL' : '600519.SH');
       const startedAt = Date.now();
@@ -446,7 +447,7 @@ export default function marketDataExtension(pi: ExtensionAPI): void {
     description: 'Read redacted provider SLA trend buckets from the current Pi Session. This tool never performs a network request.',
     parameters: providerTrendParameters,
     async execute(toolCallId, _params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'Market provider trend request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'Market provider trend request aborted' }], isError: true, details: undefined };
       const metrics = getQuoteClient('auto').getMetrics();
       return nativeEvidenceResult(toolCallId, 'provider-trend', 'market-data/provider-trend', { trend: metrics.trend, sloStatus: metrics.sloStatus, successRatePct: metrics.successRatePct, sampleCount: metrics.recentSamples.length });
     },
@@ -457,7 +458,7 @@ export default function marketDataExtension(pi: ExtensionAPI): void {
     description: 'Manage a silent Pi-native provider SLA sampler. Runs real provider probes, records redacted trend data, and never sends messages or creates synthetic market data.',
     parameters: providerSlaParameters,
     async execute(toolCallId, params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'Market provider SLA request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'Market provider SLA request aborted' }], isError: true, details: undefined };
       try {
         const output = await providerSla(params, (provider) => getQuoteClient(provider), new JsonFileProviderSlaStore(), signal);
         return nativeEvidenceResult(toolCallId, 'provider-sla', 'market-data/provider-sla', output);
@@ -472,7 +473,7 @@ export default function marketDataExtension(pi: ExtensionAPI): void {
     description: 'Read historical daily bars from the Pi market-data provider with an auditable source and as-of date. Network failures are returned as errors; no synthetic bars are substituted.',
     parameters: historyParameters,
     async execute(toolCallId, params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'Historical data request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'Historical data request aborted' }], isError: true, details: undefined };
       try {
         const result = await getHistoryClient((params.provider ?? 'auto') as MarketHistoryProvider).getHistory(params.symbol, params.startDate, params.endDate ?? new Date().toISOString().slice(0, 10), signal, toolCallId);
         const bars = params.limit === undefined ? result.value : result.value.slice(-params.limit);
@@ -488,7 +489,7 @@ export default function marketDataExtension(pi: ExtensionAPI): void {
     description: 'Check whether a date is a trading day for a selected market.',
     parameters: tradingDayParameters,
     async execute(toolCallId, params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'Trading day request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'Trading day request aborted' }], isError: true, details: undefined };
       const market = normalizeMarket(params.market) as Market;
       const value = { date: params.date, market, isTradingDay: isTradingDay(params.date, market) };
       const evidence = { id: `market-data:${toolCallId}:calendar`, source: 'upup-fixture://market-data/calendar', retrievedAt: '2026-09-13T00:00:00.000Z', asOf: params.date, query: `${market}:${params.date}`, dataFreshness: 'historical', auditId: toolCallId } as const;
@@ -496,7 +497,7 @@ export default function marketDataExtension(pi: ExtensionAPI): void {
     },
   });
   pi.registerTool({ name: 'check_trading_day', label: 'Check Trading Day', description: 'Check whether a date is a trading day for US, China, or Hong Kong markets.', parameters: calendarCheckParameters, async execute(toolCallId, params, signal) {
-    if (signal.aborted) return { content: [{ type: 'text', text: 'check_trading_day request aborted' }], isError: true };
+    if (signal?.aborted) return { content: [{ type: 'text', text: 'check_trading_day request aborted' }], isError: true, details: undefined };
     const market = params.market ?? 'us';
     if (market === 'all') {
       const value = { date: params.date, markets: Object.fromEntries((['us', 'china', 'hk'] as const).map((candidate) => [candidate, { isTradingDay: isCalendarTradingDay(params.date, candidate) }])) };
@@ -505,19 +506,19 @@ export default function marketDataExtension(pi: ExtensionAPI): void {
     return calendarResult(toolCallId, `${market}:${params.date}`, { date: params.date, market: market.toUpperCase(), isTradingDay: isCalendarTradingDay(params.date, market as CalendarMarket) }, evidenceCapability, auditCapability);
   } });
   pi.registerTool({ name: 'get_upcoming_holidays', label: 'Upcoming Market Holidays', description: 'List upcoming holidays for a selected market.', parameters: upcomingHolidayParameters, async execute(toolCallId, params, signal) {
-    if (signal.aborted) return { content: [{ type: 'text', text: 'get_upcoming_holidays request aborted' }], isError: true };
+    if (signal?.aborted) return { content: [{ type: 'text', text: 'get_upcoming_holidays request aborted' }], isError: true, details: undefined };
     const market = params.market ?? 'us';
     const holidays = upcomingCalendarHolidays(params.startDate, market, params.count ?? 5);
     return calendarResult(toolCallId, `${market}:${params.startDate ?? 'default'}`, { market: market.toUpperCase(), holidays: holidays ?? [], count: holidays?.length ?? 0 }, evidenceCapability, auditCapability);
   } });
   pi.registerTool({ name: 'get_next_trading_day', label: 'Next Trading Day', description: 'Find the next trading day after a date.', parameters: nextTradingDayParameters, async execute(toolCallId, params, signal) {
-    if (signal.aborted) return { content: [{ type: 'text', text: 'get_next_trading_day request aborted' }], isError: true };
+    if (signal?.aborted) return { content: [{ type: 'text', text: 'get_next_trading_day request aborted' }], isError: true, details: undefined };
     const market = params.market ?? 'us';
     const targetTradingDay = nextCalendarTradingDay(params.fromDate, market, params.skipDays ?? 1);
     return calendarResult(toolCallId, `${market}:${params.fromDate}`, { fromDate: params.fromDate, market: market.toUpperCase(), skipDays: params.skipDays ?? 1, targetTradingDay }, evidenceCapability, auditCapability);
   } });
   pi.registerTool({ name: 'get_trading_days', label: 'Trading Days', description: 'List trading days in an inclusive date range.', parameters: tradingDaysParameters, async execute(toolCallId, params, signal) {
-    if (signal.aborted) return { content: [{ type: 'text', text: 'get_trading_days request aborted' }], isError: true };
+    if (signal?.aborted) return { content: [{ type: 'text', text: 'get_trading_days request aborted' }], isError: true, details: undefined };
     const market = params.market ?? 'us';
     const tradingDays = calendarTradingDays(params.startDate, params.endDate, market);
     return calendarResult(toolCallId, `${market}:${params.startDate}:${params.endDate}`, { startDate: params.startDate, endDate: params.endDate, market: market.toUpperCase(), tradingDays: tradingDays ?? [], totalDays: tradingDays?.length ?? 0 }, evidenceCapability, auditCapability);

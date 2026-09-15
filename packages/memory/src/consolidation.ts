@@ -120,6 +120,10 @@ export async function consolidateMemories(options: {
 
     for (const mem of result.merged_memories || []) {
       try {
+        if (!mem.name || !mem.content) {
+          warn('memory', 'Skipping merged memory without a name or content');
+          continue;
+        }
         const typeDir = join(getUpupDir(), MEMORY_DIRNAME, mem.type);
         const filePath = join(typeDir, `${mem.name}.md`);
         const content = matter.stringify(mem.content, {
@@ -128,7 +132,7 @@ export async function consolidateMemories(options: {
           type: mem.type,
         });
         await writeFile(filePath, content, 'utf-8');
-        merged.push({ ...mem, filePath, content, mtimeMs: Date.now() });
+        merged.push({ name: mem.name, type: mem.type, content, filePath, mtimeMs: Date.now() });
         updated.push(filePath);
 
         // Delete merged files
@@ -302,7 +306,7 @@ function groupByTopic(memories: MemoryFile[]): Record<string, MemoryFile[]> {
  */
 async function performConsolidation(
   memories: MemoryFile[],
-  options: { model?: string; signal?: AbortSignal },
+  options: { model?: string; signal?: AbortSignal; runner?: PromptRunner },
 ): Promise<z.infer<typeof CONSOLIDATION_OUTPUT_SCHEMA>> {
   try {
     return await callStructuredLlm(buildConsolidationPrompt(memories.map(m => ({

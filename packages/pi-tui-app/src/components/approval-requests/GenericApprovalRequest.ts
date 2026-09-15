@@ -25,7 +25,7 @@ export class GenericApprovalRequest extends Container {
     this.toolName = data.toolName;
     this.args = data.args;
 
-    const { createSimpleApprovalSelector } = require('../select-list.js');
+    const { createSimpleApprovalSelector } = require('../select-list');
     this.selector = createSimpleApprovalSelector(options.onApprove);
 
     // Create UI components using BorderBox
@@ -93,11 +93,11 @@ export class GenericApprovalRequest extends Container {
 export function createApprovalRequest(data: ApprovalRequestData, options: ApprovalRequestOptions): Container {
   switch (data.toolName) {
     case 'Bash':
-      const { BashApprovalRequest } = require('./BashApprovalRequest.js');
+      const { BashApprovalRequest } = require('./BashApprovalRequest');
       return new BashApprovalRequest(data, options);
     case 'Write':
     case 'Edit':
-      const { WriteApprovalRequest } = require('./WriteApprovalRequest.js');
+      const { WriteApprovalRequest } = require('./WriteApprovalRequest');
       return new WriteApprovalRequest(data, options);
     default:
       return new GenericApprovalRequest(data, options);

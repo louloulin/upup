@@ -190,11 +190,11 @@ export class MessagesClient {
     const response = await this.transport.request('messages.count_tokens', {
       text: params.text,
       model: params.model || this.config.defaultModel,
-    })
+    }) as { input_tokens?: number; output_tokens?: number }
 
     return {
       inputTokens: response.input_tokens || 0,
-      outputTokens: response.output_tokens,
+      outputTokens: response.output_tokens || 0,
     }
   }
 

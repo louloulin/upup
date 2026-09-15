@@ -4,7 +4,7 @@
  * 管理 Hook 的注册和执行
  */
 
-import { HookRegistry, type HookEvent, type HookInput, type HookOutput, type HookCallback, type HookMatcher } from './types'
+import { HookRegistry, type HookEvent, type HookInput, type HookOutput, type HookCallback, type HookMatcher, type HookMap } from './types'
 
 /**
  * Hook 执行器配置
@@ -78,7 +78,7 @@ export class HookExecutor {
   /**
    * 批量注册 Hooks
    */
-  registerAll(hooksMap: Record<HookEvent, HookMatcher[]>): void {
+  registerAll(hooksMap: HookMap): void {
     for (const [event, matchers] of Object.entries(hooksMap)) {
       for (const matcher of matchers) {
         this.register(event as HookEvent, matcher)

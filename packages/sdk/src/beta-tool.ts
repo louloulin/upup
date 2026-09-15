@@ -5,8 +5,6 @@
  * @see https://docs.anthropic.com/en/docs/claude-code/api
  */
 
-import type { Tool } from './tools/index'
-import type { RunnableTool } from './tool-runner'
 import { ToolValidationError } from './tool-error'
 
 // ============ JSON Schema Tool ============
@@ -102,23 +100,25 @@ export interface ToolContext {
 export function betaTool(options: BetaToolOptions): BetaTool {
   const { name, description, input_schema, run } = options
 
-  // 创建 Tool 定义
-  const tool: Tool = {
+  return {
     name,
     description: description || '',
     input_schema,
-  }
-
-  return {
-    ...tool,
     run,
   }
 }
 
 /**
  * BetaTool - JSON Schema 工具类型
+ *
+ * Declares the loose `JsonSchema` shape directly instead of extending the
+ * stricter `Tool` / `RunnableTool` contracts, which use conflicting
+ * `input_schema` / `inputSchema` conventions.
  */
-export interface BetaTool extends Tool, RunnableTool {
+export interface BetaTool {
+  name: string
+  description?: string
+  input_schema: JsonSchema
   run: (input: unknown, context?: ToolContext) => Promise<unknown> | unknown
 }
 
@@ -186,15 +186,10 @@ export function betaZodTool<T extends ZodSchema>(
   // 从 Zod Schema 转换为 JSON Schema
   const input_schema = zodToJsonSchema(inputSchema)
 
-  // 创建 Tool 定义
-  const tool: Tool = {
+  return {
     name,
     description: description || '',
     input_schema,
-  }
-
-  return {
-    ...tool,
     run: async (input: unknown, context?: ToolContext) => {
       // 如果 Zod Schema 可用，先验证输入
       if (inputSchema.parse) {
@@ -260,16 +255,4 @@ function zodTypeToJsonSchema(zodType: ZodSchema): JsonSchemaProperty {
     default:
       return { type: 'string' }
   }
-}
-
-// ============ Exports ============
-
-export type {
-  BetaToolOptions,
-  JsonSchema,
-  JsonSchemaProperty,
-  ToolContext,
-  BetaZodToolOptions,
-  ZodSchema,
-  Infer,
 }

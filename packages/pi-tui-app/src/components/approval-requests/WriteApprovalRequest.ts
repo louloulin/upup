@@ -22,7 +22,7 @@ export class WriteApprovalRequest extends Container {
     super();
     this.filePath = (data.args.file_path || data.args.path || data.args.file) as string || 'unknown';
 
-    const { createSimpleApprovalSelector } = require('../select-list.js');
+    const { createSimpleApprovalSelector } = require('../select-list');
     this.selector = createSimpleApprovalSelector(options.onApprove);
 
     // Create UI components

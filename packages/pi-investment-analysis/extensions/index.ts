@@ -169,7 +169,7 @@ export default function investmentAnalysisExtension(pi: ExtensionAPI): void {
     description: 'Build a deterministic cross-ticker and cross-dimension investment matrix from explicit cells. This tool does not fetch data or generate investment advice.',
     parameters: matrixParameters,
     async execute(toolCallId, params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'matrix_analysis request aborted' }], isError: true, details: { auditId: toolCallId } };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'matrix_analysis request aborted' }], isError: true, details: { auditId: toolCallId } };
       try {
         const spec = { tickers: params.tickers ?? DEFAULT_TICKERS_UNIVERSE, dimensions: (params.dimensions ?? [...DIMENSIONS]) as Dimension[] };
         const engine = new MatrixEngine(spec);
@@ -194,7 +194,7 @@ export default function investmentAnalysisExtension(pi: ExtensionAPI): void {
     description: 'Run a Pi-native parallel stock analysis with independent fundamental, financial, and portfolio-advisor workers. Requires the trusted Platform agent-worker capability.',
     parameters: stockAnalysisParameters,
     async execute(toolCallId, params, signal, _onUpdate, context) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'stock_analysis request aborted' }], isError: true, details: { auditId: toolCallId } };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'stock_analysis request aborted' }], isError: true, details: { auditId: toolCallId } };
       if (!platformHost || platformHost.packageName !== '@upup/pi-platform' || !platformHost.capabilities?.includes('agent-worker') || !platformHost.providers.workers?.runAgentWorker) {
         return { content: [{ type: 'text', text: 'agent-worker capability is unavailable; stock_analysis is fail-closed' }], isError: true, details: { auditId: toolCallId, capability: 'agent-worker', policy: 'fail-closed' } };
       }
@@ -216,7 +216,7 @@ export default function investmentAnalysisExtension(pi: ExtensionAPI): void {
     description: 'Run real Pi-backed parallel technical, fundamental, capital-flow, and sentiment research workers for a symbol. Fails closed when the runtime worker capability is unavailable.',
     parameters: analyzeSymbolParameters,
     async execute(toolCallId, params, signal, _onUpdate, context) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'analyze_symbol request aborted' }], isError: true, details: { auditId: toolCallId } };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'analyze_symbol request aborted' }], isError: true, details: { auditId: toolCallId } };
       const host = runtimeHost;
       if (!host || host.packageName !== PACKAGE || host.packageVersion !== VERSION || !host.capabilities.includes('research-worker') || !host.providers.workers?.runResearchWorker) {
         return { content: [{ type: 'text', text: 'research-worker capability is unavailable; analyze_symbol is fail-closed' }], isError: true, details: { auditId: toolCallId, capability: 'research-worker', policy: 'fail-closed' } };
@@ -240,7 +240,7 @@ export default function investmentAnalysisExtension(pi: ExtensionAPI): void {
     description: 'Read the current Pi session research task journal. This tool is read-only and does not access the legacy Coordinator singleton.',
     parameters: researchTasksParameters,
     async execute(toolCallId, params, signal, _onUpdate, context) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'list_research_tasks request aborted' }], isError: true, details: { auditId: toolCallId } };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'list_research_tasks request aborted' }], isError: true, details: { auditId: toolCallId } };
       try {
         const state = context ? readResearchState(context) : researchState;
         const result = queryResearchJournal(state, params);
@@ -258,112 +258,112 @@ export default function investmentAnalysisExtension(pi: ExtensionAPI): void {
     description: 'Calculate a discounted cash flow valuation with explicit assumptions, net debt, and optional per-share value.',
     parameters: productionDcfParameters,
     async execute(toolCallId, params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'dcf_model request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'dcf_model request aborted' }], isError: true, details: undefined };
       const result = calculateProductionDcf(params as ProductionDcfInput);
       const evidence = nativeEvidence(toolCallId);
       return { content: [{ type: 'text', text: JSON.stringify(result) }], details: { evidence: [evidence], dataFreshness: evidence.dataFreshness, assumptions: result.assumptions, auditId: toolCallId } };
     },
   });
   pi.registerTool({ name: 'valuation_ratios', label: 'Valuation Ratios', description: 'Calculate PE, PB, PCF and market capitalization from explicit financial inputs.', parameters: valuationRatiosParameters, async execute(toolCallId, params, signal) {
-    if (signal.aborted) return { content: [{ type: 'text', text: 'valuation_ratios request aborted' }], isError: true };
+    if (signal?.aborted) return { content: [{ type: 'text', text: 'valuation_ratios request aborted' }], isError: true, details: undefined };
     const result = calculateValuationRatios(params as ValuationRatiosInput);
     const retrievedAt = new Date().toISOString();
     const evidence = { id: `investment-analysis:${toolCallId}:valuation-ratios`, source: 'upup-pi://investment-analysis/valuation-ratios', retrievedAt, asOf: retrievedAt.slice(0, 10), query: 'valuation_ratios', dataFreshness: 'historical' as const, auditId: toolCallId };
     return { content: [{ type: 'text' as const, text: JSON.stringify(result) }], details: { evidence: [evidence], dataFreshness: evidence.dataFreshness, auditId: toolCallId } };
   } });
   pi.registerTool({ name: 'peer_comparison', label: 'Peer Comparison', description: 'Compare target company valuation and operating metrics with a peer set using deterministic statistics.', parameters: peerComparisonParameters, async execute(toolCallId, params, signal) {
-    if (signal.aborted) return { content: [{ type: 'text', text: 'peer_comparison request aborted' }], isError: true };
+    if (signal?.aborted) return { content: [{ type: 'text', text: 'peer_comparison request aborted' }], isError: true, details: undefined };
     const result = comparePeers(params as PeerComparisonInput);
     const retrievedAt = new Date().toISOString();
     const evidence = { id: `investment-analysis:${toolCallId}:peer-comparison`, source: 'upup-pi://investment-analysis/peer-comparison', retrievedAt, asOf: retrievedAt.slice(0, 10), query: 'peer_comparison', dataFreshness: 'historical' as const, auditId: toolCallId };
     return { content: [{ type: 'text' as const, text: JSON.stringify(result) }], details: { evidence: [evidence], dataFreshness: evidence.dataFreshness, auditId: toolCallId } };
   } });
   pi.registerTool({ name: 'calculate_target_price', label: 'Calculate Target Price', description: 'Calculate a target price using DCF, PE, SOTP, or combined valuation methods.', parameters: targetPriceParameters, async execute(toolCallId, params, signal) {
-    if (signal.aborted) return { content: [{ type: 'text', text: 'calculate_target_price request aborted' }], isError: true };
+    if (signal?.aborted) return { content: [{ type: 'text', text: 'calculate_target_price request aborted' }], isError: true, details: undefined };
     const result = calculateTargetPrice(params as TargetPriceInput);
     const retrievedAt = new Date().toISOString();
     const evidence = { id: `investment-analysis:${toolCallId}:target-price`, source: 'upup-pi://investment-analysis/target-price', retrievedAt, asOf: retrievedAt.slice(0, 10), query: 'calculate_target_price', dataFreshness: 'historical' as const, auditId: toolCallId };
     return { content: [{ type: 'text' as const, text: JSON.stringify(result) }], details: { evidence: [evidence], dataFreshness: evidence.dataFreshness, auditId: toolCallId } };
   } });
   pi.registerTool({ name: 'quick_target_price', label: 'Quick Target Price', description: 'Estimate a target price from current and forward EPS plus growth using a bounded PEG-derived PE multiple.', parameters: quickTargetPriceParameters, async execute(toolCallId, params, signal) {
-    if (signal.aborted) return { content: [{ type: 'text', text: 'quick_target_price request aborted' }], isError: true };
+    if (signal?.aborted) return { content: [{ type: 'text', text: 'quick_target_price request aborted' }], isError: true, details: undefined };
     const result = calculateQuickTargetPrice(params);
     const retrievedAt = new Date().toISOString();
     const evidence = { id: `investment-analysis:${toolCallId}:quick-target-price`, source: 'upup-pi://investment-analysis/quick-target-price', retrievedAt, asOf: retrievedAt.slice(0, 10), query: 'quick_target_price', dataFreshness: 'historical' as const, auditId: toolCallId };
     return { content: [{ type: 'text' as const, text: JSON.stringify(result) }], details: { evidence: [evidence], dataFreshness: evidence.dataFreshness, auditId: toolCallId } };
   } });
   pi.registerTool({ name: 'calculate_option_price', label: 'Option Price', description: 'Calculate Black-Scholes price and Greeks for a European call or put option.', parameters: optionParameters, async execute(toolCallId, params, signal) {
-    if (signal.aborted) return { content: [{ type: 'text', text: 'calculate_option_price request aborted' }], isError: true };
+    if (signal?.aborted) return { content: [{ type: 'text', text: 'calculate_option_price request aborted' }], isError: true, details: undefined };
     const result = calculateOptionPrice(params as OptionPricingInput);
     const retrievedAt = new Date().toISOString();
     const evidence = { id: `investment-analysis:${toolCallId}:option-price`, source: 'upup-pi://investment-analysis/option-price', retrievedAt, asOf: retrievedAt.slice(0, 10), query: 'calculate_option_price', dataFreshness: 'historical' as const, auditId: toolCallId };
     return { content: [{ type: 'text', text: JSON.stringify(result) }], details: { evidence: [evidence], dataFreshness: evidence.dataFreshness, assumptions: params, auditId: toolCallId } };
   } });
   pi.registerTool({ name: 'calculate_option_greeks', label: 'Option Greeks', description: 'Calculate option Greeks using the Black-Scholes model.', parameters: optionParameters, async execute(toolCallId, params, signal) {
-    if (signal.aborted) return { content: [{ type: 'text', text: 'calculate_option_greeks request aborted' }], isError: true };
+    if (signal?.aborted) return { content: [{ type: 'text', text: 'calculate_option_greeks request aborted' }], isError: true, details: undefined };
     const { price: _price, ...greeks } = calculateOptionPrice(params as OptionPricingInput);
     const retrievedAt = new Date().toISOString();
     const evidence = { id: `investment-analysis:${toolCallId}:option-greeks`, source: 'upup-pi://investment-analysis/option-greeks', retrievedAt, asOf: retrievedAt.slice(0, 10), query: 'calculate_option_greeks', dataFreshness: 'historical' as const, auditId: toolCallId };
     return { content: [{ type: 'text', text: JSON.stringify(greeks) }], details: { evidence: [evidence], dataFreshness: evidence.dataFreshness, assumptions: params, auditId: toolCallId } };
   } });
   pi.registerTool({ name: 'calculate_implied_volatility', label: 'Implied Volatility', description: 'Solve implied volatility from a European option market price using Black-Scholes.', parameters: impliedVolatilityParameters, async execute(toolCallId, params, signal) {
-    if (signal.aborted) return { content: [{ type: 'text', text: 'calculate_implied_volatility request aborted' }], isError: true };
+    if (signal?.aborted) return { content: [{ type: 'text', text: 'calculate_implied_volatility request aborted' }], isError: true, details: undefined };
     const impliedVolatility = calculateImpliedVolatility(params);
     const retrievedAt = new Date().toISOString();
     const evidence = { id: `investment-analysis:${toolCallId}:implied-volatility`, source: 'upup-pi://investment-analysis/implied-volatility', retrievedAt, asOf: retrievedAt.slice(0, 10), query: 'calculate_implied_volatility', dataFreshness: 'historical' as const, auditId: toolCallId };
     return { content: [{ type: 'text', text: JSON.stringify({ impliedVolatility }) }], details: { evidence: [evidence], dataFreshness: evidence.dataFreshness, assumptions: params, auditId: toolCallId } };
   } });
   pi.registerTool({ name: 'calculate_technical_indicators', label: 'Technical Indicators', description: 'Calculate native KDJ, Bollinger Bands, Williams %R, CCI, ATR, and OBV indicators from historical OHLCV data.', parameters: technicalParameters, async execute(toolCallId, params, signal) {
-    if (signal.aborted) return { content: [{ type: 'text', text: 'calculate_technical_indicators request aborted' }], isError: true };
+    if (signal?.aborted) return { content: [{ type: 'text', text: 'calculate_technical_indicators request aborted' }], isError: true, details: undefined };
     const result = calculateTechnicalIndicators(params.data as TechnicalBar[], params.indicators);
     const retrievedAt = new Date().toISOString();
     const evidence = { id: `investment-analysis:${toolCallId}:technical-indicators`, source: 'upup-pi://investment-analysis/technical-indicators', retrievedAt, asOf: params.data.at(-1)?.date ?? retrievedAt.slice(0, 10), query: 'calculate_technical_indicators', dataFreshness: 'historical' as const, auditId: toolCallId };
     return { content: [{ type: 'text', text: JSON.stringify(result) }], details: { evidence: [evidence], dataFreshness: evidence.dataFreshness, assumptions: { indicators: params.indicators ?? ['kdj', 'boll', 'wr', 'cci', 'atr', 'obv'] }, auditId: toolCallId } };
   } });
   pi.registerTool({ name: 'calculate_kdj', label: 'KDJ', description: 'Calculate the native KDJ stochastic oscillator from historical OHLCV data.', parameters: singleTechnicalParameters, async execute(toolCallId, params, signal) {
-    if (signal.aborted) return { content: [{ type: 'text', text: 'calculate_kdj request aborted' }], isError: true };
+    if (signal?.aborted) return { content: [{ type: 'text', text: 'calculate_kdj request aborted' }], isError: true, details: undefined };
     const result = calculateKdj(params.data as TechnicalBar[]);
     const retrievedAt = new Date().toISOString();
     const evidence = { id: `investment-analysis:${toolCallId}:kdj`, source: 'upup-pi://investment-analysis/kdj', retrievedAt, asOf: params.data.at(-1)?.date ?? retrievedAt.slice(0, 10), query: 'calculate_kdj', dataFreshness: 'historical' as const, auditId: toolCallId };
     return { content: [{ type: 'text', text: JSON.stringify(result) }], details: { evidence: [evidence], dataFreshness: evidence.dataFreshness, auditId: toolCallId } };
   } });
   pi.registerTool({ name: 'calculate_boll', label: 'Bollinger Bands', description: 'Calculate native Bollinger Bands from historical OHLCV data.', parameters: singleTechnicalParameters, async execute(toolCallId, params, signal) {
-    if (signal.aborted) return { content: [{ type: 'text', text: 'calculate_boll request aborted' }], isError: true };
+    if (signal?.aborted) return { content: [{ type: 'text', text: 'calculate_boll request aborted' }], isError: true, details: undefined };
     const result = calculateBoll(params.data as TechnicalBar[]);
     const retrievedAt = new Date().toISOString();
     const evidence = { id: `investment-analysis:${toolCallId}:boll`, source: 'upup-pi://investment-analysis/boll', retrievedAt, asOf: params.data.at(-1)?.date ?? retrievedAt.slice(0, 10), query: 'calculate_boll', dataFreshness: 'historical' as const, auditId: toolCallId };
     return { content: [{ type: 'text', text: JSON.stringify(result) }], details: { evidence: [evidence], dataFreshness: evidence.dataFreshness, auditId: toolCallId } };
   } });
   pi.registerTool({ name: 'calculate_wr', label: 'Williams %R', description: 'Calculate native Williams %R from historical OHLCV data.', parameters: singleTechnicalParameters, async execute(toolCallId, params, signal) {
-    if (signal.aborted) return { content: [{ type: 'text', text: 'calculate_wr request aborted' }], isError: true };
+    if (signal?.aborted) return { content: [{ type: 'text', text: 'calculate_wr request aborted' }], isError: true, details: undefined };
     const result = calculateWr(params.data as TechnicalBar[]);
     const retrievedAt = new Date().toISOString();
     const evidence = { id: `investment-analysis:${toolCallId}:wr`, source: 'upup-pi://investment-analysis/wr', retrievedAt, asOf: params.data.at(-1)?.date ?? retrievedAt.slice(0, 10), query: 'calculate_wr', dataFreshness: 'historical' as const, auditId: toolCallId };
     return { content: [{ type: 'text', text: JSON.stringify(result) }], details: { evidence: [evidence], dataFreshness: evidence.dataFreshness, auditId: toolCallId } };
   } });
   pi.registerTool({ name: 'calculate_cci', label: 'CCI', description: 'Calculate native Commodity Channel Index from historical OHLCV data.', parameters: singleTechnicalParameters, async execute(toolCallId, params, signal) {
-    if (signal.aborted) return { content: [{ type: 'text', text: 'calculate_cci request aborted' }], isError: true };
+    if (signal?.aborted) return { content: [{ type: 'text', text: 'calculate_cci request aborted' }], isError: true, details: undefined };
     const result = calculateCci(params.data as TechnicalBar[]);
     const retrievedAt = new Date().toISOString();
     const evidence = { id: `investment-analysis:${toolCallId}:cci`, source: 'upup-pi://investment-analysis/cci', retrievedAt, asOf: params.data.at(-1)?.date ?? retrievedAt.slice(0, 10), query: 'calculate_cci', dataFreshness: 'historical' as const, auditId: toolCallId };
     return { content: [{ type: 'text', text: JSON.stringify(result) }], details: { evidence: [evidence], dataFreshness: evidence.dataFreshness, auditId: toolCallId } };
   } });
   pi.registerTool({ name: 'calculate_atr', label: 'ATR', description: 'Calculate native Average True Range from historical OHLCV data.', parameters: singleTechnicalParameters, async execute(toolCallId, params, signal) {
-    if (signal.aborted) return { content: [{ type: 'text', text: 'calculate_atr request aborted' }], isError: true };
+    if (signal?.aborted) return { content: [{ type: 'text', text: 'calculate_atr request aborted' }], isError: true, details: undefined };
     const result = calculateAtr(params.data as TechnicalBar[]);
     const retrievedAt = new Date().toISOString();
     const evidence = { id: `investment-analysis:${toolCallId}:atr`, source: 'upup-pi://investment-analysis/atr', retrievedAt, asOf: params.data.at(-1)?.date ?? retrievedAt.slice(0, 10), query: 'calculate_atr', dataFreshness: 'historical' as const, auditId: toolCallId };
     return { content: [{ type: 'text', text: JSON.stringify(result) }], details: { evidence: [evidence], dataFreshness: evidence.dataFreshness, auditId: toolCallId } };
   } });
   pi.registerTool({ name: 'calculate_obv', label: 'OBV', description: 'Calculate native On Balance Volume from historical OHLCV data.', parameters: singleTechnicalParameters, async execute(toolCallId, params, signal) {
-    if (signal.aborted) return { content: [{ type: 'text', text: 'calculate_obv request aborted' }], isError: true };
+    if (signal?.aborted) return { content: [{ type: 'text', text: 'calculate_obv request aborted' }], isError: true, details: undefined };
     const result = calculateObv(params.data as TechnicalBar[]);
     const retrievedAt = new Date().toISOString();
     const evidence = { id: `investment-analysis:${toolCallId}:obv`, source: 'upup-pi://investment-analysis/obv', retrievedAt, asOf: params.data.at(-1)?.date ?? retrievedAt.slice(0, 10), query: 'calculate_obv', dataFreshness: 'historical' as const, auditId: toolCallId };
     return { content: [{ type: 'text', text: JSON.stringify(result) }], details: { evidence: [evidence], dataFreshness: evidence.dataFreshness, auditId: toolCallId } };
   } });
   pi.registerTool({ name: 'decision_dashboard', label: 'Decision Dashboard', description: 'Generate a deterministic four-dimension investment decision dashboard from explicit technical, fundamental, sentiment, and risk inputs.', parameters: decisionDashboardParameters, async execute(toolCallId, params, signal) {
-    if (signal.aborted) return { content: [{ type: 'text', text: 'decision_dashboard request aborted' }], isError: true };
+    if (signal?.aborted) return { content: [{ type: 'text', text: 'decision_dashboard request aborted' }], isError: true, details: undefined };
     const result = calculateDecisionDashboard(params as DecisionDashboardInput);
     const retrievedAt = new Date().toISOString();
     const evidence = { id: `investment-analysis:${toolCallId}:decision-dashboard`, source: 'upup-pi://investment-analysis/decision-dashboard', retrievedAt, asOf: retrievedAt.slice(0, 10), query: 'decision_dashboard', dataFreshness: 'historical' as const, auditId: toolCallId };
@@ -375,7 +375,7 @@ export default function investmentAnalysisExtension(pi: ExtensionAPI): void {
     description: 'Calculate a dividend discount valuation with explicit forecast and Gordon-growth assumptions.',
     parameters: ddmParameters,
     async execute(toolCallId, params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'ddm_model request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'ddm_model request aborted' }], isError: true, details: undefined };
       const result = calculateProductionDdm(params as ProductionDdmInput);
       const evidence = ddmEvidence(toolCallId);
       return { content: [{ type: 'text', text: JSON.stringify(result) }], details: { evidence: [evidence], dataFreshness: evidence.dataFreshness, assumptions: result.assumptions, auditId: toolCallId } };
@@ -387,7 +387,7 @@ export default function investmentAnalysisExtension(pi: ExtensionAPI): void {
     description: 'Calculate a deterministic DCF valuation and expose assumptions for review.',
     parameters: dcfParameters,
     async execute(toolCallId, params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'DCF request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'DCF request aborted' }], isError: true, details: undefined };
       const result = calculateDcf(params as DcfInput);
       const evidence = { id: `investment-analysis:${toolCallId}:dcf`, source: 'upup-fixture://investment-analysis/dcf', retrievedAt: '2026-09-13T00:00:00.000Z', asOf: '2026-09-13', query: 'investment_dcf', dataFreshness: 'historical', auditId: toolCallId } as const;
       return { content: [{ type: 'text', text: JSON.stringify(result) }], details: { evidence: [evidence], dataFreshness: evidence.dataFreshness, assumptions: result.assumptions, auditId: toolCallId } };
@@ -399,7 +399,7 @@ export default function investmentAnalysisExtension(pi: ExtensionAPI): void {
     description: 'Classify a deterministic moving-average trend from historical bars.',
     parameters: technicalSignalParameters,
     async execute(toolCallId, params, signal) {
-      if (signal.aborted) return { content: [{ type: 'text', text: 'Technical signal request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'Technical signal request aborted' }], isError: true, details: undefined };
       const result = calculateTechnicalSignal(params.bars);
       const evidence = { id: `investment-analysis:${toolCallId}:technical`, source: 'upup-fixture://investment-analysis/technical', retrievedAt: '2026-09-13T00:00:00.000Z', asOf: params.bars.at(-1)?.date ?? 'unknown', query: 'investment_technical_signal', dataFreshness: 'historical', auditId: toolCallId } as const;
       return { content: [{ type: 'text', text: JSON.stringify(result) }], details: { evidence: [evidence], dataFreshness: evidence.dataFreshness, auditId: toolCallId } };

@@ -13,6 +13,16 @@ import {
   validatePiCapabilityCatalog,
   type UpUpAgentSpec,
 } from './src/index';
+import {
+  canonicalPiProviderId,
+  findPiModelAcrossProviders,
+  getPiModelInfo,
+  getPiProviderInfo,
+  isPiProvider,
+  listPiModels,
+  listPiProviderIds,
+  piProviderEnvKeys,
+} from './src/model-registry';
 
 const spec: UpUpAgentSpec = {
   id: 'runtime-test', version: '1.0.0', name: 'Runtime test', description: 'Contract test', tools: ['quote'], mode: 'primary', capabilities: ['market-data'], taskTypes: ['research'],
@@ -234,5 +244,39 @@ describe('pi-runtime finance session extension', () => {
     const second = await handlers[0]!(event);
     const parsed = JSON.parse((second as { compaction: { summary: string } }).compaction.summary) as Record<string, unknown>;
     expect(parsed.ticker).toBe('updated');
+  });
+});
+
+describe('@upup/pi-runtime — Pi model registry', () => {
+  test('reads provider ids from the Pi catalog', () => {
+    expect(listPiProviderIds()).toContain('openai');
+    expect(listPiProviderIds()).toContain('moonshotai');
+    expect(isPiProvider('moonshot')).toBe(true);
+    expect(isPiProvider('ollama')).toBe(false);
+  });
+
+  test('resolves UpUp provider aliases onto Pi provider ids', () => {
+    expect(canonicalPiProviderId('moonshot')).toBe('moonshotai');
+    expect(getPiProviderInfo('moonshot')?.id).toBe('moonshotai');
+  });
+
+  test('reports the environment variables Pi actually consults', () => {
+    expect(piProviderEnvKeys('openai')).toEqual(['OPENAI_API_KEY']);
+    expect(piProviderEnvKeys('google')).toEqual(['GEMINI_API_KEY']);
+    expect(piProviderEnvKeys('xai')).toEqual(['XAI_API_KEY']);
+    expect(piProviderEnvKeys('ollama')).toEqual([]);
+  });
+
+  test('exposes models published by the catalog', () => {
+    const xaiModels = listPiModels('xai').map((model) => model.id);
+    expect(xaiModels).toContain('grok-4.6');
+    expect(xaiModels).not.toContain('grok-4-0709');
+    expect(getPiModelInfo('moonshotai', 'kimi-k2.5')?.name).toBe('Kimi K2.5');
+    expect(getPiModelInfo('xai', 'grok-4-0709')).toBeUndefined();
+  });
+
+  test('prefers the first-party provider when a model id exists in several catalogs', () => {
+    expect(findPiModelAcrossProviders('gpt-5.4')?.provider).toBe('openai');
+    expect(findPiModelAcrossProviders('claude-opus-4-7')?.provider).toBe('anthropic');
   });
 });

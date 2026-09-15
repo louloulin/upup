@@ -11,7 +11,7 @@ const capture: CapturedRunner = { stopCalls: 0, created: 0 };
 const hooks: GatewayHookBag = { previous: undefined };
 
 function loadStartGateway(): (params: { configPath?: string; runtime: GatewayRuntime }) => Promise<{ stop: () => Promise<void>; snapshot: () => Record<string, unknown> }> {
-  return require('./gateway.js').startGateway as (params?: { configPath?: string }) => Promise<{ stop: () => Promise<void>; snapshot: () => Record<string, unknown> }>;
+  return require('./gateway').startGateway as (params?: { configPath?: string }) => Promise<{ stop: () => Promise<void>; snapshot: () => Record<string, unknown> }>;
 }
 
 function installHook(): void {

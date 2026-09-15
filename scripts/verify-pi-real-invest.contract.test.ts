@@ -77,7 +77,13 @@ function runScript(env: Record<string, string | undefined>): ScriptResult {
     encoding: 'utf8',
     timeout: 30_000,
   });
-  const stdout = result.stdout ?? '';
+  // `dotenv` prints a random tip banner to stdout, and some tips contain
+  // braces ("{ processEnv: myObject }"), which used to collide with the JSON
+  // extraction below and make this test fail intermittently.
+  const stdout = (result.stdout ?? '')
+    .split('\n')
+    .filter((line) => !line.startsWith('[dotenv@'))
+    .join('\n');
   const stderr = result.stderr ?? '';
   // When the script does not throw, it always writes a JSON object to stdout.
   const jsonMatch = stdout.match(/\{[\s\S]*\}/);

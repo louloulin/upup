@@ -6,7 +6,6 @@ export {
   StdioTransport,
   createStdioTransport,
   loadUpupConfig,
-  type StdioTransportConfig,
   type UpupConfig,
   type BinaryLocation,
 } from './stdio-transport'
@@ -15,12 +14,13 @@ export {
   HttpTransport,
   createHttpTransport,
   type HttpTransportConfig,
+  type TransportMessage,
+  type EventHandler,
 } from './http-transport'
 
 export type {
   Transport,
   TransportConfig,
-  TransportMessage,
-  EventHandler,
+  StdioTransportConfig,
   RpcTransport,
 } from './transport'

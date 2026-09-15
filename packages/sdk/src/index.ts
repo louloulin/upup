@@ -44,7 +44,6 @@ export type {
   PromptOptions,
   UpupConfig,
   BinaryLocation,
-  StdioTransportConfig,
 } from './client/client'
 
 // ============ Transport ============
@@ -130,7 +129,7 @@ export type {
 // ============ Session (Phase 4) ============
 
 export {
-  SessionManager,
+  UpupSessionManager,
 } from './session/index'
 
 export type {
