@@ -15,6 +15,7 @@ import {
   piProviderEnvKeys,
 } from '@upup/pi-runtime/model-registry';
 import { OLLAMA_PROVIDER_ID } from '@upup/pi-runtime/custom-providers';
+import { RECOMMENDED_MODELS } from './model-defaults';
 
 export interface ProviderDef {
   /** UpUp provider id. Stable: persisted in `.upup/settings.json`. */
@@ -130,6 +131,20 @@ export const PROVIDERS: ProviderDef[] = (() => {
     },
   ];
 })();
+
+/**
+ * The default model for a provider: the first curated recommendation the Pi
+ * catalog actually publishes, else the catalog's first entry.
+ *
+ * Returns `undefined` for providers whose model list is supplied at runtime
+ * (Ollama) — callers must then keep whatever model id they already have.
+ */
+export function getDefaultModelIdForProvider(providerId: string): string | undefined {
+  for (const id of RECOMMENDED_MODELS[providerId] ?? []) {
+    if (getPiModelInfo(providerId, id)) return id;
+  }
+  return listPiModels(providerId)[0]?.id;
+}
 
 /** Resolve a model id to its provider by Pi-canonical prefix matching. */
 export function resolveProvider(modelName: string): ProviderDef {

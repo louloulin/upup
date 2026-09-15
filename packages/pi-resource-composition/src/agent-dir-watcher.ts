@@ -7,6 +7,9 @@
  * `{ agentDir, source: 'agentDir-watcher' }`. The callback decides what to do
  * (refresh UI, call host.reload, etc.). Returns a handle whose `close()`
  * tears down the FS watcher and the poll fallback.
+ *
+ * `agentDir` always matches `resolveAgentDir(cwd)` when `home` is omitted, so
+ * the watched file is the same one the running Pi session reads.
  */
 
 import { startAgentDirWatcher, type SettingsWatcherHandle } from './package-reloader';
@@ -38,8 +41,14 @@ export function watchAgentDirForChanges(
 ): WatchAgentDirHandle {
   const cwd = options.cwd ?? process.cwd();
   const env = options.env ?? process.env;
-  const home = options.home ?? '';
-  const resolved = resolveAgentDir(cwd, { env, home });
+  // An omitted (or blank) `home` must fall through to the same resolution the
+  // session factory uses. Defaulting to `''` silently disabled home lookup —
+  // `resolveAgentDir`'s `options.home ?? osHomedir()` treats `''` as a value —
+  // so the watcher ended up watching `<cwd>/settings.json` while the running
+  // session read `~/.pi/agent/settings.json`: `upup plugin install` never
+  // surfaced its reload hint, and an unrelated repo-root settings.json did.
+  const home = options.home?.trim() ? options.home : undefined;
+  const resolved = resolveAgentDir(cwd, home ? { env, home } : { env });
   const handle = startAgentDirWatcher(
     {
       agentDir: resolved.agentDir,

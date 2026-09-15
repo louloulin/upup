@@ -51,6 +51,7 @@ import type { PermissionCliArgs } from './permissions/types'
 import { renderToolResult } from './utils/tool-renderers';
 import {
   checkApiKeyExistsForProvider,
+  detectConfiguredProviders,
   getApiKeyNameForProvider,
   getOllamaModels,
   getProviderDisplayName,
@@ -390,6 +391,7 @@ export async function runCli(options: RunCliOptions) {
     getSetting,
     setSetting,
     checkApiKeyExistsForProvider,
+    detectConfiguredProviders,
     getProviderDisplayName,
     saveApiKeyForProvider,
     getOllamaModels,
@@ -1587,11 +1589,15 @@ export async function runCli(options: RunCliOptions) {
   const agentDirWatcher = watchAgentDirForChanges(
     { debounceMs: 200, pollMs: 1000 },
     (trigger) => {
+      // The watcher primes itself with the current settings snapshot, so this
+      // also fires once at startup — before any turn exists. There is nothing
+      // to reload into yet, and the tool count would read as `0 tool(s)
+      // active`, which looks like a failure. Only surface the hint once a
+      // session is live.
+      if (!agentRunner.sessionId) return;
       // Re-read tool list live (the registry always reads the current
       // session's tool array — see `PiSessionRegistry.getTools`).
-      const tools = agentRunner.sessionId
-        ? options.runtime.getSessionTools(agentRunner.sessionId)
-        : [];
+      const tools = options.runtime.getSessionTools(agentRunner.sessionId);
       chatLog.addChild(new Spacer(1));
       chatLog.addChild(
         new Text(

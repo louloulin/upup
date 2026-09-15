@@ -3,7 +3,7 @@ import {
   getPiModelInfo,
   listPiModels,
 } from '@upup/pi-runtime/model-registry';
-import { PROVIDERS as PROVIDER_DEFS } from '@upup/utils';
+import { PROVIDERS as PROVIDER_DEFS, RECOMMENDED_MODELS } from '@upup/utils';
 
 export interface Model {
   id: string;
@@ -15,20 +15,6 @@ interface Provider {
   providerId: string;
   models: Model[];
 }
-
-/**
- * Curated ordering only. The model list itself comes from the Pi catalog —
- * these ids are moved to the top so the common choices stay one keystroke away,
- * and any id missing from Pi is skipped instead of being offered.
- */
-const RECOMMENDED_MODELS: Record<string, readonly string[]> = {
-  openai: ['gpt-5.4', 'gpt-4.1'],
-  anthropic: ['claude-sonnet-4-6', 'claude-opus-4-7'],
-  google: ['gemini-3-flash-preview', 'gemini-3.1-pro-preview'],
-  xai: ['grok-4.6', 'grok-4.5'],
-  moonshotai: ['kimi-k2.5'],
-  deepseek: ['deepseek-v4-pro', 'deepseek-v4-flash'],
-};
 
 /** Providers whose model list is supplied at runtime rather than from the catalog. */
 const DYNAMIC_MODEL_PROVIDERS = new Set(['ollama', 'openrouter']);
@@ -70,8 +56,7 @@ export function getModelIdsForProvider(providerId: string): string[] {
 }
 
 export function getDefaultModelForProvider(providerId: string): string | undefined {
-  const models = getModelsForProvider(providerId);
-  return models[0]?.id;
+  return getModelsForProvider(providerId)[0]?.id;
 }
 
 export function getModelDisplayName(modelId: string): string {

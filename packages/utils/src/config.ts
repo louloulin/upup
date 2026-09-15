@@ -12,6 +12,9 @@ import {
   type ConfigValue,
 } from '@upup/pi-config';
 import { SETTINGS_BACKUPS_DIR, SETTINGS_DIR, SETTINGS_FILE, SETTINGS_LOCAL_FILE } from './paths';
+import { detectConfiguredProviders } from './env';
+import { getDefaultModelIdForProvider } from './providers';
+import { DEFAULT_MODEL, DEFAULT_PROVIDER } from './model-defaults';
 
 export interface Config {
   provider?: string;
@@ -130,16 +133,38 @@ export function setSetting(key: string, value: unknown): boolean {
   return saveConfig(config);
 }
 
+/**
+ * The model id to run when the user never picked one.
+ *
+ * Precedence: persisted `modelId` → caller fallback → the resolved provider's
+ * catalog default. The last step is what keeps headless surfaces (print,
+ * gateway, cron, bridge) working for users whose key belongs to a provider
+ * other than the historical DeepSeek default: without it a MiniMax-only install
+ * resolved to `deepseek-v4-flash` and failed with "No API key found for
+ * deepseek".
+ */
 export function getConfiguredModelId(fallback?: string): string {
   const configured = getSetting<string | undefined>('modelId', undefined);
-  if (!configured) return fallback ?? 'deepseek-v4-flash';
+  if (!configured) {
+    return fallback ?? getDefaultModelIdForProvider(getConfiguredProvider()) ?? DEFAULT_MODEL;
+  }
   const migrated = DEPRECATED_MODEL_UPGRADES[configured];
   if (migrated) { setSetting('modelId', migrated); return migrated; }
   return configured;
 }
 
+/**
+ * The provider to run when the user never picked one.
+ *
+ * Precedence: persisted `provider` → first provider the user actually holds
+ * credentials for (curated order) → `DEFAULT_PROVIDER`. A fresh install with
+ * only `MINIMAX_API_KEY` set therefore resolves to MiniMax instead of DeepSeek.
+ */
 export function getConfiguredProvider(fallback?: string): string {
-  return getSetting<string>('provider', fallback ?? 'deepseek');
+  return getSetting<string>(
+    'provider',
+    fallback ?? detectConfiguredProviders()[0] ?? DEFAULT_PROVIDER,
+  );
 }
 
 export function getConfigSources(): ConfigSourceInfo[] {

@@ -3,7 +3,7 @@ import type { Model } from '@earendil-works/pi-ai';
 import type { ModelRuntime } from '@earendil-works/pi-coding-agent';
 import { validateAgentSpec } from '@upup/pi-runtime';
 import type { UpUpAgentEvent, UpUpAgentSpec, UpUpAgentSession, UpUpToolSafetyLevel } from '@upup/pi-runtime';
-import { resolveProvider } from '@upup/utils';
+import { getConfiguredModelId, resolveProvider } from '@upup/utils';
 import { getPiSessionService } from '@upup/pi-session';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -67,7 +67,10 @@ export function toPiSessionId(sessionKey: string): string {
 }
 
 function createSpec(options: PiPromptOptions): UpUpAgentSpec {
-  const model = options.model ?? process.env.DEFAULT_MODEL ?? 'deepseek-v4-flash';
+  // `DEFAULT_MODEL` (env) wins for explicit operators; otherwise resolve the
+  // model the user is actually configured for instead of the historical
+  // DeepSeek fixture, which has no credentials on a MiniMax/Anthropic install.
+  const model = options.model ?? process.env.DEFAULT_MODEL ?? getConfiguredModelId();
   if (options.agentSpec) {
     const configuredTools = options.agentSpec.tools === '*'
       ? '*'

@@ -1,19 +1,22 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { config } from 'dotenv';
 import { join } from 'path';
-import { getProviderApiKeyEnvVars, getProviderById } from './providers';
+import { PROVIDERS, getProviderApiKeyEnvVars, getProviderById } from './providers';
 import { getUpupHomeRoot } from './paths';
 
 // Global config directory — honour `$UPUP_HOME` like every other subsystem.
 const GLOBAL_CONFIG_DIR = getUpupHomeRoot();
 const GLOBAL_ENV_FILE = join(GLOBAL_CONFIG_DIR, '.env');
 
-// Load .env from global directory on module import
-try {
-  config({ path: GLOBAL_ENV_FILE, });
-} catch {
-  // Fallback to current directory .env
-  config({ path: '.env', });
+// Load `.env` on module import. The global file (`$UPUP_HOME/.env`) wins so a
+// single file can configure every project; the cwd `.env` is the per-project
+// fallback. NOTE: `dotenv.config()` does **not** throw when the target file is
+// missing — it resolves with `{ error }`. The previous try/catch fallback was
+// therefore dead code, and a project-local `.env` was silently ignored for
+// every consumer that relied on this module to hydrate `process.env`.
+const globalEnvResult = config({ path: GLOBAL_ENV_FILE });
+if (globalEnvResult.error) {
+  config({ path: '.env' });
 }
 
 export function getApiKeyNameForProvider(providerId: string): string | undefined {
@@ -37,6 +40,32 @@ export function checkApiKeyExistsForProvider(providerId: string): boolean {
   const apiKeyNames = getApiKeyNamesForProvider(providerId);
   if (apiKeyNames.length === 0) return true;
   return apiKeyNames.some((apiKeyName) => checkApiKeyExists(apiKeyName));
+}
+
+/**
+ * Providers the user actually has credentials for, in the curated
+ * `PREFERRED_ORDER` (see `providers.ts`).
+ *
+ * Used by onboarding / the TUI model selector so a fresh install with, say,
+ * only `MINIMAX_API_KEY` set does not default to DeepSeek (or drop the user
+ * into a 41-entry picker with no guidance). Providers that are keyless by
+ * design (Ollama) are excluded — they are always "available" but never a
+ * sensible implicit default.
+ */
+export function detectConfiguredProviders(): string[] {
+  return PROVIDERS.filter(
+    (provider) => !isKeylessProvider(provider.id) && checkApiKeyExistsForProvider(provider.id),
+  ).map((provider) => provider.id);
+}
+
+/**
+ * True for providers that need no API key (local runtimes such as Ollama).
+ * They answer `true` from `checkApiKeyExistsForProvider` because they declare
+ * no env vars, which would otherwise make them a false-positive "configured"
+ * provider.
+ */
+export function isKeylessProvider(providerId: string): boolean {
+  return getApiKeyNamesForProvider(providerId).length === 0;
 }
 
 /**

@@ -12,8 +12,12 @@
 import { existsSync } from 'fs';
 import { join } from 'path';
 import { getSetting, SETTINGS_FILE } from '@upup/utils';
-import { checkApiKeyExistsForProvider, getProviderDisplayName } from '@upup/utils';
-import { DEFAULT_MODEL, DEFAULT_PROVIDER } from '@upup/utils';
+import {
+  checkApiKeyExistsForProvider,
+  detectConfiguredProviders,
+  getProviderDisplayName,
+} from '@upup/utils';
+import { getDefaultModelForProvider } from './model';
 
 /**
  * Configuration validation result
@@ -42,10 +46,16 @@ export interface ConfigValidationResult {
 /**
  * Validate the current configuration for completeness and validity.
  *
+ * A provider/key pair the user already has is treated as configured even when
+ * `.upup/settings.json` has no explicit `provider` entry: the TUI resolves the
+ * same implicit provider (see `ModelSelectionController`), so flagging it here
+ * would drop the user into the setup wizard even though `bun run dev` would
+ * have worked. Same for `modelId` — the provider's catalog default is used.
+ *
  * Checks:
- * - Provider is configured
- * - Model is configured
- * - API key exists for the configured provider
+ * - Provider is configured (explicit setting, else a detected API key)
+ * - Model is configured (explicit setting, else the provider default)
+ * - API key exists for the resolved provider
  *
  * @returns ConfigValidationResult with validation status and error details
  */
@@ -53,8 +63,11 @@ export function validateConfig(): ConfigValidationResult {
   const errors: string[] = [];
 
   // Get current configuration
-  const provider = getSetting<string | null>('provider', null);
-  const modelId = getSetting<string | null>('modelId', null);
+  const explicitProvider = getSetting<string | null>('provider', null);
+  const provider = explicitProvider ?? detectConfiguredProviders()[0] ?? null;
+  const explicitModelId = getSetting<string | null>('modelId', null);
+  const modelId =
+    explicitModelId ?? (provider ? getDefaultModelForProvider(provider) ?? null : null);
 
   // Check API key existence (if provider is configured)
   const hasApiKey = provider ? checkApiKeyExistsForProvider(provider) : false;
@@ -110,9 +123,7 @@ export function isFirstTimeUse(): boolean {
  * @returns true if configuration is incomplete and setup is required
  */
 export function requiresSetup(): boolean {
-  const provider = getSetting<string | null>('provider', null);
-  const modelId = getSetting<string | null>('modelId', null);
-  return !provider || !modelId;
+  return !validateConfig().valid;
 }
 
 /**
@@ -156,14 +167,7 @@ export function isModelCustomized(): boolean {
 function getDefaultModelForCurrentProvider(): string | null {
   const provider = getSetting<string | null>('provider', null);
   if (!provider) return null;
-
-  // Import dynamically to avoid circular dependency issues
-  try {
-    const { getDefaultModelForProvider } = require('./model');
-    return getDefaultModelForProvider(provider) ?? null;
-  } catch {
-    return DEFAULT_MODEL;
-  }
+  return getDefaultModelForProvider(provider) ?? null;
 }
 
 // ============================================================================

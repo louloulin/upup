@@ -7,7 +7,14 @@ import {
   piProviderEnvKeys,
 } from '@upup/pi-runtime/model-registry';
 import { OLLAMA_PROVIDER_ID, createOllamaProviderConfig } from '@upup/pi-runtime/custom-providers';
-import { PROVIDERS, getProviderApiKeyEnvVars, getProviderById, resolveProvider } from './providers';
+import {
+  PROVIDERS,
+  getDefaultModelIdForProvider,
+  getProviderApiKeyEnvVars,
+  getProviderById,
+  resolveProvider,
+} from './providers';
+import { RECOMMENDED_MODELS } from './model-defaults';
 
 describe('@upup/utils — provider registry matches the Pi catalog', () => {
   // Ollama is contributed by UpUp via `pi.registerProvider` rather than
@@ -88,5 +95,38 @@ describe('@upup/utils — provider lookup', () => {
 
   test('advertises the pre-Pi-native Google variable as a fallback', () => {
     expect(getProviderApiKeyEnvVars('google')).toEqual(['GEMINI_API_KEY', 'GOOGLE_API_KEY']);
+  });
+});
+
+describe('@upup/utils — default model per provider', () => {
+  test('curated recommendations exist in the Pi catalog', () => {
+    const providers = Object.keys(RECOMMENDED_MODELS);
+    expect(providers.length).toBeGreaterThan(0);
+    for (const providerId of providers) {
+      expect(isPiProvider(providerId)).toBe(true);
+      for (const modelId of RECOMMENDED_MODELS[providerId] ?? []) {
+        // A renamed/removed Pi model must fail loudly instead of silently
+        // degrading the default to whatever the catalog lists first.
+        expect(getPiModelInfo(providerId, modelId)).toBeDefined();
+      }
+    }
+  });
+
+  test('prefers the curated head over the catalog order', () => {
+    expect(getDefaultModelIdForProvider('openai')).toBe('gpt-5.4');
+    expect(getDefaultModelIdForProvider('deepseek')).toBe('deepseek-v4-pro');
+  });
+
+  test('falls back to a published model for providers without curation', () => {
+    // MiniMax is a real Pi provider with no UpUp curation.
+    const minimaxDefault = getDefaultModelIdForProvider('minimax');
+    expect(minimaxDefault).toBeDefined();
+    expect(listPiModels('minimax').map((model) => model.id)).toContain(minimaxDefault!);
+  });
+
+  test('returns undefined for runtime-supplied providers and unknown ids', () => {
+    // Ollama models come from the local server, not the catalog.
+    expect(getDefaultModelIdForProvider('ollama')).toBeUndefined();
+    expect(getDefaultModelIdForProvider('not-a-provider')).toBeUndefined();
   });
 });

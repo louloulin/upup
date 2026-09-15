@@ -15,6 +15,13 @@ export interface ModelSelectionDependencies {
   saveApiKeyForProvider(providerId: string, apiKey: string): boolean;
   getOllamaModels(): Promise<string[]>;
   promptRunner: PromptRunner;
+  /**
+   * Providers the user has credentials for, in curated priority order. Used to
+   * pick a sensible initial provider on a fresh install instead of the
+   * hard-coded `DEFAULT_PROVIDER` (which the user may have no key for).
+   * Optional: falls back to `DEFAULT_PROVIDER` when omitted.
+   */
+  detectConfiguredProviders?(): string[];
 }
 
 const SELECTION_STATES = [
@@ -57,7 +64,13 @@ export class ModelSelectionController {
     this.onChange = onChange;
     this.dependencies = dependencies;
     this.chatHistory = new InMemoryChatHistory(DEFAULT_MODEL, undefined, dependencies.promptRunner);
-    this.providerValue = dependencies.getSetting('provider', DEFAULT_PROVIDER);
+    // Precedence: explicit setting → first provider we actually have a key for
+    // → the historical hard-coded default. Without the middle step a fresh
+    // install with only `MINIMAX_API_KEY` set would default to DeepSeek (no
+    // key) and force the user through the setup wizard for no reason.
+    const detected = dependencies.detectConfiguredProviders?.() ?? [];
+    const implicitProvider = detected[0] ?? DEFAULT_PROVIDER;
+    this.providerValue = dependencies.getSetting('provider', implicitProvider);
     const savedModel = dependencies.getSetting('modelId', null) as string | null;
     this.modelValue =
       savedModel ?? getDefaultModelForProvider(this.providerValue) ?? DEFAULT_MODEL;

@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync, mkdirSync, existsSync } from 'node:
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { watchAgentDirForChanges, type AgentDirReloadTrigger } from './agent-dir-watcher';
+import { resolveAgentDir } from './agent-dir';
 
 function withTempHome<T>(run: (home: string) => Promise<T> | T): Promise<T> {
   const home = mkdtempSync(join(tmpdir(), 'upup-resource-watcher-'));
@@ -57,6 +58,26 @@ describe('@upup/pi-resource-composition — watchAgentDirForChanges', () => {
       }
     });
   }, { timeout: 5_000 });
+
+  // Regression: `home: ''` used to be the default, and `resolveAgentDir`'s
+  // `options.home ?? osHomedir()` treats '' as a real value — so the watcher
+  // watched `<cwd>/settings.json` while the running session read
+  // `~/.pi/agent/settings.json`. The two must always agree when no home is
+  // supplied.
+  test('omitted home resolves to the same agentDir as the session factory', () => {
+    const cwd = mkdtempSync(join(tmpdir(), 'upup-watcher-cwd-'));
+    const env = {} as NodeJS.ProcessEnv;
+    const expected = resolveAgentDir(cwd, { env }).agentDir;
+    for (const options of [{ cwd, env }, { cwd, env, home: '' }, { cwd, env, home: '   ' }]) {
+      const handle = watchAgentDirForChanges(options, () => {});
+      try {
+        expect(handle.agentDir).toBe(expected);
+      } finally {
+        handle.close();
+      }
+    }
+    try { rmSync(cwd, { recursive: true, force: true }); } catch { /* ignore */ }
+  });
 
   test('does not throw when the callback rejects', async () => {
     await withTempHome(async (home) => {
