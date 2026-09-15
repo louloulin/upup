@@ -35,7 +35,9 @@ export interface PlatformMemoryMutationResult {
 }
 
 function memoryRoot(): string {
-  return process.env.UPUP_MEMORY_DIR?.trim() || join(process.env.HOME || homedir(), '.upup', MEMORY_DIR_NAME);
+  // Honour the shared `UPUP_HOME` override alongside the dedicated
+  // `UPUP_MEMORY_DIR` escape hatch (same shape as `mcp.ts` / `heartbeat.ts`).
+  return process.env.UPUP_MEMORY_DIR?.trim() || join(process.env.UPUP_HOME?.trim() || join(process.env.HOME || homedir(), '.upup'), MEMORY_DIR_NAME);
 }
 
 function displayName(file: string): string {

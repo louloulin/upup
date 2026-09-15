@@ -157,7 +157,26 @@ export interface UpUpAgentSpec {
   description: string;
   systemPrompt?: string;
   promptFiles?: readonly string[];
+  /**
+   * Optional whitelist of skill names to expose to the model. When omitted,
+   * every skill the resource loader surfaces (Pi packages + the user's
+   * `~/.agents/skills` library) reaches the system prompt.
+   */
   skills?: readonly string[];
+  /**
+   * Controls whether the user's `~/.agents/skills` (Pi's auto-discovery for
+   * agent-skills) is exposed to the model. The Pi canonical behaviour loads
+   * the full user skill library; UpUp keeps that as the default but lets a
+   * profile opt out so each session does not silently pull in hundreds of
+   * unrelated skills (and their token cost / accidental invocation risk).
+   *
+   * - `'include'` (default) — Pi canonical behaviour; full user library.
+   * - `'exclude'`             — no user library; only skills from explicit
+   *                             Pi package paths and `spec.skills` whitelist.
+   * - `'whitelist-only'`      — same as `'exclude'`, but the resolved set is
+   *                             additionally intersected with `spec.skills`.
+   */
+  userSkills?: 'include' | 'exclude' | 'whitelist-only';
   packages?: readonly string[];
   tools: readonly string[] | '*';
   model?: string;

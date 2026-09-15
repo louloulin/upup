@@ -79,12 +79,16 @@ const DEFAULT_CONFIG: HooksConfig = {
 
 let hooksConfig: HooksConfig = { ...DEFAULT_CONFIG };
 
+// Resolve the global UpUp home at module load. Honours `$UPUP_HOME` so tests
+// can sandbox the hooks SDK the same way the rest of UpUp does.
+const UPUP_HOME_ROOT = process.env.UPUP_HOME?.trim() || join(process.env.HOME || homedir(), '.upup');
+
 // ============================================================================
 // Rate Limiter
 // ============================================================================
 
-const RATE_LIMIT_FILE = join(homedir(), '.upup', 'rate-limit.state');
-const CACHE_DIR = join(homedir(), '.upup', 'cache');
+const RATE_LIMIT_FILE = join(UPUP_HOME_ROOT, 'rate-limit.state');
+const CACHE_DIR = join(UPUP_HOME_ROOT, 'cache');
 
 interface RateLimitState {
   [provider: string]: number;

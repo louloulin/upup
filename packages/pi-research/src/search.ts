@@ -123,10 +123,40 @@ async function searchTavily(query: string, signal?: AbortSignal): Promise<{ valu
   return { value: { provider: 'tavily', query, results, sourceUrls: sourceUrls(raw), searchedAt: new Date().toISOString() }, source: 'https://api.tavily.com/search' };
 }
 
-async function searchPerplexity(query: string, signal?: AbortSignal): Promise<{ value: WebSearchValue; source: string }> {
-  const apiKey = process.env.PERPLEXITY_API_KEY;
-  if (!apiKey) throw new Error('PERPLEXITY_API_KEY is not set');
-  const raw = await requestJson('https://api.perplexity.ai/chat/completions', {
+/**
+ * Structural view of a `ModelRuntime.getAuth` result. Avoids pulling the
+ * full `@earendil-works/pi-coding-agent` into `@upup/pi-research`, which only
+ * wants the credential resolution surface.
+ */
+export interface PiPerplexityAuthLike {
+  readonly apiKey?: string;
+  readonly baseUrl?: string;
+}
+
+/**
+ * Resolver injected by the caller (e.g. the Pi AgentSession, which holds a
+ * `ModelRuntime` and can resolve perplexity credentials from the registered
+ * provider or `~/.pi/agent/auth.json`). When provided, perplexity search
+ * consult the Pi provider registry instead of reading
+ * `process.env.PERPLEXITY_API_KEY` directly, so the credentials inherit the
+ * standard Pi auth-resolution policy.
+ */
+export interface PerplexityAuthResolver {
+  resolvePerplexityAuth(): PiPerplexityAuthLike | undefined;
+}
+
+async function searchPerplexity(
+  query: string,
+  signal?: AbortSignal,
+  options?: { authResolver?: PerplexityAuthResolver },
+): Promise<{ value: WebSearchValue; source: string }> {
+  const fromRuntime = options?.authResolver?.resolvePerplexityAuth();
+  const apiKey = fromRuntime?.apiKey ?? process.env.PERPLEXITY_API_KEY;
+  if (!apiKey) throw new Error('PERPLEXITY_API_KEY is not set (and no Pi runtime credential resolver was supplied)');
+  const endpoint = fromRuntime?.baseUrl
+    ? `${fromRuntime.baseUrl.replace(/\/+$/, '')}/chat/completions`
+    : 'https://api.perplexity.ai/chat/completions';
+  const raw = await requestJson(endpoint, {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ model: 'sonar', messages: [{ role: 'user', content: query }], max_tokens: 4096 }),
@@ -139,11 +169,22 @@ async function searchPerplexity(query: string, signal?: AbortSignal): Promise<{ 
   };
 }
 
-export async function searchWeb(query: string, auditId = '', signal?: AbortSignal): Promise<{ value: WebSearchValue; evidence: SearchEvidence }> {
+export async function searchWeb(
+  query: string,
+  auditId = '',
+  signal?: AbortSignal,
+  options?: { authResolver?: PerplexityAuthResolver },
+): Promise<{ value: WebSearchValue; evidence: SearchEvidence }> {
   const normalized = query.trim();
   if (!normalized) throw new Error('web_search query must not be empty');
-  const provider = process.env.EXASEARCH_API_KEY ? searchExa : process.env.PERPLEXITY_API_KEY ? searchPerplexity : process.env.TAVILY_API_KEY ? searchTavily : undefined;
-  if (!provider) throw new Error('web_search requires EXASEARCH_API_KEY, PERPLEXITY_API_KEY, or TAVILY_API_KEY');
+  const provider = process.env.EXASEARCH_API_KEY
+    ? searchExa
+    : process.env.PERPLEXITY_API_KEY || options?.authResolver
+      ? (q: string, sig?: AbortSignal) => searchPerplexity(q, sig, options)
+      : process.env.TAVILY_API_KEY
+        ? searchTavily
+        : undefined;
+  if (!provider) throw new Error('web_search requires EXASEARCH_API_KEY, PERPLEXITY_API_KEY, a Pi runtime credential resolver, or TAVILY_API_KEY');
   const result = await provider(normalized, signal);
   const retrievedAt = new Date().toISOString();
   return { ...result, evidence: { id: `pi-research:web-search:${auditId || retrievedAt}`, source: result.source, retrievedAt, asOf: retrievedAt.slice(0, 10), query: normalized, dataFreshness: 'live', auditId } };

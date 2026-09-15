@@ -57,6 +57,7 @@ import {
   type SerializedFinanceContext,
 } from '@upup/pi-runtime';
 import { validateAgentSpec } from '@upup/pi-runtime';
+import { resolveNoSkills, shouldWhitelistOnly } from './skill-scope';
 import { getModel, getModels } from '@earendil-works/pi-ai/compat';
 import { existsSync, readFileSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
@@ -64,6 +65,7 @@ import { dirname, relative, resolve, sep } from 'node:path';
 import { PiPackageCatalog, verifyPiResourceTrust } from '@upup/pi-resource-composition';
 import { mergePiPackageTrust, resolveConfiguredPiPackages } from '@upup/pi-resource-composition';
 import { evaluatePiPackage } from '@upup/pi-resource-composition';
+import { resolveAgentDir } from '@upup/pi-resource-composition';
 
 import { createPiHostBridge, disposePiHostBridge, type PiHostBridge, type PiManagementSnapshot } from './host-contract';
 
@@ -76,6 +78,8 @@ export type PlatformRunPromptOptions = Parameters<
 >[1];
 import type { NativeMarketQuoteTrendStore, GatewayAgentRuntimePort, GatewayRuntime } from './builtin-composition';
 import { publishPiCapabilityHosts, type PiCapabilityEventBus } from '@upup/pi-capability-registry';
+
+
 
 function installPiPackageToolHosts(
 
@@ -355,7 +359,8 @@ export class PiAgentSessionFactory implements UpUpAgentRuntime {
       ),
     };
     const sessionFileBeforeInitialization = sessionManager.getSessionFile();
-    const settingsManager = SettingsManager.inMemory();
+    const { agentDir } = resolveAgentDir(cwd);
+    const settingsManager = SettingsManager.create(cwd, agentDir);
     const capabilityEvents = createEventBus();
     let disposePackageHosts = async (): Promise<void> => undefined;
     const runWorkerPrompt = async (
@@ -399,7 +404,7 @@ export class PiAgentSessionFactory implements UpUpAgentRuntime {
     };
     const resourceLoader = new DefaultResourceLoader({
       cwd,
-      agentDir: cwd,
+      agentDir,
       settingsManager,
       eventBus: capabilityEvents,
       extensionFactories: [
@@ -425,6 +430,17 @@ export class PiAgentSessionFactory implements UpUpAgentRuntime {
       additionalSkillPaths: trustedSkills.paths.length ? trustedSkills.paths : undefined,
       additionalPromptTemplatePaths: trustedPrompts.paths.length ? trustedPrompts.paths : undefined,
       skillsOverride: (base) => {
+        const policy = spec.userSkills ?? 'include';
+        // 'whitelist-only' narrows the visible set to spec.skills regardless of
+        // whether Pi's auto-discovery already loaded user skills; this is the
+        // safest mode for production deployments with a fixed investment toolset.
+        if (policy === 'whitelist-only' && spec.skills !== undefined) {
+          const allowedSkills = new Set(spec.skills);
+          return {
+            ...base,
+            skills: base.skills.filter((skill) => allowedSkills.has(skill.name)),
+          };
+        }
         if (spec.skills === undefined) return base;
         const allowedSkills = new Set(spec.skills);
         return {
@@ -432,7 +448,7 @@ export class PiAgentSessionFactory implements UpUpAgentRuntime {
           skills: base.skills.filter((skill) => allowedSkills.has(skill.name)),
         };
       },
-      noSkills: trustedSkills.paths.length === 0,
+      noSkills: resolveNoSkills(spec, trustedSkills.paths.length),
       noPromptTemplates: trustedPrompts.paths.length === 0,
       noThemes: true,
       noContextFiles: true,
@@ -502,7 +518,12 @@ export class PiAgentSessionFactory implements UpUpAgentRuntime {
       sessionManager,
       settingsManager,
       resourceLoader,
-      model: options.model ?? resolvePiModel({ modelName: spec.model }),
+      model: options.model ?? resolvePiModel({
+        modelName: spec.model,
+        ...(options.modelRuntime
+          ? { modelRuntime: { getModel: options.modelRuntime.getModel.bind(options.modelRuntime) } }
+          : {}),
+      }),
       modelRuntime: options.modelRuntime,
       noTools: 'builtin',
       thinkingLevel: spec.thinkingLevel === 'off' ? 'minimal' : spec.thinkingLevel,

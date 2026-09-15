@@ -1,4 +1,5 @@
 import { DefaultResourceLoader, loadSkills } from '@earendil-works/pi-coding-agent';
+import { resolveAgentDir } from './agent-dir';
 import { resolveConfiguredPiPackages } from './package-config';
 import { PiPackageCatalog } from './package-catalog';
 import { verifyPiResourceTrust } from './plugin-trust';
@@ -30,9 +31,10 @@ function toSkillCommands(skills: readonly { name: string; description: string; d
 }
 
 export function listPiSkillCommandsSync(cwd = process.cwd()): readonly PiSkillCommand[] {
+  const { agentDir } = resolveAgentDir(cwd);
   const result = loadSkills({
     cwd,
-    agentDir: cwd,
+    agentDir,
     skillPaths: packageSkillPaths(cwd),
     includeDefaults: true,
   });
@@ -46,9 +48,10 @@ export function listPiSkillCommandsSync(cwd = process.cwd()): readonly PiSkillCo
  * Pi AgentSession, which performs the actual `/skill:<name>` expansion.
  */
 export async function listPiSkillCommands(cwd = process.cwd()): Promise<readonly PiSkillCommand[]> {
+  const { agentDir } = resolveAgentDir(cwd);
   const loader = new DefaultResourceLoader({
     cwd,
-    agentDir: cwd,
+    agentDir,
     additionalSkillPaths: packageSkillPaths(cwd),
   });
   await loader.reload();

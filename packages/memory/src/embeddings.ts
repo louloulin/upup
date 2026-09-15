@@ -8,6 +8,29 @@ const EMBEDDING_TIMEOUT_MS = 15_000;
 
 type ResolvedProvider = Exclude<EmbeddingProviderId, 'auto' | 'none'>;
 
+/**
+ * Structural view of a `ModelRuntime.getAuth` result, scoped to the
+ * providers the embeddings client knows about (openai / google / ollama).
+ * Avoids pulling `@earendil-works/pi-coding-agent` into `@upup/memory`,
+ * which only wants the credential resolution surface.
+ */
+export interface EmbeddingProviderAuth {
+  readonly apiKey?: string;
+  readonly baseUrl?: string;
+}
+
+/**
+ * Resolver injected by the caller (e.g. the Pi AgentSession, which holds a
+ * `ModelRuntime` and can resolve credentials from the registered provider or
+ * `~/.pi/agent/auth.json`). When supplied, embeddings consult the Pi provider
+ * registry first instead of reading the legacy `process.env.*` keys directly.
+ */
+export type EmbeddingProviderPiId = 'openai' | 'google' | 'ollama';
+
+export interface EmbeddingAuthResolver {
+  resolveEmbeddingAuth(providerId: EmbeddingProviderPiId): EmbeddingProviderAuth | undefined;
+}
+
 function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(message)), ms);
@@ -24,20 +47,30 @@ function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promi
   });
 }
 
-/**
- * Pi resolves Google credentials from `GEMINI_API_KEY`; `GOOGLE_API_KEY` stays
- * accepted for `.env` files written before UpUp became Pi-native.
- */
-function googleApiKey(): string | undefined {
-  const value = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-  return value && value.trim() ? value : undefined;
+function openaiApiKey(resolver?: EmbeddingAuthResolver): string | undefined {
+  return resolver?.resolveEmbeddingAuth('openai')?.apiKey ?? process.env.OPENAI_API_KEY;
 }
 
-function resolveProvider(preferred: EmbeddingProviderId): ResolvedProvider | null {
-  if (preferred === 'openai' && process.env.OPENAI_API_KEY) {
+function geminiApiKey(resolver?: EmbeddingAuthResolver): string | undefined {
+  const resolved = resolver?.resolveEmbeddingAuth('google')?.apiKey;
+  if (resolved) return resolved;
+  const env = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+  return env && env.trim() ? env : undefined;
+}
+
+function ollamaBaseUrlFromEnv(resolver?: EmbeddingAuthResolver): string | undefined {
+  return resolver?.resolveEmbeddingAuth('ollama')?.baseUrl ?? process.env.OLLAMA_BASE_URL;
+}
+
+
+function resolveProvider(
+  preferred: EmbeddingProviderId,
+  resolver?: EmbeddingAuthResolver,
+): ResolvedProvider | null {
+  if (preferred === 'openai' && openaiApiKey(resolver)) {
     return 'openai';
   }
-  if (preferred === 'gemini' && googleApiKey()) {
+  if (preferred === 'gemini' && geminiApiKey(resolver)) {
     return 'gemini';
   }
   if (preferred === 'ollama') {
@@ -45,13 +78,13 @@ function resolveProvider(preferred: EmbeddingProviderId): ResolvedProvider | nul
   }
 
   if (preferred === 'auto') {
-    if (process.env.OPENAI_API_KEY) {
+    if (openaiApiKey(resolver)) {
       return 'openai';
     }
-    if (googleApiKey()) {
+    if (geminiApiKey(resolver)) {
       return 'gemini';
     }
-    if (process.env.OLLAMA_BASE_URL) {
+    if (ollamaBaseUrlFromEnv(resolver)) {
       return 'ollama';
     }
   }
@@ -75,15 +108,23 @@ async function embedInBatches(
 export function createEmbeddingClient(params: {
   provider: EmbeddingProviderId;
   model?: string;
+  /**
+   * Optional Pi runtime credential resolver. When supplied, the embeddings
+   * client consults the resolver before falling back to `process.env` so
+   * registered provider credentials (`~/.pi/agent/auth.json` +
+   * `pi.registerProvider` contributions) reach the embedding endpoints.
+   */
+  authResolver?: EmbeddingAuthResolver;
 }): MemoryEmbeddingClient | null {
-  const resolved = resolveProvider(params.provider);
+  const resolved = resolveProvider(params.provider, params.authResolver);
   if (!resolved) {
     return null;
   }
 
   if (resolved === 'openai') {
     const model = params.model || DEFAULT_OPENAI_MODEL;
-    const embed = async (batch: string[]) => requestEmbeddings('https://api.openai.com/v1/embeddings', process.env.OPENAI_API_KEY, model, batch);
+    const apiKey = openaiApiKey(params.authResolver);
+    const embed = async (batch: string[]) => requestEmbeddings('https://api.openai.com/v1/embeddings', apiKey, model, batch);
     return {
       provider: 'openai',
       model,
@@ -94,7 +135,8 @@ export function createEmbeddingClient(params: {
 
   if (resolved === 'gemini') {
     const model = params.model || DEFAULT_GEMINI_MODEL;
-    const embed = async (batch: string[]) => requestEmbeddings(`https://generativelanguage.googleapis.com/v1beta/models/${model}:batchEmbedContents?key=${googleApiKey()}`, undefined, model, batch, 'google');
+    const apiKey = geminiApiKey(params.authResolver);
+    const embed = async (batch: string[]) => requestEmbeddings(`https://generativelanguage.googleapis.com/v1beta/models/${model}:batchEmbedContents?key=${apiKey}`, undefined, model, batch, 'google');
     return {
       provider: 'gemini',
       model,
@@ -104,7 +146,9 @@ export function createEmbeddingClient(params: {
   }
 
   const model = params.model || DEFAULT_OLLAMA_MODEL;
-  const embed = async (batch: string[]) => requestEmbeddings(`${process.env.OLLAMA_BASE_URL ?? 'http://127.0.0.1:11434'}/api/embed`, undefined, model, batch, 'ollama');
+  const rawBaseUrl = ollamaBaseUrlFromEnv(params.authResolver) ?? 'http://127.0.0.1:11434';
+  const baseUrl = rawBaseUrl.replace(/\/+$/, '');
+  const embed = async (batch: string[]) => requestEmbeddings(`${baseUrl}/api/embed`, undefined, model, batch, 'ollama');
   return {
     provider: 'ollama',
     model,

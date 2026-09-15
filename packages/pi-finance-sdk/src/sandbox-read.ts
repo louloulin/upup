@@ -32,7 +32,7 @@ interface SandboxState {
 }
 
 export function sandboxStateFile(): string {
-  return process.env.UPUP_SANDBOX_STATE_FILE?.trim() || join(homedir(), '.upup', 'sandbox-state.json');
+  return process.env.UPUP_SANDBOX_STATE_FILE?.trim() || join(process.env.UPUP_HOME?.trim() || join(process.env.HOME || homedir(), '.upup'), 'sandbox-state.json');
 }
 
 export function sandboxQuote(symbol: string, timestamp = Date.now()): SandboxQuote {

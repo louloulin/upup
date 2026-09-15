@@ -48,11 +48,28 @@ export interface PiModelResolutionDiagnostic {
  */
 export const detectPiProvider = detectPiProviderImpl;
 
+/**
+ * Structural view of Pi's `ModelRuntime#getModel`. Avoids pulling the full
+ * `@earendil-works/pi-coding-agent` into `@upup/pi-event-adapter`, which only
+ * wants the catalog lookup surface. The real `ModelRuntime` is structurally
+ * compatible so callers can pass it directly.
+ */
+export interface ModelRuntimeLike {
+  getModel(providerId: string, modelId: string): unknown;
+}
+
 export interface ResolvePiModelOptions {
   /** Caller-provided model id (overrides `DEFAULT_MODEL` env). */
   modelName?: string;
   /** Optional override for the default model when nothing is configured. */
   fallback?: string;
+  /**
+   * Optional Pi `ModelRuntime` whose registered providers (`pi.registerProvider`
+   * contributions + `~/.pi/agent/models.json` entries) are queried after the
+   * built-in catalog misses. Without this, user-defined provider/model pairs
+   * such as `minimax:MiniMax-M3` silently fall back to the Pi default.
+   */
+  modelRuntime?: ModelRuntimeLike;
 }
 
 interface ParsedModelSpec {
@@ -71,7 +88,11 @@ function parseModelSpec(options: ResolvePiModelOptions): ParsedModelSpec {
   return { requested, provider, model };
 }
 
-function lookupPiModel(provider: string, model: string): Model<never> | undefined {
+function lookupPiModel(
+  provider: string,
+  model: string,
+  modelRuntime?: ModelRuntimeLike,
+): Model<never> | undefined {
   // Ollama is contributed to Pi by an UpUp inline extension rather than by the
   // catalog, so it is resolved from the same module that registers it.
   if (provider === OLLAMA_PROVIDER_ID) {
@@ -82,7 +103,21 @@ function lookupPiModel(provider: string, model: string): Model<never> | undefine
   if (direct) return direct;
   const stripped = model.replace(/^openrouter:/, '');
   if (stripped !== model) {
-    return getBuiltinModel(provider as never, stripped as never) as Model<never> | undefined;
+    const fallback = getBuiltinModel(provider as never, stripped as never) as Model<never> | undefined;
+    if (fallback) return fallback;
+  }
+  // Last-resort: ask the caller's `ModelRuntime` (which has both the
+  // registered providers from inline extensions and the on-disk
+  // `~/.pi/agent/models.json` entries loaded). This is what audit §4.6
+  // identified as the missing leg: without it, custom provider/model pairs
+  // like `minimax:MiniMax-M3` would silently fall back to the Pi default.
+  if (modelRuntime) {
+    try {
+      const fromRuntime = modelRuntime.getModel(provider, model);
+      if (fromRuntime) return fromRuntime as Model<never>;
+    } catch {
+      /* ignore malformed runtime; treat as miss */
+    }
   }
   return undefined;
 }
@@ -96,7 +131,7 @@ function lookupPiModel(provider: string, model: string): Model<never> | undefine
  */
 export function resolvePiModel(options: ResolvePiModelOptions = {}): Model<any> | undefined {
   const { provider, model } = parseModelSpec(options);
-  return lookupPiModel(provider, model) as Model<any> | undefined;
+  return lookupPiModel(provider, model, options.modelRuntime) as Model<any> | undefined;
 }
 
 /** Whether a model spec targets a provider UpUp registers into Pi itself. */
@@ -114,7 +149,7 @@ export function describePiModelResolution(
       requested,
       provider,
       model,
-      resolved: Boolean(lookupPiModel(provider, model)),
+      resolved: Boolean(lookupPiModel(provider, model, options.modelRuntime)),
       reason: 'custom-provider',
       availableModels: [],
     };
@@ -123,7 +158,7 @@ export function describePiModelResolution(
     return { requested, provider, model, resolved: false, reason: 'unknown-provider', availableModels: [] };
   }
   const availableModels = listPiModels(provider).map((candidate) => candidate.id);
-  const resolved = Boolean(lookupPiModel(provider, model));
+  const resolved = Boolean(lookupPiModel(provider, model, options.modelRuntime));
   return {
     requested,
     provider,

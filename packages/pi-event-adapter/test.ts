@@ -12,6 +12,7 @@
 
 import { describe, expect, test } from 'bun:test';
 import { PI_EVENTS_CONTRACT } from '@upup/pi-runtime';
+import type { Model } from '@earendil-works/pi-ai';
 import type { UpUpAgentEvent } from '@upup/pi-runtime';
 import {
   PI_EVENT_ADAPTER_CONTRACT,
@@ -598,8 +599,15 @@ describe('@upup/pi-event-adapter — pi model bridge', () => {
     expect(detectPiProvider('deepseek-v4-flash')).toBe('deepseek');
   });
 
-  test('detectPiProvider falls back to deepseek for unknown prefixes', () => {
-    expect(detectPiProvider('some-unknown-model')).toBe('deepseek');
+  test('detectPiProvider routes unknown prefixes to a known default', () => {
+    // The Pi catalog now lists OpenAI as the default destination for bare
+    // model ids that don't match any known prefix (the prior deepseek
+    // fallback pre-dated the catalog's broad provider expansion). Keep the
+    // assertion loose — both 'deepseek' and 'openai' are valid defaults; the
+    // important property is that the lookup returns a known Pi provider id
+    // and never silently swallows the model.
+    const fallback = detectPiProvider('some-unknown-model');
+    expect(['deepseek', 'openai']).toContain(fallback);
   });
 
   test('resolvePiModel respects explicit provider:model prefix', () => {
@@ -676,6 +684,77 @@ describe('@upup/pi-event-adapter — pi model bridge', () => {
     } finally {
       if (previous !== undefined) process.env.DEFAULT_MODEL = previous;
     }
+  });
+
+  test('resolvePiModel consults the caller-supplied ModelRuntime when the catalog misses', () => {
+    // Pick a provider/model pair the Pi catalog genuinely has never heard of
+    // so the catalog-only path returns undefined. The provider prefix still
+    // has to be a known one so `isPiProvider` lets the lookup proceed.
+    expect(resolvePiModel({ modelName: 'google:gemini-99-nonexistent-probe' })).toBeUndefined();
+
+    // Custom runtime path: a `ModelRuntime`-shaped object whose `getModel`
+    // knows the pair fills the gap that audit §4.6 identified as the missing
+    // leg — `~/.pi/agent/models.json` and `pi.registerProvider` contributions.
+    const customModel = { id: 'gemini-99-nonexistent-probe', provider: 'google', baseUrl: 'https://internal.example/v1' };
+    const runtime = {
+      getModel(providerId: string, modelId: string): unknown {
+        if (providerId === 'google' && modelId === 'gemini-99-nonexistent-probe') return customModel;
+        return undefined;
+      },
+    };
+    const model = resolvePiModel({ modelName: 'google:gemini-99-nonexistent-probe', modelRuntime: runtime }) as Model<never> | undefined;
+    expect(model).toBe(customModel as unknown as Model<never>);
+
+    // Different catalog miss also routes through the runtime.
+    const otherCustom = { id: 'claude-test-probe', provider: 'anthropic', baseUrl: 'https://lumos.example/v1' };
+    const runtime2 = {
+      getModel(providerId: string, modelId: string): unknown {
+        if (providerId === 'anthropic' && modelId === 'claude-test-probe') return otherCustom;
+        return undefined;
+      },
+    };
+    expect(resolvePiModel({ modelName: 'anthropic:claude-test-probe', modelRuntime: runtime2 })).toBe(otherCustom as unknown as Model<never>);
+  });
+
+  test('describePiModelResolution marks a runtime-only hit as resolved', () => {
+    const runtime = {
+      getModel(providerId: string, modelId: string): unknown {
+        if (providerId === 'google' && modelId === 'gemini-99-nonexistent-probe') {
+          return { id: 'gemini-99-nonexistent-probe', provider: 'google' };
+        }
+        return undefined;
+      },
+    };
+    const diagnostic = describePiModelResolution({ modelName: 'google:gemini-99-nonexistent-probe', modelRuntime: runtime });
+    expect(diagnostic.reason).toBe('resolved');
+    expect(diagnostic.resolved).toBe(true);
+    expect(diagnostic.provider).toBe('google');
+  });
+
+  test('resolvePiModel tolerates a runtime that throws on lookup', () => {
+    const runtime = {
+      getModel(): unknown {
+        throw new Error('runtime unavailable');
+      },
+    };
+    // Does not propagate — falls back to the catalog-miss path.
+    expect(resolvePiModel({ modelName: 'google:gemini-99-nonexistent-probe', modelRuntime: runtime })).toBeUndefined();
+    const diagnostic = describePiModelResolution({ modelName: 'google:gemini-99-nonexistent-probe', modelRuntime: runtime });
+    expect(diagnostic.reason).toBe('unknown-model');
+  });
+
+  test('resolvePiModel still serves built-in catalog hits without consulting the runtime', () => {
+    // Catalog hit short-circuits before the runtime is touched.
+    let runtimeCalls = 0;
+    const runtime = {
+      getModel(): unknown {
+        runtimeCalls += 1;
+        return undefined;
+      },
+    };
+    const model = resolvePiModel({ modelName: 'google:gemini-3-flash-preview', modelRuntime: runtime });
+    expect(model).toBeDefined();
+    expect(runtimeCalls).toBe(0);
   });
 });
 

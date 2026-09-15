@@ -11,8 +11,7 @@
 
 import { existsSync } from 'fs';
 import { join } from 'path';
-import { homedir } from 'os';
-import { getSetting } from '@upup/utils';
+import { getSetting, SETTINGS_FILE } from '@upup/utils';
 import { checkApiKeyExistsForProvider, getProviderDisplayName } from '@upup/utils';
 import { DEFAULT_MODEL, DEFAULT_PROVIDER } from '@upup/utils';
 
@@ -100,7 +99,7 @@ export function validateConfig(): ConfigValidationResult {
  * @returns true if this is the first time UpUp is being used
  */
 export function isFirstTimeUse(): boolean {
-  const configPath = join(homedir(), '.upup', 'settings.json');
+  const configPath = SETTINGS_FILE;
   return !existsSync(configPath);
 }
 

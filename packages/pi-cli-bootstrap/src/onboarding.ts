@@ -6,10 +6,9 @@
 
 import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { createInterface } from 'readline';
-import { homedir } from 'os';
 import { join } from 'path';
 import { config } from 'dotenv';
-import { PROVIDERS, type ProviderDef } from '@upup/utils';
+import { PROVIDERS, type ProviderDef, globalUpupPath } from '@upup/utils';
 import { getModelsForProvider } from '@upup/pi-tui-app';
 import { saveApiKeyToEnv, getApiKeyNameForProvider } from '@upup/utils';
 import { setSetting } from '@upup/utils';
@@ -186,11 +185,11 @@ async function setDefaultModel(providerId: string, modelId: string): Promise<voi
   setSetting('modelId', modelId);
 
   // Also update .env for compatibility
-  const envPath = join(homedir(), '.upup', '.env');
+  const envPath = globalUpupPath('.env');
   let lines: string[] = [];
 
   // Ensure directory exists
-  const envDir = join(homedir(), '.upup');
+  const envDir = globalUpupPath();
   if (!existsSync(envDir)) {
     // Note: We don't create the directory here, just use settings.json
     return;

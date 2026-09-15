@@ -75,7 +75,12 @@
     "verify:pi-stdio-stability": "bun run scripts/verify-pi-stdio-stability.ts",
     "verify:pi5": "bun run scripts/verify-pi5.ts",
     "verify:pi-side-effects-cross-process": "bun test scripts/verify-pi-side-effects-cross-process.test.ts",
-    "verify:pi7-final": "bun run scripts/verify-pi7-final.ts"
+    "verify:pi-plugin-e2e": "bun test scripts/verify-pi-plugin-e2e.test.ts",
+    "verify:pi-acp": "bun test packages/pi-stdio/src/acp.test.ts packages/pi-stdio/src/acp-server.test.ts",
+    "verify:pi-cbor": "bun test scripts/verify-pi-cbor.test.ts",
+    "verify:pi7-final": "bun run scripts/verify-pi7-final.ts",
+    "check:upup-home": "bun run scripts/check-upup-home.ts",
+    "lint:upup-home": "bun run scripts/check-upup-home.ts"
   },
   "dependencies": {
     "@upup/pi-finance-sdk": "workspace:*",
@@ -94,6 +99,7 @@
     "@upup/pi-quant": "workspace:*",
     "@upup/pi-research": "workspace:*",
     "@duckdb/duckdb-wasm": "^1.33.1-dev45.0",
+    "@earendil-works/chord": "0.85.1",
     "@earendil-works/pi-agent-core": "0.85.1",
     "@earendil-works/pi-ai": "0.85.1",
     "@earendil-works/pi-client": "0.85.1",

@@ -264,8 +264,14 @@ describe('PiAgentSessionFactory', () => {
   test('loads native Platform memory tools with persistent file semantics and package isolation', async () => {
     const packageRoot = join(process.cwd(), 'packages');
     const memoryRoot = await mkdtemp(join(process.cwd(), '.tmp-pi-platform-memory-'));
+    const agentDirRoot = await mkdtemp(join(process.cwd(), '.tmp-pi-platform-agent-dir-'));
     const previousMemoryRoot = process.env.UPUP_MEMORY_DIR;
+    const previousAgentDir = process.env.UPUP_AGENT_DIR;
     process.env.UPUP_MEMORY_DIR = memoryRoot;
+    // Isolate the test from the real ~/.pi/agent on this machine; resolveAgentDir
+    // honours UPUP_AGENT_DIR and falls back to cwd otherwise, which would let
+    // any locally-installed Pi resources pollute memory_search results.
+    process.env.UPUP_AGENT_DIR = agentDirRoot;
     const spec = { ...getInvestmentAgentSpec('invest-explore'), id: 'platform-memory-session', packages: ['@upup/pi-platform'], skills: [], tools: ['memory_search', 'memory_get', 'memory_update'] };
     const trust = { trustedPaths: [join(packageRoot, 'pi-platform')], pinnedPackages: { '@upup/pi-platform': '0.1.0', '@earendil-works/pi-coding-agent': '0.85.1', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-platform': ['builtin:upup'] } };
     try {
@@ -284,7 +290,10 @@ describe('PiAgentSessionFactory', () => {
     } finally {
       if (previousMemoryRoot === undefined) delete process.env.UPUP_MEMORY_DIR;
       else process.env.UPUP_MEMORY_DIR = previousMemoryRoot;
+      if (previousAgentDir === undefined) delete process.env.UPUP_AGENT_DIR;
+      else process.env.UPUP_AGENT_DIR = previousAgentDir;
       await rm(memoryRoot, { recursive: true, force: true });
+      await rm(agentDirRoot, { recursive: true, force: true });
     }
   });
 

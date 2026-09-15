@@ -11,6 +11,7 @@
 // requirement "validates token auth + message routing" adequately.
 
 import { describe, expect, test, beforeEach, afterEach } from 'bun:test';
+import { randomUUID } from 'node:crypto';
 import { mkdtempSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -281,5 +282,123 @@ describe('startBridgeServer — read-only snapshot endpoints (P2.b.2)', () => {
       `http://127.0.0.1:${port}/bridge/snapshot/session/?token=secret-snap-empty`,
     );
     expect(r.status).toBe(400);
+  });
+});
+
+describe('startBridgeServer — Phase 0.1c notify-reload endpoint', () => {
+  async function startWithHook(token: string, onReloadRequest: (ctx: import('./server').BridgeReloadContext) => Promise<import('./server').BridgeReloadResult> | import('./server').BridgeReloadResult) {
+    const auditPath = join(tmpdir(), `upup-bridge-audit-${randomUUID()}.log`);
+    return startBridgeServer({
+      port: 0,
+      token,
+      auditPath,
+      runtime,
+      onReloadRequest,
+    });
+  }
+
+  test('POST /bridge/notify-reload without token → 401', async () => {
+    const server = await startWithHook('secret-reload', async () => ({ extensions: 0, skills: 0, prompts: 0, themes: 0, message: '' }));
+    try {
+      const r = await fetch(`http://127.0.0.1:${server.port}/bridge/notify-reload`, { method: 'POST' });
+      expect(r.status).toBe(401);
+      const body = await r.json() as { ok: boolean };
+      expect(body.ok).toBe(false);
+    } finally {
+      await server.stop();
+    }
+  });
+
+  test('POST /bridge/notify-reload with wrong token → 401', async () => {
+    const server = await startWithHook('secret-reload', async () => ({ extensions: 0, skills: 0, prompts: 0, themes: 0, message: '' }));
+    try {
+      const r = await fetch(`http://127.0.0.1:${server.port}/bridge/notify-reload?token=wrong`, { method: 'POST' });
+      expect(r.status).toBe(401);
+    } finally {
+      await server.stop();
+    }
+  });
+
+  test('POST /bridge/notify-reload invokes the hook and returns the result counts', async () => {
+    let observed: import('./server').BridgeReloadContext | undefined;
+    const server = await startWithHook('secret-reload', async (ctx) => {
+      observed = ctx;
+      return { extensions: 2, skills: 11, prompts: 0, themes: 0, message: 'reloaded' };
+    });
+    try {
+      const r = await fetch(
+        `http://127.0.0.1:${server.port}/bridge/notify-reload?token=secret-reload`,
+        { method: 'POST', body: JSON.stringify({ triggeredBy: 'unit-test' }) },
+      );
+      expect(r.status).toBe(200);
+      const body = await r.json() as { ok: boolean; extensions: number; skills: number; message: string };
+      expect(body.ok).toBe(true);
+      expect(body.extensions).toBe(2);
+      expect(body.skills).toBe(11);
+      expect(body.message).toBe('reloaded');
+      expect(observed?.triggeredBy).toBe('unit-test');
+      expect(typeof observed?.triggeredAt).toBe('number');
+    } finally {
+      await server.stop();
+    }
+  });
+
+  test('POST /bridge/notify-reload defaults triggeredBy to the token clientId', async () => {
+    let observed: import('./server').BridgeReloadContext | undefined;
+    const server = await startWithHook('shared-secret', async (ctx) => {
+      observed = ctx;
+      return { extensions: 0, skills: 0, prompts: 0, themes: 0, message: '' };
+    });
+    try {
+      // Dev-mode token (raw secret, not signed) → clientId 'shared-secret'
+      const r = await fetch(`http://127.0.0.1:${server.port}/bridge/notify-reload?token=shared-secret`, { method: 'POST' });
+      expect(r.status).toBe(200);
+      expect(observed?.triggeredBy).toBe('shared-secret');
+    } finally {
+      await server.stop();
+    }
+  });
+
+  test('POST /bridge/notify-reload → 501 when no hook configured', async () => {
+    const auditPath = join(tmpdir(), `upup-bridge-audit-${randomUUID()}.log`);
+    const server = await startBridgeServer({ port: 0, token: 'secret-no-hook', auditPath, runtime });
+    try {
+      const r = await fetch(`http://127.0.0.1:${server.port}/bridge/notify-reload?token=secret-no-hook`, { method: 'POST' });
+      expect(r.status).toBe(501);
+      const body = await r.json() as { ok: boolean; error: string };
+      expect(body.ok).toBe(false);
+      expect(body.error).toBe('reload-not-supported');
+    } finally {
+      await server.stop();
+    }
+  });
+
+  test('POST /bridge/notify-reload → 500 when the hook throws', async () => {
+    const server = await startWithHook('secret-throw', async () => {
+      throw new Error('upstream unreachable');
+    });
+    try {
+      const r = await fetch(`http://127.0.0.1:${server.port}/bridge/notify-reload?token=secret-throw`, { method: 'POST' });
+      expect(r.status).toBe(500);
+      const body = await r.json() as { ok: boolean; error: string; message: string };
+      expect(body.ok).toBe(false);
+      expect(body.error).toBe('reload-failed');
+      expect(body.message).toBe('upstream unreachable');
+    } finally {
+      await server.stop();
+    }
+  });
+
+  test('POST /bridge/notify-reload → 400 on invalid JSON body', async () => {
+    const server = await startWithHook('secret-bad-json', async () => ({ extensions: 0, skills: 0, prompts: 0, themes: 0, message: '' }));
+    try {
+      const r = await fetch(
+        `http://127.0.0.1:${server.port}/bridge/notify-reload?token=secret-bad-json`,
+        { method: 'POST', body: 'not-json{' },
+      );
+      expect(r.status).toBe(400);
+    } finally {
+      await server.stop();
+    }
   });
 });

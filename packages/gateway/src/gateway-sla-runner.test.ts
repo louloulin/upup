@@ -34,6 +34,8 @@ function uninstallHook(): void {
 
 describe('Gateway provider SLA runner integration', () => {
   let rootDir = '';
+  let previousUpupHome: string | undefined;
+  let previousProviderMetricsPath: string | undefined;
   let runtime: GatewayRuntime;
 
   beforeEach(() => {
@@ -52,14 +54,18 @@ describe('Gateway provider SLA runner integration', () => {
     capture.created = 0;
     installHook();
     rootDir = mkdtempSync(join(tmpdir(), 'upup-gateway-sla-'));
+    previousUpupHome = process.env.UPUP_HOME;
+    previousProviderMetricsPath = process.env.UPUP_PROVIDER_METRICS_PATH;
     process.env.UPUP_HOME = rootDir;
     process.env.UPUP_PROVIDER_METRICS_PATH = join(rootDir, 'metrics.json');
   });
 
   afterEach(() => {
     uninstallHook();
-    delete process.env.UPUP_HOME;
-    delete process.env.UPUP_PROVIDER_METRICS_PATH;
+    if (previousUpupHome === undefined) delete process.env.UPUP_HOME;
+    else process.env.UPUP_HOME = previousUpupHome;
+    if (previousProviderMetricsPath === undefined) delete process.env.UPUP_PROVIDER_METRICS_PATH;
+    else process.env.UPUP_PROVIDER_METRICS_PATH = previousProviderMetricsPath;
     if (rootDir) { rmSync(rootDir, { recursive: true, force: true }); rootDir = ''; }
     runtime = undefined as never;
   });

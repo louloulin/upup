@@ -71,6 +71,38 @@ export interface BridgeServerConfig {
   /** Pi-backed message execution hook. Defaults to the production Gateway runner. */
   agentRunner?: (request: AgentRunRequest) => Promise<string>;
   runtime: GatewayRuntime;
+  /**
+   * Optional Phase-0.1c reload hook. Called when `POST /bridge/notify-reload`
+   * is invoked with the bridge token. The hook should re-discover Pi
+   * resources (extensions/skills/prompts) and reconcile any active sessions.
+   * Errors are logged and reported to the caller; the HTTP endpoint always
+   * returns a structured response (never throws).
+   */
+  onReloadRequest?: (context: BridgeReloadContext) => Promise<BridgeReloadResult> | BridgeReloadResult;
+}
+
+/**
+ * Context the bridge hands to the reload hook so it can address the same
+ * resources the bridge session is currently serving. Defaults mirror the
+ * server config so callers that don't care can ignore them.
+ */
+export interface BridgeReloadContext {
+  readonly agentDir: string;
+  readonly triggeredBy: string;
+  readonly triggeredAt: number;
+}
+
+/**
+ * Structured response from the reload hook. The HTTP endpoint maps this to a
+ * JSON body; consumers (CLI, watcher, bridge client) inspect the counts to
+ * confirm the reload actually moved.
+ */
+export interface BridgeReloadResult {
+  readonly extensions: number;
+  readonly skills: number;
+  readonly prompts: number;
+  readonly themes: number;
+  readonly message: string;
 }
 
 export interface BridgeServer {
@@ -90,7 +122,9 @@ export async function startBridgeServer(cfg: BridgeServerConfig): Promise<Bridge
   const sync =
     cfg.sessionSync ??
     new SessionSync({
-      storageDir: cfg.sessionStorageDir ?? join(homedir(), '.upup', 'sessions'),
+      // Honour the shared `UPUP_HOME` override (same pattern as @upup/pi-platform
+      // and @upup/pi-market-data) so tests and installs stay sandboxed.
+      storageDir: cfg.sessionStorageDir ?? join(process.env.UPUP_HOME?.trim() || join(process.env.HOME || homedir(), '.upup'), 'sessions'),
     });
   const bind = cfg.bind ?? '127.0.0.1';
   const agentRunner = cfg.agentRunner ?? ((request) => runAgentForMessage(request, cfg.runtime.agent));
@@ -115,6 +149,9 @@ export async function startBridgeServer(cfg: BridgeServerConfig): Promise<Bridge
         // Non-GET methods enter the router so it can return 405 explicitly
         // (per REST conventions) rather than 404 from the catch-all below.
         return handleSnapshot(url, req, cfg, sync, auth);
+      }
+      if (req.method === 'POST' && url.pathname === '/bridge/notify-reload') {
+        return handleNotifyReload(req, cfg, auth, srv);
       }
       if (url.pathname !== '/bridge') {
         return new Response('Not found', { status: 404 });
@@ -451,6 +488,57 @@ async function handleSnapshot(
  * @internal — exported for tests so the auth + JSON helpers can be
  * exercised directly without spinning up the bridge server.
  */
+async function handleNotifyReload(
+  req: Request,
+  cfg: BridgeServerConfig,
+  auth: BridgeAuth,
+  srv: ReturnType<typeof Bun.serve>,
+): Promise<Response> {
+  if (!cfg.onReloadRequest) {
+    return jsonResponse(501, {
+      ok: false,
+      error: 'reload-not-supported',
+      message: 'this bridge instance has no onReloadRequest hook configured',
+    });
+  }
+  const token = new URL(req.url).searchParams.get('token');
+  if (!token) {
+    audit(cfg.auditPath, 'reload-reject', { reason: 'no-token' });
+    return jsonResponse(401, { ok: false, error: 'no-token' });
+  }
+  const v = verifyBridgeToken(token, cfg.token, auth);
+  if (!v.ok) {
+    audit(cfg.auditPath, 'reload-reject', { reason: v.reason });
+    return jsonResponse(401, { ok: false, error: 'unauthorized', detail: v.reason });
+  }
+  let payload: { triggeredBy?: unknown } = {};
+  try {
+    const text = await req.text();
+    if (text.trim()) payload = JSON.parse(text) as { triggeredBy?: unknown };
+  } catch {
+    return jsonResponse(400, { ok: false, error: 'invalid-json' });
+  }
+  const triggeredBy = typeof payload.triggeredBy === 'string' ? payload.triggeredBy : v.clientId;
+  const context: BridgeReloadContext = {
+    agentDir: cfg.sessionSync ? cfg.sessionStorageDir ?? '~/.upup/sessions' : '~/.upup/agent',
+    triggeredBy,
+    triggeredAt: Date.now(),
+  };
+  try {
+    const result = await cfg.onReloadRequest(context);
+    audit(cfg.auditPath, 'reload-ok', {
+      triggeredBy,
+      extensions: result.extensions,
+      skills: result.skills,
+    });
+    return jsonResponse(200, { ok: true, port: srv.port ?? 0, ...result });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    audit(cfg.auditPath, 'reload-error', { triggeredBy, error: message });
+    return jsonResponse(500, { ok: false, error: 'reload-failed', message });
+  }
+}
+
 export const _internal = { parseSnapshotPath };
 
 /**

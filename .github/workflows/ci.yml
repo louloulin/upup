@@ -30,6 +30,8 @@ jobs:
             command: bun run check:pi-deletion-audit
           - task: pi-package-audit
             command: bun run check:pi-package-audit
+          - task: upup-home
+            command: bun run check:upup-home
           - task: typecheck
             command: bun run typecheck
           - task: test
@@ -62,3 +64,6 @@ jobs:
 
       - name: Run verify:pi7-final
         run: bun run verify:pi7-final
+
+      - name: Run verify:pi-cbor
+        run: bun run verify:pi-cbor

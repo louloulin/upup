@@ -16,7 +16,7 @@
 import { randomUUID } from 'node:crypto';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { homedir } from 'node:os';
+import { getUpupHomeRoot } from '@upup/utils';
 
 import type {
   Balance,
@@ -83,7 +83,7 @@ export class SandboxBroker implements BrokerAdapter {
       slippageBps: config.slippageBps ?? 5,
       initialCash: config.initialCash ?? 1_000_000,
       currency: config.currency ?? 'CNY',
-      stateFile: config.stateFile ?? join(homedir(), '.upup', 'sandbox-state.json'),
+      stateFile: config.stateFile ?? (process.env.UPUP_SANDBOX_STATE_FILE?.trim() || join(getUpupHomeRoot(), 'sandbox-state.json')),
       ...config,
     };
     this.cash = this.config.initialCash;

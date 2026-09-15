@@ -49,4 +49,68 @@ describe('Pi research search providers', () => {
     await expect(searchWeb('   ', 'search-empty-1')).rejects.toThrow('must not be empty');
     await expect(searchX({ command: 'search', query: 'test' }, 'search-x-missing')).rejects.toThrow('X_BEARER_TOKEN');
   });
+
+  test('uses Pi runtime auth resolver for perplexity search', async () => {
+    // No env key — only the resolver can supply credentials.
+    const previous = process.env.PERPLEXITY_API_KEY;
+    delete process.env.PERPLEXITY_API_KEY;
+    try {
+      const observed: { url?: string; authHeader?: string } = {};
+      globalThis.fetch = (async (input, init) => {
+        const url = String(input);
+        observed.url = url;
+        const headers = init && (init.headers as Record<string, string> | undefined);
+        observed.authHeader = headers?.['Authorization'];
+        return new Response(JSON.stringify({
+          choices: [{ message: { content: 'sonar answer' } }],
+          citations: ['https://example.com/citation'],
+        }), { status: 200 });
+      }) as typeof fetch;
+      const result = await searchWeb(
+        'test',
+        'search-perplexity-runtime-1',
+        undefined,
+        { authResolver: { resolvePerplexityAuth: () => ({ apiKey: 'pplx-from-runtime' }) } },
+      );
+      expect(result.value.provider).toBe('perplexity');
+      expect(result.value.answer).toBe('sonar answer');
+      expect(observed.authHeader).toBe('Bearer pplx-from-runtime');
+      expect(observed.url).toBe('https://api.perplexity.ai/chat/completions');
+    } finally {
+      if (previous !== undefined) process.env.PERPLEXITY_API_KEY = previous;
+    }
+  });
+
+  test('honours baseUrl from Pi runtime auth resolver', async () => {
+    const previous = process.env.PERPLEXITY_API_KEY;
+    delete process.env.PERPLEXITY_API_KEY;
+    try {
+      const observed: { url?: string } = {};
+      globalThis.fetch = (async (input) => {
+        observed.url = String(input);
+        return new Response(JSON.stringify({ choices: [{ message: { content: 'proxy answer' } }] }), { status: 200 });
+      }) as typeof fetch;
+      await searchWeb(
+        'test',
+        'search-perplexity-runtime-2',
+        undefined,
+        { authResolver: { resolvePerplexityAuth: () => ({ apiKey: 'pplx', baseUrl: 'https://proxy.example.com/v1/' }) } },
+      );
+      expect(observed.url).toBe('https://proxy.example.com/v1/chat/completions');
+    } finally {
+      if (previous !== undefined) process.env.PERPLEXITY_API_KEY = previous;
+    }
+  });
+
+  test('errors clearly when perplexity has neither env key nor resolver', async () => {
+    const previous = process.env.PERPLEXITY_API_KEY;
+    delete process.env.PERPLEXITY_API_KEY;
+    try {
+      await expect(
+        searchWeb('test', 'search-perplexity-missing', undefined, { authResolver: { resolvePerplexityAuth: () => undefined } }),
+      ).rejects.toThrow('PERPLEXITY_API_KEY');
+    } finally {
+      if (previous !== undefined) process.env.PERPLEXITY_API_KEY = previous;
+    }
+  });
 });

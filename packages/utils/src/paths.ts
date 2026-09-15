@@ -7,18 +7,34 @@ const UPUP_DIR = '.upup';
 const OLD_DIR = '.dexter';
 
 /**
+ * Environment variable that relocates the global UpUp home (`~/.upup`).
+ * Same contract as `@upup/pi-platform` (heartbeat/mcp/cron) and
+ * `@upup/pi-market-data`, so every subsystem resolves one root.
+ */
+export const UPUP_HOME_ENV = 'UPUP_HOME';
+
+/**
+ * Resolve the global UpUp home root: `$UPUP_HOME` when set, else `~/.upup`.
+ */
+export function getUpupHomeRoot(): string {
+  const override = process.env[UPUP_HOME_ENV]?.trim();
+  if (override) return resolve(override);
+  return join(process.env.HOME || homedir(), UPUP_DIR);
+}
+
+/**
  * Get the global UpUp configuration directory path (~/.upup/)
  * Used for cross-project configuration that applies to all UpUp sessions.
  */
 export function globalUpupPath(...segments: string[]): string {
-  return join(homedir(), '.upup', ...segments);
+  return join(getUpupHomeRoot(), ...segments);
 }
 
 /**
  * Get the global UpUp directory absolute path (consolidated from src/utils/config-paths.ts).
  */
-export function getGlobalUpupDir(home = homedir()): string {
-  return join(home, '.upup');
+export function getGlobalUpupDir(home?: string): string {
+  return home === undefined ? getUpupHomeRoot() : join(home, UPUP_DIR);
 }
 
 /**
@@ -61,7 +77,7 @@ export function getUpupDir(): string {
 export function upupPath(...segments: string[]): string {
   // Default to global ~/.upup (matches src/utils/storage-paths.ts semantics).
   // Use projectUpupPath() if you want a project-local path.
-  return join(homedir(), '.upup', ...segments);
+  return join(getUpupHomeRoot(), ...segments);
 }
 
 /**

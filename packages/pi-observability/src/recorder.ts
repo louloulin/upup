@@ -29,7 +29,9 @@ import type {
   ToolCallEvent,
 } from './types';
 
-const DEFAULT_DIR = join(homedir(), '.upup', 'telemetry');
+// Resolve at module load so `$UPUP_HOME` is honoured; @upup/pi-observability
+// does not currently depend on @upup/utils.
+const DEFAULT_DIR = join(process.env.UPUP_HOME?.trim() || join(process.env.HOME || homedir(), '.upup'), 'telemetry');
 
 function hashInput(value: unknown): string {
   const sanitized = anonymizeValue(value);

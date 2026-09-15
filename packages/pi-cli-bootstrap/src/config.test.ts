@@ -8,7 +8,7 @@
 import { describe, it, expect, beforeEach } from 'bun:test';
 import { existsSync, writeFileSync, mkdirSync, rmSync } from 'fs';
 import { join } from 'path';
-import { homedir } from 'os';
+import { tmpdir } from 'os';
 import {
   getConfigValue,
   setConfigValue,
@@ -19,14 +19,16 @@ import {
   runConfigCommand,
 } from './config';
 
+/** Scratch dir for config CLI fixtures — never the developer's real home. */
+const TEST_SCRATCH_DIR = join(tmpdir(), 'upup-test-commands');
+
 function getTestConfigPath() {
-  return join(homedir(), '.upup-test-commands', 'settings.json');
+  return join(TEST_SCRATCH_DIR, 'settings.json');
 }
 
 function cleanupTestConfig() {
-  const testDir = join(homedir(), '.upup-test-commands');
-  if (existsSync(testDir)) {
-    rmSync(testDir, { recursive: true, force: true });
+  if (existsSync(TEST_SCRATCH_DIR)) {
+    rmSync(TEST_SCRATCH_DIR, { recursive: true, force: true });
   }
 }
 
@@ -34,7 +36,7 @@ describe('Config Commands', () => {
   beforeEach(() => {
     cleanupTestConfig();
     // Ensure test directory exists
-    mkdirSync(join(homedir(), '.upup-test-commands'), { recursive: true });
+    mkdirSync(TEST_SCRATCH_DIR, { recursive: true });
   });
 
   describe('getConfigValue', () => {
@@ -117,7 +119,7 @@ describe('Config Commands', () => {
     });
 
     it('should export config to a file', () => {
-      const outputPath = join(homedir(), '.upup-test-commands', 'export.json');
+      const outputPath = join(TEST_SCRATCH_DIR, 'export.json');
       const path = exportConfig(outputPath);
       expect(path).toBe(outputPath);
       expect(existsSync(outputPath)).toBe(true);
@@ -135,7 +137,7 @@ describe('Config Commands', () => {
     });
 
     it('should import valid config file', () => {
-      const inputPath = join(homedir(), '.upup-test-commands', 'import-test.json');
+      const inputPath = join(TEST_SCRATCH_DIR, 'import-test.json');
       const exportData = {
         version: '1.0',
         config: {
@@ -152,7 +154,7 @@ describe('Config Commands', () => {
     });
 
     it('should reject invalid config file', () => {
-      const inputPath = join(homedir(), '.upup-test-commands', 'invalid.json');
+      const inputPath = join(TEST_SCRATCH_DIR, 'invalid.json');
       writeFileSync(inputPath, JSON.stringify({ noConfig: true }));
 
       const result = importConfig(inputPath);

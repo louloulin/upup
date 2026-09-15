@@ -4,13 +4,13 @@
  */
 
 import { describe, it, expect, beforeEach } from 'bun:test';
-import { join } from 'node:path';
-import { homedir } from 'node:os';
-import { globalUpupPath, hasGlobalConfig, upupPath } from '@upup/utils';
+import { join, resolve } from 'node:path';
+import { homedir, tmpdir } from 'node:os';
+import { getUpupHomeRoot, globalUpupPath, hasGlobalConfig, upupPath } from '@upup/utils';
 import { existsSync, mkdirSync, writeFileSync, rmSync } from 'fs';
 
 // Test helpers
-const TEST_DIR = join(homedir(), '.upup-test-global');
+const TEST_DIR = join(tmpdir(), 'upup-test-global');
 const TEST_PROJECT_DIR = '.upup-test-project';
 
 function cleanup() {
@@ -21,9 +21,9 @@ function cleanup() {
 }
 
 describe('globalUpupPath', () => {
-  it('should return path under home directory', () => {
+  it('should return path under the global UpUp home root', () => {
     const path = globalUpupPath();
-    expect(path).toContain(homedir());
+    expect(path).toBe(getUpupHomeRoot());
     expect(path).toContain('.upup');
   });
 
@@ -32,6 +32,23 @@ describe('globalUpupPath', () => {
     expect(path).toContain('.upup');
     expect(path).toContain('memory');
     expect(path).toContain('test.md');
+  });
+});
+
+describe('UPUP_HOME override', () => {
+  it('should relocate the global home root and fall back to ~/.upup', () => {
+    const previous = process.env.UPUP_HOME;
+    const override = join(tmpdir(), 'upup-home-override-probe');
+    process.env.UPUP_HOME = override;
+    try {
+      expect(getUpupHomeRoot()).toBe(resolve(override));
+      expect(globalUpupPath('settings.json')).toBe(join(resolve(override), 'settings.json'));
+    } finally {
+      if (previous === undefined) delete process.env.UPUP_HOME;
+      else process.env.UPUP_HOME = previous;
+    }
+    const expected = previous === undefined ? join(homedir(), '.upup') : resolve(previous);
+    expect(getUpupHomeRoot()).toBe(expected);
   });
 });
 

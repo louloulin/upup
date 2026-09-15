@@ -11,7 +11,7 @@
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync, rmSync, copyFileSync, statSync } from 'fs';
 import { join, dirname } from 'path';
-import { homedir } from 'os';
+import { getUpupHomeRoot } from '@upup/utils';
 
 const GREEN = '\x1b[32m';
 const RED = '\x1b[31m';
@@ -27,7 +27,7 @@ const OLD_LOCATIONS = [
 ];
 
 // New global location
-const NEW_DIR = join(homedir(), '.upup');
+const NEW_DIR = getUpupHomeRoot();
 
 // Subdirectories to migrate
 const SUBDIRS = [

@@ -89,15 +89,22 @@ export function validateModelForProvider(
       availableModels: [],
     };
   }
-  const modelId = stripProviderPrefix(trimmed);
-  const info = getPiModelInfo(canonical, modelId);
+  // The function accepts either a bare model id ("gpt-5.4") or a fully
+  // qualified "provider:model" spec. Only strip the provider prefix when the
+  // leading segment matches the providerId we are validating against; model
+  // ids containing colons (e.g. "amazon.nova-2-lite-v1:0") must survive
+  // untouched, otherwise the catalog lookup fails spuriously.
+  const candidate = trimmed.startsWith(`${canonical}:`)
+    ? trimmed.slice(canonical.length + 1)
+    : trimmed;
+  const info = getPiModelInfo(canonical, candidate);
   if (info) {
     return { ok: true, providerId: canonical, modelId: info.id };
   }
   return {
     ok: false,
     providerId: canonical,
-    requestedModelId: modelId,
+    requestedModelId: candidate,
     reason: 'unknown-model',
     availableModels: listPiModels(canonical).map((model) => model.id),
   };
@@ -124,8 +131,16 @@ export function validateModelSpec(
       availableModels: [],
     };
   }
-  const { providerId, modelId } = splitProviderAndModel(trimmed);
-  return validateModelForProvider(providerId || defaultProviderId, modelId);
+  // Only treat the first `:` as a provider/model separator when the left
+  // side names a real Pi provider. Otherwise (no colon, or model id that
+  // happens to contain a colon like `amazon.nova-2-lite-v1:0`) the whole
+  // string is a bare model id and the caller-supplied default applies.
+  const firstColon = trimmed.indexOf(':');
+  const candidateProvider = firstColon > 0 ? trimmed.slice(0, firstColon) : '';
+  if (candidateProvider && isPiProvider(canonicalPiProviderId(candidateProvider))) {
+    return validateModelForProvider(candidateProvider, trimmed.slice(firstColon + 1));
+  }
+  return validateModelForProvider(defaultProviderId, trimmed);
 }
 
 /**

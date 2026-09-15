@@ -1,6 +1,6 @@
 import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 
 export const PI_CONFIG_PACKAGE_NAME = '@upup/pi-config' as const;
 export const PI_CONFIG_PACKAGE_VERSION = '0.1.0' as const;
@@ -25,9 +25,17 @@ const ENV_MAPPINGS: Record<string, string[]> = {
   theme: ['UPUP_THEME'],
 };
 
-export function getConfigPaths(home = homedir()): ConfigPaths {
-  const root = join(home, '.upup');
-  return { globalFile: join(root, 'settings.json'), localFile: join(root, 'settings.local.json'), fragmentsDir: join(root, 'settings.d'), backupsDir: join(root, 'backups') };
+/** Environment variable that relocates the global UpUp home (`~/.upup`). */
+export const UPUP_HOME_ENV = 'UPUP_HOME';
+
+function defaultUpupRoot(): string {
+  // Single-expression form so `lint:upup-home` recognises it as the canonical
+  // `process.env.UPUP_HOME` pattern (the audit checks the line itself).
+  return resolve(process.env[UPUP_HOME_ENV]?.trim() || join(process.env.HOME || homedir(), '.upup'));
+}
+
+export function getConfigPaths(home?: string): ConfigPaths {
+  return getConfigPathsFromRoot(home === undefined ? defaultUpupRoot() : join(home, '.upup'));
 }
 
 export function getConfigPathsFromRoot(root: string): ConfigPaths {

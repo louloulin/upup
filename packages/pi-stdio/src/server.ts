@@ -17,6 +17,15 @@ import type {
   ServerEvent,
 } from './protocol';
 import { JsonRpcMethod, JsonRpcErrorCode } from './protocol';
+import {
+  buildAcpInitializeResult,
+  isAcpExclusiveMethod,
+  mapAcpMethodToUpup,
+  mapUpupEventToAcpUpdate,
+  translateAcpNewSessionParams,
+  translateAcpPromptParams,
+  resolveAcpStopReason,
+} from './acp';
 import type {
   SessionCreateParams,
   SessionResumeParams,
@@ -42,15 +51,26 @@ export interface StdioRuntimePort {
   sessionService: PiSessionService;
 }
 
+export interface StdioServerOptions {
+  /**
+   * Start in ACP (Agent Client Protocol) mode: `initialize` returns ACP
+   * capabilities, method names are translated, and events flow as
+   * `session/update` notifications. When omitted, the server auto-detects ACP
+   * clients from the first method name they send.
+   */
+  readonly acp?: boolean;
+}
+
 interface ActiveRun {
   runId: string;
   abortController: AbortController;
   startTime: number;
 }
 
-export function createStdioServer(runtime: StdioRuntimePort): StdioServer {
+export function createStdioServer(runtime: StdioRuntimePort, options: StdioServerOptions = {}): StdioServer {
   let activeRun: ActiveRun | null = null;
   let initialized = false;
+  let acpMode = options.acp ?? false;
   let readlineInterface: Interface | null = null;
   let stopped = false;
   let resolveStopped: (() => void) | undefined;
@@ -82,6 +102,13 @@ export function createStdioServer(runtime: StdioRuntimePort): StdioServer {
 
   // Helper to send server event
   function sendEvent(event: ServerEvent): void {
+    if (acpMode) {
+      const update = mapUpupEventToAcpUpdate(event as unknown as { type: string; [key: string]: unknown });
+      if (update) {
+        sendNotification('session/update', update as unknown as Record<string, unknown>);
+      }
+      return;
+    }
     sendNotification(JsonRpcMethod.Event, { event } as Record<string, unknown>);
   }
 
@@ -89,6 +116,24 @@ export function createStdioServer(runtime: StdioRuntimePort): StdioServer {
   // Handle incoming JSON-RPC request
   async function handleRequest(req: JsonRpcRequest): Promise<void> {
     try {
+      // ACP translation layer: when the incoming method name is one ACP editors
+      // send, switch into ACP mode (so the wire shape stays consistent for the
+      // rest of the session) and rewrite the request to its UpUp equivalent.
+      //
+      // `initialize` is deliberately excluded from auto-detection: it exists in
+      // both protocols with different result shapes, so treating it as an ACP
+      // signal would hijack every UpUp-native session. Only the ACP-exclusive
+      // method names switch the mode.
+      const acpUpupMethod = isAcpExclusiveMethod(req.method) ? mapAcpMethodToUpup(req.method) : undefined;
+      if (acpUpupMethod) {
+        acpMode = true;
+        if (req.method === 'session/prompt') {
+          req = { ...req, method: acpUpupMethod, params: translateAcpPromptParams(req.params) as unknown as Record<string, unknown> };
+        } else {
+          req = { ...req, method: acpUpupMethod };
+        }
+      }
+
       switch (req.method) {
         case JsonRpcMethod.Initialize: {
           if (initialized) {
@@ -100,6 +145,11 @@ export function createStdioServer(runtime: StdioRuntimePort): StdioServer {
           }
 
           initialized = true;
+
+          if (acpMode) {
+            sendResponse(req.id, buildAcpInitializeResult());
+            break;
+          }
 
           sendResponse(req.id, {
             serverVersion: '2026.6.12',
@@ -194,8 +244,14 @@ export function createStdioServer(runtime: StdioRuntimePort): StdioServer {
             startTime: Date.now(),
           };
 
-          // Send initial response (will send events as they come)
-          sendResponse(req.id, { runId, status: 'streaming' });
+          // ACP hosts expect the prompt response to arrive only after the turn
+          // ends (with a stopReason); all intermediate output flows through
+          // `session/update` notifications. UpUp-native clients get an immediate
+          // ack instead so they can correlate the runId.
+          let finalEvent: { type: string; [key: string]: unknown } | undefined;
+          if (!acpMode) {
+            sendResponse(req.id, { runId, status: 'streaming' });
+          }
 
           try {
             if (params.sessionId) {
@@ -216,8 +272,15 @@ export function createStdioServer(runtime: StdioRuntimePort): StdioServer {
               });
               for await (const event of stream) {
                 const serverEvent = mapPiEventToServer(event);
-                if (serverEvent) sendEvent(serverEvent);
+                if (serverEvent) {
+                  finalEvent = serverEvent as unknown as { type: string; [key: string]: unknown };
+                  sendEvent(serverEvent);
+                }
               }
+            }
+
+            if (acpMode) {
+              sendResponse(req.id, { stopReason: resolveAcpStopReason(finalEvent) });
             }
 
             // Send stream done notification
@@ -234,11 +297,21 @@ export function createStdioServer(runtime: StdioRuntimePort): StdioServer {
         }
 
         case JsonRpcMethod.Cancel: {
+          const wasCancelling = activeRun?.abortController != null;
           if (activeRun?.abortController) {
             activeRun.abortController.abort();
-            sendResponse(req.id, { cancelled: true, runId: activeRun.runId });
+          }
+          // ACP clients expect `{ acknowledged: boolean }`; UpUp-native clients
+          // expect `{ cancelled: boolean, runId?: string }`. Same wire,
+          // different shape — branch on mode (mirrors how the Stream handler
+          // already adapts its terminal payload via resolveAcpStopReason).
+          if (acpMode) {
+            sendResponse(req.id, { acknowledged: wasCancelling });
           } else {
-            sendResponse(req.id, { cancelled: false });
+            sendResponse(req.id, {
+              cancelled: wasCancelling,
+              ...(wasCancelling && activeRun ? { runId: activeRun.runId } : {}),
+            });
           }
           break;
         }
@@ -247,21 +320,34 @@ export function createStdioServer(runtime: StdioRuntimePort): StdioServer {
 
         case JsonRpcMethod.SessionCreate: {
           try {
+            // ACP clients send `{ cwd, mcpServers }` at the top level; UpUp
+            // native clients send `{ context: { projectPath, model, ... } }`.
+            // Normalise both into a single shape the session service understands.
+            const acpTranslated = acpMode ? translateAcpNewSessionParams(req.params as Record<string, unknown> | undefined) : undefined;
             const params = req.params as SessionCreateParams;
+            const cwd = acpTranslated?.cwd ?? params.context?.projectPath ?? process.cwd();
             const session = await piSessions.create({
               id: params.id,
-              cwd: params.context?.projectPath || process.cwd(),
+              cwd,
               model: params.context?.model,
               systemPrompt: params.context?.systemPrompt,
               tools: params.context?.tools,
               metadata: params.metadata,
             });
 
-            sendResponse(req.id, {
-              id: session.id,
-              state: session.state,
-              createdAt: session.createdAt,
-            });
+            if (acpMode) {
+              // ACP session/new result shape.
+              sendResponse(req.id, {
+                sessionId: session.id,
+                modes: { currentModeId: 'default', availableModes: [{ id: 'default', name: 'Default', description: 'UpUp investment assistant' }] },
+              });
+            } else {
+              sendResponse(req.id, {
+                id: session.id,
+                state: session.state,
+                createdAt: session.createdAt,
+              });
+            }
           } catch (err) {
             sendResponse(req.id, undefined, {
               code: JsonRpcErrorCode.ServerError,
@@ -276,12 +362,20 @@ export function createStdioServer(runtime: StdioRuntimePort): StdioServer {
             const params = req.params as unknown as SessionResumeParams;
             const session = await piSessions.resume(params.id);
 
-            sendResponse(req.id, {
-              id: session.summary.id,
-              state: session.summary.state,
-              messages: await piSessions.messages(params.id),
-              metadata: session.summary.metadata,
-            });
+            if (acpMode) {
+              // ACP session/load result shape (no messages — they stream as updates).
+              sendResponse(req.id, {
+                sessionId: session.summary.id,
+                modes: { currentModeId: 'default', availableModes: [{ id: 'default', name: 'Default', description: 'UpUp investment assistant' }] },
+              });
+            } else {
+              sendResponse(req.id, {
+                id: session.summary.id,
+                state: session.summary.state,
+                messages: await piSessions.messages(params.id),
+                metadata: session.summary.metadata,
+              });
+            }
           } catch (err) {
             sendResponse(req.id, undefined, {
               code: JsonRpcErrorCode.ServerError,

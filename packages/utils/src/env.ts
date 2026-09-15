@@ -1,11 +1,11 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { config } from 'dotenv';
-import { homedir } from 'os';
 import { join } from 'path';
 import { getProviderApiKeyEnvVars, getProviderById } from './providers';
+import { getUpupHomeRoot } from './paths';
 
-// Global config directory
-const GLOBAL_CONFIG_DIR = join(homedir(), '.upup');
+// Global config directory — honour `$UPUP_HOME` like every other subsystem.
+const GLOBAL_CONFIG_DIR = getUpupHomeRoot();
 const GLOBAL_ENV_FILE = join(GLOBAL_CONFIG_DIR, '.env');
 
 // Load .env from global directory on module import

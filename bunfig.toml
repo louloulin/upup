@@ -5,3 +5,7 @@
 # Use hoisted linker for backward compatibility
 # Packages are hoisted to root node_modules
 linker = "hoisted"
+
+[test]
+# Isolate every test run from the developer's real ~/.upup (see scripts/test-preload.ts).
+preload = ["./scripts/test-preload.ts"]

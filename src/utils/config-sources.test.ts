@@ -7,18 +7,22 @@
 
 import { describe, it, expect, beforeEach } from 'bun:test';
 import { existsSync, writeFileSync, mkdirSync, rmSync, readFileSync } from 'fs';
-import { join } from 'path';
-import { homedir } from 'os';
-import { upupPath } from '@upup/utils';
+import { resolve } from 'path';
+import { SETTINGS_FILE, globalUpupPath, upupPath } from '@upup/utils';
 
 // Test helper to get the actual config directory that getConfigSources reads from
 function getTestConfigDir() {
-  return join(homedir(), '.upup');
+  return globalUpupPath('');
 }
 
 function cleanupTestConfig() {
   const dir = getTestConfigDir();
   if (existsSync(dir)) {
+    // Fail closed: never delete a directory outside the UPUP_HOME sandbox.
+    const sandbox = process.env.UPUP_HOME?.trim();
+    if (!sandbox || resolve(dir) !== resolve(sandbox)) {
+      throw new Error(`refusing to delete non-sandbox UpUp dir: ${dir} (expected $UPUP_HOME)`);
+    }
     rmSync(dir, { recursive: true, force: true });
   }
 }
@@ -45,7 +49,8 @@ describe('getConfigSources', () => {
     mkdirSync(dir, { recursive: true });
 
     // Write to the actual settings file that getConfigSources reads
-    const settingsFile = upupPath('settings.json');
+    const settingsFile = SETTINGS_FILE;
+    expect(settingsFile).toBe(upupPath('settings.json'));
 
     // Read current settings to preserve existing config
     let existingConfig: Record<string, unknown> = {};

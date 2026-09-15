@@ -30,13 +30,22 @@ function hasFlag(flags: string[]): boolean {
   return flags.some(f => args.includes(f));
 }
 
+function parseIntFlag(flags: readonly string[], name: string): number | undefined {
+  const raw = getFlag([name]);
+  if (raw === undefined) return undefined;
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
 async function main() {
   // Check for --stdio mode (for external tool integration)
-  // In stdio mode, we run a pure JSON-RPC server without any CLI UI
-  if (args.includes('--stdio')) {
+  // In stdio mode, we run a pure JSON-RPC server without any CLI UI.
+  // Pass --acp to advertise Agent Client Protocol capabilities and accept
+  // editor-native method names (session/new, session/load, session/prompt).
+  if (args.includes('--stdio') || args.includes('--acp')) {
     const { createStdioServer } = await import('@upup/pi-stdio');
     const { getPiStdioRuntime } = await import('@upup/pi-app/stdio');
-    const server = createStdioServer(getPiStdioRuntime());
+    const server = createStdioServer(getPiStdioRuntime(), { acp: args.includes('--acp') });
     server.start();
     await server.waitForStop();
     return;
@@ -85,7 +94,8 @@ async function main() {
       explicitToken && explicitToken.length >= 8
         ? explicitToken
         : crypto.randomUUID().replace(/-/g, '').slice(0, 32);
-    const auditPath = join(homedir(), '.upup', 'bridge-audit.log');
+    // Honour `$UPUP_HOME` (same shape as @upup/pi-platform / @upup/pi-market-data).
+    const auditPath = join(process.env.UPUP_HOME?.trim() || join(process.env.HOME || homedir(), '.upup'), 'bridge-audit.log');
     mkdirSync(dirname(auditPath), { recursive: true });
     const { startBridgeServer } = await import('@upup/pi-bridge');
     const { getPiNativeApp } = await import('@upup/pi-app/default');
@@ -133,6 +143,44 @@ async function main() {
       process.exit(0);
       break;
 
+    case 'openbuddy':
+      // Migrate Pi agent state (settings.json, themes, packages) into ~/.upup/agent.
+      const { runOpenBuddyCommand } = await import('@upup/pi-cli-bootstrap');
+      const obArgs = args.slice(1);
+      const obSub = obArgs[0] || 'help';
+      const obSubArgs = obArgs.slice(1);
+      const obResult = runOpenBuddyCommand({ command: obSub as 'status' | 'migrate' | 'verify' | 'help', args: obSubArgs });
+      process.exit(obResult.exitCode);
+      break;
+
+    case 'plugin':
+      // Wrap Pi DefaultPackageManager so users can install/list/uninstall Pi packages via UpUp.
+      const { runPluginCommand } = await import('@upup/pi-cli-bootstrap');
+      const plArgs = args.slice(1);
+      const plSub = plArgs[0] || 'help';
+      const plSubArgs = plArgs.slice(1);
+      const plResult = await runPluginCommand({ command: plSub as 'install' | 'list' | 'uninstall' | 'update' | 'reload' | 'help', args: plSubArgs });
+      process.exit(plResult.exitCode);
+      break;
+
+    case 'bridge':
+      // Phase 0.1c: forward a reload signal to a running bridge server (the
+      // long-running TUI/CLI/SDK session picks it up via the onReloadRequest
+      // hook). Lets a second `upup plugin install` reach a live session.
+      const { runBridgeNotifyReloadCommand } = await import('@upup/pi-cli-bootstrap');
+      const brArgs = args.slice(1);
+      const brPort = parseIntFlag(brArgs, '--port') ?? undefined;
+      const brToken = getFlag(['--token']);
+      const brTriggered = getFlag(['--triggered-by']);
+      const brResult = await runBridgeNotifyReloadCommand({
+        ...(brPort !== undefined ? { port: brPort } : {}),
+        ...(brToken !== undefined ? { token: brToken } : {}),
+        ...(brTriggered !== undefined ? { triggeredBy: brTriggered } : {}),
+      });
+      process.stdout.write(`${brResult.message}\n`);
+      process.exit(brResult.exitCode);
+      break;
+
     case 'help':
     case '--help':
     case '-h':
@@ -175,12 +223,14 @@ function printHelp() {
 UpUp - AI Agent for Deep Financial Research
 
 Usage:
-  upup              Start interactive CLI
-  upup setup        Run interactive setup wizard
-  upup doctor       Run health check
-  upup config       Manage configuration
-  upup help         Show this help message
-  upup version      Show version
+  upup                    Start interactive CLI
+  upup setup              Run interactive setup wizard
+  upup doctor             Run health check
+  upup config             Manage configuration
+  upup openbuddy          Migrate Pi state into ~/.upup/agent
+  upup plugin             Manage Pi packages (install/list/uninstall/update)
+  upup help               Show this help message
+  upup version            Show version
 
 Config Commands:
   upup config get <key>      Get a config value
@@ -191,8 +241,16 @@ Config Commands:
   upup config export         Export config to file
   upup config import <file>  Import config from file
   upup config backup         Backup current config
+  upup openbuddy             Migrate Pi agent state into ~/.upup/agent
+  upup openbuddy status      Preview migration
+  upup openbuddy migrate     Copy settings.json + themes from Pi to ~/.upup/agent
+  upup openbuddy verify      Verify migrated ~/.upup/agent
+  upup plugin                Manage Pi packages (install/list/uninstall/update)
 
 Session Commands:
+  upup openbuddy migrate           Migrate from ~/.pi/agent (or $UPUP_MIGRATE_FROM)
+  upup plugin install npm:@x/y    Install a Pi package (npm/git/local path)
+  upup plugin list                 List configured Pi packages
   upup -r [id]     Resume a previous session
   upup -c          Continue the most recent session
   upup --resume [id]  Resume session by ID or search term
@@ -207,6 +265,12 @@ Examples:
   upup -r           Show session picker to resume
   upup -r abc123    Resume session matching "abc123"
   upup -c           Continue the most recent session
+
+Protocol Modes:
+  upup --stdio                 JSON-RPC 2.0 over stdio (UpUp-native method names)
+  upup --acp                   Same transport, ACP method names (session/new, session/load, session/prompt)
+                               and ACP session/update notifications. Auto-detected: any ACP method name
+                               switches the session into ACP mode even without the flag.
 
 Bridge Mode (Sprint 1.3):
   upup --bridge [--bridge-port=7333] [--bridge-token=<secret>] [--bridge-bind=127.0.0.1] [--bridge-only]

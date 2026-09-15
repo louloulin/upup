@@ -9,8 +9,7 @@
 
 import { existsSync } from 'fs';
 import { join } from 'path';
-import { homedir } from 'os';
-import { PROVIDERS } from '@upup/utils';
+import { PROVIDERS, getUpupHomeRoot, globalUpupPath } from '@upup/utils';
 import { checkApiKeyExists } from '@upup/utils';
 import { validateConfig, isFirstTimeUse, getConfigSummary } from '@upup/pi-tui-app';
 import { getConfigSources } from '@upup/utils';
@@ -126,7 +125,7 @@ function checkConfigValidation(): CheckResult[] {
 
 function checkConfigFiles(): CheckResult[] {
   const results: CheckResult[] = [];
-  const upupDir = join(homedir(), '.upup');
+  const upupDir = globalUpupPath();
 
   // Settings file
   results.push({

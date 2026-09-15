@@ -1,102 +1,33 @@
 import type { InMemoryChatHistory } from './in-memory-chat-history';
+import type {
+  AgentRunnerFileHistory,
+  AgentRunnerPorts,
+  AgentRunnerSessionService,
+  AgentRunnerSessionTracker,
+  AgentRunnerStreamOptions,
+  ChangeListener,
+  HistoryMessageListener,
+  RenderableMessage,
+  TuiCommandCapabilities,
+  TuiRuntime,
+} from './agent-runner-ports';
+import { DEFAULT_APPROVED_TOOL_SEED, toUiEvent } from './agent-runner-event-bridge';
 import type { UpUpAgentEvent } from '@upup/pi-runtime';
 import type { AgentConfig, ApprovalDecision, DisplayEvent, DoneEvent, StreamMode, UiEvent } from './agent-runner-types';
-import type { MessageQueue } from '@upup/utils';
-import type { PromptRunner } from '@upup/utils';
+import type { MessageQueue, PromptRunner } from '@upup/utils';
 import type { PiSessionService } from '@upup/pi-session';
-import type { AgentPortsLocal } from '@upup/commands';
-export type TuiCommandCapabilities = AgentPortsLocal;
 import type { HistoryItem, HistoryItemStatus, WorkingState } from './agent-runner-types';
+export type { AgentRunnerFileHistory, AgentRunnerPorts, AgentRunnerSessionService, AgentRunnerSessionTracker, AgentRunnerStreamOptions, TuiCommandCapabilities, TuiRuntime, RenderableMessage } from './agent-runner-ports';
+export { DEFAULT_APPROVED_TOOL_SEED, toUiEvent } from './agent-runner-event-bridge';
 export type { AgentConfig, ApprovalDecision, HistoryItem, HistoryItemStatus, StreamMode, WorkingState } from './agent-runner-types';
 import { getTimeoutForTool } from '../permissions/index';
 
-function toUiEvent(event: UpUpAgentEvent): UiEvent | undefined {
-  switch (event.type) {
-    case 'thinking':
-      return { type: 'thinking', message: event.text };
-    case 'text_delta':
-      return event.delta.length === 0 ? undefined : { type: 'stream_progress', charDelta: event.delta.length, mode: 'responding', textContent: event.delta };
-    case 'tool_start':
-      return { type: 'tool_start', tool: event.toolName, args: (event.input ?? {}) as Record<string, unknown>, toolCallId: event.toolCallId };
-    case 'tool_update':
-      return { type: 'tool_progress', tool: event.toolName, message: event.text };
-    case 'tool_end':
-      return event.error
-        ? { type: 'tool_error', tool: event.toolName, error: event.error, toolCallId: event.toolCallId }
-        : { type: 'tool_end', tool: event.toolName, args: {}, result: '', duration: 0, toolCallId: event.toolCallId };
-    case 'compaction_start':
-      return { type: 'compaction', phase: 'start' };
-    case 'compaction_end':
-      return { type: 'compaction', phase: 'end', success: event.success };
-    case 'run_end':
-      return { type: 'done', answer: event.answer, toolCalls: [], iterations: event.iterations, totalTime: event.totalTime, tokenUsage: event.tokenUsage };
-    default:
-      return undefined;
-  }
-}
-
-export interface AgentRunnerSessionService {
-  create(input: { cwd: string; firstPrompt: string; metadata: Record<string, unknown> }): Promise<{ id: string }>;
-  fork(id: string): Promise<{ id: string }>;
-  messages(id: string): Promise<Array<{ type: string; content: string; additional_kwargs?: Record<string, unknown> }>>;
-}
-
-export interface AgentRunnerSessionTracker {
-  startSession(sessionId: string): Promise<string>;
-  isToolApproved(toolName: string): boolean;
-}
-
-export interface AgentRunnerFileHistory {
-  initialize(sessionId: string): void;
-  record(itemId: string, sessionId: string): void;
-}
-
-export interface AgentRunnerStreamOptions {
-  sessionId: string;
-  inMemoryHistory: InMemoryChatHistory;
-}
-
-export interface AgentRunnerPorts {
-  stream(
-    prompt: string,
-    config: AgentConfig,
-    options: AgentRunnerStreamOptions,
-  ): AsyncGenerator<UpUpAgentEvent>;
-  sessionService: AgentRunnerSessionService;
-  sessionTracker: AgentRunnerSessionTracker;
-  fileHistory: AgentRunnerFileHistory;
-  messageQueue: MessageQueue;
-  renderMessages(messages: Array<{ id: string; type: string; content: string; timestamp: number }>): RenderableMessage[];
-}
-
-export interface TuiRuntime {
-  sessionService: AgentRunnerSessionService & Pick<PiSessionService, 'list' | 'remove' | 'rename' | 'tag'>;
-  sessionTracker: AgentRunnerSessionTracker;
-  getSessionTools: (sessionId: string) => readonly { name: string; description: string }[];
-  renderMessages: AgentRunnerPorts['renderMessages'];
-  promptRunner: PromptRunner;
-}
 
 export interface TurnStats {
   turnStartMs: number;
   streamedChars: number;
   streamMode: StreamMode;
 }
-
-type ChangeListener = () => void;
-export type RenderableMessage = {
-  id: string;
-  type: 'user' | 'assistant' | 'tool' | 'system';
-  content: string;
-  timestamp?: number;
-  toolName?: string;
-  toolResult?: string;
-  isStreaming?: boolean;
-  depth: number;
-  parentId?: string;
-  toolUseId?: string;
-};
-type HistoryMessageListener = (msg: RenderableMessage) => void;
 
 export interface RunQueryResult {
   answer: string;
@@ -123,6 +54,7 @@ export class AgentRunnerController {
   private sessionApprovedTools = new Set<string>();
   private sessionIdValue = '';
   private historyMessageListener?: HistoryMessageListener;
+  private readonly seedApprovedToolNames: readonly string[];
 
   constructor(
     agentConfig: AgentConfig,
@@ -131,6 +63,7 @@ export class AgentRunnerController {
     onChange?: ChangeListener,
     sessionId?: string,
     onHistoryMessage?: HistoryMessageListener,
+    additionalApprovedToolNames: readonly string[] = [],
   ) {
     this.agentConfig = agentConfig;
     this.inMemoryChatHistory = inMemoryChatHistory;
@@ -138,6 +71,7 @@ export class AgentRunnerController {
     this.onChange = onChange;
     this.sessionIdValue = sessionId || '';
     this.historyMessageListener = onHistoryMessage;
+    this.seedApprovedToolNames = [...DEFAULT_APPROVED_TOOL_SEED, ...additionalApprovedToolNames];
   }
 
   get history(): HistoryItem[] {
@@ -313,8 +247,10 @@ export class AgentRunnerController {
       // Restore approved tools from SessionTracker so they survive restarts
       const tracker = this.ports.sessionTracker;
       await tracker.startSession(this.sessionIdValue);
-      const TOOLS_REQUIRING_APPROVAL = ['write_file', 'edit_file', 'bash'] as const;
-      for (const tool of TOOLS_REQUIRING_APPROVAL) {
+      // Restore approved tools from SessionTracker so they survive restarts.
+      // The seed list covers Pi built-ins + any caller-provided extras (e.g.
+      // UpUp finance tools, plugin-registered tools).
+      for (const tool of this.seedApprovedToolNames) {
         if (tracker.isToolApproved(tool)) {
           this.sessionApprovedTools.add(tool);
         }

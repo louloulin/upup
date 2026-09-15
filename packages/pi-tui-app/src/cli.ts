@@ -58,7 +58,7 @@ import {
   saveApiKeyForProvider,
   setSetting,
 } from '@upup/utils';
-import { defaultQueue } from '@upup/utils';
+import { createMessageQueue } from '@upup/utils';
 import { getFileHistoryManager, recordFileHistorySnapshot } from '@upup/pi-storage';
 import { logger } from '@upup/utils/logging';
 import { validateConfig, isFirstTimeUse } from './utils/config-validation';
@@ -88,8 +88,8 @@ import { editorTheme, theme } from '@upup/utils';
 import { type SlashCommand } from '@upup/commands';
 import { initSpinner } from '@upup/utils';
 // Phase 50: 统一使用 input-state，移除 command-state
-import { inputStore, inputSelectors, inputActions } from './tui/state/input-state';
-import { isPiSkillCommand, toPiSkillPrompt } from '@upup/pi-resource-composition';
+import { inputActions } from './tui/state/input-state';
+import { isPiSkillCommand, toPiSkillPrompt, watchAgentDirForChanges } from '@upup/pi-resource-composition';
 
 
 import { getAllSlashCommands, getDynamicCommands, type SlashCommand as SlashCommandFromCommands } from '@upup/commands';
@@ -121,10 +121,6 @@ function buildListAllCommands(): SlashCommand[] {
   }
   return commands;
 }
-
-// Stores the user's approval decision when Enter/Esc is pressed before the
-// inline approval UI has been rendered. Consumed by setApprovalPending.
-let pendingApprovalDecisionGlobal: ApprovalDecision | null = null;
 
 function truncateForHistory(text: string): string {
   const lines = text.split('\n');
@@ -247,7 +243,8 @@ function renderEvent(
   chatLog: ChatLogComponent,
   display: { event: UiEvent; id: string; completed?: boolean; endEvent?: UiEvent; progressMessage?: string },
   itemStatus: string,
-  agentRunner?: AgentRunnerController,
+  agentRunner: AgentRunnerController | undefined,
+  pendingApprovalDecision: ApprovalDecision | null,
 ) {
   const event = display.event;
 
@@ -289,10 +286,9 @@ function renderEvent(
       agentRunner.respondToApproval(decision);
     };
     // Pass preStoredDecision so setApprovalPending can invoke cb immediately if
-    // user pressed Enter/Esc before this UI was rendered.
-    const stored = pendingApprovalDecisionGlobal;
-    pendingApprovalDecisionGlobal = null;
-    comp.setApprovalPending(cb, stored);
+    // user pressed Enter/Esc before this UI was rendered. Caller (runCli) owns
+    // the buffer; it clears it after the next tool_approval consumes it.
+    comp.setApprovalPending(cb, pendingApprovalDecision);
     forceRender();  // 工具审批时强制渲染
     return;
   }
@@ -366,6 +362,17 @@ export async function runCli(options: RunCliOptions) {
   _tuiInstance = tui;  // 注册全局 TUI 实例用于渲染函数
   const root = new Container();
   const chatLog = new ChatLogComponent(tui);
+  // Per-CLI-instance message queue (Phase 0.5 reconcile: was a module-level
+  // singleton shared between every CLI run — TUI + gateway + daemon all hit
+  // the same in-memory queue, producing phantom messages in unrelated
+  // sessions). Each `upup` invocation now owns its own queue.
+  const messageQueue = createMessageQueue();
+  // Per-CLI-instance buffer for an Enter/Esc decision that arrives before the
+  // inline approval UI has rendered its callback. Consumed by
+  // `setApprovalPending` inside the `tool_approval` event path. Phase 0.5
+  // reconcile: previously a module-level `let` shared across every CLI
+  // invocation, which leaked stale decisions between runs.
+  let pendingApprovalDecision: ApprovalDecision | null = null;
   const inputHistory = new InputHistoryController(() => tui.requestRender());
   let lastError: string | null = null;
 
@@ -475,7 +482,7 @@ export async function runCli(options: RunCliOptions) {
         initialize: (sessionId) => getFileHistoryManager(sessionId).setSessionId(sessionId),
         record: (itemId, sessionId) => recordFileHistorySnapshot(itemId, sessionId),
       },
-      messageQueue: defaultQueue,
+      messageQueue,
       renderMessages: options.runtime.renderMessages,
     },
     () => {
@@ -489,7 +496,7 @@ export async function runCli(options: RunCliOptions) {
         const lastItem = history[history.length - 1];
         if (lastItem) {
           for (let i = lastRenderedEventCount; i < lastItem.events.length; i++) {
-            renderEvent(chatLog, lastItem.events[i], lastItem.status, agentRunner);
+            renderEvent(chatLog, lastItem.events[i], lastItem.status, agentRunner, pendingApprovalDecision);
           }
           lastRenderedEventCount = lastItem.events.length;
         }
@@ -511,7 +518,7 @@ export async function runCli(options: RunCliOptions) {
 
         // Render new events only
         for (let i = lastRenderedEventCount; i < lastItem.events.length; i++) {
-          renderEvent(chatLog, lastItem.events[i], lastItem.status, agentRunner);
+          renderEvent(chatLog, lastItem.events[i], lastItem.status, agentRunner, pendingApprovalDecision);
         }
         lastRenderedEventCount = lastItem.events.length;
 
@@ -912,7 +919,7 @@ export async function runCli(options: RunCliOptions) {
 
     // If agent is busy, enqueue the message for mid-run injection
     if (agentRunner?.isProcessing) {
-      defaultQueue.enqueue({
+      messageQueue.enqueue({
         text: query,
         priority: 'next',
         enqueuedAt: Date.now(),
@@ -981,7 +988,7 @@ export async function runCli(options: RunCliOptions) {
       hasInput: editor.getText().trim().length > 0,
       escPendingClear,
       escPendingExit,
-      queueLength: defaultQueue.length(),
+      queueLength: messageQueue.length(),
     });
     if (!modelSelection.isInSelectionFlow() && !agentRunner?.pendingApproval) {
       tui.setFocus(editor);
@@ -1309,7 +1316,7 @@ export async function runCli(options: RunCliOptions) {
     const decision: ApprovalDecision = sel === 0 ? 'allow-once' : sel === 1 ? 'allow-session' : 'deny';
     const cb = chatLog.getFirstApprovalCallback();
     if (cb) { cb(decision); return; }
-    pendingApprovalDecisionGlobal = decision;
+    pendingApprovalDecision = decision;
     if (agentRunner?.pendingApproval) {
       agentRunner.respondToApproval(decision);
     }
@@ -1399,7 +1406,7 @@ export async function runCli(options: RunCliOptions) {
       setApprovalCursor(0);
       const cb = chatLog.getFirstApprovalCallback();
       if (cb) { cb('deny'); return true; }
-      pendingApprovalDecisionGlobal = 'deny';
+      pendingApprovalDecision = 'deny';
       if (agentRunner?.pendingApproval) {
         agentRunner.respondToApproval('deny');
         return true;
@@ -1572,6 +1579,34 @@ export async function runCli(options: RunCliOptions) {
 
   tui.start();
 
+  // Phase 0.1c reconcile: live-watch the agentDir for `upup plugin install`
+  // (or any settings.json mutation) and surface a status hint so the user
+  // knows new skills/extensions are available on the next turn. New tools
+  // are picked up automatically because each `runQuery` rebuilds the Pi
+  // session against the current `resourceLoader.getSkills()`.
+  const agentDirWatcher = watchAgentDirForChanges(
+    { debounceMs: 200, pollMs: 1000 },
+    (trigger) => {
+      // Re-read tool list live (the registry always reads the current
+      // session's tool array — see `PiSessionRegistry.getTools`).
+      const tools = agentRunner.sessionId
+        ? options.runtime.getSessionTools(agentRunner.sessionId)
+        : [];
+      chatLog.addChild(new Spacer(1));
+      chatLog.addChild(
+        new Text(
+          theme.muted(
+            `🔄 resources reloaded from ${trigger.agentDir} — ${tools.length} tool(s) active. ` +
+              'New skills/prompts apply on the next turn.',
+          ),
+          0,
+          0,
+        ),
+      );
+      tui.requestRender();
+    },
+  );
+
   await new Promise<void>((resolve) => {
     const finish = () => resolve();
     process.once('exit', finish);
@@ -1579,6 +1614,7 @@ export async function runCli(options: RunCliOptions) {
     process.once('SIGTERM', finish);
   });
 
+  agentDirWatcher.close();
   workingIndicator.dispose();
   debugPanel.dispose();
 }

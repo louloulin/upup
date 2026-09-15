@@ -1,10 +1,11 @@
 import { existsSync, readdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, basename } from 'node:path';
+import { globalUpupPath } from '@upup/utils';
 import { migrateSessionFile } from './pi-migration';
 
 if (import.meta.main) {
-const sourceDir = join(homedir(), '.upup', 'sessions');
+const sourceDir = globalUpupPath('sessions');
 const targetDir = join(homedir(), '.pi', 'agent', 'sessions', 'upup-migrated');
 const dryRun = process.argv.includes('--dry-run');
 

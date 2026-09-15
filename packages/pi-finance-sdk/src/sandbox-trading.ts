@@ -89,7 +89,7 @@ export interface NativeSandboxBrokerOptions {
 }
 
 function stateFileFromEnvironment(): string {
-  return process.env.UPUP_SANDBOX_STATE_FILE?.trim() || join(homedir(), '.upup', 'sandbox-state.json');
+  return process.env.UPUP_SANDBOX_STATE_FILE?.trim() || join(process.env.UPUP_HOME?.trim() || join(process.env.HOME || homedir(), '.upup'), 'sandbox-state.json');
 }
 
 function missingQuoteProvider(_symbol: string): Promise<NativeSandboxQuote> {

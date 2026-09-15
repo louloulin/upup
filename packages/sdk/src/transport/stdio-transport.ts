@@ -42,8 +42,8 @@ export interface UpupConfig {
 export function loadUpupConfig(): UpupConfig {
   const configs: UpupConfig[] = []
 
-  // 1. 用户全局配置 ~/.upup/settings.json
-  const userConfigPath = join(homedir(), '.upup', 'settings.json')
+  // 1. 用户全局配置 ~/.upup/settings.json（honours `$UPUP_HOME`）
+  const userConfigPath = join(process.env.UPUP_HOME?.trim() || join(process.env.HOME || homedir(), '.upup'), 'settings.json')
   if (existsSync(userConfigPath)) {
     try {
       const content = readFileSync(userConfigPath, 'utf-8')

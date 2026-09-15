@@ -280,3 +280,100 @@ describe('@upup/pi-runtime — Pi model registry', () => {
     expect(findPiModelAcrossProviders('claude-opus-4-7')?.provider).toBe('anthropic');
   });
 });
+
+import {
+  PERPLEXITY_PROVIDER_ID,
+  PERPLEXITY_DEFAULT_MODELS,
+  createPerplexityProviderConfig,
+  createPerplexityProviderExtension,
+  createPerplexityModel,
+  isPerplexityModelSpec,
+  perplexityBaseUrl,
+} from './src/custom-providers';
+
+describe('@upup/pi-runtime — Perplexity custom provider', () => {
+  test('exposes stable provider id and default sonar family models', () => {
+    expect(PERPLEXITY_PROVIDER_ID).toBe('perplexity');
+    const ids = PERPLEXITY_DEFAULT_MODELS.map((m) => m.id);
+    expect(ids).toContain('sonar');
+    expect(ids).toContain('sonar-pro');
+    expect(ids).toContain('sonar-reasoning');
+  });
+
+  test('provider config routes through OpenAI-compatible base URL', () => {
+    const config = createPerplexityProviderConfig({ apiKey: 'pplx-test' });
+    expect(config.api).toBe('openai-completions');
+    expect(config.baseUrl).toBe('https://api.perplexity.ai');
+    expect(config.name).toBe('Perplexity');
+    expect(config.apiKey).toBe('pplx-test');
+    expect(config.models?.length).toBeGreaterThan(0);
+    expect(config.models?.some((m) => m.id === 'sonar')).toBe(true);
+  });
+
+  test('perplexityBaseUrl honours PERPLEXITY_BASE_URL override and trims trailing slashes', () => {
+    expect(perplexityBaseUrl({} as NodeJS.ProcessEnv)).toBe('https://api.perplexity.ai');
+    expect(perplexityBaseUrl({ PERPLEXITY_BASE_URL: 'https://custom.example.com/' } as NodeJS.ProcessEnv))
+      .toBe('https://custom.example.com');
+    expect(perplexityBaseUrl({ PERPLEXITY_BASE_URL: 'http://127.0.0.1:11434/v1/' } as NodeJS.ProcessEnv))
+      .toBe('http://127.0.0.1:11434/v1');
+  });
+
+  test('isPerplexityModelSpec detects prefixed and bare forms', () => {
+    expect(isPerplexityModelSpec('perplexity:sonar-pro')).toBe(true);
+    expect(isPerplexityModelSpec('perplexity')).toBe(true);
+    expect(isPerplexityModelSpec('openai:gpt-5.4')).toBe(false);
+  });
+
+  test('createPerplexityModel strips the provider prefix and inherits catalog fields', () => {
+    const model = createPerplexityModel('perplexity:sonar-reasoning');
+    expect(model.provider).toBe('perplexity');
+    expect(model.id).toBe('sonar-reasoning');
+    expect(model.api).toBe('openai-completions');
+    expect(model.baseUrl).toBe('https://api.perplexity.ai');
+    expect(model.reasoning).toBe(true);
+    expect(model.contextWindow).toBe(127_000);
+  });
+
+  test('createPerplexityModel falls back to sonar when the id is unknown', () => {
+    const model = createPerplexityModel('perplexity:future-model');
+    expect(model.id).toBe('future-model');
+    expect(model.provider).toBe('perplexity');
+  });
+
+  test('extension factory is a no-op when no PERPLEXITY_API_KEY is set', () => {
+    const previous = process.env.PERPLEXITY_API_KEY;
+    delete process.env.PERPLEXITY_API_KEY;
+    try {
+      const registered: { name: string; config: unknown }[] = [];
+      const extension = createPerplexityProviderExtension();
+      const pi = {
+        registerProvider(name: string, config: unknown): void {
+          registered.push({ name, config });
+        },
+      };
+      // The extension function returns the closure; invoking it must be safe.
+      const fn = extension as unknown as (pi: typeof pi) => void;
+      fn(pi);
+      expect(registered).toHaveLength(0);
+    } finally {
+      if (previous !== undefined) process.env.PERPLEXITY_API_KEY = previous;
+    }
+  });
+
+  test('extension factory calls pi.registerProvider with the perplexity config when an api key is provided', () => {
+    const registered: { name: string; config: { name?: string; api?: string; baseUrl?: string; apiKey?: string } }[] = [];
+    const extension = createPerplexityProviderExtension({ apiKey: 'pplx-test' });
+    const pi = {
+      registerProvider(name: string, config: { name?: string; api?: string; baseUrl?: string; apiKey?: string }): void {
+        registered.push({ name, config });
+      },
+    };
+    const fn = extension as unknown as (pi: typeof pi) => void;
+    fn(pi);
+    expect(registered).toHaveLength(1);
+    expect(registered[0]?.name).toBe('perplexity');
+    expect(registered[0]?.config.api).toBe('openai-completions');
+    expect(registered[0]?.config.baseUrl).toBe('https://api.perplexity.ai');
+    expect(registered[0]?.config.apiKey).toBe('pplx-test');
+  });
+});
