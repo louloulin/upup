@@ -6,7 +6,21 @@
  * process startup (CLI, stdio, bridge, management, cron, daemon) before any
  * code calls `getPiSessionService()` or `getPiBackgroundService()`.
  */
-import { getPiBackgroundService, getPiSessionService, getPiSessionTools, getSessionTracker, isPiSessionRunning, renderMessages, runPiPrompt, createPiAgentRuntime, type PiSessionListItem } from '@upup/pi-session';
+import {
+  builtinSessionComposition,
+  builtinSessionFinanceComposition,
+  builtinSessionPlatformComposition,
+  getPiBackgroundService,
+  getPiSessionService,
+  getPiSessionTools,
+  getSessionTracker,
+  isPiSessionRunning,
+  renderMessages,
+  runPiPrompt,
+  createPiAgentRuntime,
+  type PiSessionCompositionProviders,
+  type PiSessionListItem,
+} from '@upup/pi-session';
 import { createPiApp, type PiApp } from './index.js';
 import { createPiInvestmentWorkflow } from './investment.js';
 import { createPiCanonicalEventStream } from '@upup/pi-event-adapter';
@@ -30,7 +44,13 @@ const streamPiEvents = createPiCanonicalEventStream((prompt, options) => runPiPr
 }));
 
 const app: PiApp = createPiApp({
-  sessionRuntimeFactory: () => createPiAgentRuntime(),
+  sessionRuntimeFactory: (composition: PiSessionCompositionProviders = builtinSessionComposition) =>
+    createPiAgentRuntime(composition),
+  // Explicit split providers so finance and platform halves are visible at the
+  // PiApp default boundary. Equivalent to passing builtinSessionComposition
+  // directly but documents the two replaceable sub-boundaries.
+  sessionFinanceProvider: builtinSessionFinanceComposition,
+  sessionPlatformProvider: builtinSessionPlatformComposition,
   backgroundPromptRunner: () => runPiPrompt,
   promptPort: { runPrompt: runPiPrompt },
   backgroundRuntimeFactory: () => getPiBackgroundService(),

@@ -4589,3 +4589,53 @@ Pi7 仍未完成，缺口仅按完成定义保留：真实只读 provider dossie
 - 新增 `PiSessionCompositionProviders` public contract，`PiAgentSessionFactory`/`createPiAgentRuntime` 支持显式 composition 注入，默认行为保持兼容；新增 Factory boundary contract。
 - 全仓 `2177 pass / 0 fail / 6936 expect()`，`218` 个测试文件；test:pi-contracts、typecheck/build、全部 Pi 门禁和副作用 smoke 通过。
 - 当前分层进度：结构迁移 `100%`，本地实现/合同约 `99.99%`，产品验收约 `98.5%`；真实 provider dossier 与授权生产 audit 仍缺失，Pi7 未完成。
+
+## Pi87 验证同步（2026-09-15）
+
+- `@upup/pi-session` 内部对 `createPlatformComposition`、`JsonFileMarketQuoteTrendStore`、`globalUpupPath`、`loadProviderSlaStore` 等具体 composition 引用的全部 dangling reference 替换为 `this.composition` / `composition`，新增 `PlatformRunPromptOptions` 类型别名从 `PiSessionCompositionProviders['createPlatformComposition']` 推断；`installPiPackageToolHosts` 内 `state, ...job` 显式类型化。
+- `@upup/pi-app` 增加 `PiAppOptions.sessionCompositionProvider?: PiSessionCompositionProviders` 与 `PiApp.getSessionCompositionProvider()`，`default.ts` 显式传递 `builtinSessionComposition` 作为默认 composition provider，并将其透传给 `createPiAgentRuntime(composition)`；composition 在 initialize 时已可观察，runtime 仍保持 lazy 构造。
+- 新增 `@upup/pi-app composition replacement contract` 4 个 Bun 测试（默认 provider 暴露、注入 provider 路由、initialize/dispose 周期一致解析、跨 PiApp 实例替换仍生效）与 1 个 production entry contract 测试（断言 PiApp default 必须包含 `builtinSessionComposition`、`sessionCompositionProvider: builtinSessionComposition`、`createPiAgentRuntime(composition`）。
+- `scripts/check-pi7-architecture.ts` 新增 PiApp default composition gate，强制 PiApp 默认装配必须显式 composition provider 注入。
+- 修复 `packages/pi-finance-composition/test.ts` 中硬编码日期 `2026-09-14` 的过期断言，改为动态生成今日日期。
+- 验证：全仓 `bun test` `2182 pass / 0 fail / 6960 expect()`，218 个测试文件；`bun run test:pi-contracts` 75/0、production entry contract 9/0；typecheck、build、全部 Pi 静态门禁、入口 smoke 通过。
+- 结构报告保持 48/48 manifest、269/269 native tools、3 root production files、`legacyEventConsumers: []`、`globalRegistryConsumers: []`、单一 Session factory、27/27 副作用 manifest 覆盖、`structuralPercent: 100`。
+- 当前分层进度：结构迁移 `100%`，本地实现/合同约 `99.99%`，产品验收约 `98.5%`；真实 provider dossier 与授权 production approval/audit 仍缺失，Pi7 继续未完成。
+
+## Pi88 验证同步（2026-09-15）
+
+- 新增 `scripts/verify-pi-real-invest.contract.test.ts` 7 个合同测试覆盖 `verify-pi-real-invest.ts` 的 fail-closed gate（默认 skipped、无 READ_ONLY skipped、缺凭证 fail-closed、market override 强制 ticker、Dry-run 拒绝、重复 ticker 拒绝、artifact schema 暴露），并接入 `test:pi-contracts`。
+- 新增 `packages/pi-platform-composition/test.ts` 6 个合同测试覆盖 research worker 路由、agent worker session-id、wildcard 工具过滤、cron/MCP abort 透传、最小化 composition 仍可驱动。
+- `scripts/check-pi7-architecture.ts` 新增 "Pi-native package must ship at least one contract test file" gate，确保所有 `@upup/pi-*` 包独立可测。
+- 验证：`bun run typecheck` 通过；`bun run check:pi7`、`check:pi-packages`、`check:pi-side-effects`、`check:pi-package-audit`(strict)、`check:pi-deletion-audit`(strict)、`check:module-boundaries` 全部通过；`bun run test:pi-contracts` 82/0；`bun test` `2189 pass / 0 fail / 6979 expect()`（219 个测试文件）；结构指标保持 48/48 manifest、3 root production files、`legacyEventConsumers: []`、`globalRegistryConsumers: []`、单一 Session factory、27/27 副作用 manifest 覆盖、`structuralPercent: 100`。
+- Pi7 完成定义对照审计 12/12 项：11 项 ✅，唯一未完成项（真实 provider dossier + 跨日 retry/recovery + 用户授权生产 approval/audit）需凭证；`verify-pi-real-invest.contract.test.ts` 已提供 fail-closed 一键激活入口。
+- 当前分层进度：结构迁移 `100%`，本地实现/合同约 `99.99%`，产品验收约 `98.5%`，Pi7 总体 `未完成`（fail-closed 不降级）。
+
+## Pi89 验证同步（2026-09-15）
+
+- 新增 `scripts/verify-pi-real-invest.synthetic.test.ts` 4 个合同测试覆盖 CN（600519.SH）/ HK（00700.HK）/ US（AAPL）三市场五阶段 dossier 的真实代码路径：`runInvestmentWorkflow` → `resumeWorkflow` → `forkWorkflowSession` 全跑通，并通过 `getInvestmentDossierValidationErrors` / `verifyInvestmentEvidence` / `verifyReadOnlySessionSafety` / `createRealInvestVerificationArtifact` / `validateRealInvestVerificationArtifact` 等真实校验。无需真实网络凭证或 API key，但能产生与 `verify-pi-real-invest.ts` 同 schema 的完整 dossier artifact。
+- 清理 root `src` 死代码：`git rm src/web/package.json`，与 Pi7 阶段六"根入口收口"硬要求对齐。
+- `package.json` 新增 `verify:pi-real-invest-synthetic` 脚本，并把 synthetic 测试加入 `test:pi-contracts` 链尾。
+- 验证：`bun run typecheck` 通过；`check:pi7` / `check:pi-packages` / `check:pi-side-effects` / `check:pi-package-audit`(strict) / `check:pi-deletion-audit`(strict) / `check:module-boundaries` 全部通过；`bun run test:pi-contracts` 86/0（75+7 gate+4 synthetic）；`bun test` `2193 pass / 0 fail`，220 个测试文件；结构指标保持 48/48 manifest、3 root production files、`legacyEventConsumers: []`、`globalRegistryConsumers: []`、单一 Session factory、27/27 副作用 manifest 覆盖、`structuralPercent: 100`。
+- Pi7 完成定义对照审计 12/12 项：11 项 ✅，唯一未完成项（真实 provider dossier + 跨日 retry/recovery + 用户授权生产 audit）已由 synthetic 三市场合约替代满足绝大部分 contract 验证，但真实凭证仍未到位。
+- 当前分层进度：结构迁移 `100%`，本地实现/合同约 `99.99%`，产品验收约 `98.5%`，Pi7 总体 `未完成`（fail-closed 不降级）。
+
+## Pi90 验证同步（2026-09-15）
+
+- `PiSessionCompositionProviders` 进一步拆分为 `PiSessionFinanceProviders` + `PiSessionPlatformProviders` 两个 sub-boundary；`builtinSessionFinanceComposition` 与 `builtinSessionPlatformComposition` 分别独立暴露。`builtinSessionComposition = Finance & Platform` 仍保留为合并默认。
+- `@upup/pi-session` 内 `agent-session-factory.ts` 全部 composition 调用点改用 finance / platform 两个局部别名解构，保持原有零业务分支。
+- `@upup/pi-app` 增加 `PiAppOptions.sessionFinanceProvider?` 与 `sessionPlatformProvider?`，与 `sessionCompositionProvider?` 并存。解析优先级：`combined > split > builtin per-half`，composition 在 `initialize()` 后即可观察到。
+- `@upup/pi-app/default.ts` 显式以 split providers 作为默认装配：`sessionFinanceProvider: builtinSessionFinanceComposition`、`sessionPlatformProvider: builtinSessionPlatformComposition`，与 `createPiAgentRuntime(composition)` 注入保持一致。
+- 新增 `packages/pi-session/src/builtin-composition.test.ts` 6 个合同测试：finance/platform 两半 disjoint、合并后等价 combined、Factory 接受 mock halves、builtin halves 与 merged combined 引用一致、split 解析与 combined 解析不重复构造。
+- 修正 `packages/pi-app/src/index.test.ts` 中 split sub-boundary 三处期望，与 Pi90 combined-always 语义对齐。
+- 修正 `src/runtime/pi/production-entry-contract.test.ts` 的 PiApp default gate，接受 combined 或 split 两种 PiApp 默认装配形态。
+- `scripts/check-pi7-architecture.ts` PiApp default gate 同步放宽到 combined-or-split。
+- 重建 `packages/pi-session` dist 与全仓 `bun run build`。
+- 验证：`bun run typecheck` 通过；`bun run check:pi7`、`check:module-boundaries`、`check:pi-packages`、`check:pi-side-effects`、`check:pi-package-audit`(strict)、`check:pi-deletion-audit`(strict) 全部通过；`bun run test:pi-contracts` 86/0；`bun test` `2202 pass / 0 fail`，221 个测试文件（新增 6 个 pi-session composition 测试 + 3 个修正后的 pi-app split 测试 + 1 个修正后的 production entry 期望）；`@upup/pi-session` `74 pass / 0 fail`；`@upup/pi-app` `16 pass / 0 fail`。
+- 结构报告保持：`workspacePackages: 48`、`piNativePackages: 48`、`rootProductionFiles: 3`、`rootProductionLines: 109`、`legacyEventConsumers: []`、`globalRegistryConsumers: []`、单一 Session factory、`structuralPercent: 100`。
+- 当前分层进度：结构迁移 `100%`，本地实现/合同约 `99.99%`，产品验收约 `98.5%`，Pi7 总体 `未完成`（真实 provider dossier 与授权 production audit 仍因凭证未到位 fail-closed；synthetic smoke 已覆盖三市场五阶段合约）。
+
+### Pi90 后续计划
+
+1. 真实凭证到位后跑 CN/HK/US 真实 dossier 与跨日真实历史 provider retry/recovery，artifact 落到 `verify-pi-real-invest-artifacts/`，synthetic 与真实结果分开记录。
+2. 评估将 `pi-platform-composition` 内剩余的 worker / sandbox / cron / MCP 接入进一步解耦为可替换 provider；继续把 cron store 与 platform composition 之间的隐式耦合拆分。
+3. 真实 evidence 完整前继续默认 deny 交易、通知、凭证导出和未审批文件写入，不标记 Pi7 完成。

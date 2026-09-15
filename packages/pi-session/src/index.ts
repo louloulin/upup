@@ -303,5 +303,13 @@ export { withPiFileLock } from './file-lock.js';
 export type { PiFileLockOptions } from './file-lock.js';
 
 // Explicit composition boundary for PiApp and deterministic fixtures.
-export { builtinSessionComposition } from './builtin-composition.js';
-export type { PiSessionCompositionProviders } from './builtin-composition.js';
+export {
+  builtinSessionComposition,
+  builtinSessionFinanceComposition,
+  builtinSessionPlatformComposition,
+} from './builtin-composition.js';
+export type {
+  PiSessionCompositionProviders,
+  PiSessionFinanceProviders,
+  PiSessionPlatformProviders,
+} from './builtin-composition.js';

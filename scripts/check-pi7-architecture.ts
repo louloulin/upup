@@ -44,11 +44,28 @@ for (const file of rootSourceFiles) {
   }
 }
 
+
+
 for (const file of sourceFiles) {
   const source = readFileSync(file, 'utf8');
   if (source.includes('legacy-events')) failures.push(`${file}: production legacy-events dependency`);
   if (file.includes(`${resolve(root, 'packages/pi-session')}/`) && /export\s+(?:const|function|class)\s+getSessionManager\b/.test(source)) {
     failures.push(`${file}: deprecated getSessionManager facade is not allowed in Pi Native production code`);
+  }
+}
+
+// Every Pi-native package must declare at least one contract test file (test.ts or src/**/*.test.ts).
+for (const manifest of packageManifests) {
+  const pkgRoot = manifest.replace(/package\.json$/, '');
+  if (!existsSync(join(pkgRoot, 'package.json'))) continue;
+  const pkgJson = JSON.parse(readFileSync(join(pkgRoot, 'package.json'), 'utf8'));
+  const name = pkgJson.name;
+  if (typeof name !== 'string' || !name.startsWith('@upup/pi-')) continue;
+  const topLevelTest = [join(pkgRoot, 'test.ts'), join(pkgRoot, 'test.test.ts')];
+  const srcDir = join(pkgRoot, 'src');
+  const srcTests = existsSync(srcDir) ? walk(srcDir).filter((file) => /\.(test|spec)\.(ts|tsx|mts)$/.test(file)) : [];
+  if (!topLevelTest.some((candidate) => existsSync(candidate)) && srcTests.length === 0) {
+    failures.push(`${name}: Pi-native package must ship at least one contract test file (test.ts or src/**/*.test.ts)`);
   }
 }
 
@@ -61,6 +78,24 @@ for (const file of piRuntimeConstructionFiles) {
   const relativeFile = file.slice(root.length + 1).replaceAll('\\', '/');
   if (!allowedPiRuntimeConstruction.has(relativeFile) && !/export function createPiAgentRuntime\s*\(/.test(readFileSync(file, 'utf8'))) {
     failures.push(`${file}: Pi runtime construction must be owned by the PiApp default composition`);
+  }
+}
+const piAppDefaultPath = resolve(root, 'packages/pi-app/src/default.ts');
+if (existsSync(piAppDefaultPath)) {
+  const piAppDefault = readFileSync(piAppDefaultPath, 'utf8');
+  if (!piAppDefault.includes('builtinSessionComposition')) {
+    failures.push(`${piAppDefaultPath}: PiApp default bootstrap must explicitly compose builtinSessionComposition at the app boundary`);
+  }
+  // PiApp default must expose either the combined provider OR both split
+  // sub-boundaries so the application surface stays explicit and replaceable.
+  const hasCombined = /sessionCompositionProvider\s*:\s*builtinSessionComposition/.test(piAppDefault);
+  const hasSplit = /sessionFinanceProvider\s*:\s*builtinSessionFinanceComposition/.test(piAppDefault)
+    && /sessionPlatformProvider\s*:\s*builtinSessionPlatformComposition/.test(piAppDefault);
+  if (!hasCombined && !hasSplit) {
+    failures.push(`${piAppDefaultPath}: PiApp default bootstrap must declare sessionCompositionProvider=builtinSessionComposition or both sessionFinanceProvider=builtinSessionFinanceComposition and sessionPlatformProvider=builtinSessionPlatformComposition`);
+  }
+  if (!/createPiAgentRuntime\(composition\b/.test(piAppDefault)) {
+    failures.push(`${piAppDefaultPath}: PiApp default bootstrap must forward the injected composition into createPiAgentRuntime`);
   }
 }
 const promptRunnerPath = resolve(root, 'packages/pi-session/src/prompt-runner.ts');

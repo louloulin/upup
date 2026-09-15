@@ -66,6 +66,12 @@ import { evaluatePiPackage } from '@upup/pi-resource-composition';
 import { createPiHostBridge, disposePiHostBridge, type PiHostBridge, type PiManagementSnapshot } from './host-contract.js';
 
 import { builtinSessionComposition, type PiSessionCompositionProviders } from './builtin-composition.js';
+
+// Resolved through the composition provider; avoids importing concrete
+// composition packages in the session orchestration boundary.
+export type PlatformRunPromptOptions = Parameters<
+  NonNullable<Parameters<PiSessionCompositionProviders['createPlatformComposition']>[0]['runPrompt']>
+>[1];
 import type { NativeMarketQuoteTrendStore, GatewayAgentRuntimePort, GatewayRuntime } from './builtin-composition.js';
 import { publishPiCapabilityHosts, type PiCapabilityEventBus } from '@upup/pi-capability-registry';
 
@@ -91,17 +97,22 @@ function installPiPackageToolHosts(
   researchDataBaseUrls?: UpUpCreateSessionOptions['researchDataBaseUrls'],
   marketQuoteTrendStore?: NativeMarketQuoteTrendStore,
   getSkillDefinitions?: () => readonly import('@upup/pi-session').PiSkillDefinition[],
-  runWorkerPrompt?: (prompt: string, options: Parameters<NonNullable<Parameters<typeof createPlatformComposition>[0]['runPrompt']>>[1]) => Promise<string>,
+  runWorkerPrompt?: (prompt: string, options: PlatformRunPromptOptions) => Promise<string>,
   capabilityContext?: PiCapabilityContext,
   events?: PiCapabilityEventBus,
   composition: PiSessionCompositionProviders = builtinSessionComposition,
 ): { release: () => void; dispose: () => Promise<void> } {
   const registry = new Map<string, PiHostBridge>();
+  // Compose the explicit finance and platform halves of the session
+  // composition boundary so each host capability (quote, history, cron, MCP,
+  // worker) is sourced through its dedicated provider surface.
+  const finance = composition;
+  const platform = composition;
   const effectiveTrendStore = marketQuoteTrendStore
-    ?? new composition.JsonFileMarketQuoteTrendStore(process.env.UPUP_PROVIDER_METRICS_PATH?.trim() || composition.globalUpupPath('metrics', 'market-provider-trend.json'));
-  const financeComposition = composition.createFinanceComposition({ sessionId, ...(marketHistoryFetcher ? { marketHistoryFetcher } : {}), ...(marketHistoryFetchers ? { marketHistoryFetchers } : {}), ...(marketHistoryProviders ? { marketHistoryProviders } : {}), ...(marketHistoryApiKeys ? { marketHistoryApiKeys } : {}), ...(marketHistoryBaseUrls ? { marketHistoryBaseUrls } : {}), ...(marketQuoteFetcher ? { marketQuoteFetcher } : {}), ...(researchDataFetcher ? { researchDataFetcher } : {}), ...(researchDataFetchers ? { researchDataFetchers } : {}), ...(researchDataProviders ? { researchDataProviders } : {}), ...(researchDataApiKeys ? { researchDataApiKeys } : {}), ...(researchDataBaseUrls ? { researchDataBaseUrls } : {}), marketQuoteTrendStore: effectiveTrendStore });
+    ?? new finance.JsonFileMarketQuoteTrendStore(process.env.UPUP_PROVIDER_METRICS_PATH?.trim() || finance.globalUpupPath('metrics', 'market-provider-trend.json'));
+  const financeComposition = finance.createFinanceComposition({ sessionId, ...(marketHistoryFetcher ? { marketHistoryFetcher } : {}), ...(marketHistoryFetchers ? { marketHistoryFetchers } : {}), ...(marketHistoryProviders ? { marketHistoryProviders } : {}), ...(marketHistoryApiKeys ? { marketHistoryApiKeys } : {}), ...(marketHistoryBaseUrls ? { marketHistoryBaseUrls } : {}), ...(marketQuoteFetcher ? { marketQuoteFetcher } : {}), ...(researchDataFetcher ? { researchDataFetcher } : {}), ...(researchDataFetchers ? { researchDataFetchers } : {}), ...(researchDataProviders ? { researchDataProviders } : {}), ...(researchDataApiKeys ? { researchDataApiKeys } : {}), ...(researchDataBaseUrls ? { researchDataBaseUrls } : {}), marketQuoteTrendStore: effectiveTrendStore });
   const sessionQuoteClient = financeComposition.quoteClient;
-  const platformComposition = composition.createPlatformComposition({
+  const platformComposition = platform.createPlatformComposition({
     sessionId,
     spec,
     ...(modelInstance ? { modelInstance } : {}),
@@ -111,7 +122,7 @@ function installPiPackageToolHosts(
       return runWorkerPrompt(prompt, workerOptions);
     },
     runCron: async (job, model, runtime) => {
-      const store = composition.loadCronStore();
+      const store = platform.loadCronStore();
       if (!job || typeof job !== 'object' || typeof (job as { id?: unknown }).id !== 'string') throw new Error('cron runner received an invalid job');
       const found = store.jobs.find((candidate) => candidate.id === (job as { id: string }).id);
       if (!found) throw new Error(`cron job ${(job as { id: string }).id} not found`);
@@ -125,17 +136,17 @@ function installPiPackageToolHosts(
           return runPiPrompt(prompt, { ...options, modelInstance: options.modelInstance, modelRuntime: options.modelRuntime });
         },
       };
-      const cronConfig = { getConfiguredModelId: composition.getConfiguredModelId, getConfiguredProvider: composition.getConfiguredProvider };
+      const cronConfig = { getConfiguredModelId: finance.getConfiguredModelId, getConfiguredProvider: finance.getConfiguredProvider };
       let cronRuntime: GatewayRuntime;
       cronRuntime = {
         agent: cronAgent,
         config: cronConfig,
         cron: {
-          ensureHeartbeatCronJob: composition.ensureHeartbeatCronJob,
-          startCronRunner: (params) => composition.startCronRunner({ configPath: params.configPath, runtime: params.runtime ?? cronRuntime }),
+          ensureHeartbeatCronJob: platform.ensureHeartbeatCronJob,
+          startCronRunner: (params) => platform.startCronRunner({ configPath: params.configPath, runtime: params.runtime ?? cronRuntime }),
         },
       };
-      await composition.executeCronJob(found, store, {
+      await platform.executeCronJob(found, store, {
         piModel: model as import('@earendil-works/pi-ai').Model<any> | undefined,
         piModelRuntime: runtime,
         runtime: cronRuntime,
@@ -173,10 +184,10 @@ function installPiPackageToolHosts(
           ],
           metrics: sessionQuoteClient.getMetrics(),
           providerSla: {
-            jobs: loadProviderSlaStore().map(({ state, ...job }) => ({
-              ...job,
-              ...state,
-            })),
+            jobs: finance.loadProviderSlaStore().map((entry: ReturnType<typeof finance.loadProviderSlaStore>[number]) => {
+              const { state, ...job } = entry;
+              return { ...job, ...state };
+            }),
           },
         },
       },
@@ -291,8 +302,10 @@ export class PiAgentSessionFactory implements UpUpAgentRuntime {
         ? SessionManager.create(cwd, options.sessionDir, options.sessionId ? { id: options.sessionId } : undefined)
       : SessionManager.inMemory(cwd);
     const sessionId = sessionManager.getSessionId();
+    const finance = this.composition;
+    const platform = this.composition;
     const marketQuoteTrendStore = options.marketQuoteTrendStore
-      ?? new JsonFileMarketQuoteTrendStore(process.env.UPUP_PROVIDER_METRICS_PATH?.trim() || globalUpupPath('metrics', 'market-provider-trend.json'));
+      ?? new finance.JsonFileMarketQuoteTrendStore(process.env.UPUP_PROVIDER_METRICS_PATH?.trim() || finance.globalUpupPath("metrics", "market-provider-trend.json"));
     const marketDataCapabilities = {
       [PI_MARKET_DATA_CAPABILITY_NAMES.historyFetcher]: options.marketHistoryFetcher ? {
         version: PI_MARKET_DATA_CAPABILITY_VERSION,
@@ -345,7 +358,7 @@ export class PiAgentSessionFactory implements UpUpAgentRuntime {
     let disposePackageHosts = async (): Promise<void> => undefined;
     const runWorkerPrompt = async (
       prompt: string,
-      workerOptions: Parameters<NonNullable<Parameters<typeof createPlatformComposition>[0]['runPrompt']>>[1],
+      workerOptions: PlatformRunPromptOptions,
     ): Promise<string> => {
       const workerId = workerOptions.sessionKey.replace(/[^A-Za-z0-9_.-]+/g, '-').replace(/^[^A-Za-z0-9]+|[^A-Za-z0-9]+$/g, '').slice(0, 128) || `worker-${sessionId.slice(0, 12)}`;
       const workerSession = await this.createSession(workerOptions.agentSpec, {

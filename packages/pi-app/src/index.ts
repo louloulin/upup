@@ -5,6 +5,9 @@ import {
   type GatewayRuntime,
 } from '@upup/gateway';
 import {
+  builtinSessionComposition,
+  builtinSessionFinanceComposition,
+  builtinSessionPlatformComposition,
   configurePiBackgroundService,
   configurePiSessionService,
   disposePiBackgroundService,
@@ -13,9 +16,11 @@ import {
   isPiSessionServiceConfigured,
   isPiBackgroundServiceConfigured,
   type PiBackgroundPromptRunner,
-  type PiSessionServiceFactory,
+  type PiSessionCompositionProviders,
+  type PiSessionFinanceProviders,
+  type PiSessionPlatformProviders,
 } from '@upup/pi-session';
-import type { PiSessionFactory } from '@upup/pi-runtime';
+import type { PiSessionFactory, UpUpAgentRuntime } from '@upup/pi-runtime';
 import type { PiPromptPort } from '@upup/pi-runtime';
 import type {
   InvestmentSessionFactory,
@@ -45,10 +50,39 @@ export interface PiTuiEventStreamPort {
   readonly stream: PiCanonicalEventStream;
 }
 
+/**
+ * Session runtime factory bound to the Pi app boundary.
+ *
+ * Receives the composition provider resolved by {@link PiAppOptions.sessionCompositionProvider}
+ * (or `undefined` when no provider is configured). Implementations should honor the
+ * injected composition so that the Pi Session boundary remains replaceable without
+ * rewriting Session orchestration.
+ */
+export type PiAppSessionRuntimeFactory = (composition?: PiSessionCompositionProviders) => UpUpAgentRuntime;
+
 export interface PiAppOptions {
-  readonly sessionRuntimeFactory: PiSessionServiceFactory;
+  readonly sessionRuntimeFactory: PiAppSessionRuntimeFactory;
   readonly backgroundPromptRunner: () => PiBackgroundPromptRunner;
   readonly promptPort: PiPromptPort;
+  /**
+   * Optional combined composition provider accepted by `sessionRuntimeFactory`.
+   * When this is supplied it takes precedence over the split providers below
+   * so that callers who only need one full override can keep using a single
+   * argument. PiApp never instantiates concrete business composition and
+   * treats the provider as an opaque, replaceable boundary.
+   */
+  readonly sessionCompositionProvider?: PiSessionCompositionProviders;
+  /**
+   * Optional finance-side composition override. When supplied it replaces
+   * the corresponding half of the combined provider. Combined provider wins
+   * over split providers when both are supplied.
+   */
+  readonly sessionFinanceProvider?: PiSessionFinanceProviders;
+  /**
+   * Optional platform-side composition override (cron, MCP, workers). When
+   * supplied it replaces the corresponding half of the combined provider.
+   */
+  readonly sessionPlatformProvider?: PiSessionPlatformProviders;
   readonly backgroundRuntimeFactory?: () => PiBackgroundRuntimePort;
   readonly tuiRuntimeFactory?: () => TuiRuntime;
   readonly commandCapabilitiesFactory?: () => TuiCommandCapabilities;
@@ -59,8 +93,8 @@ export interface PiAppOptions {
   readonly eventStreamFactory?: () => PiEventStreamPort;
   readonly tuiEventStreamFactory?: () => PiTuiEventStreamPort;
   readonly investCommandHandler?: InvestmentCommandHandler | null;
-  readonly investmentRuntimeFactory?: PiSessionServiceFactory;
-  readonly investmentWorkflowFactory?: (sessionRuntimeFactory: PiSessionServiceFactory) => PiInvestmentWorkflow;
+  readonly investmentRuntimeFactory?: PiAppSessionRuntimeFactory;
+  readonly investmentWorkflowFactory?: (sessionRuntimeFactory: PiAppSessionRuntimeFactory) => PiInvestmentWorkflow;
   readonly investmentCwd?: string;
 }
 
@@ -88,6 +122,13 @@ export interface PiApp {
   getTuiRuntime(): TuiRuntime;
   getCommandCapabilities(): TuiCommandCapabilities;
   getPromptRunner(): PiPromptPort['runPrompt'];
+  /**
+   * Returns the composition provider resolved at the last initialize() call.
+   * `undefined` means no provider was supplied to {@link PiAppOptions}.
+   * Always re-reads the latest value (suitable for tests asserting
+   * initialize/dispose cycles).
+   */
+  getSessionCompositionProvider(): PiSessionCompositionProviders | undefined;
 }
 
 function assertOption<T>(value: T | undefined, name: string): T {
@@ -110,8 +151,21 @@ export function createPiApp(options: PiAppOptions): PiApp {
   const gatewayCronRuntime = options.gatewayCronRuntime;
   let initialized = false;
   let sessionRuntime: PiSessionFactory | undefined;
+  let resolvedComposition: PiSessionCompositionProviders | undefined;
+  // Resolve the effective composition: explicit combined provider wins,
+  // otherwise merge split providers over the built-in halves so callers can
+  // override finance or platform independently without supplying both.
+  const resolveComposition = (): PiSessionCompositionProviders => {
+    if (options.sessionCompositionProvider) return options.sessionCompositionProvider;
+    const finance: PiSessionFinanceProviders = options.sessionFinanceProvider ?? builtinSessionFinanceComposition;
+    const platform: PiSessionPlatformProviders = options.sessionPlatformProvider ?? builtinSessionPlatformComposition;
+    return { ...finance, ...platform };
+  };
   const getSessionRuntime = (): PiSessionFactory => {
-    sessionRuntime ??= sessionRuntimeFactory();
+    if (!sessionRuntime) {
+      resolvedComposition = resolveComposition();
+      sessionRuntime = sessionRuntimeFactory(resolvedComposition);
+    }
     return sessionRuntime;
   };
   let investmentWorkflow: PiInvestmentWorkflow | undefined;
@@ -119,7 +173,7 @@ export function createPiApp(options: PiAppOptions): PiApp {
     if (!initialized) throw new Error('Pi app must be initialized before accessing investment workflow');
     if (!investmentWorkflow) {
       if (!options.investmentWorkflowFactory) throw new Error('Pi app was created without an investment workflow');
-      investmentWorkflow = options.investmentWorkflowFactory(options.investmentRuntimeFactory ?? getSessionRuntime);
+      investmentWorkflow = options.investmentWorkflowFactory(options.investmentRuntimeFactory ?? sessionRuntimeFactory);
     }
     return investmentWorkflow;
   };
@@ -133,11 +187,15 @@ export function createPiApp(options: PiAppOptions): PiApp {
       if (initialized) {
         initialized = false;
         sessionRuntime = undefined;
+        resolvedComposition = undefined;
         investmentWorkflow = undefined;
       }
       configurePiSessionService(getSessionRuntime);
       configurePiBackgroundService(backgroundPromptRunner);
       setInvestCommandHandler(options.investCommandHandler ?? null);
+      // Composition is observable from initialize() even before the runtime
+      // itself is resolved, while still preserving the lazy runtime factory.
+      resolvedComposition = resolveComposition();
       initialized = true;
     },
     async dispose(): Promise<void> {
@@ -147,6 +205,7 @@ export function createPiApp(options: PiAppOptions): PiApp {
       disposePiBackgroundService();
       await disposePiSessionService();
       sessionRuntime = undefined;
+      resolvedComposition = resolveComposition();
       investmentWorkflow = undefined;
       initialized = false;
     },
@@ -200,6 +259,9 @@ export function createPiApp(options: PiAppOptions): PiApp {
     getPromptRunner(): PiPromptPort['runPrompt'] {
       if (!initialized) throw new Error('Pi app must be initialized before accessing prompt runner');
       return promptPort.runPrompt.bind(promptPort);
+    },
+    getSessionCompositionProvider(): PiSessionCompositionProviders | undefined {
+      return initialized ? resolvedComposition : undefined;
     },
   };
 

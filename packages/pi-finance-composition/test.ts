@@ -10,6 +10,7 @@ describe('@upup/pi-finance-composition', () => {
 
   test('routes workflow history through the declared market provider', async () => {
     let body: Record<string, unknown> | undefined;
+    const today = new Date().toISOString().slice(0, 10);
     const composition = createFinanceComposition({
       sessionId: 'finance-market-test',
       marketHistoryProviders: { hk: 'tushare' },
@@ -22,7 +23,7 @@ describe('@upup/pi-finance-composition', () => {
     });
     const result = await composition.getInvestmentWorkflowServices().getMarketHistory('00700.HK', '2026-01-01', new AbortController().signal, 'hk');
     expect(body).toMatchObject({ api_name: 'hk_daily', token: 'hk-token', params: { ts_code: '00700.HK' } });
-    expect(result.evidence).toMatchObject({ source: 'https://tushare.test/pro', query: '00700.HK:hk:2026-01-01:2026-09-14' });
+    expect(result.evidence).toMatchObject({ source: 'https://tushare.test/pro', query: `00700.HK:hk:2026-01-01:${today}` });
     expect(result.bars).toHaveLength(2);
   });
 });

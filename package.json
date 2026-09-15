@@ -26,9 +26,9 @@
     "check:pi-side-effects": "bun run scripts/check-pi-side-effects.ts",
     "verify:pi-side-effects": "bun run scripts/verify-pi-side-effects-runtime.ts",
     "verify:pi-stdio-stability": "bun run scripts/verify-pi-stdio-stability.ts",
-  "verify:pi-entry-matrix": "bun run scripts/verify-pi-entry-matrix.ts",
-  "verify:pi-faults": "bun run scripts/verify-pi-fault-matrix.ts",
-  "verify:pi-entry-faults": "bun run scripts/verify-pi-entry-faults.ts",
+    "verify:pi-entry-matrix": "bun run scripts/verify-pi-entry-matrix.ts",
+    "verify:pi-faults": "bun run scripts/verify-pi-fault-matrix.ts",
+    "verify:pi-entry-faults": "bun run scripts/verify-pi-entry-faults.ts",
     "verify:pi-entry-sla": "bun run scripts/verify-pi-entry-sla.ts",
     "verify:pi-real-invest": "bun run scripts/verify-pi-real-invest.ts",
     "report:pi-migration": "bun run scripts/report-pi-migration.ts",
@@ -42,7 +42,7 @@
     "check:module-boundaries": "bun run scripts/check-module-boundaries.ts",
     "verify:pi5": "bun run scripts/verify-pi5.ts",
     "benchmark:pi5": "bun run scripts/benchmark-pi5.ts",
-    "test:pi-contracts": "bun test --timeout=15000 src/runtime/pi packages/pi-app/src/print.test.ts packages/gateway/src/agent-runner.pi.test.ts packages/cron/src/executor.pi.test.ts packages/pi-bridge/src/pi-contract.test.ts src/controllers/agent-runner.pi.test.ts packages/sdk/src/pi-session-contract.test.ts && bun --cwd packages/pi-finance-sdk test && bun --cwd packages/pi-market-data test && bun --cwd packages/pi-investment-analysis test && bun --cwd packages/pi-risk test && bun --cwd packages/pi-portfolio test && bun --cwd packages/pi-backtest test && bun --cwd packages/pi-platform test && bun --cwd packages/pi-research test && bun --cwd packages/pi-browser test && bun --cwd packages/pi-config test && bun --cwd packages/pi-cache test && bun --cwd packages/pi-notify test && bun --cwd packages/pi-investment-workflow test && bun --cwd packages/pi-management test && bun --cwd packages/pi-technical test && bun --cwd packages/pi-corporate-actions test && bun --cwd packages/pi-quant test && bun --cwd packages/pi-event-adapter test && bun --cwd packages/pi-session test && bun --cwd packages/pi-resource-composition test && bun --cwd packages/pi-finance-composition test && bun --cwd packages/pi-platform-composition test && bun --cwd packages/pi-capability-registry test && bun --cwd packages/cron test && bun --cwd packages/pi-bridge test && bun --cwd packages/daemon test && bun run verify:pi-side-effects",
+    "test:pi-contracts": "bun test --timeout=15000 src/runtime/pi packages/pi-app/src/print.test.ts packages/gateway/src/agent-runner.pi.test.ts packages/cron/src/executor.pi.test.ts packages/pi-bridge/src/pi-contract.test.ts src/controllers/agent-runner.pi.test.ts packages/sdk/src/pi-session-contract.test.ts && bun --cwd packages/pi-finance-sdk test && bun --cwd packages/pi-market-data test && bun --cwd packages/pi-investment-analysis test && bun --cwd packages/pi-risk test && bun --cwd packages/pi-portfolio test && bun --cwd packages/pi-backtest test && bun --cwd packages/pi-platform test && bun --cwd packages/pi-research test && bun --cwd packages/pi-browser test && bun --cwd packages/pi-config test && bun --cwd packages/pi-cache test && bun --cwd packages/pi-notify test && bun --cwd packages/pi-investment-workflow test && bun --cwd packages/pi-management test && bun --cwd packages/pi-technical test && bun --cwd packages/pi-corporate-actions test && bun --cwd packages/pi-quant test && bun --cwd packages/pi-event-adapter test && bun --cwd packages/pi-session test && bun --cwd packages/pi-resource-composition test && bun --cwd packages/pi-finance-composition test && bun --cwd packages/pi-platform-composition test && bun --cwd packages/pi-capability-registry test && bun --cwd packages/cron test && bun --cwd packages/pi-bridge test && bun --cwd packages/daemon test && bun run verify:pi-side-effects && bun test scripts/verify-pi-real-invest.contract.test.ts && bun test scripts/verify-pi-real-invest.synthetic.test.ts",
     "session:migrate-to-pi": "bun run packages/pi-session/src/migrate-to-pi.ts",
     "lint": "bun run lint:scc",
     "ci": "bun run lint && bun run typecheck && bun test",
@@ -68,7 +68,8 @@
     "build:pkg:win": "pkg . --targets node22-win-x64 --output dist/upup.exe",
     "dist": "bun run build:compile && ./upup --version",
     "prepack": "bun run build:compile",
-    "observability:snapshot": "bun run scripts/report-pi-migration.ts > scripts/.report-pi-migration.json && bun run scripts/observability-snapshot.ts"
+    "observability:snapshot": "bun run scripts/report-pi-migration.ts > scripts/.report-pi-migration.json && bun run scripts/observability-snapshot.ts",
+    "verify:pi-real-invest-synthetic": "bun test scripts/verify-pi-real-invest.synthetic.test.ts"
   },
   "dependencies": {
     "@upup/pi-finance-sdk": "workspace:*",

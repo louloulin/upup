@@ -73,6 +73,21 @@ describe('Pi production entry contract', () => {
     expect(readFileSync(join(process.cwd(), 'packages/pi-session/src/index.ts'), 'utf8')).toContain('PiSessionCompositionProviders');
   });
 
+  test('PiApp default bootstrap wires builtin session composition into the session runtime factory', () => {
+    const source = readFileSync(join(process.cwd(), 'packages/pi-app/src/default.ts'), 'utf8');
+    const usesCombinedProvider = source.includes('sessionCompositionProvider: builtinSessionComposition');
+    const usesSplitProviders = source.includes('sessionFinanceProvider: builtinSessionFinanceComposition')
+      && source.includes('sessionPlatformProvider: builtinSessionPlatformComposition');
+    expect(usesCombinedProvider || usesSplitProviders).toBe(true);
+    expect(source).toContain('createPiAgentRuntime(composition');
+    const piAppIndex = readFileSync(join(process.cwd(), 'packages/pi-app/src/index.ts'), 'utf8');
+    expect(piAppIndex).toContain('sessionCompositionProvider');
+    expect(piAppIndex).toContain('sessionFinanceProvider');
+    expect(piAppIndex).toContain('sessionPlatformProvider');
+    expect(piAppIndex).toContain('PiSessionCompositionProviders');
+    expect(piAppIndex).toContain('getSessionCompositionProvider');
+  });
+
   test('Pi prompt capability discovery does not import the legacy root registry', () => {
     const manifest = readFileSync(join(process.cwd(), 'packages/pi-prompt-config/src/capability-manifest.ts'), 'utf8');
     const prompts = readFileSync(join(process.cwd(), 'packages/pi-prompt-config/src/capability-manifest.ts'), 'utf8');
