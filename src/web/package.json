@@ -1,7 +1,0 @@
-{
-  "name": "@upup/web",
-  "version": "0.0.0",
-  "private": true,
-  "description": "Read-only UpUp Pi management page rendered behind the local management API.",
-  "type": "module"
-}
