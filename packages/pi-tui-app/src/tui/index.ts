@@ -110,7 +110,6 @@ export type { ApprovalRequest as ApprovalRequestOverlay } from './overlays/appro
 export {
   ModelSelector,
   createModelSelector,
-  DEFAULT_MODELS,
   type Model,
   type ModelSelectorProps,
 } from './overlays/model-selector';

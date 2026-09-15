@@ -10,6 +10,7 @@ export * from './input-key-handlers';
 export * from './platform';
 export * from './long-term-chat-history';
 export * from './markdown-table';
+export * from './model-validation';
 export * from './message-queue';
 export * from './ollama';
 export * from './paths';

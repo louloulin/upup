@@ -303,51 +303,6 @@ export function createModelSelector(props: ModelSelectorProps): ModelSelector {
   return new ModelSelector(props);
 }
 
-// ============================================================================
-// Default Models
-// ============================================================================
-
-export const DEFAULT_MODELS: Model[] = [
-  {
-    id: 'claude-opus-4-5',
-    name: 'Claude Opus 4',
-    provider: 'Anthropic',
-    description: 'Most powerful model for complex tasks',
-    contextWindow: 200000,
-  },
-  {
-    id: 'claude-sonnet-4-5',
-    name: 'Claude Sonnet 4',
-    provider: 'Anthropic',
-    description: 'Balanced model for everyday tasks',
-    contextWindow: 200000,
-  },
-  {
-    id: 'claude-haiku-4',
-    name: 'Claude Haiku 4',
-    provider: 'Anthropic',
-    description: 'Fast and efficient for simple tasks',
-    contextWindow: 200000,
-  },
-  {
-    id: 'gpt-4o',
-    name: 'GPT-4o',
-    provider: 'OpenAI',
-    description: 'Most capable GPT-4 model',
-    contextWindow: 128000,
-  },
-  {
-    id: 'gpt-4o-mini',
-    name: 'GPT-4o Mini',
-    provider: 'OpenAI',
-    description: 'Fast and affordable',
-    contextWindow: 128000,
-  },
-  {
-    id: 'gemini-2-flash',
-    name: 'Gemini 2.0 Flash',
-    provider: 'Google',
-    description: 'Fast and versatile',
-    contextWindow: 1000000,
-  },
-];
+// DEFAULT_MODELS removed: hand-rolled provider/model data. The active model
+// selector (packages/pi-tui-app/src/components/select-list.ts) reads
+// directly from @upup/utils PROVIDERS, which is now Pi-catalog-derived.

@@ -16,7 +16,6 @@ export {
 export {
   ModelSelector,
   createModelSelector,
-  DEFAULT_MODELS,
   type Model,
   type ModelSelectorProps,
 } from './model-selector';

@@ -282,6 +282,42 @@ bun run dev                                 # provider selector + welcome + setu
 
 ---
 
+
+## 七、Provider Registry Pi-化收尾（2026-09-15 续）
+
+### 7.1 目标
+彻底删除 `@upup/utils/src/providers.ts` 中的手写 `PROVIDERS` 表，让 UpUp 的 provider 列表完全由 `@earendil-works/pi-ai` 的 `builtinProviders()` 提供。UpUp 只保留：
+- 顶层 curated ordering（`PREFERRED_ORDER` 数组，10 个常用 provider 优先显示）
+- Ollama（UpUp 通过 `pi.registerProvider` 注入，Pi catalog 不含）
+- 兼容旧 `.env` 的 alias（如 `GOOGLE_API_KEY` → `GEMINI_API_KEY`）
+
+### 7.2 改动落点
+- `packages/utils/src/providers.ts` 重写为 142 行：调用 `listPiProviderIds()` / `getPiProviderInfo()` / `listPiModels()` / `piProviderEnvKeys()` 生成 `PROVIDERS`，`pickFastModel` 用 `(flash|mini|haiku|nano|lite|fast|small)` 正则启发式从 Pi catalog 挑 fast model，fallback 第一个 model。
+- `packages/utils/src/providers.ts#resolveProvider` 改用 `@upup/pi-runtime/model-registry` 的 `detectPiProvider`（取代原手写 prefix scan）。
+- `packages/utils/src/providers.ts#getProviderById` 通过 `canonicalPiProviderId` 解析 legacy alias（`moonshot`/`kimi`/`gemini`/`grok`），让旧 `.upup/settings.json` 继续生效。
+- `packages/pi-runtime/src/model-registry.ts` 新增 `detectPiProvider(modelId)`，作为 model id → canonical Pi provider id 的唯一启发式（含 `MiniMax-` 前缀识别，覆盖 minimax / minimax-cn）。
+- `packages/pi-event-adapter/src/pi-model-bridge.ts` 将原 `detectPiProvider` 实现改为从 `@upup/pi-runtime/model-registry` 再导出，保证旧 import path 不破。
+- `packages/utils/src/providers.test.ts` 更新断言：旧 `moonshot → moonshotai`/`kimi → moonshotai` 等 legacy alias 现在都解析到 canonical id；新增 `MiniMax-M3` 解析为 `minimax` 的覆盖测试；filter Ollama 出 catalog-shape 断言。
+- `env.example` 新增 `MINIMAX_API_KEY` 和 `MINIMAX_CN_API_KEY`。
+
+### 7.3 验证结果（2026-09-15 22:16）
+- `bun run typecheck` — 0 错误
+- `bun test` — 2133 / 2133 通过
+- `bun test packages/utils/src/providers.test.ts` — 9 / 9 通过（其中 3 个新增 alias / MiniMax 覆盖）
+- `bun run check:module-boundaries` — 通过（48 packages / 2 root src）
+- `bun run check:pi7` — 通过（单 factory、零生产 global registry）
+- `bun run verify:pi7-final` — 22 / 22 通过
+- `bun run dev` — `/provider` 选择器渲染 41 个 provider（Pi catalog 40 + Ollama），MiniMax / MiniMax CN 都在前 10 优先位，TUI 无行宽溢出
+- `bun run report:pi7` — workspace 数、root src 行数、单 factory 校验无回归
+
+### 7.4 剩余未推 P1（保持与 §五一致）
+- `agentDir=cwd` 与 `.pi/agent` 契约不一致 → 由 §五 P1 持续跟踪
+- `SettingsManager.inMemory()` 仍丢弃 Pi settings.json → §五 P1 持续跟踪
+- `resolvePiModel` 在未知 provider / 未知 model 时仍返回 undefined 而不报警 → §五 P2 持续跟踪
+- Provider 健康检查 / 失败重试 → §五 P3，纳入下一个 Sprint
+
+### 7.5 结论
+`PROVIDERS` 表已完全 Pi-化。后续若 Pi 上游增删 provider，无需改 UpUp 代码；只需在 `PREFERRED_ORDER` 调整 curated 顺序。MiniMax / MiniMax CN 由 Pi 0.85.1 catalog 直接覆盖，无需自定义 provider 注册。
 ## 六、结论
 
 UpUp 在**架构层**是高度 Pi 原生：48 个 workspace package 全 manifest 化、唯一 `PiAgentSessionFactory`、27 个 `sideEffects` 全部声明、fail-closed policy 与 capability 协商齐备。`bun run dev` 启动、static gates、test 全部绿色。

@@ -26,7 +26,7 @@ const RECOMMENDED_MODELS: Record<string, readonly string[]> = {
   anthropic: ['claude-sonnet-4-6', 'claude-opus-4-7'],
   google: ['gemini-3-flash-preview', 'gemini-3.1-pro-preview'],
   xai: ['grok-4.6', 'grok-4.5'],
-  moonshot: ['kimi-k2.5'],
+  moonshotai: ['kimi-k2.5'],
   deepseek: ['deepseek-v4-pro', 'deepseek-v4-flash'],
 };
 
