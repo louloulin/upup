@@ -9,6 +9,6 @@
   "exports": { ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" } },
   "scripts": { "prebuild": "bun run ../../scripts/clean-pi-package-dist.ts", "build": "bun build src/index.ts --outdir=dist --target=node && bun build extensions/index.ts --outdir=dist/extensions --target=node && tsc --emitDeclarationOnly --project tsconfig.json", "test": "bun test ./test.ts ./extensions/index.test.ts" },
   "files": ["dist", "extensions", "skills", "prompts", "workflows", "policies", "evals", "package.json"],
-  "peerDependencies": { "@earendil-works/pi-coding-agent": "0.84.3", "typebox": "1.3.7" },
+  "peerDependencies": { "@earendil-works/pi-coding-agent": "0.85.1", "typebox": "1.3.7" },
   "pi": {"contract":"upup.pi.runtime.v1","source":"builtin:upup","trust":{"mode":"builtin","filesystem":true},"lifecycle":{"scope":"session"},"extensions":["./extensions"],"skills":["./skills/pi-cache"],"prompts":["./prompts/pi-cache.md"],"workflows":["./workflows/pi-cache.md"],"policies":["./policies/pi-cache.md"],"evals":["./evals/pi-cache.json"],"tools":["get_cache_stats","clear_cache","invalidate_cache","get_cache_info"],"nativeTools":["get_cache_stats","clear_cache","invalidate_cache","get_cache_info"]}
 }

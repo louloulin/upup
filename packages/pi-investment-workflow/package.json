@@ -32,7 +32,7 @@
     "package.json"
   ],
   "peerDependencies": {
-    "@earendil-works/pi-coding-agent": "0.84.3",
+    "@earendil-works/pi-coding-agent": "0.85.1",
     "@upup/pi-backtest": "0.1.0",
     "@upup/pi-investment-analysis": "0.1.0",
     "@upup/pi-market-data": "0.1.0",

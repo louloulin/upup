@@ -4,6 +4,15 @@
 .env.*
 
 # Python
+
+# Root session tracking logs from running sessions
+session-*.jsonl
+# TypeScript incremental compilation cache
+*.tsbuildinfo
+
+# Local test scratch dirs created by pi-platform filesystem tests
+.tmp-*/
+
 __pycache__/
 *.py[cod]
 *$py.class
@@ -53,9 +62,13 @@ yarn-error.log*
 .cursor/
 
 # UpUp context files (offloaded tool outputs)
+.upup/
+.upup/**
+**/.upup/
+**/.upup/**
 .upup/*
+.dexter/
 .dexter/*
-
 
 logs/
 coverage.json

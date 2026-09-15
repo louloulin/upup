@@ -143,7 +143,7 @@ async function main() {
     case 'version':
     case '--version':
     case '-v':
-      console.log('UpUp v2026.05.30');
+      console.log('UpUp v2026.6.12');
       process.exit(0);
       break;
 

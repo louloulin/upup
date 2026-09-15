@@ -44,6 +44,7 @@ interface ContractResult {
   readonly durationMs: number;
   readonly passed: boolean;
   readonly summary: string;
+  readonly skipped?: { readonly reason: string };
 }
 
 interface ContractSpec {
@@ -52,6 +53,13 @@ interface ContractSpec {
   readonly command: string;
   readonly args: readonly string[];
   readonly env?: Readonly<Record<string, string>>;
+  /**
+   * When defined, the contract is auto-skipped (passed=true with skipped reason)
+   * instead of being executed. Skipped contracts are reported distinctly from
+   * failed contracts so the operator can see what would activate when external
+   * state changes (e.g. credentials, network, etc.).
+   */
+  readonly skipIf?: () => { readonly skipped: true; readonly reason: string } | { readonly skipped: false; readonly reason: '' };
 }
 
 const CONTRACTS: readonly ContractSpec[] = [
@@ -137,7 +145,7 @@ const CONTRACTS: readonly ContractSpec[] = [
   },
   {
     id: 'C8',
-    label: 'Pi version lock contract (pi-coding-agent / pi-ai / pi-tui all pinned to 0.84.3, no semver ranges)',
+    label: 'Pi version lock contract (pi-coding-agent / pi-ai / pi-tui all pinned to 0.85.1, no semver ranges)',
     command: 'bun',
     args: ['test', 'src/runtime/pi/pi-version-lock.test.ts'],
   },
@@ -194,9 +202,53 @@ const CONTRACTS: readonly ContractSpec[] = [
     command: 'bun',
     args: ['run', 'scripts/verify-pi-stdio-stability.ts'],
   },
+  {
+    id: 'C15',
+    label: 'real provider dossier (CN/HK/US, credential-gated; auto-skips when no Tushare/financial-datasets credentials)',
+    command: 'bun',
+    args: ['run', 'scripts/verify-pi-real-invest.ts'],
+    env: {
+      UPUP_REAL_INVEST: '1',
+      UPUP_REAL_INVEST_CONFIRM: 'READ_ONLY',
+    },
+    skipIf: () => {
+      const hasTushare = Boolean(process.env.TUSHARE_TOKEN?.trim());
+      const hasFinancialDatasets = Boolean(process.env.FINANCIAL_DATASETS_API_KEY?.trim());
+      const tickers = (process.env.UPUP_REAL_INVEST_TICKERS ?? '600519.SH,00700.HK,AAPL')
+        .split(',')
+        .map((v) => v.trim().toUpperCase())
+        .filter(Boolean);
+      const needsTushare = tickers.some((t) => t.endsWith('.HK') || /^\d{6}(?:\.(?:SH|SZ|BJ))?$/.test(t));
+      const needsFinancialDatasets = tickers.some((t) => !t.endsWith('.HK') && !/^\d{6}(?:\.(?:SH|SZ|BJ))?$/.test(t));
+      const missing: string[] = [];
+      if (needsTushare && !hasTushare) missing.push('TUSHARE_TOKEN');
+      if (needsFinancialDatasets && !hasFinancialDatasets) missing.push('FINANCIAL_DATASETS_API_KEY');
+      if (missing.length === 0) return { skipped: false, reason: '' };
+      return {
+        skipped: true,
+        reason: `凭证未到位（${missing.join(', ')}）；凭证到位后 C15 自动激活为真实验证。`,
+      };
+    },
+  },
 ];
 
 function runContract(spec: ContractSpec): Promise<ContractResult> {
+  if (spec.skipIf) {
+    const skip = spec.skipIf();
+    if (skip.skipped) {
+      return Promise.resolve({
+        id: spec.id,
+        label: spec.label,
+        command: `${spec.command} ${spec.args.join(' ')}`,
+        args: spec.args,
+        exitCode: null,
+        durationMs: 0,
+        passed: true,
+        summary: `skipped: ${skip.reason}`,
+        skipped: { reason: skip.reason },
+      });
+    }
+  }
   const startedAt = Date.now();
   return new Promise((resolve) => {
     const child = spawn(spec.command, [...spec.args], {
@@ -249,6 +301,7 @@ async function main(): Promise<void> {
       contractCount: CONTRACTS.length,
       passedCount: results.length - failed.length,
       failedCount: failed.length,
+      skippedCount: results.filter((result) => result.skipped !== undefined).length,
       totalDurationMs,
       contracts: results.map((result) => ({
         id: result.id,
@@ -257,6 +310,7 @@ async function main(): Promise<void> {
         exitCode: result.exitCode,
         durationMs: result.durationMs,
         passed: result.passed,
+        skipped: result.skipped,
         summary: result.summary,
       })),
     };

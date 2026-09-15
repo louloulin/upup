@@ -45,12 +45,40 @@ function marketForTicker(ticker: string): 'cn' | 'hk' | 'us' | 'fund' | 'crypto'
   return 'us';
 }
 
+function buildNextSteps(tickers: readonly string[]): string[] {
+  const needsTushare = tickers.some((t) => t.endsWith('.HK') || /^\d{6}(?:\.(?:SH|SZ|BJ))?$/.test(t));
+  const needsFinancialDatasets = tickers.some((t) => !t.endsWith('.HK') && !/^\d{6}(?:\.(?:SH|SZ|BJ))?$/.test(t));
+  const steps: string[] = [
+    '# Real provider dossier verification is credential-gated. To enable:',
+    'export UPUP_REAL_INVEST=1',
+    'export UPUP_REAL_INVEST_CONFIRM=READ_ONLY',
+  ];
+  if (needsTushare) {
+    steps.push('export TUSHARE_TOKEN=...   # required for CN/HK tickers');
+  }
+  if (needsFinancialDatasets) {
+    steps.push('export FINANCIAL_DATASETS_API_KEY=...   # required for US tickers');
+  }
+  steps.push(`export UPUP_REAL_INVEST_TICKERS="${tickers.join(',')}"`);
+  steps.push('bun run verify:pi-real-invest');
+  steps.push('# Artifacts land in: .upup/real-invest-artifacts/');
+  steps.push('# When C15 is plugged into verify:pi7-final, this contract becomes the 21st entry.');
+  return steps;
+}
+
 if (!enabled || !confirmed) {
   console.log(JSON.stringify({
     schema: INVESTMENT_VERIFICATION_ARTIFACT_SCHEMA,
     status: 'skipped',
     reason: '需要显式设置 UPUP_REAL_INVEST=1 与 UPUP_REAL_INVEST_CONFIRM=READ_ONLY；默认不访问网络。',
     fixtureSeparate: true,
+    nextSteps: buildNextSteps(tickers),
+    requiredEnv: {
+      UPUP_REAL_INVEST: enabled ? '1 (already set)' : 'missing',
+      UPUP_REAL_INVEST_CONFIRM: confirmed ? 'READ_ONLY (already set)' : 'missing',
+      TUSHARE_TOKEN: process.env.TUSHARE_TOKEN ? 'configured' : 'required for CN/HK tickers',
+      FINANCIAL_DATASETS_API_KEY: process.env.FINANCIAL_DATASETS_API_KEY ? 'configured' : 'required for US tickers',
+    },
   }, null, 2));
   process.exit(0);
 }
@@ -65,6 +93,14 @@ if (!configuredTickers && requestedMarket) {
   throw new Error('指定 UPUP_REAL_INVEST_MARKET 时必须同时指定 UPUP_REAL_INVEST_TICKERS，避免错误地把同一 ticker 当作多个市场。');
 }
 
+// Validate ALL credentials before creating any artifact directory so a
+// half-configured environment never leaves a dangling .upup/real-invest-artifacts/.
+const markets = tickers.map((ticker) => marketForTicker(ticker));
+const uniqueMarkets = new Set(markets);
+for (const market of uniqueMarkets) {
+  requireMarketCredential(market);
+}
+
 mkdirSync(artifactDirectory, { recursive: true });
 process.env.UPUP_PLANS_DIR = artifactDirectory;
 const startedAt = new Date().toISOString();
@@ -74,6 +110,7 @@ const results = [];
 try {
 for (const ticker of tickers) {
   const market = marketForTicker(ticker);
+  // credential already validated above; per-iteration check kept for defensive parity
   requireMarketCredential(market);
   const expectedProvider = providerForMarket(market);
   const modelVersion = process.env.UPUP_MODEL ?? process.env.OPENAI_MODEL ?? 'configured-provider-model';

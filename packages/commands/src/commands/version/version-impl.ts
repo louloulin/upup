@@ -17,7 +17,7 @@ export const call = async (
     '  UpUp Version',
     '═══════════════════════════════════════',
     '',
-    '  UpUp v2026.05.15',
+    '  UpUp v2026.6.12',
     '  Dexter Command System v4',
     '',
     '  Build: production',

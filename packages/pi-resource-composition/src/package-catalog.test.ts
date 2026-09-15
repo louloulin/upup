@@ -8,7 +8,7 @@ import { PiPackageCatalog } from './package-catalog.js';
 function makePackage(version: string, command = 'fixture-research'): { root: string; hash: string } {
   const root = mkdtempSync(join(tmpdir(), 'upup-pi-package-'));
   mkdirSync(join(root, 'extensions'));
-  writeFileSync(join(root, 'package.json'), JSON.stringify({ name: '@upup/fixture-package', version, peerDependencies: { '@earendil-works/pi-coding-agent': '0.84.3' }, pi: { source: 'fixture:test', commands: [command], extensions: ['./extensions'], workflows: ['./workflow.md'], policies: ['./policy.md'], evals: ['./eval.json'] } }));
+  writeFileSync(join(root, 'package.json'), JSON.stringify({ name: '@upup/fixture-package', version, peerDependencies: { '@earendil-works/pi-coding-agent': '0.85.1' }, pi: { source: 'fixture:test', commands: [command], extensions: ['./extensions'], workflows: ['./workflow.md'], policies: ['./policy.md'], evals: ['./eval.json'] } }));
   writeFileSync(join(root, 'extensions', 'index.ts'), `export default ${JSON.stringify(version)};`);
   writeFileSync(join(root, 'workflow.md'), '# Workflow\n\nUse phases: detect, plan, execute, verify, report.');
   writeFileSync(join(root, 'policy.md'), '# Policy\n\n- Read-only tools require evidence.');
@@ -32,7 +32,7 @@ describe('PiPackageCatalog', () => {
     const catalog = new PiPackageCatalog();
     const record = catalog.register(packageFixture.root, {
       trustedPaths: [packageFixture.root],
-      pinnedPackages: { '@upup/fixture-package': '1.0.0', '@earendil-works/pi-coding-agent': '0.84.3' },
+      pinnedPackages: { '@upup/fixture-package': '1.0.0', '@earendil-works/pi-coding-agent': '0.85.1' },
       allowedSources: { '@upup/fixture-package': ['fixture:test'] },
     });
     expect(record.manifest.extensions).toEqual([]);
@@ -48,7 +48,7 @@ describe('PiPackageCatalog', () => {
     const catalog = new PiPackageCatalog();
     const record = catalog.register(packageFixture.root, {
       trustedPaths: [packageFixture.root],
-      pinnedPackages: { '@upup/fixture-package': '1.0.0', '@earendil-works/pi-coding-agent': '0.84.3' },
+      pinnedPackages: { '@upup/fixture-package': '1.0.0', '@earendil-works/pi-coding-agent': '0.85.1' },
       allowedSources: { '@upup/fixture-package': ['fixture:test'] },
     });
     expect(record.manifest.hostCapabilities).toEqual(['agent-worker', 'mcp-resources']);
@@ -64,7 +64,7 @@ describe('PiPackageCatalog', () => {
     const catalog = new PiPackageCatalog();
     const record = catalog.register(packageFixture.root, {
       trustedPaths: [packageFixture.root],
-      pinnedPackages: { '@upup/fixture-package': '1.0.0', '@earendil-works/pi-coding-agent': '0.84.3' },
+      pinnedPackages: { '@upup/fixture-package': '1.0.0', '@earendil-works/pi-coding-agent': '0.85.1' },
       allowedSources: { '@upup/fixture-package': ['fixture:test'] },
     });
     expect(record.manifest.sideEffects).toEqual([{ tools: ['fixture_write'], effect: 'filesystem-write', safetyLevel: 'dangerous' }]);
@@ -74,7 +74,7 @@ describe('PiPackageCatalog', () => {
     const first = makePackage('1.0.0');
     const second = makePackage('1.1.0');
     const catalog = new PiPackageCatalog();
-    const trust = { trustedPaths: [first.root, second.root], pinnedPackages: { '@upup/fixture-package': '1.0.0', '@earendil-works/pi-coding-agent': '0.84.3' }, allowedSources: { '@upup/fixture-package': ['fixture:test'] } };
+    const trust = { trustedPaths: [first.root, second.root], pinnedPackages: { '@upup/fixture-package': '1.0.0', '@earendil-works/pi-coding-agent': '0.85.1' }, allowedSources: { '@upup/fixture-package': ['fixture:test'] } };
     const record = catalog.register(first.root, trust);
     expect(record.manifest.version).toBe('1.0.0');
     expect(record.manifest.commands).toEqual(['fixture-research']);
@@ -108,7 +108,7 @@ describe('PiPackageCatalog', () => {
     const catalog = new PiPackageCatalog();
     expect(() => catalog.register(packageFixture.root, {
       trustedPaths: [packageFixture.root],
-      pinnedPackages: { '@upup/fixture-package': '1.0.0', '@earendil-works/pi-coding-agent': '0.84.3' },
+      pinnedPackages: { '@upup/fixture-package': '1.0.0', '@earendil-works/pi-coding-agent': '0.85.1' },
     })).toThrow('source is not allowlisted');
   });
 
@@ -116,7 +116,7 @@ describe('PiPackageCatalog', () => {
     const first = makePackage('1.0.0');
     const second = makePackage('1.0.0');
     const catalog = new PiPackageCatalog();
-    const trust = { trustedPaths: [first.root, second.root], pinnedPackages: { '@upup/fixture-package': '1.0.0', '@earendil-works/pi-coding-agent': '0.84.3' }, allowedSources: { '@upup/fixture-package': ['fixture:test'] } };
+    const trust = { trustedPaths: [first.root, second.root], pinnedPackages: { '@upup/fixture-package': '1.0.0', '@earendil-works/pi-coding-agent': '0.85.1' }, allowedSources: { '@upup/fixture-package': ['fixture:test'] } };
 
     catalog.register(first.root, trust);
     expect(() => catalog.register(second.root, trust)).toThrow('already registered from a different root');
@@ -143,7 +143,7 @@ describe('PiPackageCatalog', () => {
       pinnedPackages: {
         '@upup/fixture-package': '1.0.0',
         '@upup/second-fixture-package': '1.0.0',
-        '@earendil-works/pi-coding-agent': '0.84.3',
+        '@earendil-works/pi-coding-agent': '0.85.1',
       },
       allowedSources: {
         '@upup/fixture-package': ['fixture:test'],
@@ -169,7 +169,7 @@ describe('PiPackageCatalog', () => {
       pinnedPackages: {
         '@upup/fixture-package': '1.0.0',
         '@upup/deferred-second-package': '1.0.0',
-        '@earendil-works/pi-coding-agent': '0.84.3',
+        '@earendil-works/pi-coding-agent': '0.85.1',
       },
       allowedSources: {
         '@upup/fixture-package': ['fixture:test'],
@@ -193,7 +193,7 @@ describe('PiPackageCatalog', () => {
     writeFileSync(manifestPath, JSON.stringify(manifest));
     expect(() => new PiPackageCatalog().register(packageFixture.root, {
       trustedPaths: [packageFixture.root],
-      pinnedPackages: { '@upup/fixture-package': '1.0.0', '@earendil-works/pi-coding-agent': '0.84.3' },
+      pinnedPackages: { '@upup/fixture-package': '1.0.0', '@earendil-works/pi-coding-agent': '0.85.1' },
       allowedSources: { '@upup/fixture-package': ['fixture:test'] },
     })).toThrow('exact semver');
   });
@@ -219,7 +219,7 @@ describe('PiPackageCatalog', () => {
       pinnedPackages: {
         '@upup/fixture-package': '1.0.0',
         '@upup/missing-package': '1.0.0',
-        '@earendil-works/pi-coding-agent': '0.84.3',
+        '@earendil-works/pi-coding-agent': '0.85.1',
       },
       allowedSources: { '@upup/fixture-package': ['fixture:test'] },
     });
@@ -237,7 +237,7 @@ describe('PiPackageCatalog', () => {
     writeFileSync(manifestPath, JSON.stringify(manifest));
     const trust = {
       trustedPaths: [packageFixture.root],
-      pinnedPackages: { '@upup/fixture-package': '1.0.0', '@earendil-works/pi-coding-agent': '0.84.3' },
+      pinnedPackages: { '@upup/fixture-package': '1.0.0', '@earendil-works/pi-coding-agent': '0.85.1' },
       allowedSources: { '@upup/fixture-package': ['fixture:test'] },
     };
     const catalog = new PiPackageCatalog();
@@ -256,7 +256,7 @@ describe('PiPackageCatalog', () => {
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as { pi: Record<string, unknown> };
     manifest.pi.capabilities = [{ name: 'storage.session', version: '1.0.0', scope: 'session', trust: { mode: 'builtin', filesystem: true }, lifecycle: { scope: 'session' } }];
     writeFileSync(manifestPath, JSON.stringify(manifest));
-    const trust = { trustedPaths: [packageFixture.root], pinnedPackages: { '@upup/fixture-package': '1.0.0', '@earendil-works/pi-coding-agent': '0.84.3' }, allowedSources: { '@upup/fixture-package': ['fixture:test'] } };
+    const trust = { trustedPaths: [packageFixture.root], pinnedPackages: { '@upup/fixture-package': '1.0.0', '@earendil-works/pi-coding-agent': '0.85.1' }, allowedSources: { '@upup/fixture-package': ['fixture:test'] } };
     const catalog = new PiPackageCatalog();
     catalog.register(packageFixture.root, trust);
     expect(catalog.negotiateCapabilityCatalog([{ name: 'storage.session', version: '1.0.0', scope: 'session', trust: { mode: 'builtin', filesystem: true }, lifecycle: { scope: 'session' } }])).toMatchObject([{ resolved: true, capability: 'storage.session' }]);
@@ -271,13 +271,13 @@ describe('PiPackageCatalog', () => {
     writeFileSync(manifestPath, JSON.stringify(manifest));
     expect(() => new PiPackageCatalog().register(packageFixture.root, {
       trustedPaths: [packageFixture.root],
-      pinnedPackages: { '@upup/fixture-package': '1.0.0', '@earendil-works/pi-coding-agent': '0.84.3' },
+      pinnedPackages: { '@upup/fixture-package': '1.0.0', '@earendil-works/pi-coding-agent': '0.85.1' },
       allowedSources: { '@upup/fixture-package': ['fixture:test'] },
     })).not.toThrow();
     const catalog = new PiPackageCatalog();
     catalog.register(packageFixture.root, {
       trustedPaths: [packageFixture.root],
-      pinnedPackages: { '@upup/fixture-package': '1.0.0', '@earendil-works/pi-coding-agent': '0.84.3' },
+      pinnedPackages: { '@upup/fixture-package': '1.0.0', '@earendil-works/pi-coding-agent': '0.85.1' },
       allowedSources: { '@upup/fixture-package': ['fixture:test'] },
     });
     expect(() => catalog.validateLifecycleContracts()).toThrow('requires initialize');
@@ -297,7 +297,7 @@ describe('PiPackageCatalog', () => {
       pinnedPackages: {
         '@upup/fixture-package': '1.0.0',
         '@upup/dependent-package': '1.0.0',
-        '@earendil-works/pi-coding-agent': '0.84.3',
+        '@earendil-works/pi-coding-agent': '0.85.1',
       },
       allowedSources: {
         '@upup/fixture-package': ['fixture:test'],
@@ -329,7 +329,7 @@ describe('PiPackageCatalog', () => {
         '@upup/fixture-package': '1.0.0',
         '@upup/selected-package': '1.0.0',
         '@upup/unrelated-package': '1.0.0',
-        '@earendil-works/pi-coding-agent': '0.84.3',
+        '@earendil-works/pi-coding-agent': '0.85.1',
       },
       allowedSources: {
         '@upup/fixture-package': ['fixture:test'],
@@ -350,14 +350,14 @@ describe('PiPackageCatalog', () => {
     const manifestPath = join(packageFixture.root, 'package.json');
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as Record<string, unknown>;
     manifest.dependencies = { '@upup/conflicting-package': '1.0.0' };
-    manifest.peerDependencies = { '@upup/conflicting-package': '2.0.0', '@earendil-works/pi-coding-agent': '0.84.3' };
+    manifest.peerDependencies = { '@upup/conflicting-package': '2.0.0', '@earendil-works/pi-coding-agent': '0.85.1' };
     writeFileSync(manifestPath, JSON.stringify(manifest));
     expect(() => new PiPackageCatalog().register(packageFixture.root, {
       trustedPaths: [packageFixture.root],
       pinnedPackages: {
         '@upup/fixture-package': '1.0.0',
         '@upup/conflicting-package': '2.0.0',
-        '@earendil-works/pi-coding-agent': '0.84.3',
+        '@earendil-works/pi-coding-agent': '0.85.1',
       },
       allowedSources: { '@upup/fixture-package': ['fixture:test'] },
     })).toThrow('conflicting exact versions');
@@ -382,7 +382,7 @@ describe('PiPackageCatalog', () => {
       pinnedPackages: {
         '@upup/cycle-a': '1.0.0',
         '@upup/cycle-b': '1.0.0',
-        '@earendil-works/pi-coding-agent': '0.84.3',
+        '@earendil-works/pi-coding-agent': '0.85.1',
       },
       allowedSources: { '@upup/cycle-a': ['fixture:test'], '@upup/cycle-b': ['fixture:test'] },
     };
@@ -405,7 +405,7 @@ describe('PiPackageCatalog', () => {
       pinnedPackages: {
         '@upup/fixture-package': '1.0.0',
         '@upup/dependent-package': '1.0.0',
-        '@earendil-works/pi-coding-agent': '0.84.3',
+        '@earendil-works/pi-coding-agent': '0.85.1',
       },
       allowedSources: {
         '@upup/fixture-package': ['fixture:test'],
@@ -431,7 +431,7 @@ describe('PiPackageCatalog', () => {
       pinnedPackages: {
         '@upup/fixture-package': '1.0.0',
         '@upup/missing-package': '1.0.0',
-        '@earendil-works/pi-coding-agent': '0.84.3',
+        '@earendil-works/pi-coding-agent': '0.85.1',
       },
       allowedSources: { '@upup/fixture-package': ['fixture:test'] },
     };
@@ -444,7 +444,7 @@ describe('PiPackageCatalog', () => {
     const packageFixture = makePackage('1.0.0');
     expect(() => new PiPackageCatalog().register(packageFixture.root, {
       trustedPaths: [packageFixture.root],
-      pinnedPackages: { '@earendil-works/pi-coding-agent': '0.84.3' },
+      pinnedPackages: { '@earendil-works/pi-coding-agent': '0.85.1' },
       allowedSources: { '@upup/fixture-package': ['fixture:test'] },
     })).toThrow('package version is not pinned as expected');
   });
@@ -457,7 +457,7 @@ describe('PiPackageCatalog', () => {
     writeFileSync(manifestPath, JSON.stringify(manifest));
     expect(() => new PiPackageCatalog().register(packageFixture.root, {
       trustedPaths: [packageFixture.root],
-      pinnedPackages: { '@upup/fixture-package': '1.0.0', '@earendil-works/pi-coding-agent': '0.84.3' },
+      pinnedPackages: { '@upup/fixture-package': '1.0.0', '@earendil-works/pi-coding-agent': '0.85.1' },
       allowedSources: { '@upup/fixture-package': ['fixture:test'] },
     })).toThrow('name/version is invalid');
   });
@@ -468,7 +468,7 @@ describe('PiPackageCatalog', () => {
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as { pi: { extensions: string[] } };
     const trust = {
       trustedPaths: [packageFixture.root],
-      pinnedPackages: { '@upup/fixture-package': '1.0.0', '@earendil-works/pi-coding-agent': '0.84.3' },
+      pinnedPackages: { '@upup/fixture-package': '1.0.0', '@earendil-works/pi-coding-agent': '0.85.1' },
       allowedSources: { '@upup/fixture-package': ['fixture:test'] },
     };
     manifest.pi.extensions = ['../outside.ts'];
@@ -492,7 +492,7 @@ describe('PiPackageCatalog', () => {
     writeFileSync(manifestPath, JSON.stringify(manifest));
     expect(() => new PiPackageCatalog().register(packageFixture.root, {
       trustedPaths: [packageFixture.root],
-      pinnedPackages: { '@upup/fixture-package': '1.0.0', '@earendil-works/pi-coding-agent': '0.84.3' },
+      pinnedPackages: { '@upup/fixture-package': '1.0.0', '@earendil-works/pi-coding-agent': '0.85.1' },
       allowedSources: { '@upup/fixture-package': ['fixture:test'] },
     })).toThrow('duplicates');
 
@@ -500,7 +500,7 @@ describe('PiPackageCatalog', () => {
     writeFileSync(manifestPath, JSON.stringify(manifest));
     expect(() => new PiPackageCatalog().register(packageFixture.root, {
       trustedPaths: [packageFixture.root],
-      pinnedPackages: { '@upup/fixture-package': '1.0.0', '@earendil-works/pi-coding-agent': '0.84.3' },
+      pinnedPackages: { '@upup/fixture-package': '1.0.0', '@earendil-works/pi-coding-agent': '0.85.1' },
       allowedSources: { '@upup/fixture-package': ['fixture:test'] },
     })).toThrow('invalid');
   });
@@ -510,7 +510,7 @@ describe('PiPackageCatalog', () => {
     const catalog = new PiPackageCatalog();
     const trust = {
       trustedPaths: [packageFixture.root],
-      pinnedPackages: { '@upup/fixture-package': '1.0.0', '@earendil-works/pi-coding-agent': '0.84.3' },
+      pinnedPackages: { '@upup/fixture-package': '1.0.0', '@earendil-works/pi-coding-agent': '0.85.1' },
       allowedSources: { '@upup/fixture-package': ['fixture:test'] },
     };
     catalog.register(packageFixture.root, trust);

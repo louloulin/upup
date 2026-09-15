@@ -25,7 +25,7 @@ describe('PiAgentSessionFactory', () => {
     const packageRoot = join(process.cwd(), 'packages');
     const trust = {
       trustedPaths: [join(packageRoot, 'pi-research'), join(packageRoot, 'pi-finance-sdk')],
-      pinnedPackages: { '@upup/pi-research': '0.1.0', '@upup/pi-finance-sdk': '0.1.0', '@earendil-works/pi-coding-agent': '0.84.3', '@upup/types': '0.2.0', typebox: '1.3.7' },
+      pinnedPackages: { '@upup/pi-research': '0.1.0', '@upup/pi-finance-sdk': '0.1.0', '@earendil-works/pi-coding-agent': '0.85.1', '@upup/types': '0.2.0', typebox: '1.3.7' },
       allowedSources: { '@upup/pi-research': ['builtin:upup'], '@upup/pi-finance-sdk': ['builtin:upup'] },
     };
     const enabled = await new PiAgentSessionFactory().createSession({
@@ -44,7 +44,7 @@ describe('PiAgentSessionFactory', () => {
     const packageRoot = join(process.cwd(), 'packages');
     const trust = {
       trustedPaths: [join(packageRoot, 'pi-config')],
-      pinnedPackages: { '@upup/pi-config': '0.1.0', '@earendil-works/pi-coding-agent': '0.84.3', '@upup/types': '0.2.0', typebox: '1.3.7' },
+      pinnedPackages: { '@upup/pi-config': '0.1.0', '@earendil-works/pi-coding-agent': '0.85.1', '@upup/types': '0.2.0', typebox: '1.3.7' },
       allowedSources: { '@upup/pi-config': ['builtin:upup'] },
     };
     const enabled = await new PiAgentSessionFactory().createSession({
@@ -63,7 +63,7 @@ describe('PiAgentSessionFactory', () => {
     const packageRoot = join(process.cwd(), 'packages');
     const trust = {
       trustedPaths: [join(packageRoot, 'pi-management'), join(packageRoot, 'pi-market-data')],
-      pinnedPackages: { '@upup/pi-management': '0.1.0', '@upup/pi-market-data': '0.1.0', '@upup/pi-resource-composition': '0.1.0', '@upup/pi-session': '0.1.0', '@upup/pi-runtime': '0.1.0', '@upup/utils': '0.2.0', '@upup/pi-capability-registry': '0.1.0', '@earendil-works/pi-coding-agent': '0.84.3', '@upup/types': '0.2.0', typebox: '1.3.7' },
+      pinnedPackages: { '@upup/pi-management': '0.1.0', '@upup/pi-market-data': '0.1.0', '@upup/pi-resource-composition': '0.1.0', '@upup/pi-session': '0.1.0', '@upup/pi-runtime': '0.1.0', '@upup/utils': '0.2.0', '@upup/pi-capability-registry': '0.1.0', '@earendil-works/pi-coding-agent': '0.85.1', '@upup/types': '0.2.0', typebox: '1.3.7' },
       allowedSources: { '@upup/pi-management': ['builtin:upup'], '@upup/pi-market-data': ['builtin:upup'] },
     };
     const session = await new PiAgentSessionFactory().createSession({
@@ -76,7 +76,7 @@ describe('PiAgentSessionFactory', () => {
       expect(text).toBeDefined();
       const snapshot = JSON.parse(text!) as { schema: number; runtime: { name: string; contract: string; version: string }; packages: readonly { name: string; version: string }[] };
       expect(snapshot.schema).toBe(1);
-      expect(snapshot.runtime).toEqual({ name: 'pi', contract: 'upup.pi.host.v1', version: '0.84.3' });
+      expect(snapshot.runtime).toEqual({ name: 'pi', contract: 'upup.pi.host.v1', version: '0.85.1' });
       expect(snapshot.packages.some((pkg) => pkg.name === '@upup/pi-management' && pkg.version === '0.1.0')).toBe(true);
       expect(snapshot.packages.some((pkg) => pkg.name === '@upup/pi-market-data' && pkg.version === '0.1.0')).toBe(true);
     } finally {
@@ -96,7 +96,7 @@ describe('PiAgentSessionFactory', () => {
     }]);
     const trust = {
       trustedPaths: [join(packageRoot, 'pi-management'), join(packageRoot, 'pi-market-data')],
-      pinnedPackages: { '@upup/pi-management': '0.1.0', '@upup/pi-market-data': '0.1.0', '@upup/pi-resource-composition': '0.1.0', '@upup/pi-session': '0.1.0', '@upup/pi-runtime': '0.1.0', '@upup/utils': '0.2.0', '@upup/pi-capability-registry': '0.1.0', '@earendil-works/pi-coding-agent': '0.84.3', '@upup/types': '0.2.0', typebox: '1.3.7' },
+      pinnedPackages: { '@upup/pi-management': '0.1.0', '@upup/pi-market-data': '0.1.0', '@upup/pi-resource-composition': '0.1.0', '@upup/pi-session': '0.1.0', '@upup/pi-runtime': '0.1.0', '@upup/utils': '0.2.0', '@upup/pi-capability-registry': '0.1.0', '@earendil-works/pi-coding-agent': '0.85.1', '@upup/types': '0.2.0', typebox: '1.3.7' },
       allowedSources: { '@upup/pi-management': ['builtin:upup'], '@upup/pi-market-data': ['builtin:upup'] },
     };
     const session = await new PiAgentSessionFactory().createSession({
@@ -118,7 +118,7 @@ describe('PiAgentSessionFactory', () => {
     const packageRoot = join(process.cwd(), 'packages');
     const trust = {
       trustedPaths: [join(packageRoot, 'pi-cache')],
-      pinnedPackages: { '@upup/pi-cache': '0.1.0', '@earendil-works/pi-coding-agent': '0.84.3', '@upup/types': '0.2.0', typebox: '1.3.7' },
+      pinnedPackages: { '@upup/pi-cache': '0.1.0', '@earendil-works/pi-coding-agent': '0.85.1', '@upup/types': '0.2.0', typebox: '1.3.7' },
       allowedSources: { '@upup/pi-cache': ['builtin:upup'] },
     };
     const enabled = await new PiAgentSessionFactory().createSession({
@@ -135,7 +135,7 @@ describe('PiAgentSessionFactory', () => {
     const packageRoot = join(process.cwd(), 'packages');
     const trust = {
       trustedPaths: [join(packageRoot, 'pi-notify')],
-      pinnedPackages: { '@upup/pi-notify': '0.1.0', '@earendil-works/pi-coding-agent': '0.84.3', '@upup/types': '0.2.0', typebox: '1.3.7' },
+      pinnedPackages: { '@upup/pi-notify': '0.1.0', '@earendil-works/pi-coding-agent': '0.85.1', '@upup/types': '0.2.0', typebox: '1.3.7' },
       allowedSources: { '@upup/pi-notify': ['builtin:upup'] },
     };
     const enabled = await new PiAgentSessionFactory().createSession({ ...getInvestmentAgentSpec('invest-explore'), packages: ['@upup/pi-notify'], skills: [], tools: ['notify', 'notify_list', 'subscribe_pr', 'unsubscribe_pr', 'list_pr_subscriptions'] }, { cwd: process.cwd(), requestToolApproval: async () => true, piPackagePaths: [join(packageRoot, 'pi-notify')], piPackageTrust: trust });
@@ -166,7 +166,7 @@ describe('PiAgentSessionFactory', () => {
       piPackagePaths: [join(packageRoot, 'pi-platform')],
       piPackageTrust: {
         trustedPaths: [join(packageRoot, 'pi-platform')],
-        pinnedPackages: { '@upup/pi-platform': '0.1.0', '@earendil-works/pi-coding-agent': '0.84.3', '@upup/types': '0.2.0', typebox: '1.3.7' },
+        pinnedPackages: { '@upup/pi-platform': '0.1.0', '@earendil-works/pi-coding-agent': '0.85.1', '@upup/types': '0.2.0', typebox: '1.3.7' },
         allowedSources: { '@upup/pi-platform': ['builtin:upup'] },
       },
     });
@@ -199,7 +199,7 @@ describe('PiAgentSessionFactory', () => {
     const directory = await mkdtemp(join(process.cwd(), '.upup', 'platform-watchlist-session-'));
     const sessionPath = join(directory, 'platform-watchlist.jsonl');
     const spec = { ...getInvestmentAgentSpec('invest-explore'), id: 'platform-watchlist-session', packages: ['@upup/pi-platform'], skills: [], tools: ['add_to_watchlist', 'remove_from_watchlist', 'get_watchlist', 'add_watchlist_alert', 'check_watchlist_alerts', 'clear_watchlist_alert', 'export_watchlist'] };
-    const trust = { trustedPaths: [join(packageRoot, 'pi-platform')], pinnedPackages: { '@upup/pi-platform': '0.1.0', '@earendil-works/pi-coding-agent': '0.84.3', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-platform': ['builtin:upup'] } };
+    const trust = { trustedPaths: [join(packageRoot, 'pi-platform')], pinnedPackages: { '@upup/pi-platform': '0.1.0', '@earendil-works/pi-coding-agent': '0.85.1', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-platform': ['builtin:upup'] } };
     const first = await new PiAgentSessionFactory().createSession(spec, { cwd: directory, sessionPath, piPackagePaths: [join(packageRoot, 'pi-platform')], piPackageTrust: trust });
     try {
       expect(first.getAvailableToolNames()).toEqual(spec.tools);
@@ -225,7 +225,7 @@ describe('PiAgentSessionFactory', () => {
   test('loads native Platform LSP tools only through the trusted Package', async () => {
     const packageRoot = join(process.cwd(), 'packages');
     const spec = { ...getInvestmentAgentSpec('invest-explore'), id: 'platform-lsp-session', packages: ['@upup/pi-platform'], skills: [], tools: ['lsp_complete', 'lsp_definition', 'lsp_references', 'lsp_hover', 'lsp_diagnostics'] };
-    const trust = { trustedPaths: [join(packageRoot, 'pi-platform')], pinnedPackages: { '@upup/pi-platform': '0.1.0', '@earendil-works/pi-coding-agent': '0.84.3', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-platform': ['builtin:upup'] } };
+    const trust = { trustedPaths: [join(packageRoot, 'pi-platform')], pinnedPackages: { '@upup/pi-platform': '0.1.0', '@earendil-works/pi-coding-agent': '0.85.1', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-platform': ['builtin:upup'] } };
     const enabled = await new PiAgentSessionFactory().createSession(spec, { cwd: process.cwd(), piPackagePaths: [join(packageRoot, 'pi-platform')], piPackageTrust: trust });
     try {
       expect(enabled.getAvailableToolNames()).toEqual(spec.tools);
@@ -241,7 +241,7 @@ describe('PiAgentSessionFactory', () => {
     const packageRoot = join(process.cwd(), 'packages');
     const directory = await mkdtemp(join(process.cwd(), '.tmp-pi-platform-session-'));
     const spec = { ...getInvestmentAgentSpec('invest-explore'), id: 'platform-filesystem-session', packages: ['@upup/pi-platform'], skills: [], tools: ['bash', 'read_file', 'write_file', 'edit_file', 'glob', 'grep', 'send_user_file'] };
-    const trust = { trustedPaths: [join(packageRoot, 'pi-platform')], pinnedPackages: { '@upup/pi-platform': '0.1.0', '@earendil-works/pi-coding-agent': '0.84.3', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-platform': ['builtin:upup'] } };
+    const trust = { trustedPaths: [join(packageRoot, 'pi-platform')], pinnedPackages: { '@upup/pi-platform': '0.1.0', '@earendil-works/pi-coding-agent': '0.85.1', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-platform': ['builtin:upup'] } };
     try {
       await writeFile(join(directory, 'input.txt'), 'alpha\nbeta\n');
       const enabled = await new PiAgentSessionFactory().createSession(spec, { cwd: directory, requestToolApproval: async () => true, piPackagePaths: [join(packageRoot, 'pi-platform')], piPackageTrust: trust });
@@ -267,7 +267,7 @@ describe('PiAgentSessionFactory', () => {
     const previousMemoryRoot = process.env.UPUP_MEMORY_DIR;
     process.env.UPUP_MEMORY_DIR = memoryRoot;
     const spec = { ...getInvestmentAgentSpec('invest-explore'), id: 'platform-memory-session', packages: ['@upup/pi-platform'], skills: [], tools: ['memory_search', 'memory_get', 'memory_update'] };
-    const trust = { trustedPaths: [join(packageRoot, 'pi-platform')], pinnedPackages: { '@upup/pi-platform': '0.1.0', '@earendil-works/pi-coding-agent': '0.84.3', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-platform': ['builtin:upup'] } };
+    const trust = { trustedPaths: [join(packageRoot, 'pi-platform')], pinnedPackages: { '@upup/pi-platform': '0.1.0', '@earendil-works/pi-coding-agent': '0.85.1', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-platform': ['builtin:upup'] } };
     try {
       const enabled = await new PiAgentSessionFactory().createSession(spec, { cwd: process.cwd(), requestToolApproval: async () => true, piPackagePaths: [join(packageRoot, 'pi-platform')], piPackageTrust: trust });
       try {
@@ -296,7 +296,7 @@ describe('PiAgentSessionFactory', () => {
     process.env.UPUP_HEARTBEAT_PATH = join(root, 'HEARTBEAT.md');
     process.env.UPUP_GATEWAY_CONFIG = join(root, 'gateway.json');
     const spec = { ...getInvestmentAgentSpec('invest-explore'), id: 'platform-heartbeat-session', packages: ['@upup/pi-platform'], skills: [], tools: ['heartbeat'] };
-    const trust = { trustedPaths: [join(packageRoot, 'pi-platform')], pinnedPackages: { '@upup/pi-platform': '0.1.0', '@earendil-works/pi-coding-agent': '0.84.3', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-platform': ['builtin:upup'] } };
+    const trust = { trustedPaths: [join(packageRoot, 'pi-platform')], pinnedPackages: { '@upup/pi-platform': '0.1.0', '@earendil-works/pi-coding-agent': '0.85.1', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-platform': ['builtin:upup'] } };
     try {
       const enabled = await new PiAgentSessionFactory().createSession(spec, { cwd: process.cwd(), requestToolApproval: async () => true, piPackagePaths: [join(packageRoot, 'pi-platform')], piPackageTrust: trust });
       try {
@@ -322,7 +322,7 @@ describe('PiAgentSessionFactory', () => {
     const previousCronStore = process.env.UPUP_CRON_STORE;
     process.env.UPUP_CRON_STORE = join(cronRoot, 'jobs.json');
     const spec = { ...getInvestmentAgentSpec('invest-explore'), id: 'platform-cron-session', packages: ['@upup/pi-platform'], skills: [], tools: ['cron'] };
-    const trust = { trustedPaths: [join(packageRoot, 'pi-platform')], pinnedPackages: { '@upup/pi-platform': '0.1.0', '@earendil-works/pi-coding-agent': '0.84.3', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-platform': ['builtin:upup'] } };
+    const trust = { trustedPaths: [join(packageRoot, 'pi-platform')], pinnedPackages: { '@upup/pi-platform': '0.1.0', '@earendil-works/pi-coding-agent': '0.85.1', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-platform': ['builtin:upup'] } };
     try {
       const enabled = await new PiAgentSessionFactory().createSession(spec, { cwd: process.cwd(), requestToolApproval: async () => true, piPackagePaths: [join(packageRoot, 'pi-platform')], piPackageTrust: trust });
       try {
@@ -349,7 +349,7 @@ describe('PiAgentSessionFactory', () => {
   test('loads native Platform planning tools with Session persistence and package isolation', async () => {
     const packageRoot = join(process.cwd(), 'packages');
     const spec = { ...getInvestmentAgentSpec('invest-plan'), id: 'platform-planning-session', packages: ['@upup/pi-platform'], skills: [], tools: ['enter_plan_mode', 'exit_plan_mode', 'add_plan_step', 'update_plan_step', 'list_plan_steps', 'create_todo', 'update_todo', 'list_todos', 'delete_todo'] };
-    const trust = { trustedPaths: [join(packageRoot, 'pi-platform')], pinnedPackages: { '@upup/pi-platform': '0.1.0', '@earendil-works/pi-coding-agent': '0.84.3', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-platform': ['builtin:upup'] } };
+    const trust = { trustedPaths: [join(packageRoot, 'pi-platform')], pinnedPackages: { '@upup/pi-platform': '0.1.0', '@earendil-works/pi-coding-agent': '0.85.1', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-platform': ['builtin:upup'] } };
     const enabled = await new PiAgentSessionFactory().createSession(spec, { cwd: process.cwd(), piPackagePaths: [join(packageRoot, 'pi-platform')], piPackageTrust: trust });
     try {
       expect(enabled.getAvailableToolNames()).toEqual(spec.tools);
@@ -379,7 +379,7 @@ describe('PiAgentSessionFactory', () => {
     const packageRoot = join(process.cwd(), 'packages');
     const directory = await mkdtemp(join(process.cwd(), '.tmp-pi-platform-notebook-'));
     const spec = { ...getInvestmentAgentSpec('invest-plan'), id: 'platform-notebook-session', packages: ['@upup/pi-platform'], skills: [], tools: ['notebook_read', 'notebook_create', 'notebook_edit_cell', 'notebook_insert_cell', 'notebook_delete_cell'] };
-    const trust = { trustedPaths: [join(packageRoot, 'pi-platform')], pinnedPackages: { '@upup/pi-platform': '0.1.0', '@earendil-works/pi-coding-agent': '0.84.3', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-platform': ['builtin:upup'] } };
+    const trust = { trustedPaths: [join(packageRoot, 'pi-platform')], pinnedPackages: { '@upup/pi-platform': '0.1.0', '@earendil-works/pi-coding-agent': '0.85.1', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-platform': ['builtin:upup'] } };
       const session = await new PiAgentSessionFactory().createSession(spec, { cwd: directory, requestToolApproval: async () => true, piPackagePaths: [join(packageRoot, 'pi-platform')], piPackageTrust: trust });
     try {
       expect(session.getAvailableToolNames()).toEqual(spec.tools);
@@ -402,7 +402,7 @@ describe('PiAgentSessionFactory', () => {
     const home = await mkdtemp(join(process.cwd(), '.tmp-pi-platform-mcp-home-'));
     const previousHome = process.env.UPUP_HOME; process.env.UPUP_HOME = home;
     const spec = { ...getInvestmentAgentSpec('invest-explore'), id: 'platform-mcp-session', packages: ['@upup/pi-platform'], skills: [], tools: ['mcp_auth_set', 'mcp_auth_get', 'mcp_auth_clear', 'list_mcp_resources', 'read_mcp_resource'], permissions: { ...getInvestmentAgentSpec('invest-explore').permissions, allow: ['safe', 'warning', 'dangerous', 'critical'] as const, deny: [] as const, allowCredentialAccess: true } };
-    const trust = { trustedPaths: [join(packageRoot, 'pi-platform')], pinnedPackages: { '@upup/pi-platform': '0.1.0', '@earendil-works/pi-coding-agent': '0.84.3', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-platform': ['builtin:upup'] } };
+    const trust = { trustedPaths: [join(packageRoot, 'pi-platform')], pinnedPackages: { '@upup/pi-platform': '0.1.0', '@earendil-works/pi-coding-agent': '0.85.1', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-platform': ['builtin:upup'] } };
     const session = await new PiAgentSessionFactory().createSession({ ...spec, permissions: { ...spec.permissions, allow: ['safe', 'warning', 'dangerous', 'critical'], allowCredentialAccess: true } }, { cwd: process.cwd(), requestToolApproval: async () => true, piPackagePaths: [join(packageRoot, 'pi-platform')], piPackageTrust: trust });
     try {
       expect(session.getAvailableToolNames()).toEqual(spec.tools);
@@ -425,7 +425,7 @@ describe('PiAgentSessionFactory', () => {
   test('loads native Platform task tools with Session journal lifecycle and package isolation', async () => {
     const packageRoot = join(process.cwd(), 'packages');
     const spec = { ...getInvestmentAgentSpec('invest-explore'), id: 'platform-task-session', packages: ['@upup/pi-platform'], skills: [], tools: ['task_create', 'task_get', 'task_list', 'task_stop', 'task_update', 'task_result'] };
-    const trust = { trustedPaths: [join(packageRoot, 'pi-platform')], pinnedPackages: { '@upup/pi-platform': '0.1.0', '@earendil-works/pi-coding-agent': '0.84.3', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-platform': ['builtin:upup'] } };
+    const trust = { trustedPaths: [join(packageRoot, 'pi-platform')], pinnedPackages: { '@upup/pi-platform': '0.1.0', '@earendil-works/pi-coding-agent': '0.85.1', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-platform': ['builtin:upup'] } };
     const session = await new PiAgentSessionFactory().createSession(spec, { cwd: process.cwd(), piPackagePaths: [join(packageRoot, 'pi-platform')], piPackageTrust: trust });
     try {
       expect(session.getAvailableToolNames()).toEqual(spec.tools);
@@ -449,7 +449,7 @@ describe('PiAgentSessionFactory', () => {
     const packageRoot = join(process.cwd(), 'packages');
     const directory = await mkdtemp(join(process.cwd(), '.upup', 'platform-export-session-'));
     const spec = { ...getInvestmentAgentSpec('invest-explore'), id: 'platform-export-session', packages: ['@upup/pi-platform'], skills: [], tools: ['export_data'] };
-    const trust = { trustedPaths: [join(packageRoot, 'pi-platform')], pinnedPackages: { '@upup/pi-platform': '0.1.0', '@earendil-works/pi-coding-agent': '0.84.3', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-platform': ['builtin:upup'] } };
+    const trust = { trustedPaths: [join(packageRoot, 'pi-platform')], pinnedPackages: { '@upup/pi-platform': '0.1.0', '@earendil-works/pi-coding-agent': '0.85.1', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-platform': ['builtin:upup'] } };
     const enabled = await new PiAgentSessionFactory().createSession(spec, { cwd: directory, requestToolApproval: async () => true, piPackagePaths: [join(packageRoot, 'pi-platform')], piPackageTrust: trust });
     try {
       expect(enabled.getAvailableToolNames()).toEqual(['export_data']);
@@ -465,7 +465,7 @@ describe('PiAgentSessionFactory', () => {
   test('loads native Platform skill discovery from the Pi Resource Loader', async () => {
     const packageRoot = join(process.cwd(), 'packages');
     const spec = { ...getInvestmentAgentSpec('invest-explore'), id: 'platform-skill-session', packages: ['@upup/pi-platform'], skills: ['pi-platform'], tools: ['list_skills', 'search_skills', 'get_skill', 'skill_info', 'skill', 'execute_skill'] };
-    const trust = { trustedPaths: [join(packageRoot, 'pi-platform')], pinnedPackages: { '@upup/pi-platform': '0.1.0', '@earendil-works/pi-coding-agent': '0.84.3', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-platform': ['builtin:upup'] } };
+    const trust = { trustedPaths: [join(packageRoot, 'pi-platform')], pinnedPackages: { '@upup/pi-platform': '0.1.0', '@earendil-works/pi-coding-agent': '0.85.1', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-platform': ['builtin:upup'] } };
     const session = await new PiAgentSessionFactory().createSession(spec, { cwd: process.cwd(), piPackagePaths: [join(packageRoot, 'pi-platform')], piPackageTrust: trust });
     try {
       expect(session.getAvailableToolNames()).toEqual(spec.tools);
@@ -773,7 +773,7 @@ describe('PiAgentSessionFactory', () => {
       piPackagePaths: [join(packageRoot, 'pi-finance-sdk')],
       piPackageTrust: {
         trustedPaths: [join(packageRoot, 'pi-finance-sdk')],
-        pinnedPackages: { '@upup/pi-finance-sdk': '0.1.0', '@earendil-works/pi-coding-agent': '0.84.3', '@upup/types': '0.2.0', typebox: '1.3.7' },
+        pinnedPackages: { '@upup/pi-finance-sdk': '0.1.0', '@earendil-works/pi-coding-agent': '0.85.1', '@upup/types': '0.2.0', typebox: '1.3.7' },
         allowedSources: { '@upup/pi-finance-sdk': ['builtin:upup'] },
       },
     });
@@ -924,7 +924,7 @@ describe('PiAgentSessionFactory', () => {
         trustedPaths: [process.cwd()],
         pinnedPackages: {
           '@upup/pi-finance-sdk': '0.1.0',
-          '@earendil-works/pi-coding-agent': '0.84.3',
+          '@earendil-works/pi-coding-agent': '0.85.1',
           typebox: '1.3.7',
         },
         allowedSources: { '@upup/pi-finance-sdk': ['builtin:upup'] },
@@ -941,7 +941,7 @@ describe('PiAgentSessionFactory', () => {
         trustedPaths: [process.cwd()],
         pinnedPackages: {
           '@upup/pi-finance-sdk': '0.1.0',
-          '@earendil-works/pi-coding-agent': '0.84.3',
+          '@earendil-works/pi-coding-agent': '0.85.1',
           typebox: '1.3.7',
         },
         allowedSources: { '@upup/pi-finance-sdk': ['builtin:upup'] },
@@ -975,7 +975,7 @@ describe('PiAgentSessionFactory', () => {
       await writeFile(join(packageRoot, 'package.json'), JSON.stringify({
         name: '@upup/project-fixture',
         version: '1.0.0',
-        peerDependencies: { '@earendil-works/pi-coding-agent': '0.84.3' },
+        peerDependencies: { '@earendil-works/pi-coding-agent': '0.85.1' },
         pi: { source: 'internal:project', extensions: ['./extensions'], commands: ['project-fixture-command'] },
       }));
       await writeFile(join(packageRoot, 'extensions', 'index.js'), `export default function fixtureExtension(pi) {
@@ -994,7 +994,7 @@ describe('PiAgentSessionFactory', () => {
           trustedPaths: ['./packages/fixture'],
           pinnedPackages: {
             '@upup/project-fixture': '1.0.0',
-            '@earendil-works/pi-coding-agent': '0.84.3',
+            '@earendil-works/pi-coding-agent': '0.85.1',
           },
           allowedSources: { '@upup/project-fixture': ['internal:project'] },
         },
@@ -1047,7 +1047,7 @@ describe('PiAgentSessionFactory', () => {
         pinnedPackages: {
           '@upup/pi-finance-sdk': '0.1.0',
           '@upup/pi-market-data': '0.1.0',
-          '@earendil-works/pi-coding-agent': '0.84.3',
+          '@earendil-works/pi-coding-agent': '0.85.1',
           typebox: '1.3.7',
         },
         allowedSources: {
@@ -1095,7 +1095,7 @@ describe('PiAgentSessionFactory', () => {
           trustedPaths: [join(packageRoot, 'pi-market-data')],
           pinnedPackages: {
             '@upup/pi-market-data': '0.1.0',
-            '@earendil-works/pi-coding-agent': '0.84.3',
+            '@earendil-works/pi-coding-agent': '0.85.1',
             typebox: '1.3.7',
           },
           allowedSources: { '@upup/pi-market-data': ['builtin:upup'] },
@@ -1123,7 +1123,7 @@ describe('PiAgentSessionFactory', () => {
       tools: ['get_sector_data', 'get_market_structure', 'get_technical_data', 'stock_screener', 'screen_astocks', 'realtime_subscribe', 'realtime_unsubscribe', 'realtime_list_subscriptions'],
     }, { cwd: process.cwd(), piPackagePaths: [join(packageRoot, 'pi-market-data')], piPackageTrust: {
       trustedPaths: [join(packageRoot, 'pi-market-data')],
-      pinnedPackages: { '@upup/pi-market-data': '0.1.0', '@earendil-works/pi-coding-agent': '0.84.3', '@upup/types': '0.2.0', typebox: '1.3.7' },
+      pinnedPackages: { '@upup/pi-market-data': '0.1.0', '@earendil-works/pi-coding-agent': '0.85.1', '@upup/types': '0.2.0', typebox: '1.3.7' },
       allowedSources: { '@upup/pi-market-data': ['builtin:upup'] },
     } });
     try { expect(session.getAvailableToolNames()).toEqual([]); } finally { session.dispose(); }
@@ -1145,7 +1145,7 @@ describe('PiAgentSessionFactory', () => {
           '@upup/pi-market-data': '0.1.0',
           '@upup/pi-investment-analysis': '0.1.0',
           '@upup/types': '0.2.0',
-          '@earendil-works/pi-coding-agent': '0.84.3',
+          '@earendil-works/pi-coding-agent': '0.85.1',
           typebox: '1.3.7',
         },
         allowedSources: {
@@ -1226,7 +1226,7 @@ describe('PiAgentSessionFactory', () => {
           '@upup/pi-market-data': '0.1.0',
           '@upup/pi-investment-analysis': '0.1.0',
           '@upup/types': '0.2.0',
-          '@earendil-works/pi-coding-agent': '0.84.3',
+          '@earendil-works/pi-coding-agent': '0.85.1',
           typebox: '1.3.7',
         },
         allowedSources: {
@@ -1254,7 +1254,7 @@ describe('PiAgentSessionFactory', () => {
       piPackagePaths: [join(packageRoot, 'pi-market-data'), join(packageRoot, 'pi-investment-analysis')],
       piPackageTrust: {
         trustedPaths: [join(packageRoot, 'pi-market-data'), join(packageRoot, 'pi-investment-analysis')],
-        pinnedPackages: { '@upup/pi-market-data': '0.1.0', '@upup/pi-investment-analysis': '0.1.0', '@earendil-works/pi-coding-agent': '0.84.3', '@upup/types': '0.2.0', typebox: '1.3.7' },
+        pinnedPackages: { '@upup/pi-market-data': '0.1.0', '@upup/pi-investment-analysis': '0.1.0', '@earendil-works/pi-coding-agent': '0.85.1', '@upup/types': '0.2.0', typebox: '1.3.7' },
         allowedSources: { '@upup/pi-market-data': ['builtin:upup'], '@upup/pi-investment-analysis': ['builtin:upup'] },
       },
     });
@@ -1279,7 +1279,7 @@ describe('PiAgentSessionFactory', () => {
         trustedPaths: [join(packageRoot, 'pi-investment-analysis')],
         pinnedPackages: {
           '@upup/pi-investment-analysis': '0.1.0',
-          '@earendil-works/pi-coding-agent': '0.84.3',
+          '@earendil-works/pi-coding-agent': '0.85.1',
           typebox: '1.3.7',
         },
         allowedSources: { '@upup/pi-investment-analysis': ['builtin:upup'] },
@@ -1291,7 +1291,7 @@ describe('PiAgentSessionFactory', () => {
     const packageRoot = join(process.cwd(), 'packages');
     const session = await new PiAgentSessionFactory().createSession({ ...getInvestmentAgentSpec('invest-plan'), packages: ['@upup/pi-market-data', '@upup/pi-investment-analysis'], skills: [], tools: ['list_research_tasks'] }, {
       cwd: process.cwd(), piPackagePaths: [join(packageRoot, 'pi-market-data'), join(packageRoot, 'pi-investment-analysis')],
-      piPackageTrust: { trustedPaths: [join(packageRoot, 'pi-market-data'), join(packageRoot, 'pi-investment-analysis')], pinnedPackages: { '@upup/pi-market-data': '0.1.0', '@upup/pi-investment-analysis': '0.1.0', '@earendil-works/pi-coding-agent': '0.84.3', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-market-data': ['builtin:upup'], '@upup/pi-investment-analysis': ['builtin:upup'] } },
+      piPackageTrust: { trustedPaths: [join(packageRoot, 'pi-market-data'), join(packageRoot, 'pi-investment-analysis')], pinnedPackages: { '@upup/pi-market-data': '0.1.0', '@upup/pi-investment-analysis': '0.1.0', '@earendil-works/pi-coding-agent': '0.85.1', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-market-data': ['builtin:upup'], '@upup/pi-investment-analysis': ['builtin:upup'] } },
     });
     try {
       expect(session.getAvailableToolNames()).toContain('list_research_tasks');
@@ -1316,7 +1316,7 @@ describe('PiAgentSessionFactory', () => {
         trustedPaths: [join(packageRoot, 'pi-risk')],
         pinnedPackages: {
           '@upup/pi-risk': '0.1.0',
-          '@earendil-works/pi-coding-agent': '0.84.3',
+          '@earendil-works/pi-coding-agent': '0.85.1',
           typebox: '1.3.7',
         },
         allowedSources: {
@@ -1373,7 +1373,7 @@ describe('PiAgentSessionFactory', () => {
         pinnedPackages: {
           '@upup/pi-risk': '0.1.0',
           '@upup/pi-market-data': '0.1.0',
-          '@earendil-works/pi-coding-agent': '0.84.3',
+          '@earendil-works/pi-coding-agent': '0.85.1',
           typebox: '1.3.7',
         },
         allowedSources: {
@@ -1403,7 +1403,7 @@ describe('PiAgentSessionFactory', () => {
         trustedPaths: [join(packageRoot, 'pi-portfolio')],
         pinnedPackages: {
           '@upup/pi-portfolio': '0.1.0',
-          '@earendil-works/pi-coding-agent': '0.84.3',
+          '@earendil-works/pi-coding-agent': '0.85.1',
           typebox: '1.3.7',
         },
         allowedSources: { '@upup/pi-portfolio': ['builtin:upup'] },
@@ -1443,7 +1443,7 @@ describe('PiAgentSessionFactory', () => {
     const directory = await mkdtemp(join(process.cwd(), '.upup', 'portfolio-session-'));
     const sessionPath = join(directory, 'portfolio.jsonl');
     const spec = { ...getInvestmentAgentSpec('invest-review'), id: 'portfolio-session-state', packages: ['@upup/pi-portfolio'], skills: [], tools: ['add_position', 'get_portfolio', 'create_portfolio', 'add_position_multi', 'get_portfolio_multi'] };
-    const trust = { trustedPaths: [join(packageRoot, 'pi-portfolio')], pinnedPackages: { '@upup/pi-portfolio': '0.1.0', '@earendil-works/pi-coding-agent': '0.84.3', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-portfolio': ['builtin:upup'] } };
+    const trust = { trustedPaths: [join(packageRoot, 'pi-portfolio')], pinnedPackages: { '@upup/pi-portfolio': '0.1.0', '@earendil-works/pi-coding-agent': '0.85.1', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-portfolio': ['builtin:upup'] } };
     const first = await new PiAgentSessionFactory().createSession(spec, { cwd: directory, sessionPath, piPackagePaths: [join(packageRoot, 'pi-portfolio')], piPackageTrust: trust });
     await first.executeTool('add_position', 'portfolio-state-add', { symbol: 'MSFT', quantity: 5, avgCost: 300 });
     await first.executeTool('create_portfolio', 'portfolio-state-create', { name: 'growth', initialCash: 50000 });
@@ -1468,7 +1468,7 @@ describe('PiAgentSessionFactory', () => {
     const directory = await mkdtemp(join(process.cwd(), '.upup', 'fund-watchlist-session-'));
     const sessionPath = join(directory, 'fund-watchlist.jsonl');
     const spec = { ...getInvestmentAgentSpec('invest-explore'), id: 'fund-watchlist-session-state', packages: ['@upup/pi-finance-sdk'], skills: [], tools: ['fund_follow', 'fund_unfollow', 'fund_list'] };
-    const trust = { trustedPaths: [join(packageRoot, 'pi-finance-sdk')], pinnedPackages: { '@upup/pi-finance-sdk': '0.1.0', '@earendil-works/pi-coding-agent': '0.84.3', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-finance-sdk': ['builtin:upup'] } };
+    const trust = { trustedPaths: [join(packageRoot, 'pi-finance-sdk')], pinnedPackages: { '@upup/pi-finance-sdk': '0.1.0', '@earendil-works/pi-coding-agent': '0.85.1', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-finance-sdk': ['builtin:upup'] } };
     const first = await new PiAgentSessionFactory().createSession(spec, { cwd: directory, sessionPath, piPackagePaths: [join(packageRoot, 'pi-finance-sdk')], piPackageTrust: trust });
     try {
       const followed = await first.executeTool('fund_follow', 'fund-watchlist-follow', { fund_code: '110022', note: 'session-only' });
@@ -1489,7 +1489,7 @@ describe('PiAgentSessionFactory', () => {
     const directory = await mkdtemp(join(process.cwd(), '.upup', 'finance-knowledge-session-'));
     const sessionPath = join(directory, 'finance-knowledge.jsonl');
     const spec = { ...getInvestmentAgentSpec('invest-explore'), id: 'finance-knowledge-session-state', packages: ['@upup/pi-finance-sdk'], skills: [], tools: ['track_company', 'track_sector', 'get_knowledge_summary'] };
-    const trust = { trustedPaths: [join(packageRoot, 'pi-finance-sdk')], pinnedPackages: { '@upup/pi-finance-sdk': '0.1.0', '@earendil-works/pi-coding-agent': '0.84.3', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-finance-sdk': ['builtin:upup'] } };
+    const trust = { trustedPaths: [join(packageRoot, 'pi-finance-sdk')], pinnedPackages: { '@upup/pi-finance-sdk': '0.1.0', '@earendil-works/pi-coding-agent': '0.85.1', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-finance-sdk': ['builtin:upup'] } };
     const first = await new PiAgentSessionFactory().createSession(spec, { cwd: directory, sessionPath, piPackagePaths: [join(packageRoot, 'pi-finance-sdk')], piPackageTrust: trust });
     try {
       const company = await first.executeTool('track_company', 'knowledge-company-1', { ticker: 'aapl', name: 'Apple', sector: 'Technology', industry: 'Consumer Electronics', summary: 'Session research note.', key_metrics: { pe: 34.2 } });
@@ -1515,7 +1515,7 @@ describe('PiAgentSessionFactory', () => {
     const directory = await mkdtemp(join(process.cwd(), '.upup', 'market-kairos-session-'));
     const sessionPath = join(directory, 'market-kairos.jsonl');
     const spec = { ...getInvestmentAgentSpec('invest-explore'), id: 'market-kairos-session-state', packages: ['@upup/pi-market-data'], skills: [], tools: ['kairos_recent_opportunities', 'kairos_recent_position_alerts', 'kairos_recent_scanner_events', 'kairos_summary'] };
-    const trust = { trustedPaths: [join(packageRoot, 'pi-market-data')], pinnedPackages: { '@upup/pi-market-data': '0.1.0', '@earendil-works/pi-coding-agent': '0.84.3', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-market-data': ['builtin:upup'] } };
+    const trust = { trustedPaths: [join(packageRoot, 'pi-market-data')], pinnedPackages: { '@upup/pi-market-data': '0.1.0', '@earendil-works/pi-coding-agent': '0.85.1', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-market-data': ['builtin:upup'] } };
     const first = await new PiAgentSessionFactory().createSession(spec, { cwd: directory, sessionPath, piPackagePaths: [join(packageRoot, 'pi-market-data')], piPackageTrust: trust });
     try {
       first.appendEntry('upup_pi_market_data_kairos_journal', {
@@ -1546,7 +1546,7 @@ describe('PiAgentSessionFactory', () => {
     const directory = await mkdtemp(join(process.cwd(), '.upup', 'fund-alert-session-'));
     const sessionPath = join(directory, 'fund-alerts.jsonl');
     const spec = { ...getInvestmentAgentSpec('invest-explore'), id: 'fund-alert-session-state', packages: ['@upup/pi-finance-sdk'], skills: [], tools: ['fund_alert_create', 'fund_alert_list', 'fund_alert_delete'] };
-    const trust = { trustedPaths: [join(packageRoot, 'pi-finance-sdk')], pinnedPackages: { '@upup/pi-finance-sdk': '0.1.0', '@earendil-works/pi-coding-agent': '0.84.3', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-finance-sdk': ['builtin:upup'] } };
+    const trust = { trustedPaths: [join(packageRoot, 'pi-finance-sdk')], pinnedPackages: { '@upup/pi-finance-sdk': '0.1.0', '@earendil-works/pi-coding-agent': '0.85.1', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-finance-sdk': ['builtin:upup'] } };
     const first = await new PiAgentSessionFactory().createSession(spec, { cwd: directory, sessionPath, piPackagePaths: [join(packageRoot, 'pi-finance-sdk')], piPackageTrust: trust });
     try {
       const created = await first.executeTool('fund_alert_create', 'fund-alert-create', { fund_code: '110022', alert_type: 'change_down', value: 5 });
@@ -1568,7 +1568,7 @@ describe('PiAgentSessionFactory', () => {
       ...getInvestmentAgentSpec('invest-plan'), packages: ['@upup/pi-backtest'], skills: ['pi-backtest'], tools: ['evaluate_trade', 'run_backtest', 'get_backtest_summary', 'calculate_win_rate'],
     }, {
       cwd: process.cwd(), piPackagePaths: [join(packageRoot, 'pi-backtest')], piPackageTrust: {
-        trustedPaths: [join(packageRoot, 'pi-backtest')], pinnedPackages: { '@upup/pi-backtest': '0.1.0', '@earendil-works/pi-coding-agent': '0.84.3', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-backtest': ['builtin:upup'] },
+        trustedPaths: [join(packageRoot, 'pi-backtest')], pinnedPackages: { '@upup/pi-backtest': '0.1.0', '@earendil-works/pi-coding-agent': '0.85.1', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-backtest': ['builtin:upup'] },
       },
     });
     try {
@@ -1588,7 +1588,7 @@ describe('PiAgentSessionFactory', () => {
       await writeFile(join(packageRoot, 'package.json'), JSON.stringify({
         name: '@upup/project-invalid-fixture',
         version: '1.0.0',
-        peerDependencies: { '@earendil-works/pi-coding-agent': '0.84.3' },
+        peerDependencies: { '@earendil-works/pi-coding-agent': '0.85.1' },
         pi: { source: 'internal:project', extensions: ['./extensions'], commands: ['missing-command'] },
       }));
       await writeFile(join(packageRoot, 'extensions', 'index.js'), 'export default function fixtureExtension() {}');
@@ -1598,7 +1598,7 @@ describe('PiAgentSessionFactory', () => {
           trustedPaths: ['./packages/fixture'],
           pinnedPackages: {
             '@upup/project-invalid-fixture': '1.0.0',
-            '@earendil-works/pi-coding-agent': '0.84.3',
+            '@earendil-works/pi-coding-agent': '0.85.1',
           },
           allowedSources: { '@upup/project-invalid-fixture': ['internal:project'] },
         },
@@ -1628,7 +1628,7 @@ describe('PiAgentSessionFactory', () => {
         trustedPaths: [process.cwd()],
         pinnedPackages: {
           '@upup/pi-finance-sdk': '0.1.0',
-          '@earendil-works/pi-coding-agent': '0.84.3',
+          '@earendil-works/pi-coding-agent': '0.85.1',
           typebox: '1.3.7',
         },
         allowedSources: { '@upup/pi-finance-sdk': ['builtin:upup'] },
@@ -1655,7 +1655,7 @@ describe('PiAgentSessionFactory', () => {
         trustedPaths: [process.cwd()],
         pinnedPackages: {
           '@upup/pi-finance-sdk': '0.1.0',
-          '@earendil-works/pi-coding-agent': '0.84.3',
+          '@earendil-works/pi-coding-agent': '0.85.1',
           typebox: '1.3.7',
         },
         allowedSources: { '@upup/pi-finance-sdk': ['builtin:upup'] },

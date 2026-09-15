@@ -19,7 +19,7 @@ describe('Pi investment workflow package integration', () => {
     const packageDirectories = ['pi-investment-workflow', 'pi-backtest', 'pi-investment-analysis', 'pi-portfolio', 'pi-market-data', 'pi-research', 'pi-finance-sdk', 'pi-risk'];
     const trust = {
       trustedPaths: packageDirectories.map((directory) => join(packageRoot, directory)),
-      pinnedPackages: { ...Object.fromEntries(packageNames.map((name) => [name, '0.1.0'])), '@upup/pi-storage': '0.2.0', '@upup/pi-planning': '0.1.0', '@upup/pi-research': '0.1.0', '@upup/pi-market-data': '0.1.0', '@upup/memory': '0.2.0', '@upup/pi-finance-sdk': '0.1.0', '@earendil-works/pi-coding-agent': '0.84.3', typebox: '1.3.7' } as Record<string, string>,
+      pinnedPackages: { ...Object.fromEntries(packageNames.map((name) => [name, '0.1.0'])), '@upup/pi-storage': '0.2.0', '@upup/pi-planning': '0.1.0', '@upup/pi-research': '0.1.0', '@upup/pi-market-data': '0.1.0', '@upup/memory': '0.2.0', '@upup/pi-finance-sdk': '0.1.0', '@earendil-works/pi-coding-agent': '0.85.1', typebox: '1.3.7' } as Record<string, string>,
       allowedSources: Object.fromEntries(packageNames.map((name) => [name, ['builtin:upup']])) as Record<string, readonly string[]>,
     };
     const session = await new PiAgentSessionFactory().createSession({

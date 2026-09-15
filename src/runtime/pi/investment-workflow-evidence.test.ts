@@ -35,7 +35,7 @@ function trustFor(root: string) {
       '@upup/pi-storage': '0.2.0',
       '@upup/pi-planning': '0.1.0',
       '@upup/memory': '0.2.0',
-      '@earendil-works/pi-coding-agent': '0.84.3',
+      '@earendil-works/pi-coding-agent': '0.85.1',
       typebox: '1.3.7',
     } as Record<string, string>,
     allowedSources: Object.fromEntries(packageNames.map((name) => [name, ['builtin:upup']])) as Record<string, readonly string[]>,

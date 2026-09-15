@@ -29,7 +29,7 @@
     "@upup/pi-app": "0.1.0",
     "@upup/pi-tui-app": "0.1.0",
     "@upup/utils": "0.2.0",
-    "@earendil-works/pi-tui": "0.84.3",
+    "@earendil-works/pi-tui": "0.85.1",
     "zod": "3.25.76"
   },
   "pi": {

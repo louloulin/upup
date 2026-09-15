@@ -85,14 +85,14 @@ describe('configured Pi packages', () => {
   test('merges explicit trust overrides with builtin dependency pins and sources', () => {
     expect(mergePiPackageTrust({
       trustedPaths: ['/builtin'],
-      pinnedPackages: { '@upup/pi-finance-sdk': '0.1.0', '@earendil-works/pi-coding-agent': '0.84.3' },
+      pinnedPackages: { '@upup/pi-finance-sdk': '0.1.0', '@earendil-works/pi-coding-agent': '0.85.1' },
       allowedSources: { '@upup/pi-finance-sdk': ['builtin:upup'] },
     }, {
       trustedPaths: ['/project'],
       pinnedPackages: { '@upup/pi-finance-sdk': '0.1.0' },
     })).toEqual({
       trustedPaths: ['/project'],
-      pinnedPackages: { '@upup/pi-finance-sdk': '0.1.0', '@earendil-works/pi-coding-agent': '0.84.3' },
+      pinnedPackages: { '@upup/pi-finance-sdk': '0.1.0', '@earendil-works/pi-coding-agent': '0.85.1' },
       allowedSources: { '@upup/pi-finance-sdk': ['builtin:upup'] },
     });
   });

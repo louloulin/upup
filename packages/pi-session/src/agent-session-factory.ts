@@ -165,7 +165,7 @@ function installPiPackageToolHosts(
       schema: 1,
       sessionId: sessionId.slice(-12),
       capturedAt,
-      runtime: { name: 'pi', contract: 'upup.pi.host.v1', version: '0.84.3' },
+      runtime: { name: 'pi', contract: 'upup.pi.host.v1', version: '0.85.1' },
       permissions: {
         policyId: spec.permissions.id,
         allowFinancialWrites: spec.permissions.allowFinancialWrites,

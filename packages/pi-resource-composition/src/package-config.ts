@@ -160,8 +160,8 @@ export function getBuiltinPiPackageOptions(cwd = process.cwd()): ConfiguredPiPac
       trustedPaths: packagePaths,
       pinnedPackages: {
         ...Object.fromEntries(candidates.map((candidate) => [candidate.name, candidate.version])),
-        '@earendil-works/pi-ai': '0.84.3',
-        '@earendil-works/pi-coding-agent': '0.84.3',
+        '@earendil-works/pi-ai': '0.85.1',
+        '@earendil-works/pi-coding-agent': '0.85.1',
         '@upup/pi-runtime': '0.1.0',
         '@upup/utils': '0.2.0',
         '@upup/types': '0.2.0',

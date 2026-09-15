@@ -64,7 +64,7 @@ const investmentWorkflowManifest = JSON.parse(readFileSync(join(investmentWorkfl
 if (investmentWorkflowManifest.name !== '@upup/pi-investment-workflow') failures.push('investment workflow package name is not stable');
 if (investmentWorkflowManifest.version !== '0.1.0') failures.push('investment workflow package version must be 0.1.0');
 if (!investmentWorkflowManifest.keywords?.includes('pi-package')) failures.push('investment workflow package must declare pi-package keyword');
-if (investmentWorkflowManifest.peerDependencies?.['@earendil-works/pi-coding-agent'] !== '0.84.3') failures.push('investment workflow Pi coding-agent peer must be pinned to 0.84.3');
+if (investmentWorkflowManifest.peerDependencies?.['@earendil-works/pi-coding-agent'] !== '0.85.1') failures.push('investment workflow Pi coding-agent peer must be pinned to 0.85.1');
 if (investmentWorkflowManifest.pi?.source !== 'builtin:upup') failures.push('investment workflow package must declare builtin:upup source');
 if (!investmentWorkflowManifest.scripts?.test?.includes('bun test') || !investmentWorkflowManifest.scripts.test.includes('./src')) failures.push('investment workflow package test script must execute the package src test suite');
 if (!investmentWorkflowManifest.scripts?.build?.includes('tsc --emitDeclarationOnly')) failures.push('investment workflow package build must emit declarations');
@@ -166,7 +166,7 @@ const manifest = JSON.parse(readFileSync(join(packageRoot, 'package.json'), 'utf
 if (manifest.name !== '@upup/pi-finance-sdk') failures.push('finance package name is not stable');
 if (!manifest.version || !/^\d+\.\d+\.\d+$/.test(manifest.version)) failures.push('finance package version must be exact semver');
 if (!manifest.keywords?.includes('pi-package')) failures.push('finance package must declare pi-package keyword');
-if (manifest.peerDependencies?.['@earendil-works/pi-coding-agent'] !== '0.84.3') failures.push('Pi coding-agent peer must be pinned to 0.84.3');
+if (manifest.peerDependencies?.['@earendil-works/pi-coding-agent'] !== '0.85.1') failures.push('Pi coding-agent peer must be pinned to 0.85.1');
 if (manifest.pi?.source !== 'builtin:upup') failures.push('finance package must declare the allowlisted builtin:upup source');
 const expectedCommands = ['invest', 'dossier', 'strategy', 'risk-dashboard', 'portfolio-review'];
 if (JSON.stringify(manifest.pi?.commands ?? []) !== JSON.stringify(expectedCommands)) failures.push('finance package commands must declare the stable Pi investment command set');
@@ -228,7 +228,7 @@ const marketManifest = JSON.parse(readFileSync(join(marketDataPackageRoot, 'pack
 if (marketManifest.name !== '@upup/pi-market-data') failures.push('market-data package name is not stable');
 if (marketManifest.version !== '0.1.0') failures.push('market-data package version must be 0.1.0');
 if (!marketManifest.keywords?.includes('pi-package')) failures.push('market-data package must declare pi-package keyword');
-if (marketManifest.peerDependencies?.['@earendil-works/pi-coding-agent'] !== '0.84.3') failures.push('market-data Pi coding-agent peer must be pinned to 0.84.3');
+if (marketManifest.peerDependencies?.['@earendil-works/pi-coding-agent'] !== '0.85.1') failures.push('market-data Pi coding-agent peer must be pinned to 0.85.1');
 if (marketManifest.pi?.source !== 'builtin:upup') failures.push('market-data package must declare the allowlisted builtin:upup source');
 for (const relative of [
   ...(marketManifest.pi?.extensions ?? []), ...(marketManifest.pi?.skills ?? []), ...(marketManifest.pi?.prompts ?? []),
@@ -254,7 +254,7 @@ const analysisManifest = JSON.parse(readFileSync(join(investmentAnalysisPackageR
 if (analysisManifest.name !== '@upup/pi-investment-analysis') failures.push('investment-analysis package name is not stable');
 if (analysisManifest.version !== '0.1.0') failures.push('investment-analysis package version must be 0.1.0');
 if (!analysisManifest.keywords?.includes('pi-package')) failures.push('investment-analysis package must declare pi-package keyword');
-if (analysisManifest.peerDependencies?.['@earendil-works/pi-coding-agent'] !== '0.84.3') failures.push('investment-analysis Pi coding-agent peer must be pinned to 0.84.3');
+if (analysisManifest.peerDependencies?.['@earendil-works/pi-coding-agent'] !== '0.85.1') failures.push('investment-analysis Pi coding-agent peer must be pinned to 0.85.1');
 if (analysisManifest.peerDependencies?.['@upup/pi-market-data'] !== '0.1.0') failures.push('investment-analysis must depend on exact market-data Package version');
 if (analysisManifest.pi?.source !== 'builtin:upup') failures.push('investment-analysis package must declare the allowlisted builtin:upup source');
 for (const relative of [
@@ -288,7 +288,7 @@ const riskManifest = JSON.parse(readFileSync(join(riskPackageRoot, 'package.json
 if (riskManifest.name !== '@upup/pi-risk') failures.push('risk package name is not stable');
 if (!riskManifest.version || !/^\d+\.\d+\.\d+$/.test(riskManifest.version)) failures.push('risk package version must be exact semver');
 if (!riskManifest.keywords?.includes('pi-package')) failures.push('risk package must declare pi-package keyword');
-if (riskManifest.peerDependencies?.['@earendil-works/pi-coding-agent'] !== '0.84.3') failures.push('risk Pi coding-agent peer must be pinned to 0.84.3');
+if (riskManifest.peerDependencies?.['@earendil-works/pi-coding-agent'] !== '0.85.1') failures.push('risk Pi coding-agent peer must be pinned to 0.85.1');
 if (riskManifest.pi?.source !== 'builtin:upup') failures.push('risk package must declare the allowlisted builtin:upup source');
 for (const [section, dependencies] of Object.entries({
   dependencies: riskManifest.dependencies,
@@ -331,7 +331,7 @@ const portfolioManifest = JSON.parse(readFileSync(join(portfolioPackageRoot, 'pa
 if (portfolioManifest.name !== '@upup/pi-portfolio') failures.push('portfolio package name is not stable');
 if (portfolioManifest.version !== '0.1.0') failures.push('portfolio package version must be 0.1.0');
 if (!portfolioManifest.keywords?.includes('pi-package')) failures.push('portfolio package must declare pi-package keyword');
-if (portfolioManifest.peerDependencies?.['@earendil-works/pi-coding-agent'] !== '0.84.3') failures.push('portfolio Pi coding-agent peer must be pinned to 0.84.3');
+if (portfolioManifest.peerDependencies?.['@earendil-works/pi-coding-agent'] !== '0.85.1') failures.push('portfolio Pi coding-agent peer must be pinned to 0.85.1');
 if (portfolioManifest.pi?.source !== 'builtin:upup') failures.push('portfolio package must declare the allowlisted builtin:upup source');
 if (!portfolioManifest.scripts?.test?.includes('bun test') || !portfolioManifest.scripts.test.includes('./test.ts')) failures.push('portfolio package test script must execute ./test.ts');
 if (!portfolioManifest.scripts?.build?.includes('tsc --emitDeclarationOnly')) failures.push('portfolio package build must emit declarations');
@@ -361,7 +361,7 @@ const backtestManifest = JSON.parse(readFileSync(join(backtestPackageRoot, 'pack
 if (backtestManifest.name !== '@upup/pi-backtest') failures.push('backtest package name is not stable');
 if (backtestManifest.version !== '0.1.0') failures.push('backtest package version must be 0.1.0');
 if (!backtestManifest.keywords?.includes('pi-package')) failures.push('backtest package must declare pi-package keyword');
-if (backtestManifest.peerDependencies?.['@earendil-works/pi-coding-agent'] !== '0.84.3') failures.push('backtest Pi coding-agent peer must be pinned to 0.84.3');
+if (backtestManifest.peerDependencies?.['@earendil-works/pi-coding-agent'] !== '0.85.1') failures.push('backtest Pi coding-agent peer must be pinned to 0.85.1');
 if (backtestManifest.pi?.source !== 'builtin:upup') failures.push('backtest package must declare the allowlisted builtin:upup source');
 if (!backtestManifest.scripts?.test?.includes('bun test') || !backtestManifest.scripts.test.includes('./test.ts')) failures.push('backtest package test script must execute ./test.ts');
 if (!backtestManifest.scripts?.build?.includes('tsc --emitDeclarationOnly')) failures.push('backtest package build must emit declarations');
@@ -386,7 +386,7 @@ const platformManifest = JSON.parse(readFileSync(join(platformPackageRoot, 'pack
 if (platformManifest.name !== '@upup/pi-platform') failures.push('platform package name is not stable');
 if (platformManifest.version !== '0.1.0') failures.push('platform package version must be 0.1.0');
 if (!platformManifest.keywords?.includes('pi-package')) failures.push('platform package must declare pi-package keyword');
-if (platformManifest.peerDependencies?.['@earendil-works/pi-coding-agent'] !== '0.84.3') failures.push('platform Pi coding-agent peer must be pinned to 0.84.3');
+if (platformManifest.peerDependencies?.['@earendil-works/pi-coding-agent'] !== '0.85.1') failures.push('platform Pi coding-agent peer must be pinned to 0.85.1');
 if (platformManifest.pi?.source !== 'builtin:upup') failures.push('platform package must declare the allowlisted builtin:upup source');
 if (!platformManifest.scripts?.test?.includes('bun test') || !platformManifest.scripts.test.includes('./test.ts')) failures.push('platform package test script must execute ./test.ts');
 if (!platformManifest.scripts?.build?.includes('tsc --emitDeclarationOnly') && !platformManifest.scripts?.build?.includes('tsc -p tsconfig.json')) failures.push('platform package build must emit declarations');
@@ -414,7 +414,7 @@ const researchManifest = JSON.parse(readFileSync(join(researchPackageRoot, 'pack
 if (researchManifest.name !== '@upup/pi-research') failures.push('research package name is not stable');
 if (researchManifest.version !== '0.1.0') failures.push('research package version must be 0.1.0');
 if (!researchManifest.keywords?.includes('pi-package')) failures.push('research package must declare pi-package keyword');
-if (researchManifest.peerDependencies?.['@earendil-works/pi-coding-agent'] !== '0.84.3') failures.push('research Pi coding-agent peer must be pinned to 0.84.3');
+if (researchManifest.peerDependencies?.['@earendil-works/pi-coding-agent'] !== '0.85.1') failures.push('research Pi coding-agent peer must be pinned to 0.85.1');
 if (researchManifest.pi?.source !== 'builtin:upup') failures.push('research package must declare the allowlisted builtin:upup source');
 if (!researchManifest.scripts?.test?.includes('bun test') || !researchManifest.scripts.test.includes('./test.ts')) failures.push('research package test script must execute ./test.ts');
 if (!researchManifest.scripts?.build?.includes('tsc --emitDeclarationOnly')) failures.push('research package build must emit declarations');
@@ -437,7 +437,7 @@ const browserManifest = JSON.parse(readFileSync(join(browserPackageRoot, 'packag
 if (browserManifest.name !== '@upup/pi-browser') failures.push('browser package name is not stable');
 if (browserManifest.version !== '0.1.0') failures.push('browser package version must be 0.1.0');
 if (!browserManifest.keywords?.includes('pi-package')) failures.push('browser package must declare pi-package keyword');
-if (browserManifest.peerDependencies?.['@earendil-works/pi-coding-agent'] !== '0.84.3') failures.push('browser Pi coding-agent peer must be pinned to 0.84.3');
+if (browserManifest.peerDependencies?.['@earendil-works/pi-coding-agent'] !== '0.85.1') failures.push('browser Pi coding-agent peer must be pinned to 0.85.1');
 if (browserManifest.pi?.source !== 'builtin:upup') failures.push('browser package must declare the allowlisted builtin:upup source');
 if (!browserManifest.scripts?.test?.includes('bun test') || !browserManifest.scripts.test.includes('./test.ts')) failures.push('browser package test script must execute ./test.ts');
 if (!browserManifest.scripts?.build?.includes('tsc --emitDeclarationOnly')) failures.push('browser package build must emit declarations');
@@ -460,7 +460,7 @@ const configManifest = JSON.parse(readFileSync(join(configPackageRoot, 'package.
 if (configManifest.name !== '@upup/pi-config') failures.push('config package name is not stable');
 if (configManifest.version !== '0.1.0') failures.push('config package version must be 0.1.0');
 if (!configManifest.keywords?.includes('pi-package')) failures.push('config package must declare pi-package keyword');
-if (configManifest.peerDependencies?.['@earendil-works/pi-coding-agent'] !== '0.84.3') failures.push('config Pi coding-agent peer must be pinned to 0.84.3');
+if (configManifest.peerDependencies?.['@earendil-works/pi-coding-agent'] !== '0.85.1') failures.push('config Pi coding-agent peer must be pinned to 0.85.1');
 if (configManifest.pi?.source !== 'builtin:upup') failures.push('config package must declare the allowlisted builtin:upup source');
 if (!configManifest.scripts?.test?.includes('bun test') || !configManifest.scripts.test.includes('./test.ts')) failures.push('config package test script must execute ./test.ts');
 if (!configManifest.scripts?.build?.includes('tsc --emitDeclarationOnly')) failures.push('config package build must emit declarations');
@@ -483,7 +483,7 @@ const cacheManifest = JSON.parse(readFileSync(join(cachePackageRoot, 'package.js
 if (cacheManifest.name !== '@upup/pi-cache') failures.push('cache package name is not stable');
 if (cacheManifest.version !== '0.1.0') failures.push('cache package version must be 0.1.0');
 if (!cacheManifest.keywords?.includes('pi-package')) failures.push('cache package must declare pi-package keyword');
-if (cacheManifest.peerDependencies?.['@earendil-works/pi-coding-agent'] !== '0.84.3') failures.push('cache Pi coding-agent peer must be pinned to 0.84.3');
+if (cacheManifest.peerDependencies?.['@earendil-works/pi-coding-agent'] !== '0.85.1') failures.push('cache Pi coding-agent peer must be pinned to 0.85.1');
 if (cacheManifest.pi?.source !== 'builtin:upup') failures.push('cache package must declare the allowlisted builtin:upup source');
 if (!cacheManifest.scripts?.test?.includes('bun test') || !cacheManifest.scripts.test.includes('./test.ts')) failures.push('cache package test script must execute ./test.ts');
 if (!cacheManifest.scripts?.build?.includes('tsc --emitDeclarationOnly')) failures.push('cache package build must emit declarations');
@@ -506,7 +506,7 @@ const notifyManifest = JSON.parse(readFileSync(join(notifyPackageRoot, 'package.
 if (notifyManifest.name !== '@upup/pi-notify') failures.push('notify package name is not stable');
 if (notifyManifest.version !== '0.1.0') failures.push('notify package version must be 0.1.0');
 if (!notifyManifest.keywords?.includes('pi-package')) failures.push('notify package must declare pi-package keyword');
-if (notifyManifest.peerDependencies?.['@earendil-works/pi-coding-agent'] !== '0.84.3') failures.push('notify Pi coding-agent peer must be pinned to 0.84.3');
+if (notifyManifest.peerDependencies?.['@earendil-works/pi-coding-agent'] !== '0.85.1') failures.push('notify Pi coding-agent peer must be pinned to 0.85.1');
 if (notifyManifest.pi?.source !== 'builtin:upup') failures.push('notify package must declare the allowlisted builtin:upup source');
 if (!notifyManifest.scripts?.test?.includes('bun test') || !notifyManifest.scripts.test.includes('./test.ts')) failures.push('notify package test script must execute ./test.ts');
 if (!notifyManifest.scripts?.build?.includes('tsc --emitDeclarationOnly')) failures.push('notify package build must emit declarations');
@@ -529,7 +529,7 @@ const managementManifest = JSON.parse(readFileSync(join(managementPackageRoot, '
 if (managementManifest.name !== '@upup/pi-management') failures.push('management package name is not stable');
 if (managementManifest.version !== '0.1.0') failures.push('management package version must be 0.1.0');
 if (!managementManifest.keywords?.includes('pi-package')) failures.push('management package must declare pi-package keyword');
-if (managementManifest.peerDependencies?.['@earendil-works/pi-coding-agent'] !== '0.84.3') failures.push('management Pi coding-agent peer must be pinned to 0.84.3');
+if (managementManifest.peerDependencies?.['@earendil-works/pi-coding-agent'] !== '0.85.1') failures.push('management Pi coding-agent peer must be pinned to 0.85.1');
 if (managementManifest.pi?.source !== 'builtin:upup') failures.push('management package must declare the allowlisted builtin:upup source');
 if (!managementManifest.scripts?.test?.includes('bun test') || !managementManifest.scripts.test.includes('./test.ts')) failures.push('management package test script must execute ./test.ts');
 if (!managementManifest.scripts?.build?.includes('tsc --emitDeclarationOnly')) failures.push('management package build must emit declarations');
@@ -552,7 +552,7 @@ const technicalManifest = JSON.parse(readFileSync(join(technicalPackageRoot, 'pa
 if (technicalManifest.name !== '@upup/pi-technical') failures.push('technical package name is not stable');
 if (technicalManifest.version !== '0.1.0') failures.push('technical package version must be 0.1.0');
 if (!technicalManifest.keywords?.includes('pi-package')) failures.push('technical package must declare pi-package keyword');
-if (technicalManifest.peerDependencies?.['@earendil-works/pi-coding-agent'] !== '0.84.3') failures.push('technical Pi coding-agent peer must be pinned to 0.84.3');
+if (technicalManifest.peerDependencies?.['@earendil-works/pi-coding-agent'] !== '0.85.1') failures.push('technical Pi coding-agent peer must be pinned to 0.85.1');
 if (technicalManifest.pi?.source !== 'builtin:upup') failures.push('technical package must declare the allowlisted builtin:upup source');
 if (!technicalManifest.scripts?.test?.includes('bun test') || !technicalManifest.scripts.test.includes('./test.ts')) failures.push('technical package test script must execute ./test.ts');
 if (!technicalManifest.scripts?.build?.includes('tsc --emitDeclarationOnly')) failures.push('technical package build must emit declarations');
@@ -574,7 +574,7 @@ const corporateActionsManifest = JSON.parse(readFileSync(join(corporateActionsPa
 if (corporateActionsManifest.name !== '@upup/pi-corporate-actions') failures.push('corporate-actions package name is not stable');
 if (corporateActionsManifest.version !== '0.1.0') failures.push('corporate-actions package version must be 0.1.0');
 if (!corporateActionsManifest.keywords?.includes('pi-package')) failures.push('corporate-actions package must declare pi-package keyword');
-if (corporateActionsManifest.peerDependencies?.['@earendil-works/pi-coding-agent'] !== '0.84.3') failures.push('corporate-actions Pi coding-agent peer must be pinned to 0.84.3');
+if (corporateActionsManifest.peerDependencies?.['@earendil-works/pi-coding-agent'] !== '0.85.1') failures.push('corporate-actions Pi coding-agent peer must be pinned to 0.85.1');
 if (corporateActionsManifest.pi?.source !== 'builtin:upup') failures.push('corporate-actions package must declare the allowlisted builtin:upup source');
 if (!corporateActionsManifest.scripts?.test?.includes('bun test') || !corporateActionsManifest.scripts.test.includes('./test.ts')) failures.push('corporate-actions package test script must execute ./test.ts');
 if (!corporateActionsManifest.scripts?.build?.includes('tsc --emitDeclarationOnly')) failures.push('corporate-actions package build must emit declarations');

@@ -7,7 +7,7 @@ const snapshot = {
   schema: 1 as const,
   sessionId: 'session-tail',
   capturedAt: '2026-09-14T00:00:00.000Z',
-  runtime: { name: 'pi' as const, contract: 'upup.pi.host.v1' as const, version: '0.84.3' },
+  runtime: { name: 'pi' as const, contract: 'upup.pi.host.v1' as const, version: '0.85.1' },
   permissions: { policyId: 'read-only', allowFinancialWrites: false, requireApprovalCount: 1, deniedRiskLevels: ['critical'] },
   packages: [{ name: '@upup/pi-market-data', version: '0.1.0', enabled: true as const }],
   tools: { available: 3, native: 2, packageOwned: 3 },

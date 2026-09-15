@@ -25,7 +25,7 @@
     "package.json"
   ],
   "peerDependencies": {
-    "@earendil-works/pi-coding-agent": "0.84.3"
+    "@earendil-works/pi-coding-agent": "0.85.1"
   },
   "pi": {
     "contract": "upup.pi.runtime.v1",

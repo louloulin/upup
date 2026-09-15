@@ -8,7 +8,7 @@
 - Upstream (forked from): https://github.com/virattt/dexter
 - UpUp (涨涨) is a CLI-based AI agent for **Chinese-language deep financial research**, built on top of the [Dexter](https://github.com/virattt/dexter) framework and now powered entirely by the Pi Runtime + Pi Package ecosystem, with TypeScript and Ink (React for CLI). It is **not** a thin reskin of Dexter — see "China-Edition Increment" in [README.md](./README.md) for the full delta (A-share data stack, 50 investment skills, 5-phase /invest workflow, Pi Package ecosystem, 4-runtime plugin system, EN+zh-CN i18n, multi-agent coordination, Session 2.0, 48 workspace packages, etc.).
 
-> 📌 **Pi Native 投资助手定型 (2026-09-15)**: 完整 Pi7 计划与定型记录见 [pi7.md](./pi7.md)；8 维度 vs 上游 dexter 的全量审计见 [upup-vs-dexter-audit.md](./openspec/changes/upup-vs-dexter-comprehensive-audit-and-doc-refresh/docs/upup-vs-dexter-audit.md)。当前根 `src` 已收敛为 3 个生产文件（109 行），所有能力通过 Pi Package manifest contract 接入。
+> 📌 **Pi Native 投资助手定型 (2026-09-15)**: 完整 Pi7 计划与定型记录见 [pi7.md](./pi7.md)；8 维度 vs 上游 dexter 的全量审计见 [upup-vs-dexter-audit.md](./openspec/changes/upup-vs-dexter-comprehensive-audit-and-doc-refresh/docs/upup-vs-dexter-audit.md)。当前根 `src` 已收敛为 2 个生产文件（7 行），所有能力通过 Pi Package manifest contract 接入。
 
 ## 上游归属 (Upstream Attribution)
 
@@ -22,12 +22,11 @@ UpUp (涨涨) 是基于 [virattt/dexter](https://github.com/virattt/dexter) 的 
 
 ## Project Structure（Pi7 真实状态）
 
-### 根 `src`（仅 bootstrap + 类型，3 文件 109 行）
+### 根 `src`（仅 bootstrap，2 文件 7 行）
 
 - `src/index.tsx` — 进程启动入口：`import '@upup/pi-app/entry';`
 - `src/bootstrap/gateway.ts` — gateway 入口 bootstrap：`runGatewayCli({ runtime: getPiNativeApp().getGatewayRuntime() })`
-- `src/types/upup-commands.d.ts` — `@upup/commands` 的类型声明（仅类型，无运行时）
-- `src/runtime/pi/*.test.ts` — 21 个 Pi 合同测试，**不包含生产代码**（生产实现已迁入 Pi Package）
+- `src/runtime/pi/*.test.ts` — 19 个 Pi 合同测试，**不包含生产代码**（生产实现已迁入 Pi Package）
 - `src/controllers/*.test.ts` — Agent runner 的 Pi 合同测试
 - `src/utils/*.test.ts` — 路径与 config source 测试
 

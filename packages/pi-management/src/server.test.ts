@@ -9,7 +9,7 @@ const provider: ManagementSnapshotProvider = {
     schema: 1,
     sessionId: 'management-test',
     capturedAt: '2026-09-14T00:00:00.000Z',
-    runtime: { name: 'pi', contract: 'upup.pi.host.v1', version: '0.84.3' },
+    runtime: { name: 'pi', contract: 'upup.pi.host.v1', version: '0.85.1' },
     permissions: { policyId: 'readonly', allowFinancialWrites: false, requireApprovalCount: 0, deniedRiskLevels: ['critical'] },
     packages: [{ name: '@upup/pi-management', version: '0.1.0', enabled: true }],
     tools: { available: 4, native: 4, packageOwned: 4 },

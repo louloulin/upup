@@ -3,11 +3,11 @@
  *
  * Asserts that every workspace package declaring a dependency on
  * `@earendil-works/pi-coding-agent` (or related Pi packages) pins the
- * exact same version `0.84.3`, and that no package uses a range
+ * exact same version `0.85.1`, and that no package uses a range
  * (`^`, `~`, `>=`) which would silently allow a future Pi upgrade
  * to break the Pi7 single-runtime guarantee.
  *
- * This is the contract that protects the "Pi 0.84.3" lock declared
+ * This is the contract that protects the "Pi 0.85.1" lock declared
  * in pi7.md and prevents accidental version drift in future commits.
  */
 import { describe, expect, test } from 'bun:test';
@@ -20,7 +20,7 @@ const PI_PACKAGES = [
   '@earendil-works/pi-tui',
 ] as const;
 
-const EXPECTED_PI_VERSION = '0.84.3';
+const EXPECTED_PI_VERSION = '0.85.1';
 const repoRoot = process.cwd();
 
 interface PiDeclaration {
@@ -69,7 +69,7 @@ describe('Pi version lock contract (pi103 A.1)', () => {
     expect(declarations.length).toBeGreaterThan(0);
   });
 
-  test('every Pi dependency declaration uses the exact expected version 0.84.3', () => {
+  test('every Pi dependency declaration uses the exact expected version 0.85.1', () => {
     const offenders = declarations.filter((decl) => decl.declaredVersion !== EXPECTED_PI_VERSION);
     if (offenders.length > 0) {
       const detail = offenders.map((decl) => `  - ${decl.packageName} (${decl.packageDirectory}) ${decl.dependencyKind}.${PI_PACKAGES.find((pi) => decl.declaredVersion.startsWith(pi.split('/').pop() ?? '')) ?? '<pi>'} = ${decl.declaredVersion}`).join('\n');
@@ -90,10 +90,10 @@ describe('Pi version lock contract (pi103 A.1)', () => {
   });
 
   test('all three Pi runtime packages (coding-agent, ai, tui) are pinned consistently', () => {
-    // For each Pi runtime package, every declaration must use 0.84.3.
+    // For each Pi runtime package, every declaration must use 0.85.1.
     for (const piName of PI_PACKAGES) {
       const filtered = declarations.filter((decl) => decl.declaredVersion === EXPECTED_PI_VERSION);
-      // The above filter already enforces 0.84.3, so we only need to check
+      // The above filter already enforces 0.85.1, so we only need to check
       // that every declaration for this piName exists at all.
       const piNameRefs = declarations.filter((decl) => {
         // We don't have the piName on the declaration directly, so re-derive.
@@ -107,9 +107,9 @@ describe('Pi version lock contract (pi103 A.1)', () => {
     }
   });
 
-  test('Pi 0.84.3 lock is the only version that ever appears in any declaration', () => {
+  test('Pi 0.85.1 lock is the only version that ever appears in any declaration', () => {
     // The simplest invariant: across all Pi dependency declarations,
-    // the only version string that appears is 0.84.3.
+    // the only version string that appears is 0.85.1.
     const distinctVersions = new Set(declarations.map((decl) => decl.declaredVersion));
     expect(distinctVersions.size).toBe(1);
     expect(distinctVersions.has(EXPECTED_PI_VERSION)).toBe(true);

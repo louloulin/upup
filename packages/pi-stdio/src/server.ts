@@ -102,7 +102,7 @@ export function createStdioServer(runtime: StdioRuntimePort): StdioServer {
           initialized = true;
 
           sendResponse(req.id, {
-            serverVersion: '2026.05.12',
+            serverVersion: '2026.6.12',
             serverName: 'upup-stdio',
             capabilities: {
               streaming: true,
