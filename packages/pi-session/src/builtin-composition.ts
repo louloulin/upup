@@ -29,6 +29,12 @@ import {
   loadCronStore,
   startCronRunner,
 } from '@upup/pi-platform-composition';
+import {
+  buildDefaultInvestmentSystemPrompt,
+  buildInvestmentCapabilitiesSection,
+  buildCoachSystemPrompt,
+} from '@upup/pi-prompt-config';
+import type { PiPromptBuilders } from '@upup/pi-runtime';
 import type { GatewayAgentRuntimePort, GatewayRuntime } from '@upup/gateway';
 import { getConfiguredModelId, getConfiguredProvider, globalUpupPath } from '@upup/utils';
 
@@ -61,12 +67,23 @@ export interface PiSessionPlatformProviders {
 }
 
 /**
+ * Prompt composition sub-boundary.
+ *
+ * The session factory consumes prompt builders (default system prompt,
+ * capabilities section, coach prompt) through the composition provider
+ * instead of importing concrete implementations. The default provider
+ * delegates to `@upup/pi-prompt-config`, but applications and tests may
+ * substitute a custom prompt source without rewriting the factory.
+ */
+export interface PiSessionPromptProviders extends PiPromptBuilders {}
+
+/**
  * Combined composition contract consumed by {@link PiAgentSessionFactory}.
  * Applications and tests may inject a full provider or replace either
  * sub-boundary independently; the factory does not branch on package
  * identity and only consults the named capabilities.
  */
-export type PiSessionCompositionProviders = PiSessionFinanceProviders & PiSessionPlatformProviders;
+export type PiSessionCompositionProviders = PiSessionFinanceProviders & PiSessionPlatformProviders & PiSessionPromptProviders;
 
 export const builtinSessionFinanceComposition: PiSessionFinanceProviders = {
   createFinanceComposition,
@@ -85,9 +102,22 @@ export const builtinSessionPlatformComposition: PiSessionPlatformProviders = {
   startCronRunner,
 };
 
+/**
+ * Default prompt composition. Delegates to `@upup/pi-prompt-config`;
+ * applications may inject a custom set of builders by constructing a
+ * session runtime factory with `createPiAgentRuntime({...overrides,
+ * promptBuilders})` instead of passing the entire default object.
+ */
+export const builtinSessionPromptComposition: PiSessionPromptProviders = {
+  buildDefaultInvestmentSystemPrompt,
+  buildInvestmentCapabilitiesSection,
+  buildCoachSystemPrompt,
+};
+
 export const builtinSessionComposition: PiSessionCompositionProviders = {
   ...builtinSessionFinanceComposition,
   ...builtinSessionPlatformComposition,
+  ...builtinSessionPromptComposition,
 };
 
 export type { GatewayAgentRuntimePort, GatewayRuntime, NativeMarketQuoteTrendStore };

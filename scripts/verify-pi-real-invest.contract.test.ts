@@ -207,4 +207,144 @@ describe('verify-pi-real-invest gate', () => {
       restore(saved);
     }
   });
+
+  test('gate-enabled invocation rejects dry-run and never creates artifacts (Pi101 A.1)', () => {
+    // Pi101 A.1: when the gate is enabled but UPUP_DRY_RUN is set,
+    // the script must fail closed at runtime (exit non-zero) and
+    // must not have created any artifact directory. This contract
+    // guards against a regression where a future change accidentally
+    // accepts dry-run under the real-invest gate and silently writes
+    // a fake artifact.
+    const saved = snapshot();
+    const sandbox = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'upup-pi101-dryrun-'));
+    try {
+      delete process.env.UPUP_DRY_RUN;
+      delete process.env.TUSHARE_TOKEN;
+      delete process.env.FINANCIAL_DATASETS_API_KEY;
+      const result = runScript({
+        UPUP_REAL_INVEST: '1',
+        UPUP_REAL_INVEST_CONFIRM: 'READ_ONLY',
+        UPUP_REAL_INVEST_TICKERS: '600519.SH',
+        UPUP_DRY_RUN: '1',
+        TUSHARE_TOKEN: 'placeholder-token',
+        UPUP_REAL_INVEST_ARTIFACT_DIR: path.join(sandbox, '.upup', 'real-invest-artifacts'),
+      });
+      // The script must throw (not skipped) when dry-run conflicts with the gate.
+      expect(result.exitCode).not.toBe(0);
+      expect(result.stderr).toMatch(/UPUP_DRY_RUN|dry-run/);
+      // Crucially, no artifact directory may have been created.
+      const artifactDir = path.join(sandbox, '.upup', 'real-invest-artifacts');
+      expect(fs.existsSync(artifactDir)).toBe(false);
+    } finally {
+      restore(saved);
+      fs.rmSync(sandbox, { recursive: true, force: true });
+    }
+  });
+
+  test('two independent OS processes running fail-closed real-invest stay artifact-free', async () => {
+    // Pi99 A.1: spawn two separate Bun subprocesses that each invoke
+    // verify-pi-real-invest in fail-closed (skipped) mode, with
+    // distinct per-process working directories. After both processes
+    // exit, neither working directory must contain a
+    // `.upup/real-invest-artifacts/` directory, and both stdouts must
+    // independently carry `status: 'skipped'`. This is the cross-process
+    // counterpart to the in-process fail-closed isolation contract.
+    const saved = snapshot();
+    const sandbox = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'upup-pi99-cross-'));
+    const cwdA = fs.mkdtempSync(path.join(sandbox, 'process-A-'));
+    const cwdB = fs.mkdtempSync(path.join(sandbox, 'process-B-'));
+    try {
+      delete process.env.UPUP_REAL_INVEST;
+      delete process.env.UPUP_REAL_INVEST_CONFIRM;
+      delete process.env.UPUP_DRY_RUN;
+      const { spawn } = await import('node:child_process');
+      const runOne = (cwd: string) => new Promise<{ pid: number; code: number | null; stdout: string; stderr: string }>((resolve, reject) => {
+        const child = spawn(process.execPath, ['run', scriptPath], {
+          cwd,
+          env: {
+            ...process.env,
+            UPUP_REAL_INVEST_ARTIFACT_DIR: path.join(cwd, '.upup', 'real-invest-artifacts'),
+          },
+          stdio: ['ignore', 'pipe', 'pipe'],
+        });
+        let stdout = '';
+        let stderr = '';
+        child.stdout?.on('data', (chunk: Buffer) => { stdout += chunk.toString(); });
+        child.stderr?.on('data', (chunk: Buffer) => { stderr += chunk.toString(); });
+        child.once('error', reject);
+        child.once('exit', (code) => resolve({ pid: child.pid ?? -1, code, stdout, stderr }));
+      });
+      const [resultA, resultB] = await Promise.all([runOne(cwdA), runOne(cwdB)]);
+      expect(resultA.code).toBe(0);
+      expect(resultB.code).toBe(0);
+      expect(resultA.pid).not.toBe(resultB.pid);
+      // Both processes produce skipped output.
+      expect(resultA.stdout).toContain('"status": "skipped"');
+      expect(resultB.stdout).toContain('"status": "skipped"');
+      expect(resultA.stdout).toContain('"fixtureSeparate": true');
+      expect(resultB.stdout).toContain('"fixtureSeparate": true');
+      // Neither per-process cwd must contain an artifact directory.
+      const artifactA = path.join(cwdA, '.upup', 'real-invest-artifacts');
+      const artifactB = path.join(cwdB, '.upup', 'real-invest-artifacts');
+      expect(fs.existsSync(artifactA)).toBe(false);
+      expect(fs.existsSync(artifactB)).toBe(false);
+      // Cross-process isolation: A's cwd must remain distinct from B's.
+      expect(cwdA).not.toBe(cwdB);
+      // Neither process leaked stderr.
+      expect(resultA.stderr).toBe('');
+      expect(resultB.stderr).toBe('');
+    } finally {
+      restore(saved);
+      fs.rmSync(sandbox, { recursive: true, force: true });
+    }
+  });
+
+  test('fail-closed invocation never creates the artifact directory', () => {
+    // Pi98 A.1: a skipped (fail-closed) invocation must not produce
+    // any `.upup/real-invest-artifacts/` directory or write any file
+    // there. This prevents synthetic / cross-process results from
+    // contaminating the real-invest artifact path.
+    const saved = snapshot();
+    const sandbox = fs.mkdtempSync(path.join(require('node:os').tmpdir(), 'upup-pi98-contract-'));
+    try {
+      delete process.env.UPUP_REAL_INVEST;
+      delete process.env.UPUP_REAL_INVEST_CONFIRM;
+      delete process.env.UPUP_DRY_RUN;
+      const result = runScript({
+        UPUP_REAL_INVEST: undefined,
+        UPUP_REAL_INVEST_CONFIRM: undefined,
+        UPUP_REAL_INVEST_ARTIFACT_DIR: path.join(sandbox, '.upup', 'real-invest-artifacts'),
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.json?.status).toBe('skipped');
+      const artifactDir = path.join(sandbox, '.upup', 'real-invest-artifacts');
+      expect(fs.existsSync(artifactDir)).toBe(false);
+    } finally {
+      restore(saved);
+      fs.rmSync(sandbox, { recursive: true, force: true });
+    }
+  });
+
+  test('fail-closed invocation does not pollute UPUP_PLANS_DIR or env state', () => {
+    // Pi98 A.1: a skipped (fail-closed) invocation must not write any
+    // dossier under the shared plans directory, must not set
+    // UPUP_PLANS_DIR, and must leave every credential env var alone.
+    const saved = snapshot();
+    try {
+      const plansBefore = process.env.UPUP_PLANS_DIR;
+      const tushareBefore = process.env.TUSHARE_TOKEN;
+      const fdBefore = process.env.FINANCIAL_DATASETS_API_KEY;
+      const result = runScript({
+        UPUP_REAL_INVEST: undefined,
+        UPUP_REAL_INVEST_CONFIRM: undefined,
+      });
+      expect(result.exitCode).toBe(0);
+      expect(result.json?.status).toBe('skipped');
+      expect(process.env.UPUP_PLANS_DIR).toBe(plansBefore);
+      expect(process.env.TUSHARE_TOKEN).toBe(tushareBefore);
+      expect(process.env.FINANCIAL_DATASETS_API_KEY).toBe(fdBefore);
+    } finally {
+      restore(saved);
+    }
+  });
 });

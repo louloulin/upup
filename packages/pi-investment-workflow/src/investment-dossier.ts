@@ -135,15 +135,17 @@ function phaseArtifact(
   result: InvestmentDossierPhaseResult | undefined,
   status: InvestmentDossierPhase['status'],
   options: InvestmentDossierOptions,
-  startedAt = now(),
+  startedAt?: string,
+  clock: () => string = now,
 ): InvestmentDossierPhase {
-  const completedAt = status === 'completed' || status === 'failed' || status === 'blocked' ? now() : undefined;
+  const started = startedAt ?? clock();
+  const completedAt = status === 'completed' || status === 'failed' || status === 'blocked' ? clock() : undefined;
   const recordedAt = completedAt ?? startedAt;
   return {
     phase,
     status,
     profile: PROFILE_BY_PHASE[phase],
-    startedAt,
+    startedAt: started,
     ...(completedAt ? { completedAt } : {}),
     output,
     evidence: result ? evidenceFromResult(result, recordedAt) : [{ source: `upup-pi://investment-workflow/${phase}`, retrievedAt: recordedAt }],
@@ -163,9 +165,16 @@ export function createInvestmentDossier(input: {
   readonly status: InvestmentDossierStatus;
   readonly currentPhase?: InvestmentDossierPhaseId;
   readonly options?: InvestmentDossierOptions;
+  // Optional clock for deterministic dossier construction in tests and
+  // contract replays. Defaults to `new Date().toISOString()`. Two
+  // `createInvestmentDossier` calls with the same `workflowId` /
+  // `sessionId` / `intent` / `phaseResults` / `options` and the same
+  // clock return the same `artifactHash`; this is the property the
+  // cross-process dossier idempotency contract relies on.
+  readonly clock?: () => string;
 }): InvestmentDossier {
   const options = input.options ?? {};
-  const recordedAt = now();
+  const recordedAt = (input.clock ?? now)();
   const resultFor = (phase: InvestmentDossierPhaseId): InvestmentDossierPhaseResult | undefined => input.phaseResults.find((result) => result.phase === phase);
   const statusFor = (phase: InvestmentDossierPhaseId): InvestmentDossierPhase['status'] => {
     const result = resultFor(phase);
@@ -183,7 +192,7 @@ export function createInvestmentDossier(input: {
   };
   const phases: InvestmentDossierPhase[] = CANONICAL_INVESTMENT_PHASES.map((phase) => {
     const result = resultFor(phase);
-    return phaseArtifact(phase, outputFor(phase), result, statusFor(phase), options, recordedAt);
+    return phaseArtifact(phase, outputFor(phase), result, statusFor(phase), options, recordedAt, input.clock);
   });
   const report = phases.map((phase) => `## ${phase.phase}\n${phase.output}`).join('\n\n');
   const withoutHash = {

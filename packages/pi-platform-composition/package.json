@@ -38,7 +38,7 @@
     "evals": []
   },
   "dependencies": {
-    "@upup/cron": "0.1.0",
+    "@upup/cron": "0.2.0",
     "@upup/pi-runtime": "0.1.0"
   },
   "peerDependencies": {

@@ -307,9 +307,11 @@ export {
   builtinSessionComposition,
   builtinSessionFinanceComposition,
   builtinSessionPlatformComposition,
+  builtinSessionPromptComposition,
 } from './builtin-composition.js';
 export type {
   PiSessionCompositionProviders,
   PiSessionFinanceProviders,
   PiSessionPlatformProviders,
+  PiSessionPromptProviders,
 } from './builtin-composition.js';

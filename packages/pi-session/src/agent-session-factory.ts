@@ -54,7 +54,6 @@ import {
   type SerializedFinanceContext,
 } from '@upup/pi-runtime';
 import { validateAgentSpec } from '@upup/pi-runtime';
-import { buildDefaultInvestmentSystemPrompt, buildInvestmentCapabilitiesSection, buildCoachSystemPrompt } from '@upup/pi-prompt-config';
 import { getModel, getModels } from '@earendil-works/pi-ai/compat';
 import { existsSync, readFileSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
@@ -429,15 +428,15 @@ export class PiAgentSessionFactory implements UpUpAgentRuntime {
       noPromptTemplates: trustedPrompts.paths.length === 0,
       noThemes: true,
       noContextFiles: true,
-      systemPromptOverride: () => spec.systemPrompt ?? buildDefaultInvestmentSystemPrompt(),
+      systemPromptOverride: () => spec.systemPrompt ?? this.composition.buildDefaultInvestmentSystemPrompt(),
       appendSystemPromptOverride: () => [
         `You are the ${spec.name} investment agent. ${spec.description}`,
         `Data policy: ${spec.dataPolicy ?? 'live'}. Output contract: ${spec.outputContract ?? 'report'}.`,
         `Capabilities: ${spec.capabilities.join(', ')}.`,
         ...packageContracts.workflows.map((workflow) => `Trusted Pi workflow ${workflow.name} (${workflow.packageName}@${workflow.packageVersion}) phases: ${workflow.phases.join(' → ')}.`),
         ...packageContracts.policies.map((policy) => `Trusted Pi policy ${policy.name} (${policy.packageName}@${policy.packageVersion}):\n${policy.rules.join('\n')}`),
-        buildInvestmentCapabilitiesSection(tools.map((tool) => tool.name)),
-        buildCoachSystemPrompt(),
+        this.composition.buildInvestmentCapabilitiesSection(tools.map((tool) => tool.name)),
+        this.composition.buildCoachSystemPrompt(),
       ],
     });
     if (packageCatalog.listEnabled().length > 0) {

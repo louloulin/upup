@@ -96,4 +96,43 @@ describe('Pi production entry contract', () => {
     expect(manifest).toContain('availableToolNames');
     expect(prompts).toContain('availableToolNames');
   });
+  test('PiSessionAdapter is the only production subscribe path with session_start synthesis', () => {
+    // The session_start synthesis contract MUST live in PiSessionAdapter.
+    // No production entry adapter may re-implement subscribe or build a
+    // parallel session event channel.
+    const adapter = readFileSync(join(process.cwd(), 'packages/pi-session/src/index.ts'), 'utf8');
+    expect(adapter).toMatch(/subscribe\(listener[^)]*\)[^{]*\{[\s\S]*listener\(\{\s*type:\s*'session_start'/);
+    // No production entry adapter may define its own subscribe() that bypasses
+    // PiSessionAdapter or that omits the synthesized session_start.
+    const productionAdapters = [
+      'packages/pi-tui-app/src/tui/agent-runner.ts',
+      'packages/gateway/src/agent-runner.ts',
+      'packages/pi-stdio/src/server.ts',
+      'packages/pi-bridge/src/server.ts',
+      'packages/cron/src/executor.ts',
+      'packages/daemon/src/workers/tasks.ts',
+      'packages/pi-evals/src/cli.ts',
+    ];
+    for (const file of productionAdapters) {
+      const source = readFileSync(join(process.cwd(), file), 'utf8');
+      // Must NOT define its own subscribe() that bypasses PiSessionAdapter.
+      expect(source).not.toMatch(/\bsubscribe\s*\([^)]*\)\s*\{[^}]*session_start/);
+      // Must NOT define its own listener = next pattern that synthesizes events.
+      expect(source).not.toMatch(/listener\s*=\s*next[\s\S]*session_start/);
+    }
+  });
+
+  test('PiSessionAdapter source file exposes subscribe + session_start synthesis as the single contract', () => {
+    const adapter = readFileSync(join(process.cwd(), 'packages/pi-session/src/index.ts'), 'utf8');
+    // Contract anchors: there is exactly one place that calls
+    // `listener({ type: 'session_start', ... })` and that place is the
+    // `subscribe(listener)` method of PiSessionAdapter.
+    const matches = adapter.match(/listener\(\{\s*type:\s*'session_start'/g) ?? [];
+    expect(matches.length).toBe(1);
+    // The class field `listeners = new Set` must be private and exactly one.
+    const listenerSetMatches = adapter.match(/listeners\s*=\s*new Set/g) ?? [];
+    expect(listenerSetMatches.length).toBeGreaterThanOrEqual(1);
+    // The subscribe signature must accept a single listener and return an unsubscribe function.
+    expect(adapter).toMatch(/subscribe\(listener: \(event: UpUpAgentEvent\) => void\): \(\) => void/);
+  });
 });

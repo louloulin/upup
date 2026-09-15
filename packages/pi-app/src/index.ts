@@ -8,6 +8,7 @@ import {
   builtinSessionComposition,
   builtinSessionFinanceComposition,
   builtinSessionPlatformComposition,
+  builtinSessionPromptComposition,
   configurePiBackgroundService,
   configurePiSessionService,
   disposePiBackgroundService,
@@ -19,6 +20,7 @@ import {
   type PiSessionCompositionProviders,
   type PiSessionFinanceProviders,
   type PiSessionPlatformProviders,
+  type PiSessionPromptProviders,
 } from '@upup/pi-session';
 import type { PiSessionFactory, UpUpAgentRuntime } from '@upup/pi-runtime';
 import type { PiPromptPort } from '@upup/pi-runtime';
@@ -83,6 +85,13 @@ export interface PiAppOptions {
    * supplied it replaces the corresponding half of the combined provider.
    */
   readonly sessionPlatformProvider?: PiSessionPlatformProviders;
+  /**
+   * Optional prompt composition override (default system prompt, capabilities
+   * section, coach prompt). The runtime boundary does not import concrete
+   * prompt implementations; this provider is the only place where
+   * `@upup/pi-prompt-config` (or a replacement) is wired into the session.
+   */
+  readonly sessionPromptProvider?: PiSessionPromptProviders;
   readonly backgroundRuntimeFactory?: () => PiBackgroundRuntimePort;
   readonly tuiRuntimeFactory?: () => TuiRuntime;
   readonly commandCapabilitiesFactory?: () => TuiCommandCapabilities;
@@ -159,7 +168,8 @@ export function createPiApp(options: PiAppOptions): PiApp {
     if (options.sessionCompositionProvider) return options.sessionCompositionProvider;
     const finance: PiSessionFinanceProviders = options.sessionFinanceProvider ?? builtinSessionFinanceComposition;
     const platform: PiSessionPlatformProviders = options.sessionPlatformProvider ?? builtinSessionPlatformComposition;
-    return { ...finance, ...platform };
+    const prompt: PiSessionPromptProviders = options.sessionPromptProvider ?? builtinSessionPromptComposition;
+    return { ...finance, ...platform, ...prompt };
   };
   const getSessionRuntime = (): PiSessionFactory => {
     if (!sessionRuntime) {

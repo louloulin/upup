@@ -634,6 +634,27 @@ export function validatePiPackageManifest(manifest: PiPackageManifestContract): 
 }
 export interface PiSessionFactory { createSession(spec: UpUpAgentSpec, options?: UpUpCreateSessionOptions): Promise<UpUpAgentSession> }
 
+/**
+ * Runtime prompt builders contract.
+ *
+ * The Pi session factory does not import concrete prompt implementations;
+ * it consumes these three builders through the composition provider so
+ * `@upup/pi-prompt-config` (or any replacement) can be injected by the
+ * application boundary. The contract is intentionally narrow: only the
+ * default system prompt, the capabilities section, and the optional
+ * coach system prompt are exposed.
+ *
+ * Implementations MUST be pure functions of their inputs; the factory
+ * does not perform any additional escaping or formatting before
+ * concatenating these strings into the final Pi system prompt.
+ */
+export interface PiPromptBuilders {
+  readonly buildDefaultInvestmentSystemPrompt: () => string;
+  readonly buildInvestmentCapabilitiesSection: (availableToolNames: readonly string[]) => string;
+  readonly buildCoachSystemPrompt: () => string;
+}
+
+
 // ---------------------------------------------------------------------------
 // Finance session context helpers.
 //

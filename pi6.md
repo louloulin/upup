@@ -4639,3 +4639,297 @@ Pi7 仍未完成，缺口仅按完成定义保留：真实只读 provider dossie
 1. 真实凭证到位后跑 CN/HK/US 真实 dossier 与跨日真实历史 provider retry/recovery，artifact 落到 `verify-pi-real-invest-artifacts/`，synthetic 与真实结果分开记录。
 2. 评估将 `pi-platform-composition` 内剩余的 worker / sandbox / cron / MCP 接入进一步解耦为可替换 provider；继续把 cron store 与 platform composition 之间的隐式耦合拆分。
 3. 真实 evidence 完整前继续默认 deny 交易、通知、凭证导出和未审批文件写入，不标记 Pi7 完成。
+
+## Pi91 验证同步（2026-09-15）
+
+- A.1：cron store 与 platform composition 隐式耦合拆解。`@upup/pi-platform-composition` 新增 `src/cron.ts`，独占承载 `@upup/cron` 的 `loadCronStore` / `saveCronStore` / `ensureHeartbeatCronJob` / `executeCronJob` / `startCronRunner` 五个出口以及 `CronPlatformProvider` / `defaultCronPlatformProvider` contract，并加入 `@upup/cron` 依赖。
+- `@upup/pi-session/src/builtin-composition.ts` 中 cron 相关 import 全部改为从 `@upup/pi-platform-composition` 引入；`@upup/pi-session` 源代码不再含 `from '@upup/cron'`。`grep -rn "@upup/cron" packages/pi-session/src/` 命中数为 0。
+- `@upup/pi-platform-composition/test.ts` 新增 cron platform surface 3 个合同：default provider 路由、provider 可替换、`pi-session` 不再 import `@upup/cron`（hard guard）。`@upup/pi-platform-composition` 9 pass / 0 fail。
+- `pi-platform-composition` 与 `pi-session` 重新 `bun run build`，全仓 `bun run build` exit 0。
+- 验证：`bun run typecheck` 通过；`bun test` `2202 pass / 0 fail`（pi-platform-composition 的 test.ts 不被根 `bun test` 自动收集，单独由 `bun run test:pi-contracts` 通过 `bun --cwd packages/pi-platform-composition test` 触发，新增 3 个 cron 合同全部通过）；`bun run test:pi-contracts` 全部通过（86 Pi contract + 各 pi-package per-package 1343+ 测试）；6 个静态门禁零失败；`git diff --check`：clean；结构报告保持 `workspacePackages: 48`、`piNativePackages: 48`、`rootProductionFiles: 3`、`rootProductionLines: 109`、`legacyEventConsumers: []`、`globalRegistryConsumers: []`、`structuralPercent: 100`。
+- 当前分层进度：结构迁移 `100%`，本地实现/合同约 `99.99%`，产品验收约 `98.5%`，Pi7 总体 `未完成`（真实 provider dossier 与授权 production audit 仍因凭证未到位 fail-closed）。
+
+### Pi91 后续计划
+
+1. 真实凭证到位后跑 CN/HK/US 真实 dossier 与跨日真实历史 provider retry/recovery，artifact 落到 `verify-pi-real-invest-artifacts/`。
+2. Pi10 阶段 B：把 `agent-port.ts` / `tool.ts` / `registry.ts` / `agent-spec.ts` 四个公共 contract 的具体实现下沉到对应 Pi-package，删除 root `src/runtime/pi/*.ts` 的"仍是 wiring"的尾巴。
+3. 把 `pi-finance-sdk` / `pi-investment-workflow` 的"只读真实 provider fixture"开关固化为正式 contract；强化并发/恢复 smoke（多 Session / abort / dispose 后调用）。
+
+## Pi92 验证同步（2026-09-15）
+
+- A.2（fixture 开关）：`scripts/verify-pi-real-invest.contract.test.ts`（7 合同）与 `scripts/verify-pi-real-invest.synthetic.test.ts`（4 合同）已经在 Pi89 阶段固化为正式 contract；真实 provider smoke 仍 fail-closed 至 `UPUP_REAL_INVEST=1 && UPUP_REAL_INVEST_CONFIRM=READ_ONLY` 双开关同时存在才能激活。本轮无须新增代码，已确认 contract 在 CI 持续生效。
+- A.3（并发/恢复 smoke）：新增 `packages/pi-session/src/concurrent.test.ts`，5 个合同覆盖 `PiSessionAdapter` 的并发 + abort + dispose 闭环：
+  1. `N concurrent sessions stay isolated` — 8 个并发 session 在非 start 事件、abort、dispose 路径上互不串扰；
+  2. `abort signal on the upstream session is observable` — 上游 abort 次数与幂等性；
+  3. `dispose is idempotent and downstream calls fail closed` — 二次 dispose 不抛错、dispose 后 `prompt()` 抛 'disposed'；
+  4. `dispose + recreate cycle does not leak state` — 同 session id 重新装配后状态干净；
+  5. `parallel abort on many sessions completes deterministically without race` — 16 个 session 并发 abort 全部精确触发一次。
+- 修复 `package.json` 中 `test:pi-contracts` 链：`bun --cwd packages/pi-session test` 改为 `bun --cwd packages/pi-session test src/`，让 `concurrent.test.ts` 在 CI 持续被 contract 链触发。`pi-session` 由 75 pass / 7 files 提升到 86 pass / 8 files。
+- 验证：`bun run typecheck` 通过；`bun test` `2207 pass / 0 fail`，222 个测试文件（新增 5 个 concurrent 测试 + 之前 Pi91 已在的 6 个 builtin-composition 测试）；`bun --cwd packages/pi-session test src/` 86 pass / 0 fail；`bun run test:pi-contracts` 全部通过；6 个静态门禁零失败；`bun run build` exit 0；`git diff --check`：clean；结构报告保持 48/48 manifests、3 root production files、109 root production lines。
+- 当前分层进度：结构迁移 `100%`，本地实现/合同约 `99.99%`，产品验收约 `98.5%`，Pi7 总体 `未完成`（真实 provider dossier 与授权 production audit 仍因凭证未到位 fail-closed）。
+
+### Pi92 后续计划
+
+1. 真实凭证到位后跑 CN/HK/US 真实 dossier 与跨日真实历史 provider retry/recovery。
+2. Pi10 阶段 B 收尾（root `src/runtime/pi/*.ts` 中"仍是 wiring"的非 contract 文件清理）。
+3. 真实 evidence 完整前继续默认 deny 交易、通知、凭证导出和未审批文件写入。
+
+## Pi93 验证同步（2026-09-15）
+
+- A.1（Pi10 阶段 B 收尾）：盘点后发现 root `src/runtime/pi/` 已经只剩 `.test.ts` 文件（17 个，全部从 `@upup/*` package 取 contract），没有任何"wiring"生产文件残留。Root 生产文件收敛到 3 个：`src/index.tsx`（29 字节，只 `@upup/pi-app/entry`）、`src/bootstrap/gateway.ts`（174 字节，组装 `getPiNativeApp()` + `runGatewayCli`）、`src/types/upup-commands.d.ts`（3.05 KB，仅类型声明）。Pi10 阶段 B 实际已在 Pi86-Pi89 全部完成，本轮 inventory 确认无遗漏。
+- A.2（subscribe + session_start 合成 contract 锁定）：新增 `packages/pi-session/src/subscribe-contract.test.ts` 4 个合同，防止后续重构误删 session_start 合成行为：
+  1. `subscribe immediately delivers a synthesized session_start carrying the upstream sessionId and spec agentId` — 验证 `{ type: 'session_start', sessionId, agentId }` 立即到达新 listener；
+  2. `synthesized session_start is delivered before any other listener fires on a real upstream event` — 合成事件先于真实事件到达；
+  3. `unsubscribe stops future events AND removes the listener from the runtime set` — unsubscribe 同时清理 `this.listeners`；
+  4. `multiple listeners each receive the synthesized session_start once and independently` — N 个 listener 各自独立收到一次合成事件，互不共享。
+- 验证：`bun run typecheck` 通过；`bun test` `2211 pass / 0 fail`，223 个测试文件（+4 subscribe-contract）；`bun --cwd packages/pi-session test src/` `90 pass / 0 fail`，9 个文件；`bun run test:pi-contracts` `1358 pass / 0 fail`（含本次新增 4 个合同）；6 个静态门禁零失败；`bun run build` exit 0；`git diff --check`：clean；结构报告保持 48/48 manifests、3 root production files、109 root production lines。
+- 当前分层进度：结构迁移 `100%`，本地实现/合同约 `99.99%`，产品验收约 `98.5%`，Pi7 总体 `未完成`（真实 provider dossier 与授权 production audit 仍因凭证未到位 fail-closed）。
+
+### Pi93 后续计划
+
+1. 真实凭证到位后跑 CN/HK/US 真实 dossier 与跨日真实历史 provider retry/recovery，artifact 落到 `verify-pi-real-invest-artifacts/`，synthetic 与真实结果分开记录。
+2. 真实 evidence 完整前继续默认 deny 交易、通知、凭证导出和未审批文件写入，不标记 Pi7 完成。
+
+## Pi94 验证同步（2026-09-15）
+
+- A.1（session_start 合成升级为生产 entry contract）：`src/runtime/pi/production-entry-contract.test.ts` 新增 2 个生产级合同：
+  1. `PiSessionAdapter is the only production subscribe path with session_start synthesis` — `PiSessionAdapter.subscribe(listener)` 内必须合成 `listener({ type: 'session_start', ... })`；且 7 个生产 entry adapter（CLI / Gateway / stdio / Bridge / Cron / Daemon / Evals）不得自己定义 subscribe() 或 listener = next 模式。
+  2. `PiSessionAdapter source file exposes subscribe + session_start synthesis as the single contract` — 文件内只能有 1 处 `listener({ type: 'session_start' })` 调用；subscribe 签名必须接受 `(event: UpUpAgentEvent) => void` listener 并返回 `() => void`。
+- A.2（跨进程 dossier idempotency 合同）：新增 `scripts/verify-pi-cross-process-idempotency.test.ts`（2 合同）：
+  1. `dossier persisted by one process is loadable with the same artifactHash by another` — process A 用 `createInvestmentDossier` + `persistInvestmentDossier` 写入 `UPUP_PLANS_DIR`；process B 用 fresh file handle 读取 + `loadInvestmentDossier` 还原，artifactHash 完全一致且 dossier 通过验证。
+  2. `two independently-built dossiers with the same inputs produce identical artifactHashes` — 同输入两次构造产生同一 hash，证明 dedup-by-key 在跨进程可比。
+- `package.json` 新增 `verify:pi-cross-process` 脚本，并把 `verify-pi-cross-process-idempotency` 加入 `test:pi-contracts` 链尾，跨进程合同在 CI 持续生效。
+- 验证：`bun run typecheck` 通过；`bun test` `2215 pass / 0 fail`，224 个测试文件（+4：2 cross-process + 2 production entry）；`bun run test:pi-contracts` `1362 pass / 0 fail`（+4 vs 上一轮）；6 个静态门禁零失败；`bun run build` exit 0；`git diff --check`：clean；结构报告保持 48/48 manifests、3 root production files、109 root production lines。
+- 当前分层进度：结构迁移 `100%`，本地实现/合同约 `99.99%`，产品验收约 `98.5%`，Pi7 总体 `未完成`（真实 provider dossier 与授权 production audit 仍因凭证未到位 fail-closed）。
+
+### Pi94 后续计划
+
+1. 真实凭证到位后跑 CN/HK/US 真实 dossier 与跨日真实历史 provider retry/recovery，artifact 落到 `verify-pi-real-invest-artifacts/`，synthetic / cross-process / 真实 三套结果分开记录。
+2. 真实 evidence 完整前继续默认 deny 交易、通知、凭证导出和未审批文件写入，不标记 Pi7 完成。
+
+## Pi95 验证同步（2026-09-15）
+
+- A.1（真实 OS-level cross-process dossier idempotency）：新增 `scripts/verify-pi-cross-process-idempotency.worker.ts`（独立 Bun worker，支持 `UPUP_CROSS_ROLE=persist|load`）与 `scripts/verify-pi-cross-process-os.test.ts`（1 合同）：
+  1. `process B recovers process A's dossier with the exact same artifactHash` — 实际 `spawn` 两个独立 Bun 子进程（A 持久化、B 仅加载），共享 `UPUP_PLANS_DIR`。验证 `summaryB.pid !== summaryA.pid`、`summaryA.role === 'persist'`、`summaryB.role === 'load'`、`summaryB.recoveredHash === summaryA.onDiskHash`、A 内 `finalisedHash === recoveredHash === onDiskHash`。这是真实 OS-level process restart 场景下的 dossier 恢复合同，与 in-process `resumeWorkflow` 合同等价的 OS-level 体现。
+- `package.json` 新增 `verify:pi-cross-process-os` 脚本，并把跨进程 OS 测试加入 `test:pi-contracts` 链尾。
+- 验证：`bun run typecheck` 通过；`bun test` `2216 pass / 0 fail`，225 个测试文件（+1 OS 跨进程）；`bun run test:pi-contracts` `1363 pass / 0 fail`（+1 vs 上一轮）；6 个静态门禁零失败；`bun run build` exit 0；`git diff --check`：clean；结构报告保持 48/48 manifests、3 root production files、109 root production lines。
+- 当前分层进度：结构迁移 `100%`，本地实现/合同约 `99.99%`，产品验收约 `98.5%`，Pi7 总体 `未完成`（真实 provider dossier 与授权 production audit 仍因凭证未到位 fail-closed）。
+
+### Pi95 后续计划
+
+1. 真实凭证到位后跑 CN/HK/US 真实 dossier 与跨日真实历史 provider retry/recovery，artifact 落到 `verify-pi-real-invest-artifacts/`，synthetic / cross-process / 真实 三套结果分开记录。
+2. 真实 evidence 完整前继续默认 deny 交易、通知、凭证导出和未审批文件写入，不标记 Pi7 完成。
+
+## Pi96 验证同步（2026-09-15）
+
+- A.1（跨进程 dossier 验证角色扩展）：`scripts/verify-pi-cross-process-idempotency.worker.ts` 新增 `UPUP_CROSS_ROLE=verify` 角色。Process C 仅从 `UPUP_PLANS_DIR` 加载 dossier，按 dossier 的 `planId`/`sessionId` 合成 canonical session JSONL（`session` 头 + `start` + 5 个 `phase_start` + 5 个 `phase` + `complete`），调用 `verifyInvestmentEvidence` + `getInvestmentDossierValidationErrors`，把 `VerifySummary` 写到 `UPUP_CROSS_OUT`。新角色 import 一并扩展：`CANONICAL_INVESTMENT_PHASES` 与 `verifyInvestmentEvidence` 从 `@upup/pi-investment-workflow` 一并取出。
+- A.2（跨进程 dossier 验证合同）：`scripts/verify-pi-cross-process-os.test.ts` 新增第 3 个跨进程合同 `process C verifies process A's dossier across process boundary stays fail-closed`：
+  - spawn 独立 process A（persist）+ process C（verify），共享 `UPUP_PLANS_DIR`；
+  - 验证 `summaryC.pid !== summaryA.pid`、`summaryC.role === 'verify'`、`summaryC.recoveredHash === summaryA.onDiskHash`；
+  - fail-closed：`summaryC.validationErrors === []` 且 `summaryC.evidenceVerificationValid === true` 且 `summaryC.evidenceVerificationErrorCount === 0`；
+  - canonical 五阶段：`phaseNames === ['detect','plan','execute','verify','report']`，`eventActions` 包含 `start` + `complete`，`sourceCount > 0`，`sessionEntryCount > 0`。
+- A.3（Pi91 收尾依赖闭包修复）：`@upup/cron` 已 bump 至 `0.2.0`，但 `@upup/pi-platform-composition/package.json` 在 Pi91 阶段声明的是 `0.1.0`，导致 strict `check:pi-package-audit` 报 `@upup/cron@0.1.0 dependency closure missing`。修正为 `0.2.0` 后 strict audit `status: passed`、`errors: []`。
+- 验证：`bun run typecheck` 通过；`bun test` `2217 pass / 0 fail`，225 个测试文件（+1 vs Pi95 的 2216：第 3 个跨进程验证合同）；`bun run test:pi-contracts` `1364 pass / 0 fail`（+1 vs Pi95 的 1363：OS-level 跨进程验证合同）；`check:pi7`、`check:module-boundaries`、`check:pi-packages`、`check:pi-side-effects` 全部通过；`UPUP_PI_DELETION_AUDIT_STRICT=1 bun run check:pi-deletion-audit` `status: passed`、`errors: []`；`UPUP_PI_PACKAGE_AUDIT_STRICT=1 bun run check:pi-package-audit` `status: passed`、`errors: []`（Pi91 留下的 cron 版本错配已修复）；`bun run build` exit 0；`git diff --check` clean。
+- 结构报告保持：`workspacePackages: 48`、`piNativePackages: 48`、`rootProductionFiles: 3`、`rootProductionLines: 109`、`legacyEventConsumers: []`、`globalRegistryConsumers: []`、`structuralPercent: 100`。
+- 当前分层进度：结构迁移 `100%`，本地实现/合同约 `99.99%`，产品验收约 `98.5%`，Pi7 总体 `未完成`（真实 provider dossier、跨日真实历史 retry/recovery、用户授权 production approval/audit 仍因凭证未到位 fail-closed；synthetic / in-process cross-process / OS-level cross-process 三套合同已分别覆盖）。
+
+### Pi96 后续计划
+
+1. 真实凭证到位后跑 CN/HK/US 真实 dossier 与跨日真实历史 provider retry/recovery，artifact 落到 `verify-pi-real-invest-artifacts/`，synthetic / in-process cross-process / OS-level cross-process / 真实 四套结果分开记录。
+2. 真实 evidence 完整前继续默认 deny 交易、通知、凭证导出和未审批文件写入，不标记 Pi7 完成。
+
+## Pi97 验证同步（2026-09-15）
+
+- A.2（跨进程 policy audit 静态锁）：新增 `scripts/verify-pi-side-effects-cross-process.ts`（独立 Bun worker）+ `scripts/verify-pi-side-effects-cross-process.test.ts`（1 合同）：
+  - Worker spawn 两个独立 Bun 子进程（process A / process B），各自独立加载 `@upup/pi-app/default` 并跑 `verify:pi-side-effects-runtime.ts`，每个子进程写入自己的私有 temp dir（`UPUP_PI_SIDE_EFFECTS_CWD`），互不共享 session、缓存或文件系统。
+  - 每个子进程返回 `upup.pi.side-effects-runtime.v1` JSON（5 个 case：config_set / write_file / mcp_auth_get / notify / place_trade_order），Worker 把两份结果合成 `upup.pi.side-effects-cross-process.v1` summary 并写到 stdout。
+  - 测试合同 `two independent OS processes keep all 5 high-risk tool policy audits fail-closed`：断言 `summary.status === 'passed'`、`summary.errors === []`、`pidsDistinct === true`、`processA.pid !== processB.pid`、每个工具的 `packageName` / `decision` / `effect` / `auditCount` 在两个进程间一致，且每个 decision 都属于 fail-closed 集合 `{denied, approval_denied, approval_required}`。
+  - `package.json` 新增 `verify:pi-side-effects-cross-process` 脚本（`bun test scripts/verify-pi-side-effects-cross-process.test.ts`），并把测试加入 `test:pi-contracts` 链尾。
+  - 该合同是 Pi7 完成前的最后一道静态锁：5 个高风险工具（filesystem-write / credential-access / external-network / financial-write）的 policy audit 在 OS-level process restart 后仍 fail-closed。
+- 验证：`bun run typecheck` 通过；`bun test` `2218 pass / 0 fail`，226 个测试文件（+1 vs Pi96 的 2217：cross-process policy audit）；`bun run test:pi-contracts` `1365 pass / 0 fail`（+1 vs Pi96 的 1364）；6 个静态门禁零失败；`bun run build` exit 0；`git diff --check` clean。
+- 结构报告保持：`workspacePackages: 48`、`piNativePackages: 48`、`rootProductionFiles: 3`、`rootProductionLines: 109`、`legacyEventConsumers: []`、`globalRegistryConsumers: []`、`structuralPercent: 100`。
+- 当前分层进度：结构迁移 `100%`，本地实现/合同约 `99.99%`，产品验收约 `98.5%`，Pi7 总体 `未完成`（真实 provider dossier、跨日真实历史 retry/recovery、用户授权 production audit 仍因凭证未到位 fail-closed；synthetic / in-process cross-process / OS-level cross-process dossier / OS-level cross-process policy audit 四套合同已分别覆盖）。
+
+### Pi97 后续计划
+
+1. 真实凭证到位后跑 CN/HK/US 真实 dossier 与跨日真实历史 provider retry/recovery，artifact 落到 `verify-pi-real-invest-artifacts/`，synthetic / in-process cross-process / OS-level cross-process dossier / OS-level cross-process policy audit / 真实 五套结果分开记录。
+2. 真实 evidence 完整前继续默认 deny 交易、通知、凭证导出和未审批文件写入，不标记 Pi7 完成。
+
+## Pi98 验证同步（2026-09-15）
+
+- A.1（fail-closed artifact 隔离合约）：`scripts/verify-pi-real-invest.contract.test.ts` 新增 2 个合约：
+  - `fail-closed invocation never creates the artifact directory` — 用 `UPUP_REAL_INVEST_ARTIFACT_DIR` 指向 sandbox temp dir，跑 fail-closed invocation，断言 `process.cwd()/sandbox/.upup/real-invest-artifacts/` 不存在。
+  - `fail-closed invocation does not pollute UPUP_PLANS_DIR or env state` — 跑 fail-closed invocation，断言 `process.env.UPUP_PLANS_DIR` / `TUSHARE_TOKEN` / `FINANCIAL_DATASETS_API_KEY` 与 invocation 前完全一致。
+  - 加上原 7 个，contract test 套件共 9 pass / 0 fail。
+- A.2（cross-day session 恢复合约）：新增 `packages/pi-investment-workflow/src/cross-day-recovery.test.ts`（5 个合同）：
+  1. `verifier wall-clock is at least 5 days past dossier dataAsOf` — 锁定测试前提，PAST_DATA_AS_OF 与 FUTURE_VERIFIER_TS drift ≥ 5 天。
+  2. `dossier constructed 5+ days ago still validates fail-closed` — dossier + session JSONL 全部 pinned to 2026-09-10，今天验证仍 `valid: true` 且 errors 为空；phaseNames / eventActions / evidenceSources 完整。
+  3. `retry-recovered phase evidence from past day stays fail-closed` — 通过 `createInvestmentDossier` 把 detect phase evidence 加 `retryAttempts: 3` / `retryMaxAttempts: 5` / `retryRecovered: true`，跨日验证仍 fail-closed；artifactHash 自动重算保证一致性。
+  4. `re-verifying the past dossier 5+ days later produces identical shape` — 两次调用 `verifyInvestmentEvidence` 产出的 phaseNames / evidenceSources / eventActions / sessionEntryCount 完全一致，证明 verifier 不静默注入 "now"。
+  5. `cross-day dossier rejects a session JSONL anchored to a different day with mismatched session id` — session header id 不匹配 dossier sessionId 时 fail-closed。
+- 验证：`bun run typecheck` 通过；`bun test` `2225 pass / 0 fail`，227 个测试文件（+7 vs Pi97 的 2218：2 contract fail-closed + 5 cross-day recovery）；`bun --cwd packages/pi-investment-workflow test` 102 pass / 0 fail（+5）；`bun run test:pi-contracts` `1367 pass / 0 fail`（+2 vs Pi97 的 1365：2 contract fail-closed isolation）；6 个静态门禁零失败；`bun run build` exit 0；`git diff --check` clean。
+- 结构报告保持：`workspacePackages: 48`、`piNativePackages: 48`、`rootProductionFiles: 3`、`rootProductionLines: 109`、`legacyEventConsumers: []`、`globalRegistryConsumers: []`、`structuralPercent: 100`。
+- 当前分层进度：结构迁移 `100%`，本地实现/合同约 `99.99%`，产品验收约 `99.0%`，Pi7 总体 `未完成`（真实 provider dossier、跨日真实历史 retry/recovery、用户授权 production audit 仍因凭证未到位 fail-closed；synthetic / cross-process dossier in-process / cross-process dossier OS-level / cross-process policy audit OS-level / fail-closed artifact 隔离 / cross-day recovery 六套合同已分别覆盖）。
+
+### Pi98 后续计划
+
+1. 真实凭证到位后跑 CN/HK/US 真实 dossier 与跨日真实历史 provider retry/recovery，artifact 落到 `verify-pi-real-invest-artifacts/`，synthetic / cross-process dossier in-process / cross-process dossier OS-level / cross-process policy audit OS-level / fail-closed artifact isolation / cross-day recovery / 真实 七套结果分开记录。
+2. 真实 evidence 完整前继续默认 deny 交易、通知、凭证导出和未审批文件写入，不标记 Pi7 完成。
+
+## Pi99 验证同步（2026-09-15）
+
+- A.1（跨进程 fail-closed 静态锁）：`scripts/verify-pi-real-invest.contract.test.ts` 新增 1 个合同 `two independent OS processes running fail-closed real-invest stay artifact-free`：
+  - `Promise.all` 同时 spawn 两个独立 Bun 子进程（cwd A / cwd B），各自独立加载 `verify-pi-real-invest.ts`，都收到 `status: 'skipped'` 输出。
+  - 每个子进程的 cwd 下都不存在 `.upup/real-invest-artifacts/` 目录。
+  - 两个子进程的 stdout 都包含 `"status": "skipped"` 和 `"fixtureSeparate": true`，stderr 都为空，pid 不同。
+  - 这补齐了 Pi7 在 fail-closed 路径上的跨进程隔离静态锁：与 Pi95 OS-level cross-process dossier、Pi97 OS-level cross-process policy audit、Pi98 cross-day recovery 一起，构成"跨进程 / 跨时间 / 跨 artifact 目录"三维静态锁网。
+- 验证：`bun run typecheck` 通过；`bun test` `2226 pass / 0 fail`，227 个测试文件（+1 vs Pi98 的 2225：1 个跨进程 fail-closed）；`bun run test:pi-contracts` 全部通过；6 个静态门禁零失败；`bun run build` exit 0；`git diff --check` clean。
+- 结构报告保持：`workspacePackages: 48`、`piNativePackages: 48`、`rootProductionFiles: 3`、`rootProductionLines: 109`、`legacyEventConsumers: []`、`globalRegistryConsumers: []`、`structuralPercent: 100`。
+- 当前分层进度：结构迁移 `100%`，本地实现/合同约 `99.99%`，产品验收约 `99.5%`，Pi7 总体 `未完成`（真实 provider dossier、跨日真实历史 retry/recovery、用户授权 production audit 仍因凭证未到位 fail-closed；synthetic / cross-process dossier in-process / cross-process dossier OS-level / cross-process policy audit OS-level / fail-closed artifact isolation / cross-day recovery / cross-process fail-closed 七套合同已分别覆盖）。
+
+### Pi99 后续计划
+
+1. 真实凭证到位后跑 CN/HK/US 真实 dossier 与跨日真实历史 provider retry/recovery，artifact 落到 `verify-pi-real-invest-artifacts/`，synthetic / cross-process dossier in-process / cross-process dossier OS-level / cross-process policy audit OS-level / fail-closed artifact isolation / cross-day recovery / cross-process fail-closed / 真实 八套结果分开记录。
+2. 真实 evidence 完整前继续默认 deny 交易、通知、凭证导出和未审批文件写入，不标记 Pi7 完成。
+
+## Pi100 验证同步（2026-09-15）
+
+- A.1（Pi7 完成清单）：`pi7.md` 末尾新增 "Pi7 完成清单"section，逐项对照 pi7 完成定义 12 项。当前状态：12 项中 11 项已具备证据（✅），仅第 12 项"真实 provider 验证结果与本地 fixture 结果分开记录"保持 fail-closed（⏳）。综合进度：结构迁移 100%、本地实现/合同约 99.99%、产品验收约 99.5%、Pi7 总体未完成（缺 1 项）。
+- A.2（Pi7 一键 smoke orchestrator）：新增 `scripts/verify-pi7-final.ts`（172 行）+ `package.json` 新增 `verify:pi7-final` 脚本：
+  - 串行 spawn 7 个独立 bun 子进程分别跑：① synthetic smoke ② cross-process dossier in-process ③ cross-process dossier OS-level ④ cross-process policy audit OS-level ⑤ fail-closed artifact isolation + cross-process fail-closed（同一 contract.test.ts 套件）⑥ cross-day recovery ⑦ production entry contract。
+  - 把 7 套合同的 exitCode + 耗时 + summary 合成 `upup.pi.pi7-final.v1` JSON。
+  - 任一 contract 失败即 exit 1，operator 拿到完整表格定位失败点。
+- 验证：`bun run verify:pi7-final` 输出 `status: passed`、`contractCount: 7`、`passedCount: 7`、`failedCount: 0`，总耗时 8.057s；`bun test` `2226 pass / 0 fail`（verify-pi7-final 不被 `bun test` 自动收集）；6 个静态门禁零失败；`bun run build` exit 0；`git diff --check` clean。
+- 结构报告保持：`workspacePackages: 48`、`piNativePackages: 48`、`rootProductionFiles: 3`、`rootProductionLines: 109`、`legacyEventConsumers: []`、`globalRegistryConsumers: []`、`structuralPercent: 100`。
+- 当前分层进度：结构迁移 `100%`，本地实现/合同约 `99.99%`，产品验收约 `99.5%`，Pi7 总体 `未完成`（唯一缺真实 provider dossier，凭证未到位）。
+
+### Pi100 后续计划
+
+1. 真实凭证到位后跑 CN/HK/US 真实 dossier 与跨日真实历史 provider retry/recovery，artifact 落到 `verify-pi-real-invest-artifacts/`，扩展 `verify:pi7-final` 让真实 dossier 作为第 8 套合同进入总表。
+2. 真实 evidence 完整前继续默认 deny 交易、通知、凭证导出和未审批文件写入，不标记 Pi7 完成。
+
+## pi101 验证同步（2026-09-15）
+
+- A.1（gate + dry-run 互斥 fail-closed 合约）：`scripts/verify-pi-real-invest.contract.test.ts` 新增 1 个生产级合同 `gate-enabled invocation rejects dry-run and never creates artifacts (Pi101 A.1)`：
+  - 当 `UPUP_REAL_INVEST=1 && UPUP_REAL_INVEST_CONFIRM=READ_ONLY` 同时设置 `UPUP_DRY_RUN=1`，脚本必须 throw exit non-zero，且 stderr 含 `UPUP_DRY_RUN | dry-run` 错误信息。
+  - 同时断言 sandbox 下 `.upup/real-invest-artifacts/` 目录未被创建。
+  - 该合同防止未来重构误把 dry-run 与 real-invest gate 并存（dry-run 是合成，real-invest 是真实，绝不能混用）。
+- 验证：`bun run typecheck` 通过；`bun test` `2227 pass / 0 fail`，227 个测试文件（+1 vs pi100 的 2226：1 个 gate+dry-run 互斥合约）；`bun run test:pi-contracts` `1369 pass / 0 fail`（+1 vs pi100 的 1368）；`bun run verify:pi7-final` 7/7 passed；6 个静态门禁零失败；`bun run build` exit 0；`git diff --check` clean。
+- 结构报告保持：`workspacePackages: 48`、`piNativePackages: 48`、`rootProductionFiles: 3`、`rootProductionLines: 109`、`legacyEventConsumers: []`、`globalRegistryConsumers: []`、`structuralPercent: 100`。
+- 当前分层进度：结构迁移 `100%`，本地实现/合同约 `99.99%`，产品验收约 `99.5%`，Pi7 总体 `未完成`（唯一缺真实 provider dossier，凭证未到位）。
+
+### pi101 后续计划
+
+1. 真实凭证到位后跑 CN/HK/US 真实 dossier 与跨日真实历史 provider retry/recovery，artifact 落到 `verify-pi-real-invest-artifacts/`，扩展 `verify-pi7-final` 让真实 dossier 作为第 8 套合同进入总表。
+2. 真实 evidence 完整前继续默认 deny 交易、通知、凭证导出和未审批文件写入，不标记 Pi7 完成。
+
+## pi102 验证同步（2026-09-15）
+
+- A.1（一键 orchestrator 升级为 13 套合同）：`scripts/verify-pi7-final.ts` 从 7 套合同扩到 **13 套**，新增 6 个 P0.* 前置静态门禁：
+  - P0.a `check:pi7`（单 factory、无生产 global registry）
+  - P0.b `check:module-boundaries`（workspace + root src + cycle guard）
+  - P0.c `check:pi-packages`（Pi-native manifest + resources）
+  - P0.d `check:pi-side-effects`（tool side-effect 覆盖）
+  - P0.e `UPUP_PI_DELETION_AUDIT_STRICT=1 check:pi-deletion-audit`（strict legacy/global 审计）
+  - P0.f `UPUP_PI_PACKAGE_AUDIT_STRICT=1 check:pi-package-audit`（strict package 审计）
+  - `runContract` 新增 `env?` 字段支持 strict env vars 注入；6 个 strict 门禁通过 env override 触发。
+  - 该升级把 Pi7 完成定义第 11 条"静态门禁 + Package contract + 全仓测试 + 入口 smoke 全部通过"从"分别跑"升级为"一键 13 套串行验证，fail-fast on first failure"。
+- 验证：`bun run verify:pi7-final` 输出 `status: passed`、`contractCount: 13`、`passedCount: 13`、`failedCount: 0`，总耗时 9.926s；`bun run typecheck` 通过；`bun test` `2227 pass / 0 fail`；`bun run test:pi-contracts` `1369 pass / 0 fail`；6 个静态门禁零失败；`bun run build` exit 0；`git diff --check` clean。
+- 结构报告保持：`workspacePackages: 48`、`piNativePackages: 48`、`rootProductionFiles: 3`、`rootProductionLines: 109`、`legacyEventConsumers: []`、`globalRegistryConsumers: []`、`structuralPercent: 100`。
+- 当前分层进度：结构迁移 `100%`，本地实现/合同约 `99.99%`，产品验收约 `99.5%`，Pi7 总体 `未完成`（唯一缺真实 provider dossier，凭证未到位）。
+
+### pi102 后续计划
+
+1. 真实凭证到位后跑 CN/HK/US 真实 dossier 与跨日真实历史 provider retry/recovery，artifact 落到 `verify-pi-real-invest-artifacts/`，扩展 `verify-pi7-final` 让真实 dossier 作为第 8 套合同进入总表。
+2. 真实 evidence 完整前继续默认 deny 交易、通知、凭证导出和未审批文件写入，不标记 Pi7 完成。
+
+## pi103 验证同步（2026-09-15）
+
+- A.1（Pi 版本锁合约 + flaky test 修复）：
+  - 新增 `src/runtime/pi/pi-version-lock.test.ts`（5 个合同）：扫描所有 workspace packages 的 `package.json`，断言所有 `@earendil-works/pi-coding-agent` / `pi-ai` / `pi-tui` 依赖声明都精确锁到 `0.84.3`，无 semver range（`^` / `~` / `>=` / `*` / `x`），且 distinct versions ≤ 1。这是 Pi7 "Pi 0.84.3 锁定" 决策的机器可验证证据。
+  - `package.json` 把 `src/runtime/pi/pi-version-lock.test.ts` 加入 `test:pi-contracts` 链尾。
+  - `verify-pi7-final.ts` 新增 **C8**（跨 Pi 版本锁合同），把一键 orchestrator 从 13 套扩到 **14 套**。
+  - 修复 flaky test：`scripts/verify-pi-cross-process-idempotency.test.ts` 第 2 个合同 `two independently-built dossiers with the same inputs produce identical artifactHashes` 在 test:pi-contracts 链中偶发 fail（独立跑 2/2 pass）。
+    - 根因：`createInvestmentDossier` 内部用 `now()` 注入 `createdAt` / `updatedAt` / phase `startedAt` / phase `completedAt`，两 dossier 跨毫秒时 hash 不同。
+    - 修复：扩展 `createInvestmentDossier` 接受 `clock?: () => string` 参数（默认 `now`），让测试注入固定 clock `'2026-09-15T00:00:00.000Z'` 拿到 byte-identical 输入。
+    - `phaseArtifact` 内部 helper 也接受 `clock` 参数并把 `startedAt` 默认从 `now()` 改为 `clock()`。
+- 验证：`bun run verify-pi7-final` 14/14 passed（contractCount: 14, passedCount: 14, failedCount: 0, totalDurationMs: 8680）；`bun test` 2232 pass / 0 fail；`bun run test:pi-contracts` 1374 pass / 0 fail（链中无 flaky fail）；6 个静态门禁零失败；`bun run build` exit 0；`git diff --check` clean。
+- 结构报告保持：`workspacePackages: 48`、`piNativePackages: 48`、`rootProductionFiles: 3`、`rootProductionLines: 109`、`legacyEventConsumers: []`、`globalRegistryConsumers: []`、`structuralPercent: 100`。
+- 当前分层进度：结构迁移 `100%`，本地实现/合同约 `99.99%`，产品验收约 `99.5%`，Pi7 总体 `未完成`（唯一缺真实 provider dossier，凭证未到位）。
+
+### pi103 后续计划
+
+1. 真实凭证到位后跑 CN/HK/US 真实 dossier 与跨日真实历史 provider retry/recovery，artifact 落到 `verify-pi-real-invest-artifacts/`，扩展 `verify-pi7-final` 让真实 dossier 作为第 8 套合同进入总表。
+2. 真实 evidence 完整前继续默认 deny 交易、通知、凭证导出和未审批文件写入，不标记 Pi7 完成。
+
+## pi104 验证同步（2026-09-15）
+
+- A.1（cross-fixture schema 命名一致性合约）：新增 `src/runtime/pi/pi-fixture-schema.test.ts`（5 个合同）：
+  1. `at least one Pi fixture artifact is discoverable`（sanity）
+  2. `every fixture schema string matches upup.pi.<area>.<version>`（格式正确）
+  3. `every consumer-pinned schema has a matching producer`（consumer-producer 耦合）
+  4. `the cross-fixture landscape covers at least 4 distinct Pi7 areas`（覆盖广度）
+  5. `no fixture schema string is a v0 placeholder`（无 v0 占位）
+  - 该合约扫描 `scripts/verify-pi-*.{ts,test.ts}` 中所有 `upup.pi.<area>.v<n>` literal，区分 producer（非 test 文件）和 consumer（test 文件），防止 schema 字符串与文档格式契约漂移，防止 consumer 引用不存在的 schema。
+  - `verify-pi7-final.ts` 新增 **C9**，从 14 套扩到 **15 套**。
+- 验证：`bun run verify-pi7-final` 15/15 passed（totalDurationMs: 8000）；`bun test` 2237 pass / 0 fail（+5 vs pi103：5 个 cross-fixture schema contract）；`bun run test:pi-contracts` 1379 pass / 0 fail（+5）；6 个静态门禁零失败；`bun run build` exit 0；`git diff --check` clean。
+- 结构报告保持：`workspacePackages: 48`、`piNativePackages: 48`、`rootProductionFiles: 3`、`rootProductionLines: 109`、`legacyEventConsumers: []`、`globalRegistryConsumers: []`、`structuralPercent: 100`。
+- 当前分层进度：结构迁移 `100%`，本地实现/合同约 `99.99%`，产品验收约 `99.5%`，Pi7 总体 `未完成`（唯一缺真实 provider dossier，凭证未到位）。
+
+### pi104 后续计划
+
+1. 真实凭证到位后跑 CN/HK/US 真实 dossier 与跨日真实历史 provider retry/recovery，artifact 落到 `verify-pi-real-invest-artifacts/`，扩展 `verify-pi7-final` 让真实 dossier 作为第 8 套合同进入总表。
+2. 真实 evidence 完整前继续默认 deny 交易、通知、凭证导出和未审批文件写入，不标记 Pi7 完成。
+
+## pi105 验证同步（2026-09-15）
+
+- 本轮无新增代码、无新增合同、无 root `src` 改动。原因是 pi104 完成后所有可静态验证的 Pi7 完成定义项已满足，再次新增合同只会是"为了覆盖率"，违反已建立的"每个合同必须保护真实 Pi7 不变量"原则。本轮唯一动作是对当前进度做完整审计，并把后续路径锁定为 pi106 = 真实 provider dossier 验证。
+- 当前完整验证快照（2026-09-15 终态）：
+  - `bun test`：`2237 pass / 0 fail / 7306 expect()`，229 个测试文件。
+  - `bun run test:pi-contracts`：`1379 pass / 0 fail`。
+  - `bun run verify:pi7-final`：**15/15 passed**，总耗时 ~8.0s。
+  - 6 个静态门禁（`check:pi7` / `check:module-boundaries` / `check:pi-packages` / `check:pi-side-effects` / strict `check:pi-deletion-audit` / strict `check:pi-package-audit`）零失败。
+  - `bun run typecheck`：exit 0；`bun run build`：exit 0；`git diff --check`：clean。
+- 当前结构报告：`workspacePackages: 48`、`piNativePackages: 48`、`rootProductionFiles: 3`、`rootProductionLines: 109`、`legacyEventConsumers: []`、`globalRegistryConsumers: []`、`structuralPercent: 100`。
+- 根 `src` 真实状态：生产文件 3 个共 109 行 — `src/index.tsx`(1) + `src/bootstrap/gateway.ts`(4) + `src/types/upup-commands.d.ts`(101)；其余 `src/runtime/pi/*.test.ts`、`src/utils/*.test.ts`、`src/controllers/*.test.ts` 全是测试文件，受 `check:module-boundaries` 显式 allowlist 保护。
+- 当前分层进度：结构迁移 `100%`，本地实现/合同约 `99.99%`，产品验收约 `99.5%`，Pi7 总体 `未完成`（唯一缺真实 provider dossier，凭证未到位）。
+- 关键判定依据：Pi7 完成定义 12 项中 11 项已具备证据（结构 / contract / 入口 / sandbox / 恢复 / 审计 全过）；唯一缺第 12 项"真实 provider dossier 与本地 fixture 分开记录"，需 `TUSHARE_TOKEN` + `FINANCIAL_DATASETS_API_KEY` 凭证到位后才能升级到 100%。
+- 重要锁定决策：凭证到达之前不再做"为覆盖率而覆盖率"的合同扩张；不再迁移源码（root `src` 已仅剩 109 行生产代码）。下一步只等凭证到位，跑真实 dossier，把 `verify-pi7-final` 从 15 套扩到 16 套（C10 真实 dossier），完成后 Pi7/Pi10 即可标记为真正完成。
+
+### pi106 后续计划
+
+1. 真实凭证到位后跑 CN/HK/US 真实 dossier 与跨日真实历史 provider retry/recovery，artifact 落到 `verify-pi-real-invest-artifacts/`，扩展 `verify-pi7-final` 让真实 dossier 作为 **C10** 进入总表（15 → 16 套）。
+2. 真实 evidence 完整前继续默认 deny 交易、通知、凭证导出、文件写入与未审批 sandbox action；不标记 Pi7 完成。
+3. Pi7 真正完成后再讨论 Pi11（Pi Native 协议扩展 / 产品级新功能）。在 Pi7 完成前不引入新需求。
+
+## pi106 验证同步（2026-09-15）
+
+- 本轮无新增代码、无新增合同、无 root `src` 改动。本轮唯一动作是完整审计当前 Pi7 完成清单 12 项证据 + 把"凭证到位后做什么"写成可一键执行的精确路径（详见 pi7.md pi106 实施记录 §A.2）。
+- 当前完整验证快照（2026-09-15 终态）：
+  - `bun run verify:pi7-final`：**15/15 passed**，总耗时 ~8.0s。
+  - `bun test`：`2237 pass / 0 fail / 7306 expect()`，229 个测试文件。
+  - `bun run test:pi-contracts`：`1379 pass / 0 fail`。
+  - 6 个 strict 静态门禁零失败。
+  - `bun run typecheck`：exit 0；`bun run build`：exit 0；`git diff --check`：clean。
+- 当前结构报告：`workspacePackages: 48`、`piNativePackages: 48`、`rootProductionFiles: 3`、`rootProductionLines: 109`、`legacyEvents: null`、`globalRegistryConsumers: []`、`structuralPercent: 100`。
+- 完整 Pi7 完成清单证据审计（详见 pi7.md pi106 §A.1）：
+  - 1-11 项全部具备静态证据（结构 / contract / 入口 / sandbox / 恢复 / 审计 全过）。
+  - 第 12 项（真实 provider dossier）保持 ⏳ fail-closed，等待用户凭证到位。
+- 真实 dossier 精确执行路径（凭证到位后一键）：
+  ```bash
+  # 用户设置凭证
+  export TUSHARE_TOKEN=<用户 Tushare Pro 凭证>
+  export FINANCIAL_DATASETS_API_KEY=<用户 financial-datasets 凭证>
+  export UPUP_REAL_INVEST_TICKERS="600519.SH,00700.HK,AAPL"  # 默认三市场
+  # 一键执行
+  UPUP_REAL_INVEST=1 UPUP_REAL_INVEST_CONFIRM=READ_ONLY bun run verify:pi-real-invest
+  ```
+  artifact 自动落到 `verify-pi-real-invest-artifacts/`，与本地 fixture 完全隔离。
+- 阻塞判定：当前唯一的外部依赖是用户凭证。这是环境依赖不是代码依赖；本地已完整实现 fail-closed（默认 `status: 'skipped'` + `fixtureSeparate: true`），凭证到位后 pi107 可立即推进到 Pi7 完成。
+
+### pi107 后续计划
+
+1. 真实凭证到位后执行 pi7.md pi106 §A.2 Step 1-4 完整流程：跑真实 dossier → 落 artifact → 把 C10 加进 verify-pi7-final → 更新三方文档。
+2. 真实 evidence 完整前继续默认 deny 交易、通知、凭证导出、文件写入与未审批 sandbox action；不标记 Pi7 完成。
+3. Pi7 真正完成后再讨论 Pi11（Pi Native 协议扩展 / 产品级新功能）。
+4. 当前未到 blocked 阈值（同一阻塞条件 < 3 连续 turn），仍 fail-closed 待凭证；保持 goal active 等用户凭证输入后推进 pi107。
