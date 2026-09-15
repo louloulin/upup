@@ -22,7 +22,7 @@ export interface PiFinanceHostBridge {
   readonly capabilities: readonly PiFinanceHostCapability[];
   readonly providers: {
     readonly tools: { getToolDefinitions(request: PiFinanceHostRequest): readonly unknown[] };
-    readonly marketData?: {
+    readonly marketData: {
       getMarketQuoteFetcher?(): (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
       getMarketQuote?(symbol: string, requestedMarket: string | undefined, signal: AbortSignal | undefined, auditId: string): Promise<{
     value: {

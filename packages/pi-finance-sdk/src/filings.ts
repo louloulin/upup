@@ -111,8 +111,8 @@ export class NativeFilingsClient {
     this.baseUrl = (options.baseUrl ?? BASE_URL).replace(/\/$/, '');
   }
 
-  async read(input: NativeReadFilingsInput, signal: AbortSignal): Promise<NativeReadFilingsResult> {
-    if (signal.aborted) fail('read_filings request aborted');
+  async read(input: NativeReadFilingsInput, signal?: AbortSignal): Promise<NativeReadFilingsResult> {
+    if (signal?.aborted) fail('read_filings request aborted');
     const { ticker, filingTypes, limit } = validateInput(input);
     if (!this.apiKey) fail('FINANCIAL_DATASETS_API_KEY is required for read_filings');
     const metadataUrl = this.url('/filings/', { ticker, filing_type: filingTypes, limit });
@@ -121,7 +121,7 @@ export class NativeFilingsClient {
     const content: Record<string, unknown>[] = [];
     const sourceUrls = [metadataUrl];
     for (const filing of filings.slice(0, 3)) {
-      if (signal.aborted) fail('read_filings request aborted');
+      if (signal?.aborted) fail('read_filings request aborted');
       const filingType = filing.filing_type;
       const accession = filing.accession_number;
       if (!filingType || !ALL_TYPES.includes(filingType) || !accession || !ACCESSION_PATTERN.test(accession)) continue;
@@ -143,7 +143,7 @@ export class NativeFilingsClient {
     return url.toString();
   }
 
-  private async request(url: string, signal: AbortSignal): Promise<Record<string, unknown>> {
+  private async request(url: string, signal?: AbortSignal): Promise<Record<string, unknown>> {
     const response = await this.fetcher(url, { signal, headers: { 'x-api-key': this.apiKey } });
     if (!response.ok) throw new Error(`Financial Datasets filing request failed: ${response.status} ${response.statusText}`);
     const value: unknown = await response.json();
@@ -152,6 +152,6 @@ export class NativeFilingsClient {
   }
 }
 
-export function readNativeFilings(input: NativeReadFilingsInput, signal: AbortSignal, options?: NativeFilingsClientOptions): Promise<NativeReadFilingsResult> {
+export function readNativeFilings(input: NativeReadFilingsInput, signal?: AbortSignal, options?: NativeFilingsClientOptions): Promise<NativeReadFilingsResult> {
   return new NativeFilingsClient(options).read(input, signal);
 }

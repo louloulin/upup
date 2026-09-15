@@ -25,8 +25,8 @@ const slowFixtureTool: UpUpToolContract = {
         error.name = 'AbortError';
         reject(error);
       };
-      if (context.signal.aborted) abort();
-      else context.signal.addEventListener('abort', abort, { once: true });
+      if (context.signal?.aborted) abort();
+      else context.signal?.addEventListener('abort', abort, { once: true });
     });
     return {
       value: { ok: true },

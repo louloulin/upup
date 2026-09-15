@@ -150,11 +150,11 @@ export default function portfolioExtension(pi: ExtensionAPI): void {
   const getMultiState = (context?: { sessionManager?: { getEntries(): readonly unknown[] } }): MultiPortfolioState => { multiPortfolioState ??= readMultiPortfolioState(context); return multiPortfolioState; };
   pi.registerTool({
     name: 'duckdb-query', label: 'DuckDB Query', description: 'Run one bounded, read-only SQL query in the Pi portfolio analytics database.', parameters: duckdbQueryParameters,
-    async execute(toolCallId, params, signal) { try { return nativeDuckDBResult(toolCallId, 'duckdb-query', await duckdb.query(params.sql, signal)); } catch (error) { return duckdbError(toolCallId, error); } },
+    async execute(toolCallId, params, signal, _onUpdate, _ctx) { try { return nativeDuckDBResult(toolCallId, 'duckdb-query', await duckdb.query(params.sql, signal)); } catch (error) { return duckdbError(toolCallId, error); } },
   });
   pi.registerTool({
     name: 'duckdb-register-parquet', label: 'DuckDB Register Parquet', description: 'Register an absolute Parquet file inside the configured working-directory roots as a DuckDB table.', parameters: duckdbPathParameters,
-    async execute(toolCallId, params, signal) { try { return nativeDuckDBResult(toolCallId, 'duckdb-register-parquet', await duckdb.registerParquet(params.path, params.tableName, signal)); } catch (error) { return duckdbError(toolCallId, error); } },
+    async execute(toolCallId, params, signal, _onUpdate, _ctx) { try { return nativeDuckDBResult(toolCallId, 'duckdb-register-parquet', await duckdb.registerParquet(params.path, params.tableName, signal)); } catch (error) { return duckdbError(toolCallId, error); } },
   });
   pi.registerTool({
     name: 'duckdb-list-tables', label: 'DuckDB List Tables', description: 'List tables and columns available in the current Pi portfolio DuckDB session.', parameters: Type.Object({}),
@@ -162,15 +162,15 @@ export default function portfolioExtension(pi: ExtensionAPI): void {
   });
   pi.registerTool({
     name: 'duckdb-timeseries', label: 'DuckDB Time Series', description: 'Aggregate a validated DuckDB table column by day, week, month, quarter, or year.', parameters: duckdbTimeseriesParameters,
-    async execute(toolCallId, params, signal) { try { return nativeDuckDBResult(toolCallId, 'duckdb-timeseries', await duckdb.timeseries({ ...params, aggregation: params.aggregation ?? 'sum' }, signal)); } catch (error) { return duckdbError(toolCallId, error); } },
+    async execute(toolCallId, params, signal, _onUpdate, _ctx) { try { return nativeDuckDBResult(toolCallId, 'duckdb-timeseries', await duckdb.timeseries({ ...params, aggregation: params.aggregation ?? 'sum' }, signal)); } catch (error) { return duckdbError(toolCallId, error); } },
   });
   pi.registerTool({
     name: 'duckdb-portfolio-analysis', label: 'DuckDB Portfolio Analysis', description: 'Calculate returns, volatility, correlation, Sharpe ratio, or historical VaR from a DuckDB table.', parameters: duckdbPortfolioParameters,
-    async execute(toolCallId, params, signal) { try { return nativeDuckDBResult(toolCallId, 'duckdb-portfolio-analysis', await duckdb.portfolioAnalysis(params, signal)); } catch (error) { return duckdbError(toolCallId, error); } },
+    async execute(toolCallId, params, signal, _onUpdate, _ctx) { try { return nativeDuckDBResult(toolCallId, 'duckdb-portfolio-analysis', await duckdb.portfolioAnalysis(params, signal)); } catch (error) { return duckdbError(toolCallId, error); } },
   });
   pi.registerTool({
     name: 'duckdb-import-csv', label: 'DuckDB Import CSV', description: 'Import an absolute CSV file inside the configured working-directory roots into a DuckDB table.', parameters: duckdbCsvParameters,
-    async execute(toolCallId, params, signal) { try { return nativeDuckDBResult(toolCallId, 'duckdb-import-csv', await duckdb.importCsv(params.path, params.tableName, params.header ?? true, params.delimiter ?? ',', signal)); } catch (error) { return duckdbError(toolCallId, error); } },
+    async execute(toolCallId, params, signal, _onUpdate, _ctx) { try { return nativeDuckDBResult(toolCallId, 'duckdb-import-csv', await duckdb.importCsv(params.path, params.tableName, params.header ?? true, params.delimiter ?? ',', signal)); } catch (error) { return duckdbError(toolCallId, error); } },
   });
   pi.registerTool({
     name: 'export_portfolio', label: 'Export Portfolio', description: 'Export the current Pi session portfolio as auditable CSV or JSON content.', parameters: Type.Object({ format: Type.Optional(Type.Union([Type.Literal('csv'), Type.Literal('json')])), includeTransactions: Type.Optional(Type.Boolean()), prices: Type.Optional(Type.Record(Type.String(), Type.Number({ exclusiveMinimum: 0 }))) }),
@@ -273,7 +273,7 @@ export default function portfolioExtension(pi: ExtensionAPI): void {
   });
   pi.registerTool({
     name: 'compare_to_benchmark', label: 'Compare To Benchmark', description: 'Compare portfolio return with one or more market benchmarks and calculate alpha.', parameters: compareBenchmarksParameters,
-    async execute(toolCallId, params, signal) {
+    async execute(toolCallId, params, signal, _onUpdate, _ctx) {
       if (signal?.aborted) return { content: [{ type: 'text', text: 'compare_to_benchmark request aborted' }], isError: true, details: undefined };
       const result = comparePortfolioToBenchmarks(params.portfolioReturn, params.benchmarks);
       const audit = makeEvidence(toolCallId, 'compare_to_benchmark');
@@ -282,7 +282,7 @@ export default function portfolioExtension(pi: ExtensionAPI): void {
   });
   pi.registerTool({
     name: 'calculate_alpha', label: 'Calculate Alpha', description: 'Calculate portfolio excess return and information ratio against a benchmark.', parameters: alphaParameters,
-    async execute(toolCallId, params, signal) {
+    async execute(toolCallId, params, signal, _onUpdate, _ctx) {
       if (signal?.aborted) return { content: [{ type: 'text', text: 'calculate_alpha request aborted' }], isError: true, details: undefined };
       const result = calculateBenchmarkAlpha(params.portfolioReturn, params.benchmarkSymbol);
       const audit = makeEvidence(toolCallId, 'calculate_alpha');
@@ -291,7 +291,7 @@ export default function portfolioExtension(pi: ExtensionAPI): void {
   });
   pi.registerTool({
     name: 'convert_currency', label: 'Convert Currency', description: 'Convert an amount between supported fiat currencies using deterministic USD-base rates.', parameters: conversionParameters,
-    async execute(toolCallId, params, signal) {
+    async execute(toolCallId, params, signal, _onUpdate, _ctx) {
       if (signal?.aborted) return { content: [{ type: 'text', text: 'convert_currency request aborted' }], isError: true, details: undefined };
       const result = convertCurrencyAmount(params.amount, params.from, params.to);
       if (!result) return { content: [{ type: 'text', text: JSON.stringify({ error: `Conversion not available for ${params.from} to ${params.to}`, supported: listCurrencies().map((currency) => currency.code) }) }], isError: true, details: undefined };
@@ -310,7 +310,7 @@ export default function portfolioExtension(pi: ExtensionAPI): void {
   });
   pi.registerTool({
     name: 'get_exchange_rate', label: 'Get Exchange Rate', description: 'Get the deterministic exchange rate between two supported fiat currencies.', parameters: rateParameters,
-    async execute(toolCallId, params, signal) {
+    async execute(toolCallId, params, signal, _onUpdate, _ctx) {
       if (signal?.aborted) return { content: [{ type: 'text', text: 'get_exchange_rate request aborted' }], isError: true, details: undefined };
       const rate = getCurrencyRate(params.from, params.to);
       if (rate === null) return { content: [{ type: 'text', text: JSON.stringify({ error: `Rate not available for ${params.from} to ${params.to}` }) }], isError: true, details: undefined };
@@ -323,7 +323,7 @@ export default function portfolioExtension(pi: ExtensionAPI): void {
     label: 'Portfolio Attribution',
     description: 'Decompose active portfolio return using Brinson, style, sector, or combined attribution.',
     parameters: productionParameters,
-    async execute(toolCallId, params, signal) {
+    async execute(toolCallId, params, signal, _onUpdate, _ctx) {
       if (signal?.aborted) return { content: [{ type: 'text', text: 'portfolio_attribution request aborted' }], isError: true, details: undefined };
       const result = calculatePortfolioAttribution(params as PortfolioAttributionInput);
       const audit = makeEvidence(toolCallId, 'portfolio_attribution');
@@ -335,7 +335,7 @@ export default function portfolioExtension(pi: ExtensionAPI): void {
     label: 'Portfolio Brinson Attribution',
     description: 'Compute deterministic Brinson allocation, selection, and interaction effects from portfolio and benchmark holdings.',
     parameters: bookParameters,
-    async execute(toolCallId, params, signal) {
+    async execute(toolCallId, params, signal, _onUpdate, _ctx) {
       if (signal?.aborted) return { content: [{ type: 'text', text: 'portfolio_brinson_attribution request aborted' }], isError: true, details: undefined };
       const result = calculateBrinsonAttribution({ holdings: params.portfolio as PortfolioBook['holdings'] }, { holdings: params.benchmark as PortfolioBook['holdings'] });
       const audit = makeEvidence(toolCallId, 'portfolio_brinson_attribution');
@@ -347,7 +347,7 @@ export default function portfolioExtension(pi: ExtensionAPI): void {
     label: 'Portfolio Style Attribution',
     description: 'Compute deterministic factor exposure contributions and residual active return.',
     parameters: styleParameters,
-    async execute(toolCallId, params, signal) {
+    async execute(toolCallId, params, signal, _onUpdate, _ctx) {
       if (signal?.aborted) return { content: [{ type: 'text', text: 'portfolio_style_attribution request aborted' }], isError: true, details: undefined };
       const result = calculateStyleAttribution(params as StyleAttributionInput);
       const audit = makeEvidence(toolCallId, 'portfolio_style_attribution');
@@ -359,7 +359,7 @@ export default function portfolioExtension(pi: ExtensionAPI): void {
     label: 'Portfolio Sector Attribution',
     description: 'Compute deterministic sector contribution and active return using an explicit classification.',
     parameters: sectorParameters,
-    async execute(toolCallId, params, signal) {
+    async execute(toolCallId, params, signal, _onUpdate, _ctx) {
       if (signal?.aborted) return { content: [{ type: 'text', text: 'portfolio_sector_attribution request aborted' }], isError: true, details: undefined };
       const result = calculateSectorAttribution({ holdings: params.portfolio as PortfolioBook['holdings'] }, { holdings: params.benchmark as PortfolioBook['holdings'] }, params.classification);
       const audit = makeEvidence(toolCallId, 'portfolio_sector_attribution');

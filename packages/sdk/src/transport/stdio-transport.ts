@@ -709,20 +709,20 @@ export class StdioTransport implements Transport {
   /**
    * 设置中止信号
    */
-  setSignal(signal: AbortSignal): void {
+  setSignal(signal?: AbortSignal): void {
     this.abortController = new AbortController()
 
     // 将外部 signal 连接到内部 controller
-    if (signal.aborted) {
+    if (signal?.aborted) {
       this.abortController.abort()
     } else {
-      signal.addEventListener('abort', () => {
+      signal?.addEventListener('abort', () => {
         this.abortController?.abort()
       })
     }
 
     // 监听内部 controller
-    this.abortController.signal.addEventListener('abort', () => {
+    this.abortController.signal?.addEventListener('abort', () => {
       this.interrupt()
     })
   }

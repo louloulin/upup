@@ -122,7 +122,7 @@ export class Editor implements Component {
         lines: string[],
         cursorLine: number,
         cursorCol: number,
-        options: { signal: AbortSignal; force?: boolean }
+        options: { signal?: AbortSignal; force?: boolean }
       ): Promise<{ items: AutocompleteItem[]; prefix: string } | null> {
         const currentLine = lines[cursorLine] || '';
         const textBeforeCursor = currentLine.slice(0, cursorCol);

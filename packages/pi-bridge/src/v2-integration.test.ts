@@ -199,7 +199,7 @@ describe('v2-integration: capacityWake + FlushGate + StatusTracker', () => {
 
     // 3. The poll loop is sleeping (capacity-wake)
     const { signal, cleanup } = wake.signal();
-    expect(signal.aborted).toBe(false);
+    expect(signal?.aborted).toBe(false);
 
     // 4. End the flush and drain
     const drained = gate.end();
@@ -208,7 +208,7 @@ describe('v2-integration: capacityWake + FlushGate + StatusTracker', () => {
 
     // 5. Wake the poll loop now that capacity is free
     wake.wake();
-    expect(signal.aborted).toBe(true);
+    expect(signal?.aborted).toBe(true);
 
     cleanup();
   });

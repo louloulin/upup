@@ -10,7 +10,11 @@ import { OLLAMA_PROVIDER_ID, createOllamaProviderConfig } from '@upup/pi-runtime
 import { PROVIDERS, getProviderApiKeyEnvVars, getProviderById, resolveProvider } from './providers';
 
 describe('@upup/utils — provider registry matches the Pi catalog', () => {
-  const catalogProviders = PROVIDERS.filter((provider) => provider.piProviderId);
+  // Ollama is contributed by UpUp via `pi.registerProvider` rather than
+  // coming from the Pi catalog; exclude it from catalog-shape assertions.
+  const catalogProviders = PROVIDERS.filter(
+    (provider) => provider.piProviderId && provider.piProviderId !== 'ollama',
+  );
 
   test('every Pi-backed provider exists in the Pi catalog', () => {
     expect(catalogProviders.length).toBeGreaterThan(0);
@@ -63,15 +67,21 @@ describe('@upup/utils — provider registry matches the Pi catalog', () => {
 });
 
 describe('@upup/utils — provider lookup', () => {
-  test('resolves providers by UpUp id and by Pi provider id', () => {
+  test('resolves providers by UpUp id, by legacy alias, and by Pi provider id', () => {
+    // Legacy alias `moonshot` resolves to the canonical `moonshotai` entry.
     expect(getProviderById('moonshot')?.displayName).toBe('Moonshot AI');
-    expect(getProviderById('moonshotai')?.id).toBe('moonshot');
+    // Canonical id resolves to the same entry; the id is now the Pi id.
+    expect(getProviderById('moonshotai')?.id).toBe('moonshotai');
+    expect(getProviderById('kimi')?.id).toBe('moonshotai');
+    expect(getProviderById('gemini')?.id).toBe('google');
+    expect(getProviderById('grok')?.id).toBe('xai');
   });
 
   test('detects providers from a model id prefix', () => {
     expect(resolveProvider('claude-sonnet-4-6').id).toBe('anthropic');
     expect(resolveProvider('grok-4.6').id).toBe('xai');
-    expect(resolveProvider('kimi-k2.5').id).toBe('moonshot');
+    expect(resolveProvider('kimi-k2.5').id).toBe('moonshotai');
+    expect(resolveProvider('MiniMax-M3').id).toBe('minimax');
     // OpenAI declares no prefix, so an unmatched id falls back to the first entry.
     expect(resolveProvider('gpt-5.4').id).toBe('openai');
   });

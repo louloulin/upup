@@ -1,120 +1,159 @@
 /**
- * Canonical provider registry — single source of truth for all provider metadata.
- * When adding a new provider, add a single entry here; all other modules derive from this.
- *
- * The values are deliberately small and static so `@upup/utils` stays cheap to
- * bundle. `packages/utils/src/providers.test.ts` asserts every entry against the
- * `@earendil-works/pi-ai` catalog (`@upup/pi-runtime/model-registry`), so the
- * table cannot drift from the providers and environment variables Pi actually
- * uses without failing the test suite.
+ * Provider registry derived from `@earendil-works/pi-ai` via
+ * `@upup/pi-runtime/model-registry`. The Pi catalog is the single source of
+ * truth; UpUp only contributes the curated ordering overlay, legacy alias
+ * fallbacks for `.env` files predating the Pi-native env names, and the Ollama
+ * provider that UpUp registers into Pi itself (not in the Pi catalog).
  */
+
+import {
+  detectPiProvider,
+  getPiModelInfo,
+  getPiProviderInfo,
+  listPiModels,
+  listPiProviderIds,
+  piProviderEnvKeys,
+} from '@upup/pi-runtime/model-registry';
+import { OLLAMA_PROVIDER_ID } from '@upup/pi-runtime/custom-providers';
 
 export interface ProviderDef {
   /** UpUp provider id. Stable: persisted in `.upup/settings.json`. */
   id: string;
+  /** Human-readable label rendered in TUI selectors, onboarding, doctor. */
   displayName: string;
-  modelPrefix: string;
-  /** Provider id used by `@earendil-works/pi-ai` (may differ from `id`). */
-  piProviderId?: string;
+  /** Provider id used by `@earendil-works/pi-ai`. Same as `id` for catalog entries. */
+  piProviderId: string;
   /** Environment variable Pi resolves first for this provider. */
   apiKeyEnvVar?: string;
-  /** Additional environment variables checked, in order. */
+  /** Additional environment variables checked, in order (legacy aliases). */
   apiKeyEnvVars?: readonly string[];
+  /** Recommended model surfaced in `/model` + onboarding. */
   fastModel?: string;
   contextWindow?: number;
+  /**
+   * Optional human-readable prefix printed in onboarding next to the provider
+   * label (e.g. `(claude-)` for Anthropic). Currently unused by the derived
+   * registry because the model prefix is already encoded in the model id;
+   * retained for backwards compatibility with `selectProvider` callers.
+   */
+  modelPrefix?: string;
 }
 
-export const PROVIDERS: ProviderDef[] = [
-  {
-    id: 'openai',
-    displayName: 'OpenAI',
-    modelPrefix: '',
-    piProviderId: 'openai',
-    apiKeyEnvVar: 'OPENAI_API_KEY',
-    fastModel: 'gpt-4.1',
-    contextWindow: 1_047_576,
-  },
-  {
-    id: 'anthropic',
-    displayName: 'Anthropic',
-    modelPrefix: 'claude-',
-    piProviderId: 'anthropic',
-    apiKeyEnvVar: 'ANTHROPIC_API_KEY',
-    fastModel: 'claude-haiku-4-5',
-    contextWindow: 200_000,
-  },
-  {
-    id: 'google',
-    displayName: 'Google',
-    modelPrefix: 'gemini-',
-    piProviderId: 'google',
-    // Pi resolves Google credentials from GEMINI_API_KEY; GOOGLE_API_KEY is the
-    // pre-Pi-native name and stays supported for existing `.env` files.
-    apiKeyEnvVar: 'GEMINI_API_KEY',
-    apiKeyEnvVars: ['GOOGLE_API_KEY'],
-    fastModel: 'gemini-3-flash-preview',
-    contextWindow: 1_048_576,
-  },
-  {
-    id: 'xai',
-    displayName: 'xAI',
-    modelPrefix: 'grok-',
-    piProviderId: 'xai',
-    apiKeyEnvVar: 'XAI_API_KEY',
-    fastModel: 'grok-4.6',
-    contextWindow: 500_000,
-  },
-  {
-    id: 'moonshot',
-    displayName: 'Moonshot AI',
-    modelPrefix: 'kimi-',
-    piProviderId: 'moonshotai',
-    apiKeyEnvVar: 'MOONSHOT_API_KEY',
-    fastModel: 'kimi-k2.5',
-    contextWindow: 262_144,
-  },
-  {
-    id: 'deepseek',
-    displayName: 'DeepSeek',
-    modelPrefix: 'deepseek-',
-    piProviderId: 'deepseek',
-    apiKeyEnvVar: 'DEEPSEEK_API_KEY',
-    fastModel: 'deepseek-v4-flash',
-    contextWindow: 1_000_000,
-  },
-  {
-    id: 'openrouter',
-    displayName: 'OpenRouter',
-    modelPrefix: 'openrouter:',
-    piProviderId: 'openrouter',
-    apiKeyEnvVar: 'OPENROUTER_API_KEY',
-    fastModel: 'openai/gpt-4o-mini',
-    contextWindow: 128_000,
-  },
-  {
-    id: 'ollama',
-    displayName: 'Ollama',
-    modelPrefix: 'ollama:',
-    contextWindow: 128_000,
-  },
-];
+/**
+ * Curated ordering: these providers get top spots in TUI selectors and
+ * onboarding. Everything else from the Pi catalog follows in alphabetical
+ * order. Add to this list to promote a Pi catalog entry; you no longer need
+ * to duplicate provider data here.
+ */
+const PREFERRED_ORDER = [
+  'openai',
+  'anthropic',
+  'google',
+  'xai',
+  'moonshotai',
+  'deepseek',
+  'openrouter',
+  'minimax',
+  'minimax-cn',
+  'kimi-coding',
+] as const;
 
+/**
+ * Legacy UpUp env-var aliases for `.env` files predating the Pi-native names.
+ * Pi does not read these; we surface them so `checkApiKeyExists` keeps
+ * recognising pre-Pi-native `.env` content.
+ */
+const LEGACY_ALIASES: Readonly<Record<string, readonly string[]>> = {
+  google: ['GOOGLE_API_KEY'],
+};
+
+function pickFastModel(providerId: string): string | undefined {
+  const models = listPiModels(providerId);
+  if (models.length === 0) return undefined;
+  const fast = models.find(
+    (model) =>
+      /\b(flash|mini|haiku|nano|lite|fast|small)\b/i.test(model.id) ||
+      /\b(flash|mini|haiku|nano|lite|fast|small)\b/i.test(model.name),
+  );
+  return (fast ?? models[0]).id;
+}
+
+function deriveProvider(id: string): ProviderDef | undefined {
+  const info = getPiProviderInfo(id);
+  if (!info) return undefined;
+  const envs = piProviderEnvKeys(id);
+  // Pi reports env vars in priority order. Some providers (Anthropic) list
+  // `*_AUTH_TOKEN` before `*_API_KEY`; UpUp historically surfaced the API key
+  // form, so prefer it when present and fall back to Pi's first choice.
+  const apiKeyEnvVar =
+    envs.find((name) => name.endsWith('_API_KEY')) ?? envs[0];
+  const remainder = envs.filter((name) => name !== apiKeyEnvVar);
+  const fast = pickFastModel(id);
+  const fastInfo = fast ? getPiModelInfo(id, fast) : undefined;
+  return {
+    id,
+    displayName: info.name,
+    piProviderId: id,
+    apiKeyEnvVar,
+    apiKeyEnvVars: [...remainder, ...(LEGACY_ALIASES[id] ?? [])],
+    fastModel: fast,
+    contextWindow: fastInfo?.contextWindow,
+  };
+}
+
+/** Every provider UpUp exposes: Pi catalog entries (curated order) + Ollama. */
+export const PROVIDERS: ProviderDef[] = (() => {
+  const known = listPiProviderIds();
+  const ranked = known
+    .filter((id) => id !== OLLAMA_PROVIDER_ID)
+    .slice()
+    .sort((a, b) => {
+      const ai = PREFERRED_ORDER.indexOf(a as (typeof PREFERRED_ORDER)[number]);
+      const bi = PREFERRED_ORDER.indexOf(b as (typeof PREFERRED_ORDER)[number]);
+      if (ai !== -1 && bi !== -1) return ai - bi;
+      if (ai !== -1) return -1;
+      if (bi !== -1) return 1;
+      return a.localeCompare(b);
+    });
+  const fromCatalog = ranked.flatMap((id) => {
+    const derived = deriveProvider(id);
+    return derived ? [derived] : [];
+  });
+  // Ollama is contributed by UpUp via `pi.registerProvider`; not in Pi catalog.
+  return [
+    ...fromCatalog,
+    {
+      id: OLLAMA_PROVIDER_ID,
+      displayName: 'Ollama',
+      piProviderId: OLLAMA_PROVIDER_ID,
+      contextWindow: 128_000,
+    },
+  ];
+})();
+
+/** Resolve a model id to its provider by Pi-canonical prefix matching. */
 export function resolveProvider(modelName: string): ProviderDef {
+  const detected = detectPiProvider(modelName);
   return (
-    PROVIDERS.find((provider) => provider.modelPrefix && modelName.startsWith(provider.modelPrefix)) ??
-    PROVIDERS[0]
+    PROVIDERS.find((provider) => provider.id === detected || provider.piProviderId === detected) ??
+    PROVIDERS[0]!
   );
 }
 
+import { canonicalPiProviderId } from '@upup/pi-runtime/model-registry';
+
 /** Look up a provider by UpUp id or by its canonical Pi provider id. */
 export function getProviderById(id: string): ProviderDef | undefined {
-  return PROVIDERS.find((provider) => provider.id === id || provider.piProviderId === id);
+  const canonical = canonicalPiProviderId(id);
+  return PROVIDERS.find(
+    (provider) => provider.id === canonical || provider.piProviderId === canonical,
+  );
 }
 
 /** Every environment variable that can hold this provider's API key, in order. */
 export function getProviderApiKeyEnvVars(providerId: string): string[] {
   const provider = getProviderById(providerId);
-  if (!provider) return [];
+  if (!provider) return [...piProviderEnvKeys(providerId)];
   return [provider.apiKeyEnvVar, ...(provider.apiKeyEnvVars ?? [])].filter(
     (name): name is string => Boolean(name),
   );

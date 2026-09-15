@@ -227,7 +227,7 @@ export interface UpUpFinanceSessionContext {
 
 export interface UpUpToolUpdate { text: string; progress?: number }
 export interface UpUpToolContext {
-  signal: AbortSignal;
+  signal?: AbortSignal;
   agent: UpUpAgentSpec;
   toolCallId: string;
   onUpdate?: (update: UpUpToolUpdate) => void;
@@ -383,7 +383,7 @@ export function validateAgentSpec(spec: UpUpAgentSpec): void {
 export function serializeAgentSpec(spec: UpUpAgentSpec): string { validateAgentSpec(spec); return JSON.stringify(spec, null, 2); }
 export function canUseTool(profile: UpUpPermissionProfile, safetyLevel: UpUpToolSafetyLevel): boolean { return !profile.deny.includes(safetyLevel) && profile.allow.includes(safetyLevel); }
 export function requiresApproval(profile: UpUpPermissionProfile, safetyLevel: UpUpToolSafetyLevel): boolean { return profile.requireApproval.includes(safetyLevel); }
-export function createToolContext(agent: UpUpAgentSpec, toolCallId: string, signal: AbortSignal, onUpdate?: UpUpToolContext['onUpdate']): UpUpToolContext { return { agent, toolCallId, signal, onUpdate, auditId: randomUUID() }; }
+export function createToolContext(agent: UpUpAgentSpec, toolCallId: string, signal?: AbortSignal, onUpdate?: UpUpToolContext['onUpdate']): UpUpToolContext { return { agent, toolCallId, signal, onUpdate, auditId: randomUUID() }; }
 export function withFinancialDetails<TResult>(result: UpUpToolResult<TResult>, details: FinancialToolDetails): UpUpToolResult<TResult> { return { ...result, details }; }
 export function toPiToolDefinition<TInput, TResult>(tool: UpUpToolContract<TInput, TResult>): PiToolDefinition<TInput, TResult> { return { name: tool.name, label: tool.label, description: tool.description, safetyLevel: tool.safetyLevel, parameters: tool.parameters, execute: tool.execute }; }
 export function defaultToolParameters(): TSchema { return Type.Object({}); }
@@ -463,7 +463,7 @@ validatePiCapabilityCatalog(PI_CAPABILITY_CATALOG);
 export interface PiCapabilityContext {
   readonly contract: typeof PI_CAPABILITIES_CONTRACT;
   readonly sessionId: string;
-  readonly signal: AbortSignal;
+  readonly signal?: AbortSignal;
   readonly audit: Readonly<Record<string, string>>;
   get<T>(name: string, expectedVersion?: string): T;
   has(name: string, expectedVersion?: string): boolean;

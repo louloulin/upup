@@ -1,13 +1,53 @@
 import { Type } from 'typebox';
-import { buildSessionContext, type ExtensionAPI } from '@earendil-works/pi-coding-agent';
+import { buildSessionContext, type ExtensionAPI, type ExtensionContext } from '@earendil-works/pi-coding-agent';
 import { resolvePiCapabilityHost } from '@upup/pi-capability-registry';
 import { randomUUID } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { addPlatformAgentMemory, addPlatformPlanStep, addPlatformSwarmAgent, addPlatformSwarmMessage, addPlatformWatchlistAlert, addPlatformWatchlistEntry, addPlatformWorkflowPlan, appendPlatformMessage, appendPlatformAskResponse, checkPlatformWatchlistAlerts, clearPlatformWatchlistAlert, createInitialPlatformAgentState, createInitialPlatformAskState, createInitialPlatformMessageState, createInitialPlatformPlanningState, createInitialPlatformSwarmState, createInitialPlatformTaskState, createInitialPlatformWatchlistState, createInitialPlatformWorkflowState, createPlatformAgent, createPlatformPlan, createPlatformSwarmTeam, createPlatformTask, createPlatformTodo, createPlatformWorktree, createPlatformWorkflowPlan, currentPlatformWorktree, deletePlatformTodo, listPlatformWorktrees, estimatePlatformSnipSavings, exportPlatformData, formatPlatformLspCompletions, formatPlatformLspDefinitions, formatPlatformLspDiagnostics, formatPlatformLspHover, formatPlatformLspReferences, getPlatformAgent, getPlatformAskResponse, getPlatformLspClient, getPlatformPlan, getPlatformSkill, getPlatformTask, getPlatformTool, invokePlatformSkill, listPlatformAgentMemories, listPlatformAgents, listPlatformMessages, listPlatformSkills, listPlatformTodos, listPlatformTools, listPlatformTasks, parsePlatformAgentState, parsePlatformAskState, parsePlatformMessageState, parsePlatformPlanningState, parsePlatformSwarmState, parsePlatformTaskState, parsePlatformWatchlistState, parsePlatformWorkflowState, platformMcpAuthClear, platformMcpAuthGet, platformMcpAuthSet, platformMcpListResources, platformMcpReadResource, platformSnipMessages, platformTaskStats, PLATFORM_BUILTIN_AGENTS, searchPlatformSkills, searchPlatformTools, shouldPlatformSnip, listPlatformWatchlistEntries, platformNotebookCreate, platformNotebookDeleteCell, platformNotebookEditCell, platformNotebookInsertCell, platformNotebookRead, platformPlanProgress, platformTodoStats, removePlatformWatchlistEntry, removePlatformWorktree, serializePlatformWatchlist, TOOL_GET_DESCRIPTION, TOOL_LIST_DESCRIPTION, TOOL_SEARCH_DESCRIPTION, GET_SKILL_DESCRIPTION, LIST_SKILLS_DESCRIPTION, SEARCH_SKILLS_DESCRIPTION, SKILL_EXECUTE_DESCRIPTION, SKILL_INFO_DESCRIPTION, updatePlatformAgent, updatePlatformPlanStep, updatePlatformTask, updatePlatformTodo, updatePlatformSwarmAgent, platformBash, platformEditFile, platformGlob, platformGrep, platformReadFile, platformSendUserFile, platformWriteFile, platformMemoryGet, platformMemorySearch, platformMemoryUpdate, platformHeartbeat, platformCron, platformSleep, platformMonitor, PLATFORM_SLEEP_DESCRIPTION, PLATFORM_MONITOR_DESCRIPTION, type PlatformCronJob, type PlatformExportCell, type PlatformPlanOutputFormat, type PlatformPlanStepStatus, type PlatformPlanningState, type PlatformTaskState, type PlatformTaskStatus, type PlatformTodoPriority, type PlatformTodoStatus, type PlatformSkillDefinition, type PlatformSwarmState, type PlatformToolMetadata, type PlatformWatchlistState, type PlatformWorkflowState } from '../src/index';
+import { addPlatformAgentMemory, addPlatformPlanStep, addPlatformSwarmAgent, addPlatformSwarmMessage, addPlatformWatchlistAlert, addPlatformWatchlistEntry, addPlatformWorkflowPlan, appendPlatformMessage, appendPlatformAskResponse, checkPlatformWatchlistAlerts, clearPlatformWatchlistAlert, createInitialPlatformAgentState, createInitialPlatformAskState, createInitialPlatformMessageState, createInitialPlatformPlanningState, createInitialPlatformSwarmState, createInitialPlatformTaskState, createInitialPlatformWatchlistState, createInitialPlatformWorkflowState, createPlatformAgent, createPlatformPlan, createPlatformSwarmTeam, createPlatformTask, createPlatformTodo, createPlatformWorktree, createPlatformWorkflowPlan, currentPlatformWorktree, deletePlatformTodo, listPlatformWorktrees, estimatePlatformSnipSavings, exportPlatformData, formatPlatformLspCompletions, formatPlatformLspDefinitions, formatPlatformLspDiagnostics, formatPlatformLspHover, formatPlatformLspReferences, getPlatformAgent, getPlatformAskResponse, getPlatformLspClient, getPlatformPlan, getPlatformSkill, getPlatformTask, getPlatformTool, invokePlatformSkill, listPlatformAgentMemories, listPlatformAgents, listPlatformMessages, listPlatformSkills, listPlatformTodos, listPlatformTools, listPlatformTasks, parsePlatformAgentState, parsePlatformAskState, parsePlatformMessageState, parsePlatformPlanningState, parsePlatformSwarmState, parsePlatformTaskState, parsePlatformWatchlistState, parsePlatformWorkflowState, platformMcpAuthClear, platformMcpAuthGet, platformMcpAuthSet, platformMcpListResources, platformMcpReadResource, platformSnipMessages, platformTaskStats, PLATFORM_BUILTIN_AGENTS, searchPlatformSkills, searchPlatformTools, shouldPlatformSnip, listPlatformWatchlistEntries, platformNotebookCreate, platformNotebookDeleteCell, platformNotebookEditCell, platformNotebookInsertCell, platformNotebookRead, platformPlanProgress, platformTodoStats, removePlatformWatchlistEntry, removePlatformWorktree, serializePlatformWatchlist, TOOL_GET_DESCRIPTION, TOOL_LIST_DESCRIPTION, TOOL_SEARCH_DESCRIPTION, GET_SKILL_DESCRIPTION, LIST_SKILLS_DESCRIPTION, SEARCH_SKILLS_DESCRIPTION, SKILL_EXECUTE_DESCRIPTION, SKILL_INFO_DESCRIPTION, updatePlatformAgent, updatePlatformPlanStep, updatePlatformTask, updatePlatformTodo, updatePlatformSwarmAgent, platformBash, platformEditFile, platformGlob, platformGrep, platformReadFile, platformSendUserFile, platformWriteFile, platformMemoryGet, platformMemorySearch, platformMemoryUpdate, platformHeartbeat, platformCron, platformSleep, platformMonitor, PLATFORM_SLEEP_DESCRIPTION, PLATFORM_MONITOR_DESCRIPTION, type PlatformCronJob, type PlatformExportCell, type PlatformMcpResourceGroup, type PlatformMcpResourceRead, type PlatformPlanOutputFormat, type PlatformPlanStepStatus, type PlatformPlanningState, type PlatformTaskState, type PlatformTaskStatus, type PlatformTodoPriority, type PlatformTodoStatus, type PlatformSkillDefinition, type PlatformSwarmState, type PlatformToolMetadata, type PlatformWatchlistState, type PlatformWorkflowState } from '../src/index';
 
 const PACKAGE = '@upup/pi-platform';
 const VERSION = '0.1.0';
+
+/**
+ * Resolve the active Pi Session message list for the LLM.
+ *
+ * Pi's `SessionManager` exposes `buildSessionContext()`; `ReadonlySessionManager`
+ * (the type surfaced on `ExtensionContext`) narrows that away. Prefer the
+ * runtime method when present, otherwise fall back to Pi's exported
+ * `buildSessionContext(entries, leafId)` — never silently degrade to an empty
+ * context, which would make `snip_tool`/`fork_subagent` no-op.
+ */
+function readSessionMessages(context: PlatformContext | undefined): readonly unknown[] {
+  const manager = context?.sessionManager as
+    | (ExtensionContext['sessionManager'] & {
+        buildSessionContext?: () => { messages?: readonly unknown[] };
+        getEntries?: () => readonly unknown[];
+        getLeafId?: () => string | null;
+      })
+    | undefined;
+  if (!manager) return [];
+  if (typeof manager.buildSessionContext === 'function') return manager.buildSessionContext().messages ?? [];
+  if (typeof manager.getEntries === 'function') {
+    const entries = manager.getEntries();
+    const leafId = typeof manager.getLeafId === 'function' ? manager.getLeafId() : null;
+    return buildSessionContext(entries as Parameters<typeof buildSessionContext>[0], leafId).messages ?? [];
+  }
+  return [];
+}
+
+type PlatformContext = ExtensionContext & {
+  sessionManager?: (ExtensionContext['sessionManager'] & {
+    appendCustomEntry?: (customType: string, data?: unknown) => void;
+  }) | undefined;
+};
+function appendContextEntry(context: PlatformContext | undefined, customType: string, state: unknown): void {
+  const manager = context?.sessionManager as (ExtensionContext['sessionManager'] & { appendCustomEntry?: (customType: string, data?: unknown) => void }) | undefined;
+  manager?.appendCustomEntry?.(customType, state);
+}
+function readContextEntries(context: PlatformContext | undefined): readonly unknown[] {
+  return context?.sessionManager?.getEntries() ?? [];
+}
 
 interface PlatformHost {
   readonly contract: string;
@@ -17,9 +57,9 @@ interface PlatformHost {
   readonly capabilities: readonly string[];
   providers: {
     tools: { getToolDefinitions(request: unknown): readonly unknown[]; getToolMetadata(request: unknown): readonly PlatformToolMetadata[]; getSkillDefinitions?(request: unknown): readonly PlatformSkillDefinition[] };
-    workers?: { runAgentWorker?: (request: { agentId: string; name: string; role: string; prompt: string; tools: readonly string[] | '*'; model?: string }, signal: AbortSignal) => Promise<{ agentId: string; output: string; sessionId: string }> };
-    scheduling?: { runCronJob?: (request: { job: unknown }, signal: AbortSignal) => Promise<void> };
-    mcp?: { listMcpResources?: (server?: string, signal?: AbortSignal) => Promise<readonly { server: string; resources: readonly Record<string, unknown>[] }[]>; readMcpResource?: (uri: string, server?: string, signal?: AbortSignal) => Promise<{ server: string; contents: readonly Record<string, unknown>[] }> };
+    workers?: { runAgentWorker?: (request: { agentId: string; name: string; role: string; prompt: string; tools: readonly string[] | '*'; model?: string }, signal: AbortSignal | undefined) => Promise<{ agentId: string; output: string; sessionId: string }> };
+    scheduling?: { runCronJob?: (request: { job: unknown }, signal: AbortSignal | undefined) => Promise<void> };
+    mcp?: { listMcpResources?: (server?: string, signal?: AbortSignal) => Promise<readonly PlatformMcpResourceGroup[]>; readMcpResource?: (uri: string, server?: string, signal?: AbortSignal) => Promise<PlatformMcpResourceRead> };
   };
 }
 
@@ -114,7 +154,7 @@ const memoryGetParameters = Type.Object({ path: Type.String({ minLength: 1, maxL
 const memoryUpdateParameters = Type.Object({ content: Type.Optional(Type.String({ maxLength: 200_000 })), action: Type.Optional(Type.Union([Type.Literal('append'), Type.Literal('edit'), Type.Literal('delete')])), file: Type.Optional(Type.String({ minLength: 1, maxLength: 500 })), old_text: Type.Optional(Type.String({ maxLength: 200_000 })), new_text: Type.Optional(Type.String({ maxLength: 200_000 })) });
 const workflowParameters = Type.Object({ name: Type.String({ minLength: 1, maxLength: 200 }), steps: Type.Array(Type.Object({ name: Type.String({ minLength: 1, maxLength: 200 }), tool: Type.String({ minLength: 1, maxLength: 200 }), input: Type.Record(Type.String(), Type.Unknown()), condition: Type.Optional(Type.String({ maxLength: 2_000 })), onError: Type.Optional(Type.Union([Type.Literal('skip'), Type.Literal('abort'), Type.Literal('retry')])) }), { minItems: 1, maxItems: 100 }), stopOnError: Type.Optional(Type.Boolean()) });
 
-function getSessionState(context?: { sessionManager?: { getEntries(): readonly unknown[] } }): PlatformSwarmState {
+function getSessionState(context?: ExtensionContext): PlatformSwarmState {
   const entry = [...(context?.sessionManager?.getEntries() ?? [])].reverse().find((candidate) => {
     if (!candidate || typeof candidate !== 'object') return false;
     const value = candidate as { type?: unknown; customType?: unknown };
@@ -123,11 +163,11 @@ function getSessionState(context?: { sessionManager?: { getEntries(): readonly u
   return parsePlatformSwarmState(entry?.data);
 }
 
-function appendSessionState(context: { sessionManager?: { appendCustomEntry?: (customType: string, data?: unknown) => void } } | undefined, state: PlatformSwarmState): void {
-  context?.sessionManager?.appendCustomEntry?.(SWARM_ENTRY, state);
+function appendSessionState(context: ExtensionContext | undefined, state: PlatformSwarmState): void {
+  appendContextEntry(context, SWARM_ENTRY, state);
 }
 
-function getWatchlistState(context?: { sessionManager?: { getEntries(): readonly unknown[] } }): PlatformWatchlistState {
+function getWatchlistState(context?: ExtensionContext): PlatformWatchlistState {
   const entry = [...(context?.sessionManager?.getEntries() ?? [])].reverse().find((candidate) => {
     if (!candidate || typeof candidate !== 'object') return false;
     const value = candidate as { type?: unknown; customType?: unknown };
@@ -136,11 +176,11 @@ function getWatchlistState(context?: { sessionManager?: { getEntries(): readonly
   return parsePlatformWatchlistState(entry?.data);
 }
 
-function appendWatchlistState(context: { sessionManager?: { appendCustomEntry?: (customType: string, data?: unknown) => void } } | undefined, state: PlatformWatchlistState): void {
-  context?.sessionManager?.appendCustomEntry?.(WATCHLIST_ENTRY, state);
+function appendWatchlistState(context: ExtensionContext | undefined, state: PlatformWatchlistState): void {
+  appendContextEntry(context, WATCHLIST_ENTRY, state);
 }
 
-function getPlanningState(context?: { sessionManager?: { getEntries(): readonly unknown[] } }): PlatformPlanningState {
+function getPlanningState(context?: ExtensionContext): PlatformPlanningState {
   const entry = [...(context?.sessionManager?.getEntries() ?? [])].reverse().find((candidate) => {
     if (!candidate || typeof candidate !== 'object') return false;
     const value = candidate as { type?: unknown; customType?: unknown };
@@ -149,11 +189,11 @@ function getPlanningState(context?: { sessionManager?: { getEntries(): readonly 
   return parsePlatformPlanningState(entry?.data);
 }
 
-function appendPlanningState(context: { sessionManager?: { appendCustomEntry?: (customType: string, data?: unknown) => void } } | undefined, state: PlatformPlanningState): void {
-  context?.sessionManager?.appendCustomEntry?.(PLANNING_ENTRY, state);
+function appendPlanningState(context: ExtensionContext | undefined, state: PlatformPlanningState): void {
+  appendContextEntry(context, PLANNING_ENTRY, state);
 }
 
-function getTaskState(context?: { sessionManager?: { getEntries(): readonly unknown[] } }): PlatformTaskState {
+function getTaskState(context?: ExtensionContext): PlatformTaskState {
   const entry = [...(context?.sessionManager?.getEntries() ?? [])].reverse().find((candidate) => {
     if (!candidate || typeof candidate !== 'object') return false;
     const value = candidate as { type?: unknown; customType?: unknown };
@@ -162,11 +202,11 @@ function getTaskState(context?: { sessionManager?: { getEntries(): readonly unkn
   return parsePlatformTaskState(entry?.data);
 }
 
-function appendTaskState(context: { sessionManager?: { appendCustomEntry?: (customType: string, data?: unknown) => void } } | undefined, state: PlatformTaskState): void {
-  context?.sessionManager?.appendCustomEntry?.(TASK_ENTRY, state);
+function appendTaskState(context: ExtensionContext | undefined, state: PlatformTaskState): void {
+  appendContextEntry(context, TASK_ENTRY, state);
 }
 
-function getMessageState(context?: { sessionManager?: { getEntries(): readonly unknown[] } }): ReturnType<typeof createInitialPlatformMessageState> {
+function getMessageState(context?: ExtensionContext): ReturnType<typeof createInitialPlatformMessageState> {
   const entry = [...(context?.sessionManager?.getEntries() ?? [])].reverse().find((candidate) => {
     if (!candidate || typeof candidate !== 'object') return false;
     const value = candidate as { type?: unknown; customType?: unknown };
@@ -175,11 +215,11 @@ function getMessageState(context?: { sessionManager?: { getEntries(): readonly u
   return parsePlatformMessageState(entry?.data);
 }
 
-function appendMessageState(context: { sessionManager?: { appendCustomEntry?: (customType: string, data?: unknown) => void } } | undefined, state: ReturnType<typeof createInitialPlatformMessageState>): void {
-  context?.sessionManager?.appendCustomEntry?.(MESSAGE_ENTRY, state);
+function appendMessageState(context: ExtensionContext | undefined, state: ReturnType<typeof createInitialPlatformMessageState>): void {
+  appendContextEntry(context, MESSAGE_ENTRY, state);
 }
 
-function getAskState(context?: { sessionManager?: { getEntries(): readonly unknown[] } }): ReturnType<typeof createInitialPlatformAskState> {
+function getAskState(context?: ExtensionContext): ReturnType<typeof createInitialPlatformAskState> {
   const entry = [...(context?.sessionManager?.getEntries() ?? [])].reverse().find((candidate) => {
     if (!candidate || typeof candidate !== 'object') return false;
     const value = candidate as { type?: unknown; customType?: unknown };
@@ -188,11 +228,11 @@ function getAskState(context?: { sessionManager?: { getEntries(): readonly unkno
   return parsePlatformAskState(entry?.data);
 }
 
-function appendAskState(context: { sessionManager?: { appendCustomEntry?: (customType: string, data?: unknown) => void } } | undefined, state: ReturnType<typeof createInitialPlatformAskState>): void {
-  context?.sessionManager?.appendCustomEntry?.(ASK_ENTRY, state);
+function appendAskState(context: ExtensionContext | undefined, state: ReturnType<typeof createInitialPlatformAskState>): void {
+  appendContextEntry(context, ASK_ENTRY, state);
 }
 
-function getAgentState(context?: { sessionManager?: { getEntries(): readonly unknown[] } }): ReturnType<typeof createInitialPlatformAgentState> {
+function getAgentState(context?: ExtensionContext): ReturnType<typeof createInitialPlatformAgentState> {
   const entry = [...(context?.sessionManager?.getEntries() ?? [])].reverse().find((candidate) => {
     if (!candidate || typeof candidate !== 'object') return false;
     const value = candidate as { type?: unknown; customType?: unknown };
@@ -201,11 +241,11 @@ function getAgentState(context?: { sessionManager?: { getEntries(): readonly unk
   return parsePlatformAgentState(entry?.data);
 }
 
-function appendAgentState(context: { sessionManager?: { appendCustomEntry?: (customType: string, data?: unknown) => void } } | undefined, state: ReturnType<typeof createInitialPlatformAgentState>): void {
-  context?.sessionManager?.appendCustomEntry?.(AGENT_ENTRY, state);
+function appendAgentState(context: ExtensionContext | undefined, state: ReturnType<typeof createInitialPlatformAgentState>): void {
+  appendContextEntry(context, AGENT_ENTRY, state);
 }
 
-function getWorkflowState(context?: { sessionManager?: { getEntries(): readonly unknown[] } }): ReturnType<typeof createInitialPlatformWorkflowState> {
+function getWorkflowState(context?: ExtensionContext): ReturnType<typeof createInitialPlatformWorkflowState> {
   const entry = [...(context?.sessionManager?.getEntries() ?? [])].reverse().find((candidate) => {
     if (!candidate || typeof candidate !== 'object') return false;
     const value = candidate as { type?: unknown; customType?: unknown };
@@ -214,8 +254,8 @@ function getWorkflowState(context?: { sessionManager?: { getEntries(): readonly 
   return parsePlatformWorkflowState(entry?.data);
 }
 
-function appendWorkflowState(context: { sessionManager?: { appendCustomEntry?: (customType: string, data?: unknown) => void } } | undefined, state: ReturnType<typeof createInitialPlatformWorkflowState>): void {
-  context?.sessionManager?.appendCustomEntry?.(WORKFLOW_ENTRY, state);
+function appendWorkflowState(context: ExtensionContext | undefined, state: ReturnType<typeof createInitialPlatformWorkflowState>): void {
+  appendContextEntry(context, WORKFLOW_ENTRY, state);
 }
 
 function result(toolCallId: string, value: unknown, extra: Record<string, unknown> = {}) {
@@ -249,13 +289,13 @@ function registerPlatformExtension(pi: ExtensionAPI, host: PlatformHost): void {
   let askState = createInitialPlatformAskState();
   let agentState = createInitialPlatformAgentState();
   const taskAbortControllers = new Map<string, AbortController>();
-  const readState = (context?: { sessionManager?: { getEntries(): readonly unknown[] } }) => { state = getSessionState(context); return state; };
-  const readWatchlistState = (context?: { sessionManager?: { getEntries(): readonly unknown[] } }) => { watchlistState = getWatchlistState(context); return watchlistState; };
-  const readPlanningState = (context?: { sessionManager?: { getEntries(): readonly unknown[] } }) => { planningState = getPlanningState(context); return planningState; };
-  const readTaskState = (context?: { sessionManager?: { getEntries(): readonly unknown[] } }) => { taskState = getTaskState(context); return taskState; };
-  const readMessageState = (context?: { sessionManager?: { getEntries(): readonly unknown[] } }) => { messageState = getMessageState(context); return messageState; };
-  const readAskState = (context?: { sessionManager?: { getEntries(): readonly unknown[] } }) => { askState = getAskState(context); return askState; };
-  const readAgentState = (context?: { sessionManager?: { getEntries(): readonly unknown[] } }) => { agentState = getAgentState(context); return agentState; };
+  const readState = (context?: ExtensionContext) => { state = getSessionState(context); return state; };
+  const readWatchlistState = (context?: ExtensionContext) => { watchlistState = getWatchlistState(context); return watchlistState; };
+  const readPlanningState = (context?: ExtensionContext) => { planningState = getPlanningState(context); return planningState; };
+  const readTaskState = (context?: ExtensionContext) => { taskState = getTaskState(context); return taskState; };
+  const readMessageState = (context?: ExtensionContext) => { messageState = getMessageState(context); return messageState; };
+  const readAskState = (context?: ExtensionContext) => { askState = getAskState(context); return askState; };
+  const readAgentState = (context?: ExtensionContext) => { agentState = getAgentState(context); return agentState; };
   if (typeof pi.on === 'function') pi.on('session_start', (_event, context) => { readState(context); readWatchlistState(context); readPlanningState(context); readTaskState(context); readMessageState(context); readAskState(context); readAgentState(context); });
 
   pi.registerTool({ name: 'tool_search', label: 'Search Tools', description: TOOL_SEARCH_DESCRIPTION, parameters: toolSearchParameters, async execute(id, params, signal) {
@@ -413,7 +453,7 @@ function registerPlatformExtension(pi: ExtensionAPI, host: PlatformHost): void {
       void sessionHost.providers.workers?.runAgentWorker({ agentId: task.id, name: params.name, role: 'background-task', prompt: params.prompt, tools: params.tools ?? '*', model: params.model }, controller.signal).then((worker) => {
         taskState = getTaskState(context); updatePlatformTask(taskState, task.id, { status: 'completed', result: worker.output, progress: 100 }); appendTaskState(context, taskState); taskAbortControllers.delete(task.id);
       }).catch((error: unknown) => {
-        taskState = getTaskState(context); updatePlatformTask(taskState, task.id, { status: controller.signal.aborted ? 'cancelled' : 'failed', error: error instanceof Error ? error.message : String(error) }); appendTaskState(context, taskState); taskAbortControllers.delete(task.id);
+        taskState = getTaskState(context); updatePlatformTask(taskState, task.id, { status: controller.signal?.aborted ? 'cancelled' : 'failed', error: error instanceof Error ? error.message : String(error) }); appendTaskState(context, taskState); taskAbortControllers.delete(task.id);
       });
     }
     return result(id, { task });
@@ -448,12 +488,12 @@ function registerPlatformExtension(pi: ExtensionAPI, host: PlatformHost): void {
   pi.registerTool({ name: 'list_mcp_resources', label: 'List MCP Resources', description: 'List resources from the current Session MCP host.', parameters: mcpListResourcesParameters, async execute(id, params, signal) {
     if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
     if (!sessionHost.capabilities.includes('mcp-resources') || !sessionHost.providers.mcp?.listMcpResources) return result(id, { error: 'mcp-resources capability is unavailable' }, { isError: true, capability: 'mcp-resources', policy: 'fail-closed' });
-    try { return result(id, await platformMcpListResources(params, (server) => sessionHost.providers.mcp?.listMcpResources!(server, signal))); } catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true, details: undefined }); }
+    try { return result(id, await platformMcpListResources(params, (server) => sessionHost.providers.mcp!.listMcpResources!(server, signal))); } catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true, details: undefined }); }
   } });
   pi.registerTool({ name: 'read_mcp_resource', label: 'Read MCP Resource', description: 'Read a resource through the current Session MCP host.', parameters: mcpReadResourceParameters, async execute(id, params, signal) {
     if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
     if (!sessionHost.capabilities.includes('mcp-resources') || !sessionHost.providers.mcp?.readMcpResource) return result(id, { error: 'mcp-resources capability is unavailable' }, { isError: true, capability: 'mcp-resources', policy: 'fail-closed' });
-    try { return result(id, await platformMcpReadResource(params, (uri, server) => sessionHost.providers.mcp?.readMcpResource!(uri, server, signal))); } catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true, details: undefined }); }
+    try { return result(id, await platformMcpReadResource(params, (uri, server) => sessionHost.providers.mcp!.readMcpResource!(uri, server, signal))); } catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true, details: undefined }); }
   } });
   pi.registerTool({ name: 'heartbeat', label: 'Manage Heartbeat', description: 'View or update the persistent heartbeat checklist and synchronize its gateway settings.', parameters: heartbeatParameters, async execute(id, params, signal) {
     if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
@@ -479,12 +519,7 @@ function registerPlatformExtension(pi: ExtensionAPI, host: PlatformHost): void {
   } });
   pi.registerTool({ name: 'snip_tool', label: 'Snip Context', description: 'Analyze and compact low-value confirmation messages from the current Pi Session context.', parameters: snipParameters, async execute(id, params, signal, _onUpdate, context) {
     if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
-    const sm1 = context?.sessionManager;
-    const smEntries1 = sm1 && typeof sm1.getEntries === 'function' ? sm1.getEntries() : [];
-    const smLeaf1 = sm1 && typeof sm1.getLeafId === 'function' ? sm1.getLeafId() : null;
-    const messages = (sm1
-      ? (buildSessionContext(smEntries1 as Parameters<typeof buildSessionContext>[0], smLeaf1).messages ?? [])
-      : []) as readonly { role?: string; content: string | readonly unknown[] }[];
+    const messages = readSessionMessages(context) as readonly { role?: string; content: string | readonly unknown[] }[];
     const options = { preserveFirstN: params.preserve_first ?? 1, preserveLastN: params.preserve_last ?? 2, maxRemove: params.max_remove ?? 10 };
     const preview = platformSnipMessages(messages, options);
     const savings = estimatePlatformSnipSavings(messages);
@@ -563,7 +598,7 @@ function registerPlatformExtension(pi: ExtensionAPI, host: PlatformHost): void {
     appendAskState(context, askState);
     return result(id, { request_id: params.request_id, ...(value !== undefined ? { value } : {}), skipped: response.skipped, already_submitted: false });
   } });
-  const runAgent = async (agentId: string, name: string, role: string, prompt: string, tools: readonly string[] | '*', model: string | undefined, background: boolean, context: { sessionManager?: { getEntries(): readonly unknown[]; appendCustomEntry?: (customType: string, data?: unknown) => void } } | undefined, signal: AbortSignal) => {
+  const runAgent = async (agentId: string, name: string, role: string, prompt: string, tools: readonly string[] | '*', model: string | undefined, background: boolean, context: PlatformContext | undefined, signal: AbortSignal | undefined) => {
     if (!sessionHost.capabilities.includes('agent-worker') || !sessionHost.providers.workers?.runAgentWorker) throw new Error('agent-worker capability is unavailable; agent execution is fail-closed');
     const current = context ? getAgentState(context) : agentState;
     agentState = createPlatformAgent(current, { id: agentId, name, role, prompt, tools, ...(model ? { model } : {}), createdAt: Date.now() });
@@ -588,12 +623,7 @@ function registerPlatformExtension(pi: ExtensionAPI, host: PlatformHost): void {
   } });
   pi.registerTool({ name: 'fork_subagent', label: 'Fork Pi Subagent', description: 'Run a Pi worker with recent current Session context inherited.', parameters: forkSubagentParameters, async execute(id, params, signal, _onUpdate, context) {
     if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
-    const sm2 = context?.sessionManager;
-    const smEntries2 = sm2 && typeof sm2.getEntries === 'function' ? sm2.getEntries() : [];
-    const smLeaf2 = sm2 && typeof sm2.getLeafId === 'function' ? sm2.getLeafId() : null;
-    const parentMessages = sm2
-      ? (buildSessionContext(smEntries2 as Parameters<typeof buildSessionContext>[0], smLeaf2).messages ?? [])
-      : [];
+    const parentMessages = readSessionMessages(context) as readonly { role?: string; content?: unknown }[];
     const inherited = parentMessages.slice(-8).map((message: unknown) => JSON.stringify(message)).join('\n');
     try { return result(id, await runAgent(randomUUID(), 'forked-subagent', 'fork', `Inherited recent Pi Session context:\n${inherited}\n\nTask:\n${params.prompt}`, params.tools ?? '*', undefined, false, context, signal), { capability: 'agent-worker' }); } catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true, capability: 'agent-worker', policy: 'fail-closed' }); }
   } });
@@ -632,7 +662,8 @@ function registerPlatformExtension(pi: ExtensionAPI, host: PlatformHost): void {
   pi.registerTool({ name: 'cron', label: 'Manage Cron Jobs', description: 'Create, list, update, remove, or run Pi-backed scheduled jobs.', parameters: cronParameters, async execute(id, params, signal) {
     if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
     try {
-      const runner = sessionHost.capabilities.includes('cron-runner') && sessionHost.providers.scheduling?.runCronJob ? (request: { job: PlatformCronJob }, abortSignal: AbortSignal) => sessionHost.providers.scheduling?.runCronJob!({ job: request.job }, abortSignal) : undefined;
+      const runCronJob = sessionHost.providers.scheduling?.runCronJob;
+      const runner = sessionHost.capabilities.includes('cron-runner') && runCronJob ? (request: { job: PlatformCronJob }, abortSignal?: AbortSignal) => runCronJob({ job: request.job }, abortSignal) : undefined;
       return result(id, await platformCron(params, runner, signal));
     } catch (error) { return result(id, { error: error instanceof Error ? error.message : String(error) }, { isError: true, details: undefined }); }
   } });

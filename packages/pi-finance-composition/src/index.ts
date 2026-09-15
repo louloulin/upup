@@ -89,27 +89,27 @@ export function createFinanceComposition(options: FinanceCompositionOptions): Fi
     },
     getFundHistory: (fundCode, startDate, endDate, signal) => getNativeFundHistoryForRange(fundCode, startDate, endDate, { signal }),
     getMarketHistory: async (symbol, startDate, signal, market) => {
-      if (signal.aborted) throw new Error('investment workflow market history request aborted');
+      if (signal?.aborted) throw new Error('investment workflow market history request aborted');
       const endDate = new Date().toISOString().slice(0, 10);
       const result = await marketHistory.getHistory(symbol, startDate, endDate, signal, `${options.sessionId}:market-history`, market);
       return { bars: result.value, evidence: { ...result.evidence, dataFreshness: requireHistoricalFreshness(result.evidence.dataFreshness) } };
     },
     getSandboxState: async (signal) => {
-      if (signal.aborted) throw new Error('investment workflow sandbox request aborted');
+      if (signal?.aborted) throw new Error('investment workflow sandbox request aborted');
       const broker = await ensureSandbox();
       const [positions, balance] = await Promise.all([broker.getPositions(), broker.getBalance()]);
       return {
         positions: positions.map((position) => ({ symbol: position.symbol, quantity: position.quantity, avgCost: position.avgCost, realizedPnL: position.realizedPnL })),
         balance,
         getQuote: async (symbol, quoteSignal, requestedMarket?: PiMarket) => {
-          if (quoteSignal.aborted) throw new Error('investment workflow quote request aborted');
+          if (quoteSignal?.aborted) throw new Error('investment workflow quote request aborted');
           const quote = await quoteClient.getQuote(symbol, requestedMarket, quoteSignal, `${options.sessionId}:sandbox-quote`);
           return { symbol: quote.value.symbol, bid: quote.value.bid, ask: quote.value.ask, last: quote.value.last };
         },
       };
     },
     placePaperOrder: async (input, signal) => {
-      if (signal.aborted) throw new Error('investment workflow paper order aborted');
+      if (signal?.aborted) throw new Error('investment workflow paper order aborted');
       const broker = await ensureSandbox();
       const order = await broker.placeOrder({ symbol: input.symbol, side: input.side, quantity: input.quantity, type: 'market' });
       return {

@@ -39,8 +39,8 @@ function fixtureResult<T>(input: string, value: T, source: string, asOf = '2026-
   return { value, text: JSON.stringify(value), details };
 }
 
-function throwIfAborted(signal: AbortSignal): void {
-  if (signal.aborted) throw new DOMException('Fixture tool execution aborted', 'AbortError');
+function throwIfAborted(signal?: AbortSignal): void {
+  if (signal?.aborted) throw new DOMException('Fixture tool execution aborted', 'AbortError');
 }
 
 export const FINANCE_FIXTURE_TOOLS: readonly UpUpToolContract[] = [

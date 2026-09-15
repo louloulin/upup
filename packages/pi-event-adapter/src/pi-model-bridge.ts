@@ -17,6 +17,7 @@ import type { Model } from '@earendil-works/pi-ai';
 import { getBuiltinModel } from '@earendil-works/pi-ai/providers/all';
 import {
   canonicalPiProviderId,
+  detectPiProvider as detectPiProviderImpl,
   isPiProvider,
   listPiModels,
 } from '@upup/pi-runtime/model-registry';
@@ -41,18 +42,11 @@ export interface PiModelResolutionDiagnostic {
 /**
  * Detect the provider prefix from a model id.
  *
- * Only used for ids that carry no explicit `provider:` prefix. The detected id
- * is always canonicalised against the Pi catalog before lookup.
+ * Re-exported from `@upup/pi-runtime/model-registry` so existing call sites
+ * (e.g. legacy callers that imported from this module before the move) keep
+ * working. The canonical implementation lives next to the catalog metadata.
  */
-export function detectPiProvider(modelId: string): string {
-  if (modelId.startsWith('claude-')) return 'anthropic';
-  if (modelId.startsWith('gemini-')) return 'google';
-  if (modelId.startsWith('gpt-')) return 'openai';
-  if (modelId.startsWith('kimi-')) return 'moonshotai';
-  if (modelId.startsWith('grok-')) return 'xai';
-  if (modelId.includes('/')) return 'openrouter';
-  return 'deepseek';
-}
+export const detectPiProvider = detectPiProviderImpl;
 
 export interface ResolvePiModelOptions {
   /** Caller-provided model id (overrides `DEFAULT_MODEL` env). */

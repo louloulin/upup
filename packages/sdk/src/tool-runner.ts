@@ -284,7 +284,7 @@ export class ToolRunner {
         })
 
       // 监听中止信号
-      this.abortController?.signal.addEventListener('abort', () => {
+      this.abortController?.signal?.addEventListener('abort', () => {
         clearTimeout(timeout)
         reject(new ToolAbortedError('unknown'))
       })

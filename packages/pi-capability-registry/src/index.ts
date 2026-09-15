@@ -16,6 +16,22 @@ export interface PiCapabilityHostRecord {
   readonly [key: string]: unknown;
 }
 
+/**
+ * Structural contract every registered host must satisfy. The full
+ * `PiCapabilityHostRecord` keeps an open index signature for runtime
+ * `unknown`-keyed lookups; host interfaces declared via `interface`
+ * (rather than `type`) do not get an implicit index signature, so we
+ * separate the minimal structural contract from the runtime lookup
+ * shape and reuse the structural one as the generic constraint.
+ */
+export interface PiCapabilityHostShape {
+  readonly contract?: string;
+  readonly packageName: string;
+  readonly packageVersion?: string;
+  readonly sessionId?: string;
+  readonly capabilities: readonly string[];
+}
+
 export interface PiCapabilityRegistrySnapshot {
   readonly contract: typeof PI_CAPABILITY_REGISTRY_CONTRACT;
   readonly sessionId: string;
@@ -83,16 +99,16 @@ export interface PiCapabilityExtensionApi {
   readonly on?: (event: 'session_start', handler: (event: unknown, context: { sessionManager: { getSessionId(): string } }) => void) => void;
 }
 
-export function registerPiCapabilityHost<T extends PiCapabilityHostRecord>(
+export function registerPiCapabilityHost<T extends PiCapabilityHostShape & { providers?: unknown }>(
   pi: PiCapabilityExtensionApi,
   packageName: string,
-  register: (host: T) => void,
+  register: (host: { readonly contract: T['contract']; readonly packageName: T['packageName']; readonly packageVersion: T['packageVersion']; readonly sessionId: T['sessionId']; readonly capabilities: T['capabilities']; readonly providers: Record<string, any> }) => void,
 ): void {
   let registered: T | undefined;
   const bind = (host: T | undefined): void => {
     if (!host || host === registered) return;
     registered = host;
-    register(host);
+    register(host as unknown as { readonly contract: T['contract']; readonly packageName: T['packageName']; readonly packageVersion: T['packageVersion']; readonly sessionId: T['sessionId']; readonly capabilities: T['capabilities']; readonly providers: Record<string, any> });
   };
   bind(resolvePiCapabilityHost<T>(pi.events, packageName, undefined));
   if (typeof pi.on === 'function') {
@@ -102,7 +118,7 @@ export function registerPiCapabilityHost<T extends PiCapabilityHostRecord>(
   }
 }
 
-export function resolvePiCapabilityHost<T extends PiCapabilityHostRecord = PiCapabilityHostRecord>(
+export function resolvePiCapabilityHost<T extends PiCapabilityHostShape & { providers?: unknown } = PiCapabilityHostRecord>(
   events: PiCapabilityEventBus,
   packageName: string,
   sessionId: string | undefined,

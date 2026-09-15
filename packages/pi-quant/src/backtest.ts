@@ -56,7 +56,7 @@ export function runFactorBacktest(
     if (rebalanceSet.has(date)) {
       const signal = sortedSignals.find((s) => s.date === date);
       if (signal) {
-        const sortedSyms = [...signal.factorValues.entries()]
+        const sortedSyms = [...signal?.factorValues.entries()]
           .sort((a, b) => b[1] - a[1])
           .map((e) => e[0]);
         const newLong = sortedSyms.slice(0, options.topN);

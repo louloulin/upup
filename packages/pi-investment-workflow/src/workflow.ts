@@ -172,7 +172,7 @@ function sectorFor(symbol: string): string {
   return '其他';
 }
 
-async function detect(plan: InvestmentWorkflowPlan, services: InvestmentWorkflowServices, signal: AbortSignal): Promise<InvestmentPhaseResult> {
+async function detect(plan: InvestmentWorkflowPlan, services: InvestmentWorkflowServices, signal?: AbortSignal): Promise<InvestmentPhaseResult> {
   if (!plan.ticker) return noTicker('detect');
   const data = await services.getResearchData(plan.ticker, signal, plan.market as PiMarket | undefined);
   return {
@@ -188,7 +188,7 @@ function planPhase(plan: InvestmentWorkflowPlan): InvestmentPhaseResult {
   return { output: [`## Plan — ${plan.ticker}`, '', '### Valuation Ratios', '```', text(ratios, 600), '```', '', '### DCF (g=8%, r=10%, tg=3%)', '```', text(dcf, 600), '```', ''].join('\n'), evidence: [{ source: 'upup-pi://investment-workflow/plan', phase: 'plan' }] };
 }
 
-async function execute(plan: InvestmentWorkflowPlan, services: InvestmentWorkflowServices, signal: AbortSignal): Promise<InvestmentPhaseResult> {
+async function execute(plan: InvestmentWorkflowPlan, services: InvestmentWorkflowServices, signal?: AbortSignal): Promise<InvestmentPhaseResult> {
   if (!plan.ticker) return noTicker('execute');
   const { startDate, endDate } = dateRange(12);
   if (isFundWorkflow(plan)) {
@@ -216,7 +216,7 @@ async function execute(plan: InvestmentWorkflowPlan, services: InvestmentWorkflo
   };
 }
 
-async function verify(plan: InvestmentWorkflowPlan, services: InvestmentWorkflowServices, signal: AbortSignal): Promise<InvestmentPhaseResult> {
+async function verify(plan: InvestmentWorkflowPlan, services: InvestmentWorkflowServices, signal?: AbortSignal): Promise<InvestmentPhaseResult> {
   if (!plan.ticker) return noTicker('verify');
   const sandbox = await services.getSandboxState(signal);
   const active = sandbox.positions.filter((position) => position.quantity !== 0);
@@ -245,8 +245,8 @@ async function verify(plan: InvestmentWorkflowPlan, services: InvestmentWorkflow
   return { output: [...lines, '### Brinson 归因', '', `- **配置效应**: ${(brinson.allocation * 100).toFixed(2)}%`, `- **选择效应**: ${(brinson.selection * 100).toFixed(2)}%`, `- **交互效应**: ${(brinson.interaction * 100).toFixed(2)}%`, `- **主动收益**: ${(brinson.activeReturn * 100).toFixed(2)}%`].join('\n'), evidence: [{ source: 'upup-pi://investment-workflow/verify', phase: 'verify' }] };
 }
 
-export async function executeInvestmentPhase(phase: InvestmentWorkflowPhase, plan: InvestmentWorkflowPlan, services: InvestmentWorkflowServices, signal: AbortSignal): Promise<InvestmentPhaseResult> {
-  if (signal.aborted) throw new Error('investment workflow phase aborted');
+export async function executeInvestmentPhase(phase: InvestmentWorkflowPhase, plan: InvestmentWorkflowPlan, services: InvestmentWorkflowServices, signal?: AbortSignal): Promise<InvestmentPhaseResult> {
+  if (signal?.aborted) throw new Error('investment workflow phase aborted');
   validateMarketSelection(plan);
   if (phase === 'detect') return detect(plan, services, signal);
   if (phase === 'plan') return planPhase(plan);

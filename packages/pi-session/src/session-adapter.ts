@@ -18,6 +18,7 @@ import {
   type UpUpAgentSpec,
   type UpUpFinanceSessionContext,
   type UpUpToolPolicyAudit,
+  PI_TOOL_ERROR_MARKER,
   type PiSideEffectDeclaration,
 } from '@upup/pi-runtime';
 
@@ -210,10 +211,21 @@ export class PiSessionAdapter implements UpUpAgentSession {
       }
       this.session.sessionManager.appendCustomEntry('upup_pi_policy_audit', audit('approval_granted', 'approval callback granted execution'));
     }
-    return definition.execute(toolCallId, input, signal, undefined, {
+    const executed = await definition.execute(toolCallId, input, signal, undefined, {
       cwd: this.session.sessionManager.getCwd(),
       sessionManager: this.session.sessionManager,
     } as never);
+    // `wrapPiExtensionToolResults` (installed on the session's Pi ResourceLoader)
+    // moves an extension-authored `isError: true` onto a `details` marker so Pi's
+    // `tool_result` hook can re-assert it. Direct callers of `executeTool` bypass
+    // that hook, so unmarshal the marker here to keep the UpUp surface faithful.
+    const details = (executed as { details?: unknown }).details;
+    if (details && typeof details === 'object' && (details as Record<string, unknown>)[PI_TOOL_ERROR_MARKER] === true) {
+      const stripped = { ...(details as Record<string, unknown>) };
+      delete stripped[PI_TOOL_ERROR_MARKER];
+      return { ...executed, details: stripped, isError: true } as unknown as AgentToolResult<unknown>;
+    }
+    return executed;
   }
 
   getMessages(): readonly unknown[] { return this.session.agent.state.messages; }

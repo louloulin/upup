@@ -110,7 +110,7 @@ export interface SearchHit {
   related: RelatedDoc[];
 }
 
-export interface SearchResult {
+export interface DeepSearchResult {
   query: string;
   expandedQuery: string;
   hits: SearchHit[];
@@ -441,7 +441,7 @@ export class DeepSearchEngine {
    * High-level search. Returns ranked hits with snippets, claims, related docs.
    * Score = sum of IDF over matched terms.
    */
-  search(query: string, opts: { limit?: number; kinds?: DocumentKind[]; tickers?: string[] } = {}): SearchResult {
+  search(query: string, opts: { limit?: number; kinds?: DocumentKind[]; tickers?: string[] } = {}): DeepSearchResult {
     const t0 = Date.now();
     const expanded = expandQuery(query);
     const queryTerms = tokenize(expanded).filter((t) => t.length >= 2 && !STOPWORDS.has(t));

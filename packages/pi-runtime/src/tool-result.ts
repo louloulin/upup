@@ -1,5 +1,5 @@
 import type { AgentToolResult } from '@earendil-works/pi-agent-core';
-import type { ExtensionAPI, InlineExtension, LoadExtensionsResult } from '@earendil-works/pi-coding-agent';
+import type { ExtensionAPI, ExtensionFactory, LoadExtensionsResult } from '@earendil-works/pi-coding-agent';
 
 /**
  * Symbol used to flag tool results whose `isError` was set by the upstream
@@ -19,9 +19,18 @@ export type PiToolResultDetails = Record<string, unknown> & {
   readonly [PI_TOOL_ERROR_MARKER]?: true;
 };
 
-/** Convenience alias: an AgentToolResult whose `details` may carry the marker. */
-export type PiToolResult<TDetails extends PiToolResultDetails | undefined = PiToolResultDetails | undefined> =
-  AgentToolResult<TDetails> & { readonly isError?: boolean };
+/**
+ * Ergonomic tool-result type for UpUp extension tools.
+ *
+ * Pi's `AgentToolResult<TDetails>` does not declare `isError`; the agent loop
+ * only reads that flag from a thrown `execute()` or a `tool_result` hook. UpUp
+ * extensions author the flag inline (`return { content, isError: true, details }`)
+ * which is clearer and keeps `details` alongside the failure, so this alias
+ * permits it and `wrapPiExtensionToolResults` bridges it into Pi's protocol.
+ */
+export type PiToolResult<TDetails = unknown> = AgentToolResult<TDetails> & {
+  readonly isError?: boolean;
+};
 
 type AnyToolDefinition = {
   execute: (
@@ -79,7 +88,7 @@ export function wrapPiExtensionToolResults(base: LoadExtensionsResult): LoadExte
  * other fail-closed policy denials would appear as *successful* tool calls
  * to the LLM — a high-impact correctness bug.
  */
-export function createPiToolErrorBridgeExtension(): InlineExtension {
+export function createPiToolErrorBridgeExtension(): ExtensionFactory {
   return (pi: ExtensionAPI) => {
     pi.on('tool_result', (event: unknown) => {
       const details = (event as { details?: unknown }).details;

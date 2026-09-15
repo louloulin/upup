@@ -166,12 +166,12 @@ export interface PiToolCapabilityProvider {
 }
 
 export interface PiWorkerCapabilityProvider {
-  runResearchWorker?(request: PiResearchWorkerRequest, signal: AbortSignal): Promise<PiResearchWorkerResult>;
-  runAgentWorker?(request: PiAgentWorkerRequest, signal: AbortSignal): Promise<PiAgentWorkerResult>;
+  runResearchWorker?(request: PiResearchWorkerRequest, signal?: AbortSignal): Promise<PiResearchWorkerResult>;
+  runAgentWorker?(request: PiAgentWorkerRequest, signal?: AbortSignal): Promise<PiAgentWorkerResult>;
 }
 
 export interface PiSchedulingCapabilityProvider {
-  runCronJob?(request: PiCronRunRequest, signal: AbortSignal): Promise<void>;
+  runCronJob?(request: PiCronRunRequest, signal?: AbortSignal): Promise<void>;
 }
 
 export interface PiMcpCapabilityProvider {

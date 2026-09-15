@@ -1,4 +1,4 @@
-import { Container, Input, SelectList, Text, type SelectItem, getKeybindings } from '@earendil-works/pi-tui';
+import { Container, Input, SelectList, Text, truncateToWidth, type SelectItem, getKeybindings } from '@earendil-works/pi-tui';
 import { PROVIDERS, type Model } from '../utils/model';
 import type { ApprovalDecision } from '@upup/pi-runtime';
 import type { SessionSummary } from '@upup/pi-session';
@@ -120,10 +120,21 @@ export class ApiKeyInputComponent {
   }
 
   render(width: number): string[] {
-    const lines = this.input.render(Math.max(10, width - 4));
+    // Pi's TUI main-screen crashes when any rendered line exceeds the terminal
+    // width; the unmasked path honours `width - 4` via the underlying Input,
+    // but the masked path bypassed it and emitted a star per keystroke, which
+    // made a 120-char API key overflow a 114-col terminal. Truncate the mask
+    // to the same budget so long keys are clamped rather than crashing.
+    const innerWidth = Math.max(10, width - 4);
+    const lines = this.input.render(innerWidth);
     const raw = lines[0] ?? '';
+    const valueLength = this.input.getValue().length;
     const display = this.masked
-      ? `${'*'.repeat(this.input.getValue().length)}${this.input.getValue().length === 0 ? '█' : ''}`
+      ? truncateToWidth(
+          `${'*'.repeat(valueLength)}${valueLength === 0 ? '█' : ''}`,
+          Math.max(1, width - 2),
+          '…',
+        )
       : raw;
     return [
       `${theme.primary('> ')}${display}`,

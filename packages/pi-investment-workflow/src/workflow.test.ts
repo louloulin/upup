@@ -57,7 +57,7 @@ describe('Pi investment workflow package', () => {
     const markets: Array<string | undefined> = [];
     const routed = {
       ...services,
-      getResearchData: async (_ticker: string, _signal: AbortSignal, market?: 'cn' | 'hk' | 'us' | 'fund' | 'crypto') => { markets.push(market); return {}; },
+      getResearchData: async (_ticker: string, _signal?: AbortSignal, market?: 'cn' | 'hk' | 'us' | 'fund' | 'crypto') => { markets.push(market); return {}; },
     };
     const result = await executeInvestmentPhase('detect', { ticker: 'AAPL', market: 'us' }, routed, new AbortController().signal);
     expect(result.error).toBeUndefined();
@@ -69,7 +69,7 @@ describe('Pi investment workflow package', () => {
     const seen: string[] = [];
     const routed = {
       ...services,
-      getResearchData: async (ticker: string, _signal: AbortSignal, market?: 'cn' | 'hk' | 'us' | 'fund' | 'crypto') => {
+      getResearchData: async (ticker: string, _signal?: AbortSignal, market?: 'cn' | 'hk' | 'us' | 'fund' | 'crypto') => {
         seen.push(`${ticker}:${market}`);
         return {};
       },

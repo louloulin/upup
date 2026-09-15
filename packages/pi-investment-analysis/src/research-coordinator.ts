@@ -16,7 +16,7 @@ export interface ResearchWorkerResult {
   readonly sessionId?: string;
 }
 
-export type ResearchWorkerRunner = (request: ResearchWorkerRequest, signal: AbortSignal) => Promise<ResearchWorkerResult>;
+export type ResearchWorkerRunner = (request: ResearchWorkerRequest, signal?: AbortSignal) => Promise<ResearchWorkerResult>;
 
 export interface ResearchWorkerRecord {
   readonly role: ResearchRole;

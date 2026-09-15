@@ -37,7 +37,7 @@ export async function platformMcpAuthClear(input: { server_name: string }): Prom
   delete auth[input.server_name]; await saveAuth(auth); return `Authentication cleared for "${input.server_name}".`;
 }
 
-export async function platformMcpListResources(input: { server?: string }, list: (server?: string) => Promise<PlatformMcpResourceGroup[]>): Promise<unknown> {
+export async function platformMcpListResources(input: { server?: string }, list: (server?: string) => Promise<readonly PlatformMcpResourceGroup[]>): Promise<unknown> {
   const results = await list(input.server);
   return results.length ? { servers: results.length, totalResources: results.reduce((sum, group) => sum + group.resources.length, 0), results } : { message: 'No MCP servers connected or no resources available.', servers: 0, totalResources: 0 };
 }

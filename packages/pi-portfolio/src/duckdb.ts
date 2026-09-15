@@ -26,7 +26,7 @@ export interface DuckDBConnection {
   close?(): Promise<void>;
 }
 
-export type DuckDBConnectionFactory = (signal: AbortSignal) => Promise<DuckDBConnection>;
+export type DuckDBConnectionFactory = (signal?: AbortSignal) => Promise<DuckDBConnection>;
 
 export interface DuckDBClientOptions {
   readonly connection?: DuckDBConnection;
@@ -42,8 +42,8 @@ const FORBIDDEN_QUERY_OPERATIONS = /\b(?:insert|update|delete|merge|create|drop|
 const FORBIDDEN_FILE_FUNCTIONS = /\b(?:read_csv|read_csv_auto|read_parquet|read_json|read_json_auto|glob|parquet_scan|csv_scan)\s*\(/i;
 const DEFAULT_MAX_ROWS = 1_000;
 
-function abortIfNeeded(signal: AbortSignal): void {
-  if (signal.aborted) throw new Error('duckdb request aborted');
+function abortIfNeeded(signal?: AbortSignal): void {
+  if (signal?.aborted) throw new Error('duckdb request aborted');
 }
 
 function quoteIdentifier(value: string, label: string): string {
@@ -85,7 +85,7 @@ function rowsFromResult(result: unknown): { rows: Record<string, unknown>[]; col
   return { rows, columns };
 }
 
-async function createWasmConnection(signal: AbortSignal): Promise<DuckDBConnection> {
+async function createWasmConnection(signal?: AbortSignal): Promise<DuckDBConnection> {
   abortIfNeeded(signal);
   const duckdb = await import('@duckdb/duckdb-wasm');
   abortIfNeeded(signal);
@@ -121,7 +121,7 @@ export class DuckDBClient {
     this.connection = undefined;
   }
 
-  async query(sql: string, signal: AbortSignal): Promise<DuckDBQueryResult> {
+  async query(sql: string, signal?: AbortSignal): Promise<DuckDBQueryResult> {
     abortIfNeeded(signal);
     const normalized = sql.trim().replace(/;+$/, '');
     if (!normalized || normalized.length > 100_000 || normalized.includes(';') || !READ_QUERY.test(normalized) || FORBIDDEN_QUERY_OPERATIONS.test(normalized) || FORBIDDEN_FILE_FUNCTIONS.test(normalized)) throw new Error('duckdb-query only accepts one read-only SQL statement');
@@ -133,7 +133,7 @@ export class DuckDBClient {
     return { data, rowCount: result.rows.length, duration: Date.now() - started, columns: result.columns, ...(data.length < result.rows.length ? { truncated: true } : {}) };
   }
 
-  async registerParquet(path: string, tableName: string, signal: AbortSignal): Promise<{ tableName: string; path: string }> {
+  async registerParquet(path: string, tableName: string, signal?: AbortSignal): Promise<{ tableName: string; path: string }> {
     const safePath = await this.validateDataPath(path, ['.parquet']);
     const safeTable = quoteIdentifier(tableName, 'tableName');
     const connection = await this.getConnection(signal);
@@ -141,7 +141,7 @@ export class DuckDBClient {
     return { tableName, path: safePath };
   }
 
-  async importCsv(path: string, tableName: string, header: boolean, delimiter: string, signal: AbortSignal): Promise<{ tableName: string; path: string }> {
+  async importCsv(path: string, tableName: string, header: boolean, delimiter: string, signal?: AbortSignal): Promise<{ tableName: string; path: string }> {
     const safePath = await this.validateDataPath(path, ['.csv']);
     if (delimiter.length !== 1 || delimiter === "'") throw new Error('delimiter must be one character and cannot be a quote');
     const safeTable = quoteIdentifier(tableName, 'tableName');
@@ -150,7 +150,7 @@ export class DuckDBClient {
     return { tableName, path: safePath };
   }
 
-  async listTables(signal: AbortSignal): Promise<{ tables: readonly DuckDBTableInfo[] }> {
+  async listTables(signal?: AbortSignal): Promise<{ tables: readonly DuckDBTableInfo[] }> {
     const result = await this.query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'main' ORDER BY table_name", signal);
     const tables: DuckDBTableInfo[] = [];
     for (const row of result.data) {
@@ -163,7 +163,7 @@ export class DuckDBClient {
     return { tables };
   }
 
-  async timeseries(input: { table: string; dateColumn: string; valueColumn: string; interval: 'day' | 'week' | 'month' | 'quarter' | 'year'; aggregation: 'sum' | 'avg' | 'min' | 'max' | 'count' | 'std' | 'var'; startDate?: string; endDate?: string }, signal: AbortSignal): Promise<DuckDBQueryResult> {
+  async timeseries(input: { table: string; dateColumn: string; valueColumn: string; interval: 'day' | 'week' | 'month' | 'quarter' | 'year'; aggregation: 'sum' | 'avg' | 'min' | 'max' | 'count' | 'std' | 'var'; startDate?: string; endDate?: string }, signal?: AbortSignal): Promise<DuckDBQueryResult> {
     const conditions: string[] = [];
     if (input.startDate) { validateDate(input.startDate, 'startDate'); conditions.push(`${quoteIdentifier(input.dateColumn, 'dateColumn')} >= DATE ${quoteLiteral(input.startDate)}`); }
     if (input.endDate) { validateDate(input.endDate, 'endDate'); conditions.push(`${quoteIdentifier(input.dateColumn, 'dateColumn')} <= DATE ${quoteLiteral(input.endDate)}`); }
@@ -173,7 +173,7 @@ export class DuckDBClient {
     return this.query(`SELECT DATE_TRUNC(${quoteLiteral(input.interval)}, ${dateColumn}) AS period, ${input.aggregation.toUpperCase()}(${valueColumn}) AS value FROM ${quoteIdentifier(input.table, 'table')}${where} GROUP BY period ORDER BY period`, signal);
   }
 
-  async portfolioAnalysis(input: { table: string; returnsColumn?: string; weightsColumn?: string; analysisType: 'returns' | 'volatility' | 'correlation' | 'sharpe' | 'var' }, signal: AbortSignal): Promise<DuckDBQueryResult> {
+  async portfolioAnalysis(input: { table: string; returnsColumn?: string; weightsColumn?: string; analysisType: 'returns' | 'volatility' | 'correlation' | 'sharpe' | 'var' }, signal?: AbortSignal): Promise<DuckDBQueryResult> {
     const table = quoteIdentifier(input.table, 'table');
     const returns = quoteIdentifier(input.returnsColumn ?? '', 'returnsColumn');
     let expression: string;
@@ -185,7 +185,7 @@ export class DuckDBClient {
     return this.query(`SELECT ${expression} FROM ${table}`, signal);
   }
 
-  private async getConnection(signal: AbortSignal): Promise<DuckDBConnection> {
+  private async getConnection(signal?: AbortSignal): Promise<DuckDBConnection> {
     abortIfNeeded(signal);
     this.connection ??= await this.connectionFactory(signal);
     if (!this.connection) throw new Error('DuckDB connection unavailable');

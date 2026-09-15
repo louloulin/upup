@@ -247,15 +247,15 @@ export interface PiInvestmentOrder {
 }
 
 export interface PiInvestmentWorkflowServices {
-  readonly getResearchData: (ticker: string, signal: AbortSignal, market?: PiMarket) => Promise<PiInvestmentResearchData>;
-  readonly getFundHistory: (fundCode: string, startDate: string, endDate: string, signal: AbortSignal) => Promise<readonly { readonly date: string; readonly nav: number }[]>;
-  readonly getMarketHistory: (symbol: string, startDate: string, signal: AbortSignal, market?: PiMarket) => Promise<PiInvestmentMarketHistory>;
-  readonly getSandboxState: (signal: AbortSignal) => Promise<{
+  readonly getResearchData: (ticker: string, signal?: AbortSignal, market?: PiMarket) => Promise<PiInvestmentResearchData>;
+  readonly getFundHistory: (fundCode: string, startDate: string, endDate: string, signal?: AbortSignal) => Promise<readonly { readonly date: string; readonly nav: number }[]>;
+  readonly getMarketHistory: (symbol: string, startDate: string, signal?: AbortSignal, market?: PiMarket) => Promise<PiInvestmentMarketHistory>;
+  readonly getSandboxState: (signal?: AbortSignal) => Promise<{
     readonly positions: readonly PiInvestmentPosition[];
     readonly balance: PiInvestmentBalance;
-    readonly getQuote: (symbol: string, signal: AbortSignal, market?: PiMarket) => Promise<PiInvestmentQuote>;
+    readonly getQuote: (symbol: string, signal?: AbortSignal, market?: PiMarket) => Promise<PiInvestmentQuote>;
   }>;
-  readonly placePaperOrder: (input: { readonly symbol: string; readonly side: 'buy' | 'sell'; readonly quantity: number }, signal: AbortSignal) => Promise<PiInvestmentOrder>;
+  readonly placePaperOrder: (input: { readonly symbol: string; readonly side: 'buy' | 'sell'; readonly quantity: number }, signal?: AbortSignal) => Promise<PiInvestmentOrder>;
 }
 
 // ===== Error Types =====

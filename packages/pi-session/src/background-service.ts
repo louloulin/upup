@@ -105,9 +105,9 @@ export class PiBackgroundService {
         sessionKey: `background-${task.id}`,
         signal: controller.signal,
       });
-      if (!controller.signal.aborted) task.status = 'completed';
+      if (!controller.signal?.aborted) task.status = 'completed';
     } catch (error) {
-      if (!controller.signal.aborted) {
+      if (!controller.signal?.aborted) {
         task.status = 'failed';
         task.error = error instanceof Error ? error.message : String(error);
       }

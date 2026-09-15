@@ -6,7 +6,7 @@ describe('capacityWake', () => {
     const outer = new AbortController();
     const wake = createCapacityWake(outer.signal);
     const { signal, cleanup } = wake.signal();
-    expect(signal.aborted).toBe(false);
+    expect(signal?.aborted).toBe(false);
     cleanup();
   });
 
@@ -14,9 +14,9 @@ describe('capacityWake', () => {
     const outer = new AbortController();
     const wake = createCapacityWake(outer.signal);
     const { signal, cleanup } = wake.signal();
-    expect(signal.aborted).toBe(false);
+    expect(signal?.aborted).toBe(false);
     wake.wake();
-    expect(signal.aborted).toBe(true);
+    expect(signal?.aborted).toBe(true);
     cleanup();
   });
 
@@ -25,7 +25,7 @@ describe('capacityWake', () => {
     const wake = createCapacityWake(outer.signal);
     const { signal, cleanup } = wake.signal();
     outer.abort();
-    expect(signal.aborted).toBe(true);
+    expect(signal?.aborted).toBe(true);
     cleanup();
   });
 
@@ -36,7 +36,7 @@ describe('capacityWake', () => {
     cleanup();
     // After cleanup, wake() should not throw and a fresh signal should work.
     wake.wake();
-    expect(signal.aborted).toBe(false);
+    expect(signal?.aborted).toBe(false);
     // New signal should also be independent
     const { signal: s2, cleanup: c2 } = wake.signal();
     expect(s2.aborted).toBe(false);
@@ -62,7 +62,7 @@ describe('capacityWake', () => {
     wake.wake();
     wake.wake();
     const { signal, cleanup } = wake.signal();
-    expect(signal.aborted).toBe(false);
+    expect(signal?.aborted).toBe(false);
     cleanup();
   });
 
@@ -71,7 +71,7 @@ describe('capacityWake', () => {
     outer.abort();
     const wake = createCapacityWake(outer.signal);
     const { signal, cleanup } = wake.signal();
-    expect(signal.aborted).toBe(true);
+    expect(signal?.aborted).toBe(true);
     cleanup();
   });
 
@@ -83,7 +83,7 @@ describe('capacityWake', () => {
     // Race: a 5s sleep vs a 50ms wake()
     const sleepPromise = new Promise<void>((resolve, reject) => {
       const timer = setTimeout(resolve, 5_000);
-      signal.addEventListener('abort', () => {
+      signal?.addEventListener('abort', () => {
         clearTimeout(timer);
         reject(new Error('aborted'));
       });

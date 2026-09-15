@@ -1,5 +1,6 @@
 import { Type } from 'typebox';
 import type { ExtensionAPI, ExtensionContext } from '@earendil-works/pi-coding-agent';
+import type { PiToolResult } from '@upup/pi-runtime';
 import { resolvePiCapabilityHost } from '@upup/pi-capability-registry';
 import {
   registerPiFinanceCommands,
@@ -69,7 +70,7 @@ function getPiFinanceToolHost(events: { emit(channel: string, data: unknown): vo
   return host;
 }
 
-async function fetchNativeQuote(symbol: string, signal: AbortSignal, auditId: string, injectedFetcher?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>, injectedQuote?: PiFinanceHostBridge['providers']['marketData']['getMarketQuote'], events?: { emit(channel: string, data: unknown): void; on(channel: string, handler: (data: unknown) => void): () => void }): Promise<{ symbol: string; bid: number; ask: number; last: number; timestamp: number; source: string; asOf: string; freshness: FinanceFreshness; evidence?: FinanceEvidence }> {
+async function fetchNativeQuote(symbol: string, signal: AbortSignal | undefined, auditId: string, injectedFetcher?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>, injectedQuote?: PiFinanceHostBridge['providers']['marketData']['getMarketQuote'], events?: { emit(channel: string, data: unknown): void; on(channel: string, handler: (data: unknown) => void): () => void }): Promise<{ symbol: string; bid: number; ask: number; last: number; timestamp: number; source: string; asOf: string; freshness: FinanceFreshness; evidence?: FinanceEvidence }> {
   const host = events ? getPiFinanceToolHost(events) : undefined;
   const structured = injectedQuote ?? host?.providers.marketData?.getMarketQuote;
   if (structured) {
@@ -268,7 +269,7 @@ const pnlParameters = Type.Object({
   currency: Type.Optional(Type.String({ minLength: 1, maxLength: 8 })),
 });
 
-function evidenceResult<T>(toolCallId: string, query: string, source: string, value: T, asOf = '2026-09-12') {
+function evidenceResult<T>(toolCallId: string, query: string, source: string, value: T, asOf = '2026-09-12'): FinanceResult<T> {
   const evidence = createEvidence({
     id: `pi-finance-${source}-${query.replace(/[^a-zA-Z0-9]+/g, '-').toLowerCase()}`,
     source: `upup-fixture://pi-finance-sdk/${source}`,
@@ -289,7 +290,7 @@ function createResearchClient(): NativeResearchDataClient {
   return new NativeResearchDataClient();
 }
 
-async function executeResearchTool(toolCallId: string, signal: AbortSignal, source: string, action: (client: NativeResearchDataClient) => Promise<string>) {
+async function executeResearchTool(toolCallId: string, signal: AbortSignal | undefined, source: string, action: (client: NativeResearchDataClient) => Promise<string>): Promise<PiToolResult> {
   if (signal?.aborted) return { content: [{ type: 'text', text: `${source} request aborted` }], isError: true, details: { auditId: toolCallId } };
   try {
     const raw = await action(createResearchClient());
@@ -318,7 +319,7 @@ function createNativeSandboxBrokerLoader(quoteFetcher?: (input: RequestInfo | UR
   };
 }
 
-async function confirmNativeTrade(context: Pick<ExtensionContext, 'hasUI' | 'ui'> | undefined, title: string, message: string, signal: AbortSignal): Promise<{ approved: boolean; reason: string }> {
+async function confirmNativeTrade(context: Pick<ExtensionContext, 'hasUI' | 'ui'> | undefined, title: string, message: string, signal: AbortSignal | undefined): Promise<{ approved: boolean; reason: string }> {
   if (signal?.aborted) return { approved: false, reason: 'trade request aborted' };
   if (!context?.hasUI || !context.ui) return { approved: false, reason: 'interactive approval is required; non-interactive Pi modes cannot place or cancel orders' };
   const approved = await context.ui.confirm(title, message, { signal });
@@ -340,7 +341,7 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
   const getNativeSandboxBroker = createNativeSandboxBrokerLoader(quoteFetcher, quoteService);
   registerPiFinanceCommands(pi);
   const altData = new NativeAltDataClient();
-  const nativeAltDataResult = (toolCallId: string, query: string, value: unknown) => {
+  const nativeAltDataResult = (toolCallId: string, query: string, value: unknown): PiToolResult => {
     const retrievedAt = new Date().toISOString();
     const evidence = createEvidence({ id: `pi-finance:${toolCallId}:alt-data`, source: `upup-pi://finance-sdk/${query}`, retrievedAt, asOf: retrievedAt.slice(0, 10), query, freshness: 'delayed', warnings: ['Alternative data is retrieved from a configured external source and may be delayed or incomplete; it is not investment advice.'], auditId: toolCallId });
     const result = createFinanceResult(value, [evidence], toolCallId);
@@ -350,7 +351,7 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
     name: 'alt_data_fetch', label: 'Alternative Data Fetch',
     description: 'Fetch normalized dragon-tiger or north-bound alternative data using configured credentials. Results are delayed external data, not investment advice.',
     parameters: altDataFetchParameters,
-    async execute(toolCallId, params, signal) {
+    async execute(toolCallId, params, signal, _onUpdate, _ctx): Promise<PiToolResult> {
       if (signal?.aborted) return { content: [{ type: 'text', text: 'alt_data_fetch request aborted' }], isError: true, details: { auditId: toolCallId } };
       try { return nativeAltDataResult(toolCallId, 'alt-data-fetch', await altData.fetch({ source: params.source as NativeAltDataSource, symbols: params.symbols, dateRange: params.dateRange, limit: params.limit }, signal)); }
       catch (error) { return { content: [{ type: 'text', text: error instanceof Error ? error.message : String(error) }], isError: true, details: { auditId: toolCallId } }; }
@@ -360,7 +361,7 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
     name: 'alt_data_search', label: 'Alternative Data Search',
     description: 'Search normalized alternative data across configured dragon-tiger and north-bound sources by title or symbol.',
     parameters: altDataSearchParameters,
-    async execute(toolCallId, params, signal) {
+    async execute(toolCallId, params, signal, _onUpdate, _ctx): Promise<PiToolResult> {
       if (signal?.aborted) return { content: [{ type: 'text', text: 'alt_data_search request aborted' }], isError: true, details: { auditId: toolCallId } };
       try { return nativeAltDataResult(toolCallId, 'alt-data-search', await altData.search({ query: params.query, sources: params.sources as NativeAltDataSource[] | undefined, limit: params.limit }, signal)); }
       catch (error) { return { content: [{ type: 'text', text: error instanceof Error ? error.message : String(error) }], isError: true, details: { auditId: toolCallId } }; }
@@ -371,8 +372,8 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
     label: 'Investment Strategies',
     description: 'List deterministic offline investment strategy guidance filtered by risk tolerance and time horizon. This is educational strategy metadata, not personalized investment advice.',
     parameters: investmentStrategiesParameters,
-    async execute(toolCallId, params, signal) {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'Investment strategy request aborted' }], isError: true };
+    async execute(toolCallId, params, signal, _onUpdate, _ctx): Promise<PiToolResult> {
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'Investment strategy request aborted' }], isError: true, details: undefined };
       const strategies = listNativeInvestmentStrategies({ riskTolerance: params.risk_tolerance as NativeStrategyRiskTolerance | undefined, timeHorizon: params.time_horizon as NativeStrategyTimeHorizon | undefined });
       const evidence = createEvidence({ id: `pi-finance:${toolCallId}:investment-strategies`, source: 'upup-pi://finance-sdk/investment-strategies', retrievedAt: '2026-09-14T00:00:00.000Z', asOf: '2026-09-12', query: JSON.stringify(params), freshness: 'offline', warnings: ['Offline strategy metadata for education and research planning; not personalized investment advice.'], auditId: toolCallId });
       const result = createFinanceResult({ count: strategies.length, strategies }, [evidence], toolCallId);
@@ -404,8 +405,8 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
     label: 'Track Company',
     description: 'Save a company research profile in the current Pi session journal. This does not fetch live data or provide personalized investment advice.',
     parameters: trackCompanyParameters,
-    async execute(toolCallId, params, signal, _onUpdate, context) {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'Company tracking request aborted' }], isError: true };
+    async execute(toolCallId, params, signal, _onUpdate, context): Promise<PiToolResult> {
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'Company tracking request aborted' }], isError: true, details: undefined };
       try {
         const updatedAt = new Date().toISOString();
         const operation = trackNativeCompany(readKnowledgeState(context), { ticker: params.ticker, name: params.name, sector: params.sector, industry: params.industry, marketCap: params.market_cap, summary: params.summary, keyMetrics: params.key_metrics, competitiveAdvantages: params.competitive_advantages, risks: params.risks }, updatedAt);
@@ -423,8 +424,8 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
     label: 'Track Sector',
     description: 'Save a sector research note in the current Pi session journal. This does not fetch live data or provide personalized investment advice.',
     parameters: trackSectorParameters,
-    async execute(toolCallId, params, signal, _onUpdate, context) {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'Sector tracking request aborted' }], isError: true };
+    async execute(toolCallId, params, signal, _onUpdate, context): Promise<PiToolResult> {
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'Sector tracking request aborted' }], isError: true, details: undefined };
       try {
         const updatedAt = new Date().toISOString();
         const operation = trackNativeSector(readKnowledgeState(context), { name: params.name, description: params.description, trends: params.trends, keyMetrics: params.key_metrics, outlook: params.outlook }, updatedAt);
@@ -443,7 +444,7 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
     description: 'Summarize company and sector notes stored in the current Pi session journal together with available offline strategies.',
     parameters: emptyParameters,
     async execute(toolCallId, _params, signal, _onUpdate, context) {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'Knowledge summary request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'Knowledge summary request aborted' }], isError: true, details: undefined };
       const state = readKnowledgeState(context);
       const companies = listTrackedCompanies(state);
       const sectors = listTrackedSectors(state);
@@ -541,9 +542,9 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
     label: 'Finance evidence quote',
     description: 'Return a provider-backed quote with auditable financial evidence metadata.',
     parameters: symbolParameters,
-    async execute(toolCallId, params, signal) {
+    async execute(toolCallId, params, signal, _onUpdate, _ctx): Promise<PiToolResult> {
       if (signal?.aborted) {
-        return { content: [{ type: 'text', text: 'Quote request aborted' }], isError: true };
+        return { content: [{ type: 'text', text: 'Quote request aborted' }], isError: true, details: undefined };
       }
       try {
         const quote = await fetchNativeQuote(params.symbol, signal, toolCallId, quoteFetcher, quoteService);
@@ -559,8 +560,8 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
     label: 'Sandbox trade quote',
     description: 'Read a provider-backed quote for the sandbox without changing trading state.',
     parameters: tradeQuoteParameters,
-    async execute(toolCallId, params, signal) {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'Trade quote request aborted' }], isError: true };
+    async execute(toolCallId, params, signal, _onUpdate, _ctx): Promise<PiToolResult> {
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'Trade quote request aborted' }], isError: true, details: undefined };
       try {
         const quote = await fetchNativeQuote(params.symbol, signal, toolCallId, quoteFetcher, quoteService);
         const { evidence: structuredEvidence, ...quoteValue } = quote;
@@ -576,7 +577,7 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
     description: 'Read persisted sandbox positions without changing trading state.',
     parameters: emptyParameters,
     async execute(toolCallId, _params, signal) {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'Positions request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'Positions request aborted' }], isError: true, details: undefined };
       const positions = await (await getNativeSandboxBroker()).getPositions();
       const evidence = createEvidence({ id: `pi-finance:${toolCallId}:positions`, source: 'upup-pi://finance-sdk/sandbox/positions', retrievedAt: new Date().toISOString(), query: 'sandbox positions', freshness: 'cached', auditId: toolCallId });
       const result = createFinanceResult(positions, [evidence], toolCallId);
@@ -589,7 +590,7 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
     description: 'Read persisted sandbox cash, market value, and equity without changing trading state.',
     parameters: emptyParameters,
     async execute(toolCallId, _params, signal) {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'Balance request aborted' }], isError: true };
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'Balance request aborted' }], isError: true, details: undefined };
       const balance = await (await getNativeSandboxBroker()).getBalance();
       const evidence = createEvidence({ id: `pi-finance:${toolCallId}:balance`, source: 'upup-pi://finance-sdk/sandbox/balance', retrievedAt: new Date().toISOString(), query: 'sandbox balance', freshness: 'cached', auditId: toolCallId });
       const result = createFinanceResult(balance, [evidence], toolCallId);
@@ -602,7 +603,7 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
     description: 'Place a paper-trading order in the isolated sandbox. Every call requires an interactive confirmation; print, JSON, RPC, and other non-interactive modes are denied by default.',
     parameters: placeTradeParameters,
     executionMode: 'sequential',
-    async execute(toolCallId, params, signal, _onUpdate, context) {
+    async execute(toolCallId, params, signal, _onUpdate, context): Promise<PiToolResult> {
       const approval = await confirmNativeTrade(context, '确认模拟下单', `将以 sandbox 模拟${params.side === 'buy' ? '买入' : '卖出'} ${params.quantity} 股 ${params.symbol}（${params.type ?? 'market'}）。此操作会写入本地模拟账户。`, signal);
       const evidence = createEvidence({ id: `pi-finance:${toolCallId}:trade-order`, source: 'upup-pi://finance-sdk/sandbox/order', retrievedAt: new Date().toISOString(), query: params.symbol, freshness: 'cached', warnings: ['Sandbox paper-trading write; no live broker is contacted.', approval.reason], auditId: toolCallId });
       if (!approval.approved) {
@@ -625,7 +626,7 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
     description: 'Cancel a pending paper-trading order in the isolated sandbox. Every call requires an interactive confirmation and non-interactive modes are denied by default.',
     parameters: cancelTradeParameters,
     executionMode: 'sequential',
-    async execute(toolCallId, params, signal, _onUpdate, context) {
+    async execute(toolCallId, params, signal, _onUpdate, context): Promise<PiToolResult> {
       const approval = await confirmNativeTrade(context, '确认模拟撤单', `将撤销 sandbox 模拟订单 ${params.orderId}。此操作会写入本地模拟账户。`, signal);
       const evidence = createEvidence({ id: `pi-finance:${toolCallId}:cancel-order`, source: 'upup-pi://finance-sdk/sandbox/cancel', retrievedAt: new Date().toISOString(), query: params.orderId, freshness: 'cached', warnings: ['Sandbox paper-trading write; no live broker is contacted.', approval.reason], auditId: toolCallId });
       if (!approval.approved) {
@@ -647,7 +648,7 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
     description: 'Run TWAP, VWAP, POV, or implementation-shortfall execution against the isolated sandbox. Every call requires interactive approval; no live broker is contacted.',
     parameters: strategyRunPaperParameters,
     executionMode: 'sequential',
-    async execute(toolCallId, params, signal, _onUpdate, context) {
+    async execute(toolCallId, params, signal, _onUpdate, context): Promise<PiToolResult> {
       const approval = await confirmNativeTrade(context, '确认策略模拟执行', `将使用 ${params.algo.toUpperCase()} 在 sandbox 模拟${params.side === 'buy' ? '买入' : '卖出'} ${params.quantity} 股 ${params.symbol}。`, signal);
       const evidence = createEvidence({ id: `pi-finance:${toolCallId}:strategy-paper`, source: 'upup-pi://finance-sdk/strategy-paper', retrievedAt: new Date().toISOString(), query: JSON.stringify(params), freshness: 'cached', warnings: ['Strategy execution is sandbox-only; no live broker is contacted.', approval.reason], auditId: toolCallId });
       if (!approval.approved) {
@@ -668,8 +669,8 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
     label: 'List execution strategies',
     description: 'List the built-in TWAP, VWAP, POV, and implementation-shortfall paper execution strategies and recent session results.',
     parameters: strategyListParameters,
-    async execute(toolCallId, params, signal) {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'Strategy list request aborted' }], isError: true };
+    async execute(toolCallId, params, signal, _onUpdate, _ctx): Promise<PiToolResult> {
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'Strategy list request aborted' }], isError: true, details: undefined };
       const evidence = createEvidence({ id: `pi-finance:${toolCallId}:strategy-list`, source: 'upup-pi://finance-sdk/strategy-list', retrievedAt: new Date().toISOString(), query: 'execution strategies', freshness: 'offline', auditId: toolCallId });
       const result = createFinanceResult(listNativeExecutionStrategies(params.limit), [evidence], toolCallId);
       return { content: [{ type: 'text', text: resultText(result) }], details: result };
@@ -680,8 +681,8 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
     label: 'Backtest execution strategy',
     description: 'Run an execution-strategy backtest over caller-provided historical daily bars. Synthetic prices and provider fallback are rejected.',
     parameters: strategyBacktestParameters,
-    async execute(toolCallId, params, signal) {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'Strategy backtest request aborted' }], isError: true };
+    async execute(toolCallId, params, signal, _onUpdate, _ctx): Promise<PiToolResult> {
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'Strategy backtest request aborted' }], isError: true, details: undefined };
       try {
         const report = runNativeStrategyBacktest({ ...params, algo: params.algo as NativeAlgoKind, side: params.side as NativeOrderSide });
         const evidence = createEvidence({ id: `pi-finance:${toolCallId}:strategy-backtest`, source: 'upup-pi://finance-sdk/strategy-backtest', retrievedAt: new Date().toISOString(), asOf: params.bars.at(-1)?.date, query: JSON.stringify({ ...params, bars: `${params.bars.length} historical bars` }), freshness: 'historical', warnings: ['Backtest uses caller-provided historical bars; verify source and as-of date before decisions.'], auditId: toolCallId });
@@ -697,8 +698,8 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
     label: 'Fund search',
     description: 'Search the audited offline UpUp mutual-fund catalog by fund name, code, or type.',
     parameters: fundSearchParameters,
-    async execute(toolCallId, params, signal) {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'Fund search request aborted' }], isError: true };
+    async execute(toolCallId, params, signal, _onUpdate, _ctx): Promise<PiToolResult> {
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'Fund search request aborted' }], isError: true, details: undefined };
       const matches = searchNativeFunds(params.keyword);
       const retrievedAt = new Date().toISOString();
       const evidence = createEvidence({ id: `pi-finance:${toolCallId}:fund-search`, source: 'upup-pi://finance-sdk/fund-search', retrievedAt, asOf: retrievedAt.slice(0, 10), query: params.keyword, freshness: 'offline', auditId: toolCallId });
@@ -711,8 +712,8 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
     label: 'Fund screen',
     description: 'Screen the audited offline fund snapshot by type, scale, one-year return, and deterministic ranking.',
     parameters: fundScreenParameters,
-    async execute(toolCallId, params, signal) {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'Fund screen request aborted' }], isError: true };
+    async execute(toolCallId, params, signal, _onUpdate, _ctx): Promise<PiToolResult> {
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'Fund screen request aborted' }], isError: true, details: undefined };
       const results = screenNativeFunds({ type: params.type, minScale: params.min_scale, maxScale: params.max_scale, minReturn: params.min_return, sortBy: params.sort_by, limit: params.limit });
       const retrievedAt = new Date().toISOString();
       const evidence = createEvidence({ id: `pi-finance:${toolCallId}:fund-screen`, source: 'upup-pi://finance-sdk/fund-screen', retrievedAt, asOf: retrievedAt.slice(0, 10), query: JSON.stringify(params), freshness: 'offline', auditId: toolCallId });
@@ -725,8 +726,8 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
     label: 'Top funds',
     description: 'List top funds from the audited offline one-year return snapshot.',
     parameters: fundTopParameters,
-    async execute(toolCallId, params, signal) {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'Fund top request aborted' }], isError: true };
+    async execute(toolCallId, params, signal, _onUpdate, _ctx): Promise<PiToolResult> {
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'Fund top request aborted' }], isError: true, details: undefined };
       const results = getTopNativeFunds(params.limit);
       const retrievedAt = new Date().toISOString();
       const evidence = createEvidence({ id: `pi-finance:${toolCallId}:fund-top`, source: 'upup-pi://finance-sdk/fund-top', retrievedAt, asOf: retrievedAt.slice(0, 10), query: '1Y', freshness: 'offline', auditId: toolCallId });
@@ -740,15 +741,15 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
     label: 'Fund comparison',
     description: 'Compare two to ten funds using the audited historical offline snapshot. Results are ranked by the selected period return and are not real-time.',
     parameters: fundCompareParameters,
-    async execute(toolCallId, params, signal) {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'Fund comparison request aborted' }], isError: true };
+    async execute(toolCallId, params, signal, _onUpdate, _ctx): Promise<PiToolResult> {
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'Fund comparison request aborted' }], isError: true, details: undefined };
       try {
         const comparison = compareNativeFunds(params.fund_codes, params.period ?? '1Y');
         const evidence = createEvidence({ id: `pi-finance:${toolCallId}:fund-compare`, source: 'upup-pi://finance-sdk/fund-compare', retrievedAt: new Date().toISOString(), asOf: comparison.asOf, query: JSON.stringify(params), freshness: 'historical', warnings: ['Historical offline snapshot; comparison is not real-time investment advice.'], auditId: toolCallId });
         const result = createFinanceResult(comparison, [evidence], toolCallId);
         return { content: [{ type: 'text', text: resultText(result) }], details: result };
       } catch (error) {
-        return { content: [{ type: 'text', text: error instanceof Error ? error.message : String(error) }], isError: true };
+        return { content: [{ type: 'text', text: error instanceof Error ? error.message : String(error) }], isError: true, details: undefined };
       }
     },
   });
@@ -758,8 +759,8 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
     label: 'Followed funds',
     description: 'List funds followed in the current Pi session. State is persisted in the Pi session journal, not a global workspace file.',
     parameters: fundListParameters,
-    async execute(toolCallId, params, signal, _onUpdate, context) {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'Fund list request aborted' }], isError: true };
+    async execute(toolCallId, params, signal, _onUpdate, context): Promise<PiToolResult> {
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'Fund list request aborted' }], isError: true, details: undefined };
       const funds = listNativeFollowedFunds(readWatchlistState(context)).slice(0, params.limit ?? 50);
       const evidence = createEvidence({ id: `pi-finance:${toolCallId}:fund-list`, source: 'upup-pi://finance-sdk/fund-list', retrievedAt: new Date().toISOString(), query: 'session fund watchlist', freshness: 'cached', warnings: ['Watchlist is session-scoped user state; it contains no real-time market quote.'], auditId: toolCallId });
       const result = createFinanceResult({ funds, count: funds.length }, [evidence], toolCallId);
@@ -772,10 +773,10 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
     label: 'Follow fund',
     description: 'Follow a known fund in the current Pi session journal. This changes only session watchlist state and does not place trades.',
     parameters: fundFollowParameters,
-    async execute(toolCallId, params, signal, _onUpdate, context) {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'Fund follow request aborted' }], isError: true };
+    async execute(toolCallId, params, signal, _onUpdate, context): Promise<PiToolResult> {
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'Fund follow request aborted' }], isError: true, details: undefined };
       const detail = getNativeFundDetail(params.fund_code);
-      if (!detail) return { content: [{ type: 'text', text: `Fund not found in audited catalog: ${params.fund_code}` }], isError: true };
+      if (!detail) return { content: [{ type: 'text', text: `Fund not found in audited catalog: ${params.fund_code}` }], isError: true, details: undefined };
       const current = readWatchlistState(context);
       const operation = followNativeFund(current, { code: detail.code, name: detail.name, ...(params.note ? { note: params.note } : {}) }, new Date().toISOString());
       if (operation.added) commitWatchlistState(operation.state);
@@ -790,8 +791,8 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
     label: 'Unfollow fund',
     description: 'Remove a fund from the current Pi session watchlist. This does not place trades or delete market data.',
     parameters: fundCodeParameters,
-    async execute(toolCallId, params, signal, _onUpdate, context) {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'Fund unfollow request aborted' }], isError: true };
+    async execute(toolCallId, params, signal, _onUpdate, context): Promise<PiToolResult> {
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'Fund unfollow request aborted' }], isError: true, details: undefined };
       const current = readWatchlistState(context);
       const operation = unfollowNativeFund(current, params.fund_code);
       if (operation.removed) commitWatchlistState(operation.state);
@@ -806,10 +807,10 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
     label: 'Create fund alert',
     description: 'Create a session-scoped fund alert definition. This stores a condition only; it does not poll markets, send notifications, or place trades.',
     parameters: fundAlertCreateParameters,
-    async execute(toolCallId, params, signal, _onUpdate, context) {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'Fund alert create request aborted' }], isError: true };
+    async execute(toolCallId, params, signal, _onUpdate, context): Promise<PiToolResult> {
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'Fund alert create request aborted' }], isError: true, details: undefined };
       const detail = getNativeFundDetail(params.fund_code);
-      if (!detail) return { content: [{ type: 'text', text: `Fund not found in audited catalog: ${params.fund_code}` }], isError: true };
+      if (!detail) return { content: [{ type: 'text', text: `Fund not found in audited catalog: ${params.fund_code}` }], isError: true, details: undefined };
       try {
         const operation = createNativeFundAlert(readAlertState(context), { id: `alert-${toolCallId}`, fundCode: detail.code, fundName: detail.name, type: params.alert_type as NativeFundAlertType, ...(params.value !== undefined ? { value: params.value } : {}), createdAt: new Date().toISOString() });
         commitAlertState(operation.state);
@@ -817,7 +818,7 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
         const result = createFinanceResult(operation.created, [evidence], toolCallId);
         return { content: [{ type: 'text', text: resultText(result) }], details: result };
       } catch (error) {
-        return { content: [{ type: 'text', text: error instanceof Error ? error.message : String(error) }], isError: true };
+        return { content: [{ type: 'text', text: error instanceof Error ? error.message : String(error) }], isError: true, details: undefined };
       }
     },
   });
@@ -827,8 +828,8 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
     label: 'List fund alerts',
     description: 'List session-scoped fund alert definitions. This tool does not claim that any condition has been evaluated.',
     parameters: fundAlertListParameters,
-    async execute(toolCallId, params, signal, _onUpdate, context) {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'Fund alert list request aborted' }], isError: true };
+    async execute(toolCallId, params, signal, _onUpdate, context): Promise<PiToolResult> {
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'Fund alert list request aborted' }], isError: true, details: undefined };
       const alerts = listNativeFundAlerts(readAlertState(context), params.fund_code);
       const evidence = createEvidence({ id: `pi-finance:${toolCallId}:fund-alert-list`, source: 'upup-pi://finance-sdk/fund-alert-list', retrievedAt: new Date().toISOString(), query: params.fund_code ?? 'all session alerts', freshness: 'cached', warnings: ['Alert definitions are session-scoped and are not live trigger results.'], auditId: toolCallId });
       const result = createFinanceResult({ alerts, count: alerts.length }, [evidence], toolCallId);
@@ -841,8 +842,8 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
     label: 'Delete fund alert',
     description: 'Delete a session-scoped fund alert definition without contacting a broker or notification service.',
     parameters: fundAlertDeleteParameters,
-    async execute(toolCallId, params, signal, _onUpdate, context) {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'Fund alert delete request aborted' }], isError: true };
+    async execute(toolCallId, params, signal, _onUpdate, context): Promise<PiToolResult> {
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'Fund alert delete request aborted' }], isError: true, details: undefined };
       const operation = deleteNativeFundAlert(readAlertState(context), params.alert_id);
       if (operation.deleted) commitAlertState(operation.state);
       const evidence = createEvidence({ id: `pi-finance:${toolCallId}:fund-alert-delete`, source: 'upup-pi://finance-sdk/fund-alert-delete', retrievedAt: new Date().toISOString(), query: params.alert_id, freshness: 'cached', warnings: ['Delete action changes only the Pi session journal.'], auditId: toolCallId });
@@ -856,10 +857,10 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
     label: 'Fund detail',
     description: 'Return an auditable historical detail snapshot for one fund. This tool is not real-time.',
     parameters: fundCodeParameters,
-    async execute(toolCallId, params, signal) {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'Fund detail request aborted' }], isError: true };
+    async execute(toolCallId, params, signal, _onUpdate, _ctx): Promise<PiToolResult> {
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'Fund detail request aborted' }], isError: true, details: undefined };
       const detail = getNativeFundDetail(params.fund_code);
-      if (!detail) return { content: [{ type: 'text', text: `Fund not found: ${params.fund_code}` }], isError: true };
+      if (!detail) return { content: [{ type: 'text', text: `Fund not found: ${params.fund_code}` }], isError: true, details: undefined };
       const evidence = createEvidence({ id: `pi-finance:${toolCallId}:fund-detail`, source: 'upup-pi://finance-sdk/fund-detail', retrievedAt: new Date().toISOString(), asOf: detail.asOf, query: params.fund_code, freshness: 'historical', warnings: ['Historical offline snapshot; not real-time data.'], auditId: toolCallId });
       const result = createFinanceResult(detail, [evidence], toolCallId);
       return { content: [{ type: 'text', text: resultText(result) }], details: result };
@@ -871,10 +872,10 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
     label: 'Fund performance',
     description: 'Return historical performance from the audited offline fund snapshot.',
     parameters: fundCodeParameters,
-    async execute(toolCallId, params, signal) {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'Fund performance request aborted' }], isError: true };
+    async execute(toolCallId, params, signal, _onUpdate, _ctx): Promise<PiToolResult> {
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'Fund performance request aborted' }], isError: true, details: undefined };
       const performance = getNativeFundPerformance(params.fund_code);
-      if (!performance) return { content: [{ type: 'text', text: `Fund not found: ${params.fund_code}` }], isError: true };
+      if (!performance) return { content: [{ type: 'text', text: `Fund not found: ${params.fund_code}` }], isError: true, details: undefined };
       const evidence = createEvidence({ id: `pi-finance:${toolCallId}:fund-performance`, source: 'upup-pi://finance-sdk/fund-performance', retrievedAt: new Date().toISOString(), asOf: performance.asOf, query: params.fund_code, freshness: 'historical', warnings: ['Historical offline snapshot; not investment advice.'], auditId: toolCallId });
       const result = createFinanceResult(performance, [evidence], toolCallId);
       return { content: [{ type: 'text', text: resultText(result) }], details: result };
@@ -886,10 +887,10 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
     label: 'Fund holdings',
     description: 'Return historical top holdings from the audited offline fund snapshot.',
     parameters: fundCodeParameters,
-    async execute(toolCallId, params, signal) {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'Fund holdings request aborted' }], isError: true };
+    async execute(toolCallId, params, signal, _onUpdate, _ctx): Promise<PiToolResult> {
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'Fund holdings request aborted' }], isError: true, details: undefined };
       const holdings = getNativeFundHoldings(params.fund_code);
-      if (!holdings || holdings.holdings.length === 0) return { content: [{ type: 'text', text: `No holdings snapshot for fund: ${params.fund_code}` }], isError: true };
+      if (!holdings || holdings.holdings.length === 0) return { content: [{ type: 'text', text: `No holdings snapshot for fund: ${params.fund_code}` }], isError: true, details: undefined };
       const evidence = createEvidence({ id: `pi-finance:${toolCallId}:fund-holdings`, source: 'upup-pi://finance-sdk/fund-holdings', retrievedAt: new Date().toISOString(), asOf: holdings.asOf, query: params.fund_code, freshness: 'historical', warnings: ['Historical offline snapshot; holdings may have changed.'], auditId: toolCallId });
       const result = createFinanceResult(holdings, [evidence], toolCallId);
       return { content: [{ type: 'text', text: resultText(result) }], details: result };
@@ -901,10 +902,10 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
     label: 'Fund manager',
     description: 'Return historical fund manager information from the audited offline snapshot.',
     parameters: fundCodeParameters,
-    async execute(toolCallId, params, signal) {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'Fund manager request aborted' }], isError: true };
+    async execute(toolCallId, params, signal, _onUpdate, _ctx): Promise<PiToolResult> {
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'Fund manager request aborted' }], isError: true, details: undefined };
       const manager = getNativeFundManager(params.fund_code);
-      if (!manager || !manager.manager) return { content: [{ type: 'text', text: `No manager snapshot for fund: ${params.fund_code}` }], isError: true };
+      if (!manager || !manager.manager) return { content: [{ type: 'text', text: `No manager snapshot for fund: ${params.fund_code}` }], isError: true, details: undefined };
       const evidence = createEvidence({ id: `pi-finance:${toolCallId}:fund-manager`, source: 'upup-pi://finance-sdk/fund-manager', retrievedAt: new Date().toISOString(), asOf: manager.asOf, query: params.fund_code, freshness: 'historical', warnings: ['Historical offline snapshot; manager information may have changed.'], auditId: toolCallId });
       const result = createFinanceResult(manager, [evidence], toolCallId);
       return { content: [{ type: 'text', text: resultText(result) }], details: result };
@@ -916,8 +917,8 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
     label: 'A-share Financials',
     description: 'Read deterministic historical A-share income, balance-sheet, cash-flow, and ratio snapshots. This tool is offline and does not query Tushare.',
     parameters: astockFinancialsParameters,
-    async execute(toolCallId, params, signal) {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'A-share financials request aborted' }], isError: true };
+    async execute(toolCallId, params, signal, _onUpdate, _ctx): Promise<PiToolResult> {
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'A-share financials request aborted' }], isError: true, details: undefined };
       const value = getNativeAStockFinancials(params.code, params.period);
       if (!value) return { content: [{ type: 'text', text: JSON.stringify({ error: 'No historical A-share financial snapshot for the requested code or period.', supportedSymbols: listNativeAStockFinancialSymbols() }) }], isError: true, details: { auditId: toolCallId } };
       const evidence = createEvidence({ id: `pi-finance:${toolCallId}:astock-financials`, source: 'upup-pi://finance-sdk/astock-financials', retrievedAt: '2026-09-13T00:00:00.000Z', asOf: value.asOf, query: JSON.stringify(params), freshness: 'historical', warnings: ['Historical offline snapshot; not real-time data or investment advice.'], auditId: toolCallId });
@@ -931,8 +932,8 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
     label: 'Financial Snapshot',
     description: 'Read deterministic historical financial statements and key metrics for a supported company. This offline snapshot is not a complete filing, real-time feed, or investment advice.',
     parameters: financialsParameters,
-    async execute(toolCallId, params, signal) {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'Financial snapshot request aborted' }], isError: true };
+    async execute(toolCallId, params, signal, _onUpdate, _ctx): Promise<PiToolResult> {
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'Financial snapshot request aborted' }], isError: true, details: undefined };
       const value = getNativeFinancialSnapshot(params.query);
       if (!value) return { content: [{ type: 'text', text: JSON.stringify({ error: 'No historical financial snapshot for the requested company.', supportedSymbols: listNativeFinancialSymbols() }) }], isError: true, details: { auditId: toolCallId } };
       const evidence = createEvidence({ id: `pi-finance:${toolCallId}:financials`, source: 'upup-pi://finance-sdk/financials', retrievedAt: '2026-09-14T00:00:00.000Z', asOf: value.asOf, query: params.query, freshness: 'historical', warnings: ['Historical offline snapshot; not a complete filing, real-time data, or investment advice.'], auditId: toolCallId });
@@ -946,7 +947,7 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
     label: 'Read SEC Filings',
     description: 'Read SEC filing metadata and up to three selected filing sections through the Financial Datasets API. Requires FINANCIAL_DATASETS_API_KEY; this tool does not use an LLM planner.',
     parameters: readFilingsParameters,
-    async execute(toolCallId, params, signal) {
+    async execute(toolCallId, params, signal, _onUpdate, _ctx): Promise<PiToolResult> {
       if (signal?.aborted) return { content: [{ type: 'text', text: 'read_filings request aborted' }], isError: true, details: { auditId: toolCallId } };
       try {
         const value = await readNativeFilings({
@@ -966,18 +967,18 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
   });
 
   pi.registerTool({ name: 'get_stock_price', label: 'Live stock price', description: 'Fetch a network stock price snapshot through the Financial Datasets API.', parameters: researchTickerParameters, async execute(toolCallId, params, _signal) { return executeResearchTool(toolCallId, _signal, 'stock-price', (client) => client.getStockPrice(params)); } });
-  pi.registerTool({ name: 'get_key_ratios', label: 'Live key ratios', description: 'Fetch current financial metrics through the Financial Datasets API.', parameters: researchTickerParameters, async execute(toolCallId, params, signal) { return executeResearchTool(toolCallId, signal, 'key-ratios', (client) => client.getKeyRatios(params)); } });
-  pi.registerTool({ name: 'get_analyst_estimates', label: 'Analyst estimates', description: 'Fetch annual or quarterly analyst estimates through the Financial Datasets API.', parameters: estimatesParameters, async execute(toolCallId, params, signal) { return executeResearchTool(toolCallId, signal, 'analyst-estimates', (client) => client.getAnalystEstimates(params)); } });
-  pi.registerTool({ name: 'get_earnings', label: 'Latest earnings', description: 'Fetch the latest earnings snapshot through the Financial Datasets API.', parameters: researchTickerParameters, async execute(toolCallId, params, signal) { return executeResearchTool(toolCallId, signal, 'earnings', (client) => client.getEarnings(params)); } });
-  pi.registerTool({ name: 'get_filings', label: 'SEC filing metadata', description: 'Fetch SEC filing metadata through the Financial Datasets API.', parameters: researchFilingsParameters, async execute(toolCallId, params, signal) { return executeResearchTool(toolCallId, signal, 'filings-metadata', (client) => client.getFilings(params)); } });
+  pi.registerTool({ name: 'get_key_ratios', label: 'Live key ratios', description: 'Fetch current financial metrics through the Financial Datasets API.', parameters: researchTickerParameters, async execute(toolCallId, params, signal, _onUpdate, _ctx): Promise<PiToolResult> { return executeResearchTool(toolCallId, signal, 'key-ratios', (client) => client.getKeyRatios(params)); } });
+  pi.registerTool({ name: 'get_analyst_estimates', label: 'Analyst estimates', description: 'Fetch annual or quarterly analyst estimates through the Financial Datasets API.', parameters: estimatesParameters, async execute(toolCallId, params, signal, _onUpdate, _ctx): Promise<PiToolResult> { return executeResearchTool(toolCallId, signal, 'analyst-estimates', (client) => client.getAnalystEstimates(params)); } });
+  pi.registerTool({ name: 'get_earnings', label: 'Latest earnings', description: 'Fetch the latest earnings snapshot through the Financial Datasets API.', parameters: researchTickerParameters, async execute(toolCallId, params, signal, _onUpdate, _ctx): Promise<PiToolResult> { return executeResearchTool(toolCallId, signal, 'earnings', (client) => client.getEarnings(params)); } });
+  pi.registerTool({ name: 'get_filings', label: 'SEC filing metadata', description: 'Fetch SEC filing metadata through the Financial Datasets API.', parameters: researchFilingsParameters, async execute(toolCallId, params, signal, _onUpdate, _ctx): Promise<PiToolResult> { return executeResearchTool(toolCallId, signal, 'filings-metadata', (client) => client.getFilings(params)); } });
 
   pi.registerTool({
     name: 'get_astock_news',
     label: 'A-share News Snapshot',
     description: 'Read deterministic historical A-share announcements and market-news snapshots. This tool is offline, not real-time, and does not query Tushare, Eastmoney, or the web.',
     parameters: astockNewsParameters,
-    async execute(toolCallId, params, signal) {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'A-share news request aborted' }], isError: true };
+    async execute(toolCallId, params, signal, _onUpdate, _ctx): Promise<PiToolResult> {
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'A-share news request aborted' }], isError: true, details: undefined };
       try {
         const value = getNativeAStockNews({ code: params.code, startDate: params.start_date, endDate: params.end_date, limit: params.limit });
         if (!value) return { content: [{ type: 'text', text: JSON.stringify({ error: 'No historical A-share news snapshot for the requested code.', supportedSymbols: listNativeAStockNewsSymbols() }) }], isError: true, details: { auditId: toolCallId } };
@@ -995,8 +996,8 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
     label: 'Company Profile',
     description: 'Read an auditable historical company profile from the Finance Package snapshot. This tool is read-only and not real-time.',
     parameters: companyProfileParameters,
-    async execute(toolCallId, params, signal) {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'Company profile request aborted' }], isError: true };
+    async execute(toolCallId, params, signal, _onUpdate, _ctx): Promise<PiToolResult> {
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'Company profile request aborted' }], isError: true, details: undefined };
       const profile = getNativeCompanyProfile(params.ticker);
       if (!profile) return { content: [{ type: 'text', text: JSON.stringify({ found: false, ticker: params.ticker.toUpperCase() }) }], isError: true, details: { auditId: toolCallId } };
       const evidence = createEvidence({ id: `pi-finance:${toolCallId}:company-profile`, source: 'upup-pi://finance-sdk/company-profile', retrievedAt: '2026-09-13T00:00:00.000Z', asOf: profile.asOf, query: params.ticker, freshness: 'historical', warnings: ['Historical offline snapshot; not real-time data or investment advice.'], auditId: toolCallId });
@@ -1010,8 +1011,8 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
     label: 'Investment Risks',
     description: 'Read historical market, company, sector, and portfolio risk assessments from the Finance Package snapshot.',
     parameters: riskQueryParameters,
-    async execute(toolCallId, params, signal) {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'Risk query request aborted' }], isError: true };
+    async execute(toolCallId, params, signal, _onUpdate, _ctx): Promise<PiToolResult> {
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'Risk query request aborted' }], isError: true, details: undefined };
       const risks = getNativeRisks({ ticker: params.ticker, severity: params.severity as NativeRiskSeverity | undefined, type: params.type as NativeRiskType | undefined });
       const evidence = createEvidence({ id: `pi-finance:${toolCallId}:risks`, source: 'upup-pi://finance-sdk/risks', retrievedAt: '2026-09-13T00:00:00.000Z', asOf: '2026-09-12', query: JSON.stringify(params), freshness: 'historical', warnings: ['Historical offline risk snapshot; validate assumptions before making decisions.'], auditId: toolCallId });
       const result = createFinanceResult({ count: risks.length, risks }, [evidence], toolCallId);
@@ -1024,8 +1025,8 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
     label: 'Sector Analysis',
     description: 'Read historical sector analysis, trends, metrics, and outlook from the Finance Package snapshot.',
     parameters: sectorQueryParameters,
-    async execute(toolCallId, params, signal) {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'Sector query request aborted' }], isError: true };
+    async execute(toolCallId, params, signal, _onUpdate, _ctx): Promise<PiToolResult> {
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'Sector query request aborted' }], isError: true, details: undefined };
       const sectors = getNativeSectors(params.name);
       const evidence = createEvidence({ id: `pi-finance:${toolCallId}:sectors`, source: 'upup-pi://finance-sdk/sectors', retrievedAt: '2026-09-13T00:00:00.000Z', asOf: '2026-09-12', query: params.name ?? 'all', freshness: 'historical', warnings: ['Historical offline sector snapshot; not real-time data or investment advice.'], auditId: toolCallId });
       const result = createFinanceResult({ found: params.name ? sectors.length > 0 : undefined, count: sectors.length, sectors }, [evidence], toolCallId);
@@ -1038,8 +1039,8 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
     label: 'Capital gains tax',
     description: 'Estimate capital gains tax from an explicit historical as-of date. This is a deterministic estimate, not tax advice.',
     parameters: capitalGainsTaxParameters,
-    async execute(toolCallId, params, signal) {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'Capital gains tax request aborted' }], isError: true };
+    async execute(toolCallId, params, signal, _onUpdate, _ctx): Promise<PiToolResult> {
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'Capital gains tax request aborted' }], isError: true, details: undefined };
       try {
         const estimate = calculateNativeTax({ symbol: params.symbol, quantity: params.quantity, purchasePrice: params.purchase_price, currentPrice: params.current_price, purchaseDate: params.purchase_date, asOf: params.as_of, jurisdiction: (params.jurisdiction ?? 'us') as NativeTaxJurisdiction });
         const evidence = createEvidence({ id: `pi-finance:${toolCallId}:capital-gains-tax`, source: 'upup-pi://finance-sdk/capital-gains-tax', retrievedAt: '2026-09-13T00:00:00.000Z', asOf: estimate.asOf, query: JSON.stringify(params), freshness: 'historical', warnings: ['Deterministic tax estimate based on simplified jurisdiction rates; not tax advice.'], auditId: toolCallId });
@@ -1056,8 +1057,8 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
     label: 'Trades tax summary',
     description: 'Calculate deterministic capital gains tax for completed trades using each trade sell date as the as-of date.',
     parameters: tradesTaxParameters,
-    async execute(toolCallId, params, signal) {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'Trades tax request aborted' }], isError: true };
+    async execute(toolCallId, params, signal, _onUpdate, _ctx): Promise<PiToolResult> {
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'Trades tax request aborted' }], isError: true, details: undefined };
       const summary = calculateNativeTradesTax({ trades: params.trades.map((trade) => ({ symbol: trade.symbol, quantity: trade.quantity, purchasePrice: trade.purchase_price, sellPrice: trade.sell_price, purchaseDate: trade.purchase_date, sellDate: trade.sell_date })), jurisdiction: (params.jurisdiction ?? 'us') as NativeTaxJurisdiction });
       const evidence = createEvidence({ id: `pi-finance:${toolCallId}:trades-tax`, source: 'upup-pi://finance-sdk/trades-tax', retrievedAt: '2026-09-13T00:00:00.000Z', asOf: '2026-09-12', query: JSON.stringify(params), freshness: 'historical', warnings: ['Deterministic tax estimate based on simplified jurisdiction rates; invalid trades are returned in errors.'], auditId: toolCallId });
       const result = createFinanceResult(summary, [evidence], toolCallId);
@@ -1070,8 +1071,8 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
     label: 'Trade P&L',
     description: 'Calculate deterministic profit and loss for completed trades without tax or broker side effects.',
     parameters: pnlParameters,
-    async execute(toolCallId, params, signal) {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'P&L request aborted' }], isError: true };
+    async execute(toolCallId, params, signal, _onUpdate, _ctx): Promise<PiToolResult> {
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'P&L request aborted' }], isError: true, details: undefined };
       try {
         const pnl = calculateNativePnl({ currency: params.currency ?? 'USD', trades: params.trades.map((trade) => ({ symbol: trade.symbol, quantity: trade.quantity, purchasePrice: trade.purchase_price, sellPrice: trade.sell_price })) });
         const evidence = createEvidence({ id: `pi-finance:${toolCallId}:pnl`, source: 'upup-pi://finance-sdk/pnl', retrievedAt: '2026-09-13T00:00:00.000Z', asOf: '2026-09-12', query: JSON.stringify(params), freshness: 'historical', warnings: ['Deterministic trade calculation; excludes commissions, slippage, financing and tax.'], auditId: toolCallId });
@@ -1088,8 +1089,8 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
     label: 'Finance evidence fundamentals',
     description: 'Return deterministic fundamental metrics with auditable evidence metadata.',
     parameters: symbolParameters,
-    async execute(toolCallId, params, signal) {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'Fundamentals request aborted' }], isError: true };
+    async execute(toolCallId, params, signal, _onUpdate, _ctx): Promise<PiToolResult> {
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'Fundamentals request aborted' }], isError: true, details: undefined };
       const result = evidenceResult(toolCallId, params.symbol, 'fundamentals', { symbol: params.symbol, revenue: 1000000, pe: 12.5 });
       return { content: [{ type: 'text', text: resultText(result) }], details: result };
     },
@@ -1100,8 +1101,8 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
     label: 'Finance evidence news',
     description: 'Return deterministic research headlines with auditable evidence metadata.',
     parameters: queryParameters,
-    async execute(toolCallId, params, signal) {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'News request aborted' }], isError: true };
+    async execute(toolCallId, params, signal, _onUpdate, _ctx): Promise<PiToolResult> {
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'News request aborted' }], isError: true, details: undefined };
       const result = evidenceResult(toolCallId, params.query, 'news', { query: params.query, headlines: ['Fixture headline'] });
       return { content: [{ type: 'text', text: resultText(result) }], details: result };
     },
@@ -1112,8 +1113,8 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
     label: 'Finance evidence search',
     description: 'Search deterministic research documents with auditable evidence metadata.',
     parameters: queryParameters,
-    async execute(toolCallId, params, signal) {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'Search request aborted' }], isError: true };
+    async execute(toolCallId, params, signal, _onUpdate, _ctx): Promise<PiToolResult> {
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'Search request aborted' }], isError: true, details: undefined };
       const result = evidenceResult(toolCallId, params.query, 'search', { query: params.query, sources: ['upup-fixture://research/1'] });
       return { content: [{ type: 'text', text: resultText(result) }], details: result };
     },
@@ -1124,8 +1125,8 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
     label: 'Finance evidence trading day',
     description: 'Check a deterministic exchange calendar date with auditable evidence metadata.',
     parameters: dateParameters,
-    async execute(toolCallId, params, signal) {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'Trading day request aborted' }], isError: true };
+    async execute(toolCallId, params, signal, _onUpdate, _ctx): Promise<PiToolResult> {
+      if (signal?.aborted) return { content: [{ type: 'text', text: 'Trading day request aborted' }], isError: true, details: undefined };
       const result = evidenceResult(toolCallId, params.date, 'trading-day', { date: params.date, isTradingDay: true }, params.date);
       return { content: [{ type: 'text', text: resultText(result) }], details: result };
     },

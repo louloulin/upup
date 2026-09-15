@@ -5,7 +5,7 @@ export type PlatformResearchRole = 'technical-analysis' | 'fundamental-analysis'
 
 export interface PlatformPromptOptions {
   readonly model?: string;
-  readonly signal: AbortSignal;
+  readonly signal?: AbortSignal;
   readonly sessionKey: string;
   readonly systemPrompt?: string;
   readonly toolFilter: readonly string[] | '*';
@@ -26,11 +26,11 @@ export interface PlatformCompositionOptions {
 }
 
 export interface PlatformComposition {
-  readonly runResearchWorker: (request: { role: PlatformResearchRole; symbol: string; question: string; systemPrompt: string; allowedTools: readonly string[] }, signal: AbortSignal) => Promise<{ role: PlatformResearchRole; output: string; evidence: readonly unknown[]; sessionId?: string }>;
-  readonly runAgentWorker: (request: { agentId: string; name: string; role: string; prompt: string; tools: readonly string[] | '*'; model?: string }, signal: AbortSignal) => Promise<{ agentId: string; output: string; sessionId: string }>;
-  readonly runCronJob: (request: { job: unknown }, signal: AbortSignal) => Promise<void>;
-  readonly listMcpResources: (server: string | undefined, signal: AbortSignal) => Promise<readonly { server: string; resources: readonly Record<string, unknown>[] }[]>;
-  readonly readMcpResource: (uri: string, server: string | undefined, signal: AbortSignal) => Promise<{ server: string; contents: readonly Record<string, unknown>[] }>;
+  readonly runResearchWorker: (request: { role: PlatformResearchRole; symbol: string; question: string; systemPrompt: string; allowedTools: readonly string[] }, signal?: AbortSignal) => Promise<{ role: PlatformResearchRole; output: string; evidence: readonly unknown[]; sessionId?: string }>;
+  readonly runAgentWorker: (request: { agentId: string; name: string; role: string; prompt: string; tools: readonly string[] | '*'; model?: string }, signal?: AbortSignal) => Promise<{ agentId: string; output: string; sessionId: string }>;
+  readonly runCronJob: (request: { job: unknown }, signal?: AbortSignal) => Promise<void>;
+  readonly listMcpResources: (server: string | undefined, signal?: AbortSignal) => Promise<readonly { server: string; resources: readonly Record<string, unknown>[] }[]>;
+  readonly readMcpResource: (uri: string, server: string | undefined, signal?: AbortSignal) => Promise<{ server: string; contents: readonly Record<string, unknown>[] }>;
 }
 
 export function createPlatformComposition(options: PlatformCompositionOptions): PlatformComposition {
@@ -74,15 +74,15 @@ export function createPlatformComposition(options: PlatformCompositionOptions): 
       return { agentId: request.agentId, output, sessionId: workerSessionId };
     },
     runCronJob: async (request, signal) => {
-      if (signal.aborted) throw new Error('cron run request aborted');
+      if (signal?.aborted) throw new Error('cron run request aborted');
       await options.runCron(request.job, options.modelInstance, options.modelRuntime);
     },
     listMcpResources: async (server, signal) => {
-      if (signal.aborted) throw new Error('MCP resource request aborted');
+      if (signal?.aborted) throw new Error('MCP resource request aborted');
       return options.listMcpResources(server);
     },
     readMcpResource: async (uri, server, signal) => {
-      if (signal.aborted) throw new Error('MCP resource request aborted');
+      if (signal?.aborted) throw new Error('MCP resource request aborted');
       return options.readMcpResource(uri, server);
     },
   };

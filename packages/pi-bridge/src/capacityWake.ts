@@ -20,7 +20,7 @@
  */
 
 export interface CapacitySignal {
-  signal: AbortSignal;
+  signal?: AbortSignal;
   cleanup: () => void;
 }
 
@@ -50,7 +50,7 @@ export function createCapacityWake(outerSignal: AbortSignal): CapacityWake {
   function signal(): CapacitySignal {
     const merged = new AbortController();
     const abort = (): void => merged.abort();
-    if (outerSignal.aborted || wakeController.signal.aborted) {
+    if (outerSignal.aborted || wakeController.signal?.aborted) {
       merged.abort();
       return { signal: merged.signal, cleanup: () => {} };
     }

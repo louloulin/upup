@@ -262,7 +262,7 @@ export class HttpTransport implements RpcTransport {
   /**
    * 设置中止信号
    */
-  setSignal(_signal: AbortSignal): void {
+  setSignal(_signal?: AbortSignal): void {
     // HTTP Transport 使用 AbortController
   }
 

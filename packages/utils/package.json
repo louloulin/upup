@@ -26,17 +26,31 @@
     "chalk": "5.6.2",
     "dotenv": "17.3.1",
     "eventemitter3": "5.0.4",
-    "@upup/pi-config": "0.1.0"
+    "@upup/pi-config": "0.1.0",
+    "@upup/pi-runtime": "0.1.0"
   },
   "peerDependencies": {
     "@upup/types": "0.2.0"
   },
-  "devDependencies": {
-    "@upup/pi-runtime": "0.1.0"
-  },
+  "devDependencies": {},
   "files": [
     "dist"
   ],
-  "pi": { "contract": "upup.pi.runtime.v1", "source": "builtin:upup", "trust": { "mode": "builtin" }, "lifecycle": { "scope": "runtime" }, "extensions": [], "skills": [], "prompts": [], "workflows": [], "policies": [], "evals": [] },
+  "pi": {
+    "contract": "upup.pi.runtime.v1",
+    "source": "builtin:upup",
+    "trust": {
+      "mode": "builtin"
+    },
+    "lifecycle": {
+      "scope": "runtime"
+    },
+    "extensions": [],
+    "skills": [],
+    "prompts": [],
+    "workflows": [],
+    "policies": [],
+    "evals": []
+  },
   "private": false
 }

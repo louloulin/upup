@@ -176,7 +176,20 @@ UpUp (涨涨) 是基于 [virattt/dexter](https://github.com/virattt/dexter) 的 
 - 修改逻辑后跑 `bun test` 再 push。
 - 完整产品验收：`bun run verify:pi7-final`。
 
-## Security
+## Known Pi-Integration Gaps (2026-09-15 audit)
+
+LLM 配置面与 Pi `.pi/agent` 契约有几条未对齐，详见 `docs/pi7-pi-llm-config-audit.md`：
+
+- `agentDir = cwd` 让 `~/.pi/agent/{skills,prompts,extensions,SYSTEM.md}` 被静默忽略（实测 5 个唯一 skills 缺失）；改动前必须先加 contract test 守门 `spec.packages:[]` 的 package isolation 合同。
+- `SettingsManager.inMemory()` 让 `~/.pi/agent/settings.json` 的 `compaction` / `retry` / `theme` / `defaultProvider` / `defaultModel` / `defaultThinkingLevel` 失效，`/model` 持久化写到空 in-memory store；用户已配 `lumos/gpt-5.6-luna` 时 `bun run dev` 仍走 setup wizard。
+- `resolvePiModel` 只查 `getBuiltinModel` + ollama，不查 `modelRuntime`，`~/.pi/agent/models.json` 自定义 provider 静默 fallback 到 Pi default。
+- `packages/pi-tui-app/src/utils/model.ts` 的 `PROVIDERS` 是 8 项硬编码，遮蔽 Pi 40 provider catalog（minimax、zai、groq、mistral、cerebras 等）。
+- `packages/memory/src/embeddings.ts` 与 `packages/pi-research/src/search.ts#searchPerplexity` 走 raw fetch，不走 Pi provider registry；Perplexity 是一个真 LLM 推理。
+- 每个 session 默认从 `~/.agents/skills` 加载 175 项全局 skills 进 system prompt（`auto/user`），需显式 opt-in 控制。
+- 24/48 个 package 的 `pi` block 没有声明 `tools` / `resources` / `capabilities`；基础设施类包可接受，但应统一口径。
+- 仓库根 6 个 `probe*.ts` 残留（来自 `14ddd20`）已在本轮删除。
+
+## ## Security
 
 - API keys 存在 `.env`（gitignored）；用户也可通过 CLI 交互输入。
 - Config 存在 `.upup/settings.json`（gitignored）。

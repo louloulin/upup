@@ -33,7 +33,7 @@ export default function investmentWorkflowExtension(pi: ExtensionAPI): void {
     label: 'Investment Workflow Phase',
     description: 'Execute one auditable phase of the five-step investment workflow through the trusted Pi host.',
     parameters,
-    async execute(toolCallId, params, signal) {
+    async execute(toolCallId, params, signal, _onUpdate, _ctx) {
     if (!services) return { content: [{ type: 'text', text: 'investment-workflow capability is unavailable; execution is fail-closed' }], isError: true, details: { auditId: toolCallId, capability: 'investment-workflow', policy: 'fail-closed' } };
     try {
       const result = await executeInvestmentPhase(params.phase, { ...(params.ticker === undefined ? {} : { ticker: params.ticker }), ...(params.market === undefined ? {} : { market: params.market }), ...(params.goal === undefined ? {} : { goal: params.goal }) }, services(), signal);
@@ -52,7 +52,7 @@ export default function investmentWorkflowExtension(pi: ExtensionAPI): void {
     label: 'Investment Workflow',
     description: 'Run one canonical, auditable Pi investment workflow phase: detect, plan, execute, verify, or report.',
     parameters: canonicalParameters,
-    async execute(toolCallId, params, signal) {
+    async execute(toolCallId, params, signal, _onUpdate, _ctx) {
       if (!services) return { content: [{ type: 'text', text: 'investment-workflow capability is unavailable; execution is fail-closed' }], isError: true, details: { auditId: toolCallId, policy: 'fail-closed' } };
       const result = await executeInvestmentPhase(params.phase, { ...(params.ticker === undefined ? {} : { ticker: params.ticker }), ...(params.market === undefined ? {} : { market: params.market }), ...(params.goal === undefined ? {} : { goal: params.goal }) }, services(), signal);
       return { content: [{ type: 'text', text: result.output }], ...(result.error ? { isError: true, details: undefined } : {}), details: { auditId: toolCallId, workflowId: params.workflowId, phase: params.phase, profile: params.profile as InvestmentAgentProfileId, evidence: result.evidence } };

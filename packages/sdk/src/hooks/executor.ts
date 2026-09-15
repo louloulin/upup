@@ -110,7 +110,7 @@ export class HookExecutor {
       for (const hook of matcher.hooks) {
         try {
           // 检查是否中止
-          if (this.abortController.signal.aborted) {
+          if (this.abortController.signal?.aborted) {
             break
           }
 

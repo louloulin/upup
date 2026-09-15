@@ -78,7 +78,7 @@ export default function quantExtension(pi: ExtensionAPI): void {
     parameters: Type.Object({
       category: Type.Optional(Type.String({ description: 'Filter by category: momentum / value / quality / volatility / size / growth / liquidity' })),
     }),
-    async execute(toolCallId, params, signal) {
+    async execute(toolCallId, params, signal, _onUpdate, _ctx) {
       if (signal?.aborted) return { content: [{ type: 'text', text: 'quant_factor_library aborted' }], isError: true, details: undefined };
       const { FACTOR_LIBRARY } = await import('../src/factors');
       const filtered = params.category
@@ -101,7 +101,7 @@ export default function quantExtension(pi: ExtensionAPI): void {
       bars: Type.Array(barSchema, { minItems: 1, maxItems: 5000 }),
       factorIds: Type.Optional(Type.Array(factorIdParam, { description: 'Subset of factor ids; default = all' })),
     }),
-    async execute(toolCallId, params, signal) {
+    async execute(toolCallId, params, signal, _onUpdate, _ctx) {
       if (signal?.aborted) return { content: [{ type: 'text', text: 'quant_factor_compute aborted' }], isError: true, details: undefined };
       const facs = computeAllFactors(params.bars as readonly FactorBar[], params.factorIds);
       const lastDate = params.bars[params.bars.length - 1].date;
@@ -128,7 +128,7 @@ export default function quantExtension(pi: ExtensionAPI): void {
         Type.Literal('minmax'),
       ]),
     }),
-    async execute(toolCallId, params, signal) {
+    async execute(toolCallId, params, signal, _onUpdate, _ctx) {
       if (signal?.aborted) return { content: [{ type: 'text', text: 'quant_factor_normalize aborted' }], isError: true, details: undefined };
       const { normalize } = await import('../src/normalize');
       const out = normalize(params.values, params.method);
@@ -151,7 +151,7 @@ export default function quantExtension(pi: ExtensionAPI): void {
       forwardReturnsByDate: Type.Array(Type.Array(Type.Number()), { minItems: 1 }),
       method: Type.Optional(Type.Union([Type.Literal('pearson'), Type.Literal('spearman')])),
     }),
-    async execute(toolCallId, params, signal) {
+    async execute(toolCallId, params, signal, _onUpdate, _ctx) {
       if (signal?.aborted) return { content: [{ type: 'text', text: 'quant_factor_ic aborted' }], isError: true, details: undefined };
       const result = computeICSeries(
         params.factorValuesByDate,
@@ -178,7 +178,7 @@ export default function quantExtension(pi: ExtensionAPI): void {
       topQuintileReturns: Type.Array(Type.Array(Type.Number()), { minItems: 1 }),
       bottomQuintileReturns: Type.Array(Type.Array(Type.Number()), { minItems: 1 }),
     }),
-    async execute(toolCallId, params, signal) {
+    async execute(toolCallId, params, signal, _onUpdate, _ctx) {
       if (signal?.aborted) return { content: [{ type: 'text', text: 'quant_factor_returns aborted' }], isError: true, details: undefined };
       const base = factorReturns(params.topQuintileReturns, params.bottomQuintileReturns, params.dates);
       const out = {
@@ -202,7 +202,7 @@ export default function quantExtension(pi: ExtensionAPI): void {
       target: Type.Array(Type.Number(), { minItems: 2 }),
       referenceFactors: Type.Array(Type.Array(Type.Number()), { minItems: 0 }),
     }),
-    async execute(toolCallId, params, signal) {
+    async execute(toolCallId, params, signal, _onUpdate, _ctx) {
       if (signal?.aborted) return { content: [{ type: 'text', text: 'quant_factor_orthogonalize aborted' }], isError: true, details: undefined };
       const result = regress(params.target, params.referenceFactors);
       const value = evidenceEnvelope({
@@ -240,7 +240,7 @@ export default function quantExtension(pi: ExtensionAPI): void {
         weight: Type.Number(),
       }))),
     }),
-    async execute(toolCallId, params, signal) {
+    async execute(toolCallId, params, signal, _onUpdate, _ctx) {
       if (signal?.aborted) return { content: [{ type: 'text', text: 'quant_factor_score aborted' }], isError: true, details: undefined };
       const matrix = new Map<string, ReadonlyMap<string, number>>();
       for (const entry of params.factorMatrix.valuesBySymbol) {
@@ -286,7 +286,7 @@ export default function quantExtension(pi: ExtensionAPI): void {
         })),
       }), { minItems: 1 }),
     }),
-    async execute(toolCallId, params, signal) {
+    async execute(toolCallId, params, signal, _onUpdate, _ctx) {
       if (signal?.aborted) return { content: [{ type: 'text', text: 'quant_factor_backtest aborted' }], isError: true, details: undefined };
       const signals: FactorSignalSeries[] = params.signals.map((s) => {
         const fv = new Map<string, number>();

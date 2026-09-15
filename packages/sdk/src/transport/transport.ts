@@ -65,7 +65,7 @@ export interface Transport {
    * 设置中止信号
    * 用于取消正在进行的请求
    */
-  setSignal(signal: AbortSignal): void
+  setSignal(signal?: AbortSignal): void
 
   /**
    * 中断当前请求

@@ -46,6 +46,27 @@ export function canonicalPiProviderId(providerId: string): string {
   return PI_PROVIDER_ALIASES[providerId] ?? providerId;
 }
 
+/**
+ * Detect the canonical Pi provider id from a model id that does not carry an
+ * explicit `provider:` prefix. Mirrors the heuristic the Pi catalog uses to
+ * resolve bare model ids. The result is canonicalised (no legacy aliases);
+ * pass it through `canonicalPiProviderId` if you need the legacy mapping.
+ *
+ * Kept here so it lives next to the catalog metadata; previously lived in
+ * `@upup/pi-event-adapter/pi-model-bridge`, which now re-exports it.
+ */
+export function detectPiProvider(modelId: string): string {
+  if (modelId.startsWith('claude-')) return 'anthropic';
+  if (modelId.startsWith('gemini-')) return 'google';
+  if (modelId.startsWith('gpt-')) return 'openai';
+  if (modelId.startsWith('kimi-')) return 'moonshotai';
+  if (modelId.startsWith('grok-')) return 'xai';
+  if (modelId.startsWith('MiniMax-') || modelId.startsWith('MiniMax')) return 'minimax';
+  if (modelId.startsWith('deepseek-')) return 'deepseek';
+  if (modelId.includes('/')) return 'openrouter';
+  return 'openai';
+}
+
 function piCatalogProviders(): readonly { id: string; name: string }[] {
   return builtinProviders() as unknown as readonly { id: string; name: string }[];
 }
