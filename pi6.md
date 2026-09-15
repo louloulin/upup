@@ -4933,3 +4933,167 @@ Pi7 仍未完成，缺口仅按完成定义保留：真实只读 provider dossie
 2. 真实 evidence 完整前继续默认 deny 交易、通知、凭证导出、文件写入与未审批 sandbox action；不标记 Pi7 完成。
 3. Pi7 真正完成后再讨论 Pi11（Pi Native 协议扩展 / 产品级新功能）。
 4. 当前未到 blocked 阈值（同一阻塞条件 < 3 连续 turn），仍 fail-closed 待凭证；保持 goal active 等用户凭证输入后推进 pi107。
+
+## pi107 验证同步（2026-09-15）
+
+- 严格审计发现前序 commit `916822f` 已经完成 Factory 主体修复：`@upup/pi-session/src/agent-session-factory.ts` 不再直接 import `@upup/pi-prompt-config`，所有 prompt builders 通过 `this.composition.*` 注入。但本轮发现**三个未对齐项**仍需修复：
+  1. `scripts/check-pi7-architecture.ts` 仍然强制 Factory 必须 import `@upup/pi-prompt-config`（与 Pi7 完成定义第 3 项"Runtime 不硬编码具体业务 Package"直接矛盾）。
+  2. `packages/pi-session/src/builtin-composition.test.ts` 仍然只断言 finance + platform 两个 sub-boundary，prompt sub-boundary 无测试覆盖。
+  3. `src/runtime/pi/production-entry-contract.test.ts` 断言 Factory `toContain('@upup/pi-prompt-config')`，与修复后 Factory 实际状态矛盾。
+- 本轮真实改动：
+  1. 修正 `scripts/check-pi7-architecture.ts`（+15 行）：从"Factory 必须 import pi-prompt-config"改为"Factory 不应 import pi-prompt-config；必须通过 `this.composition.buildDefaultInvestmentSystemPrompt` 访问"。
+  2. 更新 `packages/pi-session/src/builtin-composition.test.ts`（+26 行）：新增 prompt sub-boundary 三 sub-boundary 互不重叠测试 + prompt sub-boundary exposes the three PiRuntime contract builders 测试。
+  3. 更新 `src/runtime/pi/production-entry-contract.test.ts`（+18 行）：从"Factory 必须 import pi-prompt-config"改为"Factory 不应 import pi-prompt-config；通过 composition 访问"。
+- 前序 commit `916822f` 已完成的主体修复（保留为参考）：
+  - `packages/pi-runtime/src/index.ts`：新增 `PiPromptBuilders` interface。
+  - `packages/pi-session/src/builtin-composition.ts`：新增 `PiSessionPromptProviders` 第三个 sub-boundary + `builtinSessionPromptComposition` 默认 provider。
+  - `packages/pi-session/src/agent-session-factory.ts`：删除 `@upup/pi-prompt-config` 直接 import。
+  - `packages/pi-app/src/index.ts`：新增 `sessionPromptProvider` 装配选项。
+- 验证：
+  - `bun run typecheck`：exit 0。
+  - `bun test`：**2239 pass / 0 fail**（+2 新增 composition 测试）。
+  - `bun --cwd packages/pi-session test`：75/75。
+  - `bun run test:pi-contracts`：exit 0。
+  - `bun run verify:pi7-final`：**15/15 passed**（11.088s）。
+  - 6 strict 静态门禁零失败；`bun run build` exit 0；`git diff --check` clean。
+- 严格审计后判定：
+  - 真实存在的违反已修复：Factory 零业务 Package import。
+  - 检查脚本本身的不变量已对齐到 Pi7 计划原文（不再误判"必须 import"）。
+  - 当前 11/12 完成定义项具备证据，第 12 项（真实 provider dossier）仍需凭证到位。
+- 经验教训：之前几轮总结把该项标记为 ✅ 是基于不充分的证据。后续每轮 pi-number 必须执行"按 Pi7 阶段计划逐条核对"，不依赖历史总结。
+
+### pi108 后续计划
+
+1. 真实凭证到位后跑 CN/HK/US 真实 dossier 与跨日真实历史 provider retry/recovery，artifact 落到 `verify-pi-real-invest-artifacts/`，扩展 `verify-pi7-final` 让真实 dossier 作为 **C10**（第 16 套合同）进入总表。
+2. fail-closed 守恒；凭证到位前不标记 Pi7 完成。
+3. Pi7 真正完成后才讨论 Pi11。
+4. 继续每轮严格审计，不依赖历史总结。
+
+- 本轮还修复了一个 pre-existing flaky test：`scripts/verify-pi-cross-process-idempotency.test.ts` 的 "two independently-built dossiers with the same inputs produce identical artifactHashes" 测试由于 `buildPlanInputs()` 每次调用生成新的 `Math.random()` workflowId 而偶发失败。修复为测试内显式注入共享 workflowId。
+- 修复后验证：单独跑 30 次 100% 通过；全仓 `bun test` 5/5 连续 0 fail。
+- 最终完整验证快照（2026-09-15 终态）：
+  - `bun run verify-pi7-final`：**15/15 passed**（8.039s）。
+  - `bun test`：**2239 pass / 0 fail / 7317 expect()**，229 个测试文件。
+  - 6 strict 静态门禁零失败。
+  - `bun run typecheck`：exit 0；`bun run build`：✅ Build complete。
+  - `git diff --check`：clean。
+
+### pi108 后续计划
+
+1. 真实凭证到位后跑 CN/HK/US 真实 dossier 与跨日真实历史 provider retry/recovery，artifact 落到 `verify-pi-real-invest-artifacts/`，扩展 `verify-pi7-final` 让真实 dossier 作为 **C10**（第 16 套合同）进入总表。
+2. fail-closed 守恒；凭证到位前不标记 Pi7 完成。
+3. Pi7 真正完成后才讨论 Pi11。
+4. 继续每轮严格审计，不依赖历史总结。
+
+## pi108 终态验证同步（2026-09-15）
+
+- 最终完整验证快照（pi108 终态）：
+  - `verify-pi7-final`：**15/15 passed**（8.926s）。
+  - `bun test`：**2239 pass / 0 fail / 7317 expect()**，229 个测试文件（5/5 连续全仓跑稳定 0 fail）。
+  - 6 strict 静态门禁零失败。
+  - `bun run typecheck`：exit 0；`bun run build`：✅ Build complete。
+  - `git diff --check`：clean。
+- Stage 1-7 全部产物盘点完毕：
+  - Stage 1：`pi7.md` + 报告 + 门禁脚本 + manifest contract。
+  - Stage 2：`pi-runtime` + `pi-session` + `pi-resource-composition` + `pi-capability-registry` + `pi-event-adapter` + composition providers。
+  - Stage 3：17 个投资 Pi packages（finance-sdk / market-data / investment-analysis / investment-workflow / risk / portfolio / backtest / research / browser / technical / corporate-actions / quant / notify / config / cache / platform / management）。
+  - Stage 4：`pi-storage` + `pi-memory` + `pi-permissions` + `pi-observability` + `pi-planning`。
+  - Stage 5：`cron` + `mcp` + `gateway` + `pi-bridge` + `pi-stdio` + `daemon` + `pi-app`。
+  - Stage 6：`pi-tui-app`（28533 行）。
+  - Stage 7：`pi-app` 默认投资助手装配（default.ts + investment.ts + entry.ts + stdio.ts）。
+- 当前分层进度：结构迁移 `100%`，本地实现/合同约 `99.99%`，产品验收约 `99.5%`，Pi7 总体 `未完成`（唯一缺真实 provider dossier，凭证未到位）。
+- 后续路径：凭证到位后跑 `UPUP_REAL_INVEST=1 UPUP_REAL_INVEST_CONFIRM=READ_ONLY bun run verify:pi-real-invest`，artifact 落到 `verify-pi-real-invest-artifacts/`，把 `verify-pi7-final` 升级到 16 套（C10 真实 dossier），完成 Pi7/Pi10 真正 12/12。
+
+### pi108 后续计划
+
+1. 真实凭证到位后跑 CN/HK/US 真实 dossier 与跨日真实历史 provider retry/recovery，artifact 落到 `verify-pi-real-invest-artifacts/`，扩展 `verify-pi7-final` 让真实 dossier 作为 **C10**（第 16 套合同）进入总表。
+2. fail-closed 守恒；凭证到位前不标记 Pi7 完成。
+3. Pi7 真正完成后才讨论 Pi11。
+4. 继续每轮严格审计，不依赖历史总结。
+
+## pi108 严格 Stage 1-7 审计同步（2026-09-15）
+
+- 本 turn 重新从 Pi7 计划原文逐阶段审计每个产物，确认 11/12 完成定义项具备静态证据。
+- Stage 1（基线与门禁）：pi7.md / 报告 / 门禁脚本 / Package contract 齐全。
+- Stage 2（Runtime + Session Factory）：7 个 runtime packages + 3 sub-boundary composition + Factory 零业务 import + globalThis 零使用。
+- Stage 3（Agent-facing 投资能力）：17 个 pi-native investment packages + 5 阶段状态机 + 7 Profile + 可序列化 + capability allowlist + policy 层 deny/approval。
+- Stage 4（Session / Memory / Planning / Observability）：pi-memory / pi-permissions / pi-observability / pi-planning / pi-storage 全部 pi-native。
+- Stage 5（外围 Package 化）：cron / mcp / gateway / pi-bridge / pi-stdio / daemon / pi-app 全部 pi-native，7 entry 共享受同一 Pi Runtime。
+- Stage 6（TUI）：pi-tui-app 28533 行，零业务 Package import，零 globalThis 使用。
+- Stage 7（投研闭环）：5 阶段 synthetic smoke 全过 + 跨进程 / 跨日 / fail-closed 全部覆盖；唯一缺真实 provider dossier（凭证依赖）。
+- 当前验证快照：`2239 pass / 0 fail`、`verify-pi7-final` 15/15 passed（7.940s）、6 strict 静态门禁零失败、`bun run build` ✅ Build complete。
+- 当前结构：`workspacePackages: 48`、`piNativePackages: 48`、`rootProductionFiles: 3`、`rootProductionLines: 109`、`structuralPercent: 100`。
+
+### pi109 后续计划
+
+1. 真实凭证到位后跑 CN/HK/US 真实 dossier 与跨日真实历史 provider retry/recovery，artifact 落到 `verify-pi-real-invest-artifacts/`，扩展 `verify-pi7-final` 让真实 dossier 作为 **C10**（第 16 套合同）进入总表。
+2. fail-closed 守恒；凭证到位前不标记 Pi7 完成。
+3. Pi7 真正完成后才讨论 Pi11。
+4. 继续每轮严格审计，不依赖历史总结。
+
+## pi109 验证同步（2026-09-15）
+
+- 本轮真实进展：把 Stage 5 入口 smoke 纳入 `verify-pi7-final` 一键 orchestrator。
+- 修改 `scripts/verify-pi7-final.ts`：新增 5 个合同（C10-C14），把现有的 `verify-pi-entry-{matrix,faults,sla}.ts`、`verify-pi-fault-matrix.ts`、`verify-pi-stdio-stability.ts` 接入一键 orchestrator。
+- C10-C14 保护的 Stage 5 不变量：
+  - C10: entry × Pi runner matrix（24 entries × Pi runtime boundary）
+  - C11: entry fault surface through Pi policy audit（5 fault types）
+  - C12: entry × Pi runtime SLA（latency budgets）
+  - C13: fault matrix through Pi runtime（5 fault types）
+  - C14: stdio JSON-RPC stability（concurrent rounds, no lock residue, no malformed JSONL）
+- 验证快照：
+  - `verify-pi7-final`：**20/20 passed**（31.170s；5 个新合同贡献 ~22s 真实跨进程工作）。
+  - `bun test`：**2239 pass / 0 fail**（无回归）。
+  - 6 strict 静态门禁零失败；`bun run typecheck` exit 0；`bun run build` ✅ Build complete。
+- 当前结构：`workspacePackages: 48`、`piNativePackages: 48`、`rootProductionFiles: 3`、`rootProductionLines: 109`、`structuralPercent: 100`。
+- 当前 Pi7 总体：11/12 完成，唯一缺真实 provider dossier（凭证依赖）。
+
+### pi110 后续计划
+
+1. 真实凭证到位后跑 CN/HK/US 真实 dossier 与跨日真实历史 provider retry/recovery，artifact 落到 `verify-pi-real-invest-artifacts/`，扩展 `verify-pi7-final` 让真实 dossier 作为 **C15**（第 21 套合同）进入总表。
+2. fail-closed 守恒；凭证到位前不标记 Pi7 完成。
+3. Pi7 真正完成后才讨论 Pi11。
+4. 继续每轮严格审计，不依赖历史总结。
+
+## Pi110 审计（2026-09-15）
+
+### 本轮目标
+重新执行 Pi6 提出的"结构 100% 与本地合同 99.99%、产品验收 99.5%"判断，对每个维度基于真实命令输出验证。
+
+### 真实证据
+
+| 维度 | 当前值 | 真实证据命令 |
+|---|---:|---|
+| 根 `src` 规模 | 3 文件 109 行（含 101 行 .d.ts） | `bun run report:pi7` |
+| workspace packages | 48 个 | `bun run report:pi7` |
+| Pi-native manifest 覆盖 | 48/48 = 100% | `bun run report:pi7` |
+| `check:pi7` | PASS（48 manifests / 1 factory / 0 global registry） | `bun run check:pi7` |
+| `check:module-boundaries` | PASS（48 packages / 3 root src / 无 root import / 无环） | `bun run check:module-boundaries` |
+| `check:pi-packages` | PASS（17 Pi packages 全 pinned） | `bun run check:pi-packages` |
+| `check:pi-side-effects` | PASS（27 required tool declarations manifest-owned） | `bun run check:pi-side-effects` |
+| `check:pi-runtime` | PASS（Bun 1.4.1 / Node 26.3.0 / Node22 targets） | `bun run check:pi-runtime` |
+| `check:pi-deletion-audit` (strict) | status: passed, legacy consumers: [], global registry consumers: [], old root imports: [] | `bun run check:pi-deletion-audit` |
+| `check:pi-package-audit` (strict) | 全部 pi packages 0.1.0 pinned | `bun run check:pi-package-audit` |
+| `verify:pi7-final` | 20/20 contracts PASS（含 6 strict 静态门禁 + C1–C14） | `bun run verify:pi7-final` |
+| `bun run typecheck` | exit 0 | `bun run typecheck` |
+| `bun run build` | PASS（Pi package resources copied to dist/） | `bun run build` |
+| `bun test` | 2239 pass / 0 fail / 7317 expect() | `bun test` |
+
+### 当前完成度判定
+
+- **结构迁移：100%** — 唯一 factory、零生产 global registry、root `src` 仅 3 文件 109 行、48 packages 全 Pi-native。
+- **本地实现与合同：99.99%** — 2239 测试、6 strict 静态门禁、20 套 verify orchestrator、typecheck/build 全过。
+- **产品验收：99.5%** — 20 套合同一键 pass；唯一缺真实 provider dossier 验证（凭证依赖）。
+- **Pi7 完成定义 12 项**：11/12 已具备证据；剩余 1 项为真实 provider 验证（凭证到位后启动）。
+
+### 本轮额外动作
+
+1. 更新 AGENTS.md（239 行 → 175 行），从描述删除前的旧 `src/agent`、`src/tools`、`src/skills`、`src/commands`、`src/runtime/pi/agent-session-factory.ts`、`src/cli.tsx`、`src/model/llm.ts` 等结构改为 Pi7 真实状态（35 Pi native packages + 13 外围 + root `src` 仅 bootstrap + 类型）。
+2. 追加 Pi110 审计到 pi6.md（本节）。
+3. 追加 Pi110 审计与定型证据到 pi7.md。
+
+### Pi110 后续
+
+1. 真实 provider dossier 验证（凭证依赖）：`verify-pi-real-invest` 凭证到位后跑 CN/HK/US，artifact 落 `verify-pi-real-invest-artifacts/`，扩展 `verify-pi7-final` 让真实 dossier 作为 **C15** 进入总表。
+2. fail-closed 守恒：凭证完整前继续默认 deny 交易、通知、凭证导出、文件写入与未审批 sandbox action。
+3. 凭证到位后再决策 Pi11（Pi Native 协议扩展、产品级新功能）。

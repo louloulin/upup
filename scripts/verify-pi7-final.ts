@@ -21,6 +21,12 @@
  * chain, not a separate script. The orchestrator reports it
  * alongside #5 to keep the 7-line summary table coherent.
  *
+ * C10-C14 cover Stage 5 entry × Pi runtime invariants: each transport
+ * entry (CLI / SDK / stdio / Bridge / Cron / Daemon / Eval) must drive
+ * a real Pi Session through its public port, surface faults through Pi
+ * policy audit, meet Pi runtime SLA budgets, and stay stable under
+ * concurrent cross-process JSON-RPC rounds.
+ *
  * Exit code 0 when every contract is `passed`; non-zero on the first
  * failure. A JSON summary is written to stdout for downstream tooling.
  */
@@ -140,6 +146,53 @@ const CONTRACTS: readonly ContractSpec[] = [
     label: 'cross-fixture schema naming contract (upup.pi.<area>.<version> format, consumer-producer coupling, >=4 areas)',
     command: 'bun',
     args: ['test', 'src/runtime/pi/pi-fixture-schema.test.ts'],
+  },
+  {
+    // Pi7 Stage 5 invariant: each transport entry (CLI / stdio / Bridge / Cron /
+    // Daemon / SDK / Eval) must drive a real Pi Session through its public port,
+    // not a parallel Agent loop or registry. The verify-pi-entry-* scripts run
+    // a matrix of entry → Pi runner invocations and verify each entry resolves
+    // through the single Pi runtime boundary.
+    id: 'C10',
+    label: 'entry × Pi runner matrix (CLI/SDK/stdio/Bridge/Cron/Daemon/Eval)',
+    command: 'bun',
+    args: ['run', 'scripts/verify-pi-entry-matrix.ts'],
+  },
+  {
+    // Pi7 Stage 5 invariant: each entry must surface a typed fault channel
+    // through Pi policy audit (not a swallowed error). Each entry surfaces
+    // permission / model / session faults through the same Pi capability
+    // manifest path, not a per-entry error handler.
+    id: 'C11',
+    label: 'entry fault surface through Pi policy audit (CLI/SDK/stdio/Bridge/Cron/Daemon/Eval)',
+    command: 'bun',
+    args: ['run', 'scripts/verify-pi-entry-faults.ts'],
+  },
+  {
+    // Pi7 Stage 5 invariant: each entry must meet its Pi-runtime SLA
+    // (session-create, tool-call, fault-restore). The verify-pi-entry-sla
+    // script measures latency budgets across all entries through Pi.
+    id: 'C12',
+    label: 'entry × Pi runtime SLA (latency budgets across entries)',
+    command: 'bun',
+    args: ['run', 'scripts/verify-pi-entry-sla.ts'],
+  },
+  {
+    // Pi7 Stage 5 invariant: fault matrix covers transient / provider /
+    // permission / model / session-recovery failures through Pi runtime.
+    id: 'C13',
+    label: 'fault matrix through Pi runtime (transient / provider / permission / model / session)',
+    command: 'bun',
+    args: ['run', 'scripts/verify-pi-fault-matrix.ts'],
+  },
+  {
+    // Pi7 Stage 5 invariant: stdio transport must remain stable across
+    // concurrent cross-process JSON-RPC rounds without leaving lock
+    // residues or malformed JSONL sessions.
+    id: 'C14',
+    label: 'stdio JSON-RPC stability (concurrent rounds, no lock residue, no malformed JSONL)',
+    command: 'bun',
+    args: ['run', 'scripts/verify-pi-stdio-stability.ts'],
   },
 ];
 

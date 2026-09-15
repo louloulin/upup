@@ -111,8 +111,19 @@ if (existsSync(sessionFactoryPath)) {
   if (!source.includes('providers: {') || !source.includes('marketData:') || !source.includes('workers:')) {
     failures.push(`${sessionFactoryPath}: host binding must compose explicit capability providers`);
   }
-  if (!source.includes('@upup/pi-prompt-config')) failures.push(`${sessionFactoryPath}: prompt composition must come from @upup/pi-prompt-config`);
-  if (source.includes('You are UpUp, a Chinese-language financial research assistant')) failures.push(`${sessionFactoryPath}: default prompt text must not live in the Session Factory`);
+  // Pi7 stage 2 contract: the Session Factory must NOT directly import any
+  // concrete prompt implementation (e.g. @upup/pi-prompt-config). Prompt
+  // builders are injected through the PiSessionPromptProviders composition
+  // sub-boundary so the runtime stays free of business-package knowledge.
+  if (source.includes("from '@upup/pi-prompt-config'")) {
+    failures.push(`${sessionFactoryPath}: Session Factory must not import concrete prompt implementation; use composition.promptBuilders instead`);
+  }
+  if (!source.includes('this.composition.buildDefaultInvestmentSystemPrompt')) {
+    failures.push(`${sessionFactoryPath}: Session Factory must consume prompt builders through the composition provider`);
+  }
+  if (source.includes('You are UpUp, a Chinese-language financial research assistant')) {
+    failures.push(`${sessionFactoryPath}: default prompt text must not live in the Session Factory`);
+  }
   for (const forbidden of ['@upup/pi-finance-composition', '@upup/pi-platform-composition', '@upup/pi-market-data', "from '@upup/cron'"]) {
     if (source.includes(forbidden)) failures.push(`${sessionFactoryPath}: concrete business composition import must use builtin-composition boundary: ${forbidden}`);
   }

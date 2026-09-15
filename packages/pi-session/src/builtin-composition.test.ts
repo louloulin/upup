@@ -1,13 +1,33 @@
 import { describe, expect, test } from 'bun:test';
-import { PiAgentSessionFactory, builtinSessionComposition, builtinSessionFinanceComposition, builtinSessionPlatformComposition, type PiSessionFinanceProviders, type PiSessionPlatformProviders, type PiSessionCompositionProviders } from './index.js';
+import { PiAgentSessionFactory, builtinSessionComposition, builtinSessionFinanceComposition, builtinSessionPlatformComposition, builtinSessionPromptComposition, type PiSessionFinanceProviders, type PiSessionPlatformProviders, type PiSessionPromptProviders, type PiSessionCompositionProviders } from './index.js';
 
 describe('Pi session composition sub-boundaries', () => {
   test('builtin halves cover the combined contract surface', () => {
     const financeKeys = Object.keys(builtinSessionFinanceComposition).sort();
     const platformKeys = Object.keys(builtinSessionPlatformComposition).sort();
+    const promptKeys = Object.keys(builtinSessionPromptComposition).sort();
     const combinedKeys = Object.keys(builtinSessionComposition).sort();
-    expect([...financeKeys, ...platformKeys].sort()).toEqual(combinedKeys);
-    expect(new Set([...financeKeys, ...platformKeys])).toEqual(new Set(combinedKeys));
+    expect([...financeKeys, ...platformKeys, ...promptKeys].sort()).toEqual(combinedKeys);
+    expect(new Set([...financeKeys, ...platformKeys, ...promptKeys])).toEqual(new Set(combinedKeys));
+  });
+
+  test('finance, platform and prompt halves are pairwise disjoint by capability surface', () => {
+    const financeKeys = Object.keys(builtinSessionFinanceComposition);
+    const platformKeys = Object.keys(builtinSessionPlatformComposition);
+    const promptKeys = Object.keys(builtinSessionPromptComposition);
+    const overlapFP = financeKeys.filter((key) => platformKeys.includes(key));
+    const overlapFPr = financeKeys.filter((key) => promptKeys.includes(key));
+    const overlapPPr = platformKeys.filter((key) => promptKeys.includes(key));
+    expect(overlapFP).toEqual([]);
+    expect(overlapFPr).toEqual([]);
+    expect(overlapPPr).toEqual([]);
+  });
+
+  test('prompt sub-boundary exposes the three PiRuntime contract builders', () => {
+    const prompt: PiSessionPromptProviders = builtinSessionPromptComposition;
+    expect(typeof prompt.buildDefaultInvestmentSystemPrompt).toBe('function');
+    expect(typeof prompt.buildInvestmentCapabilitiesSection).toBe('function');
+    expect(typeof prompt.buildCoachSystemPrompt).toBe('function');
   });
 
   test('finance and platform halves are disjoint by capability surface', () => {

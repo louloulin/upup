@@ -56,10 +56,26 @@ describe('Pi production entry contract', () => {
   });
 
   test('prompt composition and AgentSpec validation stay in public contracts', () => {
+    // Pi7 stage 2 contract: the runtime Factory must NOT directly import any
+    // concrete prompt implementation (e.g. @upup/pi-prompt-config). Prompt
+    // builders are injected through PiSessionPromptProviders so the factory
+    // stays free of business-package knowledge.
     const factory = readFileSync(join(process.cwd(), 'packages/pi-session/src/agent-session-factory.ts'), 'utf8');
     const runner = readFileSync(join(process.cwd(), 'packages/pi-session/src/prompt-runner.ts'), 'utf8');
-    expect(factory).toContain('@upup/pi-prompt-config');
+    const builtinComposition = readFileSync(
+      join(process.cwd(), 'packages/pi-session/src/builtin-composition.ts'),
+      'utf8',
+    );
+    // The factory consumes the composition contract, not concrete implementations.
+    expect(factory).not.toContain("from '@upup/pi-prompt-config'");
+    expect(factory).toContain('this.composition.buildDefaultInvestmentSystemPrompt');
+    expect(factory).toContain('this.composition.buildInvestmentCapabilitiesSection');
+    expect(factory).toContain('this.composition.buildCoachSystemPrompt');
     expect(factory).not.toContain('You are UpUp, a Chinese-language financial research assistant');
+    // The default composition provider is the only place that wires the
+    // concrete @upup/pi-prompt-config builders into the session runtime.
+    expect(builtinComposition).toContain("from '@upup/pi-prompt-config'");
+    expect(builtinComposition).toContain('builtinSessionPromptComposition');
     expect(runner).toContain("from '@upup/pi-runtime'");
     expect(runner).not.toContain("from '@upup/pi-investment-workflow'");
   });

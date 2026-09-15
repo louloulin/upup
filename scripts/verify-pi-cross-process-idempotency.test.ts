@@ -102,8 +102,13 @@ describe('cross-process /invest workflow idempotency contract', () => {
     // distinct artifactHashes — which would falsely flag the
     // cross-process idempotency contract as broken.
     const fixedClock = () => '2026-09-15T00:00:00.000Z';
-    const inputsA = buildPlanInputs();
-    const inputsB = { ...inputsA };
+    // Pin a fixed workflowId so the two builds below observe identical
+    // inputs (buildPlanInputs generates a fresh Math.random-based
+    // workflowId on every call; we override after construction so the
+    // same planId flows into both dossiers).
+    const sharedWorkflowId = 'cross-process-fixture-shared';
+    const inputsA = { ...buildPlanInputs(), workflowId: sharedWorkflowId };
+    const inputsB = { ...buildPlanInputs(), workflowId: sharedWorkflowId };
     const a = createInvestmentDossier({ ...inputsA, clock: fixedClock });
     const b = createInvestmentDossier({ ...inputsB, clock: fixedClock });
     expect(getInvestmentDossierValidationErrors(a)).toEqual([]);

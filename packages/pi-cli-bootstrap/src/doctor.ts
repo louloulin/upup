@@ -210,21 +210,28 @@ function checkPackages(): CheckResult[] {
     '@earendil-works/pi-tui',
   ];
 
+  // Pi runtime packages are ESM-only and lack a CJS `main` export, so plain
+  // require.resolve() fails. Probe the package directory + resolved entry
+  // directly under node_modules so the doctor remains honest regardless of
+  // module resolution strategy (Node ESM, Bun, package exports).
+  const nodeModulesRoot = join(process.cwd(), 'node_modules');
+
   for (const module of requiredModules) {
-    try {
-      require.resolve(module);
-      results.push({
-        name: module,
-        status: 'pass',
-        message: 'installed',
-      });
-    } catch {
-      results.push({
-        name: module,
-        status: 'fail',
-        message: 'not installed',
-      });
+    const packageDir = join(nodeModulesRoot, ...module.split('/'));
+    let installed = existsSync(join(packageDir, 'package.json'));
+    if (!installed) {
+      try {
+        const resolved = (Bun as { resolveSync?: (id: string, root: string) => string }).resolveSync?.(module, process.cwd());
+        installed = typeof resolved === 'string' && existsSync(resolved);
+      } catch {
+        installed = false;
+      }
     }
+    results.push({
+      name: module,
+      status: installed ? 'pass' : 'fail',
+      message: installed ? 'installed' : 'not installed',
+    });
   }
 
   return results;
