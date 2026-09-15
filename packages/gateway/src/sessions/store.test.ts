@@ -6,7 +6,7 @@ import {
   loadSessionStore,
   resolveSessionStorePath,
   upsertSessionMeta,
-} from './store.js';
+} from './store';
 
 describe('session store', () => {
   test('creates and updates session metadata', () => {

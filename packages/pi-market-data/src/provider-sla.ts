@@ -2,8 +2,8 @@ import { randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
-import type { MarketHistoryProvider } from './history.js';
-import type { NativeMarketQuoteClient } from './quote.js';
+import type { MarketHistoryProvider } from './history';
+import type { NativeMarketQuoteClient } from './quote';
 
 export type ProviderSlaRunStatus = 'ok' | 'error' | 'disabled';
 export type ProviderSlaProbe = 'default' | 'us' | 'cn' | 'hk';

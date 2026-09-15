@@ -12,4 +12,4 @@ export {
   type ToolEndEvent,
   type ToolErrorEvent,
   type JSONSchema,
-} from './types.js'
+} from './types'

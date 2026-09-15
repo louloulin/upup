@@ -10,7 +10,7 @@
  * 3. 第三轮对话 - 更复杂的上下文依赖
  */
 
-import { createClient } from './src/client/client.js'
+import { createClient } from './src/client/client'
 
 async function testContextContinuity() {
   console.log('='.repeat(80))

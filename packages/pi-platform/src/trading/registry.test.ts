@@ -13,8 +13,8 @@ import {
   registerBroker,
   resolveActiveBroker,
   unregisterBroker,
-} from './registry.js';
-import type { BrokerAdapter } from './types.js';
+} from './registry';
+import type { BrokerAdapter } from './types';
 
 describe('broker registry', () => {
   const originalBroker = process.env.UPUP_BROKER;

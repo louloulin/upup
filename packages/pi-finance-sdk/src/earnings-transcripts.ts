@@ -1,4 +1,4 @@
-import { NativeFilingsClient, type NativeFilingRecord, type NativeFilingsClientOptions } from './filings.js';
+import { NativeFilingsClient, type NativeFilingRecord, type NativeFilingsClientOptions } from './filings';
 
 export interface NativeTranscriptRef {
   readonly filingDate: string;

@@ -5,7 +5,7 @@
  * Shows or configures sandbox settings.
  */
 
-import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types.js'
+import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types'
 
 export interface SandboxContext extends ToolUseContext {
   sandboxMode?: 'strict' | 'relaxed' | 'disabled'

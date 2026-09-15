@@ -8,7 +8,7 @@
  * Category: agent
  */
 
-import type { LocalCommand } from '../../types/command-types.js'
+import type { LocalCommand } from '../../types/command-types'
 
 export const tasksCommand: LocalCommand = {
   type: 'local',
@@ -16,7 +16,7 @@ export const tasksCommand: LocalCommand = {
   description: 'Show background task status',
   aliases: ['jobs'],
   supportsNonInteractive: true,
-  load: () => import('./tasks-impl.js'),
+  load: () => import('./tasks-impl'),
 }
 
 export default tasksCommand

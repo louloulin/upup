@@ -2,7 +2,7 @@
 // Used by `upup --bridge-attach <url> --token <secret>` to give a remote shell
 // the same feel as a local CLI session. Sprint 2.3 will replace this with the
 // full REPL bridge from loucode (see replBridge.ts + inboundMessages.ts).
-import { decodeMessage, encodeMessage, type BridgeMessage } from './protocol.js';
+import { decodeMessage, encodeMessage, type BridgeMessage } from './protocol';
 
 export interface BridgeClientOptions {
   url: string;          // ws://host:port/bridge?token=...

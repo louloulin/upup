@@ -1,4 +1,4 @@
-import { migrateLegacyMemories } from '../src/memory/migration.js';
+import { migrateLegacyMemories } from '../src/memory/migration';
 
 const dryRun = process.argv.includes('--dry-run');
 

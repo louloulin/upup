@@ -28,7 +28,7 @@ import {
   type RiskParityAsset,
   type SourceMetrics,
   type DataSourceComparisonInput,
-} from '../src/index.js';
+} from '../src/index';
 
 const PACKAGE = '@upup/pi-risk';
 const VERSION = '0.1.0';

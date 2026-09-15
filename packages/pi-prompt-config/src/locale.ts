@@ -7,7 +7,7 @@
  *   3. 默认:            'en'
  *
  * 调用方:
- *   import { getLocale, formatPrompt } from './locale.js';
+ *   import { getLocale, formatPrompt } from './locale';
  *   const greeting = formatPrompt('identity'); // 走默认 locale
  *
  * 设计原则:

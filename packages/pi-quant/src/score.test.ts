@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { combineFactors, scoreUniverse, equalWeightWeights } from './score.js';
+import { combineFactors, scoreUniverse, equalWeightWeights } from './score';
 
 describe('combineFactors', () => {
   test('weighted sum with positive weight', () => {

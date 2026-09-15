@@ -5,7 +5,7 @@
  * Shows current permission settings and approved tools.
  */
 
-import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types.js'
+import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types'
 
 export interface PermissionsContext extends ToolUseContext {
   permissionCount?: number

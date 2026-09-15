@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { platformHeartbeat } from './heartbeat.js';
+import { platformHeartbeat } from './heartbeat';
 
 describe('pi-platform heartbeat', () => {
   test('views and updates the checklist while enabling and syncing gateway state', async () => {

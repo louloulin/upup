@@ -10,6 +10,6 @@
  * `@upup/utils` + `@upup/pi-tui-app` and do not touch root src/*.
  */
 
-export { runConfigCommand } from './config.js';
-export { runDoctor } from './doctor.js';
-export { runOnboarding } from './onboarding.js';
+export { runConfigCommand } from './config';
+export { runDoctor } from './doctor';
+export { runOnboarding } from './onboarding';

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
-import type { ModelSelectionDependencies } from './model-selection.js';
-import { ModelSelectionController } from './model-selection.js';
+import type { ModelSelectionDependencies } from './model-selection';
+import { ModelSelectionController } from './model-selection';
 
 function createDependencies(overrides: Partial<ModelSelectionDependencies> = {}) {
   const settings = new Map<string, unknown>([

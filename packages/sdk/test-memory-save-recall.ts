@@ -7,7 +7,7 @@
  * 3. 检查 Agent 是否通过 memory_search 获取记忆
  */
 
-import { createClient } from './src/client/client.js'
+import { createClient } from './src/client/client'
 
 async function testMemorySaveRecall() {
   console.log('='.repeat(80))

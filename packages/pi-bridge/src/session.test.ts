@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { BridgeSessionStore } from './session.js';
+import { BridgeSessionStore } from './session';
 
 describe('BridgeSessionStore', () => {
   test('start creates session with unique id and idle status', () => {

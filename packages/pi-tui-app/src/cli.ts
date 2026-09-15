@@ -37,18 +37,18 @@ function forceRender(): void {
   _tuiInstance?.requestRender(true);
 }
 import type { ApprovalDecision } from '@upup/pi-runtime';
-import type { UiEvent } from './tui/agent-runner-types.js';
+import type { UiEvent } from './tui/agent-runner-types';
 import {
   initialPermissionModeFromCLI,
-} from './permissions/index.js';
-import { InputHistoryController } from './tui/input-history.js';
-import { ModelSelectionController } from './tui/model-selection.js';
-import { AgentRunnerController } from './tui/agent-runner.js';
-import type { AgentRunnerPorts, TuiRuntime, TuiCommandCapabilities } from './tui/agent-runner.js'
+} from './permissions/index';
+import { InputHistoryController } from './tui/input-history';
+import { ModelSelectionController } from './tui/model-selection';
+import { AgentRunnerController } from './tui/agent-runner';
+import type { AgentRunnerPorts, TuiRuntime, TuiCommandCapabilities } from './tui/agent-runner'
 import { setPermissionMode } from '@upup/pi-session'
-import type { PermissionCliArgs } from './permissions/types.js'
+import type { PermissionCliArgs } from './permissions/types'
 
-import { renderToolResult } from './utils/tool-renderers.js';
+import { renderToolResult } from './utils/tool-renderers';
 import {
   checkApiKeyExistsForProvider,
   getApiKeyNameForProvider,
@@ -61,8 +61,8 @@ import {
 import { defaultQueue } from '@upup/utils';
 import { getFileHistoryManager, recordFileHistorySnapshot } from '@upup/pi-storage';
 import { logger } from '@upup/utils/logging';
-import { validateConfig, isFirstTimeUse } from './utils/config-validation.js';
-import { SessionSelectionController } from './tui/session-selection.js';
+import { validateConfig, isFirstTimeUse } from './utils/config-validation';
+import { SessionSelectionController } from './tui/session-selection';
 import type { RenderableMessage } from '@upup/pi-session';
 import {
   ApiKeyInputComponent,
@@ -82,13 +82,13 @@ import {
   SessionTagInputComponent,
   createFullscreenApproval,
   createApprovalSelector,
-} from './components/index.js';
-import { createModelSelectList, createSessionSelectList } from './components/select-list.js';
+} from './components/index';
+import { createModelSelectList, createSessionSelectList } from './components/select-list';
 import { editorTheme, theme } from '@upup/utils';
 import { type SlashCommand } from '@upup/commands';
 import { initSpinner } from '@upup/utils';
 // Phase 50: 统一使用 input-state，移除 command-state
-import { inputStore, inputSelectors, inputActions } from './tui/state/input-state.js';
+import { inputStore, inputSelectors, inputActions } from './tui/state/input-state';
 import { isPiSkillCommand, toPiSkillPrompt } from '@upup/pi-resource-composition';
 
 

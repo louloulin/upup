@@ -9,7 +9,7 @@
  * Reference: loucode/src/commands/plan/index.ts
  */
 
-import type { LocalCommand } from '../../types/command-types.js'
+import type { LocalCommand } from '../../types/command-types'
 
 export const planCommand: LocalCommand = {
   type: 'local',
@@ -17,5 +17,5 @@ export const planCommand: LocalCommand = {
   description: 'Enable plan mode or view the current session plan',
   argumentHint: '[open|<description>]',
   supportsNonInteractive: true,
-  load: () => import('./plan-impl.js'),
+  load: () => import('./plan-impl'),
 }

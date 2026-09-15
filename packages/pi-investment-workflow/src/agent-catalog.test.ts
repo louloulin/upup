@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
-import { createPiAgentCatalog } from './agent-catalog.js';
-import { getInvestmentAgentSpec } from './agent-spec.js';
+import { createPiAgentCatalog } from './agent-catalog';
+import { getInvestmentAgentSpec } from './agent-spec';
 
 describe('PiAgentCatalog', () => {
   test('stores and selects executable Pi specs without a second runtime definition', () => {

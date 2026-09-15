@@ -1,7 +1,7 @@
 import { Type } from 'typebox';
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import { registerPiCapabilityHost } from '@upup/pi-capability-registry';
-import { calculateWinRate, computeSummary, evaluateTrade, renderFundBacktestReport, runBacktest, runFundBacktest, type BacktestConfig, type BacktestCostModel, type BacktestTrade, type DailyBar, type FundBacktestConfig, type FundNavPoint } from '../src/index.js';
+import { calculateWinRate, computeSummary, evaluateTrade, renderFundBacktestReport, runBacktest, runFundBacktest, type BacktestConfig, type BacktestCostModel, type BacktestTrade, type DailyBar, type FundBacktestConfig, type FundNavPoint } from '../src/index';
 
 const PACKAGE = '@upup/pi-backtest';
 const VERSION = '0.1.0';

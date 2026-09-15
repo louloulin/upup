@@ -1,5 +1,5 @@
 import { callLlm, type PromptRunner } from '@upup/utils';
-import { MemoryManager } from './index.js';
+import { MemoryManager } from './index';
 import { CONTEXT_THRESHOLD } from '@upup/utils';
 
 export const MEMORY_FLUSH_TOKEN = 'NO_MEMORY_TO_FLUSH';

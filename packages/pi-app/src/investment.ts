@@ -10,7 +10,7 @@ import {
 } from '@upup/pi-investment-workflow';
 import type { PiSessionServiceFactory } from '@upup/pi-session';
 import type { UpUpCreateSessionOptions } from '@upup/pi-runtime';
-import type { PiInvestmentWorkflow } from './index.js';
+import type { PiInvestmentWorkflow } from './index';
 
 export function createPiInvestmentWorkflow(options: {
   readonly sessionRuntimeFactory: PiSessionServiceFactory;

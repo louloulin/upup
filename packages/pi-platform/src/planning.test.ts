@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { addPlatformPlanStep, createInitialPlatformPlanningState, createPlatformPlan, createPlatformTodo, deletePlatformTodo, getPlatformPlan, listPlatformTodos, parsePlatformPlanningState, platformPlanProgress, platformTodoStats, updatePlatformPlanStep, updatePlatformTodo } from './planning.js';
+import { addPlatformPlanStep, createInitialPlatformPlanningState, createPlatformPlan, createPlatformTodo, deletePlatformTodo, getPlatformPlan, listPlatformTodos, parsePlatformPlanningState, platformPlanProgress, platformTodoStats, updatePlatformPlanStep, updatePlatformTodo } from './planning';
 
 describe('pi-platform planning', () => {
   test('creates and updates a dependency-aware plan', () => {

@@ -1,5 +1,5 @@
-import type { FeedEvent, FeedEventType, FeedHandler, RealtimeFeed } from './types.js';
-import type { Quote } from './types.js';
+import type { FeedEvent, FeedEventType, FeedHandler, RealtimeFeed } from './types';
+import type { Quote } from './types';
 
 export interface EastmoneyFeedSocket {
   send(data: string): void;

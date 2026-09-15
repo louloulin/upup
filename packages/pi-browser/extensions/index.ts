@@ -1,6 +1,6 @@
 import { Type } from 'typebox';
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
-import { BrowserController, BROWSER_DESCRIPTION } from '../src/index.js';
+import { BrowserController, BROWSER_DESCRIPTION } from '../src/index';
 
 const parameters = Type.Object({
   action: Type.Union(['navigate', 'open', 'snapshot', 'act', 'read', 'close'].map((value) => Type.Literal(value)) as [never, ...never[]]),

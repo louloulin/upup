@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, test } from 'bun:test';
-import { searchWeb, searchX } from './search.js';
+import { searchWeb, searchX } from './search';
 
 const originalFetch = globalThis.fetch;
 

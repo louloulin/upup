@@ -17,12 +17,12 @@ describe('Config Validation Functions', () => {
   describe('validateConfig', () => {
     it('should be defined and exported', async () => {
       // Dynamic import to test module exports
-      const module = await import('./config-validation.js');
+      const module = await import('./config-validation');
       expect(typeof module.validateConfig).toBe('function');
     });
 
     it('should return an object with expected properties', async () => {
-      const module = await import('./config-validation.js');
+      const module = await import('./config-validation');
       const result = module.validateConfig();
 
       // Check result structure
@@ -41,12 +41,12 @@ describe('Config Validation Functions', () => {
 
   describe('isFirstTimeUse', () => {
     it('should be defined and exported', async () => {
-      const module = await import('./config-validation.js');
+      const module = await import('./config-validation');
       expect(typeof module.isFirstTimeUse).toBe('function');
     });
 
     it('should return a boolean', async () => {
-      const module = await import('./config-validation.js');
+      const module = await import('./config-validation');
       const result = module.isFirstTimeUse();
       expect(typeof result).toBe('boolean');
     });
@@ -54,12 +54,12 @@ describe('Config Validation Functions', () => {
 
   describe('requiresSetup', () => {
     it('should be defined and exported', async () => {
-      const module = await import('./config-validation.js');
+      const module = await import('./config-validation');
       expect(typeof module.requiresSetup).toBe('function');
     });
 
     it('should return a boolean', async () => {
-      const module = await import('./config-validation.js');
+      const module = await import('./config-validation');
       const result = module.requiresSetup();
       expect(typeof result).toBe('boolean');
     });
@@ -67,18 +67,18 @@ describe('Config Validation Functions', () => {
 
   describe('getConfigSummary', () => {
     it('should be defined and exported', async () => {
-      const module = await import('./config-validation.js');
+      const module = await import('./config-validation');
       expect(typeof module.getConfigSummary).toBe('function');
     });
 
     it('should return a string', async () => {
-      const module = await import('./config-validation.js');
+      const module = await import('./config-validation');
       const result = module.getConfigSummary();
       expect(typeof result).toBe('string');
     });
 
     it('should return "Configured:" when valid', async () => {
-      const module = await import('./config-validation.js');
+      const module = await import('./config-validation');
       const result = module.getConfigSummary();
       // Should either show "Configured:" or "Missing:"
       expect(
@@ -89,12 +89,12 @@ describe('Config Validation Functions', () => {
 
   describe('applyValidationRules', () => {
     it('should be defined and exported', async () => {
-      const module = await import('./config-validation.js');
+      const module = await import('./config-validation');
       expect(typeof module.applyValidationRules).toBe('function');
     });
 
     it('should return empty array for valid config', async () => {
-      const module = await import('./config-validation.js');
+      const module = await import('./config-validation');
       const config = {
         provider: 'anthropic',
         modelId: 'claude-sonnet-4-5',
@@ -105,7 +105,7 @@ describe('Config Validation Functions', () => {
     });
 
     it('should return errors for empty provider', async () => {
-      const module = await import('./config-validation.js');
+      const module = await import('./config-validation');
       const config = {
         provider: '',
         modelId: 'claude-sonnet-4-5',
@@ -116,7 +116,7 @@ describe('Config Validation Functions', () => {
     });
 
     it('should return errors for empty modelId', async () => {
-      const module = await import('./config-validation.js');
+      const module = await import('./config-validation');
       const config = {
         provider: 'anthropic',
         modelId: '',
@@ -127,7 +127,7 @@ describe('Config Validation Functions', () => {
     });
 
     it('should return multiple errors for multiple issues', async () => {
-      const module = await import('./config-validation.js');
+      const module = await import('./config-validation');
       const config = {
         provider: '',
         modelId: '',
@@ -139,7 +139,7 @@ describe('Config Validation Functions', () => {
 
   describe('ConfigValidationResult interface', () => {
     it('should have correct structure when provider and model are set', async () => {
-      const module = await import('./config-validation.js');
+      const module = await import('./config-validation');
       const result = module.validateConfig();
 
       // The result structure is correct regardless of actual config values
@@ -160,7 +160,7 @@ describe('Config Validation Functions', () => {
     });
 
     it('errors should match missing fields', async () => {
-      const module = await import('./config-validation.js');
+      const module = await import('./config-validation');
       const result = module.validateConfig();
 
       // If missingProvider is true, should have error
@@ -183,7 +183,7 @@ describe('Config Validation Functions', () => {
 
 describe('Config Validation - Integration', () => {
   it('validateConfig should be consistent with requiresSetup', async () => {
-    const module = await import('./config-validation.js');
+    const module = await import('./config-validation');
     const validation = module.validateConfig();
     const needsSetup = module.requiresSetup();
 
@@ -194,7 +194,7 @@ describe('Config Validation - Integration', () => {
   });
 
   it('getConfigSummary should reflect validation state', async () => {
-    const module = await import('./config-validation.js');
+    const module = await import('./config-validation');
     const validation = module.validateConfig();
     const summary = module.getConfigSummary();
 

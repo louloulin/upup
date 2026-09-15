@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { addPlatformAgentMemory, createInitialPlatformAgentState, createPlatformAgent, getPlatformAgentMemory, listPlatformAgentMemories, parsePlatformAgentState, PLATFORM_BUILTIN_AGENTS, updatePlatformAgent } from './agents.js';
+import { addPlatformAgentMemory, createInitialPlatformAgentState, createPlatformAgent, getPlatformAgentMemory, listPlatformAgentMemories, parsePlatformAgentState, PLATFORM_BUILTIN_AGENTS, updatePlatformAgent } from './agents';
 
 describe('pi-platform agents', () => {
   test('tracks agent lifecycle and session-scoped memory', () => {

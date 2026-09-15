@@ -428,4 +428,4 @@ export function createFinanceExtension(options: FinanceExtensionOptions): Inline
     },
   };
 }
-export * from './stream.js';
+export * from './stream';

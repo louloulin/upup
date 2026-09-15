@@ -5,7 +5,7 @@
  * can be properly rendered and handled.
  */
 
-import { ALL_COMMANDS, executeCommand } from '../packages/commands/dist/all-commands.js'
+import { ALL_COMMANDS, executeCommand } from '../packages/commands/dist/all-commands'
 
 console.log('╔════════════════════════════════════════════════════════════════════╗')
 console.log('║     Dexter Interactive Command Verification v2.0              ║')

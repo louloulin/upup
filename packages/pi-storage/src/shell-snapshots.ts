@@ -10,7 +10,7 @@
  */
 
 import { globalUpupPath } from '@upup/utils';
-import { generateId } from './crypto-utils.js';
+import { generateId } from './crypto-utils';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';

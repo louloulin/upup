@@ -4,8 +4,8 @@
  * Hook 安全增强
  */
 
-import { getPermissionChecker } from './permissions.js'
-import type { PermissionCheckResult } from './types.js'
+import { getPermissionChecker } from './permissions'
+import type { PermissionCheckResult } from './types'
 
 // ============================================================================
 // Types

@@ -25,7 +25,7 @@ export {
   isHttpConfig,
   getServerEndpoint,
   getTransportDisplayName,
-} from './types.js';
+} from './types';
 
 // MCP Client types and exports
 export type {
@@ -41,13 +41,13 @@ export type {
   MCPSamplingContent,
   SamplingParams,
   SamplingResult,
-} from './client.js';
-export type { PiMcpTool } from './pi-tool.js';
-export { isInvestmentMcpConfigured } from './investment-data.js';
-export * from './mcp-ui.js';
-export * from './registry.js';
-export * from './plugin-integration.js';
-export * from './upup-resources.js';
+} from './client';
+export type { PiMcpTool } from './pi-tool';
+export { isInvestmentMcpConfigured } from './investment-data';
+export * from './mcp-ui';
+export * from './registry';
+export * from './plugin-integration';
+export * from './upup-resources';
 
 // MCP Client classes and functions
 export {
@@ -55,7 +55,7 @@ export {
   loadMCPConfig,
   getDefaultMCPClient,
   initializeMCPClient,
-} from './client.js';
+} from './client';
 
 // MCP Resource tools
 export {
@@ -63,7 +63,7 @@ export {
   readMcpResourceTool,
   LIST_MCP_RESOURCES_DESCRIPTION,
   READ_MCP_RESOURCE_DESCRIPTION,
-} from './resource-tools.js';
+} from './resource-tools';
 
 // Note: auth-tool.ts requires project-specific paths and is not exported
 // Note: registry.ts depends on agent-hooks and is not included in this package

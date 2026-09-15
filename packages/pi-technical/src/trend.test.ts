@@ -1,11 +1,11 @@
 import { describe, expect, test } from 'bun:test';
-import { computeMACD, computeRSI, type IndicatorBar } from './indicators.js';
+import { computeMACD, computeRSI, type IndicatorBar } from './indicators';
 import {
   detectMACross,
   detectMAAlignment,
   detectSupportResistance,
   summarizeTrend,
-} from './trend.js';
+} from './trend';
 
 function makeRisingBars(count: number, start = 100, step = 1): IndicatorBar[] {
   return Array.from({ length: count }, (_, i) => ({

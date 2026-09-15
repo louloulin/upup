@@ -8,7 +8,7 @@
  * Category: tools
  */
 
-import type { LocalCommand } from '../../types/command-types.js'
+import type { LocalCommand } from '../../types/command-types'
 
 export const filesCommand: LocalCommand = {
   type: 'local',
@@ -16,7 +16,7 @@ export const filesCommand: LocalCommand = {
   description: 'List files in project',
   aliases: ['ls', 'find'],
   supportsNonInteractive: true,
-  load: () => import('./files-impl.js'),
+  load: () => import('./files-impl'),
 }
 
 export default filesCommand

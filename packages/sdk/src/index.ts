@@ -30,7 +30,7 @@
 export {
   UpClient,
   createClient,
-} from './client/client.js'
+} from './client/client'
 
 export type {
   ClientConfig,
@@ -45,7 +45,7 @@ export type {
   UpupConfig,
   BinaryLocation,
   StdioTransportConfig,
-} from './client/client.js'
+} from './client/client'
 
 // ============ Transport ============
 
@@ -55,7 +55,7 @@ export {
   createStdioTransport,
   createHttpTransport,
   loadUpupConfig,
-} from './transport/index.js'
+} from './transport/index'
 
 export type {
   Transport,
@@ -64,13 +64,13 @@ export type {
   HttpTransportConfig,
   TransportMessage,
   EventHandler,
-} from './transport/index.js'
+} from './transport/index'
 
 // ============ Tools ============
 
 export {
   ToolConfiguration,
-} from './tools/index.js'
+} from './tools/index'
 
 export type {
   Tool,
@@ -81,13 +81,13 @@ export type {
   ToolEndEvent,
   ToolErrorEvent,
   JSONSchema,
-} from './tools/index.js'
+} from './tools/index'
 
 // ============ Permissions ============
 
 export {
   PermissionManager,
-} from './permissions/index.js'
+} from './permissions/index'
 
 export type {
   PermissionMode,
@@ -97,7 +97,7 @@ export type {
   PermissionEvent,
   PermissionRequestEvent,
   PermissionDeniedEvent,
-} from './permissions/index.js'
+} from './permissions/index'
 
 // ============ Hooks (Phase 4) ============
 
@@ -109,7 +109,7 @@ export {
   createLoggingHook,
   createMetadataHook,
   createAugmentHook,
-} from './hooks/index.js'
+} from './hooks/index'
 
 export type {
   HookEvent,
@@ -125,13 +125,13 @@ export type {
   PostSamplingOutput,
   PostSamplingCallback,
   PostSamplingConfig,
-} from './hooks/index.js'
+} from './hooks/index'
 
 // ============ Session (Phase 4) ============
 
 export {
   SessionManager,
-} from './session/index.js'
+} from './session/index'
 
 export type {
   SessionStatus,
@@ -141,20 +141,20 @@ export type {
   SessionMessage,
   SessionEvent,
   SessionEventData,
-} from './session/index.js'
+} from './session/index'
 
 // ============ Pool (Phase 5) ============
 
 export {
   ProcessPool,
-} from './pool/index.js'
+} from './pool/index'
 
 export type {
   ProcessPoolConfig,
   PooledProcess,
   PooledProcessStatus,
   ProcessPoolEvent,
-} from './pool/index.js'
+} from './pool/index'
 
 // ============ Errors (P1) ============
 
@@ -173,7 +173,7 @@ export {
   isTransportError,
   toSDKError,
   tryRecoverError,
-} from './errors.js'
+} from './errors'
 
 // ============ Tool Errors (P1) ============
 
@@ -188,13 +188,13 @@ export {
   ToolValidationError,
   isToolError,
   toToolError,
-} from './tool-error.js'
+} from './tool-error'
 
 // ============ Messages API (P1) ============
 
 export {
   MessagesClient,
-} from './messages.js'
+} from './messages'
 
 export type {
   MessageParam,
@@ -208,14 +208,14 @@ export type {
   StreamEvent,
   MessagesClientConfig,
   CountTokensParams,
-} from './messages.js'
+} from './messages'
 
 // ============ Tool Runner (P1) ============
 
 export {
   ToolRunner,
   ClientToolRunner,
-} from './tool-runner.js'
+} from './tool-runner'
 
 export type {
   ToolRunnerParams,
@@ -223,7 +223,7 @@ export type {
   ToolContext,
   ToolResponse,
   RunResult,
-} from './tool-runner.js'
+} from './tool-runner'
 
 // ============ Session Store (P2) ============
 
@@ -232,14 +232,14 @@ export {
   FileSessionStore,
   MemorySessionStore,
   createSessionStore,
-} from './session/store.js'
+} from './session/store'
 
 // ============ Beta Tools (P2) ============
 
 export {
   betaTool,
   betaZodTool,
-} from './beta-tool.js'
+} from './beta-tool'
 
 export type {
   BetaToolOptions,
@@ -248,7 +248,7 @@ export type {
   ToolContext as BetaToolContext,
   BetaZodToolOptions,
   ZodSchema,
-} from './beta-tool.js'
+} from './beta-tool'
 
 // ============ Token Counter (P2) ============
 
@@ -256,19 +256,19 @@ export {
   TokenCounter,
   countTokens,
   countMessageTokens,
-} from './token.js'
+} from './token'
 
 // ============ Memory Tools (P2) ============
 
 export {
   createMemoryTools,
-} from './memory/tool.js'
+} from './memory/tool'
 
 export type {
   MemoryType,
   MemoryToolOptions,
   MemoryTools,
-} from './memory/tool.js'
+} from './memory/tool'
 
 // ============ Beta API (P2) ============
 
@@ -277,20 +277,20 @@ export {
   BetaMessagesAPI,
   BetaToolRunner,
   createBetaAPI,
-} from './beta/index.js'
+} from './beta/index'
 
 export type {
   BetaToolRunnerParams,
   BetaMessageStreamParams,
   BetaToolRunnerResult,
-} from './beta/index.js'
+} from './beta/index'
 
 // ============ Batch API (P2) ============
 
 export {
   BatchClient,
   BatchToolRunner,
-} from './batch.js'
+} from './batch'
 
 export type {
   BatchRequestItem,
@@ -302,4 +302,4 @@ export type {
   BatchCreateResponse,
   BatchToolRunnerParams,
   BatchToolRunnerResult,
-} from './batch.js'
+} from './batch'

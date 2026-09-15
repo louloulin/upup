@@ -14,7 +14,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import type { PiEventStreamPort } from '@upup/pi-app';
-import { EvalApp, type EvalProgressEvent } from './components/index.js';
+import { EvalApp, type EvalProgressEvent } from './components/index';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

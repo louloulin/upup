@@ -33,7 +33,7 @@ export type {
   PermissionCliArgs,
   SecurityCheckResult,
   SecurityCheck,
-} from './types.js'
+} from './types'
 
 // Constants
 export {
@@ -45,7 +45,7 @@ export {
   NO_CONFIRMATION_MODES,
   BLOCKING_MODES,
   DANGEROUS_MODES,
-} from './types.js'
+} from './types'
 
 // Permission Setup (primary source for setup functions)
 export {
@@ -68,7 +68,7 @@ export {
   
   // Defaults
   DEFAULT_CLI_ARGS,
-} from './permissionSetup.js'
+} from './permissionSetup'
 
 // Session State
 export {
@@ -111,7 +111,7 @@ export {
   isMcpToolRule,
   parseRuleStrings,
   normalizeRuleContent,
-} from './permissionRuleParser.js'
+} from './permissionRuleParser'
 
 // Permissions Loader
 export {
@@ -125,7 +125,7 @@ export {
   getBuiltInRules,
   settingsJsonToRules,
   RULE_SOURCE_PRIORITY,
-} from './permissionsLoader.js'
+} from './permissionsLoader'
 
 // Permissions Core
 export {
@@ -141,7 +141,7 @@ export {
   isOperationAllowedInCurrentMode,
   getModeSecurityLevel,
   isOperationSafe,
-} from './permissions.js'
+} from './permissions'
 
 // Denial Tracking
 export {
@@ -156,7 +156,7 @@ export {
   withDenialTracking,
   DENIAL_LIMITS,
   RECOVERY_SUGGESTIONS,
-} from './denialTracking.js'
+} from './denialTracking'
 
 // Permission Update
 export {
@@ -174,7 +174,7 @@ export {
   PERMISSION_CONFIG_DIR,
   PERMISSION_CONFIG_FILE,
   SESSION_CONFIG_FILE,
-} from './PermissionUpdate.js'
+} from './PermissionUpdate'
 
 // Approval Config
 export {
@@ -190,4 +190,4 @@ export {
   DEFAULT_TIMEOUT_MS,
   DEFAULT_APPROVAL_OPTIONS,
   DEFAULT_UI_CONFIG,
-} from './approvalConfig.js'
+} from './approvalConfig'

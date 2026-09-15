@@ -10,7 +10,7 @@ import {
   resetIPCRouter,
   type IPCMessage,
   type IPCResponse,
-} from './ipc.js';
+} from './ipc';
 
 describe('IPCRouter', () => {
   let router: IPCRouter;

@@ -1,4 +1,4 @@
-import type { NormalizationMethod } from './types.js';
+import type { NormalizationMethod } from './types';
 
 export function mean(values: readonly number[]): number {
   if (values.length === 0) return 0;

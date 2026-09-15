@@ -8,10 +8,10 @@ import {
   saveGatewayConfig,
   getGatewayConfigPath,
   type GatewayConfig,
-} from './config.js';
-import { loginWhatsApp } from './channels/whatsapp/login.js';
-import { startGateway } from './gateway.js';
-import type { GatewayRuntime } from './runtime-port.js';
+} from './config';
+import { loginWhatsApp } from './channels/whatsapp/login';
+import { startGateway } from './gateway';
+import type { GatewayRuntime } from './runtime-port';
 
 // Suppress noisy Baileys Signal protocol session logs
 const SUPPRESSED_PREFIXES = [

@@ -5,7 +5,7 @@
  * Add a step to the current plan.
  */
 
-import type { LocalCommand } from '../../types/command-types.js'
+import type { LocalCommand } from '../../types/command-types'
 
 export const addStepCommand: LocalCommand = {
   type: 'local',
@@ -14,5 +14,5 @@ export const addStepCommand: LocalCommand = {
   aliases: ['addstep'],
   argumentHint: '<step description>',
   supportsNonInteractive: true,
-  load: () => import('./add-step-impl.js'),
+  load: () => import('./add-step-impl'),
 }

@@ -9,7 +9,7 @@
 * globalThis registry populated by src/runtime/pi/plan-mode-state.ts at startup.
  */
 
-import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types.js'
+import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types'
 
 export const call = async (
   args: string,

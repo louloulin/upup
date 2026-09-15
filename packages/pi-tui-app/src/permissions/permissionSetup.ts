@@ -10,11 +10,11 @@ import type {
   PermissionMode,
   PermissionCliArgs,
   SecurityCheckResult
-} from './types.js'
+} from './types'
 import { 
   DEFAULT_PERMISSION_MODE, 
   EXTERNAL_PERMISSION_MODES 
-} from './types.js'
+} from './types'
 
 // ============================================================================
 // Permission Mode Source Tracking

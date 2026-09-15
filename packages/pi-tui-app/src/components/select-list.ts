@@ -1,5 +1,5 @@
 import { Container, Input, SelectList, Text, type SelectItem, getKeybindings } from '@earendil-works/pi-tui';
-import { PROVIDERS, type Model } from '../utils/model.js';
+import { PROVIDERS, type Model } from '../utils/model';
 import type { ApprovalDecision } from '@upup/pi-runtime';
 import type { SessionSummary } from '@upup/pi-session';
 import { selectListTheme, theme } from '@upup/utils';
@@ -280,5 +280,5 @@ export class SessionTagInputComponent {
 }
 
 // Re-export canonical implementations from tui overlays to avoid name collisions
-export { createModelSelector as createFullModelSelector } from '../tui/overlays/model-selector.js';
-export { createSessionSelector as createFullSessionSelector } from '../tui/overlays/session-selector.js';
+export { createModelSelector as createFullModelSelector } from '../tui/overlays/model-selector';
+export { createSessionSelector as createFullSessionSelector } from '../tui/overlays/session-selector';

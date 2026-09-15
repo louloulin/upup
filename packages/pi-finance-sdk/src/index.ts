@@ -32,42 +32,42 @@ export function createFinanceResult<T>(value: T, evidence: readonly FinanceEvide
   };
 }
 
-export { sandboxBalance, sandboxPositions, sandboxQuote, sandboxStateFile } from './sandbox-read.js';
-export type { SandboxBalance, SandboxPosition, SandboxQuote } from './sandbox-read.js';
-export { NativeSandboxBroker, nativeSandboxStateFile } from './sandbox-trading.js';
-export type { NativeOrderSide, NativeOrderType, NativeOrderStatus, NativeTimeInForce, NativeSandboxQuote, NativeSandboxOrder, NativeSandboxPosition, NativeSandboxBalance, NativePlaceOrderInput, NativeSandboxBrokerOptions } from './sandbox-trading.js';
-export { compareNativeFunds, getNativeFundDetail, getNativeFundHoldings, getNativeFundManager, getNativeFundPerformance, getTopNativeFunds, searchNativeFunds, screenNativeFunds } from './fund-catalog.js';
-export type { NativeFundComparisonItem, NativeFundComparisonPeriod, NativeFundComparisonResult } from './fund-catalog.js';
-export { createInitialFundWatchlistState, followNativeFund, listNativeFollowedFunds, unfollowNativeFund } from './fund-watchlist.js';
-export type { NativeFundWatchEntry, NativeFundWatchlistState } from './fund-watchlist.js';
-export { createInitialFundAlertState, createNativeFundAlert, deleteNativeFundAlert, listNativeFundAlerts } from './fund-alerts.js';
-export type { NativeFundAlert, NativeFundAlertState, NativeFundAlertType } from './fund-alerts.js';
-export { getNativeAStockFinancials, listNativeAStockFinancialSymbols } from './astock-financials.js';
-export type { NativeAStockFinancialPeriod, NativeAStockFinancials } from './astock-financials.js';
-export { getNativeFinancialSnapshot, listNativeFinancialSymbols } from './financial-snapshot.js';
-export type { NativeFinancialPeriod, NativeFinancialSnapshot } from './financial-snapshot.js';
-export { getNativeAStockNews, listNativeAStockNewsSymbols } from './astock-news.js';
-export type { NativeAStockNewsItem, NativeAStockNewsKind, NativeAStockNewsQuery, NativeAStockNewsResult } from './astock-news.js';
-export { getNativeCompanyProfile, getNativeRisks, getNativeSectors } from './knowledge-snapshot.js';
-export type { NativeCompanyProfile, NativeRiskAssessment, NativeRiskSeverity, NativeRiskType, NativeSectorAnalysis, NativeSectorOutlook } from './knowledge-snapshot.js';
-export { calculateNativePnl, calculateNativeTax, calculateNativeTradesTax } from './tax-calculator.js';
-export type { NativePnlResult, NativePnlTrade, NativePnlTradeInput, NativeTaxEstimate, NativeTaxInput, NativeTaxJurisdiction, NativeTradeTaxInput, NativeTradesTaxResult } from './tax-calculator.js';
-export { listNativeInvestmentStrategies } from './strategy-catalog.js';
-export type { NativeInvestmentStrategy, NativeStrategyQuery, NativeStrategyRiskTolerance, NativeStrategyTimeHorizon } from './strategy-catalog.js';
-export { listNativeExecutionStrategies, runNativeStrategyBacktest, runNativeStrategyPaper, NATIVE_STRATEGY_METADATA } from './strategy-execution.js';
-export type { NativeAlgoKind, NativeStrategyBacktestInput, NativeStrategyBacktestReport, NativeStrategyMetadata, NativeStrategyPaperTrade, NativeStrategyReport, NativeStrategyRunPaperInput } from './strategy-execution.js';
-export { createInitialKnowledgeJournalState, getTrackedCompany, listTrackedCompanies, listTrackedSectors, trackNativeCompany, trackNativeSector } from './knowledge-journal.js';
-export type { NativeKnowledgeJournalState, NativeTrackedCompany, NativeTrackedCompanyInput, NativeTrackedSector, NativeTrackedSectorInput } from './knowledge-journal.js';
-export { NativeFilingsClient, readNativeFilings } from './filings.js';
-export type { NativeFilingType, NativeFilingRecord, NativeReadFilingsInput, NativeReadFilingsResult, NativeFilingsClientOptions } from './filings.js';
-export { NativeAltDataClient } from './alt-data.js';
-export type { NativeAltDataSource, NativeAltDataEvent, NativeAltDataInput, NativeAltDataSearchInput, NativeAltDataFetcher, NativeAltDataClientOptions } from './alt-data.js';
-export { NativeResearchDataClient, createNativeResearchDataAdapters, createTushareResearchDataFetcher } from './research-data.js';
-export type { ResearchDataClientOptions, ResearchDataEnvelope, ResearchDataFreshness, ResearchMarket, TushareResearchFetcherOptions } from './research-data.js';
-export { NativeEarningsTranscriptClient } from './earnings-transcripts.js';
-export type { NativeEarningsTranscriptClientOptions, NativeEarningsTranscriptQuery, NativeTranscriptRef } from './earnings-transcripts.js';
-export { NativeFundHistoryClient, getNativeFundHistoryForRange } from './fund-history.js';
-export type { NativeFundHistoryClientOptions, NativeFundHistoryPoint } from './fund-history.js';
+export { sandboxBalance, sandboxPositions, sandboxQuote, sandboxStateFile } from './sandbox-read';
+export type { SandboxBalance, SandboxPosition, SandboxQuote } from './sandbox-read';
+export { NativeSandboxBroker, nativeSandboxStateFile } from './sandbox-trading';
+export type { NativeOrderSide, NativeOrderType, NativeOrderStatus, NativeTimeInForce, NativeSandboxQuote, NativeSandboxOrder, NativeSandboxPosition, NativeSandboxBalance, NativePlaceOrderInput, NativeSandboxBrokerOptions } from './sandbox-trading';
+export { compareNativeFunds, getNativeFundDetail, getNativeFundHoldings, getNativeFundManager, getNativeFundPerformance, getTopNativeFunds, searchNativeFunds, screenNativeFunds } from './fund-catalog';
+export type { NativeFundComparisonItem, NativeFundComparisonPeriod, NativeFundComparisonResult } from './fund-catalog';
+export { createInitialFundWatchlistState, followNativeFund, listNativeFollowedFunds, unfollowNativeFund } from './fund-watchlist';
+export type { NativeFundWatchEntry, NativeFundWatchlistState } from './fund-watchlist';
+export { createInitialFundAlertState, createNativeFundAlert, deleteNativeFundAlert, listNativeFundAlerts } from './fund-alerts';
+export type { NativeFundAlert, NativeFundAlertState, NativeFundAlertType } from './fund-alerts';
+export { getNativeAStockFinancials, listNativeAStockFinancialSymbols } from './astock-financials';
+export type { NativeAStockFinancialPeriod, NativeAStockFinancials } from './astock-financials';
+export { getNativeFinancialSnapshot, listNativeFinancialSymbols } from './financial-snapshot';
+export type { NativeFinancialPeriod, NativeFinancialSnapshot } from './financial-snapshot';
+export { getNativeAStockNews, listNativeAStockNewsSymbols } from './astock-news';
+export type { NativeAStockNewsItem, NativeAStockNewsKind, NativeAStockNewsQuery, NativeAStockNewsResult } from './astock-news';
+export { getNativeCompanyProfile, getNativeRisks, getNativeSectors } from './knowledge-snapshot';
+export type { NativeCompanyProfile, NativeRiskAssessment, NativeRiskSeverity, NativeRiskType, NativeSectorAnalysis, NativeSectorOutlook } from './knowledge-snapshot';
+export { calculateNativePnl, calculateNativeTax, calculateNativeTradesTax } from './tax-calculator';
+export type { NativePnlResult, NativePnlTrade, NativePnlTradeInput, NativeTaxEstimate, NativeTaxInput, NativeTaxJurisdiction, NativeTradeTaxInput, NativeTradesTaxResult } from './tax-calculator';
+export { listNativeInvestmentStrategies } from './strategy-catalog';
+export type { NativeInvestmentStrategy, NativeStrategyQuery, NativeStrategyRiskTolerance, NativeStrategyTimeHorizon } from './strategy-catalog';
+export { listNativeExecutionStrategies, runNativeStrategyBacktest, runNativeStrategyPaper, NATIVE_STRATEGY_METADATA } from './strategy-execution';
+export type { NativeAlgoKind, NativeStrategyBacktestInput, NativeStrategyBacktestReport, NativeStrategyMetadata, NativeStrategyPaperTrade, NativeStrategyReport, NativeStrategyRunPaperInput } from './strategy-execution';
+export { createInitialKnowledgeJournalState, getTrackedCompany, listTrackedCompanies, listTrackedSectors, trackNativeCompany, trackNativeSector } from './knowledge-journal';
+export type { NativeKnowledgeJournalState, NativeTrackedCompany, NativeTrackedCompanyInput, NativeTrackedSector, NativeTrackedSectorInput } from './knowledge-journal';
+export { NativeFilingsClient, readNativeFilings } from './filings';
+export type { NativeFilingType, NativeFilingRecord, NativeReadFilingsInput, NativeReadFilingsResult, NativeFilingsClientOptions } from './filings';
+export { NativeAltDataClient } from './alt-data';
+export type { NativeAltDataSource, NativeAltDataEvent, NativeAltDataInput, NativeAltDataSearchInput, NativeAltDataFetcher, NativeAltDataClientOptions } from './alt-data';
+export { NativeResearchDataClient, createNativeResearchDataAdapters, createTushareResearchDataFetcher } from './research-data';
+export type { ResearchDataClientOptions, ResearchDataEnvelope, ResearchDataFreshness, ResearchMarket, TushareResearchFetcherOptions } from './research-data';
+export { NativeEarningsTranscriptClient } from './earnings-transcripts';
+export type { NativeEarningsTranscriptClientOptions, NativeEarningsTranscriptQuery, NativeTranscriptRef } from './earnings-transcripts';
+export { NativeFundHistoryClient, getNativeFundHistoryForRange } from './fund-history';
+export type { NativeFundHistoryClientOptions, NativeFundHistoryPoint } from './fund-history';
 
 // ============================================================================
 // Fund capabilities owned by this Pi Package. Public names remain stable for
@@ -84,18 +84,18 @@ export {
   screenFunds,
   searchFundsByType,
   getTopFunds,
-} from './fund-api.js';
-export { BacktestEngine, backtestDCA, backtestLumpSum, backtestThreshold, compareBacktests, generateBacktestReport, getFundHistory } from './fund-backtest.js';
-export type { BacktestConfig, BacktestResult, BacktestSnapshot } from './fund-backtest.js';
-export { analyzeSectorAllocation, getFundHoldingAnalysis, getFundsHoldingStock, generateHoldingReport } from './fund-holdings-analysis.js';
-export type { StockInfo, FundHoldingWithStock, StockFundMapping, SectorAllocation, FundHoldingAnalysis } from './fund-holdings-analysis.js';
+} from './fund-api';
+export { BacktestEngine, backtestDCA, backtestLumpSum, backtestThreshold, compareBacktests, generateBacktestReport, getFundHistory } from './fund-backtest';
+export type { BacktestConfig, BacktestResult, BacktestSnapshot } from './fund-backtest';
+export { analyzeSectorAllocation, getFundHoldingAnalysis, getFundsHoldingStock, generateHoldingReport } from './fund-holdings-analysis';
+export type { StockInfo, FundHoldingWithStock, StockFundMapping, SectorAllocation, FundHoldingAnalysis } from './fund-holdings-analysis';
 export {
   screenFunds as screenFundsByCriteria,
   getFundRecommendations,
   compareFunds,
   getScreeningStrategies,
-} from './fund-screening.js';
-export type { ScreeningCriteria, FundRecommendation, FundRecommendationScore } from './fund-screening.js';
+} from './fund-screening';
+export type { ScreeningCriteria, FundRecommendation, FundRecommendationScore } from './fund-screening';
 export {
   createPortfolio,
   getPortfolio,
@@ -103,7 +103,7 @@ export {
   sellFund,
   getTrades,
   resetPortfolio,
-} from './fund-trade.js';
+} from './fund-trade';
 export type {
   FundBasic,
   FundPerformance,
@@ -115,4 +115,4 @@ export type {
   SimulatedTrade,
   FollowedFund,
   AlertConfig,
-} from './fund-types.js';
+} from './fund-types';

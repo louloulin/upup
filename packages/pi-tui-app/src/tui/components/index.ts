@@ -11,7 +11,7 @@ export {
   type ChatMessage,
   type ToolCall,
   type ChatLogProps,
-} from './chat-log.js';
+} from './chat-log';
 
 // ToolEvent Component
 export {
@@ -20,7 +20,7 @@ export {
   type ToolEventDisplayEvent,
   type ToolEventDisplayType,
   type ToolEventDisplayProps,
-} from './tool-event.js';
+} from './tool-event';
 
 // HintBar Component
 export {
@@ -29,11 +29,11 @@ export {
   COMMON_HINTS,
   type HintItem,
   type HintBarProps,
-} from './hint-bar.js';
+} from './hint-bar';
 
 // Editor Component
 export {
   Editor,
   createEditor,
   type EditorProps,
-} from './editor.js';
+} from './editor';

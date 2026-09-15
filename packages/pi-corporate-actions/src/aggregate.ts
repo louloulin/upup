@@ -4,8 +4,8 @@ import type {
   RightsIssueEvent,
   SplitEvent,
   TotalReturnBreakdown,
-} from './types.js';
-import { sortSplitsChronologically } from './splits.js';
+} from './types';
+import { sortSplitsChronologically } from './splits';
 
 export interface TotalReturnOptions {
   readonly symbol: string;

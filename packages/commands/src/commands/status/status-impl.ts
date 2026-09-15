@@ -6,7 +6,7 @@
  * Shows session info, model, tokens, MCP status, and more.
  */
 
-import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types.js'
+import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types'
 
 export interface StatusContext extends ToolUseContext {
   state?: {

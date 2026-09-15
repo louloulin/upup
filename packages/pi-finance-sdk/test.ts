@@ -1,16 +1,16 @@
 import { describe, expect, test } from 'bun:test';
-import { createEvidence, createFinanceResult } from './src/index.js';
-import { compareNativeFunds, getNativeFundDetail, getNativeFundHoldings, getNativeFundManager, getNativeFundPerformance, getTopNativeFunds, searchNativeFunds, screenNativeFunds } from './src/fund-catalog.js';
-import { createInitialFundWatchlistState, followNativeFund, listNativeFollowedFunds, unfollowNativeFund } from './src/fund-watchlist.js';
-import { createInitialFundAlertState, createNativeFundAlert, deleteNativeFundAlert, listNativeFundAlerts } from './src/fund-alerts.js';
-import { getNativeAStockFinancials, listNativeAStockFinancialSymbols } from './src/astock-financials.js';
-import { getNativeAStockNews, listNativeAStockNewsSymbols } from './src/astock-news.js';
-import { getNativeFinancialSnapshot, listNativeFinancialSymbols } from './src/financial-snapshot.js';
-import { getNativeCompanyProfile, getNativeRisks, getNativeSectors } from './src/knowledge-snapshot.js';
-import { calculateNativePnl, calculateNativeTax, calculateNativeTradesTax } from './src/tax-calculator.js';
-import { listNativeInvestmentStrategies } from './src/strategy-catalog.js';
-import { NativeSandboxBroker } from './src/sandbox-trading.js';
-import { createInitialKnowledgeJournalState, listTrackedCompanies, listTrackedSectors, trackNativeCompany, trackNativeSector } from './src/knowledge-journal.js';
+import { createEvidence, createFinanceResult } from './src/index';
+import { compareNativeFunds, getNativeFundDetail, getNativeFundHoldings, getNativeFundManager, getNativeFundPerformance, getTopNativeFunds, searchNativeFunds, screenNativeFunds } from './src/fund-catalog';
+import { createInitialFundWatchlistState, followNativeFund, listNativeFollowedFunds, unfollowNativeFund } from './src/fund-watchlist';
+import { createInitialFundAlertState, createNativeFundAlert, deleteNativeFundAlert, listNativeFundAlerts } from './src/fund-alerts';
+import { getNativeAStockFinancials, listNativeAStockFinancialSymbols } from './src/astock-financials';
+import { getNativeAStockNews, listNativeAStockNewsSymbols } from './src/astock-news';
+import { getNativeFinancialSnapshot, listNativeFinancialSymbols } from './src/financial-snapshot';
+import { getNativeCompanyProfile, getNativeRisks, getNativeSectors } from './src/knowledge-snapshot';
+import { calculateNativePnl, calculateNativeTax, calculateNativeTradesTax } from './src/tax-calculator';
+import { listNativeInvestmentStrategies } from './src/strategy-catalog';
+import { NativeSandboxBroker } from './src/sandbox-trading';
+import { createInitialKnowledgeJournalState, listTrackedCompanies, listTrackedSectors, trackNativeCompany, trackNativeSector } from './src/knowledge-journal';
 
 describe('pi-finance-sdk', () => {
   test('creates traceable evidence results without secrets', () => {

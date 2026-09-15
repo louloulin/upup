@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { createTushareResearchDataFetcher, NativeResearchDataClient } from './research-data.js';
+import { createTushareResearchDataFetcher, NativeResearchDataClient } from './research-data';
 
 function response(value: unknown, ok = true): Response {
   return new Response(JSON.stringify(value), { status: ok ? 200 : 500, statusText: ok ? 'OK' : 'Error', headers: { 'content-type': 'application/json' } });

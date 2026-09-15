@@ -1,4 +1,4 @@
-import type { FactorReturnsResult } from './types.js';
+import type { FactorReturnsResult } from './types';
 
 export function factorReturns(
   topQuintileReturns: readonly (readonly number[])[],

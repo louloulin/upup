@@ -7,7 +7,7 @@
  */
 
 import type { ToolResultMessage } from '@earendil-works/pi-ai';
-import { persistLargeResult, buildPersistedContent } from './tool-result-storage.js';
+import { persistLargeResult, buildPersistedContent } from './tool-result-storage';
 
 /** Maximum total characters across all tool results in a single turn. */
 export const MAX_TURN_RESULT_CHARS = 200_000;

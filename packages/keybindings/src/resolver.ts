@@ -13,8 +13,8 @@ import type {
   Keybinding,
   ResolveResult,
   KeybindingBlock,
-} from './types.js';
-import { parseKeystroke, keyEventToKeystroke, keystrokesMatch } from './parser.js';
+} from './types';
+import { parseKeystroke, keyEventToKeystroke, keystrokesMatch } from './parser';
 
 /**
  * Resolve a key event against a set of bindings and active contexts.

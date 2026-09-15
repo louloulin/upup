@@ -20,9 +20,9 @@ import {
   buildCoachSystemPrompt,
   isCoachCompiledIn,
   isCoachEnabled,
-} from './role-system.js';
-import { featureGates } from './feature-gates.js';
-import { buildDefaultInvestmentSystemPrompt } from './index.js';
+} from './role-system';
+import { featureGates } from './feature-gates';
+import { buildDefaultInvestmentSystemPrompt } from './index';
 
 const previousEnv: { coach?: string; feature?: string } = {};
 

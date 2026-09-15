@@ -1,7 +1,7 @@
 import { Type } from 'typebox';
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import { resolvePiCapabilityHost } from '@upup/pi-capability-registry';
-import { PI_MANAGEMENT_HOST_CONTRACT, PI_MANAGEMENT_PACKAGE_NAME, PI_MANAGEMENT_PACKAGE_VERSION, type PiManagementSnapshot } from '../src/index.js';
+import { PI_MANAGEMENT_HOST_CONTRACT, PI_MANAGEMENT_PACKAGE_NAME, PI_MANAGEMENT_PACKAGE_VERSION, type PiManagementSnapshot } from '../src/index';
 
 const emptyParameters = Type.Object({});
 const providerParameters = Type.Object({ provider: Type.Optional(Type.Union([Type.Literal('yahoo'), Type.Literal('tushare')])) });

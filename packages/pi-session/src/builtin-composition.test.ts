@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { PiAgentSessionFactory, builtinSessionComposition, builtinSessionFinanceComposition, builtinSessionPlatformComposition, builtinSessionPromptComposition, type PiSessionFinanceProviders, type PiSessionPlatformProviders, type PiSessionPromptProviders, type PiSessionCompositionProviders } from './index.js';
+import { PiAgentSessionFactory, builtinSessionComposition, builtinSessionFinanceComposition, builtinSessionPlatformComposition, builtinSessionPromptComposition, type PiSessionFinanceProviders, type PiSessionPlatformProviders, type PiSessionPromptProviders, type PiSessionCompositionProviders } from './index';
 
 describe('Pi session composition sub-boundaries', () => {
   test('builtin halves cover the combined contract surface', () => {

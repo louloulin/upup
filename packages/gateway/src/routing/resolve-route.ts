@@ -1,4 +1,4 @@
-import type { GatewayConfig } from '../config.js';
+import type { GatewayConfig } from '../config';
 
 export type RoutePeer = {
   kind: 'direct' | 'group';

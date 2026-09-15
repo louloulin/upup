@@ -6,8 +6,8 @@
  */
 
 import type { MemoryStore } from '@upup/memory'
-import type { BetaTool, JsonSchema } from '../beta-tool.js'
-import { betaTool } from '../beta-tool.js'
+import type { BetaTool, JsonSchema } from '../beta-tool'
+import { betaTool } from '../beta-tool'
 
 // ============ Types ============
 

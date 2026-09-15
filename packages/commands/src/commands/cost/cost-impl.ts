@@ -5,7 +5,7 @@
  * Displays token usage and cost tracking for the current session.
  */
 
-import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types.js'
+import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types'
 
 // Extend context to include cost state
 export interface CostContext extends ToolUseContext {

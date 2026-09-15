@@ -7,7 +7,7 @@
  * Run: bun run scripts/oscript-all-skills-test.ts
  */
 
-import { initializeSkills, getAllSkillCommands, getSkillCommand } from '../src/skills/commands.js';
+import { initializeSkills, getAllSkillCommands, getSkillCommand } from '../src/skills/commands';
 
 // ============================================================================
 // Test Configuration

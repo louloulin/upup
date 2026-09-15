@@ -10,7 +10,7 @@
  */
 
 import { globalUpupPath } from '@upup/utils';
-import { getStatsDaysLimit } from './storage-adapter.js';
+import { getStatsDaysLimit } from './storage-adapter';
 import * as fs from 'fs';
 import * as path from 'path';
 

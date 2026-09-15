@@ -7,9 +7,9 @@
  * @see https://docs.anthropic.com/en/docs/claude-code/api
  */
 
-import type { HookExecutor } from './executor.js'
-import type { HookEvent, HookInput, HookOutput, HookCallback } from './types.js'
-import type { ContentBlock, Message } from '../messages.js'
+import type { HookExecutor } from './executor'
+import type { HookEvent, HookInput, HookOutput, HookCallback } from './types'
+import type { ContentBlock, Message } from '../messages'
 
 // ============ PostSampling 事件类型 ============
 
@@ -339,4 +339,4 @@ export type {
   PostSamplingOutput,
   PostSamplingCallback,
   PostSamplingConfig,
-} from './post-sampling.js'
+} from './post-sampling'

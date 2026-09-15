@@ -20,7 +20,7 @@ import {
   snapToGraphemeBoundary,
   graphemeAt,
   isEmoji,
-} from '../../utils/grapheme.js';
+} from '../../utils/grapheme';
 import {
   vimNextWord,
   vimPrevWord,
@@ -33,7 +33,7 @@ import {
   isVimWordChar,
   isVimWhitespace,
   isVimPunctuation,
-} from '../../utils/vim-movements.js';
+} from '../../utils/vim-movements';
 
 export interface CursorPosition {
   /** 字符偏移量 */

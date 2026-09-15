@@ -1,9 +1,9 @@
-import { monitorWebInbox } from './inbound.js';
-import { setActiveWebListener } from './outbound.js';
-import { logout } from './auth-store.js';
-import type { WhatsAppInboundMessage } from './types.js';
-import type { ReconnectPolicy } from './reconnect.js';
-import { computeBackoff, DEFAULT_RECONNECT_POLICY } from './reconnect.js';
+import { monitorWebInbox } from './inbound';
+import { setActiveWebListener } from './outbound';
+import { logout } from './auth-store';
+import type { WhatsAppInboundMessage } from './types';
+import type { ReconnectPolicy } from './reconnect';
+import { computeBackoff, DEFAULT_RECONNECT_POLICY } from './reconnect';
 
 export async function monitorWhatsAppChannel(params: {
   accountId: string;

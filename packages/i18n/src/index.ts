@@ -1,7 +1,7 @@
 /**
  * i18n public surface (P3.a.4)
  *
- * Thin re-export module. Lets call sites `import { t, getLocale, type Locale } from '../i18n/index.js'`
+ * Thin re-export module. Lets call sites `import { t, getLocale, type Locale } from '../i18n/index'`
  * without knowing the internal file layout.
  */
 
@@ -13,4 +13,4 @@ export {
   t,
   type Locale,
   type StringKey,
-} from './strings.js';
+} from './strings';

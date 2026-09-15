@@ -4,7 +4,7 @@
  * 直接导入命令模块进行测试
  */
 
-import { ALL_COMMANDS, executeCommand } from '../packages/commands/dist/all-commands.js'
+import { ALL_COMMANDS, executeCommand } from '../packages/commands/dist/all-commands'
 
 const PASS = { count: 0 }
 const FAIL = { count: 0 }

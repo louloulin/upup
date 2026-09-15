@@ -27,7 +27,7 @@ describe('pi-corporate-actions extension registration', () => {
       },
     };
     const { events, dispose } = setHost(new Map([['@upup/pi-corporate-actions', HOST_REG]]));
-    const mod = await import('./index.js');
+    const mod = await import('./index');
     mod.default({ ...fakePi, events } as unknown as Parameters<typeof mod.default>[0]);
     dispose();
     expect(tools.size).toBe(8);
@@ -43,7 +43,7 @@ describe('pi-corporate-actions extension registration', () => {
 
   test('registerHostTools is a no-op when host is missing', async () => {
     const { events, dispose } = setHost(new Map());
-    const mod = await import('./index.js');
+    const mod = await import('./index');
     expect(typeof mod.default).toBe('function');
     mod.default({ registerTool: () => undefined, events } as unknown as Parameters<typeof mod.default>[0]);
     dispose();
@@ -57,7 +57,7 @@ describe('pi-corporate-actions extension registration', () => {
       },
     };
     const { events, dispose } = setHost(new Map([['@upup/pi-corporate-actions', HOST_REG]]));
-    const mod = await import('./index.js');
+    const mod = await import('./index');
     mod.default({ ...fakePi, events } as unknown as Parameters<typeof mod.default>[0]);
     const tool = tools.get('corporate_actions_dividends');
     expect(tool).toBeDefined();
@@ -78,7 +78,7 @@ describe('pi-corporate-actions extension registration', () => {
       },
     };
     const { events, dispose } = setHost(new Map([['@upup/pi-corporate-actions', HOST_REG]]));
-    const mod = await import('./index.js');
+    const mod = await import('./index');
     mod.default({ ...fakePi, events } as unknown as Parameters<typeof mod.default>[0]);
     const ctrl = new AbortController();
     ctrl.abort();

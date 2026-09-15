@@ -7,7 +7,7 @@
  * Type: local (direct execution)
  */
 
-import type { LocalCommand } from '../../types/command-types.js'
+import type { LocalCommand } from '../../types/command-types'
 
 export const agentCommand: LocalCommand = {
   type: 'local',
@@ -15,7 +15,7 @@ export const agentCommand: LocalCommand = {
   description: 'Spawn subagent for parallel or background tasks',
   aliases: ['spawn'],
   supportsNonInteractive: true,
-  load: () => import('./agent-impl.js'),
+  load: () => import('./agent-impl'),
 }
 
 export default agentCommand

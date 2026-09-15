@@ -8,7 +8,7 @@
  * Category: mcp
  */
 
-import type { LocalCommand } from '../../types/command-types.js'
+import type { LocalCommand } from '../../types/command-types'
 
 export const mcpAddCommand: LocalCommand = {
   type: 'local',
@@ -16,7 +16,7 @@ export const mcpAddCommand: LocalCommand = {
   description: 'Add an MCP server configuration',
   aliases: [],
   supportsNonInteractive: true,
-  load: () => import('./mcp-add-impl.js'),
+  load: () => import('./mcp-add-impl'),
 }
 
 export default mcpAddCommand

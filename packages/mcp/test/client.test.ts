@@ -9,7 +9,7 @@
  */
 
 import { describe, test, expect, beforeEach } from 'bun:test';
-import { MCPClientManager, type MCPServerConfig, type MCPClientConfig } from '../src/client.js';
+import { MCPClientManager, type MCPServerConfig, type MCPClientConfig } from '../src/client';
 
 describe('MCP Client Manager', () => {
   let manager: MCPClientManager;

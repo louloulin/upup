@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { createDryRunUniverse, dryRunEvidence } from './dry-run.js';
+import { createDryRunUniverse, dryRunEvidence } from './dry-run';
 
 describe('createDryRunUniverse', () => {
   test('returns 10 symbols by default', () => {

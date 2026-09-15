@@ -11,7 +11,7 @@
  */
 
 import { Container, Text, Spacer, Box, ScrollView } from '@earendil-works/pi-tui';
-import { theme } from '../../theme.js';
+import { theme } from '../../theme';
 
 interface DiffFile {
   name: string

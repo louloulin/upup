@@ -1,4 +1,4 @@
-import type { DividendEvent } from './types.js';
+import type { DividendEvent } from './types';
 
 export interface DividendFilterOptions {
   readonly startDate?: string;

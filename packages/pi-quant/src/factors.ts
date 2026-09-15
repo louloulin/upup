@@ -1,4 +1,4 @@
-import type { FactorBar, FactorDef, FactorResult } from './types.js';
+import type { FactorBar, FactorDef, FactorResult } from './types';
 
 export const FACTOR_LIBRARY: readonly FactorDef[] = Object.freeze([
   { id: 'mom_12_1', name: '12-1 Month Momentum', category: 'momentum', description: 'Past 12 months return excluding the most recent month', direction: 'long_high' },

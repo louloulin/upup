@@ -11,7 +11,7 @@
  * 基于 Claude Code 的 permissionRuleParser.ts 设计
  */
 
-import type { PermissionRuleValue } from './types.js'
+import type { PermissionRuleValue } from './types'
 
 // ============================================================================
 // Constants

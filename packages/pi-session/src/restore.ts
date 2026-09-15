@@ -13,7 +13,7 @@
  */
 
 import type { SessionData, SessionMessage, FileHistorySnapshot } from '@upup/pi-session';
-import { getSession } from './storage.js';
+import { getSession } from './storage';
 import { SESSIONS_DIR } from '@upup/utils';
 import { readdirSync, existsSync } from 'fs';
 import { join } from 'path';
@@ -310,7 +310,7 @@ export async function resolveResumeTarget(
   if (!arg) return null;
 
   // Load storage module once
-  const storage = await import('./storage.js');
+  const storage = await import('./storage');
 
   // First, search by session ID without project filter (ID searches should be global)
   // Check if it's a session_ prefix format (exact match)
@@ -366,7 +366,7 @@ export async function resolveResumeTarget(
  * Get the most recent session for current project
  */
 export async function getMostRecentSession(projectPath?: string): Promise<string | null> {
-  const { getSessionSummaries } = await import('./storage.js');
+  const { getSessionSummaries } = await import('./storage');
   const sessions = await getSessionSummaries({ projectPath });
   return sessions.length > 0 ? sessions[0].id : null;
 }

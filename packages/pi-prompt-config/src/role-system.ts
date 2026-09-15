@@ -21,7 +21,7 @@
  *   - 4 唯一 D1-D3 由 capability-manifest 模块覆盖,
  *     本文件不重复事实,只生成 1 句总括 prompt 片段。
  */
-import { isFeatureCompiledIn } from './feature-gates.js';
+import { isFeatureCompiledIn } from './feature-gates';
 import { recordFeatureGate } from '@upup/pi-observability/integration';
 
 // ---------------------------------------------------------------------------

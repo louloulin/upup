@@ -8,4 +8,4 @@ export {
   type PooledProcess,
   type PooledProcessStatus,
   type ProcessPoolEvent,
-} from './pool.js'
+} from './pool'

@@ -5,7 +5,7 @@ import type {
   MemoryKeywordCandidate,
   MemorySearchResult,
   MemoryVectorCandidate,
-} from './types.js';
+} from './types';
 
 type SqliteQuery<T> = {
   all(...params: unknown[]): T[];

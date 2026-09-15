@@ -9,8 +9,8 @@ export {
   useStore,
   useStoreSelector,
   useStoreSubscription,
-} from './use-store.js';
-export type { Store } from '../state/store.js';
+} from './use-store';
+export type { Store } from '../state/store';
 
 // Query Hooks
 export {
@@ -19,7 +19,7 @@ export {
   useQueryGeneration,
   type UseQueryResult,
   type UseQueryGenerationResult,
-} from './use-query.js';
+} from './use-query';
 
 // Input Hooks
 export {
@@ -30,7 +30,7 @@ export {
   type InputHandlerMap,
   type UseInputOptions,
   type UseInputResult,
-} from './use-input.js';
+} from './use-input';
 
 // Streaming Hooks
 export {
@@ -41,7 +41,7 @@ export {
   type UseStreamingResult,
   type UseTypingEffectOptions,
   type UseTypingEffectResult,
-} from './use-streaming.js';
+} from './use-streaming';
 
 // Approval Hooks
 export {
@@ -52,7 +52,7 @@ export {
   type ApprovalStatus,
   type ApprovalState,
   type UseApprovalResult,
-} from './use-approval.js';
+} from './use-approval';
 
 // CLI Integration Hooks
 export {
@@ -60,7 +60,7 @@ export {
   createCLISubscription,
   type UseCLIIntegrationOptions,
   type UseCLIIntegrationResult,
-} from './use-cli-integration.js';
+} from './use-cli-integration';
 
 // Reactive Render Hooks
 export {
@@ -71,4 +71,4 @@ export {
   requestReactiveRender,
   type UseReactiveRenderOptions,
   type UseReactiveRenderResult,
-} from './use-reactive-render.js';
+} from './use-reactive-render';

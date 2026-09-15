@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { createPlatformComposition, type PlatformCompositionOptions } from './src/index.js';
+import { createPlatformComposition, type PlatformCompositionOptions } from './src/index';
 import type { UpUpAgentSpec } from '@upup/pi-runtime';
 
 const baseSpec: UpUpAgentSpec = {
@@ -155,7 +155,7 @@ describe('@upup/pi-platform-composition', () => {
 
 describe('@upup/pi-platform-composition cron platform surface', () => {
   test('default cron platform provider routes loadCronStore and runner through @upup/cron', async () => {
-    const { defaultCronPlatformProvider } = await import('./src/index.js');
+    const { defaultCronPlatformProvider } = await import('./src/index');
     expect(typeof defaultCronPlatformProvider.loadCronStore).toBe('function');
     expect(typeof defaultCronPlatformProvider.saveCronStore).toBe('function');
     expect(typeof defaultCronPlatformProvider.ensureHeartbeatCronJob).toBe('function');
@@ -164,7 +164,7 @@ describe('@upup/pi-platform-composition cron platform surface', () => {
   });
 
   test('cron platform provider is replaceable without touching @upup/pi-session', async () => {
-    const platformModule = await import('./src/index.js');
+    const platformModule = await import('./src/index');
     const defaultCronPlatformProvider = platformModule.defaultCronPlatformProvider;
     type CronPlatformProvider = platformModule.CronPlatformProvider;
     let calls = { load: 0, ensure: 0, execute: 0, start: 0 };

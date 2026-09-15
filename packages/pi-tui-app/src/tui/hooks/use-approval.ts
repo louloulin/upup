@@ -5,7 +5,7 @@
  * 处理工具执行授权的 Hook
  */
 
-import { createStore } from '../state/store.js';
+import { createStore } from '../state/store';
 
 /**
  * 授权请求类型

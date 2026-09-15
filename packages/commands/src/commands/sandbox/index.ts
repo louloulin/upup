@@ -7,7 +7,7 @@
  * Type: local (direct execution, no model involvement)
  */
 
-import type { LocalCommand } from '../../types/command-types.js'
+import type { LocalCommand } from '../../types/command-types'
 
 export const sandboxCommand: LocalCommand = {
   type: 'local',
@@ -15,7 +15,7 @@ export const sandboxCommand: LocalCommand = {
   description: 'Show or configure sandbox settings',
   aliases: ['sb'],
   supportsNonInteractive: true,
-  load: () => import('./sandbox-impl.js'),
+  load: () => import('./sandbox-impl'),
 }
 
 export default sandboxCommand

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { cleanMarkdownForWhatsApp, isSelfChatMode, normalizeE164, toWhatsappJid } from './utils.js';
+import { cleanMarkdownForWhatsApp, isSelfChatMode, normalizeE164, toWhatsappJid } from './utils';
 
 describe('gateway utils', () => {
   describe('normalizeE164', () => {

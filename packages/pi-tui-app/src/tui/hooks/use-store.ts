@@ -5,7 +5,7 @@
  * 提供在 pi-tui 组件中使用 Store 的方式
  */
 
-import type { Store, Listener } from '../state/store.js';
+import type { Store, Listener } from '../state/store';
 
 /**
  * 创建 Store Hook

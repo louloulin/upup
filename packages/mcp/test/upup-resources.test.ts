@@ -20,7 +20,7 @@ import {
   publishCitationSnapshot,
   readCitationSnapshot,
   readUpupResource,
-} from '../src/upup-resources.js';
+} from '../src/upup-resources';
 import { DossierStore } from '@upup/pi-storage';
 import { AuditChain } from '@upup/pi-storage';
 import { CitationRegistry } from '@upup/pi-runtime';

@@ -5,7 +5,7 @@
  * to provide background task execution capabilities.
  */
 
-import type { Worker, WorkerHealth, Task, TaskResult } from '../supervisor.js';
+import type { Worker, WorkerHealth, Task, TaskResult } from '../supervisor';
 import { computeNextRunAtMs, executeCronJob, loadCronStore, saveCronStore, type CronJob } from '@upup/cron';
 import type { GatewayAgentRuntimePort, GatewayRuntime } from '@upup/gateway';
 

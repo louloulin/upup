@@ -3,7 +3,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { runStrategy } from './strategy.js';
+import { runStrategy } from './strategy';
 import { StrategyStore } from '@upup/memory';
 
 function inMemStore(): StrategyStore {

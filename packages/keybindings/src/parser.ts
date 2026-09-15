@@ -5,7 +5,7 @@
  * Reference: Loucode's keybindings/parser.ts
  */
 
-import type { ParsedKeystroke, KeyEvent } from './types.js';
+import type { ParsedKeystroke, KeyEvent } from './types';
 
 /**
  * Parse a keystroke string like "ctrl+shift+k" into a ParsedKeystroke.

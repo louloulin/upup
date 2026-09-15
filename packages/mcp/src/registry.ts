@@ -6,7 +6,7 @@
  */
 
 import type { PiMcpTool } from '@upup/mcp';
-import type { MCPClientManager, MCPServerConnection } from './client.js';
+import type { MCPClientManager, MCPServerConnection } from './client';
 
 /**
  * MCP Registered Tool format

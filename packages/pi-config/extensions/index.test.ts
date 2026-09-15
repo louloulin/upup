@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import configExtension from './index.js';
+import configExtension from './index';
 
 describe('pi-config extension', () => {
   test('registers isolated config tools and honors abort', async () => {

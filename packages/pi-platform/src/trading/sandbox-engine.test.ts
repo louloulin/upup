@@ -14,8 +14,8 @@ import { mkdtempSync, rmSync, readFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { SandboxBroker } from './sandbox-engine.js';
-import type { Quote } from './types.js';
+import { SandboxBroker } from './sandbox-engine';
+import type { Quote } from './types';
 
 // Deterministic quote provider for tests
 function fixedQuoteProvider(price: number) {

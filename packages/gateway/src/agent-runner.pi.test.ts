@@ -10,7 +10,7 @@ function fixtureRuntime() {
   configurePiSessionService(() => createPiAgentRuntime());
   return { isSessionRunning: isPiSessionRunning, runPrompt: runPiPrompt };
 }
-import { runAgentForMessage } from './agent-runner.js';
+import { runAgentForMessage } from './agent-runner';
 
 describe('Gateway Pi runner contract', () => {
   test('runs through Pi AgentSession, emits adapted events, and resumes the same JSONL session', async () => {

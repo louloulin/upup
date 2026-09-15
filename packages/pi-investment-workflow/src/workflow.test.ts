@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
-import { CANONICAL_INVESTMENT_PHASES, createInvestmentWorkflowArtifact, executeInvestmentPhase, INVESTMENT_AGENT_PROFILES, type InvestmentWorkflowServices } from './workflow.js';
-import { createInvestmentDossier, validateInvestmentDossier } from './investment-dossier.js';
+import { CANONICAL_INVESTMENT_PHASES, createInvestmentWorkflowArtifact, executeInvestmentPhase, INVESTMENT_AGENT_PROFILES, type InvestmentWorkflowServices } from './workflow';
+import { createInvestmentDossier, validateInvestmentDossier } from './investment-dossier';
 
 const services: InvestmentWorkflowServices = {
   getResearchData: async () => ({ price: '100', ratios: 'PE 10', estimates: 'stable', earnings: 'positive', filings: '10-K' }),

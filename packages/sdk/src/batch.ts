@@ -7,8 +7,8 @@
  * @see https://docs.anthropic.com/en/docs/claude-code/api
  */
 
-import type { RpcTransport } from './transport/transport.js'
-import type { MessageParam, Message } from './messages.js'
+import type { RpcTransport } from './transport/transport'
+import type { MessageParam, Message } from './messages'
 
 // ============ Types ============
 

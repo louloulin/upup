@@ -14,8 +14,8 @@ import type {
   PermissionBehavior,
   PermissionUpdate,
   PermissionRuleValue,
-} from './types.js'
-import { permissionRuleValueFromString } from './permissionRuleParser.js'
+} from './types'
+import { permissionRuleValueFromString } from './permissionRuleParser'
 import { globalUpupPath } from '@upup/utils'
 
 // ============================================================================

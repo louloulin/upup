@@ -23,7 +23,7 @@ import {
   WORKFLOW_PHASES,
   type InvestmentWorkflowOptions,
   type WorkflowResult,
-} from './orchestration.js';
+} from './orchestration';
 import { loadPlan } from '@upup/pi-planning';
 import { extractTicker } from '@upup/pi-planning';
 

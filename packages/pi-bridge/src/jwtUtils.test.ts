@@ -8,7 +8,7 @@ import {
   signJwt,
   verifyJwt,
   type JwtPayload,
-} from './jwtUtils.js';
+} from './jwtUtils';
 
 const SECRET = 'super-secret-test-key-32-bytes-min';
 

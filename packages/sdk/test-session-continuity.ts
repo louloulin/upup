@@ -12,7 +12,7 @@
  * 这是预期行为 - 信息通过 memory 持久化，在后续轮次中可以被检索
  */
 
-import { createClient } from './src/client/client.js'
+import { createClient } from './src/client/client'
 
 async function testMultiTurnConversation() {
   console.log('='.repeat(80))

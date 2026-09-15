@@ -12,7 +12,7 @@ export {
   type PlanStatus,
   type PlanStepStatus,
   type PlanOutputFormat,
-} from './plan-context.js';
+} from './plan-context';
 
 export {
   FilterOpSchema,
@@ -26,7 +26,7 @@ export {
   type FilterClause,
   type Universe,
   type Scalar,
-} from './filter-spec.js';
+} from './filter-spec';
 
 export {
   isResearchPlan,
@@ -39,14 +39,14 @@ export {
   type ResearchPlan,
   type ResearchMarket,
   type PlanAuditEntry,
-} from './research-plan.js';
+} from './research-plan';
 
 export {
   extractTicker,
   detectPhases,
   buildResearchPlan,
   modifyPlan,
-} from './plan-builder.js';
+} from './plan-builder';
 
 export {
   planFilePath,
@@ -63,4 +63,4 @@ export {
   type StepExecutionResult,
   type PlanExecutionResult,
   type StepExecutor,
-} from './plan-executor.js';
+} from './plan-executor';

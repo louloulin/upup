@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { createEventBus } from '@earendil-works/pi-coding-agent';
-import portfolioExtension from './index.js';
+import portfolioExtension from './index';
 
 type RegisteredTool = { name: string; execute: (...args: any[]) => Promise<any> };
 function makeTools() {

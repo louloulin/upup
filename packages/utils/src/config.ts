@@ -11,7 +11,7 @@ import {
   type ConfigRecord,
   type ConfigValue,
 } from '@upup/pi-config';
-import { SETTINGS_BACKUPS_DIR, SETTINGS_DIR, SETTINGS_FILE, SETTINGS_LOCAL_FILE } from './paths.js';
+import { SETTINGS_BACKUPS_DIR, SETTINGS_DIR, SETTINGS_FILE, SETTINGS_LOCAL_FILE } from './paths';
 
 export interface Config {
   provider?: string;

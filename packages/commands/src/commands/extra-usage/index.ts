@@ -5,7 +5,7 @@
  * Show detailed usage statistics.
  */
 
-import type { LocalCommand } from '../../types/command-types.js'
+import type { LocalCommand } from '../../types/command-types'
 
 export const extraUsageCommand: LocalCommand = {
   type: 'local',
@@ -13,5 +13,5 @@ export const extraUsageCommand: LocalCommand = {
   description: 'Show detailed usage statistics and analytics',
   aliases: ['detailed-usage', 'usage-full'],
   supportsNonInteractive: true,
-  load: () => import('./extra-usage-impl.js'),
+  load: () => import('./extra-usage-impl'),
 }

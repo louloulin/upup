@@ -13,7 +13,7 @@ import {
   clearState,
   clearAllState,
   getTrackedCount,
-} from './file-state.js';
+} from './file-state';
 
 const TEST_DIR = join(tmpdir(), 'upup-file-state-test');
 const TEST_FILE = join(TEST_DIR, 'test-file.txt');

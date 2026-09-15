@@ -6,10 +6,10 @@
  */
 
 import { Container, Text, Spacer, type Component } from '@earendil-works/pi-tui';
-import { BorderBox } from '../BorderBox.js';
+import { BorderBox } from '../BorderBox';
 import type { ApprovalDecision } from '@upup/pi-runtime';
 import { theme } from '@upup/utils';
-import type { ApprovalRequestData, ApprovalRequestOptions } from './BaseApprovalRequest.js';
+import type { ApprovalRequestData, ApprovalRequestOptions } from './BaseApprovalRequest';
 
 export class WriteApprovalRequest extends Container {
   private filePath: string;

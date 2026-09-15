@@ -5,7 +5,7 @@ import type {
   DividendEvent,
   RightsIssueEvent,
   SplitEvent,
-} from './types.js';
+} from './types';
 
 export interface DryRunFixture {
   readonly dividends: Record<string, readonly DividendEvent[]>;

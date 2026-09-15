@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { platformMcpAuthClear, platformMcpAuthGet, platformMcpAuthSet, platformMcpListResources, platformMcpReadResource } from './mcp.js';
+import { platformMcpAuthClear, platformMcpAuthGet, platformMcpAuthSet, platformMcpListResources, platformMcpReadResource } from './mcp';
 
 describe('pi-platform MCP', () => {
   test('stores and masks credentials without leaking secrets', async () => {

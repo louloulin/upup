@@ -5,7 +5,7 @@
  * @see https://docs.anthropic.com/en/docs/claude-code/api
  */
 
-import { SDKError, ErrorCode } from './errors.js'
+import { SDKError, ErrorCode } from './errors'
 
 /**
  * 工具错误基类

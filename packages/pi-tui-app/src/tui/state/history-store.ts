@@ -5,7 +5,7 @@
  * 管理聊天历史消息
  */
 
-import { createStore, type Store } from './store.js';
+import { createStore, type Store } from './store';
 
 // ============================================================================
 // Types

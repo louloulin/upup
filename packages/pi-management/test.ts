@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { PI_MANAGEMENT_PACKAGE_NAME, PI_MANAGEMENT_PACKAGE_VERSION } from './src/index.js';
+import { PI_MANAGEMENT_PACKAGE_NAME, PI_MANAGEMENT_PACKAGE_VERSION } from './src/index';
 
 test('management package identity is stable', () => {
   expect(PI_MANAGEMENT_PACKAGE_NAME).toBe('@upup/pi-management');

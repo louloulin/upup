@@ -8,7 +8,7 @@
  * Category: git
  */
 
-import type { LocalCommand } from '../../types/command-types.js'
+import type { LocalCommand } from '../../types/command-types'
 
 export const remoteCommand: LocalCommand = {
   type: 'local',
@@ -16,7 +16,7 @@ export const remoteCommand: LocalCommand = {
   description: 'Show git remote configuration',
   aliases: [],
   supportsNonInteractive: true,
-  load: () => import('./remote-impl.js'),
+  load: () => import('./remote-impl'),
 }
 
 export default remoteCommand

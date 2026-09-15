@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { createEventBus } from '@earendil-works/pi-coding-agent';
 import { publishPiCapabilityHosts } from '@upup/pi-capability-registry';
-import investmentAnalysisExtension from './index.js';
+import investmentAnalysisExtension from './index';
 
 describe('Pi investment-analysis extension', () => {
   const extension = (registerTool: (tool: { name: string; execute: (...args: any[]) => Promise<any> }) => void) => investmentAnalysisExtension({ events: createEventBus(), registerTool } as never);

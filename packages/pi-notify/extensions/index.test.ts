@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import notifyExtension from './index.js';
+import notifyExtension from './index';
 
 describe('pi-notify extension', () => {
   test('registers notification tools and keeps sessions isolated', async () => { const tools = new Map<string, any>(); notifyExtension({ registerTool: (tool) => tools.set(tool.name, tool) } as never); expect([...tools.keys()]).toEqual(['notify', 'notify_list', 'subscribe_pr', 'unsubscribe_pr', 'list_pr_subscriptions']); const result = await tools.get('notify')!.execute('notify-1', { channel: 'log', title: 'T', message: 'M' }, new AbortController().signal); expect(result.isError).not.toBe(true); });

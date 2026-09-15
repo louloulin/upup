@@ -5,9 +5,9 @@
  */
 
 // State Layer
-export { createStore, combineStores, type Store, type Listener } from './state/store.js';
-export { inputStore, inputActions, inputSelectors } from './state/input-state.js';
-export { QueryGuard, getQueryGuard, resetQueryGuard, type QueryState } from './state/query-guard.js';
+export { createStore, combineStores, type Store, type Listener } from './state/store';
+export { inputStore, inputActions, inputSelectors } from './state/input-state';
+export { QueryGuard, getQueryGuard, resetQueryGuard, type QueryState } from './state/query-guard';
 export {
   createAppStateStore,
   getAppStateStore,
@@ -17,7 +17,7 @@ export {
   updateAppState,
   type AppState,
   type AppStateStore,
-} from './state/app-state.js';
+} from './state/app-state';
 export {
   createHistoryStore,
   getHistoryStore,
@@ -26,7 +26,7 @@ export {
   type HistoryItem,
   type HistoryState,
   type HistoryStore,
-} from './state/history-store.js';
+} from './state/history-store';
 export {
   createToolEventStore,
   getToolEventStore,
@@ -35,7 +35,7 @@ export {
   type ToolEventType,
   type ToolEventState,
   type ToolEventStore,
-} from './state/tool-event-store.js';
+} from './state/tool-event-store';
 
 // CLI Integration
 export {
@@ -43,11 +43,11 @@ export {
   getTUICLIIntegration,
   destroyTUICLIIntegration,
   type TUICLIIntegration,
-} from './cli-integration.js';
+} from './cli-integration';
 
 // Hooks Layer
-export { useStore, useStoreSelector, useStoreSubscription } from './hooks/use-store.js';
-export { useQuery, useQuerySubscription, useQueryGeneration, type UseQueryResult, type UseQueryGenerationResult } from './hooks/use-query.js';
+export { useStore, useStoreSelector, useStoreSubscription } from './hooks/use-store';
+export { useQuery, useQuerySubscription, useQueryGeneration, type UseQueryResult, type UseQueryGenerationResult } from './hooks/use-query';
 export {
   useInput,
   useArrowKeys,
@@ -56,7 +56,7 @@ export {
   type InputHandlerMap,
   type UseInputOptions,
   type UseInputResult,
-} from './hooks/use-input.js';
+} from './hooks/use-input';
 export {
   useStreaming,
   useTypingEffect,
@@ -65,7 +65,7 @@ export {
   type UseStreamingResult,
   type UseTypingEffectOptions,
   type UseTypingEffectResult,
-} from './hooks/use-streaming.js';
+} from './hooks/use-streaming';
 export {
   useApproval,
   useApprovalSubscription,
@@ -73,8 +73,8 @@ export {
   type ApprovalStatus,
   type ApprovalState,
   type UseApprovalResult,
-} from './hooks/use-approval.js';
-export type { ApprovalRequest } from './hooks/use-approval.js';
+} from './hooks/use-approval';
+export type { ApprovalRequest } from './hooks/use-approval';
 
 // Components Layer
 export {
@@ -83,43 +83,43 @@ export {
   type ChatMessage,
   type ToolCall,
   type ChatLogProps,
-} from './components/chat-log.js';
+} from './components/chat-log';
 export {
   ToolEventDisplay,
   createToolEventDisplay,
   type ToolEventDisplayEvent,
   type ToolEventDisplayType,
   type ToolEventDisplayProps,
-} from './components/tool-event.js';
+} from './components/tool-event';
 export {
   HintBar,
   createHintBar,
   COMMON_HINTS,
   type HintItem,
   type HintBarProps,
-} from './components/hint-bar.js';
-export { Editor, createEditor, type EditorProps } from './components/editor.js';
+} from './components/hint-bar';
+export { Editor, createEditor, type EditorProps } from './components/editor';
 
 // Overlays Layer
 export {
   ApprovalOverlay,
   createApprovalOverlay,
   type ApprovalOverlayProps,
-} from './overlays/approval-overlay.js';
-export type { ApprovalRequest as ApprovalRequestOverlay } from './overlays/approval-overlay.js';
+} from './overlays/approval-overlay';
+export type { ApprovalRequest as ApprovalRequestOverlay } from './overlays/approval-overlay';
 export {
   ModelSelector,
   createModelSelector,
   DEFAULT_MODELS,
   type Model,
   type ModelSelectorProps,
-} from './overlays/model-selector.js';
+} from './overlays/model-selector';
 export {
   SessionSelector,
   createSessionSelector,
   type Session,
   type SessionSelectorProps,
-} from './overlays/session-selector.js';
+} from './overlays/session-selector';
 export {
   ConfirmDialog,
   createConfirmDialog,
@@ -127,7 +127,7 @@ export {
   createClearHistoryDialog,
   type ConfirmDialogType,
   type ConfirmDialogProps,
-} from './overlays/confirm-dialog.js';
+} from './overlays/confirm-dialog';
 
 // Utils Layer
 export {
@@ -150,7 +150,7 @@ export {
   type TableColumn,
   renderTableRow,
   renderTableDivider,
-} from './utils/format.js';
+} from './utils/format';
 export {
   ANSI,
   type Theme,
@@ -164,7 +164,7 @@ export {
   gradient,
   bg,
   STYLES,
-} from './utils/theme.js';
+} from './utils/theme';
 export {
   type KeyBinding,
   type KeyBindingContext,
@@ -181,7 +181,7 @@ export {
   type TUIModeBindings,
   getModeBindings,
   KeySequenceDetector,
-} from './utils/keybindings.js';
+} from './utils/keybindings';
 
 // Main Entry
 export {
@@ -193,4 +193,4 @@ export {
   stopTUI,
   type TUIOptions,
   type TUIRenderer,
-} from './main.js';
+} from './main';

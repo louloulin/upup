@@ -1,8 +1,8 @@
-import type { GatewayConfig, WhatsAppAccountConfig } from '../../config.js';
-import { listWhatsAppAccountIds, resolveWhatsAppAccount } from '../../config.js';
-import type { ChannelPlugin } from '../types.js';
-import { monitorWhatsAppChannel, type WhatsAppInboundMessage } from './index.js';
-import { resolveReconnectPolicy } from './reconnect.js';
+import type { GatewayConfig, WhatsAppAccountConfig } from '../../config';
+import { listWhatsAppAccountIds, resolveWhatsAppAccount } from '../../config';
+import type { ChannelPlugin } from '../types';
+import { monitorWhatsAppChannel, type WhatsAppInboundMessage } from './index';
+import { resolveReconnectPolicy } from './reconnect';
 
 export function createWhatsAppPlugin(params: {
   loadConfig: () => GatewayConfig;

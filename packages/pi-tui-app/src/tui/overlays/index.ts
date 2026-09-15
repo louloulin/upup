@@ -10,7 +10,7 @@ export {
   createApprovalOverlay,
   type ApprovalRequest,
   type ApprovalOverlayProps,
-} from './approval-overlay.js';
+} from './approval-overlay';
 
 // Model Selector
 export {
@@ -19,7 +19,7 @@ export {
   DEFAULT_MODELS,
   type Model,
   type ModelSelectorProps,
-} from './model-selector.js';
+} from './model-selector';
 
 // Session Selector
 export {
@@ -27,7 +27,7 @@ export {
   createSessionSelector,
   type Session,
   type SessionSelectorProps,
-} from './session-selector.js';
+} from './session-selector';
 
 // Confirm Dialog
 export {
@@ -37,4 +37,4 @@ export {
   createClearHistoryDialog,
   type ConfirmDialogType,
   type ConfirmDialogProps,
-} from './confirm-dialog.js';
+} from './confirm-dialog';

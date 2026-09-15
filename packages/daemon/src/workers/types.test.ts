@@ -14,7 +14,7 @@ import {
   type MonitorNotification,
   type EvolutionSuggestion,
   type CCRCommand,
-} from './types.js';
+} from './types';
 
 describe('MonitorWorker', () => {
   let worker: MonitorWorker;

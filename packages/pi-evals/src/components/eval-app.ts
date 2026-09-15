@@ -1,10 +1,10 @@
 import { Container, Spacer, Text, type TUI } from '@earendil-works/pi-tui';
 import { BorderBox } from '@upup/pi-tui-app';
 import { theme } from '@upup/utils';
-import { EvalCurrentQuestion } from './eval-current-question.js';
-import { EvalProgress } from './eval-progress.js';
-import { EvalRecentResults, type EvalResult } from './eval-recent-results.js';
-import { EvalStats } from './eval-stats.js';
+import { EvalCurrentQuestion } from './eval-current-question';
+import { EvalProgress } from './eval-progress';
+import { EvalRecentResults, type EvalResult } from './eval-recent-results';
+import { EvalStats } from './eval-stats';
 
 const SHOW_STATS = true;
 

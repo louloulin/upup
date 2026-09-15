@@ -1,4 +1,4 @@
-import type { NativeOrderSide, NativeOrderType, NativeSandboxBroker, NativeSandboxOrder } from './sandbox-trading.js';
+import type { NativeOrderSide, NativeOrderType, NativeSandboxBroker, NativeSandboxOrder } from './sandbox-trading';
 
 export type NativeAlgoKind = 'twap' | 'vwap' | 'pov' | 'is';
 

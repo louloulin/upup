@@ -4,7 +4,7 @@ import { ModelRuntime } from '@earendil-works/pi-coding-agent';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { AgentRunnerController, InMemoryChatHistory } from '@upup/pi-tui-app';
-import { createTestPorts } from './agent-runner-test-ports.test.js';
+import { createTestPorts } from './agent-runner-test-ports.test';
 import { getPiNativeApp, bootstrapPiNativeServices } from '@upup/pi-app/default';
 import { getPiSessionService, getSessionTracker } from '@upup/pi-session';
 import { createMessageQueue } from '@upup/utils';

@@ -15,8 +15,8 @@ import type {
   JsonRpcNotification,
   JsonRpcError,
   ServerEvent,
-} from './protocol.js';
-import { JsonRpcMethod, JsonRpcErrorCode } from './protocol.js';
+} from './protocol';
+import { JsonRpcMethod, JsonRpcErrorCode } from './protocol';
 import type {
   SessionCreateParams,
   SessionResumeParams,
@@ -27,7 +27,7 @@ import type {
   SessionCompactParams,
   SessionForkParams,
   SessionExportParams,
-} from './protocol.js';
+} from './protocol';
 
 // ============ StdioServer Implementation ============
 

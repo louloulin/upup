@@ -8,7 +8,7 @@
  * Type: prompt (uses AI to review code/PR)
  */
 
-import type { PromptCommand } from '../../types/command-types.js'
+import type { PromptCommand } from '../../types/command-types'
 import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/index.mjs'
 
 const REVIEW_PROMPT = `You are an expert code reviewer. Analyze the changes and provide feedback.

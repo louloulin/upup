@@ -7,8 +7,8 @@
 
 import { mkdir } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-import { MemoryStore } from './store.js';
-import { encrypt, decrypt, setMasterKey, isEncryptionAvailable } from './crypto.js';
+import { MemoryStore } from './store';
+import { encrypt, decrypt, setMasterKey, isEncryptionAvailable } from './crypto';
 
 export interface EncryptedMemoryStoreOptions {
   /** Enable encryption (default: auto-detect from env) */

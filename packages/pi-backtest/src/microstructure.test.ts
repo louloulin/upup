@@ -6,7 +6,7 @@ import {
   resolveStampDutyExemption,
   summarizeClipping,
   type DailyBar,
-} from './microstructure.js';
+} from './microstructure';
 
 const sampleBars: DailyBar[] = [
   { date: '2026-09-01', high: 110, low: 95, close: 100 },

@@ -4,7 +4,7 @@
  * 直接测试 stream() 方法查看返回的消息格式
  */
 
-import { createClient } from './src/client/client.js'
+import { createClient } from './src/client/client'
 
 async function testStreamResponse() {
   console.log('='.repeat(80))

@@ -9,7 +9,7 @@ import {
   restoreSessionStateFromLog,
   type ContextCollapseCommitEntry,
   type ContextCollapseSnapshotEntry,
-} from './internal/restore-advanced.js';
+} from './internal/restore-advanced';
 
 const commit = (timestamp: number): ContextCollapseCommitEntry => ({
   type: 'context_collapse_commit',

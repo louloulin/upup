@@ -4,8 +4,8 @@
  * Provides centralized access to sandbox settings and status.
  */
 
-import { loadSandboxConfig, type SandboxConfig, type SandboxMode } from './sandbox-config.js';
-import { getSandboxRulesManager, type RuleScope } from './sandbox-rules.js';
+import { loadSandboxConfig, type SandboxConfig, type SandboxMode } from './sandbox-config';
+import { getSandboxRulesManager, type RuleScope } from './sandbox-rules';
 import { getLogger } from '@upup/utils/logging';
 
 export class SandboxManager {
@@ -155,8 +155,8 @@ export class SandboxManager {
   /**
    * Run sandbox dependency check and return results.
    */
-  async runDependencyCheck(): Promise<import('./sandbox-dependencies.js').SandboxDependencyCheck> {
-    const { checkSandboxDependencies } = await import('./sandbox-dependencies.js');
+  async runDependencyCheck(): Promise<import('./sandbox-dependencies').SandboxDependencyCheck> {
+    const { checkSandboxDependencies } = await import('./sandbox-dependencies');
     return await checkSandboxDependencies();
   }
 }

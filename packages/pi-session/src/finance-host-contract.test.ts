@@ -4,7 +4,7 @@ import {
   PI_FINANCE_HOST_CONTRACT,
   PI_FINANCE_PACKAGE_NAME,
   PI_FINANCE_PACKAGE_VERSION,
-} from './finance-host-contract.js';
+} from './finance-host-contract';
 
 describe('Pi finance host contract', () => {
   test('exposes only the declared v1 capability for the owning session', () => {

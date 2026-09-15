@@ -7,7 +7,7 @@
  * Type: local (direct execution, no model involvement)
  */
 
-import type { LocalCommand } from '../../types/command-types.js'
+import type { LocalCommand } from '../../types/command-types'
 
 export const permissionsCommand: LocalCommand = {
   type: 'local',
@@ -15,7 +15,7 @@ export const permissionsCommand: LocalCommand = {
   description: 'Show permission settings',
   aliases: ['perms', 'rules'],
   supportsNonInteractive: true,
-  load: () => import('./permissions-impl.js'),
+  load: () => import('./permissions-impl'),
 }
 
 export default permissionsCommand

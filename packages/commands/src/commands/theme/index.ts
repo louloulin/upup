@@ -7,7 +7,7 @@
  * Type: local (direct execution)
  */
 
-import type { LocalCommand } from '../../types/command-types.js'
+import type { LocalCommand } from '../../types/command-types'
 
 export const themeCommand: LocalCommand = {
   type: 'local',
@@ -15,7 +15,7 @@ export const themeCommand: LocalCommand = {
   description: 'Display and manage color themes',
   aliases: ['color'],
   supportsNonInteractive: true,
-  load: () => import('./theme-impl.js'),
+  load: () => import('./theme-impl'),
 }
 
 export default themeCommand

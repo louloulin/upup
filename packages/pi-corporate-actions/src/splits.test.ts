@@ -6,8 +6,8 @@ import {
   sortSplitsChronologically,
   splitEventsBetween,
   splitRatio,
-} from './splits.js';
-import type { SplitEvent } from './types.js';
+} from './splits';
+import type { SplitEvent } from './types';
 
 const splits: SplitEvent[] = [
   { symbol: 'X', exDate: '2022-01-01', ratioFrom: 1, ratioTo: 2 },

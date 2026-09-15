@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { NativeFundHistoryClient, getNativeFundHistoryForRange } from './fund-history.js';
+import { NativeFundHistoryClient, getNativeFundHistoryForRange } from './fund-history';
 
 function payload(items: readonly Record<string, unknown>[]): Response {
   return new Response(JSON.stringify({ Data: { LSJZList: items } }), { status: 200, headers: { 'content-type': 'application/json' } });

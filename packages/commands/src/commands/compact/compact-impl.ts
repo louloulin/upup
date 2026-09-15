@@ -7,7 +7,7 @@
  * Returns 'compact' result type which triggers compaction in CLI.
  */
 
-import type { LocalCommandModule, LocalCommandResult } from '../../types/command-types.js'
+import type { LocalCommandModule, LocalCommandResult } from '../../types/command-types'
 
 export const call = async (
   _args: string,

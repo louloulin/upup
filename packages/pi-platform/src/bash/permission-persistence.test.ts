@@ -12,7 +12,7 @@ import {
   getPermissionStore,
   initPermissionPersistence,
   removePermissionMode,
-} from './permission-mode.js';
+} from './permission-mode';
 
 let tmpDir: string;
 let permFile: string;

@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import { createCapacityWake } from './capacityWake.js';
+import { createCapacityWake } from './capacityWake';
 
 describe('capacityWake', () => {
   test('initial signal is not aborted', () => {

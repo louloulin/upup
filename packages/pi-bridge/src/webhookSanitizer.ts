@@ -14,7 +14,7 @@
  * assume a particular provider. Callers map to internal event types as
  * needed.
  */
-import { redactSecrets, debugTruncate } from './debugUtils.js';
+import { redactSecrets, debugTruncate } from './debugUtils';
 
 export const MAX_WEBHOOK_PAYLOAD_BYTES = 256 * 1024; // 256 KB
 

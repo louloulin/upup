@@ -1,5 +1,5 @@
 import { Cron } from 'croner';
-import type { CronSchedule } from './types.js';
+import type { CronSchedule } from './types';
 
 const MIN_REFIRE_GAP_MS = 2_000;
 

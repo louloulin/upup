@@ -12,8 +12,8 @@ import type {
   PermissionUpdateDestination,
   PermissionRuleValue,
   PermissionBehavior,
-} from './types.js'
-import { permissionRuleValueFromString } from './permissionRuleParser.js'
+} from './types'
+import { permissionRuleValueFromString } from './permissionRuleParser'
 
 // ============================================================================
 // Constants

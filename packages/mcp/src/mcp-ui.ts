@@ -27,7 +27,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { upupPath } from '@upup/utils';
-import { BorderBox } from './border-box.js';
+import { BorderBox } from './border-box';
 
 const appTheme = { primary: (text: string) => text };
 export function getConfigPath(scope: 'project' | 'user' = 'project'): string { return scope === 'project' ? '.mcp.json' : join(homedir(), '.config', 'upup', 'mcp-servers.json'); }

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import marketDataExtension from './index.js';
+import marketDataExtension from './index';
 import { createEventBus } from '@earendil-works/pi-coding-agent';
 import { publishPiCapabilityHosts } from '@upup/pi-capability-registry';
 import { mkdtemp, rm } from 'node:fs/promises';

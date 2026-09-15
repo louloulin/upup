@@ -115,7 +115,7 @@ async function runAllVerifications() {
   console.log('\n\x1b[36m>>> Phase 4: Skill系统检查\x1b[0m\n');
 
   try {
-    const { getAllSpecializedSkills } = await import('../src/skills/bundled/index.js');
+    const { getAllSpecializedSkills } = await import('../src/skills/bundled/index');
     const skills = getAllSpecializedSkills();
     
     results.push({
@@ -135,7 +135,7 @@ async function runAllVerifications() {
     console.log('✅', '增强Skill属性:', enhancedCount, '/', skills.length);
 
     // Investment Core Skills
-    const { getPhase3Skills, getPhase4Skills } = await import('../src/skills/bundled/index.js');
+    const { getPhase3Skills, getPhase4Skills } = await import('../src/skills/bundled/index');
     const phase3 = getPhase3Skills();
     const phase4 = getPhase4Skills();
     results.push({

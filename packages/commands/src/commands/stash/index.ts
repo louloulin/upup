@@ -8,7 +8,7 @@
  * Category: git
  */
 
-import type { LocalCommand } from '../../types/command-types.js'
+import type { LocalCommand } from '../../types/command-types'
 
 export const stashCommand: LocalCommand = {
   type: 'local',
@@ -16,7 +16,7 @@ export const stashCommand: LocalCommand = {
   description: 'Stash or pop git changes',
   aliases: [],
   supportsNonInteractive: true,
-  load: () => import('./stash-impl.js'),
+  load: () => import('./stash-impl'),
 }
 
 export default stashCommand

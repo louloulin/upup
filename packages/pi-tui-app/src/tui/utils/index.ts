@@ -25,7 +25,7 @@ export {
   type TableColumn,
   renderTableRow,
   renderTableDivider,
-} from './format.js';
+} from './format';
 
 // Theme utilities
 export {
@@ -41,7 +41,7 @@ export {
   gradient,
   bg,
   STYLES,
-} from './theme.js';
+} from './theme';
 
 // Key bindings utilities
 export {
@@ -60,4 +60,4 @@ export {
   type TUIModeBindings,
   getModeBindings,
   KeySequenceDetector,
-} from './keybindings.js';
+} from './keybindings';

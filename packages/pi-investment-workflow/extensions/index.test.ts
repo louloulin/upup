@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { createEventBus } from '@earendil-works/pi-coding-agent';
-import investmentWorkflowExtension from './index.js';
+import investmentWorkflowExtension from './index';
 
 describe('Pi investment-workflow extension', () => {
   test('registers the phase tool and fails closed without the host', async () => {

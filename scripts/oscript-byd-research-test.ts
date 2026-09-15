@@ -11,9 +11,9 @@
  * Run: bun run scripts/oscript-byd-research-test.ts
  */
 
-import { initializeSkills, getSkillCommand, getAllSkillCommands } from '../src/skills/commands.js';
-import { executeSkillCommand } from '../src/skills/executor.js';
-import { detectIntents, extractTickers } from '../src/skills/intent-detector.js';
+import { initializeSkills, getSkillCommand, getAllSkillCommands } from '../src/skills/commands';
+import { executeSkillCommand } from '../src/skills/executor';
+import { detectIntents, extractTickers } from '../src/skills/intent-detector';
 
 // ============================================================================
 // Test Configuration

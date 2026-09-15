@@ -6,7 +6,7 @@ import {
   signMessage,
   verifyMessage,
   type BridgeMessage,
-} from './protocol.js';
+} from './protocol';
 
 const secret = 'test-secret-32-bytes-of-padded!!';
 

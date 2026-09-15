@@ -15,7 +15,7 @@ import {
   recognizePatterns,
   summarizeTrend,
   type IndicatorBar,
-} from './src/index.js';
+} from './src/index';
 
 const fixtureBars: IndicatorBar[] = [
   { date: '2026-09-01', open: 100, high: 105, low: 99, close: 104, volume: 1000 },

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { AgentRunnerController, InMemoryChatHistory } from '@upup/pi-tui-app';
-import { createTestPorts } from './agent-runner-test-ports.test.js';
+import { createTestPorts } from './agent-runner-test-ports.test';
 
 describe('AgentRunnerController', () => {
   test('updates the active agent config for subsequent runs', () => {

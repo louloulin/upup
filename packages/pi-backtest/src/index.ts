@@ -1,5 +1,5 @@
-import { calculateTransactionCosts, type BacktestCostModel, type BacktestTransactionCosts } from './cost-model.js';
-import { validateForwardBars, type BacktestDataQualityMode, type BacktestDataQualityReport } from './data-quality.js';
+import { calculateTransactionCosts, type BacktestCostModel, type BacktestTransactionCosts } from './cost-model';
+import { validateForwardBars, type BacktestDataQualityMode, type BacktestDataQualityReport } from './data-quality';
 
 export interface DailyBar { readonly date: string; readonly high?: number; readonly low?: number; readonly close?: number; }
 export interface BacktestConfig {
@@ -116,13 +116,13 @@ export function runBacktest(input: BacktestRunInput): BacktestRunResult {
 
 export function calculateWinRate(outcomes: readonly Outcome[], includeNeutral = false): { wins: number; losses: number; neutrals: number; total: number; winRatePct: number; lossRatePct: number; neutralRatePct?: number } { const filtered = includeNeutral ? outcomes : outcomes.filter((outcome) => outcome !== 'neutral'); const wins = filtered.filter((outcome) => outcome === 'win').length; const losses = filtered.filter((outcome) => outcome === 'loss').length; const neutrals = outcomes.filter((outcome) => outcome === 'neutral').length; return { wins, losses, neutrals, total: filtered.length, winRatePct: filtered.length ? round((wins / filtered.length) * 100, 2) : 0, lossRatePct: filtered.length ? round((losses / filtered.length) * 100, 2) : 0, neutralRatePct: includeNeutral && outcomes.length ? round((neutrals / outcomes.length) * 100, 2) : undefined }; }
 
-export { validateMethodology } from './methodology.js';
-export type { FactorSource, MethodologyDisclosure, MethodologyValidation, OutOfSampleResult, WalkForwardFold } from './methodology.js';
-export { calculateTransactionCosts } from './cost-model.js';
-export { applyPriceLimits, evaluateDelisting, inferMarketMicrostructure, resolveStampDutyExemption, summarizeClipping } from './microstructure.js';
-export type { DelistingEvaluation, DelistingPhase, DelistingPolicy, MarketMicrostructure, PriceLimitedBar, PriceLimitPolicy, PriceLimitClippingStats, StampDutyExemption, StampDutyResolution } from './microstructure.js';
-export type { BacktestCostModel, BacktestTransactionCosts } from './cost-model.js';
-export { validateForwardBars } from './data-quality.js';
-export type { BacktestDataQualityMode, BacktestDataQualityOptions, BacktestDataQualityReport } from './data-quality.js';
-export { fundSubscriptionFee, renderFundBacktestReport, runFundBacktest } from './fund-backtest.js';
-export type { FundBacktestConfig, FundBacktestResult, FundBacktestSnapshot, FundBacktestStrategy, FundNavPoint, FundType } from './fund-backtest.js';
+export { validateMethodology } from './methodology';
+export type { FactorSource, MethodologyDisclosure, MethodologyValidation, OutOfSampleResult, WalkForwardFold } from './methodology';
+export { calculateTransactionCosts } from './cost-model';
+export { applyPriceLimits, evaluateDelisting, inferMarketMicrostructure, resolveStampDutyExemption, summarizeClipping } from './microstructure';
+export type { DelistingEvaluation, DelistingPhase, DelistingPolicy, MarketMicrostructure, PriceLimitedBar, PriceLimitPolicy, PriceLimitClippingStats, StampDutyExemption, StampDutyResolution } from './microstructure';
+export type { BacktestCostModel, BacktestTransactionCosts } from './cost-model';
+export { validateForwardBars } from './data-quality';
+export type { BacktestDataQualityMode, BacktestDataQualityOptions, BacktestDataQualityReport } from './data-quality';
+export { fundSubscriptionFee, renderFundBacktestReport, runFundBacktest } from './fund-backtest';
+export type { FundBacktestConfig, FundBacktestResult, FundBacktestSnapshot, FundBacktestStrategy, FundNavPoint, FundType } from './fund-backtest';

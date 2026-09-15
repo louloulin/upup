@@ -1,5 +1,5 @@
-import type { FactorScore } from './types.js';
-import { mean, stddev, rankDesc } from './normalize.js';
+import type { FactorScore } from './types';
+import { mean, stddev, rankDesc } from './normalize';
 
 export interface FactorWeight {
   readonly factorId: string;

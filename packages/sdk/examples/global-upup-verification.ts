@@ -4,7 +4,7 @@
  * 验证 SDK 在不配置任何参数时，是否正确使用全局安装的 upup
  */
 
-import { createClient } from '../src/index.js'
+import { createClient } from '../src/index'
 
 async function main() {
   console.log('========================================')

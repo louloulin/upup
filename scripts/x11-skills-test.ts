@@ -7,7 +7,7 @@
  * Run: bun run scripts/x11-skills-test.ts
  */
 
-import { initializeSkills, getAllSkillCommands, getSkillCommand } from '../src/skills/commands.js';
+import { initializeSkills, getAllSkillCommands, getSkillCommand } from '../src/skills/commands';
 import { writeFileSync } from 'fs';
 import { join } from 'path';
 

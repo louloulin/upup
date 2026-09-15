@@ -51,10 +51,10 @@ export interface MaxDrawdownInput {
   readonly prices: readonly number[];
 }
 
-export { calculateNativeShortInterestRatio, detectNativeShortSqueeze, getNativeShortInterest } from './short-interest.js';
-export type { NativeShortInterestData, NativeShortInterestRatioResult, NativeShortSqueezeMatch, NativeShortSqueezeResult, NativeSqueezeRisk } from './short-interest.js';
-export { createRiskTracker } from './risk-tracker.js';
-export type { RiskRecord, RiskSeverity, RiskTracker, RiskType } from './risk-tracker.js';
+export { calculateNativeShortInterestRatio, detectNativeShortSqueeze, getNativeShortInterest } from './short-interest';
+export type { NativeShortInterestData, NativeShortInterestRatioResult, NativeShortSqueezeMatch, NativeShortSqueezeResult, NativeSqueezeRisk } from './short-interest';
+export { createRiskTracker } from './risk-tracker';
+export type { RiskRecord, RiskSeverity, RiskTracker, RiskType } from './risk-tracker';
 
 export interface MaxDrawdownResult {
   readonly maxDrawdown: number;

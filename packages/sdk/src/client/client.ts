@@ -17,15 +17,15 @@ import {
   type StdioTransportConfig,
   type UpupConfig,
   type BinaryLocation,
-} from '../transport/stdio-transport.js'
-import type { Transport } from '../transport/transport.js'
-import { PermissionManager, type PermissionMode, type CanUseTool } from '../permissions/index.js'
-import { ToolConfiguration, type Tool } from '../tools/index.js'
-import { HookExecutor, type HookEvent, type HookInput, type HookMap } from '../hooks/index.js'
-import { UpupSessionManager, type SessionConfig, type SessionInfo, type RpcTransport as SessionRpcTransport } from '../session/index.js'
-import { ProcessPool, type ProcessPoolConfig } from '../pool/index.js'
-import { BetaAPI, createBetaAPI } from '../beta/index.js'
-import type { RpcTransport } from '../messages.js'
+} from '../transport/stdio-transport'
+import type { Transport } from '../transport/transport'
+import { PermissionManager, type PermissionMode, type CanUseTool } from '../permissions/index'
+import { ToolConfiguration, type Tool } from '../tools/index'
+import { HookExecutor, type HookEvent, type HookInput, type HookMap } from '../hooks/index'
+import { UpupSessionManager, type SessionConfig, type SessionInfo, type RpcTransport as SessionRpcTransport } from '../session/index'
+import { ProcessPool, type ProcessPoolConfig } from '../pool/index'
+import { BetaAPI, createBetaAPI } from '../beta/index'
+import type { RpcTransport } from '../messages'
 
 // ============ 配置类型 ============
 
@@ -870,6 +870,6 @@ export type {
   UpupConfig,
   BinaryLocation,
   StdioTransportConfig,
-} from '../transport/stdio-transport.js'
+} from '../transport/stdio-transport'
 
-export type { Transport } from '../transport/transport.js'
+export type { Transport } from '../transport/transport'

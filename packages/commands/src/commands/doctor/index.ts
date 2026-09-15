@@ -9,7 +9,7 @@
  * Reference: loucode/src/commands/doctor/index.ts
  */
 
-import type { LocalCommand } from '../../types/command-types.js'
+import type { LocalCommand } from '../../types/command-types'
 
 export const doctorCommand: LocalCommand = {
   type: 'local',
@@ -17,7 +17,7 @@ export const doctorCommand: LocalCommand = {
   description: 'Run system health checks',
   aliases: ['health', 'check'],
   supportsNonInteractive: true,
-  load: () => import('./doctor-impl.js'),
+  load: () => import('./doctor-impl'),
 }
 
 export default doctorCommand

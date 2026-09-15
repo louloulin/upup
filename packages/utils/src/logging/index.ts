@@ -8,5 +8,5 @@ export {
   error,
   perf,
   logger,
-} from './logger.js';
-export type { LogEntry, LogLevel, LogCategory, LoggerConfig } from './logger.js';
+} from './logger';
+export type { LogEntry, LogLevel, LogCategory, LoggerConfig } from './logger';

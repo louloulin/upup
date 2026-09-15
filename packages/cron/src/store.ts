@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync, unlinkSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { upupPath } from '@upup/utils';
-import type { CronStore } from './types.js';
+import type { CronStore } from './types';
 
 const CRON_STORE_PATH = upupPath('cron', 'jobs.json');
 

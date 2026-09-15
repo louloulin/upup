@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { FINANCE_FIXTURE_TOOLS } from './finance-fixtures.js';
+import { FINANCE_FIXTURE_TOOLS } from './finance-fixtures';
 import type { UpUpAgentSpec } from '@upup/pi-runtime';
 
 const UPUP_INVESTMENT_EXTENSION = {

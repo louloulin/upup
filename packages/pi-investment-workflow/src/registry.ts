@@ -14,14 +14,14 @@
  * - 返回纯文本(对齐 status / cost / plan 命令风格)
  */
 
-import { runWatchlistEdit } from './watchlist-edit.js';
-import { runMorningBrief } from './morning-brief.js';
-import { runEarningsPreview } from './earnings-preview.js';
-import { runRiskDashboard } from './risk-dashboard.js';
-import { runPortfolioReview } from './portfolio-review.js';
-import { runDossier } from './dossier.js';
-import { runScreen } from './screen.js';
-import { runStrategy } from './strategy.js';
+import { runWatchlistEdit } from './watchlist-edit';
+import { runMorningBrief } from './morning-brief';
+import { runEarningsPreview } from './earnings-preview';
+import { runRiskDashboard } from './risk-dashboard';
+import { runPortfolioReview } from './portfolio-review';
+import { runDossier } from './dossier';
+import { runScreen } from './screen';
+import { runStrategy } from './strategy';
 
 // The invest command remains in this package and uses the shared Pi factory contract.
 // The root bootstrap injects the handler via setInvestCommandHandler() before any

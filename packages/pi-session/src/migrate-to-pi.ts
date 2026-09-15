@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, statSync } from 'node:fs';
 import { basename, dirname, extname, join, relative, resolve } from 'node:path';
-import { migrateSessionFile } from './pi-migration.js';
+import { migrateSessionFile } from './pi-migration';
 
 interface CliOptions {
   sourceDir: string;

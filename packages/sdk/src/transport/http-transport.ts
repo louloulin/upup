@@ -5,7 +5,7 @@
  * 实现 RpcTransport 接口支持 Beta API
  */
 
-import type { Transport, RpcTransport } from './transport.js'
+import type { Transport, RpcTransport } from './transport'
 
 /**
  * Transport 消息类型

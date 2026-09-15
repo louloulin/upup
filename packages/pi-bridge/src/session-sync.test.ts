@@ -8,7 +8,7 @@ import {
   sessionHash,
   SessionSync,
   type SessionState,
-} from './session-sync.js';
+} from './session-sync';
 
 function fixture(overrides: Partial<SessionState> = {}): SessionState {
   return {

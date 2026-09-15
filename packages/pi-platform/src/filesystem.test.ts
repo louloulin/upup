@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { platformBash, platformEditFile, platformGlob, platformGrep, platformReadFile, platformSendUserFile, platformWriteFile } from './filesystem.js';
+import { platformBash, platformEditFile, platformGlob, platformGrep, platformReadFile, platformSendUserFile, platformWriteFile } from './filesystem';
 
 describe('pi-platform filesystem', () => {
   test('reads, writes, edits, searches, and copies inside the workspace', async () => {

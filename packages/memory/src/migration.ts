@@ -2,8 +2,8 @@ import { mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import matter from 'gray-matter';
-import { MEMORY_TYPES, type MemoryType } from './types.js';
-import { buildTypedManifest, scanTypedMemoryFiles } from './scanner.js';
+import { MEMORY_TYPES, type MemoryType } from './types';
+import { buildTypedManifest, scanTypedMemoryFiles } from './scanner';
 import { getUpupDir } from '@upup/utils';
 
 const MEMORY_DIRNAME = 'memory';

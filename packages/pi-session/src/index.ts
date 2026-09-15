@@ -246,61 +246,61 @@ export class PiSessionAdapter implements UpUpAgentSession {
 // =============================================================================
 // Pi Host Bridge contract (foundation for finance + session capability bridge)
 // =============================================================================
-export * from './host-contract.js';
+export * from './host-contract';
 
 // =============================================================================
 // Finance host contract (thin convenience wrapper for finance capability)
 // =============================================================================
-export * from './finance-host-contract.js';
+export * from './finance-host-contract';
 
 // =============================================================================
 // Persistent session service (background tasks + persistent sessions)
 // =============================================================================
-export * from './background-service.js';
-export * from './session-service.js';
+export * from './background-service';
+export * from './session-service';
 
 // =============================================================================
 // Session orchestration helpers (state tracking, environment capture,
 // restore, ephemeral filtering, context collapse, message chain, shared types)
 // =============================================================================
-export * from './session-state.js';
-export * from './session-environment.js';
-export * from './session-tracker.js';
-export * from './context-collapse.js';
-export * from './ephemeral-messages.js';
-export * from './message-chain.js';
-export * from './session-types.js';
+export * from './session-state';
+export * from './session-environment';
+export * from './session-tracker';
+export * from './context-collapse';
+export * from './ephemeral-messages';
+export * from './message-chain';
+export * from './session-types';
 
 // =============================================================================
 // Session message renderer (used by CLI)
 // =============================================================================
-export * from './render/message-renderer.js';
+export * from './render/message-renderer';
 
 // =============================================================================
 // Legacy session migration helpers (one-shot data migration)
 // =============================================================================
-export * from './pi-migration.js';
-export * from './migrate.js';
-export * from './migrate-to-pi.js';
-export * from './storage-portable.js';
+export * from './pi-migration';
+export * from './migrate';
+export * from './migrate-to-pi';
+export * from './storage-portable';
 
 // =============================================================================
 // Persistent storage helpers (JSONL-backed session storage)
 // =============================================================================
-export * from './storage.js';
-export * from './restore.js';
-export * from './pid-manager.js';
-export * from './selector.js';
+export * from './storage';
+export * from './restore';
+export * from './pid-manager';
+export * from './selector';
 
 // Pi Native runtime and prompt orchestration. These are the only public
 // production entry points for creating AgentSession instances and running
 // prompts; the root application must not import their implementation paths.
-export * from './agent-session-factory.js';
-export * from './prompt-runner.js';
-export { PiSessionRegistry } from './session-registry.js';
-export type { PiRunnerSessionState, PiSessionInitialization } from './session-registry.js';
-export { withPiFileLock } from './file-lock.js';
-export type { PiFileLockOptions } from './file-lock.js';
+export * from './agent-session-factory';
+export * from './prompt-runner';
+export { PiSessionRegistry } from './session-registry';
+export type { PiRunnerSessionState, PiSessionInitialization } from './session-registry';
+export { withPiFileLock } from './file-lock';
+export type { PiFileLockOptions } from './file-lock';
 
 // Explicit composition boundary for PiApp and deterministic fixtures.
 export {
@@ -308,10 +308,10 @@ export {
   builtinSessionFinanceComposition,
   builtinSessionPlatformComposition,
   builtinSessionPromptComposition,
-} from './builtin-composition.js';
+} from './builtin-composition';
 export type {
   PiSessionCompositionProviders,
   PiSessionFinanceProviders,
   PiSessionPlatformProviders,
   PiSessionPromptProviders,
-} from './builtin-composition.js';
+} from './builtin-composition';

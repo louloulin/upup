@@ -10,11 +10,11 @@ import {
   getTUICLIIntegration,
   destroyTUICLIIntegration,
   createTUICLIIntegration,
-} from '../cli-integration.js';
-import type { TUICLIIntegration } from '../cli-integration.js';
-import type { AppState } from '../state/app-state.js';
-import type { HistoryItem } from '../state/history-store.js';
-import type { ToolEvent } from '../state/tool-event-store.js';
+} from '../cli-integration';
+import type { TUICLIIntegration } from '../cli-integration';
+import type { AppState } from '../state/app-state';
+import type { HistoryItem } from '../state/history-store';
+import type { ToolEvent } from '../state/tool-event-store';
 
 // ============================================================================
 // Types

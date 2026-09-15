@@ -1,6 +1,6 @@
 import { timingSafeEqual } from 'node:crypto';
-import { renderManagementPage } from './management-page.js';
-import type { ManagementSnapshotProvider } from './snapshot-provider.js';
+import { renderManagementPage } from './management-page';
+import type { ManagementSnapshotProvider } from './snapshot-provider';
 
 export interface ManagementServerConfig {
   readonly port: number;

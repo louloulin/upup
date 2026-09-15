@@ -33,7 +33,7 @@
  * without losing evidence integrity or audit traceability.
  */
 import { describe, expect, test } from 'bun:test';
-import { createInvestmentDossier, getInvestmentDossierValidationErrors, verifyInvestmentEvidence } from './index.js';
+import { createInvestmentDossier, getInvestmentDossierValidationErrors, verifyInvestmentEvidence } from './index';
 
 const phaseNames = ['detect', 'plan', 'execute', 'verify', 'report'] as const;
 

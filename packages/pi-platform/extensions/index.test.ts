@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { createEventBus } from '@earendil-works/pi-coding-agent';
 import { publishPiCapabilityHosts } from '@upup/pi-capability-registry';
-import platformExtension from './index.js';
+import platformExtension from './index';
 
 describe('Pi platform extension', () => {
   function loadTools(worker = false) {

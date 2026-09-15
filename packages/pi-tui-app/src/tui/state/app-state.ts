@@ -5,8 +5,8 @@
  * 整合 Store 和 QueryGuard 的统一状态管理
  */
 
-import { createStore, type Store } from './store.js';
-import { type QueryState } from './query-guard.js';
+import { createStore, type Store } from './store';
+import { type QueryState } from './query-guard';
 
 // ============================================================================
 // Types
@@ -172,7 +172,7 @@ export function resetAppStateStore(): void {
 // Convenience Hooks
 // ============================================================================
 
-import type { Listener } from './store.js';
+import type { Listener } from './store';
 
 /**
  * 订阅 AppState 变化

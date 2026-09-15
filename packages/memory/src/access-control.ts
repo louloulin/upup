@@ -10,10 +10,10 @@
  * Reference: Claude Code's memory access control
  */
 
-import type { MemoryScope, MemoryFileMeta } from './types.js';
-import { MEMORY_SCOPE_PRIORITY, getDefaultScopeForType } from './types.js';
-import { getProjectMemoryPaths } from './project-paths.js';
-import { getTeamMemoryPaths } from './team-paths.js';
+import type { MemoryScope, MemoryFileMeta } from './types';
+import { MEMORY_SCOPE_PRIORITY, getDefaultScopeForType } from './types';
+import { getProjectMemoryPaths } from './project-paths';
+import { getTeamMemoryPaths } from './team-paths';
 
 // ============================================================================
 // Types

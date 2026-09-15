@@ -7,22 +7,22 @@ import {
   executeBashCommand,
   formatBashResult,
   isDangerousCommand,
-} from './bash-tool.js';
+} from './bash-tool';
 import {
   validateCommandSecurity,
   checkDangerousPatterns,
   sanitizeOutput,
   isReadOnlyOperation,
-} from './security.js';
+} from './security';
 import {
   classifyCommand,
   isReadOnlyCommand,
   isDestructiveCommand,
-} from './command-classifier.js';
+} from './command-classifier';
 import {
   getPermissionMode,
   isAllowed,
-} from './permission-mode.js';
+} from './permission-mode';
 
 // ============================================================================
 // Bash Command Execution Tests

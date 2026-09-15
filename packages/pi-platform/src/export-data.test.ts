@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { exportPlatformData } from './export-data.js';
+import { exportPlatformData } from './export-data';
 
 describe('platform data export', () => {
   test('exports escaped CSV into the requested directory', async () => {

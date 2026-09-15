@@ -6,7 +6,7 @@ export {
   HookExecutor,
   type HookExecutorConfig,
   type HookExecutionResult,
-} from './executor.js'
+} from './executor'
 
 export {
   HookRegistry,
@@ -18,7 +18,7 @@ export {
   type HookMap,
   type SDKMessage,
   HOOK_EVENTS,
-} from './types.js'
+} from './types'
 
 // ============ PostSampling Hooks (P2) ============
 
@@ -28,11 +28,11 @@ export {
   createLoggingHook,
   createMetadataHook,
   createAugmentHook,
-} from './post-sampling.js'
+} from './post-sampling'
 
 export type {
   PostSamplingInput,
   PostSamplingOutput,
   PostSamplingCallback,
   PostSamplingConfig,
-} from './post-sampling.js'
+} from './post-sampling'

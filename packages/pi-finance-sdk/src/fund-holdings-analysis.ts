@@ -3,8 +3,8 @@
  * 基金→股票双向映射、行业分布、持仓变化追踪
  */
 
-import { getFundHoldings, searchFunds } from './fund-api.js';
-import type { FundHoldings } from './fund-types.js';
+import { getFundHoldings, searchFunds } from './fund-api';
+import type { FundHoldings } from './fund-types';
 
 // ============================================================================
 // Types

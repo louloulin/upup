@@ -16,7 +16,7 @@ import {
   getAllSkillCommands,
   getSkillCommand,
   substituteArguments,
-} from '../src/skills/index.js';
+} from '../src/skills/index';
 
 console.log('\n' + '='.repeat(80));
 console.log('                    SKILLS 系统验证脚本');

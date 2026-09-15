@@ -7,7 +7,7 @@
  * 3. 上下文在多轮对话中保持
  */
 
-import { createClient } from './src/client/client.js'
+import { createClient } from './src/client/client'
 
 async function finalContextTest() {
   console.log('='.repeat(80))

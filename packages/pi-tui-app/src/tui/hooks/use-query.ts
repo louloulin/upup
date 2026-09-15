@@ -5,8 +5,8 @@
  * 提供在 pi-tui 组件中使用 QueryGuard 的方式
  */
 
-import type { QueryState } from '../state/query-guard.js';
-import { getQueryGuard } from '../state/query-guard.js';
+import type { QueryState } from '../state/query-guard';
+import { getQueryGuard } from '../state/query-guard';
 
 /**
  * useQuery 返回类型

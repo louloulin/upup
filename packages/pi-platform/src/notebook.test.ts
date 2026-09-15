@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { mkdtemp, readFile, rm, symlink } from 'node:fs/promises';
 import { join } from 'node:path';
-import { platformNotebookCreate, platformNotebookDeleteCell, platformNotebookEditCell, platformNotebookInsertCell, platformNotebookRead } from './notebook.js';
+import { platformNotebookCreate, platformNotebookDeleteCell, platformNotebookEditCell, platformNotebookInsertCell, platformNotebookRead } from './notebook';
 
 describe('pi-platform notebook', () => {
   test('creates, reads, edits, inserts, and deletes cells inside cwd', async () => {

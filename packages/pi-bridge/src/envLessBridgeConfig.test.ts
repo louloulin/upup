@@ -5,7 +5,7 @@ import {
   _setEnvLessBridgeConfigOverride,
   computeRetryDelay,
   DEFAULT_ENV_LESS_BRIDGE_CONFIG,
-} from './envLessBridgeConfig.js';
+} from './envLessBridgeConfig';
 
 const VALID_OVERRIDE = {
   init_retry_max_attempts: 5,

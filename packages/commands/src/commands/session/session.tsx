@@ -11,7 +11,7 @@
  */
 
 import { Container, Text, Spacer, Input, SelectList, type SelectItem } from '@earendil-works/pi-tui';
-import { theme } from '../../theme.js';
+import { theme } from '../../theme';
 
 interface Session {
   id: string

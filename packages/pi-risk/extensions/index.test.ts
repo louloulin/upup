@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { createEventBus } from '@earendil-works/pi-coding-agent';
-import riskExtension from './index.js';
+import riskExtension from './index';
 
 type RegisteredTool = { name: string; execute: (...args: any[]) => Promise<any> };
 

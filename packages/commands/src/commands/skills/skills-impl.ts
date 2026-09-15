@@ -5,7 +5,7 @@
  * Lists available user skills and bundled skills.
  */
 
-import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types.js'
+import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types'
 import { listPiSkillCommands } from '@upup/pi-resource-composition'
 
 export interface SkillsContext extends ToolUseContext {

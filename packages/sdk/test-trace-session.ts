@@ -1,7 +1,7 @@
 /**
  * 追踪 sessionId 使用
  */
-import { createClient } from './src/client/client.js'
+import { createClient } from './src/client/client'
 
 async function traceSessionId() {
   console.log('追踪 sessionId 使用')

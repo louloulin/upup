@@ -9,7 +9,7 @@
  * 5. 先创建 session 再进行对话
  */
 
-import { createClient } from './src/index.js'
+import { createClient } from './src/index'
 
 async function testPhase5Simplified() {
   console.log('================================================================================')

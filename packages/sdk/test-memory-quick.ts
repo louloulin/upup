@@ -1,7 +1,7 @@
 /**
  * 快速验证测试 - 验证记忆保持
  */
-import { createClient } from './src/client/client.js'
+import { createClient } from './src/client/client'
 
 async function testMemory() {
   console.log('记忆保持快速测试')

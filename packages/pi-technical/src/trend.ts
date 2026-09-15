@@ -1,4 +1,4 @@
-import { sma, type IndicatorBar } from './indicators.js';
+import { sma, type IndicatorBar } from './indicators';
 
 export type TrendDirection = 'uptrend' | 'downtrend' | 'sideways' | 'unknown';
 

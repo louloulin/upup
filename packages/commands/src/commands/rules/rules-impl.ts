@@ -5,7 +5,7 @@
  * Reads and displays research rules from RULES.md
  */
 
-import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types.js'
+import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types'
 import { readFile } from 'fs/promises'
 import { resolve } from 'path'
 

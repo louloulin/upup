@@ -7,7 +7,7 @@
  * Usage: /theme [list|set <name>|preview]
  */
 
-import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types.js'
+import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types'
 
 // Available themes
 const THEMES = {

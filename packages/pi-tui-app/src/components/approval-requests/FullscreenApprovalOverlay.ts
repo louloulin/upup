@@ -16,14 +16,14 @@ import {
   getKeybindings,
   type Component,
 } from '@earendil-works/pi-tui';
-import { BorderBox } from '../BorderBox.js';
+import { BorderBox } from '../BorderBox';
 import type { ApprovalDecision } from '@upup/pi-runtime';
-import { getToolDangerLevel, isHardDenyCommand } from '../../permissions/index.js';
+import { getToolDangerLevel, isHardDenyCommand } from '../../permissions/index';
 import { theme } from '@upup/utils';
-import type { ApprovalRequestData } from './BaseApprovalRequest.js';
+import type { ApprovalRequestData } from './BaseApprovalRequest';
 
 // Re-use the factory from GenericApprovalRequest
-export { createApprovalRequest } from './GenericApprovalRequest.js';
+export { createApprovalRequest } from './GenericApprovalRequest';
 
 export interface FullscreenOverlayCallbacks {
   onApprove: (decision: ApprovalDecision) => void;

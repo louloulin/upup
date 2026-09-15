@@ -8,7 +8,7 @@
  * Type: prompt (uses AI to set up project)
  */
 
-import type { PromptCommand } from '../../types/command-types.js'
+import type { PromptCommand } from '../../types/command-types'
 import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/index.mjs'
 
 const INIT_PROMPT = `Set up a CLAUDE.md file for this repository. CLAUDE.md is loaded into every session, so keep it concise.

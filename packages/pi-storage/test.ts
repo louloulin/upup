@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { AuditChain, DossierStore, StrategyStore, canonicalJson, computeStrategyPrevHash, dossierPostPhase } from './src/index.js';
+import { AuditChain, DossierStore, StrategyStore, canonicalJson, computeStrategyPrevHash, dossierPostPhase } from './src/index';
 
 const root = join(tmpdir(), `upup-pi-storage-${process.pid}-${Date.now()}`);
 beforeEach(() => { if (existsSync(root)) mkdirSync(root, { recursive: true }); });
@@ -45,7 +45,7 @@ import {
   hashFile,
   hashString,
   generateId as generateCryptoId,
-} from './src/crypto-utils.js';
+} from './src/crypto-utils';
 import {
   BaseStorageAdapter,
   GlobalStorageAdapter,
@@ -63,20 +63,20 @@ import {
   getLocalUpupDir,
   getHierarchicalStorage,
   resetHierarchicalStorage,
-} from './src/storage-adapter.js';
+} from './src/storage-adapter';
 import {
   getFileHistoryDir,
   getFileHistoryManager,
   resetFileHistoryManager,
   recordFileHistorySnapshot,
-} from './src/file-history.js';
+} from './src/file-history';
 import {
   createShellSnapshot,
   detectShellType,
   generateSnapshotScript,
   getShellSnapshotManager,
   resetShellSnapshotManager,
-} from './src/shell-snapshots.js';
+} from './src/shell-snapshots';
 import {
   getStatsCacheManager,
   resetStatsCacheManager,
@@ -84,13 +84,13 @@ import {
   getSessionStatistics,
   recordModelUsage,
   getModelUsage,
-} from './src/stats-cache.js';
+} from './src/stats-cache';
 import {
   getProjectStorage,
   resetProjectStorage,
   sanitizePath,
   getProjectsDir,
-} from './src/project-storage.js';
+} from './src/project-storage';
 import {
   clearAllFollowed,
   followFund,
@@ -100,7 +100,7 @@ import {
   getFollowedCount,
   getFollowedFund,
   updateFollowedFund,
-} from './src/fund-storage.js';
+} from './src/fund-storage';
 
 describe('pi-storage/crypto-utils', () => {
   test('hashString returns md5 hex digest', () => {

@@ -9,7 +9,7 @@
  * Reference: loucode/src/commands/clear/index.ts
  */
 
-import type { LocalCommand } from '../../types/command-types.js'
+import type { LocalCommand } from '../../types/command-types'
 
 export const clearCommand: LocalCommand = {
   type: 'local',
@@ -17,7 +17,7 @@ export const clearCommand: LocalCommand = {
   description: 'Clear conversation history',
   aliases: ['cls'],
   supportsNonInteractive: true,
-  load: () => import('./clear-impl.js'),
+  load: () => import('./clear-impl'),
 }
 
 export default clearCommand

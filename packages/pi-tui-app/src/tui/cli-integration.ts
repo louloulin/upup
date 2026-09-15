@@ -15,7 +15,7 @@ import {
   type HistoryItem,
   type HistoryMessage,
   type ToolEvent,
-} from './state/index.js';
+} from './state/index';
 
 // ============================================================================
 // Types

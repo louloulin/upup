@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { NativeAltDataClient } from './alt-data.js';
+import { NativeAltDataClient } from './alt-data';
 
 const dragon = { items: [{ symbol: '600519.SH', branch: '机构专用', action: 'buy', amount: 100000000, url: 'https://fixture/1', publishedAt: 1720000000000 }] };
 const north = { date: 1720000000000, shConnect: { netInflow: 100000000, topBuys: ['600519.SH'] }, szConnect: { netInflow: -20000000, topBuys: ['000858.SZ'] }, marginBalance: { total: 1e12, change: 2e9 } };

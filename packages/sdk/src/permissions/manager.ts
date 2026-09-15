@@ -9,7 +9,7 @@ import type {
   PermissionResult,
   CanUseTool,
   PermissionContext,
-} from './types.js'
+} from './types'
 
 /**
  * 权限管理器配置

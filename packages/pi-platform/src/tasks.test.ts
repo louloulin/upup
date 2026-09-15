@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { createInitialPlatformTaskState, createPlatformTask, getPlatformTask, listPlatformTasks, parsePlatformTaskState, platformTaskStats, updatePlatformTask } from './tasks.js';
+import { createInitialPlatformTaskState, createPlatformTask, getPlatformTask, listPlatformTasks, parsePlatformTaskState, platformTaskStats, updatePlatformTask } from './tasks';
 
 describe('pi-platform tasks', () => {
   test('tracks task lifecycle and bounded state', () => {

@@ -5,9 +5,9 @@
  * @see https://docs.anthropic.com/en/docs/claude-code/api
  */
 
-import type { Tool } from './tools/index.js'
-import type { RunnableTool } from './tool-runner.js'
-import { ToolValidationError } from './tool-error.js'
+import type { Tool } from './tools/index'
+import type { RunnableTool } from './tool-runner'
+import { ToolValidationError } from './tool-error'
 
 // ============ JSON Schema Tool ============
 

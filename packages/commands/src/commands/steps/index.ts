@@ -5,7 +5,7 @@
  * List all steps in the current plan.
  */
 
-import type { LocalCommand } from '../../types/command-types.js'
+import type { LocalCommand } from '../../types/command-types'
 
 export const stepsCommand: LocalCommand = {
   type: 'local',
@@ -13,5 +13,5 @@ export const stepsCommand: LocalCommand = {
   description: 'List all steps in the current plan',
   aliases: ['plan-steps', 'list-steps'],
   supportsNonInteractive: true,
-  load: () => import('./steps-impl.js'),
+  load: () => import('./steps-impl'),
 }

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { getPlatformSkill, invokePlatformSkill, listPlatformSkills, searchPlatformSkills, type PlatformSkillDefinition } from './skill-discovery.js';
+import { getPlatformSkill, invokePlatformSkill, listPlatformSkills, searchPlatformSkills, type PlatformSkillDefinition } from './skill-discovery';
 
 const skills: PlatformSkillDefinition[] = [
   { name: 'finance-evidence', description: 'Evidence quality for financial research', instructions: 'Use source URLs.' },

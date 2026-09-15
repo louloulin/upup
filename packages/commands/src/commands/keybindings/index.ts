@@ -8,7 +8,7 @@
  * Category: system
  */
 
-import type { LocalCommand } from '../../types/command-types.js'
+import type { LocalCommand } from '../../types/command-types'
 
 export const keybindingsCommand: LocalCommand = {
   type: 'local',
@@ -16,7 +16,7 @@ export const keybindingsCommand: LocalCommand = {
   description: 'Show or change keyboard shortcuts',
   aliases: ['keys', 'kb'],
   supportsNonInteractive: true,
-  load: () => import('./keybindings-impl.js'),
+  load: () => import('./keybindings-impl'),
 }
 
 export default keybindingsCommand

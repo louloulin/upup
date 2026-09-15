@@ -30,7 +30,7 @@ import {
   WATCHLIST_FILE,
   TOOL_RESULTS_DIR,
   SCRATCHPAD_DIR,
-} from '../src/utils/storage-paths.js';
+} from '../src/utils/storage-paths';
 
 // ============================================================================
 // Hardcoded Path Analysis
@@ -361,18 +361,18 @@ function generateFixRecommendations(): void {
   console.log(`
 1. src/memory/memory-audit.ts
    Before: join(process.cwd(), ".upup", "logs")
-   After:  import { LOGS_DIR } from './storage-paths.js'
+   After:  import { LOGS_DIR } from './storage-paths'
            OR: globalUpupPath('logs')
 
 2. src/memory/nested-paths.ts (2 occurrences)
    Before: join(process.env.HOME, ".upup")
            join(projectDir, ".upup")
-   After:  import { getUpupDir } from './paths.js'
+   After:  import { getUpupDir } from './paths'
            getUpupDir()
 
 3. src/memory/team-paths.ts
    Before: join(process.cwd(), DEFAULT_TEAM_MEMORY_DIR)
-   After:  import { TEAMS_DIR } from '../utils/storage-paths.js'
+   After:  import { TEAMS_DIR } from '../utils/storage-paths'
            TEAMS_DIR
 
 4. src/plan/plan-context.ts

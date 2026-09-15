@@ -4,7 +4,7 @@
  * 全面测试 SDK 与全局 upup 的交互
  */
 
-import { createClient, ProcessPool } from '../src/index.js'
+import { createClient, ProcessPool } from '../src/index'
 
 async function main() {
   console.log('╔══════════════════════════════════════════════════════════════╗')

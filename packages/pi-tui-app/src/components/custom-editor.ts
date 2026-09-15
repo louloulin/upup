@@ -1,7 +1,7 @@
 import { Editor, Key, matchesKey } from '@earendil-works/pi-tui';
-import type { KeyEvent as KEvent, ResolveResult } from '../tui/keybindings/index.js';
-import { inputStore, inputActions } from '../tui/state/input-state.js';
-import { Cursor } from '../tui/utils/cursor.js';
+import type { KeyEvent as KEvent, ResolveResult } from '../tui/keybindings/index';
+import { inputStore, inputActions } from '../tui/state/input-state';
+import { Cursor } from '../tui/utils/cursor';
 import {
   pushToKillRing,
   getLastKill,
@@ -14,7 +14,7 @@ import {
   updateYankLength,
   canYankPop,
   yankPop,
-} from '../utils/kill-ring.js';
+} from '../utils/kill-ring';
 
 /**
  * CustomEditor extends pi-tui Editor with:

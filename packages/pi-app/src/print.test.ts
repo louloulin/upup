@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { fauxAssistantMessage, fauxProvider, fauxText } from '@earendil-works/pi-ai';
 import { ModelRuntime } from '@earendil-works/pi-coding-agent';
-import { parsePrintArgs, runPrint } from './print.js';
+import { parsePrintArgs, runPrint } from './print';
 
 describe('Pi-native print entry', () => {
   test('parses prompt and runtime options without creating another agent loop', () => {

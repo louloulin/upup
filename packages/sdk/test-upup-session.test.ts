@@ -7,7 +7,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 
 // 导入被测试的模块
-import { UpupSessionManager, type RpcTransport } from './src/session/upup-session.js'
+import { UpupSessionManager, type RpcTransport } from './src/session/upup-session'
 
 describe('UpupSessionManager (SDK v5 - 基于 upup 核心)', () => {
   // 模拟 RPC Transport

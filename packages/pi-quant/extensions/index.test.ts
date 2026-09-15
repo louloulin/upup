@@ -26,7 +26,7 @@ describe('pi-quant extension registration', () => {
       },
     };
     const { events, dispose } = setHost(new Map([['@upup/pi-quant', HOST_REG]]));
-    const mod = await import('./index.js');
+    const mod = await import('./index');
     mod.default({ ...fakePi, events } as unknown as Parameters<typeof mod.default>[0]);
     dispose();
     expect(tools.size).toBe(8);
@@ -48,7 +48,7 @@ describe('pi-quant extension registration', () => {
       },
     };
     const { events, dispose } = setHost(new Map([['@upup/pi-quant', HOST_REG]]));
-    const mod = await import('./index.js');
+    const mod = await import('./index');
     mod.default({ ...fakePi, events } as unknown as Parameters<typeof mod.default>[0]);
     const ctrl = new AbortController();
     const out = await tools.get('quant_factor_normalize')!.execute('a-1', { values: [1, 2, 3, 4, 5], method: 'zscore' }, ctrl.signal);
@@ -67,7 +67,7 @@ describe('pi-quant extension registration', () => {
       },
     };
     const { events, dispose } = setHost(new Map([['@upup/pi-quant', HOST_REG]]));
-    const mod = await import('./index.js');
+    const mod = await import('./index');
     mod.default({ ...fakePi, events } as unknown as Parameters<typeof mod.default>[0]);
     const ctrl = new AbortController();
     ctrl.abort();
@@ -79,7 +79,7 @@ describe('pi-quant extension registration', () => {
 
   test('registerHostTools is a no-op when host is missing', async () => {
     const { events, dispose } = setHost(new Map());
-    const mod = await import('./index.js');
+    const mod = await import('./index');
     expect(typeof mod.default).toBe('function');
     mod.default({ registerTool: () => undefined, events } as unknown as Parameters<typeof mod.default>[0]);
     dispose();

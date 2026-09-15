@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { CANONICAL_INVESTMENT_PHASES, type InvestmentWorkflowPhase, type InvestmentWorkflowPlan } from './workflow.js';
-import type { InvestmentAgentProfileId } from './workflow.js';
+import { CANONICAL_INVESTMENT_PHASES, type InvestmentWorkflowPhase, type InvestmentWorkflowPlan } from './workflow';
+import type { InvestmentAgentProfileId } from './workflow';
 import type { ResearchMarket } from '@upup/pi-planning';
 
 export const INVESTMENT_DOSSIER_SCHEMA = 'upup.pi.investment-dossier.v1' as const;

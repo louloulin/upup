@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'bun:test';
-import { MCPClientManager, MCPServerConfig, MCPOAuthConfig } from '../src/client.js';
+import { MCPClientManager, MCPServerConfig, MCPOAuthConfig } from '../src/client';
 
 describe('MCPClientManager - OAuth Integration', () => {
   let manager: MCPClientManager;
@@ -77,7 +77,7 @@ describe('OAuth Token Handling', () => {
 
 describe('OAuth Token Storage', () => {
   it('should store tokens during OAuth flow', async () => {
-    const { defaultTokenStorage } = await import('../src/oauth.js');
+    const { defaultTokenStorage } = await import('../src/oauth');
 
     const tokens = {
       accessToken: 'test-access-token',

@@ -4,7 +4,7 @@
  * 最小化测试，验证 SDK 基本流程
  */
 
-import { createClient } from './src/client/client.js'
+import { createClient } from './src/client/client'
 
 async function simpleVerify() {
   console.log('='.repeat(80))

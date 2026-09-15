@@ -2,9 +2,9 @@ import {
   getDefaultModelForProvider,
   getModelsForProvider,
   type Model,
-} from '../utils/model.js';
+} from '../utils/model';
 import { DEFAULT_MODEL, DEFAULT_PROVIDER } from '@upup/utils';
-import { InMemoryChatHistory } from './in-memory-chat-history.js';
+import { InMemoryChatHistory } from './in-memory-chat-history';
 import type { PromptRunner } from '@upup/utils';
 
 export interface ModelSelectionDependencies {

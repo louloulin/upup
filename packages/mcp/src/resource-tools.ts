@@ -4,9 +4,9 @@
  * These tools let the agent discover and read resources exposed by connected MCP servers.
  */
 
-import { createPiMcpTool } from './pi-tool.js';
+import { createPiMcpTool } from './pi-tool';
 import { z } from 'zod';
-import { getDefaultMCPClient } from './client.js';
+import { getDefaultMCPClient } from './client';
 
 export const LIST_MCP_RESOURCES_DESCRIPTION = `
 List available resources from connected MCP servers.

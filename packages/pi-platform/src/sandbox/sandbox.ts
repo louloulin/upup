@@ -1,7 +1,7 @@
 import { lstat } from 'node:fs/promises';
 import { isAbsolute, join, relative, resolve as resolvePath } from 'node:path';
-import { resolveToCwd } from './utils/path-utils.js';
-import { getSandboxManager } from './sandbox-manager.js';
+import { resolveToCwd } from './utils/path-utils';
+import { getSandboxManager } from './sandbox-manager';
 
 /**
  * Get the list of allowed roots from the sandbox manager.

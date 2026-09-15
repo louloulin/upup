@@ -25,13 +25,13 @@ import {
   forkSession,
   exportSessionToJson,
   exportSessionToMarkdown,
-} from '../src/session/storage.js';
+} from '../src/session/storage';
 import {
   loadSessionForResume,
   processResumedConversation,
   resolveResumeTarget,
   getMostRecentSession,
-} from '../src/session/restore.js';
+} from '../src/session/restore';
 
 // ============================================================================
 // Test Setup

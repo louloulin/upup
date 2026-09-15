@@ -1,6 +1,6 @@
 import { Type } from 'typebox';
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
-import { getConfig, listConfig, loadFinalConfig, setConfig, type ConfigValue } from '../src/index.js';
+import { getConfig, listConfig, loadFinalConfig, setConfig, type ConfigValue } from '../src/index';
 
 const getParameters = Type.Object({ key: Type.Optional(Type.String({ maxLength: 200 })) });
 const listParameters = Type.Object({ prefix: Type.Optional(Type.String({ maxLength: 200 })) });

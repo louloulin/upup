@@ -5,8 +5,8 @@ import {
   rightsTheoreticalExPrice,
   sortRightsChronologically,
   totalRightsCost,
-} from './rights.js';
-import type { RightsIssueEvent } from './types.js';
+} from './rights';
+import type { RightsIssueEvent } from './types';
 
 const rights: RightsIssueEvent[] = [
   { symbol: 'X', exDate: '2024-01-01', ratioFrom: 10, ratioTo: 3, pricePerShare: 50, currency: 'CNY' },

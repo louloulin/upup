@@ -1,14 +1,14 @@
-import type { InMemoryChatHistory } from './in-memory-chat-history.js';
+import type { InMemoryChatHistory } from './in-memory-chat-history';
 import type { UpUpAgentEvent } from '@upup/pi-runtime';
-import type { AgentConfig, ApprovalDecision, DisplayEvent, DoneEvent, StreamMode, UiEvent } from './agent-runner-types.js';
+import type { AgentConfig, ApprovalDecision, DisplayEvent, DoneEvent, StreamMode, UiEvent } from './agent-runner-types';
 import type { MessageQueue } from '@upup/utils';
 import type { PromptRunner } from '@upup/utils';
 import type { PiSessionService } from '@upup/pi-session';
 import type { AgentPortsLocal } from '@upup/commands';
 export type TuiCommandCapabilities = AgentPortsLocal;
-import type { HistoryItem, HistoryItemStatus, WorkingState } from './agent-runner-types.js';
-export type { AgentConfig, ApprovalDecision, HistoryItem, HistoryItemStatus, StreamMode, WorkingState } from './agent-runner-types.js';
-import { getTimeoutForTool } from '../permissions/index.js';
+import type { HistoryItem, HistoryItemStatus, WorkingState } from './agent-runner-types';
+export type { AgentConfig, ApprovalDecision, HistoryItem, HistoryItemStatus, StreamMode, WorkingState } from './agent-runner-types';
+import { getTimeoutForTool } from '../permissions/index';
 
 function toUiEvent(event: UpUpAgentEvent): UiEvent | undefined {
   switch (event.type) {

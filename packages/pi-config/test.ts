@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { getConfig, getConfigPaths, listConfig, loadConfig, loadFinalConfig, setConfig } from './src/index.js';
+import { getConfig, getConfigPaths, listConfig, loadConfig, loadFinalConfig, setConfig } from './src/index';
 
 describe('pi-config core', () => {
   test('merges global, local, and fragment layers and writes a backup', async () => {

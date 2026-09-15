@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { platformSnipMessages, shouldPlatformSnip } from './snipping.js';
+import { platformSnipMessages, shouldPlatformSnip } from './snipping';
 
 describe('pi-platform snipping', () => {
   test('removes low-value user confirmations while preserving boundaries', () => {

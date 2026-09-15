@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { getBuiltinPiPackageOptions, getProjectPiPackageOptions, mergePiPackageTrust, resolveConfiguredPiPackages } from './package-config.js';
+import { getBuiltinPiPackageOptions, getProjectPiPackageOptions, mergePiPackageTrust, resolveConfiguredPiPackages } from './package-config';
 
 const previous = {
   paths: process.env.UPUP_PI_PACKAGE_PATHS,

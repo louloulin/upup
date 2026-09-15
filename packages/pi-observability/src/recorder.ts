@@ -17,8 +17,8 @@ import { createHash, randomBytes } from 'node:crypto';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
-import { anonymizeStack, anonymizeText, anonymizeValue } from './anonymizer.js';
-import { TelemetrySink, type SinkConfig } from './sink.js';
+import { anonymizeStack, anonymizeText, anonymizeValue } from './anonymizer';
+import { TelemetrySink, type SinkConfig } from './sink';
 import type {
   DecisionEvent,
   ErrorEvent,
@@ -27,7 +27,7 @@ import type {
   ProviderRetryEvent,
   TelemetryEvent,
   ToolCallEvent,
-} from './types.js';
+} from './types';
 
 const DEFAULT_DIR = join(homedir(), '.upup', 'telemetry');
 

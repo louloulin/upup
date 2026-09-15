@@ -17,7 +17,7 @@ import {
   tryJsonFormatContent,
   stripUnderlineAnsi,
   truncateAtWord,
-} from './output-processors.js';
+} from './output-processors';
 
 // Local type definition (duplicated from bash-tool.ts to avoid circular deps)
 interface BashToolResult {

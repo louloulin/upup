@@ -8,13 +8,13 @@
 // ✅ SDK v5: 基于 upup 核心的 Session (推荐)
 export {
   UpupSessionManager,
-} from './upup-session.js'
+} from './upup-session'
 
 // ✅ 导出类型
 export type {
   RpcTransport,
   UpupSessionManagerConfig,
-} from './upup-session.js'
+} from './upup-session'
 
 // ✅ 公共类型
 export type {
@@ -25,7 +25,7 @@ export type {
   SessionMessage,
   SessionEvent,
   SessionEventData,
-} from './types.js'
+} from './types'
 
 // ✅ 保留向后兼容的导出 (deprecated)
 export {
@@ -33,4 +33,4 @@ export {
   FileSessionStore,
   MemorySessionStore,
   createSessionStore,
-} from './store.js'
+} from './store'

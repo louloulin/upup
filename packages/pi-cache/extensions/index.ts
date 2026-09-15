@@ -1,6 +1,6 @@
 import { Type } from 'typebox';
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
-import { CACHE_PRESETS, cacheInfo, piCacheManager, type CacheName } from '../src/index.js';
+import { CACHE_PRESETS, cacheInfo, piCacheManager, type CacheName } from '../src/index';
 
 const cacheName = Type.Optional(Type.Union(Object.keys(CACHE_PRESETS).map((name) => Type.Literal(name)) as [never, ...never[]]));
 const statsParameters = Type.Object({ cacheName });

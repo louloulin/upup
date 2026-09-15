@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { createDryRunClient, dryRunEvidence } from './dry-run.js';
+import { createDryRunClient, dryRunEvidence } from './dry-run';
 
 describe('createDryRunClient', () => {
   test('returns known A-share dividends for 600519.SH', async () => {

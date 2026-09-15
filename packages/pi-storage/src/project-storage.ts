@@ -12,7 +12,7 @@
  */
 
 import { globalUpupPath } from '@upup/utils';
-import { getCacheTTL } from './storage-adapter.js';
+import { getCacheTTL } from './storage-adapter';
 import * as fs from 'fs';
 import * as path from 'path';
 

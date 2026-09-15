@@ -12,7 +12,7 @@
  */
 
 import { wrapTextWithAnsi, truncateToWidth, visibleWidth } from '@earendil-works/pi-tui';
-import { useStoreSubscription } from '../hooks/use-store.js';
+import { useStoreSubscription } from '../hooks/use-store';
 
 // ============================================================================
 // Types

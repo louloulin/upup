@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect } from 'bun:test';
-import { StatusHintComponent, type StatusHintState } from './status-hint.js';
+import { StatusHintComponent, type StatusHintState } from './status-hint';
 
 const baseState: StatusHintState = {
   isProcessing: false,

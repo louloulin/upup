@@ -10,15 +10,15 @@ export type {
   TotalReturnBreakdown,
   CorporateActionsClient,
   CorporateActionsEvidence,
-} from './types.js';
+} from './types';
 export {
   filterDividends,
   totalDividends,
   dividendYieldOnDate,
   annualizedDividendYield,
   groupDividendsByYear,
-} from './dividends.js';
-export type { DividendFilterOptions } from './dividends.js';
+} from './dividends';
+export type { DividendFilterOptions } from './dividends';
 export {
   splitRatio,
   isReverseSplit,
@@ -26,29 +26,29 @@ export {
   cumulativeSplitFactor,
   splitEventsBetween,
   adjustPriceForSplit,
-} from './splits.js';
+} from './splits';
 export {
   rightsSubscriptionRatio,
   rightsTheoreticalExPrice,
   rightsIssueCost,
   sortRightsChronologically,
   totalRightsCost,
-} from './rights.js';
+} from './rights';
 export {
   computeAdjustmentFactors,
   backAdjust,
   forwardAdjust,
   adjustBars,
   summarizeAdjustment,
-} from './adjustments.js';
-export type { RawBar } from './adjustments.js';
+} from './adjustments';
+export type { RawBar } from './adjustments';
 export {
   computeTotalReturn,
   aggregateActions,
-} from './aggregate.js';
-export type { TotalReturnOptions } from './aggregate.js';
+} from './aggregate';
+export type { TotalReturnOptions } from './aggregate';
 export {
   createDryRunClient,
   dryRunEvidence,
-} from './dry-run.js';
-export type { DryRunFixture } from './dry-run.js';
+} from './dry-run';
+export type { DryRunFixture } from './dry-run';

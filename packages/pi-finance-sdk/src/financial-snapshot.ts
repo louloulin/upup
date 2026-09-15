@@ -1,4 +1,4 @@
-import { getNativeAStockFinancials } from './astock-financials.js';
+import { getNativeAStockFinancials } from './astock-financials';
 
 export interface NativeFinancialPeriod {
   period: string;

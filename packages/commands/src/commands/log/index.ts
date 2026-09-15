@@ -8,7 +8,7 @@
  * Category: git
  */
 
-import type { LocalCommand } from '../../types/command-types.js'
+import type { LocalCommand } from '../../types/command-types'
 
 export const logCommand: LocalCommand = {
   type: 'local',
@@ -16,7 +16,7 @@ export const logCommand: LocalCommand = {
   description: 'Show git commit history',
   aliases: [],
   supportsNonInteractive: true,
-  load: () => import('./log-impl.js'),
+  load: () => import('./log-impl'),
 }
 
 export default logCommand

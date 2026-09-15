@@ -8,7 +8,7 @@
  * Category: tools
  */
 
-import type { LocalCommand } from '../../types/command-types.js'
+import type { LocalCommand } from '../../types/command-types'
 
 export const configCommand: LocalCommand = {
   type: 'local',
@@ -16,7 +16,7 @@ export const configCommand: LocalCommand = {
   description: 'Get or set configuration values',
   aliases: ['cfg'],
   supportsNonInteractive: true,
-  load: () => import('./config-impl.js'),
+  load: () => import('./config-impl'),
 }
 
 export default configCommand

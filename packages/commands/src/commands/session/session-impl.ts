@@ -5,7 +5,7 @@
  * Manages sessions: list, delete, rename, tag.
  */
 
-import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types.js'
+import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types'
 
 export interface SessionContext extends ToolUseContext {
   currentSessionId?: string

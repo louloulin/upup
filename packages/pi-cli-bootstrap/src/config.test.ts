@@ -17,7 +17,7 @@ import {
   exportConfig,
   importConfig,
   runConfigCommand,
-} from './config.js';
+} from './config';
 
 function getTestConfigPath() {
   return join(homedir(), '.upup-test-commands', 'settings.json');

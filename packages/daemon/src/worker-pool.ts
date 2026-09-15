@@ -12,8 +12,8 @@
  */
 
 import { info, warn, error } from '@upup/utils/logging';
-import type { WorkerHealth, WorkerPoolConfig, DaemonWorker } from './types.js';
-import { DEFAULT_WORKER_POOL_CONFIG } from './types.js';
+import type { WorkerHealth, WorkerPoolConfig, DaemonWorker } from './types';
+import { DEFAULT_WORKER_POOL_CONFIG } from './types';
 
 // Re-export types from local types module
 export type { WorkerHealth, WorkerPoolConfig, DaemonWorker };

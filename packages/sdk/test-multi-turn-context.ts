@@ -8,7 +8,7 @@
  * 4. 验证消息顺序正确
  */
 
-import { createClient } from './src/client/client.js'
+import { createClient } from './src/client/client'
 
 interface TestResult {
   turn: number

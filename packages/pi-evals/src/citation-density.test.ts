@@ -15,7 +15,7 @@
 import { describe, expect, test } from 'bun:test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { CITATION_DENSITY_LIMIT, computeCitationDensity } from './citation-density.js';
+import { CITATION_DENSITY_LIMIT, computeCitationDensity } from './citation-density';
 
 const CSV_PATH = join(import.meta.dir, 'dataset', 'finance_agent.csv');
 

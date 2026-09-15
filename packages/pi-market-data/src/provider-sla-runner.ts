@@ -1,6 +1,6 @@
-import type { MarketHistoryProvider } from './history.js';
-import { createDefaultMarketQuoteClient, type NativeMarketQuoteClient, type NativeMarketQuoteTrendStore } from './quote.js';
-import { JsonFileProviderSlaStore, runProviderSlaJob, type ProviderSlaRunResult, type ProviderSlaStore } from './provider-sla.js';
+import type { MarketHistoryProvider } from './history';
+import { createDefaultMarketQuoteClient, type NativeMarketQuoteClient, type NativeMarketQuoteTrendStore } from './quote';
+import { JsonFileProviderSlaStore, runProviderSlaJob, type ProviderSlaRunResult, type ProviderSlaStore } from './provider-sla';
 
 export interface ProviderSlaRunner {
   runDue(signal?: AbortSignal): Promise<readonly ProviderSlaRunResult[]>;

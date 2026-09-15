@@ -5,7 +5,7 @@
  * Shows memory statistics and status.
  */
 
-import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types.js'
+import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types'
 
 export interface MemoryContext extends ToolUseContext {
   memoryAvailable?: boolean

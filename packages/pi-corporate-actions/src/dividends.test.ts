@@ -5,8 +5,8 @@ import {
   filterDividends,
   groupDividendsByYear,
   totalDividends,
-} from './dividends.js';
-import type { DividendEvent } from './types.js';
+} from './dividends';
+import type { DividendEvent } from './types';
 
 const sample: DividendEvent[] = [
   { symbol: 'X', exDate: '2022-06-10', amountPerShare: 1.0, currency: 'CNY' },

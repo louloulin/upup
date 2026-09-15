@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { regress, orthogonalize, neutralizeIndustryMomentum } from './orthogonalize.js';
+import { regress, orthogonalize, neutralizeIndustryMomentum } from './orthogonalize';
 
 describe('regress', () => {
   test('simple linear regression recovers slope and intercept', () => {

@@ -8,7 +8,7 @@
  * Type: prompt (uses AI to generate commit messages)
  */
 
-import type { PromptCommand } from '../../types/command-types.js'
+import type { PromptCommand } from '../../types/command-types'
 import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/index.mjs'
 
 const ALLOWED_TOOLS = [

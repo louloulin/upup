@@ -6,11 +6,11 @@
  */
 
 import { Container, Text, Spacer } from '@earendil-works/pi-tui';
-import { BorderBox } from '../BorderBox.js';
+import { BorderBox } from '../BorderBox';
 import type { ApprovalDecision } from '@upup/pi-runtime';
-import { getToolDangerLevel } from '../../permissions/index.js';
+import { getToolDangerLevel } from '../../permissions/index';
 import { theme } from '@upup/utils';
-import type { ApprovalRequestData, ApprovalRequestOptions } from './BaseApprovalRequest.js';
+import type { ApprovalRequestData, ApprovalRequestOptions } from './BaseApprovalRequest';
 
 export class GenericApprovalRequest extends Container {
   private toolName: string;

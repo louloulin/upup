@@ -14,8 +14,8 @@
  */
 
 import { globalUpupPath } from '@upup/utils';
-import { hashFile } from './crypto-utils.js';
-import { getMaxSnapshots } from './storage-adapter.js';
+import { hashFile } from './crypto-utils';
+import { getMaxSnapshots } from './storage-adapter';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';

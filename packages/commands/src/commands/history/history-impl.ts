@@ -5,7 +5,7 @@
  * Shows recent conversation history summaries.
  */
 
-import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types.js'
+import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types'
 
 export interface HistoryContext extends ToolUseContext {
   messages?: Array<{

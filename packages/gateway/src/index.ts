@@ -23,7 +23,7 @@ export {
   type PairingRequest,
   type GroupContext,
   type GroupHistoryEntry,
-} from './types.js';
+} from './types';
 
 // Channel types
 export {
@@ -38,19 +38,19 @@ export {
   type WhatsAppGatewayConfig,
   type WhatsAppInboundMessage,
   type WhatsAppCloseReason,
-} from './channel-types.js';
-export { runAgentForMessage, enqueueForSession, isSessionRunning } from './agent-runner.js';
-export type { AgentRunRequest } from './agent-runner.js';
-export { loadGatewayConfig, saveGatewayConfig, getGatewayConfigPath, listWhatsAppAccountIds, resolveWhatsAppAccount } from './config.js';
-export type { GatewayConfig } from './config.js';
-export { normalizeE164, isSelfChatMode, cleanMarkdownForWhatsApp, toWhatsappJid } from './utils.js';
-export { buildHeartbeatQuery, loadHeartbeatDocument, isHeartbeatContentEmpty } from './heartbeat/prompt.js';
-export { evaluateSuppression, HEARTBEAT_OK_TOKEN } from './heartbeat/suppression.js';
-export type { SuppressionResult, SuppressionState } from './heartbeat/suppression.js';
-export { resolveSessionStorePath, loadSessionStore, saveSessionStore, upsertSessionMeta } from './sessions/store.js';
-export type { SessionEntry } from './sessions/store.js';
-export { assertOutboundAllowed, sendComposing, sendMessageWhatsApp } from './channels/whatsapp/index.js';
-export { startGateway } from './gateway.js';
-export type { GatewayAgentRuntimePort, GatewayConfigRuntimePort, GatewayCronRuntimePort, GatewayRuntime } from './runtime-port.js';
-export { loginWhatsApp } from './channels/whatsapp/login.js';
-export { runGatewayCli } from './cli.js';
+} from './channel-types';
+export { runAgentForMessage, enqueueForSession, isSessionRunning } from './agent-runner';
+export type { AgentRunRequest } from './agent-runner';
+export { loadGatewayConfig, saveGatewayConfig, getGatewayConfigPath, listWhatsAppAccountIds, resolveWhatsAppAccount } from './config';
+export type { GatewayConfig } from './config';
+export { normalizeE164, isSelfChatMode, cleanMarkdownForWhatsApp, toWhatsappJid } from './utils';
+export { buildHeartbeatQuery, loadHeartbeatDocument, isHeartbeatContentEmpty } from './heartbeat/prompt';
+export { evaluateSuppression, HEARTBEAT_OK_TOKEN } from './heartbeat/suppression';
+export type { SuppressionResult, SuppressionState } from './heartbeat/suppression';
+export { resolveSessionStorePath, loadSessionStore, saveSessionStore, upsertSessionMeta } from './sessions/store';
+export type { SessionEntry } from './sessions/store';
+export { assertOutboundAllowed, sendComposing, sendMessageWhatsApp } from './channels/whatsapp/index';
+export { startGateway } from './gateway';
+export type { GatewayAgentRuntimePort, GatewayConfigRuntimePort, GatewayCronRuntimePort, GatewayRuntime } from './runtime-port';
+export { loginWhatsApp } from './channels/whatsapp/login';
+export { runGatewayCli } from './cli';

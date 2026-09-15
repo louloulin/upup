@@ -14,7 +14,7 @@ import { join } from 'node:path';
 import { PLANS_DIR, WATCHLIST_FILE } from '@upup/utils';
 import { loadPlan } from '@upup/pi-planning';
 import type { ResearchPlan } from '@upup/pi-planning';
-import { readWatchlist } from './watchlist-edit.js';
+import { readWatchlist } from './watchlist-edit';
 
 interface BriefSection {
   title: string;

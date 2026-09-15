@@ -7,7 +7,7 @@ import {
   sameSessionId,
   buildSdkUrl,
   WORK_SECRET_VERSION,
-} from './workSecret.js';
+} from './workSecret';
 
 const VALID_INPUT = {
   session_ingress_token: 'tok-abc-123',

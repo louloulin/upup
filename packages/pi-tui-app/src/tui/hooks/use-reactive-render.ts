@@ -11,7 +11,7 @@ import {
   getHistoryStore,
   getToolEventStore,
   getQueryGuard,
-} from '../state/index.js';
+} from '../state/index';
 
 // ============================================================================
 // Types

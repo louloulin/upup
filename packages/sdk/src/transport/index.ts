@@ -9,13 +9,13 @@ export {
   type StdioTransportConfig,
   type UpupConfig,
   type BinaryLocation,
-} from './stdio-transport.js'
+} from './stdio-transport'
 
 export {
   HttpTransport,
   createHttpTransport,
   type HttpTransportConfig,
-} from './http-transport.js'
+} from './http-transport'
 
 export type {
   Transport,
@@ -23,4 +23,4 @@ export type {
   TransportMessage,
   EventHandler,
   RpcTransport,
-} from './transport.js'
+} from './transport'

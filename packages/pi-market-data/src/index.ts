@@ -31,14 +31,14 @@ export interface MarketEvidence {
   auditId: string;
 }
 
-export { FixedWindowMarketHistoryRateLimiter, InMemoryMarketHistoryCache, NativeMarketHistoryClient, getNativeMarketHistoryForRange } from './history.js';
-export type { MarketHistoryCache, MarketHistoryFetcher, MarketHistoryProvider, MarketHistoryRateLimiter, NativeMarketHistoryClientOptions, NativeMarketHistoryResult } from './history.js';
-export { createDefaultMarketQuoteClient, InMemoryMarketQuoteCache, JsonFileMarketQuoteTrendStore, NativeMarketQuoteClient } from './quote.js';
-export type { MarketQuoteCache, NativeMarketQuote, NativeMarketQuoteClientOptions, NativeMarketQuoteResult, NativeMarketQuoteMetrics, NativeMarketQuoteSample, NativeMarketQuoteTrendBucket, NativeMarketQuoteTrendStore } from './quote.js';
-export { getProviderSlaStorePath, JsonFileProviderSlaStore, loadProviderSlaStore, providerSla, runProviderSlaJob } from './provider-sla.js';
-export type { ProviderSlaJob, ProviderSlaProbe, ProviderSlaRunResult, ProviderSlaRunStatus, ProviderSlaStore } from './provider-sla.js';
-export { startProviderSlaRunner } from './provider-sla-runner.js';
-export type { ProviderSlaRunner, ProviderSlaRunnerOptions } from './provider-sla-runner.js';
+export { FixedWindowMarketHistoryRateLimiter, InMemoryMarketHistoryCache, NativeMarketHistoryClient, getNativeMarketHistoryForRange } from './history';
+export type { MarketHistoryCache, MarketHistoryFetcher, MarketHistoryProvider, MarketHistoryRateLimiter, NativeMarketHistoryClientOptions, NativeMarketHistoryResult } from './history';
+export { createDefaultMarketQuoteClient, InMemoryMarketQuoteCache, JsonFileMarketQuoteTrendStore, NativeMarketQuoteClient } from './quote';
+export type { MarketQuoteCache, NativeMarketQuote, NativeMarketQuoteClientOptions, NativeMarketQuoteResult, NativeMarketQuoteMetrics, NativeMarketQuoteSample, NativeMarketQuoteTrendBucket, NativeMarketQuoteTrendStore } from './quote';
+export { getProviderSlaStorePath, JsonFileProviderSlaStore, loadProviderSlaStore, providerSla, runProviderSlaJob } from './provider-sla';
+export type { ProviderSlaJob, ProviderSlaProbe, ProviderSlaRunResult, ProviderSlaRunStatus, ProviderSlaStore } from './provider-sla';
+export { startProviderSlaRunner } from './provider-sla-runner';
+export type { ProviderSlaRunner, ProviderSlaRunnerOptions } from './provider-sla-runner';
 
 export function normalizeMarket(value: string | undefined): Market {
   if (value === 'hk' || value === 'us' || value === 'fund' || value === 'crypto') return value;
@@ -86,18 +86,18 @@ export function isTradingDay(date: string, market: Market): boolean {
   return true;
 }
 
-export { getStockSnapshot, screenStockSnapshot, screenerAsOf } from './screener.js';
-export { getMarketStructureSnapshot, querySectorSnapshot } from './market-insights.js';
-export { buildTechnicalSnapshot, makeTechnicalSnapshot } from './technical.js';
-export type { ScreeningStock, StockScreenInput, ScreenerMarket, ScreenerPerformance } from './screener.js';
-export type { MarketStructureSnapshot, MarketStructureType, SectorQueryType, SectorSnapshot } from './market-insights.js';
-export type { TechnicalBar, TechnicalPeriod, TechnicalSnapshot } from './technical.js';
+export { getStockSnapshot, screenStockSnapshot, screenerAsOf } from './screener';
+export { getMarketStructureSnapshot, querySectorSnapshot } from './market-insights';
+export { buildTechnicalSnapshot, makeTechnicalSnapshot } from './technical';
+export type { ScreeningStock, StockScreenInput, ScreenerMarket, ScreenerPerformance } from './screener';
+export type { MarketStructureSnapshot, MarketStructureType, SectorQueryType, SectorSnapshot } from './market-insights';
+export type { TechnicalBar, TechnicalPeriod, TechnicalSnapshot } from './technical';
 export {
   deterministicScreenParser,
   executeNaturalLanguageScreen,
   NATURAL_LANGUAGE_SCREEN_UNIVERSE,
   runNaturalLanguageScreen,
-} from './natural-language-screen.js';
+} from './natural-language-screen';
 export type {
   NaturalLanguageScreenOutput,
   NaturalLanguageScreenParser,
@@ -107,16 +107,16 @@ export type {
   ScreenFilterSpec,
   ScreenStockRow,
   ScreenUniverse,
-} from './natural-language-screen.js';
-export { appendKairosEvent, classifyKairosTopic, createInitialKairosJournalState, listKairosEvents, summarizeKairos } from './kairos-journal.js';
-export type { KairosEventKind, NativeKairosEvent, NativeKairosJournalState } from './kairos-journal.js';
+} from './natural-language-screen';
+export { appendKairosEvent, classifyKairosTopic, createInitialKairosJournalState, listKairosEvents, summarizeKairos } from './kairos-journal';
+export type { KairosEventKind, NativeKairosEvent, NativeKairosJournalState } from './kairos-journal';
 export {
   createRealtimeSubscriptionManager,
   normalizeRealtimeSymbols,
   type FeedSource,
   type RealtimeSubscription,
   type RealtimeSubscriptionManagerOptions,
-} from './realtime/index.js';
+} from './realtime/index';
 
 export {
   DRY_RUN_AUDIT_TAG,
@@ -136,7 +136,7 @@ export {
   resolveMarketHistoryClient,
   resolveMarketQuoteClient,
   shouldAutoActivateDryRun,
-} from './dry-run.js';
+} from './dry-run';
 export type {
   DryRunClientMetrics,
   DryRunHistoryResult,
@@ -147,4 +147,4 @@ export type {
   ResolveMarketQuoteClientOptions,
   ResolvedMarketHistoryClient,
   ResolvedMarketQuoteClient,
-} from './dry-run.js';
+} from './dry-run';

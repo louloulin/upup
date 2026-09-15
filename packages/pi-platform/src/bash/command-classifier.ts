@@ -7,11 +7,11 @@
  * Reference: Loucode's readOnlyValidation.ts and commandSemantics.ts
  */
 
-import { extractBaseCommand } from './security.js';
+import { extractBaseCommand } from './security';
 
 // Re-export shared types
-export type { CommandClassification, PermissionMode, CommandInfo } from './types.js';
-import type { CommandClassification, PermissionMode, CommandInfo } from './types.js';
+export type { CommandClassification, PermissionMode, CommandInfo } from './types';
+import type { CommandClassification, PermissionMode, CommandInfo } from './types';
 
 // ============================================================================
 // Command Classifications

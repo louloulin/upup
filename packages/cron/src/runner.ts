@@ -1,8 +1,8 @@
 import { appendFileSync } from 'node:fs';
 import { upupPath } from '@upup/utils';
-import { loadCronStore, saveCronStore } from './store.js';
-import { computeNextRunAtMs } from './schedule.js';
-import { executeCronJob } from './executor.js';
+import { loadCronStore, saveCronStore } from './store';
+import { computeNextRunAtMs } from './schedule';
+import { executeCronJob } from './executor';
 
 const LOG_PATH = upupPath('gateway-debug.log');
 

@@ -5,7 +5,7 @@
  * Based on Claude Code's parentUuid pattern for conversation threading.
  */
 
-import type { SessionMessage } from './session-types.js';
+import type { SessionMessage } from './session-types';
 
 export interface MessageChain {
   parentMap: Map<string, string | null>;

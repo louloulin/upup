@@ -9,14 +9,14 @@ import {
   keyEventToKeystroke,
   keystrokesMatch,
   formatKeystroke,
-} from './parser.js';
+} from './parser';
 import {
   resolveKey,
   flattenBindings,
   mergeBindings,
-} from './resolver.js';
-import { DEFAULT_KEYBINDINGS } from './defaults.js';
-import type { KeyEvent, Keybinding } from './types.js';
+} from './resolver';
+import { DEFAULT_KEYBINDINGS } from './defaults';
+import type { KeyEvent, Keybinding } from './types';
 
 // ============================================================================
 // Parser Tests

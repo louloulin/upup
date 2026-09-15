@@ -2,8 +2,8 @@ import { describe, expect, test } from 'bun:test';
 import {
   aggregateActions,
   computeTotalReturn,
-} from './aggregate.js';
-import type { CorporateAction, DividendEvent, RightsIssueEvent, SplitEvent } from './types.js';
+} from './aggregate';
+import type { CorporateAction, DividendEvent, RightsIssueEvent, SplitEvent } from './types';
 
 const dividends: DividendEvent[] = [
   { symbol: 'X', exDate: '2023-06-10', amountPerShare: 1.0, currency: 'CNY' },

@@ -5,7 +5,7 @@
  * Submit feedback about the experience.
  */
 
-import type { LocalCommand } from '../../types/command-types.js'
+import type { LocalCommand } from '../../types/command-types'
 
 export const feedbackCommand: LocalCommand = {
   type: 'local',
@@ -14,5 +14,5 @@ export const feedbackCommand: LocalCommand = {
   aliases: ['suggest', 'idea'],
   argumentHint: '<feedback-text>',
   supportsNonInteractive: true,
-  load: () => import('./feedback-impl.js'),
+  load: () => import('./feedback-impl'),
 }

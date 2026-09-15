@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { createInvestmentDossier, getInvestmentDossierValidationErrors, validateInvestmentDossier } from './investment-dossier.js';
+import { createInvestmentDossier, getInvestmentDossierValidationErrors, validateInvestmentDossier } from './investment-dossier';
 
 function dossier() {
   return createInvestmentDossier({

@@ -10,7 +10,7 @@ import {
   InMemoryTokenStorage,
   isTokenExpired,
   OAuthTokens,
-} from '../src/oauth.js';
+} from '../src/oauth';
 
 describe('buildRedirectUri', () => {
   it('should build redirect URI with default port', () => {

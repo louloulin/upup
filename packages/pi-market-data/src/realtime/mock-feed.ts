@@ -1,4 +1,4 @@
-import type { FeedEvent, FeedEventType, FeedHandler, Quote, RealtimeFeed, SubscribeOptions } from './types.js';
+import type { FeedEvent, FeedEventType, FeedHandler, Quote, RealtimeFeed, SubscribeOptions } from './types';
 
 export interface MockFeed extends RealtimeFeed {
   pushQuote(quote: Quote): void;

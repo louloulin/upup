@@ -14,7 +14,7 @@ import { PLANS_DIR } from '@upup/utils';
 import { createHash } from 'node:crypto';
 import { mkdir, open, stat, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
-import { createInvestmentDossier, loadInvestmentDossier, persistInvestmentDossier, type InvestmentDossier } from './investment-dossier.js';
+import { createInvestmentDossier, loadInvestmentDossier, persistInvestmentDossier, type InvestmentDossier } from './investment-dossier';
 // Factory bridge: import root Factory via dynamic bridge
 // getInvestmentAgentSpec: same bridge
 import type { UpUpAgentSession } from '@upup/pi-runtime';

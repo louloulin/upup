@@ -10,7 +10,7 @@
  * The intent is for the host code to call these unconditionally and
  * let the recorder's `enabled` flag decide whether to actually emit.
  */
-import { telemetry, hashTelemetryInput, type TelemetryRecorder } from './index.js';
+import { telemetry, hashTelemetryInput, type TelemetryRecorder } from './index';
 import type { UpUpAgentEvent } from '@upup/pi-runtime';
 
 type CanonicalToolEndEvent = Extract<UpUpAgentEvent, { type: 'tool_end' }>;

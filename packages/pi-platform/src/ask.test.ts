@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { appendPlatformAskResponse, createInitialPlatformAskState, getPlatformAskResponse, parsePlatformAskState } from './ask.js';
+import { appendPlatformAskResponse, createInitialPlatformAskState, getPlatformAskResponse, parsePlatformAskState } from './ask';
 
 describe('pi-platform ask state', () => {
   test('persists and replaces responses by request id', () => {

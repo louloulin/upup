@@ -4,8 +4,8 @@ import { join, resolve } from 'node:path';
 import { SessionManager } from '@earendil-works/pi-coding-agent';
 
 import type { UpUpAgentEvent, UpUpAgentRuntime, UpUpAgentSession, UpUpAgentSpec, UpUpCreateSessionOptions } from '@upup/pi-runtime';
-import { PiSessionRegistry } from './session-registry.js';
-import { withPiFileLock } from './file-lock.js';
+import { PiSessionRegistry } from './session-registry';
+import { withPiFileLock } from './file-lock';
 
 
 export interface PiSessionCreateInput {

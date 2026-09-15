@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { unlink } from 'node:fs/promises';
-import { NativeSandboxBroker } from './sandbox-trading.js';
-import { listNativeExecutionStrategies, runNativeStrategyBacktest, runNativeStrategyPaper } from './strategy-execution.js';
+import { NativeSandboxBroker } from './sandbox-trading';
+import { listNativeExecutionStrategies, runNativeStrategyBacktest, runNativeStrategyPaper } from './strategy-execution';
 
 describe('native execution strategies', () => {
   test('lists all four strategies and runs only on explicit historical bars', () => {

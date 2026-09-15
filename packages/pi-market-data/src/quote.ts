@@ -1,5 +1,5 @@
-import { FixedWindowMarketHistoryRateLimiter, type MarketHistoryFetcher, type MarketHistoryProvider, type MarketHistoryRateLimiter } from './history.js';
-import { currencyForMarket, normalizeMarket, type Market, type MarketEvidence, type MarketQuote } from './index.js';
+import { FixedWindowMarketHistoryRateLimiter, type MarketHistoryFetcher, type MarketHistoryProvider, type MarketHistoryRateLimiter } from './history';
+import { currencyForMarket, normalizeMarket, type Market, type MarketEvidence, type MarketQuote } from './index';
 import { dirname } from 'node:path';
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';

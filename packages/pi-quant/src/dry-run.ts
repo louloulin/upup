@@ -1,4 +1,4 @@
-import type { FactorBar } from './types.js';
+import type { FactorBar } from './types';
 
 export interface DryRunUniverse {
   readonly symbols: readonly string[];

@@ -5,7 +5,7 @@
  * Reads and displays heartbeat checklist from HEARTBEAT.md
  */
 
-import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types.js'
+import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types'
 import { readFile } from 'fs/promises'
 import { resolve } from 'path'
 

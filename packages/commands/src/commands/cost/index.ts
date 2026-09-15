@@ -9,7 +9,7 @@
  * Reference: loucode/src/commands/cost/index.ts
  */
 
-import type { LocalCommand } from '../../types/command-types.js'
+import type { LocalCommand } from '../../types/command-types'
 
 export const costCommand: LocalCommand = {
   type: 'local',
@@ -17,7 +17,7 @@ export const costCommand: LocalCommand = {
   description: 'Show token usage and cost tracking',
   aliases: ['usage'],
   supportsNonInteractive: true,
-  load: () => import('./cost-impl.js'),
+  load: () => import('./cost-impl'),
 }
 
 export default costCommand

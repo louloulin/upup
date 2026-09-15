@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { addSubscription, assertSafeWebhookUrl, createNotificationStore, listNotifications, maskWebhookUrl, sendNotification } from './src/index.js';
+import { addSubscription, assertSafeWebhookUrl, createNotificationStore, listNotifications, maskWebhookUrl, sendNotification } from './src/index';
 
 describe('pi-notify core', () => {
   test('logs notifications and masks webhook credentials', async () => { const store = createNotificationStore(); const sent = await sendNotification(store, { channel: 'log', title: '完成', message: '已完成' }); expect(sent.status).toBe('sent'); expect(listNotifications(store)).toHaveLength(1); expect(maskWebhookUrl('https://hooks.example.com/secret-token')).toBe('https://hooks.example.com/secret-…'); });

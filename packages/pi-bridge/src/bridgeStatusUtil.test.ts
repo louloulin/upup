@@ -6,7 +6,7 @@ import {
   abbreviateActivity,
   timestamp,
   TOOL_DISPLAY_EXPIRY_MS,
-} from './bridgeStatusUtil.js';
+} from './bridgeStatusUtil';
 
 describe('bridgeStatusUtil — canTransition', () => {
   test('same-state is always allowed (idempotent)', () => {

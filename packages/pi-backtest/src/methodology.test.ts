@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { validateMethodology, type MethodologyDisclosure } from './methodology.js';
+import { validateMethodology, type MethodologyDisclosure } from './methodology';
 
 const complete: MethodologyDisclosure = {
   factorSources: [{ name: 'PE-TTM', source: 'market-data', description: '反向估值因子' }],

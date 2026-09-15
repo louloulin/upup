@@ -15,7 +15,7 @@ import { PLANS_DIR, SETTINGS_FILE } from '@upup/utils';
 import { loadPlan } from '@upup/pi-planning';
 import type { ResearchPlan } from '@upup/pi-planning';
 import { calculateProgress } from '@upup/pi-planning';
-import { readWatchlist } from './watchlist-edit.js';
+import { readWatchlist } from './watchlist-edit';
 import { calculateMaxDrawdown, calculateSharpeRatio, calculateValueAtRisk } from '@upup/pi-risk';
 
 interface RiskSettings {

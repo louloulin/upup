@@ -10,10 +10,10 @@ export {
   inputActions,
   inputSelectors,
   type InputState,
-} from './input-state.js';
+} from './input-state';
 
-export { createStore, combineStores, type Store, type Listener } from './store.js';
-export { QueryGuard, getQueryGuard, resetQueryGuard, type QueryState } from './query-guard.js';
+export { createStore, combineStores, type Store, type Listener } from './store';
+export { QueryGuard, getQueryGuard, resetQueryGuard, type QueryState } from './query-guard';
 export {
   createAppStateStore,
   getAppStateStore,
@@ -23,7 +23,7 @@ export {
   updateAppState,
   type AppState,
   type AppStateStore,
-} from './app-state.js';
+} from './app-state';
 export {
   createHistoryStore,
   getHistoryStore,
@@ -32,7 +32,7 @@ export {
   type HistoryItem,
   type HistoryState,
   type HistoryStore,
-} from './history-store.js';
+} from './history-store';
 export {
   createToolEventStore,
   getToolEventStore,
@@ -41,4 +41,4 @@ export {
   type ToolEventType,
   type ToolEventState,
   type ToolEventStore,
-} from './tool-event-store.js';
+} from './tool-event-store';

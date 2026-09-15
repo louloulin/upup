@@ -6,9 +6,9 @@
  * Now includes support for message chain (parentUuid) and ephemeral filtering.
  */
 
-import type { SessionMessage } from '../session-types.js';
-import { buildMessageChain, getMessageDepth, type MessageChain } from '../message-chain.js';
-import { filterEphemeralMessages } from '../ephemeral-messages.js';
+import type { SessionMessage } from '../session-types';
+import { buildMessageChain, getMessageDepth, type MessageChain } from '../message-chain';
+import { filterEphemeralMessages } from '../ephemeral-messages';
 
 // ============================================================================
 // Types

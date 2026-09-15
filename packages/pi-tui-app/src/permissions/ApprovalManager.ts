@@ -5,7 +5,7 @@
  */
 
 import type { ApprovalDecision } from '@upup/pi-runtime'
-import type { ApprovalRequestData } from '../components/approval-requests/BaseApprovalRequest.js'
+import type { ApprovalRequestData } from '../components/approval-requests/BaseApprovalRequest'
 
 // ============================================================================
 // Types

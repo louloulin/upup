@@ -10,9 +10,9 @@
  */
 
 export type { ChannelProfile } from '@upup/pi-runtime';
-export { getChannelProfile } from './channels.js';
+export { getChannelProfile } from './channels';
 
-export type { Locale } from './locale.js';
+export type { Locale } from './locale';
 export {
   DEFAULT_LOCALE,
   SUPPORTED_LOCALES,
@@ -20,7 +20,7 @@ export {
   getLocale,
   normalizeLocale,
   t,
-} from './locale.js';
+} from './locale';
 
 export type {
   FeatureGates,
@@ -30,7 +30,7 @@ export type {
   FeatureFlag,
   FeatureCategory,
   RuntimeConfig,
-} from './feature-gates.js';
+} from './feature-gates';
 export {
   createFeatureGates,
   fnv1a,
@@ -41,14 +41,14 @@ export {
   listFeatures,
   registerFeature,
   resetDefaultGates,
-} from './feature-gates.js';
+} from './feature-gates';
 
 export type {
   AnalysisRules,
   GovernanceRules,
   InvestmentConfig,
   InvestmentGoals,
-} from './investment-config.js';
+} from './investment-config';
 export {
   formatGoalsSection,
   formatGovernanceSection,
@@ -56,25 +56,25 @@ export {
   formatRulesSection,
   loadInvestmentConfig,
   loadMergedInvestmentConfig,
-} from './investment-config.js';
+} from './investment-config';
 
-export type { CapabilityGroup } from './capability-manifest.js';
+export type { CapabilityGroup } from './capability-manifest';
 export {
   buildInvestmentCapabilitiesSection,
   CAPABILITY_GROUPS,
-} from './capability-manifest.js';
+} from './capability-manifest';
 
 export type {
   CoachPromptContext,
   RiskAppetite,
   InvestingStyle,
   UserPersona,
-} from './role-system.js';
+} from './role-system';
 export {
   buildCoachSystemPrompt,
   isCoachCompiledIn,
   isCoachEnabled,
-} from './role-system.js';
+} from './role-system';
 
 export function buildDefaultInvestmentSystemPrompt(): string {
   return [

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { createEventBus } from '@earendil-works/pi-coding-agent';
-import backtestExtension from './index.js';
+import backtestExtension from './index';
 type Tool = { name: string; execute: (...args: any[]) => Promise<any> };
 function tools() { const map = new Map<string, Tool>(); backtestExtension({ events: createEventBus(), registerTool: (tool: Tool) => map.set(tool.name, tool) } as never); return map; }
 const bars = [{ date: '2026-01-05', high: 105, low: 99, close: 104 }, { date: '2026-01-06', high: 110, low: 103, close: 108 }, { date: '2026-01-07', high: 112, low: 106, close: 110 }];

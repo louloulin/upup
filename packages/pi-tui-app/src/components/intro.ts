@@ -1,9 +1,9 @@
 import { Container, Spacer, Text } from '@earendil-works/pi-tui';
-import { BorderBox } from './BorderBox.js';
+import { BorderBox } from './BorderBox';
 import packageJson from '../../package.json';
-import { getModelDisplayName } from '../utils/model.js';
+import { getModelDisplayName } from '../utils/model';
 import { theme } from '@upup/utils';
-import { validateConfig, type ConfigValidationResult } from '../utils/config-validation.js';
+import { validateConfig, type ConfigValidationResult } from '../utils/config-validation';
 import { t } from '@upup/i18n';
 
 const INTRO_WIDTH = 50;

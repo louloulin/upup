@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { disposePiBackgroundService, disposePiSessionService, getPiSessionService } from '@upup/pi-session';
-import { createPiApp } from './index.js';
+import { createPiApp } from './index';
 
 function createFixture() {
   const runtime = { createSession: async () => { throw new Error('fixture runtime is not executable'); } };

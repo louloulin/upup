@@ -2,9 +2,9 @@ import { describe, expect, test } from 'bun:test';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { GatewayRuntime } from '@upup/gateway';
-import { startBridgeServer, type BridgeServer } from './server.js';
-import { encodeMessage, type BridgeMessage } from './protocol.js';
-import { SessionSync } from './session-sync.js';
+import { startBridgeServer, type BridgeServer } from './server';
+import { encodeMessage, type BridgeMessage } from './protocol';
+import { SessionSync } from './session-sync';
 
 function fixtureRuntime(): GatewayRuntime {
   return {

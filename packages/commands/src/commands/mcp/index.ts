@@ -8,7 +8,7 @@
  * Type: local-jsx (renders TUI component)
  */
 
-import type { LocalJSXCommand } from '../../types/command-types.js'
+import type { LocalJSXCommand } from '../../types/command-types'
 
 export const mcpCommand: LocalJSXCommand = {
   type: 'local-jsx',

@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import { redactSecrets, debugTruncate, debugBody, formatDuration } from './debugUtils.js';
+import { redactSecrets, debugTruncate, debugBody, formatDuration } from './debugUtils';
 
 describe('redactSecrets', () => {
   test('redacts long session_ingress_token with prefix/suffix preserved', () => {

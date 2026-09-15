@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { calculateTransactionCosts } from './cost-model.js';
+import { calculateTransactionCosts } from './cost-model';
 
 describe('Pi backtest transaction costs', () => {
   test('applies commission, single-side A-share stamp duty, and symmetric slippage', () => {

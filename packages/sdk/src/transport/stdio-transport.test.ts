@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { StdioTransport } from './stdio-transport.js';
+import { StdioTransport } from './stdio-transport';
 
 describe('StdioTransport failure isolation', () => {
   test('turns a spawn error into a rejected connect promise', async () => {

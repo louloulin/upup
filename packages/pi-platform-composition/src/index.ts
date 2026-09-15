@@ -91,17 +91,17 @@ export function createPlatformComposition(options: PlatformCompositionOptions): 
 export {
   defaultCronPlatformProvider,
   type CronPlatformProvider,
-} from './cron.js';
+} from './cron';
 export {
   ensureHeartbeatCronJob,
   executeCronJob,
   loadCronStore,
   saveCronStore,
   startCronRunner,
-} from './cron.js';
+} from './cron';
 export type {
   CronExecutionRuntime,
   CronJob,
   CronRunner,
   CronStore,
-} from './cron.js';
+} from './cron';

@@ -7,7 +7,7 @@ import {
   initializeSkills,
   getAllSkillCommands,
   getSkillCommand,
-} from '../src/skills/index.js';
+} from '../src/skills/index';
 
 console.log('\n' + '='.repeat(80));
 console.log('                    CLI Skills Integration Test');

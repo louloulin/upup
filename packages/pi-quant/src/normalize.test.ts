@@ -8,7 +8,7 @@ import {
   winsorize,
   minmax,
   normalize,
-} from './normalize.js';
+} from './normalize';
 
 describe('mean', () => {
   test('returns 0 for empty', () => expect(mean([])).toBe(0));

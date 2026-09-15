@@ -7,7 +7,7 @@
  * This is a defense against fat-fingered runtime configs that would
  * otherwise cause tight-loop polling or unbounded sleep.
  */
-import { DEFAULT_POLL_CONFIG, type PollIntervalConfig } from './pollConfigDefaults.js';
+import { DEFAULT_POLL_CONFIG, type PollIntervalConfig } from './pollConfigDefaults';
 
 const ENV_OVERRIDE_KEY = 'UPUP_BRIDGE_POLL_CONFIG';
 const RUNTIME_OVERRIDE_KEY = '__upupPollConfigOverride' as const;

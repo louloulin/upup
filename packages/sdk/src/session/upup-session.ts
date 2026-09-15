@@ -6,7 +6,7 @@
  * 通过 IPC 调用获取消息历史
  */
 
-import type { SessionInfo, SessionMessage, SessionConfig } from './types.js';
+import type { SessionInfo, SessionMessage, SessionConfig } from './types';
 
 // ============ Transport 接口 ============
 

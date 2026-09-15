@@ -9,7 +9,7 @@
  * Reference: loucode/src/commands/skills/index.ts
  */
 
-import type { LocalCommand } from '../../types/command-types.js'
+import type { LocalCommand } from '../../types/command-types'
 
 export const skillsCommand: LocalCommand = {
   type: 'local',
@@ -17,7 +17,7 @@ export const skillsCommand: LocalCommand = {
   description: 'List available user skills and bundled skills',
   aliases: ['list-skills'],
   supportsNonInteractive: true,
-  load: () => import('./skills-impl.js'),
+  load: () => import('./skills-impl'),
 }
 
 export default skillsCommand

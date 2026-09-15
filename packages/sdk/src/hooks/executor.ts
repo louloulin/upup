@@ -4,7 +4,7 @@
  * 管理 Hook 的注册和执行
  */
 
-import { HookRegistry, type HookEvent, type HookInput, type HookOutput, type HookCallback, type HookMatcher } from './types.js'
+import { HookRegistry, type HookEvent, type HookInput, type HookOutput, type HookCallback, type HookMatcher } from './types'
 
 /**
  * Hook 执行器配置

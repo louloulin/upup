@@ -7,7 +7,7 @@
  * Note: Model switching requires UI interaction, so this just displays current model.
  */
 
-import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types.js'
+import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types'
 
 export interface ModelContext extends ToolUseContext {
   provider?: string

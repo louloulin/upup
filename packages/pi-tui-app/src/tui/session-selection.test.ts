@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
-import type { SessionSelectionService } from './session-selection.js';
-import { SessionSelectionController } from './session-selection.js';
+import type { SessionSelectionService } from './session-selection';
+import { SessionSelectionController } from './session-selection';
 
 function createSession(id: string, overrides: Record<string, unknown> = {}) {
   return {

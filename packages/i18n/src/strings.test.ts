@@ -15,7 +15,7 @@ import {
   entries,
   t,
   type StringKey,
-} from './strings.js';
+} from './strings';
 
 describe('i18n symmetry (P3.a.4 / P3.a.5)', () => {
   test('每个 locale 都有非空 strings 表', () => {

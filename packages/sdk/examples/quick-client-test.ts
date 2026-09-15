@@ -2,7 +2,7 @@
  * @upup/sdk - createClient 快速测试
  */
 
-import { createClient } from '../src/index.js'
+import { createClient } from '../src/index'
 
 async function main() {
   console.log('========================================')

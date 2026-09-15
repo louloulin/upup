@@ -1,6 +1,6 @@
 import { Type } from 'typebox';
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
-import { addSubscription, assertSafeWebhookUrl, createNotificationStore, listNotifications, listSubscriptions, maskWebhookUrl, removeSubscription, sendNotification, type NotificationChannel, type NotificationLevel, type PREvent } from '../src/index.js';
+import { addSubscription, assertSafeWebhookUrl, createNotificationStore, listNotifications, listSubscriptions, maskWebhookUrl, removeSubscription, sendNotification, type NotificationChannel, type NotificationLevel, type PREvent } from '../src/index';
 
 const channel = Type.Union([Type.Literal('webhook'), Type.Literal('feishu'), Type.Literal('log')]);
 const level = Type.Optional(Type.Union([Type.Literal('info'), Type.Literal('warning'), Type.Literal('error'), Type.Literal('critical')]));

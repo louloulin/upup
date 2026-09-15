@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import cacheExtension from './index.js';
+import cacheExtension from './index';
 
 describe('pi-cache extension', () => {
   test('registers cache tools and fails closed on unconfirmed clear', async () => {

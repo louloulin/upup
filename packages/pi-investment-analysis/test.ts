@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { calculateDcf, calculateProductionDcf, calculateProductionDdm, calculateQuickTargetPrice, calculateTargetPrice, calculateTechnicalSignal, calculateValuationRatios, comparePeers, calculateOptionPrice, calculateImpliedVolatility, calculateTechnicalIndicators, calculateKdj, calculateBoll, calculateWr, calculateCci, calculateAtr, calculateObv, calculateDecisionDashboard } from './src/index.js';
+import { calculateDcf, calculateProductionDcf, calculateProductionDdm, calculateQuickTargetPrice, calculateTargetPrice, calculateTechnicalSignal, calculateValuationRatios, comparePeers, calculateOptionPrice, calculateImpliedVolatility, calculateTechnicalIndicators, calculateKdj, calculateBoll, calculateWr, calculateCci, calculateAtr, calculateObv, calculateDecisionDashboard } from './src/index';
 
 describe('pi-investment-analysis', () => {
   test('calculates DCF with explicit assumptions', () => {

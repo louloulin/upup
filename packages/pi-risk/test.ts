@@ -14,7 +14,7 @@ import {
   getNativeShortInterest,
   calculateNativeShortInterestRatio,
   detectNativeShortSqueeze,
-} from './src/index.js';
+} from './src/index';
 
 describe('pi-risk', () => {
   test('calculates deterministic short-interest and squeeze snapshots', () => {

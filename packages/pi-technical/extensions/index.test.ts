@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import { createEventBus } from '@earendil-works/pi-coding-agent';
-import technicalExtension from './index.js';
+import technicalExtension from './index';
 
 const fixtureBars = [
   { date: '2026-09-01', open: 100, high: 105, low: 99, close: 104, volume: 1000 },

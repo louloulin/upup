@@ -1,7 +1,7 @@
 /**
  * 调试 stream_progress content 累积
  */
-import { createClient } from './src/client/client.js'
+import { createClient } from './src/client/client'
 
 async function debugStream() {
   console.log('调试 stream_progress content 累积')

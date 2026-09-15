@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { formatPlatformLspCompletions, formatPlatformLspDefinitions, formatPlatformLspDiagnostics, formatPlatformLspHover, formatPlatformLspReferences, getPlatformLspClient, resetPlatformLspClient, setPlatformLspClient } from './lsp.js';
+import { formatPlatformLspCompletions, formatPlatformLspDefinitions, formatPlatformLspDiagnostics, formatPlatformLspHover, formatPlatformLspReferences, getPlatformLspClient, resetPlatformLspClient, setPlatformLspClient } from './lsp';
 
 describe('Pi platform LSP', () => {
   test('formats all code intelligence results deterministically', async () => {

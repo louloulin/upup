@@ -45,7 +45,7 @@ export {
   unregisterDynamicCommand,
   getDynamicCommands,
   clearDynamicCommands,
-} from './all-commands.js'
+} from './all-commands'
 
 // Command types
 export {
@@ -67,7 +67,7 @@ export {
   meetsAvailabilityRequirement,
   isRemoteSafeCommand,
   isBridgeSafeCommand,
-} from './types/command-types.js'
+} from './types/command-types'
 
 // Usage tracking
 export {
@@ -78,7 +78,7 @@ export {
   getCommandRank,
   isFrequentlyUsed,
   resetUsageStats,
-} from './command-usage.js'
+} from './command-usage'
 
 // Theme
 export {
@@ -98,7 +98,7 @@ export {
   parseKeyValues,
   formatArgs,
   type ParsedArgs,
-} from './args.js'
+} from './args'
 
 // Timeout utilities
 export {
@@ -112,7 +112,7 @@ export {
   COMMAND_TIMEOUTS,
   getCommandTimeout,
   type TimeoutResult,
-} from './timeout.js'
+} from './timeout'
 
 // Command metrics
 export {
@@ -125,13 +125,13 @@ export {
   importMetrics,
   type CommandMetric,
   type MetricsSummary,
-} from './command-metrics.js'
+} from './command-metrics'
 
 export {
   type CommandContext,
   type CommandResult,
   type CommandPermission,
-} from './command-contract.js'
+} from './command-contract'
 
 export type {
   AgentPortsLocal,
@@ -141,4 +141,4 @@ export type {
   StatePortLocal,
   SandboxPortLocal,
   AgentMemoryPortLocal,
-} from './agent-port.js';
+} from './agent-port';

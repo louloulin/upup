@@ -1,4 +1,4 @@
-import type { Bar, FeedHandler, Quote, RealtimeFeed } from './types.js';
+import type { Bar, FeedHandler, Quote, RealtimeFeed } from './types';
 
 export interface AggregatorHandle {
   stop(): void;

@@ -8,7 +8,7 @@
  * and are not meaningful for session resumption.
  */
 
-import type { SessionMessage } from './session-types.js';
+import type { SessionMessage } from './session-types';
 
 /**
  * Ephemeral message types - UI-only, not persisted to disk.

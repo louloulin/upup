@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from 'bun:test';
-import { startManagementServer, type ManagementServer } from './server.js';
-import type { ManagementSnapshotProvider } from './snapshot-provider.js';
+import { startManagementServer, type ManagementServer } from './server';
+import type { ManagementSnapshotProvider } from './snapshot-provider';
 
 let server: ManagementServer | undefined;
 

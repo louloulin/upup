@@ -6,7 +6,7 @@ import {
   annualizedSharpe,
   annualizedReturn,
   quintileAssignment,
-} from './returns.js';
+} from './returns';
 
 describe('compoundReturn', () => {
   test('returns 0 for empty', () => expect(compoundReturn([])).toBe(0));

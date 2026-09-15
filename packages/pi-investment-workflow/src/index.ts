@@ -8,9 +8,9 @@
  *  - Workflow registry + lifecycle
  */
 
-export * from './workflow.js';
-export * from './investment-dossier.js';
-export * from './investment-verification.js';
+export * from './workflow';
+export * from './investment-dossier';
+export * from './investment-verification';
 export {
   INVESTMENT_PROFILES,
   READ_ONLY_PERMISSION_PROFILE,
@@ -19,9 +19,9 @@ export {
   serializeAgentSpec,
   subagentConfigToPiSpec,
   validateAgentSpec,
-} from './agent-spec.js';
-export type { PiSubagentSpecInput } from './agent-spec.js';
-export { PiAgentCatalog, createPiAgentCatalog, type PiAgentCatalogRecord } from './agent-catalog.js';
+} from './agent-spec';
+export type { PiSubagentSpecInput } from './agent-spec';
+export { PiAgentCatalog, createPiAgentCatalog, type PiAgentCatalogRecord } from './agent-catalog';
 export {
   runInvestmentWorkflow,
   resumeWorkflow,
@@ -33,20 +33,20 @@ export {
   type PhaseResult,
   type PhaseStatus,
   WORKFLOW_PHASES,
-} from './orchestration.js';
-export { runInvest } from './invest.js';
+} from './orchestration';
+export { runInvest } from './invest';
 
 // CLI commands
-export { runDossier } from './dossier.js';
+export { runDossier } from './dossier';
 
-export { runStrategy } from './strategy.js';
+export { runStrategy } from './strategy';
 
-export { runEarningsPreview } from './earnings-preview.js';
-export { runMorningBrief } from './morning-brief.js';
-export { runPortfolioReview } from './portfolio-review.js';
-export { runRiskDashboard } from './risk-dashboard.js';
-export { readWatchlist, writeWatchlist, addWatchlistEntry, removeWatchlistEntry, runWatchlistEdit, listWatchlistText, parseWatchlistArgs, type WatchlistSubCmd, type WatchlistEntry, type WatchlistData } from './watchlist-edit.js';
-export { runScreen } from './screen.js';
+export { runEarningsPreview } from './earnings-preview';
+export { runMorningBrief } from './morning-brief';
+export { runPortfolioReview } from './portfolio-review';
+export { runRiskDashboard } from './risk-dashboard';
+export { readWatchlist, writeWatchlist, addWatchlistEntry, removeWatchlistEntry, runWatchlistEdit, listWatchlistText, parseWatchlistArgs, type WatchlistSubCmd, type WatchlistEntry, type WatchlistData } from './watchlist-edit';
+export { runScreen } from './screen';
 
 // Workflow registry
-export { INVESTMENT_COMMANDS, isInvestmentCommand, runInvestmentCommand, setInvestCommandHandler, type InvestmentCommandEntry, type InvestmentCommandName, type InvestmentCommandHandler } from './registry.js';
+export { INVESTMENT_COMMANDS, isInvestmentCommand, runInvestmentCommand, setInvestCommandHandler, type InvestmentCommandEntry, type InvestmentCommandName, type InvestmentCommandHandler } from './registry';

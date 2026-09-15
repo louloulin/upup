@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { validateForwardBars } from './data-quality.js';
+import { validateForwardBars } from './data-quality';
 
 const validBars = [
   { date: '2026-01-05', high: 105, low: 99, close: 104 },

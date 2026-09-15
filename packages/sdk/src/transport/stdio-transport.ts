@@ -23,7 +23,7 @@ import type {
   EventNotification,
   ControlRequest,
   ControlResponse,
-} from './transport.js'
+} from './transport'
 
 // ============ 配置加载 ============
 

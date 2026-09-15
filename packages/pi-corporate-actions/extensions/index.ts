@@ -29,7 +29,7 @@ import {
   totalDividends,
   type CorporateAction,
   type RawBar,
-} from '../src/index.js';
+} from '../src/index';
 
 const symbolParam = Type.String({ minLength: 1, maxLength: 24, description: 'Symbol identifier (e.g. 600519.SH, 00700.HK, AAPL)' });
 
@@ -143,7 +143,7 @@ export default function corporateActionsExtension(pi: ExtensionAPI): void {
         ratioFrom: s.ratioFrom,
         ratioTo: s.ratioTo,
       }));
-      const { adjustBars } = await import('../src/adjustments.js');
+      const { adjustBars } = await import('../src/adjustments');
       const out = adjustBars(
         { symbol: params.symbol, method: params.method, actions },
         params.bars as readonly RawBar[],

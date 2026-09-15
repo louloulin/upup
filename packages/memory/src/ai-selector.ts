@@ -18,17 +18,17 @@ import { z } from 'zod';
 import {
   SELECT_SYSTEM_PROMPT,
   buildSelectionPrompt,
-} from './prompts.js';
+} from './prompts';
 import {
   scanMemoryFiles,
   scanTypedMemoryFiles,
   buildManifest,
   buildTypedManifest,
-} from './scanner.js';
+} from './scanner';
 import { callStructuredLlm, type PromptRunner } from '@upup/utils';
 import { DEFAULT_MODEL } from '@upup/utils';
 import { getUpupDir } from '@upup/utils';
-import { MEMORY_TYPES, type MemoryFileMeta } from './types.js';
+import { MEMORY_TYPES, type MemoryFileMeta } from './types';
 import { error } from '@upup/utils/logging';
 
 // ============================================================================

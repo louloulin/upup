@@ -6,7 +6,7 @@ import {
   getLineStart,
   getLineEnd,
   getLineCount,
-} from './text-navigation.js';
+} from './text-navigation';
 
 /**
  * Context needed for cursor position calculations

@@ -7,7 +7,7 @@
  * Type: local (direct execution)
  */
 
-import type { LocalCommand } from '../../types/command-types.js'
+import type { LocalCommand } from '../../types/command-types'
 
 export const gitCommand: LocalCommand = {
   type: 'local',
@@ -15,7 +15,7 @@ export const gitCommand: LocalCommand = {
   description: 'Git operations: status, diff, branch, commit',
   aliases: ['g'],
   supportsNonInteractive: true,
-  load: () => import('./git-impl.js'),
+  load: () => import('./git-impl'),
 }
 
 export default gitCommand

@@ -17,7 +17,7 @@ import type {
   Order,
   Position,
   Quote,
-} from './types.js';
+} from './types';
 
 export interface XueqiuTransport {
   placeOrder: (payload: unknown) => Promise<unknown>;

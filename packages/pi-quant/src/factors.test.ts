@@ -8,8 +8,8 @@ import {
   computeRealizedVol,
   getFactorDef,
   listFactorIds,
-} from './factors.js';
-import type { FactorBar } from './types.js';
+} from './factors';
+import type { FactorBar } from './types';
 
 function makeBar(date: string, close: number, extras?: Partial<FactorBar>): FactorBar {
   return { date, close, volume: 1000, ...extras };

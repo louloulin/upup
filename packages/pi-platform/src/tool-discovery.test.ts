@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { getPlatformTool, listPlatformTools, searchPlatformTools, type PlatformToolMetadata } from './tool-discovery.js';
+import { getPlatformTool, listPlatformTools, searchPlatformTools, type PlatformToolMetadata } from './tool-discovery';
 
 const tools: PlatformToolMetadata[] = [
   { name: 'get_financials', description: 'Financial statements', compactDescription: 'Financial data', concurrencySafe: true },

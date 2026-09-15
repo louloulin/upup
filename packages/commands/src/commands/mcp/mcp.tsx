@@ -11,7 +11,7 @@
  */
 
 import { Container, Text, Spacer, Input, SelectList, type SelectItem, Box } from '@earendil-works/pi-tui';
-import { theme } from '../../theme.js';
+import { theme } from '../../theme';
 
 interface MCPServer {
   name: string
@@ -210,7 +210,7 @@ export const call = async (
 
   try {
     const { getDefaultMCPClient } = await import('@upup/mcp')
-    const { getMCPStatus } = await import('../../../mcp/registry.js')
+    const { getMCPStatus } = await import('../../../mcp/registry')
 
     const client = getDefaultMCPClient()
     const status = getMCPStatus(client)

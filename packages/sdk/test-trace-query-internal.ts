@@ -1,7 +1,7 @@
 /**
  * 完整追踪 query() 内部的 stream 事件
  */
-import { createClient } from './src/client/client.js'
+import { createClient } from './src/client/client'
 
 async function traceQuery() {
   console.log('追踪 query() 内部的 stream 事件')

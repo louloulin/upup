@@ -5,7 +5,7 @@
  */
 
 import { describe, expect, test } from 'bun:test';
-import { getChannelProfile } from './channels.js';
+import { getChannelProfile } from './channels';
 
 describe('getChannelProfile', () => {
   test('returns the CLI profile by default and when the channel is "cli"', () => {

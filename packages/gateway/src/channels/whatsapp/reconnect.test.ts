@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
-import { computeBackoff, DEFAULT_RECONNECT_POLICY, resolveReconnectPolicy } from './reconnect.js';
-import type { GatewayConfig } from '../../config.js';
+import { computeBackoff, DEFAULT_RECONNECT_POLICY, resolveReconnectPolicy } from './reconnect';
+import type { GatewayConfig } from '../../config';
 
 describe('whatsapp reconnect policy', () => {
   test('computeBackoff grows with attempts and caps at max', () => {

@@ -5,7 +5,7 @@
  * 处理 AI 响应的流式文本渲染
  */
 
-import { useStoreSubscription } from './use-store.js';
+import { useStoreSubscription } from './use-store';
 
 /**
  * 流式文本状态

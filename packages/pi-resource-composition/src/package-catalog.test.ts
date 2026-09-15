@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { PiPackageCatalog } from './package-catalog.js';
+import { PiPackageCatalog } from './package-catalog';
 
 function makePackage(version: string, command = 'fixture-research'): { root: string; hash: string } {
   const root = mkdtempSync(join(tmpdir(), 'upup-pi-package-'));

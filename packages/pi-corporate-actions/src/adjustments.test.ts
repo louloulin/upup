@@ -5,9 +5,9 @@ import {
   computeAdjustmentFactors,
   forwardAdjust,
   summarizeAdjustment,
-} from './adjustments.js';
-import type { CorporateAction, RawBar } from './adjustments.js';
-import type { PriceAdjustmentOptions } from './types.js';
+} from './adjustments';
+import type { CorporateAction, RawBar } from './adjustments';
+import type { PriceAdjustmentOptions } from './types';
 
 const splits: CorporateAction[] = [
   { symbol: 'X', type: 'split', exDate: '2022-01-01', ratioFrom: 1, ratioTo: 2 },

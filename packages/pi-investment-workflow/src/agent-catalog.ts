@@ -1,4 +1,4 @@
-import { validateAgentSpec } from './agent-spec.js';
+import { validateAgentSpec } from './agent-spec';
 import type { UpUpAgentSpec } from '@upup/pi-runtime';
 
 export interface PiAgentCatalogRecord {

@@ -10,8 +10,8 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync, unlinkSync } from 'fs';
 import { join, dirname } from 'path';
 import { createHash } from 'crypto';
-import { warn, type LogCategory } from './logging/logger.js';
-import { upupPath } from './paths.js';
+import { warn, type LogCategory } from './logging/logger';
+import { upupPath } from './paths';
 
 // Log category for cache operations
 const CACHE_LOG_CATEGORY: LogCategory = 'system';

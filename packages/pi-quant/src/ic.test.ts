@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { correlation, pearsonIC, spearmanIC, computeICSeries, icDecay } from './ic.js';
+import { correlation, pearsonIC, spearmanIC, computeICSeries, icDecay } from './ic';
 
 describe('correlation', () => {
   test('perfect positive', () => {

@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { MemoryChunk } from './types.js';
+import type { MemoryChunk } from './types';
 
 function lineCount(text: string): number {
   if (!text) {

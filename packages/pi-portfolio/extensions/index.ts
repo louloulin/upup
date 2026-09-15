@@ -31,8 +31,8 @@ import {
   calculateMultiPortfolioReport,
   type MultiPortfolioState,
   exportPortfolioState,
-} from '../src/index.js';
-import { DuckDBClient } from '../src/duckdb.js';
+} from '../src/index';
+import { DuckDBClient } from '../src/duckdb';
 
 const PACKAGE = '@upup/pi-portfolio';
 const VERSION = '0.1.0';

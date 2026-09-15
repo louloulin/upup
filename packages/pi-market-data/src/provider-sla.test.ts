@@ -2,9 +2,9 @@ import { describe, expect, test } from 'bun:test';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { JsonFileMarketQuoteTrendStore, NativeMarketQuoteClient } from './quote.js';
-import { JsonFileProviderSlaStore, providerSla, runProviderSlaJob, __test__ as providerSlaTest, type ProviderSlaJob } from './provider-sla.js';
-import { startProviderSlaRunner } from './provider-sla-runner.js';
+import { JsonFileMarketQuoteTrendStore, NativeMarketQuoteClient } from './quote';
+import { JsonFileProviderSlaStore, providerSla, runProviderSlaJob, __test__ as providerSlaTest, type ProviderSlaJob } from './provider-sla';
+import { startProviderSlaRunner } from './provider-sla-runner';
 import { TelemetryRecorder } from '@upup/pi-observability';
 
 describe('provider SLA exponential backoff helper', () => {

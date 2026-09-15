@@ -9,19 +9,19 @@
  * No external embedding API dependency.
  */
 
-import { buildSnippet } from './chunker.js';
-import { getMemvidStore } from './memvid-store.js';
-import { scanTypedMemoryFiles } from './scanner.js';
-import type { MemoryDatabase } from './database.js';
+import { buildSnippet } from './chunker';
+import { getMemvidStore } from './memvid-store';
+import { scanTypedMemoryFiles } from './scanner';
+import type { MemoryDatabase } from './database';
 import type {
   MemorySearchOptions,
   MemorySearchResult,
   MemoryEmbeddingClient,
   TemporalDecayConfig,
   MMRConfig,
-} from './types.js';
-import { applyTemporalDecay } from './temporal-decay.js';
-import { applyMMRToHybridResults } from './mmr.js';
+} from './types';
+import { applyTemporalDecay } from './temporal-decay';
+import { applyMMRToHybridResults } from './mmr';
 import { warn, error } from '@upup/utils/logging';
 
 // ============================================================================

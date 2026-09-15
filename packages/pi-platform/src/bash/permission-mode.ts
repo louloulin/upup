@@ -10,8 +10,8 @@
  * Reference: Loucode's modeValidation.ts and permissions.ts
  */
 
-import type { CommandClassification, PermissionMode } from './types.js';
-import { getCommandInfo, classifyCommand } from './command-classifier.js';
+import type { CommandClassification, PermissionMode } from './types';
+import { getCommandInfo, classifyCommand } from './command-classifier';
 import { mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 
 // ============================================================================
@@ -20,7 +20,7 @@ import { mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 
 // PermissionMode is defined in types.ts and re-exported here
 export type { PermissionMode };
-export type { CommandClassification } from './types.js';
+export type { CommandClassification } from './types';
 
 export interface PermissionRequest {
   command: string;

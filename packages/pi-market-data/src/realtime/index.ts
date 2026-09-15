@@ -1,14 +1,14 @@
-import { aggregateToBars } from './aggregator.js';
-import type { AggregatorHandle } from './aggregator.js';
-import { createEastmoneyFeed, type EastmoneyFeedOptions, type EastmoneySocketFactory } from './eastmoney-feed.js';
-import { createMockFeed } from './mock-feed.js';
-import { createThrottledFeed } from './throttled-feed.js';
-import type { Bar, RealtimeFeed } from './types.js';
+import { aggregateToBars } from './aggregator';
+import type { AggregatorHandle } from './aggregator';
+import { createEastmoneyFeed, type EastmoneyFeedOptions, type EastmoneySocketFactory } from './eastmoney-feed';
+import { createMockFeed } from './mock-feed';
+import { createThrottledFeed } from './throttled-feed';
+import type { Bar, RealtimeFeed } from './types';
 
-export * from './types.js';
-export * from './mock-feed.js';
-export * from './eastmoney-feed.js';
-export * from './aggregator.js';
+export * from './types';
+export * from './mock-feed';
+export * from './eastmoney-feed';
+export * from './aggregator';
 
 export type FeedSource = 'mock' | 'eastmoney';
 export interface RealtimeSubscription {
@@ -25,7 +25,7 @@ export interface RealtimeSubscription {
 export interface RealtimeSubscriptionManagerOptions {
   now?: () => number;
   socketFactory?: EastmoneySocketFactory;
-  onQuote?: (quote: import('./types.js').Quote, subscription: RealtimeSubscription) => void;
+  onQuote?: (quote: import('./types').Quote, subscription: RealtimeSubscription) => void;
   onBar?: (bar: Bar, subscription: RealtimeSubscription) => void;
 }
 

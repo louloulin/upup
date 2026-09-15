@@ -8,7 +8,7 @@
  * Category: git
  */
 
-import type { LocalCommand } from '../../types/command-types.js'
+import type { LocalCommand } from '../../types/command-types'
 
 export const branchCommand: LocalCommand = {
   type: 'local',
@@ -16,7 +16,7 @@ export const branchCommand: LocalCommand = {
   description: 'List or create git branches',
   aliases: ['br'],
   supportsNonInteractive: true,
-  load: () => import('./branch-impl.js'),
+  load: () => import('./branch-impl'),
 }
 
 export default branchCommand

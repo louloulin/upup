@@ -5,7 +5,7 @@
  * 测试复杂场景：长时间对话、上下文组合、边界情况
  */
 
-import { createClient } from './src/client/client.js'
+import { createClient } from './src/client/client'
 
 async function runComprehensiveTest() {
   console.log('='.repeat(80))

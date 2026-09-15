@@ -43,7 +43,7 @@ import {
   toPiTool,
 } from '@upup/pi-event-adapter';
 import { resolvePiModel } from '@upup/pi-event-adapter/pi-model-bridge';
-import { PiSessionAdapter } from './index.js';
+import { PiSessionAdapter } from './index';
 import { withSerializedPiResourceReload } from '@upup/pi-resource-composition';
 import {
   createFinanceSessionExtension,
@@ -62,16 +62,16 @@ import { PiPackageCatalog, verifyPiResourceTrust } from '@upup/pi-resource-compo
 import { mergePiPackageTrust, resolveConfiguredPiPackages } from '@upup/pi-resource-composition';
 import { evaluatePiPackage } from '@upup/pi-resource-composition';
 
-import { createPiHostBridge, disposePiHostBridge, type PiHostBridge, type PiManagementSnapshot } from './host-contract.js';
+import { createPiHostBridge, disposePiHostBridge, type PiHostBridge, type PiManagementSnapshot } from './host-contract';
 
-import { builtinSessionComposition, type PiSessionCompositionProviders } from './builtin-composition.js';
+import { builtinSessionComposition, type PiSessionCompositionProviders } from './builtin-composition';
 
 // Resolved through the composition provider; avoids importing concrete
 // composition packages in the session orchestration boundary.
 export type PlatformRunPromptOptions = Parameters<
   NonNullable<Parameters<PiSessionCompositionProviders['createPlatformComposition']>[0]['runPrompt']>
 >[1];
-import type { NativeMarketQuoteTrendStore, GatewayAgentRuntimePort, GatewayRuntime } from './builtin-composition.js';
+import type { NativeMarketQuoteTrendStore, GatewayAgentRuntimePort, GatewayRuntime } from './builtin-composition';
 import { publishPiCapabilityHosts, type PiCapabilityEventBus } from '@upup/pi-capability-registry';
 
 function installPiPackageToolHosts(
@@ -130,7 +130,7 @@ function installPiPackageToolHosts(
           throw new Error(`Pi cron runtime state is unavailable before execution: ${sessionKey}`);
         },
         runPrompt: async (prompt: string, options: Parameters<GatewayAgentRuntimePort['runPrompt']>[1]) => {
-          const { isPiSessionRunning, runPiPrompt } = await import('./prompt-runner.js');
+          const { isPiSessionRunning, runPiPrompt } = await import('./prompt-runner');
           cronAgent.isSessionRunning = isPiSessionRunning;
           return runPiPrompt(prompt, { ...options, modelInstance: options.modelInstance, modelRuntime: options.modelRuntime });
         },
@@ -223,7 +223,7 @@ function installPiPackageToolHosts(
           ...(hasHostCapability(pkg, 'market-data-transport') ? { getMarketQuote: async (symbol: string, requestedMarket: string | undefined, signal: AbortSignal | undefined, auditId: string) => {
         const result = await sessionQuoteClient.getQuote(symbol, requestedMarket, signal, auditId);
         if (result.value.freshness === 'offline') throw new Error('Offline market quote cannot satisfy the Pi host quote contract');
-        return result as import('./host-contract.js').PiMarketQuoteResult;
+        return result as import('./host-contract').PiMarketQuoteResult;
           } } : {}),
           ...(hasHostCapability(pkg, 'market-data-transport') ? { capabilityContext } : {}),
         },

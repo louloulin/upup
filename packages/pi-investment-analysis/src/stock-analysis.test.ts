@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { runNativeStockAnalysis, type StockAnalysisWorkerRequest } from './stock-analysis.js';
+import { runNativeStockAnalysis, type StockAnalysisWorkerRequest } from './stock-analysis';
 
 describe('native Pi stock analysis', () => {
   test('runs two research workers in parallel and a Pi recommendation worker', async () => {

@@ -237,8 +237,8 @@ export async function fetchWebContent(input: WebFetchInput, auditId: string, sig
   return { value, evidence: createEvidence(auditId, finalUrl) };
 }
 
-export { searchWeb, searchX } from './search.js';
-export type { SearchEvidence, SearchResult, WebSearchValue, XSearchInput, XSearchValue, XTweet } from './search.js';
+export { searchWeb, searchX } from './search';
+export type { SearchEvidence, SearchResult, WebSearchValue, XSearchInput, XSearchValue, XTweet } from './search';
 export {
   analyzeSentimentToolResult,
   detectEventsToolResult,
@@ -249,11 +249,11 @@ export {
   detectEvents,
   extractEntities,
   extractEntitiesLegacy,
-} from './research-text.js';
-export type { AnalyzeSentimentInput, DeepSentimentResult, DetectedEvent, ExtractedEntities } from './research-text.js';
-export * from './deep-search.js';
-export { buildEarningsPreview } from './earnings-preview.js';
-export type { BuildEarningsPreviewOptions, ConsensusEstimate, EarningsPreview, EarningsPreviewSource, TranscriptFetcher, TranscriptRef, TweetRef } from './earnings-preview.js';
+} from './research-text';
+export type { AnalyzeSentimentInput, DeepSentimentResult, DetectedEvent, ExtractedEntities } from './research-text';
+export * from './deep-search';
+export { buildEarningsPreview } from './earnings-preview';
+export type { BuildEarningsPreviewOptions, ConsensusEstimate, EarningsPreview, EarningsPreviewSource, TranscriptFetcher, TranscriptRef, TweetRef } from './earnings-preview';
 
 function createEvidence(auditId: string, source: string): WebFetchEvidence {
   const retrievedAt = new Date().toISOString();

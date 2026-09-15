@@ -4,7 +4,7 @@
  * 直接验证 daemon session 中的消息内容
  */
 
-import { createClient } from './src/client/client.js'
+import { createClient } from './src/client/client'
 
 async function testDaemonMessages() {
   console.log('='.repeat(80))

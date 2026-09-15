@@ -16,7 +16,7 @@ export type {
   CronJobState,
   CronJob,
   CronStore,
-} from './types.js';
+} from './types';
 
 // Cron errors are intentionally not exported yet; consumers raise
 // standard Error instances with descriptive messages.
@@ -24,9 +24,9 @@ export type {
 // Schedule computation
 export {
   computeNextRunAtMs,
-} from './schedule.js';
+} from './schedule';
 
-export { loadCronStore, saveCronStore, getCronStorePath } from './store.js';
-export { executeCronJob, type CronExecutionRuntime } from './executor.js';
-export { startCronRunner, type CronRunner } from './runner.js';
-export { ensureHeartbeatCronJob } from './heartbeat-migration.js';
+export { loadCronStore, saveCronStore, getCronStorePath } from './store';
+export { executeCronJob, type CronExecutionRuntime } from './executor';
+export { startCronRunner, type CronRunner } from './runner';
+export { ensureHeartbeatCronJob } from './heartbeat-migration';

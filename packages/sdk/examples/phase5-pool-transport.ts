@@ -4,7 +4,7 @@
  * 测试进程池和 HTTP Transport
  */
 
-import { createClient, ProcessPool, HttpTransport } from '../src/index.js'
+import { createClient, ProcessPool, HttpTransport } from '../src/index'
 
 async function testProcessPool() {
   console.log('\n========== Phase 5: ProcessPool 测试 ==========\n')

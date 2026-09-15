@@ -1,4 +1,4 @@
-import { getStockSnapshot, type ScreeningStock } from './screener.js';
+import { getStockSnapshot, type ScreeningStock } from './screener';
 
 export type SectorQueryType = 'stock' | 'concept' | 'industry';
 export type MarketStructureType = 'top_list' | 'hsgt' | 'moneyflow' | 'margin';

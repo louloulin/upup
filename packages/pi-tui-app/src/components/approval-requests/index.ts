@@ -9,7 +9,7 @@ import type { Container } from '@earendil-works/pi-tui';
 export type { Container };
 
 // Import factory functions
-import { createApprovalRequest } from './GenericApprovalRequest.js';
+import { createApprovalRequest } from './GenericApprovalRequest';
 
 // Re-export all components
 export {
@@ -20,15 +20,15 @@ export {
   getDangerDescription,
   type ApprovalRequestData,
   type ApprovalRequestOptions,
-} from './BaseApprovalRequest.js';
+} from './BaseApprovalRequest';
 
-export { BashApprovalRequest, createBashApprovalRequest } from './BashApprovalRequest.js';
-export { WriteApprovalRequest, createWriteApprovalRequest } from './WriteApprovalRequest.js';
+export { BashApprovalRequest, createBashApprovalRequest } from './BashApprovalRequest';
+export { WriteApprovalRequest, createWriteApprovalRequest } from './WriteApprovalRequest';
 export {
   GenericApprovalRequest,
   createApprovalRequest,
   createSimpleApprovalRequest
-} from './GenericApprovalRequest.js';
+} from './GenericApprovalRequest';
 
 // Re-export feedback functions from ApprovalFeedback module
 export {
@@ -38,8 +38,8 @@ export {
   getFeedbackHistory,
   clearFeedbackHistory,
   FEEDBACK_TEMPLATES,
-} from './ApprovalFeedback.js';
-export type { ApprovalFeedback } from './ApprovalFeedback.js';
+} from './ApprovalFeedback';
+export type { ApprovalFeedback } from './ApprovalFeedback';
 
 // Re-export fullscreen overlay
 export {
@@ -47,7 +47,7 @@ export {
   createFullscreenApproval,
   type FullscreenOverlayCallbacks,
   type ApprovalOption,
-} from './FullscreenApprovalOverlay.js';
+} from './FullscreenApprovalOverlay';
 
 // Factory function for creating approval request by tool name
 export function createToolApprovalRequest(

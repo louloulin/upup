@@ -5,7 +5,7 @@
  * Runs system health checks for API keys, memory, MCP, and permissions.
  */
 
-import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types.js'
+import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types'
 
 // Extend context to include health check state
 export interface DoctorContext extends ToolUseContext {

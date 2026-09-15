@@ -22,8 +22,8 @@
  * ```
  */
 
-export { executeBashCommand, formatBashResult, isDangerousCommand } from './bash-tool.js';
-export { BASH_TOOL_NAME } from './bash-tool.js';
+export { executeBashCommand, formatBashResult, isDangerousCommand } from './bash-tool';
+export { BASH_TOOL_NAME } from './bash-tool';
 
 export {
   validateCommandSecurity,
@@ -33,7 +33,7 @@ export {
   DANGEROUS_PATTERNS,
   ALWAYS_DANGEROUS_COMMANDS,
   CONDITIONALLY_DANGEROUS,
-} from './security.js';
+} from './security';
 
 export {
   validatePath,
@@ -44,14 +44,14 @@ export {
   checkSymlinkVulnerability,
   PROTECTED_PATHS,
   SENSITIVE_PATH_PATTERNS,
-} from './path-validation.js';
+} from './path-validation';
 
 export {
   classifyCommand,
   isReadOnlyCommand,
   isDestructiveCommand,
   getCommandInfo,
-} from './command-classifier.js';
+} from './command-classifier';
 
 export {
   getPermissionMode,
@@ -64,43 +64,43 @@ export {
   createPermissionRequest,
   formatPermissionPrompt,
   parsePermissionResponse,
-} from './permission-mode.js';
+} from './permission-mode';
 
 // Re-export types
-export type { BashToolOptions, BashToolResult, BashToolInput } from './bash-tool.js';
+export type { BashToolOptions, BashToolResult, BashToolInput } from './bash-tool';
 
 export type {
   SecurityValidationResult,
-} from './security.js';
+} from './security';
 
 export type {
   PathValidationResult,
   PathConstraint,
-} from './path-validation.js';
+} from './path-validation';
 
 export type {
   CommandInfo,
-} from './command-classifier.js';
+} from './command-classifier';
 
 export type {
   PermissionRequest,
   PermissionSuggestion,
   PermissionResult,
-} from './permission-mode.js';
+} from './permission-mode';
 
 // Re-export shared types from types.ts
-export type { CommandClassification, PermissionMode } from './types.js';
+export type { CommandClassification, PermissionMode } from './types';
 
 // Extended permission helpers (used by TUI approval UI)
 export {
   isHardDenyCommand,
   checkPermissionWithHardDeny,
   PERMISSION_MODE_BEHAVIORS,
-} from './permission-mode.js';
+} from './permission-mode';
 
-export { formatBashOutput, formatBashSummary } from './formatter.js';
+export { formatBashOutput, formatBashSummary } from './formatter';
 
-export { HARD_DENY_PATTERNS } from './permission-mode.js';
+export { HARD_DENY_PATTERNS } from './permission-mode';
 
 export {
   truncateAtWord,
@@ -112,4 +112,4 @@ export {
   stripAllAnsi,
   linkifyUrlsInText,
   outputProcessors,
-} from './output-processors.js';
+} from './output-processors';

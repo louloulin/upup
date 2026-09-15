@@ -17,7 +17,7 @@ import type {
   McpServerConfig,
   MCPServerState,
   Transport,
-} from './types.js';
+} from './types';
 
 // ============================================================================
 // Constants
@@ -128,7 +128,7 @@ export class MCPServerManager extends EventEmitter {
    */
   private async startStdioServer(instance: MCPServerInstance): Promise<void> {
     const { name, config } = instance;
-    const stdioConfig = config as import('./types.js').McpStdioServerConfig;
+    const stdioConfig = config as import('./types').McpStdioServerConfig;
 
     // Build environment
     const env = this.buildProcessEnv(stdioConfig.env);
@@ -404,7 +404,7 @@ export class MCPServerManager extends EventEmitter {
         });
 
         // Schedule reconnect for stdio servers (if configured)
-        if ((instance.config as import('./types.js').McpStdioServerConfig).autoConnect) {
+        if ((instance.config as import('./types').McpStdioServerConfig).autoConnect) {
           this.scheduleReconnect(instance.name);
         }
       }

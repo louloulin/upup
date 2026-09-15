@@ -1,7 +1,7 @@
 import { Type } from 'typebox';
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import { resolvePiCapabilityHost } from '@upup/pi-capability-registry';
-import { CANONICAL_INVESTMENT_PHASES, executeInvestmentPhase, type InvestmentAgentProfileId, type InvestmentWorkflowServices } from '../src/index.js';
+import { CANONICAL_INVESTMENT_PHASES, executeInvestmentPhase, type InvestmentAgentProfileId, type InvestmentWorkflowServices } from '../src/index';
 
 const PACKAGE = '@upup/pi-investment-workflow';
 const VERSION = '0.1.0';

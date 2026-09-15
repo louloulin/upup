@@ -9,7 +9,7 @@
  * Note: Actual model switching requires UI interaction, so this just shows current model.
  */
 
-import type { LocalCommand } from '../../types/command-types.js'
+import type { LocalCommand } from '../../types/command-types'
 
 export const modelCommand: LocalCommand = {
   type: 'local',
@@ -17,7 +17,7 @@ export const modelCommand: LocalCommand = {
   description: 'Show or switch LLM model',
   aliases: ['m'],
   supportsNonInteractive: true,
-  load: () => import('./model-impl.js'),
+  load: () => import('./model-impl'),
 }
 
 export default modelCommand

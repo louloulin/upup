@@ -4,7 +4,7 @@
  * Data source: 天天基金 (fund.eastmoney.com)
  */
 
-import type { FundBasic, FollowedFund, FundPerformance, FundHoldings } from './fund-types.js';
+import type { FundBasic, FollowedFund, FundPerformance, FundHoldings } from './fund-types';
 
 const FUND_BASE_URL = 'http://fund.eastmoney.com';
 const FUND_GZ_URL = 'https://fundgz.1234567.com.cn/js';

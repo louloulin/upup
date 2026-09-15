@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { mkdtempSync, mkdirSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { verifyPiResourceTrust } from './plugin-trust.js';
+import { verifyPiResourceTrust } from './plugin-trust';
 
 function fixture() {
   const root = mkdtempSync(join(tmpdir(), 'upup-pi-trust-'));

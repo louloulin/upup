@@ -11,7 +11,7 @@ import { SSEClientTransport } from '@modelcontextprotocol/sdk/client/sse.js';
 import type { Tool as MCPTool } from '@modelcontextprotocol/sdk/types.js';
 import { ToolListChangedNotificationSchema, ResourceListChangedNotificationSchema } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
-import { createPiMcpTool, type PiMcpTool } from './pi-tool.js';
+import { createPiMcpTool, type PiMcpTool } from './pi-tool';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { EventEmitter } from 'events';
@@ -20,7 +20,7 @@ import {
   defaultTokenStorage,
   isTokenExpired,
   type OAuthTokens,
-} from './oauth.js';
+} from './oauth';
 
 /**
  * OAuth configuration for MCP server

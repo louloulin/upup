@@ -22,7 +22,7 @@ import {
   type TUI,
   type EditorTheme,
 } from '@earendil-works/pi-tui';
-import { CustomEditor } from './custom-editor.js';
+import { CustomEditor } from './custom-editor';
 import { getAllSlashCommands } from '@upup/commands';
 
 // Minimal TUI stub — Editor only calls requestRender() in normal flow.

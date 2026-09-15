@@ -2,29 +2,29 @@
  * @upup/pi-tui-app — Ink CLI shell consuming canonical Pi events and Session public API.
  */
 
-export * from './tui/index.js';
-export { BorderBox } from './components/BorderBox.js';
-export { createModelSelectList, createSessionSelectList } from './components/select-list.js';
-export * from './components/index.js';
-export * from './permissions/index.js';
-export * from './utils/config-validation.js';
-export * from './utils/grapheme.js';
-export * from './utils/vim-movements.js';
-export * from './utils/kill-ring.js';
-export { PROVIDERS, getModelsForProvider, getModelIdsForProvider, getDefaultModelForProvider, getModelDisplayName } from './utils/model.js';
-export type { Model } from './utils/model.js';
-export { renderToolResult, registerToolRenderer } from './utils/tool-renderers.js';
-export type { ToolResultRenderer } from './utils/tool-renderers.js';
-export { InputHistoryController } from './tui/input-history.js';
-export { InMemoryChatHistory } from './tui/in-memory-chat-history.js';
-export { ModelSelectionController } from './tui/model-selection.js';
-export { AgentRunnerController } from './tui/agent-runner.js';
+export * from './tui/index';
+export { BorderBox } from './components/BorderBox';
+export { createModelSelectList, createSessionSelectList } from './components/select-list';
+export * from './components/index';
+export * from './permissions/index';
+export * from './utils/config-validation';
+export * from './utils/grapheme';
+export * from './utils/vim-movements';
+export * from './utils/kill-ring';
+export { PROVIDERS, getModelsForProvider, getModelIdsForProvider, getDefaultModelForProvider, getModelDisplayName } from './utils/model';
+export type { Model } from './utils/model';
+export { renderToolResult, registerToolRenderer } from './utils/tool-renderers';
+export type { ToolResultRenderer } from './utils/tool-renderers';
+export { InputHistoryController } from './tui/input-history';
+export { InMemoryChatHistory } from './tui/in-memory-chat-history';
+export { ModelSelectionController } from './tui/model-selection';
+export { AgentRunnerController } from './tui/agent-runner';
 export type {
   AppState,
   ModelSelectionDependencies,
   ModelSelectionState,
   SelectionState,
-} from './tui/model-selection.js';
+} from './tui/model-selection';
 export type {
   AgentConfig,
   AgentRunnerFileHistory,
@@ -39,13 +39,13 @@ export type {
   WorkingState,
   ApprovalDecision,
   StreamMode,
-} from './tui/agent-runner.js';
-export type { RunQueryResult, TurnStats } from './tui/agent-runner.js';
-export { SessionSelectionController } from './tui/session-selection.js';
-export { runCli } from './cli.js';
-export type { RunCliOptions } from './cli.js';
+} from './tui/agent-runner';
+export type { RunQueryResult, TurnStats } from './tui/agent-runner';
+export { SessionSelectionController } from './tui/session-selection';
+export { runCli } from './cli';
+export type { RunCliOptions } from './cli';
 export type {
   SessionAppState,
   SessionSelectionService,
   SessionSelectionState,
-} from './tui/session-selection.js';
+} from './tui/session-selection';

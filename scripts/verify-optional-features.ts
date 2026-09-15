@@ -12,7 +12,7 @@ import {
   convertPluginSkill,
   convertPluginSkills,
   type PluginBundledSkill,
-} from '../src/skills/index.js';
+} from '../src/skills/index';
 
 console.log('\n' + '='.repeat(80));
 console.log('                    Optional Features Verification');

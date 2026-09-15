@@ -5,7 +5,7 @@
 export {
   PermissionManager,
   type PermissionManagerConfig,
-} from './manager.js'
+} from './manager'
 
 export type {
   PermissionMode,
@@ -15,4 +15,4 @@ export type {
   PermissionEvent,
   PermissionRequestEvent,
   PermissionDeniedEvent,
-} from './types.js'
+} from './types'

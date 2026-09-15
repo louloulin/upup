@@ -9,7 +9,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { mergePiPackageTrust, resolveConfiguredPiPackages } from '@upup/pi-resource-composition';
 import type { PiPackageTrustPolicy } from '@upup/pi-runtime';
-import type { PiRunnerSessionState } from './session-registry.js';
+import type { PiRunnerSessionState } from './session-registry';
 
 export interface PiPromptOptions {
   model?: string;

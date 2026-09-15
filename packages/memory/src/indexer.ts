@@ -1,10 +1,10 @@
 import { watch, type FSWatcher } from 'node:fs';
 import { dirname } from 'node:path';
-import type { MemoryDatabase } from './database.js';
-import { chunkMemoryText } from './chunker.js';
-import { parseSessionTranscripts } from './session-files.js';
-import type { MemoryEmbeddingClient, MemorySyncStats } from './types.js';
-import { MemoryStore } from './store.js';
+import type { MemoryDatabase } from './database';
+import { chunkMemoryText } from './chunker';
+import { parseSessionTranscripts } from './session-files';
+import type { MemoryEmbeddingClient, MemorySyncStats } from './types';
+import { MemoryStore } from './store';
 
 const SESSION_FILE_PATH = 'sessions/chat_history.json';
 

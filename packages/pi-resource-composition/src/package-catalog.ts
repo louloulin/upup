@@ -1,11 +1,11 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
-import type { PiPackageTrustPolicy, PiResourceTrustAudit } from './plugin-trust.js';
-import { verifyPiResourceTrust } from './plugin-trust.js';
-import { loadPiPackageContracts, type PiPackageContracts } from './package-contracts.js';
+import type { PiPackageTrustPolicy, PiResourceTrustAudit } from './plugin-trust';
+import { verifyPiResourceTrust } from './plugin-trust';
+import { loadPiPackageContracts, type PiPackageContracts } from './package-contracts';
 import { PI_RUNTIME_CONTRACT, validatePiPackageManifest, type PiCapabilityDescriptor, type PiPackageCapabilityRequirement, type PiPackageManifestContract, type PiSideEffectDeclaration } from '@upup/pi-runtime';
 
-export type { PiPackageTrustPolicy } from './plugin-trust.js';
+export type { PiPackageTrustPolicy } from './plugin-trust';
 
 // Foundation packages that may be declared as runtimeDependencies without being
 // loaded as Pi Packages. These are runtime contracts and capability context

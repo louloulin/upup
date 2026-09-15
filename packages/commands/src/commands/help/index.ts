@@ -10,7 +10,7 @@
  * Reference: loucode/src/commands/help/index.ts
  */
 
-import type { LocalJSXCommand } from '../../types/command-types.js'
+import type { LocalJSXCommand } from '../../types/command-types'
 
 export const helpCommand: LocalJSXCommand = {
   type: 'local-jsx',

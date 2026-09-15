@@ -16,7 +16,7 @@ import { mkdir, readdir, rm, stat, appendFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
-import type { TelemetryEvent } from './types.js';
+import type { TelemetryEvent } from './types';
 
 export interface SinkConfig {
   /** Directory to write JSONL files into. */

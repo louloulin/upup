@@ -1,4 +1,4 @@
-import type { PiPackageResourceSnapshot } from './package-catalog.js';
+import type { PiPackageResourceSnapshot } from './package-catalog';
 
 export interface PiWorkflowContract {
   packageName: string;

@@ -13,18 +13,18 @@ import { mkdtempSync, rmSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { encodeWorkSecret, decodeWorkSecret, generateIngressToken, tokenFingerprint, sameSessionId, buildSdkUrl } from './workSecret.js';
-import { createCapacityWake } from './capacityWake.js';
-import { FlushGate } from './flushGate.js';
-import { getPollIntervalConfig, _setPollConfigOverride } from './pollConfig.js';
-import { DEFAULT_POLL_CONFIG } from './pollConfigDefaults.js';
-import { getEnvLessBridgeConfig, _setEnvLessBridgeConfigOverride, computeRetryDelay, DEFAULT_ENV_LESS_BRIDGE_CONFIG } from './envLessBridgeConfig.js';
-import { BridgeStatusTracker, canTransition } from './bridgeStatusUtil.js';
-import { validateBridgeId, isValidBridgeId } from './validateBridgeId.js';
-import { TrustedDeviceRegistry } from './trustedDevice.js';
-import { redactSecrets, debugBody, formatDuration } from './debugUtils.js';
-import { signJwt, verifyJwt, decodeJwt, isJwtExpired } from './jwtUtils.js';
-import { normalizeWebhook, sanitizeWebhookUrl } from './webhookSanitizer.js';
+import { encodeWorkSecret, decodeWorkSecret, generateIngressToken, tokenFingerprint, sameSessionId, buildSdkUrl } from './workSecret';
+import { createCapacityWake } from './capacityWake';
+import { FlushGate } from './flushGate';
+import { getPollIntervalConfig, _setPollConfigOverride } from './pollConfig';
+import { DEFAULT_POLL_CONFIG } from './pollConfigDefaults';
+import { getEnvLessBridgeConfig, _setEnvLessBridgeConfigOverride, computeRetryDelay, DEFAULT_ENV_LESS_BRIDGE_CONFIG } from './envLessBridgeConfig';
+import { BridgeStatusTracker, canTransition } from './bridgeStatusUtil';
+import { validateBridgeId, isValidBridgeId } from './validateBridgeId';
+import { TrustedDeviceRegistry } from './trustedDevice';
+import { redactSecrets, debugBody, formatDuration } from './debugUtils';
+import { signJwt, verifyJwt, decodeJwt, isJwtExpired } from './jwtUtils';
+import { normalizeWebhook, sanitizeWebhookUrl } from './webhookSanitizer';
 
 describe('v2-integration: work secret + JWT + URL flow', () => {
   test('full work-secret lifecycle: generate → encode → decode → JWT-sign → verify', () => {

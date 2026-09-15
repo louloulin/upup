@@ -5,7 +5,7 @@
  * Shows keyboard shortcuts.
  */
 
-import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types.js'
+import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types'
 import { getKeybindings } from '@earendil-works/pi-tui'
 
 export const call = async (

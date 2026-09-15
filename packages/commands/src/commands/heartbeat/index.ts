@@ -5,7 +5,7 @@
  * Show heartbeat checklist from .upup/HEARTBEAT.md
  */
 
-import type { LocalCommand } from '../../types/command-types.js'
+import type { LocalCommand } from '../../types/command-types'
 
 export const heartbeatCommand: LocalCommand = {
   type: 'local',
@@ -13,5 +13,5 @@ export const heartbeatCommand: LocalCommand = {
   description: 'Show heartbeat checklist from .upup/HEARTBEAT.md',
   aliases: ['checklist'],
   supportsNonInteractive: true,
-  load: () => import('./heartbeat-impl.js'),
+  load: () => import('./heartbeat-impl'),
 }

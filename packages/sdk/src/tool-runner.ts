@@ -5,14 +5,14 @@
  * @see https://docs.anthropic.com/en/docs/claude-code/api
  */
 
-import type { MessagesClient, Message, MessageParam } from './messages.js'
-import type { Tool } from './tools/index.js'
+import type { MessagesClient, Message, MessageParam } from './messages'
+import type { Tool } from './tools/index'
 import {
   ToolError,
   ToolNotFoundError,
   ToolTimeoutError,
   ToolAbortedError,
-} from './tool-error.js'
+} from './tool-error'
 
 // ============ Types ============
 

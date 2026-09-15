@@ -5,7 +5,7 @@
  * Gets or sets configuration values.
  */
 
-import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types.js'
+import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types'
 import { readFileSync, existsSync } from 'fs'
 import { join } from 'path'
 

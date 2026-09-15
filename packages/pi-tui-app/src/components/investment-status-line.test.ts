@@ -10,7 +10,7 @@ import {
   formatInvestmentStatusLine,
   formatInvestmentStatusLineFromMultiPortfolio,
   type StatusLineParts,
-} from './investment-status-line.js';
+} from './investment-status-line';
 import {
   InvestmentMemory,
   __resetInvestmentMemory,

@@ -8,10 +8,10 @@
  */
 
 import { z, type ZodType } from 'zod';
-import { classifyError, isNonRetryableError } from './errors.js';
-import { error as logError } from './logging/logger.js';
-import { resolveProvider } from './providers.js';
-import { DEFAULT_MODEL } from './model-defaults.js';
+import { classifyError, isNonRetryableError } from './errors';
+import { error as logError } from './logging/logger';
+import { resolveProvider } from './providers';
+import { DEFAULT_MODEL } from './model-defaults';
 export interface PiPromptOptions {
   readonly model?: string;
   readonly systemPrompt?: string;

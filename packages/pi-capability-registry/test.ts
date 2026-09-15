@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { PiCapabilityRegistry, publishPiCapabilityHosts, registerPiCapabilityHost, resolvePiCapabilityHost } from './src/index.js';
+import { PiCapabilityRegistry, publishPiCapabilityHosts, registerPiCapabilityHost, resolvePiCapabilityHost } from './src/index';
 import { createEventBus } from '@earendil-works/pi-coding-agent';
 
 describe('@upup/pi-capability-registry', () => {

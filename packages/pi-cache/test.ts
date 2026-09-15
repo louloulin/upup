@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { PiCache, PiCacheManager } from './src/index.js';
+import { PiCache, PiCacheManager } from './src/index';
 
 describe('pi-cache core', () => {
   test('tracks hits, misses, LRU eviction, and prefix invalidation', () => {

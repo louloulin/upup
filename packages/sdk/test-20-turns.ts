@@ -4,7 +4,7 @@
  * 验证 SDK Session 的记忆能力（简化版本，快速验证）
  */
 
-import { createClient } from './src/client/client.js'
+import { createClient } from './src/client/client'
 
 async function runQuickTest() {
   console.log('='.repeat(80))

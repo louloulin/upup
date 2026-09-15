@@ -10,7 +10,7 @@
  * - 检测上下文是否丢失
  */
 
-import { createClient } from './src/client/client.js'
+import { createClient } from './src/client/client'
 
 interface MemoryAnchor {
   turn: number

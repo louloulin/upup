@@ -7,7 +7,7 @@
  * Type: local-jsx
  */
 
-import type { LocalJSXCommand } from '../../types/command-types.js'
+import type { LocalJSXCommand } from '../../types/command-types'
 
 export const commandPaletteCommand: LocalJSXCommand = {
   type: 'local-jsx',
@@ -15,7 +15,7 @@ export const commandPaletteCommand: LocalJSXCommand = {
   description: 'Open interactive command palette with fuzzy search',
   aliases: ['cmd', 'palette'],
   immediate: true,
-  load: () => import('./command-palette.js'),
+  load: () => import('./command-palette'),
 }
 
 export default commandPaletteCommand

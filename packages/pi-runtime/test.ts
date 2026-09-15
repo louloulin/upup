@@ -12,7 +12,7 @@ import {
   validatePiPackageManifest,
   validatePiCapabilityCatalog,
   type UpUpAgentSpec,
-} from './src/index.js';
+} from './src/index';
 
 const spec: UpUpAgentSpec = {
   id: 'runtime-test', version: '1.0.0', name: 'Runtime test', description: 'Contract test', tools: ['quote'], mode: 'primary', capabilities: ['market-data'], taskTypes: ['research'],
@@ -93,7 +93,7 @@ import {
   serializeFinanceSessionContext,
   FINANCE_CONTEXT_ENTRY_TYPE,
   type UpUpFinanceSessionContext,
-} from './src/index.js';
+} from './src/index';
 
 describe('pi-runtime finance session context', () => {
   test('FINANCE_CONTEXT_ENTRY_TYPE is the canonical custom entry name', () => {
@@ -169,8 +169,8 @@ describe('pi-runtime finance session context', () => {
   });
 });
 
-import { createFinanceSessionExtension, emptyFinanceSessionContext } from './src/index.js';
-import type { FinanceSessionExtensionContext } from './src/index.js';
+import { createFinanceSessionExtension, emptyFinanceSessionContext } from './src/index';
+import type { FinanceSessionExtensionContext } from './src/index';
 
 describe('pi-runtime finance session extension', () => {
   test('createFinanceSessionExtension produces a hidden InlineExtension named upup-finance-session-policy', () => {

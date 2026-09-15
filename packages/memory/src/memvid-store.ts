@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs';
 import { appendFile, mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { getSetting, type PromptRunner } from '@upup/utils';
-import type { MemoryType, MemoryWriteRequest, MemoryFileMeta } from './types.js';
+import type { MemoryType, MemoryWriteRequest, MemoryFileMeta } from './types';
 import { getUpupDir } from '@upup/utils';
 
 const MEMORY_DIRNAME = 'memory';

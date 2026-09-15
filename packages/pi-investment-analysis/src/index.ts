@@ -777,10 +777,10 @@ export function calculateTechnicalIndicators(data: readonly TechnicalBar[], indi
   return { type: 'Technical Indicators', dataPoints: data.length, indicatorsCalculated: results.length, results, summary: results.map((result) => `${String(result.indicator)}: ${String(result.signal)}`).join(' | ') };
 }
 
-export { createInitialResearchJournalState, parseResearchJournalState, queryResearchJournal } from './research-journal.js';
-export type { NativeResearchTask, NativeResearchJournalState, ResearchJournalQuery, ResearchPhase, ResearchTaskStatus } from './research-journal.js';
-export { createResearchWorkerRequest, researchRoles, runResearchCoordinator } from './research-coordinator.js';
-export type { ResearchRole, ResearchWorkerRequest, ResearchWorkerResult, ResearchWorkerRunner, ResearchWorkerRecord, ResearchCoordinatorResult } from './research-coordinator.js';
-export { runNativeStockAnalysis } from './stock-analysis.js';
-export type { StockAnalysisInput, StockAnalysisResult, StockAnalysisWorker, StockAnalysisWorkerRequest, StockAnalysisWorkerResult } from './stock-analysis.js';
-export * from './matrix.js';
+export { createInitialResearchJournalState, parseResearchJournalState, queryResearchJournal } from './research-journal';
+export type { NativeResearchTask, NativeResearchJournalState, ResearchJournalQuery, ResearchPhase, ResearchTaskStatus } from './research-journal';
+export { createResearchWorkerRequest, researchRoles, runResearchCoordinator } from './research-coordinator';
+export type { ResearchRole, ResearchWorkerRequest, ResearchWorkerResult, ResearchWorkerRunner, ResearchWorkerRecord, ResearchCoordinatorResult } from './research-coordinator';
+export { runNativeStockAnalysis } from './stock-analysis';
+export type { StockAnalysisInput, StockAnalysisResult, StockAnalysisWorker, StockAnalysisWorkerRequest, StockAnalysisWorkerResult } from './stock-analysis';
+export * from './matrix';

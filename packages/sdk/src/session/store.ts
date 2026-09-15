@@ -7,7 +7,7 @@
 import { writeFile, readFile, mkdir, unlink, readdir } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
-import type { SessionStore, SessionInfo, SessionMessage } from './types.js'
+import type { SessionStore, SessionInfo, SessionMessage } from './types'
 
 /**
  * JSON Session Store

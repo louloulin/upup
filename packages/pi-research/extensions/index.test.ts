@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import researchExtension from './index.js';
+import researchExtension from './index';
 
 type Tool = { name: string; execute: (id: string, input: Record<string, unknown>, signal: AbortSignal) => Promise<any> };
 

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { NativeEarningsTranscriptClient } from './earnings-transcripts.js';
+import { NativeEarningsTranscriptClient } from './earnings-transcripts';
 
 function response(value: unknown): Response { return new Response(JSON.stringify(value), { status: 200, headers: { 'content-type': 'application/json' } }); }
 

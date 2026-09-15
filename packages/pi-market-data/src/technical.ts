@@ -1,4 +1,4 @@
-import { stableSeed, type MarketBar } from './index.js';
+import { stableSeed, type MarketBar } from './index';
 
 export type TechnicalPeriod = 'daily' | 'weekly' | 'monthly';
 

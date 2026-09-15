@@ -8,9 +8,9 @@ import {
   disposePiSessionService,
   getPiSessionService,
   PiSessionService,
-} from './session-service.js';
+} from './session-service';
 import type { UpUpAgentRuntime, UpUpAgentSession, UpUpCreateSessionOptions, UpUpAgentSpec } from '@upup/pi-runtime';
-import type { PiRunnerSessionState } from './session-registry.js';
+import type { PiRunnerSessionState } from './session-registry';
 
 class FakeSession implements UpUpAgentSession {
   readonly id: string;

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { JsonRpcErrorCode, JsonRpcMethod } from './src/index.js';
+import { JsonRpcErrorCode, JsonRpcMethod } from './src/index';
 
 describe('@upup/pi-stdio', () => {
   test('exposes the stable JSON-RPC protocol contract', () => {

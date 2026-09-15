@@ -7,7 +7,7 @@
  */
 
 import { existsSync, mkdirSync, writeFileSync } from 'fs';
-import { upupPath } from './paths.js';
+import { upupPath } from './paths';
 
 /** Maximum characters for a single tool result in context. */
 export const MAX_TOOL_RESULT_CHARS = 50_000;

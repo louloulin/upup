@@ -1,7 +1,7 @@
 /**
  * 详细调试 transport 层消息
  */
-import { createClient } from './src/client/client.js'
+import { createClient } from './src/client/client'
 
 // 临时 patch StdioTransport 来调试
 async function debugTransport() {

@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import { FlushGate } from './flushGate.js';
+import { FlushGate } from './flushGate';
 
 describe('FlushGate', () => {
   test('initial state: not active, 0 pending', () => {

@@ -18,8 +18,8 @@ import {
   SelectList,
   type SelectItem,
 } from '@earendil-works/pi-tui'
-import { theme, selectListTheme } from '../../theme.js'
-import { getCommandUsage, isFrequentlyUsed } from '../../command-usage.js'
+import { theme, selectListTheme } from '../../theme'
+import { getCommandUsage, isFrequentlyUsed } from '../../command-usage'
 
 // Inline category inference
 function inferCategory(name: string): string {

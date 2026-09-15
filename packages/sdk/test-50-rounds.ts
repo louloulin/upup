@@ -5,7 +5,7 @@
  * 减少轮次以避免超时，同时保持核心验证逻辑
  */
 
-import { createClient } from './src/client/client.js'
+import { createClient } from './src/client/client'
 
 interface MemoryAnchor {
   turn: number

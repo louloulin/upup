@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'bun:test';
-import type { SessionMessage } from './session-types.js';
+import type { SessionMessage } from './session-types';
 import {
   buildMessageChain,
   getMessageDepth,
@@ -16,7 +16,7 @@ import {
   findRoot,
   hasChildren,
   getChildCount,
-} from './message-chain.js';
+} from './message-chain';
 import {
   isEphemeralMessage,
   filterEphemeralMessages,
@@ -26,13 +26,13 @@ import {
   countEphemeralMessages,
   getEphemeralRatio,
   getEphemeralStats,
-} from './ephemeral-messages.js';
+} from './ephemeral-messages';
 import {
   shouldCollapse,
   getCollapseStats,
   estimateTokenCount,
   isCollapseSnapshot,
-} from './context-collapse.js';
+} from './context-collapse';
 
 // ============================================================================
 // Test Fixtures

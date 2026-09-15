@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { runResearchCoordinator } from './research-coordinator.js';
+import { runResearchCoordinator } from './research-coordinator';
 
 describe('Pi research coordinator', () => {
   test('runs selected workers in parallel and aggregates evidence', async () => {

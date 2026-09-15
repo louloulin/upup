@@ -1,5 +1,5 @@
-import type { FactorBacktestOptions, FactorBacktestResult } from './types.js';
-import { rankDesc } from './normalize.js';
+import type { FactorBacktestOptions, FactorBacktestResult } from './types';
+import { rankDesc } from './normalize';
 
 export interface UniverseBarSeries {
   readonly date: string;

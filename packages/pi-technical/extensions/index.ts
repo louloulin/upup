@@ -21,7 +21,7 @@ import {
   computeOBV,
   computeCCI,
   type IndicatorBar,
-} from '../src/index.js';
+} from '../src/index';
 
 const barSchema = Type.Object({
   date: Type.String(),

@@ -11,7 +11,7 @@
  * - 5 态执行状态机:plan → confirm → execute → review → done
  */
 
-import type { PlanContext, PlanStep, PlanStatus } from './plan-context.js';
+import type { PlanContext, PlanStep, PlanStatus } from './plan-context';
 
 /** Pi Native 投资 plan 的唯一五阶段状态机。 */
 export type ResearchPhase =

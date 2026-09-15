@@ -58,11 +58,11 @@ export interface PiManagementSnapshot {
   readonly evidence: readonly { readonly source: string; readonly retrievedAt: string }[];
 }
 
-export { renderManagementPage, WEB_MANAGEMENT_PAGE_VERSION } from './management-page.js';
-export { startManagementServer, type ManagementServer, type ManagementServerConfig } from './server.js';
+export { renderManagementPage, WEB_MANAGEMENT_PAGE_VERSION } from './management-page';
+export { startManagementServer, type ManagementServer, type ManagementServerConfig } from './server';
 export {
   createManagementSnapshotProvider,
   MANAGEMENT_TOOLS,
   type CreateManagementSnapshotProviderOptions,
   type ManagementSnapshotProvider,
-} from './snapshot-provider.js';
+} from './snapshot-provider';

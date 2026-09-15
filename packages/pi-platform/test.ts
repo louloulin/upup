@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { PI_PLATFORM_PACKAGE_NAME, PI_PLATFORM_PACKAGE_VERSION, listPlatformWorktrees } from './src/index.js';
+import { PI_PLATFORM_PACKAGE_NAME, PI_PLATFORM_PACKAGE_VERSION, listPlatformWorktrees } from './src/index';
 
 describe('pi-platform', () => {
   test('exports a pinned package identity', () => {

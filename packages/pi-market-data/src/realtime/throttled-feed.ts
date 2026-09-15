@@ -1,4 +1,4 @@
-import type { FeedEvent, FeedEventType, FeedHandler, RealtimeFeed, SubscribeOptions } from './types.js';
+import type { FeedEvent, FeedEventType, FeedHandler, RealtimeFeed, SubscribeOptions } from './types';
 
 export function createThrottledFeed(inner: RealtimeFeed, throttleMs: number, now: () => number = () => Date.now()): RealtimeFeed {
   const lastEmit = new Map<string, number>();

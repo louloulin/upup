@@ -5,8 +5,8 @@
  * @see https://docs.anthropic.com/en/docs/claude-code/api
  */
 
-import type { Transport } from './transport/index.js'
-import type { Tool } from './tools/index.js'
+import type { Transport } from './transport/index'
+import type { Tool } from './tools/index'
 
 // ============ Types ============
 

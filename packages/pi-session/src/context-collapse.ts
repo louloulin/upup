@@ -8,8 +8,8 @@
  * summary, keeping recent conversation context while reducing memory footprint.
  */
 
-import type { SessionMessage } from './session-types.js';
-import { buildMessageChain, type MessageChain } from './message-chain.js';
+import type { SessionMessage } from './session-types';
+import { buildMessageChain, type MessageChain } from './message-chain';
 
 /**
  * Context collapse snapshot - records what was collapsed for later reference

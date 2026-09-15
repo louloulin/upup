@@ -1,12 +1,12 @@
 import { describe, expect, test } from 'bun:test';
-import { appendKairosEvent, classifyKairosTopic, createDefaultMarketQuoteClient, createInitialKairosJournalState, JsonFileMarketQuoteTrendStore, listKairosEvents, createRealtimeSubscriptionManager, FixedWindowMarketHistoryRateLimiter, InMemoryMarketHistoryCache, isTradingDay, makeFixtureBars, makeFixtureQuote, NativeMarketHistoryClient, NativeMarketQuoteClient, normalizeRealtimeSymbols, summarizeKairos } from './src/index.js';
+import { appendKairosEvent, classifyKairosTopic, createDefaultMarketQuoteClient, createInitialKairosJournalState, JsonFileMarketQuoteTrendStore, listKairosEvents, createRealtimeSubscriptionManager, FixedWindowMarketHistoryRateLimiter, InMemoryMarketHistoryCache, isTradingDay, makeFixtureBars, makeFixtureQuote, NativeMarketHistoryClient, NativeMarketQuoteClient, normalizeRealtimeSymbols, summarizeKairos } from './src/index';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { screenStockSnapshot } from './src/screener.js';
-import { getMarketStructureSnapshot, querySectorSnapshot } from './src/market-insights.js';
-import { makeTechnicalSnapshot } from './src/technical.js';
-import { executeNaturalLanguageScreen, NATURAL_LANGUAGE_SCREEN_UNIVERSE, runNaturalLanguageScreen } from './src/natural-language-screen.js';
+import { screenStockSnapshot } from './src/screener';
+import { getMarketStructureSnapshot, querySectorSnapshot } from './src/market-insights';
+import { makeTechnicalSnapshot } from './src/technical';
+import { executeNaturalLanguageScreen, NATURAL_LANGUAGE_SCREEN_UNIVERSE, runNaturalLanguageScreen } from './src/natural-language-screen';
 
 describe('pi-market-data', () => {
   test('runs the package-owned natural-language screener', async () => {
@@ -274,7 +274,7 @@ test('ignores malformed trend files without blocking provider startup', () => {
 });
 
 test('does not expose persisted buckets older than the 24-hour SLA window', () => {
-  const store: import('./src/index.js').NativeMarketQuoteTrendStore = {
+  const store: import('./src/index').NativeMarketQuoteTrendStore = {
     load: () => [{ startAt: '2026-09-12T08:00:00.000Z', requests: 1, cacheHits: 0, successes: 1, failures: 0, successRatePct: 100, avgLatencyMs: 3, sloStatus: 'healthy' }],
     save: () => undefined,
   };

@@ -21,8 +21,8 @@ import {
   type PiSessionCompositionProviders,
   type PiSessionListItem,
 } from '@upup/pi-session';
-import { createPiApp, type PiApp } from './index.js';
-import { createPiInvestmentWorkflow } from './investment.js';
+import { createPiApp, type PiApp } from './index';
+import { createPiInvestmentWorkflow } from './investment';
 import { createPiCanonicalEventStream } from '@upup/pi-event-adapter';
 import { getConfiguredModelId, getConfiguredProvider } from '@upup/utils';
 import { ensureHeartbeatCronJob, startCronRunner } from '@upup/cron';

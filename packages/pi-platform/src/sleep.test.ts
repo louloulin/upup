@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { platformSleep } from './sleep.js';
+import { platformSleep } from './sleep';
 
 describe('pi-platform sleep', () => {
   test('returns immediately for zero seconds', async () => {

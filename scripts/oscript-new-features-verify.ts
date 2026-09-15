@@ -8,10 +8,10 @@
  * - Worktree Hooks
  */
 
-import { SkillsMenu, getSkillsMenu, listSkills, showSkill, searchSkills } from '../src/skills/skills-menu.js';
-import { AutoSkillActivator, getAutoSkillActivator, parseConditionalSkill } from '../src/skills/auto-activate.js';
-import { McpPluginManager, isMcpbSource, parseMcpbFile, resolveEnvVars } from '../src/mcp/plugin-integration.js';
-import { WorktreeRegistry, getWorktreeRegistry } from '../src/worktree/hooks.js';
+import { SkillsMenu, getSkillsMenu, listSkills, showSkill, searchSkills } from '../src/skills/skills-menu';
+import { AutoSkillActivator, getAutoSkillActivator, parseConditionalSkill } from '../src/skills/auto-activate';
+import { McpPluginManager, isMcpbSource, parseMcpbFile, resolveEnvVars } from '../src/mcp/plugin-integration';
+import { WorktreeRegistry, getWorktreeRegistry } from '../src/worktree/hooks';
 
 // ============================================================================
 // Skills Menu Tests

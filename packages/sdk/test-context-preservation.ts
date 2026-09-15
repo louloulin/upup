@@ -10,7 +10,7 @@
  * - 通过 sessionId 关联两者
  */
 
-import { createClient } from './src/client/client.js'
+import { createClient } from './src/client/client'
 
 async function testSessionContext() {
   console.log('='.repeat(80))

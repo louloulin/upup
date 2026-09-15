@@ -3,7 +3,7 @@ import {
   analyzeSentimentToolResult,
   detectEventsToolResult,
   extractEntitiesToolResult,
-} from './research-text.js';
+} from './research-text';
 
 describe('Pi research text tool results', () => {
   test('returns structured sentiment output', () => {

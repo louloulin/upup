@@ -15,8 +15,8 @@ import { mkdtempSync, rmSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { GatewayRuntime } from '@upup/gateway';
-import { startBridgeServer, type BridgeServer } from './server.js';
-import { encodeMessage, type BridgeMessage } from './protocol.js';
+import { startBridgeServer, type BridgeServer } from './server';
+import { encodeMessage, type BridgeMessage } from './protocol';
 
 let tmpDir: string;
 let auditPath: string;

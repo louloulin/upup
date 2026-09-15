@@ -1,4 +1,4 @@
-import type { ICResult } from './types.js';
+import type { ICResult } from './types';
 
 export function pearsonIC(x: readonly number[], y: readonly number[]): number {
   return correlation(x, y, 'pearson');

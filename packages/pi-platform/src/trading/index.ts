@@ -9,7 +9,7 @@
 export {
   SandboxBroker,
   type SandboxBroker as SandboxBrokerType,
-} from './sandbox-engine.js';
+} from './sandbox-engine';
 
 export {
   createBroker,
@@ -19,11 +19,11 @@ export {
   resolveActiveBroker,
   unregisterBroker,
   type BuiltinBrokerName,
-} from './registry.js';
+} from './registry';
 
-export { IbkrAdapter, createMemoryTransport as createIbkrMemoryTransport, type IbkrTransport } from './ibkr-adapter.js';
+export { IbkrAdapter, createMemoryTransport as createIbkrMemoryTransport, type IbkrTransport } from './ibkr-adapter';
 
-export { XueqiuAdapter, createMemoryTransport as createXueqiuMemoryTransport, type XueqiuTransport } from './xueqiu-adapter.js';
+export { XueqiuAdapter, createMemoryTransport as createXueqiuMemoryTransport, type XueqiuTransport } from './xueqiu-adapter';
 
 export type {
   Balance,
@@ -37,7 +37,7 @@ export type {
   Position,
   Quote,
   TimeInForce,
-} from './types.js';
+} from './types';
 
 export const TRADING_DESCRIPTION = `
 Trading tools for paper and live brokerage operations.

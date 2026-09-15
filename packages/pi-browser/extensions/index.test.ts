@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import browserExtension from './index.js';
+import browserExtension from './index';
 
 describe('Pi browser extension', () => {
   test('registers one browser tool and fails closed for unsafe navigation', async () => {

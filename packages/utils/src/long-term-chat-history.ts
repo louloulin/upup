@@ -1,7 +1,7 @@
 import { readFile, writeFile, mkdir } from 'fs/promises';
 import { existsSync } from 'fs';
 import { join, dirname } from 'path';
-import { getUpupDir } from './paths.js';
+import { getUpupDir } from './paths';
 
 /**
  * Represents a conversation entry (user message + agent response pair)

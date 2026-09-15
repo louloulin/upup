@@ -29,7 +29,7 @@ afterEach(() => {
 
 describe('buildEarningsPreview', () => {
   test('returns framework-only preview with empty data arrays', async () => {
-    const { buildEarningsPreview } = await import('./earnings-preview.js');
+    const { buildEarningsPreview } = await import('./earnings-preview');
     const p = buildEarningsPreview('NVDA', { now: () => 1_700_000_000_000 });
     expect(p.ticker).toBe('NVDA');
     expect(p.generatedAt).toBe(1_700_000_000_000);
@@ -43,7 +43,7 @@ describe('buildEarningsPreview', () => {
   });
 
   test('history is sorted newest-first when plans exist', async () => {
-    const { buildEarningsPreview } = await import('./earnings-preview.js');
+    const { buildEarningsPreview } = await import('./earnings-preview');
     const { buildResearchPlan } = await import('@upup/pi-planning');
     const isolated = join(TMP_ROOT, 'plans-sorted');
     mkdirSync(isolated, { recursive: true });
@@ -73,7 +73,7 @@ describe('buildEarningsPreview', () => {
   });
 
   test('opts.plansDir overrides the default', async () => {
-    const { buildEarningsPreview } = await import('./earnings-preview.js');
+    const { buildEarningsPreview } = await import('./earnings-preview');
     const isolated = join(TMP_ROOT, 'alt-plans');
     mkdirSync(isolated, { recursive: true });
     const p = buildEarningsPreview('AAPL', { plansDir: isolated });
@@ -84,7 +84,7 @@ describe('buildEarningsPreview', () => {
 
 describe('runEarningsPreview CLI', () => {
   test('without args shows usage mentioning both command names', async () => {
-    const { runEarningsPreview } = await import('./earnings-preview.js');
+    const { runEarningsPreview } = await import('./earnings-preview');
     const text = await runEarningsPreview('');
     expect(text).toContain('用法');
     expect(text).toContain('/earnings-preview');
@@ -92,7 +92,7 @@ describe('runEarningsPreview CLI', () => {
   });
 
   test('with ticker renders framework + MCP resource URI', async () => {
-    const { runEarningsPreview } = await import('./earnings-preview.js');
+    const { runEarningsPreview } = await import('./earnings-preview');
     const text = await runEarningsPreview('NVDA');
     expect(text).toContain('Earnings Preview');
     expect(text).toContain('NVDA');
@@ -104,13 +104,13 @@ describe('runEarningsPreview CLI', () => {
   });
 
   test('with A-share ticker', async () => {
-    const { runEarningsPreview } = await import('./earnings-preview.js');
+    const { runEarningsPreview } = await import('./earnings-preview');
     const text = await runEarningsPreview('600519.SH');
     expect(text).toContain('600519.SH');
   });
 
   test('placeholder sections appear when no real data is wired', async () => {
-    const { runEarningsPreview } = await import('./earnings-preview.js');
+    const { runEarningsPreview } = await import('./earnings-preview');
     const text = await runEarningsPreview('AAPL');
     expect(text).toContain('共识预期');
     expect(text).toContain('推文');
@@ -119,7 +119,7 @@ describe('runEarningsPreview CLI', () => {
 });
 describe('buildEarningsPreviewAsync (P1.a.1)', () => {
   test('returns framework source when offline=true', async () => {
-    const { buildEarningsPreviewAsync } = await import('./earnings-preview.js');
+    const { buildEarningsPreviewAsync } = await import('./earnings-preview');
     const p = await buildEarningsPreviewAsync('NVDA', { offline: true, now: () => 1_700_000_000_000 });
     expect(p.ticker).toBe('NVDA');
     expect(p.source).toBe('framework');
@@ -128,7 +128,7 @@ describe('buildEarningsPreviewAsync (P1.a.1)', () => {
   });
 
   test('does not synthesize X posts without an API key', async () => {
-    const { buildEarningsPreviewAsync } = await import('./earnings-preview.js');
+    const { buildEarningsPreviewAsync } = await import('./earnings-preview');
     const previous = process.env.X_BEARER_TOKEN;
     delete process.env.X_BEARER_TOKEN;
     try {
@@ -142,7 +142,7 @@ describe('buildEarningsPreviewAsync (P1.a.1)', () => {
   });
 
   test('transcript fetcher injection: custom data flows through', async () => {
-    const { buildEarningsPreviewAsync } = await import('./earnings-preview.js');
+    const { buildEarningsPreviewAsync } = await import('./earnings-preview');
     const ref = {
       filingDate: '2025-01-15',
       url: 'https://sec/test',
@@ -158,7 +158,7 @@ describe('buildEarningsPreviewAsync (P1.a.1)', () => {
   });
 
   test('transcript fetcher throwing degrades to empty (does not throw)', async () => {
-    const { buildEarningsPreviewAsync } = await import('./earnings-preview.js');
+    const { buildEarningsPreviewAsync } = await import('./earnings-preview');
     const p = await buildEarningsPreviewAsync('NVDA', {
       offline: true,
       transcriptFetcher: async () => { throw new Error('boom'); },
@@ -183,7 +183,7 @@ describe('buildEarningsPreviewAsync (P1.a.1)', () => {
  */
 describe('P1.a.4 — diff_against_prior_call + dossier persistence', () => {
   test('computeEarningsDiff: buy > sell → 净买入 with signed net', async () => {
-    const { computeEarningsDiff } = await import('./earnings-preview.js');
+    const { computeEarningsDiff } = await import('./earnings-preview');
     const diff = computeEarningsDiff(
       { callId: 'ec-AAPL-1', callTs: 1_700_000_000_000, transcriptRefs: [] },
       {
@@ -203,7 +203,7 @@ describe('P1.a.4 — diff_against_prior_call + dossier persistence', () => {
   });
 
   test('computeEarningsDiff: sell > buy → 净卖出 with signed net', async () => {
-    const { computeEarningsDiff } = await import('./earnings-preview.js');
+    const { computeEarningsDiff } = await import('./earnings-preview');
     const diff = computeEarningsDiff(
       { callId: 'ec-X-1', callTs: 0, transcriptRefs: [] },
       {
@@ -219,7 +219,7 @@ describe('P1.a.4 — diff_against_prior_call + dossier persistence', () => {
   });
 
   test('computeEarningsDiff: no tweets → toneDelta undefined', async () => {
-    const { computeEarningsDiff } = await import('./earnings-preview.js');
+    const { computeEarningsDiff } = await import('./earnings-preview');
     const diff = computeEarningsDiff(
       { callId: 'ec-X-1', callTs: 0, transcriptRefs: [] },
       { recentTweets: [], transcripts: [] },
@@ -230,7 +230,7 @@ describe('P1.a.4 — diff_against_prior_call + dossier persistence', () => {
   });
 
   test('buildEarningsPreview stamps diff when dossier has prior call', async () => {
-    const { buildEarningsPreview } = await import('./earnings-preview.js');
+    const { buildEarningsPreview } = await import('./earnings-preview');
     const { DossierStore } = await import('@upup/memory');
     const dossiers = new DossierStore({ inMemory: true, now: () => 1_700_000_000_000 });
     dossiers.create('NVDA', { name: 'NVIDIA', sector: 'Tech', marketCap: 1, oneLiner: 'x' });
@@ -245,13 +245,13 @@ describe('P1.a.4 — diff_against_prior_call + dossier persistence', () => {
   });
 
   test('buildEarningsPreview leaves diff undefined when no dossier provided', async () => {
-    const { buildEarningsPreview } = await import('./earnings-preview.js');
+    const { buildEarningsPreview } = await import('./earnings-preview');
     const p = buildEarningsPreview('NVDA', { now: () => 1_700_000_000_000 });
     expect(p.diff_against_prior_call).toBeUndefined();
   });
 
   test('buildEarningsPreview leaves diff undefined when dossier has no prior calls', async () => {
-    const { buildEarningsPreview } = await import('./earnings-preview.js');
+    const { buildEarningsPreview } = await import('./earnings-preview');
     const { DossierStore } = await import('@upup/memory');
     const dossiers = new DossierStore({ inMemory: true });
     dossiers.create('NVDA', { name: 'NVIDIA', sector: 'Tech', marketCap: 1, oneLiner: 'x' });
@@ -260,7 +260,7 @@ describe('P1.a.4 — diff_against_prior_call + dossier persistence', () => {
   });
 
   test('persistEarningsCallToDossier creates dossier + appends call note', async () => {
-    const { persistEarningsCallToDossier } = await import('./earnings-preview.js');
+    const { persistEarningsCallToDossier } = await import('./earnings-preview');
     const { DossierStore } = await import('@upup/memory');
     const dossiers = new DossierStore({ inMemory: true, now: () => 1_700_000_000_000 });
     const preview = {
@@ -284,7 +284,7 @@ describe('P1.a.4 — diff_against_prior_call + dossier persistence', () => {
   });
 
   test('persistEarningsCallToDossier is a no-op for framework source', async () => {
-    const { persistEarningsCallToDossier } = await import('./earnings-preview.js');
+    const { persistEarningsCallToDossier } = await import('./earnings-preview');
     const { DossierStore } = await import('@upup/memory');
     const dossiers = new DossierStore({ inMemory: true });
     const preview = {
@@ -302,7 +302,7 @@ describe('P1.a.4 — diff_against_prior_call + dossier persistence', () => {
   });
 
   test('persistEarningsCallToDossier is a no-op for empty transcripts', async () => {
-    const { persistEarningsCallToDossier } = await import('./earnings-preview.js');
+    const { persistEarningsCallToDossier } = await import('./earnings-preview');
     const { DossierStore } = await import('@upup/memory');
     const dossiers = new DossierStore({ inMemory: true });
     const preview = {
@@ -320,7 +320,7 @@ describe('P1.a.4 — diff_against_prior_call + dossier persistence', () => {
   });
 
   test('persistEarningsCallToDossier appends to existing dossier (append-only)', async () => {
-    const { persistEarningsCallToDossier } = await import('./earnings-preview.js');
+    const { persistEarningsCallToDossier } = await import('./earnings-preview');
     const { DossierStore } = await import('@upup/memory');
     const dossiers = new DossierStore({ inMemory: true, now: () => 1_700_000_000_000 });
     dossiers.create('AAPL', { name: 'Apple', sector: 'Tech', marketCap: 1, oneLiner: 'x' });
@@ -349,7 +349,7 @@ describe('P1.a.4 — diff_against_prior_call + dossier persistence', () => {
   });
 
   test('persistEarningsCallToDossier echoes toneDelta when set on preview', async () => {
-    const { persistEarningsCallToDossier } = await import('./earnings-preview.js');
+    const { persistEarningsCallToDossier } = await import('./earnings-preview');
     const { DossierStore } = await import('@upup/memory');
     const dossiers = new DossierStore({ inMemory: true, now: () => 1_700_000_000_000 });
     const preview = {

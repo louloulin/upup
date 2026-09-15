@@ -1,4 +1,4 @@
-import type { IndicatorBar } from './indicators.js';
+import type { IndicatorBar } from './indicators';
 
 export type CandlePatternKind =
   | 'doji'

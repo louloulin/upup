@@ -8,7 +8,7 @@
  * Category: tools
  */
 
-import type { LocalCommand } from '../../types/command-types.js'
+import type { LocalCommand } from '../../types/command-types'
 
 export const exportCommand: LocalCommand = {
   type: 'local',
@@ -16,7 +16,7 @@ export const exportCommand: LocalCommand = {
   description: 'Export conversation to file',
   aliases: [],
   supportsNonInteractive: true,
-  load: () => import('./export-impl.js'),
+  load: () => import('./export-impl'),
 }
 
 export default exportCommand

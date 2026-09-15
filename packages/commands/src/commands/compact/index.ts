@@ -9,7 +9,7 @@
  * Reference: loucode/src/commands/compact/index.ts
  */
 
-import type { LocalCommand } from '../../types/command-types.js'
+import type { LocalCommand } from '../../types/command-types'
 
 export const compactCommand: LocalCommand = {
   type: 'local',
@@ -17,7 +17,7 @@ export const compactCommand: LocalCommand = {
   description: 'Trigger context compaction',
   aliases: ['compress'],
   supportsNonInteractive: true,
-  load: () => import('./compact-impl.js'),
+  load: () => import('./compact-impl'),
 }
 
 export default compactCommand

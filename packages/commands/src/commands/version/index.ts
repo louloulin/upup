@@ -8,7 +8,7 @@
  * Category: system
  */
 
-import type { LocalCommand } from '../../types/command-types.js'
+import type { LocalCommand } from '../../types/command-types'
 
 export const versionCommand: LocalCommand = {
   type: 'local',
@@ -16,7 +16,7 @@ export const versionCommand: LocalCommand = {
   description: 'Show version information',
   aliases: ['ver', 'v'],
   supportsNonInteractive: true,
-  load: () => import('./version-impl.js'),
+  load: () => import('./version-impl'),
 }
 
 export default versionCommand

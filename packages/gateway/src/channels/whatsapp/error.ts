@@ -1,4 +1,4 @@
-import { getStatusCode } from './session.js';
+import { getStatusCode } from './session';
 
 function safeStringify(value: unknown, limit = 800): string {
   try {

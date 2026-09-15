@@ -1,5 +1,5 @@
-import { createPiHostBridge, PI_HOST_CAPABILITIES, PI_HOST_CONTRACT } from './host-contract.js';
-import type { PiHostBridge, PiHostRequest } from './host-contract.js';
+import { createPiHostBridge, PI_HOST_CAPABILITIES, PI_HOST_CONTRACT } from './host-contract';
+import type { PiHostBridge, PiHostRequest } from './host-contract';
 import type { PiMarketQuoteResult } from '@upup/types';
 import type { ToolDefinition } from '@earendil-works/pi-coding-agent';
 

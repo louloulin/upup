@@ -5,9 +5,9 @@
  */
 
 import { describe, it, expect, beforeEach } from 'bun:test'
-import { getApprovalConfig, setApprovalConfig, getTimeoutForTool } from '../../permissions/index.js'
-import { ApprovalFeedback, createFeedback, formatFeedback, recordFeedback, clearFeedbackHistory, getFeedbackHistory } from './ApprovalFeedback.js'
-import { getApprovalManager } from '../../permissions/ApprovalManager.js'
+import { getApprovalConfig, setApprovalConfig, getTimeoutForTool } from '../../permissions/index'
+import { ApprovalFeedback, createFeedback, formatFeedback, recordFeedback, clearFeedbackHistory, getFeedbackHistory } from './ApprovalFeedback'
+import { getApprovalManager } from '../../permissions/ApprovalManager'
 
 describe('ApprovalConfig', () => {
   beforeEach(() => {
@@ -135,17 +135,17 @@ describe('ApprovalManager', () => {
 
 describe('Danger Level Detection', () => {
   it('should detect high danger for Bash', async () => {
-    const { getToolDangerLevel } = await import('../../permissions/index.js')
+    const { getToolDangerLevel } = await import('../../permissions/index')
     expect(getToolDangerLevel('Bash')).toBe('high')
   })
 
   it('should detect medium danger for Write', async () => {
-    const { getToolDangerLevel } = await import('../../permissions/index.js')
+    const { getToolDangerLevel } = await import('../../permissions/index')
     expect(getToolDangerLevel('Write')).toBe('medium')
   })
 
   it('should detect low danger for Read', async () => {
-    const { getToolDangerLevel } = await import('../../permissions/index.js')
+    const { getToolDangerLevel } = await import('../../permissions/index')
     expect(getToolDangerLevel('Read')).toBe('low')
   })
 })
@@ -172,23 +172,23 @@ describe('TUI Keyboard Interaction', () => {
 
 describe('Hard-Deny Detection', () => {
   it('should detect fork bomb', async () => {
-    const { isHardDenyCommand } = await import('../../permissions/index.js')
+    const { isHardDenyCommand } = await import('../../permissions/index')
     expect(isHardDenyCommand(':(){:|:&};:')).toBe(true)
   })
 
   it('should detect rm -rf /', async () => {
-    const { isHardDenyCommand } = await import('../../permissions/index.js')
+    const { isHardDenyCommand } = await import('../../permissions/index')
     expect(isHardDenyCommand('rm -rf /')).toBe(true)
     expect(isHardDenyCommand('rm -rf //')).toBe(true)
   })
 
   it('should detect mkfs', async () => {
-    const { isHardDenyCommand } = await import('../../permissions/index.js')
+    const { isHardDenyCommand } = await import('../../permissions/index')
     expect(isHardDenyCommand('mkfs ext4 /dev/sda')).toBe(true)
   })
 
   it('should allow safe commands', async () => {
-    const { isHardDenyCommand } = await import('../../permissions/index.js')
+    const { isHardDenyCommand } = await import('../../permissions/index')
     expect(isHardDenyCommand('ls -la')).toBe(false)
     expect(isHardDenyCommand('git status')).toBe(false)
     expect(isHardDenyCommand('echo hello')).toBe(false)

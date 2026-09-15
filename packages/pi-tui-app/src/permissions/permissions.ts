@@ -11,18 +11,18 @@ import type {
   PermissionRequest,
   PermissionDecision,
   PermissionRuleValue,
-} from './types.js'
+} from './types'
 import { getPermissionMode } from '@upup/pi-session'
 import {
   loadAllPermissionRulesFromDisk,
   findMatchingRules,
   getRulesForBehavior,
-} from './permissionsLoader.js'
+} from './permissionsLoader'
 import {
   matchesRuleContent,
   permissionRuleValueFromString,
-} from './permissionRuleParser.js'
-import { isHardDenyCommand } from './permissionSetup.js'
+} from './permissionRuleParser'
+import { isHardDenyCommand } from './permissionSetup'
 import { checkPermissionWithHardDeny } from '@upup/pi-platform'
 
 // ============================================================================

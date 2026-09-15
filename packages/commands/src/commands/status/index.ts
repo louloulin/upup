@@ -9,7 +9,7 @@
  * Reference: loucode/src/commands/status/index.ts
  */
 
-import type { LocalCommand } from '../../types/command-types.js'
+import type { LocalCommand } from '../../types/command-types'
 
 export const statusCommand: LocalCommand = {
   type: 'local',
@@ -17,7 +17,7 @@ export const statusCommand: LocalCommand = {
   description: 'Show system status and stats',
   aliases: ['info'],
   supportsNonInteractive: true,
-  load: () => import('./status-impl.js'),
+  load: () => import('./status-impl'),
 }
 
 export default statusCommand

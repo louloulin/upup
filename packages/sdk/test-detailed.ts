@@ -1,7 +1,7 @@
 /**
  * 详细日志测试 - 检查 SDK 消息结构
  */
-import { createClient } from './src/client/client.js'
+import { createClient } from './src/client/client'
 
 async function detailedTest() {
   console.log('详细日志测试')

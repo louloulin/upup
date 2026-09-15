@@ -14,13 +14,13 @@ import {
   createPlan,
   type PlanContext,
   type PlanStep,
-} from './plan-context.js';
+} from './plan-context';
 import type {
   ResearchMarket,
   ResearchPhase,
   ResearchPlan,
   ResearchToolBinding,
-} from './research-plan.js';
+} from './research-plan';
 
 /** 投资意图关键词 → phase 优先级映射 */
 const PHASE_KEYWORDS: ReadonlyArray<{ phase: ResearchPhase; keywords: ReadonlyArray<string> }> = [

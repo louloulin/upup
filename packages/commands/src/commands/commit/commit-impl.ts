@@ -5,7 +5,7 @@
  * Stages all changes and commits.
  */
 
-import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types.js'
+import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types'
 import { execSync } from 'child_process'
 
 export const call = async (

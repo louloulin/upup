@@ -8,7 +8,7 @@
  * Category: session
  */
 
-import type { LocalCommand } from '../../types/command-types.js'
+import type { LocalCommand } from '../../types/command-types'
 
 export const resumeCommand: LocalCommand = {
   type: 'local',
@@ -16,7 +16,7 @@ export const resumeCommand: LocalCommand = {
   description: 'Resume a previous conversation',
   aliases: ['continue'],
   supportsNonInteractive: true,
-  load: () => import('./resume-impl.js'),
+  load: () => import('./resume-impl'),
 }
 
 export default resumeCommand

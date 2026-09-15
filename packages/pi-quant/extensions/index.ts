@@ -35,7 +35,7 @@ import {
   type FactorBar,
   type FactorSignalSeries,
   type UniverseBarSeries,
-} from '../src/index.js';
+} from '../src/index';
 
 const symbolParam = Type.String({ minLength: 1, maxLength: 24 });
 const factorIdParam = Type.String({ minLength: 1, maxLength: 64 });
@@ -80,7 +80,7 @@ export default function quantExtension(pi: ExtensionAPI): void {
     }),
     async execute(toolCallId, params, signal) {
       if (signal.aborted) return { content: [{ type: 'text', text: 'quant_factor_library aborted' }], isError: true };
-      const { FACTOR_LIBRARY } = await import('../src/factors.js');
+      const { FACTOR_LIBRARY } = await import('../src/factors');
       const filtered = params.category
         ? FACTOR_LIBRARY.filter((f) => f.category === params.category)
         : FACTOR_LIBRARY;
@@ -130,7 +130,7 @@ export default function quantExtension(pi: ExtensionAPI): void {
     }),
     async execute(toolCallId, params, signal) {
       if (signal.aborted) return { content: [{ type: 'text', text: 'quant_factor_normalize aborted' }], isError: true };
-      const { normalize } = await import('../src/normalize.js');
+      const { normalize } = await import('../src/normalize');
       const out = normalize(params.values, params.method);
       const value = evidenceEnvelope({ method: params.method, count: out.length, normalized: out });
       return {

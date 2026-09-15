@@ -1,7 +1,7 @@
 import { Container, Spacer, Text } from '@earendil-works/pi-tui';
 import { t } from '@upup/i18n';
-import type { WorkingState } from './types.js';
-import type { StreamMode } from '../tui/agent-runner-types.js';
+import type { WorkingState } from './types';
+import type { StreamMode } from '../tui/agent-runner-types';
 import { getRandomThinkingVerb } from '@upup/utils';
 import { theme } from '@upup/utils';
 import { subscribeSpinner, currentSpinnerFrame } from '@upup/utils';

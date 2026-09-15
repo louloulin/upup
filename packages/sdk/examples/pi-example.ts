@@ -1,4 +1,4 @@
-import { createClient } from '../src/index.js';
+import { createClient } from '../src/index';
 
 export async function runPiExample(title: string, prompt: string): Promise<void> {
   console.log(`=== ${title} ===`);

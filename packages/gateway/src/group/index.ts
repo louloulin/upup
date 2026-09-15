@@ -1,8 +1,8 @@
-export { isBotMentioned } from './mention-detection.js';
+export { isBotMentioned } from './mention-detection';
 export {
   recordGroupMessage,
   getAndClearGroupHistory,
   formatGroupHistoryContext,
   type GroupHistoryEntry,
-} from './history-buffer.js';
-export { noteGroupMember, formatGroupMembersList } from './member-tracker.js';
+} from './history-buffer';
+export { noteGroupMember, formatGroupMembersList } from './member-tracker';

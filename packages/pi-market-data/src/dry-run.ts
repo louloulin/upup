@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { currencyForMarket, normalizeMarket, stableSeed, type Market, type MarketBar, type MarketEvidence, type MarketFreshness, type MarketQuote } from './index.js';
+import { currencyForMarket, normalizeMarket, stableSeed, type Market, type MarketBar, type MarketEvidence, type MarketFreshness, type MarketQuote } from './index';
 
 export const DRY_RUN_SOURCE_QUOTE = 'dry-run://pi-market-data/quote';
 export const DRY_RUN_SOURCE_HISTORY = 'dry-run://pi-market-data/history';
@@ -304,8 +304,8 @@ export function resolveDryRunActivation(context: DryRunActivationContext): { act
   return { active: false, activatedBy: undefined };
 }
 
-import { InMemoryMarketQuoteCache, JsonFileMarketQuoteTrendStore, NativeMarketQuoteClient, type MarketQuoteCache, type NativeMarketQuoteClientOptions, type NativeMarketQuoteTrendStore } from "./quote.js";
-import { FixedWindowMarketHistoryRateLimiter, InMemoryMarketHistoryCache, NativeMarketHistoryClient, type MarketHistoryCache, type MarketHistoryRateLimiter, type NativeMarketHistoryClientOptions } from "./history.js";
+import { InMemoryMarketQuoteCache, JsonFileMarketQuoteTrendStore, NativeMarketQuoteClient, type MarketQuoteCache, type NativeMarketQuoteClientOptions, type NativeMarketQuoteTrendStore } from "./quote";
+import { FixedWindowMarketHistoryRateLimiter, InMemoryMarketHistoryCache, NativeMarketHistoryClient, type MarketHistoryCache, type MarketHistoryRateLimiter, type NativeMarketHistoryClientOptions } from "./history";
 
 export interface ResolvedMarketQuoteClient {
   readonly client: NativeMarketQuoteClient | DryRunMarketQuoteClient;

@@ -5,7 +5,7 @@
  * 基于 pi-tui matchesKey/Key 的快捷键解析系统
  * 支持 Chord (组合键) 如 Ctrl+K Ctrl+S
  */
-import type { ParsedKeystroke, ParsedBinding } from './types.js';
+import type { ParsedKeystroke, ParsedBinding } from './types';
 
 import { matchesKey, Key, type KeyId } from '@earendil-works/pi-tui';
 
@@ -20,7 +20,7 @@ export type KeybindingContextName = string;
 
 /** 解析后的按键 */
 
-export type { KeyEvent, ResolveResult, Keybinding, KeybindingBlock, ParsedKeystroke, KeybindingContext, KeybindingAction } from './types.js';
+export type { KeyEvent, ResolveResult, Keybinding, KeybindingBlock, ParsedKeystroke, KeybindingContext, KeybindingAction } from './types';
 export type ChordResolveResult =
   | { type: 'match'; action: string }
   | { type: 'none' }

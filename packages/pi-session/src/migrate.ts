@@ -1,7 +1,7 @@
 import { existsSync, readdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, basename } from 'node:path';
-import { migrateSessionFile } from './pi-migration.js';
+import { migrateSessionFile } from './pi-migration';
 
 if (import.meta.main) {
 const sourceDir = join(homedir(), '.upup', 'sessions');

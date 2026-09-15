@@ -1,7 +1,7 @@
 /**
  * 多轮对话测试 - 检查上下文是否保持
  */
-import { createClient } from './src/client/client.js'
+import { createClient } from './src/client/client'
 
 async function testMultiTurn() {
   console.log('多轮对话测试 - 检查上下文保持')

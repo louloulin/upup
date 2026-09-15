@@ -8,7 +8,7 @@
  * Category: system
  */
 
-import type { LocalCommand } from '../../types/command-types.js'
+import type { LocalCommand } from '../../types/command-types'
 
 export const usageCommand: LocalCommand = {
   type: 'local',
@@ -16,7 +16,7 @@ export const usageCommand: LocalCommand = {
   description: 'Show token usage statistics',
   aliases: [],
   supportsNonInteractive: true,
-  load: () => import('./usage-impl.js'),
+  load: () => import('./usage-impl'),
 }
 
 export default usageCommand

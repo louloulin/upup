@@ -2,7 +2,7 @@
  * @upup/sdk - 快速验证测试
  */
 
-import { StdioTransport } from '../src/index.js'
+import { StdioTransport } from '../src/index'
 
 async function main() {
   console.log('========================================')

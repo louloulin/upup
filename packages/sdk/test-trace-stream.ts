@@ -1,7 +1,7 @@
 /**
  * 完整 stream 事件追踪
  */
-import { createClient } from './src/client/client.js'
+import { createClient } from './src/client/client'
 
 async function traceStream() {
   console.log('完整 stream 事件追踪')

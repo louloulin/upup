@@ -1,4 +1,4 @@
-import type { RightsIssueEvent } from './types.js';
+import type { RightsIssueEvent } from './types';
 
 export function rightsSubscriptionRatio(r: RightsIssueEvent): number {
   if (r.ratioFrom <= 0) return 0;

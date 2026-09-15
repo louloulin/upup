@@ -7,7 +7,7 @@
  * Reference: Loucode's keybindings/defaultBindings.ts
  */
 
-import type { KeybindingBlock } from './types.js';
+import type { KeybindingBlock } from './types';
 
 export const DEFAULT_KEYBINDINGS: KeybindingBlock[] = [
   {

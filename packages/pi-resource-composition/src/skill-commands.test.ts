@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { isPiSkillCommand, listPiSkillCommands, toPiSkillPrompt } from './skill-commands.js';
+import { isPiSkillCommand, listPiSkillCommands, toPiSkillPrompt } from './skill-commands';
 
 describe('Pi skill command bridge', () => {
   test('discovers skills from trusted Pi package resources', async () => {

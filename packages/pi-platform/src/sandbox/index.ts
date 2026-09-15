@@ -9,12 +9,12 @@ export {
   DEFAULT_SANDBOX_CONFIG,
   loadSandboxConfig,
   sandboxModeDisplay,
-} from './sandbox-config.js';
-export { SandboxManager, getSandboxManager } from './sandbox-manager.js';
+} from './sandbox-config';
+export { SandboxManager, getSandboxManager } from './sandbox-manager';
 export {
   resolveSandboxPath,
   assertSandboxPath,
-} from './sandbox.js';
+} from './sandbox';
 
 // Sandbox rules exports
 export {
@@ -29,7 +29,7 @@ export {
   DEFAULT_SANDBOX_RULES,
   SandboxRulesManager,
   getSandboxRulesManager,
-} from './sandbox-rules.js';
+} from './sandbox-rules';
 
 // Sandbox dependencies exports
 export {
@@ -37,4 +37,4 @@ export {
   checkSandboxDependencies,
   getSandboxDependencySummary,
   runSandboxCheck,
-} from './sandbox-dependencies.js';
+} from './sandbox-dependencies';

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { checkPowerShellDangerousPatterns, isPowerShellDangerousCommand, platformPowerShell } from './powershell.js';
+import { checkPowerShellDangerousPatterns, isPowerShellDangerousCommand, platformPowerShell } from './powershell';
 
 describe('pi-platform PowerShell', () => {
   test('preserves security checks', () => {

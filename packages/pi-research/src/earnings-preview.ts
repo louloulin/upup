@@ -1,7 +1,7 @@
 import { NativeEarningsTranscriptClient, createNativeResearchDataAdapters } from '@upup/pi-finance-sdk';
 import type { NativeTranscriptRef } from '@upup/pi-finance-sdk';
 import { buildResearchPlan, type ResearchPlan } from '@upup/pi-planning';
-import { searchX as searchPackageX } from './search.js';
+import { searchX as searchPackageX } from './search';
 
 export type EarningsPreviewSource = 'framework' | 'partial' | 'full';
 export interface ConsensusEstimate { readonly period: string; readonly metric: string; readonly consensus: number; readonly prior?: number; readonly revisionPct?: number; readonly currency?: string; }

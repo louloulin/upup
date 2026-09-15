@@ -2,8 +2,8 @@ import type {
   ProviderRetryClassification,
   ProviderRetryEvent,
   ProviderRetryOutcome,
-} from './types.js';
-import { telemetry, type TelemetryRecorder } from './recorder.js';
+} from './types';
+import { telemetry, type TelemetryRecorder } from './recorder';
 
 export interface ProviderRetryError {
   classification: ProviderRetryClassification;

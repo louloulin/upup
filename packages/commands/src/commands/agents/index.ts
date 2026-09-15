@@ -8,7 +8,7 @@
  * Category: agent
  */
 
-import type { LocalCommand } from '../../types/command-types.js'
+import type { LocalCommand } from '../../types/command-types'
 
 export const agentsCommand: LocalCommand = {
   type: 'local',
@@ -16,7 +16,7 @@ export const agentsCommand: LocalCommand = {
   description: 'List active agents',
   aliases: [],
   supportsNonInteractive: true,
-  load: () => import('./agents-impl.js'),
+  load: () => import('./agents-impl'),
 }
 
 export default agentsCommand

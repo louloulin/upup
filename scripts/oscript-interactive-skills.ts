@@ -11,9 +11,9 @@
  * Run: bun run scripts/oscript-interactive-skills.ts
  */
 
-import { initializeSkills, getSkillCommand, getAllSkillCommands } from '../src/skills/commands.js';
-import { executeSkillCommand } from '../src/skills/executor.js';
-import { detectIntents } from '../src/skills/intent-detector.js';
+import { initializeSkills, getSkillCommand, getAllSkillCommands } from '../src/skills/commands';
+import { executeSkillCommand } from '../src/skills/executor';
+import { detectIntents } from '../src/skills/intent-detector';
 
 // ============================================================================
 // Test Configuration

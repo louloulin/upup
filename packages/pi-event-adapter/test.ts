@@ -652,7 +652,7 @@ describe('@upup/pi-event-adapter — createFinanceExtension', () => {
 
 describe('@upup/pi-event-adapter — injected stream runner', () => {
   test('canonical stream preserves every Pi event and emits run_end after the runner resolves', async () => {
-    const { createPiCanonicalEventStream } = await import('./src/stream.js');
+    const { createPiCanonicalEventStream } = await import('./src/stream');
     const events: UpUpAgentEvent[] = [];
     const stream = createPiCanonicalEventStream(async (_prompt, options) => {
       options.onEvent?.({ type: 'session_start', sessionId: 'canonical', agentId: 'fixture' });

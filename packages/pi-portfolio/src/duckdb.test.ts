@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { DuckDBClient } from './duckdb.js';
+import { DuckDBClient } from './duckdb';
 
 function makeClient(rows: Record<string, unknown>[]) {
   const calls: string[] = [];

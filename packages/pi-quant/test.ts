@@ -17,7 +17,7 @@ import {
   equalWeightWeights,
   scoreUniverse,
   FACTOR_LIBRARY,
-} from './src/index.js';
+} from './src/index';
 
 describe('pi-quant smoke', () => {
   test('factor library has 20+ entries', () => {

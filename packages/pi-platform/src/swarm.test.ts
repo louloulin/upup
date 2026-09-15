@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { addPlatformSwarmAgent, addPlatformSwarmMessage, createInitialPlatformSwarmState, createPlatformSwarmTeam, parsePlatformSwarmState, updatePlatformSwarmAgent } from './swarm.js';
+import { addPlatformSwarmAgent, addPlatformSwarmMessage, createInitialPlatformSwarmState, createPlatformSwarmTeam, parsePlatformSwarmState, updatePlatformSwarmAgent } from './swarm';
 
 describe('Pi platform swarm state', () => {
   test('creates teams, tracks workers, messages, and lifecycle', () => {

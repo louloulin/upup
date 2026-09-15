@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { z } from 'zod';
-import { normalizeE164 } from './utils.js';
+import { normalizeE164 } from './utils';
 import { upupPath } from '@upup/utils';
 
 const DEFAULT_GATEWAY_PATH = upupPath('gateway.json');

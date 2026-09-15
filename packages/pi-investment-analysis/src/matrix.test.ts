@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { MatrixEngine, renderVerdict, type MatrixCell } from './matrix.js';
+import { MatrixEngine, renderVerdict, type MatrixCell } from './matrix';
 
 describe('Pi investment matrix core', () => {
   test('renders deterministic verdicts for technical metrics', () => {

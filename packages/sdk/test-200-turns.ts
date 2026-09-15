@@ -5,7 +5,7 @@
  * 测试连续对话中的上下文保持和 Token 累积
  */
 
-import { createClient } from './src/client/client.js'
+import { createClient } from './src/client/client'
 
 async function run200TurnsTest() {
   console.log('='.repeat(80))

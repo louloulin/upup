@@ -8,7 +8,7 @@
  * @see Carbonell & Goldstein, "The Use of MMR, Diversity-Based Reranking" (1998)
  */
 
-import type { MMRConfig, MemorySearchResult } from './types.js';
+import type { MMRConfig, MemorySearchResult } from './types';
 
 export const DEFAULT_MMR_CONFIG: MMRConfig = {
   enabled: true,

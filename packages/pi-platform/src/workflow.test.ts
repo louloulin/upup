@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { addPlatformWorkflowPlan, createInitialPlatformWorkflowState, createPlatformWorkflowPlan, parsePlatformWorkflowState } from './workflow.js';
+import { addPlatformWorkflowPlan, createInitialPlatformWorkflowState, createPlatformWorkflowPlan, parsePlatformWorkflowState } from './workflow';
 
 describe('platform workflow state', () => {
   test('creates and restores a persisted plan', () => {

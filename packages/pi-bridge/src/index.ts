@@ -13,18 +13,18 @@ export {
   signMessage,
   verifyMessage,
   type BridgeMessage,
-} from './protocol.js';
+} from './protocol';
 export {
   BridgeAuth,
   type BridgeAuthConfig,
   type VerifyResult,
   type RateLimitResult,
-} from './auth.js';
+} from './auth';
 export {
   BridgeSessionStore,
   type BridgeSession,
   type SessionStatus,
-} from './session.js';
+} from './session';
 export {
   SessionSync,
   serializeSession,
@@ -32,22 +32,22 @@ export {
   sessionHash,
   type SessionState,
   type SessionSyncOptions,
-} from './session-sync.js';
+} from './session-sync';
 export {
   redactSecrets,
   debugTruncate,
   debugBody,
   formatDuration,
-} from './debugUtils.js';
+} from './debugUtils';
 export {
   validatePollConfig,
   getPollIntervalConfig,
   _setPollConfigOverride,
-} from './pollConfig.js';
-export type { PollIntervalConfig } from './pollConfigDefaults.js';
+} from './pollConfig';
+export type { PollIntervalConfig } from './pollConfigDefaults';
 export {
   DEFAULT_POLL_CONFIG,
-} from './pollConfigDefaults.js';
+} from './pollConfigDefaults';
 export {
   validateEnvLessBridgeConfig,
   getEnvLessBridgeConfig,
@@ -55,7 +55,7 @@ export {
   computeRetryDelay,
   DEFAULT_ENV_LESS_BRIDGE_CONFIG,
   type EnvLessBridgeConfig,
-} from './envLessBridgeConfig.js';
+} from './envLessBridgeConfig';
 export {
   signJwt,
   verifyJwt,
@@ -67,14 +67,14 @@ export {
   type JwtPayload,
   type DecodedJwt,
   type VerifyResult as JwtVerifyResult,
-} from './jwtUtils.js';
+} from './jwtUtils';
 export {
   MAX_WEBHOOK_PAYLOAD_BYTES,
   normalizeWebhook,
   sanitizeWebhookUrl,
   type NormalizedWebhook,
   type SanitizeWebhookInput,
-} from './webhookSanitizer.js';
+} from './webhookSanitizer';
 export {
   WORK_SECRET_VERSION,
   encodeWorkSecret,
@@ -85,16 +85,16 @@ export {
   buildSdkUrl,
   type WorkSecretV1,
   type WorkSecretV1Input,
-} from './workSecret.js';
+} from './workSecret';
 export {
   validateBridgeId,
   isValidBridgeId,
   _MAX_BRIDGE_ID_LENGTH,
   _SAFE_BRIDGE_ID_PATTERN,
-} from './validateBridgeId.js';
+} from './validateBridgeId';
 export {
   FlushGate,
-} from './flushGate.js';
+} from './flushGate';
 export {
   canTransition,
   nextStates,
@@ -104,12 +104,12 @@ export {
   TOOL_DISPLAY_EXPIRY_MS,
   type StatusState,
   type BridgeStatusSnapshot,
-} from './bridgeStatusUtil.js';
+} from './bridgeStatusUtil';
 export {
   createCapacityWake,
   type CapacitySignal,
   type CapacityWake,
-} from './capacityWake.js';
+} from './capacityWake';
 export {
   TRUSTED_DEVICE_REGISTRY_VERSION,
   generateDeviceFingerprint,
@@ -117,16 +117,16 @@ export {
   TrustedDeviceRegistryError,
   type TrustedDeviceRecord,
   type TrustedDeviceRegistryData,
-} from './trustedDevice.js';
+} from './trustedDevice';
 export {
   jsonResponse,
   startBridgeServer,
   verifyBridgeToken,
   type BridgeServer,
   type BridgeServerConfig,
-} from './server.js';
+} from './server';
 export {
   startBridgeClient,
   type BridgeClient,
   type BridgeClientOptions,
-} from './client.js';
+} from './client';

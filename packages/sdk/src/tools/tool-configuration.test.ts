@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { ToolConfiguration } from './types.js';
+import { ToolConfiguration } from './types';
 
 describe('ToolConfiguration', () => {
   test('binds enabled tools once and deduplicates by name', () => {

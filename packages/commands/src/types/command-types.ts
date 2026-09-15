@@ -8,7 +8,7 @@
  */
 
 import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/index.mjs'
-import type { AgentPortsLocal } from '../agent-port.js'
+import type { AgentPortsLocal } from '../agent-port'
 
 // ============================================================================
 // Tool Use Context (基础上下文)

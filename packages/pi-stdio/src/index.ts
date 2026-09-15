@@ -1,3 +1,3 @@
-export * from './protocol.js';
-export { createStdioServer } from './server.js';
-export type { StdioServer, StdioRuntimePort } from './server.js';
+export * from './protocol';
+export { createStdioServer } from './server';
+export type { StdioServer, StdioRuntimePort } from './server';

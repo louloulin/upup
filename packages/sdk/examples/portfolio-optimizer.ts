@@ -1,4 +1,4 @@
-import { runPiExample } from './pi-example.js';
+import { runPiExample } from './pi-example';
 
 await runPiExample(
   'Pi 组合优化',

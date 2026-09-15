@@ -1,3 +1,3 @@
-export * from './indicators.js';
-export * from './trend.js';
-export * from './patterns.js';
+export * from './indicators';
+export * from './trend';
+export * from './patterns';

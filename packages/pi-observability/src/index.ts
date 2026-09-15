@@ -4,10 +4,10 @@
  * Default recorder is module-scoped and reads `UPUP_TELEMETRY` env var.
  * Tests construct their own recorder via `new TelemetryRecorder(...)`.
  */
-import { TelemetryRecorder, telemetry } from './recorder.js';
+import { TelemetryRecorder, telemetry } from './recorder';
 
-export { anonymizeStack, anonymizeText, anonymizeValue } from './anonymizer.js';
-export { TelemetrySink, type SinkConfig } from './sink.js';
+export { anonymizeStack, anonymizeText, anonymizeValue } from './anonymizer';
+export { TelemetrySink, type SinkConfig } from './sink';
 export {
   type DecisionEvent,
   type ErrorEvent,
@@ -19,18 +19,18 @@ export {
   type ToolCallEvent,
   TELEMETRY_EVENT_KINDS,
   isTelemetryEventKind,
-} from './types.js';
+} from './types';
 export {
   type RecorderOptions,
   TelemetryRecorder,
   telemetry,
   buildErrorPayload,
   hashTelemetryInput,
-} from './recorder.js';
+} from './recorder';
 export {
   classifyProviderError,
   executeWithProviderRetry,
   type ProviderRetryError,
   type ProviderRetryPolicy,
   type ProviderRetryResult,
-} from './provider-retry.js';
+} from './provider-retry';

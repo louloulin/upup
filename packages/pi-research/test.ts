@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { buildEarningsPreview } from './src/index.js';
+import { buildEarningsPreview } from './src/index';
 
 test('builds a framework preview without synthesizing financial estimates', async () => {
   const preview = await buildEarningsPreview('NVDA', { offline: true, now: () => 1_700_000_000_000 });
@@ -16,7 +16,7 @@ test('does not synthesize X research data when no X token is configured', async 
   if (previous === undefined) delete process.env.X_BEARER_TOKEN;
   else process.env.X_BEARER_TOKEN = previous;
 });
-import { fetchWebContent } from './src/index.js';
+import { fetchWebContent } from './src/index';
 
 describe('Pi research core', () => {
   test('returns formatted JSON content and preserves redirect evidence', async () => {

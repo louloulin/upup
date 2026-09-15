@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { resolveRoute } from './resolve-route.js';
+import { resolveRoute } from './resolve-route';
 
 describe('resolveRoute', () => {
   test('falls back to default route', () => {

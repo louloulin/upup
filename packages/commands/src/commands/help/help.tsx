@@ -14,9 +14,9 @@
  */
 
 import { Container, Text, Spacer, Input, SelectList, Key, matchesKey, type SelectItem } from '@earendil-works/pi-tui';
-import { ALL_COMMANDS, builtInCommandNames, inferCategory, type Command } from '../../all-commands.js';
-import { getCommandUsage } from '../../command-usage.js';
-import { theme, selectListTheme } from '../../theme.js';
+import { ALL_COMMANDS, builtInCommandNames, inferCategory, type Command } from '../../all-commands';
+import { getCommandUsage } from '../../command-usage';
+import { theme, selectListTheme } from '../../theme';
 
 // Category icons for display
 const CATEGORY_ICONS: Record<string, string> = {

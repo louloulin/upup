@@ -108,10 +108,10 @@ export function _resetDefaultAuditChain(): void { defaultAuditChain = null; }
 // Physical modules migrated from src/storage/* (Round 6.3)
 // ============================================================================
 
-export * from './crypto-utils.js';
-export * from './storage-adapter.js';
-export * from './file-history.js';
-export * from './shell-snapshots.js';
-export * from './stats-cache.js';
-export * from './project-storage.js';
-export * from './fund-storage.js';
+export * from './crypto-utils';
+export * from './storage-adapter';
+export * from './file-history';
+export * from './shell-snapshots';
+export * from './stats-cache';
+export * from './project-storage';
+export * from './fund-storage';

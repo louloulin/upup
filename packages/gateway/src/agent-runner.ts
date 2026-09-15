@@ -1,6 +1,6 @@
 import { createMessageQueue, type MessageQueue, type QueuePriority } from '@upup/utils';
-import { HEARTBEAT_OK_TOKEN } from './heartbeat/suppression.js';
-import type { GatewayAgentRuntimePort } from './runtime-port.js';
+import { HEARTBEAT_OK_TOKEN } from './heartbeat/suppression';
+import type { GatewayAgentRuntimePort } from './runtime-port';
 import type { UpUpAgentEvent } from '@upup/pi-runtime';
 import type { Model } from '@earendil-works/pi-ai';
 import type { ModelRuntime } from '@earendil-works/pi-coding-agent';

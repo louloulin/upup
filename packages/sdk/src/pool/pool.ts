@@ -5,7 +5,7 @@
  */
 
 import { EventEmitter } from 'events'
-import type { StdioTransport } from '../transport/stdio-transport.js'
+import type { StdioTransport } from '../transport/stdio-transport'
 
 /**
  * 进程状态

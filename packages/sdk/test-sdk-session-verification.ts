@@ -12,7 +12,7 @@
  * SDK 通过 IPC 调用获取消息，而不是自己存储
  */
 
-import { createClient } from './src/client/client.js'
+import { createClient } from './src/client/client'
 
 async function verifySDKSession() {
   console.log('='.repeat(80))

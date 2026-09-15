@@ -8,13 +8,13 @@
  * - 2-phase extraction (per-turn + consolidation)
  */
 
-import { MemoryDatabase } from './database.js';
-import { MemoryIndexer } from './indexer.js';
-import { scanSearch } from './search.js';
-import { MemoryStore } from './store.js';
-import { getMemvidStore } from './memvid-store.js';
-import { ensureMemoryIndex } from './scanner.js';
-import type { MemoryEmbeddingClient } from './types.js';
+import { MemoryDatabase } from './database';
+import { MemoryIndexer } from './indexer';
+import { scanSearch } from './search';
+import { MemoryStore } from './store';
+import { getMemvidStore } from './memvid-store';
+import { ensureMemoryIndex } from './scanner';
+import type { MemoryEmbeddingClient } from './types';
 import type {
   MemoryReadOptions,
   MemoryReadResult,
@@ -26,9 +26,9 @@ import type {
   MMRConfig,
   MemoryType,
   MemoryWriteRequest,
-} from './types.js';
+} from './types';
 import { getSetting, type PromptRunner } from '@upup/utils';
-import { resolveMemvidRagSettings, type MemvidRagFlag, type ResolvedMemvidRagSettings } from './memvid-rag.js';
+import { resolveMemvidRagSettings, type MemvidRagFlag, type ResolvedMemvidRagSettings } from './memvid-rag';
 import { getApiKeyNameForProvider } from '@upup/utils';
 import { getConfiguredModelId, getConfiguredProvider } from '@upup/utils';
 
@@ -40,11 +40,11 @@ export {
   type SelectedMemory,
   type SelectedMemoryWithContent,
   type FindRelevantMemoriesOptions,
-} from './ai-selector.js';
+} from './ai-selector';
 
 // Re-export types
-export { MEMORY_TYPES } from './types.js';
-export type { MemoryType, MemoryWriteRequest } from './types.js';
+export { MEMORY_TYPES } from './types';
+export type { MemoryType, MemoryWriteRequest } from './types';
 
 // Re-export extraction
 export {
@@ -52,13 +52,13 @@ export {
   hasToolCalls,
   createExtractionHook,
   type ExtractionResult,
-} from './extraction.js';
+} from './extraction';
 
 // Re-export consolidation
 export {
   consolidateMemories,
   shouldConsolidate,
-} from './consolidation.js';
+} from './consolidation';
 
 // Re-export scanner
 export {
@@ -72,15 +72,15 @@ export {
   buildScopedManifest,
   ensureMemoryIndex,
   type ScannerOptions,
-} from './scanner.js';
+} from './scanner';
 
 // Re-export scope types
 export {
   MEMORY_SCOPES,
   MEMORY_SCOPE_PRIORITY,
   getDefaultScopeForType,
-} from './types.js';
-export type { MemoryScope, ScopedScanOptions, ScopedSearchResult } from './types.js';
+} from './types';
+export type { MemoryScope, ScopedScanOptions, ScopedSearchResult } from './types';
 
 // Re-export project paths
 export {
@@ -90,7 +90,7 @@ export {
   getGlobalMemoryDir,
   isProjectMemoryPath,
   extractProjectSlug,
-} from './project-paths.js';
+} from './project-paths';
 
 // Re-export daily log
 export {
@@ -100,7 +100,7 @@ export {
   endSessionLog,
   type DailyLogEntry,
   type DailyLogStats,
-} from './daily-log.js';
+} from './daily-log';
 
 // Re-export access control
 export {
@@ -109,28 +109,28 @@ export {
   determineMemoryScope,
   type AccessContext,
   type AccessPermission,
-} from './access-control.js';
+} from './access-control';
 
 // Re-export prompts
 export {
   EXTRACTION_SYSTEM_PROMPT,
   CONSOLIDATION_SYSTEM_PROMPT,
   SELECT_SYSTEM_PROMPT,
-} from './prompts.js';
+} from './prompts';
 
 // Re-export memvid store
 export {
   getMemvidStore,
   type MemvidSearchResult,
   type MemvidStats,
-} from './memvid-store.js';
+} from './memvid-store';
 export {
   resolveMemvidRagSettings,
   toMemvidModelSpec,
   type MemvidRagFlag,
   type ResolvedMemvidRagSettings,
-} from './memvid-rag.js';
-export { migrateLegacyMemories, inferMemoryType, type MigrationResult } from './migration.js';
+} from './memvid-rag';
+export { migrateLegacyMemories, inferMemoryType, type MigrationResult } from './migration';
 
 // ============================================================================
 // Config
@@ -183,22 +183,22 @@ function resolveConfig(): MemoryRuntimeConfig {
 // =============================================================================
 // Storage / Search / Dossier re-exports
 // =============================================================================
-export { scanSearch, hybridSearch, keywordSearch, vectorSearch, tfidfSearch } from './search.js';
-export { MemoryStore } from './store.js';
-export { MemoryDatabase } from './database.js';
-export { MemoryIndexer } from './indexer.js';
-export { DossierStore } from './dossier.js';
-export { EncryptedMemoryStore } from './encrypted-store.js';
-export { AuditChain } from './audit-signing.js';
-export { MemoryAuditLogger, getAuditLogger, readAuditLog } from './memory-audit.js';
-export { resetNestedMemoryPaths } from './nested-paths.js';
-export { resetTeamMemoryPaths } from './team-paths.js';
+export { scanSearch, hybridSearch, keywordSearch, vectorSearch, tfidfSearch } from './search';
+export { MemoryStore } from './store';
+export { MemoryDatabase } from './database';
+export { MemoryIndexer } from './indexer';
+export { DossierStore } from './dossier';
+export { EncryptedMemoryStore } from './encrypted-store';
+export { AuditChain } from './audit-signing';
+export { MemoryAuditLogger, getAuditLogger, readAuditLog } from './memory-audit';
+export { resetNestedMemoryPaths } from './nested-paths';
+export { resetTeamMemoryPaths } from './team-paths';
 export { dossierPostPhase, dossierPrePhase, canonicalJson, hashDossier } from '@upup/pi-storage';
-export type { AuditRecord } from './audit-signing.js';
-export { NestedMemoryPaths, getNestedMemoryPaths } from './nested-paths.js';
-export { getTeamMemoryPaths } from './team-paths.js';
-export { StrategyStore, computeStrategyPrevHash } from './strategy-store.js';
-export { MemoryDenyManager, getMemoryDenyManager, isMemoryDenied, getDenialReason, resetMemoryDenyManager, memoryDeny } from './memory-deny.js';
+export type { AuditRecord } from './audit-signing';
+export { NestedMemoryPaths, getNestedMemoryPaths } from './nested-paths';
+export { getTeamMemoryPaths } from './team-paths';
+export { StrategyStore, computeStrategyPrevHash } from './strategy-store';
+export { MemoryDenyManager, getMemoryDenyManager, isMemoryDenied, getDenialReason, resetMemoryDenyManager, memoryDeny } from './memory-deny';
 
 export class MemoryManager {
   private static instance: MemoryManager | null = null;
@@ -332,7 +332,7 @@ export class MemoryManager {
       }));
     } catch {
       // Fall back to scan-based search
-      const { scanSearch } = await import('./search.js');
+      const { scanSearch } = await import('./search');
       return scanSearch(query, { maxResults: options?.maxResults ?? this.config.maxResults });
     }
   }
@@ -407,18 +407,18 @@ export class MemoryManager {
 }
 
 // Phase 12: Re-export symbols needed by tests that were missing from index.ts
-export { registerDefaultMemoryPaths } from './nested-paths.js';
-export { generateTeamPrompt } from './team-paths.js';
-export { __resetInvestmentMemory } from './investment-memory.js';
-export { MEMORY_DENY_RULES } from './memory-deny.js';
-export type { MemoryDenyRule, MemoryDenyResult } from './memory-deny.js';
-export { resetAuditLogger } from './memory-audit.js';
+export { registerDefaultMemoryPaths } from './nested-paths';
+export { generateTeamPrompt } from './team-paths';
+export { __resetInvestmentMemory } from './investment-memory';
+export { MEMORY_DENY_RULES } from './memory-deny';
+export type { MemoryDenyRule, MemoryDenyResult } from './memory-deny';
+export { resetAuditLogger } from './memory-audit';
 
 
 
 // Types needed by external tests
-export type { StrategyRecordInput } from './strategy-store.js';
-export type { TeamMemoryPaths } from './team-paths.js';
+export type { StrategyRecordInput } from './strategy-store';
+export type { TeamMemoryPaths } from './team-paths';
 
 // Phase 12: Investment memory, observation buffer, session files
 export type {
@@ -427,9 +427,9 @@ export type {
   RecordDecisionInput,
   InvestmentMemoryOptions,
   TradeAction,
-} from './investment-memory.js';
-export { InvestmentMemory, useInvestmentMemory } from './investment-memory.js';
-export { getObservationBuffer } from './observation-buffer.js';
-export type { ToolObservation } from './observation-buffer.js';
-export { shouldUpdateSessionMemory, updateSessionMemory } from './session-files.js';
-export type { UpdateResult, SessionMemoryFile } from './session-files.js';
+} from './investment-memory';
+export { InvestmentMemory, useInvestmentMemory } from './investment-memory';
+export { getObservationBuffer } from './observation-buffer';
+export type { ToolObservation } from './observation-buffer';
+export { shouldUpdateSessionMemory, updateSessionMemory } from './session-files';
+export type { UpdateResult, SessionMemoryFile } from './session-files';

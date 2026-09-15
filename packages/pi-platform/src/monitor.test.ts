@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { platformMonitor } from './monitor.js';
+import { platformMonitor } from './monitor';
 
 describe('pi-platform monitor', () => {
   test('reports each supported metric', () => {

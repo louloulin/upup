@@ -4,7 +4,7 @@
  * 验证 memory_save 和 memory_search 工具是否被正确调用
  */
 
-import { createClient } from './src/client/client.js'
+import { createClient } from './src/client/client'
 
 async function testMemoryTools() {
   console.log('='.repeat(80))

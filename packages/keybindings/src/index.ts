@@ -10,7 +10,7 @@ export type {
   ResolveResult,
   KeybindingContext,
   KeybindingAction,
-} from './types.js';
+} from './types';
 
 export {
   parseKeystroke,
@@ -18,12 +18,12 @@ export {
   keyEventToKeystroke,
   keystrokesMatch,
   formatKeystroke,
-} from './parser.js';
+} from './parser';
 
 export {
   resolveKey,
   flattenBindings,
   mergeBindings,
-} from './resolver.js';
+} from './resolver';
 
-export { DEFAULT_KEYBINDINGS } from './defaults.js';
+export { DEFAULT_KEYBINDINGS } from './defaults';

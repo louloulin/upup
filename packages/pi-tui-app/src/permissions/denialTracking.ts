@@ -382,7 +382,7 @@ export function getDenialRecoverySuggestions(): string[] {
 // Denial Prevention Middleware
 // ============================================================================
 
-import type { PermissionCheckResult } from './types.js'
+import type { PermissionCheckResult } from './types'
 
 /**
  * 创建带拒绝跟踪的权限检查包装器

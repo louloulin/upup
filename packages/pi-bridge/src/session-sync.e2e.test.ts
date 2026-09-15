@@ -25,9 +25,9 @@ import {
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { GatewayRuntime } from '@upup/gateway';
-import { startBridgeServer, type BridgeServer } from './server.js';
-import { SessionSync, type SessionState } from './session-sync.js';
-import { encodeMessage, type BridgeMessage } from './protocol.js';
+import { startBridgeServer, type BridgeServer } from './server';
+import { SessionSync, type SessionState } from './session-sync';
+import { encodeMessage, type BridgeMessage } from './protocol';
 
 let tmpDir: string;
 let auditPath: string;

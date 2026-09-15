@@ -13,11 +13,11 @@ import matter from 'gray-matter';
 import {
   CONSOLIDATION_SYSTEM_PROMPT,
   buildConsolidationPrompt,
-} from './prompts.js';
+} from './prompts';
 import { callStructuredLlm, type PromptRunner } from '@upup/utils';
 import { DEFAULT_MODEL } from '@upup/utils';
 import { getUpupDir } from '@upup/utils';
-import { MEMORY_TYPES, type MemoryType } from './types.js';
+import { MEMORY_TYPES, type MemoryType } from './types';
 import { z } from 'zod';
 import { info, warn, error } from '@upup/utils/logging';
 

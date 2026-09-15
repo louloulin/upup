@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { appendPlatformMessage, createInitialPlatformMessageState, listPlatformMessages, parsePlatformMessageState } from './messages.js';
+import { appendPlatformMessage, createInitialPlatformMessageState, listPlatformMessages, parsePlatformMessageState } from './messages';
 
 describe('pi-platform messages', () => {
   test('stores bounded session messages and supports recipient filters', () => {

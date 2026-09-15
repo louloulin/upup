@@ -2,8 +2,8 @@ import type {
   AdjustedPriceBar,
   CorporateAction,
   PriceAdjustmentOptions,
-} from './types.js';
-import { sortSplitsChronologically, splitRatio } from './splits.js';
+} from './types';
+import { sortSplitsChronologically, splitRatio } from './splits';
 
 export interface RawBar {
   readonly date: string;

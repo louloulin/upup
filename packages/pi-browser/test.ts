@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { assertSafeBrowserUrl } from './src/index.js';
+import { assertSafeBrowserUrl } from './src/index';
 
 describe('Pi browser core', () => {
   test('allows public HTTP(S) URL syntax and rejects local targets', async () => {

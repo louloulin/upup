@@ -9,7 +9,7 @@ import {
   resetWorkerPool,
   type DaemonWorker,
   type WorkerHealth,
-} from './worker-pool.js';
+} from './worker-pool';
 
 describe('WorkerPool', () => {
   let pool: WorkerPool;

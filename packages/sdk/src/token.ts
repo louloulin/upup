@@ -5,7 +5,7 @@
  * @see https://docs.anthropic.com/en/docs/claude-code/api
  */
 
-import type { MessageParam } from './messages.js'
+import type { MessageParam } from './messages'
 
 // ============ Types ============
 

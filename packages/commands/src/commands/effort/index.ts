@@ -5,7 +5,7 @@
  * Estimate effort for the current task.
  */
 
-import type { LocalCommand } from '../../types/command-types.js'
+import type { LocalCommand } from '../../types/command-types'
 
 export const effortCommand: LocalCommand = {
   type: 'local',
@@ -14,5 +14,5 @@ export const effortCommand: LocalCommand = {
   aliases: ['estimate', 'complexity'],
   argumentHint: '[task-description]',
   supportsNonInteractive: true,
-  load: () => import('./effort-impl.js'),
+  load: () => import('./effort-impl'),
 }

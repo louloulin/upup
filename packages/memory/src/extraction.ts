@@ -14,11 +14,11 @@ import matter from 'gray-matter';
 import {
   EXTRACTION_SYSTEM_PROMPT,
   buildExtractionPrompt,
-} from './prompts.js';
+} from './prompts';
 import { callStructuredLlm, type PromptRunner } from '@upup/utils';
 import { DEFAULT_MODEL } from '@upup/utils';
 import { getUpupDir } from '@upup/utils';
-import { MEMORY_TYPES, type MemoryType, type MemoryWriteRequest } from './types.js';
+import { MEMORY_TYPES, type MemoryType, type MemoryWriteRequest } from './types';
 import { z } from 'zod';
 import { warn, error } from '@upup/utils/logging';
 

@@ -1,7 +1,7 @@
 /**
  * 快速验证测试 - 检查 stream_progress content 字段
  */
-import { createClient } from './src/client/client.js'
+import { createClient } from './src/client/client'
 
 async function testStreamProgress() {
   console.log('测试 stream_progress content 字段')

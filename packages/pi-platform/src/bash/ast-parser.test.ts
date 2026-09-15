@@ -10,7 +10,7 @@ import {
   hasDangerousBuiltin,
   classifyFromAST,
   type SimpleCommand,
-} from './ast-parser.js';
+} from './ast-parser';
 
 describe('parseForSecurity', () => {
   it('parses simple commands', () => {

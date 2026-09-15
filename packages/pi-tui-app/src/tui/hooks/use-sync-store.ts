@@ -5,7 +5,7 @@
  * 用于在非 React 环境中订阅 Store 变化
  */
 
-import type { Listener, Store } from '../state/store.js';
+import type { Listener, Store } from '../state/store';
 
 /**
  * 订阅结果

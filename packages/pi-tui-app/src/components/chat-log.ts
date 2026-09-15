@@ -2,11 +2,11 @@ import { Container, Spacer, Text, type TUI, type Component } from '@earendil-wor
 import type { TokenUsage } from '@upup/pi-runtime';
 import { theme } from '@upup/utils';
 import { t } from '@upup/i18n';
-import { AnswerBoxComponent } from './answer-box.js';
-import { ToolEventComponent } from './tool-event.js';
-import { UserQueryComponent } from './user-query.js';
-import { SimpleVirtualList } from '../tui/components/virtual-container.js';
-import { ComponentPool } from '../tui/utils/component-pool.js';
+import { AnswerBoxComponent } from './answer-box';
+import { ToolEventComponent } from './tool-event';
+import { UserQueryComponent } from './user-query';
+import { SimpleVirtualList } from '../tui/components/virtual-container';
+import { ComponentPool } from '../tui/utils/component-pool';
 
 function formatDuration(ms: number): string {
   if (ms < 1000) {

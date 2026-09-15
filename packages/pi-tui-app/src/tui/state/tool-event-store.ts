@@ -5,7 +5,7 @@
  * 管理工具执行事件
  */
 
-import { createStore, type Store } from './store.js';
+import { createStore, type Store } from './store';
 
 // ============================================================================
 // Types

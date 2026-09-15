@@ -10,8 +10,8 @@
  * Spec: openspec/changes/top-tier-investment-assistant/specs/broker-adapter
  */
 
-import type { BrokerAdapter, BrokerConfig } from './types.js';
-import { SandboxBroker } from './sandbox-engine.js';
+import type { BrokerAdapter, BrokerConfig } from './types';
+import { SandboxBroker } from './sandbox-engine';
 
 export type BuiltinBrokerName = 'sandbox' | 'ibkr' | 'xueqiu';
 export type BrokerName = string;
@@ -106,11 +106,11 @@ export async function createBrokerAsync(
 
   switch (name) {
     case 'ibkr': {
-      const { IbkrAdapter } = await import('./ibkr-adapter.js');
+      const { IbkrAdapter } = await import('./ibkr-adapter');
       return new IbkrAdapter(config);
     }
     case 'xueqiu': {
-      const { XueqiuAdapter } = await import('./xueqiu-adapter.js');
+      const { XueqiuAdapter } = await import('./xueqiu-adapter');
       return new XueqiuAdapter(config);
     }
     default: {

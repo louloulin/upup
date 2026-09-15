@@ -1,4 +1,4 @@
-import type { SplitEvent } from './types.js';
+import type { SplitEvent } from './types';
 
 export function splitRatio(s: SplitEvent): number {
   if (s.ratioFrom <= 0) return 1;

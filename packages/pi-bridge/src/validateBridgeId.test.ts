@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test';
-import { validateBridgeId, isValidBridgeId } from './validateBridgeId.js';
+import { validateBridgeId, isValidBridgeId } from './validateBridgeId';
 
 describe('validateBridgeId', () => {
   test('accepts alphanumeric IDs', () => {

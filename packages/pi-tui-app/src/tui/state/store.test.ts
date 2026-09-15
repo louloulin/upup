@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'bun:test';
-import { createStore, type Store, combineStores } from './store.js';
+import { createStore, type Store, combineStores } from './store';
 
 // Simple mock function for bun:test
 function createMockFn() {

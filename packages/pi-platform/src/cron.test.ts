@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { nextCronRun, platformCron, type PlatformCronJob } from './cron.js';
+import { nextCronRun, platformCron, type PlatformCronJob } from './cron';
 
 describe('pi-platform cron', () => {
   test('creates, lists, updates, and removes jobs with deterministic next runs', async () => {

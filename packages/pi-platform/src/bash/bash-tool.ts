@@ -20,21 +20,21 @@ import {
   checkDangerousPatterns,
   validateCommandSecurity,
   type SecurityValidationResult,
-} from './security.js';
+} from './security';
 import {
   parseForSecurity,
   classifyFromAST,
   hasDangerousBuiltin,
   type ParseResult,
-} from './ast-parser.js';
-import { validatePath } from './path-validation.js';
+} from './ast-parser';
+import { validatePath } from './path-validation';
 import {
   isReadOnlyCommand,
   classifyCommand,
   type CommandClassification,
-} from './command-classifier.js';
-import { getPermissionMode } from './permission-mode.js';
-import { formatBashOutput, formatBashSummary } from './formatter.js';
+} from './command-classifier';
+import { getPermissionMode } from './permission-mode';
+import { formatBashOutput, formatBashSummary } from './formatter';
 
 const execAsync = promisify(exec);
 

@@ -2,7 +2,7 @@ import { describe, expect, test } from 'bun:test';
 import { mkdir, mkdtemp, readFile, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { platformMemoryGet, platformMemorySearch, platformMemoryUpdate } from './memory.js';
+import { platformMemoryGet, platformMemorySearch, platformMemoryUpdate } from './memory';
 
 describe('pi-platform memory', () => {
   test('searches, reads, appends, edits, and deletes bounded memory files', async () => {

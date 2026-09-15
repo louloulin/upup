@@ -26,7 +26,7 @@ import type {
   Order,
   Position,
   Quote,
-} from './types.js';
+} from './types';
 
 // ============================================================================
 // Default Quote Provider (deterministic mock — replace with real feed in prod)

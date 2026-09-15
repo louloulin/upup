@@ -7,8 +7,8 @@ import {
   PI_FINANCE_PACKAGE_NAME,
   PI_FINANCE_PACKAGE_VERSION,
   type PiFinanceHostBridge,
-} from './host-contract.js';
-import { registerPiFinanceCommands } from './commands.js';
+} from './host-contract';
+import { registerPiFinanceCommands } from './commands';
 import {
   getNativeFundDetail,
   getNativeFundHoldings,
@@ -18,14 +18,14 @@ import {
   compareNativeFunds,
   searchNativeFunds,
   screenNativeFunds,
-} from '../src/fund-catalog.js';
+} from '../src/fund-catalog';
 import {
   createInitialFundWatchlistState,
   followNativeFund,
   listNativeFollowedFunds,
   unfollowNativeFund,
   type NativeFundWatchlistState,
-} from '../src/fund-watchlist.js';
+} from '../src/fund-watchlist';
 import {
   createInitialFundAlertState,
   createNativeFundAlert,
@@ -33,18 +33,18 @@ import {
   listNativeFundAlerts,
   type NativeFundAlertState,
   type NativeFundAlertType,
-} from '../src/fund-alerts.js';
-import { getNativeAStockFinancials, listNativeAStockFinancialSymbols } from '../src/astock-financials.js';
-import { getNativeAStockNews, listNativeAStockNewsSymbols } from '../src/astock-news.js';
-import { getNativeCompanyProfile, getNativeRisks, getNativeSectors, type NativeRiskSeverity, type NativeRiskType } from '../src/knowledge-snapshot.js';
-import { calculateNativePnl, calculateNativeTax, calculateNativeTradesTax, type NativeTaxJurisdiction } from '../src/tax-calculator.js';
-import { getNativeFinancialSnapshot, listNativeFinancialSymbols } from '../src/financial-snapshot.js';
-import { listNativeInvestmentStrategies, type NativeStrategyRiskTolerance, type NativeStrategyTimeHorizon } from '../src/strategy-catalog.js';
-import { readNativeFilings, type NativeFilingType } from '../src/filings.js';
-import { NativeAltDataClient, type NativeAltDataSource } from '../src/alt-data.js';
-import { NativeResearchDataClient } from '../src/research-data.js';
-import { NativeSandboxBroker, type NativeOrderSide, type NativeOrderType, type NativeTimeInForce } from '../src/sandbox-trading.js';
-import { listNativeExecutionStrategies, runNativeStrategyBacktest, runNativeStrategyPaper, type NativeAlgoKind } from '../src/strategy-execution.js';
+} from '../src/fund-alerts';
+import { getNativeAStockFinancials, listNativeAStockFinancialSymbols } from '../src/astock-financials';
+import { getNativeAStockNews, listNativeAStockNewsSymbols } from '../src/astock-news';
+import { getNativeCompanyProfile, getNativeRisks, getNativeSectors, type NativeRiskSeverity, type NativeRiskType } from '../src/knowledge-snapshot';
+import { calculateNativePnl, calculateNativeTax, calculateNativeTradesTax, type NativeTaxJurisdiction } from '../src/tax-calculator';
+import { getNativeFinancialSnapshot, listNativeFinancialSymbols } from '../src/financial-snapshot';
+import { listNativeInvestmentStrategies, type NativeStrategyRiskTolerance, type NativeStrategyTimeHorizon } from '../src/strategy-catalog';
+import { readNativeFilings, type NativeFilingType } from '../src/filings';
+import { NativeAltDataClient, type NativeAltDataSource } from '../src/alt-data';
+import { NativeResearchDataClient } from '../src/research-data';
+import { NativeSandboxBroker, type NativeOrderSide, type NativeOrderType, type NativeTimeInForce } from '../src/sandbox-trading';
+import { listNativeExecutionStrategies, runNativeStrategyBacktest, runNativeStrategyPaper, type NativeAlgoKind } from '../src/strategy-execution';
 import {
   createInitialKnowledgeJournalState,
   getTrackedCompany,
@@ -53,7 +53,7 @@ import {
   trackNativeCompany,
   trackNativeSector,
   type NativeKnowledgeJournalState,
-} from '../src/knowledge-journal.js';
+} from '../src/knowledge-journal';
 
 function getPiFinanceToolHost(events: { emit(channel: string, data: unknown): void; on(channel: string, handler: (data: unknown) => void): () => void }): PiFinanceHostBridge | undefined {
   const host = resolvePiCapabilityHost<PiFinanceHostBridge>(events, PI_FINANCE_PACKAGE_NAME, undefined);

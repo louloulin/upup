@@ -4,7 +4,7 @@
  * 验证上下文在多次 stream 调用之间是否保持
  */
 
-import { createClient } from './src/client/client.js'
+import { createClient } from './src/client/client'
 
 async function twoStreamTest() {
   console.log('='.repeat(80))

@@ -14,9 +14,9 @@ import {
   type SuppressionState,
 } from '@upup/gateway';
 import { upupPath } from '@upup/utils';
-import { saveCronStore } from './store.js';
-import { computeNextRunAtMs } from './schedule.js';
-import type { ActiveHours, CronJob, CronStore } from './types.js';
+import { saveCronStore } from './store';
+import { computeNextRunAtMs } from './schedule';
+import type { ActiveHours, CronJob, CronStore } from './types';
 import type { Model } from '@earendil-works/pi-ai';
 import type { ModelRuntime } from '@earendil-works/pi-coding-agent';
 

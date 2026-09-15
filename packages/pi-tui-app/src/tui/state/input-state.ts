@@ -7,7 +7,7 @@
  * docs/superpowers/specs/2026-06-04-simplify-cmd-autocomplete-pi-tui-design.md.
  */
 
-import { createStore } from './store.js';
+import { createStore } from './store';
 import type { SlashCommand } from '@upup/commands';
 
 export interface InputState {

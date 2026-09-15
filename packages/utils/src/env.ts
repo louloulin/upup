@@ -2,7 +2,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { config } from 'dotenv';
 import { homedir } from 'os';
 import { join } from 'path';
-import { getProviderById } from './providers.js';
+import { getProviderById } from './providers';
 
 // Global config directory
 const GLOBAL_CONFIG_DIR = join(homedir(), '.upup');

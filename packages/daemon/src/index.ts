@@ -20,7 +20,7 @@ export {
   type TaskResult,
   type Worker,
   type WorkerHealth,
-} from './supervisor.js';
+} from './supervisor';
 
 // Worker pool
 export {
@@ -30,7 +30,7 @@ export {
   DEFAULT_WORKER_POOL_CONFIG,
   type WorkerPoolConfig,
   type DaemonWorker,
-} from './worker-pool.js';
+} from './worker-pool';
 
 // IPC router
 export {
@@ -43,7 +43,7 @@ export {
   type IPCMessage,
   type IPCResponse,
   type IPCErrorDetail,
-} from './ipc.js';
+} from './ipc';
 
 // Tasks worker (bridge between Daemon and Cron Package)
 export {
@@ -51,7 +51,7 @@ export {
   TasksWorker,
   createTasksWorker,
   type DaemonBackgroundRuntimePort,
-} from './workers/tasks.js';
+} from './workers/tasks';
 
 // Additional worker types and factories
 export {
@@ -70,7 +70,7 @@ export {
   type BridgeWorkerConfig,
   type CCRCommand,
   type CCRResponse,
-} from './workers/types.js';
+} from './workers/types';
 
 // Common types
 export {
@@ -84,7 +84,7 @@ export {
   WorkerError,
   WorkerTimeoutError,
   WorkerHealthError,
-} from './types.js';
+} from './types';
 
 // Fund monitor
 export {
@@ -96,4 +96,4 @@ export {
   isMarketOpen,
   isMarketHours,
   type FundMonitorConfig,
-} from './fund-monitor.js';
+} from './fund-monitor';

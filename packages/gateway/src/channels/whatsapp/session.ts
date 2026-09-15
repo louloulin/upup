@@ -7,8 +7,8 @@ import {
   type ConnectionState,
 } from '@whiskeysockets/baileys';
 import { mkdirSync } from 'node:fs';
-import { createSilentLogger } from './logger.js';
-import { maybeRestoreCredsFromBackup, backupCredsBeforeSave } from './auth-store.js';
+import { createSilentLogger } from './logger';
+import { maybeRestoreCredsFromBackup, backupCredsBeforeSave } from './auth-store';
 
 export type WaSocket = ReturnType<typeof makeWASocket>;
 

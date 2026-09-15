@@ -1,4 +1,4 @@
-import type { ChannelPlugin, ChannelRuntimeSnapshot } from './types.js';
+import type { ChannelPlugin, ChannelRuntimeSnapshot } from './types';
 
 type RuntimeStore = {
   aborts: Map<string, AbortController>;

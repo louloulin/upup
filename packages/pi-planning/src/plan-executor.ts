@@ -13,7 +13,7 @@
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync, appendFileSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
-import { updateStepStatus, calculateProgress, type PlanStepStatus } from './plan-context.js';
+import { updateStepStatus, calculateProgress, type PlanStepStatus } from './plan-context';
 import { PLANS_DIR } from '@upup/utils';
 import {
   deserializeResearchPlan,
@@ -22,7 +22,7 @@ import {
   type ResearchPlan,
   type ResearchPlanState,
   type ResearchPhase,
-} from './research-plan.js';
+} from './research-plan';
 
 const MAX_PLANS_KEPT = 100;
 

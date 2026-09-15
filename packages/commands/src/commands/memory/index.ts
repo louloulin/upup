@@ -7,7 +7,7 @@
  * Type: local (direct execution, no model involvement)
  */
 
-import type { LocalCommand } from '../../types/command-types.js'
+import type { LocalCommand } from '../../types/command-types'
 
 export const memoryCommand: LocalCommand = {
   type: 'local',
@@ -15,7 +15,7 @@ export const memoryCommand: LocalCommand = {
   description: 'Show memory statistics',
   aliases: ['mem'],
   supportsNonInteractive: true,
-  load: () => import('./memory-impl.js'),
+  load: () => import('./memory-impl'),
 }
 
 export default memoryCommand

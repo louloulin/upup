@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { calculateWinRate, computeSummary, evaluateTrade, fundSubscriptionFee, inferDirection, inferPosition, renderFundBacktestReport, runFundBacktest } from './src/index.js';
+import { calculateWinRate, computeSummary, evaluateTrade, fundSubscriptionFee, inferDirection, inferPosition, renderFundBacktestReport, runFundBacktest } from './src/index';
 
 const bars = [
   { date: '2026-01-02', high: 105, low: 99, close: 104 },

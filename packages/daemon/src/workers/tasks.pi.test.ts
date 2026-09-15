@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import type { GatewayRuntime } from '@upup/gateway';
-import { TasksWorker } from './tasks.js';
+import { TasksWorker } from './tasks';
 
 function createRuntime(): GatewayRuntime {
   return {

@@ -1,4 +1,4 @@
-import type { DailyBar } from './index.js';
+import type { DailyBar } from './index';
 
 export type MarketMicrostructure =
   | 'cn_main'       // A 股主板：±10%

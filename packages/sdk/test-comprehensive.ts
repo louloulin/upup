@@ -9,7 +9,7 @@
  * 5. Session 状态管理
  */
 
-import { createClient } from './src/client/client.js'
+import { createClient } from './src/client/client'
 
 interface TestCase {
   name: string

@@ -5,7 +5,7 @@
  * 这个测试使用真实的 upup 进程来验证完整的会话上下文保持
  */
 
-import { createClient } from './src/client/client.js'
+import { createClient } from './src/client/client'
 
 async function testMultiTurnConversation() {
   console.log('='.repeat(70))

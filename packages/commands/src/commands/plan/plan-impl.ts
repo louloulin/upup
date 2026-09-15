@@ -9,7 +9,7 @@
 * globalThis registry populated by src/runtime/pi/plan-mode-state.ts at startup.
  */
 
-import type { LocalCommandResult, ToolUseContext } from '../../types/command-types.js'
+import type { LocalCommandResult, ToolUseContext } from '../../types/command-types'
 
 export interface PlanContext extends ToolUseContext {
   state?: {

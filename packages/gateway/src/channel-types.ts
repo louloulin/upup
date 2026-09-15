@@ -16,7 +16,7 @@ export {
   type PairingRequest,
   type GroupContext,
   type GroupHistoryEntry,
-} from './types.js';
+} from './types';
 
 // ============================================================================
 // Channel Types (local)

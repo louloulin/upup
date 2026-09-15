@@ -10,7 +10,7 @@
  */
 
 import { z } from 'zod';
-import { createPiMcpTool, type PiMcpTool } from './pi-tool.js';
+import { createPiMcpTool, type PiMcpTool } from './pi-tool';
 import { upupPath, ensureDir } from '@upup/utils';
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join } from 'path';

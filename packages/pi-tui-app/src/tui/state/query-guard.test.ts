@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'bun:test';
-import { QueryGuard, getQueryGuard, resetQueryGuard } from './query-guard.js';
+import { QueryGuard, getQueryGuard, resetQueryGuard } from './query-guard';
 
 // Simple mock function for bun:test
 function createMockFn() {

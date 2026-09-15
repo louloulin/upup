@@ -5,10 +5,10 @@
  * 包含 beta.messages.toolRunner 等 Beta 功能
  */
 
-import type { Tool } from '../tools/index.js'
-import type { MessageParam, Message, StreamEvent } from '../messages.js'
-import { ClientToolRunner } from '../tool-runner.js'
-import { MessagesClient, type RpcTransport } from '../messages.js'
+import type { Tool } from '../tools/index'
+import type { MessageParam, Message, StreamEvent } from '../messages'
+import { ClientToolRunner } from '../tool-runner'
+import { MessagesClient, type RpcTransport } from '../messages'
 
 // ============ Types ============
 

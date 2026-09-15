@@ -4,7 +4,7 @@ import {
   PI_HOST_CAPABILITIES,
   PI_HOST_CONTRACT,
   negotiatePiProviderContract,
-} from './host-contract.js';
+} from './host-contract';
 
 describe('generic Pi host contract', () => {
   test('serves only the exact package and session capability request', () => {

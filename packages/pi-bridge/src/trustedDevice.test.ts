@@ -7,7 +7,7 @@ import {
   TrustedDeviceRegistryError,
   generateDeviceFingerprint,
   TRUSTED_DEVICE_REGISTRY_VERSION,
-} from './trustedDevice.js';
+} from './trustedDevice';
 
 let tmpDir: string;
 let registryPath: string;

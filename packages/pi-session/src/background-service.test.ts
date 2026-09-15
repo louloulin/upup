@@ -4,7 +4,7 @@ import {
   disposePiBackgroundService,
   getPiBackgroundService,
   type PiBackgroundPromptRunner,
-} from './background-service.js';
+} from './background-service';
 
 import { afterEach } from 'bun:test';
 

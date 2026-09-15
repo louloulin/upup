@@ -13,7 +13,7 @@ import {
   resolveMarketHistoryClient,
   resolveMarketQuoteClient,
   shouldAutoActivateDryRun,
-} from './dry-run.js';
+} from './dry-run';
 
 describe('pi-market-data dry-run smoke', () => {
   test('dry-run quote returns deterministic fixture with offline freshness', () => {

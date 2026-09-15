@@ -1,4 +1,4 @@
-import type { AgentPortsLocal } from './agent-port.js';
+import type { AgentPortsLocal } from './agent-port';
 
 export type CommandPermission = 'admin' | 'user' | 'readonly';
 

@@ -17,7 +17,7 @@ import type {
   Order,
   Position,
   Quote,
-} from './types.js';
+} from './types';
 
 export interface IbkrTransport {
   placeOrder: (payload: unknown) => Promise<unknown>;

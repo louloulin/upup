@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { NativeFilingsClient } from './filings.js';
+import { NativeFilingsClient } from './filings';
 
 function response(value: unknown, status = 200): Response {
   return new Response(JSON.stringify(value), { status, headers: { 'content-type': 'application/json' } });

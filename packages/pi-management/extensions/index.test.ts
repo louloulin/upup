@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { createEventBus } from '@earendil-works/pi-coding-agent';
 import { publishPiCapabilityHosts } from '@upup/pi-capability-registry';
-import managementExtension from './index.js';
+import managementExtension from './index';
 
 const snapshot = {
   schema: 1 as const,

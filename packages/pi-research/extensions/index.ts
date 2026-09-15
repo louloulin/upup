@@ -11,7 +11,7 @@ import {
   buildEarningsPreview,
   searchWeb,
   searchX,
-} from '../src/index.js';
+} from '../src/index';
 
 const urlParameters = Type.Object({
   url: Type.String({ minLength: 8, description: 'HTTP or HTTPS URL to fetch' }),

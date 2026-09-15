@@ -5,7 +5,7 @@
  * Lists and manages git branches.
  */
 
-import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types.js'
+import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types'
 import { execSync } from 'child_process'
 
 export const call = async (

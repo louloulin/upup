@@ -6,11 +6,11 @@ import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 import {
   MCPServerManager,
   MCPServerInstance,
-} from '../src/server.js';
+} from '../src/server';
 import type {
   McpServerConfig,
   McpStdioServerConfig,
-} from '../src/types.js';
+} from '../src/types';
 
 describe('MCPServerManager', () => {
   let manager: MCPServerManager;

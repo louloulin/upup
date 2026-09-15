@@ -3,7 +3,7 @@ import {
   normalizeWebhook,
   sanitizeWebhookUrl,
   MAX_WEBHOOK_PAYLOAD_BYTES,
-} from './webhookSanitizer.js';
+} from './webhookSanitizer';
 
 describe('sanitizeWebhookUrl', () => {
   test('accepts http and https URLs unchanged (modulo userinfo strip)', () => {

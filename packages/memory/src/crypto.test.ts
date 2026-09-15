@@ -17,7 +17,7 @@ beforeEach(() => {
 
 describe('Memory Crypto', () => {
   it('should encrypt and decrypt text', async () => {
-    const { encrypt, decrypt } = await import('./crypto.js');
+    const { encrypt, decrypt } = await import('./crypto');
     
     const plaintext = 'Sensitive investment data: Portfolio value $1,000,000';
     const key = 'test-master-key-12345';
@@ -40,7 +40,7 @@ describe('Memory Crypto', () => {
   });
 
   it('should produce different ciphertexts for same plaintext', async () => {
-    const { encrypt } = await import('./crypto.js');
+    const { encrypt } = await import('./crypto');
     
     const plaintext = 'Same content';
     const key = 'test-key';
@@ -54,7 +54,7 @@ describe('Memory Crypto', () => {
   });
 
   it('should fail decryption with wrong key', async () => {
-    const { encrypt, decrypt } = await import('./crypto.js');
+    const { encrypt, decrypt } = await import('./crypto');
     
     const plaintext = 'Secret data';
     const encrypted = encrypt(plaintext, 'correct-key');
@@ -63,7 +63,7 @@ describe('Memory Crypto', () => {
   });
 
   it('should encrypt and decrypt file', async () => {
-    const { encryptToFile, decryptFromFile } = await import('./crypto.js');
+    const { encryptToFile, decryptFromFile } = await import('./crypto');
     
     const filePath = path.join(TEST_DIR, 'encrypted.json');
     const plaintext = 'Investment portfolio data with sensitive info';
@@ -82,7 +82,7 @@ describe('Memory Crypto', () => {
   });
 
   it('should detect encrypted content', async () => {
-    const { isEncrypted, encrypt } = await import('./crypto.js');
+    const { isEncrypted, encrypt } = await import('./crypto');
     
     const encrypted = encrypt('test', 'key');
     const encryptedJson = JSON.stringify(encrypted);
@@ -93,7 +93,7 @@ describe('Memory Crypto', () => {
   });
 
   it('should generate master key', async () => {
-    const { generateMasterKey } = await import('./crypto.js');
+    const { generateMasterKey } = await import('./crypto');
     
     const key1 = generateMasterKey();
     const key2 = generateMasterKey();
@@ -103,7 +103,7 @@ describe('Memory Crypto', () => {
   });
 
   it('should check encryption availability', async () => {
-    const { isEncryptionAvailable, setMasterKey } = await import('./crypto.js');
+    const { isEncryptionAvailable, setMasterKey } = await import('./crypto');
     
     // Without key set and no env var
     const originalEnv = process.env.UPUP_ENCRYPTION_KEY;

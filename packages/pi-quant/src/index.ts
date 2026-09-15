@@ -13,7 +13,7 @@ export type {
   FactorBacktestOptions,
   FactorBacktestResult,
   QuantEvidence,
-} from './types.js';
+} from './types';
 export {
   FACTOR_LIBRARY,
   getFactorDef,
@@ -35,7 +35,7 @@ export {
   computeFactor,
   computeAllFactors,
   factorResultForSymbol,
-} from './factors.js';
+} from './factors';
 export {
   mean,
   stddev,
@@ -46,14 +46,14 @@ export {
   minmax,
   normalize,
   standardizeWithRef,
-} from './normalize.js';
+} from './normalize';
 export {
   pearsonIC,
   spearmanIC,
   correlation,
   computeICSeries,
   icDecay,
-} from './ic.js';
+} from './ic';
 export {
   factorReturns,
   compoundReturn,
@@ -61,27 +61,27 @@ export {
   annualizedSharpe,
   annualizedReturn,
   quintileAssignment,
-} from './returns.js';
-export type { RegressionResult } from './orthogonalize.js';
+} from './returns';
+export type { RegressionResult } from './orthogonalize';
 export {
   regress,
   orthogonalize,
   neutralizeIndustryMomentum,
-} from './orthogonalize.js';
-export type { FactorWeight } from './score.js';
+} from './orthogonalize';
+export type { FactorWeight } from './score';
 export {
   combineFactors,
   scoreUniverse,
   equalWeightWeights,
-} from './score.js';
-export type { UniverseBarSeries, FactorSignalSeries } from './backtest.js';
+} from './score';
+export type { UniverseBarSeries, FactorSignalSeries } from './backtest';
 export {
   rebalanceDates,
   runFactorBacktest,
   topBottomSymbols,
-} from './backtest.js';
-export type { DryRunUniverse } from './dry-run.js';
+} from './backtest';
+export type { DryRunUniverse } from './dry-run';
 export {
   createDryRunUniverse,
   dryRunEvidence,
-} from './dry-run.js';
+} from './dry-run';

@@ -15,18 +15,18 @@
  * Reference: loucode/src/commands.ts
  */
 
-import { recordCommandUsage } from './command-usage.js'
-import { recordCommandMetric } from './command-metrics.js'
+import { recordCommandUsage } from './command-usage'
+import { recordCommandMetric } from './command-metrics'
 import {
   isCommandEnabled,
   meetsAvailabilityRequirement,
   isRemoteSafeCommand,
   isBridgeSafeCommand,
   type CommandBase,
-} from './types/command-types.js'
+} from './types/command-types'
 
-import type { Command } from './types/command-types.js'
-import type { CommandContext, CommandResult } from './command-contract.js'
+import type { Command } from './types/command-types'
+import type { CommandContext, CommandResult } from './command-contract'
 
 // ============================================================================
 // UNIFIED COMMAND ALIASES (merged from slash-commands.ts)
@@ -96,55 +96,55 @@ const BUILTIN_COMMANDS: Record<string, Command> = {
 // COMMAND IMPORTS
 // ============================================================================
 
-import { statusCommand } from './commands/status/index.js'
-import { costCommand } from './commands/cost/index.js'
-import { doctorCommand } from './commands/doctor/index.js'
-import { helpCommand } from './commands/help/index.js'
-import { clearCommand } from './commands/clear/index.js'
-import { compactCommand } from './commands/compact/index.js'
-import { mcpCommand } from './commands/mcp/index.js'
-import { mcpAddCommand } from './commands/mcp-add/index.js'
-import { permissionsCommand } from './commands/permissions/index.js'
-import { modelCommand } from './commands/model/index.js'
-import { historyCommand } from './commands/history/index.js'
-import { memoryCommand } from './commands/memory/index.js'
-import { sessionCommand } from './commands/session/index.js'
-import { resumeCommand } from './commands/resume/index.js'
-import { sandboxCommand } from './commands/sandbox/index.js'
-import { gitCommand } from './commands/git/index.js'
-import { agentCommand } from './commands/agent/index.js'
-import { agentsCommand } from './commands/agents/index.js'
-import { themeCommand } from './commands/theme/index.js'
-import { branchCommand } from './commands/branch/index.js'
-import { commitCommand } from './commands/commit/index.js'
-import { diffCommand } from './commands/diff/index.js'
-import { logCommand } from './commands/log/index.js'
-import { stashCommand } from './commands/stash/index.js'
-import { remoteCommand } from './commands/remote/index.js'
-import { forkCommand } from './commands/fork/index.js'
-import { tasksCommand } from './commands/tasks/index.js'
-import { configCommand } from './commands/config/index.js'
-import { keybindingsCommand } from './commands/keybindings/index.js'
-import { filesCommand } from './commands/files/index.js'
-import { exportCommand } from './commands/export/index.js'
-import { usageCommand } from './commands/usage/index.js'
-import { versionCommand } from './commands/version/index.js'
-import { rulesCommand } from './commands/rules/index.js'
-import { heartbeatCommand } from './commands/heartbeat/index.js'
-import { planCommand } from './commands/plan/index.js'
-import { exitPlanCommand } from './commands/exit-plan/index.js'
-import { addStepCommand } from './commands/add-step/index.js'
-import { stepsCommand } from './commands/steps/index.js'
-import { approveCommand } from './commands/approve/index.js'
-import { denyCommand } from './commands/deny/index.js'
-import { resetPermissionsCommand } from './commands/reset-permissions/index.js'
-import { extraUsageCommand } from './commands/extra-usage/index.js'
-import { effortCommand } from './commands/effort/index.js'
-import { feedbackCommand } from './commands/feedback/index.js'
-import { skillsCommand } from './commands/skills/index.js'
-import { reviewCommand } from './commands/review/index.js'
-import { initCommand } from './commands/init/index.js'
-import { commandPaletteCommand } from './commands/command-palette/index.js'
+import { statusCommand } from './commands/status/index'
+import { costCommand } from './commands/cost/index'
+import { doctorCommand } from './commands/doctor/index'
+import { helpCommand } from './commands/help/index'
+import { clearCommand } from './commands/clear/index'
+import { compactCommand } from './commands/compact/index'
+import { mcpCommand } from './commands/mcp/index'
+import { mcpAddCommand } from './commands/mcp-add/index'
+import { permissionsCommand } from './commands/permissions/index'
+import { modelCommand } from './commands/model/index'
+import { historyCommand } from './commands/history/index'
+import { memoryCommand } from './commands/memory/index'
+import { sessionCommand } from './commands/session/index'
+import { resumeCommand } from './commands/resume/index'
+import { sandboxCommand } from './commands/sandbox/index'
+import { gitCommand } from './commands/git/index'
+import { agentCommand } from './commands/agent/index'
+import { agentsCommand } from './commands/agents/index'
+import { themeCommand } from './commands/theme/index'
+import { branchCommand } from './commands/branch/index'
+import { commitCommand } from './commands/commit/index'
+import { diffCommand } from './commands/diff/index'
+import { logCommand } from './commands/log/index'
+import { stashCommand } from './commands/stash/index'
+import { remoteCommand } from './commands/remote/index'
+import { forkCommand } from './commands/fork/index'
+import { tasksCommand } from './commands/tasks/index'
+import { configCommand } from './commands/config/index'
+import { keybindingsCommand } from './commands/keybindings/index'
+import { filesCommand } from './commands/files/index'
+import { exportCommand } from './commands/export/index'
+import { usageCommand } from './commands/usage/index'
+import { versionCommand } from './commands/version/index'
+import { rulesCommand } from './commands/rules/index'
+import { heartbeatCommand } from './commands/heartbeat/index'
+import { planCommand } from './commands/plan/index'
+import { exitPlanCommand } from './commands/exit-plan/index'
+import { addStepCommand } from './commands/add-step/index'
+import { stepsCommand } from './commands/steps/index'
+import { approveCommand } from './commands/approve/index'
+import { denyCommand } from './commands/deny/index'
+import { resetPermissionsCommand } from './commands/reset-permissions/index'
+import { extraUsageCommand } from './commands/extra-usage/index'
+import { effortCommand } from './commands/effort/index'
+import { feedbackCommand } from './commands/feedback/index'
+import { skillsCommand } from './commands/skills/index'
+import { reviewCommand } from './commands/review/index'
+import { initCommand } from './commands/init/index'
+import { commandPaletteCommand } from './commands/command-palette/index'
 
 /**
  * All commands - single source of truth
@@ -801,6 +801,6 @@ export function fuzzyMatchCommands(input: string, maxResults: number = 10): Slas
 }
 
 // Import for usage tracking in fuzzyMatchCommands
-import { getCommandUsage } from './command-usage.js'
+import { getCommandUsage } from './command-usage'
 
 // Command contracts are defined independently from the removed legacy registry.

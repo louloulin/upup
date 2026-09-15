@@ -1,9 +1,9 @@
 import { createHash } from 'node:crypto';
-import { CANONICAL_INVESTMENT_PHASES } from './workflow.js';
+import { CANONICAL_INVESTMENT_PHASES } from './workflow';
 import {
   getInvestmentDossierValidationErrors,
   type InvestmentDossier,
-} from './investment-dossier.js';
+} from './investment-dossier';
 import type { ResearchMarket } from '@upup/pi-planning';
 
 export const INVESTMENT_VERIFICATION_ARTIFACT_SCHEMA = 'upup.pi.real-invest-verification.v3' as const;

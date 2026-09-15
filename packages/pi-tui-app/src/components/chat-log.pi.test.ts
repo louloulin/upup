@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import type { TUI } from '@earendil-works/pi-tui';
-import { ChatLogComponent } from './chat-log.js';
+import { ChatLogComponent } from './chat-log';
 
 const stubTui = {
   requestRender: () => {},

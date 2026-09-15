@@ -5,7 +5,7 @@
  * Show research rules from .upup/RULES.md
  */
 
-import type { LocalCommand } from '../../types/command-types.js'
+import type { LocalCommand } from '../../types/command-types'
 
 export const rulesCommand: LocalCommand = {
   type: 'local',
@@ -13,5 +13,5 @@ export const rulesCommand: LocalCommand = {
   description: 'Show current research rules from .upup/RULES.md',
   aliases: ['research-rules'],
   supportsNonInteractive: true,
-  load: () => import('./rules-impl.js'),
+  load: () => import('./rules-impl'),
 }

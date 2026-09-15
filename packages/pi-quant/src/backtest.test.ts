@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'bun:test';
-import { rebalanceDates, runFactorBacktest, topBottomSymbols } from './backtest.js';
-import type { FactorSignalSeries, UniverseBarSeries } from './backtest.js';
+import { rebalanceDates, runFactorBacktest, topBottomSymbols } from './backtest';
+import type { FactorSignalSeries, UniverseBarSeries } from './backtest';
 
 describe('rebalanceDates', () => {
   test('returns empty when end before start', () => {

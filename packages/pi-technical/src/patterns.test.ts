@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { describePattern, listPatternKinds, recognizePatterns, type IndicatorBar } from './patterns.js';
+import { describePattern, listPatternKinds, recognizePatterns, type IndicatorBar } from './patterns';
 
 function makeDoji(date: string, price = 100): IndicatorBar {
   return { date, open: price, high: price + 0.5, low: price - 0.5, close: price + 0.05, volume: 1000 };

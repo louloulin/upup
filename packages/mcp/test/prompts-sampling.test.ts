@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'bun:test';
-import { MCPClientManager } from '../src/client.js';
+import { MCPClientManager } from '../src/client';
 
 describe('MCPClientManager - Prompts', () => {
   let manager: MCPClientManager;

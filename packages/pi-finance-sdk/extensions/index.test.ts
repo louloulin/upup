@@ -1,12 +1,12 @@
 import { describe, expect, test } from 'bun:test';
-import financeEvidenceExtension from './index.js';
+import financeEvidenceExtension from './index';
 import {
   PI_FINANCE_HOST_CAPABILITIES,
   PI_FINANCE_HOST_CONTRACT,
   PI_FINANCE_PACKAGE_NAME,
   PI_FINANCE_PACKAGE_VERSION,
-} from './host-contract.js';
-import { PI_FINANCE_COMMANDS } from './commands.js';
+} from './host-contract';
+import { PI_FINANCE_COMMANDS } from './commands';
 import { createEventBus } from '@earendil-works/pi-coding-agent';
 import { publishPiCapabilityHosts } from '@upup/pi-capability-registry';
 

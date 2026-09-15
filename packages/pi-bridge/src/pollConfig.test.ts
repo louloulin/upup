@@ -3,8 +3,8 @@ import {
   validatePollConfig,
   getPollIntervalConfig,
   _setPollConfigOverride,
-} from './pollConfig.js';
-import { DEFAULT_POLL_CONFIG } from './pollConfigDefaults.js';
+} from './pollConfig';
+import { DEFAULT_POLL_CONFIG } from './pollConfigDefaults';
 
 const VALID_CONFIG = {
   poll_interval_ms_not_at_capacity: 1500,

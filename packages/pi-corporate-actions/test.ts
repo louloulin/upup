@@ -7,7 +7,7 @@ import {
   dryRunEvidence,
   filterDividends,
   totalDividends,
-} from './src/index.js';
+} from './src/index';
 
 describe('pi-corporate-actions smoke', () => {
   test('dry-run dividends for 600519.SH', async () => {

@@ -1,13 +1,13 @@
 import { Type } from 'typebox';
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import { resolvePiCapabilityHost, registerPiCapabilityHost } from '@upup/pi-capability-registry';
-import { buildTechnicalSnapshot, createDefaultMarketQuoteClient, FixedWindowMarketHistoryRateLimiter, InMemoryMarketHistoryCache, isTradingDay, normalizeMarket, providerSla, resolveMarketHistoryClient, resolveMarketQuoteClient, JsonFileProviderSlaStore, type Market, type MarketHistoryProvider, type NativeMarketQuoteTrendStore } from '../src/index.js';
-import { calendarTradingDays, isCalendarTradingDay, nextCalendarTradingDay, upcomingCalendarHolidays, type CalendarMarket } from '../src/calendar.js';
-import { screenStockSnapshot, type StockScreenInput } from '../src/screener.js';
-import { getMarketStructureSnapshot, querySectorSnapshot, type MarketStructureType, type SectorQueryType } from '../src/market-insights.js';
-import { type TechnicalPeriod } from '../src/technical.js';
-import { createRealtimeSubscriptionManager, type FeedSource } from '../src/realtime/index.js';
-import { appendKairosEvent, createInitialKairosJournalState, listKairosEvents, summarizeKairos, type KairosEventKind, type NativeKairosJournalState } from '../src/kairos-journal.js';
+import { buildTechnicalSnapshot, createDefaultMarketQuoteClient, FixedWindowMarketHistoryRateLimiter, InMemoryMarketHistoryCache, isTradingDay, normalizeMarket, providerSla, resolveMarketHistoryClient, resolveMarketQuoteClient, JsonFileProviderSlaStore, type Market, type MarketHistoryProvider, type NativeMarketQuoteTrendStore } from '../src/index';
+import { calendarTradingDays, isCalendarTradingDay, nextCalendarTradingDay, upcomingCalendarHolidays, type CalendarMarket } from '../src/calendar';
+import { screenStockSnapshot, type StockScreenInput } from '../src/screener';
+import { getMarketStructureSnapshot, querySectorSnapshot, type MarketStructureType, type SectorQueryType } from '../src/market-insights';
+import { type TechnicalPeriod } from '../src/technical';
+import { createRealtimeSubscriptionManager, type FeedSource } from '../src/realtime/index';
+import { appendKairosEvent, createInitialKairosJournalState, listKairosEvents, summarizeKairos, type KairosEventKind, type NativeKairosJournalState } from '../src/kairos-journal';
 import { PI_MARKET_DATA_CAPABILITY_VERSION, PI_MARKET_DATA_CAPABILITY_NAMES, type PiAuditCapability, type PiCapabilityContext, type PiEvidenceCapability } from '@upup/pi-runtime';
 
 const PACKAGE = '@upup/pi-market-data';

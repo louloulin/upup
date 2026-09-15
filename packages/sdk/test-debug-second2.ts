@@ -1,7 +1,7 @@
 /**
  * 详细调试第二轮
  */
-import { createClient } from './src/client/client.js'
+import { createClient } from './src/client/client'
 
 async function debugSecond() {
   console.log('详细调试第二轮')

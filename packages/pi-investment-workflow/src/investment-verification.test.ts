@@ -6,7 +6,7 @@ import {
   validateRealInvestVerificationArtifact,
   verifyReadOnlySessionSafety,
   verifyInvestmentEvidence,
-} from './index.js';
+} from './index';
 
 const phaseNames = ['detect', 'plan', 'execute', 'verify', 'report'] as const;
 

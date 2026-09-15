@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { createInitialResearchJournalState, parseResearchJournalState, queryResearchJournal } from './research-journal.js';
+import { createInitialResearchJournalState, parseResearchJournalState, queryResearchJournal } from './research-journal';
 
 const task = { id: 'research-1', title: 'Research AAPL', phase: 'research', status: 'completed', createdAt: 1, updatedAt: 2 } as const;
 

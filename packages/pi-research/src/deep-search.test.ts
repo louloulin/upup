@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { DeepSearchEngine, expandQuery, type Document } from './deep-search.js';
+import { DeepSearchEngine, expandQuery, type Document } from './deep-search';
 
 const documents: Document[] = [
   {

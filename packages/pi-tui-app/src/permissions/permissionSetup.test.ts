@@ -18,7 +18,7 @@ describe('initialPermissionModeFromCLI source tracking', () => {
     permissionMode?: string;
   }) {
     // Import fresh to avoid module caching issues
-    const { initialPermissionModeFromCLI } = await import('./permissionSetup.js');
+    const { initialPermissionModeFromCLI } = await import('./permissionSetup');
     return initialPermissionModeFromCLI(args as any);
   }
 
@@ -71,7 +71,7 @@ describe('initialPermissionModeFromCLI source tracking', () => {
     delete process.env.UPUP_DANGEROUSLY_MODE;
     delete process.env.UPUP_BYPASS_MODE;
     
-    const { initialPermissionModeFromCLI } = await import('./permissionSetup.js');
+    const { initialPermissionModeFromCLI } = await import('./permissionSetup');
     const result = initialPermissionModeFromCLI({});
     
     expect(result.mode).toBe('default');
@@ -84,7 +84,7 @@ describe('initialPermissionModeFromCLI source tracking', () => {
   it('returns source=settings when settings has permissionMode value', async () => {
     // This test verifies the settings fallback path exists and returns 'settings' source
     // When settings has no value, it falls back to 'default' (correct behavior)
-    const { initialPermissionModeFromCLI } = await import('./permissionSetup.js');
+    const { initialPermissionModeFromCLI } = await import('./permissionSetup');
     
     // Clear CLI and env to isolate settings path
     const originals = {
@@ -112,7 +112,7 @@ describe('permission mode priority order', () => {
   it('CLI dangerouslySkipPermissions wins over env', async () => {
     process.env.UPUP_PERMISSION_MODE = 'plan';
     
-    const { initialPermissionModeFromCLI } = await import('./permissionSetup.js');
+    const { initialPermissionModeFromCLI } = await import('./permissionSetup');
     const result = initialPermissionModeFromCLI({ dangerouslySkipPermissions: true });
     
     expect(result.mode).toBe('bypassPermissions');
@@ -124,7 +124,7 @@ describe('permission mode priority order', () => {
   it('CLI permissionMode wins over env', async () => {
     process.env.UPUP_PERMISSION_MODE = 'dangerously';
     
-    const { initialPermissionModeFromCLI } = await import('./permissionSetup.js');
+    const { initialPermissionModeFromCLI } = await import('./permissionSetup');
     const result = initialPermissionModeFromCLI({ permissionMode: 'acceptEdits' });
     
     expect(result.mode).toBe('acceptEdits');
@@ -136,7 +136,7 @@ describe('permission mode priority order', () => {
   it('env wins over settings (when settings path exists)', async () => {
     process.env.UPUP_PERMISSION_MODE = 'dontAsk';
     
-    const { initialPermissionModeFromCLI } = await import('./permissionSetup.js');
+    const { initialPermissionModeFromCLI } = await import('./permissionSetup');
     const result = initialPermissionModeFromCLI({});
     
     // Env should take precedence when settings also exists
@@ -156,7 +156,7 @@ describe('security checks', () => {
     const original = process.env.UPUP_SANDBOX;
     process.env.UPUP_SANDBOX = 'true';
     
-    const { shouldAllowBypassPermissionsMode } = await import('./permissionSetup.js');
+    const { shouldAllowBypassPermissionsMode } = await import('./permissionSetup');
     expect(shouldAllowBypassPermissionsMode()).toBe(true);
     
     delete process.env.UPUP_SANDBOX;
@@ -166,7 +166,7 @@ describe('security checks', () => {
     delete process.env.UPUP_SANDBOX;
     process.env.UPUP_ALLOW_BYPASS_OUTSIDE_SANDBOX = 'true';
     
-    const { shouldAllowBypassPermissionsMode } = await import('./permissionSetup.js');
+    const { shouldAllowBypassPermissionsMode } = await import('./permissionSetup');
     expect(shouldAllowBypassPermissionsMode()).toBe(true);
     
     delete process.env.UPUP_ALLOW_BYPASS_OUTSIDE_SANDBOX;

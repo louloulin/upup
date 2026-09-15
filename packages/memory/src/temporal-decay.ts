@@ -8,7 +8,7 @@
  * Ported from Openclaw (MIT licensed).
  */
 
-import type { MemorySearchResult, TemporalDecayConfig } from './types.js';
+import type { MemorySearchResult, TemporalDecayConfig } from './types';
 
 export const DEFAULT_TEMPORAL_DECAY: TemporalDecayConfig = {
   enabled: true,

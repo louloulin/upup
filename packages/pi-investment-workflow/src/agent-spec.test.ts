@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { agentDefinitionToPiSpec, getInvestmentAgentSpec, serializeAgentSpec, subagentConfigToPiSpec, validateAgentSpec } from './agent-spec.js';
+import { agentDefinitionToPiSpec, getInvestmentAgentSpec, serializeAgentSpec, subagentConfigToPiSpec, validateAgentSpec } from './agent-spec';
 
 describe('Pi investment agent specs', () => {
   test('serializes a versioned investment profile', () => {

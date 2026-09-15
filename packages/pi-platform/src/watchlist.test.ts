@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { addPlatformWatchlistAlert, addPlatformWatchlistEntry, checkPlatformWatchlistAlerts, clearPlatformWatchlistAlert, createInitialPlatformWatchlistState, listPlatformWatchlistEntries, parsePlatformWatchlistState, removePlatformWatchlistEntry } from './watchlist.js';
+import { addPlatformWatchlistAlert, addPlatformWatchlistEntry, checkPlatformWatchlistAlerts, clearPlatformWatchlistAlert, createInitialPlatformWatchlistState, listPlatformWatchlistEntries, parsePlatformWatchlistState, removePlatformWatchlistEntry } from './watchlist';
 
 describe('Pi platform watchlist state', () => {
   test('keeps entries and alerts immutable and session serializable', () => {

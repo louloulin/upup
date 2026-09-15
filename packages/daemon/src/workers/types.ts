@@ -10,7 +10,7 @@
  */
 
 import { info, warn, error } from '@upup/utils/logging';
-import type { DaemonWorker, WorkerHealth } from '../worker-pool.js';
+import type { DaemonWorker, WorkerHealth } from '../worker-pool';
 
 // ============================================================================
 // Monitor Worker

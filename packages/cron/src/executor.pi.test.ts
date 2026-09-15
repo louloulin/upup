@@ -2,8 +2,8 @@ import { describe, expect, test } from 'bun:test';
 import { fauxAssistantMessage, fauxProvider, fauxText } from '@earendil-works/pi-ai';
 import { ModelRuntime } from '@earendil-works/pi-coding-agent';
 import { runAgentForMessage, type AgentRunRequest, type GatewayRuntime } from '@upup/gateway';
-import type { CronJob, CronStore } from './types.js';
-import { executeCronJob } from './executor.js';
+import type { CronJob, CronStore } from './types';
+import { executeCronJob } from './executor';
 
 function fixtureRuntime(): GatewayRuntime {
   const agent = {

@@ -3,7 +3,7 @@
  * Extra-Usage Command Implementation
  */
 
-import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types.js'
+import type { LocalCommandModule, LocalCommandResult, ToolUseContext } from '../../types/command-types'
 
 export const call = async (
   _args: string,
