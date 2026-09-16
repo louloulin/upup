@@ -38,6 +38,15 @@ function parseIntFlag(flags: readonly string[], name: string): number | undefine
 }
 
 async function main() {
+  // `--trace` turns on both tracers before any heavy module is imported:
+  // `UPUP_TRACE_TURN` (per-turn context payload + turn timeline) and Pi's own
+  // `PI_TIMING` (startup timings, extension load). Must run before the dynamic
+  // imports below, because Pi reads `PI_TIMING` at module init.
+  if (args.includes('--trace')) {
+    process.env.UPUP_TRACE_TURN = '1';
+    process.env.PI_TIMING = '1';
+  }
+
   // Check for --stdio mode (for external tool integration)
   // In stdio mode, we run a pure JSON-RPC server without any CLI UI.
   // Pass --acp to advertise Agent Client Protocol capabilities and accept
@@ -231,6 +240,10 @@ Usage:
   upup plugin             Manage Pi packages (install/list/uninstall/update)
   upup help               Show this help message
   upup version            Show version
+
+Diagnostics:
+  upup --trace            Print per-turn context payload + Pi startup timings
+                          (add UPUP_TRACE_TOOLS=1 for the active tool list)
 
 Config Commands:
   upup config get <key>      Get a config value

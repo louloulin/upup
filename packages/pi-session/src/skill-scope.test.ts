@@ -1,5 +1,11 @@
 import { describe, expect, test } from 'bun:test';
-import { resolveNoSkills, shouldWhitelistOnly, type SkillScopeInputs } from './skill-scope';
+import {
+  resolveDefaultUserSkillScope,
+  resolveNoSkills,
+  shouldWhitelistOnly,
+  USER_SKILLS_ENV_VAR,
+  type SkillScopeInputs,
+} from './skill-scope';
 
 describe('@upup/pi-session — skill scope policy (Phase 0.6)', () => {
   test('default behaviour keeps Pi canonical (noSkills=false when packages supply skills)', () => {
@@ -48,5 +54,28 @@ describe('@upup/pi-session — skill scope policy (Phase 0.6)', () => {
     const result = resolveNoSkills({}, 5);
     expect(result).toBe(false);
     expect(shouldWhitelistOnly({})).toBe(false);
+  });
+});
+
+describe('@upup/pi-session — default user skill scope', () => {
+  test('defaults to exclude so the ambient ~/.agents/skills library stays out', () => {
+    // Measured on a real install: the ambient library added 227 skill entries
+    // (~98.8k characters) to every system prompt — mostly e-commerce and
+    // coding-agent skills. Session-scoped package skills are unaffected.
+    expect(resolveDefaultUserSkillScope({}, undefined)).toBe('exclude');
+    expect(resolveDefaultUserSkillScope({}, '')).toBe('exclude');
+    expect(resolveDefaultUserSkillScope({}, 'nonsense')).toBe('exclude');
+  });
+
+  test('honours an explicit opt-in from settings or the environment', () => {
+    expect(resolveDefaultUserSkillScope({}, 'include')).toBe('include');
+    expect(resolveDefaultUserSkillScope({ [USER_SKILLS_ENV_VAR]: 'include' }, undefined)).toBe('include');
+    // Env wins over the persisted setting so a single run can be traced.
+    expect(resolveDefaultUserSkillScope({ [USER_SKILLS_ENV_VAR]: 'exclude' }, 'include')).toBe('exclude');
+  });
+
+  test("passes through the explicit 'whitelist-only' policy", () => {
+    expect(resolveDefaultUserSkillScope({}, 'whitelist-only')).toBe('whitelist-only');
+    expect(resolveDefaultUserSkillScope({ [USER_SKILLS_ENV_VAR]: 'whitelist-only' }, undefined)).toBe('whitelist-only');
   });
 });

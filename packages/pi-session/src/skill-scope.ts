@@ -60,3 +60,35 @@ export function resolveNoSkills(
 export function shouldWhitelistOnly(spec: SkillScopeInputs): boolean {
   return (spec.userSkills ?? 'include') === 'whitelist-only';
 }
+
+/** Environment variable that overrides the persisted scope choice. */
+export const USER_SKILLS_ENV_VAR = 'UPUP_USER_SKILLS';
+
+/** Settings key (`.upup/settings.json`) that persists the scope choice. */
+export const USER_SKILLS_SETTING_KEY = 'userSkills';
+
+/**
+ * Scope to use for an UpUp session that does not declare one explicitly.
+ *
+ * Defaults to `'exclude'`, i.e. `~/.agents/skills` is *not* folded into the
+ * system prompt. Measured on a real install: the ambient library contributed
+ * **227 skill entries / 98,796 characters (~24.7k tokens) on every turn** —
+ * mostly e-commerce and coding-agent skills that have nothing to do with
+ * investing ("amazon-ppc-campaign", "1688-product-find", ...). Pi packages the
+ * user actually installed for UpUp (our own investment skills) are unaffected:
+ * they arrive through `additionalSkillPaths`, which `noSkills` does not touch.
+ *
+ * Precedence: `UPUP_USER_SKILLS` env → persisted setting → `'exclude'`.
+ * `'whitelist-only'` stays available as an explicit policy for fixed-toolset
+ * deployments; it is never chosen implicitly because it requires `spec.skills`.
+ */
+export function resolveDefaultUserSkillScope(
+  env: NodeJS.ProcessEnv = process.env,
+  configured?: string,
+): UpUpSkillScopePolicy {
+  const fromEnv = env[USER_SKILLS_ENV_VAR]?.trim();
+  const candidate = fromEnv || configured?.trim();
+  return candidate === 'include' || candidate === 'exclude' || candidate === 'whitelist-only'
+    ? candidate
+    : 'exclude';
+}

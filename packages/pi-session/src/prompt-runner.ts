@@ -3,13 +3,14 @@ import type { Model } from '@earendil-works/pi-ai';
 import type { ModelRuntime } from '@earendil-works/pi-coding-agent';
 import { validateAgentSpec } from '@upup/pi-runtime';
 import type { UpUpAgentEvent, UpUpAgentSpec, UpUpAgentSession, UpUpToolSafetyLevel } from '@upup/pi-runtime';
-import { getConfiguredModelId, resolveProvider } from '@upup/utils';
+import { getConfiguredModelId, getSetting, resolveProvider } from '@upup/utils';
 import { getPiSessionService } from '@upup/pi-session';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { mergePiPackageTrust, resolveConfiguredPiPackages } from '@upup/pi-resource-composition';
 import type { PiPackageTrustPolicy } from '@upup/pi-runtime';
 import type { PiRunnerSessionState } from './session-registry';
+import { resolveDefaultUserSkillScope, USER_SKILLS_SETTING_KEY } from './skill-scope';
 
 export interface PiPromptOptions {
   model?: string;
@@ -112,6 +113,13 @@ function createSpec(options: PiPromptOptions): UpUpAgentSpec {
     thinkingLevel: 'medium',
     dataPolicy: 'live',
     outputContract: 'report',
+    // Curated by default: the ambient `~/.agents/skills` library is opt-in.
+    // Leaving it on folded 227 unrelated skills (~24.7k tokens) into every
+    // system prompt. See `resolveDefaultUserSkillScope`.
+    userSkills: resolveDefaultUserSkillScope(
+      process.env,
+      getSetting<string | undefined>(USER_SKILLS_SETTING_KEY, undefined),
+    ),
   };
   if (options.toolFilter && options.toolFilter !== '*') spec.tools = options.toolFilter;
   validateAgentSpec(spec);
@@ -178,15 +186,33 @@ export function getPiSessionTools(sessionKey: string): readonly PiSessionToolInf
   return ensurePiSessionService().getRunnerRegistry().getTools(sessionKey);
 }
 
+// Per-turn tracing used by the TUI to pinpoint where wall-clock is being
+// spent when the user-perceived latency diverges from the model round-trip.
+// Set `UPUP_TRACE_TURN=1` to emit a labelled timeline to stderr; pair it with
+// `PI_TIMING=1` (Pi's own startup timings) when investigating cold-start.
+const TURN_TRACE = process.env.UPUP_TRACE_TURN === '1';
+function turnTrace(label: string, t0: number, tPrev?: number): void {
+  if (!TURN_TRACE) return;
+  const now = Date.now();
+  process.stderr.write(
+    `[upup-trace] ${label} +${now - (tPrev ?? t0)}ms (Δtotal +${now - t0}ms)
+`,
+  );
+}
+
 export async function runPiPrompt(prompt: string, options: PiPromptOptions = {}): Promise<string> {
+  const tTurn = Date.now();
   const key = options.sessionKey;
   const registry = ensurePiSessionService().getRunnerRegistry();
   const requestedSpec = createSpec(options);
+  const tSpec = Date.now();
+  turnTrace('buildSpec', tTurn, tSpec);
   const requestedSpecHash = specFingerprint(requestedSpec);
   let state = key ? registry.get(key) : undefined;
   if (state && state.specHash !== requestedSpecHash) {
     throw new Error(`Pi session key ${key} is already bound to a different AgentSpec; use a new session key when changing profile, permissions, or tools`);
   }
+  let tSession: number | undefined;
   if (!state) {
     const pending = key ? registry.getInitialization(key) : undefined;
     if (pending) {
@@ -210,16 +236,41 @@ export async function runPiPrompt(prompt: string, options: PiPromptOptions = {})
       const session = await createPromptSession(options, requestedSpec);
       state = { session, tail: Promise.resolve(), running: false, specHash: requestedSpecHash };
     }
+    tSession = Date.now();
+    turnTrace('createSession', tTurn, tSession);
+  } else {
+    turnTrace('reuseSession', tTurn, tSpec);
   }
   const current = state;
   if (!current) throw new Error('Pi prompt session was not initialized');
   let answer = '';
+  let firstTokenAt: number | undefined;
   const run = async () => {
     current.running = true;
-    const unsubscribe = options.onEvent ? current.session.subscribe(options.onEvent) : undefined;
+    // Pi canonical stream emits raw `text_delta`/`thinking_delta`/`toolcall_start`
+    // events; the typed `UpUpAgentEvent` union collapses them into
+    // `message_end`/`thinking`/`tool_start`, so a precise first-content marker
+    // has to look at the raw shape. The cast keeps the trace accurate without
+    // widening the public UpUp type.
+    const unsubscribe = options.onEvent
+      ? current.session.subscribe((event) => {
+          const rawType = (event as { type?: string }).type;
+          if (
+            !firstTokenAt &&
+            (rawType === 'text_delta' || rawType === 'thinking_delta' || rawType === 'toolcall_start')
+          ) {
+            firstTokenAt = Date.now();
+            turnTrace('firstToken', tTurn, firstTokenAt);
+          }
+          return options.onEvent?.(event);
+        })
+      : undefined;
     try {
+      const tPrompt = Date.now();
       await current.session.prompt(prompt, { signal: options.signal });
+      turnTrace('session.prompt() resolved', tTurn, tPrompt);
       await current.session.waitForIdle();
+      turnTrace('session.waitForIdle() resolved', tTurn);
       answer = answerFromSession(current.session);
     } finally {
       unsubscribe?.();
@@ -228,6 +279,10 @@ export async function runPiPrompt(prompt: string, options: PiPromptOptions = {})
   };
   current.tail = current.tail.then(run, run);
   await current.tail;
+  if (TURN_TRACE && firstTokenAt) {
+    turnTrace('promptSession→firstToken (TTFB)', tTurn, firstTokenAt);
+  }
+  turnTrace('runDone', tTurn);
   if (!key) current.session.dispose();
   return answer;
 }

@@ -57,7 +57,13 @@ import {
   type SerializedFinanceContext,
 } from '@upup/pi-runtime';
 import { validateAgentSpec } from '@upup/pi-runtime';
+import { getSetting } from '@upup/utils';
 import { resolveNoSkills, shouldWhitelistOnly } from './skill-scope';
+import {
+  resolveDefaultToolScope,
+  selectActiveTools,
+  TOOL_SCOPE_SETTING_KEY,
+} from './tool-scope';
 import { getModel, getModels } from '@earendil-works/pi-ai/compat';
 import { existsSync, readFileSync } from 'node:fs';
 import { mkdir } from 'node:fs/promises';
@@ -528,12 +534,17 @@ export class PiAgentSessionFactory implements UpUpAgentRuntime {
       noTools: 'builtin',
       thinkingLevel: spec.thinkingLevel === 'off' ? 'minimal' : spec.thinkingLevel,
     });
-    const activeToolNames = result.session.getActiveToolNames();
-    result.session.setActiveToolsByName(
-      spec.tools === '*'
-        ? activeToolNames
-      : activeToolNames.filter((name) => spec.tools.includes(name)),
-    );
+    const activeToolNames = selectActiveTools({
+      activeNames: result.session.getActiveToolNames(),
+      allTools: result.session.getAllTools() as { name: string; sourceInfo?: { source?: string } }[],
+      specTools: spec.tools,
+      scope: resolveDefaultToolScope(
+        process.env,
+        getSetting<string | undefined>(TOOL_SCOPE_SETTING_KEY, undefined),
+      ),
+    });
+    result.session.setActiveToolsByName(activeToolNames);
+    traceSessionContext(result.session, resourceLoader.getSkills().skills);
     if (sessionFileBeforeInitialization && !existsSync(sessionFileBeforeInitialization)) {
       const sessionFile = result.session.sessionManager.getSessionFile();
       if (sessionFile) {
@@ -572,4 +583,54 @@ export class PiAgentSessionFactory implements UpUpAgentRuntime {
 
 export function createPiAgentRuntime(composition: PiSessionCompositionProviders = builtinSessionComposition): UpUpAgentRuntime {
   return new PiAgentSessionFactory(composition);
+}
+
+/**
+ * Per-turn context tracer, enabled with `UPUP_TRACE_TURN=1` (or `upup --trace`).
+ *
+ * Answers the question "why is a turn slow / why is UpUp's payload so much
+ * bigger than plain Pi's": it reports the exact skill count, the *active* tool
+ * count and the serialized size of the tool surface — the blocks that dominate
+ * the provider prefill. Pi's own `PI_TIMING=1` only covers startup, so this
+ * complements it rather than duplicating it.
+ */
+function traceSessionContext(
+  session: { getActiveToolNames(): string[]; getAllTools(): readonly unknown[] },
+  skills: readonly { name: string; sourceInfo?: { source?: string } }[],
+): void {
+  if (process.env.UPUP_TRACE_TURN !== '1') return;
+  const activeNames = session.getActiveToolNames();
+  const activeSet = new Set(activeNames);
+  const activeTools = session
+    .getAllTools()
+    .map((tool) => tool as { name: string; description?: string; sourceInfo?: { source?: string } })
+    .filter((tool) => activeSet.has(tool.name));
+  const buckets = new Map<string, { count: number; chars: number }>();
+  let toolChars = 0;
+  for (const tool of activeTools) {
+    const source = tool.sourceInfo?.source ?? 'unknown';
+    const bucket = source.startsWith('npm:') ? 'third-party-package' : source === 'builtin' ? 'pi-builtin' : 'upup-package';
+    const chars = tool.name.length + (tool.description?.length ?? 0);
+    toolChars += chars;
+    const current = buckets.get(bucket) ?? { count: 0, chars: 0 };
+    buckets.set(bucket, { count: current.count + 1, chars: current.chars + chars });
+  }
+  const skillChars = skills.reduce(
+    (sum, skill) => sum + skill.name.length + ((skill as { description?: string }).description?.length ?? 0),
+    0,
+  );
+  const bySource = new Map<string, number>();
+  for (const skill of skills) {
+    const source = skill.sourceInfo?.source ?? 'unknown';
+    bySource.set(source, (bySource.get(source) ?? 0) + 1);
+  }
+  process.stderr.write(
+    `[upup-trace] context: skills=${skills.length} (~${skillChars} chars)` +
+      ` [${[...bySource.entries()].map(([k, v]) => `${k}=${v}`).join(', ')}],` +
+      ` activeTools=${activeTools.length} (~${toolChars} chars)` +
+      ` [${[...buckets.entries()].map(([k, v]) => `${k}=${v.count}`).join(', ')}]\n`,
+  );
+  if (process.env.UPUP_TRACE_TOOLS === '1') {
+    process.stderr.write(`[upup-trace] active tool names: ${activeNames.join(', ')}\n`);
+  }
 }
