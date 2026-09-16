@@ -9,7 +9,7 @@
  * - `runPluginCommand`       — `upup plugin` Pi DefaultPackageManager 包装（install/list/uninstall/update）
  *
  * These are root-side bootstrap entrypoints (not skills/agents). They depend only on
- * `@upup/utils` + `@upup/pi-tui-app` and do not touch root src/*.
+ * `@upup/utils` + `Pi InteractiveMode` and do not touch root src/*.
  */
 
 export { runConfigCommand } from './config';

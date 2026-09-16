@@ -10,7 +10,7 @@
 import { existsSync, readFileSync, writeFileSync, copyFileSync } from 'fs';
 import { join } from 'path';
 import { getSetting, setSetting, getConfigSources, getFinalConfig } from '@upup/utils';
-import { validateConfig } from '@upup/pi-tui-app';
+import { validateConfig } from './config-validation';
 import { SETTINGS_FILE, SETTINGS_BACKUPS_DIR, globalUpupPath } from '@upup/utils';
 
 // ANSI colors for output

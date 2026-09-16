@@ -7,8 +7,6 @@ import { runPrint } from '@upup/pi-app/print';
 import { runAgentForMessage, type GatewayRuntime } from '@upup/gateway';
 import { executeCronJob, type CronJob, type CronStore } from '@upup/cron';
 import { TasksWorker } from '@upup/daemon';
-import { encodeMessage, startBridgeServer, type BridgeMessage } from '@upup/pi-bridge';
-import { createClient, StdioTransport } from '@upup/sdk';
 import { createEvaluationRunner } from '@upup/pi-evals';
 import { getInvestmentAgentSpec, PiAgentCatalog } from '@upup/pi-investment-workflow';
 import type { UpUpAgentEvent } from '@upup/pi-runtime';

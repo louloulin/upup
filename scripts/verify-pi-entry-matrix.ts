@@ -8,9 +8,6 @@ import { createPiAgentRuntime, disposePiSessions, isPiSessionRunning, runPiPromp
 import { runAgentForMessage } from '@upup/gateway';
 import { executeCronJob } from '@upup/cron';
 import { TasksWorker } from '@upup/daemon';
-import { encodeMessage, startBridgeServer, type BridgeMessage } from '@upup/pi-bridge';
-import { StdioTransport } from '@upup/sdk';
-import { createClient } from '@upup/sdk';
 import { createEvaluationRunner } from '@upup/pi-evals';
 import { getPiNativeApp } from '@upup/pi-app/default';
 import type { GatewayRuntime } from '@upup/gateway';

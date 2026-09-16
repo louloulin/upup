@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"/Users/louloulin/appx/upup/.trae/skills/comet/scripts/comet-hook-router.mjs\" --platform \"trae\" --project-root \"/Users/louloulin/appx/upup\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -47,70 +47,7 @@ export type { PlatformWorkflowErrorPolicy, PlatformWorkflowPlan, PlatformWorkflo
 export { addPlatformAgentMemory, clearPlatformAgentMemories, createInitialPlatformAgentState, createPlatformAgent, getPlatformAgent, getPlatformAgentMemory, listPlatformAgentMemories, listPlatformAgents, parsePlatformAgentState, PLATFORM_BUILTIN_AGENTS, updatePlatformAgent } from './agents';
 export type { PlatformAgentMemory, PlatformAgentMemoryType, PlatformAgentRecord, PlatformAgentState, PlatformAgentStatus, PlatformBuiltinAgent } from './agents';
 
-// Bash capability owned by the platform Pi Package.
-export {
-  executeBashCommand,
-  formatBashResult,
-  isDangerousCommand,
-  BASH_TOOL_NAME,
-  validateCommandSecurity,
-  checkDangerousPatterns,
-  sanitizeOutput,
-  isReadOnlyOperation,
-  DANGEROUS_PATTERNS,
-  ALWAYS_DANGEROUS_COMMANDS,
-  CONDITIONALLY_DANGEROUS,
-  validatePath,
-  validatePaths,
-  checkPathAccess,
-  resolveRealPath,
-  getPathInfo,
-  checkSymlinkVulnerability,
-  PROTECTED_PATHS,
-  SENSITIVE_PATH_PATTERNS,
-  classifyCommand,
-  isReadOnlyCommand,
-  isDestructiveCommand,
-  getCommandInfo,
-  requiresConfirmation,
-  isAllowed,
-  setPermissionMode,
-  removePermissionMode,
-  clearPermissionRules,
-  checkPermission,
-  createPermissionRequest,
-  formatPermissionPrompt,
-  parsePermissionResponse,
-  formatBashOutput,
-  formatBashSummary,
-  truncateAtWord,
-  truncateFromStart,
-  processContent,
-  tryFormatJson,
-  tryJsonFormatContent,
-  stripUnderlineAnsi,
-  stripAllAnsi,
-  linkifyUrlsInText,
-  outputProcessors,
-  isHardDenyCommand,
-  checkPermissionWithHardDeny,
-  PERMISSION_MODE_BEHAVIORS,
-  HARD_DENY_PATTERNS,
-} from './bash/index';
-export type {
-  BashToolOptions,
-  BashToolResult,
-  BashToolInput,
-  SecurityValidationResult,
-  PathValidationResult,
-  PathConstraint,
-  CommandInfo,
-  PermissionRequest,
-  PermissionSuggestion,
-  PermissionResult,
-  CommandClassification,
-  PermissionMode,
-} from './bash/index';
+
 
 // Trading capability owned by the platform Pi Package.
 export {
@@ -144,35 +81,3 @@ export type {
   Quote,
   TimeInForce,
 } from './trading/index';
-
-// Sandbox manager owned by the platform Pi Package.
-export {
-  DEFAULT_SANDBOX_CONFIG,
-  loadSandboxConfig,
-  sandboxModeDisplay,
-  SandboxManager,
-  getSandboxManager,
-  resolveSandboxPath,
-  assertSandboxPath,
-  DEFAULT_SANDBOX_RULES,
-  SandboxRulesManager,
-  getSandboxRulesManager,
-  compileGlobPattern,
-  matchesPattern,
-  matchesAnyRule,
-  evaluateAccess,
-  checkSandboxDependencies,
-  getSandboxDependencySummary,
-  runSandboxCheck,
-} from './sandbox/index';
-export type {
-  SandboxConfig,
-  SandboxMode,
-  SandboxNetworkConfig,
-  SandboxFilesystemConfig,
-  SandboxRule,
-  SandboxRuleSet,
-  RuleType,
-  RuleScope,
-  SandboxDependencyCheck,
-} from './sandbox/index';

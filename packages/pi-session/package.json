@@ -56,11 +56,10 @@
     "@upup/pi-investment-workflow": "0.1.0",
     "@upup/pi-market-data": "0.1.0",
     "@upup/pi-resource-composition": "0.1.0",
-    "@upup/pi-finance-composition": "0.1.0",
-    "@upup/pi-platform-composition": "0.1.0",
     "@upup/pi-capability-registry": "0.1.0",
     "@upup/cron": "0.2.0",
     "@upup/utils": "0.2.0",
-    "@earendil-works/pi-ai": "0.85.1"
+    "@earendil-works/pi-ai": "0.85.1",
+    "@upup/pi-finance-sdk": "0.1.0"
   }
 }

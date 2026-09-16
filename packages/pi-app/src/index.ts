@@ -35,8 +35,7 @@ import { setPiFinanceCommandRunners } from '@upup/pi-finance-sdk';
 import type { PiCanonicalEventStream } from '@upup/pi-event-adapter';
 import type { PiSessionService } from '@upup/pi-session';
 import type { PiBackgroundService } from '@upup/pi-session';
-import type { TuiRuntime } from '@upup/pi-tui-app';
-import type { TuiCommandCapabilities } from '@upup/pi-tui-app';
+import type { TuiRuntime, TuiCommandCapabilities } from './tui-types';
 
 export type PiBackgroundRuntimePort = Pick<PiBackgroundService, 'start'>;
 

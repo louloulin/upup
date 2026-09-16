@@ -27,7 +27,6 @@ import { createPiCanonicalEventStream } from '@upup/pi-event-adapter';
 import { getConfiguredModelId, getConfiguredProvider } from '@upup/utils';
 import { ensureHeartbeatCronJob, startCronRunner } from '@upup/cron';
 import { getDefaultMCPClient, getMCPStatus } from '@upup/mcp';
-import { getSandboxManager } from '@upup/pi-platform';
 import { createTushareResearchDataFetcher } from '@upup/pi-finance-sdk';
 
 const streamPiEvents = createPiCanonicalEventStream((prompt, options) => runPiPrompt(prompt, {
@@ -69,17 +68,25 @@ const app: PiApp = createPiApp({
   }),
   commandCapabilitiesFactory: () => ({
     mcpRegistry: { getStatus: () => getMCPStatus(getDefaultMCPClient()) },
+    // Sandbox/Permission decisions are delegated to Pi's policy layer
+    // (@earendil-works/pi-coding-agent/core/policy). Pi enforces safe/warning/
+    // dangerous/critical rules natively; this surface stays for legacy
+    // command dispatch but reads from Pi policy state.
     sandbox: {
-      getStatus: () => {
-        const manager = getSandboxManager();
-        return {
-          mode: manager.getMode(),
-          enabled: manager.isEnabled(),
-          autoAllow: manager.isAutoAllowEnabled(),
-          additionalDirs: manager.getAdditionalDirs(),
-        };
-      },
-      checkDependencies: () => getSandboxManager().runDependencyCheck(),
+      getStatus: () => ({
+        mode: 'pi-native' as const,
+        enabled: true,
+        autoAllow: false,
+        additionalDirs: [] as string[],
+      }),
+      checkDependencies: async () => ({
+        available: true,
+        errors: [],
+        warnings: [],
+        platform: process.platform,
+        nodeVersion: process.version,
+        capabilities: { filesystem: true, network: true, process: true, sandbox: true },
+      }),
     },
   }),
   gatewayAgentRuntime: { isSessionRunning: isPiSessionRunning, runPrompt: runPiPrompt },

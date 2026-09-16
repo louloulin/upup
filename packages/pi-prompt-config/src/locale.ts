@@ -18,9 +18,9 @@
  *     后行为不一致
  */
 
-import { DEFAULT_LOCALE, SUPPORTED_LOCALES, t, type Locale, type StringKey } from '@upup/i18n';
+import { DEFAULT_LOCALE, SUPPORTED_LOCALES, t, type Locale, type StringKey } from './strings';
 
-export type { Locale } from '@upup/i18n';
+export type { Locale } from './strings';
 
 /**
  * Normalize a raw env value (zh_CN.UTF-8 / zh-CN / en_US / en) to a

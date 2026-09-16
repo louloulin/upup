@@ -44,7 +44,6 @@ export type {
 } from './client';
 export type { PiMcpTool } from './pi-tool';
 export { isInvestmentMcpConfigured } from './investment-data';
-export * from './mcp-ui';
 export * from './registry';
 export * from './plugin-integration';
 export * from './upup-resources';

@@ -47,16 +47,14 @@ async function main() {
     process.env.PI_TIMING = '1';
   }
 
-  // Check for --stdio mode (for external tool integration)
-  // In stdio mode, we run a pure JSON-RPC server without any CLI UI.
-  // Pass --acp to advertise Agent Client Protocol capabilities and accept
-  // editor-native method names (session/new, session/load, session/prompt).
+  // Pi native stdio: --stdio / --acp delegate to Pi's `main()` with --mode rpc,
+  // which routes stdin/stdout to Pi's runRpcMode (JSON-RPC envelope). The ACP
+  // subset (session/new, session/load, session/prompt) maps onto the same
+  // RpcCommand surface Pi uses for editor integrations.
   if (args.includes('--stdio') || args.includes('--acp')) {
-    const { createStdioServer } = await import('@upup/pi-stdio');
-    const { getPiStdioRuntime } = await import('@upup/pi-app/stdio');
-    const server = createStdioServer(getPiStdioRuntime(), { acp: args.includes('--acp') });
-    server.start();
-    await server.waitForStop();
+    const { main } = await import('@earendil-works/pi-coding-agent');
+    const rpcArgs = ['--mode', 'rpc', ...args];
+    await main(rpcArgs);
     return;
   }
 
@@ -85,41 +83,6 @@ async function main() {
       process.once('SIGTERM', shutdown);
     });
     return;
-  }
-
-  // Bridge-mode flag (Sprint 1.3). When present, start the local WebSocket
-  // bridge server alongside (or in place of) the regular CLI. The token is
-  // auto-generated from crypto.randomUUID if --bridge-token is omitted.
-  if (hasFlag(['--bridge'])) {
-    const portRaw = getFlag(['--bridge-port']) ?? '7333';
-    const port = Number.parseInt(portRaw, 10);
-    if (!Number.isFinite(port) || port < 0 || port > 65535) {
-      console.error(`Invalid --bridge-port: ${portRaw}`);
-      process.exit(1);
-    }
-    const bind = getFlag(['--bridge-bind']) ?? '127.0.0.1';
-    const explicitToken = getFlag(['--bridge-token']);
-    const token =
-      explicitToken && explicitToken.length >= 8
-        ? explicitToken
-        : crypto.randomUUID().replace(/-/g, '').slice(0, 32);
-    // Honour `$UPUP_HOME` (same shape as @upup/pi-platform / @upup/pi-market-data).
-    const auditPath = join(process.env.UPUP_HOME?.trim() || join(process.env.HOME || homedir(), '.upup'), 'bridge-audit.log');
-    mkdirSync(dirname(auditPath), { recursive: true });
-    const { startBridgeServer } = await import('@upup/pi-bridge');
-    const { getPiNativeApp } = await import('@upup/pi-app/default');
-    const app = getPiNativeApp();
-    const srv = await startBridgeServer({ port, bind, token, auditPath, runtime: app.getGatewayRuntime() });
-    console.log(
-      `[bridge] listening on ws://${bind}:${srv.port}/bridge?token=${token}\n` +
-        `[bridge] audit: ${auditPath}\n` +
-        `[bridge] stop with: kill -TERM ${process.pid}`,
-    );
-    if (hasFlag(['--bridge-only'])) {
-      // Bridge-only mode: keep the process alive without launching the CLI.
-      await new Promise(() => {});
-      return;
-    }
   }
 
   // Handle session resume flags before command switch
@@ -210,18 +173,29 @@ async function main() {
         printHelp();
         process.exit(1);
       }
-      // Start interactive CLI with resume context
-      const { getPiNativeApp } = await import('@upup/pi-app/default');
-      const { runCli } = await import('@upup/pi-tui-app');
-      const app = getPiNativeApp();
-      app.getInvestmentWorkflow();
-      await runCli({
+      // Pi native: delegate to Pi's main() — InteractiveMode, autocomplete,
+      // slash commands, keybindings, theme selector, and the extension-host
+      // boundary all come from there. UpUp finance extensions are loaded
+      // by Pi's package-manager via workspace `pi.manifest` declarations.
+      const { runPiNativeCli } = await import('./pi-native-cli');
+      const widthRaw = getFlag(['--width', '-W']);
+      const heightRaw = getFlag(['--height', '-H']);
+      const terminalSize =
+        widthRaw !== undefined || heightRaw !== undefined
+          ? {
+              ...(widthRaw !== undefined
+                ? { columns: Math.max(20, Number.parseInt(widthRaw, 10) || 80) }
+                : {}),
+              ...(heightRaw !== undefined
+                ? { rows: Math.max(10, Number.parseInt(heightRaw, 10) || 24) }
+                : {}),
+            }
+          : undefined;
+      await runPiNativeCli({
         resumeTarget: resumeTarget ?? undefined,
         continue: shouldContinue,
         fork: shouldFork,
-        stream: app.getTuiEventStream().stream,
-        runtime: app.getTuiRuntime(),
-        capabilities: app.getCommandCapabilities(),
+        ...(terminalSize && terminalSize.columns !== undefined && terminalSize.rows !== undefined ? { terminalSize: { columns: terminalSize.columns, rows: terminalSize.rows } } : {}),
       });
     }
   }
@@ -244,6 +218,7 @@ Usage:
 Diagnostics:
   upup --trace            Print per-turn context payload + Pi startup timings
                           (add UPUP_TRACE_TOOLS=1 for the active tool list)
+  upup --width N -H N     Force a fixed TUI width/height (default: auto-detect)
 
 Config Commands:
   upup config get <key>      Get a config value

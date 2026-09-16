@@ -4,12 +4,12 @@ import { join } from 'node:path';
 
 const productionEntryImports: Record<string, readonly string[]> = {
   'packages/pi-app/src/print.ts': ['./default'],
-  'packages/pi-tui-app/src/tui/agent-runner.ts': ['@upup/pi-runtime'],
+  // Sprint 1 cleanup: pi-tui-app deleted; production CLI is pi-app/pi-native-cli.ts.
   'packages/gateway/src/agent-runner.ts': ['GatewayAgentRuntimePort'],
   'packages/cron/src/executor.ts': ['@upup/gateway'],
   'packages/daemon/src/workers/tasks.ts': ['@upup/gateway'],
-  'packages/pi-bridge/src/server.ts': ['@upup/gateway'],
-  'packages/pi-stdio/src/server.ts': ['@upup/pi-event-adapter', '@upup/pi-session'],
+  // Sprint 4 cleanup: pi-bridge deleted; transport is Pi pi-protocol/pi-client/pi-server.
+  // Sprint 4 cleanup: pi-stdio deleted; stdio RPC is Pi runRpcMode via main() --mode rpc.
   'packages/pi-evals/src/cli.ts': ['@upup/pi-app/default', './run'],
 };
 
@@ -31,7 +31,7 @@ describe('Pi production entry contract', () => {
   });
 
   test('CLI Skill execution stays on the Pi ResourceLoader path', () => {
-    for (const file of ['packages/pi-tui-app/src/cli.ts']) {
+    for (const file of ['packages/pi-app/src/pi-native-cli.ts']) {
       const source = readFileSync(join(process.cwd(), file), 'utf8');
       expect(source).not.toContain('./skills/executor.js');
       expect(source).not.toContain('./skills/index.js');
@@ -121,10 +121,7 @@ describe('Pi production entry contract', () => {
     // No production entry adapter may define its own subscribe() that bypasses
     // PiSessionAdapter or that omits the synthesized session_start.
     const productionAdapters = [
-      'packages/pi-tui-app/src/tui/agent-runner.ts',
       'packages/gateway/src/agent-runner.ts',
-      'packages/pi-stdio/src/server.ts',
-      'packages/pi-bridge/src/server.ts',
       'packages/cron/src/executor.ts',
       'packages/daemon/src/workers/tasks.ts',
       'packages/pi-evals/src/cli.ts',

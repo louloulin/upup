@@ -6,7 +6,7 @@
  * 1. @upup/types 包
  * 2. @upup/plugin-sdk 包
  * 3. @upup/memory 包
- * 4. @upup/hooks 包
+ * 4. Pi pi.on() 包
  * 5. src/types.ts 使用 @upup/types
  * 6. src/plugins/sdk 使用 @upup/plugin-sdk
  */
@@ -185,8 +185,8 @@ console.log('\n📦 4. 检查 @upup/memory 包');
 checkPackage('memory', 'packages/memory');
 checkDistFiles('packages/memory', ['index.js']);
 
-// 5. 检查 @upup/hooks 包
-console.log('\n📦 5. 检查 @upup/hooks 包');
+// 5. 检查 Pi pi.on() 包
+console.log('\n📦 5. 检查 Pi pi.on() 包');
 checkPackage('hooks', 'packages/hooks');
 checkDistFiles('packages/hooks', ['index.js']);
 

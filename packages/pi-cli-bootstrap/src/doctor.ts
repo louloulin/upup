@@ -11,7 +11,7 @@ import { existsSync } from 'fs';
 import { join } from 'path';
 import { PROVIDERS, getUpupHomeRoot, globalUpupPath } from '@upup/utils';
 import { checkApiKeyExists } from '@upup/utils';
-import { validateConfig, isFirstTimeUse, getConfigSummary } from '@upup/pi-tui-app';
+import { validateConfig, isFirstTimeUse, getConfigSummary } from './config-validation';
 import { getConfigSources } from '@upup/utils';
 import { SETTINGS_FILE, ENV_FILE, SETTINGS_DIR } from '@upup/utils';
 

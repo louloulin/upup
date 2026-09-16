@@ -6,7 +6,7 @@ export const DEFAULT_MODEL = 'deepseek-v4-flash';
  * of every model list (TUI `/model`, onboarding, headless default resolution),
  * and the first entry doubles as the provider's default model.
  *
- * This is the single source of truth shared by the TUI (`@upup/pi-tui-app`'s
+ * This is the single source of truth shared by the TUI (`Pi InteractiveMode`'s
  * model list) and the headless surfaces (print / gateway / cron / bridge), so a
  * model id chosen in one place is not silently different in another. Ids that
  * the Pi catalog does not know are skipped at lookup time.

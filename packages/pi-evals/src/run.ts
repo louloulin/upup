@@ -14,7 +14,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import type { PiEventStreamPort } from '@upup/pi-app';
-import { EvalApp, type EvalProgressEvent } from './components/index';
+import { EvalProgress, EvalCurrentQuestion, EvalStats, EvalRecentResults } from './components/index';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -214,7 +214,7 @@ Evaluate and provide:
 // ============================================================================
 
 export function createEvaluationRunner(eventStream: PiEventStreamPort, promptRunner: PromptRunner, sampleSize?: number) {
-  return async function* runEvaluation(): AsyncGenerator<EvalProgressEvent, void, unknown> {
+  return async function* runEvaluation(): AsyncGenerator<unknown, void> {
     // Load and parse dataset
     const csvPath = path.join(__dirname, 'dataset', 'finance_agent.csv');
     const csvContent = fs.readFileSync(csvPath, 'utf-8');
@@ -297,16 +297,26 @@ export async function runEvaluationCli(eventStream: PiEventStreamPort, promptRun
   // Create the evaluation runner with the sample size
   const runEvaluation = createEvaluationRunner(eventStream, promptRunner, sampleSize);
 
-  const tui = new TuiMainScreen(new ProcessTerminal());
-  const evalApp = new EvalApp(tui, runEvaluation);
-
-  tui.addChild(evalApp);
-  tui.start();
-
-  try {
-    await evalApp.run();
-  } finally {
-    evalApp.dispose();
-    tui.stop();
+  // Pi native: the legacy EvalApp Ink UI was deleted with packages/pi-tui-app.
+  // We now consume the generator directly and print progress to stdout — this
+  // keeps the eval CLI runnable in CI / scripted contexts without dragging in
+  // an Ink renderer that duplicates Pi's own terminal surface.
+  for await (const event of runEvaluation()) {
+    if (!event) continue;
+    const e = event as { type: string; [key: string]: unknown };
+    switch (e.type) {
+      case 'init':
+        console.error(`[eval] init: total=${e.total} dataset=${e.datasetName as string}`);
+        break;
+      case 'question_start':
+        console.error(`[eval] question: ${(e.question as string).slice(0, 80)}...`);
+        break;
+      case 'question_end':
+        console.error(`[eval] result: score=${e.score as number} ${(e.comment as string).slice(0, 80)}`);
+        break;
+      case 'complete':
+        console.error(`[eval] complete: experiment=${e.experimentName as string}`);
+        break;
+    }
   }
 }

@@ -9,7 +9,7 @@ import { createInterface } from 'readline';
 import { join } from 'path';
 import { config } from 'dotenv';
 import { PROVIDERS, type ProviderDef, globalUpupPath } from '@upup/utils';
-import { getModelsForProvider } from '@upup/pi-tui-app';
+import { getModelsForProvider } from './model';
 import { saveApiKeyToEnv, getApiKeyNameForProvider } from '@upup/utils';
 import { setSetting } from '@upup/utils';
 

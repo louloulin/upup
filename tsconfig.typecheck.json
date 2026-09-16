@@ -17,12 +17,6 @@
       "@upup/gateway": [
         "./packages/gateway/src/index.ts"
       ],
-      "@upup/hooks": [
-        "./packages/hooks/src/index.ts"
-      ],
-      "@upup/i18n": [
-        "./packages/i18n/src/index.ts"
-      ],
       "@upup/mcp": [
         "./packages/mcp/src/index.ts"
       ],
@@ -65,9 +59,6 @@
       "@upup/pi-event-adapter/pi-model-bridge": [
         "./packages/pi-event-adapter/src/pi-model-bridge.ts"
       ],
-      "@upup/pi-finance-composition": [
-        "./packages/pi-finance-composition/src/index.ts"
-      ],
       "@upup/pi-finance-sdk": [
         "./packages/pi-finance-sdk/src/index.ts"
       ],
@@ -98,9 +89,6 @@
       "@upup/pi-platform": [
         "./packages/pi-platform/src/index.ts"
       ],
-      "@upup/pi-platform-composition": [
-        "./packages/pi-platform-composition/src/index.ts"
-      ],
       "@upup/pi-portfolio": [
         "./packages/pi-portfolio/src/index.ts"
       ],
@@ -128,20 +116,8 @@
       "@upup/pi-session": [
         "./packages/pi-session/src/index.ts"
       ],
-      "@upup/pi-stdio": [
-        "./packages/pi-stdio/src/index.ts"
-      ],
       "@upup/pi-storage": [
         "./packages/pi-storage/src/index.ts"
-      ],
-      "@upup/pi-tui-app": [
-        "./packages/pi-tui-app/src/index.ts"
-      ],
-      "@upup/sdk": [
-        "./packages/sdk/src/index.ts"
-      ],
-      "@upup/state": [
-        "./packages/state/src/index.ts"
       ],
       "@upup/types": [
         "./packages/types/src/index.ts"
