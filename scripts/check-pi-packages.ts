@@ -94,7 +94,7 @@ for (const extensionPath of packageExtensionFiles) {
   const isNativeNotifyExtension = extensionPath.endsWith('packages/pi-notify/extensions/index.ts') && source.includes("name: 'notify'") && source.includes("name: 'notify_list'") && source.includes("name: 'subscribe_pr'");
   const isNativePlatformExtension = extensionPath.endsWith('packages/pi-platform/extensions/index.ts') && nativePlatformTools.every((toolName) => source.includes(`name: '${toolName}'`));
   const usesExplicitCapabilityRegistry = source.includes('@upup/pi-capability-registry')
-    && (source.includes('registerPiCapabilityHost') || source.includes('resolvePiCapabilityHost'));
+    && (source.includes('registerPiCapabilityHost') || source.includes('resolvePiCapabilityHost') || source.includes('definePiCapabilityHost'));
   if (source.includes('__upupPiHosts') || source.includes('__upupPiHost') || source.includes('globalThis')) failures.push(`Pi extension uses a forbidden global capability registry: ${extensionPath}`);
   if (!isPureNativeRiskExtension && !isNativeMarketExtension && !isNativeResearchExtension && !isNativeBrowserExtension && !isNativeConfigExtension && !isNativeCacheExtension && !isNativeNotifyExtension && !isNativePlatformExtension && !usesExplicitCapabilityRegistry) failures.push(`Pi extension must use the explicit session capability contract: ${extensionPath}`);
 }

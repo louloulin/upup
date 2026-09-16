@@ -18,11 +18,12 @@
  */
 
 import { homedir } from 'node:os';
-import { existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { resolveAgentDir } from '@upup/pi-resource-composition';
 import { DefaultPackageManager, DefaultResourceLoader, SettingsManager } from '@earendil-works/pi-coding-agent';
 import { startAgentDirWatcher, type SettingsWatcherEvent } from '@upup/pi-resource-composition';
+import { UPUP_RECOMMENDED_PLUGINS, UPUP_KNOWN_PROBLEMATIC_PLUGINS, groupRecommendedByCategory } from './recommended-plugins';
 
 // ConfiguredPackage is declared in pi-coding-agent's package-manager.d.ts but
 // not re-exported from its main index. Use a structural mirror to avoid pulling
@@ -50,7 +51,7 @@ const info = (msg: string): void => log(`${DIM}  ${msg}${RESET}`);
 const head = (msg: string): void => log(`${CYAN}${BOLD}${msg}${RESET}`);
 
 export interface PluginCommandOptions {
-  command: 'install' | 'list' | 'uninstall' | 'update' | 'reload' | 'watch' | 'help';
+  command: 'install' | 'list' | 'uninstall' | 'update' | 'reload' | 'watch' | 'recommend' | 'enable' | 'disable' | 'help';
   args: string[];
   env?: NodeJS.ProcessEnv;
   home?: string;
@@ -175,6 +176,86 @@ async function runUninstall(args: string[], opts: { env: NodeJS.ProcessEnv; home
   }
   if (!noReload) await reloadAndReport(opts, { source: 'uninstall', noNotifyBridge });
   return { exitCode: 0, message: 'uninstall ok' };
+}
+
+async function runRecommend(): Promise<PluginRunResult> {
+  head('UpUp 推荐 Pi extension 插件清单');
+  info('每个插件独立安装；不在推荐清单内的 npm 包默认 autoload=false，避免污染 system prompt。');
+  info('安装：upup plugin install <source>');
+  log('');
+  const grouped = groupRecommendedByCategory();
+  const order: Array<keyof typeof grouped> = ['web', 'mcp', 'subagent', 'memory', 'background', 'workflow', 'interaction', 'provider'];
+  for (const cat of order) {
+    const plugins = grouped[cat];
+    if (plugins.length === 0) continue;
+    log(`${BOLD}${cat.toUpperCase()}${RESET}`);
+    for (const p of plugins) {
+      log(`  ${GREEN}${p.source}${RESET}`);
+      log(`    ${p.description}`);
+      if (p.caveats.length > 0) {
+        for (const c of p.caveats) log(`    ${YELLOW}!${RESET} ${DIM}${c}${RESET}`);
+      }
+    }
+    log('');
+  }
+  if (UPUP_KNOWN_PROBLEMATIC_PLUGINS.length > 0) {
+    log(`${YELLOW}${BOLD}已知与 UpUp 不兼容${RESET}`);
+    for (const p of UPUP_KNOWN_PROBLEMATIC_PLUGINS) {
+      log(`  ${RED}${p.source}${RESET}`);
+      for (const c of p.caveats) log(`    ${DIM}- ${c}${RESET}`);
+    }
+    log('');
+  }
+  return { exitCode: 0, message: 'recommend printed' };
+}
+
+async function runToggleAutoload(
+  source: string,
+  enable: boolean,
+  ctx: { env: NodeJS.ProcessEnv; home: string; cwd: string },
+): Promise<PluginRunResult> {
+  const { agentDir } = buildManager(ctx);
+  const settingsPath = join(agentDir, 'settings.json');
+  if (!existsSync(settingsPath)) {
+    fail(`settings.json not found at ${settingsPath}`);
+    return { exitCode: 1, message: 'settings not found' };
+  }
+  const settings = JSON.parse(readFileSync(settingsPath, 'utf8')) as { packages?: unknown[] };
+  const packages = Array.isArray(settings.packages) ? settings.packages : [];
+  // 模糊匹配：用户输入可能是 `npm:@pi/foo` 或 `builtin:@upup/pi-foo` 或
+  // `pi-foo` —— 我们匹配 packages 数组里的 source 包含用户的 query 即可。
+  const needle = source.replace(/^npm:/, '').replace(/^builtin:/, '').toLowerCase();
+  let mutated = false;
+  let matchedDisplay = '';
+  const next = packages.map((entry) => {
+    const entrySource = typeof entry === 'string'
+      ? entry
+      : entry && typeof entry === 'object' && typeof (entry as Record<string, unknown>).source === 'string'
+        ? (entry as Record<string, unknown>).source as string
+        : '';
+    if (!entrySource) return entry;
+    const haystack = entrySource.toLowerCase();
+    if (!haystack.includes(needle)) return entry;
+    matchedDisplay = entrySource;
+    if (typeof entry === 'string') {
+      mutated = true;
+      return { source: entry, autoload: enable };
+    }
+    const obj = entry as Record<string, unknown>;
+    if (obj.autoload === enable) return entry;
+    mutated = true;
+    return { ...obj, autoload: enable };
+  });
+  if (!mutated) {
+    warn(`${source} 不在 settings.json 的 packages 数组中`);
+    info('先 `upup plugin install <source>` 安装');
+    info('列出已装：`upup plugin list`');
+    info('推荐安装：`upup plugin recommend`');
+    return { exitCode: 1, message: 'source not installed' };
+  }
+  writeFileSync(settingsPath, JSON.stringify({ ...settings, packages: next }, null, 2) + '\n', 'utf8');
+  ok(`${matchedDisplay} ${enable ? '已启用（autoload=true）' : '已禁用（autoload=false）'}`);
+  return { exitCode: 0, message: enable ? 'enabled' : 'disabled' };
 }
 
 async function runUpdate(args: string[], opts: { env: NodeJS.ProcessEnv; home: string; cwd: string }): Promise<PluginRunResult> {
@@ -556,6 +637,20 @@ export async function runPluginCommand(opts: PluginCommandOptions): Promise<Plug
       return runReload(ctx);
     case 'watch':
       return runWatch(ctx, opts.args);
+    case 'recommend':
+      return runRecommend();
+    case 'enable':
+      if (opts.args.length === 0) {
+        fail('enable requires a source argument');
+        return { exitCode: 1, message: 'missing source' };
+      }
+      return runToggleAutoload(opts.args[0], true, ctx);
+    case 'disable':
+      if (opts.args.length === 0) {
+        fail('disable requires a source argument');
+        return { exitCode: 1, message: 'missing source' };
+      }
+      return runToggleAutoload(opts.args[0], false, ctx);
     case 'help':
       printHelp();
       return { exitCode: 0, message: 'help printed' };

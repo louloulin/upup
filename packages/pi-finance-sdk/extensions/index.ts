@@ -1,7 +1,7 @@
 import { Type } from 'typebox';
 import type { ExtensionAPI, ExtensionContext } from '@earendil-works/pi-coding-agent';
 import type { PiToolResult } from '@upup/pi-runtime';
-import { resolvePiCapabilityHost } from '@upup/pi-capability-registry';
+import { definePiCapabilityHost, resolvePiCapabilityHost } from '@upup/pi-capability-registry';
 import {
   registerPiFinanceCommands,
   setPiFinanceCommandRunners,
@@ -335,6 +335,22 @@ export const __keep_setPiFinanceCommandRunners = setPiFinanceCommandRunners;
 export const __keep_PI_FINANCE_COMMANDS = PI_FINANCE_COMMANDS;
 
 export default function financeEvidenceExtension(pi: ExtensionAPI): void {
+  // Sprint D: self-publish the capability host so this extension is
+  // self-contained (resolvable via `resolvePiCapabilityHost` without the
+  // agent-session-factory side-channel). Session-level providers (quote
+  // fetcher, trend store, etc.) still flow through the orchestrator's
+  // later publish — both publishers coexist and last-write-wins. The host
+  // we publish here is metadata-only; tools fall back to the raw fetcher
+  // path inside `fetchNativeQuote` whenever a session-level provider is
+  // missing, so the extension also runs standalone.
+  definePiCapabilityHost(pi, {
+    packageName: PI_FINANCE_PACKAGE_NAME,
+    packageVersion: PI_FINANCE_PACKAGE_VERSION,
+    capabilities: PI_FINANCE_HOST_CAPABILITIES,
+    contract: PI_FINANCE_HOST_CONTRACT,
+    providers: {},
+    register: () => undefined,
+  });
   const host = getPiFinanceToolHost(pi.events);
   const quoteFetcher = host?.providers.marketData?.getMarketQuoteFetcher?.();
   const quoteService = host?.providers.marketData?.getMarketQuote;

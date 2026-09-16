@@ -1,7 +1,7 @@
 import { Type } from 'typebox';
 import type { AgentToolResult } from '@earendil-works/pi-agent-core';
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
-import { resolvePiCapabilityHost, registerPiCapabilityHost } from '@upup/pi-capability-registry';
+import {resolvePiCapabilityHost, registerPiCapabilityHost, definePiCapabilityHost} from '@upup/pi-capability-registry';
 import { buildTechnicalSnapshot, createDefaultMarketQuoteClient, FixedWindowMarketHistoryRateLimiter, InMemoryMarketHistoryCache, isTradingDay, normalizeMarket, providerSla, resolveMarketHistoryClient, resolveMarketQuoteClient, JsonFileProviderSlaStore, type Market, type MarketHistoryProvider, type NativeMarketQuote, type NativeMarketQuoteClient, type NativeMarketQuoteMetrics, type NativeMarketQuoteTrendStore } from '../src/index';
 import { calendarTradingDays, isCalendarTradingDay, nextCalendarTradingDay, upcomingCalendarHolidays, type CalendarMarket } from '../src/calendar';
 import { screenStockSnapshot, type StockScreenInput } from '../src/screener';
@@ -183,6 +183,20 @@ function calendarResult(toolCallId: string, query: string, value: unknown, evide
 }
 
 export default function marketDataExtension(pi: ExtensionAPI): void {
+  // Sprint D: self-publish the capability host so the extension is
+  // self-contained (resolvable via `resolvePiCapabilityHost` without the
+  // agent-session-factory side-channel). Session-level providers still flow
+  // through the orchestrator's later publish — both publishers coexist and
+  // last-write-wins. The host we publish here is metadata-only.
+  definePiCapabilityHost(pi, {
+    packageName: PACKAGE,
+    packageVersion: VERSION,
+        capabilities: ['market-data', 'market-history', 'market-data-transport'],
+        contract: 'upup.pi.market-data.v1',
+    providers: {},
+    register: () => undefined,
+  });
+
   registerHostTools(pi);
   const transport = hostTransport(pi.events);
   const context = transport.context;

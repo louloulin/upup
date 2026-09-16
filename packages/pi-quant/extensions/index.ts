@@ -1,6 +1,6 @@
 import { Type } from 'typebox';
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
-import { registerPiCapabilityHost } from '@upup/pi-capability-registry';
+import {registerPiCapabilityHost, definePiCapabilityHost} from '@upup/pi-capability-registry';
 
 const PACKAGE = '@upup/pi-quant';
 const VERSION = '0.1.0';
@@ -69,6 +69,19 @@ const barSchema = Type.Object({
 });
 
 export default function quantExtension(pi: ExtensionAPI): void {
+  // Sprint D: self-publish the capability host so the extension is
+  // self-contained (resolvable via `resolvePiCapabilityHost` without the
+  // agent-session-factory side-channel). Session-level providers still flow
+  // through the orchestrator's later publish — both publishers coexist and
+  // last-write-wins. The host we publish here is metadata-only.
+  definePiCapabilityHost(pi, {
+    packageName: PACKAGE,
+    packageVersion: VERSION,
+        capabilities: [] as readonly string[],
+    providers: {},
+    register: () => undefined,
+  });
+
   registerHostTools(pi);
 
   pi.registerTool({

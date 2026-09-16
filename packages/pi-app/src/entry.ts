@@ -143,7 +143,7 @@ async function main() {
       const plArgs = args.slice(1);
       const plSub = plArgs[0] || 'help';
       const plSubArgs = plArgs.slice(1);
-      const plResult = await runPluginCommand({ command: plSub as 'install' | 'list' | 'uninstall' | 'update' | 'reload' | 'help', args: plSubArgs });
+      const plResult = await runPluginCommand({ command: plSub as 'install' | 'list' | 'uninstall' | 'update' | 'reload' | 'recommend' | 'enable' | 'disable' | 'help', args: plSubArgs });
       process.exit(plResult.exitCode);
       break;
 

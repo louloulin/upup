@@ -81,6 +81,122 @@ describe('@upup/pi-capability-registry', () => {
   });
 });
 
+import { definePiCapabilityHost } from './src/index';
+
+describe('definePiCapabilityHost (Sprint D self-publish)', () => {
+  test('synchronously publishes host and binds providers when pi.session is available', () => {
+    const events = createEventBus();
+    let registered: { sessionId: string; providers: { tools: string[] } } | undefined;
+    definePiCapabilityHost(
+      {
+        events,
+        registerTool: () => {},
+        session: { sessionId: 'sync-session' },
+      },
+      {
+        packageName: '@upup/pi-finance-sdk',
+        packageVersion: '0.1.0',
+        capabilities: ['market-data-transport', 'tool-definitions'],
+        providers: { tools: ['financial_search'] },
+        register: (services) => { registered = services; },
+      },
+    );
+    expect(registered).toEqual({ sessionId: 'sync-session', providers: { tools: ['financial_search'] } });
+    const resolved = resolvePiCapabilityHost(events, '@upup/pi-finance-sdk', 'sync-session');
+    expect(resolved?.capabilities).toEqual(['market-data-transport', 'tool-definitions']);
+    expect(resolved?.providers).toEqual({ tools: ['financial_search'] });
+  });
+
+  test('publishes host after session_start fires when no session id is available', () => {
+    const events = createEventBus();
+    const sessionStartHandlers: Array<(event: unknown, context: { sessionManager: { getSessionId(): string } }) => void> = [];
+    let registered: { sessionId: string; providers: Record<string, unknown> } | undefined;
+    definePiCapabilityHost(
+      {
+        events,
+        registerTool: () => {},
+        on: (name, handler) => {
+          if (name === 'session_start') sessionStartHandlers.push(handler);
+          return () => undefined;
+        },
+      },
+      {
+        packageName: '@upup/pi-market-data',
+        packageVersion: '0.1.0',
+        capabilities: ['market-data'],
+        providers: { getQuote: () => 42 },
+        register: (services) => { registered = services; },
+      },
+    );
+    expect(registered).toBeUndefined();
+    sessionStartHandlers[0]?.({}, { sessionManager: { getSessionId: () => 'deferred-session' } });
+    expect(registered?.sessionId).toBe('deferred-session');
+    const resolved = resolvePiCapabilityHost(events, '@upup/pi-market-data', 'deferred-session');
+    expect(resolved?.providers.getQuote()).toBe(42);
+  });
+
+  test('idempotent: subsequent session_start events do not re-publish', () => {
+    const events = createEventBus();
+    const handlers: Array<(event: unknown, context: { sessionManager: { getSessionId(): string } }) => void> = [];
+    let callCount = 0;
+    definePiCapabilityHost(
+      {
+        events,
+        registerTool: () => {},
+        on: (name, handler) => { if (name === 'session_start') handlers.push(handler); return () => undefined; },
+      },
+      {
+        packageName: '@upup/pi-risk',
+        packageVersion: '0.1.0',
+        capabilities: ['risk'],
+        providers: { evaluateRisk: () => 'low' },
+        register: () => { callCount += 1; },
+      },
+    );
+    handlers[0]?.({}, { sessionManager: { getSessionId: () => 's1' } });
+    handlers[0]?.({}, { sessionManager: { getSessionId: () => 's2' } });
+    expect(callCount).toBe(1);
+  });
+
+  test('gracefully skips when neither pi.session nor pi.on is available', () => {
+    const events = createEventBus();
+    let registerCalled = false;
+    const dispose = definePiCapabilityHost(
+      { events, registerTool: () => {} },
+      {
+        packageName: '@upup/pi-portfolio',
+        packageVersion: '0.1.0',
+        capabilities: ['portfolio'],
+        providers: {},
+        register: () => { registerCalled = true; },
+      },
+    );
+    // Without lifecycle hooks, the host is NOT published and `register`
+    // is NOT invoked. This lets unit tests stub `pi` without a session
+    // and still have the extension factory run.
+    expect(registerCalled).toBe(false);
+    expect(typeof dispose).toBe('function');
+    expect(resolvePiCapabilityHost(events, '@upup/pi-portfolio', undefined)).toBeUndefined();
+  });
+
+  test('uses provided contract id when supplied', () => {
+    const events = createEventBus();
+    definePiCapabilityHost(
+      { events, registerTool: () => {}, session: { sessionId: 'c-session' } },
+      {
+        packageName: '@upup/pi-investment-workflow',
+        packageVersion: '0.1.0',
+        capabilities: ['investment-workflow'],
+        contract: 'upup.pi.workflow.v1',
+        providers: { run: () => undefined },
+        register: () => undefined,
+      },
+    );
+    const resolved = resolvePiCapabilityHost(events, '@upup/pi-investment-workflow', 'c-session');
+    expect(resolved?.contract).toBe('upup.pi.workflow.v1');
+  });
+});
+
 function registerCapabilityHosts(events: ReturnType<typeof createEventBus>, sessionId: string, host: { contract: string; packageName: string; packageVersion: string; sessionId: string; capabilities: readonly string[] }): () => void {
   return publishPiCapabilityHosts(events, sessionId, new Map([[host.packageName, host]]));
 }

@@ -35,7 +35,30 @@ import { homedir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { resolveAgentDir, upupAgentDirFor } from '@upup/pi-resource-composition';
+import { resolveAgentDir, upupAgentDirFor, getBuiltinPackageSources } from '@upup/pi-resource-composition';
+
+/**
+ * UpUp 推荐加载的 Pi extension 插件 source 集合。
+ *
+ * Bootstrap 时把已装的 npm 第三方包但**不在此集合**内的标记为
+ * `autoload: false`，避免污染 system prompt 与启动 warning（如
+ * `workflow-delivery`）。用户可通过 `upup plugin enable <source>` 显式启用。
+ *
+ * 推荐清单完整定义在 `@upup/pi-cli-bootstrap/recommended-plugins`，
+ * 此处只放 source 字符串集合避免循环依赖。
+ */
+const UPUP_AUTOLOAD_SAFE_SOURCES: ReadonlySet<string> = new Set([
+  'npm:pi-web-access',
+  'npm:pi-mcp-adapter',
+  'npm:pi-subagents',
+  'npm:pi-background-tasks',
+  'npm:pi-hermes-memory',
+  'npm:@narumitw/pi-goal',
+  'npm:@juicesharp/rpiv-ask-user-question',
+  'npm:@specode/pi-kimi-cu',
+  'npm:@amaster.ai/pi-teamwork',
+  'npm:@llmgates_api/pi-llmgates-provider',
+]);
 
 const UPUP_DARK_THEME_FILENAME = 'upup-dark.json';
 const UPUP_DEFAULT_THEME = 'upup-dark';
@@ -245,6 +268,86 @@ const EMPTY_RESULT = (agentDir: string): BootstrapAgentResult => ({
 });
 
 /**
+ * 把 settings.json 里已装但不在 UpUp 推荐清单内的 npm 第三方包标记为
+ * `autoload: false`。返回是否真的修改了文件（idempotent）。
+ *
+ * 设计原则：
+ *   1. 不删除任何包——保留用户的安装
+ *   2. 推荐清单内的包保留 autoload=true（不影响用户已启用的功能）
+ *   3. 非推荐包默认 autoload=false——用户需 `upup plugin enable <source>` 启用
+ *   4. 已经是 autoload=false 的不动——避免重复写文件
+ *
+ * 这解决了：
+ *   - `[workflow-delivery] no session-stable thenable send` warning
+ *     （来自 npm:@quintinshaw/pi-dynamic-workflows）
+ *   - 175 个外部 skill 从 ~/.agents/skills 注入 system prompt 的污染
+ */
+function disableNonRecommendedThirdPartyPackages(settingsPath: string): boolean {
+  const existing = readJsonIfExists(settingsPath);
+  if (!existing) return false;
+  const rawPackages = existing.packages;
+  if (!Array.isArray(rawPackages)) return false;
+
+  let mutated = false;
+  const nextPackages = rawPackages.map((entry) => {
+    // 字符串形式：保留。Pi 的 settings manager 接受字符串 source。
+    if (typeof entry === 'string') return entry;
+    if (!entry || typeof entry !== 'object') return entry;
+    const obj = entry as Record<string, unknown>;
+    const source = typeof obj.source === 'string' ? obj.source : '';
+    if (!source) return entry;
+    // 推荐清单内的包不动
+    if (UPUP_AUTOLOAD_SAFE_SOURCES.has(source)) return entry;
+    // 已经是 autoload=false 的不动
+    if (obj.autoload === false) return entry;
+    mutated = true;
+    return { ...obj, autoload: false };
+  });
+
+  if (!mutated) return false;
+  writeFileSync(settingsPath, `${JSON.stringify({ ...existing, packages: nextPackages }, null, 2)}\n`, 'utf8');
+  return true;
+}
+
+/**
+ * Sprint A：把 UpUp 内置的 19 个 pi-* workspace packages 以
+ * `builtin:@upup/<pkg>@<version>` 形式写入 ~/.upup/agent/settings.json。
+ *
+ * 这样用户能：
+ *   1. 直接在 settings.json 里看到 UpUp 内置包列表
+ *   2. 把任意一个标记 `autoload: false` 关闭（与 npm 第三方包一致）
+ *   3. 删除某个 builtin 条目后，下次启动会自动重新加回（默认始终启用）
+ *
+ * Idempotent：已存在的 builtin 条目不动；不存在的新增。
+ */
+function syncBuiltinPiPackages(settingsPath: string): boolean {
+  const builtins = getBuiltinPackageSources();
+  if (builtins.length === 0) return false;
+  const existing = readJsonIfExists(settingsPath);
+  const base: Record<string, unknown> = existing ?? {};
+  const rawPackages = Array.isArray(existing?.packages) ? (existing as { packages: unknown[] }).packages : [];
+  const existingSources = new Set<string>();
+  for (const entry of rawPackages) {
+    const source = typeof entry === 'string'
+      ? entry
+      : entry && typeof entry === 'object' && typeof (entry as Record<string, unknown>).source === 'string'
+        ? (entry as Record<string, unknown>).source as string
+        : undefined;
+    if (source) existingSources.add(source);
+  }
+  let mutated = false;
+  const nextPackages: unknown[] = [...rawPackages];
+  for (const b of builtins) {
+    if (existingSources.has(b.source)) continue;
+    nextPackages.push({ source: b.source, autoload: true });
+    mutated = true;
+  }
+  if (!mutated) return false;
+  writeFileSync(settingsPath, `${JSON.stringify({ ...base, packages: nextPackages }, null, 2)}\n`, 'utf8');
+  return true;
+}
+
+/**
  * Bootstrap `~/.upup/agent/`. Safe to call on every process start: all steps
  * are idempotent and any I/O failure degrades to `skipped: true` so the CLI
  * still starts on a read-only `$HOME`.
@@ -271,6 +374,24 @@ export function bootstrapUpupAgentSync(options: BootstrapAgentOptions = {}): Boo
     settingsWritten = ensureUpupThemeSelected(join(context.agentDir, 'settings.json'));
   } catch {
     return { ...EMPTY_RESULT(context.agentDir), seededPaths: seed.seededPaths, ...(seed.seededFrom ? { seededFrom: seed.seededFrom } : {}) };
+  }
+
+  // Sprint C：把不在 UpUp 推荐清单内的 npm 第三方包标记为 autoload=false。
+  // 这是 idempotent 操作：已标记的包不会被改动；推荐清单内的包保留 autoload=true。
+  // 用户已装的包不会被删除，只是默认不加载；通过 `upup plugin enable <source>` 启用。
+  try {
+    disableNonRecommendedThirdPartyPackages(join(context.agentDir, 'settings.json'));
+  } catch {
+    /* autoload 标记失败不影响启动 */
+  }
+
+  // Sprint A：把 UpUp 内置的 19 个 pi-* workspace packages 写入 settings.json 的
+  // packages 数组（builtin:@upup/<pkg>@<version> 形式）。用户在 settings.json 里
+  // 即可直接看到/管理这些 builtin 包，与 npm 第三方包并列。
+  try {
+    syncBuiltinPiPackages(join(context.agentDir, 'settings.json'));
+  } catch {
+    /* builtin sync 失败不影响启动 */
   }
 
   return {

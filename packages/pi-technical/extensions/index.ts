@@ -1,15 +1,9 @@
 import { Type } from 'typebox';
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
-import { registerPiCapabilityHost } from '@upup/pi-capability-registry';
+import { definePiCapabilityHost } from '@upup/pi-capability-registry';
 
 const PACKAGE = '@upup/pi-technical';
 const VERSION = '0.1.0';
-
-function registerHostTools(pi: ExtensionAPI): void {
-  registerPiCapabilityHost(pi, PACKAGE, (host) => {
-    if (host.packageVersion !== VERSION || !host.sessionId) return;
-  });
-}
 
 import {
   computeAllIndicators,
@@ -44,7 +38,14 @@ const computeIndicatorsParameters = Type.Object({
 function text(value: unknown): string { return JSON.stringify(value, null, 2); }
 
 export default function technicalExtension(pi: ExtensionAPI): void {
-  registerHostTools(pi);
+  // Sprint D: self-publish the technical-analysis capability host.
+  definePiCapabilityHost(pi, {
+    packageName: PACKAGE,
+    packageVersion: VERSION,
+    capabilities: ['tool-definitions'],
+    providers: {},
+    register: () => undefined,
+  });
   pi.registerTool({
     name: 'compute_indicators',
     label: 'Compute technical indicators',

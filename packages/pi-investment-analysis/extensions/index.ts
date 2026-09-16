@@ -1,6 +1,6 @@
 import { Type } from 'typebox';
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
-import { registerPiCapabilityHost, resolvePiCapabilityHost } from '@upup/pi-capability-registry';
+import {registerPiCapabilityHost, resolvePiCapabilityHost, definePiCapabilityHost} from '@upup/pi-capability-registry';
 import { calculateDcf, calculateProductionDcf, calculateProductionDdm, calculateTechnicalSignal, calculateQuickTargetPrice, calculateTargetPrice, calculateValuationRatios, comparePeers, calculateOptionPrice, calculateImpliedVolatility, calculateTechnicalIndicators, calculateKdj, calculateBoll, calculateWr, calculateCci, calculateAtr, calculateObv, calculateDecisionDashboard, parseResearchJournalState, queryResearchJournal, runResearchCoordinator, runNativeStockAnalysis, MatrixEngine, toCSV, toMarkdown, DEFAULT_TICKERS_UNIVERSE, DIMENSIONS, DIMENSION_LABELS_ZH, type MatrixCell, type Dimension, type DcfInput, type ProductionDcfInput, type ProductionDdmInput, type PeerComparisonInput, type TargetPriceInput, type ValuationRatiosInput, type OptionPricingInput, type TechnicalBar, type DecisionDashboardInput, type ResearchPhase, type ResearchTaskStatus, type ResearchRole } from '../src/index';
 
 const PACKAGE = '@upup/pi-investment-analysis';
@@ -148,6 +148,19 @@ function ddmEvidence(toolCallId: string) {
 }
 
 export default function investmentAnalysisExtension(pi: ExtensionAPI): void {
+  // Sprint D: self-publish the capability host so the extension is
+  // self-contained (resolvable via `resolvePiCapabilityHost` without the
+  // agent-session-factory side-channel). Session-level providers still flow
+  // through the orchestrator's later publish — both publishers coexist and
+  // last-write-wins. The host we publish here is metadata-only.
+  definePiCapabilityHost(pi, {
+    packageName: PACKAGE,
+    packageVersion: VERSION,
+        capabilities: ['research-worker', 'tool-definitions'] as readonly string[],
+    providers: {},
+    register: () => undefined,
+  });
+
   registerHostTools(pi);
   const runtimeHost = resolvePiCapabilityHost<{ packageName: string; packageVersion: string; sessionId: string; capabilities: readonly string[]; providers: { workers?: { runResearchWorker?: (request: unknown, signal: AbortSignal | undefined) => Promise<{ role: ResearchRole; output: string; evidence: readonly unknown[]; sessionId?: string }> } } }>(pi.events, PACKAGE, undefined);
   const platformHost = resolvePiCapabilityHost<{ packageName: string; capabilities: readonly string[]; providers: { workers?: { runAgentWorker?: (request: unknown, signal: AbortSignal | undefined) => Promise<{ agentId: string; output: string; sessionId: string }> } } }>(pi.events, '@upup/pi-platform', undefined);

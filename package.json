@@ -12,16 +12,16 @@
   ],
   "scripts": {
     "benchmark:pi5": "bun run scripts/benchmark-pi5.ts",
-    "build": "bun run typecheck && (cd packages/utils && bun run build) && (cd packages/pi-evals && bun run build) && bun build --compile --target=bun --outfile=dist/upup src/index.tsx --external=playwright --external=playwright-core && bun run scripts/copy-pi-package-resources.ts dist && chmod +x dist/upup && echo '✅ Build complete: dist/upup'",
+    "build": "bun run typecheck && (cd packages/utils && bun run build) && (cd packages/pi-evals && bun run build) && bun build --compile --target=bun --outfile=dist/upup src/index.tsx --external=playwright --external=playwright-core && bun run scripts/copy-pi-package-resources.ts dist && chmod +x dist/upup && echo '\u2705 Build complete: dist/upup'",
     "build:packages": "bun run scripts/build-workspace-packages.ts",
     "build:all": "bun run build:types && bun run build:hooks && bun run build:memory && bun run --filter @upup/pi-session build && bun run --filter @upup/pi-app build && bun run build",
-    "build:bun": "bun run typecheck && echo '✅ Bun build complete - run: bun start'",
-    "build:compile": "bun build --compile --target=bun --outfile=upup src/index.tsx --external=playwright --external=playwright-core && bun run scripts/copy-pi-package-resources.ts . && chmod +x upup && echo '✅ Binary compile complete - run: ./upup'",
-    "build:compile:win": "bun build --compile --target=bun --outfile=upup.exe src/index.tsx && bun run scripts/copy-pi-package-resources.ts . && echo '✅ Windows compile complete'",
+    "build:bun": "bun run typecheck && echo Bun build complete - run: bun start'",
+    "build:compile": "bun build --compile --target=bun --outfile=upup src/index.tsx --external=playwright --external=playwright-core && bun run scripts/copy-pi-package-resources.ts . && chmod +x upup && echo '\u2705 Binary compile complete - run: ./upup'",
+    "build:compile:win": "bun build --compile --target=bun --outfile=upup.exe src/index.tsx && bun run scripts/copy-pi-package-resources.ts . && echo '\u2705 Windows compile complete'",
     "build:hooks": "cd packages/hooks && bun build src/index.ts --outdir=dist --target=bun && npx tsc --emitDeclarationOnly --declaration --declarationMap --outDir dist",
     "build:memory": "cd packages/memory && bun build src/index.ts --outdir=dist --target=bun",
-    "build:node": "npx esbuild src/index.tsx --bundle --target=node22 --platform=node --outfile=dist/index.js --external:better-sqlite3 --external:@duckdb/duckdb-wasm --external:playwright --external:playwright-core --external:dotenv --external:zod --external:@earendil-works/pi-tui --external:gray-matter --external:fs --external:path --external:os --external:crypto --external:stream --external:events --external:readline --external:tty --external:util --external:url --external:http --external:https --external:zlib --external:buffer --external:child_process --external:module --external:net --external:tls --external:dgram --external:dns --external:http2 --external:inspector --external:punycode --external:querystring --external:string_decoder --external:sys --external:timers --external:stream/promises --external:path/posix --external:path/win32 --alias:gray-matter=/tmp/shims/gray-matter.js --format=esm --inject:/tmp/node-shim.js --log-level=error && echo '✅ Node.js build complete: dist/index.js'",
-    "build:node:win": "bun build src/index.tsx --target=node --outfile=dist/upup.exe --external=dotenv --external=zod && echo '✅ Windows build complete'",
+    "build:node": "npx esbuild src/index.tsx --bundle --target=node22 --platform=node --outfile=dist/index.js --external:better-sqlite3 --external:@duckdb/duckdb-wasm --external:playwright --external:playwright-core --external:dotenv --external:zod --external:@earendil-works/pi-tui --external:gray-matter --external:fs --external:path --external:os --external:crypto --external:stream --external:events --external:readline --external:tty --external:util --external:url --external:http --external:https --external:zlib --external:buffer --external:child_process --external:module --external:net --external:tls --external:dgram --external:dns --external:http2 --external:inspector --external:punycode --external:querystring --external:string_decoder --external:sys --external:timers --external:stream/promises --external:path/posix --external:path/win32 --alias:gray-matter=/tmp/shims/gray-matter.js --format=esm --inject:/tmp/node-shim.js --log-level=error && echo '\u2705 Node.js build complete: dist/index.js'",
+    "build:node:win": "bun build src/index.tsx --target=node --outfile=dist/upup.exe --external=dotenv --external=zod && echo '\u2705 Windows build complete'",
     "build:pkg": "pkg . --targets node22-linux-x64,node22-macos-x64,node22-win-x64 --output dist/upup-pkg",
     "build:pkg:linux": "pkg . --targets node22-linux-x64 --output dist/upup-linux",
     "build:pkg:mac": "pkg . --targets node22-macos-x64 --output dist/upup-macos",
@@ -80,7 +80,8 @@
     "verify:pi-cbor": "bun test scripts/verify-pi-cbor.test.ts",
     "verify:pi7-final": "bun run scripts/verify-pi7-final.ts",
     "check:upup-home": "bun run scripts/check-upup-home.ts",
-    "lint:upup-home": "bun run scripts/check-upup-home.ts"
+    "lint:upup-home": "bun run scripts/check-upup-home.ts",
+    "check:upup-clean-loading": "bun run scripts/check-upup-clean-loading.ts"
   },
   "dependencies": {
     "@upup/pi-finance-sdk": "workspace:*",

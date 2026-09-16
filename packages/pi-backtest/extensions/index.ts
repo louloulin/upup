@@ -1,6 +1,6 @@
 import { Type } from 'typebox';
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
-import { registerPiCapabilityHost } from '@upup/pi-capability-registry';
+import {registerPiCapabilityHost, definePiCapabilityHost} from '@upup/pi-capability-registry';
 import { calculateWinRate, computeSummary, evaluateTrade, renderFundBacktestReport, runBacktest, runFundBacktest, type BacktestConfig, type BacktestCostModel, type BacktestTrade, type DailyBar, type FundBacktestConfig, type FundNavPoint } from '../src/index';
 
 const PACKAGE = '@upup/pi-backtest';
@@ -43,6 +43,19 @@ function audit(id: string, query: string) { return { id: `pi-backtest:${id}`, so
 function nativeEvidence(id: string, query: string, path: string) { const retrievedAt = new Date().toISOString(); return { id: `pi-backtest:${id}:${query}`, source: `upup-pi://backtest/${path}`, retrievedAt, asOf: retrievedAt.slice(0, 10), query, dataFreshness: 'historical' as const, auditId: id }; }
 function nativeResult(id: string, query: string, path: string, value: unknown, details: Record<string, unknown> = {}) { const evidence = nativeEvidence(id, query, path); return { content: [{ type: 'text' as const, text: JSON.stringify(value) }], details: { evidence: [evidence], dataFreshness: evidence.dataFreshness, auditId: id, ...details } }; }
 export default function backtestExtension(pi: ExtensionAPI): void {
+  // Sprint D: self-publish the capability host so the extension is
+  // self-contained (resolvable via `resolvePiCapabilityHost` without the
+  // agent-session-factory side-channel). Session-level providers still flow
+  // through the orchestrator's later publish — both publishers coexist and
+  // last-write-wins. The host we publish here is metadata-only.
+  definePiCapabilityHost(pi, {
+    packageName: PACKAGE,
+    packageVersion: VERSION,
+        capabilities: [] as readonly string[],
+    providers: {},
+    register: () => undefined,
+  });
+
   registerHostTools(pi);
   pi.registerTool({ name: 'evaluate_trade', label: 'Evaluate Historical Trade', description: 'Evaluate one historical investment analysis against forward daily bars with explicit stop-loss and take-profit semantics.', parameters: evaluateParameters, async execute(toolCallId, params, signal, _onUpdate, _ctx) {
     if (signal?.aborted) return { content: [{ type: 'text', text: 'evaluate_trade request aborted' }], isError: true, details: undefined };

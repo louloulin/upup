@@ -1,6 +1,6 @@
 import { Type } from 'typebox';
 import { buildSessionContext, type ExtensionAPI, type ExtensionContext } from '@earendil-works/pi-coding-agent';
-import { resolvePiCapabilityHost } from '@upup/pi-capability-registry';
+import { definePiCapabilityHost, resolvePiCapabilityHost } from '@upup/pi-capability-registry';
 import { randomUUID } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -892,6 +892,19 @@ function registerPlatformExtension(pi: ExtensionAPI, host: PlatformHost): void {
   });}
 
 export default function platformExtension(pi: ExtensionAPI): void {
+  // Sprint D: self-publish the platform capability host. The host declares
+  // the cross-cutting capabilities (agent-worker, cron-runner, mcp-resources)
+  // and exposes metadata. Session-level provider implementations (runCronJob,
+  // runAgentWorker, etc.) are still injected by the orchestrator — both
+  // publishers coexist and last-write-wins.
+  definePiCapabilityHost(pi, {
+    packageName: PACKAGE,
+    packageVersion: VERSION,
+    capabilities: ['agent-worker', 'cron-runner', 'mcp-resources'],
+    providers: {},
+    register: () => undefined,
+  });
+
   let initialized = false;
   const initialize = (host: PlatformHost | undefined): void => {
     if (initialized || !host) return;

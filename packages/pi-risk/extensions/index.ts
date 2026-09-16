@@ -1,6 +1,6 @@
 import { Type } from 'typebox';
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
-import { registerPiCapabilityHost } from '@upup/pi-capability-registry';
+import {registerPiCapabilityHost, definePiCapabilityHost} from '@upup/pi-capability-registry';
 import {
   calculateValueAtRisk,
   calculateSharpeRatio,
@@ -117,6 +117,19 @@ function nativeResult(toolCallId: string, query: string, path: string, value: un
 }
 
 export default function riskExtension(pi: ExtensionAPI): void {
+  // Sprint D: self-publish the capability host so the extension is
+  // self-contained (resolvable via `resolvePiCapabilityHost` without the
+  // agent-session-factory side-channel). Session-level providers still flow
+  // through the orchestrator's later publish — both publishers coexist and
+  // last-write-wins. The host we publish here is metadata-only.
+  definePiCapabilityHost(pi, {
+    packageName: PACKAGE,
+    packageVersion: VERSION,
+        capabilities: [] as readonly string[],
+    providers: {},
+    register: () => undefined,
+  });
+
   registerHostTools(pi);
   const riskTracker = createRiskTracker();
   pi.registerTool({

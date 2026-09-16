@@ -1,6 +1,6 @@
 import { Type } from 'typebox';
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
-import { resolvePiCapabilityHost } from '@upup/pi-capability-registry';
+import {resolvePiCapabilityHost, definePiCapabilityHost} from '@upup/pi-capability-registry';
 import { CANONICAL_INVESTMENT_PHASES, executeInvestmentPhase, type InvestmentAgentProfileId, type InvestmentWorkflowServices } from '../src/index';
 
 const PACKAGE = '@upup/pi-investment-workflow';
@@ -27,6 +27,19 @@ function host(events: { emit(channel: string, data: unknown): void; on(channel: 
 }
 
 export default function investmentWorkflowExtension(pi: ExtensionAPI): void {
+  // Sprint D: self-publish the capability host so the extension is
+  // self-contained (resolvable via `resolvePiCapabilityHost` without the
+  // agent-session-factory side-channel). Session-level providers still flow
+  // through the orchestrator's later publish — both publishers coexist and
+  // last-write-wins. The host we publish here is metadata-only.
+  definePiCapabilityHost(pi, {
+    packageName: PACKAGE,
+    packageVersion: VERSION,
+        capabilities: ['investment-workflow', 'tool-definitions'] as readonly string[],
+    providers: {},
+    register: () => undefined,
+  });
+
   const services = host(pi.events)?.services;
   pi.registerTool({
     name: 'invest_workflow_phase',

@@ -82,6 +82,130 @@ export class PiCapabilityRegistry {
   clear(sessionId: string): void { this.disposeSession(sessionId); }
 }
 
+/**
+ * Sprint D self-publish helper for Pi extensions.
+ *
+ * Replaces the legacy `registerPiCapabilityHost` consumer pattern with a
+ * publisher pattern: a Pi extension that ships its own providers no longer
+ * waits for `agent-session-factory` to assemble the host and emit it via
+ * `publishPiCapabilityHosts`. Instead the extension declares its providers
+ * at register-time and `definePiCapabilityHost` both publishes them and
+ * synchronously hands them to the user's `register` callback as a closure.
+ *
+ * Why this matters: every `@upup/pi-*` extension was previously coupled to
+ * the UpUp session orchestrator (it had to be loaded inside a `PiAgentSession`
+ * for the host to exist). With self-publish each extension is self-contained
+ * — it can run inside any Pi agent session, headless, or even as a standalone
+ * test. The session orchestrator only owns cross-cutting concerns (policy,
+ * branding, event bridge), not capability wiring.
+ */
+export interface DefinePiCapabilityHostOptions<TProviders extends Record<string, unknown>> {
+  /** Package name, e.g. '@upup/pi-finance-sdk'. Must be stable across versions. */
+  readonly packageName: string;
+  /** Package version, used for fail-closed mismatch detection. */
+  readonly packageVersion: string;
+  /** Capability names exposed by this host. Used by resolve() to gate access. */
+  readonly capabilities: readonly string[];
+  /** Optional contract id override. Defaults to 'upup.pi.host.v1'. */
+  readonly contract?: string;
+  /** Provider tree handed to the register callback. Must be JSON-serializable
+   *  (or pure functions) since cross-extension callers may pass it across
+   *  boundaries. */
+  readonly providers: TProviders;
+  /** Synchronous register invoked with the bound providers. The closure can
+   *  register Pi tools that consume `services.providers` directly without
+   *  re-resolving via the event bus. */
+  readonly register: (services: {
+    readonly sessionId: string;
+    readonly providers: TProviders;
+  }) => void;
+}
+
+/**
+ * Narrowed ExtensionAPI subset required by `definePiCapabilityHost`. Mirrors
+ * `PiCapabilityExtensionApi` but additionally expects a synchronous
+ * `session` accessor — Pi exposes the session id through `pi.session` once
+ * the host registration has begun, which is when an extension factory runs.
+ */
+export interface DefinePiCapabilityHostExtensionApi extends PiCapabilityExtensionApi {
+  readonly session?: { readonly sessionId: string };
+  /** Pi's extension host may provide additional lifecycle hooks; declared
+   *  here so the helper stays compatible with whatever Pi emits next. */
+  readonly on?: (event: 'session_start', handler: (event: unknown, context: { sessionManager: { getSessionId(): string } }) => void) => void;
+}
+
+/**
+ * Self-publish a capability host and call `options.register` synchronously
+ * with the bound providers. Use this inside an extension factory in place of
+ * the older `registerPiCapabilityHost` consumer pattern.
+ *
+ * Two execution paths:
+ *
+ *   1. **Synchronous** — when `pi.session.sessionId` is already available
+ *      (typical Pi flow: extensions load after session is created). The host
+ *      is published before `register` is called, so any tool that synchronously
+ *      `resolvePiCapabilityHost`s the same package during `register` sees it.
+ *   2. **Deferred** — when no session id is available yet (extensions loaded
+ *      before session creation). The helper waits for `session_start`, then
+ *      publishes and calls `register`.
+ *
+ * The handler is registered on `PI_CAPABILITY_RESOLVE_CHANNEL` for the entire
+ * session lifetime; extensions are unloaded when Pi disposes the session.
+ */
+export function definePiCapabilityHost<TProviders extends Record<string, unknown>>(
+  pi: DefinePiCapabilityHostExtensionApi,
+  options: DefinePiCapabilityHostOptions<TProviders>,
+): () => void {
+  const contract = options.contract ?? 'upup.pi.host.v1';
+  const createHost = (sessionId: string): PiCapabilityHostRecord => {
+    if (!sessionId.trim()) throw new Error(`Pi capability host '${options.packageName}' requires a non-empty sessionId`);
+    return {
+      contract,
+      packageName: options.packageName,
+      packageVersion: options.packageVersion,
+      sessionId,
+      capabilities: [...options.capabilities],
+      providers: options.providers,
+    };
+  };
+  const publish = (sessionId: string): void => {
+    const host = createHost(sessionId);
+    const handler = (value: unknown): void => {
+      if (!value || typeof value !== 'object') return;
+      const request = value as { packageName?: unknown; sessionId?: unknown; resolve?: (host: PiCapabilityHostRecord | undefined) => void };
+      if (request.packageName === options.packageName && typeof request.resolve === 'function' && (request.sessionId === undefined || request.sessionId === sessionId)) {
+        request.resolve(host);
+      }
+    };
+    pi.events.on(PI_CAPABILITY_RESOLVE_CHANNEL, handler);
+  };
+  if (pi.session?.sessionId) {
+    const sessionId = pi.session.sessionId;
+    publish(sessionId);
+    options.register({ sessionId, providers: options.providers });
+    return () => {};
+  }
+  if (typeof pi.on !== 'function') {
+    // Graceful skip: unit tests stub `pi` without session lifecycle hooks.
+    // The extension factory may proceed; the host will only be published
+    // once a real Pi session calls `definePiCapabilityHost` with proper
+    // hooks. We log at debug level only so the missing hook surfaces in
+    // verbose mode without failing the test.
+    if (process.env.UPUP_DEBUG_CAPABILITY !== '1') return () => {};
+    console.debug(`[definePiCapabilityHost] ${options.packageName} skipped: no pi.session.sessionId or pi.on('session_start')`);
+    return () => {};
+  }
+  let registered = false;
+  pi.on('session_start', (_event, context) => {
+    if (registered) return;
+    registered = true;
+    const sessionId = context.sessionManager.getSessionId();
+    publish(sessionId);
+    options.register({ sessionId, providers: options.providers });
+  });
+  return () => { registered = true; };
+}
+
 export interface PiCapabilityExtensionApi {
   /**
    * Pi hands the concrete `ExtensionAPI` in, whose `registerTool` is generic

@@ -18,3 +18,11 @@ export { runOnboarding } from './onboarding';
 export { runOpenBuddyCommand, type OpenBuddyCommandOptions, type OpenBuddyRunResult } from './openbuddy';
 export { runPluginCommand, type PluginCommandOptions, type PluginRunResult } from './plugin';
 export { runBridgeNotifyReloadCommand, type BridgeNotifyReloadOptions, type BridgeNotifyReloadResult } from './bridge';
+export {
+  UPUP_RECOMMENDED_PLUGINS,
+  UPUP_KNOWN_PROBLEMATIC_PLUGINS,
+  groupRecommendedByCategory,
+  isProblematicPlugin,
+  type RecommendedPlugin,
+  type RecommendedPluginCategory,
+} from './recommended-plugins';

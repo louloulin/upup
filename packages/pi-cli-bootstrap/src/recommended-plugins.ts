@@ -1,0 +1,185 @@
+/**
+ * UpUp 推荐 Pi 插件清单
+ *
+ * 每个 Pi extension 插件都可能向 system prompt 注入 skill/tool/prompt，
+ * 启动时也可能产生 side effects（如 @quintinshaw/pi-dynamic-workflows 的
+ * `workflow-delivery` warning）。UpUp 默认 settings.json 不写任何 npm 第三方
+ * 包；用户按需通过 `upup plugin install <source>` 显式启用。
+ *
+ * 此清单仅用于：
+ *   1. `upup plugin recommend` 输出可装列表（标注用途、副作用、兼容性）
+ *   2. `upup doctor` 检测到用户已装的不兼容版本时给出迁移提示
+ *   3. 守门测试 `check:upup-recommended-plugins` 防止清单漂移
+ *
+ * 新增插件必须满足：
+ *   - 已通过 UpUp 投资场景验证（不影响 19 个 pi-* workspace 加载）
+ *   - 兼容 `@earendil-works/pi-coding-agent@0.85.1`
+ *   - 不引入会污染 system prompt 的全局 hook（如 `workflow-delivery`）
+ */
+
+export type RecommendedPluginCategory =
+  | 'web'             // 网页抓取 / 搜索
+  | 'mcp'             // MCP 适配
+  | 'subagent'        // 子代理 / 多 agent 协作
+  | 'memory'          // 持久记忆
+  | 'background'      // 后台任务 / cron
+  | 'workflow'        // 工作流编排
+  | 'provider'        // 自定义 provider
+  | 'interaction';    // 交互增强
+
+export interface RecommendedPlugin {
+  /** Pi 解析的 source 字符串，例如 `npm:pi-mcp-adapter` */
+  readonly source: string;
+  /** 展示名 */
+  readonly name: string;
+  /** 类别 */
+  readonly category: RecommendedPluginCategory;
+  /** 简短描述 */
+  readonly description: string;
+  /** 是否经 UpUp 实测启动无 side-effect warning */
+  readonly verifiedClean: boolean;
+  /** 兼容性说明（已知问题或限制） */
+  readonly caveats: readonly string[];
+}
+
+/**
+ * UpUp 推荐清单。每个插件独立 `upup plugin install` 启用；任意一个出问题
+ * 不影响其他。已通过 2026-09-16 Pi 0.85.1 + UpUp 实测验证。
+ */
+export const UPUP_RECOMMENDED_PLUGINS: readonly RecommendedPlugin[] = [
+  {
+    source: 'npm:pi-web-access',
+    name: 'Pi Web Access',
+    category: 'web',
+    description: '网页抓取 / fetch 内容，作为 web 工具注册。',
+    verifiedClean: true,
+    caveats: [],
+  },
+  {
+    source: 'npm:pi-mcp-adapter',
+    name: 'Pi MCP Adapter',
+    category: 'mcp',
+    description: '把任意 MCP server 注册为 Pi 工具（用于本地 MCP 服务）。',
+    verifiedClean: true,
+    caveats: [],
+  },
+  {
+    source: 'npm:pi-subagents',
+    name: 'Pi Subagents',
+    category: 'subagent',
+    description: '在 Pi session 内启动子代理（subagent 工具）。',
+    verifiedClean: true,
+    caveats: [],
+  },
+  {
+    source: 'npm:pi-background-tasks',
+    name: 'Pi Background Tasks',
+    category: 'background',
+    description: '后台任务调度（cron 风格）。UpUp 已有自己的 cron，请按需启用。',
+    verifiedClean: true,
+    caveats: ['UpUp 已通过 `@upup/cron` 提供 cron 能力，启用此包会产生重复。'],
+  },
+  {
+    source: 'npm:pi-hermes-memory',
+    name: 'Pi Hermes Memory',
+    category: 'memory',
+    description: 'Hermes 风格的 SQLite 持久记忆。UpUp 已有 `@upup/memory`，按需启用此包作为补充。',
+    verifiedClean: true,
+    caveats: ['与 `@upup/memory` 共存，可能产生重复 recall。'],
+  },
+  {
+    source: 'npm:@narumitw/pi-goal',
+    name: 'Pi Goal',
+    category: 'workflow',
+    description: '目标驱动的 session 编排。',
+    verifiedClean: true,
+    caveats: [],
+  },
+  {
+    source: 'npm:@juicesharp/rpiv-ask-user-question',
+    name: 'Ask User Question',
+    category: 'interaction',
+    description: 'agent 中途向用户提问的工具。',
+    verifiedClean: true,
+    caveats: [],
+  },
+  {
+    source: 'npm:@specode/pi-kimi-cu',
+    name: 'Kimi Computer Use',
+    category: 'interaction',
+    description: 'Kimi 模型的 computer use 适配。',
+    verifiedClean: true,
+    caveats: ['需要 Moonshot API key。'],
+  },
+  {
+    source: 'npm:@amaster.ai/pi-teamwork',
+    name: 'Pi Teamwork',
+    category: 'subagent',
+    description: '多 agent 团队协作。',
+    verifiedClean: true,
+    caveats: ['需要外部 multica server URL + token；启用前请阅读其隐私策略。'],
+  },
+  {
+    source: 'npm:@llmgates_api/pi-llmgates-provider',
+    name: 'LLMgates Provider',
+    category: 'provider',
+    description: 'LLMgates API 的 Pi provider 注册。',
+    verifiedClean: true,
+    caveats: ['需要 LLMgates API key。'],
+  },
+
+  // 注意：`npm:@quintinshaw/pi-dynamic-workflows` 不在推荐清单
+  // 它在启动时会 patch AgentSession 并输出 `[workflow-delivery] no
+  // session-stable thenable send` warning，与 UpUp 19 个 workspace package
+  // 的 extensionFactories 注入路径有冲突。如需启用，先用
+  // `upup plugin install npm:@quintinshaw/pi-dynamic-workflows --autoload=false`。
+] as const;
+
+/**
+ * 已知会污染 system prompt 或产生启动 warning 的非推荐插件。`upup doctor`
+ * 检测到用户已装时给出明确提示。
+ */
+export const UPUP_KNOWN_PROBLEMATIC_PLUGINS: readonly RecommendedPlugin[] = [
+  {
+    source: 'npm:@quintinshaw/pi-dynamic-workflows',
+    name: 'Pi Dynamic Workflows',
+    category: 'workflow',
+    description: '动态工作流面板（来自 npm 第三方）。',
+    verifiedClean: false,
+    caveats: [
+      '启动时输出 `[workflow-delivery] no session-stable thenable send` warning',
+      '会 monkey-patch AgentSession.prototype.sendCustomMessage',
+      '与 UpUp 19 个 pi-* workspace packages 的 extensionFactories 注入路径冲突',
+      '建议 `upup plugin disable npm:@quintinshaw/pi-dynamic-workflows` 关闭',
+    ],
+  },
+] as const;
+
+/**
+ * 工具函数：按 category 分组
+ */
+export function groupRecommendedByCategory(
+  plugins: readonly RecommendedPlugin[] = UPUP_RECOMMENDED_PLUGINS,
+): Record<RecommendedPluginCategory, readonly RecommendedPlugin[]> {
+  const groups: Record<RecommendedPluginCategory, RecommendedPlugin[]> = {
+    web: [],
+    mcp: [],
+    subagent: [],
+    memory: [],
+    background: [],
+    workflow: [],
+    provider: [],
+    interaction: [],
+  };
+  for (const plugin of plugins) {
+    groups[plugin.category].push(plugin);
+  }
+  return groups;
+}
+
+/**
+ * 工具函数：检查 source 是否在已知有问题的清单中
+ */
+export function isProblematicPlugin(source: string): RecommendedPlugin | undefined {
+  return UPUP_KNOWN_PROBLEMATIC_PLUGINS.find((p) => p.source === source);
+}

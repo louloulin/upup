@@ -183,6 +183,65 @@ export function getBuiltinPiPackageOptions(cwd = process.cwd()): ConfiguredPiPac
   };
 }
 
+/**
+ * 公开 API：返回 builtin 19 个 pi-* workspace package 的 source 列表。
+ *
+ * Sprint A：把 builtin packages 暴露给 bootstrap-agent，让 bootstrap-agent
+ * 把它们以 `builtin:@upup/<pkg>@<version>` 形式写入
+ * `~/.upup/agent/settings.json` 的 `packages` 数组。这样：
+ *   1. 用户在 settings.json 里能直接看到 UpUp 内置包
+ *   2. 用户可通过 `autoload: false` 关闭任意一个（与 npm 第三方包一致）
+ *   3. 消除 `package-config.ts` hardcoded list 与 settings.json packages 数组的双轨制
+ *
+ * 形式：`builtin:@upup/<package-name>@<semver>` —— Pi DefaultPackageManager
+ * 接受任何 source 字符串作为唯一身份标识；UpUp 的 getBuiltinPackageSource
+ * 反向识别 builtin: 前缀，从 path 推断 package 路径。
+ */
+export interface BuiltinPackageSource {
+  readonly source: string;
+  readonly name: string;
+  readonly version: string;
+  readonly directory: string;
+  readonly path: string;
+}
+
+export function getBuiltinPackageSources(cwd = process.cwd()): readonly BuiltinPackageSource[] {
+  const candidates = [
+    { directory: 'pi-finance-sdk', name: '@upup/pi-finance-sdk', version: '0.1.0', sourcePath: SOURCE_FINANCE_PACKAGE_PATH },
+    { directory: 'pi-market-data', name: '@upup/pi-market-data', version: '0.1.0', sourcePath: SOURCE_MARKET_DATA_PACKAGE_PATH },
+    { directory: 'pi-investment-analysis', name: '@upup/pi-investment-analysis', version: '0.1.0', sourcePath: SOURCE_INVESTMENT_ANALYSIS_PACKAGE_PATH },
+    { directory: 'pi-risk', name: '@upup/pi-risk', version: '0.1.0', sourcePath: SOURCE_RISK_PACKAGE_PATH },
+    { directory: 'pi-portfolio', name: '@upup/pi-portfolio', version: '0.1.0', sourcePath: SOURCE_PORTFOLIO_PACKAGE_PATH },
+    { directory: 'pi-backtest', name: '@upup/pi-backtest', version: '0.1.0', sourcePath: SOURCE_BACKTEST_PACKAGE_PATH },
+    { directory: 'pi-platform', name: '@upup/pi-platform', version: '0.1.0', sourcePath: SOURCE_PLATFORM_PACKAGE_PATH },
+    { directory: 'pi-research', name: '@upup/pi-research', version: '0.1.0', sourcePath: SOURCE_RESEARCH_PACKAGE_PATH },
+    { directory: 'pi-browser', name: '@upup/pi-browser', version: '0.1.0', sourcePath: SOURCE_BROWSER_PACKAGE_PATH },
+    { directory: 'pi-config', name: '@upup/pi-config', version: '0.1.0', sourcePath: SOURCE_CONFIG_PACKAGE_PATH },
+    { directory: 'pi-cache', name: '@upup/pi-cache', version: '0.1.0', sourcePath: SOURCE_CACHE_PACKAGE_PATH },
+    { directory: 'pi-notify', name: '@upup/pi-notify', version: '0.1.0', sourcePath: SOURCE_NOTIFY_PACKAGE_PATH },
+    { directory: 'pi-investment-workflow', name: '@upup/pi-investment-workflow', version: '0.1.0', sourcePath: SOURCE_INVESTMENT_WORKFLOW_PACKAGE_PATH },
+    { directory: 'pi-management', name: '@upup/pi-management', version: '0.1.0', sourcePath: SOURCE_MANAGEMENT_PACKAGE_PATH },
+    { directory: 'pi-technical', name: '@upup/pi-technical', version: '0.1.0', sourcePath: SOURCE_TECHNICAL_PACKAGE_PATH },
+    { directory: 'pi-corporate-actions', name: '@upup/pi-corporate-actions', version: '0.1.0', sourcePath: SOURCE_CORPORATE_ACTIONS_PACKAGE_PATH },
+    { directory: 'pi-quant', name: '@upup/pi-quant', version: '0.1.0', sourcePath: SOURCE_QUANT_PACKAGE_PATH },
+    { directory: 'pi-event-adapter', name: '@upup/pi-event-adapter', version: '0.1.0', sourcePath: SOURCE_EVENT_ADAPTER_PACKAGE_PATH },
+    { directory: 'pi-observability', name: '@upup/pi-observability', version: '0.1.0', sourcePath: SOURCE_OBSERVABILITY_PACKAGE_PATH },
+  ];
+  const found: BuiltinPackageSource[] = [];
+  for (const candidate of candidates) {
+    const path = builtinPackageCandidates(cwd, candidate.directory, candidate.sourcePath).find((p) => existsSync(join(p, 'package.json')));
+    if (!path) continue;
+    found.push({
+      source: `builtin:@upup/${candidate.directory}@${candidate.version}`,
+      name: candidate.name,
+      version: candidate.version,
+      directory: candidate.directory,
+      path,
+    });
+  }
+  return found;
+}
+
 function parseList(name: string): string[] {
   const value = process.env[name]?.trim();
   if (!value) return [];
@@ -328,9 +387,72 @@ export function getProjectPiPackageOptions(cwd = process.cwd()): ConfiguredPiPac
   return { piPackagePaths, piPackageTrust: projectTrustPolicy(settings, piPackagePaths, resolve(cwd), label) };
 }
 
+/**
+ * Sprint A：从 agentDir 的 settings.json 读 builtin 包的 source 列表。
+ *
+ * 用户在 ~/.upup/agent/settings.json 的 packages 数组里写
+ * `builtin:@upup/<pkg>@<version>` 即可加载该 builtin workspace package。
+ * 这种形式与 npm: 第三方包并列，Pi DefaultPackageManager 把 builtin: 当作
+ * 普通 source 字符串处理，UpUp 在 resolve 时识别前缀并转换为磁盘路径。
+ */
+function readBuiltinFromAgentSettings(): BuiltinPackageSource[] | undefined {
+  const settingsPath = process.env.PI_CODING_AGENT_DIR
+    ? join(process.env.PI_CODING_AGENT_DIR, 'settings.json')
+    : undefined;
+  if (!settingsPath || !existsSync(settingsPath)) return undefined;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(readFileSync(settingsPath, 'utf8'));
+  } catch {
+    return undefined;
+  }
+  if (!parsed || typeof parsed !== 'object') return undefined;
+  const obj = parsed as { packages?: unknown };
+  if (!Array.isArray(obj.packages)) return undefined;
+  const builtinEntries: BuiltinPackageSource[] = [];
+  const allBuiltins = getBuiltinPackageSources();
+  const byDirectory = new Map<string, BuiltinPackageSource>();
+  for (const b of allBuiltins) byDirectory.set(b.directory, b);
+  for (const entry of obj.packages) {
+    // 跳过 autoload=false
+    if (entry && typeof entry === 'object' && (entry as Record<string, unknown>).autoload === false) continue;
+    const source = typeof entry === 'string'
+      ? entry
+      : entry && typeof entry === 'object' && typeof (entry as Record<string, unknown>).source === 'string'
+        ? (entry as Record<string, unknown>).source as string
+        : undefined;
+    if (!source || !source.startsWith('builtin:@upup/')) continue;
+    // 解析 builtin:@upup/pi-finance-sdk@0.1.0
+    const match = source.match(/^builtin:@upup\/([^@]+)@([\d.]+)$/);
+    if (!match) continue;
+    const directory = match[1];
+    const builtin = byDirectory.get(directory);
+    if (!builtin) continue;
+    builtinEntries.push(builtin);
+  }
+  return builtinEntries.length > 0 ? builtinEntries : undefined;
+}
+
 export function resolveConfiguredPiPackages(cwd = process.cwd()): ConfiguredPiPackageOptions | undefined {
   const piPackagePaths = parseList('UPUP_PI_PACKAGE_PATHS');
-  if (piPackagePaths.length === 0) return getProjectPiPackageOptions(cwd) ?? getBuiltinPiPackageOptions(cwd);
+  if (piPackagePaths.length === 0) {
+    // Sprint A：先看 agentDir settings.json 的 builtin: 条目（用户在 settings.json 里显式管理的）。
+    // 没有则 fallback 到 getProjectPiPackageOptions（项目级 .upup/settings.json），
+    // 再 fallback 到 getBuiltinPiPackageOptions（hardcoded list 兜底）。
+    const fromAgent = readBuiltinFromAgentSettings();
+    if (fromAgent && fromAgent.length > 0) {
+      const paths = fromAgent.map((b) => b.path);
+      return {
+        piPackagePaths: paths,
+        piPackageTrust: {
+          trustedPaths: paths,
+          pinnedPackages: Object.fromEntries(fromAgent.map((b) => [b.name, b.version])),
+          allowedSources: Object.fromEntries(fromAgent.map((b) => [b.name, ['builtin:upup']])),
+        },
+      };
+    }
+    return getProjectPiPackageOptions(cwd) ?? getBuiltinPiPackageOptions(cwd);
+  }
   const trustedPaths = parseList('UPUP_PI_TRUSTED_PATHS');
   if (trustedPaths.length === 0) throw new Error('UPUP_PI_TRUSTED_PATHS is required when UPUP_PI_PACKAGE_PATHS is configured');
   return {
