@@ -53,9 +53,6 @@
       "@upup/pi-finance-sdk": [
         "./packages/pi-finance-sdk/src/index.ts"
       ],
-      "@upup/pi-finance-sdk/finance-fixtures": [
-        "./packages/pi-finance-sdk/src/finance-fixtures.ts"
-      ],
       "@upup/pi-investment-analysis": [
         "./packages/pi-investment-analysis/src/index.ts"
       ],

@@ -395,7 +395,7 @@ describe('eastmoney request gate', () => {
     await expect(gate.run(reset)).rejects.toBeInstanceOf(EastmoneyThrottleError);
     expect(gate.retryAfterMs()).toBe(30_000);
     let calls = 0;
-    await expect(gate.run(async () => { calls += 1; return 'ok'; })).rejects.toThrow(/Eastmoney 限流/);
+    await expect(gate.run(async () => { calls += 1; return 'ok'; })).rejects.toThrow(/已重置连接/);
     expect(calls).toBe(0);
     gate.reset();
     expect(await gate.run(async () => 'recovered')).toBe('recovered');
@@ -410,7 +410,7 @@ describe('eastmoney request gate', () => {
       baseUrl: 'https://push2.gate-test.invalid/api/qt/stock/get',
       fetcher: async () => { calls += 1; throw new TypeError('The socket connection was closed unexpectedly'); },
     });
-    await expect(client.getQuote('600519.SH', 'cn', undefined, 'gate-quote')).rejects.toThrow(/Eastmoney 限流：push2\.gate-test\.invalid/);
+    await expect(client.getQuote('600519.SH', 'cn', undefined, 'gate-quote')).rejects.toThrow(/push2\.gate-test\.invalid 已重置连接/);
     // Two resets arm the cooldown; the retry policy stops instead of burning a third attempt.
     expect(calls).toBe(2);
     resetEastmoneyGates();

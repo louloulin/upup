@@ -4,8 +4,8 @@ import { PiAgentSessionFactory } from '@upup/pi-session';
 import { bootstrapPiNativeServices } from '@upup/pi-app/default';
 
 beforeAll(() => bootstrapPiNativeServices());
-import { FINANCE_FIXTURE_TOOLS } from '@upup/pi-finance-sdk/finance-fixtures';
-import type { UpUpAgentSession, UpUpToolContract } from '@upup/pi-runtime';
+import type { FinancialToolDetails, UpUpAgentSession, UpUpToolContract } from '@upup/pi-runtime';
+import { Type } from 'typebox';
 import { toPiTool } from '@upup/pi-event-adapter';
 import { join } from 'node:path';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
@@ -14,6 +14,62 @@ import { ModelRuntime } from '@earendil-works/pi-coding-agent';
 import { JsonFileProviderSlaStore } from '@upup/pi-market-data';
 
 type AgentToolResultWithError = Awaited<ReturnType<UpUpAgentSession['executeTool']>> & { isError?: boolean };
+
+/**
+ * Local probe contracts for the session registration / allowlist tests below.
+ * They are defined here because the finance packages no longer export fixture
+ * tools: `@upup/pi-finance-sdk` reads real providers.
+ */
+function probeTool(name: string, category: 'market' | 'finance'): UpUpToolContract {
+  return {
+    name,
+    label: name,
+    description: `Local session probe tool ${name}.`,
+    category,
+    safetyLevel: 'safe',
+    parameters: Type.Object({ symbol: Type.String({ minLength: 1 }) }),
+    maxConcurrent: 4,
+    hasFinancialImpact: false,
+    async execute(input: { symbol: string }): Promise<{ value: { symbol: string }; text: string; details: FinancialToolDetails }> {
+      const value = { symbol: input.symbol };
+      return {
+        value,
+        text: JSON.stringify(value),
+        details: {
+          evidence: [{ id: `probe-${name}`, source: 'upup-probe://session-fixture', retrievedAt: '2026-01-01T00:00:00.000Z', asOf: '2026-01-01', query: input.symbol }],
+          dataFreshness: 'historical',
+          warnings: ['Session test probe; not market data.'],
+          auditId: `probe-${name}`,
+        },
+      };
+    },
+  };
+}
+
+const PROBE_TOOLS: readonly UpUpToolContract[] = [probeTool('probe_quote', 'market'), probeTool('probe_fundamentals', 'finance')];
+
+/**
+ * Transport double for the finance-package session tests. It answers Yahoo
+ * chart requests plus the public 东方财富 report / announcement endpoints the
+ * package now reads for CN symbols, so the tests exercise the real parsing and
+ * evidence paths without depending on live providers (whose hosts drop the
+ * connection when a burst arrives).
+ */
+const financeTransport: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response> = async (input) => {
+  const url = String(input);
+  const json = (payload: unknown): Response => new Response(JSON.stringify(payload), { status: 200 });
+  if (url.includes('datacenter-web.eastmoney.com')) {
+    if (url.includes('RPT_LICO_FN_CPD')) {
+      return json({ result: { data: [{ SECUCODE: '002594.SZ', SECURITY_NAME_ABBR: '比亚迪', REPORTDATE: '2026-06-30 00:00:00', DATATYPE: '2026年 半年报', TOTAL_OPERATE_INCOME: 371280900000, PARENT_NETPROFIT: 15510940000, BASIC_EPS: 5.36, WEIGHTAVG_ROE: 12.42, XSMLL: 18.2 }] } });
+    }
+    if (url.includes('RPT_DMSK_FN_BALANCE')) return json({ result: { data: [{ REPORT_DATE: '2026-06-30 00:00:00', TOTAL_ASSETS: 786432000000, TOTAL_LIABILITIES: 545120000000 }] } });
+    if (url.includes('RPT_DMSK_FN_CASHFLOW')) return json({ result: { data: [{ REPORT_DATE: '2026-06-30 00:00:00', NETCASH_OPERATE: 42017000000 }] } });
+  }
+  if (url.includes('np-anotice-stock.eastmoney.com')) {
+    return json({ data: { list: [{ art_code: 'AN202608281', title: '比亚迪:2026年半年度报告', notice_date: '2026-08-28 00:00:00', columns: [{ column_name: '年度报告' }] }] } });
+  }
+  return json({ chart: { result: [{ meta: { regularMarketPrice: 1600, regularMarketTime: Date.parse('2026-09-13T00:00:00Z') / 1000 } }] } });
+};
 
 type PolicyToolResult = {
   isError?: boolean;
@@ -500,21 +556,14 @@ describe('PiAgentSessionFactory', () => {
       tools: '*',
     }, {
       cwd: process.cwd(),
-      tools: FINANCE_FIXTURE_TOOLS,
+      tools: PROBE_TOOLS,
     });
     expect(session.id).toMatch(/^[0-9a-f-]{36}$/);
     expect(session.spec.id).toBe('invest-explore');
     expect(session.getAvailableToolNames()).toEqual(expect.arrayContaining([
-      'fixture_market_quote',
-      'fixture_fundamentals',
-      'fixture_news',
-      'fixture_search',
-      'fixture_trading_day',
+      'probe_quote',
+      'probe_fundamentals',
       'finance_evidence_quote',
-      'finance_evidence_fundamentals',
-      'finance_evidence_news',
-      'finance_evidence_search',
-      'finance_evidence_trading_day',
     ]));
     const events: string[] = [];
     session.subscribe((event) => events.push(event.type));
@@ -556,12 +605,12 @@ describe('PiAgentSessionFactory', () => {
   test('enforces profile tool allowlists before Pi registration', async () => {
     const session = await new PiAgentSessionFactory().createSession({
       ...getInvestmentAgentSpec('invest-plan'),
-      tools: ['fixture_market_quote', 'fixture_fundamentals'],
+      tools: ['probe_quote', 'probe_fundamentals'],
     }, {
       cwd: process.cwd(),
-      tools: FINANCE_FIXTURE_TOOLS,
+      tools: PROBE_TOOLS,
     });
-    expect(session.getAvailableToolNames()).toEqual(['fixture_market_quote', 'fixture_fundamentals']);
+    expect(session.getAvailableToolNames()).toEqual(['probe_quote', 'probe_fundamentals']);
     session.dispose();
   });
 
@@ -569,14 +618,14 @@ describe('PiAgentSessionFactory', () => {
     for (const profileId of ['invest-explore', 'invest-plan', 'invest-risk', 'invest-trade', 'invest-review']) {
       const session = await new PiAgentSessionFactory().createSession({
         ...getInvestmentAgentSpec(profileId),
-        tools: FINANCE_FIXTURE_TOOLS.map((tool) => tool.name),
+        tools: PROBE_TOOLS.map((tool) => tool.name),
       }, {
         cwd: process.cwd(),
-        tools: FINANCE_FIXTURE_TOOLS,
+        tools: PROBE_TOOLS,
       });
       try {
         expect(session.spec.id).toBe(profileId);
-        expect(session.getAvailableToolNames().every((name) => FINANCE_FIXTURE_TOOLS.some((tool) => tool.name === name))).toBe(true);
+        expect(session.getAvailableToolNames().every((name) => PROBE_TOOLS.some((tool) => tool.name === name))).toBe(true);
       } finally {
         session.dispose();
       }
@@ -590,7 +639,7 @@ describe('PiAgentSessionFactory', () => {
       description: 'A blocked fixture tool.',
       category: 'trading',
       safetyLevel: 'dangerous',
-      parameters: FINANCE_FIXTURE_TOOLS[0].parameters,
+      parameters: PROBE_TOOLS[0].parameters,
       hasFinancialImpact: true,
       async execute() {
         throw new Error('must not execute');
@@ -598,7 +647,7 @@ describe('PiAgentSessionFactory', () => {
     };
     const session = await new PiAgentSessionFactory().createSession({
       ...getInvestmentAgentSpec('invest-plan'),
-      tools: ['fixture_market_quote'],
+      tools: ['probe_quote'],
     }, {
       cwd: process.cwd(),
       tools: [dangerousTool],
@@ -614,7 +663,7 @@ describe('PiAgentSessionFactory', () => {
       description: 'A critical tool that must never run without explicit policy.',
       category: 'trading',
       safetyLevel: 'critical',
-      parameters: FINANCE_FIXTURE_TOOLS[0].parameters,
+      parameters: PROBE_TOOLS[0].parameters,
       hasFinancialImpact: true,
       async execute() {
         throw new Error('must not execute');
@@ -641,12 +690,12 @@ describe('PiAgentSessionFactory', () => {
 
   test('returns an auditable error when an allowlisted tool violates policy', async () => {
     const dangerousTool: UpUpToolContract = {
-      name: 'fixture_market_quote',
+      name: 'probe_quote',
       label: 'Fixture dangerous quote',
       description: 'A policy-blocked fixture tool.',
       category: 'trading',
       safetyLevel: 'dangerous',
-      parameters: FINANCE_FIXTURE_TOOLS[0].parameters,
+      parameters: PROBE_TOOLS[0].parameters,
       hasFinancialImpact: true,
       async execute() {
         throw new Error('must not execute');
@@ -654,12 +703,12 @@ describe('PiAgentSessionFactory', () => {
     };
     const session = await new PiAgentSessionFactory().createSession({
       ...getInvestmentAgentSpec('invest-plan'),
-      tools: ['fixture_market_quote'],
+      tools: ['probe_quote'],
     }, {
       cwd: process.cwd(),
       tools: [dangerousTool],
     });
-    expect(session.getAvailableToolNames()).toEqual(['fixture_market_quote']);
+    expect(session.getAvailableToolNames()).toEqual(['probe_quote']);
     session.dispose();
   });
 
@@ -671,7 +720,7 @@ describe('PiAgentSessionFactory', () => {
       description: 'A tool requiring approval.',
       category: 'trading',
       safetyLevel: 'dangerous',
-      parameters: FINANCE_FIXTURE_TOOLS[0].parameters,
+      parameters: PROBE_TOOLS[0].parameters,
       hasFinancialImpact: true,
       async execute(_input, context) {
         executions += 1;
@@ -705,7 +754,7 @@ describe('PiAgentSessionFactory', () => {
     const extensionPath = join(process.cwd(), 'packages/pi-finance-sdk');
     const session = await new PiAgentSessionFactory().createSession({ ...getInvestmentAgentSpec('invest-explore'), packages: ['@upup/pi-finance-sdk'], tools: ['finance_evidence_quote', 'get_financials', 'read_filings', 'alt_data_fetch', 'alt_data_search', 'get_astock_financials', 'get_astock_news', 'get_company_profile', 'get_risks', 'get_sectors', 'get_investment_strategies', 'calculate_capital_gains_tax', 'calculate_trades_tax', 'calculate_pnl', 'fund_search', 'fund_screen', 'fund_top', 'fund_detail', 'fund_performance', 'fund_holdings', 'fund_manager', 'fund_compare'] }, {
       cwd: process.cwd(),
-      marketQuoteFetcher: async () => new Response(JSON.stringify({ chart: { result: [{ meta: { regularMarketPrice: 1600, regularMarketTime: Date.parse('2026-09-13T00:00:00Z') / 1000 } }] } }), { status: 200 }),
+      marketQuoteFetcher: financeTransport,
       additionalExtensionPaths: [join(extensionPath, 'extensions', 'index.ts')],
       piPackageTrust: { trustedPaths: [process.cwd()], pinnedPackages: { '@upup/pi-finance-sdk': '0.1.0' } },
     });
@@ -719,9 +768,9 @@ describe('PiAgentSessionFactory', () => {
     expect(session.getAvailableToolNames()).toContain('alt_data_fetch');
     expect(session.getAvailableToolNames()).toContain('alt_data_search');
     expect(session.getAvailableToolNames()).toContain('get_astock_news');
-    // Use AAPL (US) — 600519.SH would now hit the actionable CN credential
-    // error in pi-market-data's auto provider routing (test has no TUSHARE_TOKEN
-    // and 600519.SH silently routed to Yahoo before, always returning 403).
+    // Use AAPL (US): the CN quote path routes to Eastmoney, whose quote host
+    // answers bursts by dropping the connection, so a US symbol keeps this
+    // assertion about the package host bridge rather than about provider pacing.
     const result = await session.executeTool('finance_evidence_quote', 'package-quote-1', { symbol: 'AAPL' }) as AgentToolResultWithError;
     expect(result.isError).not.toBe(true);
     expect(result.details).toMatchObject({
@@ -739,12 +788,17 @@ describe('PiAgentSessionFactory', () => {
     expect(screenResult).toMatchObject({ details: { auditId: 'package-fund-screen-1', evidence: [{ source: 'upup-pi://finance-sdk/fund-screen', freshness: 'offline' }] } });
     const topResult = await session.executeTool('fund_top', 'package-fund-top-1', { limit: 2 }) as AgentToolResultWithError;
     expect(topResult).toMatchObject({ details: { auditId: 'package-fund-top-1', evidence: [{ source: 'upup-pi://finance-sdk/fund-top', freshness: 'offline' }] } });
+    // CN financials/announcements now come from the public Eastmoney endpoints
+    // (no Tushare token in this environment), so the evidence carries the real
+    // provider URLs instead of an offline fixture source.
     const astockFinancials = await session.executeTool('get_astock_financials', 'package-astock-financials-1', { code: '比亚迪' }) as AgentToolResultWithError;
-    expect(astockFinancials).toMatchObject({ details: { auditId: 'package-astock-financials-1', evidence: [{ source: 'upup-pi://finance-sdk/astock-financials', freshness: 'historical', asOf: '2026-09-12' }] } });
-    const financials = await session.executeTool('get_financials', 'package-financials-1', { query: 'Apple revenue' }) as AgentToolResultWithError;
-    expect(financials).toMatchObject({ details: { auditId: 'package-financials-1', evidence: [{ source: 'upup-pi://finance-sdk/financials', freshness: 'historical', asOf: '2026-09-12' }] } });
+    expect(astockFinancials.details).toMatchObject({ auditId: 'package-astock-financials-1', evidence: [{ source: expect.stringContaining('datacenter-web.eastmoney.com'), freshness: 'historical' }] });
+    expect(JSON.parse((astockFinancials.content[0] as { text: string }).text).value).toMatchObject({ ts_code: '002594.SZ' });
+    const financials = await session.executeTool('get_financials', 'package-financials-1', { query: '比亚迪 revenue' }) as AgentToolResultWithError;
+    expect(financials.details).toMatchObject({ auditId: 'package-financials-1', evidence: [{ source: expect.stringContaining('eastmoney.com'), freshness: 'historical' }] });
+    expect(JSON.parse((financials.content[0] as { text: string }).text).value).toMatchObject({ symbol: '002594.SZ', market: 'cn' });
     const astockNews = await session.executeTool('get_astock_news', 'package-astock-news-1', { code: '比亚迪', limit: 1 }) as AgentToolResultWithError;
-    expect(astockNews).toMatchObject({ details: { auditId: 'package-astock-news-1', evidence: [{ source: 'upup-pi://finance-sdk/astock-news', freshness: 'historical', asOf: '2026-09-12' }] } });
+    expect(astockNews.details).toMatchObject({ auditId: 'package-astock-news-1', evidence: [{ source: expect.stringContaining('np-anotice-stock.eastmoney.com'), freshness: 'delayed' }] });
     const companyProfile = await session.executeTool('get_company_profile', 'package-company-profile-1', { ticker: '贵州茅台' }) as AgentToolResultWithError;
     expect(companyProfile).toMatchObject({ details: { auditId: 'package-company-profile-1', evidence: [{ source: 'upup-pi://finance-sdk/company-profile', freshness: 'historical', asOf: '2026-09-12' }] } });
     const risks = await session.executeTool('get_risks', 'package-risks-1', { ticker: '002594.SZ', severity: 'high', type: 'sector' }) as AgentToolResultWithError;
@@ -803,7 +857,7 @@ describe('PiAgentSessionFactory', () => {
       description: 'A host-owned production finance contract registered by the Pi package.',
       category: 'market',
       safetyLevel: 'safe',
-      parameters: FINANCE_FIXTURE_TOOLS[0].parameters,
+      parameters: PROBE_TOOLS[0].parameters,
       hasFinancialImpact: false,
       async execute(input, context) {
         return {
@@ -851,7 +905,7 @@ describe('PiAgentSessionFactory', () => {
       description: `Concurrent host tool ${name}`,
       category: 'market',
       safetyLevel: 'safe',
-      parameters: FINANCE_FIXTURE_TOOLS[0].parameters,
+      parameters: PROBE_TOOLS[0].parameters,
       hasFinancialImpact: false,
       async execute(input, context) {
         return {

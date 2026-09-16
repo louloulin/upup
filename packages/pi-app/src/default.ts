@@ -21,7 +21,7 @@ import { createPiInvestmentWorkflow } from './investment';
 import { createPiCanonicalEventStream } from '@upup/pi-event-adapter';
 import { getConfiguredModelId, getConfiguredProvider } from '@upup/utils';
 import { ensureHeartbeatCronJob, startCronRunner } from '@upup/cron';
-import { createTushareResearchDataFetcher } from '@upup/pi-finance-sdk';
+import { createEastmoneyResearchDataFetcher, createTushareResearchDataFetcher } from '@upup/pi-finance-sdk';
 // Side-effect import: bumps EventEmitter.defaultMaxListeners so the 12 Pi
 // package extensions don't print MaxListenersExceededWarning on every
 // session. Every entry point (CLI / stdio / bridge / management / cron /
@@ -62,20 +62,12 @@ const app: PiApp = createPiApp({
     sessionOptionsFactory: () => {
       const token = process.env.TUSHARE_TOKEN?.trim();
       const financialDatasetsKey = process.env.FINANCIAL_DATASETS_API_KEY?.trim();
-      return token || financialDatasetsKey ? {
-        marketHistoryProviders: {
-          ...(financialDatasetsKey ? { us: 'financial-datasets' as const } : {}),
-          ...(token ? { cn: 'tushare' as const, hk: 'tushare' as const } : {}),
-        },
-        marketHistoryApiKeys: {
-          ...(financialDatasetsKey ? { us: financialDatasetsKey } : {}),
-          ...(token ? { cn: token, hk: token } : {}),
-        },
-        marketHistoryBaseUrls: {
-          ...(financialDatasetsKey ? { us: 'https://api.financialdatasets.ai' } : {}),
-          ...(token ? { cn: 'https://api.tushare.pro', hk: 'https://api.tushare.pro' } : {}),
-        },
-        ...(token ? {
+      // CN/HK research data always has a provider: without a Tushare token the
+      // public Eastmoney endpoints serve price, financials, estimates and
+      // announcements credential-free; a token upgrades the same slots to
+      // Tushare rows. This is what keeps `/invest <A-share>` from failing
+      // detect with "research provider unavailable for market cn".
+      const chinaResearch = token ? {
         researchDataFetchers: {
           cn: createTushareResearchDataFetcher({ token, market: 'cn' }),
           hk: createTushareResearchDataFetcher({ token, market: 'hk' }),
@@ -83,8 +75,30 @@ const app: PiApp = createPiApp({
         researchDataProviders: { cn: 'tushare', hk: 'tushare' },
         researchDataApiKeys: { cn: token, hk: token },
         researchDataBaseUrls: { cn: 'https://api.tushare.pro', hk: 'https://api.tushare.pro' },
+      } : {
+        researchDataFetchers: {
+          cn: createEastmoneyResearchDataFetcher({ market: 'cn' }),
+          hk: createEastmoneyResearchDataFetcher({ market: 'hk' }),
+        },
+        researchDataProviders: { cn: 'eastmoney', hk: 'eastmoney' },
+      };
+      return {
+        ...(token || financialDatasetsKey ? {
+          marketHistoryProviders: {
+            ...(financialDatasetsKey ? { us: 'financial-datasets' as const } : {}),
+            ...(token ? { cn: 'tushare' as const, hk: 'tushare' as const } : {}),
+          },
+          marketHistoryApiKeys: {
+            ...(financialDatasetsKey ? { us: financialDatasetsKey } : {}),
+            ...(token ? { cn: token, hk: token } : {}),
+          },
+          marketHistoryBaseUrls: {
+            ...(financialDatasetsKey ? { us: 'https://api.financialdatasets.ai' } : {}),
+            ...(token ? { cn: 'https://api.tushare.pro', hk: 'https://api.tushare.pro' } : {}),
+          },
         } : {}),
-      } : {};
+        ...chinaResearch,
+      };
     },
   }),
 });

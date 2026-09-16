@@ -126,7 +126,7 @@ const checks: readonly Check[] = [
   { id: 'A6', name: 'Pi 多轮 Tool/stream/abort/error loop', command: 'bun', args: ['test', 'src/runtime/pi/pi-fixture.test.ts', 'packages/pi-event-adapter/test.ts'] },
   { id: 'A7', name: 'Pi Model/Provider protocol', command: 'bun', args: ['test', 'src/runtime/pi/runner.test.ts', 'src/runtime/pi/reliability.test.ts'] },
   { id: 'A8', name: 'Pi Session tree/compact/recovery', commands: [['bun', '--cwd', 'packages/pi-session', 'test'], ['bun', 'test', 'src/runtime/pi/finance-context.test.ts', 'src/runtime/pi/reliability.test.ts']] },
-  { id: 'A9', name: '五类金融 Tool Adapter', command: 'bun', args: ['test', 'src/runtime/pi/pi-fixture.test.ts', 'packages/pi-finance-sdk/src/finance-fixtures.test.ts'] },
+  { id: 'A9', name: '五类金融 Tool Adapter', command: 'bun', args: ['test', 'src/runtime/pi/pi-fixture.test.ts', 'packages/pi-finance-sdk/src/eastmoney-research.test.ts'] },
   { id: 'A10', name: '金融 evidence/audit 脱敏', command: 'bun', args: ['test', 'src/runtime/pi/production-finance-contract.test.ts', 'src/runtime/pi/citation.test.ts'] },
   { id: 'A11', name: '投资 Profile allowlist', command: 'bun', args: ['test', 'src/runtime/pi/profile-registry-contract.test.ts', 'src/runtime/pi/agent-session-factory.test.ts'] },
   { id: 'A12', name: 'Pi Package/Extension/Skill/Prompt 生态', commands: [

@@ -1,3 +1,15 @@
+/**
+ * Real A-share announcements and market headlines from Eastmoney.
+ *
+ * A symbol query reads the public 公告接口 (`np-anotice-stock`), which returns
+ * the exchange filings for that `stock_list` (`ann_type=A`). The `market` query
+ * reads the 7×24 快讯 list (`np-listapi`). The previous implementation served a
+ * seven-row fixture table under `upup-fixture://`; this one returns whatever the
+ * provider published, with the request URLs recorded as evidence.
+ */
+import { type EastmoneyFetcher, EASTMONEY_ANNOUNCEMENTS_URL, EASTMONEY_FAST_NEWS_URL, eastmoneyDate, readEastmoneyJson } from './eastmoney-datacenter';
+import { normalizeNativeAStockCode } from './astock-financials';
+
 export type NativeAStockNewsKind = 'announcement' | 'market';
 
 export interface NativeAStockNewsItem {
@@ -8,6 +20,7 @@ export interface NativeAStockNewsItem {
   source: string;
   publishedAt: string;
   kind: NativeAStockNewsKind;
+  url?: string;
 }
 
 export interface NativeAStockNewsQuery {
@@ -17,38 +30,19 @@ export interface NativeAStockNewsQuery {
   limit?: number;
 }
 
+export interface NativeAStockNewsOptions {
+  readonly fetcher?: EastmoneyFetcher;
+  readonly signal?: AbortSignal;
+  readonly now?: () => Date;
+}
+
 export interface NativeAStockNewsResult {
   type: NativeAStockNewsKind;
   tsCode?: string;
-  asOf: '2026-09-12';
+  asOf: string;
   count: number;
   items: NativeAStockNewsItem[];
-}
-
-const AS_OF = '2026-09-12' as const;
-
-const NEWS: readonly NativeAStockNewsItem[] = [
-  { id: 'news-002594-20260911-1', tsCode: '002594.SZ', title: '比亚迪发布新能源业务经营进展快照', summary: '离线样本记录销量、产能和海外业务跟踪主题。', source: 'upup-fixture', publishedAt: '2026-09-11', kind: 'announcement' },
-  { id: 'news-002594-20260910-1', tsCode: '002594.SZ', title: '比亚迪产业链观察', summary: '离线样本记录电池材料与汽车产业链变化主题。', source: 'upup-fixture', publishedAt: '2026-09-10', kind: 'announcement' },
-  { id: 'news-600519-20260911-1', tsCode: '600519.SH', title: '贵州茅台渠道与库存观察', summary: '离线样本记录白酒渠道、库存和现金流跟踪主题。', source: 'upup-fixture', publishedAt: '2026-09-11', kind: 'announcement' },
-  { id: 'news-600519-20260909-1', tsCode: '600519.SH', title: '消费行业历史快照更新', summary: '离线样本记录消费行业景气度和估值观察主题。', source: 'upup-fixture', publishedAt: '2026-09-09', kind: 'announcement' },
-  { id: 'news-300750-20260910-1', tsCode: '300750.SZ', title: '宁德时代电池产业链观察', summary: '离线样本记录电池技术、原材料和资本开支主题。', source: 'upup-fixture', publishedAt: '2026-09-10', kind: 'announcement' },
-  { id: 'news-market-20260912-1', title: 'A 股市场结构历史快照', summary: '离线样本记录指数、行业轮动和成交主题。', source: 'upup-fixture', publishedAt: '2026-09-12', kind: 'market' },
-  { id: 'news-market-20260911-1', title: '宏观与风险偏好历史快照', summary: '离线样本记录利率、汇率和风险偏好主题。', source: 'upup-fixture', publishedAt: '2026-09-11', kind: 'market' },
-];
-
-const NAME_TO_CODE: Readonly<Record<string, string>> = {
-  比亚迪: '002594.SZ',
-  贵州茅台: '600519.SH',
-  茅台: '600519.SH',
-  宁德时代: '300750.SZ',
-};
-
-function normalizeCode(value: string): string {
-  const trimmed = value.trim();
-  if (NAME_TO_CODE[trimmed]) return NAME_TO_CODE[trimmed];
-  if (/^\d{6}$/u.test(trimmed)) return `${trimmed}.${trimmed.startsWith('6') || trimmed.startsWith('68') ? 'SH' : 'SZ'}`;
-  return trimmed.toUpperCase();
+  sourceUrls: readonly string[];
 }
 
 function normalizeDate(value: string | undefined, field: string): string | undefined {
@@ -60,24 +54,78 @@ function normalizeDate(value: string | undefined, field: string): string | undef
   return normalized;
 }
 
-export function getNativeAStockNews(query: NativeAStockNewsQuery = {}): NativeAStockNewsResult | null {
+export async function fetchNativeAStockNews(query: NativeAStockNewsQuery = {}, options: NativeAStockNewsOptions = {}): Promise<NativeAStockNewsResult> {
   const startDate = normalizeDate(query.startDate, 'startDate');
   const endDate = normalizeDate(query.endDate, 'endDate');
   if (startDate && endDate && startDate > endDate) throw new Error('startDate must not be after endDate');
   const limit = Math.min(Math.max(query.limit ?? 20, 1), 100);
-  const isMarket = !query.code || query.code.trim().toLowerCase() === 'market';
-  const tsCode = isMarket ? undefined : normalizeCode(query.code!);
-  if (tsCode && !NEWS.some((item) => item.tsCode === tsCode)) return null;
-  const items = NEWS
-    .filter((item) => (isMarket ? item.kind === 'market' : item.tsCode === tsCode))
-    .filter((item) => !startDate || item.publishedAt >= startDate)
-    .filter((item) => !endDate || item.publishedAt <= endDate)
-    .sort((left, right) => right.publishedAt.localeCompare(left.publishedAt) || left.id.localeCompare(right.id))
-    .slice(0, limit)
-    .map((item) => ({ ...item }));
-  return { type: isMarket ? 'market' : 'announcement', ...(tsCode ? { tsCode } : {}), asOf: AS_OF, count: items.length, items };
-}
+  const now = options.now ?? (() => new Date());
+  const today = now().toISOString().slice(0, 10);
+  const requested = query.code?.trim();
+  const isMarket = !requested || requested.toLowerCase() === 'market';
+  const read = (url: URL) => readEastmoneyJson(url, { ...(options.fetcher ? { fetcher: options.fetcher } : {}), ...(options.signal ? { signal: options.signal } : {}) });
+  const keep = (item: NativeAStockNewsItem): boolean =>
+    (!startDate || item.publishedAt >= startDate) && (!endDate || item.publishedAt <= endDate);
 
-export function listNativeAStockNewsSymbols(): readonly string[] {
-  return [...new Set(NEWS.flatMap((item) => item.tsCode ? [item.tsCode] : []))].sort();
+  if (isMarket) {
+    const url = new URL(EASTMONEY_FAST_NEWS_URL);
+    url.searchParams.set('client', 'web');
+    url.searchParams.set('biz', 'web_724');
+    url.searchParams.set('fastColumn', '102');
+    url.searchParams.set('sortEnd', '');
+    url.searchParams.set('pageSize', String(Math.min(limit * 2, 100)));
+    url.searchParams.set('req_trace', '1');
+    const payload = await read(url);
+    const list = (payload as { data?: { fastNewsList?: unknown } }).data?.fastNewsList;
+    const items = (Array.isArray(list) ? list : [])
+      .map((entry) => {
+        const row = entry as Record<string, unknown>;
+        const id = typeof row.code === 'string' ? row.code : '';
+        return {
+          id,
+          title: typeof row.title === 'string' ? row.title : '',
+          summary: typeof row.summary === 'string' ? row.summary : '',
+          source: 'eastmoney',
+          publishedAt: eastmoneyDate(typeof row.showTime === 'string' ? row.showTime.replace(' ', 'T') : undefined, today),
+          kind: 'market' as const,
+        };
+      })
+      .filter((item) => item.id !== '' && item.title !== '')
+      .filter(keep)
+      .slice(0, limit);
+    return { type: 'market', asOf: items[0]?.publishedAt ?? today, count: items.length, items, sourceUrls: [url.toString()] };
+  }
+
+  const ticker = normalizeNativeAStockCode(requested!);
+  if (!ticker) throw new Error(`get_astock_news 的 code 需要 A 股代码（如 600519.SH）、中文名或 market，收到：${requested}`);
+  const url = new URL(EASTMONEY_ANNOUNCEMENTS_URL);
+  url.searchParams.set('sr', '-1');
+  url.searchParams.set('page_size', String(Math.min(limit * 2, 100)));
+  url.searchParams.set('page_index', '1');
+  url.searchParams.set('ann_type', 'A');
+  url.searchParams.set('client_source', 'web');
+  url.searchParams.set('stock_list', ticker.slice(0, 6));
+  const payload = await read(url);
+  const list = (payload as { data?: { list?: unknown } }).data?.list;
+  const items = (Array.isArray(list) ? list : [])
+    .map((entry) => {
+      const row = entry as Record<string, unknown>;
+      const artCode = typeof row.art_code === 'string' ? row.art_code : '';
+      const columns = Array.isArray(row.columns) ? row.columns as readonly Record<string, unknown>[] : [];
+      const category = columns[0]?.column_name;
+      return {
+        id: artCode,
+        tsCode: ticker,
+        title: typeof row.title === 'string' ? row.title : '',
+        summary: typeof category === 'string' ? category : (typeof row.title === 'string' ? row.title : ''),
+        source: 'eastmoney',
+        publishedAt: eastmoneyDate(row.notice_date, today),
+        kind: 'announcement' as const,
+        ...(artCode ? { url: `https://data.eastmoney.com/notices/detail/${ticker.slice(0, 6)}/${artCode}.html` } : {}),
+      };
+    })
+    .filter((item) => item.id !== '' && item.title !== '')
+    .filter(keep)
+    .slice(0, limit);
+  return { type: 'announcement', tsCode: ticker, asOf: items[0]?.publishedAt ?? today, count: items.length, items, sourceUrls: [url.toString()] };
 }

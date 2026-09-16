@@ -41,11 +41,12 @@ import {
   type NativeFundAlertState,
   type NativeFundAlertType,
 } from '../src/fund-alerts';
-import { getNativeAStockFinancials, listNativeAStockFinancialSymbols } from '../src/astock-financials';
-import { getNativeAStockNews, listNativeAStockNewsSymbols } from '../src/astock-news';
+import { fetchNativeAStockFinancials } from '../src/astock-financials';
+import { fetchNativeAStockNews } from '../src/astock-news';
 import { getNativeCompanyProfile, getNativeRisks, getNativeSectors, type NativeRiskSeverity, type NativeRiskType } from '../src/knowledge-snapshot';
 import { calculateNativePnl, calculateNativeTax, calculateNativeTradesTax, type NativeTaxJurisdiction } from '../src/tax-calculator';
-import { getNativeFinancialSnapshot, listNativeFinancialSymbols } from '../src/financial-snapshot';
+import { fetchNativeFinancialSnapshot } from '../src/financial-snapshot';
+import { createEastmoneyResearchDataFetcher } from '../src/eastmoney-research';
 import { listNativeInvestmentStrategies, type NativeStrategyRiskTolerance, type NativeStrategyTimeHorizon } from '../src/strategy-catalog';
 import { readNativeFilings, type NativeFilingType } from '../src/filings';
 import { NativeAltDataClient, type NativeAltDataSource } from '../src/alt-data';
@@ -269,25 +270,17 @@ const pnlParameters = Type.Object({
   currency: Type.Optional(Type.String({ minLength: 1, maxLength: 8 })),
 });
 
-function evidenceResult<T>(toolCallId: string, query: string, source: string, value: T, asOf = '2026-09-12'): FinanceResult<T> {
-  const evidence = createEvidence({
-    id: `pi-finance-${source}-${query.replace(/[^a-zA-Z0-9]+/g, '-').toLowerCase()}`,
-    source: `upup-fixture://pi-finance-sdk/${source}`,
-    retrievedAt: '2026-09-13T00:00:00.000Z',
-    asOf,
-    query,
-    freshness: 'historical',
-    auditId: toolCallId,
-  });
-  return createFinanceResult(value, [evidence], toolCallId);
-}
-
 function resultText(value: unknown): string {
   return JSON.stringify(value);
 }
 
 function createResearchClient(): NativeResearchDataClient {
-  return new NativeResearchDataClient();
+  // CN/HK research data has a credential-free provider (public Eastmoney
+  // endpoints); US stays on Financial Datasets, which needs an API key.
+  return new NativeResearchDataClient({
+    marketFetchers: { cn: createEastmoneyResearchDataFetcher({ market: 'cn' }), hk: createEastmoneyResearchDataFetcher({ market: 'hk' }) },
+    marketProviders: { cn: 'eastmoney', hk: 'eastmoney' },
+  });
 }
 
 async function executeResearchTool(toolCallId: string, signal: AbortSignal | undefined, source: string, action: (client: NativeResearchDataClient) => Promise<string>): Promise<PiToolResult> {
@@ -938,30 +931,40 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
   pi.registerTool({
     name: 'get_astock_financials',
     label: 'A-share Financials',
-    description: 'Read deterministic historical A-share income, balance-sheet, cash-flow, and ratio snapshots. This tool is offline and does not query Tushare.',
+    description: 'Read real A-share income, balance-sheet, cash-flow and ratio reports from the public 东方财富数据中心 (no Tushare token needed). Reports are the latest disclosed periods, not a live quote or investment advice.',
     parameters: astockFinancialsParameters,
     async execute(toolCallId, params, signal, _onUpdate, _ctx): Promise<PiToolResult> {
       if (signal?.aborted) return { content: [{ type: 'text', text: 'A-share financials request aborted' }], isError: true, details: undefined };
-      const value = getNativeAStockFinancials(params.code, params.period);
-      if (!value) return { content: [{ type: 'text', text: JSON.stringify({ error: 'No historical A-share financial snapshot for the requested code or period.', supportedSymbols: listNativeAStockFinancialSymbols() }) }], isError: true, details: { auditId: toolCallId } };
-      const evidence = createEvidence({ id: `pi-finance:${toolCallId}:astock-financials`, source: 'upup-pi://finance-sdk/astock-financials', retrievedAt: '2026-09-13T00:00:00.000Z', asOf: value.asOf, query: JSON.stringify(params), freshness: 'historical', warnings: ['Historical offline snapshot; not real-time data or investment advice.'], auditId: toolCallId });
-      const result = createFinanceResult({ ...value, requestedDates: { start_date: params.start_date, end_date: params.end_date } }, [evidence], toolCallId);
-      return { content: [{ type: 'text', text: resultText(result) }], details: result };
+      try {
+        const value = await fetchNativeAStockFinancials(params.code, {
+          period: params.period, startDate: params.start_date, endDate: params.end_date,
+          ...(quoteFetcher ? { fetcher: quoteFetcher } : {}),
+          ...(signal ? { signal } : {}),
+        });
+        const evidence = createEvidence({ id: `pi-finance:${toolCallId}:astock-financials`, source: value.sourceUrls[0] ?? 'https://datacenter-web.eastmoney.com/api/data/v1/get', retrievedAt: new Date().toISOString(), asOf: value.asOf, query: JSON.stringify(params), freshness: 'historical', warnings: ['东方财富公开财报数据；最新披露报告期，不是实时行情或投资建议。'], auditId: toolCallId });
+        const result = createFinanceResult({ ...value, requestedDates: { start_date: params.start_date, end_date: params.end_date } }, [evidence], toolCallId);
+        return { content: [{ type: 'text', text: resultText(result) }], details: result };
+      } catch (error) {
+        return { content: [{ type: 'text', text: error instanceof Error ? error.message : String(error) }], isError: true, details: { auditId: toolCallId, policy: 'no-synthetic-fallback' } };
+      }
     },
   });
 
   pi.registerTool({
     name: 'get_financials',
     label: 'Financial Snapshot',
-    description: 'Read deterministic historical financial statements and key metrics for a supported company. This offline snapshot is not a complete filing, real-time feed, or investment advice.',
+    description: 'Read real reported financial statements and key metrics. A-shares and Hong Kong come from 东方财富公开财报; US statements need FINANCIAL_DATASETS_API_KEY. Not a complete filing, live quote, or investment advice.',
     parameters: financialsParameters,
     async execute(toolCallId, params, signal, _onUpdate, _ctx): Promise<PiToolResult> {
       if (signal?.aborted) return { content: [{ type: 'text', text: 'Financial snapshot request aborted' }], isError: true, details: undefined };
-      const value = getNativeFinancialSnapshot(params.query);
-      if (!value) return { content: [{ type: 'text', text: JSON.stringify({ error: 'No historical financial snapshot for the requested company.', supportedSymbols: listNativeFinancialSymbols() }) }], isError: true, details: { auditId: toolCallId } };
-      const evidence = createEvidence({ id: `pi-finance:${toolCallId}:financials`, source: 'upup-pi://finance-sdk/financials', retrievedAt: '2026-09-14T00:00:00.000Z', asOf: value.asOf, query: params.query, freshness: 'historical', warnings: ['Historical offline snapshot; not a complete filing, real-time data, or investment advice.'], auditId: toolCallId });
-      const result = createFinanceResult(value, [evidence], toolCallId);
-      return { content: [{ type: 'text', text: resultText(result) }], details: result };
+      try {
+        const value = await fetchNativeFinancialSnapshot(params.query, { ...(quoteFetcher ? { fetcher: quoteFetcher } : {}), ...(signal ? { signal } : {}) });
+        const evidence = createEvidence({ id: `pi-finance:${toolCallId}:financials`, source: value.sourceUrls[0] ?? 'https://datacenter-web.eastmoney.com/api/data/v1/get', retrievedAt: new Date().toISOString(), asOf: value.asOf, query: params.query, freshness: 'historical', warnings: ['已披露报告期财报，不是实时行情或投资建议。'], auditId: toolCallId });
+        const result = createFinanceResult(value, [evidence], toolCallId);
+        return { content: [{ type: 'text', text: resultText(result) }], details: result };
+      } catch (error) {
+        return { content: [{ type: 'text', text: error instanceof Error ? error.message : String(error) }], isError: true, details: { auditId: toolCallId, policy: 'no-synthetic-fallback' } };
+      }
     },
   });
 
@@ -998,14 +1001,13 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
   pi.registerTool({
     name: 'get_astock_news',
     label: 'A-share News Snapshot',
-    description: 'Read deterministic historical A-share announcements and market-news snapshots. This tool is offline, not real-time, and does not query Tushare, Eastmoney, or the web.',
+    description: 'Read real A-share announcements (东方财富公告接口) or the latest market headlines (7×24 快讯). Disclosures are the exchange filings; they are not investment advice.',
     parameters: astockNewsParameters,
     async execute(toolCallId, params, signal, _onUpdate, _ctx): Promise<PiToolResult> {
       if (signal?.aborted) return { content: [{ type: 'text', text: 'A-share news request aborted' }], isError: true, details: undefined };
       try {
-        const value = getNativeAStockNews({ code: params.code, startDate: params.start_date, endDate: params.end_date, limit: params.limit });
-        if (!value) return { content: [{ type: 'text', text: JSON.stringify({ error: 'No historical A-share news snapshot for the requested code.', supportedSymbols: listNativeAStockNewsSymbols() }) }], isError: true, details: { auditId: toolCallId } };
-        const evidence = createEvidence({ id: `pi-finance:${toolCallId}:astock-news`, source: 'upup-pi://finance-sdk/astock-news', retrievedAt: '2026-09-14T00:00:00.000Z', asOf: value.asOf, query: JSON.stringify(params), freshness: 'historical', warnings: ['Historical offline news snapshot; not real-time news, not a web search result, and not investment advice.'], auditId: toolCallId });
+        const value = await fetchNativeAStockNews({ code: params.code, startDate: params.start_date, endDate: params.end_date, limit: params.limit }, { ...(quoteFetcher ? { fetcher: quoteFetcher } : {}), ...(signal ? { signal } : {}) });
+        const evidence = createEvidence({ id: `pi-finance:${toolCallId}:astock-news`, source: value.sourceUrls[0] ?? 'https://np-anotice-stock.eastmoney.com/api/security/ann', retrievedAt: new Date().toISOString(), asOf: value.asOf, query: JSON.stringify(params), freshness: 'delayed', warnings: ['东方财富公告 / 快讯原文；请核对公告日期与语境后再做投资判断。'], auditId: toolCallId });
         const result = createFinanceResult(value, [evidence], toolCallId);
         return { content: [{ type: 'text', text: resultText(result) }], details: result };
       } catch (error) {
@@ -1107,51 +1109,4 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
     },
   });
 
-  pi.registerTool({
-    name: 'finance_evidence_fundamentals',
-    label: 'Finance evidence fundamentals',
-    description: 'Return deterministic fundamental metrics with auditable evidence metadata.',
-    parameters: symbolParameters,
-    async execute(toolCallId, params, signal, _onUpdate, _ctx): Promise<PiToolResult> {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'Fundamentals request aborted' }], isError: true, details: undefined };
-      const result = evidenceResult(toolCallId, params.symbol, 'fundamentals', { symbol: params.symbol, revenue: 1000000, pe: 12.5 });
-      return { content: [{ type: 'text', text: resultText(result) }], details: result };
-    },
-  });
-
-  pi.registerTool({
-    name: 'finance_evidence_news',
-    label: 'Finance evidence news',
-    description: 'Return deterministic research headlines with auditable evidence metadata.',
-    parameters: queryParameters,
-    async execute(toolCallId, params, signal, _onUpdate, _ctx): Promise<PiToolResult> {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'News request aborted' }], isError: true, details: undefined };
-      const result = evidenceResult(toolCallId, params.query, 'news', { query: params.query, headlines: ['Fixture headline'] });
-      return { content: [{ type: 'text', text: resultText(result) }], details: result };
-    },
-  });
-
-  pi.registerTool({
-    name: 'finance_evidence_search',
-    label: 'Finance evidence search',
-    description: 'Search deterministic research documents with auditable evidence metadata.',
-    parameters: queryParameters,
-    async execute(toolCallId, params, signal, _onUpdate, _ctx): Promise<PiToolResult> {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'Search request aborted' }], isError: true, details: undefined };
-      const result = evidenceResult(toolCallId, params.query, 'search', { query: params.query, sources: ['upup-fixture://research/1'] });
-      return { content: [{ type: 'text', text: resultText(result) }], details: result };
-    },
-  });
-
-  pi.registerTool({
-    name: 'finance_evidence_trading_day',
-    label: 'Finance evidence trading day',
-    description: 'Check a deterministic exchange calendar date with auditable evidence metadata.',
-    parameters: dateParameters,
-    async execute(toolCallId, params, signal, _onUpdate, _ctx): Promise<PiToolResult> {
-      if (signal?.aborted) return { content: [{ type: 'text', text: 'Trading day request aborted' }], isError: true, details: undefined };
-      const result = evidenceResult(toolCallId, params.date, 'trading-day', { date: params.date, isTradingDay: true }, params.date);
-      return { content: [{ type: 'text', text: resultText(result) }], details: result };
-    },
-  });
 }

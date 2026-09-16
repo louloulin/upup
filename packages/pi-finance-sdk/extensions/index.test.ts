@@ -15,6 +15,33 @@ function publishHost(events: ReturnType<typeof createEventBus>, host: Record<str
   return publishPiCapabilityHosts(events, String(host.sessionId), new Map([[String(host.packageName), host as never]]));
 }
 
+/**
+ * Session transport double for the tool tests: Yahoo answers the quote tools,
+ * Eastmoney answers the CN/HK research tools with real response shapes.
+ */
+function json(payload: unknown): Response {
+  return new Response(JSON.stringify(payload), { status: 200, headers: { 'content-type': 'application/json' } });
+}
+
+const SESSION_FETCHER = (async (input: RequestInfo | URL) => {
+  const url = String(input);
+  if (url.includes('query1.finance.yahoo.com')) {
+    return json({ chart: { result: [{ meta: { regularMarketPrice: 1600, regularMarketTime: Date.parse('2026-09-13T00:00:00Z') / 1000 } }] } });
+  }
+  if (url.includes('RPT_LICO_FN_CPD')) {
+    return json({ result: { data: [{ SECUCODE: '600519.SH', SECURITY_NAME_ABBR: '贵州茅台', REPORTDATE: '2026-06-30 00:00:00', DATATYPE: '2026年 半年报', BOARD_NAME: '白酒Ⅱ', TOTAL_OPERATE_INCOME: 92278072083.21, PARENT_NETPROFIT: 44516880421.86, BASIC_EPS: 35.57, WEIGHTAVG_ROE: 16.75, XSMLL: 89.55 }] } });
+  }
+  if (url.includes('RPT_DMSK_FN_BALANCE')) return json({ result: { data: [{ REPORT_DATE: '2026-06-30 00:00:00', TOTAL_ASSETS: 309050784569.31, TOTAL_LIABILITIES: 46954432394.95 }] } });
+  if (url.includes('RPT_DMSK_FN_CASHFLOW')) return json({ result: { data: [{ REPORT_DATE: '2026-06-30 00:00:00', NETCASH_OPERATE: 70690750119.06 }] } });
+  if (url.includes('np-anotice-stock')) {
+    return json({ data: { list: [
+      { art_code: 'AN202608281', title: '贵州茅台:2026年半年度报告', notice_date: '2026-08-28 00:00:00', columns: [{ column_name: '年度报告' }] },
+      { art_code: 'AN202608051', title: '贵州茅台:2026年7月经营数据', notice_date: '2026-08-05 00:00:00', columns: [{ column_name: '月度经营' }] },
+    ] } });
+  }
+  throw new Error(`unexpected request in the finance tool test: ${url}`);
+}) as unknown as (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+
 describe('Pi finance SDK extension', () => {
   test('registers Pi-native investment commands that route through @upup/pi-investment-workflow', async () => {
     const commands = new Map<string, { handler: (args: string) => Promise<void> }>();
@@ -160,7 +187,7 @@ describe('Pi finance SDK extension', () => {
       packageVersion: PI_FINANCE_PACKAGE_VERSION,
       sessionId: 'finance-test-session',
       capabilities: PI_FINANCE_HOST_CAPABILITIES,
-      providers: { tools: { getToolDefinitions: () => [] }, marketData: { getMarketQuoteFetcher: () => async () => new Response(JSON.stringify({ chart: { result: [{ meta: { regularMarketPrice: 1600, regularMarketTime: Date.parse('2026-09-13T00:00:00Z') / 1000 } }] } }), { status: 200 }) } },
+      providers: { tools: { getToolDefinitions: () => [] }, marketData: { getMarketQuoteFetcher: () => SESSION_FETCHER } },
     });
     const tools = new Map<string, { execute: (...args: any[]) => Promise<any> }>();
     try {
@@ -218,24 +245,25 @@ describe('Pi finance SDK extension', () => {
       'calculate_capital_gains_tax',
       'calculate_trades_tax',
       'calculate_pnl',
-      'finance_evidence_fundamentals',
-      'finance_evidence_news',
-      'finance_evidence_search',
-      'finance_evidence_trading_day',
     ]);
     const result = await tools.get('finance_evidence_quote')!.execute('quote-1', { symbol: '600519.SH' }, new AbortController().signal);
     expect(result.details).toMatchObject({
       auditId: 'quote-1',
       evidence: [{ source: 'https://query1.finance.yahoo.com/v8/finance/chart', asOf: '2026-09-13', freshness: 'delayed' }],
     });
-    const astockFinancials = await tools.get('get_astock_financials')!.execute('astock-financials-1', { code: '比亚迪' }, new AbortController().signal);
-    expect(astockFinancials).toMatchObject({ details: { auditId: 'astock-financials-1', evidence: [{ source: 'upup-pi://finance-sdk/astock-financials', freshness: 'historical', asOf: '2026-09-12' }] } });
-    const astockNews = await tools.get('get_astock_news')!.execute('astock-news-1', { code: '比亚迪', limit: 2 }, new AbortController().signal);
-    expect(astockNews).toMatchObject({ details: { auditId: 'astock-news-1', evidence: [{ source: 'upup-pi://finance-sdk/astock-news', freshness: 'historical', asOf: '2026-09-12' }] } });
-    expect(JSON.parse(astockNews.content[0].text).value).toMatchObject({ type: 'announcement', tsCode: '002594.SZ', count: 2 });
-    const financials = await tools.get('get_financials')!.execute('financials-1', { query: 'Apple revenue and ROE' }, new AbortController().signal);
-    expect(financials).toMatchObject({ details: { auditId: 'financials-1', evidence: [{ source: 'upup-pi://finance-sdk/financials', freshness: 'historical', asOf: '2026-09-12' }] } });
-    expect(JSON.parse(financials.content[0].text).value).toMatchObject({ symbol: 'AAPL', metrics: { latestRevenue: 4161.6 } });
+    const astockFinancials = await tools.get('get_astock_financials')!.execute('astock-financials-1', { code: '贵州茅台' }, new AbortController().signal);
+    expect(astockFinancials).toMatchObject({ details: { auditId: 'astock-financials-1', evidence: [{ source: expect.stringContaining('datacenter-web.eastmoney.com'), freshness: 'historical', asOf: '2026-06-30' }] } });
+    expect(JSON.parse(astockFinancials.content[0].text).value).toMatchObject({ ts_code: '600519.SH', name: '贵州茅台', periods: [{ eps: 35.57, totalAssets: 309050784569.31, operatingCashflow: 70690750119.06 }] });
+    const astockNews = await tools.get('get_astock_news')!.execute('astock-news-1', { code: '贵州茅台', limit: 2 }, new AbortController().signal);
+    expect(astockNews).toMatchObject({ details: { auditId: 'astock-news-1', evidence: [{ source: expect.stringContaining('np-anotice-stock.eastmoney.com'), freshness: 'delayed', asOf: '2026-08-28' }] } });
+    expect(JSON.parse(astockNews.content[0].text).value).toMatchObject({ type: 'announcement', tsCode: '600519.SH', count: 2 });
+    expect(JSON.parse(astockNews.content[0].text).value.items[0]).toMatchObject({ title: '贵州茅台:2026年半年度报告', publishedAt: '2026-08-28' });
+    const financials = await tools.get('get_financials')!.execute('financials-1', { query: '贵州茅台 revenue and ROE' }, new AbortController().signal);
+    expect(financials).toMatchObject({ details: { auditId: 'financials-1', evidence: [{ source: expect.stringContaining('datacenter-web.eastmoney.com'), freshness: 'historical', asOf: '2026-06-30' }] } });
+    expect(JSON.parse(financials.content[0].text).value).toMatchObject({ symbol: '600519.SH', market: 'cn', metrics: { latestRevenue: 92278072083.21, latestRoe: 16.75 } });
+    const usFinancials = await tools.get('get_financials')!.execute('financials-2', { query: 'Apple revenue and ROE' }, new AbortController().signal);
+    expect(usFinancials.isError).toBe(true);
+    expect(usFinancials.content[0].text).toMatch(/FINANCIAL_DATASETS_API_KEY/u);
     const companyProfile = await tools.get('get_company_profile')!.execute('company-profile-1', { ticker: '贵州茅台' }, new AbortController().signal);
     expect(companyProfile).toMatchObject({ details: { auditId: 'company-profile-1', evidence: [{ source: 'upup-pi://finance-sdk/company-profile', freshness: 'historical', asOf: '2026-09-12' }] } });
     expect(JSON.parse(companyProfile.content[0].text).value).toMatchObject({ found: true, ticker: '600519.SH', name: '贵州茅台' });

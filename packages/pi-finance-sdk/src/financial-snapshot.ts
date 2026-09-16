@@ -1,110 +1,132 @@
-import { getNativeAStockFinancials } from './astock-financials';
+/**
+ * Real company financial statements for `get_financials`.
+ *
+ * A-shares read the 东方财富数据中心 income / balance / cash-flow reports
+ * (`fetchNativeAStockFinancials`), Hong Kong reads the 主要指标 report through the
+ * shared Eastmoney research adapter. US statements come from Financial Datasets,
+ * which needs `FINANCIAL_DATASETS_API_KEY`; without it the tool fails closed with
+ * an actionable message instead of returning a fixture.
+ */
+import { fetchNativeAStockFinancials, normalizeNativeAStockCode } from './astock-financials';
+import { createEastmoneyResearchDataFetcher } from './eastmoney-research';
+import type { EastmoneyFetcher } from './eastmoney-datacenter';
 
 export interface NativeFinancialPeriod {
   period: string;
-  revenue: number;
-  netIncome: number;
-  eps: number;
-  grossMargin: number;
-  roe: number;
-  totalAssets: number;
-  totalLiabilities: number;
-  operatingCashflow: number;
+  reportDate: string;
+  revenue?: number;
+  netIncome?: number;
+  eps?: number;
+  grossMargin?: number;
+  roe?: number;
+  totalAssets?: number;
+  totalLiabilities?: number;
+  operatingCashflow?: number;
 }
 
 export interface NativeFinancialSnapshot {
   symbol: string;
   company: string;
   market: 'cn' | 'hk' | 'us';
-  asOf: '2026-09-12';
+  asOf: string;
   periods: NativeFinancialPeriod[];
   metrics: {
-    latestRevenue: number;
-    latestNetIncome: number;
-    latestEps: number;
-    latestRoe: number;
-    latestGrossMargin: number;
-    debtToAssets: number;
+    latestRevenue?: number;
+    latestNetIncome?: number;
+    latestEps?: number;
+    latestRoe?: number;
+    latestGrossMargin?: number;
+    debtToAssets?: number;
   };
-  scope: 'historical-offline-snapshot';
+  scope: 'eastmoney-public-reports';
+  sourceUrls: readonly string[];
 }
 
-const AS_OF = '2026-09-12' as const;
+export interface NativeFinancialSnapshotOptions {
+  readonly fetcher?: EastmoneyFetcher;
+  readonly signal?: AbortSignal;
+  readonly now?: () => Date;
+}
 
-const US_SNAPSHOTS: Readonly<Record<string, Omit<NativeFinancialSnapshot, 'metrics' | 'scope'>>> = {
-  AAPL: {
-    symbol: 'AAPL', company: 'Apple', market: 'us', asOf: AS_OF,
-    periods: [
-      { period: '2025', revenue: 4161.6, netIncome: 1120.1, eps: 7.45, grossMargin: 46.9, roe: 157.4, totalAssets: 3592.0, totalLiabilities: 3080.0, operatingCashflow: 1114.0 },
-      { period: '2024', revenue: 3910.4, netIncome: 937.4, eps: 6.08, grossMargin: 46.2, roe: 157.0, totalAssets: 3526.0, totalLiabilities: 2870.0, operatingCashflow: 1040.0 },
-    ],
-  },
-  MSFT: {
-    symbol: 'MSFT', company: 'Microsoft', market: 'us', asOf: AS_OF,
-    periods: [
-      { period: '2025', revenue: 2817.2, netIncome: 1018.3, eps: 13.66, grossMargin: 69.8, roe: 34.1, totalAssets: 6190.0, totalLiabilities: 2750.0, operatingCashflow: 1360.0 },
-      { period: '2024', revenue: 2451.2, netIncome: 881.4, eps: 11.80, grossMargin: 69.5, roe: 35.2, totalAssets: 5120.0, totalLiabilities: 2430.0, operatingCashflow: 1180.0 },
-    ],
-  },
-  TSLA: {
-    symbol: 'TSLA', company: 'Tesla', market: 'us', asOf: AS_OF,
-    periods: [
-      { period: '2025', revenue: 1034.2, netIncome: 84.7, eps: 2.41, grossMargin: 18.7, roe: 18.9, totalAssets: 1420.0, totalLiabilities: 690.0, operatingCashflow: 162.0 },
-      { period: '2024', revenue: 976.9, netIncome: 71.3, eps: 2.04, grossMargin: 19.8, roe: 20.1, totalAssets: 1190.0, totalLiabilities: 580.0, operatingCashflow: 149.0 },
-    ],
-  },
-  NVDA: {
-    symbol: 'NVDA', company: 'NVIDIA', market: 'us', asOf: AS_OF,
-    periods: [
-      { period: '2025', revenue: 2159.4, netIncome: 1203.0, eps: 4.88, grossMargin: 74.9, roe: 112.0, totalAssets: 1110.0, totalLiabilities: 420.0, operatingCashflow: 980.0 },
-      { period: '2024', revenue: 1304.9, netIncome: 728.8, eps: 2.95, grossMargin: 72.7, roe: 91.2, totalAssets: 650.0, totalLiabilities: 270.0, operatingCashflow: 560.0 },
-    ],
-  },
-};
-
+/** Company-name aliases resolved before the tool hits the network. */
 const ALIASES: Readonly<Record<string, string>> = {
-  apple: 'AAPL', microsoft: 'MSFT', 微软: 'MSFT', tesla: 'TSLA', 特斯拉: 'TSLA', nvidia: 'NVDA', 英伟达: 'NVDA', 苹果: 'AAPL',
-  比亚迪: '002594.SZ', 贵州茅台: '600519.SH', 茅台: '600519.SH', 宁德时代: '300750.SZ',
+  apple: 'AAPL', 苹果: 'AAPL', microsoft: 'MSFT', 微软: 'MSFT', tesla: 'TSLA', 特斯拉: 'TSLA', nvidia: 'NVDA', 英伟达: 'NVDA',
+  比亚迪: '002594.SZ', 贵州茅台: '600519.SH', 茅台: '600519.SH', 宁德时代: '300750.SZ', 腾讯: '00700.HK', 腾讯控股: '00700.HK',
 };
 
-function normalizeSymbol(query: string): string | undefined {
+export function normalizeNativeFinancialSymbol(query: string): string | undefined {
   const trimmed = query.trim();
   const alias = Object.entries(ALIASES).find(([name]) => trimmed.toLocaleLowerCase().includes(name.toLocaleLowerCase()));
   if (alias) return alias[1];
-  const aStock = trimmed.match(/\b\d{6}(?:\.(?:SH|SZ|BJ))?\b/iu)?.[0];
-  if (aStock) return aStock.toUpperCase().includes('.') ? aStock.toUpperCase() : `${aStock}.${aStock.startsWith('6') ? 'SH' : 'SZ'}`;
-  const hk = trimmed.match(/\b\d{5}\.HK\b/iu)?.[0];
+  const aStock = trimmed.match(/\b\d{6}(?:\.(?:SH|SZ|BJ))?\b/u)?.[0];
+  if (aStock) return normalizeNativeAStockCode(aStock);
+  const hk = trimmed.match(/\b\d{4,5}\.HK\b/iu)?.[0];
   if (hk) return hk.toUpperCase();
-  const us = trimmed.match(/\b[A-Z]{1,5}\b/u)?.[0];
-  return us?.toUpperCase();
+  return trimmed.match(/\b[A-Z]{1,5}\b/u)?.[0];
 }
 
-function metrics(period: NativeFinancialPeriod[]): NativeFinancialSnapshot['metrics'] {
-  const latest = period[0];
+function metricsOf(periods: readonly NativeFinancialPeriod[]): NativeFinancialSnapshot['metrics'] {
+  const latest = periods[0];
+  if (!latest) return {};
+  const debtToAssets = latest.totalAssets && latest.totalLiabilities !== undefined
+    ? Number((latest.totalLiabilities / latest.totalAssets).toFixed(4))
+    : undefined;
   return {
-    latestRevenue: latest.revenue,
-    latestNetIncome: latest.netIncome,
-    latestEps: latest.eps,
-    latestRoe: latest.roe,
-    latestGrossMargin: latest.grossMargin,
-    debtToAssets: Number((latest.totalLiabilities / latest.totalAssets).toFixed(4)),
+    ...(latest.revenue === undefined ? {} : { latestRevenue: latest.revenue }),
+    ...(latest.netIncome === undefined ? {} : { latestNetIncome: latest.netIncome }),
+    ...(latest.eps === undefined ? {} : { latestEps: latest.eps }),
+    ...(latest.roe === undefined ? {} : { latestRoe: latest.roe }),
+    ...(latest.grossMargin === undefined ? {} : { latestGrossMargin: latest.grossMargin }),
+    ...(debtToAssets === undefined ? {} : { debtToAssets }),
   };
 }
 
-export function getNativeFinancialSnapshot(query: string): NativeFinancialSnapshot | null {
-  const symbol = normalizeSymbol(query);
-  if (!symbol) return null;
-  const astock = getNativeAStockFinancials(symbol);
-  if (astock) {
-    const periods = astock.periods.map((period) => ({ period: period.period, revenue: period.revenue, netIncome: period.netIncome, eps: period.eps, grossMargin: period.grossMargin, roe: period.roe, totalAssets: period.totalAssets, totalLiabilities: period.totalLiabilities, operatingCashflow: period.operatingCashflow }));
-    return { symbol: astock.ts_code, company: astock.name, market: 'cn', asOf: astock.asOf, periods, metrics: metrics(periods), scope: 'historical-offline-snapshot' };
+export async function fetchNativeFinancialSnapshot(query: string, options: NativeFinancialSnapshotOptions = {}): Promise<NativeFinancialSnapshot> {
+  const symbol = normalizeNativeFinancialSymbol(query);
+  if (!symbol) throw new Error(`get_financials 无法从 “${query}” 解析出证券代码；请给出代码（如 600519.SH / 00700.HK）或公司名。`);
+  const now = options.now ?? (() => new Date());
+  const today = now().toISOString().slice(0, 10);
+  const aStock = normalizeNativeAStockCode(symbol);
+  if (aStock) {
+    const financials = await fetchNativeAStockFinancials(aStock, { ...(options.fetcher ? { fetcher: options.fetcher } : {}), ...(options.signal ? { signal: options.signal } : {}), now, limit: 4 });
+    return {
+      symbol: financials.ts_code,
+      company: financials.name,
+      market: 'cn',
+      asOf: financials.asOf,
+      periods: financials.periods.map((period) => ({ ...period, reportDate: period.reportDate })),
+      metrics: metricsOf(financials.periods),
+      scope: 'eastmoney-public-reports',
+      sourceUrls: financials.sourceUrls,
+    };
   }
-  const snapshot = US_SNAPSHOTS[symbol];
-  if (!snapshot) return null;
-  const periods = snapshot.periods.map((period) => ({ ...period }));
-  return { ...snapshot, periods, metrics: metrics(periods), scope: 'historical-offline-snapshot' };
-}
-
-export function listNativeFinancialSymbols(): readonly string[] {
-  return [...Object.keys(US_SNAPSHOTS), '002594.SZ', '300750.SZ', '600519.SH'].sort();
+  if (symbol.endsWith('.HK')) {
+    const adapter = createEastmoneyResearchDataFetcher({ market: 'hk', ...(options.fetcher ? { fetcher: options.fetcher } : {}), now });
+    const response = await adapter(`https://api.financialdatasets.ai/financial-metrics/snapshot/?ticker=${encodeURIComponent(symbol)}`, { ...(options.signal ? { signal: options.signal } : {}) });
+    const payload = await response.json() as { financial_metrics?: readonly Record<string, unknown>[] };
+    const rows = payload.financial_metrics ?? [];
+    if (rows.length === 0) throw new Error(`东方财富财报接口没有 ${symbol} 的报告数据`);
+    const periods: NativeFinancialPeriod[] = rows.map((row) => ({
+      period: String(row.report_date ?? today).slice(0, 4),
+      reportDate: String(row.report_date ?? today),
+      ...(typeof row.revenue === 'number' ? { revenue: row.revenue } : {}),
+      ...(typeof row.net_income === 'number' ? { netIncome: row.net_income } : {}),
+      ...(typeof row.eps === 'number' ? { eps: row.eps } : {}),
+      ...(typeof row.gross_margin_pct === 'number' ? { grossMargin: row.gross_margin_pct } : {}),
+    }));
+    return {
+      symbol,
+      company: typeof rows[0]?.name === 'string' ? rows[0].name : symbol,
+      market: 'hk',
+      asOf: periods[0]!.reportDate,
+      periods,
+      metrics: metricsOf(periods),
+      scope: 'eastmoney-public-reports',
+      sourceUrls: [`https://datacenter-web.eastmoney.com/api/data/v1/get?reportName=RPT_HKF10_FN_MAININDICATOR&filter=(SECUCODE="${symbol}")`],
+    };
+  }
+  throw new Error(
+    `${symbol} 是美股代码：美股财务报表需要 FINANCIAL_DATASETS_API_KEY（当前未配置）。` +
+    'A 股 / 港股财务数据由东方财富公开财报提供，可直接查询；美股可先用 get_filings / web_search 获取披露。',
+  );
 }

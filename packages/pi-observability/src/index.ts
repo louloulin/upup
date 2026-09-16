@@ -28,6 +28,19 @@ export {
   hashTelemetryInput,
 } from './recorder';
 export {
+  createHostRequestGate,
+  hostGateFor,
+  HostThrottleError,
+  isHostThrottleError,
+  isSocketResetError,
+  resetHostGates,
+  DEFAULT_HOST_COOLDOWN_MS,
+  DEFAULT_HOST_MIN_INTERVAL_MS,
+  DEFAULT_HOST_RESETS_BEFORE_COOLDOWN,
+  type HostRequestGate,
+  type HostRequestGateOptions,
+} from './host-request-gate';
+export {
   classifyProviderError,
   executeWithProviderRetry,
   type ProviderRetryError,

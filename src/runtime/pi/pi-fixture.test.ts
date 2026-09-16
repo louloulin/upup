@@ -6,7 +6,6 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { getInvestmentAgentSpec } from '@upup/pi-investment-workflow';
 import { PiAgentSessionFactory } from '@upup/pi-session';
-import { FINANCE_FIXTURE_TOOLS } from '@upup/pi-finance-sdk/finance-fixtures';
 import type { UpUpToolContract } from '@upup/pi-runtime';
 
 const fixtureTool: UpUpToolContract = {
@@ -18,6 +17,7 @@ const fixtureTool: UpUpToolContract = {
   parameters: Type.Object({ symbol: Type.String() }),
   hasFinancialImpact: false,
   async execute(input: { symbol: string }, context) {
+    if (context.signal?.aborted) throw new DOMException('probe tool aborted', 'AbortError');
     await new Promise((resolve) => setTimeout(resolve, 15));
     context.onUpdate?.({ text: `quoted ${input.symbol}`, progress: 1 });
     return {
@@ -39,53 +39,41 @@ const fixtureTool: UpUpToolContract = {
 };
 
 describe('Pi runtime deterministic fixture', () => {
-  test('executes all five finance fixtures through Pi registerTool definitions', async () => {
+  test('executes the local probe tool through Pi registerTool definitions', async () => {
     const session = await new PiAgentSessionFactory().createSession({
       ...getInvestmentAgentSpec('invest-explore'),
-      tools: FINANCE_FIXTURE_TOOLS.map((tool) => tool.name),
+      tools: [fixtureTool.name],
     }, {
       cwd: process.cwd(),
-      tools: FINANCE_FIXTURE_TOOLS,
+      tools: [fixtureTool],
     });
-    const inputs: Record<string, unknown> = {
-      fixture_market_quote: { symbol: '600519.SH' },
-      fixture_fundamentals: { symbol: '600519.SH' },
-      fixture_news: { query: '贵州茅台' },
-      fixture_search: { query: '白酒行业' },
-      fixture_trading_day: { date: '2026-09-12' },
-    };
     try {
-      for (const tool of FINANCE_FIXTURE_TOOLS) {
-        expect(session.getAvailableToolNames()).toContain(tool.name);
-        expect(tool.maxConcurrent).toBeGreaterThan(0);
-        const result = await session.executeTool(
-          tool.name,
-          `fixture-call-${tool.name}`,
-          inputs[tool.name],
-          new AbortController().signal,
-        );
-        expect(result.content).toBeDefined();
-        const details = result.details as Record<string, unknown>;
-        expect(details).toMatchObject({
-          auditId: expect.any(String),
-          evidence: [expect.objectContaining({
-            source: expect.stringContaining('upup-fixture://'),
-            retrievedAt: '2026-09-13T00:00:00.000Z',
-            asOf: expect.stringMatching(/^2026-09-\d{2}$/),
-            dataHash: expect.stringMatching(/^[0-9a-f]{64}$/),
-          })],
-          warnings: [expect.stringContaining('Deterministic fixture data')],
-        });
-      }
+      expect(session.getAvailableToolNames()).toContain(fixtureTool.name);
+      const result = await session.executeTool(
+        fixtureTool.name,
+        `probe-call-${fixtureTool.name}`,
+        { symbol: '600519.SH' },
+        new AbortController().signal,
+      );
+      expect(result.content).toBeDefined();
+      const details = result.details as Record<string, unknown>;
+      expect(details).toMatchObject({
+        auditId: expect.any(String),
+        evidence: [expect.objectContaining({
+          source: 'upup-fixture://market-quote',
+          retrievedAt: '2026-09-13T00:00:00.000Z',
+          asOf: '2026-09-12',
+        })],
+        dataFreshness: 'historical',
+      });
     } finally {
       session.dispose();
     }
   });
 
-  test('preserves fixture concurrency metadata, progress, and AbortSignal semantics', async () => {
+  test('preserves probe progress and AbortSignal semantics', async () => {
     const updates: Array<{ text: string; progress?: number }> = [];
-    const quote = FINANCE_FIXTURE_TOOLS.find((tool) => tool.name === 'fixture_market_quote');
-    expect(quote).toBeDefined();
+    const quote = fixtureTool;
     const controller = new AbortController();
     const result = await quote!.execute({ symbol: '600519.SH' }, {
       agent: getInvestmentAgentSpec('invest-explore'),
@@ -94,11 +82,11 @@ describe('Pi runtime deterministic fixture', () => {
       auditId: 'fixture-contract-audit',
       onUpdate: (update) => updates.push(update),
     });
-    expect(result.details?.auditId).toContain('fixture-audit');
-    expect(updates).toEqual([{ text: 'Loading quote for 600519.SH', progress: 0.5 }]);
+    expect(result.details?.auditId).toBe('fixture-contract-audit');
+    expect(updates).toEqual([{ text: 'quoted 600519.SH', progress: 1 }]);
 
     controller.abort();
-    await expect(quote!.execute({ symbol: '600519.SH' }, {
+    await expect(quote.execute({ symbol: '600519.SH' }, {
       agent: getInvestmentAgentSpec('invest-explore'),
       toolCallId: 'fixture-aborted-call',
       signal: controller.signal,

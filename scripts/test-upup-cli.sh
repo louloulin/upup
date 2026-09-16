@@ -186,7 +186,7 @@ else
 fi
 
 subsection "3.2 Finance Tool Adapters"
-if bun test src/runtime/pi/finance-e2e.test.ts packages/pi-finance-sdk/src/finance-fixtures.test.ts > /tmp/upup-test-knowledge-tools.log 2>&1; then
+if bun test src/runtime/pi/finance-e2e.test.ts packages/pi-finance-sdk/src/eastmoney-research.test.ts > /tmp/upup-test-knowledge-tools.log 2>&1; then
     pass "Finance tool adapter tests passed"
 else
     info "Test file may not exist - checking with agent tests"

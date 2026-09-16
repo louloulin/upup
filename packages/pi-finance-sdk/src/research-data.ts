@@ -30,6 +30,12 @@ export interface ResearchDataClientOptions {
 type QueryValue = string | number | readonly string[] | undefined;
 
 const DEFAULT_BASE_URL = 'https://api.financialdatasets.ai';
+/**
+ * Providers backed by public endpoints that authenticate nobody (Eastmoney's
+ * datacenter / report / notice APIs). They are the CN/HK research path when no
+ * Tushare token is configured, so they must not be asked for an API key.
+ */
+const CREDENTIAL_FREE_RESEARCH_PROVIDERS = new Set(['eastmoney']);
 const DEFAULT_PROVIDER_RETRY: Omit<ProviderRetryPolicy, 'provider' | 'operation'> = {
   maxAttempts: 3,
   baseDelayMs: 100,
@@ -108,9 +114,11 @@ export class NativeResearchDataClient {
     if (signal?.aborted) throw new Error('finance research request aborted');
     const fetcher = this.marketFetchers[market] ?? (market === 'us' ? this.fetcher : undefined);
     if (!fetcher) throw new Error(`research provider unavailable for market ${market}; configure an explicit market provider`);
-    const apiKey = this.marketApiKeys[market] ?? this.apiKey;
-    if (!apiKey) throw new Error(market === 'us' ? 'FINANCIAL_DATASETS_API_KEY is required for live finance research' : `research credentials are required for live ${market} finance research`);
     const provider = this.marketProviders[market] ?? (market === 'us' ? 'financial-datasets' : `configured-${market}-research`);
+    const apiKey = this.marketApiKeys[market] ?? this.apiKey;
+    if (!apiKey && !CREDENTIAL_FREE_RESEARCH_PROVIDERS.has(provider)) {
+      throw new Error(market === 'us' ? 'FINANCIAL_DATASETS_API_KEY is required for live finance research' : `research credentials are required for live ${market} finance research`);
+    }
     const baseUrl = (this.marketBaseUrls[market] ?? this.baseUrl).replace(/\/$/, '');
     const url = new URL(`${baseUrl}${path}`);
     for (const [key, value] of Object.entries(params)) {
@@ -118,7 +126,7 @@ export class NativeResearchDataClient {
       for (const item of Array.isArray(value) ? value : [value]) url.searchParams.append(key, String(item));
     }
     const request = async (retrySignal?: AbortSignal): Promise<Record<string, unknown>> => {
-      const response = await fetcher(url, { ...(retrySignal ? { signal: retrySignal } : { ...(signal ? { signal } : {}) }), headers: { 'x-api-key': apiKey } });
+      const response = await fetcher(url, { ...(retrySignal ? { signal: retrySignal } : { ...(signal ? { signal } : {}) }), headers: { ...(apiKey ? { 'x-api-key': apiKey } : {}) } });
       if (!response.ok) throw new Error(`Financial Datasets research request failed: ${response.status} ${response.statusText}`);
       return objectPayload(await response.json());
     };
@@ -138,6 +146,18 @@ export class NativeResearchDataClient {
     };
   }
 
+  /**
+   * Adapters that proxy a different upstream than `baseUrl` (e.g. Eastmoney)
+   * declare the URLs they actually read via `sourceUrls`, so the evidence
+   * envelope never claims `api.financialdatasets.ai` served CN/HK rows.
+   */
+  private sourceUrlsOf(payload: Record<string, unknown>, fallback: string): readonly string[] {
+    if (!Array.isArray(payload.sourceUrls)) return [fallback];
+    // An explicit (possibly empty) list wins: a provider that served nothing
+    // must not be credited with the request URL.
+    return payload.sourceUrls.filter((value): value is string => typeof value === 'string' && value.length > 0);
+  }
+
   private format(result: { payload: Record<string, unknown>; url: string; market: ResearchMarket; provider: string }): string {
     const retryAttempts = 'retryAttempts' in result && typeof result.retryAttempts === 'number' ? result.retryAttempts : 1;
     const retryMaxAttempts = 'retryMaxAttempts' in result && typeof result.retryMaxAttempts === 'number' ? result.retryMaxAttempts : 1;
@@ -145,7 +165,7 @@ export class NativeResearchDataClient {
       data: result.payload,
       market: result.market,
       provider: result.provider,
-      sourceUrls: [result.url],
+      sourceUrls: this.sourceUrlsOf(result.payload, result.url),
       freshness: this.freshness,
       retrievedAt: new Date().toISOString(),
       retryAttempts,

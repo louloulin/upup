@@ -1,8 +1,46 @@
+import { createHash } from 'node:crypto';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
+import { Type } from 'typebox';
+import type { FinancialToolDetails, UpUpToolContract, UpUpToolResult } from '@upup/pi-runtime';
 import { getInvestmentAgentSpec } from '@upup/pi-investment-workflow';
 import { PiAgentSessionFactory } from '@upup/pi-session';
-import { FINANCE_FIXTURE_TOOLS } from '@upup/pi-finance-sdk/finance-fixtures';
+
+/**
+ * In-process latency probe. The benchmark measures Pi session and tool-dispatch
+ * overhead, so the tool it calls must be local and deterministic; it is defined
+ * here instead of shipped from a package, so no package exports benchmark data.
+ */
+const PROBE_TOOL_NAME = 'benchmark_probe_quote';
+const probeTool: UpUpToolContract = {
+  name: PROBE_TOOL_NAME,
+  label: 'Benchmark probe quote',
+  description: 'In-process latency probe used by scripts/benchmark-pi5.ts. Not market data.',
+  category: 'market',
+  safetyLevel: 'safe',
+  parameters: Type.Object({ symbol: Type.String({ minLength: 1 }) }),
+  maxConcurrent: 4,
+  hasFinancialImpact: false,
+  async execute(input: { symbol: string }, context): Promise<UpUpToolResult<Readonly<Record<string, string | number>>>> {
+    if (context.signal?.aborted) throw new DOMException('benchmark probe aborted', 'AbortError');
+    const value = { symbol: input.symbol, probe: 1 };
+    const details: FinancialToolDetails = {
+      evidence: [{
+        id: `benchmark-probe-${input.symbol}`,
+        source: 'upup-benchmark://probe',
+        retrievedAt: new Date().toISOString(),
+        asOf: '2026-01-01',
+        query: input.symbol,
+        dataHash: createHash('sha256').update(JSON.stringify(value)).digest('hex'),
+        confidence: 'high',
+      }],
+      dataFreshness: 'historical',
+      warnings: ['Benchmark probe payload; not market data.'],
+      auditId: 'benchmark-probe',
+    };
+    return { value, text: JSON.stringify(value), details };
+  },
+};
 
 const thresholds = {
   startupMs: 500,
@@ -42,11 +80,10 @@ function stats(values: readonly number[]): { count: number; min: number; max: nu
 async function main(): Promise<void> {
   const directory = await mkdtemp(join(process.cwd(), '.upup', 'pi-benchmark-'));
   const sessionPath = join(directory, 'benchmark.jsonl');
-  const quoteTool = FINANCE_FIXTURE_TOOLS.find((tool) => tool.name === 'fixture_market_quote');
-  if (!quoteTool) throw new Error('fixture_market_quote is not registered');
+  const quoteTool = probeTool;
 
   const factory = new PiAgentSessionFactory();
-  const spec = { ...getInvestmentAgentSpec('invest-explore'), tools: ['fixture_market_quote'] };
+  const spec = { ...getInvestmentAgentSpec('invest-explore'), tools: [PROBE_TOOL_NAME] };
   const startupStart = performance.now();
   const first = await factory.createSession(spec, {
     cwd: directory,
@@ -62,7 +99,7 @@ async function main(): Promise<void> {
     const toolStart = performance.now();
     for (let index = 0; index < 10; index += 1) {
       const callStart = performance.now();
-      const result = await first.executeTool('fixture_market_quote', `benchmark-${index}`, { symbol: '600519.SH' });
+      const result = await first.executeTool(PROBE_TOOL_NAME, `benchmark-${index}`, { symbol: '600519.SH' });
       perCallLatencies.push(Number((performance.now() - callStart).toFixed(3)));
       if (!result.content.length || !result.details || !('auditId' in result.details)) {
         throw new Error('benchmark tool result did not contain auditable content');
@@ -89,7 +126,7 @@ async function main(): Promise<void> {
     const slaLatencies: number[] = [];
     for (let index = 0; index < thresholds.slaSustainedCalls; index += 1) {
       const callStart = performance.now();
-      await recovered.executeTool('fixture_market_quote', `sla-${index}`, { symbol: '600519.SH' });
+      await recovered.executeTool(PROBE_TOOL_NAME, `sla-${index}`, { symbol: '600519.SH' });
       slaLatencies.push(Number((performance.now() - callStart).toFixed(3)));
     }
     const slaStats = stats(slaLatencies);
@@ -104,7 +141,7 @@ async function main(): Promise<void> {
   const report = {
     schema: 'upup.pi5.performance.v1',
     runtime: { bun: Bun.version, node: process.versions.node },
-    workload: { tool: 'fixture_market_quote', calls: 10, symbol: '600519.SH' },
+    workload: { tool: PROBE_TOOL_NAME, calls: 10, symbol: '600519.SH' },
     measurements: {
       startupMs,
       toolBatchMs,

@@ -3,14 +3,23 @@ import { createEvidence, createFinanceResult } from './src/index';
 import { compareNativeFunds, getNativeFundDetail, getNativeFundHoldings, getNativeFundManager, getNativeFundPerformance, getTopNativeFunds, searchNativeFunds, screenNativeFunds } from './src/fund-catalog';
 import { createInitialFundWatchlistState, followNativeFund, listNativeFollowedFunds, unfollowNativeFund } from './src/fund-watchlist';
 import { createInitialFundAlertState, createNativeFundAlert, deleteNativeFundAlert, listNativeFundAlerts } from './src/fund-alerts';
-import { getNativeAStockFinancials, listNativeAStockFinancialSymbols } from './src/astock-financials';
-import { getNativeAStockNews, listNativeAStockNewsSymbols } from './src/astock-news';
-import { getNativeFinancialSnapshot, listNativeFinancialSymbols } from './src/financial-snapshot';
+import { fetchNativeAStockFinancials } from './src/astock-financials';
+import { fetchNativeAStockNews } from './src/astock-news';
+import { fetchNativeFinancialSnapshot } from './src/financial-snapshot';
 import { getNativeCompanyProfile, getNativeRisks, getNativeSectors } from './src/knowledge-snapshot';
 import { calculateNativePnl, calculateNativeTax, calculateNativeTradesTax } from './src/tax-calculator';
 import { listNativeInvestmentStrategies } from './src/strategy-catalog';
 import { NativeSandboxBroker } from './src/sandbox-trading';
 import { createInitialKnowledgeJournalState, listTrackedCompanies, listTrackedSectors, trackNativeCompany, trackNativeSector } from './src/knowledge-journal';
+
+/** Routes Eastmoney test requests to canned provider payloads. */
+function eastmoneyFetcher(route: (url: string) => unknown): (input: RequestInfo | URL, init?: RequestInit) => Promise<Response> {
+  return async (input) => {
+    const url = String(input);
+    const payload = route(url);
+    return new Response(JSON.stringify(payload), { status: 200, headers: { 'content-type': 'application/json' } });
+  };
+}
 
 describe('pi-finance-sdk', () => {
   test('creates traceable evidence results without secrets', () => {
@@ -27,24 +36,70 @@ describe('pi-finance-sdk', () => {
     expect(result.evidence[0].id).toBe('e1');
     expect(JSON.stringify(result)).not.toContain('API_KEY');
   });
-  test('returns deterministic historical A-share financial snapshots', () => {
-    expect(getNativeAStockFinancials('比亚迪')).toMatchObject({ ts_code: '002594.SZ', name: '比亚迪', asOf: '2026-09-12' });
-    expect(getNativeAStockFinancials('600519', '2025')?.periods).toHaveLength(1);
-    expect(getNativeAStockFinancials('999999')).toBeNull();
-    expect(listNativeAStockFinancialSymbols()).toContain('300750.SZ');
+  test('reads real A-share financial reports and joins income, balance sheet and cash flow', async () => {
+    const calls: string[] = [];
+    const fetcher = eastmoneyFetcher((url) => {
+      calls.push(url);
+      if (url.includes('RPT_LICO_FN_CPD')) return { result: { data: [{ SECUCODE: '600519.SH', SECURITY_NAME_ABBR: '贵州茅台', REPORTDATE: '2026-06-30 00:00:00', DATATYPE: '2026年 半年报', TOTAL_OPERATE_INCOME: 92278072083.21, PARENT_NETPROFIT: 44516880421.86, BASIC_EPS: 35.57, WEIGHTAVG_ROE: 16.75, XSMLL: 89.55 }] } };
+      if (url.includes('RPT_DMSK_FN_BALANCE')) return { result: { data: [{ REPORT_DATE: '2026-06-30 00:00:00', TOTAL_ASSETS: 309050784569.31, TOTAL_LIABILITIES: 46954432394.95 }] } };
+      if (url.includes('RPT_DMSK_FN_CASHFLOW')) return { result: { data: [{ REPORT_DATE: '2026-06-30 00:00:00', NETCASH_OPERATE: 70690750119.06 }] } };
+      throw new Error(`unexpected request ${url}`);
+    });
+    const financials = await fetchNativeAStockFinancials('贵州茅台', { fetcher });
+    expect(financials).toMatchObject({ ts_code: '600519.SH', name: '贵州茅台', asOf: '2026-06-30' });
+    expect(financials.periods[0]).toMatchObject({
+      period: '2026',
+      reportType: '2026年 半年报',
+      revenue: 92278072083.21,
+      netIncome: 44516880421.86,
+      eps: 35.57,
+      roe: 16.75,
+      grossMargin: 89.55,
+      totalAssets: 309050784569.31,
+      totalLiabilities: 46954432394.95,
+      operatingCashflow: 70690750119.06,
+    });
+    expect(financials.sourceUrls.every((url) => url.includes('datacenter-web.eastmoney.com'))).toBe(true);
+    expect(calls).toHaveLength(3);
+    await expect(fetchNativeAStockFinancials('AAPL', { fetcher })).rejects.toThrow(/只支持 A 股/u);
+    await expect(fetchNativeAStockFinancials('000001.SZ', { fetcher: eastmoneyFetcher(() => ({ result: { data: [] } })) })).rejects.toThrow(/没有 000001.SZ/u);
   });
-  test('returns deterministic historical A-share news snapshots with fail-closed filters', () => {
-    expect(getNativeAStockNews({ code: '比亚迪', limit: 1 })).toMatchObject({ type: 'announcement', tsCode: '002594.SZ', asOf: '2026-09-12', count: 1, items: [{ tsCode: '002594.SZ' }] });
-    expect(getNativeAStockNews({ code: 'market', startDate: '20260911', endDate: '2026-09-12' })?.items).toHaveLength(2);
-    expect(getNativeAStockNews({ code: '999999' })).toBeNull();
-    expect(listNativeAStockNewsSymbols()).toEqual(['002594.SZ', '300750.SZ', '600519.SH']);
-    expect(() => getNativeAStockNews({ code: '002594.SZ', startDate: '2026-09-13', endDate: '2026-09-12' })).toThrow('startDate');
+  test('reads real A-share announcements and market headlines with fail-closed filters', async () => {
+    const announcements = eastmoneyFetcher(() => ({ data: { list: [
+      { art_code: 'AN1', title: '比亚迪:关于2026年半年度报告的公告', notice_date: '2026-08-28 00:00:00', columns: [{ column_name: '年度报告' }] },
+      { art_code: 'AN2', title: '比亚迪:2026年7月产销快报', notice_date: '2026-08-05 00:00:00', columns: [{ column_name: '月度经营' }] },
+    ] } }));
+    const news = await fetchNativeAStockNews({ code: '比亚迪', endDate: '20260810' }, { fetcher: announcements });
+    expect(news).toMatchObject({ type: 'announcement', tsCode: '002594.SZ', count: 1 });
+    expect(news.items[0]).toMatchObject({ id: 'AN2', publishedAt: '2026-08-05', summary: '月度经营' });
+    expect(news.items[0]!.url).toContain('data.eastmoney.com/notices/detail/002594/AN2.html');
+    expect(news.sourceUrls[0]).toContain('np-anotice-stock.eastmoney.com');
+
+    const market = await fetchNativeAStockNews({ code: 'market', limit: 2 }, { fetcher: eastmoneyFetcher(() => ({ data: { fastNewsList: [
+      { code: 'FAST1', title: '美联储重启加息25个基点', summary: '将基准利率上调至3.75%-4.00%', showTime: '2026-09-17 02:00:38' },
+    ] } })) });
+    expect(market).toMatchObject({ type: 'market', count: 1 });
+    expect(market.items[0]).toMatchObject({ id: 'FAST1', publishedAt: '2026-09-17' });
+    expect(market.sourceUrls[0]).toContain('np-listapi.eastmoney.com');
+
+    await expect(fetchNativeAStockNews({ code: '002594.SZ', startDate: '2026-09-13', endDate: '2026-09-12' }, { fetcher: announcements })).rejects.toThrow('startDate');
+    await expect(fetchNativeAStockNews({ code: 'not-a-symbol' }, { fetcher: announcements })).rejects.toThrow(/A 股代码/u);
   });
-  test('returns deterministic financial snapshots for US and A-share companies', () => {
-    expect(getNativeFinancialSnapshot('Apple')).toMatchObject({ symbol: 'AAPL', company: 'Apple', market: 'us', scope: 'historical-offline-snapshot', metrics: { latestRevenue: 4161.6 } });
-    expect(getNativeFinancialSnapshot('比亚迪财务')).toMatchObject({ symbol: '002594.SZ', company: '比亚迪', market: 'cn', metrics: { latestNetIncome: 412.7 } });
-    expect(getNativeFinancialSnapshot('unknown')).toBeNull();
-    expect(listNativeFinancialSymbols()).toContain('AAPL');
+  test('reads real financial snapshots for CN/HK and fails closed for US without credentials', async () => {
+    const fetcher = eastmoneyFetcher((url) => {
+      if (url.includes('RPT_LICO_FN_CPD')) return { result: { data: [{ SECUCODE: '002594.SZ', SECURITY_NAME_ABBR: '比亚迪', REPORTDATE: '2026-06-30 00:00:00', TOTAL_OPERATE_INCOME: 371278000000, PARENT_NETPROFIT: 15511000000, BASIC_EPS: 5.3, XSMLL: 18.2 }] } };
+      if (url.includes('RPT_DMSK_FN_BALANCE')) return { result: { data: [{ REPORT_DATE: '2026-06-30 00:00:00', TOTAL_ASSETS: 900000000000, TOTAL_LIABILITIES: 630000000000 }] } };
+      if (url.includes('RPT_HKF10_FN_MAININDICATOR')) return { result: { data: [{ SECUCODE: '00700.HK', SECURITY_NAME_ABBR: '腾讯控股', STD_REPORT_DATE: '2026-06-30 00:00:00', REPORT_TYPE: '2026年中报', OPERATE_INCOME: 401243000000, HOLDER_PROFIT: 114115000000, BASIC_EPS: 12.639, GROSS_PROFIT_RATIO: 57.24 }] } };
+      return { result: { data: [{ REPORT_DATE: '2026-06-30 00:00:00', NETCASH_OPERATE: 1000 }] } };
+    });
+    const cn = await fetchNativeFinancialSnapshot('比亚迪财务', { fetcher });
+    expect(cn).toMatchObject({ symbol: '002594.SZ', company: '比亚迪', market: 'cn', scope: 'eastmoney-public-reports' });
+    expect(cn.metrics).toMatchObject({ latestRevenue: 371278000000, latestEps: 5.3, debtToAssets: 0.7 });
+    const hk = await fetchNativeFinancialSnapshot('腾讯', { fetcher });
+    expect(hk).toMatchObject({ symbol: '00700.HK', company: '腾讯控股', market: 'hk' });
+    expect(hk.metrics).toMatchObject({ latestRevenue: 401243000000, latestNetIncome: 114115000000 });
+    await expect(fetchNativeFinancialSnapshot('Apple', { fetcher })).rejects.toThrow(/FINANCIAL_DATASETS_API_KEY/u);
+    await expect(fetchNativeFinancialSnapshot('zzz', { fetcher })).rejects.toThrow(/解析出证券代码/u);
   });
   test('queries the deterministic investment knowledge snapshot with fail-closed filters', () => {
     expect(getNativeCompanyProfile('贵州茅台')).toMatchObject({ ticker: '600519.SH', name: '贵州茅台', asOf: '2026-09-12' });

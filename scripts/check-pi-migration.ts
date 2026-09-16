@@ -184,10 +184,14 @@ for (const requiredSymbol of ['PiPackageCatalog', 'PiPackageTrustPolicy', 'rollb
   if (!packageCatalogSource.toLowerCase().includes(requiredSymbol.toLowerCase())) failures.push(`Pi package catalog must expose ${requiredSymbol}`);
 }
 
-const fixtureSource = readFileSync(join(root, 'packages/pi-finance-sdk/src/finance-fixtures.ts'), 'utf8');
-for (const requiredField of ['safetyLevel', 'parameters', 'hasFinancialImpact', 'auditId', 'retrievedAt', 'dataFreshness']) {
-  if (!fixtureSource.includes(requiredField)) failures.push(`finance fixtures must declare ${requiredField}`);
+if (existsSync(join(root, 'packages/pi-finance-sdk/src/finance-fixtures.ts'))) {
+  failures.push('finance fixture tools must stay deleted; Pi finance tools read real providers (Eastmoney / Financial Datasets)');
 }
+const financeExtensionSource = readFileSync(join(root, 'packages/pi-finance-sdk/extensions/index.ts'), 'utf8');
+for (const requiredField of ['parameters', 'auditId', 'retrievedAt', 'dataFreshness', 'no-synthetic-fallback']) {
+  if (!financeExtensionSource.includes(requiredField)) failures.push(`Pi finance tools must declare ${requiredField}`);
+}
+if (financeExtensionSource.includes('upup-fixture://')) failures.push('Pi finance tools must not serve fixture evidence sources');
 
 for (const removedPath of ['packages/adapter-paperclip', 'packages/agent-core', 'packages/llm', 'upup-agent']) {
   if (existsSync(join(root, removedPath))) failures.push(`${removedPath} must remain deleted; use the Pi runtime and SDK instead`);
