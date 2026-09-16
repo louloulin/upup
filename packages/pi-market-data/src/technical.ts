@@ -1,4 +1,3 @@
-import { stableSeed } from './market-utils';
 import type { MarketBar } from './market-types';
 
 export type TechnicalPeriod = 'daily' | 'weekly' | 'monthly';
@@ -30,20 +29,7 @@ export interface TechnicalSnapshot {
   data: TechnicalBar[];
 }
 
-const AS_OF = '2026-09-12' as const;
-
 function round(value: number): number { return Math.round(value * 100) / 100; }
-
-function formatDate(date: Date): string {
-  return date.toISOString().slice(0, 10).replaceAll('-', '');
-}
-
-function dateForIndex(index: number, period: TechnicalPeriod): string {
-  const date = new Date(`${AS_OF}T00:00:00Z`);
-  const step = period === 'daily' ? 1 : period === 'weekly' ? 7 : 30;
-  date.setUTCDate(date.getUTCDate() - (39 - index) * step);
-  return formatDate(date);
-}
 
 function normalizeCode(code: string): string {
   const trimmed = code.trim();
@@ -156,35 +142,4 @@ export function buildTechnicalSnapshot(code: string, bars: readonly MarketBar[],
     macd_histogram: macdValues.histogram[index],
   }));
   return { source: 'upup-pi://market-data/technical-data', ts_code: normalizeCode(code), period, count: data.length, asOf: sourceBars.at(-1)!.date, data };
-}
-
-export function makeTechnicalSnapshot(code: string, period: TechnicalPeriod = 'daily'): TechnicalSnapshot {
-  const tsCode = normalizeCode(code);
-  const seed = stableSeed(tsCode);
-  const closes = Array.from({ length: 40 }, (_, index) => round(20 + seed / 100 + index * 0.16 + Math.sin(index / 2) * 0.35));
-  const volumes = closes.map((_, index) => 100000 + seed * 10 + index * 1500);
-  const ma5 = movingAverage(closes, 5);
-  const ma10 = movingAverage(closes, 10);
-  const ma20 = movingAverage(closes, 20);
-  const rsi6 = relativeStrengthIndex(closes, 6);
-  const rsi12 = relativeStrengthIndex(closes, 12);
-  const macdValues = macd(closes);
-  const data = closes.map((close, index) => ({
-    trade_date: dateForIndex(index, period),
-    close,
-    open: round(close - 0.18),
-    high: round(close + 0.42),
-    low: round(close - 0.48),
-    vol: volumes[index],
-    amount: round(close * volumes[index]),
-    ma5: ma5[index],
-    ma10: ma10[index],
-    ma20: ma20[index],
-    rsi6: rsi6[index],
-    rsi12: rsi12[index],
-    macd_dif: macdValues.dif[index],
-    macd_dea: macdValues.dea[index],
-    macd_histogram: macdValues.histogram[index],
-  }));
-  return { source: 'upup-pi://market-data/technical-data', ts_code: tsCode, period, count: data.length, asOf: AS_OF, data };
 }

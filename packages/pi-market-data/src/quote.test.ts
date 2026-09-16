@@ -39,7 +39,8 @@ describe('pi-market-data quote provider auto-selection', () => {
     const result = await client.getQuote('600519.SH', 'cn');
     expect(requested).toContain('secid=1.600519');
     expect(result.value).toMatchObject({ last: 1258, price: 1258, market: 'cn', currency: 'CNY' });
-    expect(result.evidence).toMatchObject({ provider: 'eastmoney', source: 'https://push2.eastmoney.com/api/qt/stock/get' });
+    expect(result.evidence).toMatchObject({ provider: 'eastmoney' });
+    expect(result.evidence.source.startsWith('https://push2.eastmoney.com/api/qt/stock/get?secid=1.600519')).toBe(true);
     expect(result.evidence.source.startsWith('dry-run://')).toBe(false);
   });
 

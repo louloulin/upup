@@ -1,34 +1,47 @@
-export type ScreenUniverse = 'us' | 'cn' | 'hk' | 'crypto';
-export type ScreenFilterOp = '=' | '!=' | '>' | '<' | '>=' | '<=' | 'between' | 'in' | 'not-in';
-export type ScreenScalar = string | number;
+/**
+ * Natural-language screening over real market data.
+ *
+ * The parser turns a query (`PE < 15 且 ROE > 20%`, `白酒 低估值`, `AAPL-like`)
+ * into a filter spec, and the spec is answered by a real row loader — by
+ * default the Eastmoney-backed one in `./screen-eastmoney`. There is no
+ * built-in fixture universe: when the loader or the provider is unavailable the
+ * caller gets an error instead of a plausible-looking table.
+ */
+import {
+  asScreenerMarket,
+  defaultEastmoneyScreenLoader,
+  eastmoneyScreenUniverseFields,
+  selectScreenerRows,
+  ScreenerUnavailableError,
+  type ScreenerFetchResult,
+  type ScreenerRowLoader,
+} from './screen-eastmoney';
 
-export interface ScreenFilterClause {
-  field: string;
-  op: ScreenFilterOp;
-  value: ScreenScalar | [ScreenScalar, ScreenScalar] | ScreenScalar[];
-}
+import type { ScreenFilterClause, ScreenFilterOp, ScreenStockRow, ScreenUniverse } from './screen-types';
+
+export type { ScreenFilterClause, ScreenFilterOp, ScreenScalar, ScreenStockRow, ScreenUniverse } from './screen-types';
 
 export interface ScreenFilterSpec {
   universe: ScreenUniverse;
   template?: string;
+  /** Sector / concept text lifted out of the query (白酒, 半导体, 银行…). */
+  keywords: string[];
   filters: ScreenFilterClause[];
   sortBy?: { field: string; dir: 'asc' | 'desc' };
   limit: number;
   realtime: boolean;
 }
 
-export interface ScreenStockRow {
-  ticker: string;
-  name: string;
-  sector: string;
-  marketCap: number;
-  pe: number;
-  pb: number;
-  roe: number;
-  revenueGrowth: number;
-  profitGrowth: number;
+export interface NaturalLanguageScreenMetrics {
+  marketCap?: number;
+  pe?: number;
+  pb?: number;
+  roe?: number;
+  revenueGrowth?: number;
+  profitGrowth?: number;
+  dividendYield?: number;
+  changePercent?: number;
   rsi?: number;
-  priceChange1y?: number;
 }
 
 export interface NaturalLanguageScreenResult {
@@ -37,7 +50,7 @@ export interface NaturalLanguageScreenResult {
   sector: string;
   score: number;
   matchedCriteria: string[];
-  metrics: { marketCap: number; pe: number; pb: number; roe: number; revenueGrowth: number; rsi?: number };
+  metrics: NaturalLanguageScreenMetrics;
   thesis: string;
 }
 
@@ -47,8 +60,14 @@ export interface NaturalLanguageScreenOutput {
   universe: ScreenUniverse;
   template?: string;
   filterCount: number;
+  /** Rows this screen really evaluated (the provider sample window). */
   scannedCount: number;
+  /** Size of the provider universe the window was drawn from, when the provider reports one. */
+  universeCount?: number;
   matchedCount: number;
+  asOf: string;
+  sourceUrls: string[];
+  note?: string;
   results: NaturalLanguageScreenResult[];
 }
 
@@ -56,23 +75,63 @@ export type NaturalLanguageScreenParser = (query: string, universe: ScreenUniver
 export interface RealtimeScreenSnapshot { rsi: number; priceChange1y: number }
 export type RealtimeScreenFetcher = (tickers: string[]) => Promise<Record<string, RealtimeScreenSnapshot>>;
 
-export const NATURAL_LANGUAGE_SCREEN_UNIVERSE: readonly ScreenStockRow[] = [
-  { ticker: 'AAPL', name: 'Apple Inc.', sector: 'tech', marketCap: 3_000e9, pe: 28, pb: 47, roe: 150, revenueGrowth: 6, profitGrowth: 8, rsi: 52, priceChange1y: 22 },
-  { ticker: 'MSFT', name: 'Microsoft Corp.', sector: 'tech', marketCap: 2_800e9, pe: 35, pb: 12, roe: 35, revenueGrowth: 12, profitGrowth: 15, rsi: 58, priceChange1y: 30 },
-  { ticker: 'NVDA', name: 'NVIDIA Corp.', sector: 'tech', marketCap: 2_200e9, pe: 60, pb: 50, roe: 90, revenueGrowth: 100, profitGrowth: 200, rsi: 70, priceChange1y: 180 },
-  { ticker: 'JPM', name: 'JPMorgan Chase', sector: 'finance', marketCap: 550e9, pe: 12, pb: 1.8, roe: 16, revenueGrowth: 5, profitGrowth: 12, rsi: 48, priceChange1y: 25 },
-  { ticker: 'BAC', name: 'Bank of America', sector: 'finance', marketCap: 280e9, pe: 11, pb: 1.2, roe: 10, revenueGrowth: 2, profitGrowth: -3, rsi: 45, priceChange1y: 5 },
-  { ticker: 'WMT', name: 'Walmart', sector: 'consumer', marketCap: 420e9, pe: 30, pb: 7, roe: 19, revenueGrowth: 5, profitGrowth: 8, rsi: 50, priceChange1y: 20 },
-  { ticker: 'COST', name: 'Costco', sector: 'consumer', marketCap: 380e9, pe: 50, pb: 17, roe: 30, revenueGrowth: 7, profitGrowth: 10, rsi: 55, priceChange1y: 35 },
-  { ticker: 'PFE', name: 'Pfizer', sector: 'healthcare', marketCap: 160e9, pe: 14, pb: 1.8, roe: 12, revenueGrowth: -3, profitGrowth: -20, rsi: 30, priceChange1y: -35 },
-  { ticker: 'JNJ', name: 'Johnson & Johnson', sector: 'healthcare', marketCap: 400e9, pe: 22, pb: 5.5, roe: 22, revenueGrowth: 3, profitGrowth: 5, rsi: 45, priceChange1y: 8 },
-  { ticker: 'XOM', name: 'Exxon Mobil', sector: 'energy', marketCap: 450e9, pe: 13, pb: 2, roe: 18, revenueGrowth: 8, profitGrowth: 15, rsi: 55, priceChange1y: 15 },
-  { ticker: 'TSLA', name: 'Tesla', sector: 'consumer', marketCap: 700e9, pe: 65, pb: 12, roe: 20, revenueGrowth: 18, profitGrowth: -10, rsi: 38, priceChange1y: -25 },
-  { ticker: 'META', name: 'Meta Platforms', sector: 'tech', marketCap: 1_300e9, pe: 25, pb: 8, roe: 30, revenueGrowth: 22, profitGrowth: 60, rsi: 62, priceChange1y: 80 },
-  { ticker: 'GOOG', name: 'Alphabet', sector: 'tech', marketCap: 2_000e9, pe: 25, pb: 6.5, roe: 28, revenueGrowth: 14, profitGrowth: 25, rsi: 55, priceChange1y: 40 },
-  { ticker: 'BABA', name: 'Alibaba', sector: 'tech', marketCap: 200e9, pe: 12, pb: 1.5, roe: 12, revenueGrowth: 5, profitGrowth: 8, rsi: 42, priceChange1y: -10 },
-  { ticker: 'GS', name: 'Goldman Sachs', sector: 'finance', marketCap: 130e9, pe: 13, pb: 1.4, roe: 11, revenueGrowth: 4, profitGrowth: 6, rsi: 48, priceChange1y: 12 },
+/** Filters the built-in provider families cannot answer; the screener refuses them instead of guessing. */
+export class ScreenFilterUnsupportedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ScreenFilterUnsupportedError';
+  }
+}
+
+/**
+ * `\b` is not a word boundary in front of a CJK label (`股息率 > 5` would never
+ * match at the start of a query), so the patterns anchor on "not preceded by an
+ * ASCII alphanumeric" instead — that still refuses `cape<5`.
+ */
+const FILTER_PATTERNS: readonly [RegExp, string][] = [
+  [/(?<![A-Za-z0-9])(?:pe|p\/e|市盈率)\s*([<>=!]+)\s*(\d+(?:\.\d+)?)/i, 'pe'],
+  [/(?<![A-Za-z0-9])(?:pb|p\/b|市净率)\s*([<>=!]+)\s*(\d+(?:\.\d+)?)/i, 'pb'],
+  [/(?<![A-Za-z0-9])(?:roe)\s*([<>=!]+)\s*(\d+(?:\.\d+)?)\s*%?/i, 'roe'],
+  [/(?<![A-Za-z0-9])(?:rsi)\s*([<>=!]+)\s*(\d+(?:\.\d+)?)/i, 'rsi'],
+  [/(?<![A-Za-z0-9])(?:revenue[\s_-]*growth|营收增长)\s*([<>=!]+)\s*(\d+(?:\.\d+)?)\s*%?/i, 'revenueGrowth'],
+  [/(?<![A-Za-z0-9])(?:dividend[\s_-]*yield|股息率)\s*([<>=!]+)\s*(\d+(?:\.\d+)?)\s*%?/i, 'dividendYield'],
 ];
+
+const TEMPLATE_WORDS = /AAPL[-_ ]?like|类似\s*AAPL|momentum|动量|复利|compound|value|价值|成长|growth/gi;
+
+/**
+ * Query tokens that are template words, filter syntax, or filler rather than a
+ * sector / concept name. Anything else is a keyword the loader may resolve
+ * against a live provider 板块.
+ */
+const KEYWORD_STOP_WORDS = new Set([
+  'aapl', 'like', 'value', 'growth', 'momentum', 'compound', 'tech', 'finance', 'healthcare', 'energy', 'consumer',
+  'pe', 'pb', 'roe', 'rsi', 'p', 'e', 'b', 'ex', 'low', 'high', 'cap', 'large', 'small', 'mid', 'realtime', 'universe', 'true', 'false', 'yes', 'no',
+  '且', '和', '与', '或', '或者', '的', '我', '想要', '请', '找', '帮我', '看看', '筛选', '选股', '要求', '股票', '股', '标',
+  '价值', '成长', '成长股', '价值股', '复利', '复利型', '动量', '低估', '低估值', '高估', '便宜', '贵', '白马', '蓝筹', '龙头',
+  '小盘', '中盘', '大盘', '市值', '美元', '组合', '投资', '主题', '板块', '行业', '概念', '跌深', '实时', '排除', '非金融', '金融',
+  '市盈率', '市净率', '营收增长', '股息率', '增长',
+]);
+
+export function extractScreenKeywords(query: string): string[] {
+  const withoutFilters = query
+    .replace(TEMPLATE_WORDS, ' ')
+    .replace(/(?<![A-Za-z0-9])(?:pe|p\/e|市盈率|pb|p\/b|市净率|roe|rsi|revenue[\s_-]*growth|营收增长|dividend[\s_-]*yield|股息率)\s*[<>=!]+\s*\d+(?:\.\d+)?\s*%?/gi, ' ')
+    .replace(/市值\s*\$?\d+(?:\.\d+)?\s*B?(?:\s*-\s*\$?\d+(?:\.\d+)?\s*B?)?/gi, ' ')
+    .replace(/\b\w+\s*=\s*[\w-]+/g, ' ')
+    .replace(/[$%]/g, ' ');
+  const tokens = withoutFilters.split(/[\s,，、;；:：/|()（）【】\[\]"'“”‘’!！?？。]+|[-–—+]/u);
+  const keywords: string[] = [];
+  for (const token of tokens) {
+    const trimmed = token.trim();
+    if (trimmed.length < 2) continue;
+    if (/^\d+(?:\.\d+)?[A-Za-z]*$/u.test(trimmed)) continue;
+    if (KEYWORD_STOP_WORDS.has(trimmed.toLocaleLowerCase())) continue;
+    if (/^(?:pe|pb|roe|rsi|eps|ma\d*)$/i.test(trimmed)) continue;
+    if (!keywords.includes(trimmed)) keywords.push(trimmed);
+  }
+  return keywords;
+}
 
 export const deterministicScreenParser: NaturalLanguageScreenParser = (query, universe) => {
   const filters: ScreenFilterClause[] = [];
@@ -80,17 +139,12 @@ export const deterministicScreenParser: NaturalLanguageScreenParser = (query, un
   if (/AAPL[-_ ]?like|类似\s*AAPL/i.test(query)) template = 'AAPL-like';
   else if (/momentum|动量/i.test(query)) template = 'momentum';
   else if (/复利|compound/i.test(query)) template = 'compound';
-  else if (/\bvalue\b|价值/i.test(query) && !/growth/i.test(query)) template = 'value';
+  else if (/\bvalue\b|价值|低估/i.test(query) && !/growth/i.test(query)) template = 'value';
   else if (/\bgrowth\b|成长/i.test(query) && !/value/i.test(query)) template = 'growth';
-  const numeric = (pattern: RegExp, field: string) => {
+  for (const [pattern, field] of FILTER_PATTERNS) {
     const match = query.match(pattern);
     if (match) filters.push({ field, op: match[1] as ScreenFilterOp, value: Number(match[2]) });
-  };
-  numeric(/\b(?:pe|p\/e|市盈率)\s*([<>=!]+)\s*(\d+(?:\.\d+)?)/i, 'pe');
-  numeric(/\b(?:pb|p\/b|市净率)\s*([<>=!]+)\s*(\d+(?:\.\d+)?)/i, 'pb');
-  numeric(/\b(?:roe)\s*([<>=!]+)\s*(\d+(?:\.\d+)?)\s*%?/i, 'roe');
-  numeric(/\b(?:rsi)\s*([<>=!]+)\s*(\d+(?:\.\d+)?)/i, 'rsi');
-  numeric(/\b(?:revenue[\s_-]*growth|营收增长)\s*([<>=!]+)\s*(\d+(?:\.\d+)?)\s*%?/i, 'revenueGrowth');
+  }
   const range = query.match(/市值\s*\$?(\d+(?:\.\d+)?)B?\s*-\s*\$?(\d+(?:\.\d+)?)B/i);
   if (range) filters.push({ field: 'marketCap', op: 'between', value: [Number(range[1]) * 1e9, Number(range[2]) * 1e9] });
   else {
@@ -101,10 +155,10 @@ export const deterministicScreenParser: NaturalLanguageScreenParser = (query, un
   }
   if (/跌深|deep[\s_-]*pullback|pullback/i.test(query)) filters.push({ field: 'priceChange1y', op: '<', value: -30 });
   if (/ex[-_ ]?金融|exclude\s*finance|非金融/i.test(query)) filters.push({ field: 'sector', op: '!=', value: 'finance' });
-  return { universe, ...(template ? { template } : {}), filters, sortBy: { field: 'score', dir: 'desc' }, limit: 50, realtime: false };
+  return { universe, ...(template ? { template } : {}), keywords: extractScreenKeywords(query), filters, sortBy: { field: 'score', dir: 'desc' }, limit: 50, realtime: false };
 };
 
-function evaluate(row: ScreenStockRow, clause: ScreenFilterClause): boolean {
+export function evaluateScreenFilter(row: ScreenStockRow, clause: ScreenFilterClause): boolean {
   const value = row[clause.field as keyof ScreenStockRow];
   if (value === undefined || value === null) return false;
   const values = Array.isArray(clause.value) ? clause.value : [clause.value];
@@ -131,44 +185,105 @@ function evaluate(row: ScreenStockRow, clause: ScreenFilterClause): boolean {
 
 function score(row: ScreenStockRow, template: string | undefined, filterCount: number): number {
   let result = 50;
-  if (template === 'AAPL-like') { if (row.sector === 'tech') result += 15; if (row.roe > 25) result += 10; if (row.marketCap > 1e12) result += 10; }
+  if (template === 'AAPL-like') { if (row.sector === 'tech' || /信息|软件|半导体|电子/u.test(row.sector)) result += 15; if ((row.roe ?? 0) > 25) result += 10; if ((row.marketCap ?? 0) > 1e12) result += 10; }
   else if (template === 'momentum') { if ((row.rsi ?? 0) > 50) result += 15; if ((row.priceChange1y ?? 0) > 20) result += 15; }
-  else if (template === 'value') { if (row.pe > 0 && row.pe < 20) result += 15; if (row.pb < 3) result += 10; }
-  else if (template === 'growth') { if (row.revenueGrowth > 15) result += 15; if (row.profitGrowth > 20) result += 15; }
-  else if (template === 'compound') { if (row.roe > 15) result += 10; if (row.revenueGrowth > 10) result += 10; if (row.profitGrowth > 10) result += 10; }
+  else if (template === 'value') { if (row.pe !== undefined && row.pe > 0 && row.pe < 20) result += 15; if (row.pb !== undefined && row.pb < 3) result += 10; }
+  else if (template === 'growth') { if ((row.revenueGrowth ?? 0) > 15) result += 15; if ((row.profitGrowth ?? 0) > 20) result += 15; }
+  else if (template === 'compound') { if ((row.roe ?? 0) > 15) result += 10; if ((row.revenueGrowth ?? 0) > 10) result += 10; if ((row.profitGrowth ?? 0) > 10) result += 10; }
   return Math.max(0, Math.min(100, Math.round(result + Math.min(20, filterCount * 5))));
 }
 
-function thesis(row: ScreenStockRow, template: string | undefined): string {
-  const marketCap = (row.marketCap / 1e9).toFixed(1);
-  if (template === 'AAPL-like') return `${row.name} — large-cap ${row.sector} leader, ROE ${row.roe.toFixed(1)}% (mcap $${marketCap}B).`;
-  if (template === 'momentum') return `${row.name} — RSI ${row.rsi ?? '?'} with 1y price change ${row.priceChange1y ?? '?'}%.`;
-  if (template === 'value') return `${row.name} — PE ${row.pe.toFixed(1)} / PB ${row.pb.toFixed(1)} at ${row.roe.toFixed(1)}% ROE.`;
-  if (template === 'growth') return `${row.name} — revenue growth ${row.revenueGrowth.toFixed(1)}%, profit growth ${row.profitGrowth.toFixed(1)}%.`;
-  if (template === 'compound') return `${row.name} — 复利型: ROE ${row.roe.toFixed(1)}% + revenue ${row.revenueGrowth.toFixed(1)}% + profit ${row.profitGrowth.toFixed(1)}%.`;
-  return `${row.name} (${row.ticker}) — ${row.sector} | mcap $${marketCap}B, ROE ${row.roe.toFixed(1)}%, PE ${row.pe.toFixed(1)}.`;
+function formatMarketCap(value: number, market: string | undefined): string {
+  return market === 'us' ? `$${(value / 1e9).toFixed(1)}B` : `${(value / 1e8).toFixed(0)}亿元`;
 }
 
-export async function executeNaturalLanguageScreen(spec: ScreenFilterSpec, universe: readonly ScreenStockRow[] = NATURAL_LANGUAGE_SCREEN_UNIVERSE, realtimeFetcher?: RealtimeScreenFetcher): Promise<NaturalLanguageScreenResult[]> {
-  let rows: ScreenStockRow[];
-  if (spec.realtime) {
-    const fetcher = realtimeFetcher ?? (async (tickers: string[]) => Object.fromEntries(tickers.map(ticker => {
-      const row = universe.find(item => item.ticker === ticker);
-      return row?.rsi !== undefined && row.priceChange1y !== undefined ? [ticker, { rsi: row.rsi, priceChange1y: row.priceChange1y }] : [];
-    })));
-    const snapshots = await fetcher(universe.map(row => row.ticker));
-    rows = universe.filter(row => snapshots[row.ticker]).map(row => ({ ...row, ...snapshots[row.ticker] }));
-  } else rows = universe.filter(row => row.rsi !== undefined);
-  return rows.flatMap(row => {
-    const matchedCriteria = spec.filters.filter(filter => evaluate(row, filter)).map(filter => `${filter.field} ${filter.op} ${JSON.stringify(filter.value)}`);
-    if (matchedCriteria.length !== spec.filters.length) return [];
-    return [{ ticker: row.ticker, name: row.name, sector: row.sector, score: score(row, spec.template, spec.filters.length), matchedCriteria, metrics: { marketCap: row.marketCap, pe: row.pe, pb: row.pb, roe: row.roe, revenueGrowth: row.revenueGrowth, rsi: row.rsi }, thesis: thesis(row, spec.template) }];
-  }).sort((left, right) => right.score - left.score).slice(0, spec.limit);
+function thesis(row: ScreenStockRow): string {
+  const parts: string[] = [];
+  if (row.marketCap !== undefined) parts.push(`市值 ${formatMarketCap(row.marketCap, row.market)}`);
+  if (row.pe !== undefined) parts.push(`PE ${row.pe.toFixed(1)}`);
+  if (row.pb !== undefined) parts.push(`PB ${row.pb.toFixed(2)}`);
+  if (row.roe !== undefined) parts.push(`ROE ${row.roe.toFixed(1)}%`);
+  if (row.dividendYield !== undefined) parts.push(`股息率 ${row.dividendYield.toFixed(2)}%`);
+  if (row.revenueGrowth !== undefined) parts.push(`营收增速 ${row.revenueGrowth.toFixed(1)}%`);
+  if (row.profitGrowth !== undefined) parts.push(`净利增速 ${row.profitGrowth.toFixed(1)}%`);
+  if (row.changePercent !== undefined) parts.push(`涨跌 ${row.changePercent.toFixed(2)}%`);
+  if (row.rsi !== undefined) parts.push(`RSI ${row.rsi}`);
+  return `${row.name} (${row.ticker}) — ${row.sector}${parts.length > 0 ? ` | ${parts.join(' · ')}` : ''}`;
 }
 
-export async function runNaturalLanguageScreen(query: string, options: { universe?: ScreenUniverse; limit?: number; realtime?: boolean; parser?: NaturalLanguageScreenParser; stockUniverse?: readonly ScreenStockRow[]; realtimeFetcher?: RealtimeScreenFetcher } = {}): Promise<NaturalLanguageScreenOutput> {
+function metricsOf(row: ScreenStockRow): NaturalLanguageScreenMetrics {
+  return {
+    ...(row.marketCap !== undefined ? { marketCap: row.marketCap } : {}),
+    ...(row.pe !== undefined ? { pe: row.pe } : {}),
+    ...(row.pb !== undefined ? { pb: row.pb } : {}),
+    ...(row.roe !== undefined ? { roe: row.roe } : {}),
+    ...(row.revenueGrowth !== undefined ? { revenueGrowth: row.revenueGrowth } : {}),
+    ...(row.profitGrowth !== undefined ? { profitGrowth: row.profitGrowth } : {}),
+    ...(row.dividendYield !== undefined ? { dividendYield: row.dividendYield } : {}),
+    ...(row.changePercent !== undefined ? { changePercent: row.changePercent } : {}),
+    ...(row.rsi !== undefined ? { rsi: row.rsi } : {}),
+  };
+}
+
+/** Refuses filters the selected universe genuinely cannot answer, instead of returning a silent empty table. */
+export function assertScreenFiltersSupported(spec: ScreenFilterSpec): void {
+  const market = asScreenerMarket(spec.universe);
+  const fields = eastmoneyScreenUniverseFields(market);
+  const unsupported = [...new Set(spec.filters.map((filter) => filter.field).filter((field) => !fields.has(field)))];
+  if (unsupported.length === 0) return;
+  const hint = unsupported.some((field) => field === 'rsi' || field === 'priceChange1y')
+    ? '请改用 get_technical_data / 实时行情工具。'
+    : market === 'cn' ? '请检查字段名。' : `东方财富 ${market} 行情列表不提供该字段，请改用 universe=cn。`;
+  throw new ScreenFilterUnsupportedError(`选股器不支持字段 ${unsupported.join(' / ')}：${hint}`);
+}
+
+export interface ExecuteScreenOptions {
+  readonly loader?: ScreenerRowLoader;
+  readonly limit?: number;
+}
+
+/**
+ * Runs one real screening pass: the loader fetches provider rows, the spec
+ * narrows them, then they are scored. No row is invented when the loader fails.
+ */
+export async function executeNaturalLanguageScreen(spec: ScreenFilterSpec, options: ExecuteScreenOptions = {}): Promise<{ results: NaturalLanguageScreenResult[]; fetched: ScreenerFetchResult }> {
+  assertScreenFiltersSupported(spec);
+  const loader = options.loader ?? defaultEastmoneyScreenLoader();
+  const limit = options.limit ?? spec.limit;
+  const fetched = await loader({ universe: spec.universe, keywords: spec.keywords, filters: spec.filters, limit });
+  const selected = selectScreenerRows(fetched, { keywords: spec.keywords, filters: spec.filters, limit }, evaluateScreenFilter);
+  const results = selected.rows
+    .map((row) => ({
+      ticker: row.ticker,
+      name: row.name,
+      sector: row.sector,
+      score: score(row, spec.template, spec.filters.length),
+      matchedCriteria: spec.filters.filter((filter) => evaluateScreenFilter(row, filter)).map((filter) => `${filter.field} ${filter.op} ${JSON.stringify(filter.value)}`),
+      metrics: metricsOf(row),
+      thesis: thesis(row),
+    }))
+    .sort((left, right) => right.score - left.score);
+  return { results, fetched: { ...fetched, rows: [], scannedCount: selected.scannedCount, ...(selected.universeCount !== undefined ? { universeCount: selected.universeCount } : {}), asOf: selected.asOf, sourceUrls: selected.sourceUrls, ...(selected.note ? { note: selected.note } : {}) } };
+}
+
+export async function runNaturalLanguageScreen(query: string, options: { universe?: ScreenUniverse; limit?: number; realtime?: boolean; parser?: NaturalLanguageScreenParser; loader?: ScreenerRowLoader } = {}): Promise<NaturalLanguageScreenOutput> {
   const universe = options.universe ?? 'us';
   const spec = { ...(options.parser ?? deterministicScreenParser)(query, universe), limit: options.limit ?? 50, realtime: options.realtime ?? false };
-  const results = await executeNaturalLanguageScreen(spec, options.stockUniverse, options.realtimeFetcher);
-  return { source: 'nl_screen', query, universe, ...(spec.template ? { template: spec.template } : {}), filterCount: spec.filters.length, scannedCount: (options.stockUniverse ?? NATURAL_LANGUAGE_SCREEN_UNIVERSE).length, matchedCount: results.length, results };
+  const { results, fetched } = await executeNaturalLanguageScreen(spec, { ...(options.loader ? { loader: options.loader } : {}), limit: spec.limit });
+  return {
+    source: 'nl_screen',
+    query,
+    universe,
+    ...(spec.template ? { template: spec.template } : {}),
+    filterCount: spec.filters.length,
+    scannedCount: fetched.scannedCount,
+    ...(fetched.universeCount !== undefined ? { universeCount: fetched.universeCount } : {}),
+    matchedCount: results.length,
+    asOf: fetched.asOf,
+    sourceUrls: fetched.sourceUrls,
+    ...(fetched.note ? { note: fetched.note } : {}),
+    results,
+  };
 }
+
+export { ScreenerUnavailableError };

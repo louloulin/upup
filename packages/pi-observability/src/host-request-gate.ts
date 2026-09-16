@@ -7,8 +7,10 @@
  * for ~140s — while a sibling host (`push2his`) kept answering, so the block is
  * host-scoped. A gate serializes requests per host, spaces their starts, and
  * after two consecutive resets opens a cooldown that fails fast with an
- * actionable error: retrying into a two-minute block only turns one provider
- * error into three.
+ * actionable error: retrying into a multi-minute block only turns one provider
+ * error into three. The cooldown is deliberately longer than the measured
+ * block, because a cooldown that expires inside the block only repeats the
+ * same failure with the same advice.
  */
 export interface HostRequestGateOptions {
   /** Label used in errors; defaults to the resolved host. */
@@ -24,7 +26,7 @@ export interface HostRequestGateOptions {
 }
 
 export const DEFAULT_HOST_MIN_INTERVAL_MS = 500;
-export const DEFAULT_HOST_COOLDOWN_MS = 60_000;
+export const DEFAULT_HOST_COOLDOWN_MS = 180_000;
 export const DEFAULT_HOST_RESETS_BEFORE_COOLDOWN = 2;
 
 export class HostThrottleError extends Error {

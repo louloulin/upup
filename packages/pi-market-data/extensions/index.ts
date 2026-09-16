@@ -4,12 +4,12 @@ import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import {createPiCapabilityHostResolver, registerPiCapabilityHost, definePiCapabilityHost} from '@upup/pi-capability-registry';
 import { buildTechnicalSnapshot, createDefaultMarketQuoteClient, FixedWindowMarketHistoryRateLimiter, InMemoryMarketHistoryCache, isTradingDay, normalizeMarket, providerSla, resolveMarketHistoryClient, resolveMarketQuoteClient, JsonFileProviderSlaStore, type Market, type MarketHistoryProvider, type NativeMarketQuote, type NativeMarketQuoteClient, type NativeMarketQuoteMetrics, type NativeMarketQuoteTrendStore } from '../src/index';
 import { calendarTradingDays, isCalendarTradingDay, nextCalendarTradingDay, upcomingCalendarHolidays, type CalendarMarket } from '../src/calendar';
-import { screenStockSnapshot, type StockScreenInput } from '../src/screener';
-import { getMarketStructureSnapshot, querySectorSnapshot, type MarketStructureType, type SectorQueryType } from '../src/market-insights';
+import { screenEastmoneyStocks, type StockScreenInput } from '../src/screen-eastmoney';
+import { getMarketStructureSnapshot, querySectorSnapshot, type MarketStructureType, type SectorQueryType } from '../src/market-structure-eastmoney';
 import { type TechnicalPeriod } from '../src/technical';
 import { createRealtimeSubscriptionManager, type RealtimeFetcher } from '../src/realtime/index';
 import { appendKairosEvent, createInitialKairosJournalState, listKairosEvents, summarizeKairos, type KairosEventKind, type NativeKairosJournalState } from '../src/kairos-journal';
-import { PI_MARKET_DATA_CAPABILITY_VERSION, PI_MARKET_DATA_CAPABILITY_NAMES, type PiAuditCapability, type PiCapabilityContext, type PiEvidenceCapability } from '@upup/pi-runtime';
+import { PI_MARKET_DATA_CAPABILITY_VERSION, PI_MARKET_DATA_CAPABILITY_NAMES, type PiAuditCapability, type PiCapabilityContext, type PiEvidenceCapability, type UpUpDataPolicy } from '@upup/pi-runtime';
 
 const PACKAGE = '@upup/pi-market-data';
 const VERSION = '0.1.0';
@@ -130,6 +130,8 @@ const stockScreenerParameters = Type.Object({
   market_cap_max: Type.Optional(Type.Number({ minimum: 0 })),
   pe_min: Type.Optional(Type.Number({ minimum: 0 })),
   pe_max: Type.Optional(Type.Number({ minimum: 0 })),
+  roe_min: Type.Optional(Type.Number({ description: 'A-share ROE (%) lower bound, answered from the 沪深选股器 window.' })),
+  roe_max: Type.Optional(Type.Number({ description: 'A-share ROE (%) upper bound, answered from the 沪深选股器 window.' })),
   performance: Type.Optional(Type.Union([Type.Literal('gainers'), Type.Literal('losers'), Type.Literal('active'), Type.Literal('dividends')])),
   limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 100 })),
 });
@@ -140,6 +142,8 @@ const astockScreenerParameters = Type.Object({
   market_cap_max: Type.Optional(Type.Number({ minimum: 0 })),
   pe_min: Type.Optional(Type.Number({ minimum: 0 })),
   pe_max: Type.Optional(Type.Number({ minimum: 0 })),
+  roe_min: Type.Optional(Type.Number({ description: 'ROE (%) lower bound, answered from the 沪深选股器 window.' })),
+  roe_max: Type.Optional(Type.Number({ description: 'ROE (%) upper bound, answered from the 沪深选股器 window.' })),
   limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 100 })),
 });
 const sectorDataParameters = Type.Object({
@@ -171,23 +175,30 @@ const kairosSummaryParameters = Type.Object({ recentsPerKind: Type.Optional(Type
 const providerTrendParameters = Type.Object({});
 
 function text(value: unknown): string { return JSON.stringify(value); }
-function nativeEvidence(toolCallId: string, query: string, path: string, asOf?: string, evidenceCapability?: PiEvidenceCapability, auditCapability?: PiAuditCapability) {
+/**
+ * Tools that read a live provider report the real endpoint as the evidence
+ * source; only the session-journal tools keep the `upup-pi://` pseudo-source.
+ */
+interface EvidenceOverrides { source?: string; dataFreshness?: UpUpDataPolicy }
+function nativeEvidence(toolCallId: string, query: string, path: string, asOf?: string, evidenceCapability?: PiEvidenceCapability, auditCapability?: PiAuditCapability, overrides: EvidenceOverrides = {}) {
   const retrievedAt = new Date().toISOString();
   const auditId = auditCapability?.({ auditId: toolCallId, tool: path, query }) ?? toolCallId;
+  const dataFreshness = overrides.dataFreshness ?? 'historical';
+  const source = overrides.source ?? `upup-pi://market-data/${path}`;
   return evidenceCapability
-    ? evidenceCapability({ id: `market-data:${toolCallId}:${path}`, source: `upup-pi://market-data/${path}`, retrievedAt, asOf: asOf ?? retrievedAt.slice(0, 10), query, dataFreshness: 'historical', auditId })
+    ? evidenceCapability({ id: `market-data:${toolCallId}:${path}`, source, retrievedAt, asOf: asOf ?? retrievedAt.slice(0, 10), query, dataFreshness, auditId })
     : {
       id: `market-data:${toolCallId}:${path}`,
-      source: `upup-pi://market-data/${path}`,
+      source,
       retrievedAt,
       asOf: asOf ?? retrievedAt.slice(0, 10),
       query,
-      dataFreshness: 'historical' as const,
+      dataFreshness,
       auditId,
     };
 }
-function nativeResult(toolCallId: string, query: string, path: string, value: unknown, extra: Record<string, unknown> = {}, asOf?: string, evidenceCapability?: PiEvidenceCapability, auditCapability?: PiAuditCapability) {
-  const evidence = nativeEvidence(toolCallId, query, path, asOf, evidenceCapability, auditCapability);
+function nativeResult(toolCallId: string, query: string, path: string, value: unknown, extra: Record<string, unknown> = {}, asOf?: string, evidenceCapability?: PiEvidenceCapability, auditCapability?: PiAuditCapability, overrides: EvidenceOverrides = {}) {
+  const evidence = nativeEvidence(toolCallId, query, path, asOf, evidenceCapability, auditCapability, overrides);
   return { content: [{ type: 'text' as const, text: text(value) }], details: { evidence: [evidence], dataFreshness: evidence.dataFreshness, auditId: evidence.auditId, ...extra } };
 }
 function normalizeInstrumentCode(code: string): { symbol: string; market: Market } {
@@ -241,7 +252,10 @@ export default function marketDataExtension(pi: ExtensionAPI): void {
   const contextTrendStore = () => capability<NativeMarketQuoteTrendStore>(resolveContext(), PI_MARKET_DATA_CAPABILITY_NAMES.quoteTrendStore);
   const historyClients = new Map<MarketHistoryProvider, ReturnType<typeof resolveMarketHistoryClient>>();
   const quoteClients = new Map<MarketHistoryProvider, ReturnType<typeof resolveMarketQuoteClient>>();
-  const nativeEvidenceResult = (toolCallId: string, query: string, path: string, value: unknown, extra: Record<string, unknown> = {}, asOf?: string) => nativeResult(toolCallId, query, path, value, extra, asOf, evidenceCapability(), auditCapability());
+  const nativeEvidenceResult = (toolCallId: string, query: string, path: string, value: unknown, extra: Record<string, unknown> = {}, asOf?: string, overrides: EvidenceOverrides = {}) => nativeResult(toolCallId, query, path, value, extra, asOf, evidenceCapability(), auditCapability(), overrides);
+  // Live provider reads reuse the session transport when the Pi host published
+  // one, so the screener honours the same capabilities as the quote tools.
+  const screenerFetcher = () => contextQuote() ?? contextHistory();
   const getHistoryClient = (provider: MarketHistoryProvider) => {
     const existing = historyClients.get(provider);
     if (existing) return existing.client;
@@ -370,33 +384,44 @@ export default function marketDataExtension(pi: ExtensionAPI): void {
   pi.registerTool({
     name: 'get_sector_data',
     label: 'A-share Sector Data',
-    description: 'Read an auditable historical A-share sector snapshot. This tool is offline and does not query Tushare.',
+    description: 'Read live 东方财富 板块 data: a 行业/概念 keyword or a stock code resolves to the real board and its members.',
     parameters: sectorDataParameters,
     async execute(toolCallId, params, signal, _onUpdate, _ctx) {
       if (signal?.aborted) return { content: [{ type: 'text', text: 'Sector data request aborted' }], isError: true, details: undefined };
-      const type = params.type ?? 'stock';
-      const value = querySectorSnapshot(params.code, type as SectorQueryType);
-      return nativeEvidenceResult(toolCallId, JSON.stringify(params), 'sector-data', { source: 'upup-pi://market-data/sector-data', freshness: 'historical', ...value, warning: '离线历史快照，不是实时板块行情或投资建议。' }, {}, '2026-09-12');
+      const type = (params.type ?? 'stock') as SectorQueryType;
+      const transport = screenerFetcher();
+      try {
+        const value = await querySectorSnapshot(params.code, type, { ...(signal ? { signal } : {}), ...(transport ? { fetcher: transport } : {}) });
+        return nativeEvidenceResult(toolCallId, JSON.stringify(params), 'sector-data', { warning: '东方财富实时板块数据，不构成投资建议。', ...value }, {}, value.asOf, { source: value.sourceUrls[0], dataFreshness: 'delayed' });
+      } catch (error) {
+        return { content: [{ type: 'text', text: error instanceof Error ? error.message : String(error) }], isError: true, details: { auditId: toolCallId, source: 'native-provider', policy: 'no-synthetic-fallback' } };
+      }
     },
   });
   pi.registerTool({
     name: 'get_market_structure',
     label: 'A-share Market Structure',
-    description: 'Read an auditable historical A-share market-structure snapshot for dragon-tiger, northbound flow, money flow, or margin data.',
+    description: 'Read live 东方财富 资金面 data: 龙虎榜 (top_list), 沪深港通 (hsgt), 行业主力资金流 (moneyflow) or 融资融券 (margin).',
     parameters: marketStructureParameters,
     async execute(toolCallId, params, signal, _onUpdate, _ctx) {
       if (signal?.aborted) return { content: [{ type: 'text', text: 'Market structure request aborted' }], isError: true, details: undefined };
-      const value = getMarketStructureSnapshot(params.type as MarketStructureType);
-      return nativeEvidenceResult(toolCallId, JSON.stringify(params), 'market-structure', { source: 'upup-pi://market-data/market-structure', freshness: 'historical', ...value, requestedDates: { trade_date: params.trade_date, start_date: params.start_date, end_date: params.end_date }, warning: '离线历史快照，不是实时资金流或交易建议。' }, {}, '2026-09-12');
+      const transport = screenerFetcher();
+      try {
+        const value = await getMarketStructureSnapshot(params.type as MarketStructureType, { ...(params.trade_date ? { trade_date: params.trade_date } : {}), ...(params.start_date ? { start_date: params.start_date } : {}), ...(params.end_date ? { end_date: params.end_date } : {}) }, { ...(signal ? { signal } : {}), ...(transport ? { fetcher: transport } : {}) });
+        return nativeEvidenceResult(toolCallId, JSON.stringify(params), 'market-structure', { warning: '东方财富实时资金面数据，不构成投资建议。', requestedDates: { trade_date: params.trade_date, start_date: params.start_date, end_date: params.end_date }, ...value }, {}, value.asOf, { source: value.sourceUrls[0], dataFreshness: 'delayed' });
+      } catch (error) {
+        return { content: [{ type: 'text', text: error instanceof Error ? error.message : String(error) }], isError: true, details: { auditId: toolCallId, source: 'native-provider', policy: 'no-synthetic-fallback' } };
+      }
     },
   });
   pi.registerTool({
     name: 'stock_screener',
     label: 'Stock Screener',
-    description: 'Screen a bounded historical stock snapshot. Results are offline/historical and are not real-time quotes.',
+    description: 'Screen live CN/HK/US stocks from the 东方财富 quote list and 沪深选股器 (市值/PE/PB/ROE/股息率/涨跌). No offline fixture is used.',
     parameters: stockScreenerParameters,
     async execute(toolCallId, params, signal, _onUpdate, _ctx) {
       if (signal?.aborted) return { content: [{ type: 'text', text: 'Stock screener request aborted' }], isError: true, details: undefined };
+      const transport = screenerFetcher();
       const input: StockScreenInput = {
         market: params.market,
         sector: params.sector,
@@ -405,22 +430,35 @@ export default function marketDataExtension(pi: ExtensionAPI): void {
         marketCapMax: params.market_cap_max,
         peMin: params.pe_min,
         peMax: params.pe_max,
+        roeMin: params.roe_min,
+        roeMax: params.roe_max,
         performance: params.performance,
         limit: params.limit,
       };
-      const data = screenStockSnapshot(input);
-      return nativeEvidenceResult(toolCallId, JSON.stringify(params), 'stock-screener', { source: 'upup-pi://market-data/stock-snapshot', freshness: 'historical', asOf: '2026-09-12', criteria: params, count: data.length, data, warning: '离线历史快照，不是实时行情或投资建议。' }, {}, '2026-09-12');
+      try {
+        const result = await screenEastmoneyStocks(input, { ...(signal ? { signal } : {}), ...(transport ? { fetcher: transport } : {}) });
+        const value = { freshness: 'delayed', asOf: result.asOf, criteria: params, count: result.rows.length, scannedCount: result.scannedCount, ...(result.universeCount !== undefined ? { universeCount: result.universeCount } : {}), sources: result.sourceUrls, ...(result.note ? { note: result.note } : {}), warning: '东方财富实时行情，不构成投资建议。', data: result.rows };
+        return nativeEvidenceResult(toolCallId, JSON.stringify(params), 'stock-screener', value, {}, result.asOf, { source: result.sourceUrls[0], dataFreshness: 'delayed' });
+      } catch (error) {
+        return { content: [{ type: 'text', text: error instanceof Error ? error.message : String(error) }], isError: true, details: { auditId: toolCallId, source: 'native-provider', policy: 'no-synthetic-fallback' } };
+      }
     },
   });
   pi.registerTool({
     name: 'screen_astocks',
     label: 'A-share Screener',
-    description: 'Screen a bounded historical A-share snapshot. Results are offline/historical and do not query Tushare or Eastmoney.',
+    description: 'Screen live A-share names from the 东方财富 沪深选股器 (市值/PE/PB/ROE/股息率) or a 板块 keyword. No offline fixture is used.',
     parameters: astockScreenerParameters,
     async execute(toolCallId, params, signal, _onUpdate, _ctx) {
       if (signal?.aborted) return { content: [{ type: 'text', text: 'A-share screener request aborted' }], isError: true, details: undefined };
-      const data = screenStockSnapshot({ market: 'cn', sector: params.sector, exchange: params.exchange, marketCapMin: params.market_cap_min, marketCapMax: params.market_cap_max, peMin: params.pe_min, peMax: params.pe_max, limit: params.limit });
-      return nativeEvidenceResult(toolCallId, JSON.stringify(params), 'astock-screener', { source: 'upup-pi://market-data/stock-snapshot', freshness: 'historical', asOf: '2026-09-12', criteria: params, count: data.length, data, warning: '离线历史快照，不是实时行情或投资建议。' }, {}, '2026-09-12');
+      const transport = screenerFetcher();
+      try {
+        const result = await screenEastmoneyStocks({ market: 'cn', sector: params.sector, exchange: params.exchange, marketCapMin: params.market_cap_min, marketCapMax: params.market_cap_max, peMin: params.pe_min, peMax: params.pe_max, roeMin: params.roe_min, roeMax: params.roe_max, limit: params.limit }, { ...(signal ? { signal } : {}), ...(transport ? { fetcher: transport } : {}) });
+        const value = { freshness: 'delayed', asOf: result.asOf, criteria: params, count: result.rows.length, scannedCount: result.scannedCount, ...(result.universeCount !== undefined ? { universeCount: result.universeCount } : {}), sources: result.sourceUrls, ...(result.note ? { note: result.note } : {}), warning: '东方财富实时行情，不构成投资建议。', data: result.rows };
+        return nativeEvidenceResult(toolCallId, JSON.stringify(params), 'astock-screener', value, {}, result.asOf, { source: result.sourceUrls[0], dataFreshness: 'delayed' });
+      } catch (error) {
+        return { content: [{ type: 'text', text: error instanceof Error ? error.message : String(error) }], isError: true, details: { auditId: toolCallId, source: 'native-provider', policy: 'no-synthetic-fallback' } };
+      }
     },
   });
   pi.registerTool({

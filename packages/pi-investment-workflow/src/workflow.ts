@@ -181,11 +181,152 @@ async function detect(plan: InvestmentWorkflowPlan, services: InvestmentWorkflow
   };
 }
 
-function planPhase(plan: InvestmentWorkflowPlan): InvestmentPhaseResult {
+/**
+ * The research provider answers with JSON envelopes — `{"data":{"snapshot":{…}}}`
+ * for price / 财务指标 and `{"data":{"analyst_estimates":[…]}}` for 卖方预期.
+ * Both shapes (and raw objects from test doubles) resolve to the payload record.
+ */
+function researchRecord(value: unknown): Record<string, unknown> | undefined {
+  let parsed: unknown = value;
+  if (typeof value === 'string') {
+    try { parsed = JSON.parse(value); } catch { return undefined; }
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return undefined;
+  const record = parsed as Record<string, unknown>;
+  const data = record.data && typeof record.data === 'object' && !Array.isArray(record.data) ? record.data as Record<string, unknown> : record;
+  const snapshot = data.snapshot;
+  return snapshot && typeof snapshot === 'object' && !Array.isArray(snapshot) ? snapshot as Record<string, unknown> : data;
+}
+
+function numericField(record: Record<string, unknown> | undefined, key: string): number | undefined {
+  const value = record?.[key];
+  return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function textField(record: Record<string, unknown> | undefined, key: string): string | undefined {
+  const value = record?.[key];
+  return typeof value === 'string' && value.trim() !== '' ? value.trim() : undefined;
+}
+
+/** 卖方一致预期: the freshest estimate row the provider returned. */
+function consensusEstimate(estimates: unknown): PlanInputs['consensus'] {
+  const rows = researchRecord(estimates)?.['analyst_estimates'];
+  if (!Array.isArray(rows)) return undefined;
+  const records = rows.filter((row): row is Record<string, unknown> => Boolean(row) && typeof row === 'object' && !Array.isArray(row));
+  const freshest = [...records].sort((left, right) => String(right['report_date'] ?? '').localeCompare(String(left['report_date'] ?? '')))[0];
+  if (!freshest) return undefined;
+  return {
+    institution: textField(freshest, 'institution'),
+    reportDate: textField(freshest, 'report_date'),
+    epsThisYear: numericField(freshest, 'eps_estimate_this_year'),
+    peThisYear: numericField(freshest, 'pe_estimate_this_year'),
+    epsNextYear: numericField(freshest, 'eps_estimate_next_year'),
+  };
+}
+
+/** Real numbers the plan phase reads out of the envelopes `detect` already fetched. */
+interface PlanInputs {
+  readonly price?: number;
+  readonly currency?: string;
+  readonly asOf?: string;
+  readonly name?: string;
+  readonly period?: string;
+  readonly reportDate?: string;
+  readonly eps?: number;
+  readonly roePct?: number;
+  readonly grossMarginPct?: number;
+  readonly bookValuePerShare?: number;
+  readonly operatingCashflowPerShare?: number;
+  readonly revenue?: number;
+  readonly netIncome?: number;
+  readonly netIncomeYoyPct?: number;
+  readonly consensus?: { readonly institution?: string; readonly reportDate?: string; readonly epsThisYear?: number; readonly peThisYear?: number; readonly epsNextYear?: number };
+}
+
+function planInputs(data: InvestmentResearchData): PlanInputs {
+  const price = researchRecord(data.price);
+  const fundamentals = researchRecord(data.ratios) ?? researchRecord(data.earnings);
+  return {
+    price: numericField(price, 'price'),
+    currency: textField(price, 'currency'),
+    asOf: textField(price, 'as_of'),
+    name: textField(fundamentals, 'name'),
+    period: textField(fundamentals, 'period'),
+    reportDate: textField(fundamentals, 'report_date'),
+    eps: numericField(fundamentals, 'eps'),
+    roePct: numericField(fundamentals, 'roe_pct'),
+    grossMarginPct: numericField(fundamentals, 'gross_margin_pct'),
+    bookValuePerShare: numericField(fundamentals, 'book_value_per_share'),
+    operatingCashflowPerShare: numericField(fundamentals, 'operating_cashflow_per_share'),
+    revenue: numericField(fundamentals, 'revenue'),
+    netIncome: numericField(fundamentals, 'net_income'),
+    netIncomeYoyPct: numericField(fundamentals, 'net_income_yoy_pct'),
+    consensus: consensusEstimate(data.estimates),
+  };
+}
+
+/** DCF assumptions, stated in the output. The starting cash flow is the provider's, never assumed. */
+const PLAN_DCF_ASSUMPTIONS = { growth_rate: 0.08, discount_rate: 0.10, terminal_growth_rate: 0.03, projection_years: 10 } as const;
+
+function ratioText(value: number | null): string {
+  return value === null ? '(n/a)' : value.toFixed(2);
+}
+
+function planEvidence(data: InvestmentResearchData, ticker: string): InvestmentPhaseResult['evidence'] {
+  // The canonical phase URI stays first; the provider sources the numbers came
+  // from follow it with the plan phase attached.
+  return [{ source: 'upup-pi://investment-workflow/plan', phase: 'plan' as const }, ...researchEvidence(data, ticker).map((entry) => ({ ...entry, phase: 'plan' as const }))];
+}
+
+/**
+ * Valuation plan built from the provider's own price / 报告期 fundamentals.
+ *
+ * The phase used to compute ratios from a fixed `price: 100, eps: 5` fixture,
+ * which produced plausible-looking multiples for every ticker. It now derives
+ * them from the research envelope, reports the report-period basis explicitly
+ * (半年报 EPS is not annualised) and only runs the DCF when a real cash-flow
+ * figure and share count are available.
+ */
+async function planPhase(plan: InvestmentWorkflowPlan, services: InvestmentWorkflowServices, signal?: AbortSignal): Promise<InvestmentPhaseResult> {
   if (!plan.ticker) return noTicker('plan');
-  const ratios = calculateValuationRatios({ price: 100, eps: 5, book_value_per_share: 15, cash_flow_per_share: 7.5, shares_outstanding: 1_000_000_000 });
-  const dcf = calculateProductionDcf({ current_fcf: 1_000_000_000, growth_rate: 0.08, discount_rate: 0.10, terminal_growth_rate: 0.03, projection_years: 10, shares_outstanding: 1_000_000_000, net_debt: 0 });
-  return { output: [`## Plan — ${plan.ticker}`, '', '### Valuation Ratios', '```', text(ratios, 600), '```', '', '### DCF (g=8%, r=10%, tg=3%)', '```', text(dcf, 600), '```', ''].join('\n'), evidence: [{ source: 'upup-pi://investment-workflow/plan', phase: 'plan' }] };
+  const data = await services.getResearchData(plan.ticker, signal, plan.market as PiMarket | undefined);
+  const inputs = planInputs(data);
+  if (inputs.price === undefined || inputs.eps === undefined) {
+    return {
+      output: [`## Plan — ${plan.ticker}`, '', '(真实价格 / 报告期 EPS 缺失，未生成估值：plan 不用占位数据计算)', '', `- **价格**: ${inputs.price ?? '(n/a)'}`, `- **报告期 EPS**: ${inputs.eps ?? '(n/a)'}`, ''].join('\n'),
+      error: 'insufficient_research_data',
+      evidence: planEvidence(data, plan.ticker),
+    };
+  }
+  const shares = inputs.netIncome !== undefined && inputs.eps !== 0 ? inputs.netIncome / inputs.eps : undefined;
+  const ratios = calculateValuationRatios({
+    price: inputs.price,
+    eps: inputs.eps,
+    ...(inputs.bookValuePerShare !== undefined ? { book_value_per_share: inputs.bookValuePerShare } : {}),
+    ...(inputs.operatingCashflowPerShare !== undefined ? { cash_flow_per_share: inputs.operatingCashflowPerShare } : {}),
+    ...(shares !== undefined ? { shares_outstanding: shares } : {}),
+  });
+  const lines = [
+    `## Plan — ${plan.ticker}`,
+    '',
+    `- **数据来源**: ${[inputs.name, inputs.period, inputs.reportDate ? `报告期 ${inputs.reportDate}` : undefined].filter(Boolean).join(' · ') || '(n/a)'}`,
+    `- **价格**: ${inputs.price}${inputs.currency ? ` ${inputs.currency}` : ''}${inputs.asOf ? ` (${inputs.asOf})` : ''}`,
+    `- **报告期基本面**: ${[inputs.revenue !== undefined ? `营收 ${(inputs.revenue / 1e8).toFixed(1)}亿` : undefined, inputs.netIncome !== undefined ? `净利 ${(inputs.netIncome / 1e8).toFixed(1)}亿` : undefined, `EPS ${inputs.eps}`, inputs.roePct !== undefined ? `ROE ${inputs.roePct.toFixed(2)}%` : undefined, inputs.grossMarginPct !== undefined ? `毛利率 ${inputs.grossMarginPct.toFixed(1)}%` : undefined, inputs.netIncomeYoyPct !== undefined ? `净利同比 ${inputs.netIncomeYoyPct.toFixed(2)}%` : undefined].filter(Boolean).join(' · ')}`,
+    `- **估值（报告期口径，未年化）**: PE ${ratioText(ratios.pe_ratio)} · PB ${ratioText(ratios.pb_ratio)} · PCF ${ratioText(ratios.pcf_ratio)}${ratios.market_cap !== null ? ` · 总市值 ${(ratios.market_cap / 1e8).toFixed(0)}亿元` : ''}`,
+  ];
+  const consensus = inputs.consensus;
+  if (consensus?.epsThisYear !== undefined) {
+    lines.push(`- **卖方一致预期中最新一条** (${[consensus.institution, consensus.reportDate].filter(Boolean).join(' ') || '来源未标注'}): 今年 EPS ${consensus.epsThisYear} → 对应 PE ${(inputs.price / consensus.epsThisYear).toFixed(2)}${consensus.peThisYear !== undefined ? `（机构给出 ${consensus.peThisYear}）` : ''}${consensus.epsNextYear !== undefined ? ` · 明年 EPS ${consensus.epsNextYear}` : ''}`);
+  }
+  if (shares !== undefined && inputs.operatingCashflowPerShare !== undefined) {
+    const currentFcf = inputs.operatingCashflowPerShare * shares;
+    const dcf = calculateProductionDcf({ current_fcf: currentFcf, ...PLAN_DCF_ASSUMPTIONS, shares_outstanding: shares, net_debt: 0 });
+    lines.push(`- **DCF**: 起始现金流 ${(currentFcf / 1e8).toFixed(1)}亿元（每股经营现金流 ${inputs.operatingCashflowPerShare} × ${shares.toFixed(2)} 股，报告期口径）· 假设 g=${PLAN_DCF_ASSUMPTIONS.growth_rate} r=${PLAN_DCF_ASSUMPTIONS.discount_rate} tg=${PLAN_DCF_ASSUMPTIONS.terminal_growth_rate} ${PLAN_DCF_ASSUMPTIONS.projection_years}年 → 每股内在价值 ${dcf.intrinsic_value_per_share === null ? '(n/a)' : dcf.intrinsic_value_per_share.toFixed(2)}`);
+  } else {
+    lines.push('- **DCF**: (缺少每股经营现金流 / 股本，未计算)');
+  }
+  lines.push('', '> 倍数按报告期数据直接计算，未经年化；DCF 参数为显式假设，均非投资建议。', '');
+  return { output: lines.join('\n'), evidence: planEvidence(data, plan.ticker) };
 }
 
 async function execute(plan: InvestmentWorkflowPlan, services: InvestmentWorkflowServices, signal?: AbortSignal): Promise<InvestmentPhaseResult> {
@@ -249,7 +390,7 @@ export async function executeInvestmentPhase(phase: InvestmentWorkflowPhase, pla
   if (signal?.aborted) throw new Error('investment workflow phase aborted');
   validateMarketSelection(plan);
   if (phase === 'detect') return detect(plan, services, signal);
-  if (phase === 'plan') return planPhase(plan);
+  if (phase === 'plan') return planPhase(plan, services, signal);
   if (phase === 'execute') return execute(plan, services, signal);
   if (phase === 'verify') return verify(plan, services, signal);
   return { output: [`## Report — ${plan.ticker ?? '未指定标的'}`, '', `目标：${plan.goal ?? '投资研究'}`, '', '已完成 detect → plan → execute → verify，输出可进入 dossier。'].join('\n'), evidence: [{ source: 'upup-pi://investment-workflow/report', phase: 'report' }] };

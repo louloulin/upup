@@ -3,10 +3,111 @@ import { appendKairosEvent, classifyKairosTopic, createDefaultMarketQuoteClient,
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { screenStockSnapshot } from './src/screener';
-import { getMarketStructureSnapshot, querySectorSnapshot } from './src/market-insights';
-import { makeTechnicalSnapshot } from './src/technical';
-import { executeNaturalLanguageScreen, NATURAL_LANGUAGE_SCREEN_UNIVERSE, runNaturalLanguageScreen } from './src/natural-language-screen';
+import { buildTechnicalSnapshot } from './src/technical';
+import { createEastmoneyScreenLoader, screenEastmoneyStocks } from './src/screen-eastmoney';
+import { parseTencentKlines, tencentKlineCode, tencentKlineUrl } from './src/kline-tencent';
+import { getMarketStructureSnapshot, querySectorSnapshot } from './src/market-structure-eastmoney';
+import { deterministicScreenParser, extractScreenKeywords, runNaturalLanguageScreen, ScreenFilterUnsupportedError } from './src/natural-language-screen';
+
+/** Provider-shaped doubles: the parsers under test are the real ones. */
+const CLIST_CN_PAYLOAD = {
+  rc: 0,
+  data: {
+    total: 5559,
+    diff: [
+      { f12: '601398', f14: '工商银行', f2: 8.11, f3: -0.25, f6: 2500000000, f8: 0.12, f9: 8.32, f20: 2890454744992, f23: 0.73, f100: '银行', f133: 3.95 },
+      { f12: '600519', f14: '贵州茅台', f2: 1258, f3: -1.16, f6: 3307926407, f8: 0.26, f9: 17.66, f20: 1572602654058, f23: 6.26, f100: '白酒Ⅱ', f133: 4.14 },
+    ],
+  },
+};
+const CLIST_BOARD_PAYLOAD = {
+  rc: 0,
+  data: {
+    total: 45,
+    diff: [
+      { f12: '600519', f14: '贵州茅台', f2: 1258, f3: -1.16, f6: 3307926407, f8: 0.26, f9: 17.66, f20: 1572602654058, f23: 6.26, f100: '白酒Ⅱ', f133: 4.14 },
+      { f12: '000858', f14: '五 粮 液', f2: 69.26, f3: -0.63, f6: 1200000000, f8: 0.4, f9: 15.36, f20: 268840170426, f23: 2.27, f100: '白酒Ⅱ', f133: 5.1 },
+      { f12: '600809', f14: '山西汾酒', f2: 112.54, f3: 0.23, f6: 800000000, f8: 0.5, f9: 10.66, f20: 137294773544, f23: 3.6, f100: '白酒Ⅱ', f133: 3.2 },
+    ],
+  },
+};
+const CLIST_US_PAYLOAD = {
+  rc: 0,
+  data: {
+    total: 13815,
+    diff: [
+      { f12: 'NVDA', f14: '英伟达', f2: 213.63, f3: 0.69, f6: 5.1e10, f8: 0.6, f9: 26.69, f20: 5148483000000, f23: 22.48, f100: '信息技术', f133: '-' },
+      { f12: 'AAPL', f14: '苹果', f2: 331.83, f3: 0.15, f6: 4.8e10, f8: 0.5, f9: 37.56, f20: 4842786749400, f23: 45.04, f100: '信息技术', f133: '-' },
+    ],
+  },
+};
+const CLIST_BOARD_LIST_PAYLOAD = {
+  rc: 0,
+  data: {
+    total: 86,
+    diff: [
+      { f12: 'BK1201', f14: '电子', f3: 3.57, f62: 22702878720, f184: 4.23 },
+      { f12: 'BK1036', f14: '半导体', f3: 4.76, f62: 13650636288, f184: 5.36 },
+    ],
+  },
+};
+const SUGGEST_BOARD_PAYLOAD = {
+  QuotationCodeTable: {
+    Data: [
+      { Code: 'BK0896', Name: '白酒', Classify: 'BK' },
+      { Code: '161725', Name: '白酒基金LOF', Classify: 'Fund' },
+    ],
+  },
+};
+const XUANGU_PAYLOAD = {
+  result: {
+    count: 5565,
+    data: [
+      { SECURITY_CODE: '600519', SECURITY_NAME_ABBR: '贵州茅台', SECUCODE: '600519.SH', NEW_PRICE: 1258, CHANGE_RATE: -1.16, PE_TTM: 17.66, TOTAL_MARKET_CAP: 1572602654058, ROE_WEIGHT: 16.75, TOTAL_OPERATE_INCOME_YOY: 6.1, PARENT_NETPROFIT_YOY: 8.2, INDUSTRY: '饮料', MAX_TRADE_DATE: '2026-09-16' },
+      { SECURITY_CODE: '601398', SECURITY_NAME_ABBR: '工商银行', SECUCODE: '601398.SH', NEW_PRICE: 8.11, CHANGE_RATE: -0.25, PE_TTM: 8.32, TOTAL_MARKET_CAP: 2890454744992, ROE_WEIGHT: 9.1, TOTAL_OPERATE_INCOME_YOY: 1.2, PARENT_NETPROFIT_YOY: 0.8, INDUSTRY: '银行', MAX_TRADE_DATE: '2026-09-16' },
+    ],
+  },
+};
+const ULIST_PAYLOAD = {
+  rc: 0,
+  data: {
+    total: 2,
+    diff: [
+      { f12: '600961', f14: '株冶集团', f2: 25.76, f3: 6.1, f6: 933130182, f8: 3.46, f9: 7.09, f20: 27637200829, f23: 4.72, f100: '工业金属', f124: 1789544070, f133: '-' },
+      { f12: '600519', f14: '贵州茅台', f2: 1258, f3: -1.16, f6: 3307926407, f8: 0.21, f9: 17.66, f20: 1572602654058, f23: 6.26, f100: '白酒Ⅱ', f124: 1789544070, f133: 4.14 },
+    ],
+  },
+};
+const XUANGU_FUNDAMENTAL_PAYLOAD = {
+  result: {
+    data: [
+      { SECURITY_CODE: '002289', SECURITY_NAME_ABBR: '宇顺电子', SECUCODE: '002289.SZ', NEW_PRICE: 35.54, CHANGE_RATE: 0.17, PE_TTM: 36.85, TOTAL_MARKET_CAP: 9960217671, ROE_WEIGHT: 78.71, INDUSTRY: '电子器件', MAX_TRADE_DATE: '2026-09-16' },
+      { SECURITY_CODE: '600961', SECURITY_NAME_ABBR: '株冶集团', SECUCODE: '600961.SH', NEW_PRICE: 25.76, CHANGE_RATE: 6.1, PE_TTM: 11.11, TOTAL_MARKET_CAP: 27637200829, ROE_WEIGHT: 39.52, INDUSTRY: '基本金属', MAX_TRADE_DATE: '2026-09-16' },
+    ],
+  },
+};
+const ULIST_FUNDAMENTAL_PAYLOAD = {
+  rc: 0,
+  data: {
+    total: 2,
+    diff: [
+      { f12: '600961', f14: '株冶集团', f2: 25.76, f3: 6.1, f6: 933130182, f8: 3.46, f9: 7.09, f20: 27637200829, f23: 4.72, f100: '工业金属', f124: 1789544070 },
+      { f12: '002289', f14: '宇顺电子', f2: 35.54, f3: 0.17, f6: 103891312, f8: 1.07, f9: 17.76, f20: 9960217671, f23: 20.06, f100: '光学光电子', f124: 1789544070 },
+    ],
+  },
+};
+const KAMT_PAYLOAD = { data: { hk2sh: { status: 3, dayNetAmtIn: 0, dayAmtRemain: 0, dayAmtThreshold: 5200000, date2: '2026-09-16' }, sh2hk: { status: 3, dayNetAmtIn: 4200000, dayAmtRemain: 0, dayAmtThreshold: 4200000, date2: '2026-09-16' } } };
+const TOP_LIST_PAYLOAD = { result: { data: [{ TRADE_DATE: '2026-09-16 00:00:00', SECUCODE: '300464.SZ', SECURITY_NAME_ABBR: '星徽股份', CLOSE_PRICE: 10.02, CHANGE_RATE: 20, TURNOVERRATE: 18.7, BILLBOARD_NET_AMT: 10561590925, BILLBOARD_BUY_AMT: 11630832056, BILLBOARD_SELL_AMT: 1569241131, EXPLANATION: '日涨幅偏离值达到7%' }] } };
+
+function routedFetcher(routes: readonly [string, unknown][]): (input: RequestInfo | URL) => Promise<Response> {
+  return async (input) => {
+    const url = String(input);
+    for (const [needle, payload] of routes) {
+      if (url.includes(needle)) return new Response(JSON.stringify(payload), { status: 200 });
+    }
+    throw new Error(`unexpected request in test double: ${url}`);
+  };
+}
 
 function sseResponse(frames: readonly string[], signal?: AbortSignal): Response {
   const encoder = new TextEncoder();
@@ -35,20 +136,129 @@ function trendFrame(rows: readonly string[]): string {
 }
 
 describe('pi-market-data', () => {
-  test('runs the package-owned natural-language screener', async () => {
-    const result = await runNaturalLanguageScreen('PE < 15 且 ROE > 10%');
-    expect(result.source).toBe('nl_screen');
-    expect(result.results.map((item) => item.ticker)).toContain('BABA');
-    expect(result.results.every((item) => item.metrics.pe < 15 && item.metrics.roe > 10)).toBe(true);
+  test('screens the live A-share 行情列表 and reports provider provenance', async () => {
+    const result = await screenEastmoneyStocks({ market: 'cn', peMax: 10, limit: 5 }, { fetcher: routedFetcher([['clist/get', CLIST_CN_PAYLOAD], ['xuangu/list', XUANGU_PAYLOAD]]) });
+    expect(result.rows.map((row) => row.ticker)).toEqual(['601398.SH']);
+    expect(result.rows[0]).toMatchObject({ name: '工商银行', industry: '银行', pe: 8.32, pb: 0.73, roe: 9.1, dividendYield: 3.95, market: 'cn' });
+    expect(result.scannedCount).toBe(2);
+    expect(result.universeCount).toBe(5559);
+    expect(decodeURIComponent(result.sourceUrls[0]!)).toContain('fid=f9');
+    // PE is the one field where the provider reaches the low end through po=1.
+    expect(decodeURIComponent(result.sourceUrls[0]!)).toContain('po=1');
+    expect(result.sourceUrls.some((url) => url.includes('xuangu/list'))).toBe(true);
+    expect(result.note).toContain('样本');
   });
 
-  test('keeps realtime stale-row gating inside the package', async () => {
-    const result = await executeNaturalLanguageScreen(
-      { universe: 'us', filters: [], limit: 50, realtime: true },
-      [NATURAL_LANGUAGE_SCREEN_UNIVERSE[0]!],
-      async () => ({}),
-    );
-    expect(result).toEqual([]);
+  test('keeps Hong Kong RMB counters out and screens the US list', async () => {
+    const hkPayload = { rc: 0, data: { total: 17985, diff: [
+      { f12: '00700', f14: '腾讯控股', f2: 433.4, f3: -1.23, f9: 14.77, f20: 3941810269366, f23: 3.01, f100: '软件服务', f133: '-' },
+      { f12: '80700', f14: '腾讯控股-R', f2: 370.8, f3: -1.23, f9: 14.32, f20: 3372457886204, f23: 2.97, f100: '软件服务', f133: '-' },
+    ] } };
+    const hk = await screenEastmoneyStocks({ market: 'hk', limit: 5 }, { fetcher: routedFetcher([['clist/get', hkPayload]]) });
+    expect(hk.rows.map((row) => row.ticker)).toEqual(['00700.HK']);
+    const us = await screenEastmoneyStocks({ market: 'us', limit: 5 }, { fetcher: routedFetcher([['clist/get', CLIST_US_PAYLOAD]]) });
+    expect(us.rows.map((row) => row.ticker)).toEqual(['NVDA', 'AAPL']);
+    expect(us.rows[0]!.dividendYield).toBeUndefined();
+    expect(us.note).toContain('美股');
+  });
+
+  test('resolves a Chinese sector keyword to the live 板块 membership', async () => {
+    const result = await screenEastmoneyStocks({ market: 'cn', sector: '白酒', peMax: 20, limit: 10 }, { fetcher: routedFetcher([['suggest/get', SUGGEST_BOARD_PAYLOAD], ['fs=b%3ABK0896', CLIST_BOARD_PAYLOAD]]) });
+    expect(result.rows.map((row) => row.ticker)).toEqual(['600519.SH', '000858.SZ', '600809.SH']);
+    expect(result.scannedCount).toBe(3);
+    expect(result.universeCount).toBe(45);
+    expect(result.note).toContain('板块');
+    expect(result.sourceUrls[0]).toContain('fs=b%3ABK0896');
+    expect(result.rows[0]!.dividendYield).toBe(4.14);
+  });
+
+  test('drives an ROE screen from the 选股器 window plus the live 行情快照, not from a quote-list intersection', async () => {
+    const fetcher = routedFetcher([['ulist.np/get', ULIST_FUNDAMENTAL_PAYLOAD], ['xuangu/list', XUANGU_FUNDAMENTAL_PAYLOAD]]);
+    const result = await screenEastmoneyStocks({ market: 'cn', peMax: 15, roeMin: 15, limit: 10 }, { fetcher });
+    expect(result.rows.map((row) => row.ticker)).toEqual(['600961.SH']);
+    expect(result.rows[0]).toMatchObject({ name: '株冶集团', industry: '工业金属', pe: 7.09, pb: 4.72, roe: 39.52, market: 'cn' });
+    expect(result.scannedCount).toBe(2);
+    expect(result.universeCount).toBeUndefined();
+    expect(result.asOf).toBe('2026-09-16');
+    const window = decodeURIComponent(result.sourceUrls[0]!);
+    expect(window).toContain('st=ROE_WEIGHT');
+    expect(window).toContain('filter=(ROE_WEIGHT>=15)');
+    expect(result.sourceUrls[1]).toContain('ulist.np/get');
+    expect(result.note).toContain('选股器');
+  });
+
+  test('answers a natural-language PE 且 ROE screen from the real provider rows', async () => {
+    const out = await runNaturalLanguageScreen('低估值 PE < 15 且 ROE > 15', {
+      universe: 'cn',
+      loader: createEastmoneyScreenLoader({ fetcher: routedFetcher([['ulist.np/get', ULIST_FUNDAMENTAL_PAYLOAD], ['xuangu/list', XUANGU_FUNDAMENTAL_PAYLOAD]]), now: () => new Date('2026-09-17T02:00:00Z') }),
+    });
+    expect(out.matchedCount).toBe(1);
+    expect(out.results[0]!.ticker).toBe('600961.SH');
+    expect(out.results[0]!.metrics).toMatchObject({ pe: 7.09, pb: 4.72, roe: 39.52 });
+    expect(out.sourceUrls.some((url) => url.includes('data.eastmoney.com/dataapi/xuangu/list'))).toBe(true);
+    expect(out.note).toContain('选股器');
+  });
+
+  test('scores and ranks the rows a real loader returns', async () => {
+    const out = await runNaturalLanguageScreen('低估值 PE < 20', {
+      universe: 'cn',
+      loader: async () => ({
+        rows: [
+          { ticker: '600519.SH', name: '贵州茅台', market: 'cn', industry: '白酒Ⅱ', pe: 17.66, pb: 6.26, marketCap: 1572602654058, roe: 16.75, dividendYield: 4.14 },
+          { ticker: '601398.SH', name: '工商银行', market: 'cn', industry: '银行', pe: 8.32, pb: 0.73, marketCap: 2890454744992, roe: 9.1, dividendYield: 3.95 },
+        ],
+        scannedCount: 2,
+        asOf: '2026-09-16',
+        sourceUrls: ['https://data.eastmoney.com/dataapi/xuangu/list'],
+      }),
+    });
+    expect(out.source).toBe('nl_screen');
+    expect(out.template).toBe('value');
+    expect(out.asOf).toBe('2026-09-16');
+    expect(out.sourceUrls).toEqual(['https://data.eastmoney.com/dataapi/xuangu/list']);
+    expect(out.matchedCount).toBe(2);
+    expect(out.results[0]).toMatchObject({ ticker: '601398.SH', metrics: { pe: 8.32, pb: 0.73, roe: 9.1 } });
+    expect(out.results[0]!.thesis).toContain('工商银行');
+  });
+
+  test('falls back to the mirror 行情 host when the live host drops the connection', async () => {
+    resetEastmoneyGates();
+    const hosts: string[] = [];
+    const fetcher = async (input: RequestInfo | URL) => {
+      const url = String(input);
+      hosts.push(new URL(url).host);
+      if (url.includes('push2.eastmoney.com')) throw new TypeError('The socket connection was closed unexpectedly');
+      if (url.includes('xuangu/list')) return new Response(JSON.stringify(XUANGU_PAYLOAD), { status: 200 });
+      return new Response(JSON.stringify(CLIST_CN_PAYLOAD), { status: 200 });
+    };
+    const result = await screenEastmoneyStocks({ market: 'cn', peMax: 10, limit: 5 }, { fetcher });
+    expect(hosts).toContain('push2delay.eastmoney.com');
+    expect(result.sourceUrls[0]).toContain('push2delay.eastmoney.com');
+    expect(result.note).toContain('push2delay');
+    expect(result.rows.map((row) => row.ticker)).toEqual(['601398.SH']);
+    resetEastmoneyGates();
+  });
+
+  test('reports a dropped connection as an actionable provider error', async () => {
+    resetEastmoneyGates();
+    const fetcher = async () => { throw new TypeError('The socket connection was closed unexpectedly. For more information, pass `verbose: true` in the second argument to fetch()'); };
+    await expect(screenEastmoneyStocks({ market: 'cn', peMax: 10, limit: 5 }, { fetcher })).rejects.toThrow(/连接被重置/);
+    resetEastmoneyGates();
+  });
+
+  test('parses Chinese filter labels that start a query', () => {
+    expect(deterministicScreenParser('股息率 > 5', 'cn').filters).toEqual([{ field: 'dividendYield', op: '>', value: 5 }]);
+    expect(deterministicScreenParser('市盈率 < 20', 'cn').filters).toEqual([{ field: 'pe', op: '<', value: 20 }]);
+    expect(deterministicScreenParser('营收增长 > 20%', 'cn').filters).toEqual([{ field: 'revenueGrowth', op: '>', value: 20 }]);
+    expect(deterministicScreenParser('cape<5', 'cn').filters).toEqual([]);
+  });
+
+  test('refuses filters the selected universe cannot answer', async () => {
+    const loader = async () => ({ rows: [], scannedCount: 0, asOf: '2026-09-16', sourceUrls: [] });
+    await expect(runNaturalLanguageScreen('RSI < 35', { universe: 'cn', loader })).rejects.toThrow(ScreenFilterUnsupportedError);
+    await expect(runNaturalLanguageScreen('PE < 15 且 ROE > 20%', { universe: 'us', loader })).rejects.toThrow(/roe/i);
+    expect(extractScreenKeywords('白酒 低估值')).toEqual(['白酒']);
+    expect(extractScreenKeywords('PE < 15 且 ROE > 20%')).toEqual([]);
   });
 
   test('maps A-share and Hong Kong symbols onto Eastmoney secids', () => {
@@ -74,8 +284,33 @@ describe('pi-market-data', () => {
     const quote = await client.getQuote('600519.SH', 'cn', undefined, 'test-quote');
     expect(requested).toContain('secid=1.600519');
     expect(quote.value).toMatchObject({ symbol: '600519.SH', market: 'cn', currency: 'CNY', last: 1258, price: 1258, asOf: '2026-09-16' });
-    expect(quote.evidence).toMatchObject({ id: 'market-data:test-quote:quote', source: 'https://push2.eastmoney.com/api/qt/stock/get', provider: 'eastmoney' });
+    expect(quote.evidence).toMatchObject({ id: 'market-data:test-quote:quote', provider: 'eastmoney' });
+    expect(quote.evidence.source.startsWith('https://push2.eastmoney.com/api/qt/stock/get?secid=1.600519')).toBe(true);
     expect(quote.value.source.startsWith('dry-run://')).toBe(false);
+  });
+
+  test('retries an A-share quote on the delayed host when push2 drops the connection', async () => {
+    resetEastmoneyGates();
+    const hosts: string[] = [];
+    const client = new NativeMarketQuoteClient({
+      provider: 'auto',
+      tushareToken: '',
+      fetcher: async (input) => {
+        const url = String(input);
+        hosts.push(new URL(url).host);
+        if (url.includes('push2.eastmoney.com')) throw new TypeError('The socket connection was closed unexpectedly');
+        return new Response(JSON.stringify({
+          rc: 0,
+          data: { f43: 125800, f44: 127498, f45: 125410, f46: 127393, f47: 26235, f48: 3307926407, f57: '600519', f58: '贵州茅台', f59: 2, f60: 127275, f86: Date.parse('2026-09-16T07:00:00Z') / 1000 },
+        }), { status: 200 });
+      },
+    });
+    const quote = await client.getQuote('600519.SH', 'cn', undefined, 'test-quote-mirror');
+    expect(hosts).toContain('push2delay.eastmoney.com');
+    expect(quote.value).toMatchObject({ last: 1258, asOf: '2026-09-16' });
+    expect(quote.evidence.source).toContain('push2delay.eastmoney.com');
+    expect(quote.evidence.note).toContain('备用主机');
+    resetEastmoneyGates();
   });
 
   test('auto-routes A-share daily bars to Eastmoney with provider-real OHLC', async () => {
@@ -101,29 +336,100 @@ describe('pi-market-data', () => {
     expect(result.evidence).toMatchObject({ provider: 'eastmoney', query: '600519.SH:cn:2026-08-01:2026-08-05' });
   });
 
+  test('falls back to the real 腾讯 daily series when push2his drops the connection', async () => {
+    resetEastmoneyGates();
+    const hosts: string[] = [];
+    const client = new NativeMarketHistoryClient({
+      provider: 'auto',
+      tushareToken: '',
+      fetcher: async (input) => {
+        const url = String(input);
+        hosts.push(new URL(url).host);
+        if (url.includes('push2his.eastmoney.com')) throw new TypeError('The socket connection was closed unexpectedly');
+        return new Response(JSON.stringify({ code: 0, data: { sh600519: { qfqday: [
+          ['2026-08-03', '1350.600', '1358.980', '1363.350', '1346.000', '36147.000'],
+          ['2026-08-04', '1350.060', '1328.360', '1350.940', '1328.360', '37450.000'],
+        ] } } }), { status: 200 });
+      },
+    });
+    const result = await client.getHistory('600519.SH', '2026-08-01', '2026-08-05', undefined, 'test-history-fallback', 'cn');
+    expect(hosts).toContain('web.ifzq.gtimg.cn');
+    expect(result.value).toEqual([
+      { date: '2026-08-03', open: 1350.6, high: 1363.35, low: 1346, close: 1358.98, volume: 3_614_700 },
+      { date: '2026-08-04', open: 1350.06, high: 1350.94, low: 1328.36, close: 1328.36, volume: 3_745_000 },
+    ]);
+    expect(result.evidence).toMatchObject({ provider: 'tencent', query: '600519.SH:cn:2026-08-01:2026-08-05' });
+    expect(result.evidence.source).toContain('web.ifzq.gtimg.cn');
+    expect(result.evidence.note).toContain('腾讯财经');
+    resetEastmoneyGates();
+  });
+
+  test('treats an empty 东方财富 kline answer as unavailable instead of fabricating bars', async () => {
+    resetEastmoneyGates();
+    const client = new NativeMarketHistoryClient({
+      provider: 'auto',
+      tushareToken: '',
+      fetcher: async (input) => {
+        if (String(input).includes('push2his.eastmoney.com')) return new Response(JSON.stringify({ rc: 0, data: { code: '600519', market: 1, dktotal: 0, klines: [] } }), { status: 200 });
+        throw new TypeError('The socket connection was closed unexpectedly');
+      },
+    });
+    await expect(client.getHistory('600519.SH', '2026-08-01', '2026-08-05', undefined, 'test-history-empty', 'cn')).rejects.toThrow(/日线数据不可用/);
+    resetEastmoneyGates();
+  });
+
+  test('maps CN/HK symbols onto 腾讯 codes and parses both kline shapes', () => {
+    expect(tencentKlineCode('600519.SH', 'cn')).toBe('sh600519');
+    expect(tencentKlineCode('000001.SZ', 'cn')).toBe('sz000001');
+    expect(tencentKlineCode('920002.BJ', 'cn')).toBe('bj920002');
+    expect(tencentKlineCode('00700.HK', 'hk')).toBe('hk00700');
+    expect(() => tencentKlineCode('AAPL', 'cn')).toThrow(/腾讯财经/);
+    expect(tencentKlineUrl('sh600519').searchParams.get('param')).toBe('sh600519,day,,,640,qfq');
+    const bars = parseTencentKlines({ data: { hk00700: { day: [
+      ['2026-09-14', '423.800', '430.600', '435.400', '423.800', '11363985.000', { cqr: '2026-09-14' }],
+      ['2026-09-15', '430.000', '428.000', '431.000', '427.000', '-'],
+    ] } } }, 'hk00700', '00700.HK', '2026-09-01', '2026-09-17', 'hk');
+    expect(bars).toEqual([{ date: '2026-09-14', open: 423.8, high: 435.4, low: 423.8, close: 430.6, volume: 11_363_985 }]);
+    expect(() => parseTencentKlines({ data: {} }, 'sh600519', '600519.SH', '2026-08-01', '2026-08-05', 'cn')).toThrow(/腾讯财经未返回/);
+  });
+
   test('handles market calendar boundaries', () => {
     expect(isTradingDay('2026-09-12', 'cn')).toBe(false);
     expect(isTradingDay('2026-09-14', 'cn')).toBe(true);
     expect(isTradingDay('2026-10-01', 'cn')).toBe(false);
   });
 
-  test('screens only the declared historical snapshot', () => {
-    const result = screenStockSnapshot({ market: 'cn', performance: 'active', limit: 2 });
-    expect(result).toHaveLength(2);
-    expect(result[0].volume).toBeGreaterThanOrEqual(result[1].volume);
-    expect(result.every((stock) => stock.market === 'cn' && stock.asOf === '2026-09-12')).toBe(true);
+  test('reads real 板块 lists and 资金面 snapshots', async () => {
+    const fetcher = routedFetcher([
+      ['suggest/get', SUGGEST_BOARD_PAYLOAD],
+      ['fs=b%3ABK0896', CLIST_BOARD_PAYLOAD],
+      ['clist/get', CLIST_BOARD_LIST_PAYLOAD],
+      ['kamt/get', KAMT_PAYLOAD],
+      ['datacenter-web', TOP_LIST_PAYLOAD],
+    ]);
+    const sectors = await querySectorSnapshot(undefined, 'industry', { fetcher });
+    expect(sectors).toMatchObject({ type: 'industry', sectors: ['电子', '半导体'] });
+    const board = await querySectorSnapshot('白酒', 'concept', { fetcher });
+    expect(board).toMatchObject({ code: 'BK0896', sector: '白酒' });
+    expect((board as { members: { ticker: string }[] }).members.map((member) => member.ticker)).toEqual(['600519.SH', '000858.SZ', '600809.SH']);
+    const hsgt = await getMarketStructureSnapshot('hsgt', {}, { fetcher });
+    expect(hsgt.data).toContainEqual(expect.objectContaining({ channel: '港股通(沪)', 净买入万元: 4200000 }));
+    const topList = await getMarketStructureSnapshot('top_list', { trade_date: '2026-09-16' }, { fetcher });
+    expect(topList).toMatchObject({ type: 'top_list', asOf: '2026-09-16', data: [{ symbol: '300464.SZ', netBuyAmount: 10561590925 }] });
+    expect(topList.sourceUrls[0]).toContain(`TRADE_DATE`);
   });
 
-  test('resolves sector metadata and structure snapshots deterministically', () => {
-    expect(querySectorSnapshot('002594.SZ', 'stock')).toMatchObject({ sector: '新能源', asOf: '2026-09-12' });
-    expect(getMarketStructureSnapshot('moneyflow')).toMatchObject({ type: 'moneyflow', asOf: '2026-09-12' });
-    expect(getMarketStructureSnapshot('moneyflow').data.length).toBeGreaterThan(0);
+  test('screens the live board through the injected provider rows only', async () => {
+    const fetcher = routedFetcher([['suggest/get', SUGGEST_BOARD_PAYLOAD], ['clist/get', CLIST_BOARD_PAYLOAD]]);
+    const result = await screenEastmoneyStocks({ market: 'cn', sector: '白酒', performance: 'losers', limit: 2 }, { fetcher });
+    expect(result.rows.map((row) => row.ticker)).toEqual(['600519.SH', '000858.SZ']);
+    expect(result.rows.every((row) => (row.changePercent ?? 0) < 0)).toBe(true);
   });
 
-  test('calculates bounded historical technical indicators', () => {
-    const result = makeTechnicalSnapshot('比亚迪', 'daily');
-    expect(result).toMatchObject({ source: 'upup-pi://market-data/technical-data', ts_code: '002594.SZ', period: 'daily', count: 40, asOf: '2026-09-12' });
-    expect(result.data.at(-1)).toMatchObject({ trade_date: '20260912' });
+  test('derives indicators from the bars the provider returned', () => {
+    const bars = Array.from({ length: 40 }, (_, index) => ({ date: `2026-08-${String((index % 28) + 1).padStart(2, '0')}`, open: 100 + index, high: 102 + index, low: 99 + index, close: 101 + index, volume: 1000 + index }));
+    const result = buildTechnicalSnapshot('600519.SH', bars, 'daily');
+    expect(result).toMatchObject({ ts_code: '600519.SH', period: 'daily', count: 40 });
     expect(result.data.slice(19).every((bar) => bar.ma20 !== null)).toBe(true);
     expect(result.data.slice(25).every((bar) => bar.macd_dif !== null && bar.macd_dea !== null)).toBe(true);
     expect(result.data.every((bar) => bar.high >= bar.close && bar.close >= bar.low && bar.vol > 0)).toBe(true);

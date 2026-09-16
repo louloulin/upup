@@ -1,10 +1,45 @@
 import type { MarketBar, MarketEvidence } from './market-types';
-import { executeWithProviderRetry, type ProviderRetryPolicy } from '@upup/pi-observability';
-import { EASTMONEY_KLINE_URL, EASTMONEY_USER_AGENT, eastmoneyGateFor, eastmoneyKlineUrl, eastmoneySecid, parseEastmoneyKlines } from './eastmoney';
+import { executeWithProviderRetry, hostGateFor, type ProviderRetryPolicy } from '@upup/pi-observability';
+import { EASTMONEY_KLINE_URL, EASTMONEY_USER_AGENT, eastmoneyKlineUrl, eastmoneySecid, parseEastmoneyKlines } from './eastmoney';
+import { parseTencentKlines, TENCENT_KLINE_MAX_ROWS, TENCENT_USER_AGENT, tencentKlineCode, tencentKlineUrl } from './kline-tencent';
 
 export type MarketHistoryFetcher = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 export type MarketHistoryProvider = 'auto' | 'yahoo' | 'tushare' | 'financial-datasets' | 'eastmoney';
 type MarketHistoryMarket = 'cn' | 'hk' | 'us' | 'fund' | 'crypto';
+
+/** One real source of CN/HK daily bars; the chain is tried in order. */
+function cnHistoryAttempts(symbol: string, market: 'cn' | 'hk', startDate: string, endDate: string, requestBaseUrl: string): readonly CnHistoryAttempt[] {
+  const code = tencentKlineCode(symbol, market);
+  return [
+    {
+      label: '东方财富 push2his',
+      provider: 'eastmoney',
+      url: eastmoneyKlineUrl(eastmoneySecid(symbol), startDate, endDate, requestBaseUrl),
+      userAgent: EASTMONEY_USER_AGENT,
+      parse: (payload) => parseEastmoneyKlines(payload, symbol, startDate, endDate, market),
+    },
+    {
+      label: '腾讯财经日线',
+      provider: 'tencent',
+      url: tencentKlineUrl(code),
+      userAgent: TENCENT_USER_AGENT,
+      note: '东方财富 push2his 不可用后回退到腾讯财经日线（前复权）',
+      rowLimit: TENCENT_KLINE_MAX_ROWS,
+      parse: (payload) => parseTencentKlines(payload, code, symbol, startDate, endDate, market),
+    },
+  ];
+}
+
+interface CnHistoryAttempt {
+  readonly label: string;
+  readonly provider: 'eastmoney' | 'tencent';
+  readonly url: URL;
+  readonly userAgent: string;
+  readonly note?: string;
+  /** Provider's per-request row cap; the fetched series is truncated past it. */
+  readonly rowLimit?: number;
+  readonly parse: (payload: unknown) => MarketBar[];
+}
 
 export interface NativeMarketHistoryClientOptions {
   readonly fetcher?: MarketHistoryFetcher;
@@ -228,7 +263,7 @@ export class NativeMarketHistoryClient {
     await this.rateLimiter?.acquire(selectedProvider, now);
     if (selectedProvider === 'tushare') return this.getTushareHistory(symbol, startDate, endDate, signal, auditId, cacheKey, marketKey === 'hk' ? 'hk' : 'cn', marketToken, requestFetcher, requestBaseUrl);
     if (selectedProvider === 'financial-datasets') return this.getFinancialDatasetsHistory(symbol, startDate, endDate, signal, auditId, cacheKey, marketToken, requestFetcher, requestBaseUrl);
-    if (selectedProvider === 'eastmoney') return this.getEastmoneyHistory(symbol, startDate, endDate, signal, auditId, cacheKey, marketKey === 'hk' || /\.HK$/i.test(symbol.trim()) ? 'hk' : 'cn', requestFetcher, requestBaseUrl);
+    if (selectedProvider === 'eastmoney') return this.getCnHistory(symbol, startDate, endDate, signal, auditId, cacheKey, marketKey === 'hk' || /\.HK$/i.test(symbol.trim()) ? 'hk' : 'cn', requestFetcher, requestBaseUrl);
     const resolvedSymbol = yahooSymbol(symbol);
     const url = new URL(`${requestBaseUrl}/${encodeURIComponent(resolvedSymbol)}`);
     url.searchParams.set('period1', String(Math.floor(Date.parse(`${startDate}T00:00:00Z`) / 1000)));
@@ -279,33 +314,48 @@ export class NativeMarketHistoryClient {
   }
 
   /**
-   * Live daily bars from `push2his.eastmoney.com` (forward-adjusted, `fqt=1`),
-   * the real replacement for the previous synthetic fallback.
+   * Live CN/HK daily bars — 东方财富 `push2his` first, real 腾讯财经 日线 second.
+   *
+   * 东方财富 answers a burst by dropping the connection (and its `push2delay`
+   * mirror carries no kline rows), so a dropped read falls back to the 腾讯
+   * series instead of failing the phase. Both are real providers; no path here
+   * fabricates bars.
    */
-  private async getEastmoneyHistory(symbol: string, startDate: string, endDate: string, signal: AbortSignal | undefined, auditId: string, cacheKey: string, market: 'cn' | 'hk', requestFetcher: MarketHistoryFetcher, requestBaseUrl: string): Promise<NativeMarketHistoryResult> {
-    const resolvedSymbol = eastmoneySecid(symbol);
-    const url = eastmoneyKlineUrl(resolvedSymbol, startDate, endDate, requestBaseUrl);
-    const response = await this.fetchWithRetry(url, { signal, headers: { Accept: 'application/json', 'User-Agent': EASTMONEY_USER_AGENT } }, 'eastmoney', 'history', signal, requestFetcher, EASTMONEY_RETRY);
-    if (!response.ok) throw new Error(`Eastmoney market history request failed: ${response.status} ${response.statusText}`);
-    const payload = await response.json() as unknown;
-    const bars = parseEastmoneyKlines(payload, symbol, startDate, endDate, market).slice(-this.maxBars);
-    if (bars.length < 2) throw new Error(`Eastmoney returned fewer than two complete bars for ${symbol}`);
-    const retrievedAt = this.now();
-    const result: NativeMarketHistoryResult = {
-      value: bars,
-      evidence: {
-        id: `market-data:${auditId}:history`,
-        source: requestBaseUrl,
-        provider: 'eastmoney',
-        retrievedAt,
-        asOf: bars.at(-1)!.date,
-        query: `${symbol}:${market}:${startDate}:${endDate}`,
-        dataFreshness: 'historical',
-        auditId,
-      },
-    };
-    this.cache?.set(cacheKey, result, Date.now() + this.cacheTtlMs);
-    return result;
+  private async getCnHistory(symbol: string, startDate: string, endDate: string, signal: AbortSignal | undefined, auditId: string, cacheKey: string, market: 'cn' | 'hk', requestFetcher: MarketHistoryFetcher, requestBaseUrl: string): Promise<NativeMarketHistoryResult> {
+    const failures: string[] = [];
+    for (const attempt of cnHistoryAttempts(symbol, market, startDate, endDate, requestBaseUrl)) {
+      try {
+        const response = await this.fetchWithRetry(attempt.url, { signal, headers: { Accept: 'application/json', 'User-Agent': attempt.userAgent } }, attempt.provider, 'history', signal, requestFetcher, EASTMONEY_RETRY);
+        const fetched = attempt.parse(await response.json() as unknown);
+        const bars = fetched.slice(-this.maxBars);
+        if (bars.length < 2) {
+          failures.push(`${attempt.label} 只返回 ${bars.length} 根日线`);
+          continue;
+        }
+        const note = attempt.rowLimit !== undefined && fetched.length >= attempt.rowLimit
+          ? `${attempt.note}（单次最多 ${attempt.rowLimit} 根）`
+          : attempt.note;
+        const result: NativeMarketHistoryResult = {
+          value: bars,
+          evidence: {
+            id: `market-data:${auditId}:history`,
+            source: attempt.url.toString(),
+            provider: attempt.provider,
+            retrievedAt: this.now(),
+            asOf: bars.at(-1)!.date,
+            query: `${symbol}:${market}:${startDate}:${endDate}`,
+            dataFreshness: 'historical',
+            auditId,
+            ...(note === undefined ? {} : { note }),
+          },
+        };
+        this.cache?.set(cacheKey, result, Date.now() + this.cacheTtlMs);
+        return result;
+      } catch (error) {
+        failures.push(`${attempt.label}：${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+    throw new Error(`${symbol} 日线数据不可用 — ${failures.join('；')}`);
   }
 
   private async getTushareHistory(symbol: string, startDate: string, endDate: string, signal: AbortSignal | undefined, auditId: string, cacheKey: string, market: 'cn' | 'hk', token: string, requestFetcher: MarketHistoryFetcher, requestBaseUrl: string): Promise<NativeMarketHistoryResult> {
@@ -393,12 +443,12 @@ export class NativeMarketHistoryClient {
     return result;
   }
 
-  private async fetchWithRetry(input: RequestInfo | URL, init: RequestInit, provider: MarketHistoryProvider, operation: string, signal?: AbortSignal, requestFetcher: MarketHistoryFetcher = this.fetcher, retryOverride?: Omit<ProviderRetryPolicy, 'provider' | 'operation'>): Promise<Response> {
+  private async fetchWithRetry(input: RequestInfo | URL, init: RequestInit, provider: MarketHistoryProvider | 'tencent', operation: string, signal?: AbortSignal, requestFetcher: MarketHistoryFetcher = this.fetcher, retryOverride?: Omit<ProviderRetryPolicy, 'provider' | 'operation'>): Promise<Response> {
     const execute = async (retrySignal?: AbortSignal) => {
       const request = () => requestFetcher(input, { ...init, ...(retrySignal ? { signal: retrySignal } : {}) });
-      // Eastmoney resets connections when a client bursts, so its requests are
-      // serialized and spaced through the shared per-host gate.
-      const response = provider === 'eastmoney' ? await eastmoneyGateFor(input).run(request) : await request();
+      // Eastmoney and 腾讯 reset connections when a client bursts, so their
+      // requests are serialized and spaced through the shared per-host gate.
+      const response = provider === 'eastmoney' || provider === 'tencent' ? await hostGateFor(input).run(request) : await request();
       if (!response.ok) throw new Error(`${provider} market ${operation} request failed: ${response.status} ${response.statusText}`);
       return response;
     };

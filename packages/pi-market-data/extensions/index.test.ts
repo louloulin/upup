@@ -14,6 +14,54 @@ import {
   type PiEvidenceCapability,
 } from '@upup/pi-runtime';
 
+
+/** Provider-shaped doubles for the live screener / 板块 reads. */
+const SCREEN_SUGGEST_PAYLOAD = { QuotationCodeTable: { Data: [{ Code: 'BK1029', Name: '新能源', Classify: 'BK' }, { Code: 'BK0896', Name: '白酒', Classify: 'BK' }] } };
+const SCREEN_BOARD_PAYLOAD = {
+  rc: 0,
+  data: {
+    total: 45,
+    diff: [
+      { f12: '002594', f14: '比亚迪', f2: 83.96, f3: 3.6, f6: 5000000000, f8: 1.2, f9: 22.1, f20: 765479907557, f23: 3.19, f100: '新能源', f133: 0.8 },
+      { f12: '300750', f14: '宁德时代', f2: 300, f3: -1.9, f6: 4000000000, f8: 0.9, f9: 19.7, f20: 1120000000000, f23: 4.1, f100: '新能源', f133: 1.1 },
+    ],
+  },
+};
+const SCREEN_CN_QUOTE_PAYLOAD = {
+  rc: 0,
+  data: {
+    total: 5559,
+    diff: [
+      { f12: '601398', f14: '工商银行', f2: 8.11, f3: -0.25, f6: 2500000000, f8: 0.12, f9: 8.32, f20: 2890454744992, f23: 0.73, f100: '银行', f133: 3.95 },
+      { f12: '600519', f14: '贵州茅台', f2: 1258, f3: -1.16, f6: 3307926407, f8: 0.26, f9: 17.66, f20: 1572602654058, f23: 6.26, f100: '白酒Ⅱ', f133: 4.14 },
+    ],
+  },
+};
+const SCREEN_XUANGU_PAYLOAD = {
+  result: {
+    count: 5565,
+    data: [
+      { SECURITY_CODE: '600519', SECURITY_NAME_ABBR: '贵州茅台', SECUCODE: '600519.SH', NEW_PRICE: 1258, CHANGE_RATE: -1.16, PE_TTM: 17.66, TOTAL_MARKET_CAP: 1572602654058, ROE_WEIGHT: 16.75, INDUSTRY: '饮料', MAX_TRADE_DATE: '2026-09-16' },
+      { SECURITY_CODE: '601398', SECURITY_NAME_ABBR: '工商银行', SECUCODE: '601398.SH', NEW_PRICE: 8.11, CHANGE_RATE: -0.25, PE_TTM: 8.32, TOTAL_MARKET_CAP: 2890454744992, ROE_WEIGHT: 9.1, INDUSTRY: '银行', MAX_TRADE_DATE: '2026-09-16' },
+    ],
+  },
+};
+const SCREEN_BOARD_LIST_PAYLOAD = { rc: 0, data: { total: 86, diff: [{ f12: 'BK1201', f14: '电子', f3: 3.57, f62: 22702878720, f184: 4.23 }] } };
+const SCREEN_KAMT_PAYLOAD = { data: { hk2sh: { status: 3, dayNetAmtIn: 0, dayAmtRemain: 0, dayAmtThreshold: 5200000, date2: '2026-09-16' }, sh2hk: { status: 3, dayNetAmtIn: 4200000, dayAmtRemain: 0, dayAmtThreshold: 4200000, date2: '2026-09-16' } } };
+const SCREEN_TOPLIST_PAYLOAD = { result: { data: [{ TRADE_DATE: '2026-09-16 00:00:00', SECUCODE: '300464.SZ', SECURITY_NAME_ABBR: '星徽股份', CLOSE_PRICE: 10.02, CHANGE_RATE: 20, TURNOVERRATE: 18.7, BILLBOARD_NET_AMT: 10561590925, EXPLANATION: '日涨幅偏离值达到7%' }] } };
+
+function liveScreenFetcher(): (input: RequestInfo | URL) => Promise<Response> {
+  return async (input) => {
+    const url = String(input);
+    if (url.includes('suggest/get')) return new Response(JSON.stringify(SCREEN_SUGGEST_PAYLOAD), { status: 200 });
+    if (url.includes('xuangu/list')) return new Response(JSON.stringify(SCREEN_XUANGU_PAYLOAD), { status: 200 });
+    if (url.includes('kamt/get')) return new Response(JSON.stringify(SCREEN_KAMT_PAYLOAD), { status: 200 });
+    if (url.includes('datacenter-web')) return new Response(JSON.stringify(SCREEN_TOPLIST_PAYLOAD), { status: 200 });
+    if (url.includes('fs=b%3A')) return new Response(JSON.stringify(SCREEN_BOARD_PAYLOAD), { status: 200 });
+    if (url.includes('clist/get')) return new Response(JSON.stringify(SCREEN_CN_QUOTE_PAYLOAD), { status: 200 });
+    throw new Error(`unexpected request in test double: ${url}`);
+  };
+}
 type RegisteredTool = { name: string; execute: (...args: any[]) => Promise<any> };
 
 function makeHost() {
@@ -29,7 +77,10 @@ describe('Pi market-data extension', () => {
       throw new Error('legacy transport must not be called');
     }) as typeof fetch;
     const contextFetch = (async (input) => {
-      expect(String(input)).toContain('AAPL');
+      const url = String(input);
+      if (url.includes('xuangu/list')) return new Response(JSON.stringify(SCREEN_XUANGU_PAYLOAD), { status: 200 });
+      if (url.includes('clist/get')) return new Response(JSON.stringify(SCREEN_CN_QUOTE_PAYLOAD), { status: 200 });
+      expect(url).toContain('AAPL');
       return new Response(JSON.stringify({ chart: { result: [{ meta: { symbol: 'AAPL', regularMarketPrice: 210, regularMarketTime: Date.parse('2026-09-13T00:00:00Z') / 1000, chartPreviousClose: 205 } }] } }), { status: 200 });
     }) as typeof fetch;
     const evidenceCapability: PiEvidenceCapability = (input) => ({
@@ -62,8 +113,10 @@ describe('Pi market-data extension', () => {
       const result = await tools.get('market_data_quote')!.execute('quote-context-1', { symbol: 'AAPL', market: 'us', provider: 'yahoo' }, new AbortController().signal);
       expect(JSON.parse(result.content[0].text)).toMatchObject({ symbol: 'AAPL', last: 210 });
       expect(result.details).toMatchObject({ auditId: 'quote-context-1', evidence: [{ source: 'https://query1.finance.yahoo.com/v8/finance/chart' }] });
-      const offline = await tools.get('stock_screener')!.execute('screen-context-1', { market: 'cn', limit: 1 }, new AbortController().signal);
-      expect(offline.details).toMatchObject({ auditId: 'audit:screen-context-1', evidence: [{ id: 'evidence:market-data:screen-context-1:stock-screener', source: 'capability://upup-pi://market-data/stock-screener' }] });
+      const screened = await tools.get('stock_screener')!.execute('screen-context-1', { market: 'cn', pe_max: 10, limit: 1 }, new AbortController().signal);
+      expect(JSON.parse(screened.content[0].text)).toMatchObject({ count: 1, scannedCount: 2, universeCount: 5559, data: [{ ticker: '601398.SH', pe: 8.32, roe: 9.1 }] });
+      expect(screened.details).toMatchObject({ auditId: 'audit:screen-context-1', dataFreshness: 'delayed', evidence: [{ id: 'evidence:market-data:screen-context-1:stock-screener' }] });
+      expect((screened.details as { evidence: { source: string }[] }).evidence[0]!.source).toStartWith('capability://https://push2.eastmoney.com/api/qt/clist/get');
     } finally {
       dispose();
       await context.dispose();
@@ -88,35 +141,66 @@ describe('Pi market-data extension', () => {
     }
   });
 
-  test('screens the historical snapshot with auditable evidence', async () => {
+  test('screens the live 板块 membership with auditable provider evidence', async () => {
     const { host, tools } = makeHost();
     marketDataExtension(host);
-    const result = await tools.get('stock_screener')!.execute('screen-1', { market: 'cn', sector: '新能源', performance: 'gainers', limit: 10 }, new AbortController().signal);
-    const value = JSON.parse(result.content[0].text);
-    expect(value).toMatchObject({ asOf: '2026-09-12', freshness: 'historical', count: 1 });
-    expect(value.data[0]).toMatchObject({ symbol: '002594.SZ', sector: '新能源' });
-    expect(result.details).toMatchObject({ auditId: 'screen-1', dataFreshness: 'historical', evidence: [{ source: 'upup-pi://market-data/stock-screener', asOf: '2026-09-12' }] });
+    const previousFetch = globalThis.fetch;
+    globalThis.fetch = liveScreenFetcher() as typeof fetch;
+    try {
+      const result = await tools.get('stock_screener')!.execute('screen-1', { market: 'cn', sector: '新能源', performance: 'gainers', limit: 10 }, new AbortController().signal);
+      const value = JSON.parse(result.content[0].text);
+      expect(value).toMatchObject({ freshness: 'delayed', asOf: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/), count: 1, scannedCount: 2, universeCount: 45 });
+      expect(value.data[0]).toMatchObject({ ticker: '002594.SZ', industry: '新能源', pe: 22.1 });
+      expect(result.details).toMatchObject({ auditId: 'screen-1', dataFreshness: 'delayed' });
+      expect(result.details.evidence[0].source).toContain('push2.eastmoney.com/api/qt/clist/get');
+    } finally {
+      globalThis.fetch = previousFetch;
+    }
   });
 
-  test('screens A-shares without external registry or network access', async () => {
+  test('screens A-shares from the live 行情列表 and fails closed without a provider', async () => {
     const { host, tools } = makeHost();
     marketDataExtension(host);
-    const result = await tools.get('screen_astocks')!.execute('screen-a-1', { exchange: 'SH', pe_max: 10, limit: 10 }, new AbortController().signal);
-    const value = JSON.parse(result.content[0].text);
-    expect(value.data.every((stock: { market: string; exchange: string }) => stock.market === 'cn' && stock.exchange === 'SH')).toBe(true);
-    expect(result.details.evidence[0]).toMatchObject({ source: 'upup-pi://market-data/astock-screener', asOf: '2026-09-12' });
+    const previousFetch = globalThis.fetch;
+    globalThis.fetch = liveScreenFetcher() as typeof fetch;
+    try {
+      const result = await tools.get('screen_astocks')!.execute('screen-a-1', { exchange: 'SH', pe_max: 10, limit: 10 }, new AbortController().signal);
+      const value = JSON.parse(result.content[0].text);
+      expect(value.data.length).toBe(1);
+      expect(value.data.every((stock: { ticker: string; pe: number }) => stock.ticker.endsWith('.SH') && stock.pe <= 10)).toBe(true);
+      expect(value.sources.some((source: string) => source.includes('data.eastmoney.com/dataapi/xuangu/list'))).toBe(true);
+      expect(result.details.evidence[0].source).toContain('push2.eastmoney.com/api/qt/clist/get');
+    } finally {
+      globalThis.fetch = previousFetch;
+    }
+    globalThis.fetch = (async () => new Response('upstream unavailable', { status: 503 })) as typeof fetch;
+    try {
+      const failed = await tools.get('screen_astocks')!.execute('screen-a-2', { limit: 5 }, new AbortController().signal);
+      expect(failed.isError).toBe(true);
+      expect(failed.details).toMatchObject({ policy: 'no-synthetic-fallback' });
+    } finally {
+      globalThis.fetch = previousFetch;
+    }
   });
 
-  test('returns native sector and market-structure snapshots', async () => {
+  test('returns live 板块 and 资金面 snapshots', async () => {
     const { host, tools } = makeHost();
     marketDataExtension(host);
-    const sector = await tools.get('get_sector_data')!.execute('sector-1', { code: '002594.SZ', type: 'stock' }, new AbortController().signal);
-    expect(JSON.parse(sector.content[0].text)).toMatchObject({ sector: '新能源', asOf: '2026-09-12', freshness: 'historical' });
-    expect(sector.details).toMatchObject({ auditId: 'sector-1', evidence: [{ source: 'upup-pi://market-data/sector-data', asOf: '2026-09-12' }] });
-    const structure = await tools.get('get_market_structure')!.execute('structure-1', { type: 'moneyflow' }, new AbortController().signal);
-    expect(JSON.parse(structure.content[0].text)).toMatchObject({ type: 'moneyflow', asOf: '2026-09-12' });
-    expect(JSON.parse(structure.content[0].text).data.length).toBeGreaterThan(0);
-    expect(structure.details).toMatchObject({ auditId: 'structure-1', evidence: [{ source: 'upup-pi://market-data/market-structure' }] });
+    const previousFetch = globalThis.fetch;
+    globalThis.fetch = liveScreenFetcher() as typeof fetch;
+    try {
+      const sector = await tools.get('get_sector_data')!.execute('sector-1', { code: '白酒', type: 'concept' }, new AbortController().signal);
+      expect(JSON.parse(sector.content[0].text)).toMatchObject({ code: 'BK0896', sector: '白酒' });
+      expect(JSON.parse(sector.content[0].text).members.map((member: { ticker: string }) => member.ticker)).toEqual(['002594.SZ', '300750.SZ']);
+      expect(sector.details).toMatchObject({ auditId: 'sector-1' });
+      expect(sector.details.evidence[0].source).toContain('fs=b%3ABK0896');
+      const structure = await tools.get('get_market_structure')!.execute('structure-1', { type: 'hsgt' }, new AbortController().signal);
+      expect(JSON.parse(structure.content[0].text)).toMatchObject({ type: 'hsgt', asOf: '2026-09-16' });
+      expect(JSON.parse(structure.content[0].text).data).toContainEqual(expect.objectContaining({ channel: '港股通(沪)' }));
+      expect(structure.details.evidence[0].source).toContain('kamt/get');
+    } finally {
+      globalThis.fetch = previousFetch;
+    }
   });
 
   test('returns native historical technical data with evidence', async () => {

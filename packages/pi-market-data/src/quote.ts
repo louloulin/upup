@@ -5,7 +5,7 @@ import { dirname } from 'node:path';
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import { executeWithProviderRetry, type ProviderRetryPolicy } from '@upup/pi-observability';
-import { EASTMONEY_QUOTE_URL, EASTMONEY_USER_AGENT, eastmoneyGateFor, eastmoneyQuoteUrl, eastmoneySecid, parseEastmoneyQuote } from './eastmoney';
+import { EASTMONEY_QUOTE_URL, EASTMONEY_USER_AGENT, eastmoneyGateFor, eastmoneyMirrorUrl, eastmoneyQuoteUrl, eastmoneySecid, isEastmoneySocketReset, isEastmoneyThrottleError, parseEastmoneyQuote } from './eastmoney';
 import type { PiMarketTrendStore } from '@upup/types';
 
 export interface NativeMarketQuote extends MarketQuote {
@@ -223,7 +223,7 @@ function quoteMarket(symbol: string, requested?: string): Market {
   return 'us';
 }
 
-function result(value: NativeMarketQuote, source: string, query: string, retrievedAt: string, auditId: string, provider?: 'yahoo' | 'tushare' | 'eastmoney'): NativeMarketQuoteResult {
+function result(value: NativeMarketQuote, source: string, query: string, retrievedAt: string, auditId: string, provider?: 'yahoo' | 'tushare' | 'eastmoney', note?: string): NativeMarketQuoteResult {
   return {
     value,
     evidence: {
@@ -235,6 +235,7 @@ function result(value: NativeMarketQuote, source: string, query: string, retriev
       query,
       dataFreshness: value.freshness,
       auditId,
+      ...(note ? { note } : {}),
     },
   };
 }
@@ -438,8 +439,22 @@ export class NativeMarketQuoteClient {
   /** Live quote from `push2.eastmoney.com`; the real CN/HK provider. */
   private async getEastmoneyQuote(symbol: string, requestedMarket: string | undefined, signal: AbortSignal | undefined, auditId: string, key: string): Promise<NativeMarketQuoteResult> {
     const market = quoteMarket(symbol, requestedMarket);
-    const url = eastmoneyQuoteUrl(eastmoneySecid(symbol), this.eastmoneyBaseUrl);
-    const response = await this.fetchWithRetry(url, { signal, headers: { Accept: 'application/json', 'User-Agent': EASTMONEY_USER_AGENT } }, 'eastmoney', 'quote', signal, EASTMONEY_RETRY);
+    const live = eastmoneyQuoteUrl(eastmoneySecid(symbol), this.eastmoneyBaseUrl);
+    let url = live;
+    let mirrored = false;
+    let response: Response;
+    const read = (target: URL) => this.fetchWithRetry(target, { signal, headers: { Accept: 'application/json', 'User-Agent': EASTMONEY_USER_AGENT } }, 'eastmoney', 'quote', signal, EASTMONEY_RETRY);
+    try {
+      response = await read(live);
+    } catch (error) {
+      // 东方财富 answers a burst by dropping the connection; its delayed host
+      // serves the same quote payload, so one dropped read still yields a price.
+      const mirror = isEastmoneySocketReset(error) || isEastmoneyThrottleError(error) ? eastmoneyMirrorUrl(live) : undefined;
+      if (!mirror) throw error;
+      url = mirror;
+      mirrored = true;
+      response = await read(mirror);
+    }
     if (!response.ok) throw new Error(`Eastmoney market quote request failed: ${response.status} ${response.statusText}`);
     const snapshot = parseEastmoneyQuote(await response.json() as unknown, symbol, market, this.now().slice(0, 10));
     const value: NativeMarketQuote = {
@@ -451,11 +466,12 @@ export class NativeMarketQuoteClient {
       last: snapshot.last,
       currency: currencyForMarket(market),
       asOf: snapshot.asOf,
-      source: this.eastmoneyBaseUrl,
+      source: url.toString(),
       freshness: 'delayed',
       indicative: true,
     };
-    const output = result(value, value.source, `${symbol}:${snapshot.previousClose ?? snapshot.last}`, this.now(), auditId, 'eastmoney');
+    const note = mirrored ? 'push2 连接被重置，改用东方财富备用主机（延迟行情）' : undefined;
+    const output = result(value, value.source, `${symbol}:${snapshot.previousClose ?? snapshot.last}`, this.now(), auditId, 'eastmoney', note);
     this.cache?.set(key, output, Date.now() + this.cacheTtlMs);
     return output;
   }

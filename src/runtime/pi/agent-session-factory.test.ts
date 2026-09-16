@@ -1099,8 +1099,18 @@ describe('PiAgentSessionFactory', () => {
     }, {
       cwd: process.cwd(),
       marketQuoteFetcher: async (input) => {
-        // The realtime tool streams the Eastmoney SSE endpoint through the same
-        // session transport; everything else is a Yahoo quote.
+        // The 板块 / 资金面 tools and the realtime tool read Eastmoney through
+        // the same session transport; everything else is a Yahoo quote.
+        const requestUrl = String(input);
+        if (requestUrl.includes('suggest/get')) {
+          return new Response(JSON.stringify({ QuotationCodeTable: { Data: [{ Code: 'BK0896', Name: '白酒', Classify: 'BK' }] } }), { status: 200 });
+        }
+        if (requestUrl.includes('fs=b%3A')) {
+          return new Response(JSON.stringify({ rc: 0, data: { total: 45, diff: [{ f12: '002594', f14: '比亚迪', f2: 83.96, f3: 3.6, f9: 22.1, f20: 765479907557, f23: 3.19, f100: '白酒Ⅱ' }] } }), { status: 200 });
+        }
+        if (requestUrl.includes('clist/get')) {
+          return new Response(JSON.stringify({ rc: 0, data: { total: 86, diff: [{ f12: 'BK1201', f14: '电子', f3: 3.57, f62: 22702878720, f184: 4.23 }] } }), { status: 200 });
+        }
         if (String(input).includes('trends2/sse')) {
           const encoder = new TextEncoder();
           return new Response(new ReadableStream<Uint8Array>({
@@ -1159,12 +1169,21 @@ describe('PiAgentSessionFactory', () => {
       expect(nativeResult).toMatchObject({ details: { auditId: 'market-package-native', dataFreshness: 'cached', source: 'native-provider', evidence: [{ source: 'https://query1.finance.yahoo.com/v8/finance/chart#cache' }] } });
       const astockResult = await session.executeTool('get_astock_price', 'astock-package-native', { code: 'AAPL' });
       expect(astockResult).toMatchObject({ details: { auditId: 'astock-package-native', dataFreshness: 'cached', source: 'native-provider', evidence: [{ source: 'https://query1.finance.yahoo.com/v8/finance/chart#cache' }] } });
-      const sectorResult = await session.executeTool('get_sector_data', 'sector-package-native', { code: '002594.SZ', type: 'stock' });
-      expect(sectorResult).toMatchObject({ details: { auditId: 'sector-package-native', evidence: [{ source: 'upup-pi://market-data/sector-data' }] } });
+      const sectorResult = await session.executeTool('get_sector_data', 'sector-package-native', { code: '白酒', type: 'concept' });
+      expect(sectorResult).toMatchObject({ details: { auditId: 'sector-package-native', dataFreshness: 'delayed' } });
+      expect(JSON.parse((sectorResult.content[0] as { type: 'text'; text: string }).text)).toMatchObject({ code: 'BK0896', sector: '白酒' });
+      expect((sectorResult.details as { evidence: { source: string }[] }).evidence[0]!.source).toMatch(/push2(?:delay)?\.eastmoney\.com\/api\/qt\/clist\/get/u);
       const structureResult = await session.executeTool('get_market_structure', 'structure-package-native', { type: 'moneyflow' });
-      expect(structureResult).toMatchObject({ details: { auditId: 'structure-package-native', evidence: [{ source: 'upup-pi://market-data/market-structure' }] } });
+      expect(structureResult).toMatchObject({ details: { auditId: 'structure-package-native', dataFreshness: 'delayed' } });
+      expect(JSON.parse((structureResult.content[0] as { type: 'text'; text: string }).text)).toMatchObject({ type: 'moneyflow', data: [{ sector: '电子', mainNetInflow: 22702878720 }] });
+      expect((structureResult.details as { evidence: { source: string }[] }).evidence[0]!.source).toMatch(/push2(?:delay)?\.eastmoney\.com\/api\/qt\/clist\/get/u);
       const technicalResult = await session.executeTool('get_technical_data', 'technical-package-native', { code: '002594.SZ', period: 'daily' });
-      expect(technicalResult).toMatchObject({ details: { auditId: 'technical-package-native', dataFreshness: 'historical', source: 'native-provider', evidence: [{ source: 'https://push2his.eastmoney.com/api/qt/stock/kline/get', provider: 'eastmoney' }] } });
+      expect(technicalResult).toMatchObject({ details: { auditId: 'technical-package-native', dataFreshness: 'historical', source: 'native-provider' } });
+      // Daily bars come from the real 东方财富 kline endpoint, or from the real
+      // 腾讯 fallback when 东方财富 drops the connection — never from a fixture.
+      const technicalEvidence = (technicalResult.details as { evidence: { source: string; provider?: string }[] }).evidence[0]!;
+      expect(['eastmoney', 'tencent']).toContain(technicalEvidence.provider!);
+      expect(technicalEvidence.source).toMatch(/push2his\.eastmoney\.com\/api\/qt\/stock\/kline\/get|web\.ifzq\.gtimg\.cn\/appstock\/app\/fqkline\/get/u);
       const realtimeResult = await session.executeTool('realtime_subscribe', 'realtime-package-native', { symbols: ['600519'] });
       expect(realtimeResult).toMatchObject({ details: { auditId: 'realtime-package-native', evidence: [{ source: 'upup-pi://market-data/realtime/subscribe' }] } });
       expect(JSON.parse((realtimeResult.content[0] as { text: string }).text)).toMatchObject({ id: 'sub-1', source: 'eastmoney', symbols: ['600519'], connected: true });

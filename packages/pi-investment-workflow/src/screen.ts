@@ -3,22 +3,26 @@
  *
  * v5 Sprint 2.3 + P1.b.4 — 自然语言选股 (Gap G4)
  *
- * Wraps the natural-language screener from `@upup/pi-market-data` and
- * renders the result as a one-pager in the CLI. Module boundary:
+ * Wraps the natural-language screener from `@upup/pi-market-data` and renders
+ * the result as a one-pager in the CLI. The default row loader reads live
+ * 东方财富 data (沪深选股器 / 行情列表 / 板块成员); nothing is fabricated when
+ * the provider is unreachable. Module boundary:
  *   screen.ts (Layer 4 CLI) → @upup/pi-market-data public API.
  */
 
-import { runNaturalLanguageScreen, type NaturalLanguageScreenOutput } from '@upup/pi-market-data';
+import { runNaturalLanguageScreen, type NaturalLanguageScreenOutput, type ScreenerRowLoader } from '@upup/pi-market-data';
 
 const USAGE = [
   '',
-  '  用法: /screen <NL 查询>  (alias: /scr)',
+  '  用法: /screen [universe=cn|hk|us] <NL 查询>  (alias: /scr)',
+  '  数据源: 东方财富公开接口 (沪深选股器 / 行情列表 / 板块成员)，实时读取',
   '  示例:',
-  '    /screen AAPL-like 跌深 ex-金融',
-  '    /screen PE < 15 且 ROE > 20%',
-  '    /screen RSI < 35',
-  '    /screen 市值 $10B-$50B',
-  '    /screen 复利型 组合',
+  '    /screen universe=cn 白酒 低估值',
+  '    /screen universe=cn PE < 15 且 ROE > 20%',
+  '    /screen universe=cn 股息率 > 5',
+  '    /screen universe=hk 市值 > 100000000000',
+  '    /screen universe=us AAPL-like',
+  '  说明: RSI / 一年涨跌等逐标的指标请用 get_technical_data。',
   '',
 ].join('\n');
 
@@ -46,8 +50,10 @@ function parseScreenArgs(args: string): { query: string; universe: 'us' | 'cn' |
 function renderResultsBlock(out: NaturalLanguageScreenOutput): string[] {
   const lines: string[] = [];
   lines.push('');
-  lines.push(`  Source: ${out.source}  ·  Universe: ${out.universe}` + (out.template ? `  ·  Template: ${out.template}` : ''));
-  lines.push(`  Filters: ${out.filterCount}  ·  Scanned: ${out.scannedCount}  ·  Matched: ${out.matchedCount}`);
+  lines.push(`  Source: ${out.source}  ·  Universe: ${out.universe}  ·  AsOf: ${out.asOf}` + (out.template ? `  ·  Template: ${out.template}` : ''));
+  lines.push(`  Filters: ${out.filterCount}  ·  Scanned: ${out.scannedCount}${out.universeCount !== undefined ? ` of ${out.universeCount}` : ''}  ·  Matched: ${out.matchedCount}`);
+  if (out.sourceUrls.length > 0) lines.push(`  Provider: ${out.sourceUrls.join('  ')}`);
+  if (out.note) lines.push(`  注意: ${out.note}`);
   lines.push('');
   if (out.results.length === 0) {
     lines.push('  (无结果 — 放宽过滤条件或扩大 universe)');
@@ -69,7 +75,7 @@ function renderResultsBlock(out: NaturalLanguageScreenOutput): string[] {
  * Run the /screen CLI. Returns plain text (matches the rest of the
  * investment commands). Always returns a string; never throws.
  */
-export async function runScreen(args: string): Promise<string> {
+export async function runScreen(args: string, options: { loader?: ScreenerRowLoader } = {}): Promise<string> {
   const parsed = parseScreenArgs(args);
   if (!parsed) return USAGE;
   let out: NaturalLanguageScreenOutput;
@@ -78,6 +84,7 @@ export async function runScreen(args: string): Promise<string> {
       universe: parsed.universe,
       limit: DEFAULT_LIMIT,
       realtime: parsed.realtime,
+      ...(options.loader ? { loader: options.loader } : {}),
     });
   } catch (err) {
     return [
@@ -94,7 +101,7 @@ export async function runScreen(args: string): Promise<string> {
     '═══════════════════════════════════════',
     ...renderResultsBlock(out),
     '',
-    '  Pi 路径: 使用 @upup/pi-market-data 的 native screener',
+    '  Pi 路径: @upup/pi-market-data native screener → 东方财富公开接口',
     '',
   ].join('\n');
 }

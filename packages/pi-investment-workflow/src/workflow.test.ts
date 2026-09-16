@@ -25,6 +25,33 @@ describe('Pi investment workflow package', () => {
     }
   });
 
+  test('builds the plan from the provider report-period data instead of a fixed fixture', async () => {
+    const research: InvestmentWorkflowServices = {
+      ...services,
+      getResearchData: async () => ({
+        price: JSON.stringify({ data: { snapshot: { ticker: '600519.SH', price: 1258, currency: 'CNY', as_of: '2026-09-16' } } }),
+        ratios: JSON.stringify({ data: { snapshot: { name: '贵州茅台', period: '2026年 半年报', report_date: '2026-06-30', eps: 35.57, roe_pct: 16.75, gross_margin_pct: 89.55, revenue: 92_278_072_083.21, net_income: 44_516_880_421.86, book_value_per_share: 200.99, operating_cashflow_per_share: 56.55, net_income_yoy_pct: -1.95 } } }),
+        estimates: JSON.stringify({ data: { analyst_estimates: [{ institution: '西南证券', report_date: '2026-08-21', eps_estimate_this_year: 69.83, pe_estimate_this_year: 18.59, eps_estimate_next_year: 75.82 }] } }),
+      }),
+    };
+    const result = await executeInvestmentPhase('plan', { ticker: '600519.SH', market: 'cn', goal: '分析' }, research);
+    expect(result.error).toBeUndefined();
+    expect(result.evidence[0]?.phase).toBe('plan');
+    expect(result.output).toContain('贵州茅台');
+    expect(result.output).toContain('PB 6.26');
+    expect(result.output).toContain('PE 35.37');
+    expect(result.output).toContain('西南证券');
+    expect(result.output).toContain('每股内在价值');
+    expect(result.output).not.toContain('price":100');
+  });
+
+  test('fails the plan closed when the provider cannot answer a real price or EPS', async () => {
+    const result = await executeInvestmentPhase('plan', { ticker: 'AAPL', market: 'us' }, { ...services, getResearchData: async () => ({ price: '100', ratios: 'PE 10' }) });
+    expect(result.error).toBe('insufficient_research_data');
+    expect(result.evidence[0]?.phase).toBe('plan');
+    expect(result.output).toContain('未生成估值');
+  });
+
   test('creates a hash-validated five-state dossier with evidence, policy, risk, and model metadata', async () => {
     const phaseResult = await executeInvestmentPhase('execute', { ticker: 'AAPL', goal: '回测' }, services, new AbortController().signal);
     const dossier = createInvestmentDossier({

@@ -25,23 +25,47 @@ export function isTradingDay(date: string, market: Market): boolean {
   return true;
 }
 
-export { getStockSnapshot, screenStockSnapshot, screenerAsOf } from './screener';
-export { getMarketStructureSnapshot, querySectorSnapshot } from './market-insights';
-export { buildTechnicalSnapshot, makeTechnicalSnapshot } from './technical';
-export type { ScreeningStock, StockScreenInput, ScreenerMarket, ScreenerPerformance } from './screener';
-export type { MarketStructureSnapshot, MarketStructureType, SectorQueryType, SectorSnapshot } from './market-insights';
+export { buildTechnicalSnapshot } from './technical';
+export {
+  fetchEastmoneyBoardList,
+  fetchEastmoneyStockIndustry,
+  getMarketStructureSnapshot,
+  querySectorSnapshot,
+  MarketStructureUnavailableError,
+} from './market-structure-eastmoney';
+export type { BoardRow, MarketStructureParams, MarketStructureSnapshot, MarketStructureType, SectorListSnapshot, SectorMember, SectorQueryType, SectorSnapshot } from './market-structure-eastmoney';
+export {
+  asScreenerMarket,
+  createEastmoneyScreenLoader,
+  defaultEastmoneyScreenLoader,
+  EASTMONEY_CLIST_URL,
+  EASTMONEY_SCREEN_SEGMENTS,
+  EASTMONEY_SUGGEST_URL,
+  EASTMONEY_XUANGU_URL,
+  eastmoneyScreenUniverseFields,
+  fetchEastmoneyScreenRows,
+  resetEastmoneyScreenLoader,
+  resolveEastmoneyBoard,
+  screenEastmoneyStocks,
+  ScreenerUnavailableError,
+  selectScreenerRows,
+} from './screen-eastmoney';
+export type { ScreenerFetchResult, ScreenerMarket, ScreenerRow, ScreenerRowLoader, ScreenerRowRequest } from './screen-eastmoney';
 export type { TechnicalBar, TechnicalPeriod, TechnicalSnapshot } from './technical';
 export {
+  assertScreenFiltersSupported,
   deterministicScreenParser,
+  evaluateScreenFilter,
   executeNaturalLanguageScreen,
-  NATURAL_LANGUAGE_SCREEN_UNIVERSE,
+  extractScreenKeywords,
   runNaturalLanguageScreen,
+  ScreenFilterUnsupportedError,
 } from './natural-language-screen';
 export type {
+  NaturalLanguageScreenMetrics,
   NaturalLanguageScreenOutput,
   NaturalLanguageScreenParser,
   NaturalLanguageScreenResult,
-  RealtimeScreenFetcher,
   ScreenFilterClause,
   ScreenFilterSpec,
   ScreenStockRow,

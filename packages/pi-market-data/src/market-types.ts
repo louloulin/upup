@@ -36,4 +36,6 @@ export interface MarketEvidence {
   query: string;
   dataFreshness: MarketFreshness;
   auditId: string;
+  /** Human-readable caveat: fallback source, truncation, delayed mirror, … */
+  note?: string;
 }

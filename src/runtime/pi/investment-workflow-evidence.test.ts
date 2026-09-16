@@ -42,8 +42,21 @@ function trustFor(root: string) {
   };
 }
 
+/**
+ * Fixture provider payloads in the shape the live providers answer with
+ * (`{"snapshot": {...}}` / `{"analyst_estimates": [...]}`), so the plan phase
+ * reads real numbers instead of the placeholder figures it used to assume.
+ */
 function researchResponse(input: RequestInfo | URL): Response {
-  return new Response(JSON.stringify({ ticker: 'AAPL', endpoint: new URL(String(input)).pathname, value: 100 }), { status: 200 });
+  const pathname = new URL(String(input)).pathname;
+  const body = pathname.includes('prices')
+    ? { snapshot: { ticker: 'AAPL', price: 100, currency: 'USD', as_of: '2026-09-15' } }
+    : pathname.includes('analyst-estimates')
+      ? { analyst_estimates: [{ ticker: 'AAPL', report_date: '2026-08-21', institution: 'fixture-broker', eps_estimate_this_year: 7.5, pe_estimate_this_year: 13.3, eps_estimate_next_year: 8.1 }] }
+      : pathname.includes('filings')
+        ? { filings: [{ ticker: 'AAPL', id: 'fixture-filing', title: '10-K', published_at: '2026-02-01' }] }
+        : { snapshot: { ticker: 'AAPL', name: 'Apple Inc.', report_date: '2026-06-30', period: '2026 中报', eps: 5, roe_pct: 12.5, gross_margin_pct: 60, book_value_per_share: 40, operating_cashflow_per_share: 6, revenue: 1_000_000_000, net_income: 200_000_000 } };
+  return new Response(JSON.stringify(body), { status: 200 });
 }
 
 function historyResponse(): Response {

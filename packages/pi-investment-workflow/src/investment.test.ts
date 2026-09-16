@@ -291,6 +291,52 @@ describe('investment: /dossier', () => {
   });
 });
 
+
+// ---------------------------------------------------------------------
+// /screen provider doubles: the CLI reads live Eastmoney data, so the
+// tests stub the transport with provider-shaped payloads.
+// ---------------------------------------------------------------------
+const SCREEN_US_LIST = {
+  rc: 0,
+  data: {
+    total: 13815,
+    diff: [
+      { f12: 'NVDA', f14: '英伟达', f2: 213.63, f3: 0.69, f6: 5.1e10, f8: 0.6, f9: 26.69, f20: 5148483000000, f23: 22.48, f100: '信息技术', f133: '-' },
+      { f12: 'AAPL', f14: '苹果', f2: 331.83, f3: 0.15, f6: 4.8e10, f8: 0.5, f9: 37.56, f20: 4842786749400, f23: 45.04, f100: '信息技术', f133: '-' },
+    ],
+  },
+};
+const SCREEN_CN_LIST = {
+  rc: 0,
+  data: {
+    total: 5559,
+    diff: [
+      { f12: '601398', f14: '工商银行', f2: 8.11, f3: -0.25, f6: 2.5e9, f8: 0.12, f9: 8.32, f20: 2890454744992, f23: 0.73, f100: '银行', f133: 3.95 },
+      { f12: '600519', f14: '贵州茅台', f2: 1258, f3: -1.16, f6: 3.3e9, f8: 0.26, f9: 17.66, f20: 1572602654058, f23: 6.26, f100: '白酒Ⅱ', f133: 4.14 },
+    ],
+  },
+};
+const SCREEN_CN_XUANGU = {
+  result: {
+    count: 5565,
+    data: [
+      { SECURITY_CODE: '601398', SECURITY_NAME_ABBR: '工商银行', SECUCODE: '601398.SH', NEW_PRICE: 8.11, CHANGE_RATE: -0.25, PE_TTM: 8.32, TOTAL_MARKET_CAP: 2890454744992, ROE_WEIGHT: 9.1, INDUSTRY: '银行', MAX_TRADE_DATE: '2026-09-16' },
+      { SECURITY_CODE: '600519', SECURITY_NAME_ABBR: '贵州茅台', SECUCODE: '600519.SH', NEW_PRICE: 1258, CHANGE_RATE: -1.16, PE_TTM: 17.66, TOTAL_MARKET_CAP: 1572602654058, ROE_WEIGHT: 16.75, INDUSTRY: '饮料', MAX_TRADE_DATE: '2026-09-16' },
+    ],
+  },
+};
+
+function stubScreenFetch(): () => void {
+  const previous = globalThis.fetch;
+  globalThis.fetch = (async (input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.includes('xuangu/list')) return new Response(JSON.stringify(SCREEN_CN_XUANGU), { status: 200 });
+    if (url.includes('clist/get')) return new Response(JSON.stringify(url.includes('m%3A116') || url.includes('m%3A105') ? SCREEN_US_LIST : SCREEN_CN_LIST), { status: 200 });
+    throw new Error(`unexpected request in test double: ${url}`);
+  }) as typeof fetch;
+  return () => { globalThis.fetch = previous; };
+}
+
 // =====================================================================
 // screen (P1.b.4)
 // =====================================================================
@@ -303,35 +349,62 @@ describe('investment: screen', () => {
     expect(text).toContain('/screen');
   });
 
-  test('runScreen with NL query renders results table', async () => {
-    const { runScreen } = await import('@upup/pi-investment-workflow');
-    const text = await runScreen('AAPL-like');
-    expect(text).toContain('/screen');
-    expect(text).toContain('AAPL');
-    expect(text).toContain('Source');
-    expect(text).toContain('Universe');
+  test('runScreen with NL query renders the live provider table', async () => {
+    const { resetEastmoneyGates, resetEastmoneyScreenLoader } = await import('@upup/pi-market-data');
+    const restore = stubScreenFetch();
+    try {
+      resetEastmoneyGates();
+      resetEastmoneyScreenLoader();
+      const { runScreen } = await import('@upup/pi-investment-workflow');
+      const text = await runScreen('AAPL-like');
+      expect(text).toContain('/screen');
+      expect(text).toContain('AAPL');
+      expect(text).toContain('Source');
+      expect(text).toContain('Universe');
+      expect(text).toContain('Provider: https://push2.eastmoney.com/api/qt/clist/get');
+      expect(text).toContain('苹果');
+    } finally {
+      restore();
+    }
   });
 
-  test('runScreen parses universe=cn flag', async () => {
-    const { runScreen } = await import('@upup/pi-investment-workflow');
-    const text = await runScreen('universe=cn PE < 15');
-    expect(text).toContain('Universe: cn');
+  test('runScreen parses universe=cn flag against the live A-share list', async () => {
+    const { resetEastmoneyGates, resetEastmoneyScreenLoader } = await import('@upup/pi-market-data');
+    const restore = stubScreenFetch();
+    try {
+      resetEastmoneyGates();
+      resetEastmoneyScreenLoader();
+      const { runScreen } = await import('@upup/pi-investment-workflow');
+      const text = await runScreen('universe=cn PE < 15');
+      expect(text).toContain('Universe: cn');
+      expect(text).toContain('工商银行');
+      expect(text).toContain('data.eastmoney.com/dataapi/xuangu/list');
+      expect(text).not.toContain('苹果');
+    } finally {
+      restore();
+    }
   });
 
-  test('runScreen parses realtime=true flag', async () => {
+  test('runScreen reports filters the universe cannot answer instead of fabricating rows', async () => {
     const { runScreen } = await import('@upup/pi-investment-workflow');
     const text = await runScreen('realtime=true RSI < 50');
-    // realtime=true is plumbed to the tool but doesn't change text output
-    // beyond the result count — just verify no error / no usage prompt.
-    expect(text).toContain('/screen');
+    expect(text).toContain('/screen 执行失败');
+    expect(text).toContain('rsi');
     expect(text).not.toContain('用法');
   });
 
   test('runScreen with no matches renders empty-message', async () => {
-    const { runScreen } = await import('@upup/pi-investment-workflow');
-    // No real ticker matches market cap $1B-$2B in the default universe
-    const text = await runScreen('市值 $1B-$2B');
-    expect(text).toContain('(无结果');
+    const { resetEastmoneyGates, resetEastmoneyScreenLoader } = await import('@upup/pi-market-data');
+    const restore = stubScreenFetch();
+    try {
+      resetEastmoneyGates();
+      resetEastmoneyScreenLoader();
+      const { runScreen } = await import('@upup/pi-investment-workflow');
+      const text = await runScreen('universe=cn 市值 $1B-$2B');
+      expect(text).toContain('(无结果');
+    } finally {
+      restore();
+    }
   });
 
   test('INVESTMENT_COMMANDS includes screen (P1.b.4 follow-up)', async () => {
@@ -342,9 +415,17 @@ describe('investment: screen', () => {
   });
 
   test('runInvestmentCommand dispatches screen (P1.b.4 integration)', async () => {
-    const { runInvestmentCommand } = await import('@upup/pi-investment-workflow');
-    const text = await runInvestmentCommand('screen', 'AAPL-like');
-    expect(text).toContain('/screen');
-    expect(text).toContain('AAPL');
+    const { resetEastmoneyGates, resetEastmoneyScreenLoader } = await import('@upup/pi-market-data');
+    const restore = stubScreenFetch();
+    try {
+      resetEastmoneyGates();
+      resetEastmoneyScreenLoader();
+      const { runInvestmentCommand } = await import('@upup/pi-investment-workflow');
+      const text = await runInvestmentCommand('screen', 'AAPL-like');
+      expect(text).toContain('/screen');
+      expect(text).toContain('AAPL');
+    } finally {
+      restore();
+    }
   });
 });

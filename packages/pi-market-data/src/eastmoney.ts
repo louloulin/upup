@@ -12,6 +12,25 @@ import type { Market } from './market-types';
 export const EASTMONEY_QUOTE_URL = 'https://push2.eastmoney.com/api/qt/stock/get';
 export const EASTMONEY_KLINE_URL = 'https://push2his.eastmoney.com/api/qt/stock/kline/get';
 export const EASTMONEY_USER_AGENT = 'UpUp-Pi-Market-Data/1.0';
+/**
+ * 东方财富 serves the same 行情 / kline payloads from a second host. The live
+ * hosts reset the connection when they decide a client is too eager — measured
+ * 2026-09-17: `/api/qt/clist/get` and `/api/qt/stock/kline/get` on `push2` /
+ * `push2his` reset for minutes (and the reset is *path* scoped: `/api/qt/stock/get`
+ * on the same host kept answering) while this host served the identical data. A
+ * read the live host drops is therefore retried here once.
+ */
+export const EASTMONEY_MIRROR_HOST = 'push2delay.eastmoney.com';
+export const EASTMONEY_MIRROR_BASE_URL = `https://${EASTMONEY_MIRROR_HOST}`;
+const EASTMONEY_LIVE_PUSH_HOST = /^(?:push2his|push2|\d{1,3}\.push2his|\d{1,3}\.push2)\.eastmoney\.com$/u;
+
+/** The same request on the mirror host; undefined for hosts without a mirror. */
+export function eastmoneyMirrorUrl(url: URL): URL | undefined {
+  if (!EASTMONEY_LIVE_PUSH_HOST.test(url.host)) return undefined;
+  const mirror = new URL(url.toString());
+  mirror.host = EASTMONEY_MIRROR_HOST;
+  return mirror;
+}
 /** f43 last, f44 high, f45 low, f46 open, f47 volume, f48 amount, f57 code, f58 name, f59 decimals, f60 previous close, f86 update time, f169 change, f170 change % */
 /**
  * Eastmoney paces through the shared per-host gate in `@upup/pi-observability`:
@@ -111,8 +130,8 @@ function decimalPlaces(value: number | undefined, market: Market): number {
   return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 6 ? value : market === 'hk' ? 3 : 2;
 }
 
-/** A share is quoted in 手 (100-share lots) on Eastmoney; expose shares. */
-function volumeMultiplier(market: Market): number { return market === 'cn' ? 100 : 1; }
+/** A share is quoted in 手 (100-share lots) on 东方财富 / 腾讯; expose shares. */
+export function volumeMultiplier(market: Market): number { return market === 'cn' ? 100 : 1; }
 
 function scaled(value: number | undefined, decimals: number): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) ? value / 10 ** decimals : undefined;

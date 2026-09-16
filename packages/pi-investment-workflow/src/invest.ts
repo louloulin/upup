@@ -83,7 +83,9 @@ function renderResult(result: WorkflowResult): string {
       const err = p.error ? ` ⚠ ${p.error.slice(0, 40)}` : '';
       lines.push(`  ${icon} ${p.phase.padEnd(10)} [${bar.padEnd(10)}] ${dur.padStart(8)}${err}`);
       if (p.output) {
-        const out = p.output.split('\n').slice(0, 3).map(l => `      ${l}`).join('\n');
+        // Phases carry real provider payloads (价格 / 报告期基本面 / 回测区间 …): show
+        // enough lines that the numbers survive, not just the phase heading.
+        const out = p.output.split('\n').slice(0, 12).map(l => `      ${l}`).join('\n');
         lines.push(out);
       }
     }

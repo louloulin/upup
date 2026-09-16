@@ -88,27 +88,25 @@ function yahooChartResponse(): Response {
   );
 }
 
-function tushareResearchResponse(symbol: string, market: string): Response {
+/**
+ * Research payload shape the live providers answer with — `{"snapshot": {…}}`
+ * for price / 财务指标 and `{"analyst_estimates": […]}` for 卖方预期. The plan
+ * phase derives its multiples from these envelopes and fails closed without
+ * them, so the fixture carries the real field names instead of the
+ * placeholder it used to invent.
+ */
+function researchEnvelopeResponse(symbol: string, market: 'cn' | 'hk' | 'us'): Response {
+  const currency = market === 'us' ? 'USD' : market === 'hk' ? 'HKD' : 'CNY';
   return new Response(
     JSON.stringify({
-      code: 0,
-      data: {
-        fields: ['ts_code', 'end_date', 'revenue', 'net_income', 'gross_margin', 'operating_margin'],
-        items: [[symbol, '2026-09-15', 1000_000_000, 200_000_000, 0.6, 0.25]],
+      snapshot: {
+        ticker: symbol, name: symbol, price: 100, currency, as_of: '2026-09-15',
+        report_date: '2026-06-30', period: '2026 中报', eps: 5, roe_pct: 12.5, gross_margin_pct: 60,
+        book_value_per_share: 40, operating_cashflow_per_share: 6, revenue: 1_000_000_000, net_income: 200_000_000,
       },
+      analyst_estimates: [{ ticker: symbol, report_date: '2026-08-21', institution: 'fixture-broker', eps_estimate_this_year: 20, pe_estimate_this_year: 5, eps_estimate_next_year: 22 }],
     }),
     { status: 200, headers: { 'content-type': 'application/json' } },
-  );
-}
-
-function yahooResearchResponse(input: RequestInfo | URL, market: string): Response {
-  return new Response(
-    JSON.stringify({
-      ticker: new URL(String(input)).searchParams.get('ts_code') ?? new URL(String(input)).pathname.split('/').pop() ?? 'unknown',
-      market,
-      payload: { revenue: 1000, netIncome: 200, grossMargin: 0.6, operatingMargin: 0.25 },
-    }),
-    { status: 200 },
   );
 }
 
@@ -146,9 +144,7 @@ async function runSyntheticFivePhase(options: SyntheticOptions, repoRoot: string
     return yahooChartResponse();
   };
 
-  const researchDataFetcher = options.provider === 'tushare'
-    ? (_input: RequestInfo | URL, _init?: RequestInit) => tushareResearchResponse(options.ticker, options.market)
-    : (input: RequestInfo | URL) => yahooResearchResponse(input, options.market);
+  const researchDataFetcher = () => researchEnvelopeResponse(options.ticker, options.market);
 
   const sessionFactory: InvestmentSessionFactory = async (sessionPath: string) =>
     factory.createSession(
