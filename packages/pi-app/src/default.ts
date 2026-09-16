@@ -101,8 +101,17 @@ export function createPiNativeSessionOptions(): Omit<UpUpCreateSessionOptions, '
         ...(token ? { cn: 'https://api.tushare.pro', hk: 'https://api.tushare.pro' } : {}),
       },
     } : {}),
-    ...chinaResearch,
-    ...usResearch,
+    // Nested merge: a flat `{ ...chinaResearch, ...usResearch }` would
+    // overwrite the `researchDataFetchers` / `researchDataProviders` /
+    // `researchDataApiKeys` / `researchDataBaseUrls` maps wholesale (the
+    // later one wins entirely), so the CN/HK entries vanish the moment
+    // usResearch is defined and `/invest <A-share>` fails detect with
+    // "research provider unavailable for market cn". Spread each per-key
+    // map instead so every market stays wired.
+    researchDataFetchers: { ...chinaResearch.researchDataFetchers, ...usResearch.researchDataFetchers },
+    researchDataProviders: { ...chinaResearch.researchDataProviders, ...usResearch.researchDataProviders },
+    researchDataApiKeys: { ...chinaResearch.researchDataApiKeys, ...usResearch.researchDataApiKeys },
+    researchDataBaseUrls: { ...chinaResearch.researchDataBaseUrls, ...usResearch.researchDataBaseUrls },
   };
 }
 
