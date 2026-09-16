@@ -299,7 +299,8 @@ Authentication:
 Diagnostics:
   upup --trace            Print per-turn context payload + Pi startup timings
                           (add UPUP_TRACE_TOOLS=1 for the active tool list)
-  upup --width N -H N     Force a fixed TUI width/height (default: auto-detect)
+  upup --width N [-W N]   Force a fixed TUI width  (default: auto-detect, env: COLUMNS)
+  upup --height N [-H N]  Force a fixed TUI height (default: auto-detect, env: LINES)
 
 Config Commands:
   upup config get <key>      Get a config value

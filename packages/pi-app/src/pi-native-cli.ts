@@ -56,14 +56,6 @@ function buildArgs(options: PiNativeRunCliOptions): string[] {
   if (options.noExtensions) {
     args.push('--no-extensions');
   }
-  // Pi's `main()` parses argv directly; width/height propagate via --width/--height
-  // through to the embedded InteractiveMode renderer.
-  if (options.terminalSize?.columns !== undefined) {
-    args.push('--width', String(options.terminalSize.columns));
-  }
-  if (options.terminalSize?.rows !== undefined) {
-    args.push('--height', String(options.terminalSize.rows));
-  }
   return args;
 }
 
@@ -88,6 +80,19 @@ export async function runPiNativeCli(options: PiNativeRunCliOptions = {}): Promi
   // `runPiNativeCli` is invoked outside `entry.ts` (tests, embedded hosts).
   // Idempotent — `entry.ts` already ran it on the normal CLI path.
   ensureUpupAgentDir();
+  // Pin the TUI's terminal size by setting COLUMNS/LINES before Pi's
+  // InteractiveMode takes over. Pi's argv parser does not recognise
+  // --width/--height (its own `parseArgs` rejects unknown options),
+  // and `@earendil-works/pi-tui/terminal` reads COLUMNS/LINES first
+  // (line 401-404) before falling back to process.stdout.columns —
+  // so setting these env vars is the only way UpUp's documented
+  // `--width N / -H N` flags can actually take effect on the TUI.
+  if (options.terminalSize?.columns !== undefined) {
+    process.env.COLUMNS = String(options.terminalSize.columns);
+  }
+  if (options.terminalSize?.rows !== undefined) {
+    process.env.LINES = String(options.terminalSize.rows);
+  }
   if (process.stderr.isTTY !== false) {
     printUpupBanner({ mode: 'interactive' });
   }
