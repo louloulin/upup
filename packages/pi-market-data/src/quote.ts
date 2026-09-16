@@ -5,7 +5,7 @@ import { dirname } from 'node:path';
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import { executeWithProviderRetry, type ProviderRetryPolicy } from '@upup/pi-observability';
-import { EASTMONEY_QUOTE_URL, EASTMONEY_USER_AGENT, eastmoneyQuoteUrl, eastmoneySecid, parseEastmoneyQuote } from './eastmoney';
+import { EASTMONEY_QUOTE_URL, EASTMONEY_USER_AGENT, eastmoneyGateFor, eastmoneyQuoteUrl, eastmoneySecid, parseEastmoneyQuote } from './eastmoney';
 import type { PiMarketTrendStore } from '@upup/types';
 
 export interface NativeMarketQuote extends MarketQuote {
@@ -118,6 +118,8 @@ export interface NativeMarketQuoteClientOptions {
   readonly fetcher?: MarketHistoryFetcher;
   readonly provider?: MarketHistoryProvider;
   readonly tushareToken?: string;
+  /** Eastmoney CN/HK quote endpoint; override to point at a mirror or a test double. */
+  readonly baseUrl?: string;
   readonly now?: () => string;
   readonly cache?: MarketQuoteCache;
   readonly rateLimiter?: MarketHistoryRateLimiter;
@@ -241,6 +243,7 @@ export class NativeMarketQuoteClient {
   private readonly fetcher: MarketHistoryFetcher;
   private readonly provider: MarketHistoryProvider;
   private readonly tushareToken: string;
+  private readonly eastmoneyBaseUrl: string;
   private readonly now: () => string;
   private readonly cache?: MarketQuoteCache;
   private readonly rateLimiter?: MarketHistoryRateLimiter;
@@ -264,6 +267,7 @@ export class NativeMarketQuoteClient {
     this.fetcher = options.fetcher ?? ((input, init) => fetch(input, init));
     this.provider = options.provider ?? 'auto';
     this.tushareToken = options.tushareToken ?? process.env.TUSHARE_TOKEN ?? '';
+    this.eastmoneyBaseUrl = options.baseUrl ?? EASTMONEY_QUOTE_URL;
     this.now = options.now ?? (() => new Date().toISOString());
     this.cache = options.cache;
     this.rateLimiter = options.rateLimiter;
@@ -434,7 +438,7 @@ export class NativeMarketQuoteClient {
   /** Live quote from `push2.eastmoney.com`; the real CN/HK provider. */
   private async getEastmoneyQuote(symbol: string, requestedMarket: string | undefined, signal: AbortSignal | undefined, auditId: string, key: string): Promise<NativeMarketQuoteResult> {
     const market = quoteMarket(symbol, requestedMarket);
-    const url = eastmoneyQuoteUrl(eastmoneySecid(symbol), EASTMONEY_QUOTE_URL);
+    const url = eastmoneyQuoteUrl(eastmoneySecid(symbol), this.eastmoneyBaseUrl);
     const response = await this.fetchWithRetry(url, { signal, headers: { Accept: 'application/json', 'User-Agent': EASTMONEY_USER_AGENT } }, 'eastmoney', 'quote', signal, EASTMONEY_RETRY);
     if (!response.ok) throw new Error(`Eastmoney market quote request failed: ${response.status} ${response.statusText}`);
     const snapshot = parseEastmoneyQuote(await response.json() as unknown, symbol, market, this.now().slice(0, 10));
@@ -447,7 +451,7 @@ export class NativeMarketQuoteClient {
       last: snapshot.last,
       currency: currencyForMarket(market),
       asOf: snapshot.asOf,
-      source: EASTMONEY_QUOTE_URL,
+      source: this.eastmoneyBaseUrl,
       freshness: 'delayed',
       indicative: true,
     };
@@ -481,7 +485,10 @@ export class NativeMarketQuoteClient {
 
   private async fetchWithRetry(input: RequestInfo | URL, init: RequestInit, provider: MarketHistoryProvider, operation: string, signal?: AbortSignal, retryOverride?: Omit<ProviderRetryPolicy, 'provider' | 'operation'>): Promise<Response> {
     const execute = async (retrySignal?: AbortSignal) => {
-      const response = await this.fetcher(input, { ...init, ...(retrySignal ? { signal: retrySignal } : {}) });
+      const request = () => this.fetcher(input, { ...init, ...(retrySignal ? { signal: retrySignal } : {}) });
+      // Eastmoney resets connections when a client bursts, so its requests are
+      // serialized and spaced through the shared per-host gate.
+      const response = provider === 'eastmoney' ? await eastmoneyGateFor(input).run(request) : await request();
       if (!response.ok) throw new Error(`${provider} market ${operation} request failed: ${response.status} ${response.statusText}`);
       return response;
     };

@@ -62,6 +62,17 @@ export {
 } from './realtime/index';
 
 export {
+  createEastmoneyGate,
+  eastmoneyGateFor,
+  EastmoneyThrottleError,
+  isEastmoneySocketReset,
+  isEastmoneyThrottleError,
+  resetEastmoneyGates,
+  type EastmoneyGate,
+  type EastmoneyGateOptions,
+} from './eastmoney';
+
+export {
   DRY_RUN_AUDIT_TAG,
   DRY_RUN_FRESHNESS,
   DRY_RUN_SOURCE_HISTORY,

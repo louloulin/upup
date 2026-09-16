@@ -13,6 +13,138 @@ export const EASTMONEY_QUOTE_URL = 'https://push2.eastmoney.com/api/qt/stock/get
 export const EASTMONEY_KLINE_URL = 'https://push2his.eastmoney.com/api/qt/stock/kline/get';
 export const EASTMONEY_USER_AGENT = 'UpUp-Pi-Market-Data/1.0';
 /** f43 last, f44 high, f45 low, f46 open, f47 volume, f48 amount, f57 code, f58 name, f59 decimals, f60 previous close, f86 update time, f169 change, f170 change % */
+/**
+ * Eastmoney resets the TCP connection instead of answering 429 when a client
+ * bursts requests: measured on 2026-09-17, eight concurrent `push2` quote
+ * requests tripped the limiter and every later request to that host failed for
+ * ~140s, while sequential requests stayed healthy. The reset is host-scoped
+ * (`push2his` kept answering bars while `push2` was blocked), so each host gets
+ * its own gate.
+ *
+ * The gate serializes requests per host, spaces their starts, and after two
+ * consecutive resets opens a cooldown that fails fast with an actionable
+ * message — retrying into a two-minute block only turns one provider error into
+ * three.
+ */
+export interface EastmoneyGateOptions {
+  /** Minimum spacing between two request starts on the same host. */
+  readonly minIntervalMs?: number;
+  /** How long requests fail fast once the limiter is detected. */
+  readonly cooldownMs?: number;
+  readonly host?: string;
+  readonly now?: () => number;
+  readonly sleep?: (ms: number) => Promise<void>;
+}
+
+const DEFAULT_EASTMONEY_MIN_INTERVAL_MS = 500;
+const DEFAULT_EASTMONEY_COOLDOWN_MS = 60_000;
+const DEFAULT_EASTMONEY_RESETS_BEFORE_COOLDOWN = 2;
+
+export class EastmoneyThrottleError extends Error {
+  readonly host: string;
+  readonly retryAfterMs: number;
+  constructor(host: string, retryAfterMs: number) {
+    super(
+      `Eastmoney 限流：${host} 已重置连接，约 ${Math.max(1, Math.ceil(retryAfterMs / 1000))} 秒后可重试。` +
+      '这是该数据源对密集请求的保护，稍后重试或改用历史行情/公告数据。',
+    );
+    this.name = 'EastmoneyThrottleError';
+    this.host = host;
+    this.retryAfterMs = retryAfterMs;
+  }
+}
+
+export function isEastmoneyThrottleError(error: unknown): error is EastmoneyThrottleError {
+  return error instanceof EastmoneyThrottleError;
+}
+
+/** Bun and Node report a dropped Eastmoney connection with these texts/codes. */
+export function isEastmoneySocketReset(error: unknown): boolean {
+  const parts: string[] = [];
+  let current: unknown = error;
+  for (let depth = 0; depth < 4 && current; depth += 1) {
+    if (current instanceof Error) {
+      parts.push(current.message, current.name);
+      const code = (current as { code?: unknown }).code;
+      if (typeof code === 'string') parts.push(code);
+      current = (current as { cause?: unknown }).cause;
+      continue;
+    }
+    parts.push(String(current));
+    break;
+  }
+  return /econnreset|socket connection was closed|socket hang up|connection reset|other side closed/i.test(parts.join(' '));
+}
+
+export interface EastmoneyGate {
+  /** Runs one request; only one runs per host at a time, spaced by the interval. */
+  run<T>(operation: () => Promise<T>): Promise<T>;
+  retryAfterMs(): number;
+  /** Test/teardown hook. */
+  reset(): void;
+}
+
+export function createEastmoneyGate(options: EastmoneyGateOptions = {}): EastmoneyGate {
+  const host = options.host ?? 'eastmoney';
+  const minIntervalMs = Math.max(0, options.minIntervalMs ?? DEFAULT_EASTMONEY_MIN_INTERVAL_MS);
+  const cooldownMs = Math.max(0, options.cooldownMs ?? DEFAULT_EASTMONEY_COOLDOWN_MS);
+  const now = options.now ?? (() => Date.now());
+  const sleep = options.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
+  let queue: Promise<void> = Promise.resolve();
+  let nextStartAt = 0;
+  let cooldownUntil = 0;
+  let consecutiveResets = 0;
+  const acquire = async (): Promise<void> => {
+    const previous = queue;
+    let release!: () => void;
+    queue = new Promise<void>((resolve) => { release = resolve; });
+    await previous;
+    const waitMs = nextStartAt - now();
+    if (waitMs > 0) await sleep(waitMs);
+    nextStartAt = now() + minIntervalMs;
+    release();
+  };
+  return {
+    async run<T>(operation: () => Promise<T>): Promise<T> {
+      const remaining = cooldownUntil - now();
+      if (remaining > 0) throw new EastmoneyThrottleError(host, remaining);
+      await acquire();
+      try {
+        const value = await operation();
+        consecutiveResets = 0;
+        return value;
+      } catch (error) {
+        if (!isEastmoneySocketReset(error)) throw error;
+        consecutiveResets += 1;
+        if (consecutiveResets < DEFAULT_EASTMONEY_RESETS_BEFORE_COOLDOWN) throw error;
+        cooldownUntil = now() + cooldownMs;
+        throw new EastmoneyThrottleError(host, cooldownMs);
+      }
+    },
+    retryAfterMs: () => Math.max(0, cooldownUntil - now()),
+    reset: () => { cooldownUntil = 0; consecutiveResets = 0; nextStartAt = 0; queue = Promise.resolve(); },
+  };
+}
+
+const eastmoneyGates = new Map<string, EastmoneyGate>();
+
+/** Shared per-host gate so every Eastmoney caller in the process paces itself. */
+export function eastmoneyGateFor(input: RequestInfo | URL, fallbackHost?: string): EastmoneyGate {
+  const raw = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+  let host = fallbackHost ?? 'eastmoney';
+  try { host = new URL(raw).host; } catch { /* keep the fallback label */ }
+  const existing = eastmoneyGates.get(host);
+  if (existing) return existing;
+  const created = createEastmoneyGate({ host });
+  eastmoneyGates.set(host, created);
+  return created;
+}
+
+export function resetEastmoneyGates(): void {
+  for (const gate of eastmoneyGates.values()) gate.reset();
+  eastmoneyGates.clear();
+}
+
 export const EASTMONEY_QUOTE_FIELDS = 'f43,f44,f45,f46,f47,f48,f57,f58,f59,f60,f86,f169,f170';
 /** kline fields1 = metadata, fields2 = 日期,开盘,收盘,最高,最低,成交量,成交额 */
 export const EASTMONEY_KLINE_FIELDS1 = 'f1,f2,f3,f4,f5,f6';

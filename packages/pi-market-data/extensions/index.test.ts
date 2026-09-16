@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'bun:test';
 import marketDataExtension from './index';
+import { resetEastmoneyGates } from '../src/index';
 import { createEventBus } from '@earendil-works/pi-coding-agent';
 import { publishPiCapabilityHosts } from '@upup/pi-capability-registry';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -270,6 +271,8 @@ describe('Pi market-data extension', () => {
   });
 
   test('manages session-scoped realtime subscriptions over the live SSE transport', async () => {
+    // The per-host gate is process-wide, so a cooldown armed elsewhere must not leak in.
+    resetEastmoneyGates();
     const { host, tools } = makeHost();
     const previousFetch = globalThis.fetch;
     let streamedUrl = '';
@@ -297,6 +300,7 @@ describe('Pi market-data extension', () => {
       expect(JSON.parse(removed.content[0].text)).toMatchObject({ ok: true, subscriptionId: 'sub-1' });
     } finally {
       globalThis.fetch = previousFetch;
+      resetEastmoneyGates();
     }
   });
 

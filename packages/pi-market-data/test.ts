@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { appendKairosEvent, classifyKairosTopic, createDefaultMarketQuoteClient, createInitialKairosJournalState, eastmoneySecid, JsonFileMarketQuoteTrendStore, listKairosEvents, createRealtimeSubscriptionManager, FixedWindowMarketHistoryRateLimiter, InMemoryMarketHistoryCache, isTradingDay, NativeMarketHistoryClient, NativeMarketQuoteClient, normalizeRealtimeSymbols, summarizeKairos } from './src/index';
+import { appendKairosEvent, classifyKairosTopic, createDefaultMarketQuoteClient, createEastmoneyGate, createInitialKairosJournalState, eastmoneySecid, EastmoneyThrottleError, JsonFileMarketQuoteTrendStore, listKairosEvents, createRealtimeSubscriptionManager, resetEastmoneyGates, FixedWindowMarketHistoryRateLimiter, InMemoryMarketHistoryCache, isTradingDay, NativeMarketHistoryClient, NativeMarketQuoteClient, normalizeRealtimeSymbols, summarizeKairos } from './src/index';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -360,4 +360,59 @@ test('does not expose persisted buckets older than the 24-hour SLA window', () =
   };
   const client = new NativeMarketQuoteClient({ trendStore: store, now: () => '2026-09-14T09:00:00.000Z' });
   expect(client.getMetrics().trend).toEqual([]);
+});
+
+describe('eastmoney request gate', () => {
+  test('serializes requests and spaces their starts', async () => {
+    let clock = 0;
+    const slept: number[] = [];
+    const gate = createEastmoneyGate({ host: 'gate-unit', minIntervalMs: 500, now: () => clock, sleep: async (ms) => { slept.push(ms); clock += ms; } });
+    const order: string[] = [];
+    let inFlight = 0;
+    let maxInFlight = 0;
+    const run = (label: string) => gate.run(async () => {
+      inFlight += 1;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+      order.push(label);
+      inFlight -= 1;
+      return label;
+    });
+    expect(await Promise.all([run('a'), run('b')])).toEqual(['a', 'b']);
+    expect(order).toEqual(['a', 'b']);
+    expect(maxInFlight).toBe(1);
+    // The second request waited out exactly one interval before starting.
+    expect(slept).toEqual([500]);
+    // Once the interval has elapsed the gate does not wait again.
+    clock += 600;
+    expect(await run('c')).toBe('c');
+    expect(slept).toEqual([500]);
+  });
+
+  test('fails fast with an actionable message after consecutive connection resets', async () => {
+    const gate = createEastmoneyGate({ host: 'push2.test', minIntervalMs: 0, cooldownMs: 30_000, sleep: async () => {} });
+    const reset = () => Promise.reject(new TypeError('The socket connection was closed unexpectedly. For more information, pass `verbose: true` in the second argument to fetch()'));
+    await expect(gate.run(reset)).rejects.toThrow(/socket connection was closed/);
+    await expect(gate.run(reset)).rejects.toBeInstanceOf(EastmoneyThrottleError);
+    expect(gate.retryAfterMs()).toBe(30_000);
+    let calls = 0;
+    await expect(gate.run(async () => { calls += 1; return 'ok'; })).rejects.toThrow(/Eastmoney 限流/);
+    expect(calls).toBe(0);
+    gate.reset();
+    expect(await gate.run(async () => 'recovered')).toBe('recovered');
+  });
+
+  test('surfaces the throttle message instead of the raw socket error on a burst', async () => {
+    resetEastmoneyGates();
+    let calls = 0;
+    const client = new NativeMarketQuoteClient({
+      provider: 'auto',
+      tushareToken: '',
+      baseUrl: 'https://push2.gate-test.invalid/api/qt/stock/get',
+      fetcher: async () => { calls += 1; throw new TypeError('The socket connection was closed unexpectedly'); },
+    });
+    await expect(client.getQuote('600519.SH', 'cn', undefined, 'gate-quote')).rejects.toThrow(/Eastmoney 限流：push2\.gate-test\.invalid/);
+    // Two resets arm the cooldown; the retry policy stops instead of burning a third attempt.
+    expect(calls).toBe(2);
+    resetEastmoneyGates();
+  });
 });

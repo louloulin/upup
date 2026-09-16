@@ -1,6 +1,6 @@
 import type { MarketBar, MarketEvidence } from './market-types';
 import { executeWithProviderRetry, type ProviderRetryPolicy } from '@upup/pi-observability';
-import { EASTMONEY_KLINE_URL, EASTMONEY_USER_AGENT, eastmoneyKlineUrl, eastmoneySecid, parseEastmoneyKlines } from './eastmoney';
+import { EASTMONEY_KLINE_URL, EASTMONEY_USER_AGENT, eastmoneyGateFor, eastmoneyKlineUrl, eastmoneySecid, parseEastmoneyKlines } from './eastmoney';
 
 export type MarketHistoryFetcher = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 export type MarketHistoryProvider = 'auto' | 'yahoo' | 'tushare' | 'financial-datasets' | 'eastmoney';
@@ -395,7 +395,10 @@ export class NativeMarketHistoryClient {
 
   private async fetchWithRetry(input: RequestInfo | URL, init: RequestInit, provider: MarketHistoryProvider, operation: string, signal?: AbortSignal, requestFetcher: MarketHistoryFetcher = this.fetcher, retryOverride?: Omit<ProviderRetryPolicy, 'provider' | 'operation'>): Promise<Response> {
     const execute = async (retrySignal?: AbortSignal) => {
-      const response = await requestFetcher(input, { ...init, ...(retrySignal ? { signal: retrySignal } : {}) });
+      const request = () => requestFetcher(input, { ...init, ...(retrySignal ? { signal: retrySignal } : {}) });
+      // Eastmoney resets connections when a client bursts, so its requests are
+      // serialized and spaced through the shared per-host gate.
+      const response = provider === 'eastmoney' ? await eastmoneyGateFor(input).run(request) : await request();
       if (!response.ok) throw new Error(`${provider} market ${operation} request failed: ${response.status} ${response.statusText}`);
       return response;
     };

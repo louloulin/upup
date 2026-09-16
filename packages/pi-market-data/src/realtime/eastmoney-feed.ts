@@ -1,4 +1,4 @@
-import { eastmoneySecid } from '../eastmoney';
+import { eastmoneyGateFor, eastmoneySecid } from '../eastmoney';
 import type { FeedEvent, FeedEventType, FeedHandler, Quote, RealtimeFeed } from './types';
 
 /**
@@ -133,10 +133,12 @@ export function createEastmoneyFeed(options: EastmoneyFeedOptions = {}): Realtim
     let lastError: unknown;
     for (let attempt = 0; attempt < 2 && !response; attempt += 1) {
       try {
-        const candidate = await fetcher(streamUrl, {
+        // The connect goes through the shared push2 gate: an SSE open is a
+        // request like any other, and it must not overlap a quote.
+        const candidate = await eastmoneyGateFor(streamUrl).run(() => fetcher(streamUrl, {
           signal: controller.signal,
           headers: { Accept: 'text/event-stream', 'User-Agent': 'UpUp-Pi-Market-Data/1.0' },
-        });
+        }));
         if (candidate.ok) response = candidate;
         else lastError = new Error(`${candidate.status} ${candidate.statusText}`);
       } catch (error) {
