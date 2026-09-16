@@ -131,10 +131,21 @@ function pickAnnualFacts(facts: Record<string, unknown> | undefined, tag: string
   const units = (facts?.[tag] as { units?: Record<string, FactRow[]> } | undefined)?.units;
   if (!units) return [];
   const rows = Object.values(units).flat();
-  return rows
-    .filter((row) => row.form === '10-K' && row.fp === 'FY' && Number.isInteger(row.fy))
-    .sort((left, right) => Number(right.fy) - Number(left.fy))
-    .slice(0, 4);
+  // Sort by period end date desc; SEC lists entries in reverse insertion order
+  // so an unstable sort by `fy` would return the oldest row. Dedupe by `end`
+  // because a re-stated year can appear twice (once tagged with the new FY).
+  const sorted = rows
+    .filter((row) => row.form === '10-K' && row.fp === 'FY')
+    .sort((left, right) => `${right.end}`.localeCompare(`${left.end}`));
+  const seen = new Set<string>();
+  const dedup: FactRow[] = [];
+  for (const row of sorted) {
+    if (seen.has(row.end)) continue;
+    seen.add(row.end);
+    dedup.push(row);
+    if (dedup.length >= 4) break;
+  }
+  return dedup;
 }
 
 function pickQuarterlyFacts(facts: Record<string, unknown> | undefined, tag: string): FactRow[] {
@@ -148,20 +159,37 @@ function pickQuarterlyFacts(facts: Record<string, unknown> | undefined, tag: str
 }
 
 function buildSnapshot(facts: Record<string, unknown> | undefined, name: string, today: string): Record<string, unknown> | undefined {
-  const revenue = pickAnnualFacts(facts, 'Revenues').at(0) ?? pickAnnualFacts(facts, 'RevenueFromContractWithCustomerExcludingAssessedTax').at(0);
-  const netIncome = pickAnnualFacts(facts, 'NetIncomeLoss').at(0);
-  const grossProfit = pickAnnualFacts(facts, 'GrossProfit').at(0);
-  const assets = pickAnnualFacts(facts, 'Assets').at(0);
-  const equity = pickAnnualFacts(facts, 'StockholdersEquity').at(0);
-  const dilutedShares = pickAnnualFacts(facts, 'WeightedAverageNumberOfDilutedSharesOutstanding').at(0);
+  // A single fiscal year across every field: AAPL uses both `Revenues` (up
+  // to FY 2018) and `RevenueFromContractWithCustomerExcludingAssessedTax`
+  // (from FY 2019); mixing their newest rows would pair FY 2018 revenue
+  // with FY 2025 net income. Anchor on the newest end date every tag can
+  // cover, then look up the matching row for each field.
+  const revenueTags = ['Revenues', 'RevenueFromContractWithCustomerExcludingAssessedTax'];
+  const allTags = [...revenueTags, 'NetIncomeLoss', 'GrossProfit', 'Assets', 'StockholdersEquity', 'WeightedAverageNumberOfDilutedSharesOutstanding', 'NetCashProvidedByUsedInOperatingActivities'];
+  const perTagRows = new Map<string, FactRow[]>();
+  for (const tag of allTags) perTagRows.set(tag, pickAnnualFacts(facts, tag));
+  const perTagNewest = new Map<string, string>();
+  for (const [tag, rows] of perTagRows) if (rows[0]) perTagNewest.set(tag, rows[0].end);
+  const anchorEnd = [...perTagNewest.values()].sort((left, right) => right.localeCompare(left))[0];
+  if (!anchorEnd) return undefined;
+  const findForAnchor = (tag: string): FactRow | undefined => perTagRows.get(tag)?.find((row) => row.end === anchorEnd) ?? perTagRows.get(tag)?.[0];
+  const revenueCandidates = revenueTags.flatMap((tag) => perTagRows.get(tag) ?? []);
+  const revenueAtAnchor = revenueCandidates.find((row) => row.end === anchorEnd);
+  const revenue = revenueAtAnchor ?? revenueCandidates[0];
+  const netIncome = findForAnchor('NetIncomeLoss');
   if (!netIncome) return undefined;
+  const grossProfit = findForAnchor('GrossProfit');
+  const assets = findForAnchor('Assets');
+  const equity = findForAnchor('StockholdersEquity');
+  const dilutedShares = findForAnchor('WeightedAverageNumberOfDilutedSharesOutstanding');
+  const cashflow = findForAnchor('NetCashProvidedByUsedInOperatingActivities');
   const revenueValue = numberField(revenue, 'val');
   const grossProfitValue = numberField(grossProfit, 'val');
   const netIncomeValue = netIncome.val;
   const assetsValue = numberField(assets, 'val');
   const equityValue = numberField(equity, 'val');
   const dilutedSharesValue = numberField(dilutedShares, 'val');
-  const period = revenue?.end ?? netIncome.end;
+  const period = anchorEnd;
   const reportDate = netIncome.filed ?? netIncome.end;
   const eps = dilutedSharesValue && dilutedSharesValue > 0 ? Number((netIncomeValue / dilutedSharesValue).toFixed(2)) : undefined;
   const bookValuePerShare = equityValue && dilutedSharesValue && dilutedSharesValue > 0 ? Number((equityValue / dilutedSharesValue).toFixed(2)) : undefined;
@@ -169,11 +197,7 @@ function buildSnapshot(facts: Record<string, unknown> | undefined, name: string,
   const grossMarginPct = revenueValue && revenueValue > 0 && grossProfitValue !== undefined
     ? Number(((grossProfitValue / revenueValue) * 100).toFixed(2))
     : undefined;
-  const operatingCashflowPerShare = (() => {
-    const cf = pickAnnualFacts(facts, 'NetCashProvidedByUsedInOperatingActivities').at(0);
-    if (!cf || !dilutedSharesValue || dilutedSharesValue <= 0) return undefined;
-    return Number((cf.val / dilutedSharesValue).toFixed(2));
-  })();
+  const operatingCashflowPerShare = cashflow && dilutedSharesValue && dilutedSharesValue > 0 ? Number((cashflow.val / dilutedSharesValue).toFixed(2)) : undefined;
   return {
     name,
     period,

@@ -210,4 +210,59 @@ describe('createSecEdgarResearchDataFetcher', () => {
     const response = await fetcher('https://api.financialdatasets.ai/prices/snapshot/?ticker=600519.SH', {});
     expect(response.status).toBe(404);
   });
+
+  test('anchors the snapshot to the newest fiscal year shared by every tag (AAPL mixed-tag regression)', async () => {
+    // AAPL used `Revenues` through FY 2018 and switched to
+    // `RevenueFromContractWithCustomerExcludingAssessedTax` from FY 2019.
+    // Older snapshots mixed FY 2018 revenue ($265B) with FY 2025 net income
+    // ($112B), producing a wrong 73.5% gross margin. The fix anchors every
+    // field to the newest end date that every tag can cover.
+    const companyfacts = {
+      cik: '0000320193', entityName: 'Apple Inc.',
+      facts: {
+        'us-gaap': {
+          Revenues: { units: { USD: [
+            { end: '2017-09-30', val: 229234000000, form: '10-K', fp: 'FY', fy: 2017, filed: '2017-11-03' },
+            { end: '2018-09-29', val: 265595000000, form: '10-K', fp: 'FY', fy: 2018, filed: '2018-11-05' },
+          ] } },
+          RevenueFromContractWithCustomerExcludingAssessedTax: { units: { USD: [
+            { end: '2024-09-28', val: 391035000000, form: '10-K', fp: 'FY', fy: 2024, filed: '2024-11-01' },
+            { end: '2025-09-27', val: 416161000000, form: '10-K', fp: 'FY', fy: 2025, filed: '2025-10-31' },
+          ] } },
+          NetIncomeLoss: { units: { USD: [
+            { end: '2025-09-27', val: 112010000000, form: '10-K', fp: 'FY', fy: 2025, filed: '2025-10-31' },
+          ] } },
+          GrossProfit: { units: { USD: [
+            { end: '2025-09-27', val: 195201000000, form: '10-K', fp: 'FY', fy: 2025, filed: '2025-10-31' },
+          ] } },
+          Assets: { units: { USD: [
+            { end: '2025-09-27', val: 359241000000, form: '10-K', fp: 'FY', fy: 2025, filed: '2025-10-31' },
+          ] } },
+          StockholdersEquity: { units: { USD: [
+            { end: '2025-09-27', val: 73733000000, form: '10-K', fp: 'FY', fy: 2025, filed: '2025-10-31' },
+          ] } },
+          WeightedAverageNumberOfDilutedSharesOutstanding: { units: { shares: [
+            { end: '2025-09-27', val: 15004697000, form: '10-K', fp: 'FY', fy: 2025, filed: '2025-10-31' },
+          ] } },
+          NetCashProvidedByUsedInOperatingActivities: { units: { USD: [
+            { end: '2025-09-27', val: 111482000000, form: '10-K', fp: 'FY', fy: 2025, filed: '2025-10-31' },
+          ] } },
+        },
+      },
+    };
+    const fetcher = createSecEdgarResearchDataFetcher({
+      fetcher: fixtureFetcher(new Map([
+        ['company_tickers.json', TICKER_TABLE],
+        ['companyfacts/CIK0000320193', companyfacts],
+      ])),
+      now: () => new Date('2026-09-17T00:00:00.000Z'),
+    });
+    const response = await fetcher('https://api.financialdatasets.ai/financial-metrics/snapshot/?ticker=AAPL', {});
+    const body = await response.json() as { snapshot: Record<string, unknown> };
+    expect(body.snapshot).toMatchObject({ period: '2025-09-27', report_date: '2025-10-31', revenue: 416161000000, net_income: 112010000000 });
+    // FY 2025 gross margin must match FY 2025 revenue ($195.2B / $416.16B ≈ 46.9%),
+    // not the FY 2018 mix-up that produced 73.5%.
+    expect(body.snapshot.gross_margin_pct).toBeCloseTo((195201000000 / 416161000000) * 100, 1);
+  });
+
 });
