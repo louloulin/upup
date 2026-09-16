@@ -70,7 +70,7 @@ export async function runDoctor(): Promise<void> {
   console.log('');
 
   if (failed > 0) {
-    console.log(red('  Run `upup setup` or `upup config set <key> <value>` to fix.'));
+    console.log(red('  Run `upup config set <key> <value>` (or `/login <provider>` inside the TUI) to fix.'));
     console.log('');
   }
   // Exit code is always 0 — doctor is a read-only diagnostic, per `upup help doctor`.
@@ -116,7 +116,7 @@ function checkConfigValidation(): CheckResult[] {
     results.push({
       name: 'First Run',
       status: 'warn',
-      message: 'First time setup - run `upup setup`',
+      message: 'First time setup - run `/login <provider>` inside the TUI (or `upup config set provider <id> modelId <id>`)',
     });
   }
 

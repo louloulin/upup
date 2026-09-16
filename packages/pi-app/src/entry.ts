@@ -103,13 +103,6 @@ async function main() {
   const shouldFork = hasFlag(['--fork-session']);
 
   switch (command) {
-    case 'setup':
-      // Interactive setup wizard
-      const { runOnboarding } = await import('@upup/pi-cli-bootstrap');
-      await runOnboarding();
-      process.exit(0);
-      break;
-
     case 'doctor':
       // Health check
       const { runDoctor } = await import('@upup/pi-cli-bootstrap');
@@ -145,6 +138,17 @@ async function main() {
       const plSubArgs = plArgs.slice(1);
       const plResult = await runPluginCommand({ command: plSub as 'install' | 'list' | 'uninstall' | 'update' | 'reload' | 'recommend' | 'enable' | 'disable' | 'help', args: plSubArgs });
       process.exit(plResult.exitCode);
+      break;
+
+    case 'invest':
+      // Headless `/invest` runner — drives the same 5-phase workflow the
+      // TUI exposes via the `/invest` slash command, but without needing
+      // an interactive session. `upup invest 600519.SH [intent]` calls
+      // `app.getInvestmentWorkflow().runInvest(...)` under the hood.
+      const { runInvestCommand } = await import('@upup/pi-cli-bootstrap');
+      const invResult = await runInvestCommand({ args: args.slice(1) });
+      process.stdout.write(`${invResult.output}\n`);
+      process.exit(invResult.exitCode);
       break;
 
     case 'bridge':
@@ -291,6 +295,10 @@ Usage:
   upup                    Start interactive CLI (uses ~/.upup/agent/auth.json)
   upup setup              Pick provider + model, optionally paste an API key
   upup doctor             Run health check
+  upup invest <TICKER> [intent]
+                         Headless /invest runner — drives the canonical 5-phase
+                         workflow (detect → plan → execute → verify → report)
+                         without needing an interactive TUI.
   upup config             Manage configuration (~/.upup/settings.json)
   upup openbuddy          Migrate Pi state into ~/.upup/agent
   upup plugin             Manage Pi packages (install/list/uninstall/update)

@@ -336,10 +336,29 @@ async function executeWorkflow(
   return result;
 }
 
+/**
+ * Derive the canonical Pi market id from a ticker when the caller did not
+ * pass one explicitly. Keeps `plan.market` non-empty for downstream
+ * `services.getResearchData(ticker, signal, market)` calls — without this,
+ * the workflow would default to the US validator and reject CN / HK /
+ * crypto tickers with "ticker must be valid for us market".
+ */
+function inferMarketFromTicker(ticker: string | undefined): 'cn' | 'hk' | 'us' | 'fund' | 'crypto' | undefined {
+  if (!ticker) return undefined;
+  const normalized = ticker.trim().toUpperCase();
+  if (normalized.endsWith('.HK')) return 'hk';
+  if (/^\d{6}(?:\.(?:SH|SZ|BJ))?$/.test(normalized)) return 'cn';
+  if (normalized.endsWith('-USD')) return 'crypto';
+  return 'us';
+}
+
 export async function runInvestmentWorkflow(intent: string, options: InvestmentWorkflowOptions = {}): Promise<WorkflowResult> {
   const ticker = options.ticker ?? extractTicker(intent);
   const mode = options.mode ?? 'full';
   const phases = options.phases ?? (mode === 'full' ? [...WORKFLOW_PHASES] : detectPhases(intent));
+  // Prefer caller-supplied market; otherwise derive from ticker so the
+  // workflow never falls back to the US validator by accident.
+  const market = options.market ?? inferMarketFromTicker(ticker);
   if (options.idempotencyKey) {
     const releaseLock = await acquireIdempotencyLock(options.idempotencyKey);
     try {
@@ -349,7 +368,7 @@ export async function runInvestmentWorkflow(intent: string, options: InvestmentW
       if (existing) return resumeWorkflow(existing.id, options);
       const plan = buildResearchPlan(intent, {
         ...(ticker !== undefined ? { ticker } : {}),
-        ...(options.market !== undefined ? { market: options.market } : {}),
+        ...(market !== undefined ? { market } : {}),
         phases,
         description: `Pi Native 五阶段投研闭环: ${phases.join(' → ')}`,
       });
@@ -365,7 +384,7 @@ export async function runInvestmentWorkflow(intent: string, options: InvestmentW
         ...(options.assumptions ? { assumptions: [...options.assumptions] } : {}),
       };
       persistPlan(plan);
-      auditLog({ planId: plan.id, action: 'phase_advanced', details: { workflow: 'pi-invest-detect-plan-execute-verify-report', ticker: ticker ?? null, market: options.market ?? null, phases, mode } });
+      auditLog({ planId: plan.id, action: 'phase_advanced', details: { workflow: 'pi-invest-detect-plan-execute-verify-report', ticker: ticker ?? null, market: market ?? null, phases, mode } });
       return await executeWorkflow(plan, phases, options, false);
     } finally {
       await releaseLock();
@@ -373,7 +392,7 @@ export async function runInvestmentWorkflow(intent: string, options: InvestmentW
   }
   const plan = buildResearchPlan(intent, {
     ...(ticker !== undefined ? { ticker } : {}),
-    ...(options.market !== undefined ? { market: options.market } : {}),
+    ...(market !== undefined ? { market } : {}),
     phases,
     description: `Pi Native 五阶段投研闭环: ${phases.join(' → ')}`,
   });
@@ -389,7 +408,7 @@ export async function runInvestmentWorkflow(intent: string, options: InvestmentW
     ...(options.assumptions ? { assumptions: [...options.assumptions] } : {}),
   };
   persistPlan(plan);
-  auditLog({ planId: plan.id, action: 'phase_advanced', details: { workflow: 'pi-invest-detect-plan-execute-verify-report', ticker: ticker ?? null, market: options.market ?? null, phases, mode } });
+  auditLog({ planId: plan.id, action: 'phase_advanced', details: { workflow: 'pi-invest-detect-plan-execute-verify-report', ticker: ticker ?? null, market: market ?? null, phases, mode } });
   return executeWorkflow(plan, phases, options, false);
 }
 

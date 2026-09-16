@@ -51,7 +51,7 @@ const info = (msg: string): void => log(`${DIM}  ${msg}${RESET}`);
 const head = (msg: string): void => log(`${CYAN}${BOLD}${msg}${RESET}`);
 
 export interface PluginCommandOptions {
-  command: 'install' | 'list' | 'uninstall' | 'update' | 'reload' | 'watch' | 'recommend' | 'enable' | 'disable' | 'help';
+  command: 'install' | 'list' | 'uninstall' | 'update' | 'reload' | 'watch' | 'recommend' | 'enable' | 'disable' | 'doctor' | 'help';
   args: string[];
   env?: NodeJS.ProcessEnv;
   home?: string;
@@ -161,6 +161,65 @@ function runList(opts: { env: NodeJS.ProcessEnv; home: string; cwd: string }): P
   const packages = manager.listConfiguredPackages();
   log(formatPackageList(packages));
   return { exitCode: 0, message: 'list printed' };
+}
+
+/**
+ * Probe every configured npm Pi extension by dynamically importing its entry
+ * point. Reports which packages fail to load (so the user gets an actionable
+ * `upup plugin uninstall <source>` / `upup plugin update <source>` path
+ * instead of staring at Pi's `pi -ne` hint). Disabled packages are skipped
+ * because they are not in the load path.
+ */
+async function runDoctor(opts: { env: NodeJS.ProcessEnv; home: string; cwd: string }): Promise<PluginRunResult> {
+  const { manager, agentDir, agentDirSource } = buildManager(opts);
+  head('Plugin doctor');
+  info(`agentDir (${agentDirSource}): ${agentDir}`);
+  info('Probing every enabled npm extension via dynamic import…');
+  const packages = manager.listConfiguredPackages();
+  const enabled = packages.filter((pkg) => !pkg.filtered && pkg.installedPath);
+
+  if (enabled.length === 0) {
+    ok('no enabled npm extensions to probe');
+    return { exitCode: 0, message: 'plugin doctor ok' };
+  }
+
+  let failures = 0;
+  for (const pkg of enabled) {
+    const source = pkg.source;
+    const entry = pkg.installedPath as string;
+    const suffix = pkg.source.startsWith('builtin:') ? DIM + ' (builtin)' : '';
+    try {
+      // The loader must use a fresh `import()` so each package is sandboxed;
+      // an already-imported package would mask its real load error.
+      await import(/* @vite-ignore */ entry);
+      ok(`${source}${suffix}`);
+    } catch (err) {
+      failures += 1;
+      fail(`${source}${suffix}`);
+      const message = err instanceof Error ? err.message : String(err);
+      // Truncate very long zod/dependency resolution traces so the report
+      // stays readable; keep the first line + the `Require stack:` block.
+      const lines = message.split('\n');
+      const firstLine = lines[0] ?? '';
+      const requireStack = lines.find((line) => line.includes('Require stack:'));
+      const hint = lines.find((line) => line.trim().startsWith('Hint:'));
+      info(`  cause: ${firstLine}`);
+      if (requireStack) info(`  ${requireStack.trim()}`);
+      if (hint) info(`  ${hint.trim()}`);
+      info(`  fix:   upup plugin update ${source}    # retry pinned deps`);
+      info(`         upup plugin uninstall ${source}  # remove it`);
+      info(`         upup -ne                          # boot without extensions`);
+    }
+  }
+  log('');
+  if (failures > 0) {
+    return {
+      exitCode: 0,
+      message: `${failures} plugin(s) failed to load — TUI startup will fail unless you remove them or boot with \`upup -ne\``,
+    };
+  }
+  ok(`all ${enabled.length} enabled extension(s) load cleanly`);
+  return { exitCode: 0, message: 'plugin doctor ok' };
 }
 
 async function runUninstall(args: string[], opts: { env: NodeJS.ProcessEnv; home: string; cwd: string }): Promise<PluginRunResult> {
@@ -628,6 +687,7 @@ ${BOLD}Examples${RESET}
   upup plugin update
   upup plugin reload                Re-discover installed packages without restart
   upup plugin watch [--exit-after=N]  Auto-reload on settings.json mutations
+  upup plugin doctor                   Probe every enabled extension; report load failures
   upup plugin uninstall npm:@pi-community/finance-extensions
 `);
 }
@@ -642,6 +702,8 @@ export async function runPluginCommand(opts: PluginCommandOptions): Promise<Plug
       return runInstall(opts.args, ctx);
     case 'list':
       return runList(ctx);
+    case 'doctor':
+      return runDoctor(ctx);
     case 'uninstall':
       return runUninstall(opts.args, ctx);
     case 'update':

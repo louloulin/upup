@@ -158,7 +158,7 @@ UpUp 的核心能力。五个阶段由独立的 Pi Package 实现，每阶段产
 CLI 子命令：
 
 ```text
-upup setup                   交互式初始化
+upup （在 TUI 内 /login <provider>）  认证 + 写 ~/.upup/agent/auth.json
 upup doctor                  健康检查
 upup config get|set|list     配置管理
 upup plugin install|list     管理 Pi Package（薄包装 DefaultPackageManager）

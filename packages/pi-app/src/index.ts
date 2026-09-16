@@ -30,7 +30,7 @@ import type {
   WorkflowResult,
   InvestmentCommandHandler,
 } from '@upup/pi-investment-workflow';
-import { setInvestCommandHandler, runInvest, runInvestmentCommand, listInvestmentCommands } from '@upup/pi-investment-workflow';
+import { setInvestCommandHandler, runInvestmentCommand, listInvestmentCommands } from '@upup/pi-investment-workflow';
 import { setPiFinanceCommandRunners } from '@upup/pi-finance-sdk';
 import type { PiCanonicalEventStream } from '@upup/pi-event-adapter';
 import type { PiBackgroundService } from '@upup/pi-session';
@@ -183,7 +183,18 @@ export function createPiApp(options: PiAppOptions): PiApp {
       }
       configurePiSessionService(getSessionRuntime);
       configurePiBackgroundService(backgroundPromptRunner);
-      setInvestCommandHandler(options.investCommandHandler ?? null);
+      // Mark as initialized before we touch `getInvestmentWorkflow()`, so
+      // its own "must be initialized" guard does not reject the very call
+      // that the initializer wants to make.
+      initialized = true;
+      // Resolve the singleton investment workflow eagerly and bind its
+      // session-factory-aware command handler before any slash command
+      // can fire. Previously `setInvestCommandHandler(options.investCommandHandler ?? null)`
+      // ran first and `workflow.commandHandler` was only wired later (inside
+      // `getInvestmentWorkflow()`), which meant the very first `/invest`
+      // from the TUI blew up with "runInvest not registered".
+      const workflowInstance = getInvestmentWorkflow();
+      setInvestCommandHandler(options.investCommandHandler ?? workflowInstance.commandHandler);
       // Wire the pi-finance-sdk investment command runners from the canonical
       // @upup/pi-investment-workflow registry. This lets the extension's
       // /invest, /dossier, /risk-dashboard etc. commands drive the real
@@ -193,8 +204,12 @@ export function createPiApp(options: PiAppOptions): PiApp {
       // -> pi-investment-workflow would induce a package cycle (workflow
       // -> pi-research -> pi-finance-sdk).
       setPiFinanceCommandRunners({
-        invest: (args: string) => runInvest(args),
-        generic: (name: string, args: string) => runInvestmentCommand(name, args),
+        // Route `/invest` through `workflow.runInvest` (which holds the
+        // sessionFactory), NOT through the bare `runInvest` export — the
+        // bare export requires the caller to pass `InvestmentWorkflowOptions.sessionFactory`
+        // themselves, and the TUI slash command has no way to do that.
+        invest: (args: string) => workflowInstance.runInvest(args),
+        generic: (name: string, args: string) => Promise.resolve(runInvestmentCommand(name, args)),
         // Single source of truth for the investment command surface: names,
         // aliases and descriptions all come from the workflow registry.
         commands: listInvestmentCommands().map((entry) => ({
@@ -206,7 +221,6 @@ export function createPiApp(options: PiAppOptions): PiApp {
       // Composition is observable from initialize() even before the runtime
       // itself is resolved, while still preserving the lazy runtime factory.
       resolvedComposition = resolveComposition();
-      initialized = true;
     },
     async dispose(): Promise<void> {
       if (!initialized) return;
@@ -227,9 +241,7 @@ export function createPiApp(options: PiAppOptions): PiApp {
     },
     getInvestmentWorkflow(): PiInvestmentWorkflow {
       if (!initialized) throw new Error('Pi app must be initialized before accessing investment workflow');
-      const workflow = getInvestmentWorkflow();
-      setInvestCommandHandler(options.investCommandHandler ?? workflow.commandHandler);
-      return workflow;
+      return getInvestmentWorkflow();
     },
     getGatewayRuntime(): GatewayRuntime {
       if (!initialized) throw new Error('Pi app must be initialized before accessing gateway runtime');
