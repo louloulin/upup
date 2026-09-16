@@ -301,11 +301,23 @@ export function resolvePiCapabilityHost<T extends PiCapabilityHostShape & { prov
   packageName: string,
   sessionId: string | undefined,
 ): T | undefined {
+  // Multiple handlers may respond to PI_CAPABILITY_RESOLVE_CHANNEL for the
+  // same package (the orchestrator's `publishPiCapabilityHosts` AND the
+  // extension's own `definePiCapabilityHost` self-publish handler both
+  // listen on the same bus). We keep the FIRST non-undefined resolve so
+  // an empty self-published fallback cannot clobber the orchestrator's
+  // rich provider tree. Without this first-wins gate, binary-mode
+  // jiti-loaded extensions would always see an empty `services` because
+  // the metadata-only self-publish handler runs after the orchestrator
+  // publish and overwrites it.
   let resolved: T | undefined;
   events.emit(PI_CAPABILITY_RESOLVE_CHANNEL, {
     packageName,
     sessionId,
-    resolve: (host: PiCapabilityHostRecord | undefined) => { resolved = host as T | undefined; },
+    resolve: (host: PiCapabilityHostRecord | undefined) => {
+      if (resolved !== undefined) return;
+      resolved = host as T | undefined;
+    },
   });
   return resolved;
 }
