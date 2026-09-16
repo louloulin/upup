@@ -265,7 +265,7 @@ function result(toolCallId: string, value: unknown, extra: Record<string, unknow
 }
 
 function registerPlatformExtension(pi: ExtensionAPI, host: PlatformHost): void {
-  if (host.contract !== 'upup.pi.host.v1' || host.packageName !== PACKAGE || host.packageVersion !== VERSION || !host.sessionId || !host.capabilities.includes('tool-definitions')) return;
+  if (host.contract !== 'upup.pi.host.v1' || host.packageName !== PACKAGE || host.packageVersion !== VERSION || !host.sessionId || !host.capabilities.includes('tool-definitions') || !host.providers?.tools?.getToolDefinitions || !host.providers?.tools?.getToolMetadata) return;
   const tools = host.providers.tools.getToolDefinitions({
     contract: 'upup.pi.host.v1',
     packageName: PACKAGE,

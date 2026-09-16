@@ -18,3 +18,23 @@ describe('Doctor Command', () => {
     expect(module.runDoctor.constructor.name).toBe('AsyncFunction');
   });
 });
+
+import { spawnSync } from 'child_process';
+import { existsSync } from 'fs';
+import { join } from 'path';
+
+describe('Doctor exit-code contract', () => {
+  const distBinary = join(process.cwd(), 'dist', 'upup');
+
+  it('compiled binary exits 0 regardless of missing keys (read-only diagnostic)', () => {
+    if (!existsSync(distBinary)) {
+      // The test relies on the dist build; skip if it has not been built yet.
+      // `bun run verify:pi7-final` runs `bun run build` first.
+      return;
+    }
+    const result = spawnSync(distBinary, ['doctor'], { encoding: 'utf-8' });
+    expect(result.status).toBe(0);
+    // Doctor should print a summary line even when keys are missing.
+    expect(result.stdout).toMatch(/Summary:/);
+  });
+});
