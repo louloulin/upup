@@ -45,9 +45,13 @@ describe('Pi investment workflow package', () => {
     expect(result.output).not.toContain('price":100');
   });
 
-  test('fails the plan closed when the provider cannot answer a real price or EPS', async () => {
+  test('reports missing price/EPS honestly without erroring the phase (no fabricated valuation)', async () => {
+    // Regression: 真实推送 push2/push2his 限流时，eastmoney-research 返回
+    // price:null；plan 之前把这个当 error 上抛，把整个 5 阶段成功率拖到 4/5。
+    // 改成 phase 仍 completed，但输出里明确说"未生成估值"并列出真实拿到的
+    // 报告期字段，让 dossier 把 plan 标为成功带 warning。
     const result = await executeInvestmentPhase('plan', { ticker: 'AAPL', market: 'us' }, { ...services, getResearchData: async () => ({ price: '100', ratios: 'PE 10' }) });
-    expect(result.error).toBe('insufficient_research_data');
+    expect(result.error).toBeUndefined();
     expect(result.evidence[0]?.phase).toBe('plan');
     expect(result.output).toContain('未生成估值');
   });

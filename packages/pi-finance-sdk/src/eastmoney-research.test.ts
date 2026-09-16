@@ -96,4 +96,36 @@ describe('eastmoney research data adapter', () => {
     const client = new NativeResearchDataClient({ marketFetchers: { cn: createEastmoneyResearchDataFetcher({ market: 'cn' }) }, marketProviders: { cn: 'some-vendor' } });
     await expect(client.getKeyRatios({ ticker: '600519.SH', market: 'cn' })).rejects.toThrow(/credentials are required/u);
   });
+
+  test('returns an empty price snapshot with a note when both quote and kline hosts reset (so Promise.all siblings keep flowing)', async () => {
+    // Regression: `getResearchData` Promise.all-ed 5 adapters; one ECONNRESET
+    // on push2his used to throw and discard the other 4 successful calls,
+    // failing the whole detect phase for a real ticker. Now an unreachable
+    // price becomes an empty snapshot with `price: null` + a clear note.
+    const fetcher = (async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url.includes('push2.eastmoney.com') || url.includes('push2his.eastmoney.com')) {
+        const error = new Error('socket connection was closed unexpectedly') as Error & { code?: string };
+        error.code = 'ECONNRESET';
+        throw error;
+      }
+      if (url.includes('datacenter-web') && url.includes('RPT_LICO_FN_CPD')) {
+        return json({ result: { data: [{ SECUCODE: '600519.SH', SECURITY_NAME_ABBR: '贵州茅台', REPORTDATE: '2026-06-30 00:00:00', TOTAL_OPERATE_INCOME: 92278072083, PARENT_NETPROFIT: 44516880421, BASIC_EPS: 35.57 }] } });
+      }
+      if (url.includes('reportapi.eastmoney.com')) return json({ data: [] });
+      if (url.includes('np-anotice-stock')) return json({ data: { list: [] } });
+      throw new Error(`unexpected url ${url}`);
+    }) as typeof fetch;
+    const client = new NativeResearchDataClient({
+      marketFetchers: { cn: createEastmoneyResearchDataFetcher({ market: 'cn', fetcher }) },
+      marketProviders: { cn: 'eastmoney' },
+    });
+    const priceEnvelope = JSON.parse(await client.getStockPrice({ ticker: '600519.SH', market: 'cn' })) as { data: { snapshot: Record<string, unknown> } };
+    expect(priceEnvelope.data.snapshot.price).toBeNull();
+    expect(priceEnvelope.data.snapshot.note).toMatch(/限流/);
+    const ratiosEnvelope = JSON.parse(await client.getKeyRatios({ ticker: '600519.SH', market: 'cn' })) as { data: { snapshot: Record<string, unknown> } };
+    expect(ratiosEnvelope.data.snapshot.eps).toBe(35.57);
+    const earningsEnvelope = JSON.parse(await client.getEarnings({ ticker: '600519.SH', market: 'cn' })) as { data: { earnings: readonly Record<string, unknown>[] } };
+    expect(earningsEnvelope.data.earnings[0]?.net_income).toBe(44516880421);
+  });
 });

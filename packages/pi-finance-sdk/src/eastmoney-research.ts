@@ -118,10 +118,15 @@ export function createEastmoneyResearchDataFetcher(options: EastmoneyResearchFet
   };
 
   const priceSnapshot = async (target: EastmoneyTarget, signal?: AbortSignal): Promise<Record<string, unknown>> => {
-    const quoteUrl = new URL(EASTMONEY_QUOTE_URL);
-    quoteUrl.searchParams.set('secid', target.secid);
-    quoteUrl.searchParams.set('fields', EASTMONEY_QUOTE_FIELDS);
-    try {
+    // 实时行情 (`push2`) 与日线 (`push2his`) 是同一机房同 IP 段；任一被该机
+    // 房限流后，另一接口往往也会触发 ECONNRESET。`getResearchData` 把价格/
+    // 比率/研报/财报/公告 5 个调用 `Promise.all`，单接口失败会让其它 4 个
+    // 已成功的调用也一起作废。两接口都不可用时返回带 `note` 的空快照，
+    // 让上层工作流继续拿到财务/公告等关键数据，价空缺只在 dossier 里显眼。
+    const quoteAttempt = async (): Promise<Record<string, unknown> | undefined> => {
+      const quoteUrl = new URL(EASTMONEY_QUOTE_URL);
+      quoteUrl.searchParams.set('secid', target.secid);
+      quoteUrl.searchParams.set('fields', EASTMONEY_QUOTE_FIELDS);
       const payload = await read(quoteUrl, signal);
       const data = (payload as { data?: Record<string, unknown> | null }).data ?? undefined;
       const decimals = eastmoneyNumbers({ decimals: data?.f59 }).decimals ?? 2;
@@ -130,50 +135,73 @@ export function createEastmoneyResearchDataFetcher(options: EastmoneyResearchFet
         return raw === undefined ? undefined : Number((raw / 10 ** decimals).toFixed(6));
       };
       const price = scale(data?.f43);
-      if (price !== undefined && price > 0) {
-        return {
-          snapshot: {
-            ticker: target.ticker,
-            price,
-            currency: target.currency,
-            name: data?.f58,
-            ...eastmoneyNumbers({ previous_close: scale(data?.f60) }),
-            as_of: eastmoneyDate(new Date((eastmoneyNumbers({ at: data?.f86 }).at ?? 0) * 1000).toISOString(), today()),
-            provider: 'eastmoney',
-            source_url: quoteUrl.toString(),
-          },
-          sourceUrls: [quoteUrl.toString()],
-        };
-      }
+      if (price === undefined || price <= 0) return undefined;
+      return {
+        snapshot: {
+          ticker: target.ticker,
+          price,
+          currency: target.currency,
+          name: data?.f58,
+          ...eastmoneyNumbers({ previous_close: scale(data?.f60) }),
+          as_of: eastmoneyDate(new Date((eastmoneyNumbers({ at: data?.f86 }).at ?? 0) * 1000).toISOString(), today()),
+          provider: 'eastmoney',
+          source_url: quoteUrl.toString(),
+        },
+        sourceUrls: [quoteUrl.toString()],
+      };
+    };
+    const klineAttempt = async (): Promise<Record<string, unknown> | undefined> => {
+      const klineUrl = new URL(EASTMONEY_KLINE_URL);
+      klineUrl.searchParams.set('secid', target.secid);
+      klineUrl.searchParams.set('klt', '101');
+      klineUrl.searchParams.set('fqt', '1');
+      klineUrl.searchParams.set('beg', '0');
+      klineUrl.searchParams.set('end', '20500101');
+      klineUrl.searchParams.set('lmt', '1');
+      klineUrl.searchParams.set('fields1', 'f1');
+      klineUrl.searchParams.set('fields2', 'f51,f53');
+      const payload = await read(klineUrl, signal);
+      const row = ((payload as { data?: { klines?: readonly string[] } | null }).data?.klines ?? []).at(-1) ?? '';
+      const [date, close] = row.split(',');
+      const price = eastmoneyNumbers({ price: close }).price;
+      if (price === undefined || price <= 0) return undefined;
+      return {
+        snapshot: {
+          ticker: target.ticker,
+          price,
+          currency: target.currency,
+          as_of: eastmoneyDate(date, today()),
+          provider: 'eastmoney',
+          source_url: klineUrl.toString(),
+          note: '行情接口不可用，退回最近一个交易日收盘价。',
+        },
+        sourceUrls: [klineUrl.toString()],
+      };
+    };
+    try {
+      const fromQuote = await quoteAttempt();
+      if (fromQuote) return fromQuote;
     } catch {
-      // The quote host drops connections when it rate-limits; the last daily
-      // close below is a real, if staler, alternative to no price at all.
+      // Quote host dropped the connection; fall through to the kline host.
     }
-    const klineUrl = new URL(EASTMONEY_KLINE_URL);
-    klineUrl.searchParams.set('secid', target.secid);
-    klineUrl.searchParams.set('klt', '101');
-    klineUrl.searchParams.set('fqt', '1');
-    klineUrl.searchParams.set('beg', '0');
-    klineUrl.searchParams.set('end', '20500101');
-    klineUrl.searchParams.set('lmt', '1');
-    klineUrl.searchParams.set('fields1', 'f1');
-    klineUrl.searchParams.set('fields2', 'f51,f53');
-    const payload = await read(klineUrl, signal);
-    const row = ((payload as { data?: { klines?: readonly string[] } | null }).data?.klines ?? []).at(-1) ?? '';
-    const [date, close] = row.split(',');
-    const price = eastmoneyNumbers({ price: close }).price;
-    if (price === undefined || price <= 0) throw new Error(`Eastmoney returned no price for ${target.ticker}`);
+    try {
+      const fromKline = await klineAttempt();
+      if (fromKline) return fromKline;
+    } catch {
+      // Both hosts rejected us. Return an empty snapshot so the parallel
+      // getResearchData call still surfaces keyRatios/earnings/filings.
+    }
     return {
       snapshot: {
         ticker: target.ticker,
-        price,
+        price: null,
         currency: target.currency,
-        as_of: eastmoneyDate(date, today()),
+        as_of: today(),
         provider: 'eastmoney',
-        source_url: klineUrl.toString(),
-        note: '行情接口不可用，退回最近一个交易日收盘价。',
+        source_url: '',
+        note: '行情接口（push2 + push2his）当前均处于限流冷却，价格快照暂不可用；财务与公告仍可访问。',
       },
-      sourceUrls: [klineUrl.toString()],
+      sourceUrls: [],
     };
   };
 

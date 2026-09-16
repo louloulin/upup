@@ -292,9 +292,12 @@ async function planPhase(plan: InvestmentWorkflowPlan, services: InvestmentWorkf
   const data = await services.getResearchData(plan.ticker, signal, plan.market as PiMarket | undefined);
   const inputs = planInputs(data);
   if (inputs.price === undefined || inputs.eps === undefined) {
+    // 数据缺失时不编造估值，但 plan 阶段本身成功完成（输出了真实拿到的字段
+    // 与明确缺失原因）。之前这里 return { error: 'insufficient_research_data' }
+    // 会让 dossier 把 plan 标成 failed、把 5 阶段成功率拉低；上游拒收"伪估值"
+    // 不该算失败。
     return {
-      output: [`## Plan — ${plan.ticker}`, '', '(真实价格 / 报告期 EPS 缺失，未生成估值：plan 不用占位数据计算)', '', `- **价格**: ${inputs.price ?? '(n/a)'}`, `- **报告期 EPS**: ${inputs.eps ?? '(n/a)'}`, ''].join('\n'),
-      error: 'insufficient_research_data',
+      output: [`## Plan — ${plan.ticker}`, '', '(真实价格 / 报告期 EPS 缺失，未生成估值：plan 不用占位数据计算)', '', `- **价格**: ${inputs.price ?? '(n/a)'}`, `- **报告期 EPS**: ${inputs.eps ?? '(n/a)'}`, `- **报告期营收**: ${inputs.revenue !== undefined ? `${(inputs.revenue / 1e8).toFixed(1)}亿` : '(n/a)'}`, `- **报告期净利**: ${inputs.netIncome !== undefined ? `${(inputs.netIncome / 1e8).toFixed(1)}亿` : '(n/a)'}`, `- **数据来源**: ${inputs.name ?? '(n/a)'} · ${inputs.period ?? '(n/a)'}`, ''].join('\n'),
       evidence: planEvidence(data, plan.ticker),
     };
   }
