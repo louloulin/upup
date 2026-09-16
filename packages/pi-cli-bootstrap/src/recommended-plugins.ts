@@ -51,9 +51,12 @@ export const UPUP_RECOMMENDED_PLUGINS: readonly RecommendedPlugin[] = [
     source: 'npm:pi-web-access',
     name: 'Pi Web Access',
     category: 'web',
-    description: '网页抓取 / fetch 内容，作为 web 工具注册。',
-    verifiedClean: true,
-    caveats: [],
+    description: '第三方网页搜索 / 抓取扩展（30+ provider）。与 UpUp 自带 web_search 二选一。',
+    verifiedClean: false,
+    caveats: [
+      '默认关闭：它注册的 web_search 与 UpUp @upup/pi-research extension 同名，同时加载会让 Pi 以 `Tool "web_search" conflicts` 退出。',
+      '需要时 `upup plugin enable npm:pi-web-access`，并同时关闭 UpUp 自带 search（或接受冲突）。',
+    ],
   },
   {
     source: 'npm:pi-mcp-adapter',

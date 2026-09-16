@@ -191,8 +191,9 @@ async function main() {
       }
       // Pi native: delegate to Pi's main() — InteractiveMode, autocomplete,
       // slash commands, keybindings, theme selector, and the extension-host
-      // boundary all come from there. UpUp finance extensions are loaded
-      // by Pi's package-manager via workspace `pi.manifest` declarations.
+      // boundary all come from there. UpUp's own Pi packages are handed to Pi
+      // as explicit `-e` extension paths by `runPiNativeCli`, because Pi's
+      // package-manager only resolves npm:/git:/real local sources.
       const { runPiNativeCli } = await import('./pi-native-cli');
       // `runPiNativeCli` is the single owner of the UpUp brand banner;
       // printing again here would double-stamp the screen. The banner is
@@ -218,9 +219,10 @@ async function main() {
         fork: shouldFork,
         // `--no-extensions` / `-ne` disables Pi extension discovery. Used as
         // a recovery hatch when a user-installed npm extension in
-        // `~/.upup/agent/npm/` fails to load (mismatched zod locales, etc.) —
-        // built-in UpUp extensions still register via the workspace
-        // `pi.manifest`, so the agent keeps its full finance tool surface.
+        // `~/.upup/agent/npm/` fails to load (mismatched zod locales, etc.).
+        // UpUp's own extensions arrive as explicit `-e` paths, which Pi's
+        // resource loader keeps even with this flag, so the agent retains its
+        // full finance tool surface.
         noExtensions: args.includes('--no-extensions') || args.includes('-ne'),
         ...(terminalSize && terminalSize.columns !== undefined && terminalSize.rows !== undefined ? { terminalSize: { columns: terminalSize.columns, rows: terminalSize.rows } } : {}),
       });

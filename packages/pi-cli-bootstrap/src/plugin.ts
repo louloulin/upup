@@ -20,7 +20,7 @@
 import { homedir } from 'node:os';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { resolveAgentDir } from '@upup/pi-resource-composition';
+import { getBuiltinPackageSources, resolveAgentDir } from '@upup/pi-resource-composition';
 import { DefaultPackageManager, DefaultResourceLoader, SettingsManager } from '@earendil-works/pi-coding-agent';
 import { startAgentDirWatcher, type SettingsWatcherEvent } from '@upup/pi-resource-composition';
 import { UPUP_RECOMMENDED_PLUGINS, UPUP_KNOWN_PROBLEMATIC_PLUGINS, groupRecommendedByCategory } from './recommended-plugins';
@@ -154,12 +154,29 @@ async function runInstall(args: string[], opts: { env: NodeJS.ProcessEnv; home: 
   return { exitCode: 0, message: 'install ok' };
 }
 
+/**
+ * UpUp 自带的 pi-* package 不走 `settings.json.packages`（Pi 的 package-manager
+ * 只解析 `npm:` / `git:` / 真实本地路径），而是由 `@upup/pi-app` 通过 Pi 的
+ * `-e` 通道直接加载 extension 目录。这里把它们单独列出来，让 `upup plugin list`
+ * 如实反映“哪些能力正在被加载”，而不是显示一堆 Pi 永远解析不了的 source。
+ */
+function formatBundledPackages(cwd: string): string {
+  const bundled = getBuiltinPackageSources(cwd);
+  if (bundled.length === 0) return `${DIM}  (none)${RESET}`;
+  return bundled
+    .map((pkg) => `  ${BOLD}${pkg.name}@${pkg.version}${RESET} [bundled] ${DIM}${pkg.path}${RESET}`)
+    .join('\n');
+}
+
 function runList(opts: { env: NodeJS.ProcessEnv; home: string; cwd: string }): PluginRunResult {
   const { manager, agentDir, agentDirSource } = buildManager(opts);
   head('Plugin list');
   info(`agentDir (${agentDirSource}): ${agentDir}`);
   const packages = manager.listConfiguredPackages();
+  info('Pi packages (npm / git / local sources from settings.json)');
   log(formatPackageList(packages));
+  info('UpUp bundled Pi packages (loaded via Pi `-e`)');
+  log(formatBundledPackages(opts.cwd));
   return { exitCode: 0, message: 'list printed' };
 }
 

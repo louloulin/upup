@@ -3,10 +3,10 @@
  *
  * 验证：
  *   1. Pi 启动时无 `[workflow-delivery]` / 第三方 side-effect warning
- *   2. settings.json 的 packages 数组含 19 个 builtin pi-* workspace packages
- *      且 11 个 npm 第三方包中非推荐的已标 autoload=false
- *   3. bootstrap-agent 的 getBuiltinPackageSources / disableNonRecommendedThirdPartyPackages
- *      函数存在
+ *   2. settings.json 的 packages 数组里没有 Pi 解析不了的 builtin:@upup/* 条目，
+ *      11 个 npm 第三方包中非推荐（以及被 UpUp 同名工具取代）的已标 autoload=false
+ *   3. UpUp 自带 pi-* package 通过 Pi 的 `-e` 通道加载
+ *      （pi-native-cli.ts#resolveUpupExtensionPaths + buildArgs 追加 `-e`）
  *   4. plugin CLI 暴露 recommend/enable/disable 子命令
  */
 import { existsSync, readFileSync } from 'node:fs';
@@ -40,10 +40,15 @@ function fail(name: string, detail = ''): void {
 const bootstrapPath = 'packages/pi-app/src/bootstrap-agent.ts';
 if (existsSync(bootstrapPath)) {
   const text = readFileSync(bootstrapPath, 'utf8');
-  if (text.includes('syncBuiltinPiPackages')) {
-    pass('bootstrap-agent 含 syncBuiltinPiPackages', 'Sprint A');
+  if (text.includes('dropDeadBuiltinPackageEntries')) {
+    pass('bootstrap-agent 清理 builtin:@upup/* 死条目', '');
   } else {
-    fail('bootstrap-agent 缺 syncBuiltinPiPackages', 'Sprint A 未实施');
+    fail('bootstrap-agent 缺 builtin:@upup/* 清理', 'Pi 无法解析这些 source');
+  }
+  if (text.includes('syncBuiltinPiPackages')) {
+    fail('bootstrap-agent 仍在写 builtin:@upup/* 条目', 'Pi 会把它当相对路径静默跳过');
+  } else {
+    pass('bootstrap-agent 不再写 builtin:@upup/* 条目', '');
   }
   if (text.includes('disableNonRecommendedThirdPartyPackages')) {
     pass('bootstrap-agent 含 disableNonRecommendedThirdPartyPackages', 'Sprint C');
@@ -63,13 +68,27 @@ if (existsSync(pkgConfigPath)) {
   } else {
     fail('package-config.ts 缺 getBuiltinPackageSources export', '');
   }
-  if (text.includes('builtin:@upup/')) {
-    pass('resolveConfiguredPiPackages 支持 builtin: 解析', '');
+  // 只禁止“解析”行为，注释里提到该格式是允许的（用于解释为什么不写它）。
+  if (text.includes("startsWith('builtin:@upup/')") || text.includes('^builtin:@upup\\/')) {
+    fail('package-config.ts 仍解析 builtin:@upup/ source', '该格式 Pi 从不加载');
   } else {
-    fail('resolveConfiguredPiPackages 不识别 builtin: 前缀', '');
+    pass('package-config.ts 不再解析 builtin:@upup/ source', '');
   }
 } else {
   fail('package-config.ts 不存在', '');
+}
+
+// 2b. UpUp 自带 package 通过 Pi 的 `-e` 通道加载
+const cliPath = 'packages/pi-app/src/pi-native-cli.ts';
+if (existsSync(cliPath)) {
+  const text = readFileSync(cliPath, 'utf8');
+  if (text.includes('resolveUpupExtensionPaths') && text.includes("args.push('-e', extensionPath)")) {
+    pass('pi-native-cli 用 `-e` 加载 UpUp extension 目录', '');
+  } else {
+    fail('pi-native-cli 未把 UpUp extension 目录交给 Pi 的 `-e`', '自带能力不会加载');
+  }
+} else {
+  fail('pi-native-cli.ts 不存在', '');
 }
 
 // 3. plugin CLI 暴露 recommend / enable / disable
@@ -146,7 +165,7 @@ if (microkernelChecked === 0) {
 // 6. (optional) 跑一次 bun run dev 看是否还有 workflow-delivery warning
 // 这里不做实际启动（耗时），但提供 hint
 console.log();
-console.log(`${BOLD}Sprint A + C + D 静态守门完成${RESET}`);
+console.log(`${BOLD}UpUp clean-loading 静态守门完成${RESET}`);
 console.log('手动验证启动无 warning：echo exit | timeout 8 bun run src/index.tsx 2>&1 | grep -c workflow-delivery');
 
 const failed = results.filter((r) => r.status === 'fail');

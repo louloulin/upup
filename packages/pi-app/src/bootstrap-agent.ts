@@ -35,7 +35,21 @@ import { homedir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { resolveAgentDir, upupAgentDirFor, getBuiltinPackageSources } from '@upup/pi-resource-composition';
+import { resolveAgentDir, upupAgentDirFor } from '@upup/pi-resource-composition';
+
+/**
+ * 第三方 Pi package 里，UpUp 已经自带等价实现、且会和 UpUp 注册的同名工具冲突的
+ * source 集合 —— 默认标记 `autoload: false`。
+ *
+ * 典型例子是 `npm:pi-web-access`：它注册 `web_search`，而 UpUp 的
+ * `@upup/pi-research` extension 也注册 `web_search`。两者同时加载时 Pi 会直接
+ * `Failed to load extension ... Tool "web_search" conflicts` 并按退出码 1 退出，
+ * 整个 TUI 都起不来。需要时用 `upup plugin enable <source>` 显式打开（同时接受
+ * 由此产生的工具名冲突）。
+ */
+const UPUP_SUPERSEDED_SOURCES: ReadonlySet<string> = new Set([
+  'npm:pi-web-access',
+]);
 
 /**
  * UpUp 推荐加载的 Pi extension 插件 source 集合。
@@ -48,7 +62,6 @@ import { resolveAgentDir, upupAgentDirFor, getBuiltinPackageSources } from '@upu
  * 此处只放 source 字符串集合避免循环依赖。
  */
 const UPUP_AUTOLOAD_SAFE_SOURCES: ReadonlySet<string> = new Set([
-  'npm:pi-web-access',
   'npm:pi-mcp-adapter',
   'npm:pi-subagents',
   'npm:pi-background-tasks',
@@ -321,13 +334,18 @@ function disableNonRecommendedThirdPartyPackages(settingsPath: string): boolean 
 
   let mutated = false;
   const nextPackages = rawPackages.map((entry) => {
-    // 字符串形式：保留。Pi 的 settings manager 接受字符串 source。
-    if (typeof entry === 'string') return entry;
+    // 字符串形式：默认保留（Pi 的 settings manager 接受字符串 source），但
+    // 会和 UpUp 自带工具撞名的包必须显式降级成 autoload:false。
+    if (typeof entry === 'string') {
+      if (!UPUP_SUPERSEDED_SOURCES.has(entry)) return entry;
+      mutated = true;
+      return { source: entry, autoload: false };
+    }
     if (!entry || typeof entry !== 'object') return entry;
     const obj = entry as Record<string, unknown>;
     const source = typeof obj.source === 'string' ? obj.source : '';
     if (!source) return entry;
-    // 推荐清单内的包不动
+    // 推荐清单内的包不动（被 UpUp 自带能力取代的包不在推荐清单里）
     if (UPUP_AUTOLOAD_SAFE_SOURCES.has(source)) return entry;
     // 已经是 autoload=false 的不动
     if (obj.autoload === false) return entry;
@@ -341,40 +359,32 @@ function disableNonRecommendedThirdPartyPackages(settingsPath: string): boolean 
 }
 
 /**
- * Sprint A：把 UpUp 内置的 19 个 pi-* workspace packages 以
- * `builtin:@upup/<pkg>@<version>` 形式写入 ~/.upup/agent/settings.json。
+ * 清掉历史版本写进 `settings.json.packages` 的 `builtin:@upup/<pkg>@<version>`
+ * 条目。
  *
- * 这样用户能：
- *   1. 直接在 settings.json 里看到 UpUp 内置包列表
- *   2. 把任意一个标记 `autoload: false` 关闭（与 npm 第三方包一致）
- *   3. 删除某个 builtin 条目后，下次启动会自动重新加回（默认始终启用）
+ * 这些条目是 Sprint A 的遗留：Pi 的 `parseSource()` 只认 `npm:` / `git:` /
+ * 真实本地路径，遇到未知前缀会退化成 `{ type: 'local', path: source }`，于是
+ * `builtin:@upup/pi-finance-sdk@0.1.0` 被当成相对路径静默跳过 —— 写在设置里看着
+ * 像“已集成”，实际一个 extension 都没加载。真正的加载通道是 Pi 的 `-e`（见
+ * `pi-native-cli.ts#resolveUpupExtensionPaths`），所以这里把失效条目删掉，
+ * 避免误导用户以为可以靠 `autoload: false` 关掉 UpUp 自带包。
  *
- * Idempotent：已存在的 builtin 条目不动；不存在的新增。
+ * Idempotent：没有 builtin 条目时不动文件。
  */
-function syncBuiltinPiPackages(settingsPath: string): boolean {
-  const builtins = getBuiltinPackageSources();
-  if (builtins.length === 0) return false;
+function dropDeadBuiltinPackageEntries(settingsPath: string): boolean {
   const existing = readJsonIfExists(settingsPath);
-  const base: Record<string, unknown> = existing ?? {};
-  const rawPackages = Array.isArray(existing?.packages) ? (existing as { packages: unknown[] }).packages : [];
-  const existingSources = new Set<string>();
-  for (const entry of rawPackages) {
+  const rawPackages = existing?.packages;
+  if (!existing || !Array.isArray(rawPackages)) return false;
+  const nextPackages = rawPackages.filter((entry) => {
     const source = typeof entry === 'string'
       ? entry
       : entry && typeof entry === 'object' && typeof (entry as Record<string, unknown>).source === 'string'
         ? (entry as Record<string, unknown>).source as string
         : undefined;
-    if (source) existingSources.add(source);
-  }
-  let mutated = false;
-  const nextPackages: unknown[] = [...rawPackages];
-  for (const b of builtins) {
-    if (existingSources.has(b.source)) continue;
-    nextPackages.push({ source: b.source, autoload: true });
-    mutated = true;
-  }
-  if (!mutated) return false;
-  writeFileSync(settingsPath, `${JSON.stringify({ ...base, packages: nextPackages }, null, 2)}\n`, 'utf8');
+    return !(source?.startsWith('builtin:@upup/') ?? false);
+  });
+  if (nextPackages.length === rawPackages.length) return false;
+  writeFileSync(settingsPath, `${JSON.stringify({ ...existing, packages: nextPackages }, null, 2)}\n`, 'utf8');
   return true;
 }
 
@@ -416,13 +426,12 @@ export function bootstrapUpupAgentSync(options: BootstrapAgentOptions = {}): Boo
     /* autoload 标记失败不影响启动 */
   }
 
-  // Sprint A：把 UpUp 内置的 19 个 pi-* workspace packages 写入 settings.json 的
-  // packages 数组（builtin:@upup/<pkg>@<version> 形式）。用户在 settings.json 里
-  // 即可直接看到/管理这些 builtin 包，与 npm 第三方包并列。
+  // 清掉历史遗留的 builtin:@upup/* 条目：Pi 无法解析它们，UpUp 现在通过
+  // `-e` 直接加载自带包的 extension 目录。
   try {
-    syncBuiltinPiPackages(join(context.agentDir, 'settings.json'));
+    dropDeadBuiltinPackageEntries(join(context.agentDir, 'settings.json'));
   } catch {
-    /* builtin sync 失败不影响启动 */
+    /* 清理失败不影响启动 */
   }
 
   return {

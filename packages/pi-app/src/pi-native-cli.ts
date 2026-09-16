@@ -10,16 +10,28 @@
  * hand on top of `@earendil-works/pi-tui`.
  *
  * UpUp specific extensions (slash commands like `/invest`, `/dossier`,
- * `/screen`, `/risk`, `/portfolio`, plus finance tools, skill packs,
- * policy) are registered through the `extensionFactories` channel.
- * `@upup/pi-investment-workflow/extensions`, `@upup/pi-finance-sdk/extensions`,
- * and the rest are loaded by Pi's package-manager via the workspace
- * `pi.manifest` declarations — no bespoke wiring is required here.
+ * `/screen`, `/risk-dashboard`, `/portfolio-review`, plus finance tools,
+ * skill packs, policy) are registered through Pi's `-e` / `--extension`
+ * channel. The UpUp Pi packages live in the workspace (`packages/pi-*`) or
+ * next to the compiled binary (`dist/pi-*`), NOT in Pi's own
+ * `~/.upup/agent/npm/` package store, so Pi's package-manager — which only
+ * resolves `npm:` / `git:` / real local paths from `settings.json.packages`
+ * — never discovers them. Writing them to `settings.json` as
+ * `builtin:@upup/<pkg>@<version>` entries does not work either: Pi's
+ * `parseSource()` falls through to `{ type: 'local', path: source }` for any
+ * unknown prefix, so `builtin:@upup/...` is treated as a relative path and
+ * silently skipped. Passing the resolved absolute extension directories as
+ * `-e` flags is the only surface Pi actually honours for workspace packages,
+ * and it keeps the trust gate intact because the paths still flow through
+ * `verifyPiResourceTrust`.
  */
+
+import { existsSync } from 'node:fs';
 
 import type { InlineExtension } from '@earendil-works/pi-coding-agent';
 
 import { createUpUpBrandExtension } from '@upup/pi-runtime';
+import { PiPackageCatalog, resolveConfiguredPiPackages } from '@upup/pi-resource-composition';
 import { getPiNativeApp } from './default';
 import { printUpupBanner } from './banner';
 import { ensureUpupAgentDir } from './bootstrap-agent';
@@ -31,8 +43,8 @@ export interface PiNativeRunCliOptions {
   /** Disable Pi extension discovery (forwarded as `--no-extensions`).
    *  Useful when user-installed extensions in `~/.upup/agent/npm/` are broken
    *  (e.g. mismatched zod locales) — without this flag the TUI fails to boot.
-   *  Built-in UpUp finance extensions (loaded via workspace `pi.manifest`) and
-   *  explicit `-e` paths still work even with this flag set. */
+   *  UpUp's own extensions are passed as explicit `-e` paths, which Pi's
+   *  resource loader keeps even with this flag set. */
   readonly noExtensions?: boolean;
   /** Legacy flag — accepted for back-compat with the old runCli surface but
    *  unused now that Pi owns the event stream. */
@@ -56,17 +68,60 @@ function buildArgs(options: PiNativeRunCliOptions): string[] {
   if (options.noExtensions) {
     args.push('--no-extensions');
   }
+  // `-e` paths are NOT covered by `--no-extensions` (Pi's resource-loader
+  // merges `cliEnabledExtensions` unconditionally), so the UpUp finance
+  // surface survives `-ne`.
+  for (const extensionPath of resolveUpupExtensionPaths()) {
+    args.push('-e', extensionPath);
+  }
   return args;
+}
+
+/**
+ * Absolute paths of the enabled UpUp Pi package extension directories.
+ *
+ * Pi's package-manager only resolves `npm:` / `git:` / real local paths from
+ * `settings.json.packages`; the `builtin:@upup/<pkg>@<version>` entries UpUp
+ * writes there are parsed as relative local paths (`parseSource()` has no
+ * `builtin:` branch) and silently dropped. Routing the same catalog through
+ * Pi's `-e` surface is what actually loads the finance extensions, their
+ * slash commands (`/invest`, `/dossier`, `/screen`, …) and their tools.
+ *
+ * Returns [] when the catalog has nothing enabled (e.g. every package was
+ * disabled in settings.json) so the TUI still boots.
+ */
+export function resolveUpupExtensionPaths(cwd: string = process.cwd()): string[] {
+  const configured = resolveConfiguredPiPackages(cwd);
+  if (!configured) return [];
+  const catalog = new PiPackageCatalog();
+  for (const root of configured.piPackagePaths) {
+    try {
+      catalog.register(root, configured.piPackageTrust, cwd);
+    } catch {
+      // A single malformed package must not take down the TUI; the
+      // session factory performs the same registration for its own
+      // fail-closed trust audit.
+    }
+  }
+  const paths: string[] = [];
+  for (const resourcePath of catalog.resources().extensions) {
+    // The catalog yields either a directory (`.../extensions`) or a file
+    // (`.../extensions/index.ts`); Pi's loader handles both, but a stale
+    // workspace layout could point at a path that no longer exists, so we
+    // filter to keep Pi's `-e` diagnostics clean.
+    if (existsSync(resourcePath)) paths.push(resourcePath);
+  }
+  return [...new Set(paths)];
 }
 
 function buildExtensionFactories(): InlineExtension[] {
   const app = getPiNativeApp();
   // Each finance/workflow/notification Pi package already exposes an
-  // `extensions/index.ts` with `defineExtension(() => …)` factories. The
-  // Pi package-manager discovers them via the workspace `pi.manifest.skills`
-  // / `extensions` declarations, so we only inject `inline` factories that
-  // have to be wired at runtime (e.g. ones that capture the live
-  // SessionService port from the app boundary).
+  // `extensions/index.ts` with `defineExtension(() => …)` factories, and
+  // `resolveUpupExtensionPaths()` hands those directories to Pi as `-e`
+  // entries. This factory list is only for `inline` extensions that have to be
+  // wired at runtime (e.g. ones that capture the live SessionService port from
+  // the app boundary).
   void app.getInvestmentWorkflow();
   // Brand the interactive TUI's system prompt as UpUp. Pi hard-codes its own
   // identity in the default prompt template and ships no config for it, so we
