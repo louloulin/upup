@@ -1,24 +1,31 @@
 # Repository Guidelines
 
-> UpUp (涨涨) 是基于 [virattt/dexter](https://github.com/virattt/dexter) 的 fork，遵循 MIT 协议。
-> 保留所有上游 dexter 的工程约束，本节仅为真实仓库地址 + 定位说明做更新。
+**UpUp (涨涨) 是一个 Pi-native 的 AI 投资助手。** 面向中文深度投研：A 股 / 港股 / 美股行情与基本面、公告与监管文件、估值与组合风险、5 阶段 `/invest` 投研工作流。
 
-- This fork: https://github.com/louloulin/upup
-- Mirror: https://gitcode.com/lumosaigroup/upup
-- Upstream (forked from): https://github.com/virattt/dexter
-- UpUp (涨涨) is a CLI-based AI agent for **Chinese-language deep financial research**, built on top of the [Dexter](https://github.com/virattt/dexter) framework and now powered entirely by the Pi Runtime + Pi Package ecosystem, with TypeScript and Ink (React for CLI). It is **not** a thin reskin of Dexter — see "China-Edition Increment" in [README.md](./README.md) for the full delta (A-share data stack, 5-phase /invest workflow, Pi Package ecosystem, EN+zh-CN i18n, multi-agent coordination, Session 2.0, 48 workspace packages — 19 of them Pi-native with real Pi resources/tools).
+- 仓库：https://github.com/louloulin/upup
+- 镜像：https://gitcode.com/lumosaigroup/upup
+- 协议：MIT
 
-> 📌 **Pi Native 投资助手定型 (2026-09-15)**: 完整 Pi7 计划与定型记录见 [pi7.md](./pi7.md)；8 维度 vs 上游 dexter 的全量审计见 [upup-vs-dexter-audit.md](./openspec/changes/upup-vs-dexter-comprehensive-audit-and-doc-refresh/docs/upup-vs-dexter-audit.md)。当前根 `src` 已收敛为 2 个生产文件（7 行），所有能力通过 Pi Package manifest contract 接入。
+## 定位：Pi 是 runtime，UpUp 是产品
 
-## 上游归属 (Upstream Attribution)
+UpUp **不重新实现 agent**。Agent loop、TUI/InteractiveMode、工具执行、bash/sandbox、会话与压缩、设置与主题、扩展宿主、provider catalog 全部来自
+`@earendil-works/pi-*`（锁定 `0.85.1`）。UpUp 只贡献 Pi 侧没有的东西：
 
-UpUp (涨涨) 是基于 [virattt/dexter](https://github.com/virattt/dexter) 的 fork，遵循 MIT 协议。
+- **金融域能力**：A 股 / 港股 / 美股数据栈（Tushare Pro、AKShare、Financial Datasets）、公告与监管文件、估值 / 组合 / 风险 / 回测 / 量化 / 技术面 / 公司行动 / 通知
+- **投研工作流**：`/invest` 五阶段（detect → plan → execute → verify → report）+ 7 个可序列化 Profile
+- **投资记忆**：跨日 / 跨进程 dossier 与投资上下文
+- **渠道**：WhatsApp gateway、财报披露日历与 A 股 cron、daemon supervisor、MCP、management 只读页
 
-- **上游协议**：MIT（同 UpUp）
-- **上游贡献**：整体金融研究框架、Tool registry、Agent loop、SKILL.md 协议、Ink 渲染层、Ink + pi-tui 集成
-- **UpUp 的独立贡献**：A 股数据栈（Tushare Pro / AKShare）、Pi Package 形式的投资 skill、5 阶段投资工作流 (`/invest`)、EN+zh-CN 双语 i18n、多 Agent 协同、Session 2.0 / Permission 体系、48 个 workspace package（19 个 Pi-native：manifest 声明 extensions/skills/prompts/workflows/policies/evals/tools/sideEffects；另 29 个仅有空 `pi` 块）、8 轮 Sprint 持续打磨。详见 [README.md](./README.md) 的 "China-Edition Increment" 段。
-- **修改上游代码**：请保留协议头；新增模块时直接以 UpUp 名义贡献。
-- **上游同步**：若上游 dexter 发布新版本，UpUp 团队会在 PR 中评估 cherry-pick（见 `docs/sync-plan.md`）。
+**扩展 Pi 的方式只有一种：Pi Package。** 每个能力以 `package.json#pi` manifest 声明
+`extensions` / `skills` / `prompts` / `workflows` / `policies` / `evals` / `tools` / `sideEffects`，
+由 Pi 的 `DefaultPackageManager` + `DefaultResourceLoader` 装载。禁止在根 `src` 里自建 agent loop、tool registry 或 skill registry。
+
+**品牌与家目录**：UpUp 拥有自己的全局 Pi home `~/.upup/agent`（经 `PI_CODING_AGENT_DIR` 交给 Pi），
+并以 `before_agent_start` 扩展把 Pi 默认 system prompt 改写为 UpUp 身份。两处细节见下文「Global Agent Home」与「Brand」。
+
+> 📌 **历史沿革**：仓库最初从 [virattt/dexter](https://github.com/virattt/dexter)（MIT）起步，2026-09 的 Pi Native 迁移已把 agent /
+> TUI / transport / session 层全部替换为 Pi runtime，dexter 遗留实现不再是生产路径。保留此说明仅为满足 MIT 归属要求，UpUp 的产品身份是
+> **Pi-native 投资助手**，不是任何上游的 reskin。完整迁移记录见 [pi7.md](./pi7.md)。
 
 ## Project Structure（Pi7 真实状态）
 
@@ -176,18 +183,45 @@ UpUp (涨涨) 是基于 [virattt/dexter](https://github.com/virattt/dexter) 的 
 - 修改逻辑后跑 `bun test` 再 push。
 - 完整产品验收：`bun run verify:pi7-final`。
 
-## Known Pi-Integration Gaps (2026-09-15 audit)
+## Global Agent Home: `~/.upup/agent`（2026-09-16 定型）
 
-LLM 配置面与 Pi `.pi/agent` 契约有几条未对齐，详见 `docs/pi7-pi-llm-config-audit.md`：
+UpUp 是产品、Pi 是内嵌 runtime，因此 UpUp 拥有自己的全局 Pi home：**`~/.upup/agent`**。
+这不是 fork：Pi 通过 `PI_CODING_AGENT_DIR` 解析 agent dir（`config.js#getAgentDir()`），UpUp 入口在**任何 `@earendil-works/pi-*` 动态 import 之前**调用
+`ensureUpupAgentDir()`（`@upup/pi-app/bootstrap-agent`）把该路径发布给 Pi。
 
-- `agentDir = cwd` 让 `~/.pi/agent/{skills,prompts,extensions,SYSTEM.md}` 被静默忽略（实测 5 个唯一 skills 缺失）；改动前必须先加 contract test 守门 `spec.packages:[]` 的 package isolation 合同。
-- `SettingsManager.inMemory()` 让 `~/.pi/agent/settings.json` 的 `compaction` / `retry` / `theme` / `defaultProvider` / `defaultModel` / `defaultThinkingLevel` 失效，`/model` 持久化写到空 in-memory store；用户已配 `lumos/gpt-5.6-luna` 时 `bun run dev` 仍走 setup wizard。
-- `resolvePiModel` 只查 `getBuiltinModel` + ollama，不查 `modelRuntime`，`~/.pi/agent/models.json` 自定义 provider 静默 fallback 到 Pi default。
-- `packages/pi-tui-app/src/utils/model.ts` 的 `PROVIDERS` 是 8 项硬编码，遮蔽 Pi 40 provider catalog（minimax、zai、groq、mistral、cerebras 等）。
+`resolveAgentDir`（`@upup/pi-resource-composition/agent-dir`）优先级：
+
+1. `override` 参数（测试 / 嵌入）
+2. `UPUP_AGENT_DIR`
+3. `UPUP_CODING_AGENT_DIR`（Pi 风格命名）
+4. `PI_CODING_AGENT_DIR`（用户已显式指向 Pi 的某个 agent dir）
+5. `~/.upup/agent` — 规范默认值，**恒定**（不再依赖目录是否已存在，也不再因 cwd 变化）
+
+`~/.pi/agent` **不在**回退链中。首次启动时 `bootstrapUpupAgentSync()` 会把旧 Pi home 一次性迁移过来（allowlist：`settings.json` / `models.json` / `auth.json` / `themes/` / `prompts/` / `skills/` / `extensions/`，绝不覆盖已有文件，凭证文件强制 0600），并把内置主题（`dark`/`light`/`auto`/未设置）替换为 `upup-dark`；用户自定义主题不会被覆盖。也可随时手动执行 `upup openbuddy migrate`。
+
+## Brand: UpUp 而不是 Pi
+
+Pi 的默认 system prompt 硬编码了自身身份（`You are an expert coding assistant operating inside pi, a coding agent harness.`），且
+`APP_NAME` / `piConfig.name` 只影响 agent dir 路径、启动 logo 与终端标题，不影响 prompt 模板。
+
+UpUp 不去 fork Pi，而是用 Pi 官方扩展点 `before_agent_start`（`BeforeAgentStartEventResult.systemPrompt`，跨扩展链式生效）改写本轮 system prompt：
+`createUpUpBrandExtension()`（`@upup/pi-runtime/brand-extension`）只做 6 处锚定替换，其余 Pi guideline / tool snippet / doc 路径 / skill 全部原样保留。
+该扩展同时注册在 TUI 入口（`@upup/pi-app/pi-native-cli`）与 headless 工厂（`@upup/pi-session/agent-session-factory`）。
+
+已知无法在不 fork 的前提下改造的两处（仅影响观感，不影响模型行为）：Pi 的终端标题 `π - <session> - <cwd>`（`APP_TITLE` 模块加载期冻结）与 `Welcome to Pi` setup wizard 文案（仅官方发行版 + `PI_EXPERIMENTAL=1` 时触发）。
+
+## Known Pi-Integration Gaps (2026-09-16 audit)
+
+- ✅ 已修复 `agentDir = cwd`：现在恒定 `~/.upup/agent`，并有 `agent-dir.test.ts` 守门。
+- ✅ 已修复 `SettingsManager.inMemory()`：`agent-session-factory` 用 `SettingsManager.create(cwd, agentDir)`，`/model` 持久化落到真实 `~/.upup/agent/settings.json`。
+- ✅ 已修复 `Welcome to Pi` setup wizard 反复出现：settings.json 迁移到位后不再走向导。
+- `resolvePiModel` 只查 `getBuiltinModel` + ollama，不查 `modelRuntime`，`~/.upup/agent/models.json` 自定义 provider 静默 fallback 到 Pi default。
 - `packages/memory/src/embeddings.ts` 与 `packages/pi-research/src/search.ts#searchPerplexity` 走 raw fetch，不走 Pi provider registry；Perplexity 是一个真 LLM 推理。
-- 每个 session 默认从 `~/.agents/skills` 加载 175 项全局 skills 进 system prompt（`auto/user`），需显式 opt-in 控制。
-- 24/48 个 package 的 `pi` block 没有声明 `tools` / `resources` / `capabilities`；基础设施类包可接受，但应统一口径。
-- 仓库根 6 个 `probe*.ts` 残留（来自 `14ddd20`）已在本轮删除。
+- 每个 session 默认从 `~/.agents/skills` 加载全局 skills 进 system prompt（`auto/user`），需显式 opt-in 控制。
+- 20/37 个 package 的 `pi` block 未声明 `tools` / `resources` / `capabilities`；基础设施类包可接受，但应统一口径。
+- **计划修正**：`pi7.md` 迁移计划假设「Pi `core/extensions` 已含 MCP 注册通路」——实测 Pi 明确不内置 MCP
+  （`docs/usage.md`: "It intentionally does not include built-in MCP, sub-agents, permission popups, plan mode, to-dos, or background bash."）。
+  因此 `packages/mcp` **保留**为 UpUp 的 Pi extension 能力，不按原计划删除。
 
 ## ## Security
 

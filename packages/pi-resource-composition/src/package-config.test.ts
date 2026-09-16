@@ -125,6 +125,56 @@ describe('configured Pi packages', () => {
     }
   });
 
+  test('prefers .upup/settings.json and falls back to .pi/settings.json', async () => {
+    const cwd = await mkdtemp(join(process.cwd(), '.upup', 'pi-settings-precedence-'));
+    try {
+      const upupPackage = join(cwd, 'packages', 'upup-finance');
+      const piPackage = join(cwd, 'packages', 'pi-finance');
+      await mkdir(upupPackage, { recursive: true });
+      await mkdir(piPackage, { recursive: true });
+      const trust = (source: string, name: string) => ({
+        trustedPaths: [source],
+        pinnedPackages: { [name]: '1.2.3' },
+        allowedSources: { [name]: ['internal:fixture'] },
+      });
+      await mkdir(join(cwd, '.pi'), { recursive: true });
+      await writeFile(
+        join(cwd, '.pi', 'settings.json'),
+        JSON.stringify({ packages: ['./packages/pi-finance'], upupPiPackages: trust('./packages/pi-finance', '@upup/pi-side') }),
+      );
+
+      // Only .pi exists → compatibility fallback wins.
+      expect(getProjectPiPackageOptions(cwd)?.piPackagePaths).toEqual([piPackage]);
+
+      // Adding .upup/settings.json takes precedence over .pi/settings.json.
+      await mkdir(join(cwd, '.upup'), { recursive: true });
+      await writeFile(
+        join(cwd, '.upup', 'settings.json'),
+        JSON.stringify({ packages: ['./packages/upup-finance'], upupPiPackages: trust('./packages/upup-finance', '@upup/upup-side') }),
+      );
+      const resolved = getProjectPiPackageOptions(cwd);
+      expect(resolved?.piPackagePaths).toEqual([upupPackage]);
+      expect(Object.keys(resolved?.piPackageTrust.pinnedPackages ?? {})).toEqual(['@upup/upup-side']);
+    } finally {
+      await rm(cwd, { recursive: true, force: true });
+    }
+  });
+
+  test('error messages name the settings file that was actually read', async () => {
+    const cwd = await mkdtemp(join(process.cwd(), '.upup', 'pi-settings-label-'));
+    try {
+      await mkdir(join(cwd, '.upup'), { recursive: true });
+      await writeFile(join(cwd, '.upup', 'settings.json'), JSON.stringify({ packages: ['npm:@upup/remote'] }));
+      expect(() => getProjectPiPackageOptions(cwd)).toThrow('.upup/settings.json');
+      await rm(join(cwd, '.upup', 'settings.json'));
+      await mkdir(join(cwd, '.pi'), { recursive: true });
+      await writeFile(join(cwd, '.pi', 'settings.json'), JSON.stringify({ packages: ['npm:@upup/remote'] }));
+      expect(() => getProjectPiPackageOptions(cwd)).toThrow('.pi/settings.json');
+    } finally {
+      await rm(cwd, { recursive: true, force: true });
+    }
+  });
+
   test('rejects remote and escaping project package sources', async () => {
     const cwd = await mkdtemp(join(process.cwd(), '.upup', 'pi-settings-invalid-'));
     try {

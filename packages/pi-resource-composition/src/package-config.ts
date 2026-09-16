@@ -232,31 +232,50 @@ function isInside(path: string, root: string): boolean {
   return child === '' || (!child.startsWith(`..${sep}`) && child !== '..' && !isAbsolute(child));
 }
 
-function parseProjectSettings(cwd: string): ProjectPiPackageSettings | undefined {
-  const settingsPath = join(cwd, '.pi', 'settings.json');
-  if (!existsSync(settingsPath)) return undefined;
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(readFileSync(settingsPath, 'utf8'));
-  } catch (error) {
-    throw new Error(`Invalid .pi/settings.json: ${error instanceof Error ? error.message : String(error)}`);
-  }
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    throw new Error('.pi/settings.json must contain a JSON object');
-  }
-  return parsed as ProjectPiPackageSettings;
+/**
+ * Project-scoped Pi package settings.
+ *
+ * UpUp's own project config lives in `<cwd>/.upup/settings.json`; that file
+ * wins. `<cwd>/.pi/settings.json` is still read as a compatibility fallback so
+ * a repo prepared for the upstream Pi CLI keeps working — but UpUp never
+ * writes `.pi/`, so the two never fight over the same file.
+ */
+const PROJECT_SETTINGS_RELATIVE_PATHS = [join('.upup', 'settings.json'), join('.pi', 'settings.json')] as const;
+
+interface ResolvedProjectSettings {
+  readonly path: string;
+  readonly label: string;
+  readonly settings: ProjectPiPackageSettings;
 }
 
-function projectPackagePaths(settings: ProjectPiPackageSettings, cwd: string): string[] {
+function readProjectSettingsFile(cwd: string): ResolvedProjectSettings | undefined {
+  for (const relative of PROJECT_SETTINGS_RELATIVE_PATHS) {
+    const settingsPath = join(cwd, relative);
+    if (!existsSync(settingsPath)) continue;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(readFileSync(settingsPath, 'utf8'));
+    } catch (error) {
+      throw new Error(`Invalid ${relative}: ${error instanceof Error ? error.message : String(error)}`);
+    }
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      throw new Error(`${relative} must contain a JSON object`);
+    }
+    return { path: settingsPath, label: relative, settings: parsed as ProjectPiPackageSettings };
+  }
+  return undefined;
+}
+
+function projectPackagePaths(settings: ProjectPiPackageSettings, cwd: string, label: string): string[] {
   if (settings.packages === undefined) return [];
   if (!Array.isArray(settings.packages) || settings.packages.length === 0) {
-    throw new Error('.pi/settings.json packages must be a non-empty array when configured');
+    throw new Error(`${label} packages must be a non-empty array when configured`);
   }
   return settings.packages.map((entry) => {
     const source = typeof entry === 'string' ? entry : entry && typeof entry === 'object' && typeof entry.source === 'string' ? entry.source : undefined;
-    if (!source?.trim()) throw new Error('.pi/settings.json package sources must be non-empty local paths');
-    if (/^(?:npm:|git:|https?:|ssh:|github:)/i.test(source.trim())) {
-      throw new Error(`Remote Pi package sources are disabled in .pi/settings.json: ${source}`);
+    if (!source?.trim()) throw new Error(`${label} package sources must be non-empty local paths`);
+    if (/^(?:npm:|git:|https?:|ssh?:|github:)/i.test(source.trim())) {
+      throw new Error(`Remote Pi package sources are disabled in ${label}: ${source}`);
     }
     const path = resolve(cwd, source.trim());
     if (!isInside(path, cwd)) throw new Error(`Pi package path escapes the project root: ${path}`);
@@ -264,10 +283,10 @@ function projectPackagePaths(settings: ProjectPiPackageSettings, cwd: string): s
   });
 }
 
-function projectTrustPolicy(settings: ProjectPiPackageSettings, packagePaths: readonly string[], cwd: string): PiPackageTrustPolicy {
+function projectTrustPolicy(settings: ProjectPiPackageSettings, packagePaths: readonly string[], cwd: string, label: string): PiPackageTrustPolicy {
   const trust = settings.upupPiPackages;
   if (!trust || !Array.isArray(trust.trustedPaths) || trust.trustedPaths.length === 0) {
-    throw new Error('.pi/settings.json upupPiPackages.trustedPaths is required for project Pi packages');
+    throw new Error(`${label} upupPiPackages.trustedPaths is required for project Pi packages`);
   }
   const trustedPaths = trust.trustedPaths.map((value) => {
     if (typeof value !== 'string' || !value.trim()) throw new Error('upupPiPackages.trustedPaths must contain non-empty paths');
@@ -276,14 +295,14 @@ function projectTrustPolicy(settings: ProjectPiPackageSettings, packagePaths: re
     return path;
   });
   if (!trust.pinnedPackages || typeof trust.pinnedPackages !== 'object' || Array.isArray(trust.pinnedPackages)) {
-    throw new Error('.pi/settings.json upupPiPackages.pinnedPackages is required');
+    throw new Error(`${label} upupPiPackages.pinnedPackages is required`);
   }
   const pinnedPackages = Object.fromEntries(Object.entries(trust.pinnedPackages as Record<string, unknown>).map(([name, version]) => {
     if (!name.trim() || typeof version !== 'string' || !/^\d+\.\d+\.\d+$/.test(version)) throw new Error('upupPiPackages.pinnedPackages values must be exact semver versions');
     return [name, version];
   }));
   if (!trust.allowedSources || typeof trust.allowedSources !== 'object' || Array.isArray(trust.allowedSources)) {
-    throw new Error('.pi/settings.json upupPiPackages.allowedSources is required');
+    throw new Error(`${label} upupPiPackages.allowedSources is required`);
   }
   const allowedSources = Object.fromEntries(Object.entries(trust.allowedSources as Record<string, unknown>).map(([name, value]) => {
     const sources = typeof value === 'string' ? [value] : value;
@@ -301,11 +320,12 @@ function projectTrustPolicy(settings: ProjectPiPackageSettings, packagePaths: re
 }
 
 export function getProjectPiPackageOptions(cwd = process.cwd()): ConfiguredPiPackageOptions | undefined {
-  const settings = parseProjectSettings(resolve(cwd));
-  if (!settings) return undefined;
-  const piPackagePaths = projectPackagePaths(settings, resolve(cwd));
+  const resolved = readProjectSettingsFile(resolve(cwd));
+  if (!resolved) return undefined;
+  const { settings, label } = resolved;
+  const piPackagePaths = projectPackagePaths(settings, resolve(cwd), label);
   if (piPackagePaths.length === 0) return undefined;
-  return { piPackagePaths, piPackageTrust: projectTrustPolicy(settings, piPackagePaths, resolve(cwd)) };
+  return { piPackagePaths, piPackageTrust: projectTrustPolicy(settings, piPackagePaths, resolve(cwd), label) };
 }
 
 export function resolveConfiguredPiPackages(cwd = process.cwd()): ConfiguredPiPackageOptions | undefined {
