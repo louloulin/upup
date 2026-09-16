@@ -140,10 +140,10 @@ describe('Pi market-data extension', () => {
     const previousFetch = globalThis.fetch;
     globalThis.fetch = (async () => new Response(JSON.stringify({ chart: { result: [{ meta: { symbol: '600519.SS', regularMarketPrice: 1600, regularMarketTime: Date.parse('2026-09-13T00:00:00Z') / 1000, chartPreviousClose: 1590 } }] } }), { status: 200 })) as typeof fetch;
     try {
-      const marketResult = await tools.get('get_market_data')!.execute('market-native-1', { query: '贵州茅台 600519.SH price' }, new AbortController().signal);
+      const marketResult = await tools.get('get_market_data')!.execute('market-native-1', { query: '贵州茅台 600519.SH price', provider: 'yahoo' }, new AbortController().signal);
       expect(JSON.parse(marketResult.content[0].text)).toMatchObject({ symbol: '600519.SH', market: 'cn', currency: 'CNY', last: 1600 });
       expect(marketResult.details).toMatchObject({ auditId: 'market-native-1', source: 'native-provider', evidence: [{ source: 'https://query1.finance.yahoo.com/v8/finance/chart' }] });
-    const astockResult = await tools.get('get_astock_price')!.execute('astock-native-1', { code: '贵州茅台' }, new AbortController().signal);
+    const astockResult = await tools.get('get_astock_price')!.execute('astock-native-1', { code: '贵州茅台', provider: 'yahoo' }, new AbortController().signal);
     expect(JSON.parse(astockResult.content[0].text)).toMatchObject({ ts_code: '600519.SH', count: 1 });
     expect(astockResult.details).toMatchObject({ auditId: 'astock-native-1', dataFreshness: 'cached', source: 'native-provider', evidence: [{ source: 'https://query1.finance.yahoo.com/v8/finance/chart#cache' }] });
     } finally {

@@ -165,7 +165,13 @@ function classifyQuoteError(error: unknown): NonNullable<NativeMarketQuoteMetric
   return 'unknown';
 }
 
-function isChinaSymbol(symbol: string): boolean { return /^(?:\d{6}(?:\.(?:SH|SZ|BJ))?|[0368]\d{5})$/i.test(symbol.trim()); }
+function isChinaSymbol(symbol: string): boolean {
+  // CN A-share (6 digits + optional .SH/.SZ/.BJ) OR HK ticker (5 digits, often
+  // explicitly suffixed .HK). Yahoo Finance never covers these, so we route
+  // them all through Tushare Pro.
+  const s = symbol.trim().toUpperCase();
+  return /^\d{6}(?:\.(?:SH|SZ|BJ))?$/.test(s) || /^[0368]\d{4}\.?HK$/.test(s);
+}
 
 function yahooSymbol(symbol: string): string {
   const normalized = symbol.trim().toUpperCase();
@@ -188,7 +194,11 @@ function tushareSymbol(symbol: string): string {
   if (/^6\d{5}$/.test(normalized)) return `${normalized}.SH`;
   if (/^[03]\d{5}$/.test(normalized)) return `${normalized}.SZ`;
   if (/^8\d{5}$/.test(normalized)) return `${normalized}.BJ`;
-  throw new Error(`Tushare requires an A-share symbol with exchange suffix: ${symbol}`);
+  // Tushare Pro HK daily series uses the .HK suffix directly (separate API
+  // family — requires explicit Pro permission for HK endpoints).
+  if (/^[0368]\d{4}\.HK$/.test(normalized)) return normalized;
+  if (/^[0368]\d{5}$/.test(normalized)) return `${normalized}.HK`;
+  throw new Error(`Tushare requires an A-share or Hong Kong symbol with exchange suffix: ${symbol}`);
 }
 
 function dateFromUnixSeconds(value: number, fallback: string): string { return finite(value) ? new Date(value * 1000).toISOString().slice(0, 10) : fallback; }
@@ -338,7 +348,28 @@ export class NativeMarketQuoteClient {
     const normalized = symbol.trim().toUpperCase();
     if (!normalized) throw new Error('symbol must not be empty');
     if (signal?.aborted) throw new Error('market quote request aborted');
-    const selectedProvider: 'yahoo' | 'tushare' = (this.provider === 'auto' && isChinaSymbol(normalized) && this.tushareToken ? 'tushare' : this.provider === 'auto' ? 'yahoo' : this.provider) as 'yahoo' | 'tushare';
+    // Auto provider resolution:
+    //   - CN/HK symbol + TUSHARE_TOKEN → tushare (covers SH/SZ/BJ + HK tickers).
+    //   - CN/HK symbol + no token       → actionable error (Yahoo has no CN coverage).
+    //   - Otherwise                     → yahoo (US/global default).
+    // Surfacing the credential gap as an explicit error beats letting Yahoo 403
+    // and burning a request budget on a request we know will fail.
+    let selectedProvider: 'yahoo' | 'tushare' = 'yahoo';
+    if (this.provider === 'auto') {
+      if (isChinaSymbol(normalized)) {
+        if (this.tushareToken) selectedProvider = 'tushare';
+        else throw new Error(
+          `CN/HK symbol ${normalized} requires TUSHARE_TOKEN (set in ~/.upup/.env or process.env). ` +
+          `Yahoo Finance does not cover A-shares / Hong Kong — auto-routing it there always returns 403.`
+        );
+      } else {
+        selectedProvider = 'yahoo';
+      }
+    } else {
+      // The quote client only implements yahoo + tushare today; financial-datasets
+      // is history-only. Fall back to yahoo for any other provider value.
+      selectedProvider = this.provider === 'tushare' ? 'tushare' : 'yahoo';
+    }
     const startedAt = Date.now();
     this.lastProvider = selectedProvider;
     this.lastCheckedAt = this.now();

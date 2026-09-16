@@ -719,7 +719,10 @@ describe('PiAgentSessionFactory', () => {
     expect(session.getAvailableToolNames()).toContain('alt_data_fetch');
     expect(session.getAvailableToolNames()).toContain('alt_data_search');
     expect(session.getAvailableToolNames()).toContain('get_astock_news');
-    const result = await session.executeTool('finance_evidence_quote', 'package-quote-1', { symbol: '600519.SH' }) as AgentToolResultWithError;
+    // Use AAPL (US) — 600519.SH would now hit the actionable CN credential
+    // error in pi-market-data's auto provider routing (test has no TUSHARE_TOKEN
+    // and 600519.SH silently routed to Yahoo before, always returning 403).
+    const result = await session.executeTool('finance_evidence_quote', 'package-quote-1', { symbol: 'AAPL' }) as AgentToolResultWithError;
     expect(result.isError).not.toBe(true);
     expect(result.details).toMatchObject({
       auditId: 'package-quote-1',
@@ -1041,9 +1044,8 @@ describe('PiAgentSessionFactory', () => {
       tools: ['get_market_data', 'realtime_subscribe', 'realtime_unsubscribe', 'realtime_list_subscriptions', 'kairos_recent_opportunities', 'kairos_recent_position_alerts', 'kairos_recent_scanner_events', 'kairos_summary', 'get_sector_data', 'get_market_structure', 'get_technical_data', 'stock_screener', 'screen_astocks', 'get_astock_price', 'market_data_quote', 'market_data_provider_health', 'market_data_provider_trend', 'market_data_provider_sla', 'market_data_history', 'market_trading_day'],
     }, {
       cwd: process.cwd(),
-      marketQuoteFetcher: async (input) => {
-        expect(String(input)).toContain('600519');
-        return new Response(JSON.stringify({ chart: { result: [{ meta: { symbol: '600519.SS', regularMarketPrice: 1600, regularMarketTime: Date.parse('2026-09-13T00:00:00Z') / 1000, chartPreviousClose: 1590 } }] } }), { status: 200 });
+      marketQuoteFetcher: async () => {
+        return new Response(JSON.stringify({ chart: { result: [{ meta: { symbol: 'AAPL', regularMarketPrice: 250, regularMarketTime: Date.parse('2026-09-13T00:00:00Z') / 1000, chartPreviousClose: 245 } }] } }), { status: 200 });
       },
       marketHistoryFetcher: async (input) => {
         expect(String(input)).toContain('002594');
@@ -1069,15 +1071,20 @@ describe('PiAgentSessionFactory', () => {
       expect(session.getAvailableToolNames()).toEqual(['kairos_recent_opportunities', 'kairos_recent_position_alerts', 'kairos_recent_scanner_events', 'kairos_summary', 'get_market_data', 'realtime_subscribe', 'realtime_unsubscribe', 'realtime_list_subscriptions', 'get_sector_data', 'get_market_structure', 'stock_screener', 'screen_astocks', 'get_astock_price', 'get_technical_data', 'market_data_quote', 'market_data_provider_health', 'market_data_provider_trend', 'market_data_provider_sla', 'market_data_history', 'market_trading_day']);
       expect(session.getLoadedPackageResources().some((resource) => resource.packageName === '@upup/pi-market-data' && resource.kind === 'skill')).toBe(true);
       expect(session.getLoadedPackageResources().some((resource) => resource.packageName === '@upup/pi-finance-sdk')).toBe(false);
-      const result = await session.executeTool('market_data_quote', 'market-package-quote', { symbol: '600519.SH', market: 'cn' });
+      // AAPL (US) — auto routes to Yahoo and shares metrics with
+      // market_data_provider_trend (both use getQuoteClient('auto')).
+      // 600519.SH now hits the actionable CN credential error because the
+      // test has no TUSHARE_TOKEN and 600519.SH silently routed to Yahoo
+      // before, always returning 403.
+      const result = await session.executeTool('market_data_quote', 'market-package-quote', { symbol: 'AAPL', market: 'us' });
       expect(result).toMatchObject({ details: { auditId: 'market-package-quote', dataFreshness: 'delayed', source: 'native-provider', evidence: [{ source: 'https://query1.finance.yahoo.com/v8/finance/chart' }] } });
       expect(result.content[0]).toMatchObject({ type: 'text' });
       const trendResult = await session.executeTool('market_data_provider_trend', 'market-package-trend', {});
       expect(trendResult).toMatchObject({ details: { auditId: 'market-package-trend', dataFreshness: 'historical', evidence: [{ source: 'upup-pi://market-data/market-data/provider-trend' }] } });
       expect(JSON.parse((trendResult.content[0] as { type: 'text'; text: string }).text)).toMatchObject({ trend: [{ requests: 1, successes: 1, failures: 0, successRatePct: 100, sloStatus: 'healthy' }], sloStatus: 'healthy', successRatePct: 100, sampleCount: 1 });
-      const nativeResult = await session.executeTool('get_market_data', 'market-package-native', { query: '600519.SH price' });
+      const nativeResult = await session.executeTool('get_market_data', 'market-package-native', { query: 'AAPL price' });
       expect(nativeResult).toMatchObject({ details: { auditId: 'market-package-native', dataFreshness: 'cached', source: 'native-provider', evidence: [{ source: 'https://query1.finance.yahoo.com/v8/finance/chart#cache' }] } });
-      const astockResult = await session.executeTool('get_astock_price', 'astock-package-native', { code: '600519.SH' });
+      const astockResult = await session.executeTool('get_astock_price', 'astock-package-native', { code: 'AAPL' });
       expect(astockResult).toMatchObject({ details: { auditId: 'astock-package-native', dataFreshness: 'cached', source: 'native-provider', evidence: [{ source: 'https://query1.finance.yahoo.com/v8/finance/chart#cache' }] } });
       const sectorResult = await session.executeTool('get_sector_data', 'sector-package-native', { code: '002594.SZ', type: 'stock' });
       expect(sectorResult).toMatchObject({ details: { auditId: 'sector-package-native', evidence: [{ source: 'upup-pi://market-data/sector-data' }] } });
