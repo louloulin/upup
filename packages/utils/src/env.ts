@@ -1,6 +1,7 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
+import { homedir } from 'os';
 import { config } from 'dotenv';
-import { join } from 'path';
+import { join, dirname } from 'path';
 import { PROVIDERS, getProviderApiKeyEnvVars, getProviderById } from './providers';
 import { getUpupHomeRoot } from './paths';
 
@@ -17,6 +18,141 @@ const GLOBAL_ENV_FILE = join(GLOBAL_CONFIG_DIR, '.env');
 const globalEnvResult = config({ path: GLOBAL_ENV_FILE });
 if (globalEnvResult.error) {
   config({ path: '.env' });
+}
+
+// Pi `/login` writes provider credentials to `auth.json` inside the active
+// agent dir (`PI_CODING_AGENT_DIR` → `~/.upup/agent` → `~/.pi/agent`). Without
+// this merge every headless surface (eval, print, cron, gateway, bridge) saw
+// `process.env` as empty even after a successful interactive `/login`, because
+// UpUp's own resolver only consults env vars. Treat `auth.json` as an additive
+// source: never overwrite a value the caller (shell, dotenv, prior import)
+// already set, and skip OAuth tokens since Pi reads them itself.
+mergeAuthJsonIntoProcessEnv(getAuthJsonPath());
+
+/** Resolve the canonical `auth.json` path. Tries Pi's env override first, then
+ *  the UpUp canonical home, then Pi's legacy home. */
+export function getAuthJsonPath(): string {
+  const fromEnv = process.env.PI_CODING_AGENT_DIR?.trim();
+  if (fromEnv) return join(fromEnv, 'auth.json');
+  const upup = join(getUpupHomeRoot(), 'agent', 'auth.json');
+  if (existsSync(upup)) return upup;
+  return join(homedir(), '.pi', 'agent', 'auth.json');
+}
+
+interface AuthJsonCredential {
+  readonly type?: string;
+  readonly key?: string;
+}
+
+interface AuthJsonShape {
+  [providerId: string]: AuthJsonCredential | undefined;
+}
+
+function readAuthJson(authPath: string): AuthJsonShape {
+  if (!existsSync(authPath)) return {};
+  try {
+    const parsed = JSON.parse(readFileSync(authPath, 'utf-8'));
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed as AuthJsonShape;
+    }
+  } catch {
+    // Malformed auth.json: surface to doctor, never block process startup.
+  }
+  return {};
+}
+
+export interface AuthJsonMergeResult {
+  readonly path: string;
+  readonly injected: readonly string[];
+  readonly skippedOAuth: readonly string[];
+  readonly unknownProviders: readonly string[];
+  readonly missingEnvMapping: readonly string[];
+}
+
+export interface AuthJsonWriteResult {
+  readonly path: string;
+  readonly providerId: string;
+  readonly credentialType: 'api_key' | 'oauth';
+}
+
+/**
+ * Inject every `api_key` credential from Pi's `auth.json` into `process.env`,
+ * scoped by `getProviderApiKeyEnvVars(providerId)`. Existing env vars always
+ * win (caller-supplied secrets beat on-disk secrets). OAuth credentials are
+ * left to Pi's runtime, which reads them natively from the same file.
+ *
+ * Idempotent: calling twice yields the same `process.env` (existing values
+ * short-circuit the merge).
+ */
+export function mergeAuthJsonIntoProcessEnv(authPath: string = getAuthJsonPath()): AuthJsonMergeResult {
+  const data = readAuthJson(authPath);
+  const injected: string[] = [];
+  const skippedOAuth: string[] = [];
+  const unknownProviders: string[] = [];
+  const missingEnvMapping: string[] = [];
+
+  for (const [providerId, credential] of Object.entries(data)) {
+    if (!credential) continue;
+    const credentialType = credential.type ?? 'api_key';
+    if (credentialType !== 'api_key') {
+      skippedOAuth.push(providerId);
+      continue;
+    }
+    const key = typeof credential.key === 'string' ? credential.key : '';
+    if (!key) continue;
+
+    const provider = getProviderById(providerId);
+    if (!provider) {
+      unknownProviders.push(providerId);
+      continue;
+    }
+    const envNames = getProviderApiKeyEnvVars(providerId);
+    if (envNames.length === 0) {
+      missingEnvMapping.push(providerId);
+      continue;
+    }
+    for (const envName of envNames) {
+      if (process.env[envName] && process.env[envName]!.trim()) continue;
+      process.env[envName] = key;
+      injected.push(envName);
+    }
+  }
+
+  return { path: authPath, injected, skippedOAuth, unknownProviders, missingEnvMapping };
+}
+
+/**
+ * Persist a provider credential into Pi's canonical `auth.json`. This is the
+ * same store `/login` writes to, so the wizard entry point and the interactive
+ * slash command stay in sync. Always chmod 0600 — auth.json is in
+ * `SECRET_FILES` upstream and must never be world-readable.
+ *
+ * Caller is expected to know the provider id (canonical Pi id) and the
+ * credential payload; for API keys the caller passes `{ type: 'api_key', key }`
+ * directly. We do not invent a separate `setApiKey` wrapper because OAuth
+ * refresh tokens also live here and would need the same plumbing.
+ */
+export function writeAuthJsonEntry(
+  providerId: string,
+  credential: AuthJsonCredential,
+  authPath: string = getAuthJsonPath(),
+): AuthJsonWriteResult {
+  if (!credential || (credential.type ?? 'api_key') !== 'api_key') {
+    // OAuth tokens must go through modelRuntime.login(); refusing here keeps
+    // the wizard from accidentally persisting half-formed OAuth payloads.
+    throw new Error(
+      `writeAuthJsonEntry only handles api_key credentials; got type=${credential?.type ?? 'undefined'} for ${providerId}`,
+    );
+  }
+  const key = typeof credential.key === 'string' ? credential.key : '';
+  if (!key) {
+    throw new Error(`writeAuthJsonEntry: empty key for provider ${providerId}`);
+  }
+  mkdirSync(dirname(authPath), { recursive: true });
+  const existing = readAuthJson(authPath);
+  existing[providerId] = { type: 'api_key', key };
+  writeFileSync(authPath, JSON.stringify(existing, null, 2) + '\n', { mode: 0o600 });
+  return { path: authPath, providerId, credentialType: 'api_key' };
 }
 
 export function getApiKeyNameForProvider(providerId: string): string | undefined {

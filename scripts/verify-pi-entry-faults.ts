@@ -229,9 +229,9 @@ async function evalFault(): Promise<EntryFaultEvidence> {
   let firstFailure = '';
   const eventStream = { stream: async function* (): AsyncGenerator<UpUpAgentEvent> { attempts++; if (attempts === 1) throw new Error('Eval provider timeout'); yield* doneStream('eval recovered'); } };
   const promptRunner = async () => '{"score":1,"comment":"fixture recovered"}';
-  try { for await (const _event of createEvaluationRunner(eventStream, promptRunner, 1)()) { /* expected first failure */ } } catch (error) { firstFailure = errorText(error); }
+  try { for await (const _event of createEvaluationRunner(eventStream, promptRunner, { sampleSize: 1, model: 'minimax:MiniMax-M3', provider: 'minimax' })()) { /* expected first failure */ } } catch (error) { firstFailure = errorText(error); }
   let completed = false;
-  for await (const event of createEvaluationRunner(eventStream, promptRunner, 1)()) if (event.type === 'complete') completed = true;
+  for await (const event of createEvaluationRunner(eventStream, promptRunner, { sampleSize: 1, model: 'minimax:MiniMax-M3', provider: 'minimax' })()) if (event.type === 'complete') completed = true;
   const recovered = attempts === 2 && completed;
   return { entry: 'eval', status: recovered ? 'passed' : 'failed', firstFailure, recovered, attempts, artifacts: ['evaluation JSONL', 'fixture evaluator'], details: { completed } };
 }

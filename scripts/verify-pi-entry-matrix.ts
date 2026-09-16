@@ -154,7 +154,7 @@ async function run(): Promise<void> {
         yield { type: 'run_end', sessionId: 'matrix-eval', answer: 'fixture evaluation answer', iterations: 1, totalTime: 1 };
       },
     };
-    const evalRunner = createEvaluationRunner(evalStream, async () => JSON.stringify({ score: 1, comment: 'fixture evaluator' }), 1);
+    const evalRunner = createEvaluationRunner(evalStream, async () => JSON.stringify({ score: 1, comment: 'fixture evaluator' }), { sampleSize: 1, model: 'minimax:MiniMax-M3', provider: 'minimax' });
     let evalExperiment = '';
     let evalQuestions = 0;
     mark('eval:start');

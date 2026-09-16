@@ -10,7 +10,7 @@ import { join } from 'path';
 import { config } from 'dotenv';
 import { PROVIDERS, type ProviderDef, globalUpupPath } from '@upup/utils';
 import { getModelsForProvider } from './model';
-import { saveApiKeyToEnv, getApiKeyNameForProvider } from '@upup/utils';
+import { saveApiKeyToEnv, getApiKeyNameForProvider, writeAuthJsonEntry } from '@upup/utils';
 import { setSetting } from '@upup/utils';
 
 // ANSI colors
@@ -255,10 +255,16 @@ export async function runOnboarding(): Promise<boolean> {
     if (apiKey) {
       const keyName = getApiKeyNameForProvider(provider.id);
       if (keyName) {
-        const saved = saveApiKeyToEnv(keyName, apiKey);
-        if (saved) {
+        // Canonical store: Pi's `auth.json`. `/login` writes here too, so the
+        // wizard and the interactive slash command share one credential file.
+        const authResult = writeAuthJsonEntry(provider.id, { type: 'api_key', key: apiKey });
+        // Mirror to .env for any caller that still reads raw env (legacy
+        // headless surfaces that bypass `mergeAuthJsonIntoProcessEnv`).
+        saveApiKeyToEnv(keyName, apiKey);
+        if (authResult) {
           console.log('');
-          console.log(green('  ✓') + dim(' API key saved to .env'));
+          console.log(green('  ✓') + dim(` API key saved to ${authResult.path}`));
+          console.log(green('  ✓') + dim(' Same store Pi /login uses; headless paths will see it via auth.json merge'));
         }
       }
     }

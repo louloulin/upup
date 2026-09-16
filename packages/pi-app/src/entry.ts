@@ -168,7 +168,7 @@ async function main() {
     case 'help':
     case '--help':
     case '-h':
-      printHelp();
+      printHelpFor(args[1]);
       process.exit(0);
       break;
 
@@ -218,19 +218,92 @@ async function main() {
   }
 }
 
+const PER_COMMAND_HELP: Readonly<Record<string, string>> = {
+  setup: `upup setup — interactive onboarding wizard
+
+Pick a provider and model, and optionally paste an API key.
+
+  upup setup
+
+What it does:
+  1. Select a provider (Anthropic / OpenAI / MiniMax / etc.).
+  2. Select a model id for that provider.
+  3. Optionally paste an API key. The key is written to ~/.upup/agent/auth.json
+     (the same file Pi's /login writes to). ~/.upup/.env is mirrored for
+     legacy callers that bypass the auth.json merge.
+  4. Saves provider + modelId to ~/.upup/settings.json.
+
+Headless paths (eval / print / cron / gateway / bridge) automatically see the
+new key because @upup/utils/env merges auth.json into process.env at startup.
+
+For OAuth providers (GitHub Copilot / OpenAI Codex / Kimi Coding / X.AI /
+etc.) use /login inside the TUI — only that flow handles the browser
+redirect and token refresh.
+`,
+  login: `Login — interactive credential configuration inside the TUI.
+
+Once the TUI is running (\`upup\` with no arguments):
+
+  /login <provider>      Configure credentials for <provider>.
+                         Examples: /login minimax, /login openai,
+                                   /login github-copilot
+  /logout <provider>     Remove credentials for <provider>.
+  /login                 List providers with stored credentials.
+
+Credentials are persisted to ~/.upup/agent/auth.json (mode 0600). Every
+headless surface in UpUp (eval / print / cron / gateway / bridge) reads this
+file via @upup/utils/env mergeAuthJsonIntoProcessEnv, so /login is the
+canonical place to set up credentials — no separate upup setup step needed
+unless you want to also pick a default provider + model.
+`,
+  doctor: `upup doctor — health check for UpUp + Pi runtime.
+
+  upup doctor
+
+Checks:
+  • Config valid           ~/.upup/settings.json schema
+  • Provider / Model       from .upup/settings.json
+  • API keys               for every Pi catalog provider, reading from
+                           ~/.upup/agent/auth.json (Pi /login store),
+                           ~/.upup/.env, and cwd .env
+  • Pi packages installed  @earendil-works/pi-agent-core, pi-ai,
+                           pi-coding-agent, pi-tui
+  • settings.json + auth.json + settings.d/ existence
+  • Config source attribution (where every value came from)
+
+Exit code is always 0; the report is read-only.
+`,
+};
+
+function printHelpFor(subcommand?: string): void {
+  if (subcommand && Object.prototype.hasOwnProperty.call(PER_COMMAND_HELP, subcommand)) {
+    console.log(PER_COMMAND_HELP[subcommand]);
+    return;
+  }
+  printHelp();
+}
+
 function printHelp() {
   console.log(`
 UpUp - AI Agent for Deep Financial Research
 
 Usage:
-  upup                    Start interactive CLI
-  upup setup              Run interactive setup wizard
+  upup                    Start interactive CLI (uses ~/.upup/agent/auth.json)
+  upup setup              Pick provider + model, optionally paste an API key
   upup doctor             Run health check
-  upup config             Manage configuration
+  upup config             Manage configuration (~/.upup/settings.json)
   upup openbuddy          Migrate Pi state into ~/.upup/agent
   upup plugin             Manage Pi packages (install/list/uninstall/update)
   upup help               Show this help message
   upup version            Show version
+
+Authentication:
+  Inside the TUI, run \`/login <provider>\` to configure credentials. This is the
+  canonical flow (including OAuth for GitHub Copilot / OpenAI Codex / Kimi Coding
+  / X.AI / etc) and writes to ~/.upup/agent/auth.json. \`upup setup\` writes the
+  same file when you paste an API key, so headless surfaces (eval / print /
+  cron / gateway / bridge) automatically see both flows via the auth.json merge
+  performed in \`@upup/utils/env\`.
 
 Diagnostics:
   upup --trace            Print per-turn context payload + Pi startup timings
@@ -264,7 +337,7 @@ Session Commands:
 
 Examples:
   upup              Start the agent
-  upup setup        Configure API keys and settings
+  upup setup        Pick provider + model (paste key for that provider)
   upup doctor       Check system health
   upup config list  List all configuration
   upup -r           Show session picker to resume
@@ -292,6 +365,11 @@ Management Mode:
 
 Examples:
   upup management --management-token=change-me    # page + authenticated management API
+
+Per-command help:
+  upup help setup        Show what \`upup setup\` does
+  upup help login        Show how to use \`/login\` inside the TUI
+  upup help doctor       Show what \`upup doctor\` checks
 `);
 }
 

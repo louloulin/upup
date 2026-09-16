@@ -22,6 +22,12 @@ import { createPiCanonicalEventStream } from '@upup/pi-event-adapter';
 import { getConfiguredModelId, getConfiguredProvider } from '@upup/utils';
 import { ensureHeartbeatCronJob, startCronRunner } from '@upup/cron';
 import { createTushareResearchDataFetcher } from '@upup/pi-finance-sdk';
+// Side-effect import: bumps EventEmitter.defaultMaxListeners so the 12 Pi
+// package extensions don't print MaxListenersExceededWarning on every
+// session. Every entry point (CLI / stdio / bridge / management / cron /
+// daemon / eval / print) imports @upup/pi-app/default, so this runs once
+// per process before any pi-coding-agent module creates its EventEmitter.
+import './max-listeners';
 
 const streamPiEvents = createPiCanonicalEventStream((prompt, options) => runPiPrompt(prompt, {
   ...(options.model !== undefined ? { model: options.model } : {}),

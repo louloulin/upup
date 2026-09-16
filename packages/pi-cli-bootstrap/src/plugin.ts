@@ -97,8 +97,21 @@ function formatPackageList(packages: ReadonlyArray<ConfiguredPackage>): string {
   const sorted = [...packages].sort((a, b) => a.source.localeCompare(b.source));
   return sorted
     .map((pkg) => {
-      const installed = pkg.installedPath ? `${DIM}${pkg.installedPath}${RESET}` : `${YELLOW}not installed${RESET}`;
-      return `  ${BOLD}${pkg.source}${RESET} [${pkg.scope}] ${installed}`;
+      const isBuiltin = pkg.source.startsWith('builtin:');
+      const scopeLabel = isBuiltin ? 'builtin' : pkg.scope;
+      let installed: string;
+      if (isBuiltin) {
+        // builtin: sources ship with the binary — they live in node_modules.
+        // Pi's DefaultPackageManager reports installedPath=undefined for them
+        // (it only knows npm/git/local), so we rephrase the status to avoid
+        // misleading "not installed" output for packages that ARE on disk.
+        installed = pkg.installedPath
+          ? `${DIM}${pkg.installedPath}${RESET}`
+          : `${GREEN}bundled${RESET}`;
+      } else {
+        installed = pkg.installedPath ? `${DIM}${pkg.installedPath}${RESET}` : `${YELLOW}not installed${RESET}`;
+      }
+      return `  ${BOLD}${pkg.source}${RESET} [${scopeLabel}] ${installed}`;
     })
     .join('\n');
 }

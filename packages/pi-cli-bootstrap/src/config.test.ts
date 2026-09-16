@@ -9,7 +9,13 @@ import { describe, it, expect, beforeEach } from 'bun:test';
 import { existsSync, writeFileSync, mkdirSync, rmSync } from 'fs';
 import { join } from 'path';
 import { tmpdir } from 'os';
-import {
+
+// CRITICAL: redirect UpUp home BEFORE any @upup/utils import. SETTINGS_FILE is
+// resolved once at module-init time from $UPUP_HOME, so a late setSetting will
+// silently write to the developer's real ~/.upup/settings.json otherwise.
+process.env.UPUP_HOME = join(tmpdir(), 'upup-config-cli-test');
+
+const {
   getConfigValue,
   setConfigValue,
   listConfig,
@@ -17,7 +23,7 @@ import {
   exportConfig,
   importConfig,
   runConfigCommand,
-} from './config';
+} = await import('./config');
 
 /** Scratch dir for config CLI fixtures — never the developer's real home. */
 const TEST_SCRATCH_DIR = join(tmpdir(), 'upup-test-commands');

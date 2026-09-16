@@ -509,14 +509,21 @@ export default function financeEvidenceExtension(pi: ExtensionAPI): void {
     if (typeof pi.appendEntry === 'function') pi.appendEntry(FUND_ALERTS_ENTRY, state);
   };
   if (typeof pi.on === 'function') pi.on('session_start', (_event, context) => { watchlistState = undefined; alertState = undefined; readWatchlistState(context); readAlertState(context); });
-  for (const definition of host?.providers.tools.getToolDefinitions({
-    contract: PI_FINANCE_HOST_CONTRACT,
-    packageName: PI_FINANCE_PACKAGE_NAME,
-    packageVersion: PI_FINANCE_PACKAGE_VERSION,
-    sessionId: host.sessionId,
-    capability: 'tool-definitions',
-  }) ?? []) {
-    pi.registerTool(definition as never);
+  // Guard: `host?.providers.tools.getToolDefinitions(...)` looks optional-chained
+  // but `host.sessionId` inside the call args is a bare access that throws if
+  // host is undefined. Without a session host (e.g. management mode, daemon,
+  // stdio RPC, or any entry that doesn't load a session-scoped provider) the
+  // whole extension blew up at extension-load time. Skip cleanly instead.
+  if (host && host.providers?.tools?.getToolDefinitions) {
+    for (const definition of host.providers.tools.getToolDefinitions({
+      contract: PI_FINANCE_HOST_CONTRACT,
+      packageName: PI_FINANCE_PACKAGE_NAME,
+      packageVersion: PI_FINANCE_PACKAGE_VERSION,
+      sessionId: host.sessionId,
+      capability: 'tool-definitions',
+    })) {
+      pi.registerTool(definition as never);
+    }
   }
 
   pi.on('session_before_compact', async (event, context) => {

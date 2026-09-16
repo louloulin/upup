@@ -72,8 +72,8 @@ export async function runDoctor(): Promise<void> {
   if (failed > 0) {
     console.log(red('  Run `upup setup` or `upup config set <key> <value>` to fix.'));
     console.log('');
-    process.exit(1);
   }
+  // Exit code is always 0 — doctor is a read-only diagnostic, per `upup help doctor`.
 }
 
 /**
@@ -134,11 +134,19 @@ function checkConfigFiles(): CheckResult[] {
     message: existsSync(SETTINGS_FILE) ? 'found' : 'not found',
   });
 
-  // Env file
+  // Env file: both global (~/.upup/.env) and per-project (cwd .env) feed
+  // `process.env` via `@upup/utils/env`, so report whichever was found.
+  const cwdEnvFile = join(process.cwd(), '.env');
+  const foundEnvFiles = [
+    existsSync(ENV_FILE) ? ENV_FILE : null,
+    existsSync(cwdEnvFile) ? cwdEnvFile : null,
+  ].filter((p): p is string => Boolean(p));
   results.push({
     name: '.env',
-    status: existsSync(ENV_FILE) ? 'pass' : 'warn',
-    message: existsSync(ENV_FILE) ? 'found' : 'not found',
+    status: foundEnvFiles.length > 0 ? 'pass' : 'warn',
+    message: foundEnvFiles.length > 0
+      ? `found (${foundEnvFiles.join(', ')})`
+      : 'not found in ~/.upup/.env or ./env',
   });
 
   // Settings.d directory

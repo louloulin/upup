@@ -1,14 +1,22 @@
 /**
  * Pi-native evaluation runner for UpUp
- * 
+ *
  * Usage:
- *   bun run packages/pi-evals/src/run.ts              # Run on all questions
- *   bun run packages/pi-evals/src/run.ts --sample 10  # Run on random sample of 10 questions
+ *   bun run packages/pi-evals/src/run.ts                     # Run on all questions
+ *   bun run packages/pi-evals/src/run.ts --sample 10         # Random sample of 10
+ *   bun run packages/pi-evals/src/run.ts --provider minimax --model MiniMax-M3
+ *   bun run packages/pi-evals/src/run.ts --help
+ *
+ * Model precedence: explicit `--provider`/`--model` > `.upup/settings.json`
+ * `provider`+`modelId` > Pi catalog defaults. When a provider is known (either
+ * via CLI or persisted settings) the runner forwards the canonical
+ * `provider:model` string so Pi resolves both target and judge against the
+ * same credentials. With no provider signal the bare model id is forwarded.
  */
 
 import 'dotenv/config';
 import { ProcessTerminal, TuiMainScreen } from '@earendil-works/pi-tui';
-import { callStructuredLlm, type PromptRunner } from '@upup/utils';
+import { callStructuredLlm, getConfiguredModelId, getConfiguredProvider, type PromptRunner } from '@upup/utils';
 import { z } from 'zod';
 import fs from 'fs';
 import path from 'path';
@@ -30,6 +38,34 @@ interface EvaluationResult {
   score: number;
   comment: string;
 }
+
+export interface EvalCliArgs {
+  readonly help: boolean;
+  readonly sampleSize: number | undefined;
+  readonly provider: string | undefined;
+  readonly model: string | undefined;
+}
+
+export interface ResolvedEvalModel {
+  readonly provider: string;
+  readonly model: string;
+  readonly modelString: string;
+}
+
+const EVAL_HELP = `UpUp finance evaluation runner
+
+Usage:
+  bun run packages/pi-evals/src/run.ts [flags]
+
+Flags:
+  --sample N            Randomly sample N questions from the dataset
+  --provider P          Override the LLM provider (e.g. minimax, openai)
+  --model M             Override the LLM model id (e.g. MiniMax-M3, gpt-5.4)
+  -h, --help            Show this help and exit
+
+Model precedence: --provider/--model > .upup/settings.json > Pi catalog default.
+Both target (agent) and judge (LLM-as-judge) calls run on the resolved model.
+`;
 
 // ============================================================================
 // CSV Parser - handles multi-line quoted fields
@@ -78,53 +114,74 @@ function parseRow(lines: string[], startIndex: number): { row: string[]; nextInd
       const char = line[charIndex];
       const nextChar = line[charIndex + 1];
       
-      if (inQuotes) {
-        if (char === '"' && nextChar === '"') {
-          // Escaped quote
-          currentField += '"';
-          charIndex += 2;
-        } else if (char === '"') {
-          // End of quoted field
-          inQuotes = false;
-          charIndex++;
-        } else {
-          currentField += char;
-          charIndex++;
-        }
+      if (char === '"' && nextChar === '"' && inQuotes) {
+        currentField += '"';
+        charIndex += 2;
+      } else if (char === '"') {
+        inQuotes = !inQuotes;
+        charIndex++;
+      } else if (char === ',' && !inQuotes) {
+        fields.push(currentField);
+        currentField = '';
+        charIndex++;
       } else {
-        if (char === '"') {
-          // Start of quoted field
-          inQuotes = true;
-          charIndex++;
-        } else if (char === ',') {
-          // End of field
-          fields.push(currentField);
-          currentField = '';
-          charIndex++;
-        } else {
-          currentField += char;
-          charIndex++;
-        }
+        currentField += char;
+        charIndex++;
       }
     }
     
     if (inQuotes) {
-      // Continue to next line (multi-line field)
       currentField += '\n';
       lineIndex++;
       charIndex = 0;
     } else {
-      // Row complete
       fields.push(currentField);
       return { row: fields, nextIndex: lineIndex + 1 };
     }
   }
   
-  // Handle case where file ends while in quotes
   if (currentField) {
     fields.push(currentField);
   }
   return { row: fields, nextIndex: lineIndex };
+}
+
+// ============================================================================
+// CLI arg parsing + model resolution (exported for tests)
+// ============================================================================
+
+function readFlagValue(args: readonly string[], flag: string): string | undefined {
+  const idx = args.indexOf(flag);
+  if (idx === -1) return undefined;
+  const next = args[idx + 1];
+  if (next === undefined || next.startsWith('--') || next === '-h') return undefined;
+  return next;
+}
+
+export function parseEvalArgs(args: readonly string[]): EvalCliArgs {
+  const help = args.includes('--help') || args.includes('-h');
+  const sampleRaw = readFlagValue(args, '--sample');
+  const sampleSize = sampleRaw !== undefined ? Number.parseInt(sampleRaw, 10) : undefined;
+  const provider = readFlagValue(args, '--provider');
+  const model = readFlagValue(args, '--model');
+  return {
+    help,
+    sampleSize: sampleSize !== undefined && Number.isFinite(sampleSize) ? sampleSize : undefined,
+    provider,
+    model,
+  };
+}
+
+export function resolveEvalModel(args: EvalCliArgs): ResolvedEvalModel {
+  const provider = args.provider ?? getConfiguredProvider();
+  const model = args.model ?? getConfiguredModelId();
+  const providerAlreadyPrefixed = model.includes(':') && (
+    model.startsWith(`${provider}:`) || model.toLowerCase().startsWith('openai-compatible')
+  );
+  const modelString = providerAlreadyPrefixed || model.includes(':')
+    ? model
+    : `${provider}:${model}`;
+  return { provider, model: model.split(':').pop() ?? model, modelString };
 }
 
 // ============================================================================
@@ -144,10 +201,10 @@ function shuffleArray<T>(array: T[]): T[] {
 // Target function - wraps UpUp agent
 // ============================================================================
 
-async function target(eventStream: PiEventStreamPort, inputs: { question: string }): Promise<{ answer: string }> {
+async function target(eventStream: PiEventStreamPort, inputs: { question: string }, model: string): Promise<{ answer: string }> {
   let answer = '';
 
-  for await (const event of eventStream.stream(inputs.question, { model: 'gpt-5.4', maxIterations: 10 })) {
+  for await (const event of eventStream.stream(inputs.question, { model, maxIterations: 10 })) {
     if (event.type === 'run_end') {
       answer = event.answer;
     }
@@ -157,7 +214,7 @@ async function target(eventStream: PiEventStreamPort, inputs: { question: string
 }
 
 // ============================================================================
-// Correctness evaluator - LLM-as-judge using gpt-5.4
+// Correctness evaluator - LLM-as-judge
 // ============================================================================
 
 const EvaluatorOutputSchema = z.object({
@@ -170,11 +227,13 @@ async function correctnessEvaluator({
   outputs,
   referenceOutputs,
   promptRunner,
+  model,
 }: {
   inputs: Record<string, unknown>;
   outputs: Record<string, unknown>;
   referenceOutputs?: Record<string, unknown>;
   promptRunner: PromptRunner;
+  model: string;
 }): Promise<EvaluationResult> {
   const actualAnswer = (outputs?.answer as string) || '';
   const expectedAnswer = (referenceOutputs?.answer as string) || '';
@@ -194,7 +253,7 @@ Evaluate and provide:
 - comment: brief explanation of why the answer is correct or incorrect`;
 
   try {
-    const result = await callStructuredLlm(prompt, EvaluatorOutputSchema, { model: 'gpt-5.4', runner: promptRunner });
+    const result = await callStructuredLlm(prompt, EvaluatorOutputSchema, { model, runner: promptRunner });
     return {
       key: 'correctness',
       score: result.score,
@@ -210,65 +269,67 @@ Evaluate and provide:
 }
 
 // ============================================================================
-// Evaluation generator - yields progress events for the UI
+// Eval runner factory
 // ============================================================================
 
-export function createEvaluationRunner(eventStream: PiEventStreamPort, promptRunner: PromptRunner, sampleSize?: number) {
+export interface EvaluationRunnerOptions {
+  readonly sampleSize?: number;
+  readonly model: string;
+  readonly provider: string;
+}
+
+export function createEvaluationRunner(
+  eventStream: PiEventStreamPort,
+  promptRunner: PromptRunner,
+  options: EvaluationRunnerOptions,
+) {
+  const { sampleSize, model, provider } = options;
   return async function* runEvaluation(): AsyncGenerator<unknown, void> {
-    // Load and parse dataset
     const csvPath = path.join(__dirname, 'dataset', 'finance_agent.csv');
     const csvContent = fs.readFileSync(csvPath, 'utf-8');
     let examples = parseCSV(csvContent);
     const totalCount = examples.length;
 
-    // Apply sampling if requested
     if (sampleSize && sampleSize < examples.length) {
       examples = shuffleArray(examples).slice(0, sampleSize);
     }
 
-    // Create a unique dataset name for this run (sampling creates different datasets)
-    const datasetName = sampleSize 
+    const datasetName = sampleSize
       ? `upup-finance-eval-sample-${sampleSize}-${Date.now()}`
       : 'upup-finance-eval';
 
-    // Yield init event
     yield {
       type: 'init',
       total: examples.length,
       datasetName: sampleSize ? `finance_agent (sample ${sampleSize}/${totalCount})` : 'finance_agent',
     };
 
-    // Generate experiment name for tracking
     const experimentName = `upup-eval-${Date.now().toString(36)}`;
 
-    // Run evaluation manually - process each example one by one
     for (const example of examples) {
       const question = example.inputs.question;
 
-      // Yield question start - UI shows this immediately
       yield {
         type: 'question_start',
         question,
       };
 
-      // Run the agent to get an answer
       const startTime = Date.now();
-      const outputs = await target(eventStream, example.inputs);
+      const outputs = await target(eventStream, example.inputs, model);
       const endTime = Date.now();
 
-      // Run the correctness evaluator
       const evalResult = await correctnessEvaluator({
         inputs: example.inputs,
         outputs,
         promptRunner,
         referenceOutputs: example.outputs,
+        model,
       });
 
       const resultPath = path.join(process.cwd(), '.upup', `${experimentName}.jsonl`);
       fs.mkdirSync(path.dirname(resultPath), { recursive: true });
-      fs.appendFileSync(resultPath, `${JSON.stringify({ datasetName, question, outputs, reference: example.outputs, evaluation: evalResult, startTime, endTime })}\n`);
+      fs.appendFileSync(resultPath, `${JSON.stringify({ datasetName, question, provider, model, outputs, reference: example.outputs, evaluation: evalResult, startTime, endTime })}\n`);
 
-      // Yield question end with result - UI updates progress bar
       yield {
         type: 'question_end',
         question,
@@ -277,7 +338,6 @@ export function createEvaluationRunner(eventStream: PiEventStreamPort, promptRun
       };
     }
 
-    // Yield complete event
     yield {
       type: 'complete',
       experimentName,
@@ -289,33 +349,49 @@ export function createEvaluationRunner(eventStream: PiEventStreamPort, promptRun
 // Main entry point
 // ============================================================================
 
-export async function runEvaluationCli(eventStream: PiEventStreamPort, promptRunner: PromptRunner, args: readonly string[] = process.argv.slice(2)): Promise<void> {
-  // Parse CLI arguments
-  const sampleIndex = args.indexOf('--sample');
-  const sampleSize = sampleIndex !== -1 ? parseInt(args[sampleIndex + 1]) : undefined;
+export async function runEvaluationCli(
+  eventStream: PiEventStreamPort,
+  promptRunner: PromptRunner,
+  args: readonly string[] = process.argv.slice(2),
+  deps: { stdout?: (chunk: string) => void; stderr?: (chunk: string) => void } = {},
+): Promise<void> {
+  const stderr = deps.stderr ?? ((chunk: string) => process.stderr.write(chunk));
 
-  // Create the evaluation runner with the sample size
-  const runEvaluation = createEvaluationRunner(eventStream, promptRunner, sampleSize);
+  const parsed = parseEvalArgs(args);
+  if (parsed.help) {
+    const stdout = deps.stdout ?? ((chunk: string) => process.stdout.write(chunk));
+    stdout(EVAL_HELP);
+    return;
+  }
+
+  const resolved = resolveEvalModel(parsed);
+  stderr(`[eval] model: ${resolved.modelString} (provider: ${resolved.provider})\n`);
+
+  const runEvaluation = createEvaluationRunner(eventStream, promptRunner, {
+    sampleSize: parsed.sampleSize,
+    model: resolved.modelString,
+    provider: resolved.provider,
+  });
 
   // Pi native: the legacy EvalApp Ink UI was deleted with packages/pi-tui-app.
-  // We now consume the generator directly and print progress to stdout — this
-  // keeps the eval CLI runnable in CI / scripted contexts without dragging in
-  // an Ink renderer that duplicates Pi's own terminal surface.
+  // We now consume the generator directly and print progress to stderr so
+  // it stays runnable in CI / scripted contexts without dragging in an Ink
+  // renderer that duplicates Pi's own terminal surface.
   for await (const event of runEvaluation()) {
     if (!event) continue;
     const e = event as { type: string; [key: string]: unknown };
     switch (e.type) {
       case 'init':
-        console.error(`[eval] init: total=${e.total} dataset=${e.datasetName as string}`);
+        stderr(`[eval] init: total=${e.total as number} dataset=${e.datasetName as string}\n`);
         break;
       case 'question_start':
-        console.error(`[eval] question: ${(e.question as string).slice(0, 80)}...`);
+        stderr(`[eval] question: ${(e.question as string).slice(0, 80)}...\n`);
         break;
       case 'question_end':
-        console.error(`[eval] result: score=${e.score as number} ${(e.comment as string).slice(0, 80)}`);
+        stderr(`[eval] result: score=${e.score as number} ${(e.comment as string).slice(0, 80)}\n`);
         break;
       case 'complete':
-        console.error(`[eval] complete: experiment=${e.experimentName as string}`);
+        stderr(`[eval] complete: experiment=${e.experimentName as string}\n`);
         break;
     }
   }
