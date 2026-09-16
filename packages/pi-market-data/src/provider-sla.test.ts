@@ -34,13 +34,23 @@ describe('native provider retry integration', () => {
     await expect(client.getQuote('AAPL', 'us')).resolves.toMatchObject({ value: { last: 200 } });
     expect(calls).toBe(3);
 
-    let forbiddenCalls = 0;
+    let yahooCalls = 0;
+    let eastmoneyCalls = 0;
     const forbidden = new NativeMarketQuoteClient({
       retry: { maxAttempts: 3, baseDelayMs: 1, sleep: async () => {}, recorder },
-      fetcher: async () => { forbiddenCalls++; return new Response('forbidden', { status: 403 }); },
+      fetcher: async (input) => {
+        const url = String(input);
+        if (url.includes('query1.finance.yahoo.com')) { yahooCalls++; return new Response('forbidden', { status: 403 }); }
+        if (url.includes('searchapi.eastmoney.com')) return new Response(JSON.stringify({ QuotationCodeTable: { Data: [] } }), { status: 200 });
+        eastmoneyCalls++;
+        return new Response('forbidden', { status: 403 });
+      },
     });
     await expect(forbidden.getQuote('AAPL', 'us')).rejects.toThrow(/403/);
-    expect(forbiddenCalls).toBe(1);
+    // Yahoo is not retried on a 403; the run then falls through to the 东方财富
+    // US fallback (which also answers 403 in this fixture).
+    expect(yahooCalls).toBe(1);
+    expect(eastmoneyCalls).toBe(1);
     await recorder.flush();
   });
 });

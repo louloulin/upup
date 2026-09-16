@@ -22,8 +22,23 @@ describe('plan-builder: extractTicker', () => {
     expect(extractTicker('看 600519.SH')).toBe('600519.SH');
   });
 
-  test('extracts A-share digits and defaults to SH', () => {
-    expect(extractTicker('分析 000001 走势')).toBe('000001.SH');
+  test('adds the right exchange suffix to bare A-share codes', () => {
+    expect(extractTicker('分析 600519 走势')).toBe('600519.SH');
+    expect(extractTicker('分析 000001 走势')).toBe('000001.SZ');
+    expect(extractTicker('分析 300750 走势')).toBe('300750.SZ');
+    expect(extractTicker('分析 920002 走势')).toBe('920002.BJ');
+  });
+
+  test('extracts Hong Kong tickers (4-5 digit codes) instead of the HK letters', () => {
+    expect(extractTicker('/invest 00700.HK')).toBe('00700.HK');
+    expect(extractTicker('看 0700.HK')).toBe('00700.HK');
+    expect(extractTicker('看 700.HK')).toBe('00700.HK');
+    expect(extractTicker('看 00700')).toBe('00700.HK');
+  });
+
+  test('extracts 北交所 codes with the exchange suffix', () => {
+    expect(extractTicker('看 920002.BJ')).toBe('920002.BJ');
+    expect(extractTicker('看 430047.BJ')).toBe('430047.BJ');
   });
 
   test('returns undefined for no ticker', () => {

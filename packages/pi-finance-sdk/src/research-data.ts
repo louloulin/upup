@@ -35,7 +35,7 @@ const DEFAULT_BASE_URL = 'https://api.financialdatasets.ai';
  * datacenter / report / notice APIs). They are the CN/HK research path when no
  * Tushare token is configured, so they must not be asked for an API key.
  */
-const CREDENTIAL_FREE_RESEARCH_PROVIDERS = new Set(['eastmoney']);
+const CREDENTIAL_FREE_RESEARCH_PROVIDERS = new Set(['eastmoney', 'sec-edgar']);
 const DEFAULT_PROVIDER_RETRY: Omit<ProviderRetryPolicy, 'provider' | 'operation'> = {
   maxAttempts: 3,
   baseDelayMs: 100,

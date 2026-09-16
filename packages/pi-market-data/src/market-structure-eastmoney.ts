@@ -22,6 +22,7 @@ import {
   eastmoneySuggestUrl,
   parseEastmoneyClistRows,
   readEastmoneyDocument,
+  resolveEastmoneyUsSecid,
   resolveEastmoneyBoard,
   type EastmoneyScreenOptions,
 } from './screen-eastmoney';
@@ -238,6 +239,11 @@ export async function resolveEastmoneySecurity(code: string, options: EastmoneyS
     const secid = eastmoneySecid(trimmed);
     const payload = (await readEastmoneyDocument(eastmoneyStockDetailUrl(secid), options)).payload;
     return { secid, name: str(asRecord(payload.data)?.f58) ?? trimmed };
+  }
+  // 美股 ticker（AAPL / JPM / SPY）走同一套 suggest 解析，取到的 secid 带 105/106/107 市场前缀。
+  if (/^[A-Z][A-Z0-9.-]{0,9}$/u.test(trimmed)) {
+    const us = await resolveEastmoneyUsSecid(trimmed, options).catch(() => undefined);
+    if (us) return us;
   }
   const suggest = (await readEastmoneyDocument(eastmoneySuggestUrl(trimmed), options)).payload;
   const entries = asRecord(asRecord(suggest.QuotationCodeTable)?.Data);

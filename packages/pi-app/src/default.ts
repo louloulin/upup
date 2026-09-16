@@ -21,7 +21,7 @@ import { createPiInvestmentWorkflow } from './investment';
 import { createPiCanonicalEventStream } from '@upup/pi-event-adapter';
 import { getConfiguredModelId, getConfiguredProvider } from '@upup/utils';
 import { ensureHeartbeatCronJob, startCronRunner } from '@upup/cron';
-import { createEastmoneyResearchDataFetcher, createTushareResearchDataFetcher } from '@upup/pi-finance-sdk';
+import { createEastmoneyResearchDataFetcher, createSecEdgarResearchDataFetcher, createTushareResearchDataFetcher } from '@upup/pi-finance-sdk';
 import type { UpUpCreateSessionOptions } from '@upup/pi-runtime';
 // Side-effect import: bumps EventEmitter.defaultMaxListeners so the 12 Pi
 // package extensions don't print MaxListenersExceededWarning on every
@@ -74,6 +74,18 @@ export function createPiNativeSessionOptions(): Omit<UpUpCreateSessionOptions, '
     },
     researchDataProviders: { cn: 'eastmoney', hk: 'eastmoney' },
   };
+  const usResearch = financialDatasetsKey
+    ? {
+        researchDataFetchers: { us: ((input, init) => fetch(input, init)) as typeof fetch },
+        researchDataProviders: { us: 'financial-datasets' },
+        researchDataApiKeys: { us: financialDatasetsKey },
+        researchDataBaseUrls: { us: 'https://api.financialdatasets.ai' },
+      }
+    : {
+        // Credential-free US research: SEC EDGAR + Nasdaq, real public sources.
+        researchDataFetchers: { us: createSecEdgarResearchDataFetcher() },
+        researchDataProviders: { us: 'sec-edgar' },
+      };
   return {
     ...(token || financialDatasetsKey ? {
       marketHistoryProviders: {
@@ -90,6 +102,7 @@ export function createPiNativeSessionOptions(): Omit<UpUpCreateSessionOptions, '
       },
     } : {}),
     ...chinaResearch,
+    ...usResearch,
   };
 }
 

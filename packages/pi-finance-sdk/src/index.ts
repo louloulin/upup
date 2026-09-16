@@ -50,6 +50,8 @@ export { fetchNativeAStockNews } from './astock-news';
 export type { NativeAStockNewsItem, NativeAStockNewsKind, NativeAStockNewsOptions, NativeAStockNewsQuery, NativeAStockNewsResult } from './astock-news';
 export { createEastmoneyResearchDataFetcher, eastmoneyResearchTarget } from './eastmoney-research';
 export type { EastmoneyResearchFetcherOptions, EastmoneyResearchMarket } from './eastmoney-research';
+export { createSecEdgarResearchDataFetcher } from './sec-edgar-research';
+export type { SecEdgarResearchFetcherOptions } from './sec-edgar-research';
 export { readEastmoneyJson, eastmoneyDatacenterUrl, eastmoneySecid } from './eastmoney-datacenter';
 export { getNativeCompanyProfile, getNativeRisks, getNativeSectors } from './knowledge-snapshot';
 export type { NativeCompanyProfile, NativeRiskAssessment, NativeRiskSeverity, NativeRiskType, NativeSectorAnalysis, NativeSectorOutlook } from './knowledge-snapshot';

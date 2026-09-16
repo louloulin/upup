@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import { buildTechnicalSnapshot } from './src/technical';
 import { createEastmoneyScreenLoader, screenEastmoneyStocks } from './src/screen-eastmoney';
 import { parseTencentKlines, tencentKlineCode, tencentKlineUrl } from './src/kline-tencent';
+import { nasdaqCoversRange, nasdaqHistoricalUrl, nasdaqTicker, parseNasdaqKlines } from './src/kline-nasdaq';
 import { getMarketStructureSnapshot, querySectorSnapshot } from './src/market-structure-eastmoney';
 import { deterministicScreenParser, extractScreenKeywords, runNaturalLanguageScreen, ScreenFilterUnsupportedError } from './src/natural-language-screen';
 
@@ -721,4 +722,130 @@ describe('eastmoney request gate', () => {
     expect(calls).toBe(2);
     resetEastmoneyGates();
   });
+
+});
+/** Nasdaq renders `$331.34` / `31,748,180` / `09/15/2026`. */
+const nasdaqRow = (date: string, open: string, high: string, low: string, close: string, volume: string) => ({ date, open, high, low, close, volume });
+
+test('falls back to Nasdaq daily bars when Yahoo refuses the US history read', async () => {
+  const urls: string[] = [];
+  const client = new NativeMarketHistoryClient({
+    provider: 'auto',
+    now: () => '2026-09-17T00:00:00.000Z',
+    fetcher: async (input) => {
+      const url = String(input);
+      urls.push(url);
+      if (url.includes('query1.finance.yahoo.com')) return new Response('<!DOCTYPE html>', { status: 403, statusText: 'Forbidden' });
+      return new Response(JSON.stringify({ data: { totalRecords: 2, tradesTable: { rows: [
+        nasdaqRow('09/16/2026', '$331.00', '$334.00', '$329.10', '$331.34', '31,748,180'),
+        nasdaqRow('09/15/2026', '332.53', '335.48', '330.70', '332.71', '35,877,669'),
+      ] } } }), { status: 200 });
+    },
+  });
+  const result = await client.getHistory('AAPL', '2026-09-01', '2026-09-17', undefined, 'us-history-fallback', 'us');
+  expect(urls.some((url) => url.includes('query1.finance.yahoo.com'))).toBe(true);
+  const nasdaqUrl = urls.find((url) => url.includes('api.nasdaq.com'))!;
+  expect(decodeURIComponent(nasdaqUrl)).toContain('api.nasdaq.com/api/quote/AAPL/historical');
+  expect(decodeURIComponent(nasdaqUrl)).toContain('assetclass=stocks');
+  expect(result.value).toEqual([
+    { date: '2026-09-15', open: 332.53, high: 335.48, low: 330.7, close: 332.71, volume: 35877669 },
+    { date: '2026-09-16', open: 331, high: 334, low: 329.1, close: 331.34, volume: 31748180 },
+  ]);
+  expect(result.evidence).toMatchObject({ provider: 'nasdaq', query: 'AAPL:us:2026-09-01:2026-09-17', asOf: '2026-09-16', dataFreshness: 'historical' });
+  expect(result.evidence.source).toContain('api.nasdaq.com');
+  expect(result.evidence.note).toContain('未复权');
+});
+
+test('retries the Nasdaq symbol classification for an ETF and reports the row cap', async () => {
+  const rows = Array.from({ length: 500 }, (_, index) => {
+    const [year, month, day] = new Date(Date.UTC(2025, 0, 1) + index * 86_400_000).toISOString().slice(0, 10).split('-');
+    return nasdaqRow(`${month}/${day}/${year}`, '$700.00', '$710.00', '$690.00', '$705.00', '10,000');
+  });
+  const assetClasses: string[] = [];
+  const client = new NativeMarketHistoryClient({
+    provider: 'auto',
+    now: () => '2026-09-17T00:00:00.000Z',
+    fetcher: async (input) => {
+      const url = String(input);
+      if (url.includes('query1.finance.yahoo.com')) throw new TypeError('The socket connection was closed unexpectedly');
+      assetClasses.push(new URL(url).searchParams.get('assetclass') ?? '');
+      if (url.includes('assetclass=etf')) return new Response(JSON.stringify({ data: { totalRecords: 500, tradesTable: { rows } } }), { status: 200 });
+      return new Response(JSON.stringify({ data: null, status: { rCode: 400, bCodeMessage: [{ code: 1001, errorMessage: 'Symbol not exists.' }] } }), { status: 200 });
+    },
+  });
+  const result = await client.getHistory('SPY', '2025-01-01', '2026-09-17', undefined, 'us-etf', 'us');
+  expect(assetClasses).toEqual(['stocks', 'etf']);
+  expect(result.value).toHaveLength(500);
+  expect(result.evidence.provider).toBe('nasdaq');
+  expect(result.evidence.note).toContain('单次最多 500 根');
+});
+
+test('reports the Yahoo failure when neither US provider holds the symbol', async () => {
+  const client = new NativeMarketHistoryClient({
+    provider: 'auto',
+    now: () => '2026-09-17T00:00:00.000Z',
+    fetcher: async (input) => {
+      const url = String(input);
+      if (url.includes('query1.finance.yahoo.com')) return new Response('', { status: 403, statusText: 'Forbidden' });
+      return new Response(JSON.stringify({ data: null, status: { rCode: 400 } }), { status: 200 });
+    },
+  });
+  await expect(client.getHistory('ZZZZ', '2026-09-01', '2026-09-17', undefined, 'us-missing', 'us')).rejects.toThrow(/ZZZZ 美股日线数据不可用 — Yahoo Finance：yahoo market history request failed: 403 Forbidden/);
+});
+
+test('reads and bounds Nasdaq payloads with the real parsers', () => {
+  expect(decodeURIComponent(nasdaqHistoricalUrl('brk.b', '2026-09-01', '2026-09-17').toString())).toBe('https://api.nasdaq.com/api/quote/BRK.B/historical?assetclass=stocks&fromdate=2026-09-01&todate=2026-09-17&limit=500');
+  expect(nasdaqHistoricalUrl('AAPL', '2026-09-01', '2026-09-17', 'etf', 5_000).searchParams.get('limit')).toBe('500');
+  expect(nasdaqTicker('aapl.us')).toBe('AAPL');
+  expect(() => nasdaqTicker('600519.SH')).toThrow(/仅覆盖美股代码/);
+  expect(nasdaqCoversRange('2026-09-01', '2026-09-17', '2026-09-17')).toBe(true);
+  expect(nasdaqCoversRange('2025-01-01', '2025-06-30', '2026-09-17')).toBe(false);
+  expect(parseNasdaqKlines({ data: { tradesTable: { rows: [
+    nasdaqRow('09/16/2026', '$331.00', '334.00', '329.10', '$331.34', '31,748,180'),
+    nasdaqRow('09/15/2026', '332.53', '335.48', '330.70', '332.71', '35,877,669'),
+    nasdaqRow('08/01/2026', '1', '1', '1', '1', '1'),
+    nasdaqRow('not a date', '1', '1', '1', '1', '1'),
+  ] } } }, 'AAPL', '2026-09-01', '2026-09-17')).toEqual([
+    { date: '2026-09-15', open: 332.53, high: 335.48, low: 330.7, close: 332.71, volume: 35877669 },
+    { date: '2026-09-16', open: 331, high: 334, low: 329.1, close: 331.34, volume: 31748180 },
+  ]);
+});
+
+test('falls back to 东方财富 美股延迟行情 when Yahoo refuses a US quote', async () => {
+  const urls: string[] = [];
+  const client = new NativeMarketQuoteClient({
+    provider: 'auto',
+    tushareToken: '',
+    now: () => '2026-09-17T00:00:00.000Z',
+    fetcher: async (input) => {
+      const url = String(input);
+      urls.push(url);
+      if (url.includes('query1.finance.yahoo.com')) return new Response('<!DOCTYPE html>', { status: 403, statusText: 'Forbidden' });
+      if (url.includes('searchapi.eastmoney.com')) return new Response(JSON.stringify({ QuotationCodeTable: { Data: [
+        { Code: 'AAPL22', Name: '苹果债券', QuoteID: '105.AAPL22', Classify: 'USbond' },
+        { Code: 'AAPL', Name: '苹果', QuoteID: '105.AAPL', Classify: 'Usstock' },
+      ] } }), { status: 200 });
+      return new Response(JSON.stringify({ rc: 0, data: { f43: 332410, f44: 335480, f45: 330700, f46: 332530, f47: 35877669, f57: 'AAPL', f58: '苹果', f59: 3, f60: 331340, f86: 1789588800 } }), { status: 200 });
+    },
+  });
+  const result = await client.getQuote('AAPL', 'us', undefined, 'us-quote-fallback');
+  expect(urls.some((url) => url.includes('secid=105.AAPL&'))).toBe(true);
+  expect(result.value).toMatchObject({ symbol: 'AAPL', market: 'us', last: 332.41, bid: 332.41, ask: 332.41, currency: 'USD', freshness: 'delayed' });
+  expect(result.value.asOf).toBe(new Date(1_789_588_800_000).toISOString().slice(0, 10));
+  expect(result.evidence).toMatchObject({ provider: 'eastmoney', source: expect.stringContaining('eastmoney.com') });
+  expect(result.evidence.note).toContain('东方财富美股延迟行情');
+});
+
+test('reports both US providers when neither answers a quote', async () => {
+  const client = new NativeMarketQuoteClient({
+    provider: 'auto',
+    tushareToken: '',
+    now: () => '2026-09-17T00:00:00.000Z',
+    fetcher: async (input) => {
+      const url = String(input);
+      if (url.includes('query1.finance.yahoo.com')) return new Response('', { status: 403, statusText: 'Forbidden' });
+      return new Response(JSON.stringify({ QuotationCodeTable: { Data: [] } }), { status: 200 });
+    },
+  });
+  await expect(client.getQuote('ZZZZ', 'us', undefined, 'us-quote-missing')).rejects.toThrow(/ZZZZ 行情不可用 — Yahoo：.*东方财富也未收录该代码/);
 });

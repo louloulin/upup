@@ -31,24 +31,37 @@ const PHASE_KEYWORDS: ReadonlyArray<{ phase: ResearchPhase; keywords: ReadonlyAr
   { phase: 'report', keywords: ['报告', '汇总', '导出', 'report', 'summary', 'export'] },
 ];
 
-/** 标的代码正则: 美股 NVDA / 港股 0700.HK / A 股 600519.SH / 600519 / 000001.SZ */
-// 3 个独立正则,按优先级手动跑
-const RE_FULL_A = /\b(\d{6}\.(?:SH|SZ|HK))\b/g;
-const RE_DIGIT = /\b(\d{6})\b/g;
-const RE_SYMBOL = /\b([A-Z]{1,5})\b/g;
+/** 标的代码正则: A 股 600519.SH / 000001.SZ / 920002.BJ, 港股 00700.HK, 美股 NVDA */
+// 5 个独立正则,按优先级手动跑
+// 不带 `g`，这样 `.match()` 会一并返回捕获组(带 `g` 时只返回整段匹配)
+const RE_FULL_CN = /\b(\d{6}\.(?:SH|SZ|BJ))\b/;
+const RE_FULL_HK = /\b(\d{1,5})\.HK\b/;
+const RE_CN_DIGIT = /\b(\d{6})\b/;
+const RE_HK_DIGIT = /\b(\d{5})\b/;
+const RE_SYMBOL = /\b([A-Z]{1,5})\b/;
+
+/** 裸 6 位代码 → 交易所后缀: 6 = 沪市, 0/3 = 深市, 4/8/9 = 北交所. */
+function exchangeSuffix(code: string): 'SH' | 'SZ' | 'BJ' {
+  if (code.startsWith('6')) return 'SH';
+  if (code.startsWith('0') || code.startsWith('3')) return 'SZ';
+  return 'BJ';
+}
 
 /** 从用户输入里抽取 ticker */
 export function extractTicker(input: string): string | undefined {
-  // 1) 形如 600519.SH / 000001.SZ / 0700.HK
-  RE_FULL_A.lastIndex = 0;
-  const full = input.match(RE_FULL_A);
+  // 1) 全码: 600519.SH / 000001.SZ / 920002.BJ / 00700.HK / 0700.HK
+  const full = input.match(RE_FULL_CN);
   if (full) return full[0].toUpperCase();
-  // 2) 6 位数字 → 默认 SH
-  RE_DIGIT.lastIndex = 0;
-  const num = input.match(RE_DIGIT);
-  if (num) return `${num[0]}.SH`;
-  // 3) 1-5 个大写字母(美股 ticker)
-  RE_SYMBOL.lastIndex = 0;
+  // 港股代码是 5 位(0700 / 700 这类简写补零),`\d{6}\.HK` 匹配不到 00700.HK,所以单独一条
+  const hk = input.match(RE_FULL_HK);
+  if (hk) return `${hk[1]!.padStart(5, '0')}.HK`;
+  // 2) 裸 6 位 → 按代码段判断交易所(此前一律补 .SH,会把 000001 错认成沪市)
+  const cn = input.match(RE_CN_DIGIT);
+  if (cn) return `${cn[0]}.${exchangeSuffix(cn[0])}`;
+  // 3) 裸 5 位 → 港股(00700 这类写法)
+  const hkDigit = input.match(RE_HK_DIGIT);
+  if (hkDigit) return `${hkDigit[0]}.HK`;
+  // 4) 1-5 个大写字母(美股 ticker)
   const sym = input.match(RE_SYMBOL);
   return sym ? sym[0].toUpperCase() : undefined;
 }

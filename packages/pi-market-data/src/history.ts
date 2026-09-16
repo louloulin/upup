@@ -2,13 +2,14 @@ import type { MarketBar, MarketEvidence } from './market-types';
 import { executeWithProviderRetry, hostGateFor, type ProviderRetryPolicy } from '@upup/pi-observability';
 import { EASTMONEY_KLINE_URL, EASTMONEY_USER_AGENT, eastmoneyKlineUrl, eastmoneySecid, parseEastmoneyKlines } from './eastmoney';
 import { parseTencentKlines, TENCENT_KLINE_MAX_ROWS, TENCENT_USER_AGENT, tencentKlineCode, tencentKlineUrl } from './kline-tencent';
+import { NASDAQ_KLINE_MAX_ROWS, NASDAQ_USER_AGENT, nasdaqCoversRange, nasdaqHistoricalUrl, nasdaqTicker, parseNasdaqKlines, type NasdaqAssetClass } from './kline-nasdaq';
 
 export type MarketHistoryFetcher = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 export type MarketHistoryProvider = 'auto' | 'yahoo' | 'tushare' | 'financial-datasets' | 'eastmoney';
 type MarketHistoryMarket = 'cn' | 'hk' | 'us' | 'fund' | 'crypto';
 
 /** One real source of CN/HK daily bars; the chain is tried in order. */
-function cnHistoryAttempts(symbol: string, market: 'cn' | 'hk', startDate: string, endDate: string, requestBaseUrl: string): readonly CnHistoryAttempt[] {
+function cnHistoryAttempts(symbol: string, market: 'cn' | 'hk', startDate: string, endDate: string, requestBaseUrl: string): readonly HistoryAttempt[] {
   const code = tencentKlineCode(symbol, market);
   return [
     {
@@ -30,15 +31,86 @@ function cnHistoryAttempts(symbol: string, market: 'cn' | 'hk', startDate: strin
   ];
 }
 
-interface CnHistoryAttempt {
+interface HistoryAttempt {
   readonly label: string;
-  readonly provider: 'eastmoney' | 'tencent';
+  readonly provider: 'eastmoney' | 'tencent' | 'yahoo' | 'nasdaq';
   readonly url: URL;
   readonly userAgent: string;
+  /** Evidence source; the request URL by default (Yahoo reports its base URL). */
+  readonly source?: string;
   readonly note?: string;
   /** Provider's per-request row cap; the fetched series is truncated past it. */
   readonly rowLimit?: number;
   readonly parse: (payload: unknown) => MarketBar[];
+}
+
+/**
+ * US daily bars: Yahoo first, then Nasdaq.
+ *
+ * Yahoo answers this machine with a 403 HTML challenge (measured 2026-09-17),
+ * so the chain continues on Nasdaq's public quote API, which serves the same
+ * unadjusted daily bars. Nasdaq classifies symbols itself (`assetclass`) and
+ * rejects the wrong bucket with `Symbol not exists`, so a stock is answered by
+ * the first attempt and an ETF falls through to the second.
+ */
+function usHistoryAttempts(symbol: string, startDate: string, endDate: string, yahooBaseUrl: string, maxBars: number, today: string): readonly HistoryAttempt[] {
+  // The Yahoo URL carries the raw symbol so any string the caller passes (CN
+  // code, 板块, alias) reaches Yahoo's chart endpoint; the provider answer is
+  // empty for non-US tickers and the parse fails closed. Nasdaq is only
+  // appended for tickers Nasdaq actually covers.
+  const url = new URL(`${yahooBaseUrl}/${encodeURIComponent(symbol.trim().toUpperCase())}`);
+  url.searchParams.set('period1', String(Math.floor(Date.parse(`${startDate}T00:00:00Z`) / 1000)));
+  url.searchParams.set('period2', String(Math.floor(Date.parse(`${nextDay(endDate)}T00:00:00Z`) / 1000)));
+  url.searchParams.set('interval', '1d');
+  url.searchParams.set('events', 'history');
+  url.searchParams.set('includeAdjustedClose', 'true');
+  const attempts: HistoryAttempt[] = [{
+    label: 'Yahoo Finance',
+    provider: 'yahoo',
+    url,
+    source: yahooBaseUrl,
+    userAgent: 'UpUp-Pi-Market-Data/1.0',
+    parse: (payload) => parseYahooBars(payload, symbol, startDate, endDate, maxBars),
+  }];
+  if (!nasdaqCoversRange(startDate, endDate, today)) return attempts;
+  let ticker: string;
+  try { ticker = nasdaqTicker(symbol); } catch { return attempts; }
+  for (const assetClass of ['stocks', 'etf'] as const) {
+    attempts.push({
+      label: `Nasdaq 日线（${assetClass}）`,
+      provider: 'nasdaq',
+      url: nasdaqHistoricalUrl(ticker, startDate, endDate, assetClass as NasdaqAssetClass),
+      userAgent: NASDAQ_USER_AGENT,
+      note: 'Yahoo 行情不可用后回退到 Nasdaq 日线（未复权）',
+      rowLimit: NASDAQ_KLINE_MAX_ROWS,
+      parse: (payload) => parseNasdaqKlines(payload, ticker, startDate, endDate),
+    });
+  }
+  return attempts;
+}
+
+/** Yahoo's chart payload → daily bars; unadjusted close when `adjclose` is absent. */
+function parseYahooBars(payload: unknown, resolvedSymbol: string, startDate: string, endDate: string, maxBars: number): MarketBar[] {
+  const chart = (payload as YahooChartPayload | undefined)?.chart;
+  const result = chart?.result?.[0];
+  if (!result) throw new Error(chart?.error?.description ?? `market history returned no chart for ${resolvedSymbol}`);
+  const timestamps = result.timestamp ?? [];
+  const quote = result.indicators?.quote?.[0];
+  const adjusted = result.indicators?.adjclose?.[0]?.adjclose;
+  if (!quote) throw new Error(`market history returned no quote series for ${resolvedSymbol}`);
+  const bars: MarketBar[] = [];
+  for (let index = 0; index < timestamps.length && bars.length < maxBars; index += 1) {
+    const date = dateFromUnixSeconds(timestamps[index]!);
+    const open = quote.open?.[index];
+    const high = quote.high?.[index];
+    const low = quote.low?.[index];
+    const close = adjusted?.[index] ?? quote.close?.[index];
+    const volume = quote.volume?.[index] ?? 0;
+    if (date < startDate || date > endDate || !finite(open) || !finite(high) || !finite(low) || !finite(close) || !finite(volume)) continue;
+    bars.push({ date, open, high, low, close, volume });
+  }
+  if (bars.length < 2) throw new Error(`market history returned fewer than two complete bars for ${resolvedSymbol}`);
+  return bars;
 }
 
 export interface NativeMarketHistoryClientOptions {
@@ -241,8 +313,9 @@ export class NativeMarketHistoryClient {
     const configuredProvider = marketKey ? this.marketProviders?.[marketKey] : undefined;
     const marketToken = marketKey ? this.marketApiKeys?.[marketKey] ?? this.tushareToken : this.tushareToken;
     // Auto routing: CN/HK go to Tushare when a token exists and to the real
-    // Eastmoney provider otherwise (no credentials, live daily bars); US stays
-    // on financial-datasets/yahoo.
+    // Eastmoney provider otherwise (no credentials, live daily bars); US goes
+    // to financial-datasets when a token exists and to the Yahoo → Nasdaq chain
+    // otherwise.
     const selectedProvider = configuredProvider ?? (this.provider === 'auto' && (isChinaMarket || marketKey === 'hk')
       ? marketToken ? 'tushare' : 'eastmoney'
       : this.provider === 'auto' && marketKey === 'us' && marketToken ? 'financial-datasets' : this.provider === 'auto' ? 'yahoo' : this.provider);
@@ -264,53 +337,53 @@ export class NativeMarketHistoryClient {
     if (selectedProvider === 'tushare') return this.getTushareHistory(symbol, startDate, endDate, signal, auditId, cacheKey, marketKey === 'hk' ? 'hk' : 'cn', marketToken, requestFetcher, requestBaseUrl);
     if (selectedProvider === 'financial-datasets') return this.getFinancialDatasetsHistory(symbol, startDate, endDate, signal, auditId, cacheKey, marketToken, requestFetcher, requestBaseUrl);
     if (selectedProvider === 'eastmoney') return this.getCnHistory(symbol, startDate, endDate, signal, auditId, cacheKey, marketKey === 'hk' || /\.HK$/i.test(symbol.trim()) ? 'hk' : 'cn', requestFetcher, requestBaseUrl);
-    const resolvedSymbol = yahooSymbol(symbol);
-    const url = new URL(`${requestBaseUrl}/${encodeURIComponent(resolvedSymbol)}`);
-    url.searchParams.set('period1', String(Math.floor(Date.parse(`${startDate}T00:00:00Z`) / 1000)));
-    url.searchParams.set('period2', String(Math.floor(Date.parse(`${nextDay(endDate)}T00:00:00Z`) / 1000)));
-    url.searchParams.set('interval', '1d');
-    url.searchParams.set('events', 'history');
-    url.searchParams.set('includeAdjustedClose', 'true');
-    const response = await this.fetchWithRetry(url, {
-      signal,
-      headers: { Accept: 'application/json', 'User-Agent': 'UpUp-Pi-Market-Data/1.0' },
-    }, 'yahoo', 'history', signal, requestFetcher);
-    if (!response.ok) throw new Error(`market history request failed: ${response.status} ${response.statusText}`);
-    const payload = await response.json() as YahooChartPayload;
-    const chart = payload.chart?.result?.[0];
-    if (!chart) throw new Error(payload.chart?.error?.description ?? `market history returned no chart for ${resolvedSymbol}`);
-    const timestamps = chart.timestamp ?? [];
-    const quote = chart.indicators?.quote?.[0];
-    const adjusted = chart.indicators?.adjclose?.[0]?.adjclose;
-    if (!quote) throw new Error(`market history returned no quote series for ${resolvedSymbol}`);
-    const bars: MarketBar[] = [];
-    for (let index = 0; index < timestamps.length && bars.length < this.maxBars; index += 1) {
-      const date = dateFromUnixSeconds(timestamps[index]!);
-      const open = quote.open?.[index];
-      const high = quote.high?.[index];
-      const low = quote.low?.[index];
-      const close = adjusted?.[index] ?? quote.close?.[index];
-      const volume = quote.volume?.[index] ?? 0;
-      if (date < startDate || date > endDate || !finite(open) || !finite(high) || !finite(low) || !finite(close) || !finite(volume)) continue;
-      bars.push({ date, open, high, low, close, volume });
+    return this.getUsHistory(symbol, startDate, endDate, signal, auditId, cacheKey, requestFetcher, requestBaseUrl, normalizedMarket ?? 'inferred');
+  }
+
+  /**
+   * US daily bars — Yahoo first, Nasdaq second.
+   *
+   * Yahoo refuses this machine (403 HTML challenge / 429 without a UA), so a
+   * failed Yahoo read falls through to Nasdaq's real daily bars instead of
+   * failing the phase. Both sources are live providers; no path here
+   * fabricates bars.
+   */
+  private async getUsHistory(symbol: string, startDate: string, endDate: string, signal: AbortSignal | undefined, auditId: string, cacheKey: string, requestFetcher: MarketHistoryFetcher, requestBaseUrl: string, marketLabel: string): Promise<NativeMarketHistoryResult> {
+    const failures: string[] = [];
+    const attempts = usHistoryAttempts(symbol, startDate, endDate, requestBaseUrl, this.maxBars, this.now().slice(0, 10));
+    for (const attempt of attempts) {
+      try {
+        const response = await this.fetchWithRetry(attempt.url, { signal, headers: { Accept: 'application/json', 'User-Agent': attempt.userAgent } }, attempt.provider, 'history', signal, requestFetcher);
+        const fetched = attempt.parse(await response.json() as unknown);
+        const bars = fetched.slice(-this.maxBars);
+        if (bars.length < 2) {
+          failures.push(`${attempt.label} 只返回 ${bars.length} 根日线`);
+          continue;
+        }
+        const note = attempt.rowLimit !== undefined && fetched.length >= attempt.rowLimit
+          ? `${attempt.note}（单次最多 ${attempt.rowLimit} 根）`
+          : attempt.note;
+        const result: NativeMarketHistoryResult = {
+          value: bars,
+          evidence: {
+            id: `market-data:${auditId}:history`,
+            source: attempt.source ?? attempt.url.toString(),
+            provider: attempt.provider,
+            retrievedAt: this.now(),
+            asOf: bars.at(-1)!.date,
+            query: `${yahooSymbol(symbol)}:${marketLabel}:${startDate}:${endDate}`,
+            dataFreshness: 'historical',
+            auditId,
+            ...(note === undefined ? {} : { note }),
+          },
+        };
+        this.cache?.set(cacheKey, result, Date.now() + this.cacheTtlMs);
+        return result;
+      } catch (error) {
+        failures.push(`${attempt.label}：${error instanceof Error ? error.message : String(error)}`);
+      }
     }
-    if (bars.length < 2) throw new Error(`market history returned fewer than two complete bars for ${resolvedSymbol}`);
-    const retrievedAt = this.now();
-    const result: NativeMarketHistoryResult = {
-      value: bars,
-      evidence: {
-        id: `market-data:${auditId}:history`,
-        source: requestBaseUrl,
-        provider: 'yahoo',
-        retrievedAt,
-        asOf: bars.at(-1)!.date,
-        query: `${resolvedSymbol}:${normalizedMarket ?? 'inferred'}:${startDate}:${endDate}`,
-        dataFreshness: 'historical' as const,
-        auditId,
-      },
-    };
-    this.cache?.set(cacheKey, result, now + this.cacheTtlMs);
-    return result;
+    throw new Error(`${symbol} 美股日线数据不可用 — ${failures.join('；')}`);
   }
 
   /**
@@ -443,12 +516,12 @@ export class NativeMarketHistoryClient {
     return result;
   }
 
-  private async fetchWithRetry(input: RequestInfo | URL, init: RequestInit, provider: MarketHistoryProvider | 'tencent', operation: string, signal?: AbortSignal, requestFetcher: MarketHistoryFetcher = this.fetcher, retryOverride?: Omit<ProviderRetryPolicy, 'provider' | 'operation'>): Promise<Response> {
+  private async fetchWithRetry(input: RequestInfo | URL, init: RequestInit, provider: MarketHistoryProvider | 'tencent' | 'nasdaq', operation: string, signal?: AbortSignal, requestFetcher: MarketHistoryFetcher = this.fetcher, retryOverride?: Omit<ProviderRetryPolicy, 'provider' | 'operation'>): Promise<Response> {
     const execute = async (retrySignal?: AbortSignal) => {
       const request = () => requestFetcher(input, { ...init, ...(retrySignal ? { signal: retrySignal } : {}) });
-      // Eastmoney and 腾讯 reset connections when a client bursts, so their
-      // requests are serialized and spaced through the shared per-host gate.
-      const response = provider === 'eastmoney' || provider === 'tencent' ? await hostGateFor(input).run(request) : await request();
+      // Eastmoney / 腾讯 / Nasdaq throttle bursts, so their requests are
+      // serialized and spaced through the shared per-host gate.
+      const response = provider === 'eastmoney' || provider === 'tencent' || provider === 'nasdaq' ? await hostGateFor(input).run(request) : await request();
       if (!response.ok) throw new Error(`${provider} market ${operation} request failed: ${response.status} ${response.statusText}`);
       return response;
     };

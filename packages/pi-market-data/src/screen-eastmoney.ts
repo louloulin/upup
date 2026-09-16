@@ -395,6 +395,27 @@ export async function resolveEastmoneyBoard(keyword: string, options: EastmoneyS
   return boards.find((board) => board.name === keyword.trim()) ?? boards[0];
 }
 
+/**
+ * Resolves a US ticker to its 东方财富 secid — `105.AAPL` (NASDAQ), `106.JPM`
+ * (NYSE), `107.SPY` (AMEX). 东方财富's US quote / kline endpoints need that
+ * market prefix and the public suggest endpoint is where its own pages get it
+ * (probed 2026-09-17). An exact `Code` match wins over the ranked suggestions,
+ * so `AAPL` never resolves to the `AAPL22` bond that also answers the query.
+ */
+export async function resolveEastmoneyUsSecid(ticker: string, options: EastmoneyScreenOptions = {}): Promise<{ secid: string; name: string } | undefined> {
+  const wanted = ticker.trim().toUpperCase();
+  if (!/^[A-Z][A-Z0-9.-]{0,9}$/u.test(wanted)) return undefined;
+  const payload = await readEastmoneyJson(eastmoneySuggestUrl(wanted), options);
+  const entries = asRecord(asRecord(payload.QuotationCodeTable)?.Data);
+  const candidates = (Array.isArray(entries) ? entries : [])
+    .map((entry) => asRecord(entry))
+    .filter((record): record is Record<string, unknown> => Boolean(record))
+    .map((record) => ({ code: textValue(record.Code)?.toUpperCase(), secid: textValue(record.QuoteID), name: textValue(record.Name), classify: textValue(record.Classify) ?? '' }))
+    .filter((entry) => Boolean(entry.secid?.includes('.')) && /us/i.test(entry.classify));
+  const match = candidates.find((entry) => entry.code === wanted) ?? candidates[0];
+  return match?.secid ? { secid: match.secid, name: match.name ?? wanted } : undefined;
+}
+
 /** The quote list is paged; one screen reads up to `EASTMONEY_SCREEN_WINDOW_ROWS` rows. */
 export async function fetchEastmoneyQuoteRows(input: { segments: string; market: ScreenerMarket; rows: number; sortField?: string; sortDesc?: boolean; exclude?: (row: ScreenerRow) => boolean }, options: EastmoneyScreenOptions = {}): Promise<ScreenerFetchResult> {
   const pages = Math.max(1, Math.ceil(input.rows / EASTMONEY_SCREEN_PAGE_ROWS));

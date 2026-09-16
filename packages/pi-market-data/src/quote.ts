@@ -6,6 +6,7 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from '
 import { randomBytes } from 'node:crypto';
 import { executeWithProviderRetry, type ProviderRetryPolicy } from '@upup/pi-observability';
 import { EASTMONEY_QUOTE_URL, EASTMONEY_USER_AGENT, eastmoneyGateFor, eastmoneyMirrorUrl, eastmoneyQuoteUrl, eastmoneySecid, isEastmoneySocketReset, isEastmoneyThrottleError, parseEastmoneyQuote } from './eastmoney';
+import { resolveEastmoneyUsSecid } from './screen-eastmoney';
 import type { PiMarketTrendStore } from '@upup/types';
 
 export interface NativeMarketQuote extends MarketQuote {
@@ -416,7 +417,29 @@ export class NativeMarketQuoteClient {
     }
   }
 
+  /**
+   * Yahoo is the historical US/global default, but it refuses this machine
+   * (measured 2026-09-17: 403 HTML challenge with a browser UA, 429 without
+   * one), so a failed read falls through to 东方财富's delayed host — the same
+   * `push2delay` mirror the CN/HK quotes already use, which serves a real US
+   * price (`secid 105.AAPL`). Nothing here fabricates a price.
+   */
   private async getYahooQuote(symbol: string, requestedMarket: string | undefined, signal: AbortSignal | undefined, auditId: string, key: string): Promise<NativeMarketQuoteResult> {
+    try {
+      return await this.getYahooChartQuote(symbol, requestedMarket, signal, auditId, key);
+    } catch (error) {
+      if (signal?.aborted) throw error;
+      const reason = error instanceof Error ? error.message : String(error);
+      const resolved = await resolveEastmoneyUsSecid(symbol);
+      if (!resolved) throw new Error(`${symbol} 行情不可用 — Yahoo：${reason}；东方财富也未收录该代码`);
+      return await this.getEastmoneyQuote(symbol, requestedMarket, signal, auditId, key, {
+        secid: resolved.secid,
+        note: `Yahoo 行情不可用（${reason}），改用东方财富美股延迟行情`,
+      });
+    }
+  }
+
+  private async getYahooChartQuote(symbol: string, requestedMarket: string | undefined, signal: AbortSignal | undefined, auditId: string, key: string): Promise<NativeMarketQuoteResult> {
     const resolved = yahooSymbol(symbol);
     const url = new URL(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(resolved)}`);
     url.searchParams.set('range', '5d');
@@ -436,10 +459,10 @@ export class NativeMarketQuoteClient {
     return native;
   }
 
-  /** Live quote from `push2.eastmoney.com`; the real CN/HK provider. */
-  private async getEastmoneyQuote(symbol: string, requestedMarket: string | undefined, signal: AbortSignal | undefined, auditId: string, key: string): Promise<NativeMarketQuoteResult> {
+  /** Live quote from `push2.eastmoney.com`; the real CN/HK + US-fallback provider. */
+  private async getEastmoneyQuote(symbol: string, requestedMarket: string | undefined, signal: AbortSignal | undefined, auditId: string, key: string, override: { readonly secid?: string; readonly note?: string } = {}): Promise<NativeMarketQuoteResult> {
     const market = quoteMarket(symbol, requestedMarket);
-    const live = eastmoneyQuoteUrl(eastmoneySecid(symbol), this.eastmoneyBaseUrl);
+    const live = eastmoneyQuoteUrl(override.secid ?? eastmoneySecid(symbol), this.eastmoneyBaseUrl);
     let url = live;
     let mirrored = false;
     let response: Response;
@@ -470,7 +493,8 @@ export class NativeMarketQuoteClient {
       freshness: 'delayed',
       indicative: true,
     };
-    const note = mirrored ? 'push2 连接被重置，改用东方财富备用主机（延迟行情）' : undefined;
+    const mirrorNote = mirrored ? 'push2 连接被重置，改用东方财富备用主机（延迟行情）' : undefined;
+    const note = [override.note, mirrorNote].filter((value): value is string => Boolean(value)).join('；') || undefined;
     const output = result(value, value.source, `${symbol}:${snapshot.previousClose ?? snapshot.last}`, this.now(), auditId, 'eastmoney', note);
     this.cache?.set(key, output, Date.now() + this.cacheTtlMs);
     return output;
