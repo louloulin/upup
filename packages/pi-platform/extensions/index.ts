@@ -1,6 +1,6 @@
 import { Type } from 'typebox';
 import { buildSessionContext, type ExtensionAPI, type ExtensionContext } from '@earendil-works/pi-coding-agent';
-import { definePiCapabilityHost, resolvePiCapabilityHost } from '@upup/pi-capability-registry';
+import { createPiCapabilityHostResolver, definePiCapabilityHost, resolvePiCapabilityHost } from '@upup/pi-capability-registry';
 import { randomUUID } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -264,22 +264,82 @@ function result(toolCallId: string, value: unknown, extra: Record<string, unknow
   return { content: [{ type: 'text' as const, text: JSON.stringify(value) }], ...(isError ? { isError: true, details: undefined } : {}), details: { auditId: toolCallId, evidence: [evidence], ...details } };
 }
 
-function registerPlatformExtension(pi: ExtensionAPI, host: PlatformHost): void {
-  if (host.contract !== 'upup.pi.host.v1' || host.packageName !== PACKAGE || host.packageVersion !== VERSION || !host.sessionId || !host.capabilities.includes('tool-definitions') || !host.providers?.tools?.getToolDefinitions || !host.providers?.tools?.getToolMetadata) return;
-  const tools = host.providers.tools.getToolDefinitions({
-    contract: 'upup.pi.host.v1',
-    packageName: PACKAGE,
-    packageVersion: VERSION,
-    sessionId: host.sessionId,
-    capability: 'tool-definitions',
+/** A host that actually carries the session provider tree (not a self-publish). */
+function isUsableHost(host: PlatformHost | undefined): host is PlatformHost {
+  if (!host || host.contract !== 'upup.pi.host.v1' || host.packageName !== PACKAGE || host.packageVersion !== VERSION) return false;
+  if (!host.sessionId || !host.capabilities.includes('tool-definitions')) return false;
+  const tools = host.providers?.tools as { getToolDefinitions?: unknown; getToolMetadata?: unknown } | undefined;
+  return typeof tools?.getToolDefinitions === 'function' && typeof tools?.getToolMetadata === 'function';
+}
+
+function hostRequestFor(sessionId: string): { contract: 'upup.pi.host.v1'; packageName: string; packageVersion: string; sessionId: string; capability: 'tool-definitions' } {
+  return { contract: 'upup.pi.host.v1', packageName: PACKAGE, packageVersion: VERSION, sessionId, capability: 'tool-definitions' };
+}
+
+/**
+ * Register the platform tool surface.
+ *
+ * Called at extension-load time: every tool the platform owns must exist in the
+ * registry before the first turn, because Pi builds the turn's system prompt
+ * (its tool catalogue) before `before_agent_start` handlers run. Gating the
+ * whole surface behind a resolved capability host — as this used to — meant a
+ * Pi-native session registered nothing at all: Pi loads extensions before the
+ * session publishes its provider tree, and the one-shot `session_start` retry
+ * lost the race against the provider bootstrap.
+ *
+ * The host is therefore resolved *per read*: a missing host degrades to "no
+ * capabilities", so the gated branches (workers, MCP, cron) stay fail-closed
+ * instead of throwing, and they start working as soon as the tree lands.
+ */
+function registerPlatformExtension(pi: ExtensionAPI): void {
+  const resolveHost = createPiCapabilityHostResolver<PlatformHost>(pi.events, PACKAGE, isUsableHost);
+  // Prime the memo: when a usable host is already published (embedded session
+  // factory, extension tests) the tree is latched for the session's lifetime
+  // even though the publisher later unsubscribes. When it is not (Pi-native
+  // session: extensions load first) nothing is memoized and every later read
+  // re-resolves, picking the tree up as soon as it lands.
+  resolveHost();
+  const hostToolMetadata = (): readonly PlatformToolMetadata[] => {
+    const host = resolveHost();
+    return host ? host.providers.tools.getToolMetadata(hostRequestFor(host.sessionId)) : [];
+  };
+  // `tool_search` / `tool_list` / `get_tool` describe the session's *live*
+  // tool registry. UpUp's host metadata only covers the tool contracts the
+  // embedded session factory owns; in a Pi-native session Pi owns the registry
+  // (`pi.getAllTools()`), and a host-only view would advertise an empty
+  // catalog. Read Pi's registry per call so tools registered later — by other
+  // extensions, `/reload`, or MCP adapters — show up too.
+  const toolMetadata = (): readonly PlatformToolMetadata[] => {
+    const merged = new Map<string, PlatformToolMetadata>();
+    for (const tool of hostToolMetadata()) merged.set(tool.name, tool);
+    let registered: readonly { name: string; description: string; promptGuidelines?: string[] }[] = [];
+    try {
+      registered = pi.getAllTools();
+    } catch {
+      registered = [];
+    }
+    for (const tool of registered) {
+      if (merged.has(tool.name)) continue;
+      const compactDescription = tool.promptGuidelines?.join(' ').trim();
+      merged.set(tool.name, { name: tool.name, description: tool.description, ...(compactDescription ? { compactDescription } : {}), concurrencySafe: true });
+    }
+    return [...merged.values()];
+  };
+  const loadSkillDefinitions = (): readonly PlatformSkillDefinition[] => {
+    const host = resolveHost();
+    return host ? host.providers.tools.getSkillDefinitions?.(hostRequestFor(host.sessionId)) ?? [] : [];
+  };
+  /**
+   * Live view of the session capability host: every property read re-resolves,
+   * and an absent host reports no capabilities so gated branches fail closed.
+   */
+  const sessionHost = new Proxy({} as PlatformHost, {
+    get: (_target, property) => {
+      const host = resolveHost();
+      if (host) return Reflect.get(host as object, property) as unknown;
+      return property === 'capabilities' ? [] : undefined;
+    },
   });
-  const toolMetadata = host.providers.tools.getToolMetadata({
-    contract: 'upup.pi.host.v1', packageName: PACKAGE, packageVersion: VERSION, sessionId: host.sessionId, capability: 'tool-definitions',
-  });
-  const skillRequest = { contract: 'upup.pi.host.v1' as const, packageName: PACKAGE, packageVersion: VERSION, sessionId: host.sessionId, capability: 'tool-definitions' as const };
-  const loadSkillDefinitions = () => host.providers.tools.getSkillDefinitions?.(skillRequest) ?? [];
-  for (const tool of tools) pi.registerTool(tool as never);
-  const sessionHost = host;
 
   let state = createInitialPlatformSwarmState();
   let watchlistState = createInitialPlatformWatchlistState();
@@ -300,7 +360,7 @@ function registerPlatformExtension(pi: ExtensionAPI, host: PlatformHost): void {
 
   pi.registerTool({ name: 'tool_search', label: 'Search Tools', description: TOOL_SEARCH_DESCRIPTION, parameters: toolSearchParameters, async execute(id, params, signal) {
     if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
-    return result(id, { output: searchPlatformTools(toolMetadata, params) });
+    return result(id, { output: searchPlatformTools(toolMetadata(), params) });
   } });
   pi.registerTool({ name: 'list_skills', label: 'List Skills', description: LIST_SKILLS_DESCRIPTION, parameters: listSkillsParameters, async execute(id, params, signal) {
     if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
@@ -669,11 +729,11 @@ function registerPlatformExtension(pi: ExtensionAPI, host: PlatformHost): void {
   } });
   pi.registerTool({ name: 'tool_get', label: 'Get Tool Details', description: TOOL_GET_DESCRIPTION, parameters: toolGetParameters, async execute(id, params, signal) {
     if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
-    return result(id, { output: getPlatformTool(toolMetadata, params.name) });
+    return result(id, { output: getPlatformTool(toolMetadata(), params.name) });
   } });
   pi.registerTool({ name: 'tool_list', label: 'List Tools', description: TOOL_LIST_DESCRIPTION, parameters: toolListParameters, async execute(id, params, signal) {
     if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
-    return result(id, { output: listPlatformTools(toolMetadata, params) });
+    return result(id, { output: listPlatformTools(toolMetadata(), params) });
   } });
   pi.registerTool({ name: 'export_data', label: 'Export Data', description: 'Export analysis rows to a local CSV or JSON file.', parameters: exportDataParameters, async execute(id, params, signal) {
     if (signal?.aborted) return result(id, { error: 'request aborted' }, { isError: true, details: undefined });
@@ -905,18 +965,24 @@ export default function platformExtension(pi: ExtensionAPI): void {
     register: () => undefined,
   });
 
-  let initialized = false;
-  const initialize = (host: PlatformHost | undefined): void => {
-    if (initialized || !host) return;
-    initialized = true;
-    registerPlatformExtension(pi, host);
+  // Register the platform tool surface immediately — it must be in the
+  // registry before Pi builds the first turn's tool catalogue.
+  registerPlatformExtension(pi);
+
+  // The embedded session factory also owns per-package tool contracts
+  // (`providers.tools.getToolDefinitions`). Those are registered as soon as a
+  // host that actually carries providers is in hand: already at load time for
+  // the embedded factory (it publishes before the resource loader reloads), and
+  // at `session_start` for a Pi-native session, where the capability provider
+  // bootstrap publishes on that same event.
+  let registeredHostTools = false;
+  const registerHostTools = (): void => {
+    if (registeredHostTools) return;
+    const host = resolvePiCapabilityHost<PlatformHost>(pi.events, PACKAGE, undefined);
+    if (!isUsableHost(host)) return;
+    registeredHostTools = true;
+    for (const tool of host.providers.tools.getToolDefinitions(hostRequestFor(host.sessionId))) pi.registerTool(tool as never);
   };
-  initialize(resolvePiCapabilityHost<PlatformHost>(pi.events, PACKAGE, undefined));
-  if (typeof pi.on === 'function') {
-    pi.on('session_start', (_event, context) => {
-      initialize(resolvePiCapabilityHost<PlatformHost>(pi.events, PACKAGE, context.sessionManager.getSessionId()));
-    });
-  } else {
-    initialize(resolvePiCapabilityHost<PlatformHost>(pi.events, PACKAGE, undefined));
-  }
+  registerHostTools();
+  if (typeof pi.on === 'function') pi.on('session_start', () => registerHostTools());
 }

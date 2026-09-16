@@ -89,33 +89,76 @@ import { setSessionProviders, clearSessionProviders } from '@upup/pi-runtime';
 
 
 
-function installPiPackageToolHosts(
+/** Pi package metadata the capability host needs to expose per-package providers. */
+export interface PiPackageHostMetadata {
+  readonly name: string;
+  readonly version: string;
+  readonly hostCapabilities: readonly string[];
+  readonly tools: readonly string[];
+  readonly nativeTools: readonly string[];
+}
 
-  sessionId: string,
-  spec: UpUpAgentSpec,
-  tools: readonly UpUpToolContract[],
-  packages: readonly { name: string; version: string; hostCapabilities: readonly string[]; tools: readonly string[]; nativeTools: readonly string[] }[],
-  requestToolApproval?: UpUpCreateSessionOptions['requestToolApproval'],
-  modelInstance?: import('@earendil-works/pi-ai').Model<any>,
-  modelRuntime?: ModelRuntime,
-  marketHistoryFetcher?: UpUpCreateSessionOptions['marketHistoryFetcher'],
-  marketHistoryFetchers?: UpUpCreateSessionOptions['marketHistoryFetchers'],
-  marketHistoryProviders?: UpUpCreateSessionOptions['marketHistoryProviders'],
-  marketHistoryApiKeys?: UpUpCreateSessionOptions['marketHistoryApiKeys'],
-  marketHistoryBaseUrls?: UpUpCreateSessionOptions['marketHistoryBaseUrls'],
-  marketQuoteFetcher?: UpUpCreateSessionOptions['marketQuoteFetcher'],
-  researchDataFetcher?: UpUpCreateSessionOptions['researchDataFetcher'],
-  researchDataFetchers?: UpUpCreateSessionOptions['researchDataFetchers'],
-  researchDataProviders?: UpUpCreateSessionOptions['researchDataProviders'],
-  researchDataApiKeys?: UpUpCreateSessionOptions['researchDataApiKeys'],
-  researchDataBaseUrls?: UpUpCreateSessionOptions['researchDataBaseUrls'],
-  marketQuoteTrendStore?: NativeMarketQuoteTrendStore,
-  getSkillDefinitions?: () => readonly import('@upup/pi-session').PiSkillDefinition[],
-  runWorkerPrompt?: (prompt: string, options: PlatformRunPromptOptions) => Promise<string>,
-  capabilityContext?: PiCapabilityContext,
-  events?: PiCapabilityEventBus,
-  composition: PiSessionCompositionProviders = builtinSessionComposition,
-): { release: () => void; dispose: () => Promise<void> } {
+/**
+ * Everything `installPiPackageToolHosts` needs to build one session's
+ * capability provider tree. Options object instead of the 19 positional
+ * parameters this used to take: the Pi-native entry (`@upup/pi-app`) only
+ * needs `sessionId` + `packages` + `events`, and positional `undefined`
+ * padding at that call site was unreadable.
+ */
+export interface InstallPiPackageToolHostsOptions {
+  readonly sessionId: string;
+  readonly spec: UpUpAgentSpec;
+  readonly tools: readonly UpUpToolContract[];
+  readonly packages: readonly PiPackageHostMetadata[];
+  readonly requestToolApproval?: UpUpCreateSessionOptions['requestToolApproval'];
+  readonly modelInstance?: import('@earendil-works/pi-ai').Model<any>;
+  readonly modelRuntime?: ModelRuntime;
+  readonly marketHistoryFetcher?: UpUpCreateSessionOptions['marketHistoryFetcher'];
+  readonly marketHistoryFetchers?: UpUpCreateSessionOptions['marketHistoryFetchers'];
+  readonly marketHistoryProviders?: UpUpCreateSessionOptions['marketHistoryProviders'];
+  readonly marketHistoryApiKeys?: UpUpCreateSessionOptions['marketHistoryApiKeys'];
+  readonly marketHistoryBaseUrls?: UpUpCreateSessionOptions['marketHistoryBaseUrls'];
+  readonly marketQuoteFetcher?: UpUpCreateSessionOptions['marketQuoteFetcher'];
+  readonly researchDataFetcher?: UpUpCreateSessionOptions['researchDataFetcher'];
+  readonly researchDataFetchers?: UpUpCreateSessionOptions['researchDataFetchers'];
+  readonly researchDataProviders?: UpUpCreateSessionOptions['researchDataProviders'];
+  readonly researchDataApiKeys?: UpUpCreateSessionOptions['researchDataApiKeys'];
+  readonly researchDataBaseUrls?: UpUpCreateSessionOptions['researchDataBaseUrls'];
+  readonly marketQuoteTrendStore?: NativeMarketQuoteTrendStore;
+  readonly getSkillDefinitions?: () => readonly import('@upup/pi-session').PiSkillDefinition[];
+  readonly runWorkerPrompt?: (prompt: string, options: PlatformRunPromptOptions) => Promise<string>;
+  readonly capabilityContext?: PiCapabilityContext;
+  readonly events?: PiCapabilityEventBus;
+  readonly composition?: PiSessionCompositionProviders;
+}
+
+export function installPiPackageToolHosts(options: InstallPiPackageToolHostsOptions): { release: () => void; dispose: () => Promise<void> } {
+  const {
+    sessionId,
+    spec,
+    tools,
+    packages,
+    requestToolApproval,
+    modelInstance,
+    modelRuntime,
+    marketHistoryFetcher,
+    marketHistoryFetchers,
+    marketHistoryProviders,
+    marketHistoryApiKeys,
+    marketHistoryBaseUrls,
+    marketQuoteFetcher,
+    researchDataFetcher,
+    researchDataFetchers,
+    researchDataProviders,
+    researchDataApiKeys,
+    researchDataBaseUrls,
+    marketQuoteTrendStore,
+    getSkillDefinitions,
+    runWorkerPrompt,
+    capabilityContext,
+    events,
+  } = options;
+  const composition: PiSessionCompositionProviders = options.composition ?? builtinSessionComposition;
   const registry = new Map<string, PiHostBridge>();
   // Compose the explicit finance and platform halves of the session
   // composition boundary so each host capability (quote, history, cron, MCP,
@@ -492,37 +535,37 @@ export class PiAgentSessionFactory implements UpUpAgentRuntime {
     if (packageCatalog.listEnabled().length > 0) {
       await withSerializedPiResourceReload({
         install: () => {
-          const hosts = installPiPackageToolHosts(
-          sessionManager.getSessionId(),
-          spec,
-          tools,
-          packageCatalog.listEnabled().map(({ manifest }) => ({ name: manifest.name, version: manifest.version, hostCapabilities: manifest.hostCapabilities, tools: manifest.tools, nativeTools: manifest.nativeTools })),
-          options.requestToolApproval,
-          options.model,
-          options.modelRuntime,
-          options.marketHistoryFetcher,
-          options.marketHistoryFetchers,
-          options.marketHistoryProviders,
-          options.marketHistoryApiKeys,
-          options.marketHistoryBaseUrls,
-          options.marketQuoteFetcher,
-          options.researchDataFetcher,
-          options.researchDataFetchers,
-          options.researchDataProviders,
-          options.researchDataApiKeys,
-          options.researchDataBaseUrls,
-          marketQuoteTrendStore,
-          () => resourceLoader.getSkills().skills.map((skill) => ({
-            name: skill.name,
-            description: skill.description,
-            instructions: (() => { try { return readFileSync(skill.filePath, 'utf8'); } catch { return undefined; } })(),
-            disableModelInvocation: skill.disableModelInvocation,
-          })),
-          runWorkerPrompt,
-          capabilityContext,
-          capabilityEvents,
-          this.composition,
-          );
+          const hosts = installPiPackageToolHosts({
+            sessionId: sessionManager.getSessionId(),
+            spec,
+            tools,
+            packages: packageCatalog.listEnabled().map(({ manifest }) => ({ name: manifest.name, version: manifest.version, hostCapabilities: manifest.hostCapabilities, tools: manifest.tools, nativeTools: manifest.nativeTools })),
+            ...(options.requestToolApproval ? { requestToolApproval: options.requestToolApproval } : {}),
+            ...(options.model ? { modelInstance: options.model } : {}),
+            ...(options.modelRuntime ? { modelRuntime: options.modelRuntime } : {}),
+            ...(options.marketHistoryFetcher ? { marketHistoryFetcher: options.marketHistoryFetcher } : {}),
+            ...(options.marketHistoryFetchers ? { marketHistoryFetchers: options.marketHistoryFetchers } : {}),
+            ...(options.marketHistoryProviders ? { marketHistoryProviders: options.marketHistoryProviders } : {}),
+            ...(options.marketHistoryApiKeys ? { marketHistoryApiKeys: options.marketHistoryApiKeys } : {}),
+            ...(options.marketHistoryBaseUrls ? { marketHistoryBaseUrls: options.marketHistoryBaseUrls } : {}),
+            ...(options.marketQuoteFetcher ? { marketQuoteFetcher: options.marketQuoteFetcher } : {}),
+            ...(options.researchDataFetcher ? { researchDataFetcher: options.researchDataFetcher } : {}),
+            ...(options.researchDataFetchers ? { researchDataFetchers: options.researchDataFetchers } : {}),
+            ...(options.researchDataProviders ? { researchDataProviders: options.researchDataProviders } : {}),
+            ...(options.researchDataApiKeys ? { researchDataApiKeys: options.researchDataApiKeys } : {}),
+            ...(options.researchDataBaseUrls ? { researchDataBaseUrls: options.researchDataBaseUrls } : {}),
+            marketQuoteTrendStore,
+            getSkillDefinitions: () => resourceLoader.getSkills().skills.map((skill) => ({
+              name: skill.name,
+              description: skill.description,
+              instructions: (() => { try { return readFileSync(skill.filePath, 'utf8'); } catch { return undefined; } })(),
+              disableModelInvocation: skill.disableModelInvocation,
+            })),
+            runWorkerPrompt,
+            capabilityContext,
+            events: capabilityEvents,
+            composition: this.composition,
+          });
           disposePackageHosts = async () => {
             await hosts.dispose();
             // Sprint D Phase 2: clear the session-scoped providers store

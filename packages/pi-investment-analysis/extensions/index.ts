@@ -1,6 +1,6 @@
 import { Type } from 'typebox';
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
-import {registerPiCapabilityHost, resolvePiCapabilityHost, definePiCapabilityHost} from '@upup/pi-capability-registry';
+import {createPiCapabilityHostResolver as createCapabilityHostResolver, registerPiCapabilityHost, definePiCapabilityHost} from '@upup/pi-capability-registry';
 import { calculateDcf, calculateProductionDcf, calculateProductionDdm, calculateTechnicalSignal, calculateQuickTargetPrice, calculateTargetPrice, calculateValuationRatios, comparePeers, calculateOptionPrice, calculateImpliedVolatility, calculateTechnicalIndicators, calculateKdj, calculateBoll, calculateWr, calculateCci, calculateAtr, calculateObv, calculateDecisionDashboard, parseResearchJournalState, queryResearchJournal, runResearchCoordinator, runNativeStockAnalysis, MatrixEngine, toCSV, toMarkdown, DEFAULT_TICKERS_UNIVERSE, DIMENSIONS, DIMENSION_LABELS_ZH, type MatrixCell, type Dimension, type DcfInput, type ProductionDcfInput, type ProductionDdmInput, type PeerComparisonInput, type TargetPriceInput, type ValuationRatiosInput, type OptionPricingInput, type TechnicalBar, type DecisionDashboardInput, type ResearchPhase, type ResearchTaskStatus, type ResearchRole } from '../src/index';
 
 const PACKAGE = '@upup/pi-investment-analysis';
@@ -148,6 +148,29 @@ function ddmEvidence(toolCallId: string) {
   return { id: `investment-analysis:${toolCallId}:ddm`, source: 'upup-pi://investment-analysis/ddm', retrievedAt, asOf: retrievedAt.slice(0, 10), query: 'ddm_model', dataFreshness: 'historical' as const, auditId: toolCallId };
 }
 
+interface ResearchWorkerHost {
+  readonly packageName: string;
+  readonly packageVersion: string;
+  readonly sessionId: string;
+  readonly capabilities: readonly string[];
+  readonly providers: { workers?: { runResearchWorker?: (request: unknown, signal: AbortSignal | undefined) => Promise<{ role: ResearchRole; output: string; evidence: readonly unknown[]; sessionId?: string }> } };
+}
+
+interface AgentWorkerHost {
+  readonly packageName: string;
+  readonly capabilities: readonly string[];
+  readonly providers: { workers?: { runAgentWorker?: (request: unknown, signal: AbortSignal | undefined) => Promise<{ agentId: string; output: string; sessionId: string }> } };
+}
+
+/** Reject the metadata-only self-publish so it is not memoized as the answer. */
+function isUsableResearchHost(host: ResearchWorkerHost | undefined): boolean {
+  return Boolean(host && host.packageName === PACKAGE && host.packageVersion === VERSION && host.capabilities.includes('research-worker') && host.providers.workers?.runResearchWorker);
+}
+
+function isUsableAgentHost(host: AgentWorkerHost | undefined): boolean {
+  return Boolean(host && host.packageName === '@upup/pi-platform' && host.capabilities?.includes('agent-worker') && host.providers.workers?.runAgentWorker);
+}
+
 export default function investmentAnalysisExtension(pi: ExtensionAPI): void {
   // Sprint D: self-publish the capability host so the extension is
   // self-contained (resolvable via `resolvePiCapabilityHost` without the
@@ -163,8 +186,11 @@ export default function investmentAnalysisExtension(pi: ExtensionAPI): void {
   });
 
   registerHostTools(pi);
-  const runtimeHost = resolvePiCapabilityHost<{ packageName: string; packageVersion: string; sessionId: string; capabilities: readonly string[]; providers: { workers?: { runResearchWorker?: (request: unknown, signal: AbortSignal | undefined) => Promise<{ role: ResearchRole; output: string; evidence: readonly unknown[]; sessionId?: string }> } } }>(pi.events, PACKAGE, undefined);
-  const platformHost = resolvePiCapabilityHost<{ packageName: string; capabilities: readonly string[]; providers: { workers?: { runAgentWorker?: (request: unknown, signal: AbortSignal | undefined) => Promise<{ agentId: string; output: string; sessionId: string }> } } }>(pi.events, '@upup/pi-platform', undefined);
+  // Resolved per tool call: Pi loads extensions before the session publishes its
+  // provider tree, so a load-time snapshot would leave `analyze_symbol` /
+  // `stock_analysis` fail-closed for the whole session.
+  const runtimeHost = createCapabilityHostResolver<ResearchWorkerHost>(pi.events, PACKAGE, isUsableResearchHost);
+  const platformHost = createCapabilityHostResolver<AgentWorkerHost>(pi.events, '@upup/pi-platform', isUsableAgentHost);
   const RESEARCH_ENTRY = 'upup_pi_research_tasks';
   let researchState = parseResearchJournalState(undefined);
   const readResearchState = (context?: { sessionManager?: { getEntries(): readonly unknown[] } }) => {
@@ -209,11 +235,12 @@ export default function investmentAnalysisExtension(pi: ExtensionAPI): void {
     parameters: stockAnalysisParameters,
     async execute(toolCallId, params, signal, _onUpdate, context) {
       if (signal?.aborted) return { content: [{ type: 'text', text: 'stock_analysis request aborted' }], isError: true, details: { auditId: toolCallId } };
-      if (!platformHost || platformHost.packageName !== '@upup/pi-platform' || !platformHost.capabilities?.includes('agent-worker') || !platformHost.providers.workers?.runAgentWorker) {
+      const workerHost = platformHost();
+      if (!workerHost || workerHost.packageName !== '@upup/pi-platform' || !workerHost.capabilities?.includes('agent-worker') || !workerHost.providers.workers?.runAgentWorker) {
         return { content: [{ type: 'text', text: 'agent-worker capability is unavailable; stock_analysis is fail-closed' }], isError: true, details: { auditId: toolCallId, capability: 'agent-worker', policy: 'fail-closed' } };
       }
       try {
-        const runWorker = platformHost.providers.workers.runAgentWorker;
+        const runWorker = workerHost.providers.workers.runAgentWorker;
         const value = await runNativeStockAnalysis(params, async (request, workerSignal) => {
           const worker = await runWorker(request, workerSignal);
           if (!worker) throw new Error('Pi platform agent worker returned no result; stock_analysis is fail-closed');
@@ -236,7 +263,7 @@ export default function investmentAnalysisExtension(pi: ExtensionAPI): void {
     parameters: analyzeSymbolParameters,
     async execute(toolCallId, params, signal, _onUpdate, context) {
       if (signal?.aborted) return { content: [{ type: 'text', text: 'analyze_symbol request aborted' }], isError: true, details: { auditId: toolCallId } };
-      const host = runtimeHost;
+      const host = runtimeHost();
       if (!host || host.packageName !== PACKAGE || host.packageVersion !== VERSION || !host.capabilities.includes('research-worker') || !host.providers.workers?.runResearchWorker) {
         return { content: [{ type: 'text', text: 'research-worker capability is unavailable; analyze_symbol is fail-closed' }], isError: true, details: { auditId: toolCallId, capability: 'research-worker', policy: 'fail-closed' } };
       }

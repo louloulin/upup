@@ -86,9 +86,12 @@ export const UPUP_RECOMMENDED_PLUGINS: readonly RecommendedPlugin[] = [
     source: 'npm:pi-hermes-memory',
     name: 'Pi Hermes Memory',
     category: 'memory',
-    description: 'Hermes 风格的 SQLite 持久记忆。UpUp 已有 `@upup/memory`，按需启用此包作为补充。',
-    verifiedClean: true,
-    caveats: ['与 `@upup/memory` 共存，可能产生重复 recall。'],
+    description: 'Hermes 风格的 SQLite 持久记忆。与 UpUp 自带 memory 工具二选一。',
+    verifiedClean: false,
+    caveats: [
+      '默认关闭：它注册的 `memory_search` / `memory_get` / `memory_update` 与 `@upup/pi-platform` 的 platform memory 工具同名，同时加载会让 Pi 以 `Tool "memory_search" conflicts` 退出。',
+      '需要时 `upup plugin enable npm:pi-hermes-memory`，并接受由此产生的工具名冲突。',
+    ],
   },
   {
     source: 'npm:@narumitw/pi-goal',

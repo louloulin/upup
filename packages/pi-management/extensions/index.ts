@@ -1,6 +1,6 @@
 import { Type } from 'typebox';
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
-import {resolvePiCapabilityHost, definePiCapabilityHost} from '@upup/pi-capability-registry';
+import {createPiCapabilityHostResolver, definePiCapabilityHost, resolvePiCapabilityHost} from '@upup/pi-capability-registry';
 import { PI_MANAGEMENT_HOST_CONTRACT, PI_MANAGEMENT_PACKAGE_NAME, PI_MANAGEMENT_PACKAGE_VERSION, type PiManagementSnapshot } from '../src/index';
 
 const emptyParameters = Type.Object({});
@@ -15,10 +15,27 @@ type ManagementHost = {
   providers: { management?: { getManagementSnapshot?: () => PiManagementSnapshot } };
 };
 
+/**
+ * A host is only usable when it carries the session-scoped
+ * `getManagementSnapshot` provider. The extension's own metadata-only
+ * self-publish (`providers: {}`) is deliberately rejected so it is never
+ * memoized before the orchestrator publishes the real provider tree.
+ */
+function isUsableHost(host: ManagementHost | undefined): boolean {
+  return Boolean(
+    host
+    && host.contract === PI_MANAGEMENT_HOST_CONTRACT
+    && host.packageName === PI_MANAGEMENT_PACKAGE_NAME
+    && host.packageVersion === PI_MANAGEMENT_PACKAGE_VERSION
+    && host.sessionId
+    && host.capabilities.includes('management-snapshot')
+    && host.providers.management?.getManagementSnapshot,
+  );
+}
+
 function getHost(events: { emit(channel: string, data: unknown): void; on(channel: string, handler: (data: unknown) => void): () => void }): ManagementHost | undefined {
   const host = resolvePiCapabilityHost<ManagementHost>(events, PI_MANAGEMENT_PACKAGE_NAME, undefined);
-  if (!host || host.contract !== PI_MANAGEMENT_HOST_CONTRACT || host.packageName !== PI_MANAGEMENT_PACKAGE_NAME || host.packageVersion !== PI_MANAGEMENT_PACKAGE_VERSION || !host.sessionId || !host.capabilities.includes('management-snapshot')) return undefined;
-  return host;
+  return isUsableHost(host) ? host : undefined;
 }
 
 function result(id: string, value: unknown, isError = false) {
@@ -49,9 +66,12 @@ export default function managementExtension(pi: ExtensionAPI): void {
     register: () => undefined,
   });
 
-  const host = getHost(pi.events);
-  pi.registerTool({ name: 'management_system_snapshot', label: 'System Snapshot', description: 'Read a redacted, read-only snapshot of the current Pi investment runtime.', parameters: emptyParameters, async execute(id, _params, signal) { if (signal?.aborted) return result(id, { error: 'request aborted' }, true); const output = snapshotOrError(id, host); return output.error ?? result(id, output.value); } });
-  pi.registerTool({ name: 'management_provider_status', label: 'Provider Status', description: 'Inspect configured market-data provider status and session metrics without secrets or raw responses.', parameters: providerParameters, async execute(id, params, signal) { if (signal?.aborted) return result(id, { error: 'request aborted' }, true); const output = snapshotOrError(id, host); if (output.error) return output.error; const providers = output.value!.providers.marketData.providers.filter((provider) => !params.provider || provider.name === params.provider); return result(id, { providers, metrics: output.value!.providers.marketData.metrics, capturedAt: output.value!.capturedAt }); } });
-  pi.registerTool({ name: 'management_package_status', label: 'Package Status', description: 'List enabled trusted Pi packages and their versions for the current session.', parameters: emptyParameters, async execute(id, _params, signal) { if (signal?.aborted) return result(id, { error: 'request aborted' }, true); const output = snapshotOrError(id, host); return output.error ?? result(id, { packages: output.value!.packages, capturedAt: output.value!.capturedAt }); } });
-  pi.registerTool({ name: 'management_runtime_status', label: 'Runtime Status', description: 'Read Pi runtime, permission summary, and tool counts for the current session.', parameters: emptyParameters, async execute(id, _params, signal) { if (signal?.aborted) return result(id, { error: 'request aborted' }, true); const output = snapshotOrError(id, host); return output.error ?? result(id, { runtime: output.value!.runtime, permissions: output.value!.permissions, tools: output.value!.tools, sessionId: output.value!.sessionId, capturedAt: output.value!.capturedAt }); } });
+  // Resolve per tool call: Pi loads extensions before the session publishes its
+  // provider tree, so a load-time snapshot would fail closed for the whole
+  // session (`management snapshot capability is unavailable`).
+  const resolveHost = createPiCapabilityHostResolver<ManagementHost>(pi.events, PI_MANAGEMENT_PACKAGE_NAME, isUsableHost);
+  pi.registerTool({ name: 'management_system_snapshot', label: 'System Snapshot', description: 'Read a redacted, read-only snapshot of the current Pi investment runtime.', parameters: emptyParameters, async execute(id, _params, signal) { if (signal?.aborted) return result(id, { error: 'request aborted' }, true); const output = snapshotOrError(id, resolveHost()); return output.error ?? result(id, output.value); } });
+  pi.registerTool({ name: 'management_provider_status', label: 'Provider Status', description: 'Inspect configured market-data provider status and session metrics without secrets or raw responses.', parameters: providerParameters, async execute(id, params, signal) { if (signal?.aborted) return result(id, { error: 'request aborted' }, true); const output = snapshotOrError(id, resolveHost()); if (output.error) return output.error; const providers = output.value!.providers.marketData.providers.filter((provider) => !params.provider || provider.name === params.provider); return result(id, { providers, metrics: output.value!.providers.marketData.metrics, capturedAt: output.value!.capturedAt }); } });
+  pi.registerTool({ name: 'management_package_status', label: 'Package Status', description: 'List enabled trusted Pi packages and their versions for the current session.', parameters: emptyParameters, async execute(id, _params, signal) { if (signal?.aborted) return result(id, { error: 'request aborted' }, true); const output = snapshotOrError(id, resolveHost()); return output.error ?? result(id, { packages: output.value!.packages, capturedAt: output.value!.capturedAt }); } });
+  pi.registerTool({ name: 'management_runtime_status', label: 'Runtime Status', description: 'Read Pi runtime, permission summary, and tool counts for the current session.', parameters: emptyParameters, async execute(id, _params, signal) { if (signal?.aborted) return result(id, { error: 'request aborted' }, true); const output = snapshotOrError(id, resolveHost()); return output.error ?? result(id, { runtime: output.value!.runtime, permissions: output.value!.permissions, tools: output.value!.tools, sessionId: output.value!.sessionId, capturedAt: output.value!.capturedAt }); } });
 }

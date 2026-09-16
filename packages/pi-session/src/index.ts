@@ -43,6 +43,7 @@ export {
 // Pi Native runtime and prompt orchestration
 // =============================================================================
 export * from './agent-session-factory';
+export * from './pi-native-providers';
 export * from './prompt-runner';
 
 export * from './tool-scope';

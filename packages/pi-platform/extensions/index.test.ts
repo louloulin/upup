@@ -19,7 +19,7 @@ describe('Pi platform extension', () => {
     return registered;
   }
 
-  test('loads only the exact session-scoped host tools', () => {
+  test('registers its own tool surface plus the exact session-scoped host tools', () => {
     const tools: string[] = [];
     const events = createEventBus();
     const dispose = publishPiCapabilityHosts(events, 'platform-session', new Map([
@@ -34,18 +34,26 @@ describe('Pi platform extension', () => {
       }],
     ]));
     platformExtension({ events, registerTool: (tool: { name: string }) => tools.push(tool.name) } as never);
-    expect(tools).toEqual(['read_file', 'enter_plan_mode', 'tool_search', 'list_skills', 'search_skills', 'get_skill', 'skill_info', 'skill', 'execute_skill', 'platformBash', 'read_file', 'write_file', 'edit_file', 'glob', 'grep', 'send_user_file', 'memory_search', 'memory_get', 'memory_update', 'enter_plan_mode', 'exit_plan_mode', 'add_plan_step', 'update_plan_step', 'list_plan_steps', 'create_todo', 'update_todo', 'list_todos', 'delete_todo', 'notebook_read', 'notebook_create', 'notebook_edit_cell', 'notebook_insert_cell', 'notebook_delete_cell', 'task_create', 'task_get', 'task_list', 'task_stop', 'task_update', 'task_result', 'mcp_auth_set', 'mcp_auth_get', 'mcp_auth_clear', 'list_mcp_resources', 'read_mcp_resource', 'heartbeat', 'sleep', 'monitor', 'send_message', 'snip_tool', 'ask_confirm', 'ask_select', 'ask_multi_select', 'ask_input', 'ask_response', 'agent', 'fork_subagent', 'resume_agent', 'agent_memory', 'list_agents', 'run_builtin_agent', 'cron', 'tool_get', 'tool_list', 'export_data', 'create_worktree', 'remove_worktree', 'list_worktree', 'add_to_watchlist', 'remove_from_watchlist', 'get_watchlist', 'add_watchlist_alert', 'check_watchlist_alerts', 'clear_watchlist_alert', 'export_watchlist', 'lsp_complete', 'lsp_definition', 'lsp_references', 'lsp_hover', 'lsp_diagnostics', 'run_workflow', 'swarm_team_create', 'swarm_agent_spawn', 'swarm_agent_message', 'swarm_agent_results', 'swarm_team_list']);
+    // The platform tool surface is registered unconditionally at load time —
+    // Pi builds the first turn's tool catalogue before any capability host can
+    // be resolved in a Pi-native session. Host-provided tool contracts are
+    // appended once a usable host is in hand, so they must not appear twice.
+    const platformSurface = ['tool_search', 'list_skills', 'search_skills', 'get_skill', 'skill_info', 'skill', 'execute_skill', 'platformBash', 'read_file', 'write_file', 'edit_file', 'glob', 'grep', 'send_user_file', 'memory_search', 'memory_get', 'memory_update', 'enter_plan_mode', 'exit_plan_mode', 'add_plan_step', 'update_plan_step', 'list_plan_steps', 'create_todo', 'update_todo', 'list_todos', 'delete_todo', 'notebook_read', 'notebook_create', 'notebook_edit_cell', 'notebook_insert_cell', 'notebook_delete_cell', 'task_create', 'task_get', 'task_list', 'task_stop', 'task_update', 'task_result', 'mcp_auth_set', 'mcp_auth_get', 'mcp_auth_clear', 'list_mcp_resources', 'read_mcp_resource', 'heartbeat', 'sleep', 'monitor', 'send_message', 'snip_tool', 'ask_confirm', 'ask_select', 'ask_multi_select', 'ask_input', 'ask_response', 'agent', 'fork_subagent', 'resume_agent', 'agent_memory', 'list_agents', 'run_builtin_agent', 'cron', 'tool_get', 'tool_list', 'export_data', 'create_worktree', 'remove_worktree', 'list_worktree', 'add_to_watchlist', 'remove_from_watchlist', 'get_watchlist', 'add_watchlist_alert', 'check_watchlist_alerts', 'clear_watchlist_alert', 'export_watchlist', 'lsp_complete', 'lsp_definition', 'lsp_references', 'lsp_hover', 'lsp_diagnostics', 'run_workflow', 'swarm_team_create', 'swarm_agent_spawn', 'swarm_agent_message', 'swarm_agent_results', 'swarm_team_list'];
+    expect(tools).toEqual([...platformSurface, 'read_file', 'enter_plan_mode']);
     dispose();
   });
 
-  test('fails closed when the package identity is stale', () => {
+  test('ignores host tools whose package identity is stale', () => {
     const tools: string[] = [];
     const events = createEventBus();
     const dispose = publishPiCapabilityHosts(events, 'stale', new Map([
       ['@upup/pi-platform', { contract: 'upup.pi.host.v1', packageName: '@upup/pi-platform', packageVersion: '9.9.9', sessionId: 'stale', capabilities: ['tool-definitions'], providers: { tools: { getToolDefinitions: () => [{ name: 'must-not-load' }], getToolMetadata: () => [], getSkillDefinitions: () => [] } } }],
     ]));
     platformExtension({ events, registerTool: (tool: { name: string }) => tools.push(tool.name) } as never);
-    expect(tools).toEqual([]);
+    // A version-mismatched host contributes nothing, but the platform's own
+    // surface still registers (it must exist before the first turn).
+    expect(tools).not.toContain('must-not-load');
+    expect(tools).toContain('tool_search');
     dispose();
   });
 

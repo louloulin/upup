@@ -28,9 +28,10 @@
 
 import { existsSync } from 'node:fs';
 
-import type { InlineExtension } from '@earendil-works/pi-coding-agent';
+import type { ExtensionAPI, InlineExtension } from '@earendil-works/pi-coding-agent';
 
 import { createUpUpBrandExtension } from '@upup/pi-runtime';
+import { installPiNativeCapabilityProviders } from '@upup/pi-session';
 import { PiPackageCatalog, resolveConfiguredPiPackages } from '@upup/pi-resource-composition';
 import { getPiNativeApp } from './default';
 import { printUpupBanner } from './banner';
@@ -114,6 +115,50 @@ export function resolveUpupExtensionPaths(cwd: string = process.cwd()): string[]
   return [...new Set(paths)];
 }
 
+/**
+ * Publish the session capability provider tree for the Pi-native session.
+ *
+ * Pi's own `main()` creates the session, so unlike the embedded
+ * `PiAgentSessionFactory` path nothing ever assembled the per-package provider
+ * tree (`quote client`, `investment workflow services`, `management snapshot`,
+ * worker runners, MCP, cron). Without it every `@upup/pi-*` extension resolved
+ * only its own metadata-only self-publish and failed closed: `/invest` answered
+ * `investment-workflow capability is unavailable` and the whole
+ * `@upup/pi-platform` tool surface never registered.
+ *
+ * `session_start` is the earliest hook that has both a session id and every
+ * extension's resolve handler registered (Pi emits it from
+ * `AgentSession.bindExtensions()`, after the resource loader has loaded the
+ * `-e` workspace packages and the inline factories below).
+ */
+function createUpUpCapabilityProviderExtension(): InlineExtension {
+  return (pi: ExtensionAPI): void => {
+    let release: (() => void) | undefined;
+    const publish = (context: { sessionManager: { getSessionId(): string }; cwd: string; model?: unknown; modelRuntime?: unknown }): void => {
+      if (release) return;
+      try {
+        const installed = installPiNativeCapabilityProviders({
+          sessionId: context.sessionManager.getSessionId(),
+          cwd: context.cwd,
+          events: pi.events,
+          ...(context.model ? { modelInstance: context.model as Parameters<typeof installPiNativeCapabilityProviders>[0]['modelInstance'] } : {}),
+          ...(context.modelRuntime ? { modelRuntime: context.modelRuntime as Parameters<typeof installPiNativeCapabilityProviders>[0]['modelRuntime'] } : {}),
+        });
+        release = installed.release;
+      } catch (error) {
+        // Fail closed rather than abort the session: the extensions keep their
+        // metadata-only hosts and their tools report the missing capability.
+        process.stderr.write(`[upup] session capability providers unavailable: ${error instanceof Error ? error.message : String(error)}\n`);
+      }
+    };
+    pi.on('session_start', (_event, context) => publish(context as Parameters<typeof publish>[0]));
+    // `before_agent_start` is the safety net for hosts that bind the extension
+    // runner after `session_start` already fired.
+    pi.on('before_agent_start', (_event, context) => publish(context as Parameters<typeof publish>[0]));
+    pi.on('session_shutdown', () => { release?.(); release = undefined; });
+  };
+}
+
 function buildExtensionFactories(): InlineExtension[] {
   const app = getPiNativeApp();
   // Each finance/workflow/notification Pi package already exposes an
@@ -126,7 +171,7 @@ function buildExtensionFactories(): InlineExtension[] {
   // Brand the interactive TUI's system prompt as UpUp. Pi hard-codes its own
   // identity in the default prompt template and ships no config for it, so we
   // rewrite it from a `before_agent_start` handler instead of forking Pi.
-  return [createUpUpBrandExtension()];
+  return [createUpUpCapabilityProviderExtension(), createUpUpBrandExtension()];
 }
 
 export async function runPiNativeCli(options: PiNativeRunCliOptions = {}): Promise<void> {

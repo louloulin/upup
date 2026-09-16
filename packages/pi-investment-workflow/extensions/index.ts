@@ -1,6 +1,6 @@
 import { Type } from 'typebox';
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
-import {resolvePiCapabilityHost, definePiCapabilityHost} from '@upup/pi-capability-registry';
+import {createPiCapabilityHostResolver, definePiCapabilityHost} from '@upup/pi-capability-registry';
 import { CANONICAL_INVESTMENT_PHASES, executeInvestmentPhase, type InvestmentAgentProfileId, type InvestmentWorkflowServices } from '../src/index';
 
 const PACKAGE = '@upup/pi-investment-workflow';
@@ -20,10 +20,22 @@ const canonicalParameters = Type.Object({
   goal: Type.Optional(Type.String({ maxLength: 2_000 })),
 });
 
-function host(events: { emit(channel: string, data: unknown): void; on(channel: string, handler: (data: unknown) => void): () => void }): { services?: () => InvestmentWorkflowServices } | undefined {
-  const value = resolvePiCapabilityHost<{ packageName: string; packageVersion: string; capabilities: readonly string[]; providers: { workflow?: { getInvestmentWorkflowServices?: () => InvestmentWorkflowServices } } }>(events, PACKAGE, undefined);
-  if (!value || value.packageName !== PACKAGE || value.packageVersion !== VERSION || !value.capabilities.includes('investment-workflow') || !value.providers.workflow?.getInvestmentWorkflowServices) return undefined;
-  return { services: value.providers.workflow.getInvestmentWorkflowServices };
+interface InvestmentWorkflowHost {
+  readonly packageName: string;
+  readonly packageVersion: string;
+  readonly capabilities: readonly string[];
+  readonly providers: { workflow?: { getInvestmentWorkflowServices?: () => InvestmentWorkflowServices } };
+}
+
+/** Reject the metadata-only self-publish so it is not memoized as the answer. */
+function isUsableHost(host: InvestmentWorkflowHost | undefined): boolean {
+  return Boolean(
+    host
+    && host.packageName === PACKAGE
+    && host.packageVersion === VERSION
+    && host.capabilities.includes('investment-workflow')
+    && host.providers.workflow?.getInvestmentWorkflowServices,
+  );
 }
 
 export default function investmentWorkflowExtension(pi: ExtensionAPI): void {
@@ -40,13 +52,17 @@ export default function investmentWorkflowExtension(pi: ExtensionAPI): void {
     register: () => undefined,
   });
 
-  const services = host(pi.events)?.services;
+  // Resolve per tool call: Pi loads extensions before the session publishes its
+  // provider tree, so a load-time snapshot would be empty for the whole session.
+  const resolveHost = createPiCapabilityHostResolver<InvestmentWorkflowHost>(pi.events, PACKAGE, isUsableHost);
+  const resolveServices = () => resolveHost()?.providers.workflow?.getInvestmentWorkflowServices;
   pi.registerTool({
     name: 'invest_workflow_phase',
     label: 'Investment Workflow Phase',
     description: 'Execute one auditable phase of the five-step investment workflow through the trusted Pi host.',
     parameters,
     async execute(toolCallId, params, signal, _onUpdate, _ctx) {
+    const services = resolveServices();
     if (!services) return { content: [{ type: 'text', text: 'investment-workflow capability is unavailable; execution is fail-closed' }], isError: true, details: { auditId: toolCallId, capability: 'investment-workflow', policy: 'fail-closed' } };
     try {
       const result = await executeInvestmentPhase(params.phase, { ...(params.ticker === undefined ? {} : { ticker: params.ticker }), ...(params.market === undefined ? {} : { market: params.market }), ...(params.goal === undefined ? {} : { goal: params.goal }) }, services(), signal);
@@ -66,6 +82,7 @@ export default function investmentWorkflowExtension(pi: ExtensionAPI): void {
     description: 'Run one canonical, auditable Pi investment workflow phase: detect, plan, execute, verify, or report.',
     parameters: canonicalParameters,
     async execute(toolCallId, params, signal, _onUpdate, _ctx) {
+      const services = resolveServices();
       if (!services) return { content: [{ type: 'text', text: 'investment-workflow capability is unavailable; execution is fail-closed' }], isError: true, details: { auditId: toolCallId, policy: 'fail-closed' } };
       const result = await executeInvestmentPhase(params.phase, { ...(params.ticker === undefined ? {} : { ticker: params.ticker }), ...(params.market === undefined ? {} : { market: params.market }), ...(params.goal === undefined ? {} : { goal: params.goal }) }, services(), signal);
       return { content: [{ type: 'text', text: result.output }], ...(result.error ? { isError: true, details: undefined } : {}), details: { auditId: toolCallId, workflowId: params.workflowId, phase: params.phase, profile: params.profile as InvestmentAgentProfileId, evidence: result.evidence } };

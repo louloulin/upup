@@ -46,9 +46,15 @@ import { resolveAgentDir, upupAgentDirFor } from '@upup/pi-resource-composition'
  * `Failed to load extension ... Tool "web_search" conflicts` 并按退出码 1 退出，
  * 整个 TUI 都起不来。需要时用 `upup plugin enable <source>` 显式打开（同时接受
  * 由此产生的工具名冲突）。
+ *
+ * `npm:pi-hermes-memory` 同理：它注册 `memory_get` / `memory_search` /
+ * `memory_update`，而 `@upup/pi-platform` 的 platform memory 工具同名。这份
+ * 冲突在 platform 工具真正注册之前一直不可见（工具没注册就没有冲突），所以它
+ * 也属于"被 UpUp 自带能力取代、默认关闭"的集合。
  */
 const UPUP_SUPERSEDED_SOURCES: ReadonlySet<string> = new Set([
   'npm:pi-web-access',
+  'npm:pi-hermes-memory',
 ]);
 
 /**
@@ -65,7 +71,6 @@ const UPUP_AUTOLOAD_SAFE_SOURCES: ReadonlySet<string> = new Set([
   'npm:pi-mcp-adapter',
   'npm:pi-subagents',
   'npm:pi-background-tasks',
-  'npm:pi-hermes-memory',
   'npm:@narumitw/pi-goal',
   'npm:@juicesharp/rpiv-ask-user-question',
   'npm:@specode/pi-kimi-cu',
@@ -345,10 +350,16 @@ function disableNonRecommendedThirdPartyPackages(settingsPath: string): boolean 
     const obj = entry as Record<string, unknown>;
     const source = typeof obj.source === 'string' ? obj.source : '';
     if (!source) return entry;
-    // 推荐清单内的包不动（被 UpUp 自带能力取代的包不在推荐清单里）
-    if (UPUP_AUTOLOAD_SAFE_SOURCES.has(source)) return entry;
     // 已经是 autoload=false 的不动
     if (obj.autoload === false) return entry;
+    // 被 UpUp 自带能力取代的包（工具撞名）优先于推荐清单：用户装过、
+    // Pi 自动补成对象形式时也要降级。
+    if (UPUP_SUPERSEDED_SOURCES.has(source)) {
+      mutated = true;
+      return { ...obj, autoload: false };
+    }
+    // 推荐清单内的包不动（被 UpUp 自带能力取代的包不在推荐清单里）
+    if (UPUP_AUTOLOAD_SAFE_SOURCES.has(source)) return entry;
     mutated = true;
     return { ...obj, autoload: false };
   });

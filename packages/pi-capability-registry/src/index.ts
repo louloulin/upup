@@ -322,6 +322,49 @@ export function resolvePiCapabilityHost<T extends PiCapabilityHostShape & { prov
   return resolved;
 }
 
+/**
+ * Build a host accessor for an extension that needs the session capability
+ * provider tree at *tool-execution* time, not at load time.
+ *
+ * Two orderings have to work with one accessor:
+ *
+ *   1. **Embedded session factory** — the tree is published before the resource
+ *      loader reloads, but `withSerializedPiResourceReload` rolls the publish
+ *      back as soon as the reload returns (the publish is scoped to the reload
+ *      window). Only a load-time read can see it, so the first usable host is
+ *      remembered and used for the session's lifetime.
+ *   2. **Pi-native session** — Pi loads extensions first and the tree arrives
+ *      later (on `session_start`), so the load-time read sees nothing and every
+ *      later read must re-resolve.
+ *
+ * The accessor therefore re-resolves on every call, prefers the live answer,
+ * and falls back to the first usable host it ever saw. `isUsable` must reject
+ * placeholder hosts (the extension's own metadata-only self-publish, e.g.
+ * `providers: {}`) — otherwise a placeholder would be remembered as the answer
+ * and every capability-gated tool would stay fail-closed.
+ *
+ * One accessor per extension instance: the remembered host is per-resolver.
+ */
+export function createPiCapabilityHostResolver<T extends PiCapabilityHostShape & { providers?: unknown }>(
+  events: PiCapabilityEventBus,
+  packageName: string,
+  isUsable?: (host: T | undefined) => boolean,
+): () => T | undefined {
+  const usable = (host: T | undefined): host is T => Boolean(host) && (!isUsable || isUsable(host));
+  const probe = () => resolvePiCapabilityHost<T>(events, packageName, undefined);
+  let remembered: T | undefined;
+  const initially = probe();
+  if (usable(initially)) remembered = initially;
+  return () => {
+    const live = probe();
+    if (usable(live)) {
+      remembered = live;
+      return live;
+    }
+    return remembered;
+  };
+}
+
 export function publishPiCapabilityHosts(
   events: PiCapabilityEventBus,
   sessionId: string,
