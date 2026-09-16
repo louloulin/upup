@@ -238,7 +238,7 @@ export async function fetchWebContent(input: WebFetchInput, auditId: string, sig
 }
 
 export { searchWeb, searchX } from './search';
-export type { SearchEvidence, SearchResult, WebSearchValue, XSearchInput, XSearchValue, XTweet } from './search';
+export type { PerplexityAuthResolver, SearchEvidence, SearchResult, WebSearchValue, XAuthResolver, XSearchInput, XSearchValue, XTweet } from './search';
 export {
   analyzeSentimentToolResult,
   detectEventsToolResult,

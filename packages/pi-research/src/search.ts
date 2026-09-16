@@ -145,6 +145,14 @@ export interface PerplexityAuthResolver {
   resolvePerplexityAuth(): PiPerplexityAuthLike | undefined;
 }
 
+export interface PiXAuthLike {
+  readonly apiKey?: string;
+}
+
+export interface XAuthResolver {
+  resolveXAuth(): PiXAuthLike | undefined;
+}
+
 async function searchPerplexity(
   query: string,
   signal?: AbortSignal,
@@ -194,14 +202,14 @@ interface RawXResponse { data?: Record<string, unknown>[]; includes?: { users?: 
 const X_API_BASE = 'https://api.x.com/2';
 const TWEET_FIELDS = 'tweet.fields=created_at,public_metrics,author_id,conversation_id,entities&expansions=author_id&user.fields=username,name,public_metrics';
 
-function xToken(): string {
-  const token = process.env.X_BEARER_TOKEN;
-  if (!token) throw new Error('X_BEARER_TOKEN is not set');
+function xToken(authResolver?: XAuthResolver): string {
+  const token = authResolver?.resolveXAuth()?.apiKey ?? process.env.X_BEARER_TOKEN;
+  if (!token) throw new Error('X_BEARER_TOKEN is not set (and no Pi runtime credential resolver was supplied)');
   return token;
 }
 
-async function xGet(url: string, signal?: AbortSignal): Promise<RawXResponse> {
-  const response = await fetch(url, { headers: { Authorization: `Bearer ${xToken()}` }, signal });
+async function xGet(url: string, token: string, signal?: AbortSignal): Promise<RawXResponse> {
+  const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` }, signal });
   if (response.status === 429) throw new Error('X API rate limited');
   if (!response.ok) throw new Error(`X API ${response.status}: ${(await response.text()).slice(0, 300)}`);
   return response.json() as Promise<RawXResponse>;
@@ -226,7 +234,7 @@ function sinceToIso(value: string): string | undefined {
   return undefined;
 }
 
-async function recentTweets(query: string, options: { pages: number; maxResults: number; sort: 'relevancy' | 'recency'; since?: string }, signal?: AbortSignal): Promise<XTweet[]> {
+async function recentTweets(query: string, options: { pages: number; maxResults: number; sort: 'relevancy' | 'recency'; since?: string }, token: string, signal?: AbortSignal): Promise<XTweet[]> {
   const tweets: XTweet[] = [];
   let nextToken: string | undefined;
   for (let page = 0; page < Math.min(options.pages, 5); page += 1) {
@@ -234,7 +242,7 @@ async function recentTweets(query: string, options: { pages: number; maxResults:
     const since = options.since ? sinceToIso(options.since) : undefined;
     if (since) params.set('start_time', since);
     if (nextToken) params.set('pagination_token', nextToken);
-    const raw = await xGet(`${X_API_BASE}/tweets/search/recent?${params}`, signal);
+    const raw = await xGet(`${X_API_BASE}/tweets/search/recent?${params}`, token, signal);
     tweets.push(...parseTweets(raw));
     nextToken = raw.meta?.next_token;
     if (!nextToken) break;
@@ -242,14 +250,15 @@ async function recentTweets(query: string, options: { pages: number; maxResults:
   return [...new Map(tweets.map((tweet) => [tweet.id, tweet])).values()];
 }
 
-export async function searchX(input: XSearchInput, auditId = '', signal?: AbortSignal): Promise<{ value: XSearchValue; evidence: SearchEvidence }> {
+export async function searchX(input: XSearchInput, auditId = '', signal?: AbortSignal, options?: { authResolver?: XAuthResolver }): Promise<{ value: XSearchValue; evidence: SearchEvidence }> {
   const limit = Math.max(1, Math.min(input.limit ?? 15, 100));
+  const token = xToken(options?.authResolver);
   let value: XSearchValue;
   let source = 'https://api.x.com/2';
   if (input.command === 'search') {
     if (!input.query?.trim()) throw new Error('x_search query is required for search command');
     const query = input.query.includes('is:retweet') ? input.query : `${input.query} -is:retweet`;
-    let tweets = await recentTweets(query, { pages: input.pages ?? 1, maxResults: limit, sort: input.sort === 'recent' ? 'recency' : 'relevancy', since: input.since }, signal);
+    let tweets = await recentTweets(query, { pages: input.pages ?? 1, maxResults: limit, sort: input.sort === 'recent' ? 'recency' : 'relevancy', since: input.since }, token, signal);
     if ((input.min_likes ?? 0) > 0) tweets = tweets.filter((tweet) => tweet.metrics.likes >= input.min_likes!);
     if (input.sort && input.sort !== 'recent') {
       const metric = input.sort as 'likes' | 'impressions' | 'retweets';
@@ -258,14 +267,14 @@ export async function searchX(input: XSearchInput, auditId = '', signal?: AbortS
     value = { command: 'search', tweets: tweets.slice(0, limit), totalFetched: tweets.length, searchedAt: new Date().toISOString() };
   } else if (input.command === 'profile') {
     if (!input.username?.trim()) throw new Error('x_search username is required for profile command');
-    const profile = await xGet(`${X_API_BASE}/users/by/username/${encodeURIComponent(input.username)}?user.fields=public_metrics,description,created_at`, signal);
+    const profile = await xGet(`${X_API_BASE}/users/by/username/${encodeURIComponent(input.username)}?user.fields=public_metrics,description,created_at`, token, signal);
     const user = profile.data?.[0];
     if (!user) throw new Error(`X user @${input.username} not found`);
-    const tweets = await recentTweets(`from:${input.username} -is:retweet -is:reply`, { pages: 1, maxResults: limit, sort: 'recency' }, signal);
+    const tweets = await recentTweets(`from:${input.username} -is:retweet -is:reply`, { pages: 1, maxResults: limit, sort: 'recency' }, token, signal);
     value = { command: 'profile', user, tweets: tweets.slice(0, limit), searchedAt: new Date().toISOString() };
   } else {
     if (!input.query?.trim()) throw new Error('x_search tweet ID is required for thread command');
-    const tweets = await recentTweets(`conversation_id:${input.query}`, { pages: input.pages ?? 2, maxResults: limit, sort: 'recency' }, signal);
+    const tweets = await recentTweets(`conversation_id:${input.query}`, { pages: input.pages ?? 2, maxResults: limit, sort: 'recency' }, token, signal);
     value = { command: 'thread', tweets: tweets.slice(0, limit), searchedAt: new Date().toISOString() };
   }
   const urls = (value.tweets ?? []).map((tweet) => tweet.tweet_url);

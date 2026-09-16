@@ -12,7 +12,7 @@
   ],
   "scripts": {
     "benchmark:pi5": "bun run scripts/benchmark-pi5.ts",
-    "build": "bun run typecheck && (cd packages/utils && bun run build) && (cd packages/pi-evals && bun run build) && bun build --compile --target=bun --outfile=dist/upup src/index.tsx --external=playwright --external=playwright-core && bun run scripts/copy-pi-package-resources.ts dist && chmod +x dist/upup && echo '\u2705 Build complete: dist/upup'",
+    "build": "bun run typecheck && bun run build:packages && (cd packages/utils && bun run build) && (cd packages/pi-evals && bun run build) && bun build --compile --target=bun --outfile=dist/upup src/index.tsx --external=playwright --external=playwright-core && bun run scripts/copy-pi-package-resources.ts dist && chmod +x dist/upup && echo '\u2705 Build complete: dist/upup'",
     "build:packages": "bun run scripts/build-workspace-packages.ts",
     "build:all": "bun run build:types && bun run build:hooks && bun run build:memory && bun run --filter @upup/pi-session build && bun run --filter @upup/pi-app build && bun run build",
     "build:bun": "bun run typecheck && echo Bun build complete - run: bun start'",

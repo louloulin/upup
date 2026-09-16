@@ -51,6 +51,64 @@ describe('Pi research extension', () => {
       if (previous.tavily) process.env.TAVILY_API_KEY = previous.tavily;
     }
   });
+
+  test('x_search resolves the X bearer token from the Pi modelRegistry, not from X_BEARER_TOKEN', async () => {
+    const previous = process.env.X_BEARER_TOKEN;
+    delete process.env.X_BEARER_TOKEN;
+    const originalFetch = globalThis.fetch;
+    const calls: Array<{ url: string; auth: string | null }> = [];
+    (globalThis as unknown as { fetch: typeof fetch }).fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : (input as Request).url;
+      const headers = new Headers(init?.headers);
+      calls.push({ url, auth: headers.get('authorization') });
+      return Promise.resolve(new Response(JSON.stringify({ data: [], includes: { users: [] }, meta: {} }), { headers: { 'content-type': 'application/json' } }));
+    }) as typeof fetch;
+    try {
+      const tools = new Map<string, Tool>();
+      researchExtension({ registerTool: (tool: Tool) => tools.set(tool.name, tool) } as never);
+      const ctx = { modelRegistry: { getApiKeyForProvider: async (provider: string) => provider === 'x' ? 'x-from-registry' : undefined } };
+      type SearchExecute = (id: string, params: Record<string, unknown>, signal: AbortSignal, onUpdate: unknown, ctx: unknown) => Promise<{ isError?: boolean; content: Array<{ text: string }> }>;
+      const execute = tools.get('x_search')!.execute as unknown as SearchExecute;
+      const result = await execute('research-x-runtime-auth', { command: 'search', query: '$TSLA' }, new AbortController().signal, undefined, ctx);
+      expect(result.isError).not.toBe(true);
+      const xCall = calls.find((call) => call.url.includes('api.x.com/2/'));
+      expect(xCall).toBeDefined();
+      expect(xCall?.auth).toBe('Bearer x-from-registry');
+    } finally {
+      (globalThis as unknown as { fetch: typeof fetch }).fetch = originalFetch;
+      if (previous) process.env.X_BEARER_TOKEN = previous;
+    }
+  });
+
+  test('web_search resolves perplexity credentials from the Pi modelRegistry, not from PERPLEXITY_API_KEY', async () => {
+    const previous = { exa: process.env.EXASEARCH_API_KEY, perplexity: process.env.PERPLEXITY_API_KEY, tavily: process.env.TAVILY_API_KEY };
+    delete process.env.EXASEARCH_API_KEY; delete process.env.PERPLEXITY_API_KEY; delete process.env.TAVILY_API_KEY;
+    const originalFetch = globalThis.fetch;
+    const calls: Array<{ url: string; auth: string | null }> = [];
+    (globalThis as unknown as { fetch: typeof fetch }).fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : (input as Request).url;
+      const headers = new Headers(init?.headers);
+      calls.push({ url, auth: headers.get('authorization') });
+      return Promise.resolve(new Response(JSON.stringify({ choices: [{ message: { content: 'mocked' } }], citations: [], search_results: [] }), { headers: { 'content-type': 'application/json' } }));
+    }) as typeof fetch;
+    try {
+      const tools = new Map<string, Tool>();
+      researchExtension({ registerTool: (tool: Tool) => tools.set(tool.name, tool) } as never);
+      const ctx = { modelRegistry: { getApiKeyForProvider: async (provider: string) => provider === 'perplexity' ? 'pplx-from-registry' : undefined } };
+      type SearchExecute = (id: string, params: Record<string, unknown>, signal: AbortSignal, onUpdate: unknown, ctx: unknown) => Promise<{ isError?: boolean; content: Array<{ text: string }> }>;
+      const execute = tools.get('web_search')!.execute as unknown as SearchExecute;
+      const result = await execute('research-search-runtime-auth', { query: 'A 股研报' }, new AbortController().signal, undefined, ctx);
+      expect(result.isError).not.toBe(true);
+      const perplexityCall = calls.find((call) => call.url.startsWith('https://api.perplexity.ai/'));
+      expect(perplexityCall).toBeDefined();
+      expect(perplexityCall?.auth).toBe('Bearer pplx-from-registry');
+    } finally {
+      (globalThis as unknown as { fetch: typeof fetch }).fetch = originalFetch;
+      if (previous.exa) process.env.EXASEARCH_API_KEY = previous.exa;
+      if (previous.perplexity) process.env.PERPLEXITY_API_KEY = previous.perplexity;
+      if (previous.tavily) process.env.TAVILY_API_KEY = previous.tavily;
+    }
+  });
   test('fetches a local HTML page with evidence and readable extraction', async () => {
     const server = Bun.serve({ port: 0, fetch: () => new Response('<html><head><title>研究页</title></head><body><script>ignore()</script><h1>贵州茅台</h1><p>收入增长。</p></body></html>', { headers: { 'content-type': 'text/html; charset=utf-8' } }) });
     try {

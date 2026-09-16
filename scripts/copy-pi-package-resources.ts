@@ -1,4 +1,4 @@
-import { cpSync, mkdirSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, rmSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 const outputRoot = resolve(process.argv[2] ?? 'dist');
@@ -15,4 +15,20 @@ for (const packageName of ['pi-finance-sdk', 'pi-market-data', 'pi-investment-an
     });
   }
   console.log(`Copied Pi package resources to ${targetRoot}`);
+}
+
+// The compiled Bun binary resolves its built-in Pi TUI themes relative to
+// the executable directory as `<dist>/theme/dark.json` + `light.json`. The
+// tsx / dev path resolves them via
+// `node_modules/@earendil-works/pi-coding-agent/dist/modes/interactive/theme`
+// at runtime, so this copy is only needed for the binary release artifact.
+const builtInThemesDir = resolve('node_modules/@earendil-works/pi-coding-agent/dist/modes/interactive/theme');
+if (existsSync(builtInThemesDir)) {
+  const themeOut = join(outputRoot, 'theme');
+  mkdirSync(themeOut, { recursive: true });
+  for (const name of ['dark.json', 'light.json']) {
+    const src = join(builtInThemesDir, name);
+    if (existsSync(src)) cpSync(src, join(themeOut, name));
+  }
+  console.log(`Copied Pi built-in themes to ${themeOut}`);
 }
