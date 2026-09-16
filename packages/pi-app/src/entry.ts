@@ -53,7 +53,10 @@ async function main() {
   // RpcCommand surface Pi uses for editor integrations.
   if (args.includes('--stdio') || args.includes('--acp')) {
     const { main } = await import('@earendil-works/pi-coding-agent');
-    const rpcArgs = ['--mode', 'rpc', ...args];
+    // `--stdio` / `--acp` are UpUp selectors, not Pi flags: strip them before
+    // handing argv to Pi's parser, which rejects unknown options.
+    const forwarded = args.filter((arg) => arg !== '--stdio' && arg !== '--acp');
+    const rpcArgs = ['--mode', 'rpc', ...forwarded];
     await main(rpcArgs);
     return;
   }

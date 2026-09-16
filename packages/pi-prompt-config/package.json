@@ -42,7 +42,6 @@
   },
   "dependencies": {
     "@upup/utils": "0.2.0",
-    "@upup/i18n": "0.1.0",
     "@upup/pi-observability": "0.1.0",
     "@upup/pi-runtime": "0.1.0"
   }

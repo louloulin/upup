@@ -60,6 +60,12 @@ export interface InvestmentCommandEntry {
 /** 中央注册表 — 单一来源 */
 export const INVESTMENT_COMMANDS: ReadonlyArray<InvestmentCommandEntry> = [
   {
+    name: 'invest',
+    aliases: ['inv'],
+    description: '五阶段投资工作流: detect → plan → execute → verify → report (/invest 600519.SH)',
+    run: runInvestDelegate,
+  },
+  {
     name: 'morning-brief',
     aliases: ['mb', 'brief'],
     description: '早盘简报: 今日 plan + watchlist + 审计 (本地, < 1s)',

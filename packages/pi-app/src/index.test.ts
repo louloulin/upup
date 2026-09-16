@@ -10,10 +10,8 @@ function createFixture() {
   const config = { getConfiguredModelId: () => 'fixture-model', getConfiguredProvider: () => 'fixture-provider' };
   const cron = { ensureHeartbeatCronJob: async () => undefined, startCronRunner: () => ({ stop: () => undefined }) };
   const background = { start: async () => 'background-fixture-id' };
-  const stdio = { streamPiEvents: async function* () {}, sessionService: {} as never };
   const eventStream = { stream: async function* () {} };
-  const tuiEventStream = { stream: async function* () {} };
-  return { runtime, runner, promptPort, agent, config, cron, background, stdio, eventStream, tuiEventStream };
+  return { runtime, runner, promptPort, agent, config, cron, background, eventStream };
 }
 
 describe('@upup/pi-app', () => {
@@ -31,9 +29,7 @@ describe('@upup/pi-app', () => {
       gatewayAgentRuntime: fixture.agent,
       gatewayConfigRuntime: fixture.config,
       gatewayCronRuntime: fixture.cron,
-      stdioRuntimeFactory: () => fixture.stdio,
       eventStreamFactory: () => fixture.eventStream,
-      tuiEventStreamFactory: () => fixture.tuiEventStream,
       investCommandHandler: async () => 'invest-fixture',
     });
 
@@ -47,9 +43,7 @@ describe('@upup/pi-app', () => {
     expect(runtimeFactoryCalls).toBe(1);
     expect(app.getSessionFactory()).toBe(app.getSessionFactory());
     expect(app.getBackgroundRuntime()).toBe(fixture.background);
-    expect(app.getStdioRuntime()).toBe(fixture.stdio);
     expect(app.getEventStream()).toBe(fixture.eventStream);
-    expect(app.getTuiEventStream()).toBe(fixture.tuiEventStream);
     expect(getPiSessionService()).toBeDefined();
 
     await app.dispose();
@@ -65,7 +59,7 @@ describe('@upup/pi-app', () => {
     expect(() => createPiApp({} as never)).toThrow('sessionRuntimeFactory');
   });
 
-  test('does not expose stdio runtime before initialization', () => {
+  test('does not expose any runtime port before initialization', () => {
     const fixture = createFixture();
     const app = createPiApp({
       sessionRuntimeFactory: () => fixture.runtime,
@@ -74,17 +68,14 @@ describe('@upup/pi-app', () => {
       gatewayAgentRuntime: fixture.agent,
       gatewayConfigRuntime: fixture.config,
       gatewayCronRuntime: fixture.cron,
-      stdioRuntimeFactory: () => fixture.stdio,
       eventStreamFactory: () => fixture.eventStream,
-      tuiEventStreamFactory: () => fixture.tuiEventStream,
     });
 
-    expect(() => app.getStdioRuntime()).toThrow('initialized');
     expect(() => app.getEventStream()).toThrow('initialized');
     expect(() => app.getSessionFactory()).toThrow('initialized');
   });
 
-  test('disposes the single composition before reinitializing stdio and session services', async () => {
+  test('disposes the single composition before reinitializing the session service', async () => {
     const fixture = createFixture();
     const app = createPiApp({
       sessionRuntimeFactory: () => fixture.runtime,
@@ -93,15 +84,13 @@ describe('@upup/pi-app', () => {
       gatewayAgentRuntime: fixture.agent,
       gatewayConfigRuntime: fixture.config,
       gatewayCronRuntime: fixture.cron,
-      stdioRuntimeFactory: () => fixture.stdio,
       eventStreamFactory: () => fixture.eventStream,
-      tuiEventStreamFactory: () => fixture.tuiEventStream,
     });
     app.initialize();
-    expect(app.getStdioRuntime()).toBe(fixture.stdio);
+    expect(() => app.getEventStream()).not.toThrow();
     await app.dispose();
     app.initialize();
-    expect(app.getStdioRuntime()).toBe(fixture.stdio);
+    expect(app.getSessionFactory()).toBe(fixture.runtime);
     await app.dispose();
   });
 
@@ -114,9 +103,7 @@ describe('@upup/pi-app', () => {
       gatewayAgentRuntime: fixture.agent,
       gatewayConfigRuntime: fixture.config,
       gatewayCronRuntime: fixture.cron,
-      stdioRuntimeFactory: () => fixture.stdio,
       eventStreamFactory: () => fixture.eventStream,
-      tuiEventStreamFactory: () => fixture.tuiEventStream,
     });
     app.initialize();
     getPiSessionService();
@@ -179,9 +166,7 @@ describe('@upup/pi-app composition replacement contract', () => {
       gatewayAgentRuntime: fixture.agent,
       gatewayConfigRuntime: fixture.config,
       gatewayCronRuntime: fixture.cron,
-      stdioRuntimeFactory: () => fixture.stdio,
       eventStreamFactory: () => fixture.eventStream,
-      tuiEventStreamFactory: () => fixture.tuiEventStream,
     });
     expect(app.getSessionCompositionProvider()).toBeUndefined();
     app.initialize();
@@ -211,9 +196,7 @@ describe('@upup/pi-app composition replacement contract', () => {
       gatewayAgentRuntime: fixture.agent,
       gatewayConfigRuntime: fixture.config,
       gatewayCronRuntime: fixture.cron,
-      stdioRuntimeFactory: () => fixture.stdio,
       eventStreamFactory: () => fixture.eventStream,
-      tuiEventStreamFactory: () => fixture.tuiEventStream,
       sessionCompositionProvider: composition,
     });
     expect(app.getSessionCompositionProvider()).toBeUndefined();
@@ -241,9 +224,7 @@ describe('@upup/pi-app composition replacement contract', () => {
       gatewayAgentRuntime: fixture.agent,
       gatewayConfigRuntime: fixture.config,
       gatewayCronRuntime: fixture.cron,
-      stdioRuntimeFactory: () => fixture.stdio,
       eventStreamFactory: () => fixture.eventStream,
-      tuiEventStreamFactory: () => fixture.tuiEventStream,
       sessionCompositionProvider: composition,
     });
     app.initialize();
@@ -276,9 +257,7 @@ describe('@upup/pi-app composition replacement contract', () => {
         gatewayAgentRuntime: fixture.agent,
         gatewayConfigRuntime: fixture.config,
         gatewayCronRuntime: fixture.cron,
-        stdioRuntimeFactory: () => fixture.stdio,
         eventStreamFactory: () => fixture.eventStream,
-        tuiEventStreamFactory: () => fixture.tuiEventStream,
         sessionCompositionProvider: composition,
       });
     const appA = makeApp(compositionA);
@@ -333,9 +312,7 @@ describe('@upup/pi-app split sub-boundary contract', () => {
       gatewayAgentRuntime: fixture.agent,
       gatewayConfigRuntime: fixture.config,
       gatewayCronRuntime: fixture.cron,
-      stdioRuntimeFactory: () => fixture.stdio,
       eventStreamFactory: () => fixture.eventStream,
-      tuiEventStreamFactory: () => fixture.tuiEventStream,
       sessionFinanceProvider: financeOverride,
     });
     app.initialize();
@@ -377,9 +354,7 @@ describe('@upup/pi-app split sub-boundary contract', () => {
       gatewayAgentRuntime: fixture.agent,
       gatewayConfigRuntime: fixture.config,
       gatewayCronRuntime: fixture.cron,
-      stdioRuntimeFactory: () => fixture.stdio,
       eventStreamFactory: () => fixture.eventStream,
-      tuiEventStreamFactory: () => fixture.tuiEventStream,
       sessionPlatformProvider: platformOverride,
     });
     app.initialize();
@@ -412,9 +387,7 @@ describe('@upup/pi-app split sub-boundary contract', () => {
       gatewayAgentRuntime: fixture.agent,
       gatewayConfigRuntime: fixture.config,
       gatewayCronRuntime: fixture.cron,
-      stdioRuntimeFactory: () => fixture.stdio,
       eventStreamFactory: () => fixture.eventStream,
-      tuiEventStreamFactory: () => fixture.tuiEventStream,
       sessionCompositionProvider: combined,
       sessionFinanceProvider: {
         ...builtinSessionFinanceComposition,

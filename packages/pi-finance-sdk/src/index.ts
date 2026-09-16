@@ -128,6 +128,21 @@ export type {
 export type PiFinanceCommandRunner = (name: string, args: string) => Promise<string | null>;
 
 /**
+ * One investment slash command as declared by the owning
+ * `@upup/pi-investment-workflow` registry.
+ *
+ * The catalog is injected at boot so `registerPiFinanceCommands` registers
+ * exactly the names/aliases the workflow package implements. Without this,
+ * the two lists drift (the workflow registry grew to nine commands while the
+ * extension still only registered five).
+ */
+export interface PiFinanceCommandSpec {
+  readonly name: string;
+  readonly aliases?: readonly string[];
+  readonly description?: string;
+}
+
+/**
  * Module-level state for the two runners consumed by
  * `registerPiFinanceCommands` in `./extensions/commands`.
  *
@@ -139,18 +154,22 @@ export type PiFinanceCommandRunner = (name: string, args: string) => Promise<str
  */
 let _investRunner: ((args: string) => Promise<string>) | null = null;
 let _genericRunner: PiFinanceCommandRunner | null = null;
+let _commandCatalog: readonly PiFinanceCommandSpec[] | null = null;
 
 export function setPiFinanceCommandRunners(options: {
   invest?: (args: string) => Promise<string>;
   generic?: PiFinanceCommandRunner;
+  commands?: readonly PiFinanceCommandSpec[];
 }): void {
   _investRunner = options.invest ?? null;
   _genericRunner = options.generic ?? null;
+  _commandCatalog = options.commands ?? null;
 }
 
 export function getPiFinanceCommandRunners(): {
   readonly invest: ((args: string) => Promise<string>) | null;
   readonly generic: PiFinanceCommandRunner | null;
+  readonly commands: readonly PiFinanceCommandSpec[] | null;
 } {
-  return { invest: _investRunner, generic: _genericRunner };
+  return { invest: _investRunner, generic: _genericRunner, commands: _commandCatalog };
 }

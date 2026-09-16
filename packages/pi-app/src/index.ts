@@ -30,25 +30,14 @@ import type {
   WorkflowResult,
   InvestmentCommandHandler,
 } from '@upup/pi-investment-workflow';
-import { setInvestCommandHandler, runInvest, runInvestmentCommand } from '@upup/pi-investment-workflow';
+import { setInvestCommandHandler, runInvest, runInvestmentCommand, listInvestmentCommands } from '@upup/pi-investment-workflow';
 import { setPiFinanceCommandRunners } from '@upup/pi-finance-sdk';
 import type { PiCanonicalEventStream } from '@upup/pi-event-adapter';
-import type { PiSessionService } from '@upup/pi-session';
 import type { PiBackgroundService } from '@upup/pi-session';
-import type { TuiRuntime, TuiCommandCapabilities } from './tui-types';
 
 export type PiBackgroundRuntimePort = Pick<PiBackgroundService, 'start'>;
 
-export interface PiStdioRuntimePort {
-  readonly streamPiEvents: PiCanonicalEventStream;
-  readonly sessionService: PiSessionService;
-}
-
 export interface PiEventStreamPort {
-  readonly stream: PiCanonicalEventStream;
-}
-
-export interface PiTuiEventStreamPort {
   readonly stream: PiCanonicalEventStream;
 }
 
@@ -93,14 +82,10 @@ export interface PiAppOptions {
    */
   readonly sessionPromptProvider?: PiSessionPromptProviders;
   readonly backgroundRuntimeFactory?: () => PiBackgroundRuntimePort;
-  readonly tuiRuntimeFactory?: () => TuiRuntime;
-  readonly commandCapabilitiesFactory?: () => TuiCommandCapabilities;
   readonly gatewayAgentRuntime?: GatewayAgentRuntimePort;
   readonly gatewayConfigRuntime?: GatewayConfigRuntimePort;
   readonly gatewayCronRuntime?: GatewayCronRuntimePort;
-  readonly stdioRuntimeFactory?: () => PiStdioRuntimePort;
   readonly eventStreamFactory?: () => PiEventStreamPort;
-  readonly tuiEventStreamFactory?: () => PiTuiEventStreamPort;
   readonly investCommandHandler?: InvestmentCommandHandler | null;
   readonly investmentRuntimeFactory?: PiAppSessionRuntimeFactory;
   readonly investmentWorkflowFactory?: (sessionRuntimeFactory: PiAppSessionRuntimeFactory) => PiInvestmentWorkflow;
@@ -121,15 +106,11 @@ export interface PiApp {
   readonly initialized: boolean;
   initialize(): void;
   dispose(): Promise<void>;
-  getStdioRuntime(): PiStdioRuntimePort;
   getEventStream(): PiEventStreamPort;
-  getTuiEventStream(): PiTuiEventStreamPort;
   getInvestmentWorkflow(): PiInvestmentWorkflow;
   getGatewayRuntime(): GatewayRuntime;
   getSessionFactory(): PiSessionFactory;
   getBackgroundRuntime(): PiBackgroundRuntimePort;
-  getTuiRuntime(): TuiRuntime;
-  getCommandCapabilities(): TuiCommandCapabilities;
   getPromptRunner(): PiPromptPort['runPrompt'];
   /**
    * Returns the composition provider resolved at the last initialize() call.
@@ -214,6 +195,13 @@ export function createPiApp(options: PiAppOptions): PiApp {
       setPiFinanceCommandRunners({
         invest: (args: string) => runInvest(args),
         generic: (name: string, args: string) => runInvestmentCommand(name, args),
+        // Single source of truth for the investment command surface: names,
+        // aliases and descriptions all come from the workflow registry.
+        commands: listInvestmentCommands().map((entry) => ({
+          name: entry.name,
+          aliases: entry.aliases,
+          description: entry.description,
+        })),
       });
       // Composition is observable from initialize() even before the runtime
       // itself is resolved, while still preserving the lazy runtime factory.
@@ -232,19 +220,9 @@ export function createPiApp(options: PiAppOptions): PiApp {
       investmentWorkflow = undefined;
       initialized = false;
     },
-    getStdioRuntime(): PiStdioRuntimePort {
-      if (!initialized) throw new Error('Pi app must be initialized before accessing stdio runtime');
-      const factory = assertOption(options.stdioRuntimeFactory, 'stdioRuntimeFactory');
-      return factory();
-    },
     getEventStream(): PiEventStreamPort {
       if (!initialized) throw new Error('Pi app must be initialized before accessing event stream');
       const factory = assertOption(options.eventStreamFactory, 'eventStreamFactory');
-      return factory();
-    },
-    getTuiEventStream(): PiTuiEventStreamPort {
-      if (!initialized) throw new Error('Pi app must be initialized before accessing TUI event stream');
-      const factory = assertOption(options.tuiEventStreamFactory, 'tuiEventStreamFactory');
       return factory();
     },
     getInvestmentWorkflow(): PiInvestmentWorkflow {
@@ -269,15 +247,6 @@ export function createPiApp(options: PiAppOptions): PiApp {
       if (!initialized) throw new Error('Pi app must be initialized before accessing background runtime');
       const factory = assertOption(options.backgroundRuntimeFactory, 'backgroundRuntimeFactory');
       return factory();
-    },
-    getTuiRuntime(): TuiRuntime {
-      if (!initialized) throw new Error('Pi app must be initialized before accessing TUI runtime');
-      const factory = assertOption(options.tuiRuntimeFactory, 'tuiRuntimeFactory');
-      return factory();
-    },
-    getCommandCapabilities(): TuiCommandCapabilities {
-      if (!initialized) throw new Error('Pi app must be initialized before accessing command capabilities');
-      return options.commandCapabilitiesFactory?.() ?? {};
     },
     getPromptRunner(): PiPromptPort['runPrompt'] {
       if (!initialized) throw new Error('Pi app must be initialized before accessing prompt runner');

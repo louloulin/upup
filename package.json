@@ -214,7 +214,6 @@
     "@types/shell-quote": "^1.7.5",
     "@upup/daemon": "workspace:*",
     "@upup/cron": "workspace:*",
-    "@upup/pi-bridge": "workspace:*",
     "@upup/gateway": "workspace:*",
     "@upup/types": "workspace:*",
     "esbuild": "^0.28.0",

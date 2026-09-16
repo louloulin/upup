@@ -1,8 +1,8 @@
 import { fauxProvider, fauxAssistantMessage, fauxText } from '@earendil-works/pi-ai';
 import { ModelRuntime } from '@earendil-works/pi-coding-agent';
 import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
-import { spawn } from 'node:child_process';
 import { join } from 'node:path';
+import { spawnPiRpcStdio } from './pi-rpc-stdio-client';
 import { runPrint } from '@upup/pi-app/print';
 import { runAgentForMessage, type GatewayRuntime } from '@upup/gateway';
 import { executeCronJob, type CronJob, type CronStore } from '@upup/cron';
@@ -12,7 +12,7 @@ import { getInvestmentAgentSpec, PiAgentCatalog } from '@upup/pi-investment-work
 import type { UpUpAgentEvent } from '@upup/pi-runtime';
 import type { GatewayAgentRuntimePort, GatewayRuntime } from '@upup/gateway';
 
-type EntryName = 'cli' | 'gateway' | 'bridge' | 'stdio' | 'cron' | 'daemon' | 'sdk' | 'eval';
+type EntryName = 'cli' | 'gateway' | 'cron' | 'daemon' | 'stdio' | 'client' | 'eval';
 type EntryStatus = 'passed' | 'failed';
 
 interface EntryFaultEvidence {
@@ -136,107 +136,87 @@ async function daemonFault(): Promise<EntryFaultEvidence> {
   return { entry: 'daemon', status: recovered ? 'passed' : 'failed', firstFailure, recovered, attempts, artifacts: ['daemon task result', 'Pi background capability'], details: { firstSuccess: first.success, secondSuccess: second.success, secondOutput: second.output } };
 }
 
-function waitForOpen(socket: WebSocket): Promise<void> {
-  return new Promise((resolve, reject) => { socket.onopen = () => resolve(); socket.onerror = () => reject(new Error('bridge open failed')); });
-}
-
-async function decodeSocketData(data: unknown): Promise<BridgeMessage> {
-  const bytes = data instanceof Blob
-    ? new Uint8Array(await data.arrayBuffer())
-    : typeof data === 'string'
-      ? new TextEncoder().encode(data)
-      : new Uint8Array(data as ArrayBuffer);
-  return JSON.parse(new TextDecoder().decode(bytes)).msg as BridgeMessage;
-}
-
-function nextSocketMessage(socket: WebSocket, timeoutMs = 5_000): Promise<BridgeMessage> {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('bridge response timeout')), timeoutMs);
-    socket.onmessage = async (event) => {
-      clearTimeout(timer);
-      try { resolve(await decodeSocketData(event.data)); } catch (error) { reject(error); }
-    };
-  });
-}
-
-async function collectUntilIdle(socket: WebSocket): Promise<BridgeMessage[]> {
-  const messages: BridgeMessage[] = [];
-  for (let index = 0; index < 12; index += 1) {
-    const message = await nextSocketMessage(socket, 2_000);
-    messages.push(message);
-    process.stderr.write(`[pi-entry-faults] bridge-message:${message.kind}\n`);
-    if (message.kind === 'status' && message.payload.phase === 'idle') return messages;
-  }
-  throw new Error('bridge did not reach idle within 12 messages');
-}
-
-async function bridgeFault(directory: string): Promise<EntryFaultEvidence> {
-  let attempts = 0;
-  let firstFailure = '';
-  let injectedFailure = '';
-  const runtime = fixtureRuntime(async () => 'bridge runtime unused');
-  const server = await startBridgeServer({ port: 0, token: 'entry-fault-token', auditPath: join(directory, 'bridge-audit.jsonl'), runtime, agentRunner: async () => { attempts++; if (attempts === 1) { injectedFailure = 'Bridge provider 503'; throw new Error(injectedFailure); } return 'bridge recovered'; } });
-  const socket = new WebSocket(`ws://127.0.0.1:${server.port}/bridge?token=entry-fault-token`);
-  try {
-    await waitForOpen(socket);
-    const initial = await nextSocketMessage(socket);
-    const send = async (seq: number) => {
-      socket.send(encodeMessage({ kind: 'chat', seq, sessionId: initial.sessionId, timestamp: Date.now(), payload: { role: 'user', content: 'bridge fault fixture' } }));
-      return collectUntilIdle(socket);
-    };
-    try { await send(1); } catch (error) { firstFailure = errorText(error); }
-    if (!firstFailure) firstFailure = injectedFailure;
-    const messages = await send(2);
-    const recovered = attempts === 2 && messages.some((message) => message.kind === 'chat' && message.payload.role === 'assistant' && message.payload.content.includes('recovered'));
-    return { entry: 'bridge', status: recovered ? 'passed' : 'failed', firstFailure, recovered, attempts, artifacts: ['bridge websocket chat', join(directory, 'bridge-audit.jsonl')], details: { responseKinds: messages.map((message) => message.kind) } };
-  } finally { socket.close(); await server.stop(); }
-}
-
-function binaryLocation(): { command: string; args: string[] } {
+function piRpcCommand(): readonly string[] {
   const binary = join(root, 'dist', 'upup');
-  if (Bun.file(binary).size > 0) return { command: binary, args: ['--stdio'] };
-  return { command: process.execPath, args: [join(root, 'src', 'index.tsx'), '--stdio'] };
+  if (Bun.file(binary).size > 0) return [binary, '--stdio'];
+  return [process.execPath, 'run', join(root, 'src', 'index.tsx'), '--stdio'];
 }
 
+/**
+ * Pi-native stdio entry (`upup --stdio` -> Pi `main() --mode rpc`).
+ *
+ * Fault surface: a malformed JSONL line must be answered with a `parse`
+ * error frame (never a crash), and the very next well-formed command must
+ * still round-trip. Recovery is the second command succeeding on the same
+ * child process.
+ */
 async function stdioFault(directory: string): Promise<EntryFaultEvidence> {
-  const location = binaryLocation();
+  const client = spawnPiRpcStdio({ root, env: { UPUP_SESSION_DIR: directory }, command: piRpcCommand() });
+  let firstFailure = '';
+  const attempts = 1;
+  client.write('{not-json}');
+  const parsed = await client.call({ type: 'get_state' });
+  const frames = client.frames() as ReadonlyArray<{ type?: string; command?: string; success?: boolean }>;
+  const parseFrame = frames.find((frame) => frame.type === 'response' && frame.command === 'parse');
+  if (!parseFrame) firstFailure = 'malformed JSONL line was not answered with a Pi parse error frame';
+  const recovered = Boolean(parseFrame) && parsed.success === true && parsed.data !== undefined;
+  const exitCode = await client.close();
+  const stderrText = client.stderr();
+  return {
+    entry: 'stdio',
+    status: recovered && (exitCode === 0 || exitCode === 143) ? 'passed' : 'failed',
+    firstFailure,
+    recovered,
+    attempts,
+    artifacts: ['Pi rpc stdio child', 'Pi parse error frame', 'Pi get_state round-trip'],
+    details: {
+      malformedFrames: frames.filter((frame) => frame.command === 'parse').length,
+      responseCommand: parsed.command,
+      responseSuccess: parsed.success,
+      exitCode,
+      stderrBytes: stderrText.length,
+    },
+  };
+}
+
+/**
+ * Pi client entry: an unusable entrypoint must fail fast, and the real
+ * entrypoint must then complete a command round-trip on the same client
+ * implementation (recovery after a transport-level fault).
+ */
+async function clientFault(directory: string): Promise<EntryFaultEvidence> {
   let firstFailure = '';
   let attempts = 0;
-  const malformed = spawn(location.command, location.args, { cwd: root, env: { ...process.env, UPUP_SESSION_DIR: directory }, stdio: ['pipe', 'pipe', 'pipe'] });
-  malformed.stdin.write('{not-json}\n');
-  malformed.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'initialize', params: {} })}\n`);
-  const initialized = await new Promise<boolean>((resolve) => {
-    let buffer = '';
-    const timer = setTimeout(() => resolve(false), 10_000);
-    malformed.stdout.on('data', (chunk: Buffer) => { buffer += chunk.toString(); if (buffer.includes('"id":1')) { clearTimeout(timer); resolve(true); } });
+  const broken = spawnPiRpcStdio({
+    root,
+    env: { UPUP_SESSION_DIR: directory },
+    command: [process.execPath, '-e', 'process.exit(7)'],
+    timeoutMs: 5_000,
   });
-  malformed.kill('SIGTERM');
-  const invalidTransport = new StdioTransport({ executablePath: process.execPath, args: ['-e', 'process.exit(7)'] });
   try {
-    await Promise.race([
-      invalidTransport.connect(),
-      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('invalid executable connection timeout')), 3_000)),
-    ]);
-    firstFailure = 'failing executable unexpectedly connected';
-  } catch (error) { firstFailure = errorText(error); }
-  await invalidTransport.close();
-  const transport = new StdioTransport({ executablePath: location.command, args: location.args });
-  await transport.connect(); attempts += 1;
-  await transport.request('session/create', { id: 'entry-fault-stdio' });
-  await transport.close();
-  const recovered = initialized && attempts === 1 && firstFailure.length > 0;
-  return { entry: 'stdio', status: recovered ? 'passed' : 'failed', firstFailure, recovered, attempts, artifacts: ['stdio malformed JSON recovery', 'stdio JSON-RPC initialize/session/create'], details: { malformedIgnored: initialized } };
-}
+    await broken.call({ type: 'get_state' });
+    firstFailure = 'unusable entrypoint unexpectedly answered a command';
+  } catch (error) {
+    firstFailure = errorText(error);
+  }
+  await broken.close();
+  attempts += 1;
 
-async function sdkFault(directory: string): Promise<EntryFaultEvidence> {
-  const location = binaryLocation();
-  let firstFailure = '';
-  try { await createClient({ binary: { command: '/path/that/does/not/exist', args: ['--stdio'], source: 'explicit' }, env: { UPUP_SESSION_DIR: directory } }); } catch (error) { firstFailure = errorText(error); }
-  const client = await createClient({ binary: { command: location.command, args: location.args, source: 'explicit' }, env: { UPUP_SESSION_DIR: directory } });
-  const session = await client.session?.create({ id: 'entry-fault-sdk' });
+  const client = spawnPiRpcStdio({ root, env: { UPUP_SESSION_DIR: directory }, command: piRpcCommand() });
+  const sessions = await client.call({ type: 'new_session' });
+  const state = await client.call({ type: 'get_state' });
+  attempts += 1;
   await client.close();
-  const recovered = Boolean(session?.id) && firstFailure.length > 0;
-  return { entry: 'sdk', status: recovered ? 'passed' : 'failed', firstFailure, recovered, attempts: 2, artifacts: ['SDK failed connect', 'SDK public session create'], details: { sessionId: session?.id } };
+  const recovered = Boolean(firstFailure) && sessions.success === true && state.success === true;
+  return {
+    entry: 'client',
+    status: recovered ? 'passed' : 'failed',
+    firstFailure,
+    recovered,
+    attempts,
+    artifacts: ['Pi rpc client failed connect', 'Pi rpc new_session', 'Pi rpc get_state'],
+    details: { newSessionSuccess: sessions.success, stateSuccess: state.success },
+  };
 }
 
 async function evalFault(): Promise<EntryFaultEvidence> {
@@ -258,12 +238,10 @@ async function run(): Promise<void> {
   try {
     process.stderr.write('[pi-entry-faults] cli/gateway/cron/daemon\n');
     entries.push(await cliFault(), await gatewayFault(), await cronFault(), await daemonFault());
-    process.stderr.write('[pi-entry-faults] bridge\n');
-    entries.push(await bridgeFault(directory));
     process.stderr.write('[pi-entry-faults] stdio\n');
     entries.push(await stdioFault(directory));
-    process.stderr.write('[pi-entry-faults] sdk\n');
-    entries.push(await sdkFault(directory));
+    process.stderr.write('[pi-entry-faults] client\n');
+    entries.push(await clientFault(directory));
     process.stderr.write('[pi-entry-faults] eval\n');
     entries.push(await evalFault());
   } finally { await rm(directory, { recursive: true, force: true }); }

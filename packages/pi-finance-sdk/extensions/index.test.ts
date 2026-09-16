@@ -30,7 +30,14 @@ describe('Pi finance SDK extension', () => {
       appendEntry: (type, data) => { entries.push({ type, data }); },
     } as never);
 
-    expect([...commands.keys()].sort()).toEqual([...PI_FINANCE_COMMANDS].sort());
+    // The extension registers the whole investment command family from the
+    // single-source catalog: canonical names plus their legacy aliases (Pi has
+    // no alias field, so each alias is registered as its own command).
+    const registered = [...commands.keys()];
+    for (const name of PI_FINANCE_COMMANDS) expect(registered).toContain(name);
+    for (const alias of ['inv', 'doss', 'strat', 'risk', 'review', 'pr', 'mb', 'brief', 'ep', 'earnings', 'wl', 'watchlist', 'scr']) {
+      expect(registered).toContain(alias);
+    }
     await commands.get('risk-dashboard')?.handler('600519.SH');
     // The new handler calls `runInvestmentCommand('risk-dashboard', '600519.SH')`
     // which throws (no real workflow execution in the unit test). The catch path

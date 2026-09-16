@@ -30,7 +30,7 @@
   "private": false,
   "dependencies": {
     "@upup/pi-app": "0.1.0",
-    "@upup/pi-tui-app": "0.1.0",
+    "@earendil-works/pi-coding-agent": "0.85.1",
     "@upup/utils": "0.2.0",
     "@earendil-works/pi-tui": "0.85.1",
     "zod": "3.25.76"

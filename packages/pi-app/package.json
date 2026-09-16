@@ -18,17 +18,13 @@
       "types": "./src/entry.ts",
       "default": "./src/entry.ts"
     },
-    "./stdio": {
-      "types": "./src/stdio.ts",
-      "default": "./src/stdio.ts"
-    },
     "./print": {
       "types": "./src/print.ts",
       "default": "./src/print.ts"
     }
   },
   "scripts": {
-    "build": "bun build src/index.ts --outdir=dist --target=node --external '@upup/*' --external '@earendil-works/*' && bun build src/default.ts --outdir=dist --target=node --external '@upup/*' --external '@earendil-works/*' && bun build src/entry.ts --outdir=dist --target=node --external '@upup/*' --external '@earendil-works/*' && bun build src/stdio.ts --outdir=dist --target=node --external '@upup/*' --external '@earendil-works/*' && bun build src/print.ts --outdir=dist --target=node --external '@upup/*' --external '@earendil-works/*' && tsc --emitDeclarationOnly --project tsconfig.json",
+    "build": "bun build src/index.ts --outdir=dist --target=node --external '@upup/*' --external '@earendil-works/*' && bun build src/default.ts --outdir=dist --target=node --external '@upup/*' --external '@earendil-works/*' && bun build src/entry.ts --outdir=dist --target=node --external '@upup/*' --external '@earendil-works/*' && bun build src/print.ts --outdir=dist --target=node --external '@upup/*' --external '@earendil-works/*' && tsc --emitDeclarationOnly --project tsconfig.json",
     "test": "bun test ./src"
   },
   "files": ["dist", "package.json"],
@@ -56,8 +52,6 @@
     "@upup/pi-event-adapter": "0.1.0",
     "@upup/pi-runtime": "0.1.0",
     "@upup/pi-session": "0.1.0",
-    "@upup/pi-tui-app": "0.1.0",
-    "@upup/commands": "0.2.0",
     "@upup/mcp": "0.2.0",
     "@upup/pi-platform": "0.1.0"
   }

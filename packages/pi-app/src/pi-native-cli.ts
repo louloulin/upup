@@ -64,7 +64,6 @@ function buildExtensionFactories(): InlineExtension[] {
   // have to be wired at runtime (e.g. ones that capture the live
   // SessionService port from the app boundary).
   void app.getInvestmentWorkflow();
-  void app.getCommandCapabilities();
   return [];
 }
 

@@ -49,4 +49,4 @@ export { readWatchlist, writeWatchlist, addWatchlistEntry, removeWatchlistEntry,
 export { runScreen } from './screen';
 
 // Workflow registry
-export { INVESTMENT_COMMANDS, isInvestmentCommand, runInvestmentCommand, setInvestCommandHandler, type InvestmentCommandEntry, type InvestmentCommandName, type InvestmentCommandHandler } from './registry';
+export { INVESTMENT_COMMANDS, isInvestmentCommand, runInvestmentCommand, setInvestCommandHandler, listInvestmentCommands, type InvestmentCommandEntry, type InvestmentCommandName, type InvestmentCommandHandler } from './registry';

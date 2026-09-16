@@ -211,10 +211,15 @@ describe('investment: registry', () => {
     expect(isInvestmentCommand('doss')).toBe(true);
     expect(isInvestmentCommand('strategy')).toBe(true);
     expect(isInvestmentCommand('strat')).toBe(true);
+    expect(isInvestmentCommand('invest')).toBe(true);
+    expect(isInvestmentCommand('inv')).toBe(true);
     expect(isInvestmentCommand('status')).toBe(false);
     expect(isInvestmentCommand('unknown-cmd')).toBe(false);
 
-    expect(INVESTMENT_COMMANDS.length).toBe(8); // invest lives in root registry
+    // Single source of truth: `invest` is declared here too (it delegates to the
+    // handler injected by @upup/pi-app), so the Pi extension registers the whole
+    // family from this registry instead of keeping a second copy.
+    expect(INVESTMENT_COMMANDS.length).toBe(9);
     // P2.a.5 adds /strategy as a new top-level command with alias /strat.
   });
 

@@ -5,9 +5,6 @@
       "@/*": [
         "./src/*"
       ],
-      "@upup/commands": [
-        "./packages/commands/src/index.ts"
-      ],
       "@upup/cron": [
         "./packages/cron/src/index.ts"
       ],
@@ -32,14 +29,8 @@
       "@upup/pi-app/print": [
         "./packages/pi-app/src/print.ts"
       ],
-      "@upup/pi-app/stdio": [
-        "./packages/pi-app/src/stdio.ts"
-      ],
       "@upup/pi-backtest": [
         "./packages/pi-backtest/src/index.ts"
-      ],
-      "@upup/pi-bridge": [
-        "./packages/pi-bridge/src/index.ts"
       ],
       "@upup/pi-capability-registry": [
         "./packages/pi-capability-registry/src/index.ts"

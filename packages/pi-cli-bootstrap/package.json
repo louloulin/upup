@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "@upup/utils": "0.2.0",
-    "@upup/pi-tui-app": "0.1.0"
+    "@earendil-works/pi-coding-agent": "0.85.1"
   },
   "files": ["dist"],
   "private": false,
