@@ -799,3 +799,16 @@ export {
   UPUP_IDENTITY_SENTENCE,
 } from './brand-extension';
 export * from './embedding-provider';
+
+export {
+  setSessionProviders,
+  getSessionProviders,
+  clearSessionProviders,
+  listSessionProvidersKeys,
+  __resetSessionProvidersForTests,
+  type SetSessionProvidersOptions,
+} from './session-providers-store';
+
+export {
+  bootstrapSessionProvidersAccessor,
+} from './session-providers-bootstrap';

@@ -85,6 +85,7 @@ export type PlatformRunPromptOptions = Parameters<
 >[1];
 import type { NativeMarketQuoteTrendStore, GatewayAgentRuntimePort, GatewayRuntime } from './builtin-composition';
 import { publishPiCapabilityHosts, type PiCapabilityEventBus } from '@upup/pi-capability-registry';
+import { setSessionProviders, clearSessionProviders } from '@upup/pi-runtime';
 
 
 
@@ -245,11 +246,25 @@ function installPiPackageToolHosts(
       },
     }));
   }
-  if (!events) throw new Error('Pi capability event bus is required for package host binding');
-  const unsubscribe = publishPiCapabilityHosts(events, sessionId, registry as unknown as ReadonlyMap<string, import('@upup/pi-capability-registry').PiCapabilityHostRecord>);
+  // Sprint D Phase 2: store providers in the session-scoped registry so
+  // extensions' `definePiCapabilityHost` can pick them up at resolve time.
+  // The event-bus publish is kept as a back-compat channel: those few
+  // extensions still using the legacy `registerPiCapabilityHost` consumer
+  // pattern (waiting for an external publish) subscribe to the event bus
+  // and resolve from it. Both paths converge on the same provider tree.
+  // The store expects an index-signature object keyed by packageName; we
+  // construct it from the registry Map for the same iteration cost.
+  const providersByPackage: Record<string, { readonly providers?: Record<string, unknown> }> = {};
+  for (const [pkgName, host] of registry) providersByPackage[pkgName] = { providers: host.providers as unknown as Record<string, unknown> };
+  const releaseStore = setSessionProviders(sessionId, providersByPackage);
+  let unsubscribe: (() => void) | undefined;
+  if (events) {
+    unsubscribe = publishPiCapabilityHosts(events, sessionId, registry as unknown as ReadonlyMap<string, import('@upup/pi-capability-registry').PiCapabilityHostRecord>);
+  }
   return {
     release: () => {
-    unsubscribe();
+      unsubscribe?.();
+      releaseStore();
     },
     dispose: async () => {
       await Promise.all([...registry.values()].map((host) => disposePiHostBridge(host)));
@@ -508,7 +523,13 @@ export class PiAgentSessionFactory implements UpUpAgentRuntime {
           capabilityEvents,
           this.composition,
           );
-          disposePackageHosts = hosts.dispose;
+          disposePackageHosts = async () => {
+            await hosts.dispose();
+            // Sprint D Phase 2: clear the session-scoped providers store
+            // when the session ends so memory does not leak across
+            // successive `createSession` calls in the same process.
+            clearSessionProviders(sessionId);
+          };
           return hosts.release;
         },
         reload: () => resourceLoader.reload(),

@@ -900,7 +900,7 @@ export default function platformExtension(pi: ExtensionAPI): void {
   definePiCapabilityHost(pi, {
     packageName: PACKAGE,
     packageVersion: VERSION,
-    capabilities: ['agent-worker', 'cron-runner', 'mcp-resources'],
+    capabilities: ['tool-definitions', 'agent-worker', 'cron-runner', 'mcp-resources'],
     providers: {},
     register: () => undefined,
   });

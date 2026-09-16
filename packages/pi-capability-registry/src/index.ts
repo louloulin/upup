@@ -157,7 +157,7 @@ export function definePiCapabilityHost<TProviders extends Record<string, unknown
   options: DefinePiCapabilityHostOptions<TProviders>,
 ): () => void {
   const contract = options.contract ?? 'upup.pi.host.v1';
-  const createHost = (sessionId: string): PiCapabilityHostRecord => {
+  const createHost = (sessionId: string, providers: Record<string, unknown>): PiCapabilityHostRecord => {
     if (!sessionId.trim()) throw new Error(`Pi capability host '${options.packageName}' requires a non-empty sessionId`);
     return {
       contract,
@@ -165,45 +165,99 @@ export function definePiCapabilityHost<TProviders extends Record<string, unknown
       packageVersion: options.packageVersion,
       sessionId,
       capabilities: [...options.capabilities],
-      providers: options.providers,
+      providers,
     };
   };
-  const publish = (sessionId: string): void => {
-    const host = createHost(sessionId);
-    const handler = (value: unknown): void => {
-      if (!value || typeof value !== 'object') return;
-      const request = value as { packageName?: unknown; sessionId?: unknown; resolve?: (host: PiCapabilityHostRecord | undefined) => void };
-      if (request.packageName === options.packageName && typeof request.resolve === 'function' && (request.sessionId === undefined || request.sessionId === sessionId)) {
-        request.resolve(host);
+  // Sprint D Phase 2: register the resolve handler IMMEDIATELY. We do
+  // NOT wait for `session_start` because in real Pi flows extensions are
+  // loaded AFTER the session is created — by the time the factory runs,
+  // session_start has already fired and waiting for it would deadlock the
+  // resolution.
+  //
+  // The handler reads providers from the store on every resolve call, so
+  // the orchestrator can populate the store either before or after the
+  // extension loads — both orderings work.
+  //
+  // Back-compat for legacy `registerPiCapabilityHost` callers (which pass
+  // `sessionId: undefined` when probing): we accept undefined and look up
+  // the store for ANY session that has the package entry. This is safe
+  // because the legacy path is only used during extension load before
+  // session_start has dispatched a session-specific id.
+  const localSessionId = pi.session?.sessionId;
+  const handler = (value: unknown): void => {
+    if (!value || typeof value !== 'object') return;
+    const request = value as { packageName?: unknown; sessionId?: unknown; resolve?: (host: PiCapabilityHostRecord | undefined) => void };
+    if (request.packageName !== options.packageName || typeof request.resolve !== 'function') return;
+    // Filter on sessionId: if the extension has a local session id, only
+    // respond to requests for that session. Otherwise (no local id) we
+    // accept any session id from the request, or fall back to scanning
+    // the store for the first session that has this package.
+    let requestSessionId = typeof request.sessionId === 'string' ? request.sessionId : undefined;
+    if (localSessionId) {
+      if (requestSessionId && requestSessionId !== localSessionId) return;
+      requestSessionId = localSessionId;
+    }
+    let providers: Record<string, unknown> = options.providers as Record<string, unknown>;
+    let resolvedSessionId = localSessionId ?? 'standalone';
+    if (requestSessionId) {
+      const storeEntry = _sessionProvidersAccessor?.getSessionProviders(requestSessionId)?.[options.packageName];
+      providers = (storeEntry?.providers ?? options.providers) as Record<string, unknown>;
+      resolvedSessionId = requestSessionId;
+    } else {
+      // No session id available: scan the store for the first session
+      // that has this package. This handles the legacy pattern where
+      // registerPiCapabilityHost probes without a session id.
+      let found = false;
+      for (const sid of _sessionProvidersAccessor?.listSessionProvidersKeys() ?? []) {
+        const entry = _sessionProvidersAccessor?.getSessionProviders(sid)?.[options.packageName];
+        if (entry) {
+          providers = (entry.providers ?? options.providers) as Record<string, unknown>;
+          resolvedSessionId = sid;
+          found = true;
+          break;
+        }
       }
-    };
-    pi.events.on(PI_CAPABILITY_RESOLVE_CHANNEL, handler);
+      if (!found) {
+        // No session has published this package; use metadata-only fallback.
+        providers = options.providers as Record<string, unknown>;
+      }
+    }
+    request.resolve(createHost(resolvedSessionId, providers));
   };
-  if (pi.session?.sessionId) {
-    const sessionId = pi.session.sessionId;
-    publish(sessionId);
-    options.register({ sessionId, providers: options.providers });
+  pi.events.on(PI_CAPABILITY_RESOLVE_CHANNEL, handler);
+  if (localSessionId) {
+    options.register({ sessionId: localSessionId, providers: options.providers });
     return () => {};
   }
-  if (typeof pi.on !== 'function') {
-    // Graceful skip: unit tests stub `pi` without session lifecycle hooks.
-    // The extension factory may proceed; the host will only be published
-    // once a real Pi session calls `definePiCapabilityHost` with proper
-    // hooks. We log at debug level only so the missing hook surfaces in
-    // verbose mode without failing the test.
-    if (process.env.UPUP_DEBUG_CAPABILITY !== '1') return () => {};
-    console.debug(`[definePiCapabilityHost] ${options.packageName} skipped: no pi.session.sessionId or pi.on('session_start')`);
-    return () => {};
+  // No session id at registration time (test stub or deferred bootstrap).
+  // Still register the user callback — it will fire when session_start
+  // arrives. If `pi.on` is unavailable, we skip the callback registration
+  // but the resolve handler is still active for any future request that
+  // carries a session id.
+  if (typeof pi.on === 'function') {
+    let registered = false;
+    pi.on('session_start', (_event, context) => {
+      if (registered) return;
+      registered = true;
+      const sessionId = context.sessionManager.getSessionId();
+      options.register({ sessionId, providers: options.providers });
+    });
   }
-  let registered = false;
-  pi.on('session_start', (_event, context) => {
-    if (registered) return;
-    registered = true;
-    const sessionId = context.sessionManager.getSessionId();
-    publish(sessionId);
-    options.register({ sessionId, providers: options.providers });
-  });
-  return () => { registered = true; };
+  return () => {};
+}
+
+// Sprint D Phase 2: read rich providers from the session-scoped store
+// populated by agent-session-factory. Falls back to the extension's
+// metadata-only `providers` when the store is empty (standalone / test usage).
+// Imported lazily to avoid a hard cycle: pi-capability-registry is loaded by
+// extension factories at startup, before pi-runtime has wired its index.ts.
+type SessionProvidersAccessor = {
+  getSessionProviders(sessionId: string): { readonly [key: string]: { readonly providers?: Record<string, unknown> } } | undefined;
+  listSessionProvidersKeys(): readonly string[];
+};
+let _sessionProvidersAccessor: SessionProvidersAccessor | undefined;
+export function bindSessionProvidersAccessor(accessor: SessionProvidersAccessor): void {
+  _sessionProvidersAccessor = accessor;
 }
 
 export interface PiCapabilityExtensionApi {

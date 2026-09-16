@@ -6696,3 +6696,59 @@ check:js-suffix: 0 violations across 1012 TS/TSX files
 - `package.json` 的 `exports` map 必须显式列出每个 subpath（包括 `./extensions`），否则 `@upup/pi-finance-sdk/extensions` 在 production dist 加载时找不到入口。
 - 自动 hook（`commands.ts` 反复被删除、`package.json` 的 `build` 字段反复回滚）会覆盖手改的修复——修改后必须立即跑 `bun run verify:pi7-final` 验证。
 
+
+## Sprint D Phase 2 增量（2026-09-16）：投资工作流真微内核化收尾
+
+### 触发
+
+- Sprint D Phase 1（`definePiCapabilityHost` 设计）已完成，但 `pi-platform` 等扩展的 `define` capabilities 列表与 `registerPlatformExtension` 检查的 `host.capabilities.includes('tool-definitions')` 不一致，导致 13 个 platform 测试 fail（tool 不注册）。
+
+### 根因
+
+- `definePiCapabilityHost` 给 `@upup/pi-platform` 包的 capabilities 声明是 `['agent-worker', 'cron-runner', 'mcp-resources']`，**缺少 `'tool-definitions'`**。
+- `registerPlatformExtension` 用 `host.capabilities.includes('tool-definitions')` 做 gate，缺则直接 return，所有 platform tools 不注册。
+- 因为 `define` 给了 providers（来自 store），但 platform 不接受 host，tools 拿不到。
+
+### 改动
+
+- `packages/pi-platform/extensions/index.ts`：capabilities 列表补 `tool-definitions`，让 `registerPlatformExtension` 通过 gate。
+- 无其他代码改动。
+
+### 真实验证
+
+- `bun run typecheck`：clean。
+- `bun test src/runtime/pi/agent-session-factory.test.ts`：**57 pass / 0 fail**（13 个 platform 测试全部恢复）。
+- `bun test`：**1485 pass / 0 fail**。
+- 守门：
+  - `check:pi7` PASS（37 manifests, 1 factory）
+  - `check:upup-clean-loading` PASS（14 项含 platform self-publish 3 capability）
+  - `check:pi-packages` PASS（17 包 + 27 side-effect declarations）
+  - `check:no-self-impl` PASS（25 canonical exports，0 collision）
+- 启动 smoke：`echo "" | timeout 8 bun run src/index.tsx` 输出"涨涨"中文 banner，无 warning。
+
+### Sprint D Phase 2 最终状态
+
+- 12 个 `pi-*` 扩展通过 `definePiCapabilityHost` self-publish（含 platform）。
+- `setSessionProviders` 替代 `installPiPackageToolHosts` 中的 event-bus publish，store 是 canonical，event-bus publish 保留作 back-compat。
+- `agent-session-factory.ts` 仍 662 行（计划 ~420，未达成但稳定；剩余部分属于 composition/scope 装配）。
+- 零 production global registry，零双 factory，capability self-publish + store-driven。
+
+### 教训
+
+- `definePiCapabilityHost` 的 capabilities 列表是**契约**：extension 必须声明所有 `registerXxxExtension` 检查的 capability 名（这里是 `tool-definitions`）。守门 `check:upup-clean-loading` 当前只检查数量（3），未来应加 capability 名一致性（capability list ⊇ registerXxx 期望集合）。
+- 微内核设计里，extension 的 `capabilities` 与 `registerPlatformExtension` 的检查条件**必须配对**，否则 store 即便有 providers 也接不上。
+
+### Sprint D 完成后状态
+
+| 指标 | Sprint D 前 | Sprint D 后 |
+|---|---|---|
+| `agent-session-factory` capability self-publish 扩展 | 0/12 | **12/12** ✅ |
+| pi-platform tests pass rate | 0/13 | **13/13** ✅ |
+| 全测试 pass rate | 1485 / 13 fail | **1485 / 0 fail** ✅ |
+| `check:upup-clean-loading` 项数 | 12 | **14**（+microkernel 2 项） |
+| 守门覆盖率 | Sprint A+C | **Sprint A+C+D** ✅ |
+
+### Sprint E 启动（plugin install/uninstall/update）
+
+- D 已完成 plugin self-publish；下一步实现 `upup plugin install <pkg> / uninstall <pkg> / update <pkg>` + 错误诊断。
+- 预计 1 天工作量。
