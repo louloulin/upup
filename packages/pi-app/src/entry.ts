@@ -216,6 +216,12 @@ async function main() {
         resumeTarget: resumeTarget ?? undefined,
         continue: shouldContinue,
         fork: shouldFork,
+        // `--no-extensions` / `-ne` disables Pi extension discovery. Used as
+        // a recovery hatch when a user-installed npm extension in
+        // `~/.upup/agent/npm/` fails to load (mismatched zod locales, etc.) —
+        // built-in UpUp extensions still register via the workspace
+        // `pi.manifest`, so the agent keeps its full finance tool surface.
+        noExtensions: args.includes('--no-extensions') || args.includes('-ne'),
         ...(terminalSize && terminalSize.columns !== undefined && terminalSize.rows !== undefined ? { terminalSize: { columns: terminalSize.columns, rows: terminalSize.rows } } : {}),
       });
     }
@@ -223,27 +229,6 @@ async function main() {
 }
 
 const PER_COMMAND_HELP: Readonly<Record<string, string>> = {
-  setup: `upup setup — interactive onboarding wizard
-
-Pick a provider and model, and optionally paste an API key.
-
-  upup setup
-
-What it does:
-  1. Select a provider (Anthropic / OpenAI / MiniMax / etc.).
-  2. Select a model id for that provider.
-  3. Optionally paste an API key. The key is written to ~/.upup/agent/auth.json
-     (the same file Pi's /login writes to). ~/.upup/.env is mirrored for
-     legacy callers that bypass the auth.json merge.
-  4. Saves provider + modelId to ~/.upup/settings.json.
-
-Headless paths (eval / print / cron / gateway / bridge) automatically see the
-new key because @upup/utils/env merges auth.json into process.env at startup.
-
-For OAuth providers (GitHub Copilot / OpenAI Codex / Kimi Coding / X.AI /
-etc.) use /login inside the TUI — only that flow handles the browser
-redirect and token refresh.
-`,
   login: `Login — interactive credential configuration inside the TUI.
 
 Once the TUI is running (\`upup\` with no arguments):
@@ -293,7 +278,6 @@ UpUp - AI Agent for Deep Financial Research
 
 Usage:
   upup                    Start interactive CLI (uses ~/.upup/agent/auth.json)
-  upup setup              Pick provider + model, optionally paste an API key
   upup doctor             Run health check
   upup invest <TICKER> [intent]
                          Headless /invest runner — drives the canonical 5-phase
@@ -308,10 +292,9 @@ Usage:
 Authentication:
   Inside the TUI, run \`/login <provider>\` to configure credentials. This is the
   canonical flow (including OAuth for GitHub Copilot / OpenAI Codex / Kimi Coding
-  / X.AI / etc) and writes to ~/.upup/agent/auth.json. \`upup setup\` writes the
-  same file when you paste an API key, so headless surfaces (eval / print /
-  cron / gateway / bridge) automatically see both flows via the auth.json merge
-  performed in \`@upup/utils/env\`.
+  / X.AI / etc) and writes to ~/.upup/agent/auth.json. Headless surfaces
+  (eval / print / cron / gateway / bridge) automatically see the credentials
+  via the auth.json merge performed in \`@upup/utils/env\`.
 
 Diagnostics:
   upup --trace            Print per-turn context payload + Pi startup timings
@@ -345,7 +328,6 @@ Session Commands:
 
 Examples:
   upup              Start the agent
-  upup setup        Pick provider + model (paste key for that provider)
   upup doctor       Check system health
   upup config list  List all configuration
   upup -r           Show session picker to resume
@@ -375,7 +357,6 @@ Examples:
   upup management --management-token=change-me    # page + authenticated management API
 
 Per-command help:
-  upup help setup        Show what \`upup setup\` does
   upup help login        Show how to use \`/login\` inside the TUI
   upup help doctor       Show what \`upup doctor\` checks
 `);

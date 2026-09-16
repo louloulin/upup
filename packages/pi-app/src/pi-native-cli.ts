@@ -28,6 +28,12 @@ export interface PiNativeRunCliOptions {
   readonly resumeTarget?: string;
   readonly continue?: boolean;
   readonly fork?: boolean;
+  /** Disable Pi extension discovery (forwarded as `--no-extensions`).
+   *  Useful when user-installed extensions in `~/.upup/agent/npm/` are broken
+   *  (e.g. mismatched zod locales) — without this flag the TUI fails to boot.
+   *  Built-in UpUp finance extensions (loaded via workspace `pi.manifest`) and
+   *  explicit `-e` paths still work even with this flag set. */
+  readonly noExtensions?: boolean;
   /** Legacy flag — accepted for back-compat with the old runCli surface but
    *  unused now that Pi owns the event stream. */
   readonly stream?: unknown;
@@ -46,6 +52,9 @@ function buildArgs(options: PiNativeRunCliOptions): string[] {
   }
   if (options.fork) {
     args.push('--fork-session');
+  }
+  if (options.noExtensions) {
+    args.push('--no-extensions');
   }
   // Pi's `main()` parses argv directly; width/height propagate via --width/--height
   // through to the embedded InteractiveMode renderer.
