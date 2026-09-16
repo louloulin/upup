@@ -5,15 +5,15 @@ const DEFAULT_TIMEOUT_MS = 15_000;
 const RETRY_DELAY_MS = 10;
 const STALE_LOCK_MS = 30_000;
 
-export interface PiFileLockOptions {
+export interface FileLockOptions {
   timeoutMs?: number;
   staleMs?: number;
 }
 
-export async function withPiFileLock<T>(
+export async function withFileLock<T>(
   lockPath: string,
   operation: () => Promise<T>,
-  options: PiFileLockOptions = {},
+  options: FileLockOptions = {},
 ): Promise<T> {
   const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const staleMs = options.staleMs ?? STALE_LOCK_MS;

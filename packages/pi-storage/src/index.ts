@@ -115,3 +115,4 @@ export * from './shell-snapshots';
 export * from './stats-cache';
 export * from './project-storage';
 export * from './fund-storage';
+export * from './file-lock';

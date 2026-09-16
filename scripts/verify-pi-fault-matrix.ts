@@ -4,7 +4,8 @@ import { mkdir, mkdtemp, readFile, rm, utimes, writeFile } from 'node:fs/promise
 import { join } from 'node:path';
 import { getInvestmentAgentSpec } from '@upup/pi-investment-workflow';
 import { TelemetryRecorder, executeWithProviderRetry } from '@upup/pi-observability';
-import { PiAgentSessionFactory, withPiFileLock } from '@upup/pi-session';
+import { PiAgentSessionFactory } from '@upup/pi-session';
+import { withFileLock } from '@upup/pi-storage';
 
 type FaultStatus = 'passed' | 'failed';
 
@@ -119,7 +120,7 @@ async function lockScenario(directory: string): Promise<FaultEvidence> {
   const old = new Date(Date.now() - 60_000);
   await utimes(stalePath, old, old);
   const marker = join(directory, 'stale-recovered.txt');
-  await withPiFileLock(stalePath, async () => { await writeFile(marker, 'recovered', 'utf8'); }, { staleMs: 1, timeoutMs: 200 });
+  await withFileLock(stalePath, async () => { await writeFile(marker, 'recovered', 'utf8'); }, { staleMs: 1, timeoutMs: 200 });
   const recovered = (await readFile(marker, 'utf8')) === 'recovered';
   return { name: 'stale-lock-recovery', status: recovered ? 'passed' : 'failed', recovered, artifacts: [marker], details: { lockRemoved: !(await Bun.file(stalePath).exists()) } };
 }

@@ -15,7 +15,7 @@ export const REQUIRED_SIDE_EFFECTS: readonly SideEffectRequirement[] = [
   ...requirement('@upup/pi-finance-sdk', ['strategy_run_paper'], 'financial-write', 'dangerous'),
   ...requirement('@upup/pi-notify', ['notify', 'subscribe_pr', 'unsubscribe_pr'], 'external-network', 'warning'),
   ...requirement('@upup/pi-platform', [
-    'bash', 'write_file', 'edit_file', 'export_data', 'export_watchlist', 'memory_update', 'notebook_create', 'notebook_edit_cell',
+    'platformBash', 'write_file', 'edit_file', 'export_data', 'export_watchlist', 'memory_update', 'notebook_create', 'notebook_edit_cell',
     'notebook_insert_cell', 'notebook_delete_cell', 'heartbeat', 'cron',
   ], 'filesystem-write', 'warning'),
   ...requirement('@upup/pi-platform', ['send_user_file', 'create_worktree'], 'filesystem-write', 'dangerous'),

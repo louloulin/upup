@@ -10,6 +10,10 @@ import { computeNextRunAtMs, executeCronJob, loadCronStore, saveCronStore, type 
 import type { GatewayAgentRuntimePort, GatewayRuntime } from '@upup/gateway';
 
 export interface DaemonBackgroundRuntimePort {
+  /**
+   * Start a background agent turn and resolve with the Pi background task id.
+   * Satisfied by Pi's `BackgroundService#start`; the daemon only tracks the id.
+   */
   start(prompt: string, options?: {
     model?: string;
     toolFilter?: string[] | '*';

@@ -4,7 +4,7 @@ import type { ModelRuntime } from '@earendil-works/pi-coding-agent';
 import { validateAgentSpec } from '@upup/pi-runtime';
 import type { UpUpAgentEvent, UpUpAgentSpec, UpUpAgentSession, UpUpToolSafetyLevel } from '@upup/pi-runtime';
 import { getConfiguredModelId, getSetting, resolveProvider } from '@upup/utils';
-import { getPiSessionService } from '@upup/pi-session';
+import { findPiSessionFile, getPiSessionService } from './session-registry';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { mergePiPackageTrust, resolveConfiguredPiPackages } from '@upup/pi-resource-composition';
@@ -146,7 +146,7 @@ async function createPromptSession(options: PiPromptOptions, spec: UpUpAgentSpec
   const cwd = options.cwd ?? process.cwd();
   const sessionId = options.sessionKey ? toPiSessionId(options.sessionKey) : undefined;
   const existingSessionPath = sessionId
-    ? await ensurePiSessionService().getSessionFile(sessionId, cwd, process.env.UPUP_SESSION_DIR)
+    ? await findPiSessionFile(sessionId, cwd, process.env.UPUP_SESSION_DIR)
     : undefined;
   const fingerprint = specFingerprint(spec);
   const persisted = existingSessionPath ? persistedSpecFingerprint(existingSessionPath) : undefined;
@@ -158,7 +158,7 @@ async function createPromptSession(options: PiPromptOptions, spec: UpUpAgentSpec
   const piPackageTrust = options.piPackagePaths === undefined
     ? mergePiPackageTrust(configuredPackages?.piPackageTrust, options.piPackageTrust)
     : options.piPackageTrust;
-  const session = await ensurePiSessionService().createRuntimeSession(spec, {
+  const session = await getPiSessionService().runtime.createSession(spec, {
     cwd,
     ...(existingSessionPath ? { sessionPath: existingSessionPath } : {}),
     ...(sessionId && !existingSessionPath ? { sessionId } : {}),
@@ -289,7 +289,7 @@ export async function runPiPrompt(prompt: string, options: PiPromptOptions = {})
 
 export function disposePiSessions(): void {
   try {
-    ensurePiSessionService().disposeRunnerSessions();
+    ensurePiSessionService().getRunnerRegistry().dispose();
   } catch {
     // PiApp may dispose before the session composition has been initialized.
   }

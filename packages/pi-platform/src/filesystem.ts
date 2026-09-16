@@ -1,10 +1,7 @@
-import { execFile } from 'node:child_process';
 import { constants } from 'node:fs';
 import { access, copyFile, mkdir, readFile, readdir, realpath, stat, writeFile } from 'node:fs/promises';
 import { dirname, extname, isAbsolute, join, relative, resolve, sep } from 'node:path';
-import { promisify } from 'node:util';
-
-const execFileAsync = promisify(execFile);
+import { createLocalBashOperations, type BashOperations } from '@earendil-works/pi-coding-agent';
 const MAX_READ_BYTES = 50_000;
 const MAX_SEARCH_RESULTS = 100;
 const EXCLUDED_DIRS = new Set(['.git', '.svn', '.hg', '.jj', 'node_modules', 'dist', 'build', 'coverage']);
@@ -166,25 +163,41 @@ export interface PlatformShellInput {
   readonly env?: Readonly<Record<string, string>>;
 }
 
+/**
+ * UpUp policy wrapper around Pi's local bash operations (`core/tools/bash.ts`).
+ * Pi owns process spawning, shell selection, timeout kill, abort-signal
+ * handling and detached process tracking; UpUp only adds the workspace
+ * command policy (dangerous command reject, empty command reject).
+ */
+export function createPlatformBashOperations(base: BashOperations = createLocalBashOperations()): BashOperations {
+  return {
+    exec: (command, cwd, options) => {
+      if (!command.trim()) throw new Error('command must not be empty');
+      if (DANGEROUS_SHELL.test(command)) throw new Error('command rejected by Pi Platform safety policy');
+      return base.exec(command, cwd, options);
+    },
+  };
+}
+
 export async function platformBash(input: PlatformShellInput, cwd = process.cwd()): Promise<PlatformFileResult> {
-  if (!input.command.trim()) throw new Error('command must not be empty');
-  if (DANGEROUS_SHELL.test(input.command)) throw new Error('command rejected by Pi Platform safety policy');
   const started = Date.now();
   const maxOutputLength = Math.max(1_000, Math.min(input.maxOutputLength ?? 100_000, 1_000_000));
   const timeout = Math.min(Math.max(input.timeout ?? 30_000, 1_000), 120_000);
-  const executable = process.platform === 'win32' ? 'cmd.exe' : '/bin/sh';
-  const args = process.platform === 'win32' ? ['/d', '/s', '/c', input.command] : ['-lc', input.command];
-  const environment = input.env ? { ...process.env, ...input.env } : undefined;
+  const chunks: string[] = [];
   try {
-    const result = await execFileAsync(executable, args, { cwd, timeout, maxBuffer: maxOutputLength * 2, env: environment });
-    return limitShellOutput({ stdout: result.stdout, stderr: result.stderr, exitCode: 0 }, maxOutputLength, started);
+    const { exitCode } = await createPlatformBashOperations().exec(input.command, cwd, {
+      onData: (data) => { chunks.push(typeof data === 'string' ? data : data.toString('utf8')); },
+      timeout,
+      ...(input.env ? { env: { ...process.env, ...input.env } } : {}),
+    });
+    return limitShellOutput({ stdout: chunks.join(''), stderr: '', exitCode: exitCode ?? 0 }, maxOutputLength, started);
   } catch (error) {
-    const value = error as NodeJS.ErrnoException & { killed?: boolean; signal?: string; status?: number; stdout?: string; stderr?: string };
-    if (value.killed === true || value.signal === 'SIGTERM') {
-      return { stdout: value.stdout ?? '', stderr: `Command timed out after ${timeout}ms`, exitCode: 124, timedOut: true, durationMs: Date.now() - started };
+    const message = error instanceof Error ? error.message : String(error);
+    if (message === 'command must not be empty' || message === 'command rejected by Pi Platform safety policy') throw error;
+    if (message.startsWith('timeout:')) {
+      return { stdout: chunks.join(''), stderr: `Command timed out after ${timeout}ms`, exitCode: 124, timedOut: true, durationMs: Date.now() - started };
     }
-    const exitCode = typeof value.status === 'number' ? value.status : typeof value.code === 'number' ? value.code : 1;
-    return limitShellOutput({ stdout: value.stdout ?? '', stderr: value.stderr ?? (error instanceof Error ? error.message : String(error)), exitCode }, maxOutputLength, started);
+    return limitShellOutput({ stdout: chunks.join(''), stderr: message, exitCode: 1 }, maxOutputLength, started);
   }
 }
 

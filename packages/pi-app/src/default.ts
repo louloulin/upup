@@ -15,7 +15,6 @@ import {
   runPiPrompt,
   createPiAgentRuntime,
   type PiSessionCompositionProviders,
-  type PiSessionListItem,
 } from '@upup/pi-session';
 import { createPiApp, type PiApp } from './index';
 import { createPiInvestmentWorkflow } from './investment';
@@ -92,7 +91,5 @@ export function getPiNativeApp(): PiApp {
   app.initialize();
   return app;
 }
-
-export type { PiSessionListItem };
 
 export { app as piApp };

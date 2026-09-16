@@ -30,6 +30,11 @@
       "types": "./dist/tool-result.d.ts",
       "bun": "./src/tool-result.ts",
       "default": "./dist/tool-result.js"
+    },
+    "./embedding-provider": {
+      "types": "./dist/embedding-provider.d.ts",
+      "bun": "./src/embedding-provider.ts",
+      "default": "./dist/embedding-provider.js"
     }
   },
   "scripts": {

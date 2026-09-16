@@ -743,6 +743,25 @@ describe('@upup/pi-event-adapter — pi model bridge', () => {
     expect(diagnostic.reason).toBe('unknown-model');
   });
 
+  test('resolves a models.json-only provider through the runtime', () => {
+    // `custom_anthropic` is what a user's `~/.upup/agent/models.json` looks
+    // like: it exists only in the Pi `ModelRuntime`, never in the static
+    // catalog. Gating the runtime lookup behind `isPiProvider` made such a
+    // spec unresolvable even though Pi itself serves it.
+    const customModel = { id: 'MiniMax-M3', provider: 'custom_anthropic', baseUrl: 'https://api.minimaxi.com/anthropic' };
+    const runtime = {
+      getModel(providerId: string, modelId: string): unknown {
+        if (providerId === 'custom_anthropic' && modelId === 'MiniMax-M3') return customModel;
+        return undefined;
+      },
+    };
+    expect(resolvePiModel({ modelName: 'custom_anthropic:MiniMax-M3' })).toBeUndefined();
+    expect(resolvePiModel({ modelName: 'custom_anthropic:MiniMax-M3', modelRuntime: runtime })).toBe(customModel as unknown as Model<never>);
+    const diagnostic = describePiModelResolution({ modelName: 'custom_anthropic:MiniMax-M3', modelRuntime: runtime });
+    expect(diagnostic.reason).toBe('resolved');
+    expect(diagnostic.resolved).toBe(true);
+  });
+
   test('resolvePiModel still serves built-in catalog hits without consulting the runtime', () => {
     // Catalog hit short-circuits before the runtime is touched.
     let runtimeCalls = 0;

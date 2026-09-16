@@ -134,5 +134,5 @@ console.log(JSON.stringify({
     note: 'This is a structural migration indicator, not product completion; provider and full invest-loop evidence remain separate.',
   },
   skills: await readSkillReachability(),
-  rootAllowlist: ['src/index.tsx', 'src/compat/**', 'src/bootstrap/**', 'src/types/**'],
+  rootAllowlist: ['src/index.tsx', 'src/bootstrap/**'],
 }, null, 2));

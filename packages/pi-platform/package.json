@@ -38,14 +38,15 @@
   "dependencies": {
     "@upup/pi-capability-registry": "0.1.0",
     "@upup/utils": "0.2.0",
-    "@upup/pi-runtime": "0.1.0"
+    "@upup/pi-runtime": "0.1.0",
+    "@earendil-works/pi-coding-agent": "0.85.1"
   },
   "pi": {
     "contract": "upup.pi.runtime.v1",
     "source": "builtin:upup",
     "tools": [
       "skill",
-      "bash",
+      "platformBash",
       "read_file",
       "write_file",
       "edit_file",
@@ -130,7 +131,7 @@
     ],
     "nativeTools": [
       "skill",
-      "bash",
+      "platformBash",
       "read_file",
       "write_file",
       "edit_file",
@@ -314,7 +315,7 @@
           "notebook_delete_cell",
           "heartbeat",
           "cron",
-          "bash"
+          "platformBash"
         ],
         "effect": "filesystem-write",
         "safetyLevel": "warning"

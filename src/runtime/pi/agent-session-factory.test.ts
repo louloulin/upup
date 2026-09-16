@@ -240,7 +240,7 @@ describe('PiAgentSessionFactory', () => {
   test('loads native Platform filesystem tools with Session isolation and real execution', async () => {
     const packageRoot = join(process.cwd(), 'packages');
     const directory = await mkdtemp(join(process.cwd(), '.tmp-pi-platform-session-'));
-    const spec = { ...getInvestmentAgentSpec('invest-explore'), id: 'platform-filesystem-session', packages: ['@upup/pi-platform'], skills: [], tools: ['bash', 'read_file', 'write_file', 'edit_file', 'glob', 'grep', 'send_user_file'] };
+    const spec = { ...getInvestmentAgentSpec('invest-explore'), id: 'platform-filesystem-session', packages: ['@upup/pi-platform'], skills: [], tools: ['platformBash', 'read_file', 'write_file', 'edit_file', 'glob', 'grep', 'send_user_file'] };
     const trust = { trustedPaths: [join(packageRoot, 'pi-platform')], pinnedPackages: { '@upup/pi-platform': '0.1.0', '@earendil-works/pi-coding-agent': '0.85.1', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-platform': ['builtin:upup'] } };
     try {
       await writeFile(join(directory, 'input.txt'), 'alpha\nbeta\n');

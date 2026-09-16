@@ -98,19 +98,25 @@ function lookupPiModel(
   if (provider === OLLAMA_PROVIDER_ID) {
     return createOllamaModel(model) as unknown as Model<never>;
   }
-  if (!isPiProvider(provider)) return undefined;
-  const direct = getBuiltinModel(provider as never, model as never) as Model<never> | undefined;
-  if (direct) return direct;
-  const stripped = model.replace(/^openrouter:/, '');
-  if (stripped !== model) {
-    const fallback = getBuiltinModel(provider as never, stripped as never) as Model<never> | undefined;
-    if (fallback) return fallback;
+  if (isPiProvider(provider)) {
+    const direct = getBuiltinModel(provider as never, model as never) as Model<never> | undefined;
+    if (direct) return direct;
+    const stripped = model.replace(/^openrouter:/, '');
+    if (stripped !== model) {
+      const fallback = getBuiltinModel(provider as never, stripped as never) as Model<never> | undefined;
+      if (fallback) return fallback;
+    }
   }
   // Last-resort: ask the caller's `ModelRuntime` (which has both the
   // registered providers from inline extensions and the on-disk
-  // `~/.pi/agent/models.json` entries loaded). This is what audit §4.6
+  // `~/.upup/agent/models.json` entries loaded). This is what audit §4.6
   // identified as the missing leg: without it, custom provider/model pairs
   // like `minimax:MiniMax-M3` would silently fall back to the Pi default.
+  //
+  // The lookup also runs for providers the static catalog does not know:
+  // `models.json` providers (e.g. a user's `custom_anthropic`) only exist in
+  // the runtime, and gating them behind `isPiProvider` made those specs
+  // unresolvable even though Pi itself serves them.
   if (modelRuntime) {
     try {
       const fromRuntime = modelRuntime.getModel(provider, model);
@@ -155,7 +161,8 @@ export function describePiModelResolution(
     };
   }
   if (!isPiProvider(provider)) {
-    return { requested, provider, model, resolved: false, reason: 'unknown-provider', availableModels: [] };
+    const resolved = Boolean(lookupPiModel(provider, model, options.modelRuntime));
+    return { requested, provider, model, resolved, reason: resolved ? 'resolved' : 'unknown-provider', availableModels: [] };
   }
   const availableModels = listPiModels(provider).map((candidate) => candidate.id);
   const resolved = Boolean(lookupPiModel(provider, model, options.modelRuntime));

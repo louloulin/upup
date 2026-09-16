@@ -327,7 +327,7 @@ function registerPlatformExtension(pi: ExtensionAPI, host: PlatformHost): void {
     return result(id, invokePlatformSkill(loadSkillDefinitions(), params.skill_name, params.args));
   } });
   const filesystemTools = [
-    { name: 'bash', label: 'Run Shell Command', description: 'Execute a workspace shell command subject to the Pi Platform safety policy.', parameters: bashParameters, handler: platformBash },
+    { name: 'platformBash', label: 'Run Shell Command', description: 'Pi `core/tools/bash.ts` execution with the UpUp workspace command policy applied through `BashOperations`.', parameters: bashParameters, handler: platformBash },
     { name: 'read_file', label: 'Read File', description: 'Read a workspace file with safe pagination.', parameters: readFileParameters, handler: platformReadFile },
     { name: 'write_file', label: 'Write File', description: 'Create or atomically overwrite a workspace file.', parameters: writeFileParameters, handler: platformWriteFile },
     { name: 'edit_file', label: 'Edit File', description: 'Replace unique text in a workspace file.', parameters: editFileParameters, handler: platformEditFile },

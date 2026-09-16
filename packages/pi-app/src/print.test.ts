@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { fauxAssistantMessage, fauxProvider, fauxText } from '@earendil-works/pi-ai';
 import { ModelRuntime } from '@earendil-works/pi-coding-agent';
+import type { UpUpAgentEvent } from '@upup/pi-runtime';
 import { parsePrintArgs, runPrint } from './print';
 
 describe('Pi-native print entry', () => {
@@ -40,5 +41,21 @@ describe('Pi-native print entry', () => {
     }, (text) => { output += text; });
     expect(answer).toBe('Pi print 已完成。');
     expect(output).toContain('Pi print 已完成。');
+  });
+
+  test('surfaces session_error events instead of exiting with an empty answer', async () => {
+    const eventStream = {
+      stream: async function* (): AsyncGenerator<UpUpAgentEvent> {
+        yield { type: 'session_start', sessionId: 'print-error', agentId: 'upup-primary' };
+        yield { type: 'message_end', sessionId: 'print-error', role: 'assistant', text: '', stopReason: 'error' };
+        yield { type: 'run_end', sessionId: 'print-error', answer: '', iterations: 0, totalTime: 1 };
+        yield { type: 'session_error', sessionId: 'print-error', error: '429 rate_limit_error' };
+      },
+    } as never;
+    let errors = '';
+    await expect(
+      runPrint({ prompt: 'fault' }, () => undefined, eventStream, (text) => { errors += text; }),
+    ).rejects.toThrow('429 rate_limit_error');
+    expect(errors).toContain('upup print: 429 rate_limit_error');
   });
 });

@@ -27,6 +27,7 @@ import type {
   MemoryType,
   MemoryWriteRequest,
 } from './types';
+import { createEmbeddingClient, type EmbeddingAuthResolver, type EmbeddingTransport } from './embeddings';
 import { getSetting, type PromptRunner } from '@upup/utils';
 import { resolveMemvidRagSettings, type MemvidRagFlag, type ResolvedMemvidRagSettings } from './memvid-rag';
 import { getApiKeyNameForProvider } from '@upup/utils';
@@ -176,6 +177,46 @@ function resolveConfig(): MemoryRuntimeConfig {
 }
 
 // ============================================================================
+// Embeddings bridge (Pi provider registry + Pi-provided transport)
+// ============================================================================
+
+/**
+ * Embedding bridge injected by the Pi host.
+ *
+ * Pi owns provider credentials and endpoints, but ships no embedding API, so
+ * the host hands memory a credential resolver built from its `ModelRuntime`
+ * (see `@upup/pi-runtime/embedding-provider`) plus the transport that performs
+ * the request. Without a bridge, memory stays on BM25 and never touches the
+ * network, which is the default configuration.
+ */
+export interface MemoryEmbeddingBridge {
+  readonly authResolver?: EmbeddingAuthResolver;
+  readonly transport?: EmbeddingTransport;
+}
+
+let embeddingBridge: MemoryEmbeddingBridge | null = null;
+
+/** Configure the Pi-backed embedding bridge; applies to the next `MemoryManager.initialize()`. */
+export function configureMemoryEmbeddingBridge(bridge: MemoryEmbeddingBridge | null): void {
+  embeddingBridge = bridge;
+}
+
+export function getMemoryEmbeddingBridge(): MemoryEmbeddingBridge | null {
+  return embeddingBridge;
+}
+
+function resolveEmbeddingClient(config: MemoryRuntimeConfig): MemoryEmbeddingClient | null {
+  if (config.embeddingProvider === 'none') return null;
+  if (!embeddingBridge?.transport) return null;
+  return createEmbeddingClient({
+    provider: config.embeddingProvider,
+    ...(config.embeddingModel ? { model: config.embeddingModel } : {}),
+    ...(embeddingBridge.authResolver ? { authResolver: embeddingBridge.authResolver } : {}),
+    transport: embeddingBridge.transport,
+  });
+}
+
+// ============================================================================
 // Memory Manager
 // ============================================================================
 
@@ -198,6 +239,14 @@ export type { AuditRecord } from './audit-signing';
 export { NestedMemoryPaths, getNestedMemoryPaths } from './nested-paths';
 export { getTeamMemoryPaths } from './team-paths';
 export { StrategyStore, computeStrategyPrevHash } from './strategy-store';
+export { createEmbeddingClient, embedSingleQuery } from './embeddings';
+export type {
+  EmbeddingAuthResolver,
+  EmbeddingProviderAuth,
+  EmbeddingProviderPiId,
+  EmbeddingTransport,
+} from './embeddings';
+
 export { MemoryDenyManager, getMemoryDenyManager, isMemoryDenied, getDenialReason, resetMemoryDenyManager, memoryDeny } from './memory-deny';
 
 export class MemoryManager {
@@ -232,8 +281,9 @@ export class MemoryManager {
     // Ensure MEMORY.md index exists (creates if not found)
     await ensureMemoryIndex();
 
-    // Don't create embedding client - use Memvid BM25 instead (no API dependency)
-    const client: MemoryEmbeddingClient | null = null;
+    // Default stays BM25 (no embedding API dependency). A Pi host may inject a
+    // `ModelRuntime`-backed bridge to enable vector search instead.
+    const client = resolveEmbeddingClient(this.config);
 
     try {
       this.db = await MemoryDatabase.create(`${this.store.getMemoryDir()}/index.sqlite`);

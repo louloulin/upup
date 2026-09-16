@@ -57,9 +57,11 @@ export async function runPrint(
   options: PrintOptions,
   write: (text: string) => void = process.stdout.write.bind(process.stdout),
   eventStream: EventStream = getPiNativeApp().getEventStream(),
+  writeError: (text: string) => void = process.stderr.write.bind(process.stderr),
 ): Promise<string> {
   let answer = '';
   let streamed = false;
+  let failure: string | undefined;
   for await (const event of eventStream.stream(options.prompt, {
     ...(options.model ? { model: options.model } : {}),
     ...(options.maxIterations ? { maxIterations: options.maxIterations } : {}),
@@ -67,24 +69,44 @@ export async function runPrint(
     ...(options.modelRuntime ? { modelRuntime: options.modelRuntime } : {}),
   }, options.sessionId ? { sessionId: options.sessionId } : {})) {
     if (event.type === 'run_end') answer = event.answer;
-    if (event.type === 'text_delta') {
+    else if (event.type === 'session_error') failure = event.error;
+    else if (event.type === 'text_delta') {
       streamed = true;
       write(event.delta);
     }
   }
   if (!streamed && answer) write(answer);
   if (answer && (!streamed || !answer.endsWith('\n'))) write('\n');
+  if (failure) {
+    // Pi reports provider/tool failures as `session_error` events instead of
+    // throwing. Without this the CLI used to exit 0 with no output at all,
+    // which made a failed model call indistinguishable from an empty answer.
+    if (streamed) writeError('\n');
+    writeError(`upup print: ${failure}\n`);
+    throw new Error(failure);
+  }
   return answer;
 }
 
 async function main(): Promise<void> {
+  let options: PrintOptions;
   try {
-    const options = parsePrintArgs(process.argv.slice(2));
-    await runPrint(options);
+    options = parsePrintArgs(process.argv.slice(2));
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     process.stderr.write(`upup print: ${message}\n`);
     process.stderr.write('Usage: bun run packages/pi-app/src/print.ts [--model <id>] [--session <id>] [--max-iterations <n>] <prompt>\n');
+    process.exitCode = 1;
+    return;
+  }
+  try {
+    await runPrint(options);
+  } catch (error) {
+    // `runPrint` already wrote the provider/tool failure diagnostic; only the
+    // exit code is left to set here.
+    if (!(error instanceof Error) || !error.message) {
+      process.stderr.write(`upup print: ${String(error)}\n`);
+    }
     process.exitCode = 1;
   }
 }

@@ -156,7 +156,7 @@ const defaultPackages = (builtin?.piPackagePaths ?? []).map((path) => {
 const defaultMissingPins = defaultPackages.flatMap((entry) => entry.name && entry.version && builtin?.piPackageTrust.pinnedPackages?.[entry.name] !== entry.version ? [`${String(entry.name)}@${String(entry.version)}`] : []);
 
 const rootProductionFiles = production(walk(srcRoot));
-const rootAllowlist = [/^src\/index\.tsx$/, /^src\/bootstrap\//, /^src\/compat\//, /^src\/types\//];
+const rootAllowlist = [/^src\/index\.tsx$/, /^src\/bootstrap\//];
 const rootAllowlistViolations = rootProductionFiles.map((file) => relative(root, file).replaceAll('\\', '/')).filter((file) => !rootAllowlist.some((pattern) => pattern.test(file)));
 const packageToRootImports: string[] = [];
 for (const record of records) {

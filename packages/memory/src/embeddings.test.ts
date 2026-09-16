@@ -1,148 +1,136 @@
-import { afterEach, beforeEach, describe, expect, test } from 'bun:test';
-import { createEmbeddingClient, type EmbeddingAuthResolver, type EmbeddingProviderPiId } from './embeddings';
-
-const ORIGINAL_ENV = {
-  OPENAI_API_KEY: process.env.OPENAI_API_KEY,
-  GEMINI_API_KEY: process.env.GEMINI_API_KEY,
-  GOOGLE_API_KEY: process.env.GOOGLE_API_KEY,
-  OLLAMA_BASE_URL: process.env.OLLAMA_BASE_URL,
-};
-
-const ORIGINAL_FETCH = globalThis.fetch;
-
-beforeEach(() => {
-  for (const key of Object.keys(ORIGINAL_ENV) as (keyof typeof ORIGINAL_ENV)[]) {
-    delete process.env[key];
-  }
-});
-
-afterEach(() => {
-  for (const [key, value] of Object.entries(ORIGINAL_ENV)) {
-    if (value === undefined) delete process.env[key];
-    else process.env[key] = value;
-  }
-  // Restore the original fetch so test-local mocks do not leak into other
-  // test files (the management/bridge servers also use fetch internally).
-  globalThis.fetch = ORIGINAL_FETCH;
-});
+import { describe, expect, test } from 'bun:test';
+import {
+  createEmbeddingClient,
+  embedSingleQuery,
+  type EmbeddingAuthResolver,
+  type EmbeddingHttpRequest,
+  type EmbeddingProviderPiId,
+  type EmbeddingTransport,
+} from './embeddings';
 
 /**
- * Builds an in-memory resolver with the credentials the test wants to surface
- * from a hypothetical Pi `ModelRuntime`. Unknown providers resolve to
- * `undefined` so the fallback to `process.env` is exercised when present.
+ * Builds an in-memory resolver with the credentials a Pi `ModelRuntime` would
+ * surface (`ModelRuntime#getAuth` + `Provider#baseUrl`). Unknown providers
+ * resolve to `undefined`, which must leave the provider unconfigured.
  */
 function buildResolver(
   credentials: Partial<Record<EmbeddingProviderPiId, { apiKey?: string; baseUrl?: string }>>,
 ): EmbeddingAuthResolver {
-  return {
-    resolveEmbeddingAuth(providerId) {
-      return credentials[providerId];
-    },
-  };
+  return { resolveEmbeddingAuth: (providerId) => credentials[providerId] };
 }
 
-describe('@upup/memory — embeddings auth resolver', () => {
-  test('returns null when neither resolver nor env has credentials', () => {
-    expect(createEmbeddingClient({ provider: 'openai' })).toBeNull();
-    expect(createEmbeddingClient({ provider: 'gemini' })).toBeNull();
-    expect(createEmbeddingClient({ provider: 'auto' })).toBeNull();
+interface RecordedTransport {
+  readonly transport: EmbeddingTransport;
+  readonly requests: EmbeddingHttpRequest[];
+}
+
+function buildTransport(payload: unknown = { data: [{ embedding: [0.1, 0.2, 0.3] }] }, status = 200): RecordedTransport {
+  const requests: EmbeddingHttpRequest[] = [];
+  const transport: EmbeddingTransport = async (request) => {
+    requests.push(request);
+    return { ok: status >= 200 && status < 300, status, json: async () => payload };
+  };
+  return { transport, requests };
+}
+
+describe('@upup/memory — Pi-backed embeddings', () => {
+  test('does not build a client without a Pi transport (no unmediated network path)', () => {
+    const resolver = buildResolver({ openai: { apiKey: 'runtime-openai-key' } });
+    expect(createEmbeddingClient({ provider: 'openai', authResolver: resolver })).toBeNull();
+    expect(createEmbeddingClient({ provider: 'auto', authResolver: resolver })).toBeNull();
+    expect(createEmbeddingClient({ provider: 'ollama' })).toBeNull();
   });
 
-  test('falls back to env when resolver is absent', () => {
+  test('does not build a client when the Pi registry has no credentials', () => {
+    const { transport } = buildTransport();
+    expect(createEmbeddingClient({ provider: 'openai', transport })).toBeNull();
+    expect(createEmbeddingClient({ provider: 'gemini', transport })).toBeNull();
+    expect(createEmbeddingClient({ provider: 'auto', transport })).toBeNull();
+  });
+
+  test('never reads provider keys from process.env', () => {
+    const previous = { ...process.env };
     process.env.OPENAI_API_KEY = 'env-openai-key';
     process.env.GEMINI_API_KEY = 'env-gemini-key';
-    const openaiClient = createEmbeddingClient({ provider: 'openai' });
-    const geminiClient = createEmbeddingClient({ provider: 'gemini' });
-    expect(openaiClient?.provider).toBe('openai');
-    expect(openaiClient?.model).toBe('text-embedding-3-small');
-    expect(geminiClient?.provider).toBe('gemini');
-    expect(geminiClient?.model).toBe('gemini-embedding-001');
+    try {
+      const { transport } = buildTransport();
+      expect(createEmbeddingClient({ provider: 'openai', transport })).toBeNull();
+      expect(createEmbeddingClient({ provider: 'gemini', transport })).toBeNull();
+      expect(createEmbeddingClient({ provider: 'auto', transport })).toBeNull();
+    } finally {
+      process.env.OPENAI_API_KEY = previous.OPENAI_API_KEY;
+      process.env.GEMINI_API_KEY = previous.GEMINI_API_KEY;
+    }
   });
 
-  test('uses the resolver apiKey when supplied', () => {
+  test('openai embedding request carries the Pi-resolved credential', async () => {
     const resolver = buildResolver({ openai: { apiKey: 'runtime-openai-key' } });
-    const client = createEmbeddingClient({ provider: 'openai', authResolver: resolver });
+    const { transport, requests } = buildTransport();
+    const client = createEmbeddingClient({ provider: 'openai', authResolver: resolver, transport });
+
     expect(client?.provider).toBe('openai');
-    // The client doesn't expose apiKey, but the embed closure captures it;
-    // assert it exists and the model id is the UpUp default.
-    expect(typeof client?.embed).toBe('function');
+    expect(client?.model).toBe('text-embedding-3-small');
+    expect(await client?.embed(['hi'])).toEqual([[0.1, 0.2, 0.3]]);
+    expect(requests).toHaveLength(1);
+    expect(requests[0]?.url).toBe('https://api.openai.com/v1/embeddings');
+    expect(requests[0]?.headers.authorization).toBe('Bearer runtime-openai-key');
+    expect(requests[0]?.headers['content-type']).toBe('application/json');
+    expect(JSON.parse(requests[0]!.body)).toEqual({ model: 'text-embedding-3-small', input: ['hi'] });
   });
 
-  test('resolver wins over a conflicting env key', () => {
-    process.env.OPENAI_API_KEY = 'env-openai-key';
-    const resolver = buildResolver({ openai: { apiKey: 'runtime-openai-key' } });
-    // Both paths available → both produce a client. We can prove the resolver
-    // wins by intercepting fetch and observing the Authorization header.
-    let observedAuth: string | undefined;
-    globalThis.fetch = (async (input, init) => {
-      const headers = init && (init.headers as Record<string, string> | undefined);
-      observedAuth = headers?.authorization;
-      return new Response(JSON.stringify({ data: [{ embedding: [0.1, 0.2, 0.3] }] }), { status: 200 });
-    }) as typeof fetch;
-    const client = createEmbeddingClient({ provider: 'openai', authResolver: resolver });
-    expect(client).not.toBeNull();
-    void client?.embed(['hi']);
-    // Wait microtask for fetch to fire.
-    return Promise.resolve().then(() => {
-      expect(observedAuth).toBe('Bearer runtime-openai-key');
-    });
+  test('Pi provider baseUrl overrides the built-in endpoint', async () => {
+    const resolver = buildResolver({ openai: { apiKey: 'k', baseUrl: 'https://gateway.internal/v1/' } });
+    const { transport, requests } = buildTransport();
+    const client = createEmbeddingClient({ provider: 'openai', authResolver: resolver, transport });
+    await client?.embed(['hi']);
+    expect(requests[0]?.url).toBe('https://gateway.internal/v1/embeddings');
   });
 
-  test('auto provider selection honours the resolver before env', () => {
-    process.env.GEMINI_API_KEY = 'env-gemini-key';
-    const resolver = buildResolver({ openai: { apiKey: 'runtime-openai-key' } });
-    const client = createEmbeddingClient({ provider: 'auto', authResolver: resolver });
-    expect(client?.provider).toBe('openai');
-  });
-
-  test('gemini resolver reads from the canonical google provider id', () => {
+  test('gemini uses the google provider id from the Pi registry', async () => {
     const resolver = buildResolver({ google: { apiKey: 'runtime-google-key' } });
-    const client = createEmbeddingClient({ provider: 'gemini', authResolver: resolver });
+    const { transport, requests } = buildTransport({ embeddings: [[0.4, 0.5, 0.6]] });
+    const client = createEmbeddingClient({ provider: 'gemini', authResolver: resolver, transport });
+
     expect(client?.provider).toBe('gemini');
-    let observedUrl: string | undefined;
-    globalThis.fetch = (async (input) => {
-      observedUrl = String(input);
-      return new Response(JSON.stringify({ embeddings: [[0.4, 0.5, 0.6]] }), { status: 200 });
-    }) as typeof fetch;
-    void client?.embed(['hi']);
-    return Promise.resolve().then(() => {
-      expect(observedUrl).toContain('key=runtime-google-key');
-      expect(observedUrl).toContain('generativelanguage.googleapis.com');
-    });
+    expect(client?.model).toBe('gemini-embedding-001');
+    expect(await client?.embed(['hi'])).toEqual([[0.4, 0.5, 0.6]]);
+    expect(requests[0]?.url).toBe('https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:batchEmbedContents?key=runtime-google-key');
   });
 
-  test('GOOGLE_API_KEY alias still works when no resolver is supplied', () => {
-    process.env.GOOGLE_API_KEY = 'legacy-google-key';
-    const client = createEmbeddingClient({ provider: 'gemini' });
-    expect(client?.provider).toBe('gemini');
+  test('auto provider selection honours the Pi resolver', () => {
+    const { transport } = buildTransport();
+    const resolver = buildResolver({ google: { apiKey: 'runtime-google-key' } });
+    expect(createEmbeddingClient({ provider: 'auto', authResolver: resolver, transport })?.provider).toBe('gemini');
+    expect(createEmbeddingClient({ provider: 'auto', authResolver: buildResolver({ openai: { apiKey: 'k' } }), transport })?.provider).toBe('openai');
+    expect(createEmbeddingClient({ provider: 'auto', authResolver: buildResolver({ ollama: { baseUrl: 'http://host:11434' } }), transport })?.provider).toBe('ollama');
   });
 
-  test('ollama resolver baseUrl overrides env when provided', () => {
-    process.env.OLLAMA_BASE_URL = 'http://env-host:11434';
-    const resolver = buildResolver({ ollama: { baseUrl: 'http://runtime-host:11434/' } });
-    const client = createEmbeddingClient({ provider: 'ollama', authResolver: resolver });
-    let observedUrl: string | undefined;
-    globalThis.fetch = (async (input) => {
-      observedUrl = String(input);
-      return new Response(JSON.stringify({ embeddings: [[0.1]] }), { status: 200 });
-    }) as typeof fetch;
-    void client?.embed(['hi']);
-    return Promise.resolve().then(() => {
-      expect(observedUrl).toBe('http://runtime-host:11434/api/embed');
-    });
-  });
-
-  test('ollama defaults to localhost when neither resolver nor env is set', () => {
-    const client = createEmbeddingClient({ provider: 'ollama' });
+  test('ollama is keyless and uses the Pi registry baseUrl', async () => {
+    const { transport, requests } = buildTransport({ embeddings: [[0.1]] });
+    const client = createEmbeddingClient({ provider: 'ollama', authResolver: buildResolver({ ollama: { baseUrl: 'http://runtime-host:11434/' } }), transport });
     expect(client?.provider).toBe('ollama');
-    let observedUrl: string | undefined;
-    globalThis.fetch = (async (input) => {
-      observedUrl = String(input);
-      return new Response(JSON.stringify({ embeddings: [[0.1]] }), { status: 200 });
-    }) as typeof fetch;
-    void client?.embed(['hi']);
-    return Promise.resolve().then(() => {
-      expect(observedUrl).toBe('http://127.0.0.1:11434/api/embed');
-    });
+    expect(client?.model).toBe('nomic-embed-text');
+    await client?.embed(['hi']);
+    expect(requests[0]?.url).toBe('http://runtime-host:11434/api/embed');
+  });
+
+  test('ollama falls back to the local endpoint when the registry has no baseUrl', async () => {
+    const { transport, requests } = buildTransport({ embeddings: [[0.1]] });
+    const client = createEmbeddingClient({ provider: 'ollama', authResolver: buildResolver({ ollama: {} }), transport });
+    await client?.embed(['hi']);
+    expect(requests[0]?.url).toBe('http://127.0.0.1:11434/api/embed');
+  });
+
+  test('a failed transport response surfaces a provider error', async () => {
+    const { transport } = buildTransport({}, 401);
+    const client = createEmbeddingClient({ provider: 'openai', authResolver: buildResolver({ openai: { apiKey: 'k' } }), transport });
+    await expect(client!.embed(['hi'])).rejects.toThrow('Embedding request failed with 401');
+  });
+
+  test('embedSingleQuery returns the first vector and tolerates a null client', async () => {
+    const { transport } = buildTransport();
+    const client = createEmbeddingClient({ provider: 'openai', authResolver: buildResolver({ openai: { apiKey: 'k' } }), transport });
+    expect(await embedSingleQuery(client, 'hi')).toEqual([0.1, 0.2, 0.3]);
+    expect(await embedSingleQuery(null, 'hi')).toBeNull();
   });
 });

@@ -41,7 +41,7 @@ const PI_CORE_FINANCE_PACKAGES = [
   PI_INVESTMENT_WORKFLOW_PACKAGE,
 ] as const;
 const PI_PLATFORM_TOOLS = [
-  'skill', 'bash', 'read_file', 'write_file', 'edit_file', 'glob', 'grep', 'send_user_file', 'heartbeat', 'cron',
+  'skill', 'platformBash', 'read_file', 'write_file', 'edit_file', 'glob', 'grep', 'send_user_file', 'heartbeat', 'cron',
   'memory_search', 'memory_get', 'memory_update', 'list_mcp_resources', 'read_mcp_resource',
   'mcp_auth_set', 'mcp_auth_get', 'mcp_auth_clear', 'agent', 'enter_plan_mode', 'exit_plan_mode',
   'add_plan_step', 'update_plan_step', 'list_plan_steps', 'create_todo', 'update_todo', 'list_todos',

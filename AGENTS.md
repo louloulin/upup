@@ -33,9 +33,9 @@ UpUp **不重新实现 agent**。Agent loop、TUI/InteractiveMode、工具执行
 
 - `src/index.tsx` — 进程启动入口：`import '@upup/pi-app/entry';`
 - `src/bootstrap/gateway.ts` — gateway 入口 bootstrap：`runGatewayCli({ runtime: getPiNativeApp().getGatewayRuntime() })`
-- `src/runtime/pi/*.test.ts` — 19 个 Pi 合同测试，**不包含生产代码**（生产实现已迁入 Pi Package）
-- `src/controllers/*.test.ts` — Agent runner 的 Pi 合同测试
-- `src/utils/*.test.ts` — 路径与 config source 测试
+- `src/runtime/pi/*.test.ts` — 22 个 Pi 合同测试，**不包含生产代码**（生产实现已迁入 Pi Package）
+- `src/utils/*.test.ts` — 3 个测试：路径、config source、home 隔离合同
+- 根 `src` 共 27 个文件，其中 2 个生产文件（7 行）
 
 根 `src` 是 bootstrap + transport 壳 + 必要数据迁移。新增业务代码禁止直接放到 `src/` 下，必须以 Pi Package 形式接入。
 

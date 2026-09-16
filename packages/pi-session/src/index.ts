@@ -16,27 +16,14 @@ export * from './host-contract';
 export * from './finance-host-contract';
 
 // =============================================================================
-// Persistent session service
+// Background prompt service
 // =============================================================================
-export * from './session-tracker';
 export * from './background-service';
-export * from './session-service';
 
 // =============================================================================
-// Session orchestration helpers
+// Pi-native session service, runner registry and resolution helpers
 // =============================================================================
-export * from './session-environment';
-export * from './session-types';
-
-// =============================================================================
-// Session message renderer
-// =============================================================================
-export * from './render/message-renderer';
-
-// =============================================================================
-// Persistent storage helpers
-// =============================================================================
-export * from './selector';
+export * from './session-registry';
 
 // =============================================================================
 // Built-in session composition (finance + platform sub-boundaries)
@@ -57,12 +44,6 @@ export {
 // =============================================================================
 export * from './agent-session-factory';
 export * from './prompt-runner';
-
-export { withPiFileLock } from './file-lock';
-export type { PiFileLockOptions } from './file-lock';
-
-export { PiSessionRegistry } from './session-registry';
-export type { PiRunnerSessionState, PiSessionInitialization } from './session-registry';
 
 export * from './tool-scope';
 export * from './skill-scope';

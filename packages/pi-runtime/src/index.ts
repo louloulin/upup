@@ -798,3 +798,4 @@ export {
   rebrandSystemPrompt,
   UPUP_IDENTITY_SENTENCE,
 } from './brand-extension';
+export * from './embedding-provider';

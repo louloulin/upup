@@ -42,6 +42,66 @@ UpUp       = 中国金融投资 Data + Tools + Skills + Workflow + Risk Product
 9. 保留并 Pi 化 `/invest` 五阶段、Coordinator、Gateway、Daemon、Cron、Bridge、Realtime、Memory、Telemetry 和 Evals。
 10. 将架构图、模块边界图、数据流图、Session 迁移图和插件生态图作为正式文档落地并随实现更新。
 
+## Pi Native Cleanup — 5 Sprint 子计划（基于粘贴规划）
+
+本节在 A1-A20 之上扩展 Pi Native 全面清理范围，遵循激进迁移策略：完全接受 Pi 默认行为，复用 Pi Agent / TUI / Session / Transport / Provider 能力，删除 UpUp 重复实现。
+
+### Source coverage (扩展)
+
+新增来源：`/Users/louloulin/.codex/attachments/b65430a3-c385-4b32-9d7a-f536973af815/pasted-text-1.txt`（用户粘贴的 Pi Native 迁移计划），`/Users/louloulin/appx/upup/docs/pi-ecosystem-audit-2026-09-15.md`（既有 Pi 生态审计），`/Users/louloulin/appx/upup/pi7.md` + `pi8.md` + `pi10.md` + `pi11.md`（Pi7-Pi11 实施记录）。
+
+| 来源单元 | 状态 | 保留语义 | Spec 位置 | 验收 |
+|---|---|---|---|---|
+| pasted-text-1.txt §1 TUI/CLI | complete | 删除 pi-tui-app 29K 行，迁移到 Pi InteractiveMode | §TUI 子计划 | A21 |
+| pasted-text-1.txt §2 Bash/Sandbox | complete | 删除 pi-platform bash+sandbox 5.6K 行，迁移到 Pi bash tool | §Bash 子计划 | A22 |
+| pasted-text-1.txt §3 Session | complete | 瘦身 pi-session 5K 行，复用 Pi SessionManager | §Session 子计划 | A23 |
+| pasted-text-1.txt §6 Transport | complete | 删除自造 JSON 协议，切到 pi-protocol/pi-client/pi-server CBOR | §Transport 子计划 | A24 |
+| pasted-text-1.txt §7-9 Provider/SDK/Composition | complete | 删硬编码表、删 sdk、删 composition 包装 | §Provider/SDK/Composition | A25 |
+| pasted-text-1.txt §11 Memory | complete | memory 包保留，删除 raw fetch 部分 | §Memory | A26 |
+| pasted-text-1.txt §12 Investment/Finance | complete | finance 域保留，加固 fund-trade raw LLM | §Finance 加固 | A27 |
+| pasted-text-1.txt §13 Channel/Gateway | complete | gateway/cron/daemon 保留并简化 | §Channel/Gateway 简化 | A28 |
+
+### 实施范围 (扩展 — 5 Sprint)
+
+#### Sprint 1: TUI → Pi InteractiveMode (≈25K 行删除)
+- 删除 `packages/pi-tui-app/` 全部 29K 行（包括 components/permissions/tui/state/hooks/utils/cli.ts）。
+- `packages/pi-app/src/entry.ts` 与 `default.ts` 改为直接调用 Pi `InteractiveMode`，通过 Pi `ExtensionAPI` 注册 UpUp 投资命令。
+- `packages/pi-event-adapter` 简化为只服务 stdio JSON 输出，不再为 TUI 服务。
+- 现有 232 条 contract test 改写为 Pi `InteractiveMode` integration test。
+
+#### Sprint 2: Bash/Sandbox → Pi bash tool (≈5.6K 行删除)
+- 删除 `packages/pi-platform/src/bash/` (4,469 行) + `sandbox/` (1,189 行) + `permission-mode.ts`。
+- 通过 Pi `ExtensionAPI.registerTool` 重新暴露 `platformBash`/`platformReadFile`/`platformWriteFile`/`platformEditFile`，命名兼容。
+- UpUp 特有 finance command whitelist 通过 Pi `BashOperations` 注入。
+
+#### Sprint 3: Session/Settings/State → Pi 原生 (≈10K 行删除)
+- 删除 `pi-session/src/{storage,storage-portable,session-state,session-service,session-tracker,pid-manager,restore,message-chain,context-collapse,ephemeral-messages,session-types,session-environment,selector,session-adapter}.ts`（合计约 5K 行）。
+- 删除独立 package `state/`(434 行)、`keybindings/`(614 行)、`i18n/`(352 行)、`hooks/`(341 行)。
+- 改用 Pi `core/session-manager.ts`、`core/settings-manager.ts`、`core/resource-loader.ts`、`core/messages.ts`、Pi keybindings、Pi prompt 多语言、Pi hook 机制。
+
+#### Sprint 4: Transport → CBOR (≈8K 行删除)
+- 删除 `packages/pi-bridge/` 6,252 行所有自实现（protocol、server、session、client、auth、jwt、workSecret 等）。
+- 服务端用 `pi-server` 的 `createServer`，客户端用 `pi-client` 的 `createClient` + CBOR framing。
+- 删除 `packages/pi-stdio/` 中 JSON envelope 实现（1,764 行），改为基于 `pi-protocol` 的 CBOR over stdio transport。保留 `acp.ts` 薄适配层。
+- 接受破坏性变更（README/CHANGELOG 同步）。
+
+#### Sprint 5: Provider/SDK/Composition 清理 (≈8K 行删除)
+- `packages/utils/src/providers.ts` 已从 Pi catalog 派生（无需大改）；删除 `packages/pi-tui-app/src/utils/model.ts` (268 行硬编码 8 项)。
+- 删除 `packages/sdk/` 7,642 行自实现，改用 Pi `core/sdk.ts`。
+- 删除 `packages/pi-finance-composition/` (133 行) + `packages/pi-platform-composition/` (163 行)，内容内联到 `pi-session/builtin-composition.ts`。
+- `packages/pi-capability-registry/` (151 行) 简化为 type alias。
+
+### Sprint 6: 入口与 root `src` 收敛
+- root `src/` 仅保留 bootstrap + transport 壳；删除 `src/runtime/pi/`、`src/controllers/`、`src/utils/` 下的所有 test fixture。
+- `src/index.tsx` 改为 `import { main } from '@earendil-works/pi-coding-agent'` + UpUp finance extension 注册。
+- `src/bootstrap/gateway.ts` 改为 Pi extension + WhatsApp 通道注入。
+
+### Sprint 7: 保留并加固
+- `packages/memory/` 保留，删除 `search.ts` 和 `embeddings.ts` 中 raw fetch（改走 Pi provider registry），`memory-deny.ts` 与 Pi policy 合并。
+- `packages/pi-finance-sdk/` 保留，删除 `fund-trade.ts` 中 raw LLM 调用（改走 Pi `promptRunner`）。
+- `packages/pi-investment-workflow/`、`pi-investment-analysis`、`pi-risk`、`pi-portfolio`、`pi-backtest`、`pi-research`、`pi-technical`、`pi-corporate-actions`、`pi-quant`、`pi-market-data`、`pi-notify`：保留为 Pi extension tool 注册。
+- `packages/gateway/`、`cron/`、`daemon/` 保留并简化为 thin supervisor over Pi `BackgroundService`。
+
 # Non-goals
 
 - 不把 Pi 默认宿主权限当成金融权限系统。
@@ -77,69 +137,6 @@ UpUp       = 中国金融投资 Data + Tools + Skills + Workflow + Risk Product
 - **A19 验证门禁**：类型检查、静态依赖检查、Adapter contract tests、双运行时 fixture、金融 E2E、权限测试、性能/恢复测试全部有可重复命令和结果。
 - **A20 架构留档与计划更新**：正式架构图、数据流图、插件生态图和迁移状态落盘；每个通过的 ID 在 `pi5.md` 的完成矩阵中标记并链接证据。
 
-
-# Pi Native Cleanup — 5 Sprint 子计划（基于粘贴规划）
-
-本节在 A1-A20 之上扩展 Pi Native 全面清理范围，遵循激进迁移策略：完全接受 Pi 默认行为，复用 Pi Agent / TUI / Session / Transport / Provider 能力，删除 UpUp 重复实现。
-
-## Source coverage (扩展)
-
-新增来源：`/Users/louloulin/.codex/attachments/b65430a3-c385-4b32-9d7a-f536973af815/pasted-text-1.txt`（用户粘贴的 Pi Native 迁移计划），`/Users/louloulin/appx/upup/docs/pi-ecosystem-audit-2026-09-15.md`（既有 Pi 生态审计），`/Users/louloulin/appx/upup/pi7.md` + `pi8.md` + `pi10.md` + `pi11.md`（Pi7-Pi11 实施记录）。
-
-| 来源单元 | 状态 | 保留语义 | Spec 位置 | 验收 |
-|---|---|---|---|---|
-| pasted-text-1.txt §1 TUI/CLI | complete | 删除 pi-tui-app 29K 行，迁移到 Pi InteractiveMode | §TUI 子计划 | A21 |
-| pasted-text-1.txt §2 Bash/Sandbox | complete | 删除 pi-platform bash+sandbox 5.6K 行，迁移到 Pi bash tool | §Bash 子计划 | A22 |
-| pasted-text-1.txt §3 Session | complete | 瘦身 pi-session 5K 行，复用 Pi SessionManager | §Session 子计划 | A23 |
-| pasted-text-1.txt §6 Transport | complete | 删除自造 JSON 协议，切到 pi-protocol/pi-client/pi-server CBOR | §Transport 子计划 | A24 |
-| pasted-text-1.txt §7-9 Provider/SDK/Composition | complete | 删硬编码表、删 sdk、删 composition 包装 | §Provider/SDK/Composition | A25 |
-| pasted-text-1.txt §11 Memory | complete | memory 包保留，删除 raw fetch 部分 | §Memory | A26 |
-| pasted-text-1.txt §12 Investment/Finance | complete | finance 域保留，加固 fund-trade raw LLM | §Finance 加固 | A27 |
-| pasted-text-1.txt §13 Channel/Gateway | complete | gateway/cron/daemon 保留并简化 | §Channel/Gateway 简化 | A28 |
-
-## 实施范围 (扩展 — 5 Sprint)
-
-### Sprint 1: TUI → Pi InteractiveMode (≈25K 行删除)
-- 删除 `packages/pi-tui-app/` 全部 29K 行（包括 components/permissions/tui/state/hooks/utils/cli.ts）。
-- `packages/pi-app/src/entry.ts` 与 `default.ts` 改为直接调用 Pi `InteractiveMode`，通过 Pi `ExtensionAPI` 注册 UpUp 投资命令。
-- `packages/pi-event-adapter` 简化为只服务 stdio JSON 输出，不再为 TUI 服务。
-- 现有 232 条 contract test 改写为 Pi `InteractiveMode` integration test。
-
-### Sprint 2: Bash/Sandbox → Pi bash tool (≈5.6K 行删除)
-- 删除 `packages/pi-platform/src/bash/` (4,469 行) + `sandbox/` (1,189 行) + `permission-mode.ts`。
-- 通过 Pi `ExtensionAPI.registerTool` 重新暴露 `platformBash`/`platformReadFile`/`platformWriteFile`/`platformEditFile`，命名兼容。
-- UpUp 特有 finance command whitelist 通过 Pi `BashOperations` 注入。
-
-### Sprint 3: Session/Settings/State → Pi 原生 (≈10K 行删除)
-- 删除 `pi-session/src/{storage,storage-portable,session-state,session-service,session-tracker,pid-manager,restore,message-chain,context-collapse,ephemeral-messages,session-types,session-environment,selector,session-adapter}.ts`（合计约 5K 行）。
-- 删除独立 package `state/`(434 行)、`keybindings/`(614 行)、`i18n/`(352 行)、`hooks/`(341 行)。
-- 改用 Pi `core/session-manager.ts`、`core/settings-manager.ts`、`core/resource-loader.ts`、`core/messages.ts`、Pi keybindings、Pi prompt 多语言、Pi hook 机制。
-
-### Sprint 4: Transport → CBOR (≈8K 行删除)
-- 删除 `packages/pi-bridge/` 6,252 行所有自实现（protocol、server、session、client、auth、jwt、workSecret 等）。
-- 服务端用 `pi-server` 的 `createServer`，客户端用 `pi-client` 的 `createClient` + CBOR framing。
-- 删除 `packages/pi-stdio/` 中 JSON envelope 实现（1,764 行），改为基于 `pi-protocol` 的 CBOR over stdio transport。保留 `acp.ts` 薄适配层。
-- 接受破坏性变更（README/CHANGELOG 同步）。
-
-### Sprint 5: Provider/SDK/Composition 清理 (≈8K 行删除)
-- `packages/utils/src/providers.ts` 已从 Pi catalog 派生（无需大改）；删除 `packages/pi-tui-app/src/utils/model.ts` (268 行硬编码 8 项)。
-- 删除 `packages/sdk/` 7,642 行自实现，改用 Pi `core/sdk.ts`。
-- 删除 `packages/pi-finance-composition/` (133 行) + `packages/pi-platform-composition/` (163 行)，内容内联到 `pi-session/builtin-composition.ts`。
-- `packages/pi-capability-registry/` (151 行) 简化为 type alias。
-
-## Sprint 6: 入口与 root `src` 收敛
-- root `src/` 仅保留 bootstrap + transport 壳；删除 `src/runtime/pi/`、`src/controllers/`、`src/utils/` 下的所有 test fixture。
-- `src/index.tsx` 改为 `import { main } from '@earendil-works/pi-coding-agent'` + UpUp finance extension 注册。
-- `src/bootstrap/gateway.ts` 改为 Pi extension + WhatsApp 通道注入。
-
-## Sprint 7: 保留并加固
-- `packages/memory/` 保留，删除 `search.ts` 和 `embeddings.ts` 中 raw fetch（改走 Pi provider registry），`memory-deny.ts` 与 Pi policy 合并。
-- `packages/pi-finance-sdk/` 保留，删除 `fund-trade.ts` 中 raw LLM 调用（改走 Pi `promptRunner`）。
-- `packages/pi-investment-workflow/`、`pi-investment-analysis`、`pi-risk`、`pi-portfolio`、`pi-backtest`、`pi-research`、`pi-technical`、`pi-corporate-actions`、`pi-quant`、`pi-market-data`、`pi-notify`：保留为 Pi extension tool 注册。
-- `packages/gateway/`、`cron/`、`daemon/` 保留并简化为 thin supervisor over Pi `BackgroundService`。
-
-# Acceptance examples — 新增
-
 - **A21 TUI 切换**：`packages/pi-tui-app/` 目录不存在；`packages/pi-app/src/entry.ts` 调用 Pi `InteractiveMode`；232 条原 TUI test 改写为 Pi integration test；`bun test packages/pi-event-adapter packages/pi-app` 全 PASS。
 - **A22 Bash/Sandbox 切换**：`packages/pi-platform/src/bash/` 和 `sandbox/` 目录不存在；Pi `tools/bash.ts` 通过 `ExtensionAPI` 暴露为 `platformBash`；`bun test packages/pi-platform` 全 PASS。
 - **A23 Session/Settings/State 瘦身**：`pi-session` 文件数 ≤ 现有 50%；`state/`、`keybindings/`、`i18n/`、`hooks/` 目录不存在；`bun test packages/pi-session` 全 PASS。
@@ -148,16 +145,6 @@ UpUp       = 中国金融投资 Data + Tools + Skills + Workflow + Risk Product
 - **A26 Memory 简化**：`packages/memory/src/search.ts` 和 `embeddings.ts` 无 raw fetch；走 Pi provider registry；memory contract test 全 PASS。
 - **A27 Finance 加固**：`packages/pi-finance-sdk/src/fund-trade.ts` 无 raw LLM 调用；走 Pi `promptRunner`；finance SDK test 全 PASS。
 - **A28 Channel/Gateway 简化**：`packages/gateway/src/access-control.ts` 和 `config.ts` 与 Pi policy 重叠部分删除；`packages/daemon/` 简化为 thin supervisor over Pi `BackgroundService`；gateway/cron test 全 PASS。
-
-# Constraints and invariants (新增)
-
-- 删除 ≥ 60K 行业务重复代码（覆盖 Sprint 1-5 主目标）；保留 finance/memory/channel 三大领域。
-- 不得修改 `/Users/louloulin/appx/pi` 上游源码；只读取与参考。
-- bridge → CBOR 切换为破坏性变更，外部集成方需同步升级协议。
-- `@earendil-works/pi-*` 锁定 0.85.1，不升级。
-- 静态门禁 `bun run check:pi7`、`check:module-boundaries`、`check:pi-packages` 必须持续通过。
-- 新增 `bun run check:no-self-impl` 禁止 packages/* 重复实现 Pi 已导出 API。
-- 新增 `bun run check:tui-bridge-cleanup` 确认 `pi-tui-app`、`pi-bridge` 已彻底删除。
 
 # Constraints and invariants
 
@@ -170,6 +157,13 @@ UpUp       = 中国金融投资 Data + Tools + Skills + Workflow + Risk Product
 - 真实交易默认关闭；测试禁止真实下单。
 - 不修改与本 change 无关的用户改动；不自动 commit/push。
 - 每个阶段必须真实运行对应验证，失败先修复再推进。
+- 删除 ≥ 60K 行业务重复代码（覆盖 Sprint 1-5 主目标）；保留 finance/memory/channel 三大领域。
+- 不得修改 `/Users/louloulin/appx/pi` 上游源码；只读取与参考。
+- bridge → CBOR 切换为破坏性变更，外部集成方需同步升级协议。
+- `@earendil-works/pi-*` 锁定 0.85.1，不升级。
+- 静态门禁 `bun run check:pi7`、`check:module-boundaries`、`check:pi-packages` 必须持续通过。
+- 新增 `bun run check:no-self-impl` 禁止 packages/* 重复实现 Pi 已导出 API。
+- 新增 `bun run check:tui-bridge-cleanup` 确认 `pi-tui-app`、`pi-bridge` 已彻底删除。
 
 # Decisions
 

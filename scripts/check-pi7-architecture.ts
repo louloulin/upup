@@ -31,11 +31,11 @@ for (const file of sourceFiles) {
 }
 
 const rootSourceFiles = production(walk(resolve(root, 'src')));
+// Root production code is bootstrap-only. `src/` also holds contract tests
+// (`src/runtime/pi/**`, `src/utils/**`), which `production()` filters out.
 const rootAllowlist = [
   /^src\/index\.tsx$/,
   /^src\/bootstrap\//,
-  /^src\/compat\//,
-  /^src\/types\//,
 ];
 for (const file of rootSourceFiles) {
   const relativePath = file.slice(resolve(root, 'src').length + 1).replaceAll('\\', '/');
