@@ -27,13 +27,21 @@
     "build": "bun build src/index.ts --outdir=dist --target=node --external '@upup/*' --external '@earendil-works/*' && bun build src/default.ts --outdir=dist --target=node --external '@upup/*' --external '@earendil-works/*' && bun build src/entry.ts --outdir=dist --target=node --external '@upup/*' --external '@earendil-works/*' && bun build src/print.ts --outdir=dist --target=node --external '@upup/*' --external '@earendil-works/*' && tsc --emitDeclarationOnly --project tsconfig.json",
     "test": "bun test ./src"
   },
-  "files": ["dist", "package.json"],
+  "files": [
+    "dist",
+    "package.json"
+  ],
   "private": false,
   "pi": {
     "contract": "upup.pi.runtime.v1",
     "source": "builtin:upup",
-    "trust": { "mode": "builtin" },
-    "lifecycle": { "scope": "process", "dispose": "./src/index.ts#PiApp.dispose" },
+    "trust": {
+      "mode": "builtin"
+    },
+    "lifecycle": {
+      "scope": "process",
+      "dispose": "./src/index.ts#PiApp.dispose"
+    },
     "dependencies": {
       "@upup/pi-finance-sdk": "0.1.0"
     },
@@ -47,12 +55,12 @@
   "dependencies": {
     "@upup/cron": "0.2.0",
     "@upup/gateway": "0.2.0",
-    "@upup/pi-investment-workflow": "0.1.0",
-    "@upup/pi-finance-sdk": "0.1.0",
-    "@upup/pi-event-adapter": "0.1.0",
-    "@upup/pi-runtime": "0.1.0",
-    "@upup/pi-session": "0.1.0",
     "@upup/mcp": "0.2.0",
-    "@upup/pi-platform": "0.1.0"
+    "@upup/pi-event-adapter": "0.1.0",
+    "@upup/pi-finance-sdk": "0.1.0",
+    "@upup/pi-investment-workflow": "0.1.0",
+    "@upup/pi-platform": "0.1.0",
+    "@upup/pi-runtime": "0.1.0",
+    "@upup/pi-session": "0.1.0"
   }
 }

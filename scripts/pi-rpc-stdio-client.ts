@@ -1,8 +1,8 @@
 /**
  * Minimal stdio client for the Pi-native `upup --stdio` entry.
  *
- * Sprint 4 cleanup (Pi Native migration): the bespoke `@upup/pi-stdio`
- * transport was deleted in favour of Pi's own `runRpcMode`. This helper is the
+ * Sprint 4 cleanup (Pi Native migration): the bespoke UpUp stdio transport
+ * package was deleted in favour of Pi's own `runRpcMode`. This helper is the
  * verification-side counterpart: it spawns `src/index.tsx --stdio` (which
  * forwards to Pi `main() --mode rpc`) and speaks Pi's native JSONL command
  * shape — `{ id, type: "<command>", ...params }` in, and

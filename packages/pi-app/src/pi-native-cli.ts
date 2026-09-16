@@ -19,7 +19,10 @@
 
 import type { InlineExtension } from '@earendil-works/pi-coding-agent';
 
+import { createUpUpBrandExtension } from '@upup/pi-runtime';
 import { getPiNativeApp } from './default';
+import { printUpupBanner } from './banner';
+import { ensureUpupAgentDir } from './bootstrap-agent';
 
 export interface PiNativeRunCliOptions {
   readonly resumeTarget?: string;
@@ -64,10 +67,21 @@ function buildExtensionFactories(): InlineExtension[] {
   // have to be wired at runtime (e.g. ones that capture the live
   // SessionService port from the app boundary).
   void app.getInvestmentWorkflow();
-  return [];
+  // Brand the interactive TUI's system prompt as UpUp. Pi hard-codes its own
+  // identity in the default prompt template and ships no config for it, so we
+  // rewrite it from a `before_agent_start` handler instead of forking Pi.
+  return [createUpUpBrandExtension()];
 }
 
 export async function runPiNativeCli(options: PiNativeRunCliOptions = {}): Promise<void> {
+  // Pi defaults its agent dir to `~/.pi/agent`; force the canonical
+  // `~/.upup/agent` so Pi's `getAgentDir()` returns the right path even when
+  // `runPiNativeCli` is invoked outside `entry.ts` (tests, embedded hosts).
+  // Idempotent — `entry.ts` already ran it on the normal CLI path.
+  ensureUpupAgentDir();
+  if (process.stderr.isTTY !== false) {
+    printUpupBanner({ mode: 'interactive' });
+  }
   const { main } = await import('@earendil-works/pi-coding-agent');
   await main(buildArgs(options), { extensionFactories: buildExtensionFactories() });
 }

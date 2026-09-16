@@ -2,6 +2,7 @@ import { fauxAssistantMessage, fauxProvider, fauxText } from '@earendil-works/pi
 import { ModelRuntime } from '@earendil-works/pi-coding-agent';
 import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
+import { spawnPiRpcStdio } from './pi-rpc-stdio-client';
 import { runPrint } from '@upup/pi-app/print';
 import { createPiCanonicalEventStream } from '@upup/pi-event-adapter';
 import { createPiAgentRuntime, disposePiSessions, isPiSessionRunning, runPiPrompt } from '@upup/pi-session';
@@ -12,7 +13,7 @@ import { createEvaluationRunner } from '@upup/pi-evals';
 import { getPiNativeApp } from '@upup/pi-app/default';
 import type { GatewayRuntime } from '@upup/gateway';
 
-type EntryName = 'cli' | 'gateway' | 'bridge' | 'stdio' | 'cron' | 'daemon' | 'sdk' | 'eval';
+type EntryName = 'cli' | 'gateway' | 'cron' | 'daemon' | 'stdio' | 'eval';
 type EntryEvidence = {
   entry: EntryName;
   status: 'passed' | 'contract-only';
@@ -34,8 +35,13 @@ fixture.setResponses([
   fauxAssistantMessage([fauxText('gateway fixture 闭环完成。')]),
   fauxAssistantMessage([fauxText('cron fixture 闭环完成。')]),
   fauxAssistantMessage([fauxText('daemon fixture 闭环完成。')]),
-  fauxAssistantMessage([fauxText('bridge fixture 闭环完成。')]),
 ]);
+
+function piRpcCommand(): readonly string[] {
+  // Source entry by default; CI never builds `dist/`, and a stale compiled
+  // binary would verify the previous migration state.
+  return [process.execPath, 'run', join(root, 'src', 'index.tsx'), '--stdio'];
+}
 
 function runtime(modelRuntime: ModelRuntime): GatewayRuntime {
   return {
@@ -49,37 +55,6 @@ function runtime(modelRuntime: ModelRuntime): GatewayRuntime {
       startCronRunner: () => ({ stop: () => undefined }),
     },
   };
-}
-
-async function readBridgeMessage(event: MessageEvent): Promise<BridgeMessage> {
-  const data = event.data as unknown;
-  const bytes = data instanceof Blob
-    ? new Uint8Array(await data.arrayBuffer())
-    : typeof data === 'string'
-      ? new TextEncoder().encode(data)
-      : new Uint8Array(data as ArrayBuffer);
-  return JSON.parse(new TextDecoder().decode(bytes)).msg as BridgeMessage;
-}
-
-function waitForBridgeOpen(socket: WebSocket): Promise<void> {
-  return new Promise((resolve, reject) => {
-    socket.onopen = () => resolve();
-    socket.onerror = () => reject(new Error('bridge websocket failed to open'));
-  });
-}
-
-function nextBridgeMessage(socket: WebSocket, timeoutMs = 5_000): Promise<BridgeMessage> {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('bridge message timed out')), timeoutMs);
-    socket.onmessage = async (event) => {
-      clearTimeout(timer);
-      try {
-        resolve(await readBridgeMessage(event));
-      } catch (error) {
-        reject(error);
-      }
-    };
-  });
 }
 
 async function run(): Promise<void> {
@@ -154,61 +129,23 @@ async function run(): Promise<void> {
     if (!daemonResult.success) throw new Error(daemonResult.error);
     results.push({ entry: 'daemon', status: 'passed', fixture: true, sessionId: 'daemon:matrix-daemon', events: daemonEvents, artifacts: ['daemon task result', 'Pi background session'] });
 
-    const bridgeAudit = join(sessionDir, 'bridge-audit.jsonl');
-    const bridge = await startBridgeServer({
-      port: 0,
-      token: 'pi-entry-fixture-token',
-      auditPath: bridgeAudit,
-      runtime: gateway,
-      agentRunner: async (request) => {
-        await request.onEvent?.({ type: 'text_delta', sessionId: request.sessionKey, delta: 'bridge fixture' });
-        return 'bridge fixture 闭环完成。';
-      },
-    });
-    const socket = new WebSocket(`ws://127.0.0.1:${bridge.port}/bridge?token=pi-entry-fixture-token`);
-    await within('bridge-open', waitForBridgeOpen(socket));
-    const bridgeInitial = await within('bridge-initial', nextBridgeMessage(socket));
-    const bridgeChat: BridgeMessage = {
-      kind: 'chat', seq: 1, sessionId: bridgeInitial.sessionId, timestamp: Date.now(),
-      payload: { role: 'user', content: '执行 bridge fixture' },
-    };
-    socket.send(encodeMessage(bridgeChat));
-    const bridgeMessages = await within('bridge-chat', (async () => [
-      await nextBridgeMessage(socket),
-      await nextBridgeMessage(socket),
-      await nextBridgeMessage(socket),
-      await nextBridgeMessage(socket),
-    ])());
-    if (!bridgeMessages.some((message) => message.kind === 'chat' && message.payload.role === 'assistant')) {
-      throw new Error('bridge chat did not produce an assistant message');
+    const rpc = spawnPiRpcStdio({ root, env: { UPUP_SESSION_DIR: sessionDir }, command: piRpcCommand() });
+    const rpcSession = await within('stdio-new-session', rpc.call({ type: 'new_session' }));
+    const rpcState = await within('stdio-get-state', rpc.call({ type: 'get_state' }));
+    rpc.write('{not-json}');
+    const rpcRecovered = await within('stdio-after-malformed', rpc.call({ type: 'get_state' }));
+    await within('stdio-close', rpc.close(), 30_000);
+    if (rpcSession.success !== true || rpcState.success !== true || rpcRecovered.success !== true) {
+      throw new Error('Pi rpc stdio session contract failed');
     }
-    socket.close();
-    await bridge.stop();
-    results.push({ entry: 'bridge', status: 'passed', fixture: true, sessionId: bridgeInitial.sessionId, answer: 'bridge fixture 闭环完成。', events: bridgeMessages.map((message) => message.kind), artifacts: ['bridge websocket chat', 'bridge audit path', 'bridge session sync'] });
-
-    const compiledBinary = join(root, 'dist', 'upup');
-    const childBinary = Bun.file(compiledBinary).size > 0
-      ? { command: compiledBinary, args: ['--stdio'] }
-      : { command: process.execPath, args: [join(root, 'src', 'index.tsx'), '--stdio'] };
-    const stdio = new StdioTransport({ executablePath: childBinary.command, args: childBinary.args, env: { UPUP_SESSION_DIR: sessionDir } });
-    await within('stdio-connect', stdio.connect({ executablePath: childBinary.command, args: childBinary.args, env: { UPUP_SESSION_DIR: sessionDir } }), 60_000);
-    const stdioSession = await within('stdio-create', stdio.request('session/create', { id: 'matrix-stdio', metadata: { entry: 'stdio' } })) as { id: string };
-    const stdioMessages = await within('stdio-messages', stdio.request('session/messages', { id: stdioSession.id })) as { messages: unknown[] };
-    const stdioExport = await within('stdio-export', stdio.request('session/export', { id: stdioSession.id, outputPath: join(sessionDir, 'matrix-stdio.jsonl') })) as { path: string };
-    await within('stdio-close', stdio.close());
-    if (!Array.isArray(stdioMessages.messages) || !stdioExport.path.endsWith('.jsonl')) throw new Error('stdio session contract failed');
-    results.push({ entry: 'stdio', status: 'passed', fixture: true, sessionId: stdioSession.id, events: ['initialize', 'session/create', 'session/messages', 'session/export'], artifacts: ['stdio JSON-RPC session', stdioExport.path, 'Pi Session JSONL'] });
-
-    const sdk = await within('sdk-connect', createClient({
-      binary: childBinary,
-      env: { UPUP_SESSION_DIR: sessionDir },
-      session: { id: 'matrix-sdk' },
-    }), 60_000);
-    const sdkSession = await within('sdk-create', sdk.session?.create({ id: 'matrix-sdk', metadata: { entry: 'sdk' } }) ?? Promise.reject(new Error('SDK session unavailable')));
-    const sdkInfo = await within('sdk-get', sdk.session?.get() ?? Promise.reject(new Error('SDK session unavailable')));
-    await within('sdk-close', sdk.close());
-    if (!sdkSession || sdkInfo?.id !== sdkSession.id) throw new Error('SDK did not create/read a Pi session');
-    results.push({ entry: 'sdk', status: 'passed', fixture: true, sessionId: sdkSession.id, events: ['initialize', 'session/create', 'session/get', 'shutdown'], artifacts: ['SDK public client', 'SDK stdio transport', 'Pi Session JSONL'] });
+    results.push({
+      entry: 'stdio',
+      status: 'passed',
+      fixture: true,
+      sessionId: (rpcState.data as { sessionId?: string } | undefined)?.sessionId ?? 'matrix:stdio',
+      events: rpc.frames().map((frame) => (frame as { type?: string }).type ?? 'unknown'),
+      artifacts: ['Pi rpc stdio child', 'Pi new_session/get_state round-trip', 'Pi parse error frame'],
+    });
 
     const evalEvents: string[] = [];
     const evalStream = {

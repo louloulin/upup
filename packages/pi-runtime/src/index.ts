@@ -792,3 +792,9 @@ export {
   type PiToolResult,
   type PiToolResultDetails,
 } from './tool-result';
+
+export {
+  createUpUpBrandExtension,
+  rebrandSystemPrompt,
+  UPUP_IDENTITY_SENTENCE,
+} from './brand-extension';

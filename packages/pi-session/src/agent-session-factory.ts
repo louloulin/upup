@@ -49,6 +49,7 @@ import { withSerializedPiResourceReload } from '@upup/pi-resource-composition';
 import {
   createFinanceSessionExtension,
   createPiToolErrorBridgeExtension,
+  createUpUpBrandExtension,
   emptyFinanceSessionContext,
   mergeFinanceSessionContext,
   serializeFinanceSessionContext,
@@ -415,6 +416,10 @@ export class PiAgentSessionFactory implements UpUpAgentRuntime {
       eventBus: capabilityEvents,
       extensionFactories: [
         createPiToolErrorBridgeExtension(),
+        // Rebrand Pi's hard-coded "operating inside pi" system prompt to UpUp
+        // for every turn. Pi exposes no config for that string, and fork-free
+        // rebranding is exactly what `before_agent_start` is for.
+        createUpUpBrandExtension(),
         ...(isPiCustomProviderSpec(spec.model ?? process.env.DEFAULT_MODEL)
           ? [createOllamaProviderExtension()]
           : []),

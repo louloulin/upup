@@ -137,8 +137,13 @@ async function daemonFault(): Promise<EntryFaultEvidence> {
 }
 
 function piRpcCommand(): readonly string[] {
-  const binary = join(root, 'dist', 'upup');
-  if (Bun.file(binary).size > 0) return [binary, '--stdio'];
+  // Always exercise the source entry: CI never builds `dist/`, and a stale
+  // compiled binary would silently verify the previous migration state.
+  // Set `UPUP_PI_VERIFY_BINARY=1` to cover a freshly built `dist/upup`.
+  if (process.env.UPUP_PI_VERIFY_BINARY === '1') {
+    const binary = join(root, 'dist', 'upup');
+    if (Bun.file(binary).size > 0) return [binary, '--stdio'];
+  }
   return [process.execPath, 'run', join(root, 'src', 'index.tsx'), '--stdio'];
 }
 

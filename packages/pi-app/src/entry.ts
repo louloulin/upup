@@ -1,8 +1,9 @@
 #!/usr/bin/env bun
 import { config } from 'dotenv';
-import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { mkdirSync } from 'node:fs';
+import { printUpupBrandLine, printUpupBanner } from './banner';
+import { ensureUpupAgentDir } from './bootstrap-agent';
 
 config({ quiet: true });
 
@@ -46,6 +47,14 @@ async function main() {
     process.env.UPUP_TRACE_TURN = '1';
     process.env.PI_TIMING = '1';
   }
+
+  // Point Pi at UpUp's canonical home (~/.upup/agent) and bootstrap it.
+  // `ensureUpupAgentDir` resolves the dir, publishes it as
+  // PI_CODING_AGENT_DIR (which Pi's config.ts#getAgentDir() reads at module
+  // init), seeds a fresh home from a previous `~/.pi/agent` install and
+  // installs the UpUp theme. It must run BEFORE any dynamic
+  // import("@earendil-works/pi-*") so Pi sees the right agent dir.
+  ensureUpupAgentDir();
 
   // Pi native stdio: --stdio / --acp delegate to Pi's `main()` with --mode rpc,
   // which routes stdin/stdout to Pi's runRpcMode (JSON-RPC envelope). The ACP
@@ -166,7 +175,7 @@ async function main() {
     case 'version':
     case '--version':
     case '-v':
-      console.log('UpUp v2026.6.12');
+      printUpupBrandLine();
       process.exit(0);
       break;
 
@@ -181,6 +190,11 @@ async function main() {
       // boundary all come from there. UpUp finance extensions are loaded
       // by Pi's package-manager via workspace `pi.manifest` declarations.
       const { runPiNativeCli } = await import('./pi-native-cli');
+      // `runPiNativeCli` is the single owner of the UpUp brand banner;
+      // printing again here would double-stamp the screen. The banner is
+      // written to stderr before Pi's InteractiveMode takes over the TTY;
+      // in piped runs the banner still surfaces in CI logs and `script(1)`
+      // recordings.
       const widthRaw = getFlag(['--width', '-W']);
       const heightRaw = getFlag(['--height', '-H']);
       const terminalSize =

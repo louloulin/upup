@@ -57,49 +57,67 @@ describe('@upup/pi-resource-composition — resolveAgentDir', () => {
     expect(result.source).toBe('upup-env');
   });
 
-  test('uses <home>/.upup/agent when it exists (UpUp canonical home)', () => {
+  test('defaults to <home>/.upup/agent (UpUp canonical home, always)', () => {
     withTempDir((fakeHome) => {
-      mkdirSync(join(fakeHome, '.upup', 'agent'), { recursive: true });
       const result = resolveAgentDir('/anywhere', { env: cleanEnv(), home: fakeHome });
       expect(result.agentDir).toBe(join(fakeHome, '.upup', 'agent'));
       expect(result.source).toBe('home-upup-agent');
     });
   });
 
-  test('<home>/.upup/agent beats <home>/.pi/agent when both exist', () => {
+  test('does not depend on whether the directory already exists', () => {
     withTempDir((fakeHome) => {
       mkdirSync(join(fakeHome, '.upup', 'agent'), { recursive: true });
-      mkdirSync(join(fakeHome, '.pi', 'agent'), { recursive: true });
-      const result = resolveAgentDir('/anywhere', { env: cleanEnv(), home: fakeHome });
-      expect(result.agentDir).toBe(join(fakeHome, '.upup', 'agent'));
-      expect(result.source).toBe('home-upup-agent');
+      const existing = resolveAgentDir('/anywhere', { env: cleanEnv(), home: fakeHome });
+      const missingHome = join(fakeHome, 'not-created-yet');
+      const missing = resolveAgentDir('/anywhere', { env: cleanEnv(), home: missingHome });
+      expect(existing.agentDir).toBe(join(fakeHome, '.upup', 'agent'));
+      expect(missing.agentDir).toBe(join(missingHome, '.upup', 'agent'));
+      expect(existing.source).toBe('home-upup-agent');
+      expect(missing.source).toBe('home-upup-agent');
     });
   });
 
-  test('uses <home>/.pi/agent when it exists but <home>/.upup/agent does not', () => {
+  test('adopts <home>/.pi/agent only when PI_CODING_AGENT_DIR says so', () => {
     withTempDir((fakeHome) => {
       mkdirSync(join(fakeHome, '.pi', 'agent'), { recursive: true });
-      const result = resolveAgentDir('/anywhere', { env: cleanEnv(), home: fakeHome });
-      expect(result.agentDir).toBe(join(fakeHome, '.pi', 'agent'));
-      expect(result.source).toBe('home-pi-agent');
+      const withoutEnv = resolveAgentDir('/anywhere', { env: cleanEnv(), home: fakeHome });
+      expect(withoutEnv.agentDir).toBe(join(fakeHome, '.upup', 'agent'));
+
+      const withEnv = resolveAgentDir('/anywhere', {
+        env: { PI_CODING_AGENT_DIR: join(fakeHome, '.pi', 'agent') },
+        home: fakeHome,
+      });
+      expect(withEnv.agentDir).toBe(join(fakeHome, '.pi', 'agent'));
+      expect(withEnv.source).toBe('pi-agent-dir-env');
     });
   });
 
-  test('falls back to <cwd>/.upup/agent when present and no env override', () => {
+  test('cwd never changes the global agent dir', () => {
     withTempDir((dir) => {
       mkdirSync(join(dir, '.upup', 'agent'), { recursive: true });
       const result = resolveAgentDir(dir, { env: cleanEnv(), home: HERMETIC_HOME });
-      expect(result.agentDir).toBe(join(dir, '.upup', 'agent'));
-      expect(result.source).toBe('cwd-upup-agent');
+      expect(result.agentDir).toBe(join(HERMETIC_HOME, '.upup', 'agent'));
+      expect(result.source).toBe('home-upup-agent');
     });
   });
 
-  test('falls back to cwd when nothing else applies', () => {
-    withTempDir((dir) => {
-      const result = resolveAgentDir(dir, { env: cleanEnv(), home: HERMETIC_HOME });
-      expect(result.agentDir).toBe(dir);
-      expect(result.source).toBe('cwd-fallback');
+  test('UPUP_AGENT_DIR beats PI_CODING_AGENT_DIR', () => {
+    const result = resolveAgentDir('/somewhere', {
+      env: { UPUP_AGENT_DIR: '/a', PI_CODING_AGENT_DIR: '/b' },
+      home: HERMETIC_HOME,
     });
+    expect(result.agentDir).toBe('/a');
+    expect(result.source).toBe('upup-env');
+  });
+
+  test('PI_CODING_AGENT_DIR is honoured when no UPUP_* override is set', () => {
+    const result = resolveAgentDir('/somewhere', {
+      env: { PI_CODING_AGENT_DIR: '/pi/agent' },
+      home: HERMETIC_HOME,
+    });
+    expect(result.agentDir).toBe('/pi/agent');
+    expect(result.source).toBe('pi-agent-dir-env');
   });
 
   test('expands ~ in override paths', () => {
@@ -114,9 +132,10 @@ describe('@upup/pi-resource-composition — resolveAgentDir', () => {
 
   test('empty-string env vars are ignored', () => {
     const result = resolveAgentDir('/somewhere', {
-      env: { UPUP_AGENT_DIR: '   ', UPUP_CODING_AGENT_DIR: '' },
+      env: { UPUP_AGENT_DIR: '   ', UPUP_CODING_AGENT_DIR: '', PI_CODING_AGENT_DIR: '  ' },
       home: HERMETIC_HOME,
     });
-    expect(result.source).toBe('cwd-fallback');
+    expect(result.agentDir).toBe(join(HERMETIC_HOME, '.upup', 'agent'));
+    expect(result.source).toBe('home-upup-agent');
   });
 });

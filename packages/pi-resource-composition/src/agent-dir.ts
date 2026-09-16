@@ -2,32 +2,29 @@
  * Resolve the UpUp agent directory used for Pi global resources and settings.
  *
  * Pi's `DefaultResourceLoader` separates two scopes:
- *   - `agentDir` → global resources (`~/.pi/agent/{extensions,skills,prompts,themes}/`)
- *                  and `~/.pi/agent/settings.json`
- *   - `cwd`      → project resources (`.pi/{extensions,skills,prompts,themes}/`)
- *                  and `.pi/settings.json`
+ *   - `agentDir` → global resources (`<agentDir>/{extensions,skills,prompts,themes}/`)
+ *                  and `<agentDir>/settings.json`
+ *   - `cwd`      → project resources and `.pi/settings.json`
  *
- * Previously UpUp passed `agentDir: cwd`, which collapsed global into project
- * and made the user's `~/.pi/agent/*` invisible. This helper restores the Pi
- * default by checking the explicit env override first, then UpUp's home-level
- * `~/.upup/agent` (the canonical UpUp location), then Pi's `~/.pi/agent`, then
- * the legacy per-cwd `.upup/agent`, and finally falling back to `cwd` so
- * existing behaviour still works in self-contained runs.
+ * UpUp is the product and Pi is the embedded runtime, so UpUp owns its own
+ * global home: **`~/.upup/agent`**. Pi resolves that same path through the
+ * `PI_CODING_AGENT_DIR` env var (`getAgentDir()` in `config.js`), which the
+ * UpUp entry points set from this helper before importing any Pi module.
  *
- * Env precedence (highest first):
- *   1. `UPUP_AGENT_DIR`        — explicit UpUp override (preferred)
- *   2. `UPUP_CODING_AGENT_DIR` — Pi-style name (matches `${APP_NAME}_CODING_AGENT_DIR`)
- *   3. `~/.upup/agent`         — UpUp canonical home (when it exists)
- *   4. `~/.pi/agent`           — Pi canonical default (when it exists)
- *   5. `<cwd>/.upup/agent`     — legacy UpUp per-cwd location (when it exists)
- *   6. `<cwd>`                 — last-resort fallback (current behaviour)
+ * Precedence (highest first):
+ *   1. `override` option        — explicit caller override (tests, embedding)
+ *   2. `UPUP_AGENT_DIR`         — canonical UpUp override
+ *   3. `UPUP_CODING_AGENT_DIR`  — Pi-style name (`${APP_NAME}_CODING_AGENT_DIR`)
+ *   4. `PI_CODING_AGENT_DIR`    — a user who already points Pi somewhere wins
+ *   5. `~/.upup/agent`          — UpUp canonical home (always, no existence gate)
  *
- * UpUp's home agent dir takes precedence over Pi's because UpUp is the primary
- * application; Pi is the embedded runtime. Users who want Pi-default behaviour
- * can set `UPUP_CODING_AGENT_DIR=~/.pi/agent` explicitly.
+ * `~/.pi/agent` is deliberately **not** in the fallback chain: UpUp's home is
+ * deterministic rather than dependent on which directories happen to exist.
+ * Existing Pi configuration is carried over once, on first launch, by
+ * `bootstrapUpupAgent()` (see `@upup/pi-app/bootstrap-agent`) and can be
+ * re-run any time with `upup openbuddy migrate`.
  */
 
-import { existsSync } from 'node:fs';
 import { homedir as osHomedir } from 'node:os';
 import { isAbsolute, join, resolve } from 'node:path';
 
@@ -48,18 +45,21 @@ export interface ResolveAgentDirResult {
     | 'override'
     | 'upup-env'
     | 'pi-canonical-env'
-    | 'home-upup-agent'
-    | 'home-pi-agent'
-    | 'cwd-upup-agent'
-    | 'cwd-fallback';
+    | 'pi-agent-dir-env'
+    | 'home-upup-agent';
 }
 
 function normalizePath(value: string): string {
   return resolve(isAbsolute(value) ? value : `~/${value.replace(/^~/, '')}`);
 }
 
+/** The canonical UpUp global agent home: `<home>/.upup/agent`. */
+export function upupAgentDirFor(home: string = osHomedir()): string {
+  return join(home, '.upup', 'agent');
+}
+
 export function resolveAgentDir(
-  cwd: string = process.cwd(),
+  _cwd: string = process.cwd(),
   options: ResolveAgentDirOptions = {},
 ): ResolveAgentDirResult {
   const env = options.env ?? process.env;
@@ -74,25 +74,15 @@ export function resolveAgentDir(
     return { agentDir: normalizePath(upupEnv), source: 'upup-env' };
   }
 
-  const piEnv = env.UPUP_CODING_AGENT_DIR?.trim();
+  const piStyleEnv = env.UPUP_CODING_AGENT_DIR?.trim();
+  if (piStyleEnv) {
+    return { agentDir: normalizePath(piStyleEnv), source: 'pi-canonical-env' };
+  }
+
+  const piEnv = env.PI_CODING_AGENT_DIR?.trim();
   if (piEnv) {
-    return { agentDir: normalizePath(piEnv), source: 'pi-canonical-env' };
+    return { agentDir: normalizePath(piEnv), source: 'pi-agent-dir-env' };
   }
 
-  const homeUpupAgent = join(home, '.upup', 'agent');
-  if (existsSync(homeUpupAgent)) {
-    return { agentDir: homeUpupAgent, source: 'home-upup-agent' };
-  }
-
-  const homePiAgent = join(home, '.pi', 'agent');
-  if (existsSync(homePiAgent)) {
-    return { agentDir: homePiAgent, source: 'home-pi-agent' };
-  }
-
-  const cwdUpupAgent = join(cwd, '.upup', 'agent');
-  if (existsSync(cwdUpupAgent)) {
-    return { agentDir: cwdUpupAgent, source: 'cwd-upup-agent' };
-  }
-
-  return { agentDir: resolve(cwd), source: 'cwd-fallback' };
+  return { agentDir: upupAgentDirFor(home), source: 'home-upup-agent' };
 }

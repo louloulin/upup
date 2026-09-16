@@ -6,6 +6,13 @@ interface EntryFaultReport {
   durationMs: number;
 }
 
+/**
+ * Entry surface after the Pi Native migration deleted the bespoke
+ * `sdk` / `pi-stdio` / `pi-bridge` packages:
+ * cli, gateway, cron, daemon, stdio, client, eval.
+ */
+const ENTRIES_PER_ROUND = 7;
+
 interface RoundResult {
   round: number;
   status: 'passed' | 'failed';
@@ -72,7 +79,7 @@ function runRound(round: number): Promise<RoundResult> {
     child.once('exit', (exitCode) => {
       clearTimeout(timeout);
       const report = parseEntryFaultReport(stdout);
-      const status = exitCode === 0 && report?.summary.failed === 0 && report.summary.passed === 8 ? 'passed' : 'failed';
+      const status = exitCode === 0 && report?.summary.failed === 0 && report.summary.passed === ENTRIES_PER_ROUND ? 'passed' : 'failed';
       resolve({ round, status, durationMs: Date.now() - startedAt, exitCode, ...(report ? { report } : {}), stderr, ...(status === 'failed' ? { error: report ? `entry failures=${report.summary.failed}` : 'entry fault report was not valid JSON' } : {}) });
     });
   });
@@ -100,7 +107,7 @@ const report: SlaReport = {
   },
   failures: roundsDetail.filter((round) => round.status === 'failed'),
   roundsDetail,
-  summary: { entriesPerRound: 8, expectedEntries: rounds * 8, passedEntries },
+  summary: { entriesPerRound: ENTRIES_PER_ROUND, expectedEntries: rounds * ENTRIES_PER_ROUND, passedEntries },
 };
 
 console.log(JSON.stringify(report, null, 2));

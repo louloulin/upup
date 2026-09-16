@@ -99,13 +99,9 @@ function pickSourceDir(env: NodeJS.ProcessEnv, home: string): string | undefined
   const openBuddyHome = defaultOpenBuddyAgentDir(home);
   if (existsSync(openBuddyHome)) return openBuddyHome;
   const resolved = resolveAgentDir(process.cwd(), { env, home });
-  // Skip the cwd-fallback (always resolves to process.cwd()) and home-upup-agent
-  // (which IS the migration target). Only honour concrete agent dirs.
-  if (
-    resolved.source !== 'home-upup-agent' &&
-    resolved.source !== 'cwd-fallback' &&
-    existsSync(resolved.agentDir)
-  ) {
+  // `home-upup-agent` IS the migration target, so only an explicit env-pointed
+  // agent dir counts as a migration source.
+  if (resolved.source !== 'home-upup-agent' && existsSync(resolved.agentDir)) {
     return resolved.agentDir;
   }
   return undefined;
