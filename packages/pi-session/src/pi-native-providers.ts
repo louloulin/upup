@@ -35,6 +35,7 @@ import {
   type PiEvidenceCapability,
   type PiPackageTrustPolicy,
   type UpUpAgentSpec,
+  type UpUpCreateSessionOptions,
 } from '@upup/pi-runtime';
 import { PiPackageCatalog, resolveConfiguredPiPackages } from '@upup/pi-resource-composition';
 import { JsonFileMarketQuoteTrendStore, type NativeMarketQuoteTrendStore } from '@upup/pi-market-data';
@@ -58,6 +59,15 @@ export interface PiNativeProviderOptions {
   /** Pi's current model, forwarded so worker sub-sessions inherit it. */
   readonly modelInstance?: Model<any>;
   readonly modelRuntime?: ModelRuntime;
+  /**
+   * UpUp session options (market history / research providers). Pi owns the
+   * session in this path, so the caller — `@upup/pi-app`'s
+   * `createPiNativeSessionOptions()` — has to hand them over explicitly.
+   * Without them the Pi-native tree has no CN/HK research provider and
+   * `/invest <A-share>` fails detect with
+   * `research provider unavailable for market cn`.
+   */
+  readonly sessionOptions?: Partial<UpUpCreateSessionOptions>;
 }
 
 export interface PiNativeProviderInstallation {
@@ -151,6 +161,39 @@ function buildCapabilityContext(sessionId: string, trendStore: NativeMarketQuote
 }
 
 /**
+ * Finance half of the session options: the market history and research
+ * provider surfaces `installPiPackageToolHosts` forwards into
+ * `createFinanceComposition`. Picked explicitly (instead of spreading the whole
+ * options object) so a Pi-native session cannot silently pick up options the
+ * embedded factory does not honour.
+ */
+const FINANCE_SESSION_OPTION_KEYS = [
+  'marketHistoryFetcher',
+  'marketHistoryFetchers',
+  'marketHistoryProviders',
+  'marketHistoryApiKeys',
+  'marketHistoryBaseUrls',
+  'marketQuoteFetcher',
+  'researchDataFetcher',
+  'researchDataFetchers',
+  'researchDataProviders',
+  'researchDataApiKeys',
+  'researchDataBaseUrls',
+] as const satisfies readonly (keyof UpUpCreateSessionOptions)[];
+
+export function piNativeFinanceSessionOptions(
+  sessionOptions: Partial<UpUpCreateSessionOptions> | undefined,
+): Partial<Pick<UpUpCreateSessionOptions, (typeof FINANCE_SESSION_OPTION_KEYS)[number]>> {
+  if (!sessionOptions) return {};
+  const picked: Record<string, unknown> = {};
+  for (const key of FINANCE_SESSION_OPTION_KEYS) {
+    const value = sessionOptions[key];
+    if (value !== undefined) picked[key] = value;
+  }
+  return picked as Partial<Pick<UpUpCreateSessionOptions, (typeof FINANCE_SESSION_OPTION_KEYS)[number]>>;
+}
+
+/**
  * Publish the session capability provider tree for a Pi-native session.
  *
  * Returns an empty installation (extensions keep their metadata-only hosts and
@@ -189,6 +232,7 @@ export function installPiNativeCapabilityProviders(options: PiNativeProviderOpti
     }),
     capabilityContext: buildCapabilityContext(options.sessionId, trendStore),
     ...(options.events ? { events: options.events } : {}),
+    ...piNativeFinanceSessionOptions(options.sessionOptions),
   });
   return { packages: packages.map((pkg) => pkg.name), release: hosts.release, dispose: hosts.dispose };
 }

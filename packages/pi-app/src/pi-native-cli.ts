@@ -33,7 +33,7 @@ import type { ExtensionAPI, InlineExtension } from '@earendil-works/pi-coding-ag
 import { createUpUpBrandExtension } from '@upup/pi-runtime';
 import { installPiNativeCapabilityProviders } from '@upup/pi-session';
 import { PiPackageCatalog, resolveConfiguredPiPackages } from '@upup/pi-resource-composition';
-import { getPiNativeApp } from './default';
+import { createPiNativeSessionOptions, getPiNativeApp } from './default';
 import { printUpupBanner } from './banner';
 import { ensureUpupAgentDir } from './bootstrap-agent';
 
@@ -141,6 +141,10 @@ function createUpUpCapabilityProviderExtension(): InlineExtension {
           sessionId: context.sessionManager.getSessionId(),
           cwd: context.cwd,
           events: pi.events,
+          // Pi owns session creation in this path, so the app's session
+          // options (CN/HK research + market history providers) have to be
+          // handed to the publisher explicitly.
+          sessionOptions: createPiNativeSessionOptions(),
           ...(context.model ? { modelInstance: context.model as Parameters<typeof installPiNativeCapabilityProviders>[0]['modelInstance'] } : {}),
           ...(context.modelRuntime ? { modelRuntime: context.modelRuntime as Parameters<typeof installPiNativeCapabilityProviders>[0]['modelRuntime'] } : {}),
         });
