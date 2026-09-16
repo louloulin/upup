@@ -62,7 +62,7 @@ Trading tools for paper and live brokerage operations.
 - \`get_trade_quote\` — 查报价
 
 ## Brokers
-- \`sandbox\` (default) — paper trading, no real money, deterministic mock quotes by default
+- \`sandbox\` (default) — paper trading, no real money, quotes come from an injected market-data provider (no synthetic fallback)
 - \`ibkr\` — Interactive Brokers (Client Portal API; transport stub included, real plumbing TODO)
 - \`xueqiu\` — 雪球证券 (HTTPS + cookie auth; transport stub included, real plumbing TODO)
 `;

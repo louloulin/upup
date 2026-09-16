@@ -301,6 +301,24 @@ describe('provider retry contract', () => {
     expect(events[0]).toMatchObject({ schema: 'upup.pi.provider-retry.v1', provider: 'fixture', operation: 'quote', attempt: 1, delayMs: 10 });
   });
 
+  test('treats dropped-socket transport errors as transient and retries them', async () => {
+    const delays: number[] = [];
+    let calls = 0;
+    const result = await executeWithProviderRetry(
+      async () => {
+        calls++;
+        if (calls < 2) {
+          const cause = Object.assign(new Error('read ECONNRESET'), { code: 'ECONNRESET' });
+          throw new TypeError('The socket connection was closed unexpectedly. For more information, pass `verbose: true` in the second argument to fetch()', { cause });
+        }
+        return 'ok';
+      },
+      { provider: 'eastmoney', operation: 'history', maxAttempts: 3, baseDelayMs: 10, maxDelayMs: 50, sleep: async (delay) => { delays.push(delay); } },
+    );
+    expect(result).toEqual({ value: 'ok', attempts: 2 });
+    expect(delays).toEqual([10]);
+  });
+
   test('does not retry permanent errors and records the terminal classification', async () => {
     const recorder = new TelemetryRecorder({ enabled: true, sinkConfig: { dir: tmpDir, flushEveryNEvents: 1 } });
     await expect(executeWithProviderRetry(async () => { throw new Error('invalid symbol'); }, { provider: 'fixture', operation: 'filing', recorder, sleep: async () => {} })).rejects.toThrow('invalid symbol');

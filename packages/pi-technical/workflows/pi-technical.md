@@ -11,7 +11,7 @@ Standard workflow for technical analysis tasks in UpUp.
 
 2. **Data Acquisition**
    - Default: pull last 60 daily bars via `get_market_data`
-   - If credentials missing: use `dry-run://pi-market-data/history` (fixture)
+   - A-share / Hong Kong symbols need no credentials: `get_price_history` uses the live Eastmoney provider; US symbols use Yahoo.
    - Confirm range and count
 
 3. **Indicator Computation**

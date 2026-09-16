@@ -71,7 +71,7 @@ export interface FinanceCompositionOptions {
   readonly sessionId: string;
   readonly marketHistoryFetcher?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
   readonly marketHistoryFetchers?: Readonly<Record<string, (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>>;
-  readonly marketHistoryProviders?: Readonly<Record<string, 'auto' | 'yahoo' | 'tushare' | 'financial-datasets'>>;
+  readonly marketHistoryProviders?: Readonly<Record<string, 'auto' | 'yahoo' | 'tushare' | 'financial-datasets' | 'eastmoney'>>;
   readonly marketHistoryApiKeys?: Readonly<Record<string, string>>;
   readonly marketHistoryBaseUrls?: Readonly<Record<string, string>>;
   readonly marketQuoteFetcher?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;

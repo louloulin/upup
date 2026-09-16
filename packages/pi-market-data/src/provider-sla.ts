@@ -55,7 +55,7 @@ function validJob(value: unknown): value is ProviderSlaJob {
   const state = job.state;
   return typeof job.id === 'string'
     && typeof job.name === 'string'
-    && (job.provider === 'auto' || job.provider === 'yahoo' || job.provider === 'tushare')
+    && (job.provider === 'auto' || job.provider === 'yahoo' || job.provider === 'tushare' || job.provider === 'eastmoney')
     && isProviderSlaProbe(job.probe)
     && typeof job.everyMs === 'number' && Number.isInteger(job.everyMs) && job.everyMs >= 60_000
     && typeof job.enabled === 'boolean'

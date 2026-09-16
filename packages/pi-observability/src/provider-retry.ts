@@ -34,12 +34,49 @@ const DEFAULT_MAX_DELAY_MS = 2_000;
 
 function errorCode(error: unknown): string {
   if (error instanceof Error && error.name === 'AbortError') return 'aborted';
+  const explicit = errorIdentifierCode(error);
+  if (explicit) return explicit;
   if (error instanceof Error && error.message) {
     const status = error.message.match(/\b(?:408|425|429|5\d\d)\b/)?.[0];
     if (status) return `http_${status}`;
     return error.message.split(/[\s:]/, 1)[0]!.toLowerCase().slice(0, 64) || 'provider_error';
   }
   return 'provider_error';
+}
+
+/** Prefers a machine-readable `code` (e.g. `ECONNRESET`) over parsing prose. */
+function errorIdentifierCode(error: unknown): string | undefined {
+  let current: unknown = error;
+  for (let depth = 0; depth < 5 && current; depth++) {
+    const code = (current as { code?: unknown }).code;
+    if (typeof code === 'string' && code.trim()) return code.toLowerCase().slice(0, 64);
+    current = current instanceof Error ? (current as { cause?: unknown }).cause : undefined;
+  }
+  return undefined;
+}
+
+/**
+ * Transient markers, matched case-insensitively against the error message and
+ * its `cause` chain. The socket phrases matter for Bun, which reports a
+ * throttled or dropped connection as
+ * "The socket connection was closed unexpectedly" rather than an HTTP status.
+ */
+const TRANSIENT_NETWORK_PATTERN = /\b(?:408|425|429|5\d\d)\b|timeout|timed out|temporar|rate limit|econnreset|econnrefused|econnaborted|epipe|socket hang up|socket connection was closed|connection closed|fetch failed|network|dns/;
+
+function errorChainMessage(error: unknown): string {
+  const parts: string[] = [];
+  let current: unknown = error;
+  for (let depth = 0; depth < 5 && current; depth++) {
+    if (current instanceof Error) {
+      const code = (current as { code?: unknown }).code;
+      parts.push(current.message, current.name, typeof code === 'string' ? code : '');
+      current = (current as { cause?: unknown }).cause;
+      continue;
+    }
+    parts.push(String(current));
+    break;
+  }
+  return parts.join(' ').toLowerCase();
 }
 
 export function classifyProviderError(error: unknown, signal?: AbortSignal): ProviderRetryError {
@@ -51,8 +88,8 @@ export function classifyProviderError(error: unknown, signal?: AbortSignal): Pro
   if (status !== undefined && (status === 408 || status === 425 || status === 429 || status >= 500)) {
     return { classification: 'transient', code: `http_${status}` };
   }
-  const message = error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
-  if (/\b(?:408|425|429|5\d\d)\b|timeout|timed out|temporar|rate limit|econnreset|socket hang up|network/.test(message)) {
+  const message = errorChainMessage(error);
+  if (TRANSIENT_NETWORK_PATTERN.test(message)) {
     return { classification: 'transient', code: errorCode(error) };
   }
   return { classification: 'permanent', code: errorCode(error) };

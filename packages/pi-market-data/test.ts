@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { appendKairosEvent, classifyKairosTopic, createDefaultMarketQuoteClient, createInitialKairosJournalState, JsonFileMarketQuoteTrendStore, listKairosEvents, createRealtimeSubscriptionManager, FixedWindowMarketHistoryRateLimiter, InMemoryMarketHistoryCache, isTradingDay, makeFixtureBars, makeFixtureQuote, NativeMarketHistoryClient, NativeMarketQuoteClient, normalizeRealtimeSymbols, summarizeKairos } from './src/index';
+import { appendKairosEvent, classifyKairosTopic, createDefaultMarketQuoteClient, createInitialKairosJournalState, eastmoneySecid, JsonFileMarketQuoteTrendStore, listKairosEvents, createRealtimeSubscriptionManager, FixedWindowMarketHistoryRateLimiter, InMemoryMarketHistoryCache, isTradingDay, NativeMarketHistoryClient, NativeMarketQuoteClient, normalizeRealtimeSymbols, summarizeKairos } from './src/index';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -7,6 +7,32 @@ import { screenStockSnapshot } from './src/screener';
 import { getMarketStructureSnapshot, querySectorSnapshot } from './src/market-insights';
 import { makeTechnicalSnapshot } from './src/technical';
 import { executeNaturalLanguageScreen, NATURAL_LANGUAGE_SCREEN_UNIVERSE, runNaturalLanguageScreen } from './src/natural-language-screen';
+
+function sseResponse(frames: readonly string[], signal?: AbortSignal): Response {
+  const encoder = new TextEncoder();
+  return new Response(new ReadableStream<Uint8Array>({
+    start(controller) {
+      for (const frame of frames) controller.enqueue(encoder.encode(frame));
+      if (!signal) {
+        controller.close();
+        return;
+      }
+      // A real Eastmoney stream keeps the connection open after the day's rows,
+      // so the harness must too: closing it would flip `isConnected` to false
+      // before the caller can observe a live subscription.
+      const close = () => { try { controller.close(); } catch { /* already closed */ } };
+      if (signal.aborted) {
+        close();
+        return;
+      }
+      signal.addEventListener('abort', close, { once: true });
+    },
+  }), { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
+}
+
+function trendFrame(rows: readonly string[]): string {
+  return `data: ${JSON.stringify({ rc: 0, data: { code: '600519', market: 1, trends: rows } })}\n\n`;
+}
 
 describe('pi-market-data', () => {
   test('runs the package-owned natural-language screener', async () => {
@@ -25,16 +51,54 @@ describe('pi-market-data', () => {
     expect(result).toEqual([]);
   });
 
-  test('produces stable quote evidence', () => {
-    const result = makeFixtureQuote('600519.SH', 'cn', 'test-quote');
-    expect(result.value).toMatchObject({ symbol: '600519.SH', market: 'cn', currency: 'CNY', asOf: '2026-09-12' });
-    expect(result.evidence).toMatchObject({ id: 'market-data:test-quote:quote', dataFreshness: 'historical' });
+  test('maps A-share and Hong Kong symbols onto Eastmoney secids', () => {
+    expect(eastmoneySecid('600519.SH')).toBe('1.600519');
+    expect(eastmoneySecid('000001.SZ')).toBe('0.000001');
+    expect(eastmoneySecid('00700.HK')).toBe('116.00700');
+    expect(() => eastmoneySecid('AAPL')).toThrow(/A-share and Hong Kong/);
   });
 
-test('produces bounded historical bars', () => {
-    const result = makeFixtureBars('AAPL', '2026-09-01', 99, 'test-history');
-    expect(result.value).toHaveLength(30);
-    expect(result.value.every((bar) => bar.high >= bar.close && bar.close >= bar.low)).toBe(true);
+  test('auto-routes an A-share quote to the live Eastmoney provider, not a synthetic price', async () => {
+    let requested = '';
+    const client = new NativeMarketQuoteClient({
+      provider: 'auto',
+      tushareToken: '',
+      fetcher: async (input) => {
+        requested = String(input);
+        return new Response(JSON.stringify({
+          rc: 0,
+          data: { f43: 125800, f44: 127498, f45: 125410, f46: 127393, f47: 26235, f48: 3307926407, f57: '600519', f58: '贵州茅台', f59: 2, f60: 127275, f86: Date.parse('2026-09-16T07:00:00Z') / 1000 },
+        }), { status: 200 });
+      },
+    });
+    const quote = await client.getQuote('600519.SH', 'cn', undefined, 'test-quote');
+    expect(requested).toContain('secid=1.600519');
+    expect(quote.value).toMatchObject({ symbol: '600519.SH', market: 'cn', currency: 'CNY', last: 1258, price: 1258, asOf: '2026-09-16' });
+    expect(quote.evidence).toMatchObject({ id: 'market-data:test-quote:quote', source: 'https://push2.eastmoney.com/api/qt/stock/get', provider: 'eastmoney' });
+    expect(quote.value.source.startsWith('dry-run://')).toBe(false);
+  });
+
+  test('auto-routes A-share daily bars to Eastmoney with provider-real OHLC', async () => {
+    const client = new NativeMarketHistoryClient({
+      provider: 'auto',
+      tushareToken: '',
+      fetcher: async (input) => {
+        expect(String(input)).toContain('secid=1.600519');
+        return new Response(JSON.stringify({
+          rc: 0,
+          data: { code: '600519', klines: [
+            '2026-08-03,1350.60,1358.98,1363.35,1346.00,36147,4898665275.00',
+            '2026-08-04,1350.06,1328.36,1350.94,1328.36,37450,5004070406.00',
+          ] },
+        }), { status: 200 });
+      },
+    });
+    const result = await client.getHistory('600519.SH', '2026-08-01', '2026-08-05', undefined, 'test-history', 'cn');
+    expect(result.value).toEqual([
+      { date: '2026-08-03', open: 1350.6, high: 1363.35, low: 1346, close: 1358.98, volume: 3_614_700 },
+      { date: '2026-08-04', open: 1350.06, high: 1350.94, low: 1328.36, close: 1328.36, volume: 3_745_000 },
+    ]);
+    expect(result.evidence).toMatchObject({ provider: 'eastmoney', query: '600519.SH:cn:2026-08-01:2026-08-05' });
   });
 
   test('handles market calendar boundaries', () => {
@@ -71,23 +135,39 @@ test('produces bounded historical bars', () => {
     expect(() => normalizeRealtimeSymbols(['bad symbol'])).toThrow();
   });
 
-  test('tracks mock realtime subscriptions independently', async () => {
-    const manager = createRealtimeSubscriptionManager({ now: () => 1_700_000_000_000 });
-    const subscription = await manager.subscribe({ symbols: ['600519'], source: 'mock', aggregateMs: 5_000 });
-    expect(subscription).toMatchObject({ id: 'sub-1', symbols: ['600519'], source: 'mock', connected: true });
+  test('tracks realtime subscriptions over the live Eastmoney SSE transport', async () => {
+    const manager = createRealtimeSubscriptionManager({
+      now: () => 1_700_000_000_000,
+      fetcher: async (input, init) => {
+        expect(String(input)).toContain('secid=1.600519');
+        return sseResponse([trendFrame(['2026-09-16 09:30,1273.93,1273.93,1273.98,1273.70', '2026-09-16 09:31,1274.52,1271.90,1274.98,1266.70'])], init?.signal ?? undefined);
+      },
+    });
+    const subscription = await manager.subscribe({ symbols: ['600519'], aggregateMs: 5_000 });
+    expect(subscription).toMatchObject({ id: 'sub-1', symbols: ['600519'], source: 'eastmoney', connected: true });
     expect(manager.list()).toHaveLength(1);
     expect(await manager.unsubscribe(subscription.id)).toMatchObject({ ok: true, subscriptionId: 'sub-1' });
     expect(manager.list()).toEqual([]);
     await manager.close();
   });
 
-  test('forwards realtime quote events to the session journal callback', async () => {
-    const quotes: unknown[] = [];
-    const manager = createRealtimeSubscriptionManager({ onQuote: (quote) => quotes.push(quote) });
-    const subscription = await manager.subscribe({ symbols: ['600519'], source: 'mock' });
-    expect(subscription.id).toBe('sub-1');
+  test('forwards real provider quotes from the SSE stream to the session callback', async () => {
+    const quotes: { symbol: string; last: number }[] = [];
+    const manager = createRealtimeSubscriptionManager({
+      fetcher: async () => sseResponse([trendFrame(['2026-09-16 09:30,1273.93,1273.93,1273.98,1273.70', '2026-09-16 09:31,1274.52,1271.90,1274.98,1266.70'])]),
+      onQuote: (quote) => quotes.push({ symbol: quote.symbol, last: quote.last }),
+    });
+    const subscription = await manager.subscribe({ symbols: ['600519'], throttleMs: 0 });
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    expect(quotes).toEqual([{ symbol: '600519', last: 1271.9 }]);
     await manager.unsubscribe(subscription.id);
-    expect(quotes).toEqual([]);
+    await manager.close();
+  });
+
+  test('fails closed when the realtime stream is unavailable', async () => {
+    const manager = createRealtimeSubscriptionManager({ fetcher: async () => new Response('forbidden', { status: 403, statusText: 'Forbidden' }) });
+    await expect(manager.subscribe({ symbols: ['600519'] })).rejects.toThrow(/Eastmoney realtime stream failed for 600519/);
+    expect(manager.list()).toEqual([]);
     await manager.close();
   });
 

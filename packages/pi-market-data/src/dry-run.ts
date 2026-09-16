@@ -147,7 +147,7 @@ export function shouldAutoActivateDryRun(env: NodeJS.ProcessEnv = process.env): 
 
 export interface DryRunClientMetrics {
   readonly mode: 'dry-run';
-  readonly activatedBy: 'option' | 'env' | 'missing-credentials';
+  readonly activatedBy: 'option' | 'env';
   readonly requests: number;
   readonly cacheHits: number;
   readonly lastSymbol?: string;
@@ -163,7 +163,7 @@ interface DryRunCacheEntry {
 export class DryRunMarketQuoteClient {
   private readonly cacheTtlMs = 60_000;
   private readonly cache = new Map<string, DryRunCacheEntry>();
-  private readonly activatedBy: 'option' | 'env' | 'missing-credentials';
+  private readonly activatedBy: 'option' | 'env';
   private readonly seed?: number;
   private readonly now: () => string;
   private requests = 0;
@@ -171,7 +171,7 @@ export class DryRunMarketQuoteClient {
   private lastSymbol: string | undefined;
   private lastCheckedAt: string | undefined;
 
-  constructor(options: { activatedBy: 'option' | 'env' | 'missing-credentials'; seed?: number; now?: () => string }) {
+  constructor(options: { activatedBy: 'option' | 'env'; seed?: number; now?: () => string }) {
     this.activatedBy = options.activatedBy;
     this.seed = options.seed;
     this.now = options.now ?? (() => new Date().toISOString());
@@ -227,7 +227,7 @@ interface DryRunHistoryCacheEntry {
 export class DryRunMarketHistoryClient {
   private readonly cacheTtlMs = 60_000;
   private readonly cache = new Map<string, DryRunHistoryCacheEntry>();
-  private readonly activatedBy: 'option' | 'env' | 'missing-credentials';
+  private readonly activatedBy: 'option' | 'env';
   private readonly seed?: number;
   private readonly now: () => string;
   private readonly maxBars: number;
@@ -236,7 +236,7 @@ export class DryRunMarketHistoryClient {
   private lastSymbol: string | undefined;
   private lastCheckedAt: string | undefined;
 
-  constructor(options: { activatedBy: 'option' | 'env' | 'missing-credentials'; seed?: number; now?: () => string; maxBars?: number }) {
+  constructor(options: { activatedBy: 'option' | 'env'; seed?: number; now?: () => string; maxBars?: number }) {
     this.activatedBy = options.activatedBy;
     this.seed = options.seed;
     this.now = options.now ?? (() => new Date().toISOString());
@@ -291,17 +291,22 @@ export class DryRunMarketHistoryClient {
 export interface DryRunActivationContext {
   readonly explicitOption?: boolean;
   readonly env: NodeJS.ProcessEnv;
-  readonly hasTushareToken: boolean;
-  readonly hasYahooAccess: boolean;
-  readonly provider: 'auto' | 'yahoo' | 'tushare' | 'financial-datasets';
 }
 
-export function resolveDryRunActivation(context: DryRunActivationContext): { active: boolean; activatedBy: 'option' | 'env' | 'missing-credentials' | undefined } {
+/**
+ * Dry-run is opt-in only.
+ *
+ * A missing credential must never be treated as an implicit request for
+ * synthetic bars: silently answering a real quote request with invented prices
+ * is exactly the mock behaviour the Pi-native market-data tools promise not to
+ * have (`policy: 'no-synthetic-fallback'`). Missing credentials now surface as
+ * a provider error, and callers that genuinely want an offline series set
+ * `UPUP_DRY_RUN=1` or pass `dryRun: true`.
+ */
+export function resolveDryRunActivation(context: DryRunActivationContext): { active: boolean; activatedBy: 'option' | 'env' | undefined } {
   if (context.explicitOption === true) return { active: true, activatedBy: 'option' };
   if (context.explicitOption === false) return { active: false, activatedBy: undefined };
   if (shouldAutoActivateDryRun(context.env)) return { active: true, activatedBy: 'env' };
-  if (context.provider === 'tushare' && !context.hasTushareToken) return { active: true, activatedBy: 'missing-credentials' };
-  if (context.provider === 'auto' && !context.hasYahooAccess && !context.hasTushareToken) return { active: true, activatedBy: 'missing-credentials' };
   return { active: false, activatedBy: undefined };
 }
 
@@ -311,13 +316,13 @@ import { FixedWindowMarketHistoryRateLimiter, InMemoryMarketHistoryCache, Native
 export interface ResolvedMarketQuoteClient {
   readonly client: NativeMarketQuoteClient | DryRunMarketQuoteClient;
   readonly dryRun: boolean;
-  readonly activatedBy: 'option' | 'env' | 'missing-credentials' | undefined;
+  readonly activatedBy: 'option' | 'env' | undefined;
 }
 
 export interface ResolvedMarketHistoryClient {
   readonly client: NativeMarketHistoryClient | DryRunMarketHistoryClient;
   readonly dryRun: boolean;
-  readonly activatedBy: 'option' | 'env' | 'missing-credentials' | undefined;
+  readonly activatedBy: 'option' | 'env' | undefined;
 }
 
 export interface ResolveMarketQuoteClientOptions {
@@ -352,16 +357,8 @@ export interface ResolveMarketHistoryClientOptions {
 export function resolveMarketQuoteClient(options: ResolveMarketQuoteClientOptions = {}): ResolvedMarketQuoteClient {
   const env = options.env ?? process.env;
   const tushareToken = options.tushareToken ?? env.TUSHARE_TOKEN ?? '';
-  const hasYahooAccess = Boolean(options.fetcher) || env.UPUP_YAHOO_DISABLED !== '1';
-  const hasTushareToken = Boolean(tushareToken);
   const provider = options.provider ?? 'auto';
-  const activation = resolveDryRunActivation({
-    explicitOption: options.dryRun,
-    env,
-    hasTushareToken,
-    hasYahooAccess,
-    provider,
-  });
+  const activation = resolveDryRunActivation({ explicitOption: options.dryRun, env });
   if (activation.active) {
     return {
       client: new DryRunMarketQuoteClient({
@@ -391,16 +388,8 @@ export function resolveMarketQuoteClient(options: ResolveMarketQuoteClientOption
 export function resolveMarketHistoryClient(options: ResolveMarketHistoryClientOptions = {}): ResolvedMarketHistoryClient {
   const env = options.env ?? process.env;
   const tushareToken = options.tushareToken ?? env.TUSHARE_TOKEN ?? '';
-  const hasYahooAccess = Boolean(options.fetcher) || env.UPUP_YAHOO_DISABLED !== '1';
-  const hasTushareToken = Boolean(tushareToken);
   const provider = options.provider ?? 'auto';
-  const activation = resolveDryRunActivation({
-    explicitOption: options.dryRun,
-    env,
-    hasTushareToken,
-    hasYahooAccess,
-    provider,
-  });
+  const activation = resolveDryRunActivation({ explicitOption: options.dryRun, env });
   if (activation.active) {
     return {
       client: new DryRunMarketHistoryClient({

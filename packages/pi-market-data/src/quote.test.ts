@@ -26,30 +26,46 @@ describe('pi-market-data quote provider auto-selection', () => {
     expect(result.evidence.source).toMatch(/tushare/);
   });
 
-  test('auto + CN symbol + NO token → actionable error (not silent Yahoo 403)', async () => {
-    const client = new NativeMarketQuoteClient({ provider: 'auto', tushareToken: '' });
-    let caught: Error | undefined;
-    try {
-      await client.getQuote('600519.SH');
-    } catch (error) {
-      caught = error instanceof Error ? error : new Error(String(error));
-    }
-    expect(caught).toBeDefined();
-    expect(caught!.message).toMatch(/600519\.SH requires TUSHARE_TOKEN/);
-    expect(caught!.message).toMatch(/Yahoo Finance does not cover A-shares/);
-    expect(caught!.message).toMatch(/~\/.upup\/.env or process\.env/);
+  test('auto + CN symbol + NO token → live Eastmoney quote (no synthetic fallback)', async () => {
+    let requested = '';
+    const client = new NativeMarketQuoteClient({
+      provider: 'auto',
+      tushareToken: '',
+      fetcher: async (input) => {
+        requested = String(input);
+        return new Response(JSON.stringify({ rc: 0, data: { f43: 125800, f57: '600519', f58: '贵州茅台', f59: 2, f60: 127275, f86: 1789573200 } }), { status: 200 });
+      },
+    });
+    const result = await client.getQuote('600519.SH', 'cn');
+    expect(requested).toContain('secid=1.600519');
+    expect(result.value).toMatchObject({ last: 1258, price: 1258, market: 'cn', currency: 'CNY' });
+    expect(result.evidence).toMatchObject({ provider: 'eastmoney', source: 'https://push2.eastmoney.com/api/qt/stock/get' });
+    expect(result.evidence.source.startsWith('dry-run://')).toBe(false);
   });
 
-  test('auto + HK symbol + NO token → actionable error (HK is grouped with CN)', async () => {
-    const client = new NativeMarketQuoteClient({ provider: 'auto', tushareToken: '' });
-    let caught: Error | undefined;
-    try {
-      await client.getQuote('00700.HK');
-    } catch (error) {
-      caught = error instanceof Error ? error : new Error(String(error));
-    }
-    expect(caught).toBeDefined();
-    expect(caught!.message).toMatch(/00700\.HK requires TUSHARE_TOKEN/);
+  test('auto + HK symbol + NO token → Eastmoney Hong Kong secid with 3-decimal scaling', async () => {
+    let requested = '';
+    const client = new NativeMarketQuoteClient({
+      provider: 'auto',
+      tushareToken: '',
+      fetcher: async (input) => {
+        requested = String(input);
+        return new Response(JSON.stringify({ rc: 0, data: { f43: 433400, f57: '00700', f58: '腾讯控股', f59: 3, f60: 438800, f86: 1789573200 } }), { status: 200 });
+      },
+    });
+    const result = await client.getQuote('00700.HK', 'hk');
+    expect(requested).toContain('secid=116.00700');
+    expect(result.value).toMatchObject({ last: 433.4, market: 'hk', currency: 'HKD' });
+    expect(result.evidence.provider).toBe('eastmoney');
+  });
+
+  test('auto + CN symbol + provider outage → error, never a fabricated price', async () => {
+    const client = new NativeMarketQuoteClient({
+      provider: 'auto',
+      tushareToken: '',
+      fetcher: async () => new Response('forbidden', { status: 403, statusText: 'Forbidden' }),
+    });
+    await expect(client.getQuote('600519.SH', 'cn')).rejects.toThrow(/eastmoney market quote request failed: 403/);
   });
 
   test('auto + US symbol + NO token → falls back to yahoo (no actionable error)', async () => {

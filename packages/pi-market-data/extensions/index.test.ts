@@ -269,18 +269,35 @@ describe('Pi market-data extension', () => {
     }
   });
 
-  test('manages session-scoped realtime subscriptions with evidence', async () => {
+  test('manages session-scoped realtime subscriptions over the live SSE transport', async () => {
     const { host, tools } = makeHost();
-    marketDataExtension(host);
-    const signal = new AbortController().signal;
-    const subscribed = await tools.get('realtime_subscribe')!.execute('realtime-1', { symbols: ['600519', '600519'], throttleMs: 500, aggregateMs: 5000, source: 'mock' }, signal);
-    const value = JSON.parse(subscribed.content[0].text);
-    expect(value).toMatchObject({ id: 'sub-1', symbols: ['600519'], source: 'mock', throttleMs: 500, aggregateMs: 5000 });
-    expect(subscribed.details).toMatchObject({ auditId: 'realtime-1', evidence: [{ source: 'upup-pi://market-data/realtime/subscribe' }] });
-    const listed = await tools.get('realtime_list_subscriptions')!.execute('realtime-2', {}, signal);
-    expect(JSON.parse(listed.content[0].text).subscriptions).toHaveLength(1);
-    const removed = await tools.get('realtime_unsubscribe')!.execute('realtime-3', { subscriptionId: 'sub-1' }, signal);
-    expect(JSON.parse(removed.content[0].text)).toMatchObject({ ok: true, subscriptionId: 'sub-1' });
+    const previousFetch = globalThis.fetch;
+    let streamedUrl = '';
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      streamedUrl = String(input);
+      const encoder = new TextEncoder();
+      return new Response(new ReadableStream<Uint8Array>({
+        // One frame, then stay open: the subscription must report a live stream.
+        start(controller) {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify({ rc: 0, data: { code: '600519', market: 1, trends: ['2026-09-16 09:30,1273.93,1273.93,1273.98,1273.70'] } })}\n\n`));
+        },
+      }), { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
+    }) as typeof fetch;
+    try {
+      marketDataExtension(host);
+      const signal = new AbortController().signal;
+      const subscribed = await tools.get('realtime_subscribe')!.execute('realtime-1', { symbols: ['600519', '600519'], throttleMs: 500, aggregateMs: 5000 }, signal);
+      const value = JSON.parse(subscribed.content[0].text);
+      expect(streamedUrl).toContain('secid=1.600519');
+      expect(value).toMatchObject({ id: 'sub-1', symbols: ['600519'], source: 'eastmoney', throttleMs: 500, aggregateMs: 5000, connected: true });
+      expect(subscribed.details).toMatchObject({ auditId: 'realtime-1', evidence: [{ source: 'upup-pi://market-data/realtime/subscribe' }] });
+      const listed = await tools.get('realtime_list_subscriptions')!.execute('realtime-2', {}, signal);
+      expect(JSON.parse(listed.content[0].text).subscriptions).toHaveLength(1);
+      const removed = await tools.get('realtime_unsubscribe')!.execute('realtime-3', { subscriptionId: 'sub-1' }, signal);
+      expect(JSON.parse(removed.content[0].text)).toMatchObject({ ok: true, subscriptionId: 'sub-1' });
+    } finally {
+      globalThis.fetch = previousFetch;
+    }
   });
 
   test('reads Kairos events from the current Pi Session journal', async () => {
@@ -297,12 +314,18 @@ describe('Pi market-data extension', () => {
     expect(JSON.parse(summary.content[0].text).scanner.count).toBe(1);
   });
 
-  test('fails closed for an external source without an injected socket', async () => {
+  test('fails closed when the live realtime stream is unavailable', async () => {
     const { host, tools } = makeHost();
-    marketDataExtension(host);
-    const result = await tools.get('realtime_subscribe')!.execute('realtime-eastmoney', { symbols: ['600519'], source: 'eastmoney' }, new AbortController().signal);
-    expect(result.isError).toBe(true);
-    expect(result.content[0].text).toMatch(/socket factory/i);
+    const previousFetch = globalThis.fetch;
+    globalThis.fetch = (async () => new Response('forbidden', { status: 403, statusText: 'Forbidden' })) as typeof fetch;
+    try {
+      marketDataExtension(host);
+      const result = await tools.get('realtime_subscribe')!.execute('realtime-eastmoney', { symbols: ['600519'] }, new AbortController().signal);
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toMatch(/Eastmoney realtime stream failed for 600519/);
+    } finally {
+      globalThis.fetch = previousFetch;
+    }
   });
 });
 

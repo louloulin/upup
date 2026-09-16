@@ -1044,11 +1044,31 @@ describe('PiAgentSessionFactory', () => {
       tools: ['get_market_data', 'realtime_subscribe', 'realtime_unsubscribe', 'realtime_list_subscriptions', 'kairos_recent_opportunities', 'kairos_recent_position_alerts', 'kairos_recent_scanner_events', 'kairos_summary', 'get_sector_data', 'get_market_structure', 'get_technical_data', 'stock_screener', 'screen_astocks', 'get_astock_price', 'market_data_quote', 'market_data_provider_health', 'market_data_provider_trend', 'market_data_provider_sla', 'market_data_history', 'market_trading_day'],
     }, {
       cwd: process.cwd(),
-      marketQuoteFetcher: async () => {
+      marketQuoteFetcher: async (input) => {
+        // The realtime tool streams the Eastmoney SSE endpoint through the same
+        // session transport; everything else is a Yahoo quote.
+        if (String(input).includes('trends2/sse')) {
+          const encoder = new TextEncoder();
+          return new Response(new ReadableStream<Uint8Array>({
+            start(controller) {
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ rc: 0, data: { code: '600519', market: 1, trends: ['2026-09-16 09:30,1273.93,1273.93,1273.98,1273.70'] } })}\n\n`));
+            },
+          }), { status: 200, headers: { 'Content-Type': 'text/event-stream' } });
+        }
         return new Response(JSON.stringify({ chart: { result: [{ meta: { symbol: 'AAPL', regularMarketPrice: 250, regularMarketTime: Date.parse('2026-09-13T00:00:00Z') / 1000, chartPreviousClose: 245 } }] } }), { status: 200 });
       },
       marketHistoryFetcher: async (input) => {
         expect(String(input)).toContain('002594');
+        // CN symbols resolve to the live Eastmoney kline endpoint; US symbols
+        // still use Yahoo.
+        if (String(input).includes('push2his.eastmoney.com')) {
+          const klines = Array.from({ length: 40 }, (_, index) => {
+            const date = new Date(Date.parse('2026-06-01T00:00:00Z') + index * 86_400_000).toISOString().slice(0, 10);
+            const close = 100 + index;
+            return `${date},${close - 1},${close},${close + 2},${close - 3},${1000 + index},${1_000_000 + index}`;
+          });
+          return new Response(JSON.stringify({ rc: 0, data: { code: '002594', klines } }), { status: 200 });
+        }
         const timestamps = Array.from({ length: 40 }, (_, index) => Date.parse('2026-08-09T00:00:00Z') / 1000 - (39 - index) * 86_400);
         return new Response(JSON.stringify({ chart: { result: [{ timestamp: timestamps, indicators: { quote: [{ open: Array(40).fill(100), high: Array(40).fill(102), low: Array(40).fill(99), close: Array.from({ length: 40 }, (_, index) => 100 + index), volume: Array(40).fill(1000) }] } }] } }), { status: 200 });
       },
@@ -1073,9 +1093,8 @@ describe('PiAgentSessionFactory', () => {
       expect(session.getLoadedPackageResources().some((resource) => resource.packageName === '@upup/pi-finance-sdk')).toBe(false);
       // AAPL (US) — auto routes to Yahoo and shares metrics with
       // market_data_provider_trend (both use getQuoteClient('auto')).
-      // 600519.SH now hits the actionable CN credential error because the
-      // test has no TUSHARE_TOKEN and 600519.SH silently routed to Yahoo
-      // before, always returning 403.
+      // 600519.SH (CN) — auto routes to the live Eastmoney provider when no
+      // TUSHARE_TOKEN is configured, never to a synthetic price.
       const result = await session.executeTool('market_data_quote', 'market-package-quote', { symbol: 'AAPL', market: 'us' });
       expect(result).toMatchObject({ details: { auditId: 'market-package-quote', dataFreshness: 'delayed', source: 'native-provider', evidence: [{ source: 'https://query1.finance.yahoo.com/v8/finance/chart' }] } });
       expect(result.content[0]).toMatchObject({ type: 'text' });
@@ -1091,10 +1110,10 @@ describe('PiAgentSessionFactory', () => {
       const structureResult = await session.executeTool('get_market_structure', 'structure-package-native', { type: 'moneyflow' });
       expect(structureResult).toMatchObject({ details: { auditId: 'structure-package-native', evidence: [{ source: 'upup-pi://market-data/market-structure' }] } });
       const technicalResult = await session.executeTool('get_technical_data', 'technical-package-native', { code: '002594.SZ', period: 'daily' });
-      expect(technicalResult).toMatchObject({ details: { auditId: 'technical-package-native', dataFreshness: 'historical', source: 'native-provider', evidence: [{ source: 'https://query1.finance.yahoo.com/v8/finance/chart' }] } });
-      const realtimeResult = await session.executeTool('realtime_subscribe', 'realtime-package-native', { symbols: ['600519'], source: 'mock' });
+      expect(technicalResult).toMatchObject({ details: { auditId: 'technical-package-native', dataFreshness: 'historical', source: 'native-provider', evidence: [{ source: 'https://push2his.eastmoney.com/api/qt/stock/kline/get', provider: 'eastmoney' }] } });
+      const realtimeResult = await session.executeTool('realtime_subscribe', 'realtime-package-native', { symbols: ['600519'] });
       expect(realtimeResult).toMatchObject({ details: { auditId: 'realtime-package-native', evidence: [{ source: 'upup-pi://market-data/realtime/subscribe' }] } });
-      expect(JSON.parse((realtimeResult.content[0] as { text: string }).text)).toMatchObject({ id: 'sub-1', source: 'mock', symbols: ['600519'] });
+      expect(JSON.parse((realtimeResult.content[0] as { text: string }).text)).toMatchObject({ id: 'sub-1', source: 'eastmoney', symbols: ['600519'], connected: true });
       const realtimeList = await session.executeTool('realtime_list_subscriptions', 'realtime-list-native', {});
       expect(JSON.parse((realtimeList.content[0] as { text: string }).text).subscriptions).toHaveLength(1);
       await session.executeTool('realtime_unsubscribe', 'realtime-unsubscribe-native', { subscriptionId: 'sub-1' });

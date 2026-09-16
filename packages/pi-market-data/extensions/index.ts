@@ -1,13 +1,13 @@
 import { Type } from 'typebox';
 import type { AgentToolResult } from '@earendil-works/pi-agent-core';
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
-import {resolvePiCapabilityHost, registerPiCapabilityHost, definePiCapabilityHost} from '@upup/pi-capability-registry';
+import {createPiCapabilityHostResolver, registerPiCapabilityHost, definePiCapabilityHost} from '@upup/pi-capability-registry';
 import { buildTechnicalSnapshot, createDefaultMarketQuoteClient, FixedWindowMarketHistoryRateLimiter, InMemoryMarketHistoryCache, isTradingDay, normalizeMarket, providerSla, resolveMarketHistoryClient, resolveMarketQuoteClient, JsonFileProviderSlaStore, type Market, type MarketHistoryProvider, type NativeMarketQuote, type NativeMarketQuoteClient, type NativeMarketQuoteMetrics, type NativeMarketQuoteTrendStore } from '../src/index';
 import { calendarTradingDays, isCalendarTradingDay, nextCalendarTradingDay, upcomingCalendarHolidays, type CalendarMarket } from '../src/calendar';
 import { screenStockSnapshot, type StockScreenInput } from '../src/screener';
 import { getMarketStructureSnapshot, querySectorSnapshot, type MarketStructureType, type SectorQueryType } from '../src/market-insights';
 import { type TechnicalPeriod } from '../src/technical';
-import { createRealtimeSubscriptionManager, type FeedSource } from '../src/realtime/index';
+import { createRealtimeSubscriptionManager, type RealtimeFetcher } from '../src/realtime/index';
 import { appendKairosEvent, createInitialKairosJournalState, listKairosEvents, summarizeKairos, type KairosEventKind, type NativeKairosJournalState } from '../src/kairos-journal';
 import { PI_MARKET_DATA_CAPABILITY_VERSION, PI_MARKET_DATA_CAPABILITY_NAMES, type PiAuditCapability, type PiCapabilityContext, type PiEvidenceCapability } from '@upup/pi-runtime';
 
@@ -28,19 +28,47 @@ function capability<T>(context: PiCapabilityContext | undefined, name: string): 
     : undefined;
 }
 
-function hostTransport(events: { emit(channel: string, data: unknown): void; on(channel: string, handler: (data: unknown) => void): () => void }): { context?: PiCapabilityContext; history?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>; quote?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>; trendStore?: NativeMarketQuoteTrendStore } {
-  const host = resolvePiCapabilityHost<{ packageName: string; packageVersion: string; capabilities: readonly string[]; providers: { marketData?: { capabilityContext?: PiCapabilityContext; getMarketHistoryFetcher?: () => (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>; getMarketQuoteFetcher?: () => (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>; getMarketQuoteTrendStore?: () => NativeMarketQuoteTrendStore } } }>(events, PACKAGE, undefined);
-  if (!host || host.packageName !== PACKAGE || host.packageVersion !== VERSION || !host.capabilities.includes('market-data-transport')) return {};
+interface MarketDataCapabilityHost {
+  readonly packageName: string;
+  readonly packageVersion: string;
+  readonly capabilities: readonly string[];
+  readonly providers: {
+    marketData?: {
+      capabilityContext?: PiCapabilityContext;
+      getMarketHistoryFetcher?: () => (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+      getMarketQuoteFetcher?: () => (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+      getMarketQuoteTrendStore?: () => NativeMarketQuoteTrendStore;
+    };
+  };
+}
+
+/**
+ * Reject this extension's own metadata-only self-publish: it declares the same
+ * identity and capabilities but carries no `marketData` providers, so treating
+ * it as usable would pin the session to fail-closed transport for its lifetime.
+ */
+function isUsableMarketDataHost(host: MarketDataCapabilityHost | undefined): boolean {
+  return Boolean(
+    host
+    && host.packageName === PACKAGE
+    && host.packageVersion === VERSION
+    && host.capabilities.includes('market-data-transport')
+    && host.providers.marketData,
+  );
+}
+
+function marketDataTransport(host: MarketDataCapabilityHost | undefined): { context?: PiCapabilityContext; history?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>; quote?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>; trendStore?: NativeMarketQuoteTrendStore } {
+  if (!host) return {};
   return { context: host.providers.marketData?.capabilityContext, history: host.providers.marketData?.getMarketHistoryFetcher?.(), quote: host.providers.marketData?.getMarketQuoteFetcher?.(), trendStore: host.providers.marketData?.getMarketQuoteTrendStore?.() };
 }
 
 const quoteParameters = Type.Object({
   symbol: Type.String({ minLength: 1, description: 'Ticker or fund identifier' }),
   market: Type.Optional(Type.String({ description: 'cn, hk, us, fund, or crypto' })),
-  provider: Type.Optional(Type.Union([Type.Literal('auto'), Type.Literal('yahoo'), Type.Literal('tushare')])),
+  provider: Type.Optional(Type.Union([Type.Literal('auto'), Type.Literal('yahoo'), Type.Literal('tushare'), Type.Literal('eastmoney')])),
 });
 const providerHealthParameters = Type.Object({
-  provider: Type.Optional(Type.Union([Type.Literal('auto'), Type.Literal('yahoo'), Type.Literal('tushare')])),
+  provider: Type.Optional(Type.Union([Type.Literal('auto'), Type.Literal('yahoo'), Type.Literal('tushare'), Type.Literal('eastmoney')])),
   symbol: Type.Optional(Type.String({ minLength: 1, maxLength: 24, description: 'Probe symbol; defaults to 600519.SH for auto/tushare and AAPL for yahoo.' })),
   market: Type.Optional(Type.String({ description: 'cn, hk, us, fund, or crypto' })),
 });
@@ -48,28 +76,28 @@ const providerSlaParameters = Type.Object({
   action: Type.Union([Type.Literal('list'), Type.Literal('add'), Type.Literal('update'), Type.Literal('remove'), Type.Literal('run')]),
   jobId: Type.Optional(Type.String({ minLength: 1, maxLength: 200 })),
   name: Type.Optional(Type.String({ minLength: 1, maxLength: 200 })),
-  provider: Type.Optional(Type.Union([Type.Literal('auto'), Type.Literal('yahoo'), Type.Literal('tushare')])),
+  provider: Type.Optional(Type.Union([Type.Literal('auto'), Type.Literal('yahoo'), Type.Literal('tushare'), Type.Literal('eastmoney')])),
   probe: Type.Optional(Type.Union([Type.Literal('default'), Type.Literal('us'), Type.Literal('cn'), Type.Literal('hk')])),
   everyMs: Type.Optional(Type.Integer({ minimum: 60_000 })),
   enabled: Type.Optional(Type.Boolean()),
 });
 const marketQueryParameters = Type.Object({
   query: Type.String({ minLength: 1, maxLength: 500, description: 'Natural-language market data query' }),
-  provider: Type.Optional(Type.Union([Type.Literal('auto'), Type.Literal('yahoo'), Type.Literal('tushare')])),
+  provider: Type.Optional(Type.Union([Type.Literal('auto'), Type.Literal('yahoo'), Type.Literal('tushare'), Type.Literal('eastmoney')])),
 });
 const astockParameters = Type.Object({
   code: Type.String({ minLength: 1, description: 'A-share/HK code or company name' }),
   period: Type.Optional(Type.Union([Type.Literal('daily'), Type.Literal('weekly'), Type.Literal('monthly')])),
   start_date: Type.Optional(Type.String({ minLength: 8, maxLength: 10 })),
   end_date: Type.Optional(Type.String({ minLength: 8, maxLength: 10 })),
-  provider: Type.Optional(Type.Union([Type.Literal('auto'), Type.Literal('yahoo'), Type.Literal('tushare')])),
+  provider: Type.Optional(Type.Union([Type.Literal('auto'), Type.Literal('yahoo'), Type.Literal('tushare'), Type.Literal('eastmoney')])),
 });
 const historyParameters = Type.Object({
   symbol: Type.String({ minLength: 1, description: 'Ticker or fund identifier' }),
   startDate: Type.String({ minLength: 10, maxLength: 10, description: 'ISO start date' }),
   endDate: Type.Optional(Type.String({ minLength: 10, maxLength: 10, description: 'ISO end date; defaults to today' })),
   limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 30, description: 'Number of daily bars' })),
-  provider: Type.Optional(Type.Union([Type.Literal('auto'), Type.Literal('yahoo'), Type.Literal('tushare')])) ,
+  provider: Type.Optional(Type.Union([Type.Literal('auto'), Type.Literal('yahoo'), Type.Literal('tushare'), Type.Literal('eastmoney')])) ,
 });
 const tradingDayParameters = Type.Object({
   date: Type.String({ minLength: 10, maxLength: 10, description: 'ISO calendar date' }),
@@ -129,13 +157,12 @@ const technicalDataParameters = Type.Object({
   start_date: Type.Optional(Type.String({ minLength: 8, maxLength: 10 })),
   end_date: Type.Optional(Type.String({ minLength: 8, maxLength: 10 })),
   period: Type.Optional(Type.Union([Type.Literal('daily'), Type.Literal('weekly'), Type.Literal('monthly')])),
-  provider: Type.Optional(Type.Union([Type.Literal('auto'), Type.Literal('yahoo'), Type.Literal('tushare')])),
+  provider: Type.Optional(Type.Union([Type.Literal('auto'), Type.Literal('yahoo'), Type.Literal('tushare'), Type.Literal('eastmoney')])),
 });
 const realtimeSubscribeParameters = Type.Object({
   symbols: Type.Array(Type.String({ minLength: 1, maxLength: 24 }), { minItems: 1, maxItems: 50, description: 'Symbols to subscribe to.' }),
   throttleMs: Type.Optional(Type.Integer({ minimum: 0, maximum: 600000, description: 'Per-symbol throttle window in milliseconds.' })),
   aggregateMs: Type.Optional(Type.Integer({ minimum: 0, maximum: 86400000, description: 'OHLC aggregation period in milliseconds.' })),
-  source: Type.Optional(Type.Union([Type.Literal('mock'), Type.Literal('eastmoney')])),
 });
 const realtimeUnsubscribeParameters = Type.Object({ subscriptionId: Type.String({ minLength: 1, maxLength: 64 }) });
 const realtimeListParameters = Type.Object({});
@@ -199,22 +226,29 @@ export default function marketDataExtension(pi: ExtensionAPI): void {
   });
 
   registerHostTools(pi);
-  const transport = hostTransport(pi.events);
-  const context = transport.context;
-  const contextHistory = capability<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(context, PI_MARKET_DATA_CAPABILITY_NAMES.historyFetcher);
-  const contextQuote = capability<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(context, PI_MARKET_DATA_CAPABILITY_NAMES.quoteFetcher);
-  const contextTrendStore = capability<NativeMarketQuoteTrendStore>(context, PI_MARKET_DATA_CAPABILITY_NAMES.quoteTrendStore);
-  const evidenceCapability = capability<PiEvidenceCapability>(context, PI_MARKET_DATA_CAPABILITY_NAMES.evidence);
-  const auditCapability = capability<PiAuditCapability>(context, PI_MARKET_DATA_CAPABILITY_NAMES.audit);
+  // Pi loads extensions before the session publishes its provider tree, so the
+  // host-derived transport, capability context and evidence/audit hooks are
+  // re-resolved on every tool call instead of being snapshotted here — a
+  // load-time snapshot is empty for the whole session (tools then silently run
+  // without the session fetcher or the audit trail).
+  const resolveHost = createPiCapabilityHostResolver<MarketDataCapabilityHost>(pi.events, PACKAGE, isUsableMarketDataHost);
+  const resolveTransport = () => marketDataTransport(resolveHost());
+  const resolveContext = () => resolveTransport().context;
+  const evidenceCapability = () => capability<PiEvidenceCapability>(resolveContext(), PI_MARKET_DATA_CAPABILITY_NAMES.evidence);
+  const auditCapability = () => capability<PiAuditCapability>(resolveContext(), PI_MARKET_DATA_CAPABILITY_NAMES.audit);
+  const contextHistory = () => capability<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(resolveContext(), PI_MARKET_DATA_CAPABILITY_NAMES.historyFetcher);
+  const contextQuote = () => capability<(input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>(resolveContext(), PI_MARKET_DATA_CAPABILITY_NAMES.quoteFetcher);
+  const contextTrendStore = () => capability<NativeMarketQuoteTrendStore>(resolveContext(), PI_MARKET_DATA_CAPABILITY_NAMES.quoteTrendStore);
   const historyClients = new Map<MarketHistoryProvider, ReturnType<typeof resolveMarketHistoryClient>>();
   const quoteClients = new Map<MarketHistoryProvider, ReturnType<typeof resolveMarketQuoteClient>>();
-  const nativeEvidenceResult = (toolCallId: string, query: string, path: string, value: unknown, extra: Record<string, unknown> = {}, asOf?: string) => nativeResult(toolCallId, query, path, value, extra, asOf, evidenceCapability, auditCapability);
+  const nativeEvidenceResult = (toolCallId: string, query: string, path: string, value: unknown, extra: Record<string, unknown> = {}, asOf?: string) => nativeResult(toolCallId, query, path, value, extra, asOf, evidenceCapability(), auditCapability());
   const getHistoryClient = (provider: MarketHistoryProvider) => {
     const existing = historyClients.get(provider);
     if (existing) return existing.client;
+    const transport = resolveTransport();
     const created = resolveMarketHistoryClient({
       provider,
-      fetcher: contextHistory ?? transport.history,
+      fetcher: contextHistory() ?? transport.history,
     });
     historyClients.set(provider, created);
     return created.client;
@@ -222,16 +256,24 @@ export default function marketDataExtension(pi: ExtensionAPI): void {
   const getQuoteClient = (provider: MarketHistoryProvider) => {
     const existing = quoteClients.get(provider);
     if (existing) return existing.client;
+    const transport = resolveTransport();
     const created = resolveMarketQuoteClient({
       provider,
-      fetcher: contextQuote ?? transport.quote,
-      trendStore: contextTrendStore ?? transport.trendStore,
+      fetcher: contextQuote() ?? transport.quote,
+      trendStore: contextTrendStore() ?? transport.trendStore,
     });
     quoteClients.set(provider, created);
     return created.client;
   };
   let recordKairosEvent: ((topic: string, payload: unknown, timestamp?: number) => void) | undefined;
+  // The realtime SSE stream reuses the session's market-data transport when the
+  // host injects one (tests, offline hosts) and falls back to global fetch.
+  const realtimeFetcher: RealtimeFetcher = (input, init) => {
+    const injected = contextQuote() ?? resolveTransport().quote;
+    return injected ? injected(input, init) : fetch(input, init);
+  };
   const realtime = createRealtimeSubscriptionManager({
+    fetcher: realtimeFetcher,
     onQuote: (quote) => recordKairosEvent?.('realtime.quote', quote, quote.timestamp),
     onBar: (bar) => recordKairosEvent?.('realtime.bar', bar, bar.end),
   });
@@ -292,13 +334,13 @@ export default function marketDataExtension(pi: ExtensionAPI): void {
   pi.registerTool({
     name: 'realtime_subscribe',
     label: 'Realtime Subscribe',
-    description: 'Open a session-scoped realtime market-data subscription. Mock is deterministic and offline; Eastmoney requires an explicitly injected socket in the host.',
+    description: 'Open a session-scoped realtime market-data subscription against the live Eastmoney intraday stream. Network failures are returned as errors; no synthetic quotes are substituted.',
     parameters: realtimeSubscribeParameters,
     async execute(toolCallId, params, signal, _onUpdate, _ctx) {
       if (signal?.aborted) return { content: [{ type: 'text', text: 'Realtime subscription request aborted' }], isError: true, details: undefined };
       try {
-        const result = await realtime.subscribe({ symbols: params.symbols, throttleMs: params.throttleMs, aggregateMs: params.aggregateMs, source: params.source as FeedSource | undefined });
-        return nativeEvidenceResult(toolCallId, JSON.stringify(params), 'realtime/subscribe', { ...result, note: result.source === 'mock' ? 'Deterministic mock feed; no external network.' : 'Eastmoney source requires host-injected socket and remains explicitly opt-in.' }, {}, new Date(result.createdAt).toISOString().slice(0, 10));
+        const result = await realtime.subscribe({ symbols: params.symbols, throttleMs: params.throttleMs, aggregateMs: params.aggregateMs });
+        return nativeEvidenceResult(toolCallId, JSON.stringify(params), 'realtime/subscribe', { ...result, note: 'Live Eastmoney intraday stream; quotes are provider-reported and throttled locally.' }, {}, new Date(result.createdAt).toISOString().slice(0, 10));
       } catch (error) {
         return { content: [{ type: 'text', text: error instanceof Error ? error.message : 'Realtime subscription failed' }], isError: true, details: undefined };
       }
@@ -518,26 +560,26 @@ export default function marketDataExtension(pi: ExtensionAPI): void {
     const market = params.market ?? 'us';
     if (market === 'all') {
       const value = { date: params.date, markets: Object.fromEntries((['us', 'china', 'hk'] as const).map((candidate) => [candidate, { isTradingDay: isCalendarTradingDay(params.date, candidate) }])) };
-      return calendarResult(toolCallId, `all:${params.date}`, value, evidenceCapability, auditCapability);
+      return calendarResult(toolCallId, `all:${params.date}`, value, evidenceCapability(), auditCapability());
     }
-    return calendarResult(toolCallId, `${market}:${params.date}`, { date: params.date, market: market.toUpperCase(), isTradingDay: isCalendarTradingDay(params.date, market as CalendarMarket) }, evidenceCapability, auditCapability);
+    return calendarResult(toolCallId, `${market}:${params.date}`, { date: params.date, market: market.toUpperCase(), isTradingDay: isCalendarTradingDay(params.date, market as CalendarMarket) }, evidenceCapability(), auditCapability());
   } });
   pi.registerTool({ name: 'get_upcoming_holidays', label: 'Upcoming Market Holidays', description: 'List upcoming holidays for a selected market.', parameters: upcomingHolidayParameters, async execute(toolCallId, params, signal, _onUpdate, _ctx) {
     if (signal?.aborted) return { content: [{ type: 'text', text: 'get_upcoming_holidays request aborted' }], isError: true, details: undefined };
     const market = params.market ?? 'us';
     const holidays = upcomingCalendarHolidays(params.startDate, market, params.count ?? 5);
-    return calendarResult(toolCallId, `${market}:${params.startDate ?? 'default'}`, { market: market.toUpperCase(), holidays: holidays ?? [], count: holidays?.length ?? 0 }, evidenceCapability, auditCapability);
+    return calendarResult(toolCallId, `${market}:${params.startDate ?? 'default'}`, { market: market.toUpperCase(), holidays: holidays ?? [], count: holidays?.length ?? 0 }, evidenceCapability(), auditCapability());
   } });
   pi.registerTool({ name: 'get_next_trading_day', label: 'Next Trading Day', description: 'Find the next trading day after a date.', parameters: nextTradingDayParameters, async execute(toolCallId, params, signal, _onUpdate, _ctx) {
     if (signal?.aborted) return { content: [{ type: 'text', text: 'get_next_trading_day request aborted' }], isError: true, details: undefined };
     const market = params.market ?? 'us';
     const targetTradingDay = nextCalendarTradingDay(params.fromDate, market, params.skipDays ?? 1);
-    return calendarResult(toolCallId, `${market}:${params.fromDate}`, { fromDate: params.fromDate, market: market.toUpperCase(), skipDays: params.skipDays ?? 1, targetTradingDay }, evidenceCapability, auditCapability);
+    return calendarResult(toolCallId, `${market}:${params.fromDate}`, { fromDate: params.fromDate, market: market.toUpperCase(), skipDays: params.skipDays ?? 1, targetTradingDay }, evidenceCapability(), auditCapability());
   } });
   pi.registerTool({ name: 'get_trading_days', label: 'Trading Days', description: 'List trading days in an inclusive date range.', parameters: tradingDaysParameters, async execute(toolCallId, params, signal, _onUpdate, _ctx) {
     if (signal?.aborted) return { content: [{ type: 'text', text: 'get_trading_days request aborted' }], isError: true, details: undefined };
     const market = params.market ?? 'us';
     const tradingDays = calendarTradingDays(params.startDate, params.endDate, market);
-    return calendarResult(toolCallId, `${market}:${params.startDate}:${params.endDate}`, { startDate: params.startDate, endDate: params.endDate, market: market.toUpperCase(), tradingDays: tradingDays ?? [], totalDays: tradingDays?.length ?? 0 }, evidenceCapability, auditCapability);
+    return calendarResult(toolCallId, `${market}:${params.startDate}:${params.endDate}`, { startDate: params.startDate, endDate: params.endDate, market: market.toUpperCase(), tradingDays: tradingDays ?? [], totalDays: tradingDays?.length ?? 0 }, evidenceCapability(), auditCapability());
   } });
 }

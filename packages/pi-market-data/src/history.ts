@@ -1,8 +1,9 @@
 import type { MarketBar, MarketEvidence } from './market-types';
 import { executeWithProviderRetry, type ProviderRetryPolicy } from '@upup/pi-observability';
+import { EASTMONEY_KLINE_URL, EASTMONEY_USER_AGENT, eastmoneyKlineUrl, eastmoneySecid, parseEastmoneyKlines } from './eastmoney';
 
 export type MarketHistoryFetcher = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
-export type MarketHistoryProvider = 'auto' | 'yahoo' | 'tushare' | 'financial-datasets';
+export type MarketHistoryProvider = 'auto' | 'yahoo' | 'tushare' | 'financial-datasets' | 'eastmoney';
 type MarketHistoryMarket = 'cn' | 'hk' | 'us' | 'fund' | 'crypto';
 
 export interface NativeMarketHistoryClientOptions {
@@ -20,6 +21,16 @@ export interface NativeMarketHistoryClientOptions {
   readonly rateLimiter?: MarketHistoryRateLimiter;
   readonly retry?: Omit<ProviderRetryPolicy, 'provider' | 'operation'>;
 }
+
+/**
+ * Eastmoney throttles bursts by resetting the socket instead of answering 429,
+ * so its retries back off further than the default policy.
+ */
+const EASTMONEY_RETRY: Omit<ProviderRetryPolicy, 'provider' | 'operation'> = {
+  maxAttempts: 3,
+  baseDelayMs: 600,
+  maxDelayMs: 5_000,
+};
 
 const DEFAULT_PROVIDER_RETRY: Omit<ProviderRetryPolicy, 'provider' | 'operation'> = {
   maxAttempts: 3,
@@ -194,14 +205,22 @@ export class NativeMarketHistoryClient {
     const marketKey = (normalizedMarket ?? (isChinaMarket ? 'cn' : undefined)) as MarketHistoryMarket | undefined;
     const configuredProvider = marketKey ? this.marketProviders?.[marketKey] : undefined;
     const marketToken = marketKey ? this.marketApiKeys?.[marketKey] ?? this.tushareToken : this.tushareToken;
-    const selectedProvider = configuredProvider ?? (this.provider === 'auto' && (isChinaMarket || marketKey === 'hk') && marketToken ? 'tushare' : this.provider === 'auto' && marketKey === 'us' && marketToken ? 'financial-datasets' : this.provider === 'auto' ? 'yahoo' : this.provider);
+    // Auto routing: CN/HK go to Tushare when a token exists and to the real
+    // Eastmoney provider otherwise (no credentials, live daily bars); US stays
+    // on financial-datasets/yahoo.
+    const selectedProvider = configuredProvider ?? (this.provider === 'auto' && (isChinaMarket || marketKey === 'hk')
+      ? marketToken ? 'tushare' : 'eastmoney'
+      : this.provider === 'auto' && marketKey === 'us' && marketToken ? 'financial-datasets' : this.provider === 'auto' ? 'yahoo' : this.provider);
     if (selectedProvider === 'tushare' && normalizedMarket !== undefined && normalizedMarket !== 'cn' && normalizedMarket !== 'hk') throw new Error(`Tushare history requires market=cn or market=hk, received ${normalizedMarket}`);
     if (selectedProvider === 'tushare' && !marketToken) throw new Error(`Tushare history requires a token for market=${marketKey ?? 'cn'}`);
+    if (selectedProvider === 'eastmoney' && normalizedMarket !== undefined && normalizedMarket !== 'cn' && normalizedMarket !== 'hk') throw new Error(`Eastmoney history requires market=cn or market=hk, received ${normalizedMarket}`);
     if (selectedProvider === 'financial-datasets' && !marketToken) throw new Error('Financial Datasets history requires FINANCIAL_DATASETS_API_KEY');
     const requestFetcher = marketKey ? this.marketFetchers?.[marketKey] ?? this.fetcher : this.fetcher;
     const requestBaseUrl = selectedProvider === 'tushare'
       ? (marketKey ? this.marketBaseUrls?.[marketKey] : undefined) ?? 'https://api.tushare.pro'
-      : (marketKey ? this.marketBaseUrls?.[marketKey] : undefined) ?? this.baseUrl;
+      : selectedProvider === 'eastmoney'
+        ? (marketKey ? this.marketBaseUrls?.[marketKey] : undefined) ?? EASTMONEY_KLINE_URL
+        : (marketKey ? this.marketBaseUrls?.[marketKey] : undefined) ?? this.baseUrl;
     const cacheKey = `${selectedProvider}:${normalizedMarket ?? 'inferred'}:${symbol}:${startDate}:${endDate}`;
     const now = Date.now();
     const cached = this.cache?.get(cacheKey, now);
@@ -209,6 +228,7 @@ export class NativeMarketHistoryClient {
     await this.rateLimiter?.acquire(selectedProvider, now);
     if (selectedProvider === 'tushare') return this.getTushareHistory(symbol, startDate, endDate, signal, auditId, cacheKey, marketKey === 'hk' ? 'hk' : 'cn', marketToken, requestFetcher, requestBaseUrl);
     if (selectedProvider === 'financial-datasets') return this.getFinancialDatasetsHistory(symbol, startDate, endDate, signal, auditId, cacheKey, marketToken, requestFetcher, requestBaseUrl);
+    if (selectedProvider === 'eastmoney') return this.getEastmoneyHistory(symbol, startDate, endDate, signal, auditId, cacheKey, marketKey === 'hk' || /\.HK$/i.test(symbol.trim()) ? 'hk' : 'cn', requestFetcher, requestBaseUrl);
     const resolvedSymbol = yahooSymbol(symbol);
     const url = new URL(`${requestBaseUrl}/${encodeURIComponent(resolvedSymbol)}`);
     url.searchParams.set('period1', String(Math.floor(Date.parse(`${startDate}T00:00:00Z`) / 1000)));
@@ -255,6 +275,36 @@ export class NativeMarketHistoryClient {
       },
     };
     this.cache?.set(cacheKey, result, now + this.cacheTtlMs);
+    return result;
+  }
+
+  /**
+   * Live daily bars from `push2his.eastmoney.com` (forward-adjusted, `fqt=1`),
+   * the real replacement for the previous synthetic fallback.
+   */
+  private async getEastmoneyHistory(symbol: string, startDate: string, endDate: string, signal: AbortSignal | undefined, auditId: string, cacheKey: string, market: 'cn' | 'hk', requestFetcher: MarketHistoryFetcher, requestBaseUrl: string): Promise<NativeMarketHistoryResult> {
+    const resolvedSymbol = eastmoneySecid(symbol);
+    const url = eastmoneyKlineUrl(resolvedSymbol, startDate, endDate, requestBaseUrl);
+    const response = await this.fetchWithRetry(url, { signal, headers: { Accept: 'application/json', 'User-Agent': EASTMONEY_USER_AGENT } }, 'eastmoney', 'history', signal, requestFetcher, EASTMONEY_RETRY);
+    if (!response.ok) throw new Error(`Eastmoney market history request failed: ${response.status} ${response.statusText}`);
+    const payload = await response.json() as unknown;
+    const bars = parseEastmoneyKlines(payload, symbol, startDate, endDate, market).slice(-this.maxBars);
+    if (bars.length < 2) throw new Error(`Eastmoney returned fewer than two complete bars for ${symbol}`);
+    const retrievedAt = this.now();
+    const result: NativeMarketHistoryResult = {
+      value: bars,
+      evidence: {
+        id: `market-data:${auditId}:history`,
+        source: requestBaseUrl,
+        provider: 'eastmoney',
+        retrievedAt,
+        asOf: bars.at(-1)!.date,
+        query: `${symbol}:${market}:${startDate}:${endDate}`,
+        dataFreshness: 'historical',
+        auditId,
+      },
+    };
+    this.cache?.set(cacheKey, result, Date.now() + this.cacheTtlMs);
     return result;
   }
 
@@ -343,18 +393,19 @@ export class NativeMarketHistoryClient {
     return result;
   }
 
-  private async fetchWithRetry(input: RequestInfo | URL, init: RequestInit, provider: MarketHistoryProvider, operation: string, signal?: AbortSignal, requestFetcher: MarketHistoryFetcher = this.fetcher): Promise<Response> {
+  private async fetchWithRetry(input: RequestInfo | URL, init: RequestInit, provider: MarketHistoryProvider, operation: string, signal?: AbortSignal, requestFetcher: MarketHistoryFetcher = this.fetcher, retryOverride?: Omit<ProviderRetryPolicy, 'provider' | 'operation'>): Promise<Response> {
     const execute = async (retrySignal?: AbortSignal) => {
       const response = await requestFetcher(input, { ...init, ...(retrySignal ? { signal: retrySignal } : {}) });
       if (!response.ok) throw new Error(`${provider} market ${operation} request failed: ${response.status} ${response.statusText}`);
       return response;
     };
-    if (!this.retry) return execute(signal);
+    const policy = retryOverride ?? this.retry;
+    if (!policy) return execute(signal);
     return (await executeWithProviderRetry((_, retrySignal) => execute(retrySignal), {
       provider,
       operation,
       signal,
-      ...this.retry,
+      ...policy,
     })).value;
   }
 }

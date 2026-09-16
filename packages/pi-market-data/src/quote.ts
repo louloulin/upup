@@ -5,6 +5,7 @@ import { dirname } from 'node:path';
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
 import { executeWithProviderRetry, type ProviderRetryPolicy } from '@upup/pi-observability';
+import { EASTMONEY_QUOTE_URL, EASTMONEY_USER_AGENT, eastmoneyQuoteUrl, eastmoneySecid, parseEastmoneyQuote } from './eastmoney';
 import type { PiMarketTrendStore } from '@upup/types';
 
 export interface NativeMarketQuote extends MarketQuote {
@@ -25,7 +26,7 @@ export interface NativeMarketQuoteMetrics {
   readonly successes: number;
   readonly failures: number;
   readonly rateLimitFailures: number;
-  readonly lastProvider?: 'yahoo' | 'tushare';
+  readonly lastProvider?: 'yahoo' | 'tushare' | 'eastmoney';
   readonly lastLatencyMs?: number;
   readonly lastOutcome?: 'success' | 'failure' | 'cache';
   readonly lastErrorClass?: 'credentials' | 'rate_limit' | 'forbidden' | 'server_error' | 'invalid_response' | 'unsupported_symbol' | 'aborted' | 'unknown';
@@ -37,7 +38,7 @@ export interface NativeMarketQuoteMetrics {
 }
 
 export interface NativeMarketQuoteSample {
-  readonly provider: 'yahoo' | 'tushare';
+  readonly provider: 'yahoo' | 'tushare' | 'eastmoney';
   readonly latencyMs: number;
   readonly outcome: 'success' | 'failure' | 'cache';
   readonly errorClass?: NonNullable<NativeMarketQuoteMetrics['lastErrorClass']>;
@@ -123,6 +124,16 @@ export interface NativeMarketQuoteClientOptions {
   readonly trendStore?: NativeMarketQuoteTrendStore;
   readonly retry?: Omit<ProviderRetryPolicy, 'provider' | 'operation'>;
 }
+
+/**
+ * Eastmoney throttles bursts by resetting the socket instead of answering 429,
+ * so its retries back off further than the default policy.
+ */
+const EASTMONEY_RETRY: Omit<ProviderRetryPolicy, 'provider' | 'operation'> = {
+  maxAttempts: 3,
+  baseDelayMs: 600,
+  maxDelayMs: 5_000,
+};
 
 const DEFAULT_PROVIDER_RETRY: Omit<ProviderRetryPolicy, 'provider' | 'operation'> = {
   maxAttempts: 3,
@@ -210,12 +221,13 @@ function quoteMarket(symbol: string, requested?: string): Market {
   return 'us';
 }
 
-function result(value: NativeMarketQuote, source: string, query: string, retrievedAt: string, auditId: string): NativeMarketQuoteResult {
+function result(value: NativeMarketQuote, source: string, query: string, retrievedAt: string, auditId: string, provider?: 'yahoo' | 'tushare' | 'eastmoney'): NativeMarketQuoteResult {
   return {
     value,
     evidence: {
       id: `market-data:${auditId}:quote`,
       source,
+      ...(provider ? { provider } : {}),
       retrievedAt,
       asOf: value.asOf,
       query,
@@ -238,7 +250,7 @@ export class NativeMarketQuoteClient {
   private successes = 0;
   private failures = 0;
   private rateLimitFailures = 0;
-  private lastProvider: 'yahoo' | 'tushare' | undefined;
+  private lastProvider: 'yahoo' | 'tushare' | 'eastmoney' | undefined;
   private lastLatencyMs: number | undefined;
   private lastOutcome: NativeMarketQuoteMetrics['lastOutcome'];
   private lastErrorClass: NativeMarketQuoteMetrics['lastErrorClass'];
@@ -350,25 +362,15 @@ export class NativeMarketQuoteClient {
     if (signal?.aborted) throw new Error('market quote request aborted');
     // Auto provider resolution:
     //   - CN/HK symbol + TUSHARE_TOKEN → tushare (covers SH/SZ/BJ + HK tickers).
-    //   - CN/HK symbol + no token       → actionable error (Yahoo has no CN coverage).
-    //   - Otherwise                     → yahoo (US/global default).
-    // Surfacing the credential gap as an explicit error beats letting Yahoo 403
-    // and burning a request budget on a request we know will fail.
-    let selectedProvider: 'yahoo' | 'tushare' = 'yahoo';
+    //   - CN/HK symbol + no token      → eastmoney (live quotes, no credentials).
+    //   - Otherwise                    → yahoo (US/global default).
+    let selectedProvider: 'yahoo' | 'tushare' | 'eastmoney' = 'yahoo';
     if (this.provider === 'auto') {
-      if (isChinaSymbol(normalized)) {
-        if (this.tushareToken) selectedProvider = 'tushare';
-        else throw new Error(
-          `CN/HK symbol ${normalized} requires TUSHARE_TOKEN (set in ~/.upup/.env or process.env). ` +
-          `Yahoo Finance does not cover A-shares / Hong Kong — auto-routing it there always returns 403.`
-        );
-      } else {
-        selectedProvider = 'yahoo';
-      }
+      if (isChinaSymbol(normalized)) selectedProvider = this.tushareToken ? 'tushare' : 'eastmoney';
+      else selectedProvider = 'yahoo';
     } else {
-      // The quote client only implements yahoo + tushare today; financial-datasets
-      // is history-only. Fall back to yahoo for any other provider value.
-      selectedProvider = this.provider === 'tushare' ? 'tushare' : 'yahoo';
+      // financial-datasets is history-only, so it still resolves to yahoo here.
+      selectedProvider = this.provider === 'tushare' ? 'tushare' : this.provider === 'eastmoney' ? 'eastmoney' : 'yahoo';
     }
     const startedAt = Date.now();
     this.lastProvider = selectedProvider;
@@ -389,7 +391,9 @@ export class NativeMarketQuoteClient {
       await this.rateLimiter?.acquire(selectedProvider, nowMs);
       const output = selectedProvider === 'tushare'
         ? await this.getTushareQuote(normalized, requestedMarket, signal, auditId, key)
-        : await this.getYahooQuote(normalized, requestedMarket, signal, auditId, key);
+        : selectedProvider === 'eastmoney'
+          ? await this.getEastmoneyQuote(normalized, requestedMarket, signal, auditId, key)
+          : await this.getYahooQuote(normalized, requestedMarket, signal, auditId, key);
       this.successes += 1;
       this.lastLatencyMs = Math.max(0, Date.now() - startedAt);
       this.lastOutcome = 'success';
@@ -427,6 +431,31 @@ export class NativeMarketQuoteClient {
     return native;
   }
 
+  /** Live quote from `push2.eastmoney.com`; the real CN/HK provider. */
+  private async getEastmoneyQuote(symbol: string, requestedMarket: string | undefined, signal: AbortSignal | undefined, auditId: string, key: string): Promise<NativeMarketQuoteResult> {
+    const market = quoteMarket(symbol, requestedMarket);
+    const url = eastmoneyQuoteUrl(eastmoneySecid(symbol), EASTMONEY_QUOTE_URL);
+    const response = await this.fetchWithRetry(url, { signal, headers: { Accept: 'application/json', 'User-Agent': EASTMONEY_USER_AGENT } }, 'eastmoney', 'quote', signal, EASTMONEY_RETRY);
+    if (!response.ok) throw new Error(`Eastmoney market quote request failed: ${response.status} ${response.statusText}`);
+    const snapshot = parseEastmoneyQuote(await response.json() as unknown, symbol, market, this.now().slice(0, 10));
+    const value: NativeMarketQuote = {
+      symbol,
+      market,
+      price: snapshot.last,
+      bid: snapshot.last,
+      ask: snapshot.last,
+      last: snapshot.last,
+      currency: currencyForMarket(market),
+      asOf: snapshot.asOf,
+      source: EASTMONEY_QUOTE_URL,
+      freshness: 'delayed',
+      indicative: true,
+    };
+    const output = result(value, value.source, `${symbol}:${snapshot.previousClose ?? snapshot.last}`, this.now(), auditId, 'eastmoney');
+    this.cache?.set(key, output, Date.now() + this.cacheTtlMs);
+    return output;
+  }
+
   private async getTushareQuote(symbol: string, requestedMarket: string | undefined, signal: AbortSignal | undefined, auditId: string, key: string): Promise<NativeMarketQuoteResult> {
     if (!this.tushareToken) throw new Error('Tushare provider requires TUSHARE_TOKEN');
     const resolved = tushareSymbol(symbol);
@@ -450,18 +479,19 @@ export class NativeMarketQuoteClient {
     return output;
   }
 
-  private async fetchWithRetry(input: RequestInfo | URL, init: RequestInit, provider: MarketHistoryProvider, operation: string, signal?: AbortSignal): Promise<Response> {
+  private async fetchWithRetry(input: RequestInfo | URL, init: RequestInit, provider: MarketHistoryProvider, operation: string, signal?: AbortSignal, retryOverride?: Omit<ProviderRetryPolicy, 'provider' | 'operation'>): Promise<Response> {
     const execute = async (retrySignal?: AbortSignal) => {
       const response = await this.fetcher(input, { ...init, ...(retrySignal ? { signal: retrySignal } : {}) });
       if (!response.ok) throw new Error(`${provider} market ${operation} request failed: ${response.status} ${response.statusText}`);
       return response;
     };
-    if (!this.retry) return execute(signal);
+    const policy = retryOverride ?? this.retry;
+    if (!policy) return execute(signal);
     return (await executeWithProviderRetry((_, retrySignal) => execute(retrySignal), {
       provider,
       operation,
       signal,
-      ...this.retry,
+      ...policy,
     })).value;
   }
 }

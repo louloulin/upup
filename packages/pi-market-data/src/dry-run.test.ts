@@ -82,26 +82,21 @@ describe('pi-market-data dry-run smoke', () => {
   });
 
   test('resolveDryRunActivation respects explicit option', () => {
-    expect(resolveDryRunActivation({ explicitOption: true, env: {}, hasTushareToken: true, hasYahooAccess: true, provider: 'auto' })).toEqual({ active: true, activatedBy: 'option' });
-    expect(resolveDryRunActivation({ explicitOption: false, env: {}, hasTushareToken: true, hasYahooAccess: true, provider: 'auto' })).toEqual({ active: false, activatedBy: undefined });
+    expect(resolveDryRunActivation({ explicitOption: true, env: {} })).toEqual({ active: true, activatedBy: 'option' });
+    expect(resolveDryRunActivation({ explicitOption: false, env: {} })).toEqual({ active: false, activatedBy: undefined });
   });
 
-  test('resolveDryRunActivation auto-activates on missing credentials for tushare provider', () => {
-    const result = resolveDryRunActivation({ env: {}, hasTushareToken: false, hasYahooAccess: true, provider: 'tushare' });
+  test('resolveDryRunActivation never activates dry-run implicitly', () => {
+    // Missing credentials are a provider error, not an implicit request for
+    // synthetic bars (tools advertise `no-synthetic-fallback`).
+    expect(resolveDryRunActivation({ env: {} })).toEqual({ active: false, activatedBy: undefined });
+    expect(resolveDryRunActivation({ env: { UPUP_DRY_RUN: '0' } as NodeJS.ProcessEnv })).toEqual({ active: false, activatedBy: undefined });
+  });
+
+  test('resolveDryRunActivation activates only through UPUP_DRY_RUN', () => {
+    const result = resolveDryRunActivation({ env: { UPUP_DRY_RUN: '1' } as NodeJS.ProcessEnv });
     expect(result.active).toBe(true);
-    expect(result.activatedBy).toBe('missing-credentials');
-  });
-
-  test('resolveDryRunActivation auto-activates on missing credentials for auto provider without yahoo access', () => {
-    const result = resolveDryRunActivation({ env: {}, hasTushareToken: false, hasYahooAccess: false, provider: 'auto' });
-    expect(result.active).toBe(true);
-    expect(result.activatedBy).toBe('missing-credentials');
-  });
-
-  test('resolveDryRunActivation does NOT activate when yahoo access is available', () => {
-    const result = resolveDryRunActivation({ env: {}, hasTushareToken: false, hasYahooAccess: true, provider: 'auto' });
-    expect(result.active).toBe(false);
-    expect(result.activatedBy).toBeUndefined();
+    expect(result.activatedBy).toBe('env');
   });
 });
 
@@ -123,11 +118,11 @@ describe('DryRunMarketQuoteClient', () => {
     expect(resolved.client).toBeInstanceOf(DryRunMarketQuoteClient);
   });
 
-  test('missing credentials auto-activates dry-run', () => {
+  test('missing credentials stay on the real client (no synthetic fallback)', () => {
     const resolved = resolveMarketQuoteClient({ env: {} as NodeJS.ProcessEnv, provider: 'tushare', tushareToken: '' });
-    expect(resolved.dryRun).toBe(true);
-    expect(resolved.activatedBy).toBe('missing-credentials');
-    expect(resolved.client).toBeInstanceOf(DryRunMarketQuoteClient);
+    expect(resolved.dryRun).toBe(false);
+    expect(resolved.activatedBy).toBeUndefined();
+    expect(resolved.client).not.toBeInstanceOf(DryRunMarketQuoteClient);
   });
 
   test('explicit dryRun=false returns native client', () => {

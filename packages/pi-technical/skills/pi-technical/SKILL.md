@@ -24,7 +24,7 @@ All tools return auditable evidence: `auditId`, `source = 'pi-technical://...'`,
 
 ## Workflow
 
-1. Resolve the symbol's bar series via `pi-market-data` (`get_market_data`) or `dry-run://pi-market-data/history` when no credentials.
+1. Resolve the symbol's bar series via `pi-market-data` (`get_price_history`): A-share / Hong Kong symbols use the live Eastmoney provider, US symbols use Yahoo (or Tushare / financial-datasets when credentials exist).
 2. Call `compute_indicators` with the bars array (or per-indicator calls).
 3. Interpret results in plain language; cite the `auditId` for any quantitative claim.
 4. If user asks for pattern recognition, use the `patterns` module from `@upup/pi-technical` (doji, hammer, shooting-star, engulfing, morning-star, etc.).

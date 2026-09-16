@@ -373,7 +373,7 @@ export interface UpUpCreateSessionOptions {
   piPackageTrust?: PiPackageTrustPolicy;
   marketHistoryFetcher?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
   marketHistoryFetchers?: Readonly<Record<string, (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>>>;
-  marketHistoryProviders?: Readonly<Record<string, 'auto' | 'yahoo' | 'tushare' | 'financial-datasets'>>;
+  marketHistoryProviders?: Readonly<Record<string, 'auto' | 'yahoo' | 'tushare' | 'financial-datasets' | 'eastmoney'>>;
   marketHistoryApiKeys?: Readonly<Record<string, string>>;
   marketHistoryBaseUrls?: Readonly<Record<string, string>>;
   marketQuoteFetcher?: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;

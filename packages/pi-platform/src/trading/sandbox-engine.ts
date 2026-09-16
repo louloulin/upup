@@ -10,7 +10,8 @@
  * - Market / limit / stop / stop-limit order types
  * - Configurable slippage and commission (A-share defaults: min 5 CNY, 0.05% slip)
  * - State persistence (survives CLI restarts) at ~/.upup/sandbox-state.json
- * - Pluggable quote provider (defaults to deterministic mock for testing)
+ * - Pluggable quote provider; without an injected provider every quote request
+ *   fails closed instead of inventing a price (`no-synthetic-fallback`)
  */
 
 import { randomUUID } from 'node:crypto';
@@ -29,22 +30,16 @@ import type {
 } from './types';
 
 // ============================================================================
-// Default Quote Provider (deterministic mock — replace with real feed in prod)
+// Default Quote Provider (fail-closed — no synthetic prices)
 // ============================================================================
 
-function defaultQuoteProvider(symbol: string): Promise<Quote> {
-  let h = 0;
-  for (let i = 0; i < symbol.length; i++) {
-    h = ((h << 5) - h + symbol.charCodeAt(i)) | 0;
-  }
-  const base = 10 + (Math.abs(h) % 990) / 10;
-  return Promise.resolve({
-    symbol,
-    bid: base * 0.999,
-    ask: base * 1.001,
-    last: base,
-    timestamp: Date.now(),
-  });
+/**
+ * A sandbox without an injected market-data provider has no honest price to
+ * fill against, so it refuses to trade instead of filling on an invented
+ * quote. Callers wire a real provider (`SandboxBroker({ quoteProvider })`).
+ */
+function missingQuoteProvider(symbol: string): Promise<Quote> {
+  return Promise.reject(new Error(`sandbox quote for ${symbol} requires an injected market-data provider`));
 }
 
 // ============================================================================
@@ -87,7 +82,7 @@ export class SandboxBroker implements BrokerAdapter {
       ...config,
     };
     this.cash = this.config.initialCash;
-    this.quoteProvider = config.quoteProvider ?? defaultQuoteProvider;
+    this.quoteProvider = config.quoteProvider ?? missingQuoteProvider;
   }
 
   // --------------------------------------------------------------------------

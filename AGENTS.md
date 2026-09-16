@@ -156,7 +156,9 @@ UpUp **不重新实现 agent**。Agent loop、TUI/InteractiveMode、工具执行
 
 - LLM keys: `OPENAI_API_KEY`、`ANTHROPIC_API_KEY`、`GEMINI_API_KEY`（Pi 的 Google 变量名，`GOOGLE_API_KEY` 仍作为向后兼容别名）、`XAI_API_KEY`、`OPENROUTER_API_KEY`、`MOONSHOT_API_KEY`、`DEEPSEEK_API_KEY`
 - Ollama: `OLLAMA_BASE_URL`（默认 `http://127.0.0.1:11434`，UpUp 自动补 `/v1`；由 Pi provider registration 消费，不再有独立 HTTP 客户端）
-- Finance: `FINANCIAL_DATASETS_API_KEY` (US)、`TUSHARE_TOKEN` (CN/HK)
+- Finance: `FINANCIAL_DATASETS_API_KEY` (US)、`TUSHARE_TOKEN` (CN/HK，可选)
+  - CN/HK 行情默认走**免凭证的真实 Eastmoney provider**（`provider: 'auto'`）：`push2.eastmoney.com/api/qt/stock/get` 取实时报价、`push2his.eastmoney.com/api/qt/stock/kline/get` 取前复权日线、`push2.eastmoney.com/api/qt/stock/trends2/sse` 订阅盘中 SSE。配置 `TUSHARE_TOKEN` 时 CN/HK 仍优先 Tushare。
+  - 缺凭证**不再**降级到 `dry-run://` 合成价格：dry-run 只在 `UPUP_DRY_RUN=1` 或显式 `dryRun: true` 时启用（工具声明 `policy: 'no-synthetic-fallback'`）。
 - Search: `EXASEARCH_API_KEY` (preferred)、`TAVILY_API_KEY` (fallback)
 - Real invest verifier: `UPUP_REAL_INVEST=1` + `UPUP_REAL_INVEST_CONFIRM=READ_ONLY` + `UPUP_REAL_INVEST_TICKERS=600519.SH,00700.HK,AAPL`（凭证缺失时默认 fail-closed，状态 `skipped`）
 - Tracing: UpUp telemetry 与 Pi event/audit streams；无 LangChain/LangSmith runtime 依赖

@@ -84,14 +84,14 @@ export interface PiManagementSnapshot {
   };
   readonly providers: {
     readonly marketData: {
-      readonly providers: readonly { readonly name: 'auto' | 'yahoo' | 'tushare' | 'financial-datasets'; readonly configured: boolean }[];
+      readonly providers: readonly { readonly name: 'auto' | 'yahoo' | 'tushare' | 'financial-datasets' | 'eastmoney'; readonly configured: boolean }[];
       readonly metrics: {
         readonly requests: number;
         readonly cacheHits: number;
         readonly successes: number;
         readonly failures: number;
         readonly rateLimitFailures: number;
-        readonly lastProvider?: 'yahoo' | 'tushare' | 'financial-datasets';
+        readonly lastProvider?: 'yahoo' | 'tushare' | 'financial-datasets' | 'eastmoney';
         readonly lastLatencyMs?: number;
         readonly lastOutcome?: 'success' | 'failure' | 'cache';
         readonly lastErrorClass?: 'credentials' | 'rate_limit' | 'forbidden' | 'server_error' | 'invalid_response' | 'unsupported_symbol' | 'aborted' | 'unknown';
@@ -99,7 +99,7 @@ export interface PiManagementSnapshot {
         readonly successRatePct: number;
         readonly sloStatus: 'healthy' | 'degraded' | 'unhealthy' | 'unknown';
         readonly recentSamples: readonly {
-          readonly provider: 'yahoo' | 'tushare' | 'financial-datasets';
+          readonly provider: 'yahoo' | 'tushare' | 'financial-datasets' | 'eastmoney';
           readonly latencyMs: number;
           readonly outcome: 'success' | 'failure' | 'cache';
           readonly errorClass?: 'credentials' | 'rate_limit' | 'forbidden' | 'server_error' | 'invalid_response' | 'unsupported_symbol' | 'aborted' | 'unknown';
@@ -120,7 +120,7 @@ export interface PiManagementSnapshot {
         readonly jobs: readonly {
           readonly id: string;
           readonly name: string;
-          readonly provider: 'auto' | 'yahoo' | 'tushare' | 'financial-datasets';
+          readonly provider: 'auto' | 'yahoo' | 'tushare' | 'financial-datasets' | 'eastmoney';
           readonly enabled: boolean;
           readonly everyMs: number;
           readonly nextRunAtMs?: number;

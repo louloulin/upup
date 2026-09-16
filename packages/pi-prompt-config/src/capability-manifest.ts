@@ -30,7 +30,7 @@ export const CAPABILITY_GROUPS: CapabilityGroup[] = [
     title: "Realtime market data",
     prefixes: ["realtime_"],
     blurb:
-      "Live quote + OHLC bar streaming from a pluggable RealtimeFeed. Mock by default; switch to Eastmoney via UPUP_REALTIME_SOURCE.",
+      "Live quote + OHLC bar streaming from Eastmoney's public intraday SSE feed. Network failures fail closed; no synthetic quotes.",
     whenToUse: [
       "Track a symbol live: realtime_subscribe",
       "Build a 5s/1m OHLC feed: realtime_subscribe with aggregateMs",

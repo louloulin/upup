@@ -260,6 +260,13 @@ describe('SandboxBroker — persistence and reset', () => {
     expect(positions).toHaveLength(1);
   });
 
+  it('fails closed instead of inventing a price when no quote provider is injected', async () => {
+    const sb = new SandboxBroker({ stateFile });
+    await expect(sb.placeOrder({ symbol: '600519', side: 'buy', type: 'market', quantity: 100 })).rejects.toThrow(
+      'sandbox quote for 600519 requires an injected market-data provider',
+    );
+  });
+
   it('reset() restores initial state', async () => {
     const sb = new SandboxBroker({
       stateFile,
