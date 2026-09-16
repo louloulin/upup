@@ -39,22 +39,18 @@ UpUp **不重新实现 agent**。Agent loop、TUI/InteractiveMode、工具执行
 
 根 `src` 是 bootstrap + transport 壳 + 必要数据迁移。新增业务代码禁止直接放到 `src/` 下，必须以 Pi Package 形式接入。
 
-### 48 个 workspace package（全部 Pi native）
+### 37 个 workspace package（全部声明 Pi manifest）
 
-#### 35 个 Pi domain package
+`bun run report:pi7` 的实时基线：`workspacePackages=37`、`piManifestDeclaredPackages=37`、`piNativePackages=19`（即 19 个声明了真实 Pi 资源），注册 tool 名 269 个，仓库内 skill 47 个。
 
-- 公共 Runtime：`pi-runtime`、`pi-session`、`pi-resource-composition`、`pi-capability-registry`、`pi-event-adapter`、`pi-prompt-config`、`pi-cli-bootstrap`
-- Composition：`pi-finance-composition`、`pi-platform-composition`
-- 金融 SDK 与领域：`pi-finance-sdk`、`pi-market-data`、`pi-investment-analysis`、`pi-investment-workflow`、`pi-risk`、`pi-portfolio`、`pi-backtest`、`pi-research`、`pi-browser`、`pi-technical`、`pi-corporate-actions`、`pi-quant`、`pi-notify`
-- 平台与基础设施：`pi-config`、`pi-cache`、`pi-platform`、`pi-storage`、`pi-memory`、`pi-permissions`、`pi-observability`、`pi-planning`、`pi-management`
-- 入口与应用：`pi-app`、`pi-tui-app`
-- 其他 Pi native：`pi-bridge`、`pi-stdio`、`pi-evals`
+- Runtime 与装配：`pi-runtime`、`pi-session`、`pi-resource-composition`、`pi-capability-registry`、`pi-event-adapter`、`pi-prompt-config`、`pi-cli-bootstrap`、`pi-app`
+- 金融领域：`pi-finance-sdk`、`pi-market-data`、`pi-investment-analysis`、`pi-investment-workflow`、`pi-risk`、`pi-portfolio`、`pi-backtest`、`pi-research`、`pi-browser`、`pi-technical`、`pi-corporate-actions`、`pi-quant`、`pi-notify`
+- 平台与基础设施：`pi-config`、`pi-cache`、`pi-platform`、`pi-storage`、`pi-memory`、`pi-permissions`、`pi-observability`、`pi-planning`、`pi-management`、`pi-evals`
+- 渠道与外围：`gateway`、`cron`、`daemon`、`mcp`、`memory`、`types`、`utils`
 
-#### 13 个外围 workspace package
+> ⚠️ 37 个 package 都写了 `pi` 块，但只有 19 个声明了真实资源（extensions/skills/prompts/workflows/policies/evals/tools）。`piNativePackages` 不等于 `piManifestDeclaredPackages`，不要合并成「37 个 Pi-native package」这种口径。
 
-`commands`、`cron`、`daemon`、`gateway`、`hooks`、`i18n`、`keybindings`、`mcp`、`memory`、`sdk`、`state`、`types`、`utils`（以 Pi manifest contract 接入，不是金融业务实现）
-
-> ⚠️ 其中 29 个 package 的 `pi` 块是**空声明**（无 extensions/skills/prompts/workflows/policies/evals/tools/sideEffects）。`bun run report:pi7` 现在同时输出 `piManifestDeclaredPackages` 与 `piNativePackages`（48 vs 19），`piNative` 不再等价于「有 pi 字段」。
+> 📌 **已删除的自实现（Pi Native 迁移）**：`pi-tui-app`（改用 Pi `InteractiveMode`）、`pi-bridge` / `pi-stdio`（改用 Pi transport + `pi-protocol`）、`pi-finance-composition` / `pi-platform-composition`（改用 Pi composition defaults）、`commands`、`state`、`keybindings`、`i18n`、`hooks`、`sdk`。`pi-deletion-audit` 守门旧路径消费者清零。
 
 ### Pi Runtime 与 Session
 
@@ -79,12 +75,15 @@ UpUp **不重新实现 agent**。Agent loop、TUI/InteractiveMode、工具执行
 - `bun run check:pi-runtime` — Bun/Node 版本与 build target
 - `bun run check:pi-deletion-audit` (strict) — 旧路径消费者清零
 - `bun run check:pi-package-audit` (strict) — package pin 一致性
-- `bun run verify:pi7-final` — 20 套产品验收合同（一键 orchestrator）
+- `bun run check:no-self-impl` — 禁止 UpUp 导出与 Pi canonical 导出同名
+- `bun run check:tui-bridge-cleanup` — 确认 `pi-tui-app` 已删除、入口只剩 Pi `InteractiveMode`
+- `bun run check:upup-home` — 所有 `~/.upup` 路径必须走 `$UPUP_HOME`，禁止裸 `homedir()` 拼接
+- `bun run verify:pi7-final` — 22 套产品验收合同（一键 orchestrator）
 - `bun run report:pi7` — 实时结构基线（workspace 数、src 行数、Pi manifest 覆盖、capability negotiation、global registry 消费者、唯一 factory 校验、root allowlist）
 
 ### 配置与运行环境
 
-- Config: `.upup/settings.json`（gitignored，持久化 model/provider 选择）
+- Config: `~/.upup/agent/settings.json`（全局，持久化 model/provider/theme 选择）与 `<cwd>/.upup/settings.json`（项目级,gitignored）
 - Environment: `.env`（API keys；见 `env.example`）
 - Scripts: `scripts/release.sh`、各种 `verify-pi-*.ts` 与 `report-pi*.ts`
 
@@ -95,21 +94,15 @@ UpUp **不重新实现 agent**。Agent loop、TUI/InteractiveMode、工具执行
 - Run: `bun run start` 或 `bun run src/index.tsx`
 - Dev (watch mode): `bun run dev`
 - Type-check: `bun run typecheck`（= `tsc --noEmit -p tsconfig.typecheck.json`，覆盖根 `src` + `packages/*/src`）
-- Tests: `bun test`（2124 测试 / 227 文件）
+- Tests: `bun test`（Bun test runner，覆盖根 `src` + 全部 workspace）
 - 验证流水线：`bun run verify:pi7-final`（一键 orchestrator，22 套合同，C15 需真实凭证否则 skip）
-- Evals: `bun run evals` 或 `bun run evals --sample 10`
+- Evals: `bun run eval` 或 `bun run eval --sample 10`
 - CI（`.github/workflows/ci.yml`）跑 `lint:scc`、`check:pi-runtime`、`check:pi7`、`check:module-boundaries`、`check:pi-packages`、`check:js-suffix`、`check:pi-deletion-audit`、`check:pi-package-audit`、`typecheck`、`bun test`，外加独立的 `verify:pi7-final` job。
-- CI 不构建 `dist/`：48 个 workspace package 的 `exports` 都带 `"bun": "./src/*.ts"` 条件，`bun run` / `bun test` / CI 直接解析源码；`dist/` 仅用于发布与 `bun run build:packages`。
-
-### 已知缺口（2026-09-15 审计，尚未修复）
-
-- **Skill 来源与作用域（2026-09-15 实测）**：Pi 从三处解析 skill ——（a）Pi package manifest 的 `pi.skills`；（b）`<project>/.agents/skills` 与 `~/.agents/skills`（Pi package-manager 内建的 agent-skills 约定，见 `pi-coding-agent/dist/core/package-manager.js`）；（c）调用方显式传入的 `additionalSkillPaths`。一次 session 实测加载 **222 个 skill**：仓库内 47（19 来自 `.agents/skills`、28 来自 Pi package），用户全局 `~/.agents/skills` 175。`.claude/skills`（12，含 openspec-\* 等 Claude Code 专用）**不是** Pi 来源，不会加载。`verifyPiResourceTrust` 的 fail-closed 只约束 package 声明的 skill/prompt/extension 路径，不拦截 Pi 自身的 `.agents/skills` 自动发现。**真正的缺口是作用域**：除 `spec.skills` 显式给出白名单外，会话会把用户全局 skill 库一并暴露给模型（`skillsOverride` 仅在 `spec.skills !== undefined` 时生效）。守门测试：`src/runtime/pi/skill-reachability.contract.test.ts`。
-- **29 个空 `pi` 块**：`piManifestDeclaredPackages=48`，但 `piNativePackages=19`；空声明会让「48 个 Pi-native package」这类指标虚高。
-- **`tsconfig.typecheck.json` 未覆盖 `packages/*/extensions`**：目前只 include `packages/*/src/**/*`，extension 目录依赖各自 `tsconfig.json`。
+- CI 不构建 `dist/`：37 个 workspace package 的 `exports` 都带 `"bun": "./src/*.ts"` 条件，`bun run` / `bun test` / CI 直接解析源码；`dist/` 仅用于发布与 `bun run build:packages`。
 
 ## Coding Style & Conventions
 
-- Language: TypeScript (ESM, strict mode)。JSX via React (Ink for CLI rendering)。
+- Language: TypeScript (ESM, strict mode)。渲染层全部由 Pi 提供（`@earendil-works/pi-tui` / `InteractiveMode`）；UpUp 不再自带 Ink / React 渲染。
 - 严格 typing；避免 `any`。
 - 文件精简；抽取 helper，不复制实现。
 - 仅对非平凡逻辑加注释。
@@ -153,11 +146,11 @@ UpUp **不重新实现 agent**。Agent loop、TUI/InteractiveMode、工具执行
   - 禁止入口重复实现 Pi event 映射（统一走 `@upup/pi-event-adapter`）。
 - **事件流**：Pi 产生 typed events（`tool_start`、`tool_end`、`thinking`、`answer_start`、`done` 等），由 `@upup/pi-event-adapter` 适配到 TUI / Gateway / Bridge / stdio。
 
-## Slash Autocomplete
+## Slash Commands
 
-- Slash command 完成（和 `@`-前缀文件完成）由 `@upup/pi-tui-app` 的 `CombinedAutocompleteProvider` 接入；Editor 由 `@earendil-works/pi-tui` 提供，是自动完成 popup 的单一 source of truth。
-- `src/commands/unified-registry.ts` 已删除；统一入口在 `@upup/commands`，由 `@upup/pi-tui-app` 与 `@upup/pi-app/default` 装配。
-- 按 Enter 直接提交当前行（与 codex / claude code 一致）。
+- **通用 slash 命令全部用 Pi 内建的**：`/model`、`/session`、`/compact`、`/theme`、`/resume`、`/fork`、`/help`…（`pi-coding-agent/dist/core/slash-commands.js`）。UpUp 的 `@upup/commands` 与自建 autocomplete 已删除。
+- **UpUp 只注册投资命令族**：`/invest`、`/dossier`、`/strategy`、`/risk-dashboard`、`/portfolio-review`、`/morning-brief`、`/earnings-preview`、`/watchlist-edit`、`/screen`，由 `@upup/pi-finance-sdk/extensions/commands.ts` 通过 `ExtensionAPI.registerCommand` 注册；command catalog 的唯一真源是 `@upup/pi-investment-workflow/src/registry.ts#INVESTMENT_COMMANDS`。
+- Slash 补全由 Pi `InteractiveMode` + `@earendil-works/pi-tui` Editor 提供；UpUp 不再自建 popup。
 
 ## Environment Variables
 
@@ -212,6 +205,9 @@ UpUp 不去 fork Pi，而是用 Pi 官方扩展点 `before_agent_start`（`Befor
 
 ## Known Pi-Integration Gaps (2026-09-16 audit)
 
+- **Skill 作用域**：Pi 从三处解析 skill ——（a）Pi package manifest 的 `pi.skills`；（b）`<project>/.agents/skills` 与 `~/.agents/skills`（Pi package-manager 内建约定）；（c）调用方显式传入的 `additionalSkillPaths`。实测一次 session 加载 **222 个 skill**（仓库内 47，用户全局 `~/.agents/skills` 175）。`.claude/skills` **不是** Pi 来源，不会加载。缺口在**作用域**：除 `spec.skills` 显式给出白名单外，会话会把用户全局 skill 库一并暴露给模型。守门测试 `src/runtime/pi/skill-reachability.contract.test.ts`。
+- **`tsconfig.typecheck.json` 未覆盖 `packages/*/extensions`**：只 include `packages/*/src/**/*`，extension 目录依赖各自 `tsconfig.json`。
+
 - ✅ 已修复 `agentDir = cwd`：现在恒定 `~/.upup/agent`，并有 `agent-dir.test.ts` 守门。
 - ✅ 已修复 `SettingsManager.inMemory()`：`agent-session-factory` 用 `SettingsManager.create(cwd, agentDir)`，`/model` 持久化落到真实 `~/.upup/agent/settings.json`。
 - ✅ 已修复 `Welcome to Pi` setup wizard 反复出现：settings.json 迁移到位后不再走向导。
@@ -223,7 +219,7 @@ UpUp 不去 fork Pi，而是用 Pi 官方扩展点 `before_agent_start`（`Befor
   （`docs/usage.md`: "It intentionally does not include built-in MCP, sub-agents, permission popups, plan mode, to-dos, or background bash."）。
   因此 `packages/mcp` **保留**为 UpUp 的 Pi extension 能力，不按原计划删除。
 
-## ## Security
+## Security
 
 - API keys 存在 `.env`（gitignored）；用户也可通过 CLI 交互输入。
 - Config 存在 `.upup/settings.json`（gitignored）。

@@ -4,7 +4,7 @@
 > [`openspec/changes/upup-vs-dexter-comprehensive-audit-and-doc-refresh/docs/upup-vs-dexter-audit.md`](./openspec/changes/upup-vs-dexter-comprehensive-audit-and-doc-refresh/docs/upup-vs-dexter-audit.md)
 > with reproducible shell commands and pinned commit SHAs.
 > The canonical "中国版" positioning lives in
-> [`docs/upup-china-edition-positioning.md`](./upup-china-edition-positioning.md).
+> [`docs/pi-native-positioning.md`](./pi-native-positioning.md).
 > When in doubt, those two docs win.
 ---
 
