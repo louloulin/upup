@@ -122,6 +122,10 @@ export async function applyProperLockfileBunShim(
   options: { agentDir?: string } = {},
 ): Promise<ApplyShimResult> {
   const result = await doApply(requireFn, options);
+  try {
+    const { appendFileSync } = await import('node:fs');
+    appendFileSync('/tmp/shim-trace.log', JSON.stringify({ t: Date.now(), ...result }) + '\n');
+  } catch { /* ignore */ }
   return result;
 }
 
@@ -190,7 +194,11 @@ async function doApply(
  * install cache.
  */
 function resolveRootedRequire(agentDirOverride?: string): RequireLike {
-  const agentDir = agentDirOverride ?? process.env.PI_CODING_AGENT_DIR ?? join(process.env.HOME ?? '', '.upup', 'agent');
+  const agentDir =
+    agentDirOverride ??
+    process.env.UPUP_CODING_AGENT_DIR ??
+    process.env.PI_CODING_AGENT_DIR ??
+    join(process.env.UPUP_HOME?.trim() || join(process.env.HOME ?? '', '.upup'), 'agent');
   const pkgEntry = join(agentDir, 'npm', 'node_modules', '@llmgates_api', 'pi-llmgates-provider', 'dist', 'index.js');
   if (!existsSync(pkgEntry)) {
     throw new Error(`pi-llmgates-provider entry not found at ${pkgEntry}`);

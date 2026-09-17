@@ -92,6 +92,9 @@
       "@upup/pi-resource-composition": [
         "./packages/pi-resource-composition/src/index.ts"
       ],
+      "@upup/pi-resource-composition/agent-dir": [
+        "./packages/pi-resource-composition/src/agent-dir.ts"
+      ],
       "@upup/pi-risk": [
         "./packages/pi-risk/src/index.ts"
       ],

@@ -11,6 +11,11 @@
       "types": "./dist/index.d.ts",
       "bun": "./src/index.ts",
       "default": "./dist/index.js"
+    },
+    "./agent-dir": {
+      "types": "./dist/agent-dir.d.ts",
+      "bun": "./src/agent-dir.ts",
+      "default": "./dist/agent-dir.js"
     }
   },
   "scripts": {

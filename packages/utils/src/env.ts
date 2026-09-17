@@ -32,11 +32,16 @@ mergeAuthJsonIntoProcessEnv(getAuthJsonPath());
 /** Resolve the canonical `auth.json` path. Tries Pi's env override first, then
  *  the UpUp canonical home, then Pi's legacy home. */
 export function getAuthJsonPath(): string {
-  const fromEnv = process.env.PI_CODING_AGENT_DIR?.trim();
+  // Pi derives the env var name from its own `piConfig.name`, so UpUp's
+  // rebranded build reads `UPUP_CODING_AGENT_DIR`. Check both names (and
+  // `$UPUP_HOME`) so this agrees with `@upup/pi-resource-composition`'s
+  // `resolveAgentDir` instead of silently falling back to the real home.
+  const fromEnv =
+    process.env.UPUP_CODING_AGENT_DIR?.trim() || process.env.PI_CODING_AGENT_DIR?.trim();
   if (fromEnv) return join(fromEnv, 'auth.json');
   const upup = join(getUpupHomeRoot(), 'agent', 'auth.json');
   if (existsSync(upup)) return upup;
-  return join(homedir(), '.pi', 'agent', 'auth.json');
+  return join(homedir(), '.upup', 'agent', 'auth.json');
 }
 
 interface AuthJsonCredential {

@@ -16,7 +16,7 @@
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { homedir } from 'node:os';
+import { resolveAgentDir } from '@upup/pi-resource-composition/agent-dir';
 
 /** Names of the events this extension subscribes. Exported so the
  *  event-coverage guard script can count what is wired. */
@@ -53,8 +53,11 @@ interface AuditBreadcrumb {
 }
 
 function auditDir(): string {
-  const dir = process.env['UPUP_AGENT_DIR'] ?? join(homedir(), '.upup', 'agent');
-  return join(dir, 'state');
+  // `UPUP_AGENT_DIR` is the top-priority source in `resolveAgentDir`, so the
+  // override still wins while every other path goes through the shared
+  // `$UPUP_HOME`-aware resolver instead of a literal `~/.upup` join.
+  const { agentDir } = resolveAgentDir();
+  return join(agentDir, 'state');
 }
 
 function auditPath(): string {

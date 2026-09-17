@@ -18,6 +18,7 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { existsSync, mkdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
+import { publishPiAgentDirEnv } from '@upup/pi-resource-composition/agent-dir';
 import { startProxyServer, type ProxyOptions } from './proxy-server';
 
 export interface LaunchOptions {
@@ -101,10 +102,19 @@ async function startUpstream(opts: LaunchOptions & { readonly piWebDir: string }
     PI_WEB_NO_OPEN: '1',
     PI_WEB_CWD: opts.cwd,
     PI_WEB_DATA_DIR: resolveDataDir({ upupHome: opts.upupHome }),
-    PI_CODING_AGENT_DIR: process.env.PI_CODING_AGENT_DIR ?? join(resolveDataDir({ upupHome: opts.upupHome }), '..', 'agent'),
     NEXT_TELEMETRY_DISABLED: '1',
     ...opts.envOverrides,
   };
+  // Publish the agent dir under **every** env var name the installed Pi build
+  // may read (`UPUP_CODING_AGENT_DIR` for the rebranded package), so the web
+  // upstream resolves the same home as the launching CLI.
+  publishPiAgentDirEnv({
+    env,
+    agentDir:
+      process.env.UPUP_CODING_AGENT_DIR ??
+      process.env.PI_CODING_AGENT_DIR ??
+      join(resolveDataDir({ upupHome: opts.upupHome }), '..', 'agent'),
+  });
 
   const proc = spawn(
     process.execPath,

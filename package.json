@@ -260,5 +260,8 @@
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   },
-  "homepage": "https://github.com/louloulin/upup#readme"
+  "homepage": "https://github.com/louloulin/upup#readme",
+  "patchedDependencies": {
+    "@earendil-works/pi-coding-agent@0.85.1": "patches/@earendil-works%2Fpi-coding-agent@0.85.1.patch"
+  }
 }

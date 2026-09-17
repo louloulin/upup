@@ -35,7 +35,7 @@ import { homedir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { resolveAgentDir, upupAgentDirFor } from '@upup/pi-resource-composition';
+import { publishPiAgentDirEnv, resolveAgentDir, upupAgentDirFor } from '@upup/pi-resource-composition';
 
 /**
  * 第三方 Pi package 里，UpUp 已经自带等价实现、且会和 UpUp 注册的同名工具冲突的
@@ -468,17 +468,20 @@ export { upupAgentDirFor };
  * stdio/RPC, gateway, cron, daemon):
  *
  *   1. resolve the canonical `~/.upup/agent` (or an explicit env override),
- *   2. publish it as `PI_CODING_AGENT_DIR` so Pi's `getAgentDir()` agrees, and
+ *   2. publish it to **both** `UPUP_CODING_AGENT_DIR` and
+ *      `PI_CODING_AGENT_DIR` so Pi's `getAgentDir()` agrees (Pi reads the
+ *      former because UpUp ships a rebranded `piConfig.name = "upup"`), and
  *   3. bootstrap the directory (seed from a previous Pi home + UpUp theme).
  *
- * Must run before any `@earendil-works/pi-*` module is imported: Pi reads
- * `PI_CODING_AGENT_DIR` at module init. Returns the resolved agent dir.
+ * Must run before any `@earendil-works/pi-*` module is imported: Pi reads the
+ * env var at module init. Returns the resolved agent dir.
  */
 export function ensureUpupAgentDir(env: NodeJS.ProcessEnv = process.env): string {
-  const preset = env.PI_CODING_AGENT_DIR?.trim();
-  if (preset) return preset;
-  const resolved = resolveAgentDir(process.cwd(), { env, home: env.HOME ?? homedir() }).agentDir;
-  env.PI_CODING_AGENT_DIR = resolved;
+  const resolved = publishPiAgentDirEnv({
+    env,
+    cwd: process.cwd(),
+    home: env.HOME ?? homedir(),
+  });
   bootstrapUpupAgentSync({ agentDir: resolved });
   return resolved;
 }

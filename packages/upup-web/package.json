@@ -12,7 +12,8 @@
   "dependencies": {
     "@agegr/pi-web": "0.9.1",
     "@upup/pi-investment-workflow": "0.1.0",
-    "@upup/pi-runtime": "0.1.0"
+    "@upup/pi-runtime": "0.1.0",
+    "@upup/pi-resource-composition": "0.1.0"
   },
   "pi": {
     "contract": "upup.pi.runtime.v1",
@@ -35,7 +36,10 @@
     "prompts": [],
     "workflows": [],
     "policies": [],
-    "evals": []
+    "evals": [],
+    "dependencies": {
+      "@upup/pi-resource-composition": "0.1.0"
+    }
   },
   "scripts": {
     "test": "bun test ./src ./test"

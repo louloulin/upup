@@ -323,6 +323,7 @@
         "@upup/pi-market-data": "0.1.0",
         "@upup/pi-planning": "0.1.0",
         "@upup/pi-research": "0.1.0",
+        "@upup/pi-resource-composition": "0.1.0",
         "@upup/pi-runtime": "0.1.0",
         "@upup/pi-storage": "0.2.0",
         "@upup/types": "0.2.0",
@@ -549,6 +550,7 @@
       "dependencies": {
         "@agegr/pi-web": "0.9.1",
         "@upup/pi-investment-workflow": "0.1.0",
+        "@upup/pi-resource-composition": "0.1.0",
         "@upup/pi-runtime": "0.1.0",
       },
     },
@@ -566,6 +568,9 @@
         "@upup/types": "0.2.0",
       },
     },
+  },
+  "patchedDependencies": {
+    "@earendil-works/pi-coding-agent@0.85.1": "patches/@earendil-works%2Fpi-coding-agent@0.85.1.patch",
   },
   "packages": {
     "@agegr/pi-web": ["@agegr/pi-web@0.9.1", "https://registry.npmmirror.com/@agegr/pi-web/-/pi-web-0.9.1.tgz", { "dependencies": { "@earendil-works/pi-agent-core": "0.85.1", "@earendil-works/pi-ai": "0.85.1", "@earendil-works/pi-coding-agent": "0.85.1", "@earendil-works/pi-tui": "0.85.1", "@xterm/addon-fit": "0.11.0", "@xterm/xterm": "6.0.0", "ansi_up": "^6.0.6", "js-yaml": "^5.2.3", "next": "16.3.1", "node-pty": "1.2.0-beta.15", "proper-lockfile": "4.1.2", "react": "^19.2.4", "react-dom": "^19.2.4", "remark-frontmatter": "^5.0.0", "semver": "7.8.0", "undici": "8.10.0", "web-push": "^3.6.7" }, "bin": { "pi-web": "bin/pi-web.js" } }, "sha512-b+oOwgH8eEr/0iLjYcCYwyddJO2OgbNDKGgyYIDQhEN6s5gIdo1OAkl6Q+0BwpPIaQ8WWtpusb9g7wMvhTFT0w=="],

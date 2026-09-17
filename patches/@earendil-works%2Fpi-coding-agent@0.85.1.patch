@@ -1,0 +1,14 @@
+diff --git a/package.json b/package.json
+index 572af1e947bf8b827389ecafae428a13b4957fa9..56444eadc0aa6ea5d00f15e6613b5b6880ae07b1 100644
+--- a/package.json
++++ b/package.json
+@@ -4,7 +4,8 @@
+ 	"description": "Coding agent CLI with read, bash, edit, write tools and session management",
+ 	"type": "module",
+ 	"piConfig": {
+-		"configDir": ".pi"
++		"name": "upup",
++		"configDir": ".upup"
+ 	},
+ 	"bin": {
+ 		"pi": "dist/bundle/cli.js"
