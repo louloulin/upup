@@ -31,6 +31,14 @@ function hasFlag(flags: string[]): boolean {
   return flags.some(f => args.includes(f));
 }
 
+function parseWebFlag(args: readonly string[], flag: string): string | undefined {
+  const index = args.indexOf(flag);
+  if (index < 0 || index + 1 >= args.length) return undefined;
+  const value = args[index + 1];
+  return value && value.length > 0 ? value : undefined;
+}
+
+
 function parseIntFlag(flags: readonly string[], name: string): number | undefined {
   const raw = getFlag([name]);
   if (raw === undefined) return undefined;
@@ -178,6 +186,41 @@ async function main() {
       process.stdout.write(`${brResult.message}\n`);
       process.exit(brResult.exitCode);
       break;
+
+    case 'web':
+      // Spawn `pi-web-ui` (Pi's official web UI for the coding agent) with
+      // an UpUp-tuned config. The upstream binary is the same one the Pi
+      // community uses; UpUp just configures the cwd + data-dir so the
+      // browser session sees the same UpUp skill / command / package
+      // surface the TUI does.
+      {
+        const args2 = args.slice(1);
+        const port = parseWebFlag(args2, '--port') ?? '9000';
+        const cwd = parseWebFlag(args2, '--cwd') ?? process.cwd();
+        const noBrowser = args2.includes('--no-browser');
+        const piWebUi = Bun.which('pi-web-ui') ?? require('node:path').resolve(
+          require('node:os').homedir(),
+          '.bun/install/global/node_modules/pi-web-ui/bin/pi-web-ui.mjs',
+        );
+        const env: Record<string, string> = {
+          ...process.env as Record<string, string>,
+          PI_WEB_PORT: port,
+          PI_WEB_CWD: cwd,
+          PI_WEB_ENGINE: 'pi',
+          PI_CODING_AGENT_DIR: process.env.PI_CODING_AGENT_DIR ?? '',
+        };
+        const child = Bun.spawn(['pi-web-ui', `--port`, port, `--cwd`, cwd, ...(noBrowser ? ['--no-browser'] : [])], {
+          env,
+          stdin: 'inherit',
+          stdout: 'inherit',
+          stderr: 'inherit',
+        });
+        process.stderr.write(`upup web: spawning pi-web-ui on port ${port} (cwd=${cwd})\n`);
+        process.stderr.write(`upup web: open http://127.0.0.1:${port}/ once the server is ready\n`);
+        const code = await child.exited;
+        process.exitCode = code;
+      }
+      return;
 
     case 'mcp':
       // MCP server: `upup mcp serve` (default subcommand = serve).

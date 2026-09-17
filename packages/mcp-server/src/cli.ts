@@ -64,8 +64,12 @@ function printHelp(): void {
   process.stdout.write(`upup-mcp — UpUp finance MCP server
 
 Usage:
-  upup-mcp serve           Start the stdio MCP server (TradingAgents / Claude Code entry point)
+  upup-mcp serve [--transport stdio|http] [--port 8765] [--host 127.0.0.1] [--token <bearer>]
+                        Start the MCP server (default stdio; TradingAgents / Claude Code entry point)
   upup-mcp help            Print this help
+
+Environment:
+  UPUP_MCP_TOKEN           Optional bearer token (HTTP transport only).
 
 Tools exposed under the \`upup_finance__\` namespace (read-only by design):
   upup_finance__get_stock_price         Real-time price snapshot (CN/HK/US)

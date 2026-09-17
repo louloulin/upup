@@ -394,3 +394,75 @@ const session = await factory.create({ cwd: process.cwd(), /* ... */ });
 
 无新代码 — 这就是 `@upup/pi-app/default` 的设计目标。
 
+
+
+### 9.4 MCP HTTP / Streamable-HTTP transport
+
+`@upup/mcp-server` 除了默认的 stdio transport 外，还支持 **streamable-HTTP**（Pi MCP 推荐方式）。这样远程 TradingAgents / Claude Code / Codex 主机可以在没有 stdio 通道的情况下使用 UpUp 的金融工具：
+
+```bash
+$ upup-mcp serve --transport http --port 8765 --token <bearer>
+[upup-mcp] listening on http://127.0.0.1:8765/ (streamable-http)
+```
+
+或通过环境变量配置认证 token：
+
+```bash
+$ UPUP_MCP_TOKEN=<bearer> upup-mcp serve --transport http --port 8765
+```
+
+- **stateless 模式**：每个 HTTP 请求 = 一个全新的 transport + server，无需 session id（适合只读金融工具）。
+- **认证**：可选 Bearer token；缺失时 401，命中时 200。
+- **CORS**：`access-control-allow-origin: *`（可通过 `HttpTransportOptions.allowedOrigins` 收紧）。
+- **GET / DELETE**：返回 405（stateless 模式仅接受 POST）。
+
+### 9.5 浏览器 Web UI（`upup web`）
+
+UpUp 直接复用 [pi-web-ui](https://pi.dev/packages/pi-web-ui)（Pi 官方 Web UI，0.88.0 已装）：
+
+```bash
+$ upup web [--port 9000] [--cwd /path] [--no-browser]
+[upup web] spawning pi-web-ui on port 9000 (cwd=/Users/...)
+[upup web] open http://127.0.0.1:9000/ once the server is ready
+```
+
+- 自动加载 UpUp 的 finance skill / MCP tools / SOP，工作目录 = `$PWD`。
+- 数据目录 = `<cwd>/.pi-web`，与会话 transcript 共享。
+- `--no-browser` 跳过自动打开浏览器（服务器模式 / CI 用）。
+
+### 9.6 In-process SDK（`@upup/sdk`）
+
+对于不想 spawn 子进程、想 in-process 驱动 UpUp 的 host（TradingAgents 自定义 IDE 插件、Codex skill、Claude Code MCP server、自动化脚本）：
+
+```ts
+import { createUpUpSession } from '@upup/sdk';
+
+const handle = await createUpUpSession({
+  profile: 'researcher',
+  onEvent: (event) => {
+    if (event.type === 'message') process.stdout.write(event.message.content);
+    if (event.type === 'tool_call') console.log('tool:', event.tool);
+  },
+});
+await handle.prompt('/invest 600519.SH');
+await handle.waitForIdle();
+await handle.close();
+```
+
+- **7 个 canonical profile**：`researcher / analyst / risk-manager / portfolio-manager / backtest-engineer / monitor / reviewer`。
+- **9 个 typed event**：`ready / agent_event / message / tool_call / tool_result / thinking / done / error`。
+- **真实 e2e 验证通过**：通过 `bun run packages/sdk/test/e2e-real-session.mjs` 启动真实 Pi AgentSession 并加载 10 个 UpUp skill。
+
+### 9.7 SOP → Pi workflow resource 桥接
+
+5 个内置 SOP（graham / momentum / debate / morning-brief / portfolio-review）通过 `pi-subagents/registerWorkflowResource` 注册为 Pi workflow resource：
+
+```bash
+# 任何 pi-subagents 宿主都能用标准 DAG scheduler 跑 UpUp SOP：
+workflow.run('upup-sop__graham', { ticker: '600519.SH' })
+workflow.run('upup-sop__debate', { ticker: 'AAPL' })
+```
+
+- 每个 SOP 对应一个 workflow resource：`name = upup-sop__<sopId>`、`version = hash(sop.version)`。
+- `resolve(args)` 校验 `ticker`，返回调用 `runs.host('upup-sop', { sopId, ticker, ... })` 的脚本。
+- 启动自动装载：`@upup/pi-app.initialize()` 调用桥接；缺 `pi-subagents` 时静默跳过。

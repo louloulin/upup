@@ -111,6 +111,32 @@ if (failures.length > 0) {
   for (const failure of failures) console.error(`  - ${failure}`);
   process.exit(1);
 }
+
+
+// 6. MCP HTTP / streamable-HTTP transport ------------------------------------
+console.log('\n6. MCP HTTP transport (streamable-http + bearer auth):');
+const httpTransportPath = resolve(ROOT, 'packages/mcp-server/src/http-transport.ts');
+const httpTransportSrc = existsSync(httpTransportPath) ? read(httpTransportPath) : '';
+check(
+  '@upup/mcp-server exposes http-transport.ts (streamable-http + auth)',
+  existsSync(httpTransportPath) && /handleStatelessStreamableHttp/.test(httpTransportSrc) && /buildAuthGate/.test(httpTransportSrc),
+  'packages/mcp-server/src/http-transport.ts must export handleStatelessStreamableHttp + buildAuthGate',
+);
+const httpTestPath = resolve(ROOT, 'packages/mcp-server/test/http-transport.test.ts');
+check(
+  'HTTP transport has end-to-end tests',
+  existsSync(httpTestPath),
+  'packages/mcp-server/test/http-transport.test.ts must exist',
+);
+const webCommandEntry = existsSync(resolve(ROOT, 'packages/pi-app/src/entry.ts'))
+  ? read(resolve(ROOT, 'packages/pi-app/src/entry.ts'))
+  : '';
+check(
+  '`upup web` subcommand wired in pi-app/entry.ts (wraps pi-web-ui)',
+  /case 'web':/.test(webCommandEntry) && /pi-web-ui/.test(webCommandEntry),
+  'packages/pi-app/src/entry.ts must dispatch `upup web` to pi-web-ui',
+);
+
 console.log('check:cross-platform-exposure OK');
 
 // 5. In-process SDK (@upup/sdk) ------------------------------------------------

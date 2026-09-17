@@ -78,7 +78,7 @@ describe('createUpUpSession', () => {
       makeFakeRuntime(UPUP_SDK_PROFILES.researcher),
     );
     expect(handle.id.startsWith('fake-')).toBe(true);
-    expect(handle.spec.id).toBe('upup-sdk.researcher');
+    expect(handle.spec.id).toBe('upup-sdk-researcher');
     await handle.close();
   });
 
@@ -122,7 +122,7 @@ describe('UPUP_SDK_PROFILES', () => {
   });
 
   it('resolveUpUpSpec returns the default researcher when called with no arg', () => {
-    expect(resolveUpUpSpec(undefined).id).toBe('upup-sdk.researcher');
+    expect(resolveUpUpSpec(undefined).id).toBe('upup-sdk-researcher');
   });
 
   it('resolveUpUpSpec throws on unknown short-hand', () => {

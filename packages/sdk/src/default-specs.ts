@@ -18,16 +18,21 @@ import type { UpUpAgentProfile } from './types';
 
 const SPEC_VERSION = '1.0.0';
 
+// Skill names are taken from the real <repo>/.agents/skills catalog;
+// Pi's ResourceLoader resolves them at session start. The set here is
+// what every UpUp profile gets by default — agents that need a different
+// skill set should override `spec.skills` via a custom spec.
 const BASE_SKILLS: readonly string[] = [
-  'invest_workflow',
-  'morning_brief',
-  'earnings_preview',
-  'risk_dashboard',
-  'portfolio_review',
-  'watchlist',
-  'dossier',
-  'screen',
-  'strategy',
+  'a-share-data',
+  'a-share-filings',
+  'a-share-fund',
+  'a-share-market-structure',
+  'a-share-screening',
+  'financial-data',
+  'macro-china',
+  'filing-analysis',
+  'upup-finance',
+  'upup-skill-system',
 ];
 
 const BASE_CAPABILITIES: readonly string[] = [
@@ -107,7 +112,7 @@ const REVIEWER_SYSTEM_PROMPT = `You are UpUp reviewer — independent review of 
 
 export const UPUP_SDK_PROFILES: Readonly<Record<UpUpAgentProfile, UpUpAgentSpec>> = {
   researcher: {
-    id: 'upup-sdk.researcher',
+    id: 'upup-sdk-researcher',
     version: SPEC_VERSION,
     name: 'UpUp Researcher',
     description: 'Default UpUp finance research profile — full CN/HK/US coverage, 5-phase /invest lifecycle.',
@@ -121,7 +126,7 @@ export const UPUP_SDK_PROFILES: Readonly<Record<UpUpAgentProfile, UpUpAgentSpec>
     permissions: READ_ONLY_PERMISSIONS,
   },
   analyst: {
-    id: 'upup-sdk.analyst',
+    id: 'upup-sdk-analyst',
     version: SPEC_VERSION,
     name: 'UpUp Analyst',
     description: 'UpUp bull/bear framing on top of UpUp researcher evidence.',
@@ -135,7 +140,7 @@ export const UPUP_SDK_PROFILES: Readonly<Record<UpUpAgentProfile, UpUpAgentSpec>
     permissions: READ_ONLY_PERMISSIONS,
   },
   'risk-manager': {
-    id: 'upup-sdk.risk-manager',
+    id: 'upup-sdk-risk-manager',
     version: SPEC_VERSION,
     name: 'UpUp Risk Manager',
     description: 'Independent risk review: position sizing, drawdown scenarios, correlation risk.',
@@ -149,7 +154,7 @@ export const UPUP_SDK_PROFILES: Readonly<Record<UpUpAgentProfile, UpUpAgentSpec>
     permissions: READ_ONLY_PERMISSIONS,
   },
   'portfolio-manager': {
-    id: 'upup-sdk.portfolio-manager',
+    id: 'upup-sdk-portfolio-manager',
     version: SPEC_VERSION,
     name: 'UpUp Portfolio Manager',
     description: 'Portfolio review: drift, correlation clusters, rebalance candidates.',
@@ -163,7 +168,7 @@ export const UPUP_SDK_PROFILES: Readonly<Record<UpUpAgentProfile, UpUpAgentSpec>
     permissions: READ_ONLY_PERMISSIONS,
   },
   'backtest-engineer': {
-    id: 'upup-sdk.backtest-engineer',
+    id: 'upup-sdk-backtest-engineer',
     version: SPEC_VERSION,
     name: 'UpUp Backtest Engineer',
     description: 'Strategy spec → runnable backtest with Sharpe / drawdown / win-rate.',
@@ -177,7 +182,7 @@ export const UPUP_SDK_PROFILES: Readonly<Record<UpUpAgentProfile, UpUpAgentSpec>
     permissions: READ_ONLY_PERMISSIONS,
   },
   monitor: {
-    id: 'upup-sdk.monitor',
+    id: 'upup-sdk-monitor',
     version: SPEC_VERSION,
     name: 'UpUp Monitor',
     description: 'Ticker / portfolio / event watch with numeric thresholds.',
@@ -191,7 +196,7 @@ export const UPUP_SDK_PROFILES: Readonly<Record<UpUpAgentProfile, UpUpAgentSpec>
     permissions: READ_ONLY_PERMISSIONS,
   },
   reviewer: {
-    id: 'upup-sdk.reviewer',
+    id: 'upup-sdk-reviewer',
     version: SPEC_VERSION,
     name: 'UpUp Reviewer',
     description: 'Independent structured critique of another UpUp agent’s output.',

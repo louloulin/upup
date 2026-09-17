@@ -290,6 +290,50 @@ async function readSopWorkflowBridgeStatus(): Promise<Record<string, unknown>> {
 }
 
 
+
+async function readWebUiStatus(): Promise<Record<string, unknown>> {
+  const piWebUiPkg = (() => {
+    try {
+      const fs = require('node:fs') as typeof import('node:fs');
+      const path = require('node:path') as typeof import('node:path');
+      const lockPath = resolve(root, 'bun.lock');
+      if (!fs.existsSync(lockPath)) return null;
+      const text = fs.readFileSync(lockPath, 'utf8');
+      // bun.lock uses `"pi-web-ui": ["pi-web-ui@0.88.0", ...]` format.
+      const match = text.match(/"pi-web-ui":\s*\["pi-web-ui@([0-9.]+)"/);
+      return match ? match[1] : null;
+    } catch {
+      return null;
+    }
+  })();
+  return {
+    contract: 'upup.pi.web-ui.v1',
+    available: piWebUiPkg !== null,
+    piWebUiVersion: piWebUiPkg,
+    entryPoint: 'upup web',
+    notes: '`upup web` subcommand spawns pi-web-ui (Pi official web UI) with UpUp-tuned cwd + port + data-dir.',
+  };
+}
+
+
+async function readMcpHttpTransportStatus(): Promise<Record<string, unknown>> {
+  const transportPath = resolve(root, 'packages/mcp-server/src/http-transport.ts');
+  if (!existsSync(transportPath)) {
+    return { contract: 'upup.pi.mcp-http-transport.v1', available: false };
+  }
+  const source = readFileSync(transportPath, 'utf8');
+  return {
+    contract: 'upup.pi.mcp-http-transport.v1',
+    available: /handleStatelessStreamableHttp/.test(source) && /buildAuthGate/.test(source),
+    mode: 'stateless (each request = fresh transport + server)',
+    auth: 'Bearer token (UPUP_MCP_TOKEN env or --token flag)',
+    transport: 'StreamableHTTPServerTransport',
+    cli: 'upup-mcp serve --transport http [--port 8765] [--token <bearer>]',
+    notes: 'Remote TradingAgents / Codex hosts can hit UpUp over plain HTTP without a stdio channel.',
+  };
+}
+
+
 console.log(JSON.stringify({
   generatedAt: new Date().toISOString(),
   baseline: {
@@ -326,5 +370,7 @@ console.log(JSON.stringify({
   sdk: await readInProcessSdkStatus(),
   tuiWidgets: await readTuiWidgetsStatus(),
   sopWorkflowBridge: await readSopWorkflowBridgeStatus(),
+  mcpHttpTransport: await readMcpHttpTransportStatus(),
+  webUi: await readWebUiStatus(),
   rootAllowlist: ['src/index.tsx', 'src/bootstrap/**'],
 }, null, 2));
