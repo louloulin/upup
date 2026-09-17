@@ -75,7 +75,28 @@ async function main() {
     // handing argv to Pi's parser, which rejects unknown options.
     const forwarded = args.filter((arg) => arg !== '--stdio' && arg !== '--acp');
     const rpcArgs = ['--mode', 'rpc', ...forwarded];
+    // Pi's runRpcMode ingests stdin line-by-line, but on EOF it does not
+    // always exit promptly — it can keep the loop alive waiting for the
+    // next message. Editor hosts (Zed, Neovim, custom IDE plugins) close
+    // stdin when the LSP/ACP client disconnects, and they expect the
+    // subprocess to exit cleanly. Register an explicit EOF handler that
+    // flushes stdout and exits 0; this is a fail-safe that does NOT
+    // interfere with normal RPC traffic because the trigger is stdin EOF.
+    let exited = false;
+    const onStdinEnd = (): void => {
+      if (exited) return;
+      exited = true;
+      // Give stdout one tick to flush any in-flight response, then exit.
+      setImmediate(() => process.exit(0));
+    };
+    if (process.stdin.readableEnded) {
+      onStdinEnd();
+    } else {
+      process.stdin.once('end', onStdinEnd);
+      process.stdin.once('close', onStdinEnd);
+    }
     await main(rpcArgs);
+    if (!exited) process.exit(0);
     return;
   }
 

@@ -138,8 +138,15 @@ function phaseArtifact(
   startedAt?: string,
   clock: () => string = now,
 ): InvestmentDossierPhase {
-  const started = startedAt ?? clock();
-  const completedAt = status === 'completed' || status === 'failed' || status === 'blocked' ? clock() : undefined;
+  // When the caller passes an explicit startedAt (i.e. a dossier-level
+  // recordedAt already resolved), use it for every phase-local timestamp so
+  // that two createInvestmentDossier calls with identical inputs produce
+  // byte-identical artifacts. Without this, each phase picks up a fresh
+  // `clock()` call and the artifactHash drifts per call, breaking the
+  // cross-process dossier idempotency contract.
+  const useFixedClock = startedAt !== undefined ? () => startedAt as string : clock;
+  const started = useFixedClock();
+  const completedAt = status === 'completed' || status === 'failed' || status === 'blocked' ? useFixedClock() : undefined;
   const recordedAt = completedAt ?? started;
   return {
     phase,
