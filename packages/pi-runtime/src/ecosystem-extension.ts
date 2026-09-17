@@ -41,16 +41,20 @@
  *   - `loadEcosystemPackage(name)` is overridable so tests can inject fakes.
  */
 
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import {
   UPUP_ECOSYSTEM_PACKAGES,
   type UpUpEcosystemPackage,
 } from './ecosystem-packages';
-import { createEcosystemImporter } from './ecosystem-resolver';
+import { createEcosystemImporter, resolveEcosystemSpecifier } from './ecosystem-resolver';
 
 export type EcosystemMountOutcome =
   | { kind: 'mounted'; name: string; importPath: string }
   | { kind: 'skipped_tool_conflict'; name: string; importPath: string; conflicts: readonly string[] }
+  | { kind: 'skipped_already_loaded'; name: string; importPath: string; reason: string }
   | { kind: 'verified_dirty'; name: string; importPath: string }
   | { kind: 'import_failed'; name: string; importPath: string; error: string }
   | { kind: 'not_callable'; name: string; importPath: string; actualType: string }
@@ -65,6 +69,13 @@ export interface EcosystemMountReport {
    * keep the rest of the ecosystem loaded.
    */
   readonly skippedToolConflict: readonly { name: string; importPath: string; conflicts: readonly string[] }[];
+  /**
+   * Packages Pi's own package manager already loaded from
+   * `<agentDir>/settings.json#packages`. Mounting them again would register a
+   * duplicate `subagent` / `mcp` / `ask_user_question`, which Pi turns into a
+   * fatal `Failed to load extension` diagnostic.
+   */
+  readonly skippedAlreadyLoaded: readonly { name: string; importPath: string; reason: string }[];
   readonly verifiedDirty: readonly string[];
   readonly importFailed: readonly { name: string; importPath: string; error: string }[];
   readonly notCallable: readonly { name: string; importPath: string; actualType: string }[];
@@ -79,6 +90,177 @@ export interface EcosystemMountReport {
  */
 export type EcosystemImporter = (specifier: string) => Promise<unknown>;
 
+/** Pi settings directory name under the UpUp agent home. */
+const UPUP_PI_SETTINGS_RELATIVE = '.upup/agent';
+
+/**
+ * Resolve the Pi agent dir the same way the rest of the runtime does, without
+ * importing `@upup/pi-resource-composition` (that package depends on
+ * `pi-runtime`, so importing it here would create a cycle).
+ */
+function piAgentDir(env: NodeJS.ProcessEnv = process.env): string {
+  const explicit =
+    env.UPUP_AGENT_DIR?.trim() ||
+    env.UPUP_CODING_AGENT_DIR?.trim() ||
+    env.PI_CODING_AGENT_DIR?.trim();
+  if (explicit) return explicit.replace(/^~(?=\/|$)/, env.HOME ?? '');
+  const home = env.HOME ?? '';
+  const root = env.UPUP_HOME?.trim() || join(home, '.upup');
+  return join(root, 'agent');
+}
+
+/**
+ * npm package names Pi's own package manager already loads for this agent home.
+ *
+ * The UpUp ecosystem extension and `settings.json#packages` are two
+ * independent mount paths for the same npm packages. Pi's built-in package
+ * manager wins for anything listed in settings, so mounting it again here
+ * registers a duplicate tool (`subagent`, `mcp`, `ask_user_question`) and Pi
+ * aborts with `Failed to load extension`. Reading the settings file keeps the
+ * two in sync without the user having to pick one.
+ *
+ * Missing or malformed settings degrade to "nothing pre-loaded", which is the
+ * correct behaviour for a fresh install.
+ */
+export function piLoadedPackageNames(env: NodeJS.ProcessEnv = process.env): ReadonlySet<string> {
+  const settingsPath = join(piAgentDir(env), 'settings.json');
+  if (!existsSync(settingsPath)) return new Set();
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(readFileSync(settingsPath, 'utf8'));
+  } catch {
+    return new Set();
+  }
+  const packages = (parsed as { packages?: unknown })?.packages;
+  if (!Array.isArray(packages)) return new Set();
+  const names = new Set<string>();
+  for (const entry of packages) {
+    // Entries are either a plain `"npm:<pkg>"` string or an object
+    // `{ source: 'npm:<pkg>', autoload?: false }`. `autoload: false` means Pi
+    // deliberately does NOT load it, so UpUp is the one that should.
+    const raw = typeof entry === 'string' ? entry : (entry as { source?: unknown })?.source;
+    const autoload = typeof entry === 'string' ? true : (entry as { autoload?: unknown })?.autoload;
+    if (typeof raw !== 'string') continue;
+    if (autoload === false) continue;
+    const withoutPrefix = raw.replace(/^npm:/, '');
+    if (withoutPrefix.length > 0) names.add(withoutPrefix);
+  }
+  return names;
+}
+
+/**
+ * Static tool names known to conflict across Pi ecosystem packages.
+ *
+ * These are reserved because at least two commonly-installed Pi packages
+ * (one autoloaded from `<agentDir>/settings.json`, one mounted by UpUp) each
+ * register a tool with this id, and Pi escalates duplicate tool names to a
+ * fatal extension-load error.
+ */
+export const UPUP_PI_ECOSYSTEM_RESERVED_TOOL_NAMES: readonly string[] = [
+  'subagent', 'bg_wait', 'mcp', 'mcpScript', 'ask_user_question', 'workflow',
+];
+
+/**
+ * Walk up from a file path until a `package.json` is found, returning that
+ * directory. Falls back to the input when no marker exists (test stubs pass
+ * synthetic paths that have no package.json on disk). Re-exported so the
+ * conflict pre-check can recover the package root from a subpath like
+ * `<root>/node_modules/pi-goal-x/extensions/goal.ts`.
+ */
+function packageRootFromFile(filePath: string): string | undefined {
+  let cursor = filePath;
+  for (let depth = 0; depth < 8; depth += 1) {
+    const candidate = dirname(cursor);
+    if (candidate === cursor) return undefined;
+    if (existsSync(join(candidate, 'package.json'))) return candidate;
+    cursor = candidate;
+  }
+  return undefined;
+}
+
+/**
+ * Resolve a `UpUpEcosystemPackage.importPath` to the directory of the package
+ * on disk so `declaredToolNames` can grep its source.
+ *
+ * Handles three cases:
+ *   1. Bare specifier (`pi-web-access`) — resolves to the package root.
+ *   2. Subpath (`pi-goal-x/extensions/goal.ts`) — walks up to the `package.json`.
+ *   3. Unresolvable (test stub importer) — returns `undefined`; callers treat
+ *      that as "no source declared" and fall through to the static
+ *      `registersTools` list, which is the correct degraded behaviour.
+ */
+export function resolvePackageSourceDir(
+  pkg: { readonly importPath: string; readonly name: string },
+  _importer?: EcosystemImporter,
+): string | undefined {
+  const resolved = resolveEcosystemSpecifier(pkg.importPath);
+  if (resolved === undefined) return undefined;
+  // Resolve the *package* root, not the directory of the entry file. A
+  // subpath like `pi-goal-x/extensions/goal.ts` would otherwise report the
+  // `extensions/` folder and miss the tools declared in `index.ts`.
+  const rootFromMarker = packageRootFromFile(resolved);
+  if (rootFromMarker !== undefined) return rootFromMarker;
+  // No `package.json` along the path (test stub) — fall back to the
+  // directory of the resolved file so `declaredToolNames` still has a
+  // target to walk.
+  return dirname(resolved);
+}
+
+/**
+ * Sniff a Pi ecosystem package's source on disk for `name: '<tool>'` strings.
+ *
+ * Walks the package root looking at `*.ts` / `*.js` files (skipping test files),
+ * greps for `name:\s*'([a-z_]+)'` literals, and returns the unique set. The
+ * result feeds `mountUpUpEcosystemPackages`'s conflict pre-check so a package
+ * that declares a tool already owned by the host is skipped without ever
+ * calling its default export — Pi otherwise turns the duplicate into a fatal
+ * `Failed to load extension` diagnostic and aborts the entire ecosystem
+ * extension.
+ */
+export function declaredToolNames(packageRoot: string | undefined): ReadonlySet<string> {
+  if (packageRoot === undefined || !existsSync(packageRoot)) return new Set();
+  const tools = new Set<string>();
+  // Only the `name:` field that lives inside a `pi.registerTool(...)` or
+  // `pi.registerCommand(...)` call counts. The two-step match (find the
+  // call, then grab its inline object literal's `name`) is far more reliable
+  // than a global `name: '<id>'` grep, which otherwise scoops up HTML form
+  // attributes, i18n locale keys, and unrelated `name:` strings that a Pi
+  // package's compiled bundle happens to contain.
+  // Form A — `pi.registerTool<...>({ name: 'foo', ... })` (most Pi ecosystem
+  // packages — the generic params are optional, so the regex is non-greedy
+  // and tolerates their absence).
+  const typedNameRe = /register(?:Tool|Command|Shortcut)(?:<[^>]*>)?\s*\(\s*\{[^}]*?name:\s*['"]([a-z][a-z0-9_-]{1,40})['"]/g;
+  // Form B — `pi.registerCommand('foo', { ... })` / `registerTool` shorthand
+  // where the id is the first argument and the object comes second.
+  const callRe = /(?:pi|this)\s*\.\s*register(?:Tool|Command|Shortcut)\s*\(\s*(['"])([a-z][a-z0-9_-]{1,40})\1/g;
+  // Form C — `registerTool('foo', { ... name: 'bar' ... })` (rare; mostly
+  // `registerCommand` with both positional name and inline object).
+  const inlineNameRe = /register(?:Tool|Command|Shortcut)\s*\(\s*['"][^'"]+['"]\s*,\s*\{[^}]*?name:\s*['"]([a-z][a-z0-9_-]{1,40})['"]/g;
+  const skipDir = new Set(['node_modules', 'dist', '.git', 'test', 'tests', '__tests__']);
+  const collect = (body: string): void => {
+    for (const m of body.matchAll(typedNameRe)) if (m[1]) tools.add(m[1]);
+    for (const m of body.matchAll(callRe)) if (m[2]) tools.add(m[2]);
+    for (const m of body.matchAll(inlineNameRe)) if (m[1]) tools.add(m[1]);
+  };
+  const walk = (dir: string): void => {
+    let entries: { name: string; isDirectory: () => boolean }[];
+    try { entries = readdirSync(dir, { withFileTypes: true }) as unknown as typeof entries; }
+    catch { return; }
+    for (const entry of entries) {
+      if (skipDir.has(entry.name)) continue;
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else if (entry.name.endsWith('.ts') || entry.name.endsWith('.js')) {
+        let body: string;
+        try { body = readFileSync(full, 'utf8'); } catch { continue; }
+        collect(body);
+      }
+    }
+  };
+  walk(packageRoot);
+  return tools;
+}
+
 /**
  * Tool names already registered on this `pi`.
  *
@@ -87,7 +269,7 @@ export type EcosystemImporter = (specifier: string) => Promise<unknown>;
  * empty set so the conflict pre-check degrades to "mount everything".
  */
 function registeredToolNames(pi: ExtensionAPI): ReadonlySet<string> {
-  const names = new Set<string>(UPUP_OWNED_TOOL_NAMES);
+  const names = new Set<string>(UPUP_HOST_RESERVED_TOOL_NAMES);
   const candidate = (pi as unknown as { getAllTools?: () => unknown }).getAllTools;
   if (typeof candidate === 'function') {
     try {
@@ -119,6 +301,11 @@ export interface MountEcosystemOptions {
    * Set to false for tests / minimal hosts that want only verified-clean ones.
    */
   readonly mountUnverified?: boolean;
+  /**
+   * Override for the set of packages Pi's package manager already loaded.
+   * Defaults to reading `<agentDir>/settings.json#packages`.
+   */
+  readonly piLoadedPackages?: ReadonlySet<string>;
 }
 
 /**
@@ -136,6 +323,8 @@ export async function mountUpUpEcosystemPackages(
 
   const mounted: string[] = [];
   const skippedToolConflict: { name: string; importPath: string; conflicts: readonly string[] }[] = [];
+  const skippedAlreadyLoaded: { name: string; importPath: string; reason: string }[] = [];
+  const piLoadedPackages = options.piLoadedPackages ?? piLoadedPackageNames();
   const verifiedDirty: string[] = [];
   const importFailed: { name: string; importPath: string; error: string }[] = [];
   const notCallable: { name: string; importPath: string; actualType: string }[] = [];
@@ -150,18 +339,31 @@ export async function mountUpUpEcosystemPackages(
       continue;
     }
 
+    // Pi's package manager may already have loaded this package from
+    // `<agentDir>/settings.json#packages`; mounting it a second time produces
+    // duplicate tools, which Pi escalates to a fatal extension-load error.
+    if (piLoadedPackages.has(pkg.name)) {
+      const reason = `already declared in ${UPUP_PI_SETTINGS_RELATIVE}/settings.json#packages`;
+      outcomes.push({ kind: 'skipped_already_loaded', name: pkg.name, importPath: pkg.importPath, reason });
+      skippedAlreadyLoaded.push({ name: pkg.name, importPath: pkg.importPath, reason });
+      continue;
+    }
+
     // Pi rejects the whole extension on a duplicate tool name, which would
     // take down every other ecosystem package mounted through this entry
     // point. Detect the collision here against the tools already registered
     // on `pi` and skip just this package instead.
-    const declaredTools = pkg.registersTools ?? [];
+    // Combine the package's declared tools from the static `registersTools`
+    // claim with a fresh grep of its source on disk. The static claim is
+    // authoritative for tools the package exposes via a custom hook or a
+    // pre-built bundle; the grep catches everything else. A package whose
+    // declared set is empty (e.g. `rolebox`, which registers its tools from
+    // `<agentDir>/rolebox/roles/*.json`) skips the conflict check entirely.
+    const staticDeclared = pkg.registersTools ?? [];
+    const sourceDir = resolvePackageSourceDir(pkg, importer);
+    const sourceDeclared = declaredToolNames(sourceDir);
+    const declaredTools = staticDeclared.length > 0 ? staticDeclared : [...sourceDeclared];
     if (declaredTools.length > 0) {
-      // `pi.getAllTools()` refuses to answer during extension loading
-      // ("Extension runtime not initialized"), and it only reports Pi's
-      // built-in tools anyway — UpUp's own `-e` extensions register theirs
-      // later in the same load pass. The static UpUp surface below is the
-      // authoritative list of names the host already owns, so the pre-check
-      // works at factory time.
       const owned = registeredToolNames(pi);
       const conflicts = declaredTools.filter((tool) => owned.has(tool));
       if (conflicts.length > 0) {
@@ -190,6 +392,7 @@ export async function mountUpUpEcosystemPackages(
         outcomes.push({ kind: 'mounted', name: pkg.name, importPath: pkg.importPath });
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error);
+        
         outcomes.push({ kind: 'mount_threw', name: pkg.name, importPath: pkg.importPath, error: msg });
         mountThrew.push({ name: pkg.name, importPath: pkg.importPath, error: msg });
       }
@@ -211,6 +414,7 @@ export async function mountUpUpEcosystemPackages(
   return {
     mounted,
     skippedToolConflict,
+    skippedAlreadyLoaded,
     verifiedDirty,
     importFailed,
     notCallable,
@@ -237,6 +441,7 @@ export function createUpUpEcosystemExtension(options: MountEcosystemOptions = {}
       const fallback = (message: string): EcosystemMountReport => ({
         mounted: [],
         skippedToolConflict: [],
+        skippedAlreadyLoaded: [],
         verifiedDirty: [],
         importFailed: [],
         notCallable: [],
@@ -248,35 +453,13 @@ export function createUpUpEcosystemExtension(options: MountEcosystemOptions = {}
         const message = error instanceof Error ? error.message : String(error);
         return fallback(message);
       });
-      // After the package sweep, register UpUp finance subagents on the
-      // same `pi`. Done lazily so a `pi-subagents` failure cannot break
-      // the package mount report. Errors flow through the optional sink.
-      try {
-          const { registerUpUpFinanceSubagents } = await import('./finance-subagents');
-          await registerUpUpFinanceSubagents(pi);
-        } catch {
-          // Sink-less by design: the surface extension already records
-          // every event through its audit trail; an extra registration
-          // failure does not need a parallel channel.
+      try {          const mod = await import('./finance-subagents');          const { registerUpUpFinanceSubagents } = mod;          await registerUpUpFinanceSubagents(pi);        } catch (e) {
         }
-      // Mount the UpUp research DAG (@arhen/pi-core-subagent needs-edge
-      // scheduler) so the 4 canonical roles are available as a `subagent`
-      // tool with partial-order `needs` edges. Best-effort: a missing
-      // @arhen/pi-core-subagent silently keeps the legacy coordinator.
       try {
-          const { registerUpUpResearchDag } = await import('./research-dag');
-          await registerUpUpResearchDag(pi);
-        } catch {
-          // Research DAG failures must never abort the session.
+          const { registerUpUpResearchDag } = await import('./research-dag');          await registerUpUpResearchDag(pi);        } catch (e) {
         }
-      // Mount the UpUp TUI widget extensions (Pattern 5 + Pattern 6).
-      // Best-effort: a Pi version missing `setWidget`/`setFooter` silently
-      // skips this step.
       try {
-          const { mountUpUpTuiWidgets } = await import('./tui-widgets-mount');
-          mountUpUpTuiWidgets(pi);
-        } catch {
-          // TUI wiring failures must never abort the session.
+          const { mountUpUpTuiWidgets } = await import('./tui-widgets-mount');          mountUpUpTuiWidgets(pi);        } catch (e) {
         }
       // SOP → Pi workflow-resource bridge is wired by @upup/pi-app at boot
       // (it owns the import of @upup/pi-investment-workflow). We do not
@@ -303,6 +486,7 @@ export function summariseEcosystemReport(report: EcosystemMountReport): string {
   const parts: string[] = [];
   parts.push(`mounted=${report.mounted.length}`);
   if (report.skippedToolConflict.length > 0) parts.push(`skippedToolConflict=${report.skippedToolConflict.length}`);
+  if (report.skippedAlreadyLoaded.length > 0) parts.push(`skippedAlreadyLoaded=${report.skippedAlreadyLoaded.length}`);
   if (report.verifiedDirty.length > 0) parts.push(`verifiedDirty=${report.verifiedDirty.length}`);
   if (report.importFailed.length > 0) parts.push(`importFailed=${report.importFailed.length}`);
   if (report.notCallable.length > 0) parts.push(`notCallable=${report.notCallable.length}`);
@@ -324,7 +508,7 @@ export type { UpUpEcosystemPackage };
  * UpUp tool without a matching entry fails the suite instead of silently
  * producing a duplicate at runtime.
  */
-export const UPUP_OWNED_TOOL_NAMES: readonly string[] = [
+export const UPUP_HOST_RESERVED_TOOL_NAMES: readonly string[] = [
   'add_plan_step', 'add_position', 'add_position_multi', 'add_to_watchlist',
   'add_watchlist_alert', 'agent', 'agent_memory', 'analyze_sentiment',
   'ask_confirm', 'ask_input', 'ask_multi_select', 'ask_response',
@@ -365,4 +549,13 @@ export const UPUP_OWNED_TOOL_NAMES: readonly string[] = [
   'task_update', 'tool_get', 'tool_list', 'tool_search',
   'track_risk', 'update_plan_step', 'update_position', 'update_todo',
   'web_fetch', 'web_search', 'write_file', 'x_search',
+  'ask_user_question', 'bg_wait', 'mcp', 'mcpScript',
+  // `subagent` is owned by `pi-subagents` (loaded via `<agentDir>/settings.json#packages`
+  // before UpUp's ecosystem extension runs). Declaring it here makes the conflict pre-check
+  // skip `@arhen/pi-core-subagent` (which also registers `subagent`) without us having to
+  // query `pi.getAllTools()`, which Pi refuses to answer during extension loading.
+  'subagent',
 ];
+
+/** Historical alias for `UPUP_HOST_RESERVED_TOOL_NAMES`. */
+export const UPUP_OWNED_TOOL_NAMES: readonly string[] = UPUP_HOST_RESERVED_TOOL_NAMES;

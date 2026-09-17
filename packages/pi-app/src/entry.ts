@@ -277,6 +277,22 @@ async function main() {
       process.exit(1);
       break;
 
+
+    case 'rpc':
+    case 'json-stream': {
+      // Cross-platform RPC server (v2 plan §1.4 + §4.1 + §4.2). Re-uses
+      // Pi's `--mode rpc` (JSON-RPC envelope over stdin/stdout) and
+      // `--mode json` (event stream) transports verbatim — TradingAgents
+      // / Claude Code / Zed / Neovim speak the same protocols. UpUp's
+      // finance extensions, /invest workflow, and 36-event adapter are
+      // mounted by the same code path the TUI uses (see `runPiNativeCli`).
+      const { runPiNativeCli } = await import('@upup/pi-app');
+      await runPiNativeCli({
+        mode: command === 'rpc' ? 'rpc' : 'json',
+        piArgs: args.slice(1),
+      });
+      return;
+    }
     case 'help':
     case '--help':
     case '-h':
@@ -401,6 +417,45 @@ Checks:
   • Config source attribution (where every value came from)
 
 Exit code is always 0; the report is read-only.
+`,
+  rpc: `upup rpc — cross-platform RPC server (re-uses Pi's --mode rpc).
+
+  upup rpc [--model <id>] [--provider <id>] [--cwd <path>] [--print "..."]
+
+Exposes Pi's JSON-RPC envelope over stdin/stdout. Editor integrations
+(Zed, Neovim, custom IDE plugins) and the TradingAgents session layer
+speak the same \`RpcCommand\` protocol without any work on UpUp's side.
+
+UpUp's finance tools, /invest workflow, and 36 Pi event adapter are
+mounted by the same code path the TUI uses; the RPC host inherits
+fail-closed policy defaults (config_set / write_file / mcp_auth_get /
+notify / place_trade_order are deny-by-default).
+
+Client side: import \`UpUpRpcClient\` from \`@upup/pi-cli-bootstrap\` (or
+\`@upup/sdk\` for the in-process variant). Helpers \`runInvest({ ticker,
+sop })\` and \`runSop({ sop, args })\` format the slash-command grammar
+automatically; every Pi \`RpcClient\` method is reachable via
+\`client.raw.*\`.
+
+See docs/upup-developer-guide.md §9.4 for cross-platform integration
+recipes.
+`,
+  'json-stream': `upup json-stream — cross-platform JSON event stream (re-uses Pi's --mode json).
+
+  upup json-stream [--print "..."] [--model <id>] [--provider <id>]
+
+Writes one JSON object per line to stdout for every Pi canonical event
+(session / agent_start / turn_start / message_start / message_update /
+message_end / tool_execution_start / tool_execution_end / turn_end /
+agent_end / agent_settled / ...). Wire format is identical to TradingAgents
+and Claude Code's integration tests; consumer code can grep + jq the output
+without bespoke parsing.
+
+Common uses:
+  upup json-stream --print "PONG" | jq 'select(.type=="message_end")'
+  upup json-stream --provider minimax-cn --model MiniMax-M3 --print "..."
+
+See docs/upup-developer-guide.md §9.4.
 `,
 };
 

@@ -300,3 +300,9 @@ export function createPiApp(options: PiAppOptions): PiApp {
 
   return app;
 }
+
+// Re-exports for cross-platform exposure (`@upup/pi-cli-bootstrap` uses
+// these to wire `upup rpc` and `upup json-stream` onto Pi's `--mode rpc`
+// and `--mode json` transports without forking the TUI's argv parser).
+export { runPiNativeCli, filterForwardablePiArgs, resolveUpupExtensionPaths } from './pi-native-cli';
+export type { PiNativeRunCliOptions } from './pi-native-cli';

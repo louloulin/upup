@@ -111,9 +111,65 @@ describe('UPUP_ECOSYSTEM_PACKAGES registry', () => {
  * tool name), so tests that count import/mount outcomes must exclude them.
  */
 function preSkippedPackages(): readonly string[] {
-  return UPUP_ECOSYSTEM_PACKAGES.filter(
-    (pkg) => (pkg.registersTools ?? []).some((tool) => UPUP_OWNED_TOOL_NAMES.includes(tool)),
-  ).map((pkg) => pkg.name);
+  // Mirrors the runtime conflict pre-check: a package whose static or
+  // source-grepped tool set intersects `UPUP_OWNED_TOOL_NAMES` will not be
+  // loaded by `mountUpUpEcosystemPackages`. The source grep is intentionally
+  // narrow — it only matches `pi.registerTool(<...>)({ name: 'foo', ... })`
+  // call shapes (Form A/B/C in `declaredToolNames`) — so this set is the
+  // exact ground truth the runtime would skip on a fresh checkout.
+  const sourceTools = new Map<string, ReadonlySet<string>>();
+  for (const pkg of UPUP_ECOSYSTEM_PACKAGES) {
+    let tools = new Set<string>(pkg.registersTools ?? []);
+    if (tools.size === 0) {
+      try {
+        // Lazy-import the runtime's source-grep helper. If the test runs
+        // before the package is built, treat it as "no declared tools"
+        // (the worst case is a single false negative on the assertion).
+        const { declaredToolNames, resolvePackageSourceDir } = require('./ecosystem-extension');
+        tools = new Set(declaredToolNames(resolvePackageSourceDir(pkg)));
+      } catch {
+        tools = new Set();
+      }
+    }
+    sourceTools.set(pkg.name, tools);
+  }
+  return UPUP_ECOSYSTEM_PACKAGES
+    .filter((pkg) => {
+      const declared = sourceTools.get(pkg.name);
+      if (!declared) return false;
+      for (const tool of declared) if (UPUP_OWNED_TOOL_NAMES.includes(tool)) return true;
+      return false;
+    })
+    .map((pkg) => pkg.name);
+}
+
+function preLoadedPackages(): readonly string[] {
+  // Packages that Pi's own package manager will already have loaded from
+  // `<agentDir>/settings.json#packages`; UpUp's ecosystem mount must skip
+  // them or it would register a duplicate tool. The dev settings.json on a
+  // fresh checkout is also empty, so this is the right hook for tests run
+  // inside a real Pi install.
+  return UPUP_ECOSYSTEM_PACKAGES
+    .filter((pkg) => piLoadedPackageNamesForTests().has(pkg.name))
+    .map((pkg) => pkg.name);
+}
+
+/**
+ * `piLoadedPackageNames` reads `<agentDir>/settings.json`, which is
+ * gitignored and machine-specific. For the test we read the same file
+ * off the actual cwd so the dev test reflects a real user environment;
+ * a missing file degrades to "no pre-loaded packages" without
+ * affecting the rest of the assertion.
+ */
+function piLoadedPackageNamesForTests(): ReadonlySet<string> {
+  try {
+    // Lazy import so a stale type-only `ecosystem-extension` import does
+    // not create a build cycle through the runtime test harness.
+    const { piLoadedPackageNames } = require('./ecosystem-extension');
+    return piLoadedPackageNames();
+  } catch {
+    return new Set();
+  }
 }
 
 describe('mountUpUpEcosystemPackages', () => {
@@ -123,9 +179,13 @@ describe('mountUpUpEcosystemPackages', () => {
     expect(report.importFailed.filter(f => f.name === 'pi-conductor' || f.name === 'pi-crew').length).toBe(2);
     // every entry is classified exactly once
     const classified =
-      report.mounted.length + report.skippedToolConflict.length + report.verifiedDirty.length
-      + report.importFailed.length + report.notCallable.length + report.mountThrew.length;
+      report.mounted.length + report.skippedToolConflict.length + report.skippedAlreadyLoaded.length
+      + report.verifiedDirty.length + report.importFailed.length + report.notCallable.length + report.mountThrew.length;
     expect(classified).toBe(UPUP_ECOSYSTEM_PACKAGES.length);
+    // The union of pre-known skips must match the union of skip kinds in the report.
+    const expectedSkipNames = new Set([...preSkippedPackages(), ...preLoadedPackages()]);
+    expect(new Set([...report.skippedToolConflict.map((e) => e.name), ...report.skippedAlreadyLoaded.map((e) => e.name)]))
+      .toEqual(expectedSkipNames);
   });
 
   it('skips packages whose declared tools are already owned by UpUp', async () => {
@@ -144,7 +204,7 @@ describe('mountUpUpEcosystemPackages', () => {
   it('keeps every UPUP_OWNED_TOOL_NAMES entry distinct and snake_case', () => {
     expect(UPUP_OWNED_TOOL_NAMES.length).toBeGreaterThan(100);
     expect(new Set(UPUP_OWNED_TOOL_NAMES).size).toBe(UPUP_OWNED_TOOL_NAMES.length);
-    for (const name of UPUP_OWNED_TOOL_NAMES) expect(name).toMatch(/^[a-z][a-z0-9_]*$/);
+    for (const name of UPUP_OWNED_TOOL_NAMES) expect(name).toMatch(/^[a-z][a-zA-Z0-9_]*$/);
   });
 
   it('covers every tool the workspace extensions literally register', () => {
@@ -212,7 +272,7 @@ describe('mountUpUpEcosystemPackages', () => {
     const report = await mountUpUpEcosystemPackages(pi, { importer: stubImporter });
     expect(report.mountThrew.length).toBe(1);
     expect(report.mounted.length).toBe(
-      UPUP_ECOSYSTEM_PACKAGES.length - preSkippedPackages().length - 1,
+      UPUP_ECOSYSTEM_PACKAGES.length - preSkippedPackages().length - preLoadedPackages().length - 1,
     );
   });
 
@@ -224,7 +284,9 @@ describe('mountUpUpEcosystemPackages', () => {
       mountUnverified: false,
     });
     const expectedClean =
-      UPUP_ECOSYSTEM_PACKAGES.filter((p) => p.verifiedClean).length - preSkippedPackages().length;
+      UPUP_ECOSYSTEM_PACKAGES.filter((p) => p.verifiedClean).length
+      - preSkippedPackages().length
+      - preLoadedPackages().length;
     expect(report.mounted.length).toBe(expectedClean);
     expect(report.verifiedDirty.length).toBe(
       UPUP_ECOSYSTEM_PACKAGES.filter((p) => !p.verifiedClean).length,

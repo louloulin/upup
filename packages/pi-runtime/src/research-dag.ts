@@ -94,6 +94,20 @@ export async function registerUpUpResearchDag(
     // Resolved through the dual-scope importer so a user-installed copy in
     // `~/.upup/agent/npm` shadows the bundled one.
     const load = options.importer ?? createEcosystemImporter();
+    // `@arhen/pi-core-subagent` registers a `subagent` tool whose name
+    // collides with `pi-subagents` (loaded via `<agentDir>/settings.json#packages`).
+    // Loading `@arhen` twice — once through UpUp's ecosystem sweep and once
+    // through this DAG bridge — would escalate the duplicate to a fatal
+    // `Failed to load extension` diagnostic. Skip whenever either package
+    // is present; the legacy `research-coordinator` covers the
+    // bull/bear/synthesizer/risk workflow without needing `@arhen`'s
+    // DAG scheduler.
+    const { piLoadedPackageNames } = await import('./ecosystem-extension');
+    const loaded = piLoadedPackageNames();
+    if (loaded.has('@arhen/pi-core-subagent') || loaded.has('pi-subagents')) {
+      options.sink?.onError?.('@arhen/pi-core-subagent', new Error('skipped: a subagent-registered package is already loaded; legacy research-coordinator covers UpUp'));
+      return false;
+    }
     const mod = (await load('@arhen/pi-core-subagent')) as { default: (api: ExtensionAPI) => void };
     if (typeof mod.default !== 'function') {
       options.sink?.onError?.('@arhen/pi-core-subagent', new Error('default export is not a function'));
