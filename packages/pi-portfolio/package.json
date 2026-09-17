@@ -95,6 +95,30 @@
       "duckdb-timeseries",
       "duckdb-import-csv"
     ],
+    "sideEffects": [
+      {
+        "tools": [
+          "add_position",
+          "update_position",
+          "add_position_multi",
+          "create_portfolio",
+          "switch_portfolio",
+          "duckdb-import-csv",
+          "duckdb-register-parquet"
+        ],
+        "effect": "filesystem-write",
+        "safetyLevel": "warning"
+      },
+      {
+        "tools": [
+          "remove_position",
+          "remove_position_multi",
+          "delete_portfolio"
+        ],
+        "effect": "filesystem-write",
+        "safetyLevel": "warning"
+      }
+    ],
     "trust": {
       "mode": "builtin",
       "filesystem": true

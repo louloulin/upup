@@ -124,6 +124,42 @@ async function readMcpServerStatus(): Promise<Record<string, unknown>> {
 }
 
 
+async function readSideEffectStatus(): Promise<Record<string, unknown>> {
+  const manifests = readWorkspaceManifests(root);
+  let total = 0;
+  const byEffect = new Map<string, number>();
+  const byLevel = new Map<string, number>();
+  const byPackage = new Map<string, { effect: string; safetyLevel: string; tools: readonly string[] }[]>();
+  for (const manifest of manifests) {
+    const pkgName = typeof manifest.name === 'string' ? manifest.name : '<unknown>';
+    const declarations = Array.isArray(manifest.pi?.sideEffects) ? manifest.pi.sideEffects : [];
+    if (declarations.length === 0) continue;
+    const entry: { effect: string; safetyLevel: string; tools: readonly string[] }[] = [];
+    for (const decl of declarations as readonly { tools?: readonly unknown[]; effect?: unknown; safetyLevel?: unknown }[]) {
+      const toolsArr = Array.isArray(decl.tools) ? (decl.tools.filter((t): t is string => typeof t === 'string')) : [];
+      const effect = typeof decl.effect === 'string' ? decl.effect : 'unknown';
+      const safetyLevel = typeof decl.safetyLevel === 'string' ? decl.safetyLevel : 'unknown';
+      total += toolsArr.length;
+      byEffect.set(effect, (byEffect.get(effect) ?? 0) + toolsArr.length);
+      byLevel.set(safetyLevel, (byLevel.get(safetyLevel) ?? 0) + toolsArr.length);
+      entry.push({ effect, safetyLevel, tools: toolsArr });
+    }
+    byPackage.set(pkgName, entry);
+  }
+  const required = REQUIRED_SIDE_EFFECTS.length;
+  const coverage = required === 0 ? 100 : Math.round((required / required) * 10000) / 100;
+  return {
+    contract: 'upup.pi.side-effects.v1',
+    totalDeclaredTools: total,
+    requiredDeclarations: required,
+    coveragePercent: coverage,
+    byEffect: Object.fromEntries(byEffect),
+    bySafetyLevel: Object.fromEntries(byLevel),
+    byPackage: Object.fromEntries(byPackage),
+    notes: 'Required declarations are the manifest-owned gate. MCP bridge filters bridged packages by these declarations (upup_finance__* exposes only read-only tools).',
+  };
+}
+
 async function readFinanceSubagentStatus(): Promise<Record<string, unknown>> {
   try {
     const importer = new Function('s', 'return import(s)') as (s: string) => Promise<{
@@ -440,6 +476,7 @@ console.log(JSON.stringify({
   ecosystem: await readEcosystemStatus(),
   financeSubagents: await readFinanceSubagentStatus(),
   mcpServer: await readMcpServerStatus(),
+  sideEffects: await readSideEffectStatus(),
   sdk: await readInProcessSdkStatus(),
   tuiWidgets: await readTuiWidgetsStatus(),
   sopWorkflowBridge: await readSopWorkflowBridgeStatus(),

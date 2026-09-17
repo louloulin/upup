@@ -16,9 +16,25 @@
 export {
   UpUpMcpServer,
   createUpUpMcpServer,
+  createPiNativeMcpServer,
   UPUP_MCP_TOOLS,
   UPUP_MCP_TOOL_NAMES,
   findUpUpMcpTool,
   type UpUpMcpServerOptions,
   type UpUpMcpToolSpec,
 } from './server';
+
+export {
+  collectPiToolCatalog,
+  collectDeclaredSideEffectTools,
+  toMcpToolSpec,
+  isCapturedPiTool,
+  UPUP_MCP_TOOL_PREFIX,
+  UPUP_MCP_BRIDGED_PI_PACKAGES,
+  UPUP_MCP_EXCLUDED_EXTRA_TOOLS,
+  type PiToolCatalog,
+  type PiToolCatalogReport,
+  type PiToolBridgeOptions,
+  type CapturedPiTool,
+  type BridgedToolExclusion,
+} from './pi-tool-bridge';

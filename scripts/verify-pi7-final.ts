@@ -236,6 +236,19 @@ const CONTRACTS: readonly ContractSpec[] = [
       };
     },
   },
+  {
+    // Pi7 Stage 6 invariant: the MCP bridge must filter every Pi tool whose
+    // owning package manifest declared it as a side effect, so remote
+    // TradingAgents / Codex clients never reach `place_trade_order` /
+    // `add_position` / `track_risk` over MCP. Locks the side-effect
+    // contract by re-running the real `collectPiToolCatalog` bridge and
+    // asserting the same invariants `check:cross-platform-exposure`
+    // enforces at static time.
+    id: 'C16',
+    label: 'MCP read-only invariant (>=10 tools withheld by pi.sideEffects, >=100 read-only tools exposed, no write tool reaches MCP)',
+    command: 'bun',
+    args: ['run', 'scripts/verify-pi-mcp-readonly.ts'],
+  },
 ];
 
 function runContract(spec: ContractSpec): Promise<ContractResult> {

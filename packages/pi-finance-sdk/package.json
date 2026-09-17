@@ -135,6 +135,35 @@
       "strategy_list",
       "strategy_backtest"
     ],
+    "sideEffects": [
+      {
+        "tools": [
+          "place_trade_order",
+          "cancel_trade_order"
+        ],
+        "effect": "financial-write",
+        "safetyLevel": "critical"
+      },
+      {
+        "tools": [
+          "strategy_run_paper"
+        ],
+        "effect": "financial-write",
+        "safetyLevel": "dangerous"
+      },
+      {
+        "tools": [
+          "track_company",
+          "track_sector",
+          "fund_follow",
+          "fund_unfollow",
+          "fund_alert_create",
+          "fund_alert_delete"
+        ],
+        "effect": "filesystem-write",
+        "safetyLevel": "warning"
+      }
+    ],
     "trust": {
       "mode": "builtin",
       "network": true,
@@ -201,24 +230,7 @@
       "@upup/pi-capability-registry": "0.1.0",
       "@upup/pi-observability": "0.1.0",
       "@upup/pi-runtime": "0.1.0"
-    },
-    "sideEffects": [
-      {
-        "tools": [
-          "place_trade_order",
-          "cancel_trade_order"
-        ],
-        "effect": "financial-write",
-        "safetyLevel": "critical"
-      },
-      {
-        "tools": [
-          "strategy_run_paper"
-        ],
-        "effect": "financial-write",
-        "safetyLevel": "dangerous"
-      }
-    ]
+    }
   },
   "dependencies": {
     "@upup/pi-capability-registry": "0.1.0",

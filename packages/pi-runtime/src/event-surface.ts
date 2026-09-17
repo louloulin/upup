@@ -107,7 +107,7 @@ export const UPUP_EVENT_SURFACE: readonly UpUpEventSpec[] = [
   { name: 'session_before_tree', role: 'session', upupUse: 'act: 用当前 ticker/plan 标注分支摘要 label', behavior: true },
   { name: 'session_tree', role: 'session', upupUse: 'observe: 树导航（newLeafId/oldLeafId）', behavior: false },
   { name: 'context', role: 'context', upupUse: 'act: 统计每轮上下文消息与 toolResult 占比（上下文预算）', behavior: true },
-  { name: 'before_provider_request', role: 'provider', upupUse: 'act: 记录请求体规模并按 phase 归因', behavior: true },
+  { name: 'before_provider_request', role: 'provider', upupUse: 'act: 修复 Pi clamp 导致的退化输出预算并按 phase 归因', behavior: true },
   { name: 'before_provider_headers', role: 'provider', upupUse: 'act: 注入 x-upup-session/plan/phase/package 归因头', behavior: true },
   { name: 'after_provider_response', role: 'provider', upupUse: 'act: 记录状态码与 429/5xx → provider 健康统计', behavior: true },
   { name: 'before_agent_start', role: 'agent', upupUse: 'observe: prompt 规模（改写由 brand-extension 负责）', behavior: false },

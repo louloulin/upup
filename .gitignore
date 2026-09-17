@@ -77,6 +77,10 @@ upup
 .serena/cache/
 .playwright-mcp/
 packages/sdk/.upup
+# >>> pi-goal-list-loop-audit managed state >>>
+.pi-glla/
+# <<< pi-goal-list-loop-audit managed state <<<
+
 # >>> Comet managed project state >>>
 !/.comet/
 /.comet/*

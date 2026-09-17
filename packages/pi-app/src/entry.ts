@@ -261,8 +261,16 @@ async function main() {
       // The `upup-mcp` binary is the direct equivalent (no extra flags).
       const mcpSubcommand = args[1] ?? 'serve';
       if (mcpSubcommand === 'serve') {
-        const { UpUpMcpServer } = await import('@upup/mcp-server');
-        const server = new UpUpMcpServer();
+        const { createPiNativeMcpServer } = await import('@upup/mcp-server');
+        const server = await createPiNativeMcpServer();
+        const catalog = server.piCatalogReport();
+        if (catalog) {
+          process.stderr.write(
+            `upup mcp: Pi catalog — ${catalog.packagesLoaded.length} package(s), `
+            + `${catalog.toolsExposed}/${catalog.toolsDeclared} tools, `
+            + `${catalog.blockedBySideEffect.length} withheld by pi.sideEffects\n`,
+          );
+        }
         const shutdown = async (signal: NodeJS.Signals): Promise<void> => {
           process.stderr.write(`upup mcp: received ${signal}, shutting down\n`);
           try { await server.close(); } finally { process.exit(0); }

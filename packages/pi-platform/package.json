@@ -357,6 +357,24 @@
         ],
         "effect": "external-network",
         "safetyLevel": "dangerous"
+      },
+      {
+        "tools": [
+          "add_to_watchlist",
+          "remove_from_watchlist",
+          "add_watchlist_alert",
+          "clear_watchlist_alert",
+          "enter_plan_mode",
+          "exit_plan_mode",
+          "add_plan_step",
+          "update_plan_step",
+          "create_todo",
+          "update_todo",
+          "delete_todo",
+          "run_workflow"
+        ],
+        "effect": "filesystem-write",
+        "safetyLevel": "warning"
       }
     ]
   }

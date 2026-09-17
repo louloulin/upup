@@ -265,6 +265,50 @@ describe('input expansion', () => {
   });
 });
 
+describe('before_provider_request output budget', () => {
+  it('restores a degenerate budget to the model declared maxTokens when the context supplies it', () => {
+    const { pi } = mount();
+    const returned = pi.fire(
+      'before_provider_request',
+      { payload: { model: 'deepseek-v4.1-flash', max_tokens: 1 } },
+      { model: { maxTokens: 16384 } },
+    ) as { max_tokens: number };
+    // The repair undoes Pi context clamp by raising the budget back to the
+    // model's own declared output cap — the value Pi would have sent had the
+    // context window been honest. A research answer needs more than 1024
+    // tokens; we measured 2048/3072 still truncate, 4096 completes.
+    expect(returned.max_tokens).toBe(16384);
+  });
+
+  it('falls back to the absolute floor when the model is unknown', () => {
+    const { pi } = mount();
+    const returned = pi.fire('before_provider_request', { payload: { max_tokens: 1 } }) as { max_tokens: number };
+    expect(returned.max_tokens).toBe(1024);
+  });
+
+  it('leaves a usable payload byte-identical and returns undefined', () => {
+    const { pi } = mount();
+    const payload = { model: 'deepseek-v4.1-flash', max_tokens: 8192 };
+    expect(pi.fire('before_provider_request', { payload }, { model: { maxTokens: 16384 } })).toBeUndefined();
+    expect(payload.max_tokens).toBe(8192);
+  });
+
+  it('records the repair in the audit trail so the rescale is visible', () => {
+    const { pi, records } = mount();
+    pi.fire('before_provider_request', { payload: { max_tokens: 1 } }, { model: { maxTokens: 16384 } });
+    const entry = records.find((record) => record.event === 'before_provider_request');
+    expect(entry?.fields).toMatchObject({ outputBudgetRepair: { field: 'max_tokens', before: 1, after: 16384 } });
+  });
+
+  it('clears the repair field on the next healthy request', () => {
+    const { pi, records } = mount();
+    pi.fire('before_provider_request', { payload: { max_tokens: 1 } }, { model: { maxTokens: 16384 } });
+    pi.fire('before_provider_request', { payload: { max_tokens: 8192 } }, { model: { maxTokens: 16384 } });
+    const last = records.filter((record) => record.event === 'before_provider_request').at(-1);
+    expect(last?.fields).not.toHaveProperty('outputBudgetRepair');
+  });
+});
+
 describe('message_end audit', () => {
   it('flags an assistant answer with unsourced numbers', () => {
     const { pi } = mount();

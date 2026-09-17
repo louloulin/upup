@@ -7,9 +7,13 @@ import {
   discoverUpUpResourceDirs,
   expandHomePath,
   expandInvestmentInput,
+  findOutputBudget,
   findUnsourcedNumbers,
   guessMarketLabel,
+  MIN_PROVIDER_OUTPUT_TOKENS,
   parseRetryAfter,
+  repairDegenerateOutputBudget,
+  resolveOutputBudgetTarget,
   resolveSessionDisplayName,
   sanitizeHeaderValue,
   summarizeCompaction,
@@ -163,6 +167,86 @@ describe('classifyProviderHealth', () => {
     expect(parsed).toBeGreaterThan(0);
     expect(parseRetryAfter(undefined)).toBeUndefined();
     expect(parseRetryAfter({ 'retry-after': 'later' })).toBeUndefined();
+  });
+});
+
+describe('repairDegenerateOutputBudget', () => {
+  it('raises a one-token budget to the floor when no target is provided', () => {
+    const { payload, repair } = repairDegenerateOutputBudget({ model: 'deepseek-v4.1-flash', max_tokens: 1 });
+    expect(repair).toEqual({ field: 'max_tokens', before: 1, after: MIN_PROVIDER_OUTPUT_TOKENS });
+    expect((payload as { max_tokens: number }).max_tokens).toBe(MIN_PROVIDER_OUTPUT_TOKENS);
+    expect((payload as { model: string }).model).toBe('deepseek-v4.1-flash');
+  });
+
+  it('raises a one-token budget to the model declared maxTokens when a target is given', () => {
+    const { payload, repair } = repairDegenerateOutputBudget(
+      { max_tokens: 1 },
+      { target: resolveOutputBudgetTarget(16384) },
+    );
+    expect(repair?.after).toBe(16384);
+    expect((payload as { max_tokens: number }).max_tokens).toBe(16384);
+  });
+
+  it('never raises to a value smaller than the model declared cap', () => {
+    // Pi might raise the budget to a clamp value that already exceeds the
+    // declared cap in custom providers. The repair must not shrink it.
+    expect(repairDegenerateOutputBudget({ max_tokens: 1 }, { target: 2048 }).repair?.after).toBe(2048);
+    expect(repairDegenerateOutputBudget({ max_tokens: 1 }, { target: 512 }).repair?.after).toBe(MIN_PROVIDER_OUTPUT_TOKENS);
+  });
+
+  it('repairs every output-budget field a provider API may use', () => {
+    for (const field of ['max_tokens', 'max_completion_tokens', 'max_output_tokens']) {
+      const { payload, repair } = repairDegenerateOutputBudget({ [field]: 128 }, { target: 4096 });
+      expect(repair?.field).toBe(field);
+      expect((payload as Record<string, number>)[field]).toBe(4096);
+    }
+  });
+
+  it('leaves a usable budget, a missing budget and a non-object payload alone', () => {
+    const usable = { max_tokens: 8192 };
+    expect(repairDegenerateOutputBudget(usable).payload).toBe(usable);
+    expect(repairDegenerateOutputBudget(usable).repair).toBeUndefined();
+    const noBudget = { model: 'x' };
+    expect(repairDegenerateOutputBudget(noBudget).payload).toBe(noBudget);
+    for (const junk of [undefined, null, 'payload', 42, []]) {
+      expect(repairDegenerateOutputBudget(junk).repair).toBeUndefined();
+    }
+  });
+
+  it('treats exactly the floor as usable so repeat turns do not churn', () => {
+    expect(repairDegenerateOutputBudget({ max_tokens: MIN_PROVIDER_OUTPUT_TOKENS }).repair).toBeUndefined();
+    expect(repairDegenerateOutputBudget({ max_tokens: 4096 }, { target: 4096 }).repair).toBeUndefined();
+  });
+
+  it('does not mutate the payload it was handed', () => {
+    const original = { max_tokens: 1 };
+    repairDegenerateOutputBudget(original, { target: 16384 });
+    expect(original.max_tokens).toBe(1);
+  });
+
+  it('prefers the first budget field a payload actually carries', () => {
+    expect(findOutputBudget({ max_completion_tokens: 64, max_tokens: 8 })?.field).toBe('max_tokens');
+    expect(findOutputBudget({ max_output_tokens: 64 })?.field).toBe('max_output_tokens');
+    expect(findOutputBudget({ messages: [] })).toBeUndefined();
+  });
+});
+
+describe('resolveOutputBudgetTarget', () => {
+  it('uses the model declared maxTokens when it is a positive integer', () => {
+    expect(resolveOutputBudgetTarget(16384)).toBe(16384);
+    expect(resolveOutputBudgetTarget(1)).toBe(MIN_PROVIDER_OUTPUT_TOKENS);
+  });
+
+  it('floors non-positive, non-finite, or missing values at the absolute minimum', () => {
+    expect(resolveOutputBudgetTarget(undefined)).toBe(MIN_PROVIDER_OUTPUT_TOKENS);
+    expect(resolveOutputBudgetTarget(0)).toBe(MIN_PROVIDER_OUTPUT_TOKENS);
+    expect(resolveOutputBudgetTarget(-100)).toBe(MIN_PROVIDER_OUTPUT_TOKENS);
+    expect(resolveOutputBudgetTarget(Number.NaN)).toBe(MIN_PROVIDER_OUTPUT_TOKENS);
+    expect(resolveOutputBudgetTarget(Number.POSITIVE_INFINITY)).toBe(MIN_PROVIDER_OUTPUT_TOKENS);
+  });
+
+  it('floors fractional declared values without exceeding them', () => {
+    expect(resolveOutputBudgetTarget(1024.7)).toBe(1024);
   });
 });
 

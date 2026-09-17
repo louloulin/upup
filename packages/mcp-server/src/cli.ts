@@ -24,7 +24,7 @@
  *     }
  */
 
-import { UpUpMcpServer } from './server';
+import { createPiNativeMcpServer } from './server';
 
 async function main(): Promise<void> {
   const subcommand = process.argv[2] ?? 'serve';
@@ -38,7 +38,23 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const server = new UpUpMcpServer();
+  // Build from UpUp's Pi packages: every finance tool a Pi session sees
+  // becomes an MCP tool, with the mutating subset removed via each package's
+  // `pi.sideEffects` declaration. Falls back to the hand-written catalog when
+  // no Pi package mounts (see `createPiNativeMcpServer`).
+  const server = await createPiNativeMcpServer();
+  const catalog = server.piCatalogReport();
+  if (catalog) {
+    process.stderr.write(
+      `upup-mcp: Pi catalog — ${catalog.packagesLoaded.length} package(s) mounted, `
+      + `${catalog.toolsExposed}/${catalog.toolsDeclared} tools exposed, `
+      + `${catalog.blockedBySideEffect.length} withheld by pi.sideEffects`
+      + `${catalog.packagesFailed.length > 0 ? `, ${catalog.packagesFailed.length} failed` : ''}\n`,
+    );
+    for (const failure of catalog.packagesFailed) {
+      process.stderr.write(`upup-mcp:   ! ${failure.name}: ${failure.error}\n`);
+    }
+  }
 
   // Graceful shutdown — MCP clients (Claude Code, TradingAgents) routinely
   // send SIGTERM on exit; tearing down the transport cleanly keeps their
@@ -71,14 +87,18 @@ Usage:
 Environment:
   UPUP_MCP_TOKEN           Optional bearer token (HTTP transport only).
 
-Tools exposed under the \`upup_finance__\` namespace (read-only by design):
-  upup_finance__get_stock_price         Real-time price snapshot (CN/HK/US)
-  upup_finance__get_key_ratios          Key financial ratios (P/E, P/B, ROE)
-  upup_finance__get_company_profile     Company name / exchange / sector
-  upup_finance__get_filings             SEC / exchange filings list
-  upup_finance__get_astock_news         A-share announcements + 7x24 headlines
-  upup_finance__get_astock_financials   A-share financial snapshot
-  upup_finance__list_investment_strategies  Built-in SOP / strategy catalog
+Tools are bridged from UpUp's Pi packages and namespaced
+\`upup_finance__<pi_tool_name>\` — quotes, technicals, fundamentals, filings,
+news, screening, valuation (DCF/DDM/target price), risk metrics, portfolio
+attribution, factor research, backtests and corporate actions. The list is
+whatever the mounted Pi packages register, so it tracks the Pi surface instead
+of a hand-maintained subset. Run \`upup-mcp serve\` and read the stderr catalog
+line for the exact count.
+
+Mutating tools are withheld: every Pi package declares its write / network /
+credential / financial-effect tools in \`pi.sideEffects\`, and the bridge drops
+exactly those. Use the Pi RPC / SDK paths for orders, config and file writes so
+the Pi policy layer can apply approval.
 
 Configuration: reads ~/.upup/settings.json for provider / model selection the
 same way the rest of UpUp does. No additional flags.

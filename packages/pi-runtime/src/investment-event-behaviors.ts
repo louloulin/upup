@@ -282,6 +282,127 @@ export function parseRetryAfter(headers: Record<string, string> | undefined): nu
 }
 
 // ---------------------------------------------------------------------------
+// Provider output budget
+// ---------------------------------------------------------------------------
+
+/**
+ * Budget below which an outgoing provider request cannot hold an answer.
+ *
+ * Pi clamps `maxTokens` to fit the model's declared context window minus a
+ * safety margin (`clampMaxTokensToContext`), with `MIN_MAX_TOKENS = 1` as the
+ * floor. On a long session the clamp can therefore collapse the output budget
+ * to a single token. The gateway then answers with a floor of its own
+ * (observed: 128 tokens) plus `finish_reason: "length"`, which is rendered to
+ * the user as "Response was truncated before completion." and — because the
+ * answer never gets room to finish — repeats on every turn.
+ *
+ * 1024 matches Pi's own `MIN_ANSWER_TOKENS`: the smallest budget that can hold
+ * an answer. It is deliberately used only as the *trigger threshold* and as a
+ * last-resort fallback — it is **not** a sufficient budget for a real research
+ * answer. Measured against the live `ax` gateway on a 260k-token prompt, 1024
+ * and 2048 and 3072 all still ended in `finish_reason: "length"`; only ~4096+
+ * reached `finish_reason: "stop"`. Callers should therefore pass the model's
+ * declared `maxTokens` as the restore target (see
+ * `resolveOutputBudgetTarget`) and use this constant only to decide *whether*
+ * a budget is degenerate.
+ */
+export const MIN_PROVIDER_OUTPUT_TOKENS = 1024;
+
+/**
+ * Resolve the output budget to restore when Pi's context clamp produced a
+ * degenerate value. When the hook has access to the session's current
+ * model, that model's declared `maxTokens` is the truthful intended
+ * budget — it is exactly the value Pi passes into `clampMaxTokensToContext`
+ * before the clamp runs. Restoring to it undoes the damage of a clamp that
+ * fell below `MIN_PROVIDER_OUTPUT_TOKENS` on a context whose `contextWindow`
+ * the provider catalog under-reports.
+ *
+ * Falls back to `MIN_PROVIDER_OUTPUT_TOKENS` when the model is unknown.
+ * The result is always at least `MIN_PROVIDER_OUTPUT_TOKENS`: a budget
+ * below Pi's own `MIN_ANSWER_TOKENS` cannot hold an answer regardless of
+ * provider or model.
+ */
+export function resolveOutputBudgetTarget(modelMaxTokens: number | undefined): number {
+  const declared = typeof modelMaxTokens === 'number' && Number.isFinite(modelMaxTokens) && modelMaxTokens > 0
+    ? Math.floor(modelMaxTokens)
+    : MIN_PROVIDER_OUTPUT_TOKENS;
+  return Math.max(MIN_PROVIDER_OUTPUT_TOKENS, declared);
+}
+
+/**
+ * Request fields carrying the output budget, in Pi's own write order. The
+ * provider API decides which one is used (`max_tokens` for
+ * `openai-completions` / `anthropic-messages`, `max_completion_tokens` for
+ * newer OpenAI routes, `max_output_tokens` for the Responses API), so all
+ * three are inspected.
+ */
+const OUTPUT_BUDGET_FIELDS = ['max_tokens', 'max_completion_tokens', 'max_output_tokens'] as const;
+
+export interface OutputBudgetFinding {
+  readonly field: string;
+  readonly value: number;
+}
+
+/** Locate the output budget on an outgoing provider payload, if it carries one. */
+export function findOutputBudget(payload: unknown): OutputBudgetFinding | undefined {
+  if (!payload || typeof payload !== 'object') return undefined;
+  const record = payload as Record<string, unknown>;
+  for (const field of OUTPUT_BUDGET_FIELDS) {
+    const value = record[field];
+    if (typeof value === 'number' && Number.isFinite(value)) return { field, value };
+  }
+  return undefined;
+}
+
+export interface OutputBudgetRepair {
+  readonly field: string;
+  readonly before: number;
+  readonly after: number;
+}
+
+export interface OutputBudgetRepairResult {
+  /** The payload to send: the original object when no repair was needed. */
+  readonly payload: unknown;
+  /** Present only when the budget was raised. */
+  readonly repair?: OutputBudgetRepair;
+}
+
+/**
+ * Raise an output budget that fell below the usable floor.
+ *
+ * Returns the payload untouched when it carries no budget, when the budget is
+ * already usable, or when the payload is not a plain object. The repair is
+ * recorded rather than silent so it lands in the audit trail: a clamped budget
+ * is a symptom of a context window the provider catalog is probably
+ * under-reporting, and silently hiding it would hide the real defect.
+ *
+ * @param payload  Outgoing provider payload (clamped by Pi already).
+ * @param options.floor   Trigger threshold: budgets below this are repaired.
+ *                        Defaults to `MIN_PROVIDER_OUTPUT_TOKENS` (Pi's own
+ *                        `MIN_ANSWER_TOKENS`).
+ * @param options.target  Value to raise to. Defaults to `floor`. Pass the
+ *                        model's declared `maxTokens` (via
+ *                        `resolveOutputBudgetTarget`) to restore the user's
+ *                        configured output cap exactly the way Pi intended
+ *                        before the clamp.
+ */
+export function repairDegenerateOutputBudget(
+  payload: unknown,
+  options: { floor?: number; target?: number } = {},
+): OutputBudgetRepairResult {
+  const floor = options.floor ?? MIN_PROVIDER_OUTPUT_TOKENS;
+  if (!payload || typeof payload !== 'object') return { payload };
+  const found = findOutputBudget(payload);
+  if (!found || found.value >= floor) return { payload };
+  const target = Math.max(floor, Math.floor(options.target ?? floor));
+  if (target === found.value) return { payload };
+  return {
+    payload: { ...(payload as Record<string, unknown>), [found.field]: target },
+    repair: { field: found.field, before: found.value, after: target },
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Compaction accounting
 // ---------------------------------------------------------------------------
 

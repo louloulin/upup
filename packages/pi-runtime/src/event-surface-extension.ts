@@ -43,6 +43,8 @@ import {
   expandInvestmentInput,
   findUnsourcedNumbers,
   guessMarketLabel,
+  repairDegenerateOutputBudget,
+  resolveOutputBudgetTarget,
   resolveSessionDisplayName,
   summarizeCompaction,
   summarizeToolExecution,
@@ -261,6 +263,7 @@ export function createUpUpEventSurfaceExtension(ports: UpUpEventSurfacePorts = {
     let discoveredResources: UpUpResourceDirs | undefined;
     let lastInputExpansions: readonly string[] = [];
     let lastMessageAudit: Record<string, unknown> | undefined;
+    let lastOutputBudgetRepair: { field: string; before: number; after: number } | undefined;
     const sessionHealth = {
       turns: 0,
       toolCalls: 0,
@@ -377,6 +380,34 @@ export function createUpUpEventSurfaceExtension(ports: UpUpEventSurfacePorts = {
           if (!expanded) return undefined;
           lastInputExpansions = expanded.expansions;
           return { action: 'transform', text: expanded.text } satisfies InputEventResult;
+        },
+
+        /**
+         * Keep the outgoing request from carrying an unusable output budget.
+         *
+         * Pi clamps `maxTokens` to `contextWindow - estimate - 4096` with a
+         * one-token floor. When the provider catalog under-reports
+         * `contextWindow` (the `ax` gateway declares 128k for a model that
+         * really serves 260k+), a long session drives that expression below
+         * one, so Pi sends `max_tokens: 1` and the gateway answers with a
+         * 128-token ceiling plus `finish_reason: "length"` — rendered to the
+         * user as "Response was truncated before completion." on every turn.
+         *
+         * `context.model.maxTokens` is the value Pi fed into the clamp, so
+         * restoring to it undoes exactly the clamp that starved the request
+         * while leaving a genuinely small budget untouched. This hook is the
+         * only lever UpUp has: the clamp runs inside Pi's provider adapters,
+         * after every extension-visible budget decision.
+         */
+        before_provider_request: (event, context) => {
+          lastOutputBudgetRepair = undefined;
+          const payload = (event as { payload?: unknown }).payload;
+          const declaredMax = (context as { model?: { maxTokens?: number } } | undefined)?.model?.maxTokens;
+          const target = resolveOutputBudgetTarget(declaredMax);
+          const { payload: repaired, repair } = repairDegenerateOutputBudget(payload, { target });
+          if (!repair) return undefined;
+          lastOutputBudgetRepair = repair;
+          return repaired;
         },
       },
 
@@ -639,7 +670,13 @@ export function createUpUpEventSurfaceExtension(ports: UpUpEventSurfacePorts = {
             bytes = -1;
           }
           const phase = subject()?.phase;
-          return { payloadBytes: bytes, ...(phase ? { phase } : {}) };
+          return {
+            payloadBytes: bytes,
+            ...(phase ? { phase } : {}),
+            // Present only when this request was repaired, so the trail explains
+            // why the outgoing budget differs from the model's configured cap.
+            ...(lastOutputBudgetRepair ? { outputBudgetRepair: { ...lastOutputBudgetRepair } } : {}),
+          };
         },
 
         tool_call: (event) => ({ tool: (event as { toolName?: string }).toolName ?? null, owner: 'policy-chain' }),

@@ -42,11 +42,57 @@
   },
   "pi": {
     "contract": "upup.pi.runtime.v1",
-   "source": "builtin:upup",
-    "tools": ["calculate_var","calculate_sharpe","calculate_sortino","calculate_max_drawdown","calculate_kelly","calculate_risk_parity","calculate_mean_variance","calculate_correlation_matrix","calculate_correlation","score_data_source","compare_data_sources","track_risk","get_short_interest","calculate_short_interest_ratio","detect_short_squeeze"],
-    "nativeTools": ["calculate_var","calculate_sharpe","calculate_sortino","calculate_max_drawdown","calculate_kelly","calculate_risk_parity","calculate_mean_variance","calculate_correlation_matrix","calculate_correlation","score_data_source","compare_data_sources","track_risk","get_short_interest","calculate_short_interest_ratio","detect_short_squeeze"],
-    "trust": { "mode": "builtin", "filesystem": true },
-    "lifecycle": { "scope": "session" },
+    "source": "builtin:upup",
+    "tools": [
+      "calculate_var",
+      "calculate_sharpe",
+      "calculate_sortino",
+      "calculate_max_drawdown",
+      "calculate_kelly",
+      "calculate_risk_parity",
+      "calculate_mean_variance",
+      "calculate_correlation_matrix",
+      "calculate_correlation",
+      "score_data_source",
+      "compare_data_sources",
+      "track_risk",
+      "get_short_interest",
+      "calculate_short_interest_ratio",
+      "detect_short_squeeze"
+    ],
+    "nativeTools": [
+      "calculate_var",
+      "calculate_sharpe",
+      "calculate_sortino",
+      "calculate_max_drawdown",
+      "calculate_kelly",
+      "calculate_risk_parity",
+      "calculate_mean_variance",
+      "calculate_correlation_matrix",
+      "calculate_correlation",
+      "score_data_source",
+      "compare_data_sources",
+      "track_risk",
+      "get_short_interest",
+      "calculate_short_interest_ratio",
+      "detect_short_squeeze"
+    ],
+    "sideEffects": [
+      {
+        "tools": [
+          "track_risk"
+        ],
+        "effect": "filesystem-write",
+        "safetyLevel": "warning"
+      }
+    ],
+    "trust": {
+      "mode": "builtin",
+      "filesystem": true
+    },
+    "lifecycle": {
+      "scope": "session"
+    },
     "extensions": [
       "./extensions/index.ts"
     ],

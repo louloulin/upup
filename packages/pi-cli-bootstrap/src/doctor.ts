@@ -7,8 +7,9 @@
  * Part of Plan12 P2 implementation
  */
 
-import { existsSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
+import { resolveAgentDir } from '@upup/pi-resource-composition';
 import { PROVIDERS, getUpupHomeRoot, globalUpupPath } from '@upup/utils';
 import { checkApiKeyExists } from '@upup/utils';
 import { validateConfig, isFirstTimeUse, getConfigSummary } from './config-validation';
@@ -50,6 +51,9 @@ export async function runDoctor(): Promise<void> {
 
   // Check config sources
   checks.push(...checkConfigSources());
+
+  // Check the Pi-side session recovery settings UpUp inherits from the Pi home.
+  checks.push(...checkSessionRecovery());
 
   // Print results
   console.log('');
@@ -183,6 +187,61 @@ function checkConfigSources(): CheckResult[] {
       name: 'Config Sources',
       status: 'pass',
       message: `${sources.length} value(s) configured`,
+    });
+  }
+
+  return results;
+}
+
+/**
+ * Report the Pi-side settings that govern automatic session recovery.
+ *
+ * UpUp does not own Pi's agent dir contract, but it *does* seed
+ * `~/.upup/agent/settings.json` from a previous `~/.pi/agent` install. A
+ * historical Pi home carried `compaction.enabled: false` (see
+ * `docs/pi7-pi-llm-config-audit.md`), and that value silently disables Pi's
+ * entire overflow/length-stop recovery path (`AgentSession._checkCompaction`
+ * returns early). The practical effect: once a model truncates an answer
+ * (`Response was truncated before completion.`) or overflows the context
+ * window, the session can never compact-and-retry, so the failure repeats on
+ * every turn.
+ *
+ * This check is read-only and advisory — it never rewrites the user's
+ * settings. `upup doctor` is documented as a read-only diagnostic, so the
+ * only action here is telling the user which switch to flip.
+ */
+export function checkSessionRecovery(): CheckResult[] {
+  const results: CheckResult[] = [];
+  let enabled: boolean | undefined;
+
+  try {
+    const agentDir = resolveAgentDir(process.cwd(), { env: process.env }).agentDir;
+    const settingsPath = join(agentDir, 'settings.json');
+    if (existsSync(settingsPath)) {
+      const parsed = JSON.parse(readFileSync(settingsPath, 'utf8')) as {
+        compaction?: { enabled?: unknown };
+      };
+      const raw = parsed.compaction?.enabled;
+      if (typeof raw === 'boolean') enabled = raw;
+    }
+  } catch {
+    // Unreadable or malformed settings: stay silent rather than fail doctor.
+    return results;
+  }
+
+  // Pi defaults `compaction.enabled` to true when the key is absent, so an
+  // undefined value is healthy and needs no line in the report.
+  if (enabled === false) {
+    results.push({
+      name: 'Auto Compact',
+      status: 'warn',
+      message: 'disabled in the Pi agent settings — truncated/overflow responses cannot self-heal; re-enable with `/settings` in the TUI or set compaction.enabled=true',
+    });
+  } else if (enabled === true) {
+    results.push({
+      name: 'Auto Compact',
+      status: 'pass',
+      message: 'enabled',
     });
   }
 

@@ -75,25 +75,105 @@ const mcpIndex = resolve(ROOT, 'packages/mcp-server/src/index.ts');
 const mcpTools = resolve(ROOT, 'packages/mcp-server/src/tools.ts');
 const mcpServer = resolve(ROOT, 'packages/mcp-server/src/server.ts');
 const mcpCli = resolve(ROOT, 'packages/mcp-server/src/cli.ts');
+const mcpBridge = resolve(ROOT, 'packages/mcp-server/src/pi-tool-bridge.ts');
 check(
   '@upup/mcp-server package source exists',
-  existsSync(mcpIndex) && existsSync(mcpTools) && existsSync(mcpServer) && existsSync(mcpCli),
-  'packages/mcp-server/src/{index,tools,server,cli}.ts must all exist',
+  existsSync(mcpIndex) && existsSync(mcpTools) && existsSync(mcpServer) && existsSync(mcpCli) && existsSync(mcpBridge),
+  'packages/mcp-server/src/{index,tools,server,cli,pi-tool-bridge}.ts must all exist',
 );
-let mcpToolsSrc = '';
-if (existsSync(mcpTools)) {
-  mcpToolsSrc = read(mcpTools);
+const mcpServerSrc = existsSync(mcpServer) ? read(mcpServer) : '';
+check(
+  'MCP server serves the Pi-bridged catalog (not a hand-maintained subset)',
+  /collectPiToolCatalog/.test(mcpServerSrc) && /createPiNativeMcpServer/.test(mcpServerSrc) && /piCatalogReport/.test(mcpServerSrc),
+  'packages/mcp-server/src/server.ts must build its catalog from collectPiToolCatalog via createPiNativeMcpServer',
+);
+const mcpCliSrc = existsSync(mcpCli) ? read(mcpCli) : '';
+check(
+  '`upup-mcp` CLI builds the Pi-native server',
+  /createPiNativeMcpServer/.test(mcpCliSrc),
+  'packages/mcp-server/src/cli.ts must call createPiNativeMcpServer',
+);
+const entrySrcForMcp = existsSync(entryPath) ? read(entryPath) : '';
+check(
+  '`upup mcp serve` builds the Pi-native server',
+  /case 'mcp':/.test(entrySrcForMcp) && /createPiNativeMcpServer/.test(entrySrcForMcp),
+  "packages/pi-app/src/entry.ts must dispatch `upup mcp serve` to createPiNativeMcpServer",
+);
+
+// 3b. Run the bridge. A regex over the source cannot prove that the Pi packages
+// actually mount, that the tools are namespaced, or that the read-only filter
+// fires — only executing it can.
+console.log('\n3b. Pi-native MCP tool bridge (executed):');
+interface BridgedCatalog {
+  readonly tools: readonly { readonly name: string; readonly description: string; readonly inputSchema: unknown }[];
+  readonly report: {
+    readonly packagesLoaded: readonly string[];
+    readonly packagesFailed: readonly { readonly name: string; readonly error: string }[];
+    readonly toolsDeclared: number;
+    readonly toolsExposed: number;
+    readonly blockedBySideEffect: readonly { readonly name: string }[];
+  };
+}
+let catalog: BridgedCatalog | undefined;
+let catalogError = '';
+try {
+  const bridge = await import(resolve(ROOT, 'packages/mcp-server/src/pi-tool-bridge.ts'));
+  catalog = (await bridge.collectPiToolCatalog()) as BridgedCatalog;
+} catch (error) {
+  catalogError = error instanceof Error ? error.message : String(error);
 }
 check(
-  'every MCP tool has upup_finance__ prefix',
-  /name:\s*['"]upup_finance__/.test(mcpToolsSrc) && !/name:\s*['"](?!upup_finance__)[a-z_]+['"]/.test(mcpToolsSrc),
-  'UPUP_MCP_TOOLS must only use `upup_finance__` prefix',
+  'Pi packages mount and yield a tool catalog',
+  catalog !== undefined && catalog.tools.length > 0,
+  catalogError || 'collectPiToolCatalog() returned no tools',
 );
-check(
-  'tools are read-only (no place_trade_order / config_set exposure)',
-  !/name:\s*['"](upup_finance__place_trade_order|upup_finance__config_set|upup_finance__write_file)['"]/.test(mcpToolsSrc),
-  'MCP server must never expose financial-write tools — those stay behind Pi policy',
-);
+if (catalog) {
+  const { tools, report } = catalog;
+  check(
+    'every bridged package mounts cleanly',
+    report.packagesFailed.length === 0,
+    report.packagesFailed.map((f) => `${f.name}: ${f.error}`).join('; '),
+  );
+  check(
+    'every MCP tool carries the upup_finance__ namespace',
+    tools.every((tool) => tool.name.startsWith('upup_finance__')),
+    tools.filter((tool) => !tool.name.startsWith('upup_finance__')).map((tool) => tool.name).join(', '),
+  );
+  check(
+    'MCP tool names are unique',
+    new Set(tools.map((tool) => tool.name)).size === tools.length,
+    `${tools.length} tools, ${new Set(tools.map((tool) => tool.name)).size} unique`,
+  );
+  check(
+    'every MCP tool declares an object input schema',
+    tools.every((tool) => (tool.inputSchema as { type?: unknown })?.type === 'object'),
+    'a non-object schema would make an MCP client unable to validate arguments',
+  );
+  // The read-only promise has to come from `pi.sideEffects`, and it has to be
+  // doing work: a filter that withheld nothing would pass vacuously.
+  check(
+    'the read-only filter is derived from pi.sideEffects and actually withholds tools',
+    report.blockedBySideEffect.length > 0,
+    'no tool was withheld by pi.sideEffects — the filter is either broken or the declarations were dropped',
+  );
+  const forbidden = ['place_trade_order', 'cancel_trade_order', 'strategy_run_paper', 'config_set', 'write_file', 'notify', 'mcp_auth_get'];
+  const leaked = forbidden.filter((name) => tools.some((tool) => tool.name === `upup_finance__${name}`));
+  check(
+    'no financial-write / filesystem-write / credential tool reaches MCP',
+    leaked.length === 0,
+    `leaked: ${leaked.join(', ')}`,
+  );
+  check(
+    'the MCP surface is materially larger than the legacy hand-written catalog',
+    report.toolsExposed >= 100,
+    `only ${report.toolsExposed} tools exposed (declared ${report.toolsDeclared})`,
+  );
+  console.log(
+    `     ${report.packagesLoaded.length} package(s) mounted, `
+    + `${report.toolsExposed}/${report.toolsDeclared} tools exposed, `
+    + `${report.blockedBySideEffect.length} withheld by pi.sideEffects`,
+  );
+}
 
 // 4. MCP server test coverage -------------------------------------------------
 console.log('\n4. MCP server tests:');
@@ -103,15 +183,6 @@ check(
   existsSync(mcpTest),
   'packages/mcp-server/test/server.test.ts must exist',
 );
-
-// Summary -------------------------------------------------------------------
-console.log('');
-if (failures.length > 0) {
-  console.error(`check:cross-platform-exposure FAILED (${failures.length} issue(s))`);
-  for (const failure of failures) console.error(`  - ${failure}`);
-  process.exit(1);
-}
-
 
 // 6. MCP HTTP / streamable-HTTP transport ------------------------------------
 console.log('\n6. MCP HTTP transport (streamable-http + bearer auth):');
@@ -131,10 +202,16 @@ check(
 const webCommandEntry = existsSync(resolve(ROOT, 'packages/pi-app/src/entry.ts'))
   ? read(resolve(ROOT, 'packages/pi-app/src/entry.ts'))
   : '';
+// `upup web` serves the `@agegr/pi-web` UI through `@upup/upup-web`'s overlay
+// proxy, which owns `/api/upup/*` and injects the sidecar. Spawning the
+// `pi-web-ui` binary directly is the *old* shape and is asserted against by
+// `check:pi-web-overlay`; asserting it here as well would contradict that.
 check(
-  '`upup web` subcommand wired in pi-app/entry.ts (wraps pi-web-ui)',
-  /case 'web':/.test(webCommandEntry) && /pi-web-ui/.test(webCommandEntry),
-  'packages/pi-app/src/entry.ts must dispatch `upup web` to pi-web-ui',
+  '`upup web` subcommand wired in pi-app/entry.ts (via @upup/upup-web)',
+  /case 'web':/.test(webCommandEntry)
+    && /await\s+import\(\s*['"]@upup\/upup-web['"]\s*\)/.test(webCommandEntry)
+    && /startUpUpWeb/.test(webCommandEntry),
+  'packages/pi-app/src/entry.ts must dispatch `upup web` to startUpUpWeb from @upup/upup-web',
 );
 
 // 5. In-process SDK (@upup/sdk) ------------------------------------------------
@@ -200,5 +277,14 @@ check(
   existsSync(investSrc) && /--sop-dynamic/.test(read(investSrc)) && /runSopAsDynamicWorkflow/.test(read(investSrc)),
   'packages/pi-investment-workflow/src/invest.ts must parse --sop-dynamic and call runSopAsDynamicWorkflow',
 );
-
+// Summary -------------------------------------------------------------------
+// Every `check()` above must run before this gate: a section placed after it
+// would collect failures that are never enforced, and the guard would print
+// OK while a surface is actually broken.
+console.log('');
+if (failures.length > 0) {
+  console.error(`check:cross-platform-exposure FAILED (${failures.length} issue(s))`);
+  for (const failure of failures) console.error(`  - ${failure}`);
+  process.exit(1);
+}
 console.log('check:cross-platform-exposure OK');

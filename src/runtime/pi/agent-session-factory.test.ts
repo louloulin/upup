@@ -256,7 +256,7 @@ describe('PiAgentSessionFactory', () => {
     const sessionPath = join(directory, 'platform-watchlist.jsonl');
     const spec = { ...getInvestmentAgentSpec('invest-explore'), id: 'platform-watchlist-session', packages: ['@upup/pi-platform'], skills: [], tools: ['add_to_watchlist', 'remove_from_watchlist', 'get_watchlist', 'add_watchlist_alert', 'check_watchlist_alerts', 'clear_watchlist_alert', 'export_watchlist'] };
     const trust = { trustedPaths: [join(packageRoot, 'pi-platform')], pinnedPackages: { '@upup/pi-platform': '0.1.0', '@earendil-works/pi-coding-agent': '0.85.1', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-platform': ['builtin:upup'] } };
-    const first = await new PiAgentSessionFactory().createSession(spec, { cwd: directory, sessionPath, piPackagePaths: [join(packageRoot, 'pi-platform')], piPackageTrust: trust });
+    const first = await new PiAgentSessionFactory().createSession(spec, { cwd: directory, sessionPath, requestToolApproval: async () => true, piPackagePaths: [join(packageRoot, 'pi-platform')], piPackageTrust: trust });
     try {
       expect(first.getAvailableToolNames()).toEqual(spec.tools);
       const added = await first.executeTool('add_to_watchlist', 'platform-watch-add', { symbol: 'AAPL', tags: ['tech'] });
@@ -415,7 +415,7 @@ describe('PiAgentSessionFactory', () => {
     const packageRoot = join(process.cwd(), 'packages');
     const spec = { ...getInvestmentAgentSpec('invest-plan'), id: 'platform-planning-session', packages: ['@upup/pi-platform'], skills: [], tools: ['enter_plan_mode', 'exit_plan_mode', 'add_plan_step', 'update_plan_step', 'list_plan_steps', 'create_todo', 'update_todo', 'list_todos', 'delete_todo'] };
     const trust = { trustedPaths: [join(packageRoot, 'pi-platform')], pinnedPackages: { '@upup/pi-platform': '0.1.0', '@earendil-works/pi-coding-agent': '0.85.1', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-platform': ['builtin:upup'] } };
-    const enabled = await new PiAgentSessionFactory().createSession(spec, { cwd: process.cwd(), piPackagePaths: [join(packageRoot, 'pi-platform')], piPackageTrust: trust });
+    const enabled = await new PiAgentSessionFactory().createSession(spec, { cwd: process.cwd(), requestToolApproval: async () => true, piPackagePaths: [join(packageRoot, 'pi-platform')], piPackageTrust: trust });
     try {
       expect(enabled.getAvailableToolNames()).toEqual(spec.tools);
       const text = (value: Awaited<ReturnType<UpUpAgentSession['executeTool']>>) => value.content.find((part): part is { type: 'text'; text: string } => part.type === 'text')!.text;
@@ -1419,6 +1419,7 @@ describe('PiAgentSessionFactory', () => {
       tools: ['calculate_var', 'calculate_sharpe', 'calculate_sortino', 'calculate_max_drawdown', 'calculate_kelly', 'calculate_risk_parity', 'calculate_mean_variance', 'score_data_source', 'compare_data_sources', 'calculate_correlation_matrix', 'calculate_correlation', 'track_risk', 'get_short_interest', 'calculate_short_interest_ratio', 'detect_short_squeeze'],
     }, {
       cwd: process.cwd(),
+      requestToolApproval: async () => true,
       piPackagePaths: [join(packageRoot, 'pi-risk')],
       piPackageTrust: {
         trustedPaths: [join(packageRoot, 'pi-risk')],
@@ -1506,6 +1507,7 @@ describe('PiAgentSessionFactory', () => {
       tools: ['add_position', 'update_position', 'remove_position', 'get_portfolio', 'list_portfolios', 'create_portfolio', 'delete_portfolio', 'switch_portfolio', 'add_position_multi', 'remove_position_multi', 'get_portfolio_multi', 'portfolio_attribution', 'portfolio_brinson_attribution', 'portfolio_style_attribution', 'portfolio_sector_attribution', 'list_benchmarks', 'compare_to_benchmark', 'calculate_alpha', 'convert_currency', 'list_currencies', 'get_exchange_rate'],
     }, {
       cwd: process.cwd(),
+      requestToolApproval: async () => true,
       piPackagePaths: [join(packageRoot, 'pi-portfolio')],
       piPackageTrust: {
         trustedPaths: [join(packageRoot, 'pi-portfolio')],
@@ -1552,7 +1554,7 @@ describe('PiAgentSessionFactory', () => {
     const sessionPath = join(directory, 'portfolio.jsonl');
     const spec = { ...getInvestmentAgentSpec('invest-review'), id: 'portfolio-session-state', packages: ['@upup/pi-portfolio'], skills: [], tools: ['add_position', 'get_portfolio', 'create_portfolio', 'add_position_multi', 'get_portfolio_multi'] };
     const trust = { trustedPaths: [join(packageRoot, 'pi-portfolio')], pinnedPackages: { '@upup/pi-portfolio': '0.1.0', '@earendil-works/pi-coding-agent': '0.85.1', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-portfolio': ['builtin:upup'] } };
-    const first = await new PiAgentSessionFactory().createSession(spec, { cwd: directory, sessionPath, piPackagePaths: [join(packageRoot, 'pi-portfolio')], piPackageTrust: trust });
+    const first = await new PiAgentSessionFactory().createSession(spec, { cwd: directory, sessionPath, requestToolApproval: async () => true, piPackagePaths: [join(packageRoot, 'pi-portfolio')], piPackageTrust: trust });
     await first.executeTool('add_position', 'portfolio-state-add', { symbol: 'MSFT', quantity: 5, avgCost: 300 });
     await first.executeTool('create_portfolio', 'portfolio-state-create', { name: 'growth', initialCash: 50000 });
     await first.executeTool('add_position_multi', 'portfolio-state-multi-add', { portfolio: 'growth', symbol: 'AAPL', quantity: 10, avgCost: 100 });
@@ -1577,7 +1579,7 @@ describe('PiAgentSessionFactory', () => {
     const sessionPath = join(directory, 'fund-watchlist.jsonl');
     const spec = { ...getInvestmentAgentSpec('invest-explore'), id: 'fund-watchlist-session-state', packages: ['@upup/pi-finance-sdk'], skills: [], tools: ['fund_follow', 'fund_unfollow', 'fund_list'] };
     const trust = { trustedPaths: [join(packageRoot, 'pi-finance-sdk')], pinnedPackages: { '@upup/pi-finance-sdk': '0.1.0', '@earendil-works/pi-coding-agent': '0.85.1', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-finance-sdk': ['builtin:upup'] } };
-    const first = await new PiAgentSessionFactory().createSession(spec, { cwd: directory, sessionPath, piPackagePaths: [join(packageRoot, 'pi-finance-sdk')], piPackageTrust: trust });
+    const first = await new PiAgentSessionFactory().createSession(spec, { cwd: directory, sessionPath, requestToolApproval: async () => true, piPackagePaths: [join(packageRoot, 'pi-finance-sdk')], piPackageTrust: trust });
     try {
       const followed = await first.executeTool('fund_follow', 'fund-watchlist-follow', { fund_code: '110022', note: 'session-only' });
       expect(followed).toMatchObject({ details: { auditId: 'fund-watchlist-follow', evidence: [{ source: 'upup-pi://finance-sdk/fund-follow' }] } });
@@ -1598,7 +1600,7 @@ describe('PiAgentSessionFactory', () => {
     const sessionPath = join(directory, 'finance-knowledge.jsonl');
     const spec = { ...getInvestmentAgentSpec('invest-explore'), id: 'finance-knowledge-session-state', packages: ['@upup/pi-finance-sdk'], skills: [], tools: ['track_company', 'track_sector', 'get_knowledge_summary'] };
     const trust = { trustedPaths: [join(packageRoot, 'pi-finance-sdk')], pinnedPackages: { '@upup/pi-finance-sdk': '0.1.0', '@earendil-works/pi-coding-agent': '0.85.1', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-finance-sdk': ['builtin:upup'] } };
-    const first = await new PiAgentSessionFactory().createSession(spec, { cwd: directory, sessionPath, piPackagePaths: [join(packageRoot, 'pi-finance-sdk')], piPackageTrust: trust });
+    const first = await new PiAgentSessionFactory().createSession(spec, { cwd: directory, sessionPath, requestToolApproval: async () => true, piPackagePaths: [join(packageRoot, 'pi-finance-sdk')], piPackageTrust: trust });
     try {
       const company = await first.executeTool('track_company', 'knowledge-company-1', { ticker: 'aapl', name: 'Apple', sector: 'Technology', industry: 'Consumer Electronics', summary: 'Session research note.', key_metrics: { pe: 34.2 } });
       expect(company).toMatchObject({ details: { auditId: 'knowledge-company-1', evidence: [{ source: 'upup-pi://finance-sdk/knowledge-journal/company' }] } });
@@ -1655,7 +1657,7 @@ describe('PiAgentSessionFactory', () => {
     const sessionPath = join(directory, 'fund-alerts.jsonl');
     const spec = { ...getInvestmentAgentSpec('invest-explore'), id: 'fund-alert-session-state', packages: ['@upup/pi-finance-sdk'], skills: [], tools: ['fund_alert_create', 'fund_alert_list', 'fund_alert_delete'] };
     const trust = { trustedPaths: [join(packageRoot, 'pi-finance-sdk')], pinnedPackages: { '@upup/pi-finance-sdk': '0.1.0', '@earendil-works/pi-coding-agent': '0.85.1', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-finance-sdk': ['builtin:upup'] } };
-    const first = await new PiAgentSessionFactory().createSession(spec, { cwd: directory, sessionPath, piPackagePaths: [join(packageRoot, 'pi-finance-sdk')], piPackageTrust: trust });
+    const first = await new PiAgentSessionFactory().createSession(spec, { cwd: directory, sessionPath, requestToolApproval: async () => true, piPackagePaths: [join(packageRoot, 'pi-finance-sdk')], piPackageTrust: trust });
     try {
       const created = await first.executeTool('fund_alert_create', 'fund-alert-create', { fund_code: '110022', alert_type: 'change_down', value: 5 });
       expect(created).toMatchObject({ details: { auditId: 'fund-alert-create', evidence: [{ source: 'upup-pi://finance-sdk/fund-alert-create' }] } });
