@@ -209,6 +209,60 @@ export const UPUP_ECOSYSTEM_PACKAGES: readonly UpUpEcosystemPackage[] = [
     verifiedClean: true,
     description: 'Structured questionnaire the model can put to the user with typed options.',
   },
+  {
+    name: '@quintinshaw/pi-dynamic-workflows',
+    version: '3.12.0',
+    importPath: '@quintinshaw/pi-dynamic-workflows',
+    category: 'workflow',
+    verifiedClean: true,
+    description: 'Claude-Code-style dynamic workflows: fan out 100s of subagents, model routing, token/cost accounting, resume, /workflows TUI, /deep-research.',
+  },
+  {
+    name: 'toolflow',
+    version: '3.1.4',
+    importPath: 'toolflow',
+    category: 'workflow',
+    verifiedClean: true,
+    description: 'Stage-gated tool pruning + 95% token dehydration + blast-radius guard + prompt workbench.',
+  },
+  {
+    name: 'pi-esr',
+    version: '0.6.3',
+    importPath: 'pi-esr',
+    category: 'workflow',
+    verifiedClean: true,
+    description: 'Engineering State Runtime: entity-graph state machine + SQLite memory provider for run persistence.',
+  },
+  {
+    name: 'pi-brainstorm',
+    version: '0.4.3',
+    importPath: 'pi-brainstorm/extensions/brainstorm.ts',
+    category: 'subagent',
+    verifiedClean: true,
+    description: 'Multi-model brainstorm/debate with file-based blackboard and main-conv compact cards.',
+  },
+  {
+    name: 'pi-conductor',
+    version: '0.21.7',
+    importPath: 'pi-conductor',
+    category: 'workflow',
+    verifiedClean: false,
+    description: 'Multi-role LLM orchestration via handoff FSM. Not loadable under current pi-coding-agent (transitive AuthStorage missing).',
+    caveats: [
+      'Top-level import of pi-conductor fails because host/stub-host.js references AuthStorage, which pi-coding-agent no longer exports. Subpath file-URL imports of dist/core/* and dist/manifest/* still resolve.',
+    ],
+  },
+  {
+    name: 'pi-crew',
+    version: '0.11.1',
+    importPath: 'pi-crew',
+    category: 'workflow',
+    verifiedClean: false,
+    description: 'Coordinated AI teams, worktrees, async task orchestration. Not loadable as a regular npm module (no exports field for index).',
+    caveats: [
+      "pi-crew has no main/exports field for its bundle; only usable via the pi.extensions config in pi-coding-agent. File URL import of dist/index.mjs works, but bun's package resolver rejects it.",
+    ],
+  },
 ] as const;
 
 /** Look up a single ecosystem package by npm name. */

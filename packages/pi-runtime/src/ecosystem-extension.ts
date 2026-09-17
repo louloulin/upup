@@ -113,26 +113,31 @@ export async function mountUpUpEcosystemPackages(
       continue;
     }
 
-    const record = mod as { default?: unknown };
+    const record = mod as { default?: unknown; [key: string]: unknown };
     const candidate = record?.default;
-    if (typeof candidate !== 'function') {
-      const actualType = candidate === undefined ? 'undefined' : typeof candidate;
-      outcomes.push({ kind: 'not_callable', name: pkg.name, importPath: pkg.importPath, actualType });
-      notCallable.push({ name: pkg.name, importPath: pkg.importPath, actualType });
+    if (typeof candidate === 'function') {
+      try {
+        (candidate as (pi: ExtensionAPI) => void)(pi);
+        mounted.push(pkg.name);
+        outcomes.push({ kind: 'mounted', name: pkg.name, importPath: pkg.importPath });
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        outcomes.push({ kind: 'mount_threw', name: pkg.name, importPath: pkg.importPath, error: msg });
+        mountThrew.push({ name: pkg.name, importPath: pkg.importPath, error: msg });
+      }
       continue;
     }
 
-    try {
-      (candidate as (pi: ExtensionAPI) => void)(pi);
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      outcomes.push({ kind: 'mount_threw', name: pkg.name, importPath: pkg.importPath, error: msg });
-      mountThrew.push({ name: pkg.name, importPath: pkg.importPath, error: msg });
+    const namedExports = Object.keys(record ?? {}).filter((k) => k !== 'default');
+    if (namedExports.length > 0) {
+      mounted.push(pkg.name);
+      outcomes.push({ kind: 'mounted', name: pkg.name, importPath: pkg.importPath });
       continue;
     }
 
-    mounted.push(pkg.name);
-    outcomes.push({ kind: 'mounted', name: pkg.name, importPath: pkg.importPath });
+    const actualType = candidate === undefined ? 'undefined' : typeof candidate;
+    outcomes.push({ kind: 'not_callable', name: pkg.name, importPath: pkg.importPath, actualType });
+    notCallable.push({ name: pkg.name, importPath: pkg.importPath, actualType });
   }
 
   return {

@@ -122,3 +122,8 @@ export {
   type WorkflowResourceRegistration,
   type RegisterWorkflowResourceFn,
 } from './bridge/sop-workflow-bridge';
+export {
+  sopToDynamicWorkflowScript,
+  type SopScriptBridgeOptions,
+  type SopScriptBridgeResult,
+} from './bridge/dynamic-workflow-bridge';

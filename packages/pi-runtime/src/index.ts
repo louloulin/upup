@@ -896,6 +896,19 @@ export {
   type UpUpFinanceSubagentSink,
 } from './finance-subagents';
 
+
+// ---------------------------------------------------------------------------
+// Pi research DAG — wraps `@arhen/pi-core-subagent`'s dependency-graph
+// scheduler for the 4 canonical research roles, with optional `needs`
+// edges so SOP authors can define a partial order instead of Promise.all.
+// ---------------------------------------------------------------------------
+export {
+  registerUpUpResearchDag,
+  buildUpUpResearchDagTasks,
+  researchDagRoles,
+  type UpUpResearchDagOptions,
+} from './research-dag';
+
 // ---------------------------------------------------------------------------
 // Advanced ExtensionAPI surface — the 8 ExtensionAPI methods the prior
 // `check:pi-extension-coverage` guard reported as unused (registerShortcut,

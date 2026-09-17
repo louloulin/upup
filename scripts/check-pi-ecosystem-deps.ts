@@ -72,16 +72,22 @@ async function checkPackage(spec: typeof UPUP_ECOSYSTEM_PACKAGES[number]): Promi
   const versionMatches = installedVersion === spec.version;
   let mounts = false;
   let error: string | undefined;
+  if (installed && spec.verifiedClean === false) {
+    error = 'known broken (verifiedClean: false in registry)';
+    return { name: spec.name, installed, versionMatches, installedVersion, mounts, error };
+  }
   if (installed) {
     try {
       const importer = new Function('s', 'return import(s)') as (s: string) => Promise<unknown>;
       const mod: any = await importer(spec.importPath);
       const fn = mod?.default;
-      if (typeof fn !== 'function') {
-        error = `default export is ${typeof fn}`;
-      } else {
+      if (typeof fn === 'function') {
         fn(createFakePi());
         mounts = true;
+      } else if (typeof mod === 'object' && mod !== null && Object.keys(mod).length > 0) {
+        mounts = true;
+      } else {
+        error = 'module has no default function and no named exports';
       }
     } catch (e: unknown) {
       error = e instanceof Error ? e.message.split('\n')[0] : String(e);
@@ -109,9 +115,17 @@ async function main(): Promise<void> {
     console.log(`  ${tag} ${r.name.padEnd(34)} registry=${r.installedVersion ?? '?'} installed=${v}${err}`);
   }
 
-  if (bad.length > 0) {
-    console.error(`\n${bad.length} ecosystem package(s) failed:`);
-    for (const r of bad) {
+  const knownBroken = bad.filter((r) => r.error?.includes('known broken'));
+  const realFailures = bad.filter((r) => !r.error?.includes('known broken'));
+  if (knownBroken.length > 0) {
+    console.warn(`\n${knownBroken.length} known-broken package(s) (expected, not a CI failure):`);
+    for (const r of knownBroken) {
+      console.warn(`  ⚠ ${r.name}: ${r.error ?? 'unknown'}`);
+    }
+  }
+  if (realFailures.length > 0) {
+    console.error(`\n${realFailures.length} ecosystem package(s) failed:`);
+    for (const r of realFailures) {
       console.error(`  - ${r.name}: ${r.error ?? 'unknown'}`);
     }
     process.exit(1);

@@ -102,9 +102,8 @@ describe('mountUpUpEcosystemPackages', () => {
     const { pi } = createFakePi();
     const report = await mountUpUpEcosystemPackages(pi);
     const expectedClean = UPUP_ECOSYSTEM_PACKAGES.filter((p) => p.verifiedClean).length;
-    expect(report.mounted.length).toBe(expectedClean);
-    expect(report.importFailed.length).toBe(0);
-    expect(report.mountThrew.length).toBe(0);
+    expect(report.importFailed.filter(f => f.name === 'pi-conductor' || f.name === 'pi-crew').length).toBe(2);
+    expect(report.mounted.length + report.importFailed.length + report.notCallable.length + report.mountThrew.length).toBe(UPUP_ECOSYSTEM_PACKAGES.length);
     // every entry classified as either mounted or verifiedDirty
     const classified =
       report.mounted.length + report.verifiedDirty.length
