@@ -1,0 +1,24 @@
+id: morning-brief
+name: 盘前晨报
+description: |
+  每日盘前 SOP：拉取持仓与自选池的隔夜变化、重要公告与宏观事件，
+  生成 3 分钟可读完的晨报，并标注需要当日决策的条目。
+version: 1.0.0
+market: cn
+tags: [daily, brief, portfolio, cn]
+phases:
+  - id: detect
+    agent: invest-explore
+    intent: |
+      收集 {ticker} 与自选池的隔夜信息：上一交易日收盘价与涨跌幅、
+      隔夜重要公告、行业新闻、宏观数据、以及今日是否休市。
+      缺失市场数据时明确写 "(n/a)"，不要估算。
+    outputContract: evidence
+    dataPolicy: live
+  - id: report
+    agent: invest-review
+    intent: |
+      产出晨报：① 一句话结论 ② 持仓/自选池关键变化 ③ 需当日决策的事项
+      ④ 风险提示。控制在 3 分钟阅读量，所有数字来自 detect 阶段证据。
+    requires: [detect]
+    outputContract: report

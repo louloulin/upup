@@ -1,0 +1,44 @@
+id: graham
+name: Graham 价值投资法
+description: |
+  本杰明·格雷厄姆式价值投资 SOP：先收集资产负债表与盈利记录证据，
+  再计算内在价值与安全边际，随后做保守性风险校验，最后产出可审计报告。
+  适用于寻找低估标的、防御性配置与长期持有决策。
+version: 1.0.0
+market: any
+tags: [value, defensive, long-term, fundamental]
+phases:
+  - id: detect
+    agent: invest-explore
+    intent: |
+      收集 {ticker} 的基本面证据：近 5 年营收/净利润/ROE/资产负债率、
+      每股净资产、股息记录、流通股本与市值。优先使用财报原文，
+      标注数据来源与报告期。不要给出投资建议。
+    outputContract: evidence
+    dataPolicy: live
+  - id: plan
+    agent: invest-plan
+    intent: |
+      基于 detect 阶段的证据，计算 {ticker} 的格雷厄姆内在价值：
+      1) 格雷厄姆数 = sqrt(22.5 × EPS × BVPS)
+      2) 净流动资产价值 (NCAV) = 流动资产 - 总负债
+      3) 安全边际 = (内在价值 - 现价) / 内在价值
+      缺价或缺 EPS 时必须显式写 "(n/a)"，禁止编造估值。
+    requires: [detect]
+    outputContract: report
+  - id: verify
+    agent: invest-risk
+    intent: |
+      校验 plan 阶段的估值假设：检查是否有一次性损益、
+      商誉减值、表外负债、股权稀释。给出悲观/中性/乐观三档情景。
+      任何被推翻的假设必须显式列出。
+    requires: [plan]
+    outputContract: report
+  - id: report
+    agent: invest-review
+    intent: |
+      产出 {ticker} 的格雷厄姆式投研报告：结论、安全边际、
+      三档情景、主要风险、以及"是否满足格雷厄姆标准"的明确判断。
+      所有数字必须引用前序阶段的证据，不得新增未经证实的数字。
+    requires: [verify]
+    outputContract: report

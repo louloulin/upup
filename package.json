@@ -81,7 +81,8 @@
     "verify:pi7-final": "bun run scripts/verify-pi7-final.ts",
     "check:upup-home": "bun run scripts/check-upup-home.ts",
     "lint:upup-home": "bun run scripts/check-upup-home.ts",
-    "check:upup-clean-loading": "bun run scripts/check-upup-clean-loading.ts"
+    "check:upup-clean-loading": "bun run scripts/check-upup-clean-loading.ts",
+    "check:sop-coverage": "bun run scripts/check-sop-coverage.ts"
   },
   "dependencies": {
     "@upup/pi-finance-sdk": "workspace:*",

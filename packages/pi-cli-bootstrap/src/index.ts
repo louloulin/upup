@@ -21,6 +21,7 @@ export { runDoctor } from './doctor';
 export { runOpenBuddyCommand, type OpenBuddyCommandOptions, type OpenBuddyRunResult } from './openbuddy';
 export { runPluginCommand, type PluginCommandOptions, type PluginRunResult } from './plugin';
 export { runInvestCommand, type InvestCommandOptions, type InvestCommandResult } from './invest';
+export { runSopCommandCli, type SopCommandOptions, type SopCommandResult } from './sop';
 export { runBridgeNotifyReloadCommand, type BridgeNotifyReloadOptions, type BridgeNotifyReloadResult } from './bridge';
 export {
   UPUP_RECOMMENDED_PLUGINS,

@@ -33,7 +33,7 @@ function fakePi() {
   };
 }
 
-const CANONICAL = ['invest', 'dossier', 'strategy', 'risk-dashboard', 'portfolio-review', 'morning-brief', 'earnings-preview', 'watchlist-edit', 'screen'];
+const CANONICAL = ['invest', 'dossier', 'strategy', 'risk-dashboard', 'portfolio-review', 'morning-brief', 'earnings-preview', 'watchlist-edit', 'screen', 'sop'];
 
 describe('pi-finance-sdk investment commands → Pi registerCommand', () => {
   test('default catalog covers every canonical investment command + alias', () => {

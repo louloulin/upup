@@ -1,0 +1,31 @@
+id: debate
+name: 多空辩论法
+description: |
+  对抗式投研 SOP：先建立共识证据底座并拟定辩论议程，再让多头、空头
+  与中立三方以同一批证据并行辩论，最后由仲裁者综合分歧、给出倾向性
+  结论与仍需验证的关键假设。对标 TradingAgents 的 bull/bear debate 拓扑。
+version: 1.0.0
+market: any
+tags: [debate, adversarial, multi-agent, research]
+phases:
+  - id: detect
+    agent: invest-explore
+    intent: |
+      为 {ticker} 建立共识证据底座：基本面、估值、资金流、技术面、
+      近期事件。所有后续辩论方必须使用同一批证据，不得各取所需。
+      每条证据标注来源与时间。
+    outputContract: evidence
+    dataPolicy: live
+  - id: plan
+    agent: invest-plan
+    intent: |
+      基于证据底座拟定辩论议程：列出 3-5 个真正存在分歧的关键问题
+      （例如"当前的估值是否已充分反映周期下行"），并为每个问题指定
+      需要哪类证据才能定论。不要在这阶段给出结论。
+    requires: [detect]
+    outputContract: report
+parallelGroups:
+  - id: debate
+    agents: [invest-risk, invest-review, invest-trade]
+    synthesizer: invest-plan
+    reduce: llm-arbiter

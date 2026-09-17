@@ -22,6 +22,7 @@ import { runPortfolioReview } from './portfolio-review';
 import { runDossier } from './dossier';
 import { runScreen } from './screen';
 import { runStrategy } from './strategy';
+import { runSopCommand } from './sop-command';
 
 // The invest command remains in this package and uses the shared Pi factory contract.
 // The root bootstrap injects the handler via setInvestCommandHandler() before any
@@ -46,7 +47,8 @@ export type InvestmentCommandName =
     | 'dossier'
   | 'screen'
   | 'invest'
-  | 'strategy';
+  | 'strategy'
+  | 'sop';
 
 export type InvestmentCommandHandler = (args: string) => string | Promise<string>;
 
@@ -112,6 +114,12 @@ export const INVESTMENT_COMMANDS: ReadonlyArray<InvestmentCommandEntry> = [
     aliases: ['strat'],
     description: '策略市场: list / show / new / publish / fork / audit (/strategy list)',
     run: runStrategy,
+  },
+  {
+    name: 'sop',
+    aliases: ['sops'],
+    description: 'SOP 方法论: list / show <id> / install <source> / new <id> — 自定义投研流程 (/sop list)',
+    run: runSopCommand,
   },
 ];
 

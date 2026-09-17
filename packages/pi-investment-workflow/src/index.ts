@@ -50,3 +50,63 @@ export { runScreen } from './screen';
 
 // Workflow registry
 export { INVESTMENT_COMMANDS, isInvestmentCommand, runInvestmentCommand, setInvestCommandHandler, listInvestmentCommands, type InvestmentCommandEntry, type InvestmentCommandName, type InvestmentCommandHandler } from './registry';
+
+// SOP (Standard Operating Procedure) engine — investor-customizable methodology
+export {
+  SopValidationError,
+  validateSopSpec,
+  validateAgentCatalogForSop,
+  type SopSpec,
+  type SopPhase,
+  type SopParallelGroup,
+  type SopApproval,
+  type SopValidationIssue,
+} from './sop-spec';
+export {
+  loadSops,
+  loadAndValidateSops,
+  parseSopYaml,
+  loadUserAgentSpecs,
+  mergeAgentCatalog,
+  resolveUpUpHomeRoot,
+  resolveBuiltinSopsDir,
+  listBuiltinSopFiles,
+  UPUP_HOME_ENV,
+  type SopLoadResult,
+  type SopLoaderOptions,
+  type UserAgentFile,
+  type UserAgentLoadResult,
+} from './sop-loader';
+export {
+  installSops,
+  installSopPayloads,
+  uninstallSop,
+  scaffoldSop,
+  sopTemplateYaml,
+  readSopSource,
+  sopInstallTargets,
+  sopInstallDirForScope,
+  installedSopPath,
+  displaySopPath,
+  type SopInstallOptions,
+  type SopInstallRecord,
+  type SopInstallResult,
+  type SopInstallScope,
+  type SopInstallTargets,
+  type SopSourcePayload,
+  type SopUninstallResult,
+} from './sop-install';
+export { runSopCommand } from './sop-command';
+
+export {
+  executeSop,
+  sopPhaseOrder,
+  type SopResult,
+  type SopPhaseResult,
+  type SopPhaseStatus,
+  type SopPhaseRunner,
+  type SopSynthesizerRunner,
+  type SopPhaseRequest,
+  type SopSynthesisRequest,
+  type SopExecutorOptions,
+} from './sop-executor';

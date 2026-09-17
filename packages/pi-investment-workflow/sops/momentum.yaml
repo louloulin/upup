@@ -1,0 +1,42 @@
+id: momentum
+name: Momentum 动量趋势法
+description: |
+  趋势跟随型 SOP：先确认价格结构与量能，再评估动量强度与波动率，
+  随后做回撤与止损校验，最后产出带明确入场/加仓/止损位的报告。
+  适用于强趋势标的与波段操作。
+version: 1.0.0
+market: any
+tags: [momentum, trend, technical, swing]
+phases:
+  - id: detect
+    agent: invest-explore
+    intent: |
+      收集 {ticker} 的技术面证据：近 250 日 OHLCV、均线系统
+      (MA20/MA60/MA120/MA250)、成交量变化、换手率、涨跌幅排名。
+      标注每项指标的计算窗口与数据截止时间。
+    outputContract: evidence
+    dataPolicy: live
+  - id: plan
+    agent: invest-plan
+    intent: |
+      基于 detect 证据为 {ticker} 计算动量强度：
+      1) KDJ / BOLL / WR / CCI / ATR / OBV 当前值
+      2) 动量分位（相对自身历史）
+      3) 明确的入场区间、加仓位、止损位、目标位（含理由）
+      若关键指标缺失，必须写 "(n/a)" 并说明原因。
+    requires: [detect]
+    outputContract: report
+  - id: verify
+    agent: invest-risk
+    intent: |
+      校验 plan 的动量假设：最大回撤、波动率、连续上涨天数、
+      量价背离、以及趋势破裂的判定条件。给出止损触发后的损失估计。
+    requires: [plan]
+    outputContract: report
+  - id: report
+    agent: invest-review
+    intent: |
+      产出 {ticker} 的动量交易计划：趋势判断、入场/加仓/止损/目标四档位、
+      失效条件、以及仓位建议。所有价位必须可回溯到前序阶段的证据。
+    requires: [verify]
+    outputContract: report

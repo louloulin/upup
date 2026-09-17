@@ -41,6 +41,7 @@ export const DEFAULT_FINANCE_COMMAND_CATALOG: readonly PiFinanceCommandDescripto
   { name: 'earnings-preview', aliases: ['ep', 'earnings'], description: 'Build an earnings preview framework for a ticker.' },
   { name: 'watchlist-edit', aliases: ['wl', 'watchlist'], description: 'Add, remove or list watchlist entries.' },
   { name: 'screen', aliases: ['scr'], description: 'Screen the market from a natural-language filter.' },
+  { name: 'sop', aliases: ['sops'], description: 'Manage SOP methodologies: list / show / check / install <source> / new <id> (installs land in $UPUP_HOME/sops).' },
 ];
 
 /** Back-compat export: the canonical command names (no aliases). */
@@ -56,6 +57,7 @@ const COMMAND_INTENTS: Readonly<Record<string, string>> = {
   'earnings-preview': 'Prepare the earnings preview',
   'watchlist-edit': 'Edit the investment watchlist',
   screen: 'Screen the market from a natural-language filter',
+  sop: 'Manage the SOP methodology catalog (list / show / install / new)',
 };
 
 // The runners + accessors live in `../src/index` so they get a proper

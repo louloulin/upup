@@ -151,6 +151,16 @@ async function main() {
       process.exit(invResult.exitCode);
       break;
 
+    case 'sop':
+      // Headless `/sop` — same catalog the TUI exposes (`/sop list|show|install|
+      // uninstall|new`). Installs always land under `$UPUP_HOME/sops`
+      // (default `~/.upup/sops`), never in a package directory.
+      const { runSopCommandCli } = await import('@upup/pi-cli-bootstrap');
+      const sopResult = await runSopCommandCli({ args: args.slice(1) });
+      process.stdout.write(`${sopResult.output}\n`);
+      process.exit(sopResult.exitCode);
+      break;
+
     case 'bridge':
       // Phase 0.1c: forward a reload signal to a running bridge server (the
       // long-running TUI/CLI/SDK session picks it up via the onReloadRequest
@@ -247,6 +257,30 @@ file via @upup/utils/env mergeAuthJsonIntoProcessEnv, so /login is the
 canonical place to set up credentials — no separate upup setup step needed
 unless you want to also pick a default provider + model.
 `,
+  sop: `upup sop — headless SOP (投资方法论) management.
+
+  upup sop list                          List built-in + user SOPs
+  upup sop show <id>                     Print one SOP's phase graph
+  upup sop sources                       Show where each SOP was loaded from
+  upup sop check                         Validate every SOP against the agent catalog
+  upup sop agents                        List built-in + user-defined agents
+  upup sop install <source> [--force]    Install a SOP
+  upup sop uninstall <id>                Remove an installed SOP
+  upup sop new <id>                      Scaffold a new methodology
+
+Sources accepted by \`install\`:
+  https://example.com/my-sop.yaml        remote YAML
+  ./sops/local.yaml                      local file
+  ./team-sops/                           local directory (batch)
+  builtin:graham                         copy a built-in SOP so you can edit it
+  graham                                 bare built-in id shorthand
+
+Installs land under the UpUp home root — \`$UPUP_HOME/sops\` when UPUP_HOME is
+set, otherwise \`~/.upup/sops\` — and project-scope installs (\`--project\`) land
+in \`<cwd>/.upup/sops\`. Nothing is ever written into the package directory, so
+the same commands work in CI and sandboxed installs. Existing files are kept
+unless \`--force\` is passed. Run a SOP with \`upup invest --sop <id> <TICKER>\`.
+`,
   doctor: `upup doctor — health check for UpUp + Pi runtime.
 
   upup doctor
@@ -285,6 +319,9 @@ Usage:
                          Headless /invest runner — drives the canonical 5-phase
                          workflow (detect → plan → execute → verify → report)
                          without needing an interactive TUI.
+  upup sop <list|show|install|uninstall|new>
+                         Headless SOP (投资方法论) management. Installs land in
+                         $UPUP_HOME/sops (default ~/.upup/sops).
   upup config             Manage configuration (~/.upup/settings.json)
   upup openbuddy          Migrate Pi state into ~/.upup/agent
   upup plugin             Manage Pi packages (install/list/uninstall/update)

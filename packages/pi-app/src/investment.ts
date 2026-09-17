@@ -9,7 +9,8 @@ import {
   type InvestmentSessionFactory,
 } from '@upup/pi-investment-workflow';
 import type { PiSessionServiceFactory } from '@upup/pi-session';
-import type { UpUpCreateSessionOptions } from '@upup/pi-runtime';
+import type { UpUpAgentSpec, UpUpCreateSessionOptions } from '@upup/pi-runtime';
+import { getConfiguredModelId } from '@upup/utils';
 import type { PiInvestmentWorkflow } from './index';
 
 export function createPiInvestmentWorkflow(options: {
@@ -18,8 +19,21 @@ export function createPiInvestmentWorkflow(options: {
   readonly sessionOptionsFactory?: (sessionPath: string) => Omit<UpUpCreateSessionOptions, 'sessionPath' | 'cwd'>;
 }): PiInvestmentWorkflow {
   const cwd = options.cwd ?? process.cwd();
+  // Pi resolves the session's `spec.model` through its own catalog, and falls
+  // back to Pi's built-in default (deepseek/deepseek-v4-flash) when it is
+  // missing — a provider most UpUp installs have no credential for. The
+  // deterministic five-phase workflow never calls the LLM (it drives
+  // `invest_workflow_phase`), so the gap went unnoticed; LLM-driven paths such
+  // as `/invest --sop <id>` fail with "No API key found for deepseek" without
+  // it. Bind the user's configured model so every session created here
+  // inherits it.
+  const baseSpec = getInvestmentAgentSpec('invest-plan');
+  const workflowSpec: UpUpAgentSpec = {
+    ...baseSpec,
+    model: baseSpec.model ?? process.env.DEFAULT_MODEL ?? getConfiguredModelId(),
+  };
   const sessionFactory: InvestmentSessionFactory = async (sessionPath) =>
-    options.sessionRuntimeFactory().createSession(getInvestmentAgentSpec('invest-plan'), {
+    options.sessionRuntimeFactory().createSession(workflowSpec, {
       cwd,
       sessionPath,
       ...(options.sessionOptionsFactory ? options.sessionOptionsFactory(sessionPath) : {}),

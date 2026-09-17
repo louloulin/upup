@@ -1,0 +1,28 @@
+id: portfolio-review
+name: 组合复盘
+description: |
+  周期性组合复盘 SOP：先核算持仓与盈亏归因，再并行评估风险敞口与
+  策略一致性，最后产出调仓建议与需要人工确认的决策点。
+version: 1.0.0
+market: any
+tags: [portfolio, review, attribution, risk]
+phases:
+  - id: detect
+    agent: invest-explore
+    intent: |
+      核算当前组合：持仓明细、成本、浮动盈亏、权重、
+      以及区间收益与基准对比。数据缺失时标注 "(n/a)"。
+    outputContract: evidence
+    dataPolicy: live
+  - id: plan
+    agent: invest-plan
+    intent: |
+      基于持仓核算结果做归因：收益来自选股、择时还是行业 beta；
+      识别集中度与相关性风险；给出候选调仓方向（增/减/换）。
+    requires: [detect]
+    outputContract: report
+parallelGroups:
+  - id: risk-check
+    agents: [invest-risk, invest-review]
+    synthesizer: invest-trade
+    reduce: majority
