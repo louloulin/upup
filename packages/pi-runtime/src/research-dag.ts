@@ -28,6 +28,7 @@
  */
 
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
+import { createEcosystemImporter } from './ecosystem-resolver';
 
 type TaskItem = {
   readonly id: string;
@@ -56,6 +57,8 @@ type SubagentToolInput = { readonly input: Record<string, unknown> };
 
 export interface UpUpResearchDagOptions {
   readonly sink?: { readonly onError?: (where: string, error: unknown) => void };
+  /** Override the package loader (tests inject a fake). */
+  readonly importer?: (specifier: string) => Promise<unknown>;
 }
 
 const RESEARCH_ROLE_TOOLS: Readonly<Record<string, readonly string[]>> = {
@@ -88,8 +91,10 @@ export async function registerUpUpResearchDag(
   options: UpUpResearchDagOptions = {},
 ): Promise<boolean> {
   try {
-    const specifier = '@arhen/pi-core-subagent';
-    const mod = (await import(specifier)) as { default: (api: ExtensionAPI) => void };
+    // Resolved through the dual-scope importer so a user-installed copy in
+    // `~/.upup/agent/npm` shadows the bundled one.
+    const load = options.importer ?? createEcosystemImporter();
+    const mod = (await load('@arhen/pi-core-subagent')) as { default: (api: ExtensionAPI) => void };
     if (typeof mod.default !== 'function') {
       options.sink?.onError?.('@arhen/pi-core-subagent', new Error('default export is not a function'));
       return false;

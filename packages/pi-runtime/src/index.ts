@@ -938,6 +938,25 @@ export {
   type EcosystemCategory,
   type UpUpEcosystemPackage,
 } from './ecosystem-packages';
+// ---------------------------------------------------------------------------
+// Dual-scope ecosystem package resolver.
+//
+// `upup plugin install` downloads into the UpUp home
+// (`~/.upup/agent/npm`), but a bare `import()` only searches the workspace
+// `node_modules`. This resolver is the single place that reconciles the two:
+// user-installed packages shadow the bundled copy, so "download to ~/.upup"
+// actually takes effect.
+// ---------------------------------------------------------------------------
+export {
+  resolveEcosystemNpmRoot,
+  ecosystemResolveRoots,
+  resolveEcosystemSpecifier,
+  ecosystemSpecifierExists,
+  createEcosystemImporter,
+  describeEcosystemResolution,
+  type EcosystemResolveOptions,
+} from './ecosystem-resolver';
+
 export {
   createUpUpEcosystemExtension,
   mountUpUpEcosystemPackages,

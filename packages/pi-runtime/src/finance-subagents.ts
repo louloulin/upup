@@ -21,6 +21,7 @@
  */
 
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
+import { createEcosystemImporter } from './ecosystem-resolver';
 
 type RuntimeAgentDefinition = {
   readonly description: string;
@@ -50,6 +51,8 @@ export interface UpUpFinanceSubagentOptions {
   readonly agents?: readonly UpUpFinanceSubagentSpec[];
   /** Defaults to the bull / bear / synthesizer / risk set. */
   readonly sink?: UpUpFinanceSubagentSink;
+  /** Override the package loader (tests inject a fake). */
+  readonly importer?: (specifier: string) => Promise<unknown>;
 }
 
 export interface UpUpFinanceSubagentSpec {
@@ -150,7 +153,8 @@ export async function registerUpUpFinanceSubagents(
     // At runtime Bun resolves the path through pi-subagents' package.json
     // `exports` map (`./agents` -> `./src/api/agents.ts`).
     const specifier = ['pi-subagents', 'agents'].join('/');
-    const mod = (await import(specifier)) as { registerAgent: RegisterAgentFn };
+    const load = options.importer ?? createEcosystemImporter();
+    const mod = (await load(specifier)) as { registerAgent: RegisterAgentFn };
     registerAgent = mod.registerAgent;
   } catch (error) {
     sink.onError?.('<loader>', error);

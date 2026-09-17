@@ -10,6 +10,14 @@
  *   imports each ecosystem package, calls its default export, and never
  *   throws even if one package is broken keeps the host TUI alive.
  *
+ * Resolution scope:
+ *   Packages load through `createEcosystemImporter()` (see
+ *   `ecosystem-resolver.ts`), which prefers the UpUp home
+ *   (`~/.upup/agent/npm`, where `upup plugin install` downloads) and falls
+ *   back to the bundled workspace. Without that indirection a user-installed
+ *   plugin sat on disk but never loaded, because a bare `import()` only ever
+ *   searched this repository's `node_modules`.
+ *
  * Failure isolation rules:
  *   1. Each package is imported lazily inside a `try/catch`. A missing or
  *      broken package yields a single warning line — the session keeps going.
@@ -38,6 +46,7 @@ import {
   UPUP_ECOSYSTEM_PACKAGES,
   type UpUpEcosystemPackage,
 } from './ecosystem-packages';
+import { createEcosystemImporter } from './ecosystem-resolver';
 
 export type EcosystemMountOutcome =
   | { kind: 'mounted'; name: string; importPath: string }
@@ -62,7 +71,7 @@ export interface EcosystemMountReport {
  */
 export type EcosystemImporter = (specifier: string) => Promise<unknown>;
 
-const defaultImporter: EcosystemImporter = (specifier) => import(specifier);
+const defaultImporter: EcosystemImporter = createEcosystemImporter();
 
 export interface MountEcosystemOptions {
   readonly now?: () => number;

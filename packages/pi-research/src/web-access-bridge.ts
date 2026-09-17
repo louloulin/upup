@@ -67,12 +67,23 @@ export interface SearchBridgePorts {
 const PI_WEB_ACCESS_PACKAGE = 'pi-web-access';
 
 /** Resolve `pi-web-access`'s `search` export, or undefined when unavailable. */
+/** Lazily reach the shared dual-scope importer without a static workspace edge. */
+async function createUpUpEcosystemImporter(): Promise<(specifier: string) => Promise<unknown>> {
+  const runtime = (await import('@upup/pi-runtime')) as {
+    createEcosystemImporter?: () => (specifier: string) => Promise<unknown>;
+  };
+  if (typeof runtime.createEcosystemImporter === 'function') return runtime.createEcosystemImporter();
+  return (specifier: string) => import(specifier);
+}
+
 async function loadSearch(importer?: (specifier: string) => Promise<unknown>): Promise<PiWebAccessSearchFn | undefined> {
   try {
     const specifier = [PI_WEB_ACCESS_PACKAGE, 'gemini-search.ts'].join('/');
-    const mod = importer
-      ? ((await importer(specifier)) as { search?: PiWebAccessSearchFn })
-      : ((await import(specifier)) as { search?: PiWebAccessSearchFn });
+    // The dual-scope importer keeps a user-installed copy in
+    // `~/.upup/agent/npm` ahead of the bundled one. Imported lazily so
+    // `@upup/pi-research` keeps no static dependency on `@upup/pi-runtime`.
+    const fallback = await createUpUpEcosystemImporter();
+    const mod = (await (importer ?? fallback)(specifier)) as { search?: PiWebAccessSearchFn };
     return typeof mod.search === 'function' ? mod.search : undefined;
   } catch (error) {
     if (!importer) return undefined;

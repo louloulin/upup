@@ -85,11 +85,21 @@ export interface SopDynamicRunResult {
 
 const WORKFLOW_PACKAGE = '@quintinshaw/pi-dynamic-workflows';
 
+/** Lazily reach the shared dual-scope importer without a static workspace edge. */
+async function createUpUpEcosystemImporter(): Promise<(specifier: string) => Promise<unknown>> {
+  const runtime = (await import('@upup/pi-runtime')) as {
+    createEcosystemImporter?: () => (specifier: string) => Promise<unknown>;
+  };
+  if (typeof runtime.createEcosystemImporter === 'function') return runtime.createEcosystemImporter();
+  return (specifier: string) => import(specifier);
+}
+
 async function loadRunWorkflow(importer?: (specifier: string) => Promise<unknown>): Promise<RunWorkflowFn | undefined> {
   try {
-    const mod = importer
-      ? ((await importer(WORKFLOW_PACKAGE)) as { runWorkflow?: RunWorkflowFn })
-      : ((await import(WORKFLOW_PACKAGE)) as { runWorkflow?: RunWorkflowFn });
+    // Resolve through the dual-scope roots so a copy the user downloaded into
+    // `~/.upup/agent/npm` wins over the bundled one.
+    const fallback = await createUpUpEcosystemImporter();
+    const mod = (await (importer ?? fallback)(WORKFLOW_PACKAGE)) as { runWorkflow?: RunWorkflowFn };
     return typeof mod.runWorkflow === 'function' ? mod.runWorkflow : undefined;
   } catch {
     return undefined;
