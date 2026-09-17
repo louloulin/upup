@@ -22,7 +22,8 @@
 // 'gray-matter'` resolving to a callable default if it is ever inlined.
 
 import { build } from 'esbuild';
-import { dirname, resolve } from 'node:path';
+import { cpSync, existsSync, mkdirSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -86,5 +87,20 @@ await build({
   alias: { 'gray-matter': resolve(repoRoot, 'scripts/shims/gray-matter.js') },
   logLevel: 'error',
 });
+
+// Built-in SOP payload.
+//
+// `sop-loader.ts` is inlined into the bundle, so its `import.meta.url` is the
+// bundle's — `<repo>/dist/index.js` — and its module-relative candidates miss
+// the package's own `sops/`. Copy the payload next to the bundle so
+// `join(MODULE_DIR, 'sops')` resolves. Mirrors the theme copy in
+// `scripts/copy-pi-package-resources.ts`.
+const sopsSource = resolve(repoRoot, 'packages/pi-investment-workflow/sops');
+const sopsTarget = resolve(repoRoot, 'dist/sops');
+if (existsSync(sopsSource)) {
+  mkdirSync(sopsTarget, { recursive: true });
+  cpSync(sopsSource, sopsTarget, { recursive: true });
+  console.log(`Copied built-in SOPs to ${join('dist', 'sops')}`);
+}
 
 console.log('✅ Node.js build complete: dist/index.js');

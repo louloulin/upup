@@ -1,0 +1,40 @@
+(pass) SandboxBroker — position tracking and P&L > balance reflects cash + market value [0.47ms]
+(pass) SandboxBroker — persistence and reset > persists state to disk after operations [0.52ms]
+(pass) SandboxBroker — persistence and reset > resumes from persisted state on reload [0.49ms]
+(pass) SandboxBroker — persistence and reset > fails closed instead of inventing a price when no quote provider is injected [0.12ms]
+(pass) SandboxBroker — persistence and reset > reset() restores initial state [0.52ms]
+
+packages/pi-platform/src/trading/registry.test.ts:
+(pass) broker registry > live broker construction is denied unless both explicit safety flags are enabled [0.17ms]
+(pass) broker registry > default registration includes sandbox, ibkr, xueqiu [0.02ms]
+(pass) broker registry > createBroker("sandbox") returns a sandbox broker with name "sandbox" [0.02ms]
+(pass) broker registry > createBroker with unknown name throws with helpful message [0.05ms]
+(pass) broker registry > resolveActiveBroker defaults to sandbox when UPUP_BROKER is unset
+(pass) broker registry > resolveActiveBroker honors UPUP_BROKER env var
+(pass) broker registry > createBroker("ibkr") synchronously throws (use async variant) [0.02ms]
+(pass) broker registry > createBroker("xueqiu") synchronously throws (use async variant)
+(pass) broker registry > createBrokerAsync returns a working sandbox broker [0.02ms]
+(pass) broker registry > createBrokerAsync("ibkr") returns an IbkrAdapter with name "ibkr" [0.02ms]
+(pass) broker registry > createBrokerAsync("xueqiu") returns a XueqiuAdapter with name "xueqiu" [0.04ms]
+(pass) broker registry > createBrokerAsync with unknown name throws with helpful message [0.02ms]
+(pass) broker registry > registerBroker rejects duplicate names [0.02ms]
+(pass) broker registry > registerBroker + unregisterBroker round-trip [0.01ms]
+(pass) broker registry > unregisterBroker returns false when name is unknown
+(pass) broker registry > IBKR adapter implements the full BrokerAdapter contract [0.18ms]
+(pass) broker registry > Xueqiu adapter implements the full BrokerAdapter contract [0.10ms]
+
+packages/gateway/src/sessions/store.test.ts:
+(pass) session store > creates and updates session metadata [0.65ms]
+
+packages/gateway/src/routing/resolve-route.test.ts:
+(pass) resolveRoute > falls back to default route [0.11ms]
+(pass) resolveRoute > matches peer binding first [0.04ms]
+
+packages/gateway/src/channels/whatsapp/reconnect.test.ts:
+(pass) whatsapp reconnect policy > computeBackoff grows with attempts and caps at max [0.03ms]
+(pass) whatsapp reconnect policy > resolveReconnectPolicy clamps invalid values [0.04ms]
+
+ 2049 pass
+ 0 fail
+ 8159 expect() calls
+Ran 2049 tests across 248 files. [55.85s]
