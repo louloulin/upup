@@ -373,4 +373,35 @@ describe('pure helpers', () => {
     expect(codeStyleTickers('```\n600519.SH\n```')).toBe('```\n600519.SH\n```');
     expect(codeStyleTickers('没有代码的句子')).toBe('没有代码的句子');
   });
+
+  it('codeStyleTickers wraps US-prefix $AAPL style tickers', () => {
+    expect(codeStyleTickers('look up $AAPL')).toBe('look up $`AAPL`');
+    expect(codeStyleTickers('compare $TSLA vs $NVDA')).toBe('compare $`TSLA` vs $`NVDA`');
+  });
+
+  it('codeStyleTickers wraps bare US tickers (AAPL, TSLA)', () => {
+    expect(codeStyleTickers('AAPL is at all-time high')).toBe('`AAPL` is at all-time high');
+  });
+
+  it('codeStyleTickers does not re-wrap already-wrapped tickers', () => {
+    expect(codeStyleTickers('already `AAPL` wrapped')).toBe('already `AAPL` wrapped');
+    expect(codeStyleTickers('already `$AAPL` wrapped')).toBe('already `$AAPL` wrapped');
+  });
+
+  it('codeStyleTickers does not touch fenced code blocks', () => {
+    expect(codeStyleTickers('```\n$AAPL and AAPL\n```')).toBe('```\n$AAPL and AAPL\n```');
+  });
+
+  it('codeStyleTickers is idempotent', () => {
+    const once = codeStyleTickers('look at $AAPL and 600519.SH');
+    const twice = codeStyleTickers(once);
+    expect(twice).toBe(once);
+  });
+
+  it('codeStyleTickers handles mixed CN/HK/US in one line', () => {
+    const result = codeStyleTickers('$AAPL vs 600519.SH vs 00700.HK');
+    expect(result).toContain('$`AAPL`');
+    expect(result).toContain('`600519.SH`');
+    expect(result).toContain('`00700.HK`');
+  });
 });
