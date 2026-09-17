@@ -343,21 +343,72 @@ async function readTuiWidgetsStatus(): Promise<Record<string, unknown>> {
 }
 
 
+/**
+ * True when an ecosystem package actually mounts on a real `ExtensionAPI`
+ * stand-in. Shared by the `dynamicWorkflow` section so its `available` flag
+ * cannot contradict the `ecosystem` section's `mounts` flag.
+ */
+async function readEcosystemMountFor(name: string): Promise<boolean> {
+  const { UPUP_ECOSYSTEM_PACKAGES } = await import('@upup/pi-runtime');
+  const spec = UPUP_ECOSYSTEM_PACKAGES.find((pkg) => pkg.name === name);
+  if (!spec) return false;
+  const [{ createEcosystemImporter, resolvePiExtensionEntries }, { createExtensionApiProbe }] = await Promise.all([
+    import('@upup/pi-runtime/ecosystem-resolver'),
+    import('@upup/pi-runtime/extension-api-probe'),
+  ]);
+  const load = createEcosystemImporter();
+  const declared = resolvePiExtensionEntries(name);
+  const candidates = declared.length > 0 ? declared : [spec.importPath];
+  for (const candidate of candidates) {
+    try {
+      const mod = (await load(candidate)) as { default?: unknown };
+      if (typeof mod.default === 'function') {
+        (mod.default as (pi: unknown) => void)(createExtensionApiProbe().pi);
+        return true;
+      }
+    } catch {
+      /* try the next declared entry */
+    }
+  }
+  return false;
+}
+
 async function readSopWorkflowBridgeStatus(): Promise<Record<string, unknown>> {
   const bridgePath = resolve(root, 'packages/pi-investment-workflow/src/bridge/sop-workflow-bridge.ts');
   if (!existsSync(bridgePath)) {
     return { contract: 'upup.pi.sop-workflow-bridge.v1', available: false, reason: 'sop-workflow-bridge.ts missing' };
   }
-  const source = readFileSync(bridgePath, 'utf8');
-  return {
-    contract: 'upup.pi.sop-workflow-bridge.v1',
-    available: /registerWorkflowResource/.test(source) && /buildUpUpSopScript/.test(source),
-    api: 'pi-subagents registerWorkflowResource',
-    resourceNaming: 'upup-sop__<sopId>',
-    versionHashing: 'FNV-style hash of sop.version -> positive safe integer',
-    hostCommand: 'upup-sop',
-    notes: 'Each UpUp SOP becomes a Pi workflow resource; TradingAgents / Codex can call workflow.run("upup-sop__graham", {ticker}).',
-  };
+  // Execution-based, not a source regex: `available` must mean "the bridge
+  // resolved a real `pi-subagents` export and registered the shipped SOPs".
+  // A regex previously reported `true` while the bridge imported the wrong
+  // subpath and sank a warning on every boot.
+  try {
+    const importer = new Function('s', 'return import(s)') as (s: string) => Promise<any>;
+    const mod = await importer(resolve(root, 'packages/pi-investment-workflow/src/bridge/sop-workflow-bridge.ts'));
+    const result = await mod.bridgeUpUpSopsToWorkflowResources({
+      sessionId: 'report-pi7',
+      onError: () => undefined,
+    });
+    for (const registration of result.registrations ?? []) registration.dispose?.();
+    return {
+      contract: 'upup.pi.sop-workflow-bridge.v1',
+      available: result.resolvedSpecifier !== undefined && (result.registrations?.length ?? 0) > 0,
+      api: `registerWorkflowResource via ${result.resolvedSpecifier ?? '<unresolved>'}`,
+      registeredSops: (result.registrations ?? []).map((r: { name: string }) => r.name),
+      attempted: result.attempted,
+      skipped: result.skipped,
+      resourceNaming: 'upup-sop__<sopId>',
+      versionHashing: 'FNV-style hash of sop.version -> positive safe integer',
+      hostCommand: 'upup-sop',
+      notes: 'Each UpUp SOP becomes a Pi workflow resource; TradingAgents / Codex can call workflow.run("upup-sop__graham", {ticker}).',
+    };
+  } catch (error) {
+    return {
+      contract: 'upup.pi.sop-workflow-bridge.v1',
+      available: false,
+      reason: error instanceof Error ? error.message.split('\n')[0] : String(error),
+    };
+  }
 }
 
 
@@ -407,9 +458,14 @@ async function readDynamicWorkflowStatus(): Promise<Record<string, unknown>> {
       return 0;
     }
   })();
+  // `available` must agree with the ecosystem section: the engine is only
+  // usable when the package actually mounts, so derive it from the real mount
+  // rather than from the presence of UpUp's own bridge files.
+  const engineMounts = await readEcosystemMountFor('@quintinshaw/pi-dynamic-workflows');
   return {
     contract: 'upup.pi.dynamic-workflow.v1',
-    available: fs.existsSync(bridgePath) && fs.existsSync(runnerPath),
+    available: fs.existsSync(bridgePath) && fs.existsSync(runnerPath) && engineMounts,
+    engineMounts,
     engine: '@quintinshaw/pi-dynamic-workflows',
     engineVersion: version,
     translator: 'sopToDynamicWorkflowScript (packages/pi-investment-workflow/src/bridge/dynamic-workflow-bridge.ts)',

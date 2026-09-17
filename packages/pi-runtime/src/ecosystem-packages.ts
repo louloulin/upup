@@ -277,12 +277,12 @@ export const UPUP_ECOSYSTEM_PACKAGES: readonly UpUpEcosystemPackage[] = [
   {
     name: 'pi-crew',
     version: '0.11.1',
-    importPath: 'pi-crew',
+    importPath: 'pi-crew/index.ts',
     category: 'workflow',
-    verifiedClean: false,
-    description: 'Coordinated AI teams, worktrees, async task orchestration. Not loadable as a regular npm module (no exports field for index).',
+    verifiedClean: true,
+    description: 'Coordinated AI teams, worktrees, async task orchestration.',
     caveats: [
-      "pi-crew has no main/exports field for its bundle; only usable via the pi.extensions config in pi-coding-agent. File URL import of dist/index.mjs works, but bun's package resolver rejects it.",
+      "pi-crew declares no `.`-export, so `import('pi-crew')` fails. UpUp loads it through its `pi.extensions` entry (index.ts), which is Pi's authoritative contract — resolution goes through `resolvePiExtensionEntries`, not the npm main entry.",
     ],
   },
 ] as const;

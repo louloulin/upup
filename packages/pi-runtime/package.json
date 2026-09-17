@@ -35,6 +35,16 @@
       "types": "./dist/embedding-provider.d.ts",
       "bun": "./src/embedding-provider.ts",
       "default": "./dist/embedding-provider.js"
+    },
+    "./ecosystem-resolver": {
+      "types": "./dist/ecosystem-resolver.d.ts",
+      "bun": "./src/ecosystem-resolver.ts",
+      "default": "./dist/ecosystem-resolver.js"
+    },
+    "./extension-api-probe": {
+      "types": "./dist/extension-api-probe.d.ts",
+      "bun": "./src/extension-api-probe.ts",
+      "default": "./dist/extension-api-probe.js"
     }
   },
   "scripts": {

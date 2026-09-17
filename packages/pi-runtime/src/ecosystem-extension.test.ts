@@ -176,7 +176,6 @@ describe('mountUpUpEcosystemPackages', () => {
   it('mounts every verified-clean package with a fake pi', async () => {
     const { pi } = createFakePi();
     const report = await mountUpUpEcosystemPackages(pi);
-    expect(report.importFailed.filter(f => f.name === 'pi-conductor' || f.name === 'pi-crew').length).toBe(2);
     // every entry is classified exactly once
     const classified =
       report.mounted.length + report.skippedToolConflict.length + report.skippedAlreadyLoaded.length
@@ -186,6 +185,34 @@ describe('mountUpUpEcosystemPackages', () => {
     const expectedSkipNames = new Set([...preSkippedPackages(), ...preLoadedPackages()]);
     expect(new Set([...report.skippedToolConflict.map((e) => e.name), ...report.skippedAlreadyLoaded.map((e) => e.name)]))
       .toEqual(expectedSkipNames);
+    // Everything in the registry that is not skipped or known-broken must be
+    // mounted — no package may silently land in a "looks fine but registered
+    // nothing" state, which is what a named-export-only check used to allow.
+    const skippedOrDirty = new Set([
+      ...report.skippedToolConflict.map((e) => e.name),
+      ...report.skippedAlreadyLoaded.map((e) => e.name),
+      ...report.importFailed.map((e) => e.name),
+      ...report.notCallable.map((e) => e.name),
+      ...report.mountThrew.map((e) => e.name),
+      ...UPUP_ECOSYSTEM_PACKAGES.filter((p) => !p.verifiedClean).map((p) => p.name),
+    ]);
+    const expectedMounted = UPUP_ECOSYSTEM_PACKAGES.map((p) => p.name).filter((n) => !skippedOrDirty.has(n));
+    expect([...report.mounted].sort()).toEqual(expectedMounted.sort());
+  });
+
+  it('records the specifier that actually supplied each mounted factory', async () => {
+    const { pi } = createFakePi();
+    const report = await mountUpUpEcosystemPackages(pi);
+    for (const name of report.mounted) {
+      const specifier = report.resolvedSpecifiers[name];
+      expect(typeof specifier).toBe('string');
+      expect(specifier!.length).toBeGreaterThan(0);
+    }
+    // A package that declares `pi.extensions` must be mounted through that
+    // declared entry, never through an unrelated npm main entry.
+    const esr = report.resolvedSpecifiers['pi-esr'];
+    expect(esr).toBeDefined();
+    expect(esr!.endsWith('pi-extension.js')).toBe(true);
   });
 
   it('skips packages whose declared tools are already owned by UpUp', async () => {

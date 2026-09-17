@@ -24,7 +24,7 @@
  * so a half-installed plugin degrades to the bundled copy instead of aborting
  * the session.
  */
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -139,16 +139,40 @@ export function ecosystemSpecifierExists(
  *
  * `load` is injected so tests can observe the resolution without touching
  * `node_modules`; production passes Bun's `import`.
+ *
+ * Scope fallback on evaluation failure:
+ *   `upup plugin install` writes a package into the UpUp home without its
+ *   peer dependencies; only the bundled copy sits next to
+ *   `@earendil-works/pi-coding-agent`. A user-scope copy therefore resolves
+ *   *and then dies on import* with `Cannot find package
+ *   '@earendil-works/pi-coding-agent'`. Picking the first root that merely
+ *   *resolves* would silently disable the package for that user, so we walk
+ *   the remaining roots and keep the first copy that actually loads. The
+ *   last error is rethrown when no root loads, so the diagnostic still names
+ *   the package that failed.
  */
 export function createEcosystemImporter(
   load: (href: string) => Promise<unknown> = defaultLoad,
   options: EcosystemResolveOptions = {},
 ): (specifier: string) => Promise<unknown> {
   return async (specifier: string): Promise<unknown> => {
-    const resolved = resolveEcosystemSpecifier(specifier, options);
+    const roots = ecosystemResolveRoots(options);
+    let lastError: unknown;
+    let attempted = false;
+    for (const root of roots) {
+      const resolved = resolveEcosystemSpecifier(specifier, { ...options, roots: [root] });
+      if (resolved === undefined) continue;
+      attempted = true;
+      try {
+        return await load(resolved);
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    if (attempted) throw lastError;
     // Falling back to the bare specifier preserves the pre-existing behaviour
     // (and its error message) for a package that is genuinely absent.
-    return load(resolved ?? specifier);
+    return load(specifier);
   };
 }
 
@@ -186,6 +210,95 @@ export function describeEcosystemResolution(
     }
   }
   return { resolved: undefined, scope: 'missing', root: undefined };
+}
+
+/**
+ * Candidate file names tried when a `pi.extensions` entry points at a
+ * directory rather than a file (`"pi": { "extensions": ["./extensions"] }`).
+ */
+const EXTENSION_ENTRY_INDEX_NAMES = ['index.ts', 'index.tsx', 'index.js', 'index.mjs', 'index.cjs'] as const;
+
+/**
+ * Locate every `<root>/node_modules/<name>` on disk, highest precedence first.
+ *
+ * Why not `resolveEcosystemSpecifier`: a package such as `pi-crew` ships
+ * `pi.extensions: ["./index.ts"]` but no `.`-export at all, so its *root*
+ * specifier is unresolvable even though the package is fully installed and its
+ * declared extension entry loads fine. Walking the documented npm install
+ * layout finds the manifest the resolver cannot.
+ *
+ * Every root is returned — not just the first hit — because a user-scope copy
+ * installed by `upup plugin install` is written without peer dependencies and
+ * can therefore resolve yet fail to evaluate. Callers walk the list and keep
+ * the first copy that actually imports.
+ */
+export function findEcosystemPackageDirs(
+  name: string,
+  options: EcosystemResolveOptions = {},
+): readonly { readonly dir: string; readonly root: string; readonly scope: 'user' | 'bundled' }[] {
+  const roots = ecosystemResolveRoots(options);
+  const found: { dir: string; root: string; scope: 'user' | 'bundled' }[] = [];
+  for (let index = 0; index < roots.length; index += 1) {
+    const dir = join(roots[index], 'node_modules', name);
+    if (existsSync(join(dir, 'package.json'))) {
+      found.push({ dir, root: roots[index], scope: index === 0 ? 'user' : 'bundled' });
+    }
+  }
+  return found;
+}
+
+/** First root that carries the package, or `undefined` when none does. */
+export function findEcosystemPackageDir(
+  name: string,
+  options: EcosystemResolveOptions = {},
+): { readonly dir: string; readonly root: string; readonly scope: 'user' | 'bundled' } | undefined {
+  return findEcosystemPackageDirs(name, options)[0];
+}
+
+/**
+ * Resolve a package's `pi.extensions` declarations to importable file paths.
+ *
+ * Pi's extension contract is `default(pi)` living at the path a package
+ * declares under `pi.extensions` — *not* necessarily at its npm main entry.
+ * Two shapes UpUp has to support:
+ *
+ *   1. Extension-only packages (`pi-esr`) whose npm entry is a plain library
+ *      with named exports and no default; only `pi.extensions` carries the
+ *      factory.
+ *   2. Packages with no `.`-export at all (`pi-crew`).
+ *
+ * Returns `[]` for a package that declares no extensions, so callers can treat
+ * "no entries" and "no manifest" identically.
+ */
+export function resolvePiExtensionEntries(
+  name: string,
+  options: EcosystemResolveOptions = {},
+): readonly string[] {
+  const entries: string[] = [];
+  const seen = new Set<string>();
+  for (const found of findEcosystemPackageDirs(name, options)) {
+    let manifest: { pi?: { extensions?: unknown } };
+    try {
+      manifest = JSON.parse(readFileSync(join(found.dir, 'package.json'), 'utf8')) as typeof manifest;
+    } catch {
+      continue;
+    }
+    const declared = manifest.pi?.extensions;
+    if (!Array.isArray(declared)) continue;
+    for (const raw of declared) {
+      if (typeof raw !== 'string') continue;
+      const candidate = resolve(found.dir, raw);
+      if (!existsSync(candidate)) continue;
+      const file = statSync(candidate).isDirectory()
+        ? EXTENSION_ENTRY_INDEX_NAMES.map((indexName) => join(candidate, indexName)).find(existsSync)
+        : candidate;
+      if (file !== undefined && !seen.has(file)) {
+        seen.add(file);
+        entries.push(file);
+      }
+    }
+  }
+  return entries;
 }
 
 /** True when a path exists on disk; exported so callers share one probe. */

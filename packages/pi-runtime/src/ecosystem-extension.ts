@@ -49,10 +49,10 @@ import {
   UPUP_ECOSYSTEM_PACKAGES,
   type UpUpEcosystemPackage,
 } from './ecosystem-packages';
-import { createEcosystemImporter, resolveEcosystemSpecifier } from './ecosystem-resolver';
+import { createEcosystemImporter, resolveEcosystemSpecifier, resolvePiExtensionEntries } from './ecosystem-resolver';
 
 export type EcosystemMountOutcome =
-  | { kind: 'mounted'; name: string; importPath: string }
+  | { kind: 'mounted'; name: string; importPath: string; resolvedSpecifier: string }
   | { kind: 'skipped_tool_conflict'; name: string; importPath: string; conflicts: readonly string[] }
   | { kind: 'skipped_already_loaded'; name: string; importPath: string; reason: string }
   | { kind: 'verified_dirty'; name: string; importPath: string }
@@ -80,6 +80,13 @@ export interface EcosystemMountReport {
   readonly importFailed: readonly { name: string; importPath: string; error: string }[];
   readonly notCallable: readonly { name: string; importPath: string; actualType: string }[];
   readonly mountThrew: readonly { name: string; importPath: string; error: string }[];
+  /**
+   * Package name → the specifier (or `pi.extensions` file path) that actually
+   * supplied the mounted factory. Recorded so `report:pi7` and `upup doctor`
+   * can show *what resolved*, which is the only way to debug "the registry
+   * lists it but nothing registered".
+   */
+  readonly resolvedSpecifiers: Readonly<Record<string, string>>;
   readonly outcomes: readonly EcosystemMountOutcome[];
   readonly at: number;
 }
@@ -330,6 +337,7 @@ export async function mountUpUpEcosystemPackages(
   const notCallable: { name: string; importPath: string; actualType: string }[] = [];
   const mountThrew: { name: string; importPath: string; error: string }[] = [];
   const outcomes: EcosystemMountOutcome[] = [];
+  const resolvedSpecifiers: Record<string, string> = {};
 
   for (const pkg of UPUP_ECOSYSTEM_PACKAGES) {
     if (enabled && !enabled.has(pkg.name)) continue;
@@ -373,42 +381,64 @@ export async function mountUpUpEcosystemPackages(
       }
     }
 
-    let mod: unknown;
-    try {
-      mod = await importer(pkg.importPath);
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      outcomes.push({ kind: 'import_failed', name: pkg.name, importPath: pkg.importPath, error: msg });
-      importFailed.push({ name: pkg.name, importPath: pkg.importPath, error: msg });
-      continue;
+    // Pi's authoritative entry point is `pi.extensions`, not the npm main
+    // entry. A package may ship a library at its main entry (`pi-esr`: 22
+    // named exports, no default) while the extension factory lives in
+    // `dist/pi-extension.js`. Try the declared entries first and fall back to
+    // `importPath` so the registry keeps working for anything that does put
+    // its factory at the root.
+    const declaredEntries = resolvePiExtensionEntries(pkg.name);
+    const attempted = declaredEntries.length > 0 ? declaredEntries : [pkg.importPath];
+
+    let candidate: ((pi: ExtensionAPI) => void) | undefined;
+    let resolvedSpecifier: string | undefined;
+    let importError: unknown;
+    let lastActedType: unknown;
+
+    for (const specifier of attempted) {
+      let mod: unknown;
+      try {
+        mod = await importer(specifier);
+      } catch (error) {
+        importError = error;
+        continue;
+      }
+      const maybeDefault = (mod as { default?: unknown })?.default;
+      if (typeof maybeDefault === 'function') {
+        candidate = maybeDefault as (pi: ExtensionAPI) => void;
+        resolvedSpecifier = specifier;
+        break;
+      }
+      // Loaded but not a factory: Pi extensions are `export default (pi) => …`.
+      // Remember the type so the outcome can report what was found instead.
+      lastActedType = maybeDefault;
     }
 
-    const record = mod as { default?: unknown; [key: string]: unknown };
-    const candidate = record?.default;
-    if (typeof candidate === 'function') {
-      try {
-        (candidate as (pi: ExtensionAPI) => void)(pi);
-        mounted.push(pkg.name);
-        outcomes.push({ kind: 'mounted', name: pkg.name, importPath: pkg.importPath });
-      } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        
-        outcomes.push({ kind: 'mount_threw', name: pkg.name, importPath: pkg.importPath, error: msg });
-        mountThrew.push({ name: pkg.name, importPath: pkg.importPath, error: msg });
+    if (candidate === undefined) {
+      // Distinguish "could not even import" from "imported but not a Pi
+      // extension factory" — the two need different operator responses.
+      if (lastActedType !== undefined) {
+        const actualType = lastActedType === undefined ? 'undefined' : typeof lastActedType;
+        outcomes.push({ kind: 'not_callable', name: pkg.name, importPath: pkg.importPath, actualType });
+        notCallable.push({ name: pkg.name, importPath: pkg.importPath, actualType });
+      } else {
+        const msg = importError instanceof Error ? importError.message : String(importError ?? 'no importable extension entry');
+        outcomes.push({ kind: 'import_failed', name: pkg.name, importPath: pkg.importPath, error: msg });
+        importFailed.push({ name: pkg.name, importPath: pkg.importPath, error: msg });
       }
       continue;
     }
 
-    const namedExports = Object.keys(record ?? {}).filter((k) => k !== 'default');
-    if (namedExports.length > 0) {
+    try {
+      candidate(pi);
       mounted.push(pkg.name);
-      outcomes.push({ kind: 'mounted', name: pkg.name, importPath: pkg.importPath });
-      continue;
+      resolvedSpecifiers[pkg.name] = resolvedSpecifier!;
+      outcomes.push({ kind: 'mounted', name: pkg.name, importPath: pkg.importPath, resolvedSpecifier: resolvedSpecifier! });
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      outcomes.push({ kind: 'mount_threw', name: pkg.name, importPath: pkg.importPath, error: msg });
+      mountThrew.push({ name: pkg.name, importPath: pkg.importPath, error: msg });
     }
-
-    const actualType = candidate === undefined ? 'undefined' : typeof candidate;
-    outcomes.push({ kind: 'not_callable', name: pkg.name, importPath: pkg.importPath, actualType });
-    notCallable.push({ name: pkg.name, importPath: pkg.importPath, actualType });
   }
 
   return {
@@ -419,6 +449,7 @@ export async function mountUpUpEcosystemPackages(
     importFailed,
     notCallable,
     mountThrew,
+    resolvedSpecifiers,
     outcomes,
     at: now(),
   };
@@ -446,6 +477,7 @@ export function createUpUpEcosystemExtension(options: MountEcosystemOptions = {}
         importFailed: [],
         notCallable: [],
         mountThrew: [{ name: '<runner>', importPath: '<runner>', error: message }],
+        resolvedSpecifiers: {},
         outcomes: [{ kind: 'mount_threw', name: '<runner>', importPath: '<runner>', error: message }],
         at: Date.now(),
       });

@@ -20,7 +20,8 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { UPUP_ECOSYSTEM_PACKAGES } from '../packages/pi-runtime/src/ecosystem-packages';
-import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
+import { resolvePiExtensionEntries } from '../packages/pi-runtime/src/ecosystem-resolver';
+import { createExtensionApiProbe } from '../packages/pi-runtime/src/extension-api-probe';
 
 const repoRoot = resolve(dirname(new URL(import.meta.url).pathname), '..');
 const nodeModules = join(repoRoot, 'node_modules');
@@ -45,26 +46,6 @@ function readInstalledVersion(pkg: string): string | null {
   }
 }
 
-function createFakePi(): ExtensionAPI {
-  const sink: Record<string, unknown> = {};
-  const stub: any = new Proxy({}, {
-    get: (_, prop) => {
-      if (prop === 'events') return { on: () => undefined };
-      if (prop === 'getFlag') return () => undefined;
-      if (prop === 'getSessionName') return () => undefined;
-      if (prop === 'getActiveTools') return () => [];
-      if (prop === 'getAllTools') return () => [];
-      if (prop === 'getCommands') return () => [];
-      if (prop === 'getThinkingLevel') return () => 'medium' as const;
-      if (prop === 'setModel') return async () => true;
-      if (prop === 'exec') return async () => '';
-      return (...args: unknown[]) => {
-        sink[String(prop)] = args;
-      };
-    },
-  });
-  return stub as ExtensionAPI;
-}
 
 async function checkPackage(spec: typeof UPUP_ECOSYSTEM_PACKAGES[number]): Promise<CheckResult> {
   const installedVersion = readInstalledVersion(spec.name);
@@ -77,21 +58,29 @@ async function checkPackage(spec: typeof UPUP_ECOSYSTEM_PACKAGES[number]): Promi
     return { name: spec.name, installed, versionMatches, installedVersion, mounts, error };
   }
   if (installed) {
-    try {
-      const importer = new Function('s', 'return import(s)') as (s: string) => Promise<unknown>;
-      const mod: any = await importer(spec.importPath);
-      const fn = mod?.default;
-      if (typeof fn === 'function') {
-        fn(createFakePi());
-        mounts = true;
-      } else if (typeof mod === 'object' && mod !== null && Object.keys(mod).length > 0) {
-        mounts = true;
-      } else {
-        error = 'module has no default function and no named exports';
+    // Validate the entries the runtime actually loads, in the same order:
+    // `pi.extensions` first, npm main entry as the fallback. A package whose
+    // extension factory lives outside its main entry (pi-esr, pi-crew) would
+    // otherwise be reported broken while the session mounts it fine.
+    const declaredEntries = resolvePiExtensionEntries(spec.name);
+    const candidates = declaredEntries.length > 0 ? declaredEntries : [spec.importPath];
+    const attempts: string[] = [];
+    for (const candidate of candidates) {
+      try {
+        const importer = new Function('s', 'return import(s)') as (s: string) => Promise<unknown>;
+        const mod: any = await importer(candidate);
+        const fn = mod?.default;
+        if (typeof fn === 'function') {
+          fn(createExtensionApiProbe().pi);
+          mounts = true;
+          break;
+        }
+        attempts.push(`${candidate}: default is ${fn === undefined ? 'undefined' : typeof fn}`);
+      } catch (e: unknown) {
+        attempts.push(`${candidate}: ${e instanceof Error ? e.message.split('\n')[0] : String(e)}`);
       }
-    } catch (e: unknown) {
-      error = e instanceof Error ? e.message.split('\n')[0] : String(e);
     }
+    if (!mounts) error = attempts.join(' | ');
   } else {
     error = 'not in node_modules';
   }

@@ -15,7 +15,7 @@
  * would slow CI and surface peer-dep noise unrelated to resolution.
  */
 
-import { describeEcosystemResolution } from '../packages/pi-runtime/src/ecosystem-resolver';
+import { describeEcosystemResolution, findEcosystemPackageDirs, resolvePiExtensionEntries } from '../packages/pi-runtime/src/ecosystem-resolver';
 import { UPUP_ECOSYSTEM_PACKAGES } from '../packages/pi-runtime/src/ecosystem-packages';
 
 const EXPECTED_USER_ROOT_SUFFIX = '/.upup/agent/npm';
@@ -31,6 +31,26 @@ interface ResolutionRow {
 
 function main(): void {
   const rows: ResolutionRow[] = UPUP_ECOSYSTEM_PACKAGES.map((pkg) => {
+    // Pi's contract is `pi.extensions`, not the npm main entry: `pi-crew` and
+    // `pi-esr` put their factory outside a resolvable `.`-export. Prefer the
+    // declared extension entries and fall back to `importPath`, mirroring
+    // `mountUpUpEcosystemPackages` so this guard and the runtime agree on what
+    // "loadable" means.
+    const declared = resolvePiExtensionEntries(pkg.name);
+    if (declared.length > 0) {
+      // Report the scope the entry actually came from: a user-home install
+      // shadows the bundled copy, and the resolver already encodes that.
+      const entry = declared[0]!;
+      const owner = findEcosystemPackageDirs(pkg.name).find((candidate) => entry.startsWith(candidate.dir));
+      return {
+        name: pkg.name,
+        importPath: entry,
+        scope: owner?.scope ?? 'bundled',
+        resolved: entry,
+        root: owner?.root,
+        verifiedClean: pkg.verifiedClean,
+      };
+    }
     const described = describeEcosystemResolution(pkg.importPath);
     return {
       name: pkg.name,
