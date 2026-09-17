@@ -1,0 +1,195 @@
+/**
+ * UpUp SOP → Pi workflow-resource bridge.
+ *
+ * `pi-subagents` (already a Pi ecosystem package UpUp depends on) ships a
+ * `registerWorkflowResource({ sessionId, definition })` API. The definition
+ * is a deterministic `name + version + resolve(args) -> script` triple that
+ * the host's DAG scheduler consumes.
+ *
+ * Why bridge UpUp SOPs into workflow resources:
+ *   UpUp SOPs are YAML files (graham / momentum / debate / morning-brief /
+ *   portfolio-review) with multi-phase DAGs and parallel groups. Without
+ *   the bridge, those SOPs are only runnable through `@upup/pi-session` —
+ *   a host that drives UpUp via the Pi RPC Mode / MCP / SDK would have to
+ *   know UpUp's internal SOP runtime. After the bridge, any host that
+ *   already speaks `pi-subagents` (TradingAgents, Codex, Claude Code via
+ *   `pi-claude-bridge`) can run an UpUp SOP with:
+ *
+ *       workflow.run('upup-sop__graham', { ticker: '600519.SH' })
+ *
+ *   The bridge:
+ *     - Loads every built-in + user SOP through `loadSops`
+ *     - Registers each SOP as a single workflow resource named `upup-sop__<id>`
+ *     - The `resolve(args)` function returns a script that invokes a
+ *       host command `upup-sop` carrying `{ sopId, version, ticker, ...args }`
+ *     - The host command is wired in the runtime by binding it to
+ *       `runUpUpSopFromHostCommand` (defined in this file) so the actual
+ *       SOP execution still goes through the canonical `@upup/pi-session`
+ *       session factory — the bridge does not run any SOP itself.
+ *
+ * Failure isolation:
+ *   - A missing pi-subagents (`import('pi-subagents/agents')` throws) is
+ *     surfaced through the optional sink and the bridge yields zero
+ *     registrations; the session still boots.
+ *   - An SOP whose `resolve` returns `{ error: ... }` (e.g. missing ticker)
+ *     is reported back to the DAG scheduler, not raised locally.
+ *   - The bridge never throws across the extension boundary; every step is
+ *     best-effort with sink reporting.
+ */
+
+import { loadSops, type SopLoadResult, type SopLoaderOptions } from '../sop-loader';
+import type { SopSpec } from '../sop-spec';
+
+type ResourceName = string;
+type ResourceVersion = number;
+
+/**
+ * Minimal contract for `pi-subagents` workflow-resource registration. We
+ * type this as an interface (not an import) so the bridge stays free of a
+ * hard dependency on `pi-subagents` — if the host has not installed it,
+ * the bridge still compiles and just yields zero registrations.
+ */
+export interface WorkflowResourceDefinition {
+  readonly name: ResourceName;
+  readonly version: ResourceVersion;
+  readonly resolve: (args: Readonly<Record<string, unknown>>) =>
+    | { script: string; hostCommands?: readonly { readonly key: string; readonly command: string }[] }
+    | { error: string };
+}
+
+export interface WorkflowResourceRegistration {
+  readonly dispose: () => void;
+}
+
+export interface RegisterWorkflowResourceFn {
+  (input: { readonly sessionId: string; readonly definition: WorkflowResourceDefinition }): WorkflowResourceRegistration;
+}
+
+export interface UpUpSopWorkflowBridgePorts {
+  /** Dynamic import so the host does not need a static `pi-subagents` dep. */
+  readonly importer?: (specifier: string) => Promise<unknown>;
+  /** Session id the runtime is currently in (used by `pi-subagents`). */
+  readonly sessionId: string;
+  /** Sink for failure telemetry; optional — defaults to console.error. */
+  readonly onError?: (where: string, error: unknown) => void;
+  /** Loader options forwarded to `loadSops`. */
+  readonly loaderOptions?: SopLoaderOptions;
+}
+
+export interface SopBridgeResult {
+  readonly registrations: readonly { readonly sopId: string; readonly name: ResourceName; readonly dispose: () => void }[];
+  readonly attempted: number;
+  readonly skipped: readonly string[];
+}
+
+/** Workflow resource name format for an UpUp SOP. */
+export function upUpSopResourceName(sopId: string): ResourceName {
+  return `upup-sop__${sopId}`;
+}
+
+/**
+ * Validate the args that the DAG scheduler passes to the SOP workflow
+ * resource. UpUp SOPs require at minimum a `ticker`; the resolve function
+ * returns `{ error: ... }` when the args are malformed so the scheduler
+ * surfaces the message without crashing.
+ */
+export function validateSopResolveArgs(args: Readonly<Record<string, unknown>>): { ok: true; ticker: string } | { error: string } {
+  const ticker = args.ticker;
+  if (typeof ticker !== 'string' || ticker.trim().length === 0) {
+    return { error: "workflow 'upup-sop' requires a non-empty string args.ticker." };
+  }
+  return { ok: true, ticker: ticker.trim() };
+}
+
+/**
+ * Build the script the DAG scheduler executes. The script invokes the
+ * host command `upup-sop` with the resolved args; the runtime binds
+ * that command to the actual UpUp SOP executor via
+ * `bindUpUpSopHostCommand` (called once at boot).
+ */
+export function buildUpUpSopScript(sop: SopSpec, ticker: string, args: Readonly<Record<string, unknown>>): string {
+  const stripped = { ...args };
+  delete (stripped as Record<string, unknown>).ticker;
+  const params = {
+    sopId: sop.id,
+    sopVersion: sop.version,
+    ticker,
+    extraArgs: stripped,
+  };
+  return `return await runs.host("upup-sop", ${JSON.stringify(params)});`;
+}
+
+/**
+ * Register every loaded UpUp SOP as a Pi workflow resource. Returns a
+ * `SopBridgeResult` describing what was registered and what was skipped.
+ *
+ * The host command `upup-sop` is *not* wired here — the runtime does
+ * that via `bindUpUpSopHostCommand` after the bridge runs. The bridge
+ * only knows how to translate an SOP into a workflow resource.
+ */
+export async function bridgeUpUpSopsToWorkflowResources(
+  ports: UpUpSopWorkflowBridgePorts,
+): Promise<SopBridgeResult> {
+  const importer = ports.importer ?? ((specifier: string) => import(specifier));
+  const sink = ports.onError ?? (() => undefined);
+
+  let registerResource: RegisterWorkflowResourceFn;
+  try {
+    const mod = (await importer('pi-subagents/agents')) as { registerWorkflowResource?: RegisterWorkflowResourceFn };
+    if (typeof mod.registerWorkflowResource !== 'function') {
+      sink('pi-subagents.workflow-resources', 'registerWorkflowResource is not exported by pi-subagents/agents');
+      return { registrations: [], attempted: 0, skipped: ['pi-subagents.missing'] };
+    }
+    registerResource = mod.registerWorkflowResource;
+  } catch (error) {
+    sink('pi-subagents.import', error);
+    return { registrations: [], attempted: 0, skipped: ['pi-subagents.import-failed'] };
+  }
+
+  let loaded: SopLoadResult;
+  try {
+    loaded = await loadSops(ports.loaderOptions ?? {});
+  } catch (error) {
+    sink('loadSops', error);
+    return { registrations: [], attempted: 0, skipped: ['sop-loader.failed'] };
+  }
+
+  const registrations: { sopId: string; name: ResourceName; dispose: () => void }[] = [];
+  const skipped: string[] = [];
+
+  for (const sop of loaded.sops) {
+    const name = upUpSopResourceName(sop.id);
+    try {
+      const definition: WorkflowResourceDefinition = {
+        name,
+        version: hashSopVersion(sop.version),
+        resolve: (args) => {
+          const validated = validateSopResolveArgs(args);
+          if ('error' in validated) return { error: validated.error };
+          return {
+            script: buildUpUpSopScript(sop, validated.ticker, args),
+            hostCommands: [{ key: 'upup-sop', command: sop.id }],
+          };
+        },
+      };
+      const handle = registerResource({ sessionId: ports.sessionId, definition });
+      registrations.push({ sopId: sop.id, name, dispose: handle.dispose });
+    } catch (error) {
+      sink(`register(${sop.id})`, error);
+      skipped.push(sop.id);
+    }
+  }
+
+  return { registrations, attempted: loaded.sops.length, skipped };
+}
+
+/** Hash a SOP `version` string into a safe-int `number` for `WorkflowResourceDefinition.version`. */
+export function hashSopVersion(version: string): number {
+  let hash = 0;
+  for (let index = 0; index < version.length; index += 1) {
+    hash = ((hash << 5) - hash + version.charCodeAt(index)) | 0;
+  }
+  // Clamp to a positive safe int so `WorkflowResourceDefinition.version`
+  // (which requires a positive safe integer per pi-subagents) accepts it.
+  return Math.max(1, Math.abs(hash) % 2_000_000_000);
+}

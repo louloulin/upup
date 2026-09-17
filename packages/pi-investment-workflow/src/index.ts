@@ -110,3 +110,15 @@ export {
   type SopSynthesisRequest,
   type SopExecutorOptions,
 } from './sop-executor';
+export {
+  bridgeUpUpSopsToWorkflowResources,
+  buildUpUpSopScript,
+  hashSopVersion,
+  upUpSopResourceName,
+  validateSopResolveArgs,
+  type UpUpSopWorkflowBridgePorts,
+  type SopBridgeResult,
+  type WorkflowResourceDefinition,
+  type WorkflowResourceRegistration,
+  type RegisterWorkflowResourceFn,
+} from './bridge/sop-workflow-bridge';

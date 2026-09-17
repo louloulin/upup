@@ -1,0 +1,78 @@
+{
+  "name": "@upup/sdk",
+  "version": "0.1.0",
+  "description": "UpUp in-process SDK — wraps the Pi-native AgentSession so any host (TradingAgents, Claude Code, Codex, custom IDE, MCP client) can drive UpUp's full finance / multi-agent / SOP stack without spawning a child process.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "bun": "./src/index.ts",
+      "default": "./dist/index.js"
+    },
+    "./types": {
+      "types": "./dist/types.d.ts",
+      "bun": "./src/types.ts",
+      "default": "./dist/types.js"
+    },
+    "./default-specs": {
+      "types": "./dist/default-specs.d.ts",
+      "bun": "./src/default-specs.ts",
+      "default": "./dist/default-specs.js"
+    },
+    "./event-stream": {
+      "types": "./dist/event-stream.d.ts",
+      "bun": "./src/event-stream.ts",
+      "default": "./dist/event-stream.js"
+    },
+    "./examples/rpc-client": {
+      "types": "./dist/examples/rpc-client.d.ts",
+      "bun": "./src/examples/rpc-client.ts",
+      "default": "./dist/examples/rpc-client.js"
+    }
+  },
+  "keywords": [
+    "upup",
+    "sdk",
+    "in-process",
+    "pi-native",
+    "trading-agents",
+    "claude-code",
+    "codex",
+    "agent"
+  ],
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@upup/pi-session": "0.1.0",
+    "@upup/pi-runtime": "0.1.0",
+    "@upup/pi-investment-workflow": "0.1.0",
+    "@upup/pi-finance-sdk": "0.1.0",
+    "@upup/pi-event-adapter": "0.1.0",
+    "@upup/utils": "0.2.0",
+    "@earendil-works/pi-coding-agent": "0.85.1"
+  },
+  "scripts": {
+    "build": "bun build src/index.ts --outdir=dist --target=node && tsc --emitDeclarationOnly --declaration --declarationMap --outDir dist",
+    "dev": "bun build src/index.ts --outdir=dist --watch --target=node",
+    "test": "bun test"
+  },
+  "pi": {
+    "contract": "upup.pi.runtime.v1",
+    "source": "builtin:upup",
+    "trust": {
+      "mode": "builtin"
+    },
+    "lifecycle": {
+      "scope": "service"
+    },
+    "extensions": [],
+    "skills": [],
+    "prompts": [],
+    "workflows": [],
+    "policies": [],
+    "evals": []
+  }
+}

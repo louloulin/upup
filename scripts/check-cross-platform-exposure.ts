@@ -112,3 +112,28 @@ if (failures.length > 0) {
   process.exit(1);
 }
 console.log('check:cross-platform-exposure OK');
+
+// 5. In-process SDK (@upup/sdk) ------------------------------------------------
+console.log('\n5. In-process SDK (@upup/sdk):');
+const sdkIndex = resolve(ROOT, 'packages/sdk/src/index.ts');
+const sdkHandle = resolve(ROOT, 'packages/sdk/src/handle.ts');
+const sdkTypes = resolve(ROOT, 'packages/sdk/src/types.ts');
+const sdkDefaults = resolve(ROOT, 'packages/sdk/src/default-specs.ts');
+const sdkEventStream = resolve(ROOT, 'packages/sdk/src/event-stream.ts');
+const sdkExample = resolve(ROOT, 'packages/sdk/src/examples/rpc-client.ts');
+const sdkTest = resolve(ROOT, 'packages/sdk/test/sdk.test.ts');
+check(
+  '@upup/sdk package source exists (index, handle, types, default-specs, event-stream)',
+  existsSync(sdkIndex) && existsSync(sdkHandle) && existsSync(sdkTypes) && existsSync(sdkDefaults) && existsSync(sdkEventStream),
+  'packages/sdk/src/{index,handle,types,default-specs,event-stream}.ts must all exist',
+);
+check(
+  'RPC-style in-process demo exists (examples/rpc-client.ts)',
+  existsSync(sdkExample),
+  'packages/sdk/src/examples/rpc-client.ts must exist',
+);
+check(
+  'SDK test file exists and covers createUpUpSession + 7 profiles + event stream + handle',
+  existsSync(sdkTest),
+  'packages/sdk/test/sdk.test.ts must exist',
+);

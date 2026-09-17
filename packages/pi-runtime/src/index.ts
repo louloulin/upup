@@ -937,3 +937,19 @@ export {
 export {
   bootstrapSessionProvidersAccessor,
 } from './session-providers-bootstrap';
+
+// ---------------------------------------------------------------------------
+// TUI widget extensions (Pattern 5 / Pattern 6).
+//
+// Pi exposes `setWidget` (above/below editor) and `setFooter` (custom
+// footer) on the ExtensionAPI; UpUp ships two finance-domain widgets that
+// surface watchlist + plan progress in the TUI without leaving the chat.
+// ---------------------------------------------------------------------------
+export {
+  WatchlistWidget,
+  PlanFooter,
+  createUpUpTuiWidgetsExtension,
+  UPUP_WIDGET_REGISTRY,
+  type WatchlistEntry,
+  type UpUpTuiWidgetsOptions,
+} from './extensions/tui-widgets';

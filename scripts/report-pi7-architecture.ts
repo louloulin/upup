@@ -219,6 +219,77 @@ const structuralCompletion = [
 ];
 const progressPercent = Math.round((structuralCompletion.filter(Boolean).length / structuralCompletion.length) * 10000) / 100;
 
+
+async function readInProcessSdkStatus(): Promise<Record<string, unknown>> {
+  const sdkIndex = resolve(root, 'packages/sdk/src/index.ts');
+  const sdkHandle = resolve(root, 'packages/sdk/src/handle.ts');
+  const sdkTypes = resolve(root, 'packages/sdk/src/types.ts');
+  const sdkExample = resolve(root, 'packages/sdk/src/examples/rpc-client.ts');
+  const sdkTest = resolve(root, 'packages/sdk/test/sdk.test.ts');
+  const present = existsSync(sdkIndex) && existsSync(sdkHandle) && existsSync(sdkTypes) && existsSync(sdkExample) && existsSync(sdkTest);
+  if (!present) return { contract: 'upup.pi.sdk.v1', available: false, reason: 'packages/sdk not installed' };
+  // Read the 7 profile ids from default-specs.ts as a smoke check.
+  try {
+    const source = readFileSync(resolve(root, 'packages/sdk/src/default-specs.ts'), 'utf8');
+    const profileBlock = source.match(/UPUP_SDK_PROFILES[^{]*=\s*{([\s\S]*?)}\s*;/);
+    const profiles = profileBlock
+      ? [...profileBlock[1].matchAll(/^ {2}(?:'([a-z\-]+)'|([a-z\-]+)):\s*\{/gm)].flatMap((m) => [m[1] ?? m[2]].filter(Boolean))
+      : [];
+    return {
+      contract: 'upup.pi.sdk.v1',
+      available: true,
+      profiles,
+      profileCount: profiles.length,
+      rpcDemo: 'packages/sdk/src/examples/rpc-client.ts',
+      notes: 'Black-box SDK over PiAgentSessionFactory; TradingAgents / Codex / Claude Code can drive UpUp in-process.',
+    };
+  } catch (error) {
+    return { contract: 'upup.pi.sdk.v1', available: false, reason: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+
+async function readTuiWidgetsStatus(): Promise<Record<string, unknown>> {
+  const widgetsPath = resolve(root, 'packages/pi-runtime/src/extensions/tui-widgets.ts');
+  if (!existsSync(widgetsPath)) {
+    return { contract: 'upup.pi.tui-widgets.v1', available: false, reason: 'tui-widgets.ts missing' };
+  }
+  const source = readFileSync(widgetsPath, 'utf8');
+  const hasWatchlist = /class WatchlistWidget/.test(source);
+  const hasFooter = /class PlanFooter/.test(source);
+  const hasSetWidget = /setWidget\(/.test(source);
+  const hasSetFooter = /setFooter\(/.test(source);
+  return {
+    contract: 'upup.pi.tui-widgets.v1',
+    available: hasWatchlist && hasFooter,
+    watchlistWidget: hasWatchlist,
+    planFooter: hasFooter,
+    setWidgetUsed: hasSetWidget,
+    setFooterUsed: hasSetFooter,
+    pattern: 'Pi TUI Pattern 5 (Above/Below Editor) + Pattern 6 (Custom Footer)',
+    notes: 'Mounted automatically by @upup/pi-runtime ecosystem-extension so every session (TUI/RPC/stdio) gets the UpUp widgets.',
+  };
+}
+
+
+async function readSopWorkflowBridgeStatus(): Promise<Record<string, unknown>> {
+  const bridgePath = resolve(root, 'packages/pi-investment-workflow/src/bridge/sop-workflow-bridge.ts');
+  if (!existsSync(bridgePath)) {
+    return { contract: 'upup.pi.sop-workflow-bridge.v1', available: false, reason: 'sop-workflow-bridge.ts missing' };
+  }
+  const source = readFileSync(bridgePath, 'utf8');
+  return {
+    contract: 'upup.pi.sop-workflow-bridge.v1',
+    available: /registerWorkflowResource/.test(source) && /buildUpUpSopScript/.test(source),
+    api: 'pi-subagents registerWorkflowResource',
+    resourceNaming: 'upup-sop__<sopId>',
+    versionHashing: 'FNV-style hash of sop.version -> positive safe integer',
+    hostCommand: 'upup-sop',
+    notes: 'Each UpUp SOP becomes a Pi workflow resource; TradingAgents / Codex can call workflow.run("upup-sop__graham", {ticker}).',
+  };
+}
+
+
 console.log(JSON.stringify({
   generatedAt: new Date().toISOString(),
   baseline: {
@@ -252,5 +323,8 @@ console.log(JSON.stringify({
   ecosystem: await readEcosystemStatus(),
   financeSubagents: await readFinanceSubagentStatus(),
   mcpServer: await readMcpServerStatus(),
+  sdk: await readInProcessSdkStatus(),
+  tuiWidgets: await readTuiWidgetsStatus(),
+  sopWorkflowBridge: await readSopWorkflowBridgeStatus(),
   rootAllowlist: ['src/index.tsx', 'src/bootstrap/**'],
 }, null, 2));

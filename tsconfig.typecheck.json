@@ -104,6 +104,9 @@
       "@upup/pi-runtime/model-registry": [
         "./packages/pi-runtime/src/model-registry.ts"
       ],
+      "@upup/sdk": [
+        "./packages/sdk/src/index.ts"
+      ],
       "@upup/pi-session": [
         "./packages/pi-session/src/index.ts"
       ],

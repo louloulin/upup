@@ -221,6 +221,25 @@ export function createPiApp(options: PiAppOptions): PiApp {
       // Composition is observable from initialize() even before the runtime
       // itself is resolved, while still preserving the lazy runtime factory.
       resolvedComposition = resolveComposition();
+      // Bridge every UpUp SOP into pi-subagents' DAG scheduler. Each
+      // built-in + user SOP becomes a workflow resource named
+      // `upup-sop__<sopId>` so any host that speaks pi-subagents (TradingAgents,
+      // Codex, Claude Code via pi-claude-bridge) can run UpUp SOPs through
+      // the same primitive Pi itself uses for its own workflows. Best-effort:
+      // a missing pi-subagents or a malformed SOP file is logged, not raised.
+      void (async () => {
+        try {
+          const { bridgeUpUpSopsToWorkflowResources } = await import('@upup/pi-investment-workflow');
+          await bridgeUpUpSopsToWorkflowResources({
+            sessionId: 'upup-session',
+            onError: (where: string, error: unknown) => {
+              process.stderr.write(`[upup-sop-bridge] ${where}: ${String(error)}\n`);
+            },
+          });
+        } catch (error) {
+          process.stderr.write(`[upup-sop-bridge] skipped: ${String(error)}\n`);
+        }
+      })();
     },
     async dispose(): Promise<void> {
       if (!initialized) return;

@@ -184,6 +184,20 @@ export function createUpUpEcosystemExtension(options: MountEcosystemOptions = {}
           // every event through its audit trail; an extra registration
           // failure does not need a parallel channel.
         }
+      // Mount the UpUp TUI widget extensions (Pattern 5 + Pattern 6).
+      // Best-effort: a Pi version missing `setWidget`/`setFooter` silently
+      // skips this step.
+      try {
+          const { mountUpUpTuiWidgets } = await import('./tui-widgets-mount');
+          mountUpUpTuiWidgets(pi);
+        } catch {
+          // TUI wiring failures must never abort the session.
+        }
+      // SOP → Pi workflow-resource bridge is wired by @upup/pi-app at boot
+      // (it owns the import of @upup/pi-investment-workflow). We do not
+      // import it here to keep the runtime -> workflow dependency edge one-way
+      // and avoid a workspace cycle (pi-investment-workflow -> pi-runtime).
+      
       return report;
     };
     void runner();

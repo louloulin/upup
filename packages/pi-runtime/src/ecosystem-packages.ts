@@ -35,7 +35,12 @@ export type EcosystemCategory =
   | 'roles'         // Per-role agent config (compatible with rolebox spec)
   | 'memory'        // Persistent memory
   | 'workflow'      // Long-running autonomous workflow
+  | 'goal'          // Single-objective autonomous completion
   | 'mcp'           // MCP adapter (Pi official)
+  | 'observability' // LLM/tool tracing
+  | 'code-review'   // Code review / simplify / lint
+  | 'lsp'           // LSP / linters / type-check
+  | 'interview'     // Structured questionnaire for the model
   | 'provider';     // Provider / model integration
 
 export interface UpUpEcosystemPackage {
@@ -148,6 +153,62 @@ export const UPUP_ECOSYSTEM_PACKAGES: readonly UpUpEcosystemPackage[] = [
     verifiedClean: true,
     description: 'In-process subagents with dependency-graph scheduler (DAG); replaces UpUp custom research-coordinator.',
   },
+  {
+    name: 'pi-mcp-adapter',
+    version: '2.34.0',
+    importPath: 'pi-mcp-adapter',
+    category: 'mcp',
+    verifiedClean: true,
+    description: "Pi's official MCP (Model Context Protocol) adapter; replaces UpUp's hand-rolled MCP client with Pi's vetted implementation.",
+  },
+  {
+    name: 'pi-lens',
+    version: '4.2.0',
+    importPath: 'pi-lens',
+    category: 'lsp',
+    verifiedClean: true,
+    description: 'Real-time code feedback for Pi — LSP, linters, formatters, type-checking, structural analysis.',
+  },
+  {
+    name: '@braintrust/pi-extension',
+    version: '2.1.0',
+    importPath: '@braintrust/pi-extension',
+    category: 'observability',
+    verifiedClean: true,
+    description: 'Automatic tracing for Pi sessions, turns, LLM calls, and tool executions to Braintrust.',
+  },
+  {
+    name: 'pi-simplify',
+    version: '0.2.3',
+    importPath: 'pi-simplify',
+    category: 'code-review',
+    verifiedClean: true,
+    description: 'Reviews recently changed code for clarity, consistency, and maintainability.',
+  },
+  {
+    name: '@narumitw/pi-plan-mode',
+    version: '0.58.0',
+    importPath: '@narumitw/pi-plan-mode/dist/index.ts',
+    category: 'plan-review',
+    verifiedClean: true,
+    description: 'Codex-like read-only /plan collaboration mode (block mutations, structured questions, plan export).',
+  },
+  {
+    name: 'pi-goal-x',
+    version: '0.31.5',
+    importPath: 'pi-goal-x/extensions/goal.ts',
+    category: 'goal',
+    verifiedClean: true,
+    description: 'Conversational goal planning with persistent progress and an independent completion auditor.',
+  },
+  {
+    name: '@juicesharp/rpiv-ask-user-question',
+    version: '2.10.1',
+    importPath: '@juicesharp/rpiv-ask-user-question',
+    category: 'interview',
+    verifiedClean: true,
+    description: 'Structured questionnaire the model can put to the user with typed options.',
+  },
 ] as const;
 
 /** Look up a single ecosystem package by npm name. */
@@ -159,7 +220,8 @@ export function findEcosystemPackage(name: string): UpUpEcosystemPackage | undef
 export function groupEcosystemByCategory(): Record<EcosystemCategory, readonly UpUpEcosystemPackage[]> {
   const groups: Record<EcosystemCategory, UpUpEcosystemPackage[]> = {
     subagent: [], web: [], cache: [], advisor: [], 'plan-review': [],
-    roles: [], memory: [], workflow: [], mcp: [], provider: [],
+    roles: [], memory: [], workflow: [], goal: [], mcp: [],
+    observability: [], 'code-review': [], lsp: [], interview: [], provider: [],
   };
   for (const pkg of UPUP_ECOSYSTEM_PACKAGES) {
     groups[pkg.category].push(pkg);
