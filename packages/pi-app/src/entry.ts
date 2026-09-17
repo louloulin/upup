@@ -322,6 +322,12 @@ async function main() {
             }
           : undefined;
       await runPiNativeCli({
+        // Every Pi-native flag reaches Pi verbatim. UpUp's own selectors
+        // (`--stdio` / `--width` / …) are stripped inside
+        // `filterForwardablePiArgs`, so `--print`, `--model`, `--provider`,
+        // `--thinking`, `--tools`, `--theme`, `--offline` and the rest work
+        // exactly as they do under `pi`.
+        piArgs: args,
         resumeTarget: resumeTarget ?? undefined,
         continue: shouldContinue,
         fork: shouldFork,

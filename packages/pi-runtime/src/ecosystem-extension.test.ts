@@ -9,10 +9,17 @@
  *      `mount_threw` / `import_failed` outcome, not a session-level crash.
  */
 
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import { describe, expect, it } from 'bun:test';
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
+
 import {
   createUpUpEcosystemExtension,
   mountUpUpEcosystemPackages,
+  UPUP_OWNED_TOOL_NAMES,
   summariseEcosystemReport,
   type EcosystemImporter,
 } from './ecosystem-extension';
@@ -97,18 +104,78 @@ describe('UPUP_ECOSYSTEM_PACKAGES registry', () => {
   });
 });
 
+/**
+ * Packages whose declared tools intersect `UPUP_OWNED_TOOL_NAMES`.
+ *
+ * These are skipped before import (Pi fails the whole extension on a duplicate
+ * tool name), so tests that count import/mount outcomes must exclude them.
+ */
+function preSkippedPackages(): readonly string[] {
+  return UPUP_ECOSYSTEM_PACKAGES.filter(
+    (pkg) => (pkg.registersTools ?? []).some((tool) => UPUP_OWNED_TOOL_NAMES.includes(tool)),
+  ).map((pkg) => pkg.name);
+}
+
 describe('mountUpUpEcosystemPackages', () => {
   it('mounts every verified-clean package with a fake pi', async () => {
     const { pi } = createFakePi();
     const report = await mountUpUpEcosystemPackages(pi);
-    const expectedClean = UPUP_ECOSYSTEM_PACKAGES.filter((p) => p.verifiedClean).length;
     expect(report.importFailed.filter(f => f.name === 'pi-conductor' || f.name === 'pi-crew').length).toBe(2);
-    expect(report.mounted.length + report.importFailed.length + report.notCallable.length + report.mountThrew.length).toBe(UPUP_ECOSYSTEM_PACKAGES.length);
-    // every entry classified as either mounted or verifiedDirty
+    // every entry is classified exactly once
     const classified =
-      report.mounted.length + report.verifiedDirty.length
+      report.mounted.length + report.skippedToolConflict.length + report.verifiedDirty.length
       + report.importFailed.length + report.notCallable.length + report.mountThrew.length;
     expect(classified).toBe(UPUP_ECOSYSTEM_PACKAGES.length);
+  });
+
+  it('skips packages whose declared tools are already owned by UpUp', async () => {
+    const { pi } = createFakePi();
+    const stubImporter: EcosystemImporter = async () => ({ default: () => undefined });
+    const report = await mountUpUpEcosystemPackages(pi, { importer: stubImporter });
+    const expected = preSkippedPackages();
+    expect(expected.length).toBeGreaterThan(0);
+    expect(report.skippedToolConflict.map((entry) => entry.name).sort()).toEqual([...expected].sort());
+    for (const entry of report.skippedToolConflict) {
+      expect(entry.conflicts.length).toBeGreaterThan(0);
+    }
+    expect(summariseEcosystemReport(report)).toContain('skippedToolConflict=');
+  });
+
+  it('keeps every UPUP_OWNED_TOOL_NAMES entry distinct and snake_case', () => {
+    expect(UPUP_OWNED_TOOL_NAMES.length).toBeGreaterThan(100);
+    expect(new Set(UPUP_OWNED_TOOL_NAMES).size).toBe(UPUP_OWNED_TOOL_NAMES.length);
+    for (const name of UPUP_OWNED_TOOL_NAMES) expect(name).toMatch(/^[a-z][a-z0-9_]*$/);
+  });
+
+  it('covers every tool the workspace extensions literally register', () => {
+    // Drift guard for `UPUP_OWNED_TOOL_NAMES`: the conflict pre-check can only
+    // skip a colliding ecosystem package if the name is listed. Scanning the
+    // `name: '…'` literals keeps the list honest as new UpUp tools land.
+    const roots = [
+      'packages/pi-research/extensions',
+      'packages/pi-platform/extensions',
+      'packages/pi-investment-workflow/extensions',
+      'packages/pi-market-data/extensions',
+      'packages/pi-risk/extensions',
+      'packages/pi-portfolio/extensions',
+      'packages/pi-backtest/extensions',
+    ].map((rel) => path.join(repoRoot, rel));
+    const seen = new Set<string>();
+    const walk = (dir: string): void => {
+      if (!existsSync(dir)) return;
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) walk(full);
+        else if (entry.name.endsWith('.ts') && !entry.name.endsWith('.test.ts')) {
+          for (const match of readFileSync(full, 'utf8').matchAll(/name:\s*'([a-z][a-z0-9_]*)'/g)) {
+            seen.add(match[1]!);
+          }
+        }
+      }
+    };
+    for (const root of roots) walk(root);
+    const missing = [...seen].filter((name) => !UPUP_OWNED_TOOL_NAMES.includes(name)).sort();
+    expect(missing).toEqual([]);
   });
 
   it('never throws when a package cannot be imported', async () => {
@@ -117,7 +184,8 @@ describe('mountUpUpEcosystemPackages', () => {
       throw new Error('package not installed');
     };
     const report = await mountUpUpEcosystemPackages(pi, { importer: failingImporter });
-    expect(report.importFailed.length).toBe(UPUP_ECOSYSTEM_PACKAGES.length);
+    const importable = UPUP_ECOSYSTEM_PACKAGES.length - preSkippedPackages().length;
+    expect(report.importFailed.length).toBe(importable);
     expect(report.mounted.length).toBe(0);
     expect(summariseEcosystemReport(report)).toContain('importFailed=');
   });
@@ -126,7 +194,9 @@ describe('mountUpUpEcosystemPackages', () => {
     const { pi } = createFakePi();
     const stubImporter: EcosystemImporter = async () => ({ default: { not: 'a function' } });
     const report = await mountUpUpEcosystemPackages(pi, { importer: stubImporter });
-    expect(report.notCallable.length).toBe(UPUP_ECOSYSTEM_PACKAGES.length);
+    expect(report.notCallable.length).toBe(
+      UPUP_ECOSYSTEM_PACKAGES.length - preSkippedPackages().length,
+    );
     expect(summariseEcosystemReport(report)).toContain('notCallable=');
   });
 
@@ -141,7 +211,9 @@ describe('mountUpUpEcosystemPackages', () => {
     });
     const report = await mountUpUpEcosystemPackages(pi, { importer: stubImporter });
     expect(report.mountThrew.length).toBe(1);
-    expect(report.mounted.length).toBe(UPUP_ECOSYSTEM_PACKAGES.length - 1);
+    expect(report.mounted.length).toBe(
+      UPUP_ECOSYSTEM_PACKAGES.length - preSkippedPackages().length - 1,
+    );
   });
 
   it('honours mountUnverified: false by skipping verifiedDirty packages', async () => {
@@ -151,7 +223,8 @@ describe('mountUpUpEcosystemPackages', () => {
       importer: stubImporter,
       mountUnverified: false,
     });
-    const expectedClean = UPUP_ECOSYSTEM_PACKAGES.filter((p) => p.verifiedClean).length;
+    const expectedClean =
+      UPUP_ECOSYSTEM_PACKAGES.filter((p) => p.verifiedClean).length - preSkippedPackages().length;
     expect(report.mounted.length).toBe(expectedClean);
     expect(report.verifiedDirty.length).toBe(
       UPUP_ECOSYSTEM_PACKAGES.filter((p) => !p.verifiedClean).length,

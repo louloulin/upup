@@ -58,6 +58,15 @@ export interface UpUpEcosystemPackage {
   readonly verifiedClean: boolean;
   /** UpUp workspace package this ecosystem package replaces (if any). */
   readonly supersedes?: readonly string[];
+  /**
+   * Tool names this package registers. Pi's resource loader fails the *whole*
+   * extension when two extensions claim the same tool name, so a package whose
+   * tool set intersects one UpUp already ships has to be skipped at mount time
+   * (see `mountUpUpEcosystemPackages`). Keep this list in sync with the
+   * package's own `pi.registerTool(...)` calls; a missing entry means a silent
+   * duplicate rather than a clean skip.
+   */
+  readonly registersTools?: readonly string[];
   /** One-line description used by `upup plugin recommend`. */
   readonly description: string;
   /** Free-form caveats surfaced by `upup doctor`. */
@@ -80,9 +89,13 @@ export const UPUP_ECOSYSTEM_PACKAGES: readonly UpUpEcosystemPackage[] = [
     category: 'web',
     verifiedClean: true,
     supersedes: ['@upup/pi-research'],
+    // `web_search` is owned by @upup/pi-research in the UpUp host; Pi's
+    // resource loader rejects the entire extension on a duplicate tool name,
+    // so this package is skipped unless the UpUp counterpart is disabled.
+    registersTools: ['web_search', 'web_fetch'],
     description: '30+ search / fetch providers (Firecrawl, Jina, Brave, Gemini, …).',
     caveats: [
-      'Registers `web_search` which collides with @upup/pi-research; load only one.',
+      'Registers `web_search` which collides with @upup/pi-research; UpUp skips this package at mount time rather than failing the whole extension.',
     ],
   },
   {
@@ -91,7 +104,12 @@ export const UPUP_ECOSYSTEM_PACKAGES: readonly UpUpEcosystemPackage[] = [
     importPath: 'pi-web-search',
     category: 'web',
     verifiedClean: true,
+    // Both tools are already owned by @upup/pi-research in the UpUp host.
+    registersTools: ['web_search', 'url_context'],
     description: 'Provider-native web search (Gemini URL Context, xAI Grok, OpenAI Responses).',
+    caveats: [
+      'Registers `web_search` / `url_context` which collide with @upup/pi-research; UpUp skips this package at mount time rather than failing the whole extension.',
+    ],
   },
   {
     name: 'pi-cache-optimizer',
@@ -132,9 +150,13 @@ export const UPUP_ECOSYSTEM_PACKAGES: readonly UpUpEcosystemPackage[] = [
     category: 'memory',
     verifiedClean: true,
     supersedes: ['@upup/memory'],
+    // `memory_search` is owned by @upup/pi-platform in the UpUp host; the
+    // duplicate would abort the entire ecosystem extension, so this package is
+    // skipped until the UpUp memory tools are turned off.
+    registersTools: ['memory_search', 'memory_get', 'memory_update'],
     description: 'SQLite FTS5 + procedural skills + secret scanning.',
     caveats: [
-      'Registers `memory_search` / `memory_get` / `memory_update` which collide with @upup/pi-platform; load only one.',
+      'Registers `memory_search` / `memory_get` / `memory_update` which collide with @upup/pi-platform; UpUp skips this package at mount time rather than failing the whole extension.',
     ],
   },
   {

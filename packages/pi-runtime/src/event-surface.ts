@@ -305,7 +305,17 @@ export function mountUpUpEventSurface(
         return result;
       };
 
-      if (!behavior) return finish(undefined);
+      if (!behavior) {
+        // project_trust is the one Pi result-contract event whose handler
+        // return shape is observed by Pi itself: Pi's runner reads
+        // handlerResult.trusted on every registered project_trust handler
+        // and propagates a non-"undecided" verdict. Returning undefined
+        // here therefore crashes Pi ("undefined is not an object (evaluating
+        // handlerResult.trusted)"). All other describe-only events are
+        // Pi-side void and fine with undefined.
+        if (name === 'project_trust') return { trusted: 'undecided' };
+        return finish(undefined);
+      }
 
       try {
         const result = behavior(event as never, context);

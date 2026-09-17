@@ -50,6 +50,7 @@ import { createEcosystemImporter } from './ecosystem-resolver';
 
 export type EcosystemMountOutcome =
   | { kind: 'mounted'; name: string; importPath: string }
+  | { kind: 'skipped_tool_conflict'; name: string; importPath: string; conflicts: readonly string[] }
   | { kind: 'verified_dirty'; name: string; importPath: string }
   | { kind: 'import_failed'; name: string; importPath: string; error: string }
   | { kind: 'not_callable'; name: string; importPath: string; actualType: string }
@@ -57,6 +58,13 @@ export type EcosystemMountOutcome =
 
 export interface EcosystemMountReport {
   readonly mounted: readonly string[];
+  /**
+   * Packages skipped because the tools they register are already claimed by an
+   * earlier extension. Pi's resource loader fails the *whole* extension when
+   * two extensions register the same tool name, so skipping is the only way to
+   * keep the rest of the ecosystem loaded.
+   */
+  readonly skippedToolConflict: readonly { name: string; importPath: string; conflicts: readonly string[] }[];
   readonly verifiedDirty: readonly string[];
   readonly importFailed: readonly { name: string; importPath: string; error: string }[];
   readonly notCallable: readonly { name: string; importPath: string; actualType: string }[];
@@ -70,6 +78,35 @@ export interface EcosystemMountReport {
  * that returns a fake default export without touching node_modules.
  */
 export type EcosystemImporter = (specifier: string) => Promise<unknown>;
+
+/**
+ * Tool names already registered on this `pi`.
+ *
+ * `getAllTools()` is part of Pi's `ExtensionAPI`; hosts that only implement the
+ * registration half (test doubles, minimal embedded hosts) fall back to an
+ * empty set so the conflict pre-check degrades to "mount everything".
+ */
+function registeredToolNames(pi: ExtensionAPI): ReadonlySet<string> {
+  const names = new Set<string>(UPUP_OWNED_TOOL_NAMES);
+  const candidate = (pi as unknown as { getAllTools?: () => unknown }).getAllTools;
+  if (typeof candidate === 'function') {
+    try {
+      const tools = candidate.call(pi);
+      if (tools instanceof Map) for (const key of tools.keys()) names.add(String(key));
+      else if (Array.isArray(tools)) {
+        for (const tool of tools) {
+          const name = (tool as { name?: unknown })?.name;
+          if (typeof name === 'string') names.add(name);
+        }
+      } else if (tools && typeof tools === 'object') {
+        for (const key of Object.keys(tools)) names.add(key);
+      }
+    } catch {
+      /* Loading-phase hosts throw here; the static list still applies. */
+    }
+  }
+  return names;
+}
 
 const defaultImporter: EcosystemImporter = createEcosystemImporter();
 
@@ -98,6 +135,7 @@ export async function mountUpUpEcosystemPackages(
   const now = options.now ?? (() => Date.now());
 
   const mounted: string[] = [];
+  const skippedToolConflict: { name: string; importPath: string; conflicts: readonly string[] }[] = [];
   const verifiedDirty: string[] = [];
   const importFailed: { name: string; importPath: string; error: string }[] = [];
   const notCallable: { name: string; importPath: string; actualType: string }[] = [];
@@ -110,6 +148,27 @@ export async function mountUpUpEcosystemPackages(
       outcomes.push({ kind: 'verified_dirty', name: pkg.name, importPath: pkg.importPath });
       verifiedDirty.push(pkg.name);
       continue;
+    }
+
+    // Pi rejects the whole extension on a duplicate tool name, which would
+    // take down every other ecosystem package mounted through this entry
+    // point. Detect the collision here against the tools already registered
+    // on `pi` and skip just this package instead.
+    const declaredTools = pkg.registersTools ?? [];
+    if (declaredTools.length > 0) {
+      // `pi.getAllTools()` refuses to answer during extension loading
+      // ("Extension runtime not initialized"), and it only reports Pi's
+      // built-in tools anyway — UpUp's own `-e` extensions register theirs
+      // later in the same load pass. The static UpUp surface below is the
+      // authoritative list of names the host already owns, so the pre-check
+      // works at factory time.
+      const owned = registeredToolNames(pi);
+      const conflicts = declaredTools.filter((tool) => owned.has(tool));
+      if (conflicts.length > 0) {
+        outcomes.push({ kind: 'skipped_tool_conflict', name: pkg.name, importPath: pkg.importPath, conflicts });
+        skippedToolConflict.push({ name: pkg.name, importPath: pkg.importPath, conflicts });
+        continue;
+      }
     }
 
     let mod: unknown;
@@ -151,6 +210,7 @@ export async function mountUpUpEcosystemPackages(
 
   return {
     mounted,
+    skippedToolConflict,
     verifiedDirty,
     importFailed,
     notCallable,
@@ -171,11 +231,12 @@ export async function mountUpUpEcosystemPackages(
  * Mount failures are never fatal — they show up in `report:pi7` and the TUI
  * banner, not in a thrown exit.
  */
-export function createUpUpEcosystemExtension(options: MountEcosystemOptions = {}): (pi: ExtensionAPI) => void {
-  return (pi: ExtensionAPI): void => {
+export function createUpUpEcosystemExtension(options: MountEcosystemOptions = {}): (pi: ExtensionAPI) => Promise<void> {
+  return async (pi: ExtensionAPI): Promise<void> => {
     const runner = async (): Promise<EcosystemMountReport> => {
       const fallback = (message: string): EcosystemMountReport => ({
         mounted: [],
+        skippedToolConflict: [],
         verifiedDirty: [],
         importFailed: [],
         notCallable: [],
@@ -224,7 +285,16 @@ export function createUpUpEcosystemExtension(options: MountEcosystemOptions = {}
       
       return report;
     };
-    void runner();
+    // Pi's `ExtensionFactory` is `(pi) => void | Promise<void>`, and its
+    // loader `await`s the returned value before emitting `session_start`.
+    // The mount used to be fire-and-forget (`void runner()`), which meant
+    // every async-mounted ecosystem package (pi-subagents in particular)
+    // registered its `session_start` handler *after* the event had already
+    // fired. pi-subagents then kept `state.currentSessionId === null` for the
+    // whole run and threw on `agent_end`
+    // ("Cannot auto-drain background work without an active session identity").
+    // Returning the promise makes Pi wait, so the handlers exist in time.
+    await runner();
   };
 }
 
@@ -232,6 +302,7 @@ export function createUpUpEcosystemExtension(options: MountEcosystemOptions = {}
 export function summariseEcosystemReport(report: EcosystemMountReport): string {
   const parts: string[] = [];
   parts.push(`mounted=${report.mounted.length}`);
+  if (report.skippedToolConflict.length > 0) parts.push(`skippedToolConflict=${report.skippedToolConflict.length}`);
   if (report.verifiedDirty.length > 0) parts.push(`verifiedDirty=${report.verifiedDirty.length}`);
   if (report.importFailed.length > 0) parts.push(`importFailed=${report.importFailed.length}`);
   if (report.notCallable.length > 0) parts.push(`notCallable=${report.notCallable.length}`);
@@ -241,3 +312,57 @@ export function summariseEcosystemReport(report: EcosystemMountReport): string {
 
 /** Re-export for downstream packages that want to enumerate categories. */
 export type { UpUpEcosystemPackage };
+
+/**
+ * Tool names UpUp's own Pi extensions register.
+ *
+ * Kept as a literal rather than a runtime scan because the ecosystem mount runs
+ * inside Pi's extension-loading pass, where neither `pi.getAllTools()` nor a
+ * filesystem walk of `packages/&#42;/extensions` is available. Gate:
+ * `ecosystem-extension.test.ts` cross-checks this list against the
+ * `name: '…'` literals in every workspace `extensions/` directory, so a new
+ * UpUp tool without a matching entry fails the suite instead of silently
+ * producing a duplicate at runtime.
+ */
+export const UPUP_OWNED_TOOL_NAMES: readonly string[] = [
+  'add_plan_step', 'add_position', 'add_position_multi', 'add_to_watchlist',
+  'add_watchlist_alert', 'agent', 'agent_memory', 'analyze_sentiment',
+  'ask_confirm', 'ask_input', 'ask_multi_select', 'ask_response',
+  'ask_select', 'backtest_dca', 'backtest_evaluate_trade', 'backtest_lumpsum',
+  'backtest_run', 'backtest_threshold', 'backtest_win_rate', 'calculate_alpha',
+  'calculate_correlation', 'calculate_correlation_matrix', 'calculate_kelly', 'calculate_max_drawdown',
+  'calculate_mean_variance', 'calculate_risk_parity', 'calculate_sharpe', 'calculate_short_interest_ratio',
+  'calculate_sortino', 'calculate_var', 'calculate_win_rate', 'check_trading_day',
+  'check_watchlist_alerts', 'clear_watchlist_alert', 'compare_data_sources', 'compare_to_benchmark',
+  'convert_currency', 'create_portfolio', 'create_todo', 'create_worktree',
+  'cron', 'delete_portfolio', 'delete_todo', 'detect_events',
+  'detect_short_squeeze', 'earnings_preview', 'edit_file', 'enter_plan_mode',
+  'evaluate_trade', 'execute_skill', 'exit_plan_mode', 'export_data',
+  'export_portfolio', 'export_watchlist', 'extract_entities', 'fork_subagent',
+  'get_astock_price', 'get_backtest_summary', 'get_exchange_rate', 'get_market_data',
+  'get_market_structure', 'get_next_trading_day', 'get_portfolio', 'get_portfolio_multi',
+  'get_sector_data', 'get_short_interest', 'get_skill', 'get_technical_data',
+  'get_trading_days', 'get_upcoming_holidays', 'get_watchlist', 'glob',
+  'grep', 'heartbeat', 'invest_workflow', 'invest_workflow_phase',
+  'kairos_summary', 'list_agents', 'list_benchmarks', 'list_currencies',
+  'list_mcp_resources', 'list_plan_steps', 'list_portfolios', 'list_skills',
+  'list_todos', 'list_worktree', 'lsp_complete', 'lsp_definition',
+  'lsp_diagnostics', 'lsp_hover', 'lsp_references', 'market_data_history',
+  'market_data_provider_health', 'market_data_provider_sla', 'market_data_provider_trend', 'market_data_quote',
+  'market_trading_day', 'mcp_auth_clear', 'mcp_auth_get', 'mcp_auth_set',
+  'memory_get', 'memory_search', 'memory_update', 'monitor',
+  'notebook_create', 'notebook_delete_cell', 'notebook_edit_cell', 'notebook_insert_cell',
+  'notebook_read', 'portfolio_attribution', 'portfolio_brinson_attribution', 'portfolio_sector_attribution',
+  'portfolio_style_attribution', 'read_file', 'read_mcp_resource', 'realtime_list_subscriptions',
+  'realtime_subscribe', 'realtime_unsubscribe', 'remove_from_watchlist', 'remove_position',
+  'remove_position_multi', 'remove_worktree', 'research_deep_search', 'resume_agent',
+  'run_backtest', 'run_builtin_agent', 'run_workflow', 'score_data_source',
+  'screen_astocks', 'search_skills', 'send_message', 'send_user_file',
+  'skill', 'skill_info', 'sleep', 'snip_tool',
+  'stock_screener', 'swarm_agent_message', 'swarm_agent_results', 'swarm_agent_spawn',
+  'swarm_team_create', 'swarm_team_list', 'switch_portfolio', 'task_create',
+  'task_get', 'task_list', 'task_result', 'task_stop',
+  'task_update', 'tool_get', 'tool_list', 'tool_search',
+  'track_risk', 'update_plan_step', 'update_position', 'update_todo',
+  'web_fetch', 'web_search', 'write_file', 'x_search',
+];
