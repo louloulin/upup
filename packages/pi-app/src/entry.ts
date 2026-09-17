@@ -5,6 +5,7 @@ import { existsSync, mkdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { printUpupBrandLine, printUpupBanner } from './banner';
 import { ensureUpupAgentDir } from './bootstrap-agent';
+import { applyProperLockfileBunShim } from '@upup/pi-runtime/proper-lockfile-bun-shim';
 
 config({ quiet: true });
 
@@ -64,6 +65,19 @@ async function main() {
   // installs the UpUp theme. It must run BEFORE any dynamic
   // import("@earendil-works/pi-*") so Pi sees the right agent dir.
   ensureUpupAgentDir();
+
+  // Bun runtime guard for proper-lockfile@4.1.2 + pi-llmgates-provider.
+  // Pi's `DefaultResourceLoader.reload()` reads `<agentDir>/settings.json#packages`
+  // and dynamically imports each entry (including `@llmgates_api/pi-llmgates-provider`)
+  // BEFORE any `extensionFactories` callback runs. By the time the ecosystem
+  // extension mounts, pi-llmgates-provider has already captured the original
+  // `mtimePrecision.probe` reference at module top-level — so the shim must
+  // land here, before the first dynamic `import('@earendil-works/pi-coding-agent')`.
+  // Anchors `require.resolve('proper-lockfile')` at pi-llmgates-provider's
+  // dist entry so we patch the same module instance it imports (the
+  // user-managed copy under `~/.upup/agent/npm/node_modules/`, not Bun's
+  // global install cache). See `proper-lockfile-bun-shim.ts` for diagnosis.
+  await applyProperLockfileBunShim();
 
   // Pi native stdio: --stdio / --acp delegate to Pi's `main()` with --mode rpc,
   // which routes stdin/stdout to Pi's runRpcMode (JSON-RPC envelope). The ACP

@@ -3,6 +3,7 @@ import { join, relative, resolve } from 'node:path';
 import { PI_CAPABILITY_CATALOG, validatePiCapabilityCatalog, UPUP_ECOSYSTEM_PACKAGES, describeEcosystemResolution } from '@upup/pi-runtime';
 import { findEcosystemPackageDirs, resolvePiExtensionEntries } from '@upup/pi-runtime/ecosystem-resolver';
 import { createExtensionApiProbe } from '@upup/pi-runtime/extension-api-probe';
+import { declaredToolNames, resolvePackageSourceDir, UPUP_OWNED_TOOL_NAMES } from '@upup/pi-runtime/ecosystem-extension';
 import { listPiSkillCommands } from '@upup/pi-resource-composition';
 import { findSideEffectCoverageGaps, REQUIRED_SIDE_EFFECTS, readWorkspaceManifests } from './check-pi-side-effects.ts';
 
@@ -202,6 +203,22 @@ async function readFinanceSubagentStatus(): Promise<Record<string, unknown>> {
   }
 }
 
+
+function packageWouldSkipForToolConflict(spec) {
+  let declared = spec.registersTools ?? [];
+  if (!Array.isArray(declared) || declared.length === 0) {
+    const runtime = require('@upup/pi-runtime/ecosystem-extension');
+    try {
+      const dir = runtime.resolvePackageSourceDir(spec);
+      declared = [...runtime.declaredToolNames(dir)];
+    } catch { declared = []; }
+  }
+  const owned = new Set(UPUP_OWNED_TOOL_NAMES);
+  const conflicts = [];
+  for (const tool of declared) if (owned.has(tool)) conflicts.push(tool);
+  return { skip: conflicts.length > 0, conflicts };
+}
+
 async function readEcosystemStatus(): Promise<Record<string, unknown>> {
   const nodeModules = join(root, 'node_modules');
   const entries = await Promise.all(UPUP_ECOSYSTEM_PACKAGES.map(async (spec) => {
@@ -233,6 +250,14 @@ async function readEcosystemStatus(): Promise<Record<string, unknown>> {
         try {
           const mod = (await loadEcosystemModule(candidate)) as { default?: unknown };
           if (typeof mod.default === 'function') {
+            const skip = packageWouldSkipForToolConflict(spec);
+            if (skip.skip) {
+              mounts = false;
+              mountedVia = candidate;
+              mountError = `skipped_tool_conflict: ${skip.conflicts.join(', ')}`;
+              attempts.push(`${candidate}: skipped for tool conflict (${skip.conflicts.join(', ')})`);
+              break;
+            }
             (mod.default as (pi: unknown) => void)(createExtensionApiProbe().pi);
             mounts = true;
             mountedVia = candidate;
@@ -243,7 +268,13 @@ async function readEcosystemStatus(): Promise<Record<string, unknown>> {
           attempts.push(`${candidate}: ${error instanceof Error ? error.message.split('\n')[0] : String(error)}`);
         }
       }
-      if (!mounts) mountError = attempts.join(' | ');
+      // Do not clobber a conflict-skip verdict: it is a decision, not a
+      // failure. The generic `attempts` join would otherwise overwrite the
+      // `skipped_tool_conflict:` prefix and make the summary count these
+      // packages as install-broken.
+      if (!mounts && !(typeof mountError === 'string' && mountError.startsWith('skipped_tool_conflict'))) {
+        mountError = attempts.join(' | ');
+      }
     }
     // Dual-scope resolution: which root would actually load this package?
     // `user` means a copy in ~/.upup/agent/npm shadows the bundled one.
@@ -271,6 +302,8 @@ async function readEcosystemStatus(): Promise<Record<string, unknown>> {
     };
   }));
   const verified = entries.filter((e) => e.versionMatches && e.mounts).length;
+  const conflictSkipped = entries.filter((e) => e.versionMatches && !e.mounts && typeof e.mountError === 'string' && e.mountError.startsWith('skipped_tool_conflict')).length;
+  const installBroken = entries.filter((e) => e.versionMatches && !e.mounts && !(typeof e.mountError === 'string' && e.mountError.startsWith('skipped_tool_conflict'))).length;
   const scopeCounts = { user: 0, bundled: 0, missing: 0 };
   for (const entry of entries) {
     const scope = (entry.resolution as { scope: 'user' | 'bundled' | 'missing' }).scope;
@@ -280,6 +313,8 @@ async function readEcosystemStatus(): Promise<Record<string, unknown>> {
     contract: 'upup.pi.ecosystem.v1',
     registryCount: UPUP_ECOSYSTEM_PACKAGES.length,
     verifiedCount: verified,
+    conflictSkippedCount: conflictSkipped,
+    installBrokenCount: installBroken,
     coveragePercent: Math.round((verified / UPUP_ECOSYSTEM_PACKAGES.length) * 10000) / 100,
     scopeCounts,
     packages: entries,

@@ -50,6 +50,7 @@ import {
   type UpUpEcosystemPackage,
 } from './ecosystem-packages';
 import { createEcosystemImporter, resolveEcosystemSpecifier, resolvePiExtensionEntriesByRoot } from './ecosystem-resolver';
+import { applyProperLockfileBunShim } from './proper-lockfile-bun-shim';
 
 export type EcosystemMountOutcome =
   | { kind: 'mounted'; name: string; importPath: string; resolvedSpecifier: string }
@@ -88,6 +89,13 @@ export interface EcosystemMountReport {
    */
   readonly resolvedSpecifiers: Readonly<Record<string, string>>;
   readonly outcomes: readonly EcosystemMountOutcome[];
+  /**
+   * Result of the proper-lockfile + Bun Proxy invariant shim. `applied: false`
+   * is non-fatal — it means proper-lockfile is not installed (e.g. on a
+   * clean run without `@llmgates_api/pi-llmgates-provider`).
+   * See `./proper-lockfile-bun-shim.ts` for the full diagnosis.
+   */
+  readonly properLockfileShim: { applied: boolean; reason: string };
   readonly at: number;
 }
 
@@ -191,19 +199,18 @@ function packageRootFromFile(filePath: string): string | undefined {
  *
  * Handles four cases:
  *   1. `pi.extensions` present — the package dir itself, which is the
- *      authoritative source location (`pi-code` ships no resolvable `.`
- *      export at all, so a specifier-only lookup would miss it entirely).
+ *      authoritative source location (`pi-brainstorm` ships no resolvable
+ *      `.` export at all, so a specifier-only lookup would miss it).
  *   2. Bare specifier (`pi-web-access`) — resolves to the package root.
  *   3. Subpath (`pi-goal-x/extensions/goal.ts`) — walks up to `package.json`.
  *   4. Unresolvable (test stub importer) — `undefined`; callers treat that as
  *      "no source declared" and fall back to the static `registersTools` list.
  *
  * Why case 1 exists: the conflict pre-check used to depend solely on
- * `importPath`. For a package whose `importPath` does not resolve
- * (`pi-code`), it silently returned "declares no tools" and let a package
- * registering `web_search` / `subagent` mount on top of UpUp's own tool of the
- * same name — exactly the duplicate Pi escalates to a fatal
- * `Failed to load extension`.
+ * `importPath`. For a package whose `importPath` does not resolve, it
+ * silently returned "declares no tools" and let a package registering
+ * `web_search` / `subagent` mount on top of UpUp's own tool of the same name
+ * — exactly the duplicate Pi escalates to a fatal `Failed to load extension`.
  */
 export function resolvePackageSourceDir(
   pkg: { readonly importPath: string; readonly name: string },
@@ -254,11 +261,33 @@ export function declaredToolNames(packageRoot: string | undefined): ReadonlySet<
   // Form C — `registerTool('foo', { ... name: 'bar' ... })` (rare; mostly
   // `registerCommand` with both positional name and inline object).
   const inlineNameRe = /register(?:Tool|Command|Shortcut)\s*\(\s*['"][^'"]+['"]\s*,\s*\{[^}]*?name:\s*['"]([a-z][a-z0-9_-]{1,40})['"]/g;
+  // Form D — `defineTool({ name: '...' })` followed later by
+  // `registerTool({ ...<ident> })`. Many Pi ecosystem packages
+  // (`@narumitw/pi-lsp`, `pi-subagents`, `pi-mcp-adapter`, …) build the
+  // tool spec via `defineTool` and spread it into `pi.registerTool`; the
+  // `name` literal lives in the `defineTool` block, not the call site, so
+  // Forms A–C cannot see it. We resolve the spread by pre-scanning the
+  // file for `const <ident> = defineTool({ name: '...' })` bindings.
+  const defineNameRe = /(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*defineTool\s*\(\s*\{[^}]*?name:\s*['"]([a-z][a-z0-9_-]{1,40})['"]/g;
+  const spreadRe = /register(?:Tool|Command|Shortcut)\s*\(\s*\{\s*\.\.\.\s*([A-Za-z_$][\w$]*)\b/g;
   const skipDir = new Set(['node_modules', 'dist', '.git', 'test', 'tests', '__tests__']);
   const collect = (body: string): void => {
     for (const m of body.matchAll(typedNameRe)) if (m[1]) tools.add(m[1]);
     for (const m of body.matchAll(callRe)) if (m[2]) tools.add(m[2]);
     for (const m of body.matchAll(inlineNameRe)) if (m[1]) tools.add(m[1]);
+    // Resolve Form D: collect every `const <ident> = defineTool({ name: '...' })`
+    // binding in the file, then walk each `registerTool({ ...<ident> })` call
+    // and add the bound name to the set.
+    const definedNames = new Map<string, string>();
+    for (const m of body.matchAll(defineNameRe)) {
+      if (m[1] && m[2]) definedNames.set(m[1], m[2]);
+    }
+    for (const m of body.matchAll(spreadRe)) {
+      const ident = m[1];
+      if (!ident) continue;
+      const name = definedNames.get(ident);
+      if (name !== undefined) tools.add(name);
+    }
   };
   const walk = (dir: string): void => {
     let entries: { name: string; isDirectory: () => boolean }[];
@@ -324,6 +353,11 @@ export interface MountEcosystemOptions {
    * Defaults to reading `<agentDir>/settings.json#packages`.
    */
   readonly piLoadedPackages?: ReadonlySet<string>;
+  /**
+   * Pre-computed proper-lockfile shim result to embed in the report.
+   * When absent, the report's `properLockfileShim` is `{ applied: false, reason: 'not-applied' }`.
+   */
+  readonly precomputedShim?: { applied: boolean; reason: string };
 }
 
 /**
@@ -334,6 +368,10 @@ export async function mountUpUpEcosystemPackages(
   pi: ExtensionAPI,
   options: MountEcosystemOptions = {},
 ): Promise<EcosystemMountReport> {
+  // Shim status is computed in the runner that owns lifecycle; tests can
+  // pre-apply via `applyProperLockfileBunShim()` and pass the result through
+  // here so the report reflects what really happened.
+  const properLockfileShim = options.precomputedShim ?? { applied: false, reason: 'not-applied' };
   const importer = options.importer ?? defaultImporter;
   const enabled = options.enabled;
   const mountUnverified = options.mountUnverified ?? true;
@@ -396,9 +434,9 @@ export async function mountUpUpEcosystemPackages(
     // entry. Two shapes this has to handle:
     //   1. A package whose npm entry is a plain library (`pi-esr`: 22 named
     //      exports, no default) while the factory lives elsewhere.
-    //   2. A package that declares a *directory* (`pi-code`:
+    //   2. A package that declares a *directory* (`pi-brainstorm`:
     //      `pi.extensions: ["./extensions"]`), which Pi expands into every
-    //      extension inside it — 22 in that case, not one.
+    //      extension inside it, not one.
     //
     // Entries are resolved per root so a package mounts from exactly one
     // scope: a `~/.upup/agent/npm` copy shadows the bundled one, and mounting
@@ -502,6 +540,7 @@ export async function mountUpUpEcosystemPackages(
     mountThrew,
     resolvedSpecifiers,
     outcomes,
+    properLockfileShim,
     at: now(),
   };
 }
@@ -520,6 +559,19 @@ export async function mountUpUpEcosystemPackages(
 export function createUpUpEcosystemExtension(options: MountEcosystemOptions = {}): (pi: ExtensionAPI) => Promise<void> {
   return async (pi: ExtensionAPI): Promise<void> => {
     const runner = async (): Promise<EcosystemMountReport> => {
+      // Bun runtime guard: proper-lockfile@4.1.2 caches mtime precision on
+      // the `fs` object via `Object.defineProperty(fs, cacheSymbol, { value })`
+      // (non-configurable + non-writable), and Bun's `internal/shared#guarded`
+      // Proxy on native fs bindings rejects the second read with a
+      // "Proxy handler's 'get' result ..." invariant violation. The first
+      // interactive prompt succeeds, every subsequent one — including the
+      // second conversation's `/goal`, any `/invest`, any tool call routed
+      // through pi-llmgates-provider's input-history writer — crashes pi with
+      // an uncaughtException. Apply the shim BEFORE any ecosystem package is
+      // imported, so the cached `probe` reference pi-llmgates-provider
+      // captures at import time is already the patched one. See
+      // `./proper-lockfile-bun-shim.ts` for the full diagnosis.
+      const shimResult = await applyProperLockfileBunShim();
       const fallback = (message: string): EcosystemMountReport => ({
         mounted: [],
         skippedToolConflict: [],
@@ -530,9 +582,10 @@ export function createUpUpEcosystemExtension(options: MountEcosystemOptions = {}
         mountThrew: [{ name: '<runner>', importPath: '<runner>', error: message }],
         resolvedSpecifiers: {},
         outcomes: [{ kind: 'mount_threw', name: '<runner>', importPath: '<runner>', error: message }],
+        properLockfileShim: shimResult,
         at: Date.now(),
       });
-      const report = await mountUpUpEcosystemPackages(pi, options).catch((error: unknown) => {
+      const report = await mountUpUpEcosystemPackages(pi, { ...options, precomputedShim: shimResult }).catch((error: unknown) => {
         const message = error instanceof Error ? error.message : String(error);
         return fallback(message);
       });
@@ -574,6 +627,13 @@ export function summariseEcosystemReport(report: EcosystemMountReport): string {
   if (report.importFailed.length > 0) parts.push(`importFailed=${report.importFailed.length}`);
   if (report.notCallable.length > 0) parts.push(`notCallable=${report.notCallable.length}`);
   if (report.mountThrew.length > 0) parts.push(`mountThrew=${report.mountThrew.length}`);
+  // Surface proper-lockfile Bun shim status so `report:pi7` / `upup doctor`
+  // can show whether the second-conversation crash guard is armed.
+  if (report.properLockfileShim.applied) {
+    parts.push(`bunLockfileShim=${report.properLockfileShim.reason}`);
+  } else if (report.properLockfileShim.reason !== 'not-applied') {
+    parts.push(`bunLockfileShim=skipped:${report.properLockfileShim.reason}`);
+  }
   return parts.join(' ');
 }
 

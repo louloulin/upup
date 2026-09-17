@@ -9,7 +9,8 @@
  *      `mount_threw` / `import_failed` outcome, not a session-level crash.
  */
 
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import fs, { existsSync, readdirSync, readFileSync } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -18,7 +19,9 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../
 
 import {
   createUpUpEcosystemExtension,
+  declaredToolNames,
   mountUpUpEcosystemPackages,
+  resolvePackageSourceDir,
   UPUP_OWNED_TOOL_NAMES,
   summariseEcosystemReport,
   type EcosystemImporter,
@@ -342,5 +345,62 @@ describe('createUpUpEcosystemExtension', () => {
     const factory = createUpUpEcosystemExtension();
     expect(() => factory(pi)).not.toThrow();
     expect(typeof factory).toBe('function');
+  });
+});
+
+describe('declaredToolNames Form D — defineTool + spread', () => {
+  let dir: string;
+
+  function writeFixture(relative: string, body: string): void {
+    const full = path.join(dir, relative);
+    fs.mkdirSync(path.dirname(full), { recursive: true });
+    fs.writeFileSync(full, body);
+  }
+
+  it('resolves spread calls to their defineTool binding', () => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'upup-form-d-'));
+    try {
+      writeFixture('pkg/extension.ts', [
+        "import { defineTool, type ExtensionAPI } from '@earendil-works/pi-coding-agent';",
+        "const lspDiagnosticsTool = defineTool({",
+        "  name: 'lsp_diagnostics',",
+        "  label: 'LSP: Diagnostics',",
+        "  description: 'Run diagnostics via configured LSP servers.',",
+        "});",
+        "const lspFixTool = defineTool({",
+        "  name: 'lsp_fix',",
+        "  label: 'LSP: Quick fix',",
+        "  description: 'Apply a quick-fix from a configured LSP server.',",
+        "});",
+        "export default function ext(pi: ExtensionAPI): void {",
+        "  pi.registerTool({ ...lspDiagnosticsTool, execute: async () => null });",
+        "  pi.registerTool({ ...lspFixTool, execute: async () => null });",
+        "}",
+      ].join('\n'));
+      const names = [...declaredToolNames(dir)].sort();
+      expect(names).toEqual(['lsp_diagnostics', 'lsp_fix']);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('falls back to empty set when no spread binding matches', () => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'upup-form-d-'));
+    try {
+      writeFixture('pkg/extension.ts', [
+        "import { type ExtensionAPI } from '@earendil-works/pi-coding-agent';",
+        "export default function ext(pi: ExtensionAPI): void {",
+        "  pi.registerTool({ ...undefinedThing });",
+        "}",
+      ].join('\n'));
+      expect([...declaredToolNames(dir)]).toEqual([]);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('returns empty set for missing package root', () => {
+    expect([...declaredToolNames(undefined)]).toEqual([]);
+    expect([...declaredToolNames('/path/that/definitely/does/not/exist')]).toEqual([]);
   });
 });

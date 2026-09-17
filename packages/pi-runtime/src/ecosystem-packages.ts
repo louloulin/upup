@@ -275,17 +275,6 @@ export const UPUP_ECOSYSTEM_PACKAGES: readonly UpUpEcosystemPackage[] = [
     ],
   },
   {
-    name: 'pi-code',
-    version: '1.0.64',
-    importPath: 'pi-code',
-    category: 'roles',
-    verifiedClean: true,
-    description: 'Claude Code parity for Pi: reads the project .claude config (rules, commands, skills, hooks, output styles, MCP servers, agents) and adds todo / checkpoint / memory / web / subagent / goal extensions.',
-    caveats: [
-      'Declares `pi.extensions: ["./extensions"]` — a directory Pi expands into every extension it contains (22 files here). UpUp resolves it through `resolvePiExtensionEntries`, which mirrors Pi\'s `collectAutoExtensionEntries`.',
-    ],
-  },
-  {
     name: '@narumitw/pi-lsp',
     version: '0.49.7',
     importPath: '@narumitw/pi-lsp',

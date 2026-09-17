@@ -110,6 +110,9 @@
       "@upup/pi-runtime/model-registry": [
         "./packages/pi-runtime/src/model-registry.ts"
       ],
+      "@upup/pi-runtime/proper-lockfile-bun-shim": [
+        "./packages/pi-runtime/src/proper-lockfile-bun-shim.ts"
+      ],
       "@upup/sdk": [
         "./packages/sdk/src/index.ts"
       ],

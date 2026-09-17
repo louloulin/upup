@@ -252,11 +252,12 @@ function resolveExtensionEntriesInDir(dir: string): string[] | null {
  * Mirrors Pi's `collectAutoExtensionEntries`: a declared directory expands to
  * *every* extension it contains, not to a single entry.
  *
- * Why this matters: `pi-code` declares `pi.extensions: ["./extensions"]`, a
- * folder holding 18 top-level `.ts` files plus subfolders with their own
- * `index.ts`. Pi loads all of them (22 separate extensions). Treating the
- * declaration as one entry would mount only the first folder level and
- * silently drop most of the package's tools.
+ * Why this matters: `@plannotator/pi-extension` declares
+ * `pi.extensions: ["./"]`, i.e. the package root itself; `pi-brainstorm`,
+ * `pi-web-ui` and `pi-conductor` declare a small `./extensions` folder. Pi
+ * expands every one of them into each `.ts` it contains. Treating the
+ * declaration as a single entry would mount only the first file and silently
+ * drop the rest.
  *
  * Rule (identical to Pi's):
  *   - a `.ts` / `.js` file is an entry;

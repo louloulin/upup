@@ -21,7 +21,9 @@
  */
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { createRequire } from 'node:module';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { UpUpAgentSpec, UpUpPermissionProfile, UpUpDataPolicy, UpUpOutputContract } from '@upup/pi-runtime';
 import { validateAgentSpec } from './agent-spec';
 import { type SopSpec, validateSopSpec, validateAgentCatalogForSop } from './sop-spec';
@@ -61,9 +63,20 @@ export function resolveUpUpHomeRoot(options: SopLoaderOptions = {}): string {
 }
 
 /** Built-in SOPs ship from `<package>/sops/*.yaml` and are loaded relative to this module. */
+// `import.meta.dir` is a Bun-only global and is `undefined` under Node, which
+// made `join(undefined, ...)` throw `ERR_INVALID_ARG_TYPE` at module load in the
+// esbuild Node bundle. `import.meta.url` exists in both runtimes.
+//
+// Resolution differs by runtime layout, so several candidates are probed:
+//   - Bun / Node source:  <package>/src/..   → <package>/sops
+//   - built package:      <package>/dist/..  → <package>/sops
+//   - esbuild Node bundle: this module is inlined into `<repo>/dist/index.js`, and
+//     `build:node` copies the SOP payload to `<repo>/dist/sops` next to the bundle.
+const MODULE_DIR = dirname(fileURLToPath(import.meta.url));
 const BUILTIN_SOPS_DIR_CANDIDATES = [
-  join(import.meta.dir, '..', 'sops'),
-  join(import.meta.dir, '..', 'dist', 'sops'),
+  join(MODULE_DIR, '..', 'sops'),
+  join(MODULE_DIR, '..', 'dist', 'sops'),
+  join(MODULE_DIR, 'sops'),
 ];
 
 function listYaml(dir: string): readonly string[] {
@@ -112,13 +125,30 @@ export function listBuiltinSopFiles(): readonly string[] {
 }
 
 /**
+ * Parse YAML text.
+ *
+ * `Bun.YAML.parse` is the Bun-native parser this module was written against.
+ * The esbuild Node bundle has no `Bun` global, so fall back to `js-yaml`
+ * (already present transitively via `gray-matter`, which the Node bundle also
+ * requires at runtime). Both parsers accept the same YAML 1.2 subset the SOP
+ * files use, so the result is identical across runtimes.
+ */
+function parseYaml(content: string): unknown {
+  const bun = (globalThis as { Bun?: { YAML?: { parse?: (input: string) => unknown } } }).Bun;
+  if (bun?.YAML?.parse) return bun.YAML.parse(content);
+  // Lazy require keeps `js-yaml` out of the Bun execution path entirely.
+  const { load } = createRequire(import.meta.url)('js-yaml') as { load: (input: string) => unknown };
+  return load(content);
+}
+
+/**
  * Load and parse a YAML file into a SopSpec. Throws on schema violation.
  * Returns `null` if the file is missing or unreadable.
  */
 export function parseSopYaml(content: string, source: string): SopSpec {
   let parsed: unknown;
   try {
-    parsed = Bun.YAML.parse(content);
+    parsed = parseYaml(content);
   } catch (error) {
     throw new Error(`Failed to parse SOP YAML ${source}: ${error instanceof Error ? error.message : String(error)}`);
   }
