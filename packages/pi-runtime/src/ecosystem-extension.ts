@@ -49,7 +49,7 @@ import {
   UPUP_ECOSYSTEM_PACKAGES,
   type UpUpEcosystemPackage,
 } from './ecosystem-packages';
-import { createEcosystemImporter, resolveEcosystemSpecifier, resolvePiExtensionEntries } from './ecosystem-resolver';
+import { createEcosystemImporter, resolveEcosystemSpecifier, resolvePiExtensionEntriesByRoot } from './ecosystem-resolver';
 
 export type EcosystemMountOutcome =
   | { kind: 'mounted'; name: string; importPath: string; resolvedSpecifier: string }
@@ -186,20 +186,31 @@ function packageRootFromFile(filePath: string): string | undefined {
 }
 
 /**
- * Resolve a `UpUpEcosystemPackage.importPath` to the directory of the package
- * on disk so `declaredToolNames` can grep its source.
+ * Resolve a `UpUpEcosystemPackage` to the package directory on disk so
+ * `declaredToolNames` can grep its source for `pi.registerTool({ name: … })`.
  *
- * Handles three cases:
- *   1. Bare specifier (`pi-web-access`) — resolves to the package root.
- *   2. Subpath (`pi-goal-x/extensions/goal.ts`) — walks up to the `package.json`.
- *   3. Unresolvable (test stub importer) — returns `undefined`; callers treat
- *      that as "no source declared" and fall through to the static
- *      `registersTools` list, which is the correct degraded behaviour.
+ * Handles four cases:
+ *   1. `pi.extensions` present — the package dir itself, which is the
+ *      authoritative source location (`pi-code` ships no resolvable `.`
+ *      export at all, so a specifier-only lookup would miss it entirely).
+ *   2. Bare specifier (`pi-web-access`) — resolves to the package root.
+ *   3. Subpath (`pi-goal-x/extensions/goal.ts`) — walks up to `package.json`.
+ *   4. Unresolvable (test stub importer) — `undefined`; callers treat that as
+ *      "no source declared" and fall back to the static `registersTools` list.
+ *
+ * Why case 1 exists: the conflict pre-check used to depend solely on
+ * `importPath`. For a package whose `importPath` does not resolve
+ * (`pi-code`), it silently returned "declares no tools" and let a package
+ * registering `web_search` / `subagent` mount on top of UpUp's own tool of the
+ * same name — exactly the duplicate Pi escalates to a fatal
+ * `Failed to load extension`.
  */
 export function resolvePackageSourceDir(
   pkg: { readonly importPath: string; readonly name: string },
   _importer?: EcosystemImporter,
 ): string | undefined {
+  const declaredGroup = resolvePiExtensionEntriesByRoot(pkg.name)[0];
+  if (declaredGroup !== undefined) return declaredGroup.dir;
   const resolved = resolveEcosystemSpecifier(pkg.importPath);
   if (resolved === undefined) return undefined;
   // Resolve the *package* root, not the directory of the entry file. A
@@ -382,39 +393,91 @@ export async function mountUpUpEcosystemPackages(
     }
 
     // Pi's authoritative entry point is `pi.extensions`, not the npm main
-    // entry. A package may ship a library at its main entry (`pi-esr`: 22
-    // named exports, no default) while the extension factory lives in
-    // `dist/pi-extension.js`. Try the declared entries first and fall back to
-    // `importPath` so the registry keeps working for anything that does put
-    // its factory at the root.
-    const declaredEntries = resolvePiExtensionEntries(pkg.name);
-    const attempted = declaredEntries.length > 0 ? declaredEntries : [pkg.importPath];
+    // entry. Two shapes this has to handle:
+    //   1. A package whose npm entry is a plain library (`pi-esr`: 22 named
+    //      exports, no default) while the factory lives elsewhere.
+    //   2. A package that declares a *directory* (`pi-code`:
+    //      `pi.extensions: ["./extensions"]`), which Pi expands into every
+    //      extension inside it — 22 in that case, not one.
+    //
+    // Entries are resolved per root so a package mounts from exactly one
+    // scope: a `~/.upup/agent/npm` copy shadows the bundled one, and mounting
+    // both would register every tool twice.
+    const groups = resolvePiExtensionEntriesByRoot(pkg.name);
+    const attemptGroups: readonly (readonly string[])[] = groups.length > 0
+      ? groups.map((group) => (group.entries.length > 0 ? group.entries : [pkg.importPath]))
+      : [[pkg.importPath]];
 
-    let candidate: ((pi: ExtensionAPI) => void) | undefined;
     let resolvedSpecifier: string | undefined;
     let importError: unknown;
     let lastActedType: unknown;
 
-    for (const specifier of attempted) {
-      let mod: unknown;
-      try {
-        mod = await importer(specifier);
-      } catch (error) {
-        importError = error;
-        continue;
+    for (const specifiers of attemptGroups) {
+      // Per-root isolation: Pi treats each file in a declared extensions
+      // directory as an independent extension, so one broken entry must not
+      // prevent its 21 siblings from mounting. Entry-level failures are
+      // collected and reported, then the package still counts as mounted when
+      // at least one factory ran.
+      const mountedEntries: string[] = [];
+      const entryFailures: { specifier: string; error: string }[] = [];
+      let factoriesSeen = false;
+
+      for (const specifier of specifiers) {
+        let mod: unknown;
+        try {
+          mod = await importer(specifier);
+        } catch (error) {
+          if (importError === undefined) importError = error;
+          entryFailures.push({ specifier, error: error instanceof Error ? error.message : String(error) });
+          continue;
+        }
+        const maybeDefault = (mod as { default?: unknown })?.default;
+        if (typeof maybeDefault !== 'function') {
+          // Loaded but not a factory: Pi extensions are `export default (pi) => …`.
+          if (lastActedType === undefined) lastActedType = maybeDefault;
+          entryFailures.push({ specifier, error: `default export is ${maybeDefault === undefined ? 'undefined' : typeof maybeDefault}` });
+          continue;
+        }
+        factoriesSeen = true;
+        try {
+          (maybeDefault as (pi: ExtensionAPI) => void)(pi);
+          mountedEntries.push(specifier);
+        } catch (error) {
+          entryFailures.push({ specifier, error: error instanceof Error ? error.message : String(error) });
+        }
       }
-      const maybeDefault = (mod as { default?: unknown })?.default;
-      if (typeof maybeDefault === 'function') {
-        candidate = maybeDefault as (pi: ExtensionAPI) => void;
-        resolvedSpecifier = specifier;
+
+      if (mountedEntries.length > 0) {
+        // This root supplied the entry set; stop before the shadowed copy.
+        resolvedSpecifier = mountedEntries[0]!;
+        mounted.push(pkg.name);
+        resolvedSpecifiers[pkg.name] = mountedEntries.join(',');
+        outcomes.push({ kind: 'mounted', name: pkg.name, importPath: pkg.importPath, resolvedSpecifier: resolvedSpecifier });
+        for (const failure of entryFailures) {
+          const msg = `${failure.specifier}: ${failure.error}`;
+          outcomes.push({ kind: 'mount_threw', name: pkg.name, importPath: pkg.importPath, error: msg });
+          mountThrew.push({ name: pkg.name, importPath: pkg.importPath, error: msg });
+        }
         break;
       }
-      // Loaded but not a factory: Pi extensions are `export default (pi) => …`.
-      // Remember the type so the outcome can report what was found instead.
-      lastActedType = maybeDefault;
+
+      if (factoriesSeen) {
+        // A factory imported but every one threw; report and keep this root's
+        // verdict rather than silently trying the next scope.
+        resolvedSpecifier = specifiers[0];
+        for (const failure of entryFailures) {
+          const msg = `${failure.specifier}: ${failure.error}`;
+          outcomes.push({ kind: 'mount_threw', name: pkg.name, importPath: pkg.importPath, error: msg });
+          mountThrew.push({ name: pkg.name, importPath: pkg.importPath, error: msg });
+        }
+        break;
+      }
+
+      // Nothing importable from this root — remember why and try the next one.
+      if (entryFailures.length > 0) importError = new Error(entryFailures[0]!.error);
     }
 
-    if (candidate === undefined) {
+    if (resolvedSpecifier === undefined) {
       // Distinguish "could not even import" from "imported but not a Pi
       // extension factory" — the two need different operator responses.
       if (lastActedType !== undefined) {
@@ -426,18 +489,6 @@ export async function mountUpUpEcosystemPackages(
         outcomes.push({ kind: 'import_failed', name: pkg.name, importPath: pkg.importPath, error: msg });
         importFailed.push({ name: pkg.name, importPath: pkg.importPath, error: msg });
       }
-      continue;
-    }
-
-    try {
-      candidate(pi);
-      mounted.push(pkg.name);
-      resolvedSpecifiers[pkg.name] = resolvedSpecifier!;
-      outcomes.push({ kind: 'mounted', name: pkg.name, importPath: pkg.importPath, resolvedSpecifier: resolvedSpecifier! });
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      outcomes.push({ kind: 'mount_threw', name: pkg.name, importPath: pkg.importPath, error: msg });
-      mountThrew.push({ name: pkg.name, importPath: pkg.importPath, error: msg });
     }
   }
 

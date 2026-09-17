@@ -30,6 +30,7 @@ import {
   type UpUpEcosystemPackage,
 } from '@upup/pi-runtime';
 import { describeEcosystemResolution } from '@upup/pi-runtime';
+import { findEcosystemPackageDirs, resolvePiExtensionEntries } from '@upup/pi-runtime/ecosystem-resolver';
 
 const RESET = '\x1b[0m';
 const BOLD = '\x1b[1m';
@@ -86,8 +87,28 @@ function resolveContext(opts: EcosystemCommandOptions): {
   return { env, home, cwd, agentDir: resolved.agentDir };
 }
 
+/**
+ * Resolve each registry entry the way the runtime mounts it: `pi.extensions`
+ * first, npm main entry as the fallback.
+ *
+ * The npm main entry is *not* authoritative — `pi-crew` has no `.`-export at
+ * all and `pi-esr`'s main entry is a plain library — so a resolver-only view
+ * reported those as `missing` while the session loaded them fine. Reporting
+ * the same path the mount actually uses is the entire point of this command.
+ */
 function resolveAll(): readonly ResolvedEcosystemEntry[] {
   return UPUP_ECOSYSTEM_PACKAGES.map((pkg) => {
+    const declared = resolvePiExtensionEntries(pkg.name);
+    if (declared.length > 0) {
+      const entry = declared[0]!;
+      const owner = findEcosystemPackageDirs(pkg.name).find((candidate) => entry.startsWith(candidate.dir));
+      return {
+        pkg,
+        scope: owner?.scope ?? 'bundled',
+        resolvedPath: entry,
+        root: owner?.root,
+      };
+    }
     const described = describeEcosystemResolution(pkg.importPath);
     return {
       pkg,

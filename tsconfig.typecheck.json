@@ -101,6 +101,12 @@
       "@upup/pi-runtime/custom-providers": [
         "./packages/pi-runtime/src/custom-providers.ts"
       ],
+      "@upup/pi-runtime/ecosystem-resolver": [
+        "./packages/pi-runtime/src/ecosystem-resolver.ts"
+      ],
+      "@upup/pi-runtime/extension-api-probe": [
+        "./packages/pi-runtime/src/extension-api-probe.ts"
+      ],
       "@upup/pi-runtime/model-registry": [
         "./packages/pi-runtime/src/model-registry.ts"
       ],

@@ -24,7 +24,7 @@
  * so a half-installed plugin degrades to the bundled copy instead of aborting
  * the session.
  */
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -213,10 +213,90 @@ export function describeEcosystemResolution(
 }
 
 /**
- * Candidate file names tried when a `pi.extensions` entry points at a
- * directory rather than a file (`"pi": { "extensions": ["./extensions"] }`).
+ * Candidate file names tried when a `pi.extensions` entry (or a nested
+ * folder inside one) points at a directory rather than a file.
  */
 const EXTENSION_ENTRY_INDEX_NAMES = ['index.ts', 'index.tsx', 'index.js', 'index.mjs', 'index.cjs'] as const;
+
+/**
+ * Mirrors Pi's `resolveExtensionEntries`: an explicit `pi.extensions`
+ * declaration in `<dir>/package.json`, else `<dir>/index.ts`, else
+ * `<dir>/index.js`. Returns `null` when the directory declares nothing, which
+ * is Pi's signal to fall through to content discovery.
+ */
+function resolveExtensionEntriesInDir(dir: string): string[] | null {
+  const manifestPath = join(dir, 'package.json');
+  if (existsSync(manifestPath)) {
+    try {
+      const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as { pi?: { extensions?: unknown } };
+      const declared = manifest.pi?.extensions;
+      if (Array.isArray(declared) && declared.length > 0) {
+        const entries = declared
+          .filter((entry): entry is string => typeof entry === 'string')
+          .map((entry) => resolve(dir, entry))
+          .filter((entry) => existsSync(entry));
+        if (entries.length > 0) return entries;
+      }
+    } catch {
+      /* A malformed manifest falls through to the index probe, as Pi does. */
+    }
+  }
+  const indexTs = join(dir, 'index.ts');
+  if (existsSync(indexTs)) return [indexTs];
+  const indexJs = join(dir, 'index.js');
+  if (existsSync(indexJs)) return [indexJs];
+  return null;
+}
+
+/**
+ * Mirrors Pi's `collectAutoExtensionEntries`: a declared directory expands to
+ * *every* extension it contains, not to a single entry.
+ *
+ * Why this matters: `pi-code` declares `pi.extensions: ["./extensions"]`, a
+ * folder holding 18 top-level `.ts` files plus subfolders with their own
+ * `index.ts`. Pi loads all of them (22 separate extensions). Treating the
+ * declaration as one entry would mount only the first folder level and
+ * silently drop most of the package's tools.
+ *
+ * Rule (identical to Pi's):
+ *   - a `.ts` / `.js` file is an entry;
+ *   - a subdirectory contributes its own explicit entries, or its `index.ts`
+ *     / `index.js`, and is otherwise skipped;
+ *   - dotted names and `node_modules` are ignored.
+ */
+function collectExtensionEntriesInDir(dir: string): readonly string[] {
+  const rootEntries = resolveExtensionEntriesInDir(dir);
+  if (rootEntries !== null) return rootEntries;
+  const entries: string[] = [];
+  let dirEntries: import('node:fs').Dirent[];
+  try {
+    dirEntries = readdirSync(dir, { withFileTypes: true });
+  } catch {
+    return entries;
+  }
+  for (const entry of dirEntries) {
+    if (entry.name.startsWith('.') || entry.name === 'node_modules') continue;
+    const fullPath = join(dir, entry.name);
+    let isDirectory = entry.isDirectory();
+    let isFile = entry.isFile();
+    if (entry.isSymbolicLink()) {
+      try {
+        const stats = statSync(fullPath);
+        isDirectory = stats.isDirectory();
+        isFile = stats.isFile();
+      } catch {
+        continue;
+      }
+    }
+    if (isFile && /\.(ts|js)$/.test(entry.name)) {
+      entries.push(fullPath);
+    } else if (isDirectory) {
+      const nested = resolveExtensionEntriesInDir(fullPath);
+      if (nested !== null) entries.push(...nested);
+    }
+  }
+  return entries;
+}
 
 /**
  * Locate every `<root>/node_modules/<name>` on disk, highest precedence first.
@@ -274,31 +354,72 @@ export function resolvePiExtensionEntries(
   name: string,
   options: EcosystemResolveOptions = {},
 ): readonly string[] {
-  const entries: string[] = [];
   const seen = new Set<string>();
+  const entries: string[] = [];
+  for (const group of resolvePiExtensionEntriesByRoot(name, options)) {
+    for (const entry of group.entries) {
+      if (seen.has(entry)) continue;
+      seen.add(entry);
+      entries.push(entry);
+    }
+  }
+  return entries;
+}
+
+/**
+ * One package's declared extension entries, grouped by the root they came from.
+ *
+ * Grouping matters because a package is loaded from exactly one root — a copy
+ * in `~/.upup/agent/npm` shadows the bundled one. Flattening every root's
+ * entries would mount both copies of a shadowed package and register its tools
+ * twice, which Pi escalates to a fatal duplicate-tool error. Callers walk the
+ * groups in precedence order and stop at the first root that loads.
+ *
+ * A group's `entries` is empty when the package is present but declares no
+ * `pi.extensions` (e.g. `pi-web-access`, whose factory is its npm main entry);
+ * callers then fall back to `importPath`.
+ */
+export function resolvePiExtensionEntriesByRoot(
+  name: string,
+  options: EcosystemResolveOptions = {},
+): readonly {
+  readonly dir: string;
+  readonly root: string;
+  readonly scope: 'user' | 'bundled';
+  readonly entries: readonly string[];
+}[] {
+  const groups: { dir: string; root: string; scope: 'user' | 'bundled'; entries: string[] }[] = [];
   for (const found of findEcosystemPackageDirs(name, options)) {
     let manifest: { pi?: { extensions?: unknown } };
     try {
       manifest = JSON.parse(readFileSync(join(found.dir, 'package.json'), 'utf8')) as typeof manifest;
     } catch {
+      groups.push({ ...found, entries: [] });
       continue;
     }
     const declared = manifest.pi?.extensions;
-    if (!Array.isArray(declared)) continue;
-    for (const raw of declared) {
-      if (typeof raw !== 'string') continue;
-      const candidate = resolve(found.dir, raw);
-      if (!existsSync(candidate)) continue;
-      const file = statSync(candidate).isDirectory()
-        ? EXTENSION_ENTRY_INDEX_NAMES.map((indexName) => join(candidate, indexName)).find(existsSync)
-        : candidate;
-      if (file !== undefined && !seen.has(file)) {
-        seen.add(file);
-        entries.push(file);
+    const entries: string[] = [];
+    if (Array.isArray(declared)) {
+      const seen = new Set<string>();
+      for (const raw of declared) {
+        if (typeof raw !== 'string') continue;
+        const candidate = resolve(found.dir, raw);
+        if (!existsSync(candidate)) continue;
+        // A declared directory expands to every extension inside it (Pi's
+        // `collectAutoExtensionEntries`); a declared file is a single entry.
+        const files = statSync(candidate).isDirectory()
+          ? collectExtensionEntriesInDir(candidate)
+          : [candidate];
+        for (const file of files) {
+          if (seen.has(file)) continue;
+          seen.add(file);
+          entries.push(file);
+        }
       }
     }
+    groups.push({ ...found, entries });
   }
-  return entries;
+  return groups;
 }
 
 /** True when a path exists on disk; exported so callers share one probe. */

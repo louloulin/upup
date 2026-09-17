@@ -1,6 +1,8 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { PI_CAPABILITY_CATALOG, validatePiCapabilityCatalog, UPUP_ECOSYSTEM_PACKAGES, describeEcosystemResolution } from '@upup/pi-runtime';
+import { findEcosystemPackageDirs, resolvePiExtensionEntries } from '@upup/pi-runtime/ecosystem-resolver';
+import { createExtensionApiProbe } from '@upup/pi-runtime/extension-api-probe';
 import { listPiSkillCommands } from '@upup/pi-resource-composition';
 import { findSideEffectCoverageGaps, REQUIRED_SIDE_EFFECTS, readWorkspaceManifests } from './check-pi-side-effects.ts';
 
@@ -217,44 +219,47 @@ async function readEcosystemStatus(): Promise<Record<string, unknown>> {
         installs = false;
       }
     }
+    // Mount through the same path the runtime uses: `pi.extensions` first,
+    // npm main entry as fallback, on a faithful `ExtensionAPI` stand-in.
+    // A `Proxy` that answered every property with a function used to make
+    // `@quintinshaw/pi-dynamic-workflows` look broken here while the real
+    // session mounted it.
+    const declaredEntries = resolvePiExtensionEntries(spec.name);
+    const candidates = declaredEntries.length > 0 ? declaredEntries : [spec.importPath];
+    let mountedVia: string | null = null;
     if (installs && installedVersion === spec.version) {
-      try {
-        const importer = new Function('s', 'return import(s)') as (s: string) => Promise<{ default?: unknown }>;
-        const mod = await importer(spec.importPath);
-        if (typeof mod.default === 'function') {
-          const sink: Record<string, unknown> = {};
-          const stub: any = new Proxy(sink, {
-            get: (_, prop) => {
-              if (prop === 'events') return { on: () => undefined };
-              if (prop === 'getFlag') return () => undefined;
-              if (prop === 'getSessionName') return () => undefined;
-              if (prop === 'getActiveTools') return () => [];
-              if (prop === 'getAllTools') return () => [];
-              if (prop === 'getCommands') return () => [];
-              if (prop === 'getThinkingLevel') return () => 'medium' as const;
-              if (prop === 'setModel') return async () => true;
-              if (prop === 'exec') return async () => '';
-              return () => undefined;
-            },
-          });
-          (mod.default as (pi: unknown) => void)(stub);
-          mounts = true;
-        } else {
-          mountError = `default export is ${typeof mod.default}`;
+      const attempts: string[] = [];
+      for (const candidate of candidates) {
+        try {
+          const mod = (await loadEcosystemModule(candidate)) as { default?: unknown };
+          if (typeof mod.default === 'function') {
+            (mod.default as (pi: unknown) => void)(createExtensionApiProbe().pi);
+            mounts = true;
+            mountedVia = candidate;
+            break;
+          }
+          attempts.push(`${candidate}: default is ${mod.default === undefined ? 'undefined' : typeof mod.default}`);
+        } catch (error) {
+          attempts.push(`${candidate}: ${error instanceof Error ? error.message.split('\n')[0] : String(error)}`);
         }
-      } catch (error) {
-        mountError = error instanceof Error ? error.message.split('\n')[0] : String(error);
       }
+      if (!mounts) mountError = attempts.join(' | ');
     }
     // Dual-scope resolution: which root would actually load this package?
     // `user` means a copy in ~/.upup/agent/npm shadows the bundled one.
-    const resolution = describeEcosystemResolution(spec.importPath);
+    const resolution = mountedVia !== null
+      ? (() => {
+          const owner = findEcosystemPackageDirs(spec.name).find((candidate) => mountedVia!.startsWith(candidate.dir));
+          return { scope: owner?.scope ?? ('missing' as const), resolved: mountedVia, root: owner?.root };
+        })()
+      : describeEcosystemResolution(spec.importPath);
     return {
       name: spec.name,
       version: spec.version,
       installedVersion,
       versionMatches: installedVersion === spec.version,
       mounts,
+      mountedVia,
       mountError,
       category: spec.category,
       supersedes: spec.supersedes ?? [],
@@ -342,6 +347,16 @@ async function readTuiWidgetsStatus(): Promise<Record<string, unknown>> {
   };
 }
 
+
+/**
+ * Load a package entry through the dual-scope resolver, so the report sees the
+ * same copy the session would (user-home override first, bundled second).
+ * Absolute `pi.extensions` paths pass straight through to the loader.
+ */
+async function loadEcosystemModule(specifier: string): Promise<unknown> {
+  const { createEcosystemImporter } = await import('@upup/pi-runtime/ecosystem-resolver');
+  return createEcosystemImporter()(specifier);
+}
 
 /**
  * True when an ecosystem package actually mounts on a real `ExtensionAPI`

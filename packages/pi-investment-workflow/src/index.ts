@@ -133,3 +133,10 @@ export {
   type SopDynamicRunOptions,
   type SopDynamicRunResult,
 } from './bridge/dynamic-workflow-runner';
+
+// Pi event coverage extension — plan §1.2.
+export {
+  default as piEventCoverageExtension,
+  PI_EVENT_COVERAGE_EVENTS,
+  type PiEventCoverageEvent,
+} from "./extensions/pi-event-coverage";
