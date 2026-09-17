@@ -249,6 +249,18 @@ const CONTRACTS: readonly ContractSpec[] = [
     command: 'bun',
     args: ['run', 'scripts/verify-pi-mcp-readonly.ts'],
   },
+  {
+    // Pi7 Stage 6 invariant: the in-process Pi policy extension
+    // (`createPiSideEffectPolicyExtension`) must enforce the same side-effect
+    // contract that the MCP bridge enforces via declaration filtering. C17
+    // locks the tool_call event path: declared tools are blocked headlessly,
+    // require explicit UI approval in TUI mode, and remain ungoverned for
+    // tools outside the declaration list.
+    id: 'C17',
+    label: 'Pi side-effect policy gate (tool_call event path: headless block / TUI confirm / undeclared no-op / audit trail)',
+    command: 'bun',
+    args: ['run', 'scripts/verify-pi-side-effects-policy.ts'],
+  },
 ];
 
 function runContract(spec: ContractSpec): Promise<ContractResult> {

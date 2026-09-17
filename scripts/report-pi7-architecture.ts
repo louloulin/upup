@@ -160,6 +160,27 @@ async function readSideEffectStatus(): Promise<Record<string, unknown>> {
   };
 }
 
+async function readSideEffectAuditStream(): Promise<Record<string, unknown>> {
+  const adapterEntry = resolve(root, 'packages/pi-event-adapter/src/index.ts');
+  if (!existsSync(adapterEntry)) {
+    return { contract: 'upup.pi.side-effect-audit-stream.v1', available: false, reason: 'pi-event-adapter not installed' };
+  }
+  const source = readFileSync(adapterEntry, 'utf8');
+  const hasMapper = source.includes('export function mapSideEffectAuditToServer');
+  const hasSubscriber = source.includes('export async function* subscribeToSideEffectAudits');
+  const hasEventType = source.includes("'side_effect_audit'");
+  return {
+    contract: 'upup.pi.side-effect-audit-stream.v1',
+    available: hasMapper && hasSubscriber && hasEventType,
+    serverEventType: 'side_effect_audit',
+    mapper: 'mapSideEffectAuditToServer',
+    subscriber: 'subscribeToSideEffectAudits',
+    journalEntryType: 'upup_pi_policy_audit',
+    consumers: 'DAG orchestrators (@arhen/pi-core-subagent needs-edge scheduler), audit dashboards, TradingAgents hosts',
+    notes: 'Projects Pi policy audit entries into the stdio/gateway ServerEvent shape so policy context reaches routing decisions.',
+  };
+}
+
 async function readFinanceSubagentStatus(): Promise<Record<string, unknown>> {
   try {
     const importer = new Function('s', 'return import(s)') as (s: string) => Promise<{
@@ -477,6 +498,7 @@ console.log(JSON.stringify({
   financeSubagents: await readFinanceSubagentStatus(),
   mcpServer: await readMcpServerStatus(),
   sideEffects: await readSideEffectStatus(),
+  sideEffectAuditStream: await readSideEffectAuditStream(),
   sdk: await readInProcessSdkStatus(),
   tuiWidgets: await readTuiWidgetsStatus(),
   sopWorkflowBridge: await readSopWorkflowBridgeStatus(),

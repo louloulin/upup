@@ -28,6 +28,7 @@ export const REQUIRED_SIDE_EFFECTS: readonly SideEffectRequirement[] = [
   ...requirement('@upup/pi-platform', [
     'add_to_watchlist', 'remove_from_watchlist', 'add_watchlist_alert', 'clear_watchlist_alert', 'enter_plan_mode',
     'exit_plan_mode', 'add_plan_step', 'update_plan_step', 'create_todo', 'update_todo', 'delete_todo', 'run_workflow',
+    'swarm_team_create', 'swarm_agent_spawn', 'task_create', 'task_update', 'task_stop', 'agent_memory', 'send_message',
   ], 'filesystem-write', 'warning'),
   ...requirement('@upup/pi-platform', ['send_user_file', 'create_worktree'], 'filesystem-write', 'dangerous'),
   ...requirement('@upup/pi-platform', ['remove_worktree'], 'filesystem-write', 'critical'),

@@ -219,6 +219,7 @@ describe('PiAgentSessionFactory', () => {
       tools: ['swarm_team_create', 'swarm_agent_spawn', 'swarm_agent_results', 'swarm_agent_message', 'swarm_team_list'],
     }, {
       cwd: process.cwd(), model: faux.getModel(), modelRuntime,
+      requestToolApproval: async () => true,
       piPackagePaths: [join(packageRoot, 'pi-platform')],
       piPackageTrust: {
         trustedPaths: [join(packageRoot, 'pi-platform')],
@@ -491,7 +492,7 @@ describe('PiAgentSessionFactory', () => {
     const packageRoot = join(process.cwd(), 'packages');
     const spec = { ...getInvestmentAgentSpec('invest-explore'), id: 'platform-task-session', packages: ['@upup/pi-platform'], skills: [], tools: ['task_create', 'task_get', 'task_list', 'task_stop', 'task_update', 'task_result'] };
     const trust = { trustedPaths: [join(packageRoot, 'pi-platform')], pinnedPackages: { '@upup/pi-platform': '0.1.0', '@earendil-works/pi-coding-agent': '0.85.1', '@upup/types': '0.2.0', typebox: '1.3.7' }, allowedSources: { '@upup/pi-platform': ['builtin:upup'] } };
-    const session = await new PiAgentSessionFactory().createSession(spec, { cwd: process.cwd(), piPackagePaths: [join(packageRoot, 'pi-platform')], piPackageTrust: trust });
+    const session = await new PiAgentSessionFactory().createSession(spec, { cwd: process.cwd(), requestToolApproval: async () => true, piPackagePaths: [join(packageRoot, 'pi-platform')], piPackageTrust: trust });
     try {
       expect(session.getAvailableToolNames()).toEqual(spec.tools);
       const text = (value: Awaited<ReturnType<UpUpAgentSession['executeTool']>>) => value.content.find((part): part is { type: 'text'; text: string } => part.type === 'text')!.text;

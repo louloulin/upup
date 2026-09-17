@@ -19,6 +19,8 @@ import {
   adaptPiEventsToServer,
   hasServerMapping,
   mapPiEventToServer,
+  mapSideEffectAuditToServer,
+  subscribeToSideEffectAudits,
 } from './src/index';
 
 describe('@upup/pi-event-adapter', () => {
@@ -820,4 +822,81 @@ describe('@upup/pi-event-adapter — injected stream runner', () => {
     ]);
   });
 
+});
+
+describe('@upup/pi-event-adapter side-effect audit stream', () => {
+  test('mapSideEffectAuditToServer projects every audit field plus verdict', () => {
+    const audit = {
+      auditId: 'audit-1',
+      sessionId: 'session-A',
+      tool: 'add_position',
+      effect: 'filesystem-write',
+      safetyLevel: 'warning',
+      permissionProfile: 'read-only',
+      decision: 'approval_granted',
+      reason: 'user approved',
+      recordedAt: '2026-09-17T00:00:00.000Z',
+    };
+    const event = mapSideEffectAuditToServer(audit);
+    expect(event.type).toBe('side_effect_audit');
+    expect(event).toMatchObject({
+      type: 'side_effect_audit',
+      auditId: 'audit-1',
+      sessionId: 'session-A',
+      tool: 'add_position',
+      effect: 'filesystem-write',
+      safetyLevel: 'warning',
+      permissionProfile: 'read-only',
+      decision: 'approval_granted',
+      verdict: 'approval_granted',
+      reason: 'user approved',
+      recordedAt: '2026-09-17T00:00:00.000Z',
+    });
+  });
+
+  test('mapSideEffectAuditToServer tolerates missing or wrongly-typed fields', () => {
+    const event = mapSideEffectAuditToServer({ auditId: 42, tool: null });
+    expect(event.type).toBe('side_effect_audit');
+    expect(event.auditId).toBe('');
+    expect(event.tool).toBe('');
+    expect(event.decision).toBe('');
+  });
+
+  test('subscribeToSideEffectAudits yields new entries as they appear', async () => {
+    const recorded: unknown[] = [];
+    const sessionManager = {
+      getCustomEntries: (customType: string) => {
+        if (customType !== 'upup_pi_policy_audit') return [];
+        return recorded;
+      },
+    };
+    const seen: string[] = [];
+    const consumer = (async () => {
+      for await (const event of subscribeToSideEffectAudits(sessionManager as never, { pollIntervalMs: 10 })) {
+        seen.push((event as { tool: string }).tool);
+        if (seen.length >= 3) break;
+      }
+    })();
+    recorded.push({ type: 'custom', customType: 'upup_pi_policy_audit', data: { tool: 'add_position', decision: 'approval_granted' } });
+    recorded.push({ type: 'custom', customType: 'upup_pi_policy_audit', data: { tool: 'remove_position', decision: 'denied' } });
+    recorded.push({ type: 'custom', customType: 'other-entry', data: {} });
+    recorded.push({ type: 'custom', customType: 'upup_pi_policy_audit', data: { tool: 'track_risk', decision: 'approval_required' } });
+    await Promise.race([consumer, new Promise((r) => setTimeout(r, 1500))]);
+    expect(seen).toEqual(['add_position', 'remove_position', 'track_risk']);
+  });
+
+  test('subscribeToSideEffectAudits respects signal', async () => {
+    const sessionManager = { getCustomEntries: () => [] };
+    const controller = new AbortController();
+    let yielded = 0;
+    const consumer = (async () => {
+      for await (const _event of subscribeToSideEffectAudits(sessionManager as never, { pollIntervalMs: 5, signal: controller.signal })) {
+        yielded += 1;
+      }
+    })();
+    await new Promise((r) => setTimeout(r, 60));
+    controller.abort();
+    await consumer;
+    expect(yielded).toBe(0);
+  });
 });
