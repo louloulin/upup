@@ -259,3 +259,11 @@ function createEvidence(auditId: string, source: string): WebFetchEvidence {
   const retrievedAt = new Date().toISOString();
   return { id: `pi-research:${auditId}`, source, retrievedAt, asOf: retrievedAt.slice(0, 10), query: 'web_fetch', dataFreshness: 'live', auditId };
 }
+
+export {
+  searchWebViaPiWebAccess,
+  isPiWebAccessAvailable,
+  type SearchBridgePorts,
+  type SearchBridgeValue,
+  type WebSearchResultShape,
+} from './web-access-bridge';

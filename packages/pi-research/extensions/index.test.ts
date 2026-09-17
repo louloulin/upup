@@ -37,6 +37,11 @@ describe('Pi research extension', () => {
   });
 
   test('fails closed when no web provider credential is configured', async () => {
+    // Force the legacy raw-fetch path so `pi-web-access` (which resolves
+    // credentials through Pi's provider registry and its own config file)
+    // does not short-circuit this fail-closed contract.
+    const previousDisable = process.env.UPUP_DISABLE_PI_WEB_ACCESS;
+    process.env.UPUP_DISABLE_PI_WEB_ACCESS = '1';
     const previous = { exa: process.env.EXASEARCH_API_KEY, perplexity: process.env.PERPLEXITY_API_KEY, tavily: process.env.TAVILY_API_KEY };
     delete process.env.EXASEARCH_API_KEY; delete process.env.PERPLEXITY_API_KEY; delete process.env.TAVILY_API_KEY;
     try {
@@ -49,6 +54,8 @@ describe('Pi research extension', () => {
       if (previous.exa) process.env.EXASEARCH_API_KEY = previous.exa;
       if (previous.perplexity) process.env.PERPLEXITY_API_KEY = previous.perplexity;
       if (previous.tavily) process.env.TAVILY_API_KEY = previous.tavily;
+      if (previousDisable === undefined) delete process.env.UPUP_DISABLE_PI_WEB_ACCESS;
+      else process.env.UPUP_DISABLE_PI_WEB_ACCESS = previousDisable;
     }
   });
 

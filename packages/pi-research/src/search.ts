@@ -1,3 +1,5 @@
+import { searchWebViaPiWebAccess } from './web-access-bridge';
+
 export interface SearchResult {
   readonly title?: string;
   readonly url: string;
@@ -177,14 +179,69 @@ async function searchPerplexity(
   };
 }
 
+export interface SearchWebOptions {
+  readonly authResolver?: PerplexityAuthResolver;
+  /**
+   * Opt-out: `UPUP_DISABLE_PI_WEB_ACCESS=1` forces the legacy raw-fetch
+   * provider path even when `pi-web-access` is installed. Useful for
+   * air-gapped runs, deterministic tests, and hosts that must fail closed
+   * on missing EXASEARCH/PERPLEXITY/TAVILY keys.
+   */
+  /**
+   * Prefer `pi-web-access` when it resolves (30+ providers, Pi credential
+   * resolution, SSRF protection, error-classified fallback). Defaults to
+   * `true`; the legacy raw-fetch providers stay as the fallback path.
+   */
+  readonly preferPiWebAccess?: boolean;
+  /** Explicit provider for `pi-web-access` (`auto` when omitted). */
+  readonly piWebAccessProvider?: string;
+  /** Max results for `pi-web-access` (default 5). */
+  readonly numResults?: number;
+  /** Test seam: override the `pi-web-access` importer. */
+  readonly piWebAccessImporter?: (specifier: string) => Promise<unknown>;
+}
+
 export async function searchWeb(
   query: string,
   auditId = '',
   signal?: AbortSignal,
-  options?: { authResolver?: PerplexityAuthResolver },
+  options?: SearchWebOptions,
 ): Promise<{ value: WebSearchValue; evidence: SearchEvidence }> {
   const normalized = query.trim();
   if (!normalized) throw new Error('web_search query must not be empty');
+
+  const piWebAccessDisabledByEnv = process.env.UPUP_DISABLE_PI_WEB_ACCESS === '1';
+  if (options?.preferPiWebAccess !== false && !piWebAccessDisabledByEnv) {
+    const bridged = await searchWebViaPiWebAccess(normalized, signal, {
+      ...(options?.piWebAccessProvider ? { provider: options.piWebAccessProvider } : {}),
+      ...(options?.numResults !== undefined ? { numResults: options.numResults } : {}),
+      ...(options?.piWebAccessImporter ? { importer: options.piWebAccessImporter } : {}),
+      onError: () => undefined,
+    });
+    if (bridged) {
+      const retrievedAt = bridged.searchedAt;
+      return {
+        value: {
+          provider: 'exa',
+          query: normalized,
+          ...(bridged.answer ? { answer: bridged.answer } : {}),
+          results: bridged.results,
+          sourceUrls: bridged.sourceUrls,
+          searchedAt: bridged.searchedAt,
+        },
+        evidence: {
+          id: `pi-research:web-search:${auditId || retrievedAt}`,
+          source: 'pi-web-access',
+          retrievedAt,
+          asOf: retrievedAt.slice(0, 10),
+          query: normalized,
+          dataFreshness: 'live',
+          auditId,
+        },
+      };
+    }
+  }
+
   const provider = process.env.EXASEARCH_API_KEY
     ? searchExa
     : process.env.PERPLEXITY_API_KEY || options?.authResolver

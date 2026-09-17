@@ -15,7 +15,7 @@ describe('Pi research search providers', () => {
   test('uses Exa and returns normalized results with auditable evidence', async () => {
     process.env.EXASEARCH_API_KEY = 'test-exa-key';
     globalThis.fetch = (async () => new Response(JSON.stringify({ results: [{ title: '茅台公告', url: 'https://example.com/report', highlights: ['摘要'] }] }), { status: 200 })) as typeof fetch;
-    const result = await searchWeb('贵州茅台 公告', 'search-exa-1');
+    const result = await searchWeb('贵州茅台 公告', 'search-exa-1', undefined, { preferPiWebAccess: false });
     expect(result.value.provider).toBe('exa');
     expect(result.value.results[0]).toMatchObject({ title: '茅台公告', url: 'https://example.com/report' });
     expect(result.value.sourceUrls).toEqual(['https://example.com/report']);
@@ -25,7 +25,7 @@ describe('Pi research search providers', () => {
   test('falls back to Tavily when Exa and Perplexity are unavailable', async () => {
     process.env.TAVILY_API_KEY = 'test-tavily-key';
     globalThis.fetch = (async () => new Response(JSON.stringify({ results: [{ title: '市场新闻', url: 'https://example.com/news', content: '摘要' }] }), { status: 200 })) as typeof fetch;
-    const result = await searchWeb('市场新闻', 'search-tavily-1');
+    const result = await searchWeb('市场新闻', 'search-tavily-1', undefined, { preferPiWebAccess: false });
     expect(result.value.provider).toBe('tavily');
     expect(result.value.results[0]?.snippet).toBe('摘要');
   });
@@ -46,7 +46,7 @@ describe('Pi research search providers', () => {
   });
 
   test('fails closed for empty queries and missing X credentials', async () => {
-    await expect(searchWeb('   ', 'search-empty-1')).rejects.toThrow('must not be empty');
+    await expect(searchWeb('   ', 'search-empty-1', undefined, { preferPiWebAccess: false })).rejects.toThrow('must not be empty');
     await expect(searchX({ command: 'search', query: 'test' }, 'search-x-missing')).rejects.toThrow('X_BEARER_TOKEN');
   });
 
@@ -107,10 +107,47 @@ describe('Pi research search providers', () => {
     delete process.env.PERPLEXITY_API_KEY;
     try {
       await expect(
-        searchWeb('test', 'search-perplexity-missing', undefined, { authResolver: { resolvePerplexityAuth: () => undefined } }),
+        searchWeb('test', 'search-perplexity-missing', undefined, { authResolver: { resolvePerplexityAuth: () => undefined }, preferPiWebAccess: false }),
       ).rejects.toThrow('PERPLEXITY_API_KEY');
     } finally {
       if (previous !== undefined) process.env.PERPLEXITY_API_KEY = previous;
+    }
+  });
+});
+
+describe('searchWeb pi-web-access bridge', () => {
+  test('prefers pi-web-access when it resolves', async () => {
+    const { searchWeb } = await import('./search');
+    const result = await searchWeb('贵州茅台 估值', 'bridge-1', undefined, {
+      piWebAccessImporter: async () => ({
+        search: async () => ({
+          answer: '中位估值',
+          results: [{ title: '研报', url: 'https://example.com/r', content: 'PE 28x' }],
+          citations: ['https://example.com/r'],
+        }),
+      }),
+    });
+    expect(result.evidence.source).toBe('pi-web-access');
+    expect(result.value.results).toHaveLength(1);
+    expect(result.value.answer).toBe('中位估值');
+  });
+
+  test('falls back to the legacy provider when pi-web-access throws', async () => {
+    const { searchWeb } = await import('./search');
+    const previous = process.env.TAVILY_API_KEY;
+    process.env.TAVILY_API_KEY = 'tvly-test';
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async () => new Response(JSON.stringify({ results: [{ url: 'https://legacy.example/x' }] }), { status: 200 })) as typeof fetch;
+    try {
+      const result = await searchWeb('fallback', 'bridge-2', undefined, {
+        piWebAccessImporter: async () => ({ search: async () => { throw new Error('provider down'); } }),
+      });
+      expect(result.evidence.source).not.toBe('pi-web-access');
+      expect(result.value.results[0]?.url).toBe('https://legacy.example/x');
+    } finally {
+      globalThis.fetch = originalFetch;
+      if (previous === undefined) delete process.env.TAVILY_API_KEY;
+      else process.env.TAVILY_API_KEY = previous;
     }
   });
 });
