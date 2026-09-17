@@ -147,3 +147,218 @@ describe('createUpUpTuiWidgetsExtension', () => {
     expect(() => pushUpUpPlanProgress('plan-x', 'execute', 0.5)).not.toThrow();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Pattern 7 — MarketEditor tests.
+// ---------------------------------------------------------------------------
+
+import {
+  MarketEditor,
+  detectMarketEditorChips,
+  installUpUpMarketEditor,
+  type MarketEditorChip,
+} from './tui-widgets';
+
+describe('detectMarketEditorChips', () => {
+  it('returns an empty list for empty input', () => {
+    expect(detectMarketEditorChips('')).toEqual([]);
+  });
+
+  it('detects US-prefix ticker $AAPL', () => {
+    const chips = detectMarketEditorChips('look up $AAPL');
+    expect(chips.length).toBe(1);
+    expect(chips[0]?.symbol).toBe('AAPL');
+    expect(chips[0]?.kind).toBe('us-prefix');
+  });
+
+  it('detects A-share 600519.SH', () => {
+    const chips = detectMarketEditorChips('估值 600519.SH 茅台');
+    expect(chips.length).toBe(1);
+    expect(chips[0]?.symbol).toBe('600519.SH');
+    expect(chips[0]?.kind).toBe('a-share');
+  });
+
+  it('detects HK-share 00700.HK', () => {
+    const chips = detectMarketEditorChips('查 00700.HK 腾讯');
+    expect(chips[0]?.symbol).toBe('00700.HK');
+    expect(chips[0]?.kind).toBe('hk-share');
+  });
+
+  it('detects bare US ticker AAPL with us-bare kind', () => {
+    const chips = detectMarketEditorChips('AAPL');
+    expect(chips.length).toBe(1);
+    expect(chips[0]?.kind).toBe('us-bare');
+  });
+
+  it('detects multiple tickers in one input', () => {
+    const chips = detectMarketEditorChips('$AAPL vs 600519.SH');
+    expect(chips.map((c) => c.symbol)).toEqual(['AAPL', '600519.SH']);
+  });
+
+  it('records start/end offsets for chip replacement', () => {
+    const chips = detectMarketEditorChips('hi $TSLA bye');
+    expect(chips[0]?.start).toBe(3);
+    expect(chips[0]?.end).toBe(8);
+  });
+});
+
+describe('MarketEditor — chip row + cursor', () => {
+  it('starts empty with a hint line', () => {
+    const ed = new MarketEditor();
+    expect(ed.getValue()).toBe('');
+    expect(ed.chips()).toEqual([]);
+    const text = (ed.children[0] as unknown as { text?: string }).text ?? '';
+    expect(text).toContain('UpUp');
+    expect(text).toContain('$AAPL');
+  });
+
+  it('setValue replaces text and moves cursor to end', () => {
+    const ed = new MarketEditor();
+    ed.setValue('600519.SH');
+    expect(ed.getValue()).toBe('600519.SH');
+    expect(ed.chips().length).toBe(1);
+  });
+
+  it('appendTicker normalizes and inserts a chip with a separator', () => {
+    const ed = new MarketEditor({ initial: '$AAPL' });
+    ed.appendTicker('00700.hk');
+    expect(ed.getValue()).toBe('$AAPL 00700.HK');
+    expect(ed.chips().length).toBe(2);
+  });
+
+  it('rendered input row contains a cursor marker when focused', () => {
+    const ed = new MarketEditor({ initial: 'AAPL' });
+    ed.focused = true;
+    ed.refresh();
+    const input = (ed.children[1] as unknown as { text?: string }).text ?? '';
+    expect(input).toContain('AAPL');
+    expect(input).toContain('│');
+  });
+
+  it('rendered input row does NOT contain a cursor marker when blurred', () => {
+    const ed = new MarketEditor({ initial: 'AAPL' });
+    ed.focused = false;
+    ed.refresh();
+    const input = (ed.children[1] as unknown as { text?: string }).text ?? '';
+    expect(input).not.toContain('│');
+  });
+});
+
+describe('MarketEditor — keybindings', () => {
+  it('inserts printable characters at the cursor', () => {
+    const ed = new MarketEditor();
+    ed.handleInput('A');
+    ed.handleInput('A');
+    ed.handleInput('P');
+    ed.handleInput('L');
+    expect(ed.getValue()).toBe('AAPL');
+  });
+
+  it('backspace deletes the character before the cursor', () => {
+    const ed = new MarketEditor({ initial: 'AAPL' });
+    ed.cursor = 4;
+    ed.handleInput('\x7f');
+    expect(ed.getValue()).toBe('AAP');
+  });
+
+  it('Enter submits with current chip snapshot', () => {
+    let submitted: { text: string; chips: readonly MarketEditorChip[] } | undefined;
+    const ed = new MarketEditor({
+      initial: '$AAPL vs 600519.SH',
+      onSubmit: (text, chips) => {
+        submitted = { text, chips };
+      },
+    });
+    ed.handleInput('\r');
+    expect(submitted?.text).toBe('$AAPL vs 600519.SH');
+    expect(submitted?.chips.map((c) => c.symbol)).toEqual(['AAPL', '600519.SH']);
+  });
+
+  it('Escape clears the editor', () => {
+    const ed = new MarketEditor({ initial: '$AAPL' });
+    ed.handleInput('\x1b');
+    expect(ed.getValue()).toBe('');
+    expect(ed.chips()).toEqual([]);
+  });
+
+  it('F1 fires onChipAction(quote) on the first chip', () => {
+    let action: { symbol: string; action: 'quote' | 'chart' | 'fundamentals' } | undefined;
+    const ed = new MarketEditor({
+      initial: '00700.HK + $AAPL',
+      onChipAction: (chip, what) => {
+        action = { symbol: chip.symbol, action: what };
+      },
+    });
+    ed.handleInput('\x1bOP');
+    expect(action).toEqual({ symbol: '00700.HK', action: 'quote' });
+  });
+
+  it('F2 fires onChipAction(chart) on the first chip', () => {
+    let what: 'quote' | 'chart' | 'fundamentals' | undefined;
+    const ed = new MarketEditor({
+      initial: '$AAPL',
+      onChipAction: (_chip, action) => {
+        what = action;
+      },
+    });
+    ed.handleInput('\x1b[12~');
+    expect(what).toBe('chart');
+  });
+
+  it('F3 fires onChipAction(fundamentals) on the first chip', () => {
+    let what: 'quote' | 'chart' | 'fundamentals' | undefined;
+    const ed = new MarketEditor({
+      initial: '$AAPL',
+      onChipAction: (_chip, action) => {
+        what = action;
+      },
+    });
+    ed.handleInput('\x1b[13~');
+    expect(what).toBe('fundamentals');
+  });
+
+  it('does nothing on F-keys when there are no chips', () => {
+    let called = false;
+    const ed = new MarketEditor({
+      initial: 'no ticker',
+      onChipAction: () => {
+        called = true;
+      },
+    });
+    ed.handleInput('\x1bOP');
+    expect(called).toBe(false);
+  });
+
+  it('left arrow moves cursor back by one', () => {
+    const ed = new MarketEditor({ initial: 'ABCDE' });
+    ed.cursor = 5;
+    ed.handleInput('\x1b[D');
+    expect(ed.cursor).toBe(4);
+  });
+
+  it('right arrow moves cursor forward by one', () => {
+    const ed = new MarketEditor({ initial: 'ABCDE' });
+    ed.cursor = 0;
+    ed.handleInput('\x1b[C');
+    expect(ed.cursor).toBe(1);
+  });
+});
+
+describe('installUpUpMarketEditor', () => {
+  it('returns false when the runtime does not expose setEditorComponent', () => {
+    expect(installUpUpMarketEditor({})).toBe(false);
+  });
+
+  it('returns true and installs the factory when the runtime supports it', () => {
+    let installed: unknown;
+    const pi = {
+      setEditorComponent: (factory: unknown) => {
+        installed = factory;
+      },
+    };
+    expect(installUpUpMarketEditor(pi)).toBe(true);
+    expect(typeof installed).toBe('function');
+    const editor = (installed as (t: unknown, th: unknown, k: unknown) => unknown)(undefined, undefined, undefined);
+    expect(editor).toBeInstanceOf(MarketEditor);
+  });
+});

@@ -238,3 +238,269 @@ export function createUpUpTuiWidgetsExtension(options: UpUpTuiWidgetsOptions = {
     // only stable for the bare `'input'` event in the current version.
   };
 }
+
+// ---------------------------------------------------------------------------
+// Pattern 7 — Custom Editor (MarketEditor).
+//
+// Pi's `setEditorComponent(factory)` replaces the built-in multi-line editor
+// with one of our own. UpUp ships `MarketEditor`, a single-line input that is
+// aware of the three ticker idioms a finance user actually types:
+//
+//   - `$AAPL`               US/Globex symbol prefixed with `$`
+//   - `600519.SH`           A-share (6 digits + `.SH`/`.SZ`/`.BJ`)
+//   - `00700.HK`            HK share (5 digits + `.HK`)
+//   - `AAPL` (bare, 1–5 uppercase letters)  resolved by `guessMarketLabel`
+//
+// Detected tickers surface as a chip row above the editor; F1 jumps the
+// primary lookup tool onto the first chip, F2 onto the chart tool, F3 onto
+// fundamentals. The editor is small on purpose — replacing the multi-line
+// editor wholesale is a heavy Pi surface; this proves the wiring while keeping
+// the implementation auditable.
+//
+// `MarketEditor` is intentionally dependency-light: only `@earendil-works/pi-tui`
+// for `Container`/`Text`. It does not reach into Pi's editor internals.
+// ---------------------------------------------------------------------------
+
+const TICKER_PATTERN = /(?:\$\s*)?([A-Z]{1,5}(?:\.(?:SH|SZ|BJ|HK))?|\d{5,6}\.(?:SH|SZ|HK|BJ))/g;
+// Non-global clone: appendTicker uses .test() which mutates lastIndex on the
+// global regex. Detecting via a fresh non-global regex avoids corrupting
+// detectMarketEditorChips's matchAll iteration in the same session.
+const TICKER_NON_GLOBAL = /(?:\$\s*)?([A-Z]{1,5}(?:\.(?:SH|SZ|BJ|HK))?|\d{5,6}\.(?:SH|SZ|HK|BJ))/;
+
+/** A single chip detected in the editor text. */
+export interface MarketEditorChip {
+  readonly symbol: string;
+  /** `$AAPL` → 'us-prefix'; `600519.SH` → 'a-share'; `00700.HK` → 'hk-share'; `AAPL` → 'us-bare'. */
+  readonly kind: 'us-prefix' | 'a-share' | 'hk-share' | 'us-bare' | 'other';
+  /** Character offset where the chip text starts (0-based). */
+  readonly start: number;
+  /** Character offset where the chip text ends (exclusive). */
+  readonly end: number;
+}
+
+export interface MarketEditorOptions {
+  /** Initial text. */
+  readonly initial?: string;
+  /** Called when the user submits (Enter). */
+  readonly onSubmit?: (text: string, chips: readonly MarketEditorChip[]) => void;
+  /** Called when the user presses F1/F2/F3 on a chip. */
+  readonly onChipAction?: (chip: MarketEditorChip, action: 'quote' | 'chart' | 'fundamentals') => void;
+  /** Optional title rendered above the input. */
+  readonly title?: string;
+  /** Test/injectable clock for cursor-blink. Default `() => Date.now()`. */
+  readonly now?: () => number;
+}
+
+const KIND_BY_SYMBOL = (symbol: string): MarketEditorChip['kind'] => {
+  if (/^\d{6}\.(?:SH|SZ|BJ)$/.test(symbol)) return 'a-share';
+  if (/^\d{5}\.HK$/.test(symbol)) return 'hk-share';
+  if (/^\$[A-Z]{1,5}$/.test(symbol)) return 'us-prefix';
+  if (/^[A-Z]{1,5}$/.test(symbol)) return 'us-bare';
+  return 'other';
+};
+
+/** Pure function — detect tickers in a free-form string. Used by tests. */
+export function detectMarketEditorChips(text: string): readonly MarketEditorChip[] {
+  const out: MarketEditorChip[] = [];
+  if (!text) return out;
+  // Reset lastIndex defensively — other call sites may have used the global
+  // regex via .test(); matchAll's internal clone behavior is engine-dependent.
+  TICKER_PATTERN.lastIndex = 0;
+  for (const match of text.matchAll(TICKER_PATTERN)) {
+    const raw = match[0];
+    if (typeof raw !== 'string') continue;
+    const start = match.index ?? 0;
+    const hasDollarPrefix = /^\$/.test(raw);
+    const symbol = raw.replace(/^\$\s*/, '').toUpperCase();
+    const kind: MarketEditorChip['kind'] = hasDollarPrefix
+      ? 'us-prefix'
+      : KIND_BY_SYMBOL(symbol);
+    out.push({ symbol, kind, start, end: start + raw.length });
+  }
+  return out;
+}
+
+/**
+ * Pattern 7 custom editor. Single-line input with ticker chip detection.
+ *
+ * Keybindings:
+ *   - printable characters insert at the cursor
+ *   - Backspace deletes the char before the cursor
+ *   - Left/Right arrow move the cursor
+ *   - Enter calls `onSubmit(text, chips)`
+ *   - F1 / F2 / F3 invoke `onChipAction(chips[0], 'quote'|'chart'|'fundamentals')`
+ *   - Escape clears the editor
+ *
+ * The implementation intentionally avoids pulling in Pi's internal editor
+ * state — it is a focused, dependency-light Component that demonstrates the
+ * `setEditorComponent` wiring without pretending to be a full vi-editor.
+ */
+export class MarketEditor extends Container {
+  private text: string;
+  private cursor: number;
+  private readonly onSubmit: ((text: string, chips: readonly MarketEditorChip[]) => void) | undefined;
+  private readonly onChipAction: ((chip: MarketEditorChip, action: 'quote' | 'chart' | 'fundamentals') => void) | undefined;
+  private readonly titleText: string;
+  focused = false;
+  private readonly chipRow: Text;
+  private readonly inputRow: Text;
+  private readonly statusRow: Text;
+
+  constructor(options: MarketEditorOptions = {}) {
+    super();
+    this.text = options.initial ?? '';
+    this.cursor = this.text.length;
+    this.onSubmit = options.onSubmit;
+    this.onChipAction = options.onChipAction;
+    this.titleText = options.title ?? 'UpUp ›';
+    this.chipRow = new Text('', 0, 0);
+    this.inputRow = new Text('', 0, 0);
+    this.statusRow = new Text('', 0, 0);
+    this.addChild(this.chipRow);
+    this.addChild(this.inputRow);
+    this.addChild(this.statusRow);
+    this.refresh();
+  }
+
+  /** Read the current editor text. */
+  getValue(): string {
+    return this.text;
+  }
+
+  /** Replace the editor text. Cursor moves to the end. */
+  setValue(text: string): void {
+    this.text = text;
+    this.cursor = text.length;
+    this.refresh();
+  }
+
+  /** Append a chip to the editor text (cursor moves to end). Idempotent. */
+  appendTicker(symbol: string): void {
+    const normalized = symbol.toUpperCase().replace(/^\$\s*/, '');
+    if (!TICKER_NON_GLOBAL.test(`$${normalized}`)) return;
+    if (this.text.length > 0 && !this.text.endsWith(' ')) this.text += ' ';
+    this.text += normalized;
+    this.cursor = this.text.length;
+    this.refresh();
+  }
+
+  /** Current chip detection snapshot — pure helper for hosts. */
+  chips(): readonly MarketEditorChip[] {
+    return detectMarketEditorChips(this.text);
+  }
+
+  /** Re-render all rows. Cheap; safe to call after every state mutation. */
+  refresh(): void {
+    const chips = this.chips();
+    const chipsLine = chips.length === 0
+      ? `${this.titleText}  (type a ticker: $AAPL, 600519.SH, 00700.HK)`
+      : `${this.titleText}  chips: ${chips.map((c) => `${c.symbol}[${c.kind}]`).join('  ')}`;
+    this.chipRow.setText(chipsLine);
+
+    const left = this.text.slice(0, this.cursor);
+    const right = this.text.slice(this.cursor);
+    const cursorMarker = this.focused ? '│' : ' ';
+    this.inputRow.setText(`› ${left}${cursorMarker}${right}`);
+
+    this.statusRow.setText(
+      this.focused
+        ? '  Enter=submit · F1=quote · F2=chart · F3=fundamentals · Esc=clear'
+        : '  (press Tab to focus)',
+    );
+  }
+
+  /** Pi TUI input handler — keep narrow to stay predictable. */
+  handleInput(data: string): void {
+    // Bare escape (ESC = `\x1b`).
+    if (data === '\x1b') {
+      this.text = '';
+      this.cursor = 0;
+      this.refresh();
+      return;
+    }
+    // CSI sequences: ESC [ A/B/C/D = arrow keys.
+    if (data === '\x1b[D') {
+      this.cursor = Math.max(0, this.cursor - 1);
+      this.refresh();
+      return;
+    }
+    if (data === '\x1b[C') {
+      this.cursor = Math.min(this.text.length, this.cursor + 1);
+      this.refresh();
+      return;
+    }
+    // Function keys via CSI ~: F1=\x1bOP, F2=\x1bOQ, F3=\x1bOR (xterm) or
+    // \x1b[11~, \x1b[12~, \x1b[13~ (vt).
+    if (data === '\x1bOP' || data === '\x1b[11~') {
+      const first = this.chips()[0];
+      if (first && this.onChipAction) this.onChipAction(first, 'quote');
+      return;
+    }
+    if (data === '\x1bOQ' || data === '\x1b[12~') {
+      const first = this.chips()[0];
+      if (first && this.onChipAction) this.onChipAction(first, 'chart');
+      return;
+    }
+    if (data === '\x1bOR' || data === '\x1b[13~') {
+      const first = this.chips()[0];
+      if (first && this.onChipAction) this.onChipAction(first, 'fundamentals');
+      return;
+    }
+    // Backspace (DEL = \x7f, BS = \b).
+    if (data === '\x7f' || data === '\b') {
+      if (this.cursor > 0) {
+        this.text = this.text.slice(0, this.cursor - 1) + this.text.slice(this.cursor);
+        this.cursor -= 1;
+        this.refresh();
+      }
+      return;
+    }
+    // Enter — submit with current chips snapshot.
+    if (data === '\r' || data === '\n') {
+      if (this.onSubmit) this.onSubmit(this.text, this.chips());
+      return;
+    }
+    // Printable single character — skip if it looks like a stray escape fragment.
+    if (data.length === 1 && data.charCodeAt(0) >= 0x20) {
+      this.text = this.text.slice(0, this.cursor) + data + this.text.slice(this.cursor);
+      this.cursor += data.length;
+      this.refresh();
+    }
+  }
+}
+
+/**
+ * Mount the Pattern 7 MarketEditor onto a Pi session via `setEditorComponent`.
+ * Returns true when the factory was installed, false when the host runtime
+ * does not expose `setEditorComponent` (RPC / stdio hosts).
+ */
+export function installUpUpMarketEditor(
+  pi: unknown,
+  options: MarketEditorOptions = {},
+): boolean {
+  const candidate = pi as { setEditorComponent?: (factory: ((tui: unknown, theme: unknown, keybindings: unknown) => unknown) | undefined) => void };
+  if (typeof candidate.setEditorComponent !== 'function') return false;
+  try {
+    candidate.setEditorComponent((_tui, _theme, _keybindings) => new MarketEditor(options));
+    return true;
+  } catch (error) {
+    void error;
+    void options.onSubmit;
+    return false;
+  }
+}
+
+/**
+ * Extended TUI widgets mount that also installs the Pattern 7 MarketEditor.
+ * Drops back to the plain Pattern 5/6 mount if the host runtime does not
+ * support `setEditorComponent` (RPC / stdio).
+ */
+export function createUpUpTuiWidgetsWithEditorExtension(
+  options: UpUpTuiWidgetsOptions & MarketEditorOptions = {},
+): (pi: unknown) => void {
+  return (pi: unknown): void => {
+    const widgets = createUpUpTuiWidgetsExtension(options);
+    widgets(pi as ExtensionAPI);
+    installUpUpMarketEditor(pi, options);
+  };
+}
