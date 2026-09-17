@@ -192,32 +192,42 @@ export function createPiApp(options: PiAppOptions): PiApp {
       // can fire. Previously `setInvestCommandHandler(options.investCommandHandler ?? null)`
       // ran first and `workflow.commandHandler` was only wired later (inside
       // `getInvestmentWorkflow()`), which meant the very first `/invest`
-      // from the TUI blew up with "runInvest not registered".
-      const workflowInstance = getInvestmentWorkflow();
-      setInvestCommandHandler(options.investCommandHandler ?? workflowInstance.commandHandler);
-      // Wire the pi-finance-sdk investment command runners from the canonical
-      // @upup/pi-investment-workflow registry. This lets the extension's
-      // /invest, /dossier, /risk-dashboard etc. commands drive the real
-      // five-phase pipeline (detect -> plan -> execute -> verify -> report)
-      // instead of the previous LLM prompt-nudge. The injection lives in
-      // pi-app because declaring a direct dependency from pi-finance-sdk
-      // -> pi-investment-workflow would induce a package cycle (workflow
-      // -> pi-research -> pi-finance-sdk).
-      setPiFinanceCommandRunners({
-        // Route `/invest` through `workflow.runInvest` (which holds the
-        // sessionFactory), NOT through the bare `runInvest` export — the
-        // bare export requires the caller to pass `InvestmentWorkflowOptions.sessionFactory`
-        // themselves, and the TUI slash command has no way to do that.
-        invest: (args: string) => workflowInstance.runInvest(args),
-        generic: (name: string, args: string) => Promise.resolve(runInvestmentCommand(name, args)),
-        // Single source of truth for the investment command surface: names,
-        // aliases and descriptions all come from the workflow registry.
-        commands: listInvestmentCommands().map((entry) => ({
-          name: entry.name,
-          aliases: entry.aliases,
-          description: entry.description,
-        })),
-      });
+      // Only resolve the investment workflow eagerly when the caller actually
+      // supplies an `investmentWorkflowFactory` (or their own `investCommandHandler`).
+      // The previous version always called `getInvestmentWorkflow()` here, which
+      // threw "Pi app was created without an investment workflow" for non-investment
+      // hosts (gateway/stream/composition contract tests).
+      if (options.investCommandHandler !== undefined) {
+        setInvestCommandHandler(options.investCommandHandler);
+      } else if (options.investmentWorkflowFactory) {
+        const workflowInstance = getInvestmentWorkflow();
+        setInvestCommandHandler(workflowInstance.commandHandler);
+        // Wire the pi-finance-sdk investment command runners from the canonical
+        // @upup/pi-investment-workflow registry. This lets the extension's
+        // /invest, /dossier, /risk-dashboard etc. commands drive the real
+        // five-phase pipeline (detect -> plan -> execute -> verify -> report)
+        // instead of the previous LLM prompt-nudge. The injection lives in
+        // pi-app because declaring a direct dependency from pi-finance-sdk
+        // -> pi-investment-workflow would induce a package cycle (workflow
+        // -> pi-research -> pi-finance-sdk).
+        setPiFinanceCommandRunners({
+          // Route `/invest` through `workflow.runInvest` (which holds the
+          // sessionFactory), NOT through the bare `runInvest` export — the
+          // bare export requires the caller to pass `InvestmentWorkflowOptions.sessionFactory`
+          // themselves, and the TUI slash command has no way to do that.
+          invest: (args: string) => workflowInstance.runInvest(args),
+          generic: (name: string, args: string) => Promise.resolve(runInvestmentCommand(name, args)),
+          // Single source of truth for the investment command surface: names,
+          // aliases and descriptions all come from the workflow registry.
+          commands: listInvestmentCommands().map((entry) => ({
+            name: entry.name,
+            aliases: entry.aliases,
+            description: entry.description,
+          })),
+        });
+      }
+      // Else: caller supplied neither — non-investment host (gateway / stream /
+      // composition contract tests). /invest is intentionally not bound.
       // Composition is observable from initialize() even before the runtime
       // itself is resolved, while still preserving the lazy runtime factory.
       resolvedComposition = resolveComposition();
