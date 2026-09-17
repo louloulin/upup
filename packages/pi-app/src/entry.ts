@@ -204,47 +204,32 @@ async function main() {
       break;
 
     case 'web':
-      // Spawn `pi-web-ui` (Pi's official web UI for the coding agent) with
-      // an UpUp-tuned config. The upstream binary is the same one the Pi
-      // community uses; UpUp just configures the cwd + data-dir so the
-      // browser session sees the same UpUp skill / command / package
-      // surface the TUI does.
-      //
-      // Resolution precedence (mirrors `upup ecosystem list`):
-      //   1. `Bun.which('pi-web-ui')`             — fastest when on PATH
-      //   2. dual-scope resolver                   — `~/.upup/agent/npm` first,
-      //                                              then bundled `node_modules`
-      //   3. legacy `~/.bun/install/global` path  — pre-Pi-Ecosystem installs
+      // Spawn the npm-installed @agegr/pi-web (Next.js UI for Pi) under
+      // @upup/upup-web's HTTP proxy. The proxy owns /api/upup/* and
+      // injects a single <script> tag so the sidecar runs inside the
+      // upstream React tree. No source file in @agegr/pi-web is touched.
       {
         const args2 = args.slice(1);
-        const port = parseWebFlag(args2, '--port') ?? '9000';
+        const publicPort = Number.parseInt(parseWebFlag(args2, '--port') ?? '9000', 10);
         const cwd = parseWebFlag(args2, '--cwd') ?? process.cwd();
         const noBrowser = args2.includes('--no-browser');
-        const { resolveEcosystemSpecifier } = await import('@upup/pi-runtime');
-        const piWebUiEntry = resolveEcosystemSpecifier('pi-web-ui/bin/pi-web-ui.mjs');
-        const piWebUiFallback = resolve(
-          homedir(),
-          '.bun/install/global/node_modules/pi-web-ui/bin/pi-web-ui.mjs',
-        );
-        const piWebUi = Bun.which('pi-web-ui')
-          ?? (piWebUiEntry && existsSync(piWebUiEntry) ? piWebUiEntry : piWebUiFallback);
-        const env: Record<string, string> = {
-          ...process.env as Record<string, string>,
-          PI_WEB_PORT: port,
-          PI_WEB_CWD: cwd,
-          PI_WEB_ENGINE: 'pi',
-          PI_CODING_AGENT_DIR: process.env.PI_CODING_AGENT_DIR ?? '',
-        };
-        const child = Bun.spawn([piWebUi, `--port`, port, `--cwd`, cwd, ...(noBrowser ? ['--no-browser'] : [])], {
-          env,
-          stdin: 'inherit',
-          stdout: 'inherit',
-          stderr: 'inherit',
-        });
-        process.stderr.write(`upup web: spawning pi-web-ui on port ${port} (cwd=${cwd})\n`);
-        process.stderr.write(`upup web: open http://127.0.0.1:${port}/ once the server is ready\n`);
-        const code = await child.exited;
-        process.exitCode = code;
+        const { startUpUpWeb } = await import('@upup/upup-web');
+        try {
+          const handle = await startUpUpWeb({
+            publicPort: Number.isFinite(publicPort) ? publicPort : 9000,
+            upstreamPort: 30141,
+            cwd,
+            noBrowser,
+          });
+          process.stderr.write(`upup web: serving on http://127.0.0.1:${handle.publicPort}/ (upstream 127.0.0.1:${handle.upstreamPort}, data ${handle.dataDir})\n`);
+          const shutdown = (): void => { void handle.stop().finally(() => process.exit(0)); };
+          process.once('SIGINT', shutdown);
+          process.once('SIGTERM', shutdown);
+          await new Promise<void>(() => {});
+        } catch (err) {
+          process.stderr.write(`upup web: failed to start: ${err instanceof Error ? err.message : String(err)}\n`);
+          process.exit(1);
+        }
       }
       return;
 
