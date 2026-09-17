@@ -127,3 +127,9 @@ export {
   type SopScriptBridgeOptions,
   type SopScriptBridgeResult,
 } from './bridge/dynamic-workflow-bridge';
+export {
+  runSopAsDynamicWorkflow,
+  renderSopDynamicRunResult,
+  type SopDynamicRunOptions,
+  type SopDynamicRunResult,
+} from './bridge/dynamic-workflow-runner';

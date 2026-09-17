@@ -91,3 +91,28 @@ describe('SOP phase failure surfacing', () => {
     expect(out).toContain('成功: no');
   });
 });
+
+describe('runInvest --sop-dynamic', () => {
+  test('parseInvestArgs sets engine=dynamic for --sop-dynamic', async () => {
+    const { parseInvestArgs } = await import('./invest');
+    const args = parseInvestArgs('--sop-dynamic graham 600519.SH');
+    expect(args.mode).toBe('sop');
+    expect(args.sopId).toBe('graham');
+    expect(args.ticker).toBe('600519.SH');
+    expect(args.engine).toBe('dynamic');
+  });
+
+  test('parseInvestArgs keeps the legacy engine for --sop', async () => {
+    const { parseInvestArgs } = await import('./invest');
+    const args = parseInvestArgs('--sop graham 600519.SH');
+    expect(args.engine).toBeUndefined();
+    expect(args.sopId).toBe('graham');
+  });
+
+  test('--sop-dynamic rejects an unknown SOP id the same way --sop does', async () => {
+    const { runInvest } = await import('./invest');
+    const sessionFactory = (async () => makeSession({ role: 'assistant', content: [] })) as never;
+    const out = await runInvest('--sop-dynamic nonexistent-sop AAPL', { sessionFactory });
+    expect(out).toContain('未知 SOP');
+  });
+});

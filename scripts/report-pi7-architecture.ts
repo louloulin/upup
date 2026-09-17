@@ -291,6 +291,65 @@ async function readSopWorkflowBridgeStatus(): Promise<Record<string, unknown>> {
 
 
 
+
+async function readResearchDagStatus(): Promise<Record<string, unknown>> {
+  const fs = require('node:fs') as typeof import('node:fs');
+  const dagPath = resolve(root, 'packages/pi-runtime/src/research-dag.ts');
+  const coordinatorPath = resolve(root, 'packages/pi-investment-analysis/src/research-coordinator.ts');
+  const dagSrc = fs.existsSync(dagPath) ? fs.readFileSync(dagPath, 'utf8') : '';
+  const coordinatorSrc = fs.existsSync(coordinatorPath) ? fs.readFileSync(coordinatorPath, 'utf8') : '';
+  return {
+    contract: 'upup.pi.research-dag.v1',
+    available: fs.existsSync(dagPath),
+    package: '@arhen/pi-core-subagent',
+    registration: dagSrc.includes('registerUpUpResearchDag') ? 'registerUpUpResearchDag(pi)' : 'missing',
+    roles: ['technical-analysis', 'fundamental-analysis', 'capital-flow', 'sentiment-analysis'],
+    needsEdges: coordinatorSrc.includes('topologicalResearchRoles') && coordinatorSrc.includes('batchResearchRoles'),
+    analyzeSymbolParam: dagSrc.includes('buildUpUpResearchDagTasks') ? 'analyze_symbol accepts needs' : 'flat parallel',
+    notes: 'The 4 canonical research roles become a DAG when needs edges are supplied; otherwise the flat parallel path is preserved.',
+  };
+}
+
+async function readDynamicWorkflowStatus(): Promise<Record<string, unknown>> {
+  const fs = require('node:fs') as typeof import('node:fs');
+  const bridgePath = resolve(root, 'packages/pi-investment-workflow/src/bridge/dynamic-workflow-bridge.ts');
+  const runnerPath = resolve(root, 'packages/pi-investment-workflow/src/bridge/dynamic-workflow-runner.ts');
+  const researchDagPath = resolve(root, 'packages/pi-runtime/src/research-dag.ts');
+  const investPath = resolve(root, 'packages/pi-investment-workflow/src/invest.ts');
+  const version = (() => {
+    try {
+      const lockPath = resolve(root, 'bun.lock');
+      if (!fs.existsSync(lockPath)) return null;
+      const text = fs.readFileSync(lockPath, 'utf8');
+      const match = text.match(/"@quintinshaw\/pi-dynamic-workflows":\s*\["@quintinshaw\/pi-dynamic-workflows@([0-9.]+)"/);
+      return match ? match[1] : null;
+    } catch {
+      return null;
+    }
+  })();
+  const investSrc = fs.existsSync(investPath) ? fs.readFileSync(investPath, 'utf8') : '';
+  const sopCount = (() => {
+    try {
+      const sopsDir = resolve(root, 'packages/pi-investment-workflow/sops');
+      return fs.readdirSync(sopsDir).filter((n: string) => n.endsWith('.yaml') || n.endsWith('.yml')).length;
+    } catch {
+      return 0;
+    }
+  })();
+  return {
+    contract: 'upup.pi.dynamic-workflow.v1',
+    available: fs.existsSync(bridgePath) && fs.existsSync(runnerPath),
+    engine: '@quintinshaw/pi-dynamic-workflows',
+    engineVersion: version,
+    translator: 'sopToDynamicWorkflowScript (packages/pi-investment-workflow/src/bridge/dynamic-workflow-bridge.ts)',
+    runner: 'runSopAsDynamicWorkflow (packages/pi-investment-workflow/src/bridge/dynamic-workflow-runner.ts)',
+    researchDag: fs.existsSync(researchDagPath) ? '@arhen/pi-core-subagent needs-edge scheduler via registerUpUpResearchDag' : 'missing',
+    sopsBridged: sopCount,
+    optIn: investSrc.includes('--sop-dynamic') ? '--sop-dynamic <id> <TICKER> or UPUP_SOP_ENGINE=dynamic' : 'not wired',
+    notes: 'Every UpUp SOP can run through Pi dynamic workflows: real fan-out (16 concurrent / 1000 total), per-agent model routing, journaled resume, token/cost accounting.',
+  };
+}
+
 async function readWebUiStatus(): Promise<Record<string, unknown>> {
   const piWebUiPkg = (() => {
     try {
@@ -372,5 +431,7 @@ console.log(JSON.stringify({
   sopWorkflowBridge: await readSopWorkflowBridgeStatus(),
   mcpHttpTransport: await readMcpHttpTransportStatus(),
   webUi: await readWebUiStatus(),
+  dynamicWorkflow: await readDynamicWorkflowStatus(),
+  researchDag: await readResearchDagStatus(),
   rootAllowlist: ['src/index.tsx', 'src/bootstrap/**'],
 }, null, 2));

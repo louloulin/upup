@@ -137,8 +137,6 @@ check(
   'packages/pi-app/src/entry.ts must dispatch `upup web` to pi-web-ui',
 );
 
-console.log('check:cross-platform-exposure OK');
-
 // 5. In-process SDK (@upup/sdk) ------------------------------------------------
 console.log('\n5. In-process SDK (@upup/sdk):');
 const sdkIndex = resolve(ROOT, 'packages/sdk/src/index.ts');
@@ -163,3 +161,44 @@ check(
   existsSync(sdkTest),
   'packages/sdk/test/sdk.test.ts must exist',
 );
+
+// 7. Pi dynamic workflows + research DAG --------------------------------------
+console.log('\n7. Pi dynamic-workflow engine + research DAG:');
+const dynamicBridge = resolve(ROOT, 'packages/pi-investment-workflow/src/bridge/dynamic-workflow-bridge.ts');
+const dynamicRunner = resolve(ROOT, 'packages/pi-investment-workflow/src/bridge/dynamic-workflow-runner.ts');
+const dynamicRunnerTest = resolve(ROOT, 'packages/pi-investment-workflow/src/bridge/dynamic-workflow-runner.test.ts');
+check(
+  'SOP → Pi dynamic-workflow translator exists (dynamic-workflow-bridge.ts)',
+  existsSync(dynamicBridge) && /sopToDynamicWorkflowScript/.test(read(dynamicBridge)),
+  'packages/pi-investment-workflow/src/bridge/dynamic-workflow-bridge.ts must export sopToDynamicWorkflowScript',
+);
+check(
+  'SOP dynamic-workflow runner exists and calls runWorkflow',
+  existsSync(dynamicRunner) && /runWorkflow/.test(read(dynamicRunner)) && /@quintinshaw\/pi-dynamic-workflows/.test(read(dynamicRunner)),
+  'packages/pi-investment-workflow/src/bridge/dynamic-workflow-runner.ts must call @quintinshaw/pi-dynamic-workflows runWorkflow',
+);
+check(
+  'SOP dynamic runner has end-to-end tests',
+  existsSync(dynamicRunnerTest),
+  'packages/pi-investment-workflow/src/bridge/dynamic-workflow-runner.test.ts must exist',
+);
+const researchDag = resolve(ROOT, 'packages/pi-runtime/src/research-dag.ts');
+check(
+  'Research DAG bridge wraps @arhen/pi-core-subagent needs-edges',
+  existsSync(researchDag) && /registerUpUpResearchDag/.test(read(researchDag)) && /buildUpUpResearchDagTasks/.test(read(researchDag)),
+  'packages/pi-runtime/src/research-dag.ts must export registerUpUpResearchDag + buildUpUpResearchDagTasks',
+);
+const coordinator = resolve(ROOT, 'packages/pi-investment-analysis/src/research-coordinator.ts');
+check(
+  'research-coordinator supports needs-DAG batching',
+  existsSync(coordinator) && /topologicalResearchRoles/.test(read(coordinator)) && /batchResearchRoles/.test(read(coordinator)),
+  'packages/pi-investment-analysis/src/research-coordinator.ts must export topologicalResearchRoles + batchResearchRoles',
+);
+const investSrc = resolve(ROOT, 'packages/pi-investment-workflow/src/invest.ts');
+check(
+  '`--sop-dynamic` flag wired in /invest',
+  existsSync(investSrc) && /--sop-dynamic/.test(read(investSrc)) && /runSopAsDynamicWorkflow/.test(read(investSrc)),
+  'packages/pi-investment-workflow/src/invest.ts must parse --sop-dynamic and call runSopAsDynamicWorkflow',
+);
+
+console.log('check:cross-platform-exposure OK');

@@ -779,7 +779,15 @@ export function calculateTechnicalIndicators(data: readonly TechnicalBar[], indi
 
 export { createInitialResearchJournalState, parseResearchJournalState, queryResearchJournal } from './research-journal';
 export type { NativeResearchTask, NativeResearchJournalState, ResearchJournalQuery, ResearchPhase, ResearchTaskStatus } from './research-journal';
-export { createResearchWorkerRequest, researchRoles, runResearchCoordinator } from './research-coordinator';
+export {
+  createResearchWorkerRequest,
+  researchRoles,
+  runResearchCoordinator,
+  topologicalResearchRoles,
+  batchResearchRoles,
+  type ResearchNeeds,
+  type ResearchCoordinatorOptions,
+} from './research-coordinator';
 export type { ResearchRole, ResearchWorkerRequest, ResearchWorkerResult, ResearchWorkerRunner, ResearchWorkerRecord, ResearchCoordinatorResult } from './research-coordinator';
 export { runNativeStockAnalysis } from './stock-analysis';
 export type { StockAnalysisInput, StockAnalysisResult, StockAnalysisWorker, StockAnalysisWorkerRequest, StockAnalysisWorkerResult } from './stock-analysis';

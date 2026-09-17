@@ -35,6 +35,11 @@ const analyzeSymbolParameters = Type.Object({
   workers: Type.Optional(Type.Array(Type.Union([
     Type.Literal('technical-analysis'), Type.Literal('fundamental-analysis'), Type.Literal('capital-flow'), Type.Literal('sentiment-analysis'),
   ]), { minItems: 1, maxItems: 4 })),
+  needs: Type.Optional(Type.Record(
+    Type.String(),
+    Type.Array(Type.String()),
+    { description: 'DAG edges: role -> roles it depends on. Overrides flat parallel when present.' },
+  )),
 });
 const stockAnalysisParameters = Type.Object({
   symbol: Type.String({ minLength: 1, maxLength: 32 }),
@@ -268,7 +273,8 @@ export default function investmentAnalysisExtension(pi: ExtensionAPI): void {
         return { content: [{ type: 'text', text: 'research-worker capability is unavailable; analyze_symbol is fail-closed' }], isError: true, details: { auditId: toolCallId, capability: 'research-worker', policy: 'fail-closed' } };
       }
       try {
-        const result = await runResearchCoordinator(params.symbol, params.question, host.providers.workers.runResearchWorker as never, { workers: params.workers as ResearchRole[] | undefined, signal });
+        const needs = (params as { needs?: Readonly<Record<string, readonly string[]>> }).needs;
+        const result = await runResearchCoordinator(params.symbol, params.question, host.providers.workers.runResearchWorker as never, { workers: params.workers as ResearchRole[] | undefined, needs, signal });
         const tasks = result.workers.map((worker) => ({ id: `research:${toolCallId}:${worker.role}`, title: `${params.symbol} ${worker.role}`, phase: 'research' as const, status: worker.status === 'completed' ? 'completed' as const : worker.status, assignee: worker.role, notes: worker.error ?? worker.output?.slice(0, 4_000), artifacts: worker.sessionId ? [worker.sessionId] : [], createdAt: worker.startedAt, updatedAt: worker.completedAt ?? worker.startedAt }));
         const manager = context?.sessionManager as { appendCustomEntry?: (customType: string, data?: unknown) => void } | undefined;
         manager?.appendCustomEntry?.(RESEARCH_ENTRY, { schema: 1, tasks });

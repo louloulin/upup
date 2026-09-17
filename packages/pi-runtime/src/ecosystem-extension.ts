@@ -189,6 +189,16 @@ export function createUpUpEcosystemExtension(options: MountEcosystemOptions = {}
           // every event through its audit trail; an extra registration
           // failure does not need a parallel channel.
         }
+      // Mount the UpUp research DAG (@arhen/pi-core-subagent needs-edge
+      // scheduler) so the 4 canonical roles are available as a `subagent`
+      // tool with partial-order `needs` edges. Best-effort: a missing
+      // @arhen/pi-core-subagent silently keeps the legacy coordinator.
+      try {
+          const { registerUpUpResearchDag } = await import('./research-dag');
+          await registerUpUpResearchDag(pi);
+        } catch {
+          // Research DAG failures must never abort the session.
+        }
       // Mount the UpUp TUI widget extensions (Pattern 5 + Pattern 6).
       // Best-effort: a Pi version missing `setWidget`/`setFooter` silently
       // skips this step.

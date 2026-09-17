@@ -30,19 +30,38 @@ import { extractTicker } from '@upup/pi-planning';
 import { INVESTMENT_PROFILES, getInvestmentAgentSpec } from './agent-spec';
 import { loadSops, loadUserAgentSpecs, mergeAgentCatalog } from './sop-loader';
 import { executeSop, type SopPhaseRunner, type SopResult, type SopSynthesizerRunner } from './sop-executor';
+import { runSopAsDynamicWorkflow, renderSopDynamicRunResult } from './bridge/dynamic-workflow-runner';
 import { SopValidationError, validateSopSpec, type SopSpec } from './sop-spec';
 
 export type InvestMode = 'full' | 'fast' | 'resume' | 'sop' | 'sops';
 
 
 
-function parseArgs(input: string): { mode: InvestMode; ticker?: string; intent: string; planId?: string; sopId?: string } {
+/**
+ * Test-visible alias of `parseArgs`. Exported so the CLI arg contract can be
+ * asserted without spinning up a Pi session (see invest.test.ts).
+ */
+export const parseInvestArgs = parseArgs;
+
+function parseArgs(input: string): { mode: InvestMode; ticker?: string; intent: string; planId?: string; sopId?: string; engine?: 'legacy' | 'dynamic' } {
   const trimmed = input.trim();
   if (!trimmed) return { mode: 'full', intent: '分析投资机会' };
 
   // --sops (list available SOPs)
   if (trimmed === '--sops' || trimmed === '--list-sops') {
     return { mode: 'sops', intent: 'list sops' };
+  }
+
+  // --sop-dynamic <name> — opt into the Pi dynamic-workflow engine.
+  const dynamicMatch = trimmed.match(/--sop-dynamic=(\S+)/) ?? trimmed.match(/--sop-dynamic\s+(\S+)/);
+  if (dynamicMatch) {
+    const sopId = dynamicMatch[1]!;
+    const rest = trimmed.replace(dynamicMatch[0], '').trim();
+    const ticker = extractTicker(rest);
+    const intent = ticker
+      ? rest.replace(new RegExp(ticker.replace(/\./g, '\\.'), 'i'), '').trim() || 'SOP 分析'
+      : rest || 'SOP 分析';
+    return { mode: 'sop', intent, sopId, ...(ticker ? { ticker } : {}), engine: 'dynamic' };
   }
 
   // --sop <name> / --sop=<name>
@@ -277,7 +296,7 @@ function renderSopList(): string {
     for (const w of warnings) lines.push(`      ${w}`);
   }
   lines.push('');
-  lines.push('  💡 运行: /invest --sop <id> <TICKER>');
+  lines.push('  💡 运行: /invest --sop <id> <TICKER>  (或 --sop-dynamic 走 Pi 动态工作流引擎)');
   lines.push('     管理: /sop list · /sop show <id> · /sop install <source> · /sop new <id>');
   lines.push('');
   return lines.join('\n');
@@ -333,7 +352,8 @@ export async function runInvest(args: string, options: InvestmentWorkflowOptions
       '    /invest --resume <planId>            从 checkpoint 恢复',
       '    /invest --list                       列出所有 plan',
       '    /invest --sops                       列出所有可用 SOP（内置 + 用户自定义）',
-      '    /invest --sop <id> <TICKER>          用指定 SOP 运行',
+      '    /invest --sop <id> <TICKER>          用指定 SOP 运行（legacy executor）',
+      '    /invest --sop-dynamic <id> <TICKER>  用 Pi dynamic-workflow 引擎运行（真并行 + token 计费 + resume）',
       '',
       '  自定义 SOP: ~/.upup/sops/*.yaml 或 <cwd>/.upup/sops/*.yaml',
       '  自定义 Agent: ~/.upup/agents/*.json 或 <cwd>/.upup/agents/*.json',
@@ -344,12 +364,12 @@ export async function runInvest(args: string, options: InvestmentWorkflowOptions
   // --list
   if (trimmed === '--list' || trimmed === '-l') return renderList();
 
-  const { mode, ticker, intent, planId, sopId } = parseArgs(trimmed);
+  const { mode, ticker, intent, planId, sopId, engine } = parseArgs(trimmed);
 
   if (mode === 'sops') return renderSopList();
 
   if (mode === 'sop') {
-    if (!sopId) return '\n  用法: /invest --sop <name> <TICKER>（/invest --sops 查看全部）\n';
+    if (!sopId) return '\n  用法: /invest --sop <name> <TICKER> 或 --sop-dynamic <name> <TICKER>（/invest --sops 查看全部）\n';
     const userAgents = loadUserAgentSpecs();
     const catalog = mergeAgentCatalog(Object.values(INVESTMENT_PROFILES), userAgents.agents);
     const knownIds = new Set(catalog.map((a) => a.id));
@@ -367,6 +387,21 @@ export async function runInvest(args: string, options: InvestmentWorkflowOptions
       return `\n  ✗ SOP "${sopId}" 需要 Pi session 工厂；请通过 upup invest / TUI /invest 运行。\n`;
     }
     const agentMap = new Map(catalog.map((a) => [a.id, a] as const));
+    // Opt-in Pi dynamic-workflow engine: `UPUP_SOP_ENGINE=dynamic` (or
+    // `/invest --sop-dynamic <id> <TICKER>`) routes the SOP through
+    // @quintinshaw/pi-dynamic-workflows for real fan-out, model routing,
+    // token accounting, and journaled resume. Default stays the legacy
+    // executor so existing contracts and determinism are preserved.
+    if (engine === 'dynamic' || process.env.UPUP_SOP_ENGINE === 'dynamic') {
+      const dynamicResult = await runSopAsDynamicWorkflow(sop, {
+        ...(ticker ? { ticker } : {}),
+        sink: { onError: () => undefined },
+      });
+      if (dynamicResult) {
+        void intent;
+        return renderSopDynamicRunResult(dynamicResult, sop);
+      }
+    }
     const runner = createPiSopRunner(options.sessionFactory, process.cwd());
     const synthesizerRunner = createPiSopSynthesizer(options.sessionFactory);
     const result = await executeSop(sop, runner, {

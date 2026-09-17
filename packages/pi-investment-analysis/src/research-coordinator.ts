@@ -61,26 +61,106 @@ export function createResearchWorkerRequest(role: ResearchRole, symbol: string, 
   return { role, symbol, question, systemPrompt: ROLE_PROMPTS[role], allowedTools: ROLE_TOOLS[role] };
 }
 
+export type ResearchNeeds = Readonly<Record<string, readonly string[]>>;
+
+export interface ResearchCoordinatorOptions {
+  workers?: readonly ResearchRole[];
+  signal?: AbortSignal;
+  now?: () => number;
+  needs?: ResearchNeeds;
+}
+
+/**
+ * Topological sort of roles by `needs` edges. When no `needs` is given,
+ * returns the roles in their natural order so the flat parallel path is
+ * preserved. Roles are selected from `options.workers` (or ALL_ROLES).
+ * Cycles throw; the caller is expected to validate before passing.
+ */
+export function topologicalResearchRoles(roles: readonly ResearchRole[], needs?: ResearchNeeds): readonly ResearchRole[] {
+  if (!needs) return [...roles];
+  const roleSet = new Set(roles);
+  const edges = new Map<string, readonly string[]>();
+  for (const [id, deps] of Object.entries(needs)) {
+    if (!roleSet.has(id as ResearchRole)) continue;
+    edges.set(id, deps.filter((d) => roleSet.has(d as ResearchRole)));
+  }
+  const sorted: ResearchRole[] = [];
+  const visited = new Set<string>();
+  const visiting = new Set<string>();
+  function visit(role: ResearchRole): void {
+    if (visited.has(role)) return;
+    if (visiting.has(role)) throw new Error(`research DAG cycle at ${role}`);
+    visiting.add(role);
+    for (const dep of edges.get(role) ?? []) {
+      visit(dep as ResearchRole);
+    }
+    visiting.delete(role);
+    visited.add(role);
+    sorted.push(role);
+  }
+  for (const role of roles) visit(role);
+  return sorted;
+}
+
+/** Group topologically sorted roles into sequential batches of parallelizable roles. */
+export function batchResearchRoles(roles: readonly ResearchRole[], needs?: ResearchNeeds): readonly (readonly ResearchRole[])[] {
+  if (!needs) return [roles];
+  const sorted = topologicalResearchRoles(roles, needs);
+  const batches: ResearchRole[][] = [];
+  const done = new Set<string>();
+  let remaining = [...sorted];
+  while (remaining.length > 0) {
+    const batch = remaining.filter((role) => {
+      const deps = (needs[role] ?? []).filter((d) => (done.has(d as ResearchRole) ? false : roleSetHas(roles, d as ResearchRole)));
+      return deps.length === 0;
+    });
+    if (batch.length === 0) throw new Error('research DAG batch empty — cyclic needs?');
+    for (const role of batch) done.add(role);
+    batches.push(batch);
+    remaining = remaining.filter((r) => !batch.includes(r));
+  }
+  return batches;
+}
+
+function roleSetHas(roles: readonly ResearchRole[], role: ResearchRole): boolean {
+  return roles.includes(role);
+}
+
 export async function runResearchCoordinator(
   symbol: string,
   question: string,
   runner: ResearchWorkerRunner | undefined,
-  options: { workers?: readonly ResearchRole[]; signal?: AbortSignal; now?: () => number } = {},
+  options: ResearchCoordinatorOptions = {},
 ): Promise<ResearchCoordinatorResult> {
   if (!runner) throw new Error('research-worker capability is unavailable; analyze_symbol is fail-closed');
   const selected = options.workers?.length ? [...new Set(options.workers)] : [...ALL_ROLES];
+  const batches = batchResearchRoles(selected, options.needs);
   const now = options.now ?? Date.now;
   const startedAt = now();
-  const records = await Promise.all(selected.map(async (role): Promise<ResearchWorkerRecord> => {
-    const started = now();
-    if (options.signal?.aborted) return { role, status: 'blocked', evidence: [], error: 'aborted', startedAt: started, completedAt: now() };
-    try {
-      const result = await runner(createResearchWorkerRequest(role, symbol, question), options.signal ?? new AbortController().signal);
-      return { role, status: 'completed', output: result.output, evidence: [...result.evidence], sessionId: result.sessionId, startedAt: started, completedAt: now() };
-    } catch (error) {
-      return { role, status: options.signal?.aborted ? 'blocked' : 'failed', evidence: [], error: error instanceof Error ? error.message : String(error), startedAt: started, completedAt: now() };
+  const records: ResearchWorkerRecord[] = [];
+
+  const abortedAtStart = options.signal?.aborted === true;
+  for (const batch of batches) {
+    if (abortedAtStart) {
+      // Preserve original contract: every selected role still produces a
+      // record (status 'blocked') so callers see the full worker set.
+      for (const role of batch) {
+        records.push({ role, status: 'blocked', evidence: [], error: 'aborted', startedAt: startedAt, completedAt: now() });
+      }
+      continue;
     }
-  }));
+    const batchResults = await Promise.all(batch.map(async (role): Promise<ResearchWorkerRecord> => {
+      const started = now();
+      if (options.signal?.aborted) return { role, status: 'blocked' as const, evidence: [], error: 'aborted', startedAt: started, completedAt: now() };
+      try {
+        const result = await runner(createResearchWorkerRequest(role, symbol, question), options.signal ?? new AbortController().signal);
+        return { role, status: 'completed' as const, output: result.output, evidence: [...result.evidence], sessionId: result.sessionId, startedAt: started, completedAt: now() };
+      } catch (error) {
+        return { role, status: options.signal?.aborted ? 'blocked' : 'failed', evidence: [], error: error instanceof Error ? error.message : String(error), startedAt: started, completedAt: now() };
+      }
+    }));
+    records.push(...batchResults);
+  }
   return {
     schema: 1,
     symbol,

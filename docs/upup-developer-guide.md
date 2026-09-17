@@ -466,3 +466,55 @@ workflow.run('upup-sop__debate', { ticker: 'AAPL' })
 - 每个 SOP 对应一个 workflow resource：`name = upup-sop__<sopId>`、`version = hash(sop.version)`。
 - `resolve(args)` 校验 `ticker`，返回调用 `runs.host('upup-sop', { sopId, ticker, ... })` 的脚本。
 - 启动自动装载：`@upup/pi-app.initialize()` 调用桥接；缺 `pi-subagents` 时静默跳过。
+
+### 9.8 SOP → Pi dynamic workflow 执行引擎（真并行 + 计费 + resume）
+
+`@quintinshaw/pi-dynamic-workflows` 是 Pi 生态里的完整编排引擎（`agent()` / `parallel()` / `phase()` / 模型分层 / journaled resume / token 计费）。UpUp 把每个 SOP 翻译成它的 JS 脚本并可直接执行：
+
+```bash
+# 显式启用（推荐）
+/invest --sop-dynamic graham 600519.SH
+/invest --sop-dynamic debate AAPL
+
+# 或通过环境变量全局切换
+UPUP_SOP_ENGINE=dynamic bun run dev
+# 然后：/invest --sop momentum NVDA
+```
+
+**两层桥接**
+
+| 模块 | 职责 |
+|---|---|
+| `packages/pi-investment-workflow/src/bridge/dynamic-workflow-bridge.ts` | 纯函数：`sopToDynamicWorkflowScript(sop, { ticker })` → `{ script, meta }`，把 `phases` / `parallelGroups` 翻译成 `phase()` / `agent({tier})` / `parallel([...])` / `return` |
+| `packages/pi-investment-workflow/src/bridge/dynamic-workflow-runner.ts` | 执行：`runSopAsDynamicWorkflow(sop, options)` → `runWorkflow(script, { args, tokenBudget, concurrency, onPhase, onAgentStart, onAgentEnd })` |
+
+**收益**
+
+- 真并行扇出：16 并发 / 1000 总量（`concurrency` 可覆盖）
+- 每个 phase 独立模型分层（`small` / `medium` / `big`，默认来自 agent 角色）
+- journaled resume：中断后重跑只重放未完成的 agent
+- token / cost 会计：`result.tokenUsage` 直接可用于 `/invest` 报表
+- 失败隔离：缺 `@quintinshaw/pi-dynamic-workflows` 时静默回落到 legacy `executeSop`
+
+**为宿主准备的两个入口**
+
+```ts
+import { sopToDynamicWorkflowScript, runSopAsDynamicWorkflow } from '@upup/pi-investment-workflow';
+```
+
+### 9.9 Research DAG（`@arhen/pi-core-subagent` needs 边）
+
+`analyze_symbol` 的 4 个 canonical 研究角色（`technical-analysis` / `fundamental-analysis` / `capital-flow` / `sentiment-analysis`）现在支持 `needs` 边：
+
+```jsonc
+// analyze_symbol 参数
+{
+  "symbol": "600519.SH",
+  "question": "估值是否合理？",
+  "needs": { "capital-flow": ["fundamental-analysis"] }   // 资金流等基本面先完成
+}
+```
+
+- `packages/pi-runtime/src/research-dag.ts` 在 session 启动时通过 `registerUpUpResearchDag(pi)` 挂载 `@arhen/pi-core-subagent` 的 DAG scheduler。
+- `packages/pi-investment-analysis/src/research-coordinator.ts` 导出 `topologicalResearchRoles()` 与 `batchResearchRoles()`；无 `needs` 时保持原有的 `Promise.all` 平铺语义，向后兼容。
+- 循环依赖会以 `research DAG cycle at <role>` 抛出，调用方负责在 `analyze_symbol` 前置校验。
