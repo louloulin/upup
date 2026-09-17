@@ -21,6 +21,12 @@
  *      36/36 event surface sees the ecosystem packages registering their own
  *      handlers — important for `tool_execution_start` accounting.
  *
+ * Subagent registration:
+ *   After every package's `default(pi)` returns, we also call
+ *   `registerUpUpFinanceSubagents(pi)` so UpUp's four canonical subagents
+ *   (`bull`, `bear`, `synthesizer`, `risk`) are available to SOPs that
+ *   use `pi-subagents`'s DAG scheduler (e.g. `sops/debate.yaml`).
+ *
  * Dev / production split:
  *   - `createUpUpEcosystemExtension()` is what the runtime calls.
  *   - `mountUpUpEcosystemPackages(pi)` is the pure function tests assert on.
@@ -153,19 +159,33 @@ export async function mountUpUpEcosystemPackages(
  */
 export function createUpUpEcosystemExtension(options: MountEcosystemOptions = {}): (pi: ExtensionAPI) => void {
   return (pi: ExtensionAPI): void => {
-    const runner = (): Promise<EcosystemMountReport> =>
-      mountUpUpEcosystemPackages(pi, options).catch((error: unknown) => {
-        const message = error instanceof Error ? error.message : String(error);
-        return {
-          mounted: [],
-          verifiedDirty: [],
-          importFailed: [{ name: '<runner>', importPath: '<runner>', error: message }],
-          notCallable: [],
-          mountThrew: [],
-          outcomes: [{ kind: 'mount_threw', name: '<runner>', importPath: '<runner>', error: message }],
-          at: Date.now(),
-        };
+    const runner = async (): Promise<EcosystemMountReport> => {
+      const fallback = (message: string): EcosystemMountReport => ({
+        mounted: [],
+        verifiedDirty: [],
+        importFailed: [],
+        notCallable: [],
+        mountThrew: [{ name: '<runner>', importPath: '<runner>', error: message }],
+        outcomes: [{ kind: 'mount_threw', name: '<runner>', importPath: '<runner>', error: message }],
+        at: Date.now(),
       });
+      const report = await mountUpUpEcosystemPackages(pi, options).catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : String(error);
+        return fallback(message);
+      });
+      // After the package sweep, register UpUp finance subagents on the
+      // same `pi`. Done lazily so a `pi-subagents` failure cannot break
+      // the package mount report. Errors flow through the optional sink.
+      try {
+          const { registerUpUpFinanceSubagents } = await import('./finance-subagents');
+          await registerUpUpFinanceSubagents(pi);
+        } catch {
+          // Sink-less by design: the surface extension already records
+          // every event through its audit trail; an extra registration
+          // failure does not need a parallel channel.
+        }
+      return report;
+    };
     void runner();
   };
 }

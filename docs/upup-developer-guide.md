@@ -253,9 +253,16 @@ mountUpUpEventSurface(pi, {
 - **契约保护**：对 `before_provider_request` / `context` / `message_end` / `tool_call` / `tool_result` / `user_bash` 等"返回值会被 Pi 消费"的事件，普通 `behaviors` 的返回会被丢弃并在审计里记 `contractViolation: true`。要拿到结果请在 `contractBehaviors` 里注册。
 - **漂移守卫**：`PI_CANONICAL_EVENT_NAMES` 在安装的 Pi SDK 的 `.d.ts` 里解析得来（`scripts/check-pi-extension-coverage.ts`），Pi 改事件名时 CI 立刻红。
 
-### 8.2 ExtensionAPI 的 16 / 24
+### 8.2 ExtensionAPI 的 24 / 24
 
-UpUp 当前用到的 ExtensionAPI 方法：`registerTool`、`registerCommand`、`registerFlag`、`getFlag`、`registerMarkdownTransformer`、`sendMessage`、`sendUserMessage`、`appendEntry`、`setSessionName`、`getSessionName`、`getActiveTools`、`getAllTools`、`setActiveTools`、`getCommands`、`setThinkingLevel`、`registerProvider`。未用：`registerShortcut` / `registerMessageRenderer` / `registerEntryRenderer` / `setLabel` / `exec` / `setModel` / `getThinkingLevel` / `unregisterProvider` — 在 `bun run check:pi-extension-coverage` 报告里看得到，原因都在源码注释里。
+UpUp 已经用足 Pi SDK 0.85.1 暴露的全部 24 个 ExtensionAPI 方法。新加的 8 个由 `packages/pi-runtime/src/advanced-extension-api.ts` 装配，按用途分组：
+
+- **键盘/渲染**：`registerShortcut`（`Ctrl+L` 切 watchlist panel）、`registerMessageRenderer`（assistant 消息 ticker 高亮）、`registerEntryRenderer`（`upup_pi_policy_audit` / `upup_unsourced_numbers` / `upup_session_health` / `upup_session_directive` 四种 audit entry 的视觉形状）
+- **会话导航**：`setLabel`（`session_before_tree` 时按 ticker · phase 标注分支）
+- **模型/思考**：`setModel`（`model_select` 时热切 + 持久化）、`getThinkingLevel`（footer / `report:pi7` 读取）
+- **执行与生命周期**：`exec`（`user_bash` 走白名单 `git` / `which` / `ls` / `bun`，未知命令拒绝）、`unregisterProvider`（`session_shutdown` 注销 `ollama` / `perplexity` 等 UpUp-registered custom provider，保证 reload 时拿到干净 registry）
+
+每个调用都接 `UpUpAdvancedExtensionPorts` 注入 + best-effort try/catch，单个方法缺位/抛错都不影响 session。
 
 ### 8.3 启动 flag
 
@@ -274,3 +281,116 @@ UpUp 当前用到的 ExtensionAPI 方法：`registerTool`、`registerCommand`、
 UpUp 不自己实现工作流引擎、子 Agent 调度、记忆或 web 检索——这些由 Pi 及其生态提供，UpUp 只做**金融领域层**：真实数据接入、指标/估值/风险工具、Pi package 装配与 policy 守门。
 
 因此你定义的 SOP/Agent 是纯声明式的：换宿主（Pi CLI、headless `upup invest`、后续的 RPC/MCP 入口）时不需要改 YAML/JSON。
+
+### 9.1 UpUp 已集成并验证的 Pi 生态包
+
+`@upup/pi-runtime` 暴露 `UPUP_ECOSYSTEM_PACKAGES` 注册表，`createUpUpEcosystemExtension()` 在每个 session 启动时通过 `extensionFactories` 一并挂载。每个包都通过了 `bun run check:pi-ecosystem-deps`（registry 版本与 `node_modules` 一致 + default export 在 fake `pi` 上成功 mount）：
+
+| npm 包 | 版本 | 类别 | 替代的 UpUp 自带能力 | 备注 |
+|---|---|---|---|---|
+| `pi-subagents` | 0.68.0 | subagent | — | single-agent delegation + scripted multi-agent workflows |
+| `pi-web-access` | 0.29.0 | web | `@upup/pi-research` | 30+ 搜索/抓取 provider；同名工具二选一 |
+| `pi-web-search` | 1.6.0 | web | — | provider-native web search（Gemini URL Context / xAI Grok / OpenAI Responses） |
+| `pi-cache-optimizer` | 2.8.10 | cache | `@upup/pi-cache` | stable prompt + OpenAI-compatible cache key，大幅提升 KV cache 命中率 |
+| `pi-advisor-flow` | 0.6.0 | advisor | — | Executor/Advisor：模型可向更强者申请 second opinion |
+| `@plannotator/pi-extension` | 0.27.15 | plan-review | — | 浏览器端 plan review + annotation，`/invest` 完成后弹出 plan 标注 |
+| `rolebox` | 1.9.0 | roles | — | per-role prompts/models/skills/permissions；UpUp SOP role 格式是 rolebox 的超集 |
+| `pi-hermes-memory` | 0.9.9 | memory | `@upup/memory` | SQLite FTS5 + procedural skills + secret scanning；同名工具二选一 |
+| `pi-goal-list-loop-audit` | 0.38.56 | workflow | — | mission control：interview-drafted goals + detached auditor |
+| `@arhen/pi-core-subagent` | 1.3.54 | subagent | `@upup/pi-investment-analysis/research-coordinator` | DAG dependency-graph subagent scheduler |
+
+`supersedes` 列的同名工具冲突由 `@upup/pi-app/bootstrap-agent` 的 `UPUP_SUPERSEDED_SOURCES` 守门（默认 `autoload: false`）；启用前请阅读其 `caveats`。
+
+### 9.2 加新 Pi 生态包的标准流程
+
+1. `bun add <pkg>@<version>` 装到项目根 `node_modules`（与 Pi SDK peer dep 对齐）。
+2. 在 `packages/pi-runtime/src/ecosystem-packages.ts` 的 `UPUP_ECOSYSTEM_PACKAGES` 加一条；`importPath` 必须是 `bun import` 能解析的真实路径（不要写 `./dist/index.js` 之类编译后路径）。
+3. `bun run check:pi-ecosystem-deps` 必须绿；CI 也会跑。
+4. 若该包替换了 UpUp 自带能力，把 `supersedes` 填上 + 在 `packages/pi-app/src/bootstrap-agent.ts` 的 `UPUP_SUPERSEDED_SOURCES` 加 `npm:<pkg>`。
+5. 若希望 `upup plugin recommend` 列出，把同样条目写到 `packages/pi-cli-bootstrap/src/recommended-plugins.ts` 并附上 `caveats`。
+6. `bun run report:pi7` 的 `ecosystem.coveragePercent` 必须保持 100%。
+
+### 9.3 跨平台暴露（对标 TradingAgents）
+
+UpUp 提供三种 host transport，**全部基于 Pi 协议**（不自己造轮子）：
+
+#### Pi RPC Mode（命令 / 响应）
+
+```
+$ upup --mode rpc      # JSON over stdin/stdout（命令+响应）
+$ upup --mode json     # JSON over stdout（全事件流）
+$ upup --stdio         # 等价 --mode rpc 的别名（Claude Code / ACP 入口）
+$ upup --acp           # 同上
+```
+
+TradingAgents / Claude Code / Codex 通过 stdin 发送 JSON-RPC 命令，UpUp 通过 Pi 的 `runRpcMode` 完成会话并把响应写回 stdout。这是 Pi 0.85.1 的标准协议，UpUp 不再额外实现。
+
+#### MCP Server（工具暴露）
+
+```
+$ upup-mcp serve                # 直接启动 stdio MCP server
+$ upup mcp serve                # 走 UpUp CLI dispatch
+```
+
+`@upup/mcp-server` 把 UpUp finance / market-data / research tools 暴露为 `upup_finance__<tool>` 命名空间。当前实现的 7 个工具（全部 read-only，金融写操作留在 Pi policy 后面）：
+
+| MCP tool | 调用的 UpUp 函数 |
+|---|---|
+| `upup_finance__get_stock_price` | `NativeResearchDataClient.getStockPrice` |
+| `upup_finance__get_key_ratios` | `NativeResearchDataClient.getKeyRatios` |
+| `upup_finance__get_company_profile` | `getNativeCompanyProfile` |
+| `upup_finance__get_filings` | `readNativeFilings` |
+| `upup_finance__get_astock_news` | `fetchNativeAStockNews` |
+| `upup_finance__get_astock_financials` | `fetchNativeAStockFinancials` |
+| `upup_finance__list_investment_strategies` | `listNativeInvestmentStrategies` |
+
+在 TradingAgents / Claude Code 的 `mcpServers` 配置里加：
+
+```json
+{
+  "mcpServers": {
+    "upup-finance": { "command": "upup-mcp", "args": ["serve"] }
+  }
+}
+```
+
+#### Pi 金融子代理（debate / synthesizer / risk）
+
+`packages/pi-runtime/src/finance-subagents.ts` 在每个 session 启动时调用 `pi-subagents` 的 `registerAgent` API，把四个 canonical 角色挂到 Pi 的 `subagent` 工具上：
+
+| 名字 | 系统提示词定位 | 工具限制 |
+|---|---|---|
+| `bull` | 多头论证，引用每个数字的来源 | 排除 `place_trade_order` / `config_set` / `write_file` |
+| `bear` | 空头论证，反向情景 | 同上 |
+| `synthesizer` | 综合 bull + bear + 显式分歧地图 | 同上 |
+| `risk` | 仓位 / 回撤 / 相关性，独立 risk review | 同上 |
+
+SOP（如 `sops/debate.yaml`）通过 Pi `subagent` 工具直接调用它们，DAG 调度由 `pi-subagents` 提供，UpUp 不再维护并行多代理运行时。
+
+```yaml
+# sops/debate.yaml —— 默认开箱可用
+phases:
+  - name: bull-case
+    parallel: [{ tool: subagent, args: { agent: bull, task: "<TICKER> 多头论证" } }]
+  - name: bear-case
+    parallel: [{ tool: subagent, args: { agent: bear, task: "<TICKER> 空头论证" } }]
+  - name: synthesize
+    steps: [{ tool: subagent, args: { agent: synthesizer, task: "综合上面两份报告" } }]
+  - name: risk-review
+    steps: [{ tool: subagent, args: { agent: risk, task: "给出仓位与止损" } }]
+```
+
+#### SDK in-process（Node 内嵌）
+
+`PiAgentSessionFactory` 已经是 Node 进程内的唯一会话入口（`packages/pi-session/agent-session-factory.ts`）。任何 Node 进程要内嵌 UpUp：
+
+```ts
+import { getPiNativeApp } from '@upup/pi-app/default';
+import { runInvestCommand } from '@upup/pi-cli-bootstrap';
+const app = getPiNativeApp();
+const factory = app.getSessionFactory();
+const session = await factory.create({ cwd: process.cwd(), /* ... */ });
+```
+
+无新代码 — 这就是 `@upup/pi-app/default` 的设计目标。
+

@@ -1,0 +1,76 @@
+{
+  "name": "@upup/mcp-server",
+  "version": "0.1.0",
+  "description": "UpUp MCP server \u2014 exposes UpUp finance / market-data / portfolio tools as `upup_finance__<tool>` for TradingAgents / Claude Code / Codex and any MCP-compatible client.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "bun": "./src/index.ts",
+      "default": "./dist/index.js"
+    },
+    "./server": {
+      "types": "./dist/server.d.ts",
+      "bun": "./src/server.ts",
+      "default": "./dist/server.js"
+    },
+    "./tools": {
+      "types": "./dist/tools.d.ts",
+      "bun": "./src/tools.ts",
+      "default": "./dist/tools.js"
+    },
+    "./cli": {
+      "types": "./dist/cli.d.ts",
+      "bun": "./src/cli.ts",
+      "default": "./dist/cli.js"
+    }
+  },
+  "bin": {
+    "upup-mcp": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "bun build src/index.ts --outdir=dist --target=node && bun build src/server.ts --outdir=dist --target=node && bun build src/tools.ts --outdir=dist --target=node && bun build src/cli.ts --outdir=dist --target=node && npx tsc --emitDeclarationOnly --declaration --declarationMap --outDir dist",
+    "dev": "bun build src/cli.ts --outdir=dist --watch --target=node",
+    "test": "bun test"
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "@upup/pi-finance-sdk": "0.1.0",
+    "@upup/pi-market-data": "0.1.0",
+    "@upup/pi-research": "0.1.0",
+    "@upup/pi-runtime": "0.1.0",
+    "@upup/pi-investment-analysis": "0.1.0",
+    "@upup/utils": "0.2.0",
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "typebox": "1.3.7"
+  },
+  "keywords": [
+    "upup",
+    "mcp",
+    "model-context-protocol",
+    "finance",
+    "investment",
+    "trading-agents",
+    "claude-code"
+  ],
+  "pi": {
+    "contract": "upup.pi.runtime.v1",
+    "source": "builtin:upup",
+    "trust": {
+      "mode": "builtin"
+    },
+    "lifecycle": {
+      "scope": "service"
+    },
+    "extensions": [],
+    "skills": [],
+    "prompts": [],
+    "workflows": [],
+    "policies": [],
+    "evals": []
+  }
+}

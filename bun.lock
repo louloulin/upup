@@ -145,6 +145,23 @@
         "zod": "3.25.76",
       },
     },
+    "packages/mcp-server": {
+      "name": "@upup/mcp-server",
+      "version": "0.1.0",
+      "bin": {
+        "upup-mcp": "./dist/cli.js",
+      },
+      "dependencies": {
+        "@modelcontextprotocol/sdk": "1.29.0",
+        "@upup/pi-finance-sdk": "0.1.0",
+        "@upup/pi-investment-analysis": "0.1.0",
+        "@upup/pi-market-data": "0.1.0",
+        "@upup/pi-research": "0.1.0",
+        "@upup/pi-runtime": "0.1.0",
+        "@upup/utils": "0.2.0",
+        "typebox": "1.3.7",
+      },
+    },
     "packages/memory": {
       "name": "@upup/memory",
       "version": "0.2.0",
@@ -163,6 +180,7 @@
         "@upup/cron": "0.2.0",
         "@upup/gateway": "0.2.0",
         "@upup/mcp": "0.2.0",
+        "@upup/mcp-server": "0.1.0",
         "@upup/pi-event-adapter": "0.1.0",
         "@upup/pi-finance-sdk": "0.1.0",
         "@upup/pi-investment-workflow": "0.1.0",
@@ -1172,6 +1190,8 @@
     "@upup/gateway": ["@upup/gateway@workspace:packages/gateway"],
 
     "@upup/mcp": ["@upup/mcp@workspace:packages/mcp"],
+
+    "@upup/mcp-server": ["@upup/mcp-server@workspace:packages/mcp-server"],
 
     "@upup/memory": ["@upup/memory@workspace:packages/memory"],
 

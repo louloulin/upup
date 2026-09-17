@@ -96,6 +96,53 @@ async function readSkillReachability(): Promise<Record<string, unknown>> {
 }
 
 
+
+async function readMcpServerStatus(): Promise<Record<string, unknown>> {
+  const mcpServerIndex = resolve(root, 'packages/mcp-server/src/index.ts');
+  const mcpServerTools = resolve(root, 'packages/mcp-server/src/tools.ts');
+  if (!existsSync(mcpServerIndex) || !existsSync(mcpServerTools)) {
+    return { contract: 'upup.pi.mcp-server.v1', available: false, reason: 'packages/mcp-server not installed' };
+  }
+  try {
+    const importer = new Function('s', 'return import(s)') as (s: string) => Promise<{ UPUP_MCP_TOOLS: readonly { name: string; description: string }[] }>;
+    const mod = await importer(resolve(root, 'packages/mcp-server/src/index.ts'));
+    const tools = mod.UPUP_MCP_TOOLS ?? [];
+    const names = tools.map((t) => t.name);
+    return {
+      contract: 'upup.pi.mcp-server.v1',
+      available: true,
+      toolCount: tools.length,
+      toolNames: names,
+      readOnly: !names.some((n) => /place_trade_order|config_set|write_file/.test(n)),
+      namespace: 'upup_finance__',
+      coveragePercent: Math.round((names.length / 7) * 10000) / 100,
+      notes: 'Tools are intentionally read-only; financial-write operations stay behind Pi policy.',
+    };
+  } catch (error) {
+    return { contract: 'upup.pi.mcp-server.v1', available: false, reason: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+
+async function readFinanceSubagentStatus(): Promise<Record<string, unknown>> {
+  try {
+    const importer = new Function('s', 'return import(s)') as (s: string) => Promise<{
+      UPUP_FINANCE_SUBAGENT_DEFAULTS: readonly { name: string; description: string }[];
+    }>;
+    const mod = await importer(resolve(root, 'packages/pi-runtime/src/finance-subagents.ts'));
+    const defaults = mod.UPUP_FINANCE_SUBAGENT_DEFAULTS ?? [];
+    return {
+      contract: 'upup.pi.finance-subagents.v1',
+      registered: defaults.length,
+      agents: defaults.map((a) => ({ name: a.name, description: a.description.slice(0, 80) })),
+      integration: 'pi-subagents registerAgent()',
+      notes: 'bull/bear/synthesizer/risk default set; SOPs can override via .upup/sops/*.yaml',
+    };
+  } catch (error) {
+    return { contract: 'upup.pi.finance-subagents.v1', unavailable: error instanceof Error ? error.message : 'unknown' };
+  }
+}
+
 async function readEcosystemStatus(): Promise<Record<string, unknown>> {
   const nodeModules = join(root, 'node_modules');
   const entries = await Promise.all(UPUP_ECOSYSTEM_PACKAGES.map(async (spec) => {
@@ -203,5 +250,7 @@ console.log(JSON.stringify({
   },
   skills: await readSkillReachability(),
   ecosystem: await readEcosystemStatus(),
+  financeSubagents: await readFinanceSubagentStatus(),
+  mcpServer: await readMcpServerStatus(),
   rootAllowlist: ['src/index.tsx', 'src/bootstrap/**'],
 }, null, 2));

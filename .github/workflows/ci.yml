@@ -35,6 +35,7 @@ jobs:
             command: bun run check:pi-extension-coverage
             command: bun run check:pi-ecosystem-deps
             command: bun run check:sop-coverage
+            command: bun run check:cross-platform-exposure
           - task: typecheck
             command: bun run typecheck
           - task: test

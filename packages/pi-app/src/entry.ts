@@ -179,6 +179,29 @@ async function main() {
       process.exit(brResult.exitCode);
       break;
 
+    case 'mcp':
+      // MCP server: `upup mcp serve` (default subcommand = serve).
+      // TradingAgents / Claude Code / Codex register this in their
+      // `mcpServers` config and consume UpUp's finance tools over stdio.
+      // The `upup-mcp` binary is the direct equivalent (no extra flags).
+      const mcpSubcommand = args[1] ?? 'serve';
+      if (mcpSubcommand === 'serve') {
+        const { UpUpMcpServer } = await import('@upup/mcp-server');
+        const server = new UpUpMcpServer();
+        const shutdown = async (signal: NodeJS.Signals): Promise<void> => {
+          process.stderr.write(`upup mcp: received ${signal}, shutting down\n`);
+          try { await server.close(); } finally { process.exit(0); }
+        };
+        process.once('SIGINT', shutdown);
+        process.once('SIGTERM', shutdown);
+        process.stderr.write(`upup mcp: serving ${server.toolCount()} tools on stdio (namespace upup_finance__)\n`);
+        await server.runStdio();
+        return;
+      }
+      process.stderr.write(`upup mcp: unknown subcommand "${mcpSubcommand}" (try "serve")\n`);
+      process.exit(1);
+      break;
+
     case 'help':
     case '--help':
     case '-h':

@@ -81,6 +81,7 @@
     "verify:pi7-final": "bun run scripts/verify-pi7-final.ts",
     "check:upup-home": "bun run scripts/check-upup-home.ts",
     "check:sop-coverage": "bun run scripts/check-sop-coverage.ts",
+    "check:cross-platform-exposure": "bun run scripts/check-cross-platform-exposure.ts",
     "check:pi-extension-coverage": "bun run scripts/check-pi-extension-coverage.ts",
     "check:pi-ecosystem-deps": "bun run scripts/check-pi-ecosystem-deps.ts",
     "lint:upup-home": "bun run scripts/check-upup-home.ts",

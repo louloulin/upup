@@ -64,6 +64,7 @@
     "@upup/pi-platform": "0.1.0",
     "@upup/pi-runtime": "0.1.0",
     "@upup/pi-session": "0.1.0",
-    "@upup/utils": "0.2.0"
+    "@upup/utils": "0.2.0",
+    "@upup/mcp-server": "0.1.0"
   }
 }

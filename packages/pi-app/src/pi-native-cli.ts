@@ -54,6 +54,13 @@ export interface PiNativeRunCliOptions {
   readonly runtime?: unknown;
   readonly capabilities?: unknown;
   readonly terminalSize?: { columns: number; rows: number };
+  /**
+   * Pi's `--mode` flag. Two values are useful for cross-platform exposure:
+   *   - `rpc`: JSON over stdin/stdout (TradingAgents / Claude Code wrapper).
+   *   - `json`: JSON over stdout (full event stream; integration testing).
+   * Default is the standard interactive TUI.
+   */
+  readonly mode?: 'rpc' | 'json' | undefined;
 }
 
 function buildArgs(options: PiNativeRunCliOptions): string[] {
@@ -69,6 +76,14 @@ function buildArgs(options: PiNativeRunCliOptions): string[] {
   }
   if (options.noExtensions) {
     args.push('--no-extensions');
+  }
+  if (options.mode) {
+    // Pi's `--mode` switches the host transport between TUI (default),
+    // RPC (command/response over stdin/stdout), and JSON (event stream over
+    // stdout). UpUp exposes both through `upup --mode rpc` and
+    // `upup --mode json` so TradingAgents / Claude Code / Codex can drive
+    // UpUp the same way they drive Pi.
+    args.push('--mode', options.mode);
   }
   // `-e` paths are NOT covered by `--no-extensions` (Pi's resource-loader
   // merges `cliEnabledExtensions` unconditionally), so the UpUp finance

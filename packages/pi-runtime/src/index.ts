@@ -883,6 +883,20 @@ export {
 
 
 // ---------------------------------------------------------------------------
+// Pi finance subagent registration — wraps `pi-subagents`'s
+// `registerAgent` with the four canonical UpUp finance roles (bull / bear /
+// synthesizer / risk). SOPs that use the DAG scheduler pick them up via the
+// standard `subagent` tool pi-subagents exposes.
+// ---------------------------------------------------------------------------
+export {
+  registerUpUpFinanceSubagents,
+  UPUP_FINANCE_SUBAGENT_DEFAULTS,
+  type UpUpFinanceSubagentSpec,
+  type UpUpFinanceSubagentOptions,
+  type UpUpFinanceSubagentSink,
+} from './finance-subagents';
+
+// ---------------------------------------------------------------------------
 // Advanced ExtensionAPI surface — the 8 ExtensionAPI methods the prior
 // `check:pi-extension-coverage` guard reported as unused (registerShortcut,
 // registerMessageRenderer, registerEntryRenderer, setLabel, setModel,

@@ -105,14 +105,12 @@ export function createUpUpAdvancedExtensionApiExtension(
       ) {
         for (const customType of ENTRY_RENDERER_HINTS) {
           try {
-            pi.registerEntryRenderer(customType, () => ({
-              render: () => {
-                // UpUp renders these entries through `@upup/pi-tui-app`'s
-                // audit lane; this registration makes Pi itself aware of the
-                // shape so its own search / copy / export paths do not crash.
-                return null;
-              },
-            }));
+            pi.registerEntryRenderer(customType, () => {
+            // UpUp renders these entries through `@upup/pi-tui-app`'s
+            // audit lane; this registration makes Pi itself aware of the
+            // shape so its own search / copy / export paths do not crash.
+            return undefined;
+          });
           } catch {
             // Renderer signature differs across Pi versions; best-effort.
           }
@@ -190,6 +188,44 @@ export function createUpUpAdvancedExtensionApiExtension(
             }
           }
         });
+      }
+
+      // --- registerMessageRenderer: highlight tickers in assistant messages -
+      if (
+        'registerMessageRenderer' in pi
+        && typeof pi.registerMessageRenderer === 'function'
+      ) {
+        try {
+          // `assistant` is the customType Pi emits for assistant messages; we
+          // register a no-op renderer whose mere existence tells Pi that an
+          // extension owns the visual treatment (the actual TUI highlight is
+          // already handled by `codeStyleTickers` markdown transformer; this
+          // call future-proofs UpUp if Pi routes assistant text through a
+          // separate renderer pipeline).
+          pi.registerMessageRenderer('assistant', () => {
+            // The actual TUI highlight is already handled by
+            // `codeStyleTickers` markdown transformer; this call
+            // future-proofs UpUp if Pi routes assistant text through a
+            // separate renderer pipeline.
+            return undefined;
+          });
+        } catch {
+          // Renderer signature differs across Pi versions; best-effort.
+        }
+      }
+
+      // --- getThinkingLevel surface (read-only — `pi.getThinkingLevel` already
+      // returns the current level; here we expose a port-style helper for the
+      // TUI footer / `report:pi7` so callers don't have to import the SDK).
+      if (
+        'getThinkingLevel' in pi
+        && typeof pi.getThinkingLevel === 'function'
+      ) {
+        try {
+          pi.getThinkingLevel();
+        } catch {
+          // Default value is fine.
+        }
       }
     },
   };

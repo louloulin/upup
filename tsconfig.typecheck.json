@@ -17,6 +17,9 @@
       "@upup/mcp": [
         "./packages/mcp/src/index.ts"
       ],
+      "@upup/mcp-server": [
+        "./packages/mcp-server/src/index.ts"
+      ],
       "@upup/memory": [
         "./packages/memory/src/index.ts"
       ],
