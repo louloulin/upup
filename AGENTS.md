@@ -218,7 +218,11 @@ UpUp 不去 fork Pi，而是用 Pi 官方扩展点 `before_agent_start`（`Befor
   128k，实测可服务 260k+ prompt）时，长会话的 `max_tokens` 被夹到 1，网关再返回 `finish_reason: "length"` + 128 token 上限，
   每轮都截断。`@upup/pi-runtime` 的 `before_provider_request`（`contractBehaviors`，返回值会替换 payload）用
   `repairDegenerateOutputBudget` 把 <1024 的预算恢复到模型声明的 `maxTokens`，并在审计里记 `outputBudgetRepair`。
-  端到端守门：`packages/pi-runtime/src/provider-output-budget.e2e.test.ts`（走 Pi 真实 `ExtensionRunner` + 真实
+  检测走 `MAX_BUDGET_PATH_DEPTH = 3` 层嵌套，覆盖 `max_tokens` / `max_completion_tokens` / `max_output_tokens`（OpenAI /
+  Anthropic / Azure Responses）、`maxOutputTokens`（Google Vertex `params.config.generationConfig.maxOutputTokens`、
+  Google Generative AI）、`maxTokens`（Amazon Bedrock `params.inferenceConfig.maxTokens`），与 Pi 自带的 11 个
+  `onPayload` 桥接的 provider adapter 全部对齐。端到端守门：
+  `packages/pi-runtime/src/provider-output-budget.e2e.test.ts`（走 Pi 真实 `ExtensionRunner` + 真实
   `openai-completions` 请求体捕获）。放大因素 `compaction.enabled=false` 会让 Pi 的溢出/截断自愈整体短路，
   `upup doctor` 的 `Auto Compact` 检查会告警（只读，不覆盖用户设置）。
 - `resolvePiModel` 只查 `getBuiltinModel` + ollama，不查 `modelRuntime`，`~/.upup/agent/models.json` 自定义 provider 静默 fallback 到 Pi default。

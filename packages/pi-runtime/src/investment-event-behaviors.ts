@@ -330,32 +330,81 @@ export function resolveOutputBudgetTarget(modelMaxTokens: number | undefined): n
 }
 
 /**
- * Request fields carrying the output budget, in Pi's own write order. The
- * provider API decides which one is used (`max_tokens` for
- * `openai-completions` / `anthropic-messages`, `max_completion_tokens` for
- * newer OpenAI routes, `max_output_tokens` for the Responses API), so all
- * three are inspected.
+ * Request fields carrying the output budget, in Pi's own write order.
+ *
+ * - `max_tokens`            — `openai-completions` / `anthropic-messages`
+ * - `max_completion_tokens` — newer OpenAI routes
+ * - `max_output_tokens`     — OpenAI / Azure Responses
+ * - `maxOutputTokens`       — Google Vertex / Generative AI
+ *                             (`params.config.generationConfig.maxOutputTokens`)
+ * - `maxTokens`             — Amazon Bedrock Converse
+ *                             (`params.inferenceConfig.maxTokens`)
+ * - `max_tokens_to_sample`  — Cohere / older Bedrock spellings
+ *
+ * The provider API decides which one is used, so all known spellings are
+ * inspected including through nested objects up to `MAX_BUDGET_PATH_DEPTH`
+ * levels. This keeps the fix provider-agnostic: the same hook that repairs an
+ * OpenAI Completions `max_tokens: 1` also repairs the equivalent clamp on
+ * Vertex, Generative AI, and Bedrock without a per-provider branch.
  */
-const OUTPUT_BUDGET_FIELDS = ['max_tokens', 'max_completion_tokens', 'max_output_tokens'] as const;
+const OUTPUT_BUDGET_FIELDS: ReadonlySet<string> = new Set([
+  'max_tokens',
+  'max_completion_tokens',
+  'max_output_tokens',
+  'maxOutputTokens',
+  'max_tokens_to_sample',
+  'maxTokens',
+]);
+
+/**
+ * Maximum nesting depth we are willing to walk looking for an output budget.
+ * Three covers Google Vertex's `params.config.generationConfig.maxOutputTokens`
+ * (the deepest known Pi provider layout) with one level of headroom for any
+ * future provider that adds an extra wrapper.
+ */
+const MAX_BUDGET_PATH_DEPTH = 3;
 
 export interface OutputBudgetFinding {
+  /** Path from the payload root to the budget field, e.g. `['config', 'generationConfig', 'maxOutputTokens']`. */
+  readonly path: readonly string[];
+  /** Leaf field name (last element of `path`); empty when `path` is empty. */
   readonly field: string;
   readonly value: number;
 }
 
 /** Locate the output budget on an outgoing provider payload, if it carries one. */
 export function findOutputBudget(payload: unknown): OutputBudgetFinding | undefined {
-  if (!payload || typeof payload !== 'object') return undefined;
-  const record = payload as Record<string, unknown>;
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return undefined;
+  return findOutputBudgetAt(payload as Record<string, unknown>, [], 0);
+}
+
+function findOutputBudgetAt(
+  record: Record<string, unknown>,
+  path: readonly string[],
+  depth: number,
+): OutputBudgetFinding | undefined {
+  // Hit each level's named budget fields before descending so a top-level
+  // `max_tokens` always wins over a nested `max_tokens` two levels down.
   for (const field of OUTPUT_BUDGET_FIELDS) {
-    const value = record[field];
-    if (typeof value === 'number' && Number.isFinite(value)) return { field, value };
+    if (Object.hasOwn(record, field)) {
+      const value = record[field];
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        return { path: [...path, field], field, value };
+      }
+    }
+  }
+  if (depth >= MAX_BUDGET_PATH_DEPTH) return undefined;
+  for (const [key, value] of Object.entries(record)) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) continue;
+    const found = findOutputBudgetAt(value as Record<string, unknown>, [...path, key], depth + 1);
+    if (found) return found;
   }
   return undefined;
 }
 
 export interface OutputBudgetRepair {
   readonly field: string;
+  readonly path: readonly string[];
   readonly before: number;
   readonly after: number;
 }
@@ -376,6 +425,11 @@ export interface OutputBudgetRepairResult {
  * is a symptom of a context window the provider catalog is probably
  * under-reporting, and silently hiding it would hide the real defect.
  *
+ * Detection walks the payload to `MAX_BUDGET_PATH_DEPTH` so the same hook
+ * repairs OpenAI Completions, OpenAI Responses, Azure Responses, Anthropic
+ * Messages, Mistral, Google Vertex, Google Generative AI, and Amazon Bedrock
+ * Converse without a per-provider branch.
+ *
  * @param payload  Outgoing provider payload (clamped by Pi already).
  * @param options.floor   Trigger threshold: budgets below this are repaired.
  *                        Defaults to `MIN_PROVIDER_OUTPUT_TOKENS` (Pi's own
@@ -391,15 +445,34 @@ export function repairDegenerateOutputBudget(
   options: { floor?: number; target?: number } = {},
 ): OutputBudgetRepairResult {
   const floor = options.floor ?? MIN_PROVIDER_OUTPUT_TOKENS;
-  if (!payload || typeof payload !== 'object') return { payload };
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return { payload };
   const found = findOutputBudget(payload);
   if (!found || found.value >= floor) return { payload };
   const target = Math.max(floor, Math.floor(options.target ?? floor));
   if (target === found.value) return { payload };
   return {
-    payload: { ...(payload as Record<string, unknown>), [found.field]: target },
-    repair: { field: found.field, before: found.value, after: target },
+    payload: setNestedValue(payload, found.path, target),
+    repair: { field: found.field, path: found.path, before: found.value, after: target },
   };
+}
+
+/** Immutable nested set: returns a fresh object graph with `value` written at `path`. */
+function setNestedValue(
+  source: unknown,
+  path: readonly string[],
+  value: unknown,
+): Record<string, unknown> {
+  const base = source && typeof source === 'object' && !Array.isArray(source)
+    ? { ...(source as Record<string, unknown>) }
+    : {};
+  const [head, ...rest] = path;
+  if (head === undefined) return base;
+  if (rest.length === 0) {
+    base[head] = value;
+    return base;
+  }
+  base[head] = setNestedValue(base[head], rest, value);
+  return base;
 }
 
 // ---------------------------------------------------------------------------

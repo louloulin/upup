@@ -173,7 +173,12 @@ describe('classifyProviderHealth', () => {
 describe('repairDegenerateOutputBudget', () => {
   it('raises a one-token budget to the floor when no target is provided', () => {
     const { payload, repair } = repairDegenerateOutputBudget({ model: 'deepseek-v4.1-flash', max_tokens: 1 });
-    expect(repair).toEqual({ field: 'max_tokens', before: 1, after: MIN_PROVIDER_OUTPUT_TOKENS });
+    expect(repair).toEqual({
+      field: 'max_tokens',
+      path: ['max_tokens'],
+      before: 1,
+      after: MIN_PROVIDER_OUTPUT_TOKENS,
+    });
     expect((payload as { max_tokens: number }).max_tokens).toBe(MIN_PROVIDER_OUTPUT_TOKENS);
     expect((payload as { model: string }).model).toBe('deepseek-v4.1-flash');
   });
@@ -198,8 +203,57 @@ describe('repairDegenerateOutputBudget', () => {
     for (const field of ['max_tokens', 'max_completion_tokens', 'max_output_tokens']) {
       const { payload, repair } = repairDegenerateOutputBudget({ [field]: 128 }, { target: 4096 });
       expect(repair?.field).toBe(field);
+      expect(repair?.path).toEqual([field]);
       expect((payload as Record<string, number>)[field]).toBe(4096);
     }
+  });
+
+  it('repairs nested Google Vertex generationConfig.maxOutputTokens', () => {
+    // Pi builds `params.config.generationConfig.maxOutputTokens` for Vertex and
+    // Generative AI; without depth-aware detection the 1-token clamp on a long
+    // session would survive into the request body.
+    const payload = {
+      model: 'gemini-2.5-pro',
+      contents: [],
+      config: { generationConfig: { temperature: 0.7, maxOutputTokens: 1 } },
+    };
+    const { payload: repaired, repair } = repairDegenerateOutputBudget(payload, { target: 16384 });
+    expect(repair?.field).toBe('maxOutputTokens');
+    expect(repair?.path).toEqual(['config', 'generationConfig', 'maxOutputTokens']);
+    expect(repair?.after).toBe(16384);
+    const cfg = (repaired as { config: { generationConfig: { maxOutputTokens: number; temperature: number } } }).config;
+    expect(cfg.generationConfig.maxOutputTokens).toBe(16384);
+    // Siblings survive the immutable set: a real Vertex request carries
+    // `temperature` next to `maxOutputTokens` and would silently drop it on a
+    // naive top-level replacement.
+    expect(cfg.generationConfig.temperature).toBe(0.7);
+    expect((repaired as { model: string }).model).toBe('gemini-2.5-pro');
+  });
+
+  it('repairs nested Bedrock Converse inferenceConfig.maxTokens', () => {
+    // Pi's bedrock-converse-stream adapter nests the budget one level deep
+    // under `inferenceConfig` with the camelCase key.
+    const payload = { inferenceConfig: { maxTokens: 1, temperature: 0.3 } };
+    const { payload: repaired, repair } = repairDegenerateOutputBudget(payload, { target: 8192 });
+    expect(repair?.field).toBe('maxTokens');
+    expect(repair?.path).toEqual(['inferenceConfig', 'maxTokens']);
+    expect((repaired as { inferenceConfig: { maxTokens: number; temperature: number } }).inferenceConfig.maxTokens).toBe(8192);
+    expect((repaired as { inferenceConfig: { temperature: number } }).inferenceConfig.temperature).toBe(0.3);
+  });
+
+  it('prefers top-level fields over nested ones with the same leaf name', () => {
+    const payload = { max_tokens: 4096, config: { generationConfig: { maxOutputTokens: 1 } } };
+    const { repair } = repairDegenerateOutputBudget(payload);
+    expect(repair).toBeUndefined();
+  });
+
+  it('does not walk deeper than MAX_BUDGET_PATH_DEPTH', () => {
+    // Synthetic deep nest: only the top three levels are scanned, so the
+    // out-of-budget field at depth four must be missed.
+    const payload = {
+      a: { b: { c: { d: { max_tokens: 1 } } } },
+    };
+    expect(findOutputBudget(payload)).toBeUndefined();
   });
 
   it('leaves a usable budget, a missing budget and a non-object payload alone', () => {
