@@ -4,11 +4,13 @@
  * Sits between the browser and the npm-installed @agegr/pi-web dev
  * server. Owns every `/api/upup/*` request; forwards everything else
  * upstream. For `text/html` responses, injects one <script> tag so the
- * vanilla JS sidecar runs inside the upstream React tree.
+ * vanilla JS sidecar runs inside the upstream React tree, and rewrites
+ * <title> / meta tags / favicon links to the UpUp brand.
  */
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import { request as httpRequest } from 'node:http';
 import { handleInvestmentRequest, type InvestmentRouteDeps } from './investment-routes';
+import { injectIntoHtml } from './rebrand';
 
 export interface ProxyOptions {
   readonly publicPort: number;
@@ -29,13 +31,6 @@ function isHtmlResponse(contentType: string | undefined): boolean {
   if (!contentType) return false;
   const ct = contentType.split(';')[0]?.trim().toLowerCase() ?? '';
   return ct === 'text/html';
-}
-
-function injectIntoHtml(html: string): string {
-  if (html.includes(SIDECAR_SCRIPT)) return html;
-  if (html.includes('</head>')) return html.replace('</head>', `${SIDECAR_SCRIPT}</head>`);
-  if (html.includes('<body')) return html.replace('<body', `${SIDECAR_SCRIPT}<body`);
-  return `${SIDECAR_SCRIPT}${html}`;
 }
 
 export async function startProxyServer(opts: ProxyOptions): Promise<ProxyHandle> {
@@ -94,7 +89,7 @@ function proxyUpstream(req: IncomingMessage, res: ServerResponse, opts: ProxyOpt
         upstreamRes.on('data', (chunk: Buffer) => chunks.push(chunk));
         upstreamRes.on('end', () => {
           const body = Buffer.concat(chunks).toString('utf8');
-          const injected = injectIntoHtml(body);
+          const injected = injectIntoHtml(body, SIDECAR_SCRIPT);
           const out = Buffer.from(injected, 'utf8');
           res.statusCode = upstreamRes.statusCode ?? 200;
           for (const [k, v] of Object.entries(upstreamRes.headers)) {

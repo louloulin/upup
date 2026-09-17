@@ -23,6 +23,7 @@ export interface InvestmentRouteDeps {
 }
 
 const SIDECAR_FILE = join(dirname(fileURLToPath(import.meta.url)), '..', 'web', 'upup-sidecar.js');
+const FAVICON_FILE = join(dirname(fileURLToPath(import.meta.url)), '..', 'web', 'upup-favicon.svg');
 
 function sendJson(res: ServerResponse, status: number, body: unknown): void {
   res.statusCode = status;
@@ -55,6 +56,20 @@ export async function handleInvestmentRequest(
   deps: InvestmentRouteDeps,
 ): Promise<boolean> {
   const path = url.split('?')[0] ?? '/';
+
+  if (req.method === 'GET' && path === '/api/upup/favicon.svg') {
+    try {
+      const body = await readFile(FAVICON_FILE);
+      res.statusCode = 200;
+      res.setHeader('content-type', 'image/svg+xml; charset=utf-8');
+      res.setHeader('cache-control', 'public, max-age=86400');
+      res.end(body);
+    } catch (err) {
+      res.statusCode = 500;
+      res.end(`<!-- favicon unavailable: ${err instanceof Error ? err.message : String(err)} -->`);
+    }
+    return true;
+  }
 
   if (req.method === 'GET' && path === '/api/upup/sidecar.js') {
     try {

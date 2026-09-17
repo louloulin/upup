@@ -113,7 +113,46 @@
     root.appendChild(row);
   }
 
+  function injectBranding() {
+    // Inject a CSS rule that hides the upstream Pi Web logo in the
+    // header area. The upstream renders an inline <svg> as the brand
+    // mark; we hide it via attribute selector and inject our own.
+    const style = document.createElement('style');
+    style.textContent = [
+      // Hide upstream logo SVGs in known header locations
+      'header svg[width="40"], header svg[width="32"], header svg[width="24"] { display: none !important; }',
+      'a[href="/"] svg, [aria-label*="Pi"] svg, [aria-label*="pi"] svg { display: none !important; }',
+      'a[href="/"] img, [aria-label*="Pi"] img, [aria-label*="pi"] img { display: none !important; }',
+      // UpUp brand banner
+      '#upup-brand-banner {',
+      '  position: fixed; top: 0; left: 0; right: 0; height: 36px;',
+      '  display: flex; align-items: center; gap: 8px; padding: 0 12px;',
+      '  background: linear-gradient(90deg, #0F4C81 0%, #1E6FBA 100%);',
+      '  color: #FFD24A; font-family: system-ui, -apple-system, sans-serif;',
+      '  font-size: 13px; font-weight: 600; letter-spacing: 0.5px;',
+      '  z-index: 2147483647; box-shadow: 0 1px 3px rgba(0,0,0,0.15);',
+      '  pointer-events: none;',
+      '}',
+      '#upup-brand-banner svg { width: 18px; height: 18px; }',
+    ].join('\n');
+    document.head.appendChild(style);
+
+    // Banner
+    const banner = document.createElement('div');
+    banner.id = 'upup-brand-banner';
+    banner.innerHTML = [
+      '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" fill="none">',
+      '  <rect width="64" height="64" rx="14" fill="#FFD24A"/>',
+      '  <path d="M14 44 L24 24 L32 38 L40 24 L50 44" stroke="#0F4C81" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>',
+      '  <circle cx="32" cy="14" r="3.5" fill="#0F4C81"/>',
+      '</svg>',
+      '<span>UpUp — 投资助手</span>',
+    ].join('');
+    document.body.appendChild(banner);
+  }
+
   function init() {
+    injectBranding();
     mount((root) => {
       renderWatchlist(root);
       renderPlan(root);
