@@ -36,5 +36,8 @@
     "workflows": [],
     "policies": [],
     "evals": []
+  },
+  "scripts": {
+    "test": "bun test ./src ./test"
   }
 }
