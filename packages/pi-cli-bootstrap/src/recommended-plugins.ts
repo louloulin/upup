@@ -24,6 +24,10 @@ export type RecommendedPluginCategory =
   | 'memory'          // 持久记忆
   | 'background'      // 后台任务 / cron
   | 'workflow'        // 工作流编排
+  | 'cache'           // prompt / KV cache 优化
+  | 'advisor'         // Executor/Advisor
+  | 'plan-review'     // plan annotation / review
+  | 'roles'           // per-role agent config
   | 'provider'        // 自定义 provider
   | 'interaction';    // 交互增强
 
@@ -70,7 +74,7 @@ export const UPUP_RECOMMENDED_PLUGINS: readonly RecommendedPlugin[] = [
     source: 'npm:pi-subagents',
     name: 'Pi Subagents',
     category: 'subagent',
-    description: '在 Pi session 内启动子代理（subagent 工具）。',
+    description: 'Single-agent delegation + scripted multi-agent workflows (UpUp 自动加载)。',
     verifiedClean: true,
     caveats: [],
   },
@@ -134,6 +138,63 @@ export const UPUP_RECOMMENDED_PLUGINS: readonly RecommendedPlugin[] = [
     caveats: ['需要 LLMgates API key。'],
   },
 
+  {
+    source: 'npm:pi-web-search',
+    name: 'Pi Web Search',
+    category: 'web',
+    description: 'Provider-native web search (Gemini URL Context, xAI Grok, OpenAI Responses).',
+    verifiedClean: true,
+    caveats: [],
+  },
+  {
+    source: 'npm:pi-cache-optimizer',
+    name: 'Pi Cache Optimizer',
+    category: 'cache',
+    description: 'Stable-prompt rewrite + OpenAI-compatible cache keys (大幅提升 prompt cache 命中率)。',
+    verifiedClean: true,
+    caveats: [],
+  },
+  {
+    source: 'npm:pi-advisor-flow',
+    name: 'Pi Advisor Flow',
+    category: 'advisor',
+    description: 'Executor/Advisor 模式：模型可向更强者申请 second opinion。',
+    verifiedClean: true,
+    caveats: [],
+  },
+  {
+    source: 'npm:@plannotator/pi-extension',
+    name: 'Plannotator',
+    category: 'plan-review',
+    description: '浏览器端 plan review + annotation 工具；`/invest` 后可让用户在 UI 标注疑点。',
+    verifiedClean: true,
+    caveats: [],
+  },
+  {
+    source: 'npm:rolebox',
+    name: 'Rolebox',
+    category: 'roles',
+    description: 'Per-role prompts/models/skills/permissions；UpUp SOP role 格式兼容 rolebox 规范。',
+    verifiedClean: true,
+    caveats: [],
+  },
+  {
+    source: 'npm:pi-goal-list-loop-audit',
+    name: 'Pi GLLA',
+    category: 'workflow',
+    description: 'Long-running autonomous mission control：interview-drafted goals + 独立 detached auditor。',
+    verifiedClean: true,
+    caveats: ['与 UpUp `@upup/cron` / `--sop` 部分能力重叠，按需启用。'],
+  },
+  {
+    source: 'npm:@arhen/pi-core-subagent',
+    name: 'Arhen Pi Core Subagent',
+    category: 'subagent',
+    description: 'DAG dependency-graph subagent scheduler（替换 UpUp 自定义 research-coordinator）。',
+    verifiedClean: true,
+    caveats: [],
+  },
+
   // 注意：`npm:@quintinshaw/pi-dynamic-workflows` 不在推荐清单
   // 它在启动时会 patch AgentSession 并输出 `[workflow-delivery] no
   // session-stable thenable send` warning，与 UpUp 19 个 workspace package
@@ -174,6 +235,10 @@ export function groupRecommendedByCategory(
     memory: [],
     background: [],
     workflow: [],
+    cache: [],
+    advisor: [],
+    'plan-review': [],
+    roles: [],
     provider: [],
     interaction: [],
   };

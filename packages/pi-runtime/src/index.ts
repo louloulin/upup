@@ -798,6 +798,76 @@ export {
   rebrandSystemPrompt,
   UPUP_IDENTITY_SENTENCE,
 } from './brand-extension';
+
+// ---------------------------------------------------------------------------
+// Pi event surface — all 36 canonical extension events + the audit trail.
+// ---------------------------------------------------------------------------
+export {
+  PI_CANONICAL_EVENT_NAMES,
+  UPUP_EVENT_SURFACE,
+  describeUpUpEventSurface,
+  mountUpUpEventSurface,
+  mountUpUpEventSurfaceOnPi,
+  upupEventRole,
+  type PiCanonicalEventName,
+  type PiEventAuditRecord,
+  type PiEventSurfaceLike,
+  type UpUpEventHandler,
+  type UpUpEventMountResult,
+  type UpUpEventRole,
+  type UpUpEventSpec,
+  type UpUpEventSurfaceOptions,
+} from './event-surface';
+export {
+  createEventAuditSink,
+  eventAuditPath,
+  formatEventAuditLine,
+  isEventAuditEnabled,
+  type EventAuditSink,
+  type EventAuditSinkOptions,
+} from './event-audit-sink';
+export {
+  buildUpUpProviderHeaders,
+  classifyProviderHealth,
+  describeContext,
+  discoverUpUpResourceDirs,
+  expandHomePath,
+  expandInvestmentInput,
+  findUnsourcedNumbers,
+  guessMarketLabel,
+  parseRetryAfter,
+  resolveSessionDisplayName,
+  sanitizeHeaderValue,
+  summarizeCompaction,
+  summarizeToolExecution,
+  UPUP_HEADER_PREFIX,
+  type CompactionSummary,
+  type ContextAuditFields,
+  type InputExpansionOptions,
+  type InputExpansionResult,
+  type ProviderAttributionInput,
+  type ProviderHealthLevel,
+  type ProviderHealthSummary,
+  type SessionNameInput,
+  type ToolExecutionSummary,
+  type ToolHealthStatus,
+  type UnsourcedNumberFinding,
+  type UpUpResourceDirs,
+  type UpUpResourceDirsInput,
+} from './investment-event-behaviors';
+export {
+  buildFlagDirective,
+  codeStyleTickers as codeStyleTickersTransformer,
+  createUpUpEventSurfaceExtension,
+  READ_ONLY_BLOCKED_TOOLS,
+  SESSION_DIRECTIVE_ENTRY,
+  SESSION_HEALTH_ENTRY,
+  UNSOURCED_NUMBERS_ENTRY,
+  UPUP_FLAGS,
+  type PiMessageLike,
+  type UpUpEventSurfacePorts,
+  type UpUpResearchSubject,
+} from './event-surface-extension';
 export * from './embedding-provider';
 
 export {
@@ -809,6 +879,47 @@ export {
   type SetSessionProvidersOptions,
 } from './session-providers-store';
 
+
+
+
+// ---------------------------------------------------------------------------
+// Advanced ExtensionAPI surface — the 8 ExtensionAPI methods the prior
+// `check:pi-extension-coverage` guard reported as unused (registerShortcut,
+// registerMessageRenderer, registerEntryRenderer, setLabel, setModel,
+// getThinkingLevel, unregisterProvider, exec). Each one is wired to a real
+// finance use case: keyboard shortcuts, audit-entry renderers, tree-node
+// labels, model hot-swap, exec allowlist, custom-provider teardown.
+// ---------------------------------------------------------------------------
+export {
+  createUpUpAdvancedExtensionApiExtension,
+  type UpUpAdvancedExtensionOptions,
+  type UpUpAdvancedExtensionPorts,
+} from './advanced-extension-api';
+
+// ---------------------------------------------------------------------------
+// Pi ecosystem package registry + UpUp ecosystem extension.
+//
+// Pi ships 5000+ npm packages covering multi-agent, web access, memory,
+// MCP, plan review, advisor flow, … — UpUp wraps the ones whose contracts
+// line up with @earendil-works/pi-coding-agent@0.85.1 instead of writing
+// parallel implementations.
+// ---------------------------------------------------------------------------
+export {
+  UPUP_ECOSYSTEM_PACKAGES,
+  findEcosystemPackage,
+  groupEcosystemByCategory,
+  type EcosystemCategory,
+  type UpUpEcosystemPackage,
+} from './ecosystem-packages';
+export {
+  createUpUpEcosystemExtension,
+  mountUpUpEcosystemPackages,
+  summariseEcosystemReport,
+  type EcosystemMountOutcome,
+  type EcosystemMountReport,
+  type EcosystemImporter,
+  type MountEcosystemOptions,
+} from './ecosystem-extension';
 export {
   bootstrapSessionProvidersAccessor,
 } from './session-providers-bootstrap';

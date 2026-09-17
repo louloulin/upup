@@ -32,6 +32,9 @@ jobs:
             command: bun run check:pi-package-audit
           - task: upup-home
             command: bun run check:upup-home
+            command: bun run check:pi-extension-coverage
+            command: bun run check:pi-ecosystem-deps
+            command: bun run check:sop-coverage
           - task: typecheck
             command: bun run typecheck
           - task: test

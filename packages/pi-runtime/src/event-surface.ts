@@ -144,6 +144,34 @@ export interface PiEventAuditRecord {
   readonly errorMessage?: string;
 }
 
+/**
+ * Events whose handler **return value is consumed by Pi**. Returning a
+ * free-form object from one of these does not "add metadata" — it replaces the
+ * payload (`before_provider_request`), the message (`message_end`), the context
+ * (`context`), blocks the tool call (`tool_call`), and so on.
+ *
+ * The router enforces this: a behavior for one of these events must be declared
+ * in `contractBehaviors`, otherwise its return value is dropped and the audit
+ * record flags `contractViolation`. Writing metadata for these events belongs in
+ * `describe`, which cannot affect Pi.
+ */
+export const PI_EVENT_RESULT_CONTRACT_EVENTS: ReadonlySet<PiCanonicalEventName> = new Set([
+  'project_trust',
+  'resources_discover',
+  'session_before_switch',
+  'session_before_fork',
+  'session_before_compact',
+  'session_before_tree',
+  'context',
+  'before_provider_request',
+  'before_agent_start',
+  'message_end',
+  'tool_call',
+  'tool_result',
+  'user_bash',
+  'input',
+]);
+
 /** Pi's `ExtensionAPI.on` narrowed to what the surface actually needs. */
 export interface PiEventSurfaceLike {
   on(event: string, handler: (event: unknown, context: unknown) => unknown): void;
@@ -153,19 +181,27 @@ export type UpUpEventHandler = (event: never, context: unknown) => unknown;
 
 export interface UpUpEventSurfaceOptions {
   /**
-   * Extra behavior handlers, keyed by event. They run after the audit wrapper;
-   * their return value is forwarded to Pi (so `resources_discover`, `input`,
-   * `message_end`, `session_before_tree`, … keep their result contracts).
+   * Behavior handlers that only *act* (persist, append, name the session). Pi
+   * ignores their return value, so UpUp records a plain-object return as audit
+   * fields instead of forwarding it.
    */
   readonly behaviors?: Partial<Record<PiCanonicalEventName, UpUpEventHandler>>;
+  /**
+   * Behavior handlers for events whose return value Pi consumes. Required for
+   * any event in `PI_EVENT_RESULT_CONTRACT_EVENTS` where UpUp owns the result.
+   */
+  readonly contractBehaviors?: Partial<Record<PiCanonicalEventName, UpUpEventHandler>>;
   /** Audit trail sink. Omit to disable recording. */
   readonly sink?: (record: PiEventAuditRecord) => void;
   /** Last-resort hook for handler failures (e.g. stderr in a TTY). */
   readonly onHandlerError?: (event: PiCanonicalEventName, error: unknown) => void;
   /** Injectable clock for deterministic tests. */
   readonly now?: () => number;
-  /** Per-event field extractors that add structured audit fields. */
-  readonly describe?: Partial<Record<PiCanonicalEventName, (event: unknown, context: unknown) => Record<string, unknown> | undefined>>;
+  /**
+   * Per-event field extractors that add structured audit fields. They are read
+   * *after* the behavior ran, so a behavior can stash values for them.
+   */
+  readonly describe?: Partial<Record<PiCanonicalEventName, (event: unknown, context: unknown) => object | undefined>>;
 }
 
 export interface UpUpEventMountResult {
@@ -229,47 +265,63 @@ export function mountUpUpEventSurface(
 
   for (const name of PI_CANONICAL_EVENT_NAMES) {
     const spec = SPEC_BY_NAME.get(name);
-    const behavior = options.behaviors?.[name];
+    const behavior = options.contractBehaviors?.[name] ?? options.behaviors?.[name];
     const describe = options.describe?.[name];
     mounted.push(name);
     if (behavior) behaviorBacked.push(name);
     else auditOnly.push(name);
 
-    // The wrapper is intentionally synchronous-safe: it records the audit
-    // record and forwards any result the behavior produced. Pi's `on()`
-    // accepts `Promise<void> | void`, so returning a promise here is fine.
     const handler = (event: unknown, context: unknown): unknown => {
       const started = now();
-      let fields: Record<string, unknown> | undefined;
+      const ownsContract = PI_EVENT_RESULT_CONTRACT_EVENTS.has(name);
+      const contractBehavior = options.contractBehaviors?.[name];
+      const isContract = ownsContract && Boolean(contractBehavior);
+      let contractViolation = false;
+
+      const finish = (result: unknown, errorMessage?: string): unknown => {
+        let fields: Record<string, unknown> | undefined;
+        try {
+          const described = describe?.(event, context);
+          fields = described ? { ...(described as Record<string, unknown>) } : undefined;
+        } catch (error) {
+          options.onHandlerError?.(name, error);
+        }
+        if (result && typeof result === 'object' && !isContract && !ownsContract) {
+          // Void-return events: the behavior's object is metadata, not a payload.
+          fields = { ...(fields ?? {}), ...(result as Record<string, unknown>) };
+        }
+        if (ownsContract && !contractBehavior && result !== undefined) contractViolation = true;
+        sink?.({
+          at: now(),
+          event: name,
+          role: spec?.role ?? 'session',
+          outcome: errorMessage ? 'error' : 'ok',
+          durationMs: now() - started,
+          sessionId: readSessionId(context),
+          ...(fields ? { fields: contractViolation ? { ...fields, contractViolation: true } : fields } : contractViolation ? { fields: { contractViolation: true } } : {}),
+          ...(errorMessage ? { errorMessage } : {}),
+        });
+        if (ownsContract && !contractBehavior) return undefined;
+        return result;
+      };
+
+      if (!behavior) return finish(undefined);
+
       try {
-        fields = describe?.(event, context);
-      } catch (error) {
-        // A broken descriptor must not break the event either.
-        options.onHandlerError?.(name, error);
-      }
-      try {
-        const result = behavior ? behavior(event as never, context) : undefined;
+        const result = behavior(event as never, context);
         if (result && typeof (result as { then?: unknown }).then === 'function') {
           return (result as Promise<unknown>).then(
-            (settled) => {
-              sink?.({ at: now(), event: name, role: spec?.role ?? 'session', outcome: 'ok', durationMs: now() - started, sessionId: readSessionId(context), ...(fields ? { fields } : {}) });
-              return settled;
-            },
+            (settled) => finish(settled),
             (error: unknown) => {
-              const message = error instanceof Error ? error.message : String(error);
-              sink?.({ at: now(), event: name, role: spec?.role ?? 'session', outcome: 'error', durationMs: now() - started, sessionId: readSessionId(context), ...(fields ? { fields } : {}), errorMessage: message });
               options.onHandlerError?.(name, error);
-              return undefined;
+              return finish(undefined, error instanceof Error ? error.message : String(error));
             },
           );
         }
-        sink?.({ at: now(), event: name, role: spec?.role ?? 'session', outcome: 'ok', durationMs: now() - started, sessionId: readSessionId(context), ...(fields ? { fields } : {}) });
-        return result;
+        return finish(result);
       } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        sink?.({ at: now(), event: name, role: spec?.role ?? 'session', outcome: 'error', durationMs: now() - started, sessionId: readSessionId(context), ...(fields ? { fields } : {}), errorMessage: message });
         options.onHandlerError?.(name, error);
-        return undefined;
+        return finish(undefined, error instanceof Error ? error.message : String(error));
       }
     };
 

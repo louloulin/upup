@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
-import { PI_CAPABILITY_CATALOG, validatePiCapabilityCatalog } from '@upup/pi-runtime';
+import { PI_CAPABILITY_CATALOG, validatePiCapabilityCatalog, UPUP_ECOSYSTEM_PACKAGES } from '@upup/pi-runtime';
 import { listPiSkillCommands } from '@upup/pi-resource-composition';
 import { findSideEffectCoverageGaps, REQUIRED_SIDE_EFFECTS, readWorkspaceManifests } from './check-pi-side-effects.ts';
 
@@ -95,6 +95,74 @@ async function readSkillReachability(): Promise<Record<string, unknown>> {
   }
 }
 
+
+async function readEcosystemStatus(): Promise<Record<string, unknown>> {
+  const nodeModules = join(root, 'node_modules');
+  const entries = await Promise.all(UPUP_ECOSYSTEM_PACKAGES.map(async (spec) => {
+    const manifestPath = join(nodeModules, spec.name, 'package.json');
+    let installedVersion: string | null = null;
+    let installs = false;
+    let mounts = false;
+    let mountError: string | null = null;
+    if (existsSync(manifestPath)) {
+      try {
+        const json = JSON.parse(readFileSync(manifestPath, 'utf8')) as { version?: string };
+        installedVersion = typeof json.version === 'string' ? json.version : null;
+        installs = true;
+      } catch {
+        installs = false;
+      }
+    }
+    if (installs && installedVersion === spec.version) {
+      try {
+        const importer = new Function('s', 'return import(s)') as (s: string) => Promise<{ default?: unknown }>;
+        const mod = await importer(spec.importPath);
+        if (typeof mod.default === 'function') {
+          const sink: Record<string, unknown> = {};
+          const stub: any = new Proxy(sink, {
+            get: (_, prop) => {
+              if (prop === 'events') return { on: () => undefined };
+              if (prop === 'getFlag') return () => undefined;
+              if (prop === 'getSessionName') return () => undefined;
+              if (prop === 'getActiveTools') return () => [];
+              if (prop === 'getAllTools') return () => [];
+              if (prop === 'getCommands') return () => [];
+              if (prop === 'getThinkingLevel') return () => 'medium' as const;
+              if (prop === 'setModel') return async () => true;
+              if (prop === 'exec') return async () => '';
+              return () => undefined;
+            },
+          });
+          (mod.default as (pi: unknown) => void)(stub);
+          mounts = true;
+        } else {
+          mountError = `default export is ${typeof mod.default}`;
+        }
+      } catch (error) {
+        mountError = error instanceof Error ? error.message.split('\n')[0] : String(error);
+      }
+    }
+    return {
+      name: spec.name,
+      version: spec.version,
+      installedVersion,
+      versionMatches: installedVersion === spec.version,
+      mounts,
+      mountError,
+      category: spec.category,
+      supersedes: spec.supersedes ?? [],
+    };
+  }));
+  const verified = entries.filter((e) => e.versionMatches && e.mounts).length;
+  return {
+    contract: 'upup.pi.ecosystem.v1',
+    registryCount: UPUP_ECOSYSTEM_PACKAGES.length,
+    verifiedCount: verified,
+    coveragePercent: Math.round((verified / UPUP_ECOSYSTEM_PACKAGES.length) * 10000) / 100,
+    packages: entries,
+  };
+}
+
 const structuralCompletion = [
   legacyEventConsumers.length === 0,
   globalRegistryConsumers.length === 0,
@@ -134,5 +202,6 @@ console.log(JSON.stringify({
     note: 'This is a structural migration indicator, not product completion; provider and full invest-loop evidence remain separate.',
   },
   skills: await readSkillReachability(),
+  ecosystem: await readEcosystemStatus(),
   rootAllowlist: ['src/index.tsx', 'src/bootstrap/**'],
 }, null, 2));

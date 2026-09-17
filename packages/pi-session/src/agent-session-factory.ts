@@ -44,6 +44,7 @@ import {
 } from '@upup/pi-event-adapter';
 import { isPiCustomProviderSpec, resolvePiModel } from '@upup/pi-event-adapter/pi-model-bridge';
 import { createOllamaProviderExtension } from '@upup/pi-runtime/custom-providers';
+import { createUpUpInvestmentEventExtension } from './investment-event-surface';
 import { PiSessionAdapter } from './session-adapter';
 import { withSerializedPiResourceReload } from '@upup/pi-resource-composition';
 import {
@@ -482,6 +483,11 @@ export class PiAgentSessionFactory implements UpUpAgentRuntime {
           ? [createOllamaProviderExtension()]
           : []),
         createFinanceSessionExtension(financeContext),
+        // Full Pi event surface (all 36 events) + UpUp's investment behaviors:
+        // session naming, resource discovery for `$UPUP_HOME/{skills,prompts}`,
+        // provider attribution headers, model/thinking-level persistence,
+        // `@watchlist` input expansion and the unsourced-number audit trail.
+        createUpUpInvestmentEventExtension({ financeContext }),
         createPiSideEffectPolicyExtension({
           spec,
           sessionId,

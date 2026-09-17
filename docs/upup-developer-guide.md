@@ -233,7 +233,43 @@ Agent 的 `tools` 只能引用已注册的工具。常用分组：
 
 ---
 
-## 8. 与 Pi 生态的关系
+## 8. Pi 事件与 ExtensionAPI：UpUp 如何"用足 Pi"
+
+UpUp 不自己造工作流引擎 / 子 Agent 调度 / 事件总线 / 设置持久化，而是 **直接订阅 Pi 的 36 个规范事件**，并把 ExtensionAPI 的高阶表面（flags / shortcuts / markdown transformer / session name / model control / setActiveTools）全部用起来。`@upup/pi-runtime/event-surface` 是这件事的单一来源；`@upup/pi-runtime/event-surface-extension` 把投资域行为挂到具体事件上；`@upup/pi-session` 给两个入口（headless `PiAgentSessionFactory` 与 `upup` TUI）装配同一个 surface。
+
+### 8.1 36 事件订阅 + 失败隔离
+
+```ts
+import { mountUpUpEventSurface } from '@upup/pi-runtime';
+
+mountUpUpEventSurface(pi, {
+  behaviors: { ... },   // 普通副作用；返回非契约对象会被记入 fields
+  contractBehaviors: { resources_discover: ..., session_before_tree: ..., input: ..., before_agent_start: ... },  // 拥有 Pi 返回值的事件
+  describe: { ... },    // 元数据：仅影响审计 fields，不会替代 payload
+});
+```
+
+- **失败隔离**：每个 handler 都被包在 try/catch 里，任何抛出会被转成一条 `outcome: 'error'` 审计记录然后丢弃 — Pi 的 runner 因此不会因为审计脚本坏了而让整轮会话炸掉。
+- **契约保护**：对 `before_provider_request` / `context` / `message_end` / `tool_call` / `tool_result` / `user_bash` 等"返回值会被 Pi 消费"的事件，普通 `behaviors` 的返回会被丢弃并在审计里记 `contractViolation: true`。要拿到结果请在 `contractBehaviors` 里注册。
+- **漂移守卫**：`PI_CANONICAL_EVENT_NAMES` 在安装的 Pi SDK 的 `.d.ts` 里解析得来（`scripts/check-pi-extension-coverage.ts`），Pi 改事件名时 CI 立刻红。
+
+### 8.2 ExtensionAPI 的 16 / 24
+
+UpUp 当前用到的 ExtensionAPI 方法：`registerTool`、`registerCommand`、`registerFlag`、`getFlag`、`registerMarkdownTransformer`、`sendMessage`、`sendUserMessage`、`appendEntry`、`setSessionName`、`getSessionName`、`getActiveTools`、`getAllTools`、`setActiveTools`、`getCommands`、`setThinkingLevel`、`registerProvider`。未用：`registerShortcut` / `registerMessageRenderer` / `registerEntryRenderer` / `setLabel` / `exec` / `setModel` / `getThinkingLevel` / `unregisterProvider` — 在 `bun run check:pi-extension-coverage` 报告里看得到，原因都在源码注释里。
+
+### 8.3 启动 flag
+
+`upup --market cn --sop graham --thinking-level high --focus 现金流质量 --no-trade-advice` 会在 system prompt 里加一节「本次会话的投资约束」并向模型推一条 `upup_session_directive` 自定义消息，同时在 `session_start` 时把 `place_trade_order / config_set / write_file / mcp_auth_get / notify` 五个高风险工具从 active set 拿掉（`--no-trade-advice` 时）。
+
+### 8.4 审计 trail
+
+每个事件一条 JSONL 写入 `$UPUP_HOME/telemetry/pi-events.jsonl`（`UPUP_TELEMETRY=1` 才打开），文件超过 8MB 自动 rotate 一次。同一份能力可以用 `ports.audit` 在上层（`@upup/pi-observability`）里做更结构化的 recording。
+
+### 8.5 让模型记住 /model 与 /thinking
+
+`model_select` 和 `thinking_level_select` 都直接把新值持久化到 `$UPUP_HOME/settings.json`（修复了已知的 "settings 在 in-memory store 写不出去" 缺口）；启动时 `--model` / `--thinking-level` 也会触发 `pi.setModel` / `pi.setThinkingLevel`。
+
+## 9. 与 Pi 生态的关系
 
 UpUp 不自己实现工作流引擎、子 Agent 调度、记忆或 web 检索——这些由 Pi 及其生态提供，UpUp 只做**金融领域层**：真实数据接入、指标/估值/风险工具、Pi package 装配与 policy 守门。
 

@@ -30,7 +30,8 @@ import { existsSync } from 'node:fs';
 
 import type { ExtensionAPI, InlineExtension } from '@earendil-works/pi-coding-agent';
 
-import { createUpUpBrandExtension } from '@upup/pi-runtime';
+import { createUpUpBrandExtension, createUpUpEcosystemExtension } from '@upup/pi-runtime';
+import { createUpUpInvestmentEventExtension } from '@upup/pi-session';
 import { installPiNativeCapabilityProviders } from '@upup/pi-session';
 import { PiPackageCatalog, resolveConfiguredPiPackages } from '@upup/pi-resource-composition';
 import { createPiNativeSessionOptions, getPiNativeApp } from './default';
@@ -175,7 +176,19 @@ function buildExtensionFactories(): InlineExtension[] {
   // Brand the interactive TUI's system prompt as UpUp. Pi hard-codes its own
   // identity in the default prompt template and ships no config for it, so we
   // rewrite it from a `before_agent_start` handler instead of forking Pi.
-  return [createUpUpCapabilityProviderExtension(), createUpUpBrandExtension()];
+  // The investment event surface mounts every canonical Pi event (36/36) for
+  // the interactive host too, so `upup` and `upup invest` observe the same
+  // lifecycle. `--market` / `--sop` / `--focus` are its registered flags.
+  return [
+    createUpUpCapabilityProviderExtension(),
+    createUpUpBrandExtension(),
+    createUpUpInvestmentEventExtension(),
+    // Mount every Pi ecosystem package UpUp depends on (subagents, web access,
+    // memory, MCP, advisor, plannotator, rolebox, GLLA, …). Each one is loaded
+    // with failure isolation so a single broken package cannot take down the
+    // TUI; the mount report is surfaced through `bun run report:pi7`.
+    createUpUpEcosystemExtension(),
+  ];
 }
 
 export async function runPiNativeCli(options: PiNativeRunCliOptions = {}): Promise<void> {

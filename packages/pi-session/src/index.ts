@@ -6,6 +6,16 @@ export { PiSessionAdapter } from './session-adapter';
 export type { PiSessionAdapterOptions } from './session-adapter';
 
 // =============================================================================
+// Investment event surface (all 36 Pi events + ExtensionAPI flags)
+// =============================================================================
+export {
+  createUpUpInvestmentEventExtension,
+  subjectFromFinanceContext,
+  watchlistSymbols,
+  type UpUpInvestmentEventSurfaceOptions,
+} from './investment-event-surface';
+
+// =============================================================================
 // Pi Host Bridge contract
 // =============================================================================
 export * from './host-contract';

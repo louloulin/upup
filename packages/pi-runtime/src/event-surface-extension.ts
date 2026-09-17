@@ -6,6 +6,18 @@
  * the interesting logic is tested without an agent session, and this file stays
  * a readable list of "which Pi event teaches UpUp what".
  *
+ * Two rules keep this file from breaking Pi:
+ *
+ *  - **`contractBehaviors` own a return value** (`resources_discover`, `input`,
+ *    `session_before_tree`, `before_agent_start`). Pi consumes what they return,
+ *    so they are kept separate from ordinary behaviors and never return
+ *    metadata.
+ *  - **`describe` carries metadata.** Handlers for the remaining
+ *    result-contract events (`context`, `before_provider_request`, `message_end`,
+ *    `tool_call`, `tool_result`, `user_bash`, `session_before_*`) only read the
+ *    event; the router rejects a return value from them, because returning an
+ *    object there would *replace* the payload instead of annotating it.
+ *
  * Dependency direction: all side effects arrive through `UpUpEventSurfacePorts`
  * (settings persistence, watchlist, research subject, audit sink) because
  * `@upup/pi-runtime` sits below the packages that own them. Injection is what
@@ -34,6 +46,7 @@ import {
   resolveSessionDisplayName,
   summarizeCompaction,
   summarizeToolExecution,
+  type UpUpResourceDirs,
 } from './investment-event-behaviors';
 
 /** Research subject for the current session (set by `/invest`, dossier, …). */
@@ -60,7 +73,7 @@ export interface UpUpEventSurfacePorts {
   readonly client?: string;
   readonly now?: () => number;
   readonly onError?: (event: string, error: unknown) => void;
-  /** Disable the JSONL audit trail (tests usually inject their own `audit`). */
+  /** Disable the JSONL audit trail (hosts that supply their own sink). */
   readonly disableAuditFile?: boolean;
 }
 
@@ -70,12 +83,31 @@ export const UNSOURCED_NUMBERS_ENTRY = 'upup_unsourced_numbers';
 /** Entry type appended with per-session provider/tool health. */
 export const SESSION_HEALTH_ENTRY = 'upup_session_health';
 
+/** Custom message type used to announce a flag-derived session directive. */
+export const SESSION_DIRECTIVE_ENTRY = 'upup_session_directive';
+
+/**
+ * Tools that must not stay active in a read-only session. Mirrors the five
+ * high-risk tools the Pi policy layer already denies by default — removing them
+ * from the active set is defence in depth for `--no-trade-advice` runs.
+ */
+export const READ_ONLY_BLOCKED_TOOLS: readonly string[] = [
+  'place_trade_order',
+  'config_set',
+  'write_file',
+  'mcp_auth_get',
+  'notify',
+];
+
+const VALID_THINKING_LEVELS: ReadonlySet<string> = new Set(['off', 'minimal', 'low', 'medium', 'high', 'xhigh']);
+
 /** Flags the UpUp surface registers and consumes. */
 export const UPUP_FLAGS = {
   market: { description: '限定本次会话的市场范围: cn | hk | us | any', type: 'string' as const },
   sop: { description: '指定本次会话遵循的投研 SOP id（见 /sop list）', type: 'string' as const },
   focus: { description: '本次会话的额外研究重点', type: 'string' as const },
-  noTradeAdvice: { description: '只做研究与证据，不给交易建议', type: 'boolean' as const },
+  noTradeAdvice: { description: '只做研究与证据，不给交易建议（同时关闭高风险工具）', type: 'boolean' as const },
+  thinkingLevel: { description: '本次会话的 thinking level: off | minimal | low | medium | high | xhigh', type: 'string' as const },
 } as const;
 
 /**
@@ -90,7 +122,7 @@ export interface PiMessageLike {
 }
 
 function pickText(message: PiMessageLike | undefined): string {
-  const content = (message as { content?: unknown } | undefined)?.content;
+  const content = message?.content;
   if (typeof content === 'string') return content;
   if (!Array.isArray(content)) return '';
   return content
@@ -98,12 +130,10 @@ function pickText(message: PiMessageLike | undefined): string {
     .join('');
 }
 
-function resolveUpUpHome(ports: UpUpEventSurfacePorts, context: unknown): string {
+function resolveUpUpHome(ports: UpUpEventSurfacePorts): string {
   if (ports.upupHome) return ports.upupHome;
   const fromEnv = process.env.UPUP_HOME?.trim();
   if (fromEnv) return fromEnv;
-  const cwd = (context as { cwd?: string } | undefined)?.cwd ?? process.cwd();
-  void cwd;
   return process.env.HOME ? `${process.env.HOME}/.upup` : `${process.cwd()}/.upup`;
 }
 
@@ -153,6 +183,35 @@ export function codeStyleTickers(markdown: string): string {
     .join('\n');
 }
 
+/** Read the active tool set, degrading to "unknown" instead of throwing. */
+function safeActiveTools(pi: ExtensionAPI, ports: UpUpEventSurfacePorts): readonly string[] {
+  try {
+    const tools = pi.getActiveTools();
+    return Array.isArray(tools) ? tools : [];
+  } catch (error) {
+    ports.onError?.('getActiveTools', error);
+    return [];
+  }
+}
+
+/**
+ * Drop the fail-closed high-risk tools from the active set for a read-only
+ * session. Returns how many tools were removed.
+ */
+function applyReadOnlyToolScope(pi: ExtensionAPI, ports: UpUpEventSurfacePorts, activeTools: readonly string[]): number {
+  const blocked = new Set(READ_ONLY_BLOCKED_TOOLS);
+  const next = activeTools.filter((name) => !blocked.has(name));
+  const removed = activeTools.length - next.length;
+  if (removed === 0) return 0;
+  try {
+    pi.setActiveTools([...next]);
+  } catch (error) {
+    ports.onError?.('setActiveTools', error);
+    return 0;
+  }
+  return removed;
+}
+
 /**
  * Create the UpUp event surface extension. Mount it via `extensionFactories`
  * (or `-e`) so both the interactive TUI and the embedded/headless session
@@ -161,9 +220,9 @@ export function codeStyleTickers(markdown: string): string {
 export function createUpUpEventSurfaceExtension(ports: UpUpEventSurfacePorts = {}): (pi: ExtensionAPI) => void {
   return (pi: ExtensionAPI): void => {
     const now = ports.now ?? Date.now;
-    const auditSink: EventAuditSink | undefined = ports.disableAuditFile
-      ? undefined
-      : createEventAuditSink(ports.audit ? { enabled: false } : {});
+    // The file trail is the default sink. A host can add its own sink on top
+    // (`ports.audit`) or turn the file off entirely (`disableAuditFile`).
+    const auditSink: EventAuditSink | undefined = ports.disableAuditFile ? undefined : createEventAuditSink();
     const record = (entry: PiEventAuditRecord): void => {
       auditSink?.record(entry);
       ports.audit?.(entry);
@@ -177,7 +236,23 @@ export function createUpUpEventSurfaceExtension(ports: UpUpEventSurfacePorts = {
     let messageUpdates = 0;
     let sessionId: string | undefined;
     let cwd: string | undefined;
-    const sessionHealth = { turns: 0, toolCalls: 0, toolErrors: 0, providerErrors: 0, compactions: 0, unsourcedNumberFindings: 0, startedAt: now() };
+    let announcedDirective = false;
+    let discoveredResources: UpUpResourceDirs | undefined;
+    let lastInputExpansions: readonly string[] = [];
+    let lastMessageAudit: Record<string, unknown> | undefined;
+    const sessionHealth = {
+      turns: 0,
+      toolCalls: 0,
+      toolErrors: 0,
+      providerErrors: 0,
+      compactions: 0,
+      unsourcedNumberFindings: 0,
+      readOnlyToolsDisabled: 0,
+      commandCount: 0,
+      resolvedSessionName: undefined as string | undefined,
+      thinkingLevel: undefined as string | undefined,
+      startedAt: now(),
+    };
 
     const subject = (): UpUpResearchSubject | undefined => {
       try {
@@ -188,31 +263,64 @@ export function createUpUpEventSurfaceExtension(ports: UpUpEventSurfacePorts = {
       }
     };
 
-    const attachFlags = (): void => {
-      for (const [name, options] of Object.entries(UPUP_FLAGS)) {
-        try {
-          pi.registerFlag(name, options);
-        } catch (error) {
-          ports.onError?.(`registerFlag:${name}`, error);
-        }
-      }
+    const safeWatchlist = (): readonly string[] => {
       try {
-        pi.registerMarkdownTransformer(codeStyleTickers);
+        return ports.readWatchlist?.() ?? [];
       } catch (error) {
-        ports.onError?.('registerMarkdownTransformer', error);
+        ports.onError?.('readWatchlist', error);
+        return [];
       }
     };
 
-    attachFlags();
+    const persist = (key: string, value: unknown): void => {
+      if (!ports.persistSetting || value === undefined || value === null) return;
+      try {
+        ports.persistSetting(key, value);
+      } catch (error) {
+        ports.onError?.(`persistSetting:${key}`, error);
+      }
+    };
+
+    const readFlags = (): Record<string, string | boolean | undefined> => {
+      const out: Record<string, string | boolean | undefined> = {};
+      for (const name of Object.keys(UPUP_FLAGS)) {
+        try {
+          out[name] = pi.getFlag(name);
+        } catch (error) {
+          ports.onError?.(`getFlag:${name}`, error);
+        }
+      }
+      if (out.sop === undefined) out.sop = subject()?.sopId;
+      return out;
+    };
+
+    // Flags must be registered before Pi parses argv, so this happens at
+    // extension-load time rather than inside an event handler.
+    for (const [name, flagOptions] of Object.entries(UPUP_FLAGS)) {
+      try {
+        pi.registerFlag(name, flagOptions);
+      } catch (error) {
+        ports.onError?.(`registerFlag:${name}`, error);
+      }
+    }
+    try {
+      pi.registerMarkdownTransformer(codeStyleTickers);
+    } catch (error) {
+      ports.onError?.('registerMarkdownTransformer', error);
+    }
 
     mountUpUpEventSurfaceOnPi(pi, {
       sink: record,
       ...(ports.onError ? { onHandlerError: (event: PiCanonicalEventName, error: unknown) => ports.onError?.(`event:${event}`, error) } : {}),
-      behaviors: {
-        resources_discover: (event, context) => {
+
+      // ---------------------------------------------------------------------
+      // Handlers that own Pi's return value.
+      // ---------------------------------------------------------------------
+      contractBehaviors: {
+        resources_discover: (event) => {
           const evt = event as { cwd?: string };
-          const home = resolveUpUpHome(ports, context);
-          const dirs = discoverUpUpResourceDirs({ cwd: evt.cwd ?? cwd ?? process.cwd(), upupHome: home });
+          const dirs = discoverUpUpResourceDirs({ cwd: evt.cwd ?? cwd ?? process.cwd(), upupHome: resolveUpUpHome(ports) });
+          discoveredResources = dirs;
           const result = {
             ...(dirs.skillPaths.length ? { skillPaths: [...dirs.skillPaths] } : {}),
             ...(dirs.promptPaths.length ? { promptPaths: [...dirs.promptPaths] } : {}),
@@ -221,6 +329,40 @@ export function createUpUpEventSurfaceExtension(ports: UpUpEventSurfacePorts = {
           return Object.keys(result).length > 0 ? result : undefined;
         },
 
+        session_before_tree: () => {
+          const current = subject();
+          const label = current?.ticker
+            ? current.sopId ? `${current.ticker} · ${current.sopId}` : current.ticker
+            : current?.planId;
+          return label ? { label } : undefined;
+        },
+
+        before_agent_start: (event) => {
+          const directive = buildFlagDirective(readFlags());
+          if (!directive) return undefined;
+          const base = (event as { systemPrompt?: string }).systemPrompt ?? '';
+          if (base.includes(directive)) return undefined;
+          return { systemPrompt: `${base}\n\n${directive}\n` };
+        },
+
+        input: (event) => {
+          const evt = event as InputEvent;
+          const watchlist = safeWatchlist();
+          const market = subject()?.market;
+          const expanded = expandInvestmentInput(evt.text, {
+            ...(watchlist.length ? { watchlist } : {}),
+            ...(market ? { market } : {}),
+          });
+          if (!expanded) return undefined;
+          lastInputExpansions = expanded.expansions;
+          return { action: 'transform', text: expanded.text } satisfies InputEventResult;
+        },
+      },
+
+      // ---------------------------------------------------------------------
+      // Handlers that only act — Pi ignores what they return.
+      // ---------------------------------------------------------------------
+      behaviors: {
         session_start: (event, context) => {
           const evt = event as { reason?: string };
           sessionId = (context as ExtensionContext | undefined)?.sessionManager?.getSessionId?.();
@@ -237,47 +379,59 @@ export function createUpUpEventSurfaceExtension(ports: UpUpEventSurfacePorts = {
           } catch (error) {
             ports.onError?.('setSessionName', error);
           }
-          return undefined;
+
+          const flags = readFlags();
+          const activeTools = safeActiveTools(pi, ports);
+          if (flags.noTradeAdvice === true || flags.noTradeAdvice === 'true') {
+            sessionHealth.readOnlyToolsDisabled = applyReadOnlyToolScope(pi, ports, activeTools);
+          }
+          try {
+            const commands = pi.getCommands();
+            sessionHealth.commandCount = Array.isArray(commands) ? commands.length : 0;
+          } catch (error) {
+            ports.onError?.('getCommands', error);
+          }
+          try {
+            const resolved = pi.getSessionName();
+            if (resolved) sessionHealth.resolvedSessionName = resolved;
+          } catch (error) {
+            ports.onError?.('getSessionName', error);
+          }
+          const thinkingLevel = typeof flags.thinkingLevel === 'string' ? flags.thinkingLevel.trim().toLowerCase() : undefined;
+          if (thinkingLevel && VALID_THINKING_LEVELS.has(thinkingLevel)) {
+            try {
+              pi.setThinkingLevel(thinkingLevel as 'off' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh');
+              sessionHealth.thinkingLevel = thinkingLevel;
+            } catch (error) {
+              ports.onError?.('setThinkingLevel', error);
+            }
+          }
+          const directive = buildFlagDirective(flags);
+          if (directive && !announcedDirective) {
+            announcedDirective = true;
+            try {
+              pi.sendMessage(
+                { customType: SESSION_DIRECTIVE_ENTRY, content: directive, display: true },
+                { triggerTurn: false, deliverAs: 'nextTurn' },
+              );
+            } catch (error) {
+              ports.onError?.('sendMessage:session_directive', error);
+            }
+          }
+          return { reason: evt.reason ?? null, activeTools: activeTools.length };
         },
 
-        'session_info_changed': (event) => ({ name: (event as { name?: string }).name ?? null }),
-
-        'session_before_switch': (event) => {
-          const evt = event as { reason?: string; targetSessionFile?: string };
-          return { reason: evt.reason ?? null, target: evt.targetSessionFile ? 'set' : null };
-        },
-
-        'session_before_fork': (event) => {
-          const evt = event as { entryId?: string; position?: string };
-          const current = subject();
-          return { entryId: evt.entryId ?? null, position: evt.position ?? null, ...(current?.planId ? { planId: current.planId } : {}) };
-        },
-
-        'session_before_compact': (event) => {
-          const evt = event as { reason?: string; willRetry?: boolean; preparation?: { tokensBefore?: number; firstKeptEntryId?: string } };
-          return {
-            reason: evt.reason ?? null,
-            willRetry: evt.willRetry ?? null,
-            tokensBefore: evt.preparation?.tokensBefore ?? null,
-            firstKeptEntryId: evt.preparation?.firstKeptEntryId ?? null,
-            owner: 'finance-session-policy',
-          };
-        },
+        'session_info_changed': () => undefined,
 
         'session_compact': (event) => {
-          const evt = event as { reason?: string; fromExtension?: boolean; compactionEntry?: { tokensBefore?: number; tokensAfter?: number } };
+          const evt = event as { compactionEntry?: { tokensBefore?: number; tokensAfter?: number } };
           sessionHealth.compactions += 1;
-          const summary = summarizeCompaction({
-            tokensBefore: evt.compactionEntry?.tokensBefore,
-            tokensAfter: evt.compactionEntry?.tokensAfter,
-          });
-          return { reason: evt.reason ?? null, fromExtension: evt.fromExtension ?? null, ...summary };
+          return summarizeCompaction({ tokensBefore: evt.compactionEntry?.tokensBefore, tokensAfter: evt.compactionEntry?.tokensAfter });
         },
 
-        'session_compact_failed': (event) => {
-          const evt = event as { reason?: string; errorMessage?: string };
+        'session_compact_failed': () => {
           sessionHealth.compactions += 1;
-          return { reason: evt.reason ?? null, failed: true, message: evt.errorMessage ?? null };
+          return { failed: true };
         },
 
         'session_shutdown': () => {
@@ -290,29 +444,7 @@ export function createUpUpEventSurfaceExtension(ports: UpUpEventSurfacePorts = {
           return undefined;
         },
 
-        'session_before_tree': () => {
-          const current = subject();
-          const label = current?.ticker
-            ? current.sopId ? `${current.ticker} · ${current.sopId}` : current.ticker
-            : current?.planId;
-          return label ? { label } : undefined;
-        },
-
-        'session_tree': (event) => {
-          const evt = event as { newLeafId?: string | null; oldLeafId?: string | null };
-          return { newLeaf: evt.newLeafId ?? null, oldLeaf: evt.oldLeafId ?? null };
-        },
-
-        context: (event) => {
-          const evt = event as { messages?: readonly unknown[] };
-          return describeContext(evt.messages ?? []);
-        },
-
-        before_provider_request: (event) => {
-          const evt = event as { payload?: unknown };
-          const json = safeJsonSize(evt.payload);
-          return { payloadBytes: json, ...(subject()?.phase ? { phase: subject()?.phase } : {}) };
-        },
+        'session_tree': () => undefined,
 
         before_provider_headers: (event) => {
           const evt = event as { headers?: Record<string, string | null> };
@@ -340,45 +472,32 @@ export function createUpUpEventSurfaceExtension(ports: UpUpEventSurfacePorts = {
           return { ...health };
         },
 
-        before_agent_start: (event, context) => {
-          const flags = readFlags(pi, ports);
-          const directive = buildFlagDirective(flags);
-          if (!directive) return undefined;
-          const evt = event as { systemPrompt?: string };
-          const base = evt.systemPrompt ?? '';
-          if (base.includes(directive)) return undefined;
-          void context;
-          return { systemPrompt: `${base}\n\n${directive}\n` };
-        },
-
         agent_start: () => {
           agentStartedAt = now();
           return undefined;
         },
 
-        agent_end: (event) => {
-          const evt = event as { messages?: readonly unknown[] };
-          return { messages: evt.messages?.length ?? 0, durationMs: agentStartedAt ? now() - agentStartedAt : undefined };
-        },
+        agent_end: (event) => ({
+          messages: (event as { messages?: readonly unknown[] }).messages?.length ?? 0,
+          durationMs: agentStartedAt ? now() - agentStartedAt : undefined,
+        }),
 
         agent_settled: () => ({ durationMs: agentStartedAt ? now() - agentStartedAt : undefined }),
 
         ui_prompt_start: (event) => {
           uiPromptStartedAt = now();
-          const evt = event as { kind?: string; title?: string };
-          return { kind: evt.kind ?? null, title: evt.title ?? null };
+          return { kind: (event as { kind?: string }).kind ?? null };
         },
 
-        ui_prompt_end: (event) => {
-          const evt = event as { kind?: string };
-          return { kind: evt.kind ?? null, waitMs: uiPromptStartedAt ? now() - uiPromptStartedAt : undefined };
-        },
+        ui_prompt_end: (event) => ({
+          kind: (event as { kind?: string }).kind ?? null,
+          waitMs: uiPromptStartedAt ? now() - uiPromptStartedAt : undefined,
+        }),
 
         turn_start: (event) => {
-          const evt = event as { turnIndex?: number };
           turnStartedAt = now();
           sessionHealth.turns += 1;
-          return { turnIndex: evt.turnIndex ?? null };
+          return { turnIndex: (event as { turnIndex?: number }).turnIndex ?? null };
         },
 
         turn_end: (event) => {
@@ -390,7 +509,7 @@ export function createUpUpEventSurfaceExtension(ports: UpUpEventSurfacePorts = {
           };
         },
 
-        message_start: (event) => ({ role: (event as { message?: { role?: string } }).message?.role ?? null }),
+        message_start: () => undefined,
 
         message_update: () => {
           messageUpdates += 1;
@@ -402,6 +521,7 @@ export function createUpUpEventSurfaceExtension(ports: UpUpEventSurfacePorts = {
           const role = evt.message?.role;
           const text = pickText(evt.message);
           const findings = role === 'assistant' ? findUnsourcedNumbers(text) : [];
+          lastMessageAudit = { role: role ?? null, chars: text.length, updates: messageUpdates, unsourcedNumbers: findings.length };
           if (findings.length > 0) {
             sessionHealth.unsourcedNumberFindings += findings.length;
             try {
@@ -410,7 +530,7 @@ export function createUpUpEventSurfaceExtension(ports: UpUpEventSurfacePorts = {
               ports.onError?.('appendEntry:unsourced', error);
             }
           }
-          return { role: role ?? null, chars: text.length, updates: messageUpdates, unsourcedNumbers: findings.length };
+          return undefined;
         },
 
         tool_execution_start: (event) => {
@@ -418,12 +538,11 @@ export function createUpUpEventSurfaceExtension(ports: UpUpEventSurfacePorts = {
           if (evt.toolCallId) toolStartedAt.set(evt.toolCallId, now());
           toolUpdates.delete(evt.toolCallId ?? '');
           sessionHealth.toolCalls += 1;
-          return { tool: evt.toolName ?? null };
+          return undefined;
         },
 
         tool_execution_update: (event) => {
-          const evt = event as { toolCallId?: string };
-          const key = evt.toolCallId ?? '';
+          const key = (event as { toolCallId?: string }).toolCallId ?? '';
           toolUpdates.set(key, (toolUpdates.get(key) ?? 0) + 1);
           return { updates: toolUpdates.get(key) ?? 0 };
         },
@@ -444,126 +563,95 @@ export function createUpUpEventSurfaceExtension(ports: UpUpEventSurfacePorts = {
 
         model_select: (event) => {
           const evt = event as { model?: { id?: string; provider?: string }; previousModel?: { id?: string }; source?: string };
-          const modelId = evt.model?.id;
-          if (modelId) persist(ports, 'modelId', modelId);
+          persist('modelId', evt.model?.id);
           return {
-            model: modelId ?? null,
+            model: evt.model?.id ?? null,
             provider: evt.model?.provider ?? null,
             previousModel: evt.previousModel?.id ?? null,
             source: evt.source ?? null,
-            persisted: Boolean(modelId),
           };
         },
 
         thinking_level_select: (event) => {
           const evt = event as { level?: string; previousLevel?: string };
-          persist(ports, 'thinkingLevel', evt.level);
+          persist('thinkingLevel', evt.level);
           return { level: evt.level ?? null, previousLevel: evt.previousLevel ?? null };
         },
+      },
 
-        tool_call: (event) => {
-          const evt = event as { toolName?: string; toolCallId?: string };
-          return { tool: evt.toolName ?? null, owner: 'policy-chain' };
+      // ---------------------------------------------------------------------
+      // Metadata for the events whose return value belongs to Pi or to another
+      // extension. `describe` cannot affect Pi, so it is the safe place for it.
+      // ---------------------------------------------------------------------
+      describe: {
+        'project_trust': (event) => ({ cwd: (event as { cwd?: string }).cwd ?? null }),
+
+        'session_before_switch': (event) => {
+          const evt = event as { reason?: string; targetSessionFile?: string };
+          return { reason: evt.reason ?? null, target: evt.targetSessionFile ? 'set' : null };
         },
 
-        tool_result: (event) => {
-          const evt = event as { toolName?: string };
-          return { tool: evt.toolName ?? null, owner: 'tool-error-bridge' };
+        'session_before_fork': (event) => {
+          const evt = event as { entryId?: string; position?: string };
+          const planId = subject()?.planId;
+          return { entryId: evt.entryId ?? null, position: evt.position ?? null, ...(planId ? { planId } : {}) };
         },
+
+        'session_before_compact': (event) => {
+          const evt = event as { reason?: string; willRetry?: boolean; preparation?: { tokensBefore?: number; firstKeptEntryId?: string } };
+          return {
+            reason: evt.reason ?? null,
+            willRetry: evt.willRetry ?? null,
+            tokensBefore: evt.preparation?.tokensBefore ?? null,
+            owner: 'finance-session-policy',
+          };
+        },
+
+        context: (event) => describeContext((event as { messages?: readonly unknown[] }).messages ?? []),
+
+        before_provider_request: (event) => {
+          const payload = (event as { payload?: unknown }).payload;
+          let bytes = -1;
+          try {
+            bytes = JSON.stringify(payload ?? null).length;
+          } catch {
+            bytes = -1;
+          }
+          const phase = subject()?.phase;
+          return { payloadBytes: bytes, ...(phase ? { phase } : {}) };
+        },
+
+        tool_call: (event) => ({ tool: (event as { toolName?: string }).toolName ?? null, owner: 'policy-chain' }),
+
+        tool_result: (event) => ({ tool: (event as { toolName?: string }).toolName ?? null, owner: 'tool-error-bridge' }),
 
         user_bash: (event) => {
-          const evt = event as { command?: string; excludeFromContext?: boolean; cwd?: string };
-          const command = evt.command ?? '';
+          const command = (event as { command?: string }).command ?? '';
           return {
             commandLength: command.length,
             commandHead: command.slice(0, 120),
-            excludeFromContext: evt.excludeFromContext ?? null,
+            excludeFromContext: (event as { excludeFromContext?: boolean }).excludeFromContext ?? null,
             commandCount: command.split(/\s*(?:&&|;|\|)\s*/).filter(Boolean).length,
           };
         },
 
-        input: (event: never) => {
-          const evt = event as unknown as InputEvent;
-          const watchlist = safeWatchlist(ports);
-          const expanded = expandInvestmentInput(evt.text, {
-            ...(watchlist.length ? { watchlist } : {}),
-            ...(subject()?.market ? { market: subject()?.market as string } : {}),
-          });
-          if (!expanded) return undefined;
-          const result: InputEventResult = { action: 'transform', text: expanded.text, ...(evt.images ? { images: evt.images } : {}) };
-          return result;
-        },
-      },
-      describe: {
-        // Market label is attached to every tool call so the trail shows which
-        // market a research run was operating on.
-        'tool_execution_start': () => {
+        tool_execution_start: () => {
           const market = subject()?.market;
           return market ? { market } : undefined;
         },
+
+        input: () => (lastInputExpansions.length ? { expansions: [...lastInputExpansions] } : undefined),
+
+        message_end: () => lastMessageAudit,
+
+        resources_discover: () => (discoveredResources
+          ? { skills: discoveredResources.skillPaths.length, prompts: discoveredResources.promptPaths.length, missing: discoveredResources.missing.length }
+          : undefined),
+
+        session_compact: () => undefined,
       },
     });
   };
-}
-
-function persist(ports: UpUpEventSurfacePorts, key: string, value: unknown): void {
-  if (!ports.persistSetting || value === undefined || value === null) return;
-  try {
-    ports.persistSetting(key, value);
-  } catch (error) {
-    ports.onError?.(`persistSetting:${key}`, error);
-  }
-}
-
-function readFlags(pi: ExtensionAPI, ports: UpUpEventSurfacePorts): {
-  readonly market?: string | boolean;
-  readonly sop?: string | boolean;
-  readonly focus?: string | boolean;
-  readonly noTradeAdvice?: string | boolean;
-} {
-  const get = (name: string): string | boolean | undefined => {
-    try {
-      return pi.getFlag(name);
-    } catch (error) {
-      ports.onError?.(`getFlag:${name}`, error);
-      return undefined;
-    }
-  };
-  const market = get('market');
-  const sop = get('sop') ?? subject_sopId(ports);
-  const focus = get('focus');
-  const noTradeAdvice = get('noTradeAdvice');
-  return {
-    ...(market !== undefined ? { market } : {}),
-    ...(sop !== undefined ? { sop } : {}),
-    ...(focus !== undefined ? { focus } : {}),
-    ...(noTradeAdvice !== undefined ? { noTradeAdvice } : {}),
-  };
-}
-
-function subject_sopId(ports: UpUpEventSurfacePorts): string | undefined {
-  try {
-    return ports.readSubject?.()?.sopId;
-  } catch {
-    return undefined;
-  }
-}
-
-function safeWatchlist(ports: UpUpEventSurfacePorts): readonly string[] {
-  try {
-    return ports.readWatchlist?.() ?? [];
-  } catch (error) {
-    ports.onError?.('readWatchlist', error);
-    return [];
-  }
-}
-
-function safeJsonSize(value: unknown): number {
-  try {
-    return JSON.stringify(value ?? null).length;
-  } catch {
-    return -1;
-  }
 }
 
 /** Market-aware ticker label helper re-exported for hosts that render tickers. */

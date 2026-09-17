@@ -80,7 +80,20 @@ export interface InputExpansionResult {
 }
 
 const WATCHLIST_TOKEN = /@watchlist\b/i;
-const TICKER_TOKEN = /\$([A-Z][A-Z0-9.\-]{0,9})\b/g;
+/**
+ * `$AAPL` / `$BRK.B` (US) and `$600519.SH` / `$00700.HK` (CN/HK).
+ *
+ * A-share symbols start with digits, so the pattern cannot be "letter-led
+ * only"; it also cannot be "any token after `$`", because a question like
+ * "预算 $100 怎么办" must not be rewritten. Requiring either a short letter
+ * symbol or an explicit exchange suffix keeps the rewrite unambiguous.
+ *
+ * Built fresh per call: a shared `/g` literal carries `lastIndex` state across
+ * calls, which silently makes the second prompt behave differently.
+ */
+function tickerTokenPattern(): RegExp {
+  return /\$(?:[A-Za-z]{1,5}(?:\.[A-Za-z])?|[0-9]{4,6}\.(?:SH|SZ|BJ|HK))\b/g;
+}
 
 /**
  * Expand UpUp shorthands in a user prompt before the agent loop sees it.
@@ -113,15 +126,15 @@ export function expandInvestmentInput(text: string, options: InputExpansionOptio
     }
   }
 
-  if (TICKER_TOKEN.test(next)) {
-    const seen: string[] = [];
-    next = next.replace(TICKER_TOKEN, (_match, symbol: string) => {
-      seen.push(symbol);
-      const market = options.market ? `${options.market}` : guessMarketLabel(symbol);
-      return market ? `${symbol} (${market})` : symbol;
-    });
-    if (seen.length > 0) expansions.push(`$${seen.join(' $')} → 已补全市场标签`);
-  }
+  const seen: string[] = [];
+  next = next.replace(tickerTokenPattern(), (match) => {
+    const symbol = match.slice(1);
+    const market = options.market ?? guessMarketLabel(symbol);
+    if (!market) return match;
+    seen.push(symbol);
+    return `${symbol} (${market})`;
+  });
+  if (seen.length > 0) expansions.push(`$${seen.join(' $')} → 已补全市场标签`);
 
   if (expansions.length === 0 || next === text) return null;
   return { text: next, expansions };
