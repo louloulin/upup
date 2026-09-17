@@ -23,7 +23,7 @@
     }
   },
   "scripts": {
-    "build": "bun build src/index.ts --outdir=dist --target=node --external '@upup/*' --external '@earendil-works/*' && bun build src/cli.ts --outdir=dist --target=node --external '@upup/*' --external '@earendil-works/*' && cp -R src/dataset dist/dataset && tsc --emitDeclarationOnly --project tsconfig.json",
+    "build": "bun build src/index.ts --outdir=dist --target=node --external '@upup/*' --external '@earendil-works/*' && bun build src/cli.ts --outdir=dist --target=node --external '@upup/*' --external '@earendil-works/*' && bun build src/citation-density.ts --outdir=dist --target=node --external '@upup/*' --external '@earendil-works/*' && cp -R src/dataset dist/dataset && tsc --emitDeclarationOnly --project tsconfig.json",
     "test": "bun test src/citation-density.test.ts"
   },
   "files": ["dist", "src/dataset", "package.json"],

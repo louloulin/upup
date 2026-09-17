@@ -8,7 +8,13 @@ for (const packageName of ['pi-finance-sdk', 'pi-market-data', 'pi-investment-an
   rmSync(targetRoot, { recursive: true, force: true });
   mkdirSync(targetRoot, { recursive: true });
   cpSync(join(sourceRoot, 'package.json'), join(targetRoot, 'package.json'));
-  for (const resource of ['extensions', 'skills', 'prompts', 'workflows', 'policies', 'evals', 'src']) {
+  // Every directory listed here must also appear in the package's
+  // `package.json#files` array, and vice versa: `sops/` is the built-in SOP
+  // payload that `@upup/pi-investment-workflow` resolves at runtime, and
+  // omitting it left the shipped binary reporting an empty SOP catalog
+  // while `bun run src/index.tsx` (which reads the workspace tree) stayed green.
+  for (const resource of ['extensions', 'skills', 'prompts', 'workflows', 'policies', 'evals', 'sops', 'src']) {
+    if (!existsSync(join(sourceRoot, resource))) continue;
     cpSync(join(sourceRoot, resource), join(targetRoot, resource), {
       recursive: true,
       filter: (source) => !/\.(test|spec)\.(ts|tsx|js|jsx)$/.test(source),

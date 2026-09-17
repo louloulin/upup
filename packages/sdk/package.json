@@ -55,7 +55,7 @@
     "@earendil-works/pi-coding-agent": "0.85.1"
   },
   "scripts": {
-    "build": "bun build src/index.ts --outdir=dist --target=node && tsc --emitDeclarationOnly --declaration --declarationMap --outDir dist --project tsconfig.build.json",
+    "build": "bun build src/index.ts src/types.ts src/default-specs.ts src/event-stream.ts src/examples/rpc-client.ts --outdir=dist --target=node && tsc --emitDeclarationOnly --declaration --declarationMap --outDir dist --project tsconfig.build.json",
     "dev": "bun build src/index.ts --outdir=dist --watch --target=node",
     "test": "bun test"
   },

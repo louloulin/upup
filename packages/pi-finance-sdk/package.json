@@ -25,7 +25,7 @@
   },
   "scripts": {
     "prebuild": "bun run ../../scripts/clean-pi-package-dist.ts",
-    "build": "bun build src/index.ts --outdir=dist --target=node && bun build extensions/index.ts --outdir=dist/extensions --target=node && tsc --emitDeclarationOnly --project tsconfig.json",
+    "build": "bun build src/index.ts --outdir=dist --target=node && bun build extensions/index.ts --outdir=dist/extensions --target=node && tsc --emitDeclarationOnly --project tsconfig.json && tsc --emitDeclarationOnly --project tsconfig.extensions.json",
     "test": "bun test ./test.ts ./src/filings.test.ts ./src/alt-data.test.ts ./src/research-data.test.ts ./src/earnings-transcripts.test.ts ./src/strategy-execution.test.ts ./src/fund-history.test.ts ./extensions/index.test.ts"
   },
   "files": [
