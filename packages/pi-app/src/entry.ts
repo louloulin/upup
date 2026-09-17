@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
 import { config } from 'dotenv';
-import { dirname, join } from 'node:path';
-import { mkdirSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { existsSync, mkdirSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { printUpupBrandLine, printUpupBanner } from './banner';
 import { ensureUpupAgentDir } from './bootstrap-agent';
 
@@ -148,6 +149,21 @@ async function main() {
       process.exit(plResult.exitCode);
       break;
 
+    case 'ecosystem':
+      // Curated view over `UPUP_ECOSYSTEM_PACKAGES`. The `upup plugin` command
+      // is the general-purpose installer; this one is the diagnostic + bulk
+      // installer for the packages UpUp actively wraps. Resolutions go
+      // through the dual-scope resolver, so `upup ecosystem list` shows the
+      // user / bundled / missing split that decides which package the next
+      // session will actually load.
+      const { runEcosystemCommand } = await import('@upup/pi-cli-bootstrap');
+      const ecoArgs = args.slice(1);
+      const ecoSub = ecoArgs[0] || 'help';
+      const ecoSubArgs = ecoArgs.slice(1);
+      const ecoResult = await runEcosystemCommand({ command: ecoSub, args: ecoSubArgs });
+      process.exit(ecoResult.exitCode);
+      break;
+
     case 'invest':
       // Headless `/invest` runner — drives the same 5-phase workflow the
       // TUI exposes via the `/invest` slash command, but without needing
@@ -193,15 +209,25 @@ async function main() {
       // community uses; UpUp just configures the cwd + data-dir so the
       // browser session sees the same UpUp skill / command / package
       // surface the TUI does.
+      //
+      // Resolution precedence (mirrors `upup ecosystem list`):
+      //   1. `Bun.which('pi-web-ui')`             — fastest when on PATH
+      //   2. dual-scope resolver                   — `~/.upup/agent/npm` first,
+      //                                              then bundled `node_modules`
+      //   3. legacy `~/.bun/install/global` path  — pre-Pi-Ecosystem installs
       {
         const args2 = args.slice(1);
         const port = parseWebFlag(args2, '--port') ?? '9000';
         const cwd = parseWebFlag(args2, '--cwd') ?? process.cwd();
         const noBrowser = args2.includes('--no-browser');
-        const piWebUi = Bun.which('pi-web-ui') ?? require('node:path').resolve(
-          require('node:os').homedir(),
+        const { resolveEcosystemSpecifier } = await import('@upup/pi-runtime');
+        const piWebUiEntry = resolveEcosystemSpecifier('pi-web-ui/bin/pi-web-ui.mjs');
+        const piWebUiFallback = resolve(
+          homedir(),
           '.bun/install/global/node_modules/pi-web-ui/bin/pi-web-ui.mjs',
         );
+        const piWebUi = Bun.which('pi-web-ui')
+          ?? (piWebUiEntry && existsSync(piWebUiEntry) ? piWebUiEntry : piWebUiFallback);
         const env: Record<string, string> = {
           ...process.env as Record<string, string>,
           PI_WEB_PORT: port,
@@ -209,7 +235,7 @@ async function main() {
           PI_WEB_ENGINE: 'pi',
           PI_CODING_AGENT_DIR: process.env.PI_CODING_AGENT_DIR ?? '',
         };
-        const child = Bun.spawn(['pi-web-ui', `--port`, port, `--cwd`, cwd, ...(noBrowser ? ['--no-browser'] : [])], {
+        const child = Bun.spawn([piWebUi, `--port`, port, `--cwd`, cwd, ...(noBrowser ? ['--no-browser'] : [])], {
           env,
           stdin: 'inherit',
           stdout: 'inherit',

@@ -6,6 +6,7 @@
  * - `runDoctor`              — `/doctor` 系统健康检查
  * - `runOpenBuddyCommand`    — `upup openbuddy` Pi 状态迁移到 ~/.upup/agent
  * - `runPluginCommand`       — `upup plugin` Pi DefaultPackageManager 包装（install/list/uninstall/update）
+ * - `runEcosystemCommand`    — `upup ecosystem` 双 scope 解析诊断 + 把 UPUP_ECOSYSTEM_PACKAGES 装入 ~/.upup/agent/npm
  *
  * Authentication lives entirely inside the Pi TUI's `/login` slash command,
  * which writes to `~/.upup/agent/auth.json`. There is no UpUp-side
@@ -20,6 +21,7 @@ export { runConfigCommand } from './config';
 export { runDoctor } from './doctor';
 export { runOpenBuddyCommand, type OpenBuddyCommandOptions, type OpenBuddyRunResult } from './openbuddy';
 export { runPluginCommand, type PluginCommandOptions, type PluginRunResult } from './plugin';
+export { runEcosystemCommand, type EcosystemCommandOptions, type EcosystemRunResult, type EcosystemSubCommand } from './ecosystem';
 export { runInvestCommand, type InvestCommandOptions, type InvestCommandResult } from './invest';
 export { runSopCommandCli, type SopCommandOptions, type SopCommandResult } from './sop';
 export { runBridgeNotifyReloadCommand, type BridgeNotifyReloadOptions, type BridgeNotifyReloadResult } from './bridge';

@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
-import { PI_CAPABILITY_CATALOG, validatePiCapabilityCatalog, UPUP_ECOSYSTEM_PACKAGES } from '@upup/pi-runtime';
+import { PI_CAPABILITY_CATALOG, validatePiCapabilityCatalog, UPUP_ECOSYSTEM_PACKAGES, describeEcosystemResolution } from '@upup/pi-runtime';
 import { listPiSkillCommands } from '@upup/pi-resource-composition';
 import { findSideEffectCoverageGaps, REQUIRED_SIDE_EFFECTS, readWorkspaceManifests } from './check-pi-side-effects.ts';
 
@@ -189,6 +189,9 @@ async function readEcosystemStatus(): Promise<Record<string, unknown>> {
         mountError = error instanceof Error ? error.message.split('\n')[0] : String(error);
       }
     }
+    // Dual-scope resolution: which root would actually load this package?
+    // `user` means a copy in ~/.upup/agent/npm shadows the bundled one.
+    const resolution = describeEcosystemResolution(spec.importPath);
     return {
       name: spec.name,
       version: spec.version,
@@ -198,14 +201,25 @@ async function readEcosystemStatus(): Promise<Record<string, unknown>> {
       mountError,
       category: spec.category,
       supersedes: spec.supersedes ?? [],
+      resolution: {
+        scope: resolution.scope,
+        resolved: resolution.resolved,
+        root: resolution.root,
+      },
     };
   }));
   const verified = entries.filter((e) => e.versionMatches && e.mounts).length;
+  const scopeCounts = { user: 0, bundled: 0, missing: 0 };
+  for (const entry of entries) {
+    const scope = (entry.resolution as { scope: 'user' | 'bundled' | 'missing' }).scope;
+    scopeCounts[scope] += 1;
+  }
   return {
     contract: 'upup.pi.ecosystem.v1',
     registryCount: UPUP_ECOSYSTEM_PACKAGES.length,
     verifiedCount: verified,
     coveragePercent: Math.round((verified / UPUP_ECOSYSTEM_PACKAGES.length) * 10000) / 100,
+    scopeCounts,
     packages: entries,
   };
 }

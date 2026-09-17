@@ -202,3 +202,63 @@ describe('real repository resolution', () => {
     expect(ecosystemSpecifierExists('@upup/pi-runtime')).toBe(true);
   });
 });
+
+/**
+ * `@quintinshaw/pi-dynamic-workflows` is a real Pi ecosystem package whose
+ * `exports."."` block lists only `"import"` (no `"default"`), so CJS's
+ * `createRequire` skips it. The resolver must fall back to `Bun.resolveSync`
+ * to surface it; without that fallback the user sees the package as missing
+ * even though it is sitting in `node_modules`.
+ */
+describe('Bun.resolveSync fallback for ESM-only exports', () => {
+  /** Mirror the troublesome `exports` layout verbatim. */
+  function fakeEsmOnlyPackage(root: string, name: string, marker: string): void {
+    const dir = join(root, 'node_modules', name);
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(
+      join(dir, 'package.json'),
+      JSON.stringify({
+        name,
+        version: '1.0.0',
+        type: 'module',
+        exports: {
+          '.': { types: './dist/index.d.ts', import: './dist/index.js' },
+        },
+      }),
+    );
+    mkdirSync(join(dir, 'dist'), { recursive: true });
+    writeFileSync(join(dir, 'dist', 'index.js'), `export const marker = ${JSON.stringify(marker)};\n`);
+  }
+
+  it('resolves a package whose exports only declare an "import" condition', () => {
+    const bundledRoot = join(scratch, 'bundled');
+    mkdirSync(bundledRoot, { recursive: true });
+    fakeEsmOnlyPackage(bundledRoot, '@scoped/esm-only-plugin', 'esm-fallback');
+
+    const resolved = resolveEcosystemSpecifier('@scoped/esm-only-plugin', {
+      roots: [join(scratch, 'user'), bundledRoot],
+    });
+    // If Bun.resolveSync is missing from the fallback path, `resolved` is
+    // `undefined` and the test fails — that is exactly the regression we
+    // want to lock down.
+    expect(resolved).toBeDefined();
+    expect(resolved).toContain('esm-only-plugin');
+    expect(resolved).toMatch(/dist[\\/]index\.js$/);
+  });
+
+  it('labels a real workspace ecosystem package with only an "import" condition as bundled', () => {
+    // Run only when the package is present in the repo (i.e. `bun install`
+    // has been executed). When it is, this is a real end-to-end regression
+    // check that the Bun.resolveSync fallback actually fires on the
+    // package the v2 plan flagged as broken.
+    const target = '@quintinshaw/pi-dynamic-workflows';
+    if (!resolveEcosystemSpecifier(target)) {
+      // Package not installed in this environment — skip silently so the
+      // suite still runs on a fresh checkout.
+      return;
+    }
+    const described = describeEcosystemResolution(target);
+    expect(described.scope).toBe('bundled');
+    expect(described.resolved).toBeDefined();
+  });
+});

@@ -78,6 +78,31 @@ export function ecosystemResolveRoots(options: EcosystemResolveOptions = {}): re
   return [resolveEcosystemNpmRoot(options), bundled];
 }
 
+function tryResolveWithRequire(anchor: string, specifier: string): string | undefined {
+  try {
+    return createRequire(anchor).resolve(specifier);
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * `Bun.resolveSync` honors every `exports` condition (including `"import"`),
+ * which CJS's `createRequire` skips. Some Pi ecosystem packages — currently
+ * `@quintinshaw/pi-dynamic-workflows` — ship `"import"` only and would be
+ * invisible to a pure CJS lookup. The resolver is Bun-only by design (the
+ * rest of the runtime is too) so the fallback is always safe to call.
+ */
+function tryResolveWithBun(root: string, specifier: string): string | undefined {
+  const bun = (globalThis as { Bun?: { resolveSync(specifier: string, root: string): string } }).Bun;
+  if (!bun) return undefined;
+  try {
+    return bun.resolveSync(specifier, root);
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * Resolve a bare specifier (or a package subpath) to an absolute file path.
  * Returns `undefined` when no root carries the package, and never throws.
@@ -91,12 +116,11 @@ export function resolveEcosystemSpecifier(
     // start at `<root>/node_modules`, which is exactly the install layout
     // Pi produces. The sentinel never has to exist on disk.
     const anchor = join(root, '__upup_ecosystem_resolver__.js');
-    try {
-      return createRequire(anchor).resolve(specifier);
-    } catch {
-      // Try the next root; a miss in the user home is the common case for
-      // every package UpUp ships with.
-    }
+    const cjs = tryResolveWithRequire(anchor, specifier);
+    if (cjs !== undefined) return cjs;
+    // Same root, ESM-flavoured lookup; only relevant under Bun.
+    const esm = tryResolveWithBun(root, specifier);
+    if (esm !== undefined) return esm;
   }
   return undefined;
 }
@@ -152,11 +176,13 @@ export function describeEcosystemResolution(
   for (let index = 0; index < roots.length; index += 1) {
     const root = roots[index];
     const anchor = join(root, '__upup_ecosystem_resolver__.js');
-    try {
-      const resolved = createRequire(anchor).resolve(specifier);
-      return { resolved, scope: index === 0 ? 'user' : 'bundled', root };
-    } catch {
-      // next root
+    const cjs = tryResolveWithRequire(anchor, specifier);
+    if (cjs !== undefined) {
+      return { resolved: cjs, scope: index === 0 ? 'user' : 'bundled', root };
+    }
+    const esm = tryResolveWithBun(root, specifier);
+    if (esm !== undefined) {
+      return { resolved: esm, scope: index === 0 ? 'user' : 'bundled', root };
     }
   }
   return { resolved: undefined, scope: 'missing', root: undefined };

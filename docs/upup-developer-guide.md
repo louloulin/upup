@@ -518,3 +518,68 @@ import { sopToDynamicWorkflowScript, runSopAsDynamicWorkflow } from '@upup/pi-in
 - `packages/pi-runtime/src/research-dag.ts` 在 session 启动时通过 `registerUpUpResearchDag(pi)` 挂载 `@arhen/pi-core-subagent` 的 DAG scheduler。
 - `packages/pi-investment-analysis/src/research-coordinator.ts` 导出 `topologicalResearchRoles()` 与 `batchResearchRoles()`；无 `needs` 时保持原有的 `Promise.all` 平铺语义，向后兼容。
 - 循环依赖会以 `research DAG cycle at <role>` 抛出，调用方负责在 `analyze_symbol` 前置校验。
+
+---
+
+## 10. Pi 生态包解析（双 scope）
+
+UpUp 把 Pi 社区生态包（`pi-web-access` / `@arhen/pi-core-subagent` / `@quintinshaw/pi-dynamic-workflows` / `pi-mcp-adapter` / ...）当作一等公民 — `upup ecosystem install` 装到 `$UPUP_HOME/agent/npm/node_modules/`（默认 `~/.upup/agent/npm/node_modules/`），session 启动时通过 `@upup/pi-runtime/ecosystem-resolver` 解析，先用户后 bundled。
+
+### 10.1 为什么是 `~/.upup/agent/npm`
+
+- Pi 自家 `DefaultPackageManager` 把 `npm:` 源写到 `<agentDir>/npm/node_modules`；upup 与它共用同一个目录
+- 用户级根目录的覆盖规则：用户下载一个新版 `pi-web-access` 会自动遮蔽 repo 里的 bundled 版本
+- `UPUP_HOME` 整体搬迁：沙箱 / CI 不会污染真 `~/.upup`
+
+### 10.2 解析优先级
+
+| 顺序 | 路径 | 来源 |
+| --- | --- | --- |
+| 1 | `$UPUP_AGENT_DIR/npm` | 用户显式覆盖 |
+| 2 | `$UPUP_CODING_AGENT_DIR/npm` | Pi-canonical |
+| 3 | `$PI_CODING_AGENT_DIR/npm` | 同上 |
+| 4 | `<UPUP_HOME>/agent/npm` | 默认（UPUP_HOME 未设 = `~/.upup`） |
+| 5 | `process.cwd()` | bundled 兜底 |
+
+每条 root 上先 `createRequire(...).resolve(specifier)`，miss 之后 `Bun.resolveSync(specifier, root)` 再试一次（覆盖 `"import"` only 的 ESM-only exports 块，例如 `@quintinshaw/pi-dynamic-workflows`）。
+
+### 10.3 `upup ecosystem` 命令
+
+| 子命令 | 作用 |
+| --- | --- |
+| `upup ecosystem list` | 列每个生态包 + scope（user / bundled / missing） |
+| `upup ecosystem status` | 同上 + 描述 + caveats |
+| `upup ecosystem doctor` | 只列 missing 的包 |
+| `upup ecosystem install [<name>...]` | 把 verified-clean 的包装到 `~/.upup/agent/npm`；未指定 name 则全部 |
+| `upup ecosystem help` | 打印帮助 |
+
+`upup ecosystem install` 是 `upup plugin install` 的同义 wrapper，区别在于：
+
+- 输入是 `UPUP_ECOSYSTEM_PACKAGES` 里的 name（不需要写 `npm:` 前缀和版本号）
+- 默认会跳过 `verifiedClean=false` 的包（registry 已标过的"装上会破"的包）
+- 安装目标是 `resolveAgentDir(cwd).agentDir + '/npm'`，与 `upup plugin install` 保持一致
+
+### 10.4 编程式解析
+
+```ts
+import {
+  resolveEcosystemSpecifier,
+  describeEcosystemResolution,
+  createEcosystemImporter,
+} from '@upup/pi-runtime';
+
+// 拿一个 specifier 的绝对路径
+const path = resolveEcosystemSpecifier('pi-web-access/gemini-search.ts');
+
+// 诊断用：scope 决定 session 真正加载的是 user 还是 bundled 副本
+const { scope, resolved, root } = describeEcosystemResolution('pi-web-access');
+// → { scope: 'user', resolved: '/.../node_modules/pi-web-access/index.ts', root: '/.../.upup/agent/npm' }
+
+// 注入式 importer：测试或嵌入式宿主可以自己控制加载
+const importer = createEcosystemImporter((href) => import(href));
+const mod = await importer('pi-web-access/gemini-search.ts');
+```
+
+### 10.5 守门
+
+`bun run check:pi-ecosystem-deps` 校验 23 个生态包的 `version` 与 registry 声明一致；新增 `scripts/check-pi-ecosystem-resolution.ts` 校验双 scope 解析（`describeEcosystemResolution` 必须对每个 `verifiedClean=true` 的包返回非 `missing`），由 `bun run check:pi-runtime` 串起来跑。
