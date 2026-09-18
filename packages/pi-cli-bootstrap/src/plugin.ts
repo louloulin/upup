@@ -20,7 +20,7 @@
 import { homedir } from 'node:os';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { getBuiltinPackageSources, resolveAgentDir } from '@upup/pi-resource-composition';
+import { getBuiltinPackageSources, normalizePluginKey, readUpUpPluginSettings, resolveAgentDir, UPUP_BUILTIN_PLUGIN_DIRECTORIES } from "@upup/pi-resource-composition";
 import { DefaultPackageManager, DefaultResourceLoader, SettingsManager } from '@earendil-works/pi-coding-agent';
 import { startAgentDirWatcher, type SettingsWatcherEvent } from '@upup/pi-resource-composition';
 import { UPUP_RECOMMENDED_PLUGINS, UPUP_KNOWN_PROBLEMATIC_PLUGINS, groupRecommendedByCategory } from './recommended-plugins';
@@ -163,8 +163,14 @@ async function runInstall(args: string[], opts: { env: NodeJS.ProcessEnv; home: 
 function formatBundledPackages(cwd: string): string {
   const bundled = getBuiltinPackageSources(cwd);
   if (bundled.length === 0) return `${DIM}  (none)${RESET}`;
+  const disabled = new Set((readUpUpPluginSettings(cwd).disabled ?? []).map((v) => normalizePluginKey(v)));
   return bundled
-    .map((pkg) => `  ${BOLD}${pkg.name}@${pkg.version}${RESET} [bundled] ${DIM}${pkg.path}${RESET}`)
+    .map((pkg) => {
+      const tag = disabled.has(normalizePluginKey(pkg.directory))
+        ? `${YELLOW}[disabled by user]${RESET}`
+        : `${GREEN}[bundled]${RESET}`;
+      return `  ${BOLD}${pkg.name}@${pkg.version}${RESET} ${tag} ${DIM}${pkg.path}${RESET}`;
+    })
     .join('\n');
 }
 
@@ -298,11 +304,53 @@ async function runRecommend(): Promise<PluginRunResult> {
   return { exitCode: 0, message: 'recommend printed' };
 }
 
+function isBuiltinUpUpSource(source: string): boolean {
+  const norm = normalizePluginKey(source);
+  return (UPUP_BUILTIN_PLUGIN_DIRECTORIES as readonly string[]).some(
+    (directory) => normalizePluginKey(directory) === norm,
+  );
+}
+
+function runToggleUpUpBuiltin(
+  source: string,
+  enable: boolean,
+  ctx: { env: NodeJS.ProcessEnv; home: string; cwd: string },
+): PluginRunResult {
+  const { agentDir } = buildManager(ctx);
+  const settingsPath = join(agentDir, 'settings.json');
+  if (!existsSync(settingsPath)) {
+    fail(`settings.json not found at ${settingsPath}`);
+    return { exitCode: 1, message: 'settings not found' };
+  }
+  let parsed: Record<string, unknown>;
+  try { parsed = JSON.parse(readFileSync(settingsPath, 'utf8')) as Record<string, unknown>; }
+  catch (err) { fail(`settings.json is invalid: ${err instanceof Error ? err.message : String(err)}`); return { exitCode: 1, message: 'invalid settings' }; }
+  const node = (parsed.upupPlugins && typeof parsed.upupPlugins === 'object' && !Array.isArray(parsed.upupPlugins))
+    ? { ...(parsed.upupPlugins as Record<string, unknown>) }
+    : {};
+  const key = normalizePluginKey(source);
+  const list = Array.isArray(node.disabled) ? (node.disabled as string[]).filter((v) => typeof v === 'string') : [];
+  const next = new Set(list.map((v) => v.trim()).filter(Boolean));
+  if (enable) {
+    next.delete(key);
+  } else {
+    next.add(key);
+  }
+  const disabled = [...next];
+  if (disabled.length > 0) node.disabled = disabled; else delete node.disabled;
+  if (Object.keys(node).length > 0) parsed.upupPlugins = node;
+  else delete parsed.upupPlugins;
+  writeFileSync(settingsPath, JSON.stringify(parsed, null, 2) + '\n', 'utf8');
+  ok(`${key} ${enable ? '已启用' : '已禁用（upupPlugins.disabled）'}`);
+  return { exitCode: 0, message: enable ? 'enabled' : 'disabled' };
+}
+
 async function runToggleAutoload(
   source: string,
   enable: boolean,
   ctx: { env: NodeJS.ProcessEnv; home: string; cwd: string },
 ): Promise<PluginRunResult> {
+  if (isBuiltinUpUpSource(source)) return runToggleUpUpBuiltin(source, enable, ctx);
   const { agentDir } = buildManager(ctx);
   const settingsPath = join(agentDir, 'settings.json');
   if (!existsSync(settingsPath)) {

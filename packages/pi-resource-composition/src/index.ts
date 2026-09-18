@@ -7,5 +7,5 @@ export * from './package-config';
 export * from './skill-commands';
 export * from './agent-dir';
 export * from './chord-facet';
-
+export * from "./plugin-toggles";
 export * from './agent-dir-watcher';
