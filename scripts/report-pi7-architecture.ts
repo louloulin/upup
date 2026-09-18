@@ -150,16 +150,63 @@ async function readSideEffectStatus(): Promise<Record<string, unknown>> {
     byPackage.set(pkgName, entry);
   }
   const required = REQUIRED_SIDE_EFFECTS.length;
-  const coverage = required === 0 ? 100 : Math.round((required / required) * 10000) / 100;
   return {
     contract: 'upup.pi.side-effects.v1',
     totalDeclaredTools: total,
     requiredDeclarations: required,
-    coveragePercent: coverage,
+    coveragePercent:
+      sideEffectCoverageGaps.length === 0
+        ? 100
+        : Math.round(((required - sideEffectCoverageGaps.length) / required) * 10000) / 100,
+    coverageGaps: sideEffectCoverageGaps,
+    packageLevelFieldCoverage: {
+      packagesDeclaringField: byPackage.size,
+      totalWorkspacePackages: packages.length,
+      note: 'package-level count vs the tool-level `totalDeclaredTools` above; the two metrics use different units (one per package.json, one per declared tool entry).',
+    },
     byEffect: Object.fromEntries(byEffect),
     bySafetyLevel: Object.fromEntries(byLevel),
     byPackage: Object.fromEntries(byPackage),
     notes: 'Required declarations are the manifest-owned gate. MCP bridge filters bridged packages by these declarations (upup_finance__* exposes only read-only tools).',
+  };
+}
+
+/**
+ * Aggregate `pi.hostCapabilities` declarations across the workspace.
+ *
+ * `sideEffects` is a hard gate (every tool with a side effect must declare
+ * it); `hostCapabilities` is *informational* — it describes the host
+ * functions a package assumes (agent-worker / cron-runner / mcp-resources /
+ * ...). The field was 7/41 packages declared and `report:pi7` previously
+ * dropped it on the floor (the package-level view simply omitted any
+ * aggregated block), so callers reading the report could not tell which
+ * capabilities were claimed by which packages without scanning every
+ * `package.json`. Mirroring the `sideEffects` aggregation gives
+ * `hostCapabilities` the same byPackage / byCapability shape so the two
+ * 字段 share an aligned 口径.
+ */
+async function readHostCapabilitiesStatus(): Promise<Record<string, unknown>> {
+  const manifests = readWorkspaceManifests(root);
+  const byPackage = new Map<string, readonly string[]>();
+  const byCapability = new Map<string, number>();
+  for (const manifest of manifests) {
+    const pkgName = typeof manifest.name === 'string' ? manifest.name : '<unknown>';
+    const caps = Array.isArray(manifest.pi?.hostCapabilities) ? manifest.pi.hostCapabilities : [];
+    if (caps.length === 0) continue;
+    const names = caps.filter((c): c is string => typeof c === 'string');
+    if (names.length === 0) continue;
+    byPackage.set(pkgName, names);
+    for (const name of names) {
+      byCapability.set(name, (byCapability.get(name) ?? 0) + 1);
+    }
+  }
+  return {
+    contract: 'upup.pi.host-capabilities.v1',
+    packagesDeclaringField: byPackage.size,
+    totalWorkspacePackages: packages.length,
+    byCapability: Object.fromEntries(byCapability),
+    byPackage: Object.fromEntries(byPackage),
+    notes: 'Informational; unlike `sideEffects` there is no gate. Packages declare what host functions they assume; orchestrators read this to decide whether to provide them.',
   };
 }
 
@@ -583,11 +630,6 @@ console.log(JSON.stringify({
   packages,
   rootDomains,
   migrationDebt: { legacyEventConsumers, globalRegistryConsumers, agentSessionFactories },
-  sideEffects: {
-    requiredDeclarations: REQUIRED_SIDE_EFFECTS.length,
-    coveragePercent: sideEffectCoverageGaps.length === 0 ? 100 : Math.round(((REQUIRED_SIDE_EFFECTS.length - sideEffectCoverageGaps.length) / REQUIRED_SIDE_EFFECTS.length) * 10000) / 100,
-    gaps: sideEffectCoverageGaps,
-  },
   capabilityCatalog: {
     contract: 'upup.pi.capabilities.v1',
     descriptors: PI_CAPABILITY_CATALOG,
@@ -604,6 +646,7 @@ console.log(JSON.stringify({
   financeSubagents: await readFinanceSubagentStatus(),
   mcpServer: await readMcpServerStatus(),
   sideEffects: await readSideEffectStatus(),
+  hostCapabilities: await readHostCapabilitiesStatus(),
   sideEffectAuditStream: await readSideEffectAuditStream(),
   sdk: await readInProcessSdkStatus(),
   tuiWidgets: await readTuiWidgetsStatus(),
