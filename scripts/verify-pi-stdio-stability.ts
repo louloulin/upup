@@ -1,19 +1,49 @@
+/**
+ * C14 — stdio transport stability under concurrency.
+ *
+ * What this contract is actually about: several independent `upup --stdio`
+ * processes sharing one session directory must be able to run interleaved
+ * RPC traffic without (a) deadlocking on Pi's per-session file lock,
+ * (b) leaving `.pi-lock` residue behind, or (c) emitting malformed JSONL.
+ *
+ * The harness drives Pi's **native** RPC surface — commands shaped
+ * `{ id, type: "<command>", ...params }`, answered with
+ * `{ id, type: "response", command, success, data | error }`. That is what
+ * `upup --stdio` serves: it forwards to `main() --mode rpc` → `runRpcMode`.
+ *
+ * History: this file used to speak a bespoke JSON-RPC envelope
+ * (`{ jsonrpc: "2.0", id, method, params }`). That protocol belonged to the
+ * deleted `@upup/pi-stdio` server and the Pi Native migration removed it, but
+ * the verifier was never updated — so every round failed with
+ * `Unknown command: undefined` and the contract had been reporting a false
+ * negative ever since. The intent (concurrency, lock hygiene, JSONL
+ * well-formedness) is unchanged; only the wire shape is corrected.
+ *
+ * Reference client for the same surface: `scripts/pi-rpc-stdio-client.ts`.
+ */
+
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
-import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
-import { join, dirname } from 'node:path';
+import { mkdir, mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-interface RpcResponse {
-  id: number;
-  result?: unknown;
-  error?: { code: number; message: string };
+interface PiRpcResponse {
+  id?: string;
+  type: string;
+  command?: string;
+  success?: boolean;
+  data?: unknown;
+  error?: string;
 }
 
 interface StabilityReport {
   schema: 'upup.pi.stdio-stability.v1';
   rounds: number;
   completedRounds: number;
+  /** Concurrent `upup --stdio` processes per round. */
   sessionsPerRound: number;
+  /** RPC requests issued per round, summed across both clients. */
   requestsPerRound: number;
   failures: Array<{ round: number; phase: string; message: string; stderr: string; exitCode: number | null }>;
   lockResidues: string[];
@@ -21,9 +51,15 @@ interface StabilityReport {
   durationMs: number;
 }
 
+/** Minimal JSONL client for Pi's `runRpcMode` command/response shape. */
 class RpcClient {
   private buffer = '';
-  private readonly pending = new Map<number, { resolve: (response: RpcResponse) => void; reject: (error: Error) => void; timer: ReturnType<typeof setTimeout> }>();
+  private readonly pending = new Map<string, {
+    resolve: (response: PiRpcResponse) => void;
+    reject: (error: Error) => void;
+    timer: ReturnType<typeof setTimeout>;
+  }>();
+  private nextId = 1;
 
   constructor(readonly child: ChildProcessWithoutNullStreams) {
     child.stdout.on('data', (chunk: Buffer) => this.onData(chunk.toString()));
@@ -36,14 +72,21 @@ class RpcClient {
     });
   }
 
-  request(id: number, method: string, params: Record<string, unknown> = {}, timeoutMs = 60_000): Promise<RpcResponse> {
+  /**
+   * Send a Pi RPC command and resolve with its response envelope.
+   *
+   * Non-`response` frames (streamed events, extension UI requests) are
+   * ignored: this verifier asserts transport stability, not turn output.
+   */
+  call(command: Record<string, unknown>, timeoutMs = 60_000): Promise<PiRpcResponse> {
+    const id = `stability-${this.nextId++}`;
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         this.pending.delete(id);
-        reject(new Error(`request timeout id=${id} method=${method}`));
+        reject(new Error(`request timeout id=${id} type=${String(command.type)}`));
       }, timeoutMs);
       this.pending.set(id, { resolve, reject, timer });
-      this.child.stdin.write(`${JSON.stringify({ jsonrpc: '2.0', id, method, params })}\n`);
+      this.child.stdin.write(`${JSON.stringify({ id, ...command })}\n`);
     });
   }
 
@@ -53,29 +96,37 @@ class RpcClient {
     this.buffer = lines.pop() ?? '';
     for (const line of lines) {
       if (!line.trim()) continue;
-      let response: RpcResponse;
+      let frame: PiRpcResponse;
       try {
-        response = JSON.parse(line) as RpcResponse;
+        frame = JSON.parse(line) as PiRpcResponse;
       } catch {
         continue;
       }
-      const request = this.pending.get(response.id);
+      if (frame.type !== 'response' || typeof frame.id !== 'string') continue;
+      const request = this.pending.get(frame.id);
       if (!request) continue;
-      this.pending.delete(response.id);
+      this.pending.delete(frame.id);
       clearTimeout(request.timer);
-      if (response.error) request.reject(new Error(`${response.error.code}: ${response.error.message}`));
-      else request.resolve(response);
+      if (frame.success === false) request.reject(new Error(`${frame.command}: ${frame.error ?? 'unknown error'}`));
+      else request.resolve(frame);
     }
   }
 }
 
-function startServer(sessionDir: string): ChildProcessWithoutNullStreams {
+/** Resolve the CLI invocation: prefer the compiled binary, fall back to source. */
+function resolveCommand(): { command: string; args: string[] } {
   const root = join(dirname(fileURLToPath(import.meta.url)), '..');
   const binary = join(root, 'dist', 'upup');
-  const command = Bun.file(binary).size > 0 ? binary : process.execPath;
-  const args = command === binary ? ['--stdio'] : [join(root, 'src', 'index.tsx'), '--stdio'];
+  if (existsSync(binary)) return { command: binary, args: ['--stdio'] };
+  return { command: process.execPath, args: [join(root, 'src', 'index.tsx'), '--stdio'] };
+}
+
+function startServer(sessionDir: string, command: string, args: string[]): ChildProcessWithoutNullStreams {
   return spawn(command, args, {
-    cwd: root,
+    cwd: join(dirname(fileURLToPath(import.meta.url)), '..'),
+    // `UPUP_SESSION_DIR` is UpUp's legacy spelling; the launcher mirrors it to
+    // the name Pi actually reads (`UPUP_CODING_AGENT_SESSION_DIR`), so both
+    // processes in a round share one session dir and genuinely contend.
     env: { ...process.env, UPUP_SESSION_DIR: sessionDir },
     stdio: ['pipe', 'pipe', 'pipe'],
   });
@@ -89,11 +140,32 @@ async function stopServer(child: ChildProcessWithoutNullStreams): Promise<{ code
   return { code, stderr };
 }
 
+/**
+ * Assert every file under `sessionDir` is either a well-formed JSONL session
+ * or a lock/auxiliary artifact, and that no `.pi-lock` survived the round.
+ */
+async function inspectSessionDir(sessionDir: string, report: StabilityReport): Promise<void> {
+  const entries = await readdir(sessionDir, { recursive: true }).catch(() => [] as string[]);
+  for (const entry of entries.filter((name) => name.endsWith('.pi-lock'))) {
+    report.lockResidues.push(join(sessionDir, entry));
+  }
+  for (const entry of entries.filter((name) => name.endsWith('.jsonl'))) {
+    const path = join(sessionDir, entry);
+    try {
+      const lines = (await readFile(path, 'utf8')).split('\n').filter(Boolean);
+      for (const line of lines) JSON.parse(line);
+    } catch {
+      report.malformedJsonl.push(path);
+    }
+  }
+}
+
 async function run(): Promise<void> {
-  const rounds = Number.parseInt(process.env.UPUP_PI_STDIO_STABILITY_ROUNDS ?? '3', 10);
+  const parsedRounds = Number.parseInt(process.env.UPUP_PI_STDIO_STABILITY_ROUNDS ?? '3', 10);
+  const rounds = Number.isFinite(parsedRounds) && parsedRounds > 0 ? parsedRounds : 3;
   const report: StabilityReport = {
     schema: 'upup.pi.stdio-stability.v1',
-    rounds: Number.isFinite(rounds) && rounds > 0 ? rounds : 3,
+    rounds,
     completedRounds: 0,
     sessionsPerRound: 2,
     requestsPerRound: 8,
@@ -102,66 +174,77 @@ async function run(): Promise<void> {
     malformedJsonl: [],
     durationMs: 0,
   };
+  const { command, args } = resolveCommand();
   const startedAt = Date.now();
-  for (let round = 1; round <= report.rounds; round++) {
-    const sessionDir = await mkdtemp(join(process.cwd(), '.upup', 'pi-stdio-stability-'));
-    const children = [startServer(sessionDir), startServer(sessionDir)];
+
+  // Parent for round session dirs. Kept inside the repo's `.upup/` so the run
+  // stays on the same filesystem as the lock files it is testing.
+  const container = join(process.cwd(), '.upup');
+  await mkdir(container, { recursive: true });
+
+  for (let round = 1; round <= rounds; round++) {
+    const sessionDir = await mkdtemp(join(container, 'pi-stdio-stability-'));
+    const children = [startServer(sessionDir, command, args), startServer(sessionDir, command, args)];
     const clients = children.map((child) => new RpcClient(child));
     try {
-      await Promise.all(clients.map((client, index) => client.request(1, 'initialize', { clientName: `stability-${round}-${index}`, clientVersion: '1.0.0' }, 15_000)));
+      // Both processes initialize their session concurrently in one dir —
+      // this is the lock contention the contract exists to exercise.
       await Promise.all([
-        clients[0]!.request(2, 'session/create', { id: `stability-${round}-a` }),
-        clients[1]!.request(2, 'session/create', { id: `stability-${round}-b` }),
+        clients[0]!.call({ type: 'new_session' }),
+        clients[1]!.call({ type: 'new_session' }),
       ]);
+      const states = await Promise.all(clients.map((client) => client.call({ type: 'get_state' })));
+      for (const state of states) {
+        const data = state.data as { sessionId?: unknown; sessionFile?: unknown } | undefined;
+        if (typeof data?.sessionId !== 'string') throw new Error('get_state did not return a sessionId');
+        if (typeof data.sessionFile !== 'string') throw new Error('get_state did not return a sessionFile');
+      }
+
+      // Interleave shared-directory metadata writes from both processes.
       await Promise.all([
-        clients[0]!.request(3, 'session/update', { id: `stability-${round}-a`, metadata: { round, writer: 'a' } }),
-        clients[1]!.request(3, 'session/update', { id: `stability-${round}-a`, metadata: { round, writer: 'b' } }),
+        clients[0]!.call({ type: 'set_session_name', name: `stability-${round}-a` }),
+        clients[1]!.call({ type: 'set_session_name', name: `stability-${round}-b` }),
       ]);
-      const exported = await clients[0]!.request(4, 'session/export', { id: `stability-${round}-a` });
-      const exportedPath = (exported.result as { path?: unknown }).path;
-      if (typeof exportedPath !== 'string') throw new Error('session/export did not return a path');
+
+      // Independent reads against the live lock; all four must complete.
       await Promise.all([
-        clients[0]!.request(5, 'session/get', { id: `stability-${round}-a` }),
-        clients[1]!.request(5, 'session/get', { id: `stability-${round}-b` }),
-        clients[0]!.request(6, 'session/messages', { id: `stability-${round}-a` }),
-        clients[1]!.request(6, 'session/messages', { id: `stability-${round}-b` }),
+        clients[0]!.call({ type: 'get_tree' }),
+        clients[1]!.call({ type: 'get_entries' }),
+        clients[0]!.call({ type: 'get_messages' }),
+        clients[1]!.call({ type: 'get_session_stats' }),
       ]);
-      const lines = (await readFile(exportedPath, 'utf8')).split('\n').filter(Boolean);
-      for (const line of lines) JSON.parse(line);
+
+      // Every session file written this round must be parseable JSONL.
+      await inspectSessionDir(sessionDir, report);
       report.completedRounds++;
     } catch (error) {
       const stopped = await Promise.all(children.map(stopServer));
-      report.failures.push({ round, phase: 'rpc', message: error instanceof Error ? error.message : String(error), stderr: stopped.map((item) => item.stderr).join('\n'), exitCode: stopped.find((item) => item.code !== 0)?.code ?? null });
-      const entries = await readdir(sessionDir, { recursive: true }).catch(() => [] as string[]);
-      report.lockResidues.push(...entries.filter((entry) => entry.endsWith('.pi-lock')).map((entry) => join(sessionDir, entry)));
-      for (const entry of entries.filter((entry) => entry.endsWith('.jsonl'))) {
-        try {
-          const lines = (await readFile(join(sessionDir, entry), 'utf8')).split('\n').filter(Boolean);
-          for (const line of lines) JSON.parse(line);
-        } catch {
-          report.malformedJsonl.push(join(sessionDir, entry));
-        }
-      }
+      report.failures.push({
+        round,
+        phase: 'rpc',
+        message: error instanceof Error ? error.message : String(error),
+        stderr: stopped.map((item) => item.stderr).join('\n'),
+        exitCode: stopped.find((item) => item.code !== 0)?.code ?? null,
+      });
+      await inspectSessionDir(sessionDir, report);
       await rm(sessionDir, { recursive: true, force: true });
       continue;
     }
     await Promise.all(children.map(stopServer));
-    const entries = await readdir(sessionDir, { recursive: true }).catch(() => [] as string[]);
-    const residues = entries.filter((entry) => entry.endsWith('.pi-lock'));
-    report.lockResidues.push(...residues.map((entry) => join(sessionDir, entry)));
-    for (const entry of entries.filter((entry) => entry.endsWith('.jsonl'))) {
-      try {
-        const lines = (await readFile(join(sessionDir, entry), 'utf8')).split('\n').filter(Boolean);
-        for (const line of lines) JSON.parse(line);
-      } catch {
-        report.malformedJsonl.push(join(sessionDir, entry));
-      }
-    }
+    // Re-inspect after shutdown: a lock released on exit must not be left behind.
+    await inspectSessionDir(sessionDir, report);
     await rm(sessionDir, { recursive: true, force: true });
   }
+
   report.durationMs = Date.now() - startedAt;
   console.log(JSON.stringify(report, null, 2));
-  if (report.completedRounds !== report.rounds || report.lockResidues.length > 0 || report.malformedJsonl.length > 0) process.exitCode = 1;
+  if (
+    report.completedRounds !== report.rounds
+    || report.lockResidues.length > 0
+    || report.malformedJsonl.length > 0
+  ) {
+    process.exitCode = 1;
+  }
 }
 
 await run();

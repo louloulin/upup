@@ -121,12 +121,7 @@ export async function applyProperLockfileBunShim(
   requireFn?: RequireLike,
   options: { agentDir?: string } = {},
 ): Promise<ApplyShimResult> {
-  const result = await doApply(requireFn, options);
-  try {
-    const { appendFileSync } = await import('node:fs');
-    appendFileSync('/tmp/shim-trace.log', JSON.stringify({ t: Date.now(), ...result }) + '\n');
-  } catch { /* ignore */ }
-  return result;
+  return doApply(requireFn, options);
 }
 
 async function doApply(

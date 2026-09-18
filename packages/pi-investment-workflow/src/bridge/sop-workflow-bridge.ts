@@ -41,6 +41,24 @@
 import { loadSops, type SopLoadResult, type SopLoaderOptions } from '../sop-loader';
 import type { SopSpec } from '../sop-spec';
 
+/**
+ * Lazily reach the shared dual-scope importer without a static workspace edge
+ * (`@upup/pi-investment-workflow` -> `@upup/pi-runtime` already exists as a
+ * dependency, but resolving the module on first use keeps this bridge
+ * importable from a bare `bun test` file with no runtime boot).
+ */
+async function createUpUpEcosystemImporter(): Promise<(specifier: string) => Promise<unknown>> {
+  try {
+    const runtime = (await import('@upup/pi-runtime')) as {
+      createEcosystemImporter?: () => (specifier: string) => Promise<unknown>;
+    };
+    if (typeof runtime.createEcosystemImporter === 'function') return runtime.createEcosystemImporter();
+  } catch {
+    /* Runtime unavailable (unit test / stripped host) — fall through. */
+  }
+  return (specifier: string) => import(specifier);
+}
+
 type ResourceName = string;
 type ResourceVersion = number;
 
@@ -82,7 +100,13 @@ export interface RegisterWorkflowResourceFn {
 }
 
 export interface UpUpSopWorkflowBridgePorts {
-  /** Dynamic import so the host does not need a static `pi-subagents` dep. */
+  /**
+   * Dynamic import so the host does not need a static `pi-subagents` dep.
+   * Defaults to the dual-scope ecosystem importer, which searches
+   * `~/.upup/agent/npm` before the bundled workspace and reads the package
+   * manifest directly — a bare `import()` cannot resolve the
+   * `pi-subagents/workflow-resources` subpath inside a compiled Bun binary.
+   */
   readonly importer?: (specifier: string) => Promise<unknown>;
   /** Session id the runtime is currently in (used by `pi-subagents`). */
   readonly sessionId: string;
@@ -153,7 +177,7 @@ export function buildUpUpSopScript(sop: SopSpec, ticker: string, args: Readonly<
 export async function bridgeUpUpSopsToWorkflowResources(
   ports: UpUpSopWorkflowBridgePorts,
 ): Promise<SopBridgeResult> {
-  const importer = ports.importer ?? ((specifier: string) => import(specifier));
+  const importer = ports.importer ?? (await createUpUpEcosystemImporter());
   const sink = ports.onError ?? (() => undefined);
 
   let registerResource: RegisterWorkflowResourceFn | undefined;

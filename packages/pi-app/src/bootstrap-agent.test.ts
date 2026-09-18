@@ -123,7 +123,12 @@ describe('bootstrapUpupAgent', () => {
     mkdirSync(piHome, { recursive: true });
     writeFileSync(join(piHome, 'settings.json'), JSON.stringify({ defaultProvider: 'moonshot' }));
 
-    const result = bootstrapUpupAgentSync({ home, skipSeed: false });
+    // `env: {}` keeps the `home` argument authoritative: `resolveAgentDir`
+    // deliberately ranks `$UPUP_HOME` / `*_CODING_AGENT_DIR` above `home`
+    // (those are explicit relocations of the UpUp root), and `bun test` sets
+    // both process-wide to sandbox the run — so without this the preload's
+    // temp sandbox would win and `home` would be ignored.
+    const result = bootstrapUpupAgentSync({ home, env: {}, skipSeed: false });
     expect(result.agentDir).toBe(join(home, '.upup', 'agent'));
     expect(result.seededFrom).toBe(piHome);
     const settings = JSON.parse(readFileSync(join(result.agentDir, 'settings.json'), 'utf8')) as {

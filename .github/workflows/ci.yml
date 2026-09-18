@@ -22,6 +22,8 @@ jobs:
             command: bun run check:pi7
           - task: module-boundaries
             command: bun run check:module-boundaries
+          - task: workspace-exports
+            command: bun run check:workspace-exports
           - task: pi-packages
             command: bun run check:pi-packages
           - task: js-suffix

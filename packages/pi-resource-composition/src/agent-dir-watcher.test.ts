@@ -5,6 +5,23 @@ import { join } from 'node:path';
 import { watchAgentDirForChanges, type AgentDirReloadTrigger } from './agent-dir-watcher';
 import { resolveAgentDir } from './agent-dir';
 
+/**
+ * Environment with every UpUp / Pi home override stripped.
+ *
+ * `resolveAgentDir` deliberately ranks `UPUP_HOME` and `*_CODING_AGENT_DIR`
+ * **above** its `home` argument — those env vars are explicit relocations of
+ * the UpUp root, so a process pinned with `$UPUP_HOME` can never be pushed
+ * back into the developer's real `~/.upup` (contract:
+ * `agent-dir-publication.contract.test.ts`). `bun test` sets both variables
+ * process-wide to sandbox the run (see `scripts/test-preload.ts`), so a test
+ * that wants its `home` argument to decide the path must hand the watcher a
+ * stripped env — otherwise the preload's sandbox wins and `home` is silently
+ * ignored.
+ */
+function envWithoutHomeOverrides(): NodeJS.ProcessEnv {
+  return {};
+}
+
 function withTempHome<T>(run: (home: string) => Promise<T> | T): Promise<T> {
   const home = mkdtempSync(join(tmpdir(), 'upup-resource-watcher-'));
   return Promise.resolve(run(home)).finally(() => {
@@ -22,7 +39,7 @@ describe('@upup/pi-resource-composition — watchAgentDirForChanges', () => {
       mkdirSync(join(home, '.upup', 'agent'), { recursive: true });
       const triggers: AgentDirReloadTrigger[] = [];
       const handle = watchAgentDirForChanges(
-        { home },
+        { home, env: envWithoutHomeOverrides() },
         (t) => { triggers.push(t); },
       );
       try {
@@ -42,7 +59,7 @@ describe('@upup/pi-resource-composition — watchAgentDirForChanges', () => {
       writeFileSync(join(agentDir, 'settings.json'), JSON.stringify({ packages: [] }));
       const triggers: AgentDirReloadTrigger[] = [];
       const handle = watchAgentDirForChanges(
-        { home, debounceMs: 10, pollMs: 50 },
+        { home, env: envWithoutHomeOverrides(), debounceMs: 10, pollMs: 50 },
         (t) => { triggers.push(t); },
       );
       try {
@@ -85,7 +102,7 @@ describe('@upup/pi-resource-composition — watchAgentDirForChanges', () => {
       const agentDir = join(home, '.upup', 'agent');
       writeFileSync(join(agentDir, 'settings.json'), JSON.stringify({ packages: [] }));
       const handle = watchAgentDirForChanges(
-        { home, debounceMs: 10, pollMs: 50 },
+        { home, env: envWithoutHomeOverrides(), debounceMs: 10, pollMs: 50 },
         () => Promise.reject(new Error('boom')),
       );
       try {
@@ -104,7 +121,7 @@ describe('@upup/pi-resource-composition — watchAgentDirForChanges', () => {
       const agentDir = join(home, '.upup', 'agent');
       const triggers: AgentDirReloadTrigger[] = [];
       const handle = watchAgentDirForChanges(
-        { home, debounceMs: 10, pollMs: 50 },
+        { home, env: envWithoutHomeOverrides(), debounceMs: 10, pollMs: 50 },
         (t) => { triggers.push(t); },
       );
       handle.close();

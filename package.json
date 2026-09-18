@@ -28,6 +28,7 @@
     "build:pkg:win": "pkg . --targets node22-win-x64 --output dist/upup.exe",
     "build:types": "cd packages/types && bun build src/index.ts --outdir=dist --target=bun && npx tsc --emitDeclarationOnly --declaration --declarationMap --outDir dist",
     "check:module-boundaries": "bun run scripts/check-module-boundaries.ts",
+    "check:workspace-exports": "bun run scripts/check-workspace-exports.ts",
     "check:pi-deletion-audit": "UPUP_PI_DELETION_AUDIT_STRICT=1 bun run scripts/report-pi7-deletion-audit.ts",
     "check:pi-migration": "bun run scripts/check-pi-migration.ts",
     "check:pi-package-audit": "UPUP_PI_PACKAGE_AUDIT_STRICT=1 bun run scripts/report-pi-package-audit.ts",

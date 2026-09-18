@@ -127,6 +127,16 @@ export function installMaxListenersHeadroom(): void {
 installMaxListenersHeadroom();
 
 export interface BootstrapAgentOptions {
+  /**
+   * Caller-supplied environment (defaults to `process.env`).
+   *
+   * `resolveAgentDir` ranks `$UPUP_HOME` and `*_CODING_AGENT_DIR` above the
+   * `home` argument, because those variables are explicit relocations of the
+   * UpUp root. A test that wants `home` to decide therefore has to pass a
+   * stripped env; passing this option keeps that explicit instead of mutating
+   * the process-global environment.
+   */
+  readonly env?: NodeJS.ProcessEnv;
   /** Override the resolved home dir (defaults to `os.homedir()`). */
   readonly home?: string;
   /** Force a specific agent dir, bypassing `resolveAgentDir` precedence. */
@@ -237,13 +247,14 @@ interface BootstrapContext {
 }
 
 function resolveContext(options: BootstrapAgentOptions): BootstrapContext {
-  const home = options.home ?? process.env.HOME ?? homedir();
+  const env = options.env ?? process.env;
+  const home = options.home ?? env.HOME ?? homedir();
   const agentDir = options.agentDir
     ? resolve(options.agentDir)
-    : resolveAgentDir(process.cwd(), { env: process.env, home }).agentDir;
+    : resolveAgentDir(process.cwd(), { env, home }).agentDir;
   const seedSource = options.skipSeed
     ? undefined
-    : options.seedFrom ?? process.env.UPUP_MIGRATE_FROM?.trim() ?? join(home, '.pi', 'agent');
+    : options.seedFrom ?? env.UPUP_MIGRATE_FROM?.trim() ?? join(home, '.pi', 'agent');
   const themeSource = options.themeSourcePath ?? defaultThemeSourcePath();
   return {
     agentDir,

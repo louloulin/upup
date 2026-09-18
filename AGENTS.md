@@ -71,6 +71,7 @@ UpUp **不重新实现 agent**。Agent loop、TUI/InteractiveMode、工具执行
 
 - `bun run check:pi7` — 单 factory、零生产 global registry
 - `bun run check:module-boundaries` — workspace 边界、root allowlist、无环
+- `bun run check:workspace-exports` — 每个 `exports` 声明的 `dist/*` 目标都必须由其 build 脚本产出（Pi extension loader 走 Node/jiti 语义，落 `default` 条件，`dist/` 缺失即运行期炸）
 - `bun run check:pi-packages` + `check:pi-side-effects` — Pi manifest 与工具副作用
 - `bun run check:pi-runtime` — Bun/Node 版本与 build target
 - `bun run check:pi-deletion-audit` (strict) — 旧路径消费者清零
