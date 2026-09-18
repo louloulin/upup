@@ -107,4 +107,52 @@ describe('Pi agent-dir publication contract', () => {
     expect(env.PI_CODING_AGENT_DIR).toBe('/custom/pi');
     expect(env.UPUP_CODING_AGENT_DIR).toBe('/upup/agent');
   });
+
+  /**
+   * `node:path.resolve` does not expand `~`; it treats it as an ordinary
+   * directory name. Every env override accepts shell-style `~`, so the
+   * resolver expands it by hand — otherwise `UPUP_AGENT_DIR=~/upup/agent`
+   * silently produced `<cwd>/~/upup/agent`, a real directory named `~` under
+   * the project root.
+   */
+  test('env overrides expand a leading ~ instead of nesting it under cwd', () => {
+    for (const name of ['UPUP_AGENT_DIR', 'UPUP_CODING_AGENT_DIR', 'PI_CODING_AGENT_DIR'] as const) {
+      const resolved = resolveAgentDir(tmpdir(), { env: { [name]: '~/upup/agent' }, home: '/home/tester' });
+      expect(resolved.agentDir).toBe('/home/tester/upup/agent');
+    }
+    const homeRoot = resolveAgentDir(tmpdir(), { env: { UPUP_HOME: '~/upup-home' }, home: '/home/tester' });
+    expect(homeRoot.agentDir).toBe('/home/tester/upup-home/agent');
+  });
+
+  /**
+   * `UPUP_SESSION_DIR` is the legacy spelling that predates the rebrand. Pi
+   * only reads `<APP_NAME>_CODING_AGENT_SESSION_DIR`, so a process that set
+   * the legacy name alone had its sessions written to the real
+   * `~/.upup/agent/sessions` while every verifier and test believed it was
+   * isolated. The publisher mirrors it into the names Pi consumes.
+   */
+  test('the legacy UPUP_SESSION_DIR alias reaches the names Pi reads', async () => {
+    const contract = await readPiAgentDirContract();
+    const dir = sandboxAgentDir();
+    const env: NodeJS.ProcessEnv = { UPUP_HOME: join(dir, '..'), UPUP_SESSION_DIR: join(dir, 'legacy-sessions') };
+
+    publishPiAgentDirEnv({ env, cwd: tmpdir(), home: tmpdir() });
+
+    // The exact variable name Pi resolves at module init.
+    expect(contract.envAgentDir).toBe('UPUP_CODING_AGENT_DIR');
+    expect(env.UPUP_CODING_AGENT_SESSION_DIR).toBe(join(dir, 'legacy-sessions'));
+    expect(env.PI_CODING_AGENT_SESSION_DIR).toBe(join(dir, 'legacy-sessions'));
+  });
+
+  test('an explicit sessionDir beats the legacy alias, and neither is invented', () => {
+    const withExplicit: NodeJS.ProcessEnv = { UPUP_SESSION_DIR: '/legacy' };
+    publishPiAgentDirEnv({ env: withExplicit, agentDir: '/upup/agent', sessionDir: '/explicit' });
+    expect(withExplicit.UPUP_CODING_AGENT_SESSION_DIR).toBe('/explicit');
+
+    const unset: NodeJS.ProcessEnv = {};
+    publishPiAgentDirEnv({ env: unset, agentDir: '/upup/agent' });
+    // Pi derives `<agentDir>/sessions` itself; publishing a value would
+    // override a user's own `--session-dir` choice.
+    expect(unset.UPUP_CODING_AGENT_SESSION_DIR).toBeUndefined();
+  });
 });

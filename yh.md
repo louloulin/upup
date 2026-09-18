@@ -5,7 +5,8 @@
 > 方法：直接读源码 + 在真实进程内实测（每项结论都带可复现的测量命令与数字）
 > 环境：Bun 1.4.1 (macOS arm64) · Node 24.16.0 · 实测时 `push2.eastmoney.com` 正处于限流窗口
 
-本文所有数字都是本机实测值，不是估算。评测脚本放在 `/tmp/upup-perf/`，可重跑。
+本文所有数字都是本机实测值，不是估算。评测脚本已固化在 `scripts/perf/`（可从任意 cwd 重跑），
+每个结论后面都标了对应的脚本名。
 
 ---
 
@@ -59,7 +60,7 @@ packages/pi-finance-sdk/src/eastmoney-datacenter.ts:29    数据中心
 ### 1.2 实测证据
 
 ```bash
-bun /tmp/upup-perf/verify-all.ts
+bun scripts/perf/verify-all.ts
 ```
 
 ```
@@ -73,7 +74,7 @@ bun /tmp/upup-perf/verify-all.ts
 
 ### 1.3 真实业务影响
 
-对 `querySectorSnapshot` 做逐请求打点（`bun /tmp/upup-perf/bench-chain.ts`）：
+对 `querySectorSnapshot` 做逐请求打点（`bun scripts/perf/bench-chain.ts`）：
 
 ```
 no code (board list)    :  164 ~  277ms requests=1
@@ -90,7 +91,7 @@ stock code 600519.SH    : 1142 ~ 1404ms requests=5
 > 这正是"瓶颈是排队而不是网络"的证据：网络快慢只影响每格内的几十毫秒，
 > 而**格数 × 500ms 是固定的**。
 
-对筛选器（最重的路径），按主机拆开看才能看清排队来源（`bun /tmp/upup-perf/bench-screener-hosts.ts`）：
+对筛选器（最重的路径），按主机拆开看才能看清排队来源（`bun scripts/perf/bench-screener-hosts.ts`）：
 
 ```
 screenEastmoneyStocks(cn,limit=20): 2795ms
@@ -115,7 +116,7 @@ screenEastmoneyStocks(cn,limit=20): 2795ms
 4. 8 路 RAW 并发 fetch 到镜像主机: 8/8 ok in 275~303ms
 ```
 
-对比同样 5 个请求（`bun /tmp/upup-perf/bench-mirror-stable.ts`，两轮）：
+对比同样 5 个请求（`bun scripts/perf/bench-mirror-stable.ts`，两轮）：
 
 ```
 round 1: 经闸门=2067ms  原始并发=259ms  → 8.0x   原始 5/5 全部成功
@@ -167,7 +168,7 @@ createHostRequestGate({ key: 'push2.eastmoney.com/api/qt/clist', maxConcurrency:
 
 #### 2.1 实测：真正的失败路径只进闸门 2 次，不是 4 次
 
-对 `getEastmoneyQuote` 的真实形状（`read(live)` → 失败 → `read(mirror)`，各自带一次 `EASTMONEY_RETRY`）打点（`bun /tmp/upup-perf/bench-retry-decompose.ts`）：
+对 `getEastmoneyQuote` 的真实形状（`read(live)` → 失败 → `read(mirror)`，各自带一次 `EASTMONEY_RETRY`）打点（`bun scripts/perf/bench-retry-decompose.ts`）：
 
 ```
 [EASTMONEY_RETRY 600/5000] live+mirror: 1203ms (live=601 mirror=602)
@@ -191,7 +192,7 @@ createHostRequestGate({ key: 'push2.eastmoney.com/api/qt/clist', maxConcurrency:
    TypeError("The socket connection was closed unexpectedly"): {"classification":"transient"}
    ```
    它的中文提示语匹配不上 `TRANSIENT_NETWORK_PATTERN`（`provider-retry.ts:92`），因此不再重试。**第 3 次 attempt 永远不会发生。**
-3. **重试退避与闸门间隔是重叠的（取较长者），不是相加。** 实测（`bun /tmp/upup-perf/bench-overlap.ts`）：
+3. **重试退避与闸门间隔是重叠的（取较长者），不是相加。** 实测（`bun scripts/perf/bench-overlap.ts`）：
    ```
    baseDelayMs=100: total=502ms    ← 闸门 500ms 主导
    baseDelayMs=300: total=503ms    ← 闸门 500ms 主导
@@ -203,7 +204,7 @@ createHostRequestGate({ key: 'push2.eastmoney.com/api/qt/clist', maxConcurrency:
 
 比"重试多花 1 秒"严重得多的是第 1 条事实的推论：**任意 2 个无关请求各 reset 一次，就会让同一主机上所有健康接口在 180 秒内全部快速失败。**
 
-实测 `bun /tmp/upup-perf/bench-cooldown-shared.ts`（两个不同 caller 各失败一次，然后发两个完全健康的请求）：
+实测 `bun scripts/perf/bench-cooldown-shared.ts`（两个不同 caller 各失败一次，然后发两个完全健康的请求）：
 
 ```
   caller-A (fails):     TypeError
@@ -250,7 +251,7 @@ const stock = await fetchEastmoneyStockIndustry(code, options);
 这次请求（含它的 500ms 排队）是纯浪费。
 
 **实测（stub fetcher，排除网络抖动）**：喂一份只含 `Classify: 'AStock'` 行的真实形状 suggest 响应
-（`bun /tmp/upup-perf/bench-board-undefined.ts`）：
+（`bun scripts/perf/bench-board-undefined.ts`）：
 
 ```
 resolveEastmoneyBoard("600519.SH") -> undefined  (  1ms)  ← 首次调用，未排队
@@ -266,7 +267,7 @@ resolveEastmoneyBoard("BK0477")    -> undefined  (500ms)
 > 唯一有信息量的是耗时列：**除首次免排队外，每次 `resolveEastmoneyBoard` 都实打实付 500ms**。
 > 这就是"一次无用请求 = 500ms"的最小证据。
 
-端到端实测（`bun /tmp/upup-perf/bench-dup2.ts`，stub 会把真实响应形状回放：
+端到端实测（`bun scripts/perf/bench-dup2.ts`，stub 会把真实响应形状回放：
 股票代码返回 `Classify: 'AStock'`，中文关键词返回 `Classify: 'BK'`）：
 
 ```
@@ -306,7 +307,7 @@ await Promise.all([loader(req), loader(req)]);
 
 `quote.ts` 的 `InMemoryMarketQuoteCache`（`:107`）同理，只有 `get`/`set`，没有"进行中"占位。
 
-**实测影响**（`bun /tmp/upup-perf/bench-inflight.ts`，5 个并发相同查询）：
+**实测影响**（`bun scripts/perf/bench-inflight.ts`，5 个并发相同查询）：
 
 ```
 5 CONCURRENT identical queries -> 10 upstream calls in 2077ms
@@ -336,7 +337,7 @@ const cache = new Map<string, { at: number; pending?: Promise<T>; result?: T }>(
 
 `packages/pi-resource-composition/src/plugin-trust.ts:36` 的 `hashPath()` 会对包内**每个文件**做 SHA-256，且 `:102` 每次 `verifyPiResourceTrust` 都重算，**没有任何缓存**。
 
-实测（`bun /tmp/upup-perf/bench-trust.ts`，多次运行显示数值随文件系统/page cache 波动）：
+实测（`bun scripts/perf/bench-trust.ts`，多次运行显示数值随文件系统/page cache 波动）：
 
 ```
                   files   size     多次实测区间
@@ -349,7 +350,7 @@ packages (all)                     24.6 ~ 65.6ms
 > 该脚本必须在**仓库根目录**下运行才能看到文件数（在别处 `packages/...` 路径不存在，
 > 会静默打印 `0 files`）。这是脚本的相对路径依赖，不是测量误差。
 
-单次不足为患，但它发生在**每次 `createSession`** 上。实测会话创建（`bun /tmp/upup-perf/bench-session.ts`）：
+单次不足为患，但它发生在**每次 `createSession`** 上。实测会话创建（`bun scripts/perf/bench-session.ts`）：
 
 ```
 createSession #1: 377ms   ← 冷启动
@@ -382,7 +383,7 @@ createSession #3:  37ms
 ## 6.5 会话级 skill 扫描（P10）
 
 AGENTS.md 的 "Known Pi-Integration Gaps" 已记录"每个 session 默认从 `~/.agents/skills` 加载全局 skills"，
-但此前没有量化过代价。实测（`bun /tmp/upup-perf/bench-skillscope.ts`，预热后交错采样 6 次）：
+但此前没有量化过代价。实测（`bun scripts/perf/bench-skillscope.ts`，预热后交错采样 6 次）：
 
 ```
 userSkills=include        : 49, 39, 42, 40, 39, 37   avg=41ms
@@ -390,7 +391,7 @@ userSkills=whitelist-only : 31, 28, 27, 27, 29, 27   avg=28ms
 ```
 
 即 **+13ms / session（1.46x）**，且这只是在单包（`pi-market-data` + `pi-finance-sdk`）下测的。
-底层扫描成本（`bun /tmp/upup-perf/bench-skillscan.ts`）：
+底层扫描成本（`bun scripts/perf/bench-skillscan.ts`）：
 
 ```
 /Users/louloulin/.agents/skills: 162 skills, 1331KB SKILL.md read in 4.9ms
@@ -415,7 +416,7 @@ userSkills=whitelist-only : 31, 28, 27, 27, 29, 27   avg=28ms
 
 `packages/pi-storage/src/index.ts:5` 的 `canonicalJson` 是递归 + 每层 `Object.keys().sort()` + 字符串拼接，且在 `hashDossier`、审计链 `append`、`verify` 里被反复调用。
 
-实测（`bun /tmp/upup-perf/bench-stable.ts`，含 200 条 metrics 的 dossier，预热 + 交错计时取均值）：
+实测（`bun scripts/perf/bench-stable.ts`，含 200 条 metrics 的 dossier，预热 + 交错计时取均值）：
 
 ```
 canonicalJson (200 metrics)   : 86.6 ~ 95.9 µs/op    (三次独立运行)
@@ -479,15 +480,18 @@ hash 200KB: Bun.CryptoHasher vs node sha256            ( 1.0x, 完全持平)
 bun build --compile --target=bun --outfile=dist/upup src/index.tsx --external=playwright ...
 ```
 
-**实测结论（不是估算）**：对同一份源码编译两个二进制，各跑 20 次取均值——
+**实测结论（不是估算）**：对同一份源码编译两个二进制，各跑 20 次取均值，共 4 轮交错：
 
 ```
-upup-plain (现状)     : 81.0MB   180.0 / 181.0 ms/run   (两轮)
-upup-min  (--minify)  : 72.6MB   169.7 / 168.0 ms/run   (两轮)
-                                   → 体积 −8.4MB (−10.4%)，启动 −11ms (−6%)
+                      体积            4 轮启动耗时（每轮 20 次均值）
+plain  (现状)    79,432,418 B   207.9 / 175.9 / 186.4 / 186.8 ms   (avg 189.3)
+--minify         72,612,962 B   191.6 / 160.6 / 172.5 / 170.8 ms   (avg 173.9)
+                → −6,819,456 B (−8.6%)          → −15.4 ms (−8.1%)
 ```
 
-**建议加 `--minify`**：零风险，稳定省 10% 体积 + 6% 启动时间。`--sourcemap=external` 可另外保留可调试性。
+**每一轮 `--minify` 都更快**（−15~−21ms），方向一致、无翻转，所以这不是噪声。
+
+**建议加 `--minify`**：零风险，稳定省 8.6% 体积 + ~8% 启动时间。`--sourcemap=external` 可另外保留可调试性。
 
 #### ⚠️ `--bytecode` 目前在 UpUp 上**不可用**（实测发现的真实阻塞）
 
@@ -498,18 +502,23 @@ $ bun build --compile --bytecode --target=bun --outfile=/tmp/x src/index.tsx --e
 error: Failed to generate bytecode for ./x
 ```
 
-最小复现（`/tmp/upup-perf/tla/`）证实根因是 **`--bytecode` 不支持顶层 `await`（TLA）**。
+最小复现（`scripts/perf/tla/`，可直接跑）证实根因是 **`--bytecode` 不支持顶层 `await`（TLA）**。
 真实入口只打印上面那一行 `Failed to generate bytecode`（不指出具体文件），
 而在最小 TLA 文件上能看到更直白的诊断：
 
-```
-const x = await Promise.resolve(1);                     → --bytecode 报错
-const main = async () => { await ... }; void main();    → --bytecode 成功 ✅
-```
+```bash
+# 失败：顶层 await
+bun build --compile --bytecode --outfile=/tmp/x scripts/perf/tla/tla-fails.ts
+#   error: "await" can only be used inside an "async" function
+#   error: Unexpected .
 
-```
-error: "await" can only be used inside an "async" function
-error: Unexpected .
+# 成功：同样的 await 包在 async IIFE 里
+bun build --compile --bytecode --outfile=/tmp/x scripts/perf/tla/iife-works.ts
+#   → compile OK, runs and prints "iife 42"
+
+# 对照：普通 --compile 对顶层 await 完全正常
+bun build --compile --outfile=/tmp/x scripts/perf/tla/tla-fails.ts
+#   → compile OK
 ```
 
 **只有 `--bytecode` 构建会触发失败**——普通 `--compile` 与 `--compile --minify`
@@ -528,7 +537,7 @@ synth-bytecode              : 冷 0.44s / 热 0.00s
 所以正确结论是：**跳过 `--bytecode`，只加 `--minify`。** 若将来 Pi runtime 把入口改成
 async IIFE（去掉 TLA），可以再测一次——但按现有数据，收益预计仍然很小。
 
-`--compile` 已经把 ~184MB 的运行时内存基线固定下来（见 8.3），是合理的发布形态。
+`--compile` 已经把 ~204MB 的运行时内存基线固定下来（见 8.3），是合理的发布形态。
 
 ### 8.3 内存基线（实测）
 
@@ -564,7 +573,7 @@ cosine over 5000 x 1536d:
 `packages/memory/src/search.ts:301` 的 `cosineSim(a, b)` 确实把 `a` 的范数在每个文档里重算了（共 5000 次），理论上可把它提到循环外（`search.ts:324` 调用处）。但实测收益只有 **1.08x~1.14x**（6.0ms → 5.5ms）——因为 `nb` 仍要算、`sqrt` 本身很便宜。**这项可以顺手做，但不值得单独立项。**
 
 > 另有一条更省事的观察：把整条向量改成 `Float32Array` 路径**实测 1.01x，等于没有收益**
-> （`bun /tmp/upup-perf/bench-vector.ts`：两条路径都是 10.9ms）。不要在向量表示上做文章。
+> （`bun scripts/perf/bench-vector.ts`：两条路径都是 10.9ms）。不要在向量表示上做文章。
 
 ---
 
@@ -587,29 +596,45 @@ cosine over 5000 x 1536d:
 
 8. `Bun.hash` 替换非密码学哈希（P9）；`canonicalJson` memo；热路径去掉 `structuredClone`。
 9. trust 层按 mtime/size 缓存（P7）。
-10. 构建加 `--minify`（实测 −10.4% 体积 / −6% 启动）；`cosineSim` 的 query 范数提到循环外。
+10. 构建加 `--minify`（实测 −8.6% 体积 / ~−8% 启动，4 轮无一翻转）；`cosineSim` 的 query 范数提到循环外。
 
 ### 验收方式
 
 每个改动都应配套可复现的基线对比。本次分析建立的脚本可直接复用：
 
 ```bash
-bun /tmp/upup-perf/verify-all.ts            # 闸门串行化 / 并发容忍度 / 哈希（已改用预热+交错）
-bun /tmp/upup-perf/bench-chain.ts           # 板块查询逐请求打点
-bun /tmp/upup-perf/bench-screener-hosts.ts  # 筛选器按主机拆分的排队来源
-bun /tmp/upup-perf/bench-mirror-stable.ts   # 闸门 vs 原始并发对比
-bun /tmp/upup-perf/bench-retry-decompose.ts # 真实失败路径的闸门入场次数与耗时分解
-bun /tmp/upup-perf/bench-cooldown-shared.ts # 冷却按 host 连坐的爆炸半径
-bun /tmp/upup-perf/bench-counter.ts         # resetsBeforeCooldown 的武装语义
-bun /tmp/upup-perf/bench-classify.ts        # HostThrottleError → permanent 的分类后果
-bun /tmp/upup-perf/bench-overlap.ts         # 退避与闸门间隔是重叠还是相加
-bun /tmp/upup-perf/bench-inflight.ts        # in-flight 缺失造成的重复上游调用
-bun /tmp/upup-perf/bench-skillscope.ts      # 全局 skill 扫描的 session 开销
-bun /tmp/upup-perf/bench-stable.ts          # 哈希 / 序列化的稳定测量（预热+交错）
-bun /tmp/upup-perf/bench-trust.ts           # 包哈希成本（须在仓库根运行）
+bun scripts/perf/verify-all.ts            # 闸门串行化 / 并发容忍度 / 哈希（已改用预热+交错）
+bun scripts/perf/bench-chain.ts           # 板块查询逐请求打点
+bun scripts/perf/bench-screener-hosts.ts  # 筛选器按主机拆分的排队来源
+bun scripts/perf/bench-mirror-stable.ts   # 闸门 vs 原始并发对比
+bun scripts/perf/bench-retry-decompose.ts # 真实失败路径的闸门入场次数与耗时分解
+bun scripts/perf/bench-cooldown-shared.ts # 冷却按 host 连坐的爆炸半径
+bun scripts/perf/bench-counter.ts         # resetsBeforeCooldown 的武装语义
+bun scripts/perf/bench-classify.ts        # HostThrottleError → permanent 的分类后果
+bun scripts/perf/bench-overlap.ts         # 退避与闸门间隔是重叠还是相加
+bun scripts/perf/bench-inflight.ts        # in-flight 缺失造成的重复上游调用
+bun scripts/perf/bench-skillscope.ts      # 全局 skill 扫描的 session 开销
+bun scripts/perf/bench-skillscan.ts       # 底层 SKILL.md 扫描成本
+bun scripts/perf/bench-dup2.ts            # get_sector_data 的请求去重（stub 回放真实响应）
+bun scripts/perf/bench-board-undefined.ts # 股票代码做板块解析必然失败
+bun scripts/perf/bench-session.ts         # createSession 耗时 + 内存基线
+bun scripts/perf/bench-mem.ts             # session 数 × RSS 增长
+bun scripts/perf/bench-fs.ts              # 文件读取策略对比（stat vs 全读）
+bun scripts/perf/bench-vec2.ts            # 向量检索能否省掉 query 范数
+bun scripts/perf/bench-vector.ts          # Float32Array 路径是否更快（实测无收益）
+bun scripts/perf/bench-stable.ts          # 哈希 / 序列化的稳定测量（预热+交错）
+bun scripts/perf/bench-trust.ts           # 包哈希成本
+bun scripts/perf/tla/                     # --bytecode 不支持顶层 await 的最小复现
 ```
 
-建议把这些脚本固化进 `scripts/`，并加两条守门测试：
+> 所有脚本都能从**任意 cwd** 运行（路径基于 `import.meta.url` 解析到仓库根），
+> 不再依赖 `/tmp` 或"必须在仓库根执行"这类隐含前提。
+
+**尚未自动化的部分**：构建产物体积/启动对比（§8.2）与 `--bytecode` 复现目前靠手工跑，
+因为它们需要真实 `bun build --compile`（数十秒级）。若要进 CI，建议单独开一个
+`perf` job 而不是塞进现有 20 项 matrix。
+
+**建议补两条守门测试**：
 
 1. **同一主机的 N 个独立请求不应被串行化**（当前的 `host-request-gate.ts` 会失败这条）。
 2. **一条 path 的 reset 不应让同主机的其他 path 进入冷却**（当前会失败，见 `bench-counter.ts` C 组）。

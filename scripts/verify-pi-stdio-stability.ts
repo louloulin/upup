@@ -13,8 +13,8 @@
  *
  * History: this file used to speak a bespoke JSON-RPC envelope
  * (`{ jsonrpc: "2.0", id, method, params }`). That protocol belonged to the
- * deleted `@upup/pi-stdio` server and the Pi Native migration removed it, but
- * the verifier was never updated — so every round failed with
+ * UpUp stdio server package removed by the Pi Native migration, but the
+ * verifier was never updated — so every round failed with
  * `Unknown command: undefined` and the contract had been reporting a false
  * negative ever since. The intent (concurrency, lock hygiene, JSONL
  * well-formedness) is unchanged; only the wire shape is corrected.
