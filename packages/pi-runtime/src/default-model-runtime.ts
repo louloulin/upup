@@ -49,10 +49,13 @@ export async function getUpupModelRuntime(
   if (cached && cached.options.refreshOnCreate === normalised.refreshOnCreate) {
     return cached.runtime;
   }
-  const agentDir = resolveAgentDir(process.cwd());
+  // `resolveAgentDir` returns `{ agentDir, source }`, not a plain string —
+  // pulling `.agentDir` out of it avoids a `[object Object]/models.json`
+  // path that silently disables `models.json` loading.
+  const resolved = resolveAgentDir(process.cwd());
   const runtime = await ModelRuntime.create({
     ...normalised,
-    modelsPath: `${agentDir}/models.json`,
+    modelsPath: `${resolved.agentDir}/models.json`,
   });
   cached = { options: normalised, runtime };
   return runtime;

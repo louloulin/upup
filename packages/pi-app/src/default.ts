@@ -22,7 +22,7 @@ import { createPiCanonicalEventStream } from '@upup/pi-event-adapter';
 import { getConfiguredModelId, getConfiguredProvider } from '@upup/utils';
 import { ensureHeartbeatCronJob, startCronRunner } from '@upup/cron';
 import { createEastmoneyResearchDataFetcher, createSecEdgarResearchDataFetcher, createTushareResearchDataFetcher } from '@upup/pi-finance-sdk';
-import type { UpUpCreateSessionOptions } from '@upup/pi-runtime';
+import { tryGetUpupModelRuntime, type UpUpCreateSessionOptions } from '@upup/pi-runtime';
 // Side-effect import: bumps EventEmitter.defaultMaxListeners so the 12 Pi
 // package extensions don't print MaxListenersExceededWarning on every
 // session. Every entry point (CLI / stdio / bridge / management / cron /
@@ -112,6 +112,13 @@ export function createPiNativeSessionOptions(): Omit<UpUpCreateSessionOptions, '
     researchDataProviders: { ...chinaResearch.researchDataProviders, ...usResearch.researchDataProviders },
     researchDataApiKeys: { ...chinaResearch.researchDataApiKeys, ...usResearch.researchDataApiKeys },
     researchDataBaseUrls: { ...chinaResearch.researchDataBaseUrls, ...usResearch.researchDataBaseUrls },
+    // Sprint F2: every UpUp session carries the canonical
+    // `ModelRuntime` so user-defined providers in `~/.upup/agent/models.json`
+    // resolve through `resolvePiModel` instead of silently falling back to
+    // the Pi default. `tryGetUpupModelRuntime` returns undefined only when
+    // `bootstrapUpupAgent` did not (or could not) eagerly construct the
+    // runtime; the lazy cache then fills the gap on the next session.
+    ...(tryGetUpupModelRuntime() ? { modelRuntime: tryGetUpupModelRuntime()! } : {}),
   };
 }
 
