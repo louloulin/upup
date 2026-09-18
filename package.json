@@ -278,5 +278,8 @@
       "install": "",
       "postinstall": ""
     }
+  },
+  "overrides": {
+    "highlight.js": "10.7.3"
   }
 }
