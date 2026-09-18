@@ -101,10 +101,31 @@ describe('session_start', () => {
     expect(pi.sessionName).toBe('600519.SH · cn');
   });
 
-  it('falls back to the directory name when there is no subject', () => {
+  it('keeps the user-set session name when there is no research subject', () => {
+    // Resolves the historic bug where every UpUp session in `/resume`
+    // collapsed to the literal "upup" row. `setSessionName` is now
+    // skipped when `resolveSessionDisplayName` returns null (i.e. no
+    // ticker / planId), so the name the user already set (via --name,
+    // the default `upup-<timestamp>-<rand>`, or any prior setSessionName
+    // call) is preserved.
     const { pi } = mount();
+    pi.sessionName = 'pre-existing-name';
     pi.fire('session_start', { reason: 'new' }, { cwd: '/repo/upup' });
-    expect(pi.sessionName).toBe('upup');
+    expect(pi.sessionName).toBe('pre-existing-name');
+  });
+
+  it('does not call setSessionName when the cwd has no research subject', () => {
+    // Defends against a regression where the directory basename ('upup')
+    // clobbered the user's --name flag every time session_start fired.
+    let setCalls = 0;
+    const { pi } = mount();
+    const original = (pi as unknown as { _setSessionName: (n: string) => void })._setSessionName;
+    (pi as unknown as { setSessionName: (n: string) => void }).setSessionName = (n: string) => {
+      setCalls += 1;
+      if (original) original(n);
+    };
+    pi.fire('session_start', { reason: 'new' }, { cwd: '/repo/upup' });
+    expect(setCalls).toBe(0);
   });
 
   it('reports the active tool surface in the audit trail', () => {

@@ -1,3 +1,7 @@
+# npm 发布白名单：只允许 dist/{index.js,package.json,sops/} 进入 tarball。
+# `files: ['dist']` 把范围限定到 dist/；下面是 dist/ 内部的排除项。
+
+# dev / 测试残留
 src/
 tests/
 *.test.ts
@@ -8,6 +12,48 @@ tests/
 .agents/
 .claude/
 .DS_Store
+
+# 仓库文档（README 单独放，npm 上有指向仓库的 link）
 *.md
 !README.md
-LICENSE
+
+# macOS / 平台特定产物
+dist/upup
+dist/upup.exe
+dist/upup-pkg/
+dist/upup-linux
+dist/upup-macos
+
+# dist/ 下复制过来的 workspace 包资源（@upup/pi-* 已经被 Bun.build 通过
+# conditions: ['bun'] inline 进 dist/index.js）。这些重复资源对 npm install
+# 出来的 Node bundle 完全没用——pi-runtime/ecosystem-extension 直接 import 
+# dist/index.js 而不是读这些 JSON 文件——但留着会让 tarball 膨胀 ~5 MB。
+dist/pi-backtest
+dist/pi-browser
+dist/pi-cache
+dist/pi-config
+dist/pi-corporate-actions
+dist/pi-finance-sdk
+dist/pi-investment-analysis
+dist/pi-investment-workflow
+dist/pi-management
+dist/pi-market-data
+dist/pi-notify
+dist/pi-platform
+dist/pi-portfolio
+dist/pi-quant
+dist/pi-research
+dist/pi-risk
+dist/pi-technical
+
+# dist/theme/：Pi TUI 的内置主题，仅 bun --compile 二进制模式需要。
+# Node bundle 不需要——@earendil-works/pi-coding-agent 自己 bundle 了主题，
+# 不会从我们的 dist/theme/ 读。
+dist/theme/
+
+# dist/upup-sidecar.js / dist/upup-favicon.svg：属于 upup-web 包（web 插件），
+# 由 launch.ts 在运行时通过 import.meta.url 相对路径读。如果用户只用 CLI，
+# 这些就没用；web 用户的 web 入口在 import.meta.url 解析的另一条路径上，
+# 不会落进 dist/。所以 tarball 不带它们。
+dist/upup-sidecar.js
+dist/upup-favicon.svg

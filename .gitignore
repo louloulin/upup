@@ -86,3 +86,4 @@ packages/sdk/.upup
 /.comet/*
 !/.comet/config.yaml
 # <<< Comet managed project state <<<
+upup-2026.6.12.tgz

@@ -421,15 +421,25 @@ export function createUpUpEventSurfaceExtension(ports: UpUpEventSurfacePorts = {
           cwd = (context as ExtensionContext | undefined)?.cwd;
           sessionHealth.startedAt = now();
           const current = subject();
-          try {
-            pi.setSessionName(resolveSessionDisplayName({
-              cwd: cwd ?? process.cwd(),
-              ...(current?.ticker ? { ticker: current.ticker } : {}),
-              ...(current?.market ? { market: current.market } : {}),
-              ...(current?.planId && !current.ticker ? { planId: current.planId } : {}),
-            }));
-          } catch (error) {
-            ports.onError?.('setSessionName', error);
+          // `resolveSessionDisplayName` returns `null` when the session has
+          // no research subject yet (no ticker, no planId). Writing `null`
+          // would clobber the user's `--name` / our default timestamp name
+          // with `upup`, so we skip the write entirely in that case. The
+          // first time a subject lands (e.g. `/invest 600519.SH` writes
+          // the ticker into `subject()`), this hook will pick it up and
+          // re-name the session to `600519.SH · CN`.
+          const nextName = resolveSessionDisplayName({
+            cwd: cwd ?? process.cwd(),
+            ...(current?.ticker ? { ticker: current.ticker } : {}),
+            ...(current?.market ? { market: current.market } : {}),
+            ...(current?.planId && !current.ticker ? { planId: current.planId } : {}),
+          });
+          if (nextName !== null) {
+            try {
+              pi.setSessionName(nextName);
+            } catch (error) {
+              ports.onError?.('setSessionName', error);
+            }
           }
 
           const flags = readFlags();

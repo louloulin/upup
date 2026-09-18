@@ -1,7 +1,6 @@
 {
   "name": "upup",
   "version": "2026.6.12",
-  "private": true,
   "engines": {
     "node": ">=22.19.0"
   },
@@ -113,26 +112,6 @@
     "@narumitw/pi-plan-mode": "^0.58.0",
     "@plannotator/pi-extension": "0.27.15",
     "@quintinshaw/pi-dynamic-workflows": "3.12.0",
-    "@upup/pi-app": "workspace:*",
-    "@upup/pi-backtest": "workspace:*",
-    "@upup/pi-cache": "workspace:*",
-    "@upup/pi-capability-registry": "workspace:*",
-    "@upup/pi-config": "workspace:*",
-    "@upup/pi-corporate-actions": "workspace:*",
-    "@upup/pi-evals": "workspace:*",
-    "@upup/pi-finance-sdk": "workspace:*",
-    "@upup/pi-investment-analysis": "workspace:*",
-    "@upup/pi-investment-workflow": "workspace:*",
-    "@upup/pi-market-data": "workspace:*",
-    "@upup/pi-platform": "workspace:*",
-    "@upup/pi-portfolio": "workspace:*",
-    "@upup/pi-quant": "workspace:*",
-    "@upup/pi-research": "workspace:*",
-    "@upup/pi-resource-composition": "workspace:*",
-    "@upup/pi-runtime": "workspace:*",
-    "@upup/pi-session": "workspace:*",
-    "@upup/pi-storage": "workspace:*",
-    "@upup/pi-technical": "workspace:*",
     "@whiskeysockets/baileys": "7.0.0-rc.9",
     "better-sqlite3": "^12.8.0",
     "context-mode": "^1.0.169",
@@ -204,7 +183,15 @@
     ]
   },
   "files": [
-    "dist"
+    "dist/index.js",
+    "dist/index.js.map",
+    "dist/index.d.ts",
+    "dist/package.json",
+    "dist/sops",
+    "dist/upup-sidecar.js",
+    "dist/upup-favicon.svg",
+    "LICENSE",
+    "README.md"
   ],
   "author": "UpUp Team",
   "license": "MIT",
@@ -253,7 +240,6 @@
     "@upup/cron": "workspace:*",
     "@upup/gateway": "workspace:*",
     "@upup/types": "workspace:*",
-    "esbuild": "^0.28.0",
     "jest": "^29.7.0",
     "jiti": "^2.7.0",
     "pkg": "^5.8.1",
@@ -265,5 +251,32 @@
   "patchedDependencies": {
     "@earendil-works/pi-coding-agent@0.85.1": "patches/@earendil-works%2Fpi-coding-agent@0.85.1.patch",
     "jiti@2.7.0": "patches/jiti@2.7.0.patch"
+  },
+  "bin": {
+    "upup": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/louloulin/upup.git"
+  },
+  "bugs": {
+    "url": "https://github.com/louloulin/upup/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/",
+    "scripts": {
+      "preinstall": "",
+      "install": "",
+      "postinstall": ""
+    }
   }
 }

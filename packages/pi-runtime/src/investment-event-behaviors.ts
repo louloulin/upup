@@ -622,7 +622,17 @@ export interface SessionNameInput {
  * subject (ticker + plan) so a list of sessions reads like a research log
  * instead of a wall of timestamps.
  */
-export function resolveSessionDisplayName(input: SessionNameInput): string {
+export function resolveSessionDisplayName(input: SessionNameInput): string | null {
+  // The cwd-fallback (`upup` / repo basename) used to be returned here as
+  // the last resort, but in practice it clobbered the user's `--name` flag
+  // and our default session name (`upup-<timestamp>-<rand>`) every time the
+  // event-surface extension's `session_start` hook fired, because that hook
+  // is unconditional and re-runs on every model/thinking change. That left
+  // the `/resume` picker full of rows that all read `upup`.
+  //
+  // We now return `null` when there is no research subject (ticker/planId)
+  // so the caller can choose: skip the write entirely, or fall back to its
+  // own default. Ticker/plan paths keep the human-readable subject form.
   const base = input.cwd.split(/[/\\]/).filter(Boolean).pop() ?? 'upup';
   const subject = input.ticker?.trim();
   if (subject) {
@@ -631,5 +641,5 @@ export function resolveSessionDisplayName(input: SessionNameInput): string {
   }
   const plan = input.planId?.trim();
   if (plan) return `${base} · ${plan}`;
-  return base;
+  return null;
 }

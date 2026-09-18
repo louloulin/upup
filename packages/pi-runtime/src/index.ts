@@ -803,6 +803,21 @@ export {
   UPUP_IDENTITY_SENTENCE,
 } from './brand-extension';
 
+export {
+  filterAmbientSkills,
+  reportFilterPass,
+  UPUP_SKILL_PATH_MARKER,
+  type SkillFilterInputs,
+  type SkillFilterReport,
+} from './skill-filter';
+
+export {
+  getUpupModelRuntime,
+  tryGetUpupModelRuntime,
+  _resetUpupModelRuntimeCache,
+  type CreateModelRuntimeOptions,
+} from './default-model-runtime';
+
 // ---------------------------------------------------------------------------
 // Pi event surface — all 36 canonical extension events + the audit trail.
 // ---------------------------------------------------------------------------

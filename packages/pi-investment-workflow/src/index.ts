@@ -116,6 +116,7 @@ export {
   hashSopVersion,
   upUpSopResourceName,
   validateSopResolveArgs,
+  wrapWithEcosystemGuard,
   type UpUpSopWorkflowBridgePorts,
   type SopBridgeResult,
   type WorkflowResourceDefinition,

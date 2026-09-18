@@ -118,6 +118,16 @@ function buildArgs(options: PiNativeRunCliOptions): string[] {
   if (options.noExtensions) {
     args.push('--no-extensions');
   }
+  // Auto-name every Pi session unless the caller already supplied one.
+  // Without this, `SessionManager.getSessionName()` returns undefined and
+  // Pi's `/resume` picker / TUI title bar fall back to `path.basename(cwd)` —
+  // which is always `upup` when launched from `/Users/louloulin/appx/upup`,
+  // so every session in the picker collapses to a single indistinguishable
+  // "upup" row. Pi's `parseArgs` itself reads `--name`/`-n` (see
+  // `cli/args.js:68`), so the only thing missing was an UpUp-side default.
+  if (!piArgsContainName(options.piArgs ?? [])) {
+    args.push('--name', generateDefaultSessionName());
+  }
   if (options.mode) {
     // Pi's `--mode` switches the host transport between TUI (default),
     // RPC (command/response over stdin/stdout), and JSON (event stream over
@@ -275,6 +285,40 @@ function buildExtensionFactories(): InlineExtension[] {
     // TUI; the mount report is surfaced through `bun run report:pi7`.
     createUpUpEcosystemExtension(),
   ];
+}
+
+
+/**
+ * Detect whether the caller already supplied `--name`/`-n <value>` in the
+ * forwarded Pi args (either as two tokens `--name foo` or as one token
+ * `--name=foo`). Returns true to suppress auto-naming.
+ */
+function piArgsContainName(raw: readonly string[]): boolean {
+  for (let index = 0; index < raw.length; index += 1) {
+    const arg = raw[index]!;
+    if (arg === '--name' || arg === '-n') return true;
+    if (arg.startsWith('--name=') || arg.startsWith('-n=')) return true;
+  }
+  return false;
+}
+
+/**
+ * Generate a human-friendly default session name for the Pi session picker
+ * and TUI title bar. Shape: `upup-YYYYMMDD-HHmmss-<rand>`.
+ *
+ * - Date prefix sorts sessions chronologically in `/resume` lists.
+ * - 4-hex-char suffix (16⁴ = 65k values) is enough to disambiguate two
+ *   sessions started in the same second (e.g. during CI replays).
+ *
+ * The fallback chain uses the local time first (matches `new Date()`
+ *   elsewhere in the file), then UTC, so the picker always shows a
+ *   recognisable timestamp even when the system clock has drifted.
+ */
+export function generateDefaultSessionName(now: Date = new Date()): string {
+  const pad = (n: number): string => String(n).padStart(2, '0');
+  const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+  const rand = Math.floor(Math.random() * 0x10000).toString(16).padStart(4, '0');
+  return `upup-${stamp}-${rand}`;
 }
 
 export async function runPiNativeCli(options: PiNativeRunCliOptions = {}): Promise<void> {

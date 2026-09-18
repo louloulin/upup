@@ -468,7 +468,23 @@ export function bootstrapUpupAgentSync(options: BootstrapAgentOptions = {}): Boo
 
 /** Async alias kept for callers that prefer `await`; the work is synchronous. */
 export async function bootstrapUpupAgent(options: BootstrapAgentOptions = {}): Promise<BootstrapAgentResult> {
-  return bootstrapUpupAgentSync(options);
+  const result = bootstrapUpupAgentSync(options);
+  // Eagerly construct the singleton `ModelRuntime` so subsequent sessions
+  // — factory path, ACP path, prompt-runner path, anything else that uses
+  // `createPiNativeSessionOptions()` — see the runtime synchronously
+  // through `tryGetUpupModelRuntime()`. Without this prefetch the first
+  // ever session falls back to the static Pi catalog because the runtime
+  // has not been built yet. Refresh is intentionally off: `models.json`
+  // is loaded synchronously by `ModelConfig.load`, and the bundled Pi
+  // catalog already covers every UpUp-default provider.
+  try {
+    const { getUpupModelRuntime } = await import('@upup/pi-runtime');
+    await getUpupModelRuntime({ refreshOnCreate: false });
+  } catch {
+    // A failure here is non-fatal — sessions still get the built-in
+    // catalog. The runtime is re-attempted lazily on the next session.
+  }
+  return result;
 }
 
 /** Canonical UpUp agent dir for a given home; re-exported for callers/tests. */

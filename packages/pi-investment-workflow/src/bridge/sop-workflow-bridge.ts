@@ -42,6 +42,40 @@ import { loadSops, type SopLoadResult, type SopLoaderOptions } from '../sop-load
 import type { SopSpec } from '../sop-spec';
 
 /**
+ * Pre-flight guard around the dual-scope ecosystem importer.
+ *
+ * Why this exists as a separately-testable function:
+ *   `createEcosystemImporter()` from `@upup/pi-runtime` falls through to a
+ *   bare `import(specifier)` when no ecosystem root carries the package. In
+ *   `bun run` the resulting error names the missing package, which is good
+ *   enough. In a `bun --compile` standalone binary the same fallback throws
+ *   `Cannot find module '<spec>' from '/$bunfs/root/<bin>'`, which blames
+ *   the binary instead of telling the user the package is missing. The
+ *   bridge is the only caller that runs inside that binary, so the guard
+ *   lives here — exported so the test suite can pin its diagnostic without
+ *   standing up a real ecosystem roots layout.
+ */
+export function wrapWithEcosystemGuard(args: {
+  readonly importer: (specifier: string) => Promise<unknown>;
+  readonly exists?: (specifier: string, options?: { roots?: readonly string[] }) => boolean;
+  readonly split?: (specifier: string) => { name: string; subpath: string };
+}): (specifier: string) => Promise<unknown> {
+  const exists = args.exists ?? (() => true);
+  const split = args.split ?? ((specifier: string) => ({ name: specifier, subpath: '' }));
+  return async (specifier: string) => {
+    if (!exists(specifier)) {
+      const { name, subpath } = split(specifier);
+      const reason =
+        subpath === ''
+          ? `ecosystem package '${name}' is not installed`
+          : `ecosystem package '${name}' has no '${subpath}' subpath in any installed manifest`;
+      throw new Error(`${reason}; install with: upup plugin install ${name}`);
+    }
+    return args.importer(specifier);
+  };
+}
+
+/**
  * Lazily reach the shared dual-scope importer without a static workspace edge
  * (`@upup/pi-investment-workflow` -> `@upup/pi-runtime` already exists as a
  * dependency, but resolving the module on first use keeps this bridge
@@ -51,8 +85,16 @@ async function createUpUpEcosystemImporter(): Promise<(specifier: string) => Pro
   try {
     const runtime = (await import('@upup/pi-runtime')) as {
       createEcosystemImporter?: () => (specifier: string) => Promise<unknown>;
+      ecosystemSpecifierExists?: (specifier: string, options?: { roots?: readonly string[] }) => boolean;
+      splitEcosystemSpecifier?: (specifier: string) => { name: string; subpath: string };
     };
-    if (typeof runtime.createEcosystemImporter === 'function') return runtime.createEcosystemImporter();
+    if (typeof runtime.createEcosystemImporter === 'function') {
+      return wrapWithEcosystemGuard({
+        importer: runtime.createEcosystemImporter(),
+        exists: runtime.ecosystemSpecifierExists,
+        split: runtime.splitEcosystemSpecifier,
+      });
+    }
   } catch {
     /* Runtime unavailable (unit test / stripped host) — fall through. */
   }

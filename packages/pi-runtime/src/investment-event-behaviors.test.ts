@@ -377,6 +377,10 @@ describe('resolveSessionDisplayName', () => {
     expect(resolveSessionDisplayName({ cwd: '/repo/upup', ticker: '600519.SH', market: 'cn' })).toBe('600519.SH · cn');
     expect(resolveSessionDisplayName({ cwd: '/repo/upup', ticker: 'AAPL' })).toBe('AAPL');
     expect(resolveSessionDisplayName({ cwd: '/repo/upup', planId: 'plan-7' })).toBe('upup · plan-7');
-    expect(resolveSessionDisplayName({ cwd: '/repo/upup' })).toBe('upup');
+    // No research subject → return null so the caller (event-surface
+    // extension's `session_start` hook) can decide whether to skip the
+    // write. Previously this returned 'upup' and clobbered the user's
+    // --name flag / our default session name.
+    expect(resolveSessionDisplayName({ cwd: '/repo/upup' })).toBeNull();
   });
 });
