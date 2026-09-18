@@ -10,6 +10,7 @@
 import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { resolveAgentDir } from '@upup/pi-resource-composition';
+import { canonicalPiProviderId, getPiModelInfo, isPiProvider } from '@upup/pi-runtime/model-registry';
 import { PROVIDERS, getUpupHomeRoot, globalUpupPath } from '@upup/utils';
 import { checkApiKeyExists } from '@upup/utils';
 import { validateConfig, isFirstTimeUse, getConfigSummary } from './config-validation';
@@ -54,6 +55,9 @@ export async function runDoctor(): Promise<void> {
 
   // Check the Pi-side session recovery settings UpUp inherits from the Pi home.
   checks.push(...checkSessionRecovery());
+
+  // Check the configured default model actually resolves (no silent fallback).
+  checks.push(...checkDefaultModel());
 
   // Print results
   console.log('');
@@ -246,6 +250,87 @@ export function checkSessionRecovery(): CheckResult[] {
   }
 
   return results;
+}
+
+/**
+ * Whether a `provider`/`model` pair from `settings.json` actually resolves.
+ *
+ * A pair resolves when the Pi catalog knows it, or when the user's own
+ * `models.json` declares it (those providers live only in Pi's `ModelRuntime`).
+ * A `models.json` provider with an empty `models` list is catalog-merged, so it
+ * only resolves if the catalog also knows the provider.
+ */
+function isConfiguredDefaultResolvable(agentDir: string, provider: string, model: string): boolean {
+  const canonical = canonicalPiProviderId(provider);
+  if (getPiModelInfo(canonical, model)) return true;
+  try {
+    const modelsPath = join(agentDir, 'models.json');
+    if (!existsSync(modelsPath)) return false;
+    const parsed = JSON.parse(readFileSync(modelsPath, 'utf8')) as {
+      providers?: Record<string, unknown>;
+    };
+    const entry = parsed.providers?.[provider] ?? parsed.providers?.[canonical];
+    if (!entry || typeof entry !== 'object') return false;
+    const models = (entry as { models?: unknown }).models;
+    if (!Array.isArray(models)) return false;
+    if (models.length === 0) return isPiProvider(canonical);
+    return models.some((candidate) => (candidate as { id?: unknown })?.id === model);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Report a configured default model that cannot be resolved.
+ *
+ * `resolvePiModel` returns `undefined` for an unknown id so Pi can apply its
+ * own default. That is correct behaviour, but it used to be *silent*: a
+ * `settings.json` left pointing at a test fixture (observed in the field:
+ * `defaultProvider: "openai-test"` / `defaultModel: "gpt-test"`) made every
+ * session run on Pi's default while the user believed their configured model
+ * was in use. This check makes the substitution visible.
+ *
+ * Read-only and advisory — `upup doctor` never rewrites the user's settings.
+ */
+export function checkDefaultModel(): CheckResult[] {
+  try {
+    const agentDir = resolveAgentDir(process.cwd(), { env: process.env }).agentDir;
+    const settingsPath = join(agentDir, 'settings.json');
+    if (!existsSync(settingsPath)) return [];
+    const parsed = JSON.parse(readFileSync(settingsPath, 'utf8')) as {
+      defaultProvider?: unknown;
+      defaultModel?: unknown;
+    };
+    const provider = typeof parsed.defaultProvider === 'string' ? parsed.defaultProvider.trim() : '';
+    const model = typeof parsed.defaultModel === 'string' ? parsed.defaultModel.trim() : '';
+
+    // Neither key set: Pi's own default applies by design, nothing to report.
+    if (!provider && !model) return [];
+
+    if (!provider || !model) {
+      return [
+        {
+          name: 'Default Model',
+          status: 'warn',
+          message: `incomplete in settings.json (provider=${provider || 'unset'}, model=${model || 'unset'}) — Pi silently applies its own default`,
+        },
+      ];
+    }
+
+    if (isConfiguredDefaultResolvable(agentDir, provider, model)) {
+      return [{ name: 'Default Model', status: 'pass', message: `${provider}/${model}` }];
+    }
+    return [
+      {
+        name: 'Default Model',
+        status: 'fail',
+        message: `"${provider}:${model}" is not in the Pi catalog or models.json — Pi silently falls back to its own default; fix with /model or edit ${settingsPath}`,
+      },
+    ];
+  } catch {
+    // Unreadable or malformed settings: stay silent rather than fail doctor.
+    return [];
+  }
 }
 
 function checkApiKeys(): CheckResult[] {

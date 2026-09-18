@@ -155,4 +155,37 @@ describe('Pi agent-dir publication contract', () => {
     // override a user's own `--session-dir` choice.
     expect(unset.UPUP_CODING_AGENT_SESSION_DIR).toBeUndefined();
   });
+
+  /**
+   * Ambient-run guard: the `bun test` preload must relocate *this* process's
+   * agent dir into a throwaway sandbox.
+   *
+   * Regression for the field observation that session suites wrote fixture
+   * JSONL into the developer's real `~/.upup/agent/sessions/`. The preload
+   * (`scripts/test-preload.ts`) sets `UPUP_HOME` to a `mkdtempSync` root and
+   * then calls `publishPiAgentDirEnv()`, so both UpUp's resolver and Pi's own
+   * `getAgentDir()` stay inside the sandbox. Asserting it here makes the
+   * isolation contractual instead of incidental: if the preload is dropped
+   * from `bunfig.toml`, this test fails rather than silently re-polluting the
+   * real home.
+   */
+  test('the ambient test process is sandboxed away from the real ~/.upup/agent', async () => {
+    const contract = await readPiAgentDirContract();
+    const resolved = resolveAgentDir(process.cwd(), { env: process.env });
+    const tmp = resolve(tmpdir());
+
+    expect(resolved.agentDir.startsWith(tmp + '/')).toBe(true);
+    // The name Pi's `getAgentDir()` reads must be published in-process too.
+    expect(process.env[contract.envAgentDir]).toBe(resolved.agentDir);
+
+    // And Pi itself must resolve to that same sandbox path.
+    const previous = process.env[contract.envAgentDir];
+    process.env[contract.envAgentDir] = resolved.agentDir;
+    try {
+      expect(resolve(contract.getAgentDir())).toBe(resolved.agentDir);
+    } finally {
+      if (previous === undefined) delete process.env[contract.envAgentDir];
+      else process.env[contract.envAgentDir] = previous;
+    }
+  });
 });

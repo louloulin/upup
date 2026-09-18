@@ -24,7 +24,7 @@ import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
-import { checkSessionRecovery } from './doctor';
+import { checkDefaultModel, checkSessionRecovery } from './doctor';
 
 describe('Doctor exit-code contract', () => {
   const distBinary = join(process.cwd(), 'dist', 'upup');
@@ -100,5 +100,73 @@ describe('checkSessionRecovery', () => {
       else process.env.UPUP_AGENT_DIR = previous;
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+});
+
+describe('checkDefaultModel', () => {
+  /** Point `resolveAgentDir` at a throwaway agent dir and run the check. */
+  const withAgentDir = (
+    files: { settings?: object; models?: object },
+    fn: (results: ReturnType<typeof checkDefaultModel>) => void,
+  ) => {
+    const dir = mkdtempSync(join(tmpdir(), 'upup-doctor-'));
+    const previous = process.env.UPUP_AGENT_DIR;
+    process.env.UPUP_AGENT_DIR = dir;
+    try {
+      if (files.settings !== undefined) {
+        writeFileSync(join(dir, 'settings.json'), JSON.stringify(files.settings), 'utf8');
+      }
+      if (files.models !== undefined) {
+        writeFileSync(join(dir, 'models.json'), JSON.stringify(files.models), 'utf8');
+      }
+      fn(checkDefaultModel());
+    } finally {
+      if (previous === undefined) delete process.env.UPUP_AGENT_DIR;
+      else process.env.UPUP_AGENT_DIR = previous;
+      rmSync(dir, { recursive: true, force: true });
+    }
+  };
+
+  it('fails loudly when the configured default is a leaked test fixture', () => {
+    // Regression for the field observation: settings.json carried
+    // `defaultProvider: "openai-test"` / `defaultModel: "gpt-test"`, so every
+    // session silently ran on Pi's own default instead of the configured model.
+    withAgentDir({ settings: { defaultProvider: 'openai-test', defaultModel: 'gpt-test' } }, (results) => {
+      const check = results.find((result) => result.name === 'Default Model');
+      expect(check?.status).toBe('fail');
+      expect(check?.message).toMatch(/silently falls back/);
+    });
+  });
+
+  it('passes for a catalog-backed default', () => {
+    withAgentDir({ settings: { defaultProvider: 'minimax', defaultModel: 'MiniMax-M3' } }, (results) => {
+      expect(results.find((result) => result.name === 'Default Model')?.status).toBe('pass');
+    });
+  });
+
+  it('passes for a models.json-only provider that declares the model', () => {
+    withAgentDir(
+      {
+        settings: { defaultProvider: 'custom_anthropic', defaultModel: 'MiniMax-M3' },
+        models: { providers: { custom_anthropic: { models: [{ id: 'MiniMax-M3' }] } } },
+      },
+      (results) => {
+        expect(results.find((result) => result.name === 'Default Model')?.status).toBe('pass');
+      },
+    );
+  });
+
+  it('warns when only half of the default pair is configured', () => {
+    withAgentDir({ settings: { defaultModel: 'MiniMax-M3' } }, (results) => {
+      const check = results.find((result) => result.name === 'Default Model');
+      expect(check?.status).toBe('warn');
+      expect(check?.message).toMatch(/incomplete/);
+    });
+  });
+
+  it('stays silent when no default is configured, matching Pi own default', () => {
+    withAgentDir({ settings: { theme: 'upup-dark' } }, (results) => {
+      expect(results.find((result) => result.name === 'Default Model')).toBeUndefined();
+    });
   });
 });
