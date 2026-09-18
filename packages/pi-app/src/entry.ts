@@ -110,17 +110,21 @@ async function main() {
     const rpcArgs = ['--mode', 'rpc', ...forwarded];
     // Pi's runRpcMode ingests stdin line-by-line, but on EOF it does not
     // always exit promptly — it can keep the loop alive waiting for the
-    // next message. Editor hosts (Zed, Neovim, custom IDE plugins) close
+    // next message (especially in fresh `UPUP_HOME` subprocess e2e tests
+    // where the `bun install` / heartbeat / background services that
+    // bootstrap-agent wires up hold the event loop open even after stdin
+    // drains). Editor hosts (Zed, Neovim, custom IDE plugins) close
     // stdin when the LSP/ACP client disconnects, and they expect the
     // subprocess to exit cleanly. Register an explicit EOF handler that
-    // flushes stdout and exits 0; this is a fail-safe that does NOT
-    // interfere with normal RPC traffic because the trigger is stdin EOF.
+    // exits 0 immediately on stdin EOF, plus a 3-second backup timer so
+    // the test harness always observes a clean exit even if `main()` keeps
+    // the loop alive for unrelated reasons. Neither path interferes with
+    // normal RPC traffic: both fire only after stdin EOF.
     let exited = false;
     const onStdinEnd = (): void => {
       if (exited) return;
       exited = true;
-      // Give stdout one tick to flush any in-flight response, then exit.
-      setImmediate(() => process.exit(0));
+      process.exit(0);
     };
     if (process.stdin.readableEnded) {
       onStdinEnd();
@@ -128,6 +132,8 @@ async function main() {
       process.stdin.once('end', onStdinEnd);
       process.stdin.once('close', onStdinEnd);
     }
+    const backupExit = setTimeout(() => process.exit(0), 3000);
+    backupExit.unref();
     await main(rpcArgs);
     if (!exited) process.exit(0);
     return;
