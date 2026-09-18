@@ -58,35 +58,57 @@ export interface LaunchOptions {
  * cwd is the user's own project and `@agegr/pi-web` is in the CLI's
  * own `node_modules/`.
  */
-function resolvePiWebDir(cwd: string = process.cwd()): string {
-  // 1. import.meta.url / process.argv[1] — npm-bundled location.
-  const launcherFile = (typeof import.meta.url === 'string' ? fileURLToPath(import.meta.url) : null)
-    ?? process.argv[1]
-    ?? '';
-  if (launcherFile) {
-    const fromLauncher = findNodeModulesAncestor(dirname(launcherFile));
-    if (fromLauncher) return fromLauncher;
+/**
+ * Pure resolution logic, separated from the launcher's own module location.
+ * Walks each `startDir` upward looking for `node_modules/@agegr/pi-web`;
+ * first hit wins. Exported so the test suite can pin the diagnostic
+ * without depending on `import.meta.url`.
+ */
+export function resolvePiWebFrom(startDirs: readonly string[]): string {
+  for (const start of startDirs) {
+    const found = findNodeModulesAncestor(start);
+    if (found) return found;
   }
-
-  // 2. cwd walk — `bun run` in the workspace or any project that
-  // symlinks/inlines the CLI alongside its own `node_modules/`.
-  let dir = cwd;
-  for (let i = 0; i < 5; i += 1) {
-    const candidate = join(dir, 'node_modules', '@agegr', 'pi-web');
-    if (existsSync(join(candidate, 'package.json'))) return candidate;
-    const parent = dirname(dir);
-    if (parent === dir) break;
-    dir = parent;
-  }
-
   throw new Error(
     '@agegr/pi-web not installed. Install it with `npm install -g @agegr/pi-web` ' +
       'or alongside the launching CLI (`upup` depends on it as a peer).',
   );
 }
 
+/**
+ * Resolve `@agegr/pi-web` for both dev (`bun run`) and published
+ * (`npx upup` / `npm i -g upup`) workflows.
+ *
+ * Resolution order — checked first match wins:
+ *
+ *  1. `import.meta.url` chain — `launch.ts` lives in `@upup/upup-web` /
+ *     `node_modules/@agegr/pi-web`. When the CLI is published as an npm
+ *     package, `@agegr/pi-web` is a runtime dependency and lives at
+ *     `<upup>/node_modules/@agegr/pi-web`. Walking up from
+ *     `import.meta.url` (or `process.argv[1]` for the bundled CLI) finds
+ *     it without any caller cooperation.
+ *
+ *  2. cwd walk — `bun run src/index.tsx` in the workspace puts
+ *     `@agegr/pi-web` at `<repo>/node_modules/@agegr/pi-web`. Walking
+ *     up from `process.cwd()` finds it the same way as before.
+ *
+ * Why the cwd-first approach was wrong: it assumed the user launched
+ * `upup web` from inside the same project that installed the CLI, which
+ * is the inverse of `npx upup` / global-install workflows where the
+ * cwd is the user's own project and `@agegr/pi-web` is in the CLI's
+ * own `node_modules/`.
+ */
+export function resolvePiWebDir(cwd: string = process.cwd()): string {
+  const launcherFile = (typeof import.meta.url === 'string' ? fileURLToPath(import.meta.url) : null)
+    ?? process.argv[1]
+    ?? '';
+  const launchers: string[] = [];
+  if (launcherFile) launchers.push(dirname(launcherFile));
+  return resolvePiWebFrom([...launchers, cwd]);
+}
+
 /** Walk upward from `start` until a `node_modules/@agegr/pi-web` is found. */
-function findNodeModulesAncestor(start: string): string | undefined {
+export function findNodeModulesAncestor(start: string): string | undefined {
   let dir = start;
   for (let i = 0; i < 8; i += 1) {
     const candidate = join(dir, 'node_modules', '@agegr', 'pi-web');
