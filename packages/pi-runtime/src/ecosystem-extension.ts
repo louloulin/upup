@@ -51,6 +51,11 @@ import {
 } from './ecosystem-packages';
 import { createEcosystemImporter, resolveEcosystemSpecifier, resolvePiExtensionEntriesByRoot } from './ecosystem-resolver';
 import { applyProperLockfileBunShim } from './proper-lockfile-bun-shim';
+// Internal alias so the in-file references (e.g. `piLoadedPackageNames()`
+// passed as the default to `options.piLoadedPackages`) resolve without
+// going through the public re-export. The re-export below remains the
+// public surface for external callers.
+import { piLoadedPackageNames as readPiLoadedPackageNames } from './ecosystem-loaded-packages';
 
 export type EcosystemMountOutcome =
   | { kind: 'mounted'; name: string; importPath: string; resolvedSpecifier: string }
@@ -108,60 +113,12 @@ export type EcosystemImporter = (specifier: string) => Promise<unknown>;
 /** Pi settings directory name under the UpUp agent home. */
 const UPUP_PI_SETTINGS_RELATIVE = '.upup/agent';
 
-/**
- * Resolve the Pi agent dir the same way the rest of the runtime does, without
- * importing `@upup/pi-resource-composition` (that package depends on
- * `pi-runtime`, so importing it here would create a cycle).
- */
-function piAgentDir(env: NodeJS.ProcessEnv = process.env): string {
-  const explicit =
-    env.UPUP_AGENT_DIR?.trim() ||
-    env.UPUP_CODING_AGENT_DIR?.trim() ||
-    env.PI_CODING_AGENT_DIR?.trim();
-  if (explicit) return explicit.replace(/^~(?=\/|$)/, env.HOME ?? '');
-  const home = env.HOME ?? '';
-  const root = env.UPUP_HOME?.trim() || join(home, '.upup');
-  return join(root, 'agent');
-}
-
-/**
- * npm package names Pi's own package manager already loads for this agent home.
- *
- * The UpUp ecosystem extension and `settings.json#packages` are two
- * independent mount paths for the same npm packages. Pi's built-in package
- * manager wins for anything listed in settings, so mounting it again here
- * registers a duplicate tool (`subagent`, `mcp`, `ask_user_question`) and Pi
- * aborts with `Failed to load extension`. Reading the settings file keeps the
- * two in sync without the user having to pick one.
- *
- * Missing or malformed settings degrade to "nothing pre-loaded", which is the
- * correct behaviour for a fresh install.
- */
-export function piLoadedPackageNames(env: NodeJS.ProcessEnv = process.env): ReadonlySet<string> {
-  const settingsPath = join(piAgentDir(env), 'settings.json');
-  if (!existsSync(settingsPath)) return new Set();
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(readFileSync(settingsPath, 'utf8'));
-  } catch {
-    return new Set();
-  }
-  const packages = (parsed as { packages?: unknown })?.packages;
-  if (!Array.isArray(packages)) return new Set();
-  const names = new Set<string>();
-  for (const entry of packages) {
-    // Entries are either a plain `"npm:<pkg>"` string or an object
-    // `{ source: 'npm:<pkg>', autoload?: false }`. `autoload: false` means Pi
-    // deliberately does NOT load it, so UpUp is the one that should.
-    const raw = typeof entry === 'string' ? entry : (entry as { source?: unknown })?.source;
-    const autoload = typeof entry === 'string' ? true : (entry as { autoload?: unknown })?.autoload;
-    if (typeof raw !== 'string') continue;
-    if (autoload === false) continue;
-    const withoutPrefix = raw.replace(/^npm:/, '');
-    if (withoutPrefix.length > 0) names.add(withoutPrefix);
-  }
-  return names;
-}
+// Re-exported from `./ecosystem-loaded-packages` so that callers from the rest
+// of `@upup/pi-runtime` (notably `research-dag.ts`) can import these helpers
+// statically without dragging in `ecosystem-extension.ts`, which itself
+// dynamically imports `research-dag.ts`. Keeping both helpers in this file
+// produced a 2-node cycle in `lint:scc`.
+export { piAgentDir, piLoadedPackageNames } from './ecosystem-loaded-packages';
 
 /**
  * Static tool names known to conflict across Pi ecosystem packages.
@@ -291,7 +248,12 @@ export function declaredToolNames(packageRoot: string | undefined): ReadonlySet<
   };
   const walk = (dir: string): void => {
     let entries: { name: string; isDirectory: () => boolean }[];
-    try { entries = readdirSync(dir, { withFileTypes: true }) as unknown as typeof entries; }
+    try {
+      // SAFETY: `withFileTypes: true` returns `Dirent[]` which is a structural
+      // superset of the narrowed local type; the cast pins the local shape so
+      // downstream `entry.isDirectory()` calls type-check.
+      entries = readdirSync(dir, { withFileTypes: true }) as unknown as typeof entries;
+    }
     catch { return; }
     for (const entry of entries) {
       if (skipDir.has(entry.name)) continue;
@@ -317,6 +279,9 @@ export function declaredToolNames(packageRoot: string | undefined): ReadonlySet<
  */
 function registeredToolNames(pi: ExtensionAPI): ReadonlySet<string> {
   const names = new Set<string>(UPUP_HOST_RESERVED_TOOL_NAMES);
+  // SAFETY: `ExtensionAPI` does not declare `getAllTools` in its public type;
+  // Pi exposes it at runtime. The double `as unknown as` narrows to the
+  // minimal structural shape we actually read.
   const candidate = (pi as unknown as { getAllTools?: () => unknown }).getAllTools;
   if (typeof candidate === 'function') {
     try {
@@ -380,7 +345,7 @@ export async function mountUpUpEcosystemPackages(
   const mounted: string[] = [];
   const skippedToolConflict: { name: string; importPath: string; conflicts: readonly string[] }[] = [];
   const skippedAlreadyLoaded: { name: string; importPath: string; reason: string }[] = [];
-  const piLoadedPackages = options.piLoadedPackages ?? piLoadedPackageNames();
+  const piLoadedPackages = options.piLoadedPackages ?? readPiLoadedPackageNames();
   const verifiedDirty: string[] = [];
   const importFailed: { name: string; importPath: string; error: string }[] = [];
   const notCallable: { name: string; importPath: string; actualType: string }[] = [];
@@ -589,14 +554,11 @@ export function createUpUpEcosystemExtension(options: MountEcosystemOptions = {}
         const message = error instanceof Error ? error.message : String(error);
         return fallback(message);
       });
-      try {          const mod = await import('./finance-subagents');          const { registerUpUpFinanceSubagents } = mod;          await registerUpUpFinanceSubagents(pi);        } catch (e) {
-        }
+      try {          const mod = await import('./finance-subagents');          const { registerUpUpFinanceSubagents } = mod;          await registerUpUpFinanceSubagents(pi);        } catch { /* intentional: failure isolation per ecosystem-extension rules; failures are aggregated into the surrounding report. */ }
       try {
-          const { registerUpUpResearchDag } = await import('./research-dag');          await registerUpUpResearchDag(pi);        } catch (e) {
-        }
+          const { registerUpUpResearchDag } = await import('./research-dag');          await registerUpUpResearchDag(pi);        } catch { /* intentional: failure isolation per ecosystem-extension rules; failures are aggregated into the surrounding report. */ }
       try {
-          const { mountUpUpTuiWidgets } = await import('./tui-widgets-mount');          mountUpUpTuiWidgets(pi);        } catch (e) {
-        }
+          const { mountUpUpTuiWidgets } = await import('./tui-widgets-mount');          mountUpUpTuiWidgets(pi);        } catch { /* intentional: failure isolation per ecosystem-extension rules; failures are aggregated into the surrounding report. */ }
       // SOP → Pi workflow-resource bridge is wired by @upup/pi-app at boot
       // (it owns the import of @upup/pi-investment-workflow). We do not
       // import it here to keep the runtime -> workflow dependency edge one-way

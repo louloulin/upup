@@ -11,7 +11,7 @@ import {
 import type { PiSessionServiceFactory } from '@upup/pi-session';
 import type { UpUpAgentSpec, UpUpCreateSessionOptions } from '@upup/pi-runtime';
 import { getConfiguredModelId } from '@upup/utils';
-import type { PiInvestmentWorkflow } from './index';
+import type { PiInvestmentWorkflow } from './app-factory';
 
 export function createPiInvestmentWorkflow(options: {
   readonly sessionRuntimeFactory: PiSessionServiceFactory;

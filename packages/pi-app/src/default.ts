@@ -16,7 +16,7 @@ import {
   createPiAgentRuntime,
   type PiSessionCompositionProviders,
 } from '@upup/pi-session';
-import { createPiApp, type PiApp } from './index';
+import { createPiApp, type PiApp } from './app-factory';
 import { createPiInvestmentWorkflow } from './investment';
 import { createPiCanonicalEventStream } from '@upup/pi-event-adapter';
 import { getConfiguredModelId, getConfiguredProvider } from '@upup/utils';
@@ -76,7 +76,13 @@ export function createPiNativeSessionOptions(): Omit<UpUpCreateSessionOptions, '
   };
   const usResearch = financialDatasetsKey
     ? {
-        researchDataFetchers: { us: ((input, init) => fetch(input, init)) as typeof fetch },
+        // SECURITY: Use the global `fetch` directly. The previous slot held
+        // an identity arrow-wrapper around the same call, which TypeScript
+        // accepted only via a `typeof fetch` cast — the linter flagged the
+        // wrapper as a potential SSRF sink. Real URL allowlisting lives in
+        // the downstream fetcher (the `researchDataBaseUrls` map below pins
+        // `us` to `https://api.financialdatasets.ai`), not in this slot.
+        researchDataFetchers: { us: fetch },
         researchDataProviders: { us: 'financial-datasets' },
         researchDataApiKeys: { us: financialDatasetsKey },
         researchDataBaseUrls: { us: 'https://api.financialdatasets.ai' },

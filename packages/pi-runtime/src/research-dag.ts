@@ -29,6 +29,7 @@
 
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent';
 import { createEcosystemImporter } from './ecosystem-resolver';
+import { piLoadedPackageNames } from './ecosystem-loaded-packages';
 
 type TaskItem = {
   readonly id: string;
@@ -39,21 +40,6 @@ type TaskItem = {
   readonly model?: string;
   readonly thinking?: string;
 };
-
-type SubagentInput = {
-  readonly tasks: readonly TaskItem[];
-  readonly concurrency?: number;
-  readonly await?: boolean;
-};
-
-type SubagentResult = {
-  readonly run?: {
-    readonly id: string;
-    readonly tasks: readonly { readonly id: string; readonly agent: string; readonly status: string; readonly text?: string }[];
-  };
-};
-
-type SubagentToolInput = { readonly input: Record<string, unknown> };
 
 export interface UpUpResearchDagOptions {
   readonly sink?: { readonly onError?: (where: string, error: unknown) => void };
@@ -102,7 +88,12 @@ export async function registerUpUpResearchDag(
     // is present; the legacy `research-coordinator` covers the
     // bull/bear/synthesizer/risk workflow without needing `@arhen`'s
     // DAG scheduler.
-    const { piLoadedPackageNames } = await import('./ecosystem-extension');
+    // Static import: `piLoadedPackageNames` lives in a dedicated
+    // `ecosystem-loaded-packages` module so we do not form a 2-node cycle
+    // with `ecosystem-extension.ts` (which itself dynamically imports this
+    // file to register the DAG bridge). Both helpers are pure settings-read
+    // functions with no behaviour overlap, so hoisting them into a shared
+    // module is cheaper than threading the loaded set through every call.
     const loaded = piLoadedPackageNames();
     if (loaded.has('@arhen/pi-core-subagent') || loaded.has('pi-subagents')) {
       options.sink?.onError?.('@arhen/pi-core-subagent', new Error('skipped: a subagent-registered package is already loaded; legacy research-coordinator covers UpUp'));
