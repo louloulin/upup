@@ -22,6 +22,8 @@ jobs:
             command: bun run check:pi7
           - task: module-boundaries
             command: bun run check:module-boundaries
+          - task: workspace-exports
+            command: bun run check:workspace-exports
           - task: pi-packages
             command: bun run check:pi-packages
           - task: js-suffix
@@ -32,10 +34,22 @@ jobs:
             command: bun run check:pi-package-audit
           - task: upup-home
             command: bun run check:upup-home
+          - task: pi-extension-coverage
             command: bun run check:pi-extension-coverage
+          - task: pi-ecosystem-deps
             command: bun run check:pi-ecosystem-deps
+          - task: sop-coverage
             command: bun run check:sop-coverage
+          - task: cross-platform-exposure
             command: bun run check:cross-platform-exposure
+          - task: no-self-impl
+            command: bun run check:no-self-impl
+          - task: tui-bridge-cleanup
+            command: bun run check:tui-bridge-cleanup
+          - task: upup-clean-loading
+            command: bun run check:upup-clean-loading
+          - task: pi-event-coverage
+            command: bun run check:pi-event-coverage
           - task: typecheck
             command: bun run typecheck
           - task: test

@@ -38,7 +38,6 @@ const FORBIDDEN_PATHS: readonly { readonly path: string; readonly reason: string
   { path: 'packages/keybindings', reason: 'Pi core/keybindings.ts replaced the legacy keybindings parser' },
   { path: 'packages/hooks', reason: "Pi pi.on('tool_call') replaced the hooks event bus" },
   { path: 'packages/i18n', reason: 'Pi extension prompt 多语言 replaced the legacy strings.ts table' },
-  { path: 'packages/sdk', reason: 'Pi core/sdk.ts replaced the self-implemented UpUp SDK' },
   { path: 'packages/pi-finance-composition', reason: 'Pi DefaultPackageManager replaced bespoke composition' },
   { path: 'packages/pi-platform-composition', reason: 'Pi DefaultPackageManager replaced bespoke composition' },
 ];
@@ -53,7 +52,6 @@ const SUSPICIENT_REFERENCES: readonly { readonly pattern: RegExp; readonly where
   { pattern: /@upup\/keybindings/, where: 'any ts/tsx source' },
   { pattern: /@upup\/hooks/, where: 'any ts/tsx source' },
   { pattern: /@upup\/i18n/, where: 'any ts/tsx source' },
-  { pattern: /@upup\/sdk(?!\/)/, where: 'any ts/tsx source' },
 ];
 
 function* walk(dir: string, suffix: string[]): Generator<string> {

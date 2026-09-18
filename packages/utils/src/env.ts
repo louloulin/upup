@@ -1,5 +1,4 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
-import { homedir } from 'os';
 import { config } from 'dotenv';
 import { join, dirname } from 'path';
 import { PROVIDERS, getProviderApiKeyEnvVars, getProviderById } from './providers';
@@ -29,14 +28,33 @@ if (globalEnvResult.error) {
 // already set, and skip OAuth tokens since Pi reads them itself.
 mergeAuthJsonIntoProcessEnv(getAuthJsonPath());
 
-/** Resolve the canonical `auth.json` path. Tries Pi's env override first, then
- *  the UpUp canonical home, then Pi's legacy home. */
+/**
+ * Resolve the canonical `auth.json` path.
+ *
+ * Precedence mirrors `resolveAgentDir` in `@upup/pi-resource-composition` so
+ * the two never disagree about where credentials live:
+ *
+ *   1. `UPUP_CODING_AGENT_DIR` / `PI_CODING_AGENT_DIR` — explicit override
+ *   2. `$UPUP_HOME/agent`                            — relocated UpUp home
+ *   3. `~/.upup/agent`                               — canonical home
+ *
+ * Step 3 is deliberately **not** gated on `existsSync`: the path must be the
+ * same whether or not the file is present yet, otherwise a headless surface
+ * that runs before `/login` computes one path for reads and a different one
+ * for writes. That exact "resolution depends on directory existence" bug
+ * previously made `agentDir` vary with the working directory.
+ *
+ * `~/.pi/agent` is not in the chain — it is migration *input*, handled once by
+ * `bootstrapUpupAgent()`, not a runtime fallback.
+ */
 export function getAuthJsonPath(): string {
-  const fromEnv = process.env.PI_CODING_AGENT_DIR?.trim();
+  // Pi derives the env var name from its own `piConfig.name`, so UpUp's
+  // rebranded build reads `UPUP_CODING_AGENT_DIR`. Check both names so this
+  // works with the rebranded package and with a stock Pi install.
+  const fromEnv =
+    process.env.UPUP_CODING_AGENT_DIR?.trim() || process.env.PI_CODING_AGENT_DIR?.trim();
   if (fromEnv) return join(fromEnv, 'auth.json');
-  const upup = join(getUpupHomeRoot(), 'agent', 'auth.json');
-  if (existsSync(upup)) return upup;
-  return join(homedir(), '.pi', 'agent', 'auth.json');
+  return join(getUpupHomeRoot(), 'agent', 'auth.json');
 }
 
 interface AuthJsonCredential {

@@ -1,0 +1,24 @@
+id: example-canslim
+name: CANSLIM 示例法
+description: |
+  示例 user-authored SOP — 演示 William O'Neil CANSLIM 选股法的最小骨架。
+  用户可以照此模板自行编写自己的投资方法论。
+  真正部署时复制此文件并改 phases 字段以反映自己的方法论。
+version: 1.0.0
+market: any
+tags: [example, user-authored, canslim]
+phases:
+  - id: detect
+    agent: invest-explore
+    intent: |
+      为 {ticker} 拉取近 4 季 EPS、营收同比、近 12 月新高、机构持仓变化。
+      这是示例 SOP — 仅拉数据不下结论。
+    outputContract: evidence
+    dataPolicy: live
+  - id: report
+    agent: invest-review
+    intent: |
+      把 detect 阶段的数字原样回显。示例 SOP 不做评判；
+      真实用户 SOP 应在此 phase 给出方法论特定的判断标准。
+    requires: [detect]
+    outputContract: report

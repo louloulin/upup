@@ -5,6 +5,7 @@ import { existsSync, mkdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { printUpupBrandLine, printUpupBanner } from './banner';
 import { ensureUpupAgentDir } from './bootstrap-agent';
+import { applyProperLockfileBunShim } from '@upup/pi-runtime/proper-lockfile-bun-shim';
 
 config({ quiet: true });
 
@@ -65,17 +66,76 @@ async function main() {
   // import("@earendil-works/pi-*") so Pi sees the right agent dir.
   ensureUpupAgentDir();
 
-  // Pi native stdio: --stdio / --acp delegate to Pi's `main()` with --mode rpc,
-  // which routes stdin/stdout to Pi's runRpcMode (JSON-RPC envelope). The ACP
-  // subset (session/new, session/load, session/prompt) maps onto the same
-  // RpcCommand surface Pi uses for editor integrations.
-  if (args.includes('--stdio') || args.includes('--acp')) {
+  // Bun runtime guard for proper-lockfile@4.1.2 + pi-llmgates-provider.
+  // Pi's `DefaultResourceLoader.reload()` reads `<agentDir>/settings.json#packages`
+  // and dynamically imports each entry (including `@llmgates_api/pi-llmgates-provider`)
+  // BEFORE any `extensionFactories` callback runs. By the time the ecosystem
+  // extension mounts, pi-llmgates-provider has already captured the original
+  // `mtimePrecision.probe` reference at module top-level — so the shim must
+  // land here, before the first dynamic `import('@earendil-works/pi-coding-agent')`.
+  // Anchors `require.resolve('proper-lockfile')` at pi-llmgates-provider's
+  // dist entry so we patch the same module instance it imports (the
+  // user-managed copy under `~/.upup/agent/npm/node_modules/`, not Bun's
+  // global install cache). See `proper-lockfile-bun-shim.ts` for diagnosis.
+  await applyProperLockfileBunShim();
+
+  // ACP (Agent Client Protocol) front-end: editor hosts speak JSON-RPC with
+  // ACP method names (`session/new`, `session/prompt`, `session/cancel`) and
+  // expect `session/update` notifications while a prompt streams. Pi's own RPC
+  // mode uses a different command shape (`{ type: "..." }`), so `--acp` needs
+  // the translation layer in `./acp` rather than a plain `--mode rpc` handoff.
+  //
+  // Must run before the `--stdio` branch below: both flags start a stdio
+  // server, but only `--stdio` forwards to Pi's runRpcMode.
+  if (args.includes('--acp')) {
+    const [{ createAcpServer }, { createPiAcpSessionFactory }] = await Promise.all([
+      import('./acp/server'),
+      import('./acp/pi-session-port'),
+    ]);
+    const server = createAcpServer({ sessionFactory: createPiAcpSessionFactory() });
+    const shutdown = (): void => { void server.stop().finally(() => process.exit(0)); };
+    process.once('SIGINT', shutdown);
+    process.once('SIGTERM', shutdown);
+    await server.done;
+    process.exit(0);
+  }
+
+  // Pi native stdio: --stdio delegates to Pi's `main()` with --mode rpc, which
+  // routes stdin/stdout to Pi's runRpcMode.
+  if (args.includes('--stdio')) {
     const { main } = await import('@earendil-works/pi-coding-agent');
-    // `--stdio` / `--acp` are UpUp selectors, not Pi flags: strip them before
-    // handing argv to Pi's parser, which rejects unknown options.
-    const forwarded = args.filter((arg) => arg !== '--stdio' && arg !== '--acp');
+    // `--stdio` is an UpUp selector, not a Pi flag: strip it before handing
+    // argv to Pi's parser, which rejects unknown options.
+    const forwarded = args.filter((arg) => arg !== '--stdio');
     const rpcArgs = ['--mode', 'rpc', ...forwarded];
+    // Pi's runRpcMode ingests stdin line-by-line, but on EOF it does not
+    // always exit promptly — it can keep the loop alive waiting for the
+    // next message (especially in fresh `UPUP_HOME` subprocess e2e tests
+    // where the `bun install` / heartbeat / background services that
+    // bootstrap-agent wires up hold the event loop open even after stdin
+    // drains). Editor hosts (Zed, Neovim, custom IDE plugins) close
+    // stdin when the LSP/ACP client disconnects, and they expect the
+    // subprocess to exit cleanly. Register an explicit EOF handler that
+    // exits 0 immediately on stdin EOF, plus a 3-second backup timer so
+    // the test harness always observes a clean exit even if `main()` keeps
+    // the loop alive for unrelated reasons. Neither path interferes with
+    // normal RPC traffic: both fire only after stdin EOF.
+    let exited = false;
+    const onStdinEnd = (): void => {
+      if (exited) return;
+      exited = true;
+      process.exit(0);
+    };
+    if (process.stdin.readableEnded) {
+      onStdinEnd();
+    } else {
+      process.stdin.once('end', onStdinEnd);
+      process.stdin.once('close', onStdinEnd);
+    }
+    const backupExit = setTimeout(() => process.exit(0), 3000);
+    backupExit.unref();
     await main(rpcArgs);
+    if (!exited) process.exit(0);
     return;
   }
 
@@ -204,47 +264,32 @@ async function main() {
       break;
 
     case 'web':
-      // Spawn `pi-web-ui` (Pi's official web UI for the coding agent) with
-      // an UpUp-tuned config. The upstream binary is the same one the Pi
-      // community uses; UpUp just configures the cwd + data-dir so the
-      // browser session sees the same UpUp skill / command / package
-      // surface the TUI does.
-      //
-      // Resolution precedence (mirrors `upup ecosystem list`):
-      //   1. `Bun.which('pi-web-ui')`             — fastest when on PATH
-      //   2. dual-scope resolver                   — `~/.upup/agent/npm` first,
-      //                                              then bundled `node_modules`
-      //   3. legacy `~/.bun/install/global` path  — pre-Pi-Ecosystem installs
+      // Spawn the npm-installed @agegr/pi-web (Next.js UI for Pi) under
+      // @upup/upup-web's HTTP proxy. The proxy owns /api/upup/* and
+      // injects a single <script> tag so the sidecar runs inside the
+      // upstream React tree. No source file in @agegr/pi-web is touched.
       {
         const args2 = args.slice(1);
-        const port = parseWebFlag(args2, '--port') ?? '9000';
+        const publicPort = Number.parseInt(parseWebFlag(args2, '--port') ?? '9000', 10);
         const cwd = parseWebFlag(args2, '--cwd') ?? process.cwd();
         const noBrowser = args2.includes('--no-browser');
-        const { resolveEcosystemSpecifier } = await import('@upup/pi-runtime');
-        const piWebUiEntry = resolveEcosystemSpecifier('pi-web-ui/bin/pi-web-ui.mjs');
-        const piWebUiFallback = resolve(
-          homedir(),
-          '.bun/install/global/node_modules/pi-web-ui/bin/pi-web-ui.mjs',
-        );
-        const piWebUi = Bun.which('pi-web-ui')
-          ?? (piWebUiEntry && existsSync(piWebUiEntry) ? piWebUiEntry : piWebUiFallback);
-        const env: Record<string, string> = {
-          ...process.env as Record<string, string>,
-          PI_WEB_PORT: port,
-          PI_WEB_CWD: cwd,
-          PI_WEB_ENGINE: 'pi',
-          PI_CODING_AGENT_DIR: process.env.PI_CODING_AGENT_DIR ?? '',
-        };
-        const child = Bun.spawn([piWebUi, `--port`, port, `--cwd`, cwd, ...(noBrowser ? ['--no-browser'] : [])], {
-          env,
-          stdin: 'inherit',
-          stdout: 'inherit',
-          stderr: 'inherit',
-        });
-        process.stderr.write(`upup web: spawning pi-web-ui on port ${port} (cwd=${cwd})\n`);
-        process.stderr.write(`upup web: open http://127.0.0.1:${port}/ once the server is ready\n`);
-        const code = await child.exited;
-        process.exitCode = code;
+        const { startUpUpWeb } = await import('@upup/upup-web');
+        try {
+          const handle = await startUpUpWeb({
+            publicPort: Number.isFinite(publicPort) ? publicPort : 9000,
+            upstreamPort: 30141,
+            cwd,
+            noBrowser,
+          });
+          process.stderr.write(`upup web: serving on http://127.0.0.1:${handle.publicPort}/ (upstream 127.0.0.1:${handle.upstreamPort}, data ${handle.dataDir})\n`);
+          const shutdown = (): void => { void handle.stop().finally(() => process.exit(0)); };
+          process.once('SIGINT', shutdown);
+          process.once('SIGTERM', shutdown);
+          await new Promise<void>(() => {});
+        } catch (err) {
+          process.stderr.write(`upup web: failed to start: ${err instanceof Error ? err.message : String(err)}\n`);
+          process.exit(1);
+        }
       }
       return;
 
@@ -255,8 +300,16 @@ async function main() {
       // The `upup-mcp` binary is the direct equivalent (no extra flags).
       const mcpSubcommand = args[1] ?? 'serve';
       if (mcpSubcommand === 'serve') {
-        const { UpUpMcpServer } = await import('@upup/mcp-server');
-        const server = new UpUpMcpServer();
+        const { createPiNativeMcpServer } = await import('@upup/mcp-server');
+        const server = await createPiNativeMcpServer();
+        const catalog = server.piCatalogReport();
+        if (catalog) {
+          process.stderr.write(
+            `upup mcp: Pi catalog — ${catalog.packagesLoaded.length} package(s), `
+            + `${catalog.toolsExposed}/${catalog.toolsDeclared} tools, `
+            + `${catalog.blockedBySideEffect.length} withheld by pi.sideEffects\n`,
+          );
+        }
         const shutdown = async (signal: NodeJS.Signals): Promise<void> => {
           process.stderr.write(`upup mcp: received ${signal}, shutting down\n`);
           try { await server.close(); } finally { process.exit(0); }
@@ -271,6 +324,22 @@ async function main() {
       process.exit(1);
       break;
 
+
+    case 'rpc':
+    case 'json-stream': {
+      // Cross-platform RPC server (v2 plan §1.4 + §4.1 + §4.2). Re-uses
+      // Pi's `--mode rpc` (JSON-RPC envelope over stdin/stdout) and
+      // `--mode json` (event stream) transports verbatim — TradingAgents
+      // / Claude Code / Zed / Neovim speak the same protocols. UpUp's
+      // finance extensions, /invest workflow, and 36-event adapter are
+      // mounted by the same code path the TUI uses (see `runPiNativeCli`).
+      const { runPiNativeCli } = await import('@upup/pi-app');
+      await runPiNativeCli({
+        mode: command === 'rpc' ? 'rpc' : 'json',
+        piArgs: args.slice(1),
+      });
+      return;
+    }
     case 'help':
     case '--help':
     case '-h':
@@ -316,6 +385,12 @@ async function main() {
             }
           : undefined;
       await runPiNativeCli({
+        // Every Pi-native flag reaches Pi verbatim. UpUp's own selectors
+        // (`--stdio` / `--width` / …) are stripped inside
+        // `filterForwardablePiArgs`, so `--print`, `--model`, `--provider`,
+        // `--thinking`, `--tools`, `--theme`, `--offline` and the rest work
+        // exactly as they do under `pi`.
+        piArgs: args,
         resumeTarget: resumeTarget ?? undefined,
         continue: shouldContinue,
         fork: shouldFork,
@@ -389,6 +464,45 @@ Checks:
   • Config source attribution (where every value came from)
 
 Exit code is always 0; the report is read-only.
+`,
+  rpc: `upup rpc — cross-platform RPC server (re-uses Pi's --mode rpc).
+
+  upup rpc [--model <id>] [--provider <id>] [--cwd <path>] [--print "..."]
+
+Exposes Pi's JSON-RPC envelope over stdin/stdout. Editor integrations
+(Zed, Neovim, custom IDE plugins) and the TradingAgents session layer
+speak the same \`RpcCommand\` protocol without any work on UpUp's side.
+
+UpUp's finance tools, /invest workflow, and 36 Pi event adapter are
+mounted by the same code path the TUI uses; the RPC host inherits
+fail-closed policy defaults (config_set / write_file / mcp_auth_get /
+notify / place_trade_order are deny-by-default).
+
+Client side: import \`UpUpRpcClient\` from \`@upup/pi-cli-bootstrap\` (or
+\`@upup/sdk\` for the in-process variant). Helpers \`runInvest({ ticker,
+sop })\` and \`runSop({ sop, args })\` format the slash-command grammar
+automatically; every Pi \`RpcClient\` method is reachable via
+\`client.raw.*\`.
+
+See docs/upup-developer-guide.md §9.4 for cross-platform integration
+recipes.
+`,
+  'json-stream': `upup json-stream — cross-platform JSON event stream (re-uses Pi's --mode json).
+
+  upup json-stream [--print "..."] [--model <id>] [--provider <id>]
+
+Writes one JSON object per line to stdout for every Pi canonical event
+(session / agent_start / turn_start / message_start / message_update /
+message_end / tool_execution_start / tool_execution_end / turn_end /
+agent_end / agent_settled / ...). Wire format is identical to TradingAgents
+and Claude Code's integration tests; consumer code can grep + jq the output
+without bespoke parsing.
+
+Common uses:
+  upup json-stream --print "PONG" | jq 'select(.type=="message_end")'
+  upup json-stream --provider minimax-cn --model MiniMax-M3 --print "..."
+
+See docs/upup-developer-guide.md §9.4.
 `,
 };
 
@@ -467,10 +581,10 @@ Examples:
   upup -c           Continue the most recent session
 
 Protocol Modes:
-  upup --stdio                 JSON-RPC 2.0 over stdio (UpUp-native method names)
-  upup --acp                   Same transport, ACP method names (session/new, session/load, session/prompt)
-                               and ACP session/update notifications. Auto-detected: any ACP method name
-                               switches the session into ACP mode even without the flag.
+  upup --stdio                 Pi RPC mode: JSONL commands (id + type fields) over stdio
+  upup --acp                   Agent Client Protocol over stdio: JSON-RPC method names
+                               (initialize, session/new, session/prompt, session/cancel)
+                               plus ACP session/update notifications while a prompt streams.
 
 Bridge Mode (Sprint 1.3):
   upup --bridge [--bridge-port=7333] [--bridge-token=<secret>] [--bridge-bind=127.0.0.1] [--bridge-only]

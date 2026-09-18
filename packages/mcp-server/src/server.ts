@@ -19,6 +19,15 @@
  *   (`place_trade_order`, `config_set`, …). MCP clients that want those
  *   have to talk to Pi through the RPC / SDK paths, where Pi's policy
  *   layer can apply approval. This is the same posture as TradingAgents.
+ *
+ * Where the tools come from:
+ *   By default the surface is **bridged from UpUp's Pi packages** — the same
+ *   `registerTool` definitions the TUI session gets, mounted through each
+ *   package's `pi.extensions` manifest entry (see `pi-tool-bridge.ts`). The
+ *   mutating subset is removed using the `pi.sideEffects` declarations the Pi
+ *   policy layer already enforces. The seven hand-written adapters in
+ *   `tools.ts` remain available as an explicit fallback for hosts that cannot
+ *   load the Pi packages (see `UpUpMcpServerOptions.catalog`).
  */
 
 import type { IncomingMessage, ServerResponse } from 'node:http';
@@ -41,12 +50,23 @@ import {
   handleStatelessStreamableHttp,
   type HttpTransportOptions,
 } from './http-transport';
+import { collectPiToolCatalog, type PiToolCatalogReport } from './pi-tool-bridge';
 
 export interface UpUpMcpServerOptions {
   /** Override the server name advertised in `initialize`. */
   readonly name?: string;
   /** Override the version advertised in `initialize`. */
   readonly version?: string;
+  /**
+   * Tool catalog to serve.
+   *
+   * Defaults to the Pi-native bridge (`collectPiToolCatalog()`), falling back
+   * to `UPUP_MCP_TOOLS` when no Pi package mounts — so `upup mcp serve` always
+   * answers with *some* usable tool surface instead of an empty list.
+   * Pass `{ tools: UPUP_MCP_TOOLS }` to pin the legacy hand-written adapters,
+   * or `{ tools }` to serve an exact set (tests, embedding hosts).
+   */
+  readonly catalog?: { readonly tools: readonly UpUpMcpToolSpec[]; readonly report?: unknown };
 }
 
 const DEFAULT_NAME = 'upup-finance-mcp';
@@ -60,9 +80,17 @@ const DEFAULT_VERSION = '0.1.0';
 export class UpUpMcpServer {
   private readonly server: Server;
   private readonly toolByName: Map<string, UpUpMcpToolSpec>;
+  private readonly toolList: readonly UpUpMcpToolSpec[];
+  private readonly catalogReport: PiToolCatalogReport | undefined;
   private transport: { close(): Promise<void> } | null = null;
 
   constructor(options: UpUpMcpServerOptions = {}) {
+    // The Pi bridge is asynchronous (it imports extension modules), so the
+    // constructor takes an already-resolved catalog. `createPiNativeMcpServer`
+    // is the async factory that resolves it; constructing directly keeps the
+    // synchronous path for tests and embedders that pass their own tool set.
+    this.toolList = options.catalog?.tools ?? UPUP_MCP_TOOLS;
+    this.catalogReport = options.catalog?.report as PiToolCatalogReport | undefined;
     this.server = new Server(
       { name: options.name ?? DEFAULT_NAME, version: options.version ?? DEFAULT_VERSION },
       {
@@ -74,21 +102,23 @@ export class UpUpMcpServer {
           'UpUp finance / market-data / research tools under the',
           '`upup_finance__<tool>` namespace.',
           '',
-          'Every tool wraps an existing UpUp function (no business logic is',
-          're-implemented here). For write operations (orders, config, file',
-          'writes) use the Pi RPC / SDK paths so the Pi policy layer can apply',
-          'approval.',
+          'Every tool is an UpUp Pi package tool, mounted from the package',
+          'manifest and projected verbatim: same schema, same evidence, same',
+          'audit as a Pi session. No business logic is re-implemented here.',
+          'Mutating tools (orders, config, files, credentials) are removed',
+          'using each package\'s `pi.sideEffects` declaration; for those use',
+          'the Pi RPC / SDK paths so the Pi policy layer can apply approval.',
         ].join('\n'),
       },
     );
 
-    this.toolByName = new Map(UPUP_MCP_TOOLS.map((tool) => [tool.name, tool]));
+    this.toolByName = new Map(this.toolList.map((tool) => [tool.name, tool]));
 
     // `tools/list` — return the registered tool descriptors. The MCP SDK
     // expects `inputSchema` to be a JSON-Schema-shaped object; that is what
     // `UpUpMcpToolSpec.inputSchema` already is.
     this.server.setRequestHandler(ListToolsRequestSchema, async () => ({
-      tools: UPUP_MCP_TOOLS.map((tool) => ({
+      tools: this.toolList.map((tool) => ({
         name: tool.name,
         description: tool.description,
         inputSchema: tool.inputSchema,
@@ -102,7 +132,7 @@ export class UpUpMcpServer {
     this.server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
       const params = request.params as { name?: string; arguments?: Record<string, unknown> };
       const name = typeof params.name === 'string' ? params.name : '';
-      const tool = findUpUpMcpTool(name);
+      const tool = this.toolByName.get(name);
       if (!tool) {
         return {
           content: [{ type: 'text', text: `Unknown tool: ${name}` }],
@@ -121,6 +151,20 @@ export class UpUpMcpServer {
   /** Number of tools currently registered (used by tests + report). */
   toolCount(): number {
     return this.toolByName.size;
+  }
+
+  /** Names of the tools this server serves, in `tools/list` order. */
+  toolNames(): readonly string[] {
+    return this.toolList.map((tool) => tool.name);
+  }
+
+  /**
+   * Where this server's tools came from. Present only when the Pi bridge
+   * resolved the catalog; `undefined` for a directly-constructed server.
+   * `report:pi7` and `upup doctor` read this to prove the surface is Pi-native.
+   */
+  piCatalogReport(): PiToolCatalogReport | undefined {
+    return this.catalogReport;
   }
 
   /** Connect to stdio and run forever until stdin closes / `close()` is called. */
@@ -198,6 +242,24 @@ export class UpUpMcpServer {
 /** Convenience factory — `new UpUpMcpServer()` is also fine. */
 export function createUpUpMcpServer(options: UpUpMcpServerOptions = {}): UpUpMcpServer {
   return new UpUpMcpServer(options);
+}
+
+/**
+ * Build the MCP server from UpUp's Pi packages.
+ *
+ * This is what `upup mcp serve` uses. Every finance tool a Pi session would see
+ * becomes an MCP tool, so the cross-platform surface stops being a small
+ * hand-maintained subset of UpUp's own capability. A package that fails to mount
+ * is reported through `piCatalogReport()` and skipped; if *no* package mounts,
+ * the hand-written `UPUP_MCP_TOOLS` catalog is served instead of an empty list,
+ * because an MCP client that connects and sees zero tools has no way to tell a
+ * broken mount from a healthy server with nothing to offer.
+ */
+export async function createPiNativeMcpServer(options: UpUpMcpServerOptions = {}): Promise<UpUpMcpServer> {
+  if (options.catalog) return new UpUpMcpServer(options);
+  const catalog = await collectPiToolCatalog();
+  if (catalog.tools.length === 0) return new UpUpMcpServer(options);
+  return new UpUpMcpServer({ ...options, catalog: { tools: catalog.tools, report: catalog.report } });
 }
 
 export {

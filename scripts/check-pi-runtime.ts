@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 const root = process.cwd();
@@ -11,8 +11,30 @@ const failures: string[] = [];
 if (packageJson.engines?.node !== '>=22.19.0') {
   failures.push('package.json must require Node >=22.19.0');
 }
-if (!packageJson.scripts?.['build:node']?.includes('--target=node22')) {
-  failures.push('build:node must target node22');
+/**
+ * `build:node` may be either an inline bundler invocation carrying
+ * `--target=node22`, or a `bun run <script>.ts` wrapper whose target lives in
+ * the referenced file. Reading the effective target keeps the gate about the
+ * artifact we ship instead of the spelling of the npm script (the wrapper
+ * exists because the previous one-liner depended on throwaway `/tmp` shims).
+ */
+function resolveDeclaredNodeTargets(): { file: string; source: string } {
+  const script = packageJson.scripts?.['build:node'] ?? '';
+  const referenced = /(?:^|\s)([\w./-]+\.(?:ts|mts|js|mjs))(?=\s|$)/.exec(script.replace(/^bun run /, ''))?.[1];
+  const candidates = [referenced, script].filter((value): value is string => Boolean(value));
+  const sources: { file: string; source: string }[] = [{ file: 'package.json#scripts.build:node', source: script }];
+  for (const candidate of candidates) {
+    if (!candidate.endsWith('.ts') && !candidate.endsWith('.mts') && !candidate.endsWith('.js') && !candidate.endsWith('.mjs')) continue;
+    const path = join(root, candidate);
+    if (!existsSync(path)) continue;
+    sources.push({ file: candidate, source: readFileSync(path, 'utf8') });
+  }
+  return sources.find(({ source }) => /target:\s*['\"]node22['\"]|--target=node22/.test(source)) ?? sources[0]!;
+}
+
+const nodeTargets = resolveDeclaredNodeTargets();
+if (!/target:\s*['\"]node22['\"]|--target=node22/.test(nodeTargets.source)) {
+  failures.push(`build:node must target node22 (checked ${nodeTargets.file})`);
 }
 if (!packageJson.scripts?.['build:pkg']?.includes('node22-')) {
   failures.push('build:pkg must emit only node22 targets');
@@ -36,4 +58,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log(`Pi runtime checks passed: Bun ${bunVersion}, Node ${process.versions.node}, Node22 build targets declared.`);
+console.log(`Pi runtime checks passed: Bun ${bunVersion}, Node ${process.versions.node}, Node22 build targets declared (${nodeTargets.file}).`);

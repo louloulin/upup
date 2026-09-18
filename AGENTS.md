@@ -71,6 +71,7 @@ UpUp **不重新实现 agent**。Agent loop、TUI/InteractiveMode、工具执行
 
 - `bun run check:pi7` — 单 factory、零生产 global registry
 - `bun run check:module-boundaries` — workspace 边界、root allowlist、无环
+- `bun run check:workspace-exports` — 每个 `exports` 声明的 `dist/*` 目标都必须由其 build 脚本产出（Pi extension loader 走 Node/jiti 语义，落 `default` 条件，`dist/` 缺失即运行期炸）
 - `bun run check:pi-packages` + `check:pi-side-effects` — Pi manifest 与工具副作用
 - `bun run check:pi-runtime` — Bun/Node 版本与 build target
 - `bun run check:pi-deletion-audit` (strict) — 旧路径消费者清零
@@ -213,6 +214,18 @@ UpUp 不去 fork Pi，而是用 Pi 官方扩展点 `before_agent_start`（`Befor
 - ✅ 已修复 `agentDir = cwd`：现在恒定 `~/.upup/agent`，并有 `agent-dir.test.ts` 守门。
 - ✅ 已修复 `SettingsManager.inMemory()`：`agent-session-factory` 用 `SettingsManager.create(cwd, agentDir)`，`/model` 持久化落到真实 `~/.upup/agent/settings.json`。
 - ✅ 已修复 `Welcome to Pi` setup wizard 反复出现：settings.json 迁移到位后不再走向导。
+- ✅ 已修复 `Response was truncated before completion.` 死循环：Pi 的 `clampMaxTokensToContext` 会把输出预算夹到
+  `contextWindow - estimate - 4096`，下限仅 1 token；当 provider catalog 低报 `contextWindow`（如 `ax` 网关声明的
+  128k，实测可服务 260k+ prompt）时，长会话的 `max_tokens` 被夹到 1，网关再返回 `finish_reason: "length"` + 128 token 上限，
+  每轮都截断。`@upup/pi-runtime` 的 `before_provider_request`（`contractBehaviors`，返回值会替换 payload）用
+  `repairDegenerateOutputBudget` 把 <1024 的预算恢复到模型声明的 `maxTokens`，并在审计里记 `outputBudgetRepair`。
+  检测走 `MAX_BUDGET_PATH_DEPTH = 3` 层嵌套，覆盖 `max_tokens` / `max_completion_tokens` / `max_output_tokens`（OpenAI /
+  Anthropic / Azure Responses）、`maxOutputTokens`（Google Vertex `params.config.generationConfig.maxOutputTokens`、
+  Google Generative AI）、`maxTokens`（Amazon Bedrock `params.inferenceConfig.maxTokens`），与 Pi 自带的 11 个
+  `onPayload` 桥接的 provider adapter 全部对齐。端到端守门：
+  `packages/pi-runtime/src/provider-output-budget.e2e.test.ts`（走 Pi 真实 `ExtensionRunner` + 真实
+  `openai-completions` 请求体捕获）。放大因素 `compaction.enabled=false` 会让 Pi 的溢出/截断自愈整体短路，
+  `upup doctor` 的 `Auto Compact` 检查会告警（只读，不覆盖用户设置）。
 - `resolvePiModel` 只查 `getBuiltinModel` + ollama，不查 `modelRuntime`，`~/.upup/agent/models.json` 自定义 provider 静默 fallback 到 Pi default。
 - `packages/memory/src/embeddings.ts` 与 `packages/pi-research/src/search.ts#searchPerplexity` 走 raw fetch，不走 Pi provider registry；Perplexity 是一个真 LLM 推理。
 - 每个 session 默认从 `~/.agents/skills` 加载全局 skills 进 system prompt（`auto/user`），需显式 opt-in 控制。

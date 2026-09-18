@@ -10,6 +10,7 @@ import {
 describe('mergeAuthJsonIntoProcessEnv', () => {
   let work: string;
   let originalAgentDir: string | undefined;
+  let originalUpupAgentDir: string | undefined;
   let originalHome: string | undefined;
   let snapshot: Record<string, string | undefined>;
 
@@ -17,6 +18,7 @@ describe('mergeAuthJsonIntoProcessEnv', () => {
     work = mkdtempSync(join(tmpdir(), 'upup-env-test-'));
     originalHome = process.env.HOME;
     originalAgentDir = process.env.PI_CODING_AGENT_DIR;
+    originalUpupAgentDir = process.env.UPUP_CODING_AGENT_DIR;
     snapshot = {};
     for (const key of Object.keys(process.env)) {
       if (key.startsWith('MINIMAX_') || key.startsWith('OPENAI_API') || key.startsWith('ANTHROPIC_')) {
@@ -24,6 +26,12 @@ describe('mergeAuthJsonIntoProcessEnv', () => {
       }
     }
     delete process.env.PI_CODING_AGENT_DIR;
+    // `bun test` publishes the sandboxed agent dir under this name
+    // (`scripts/test-preload.ts`), and `getAuthJsonPath` checks it *before*
+    // the legacy `PI_CODING_AGENT_DIR`. Leaving it set makes the sandbox win
+    // over the directory this suite assigns, so the assertions below would
+    // compare against the preload's temp home instead of `work`.
+    delete process.env.UPUP_CODING_AGENT_DIR;
     delete process.env.UPUP_HOME;
     delete process.env.MINIMAX_API_KEY;
     delete process.env.MINIMAX_CN_API_KEY;
@@ -39,6 +47,8 @@ describe('mergeAuthJsonIntoProcessEnv', () => {
     }
     if (originalAgentDir !== undefined) process.env.PI_CODING_AGENT_DIR = originalAgentDir;
     else delete process.env.PI_CODING_AGENT_DIR;
+    if (originalUpupAgentDir !== undefined) process.env.UPUP_CODING_AGENT_DIR = originalUpupAgentDir;
+    else delete process.env.UPUP_CODING_AGENT_DIR;
     if (originalHome !== undefined) process.env.HOME = originalHome;
     rmSync(work, { recursive: true, force: true });
   });
@@ -109,6 +119,20 @@ describe('mergeAuthJsonIntoProcessEnv', () => {
   test('getAuthJsonPath respects PI_CODING_AGENT_DIR override', () => {
     process.env.PI_CODING_AGENT_DIR = '/tmp/custom-agent';
     expect(getAuthJsonPath()).toBe('/tmp/custom-agent/auth.json');
+  });
+
+  test('getAuthJsonPath prefers UPUP_CODING_AGENT_DIR, the name the rebranded Pi reads', () => {
+    // Pi derives this variable from its own `piConfig.name`, which UpUp's
+    // patched build sets to "upup" — so this is the name that actually moves
+    // the running session. It must outrank the legacy spelling.
+    process.env.UPUP_CODING_AGENT_DIR = '/tmp/upup-branded-agent';
+    process.env.PI_CODING_AGENT_DIR = '/tmp/legacy-pi-agent';
+    expect(getAuthJsonPath()).toBe('/tmp/upup-branded-agent/auth.json');
+  });
+
+  test('getAuthJsonPath falls back to $UPUP_HOME/agent without any explicit agent dir', () => {
+    process.env.UPUP_HOME = '/tmp/upup-home-root';
+    expect(getAuthJsonPath()).toBe('/tmp/upup-home-root/agent/auth.json');
   });
 });
 

@@ -1,6 +1,9 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import { PI_CAPABILITY_CATALOG, validatePiCapabilityCatalog, UPUP_ECOSYSTEM_PACKAGES, describeEcosystemResolution } from '@upup/pi-runtime';
+import { findEcosystemPackageDirs, resolvePiExtensionEntries } from '@upup/pi-runtime/ecosystem-resolver';
+import { createExtensionApiProbe } from '@upup/pi-runtime/extension-api-probe';
+import { declaredToolNames, resolvePackageSourceDir, UPUP_OWNED_TOOL_NAMES } from '@upup/pi-runtime/ecosystem-extension';
 import { listPiSkillCommands } from '@upup/pi-resource-composition';
 import { findSideEffectCoverageGaps, REQUIRED_SIDE_EFFECTS, readWorkspaceManifests } from './check-pi-side-effects.ts';
 
@@ -124,6 +127,110 @@ async function readMcpServerStatus(): Promise<Record<string, unknown>> {
 }
 
 
+async function readSideEffectStatus(): Promise<Record<string, unknown>> {
+  const manifests = readWorkspaceManifests(root);
+  let total = 0;
+  const byEffect = new Map<string, number>();
+  const byLevel = new Map<string, number>();
+  const byPackage = new Map<string, { effect: string; safetyLevel: string; tools: readonly string[] }[]>();
+  for (const manifest of manifests) {
+    const pkgName = typeof manifest.name === 'string' ? manifest.name : '<unknown>';
+    const declarations = Array.isArray(manifest.pi?.sideEffects) ? manifest.pi.sideEffects : [];
+    if (declarations.length === 0) continue;
+    const entry: { effect: string; safetyLevel: string; tools: readonly string[] }[] = [];
+    for (const decl of declarations as readonly { tools?: readonly unknown[]; effect?: unknown; safetyLevel?: unknown }[]) {
+      const toolsArr = Array.isArray(decl.tools) ? (decl.tools.filter((t): t is string => typeof t === 'string')) : [];
+      const effect = typeof decl.effect === 'string' ? decl.effect : 'unknown';
+      const safetyLevel = typeof decl.safetyLevel === 'string' ? decl.safetyLevel : 'unknown';
+      total += toolsArr.length;
+      byEffect.set(effect, (byEffect.get(effect) ?? 0) + toolsArr.length);
+      byLevel.set(safetyLevel, (byLevel.get(safetyLevel) ?? 0) + toolsArr.length);
+      entry.push({ effect, safetyLevel, tools: toolsArr });
+    }
+    byPackage.set(pkgName, entry);
+  }
+  const required = REQUIRED_SIDE_EFFECTS.length;
+  return {
+    contract: 'upup.pi.side-effects.v1',
+    totalDeclaredTools: total,
+    requiredDeclarations: required,
+    coveragePercent:
+      sideEffectCoverageGaps.length === 0
+        ? 100
+        : Math.round(((required - sideEffectCoverageGaps.length) / required) * 10000) / 100,
+    coverageGaps: sideEffectCoverageGaps,
+    packageLevelFieldCoverage: {
+      packagesDeclaringField: byPackage.size,
+      totalWorkspacePackages: packages.length,
+      note: 'package-level count vs the tool-level `totalDeclaredTools` above; the two metrics use different units (one per package.json, one per declared tool entry).',
+    },
+    byEffect: Object.fromEntries(byEffect),
+    bySafetyLevel: Object.fromEntries(byLevel),
+    byPackage: Object.fromEntries(byPackage),
+    notes: 'Required declarations are the manifest-owned gate. MCP bridge filters bridged packages by these declarations (upup_finance__* exposes only read-only tools).',
+  };
+}
+
+/**
+ * Aggregate `pi.hostCapabilities` declarations across the workspace.
+ *
+ * `sideEffects` is a hard gate (every tool with a side effect must declare
+ * it); `hostCapabilities` is *informational* — it describes the host
+ * functions a package assumes (agent-worker / cron-runner / mcp-resources /
+ * ...). The field was 7/41 packages declared and `report:pi7` previously
+ * dropped it on the floor (the package-level view simply omitted any
+ * aggregated block), so callers reading the report could not tell which
+ * capabilities were claimed by which packages without scanning every
+ * `package.json`. Mirroring the `sideEffects` aggregation gives
+ * `hostCapabilities` the same byPackage / byCapability shape so the two
+ * 字段 share an aligned 口径.
+ */
+async function readHostCapabilitiesStatus(): Promise<Record<string, unknown>> {
+  const manifests = readWorkspaceManifests(root);
+  const byPackage = new Map<string, readonly string[]>();
+  const byCapability = new Map<string, number>();
+  for (const manifest of manifests) {
+    const pkgName = typeof manifest.name === 'string' ? manifest.name : '<unknown>';
+    const caps = Array.isArray(manifest.pi?.hostCapabilities) ? manifest.pi.hostCapabilities : [];
+    if (caps.length === 0) continue;
+    const names = caps.filter((c): c is string => typeof c === 'string');
+    if (names.length === 0) continue;
+    byPackage.set(pkgName, names);
+    for (const name of names) {
+      byCapability.set(name, (byCapability.get(name) ?? 0) + 1);
+    }
+  }
+  return {
+    contract: 'upup.pi.host-capabilities.v1',
+    packagesDeclaringField: byPackage.size,
+    totalWorkspacePackages: packages.length,
+    byCapability: Object.fromEntries(byCapability),
+    byPackage: Object.fromEntries(byPackage),
+    notes: 'Informational; unlike `sideEffects` there is no gate. Packages declare what host functions they assume; orchestrators read this to decide whether to provide them.',
+  };
+}
+
+async function readSideEffectAuditStream(): Promise<Record<string, unknown>> {
+  const adapterEntry = resolve(root, 'packages/pi-event-adapter/src/index.ts');
+  if (!existsSync(adapterEntry)) {
+    return { contract: 'upup.pi.side-effect-audit-stream.v1', available: false, reason: 'pi-event-adapter not installed' };
+  }
+  const source = readFileSync(adapterEntry, 'utf8');
+  const hasMapper = source.includes('export function mapSideEffectAuditToServer');
+  const hasSubscriber = source.includes('export async function* subscribeToSideEffectAudits');
+  const hasEventType = source.includes("'side_effect_audit'");
+  return {
+    contract: 'upup.pi.side-effect-audit-stream.v1',
+    available: hasMapper && hasSubscriber && hasEventType,
+    serverEventType: 'side_effect_audit',
+    mapper: 'mapSideEffectAuditToServer',
+    subscriber: 'subscribeToSideEffectAudits',
+    journalEntryType: 'upup_pi_policy_audit',
+    consumers: 'DAG orchestrators (@arhen/pi-core-subagent needs-edge scheduler), audit dashboards, TradingAgents hosts',
+    notes: 'Projects Pi policy audit entries into the stdio/gateway ServerEvent shape so policy context reaches routing decisions.',
+  };
+}
+
 async function readFinanceSubagentStatus(): Promise<Record<string, unknown>> {
   try {
     const importer = new Function('s', 'return import(s)') as (s: string) => Promise<{
@@ -143,6 +250,22 @@ async function readFinanceSubagentStatus(): Promise<Record<string, unknown>> {
   }
 }
 
+
+function packageWouldSkipForToolConflict(spec) {
+  let declared = spec.registersTools ?? [];
+  if (!Array.isArray(declared) || declared.length === 0) {
+    const runtime = require('@upup/pi-runtime/ecosystem-extension');
+    try {
+      const dir = runtime.resolvePackageSourceDir(spec);
+      declared = [...runtime.declaredToolNames(dir)];
+    } catch { declared = []; }
+  }
+  const owned = new Set(UPUP_OWNED_TOOL_NAMES);
+  const conflicts = [];
+  for (const tool of declared) if (owned.has(tool)) conflicts.push(tool);
+  return { skip: conflicts.length > 0, conflicts };
+}
+
 async function readEcosystemStatus(): Promise<Record<string, unknown>> {
   const nodeModules = join(root, 'node_modules');
   const entries = await Promise.all(UPUP_ECOSYSTEM_PACKAGES.map(async (spec) => {
@@ -160,44 +283,61 @@ async function readEcosystemStatus(): Promise<Record<string, unknown>> {
         installs = false;
       }
     }
+    // Mount through the same path the runtime uses: `pi.extensions` first,
+    // npm main entry as fallback, on a faithful `ExtensionAPI` stand-in.
+    // A `Proxy` that answered every property with a function used to make
+    // `@quintinshaw/pi-dynamic-workflows` look broken here while the real
+    // session mounted it.
+    const declaredEntries = resolvePiExtensionEntries(spec.name);
+    const candidates = declaredEntries.length > 0 ? declaredEntries : [spec.importPath];
+    let mountedVia: string | null = null;
     if (installs && installedVersion === spec.version) {
-      try {
-        const importer = new Function('s', 'return import(s)') as (s: string) => Promise<{ default?: unknown }>;
-        const mod = await importer(spec.importPath);
-        if (typeof mod.default === 'function') {
-          const sink: Record<string, unknown> = {};
-          const stub: any = new Proxy(sink, {
-            get: (_, prop) => {
-              if (prop === 'events') return { on: () => undefined };
-              if (prop === 'getFlag') return () => undefined;
-              if (prop === 'getSessionName') return () => undefined;
-              if (prop === 'getActiveTools') return () => [];
-              if (prop === 'getAllTools') return () => [];
-              if (prop === 'getCommands') return () => [];
-              if (prop === 'getThinkingLevel') return () => 'medium' as const;
-              if (prop === 'setModel') return async () => true;
-              if (prop === 'exec') return async () => '';
-              return () => undefined;
-            },
-          });
-          (mod.default as (pi: unknown) => void)(stub);
-          mounts = true;
-        } else {
-          mountError = `default export is ${typeof mod.default}`;
+      const attempts: string[] = [];
+      for (const candidate of candidates) {
+        try {
+          const mod = (await loadEcosystemModule(candidate)) as { default?: unknown };
+          if (typeof mod.default === 'function') {
+            const skip = packageWouldSkipForToolConflict(spec);
+            if (skip.skip) {
+              mounts = false;
+              mountedVia = candidate;
+              mountError = `skipped_tool_conflict: ${skip.conflicts.join(', ')}`;
+              attempts.push(`${candidate}: skipped for tool conflict (${skip.conflicts.join(', ')})`);
+              break;
+            }
+            (mod.default as (pi: unknown) => void)(createExtensionApiProbe().pi);
+            mounts = true;
+            mountedVia = candidate;
+            break;
+          }
+          attempts.push(`${candidate}: default is ${mod.default === undefined ? 'undefined' : typeof mod.default}`);
+        } catch (error) {
+          attempts.push(`${candidate}: ${error instanceof Error ? error.message.split('\n')[0] : String(error)}`);
         }
-      } catch (error) {
-        mountError = error instanceof Error ? error.message.split('\n')[0] : String(error);
+      }
+      // Do not clobber a conflict-skip verdict: it is a decision, not a
+      // failure. The generic `attempts` join would otherwise overwrite the
+      // `skipped_tool_conflict:` prefix and make the summary count these
+      // packages as install-broken.
+      if (!mounts && !(typeof mountError === 'string' && mountError.startsWith('skipped_tool_conflict'))) {
+        mountError = attempts.join(' | ');
       }
     }
     // Dual-scope resolution: which root would actually load this package?
     // `user` means a copy in ~/.upup/agent/npm shadows the bundled one.
-    const resolution = describeEcosystemResolution(spec.importPath);
+    const resolution = mountedVia !== null
+      ? (() => {
+          const owner = findEcosystemPackageDirs(spec.name).find((candidate) => mountedVia!.startsWith(candidate.dir));
+          return { scope: owner?.scope ?? ('missing' as const), resolved: mountedVia, root: owner?.root };
+        })()
+      : describeEcosystemResolution(spec.importPath);
     return {
       name: spec.name,
       version: spec.version,
       installedVersion,
       versionMatches: installedVersion === spec.version,
       mounts,
+      mountedVia,
       mountError,
       category: spec.category,
       supersedes: spec.supersedes ?? [],
@@ -209,6 +349,8 @@ async function readEcosystemStatus(): Promise<Record<string, unknown>> {
     };
   }));
   const verified = entries.filter((e) => e.versionMatches && e.mounts).length;
+  const conflictSkipped = entries.filter((e) => e.versionMatches && !e.mounts && typeof e.mountError === 'string' && e.mountError.startsWith('skipped_tool_conflict')).length;
+  const installBroken = entries.filter((e) => e.versionMatches && !e.mounts && !(typeof e.mountError === 'string' && e.mountError.startsWith('skipped_tool_conflict'))).length;
   const scopeCounts = { user: 0, bundled: 0, missing: 0 };
   for (const entry of entries) {
     const scope = (entry.resolution as { scope: 'user' | 'bundled' | 'missing' }).scope;
@@ -218,6 +360,8 @@ async function readEcosystemStatus(): Promise<Record<string, unknown>> {
     contract: 'upup.pi.ecosystem.v1',
     registryCount: UPUP_ECOSYSTEM_PACKAGES.length,
     verifiedCount: verified,
+    conflictSkippedCount: conflictSkipped,
+    installBrokenCount: installBroken,
     coveragePercent: Math.round((verified / UPUP_ECOSYSTEM_PACKAGES.length) * 10000) / 100,
     scopeCounts,
     packages: entries,
@@ -286,21 +430,82 @@ async function readTuiWidgetsStatus(): Promise<Record<string, unknown>> {
 }
 
 
+/**
+ * Load a package entry through the dual-scope resolver, so the report sees the
+ * same copy the session would (user-home override first, bundled second).
+ * Absolute `pi.extensions` paths pass straight through to the loader.
+ */
+async function loadEcosystemModule(specifier: string): Promise<unknown> {
+  const { createEcosystemImporter } = await import('@upup/pi-runtime/ecosystem-resolver');
+  return createEcosystemImporter()(specifier);
+}
+
+/**
+ * True when an ecosystem package actually mounts on a real `ExtensionAPI`
+ * stand-in. Shared by the `dynamicWorkflow` section so its `available` flag
+ * cannot contradict the `ecosystem` section's `mounts` flag.
+ */
+async function readEcosystemMountFor(name: string): Promise<boolean> {
+  const { UPUP_ECOSYSTEM_PACKAGES } = await import('@upup/pi-runtime');
+  const spec = UPUP_ECOSYSTEM_PACKAGES.find((pkg) => pkg.name === name);
+  if (!spec) return false;
+  const [{ createEcosystemImporter, resolvePiExtensionEntries }, { createExtensionApiProbe }] = await Promise.all([
+    import('@upup/pi-runtime/ecosystem-resolver'),
+    import('@upup/pi-runtime/extension-api-probe'),
+  ]);
+  const load = createEcosystemImporter();
+  const declared = resolvePiExtensionEntries(name);
+  const candidates = declared.length > 0 ? declared : [spec.importPath];
+  for (const candidate of candidates) {
+    try {
+      const mod = (await load(candidate)) as { default?: unknown };
+      if (typeof mod.default === 'function') {
+        (mod.default as (pi: unknown) => void)(createExtensionApiProbe().pi);
+        return true;
+      }
+    } catch {
+      /* try the next declared entry */
+    }
+  }
+  return false;
+}
+
 async function readSopWorkflowBridgeStatus(): Promise<Record<string, unknown>> {
   const bridgePath = resolve(root, 'packages/pi-investment-workflow/src/bridge/sop-workflow-bridge.ts');
   if (!existsSync(bridgePath)) {
     return { contract: 'upup.pi.sop-workflow-bridge.v1', available: false, reason: 'sop-workflow-bridge.ts missing' };
   }
-  const source = readFileSync(bridgePath, 'utf8');
-  return {
-    contract: 'upup.pi.sop-workflow-bridge.v1',
-    available: /registerWorkflowResource/.test(source) && /buildUpUpSopScript/.test(source),
-    api: 'pi-subagents registerWorkflowResource',
-    resourceNaming: 'upup-sop__<sopId>',
-    versionHashing: 'FNV-style hash of sop.version -> positive safe integer',
-    hostCommand: 'upup-sop',
-    notes: 'Each UpUp SOP becomes a Pi workflow resource; TradingAgents / Codex can call workflow.run("upup-sop__graham", {ticker}).',
-  };
+  // Execution-based, not a source regex: `available` must mean "the bridge
+  // resolved a real `pi-subagents` export and registered the shipped SOPs".
+  // A regex previously reported `true` while the bridge imported the wrong
+  // subpath and sank a warning on every boot.
+  try {
+    const importer = new Function('s', 'return import(s)') as (s: string) => Promise<any>;
+    const mod = await importer(resolve(root, 'packages/pi-investment-workflow/src/bridge/sop-workflow-bridge.ts'));
+    const result = await mod.bridgeUpUpSopsToWorkflowResources({
+      sessionId: 'report-pi7',
+      onError: () => undefined,
+    });
+    for (const registration of result.registrations ?? []) registration.dispose?.();
+    return {
+      contract: 'upup.pi.sop-workflow-bridge.v1',
+      available: result.resolvedSpecifier !== undefined && (result.registrations?.length ?? 0) > 0,
+      api: `registerWorkflowResource via ${result.resolvedSpecifier ?? '<unresolved>'}`,
+      registeredSops: (result.registrations ?? []).map((r: { name: string }) => r.name),
+      attempted: result.attempted,
+      skipped: result.skipped,
+      resourceNaming: 'upup-sop__<sopId>',
+      versionHashing: 'FNV-style hash of sop.version -> positive safe integer',
+      hostCommand: 'upup-sop',
+      notes: 'Each UpUp SOP becomes a Pi workflow resource; TradingAgents / Codex can call workflow.run("upup-sop__graham", {ticker}).',
+    };
+  } catch (error) {
+    return {
+      contract: 'upup.pi.sop-workflow-bridge.v1',
+      available: false,
+      reason: error instanceof Error ? error.message.split('\n')[0] : String(error),
+    };
+  }
 }
 
 
@@ -350,9 +555,14 @@ async function readDynamicWorkflowStatus(): Promise<Record<string, unknown>> {
       return 0;
     }
   })();
+  // `available` must agree with the ecosystem section: the engine is only
+  // usable when the package actually mounts, so derive it from the real mount
+  // rather than from the presence of UpUp's own bridge files.
+  const engineMounts = await readEcosystemMountFor('@quintinshaw/pi-dynamic-workflows');
   return {
     contract: 'upup.pi.dynamic-workflow.v1',
-    available: fs.existsSync(bridgePath) && fs.existsSync(runnerPath),
+    available: fs.existsSync(bridgePath) && fs.existsSync(runnerPath) && engineMounts,
+    engineMounts,
     engine: '@quintinshaw/pi-dynamic-workflows',
     engineVersion: version,
     translator: 'sopToDynamicWorkflowScript (packages/pi-investment-workflow/src/bridge/dynamic-workflow-bridge.ts)',
@@ -420,11 +630,6 @@ console.log(JSON.stringify({
   packages,
   rootDomains,
   migrationDebt: { legacyEventConsumers, globalRegistryConsumers, agentSessionFactories },
-  sideEffects: {
-    requiredDeclarations: REQUIRED_SIDE_EFFECTS.length,
-    coveragePercent: sideEffectCoverageGaps.length === 0 ? 100 : Math.round(((REQUIRED_SIDE_EFFECTS.length - sideEffectCoverageGaps.length) / REQUIRED_SIDE_EFFECTS.length) * 10000) / 100,
-    gaps: sideEffectCoverageGaps,
-  },
   capabilityCatalog: {
     contract: 'upup.pi.capabilities.v1',
     descriptors: PI_CAPABILITY_CATALOG,
@@ -440,6 +645,9 @@ console.log(JSON.stringify({
   ecosystem: await readEcosystemStatus(),
   financeSubagents: await readFinanceSubagentStatus(),
   mcpServer: await readMcpServerStatus(),
+  sideEffects: await readSideEffectStatus(),
+  hostCapabilities: await readHostCapabilitiesStatus(),
+  sideEffectAuditStream: await readSideEffectAuditStream(),
   sdk: await readInProcessSdkStatus(),
   tuiWidgets: await readTuiWidgetsStatus(),
   sopWorkflowBridge: await readSopWorkflowBridgeStatus(),

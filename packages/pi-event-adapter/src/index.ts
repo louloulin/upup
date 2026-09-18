@@ -35,6 +35,7 @@ export interface ServerEvent {
     | 'tool_limit'
     | 'tool_approval'
     | 'tool_denied'
+    | 'side_effect_audit'
     | 'context_cleared'
     | 'memory_recalled'
     | 'memory_flush'
@@ -212,6 +213,104 @@ import type { AgentSessionEvent } from '@earendil-works/pi-coding-agent';
  * with `content: Array<{type, text}>`). Returns the empty string when the
  * value is not shaped like a Pi message.
  */
+// ---------------------------------------------------------------------------
+// Side-effect audit stream.
+//
+// `createPiSideEffectPolicyExtension` (`@upup/pi-runtime`) appends every
+// policy decision to the Pi session journal via
+// `sessionManager.appendCustomEntry('upup_pi_policy_audit', audit)`. DAG
+// orchestrators (e.g. `@arhen/pi-core-subagent` needs-edge scheduler) and
+// external observers consume that journal to inject policy context into
+// routing decisions. The two helpers below are the canonical bridge:
+// `mapSideEffectAuditToServer` projects an audit entry into the stdio /
+// gateway `ServerEvent` shape; `subscribeToSideEffectAudits` is a polling
+// AsyncGenerator that yields new audits as they arrive, so DAG consumers
+// do not have to reimplement the journal cursor.
+// ---------------------------------------------------------------------------
+
+/**
+ * Project one `UpUpToolPolicyAudit` into the stdio / gateway `ServerEvent`
+ * shape. The returned event carries every audit field plus a derived
+ * `effectKind` and `verdict` (the lowercase string of `decision`) so
+ * downstream consumers can route without re-deriving.
+ */
+/**
+ * Defensive shape: an audit entry as it lands in the Pi session journal.
+ * `UpUpToolPolicyAudit` (used by `toPiTool`) and `PiSideEffectPolicyAudit`
+ * (used by the side-effect policy extension) overlap on the common fields
+ * below; we accept either by duck-typing instead of forcing a single type.
+ */
+interface RawAuditShape {
+  auditId?: unknown;
+  sessionId?: unknown;
+  tool?: unknown;
+  effect?: unknown;
+  safetyLevel?: unknown;
+  permissionProfile?: unknown;
+  decision?: unknown;
+  reason?: unknown;
+  recordedAt?: unknown;
+}
+
+export function mapSideEffectAuditToServer(audit: RawAuditShape): ServerEvent {
+  const asString = (value: unknown): string => (typeof value === 'string' ? value : '');
+  const decision = asString(audit.decision);
+  return {
+    type: 'side_effect_audit',
+    auditId: asString(audit.auditId),
+    sessionId: asString(audit.sessionId),
+    tool: asString(audit.tool),
+    effect: asString(audit.effect),
+    safetyLevel: asString(audit.safetyLevel),
+    permissionProfile: asString(audit.permissionProfile),
+    decision,
+    verdict: decision,
+    reason: asString(audit.reason),
+    recordedAt: asString(audit.recordedAt),
+  };
+}
+
+const POLICY_AUDIT_ENTRY_TYPE = 'upup_pi_policy_audit';
+
+export interface SubscribeToSideEffectAuditsOptions {
+  /** Abort signal to stop the polling generator. */
+  readonly signal?: AbortSignal;
+  /** Polling cadence in milliseconds (defaults to 50). */
+  readonly pollIntervalMs?: number;
+}
+
+/**
+ * Yield every new `upup_pi_policy_audit` entry the session manager has
+ * recorded since the previous yield. Polls `sessionManager.getCustomEntries`
+ * (the same accessor the journal API uses) so the audit stream needs no
+ * session-manager monkey-patching. The first call yields every audit that
+ * already exists; subsequent calls yield only newly appended ones.
+ *
+ * Designed for DAG orchestrators and audit dashboards — small, predictable
+ * overhead, no scheduler dependency.
+ */
+export async function* subscribeToSideEffectAudits(
+  sessionManager: { getCustomEntries(customType: string): readonly unknown[] },
+  options: SubscribeToSideEffectAuditsOptions = {},
+): AsyncGenerator<ServerEvent> {
+  let lastIndex = 0;
+  const pollMs = options.pollIntervalMs ?? 50;
+  while (!options.signal?.aborted) {
+    const entries = sessionManager.getCustomEntries(POLICY_AUDIT_ENTRY_TYPE);
+    for (let i = lastIndex; i < entries.length; i += 1) {
+      const entry = entries[i] as { type?: unknown; customType?: unknown; data?: unknown } | undefined;
+      if (entry?.type === 'custom' && entry.customType === POLICY_AUDIT_ENTRY_TYPE && entry.data) {
+        yield mapSideEffectAuditToServer(entry.data as RawAuditShape);
+      }
+    }
+    lastIndex = entries.length;
+    await new Promise<void>((resolve) => {
+      if (options.signal?.aborted) { resolve(); return; }
+      setTimeout(resolve, pollMs);
+    });
+  }
+}
+
 export function extractTextFromPiMessage(result: unknown): string {
   if (!result || typeof result !== 'object' || !('content' in result) || !Array.isArray(result.content)) {
     return '';

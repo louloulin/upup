@@ -304,18 +304,18 @@
     "sideEffects": [
       {
         "tools": [
-          "write_file",
+          "cron",
           "edit_file",
           "export_data",
           "export_watchlist",
+          "heartbeat",
           "memory_update",
           "notebook_create",
+          "notebook_delete_cell",
           "notebook_edit_cell",
           "notebook_insert_cell",
-          "notebook_delete_cell",
-          "heartbeat",
-          "cron",
-          "platformBash"
+          "platformBash",
+          "write_file"
         ],
         "effect": "filesystem-write",
         "safetyLevel": "warning"
@@ -357,6 +357,31 @@
         ],
         "effect": "external-network",
         "safetyLevel": "dangerous"
+      },
+      {
+        "tools": [
+          "add_plan_step",
+          "add_to_watchlist",
+          "add_watchlist_alert",
+          "agent_memory",
+          "clear_watchlist_alert",
+          "create_todo",
+          "delete_todo",
+          "enter_plan_mode",
+          "exit_plan_mode",
+          "remove_from_watchlist",
+          "run_workflow",
+          "send_message",
+          "swarm_agent_spawn",
+          "swarm_team_create",
+          "task_create",
+          "task_stop",
+          "task_update",
+          "update_plan_step",
+          "update_todo"
+        ],
+        "effect": "filesystem-write",
+        "safetyLevel": "warning"
       }
     ]
   }

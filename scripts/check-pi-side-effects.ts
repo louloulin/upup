@@ -12,11 +12,23 @@ const requirement = (packageName: string, tools: readonly string[], effect: Side
 export const REQUIRED_SIDE_EFFECTS: readonly SideEffectRequirement[] = [
   ...requirement('@upup/pi-config', ['config_set'], 'filesystem-write', 'dangerous'),
   ...requirement('@upup/pi-finance-sdk', ['place_trade_order', 'cancel_trade_order'], 'financial-write', 'critical'),
+  ...requirement('@upup/pi-portfolio', [
+    'add_position', 'update_position', 'add_position_multi', 'create_portfolio', 'switch_portfolio',
+    'duckdb-import-csv', 'duckdb-register-parquet',
+  ], 'filesystem-write', 'warning'),
+  ...requirement('@upup/pi-portfolio', ['remove_position', 'remove_position_multi', 'delete_portfolio'], 'filesystem-write', 'warning'),
+  ...requirement('@upup/pi-finance-sdk', ['track_company', 'track_sector', 'fund_follow', 'fund_unfollow', 'fund_alert_create', 'fund_alert_delete'], 'filesystem-write', 'warning'),
+  ...requirement('@upup/pi-risk', ['track_risk'], 'filesystem-write', 'warning'),
   ...requirement('@upup/pi-finance-sdk', ['strategy_run_paper'], 'financial-write', 'dangerous'),
   ...requirement('@upup/pi-notify', ['notify', 'subscribe_pr', 'unsubscribe_pr'], 'external-network', 'warning'),
   ...requirement('@upup/pi-platform', [
     'platformBash', 'write_file', 'edit_file', 'export_data', 'export_watchlist', 'memory_update', 'notebook_create', 'notebook_edit_cell',
     'notebook_insert_cell', 'notebook_delete_cell', 'heartbeat', 'cron',
+  ], 'filesystem-write', 'warning'),
+  ...requirement('@upup/pi-platform', [
+    'add_to_watchlist', 'remove_from_watchlist', 'add_watchlist_alert', 'clear_watchlist_alert', 'enter_plan_mode',
+    'exit_plan_mode', 'add_plan_step', 'update_plan_step', 'create_todo', 'update_todo', 'delete_todo', 'run_workflow',
+    'swarm_team_create', 'swarm_agent_spawn', 'task_create', 'task_update', 'task_stop', 'agent_memory', 'send_message',
   ], 'filesystem-write', 'warning'),
   ...requirement('@upup/pi-platform', ['send_user_file', 'create_worktree'], 'filesystem-write', 'dangerous'),
   ...requirement('@upup/pi-platform', ['remove_worktree'], 'filesystem-write', 'critical'),

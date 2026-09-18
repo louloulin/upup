@@ -96,12 +96,20 @@ describe('Pi production entry contract', () => {
       && source.includes('sessionPlatformProvider: builtinSessionPlatformComposition');
     expect(usesCombinedProvider || usesSplitProviders).toBe(true);
     expect(source).toContain('createPiAgentRuntime(composition');
-    const piAppIndex = readFileSync(join(process.cwd(), 'packages/pi-app/src/index.ts'), 'utf8');
-    expect(piAppIndex).toContain('sessionCompositionProvider');
-    expect(piAppIndex).toContain('sessionFinanceProvider');
-    expect(piAppIndex).toContain('sessionPlatformProvider');
-    expect(piAppIndex).toContain('PiSessionCompositionProviders');
-    expect(piAppIndex).toContain('getSessionCompositionProvider');
+    const piAppIndex = readFileSync(join(process.cwd(), 'packages/pi-app/src/app-factory.ts'), 'utf8');
+    // The Pi app public surface moved to `app-factory.ts` in the Pi Native
+    // cycle-2 extraction (see packages/pi-app/src/app-factory.ts header).
+    // `index.ts` now only re-exports the factory/types; the concrete
+    // `PiAppOptions` property names + `getSessionCompositionProvider`
+    // live in `app-factory.ts` and are re-exported by `index.ts`. The
+    // contract checks the union of both so a future extraction cannot
+    // silently drop any of these public-surface strings.
+    const piAppIndexPublicSurface = `${piAppIndex}\n${readFileSync(join(process.cwd(), 'packages/pi-app/src/index.ts'), 'utf8')}`;
+    expect(piAppIndexPublicSurface).toContain('sessionCompositionProvider');
+    expect(piAppIndexPublicSurface).toContain('sessionFinanceProvider');
+    expect(piAppIndexPublicSurface).toContain('sessionPlatformProvider');
+    expect(piAppIndexPublicSurface).toContain('PiSessionCompositionProviders');
+    expect(piAppIndexPublicSurface).toContain('getSessionCompositionProvider');
   });
 
   test('Pi prompt capability discovery does not import the legacy root registry', () => {

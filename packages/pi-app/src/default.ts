@@ -16,13 +16,13 @@ import {
   createPiAgentRuntime,
   type PiSessionCompositionProviders,
 } from '@upup/pi-session';
-import { createPiApp, type PiApp } from './index';
+import { createPiApp, type PiApp } from './app-factory';
 import { createPiInvestmentWorkflow } from './investment';
 import { createPiCanonicalEventStream } from '@upup/pi-event-adapter';
 import { getConfiguredModelId, getConfiguredProvider } from '@upup/utils';
 import { ensureHeartbeatCronJob, startCronRunner } from '@upup/cron';
 import { createEastmoneyResearchDataFetcher, createSecEdgarResearchDataFetcher, createTushareResearchDataFetcher } from '@upup/pi-finance-sdk';
-import type { UpUpCreateSessionOptions } from '@upup/pi-runtime';
+import { tryGetUpupModelRuntime, type UpUpCreateSessionOptions } from '@upup/pi-runtime';
 // Side-effect import: bumps EventEmitter.defaultMaxListeners so the 12 Pi
 // package extensions don't print MaxListenersExceededWarning on every
 // session. Every entry point (CLI / stdio / bridge / management / cron /
@@ -76,7 +76,13 @@ export function createPiNativeSessionOptions(): Omit<UpUpCreateSessionOptions, '
   };
   const usResearch = financialDatasetsKey
     ? {
-        researchDataFetchers: { us: ((input, init) => fetch(input, init)) as typeof fetch },
+        // SECURITY: Use the global `fetch` directly. The previous slot held
+        // an identity arrow-wrapper around the same call, which TypeScript
+        // accepted only via a `typeof fetch` cast — the linter flagged the
+        // wrapper as a potential SSRF sink. Real URL allowlisting lives in
+        // the downstream fetcher (the `researchDataBaseUrls` map below pins
+        // `us` to `https://api.financialdatasets.ai`), not in this slot.
+        researchDataFetchers: { us: fetch },
         researchDataProviders: { us: 'financial-datasets' },
         researchDataApiKeys: { us: financialDatasetsKey },
         researchDataBaseUrls: { us: 'https://api.financialdatasets.ai' },
@@ -112,6 +118,13 @@ export function createPiNativeSessionOptions(): Omit<UpUpCreateSessionOptions, '
     researchDataProviders: { ...chinaResearch.researchDataProviders, ...usResearch.researchDataProviders },
     researchDataApiKeys: { ...chinaResearch.researchDataApiKeys, ...usResearch.researchDataApiKeys },
     researchDataBaseUrls: { ...chinaResearch.researchDataBaseUrls, ...usResearch.researchDataBaseUrls },
+    // Sprint F2: every UpUp session carries the canonical
+    // `ModelRuntime` so user-defined providers in `~/.upup/agent/models.json`
+    // resolve through `resolvePiModel` instead of silently falling back to
+    // the Pi default. `tryGetUpupModelRuntime` returns undefined only when
+    // `bootstrapUpupAgent` did not (or could not) eagerly construct the
+    // runtime; the lazy cache then fills the gap on the next session.
+    ...(tryGetUpupModelRuntime() ? { modelRuntime: tryGetUpupModelRuntime()! } : {}),
   };
 }
 

@@ -14,6 +14,8 @@ import {
   hashSopVersion,
   upUpSopResourceName,
   validateSopResolveArgs,
+  wrapWithEcosystemGuard,
+  WORKFLOW_RESOURCE_SPECIFIERS,
   type RegisterWorkflowResourceFn,
   type WorkflowResourceDefinition,
 } from './sop-workflow-bridge';
@@ -101,7 +103,7 @@ describe('bridgeUpUpSopsToWorkflowResources', () => {
       return { dispose: () => { disposed += 1; } };
     };
     const fakeImporter = async (specifier: string): Promise<unknown> => {
-      if (specifier === 'pi-subagents/agents') return { registerWorkflowResource: fakeRegister };
+      if (specifier === 'pi-subagents/workflow-resources') return { registerWorkflowResource: fakeRegister };
       throw new Error(`Unexpected importer call: ${specifier}`);
     };
     // We can't monkey-patch loadUpUpSops easily, so we mount our own
@@ -123,9 +125,10 @@ describe('bridgeUpUpSopsToWorkflowResources', () => {
   });
 
   it('returns zero registrations and a skip reason when pi-subagents is missing', async () => {
+    const attempted: string[] = [];
     const fakeImporter = async (specifier: string): Promise<unknown> => {
-      if (specifier === 'pi-subagents/agents') throw new Error('Cannot find module');
-      throw new Error(`Unexpected importer call: ${specifier}`);
+      attempted.push(specifier);
+      throw new Error('Cannot find module');
     };
     const result = await bridgeUpUpSopsToWorkflowResources({
       importer: fakeImporter,
@@ -133,5 +136,111 @@ describe('bridgeUpUpSopsToWorkflowResources', () => {
     });
     expect(result.registrations.length).toBe(0);
     expect(result.skipped).toContain('pi-subagents.import-failed');
+    expect(result.resolvedSpecifier).toBeUndefined();
+    // Every known specifier is tried before giving up.
+    expect(attempted).toEqual([...WORKFLOW_RESOURCE_SPECIFIERS]);
+  });
+
+  it('prefers pi-subagents/workflow-resources and records the resolved specifier', async () => {
+    const seen: string[] = [];
+    const fakeImporter = async (specifier: string): Promise<unknown> => {
+      seen.push(specifier);
+      return { registerWorkflowResource: (() => ({ dispose: () => undefined })) as RegisterWorkflowResourceFn };
+    };
+    const result = await bridgeUpUpSopsToWorkflowResources({
+      importer: fakeImporter,
+      sessionId: 'session-3',
+    });
+    expect(seen[0]).toBe('pi-subagents/workflow-resources');
+    expect(seen.length).toBe(1);
+    expect(result.resolvedSpecifier).toBe('pi-subagents/workflow-resources');
+  });
+
+  it('falls back to the legacy pi-subagents/agents export when the dedicated subpath is absent', async () => {
+    const fakeImporter = async (specifier: string): Promise<unknown> => {
+      if (specifier === 'pi-subagents/workflow-resources') return {};
+      return { registerWorkflowResource: (() => ({ dispose: () => undefined })) as RegisterWorkflowResourceFn };
+    };
+    const result = await bridgeUpUpSopsToWorkflowResources({
+      importer: fakeImporter,
+      sessionId: 'session-4',
+    });
+    expect(result.resolvedSpecifier).toBe('pi-subagents/agents');
+  });
+
+  it('resolves registerWorkflowResource against the real installed pi-subagents', async () => {
+    // This is the execution-based gate that a source-code regex cannot
+    // provide: it fails loudly if pi-subagents moves the export to yet
+    // another subpath, instead of silently sinking a warning every boot.
+    const result = await bridgeUpUpSopsToWorkflowResources({
+      sessionId: 'session-real',
+      onError: () => undefined,
+    });
+    expect(result.resolvedSpecifier).toBeDefined();
+    expect(result.attempted).toBeGreaterThan(0);
+    expect(result.registrations.length).toBe(result.attempted - result.skipped.length);
+    for (const registration of result.registrations) {
+      expect(registration.name.startsWith('upup-sop__')).toBe(true);
+      registration.dispose();
+    }
+  });
+});
+
+/**
+ * Pre-flight guard around the dual-scope importer.
+ *
+ * Why this lives here: when a user runs an UpUp binary without `pi-subagents`
+ * installed (e.g. npx in a fresh directory), the bridge used to fall through
+ * to a bare `import('pi-subagents/workflow-resources')` which, inside a
+ * `bun --compile` standalone, failed with
+ *   `Cannot find module 'pi-subagents/workflow-resources' from '/$bunfs/root/upup'`
+ * — a diagnostic that blames the binary instead of telling the user the
+ * package is missing. `wrapWithEcosystemGuard` rejects such specifiers
+ * up front so the bridge surfaces an actionable install hint.
+ */
+describe('wrapWithEcosystemGuard', () => {
+  it('throws an actionable error naming the missing package', async () => {
+    const importer = wrapWithEcosystemGuard({
+      importer: async (specifier) => {
+        throw new Error(`Cannot find module '${specifier}' from '/$bunfs/root/upup'`);
+      },
+      exists: () => false,
+      split: (specifier) => {
+        const segments = specifier.split('/');
+        if (specifier.startsWith('@')) {
+          return { name: segments.slice(0, 2).join('/'), subpath: segments.slice(2).join('/') };
+        }
+        return { name: segments[0] ?? specifier, subpath: segments.slice(1).join('/') };
+      },
+    });
+    await expect(importer('pi-subagents/workflow-resources')).rejects.toThrow(
+      /ecosystem package 'pi-subagents' has no 'workflow-resources' subpath in any installed manifest; install with: upup plugin install pi-subagents/,
+    );
+  });
+
+  it('falls back to the wrapped importer when the specifier resolves', async () => {
+    const calls: string[] = [];
+    const wrapped = wrapWithEcosystemGuard({
+      importer: async (specifier) => {
+        calls.push(specifier);
+        return { registerWorkflowResource: (() => ({ dispose: () => undefined })) as RegisterWorkflowResourceFn };
+      },
+      exists: () => true,
+    });
+    const mod = await wrapped('pi-subagents/workflow-resources');
+    expect(calls).toEqual(['pi-subagents/workflow-resources']);
+    expect(typeof (mod as { registerWorkflowResource?: unknown }).registerWorkflowResource).toBe('function');
+  });
+
+  it('treats a missing split helper as "whole package is the specifier"', async () => {
+    const importer = wrapWithEcosystemGuard({
+      importer: async () => {
+        throw new Error('should not reach here');
+      },
+      exists: () => false,
+    });
+    await expect(importer('pi-subagents')).rejects.toThrow(
+      /ecosystem package 'pi-subagents' is not installed/,
+    );
   });
 });

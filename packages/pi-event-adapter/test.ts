@@ -19,6 +19,8 @@ import {
   adaptPiEventsToServer,
   hasServerMapping,
   mapPiEventToServer,
+  mapSideEffectAuditToServer,
+  subscribeToSideEffectAudits,
 } from './src/index';
 
 describe('@upup/pi-event-adapter', () => {
@@ -703,7 +705,7 @@ describe('@upup/pi-event-adapter — pi model bridge', () => {
       },
     };
     const model = resolvePiModel({ modelName: 'google:gemini-99-nonexistent-probe', modelRuntime: runtime }) as Model<never> | undefined;
-    expect(model).toBe(customModel as unknown as Model<never>);
+    expect(model).toBe(/* SAFETY: structural stand-in for Pi's Model — the test asserts only id/provider/baseUrl */ customModel as unknown as Model<never>);
 
     // Different catalog miss also routes through the runtime.
     const otherCustom = { id: 'claude-test-probe', provider: 'anthropic', baseUrl: 'https://lumos.example/v1' };
@@ -713,7 +715,7 @@ describe('@upup/pi-event-adapter — pi model bridge', () => {
         return undefined;
       },
     };
-    expect(resolvePiModel({ modelName: 'anthropic:claude-test-probe', modelRuntime: runtime2 })).toBe(otherCustom as unknown as Model<never>);
+    expect(resolvePiModel({ modelName: 'anthropic:claude-test-probe', modelRuntime: runtime2 })).toBe(/* SAFETY: structural stand-in for Pi's Model */ otherCustom as unknown as Model<never>);
   });
 
   test('describePiModelResolution marks a runtime-only hit as resolved', () => {
@@ -756,24 +758,56 @@ describe('@upup/pi-event-adapter — pi model bridge', () => {
       },
     };
     expect(resolvePiModel({ modelName: 'custom_anthropic:MiniMax-M3' })).toBeUndefined();
-    expect(resolvePiModel({ modelName: 'custom_anthropic:MiniMax-M3', modelRuntime: runtime })).toBe(customModel as unknown as Model<never>);
+    expect(resolvePiModel({ modelName: 'custom_anthropic:MiniMax-M3', modelRuntime: runtime })).toBe(/* SAFETY: structural stand-in for Pi's Model */ customModel as unknown as Model<never>);
     const diagnostic = describePiModelResolution({ modelName: 'custom_anthropic:MiniMax-M3', modelRuntime: runtime });
     expect(diagnostic.reason).toBe('resolved');
     expect(diagnostic.resolved).toBe(true);
   });
 
-  test('resolvePiModel still serves built-in catalog hits without consulting the runtime', () => {
-    // Catalog hit short-circuits before the runtime is touched.
+  test('resolvePiModel prefers the runtime view so user overrides beat the catalog', () => {
+    // The runtime is the merged view Pi actually serves from (catalog + user
+    // `models.json` + `registerProvider`). A user who repoints a catalog model
+    // at their own endpoint must not be silently sent back to the catalog
+    // default, so the runtime is consulted first.
     let runtimeCalls = 0;
+    const userModel = { id: 'gemini-3-flash-preview', provider: 'google', baseUrl: 'https://user.example/v1' };
     const runtime = {
-      getModel(): unknown {
+      getModel(providerId: string, modelId: string): unknown {
         runtimeCalls += 1;
+        if (providerId === 'google' && modelId === 'gemini-3-flash-preview') return userModel;
         return undefined;
       },
     };
     const model = resolvePiModel({ modelName: 'google:gemini-3-flash-preview', modelRuntime: runtime });
-    expect(model).toBeDefined();
-    expect(runtimeCalls).toBe(0);
+    expect(model).toBe(/* SAFETY: structural stand-in for Pi's Model */ userModel as unknown as Model<never>);
+    expect(runtimeCalls).toBe(1);
+
+    // When the runtime misses, the static catalog still serves the hit.
+    const missingRuntime = {
+      getModel(): unknown {
+        return undefined;
+      },
+    };
+    const catalogModel = resolvePiModel({ modelName: 'google:gemini-3-flash-preview', modelRuntime: missingRuntime });
+    expect(catalogModel?.id).toBe('gemini-3-flash-preview');
+    expect(catalogModel?.baseUrl).not.toBe('https://user.example/v1');
+  });
+
+  test('resolvePiModel keeps the user-configured baseUrl for a catalog-known model', () => {
+    // Regression: `minimax:MiniMax-M3` exists in both the Pi catalog and the
+    // user's `models.json` with different `baseUrl`s. The catalog default was
+    // unreachable in the field while the user's endpoint answered, so the
+    // user's endpoint must win whenever a runtime supplies it.
+    const userModel = { id: 'MiniMax-M3', provider: 'minimax', baseUrl: 'https://api.minimaxi.com/anthropic' };
+    const runtime = {
+      getModel(providerId: string, modelId: string): unknown {
+        if (providerId === 'minimax' && modelId === 'MiniMax-M3') return userModel;
+        return undefined;
+      },
+    };
+    expect(resolvePiModel({ modelName: 'minimax:MiniMax-M3', modelRuntime: runtime })).toBe(/* SAFETY: structural stand-in for Pi's Model */ userModel as unknown as Model<never>);
+    // Catalog-only resolution still works when no runtime is supplied.
+    expect(resolvePiModel({ modelName: 'minimax:MiniMax-M3' })?.id).toBe('MiniMax-M3');
   });
 });
 
@@ -820,4 +854,81 @@ describe('@upup/pi-event-adapter — injected stream runner', () => {
     ]);
   });
 
+});
+
+describe('@upup/pi-event-adapter side-effect audit stream', () => {
+  test('mapSideEffectAuditToServer projects every audit field plus verdict', () => {
+    const audit = {
+      auditId: 'audit-1',
+      sessionId: 'session-A',
+      tool: 'add_position',
+      effect: 'filesystem-write',
+      safetyLevel: 'warning',
+      permissionProfile: 'read-only',
+      decision: 'approval_granted',
+      reason: 'user approved',
+      recordedAt: '2026-09-17T00:00:00.000Z',
+    };
+    const event = mapSideEffectAuditToServer(audit);
+    expect(event.type).toBe('side_effect_audit');
+    expect(event).toMatchObject({
+      type: 'side_effect_audit',
+      auditId: 'audit-1',
+      sessionId: 'session-A',
+      tool: 'add_position',
+      effect: 'filesystem-write',
+      safetyLevel: 'warning',
+      permissionProfile: 'read-only',
+      decision: 'approval_granted',
+      verdict: 'approval_granted',
+      reason: 'user approved',
+      recordedAt: '2026-09-17T00:00:00.000Z',
+    });
+  });
+
+  test('mapSideEffectAuditToServer tolerates missing or wrongly-typed fields', () => {
+    const event = mapSideEffectAuditToServer({ auditId: 42, tool: null });
+    expect(event.type).toBe('side_effect_audit');
+    expect(event.auditId).toBe('');
+    expect(event.tool).toBe('');
+    expect(event.decision).toBe('');
+  });
+
+  test('subscribeToSideEffectAudits yields new entries as they appear', async () => {
+    const recorded: unknown[] = [];
+    const sessionManager = {
+      getCustomEntries: (customType: string) => {
+        if (customType !== 'upup_pi_policy_audit') return [];
+        return recorded;
+      },
+    };
+    const seen: string[] = [];
+    const consumer = (async () => {
+      for await (const event of subscribeToSideEffectAudits(sessionManager as never, { pollIntervalMs: 10 })) {
+        seen.push((event as { tool: string }).tool);
+        if (seen.length >= 3) break;
+      }
+    })();
+    recorded.push({ type: 'custom', customType: 'upup_pi_policy_audit', data: { tool: 'add_position', decision: 'approval_granted' } });
+    recorded.push({ type: 'custom', customType: 'upup_pi_policy_audit', data: { tool: 'remove_position', decision: 'denied' } });
+    recorded.push({ type: 'custom', customType: 'other-entry', data: {} });
+    recorded.push({ type: 'custom', customType: 'upup_pi_policy_audit', data: { tool: 'track_risk', decision: 'approval_required' } });
+    await Promise.race([consumer, new Promise((r) => setTimeout(r, 1500))]);
+    expect(seen).toEqual(['add_position', 'remove_position', 'track_risk']);
+  });
+
+  test('subscribeToSideEffectAudits respects signal', async () => {
+    const sessionManager = { getCustomEntries: () => [] };
+    const controller = new AbortController();
+    let yielded = 0;
+    const consumer = (async () => {
+      for await (const _event of subscribeToSideEffectAudits(sessionManager as never, { pollIntervalMs: 5, signal: controller.signal })) {
+        yielded += 1;
+      }
+    })();
+    await new Promise((r) => setTimeout(r, 60));
+    controller.abort();
+    await consumer;
+    expect(yielded).toBe(0);
+  });
 });

@@ -42,6 +42,16 @@ export interface PiNativeRunCliOptions {
   readonly resumeTarget?: string;
   readonly continue?: boolean;
   readonly fork?: boolean;
+  /**
+   * Raw Pi-native flags the UpUp entry did not consume itself. Pi owns the
+   * authoritative flag surface (`--print`, `--model`, `--provider`,
+   * `--thinking`, `--tools`, `--session`, `--theme`, `--verbose`, `--offline`,
+   * …); UpUp only needs to know about the handful it implements in its own
+   * subcommands. Everything else has to reach Pi verbatim — without this,
+   * `upup --print "…"` silently booted the interactive TUI because Pi's
+   * `parseArgs` never saw `--print`.
+   */
+  readonly piArgs?: readonly string[];
   /** Disable Pi extension discovery (forwarded as `--no-extensions`).
    *  Useful when user-installed extensions in `~/.upup/agent/npm/` are broken
    *  (e.g. mismatched zod locales) — without this flag the TUI fails to boot.
@@ -63,6 +73,37 @@ export interface PiNativeRunCliOptions {
   readonly mode?: 'rpc' | 'json' | undefined;
 }
 
+/**
+ * UpUp flags that must never be forwarded to Pi's argv parser.
+ *
+ * Pi's `parseArgs` rejects unknown options, so a UpUp-only flag leaking
+ * through would abort startup. These are consumed by `entry.ts` before
+ * `runPiNativeCli` is called; the list is duplicated here so the forwarding
+ * helper stays safe when invoked directly (tests, embedded hosts, SDK).
+ */
+const UPUP_ONLY_FLAGS: ReadonlySet<string> = new Set([
+  '--stdio',
+  '--acp',
+  '--trace',
+  '--management',
+  '--management-port',
+  '--management-bind',
+  '--management-token',
+  '--management-once',
+  '--width',
+  '-W',
+  '--height',
+  '-H',
+  // UpUp's fork selector. Pi's equivalent is `--fork <path|id>`, so the UpUp
+  // boolean has to be translated (see `buildArgs`) instead of forwarded.
+  '--fork-session',
+]);
+
+/** Flags that take a value, so the value token is skipped when filtering. */
+const PI_VALUE_FLAGS: ReadonlySet<string> = new Set([
+  '--width', '-W', '--height', '-H',
+]);
+
 function buildArgs(options: PiNativeRunCliOptions): string[] {
   const args: string[] = [];
   if (options.resumeTarget) {
@@ -76,6 +117,16 @@ function buildArgs(options: PiNativeRunCliOptions): string[] {
   }
   if (options.noExtensions) {
     args.push('--no-extensions');
+  }
+  // Auto-name every Pi session unless the caller already supplied one.
+  // Without this, `SessionManager.getSessionName()` returns undefined and
+  // Pi's `/resume` picker / TUI title bar fall back to `path.basename(cwd)` —
+  // which is always `upup` when launched from `/Users/louloulin/appx/upup`,
+  // so every session in the picker collapses to a single indistinguishable
+  // "upup" row. Pi's `parseArgs` itself reads `--name`/`-n` (see
+  // `cli/args.js:68`), so the only thing missing was an UpUp-side default.
+  if (!piArgsContainName(options.piArgs ?? [])) {
+    args.push('--name', generateDefaultSessionName());
   }
   if (options.mode) {
     // Pi's `--mode` switches the host transport between TUI (default),
@@ -91,7 +142,37 @@ function buildArgs(options: PiNativeRunCliOptions): string[] {
   for (const extensionPath of resolveUpupExtensionPaths()) {
     args.push('-e', extensionPath);
   }
+  for (const forwarded of filterForwardablePiArgs(options.piArgs ?? [])) {
+    args.push(forwarded);
+  }
   return args;
+}
+
+/**
+ * Strip UpUp-only flags from the argv handed to Pi.
+ *
+ * `entry.ts` forwards the full `process.argv` slice so that every flag Pi
+ * supports (`--print`, `--model`, `--provider`, `--thinking`, `--tools`,
+ * `--session`, `--theme`, `--offline`, …) reaches Pi without UpUp having to
+ * mirror Pi's parser. UpUp's own flags are filtered out here because Pi's
+ * `parseArgs` aborts on unknown options.
+ */
+export function filterForwardablePiArgs(raw: readonly string[]): string[] {
+  const out: string[] = [];
+  for (let index = 0; index < raw.length; index += 1) {
+    const arg = raw[index]!;
+    if (UPUP_ONLY_FLAGS.has(arg)) {
+      if (PI_VALUE_FLAGS.has(arg) && index + 1 < raw.length && !raw[index + 1]!.startsWith('-')) {
+        index += 1;
+      }
+      continue;
+    }
+    // `--flag=value` form of a UpUp-only flag.
+    const eq = arg.indexOf('=');
+    if (eq > 0 && UPUP_ONLY_FLAGS.has(arg.slice(0, eq))) continue;
+    out.push(arg);
+  }
+  return out;
 }
 
 /**
@@ -204,6 +285,40 @@ function buildExtensionFactories(): InlineExtension[] {
     // TUI; the mount report is surfaced through `bun run report:pi7`.
     createUpUpEcosystemExtension(),
   ];
+}
+
+
+/**
+ * Detect whether the caller already supplied `--name`/`-n <value>` in the
+ * forwarded Pi args (either as two tokens `--name foo` or as one token
+ * `--name=foo`). Returns true to suppress auto-naming.
+ */
+function piArgsContainName(raw: readonly string[]): boolean {
+  for (let index = 0; index < raw.length; index += 1) {
+    const arg = raw[index]!;
+    if (arg === '--name' || arg === '-n') return true;
+    if (arg.startsWith('--name=') || arg.startsWith('-n=')) return true;
+  }
+  return false;
+}
+
+/**
+ * Generate a human-friendly default session name for the Pi session picker
+ * and TUI title bar. Shape: `upup-YYYYMMDD-HHmmss-<rand>`.
+ *
+ * - Date prefix sorts sessions chronologically in `/resume` lists.
+ * - 4-hex-char suffix (16⁴ = 65k values) is enough to disambiguate two
+ *   sessions started in the same second (e.g. during CI replays).
+ *
+ * The fallback chain uses the local time first (matches `new Date()`
+ *   elsewhere in the file), then UTC, so the picker always shows a
+ *   recognisable timestamp even when the system clock has drifted.
+ */
+export function generateDefaultSessionName(now: Date = new Date()): string {
+  const pad = (n: number): string => String(n).padStart(2, '0');
+  const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+  const rand = Math.floor(Math.random() * 0x10000).toString(16).padStart(4, '0');
+  return `upup-${stamp}-${rand}`;
 }
 
 export async function runPiNativeCli(options: PiNativeRunCliOptions = {}): Promise<void> {

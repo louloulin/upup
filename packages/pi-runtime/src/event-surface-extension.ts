@@ -43,6 +43,8 @@ import {
   expandInvestmentInput,
   findUnsourcedNumbers,
   guessMarketLabel,
+  repairDegenerateOutputBudget,
+  resolveOutputBudgetTarget,
   resolveSessionDisplayName,
   summarizeCompaction,
   summarizeToolExecution,
@@ -166,9 +168,22 @@ export function buildFlagDirective(flags: {
   return ['## 本次会话的投资约束（由 UpUp 启动参数设置）', ...lines].join('\n');
 }
 
-/** Code-style bare A-share / HK tickers so they read as data, not prose. */
+/**
+ * Code-style bare tickers so they read as data, not prose.
+ *
+ * Recognises the four ticker idioms a finance user actually types:
+ *   - 6 digits + .SH / .SZ / .BJ       (A-share)
+ *   - 4-5 digits + .HK                 (HK share)
+ *   - $ + 1-5 uppercase letters        (US-prefix, e.g. `$AAPL`)
+ *   - 1-5 uppercase letters alone      (US-bare, e.g. `AAPL`)
+ *
+ * Honours fenced code blocks and inline backticks — never touches text
+ * inside an existing code span. Pure function; the markdown is rewritten
+ * in a single pass with no external state.
+ */
 export function codeStyleTickers(markdown: string): string {
-  if (!markdown || !/\d{6}\.(SH|SZ|BJ)|\d{4,5}\.HK/i.test(markdown)) return markdown;
+  if (!markdown) return markdown;
+  if (!/\d{6}\.(?:SH|SZ|BJ)|\d{4,5}\.HK|\$\s?[A-Z]{1,5}|(?<![\w`])(?:[A-Z]{2,5})(?![\w`])/.test(markdown)) return markdown;
   let inFence = false;
   return markdown
     .split('\n')
@@ -178,7 +193,15 @@ export function codeStyleTickers(markdown: string): string {
         return line;
       }
       if (inFence || line.includes('`')) return line;
-      return line.replace(/\b(\d{6}\.(?:SH|SZ|BJ)|\d{4,5}\.HK)\b/gi, '`$1`');
+      let out = line;
+      // A-share + HK first (explicit suffix disambiguates).
+      out = out.replace(/\b(\d{6}\.(?:SH|SZ|BJ))\b/gi, '`$1`');
+      out = out.replace(/\b(\d{4,5}\.HK)\b/gi, '`$1`');
+      // $AAPL — preserve the dollar sign outside the backticks so it reads as a quote prefix.
+      out = out.replace(/(\$\s?)([A-Z]{1,5})(?![\w`])/g, '$1`$2`');
+      // Bare AAPL — only when not already inside backticks and not preceded by $ (already handled).
+      out = out.replace(/(?<![\w`$])([A-Z]{2,5})(?![\w`])/g, '`$1`');
+      return out;
     })
     .join('\n');
 }
@@ -240,6 +263,7 @@ export function createUpUpEventSurfaceExtension(ports: UpUpEventSurfacePorts = {
     let discoveredResources: UpUpResourceDirs | undefined;
     let lastInputExpansions: readonly string[] = [];
     let lastMessageAudit: Record<string, unknown> | undefined;
+    let lastOutputBudgetRepair: { field: string; before: number; after: number } | undefined;
     const sessionHealth = {
       turns: 0,
       toolCalls: 0,
@@ -357,6 +381,34 @@ export function createUpUpEventSurfaceExtension(ports: UpUpEventSurfacePorts = {
           lastInputExpansions = expanded.expansions;
           return { action: 'transform', text: expanded.text } satisfies InputEventResult;
         },
+
+        /**
+         * Keep the outgoing request from carrying an unusable output budget.
+         *
+         * Pi clamps `maxTokens` to `contextWindow - estimate - 4096` with a
+         * one-token floor. When the provider catalog under-reports
+         * `contextWindow` (the `ax` gateway declares 128k for a model that
+         * really serves 260k+), a long session drives that expression below
+         * one, so Pi sends `max_tokens: 1` and the gateway answers with a
+         * 128-token ceiling plus `finish_reason: "length"` — rendered to the
+         * user as "Response was truncated before completion." on every turn.
+         *
+         * `context.model.maxTokens` is the value Pi fed into the clamp, so
+         * restoring to it undoes exactly the clamp that starved the request
+         * while leaving a genuinely small budget untouched. This hook is the
+         * only lever UpUp has: the clamp runs inside Pi's provider adapters,
+         * after every extension-visible budget decision.
+         */
+        before_provider_request: (event, context) => {
+          lastOutputBudgetRepair = undefined;
+          const payload = (event as { payload?: unknown }).payload;
+          const declaredMax = (context as { model?: { maxTokens?: number } } | undefined)?.model?.maxTokens;
+          const target = resolveOutputBudgetTarget(declaredMax);
+          const { payload: repaired, repair } = repairDegenerateOutputBudget(payload, { target });
+          if (!repair) return undefined;
+          lastOutputBudgetRepair = repair;
+          return repaired;
+        },
       },
 
       // ---------------------------------------------------------------------
@@ -369,15 +421,25 @@ export function createUpUpEventSurfaceExtension(ports: UpUpEventSurfacePorts = {
           cwd = (context as ExtensionContext | undefined)?.cwd;
           sessionHealth.startedAt = now();
           const current = subject();
-          try {
-            pi.setSessionName(resolveSessionDisplayName({
-              cwd: cwd ?? process.cwd(),
-              ...(current?.ticker ? { ticker: current.ticker } : {}),
-              ...(current?.market ? { market: current.market } : {}),
-              ...(current?.planId && !current.ticker ? { planId: current.planId } : {}),
-            }));
-          } catch (error) {
-            ports.onError?.('setSessionName', error);
+          // `resolveSessionDisplayName` returns `null` when the session has
+          // no research subject yet (no ticker, no planId). Writing `null`
+          // would clobber the user's `--name` / our default timestamp name
+          // with `upup`, so we skip the write entirely in that case. The
+          // first time a subject lands (e.g. `/invest 600519.SH` writes
+          // the ticker into `subject()`), this hook will pick it up and
+          // re-name the session to `600519.SH · CN`.
+          const nextName = resolveSessionDisplayName({
+            cwd: cwd ?? process.cwd(),
+            ...(current?.ticker ? { ticker: current.ticker } : {}),
+            ...(current?.market ? { market: current.market } : {}),
+            ...(current?.planId && !current.ticker ? { planId: current.planId } : {}),
+          });
+          if (nextName !== null) {
+            try {
+              pi.setSessionName(nextName);
+            } catch (error) {
+              ports.onError?.('setSessionName', error);
+            }
           }
 
           const flags = readFlags();
@@ -618,7 +680,13 @@ export function createUpUpEventSurfaceExtension(ports: UpUpEventSurfacePorts = {
             bytes = -1;
           }
           const phase = subject()?.phase;
-          return { payloadBytes: bytes, ...(phase ? { phase } : {}) };
+          return {
+            payloadBytes: bytes,
+            ...(phase ? { phase } : {}),
+            // Present only when this request was repaired, so the trail explains
+            // why the outgoing budget differs from the model's configured cap.
+            ...(lastOutputBudgetRepair ? { outputBudgetRepair: { ...lastOutputBudgetRepair } } : {}),
+          };
         },
 
         tool_call: (event) => ({ tool: (event as { toolName?: string }).toolName ?? null, owner: 'policy-chain' }),

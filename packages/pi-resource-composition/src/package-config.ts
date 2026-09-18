@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { existsSync, readFileSync } from 'node:fs';
 import type { PiPackageTrustPolicy } from '@upup/pi-runtime';
 
+import { filterBuiltinCandidatesByToggles, readUpUpPluginSettings } from "./plugin-toggles";
 export interface ConfiguredPiPackageOptions {
   readonly piPackagePaths: readonly string[];
   readonly piPackageTrust: PiPackageTrustPolicy;
@@ -128,7 +129,13 @@ function builtinPackageCandidates(cwd: string, packageName: string, sourcePath: 
 }
 
 export function getBuiltinPiPackageOptions(cwd = process.cwd()): ConfiguredPiPackageOptions | undefined {
-  const candidates = resolveBuiltinPackages(cwd);
+  const allCandidates = resolveBuiltinPackages(cwd);
+  if (allCandidates.length === 0) return undefined;
+  const toggles = readUpUpPluginSettings(cwd);
+  const candidates = filterBuiltinCandidatesByToggles(
+    allCandidates as readonly { directory: string; name: string; version: string; path: string }[],
+    toggles,
+  ) as readonly { directory: string; name: string; version: string; path: string }[];
   if (candidates.length === 0) return undefined;
   const packagePaths = candidates.map((candidate) => candidate.path);
   return {

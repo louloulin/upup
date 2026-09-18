@@ -1,7 +1,6 @@
 {
   "name": "upup",
   "version": "2026.6.12",
-  "private": true,
   "engines": {
     "node": ">=22.19.0"
   },
@@ -20,7 +19,7 @@
     "build:compile:win": "bun build --compile --target=bun --outfile=upup.exe src/index.tsx && bun run scripts/copy-pi-package-resources.ts . && echo '✅ Windows compile complete'",
     "build:hooks": "cd packages/hooks && bun build src/index.ts --outdir=dist --target=bun && npx tsc --emitDeclarationOnly --declaration --declarationMap --outDir dist",
     "build:memory": "cd packages/memory && bun build src/index.ts --outdir=dist --target=bun",
-    "build:node": "npx esbuild src/index.tsx --bundle --target=node22 --platform=node --outfile=dist/index.js --external:better-sqlite3 --external:@duckdb/duckdb-wasm --external:playwright --external:playwright-core --external:dotenv --external:zod --external:@earendil-works/pi-tui --external:gray-matter --external:fs --external:path --external:os --external:crypto --external:stream --external:events --external:readline --external:tty --external:util --external:url --external:http --external:https --external:zlib --external:buffer --external:child_process --external:module --external:net --external:tls --external:dgram --external:dns --external:http2 --external:inspector --external:punycode --external:querystring --external:string_decoder --external:sys --external:timers --external:stream/promises --external:path/posix --external:path/win32 --alias:gray-matter=/tmp/shims/gray-matter.js --format=esm --inject:/tmp/node-shim.js --log-level=error && echo '✅ Node.js build complete: dist/index.js'",
+    "build:node": "bun run scripts/build-node.ts",
     "build:node:win": "bun build src/index.tsx --target=node --outfile=dist/upup.exe --external=dotenv --external=zod && echo '✅ Windows build complete'",
     "build:pkg": "pkg . --targets node22-linux-x64,node22-macos-x64,node22-win-x64 --output dist/upup-pkg",
     "build:pkg:linux": "pkg . --targets node22-linux-x64 --output dist/upup-linux",
@@ -28,11 +27,12 @@
     "build:pkg:win": "pkg . --targets node22-win-x64 --output dist/upup.exe",
     "build:types": "cd packages/types && bun build src/index.ts --outdir=dist --target=bun && npx tsc --emitDeclarationOnly --declaration --declarationMap --outDir dist",
     "check:module-boundaries": "bun run scripts/check-module-boundaries.ts",
+    "check:workspace-exports": "bun run scripts/check-workspace-exports.ts",
     "check:pi-deletion-audit": "UPUP_PI_DELETION_AUDIT_STRICT=1 bun run scripts/report-pi7-deletion-audit.ts",
     "check:pi-migration": "bun run scripts/check-pi-migration.ts",
     "check:pi-package-audit": "UPUP_PI_PACKAGE_AUDIT_STRICT=1 bun run scripts/report-pi-package-audit.ts",
     "check:pi-packages": "bun run scripts/check-pi-packages.ts && bun run scripts/check-pi-side-effects.ts",
-    "check:pi-runtime": "bun run scripts/check-pi-runtime.ts && bun run check:pi-ecosystem-resolution",
+    "check:pi-runtime": "bun run scripts/check-pi-runtime.ts && bun run check:pi-ecosystem-resolution && bun run check:pi-web-overlay",
     "check:pi-side-effects": "bun run scripts/check-pi-side-effects.ts",
     "check:no-self-impl": "bun run scripts/check-no-self-impl.ts",
     "check:tui-bridge-cleanup": "bun run scripts/check-tui-bridge-cleanup.ts",
@@ -83,14 +83,17 @@
     "check:sop-coverage": "bun run scripts/check-sop-coverage.ts",
     "check:cross-platform-exposure": "bun run scripts/check-cross-platform-exposure.ts",
     "check:pi-extension-coverage": "bun run scripts/check-pi-extension-coverage.ts",
+    "check:pi-event-coverage": "bun run scripts/check-pi-event-coverage.ts",
     "check:pi-ecosystem-deps": "bun run scripts/check-pi-ecosystem-deps.ts",
     "lint:upup-home": "bun run scripts/check-upup-home.ts",
     "check:upup-clean-loading": "bun run scripts/check-upup-clean-loading.ts",
     "smoke:cli": "bash scripts/verify-upup-cli-smoke.sh",
     "verify:upup-cli": "bash scripts/verify-upup-cli-smoke.sh",
-    "check:pi-ecosystem-resolution": "bun run scripts/check-pi-ecosystem-resolution.ts"
+    "check:pi-ecosystem-resolution": "bun run scripts/check-pi-ecosystem-resolution.ts",
+    "check:pi-web-overlay": "bun run scripts/check-pi-web-overlay.ts"
   },
   "dependencies": {
+    "@agegr/pi-web": "0.9.1",
     "@arhen/pi-core-subagent": "1.3.54",
     "@duckdb/duckdb-wasm": "^1.33.1-dev45.0",
     "@earendil-works/chord": "0.85.1",
@@ -105,29 +108,10 @@
     "@juicesharp/rpiv-ask-user-question": "^2.10.1",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@mozilla/readability": "^0.6.0",
+    "@narumitw/pi-lsp": "0.49.7",
     "@narumitw/pi-plan-mode": "^0.58.0",
     "@plannotator/pi-extension": "0.27.15",
     "@quintinshaw/pi-dynamic-workflows": "3.12.0",
-    "@upup/pi-app": "workspace:*",
-    "@upup/pi-backtest": "workspace:*",
-    "@upup/pi-cache": "workspace:*",
-    "@upup/pi-capability-registry": "workspace:*",
-    "@upup/pi-config": "workspace:*",
-    "@upup/pi-corporate-actions": "workspace:*",
-    "@upup/pi-evals": "workspace:*",
-    "@upup/pi-finance-sdk": "workspace:*",
-    "@upup/pi-investment-analysis": "workspace:*",
-    "@upup/pi-investment-workflow": "workspace:*",
-    "@upup/pi-market-data": "workspace:*",
-    "@upup/pi-platform": "workspace:*",
-    "@upup/pi-portfolio": "workspace:*",
-    "@upup/pi-quant": "workspace:*",
-    "@upup/pi-research": "workspace:*",
-    "@upup/pi-resource-composition": "workspace:*",
-    "@upup/pi-runtime": "workspace:*",
-    "@upup/pi-session": "workspace:*",
-    "@upup/pi-storage": "workspace:*",
-    "@upup/pi-technical": "workspace:*",
     "@whiskeysockets/baileys": "7.0.0-rc.9",
     "better-sqlite3": "^12.8.0",
     "context-mode": "^1.0.169",
@@ -199,7 +183,15 @@
     ]
   },
   "files": [
-    "dist"
+    "dist/index.js",
+    "dist/index.js.map",
+    "dist/index.d.ts",
+    "dist/package.json",
+    "dist/sops",
+    "dist/upup-sidecar.js",
+    "dist/upup-favicon.svg",
+    "LICENSE",
+    "README.md"
   ],
   "author": "UpUp Team",
   "license": "MIT",
@@ -248,7 +240,6 @@
     "@upup/cron": "workspace:*",
     "@upup/gateway": "workspace:*",
     "@upup/types": "workspace:*",
-    "esbuild": "^0.28.0",
     "jest": "^29.7.0",
     "jiti": "^2.7.0",
     "pkg": "^5.8.1",
@@ -256,6 +247,39 @@
     "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   },
-  "homepage": "https://github.com/louloulin/upup#readme"
+  "homepage": "https://github.com/louloulin/upup#readme",
+  "patchedDependencies": {
+    "@earendil-works/pi-coding-agent@0.85.1": "patches/@earendil-works%2Fpi-coding-agent@0.85.1.patch",
+    "jiti@2.7.0": "patches/jiti@2.7.0.patch"
+  },
+  "bin": {
+    "upup": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/louloulin/upup.git"
+  },
+  "bugs": {
+    "url": "https://github.com/louloulin/upup/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/",
+    "scripts": {
+      "preinstall": "",
+      "install": "",
+      "postinstall": ""
+    }
+  },
+  "overrides": {
+    "highlight.js": "10.7.3"
+  }
 }
-

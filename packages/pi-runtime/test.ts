@@ -75,6 +75,36 @@ describe('pi-runtime contracts', () => {
     expect(() => validatePiPackageManifest({ ...base, lifecycle: { scope: 'process' } })).toThrow('dispose lifecycle');
     expect(() => validatePiPackageManifest({ ...base, trust: { mode: 'sandboxed', credentials: true } })).toThrow('credentials');
   });
+  test('treats omitted resource keys as "none declared" rather than duplicates', () => {
+    // A tools-only plugin declares no resources at all. Reading the six
+    // resource keys blindly produced six `undefined`s, so validation reported
+    // "resources contain duplicates" for a manifest whose real content was
+    // fine — the message named a defect that did not exist.
+    const toolsOnly = {
+      name: '@upup/pi-fund-by-stock',
+      version: '0.1.0',
+      source: 'builtin:upup',
+      tools: ['fund_search_by_stock'],
+      // This is the shape a manifest reader produces for a tools-only plugin:
+      // every resource key is present but unset. The keys have to be spelled
+      // out — `resources: {}` would not reproduce the bug, because an empty
+      // object contributes no entries at all.
+      resources: {
+        extensions: undefined,
+        skills: undefined,
+        prompts: undefined,
+        workflows: undefined,
+        policies: undefined,
+        evals: undefined,
+      },
+    } as unknown as PiPackageManifestContract;
+    expect(() => validatePiPackageManifest(toolsOnly)).not.toThrow();
+    // Genuine duplication must still be caught, including across categories.
+    expect(() => validatePiPackageManifest({ ...toolsOnly, resources: { extensions: ['./a.ts', './a.ts'] } }))
+      .toThrow('contain duplicates');
+    expect(() => validatePiPackageManifest({ ...toolsOnly, resources: { extensions: ['./a.ts'], skills: ['./a.ts'] } }))
+      .toThrow('contain duplicates');
+  });
   test('rejects duplicate capabilities and malformed lifecycle entrypoints', () => {
     const base = { name: '@upup/pi-runtime', version: '0.1.0', source: 'builtin:upup', resources: { extensions: [], skills: [], prompts: [], workflows: [], policies: [], evals: [] } } as const;
     expect(() => validatePiPackageManifest({ ...base, capabilities: [{ name: 'quote', version: '1.0.0' }, { name: 'quote', version: '1.0.0' }] })).toThrow('capabilities contain duplicates');

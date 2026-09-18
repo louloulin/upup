@@ -10,6 +10,11 @@ import {
 
 const phaseNames = ['detect', 'plan', 'execute', 'verify', 'report'] as const;
 
+// Pin a deterministic clock so two dossier() calls produce identical
+// artifactHash values. The cross-process dossier idempotency contract relies
+// on identical inputs (workflowId / sessionId / intent / phaseResults /
+// options / clock) → identical hash. Without the shared clock the two calls
+// would diverge by a few milliseconds and break the resume-hash check.
 function dossier() {
   return createInvestmentDossier({
     workflowId: 'plan-verification',
@@ -25,6 +30,7 @@ function dossier() {
       output: phase,
       evidence: [{ source: `fixture://${phase}`, retrievedAt: '2026-09-15T00:00:00.000Z', asOf: '2026-09-15', auditId: `audit-${phase}` }],
     })),
+    clock: () => '2026-09-15T00:00:00.000Z',
   });
 }
 

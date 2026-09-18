@@ -33,3 +33,28 @@ export {
   type RecommendedPlugin,
   type RecommendedPluginCategory,
 } from './recommended-plugins';
+
+// Cross-platform exposure (v2 plan §1.4 + §4.1 + §4.2). Re-uses Pi's
+// canonical `--mode rpc` and `--mode json` transports instead of
+// inventing a new protocol. TradingAgents / Claude Code / Codex can
+// drive UpUp through `upup rpc`, `upup json-stream`, the embedded
+// `UpUpRpcClient`, or the in-process SDK (`@upup/sdk`).
+export {
+  RpcClient,
+  runRpcMode,
+  runPrintMode,
+  formatInvestCommand,
+  formatSopCommand,
+  type RpcClientOptions,
+  type RpcCommand,
+  type RpcResponse,
+  type RpcSessionState,
+  type RpcEventListener,
+  type RpcExtensionUIRequest,
+  type RpcExtensionUIResponse,
+  type ModelInfo,
+  type JsonAgentSessionEvent,
+  type PrintModeOptions,
+  type UpUpInvestRequest,
+  type UpUpSopRequest,
+} from './cross-platform';

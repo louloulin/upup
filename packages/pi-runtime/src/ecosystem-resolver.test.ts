@@ -8,7 +8,7 @@
  */
 
 import { describe, expect, it, beforeEach, afterEach } from 'bun:test';
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -18,6 +18,9 @@ import {
   ecosystemSpecifierExists,
   resolveEcosystemNpmRoot,
   resolveEcosystemSpecifier,
+  resolveEcosystemSpecifierFromManifests,
+  resolveEcosystemSubpathInDir,
+  splitEcosystemSpecifier,
 } from './ecosystem-resolver';
 
 let scratch: string;
@@ -260,5 +263,147 @@ describe('Bun.resolveSync fallback for ESM-only exports', () => {
     const described = describeEcosystemResolution(target);
     expect(described.scope).toBe('bundled');
     expect(described.resolved).toBeDefined();
+  });
+});
+
+/**
+ * `exports`-subpath resolution.
+ *
+ * Why this exists as its own suite: a `bun --compile` standalone binary
+ * resolves a package's bare name but *not* its `exports` subpaths — unlike
+ * `bun run`, where both work. That asymmetry shipped a binary whose SOP
+ * bridge logged `Cannot find module 'pi-subagents/workflow-resources'` on
+ * every boot while the dev tree stayed green, so the manifest walk is the
+ * only thing standing between the two modes.
+ */
+describe('splitEcosystemSpecifier', () => {
+  it('separates an unscoped package name from its subpath', () => {
+    expect(splitEcosystemSpecifier('pi-subagents')).toEqual({ name: 'pi-subagents', subpath: '' });
+    expect(splitEcosystemSpecifier('pi-subagents/agents')).toEqual({ name: 'pi-subagents', subpath: 'agents' });
+    expect(splitEcosystemSpecifier('pi-web-access/lib/deep/file.ts')).toEqual({ name: 'pi-web-access', subpath: 'lib/deep/file.ts' });
+  });
+
+  it('consumes two segments for a scoped package', () => {
+    expect(splitEcosystemSpecifier('@narumitw/pi-lsp')).toEqual({ name: '@narumitw/pi-lsp', subpath: '' });
+    expect(splitEcosystemSpecifier('@quintinshaw/pi-dynamic-workflows/extensions/goal.ts')).toEqual({
+      name: '@quintinshaw/pi-dynamic-workflows',
+      subpath: 'extensions/goal.ts',
+    });
+  });
+});
+
+describe('resolveEcosystemSubpathInDir', () => {
+  /** Write a manifest + the files it points at. */
+  function writePackage(root: string, name: string, manifest: Record<string, unknown>, files: readonly string[]): string {
+    const dir = join(root, 'node_modules', name);
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'package.json'), JSON.stringify({ name, version: '1.0.0', ...manifest }));
+    for (const file of files) {
+      mkdirSync(join(dir, file.split('/').slice(0, -1).join('/')), { recursive: true });
+      writeFileSync(join(dir, file), 'export const marker = 1;\n');
+    }
+    return dir;
+  }
+
+  it('resolves a subpath listed in an exports map', () => {
+    const root = join(scratch, 'user');
+    const dir = writePackage(
+      root,
+      'subpath-pkg',
+      { type: 'module', exports: { '.': './index.ts', './agents': './src/api/agents.ts' } },
+      ['index.ts', 'src/api/agents.ts'],
+    );
+    expect(samePath(resolveEcosystemSubpathInDir(dir, 'agents'), join(dir, 'src', 'api', 'agents.ts'))).toBe(true);
+    expect(samePath(resolveEcosystemSubpathInDir(dir, ''), join(dir, 'index.ts'))).toBe(true);
+    // A key the manifest does not declare is a miss, not a throw.
+    expect(resolveEcosystemSubpathInDir(dir, 'not-declared')).toBeUndefined();
+  });
+
+  it('resolves through an "import"-only conditional exports block', () => {
+    const root = join(scratch, 'user');
+    const dir = writePackage(
+      root,
+      'cond-pkg',
+      { type: 'module', exports: { '.': { types: './index.d.ts', import: './dist/index.js' } } },
+      ['dist/index.js'],
+    );
+    expect(samePath(resolveEcosystemSubpathInDir(dir, ''), join(dir, 'dist', 'index.js'))).toBe(true);
+  });
+
+  it('prefers the "bun" condition so a TypeScript source entry wins over a build', () => {
+    const root = join(scratch, 'user');
+    const dir = writePackage(
+      root,
+      'bun-cond-pkg',
+      {
+        type: 'module',
+        exports: { '.': { bun: './src/index.ts', import: './dist/index.js' } },
+      },
+      ['src/index.ts', 'dist/index.js'],
+    );
+    expect(samePath(resolveEcosystemSubpathInDir(dir, ''), join(dir, 'src', 'index.ts'))).toBe(true);
+  });
+
+  it('skips a "types" target', () => {
+    const root = join(scratch, 'user');
+    const dir = writePackage(
+      root,
+      'types-only',
+      { type: 'module', exports: { '.': { types: './index.d.ts' } } },
+      ['index.d.ts'],
+    );
+    // A `.d.ts` loads at runtime but exports nothing, so it must not be
+    // treated as a usable entry.
+    expect(resolveEcosystemSubpathInDir(dir, '')).toBeUndefined();
+  });
+
+  it('falls back to "main" for a package with no exports field', () => {
+    const root = join(scratch, 'user');
+    const dir = writePackage(root, 'legacy-pkg', { main: './lib/entry.js' }, ['lib/entry.js']);
+    expect(samePath(resolveEcosystemSubpathInDir(dir, ''), join(dir, 'lib', 'entry.js'))).toBe(true);
+    expect(resolveEcosystemSubpathInDir(dir, 'lib/entry.js')).toBeUndefined();
+  });
+
+  it('returns undefined when the declared target is missing on disk', () => {
+    const root = join(scratch, 'user');
+    const dir = writePackage(root, 'dangling-pkg', { exports: { '.': './does-not-exist.js' } }, []);
+    expect(resolveEcosystemSubpathInDir(dir, '')).toBeUndefined();
+  });
+});
+
+describe('resolveEcosystemSpecifierFromManifests', () => {
+  it('walks the roots in precedence order like the platform resolver', () => {
+    const userRoot = join(scratch, 'user');
+    const bundledRoot = join(scratch, 'bundled');
+    for (const [root, marker] of [[userRoot, 'user'], [bundledRoot, 'bundle']] as const) {
+      const dir = join(root, 'node_modules', 'shadowed-pkg');
+      mkdirSync(join(dir, 'src'), { recursive: true });
+      writeFileSync(join(dir, 'package.json'), JSON.stringify({
+        name: 'shadowed-pkg', version: '1.0.0', exports: { '.': './index.js', './sub': './src/sub.js' },
+      }));
+      writeFileSync(join(dir, 'index.js'), `export const marker = ${JSON.stringify(marker)};\n`);
+      writeFileSync(join(dir, 'src', 'sub.js'), `export const marker = ${JSON.stringify(marker)};\n`);
+    }
+
+    const sub = resolveEcosystemSpecifierFromManifests('shadowed-pkg/sub', { roots: [userRoot, bundledRoot] });
+    expect(samePath(sub, join(userRoot, 'node_modules', 'shadowed-pkg', 'src', 'sub.js'))).toBe(true);
+  });
+
+  it('returns undefined for a package no root carries', () => {
+    const root = join(scratch, 'empty');
+    mkdirSync(root, { recursive: true });
+    expect(resolveEcosystemSpecifierFromManifests('nope/sub', { roots: [root] })).toBeUndefined();
+  });
+
+  it('resolves the real pi-subagents subpath the SOP bridge depends on', () => {
+    // The regression this guards: `pi-subagents/workflow-resources` is the
+    // specifier the SOP bridge resolves on every boot. If a future Bun
+    // upgrade breaks subpath resolution again, the manifest walk must still
+    // carry it — otherwise the shipped binary logs a warning per session and
+    // silently registers zero SOPs.
+    const resolved = resolveEcosystemSpecifierFromManifests('pi-subagents/workflow-resources');
+    if (!existsSync(join(process.cwd(), 'node_modules', 'pi-subagents', 'package.json'))) return;
+    expect(resolved).toBeDefined();
+    expect(resolved).toMatch(/workflow-resources\.ts$/);
   });
 });

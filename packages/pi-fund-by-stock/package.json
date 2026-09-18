@@ -1,0 +1,55 @@
+{
+  "name": "@upup/pi-fund-by-stock",
+  "version": "0.1.0",
+  "description": "UpUp fund-by-stock plugin: search funds that hold a specific stock (A股/港股) and rank by exposure.",
+  "keywords": [
+    "pi-package",
+    "upup",
+    "fund",
+    "holdings",
+    "reverse-search"
+  ],
+  "type": "module",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "bun": "./src/index.ts",
+      "default": "./dist/src/index.js"
+    },
+    "./extensions": {
+      "types": "./dist/extensions/index.d.ts",
+      "bun": "./extensions/index.ts",
+      "default": "./dist/extensions/index.js"
+    }
+  },
+  "scripts": {
+    "prebuild": "bun run ../../scripts/clean-pi-package-dist.ts",
+    "build": "bun build src/index.ts --outdir=dist/src --target=node && bun build extensions/index.ts --outdir=dist/extensions --target=node && tsc --emitDeclarationOnly --project tsconfig.json && tsc --emitDeclarationOnly --project tsconfig.extensions.json",
+    "test": "bun test ./src/index.test.ts ./extensions/index.test.ts"
+  },
+  "files": [
+    "dist",
+    "extensions",
+    "skills",
+    "prompts",
+    "package.json"
+  ],
+  "dependencies": {
+    "@upup/pi-finance-sdk": "workspace:*"
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "0.85.1",
+    "typebox": "1.3.7"
+  },
+  "pi": {
+    "contract": "upup.pi.runtime.v1",
+    "source": "builtin:upup",
+    "tools": [
+      "fund_search_by_stock",
+      "fund_heavy_holdings",
+      "fund_holders_count"
+    ]
+  }
+}

@@ -16,7 +16,8 @@
  *   2. `UPUP_AGENT_DIR`         — canonical UpUp override
  *   3. `UPUP_CODING_AGENT_DIR`  — Pi-style name (`${APP_NAME}_CODING_AGENT_DIR`)
  *   4. `PI_CODING_AGENT_DIR`    — a user who already points Pi somewhere wins
- *   5. `~/.upup/agent`          — UpUp canonical home (always, no existence gate)
+ *   5. `UPUP_HOME`              — relocates the whole home → `<UPUP_HOME>/agent`
+ *   6. `~/.upup/agent`          — UpUp canonical home (always, no existence gate)
  *
  * `~/.pi/agent` is deliberately **not** in the fallback chain: UpUp's home is
  * deterministic rather than dependent on which directories happen to exist.
@@ -46,11 +47,29 @@ export interface ResolveAgentDirResult {
     | 'upup-env'
     | 'pi-canonical-env'
     | 'pi-agent-dir-env'
+    | 'upup-home-env'
     | 'home-upup-agent';
 }
 
-function normalizePath(value: string): string {
-  return resolve(isAbsolute(value) ? value : `~/${value.replace(/^~/, '')}`);
+/**
+ * Expand a user-supplied path into an absolute one.
+ *
+ * `~` must be expanded by hand: `node:path.resolve` treats it as an ordinary
+ * directory name, so `resolve('~/upup/agent')` silently produced
+ * `<cwd>/~/upup/agent` — a real directory named `~` under the project root,
+ * not the user's home. Every env override (`UPUP_AGENT_DIR`,
+ * `UPUP_CODING_AGENT_DIR`, `PI_CODING_AGENT_DIR`, `UPUP_HOME`) accepts shell
+ * style `~`, so all of them went to the wrong place.
+ */
+function normalizePath(value: string, home: string): string {
+  const trimmed = value.trim();
+  if (trimmed === '~') return resolve(home);
+  if (trimmed.startsWith('~/') || trimmed.startsWith('~\\')) {
+    return resolve(home, trimmed.slice(2));
+  }
+  // A bare `~user` form cannot be expanded portably; treat it as relative
+  // rather than guessing another account's home.
+  return resolve(isAbsolute(trimmed) ? trimmed : join(home, trimmed));
 }
 
 /** The canonical UpUp global agent home: `<home>/.upup/agent`. */
@@ -66,23 +85,130 @@ export function resolveAgentDir(
   const home = options.home ?? osHomedir();
 
   if (options.override) {
-    return { agentDir: normalizePath(options.override), source: 'override' };
+    return { agentDir: normalizePath(options.override, home), source: 'override' };
   }
 
   const upupEnv = env.UPUP_AGENT_DIR?.trim();
   if (upupEnv) {
-    return { agentDir: normalizePath(upupEnv), source: 'upup-env' };
+    return { agentDir: normalizePath(upupEnv, home), source: 'upup-env' };
   }
 
   const piStyleEnv = env.UPUP_CODING_AGENT_DIR?.trim();
   if (piStyleEnv) {
-    return { agentDir: normalizePath(piStyleEnv), source: 'pi-canonical-env' };
+    return { agentDir: normalizePath(piStyleEnv, home), source: 'pi-canonical-env' };
   }
 
   const piEnv = env.PI_CODING_AGENT_DIR?.trim();
   if (piEnv) {
-    return { agentDir: normalizePath(piEnv), source: 'pi-agent-dir-env' };
+    return { agentDir: normalizePath(piEnv, home), source: 'pi-agent-dir-env' };
+  }
+
+  // `UPUP_HOME` relocates the entire UpUp home, so the agent dir follows it.
+  // Without this the test preload and every sandboxed `$UPUP_HOME` run would
+  // resolve back to the developer's real `~/.upup/agent`.
+  const upupHome = env.UPUP_HOME?.trim();
+  if (upupHome) {
+    return { agentDir: join(normalizePath(upupHome, home), 'agent'), source: 'upup-home-env' };
   }
 
   return { agentDir: upupAgentDirFor(home), source: 'home-upup-agent' };
+}
+
+/**
+ * Env var names Pi resolves `getAgentDir()` from.
+ *
+ * Pi derives this from its own package.json (`ENV_AGENT_DIR =
+ * `${APP_NAME.toUpperCase()}_CODING_AGENT_DIR``), and `APP_NAME` comes from
+ * `piConfig.name`. UpUp ships as `piConfig.name = "upup"` (see
+ * `patches/@earendil-works%2Fpi-coding-agent@0.85.1.patch`), so **the name Pi
+ * actually reads is `UPUP_CODING_AGENT_DIR`, not `PI_CODING_AGENT_DIR`**.
+ *
+ * Getting this wrong is not cosmetic: publishing only the legacy
+ * `PI_CODING_AGENT_DIR` makes Pi fall through to `~/.upup/agent`, so every
+ * `$UPUP_HOME`-isolated process (tests, sandboxes, embedded runs) silently
+ * writes to the developer's real home. Publish **both** names so UpUp works
+ * with the rebranded package and with a stock Pi install.
+ */
+export const PI_AGENT_DIR_ENV_NAMES = ['UPUP_CODING_AGENT_DIR', 'PI_CODING_AGENT_DIR'] as const;
+
+/** Env var names Pi resolves its session dir from (same `APP_NAME` prefix). */
+export const PI_SESSION_DIR_ENV_NAMES = ['UPUP_CODING_AGENT_SESSION_DIR', 'PI_CODING_AGENT_SESSION_DIR'] as const;
+
+/**
+ * Legacy UpUp spelling of the session dir, accepted for backwards
+ * compatibility with existing scripts and tests.
+ *
+ * `publishPiAgentDirEnv` mirrors it into `PI_SESSION_DIR_ENV_NAMES`. Nothing
+ * else should read it: Pi only ever consults the `*_CODING_AGENT_SESSION_DIR`
+ * names, so a process that sets `UPUP_SESSION_DIR` alone had its sessions
+ * written to `~/.upup/agent/sessions` instead — the isolation silently did
+ * nothing while appearing to work.
+ */
+export const LEGACY_SESSION_DIR_ENV = 'UPUP_SESSION_DIR';
+
+/**
+ * Session dir to publish, or `undefined` when the caller expressed no
+ * preference.
+ *
+ * `options.sessionDir` wins; otherwise a legacy alias already present in the
+ * environment is honoured so older callers keep working.
+ */
+function resolveSessionDirToPublish(
+  options: PublishPiAgentDirOptions,
+  env: NodeJS.ProcessEnv,
+): string | undefined {
+  const explicit = options.sessionDir?.trim();
+  if (explicit) return explicit;
+  return env[LEGACY_SESSION_DIR_ENV]?.trim() || undefined;
+}
+
+export interface PublishPiAgentDirOptions {
+  /** Target environment; defaults to `process.env`. */
+  readonly env?: NodeJS.ProcessEnv;
+  /** Directory to publish; defaults to `resolveAgentDir(cwd, { env }).agentDir`. */
+  readonly agentDir?: string;
+  /** Working directory used when `agentDir` is not supplied. */
+  readonly cwd?: string;
+  /** Home directory used when `agentDir` is not supplied (tests use this). */
+  readonly home?: string;
+  /**
+   * Also publish `<agentDir>/sessions` as the Pi session dir. Off by default:
+   * Pi derives it from the agent dir anyway, and an explicit value would
+   * override a user's own session-dir choice.
+   */
+  readonly sessionDir?: string;
+}
+
+/**
+ * Publish `agentDir` to every env var name Pi may read for `getAgentDir()`.
+ *
+ * Idempotent, and never clobbers a value the caller already set explicitly —
+ * a user who exports `PI_CODING_AGENT_DIR` keeps that directory. Returns the
+ * directory that was published (resolved when omitted).
+ *
+ * Must be called **before any `@earendil-works/pi-*` module is imported**;
+ * Pi reads the env var at module-init time.
+ */
+export function publishPiAgentDirEnv(options: PublishPiAgentDirOptions = {}): string {
+  const env = options.env ?? process.env;
+  const agentDir =
+    options.agentDir ??
+    resolveAgentDir(options.cwd ?? process.cwd(), {
+      env,
+      ...(options.home ? { home: options.home } : {}),
+    }).agentDir;
+
+  for (const name of PI_AGENT_DIR_ENV_NAMES) {
+    if (!env[name]?.trim()) env[name] = agentDir;
+  }
+  const sessionDir = resolveSessionDirToPublish(options, env);
+  if (sessionDir) {
+    for (const name of PI_SESSION_DIR_ENV_NAMES) {
+      if (!env[name]?.trim()) env[name] = sessionDir;
+    }
+    // Keep the legacy alias in sync when it was the thing that supplied the
+    // value, so UpUp's own session lookup (`@upup/pi-session`) and Pi agree.
+    if (!env[LEGACY_SESSION_DIR_ENV]?.trim()) env[LEGACY_SESSION_DIR_ENV] = sessionDir;
+  }
+  return agentDir;
 }

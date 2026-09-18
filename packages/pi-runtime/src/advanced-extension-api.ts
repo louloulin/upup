@@ -106,9 +106,9 @@ export function createUpUpAdvancedExtensionApiExtension(
         for (const customType of ENTRY_RENDERER_HINTS) {
           try {
             pi.registerEntryRenderer(customType, () => {
-            // UpUp renders these entries through `@upup/pi-tui-app`'s
-            // audit lane; this registration makes Pi itself aware of the
-            // shape so its own search / copy / export paths do not crash.
+            // UpUp renders these entries through Pi's own entry-renderer
+            // lane; registering the shape keeps Pi's search / copy / export
+            // paths from choking on entries they do not know.
             return undefined;
           });
           } catch {

@@ -92,6 +92,9 @@
       "@upup/pi-resource-composition": [
         "./packages/pi-resource-composition/src/index.ts"
       ],
+      "@upup/pi-resource-composition/agent-dir": [
+        "./packages/pi-resource-composition/src/agent-dir.ts"
+      ],
       "@upup/pi-risk": [
         "./packages/pi-risk/src/index.ts"
       ],
@@ -101,8 +104,17 @@
       "@upup/pi-runtime/custom-providers": [
         "./packages/pi-runtime/src/custom-providers.ts"
       ],
+      "@upup/pi-runtime/ecosystem-resolver": [
+        "./packages/pi-runtime/src/ecosystem-resolver.ts"
+      ],
+      "@upup/pi-runtime/extension-api-probe": [
+        "./packages/pi-runtime/src/extension-api-probe.ts"
+      ],
       "@upup/pi-runtime/model-registry": [
         "./packages/pi-runtime/src/model-registry.ts"
+      ],
+      "@upup/pi-runtime/proper-lockfile-bun-shim": [
+        "./packages/pi-runtime/src/proper-lockfile-bun-shim.ts"
       ],
       "@upup/sdk": [
         "./packages/sdk/src/index.ts"

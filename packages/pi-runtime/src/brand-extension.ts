@@ -26,6 +26,8 @@ import type {
   ExtensionHandler,
 } from '@earendil-works/pi-coding-agent';
 
+import { filterAmbientSkills, reportFilterPass } from './skill-filter';
+
 /** Product identity UpUp presents to the model. */
 export const UPUP_IDENTITY_SENTENCE =
   'You are UpUp (涨涨), a Chinese-language deep financial research agent. ' +
@@ -82,18 +84,88 @@ export function rebrandSystemPrompt(systemPrompt: string): string {
   return next;
 }
 
+/** Env var that opts the brand extension into Pi's full ambient skill
+ *  library — used by power users with curated home-directory skills. */
+export const BRAND_EXTENSION_USER_SKILLS_ENV = 'UPUP_USER_SKILLS';
+
+/** True when the env var opts in to keeping every ambient skill. */
+export function shouldIncludeAmbientSkills(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env[BRAND_EXTENSION_USER_SKILLS_ENV]?.trim() === 'include';
+}
+
+/**
+ * Filter ambient skills out of the system prompt.
+ *
+ * Defaults to UpUp-only (`packages/pi-*`) plus any caller-supplied
+ * allowlist of absolute path prefixes. Skipped entirely when the user
+ * has set `UPUP_USER_SKILLS=include` (env) — that opt-in preserves
+ * Pi's full ambient behaviour for the rare fixed-toolset override.
+ */
+export interface BrandExtensionSkillFilterOptions {
+  readonly includeUserSkills?: boolean;
+  readonly additionalSkillPathPrefixes?: readonly string[];
+}
+
+export interface BrandExtensionFilterReport {
+  readonly totalSkills: number;
+  readonly keptSkills: number;
+  readonly removedSkills: number;
+}
+
+/**
+ * Run the ambient-skill filter on a system prompt. Exported for callers
+ * (headless verifier, tests) that need the same surface without the
+ * full extension lifecycle.
+ */
+export function applyAmbientSkillFilter(
+  systemPrompt: string,
+  options: BrandExtensionSkillFilterOptions = {},
+): { readonly systemPrompt: string; readonly report: BrandExtensionFilterReport } {
+  // Count on the ORIGINAL prompt — otherwise the post-filter report only
+  // sees the entries we kept and `totalSkills` no longer matches the user's
+  // mental model of "skills that were in scope before UpUp's filter ran".
+  const before = reportFilterPass(systemPrompt, options);
+  const next = filterAmbientSkills(systemPrompt, options);
+  return {
+    systemPrompt: next,
+    report: {
+      totalSkills: before.totalSkills,
+      keptSkills: before.keptSkills,
+      removedSkills: before.removedSkills,
+    },
+  };
+}
+
 /**
  * Build the UpUp brand extension. `createUpUpBrandExtension()` is registered
  * as a Pi `extensionFactory` alongside the finance/tool extensions, so both
  * the interactive TUI path and the headless `pi-session` factory get the same
  * UpUp identity in every turn's system prompt.
  */
-export function createUpUpBrandExtension(): (pi: ExtensionAPI) => void {
+export function createUpUpBrandExtension(
+  options: BrandExtensionSkillFilterOptions = {},
+  env: NodeJS.ProcessEnv = process.env,
+): (pi: ExtensionAPI) => void {
+  // Resolve the env override once at extension-construction time so the
+  // handler stays a pure function of the prompt. The env var is the same
+  // one the factory path already honours (see
+  // `resolveDefaultUserSkillScope`); centralising it here means changing
+  // the policy is a one-line move.
+  const effectiveOptions: BrandExtensionSkillFilterOptions = {
+    ...options,
+    includeUserSkills: options.includeUserSkills ?? shouldIncludeAmbientSkills(env),
+  };
   return (pi: ExtensionAPI): void => {
     const handler: ExtensionHandler<BeforeAgentStartEvent, BeforeAgentStartEventResult> = (event) => {
       const branded = rebrandSystemPrompt(event.systemPrompt);
-      if (branded === event.systemPrompt) return undefined;
-      return { systemPrompt: branded };
+      const filtered = filterAmbientSkills(branded, effectiveOptions);
+      // Compare against the ORIGINAL prompt: both rebranding and skill
+      // filtering can leave the string untouched, in which case Pi does
+      // not need a result back from the handler. Comparing `branded`
+      // here would mask rebrand-only rewrites and silently drop the
+      // branded prompt.
+      if (filtered === event.systemPrompt) return undefined;
+      return { systemPrompt: filtered };
     };
     pi.on('before_agent_start', handler);
   };

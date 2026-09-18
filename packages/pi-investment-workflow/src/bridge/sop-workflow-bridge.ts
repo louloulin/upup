@@ -28,9 +28,10 @@
  *       session factory — the bridge does not run any SOP itself.
  *
  * Failure isolation:
- *   - A missing pi-subagents (`import('pi-subagents/agents')` throws) is
- *     surfaced through the optional sink and the bridge yields zero
- *     registrations; the session still boots.
+ *   - A missing pi-subagents (every specifier in
+ *     `WORKFLOW_RESOURCE_SPECIFIERS` fails to import) is surfaced through
+ *     the optional sink and the bridge yields zero registrations; the
+ *     session still boots.
  *   - An SOP whose `resolve` returns `{ error: ... }` (e.g. missing ticker)
  *     is reported back to the DAG scheduler, not raised locally.
  *   - The bridge never throws across the extension boundary; every step is
@@ -39,6 +40,66 @@
 
 import { loadSops, type SopLoadResult, type SopLoaderOptions } from '../sop-loader';
 import type { SopSpec } from '../sop-spec';
+
+/**
+ * Pre-flight guard around the dual-scope ecosystem importer.
+ *
+ * Why this exists as a separately-testable function:
+ *   `createEcosystemImporter()` from `@upup/pi-runtime` falls through to a
+ *   bare `import(specifier)` when no ecosystem root carries the package. In
+ *   `bun run` the resulting error names the missing package, which is good
+ *   enough. In a `bun --compile` standalone binary the same fallback throws
+ *   `Cannot find module '<spec>' from '/$bunfs/root/<bin>'`, which blames
+ *   the binary instead of telling the user the package is missing. The
+ *   bridge is the only caller that runs inside that binary, so the guard
+ *   lives here — exported so the test suite can pin its diagnostic without
+ *   standing up a real ecosystem roots layout.
+ */
+export function wrapWithEcosystemGuard(args: {
+  readonly importer: (specifier: string) => Promise<unknown>;
+  readonly exists?: (specifier: string, options?: { roots?: readonly string[] }) => boolean;
+  readonly split?: (specifier: string) => { name: string; subpath: string };
+}): (specifier: string) => Promise<unknown> {
+  const exists = args.exists ?? (() => true);
+  const split = args.split ?? ((specifier: string) => ({ name: specifier, subpath: '' }));
+  return async (specifier: string) => {
+    if (!exists(specifier)) {
+      const { name, subpath } = split(specifier);
+      const reason =
+        subpath === ''
+          ? `ecosystem package '${name}' is not installed`
+          : `ecosystem package '${name}' has no '${subpath}' subpath in any installed manifest`;
+      throw new Error(`${reason}; install with: upup plugin install ${name}`);
+    }
+    return args.importer(specifier);
+  };
+}
+
+/**
+ * Lazily reach the shared dual-scope importer without a static workspace edge
+ * (`@upup/pi-investment-workflow` -> `@upup/pi-runtime` already exists as a
+ * dependency, but resolving the module on first use keeps this bridge
+ * importable from a bare `bun test` file with no runtime boot).
+ */
+async function createUpUpEcosystemImporter(): Promise<(specifier: string) => Promise<unknown>> {
+  try {
+    const runtime = (await import('@upup/pi-runtime')) as {
+      createEcosystemImporter?: () => (specifier: string) => Promise<unknown>;
+      ecosystemSpecifierExists?: (specifier: string, options?: { roots?: readonly string[] }) => boolean;
+      splitEcosystemSpecifier?: (specifier: string) => { name: string; subpath: string };
+    };
+    if (typeof runtime.createEcosystemImporter === 'function') {
+      return wrapWithEcosystemGuard({
+        importer: runtime.createEcosystemImporter(),
+        exists: runtime.ecosystemSpecifierExists,
+        split: runtime.splitEcosystemSpecifier,
+      });
+    }
+  } catch {
+    /* Runtime unavailable (unit test / stripped host) — fall through. */
+  }
+  return (specifier: string) => import(specifier);
+}
 
 type ResourceName = string;
 type ResourceVersion = number;
@@ -61,12 +122,33 @@ export interface WorkflowResourceRegistration {
   readonly dispose: () => void;
 }
 
+/**
+ * Specifiers tried in order when resolving `registerWorkflowResource`.
+ * `pi-subagents` >= 0.68 exports it from the dedicated
+ * `workflow-resources` subpath; older builds only re-exported it from
+ * `agents`. Trying both keeps UpUp working across host versions without a
+ * static dependency on either entry point.
+ */
+export const WORKFLOW_RESOURCE_SPECIFIERS = [
+  'pi-subagents/workflow-resources',
+  'pi-subagents/agents',
+] as const;
+
+/** Specifier that actually resolved during the last bridge run (observability). */
+export type ResolvedWorkflowResourceSpecifier = (typeof WORKFLOW_RESOURCE_SPECIFIERS)[number] | undefined;
+
 export interface RegisterWorkflowResourceFn {
   (input: { readonly sessionId: string; readonly definition: WorkflowResourceDefinition }): WorkflowResourceRegistration;
 }
 
 export interface UpUpSopWorkflowBridgePorts {
-  /** Dynamic import so the host does not need a static `pi-subagents` dep. */
+  /**
+   * Dynamic import so the host does not need a static `pi-subagents` dep.
+   * Defaults to the dual-scope ecosystem importer, which searches
+   * `~/.upup/agent/npm` before the bundled workspace and reads the package
+   * manifest directly — a bare `import()` cannot resolve the
+   * `pi-subagents/workflow-resources` subpath inside a compiled Bun binary.
+   */
   readonly importer?: (specifier: string) => Promise<unknown>;
   /** Session id the runtime is currently in (used by `pi-subagents`). */
   readonly sessionId: string;
@@ -80,6 +162,13 @@ export interface SopBridgeResult {
   readonly registrations: readonly { readonly sopId: string; readonly name: ResourceName; readonly dispose: () => void }[];
   readonly attempted: number;
   readonly skipped: readonly string[];
+  /**
+   * Specifier that actually supplied `registerWorkflowResource`, or
+   * `undefined` when the bridge could not resolve one. Callers use this to
+   * assert the bridge is talking to a real `pi-subagents` install instead
+   * of trusting a static source scan.
+   */
+  readonly resolvedSpecifier?: ResolvedWorkflowResourceSpecifier;
 }
 
 /** Workflow resource name format for an UpUp SOP. */
@@ -130,20 +219,35 @@ export function buildUpUpSopScript(sop: SopSpec, ticker: string, args: Readonly<
 export async function bridgeUpUpSopsToWorkflowResources(
   ports: UpUpSopWorkflowBridgePorts,
 ): Promise<SopBridgeResult> {
-  const importer = ports.importer ?? ((specifier: string) => import(specifier));
+  const importer = ports.importer ?? (await createUpUpEcosystemImporter());
   const sink = ports.onError ?? (() => undefined);
 
-  let registerResource: RegisterWorkflowResourceFn;
-  try {
-    const mod = (await importer('pi-subagents/agents')) as { registerWorkflowResource?: RegisterWorkflowResourceFn };
-    if (typeof mod.registerWorkflowResource !== 'function') {
-      sink('pi-subagents.workflow-resources', 'registerWorkflowResource is not exported by pi-subagents/agents');
-      return { registrations: [], attempted: 0, skipped: ['pi-subagents.missing'] };
+  let registerResource: RegisterWorkflowResourceFn | undefined;
+  let resolvedSpecifier: ResolvedWorkflowResourceSpecifier;
+  const importErrors: { specifier: string; error: unknown }[] = [];
+
+  for (const specifier of WORKFLOW_RESOURCE_SPECIFIERS) {
+    try {
+      const mod = (await importer(specifier)) as { registerWorkflowResource?: RegisterWorkflowResourceFn };
+      if (typeof mod.registerWorkflowResource === 'function') {
+        registerResource = mod.registerWorkflowResource;
+        resolvedSpecifier = specifier as ResolvedWorkflowResourceSpecifier;
+        break;
+      }
+      importErrors.push({
+        specifier,
+        error: new Error(`registerWorkflowResource is not exported by ${specifier}`),
+      });
+    } catch (error) {
+      importErrors.push({ specifier, error });
     }
-    registerResource = mod.registerWorkflowResource;
-  } catch (error) {
-    sink('pi-subagents.import', error);
-    return { registrations: [], attempted: 0, skipped: ['pi-subagents.import-failed'] };
+  }
+
+  if (!registerResource) {
+    for (const { specifier, error } of importErrors) {
+      sink(`pi-subagents.import:${specifier}`, error);
+    }
+    return { registrations: [], attempted: 0, skipped: ['pi-subagents.import-failed'], resolvedSpecifier: undefined };
   }
 
   let loaded: SopLoadResult;
@@ -151,7 +255,7 @@ export async function bridgeUpUpSopsToWorkflowResources(
     loaded = await loadSops(ports.loaderOptions ?? {});
   } catch (error) {
     sink('loadSops', error);
-    return { registrations: [], attempted: 0, skipped: ['sop-loader.failed'] };
+    return { registrations: [], attempted: 0, skipped: ['sop-loader.failed'], resolvedSpecifier };
   }
 
   const registrations: { sopId: string; name: ResourceName; dispose: () => void }[] = [];
@@ -180,7 +284,7 @@ export async function bridgeUpUpSopsToWorkflowResources(
     }
   }
 
-  return { registrations, attempted: loaded.sops.length, skipped };
+  return { registrations, attempted: loaded.sops.length, skipped, resolvedSpecifier };
 }
 
 /** Hash a SOP `version` string into a safe-int `number` for `WorkflowResourceDefinition.version`. */

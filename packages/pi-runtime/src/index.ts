@@ -624,7 +624,11 @@ export function validatePiPackageManifest(manifest: PiPackageManifestContract): 
     if (!['filesystem-write', 'external-network', 'credential-access', 'financial-write'].includes(declaration.effect)) throw new Error(`Pi package sideEffects effect is invalid: ${manifest.name}`);
     if (!['safe', 'warning', 'dangerous', 'critical'].includes(declaration.safetyLevel)) throw new Error(`Pi package sideEffects safety level is invalid: ${manifest.name}`);
   }
-  const all = Object.values(manifest.resources).flat();
+  // Only *declared* arrays participate: a manifest that omits resource keys
+  // entirely (a tools-only plugin) would otherwise collect one `undefined`
+  // per missing key and be rejected as "duplicates", which is both wrong and
+  // misleading about the actual defect.
+  const all = Object.values(manifest.resources ?? {}).flatMap((declared) => declared ?? []);
   if (new Set(all).size !== all.length) throw new Error(`Pi package resources contain duplicates: ${manifest.name}`);
   for (const [name, version] of Object.entries(manifest.dependencies ?? {})) if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/.test(version)) throw new Error(`Pi package dependency ${name} must use an exact semver`);
   for (const capability of manifest.capabilities ?? []) {
@@ -799,6 +803,21 @@ export {
   UPUP_IDENTITY_SENTENCE,
 } from './brand-extension';
 
+export {
+  filterAmbientSkills,
+  reportFilterPass,
+  UPUP_SKILL_PATH_MARKER,
+  type SkillFilterInputs,
+  type SkillFilterReport,
+} from './skill-filter';
+
+export {
+  getUpupModelRuntime,
+  tryGetUpupModelRuntime,
+  _resetUpupModelRuntimeCache,
+  type CreateModelRuntimeOptions,
+} from './default-model-runtime';
+
 // ---------------------------------------------------------------------------
 // Pi event surface — all 36 canonical extension events + the audit trail.
 // ---------------------------------------------------------------------------
@@ -833,9 +852,13 @@ export {
   discoverUpUpResourceDirs,
   expandHomePath,
   expandInvestmentInput,
+  findOutputBudget,
   findUnsourcedNumbers,
   guessMarketLabel,
+  MIN_PROVIDER_OUTPUT_TOKENS,
   parseRetryAfter,
+  repairDegenerateOutputBudget,
+  resolveOutputBudgetTarget,
   resolveSessionDisplayName,
   sanitizeHeaderValue,
   summarizeCompaction,
@@ -845,6 +868,9 @@ export {
   type ContextAuditFields,
   type InputExpansionOptions,
   type InputExpansionResult,
+  type OutputBudgetFinding,
+  type OutputBudgetRepair,
+  type OutputBudgetRepairResult,
   type ProviderAttributionInput,
   type ProviderHealthLevel,
   type ProviderHealthSummary,
@@ -981,7 +1007,15 @@ export {
   WatchlistWidget,
   PlanFooter,
   createUpUpTuiWidgetsExtension,
+  createUpUpTuiWidgetsWithEditorExtension,
   UPUP_WIDGET_REGISTRY,
+  pushUpUpWatchlistUpdate,
+  pushUpUpPlanProgress,
+  installUpUpMarketEditor,
+  detectMarketEditorChips,
+  MarketEditor,
   type WatchlistEntry,
   type UpUpTuiWidgetsOptions,
+  type MarketEditorChip,
+  type MarketEditorOptions,
 } from './extensions/tui-widgets';

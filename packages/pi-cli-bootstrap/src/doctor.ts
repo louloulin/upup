@@ -7,8 +7,10 @@
  * Part of Plan12 P2 implementation
  */
 
-import { existsSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
+import { resolveAgentDir } from '@upup/pi-resource-composition';
+import { canonicalPiProviderId, getPiModelInfo, isPiProvider } from '@upup/pi-runtime/model-registry';
 import { PROVIDERS, getUpupHomeRoot, globalUpupPath } from '@upup/utils';
 import { checkApiKeyExists } from '@upup/utils';
 import { validateConfig, isFirstTimeUse, getConfigSummary } from './config-validation';
@@ -50,6 +52,12 @@ export async function runDoctor(): Promise<void> {
 
   // Check config sources
   checks.push(...checkConfigSources());
+
+  // Check the Pi-side session recovery settings UpUp inherits from the Pi home.
+  checks.push(...checkSessionRecovery());
+
+  // Check the configured default model actually resolves (no silent fallback).
+  checks.push(...checkDefaultModel());
 
   // Print results
   console.log('');
@@ -187,6 +195,142 @@ function checkConfigSources(): CheckResult[] {
   }
 
   return results;
+}
+
+/**
+ * Report the Pi-side settings that govern automatic session recovery.
+ *
+ * UpUp does not own Pi's agent dir contract, but it *does* seed
+ * `~/.upup/agent/settings.json` from a previous `~/.pi/agent` install. A
+ * historical Pi home carried `compaction.enabled: false` (see
+ * `docs/pi7-pi-llm-config-audit.md`), and that value silently disables Pi's
+ * entire overflow/length-stop recovery path (`AgentSession._checkCompaction`
+ * returns early). The practical effect: once a model truncates an answer
+ * (`Response was truncated before completion.`) or overflows the context
+ * window, the session can never compact-and-retry, so the failure repeats on
+ * every turn.
+ *
+ * This check is read-only and advisory — it never rewrites the user's
+ * settings. `upup doctor` is documented as a read-only diagnostic, so the
+ * only action here is telling the user which switch to flip.
+ */
+export function checkSessionRecovery(): CheckResult[] {
+  const results: CheckResult[] = [];
+  let enabled: boolean | undefined;
+
+  try {
+    const agentDir = resolveAgentDir(process.cwd(), { env: process.env }).agentDir;
+    const settingsPath = join(agentDir, 'settings.json');
+    if (existsSync(settingsPath)) {
+      const parsed = JSON.parse(readFileSync(settingsPath, 'utf8')) as {
+        compaction?: { enabled?: unknown };
+      };
+      const raw = parsed.compaction?.enabled;
+      if (typeof raw === 'boolean') enabled = raw;
+    }
+  } catch {
+    // Unreadable or malformed settings: stay silent rather than fail doctor.
+    return results;
+  }
+
+  // Pi defaults `compaction.enabled` to true when the key is absent, so an
+  // undefined value is healthy and needs no line in the report.
+  if (enabled === false) {
+    results.push({
+      name: 'Auto Compact',
+      status: 'warn',
+      message: 'disabled in the Pi agent settings — truncated/overflow responses cannot self-heal; re-enable with `/settings` in the TUI or set compaction.enabled=true',
+    });
+  } else if (enabled === true) {
+    results.push({
+      name: 'Auto Compact',
+      status: 'pass',
+      message: 'enabled',
+    });
+  }
+
+  return results;
+}
+
+/**
+ * Whether a `provider`/`model` pair from `settings.json` actually resolves.
+ *
+ * A pair resolves when the Pi catalog knows it, or when the user's own
+ * `models.json` declares it (those providers live only in Pi's `ModelRuntime`).
+ * A `models.json` provider with an empty `models` list is catalog-merged, so it
+ * only resolves if the catalog also knows the provider.
+ */
+function isConfiguredDefaultResolvable(agentDir: string, provider: string, model: string): boolean {
+  const canonical = canonicalPiProviderId(provider);
+  if (getPiModelInfo(canonical, model)) return true;
+  try {
+    const modelsPath = join(agentDir, 'models.json');
+    if (!existsSync(modelsPath)) return false;
+    const parsed = JSON.parse(readFileSync(modelsPath, 'utf8')) as {
+      providers?: Record<string, unknown>;
+    };
+    const entry = parsed.providers?.[provider] ?? parsed.providers?.[canonical];
+    if (!entry || typeof entry !== 'object') return false;
+    const models = (entry as { models?: unknown }).models;
+    if (!Array.isArray(models)) return false;
+    if (models.length === 0) return isPiProvider(canonical);
+    return models.some((candidate) => (candidate as { id?: unknown })?.id === model);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Report a configured default model that cannot be resolved.
+ *
+ * `resolvePiModel` returns `undefined` for an unknown id so Pi can apply its
+ * own default. That is correct behaviour, but it used to be *silent*: a
+ * `settings.json` left pointing at a test fixture (observed in the field:
+ * `defaultProvider: "openai-test"` / `defaultModel: "gpt-test"`) made every
+ * session run on Pi's default while the user believed their configured model
+ * was in use. This check makes the substitution visible.
+ *
+ * Read-only and advisory — `upup doctor` never rewrites the user's settings.
+ */
+export function checkDefaultModel(): CheckResult[] {
+  try {
+    const agentDir = resolveAgentDir(process.cwd(), { env: process.env }).agentDir;
+    const settingsPath = join(agentDir, 'settings.json');
+    if (!existsSync(settingsPath)) return [];
+    const parsed = JSON.parse(readFileSync(settingsPath, 'utf8')) as {
+      defaultProvider?: unknown;
+      defaultModel?: unknown;
+    };
+    const provider = typeof parsed.defaultProvider === 'string' ? parsed.defaultProvider.trim() : '';
+    const model = typeof parsed.defaultModel === 'string' ? parsed.defaultModel.trim() : '';
+
+    // Neither key set: Pi's own default applies by design, nothing to report.
+    if (!provider && !model) return [];
+
+    if (!provider || !model) {
+      return [
+        {
+          name: 'Default Model',
+          status: 'warn',
+          message: `incomplete in settings.json (provider=${provider || 'unset'}, model=${model || 'unset'}) — Pi silently applies its own default`,
+        },
+      ];
+    }
+
+    if (isConfiguredDefaultResolvable(agentDir, provider, model)) {
+      return [{ name: 'Default Model', status: 'pass', message: `${provider}/${model}` }];
+    }
+    return [
+      {
+        name: 'Default Model',
+        status: 'fail',
+        message: `"${provider}:${model}" is not in the Pi catalog or models.json — Pi silently falls back to its own default; fix with /model or edit ${settingsPath}`,
+      },
+    ];
+  } catch {
+    // Unreadable or malformed settings: stay silent rather than fail doctor.
+    return [];
+  }
 }
 
 function checkApiKeys(): CheckResult[] {

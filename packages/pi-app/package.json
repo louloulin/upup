@@ -7,19 +7,19 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./src/index.ts",
+      "types": "./dist/index.d.ts",
       "default": "./src/index.ts"
     },
     "./default": {
-      "types": "./src/default.ts",
+      "types": "./dist/default.d.ts",
       "default": "./src/default.ts"
     },
     "./entry": {
-      "types": "./src/entry.ts",
+      "types": "./dist/entry.d.ts",
       "default": "./src/entry.ts"
     },
     "./print": {
-      "types": "./src/print.ts",
+      "types": "./dist/print.d.ts",
       "default": "./src/print.ts"
     }
   },
@@ -65,6 +65,7 @@
     "@upup/pi-runtime": "0.1.0",
     "@upup/pi-session": "0.1.0",
     "@upup/utils": "0.2.0",
-    "@upup/mcp-server": "0.1.0"
+    "@upup/mcp-server": "0.1.0",
+    "@upup/upup-web": "0.1.0"
   }
 }

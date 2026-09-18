@@ -3,7 +3,12 @@
   "version": "0.1.0",
   "description": "Serialized Pi resource reload lifecycle and composition contracts",
   "type": "module",
-  "keywords": ["pi-package", "resources", "composition", "lifecycle"],
+  "keywords": [
+    "pi-package",
+    "resources",
+    "composition",
+    "lifecycle"
+  ],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -11,15 +16,39 @@
       "types": "./dist/index.d.ts",
       "bun": "./src/index.ts",
       "default": "./dist/index.js"
+    },
+    "./agent-dir": {
+      "types": "./dist/agent-dir.d.ts",
+      "bun": "./src/agent-dir.ts",
+      "default": "./dist/agent-dir.js"
     }
   },
   "scripts": {
-    "build": "bun build src/index.ts --outdir=dist --target=node --external '@upup/*' --external '@earendil-works/*' --external 'typebox' && tsc --emitDeclarationOnly --project tsconfig.json",
+    "build": "bun build src/index.ts --outdir=dist --target=node --external '@upup/*' --external '@earendil-works/*' --external 'typebox' && bun build src/agent-dir.ts --outdir=dist --target=node --external '@upup/*' --external '@earendil-works/*' --external 'typebox' && tsc --emitDeclarationOnly --project tsconfig.json",
     "test": "bun test ./test.ts"
   },
-  "files": ["dist", "package.json"],
+  "files": [
+    "dist",
+    "package.json"
+  ],
   "dependencies": {
     "@upup/pi-runtime": "0.1.0"
   },
-  "pi": { "contract": "upup.pi.runtime.v1", "source": "builtin:upup", "trust": { "mode": "builtin", "filesystem": true }, "lifecycle": { "scope": "runtime" }, "extensions": [], "skills": [], "prompts": [], "workflows": [], "policies": [], "evals": [] }
+  "pi": {
+    "contract": "upup.pi.runtime.v1",
+    "source": "builtin:upup",
+    "trust": {
+      "mode": "builtin",
+      "filesystem": true
+    },
+    "lifecycle": {
+      "scope": "runtime"
+    },
+    "extensions": [],
+    "skills": [],
+    "prompts": [],
+    "workflows": [],
+    "policies": [],
+    "evals": []
+  }
 }

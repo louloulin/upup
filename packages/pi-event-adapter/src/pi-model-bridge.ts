@@ -88,6 +88,15 @@ function parseModelSpec(options: ResolvePiModelOptions): ParsedModelSpec {
   return { requested, provider, model };
 }
 
+/**
+ * Model ids to try, in order. `openrouter:<vendor>/<model>` specs are also
+ * probed without the redundant prefix, matching Pi's own aliasing.
+ */
+function modelCandidates(model: string): string[] {
+  const stripped = model.replace(/^openrouter:/, '');
+  return stripped === model ? [model] : [model, stripped];
+}
+
 function lookupPiModel(
   provider: string,
   model: string,
@@ -96,33 +105,34 @@ function lookupPiModel(
   // Ollama is contributed to Pi by an UpUp inline extension rather than by the
   // catalog, so it is resolved from the same module that registers it.
   if (provider === OLLAMA_PROVIDER_ID) {
+    // SAFETY: `createOllamaModel` builds a full Pi-shaped Model; the helper's
+    // return type is intentionally structural so this module need not import Pi.
     return createOllamaModel(model) as unknown as Model<never>;
   }
-  if (isPiProvider(provider)) {
-    const direct = getBuiltinModel(provider as never, model as never) as Model<never> | undefined;
-    if (direct) return direct;
-    const stripped = model.replace(/^openrouter:/, '');
-    if (stripped !== model) {
-      const fallback = getBuiltinModel(provider as never, stripped as never) as Model<never> | undefined;
-      if (fallback) return fallback;
+  // User configuration wins over the static catalog. The caller's
+  // `ModelRuntime` is the merged view Pi actually serves from: the built-in
+  // catalog **plus** the on-disk `~/.upup/agent/models.json` overrides and every
+  // `pi.registerProvider` contribution. Consulting it first keeps a user's
+  // explicit `baseUrl` / context window authoritative; querying the static
+  // catalog first silently discarded those overrides, so a configured provider
+  // endpoint was replaced by the catalog's default host (observed: the catalog
+  // `minimax` host was unreachable while the user's own endpoint answered).
+  if (modelRuntime) {
+    for (const candidate of modelCandidates(model)) {
+      try {
+        const fromRuntime = modelRuntime.getModel(provider, candidate);
+        if (fromRuntime) return fromRuntime as Model<never>;
+      } catch {
+        /* ignore malformed runtime; fall through to the static catalog */
+      }
     }
   }
-  // Last-resort: ask the caller's `ModelRuntime` (which has both the
-  // registered providers from inline extensions and the on-disk
-  // `~/.upup/agent/models.json` entries loaded). This is what audit §4.6
-  // identified as the missing leg: without it, custom provider/model pairs
-  // like `minimax:MiniMax-M3` would silently fall back to the Pi default.
-  //
-  // The lookup also runs for providers the static catalog does not know:
-  // `models.json` providers (e.g. a user's `custom_anthropic`) only exist in
-  // the runtime, and gating them behind `isPiProvider` made those specs
-  // unresolvable even though Pi itself serves them.
-  if (modelRuntime) {
-    try {
-      const fromRuntime = modelRuntime.getModel(provider, model);
-      if (fromRuntime) return fromRuntime as Model<never>;
-    } catch {
-      /* ignore malformed runtime; treat as miss */
+  // Fallback: the static catalog. Reached when no runtime is supplied, when the
+  // runtime genuinely has no entry, or when only the catalog knows the pair.
+  if (isPiProvider(provider)) {
+    for (const candidate of modelCandidates(model)) {
+      const direct = getBuiltinModel(provider as never, candidate as never) as Model<never> | undefined;
+      if (direct) return direct;
     }
   }
   return undefined;

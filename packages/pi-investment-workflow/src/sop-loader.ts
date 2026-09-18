@@ -20,8 +20,10 @@
  * be relocated (`UPUP_HOME=/tmp/x bun run dev`) instead of mutating `~/.upup`.
  */
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { homedir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { UpUpAgentSpec, UpUpPermissionProfile, UpUpDataPolicy, UpUpOutputContract } from '@upup/pi-runtime';
 import { validateAgentSpec } from './agent-spec';
 import { type SopSpec, validateSopSpec, validateAgentCatalogForSop } from './sop-spec';
@@ -46,6 +48,8 @@ export interface SopLoaderOptions {
 
 /** Directory name of the UpUp home root. */
 const UPUP_DIR_NAME = '.upup';
+/** Workspace directory of the package that ships the built-in SOP payload. */
+const BUILTIN_SOPS_PACKAGE_DIR = 'pi-investment-workflow';
 /** Environment variable that relocates the UpUp home root (`~/.upup`). */
 export const UPUP_HOME_ENV = 'UPUP_HOME';
 
@@ -60,11 +64,47 @@ export function resolveUpUpHomeRoot(options: SopLoaderOptions = {}): string {
   return join(options.home ?? process.env.HOME ?? homedir(), UPUP_DIR_NAME);
 }
 
-/** Built-in SOPs ship from `<package>/sops/*.yaml` and are loaded relative to this module. */
+/**
+ * Directory of this module, computed portably.
+ *
+ * `import.meta.dir` is a Bun-only global and is `undefined` under Node *and*
+ * under Pi's jiti extension loader (which is how every extension and, in turn,
+ * this module gets loaded). `join(undefined, '..')` threw `ERR_INVALID_ARG_TYPE`
+ * at module load there, and — worse — because the candidate list is built at
+ * module scope, a `try/catch` around the lookup could not recover. Deriving the
+ * directory from `import.meta.url` works in Bun, Node and jiti alike.
+ */
+const MODULE_DIR = dirname(fileURLToPath(import.meta.url));
+/** Environment override so a packaged install can point at its SOP payload. */
+export const BUILTIN_SOPS_DIR_ENV = 'UPUP_BUILTIN_SOPS_DIR';
+
+/**
+ * Where the built-in `sops/*.yaml` payload can live, most specific first.
+ *
+ * The order mirrors `builtinPackageCandidates` in `@upup/pi-resource-composition`
+ * so the SOP payload is found by the same rules as the Pi package itself:
+ *
+ *   1. `$UPUP_BUILTIN_SOPS_DIR`      — explicit override (packaged installs)
+ *   2. `<module>/../sops`            — workspace / `bun run` source layout
+ *   3. `<module>/../dist/sops`       — installed package layout
+ *   4. `<module>/sops`               — module inlined next to its payload
+ *   5. `<execDir>/<pkg>/sops`        — compiled binary shipped as `dist/upup`
+ *   6. `<execDir>/../share/upup/<pkg>/sops` — FHS-style install
+ *   7. `<cwd>/packages/<pkg>/sops`   — running the binary from the repo root
+ *
+ * The compiled binary needs (5)-(7): inside a Bun single-file executable
+ * `import.meta.url` is a `$bunfs` virtual path, so (2)-(4) cannot reach the
+ * payload that `scripts/copy-pi-package-resources.ts` places on disk.
+ */
 const BUILTIN_SOPS_DIR_CANDIDATES = [
-  join(import.meta.dir, '..', 'sops'),
-  join(import.meta.dir, '..', 'dist', 'sops'),
-];
+  process.env[BUILTIN_SOPS_DIR_ENV]?.trim(),
+  join(MODULE_DIR, '..', 'sops'),
+  join(MODULE_DIR, '..', 'dist', 'sops'),
+  join(MODULE_DIR, 'sops'),
+  join(dirname(process.execPath), BUILTIN_SOPS_PACKAGE_DIR, 'sops'),
+  join(dirname(process.execPath), '..', 'share', 'upup', BUILTIN_SOPS_PACKAGE_DIR, 'sops'),
+  join(process.cwd(), 'packages', BUILTIN_SOPS_PACKAGE_DIR, 'sops'),
+].filter((candidate): candidate is string => typeof candidate === 'string' && candidate.length > 0);
 
 function listYaml(dir: string): readonly string[] {
   if (!existsSync(dir)) return [];
@@ -112,13 +152,29 @@ export function listBuiltinSopFiles(): readonly string[] {
 }
 
 /**
+ * Parse YAML text on any runtime.
+ *
+ * `Bun.YAML.parse` is the native parser, but this module also runs under Pi's
+ * jiti loader (Node semantics) inside the compiled binary's extension path,
+ * where the `Bun` global is absent. `js-yaml` is already present transitively
+ * via `gray-matter`, and both parsers accept the YAML 1.2 subset the built-in
+ * SOP files use, so the two agree on every shipped document.
+ */
+function parseYamlDocument(content: string): unknown {
+  const native = (globalThis as { Bun?: { YAML?: { parse?: (input: string) => unknown } } }).Bun?.YAML?.parse;
+  if (typeof native === 'function') return native(content);
+  const { load } = createRequire(import.meta.url)('js-yaml') as { load: (input: string) => unknown };
+  return load(content);
+}
+
+/**
  * Load and parse a YAML file into a SopSpec. Throws on schema violation.
  * Returns `null` if the file is missing or unreadable.
  */
 export function parseSopYaml(content: string, source: string): SopSpec {
   let parsed: unknown;
   try {
-    parsed = Bun.YAML.parse(content);
+    parsed = parseYamlDocument(content);
   } catch (error) {
     throw new Error(`Failed to parse SOP YAML ${source}: ${error instanceof Error ? error.message : String(error)}`);
   }

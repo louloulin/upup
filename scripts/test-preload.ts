@@ -14,6 +14,7 @@
 import { mkdtempSync, mkdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { publishPiAgentDirEnv } from '@upup/pi-resource-composition/agent-dir';
 
 if (!process.env.UPUP_HOME?.trim()) {
   const root = mkdtempSync(join(tmpdir(), 'upup-test-home-'));
@@ -24,3 +25,10 @@ if (!process.env.UPUP_HOME?.trim()) {
     try { rmSync(root, { recursive: true, force: true }); } catch { /* best effort */ }
   });
 }
+
+// Publish the sandboxed agent dir to the env var Pi's `getAgentDir()` reads.
+// Setting `UPUP_HOME` alone is **not** enough: Pi derives the var name from its
+// own `piConfig.name` (`UPUP_CODING_AGENT_DIR` in UpUp's rebranded build) and
+// falls back to the real `~/.upup/agent` when it is unset — which would make
+// every test suite write to the developer's home.
+publishPiAgentDirEnv();

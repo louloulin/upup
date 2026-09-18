@@ -35,7 +35,7 @@ import { homedir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { resolveAgentDir, upupAgentDirFor } from '@upup/pi-resource-composition';
+import { publishPiAgentDirEnv, resolveAgentDir, upupAgentDirFor } from '@upup/pi-resource-composition';
 
 /**
  * 第三方 Pi package 里，UpUp 已经自带等价实现、且会和 UpUp 注册的同名工具冲突的
@@ -127,6 +127,16 @@ export function installMaxListenersHeadroom(): void {
 installMaxListenersHeadroom();
 
 export interface BootstrapAgentOptions {
+  /**
+   * Caller-supplied environment (defaults to `process.env`).
+   *
+   * `resolveAgentDir` ranks `$UPUP_HOME` and `*_CODING_AGENT_DIR` above the
+   * `home` argument, because those variables are explicit relocations of the
+   * UpUp root. A test that wants `home` to decide therefore has to pass a
+   * stripped env; passing this option keeps that explicit instead of mutating
+   * the process-global environment.
+   */
+  readonly env?: NodeJS.ProcessEnv;
   /** Override the resolved home dir (defaults to `os.homedir()`). */
   readonly home?: string;
   /** Force a specific agent dir, bypassing `resolveAgentDir` precedence. */
@@ -237,13 +247,14 @@ interface BootstrapContext {
 }
 
 function resolveContext(options: BootstrapAgentOptions): BootstrapContext {
-  const home = options.home ?? process.env.HOME ?? homedir();
+  const env = options.env ?? process.env;
+  const home = options.home ?? env.HOME ?? homedir();
   const agentDir = options.agentDir
     ? resolve(options.agentDir)
-    : resolveAgentDir(process.cwd(), { env: process.env, home }).agentDir;
+    : resolveAgentDir(process.cwd(), { env, home }).agentDir;
   const seedSource = options.skipSeed
     ? undefined
-    : options.seedFrom ?? process.env.UPUP_MIGRATE_FROM?.trim() ?? join(home, '.pi', 'agent');
+    : options.seedFrom ?? env.UPUP_MIGRATE_FROM?.trim() ?? join(home, '.pi', 'agent');
   const themeSource = options.themeSourcePath ?? defaultThemeSourcePath();
   return {
     agentDir,
@@ -457,7 +468,23 @@ export function bootstrapUpupAgentSync(options: BootstrapAgentOptions = {}): Boo
 
 /** Async alias kept for callers that prefer `await`; the work is synchronous. */
 export async function bootstrapUpupAgent(options: BootstrapAgentOptions = {}): Promise<BootstrapAgentResult> {
-  return bootstrapUpupAgentSync(options);
+  const result = bootstrapUpupAgentSync(options);
+  // Eagerly construct the singleton `ModelRuntime` so subsequent sessions
+  // — factory path, ACP path, prompt-runner path, anything else that uses
+  // `createPiNativeSessionOptions()` — see the runtime synchronously
+  // through `tryGetUpupModelRuntime()`. Without this prefetch the first
+  // ever session falls back to the static Pi catalog because the runtime
+  // has not been built yet. Refresh is intentionally off: `models.json`
+  // is loaded synchronously by `ModelConfig.load`, and the bundled Pi
+  // catalog already covers every UpUp-default provider.
+  try {
+    const { getUpupModelRuntime } = await import('@upup/pi-runtime');
+    await getUpupModelRuntime({ refreshOnCreate: false });
+  } catch {
+    // A failure here is non-fatal — sessions still get the built-in
+    // catalog. The runtime is re-attempted lazily on the next session.
+  }
+  return result;
 }
 
 /** Canonical UpUp agent dir for a given home; re-exported for callers/tests. */
@@ -468,17 +495,20 @@ export { upupAgentDirFor };
  * stdio/RPC, gateway, cron, daemon):
  *
  *   1. resolve the canonical `~/.upup/agent` (or an explicit env override),
- *   2. publish it as `PI_CODING_AGENT_DIR` so Pi's `getAgentDir()` agrees, and
+ *   2. publish it to **both** `UPUP_CODING_AGENT_DIR` and
+ *      `PI_CODING_AGENT_DIR` so Pi's `getAgentDir()` agrees (Pi reads the
+ *      former because UpUp ships a rebranded `piConfig.name = "upup"`), and
  *   3. bootstrap the directory (seed from a previous Pi home + UpUp theme).
  *
- * Must run before any `@earendil-works/pi-*` module is imported: Pi reads
- * `PI_CODING_AGENT_DIR` at module init. Returns the resolved agent dir.
+ * Must run before any `@earendil-works/pi-*` module is imported: Pi reads the
+ * env var at module init. Returns the resolved agent dir.
  */
 export function ensureUpupAgentDir(env: NodeJS.ProcessEnv = process.env): string {
-  const preset = env.PI_CODING_AGENT_DIR?.trim();
-  if (preset) return preset;
-  const resolved = resolveAgentDir(process.cwd(), { env, home: env.HOME ?? homedir() }).agentDir;
-  env.PI_CODING_AGENT_DIR = resolved;
+  const resolved = publishPiAgentDirEnv({
+    env,
+    cwd: process.cwd(),
+    home: env.HOME ?? homedir(),
+  });
   bootstrapUpupAgentSync({ agentDir: resolved });
   return resolved;
 }

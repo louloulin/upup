@@ -282,6 +282,200 @@ export function parseRetryAfter(headers: Record<string, string> | undefined): nu
 }
 
 // ---------------------------------------------------------------------------
+// Provider output budget
+// ---------------------------------------------------------------------------
+
+/**
+ * Budget below which an outgoing provider request cannot hold an answer.
+ *
+ * Pi clamps `maxTokens` to fit the model's declared context window minus a
+ * safety margin (`clampMaxTokensToContext`), with `MIN_MAX_TOKENS = 1` as the
+ * floor. On a long session the clamp can therefore collapse the output budget
+ * to a single token. The gateway then answers with a floor of its own
+ * (observed: 128 tokens) plus `finish_reason: "length"`, which is rendered to
+ * the user as "Response was truncated before completion." and — because the
+ * answer never gets room to finish — repeats on every turn.
+ *
+ * 1024 matches Pi's own `MIN_ANSWER_TOKENS`: the smallest budget that can hold
+ * an answer. It is deliberately used only as the *trigger threshold* and as a
+ * last-resort fallback — it is **not** a sufficient budget for a real research
+ * answer. Measured against the live `ax` gateway on a 260k-token prompt, 1024
+ * and 2048 and 3072 all still ended in `finish_reason: "length"`; only ~4096+
+ * reached `finish_reason: "stop"`. Callers should therefore pass the model's
+ * declared `maxTokens` as the restore target (see
+ * `resolveOutputBudgetTarget`) and use this constant only to decide *whether*
+ * a budget is degenerate.
+ */
+export const MIN_PROVIDER_OUTPUT_TOKENS = 1024;
+
+/**
+ * Resolve the output budget to restore when Pi's context clamp produced a
+ * degenerate value. When the hook has access to the session's current
+ * model, that model's declared `maxTokens` is the truthful intended
+ * budget — it is exactly the value Pi passes into `clampMaxTokensToContext`
+ * before the clamp runs. Restoring to it undoes the damage of a clamp that
+ * fell below `MIN_PROVIDER_OUTPUT_TOKENS` on a context whose `contextWindow`
+ * the provider catalog under-reports.
+ *
+ * Falls back to `MIN_PROVIDER_OUTPUT_TOKENS` when the model is unknown.
+ * The result is always at least `MIN_PROVIDER_OUTPUT_TOKENS`: a budget
+ * below Pi's own `MIN_ANSWER_TOKENS` cannot hold an answer regardless of
+ * provider or model.
+ */
+export function resolveOutputBudgetTarget(modelMaxTokens: number | undefined): number {
+  const declared = typeof modelMaxTokens === 'number' && Number.isFinite(modelMaxTokens) && modelMaxTokens > 0
+    ? Math.floor(modelMaxTokens)
+    : MIN_PROVIDER_OUTPUT_TOKENS;
+  return Math.max(MIN_PROVIDER_OUTPUT_TOKENS, declared);
+}
+
+/**
+ * Request fields carrying the output budget, in Pi's own write order.
+ *
+ * - `max_tokens`            — `openai-completions` / `anthropic-messages`
+ * - `max_completion_tokens` — newer OpenAI routes
+ * - `max_output_tokens`     — OpenAI / Azure Responses
+ * - `maxOutputTokens`       — Google Vertex / Generative AI
+ *                             (`params.config.generationConfig.maxOutputTokens`)
+ * - `maxTokens`             — Amazon Bedrock Converse
+ *                             (`params.inferenceConfig.maxTokens`)
+ * - `max_tokens_to_sample`  — Cohere / older Bedrock spellings
+ *
+ * The provider API decides which one is used, so all known spellings are
+ * inspected including through nested objects up to `MAX_BUDGET_PATH_DEPTH`
+ * levels. This keeps the fix provider-agnostic: the same hook that repairs an
+ * OpenAI Completions `max_tokens: 1` also repairs the equivalent clamp on
+ * Vertex, Generative AI, and Bedrock without a per-provider branch.
+ */
+const OUTPUT_BUDGET_FIELDS: ReadonlySet<string> = new Set([
+  'max_tokens',
+  'max_completion_tokens',
+  'max_output_tokens',
+  'maxOutputTokens',
+  'max_tokens_to_sample',
+  'maxTokens',
+]);
+
+/**
+ * Maximum nesting depth we are willing to walk looking for an output budget.
+ * Three covers Google Vertex's `params.config.generationConfig.maxOutputTokens`
+ * (the deepest known Pi provider layout) with one level of headroom for any
+ * future provider that adds an extra wrapper.
+ */
+const MAX_BUDGET_PATH_DEPTH = 3;
+
+export interface OutputBudgetFinding {
+  /** Path from the payload root to the budget field, e.g. `['config', 'generationConfig', 'maxOutputTokens']`. */
+  readonly path: readonly string[];
+  /** Leaf field name (last element of `path`); empty when `path` is empty. */
+  readonly field: string;
+  readonly value: number;
+}
+
+/** Locate the output budget on an outgoing provider payload, if it carries one. */
+export function findOutputBudget(payload: unknown): OutputBudgetFinding | undefined {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return undefined;
+  return findOutputBudgetAt(payload as Record<string, unknown>, [], 0);
+}
+
+function findOutputBudgetAt(
+  record: Record<string, unknown>,
+  path: readonly string[],
+  depth: number,
+): OutputBudgetFinding | undefined {
+  // Hit each level's named budget fields before descending so a top-level
+  // `max_tokens` always wins over a nested `max_tokens` two levels down.
+  for (const field of OUTPUT_BUDGET_FIELDS) {
+    if (Object.hasOwn(record, field)) {
+      const value = record[field];
+      if (typeof value === 'number' && Number.isFinite(value)) {
+        return { path: [...path, field], field, value };
+      }
+    }
+  }
+  if (depth >= MAX_BUDGET_PATH_DEPTH) return undefined;
+  for (const [key, value] of Object.entries(record)) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) continue;
+    const found = findOutputBudgetAt(value as Record<string, unknown>, [...path, key], depth + 1);
+    if (found) return found;
+  }
+  return undefined;
+}
+
+export interface OutputBudgetRepair {
+  readonly field: string;
+  readonly path: readonly string[];
+  readonly before: number;
+  readonly after: number;
+}
+
+export interface OutputBudgetRepairResult {
+  /** The payload to send: the original object when no repair was needed. */
+  readonly payload: unknown;
+  /** Present only when the budget was raised. */
+  readonly repair?: OutputBudgetRepair;
+}
+
+/**
+ * Raise an output budget that fell below the usable floor.
+ *
+ * Returns the payload untouched when it carries no budget, when the budget is
+ * already usable, or when the payload is not a plain object. The repair is
+ * recorded rather than silent so it lands in the audit trail: a clamped budget
+ * is a symptom of a context window the provider catalog is probably
+ * under-reporting, and silently hiding it would hide the real defect.
+ *
+ * Detection walks the payload to `MAX_BUDGET_PATH_DEPTH` so the same hook
+ * repairs OpenAI Completions, OpenAI Responses, Azure Responses, Anthropic
+ * Messages, Mistral, Google Vertex, Google Generative AI, and Amazon Bedrock
+ * Converse without a per-provider branch.
+ *
+ * @param payload  Outgoing provider payload (clamped by Pi already).
+ * @param options.floor   Trigger threshold: budgets below this are repaired.
+ *                        Defaults to `MIN_PROVIDER_OUTPUT_TOKENS` (Pi's own
+ *                        `MIN_ANSWER_TOKENS`).
+ * @param options.target  Value to raise to. Defaults to `floor`. Pass the
+ *                        model's declared `maxTokens` (via
+ *                        `resolveOutputBudgetTarget`) to restore the user's
+ *                        configured output cap exactly the way Pi intended
+ *                        before the clamp.
+ */
+export function repairDegenerateOutputBudget(
+  payload: unknown,
+  options: { floor?: number; target?: number } = {},
+): OutputBudgetRepairResult {
+  const floor = options.floor ?? MIN_PROVIDER_OUTPUT_TOKENS;
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return { payload };
+  const found = findOutputBudget(payload);
+  if (!found || found.value >= floor) return { payload };
+  const target = Math.max(floor, Math.floor(options.target ?? floor));
+  if (target === found.value) return { payload };
+  return {
+    payload: setNestedValue(payload, found.path, target),
+    repair: { field: found.field, path: found.path, before: found.value, after: target },
+  };
+}
+
+/** Immutable nested set: returns a fresh object graph with `value` written at `path`. */
+function setNestedValue(
+  source: unknown,
+  path: readonly string[],
+  value: unknown,
+): Record<string, unknown> {
+  const base = source && typeof source === 'object' && !Array.isArray(source)
+    ? { ...(source as Record<string, unknown>) }
+    : {};
+  const [head, ...rest] = path;
+  if (head === undefined) return base;
+  if (rest.length === 0) {
+    base[head] = value;
+    return base;
+  }
+  base[head] = setNestedValue(base[head], rest, value);
+  return base;
+}
+
+// ---------------------------------------------------------------------------
 // Compaction accounting
 // ---------------------------------------------------------------------------
 
@@ -428,7 +622,17 @@ export interface SessionNameInput {
  * subject (ticker + plan) so a list of sessions reads like a research log
  * instead of a wall of timestamps.
  */
-export function resolveSessionDisplayName(input: SessionNameInput): string {
+export function resolveSessionDisplayName(input: SessionNameInput): string | null {
+  // The cwd-fallback (`upup` / repo basename) used to be returned here as
+  // the last resort, but in practice it clobbered the user's `--name` flag
+  // and our default session name (`upup-<timestamp>-<rand>`) every time the
+  // event-surface extension's `session_start` hook fired, because that hook
+  // is unconditional and re-runs on every model/thinking change. That left
+  // the `/resume` picker full of rows that all read `upup`.
+  //
+  // We now return `null` when there is no research subject (ticker/planId)
+  // so the caller can choose: skip the write entirely, or fall back to its
+  // own default. Ticker/plan paths keep the human-readable subject form.
   const base = input.cwd.split(/[/\\]/).filter(Boolean).pop() ?? 'upup';
   const subject = input.ticker?.trim();
   if (subject) {
@@ -437,5 +641,5 @@ export function resolveSessionDisplayName(input: SessionNameInput): string {
   }
   const plan = input.planId?.trim();
   if (plan) return `${base} · ${plan}`;
-  return base;
+  return null;
 }

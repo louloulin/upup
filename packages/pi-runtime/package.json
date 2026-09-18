@@ -21,6 +21,31 @@
       "bun": "./src/custom-providers.ts",
       "default": "./dist/custom-providers.js"
     },
+    "./ecosystem-extension": {
+      "types": "./dist/ecosystem-extension.d.ts",
+      "bun": "./src/ecosystem-extension.ts",
+      "default": "./dist/ecosystem-extension.js"
+    },
+    "./proper-lockfile-bun-shim": {
+      "types": "./dist/proper-lockfile-bun-shim.d.ts",
+      "bun": "./src/proper-lockfile-bun-shim.ts",
+      "default": "./dist/proper-lockfile-bun-shim.js"
+    },
+    "./ecosystem-resolver": {
+      "types": "./dist/ecosystem-resolver.d.ts",
+      "bun": "./src/ecosystem-resolver.ts",
+      "default": "./dist/ecosystem-resolver.js"
+    },
+    "./embedding-provider": {
+      "types": "./dist/embedding-provider.d.ts",
+      "bun": "./src/embedding-provider.ts",
+      "default": "./dist/embedding-provider.js"
+    },
+    "./extension-api-probe": {
+      "types": "./dist/extension-api-probe.d.ts",
+      "bun": "./src/extension-api-probe.ts",
+      "default": "./dist/extension-api-probe.js"
+    },
     "./model-registry": {
       "types": "./dist/model-registry.d.ts",
       "bun": "./src/model-registry.ts",
@@ -30,15 +55,11 @@
       "types": "./dist/tool-result.d.ts",
       "bun": "./src/tool-result.ts",
       "default": "./dist/tool-result.js"
-    },
-    "./embedding-provider": {
-      "types": "./dist/embedding-provider.d.ts",
-      "bun": "./src/embedding-provider.ts",
-      "default": "./dist/embedding-provider.js"
     }
   },
   "scripts": {
-    "build": "bun build src/index.ts --outdir=dist --target=node && bun build src/model-registry.ts --outdir=dist --target=node && bun build src/custom-providers.ts --outdir=dist --target=node && bun build src/tool-result.ts --outdir=dist --target=node && tsc --emitDeclarationOnly --project tsconfig.json",
+    "prebuild": "bun run ../../scripts/clean-pi-package-dist.ts",
+    "build": "bun build src/index.ts --outdir=dist --target=node && bun build src/custom-providers.ts --outdir=dist --target=node && bun build src/ecosystem-extension.ts --outdir=dist --target=node && bun build src/proper-lockfile-bun-shim.ts --outdir=dist --target=node && bun build src/ecosystem-resolver.ts --outdir=dist --target=node && bun build src/embedding-provider.ts --outdir=dist --target=node && bun build src/extension-api-probe.ts --outdir=dist --target=node && bun build src/model-registry.ts --outdir=dist --target=node && bun build src/tool-result.ts --outdir=dist --target=node && tsc --emitDeclarationOnly --project tsconfig.json",
     "test": "bun test ./test.ts"
   },
   "files": [

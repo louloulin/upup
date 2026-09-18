@@ -101,10 +101,31 @@ describe('session_start', () => {
     expect(pi.sessionName).toBe('600519.SH · cn');
   });
 
-  it('falls back to the directory name when there is no subject', () => {
+  it('keeps the user-set session name when there is no research subject', () => {
+    // Resolves the historic bug where every UpUp session in `/resume`
+    // collapsed to the literal "upup" row. `setSessionName` is now
+    // skipped when `resolveSessionDisplayName` returns null (i.e. no
+    // ticker / planId), so the name the user already set (via --name,
+    // the default `upup-<timestamp>-<rand>`, or any prior setSessionName
+    // call) is preserved.
     const { pi } = mount();
+    pi.sessionName = 'pre-existing-name';
     pi.fire('session_start', { reason: 'new' }, { cwd: '/repo/upup' });
-    expect(pi.sessionName).toBe('upup');
+    expect(pi.sessionName).toBe('pre-existing-name');
+  });
+
+  it('does not call setSessionName when the cwd has no research subject', () => {
+    // Defends against a regression where the directory basename ('upup')
+    // clobbered the user's --name flag every time session_start fired.
+    let setCalls = 0;
+    const { pi } = mount();
+    const original = (pi as unknown as { _setSessionName: (n: string) => void })._setSessionName;
+    (pi as unknown as { setSessionName: (n: string) => void }).setSessionName = (n: string) => {
+      setCalls += 1;
+      if (original) original(n);
+    };
+    pi.fire('session_start', { reason: 'new' }, { cwd: '/repo/upup' });
+    expect(setCalls).toBe(0);
   });
 
   it('reports the active tool surface in the audit trail', () => {
@@ -265,6 +286,50 @@ describe('input expansion', () => {
   });
 });
 
+describe('before_provider_request output budget', () => {
+  it('restores a degenerate budget to the model declared maxTokens when the context supplies it', () => {
+    const { pi } = mount();
+    const returned = pi.fire(
+      'before_provider_request',
+      { payload: { model: 'deepseek-v4.1-flash', max_tokens: 1 } },
+      { model: { maxTokens: 16384 } },
+    ) as { max_tokens: number };
+    // The repair undoes Pi context clamp by raising the budget back to the
+    // model's own declared output cap — the value Pi would have sent had the
+    // context window been honest. A research answer needs more than 1024
+    // tokens; we measured 2048/3072 still truncate, 4096 completes.
+    expect(returned.max_tokens).toBe(16384);
+  });
+
+  it('falls back to the absolute floor when the model is unknown', () => {
+    const { pi } = mount();
+    const returned = pi.fire('before_provider_request', { payload: { max_tokens: 1 } }) as { max_tokens: number };
+    expect(returned.max_tokens).toBe(1024);
+  });
+
+  it('leaves a usable payload byte-identical and returns undefined', () => {
+    const { pi } = mount();
+    const payload = { model: 'deepseek-v4.1-flash', max_tokens: 8192 };
+    expect(pi.fire('before_provider_request', { payload }, { model: { maxTokens: 16384 } })).toBeUndefined();
+    expect(payload.max_tokens).toBe(8192);
+  });
+
+  it('records the repair in the audit trail so the rescale is visible', () => {
+    const { pi, records } = mount();
+    pi.fire('before_provider_request', { payload: { max_tokens: 1 } }, { model: { maxTokens: 16384 } });
+    const entry = records.find((record) => record.event === 'before_provider_request');
+    expect(entry?.fields).toMatchObject({ outputBudgetRepair: { field: 'max_tokens', before: 1, after: 16384 } });
+  });
+
+  it('clears the repair field on the next healthy request', () => {
+    const { pi, records } = mount();
+    pi.fire('before_provider_request', { payload: { max_tokens: 1 } }, { model: { maxTokens: 16384 } });
+    pi.fire('before_provider_request', { payload: { max_tokens: 8192 } }, { model: { maxTokens: 16384 } });
+    const last = records.filter((record) => record.event === 'before_provider_request').at(-1);
+    expect(last?.fields).not.toHaveProperty('outputBudgetRepair');
+  });
+});
+
 describe('message_end audit', () => {
   it('flags an assistant answer with unsourced numbers', () => {
     const { pi } = mount();
@@ -372,5 +437,36 @@ describe('pure helpers', () => {
     expect(codeStyleTickers('已有 `600519.SH` 反引号')).toBe('已有 `600519.SH` 反引号');
     expect(codeStyleTickers('```\n600519.SH\n```')).toBe('```\n600519.SH\n```');
     expect(codeStyleTickers('没有代码的句子')).toBe('没有代码的句子');
+  });
+
+  it('codeStyleTickers wraps US-prefix $AAPL style tickers', () => {
+    expect(codeStyleTickers('look up $AAPL')).toBe('look up $`AAPL`');
+    expect(codeStyleTickers('compare $TSLA vs $NVDA')).toBe('compare $`TSLA` vs $`NVDA`');
+  });
+
+  it('codeStyleTickers wraps bare US tickers (AAPL, TSLA)', () => {
+    expect(codeStyleTickers('AAPL is at all-time high')).toBe('`AAPL` is at all-time high');
+  });
+
+  it('codeStyleTickers does not re-wrap already-wrapped tickers', () => {
+    expect(codeStyleTickers('already `AAPL` wrapped')).toBe('already `AAPL` wrapped');
+    expect(codeStyleTickers('already `$AAPL` wrapped')).toBe('already `$AAPL` wrapped');
+  });
+
+  it('codeStyleTickers does not touch fenced code blocks', () => {
+    expect(codeStyleTickers('```\n$AAPL and AAPL\n```')).toBe('```\n$AAPL and AAPL\n```');
+  });
+
+  it('codeStyleTickers is idempotent', () => {
+    const once = codeStyleTickers('look at $AAPL and 600519.SH');
+    const twice = codeStyleTickers(once);
+    expect(twice).toBe(once);
+  });
+
+  it('codeStyleTickers handles mixed CN/HK/US in one line', () => {
+    const result = codeStyleTickers('$AAPL vs 600519.SH vs 00700.HK');
+    expect(result).toContain('$`AAPL`');
+    expect(result).toContain('`600519.SH`');
+    expect(result).toContain('`00700.HK`');
   });
 });

@@ -1,0 +1,47 @@
+{
+  "name": "@upup/upup-web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "UpUp web overlay over @agegr/pi-web (npm dependency). Adds /api/upup/* investment routes, an HTML sidecar injection, and a watchlist/portfolio/plan sidecar bundle. The web UI itself is consumed unmodified from @agegr/pi-web via its `pi-web` binary.",
+  "type": "module",
+  "main": "./src/launch.ts",
+  "exports": {
+    ".": "./src/launch.ts",
+    "./sidecar": "./web/upup-sidecar.js"
+  },
+  "dependencies": {
+    "@agegr/pi-web": "0.9.1",
+    "@upup/pi-investment-workflow": "0.1.0",
+    "@upup/pi-runtime": "0.1.0",
+    "@upup/pi-resource-composition": "0.1.0"
+  },
+  "pi": {
+    "contract": "upup.pi.runtime.v1",
+    "source": "builtin:upup",
+    "trust": {
+      "mode": "builtin",
+      "filesystem": true,
+      "network": true
+    },
+    "lifecycle": {
+      "scope": "session"
+    },
+    "hostCapabilities": [
+      "web-overlay"
+    ],
+    "extensions": [
+      "./src/launch.ts"
+    ],
+    "skills": [],
+    "prompts": [],
+    "workflows": [],
+    "policies": [],
+    "evals": [],
+    "dependencies": {
+      "@upup/pi-resource-composition": "0.1.0"
+    }
+  },
+  "scripts": {
+    "test": "bun test ./src ./test"
+  }
+}
