@@ -12,7 +12,7 @@
 
 ## 0. 结论速览
 
-按影响排序，共发现 **10 个性能问题**（3 个高优、4 个中优、3 个低优）：
+按影响排序，共发现 **11 个性能问题**（3 个高优、5 个中优、3 个低优）：
 
 | # | 问题 | 位置 | 实测影响 | 优先级 |
 |---|---|---|---|---|
@@ -22,10 +22,11 @@
 | P4 | `get_sector_data` 对股票代码做**必然失败**的板块解析 | `market-structure-eastmoney.ts:302` | 每次股票查询白打 1 次 `searchapi` suggest（实测返回值 `undefined`） | 🟠 中 |
 | P5 | 同一 URL 被重复读取（resolve + 再取一次） | `market-structure-eastmoney.ts:240` / `:264` | 每次股票行业查询重复 1 次 `push2` stock/get（实测 x2） | 🟠 中 |
 | P6 | 无 in-flight 请求合并 | `screen-eastmoney.ts` / `quote.ts` | N 个相同并发查询 = N 倍上游调用 | 🟠 中 |
-| P7 | `verifyPiResourceTrust` 每次都对全包做 SHA-256，无缓存 | `plugin-trust.ts:36/102` | 实测 0.5~8.4ms/包（随文件系统缓存波动），每次 `createSession` 都重算 | 🟡 低 |
+| P7 | `verifyPiResourceTrust` 每次都对全包做 SHA-256，无缓存 | `plugin-trust.ts:36/102` | 冷 cache 实测 0.1~14.2ms/包（全树可达 ~170ms），每次 `createSession` 都重算 | 🟡 低 |
 | P8 | 缓存无淘汰上限 | `screen-eastmoney.ts:626`、`quote.ts:107`、`pi-research/src/index.ts:50` | 长驻进程堆持续增长 | 🟡 低 |
 | P9 | `canonicalJson` 递归 + 排序 + 重复序列化 | `packages/pi-storage/src/index.ts:5` | 86.6~95.9µs/op，是 `JSON.stringify` 的 **3.7x~4.2x** | 🟡 低 |
-| P10 | 每个 session 都重扫用户全局 skill 库（162 个 SKILL.md / 1.3MB） | `@upup/pi-session` → Pi resource loader | `userSkills: include` 41ms vs `whitelist-only` 28ms，**+13ms / session（1.46x）** | 🟠 中 |
+| P10 | 每个 session 都重扫用户全局 skill 库（162 个 SKILL.md / 1.3MB） | `@upup/pi-session` → Pi resource loader | `userSkills: include` 39ms vs `whitelist-only` 28ms，**+11ms / session（1.4x）** | 🟠 中 |
+| P11 | `getYahooQuote` 的回退解析**绕过注入的 fetcher**，直连真实网络 | `packages/pi-market-data/src/quote.ts:433` | 实测每次 140~5655ms（同一调用 6 次采样），**不可被测试 stub 拦截** | 🟠 中 |
 
 **一句话总结**：UpUp 最大的性能瓶颈不是 CPU，也不是 Bun，而是**一个"防御性过户"的串行网关**——它为了避开东方财富的限流，把整个进程的所有同主机请求（包括互不相关的查询）都压成了 500ms 一格的长队，而实测证明上游其实能吃 8 路并发。
 
@@ -138,7 +139,7 @@ Bun 侧同样证明并发不是问题：
  20 concurrent fetches -> ok=20 in 287ms
 ```
 
-（这三行是 Bun `fetch` 本身的并发能力测量，见 §8。）
+（这三行是 Bun `fetch` 本身的并发能力测量，见 §10。）
 
 （Bun 自身默认允许 256 路并发 fetch，`BUN_CONFIG_MAX_HTTP_REQUESTS` 可提到 65535。
 **上游和运行时都不是瓶颈，闸门才是。**）
@@ -337,26 +338,33 @@ const cache = new Map<string, { at: number; pending?: Promise<T>; result?: T }>(
 
 `packages/pi-resource-composition/src/plugin-trust.ts:36` 的 `hashPath()` 会对包内**每个文件**做 SHA-256，且 `:102` 每次 `verifyPiResourceTrust` 都重算，**没有任何缓存**。
 
-实测（`bun scripts/perf/bench-trust.ts`，多次运行显示数值随文件系统/page cache 波动）：
+实测（`bun scripts/perf/bench-trust.ts`）。**这个数字极度依赖 page cache，波动达 50x**，
+所以只报区间、不做单点结论：
 
 ```
-                  files   size     多次实测区间
-pi-market-data     36    0.4MB     0.1 ~ 8.4ms
-pi-finance-sdk     63    0.4MB     3.0 ~ 3.3ms
-pi-session         27    0.2MB     0.5 ~ 4.0ms
-packages (all)                     24.6 ~ 65.6ms
+                          files   size     多次实测区间
+pi-market-data             36    0.4MB      0.1  ~ 12.9ms
+pi-finance-sdk             63    0.4MB      1.6  ~ 14.2ms
+pi-session                 27    0.2MB      0.5  ~  5.0ms
+packages (all)                            24.6  ~ 173.1ms
 ```
 
-> 该脚本必须在**仓库根目录**下运行才能看到文件数（在别处 `packages/...` 路径不存在，
-> 会静默打印 `0 files`）。这是脚本的相对路径依赖，不是测量误差。
+> 判断：**冷 cache 时 3 个包合计可达 ~30ms、全树可达 ~170ms；热 cache 时降到几毫秒。**
+> 由于单点数字不可信，这里刻意只给区间——任何"优化前/后"的对比都必须在同一 cache 状态下交错测量。
+>
+> 另外该脚本原先依赖"必须在仓库根运行"才能看到文件数（在别处会静默打印 `0 files`）。
+> 现已改为基于 `import.meta.url` 解析路径，**可从任意 cwd 运行**。
 
 单次不足为患，但它发生在**每次 `createSession`** 上。实测会话创建（`bun scripts/perf/bench-session.ts`）：
 
 ```
-createSession #1: 377ms   ← 冷启动
-createSession #2:  42ms   ← 热
-createSession #3:  37ms
+createSession #1: 337 ~ 991ms   ← 冷启动（首次含模块图 JIT，波动大）
+createSession #2:  33 ~ 131ms   ← 热
+createSession #3:  34 ~  78ms
 ```
+
+> 冷启动那一格波动很大（338ms ~ 991ms），取决于是否刚跑过别的 session；
+> **热路径稳定在 33~40ms**，这才是稳态数值。
 
 **建议**：按 `(path, mtimeMs, size)` 缓存 contentHash；已实测 `Bun.file(path).size` 只需 **4.4µs/4 文件**，
 而真正读这 4 个文件要 43~45µs——**stat 预检比全量读取快约 10x**，正好用来判断"内容没变，跳过重算"。
@@ -380,17 +388,20 @@ createSession #3:  37ms
 
 ---
 
-## 6.5 会话级 skill 扫描（P10）
+## 7. 会话级 skill 扫描（P10）
 
 AGENTS.md 的 "Known Pi-Integration Gaps" 已记录"每个 session 默认从 `~/.agents/skills` 加载全局 skills"，
 但此前没有量化过代价。实测（`bun scripts/perf/bench-skillscope.ts`，预热后交错采样 6 次）：
 
 ```
-userSkills=include        : 49, 39, 42, 40, 39, 37   avg=41ms
-userSkills=whitelist-only : 31, 28, 27, 27, 29, 27   avg=28ms
+userSkills=include        : 44, 38, 42, 36, 41, 35   avg=39ms   (4 次独立运行: 39/40/41/39)
+userSkills=whitelist-only : 28, 29, 28, 27, 26, 29   avg=28ms   (4 次独立运行: 28/30/28/27)
 ```
 
-即 **+13ms / session（1.46x）**，且这只是在单包（`pi-market-data` + `pi-finance-sdk`）下测的。
+即 **+11~13ms / session（约 1.4x）**，且这只是在单包（`pi-market-data` + `pi-finance-sdk`）下测的。
+
+> 首次运行（冷文件缓存）会看到两档数字同时偏高（如 113ms vs 72ms），
+> 差额（~41ms）比稳态的 ~11ms 大得多。**以稳态为准**，不要用冷启动那一轮下结论。
 底层扫描成本（`bun scripts/perf/bench-skillscan.ts`）：
 
 ```
@@ -398,13 +409,13 @@ userSkills=whitelist-only : 31, 28, 27, 27, 29, 27   avg=28ms
 /Users/louloulin/.codex/skills:   2 skills,   40KB SKILL.md read in 0.8ms
 ```
 
-**注意**：41ms vs 28ms 的差额（13ms）明显大于纯文件读取的 4.9ms，因为 Pi 还要为每个 skill
+**注意**：39ms vs 28ms 的差额（~11ms）明显大于纯文件读取的 4.9ms，因为 Pi 还要为每个 skill
 解析 YAML frontmatter、构造 metadata 并注入 system prompt。**这是"扫描 + 解析 + 组 prompt"的总和。**
 
 影响面取决于调用密度：
 
-- CLI 交互式：每个 session 一次，13ms 无感。
-- `upup daemon` / gateway / cron / eval 批量跑：session 数越多越明显（1000 个 session ≈ 13 秒）。
+- CLI 交互式：每个 session 一次，~11ms 无感。
+- `upup daemon` / gateway / cron / eval 批量跑：session 数越多越明显（1000 个 session ≈ 11 秒）。
 
 **建议**：
 - 短生命周期、批量场景（cron / eval / gateway 的每个请求各建一个 session）显式传 `userSkills: 'whitelist-only'` 或 `spec.skills` 白名单。
@@ -412,7 +423,104 @@ userSkills=whitelist-only : 31, 28, 27, 27, 29, 27   avg=28ms
 
 ---
 
-## 7. 序列化与哈希（P9）
+## 8. 注入点被绕过：一次"不可拦截"的真实网络调用（P11）
+
+这是分析过程中**由一次 flaky 测试反推出来的真实缺陷**，不是理论问题。
+
+### 8.1 现象
+
+`bun test` 全量运行时，`packages/pi-market-data/src/provider-sla.test.ts`
+的 `retries transient quote responses and does not retry forbidden responses`
+会**偶发超时**（用例上限 5000ms）：
+
+```
+(fail) native provider retry integration > retries transient quote responses
+       and does not retry forbidden responses [5003.71ms]
+  ^ this test timed out after 5000ms.
+```
+
+单独重跑该文件时 4 次里有 1 次失败，全量套件里也会命中——**典型的与真实网络耦合的 flaky**。
+
+### 8.2 根因
+
+`quote.ts:433`（`getYahooQuote` 的 fallback 分支）调用 `resolveEastmoneyUsSecid(symbol)`
+时**没有把 `this.fetcher` 传下去**：
+
+```ts
+// quote.ts:433  —— 没有传 { fetcher: this.fetcher }
+const resolved = await resolveEastmoneyUsSecid(symbol);
+
+// screen-eastmoney.ts:405
+export async function resolveEastmoneyUsSecid(ticker: string, options: EastmoneyScreenOptions = {}) {
+  ...
+  const payload = await readEastmoneyJson(eastmoneySuggestUrl(wanted), options);  // options.fetcher ?? fetch
+```
+
+而 `resolveEastmoneyUsSecid` 的第二参 `options` 默认是 `{}`，于是
+`readEastmoneyJson`（`screen-eastmoney.ts:183`）里的 `options.fetcher ?? fetch` 落到了**全局 `fetch`**。
+
+**实测证据**（`bun scripts/perf/repro-test-seam-bypass.ts`）——注入的 fetcher 与真实出网被同时记录：
+
+```
+--- what the INJECTED fetcher received ---
+  INJECT @+    8ms https://query1.finance.yahoo.com/v8/finance/chart/AAPL?range=5d
+  INJECT @+  197ms https://push2.eastmoney.com/api/qt/stock/get?secid=105.AAPL
+  THREW  eastmoney market quote request failed: 403
+--- what actually hit the NETWORK (bypassing the injected fetcher) ---
+  REAL   @+    9ms https://searchapi.eastmoney.com/api/suggest/get?input=AAPL&type=14
+```
+
+**调用方注入了 fetcher，但测试无法拦截这次请求**——它绕过了测试的 seam，真的打到了公网。
+
+### 8.3 影响
+
+这不是"测试写得不好"，而是**生产代码的依赖注入契约被破坏**。三个后果：
+
+1. **可测试性**：任何把 `fetcher` 换成 stub 的调用方，都无法约束美股的 fallback 路径。
+2. **性能 / 稳定性**：这条路径的耗时**完全不受调用方控制**，实测同一调用 6 次采样
+   （`bun scripts/perf/bench-seam-bypass-latency.ts`）：
+
+   ```
+   call 1:  280ms
+   call 2:  140ms
+   call 3: 5294ms
+   call 4: 1116ms
+   call 5: 5655ms
+   call 6: 2107ms
+
+   min=140ms  max=5655ms   <-- 测试超时是 5000ms
+   ```
+
+   **最大值（5655ms）直接跨过了 5000ms 的测试超时线**——这就是 flaky 的全部解释。
+   而且它还是**走闸门的**（`searchapi.eastmoney.com` 有自己的 host 闸门），
+   所以真实用户路径上这次调用还会再叠加 500ms 的排队。
+
+3. **与 P1/P2 联动**：该请求经 `searchapi` 的 host 闸门，会在 500ms 间隔的队列里占一格。
+   `getYahooQuote` 是**美股报价的常规回退路径**，所以这个"隐藏的额外请求"在美股查询里是常态。
+
+### 8.4 建议
+
+- **把 fetcher 透传下去**（一行修复）：
+  ```ts
+  const resolved = await resolveEastmoneyUsSecid(symbol, { fetcher: this.fetcher, ...(signal ? { signal } : {}) });
+  ```
+  注意 `getEastmoneyQuote` 的 `override` 参数已经接收了 `secid`，所以修复后
+  `getYahooQuote` 的整条回退链都会走注入的 fetcher。
+
+  **该修复已实测验证**（`bun scripts/perf/verify-seam-fix.ts`）：
+  ```
+  with { fetcher } passthrough: resolved=105.AAPL stubCalls=1 realEgress=0
+  ✅ no real network egress — the seam holds
+  ```
+  传参后 stub 被命中 1 次、真实出网 0 次，说明 seam 恢复。
+- **顺带加一条守门测试**：断言"注入 fetcher 后，没有任何请求经由全局 `fetch` 出网"
+  （`repro-test-seam-bypass.ts` 已经是现成的检测形状）。
+- 同类风险点建议一并审计：`market-structure-eastmoney.ts:245/302/308` 都调用了
+  解析函数——它们**传了** `options`（正确），可作为对照确认 `quote.ts:433` 是遗漏而非设计。
+
+---
+
+## 9. 序列化与哈希（P9）
 
 `packages/pi-storage/src/index.ts:5` 的 `canonicalJson` 是递归 + 每层 `Object.keys().sort()` + 字符串拼接，且在 `hashDossier`、审计链 `append`、`verify` 里被反复调用。
 
@@ -446,19 +554,19 @@ hash 200KB: Bun.CryptoHasher vs node sha256            ( 1.0x, 完全持平)
 
 ---
 
-## 8. Bun 最佳性能优化方案
+## 10. Bun 最佳性能优化方案
 
 以下为 Bun 官方文档（bun.com/docs，经 Context7 `/oven-sh/bun` 核对）确认的能力，结合 UpUp 现状给出可落地建议。
 每条都在本机 Bun 1.4.1 上实测过，**"无收益"的项已明确标出，不要为了"用上 Bun 特性"去迁移。**
 
-### 8.1 立刻可用的运行时能力
+### 10.1 立刻可用的运行时能力
 
 | 能力 | 用途 | UpUp 现状 |
 |---|---|---|
 | `Bun.hash`（wyhash） | 非密码学哈希，实测 **11.2x** 快于 sha256（0.0059ms vs 0.0662ms / 200KB） | 未使用；可替换缓存键/变更检测 |
 | `Bun.CryptoHasher` | 密码学哈希；实测与 `node:crypto` **完全持平**（0.0676 vs 0.0669ms） | **无需迁移（零收益）** |
-| `Bun.file(path).size` | stat-only，实测 **4.4µs/4 文件**（比真正读文件快 ~10x） | 可用于 trust 缓存的 mtime/size 预检 |
-| `Promise.all` + `Bun.file().arrayBuffer()` | 并发读，实测 **43.0µs/4 文件** = 与 `readFileSync`（44.8µs）持平 | 已是最快路径；**注意 `await Bun.file().text()` 逐个读反而慢到 124µs（2.8x）**——不要用串行 `await` 读多文件 |
+| `Bun.file(path).size` | stat-only，实测 **4.1~4.4µs/4 文件**（比真正读这 4 个文件快 ~11x） | 可用于 trust 缓存的 mtime/size 预检 |
+| `Promise.all` + `Bun.file().arrayBuffer()` | 并发读，实测 **45~50µs/4 文件** = 与 `readFileSync`（48~52µs）持平 | 已是最快路径；**注意 `await Bun.file().text()` 逐个 `await` 读反而慢到 105~131µs（~2.4x）**——多文件不要串行 `await` |
 | `Bun.sleep()` | 等价于 `setTimeout` promise，无性能差异 | 保持现状即可（`host-request-gate.ts:84`） |
 | `Bun.serve()` | 内置 HTTP server | `pi-management/src/server.ts:30` **已在用** ✅ |
 | `--smol` | 降低堆增长，代价是**更频繁 GC、降低吞吐** | **不建议**用于常规 CLI；仅 sandbox/容器场景 |
@@ -472,7 +580,7 @@ hash 200KB: Bun.CryptoHasher vs node sha256            ( 1.0x, 完全持平)
 > （256 条 / 30s，同主机并发共享一次解析）与 TCP keepalive（`TCP_KEEPIDLE=60s`），
 > 所以零连接的收益主要看冷启动与跨主机切换。
 
-### 8.2 构建产物
+### 10.2 构建产物
 
 当前构建命令**没有 minify**（`package.json:15`）：
 
@@ -521,12 +629,49 @@ bun build --compile --outfile=/tmp/x scripts/perf/tla/tla-fails.ts
 #   → compile OK
 ```
 
-**只有 `--bytecode` 构建会触发失败**——普通 `--compile` 与 `--compile --minify`
-在同样的 TLA 入口上都能成功（`upup-min` 就是带 TLA 构建出来的）。
-而 `packages/pi-app/src/entry.ts` 有 **34 处顶层 await**
-（`await applyProperLockfileBunShim()`、各处 `await runPiNativeCli(...)` 等）。
+**根因实测定位（修正先前猜测）**：先前草稿声称"`packages/pi-app/src/entry.ts` 有 34 处顶层 await"——
+这一说法**经实测证伪**：
 
-**已实测：不值得为此重构。** 在一个等价的、无 TLA 的合成入口上对比 `--bytecode` 与普通编译：
+- `entry.ts` 共 10 个 await，**全部在 `async function main()` 里**（`main()` 由文件末尾
+  `main().catch(...)` 调用，**0 个 col-0 await**）。
+- 在 Bun 1.4.1 打出的真实 17MB bundle 上验证：
+  - `grep -cE "^await " bundle.js = 0`
+  - `grep -cE "^(let|const|var) [A-Za-z_$]\w* = await " bundle.js = 0`
+  - `grep -cE "^async function" bundle.js = 0`（说明 main() 已被 bundle 收起，源码 col-0
+    与编译产物 col-0 一致）
+
+**真实根因**：Bun 1.4.1 的 bytecode 生成器对**默认 cjs 输出格式**不友好——加 `--format=esm`
+就能直接构建成功并正常运行：
+
+```
+$ bun build --compile --bytecode --target=bun --format=esm \
+    --outfile=/tmp/upup-bc-esm.bin src/index.tsx \
+    --external=playwright --external=playwright-core
+  [692ms]  bundle  2888 modules
+  [322ms] compile  /tmp/upup-bc-esm.bin     ← OK
+
+$ /tmp/upup-bc-esm.bin --help
+  UpUp v2026.6.12 · 涨涨 · Pi Runtime
+  ... banner / help 正常输出
+```
+
+**对照**：同样的源码去掉 `--format=esm`：
+
+```
+$ bun build --compile --bytecode --target=bun \
+    --outfile=/tmp/upup-bc-real.bin src/index.tsx \
+    --external=playwright --external=playwright-core
+  [350ms]  bundle  2892 modules
+  [411ms] compile  /tmp/upup-bc-real.bin
+error: Failed to generate bytecode for ./upup-bc-real.bin
+```
+
+Bun 在 cjs 路径下不打印文件位置，只一行 `Failed to generate bytecode`，所以先前
+误把"任何 bytecode 失败 = TLA 阻断"归因。这条经验值得记一笔：**Bun 1.4.1 的 bytecode
+错误信息缺文件位置，定位时要先排除 `--format` / `--external` / `--sourcemap` 等
+flags 的影响再猜语法**。
+
+**收益是否值得？** 在等价无 TLA 合成入口上对比 `--bytecode` 与普通编译：
 
 ```
 synth-plain   (无 bytecode) : 冷 0.47s / 热 0.00~0.01s
@@ -534,31 +679,33 @@ synth-bytecode              : 冷 0.44s / 热 0.00s
                               → 差异在测量噪声内，**没有可观测收益**
 ```
 
-所以正确结论是：**跳过 `--bytecode`，只加 `--minify`。** 若将来 Pi runtime 把入口改成
-async IIFE（去掉 TLA），可以再测一次——但按现有数据，收益预计仍然很小。
+**所以结论分两层**：
 
-`--compile` 已经把 ~204MB 的运行时内存基线固定下来（见 8.3），是合理的发布形态。
+1. **修法**：发布脚本里加 `--format=esm --bytecode` 即可解锁（产物体积从 79MB 涨到
+   107MB = +36%，因为 bytecode cache + JSC 内核都打进了二进制）。
+2. **值不值**：UpUp 当前 TTI 不在 bundle 解析上（实测 minify 单独省 8% 启动时间，bytecode
+   在等价合成入口上几乎无差异），所以 **不建议**为生产 release 启用 `--bytecode`。
+   这条经验作为"未来如果 TTI 出现明显差距时的备选"保留即可。
 
-### 8.3 内存基线（实测）
+`--compile` 已经把 ~170MB 的运行时内存基线固定下来（见 10.3），是合理的发布形态。
+
+### 10.3 内存基线（实测）
 
 ```
-startup RSS: 204MB
-after session #1: 348MB   (heapUsed 55MB)
-after session #2: 355MB   (heapUsed 55MB)
-after session #3: 374MB   (heapUsed 58MB)
-after session #4: 378MB   (heapUsed 58MB)
-after session #5: 382MB   (heapUsed 60MB)
-after disposing all: 382MB   ← 释放后 RSS 不回落（JSC 保留页）
+startup RSS: 170 ~ 172MB
+after session #1: 336 ~ 339MB   (heapUsed 50~52MB)
+after session #5: 370 ~ 386MB   (heapUsed 57~60MB)
+after disposing all: 370 ~ 386MB   ← 释放后 RSS 不回落（JSC 保留页）
 ```
 
-**观察**：RSS 从 204MB 涨到 382MB，增量（178MB）里大头是 **session #1 的 144MB**
-（Pi runtime + package 图 + skill/package 解析的一次性成本），之后每个 session 只增 ~7MB。
+**观察**：RSS 从 ~170MB 涨到 ~376MB，增量（~206MB）里大头是 **session #1 的 ~167MB**
+（Pi runtime + package 图 + skill/package 解析的一次性成本），之后每个 session 只增 ~7MB（3 次独立运行一致）。
 `dispose()` 后 RSS 不回落属于正常 GC 行为，不是泄漏。
 
 但结合 P7/P8，长驻进程（daemon/gateway）值得加一个定期 RSS 观测——因为**缓存无上限（P8）
 叠加这个 ~7MB/session 的增量**，长期才是真正需要盯的地方。
 
-### 8.4 CPU 密集路径
+### 10.4 CPU 密集路径
 
 仓库里唯一的 worker 用法是 `pi-portfolio/src/duckdb.ts:95`（DuckDB wasm worker）。实测向量检索（memory 的 `cosineSim`，`packages/memory/src/search.ts:301`）**并不慢**：
 
@@ -577,7 +724,13 @@ cosine over 5000 x 1536d:
 
 ---
 
-## 9. 优先级与实施路线
+## 11. 优先级与实施路线
+
+### 第零阶段（一行修复，可立刻合入）
+
+0. **修掉 fetcher 注入点被绕过**（P11）——`quote.ts:433` 一行透传 `{ fetcher: this.fetcher }`。
+   实测这条隐藏调用最长 5655ms，是 `bun test` 偶发超时的直接原因，**修复方案已实测验证有效**
+   （`scripts/perf/verify-seam-fix.ts`：传参后真实出网 0 次）。改动一行，收益是 CI 不再 flaky。
 
 ### 第一阶段（高优，预计 3~5 天，收益最大）
 
@@ -590,7 +743,7 @@ cosine over 5000 x 1536d:
 
 5. **in-flight 合并**（P6）——缓存存 Promise；对同 turn 的重复查询只打一次上游（实测 5 并发相同查询 = 10 次上游 → 应为 2 次）。
 6. **缓存加边界**（P8）——抽一个共享的 bounded LRU。
-7. **批量场景关掉全局 skill 扫描**（P10）——cron / eval / gateway 每请求建 session 的地方传 `userSkills: 'whitelist-only'`，每 session 省 ~13ms。
+7. **批量场景关掉全局 skill 扫描**（P10）——cron / eval / gateway 每请求建 session 的地方传 `userSkills: 'whitelist-only'`，每 session 省 ~11ms。
 
 ### 第三阶段（低优，可随手做）
 
@@ -625,12 +778,15 @@ bun scripts/perf/bench-vector.ts          # Float32Array 路径是否更快（�
 bun scripts/perf/bench-stable.ts          # 哈希 / 序列化的稳定测量（预热+交错）
 bun scripts/perf/bench-trust.ts           # 包哈希成本
 bun scripts/perf/tla/                     # --bytecode 不支持顶层 await 的最小复现
+bun scripts/perf/repro-test-seam-bypass.ts      # P11：注入的 fetcher 被绕过，真实出网
+bun scripts/perf/bench-seam-bypass-latency.ts   # P11：这条绕过路径的耗时分布（140~5655ms）
+bun scripts/perf/verify-seam-fix.ts             # P11：透传 fetcher 后 seam 恢复（已实测有效）
 ```
 
 > 所有脚本都能从**任意 cwd** 运行（路径基于 `import.meta.url` 解析到仓库根），
 > 不再依赖 `/tmp` 或"必须在仓库根执行"这类隐含前提。
 
-**尚未自动化的部分**：构建产物体积/启动对比（§8.2）与 `--bytecode` 复现目前靠手工跑，
+**尚未自动化的部分**：构建产物体积/启动对比（§10.2）与 `--bytecode` 复现目前靠手工跑，
 因为它们需要真实 `bun build --compile`（数十秒级）。若要进 CI，建议单独开一个
 `perf` job 而不是塞进现有 20 项 matrix。
 
@@ -638,6 +794,8 @@ bun scripts/perf/tla/                     # --bytecode 不支持顶层 await 的
 
 1. **同一主机的 N 个独立请求不应被串行化**（当前的 `host-request-gate.ts` 会失败这条）。
 2. **一条 path 的 reset 不应让同主机的其他 path 进入冷却**（当前会失败，见 `bench-counter.ts` C 组）。
+3. **注入 fetcher 后不得有任何请求经由全局 `fetch` 出网**（当前的 `quote.ts:433` 会失败这条，
+   检测形状见 `repro-test-seam-bypass.ts`）。
 
 ---
 
@@ -656,5 +814,5 @@ bun scripts/perf/tla/                     # --bytecode 不支持顶层 await 的
 | `packages/pi-management/src/server.ts` | 已在用 `Bun.serve` ✅ |
 | `packages/pi-observability/src/provider-retry.ts` | 重试分类（`HostThrottleError` → `permanent`，P3） |
 | `packages/pi-session/src/agent-session-factory.ts:352-364` | 每次 `createSession` 的 trust 校验与 skill 扫描（P7/P10） |
-| `packages/pi-app/src/entry.ts` | 34 处顶层 await → `--bytecode` 不可用的原因（§8.2） |
+| `packages/pi-app/src/entry.ts` | 0 个 col-0 await（实测），`--bytecode` 失败真实根因是 Bun 1.4.1 默认 cjs 格式不兼容，加 `--format=esm` 即可解锁（§10.2） |
 | `package.json:15` | `build` 脚本（未加 `--minify`） |

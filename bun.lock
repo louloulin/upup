@@ -302,6 +302,17 @@
         "typebox": "1.3.7",
       },
     },
+    "packages/pi-fund-by-stock": {
+      "name": "@upup/pi-fund-by-stock",
+      "version": "0.1.0",
+      "dependencies": {
+        "@upup/pi-finance-sdk": "workspace:*",
+      },
+      "peerDependencies": {
+        "@earendil-works/pi-coding-agent": "0.85.1",
+        "typebox": "1.3.7",
+      },
+    },
     "packages/pi-investment-analysis": {
       "name": "@upup/pi-investment-analysis",
       "version": "0.1.0",
@@ -1429,6 +1440,8 @@
     "@upup/pi-event-adapter": ["@upup/pi-event-adapter@workspace:packages/pi-event-adapter"],
 
     "@upup/pi-finance-sdk": ["@upup/pi-finance-sdk@workspace:packages/pi-finance-sdk"],
+
+    "@upup/pi-fund-by-stock": ["@upup/pi-fund-by-stock@workspace:packages/pi-fund-by-stock"],
 
     "@upup/pi-investment-analysis": ["@upup/pi-investment-analysis@workspace:packages/pi-investment-analysis"],
 

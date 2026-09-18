@@ -69,6 +69,160 @@ check(
   'docs/upup-developer-guide.md must document `--mode json` exposure',
 );
 
+// 2b. ACP (Agent Client Protocol) front-end -------------------------------
+// A flag name in a help string is not an integration. `upup --acp` previously
+// advertised ACP method names while forwarding to Pi's plain RPC mode, so
+// every ACP client got `Unknown command: undefined` and the advertised surface
+// did not actually exist. Assert the wiring *and* execute the server.
+console.log('\n2b. ACP front-end (upup --acp):');
+const acpServerPath = resolve(ROOT, 'packages/pi-app/src/acp/server.ts');
+const acpTranslatePath = resolve(ROOT, 'packages/pi-app/src/acp/translate.ts');
+const acpPortPath = resolve(ROOT, 'packages/pi-app/src/acp/pi-session-port.ts');
+check(
+  'ACP front-end module exists (server + translate + Pi session port)',
+  existsSync(acpServerPath) && existsSync(acpTranslatePath) && existsSync(acpPortPath),
+  'packages/pi-app/src/acp/{server,translate,pi-session-port}.ts must all exist',
+);
+check(
+  'entry.ts dispatches --acp to the ACP server, not to Pi RPC mode',
+  /args\.includes\(\s*['"]--acp['"]\s*\)/.test(entrySrc)
+    && /import\(\s*['"]\.\/acp\/server['"]\s*\)/.test(entrySrc)
+    && /createAcpServer/.test(entrySrc),
+  'packages/pi-app/src/entry.ts must import ./acp/server and call createAcpServer for --acp',
+);
+// Ordering matters: both flags start a stdio server, so if the --stdio branch
+// came first it would swallow --acp and re-introduce the removed bug.
+const acpBranchIndex = entrySrc.indexOf("'--acp'");
+const stdioBranchIndex = entrySrc.indexOf("=== '--stdio'") >= 0
+  ? entrySrc.indexOf("=== '--stdio'")
+  : entrySrc.indexOf("'--stdio'");
+check(
+  'entry.ts checks --acp before --stdio',
+  acpBranchIndex >= 0 && stdioBranchIndex >= 0 && acpBranchIndex < stdioBranchIndex,
+  'the --acp branch must precede the --stdio branch or --acp is unreachable',
+);
+check(
+  'entry.ts strips only --stdio when forwarding argv to Pi',
+  /filter\(\(arg\)\s*=>\s*arg\s*!==\s*['"]--stdio['"]\s*\)/.test(entrySrc),
+  'the --stdio forwarder must not be expected to handle --acp',
+);
+
+// 2c. ACP protocol behaviour (executed, not grepped) --------------------------
+// Drive the real server over an in-memory transport with a scripted session:
+// `session/new` must mint an id, `session/prompt` must stream a
+// `session/update` notification and resolve with a stop reason, and an
+// unknown method must produce an ACP-level JSON-RPC error rather than a
+// silent EOF.
+console.log('\n2c. ACP protocol behaviour (executed):');
+let acpOutcome = '';
+let acpOk = false;
+try {
+  const { createAcpServer } = (await import(acpServerPath)) as {
+    createAcpServer: (options: Record<string, unknown>) => { done: Promise<void>; stop(): Promise<void> };
+  };
+  const { PassThrough } = await import('node:stream');
+  const input = new PassThrough();
+  const output = new PassThrough();
+  const frames: Record<string, unknown>[] = [];
+  let buffer = '';
+  output.on('data', (chunk: Buffer) => {
+    buffer += chunk.toString('utf8');
+    let index: number;
+    while ((index = buffer.indexOf('\n')) >= 0) {
+      const line = buffer.slice(0, index);
+      buffer = buffer.slice(index + 1);
+      if (!line.trim()) continue;
+      try { frames.push(JSON.parse(line)); } catch { frames.push({ unparseable: line }); }
+    }
+  });
+  const listeners = new Set<(event: { type: string }) => void>();
+  const server = createAcpServer({
+    input,
+    output,
+    sessionFactory: {
+      async createSession() {
+        return {
+          id: 'acp-probe-session',
+          async prompt() {
+            for (const event of [
+              { type: 'thinking', text: 'considering' },
+              { type: 'text', text: 'hello from ACP' },
+            ]) {
+              for (const listener of listeners) listener(event);
+            }
+          },
+          async abort() {},
+          subscribe(listener: (event: { type: string }) => void) {
+            listeners.add(listener);
+            return () => listeners.delete(listener);
+          },
+          dispose() { listeners.clear(); },
+        };
+      },
+    },
+  });
+  const send = (frame: unknown): void => { input.write(JSON.stringify(frame) + '\n'); };
+  const awaitResult = async (id: number): Promise<void> => {
+    const deadline = Date.now() + 3_000;
+    while (Date.now() < deadline) {
+      if (frames.some((frame) => frame.id === id && (frame.result !== undefined || frame.error !== undefined))) return;
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+  };
+  send({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: 1 } });
+  send({ jsonrpc: '2.0', id: 2, method: 'session/new', params: { cwd: ROOT } });
+  await awaitResult(2);
+  // A real editor prompts the session `session/new` returned, so the prompt
+  // must be seeded with that id rather than a hard-coded guess.
+  const mintedId = (frames.find((frame) => frame.id === 2)?.result as { sessionId?: string } | undefined)?.sessionId;
+  send({ jsonrpc: '2.0', id: 3, method: 'session/prompt', params: { sessionId: mintedId, prompt: [{ type: 'text', text: 'ping' }] } });
+  await awaitResult(3);
+  send({ jsonrpc: '2.0', id: 4, method: 'not/a/method', params: {} });
+  await awaitResult(4);
+  // Piped clients close stdin once they are done writing. Ending here, after
+  // the replies have been read, is what makes the EOF drain logic contractual.
+  input.end();
+  const settled = await Promise.race([
+    server.done.then(() => 'done' as const),
+    new Promise<'timeout'>((r) => setTimeout(() => r('timeout'), 5_000)),
+  ]);
+  if (settled === 'timeout') {
+    acpOutcome = 'server.done never resolved — piped stdin EOF dropped the in-flight responses';
+  } else {
+    // `frames` holds JSON-RPC envelopes, so the payload is one level down.
+    const resultFor = (id: number): Record<string, unknown> | undefined => {
+      const frame = frames.find((candidate) => candidate.id === id && candidate.result !== undefined);
+      return frame?.result as Record<string, unknown> | undefined;
+    };
+    const errorFor = (id: number): Record<string, unknown> | undefined => frames.find(
+      (frame) => frame.id === id && frame.error !== undefined,
+    );
+    const init = resultFor(1);
+    const newSession = resultFor(2);
+    const prompt = resultFor(3);
+    const updates = frames.filter((frame) => frame.method === 'session/update');
+    const problems: string[] = [];
+    if (!init || typeof init.protocolVersion !== 'number') problems.push('initialize returned no protocolVersion');
+    if (!newSession || typeof newSession.sessionId !== 'string') problems.push('session/new returned no sessionId');
+    if (!prompt || typeof prompt.stopReason !== 'string') problems.push('session/prompt returned no stopReason');
+    if (updates.length === 0) problems.push('session/prompt streamed no session/update notification');
+    if (!errorFor(4)) problems.push('an unknown method did not produce a JSON-RPC error');
+    acpOk = problems.length === 0;
+    acpOutcome = acpOk
+      ? `${frames.length} frames, ${updates.length} session/update, stopReason=${String(prompt?.stopReason)}`
+      : problems.join('; ');
+  }
+} catch (error) {
+  acpOutcome = error instanceof Error ? error.message : String(error);
+}
+check(
+  'ACP server answers initialize / session/new / session/prompt and streams updates',
+  acpOk,
+  acpOutcome,
+);
+if (acpOk) console.log(`     ${acpOutcome}`);
+
+
 // 3. MCP Server package exists with tools in upup_finance__ namespace -------
 console.log('\n3. MCP Server (@upup/mcp-server):');
 const mcpIndex = resolve(ROOT, 'packages/mcp-server/src/index.ts');

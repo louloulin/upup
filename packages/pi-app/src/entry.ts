@@ -79,15 +79,34 @@ async function main() {
   // global install cache). See `proper-lockfile-bun-shim.ts` for diagnosis.
   await applyProperLockfileBunShim();
 
-  // Pi native stdio: --stdio / --acp delegate to Pi's `main()` with --mode rpc,
-  // which routes stdin/stdout to Pi's runRpcMode (JSON-RPC envelope). The ACP
-  // subset (session/new, session/load, session/prompt) maps onto the same
-  // RpcCommand surface Pi uses for editor integrations.
-  if (args.includes('--stdio') || args.includes('--acp')) {
+  // ACP (Agent Client Protocol) front-end: editor hosts speak JSON-RPC with
+  // ACP method names (`session/new`, `session/prompt`, `session/cancel`) and
+  // expect `session/update` notifications while a prompt streams. Pi's own RPC
+  // mode uses a different command shape (`{ type: "..." }`), so `--acp` needs
+  // the translation layer in `./acp` rather than a plain `--mode rpc` handoff.
+  //
+  // Must run before the `--stdio` branch below: both flags start a stdio
+  // server, but only `--stdio` forwards to Pi's runRpcMode.
+  if (args.includes('--acp')) {
+    const [{ createAcpServer }, { createPiAcpSessionFactory }] = await Promise.all([
+      import('./acp/server'),
+      import('./acp/pi-session-port'),
+    ]);
+    const server = createAcpServer({ sessionFactory: createPiAcpSessionFactory() });
+    const shutdown = (): void => { void server.stop().finally(() => process.exit(0)); };
+    process.once('SIGINT', shutdown);
+    process.once('SIGTERM', shutdown);
+    await server.done;
+    process.exit(0);
+  }
+
+  // Pi native stdio: --stdio delegates to Pi's `main()` with --mode rpc, which
+  // routes stdin/stdout to Pi's runRpcMode.
+  if (args.includes('--stdio')) {
     const { main } = await import('@earendil-works/pi-coding-agent');
-    // `--stdio` / `--acp` are UpUp selectors, not Pi flags: strip them before
-    // handing argv to Pi's parser, which rejects unknown options.
-    const forwarded = args.filter((arg) => arg !== '--stdio' && arg !== '--acp');
+    // `--stdio` is an UpUp selector, not a Pi flag: strip it before handing
+    // argv to Pi's parser, which rejects unknown options.
+    const forwarded = args.filter((arg) => arg !== '--stdio');
     const rpcArgs = ['--mode', 'rpc', ...forwarded];
     // Pi's runRpcMode ingests stdin line-by-line, but on EOF it does not
     // always exit promptly — it can keep the loop alive waiting for the
@@ -556,10 +575,10 @@ Examples:
   upup -c           Continue the most recent session
 
 Protocol Modes:
-  upup --stdio                 JSON-RPC 2.0 over stdio (UpUp-native method names)
-  upup --acp                   Same transport, ACP method names (session/new, session/load, session/prompt)
-                               and ACP session/update notifications. Auto-detected: any ACP method name
-                               switches the session into ACP mode even without the flag.
+  upup --stdio                 Pi RPC mode: JSONL commands (id + type fields) over stdio
+  upup --acp                   Agent Client Protocol over stdio: JSON-RPC method names
+                               (initialize, session/new, session/prompt, session/cancel)
+                               plus ACP session/update notifications while a prompt streams.
 
 Bridge Mode (Sprint 1.3):
   upup --bridge [--bridge-port=7333] [--bridge-token=<secret>] [--bridge-bind=127.0.0.1] [--bridge-only]

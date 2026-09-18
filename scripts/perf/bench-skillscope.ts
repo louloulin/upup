@@ -1,12 +1,17 @@
 import { PiAgentSessionFactory } from '../../packages/pi-session/src/index';
 import { getInvestmentAgentSpec } from '../../packages/pi-investment-workflow/src/index';
 import { bootstrapPiNativeServices } from '../../packages/pi-app/src/default';
+import { join } from 'node:path';
+
+// Repo root from this file's location, so the script runs from any cwd.
+const REPO_ROOT = new URL('../../', import.meta.url).pathname;
+
 bootstrapPiNativeServices();
 const base = {
-  cwd: '/Users/louloulin/appx/upup',
-  piPackagePaths: ['../../packages/pi-market-data', '../../packages/pi-finance-sdk'],
+  cwd: REPO_ROOT,
+  piPackagePaths: [join(REPO_ROOT, 'packages/pi-market-data'), join(REPO_ROOT, 'packages/pi-finance-sdk')],
   piPackageTrust: {
-    trustedPaths: ['../../packages/pi-market-data', '../../packages/pi-finance-sdk'],
+    trustedPaths: [join(REPO_ROOT, 'packages/pi-market-data'), join(REPO_ROOT, 'packages/pi-finance-sdk')],
     pinnedPackages: { '@upup/pi-market-data': '0.1.0', '@upup/pi-finance-sdk': '0.1.0', '@earendil-works/pi-coding-agent': '0.85.1', typebox: '1.3.7' },
     allowedSources: { '@upup/pi-market-data': ['builtin:upup'], '@upup/pi-finance-sdk': ['builtin:upup'] },
   },
