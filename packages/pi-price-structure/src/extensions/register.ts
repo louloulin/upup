@@ -135,8 +135,8 @@ export default function register(api: ExtensionAPI): void {
 
   api.registerTool({
     name: "price_structure_risk_check",
-    label: "风控校验（单手亏损必须在 10~2000 元）",
-    description: "风控校验：单手亏损必须在 [10, 2000] 元区间内，否则不开仓。",
+    label: "风控校验（单手亏损必须在 5~5000 元）",
+    description: "风控校验：单手亏损必须在 [5, 5000] 元区间内，否则不开仓。",
     parameters: {
       type: "object",
       properties: {

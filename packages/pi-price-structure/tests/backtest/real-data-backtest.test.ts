@@ -110,7 +110,7 @@ describe("回测验证 + 预测（真实主力合约数据）", () => {
         const blocked = backtest.trades.filter((t) => t.exitReason === "risk_blocked");
         if (blocked.length > 0) {
           console.log(
-            `\n[${f.symbol}] 风控拦截 ${blocked.length} 个信号（单手亏损 ∉ [10, 2000] 元）`,
+            `\n[${f.symbol}] 风控拦截 ${blocked.length} 个信号（单手亏损 ∉ [5, 5000] 元）`,
           );
           for (const b of blocked.slice(0, 5)) {
             const estLoss = Math.abs(b.entryPrice - b.stopLoss) * f.contractMultiplier;

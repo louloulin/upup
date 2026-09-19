@@ -3,21 +3,16 @@
  *
  * 规则：
  *   - 单次开仓 1 手
- *   - 预估亏损范围：默认严格 10 ~ 2000 元（保守）
- *   - 放宽版：5 ~ 5000 元（更多信号）
+ *   - 预估亏损范围：放宽版 5 ~ 5000 元（默认）
  *   - 不在范围内不开仓
  *
  * 预估亏损 = |入场价 - 止损价| × 合约乘数 × 1手
  */
 import type { RiskCheck } from "../types.js";
 
-/** 严格风控区间（保守） */
-export const MIN_LOSS_YUAN = 10;
-export const MAX_LOSS_YUAN = 2000;
-
-/** 放宽风控区间（允许更多信号） */
-export const MIN_LOSS_YUAN_RELAXED = 5;
-export const MAX_LOSS_YUAN_RELAXED = 5000;
+/** 风控区间（默认放宽版） */
+export const MIN_LOSS_YUAN = 5;
+export const MAX_LOSS_YUAN = 5000;
 
 export const FIXED_QUANTITY = 1;
 

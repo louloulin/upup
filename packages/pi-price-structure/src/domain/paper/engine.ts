@@ -15,7 +15,7 @@ import { detectBearishStructure } from "../structures/bearish.js";
 import { detectPullbackPivot } from "../structures/pullback-pivot.js";
 import { detectBouncePivot } from "../structures/bounce-pivot.js";
 import { calcLongTakeProfit, calcShortTakeProfit } from "../signal/take-profit.js";
-import { checkRisk, MIN_LOSS_YUAN_RELAXED, MAX_LOSS_YUAN_RELAXED } from "../risk/position-sizing.js";
+import { checkRisk, MIN_LOSS_YUAN, MAX_LOSS_YUAN } from "../risk/position-sizing.js";
 import { aggregateWeeklyToDate } from "../backtest/engine.js";
 import { isSymbolEnabled, filterEntry } from "../optimization/symbol-rules.js";
 
@@ -171,8 +171,8 @@ export function runPaperSimulation(
       // 风控校验（单手亏损 5~5000 元）
       account.setMultiplier(symConfig.contractMultiplier);
       const risk = checkRisk(entryPrice, stopLoss, symConfig.contractMultiplier, {
-        minLoss: MIN_LOSS_YUAN_RELAXED,
-        maxLoss: MAX_LOSS_YUAN_RELAXED,
+        minLoss: MIN_LOSS_YUAN,
+        maxLoss: MAX_LOSS_YUAN,
       });
       if (!risk.pass) continue;
 

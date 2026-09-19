@@ -88,7 +88,7 @@ describe("诊断：详细打出每个信号", () => {
       for (const s of signals) {
         const dist = Math.abs(s.entryPrice - s.stopLoss);
         const lossPerHand = dist * f.contractMultiplier;
-        const pass = lossPerHand >= 10 && lossPerHand <= 2000 ? "✓" : "✗被拦";
+        const pass = lossPerHand >= 5 && lossPerHand <= 5000 ? "✓" : "✗被拦";
         console.log(
           `  ${s.date} ${s.direction === "long" ? "多" : "空"} 入@${s.entryPrice.toFixed(2)} 止损@${s.stopLoss.toFixed(2)} 距离=${dist.toFixed(2)}点 亏损=${lossPerHand.toFixed(2)}元 ${pass}`,
         );

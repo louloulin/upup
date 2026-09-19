@@ -18,7 +18,7 @@ import { detectBearishStructure } from "../structures/bearish.js";
 import { detectPullbackPivot } from "../structures/pullback-pivot.js";
 import { detectBouncePivot } from "../structures/bounce-pivot.js";
 import { calcLongTakeProfit, calcShortTakeProfit } from "../signal/take-profit.js";
-import { checkRisk, MIN_LOSS_YUAN_RELAXED, MAX_LOSS_YUAN_RELAXED } from "../risk/position-sizing.js";
+import { checkRisk, MIN_LOSS_YUAN, MAX_LOSS_YUAN } from "../risk/position-sizing.js";
 import { isSymbolEnabled, filterEntry } from "../optimization/symbol-rules.js";
 import { calcRoundTripCommission, applySlippage } from "./cost-model.js";
 import { aggregateMetrics } from "./metrics.js";
@@ -161,8 +161,8 @@ export function runBacktest(input: BacktestEngineInput): BacktestResult {
 
     // 风控校验（默认放宽：5~5000 元）
     const riskOptions = {
-      minLoss: input.riskOptions?.minLoss ?? MIN_LOSS_YUAN_RELAXED,
-      maxLoss: input.riskOptions?.maxLoss ?? MAX_LOSS_YUAN_RELAXED,
+      minLoss: input.riskOptions?.minLoss ?? MIN_LOSS_YUAN,
+      maxLoss: input.riskOptions?.maxLoss ?? MAX_LOSS_YUAN,
     };
     const risk = checkRisk(entryPriceRaw, stopLossRaw, input.contractMultiplier, riskOptions);
     if (!risk.pass) {
