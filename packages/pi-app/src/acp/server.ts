@@ -105,6 +105,9 @@ class AcpSession {
   async prompt(text: string): Promise<AcpStopReason> {
     const controller = new AbortController();
     const forward = (event: UpUpAgentEvent): void => {
+      // SAFETY: `mapUpUpEventToAcpUpdate` only switches on `event.type` and
+      // narrows the payload itself; it never reads the rest of `UpUpAgentEvent`,
+      // so erasing that surface here cannot hide a mismatch it would otherwise catch.
       const update = mapUpUpEventToAcpUpdate(event as unknown as { type: string });
       if (update) this.emit({ ...update });
     };
@@ -151,7 +154,10 @@ class AcpSession {
  * callers can attach diagnostics before the first byte is read.
  */
 export function createAcpServer(options: AcpServerOptions = {}): AcpServerHandle {
-  const input = options.input ?? process.stdin;
+  // Annotated on purpose: `process.stdin` is a `net.Socket` subclass, and a
+  // union of its typed `on()` overloads with `NodeJS.ReadableStream`'s is not
+  // callable. The narrow stream surface is all this server uses.
+  const input: NodeJS.ReadableStream = options.input ?? process.stdin;
   const output = options.output ?? process.stdout;
   const log = options.log ?? (() => {});
   const sessions = new Map<string, AcpSession>();

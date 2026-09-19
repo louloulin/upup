@@ -474,7 +474,9 @@ export class IPCClient {
     });
   }
 
-  private handleData(data: Buffer): void {
+  // `net.Socket`'s `'data'` event is typed `string | Buffer` (the `string` case
+  // covers a socket switched into an encoding); both stringify identically.
+  private handleData(data: Buffer | string): void {
     const lines = data.toString().split('\n');
     for (const line of lines) {
       if (!line.trim()) continue;
