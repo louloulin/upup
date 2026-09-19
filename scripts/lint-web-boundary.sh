@@ -48,15 +48,15 @@ for pattern in "${FORBIDDEN_PATTERNS[@]}"; do
   # 我们只检查管理页面目录 — 包别名留给 bundler 配置去管,本 lint 不
   # 试图枚举所有可能的别名。
   matches=$(
-    grep -rnE "from ['\"](\.\./)+(${pattern}|${pattern%/})" "$WEB_DIR" 2>/dev/null \
-      || true
+    grep -rnE "from ['\"](\.\./)+(${pattern}|${pattern%/})" "$WEB_DIR" 2>/dev/null ||
+      true
   )
   if [[ -n "$matches" ]]; then
     while IFS= read -r line; do
       total=$((total + 1))
       echo "ERROR: $line  ←  禁 import 模式: $pattern" >&2
       violations=$((violations + 1))
-    done <<< "$matches"
+    done <<<"$matches"
   fi
 done
 
