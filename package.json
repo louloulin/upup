@@ -229,7 +229,7 @@
   "devDependencies": {
     "@babel/core": "^7.29.7",
     "@babel/preset-env": "^7.29.7",
-    "@types/better-sqlite3": "^7.6.13",
+    "@types/better-sqlite3": "^9.6.0",
     "@types/bun": "^1.4.2",
     "@types/glob": "^7.2.0",
     "@types/jest": "^29.5.14",
