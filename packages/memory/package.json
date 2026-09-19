@@ -22,7 +22,7 @@
     "@upup/pi-storage": "0.2.0",
     "@upup/utils": "0.2.0",
     "gray-matter": "4.0.3",
-    "zod": "3.25.76"
+    "zod": "4.6.5"
   },
   "files": [
     "dist",
