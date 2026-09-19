@@ -366,6 +366,8 @@ CLI 字符串、prompt、skill 描述均为 EN + zh-CN 双语；缺失翻译会�
 
 ## 文档索引
 
+> 📖 **完整文档导航见 [`docs/index.md`](./docs/index.md)** —— 它是本仓库文档的**唯一导航真源**。
+
 - [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) — 架构总览
 - [docs/pi-plugin-authoring.md](./docs/pi-plugin-authoring.md) — 写 Pi Package
 - [docs/investment-workflow.md](./docs/investment-workflow.md) — 5 阶段投研工作流

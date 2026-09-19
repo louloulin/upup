@@ -249,7 +249,22 @@ if (!plan.includes(marker)) throw new Error(`pi5.md is missing required marker: 
 
 ### 7.3 task-6 验证结果
 
-- `git status -M`：**9 R**（全部 rename 检测通过，history 保留）
-- 全仓死链：**28 → 5**，且 5 条均为**已验证误报**（`.github/` issue / PR 模板按仓库根解析）
+- `git status -M`：**22 R**（9 个 docs 归档 + 13 个 scripts 补漏归档，rename 检测全部通过）
+- 全仓死链：**28 → 7**，且 7 条均为**已验证误报**（`.github/ISSUE_TEMPLATE/question.md` 2 条 + `.github/PULL_REQUEST_TEMPLATE.md` 5 条，按仓库根解析，见 §7.5）
 - `docs/` 导航面（排除 `internal/`）：**0 条死链**；`docs/index.md` 内链 **100% 可达**
 - `docs/` 主树跨文件重复段落（>200 字符）：**0**
+
+### 7.4 task-6 补充归档（scripts 扫描补漏）— 13 个
+
+§5.5 的 50 个脚本白名单基于「顶层 `scripts/*.{ts,sh,applescript}` + `oscript-*` / `x11-*` / `appscript-*`」扫描，**遗漏了 `scripts/authorization/` 子目录**与 `real-appscript-*.sh`。补扫发现 13 个同类实验性脚本（macOS 本地 UI 驱动 `osascript` harness，**全部零消费者**），补归档如下：
+
+| 原路径 | 新路径 | 证据 |
+|---|---|---|
+| `scripts/authorization/*`（11 个：`authorization-verify.scpt`、`cli-verify.sh`、`comprehensive-verify.scpt`、`upup-verify.applescript`、`upup-fund-verify{,-v2,-v3,-v4,-final}.applescript`、`verify-skills.scpt`、`verify-tui.scpt`） | `scripts/internal/authorization/` | 全仓零引用（含 `package.json` scripts / CI / `*.test.ts` / 其他脚本） |
+| `scripts/real-appscript-interactive.sh`、`scripts/real-appscript-multiagent.sh` | `scripts/internal/` | 同上 |
+
+**补归档后保留在 `scripts/` 的真实验证器**（有 CI / package.json 消费，不在归档范围）：`scripts/test-real-conversation.sh`、`scripts/verify-pi-real-invest.ts`（+ 其 `.contract.test.ts` / `.synthetic.test.ts`）—— 即 C15 real-invest 闭环验证器。
+
+### 7.5 `.github/` 死链误报的判定依据
+
+issue / PR 模板渲染为 issue / PR **正文**，其相对链接按**仓库根**解析，而非模板文件所在目录。证据：外部仓库的同类修复提交明确记载「The PR template is rendered as a PR body, where relative links resolve from the repository root, so `../AGENTS.md` would break; link to `AGENTS.md` directly」。因此 `.github/PULL_REQUEST_TEMPLATE.md` 中的 `./AGENTS.md` / `./CONTRIBUTING.md` / `./docs/*.md` 与 `.github/ISSUE_TEMPLATE/question.md` 中的 `./README.md` / `./docs/` 均**正确**，改为 `../` 反而在 GitHub 上 404。仅按文件目录解析的本地扫描器会误报 → **保留原样，标记为误报**。

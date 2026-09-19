@@ -366,6 +366,8 @@ CLI strings, prompts, and skill descriptions are bilingual (EN + zh-CN); a missi
 
 ## Documentation index
 
+> 📖 **Full documentation navigation lives in [`docs/index.md`](./docs/index.md)** — the single navigation source of truth for this repository.
+
 - [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) — architecture overview
 - [docs/pi-plugin-authoring.md](./docs/pi-plugin-authoring.md) — writing a Pi Package
 - [docs/investment-workflow.md](./docs/investment-workflow.md) — the 5-stage research workflow
