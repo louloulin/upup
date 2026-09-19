@@ -80,7 +80,7 @@ const result = await Bun.build({
   outdir: resolve(repoRoot, 'dist'),
   naming: 'index.js',
   bundle: true,
-  target: 'node22',
+  target: 'node',
   format: 'esm',
   // 把 `@upup/*` 强行解析到 TypeScript 源码而不是 workspace 各包的
   // `default` 出口（`bun build --target=bun` 出的 dist 产物）。dist 产物里
