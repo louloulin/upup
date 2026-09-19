@@ -1,0 +1,126 @@
+{
+  "name": "@upup/pi-price-structure",
+  "version": "2026.9.19",
+  "type": "module",
+  "private": true,
+  "description": "期货价格结构交易系统：周线判方向 + 日线找拐点 + 严格风控 + 完整回测",
+  "exports": {
+    ".": { "bun": "./src/index.ts", "default": "./dist/index.js" },
+    "./domain/types": { "bun": "./src/domain/types.ts" },
+    "./domain/structures/bullish": { "bun": "./src/domain/structures/bullish.ts" },
+    "./domain/structures/bearish": { "bun": "./src/domain/structures/bearish.ts" },
+    "./domain/structures/top": { "bun": "./src/domain/structures/top.ts" },
+    "./domain/structures/bottom": { "bun": "./src/domain/structures/bottom.ts" },
+    "./domain/structures/pullback-pivot": { "bun": "./src/domain/structures/pullback-pivot.ts" },
+    "./domain/structures/bounce-pivot": { "bun": "./src/domain/structures/bounce-pivot.ts" },
+    "./domain/signal/entry": { "bun": "./src/domain/signal/entry.ts" },
+    "./domain/signal/stop-loss": { "bun": "./src/domain/signal/stop-loss.ts" },
+    "./domain/signal/take-profit": { "bun": "./src/domain/signal/take-profit.ts" },
+    "./domain/risk/position-sizing": { "bun": "./src/domain/risk/position-sizing.ts" },
+    "./domain/backtest/engine": { "bun": "./src/domain/backtest/engine.ts" },
+    "./domain/backtest/metrics": { "bun": "./src/domain/backtest/metrics.ts" },
+    "./domain/backtest/cost-model": { "bun": "./src/domain/backtest/cost-model.ts" },
+    "./domain/portfolio/tracker": { "bun": "./src/domain/portfolio/tracker.ts" },
+    "./adapters/akshare-bridge": { "bun": "./src/adapters/akshare-bridge.ts" }
+  },
+  "scripts": {
+    "build": "bun build src/index.ts --outdir=dist --target=bun",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "bun test tests/"
+  },
+  "dependencies": {
+    "@earendil-works/pi-coding-agent": "0.85.1"
+  },
+  "pi": {
+    "name": "pi-price-structure",
+    "extensions": ["./src/extensions/register.ts"],
+    "tools": [
+      {
+        "name": "price_structure_fetch_data",
+        "description": "获取期货合约日线/周线 OHLC（AkShare 桥接或本地 CSV）",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "symbol": { "type": "string", "description": "合约代码，如 AU2612、CU2610" },
+            "startDate": { "type": "string" },
+            "endDate": { "type": "string" },
+            "source": { "type": "string", "enum": ["akshare", "csv"] },
+            "csvPath": { "type": "string" }
+          },
+          "required": ["symbol", "startDate", "endDate"]
+        },
+        "sideEffect": "read-only"
+      },
+      {
+        "name": "price_structure_analyze_direction",
+        "description": "周线判方向（看多/看空/震荡）：识别 6 种结构并返回当前方向",
+        "inputSchema": {
+          "type": "object",
+          "properties": { "weeklyBars": { "type": "array" } },
+          "required": ["weeklyBars"]
+        },
+        "sideEffect": "read-only"
+      },
+      {
+        "name": "price_structure_entry_signal",
+        "description": "日线进场信号（回调拐点/反弹拐点），输出入场价、止损、止盈",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "direction": { "type": "string", "enum": ["long", "short"] },
+            "weeklyBars": { "type": "array" },
+            "dailyBars": { "type": "array" }
+          },
+          "required": ["direction", "weeklyBars", "dailyBars"]
+        },
+        "sideEffect": "read-only"
+      },
+      {
+        "name": "price_structure_risk_check",
+        "description": "风控校验：单手亏损 ∈ [10, 2000] 元则通过",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "entryPrice": { "type": "number" },
+            "stopLoss": { "type": "number" },
+            "contractMultiplier": { "type": "number" }
+          },
+          "required": ["entryPrice", "stopLoss", "contractMultiplier"]
+        },
+        "sideEffect": "read-only"
+      },
+      {
+        "name": "price_structure_backtest",
+        "description": "完整回测（含佣金/滑点），输出胜率、总盈亏、最大回撤",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "symbol": { "type": "string" },
+            "dailyBars": { "type": "array" },
+            "contractMultiplier": { "type": "number" },
+            "commissionBps": { "type": "number" },
+            "slippageBps": { "type": "number" }
+          },
+          "required": ["symbol", "dailyBars", "contractMultiplier"]
+        },
+        "sideEffect": "read-only"
+      },
+      {
+        "name": "price_structure_run_sop",
+        "description": "端到端 SOP（周线判方向 → 日线找拐点 → 风控校验），输出完整交易决策",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "symbol": { "type": "string" },
+            "weeklyBars": { "type": "array" },
+            "dailyBars": { "type": "array" },
+            "contractMultiplier": { "type": "number" }
+          },
+          "required": ["symbol", "weeklyBars", "dailyBars", "contractMultiplier"]
+        },
+        "sideEffect": "read-only"
+      }
+    ],
+    "skills": ["./src/skills/price-structure-sop/SKILL.md"]
+  }
+}
