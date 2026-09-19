@@ -49,7 +49,7 @@
         "pi-web-access": "0.29.0",
         "pi-web-search": "1.6.0",
         "pi-web-ui": "^0.88.0",
-        "playwright": "^1.58.2",
+        "playwright": "^1.63.0",
         "qrcode-terminal": "^0.12.0",
         "rolebox": "1.9.0",
         "shell-quote": "^1.8.3",
@@ -2580,9 +2580,9 @@
 
     "pkg-fetch": ["pkg-fetch@3.4.2", "https://registry.npmmirror.com/pkg-fetch/-/pkg-fetch-3.4.2.tgz", { "dependencies": { "chalk": "^4.1.2", "fs-extra": "^9.1.0", "https-proxy-agent": "^5.0.0", "node-fetch": "^2.6.6", "progress": "^2.0.3", "semver": "^7.3.5", "tar-fs": "^2.1.1", "yargs": "^16.2.0" }, "bin": { "pkg-fetch": "lib-es5/bin.js" } }, "sha512-0+uijmzYcnhC0hStDjm/cl2VYdrmVVBpe7Q8k9YBojxmR5tG8mvR9/nooQq3QSXiQqORDVOTY3XqMEqJVIzkHA=="],
 
-    "playwright": ["playwright@1.58.2", "https://registry.npmmirror.com/playwright/-/playwright-1.58.2.tgz", { "dependencies": { "playwright-core": "1.58.2" }, "optionalDependencies": { "fsevents": "2.3.2" }, "bin": { "playwright": "cli.js" } }, "sha512-vA30H8Nvkq/cPBnNw4Q8TWz1EJyqgpuinBcHET0YVJVFldr8JDNiU9LaWAE1KqSkRYazuaBhTpB5ZzShOezQ6A=="],
+    "playwright": ["playwright@1.63.0", "", { "dependencies": { "playwright-core": "1.63.0" }, "bin": { "playwright": "cli.js" } }, "sha512-+7ziBLidS4NaNCdt57SUDT+wYmmd5fmiQejUic/kb+YsYSCPyOOE9sebzMjNmQrsnNpDJqd4WHvV/8lfKfUDUg=="],
 
-    "playwright-core": ["playwright-core@1.58.2", "https://registry.npmmirror.com/playwright-core/-/playwright-core-1.58.2.tgz", { "bin": { "playwright-core": "cli.js" } }, "sha512-yZkEtftgwS8CsfYo7nm0KE8jsvm6i/PTgVtB8DL726wNf6H2IMsDuxCpJj59KDaxCtSnrWan2AeDqM7JBaultg=="],
+    "playwright-core": ["playwright-core@1.63.0", "", { "bin": { "playwright-core": "cli.js" } }, "sha512-rYCsBF/M5HjUch52bbtVONEFjv6Xu8sm8h72dNlR5bzIE1fvC/bxgspzkjSfU+MweEMmPM8KJebG6nnyxo5mCg=="],
 
     "possible-typed-array-names": ["possible-typed-array-names@1.1.0", "https://registry.npmmirror.com/possible-typed-array-names/-/possible-typed-array-names-1.1.0.tgz", {}, "sha512-/+5VFTchJDoVj3bhoqi6UeymcD00DAwb1nJwamzPvHEszJ4FpF6SNNbUbOS8yI56qHzdV8eK0qEfOSiodkTdxg=="],
 
@@ -3505,8 +3505,6 @@
     "pkg-fetch/semver": ["semver@7.7.3", "https://registry.npmmirror.com/semver/-/semver-7.7.3.tgz", { "bin": "bin/semver.js" }, "sha512-SdsKMrI9TdgjdweUSR9MweHA4EJ8YxHn8DFaDisvhVlUOe4BF1tLD7GAj0lIqWVl+dPb/rExr0Btby5loQm20Q=="],
 
     "pkg-fetch/yargs": ["yargs@16.2.0", "https://registry.npmmirror.com/yargs/-/yargs-16.2.0.tgz", { "dependencies": { "cliui": "^7.0.2", "escalade": "^3.1.1", "get-caller-file": "^2.0.5", "require-directory": "^2.1.1", "string-width": "^4.2.0", "y18n": "^5.0.5", "yargs-parser": "^20.2.2" } }, "sha512-D1mvvtDG0L5ft/jGWkLpG1+m0eQxOfaBvTNELraWj22wSVUMWxZUvYgJYcKh6jGGIkJFhH4IZPQhR4TKpc8mBw=="],
-
-    "playwright/fsevents": ["fsevents@2.3.2", "https://registry.npmmirror.com/fsevents/-/fsevents-2.3.2.tgz", { "os": "darwin" }, "sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA=="],
 
     "rc/strip-json-comments": ["strip-json-comments@2.0.1", "https://registry.npmmirror.com/strip-json-comments/-/strip-json-comments-2.0.1.tgz", {}, "sha512-4gB8na07fecVVkOI6Rs4e7T6NOTki5EmL7TUduTs6bu3EdnSycntVJ4re8kgZA+wx9IueI2Y11bfbgwtzuE0KQ=="],
 

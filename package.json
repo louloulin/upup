@@ -137,7 +137,7 @@
     "pi-web-access": "0.29.0",
     "pi-web-search": "1.6.0",
     "pi-web-ui": "^0.88.0",
-    "playwright": "^1.58.2",
+    "playwright": "^1.63.0",
     "qrcode-terminal": "^0.12.0",
     "rolebox": "1.9.0",
     "shell-quote": "^1.8.3",
