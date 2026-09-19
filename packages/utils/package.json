@@ -24,7 +24,7 @@
   },
   "dependencies": {
     "chalk": "5.6.2",
-    "dotenv": "17.3.1",
+    "dotenv": "17.4.2",
     "eventemitter3": "5.0.4",
     "@upup/pi-config": "0.1.0",
     "@upup/pi-runtime": "0.1.0"
