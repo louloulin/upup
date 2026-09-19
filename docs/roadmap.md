@@ -161,7 +161,7 @@ Things we will **not** do, on purpose:
 
 ## 中文路线图（Pi Native 迁移后 · 2026 Q3+）
 
-> 与上方英文季度规划互补，本节按 **Sprint** 划分而非季度，回答「迁完后做什么」。与 [`pi11.md`](./pi11.md)（回答「怎么迁」）、[`docs/analysis/2026-09-18-pi-native-invest-status-and-plan.md`](./analysis/2026-09-18-pi-native-invest-status-and-plan.md)（回答「现状与问题分级」）三者口径一致。
+> 与上方英文季度规划互补，本节按 **Sprint** 划分而非季度，回答「迁完后做什么」。与 [`pi11.md`](./internal/migrations/pi11.md)（回答「怎么迁」）、[`docs/analysis/2026-09-18-pi-native-invest-status-and-plan.md`](./internal/analysis/2026-09-18-pi-native-invest-status-and-plan.md)（回答「现状与问题分级」）三者口径一致。
 
 ### Sprint 划分
 
@@ -179,7 +179,7 @@ Things we will **not** do, on purpose:
 
 - [ ] **上游配额问题（P0-C）**：联系 minimax 充值 Token Plan，或在 `~/.upup/agent/models.json` 把默认模型切到 deepseek 备用（需 `.env` 增补 `DEEPSEEK_API_KEY`）。
 - [ ] **真凭证闭环（C15）**：用户提供 `TUSHARE_TOKEN`（CN/HK 行情与公告）与 `FINANCIAL_DATASETS_API_KEY`（美股 SEC 之外）后，重跑 `bun run verify:pi7-final` 让 C15 退出 skip 状态。
-- [ ] **pi11.md 已规划项合并**：把 pi11.md 后续 Sprint 中尚未落实的项（如扩展 pi-native package 的 host capability）合并到本路线图。
+- [ ] **pi11.md 已规划项合并**：把 [pi11.md](./internal/migrations/pi11.md) 后续 Sprint 中尚未落实的项（如扩展 pi-native package 的 host capability）合并到本路线图。
 - 工时估算：约 5 人日（含等待用户充值的时间）。
 - 验证方式：所有 25 套验收合同全 PASS（包括 C15）。
 - 风险与回滚：若 minimax 充值后仍不稳，可临时切 deepseek；备份 `~/.upup/agent/{settings,models,auth}.json` 到 `~/.upup/agent/<date>-backup/`。
@@ -216,9 +216,9 @@ Things we will **not** do, on purpose:
 | P2 体验 | 真凭证五阶段 E2E + Skill 作用域 | 中 | S3 启动 |
 | P3 拓展 | Web UI / Voice / 移动端 | 低 | S4 远期 |
 
-### 与 pi11.md 的对接
+### 与 pi11.md 的对接（pi11.md 已归档至 `docs/internal/migrations/`）
 
-`pi11.md` 是 **Pi Native 迁移**的完整迁移计划（48 个 package 的迁移路径、约束、回滚），已于 2026-09 收尾（仓库 `be1a780d` HEAD）。本路线图是 **迁移完成后**的功能演进路线图：两者互补不冲突——pi11.md 回答「怎么迁」，本路线图回答「迁完后做什么」。两者节奏可通过 `docs/roadmap.md` 与 `pi11.md` 的交叉引用对齐。
+[`pi11.md`](./internal/migrations/pi11.md) 是 **Pi Native 迁移**的完整迁移计划（48 个 package 的迁移路径、约束、回滚），已于 2026-09 收尾（仓库 `be1a780d` HEAD）。本路线图是 **迁移完成后**的功能演进路线图：两者互补不冲突——pi11.md 回答「怎么迁」，本路线图回答「迁完后做什么」。两者节奏可通过 `docs/roadmap.md` 与 `pi11.md` 的交叉引用对齐。
 
 ### 边界外（明确排除，不在本路线图 Sprint 内）
 
@@ -238,7 +238,7 @@ Things we will **not** do, on purpose:
 3. `bun run lint:scc` — 0 循环依赖（已在本 goal 修两条预存 cycle）。
 4. `bun run check:pi7 check:module-boundaries check:pi-packages check:pi-side-effects check:pi-deletion-audit check:pi-package-audit check:no-self-impl check:tui-bridge-cleanup check:upup-home check:pi-runtime` — 全 PASS。
 5. 凭证就绪后切 `bun run verify:pi7-final` — 24 PASS / 1 SKIP（C15）/ 0 FAIL。
-6. 更新 [`docs/analysis/2026-09-18-pi-native-invest-status-and-plan.md`](./analysis/2026-09-18-pi-native-invest-status-and-plan.md) 的 §三 与 §四，记录该 Sprint 的实施证据。
+6. 更新 [`docs/analysis/2026-09-18-pi-native-invest-status-and-plan.md`](./internal/analysis/2026-09-18-pi-native-invest-status-and-plan.md) 的 §三 与 §四，记录该 Sprint 的实施证据。
 
 ### 风险与回滚表
 

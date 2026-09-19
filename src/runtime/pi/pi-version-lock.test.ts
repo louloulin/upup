@@ -8,7 +8,7 @@
  * to break the Pi7 single-runtime guarantee.
  *
  * This is the contract that protects the "Pi 0.85.1" lock declared
- * in pi7.md and prevents accidental version drift in future commits.
+ * in docs/internal/migrations/pi7.md and prevents accidental version drift in future commits.
  */
 import { describe, expect, test } from 'bun:test';
 import { readFileSync, readdirSync, statSync } from 'node:fs';

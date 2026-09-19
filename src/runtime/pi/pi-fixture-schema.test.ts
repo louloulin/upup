@@ -8,7 +8,7 @@
  *
  * This protects against:
  *   - a schema string drifting from the `upup.pi.<area>.<version>`
- *     contract documented in pi7.md;
+ *     contract documented in docs/internal/migrations/pi7.md;
  *   - a consumer pinning a schema that no producer actually emits;
  *   - a future regression collapsing the fixture surface to a
  *     single area.

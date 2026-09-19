@@ -25,7 +25,7 @@ UpUp **不重新实现 agent**。Agent loop、TUI/InteractiveMode、工具执行
 
 > 📌 **历史沿革**：仓库最初从 [virattt/dexter](https://github.com/virattt/dexter)（MIT）起步，2026-09 的 Pi Native 迁移已把 agent /
 > TUI / transport / session 层全部替换为 Pi runtime，dexter 遗留实现不再是生产路径。保留此说明仅为满足 MIT 归属要求，UpUp 的产品身份是
-> **Pi-native 投资助手**，不是任何上游的 reskin。完整迁移记录见 [pi7.md](./pi7.md)。
+> **Pi-native 投资助手**，不是任何上游的 reskin。完整迁移记录见 [docs/internal/migrations/pi7.md](./docs/internal/migrations/pi7.md)。
 
 ## Project Structure（Pi7 真实状态）
 
@@ -230,7 +230,7 @@ UpUp 不去 fork Pi，而是用 Pi 官方扩展点 `before_agent_start`（`Befor
 - `packages/memory/src/embeddings.ts` 与 `packages/pi-research/src/search.ts#searchPerplexity` 走 raw fetch，不走 Pi provider registry；Perplexity 是一个真 LLM 推理。
 - 每个 session 默认从 `~/.agents/skills` 加载全局 skills 进 system prompt（`auto/user`），需显式 opt-in 控制。
 - 20/37 个 package 的 `pi` block 未声明 `tools` / `resources` / `capabilities`；基础设施类包可接受，但应统一口径。
-- **计划修正**：`pi7.md` 迁移计划假设「Pi `core/extensions` 已含 MCP 注册通路」——实测 Pi 明确不内置 MCP
+- **计划修正**：`docs/internal/migrations/pi7.md` 迁移计划假设「Pi `core/extensions` 已含 MCP 注册通路」——实测 Pi 明确不内置 MCP
   （`docs/usage.md`: "It intentionally does not include built-in MCP, sub-agents, permission popups, plan mode, to-dos, or background bash."）。
   因此 `packages/mcp` **保留**为 UpUp 的 Pi extension 能力，不按原计划删除。
 

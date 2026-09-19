@@ -64,7 +64,7 @@ if [[ "$violations" -gt 0 ]]; then
   echo "" >&2
   echo "✗ $violations 处越界 import" >&2
   echo "  management page 只能消费管理 API，不得导入 root 业务模块" >&2
-  echo "  设计: docs/superpowers/specs/2026-06-05-close-top-tier-investment-gaps-design.md D-CTG-8" >&2
+  echo "  设计: docs/internal/superpowers/specs/2026-06-05-close-top-tier-investment-gaps-design.md D-CTG-8" >&2
   exit 1
 fi
 

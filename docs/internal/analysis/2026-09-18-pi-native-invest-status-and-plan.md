@@ -2,7 +2,7 @@
 
 > 日期：2026-09-18 · 分支：`feature/0918`
 > 范围：全量盘点已实现投资功能 → 分级 P0/P1 问题 → 修复 P0+P1 → 全量验证 → 中文后续路线图
-> 关联文档：[`2026-09-18-truncation-and-pluggability.md`](./2026-09-18-truncation-and-pluggability.md)、[`../roadmap.md`](../roadmap.md)、[`../../pi11.md`](../../pi11.md)
+> 关联文档：[`2026-09-18-truncation-and-pluggability.md`](./2026-09-18-truncation-and-pluggability.md)、[`roadmap.md`](../../roadmap.md)、[`pi11.md`](../migrations/pi11.md)
 
 ---
 
@@ -376,4 +376,4 @@ $ bun run report:pi7
 
 ## 六、后续路线图
 
-**已同步进 [`docs/roadmap.md`](../roadmap.md) 中文章节**（94 行新内容，含 S1 立即 / S2 1-2 周 / S3 中期 Q3-Q4 / S4 远期 Q4+2027、优先级矩阵、工时估算、6 条验证方式、5 行风险与回滚表、6 项边界外项、与 `pi11.md` / §一-§五 的 cross-ref）。原文 §六占位符不再单独展开，避免双写不一致。
+**已同步进 [`docs/roadmap.md`](../../roadmap.md) 中文章节**（94 行新内容，含 S1 立即 / S2 1-2 周 / S3 中期 Q3-Q4 / S4 远期 Q4+2027、优先级矩阵、工时估算、6 条验证方式、5 行风险与回滚表、6 项边界外项、与 `pi11.md` / §一-§五 的 cross-ref）。原文 §六占位符不再单独展开，避免双写不一致。

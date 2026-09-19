@@ -1,309 +1,377 @@
 ---
-> ⚠️ **Superseded** (2026-06-12): this document is kept for historical reference.
-> The canonical "upup vs upstream" comparison now lives in
-> [`openspec/changes/upup-vs-dexter-comprehensive-audit-and-doc-refresh/docs/upup-vs-dexter-audit.md`](./openspec/changes/upup-vs-dexter-comprehensive-audit-and-doc-refresh/docs/upup-vs-dexter-audit.md)
-> with reproducible shell commands and pinned commit SHAs.
-> The canonical "中国版" positioning lives in
-> [`docs/pi-native-positioning.md`](./pi-native-positioning.md).
-> When in doubt, those two docs win.
+status: canonical
+version: v2 (2026-09-19)
+scope: 生产级开源就绪度差距分析（production-readiness gap analysis）
+supersedes: v1「UpUp 投研 Claude Code 差距分析与 v5 行动方案」(2026-06-04)，历史内容见 `git log -- docs/GAP-ANALYSIS.md`
 ---
 
-# UpUp 投研 Claude Code 差距分析与 v5 行动方案
+# UpUp 生产级开源差距分析 v2
 
-> **生成时间**: 2026-06-04
-> **目的**: 对照 Claude Code / loucode 代码分析 AI 能力 + 中文圈投研实战需求,盘点 UpUp 现状,识别最大差距,产出 v5 行动方案
-> **范围**: 投资研究 AI Agent 闭环(用户明确"upup 不需要实现编码能力")
-
----
-
-## 0. 上下文
-
-UpUp 已经是一个**功能丰富**的投研 CLI:48 工具子目录 / 60+ 工具 / 5 路推送 / Multi-Agent / KAIROS 主动扫描 / Bridge 跨设备 / 50 skills / 75 feature flags / DCF 估值 / Brinson 归因 / 实时行情 / 自然语言选股 / 跨会话记忆 / 投研 Claude 人设。在 v4-1 + v4-2 还新增了**自指能力**:code-archaeology(读懂自己)+ competitive-positioning(13 竞品矩阵 + 4 唯一差异化 + 4 投资者路径)。
-
-但**"丰富"≠"闭环"**。本报告对照 Claude Code / loucode 的核心能力,识别最大差距,产出 v5 投资研究 AI Agent 闭环方案。
+> **生成时间**：2026-09-19
+> **基线**：`main` @ `db655b41`，`package.json` version `2026.9.18`
+> **对照基准**：顶级生产级开源项目通用标准（Bun/Node + TypeScript + CLI 生态）
+> **方法**：每条结论附**可复现命令**与**实测输出**或 `file:line`；严格区分「上游/环境问题」与「UpUp 代码问题」
+> **诚实约定**：本文不照抄任何既有文档结论。既有 `docs/AI-AGENT-GAP-ANALYSIS.md` 与 v1 均标注 Superseded，且都指向**不存在的** `openspec/` 路径（见 §5.2）。
 
 ---
 
-## 1. 已落地能力盘点(Strengths)
+## 0. 基线快照
 
-### 1.1 工具层(48 子目录,60+ 工具)
-
-| 域 | 子目录 / 工具 | 数量 |
-|----|--------------|------|
-| **A 股** | `src/tools/astock/`(龙虎榜 / 北向 / 涨停 / 板块 / 个股详情等) | 12 |
-| **美股 / 全球** | `src/tools/finance/`(18 文件,4 市场统一抽象) | 18 |
-| **港股 / 加密** | financial_datasets API 覆盖 | — |
-| **估值** | `src/tools/valuation/`(DCF / DDM / 多倍) | 4 |
-| **回测** | `src/tools/backtest/`(策略 + 引擎 + 归因) | 3 |
-| **归因** | `src/tools/portfolio/`(Brinson / sector / style) | 10 |
-| **风险** | `src/tools/risk/`(VaR / 集中度) | 1 |
-| **新闻 / 情绪** | `src/tools/news/` + `src/tools/sentiment/` | 多个 |
-| **研报** | `src/tools/research/deep-search`(AlphaSense 对标) | — |
-| **筛选** | `src/tools/screening/`(FinChat 对标) | 1 |
-| **分析** | `src/tools/analysis/`(Hebbia 对标) | — |
-| **意图** | `src/agent/intent-detector/`(同花顺问财对标) | — |
-| **交易** | `src/tools/trading/`(sandbox / ibkr / xueqiu) | — |
-| **协作** | Bridge(36 文件) + Coach(记忆 + 5 推送) | — |
-
-**结论**:数据 + 分析层**非常厚**,单个工具能力已对标国内外头部产品。
-
-### 1.2 Agent 层(主对话 + 子 Agent + 主动)
-
-- ✅ **投研 Claude 主对话**:`src/agent/role-system.ts` + `src/agent/agent.ts` + `src/coach/memory.ts`(1.1 + 1.2 + 1.3 全部落地)
-- ✅ **Multi-Agent Coordinator**:`src/coordinator/`(4 worker 并行 research → synthesis → implementation → verification)
-- ✅ **KAIROS 6 状态机**:`src/kairos/`(待命 / 扫描 / 告警 / 追踪 / 汇报 / 休整)
-- ✅ **5 路推送**:`src/coach/channels/`(cli/wechat/feishu/dingtalk/email)
-- ✅ **75 feature flags**:`src/agent/feature-gates.ts`
-- ✅ **Capability manifest 5 groups**:realtime / coordinator / kairos / trading / multimodal + competitorRefs + markets
-- ✅ **投资知识 + 工作流 hooks**:`src/agent/investment-knowledge.ts`(324 行) + `src/agent/investment-workflow-hooks.ts`(445 行)
-
-### 1.3 自指 / 战略层(v4-1 + v4-2 已 push)
-
-- ✅ **code-archaeology**(`src/code-archaeology/`):自动读懂 src/ 全部代码,5 layer 推断 + 死文件检测 + hot spot + CODE-MAP.md(963 文件 / 154K LOC)
-- ✅ **competitive-positioning**(`src/competitive-positioning/`):13 竞品 7 维度矩阵 + 4 唯一差异化证据 + 4 类投资者决策路径 + 30 字 sologan + docs/COMPETITIVE.md
-- ✅ **role-system v4 增强**:投研 Claude 注入 4 唯一 sologan + 三件套(Multi-Agent / KAIROS / Bridge)
-
-### 1.4 测试 / 文档 / 部署
-
-- ✅ `bun test` 4120 tests / 4117 pass(3 pre-existing langchain uuid fail 与本次无关)
-- ✅ `LICENSE` (MIT) + `Dockerfile` + `docker-compose.yml` + `env.example`
-- ✅ `docs/CODE-MAP.md` + `docs/COMPETITIVE.md`
+| 项 | 值 | 采集命令 |
+|---|---|---|
+| workspace package | 41 | `bun run report:pi7` |
+| Pi manifest 声明 | 41 | 同上 |
+| Pi-native package | 21 | 同上 |
+| Pi 注册工具 | 272（native 269） | 同上 |
+| 唯一 Agent 内核 factory | 1 | `bun run check:pi7` |
+| 遗留消费者 / global registry | 0 / 0 | 同上 |
+| 根 `src` 生产文件 | 2（7 行） | `bun run report:pi7` |
+| 测试文件 / 行数 | 208 / 27,143 | `find src packages/*/src -name '*.test.ts' \| wc -l` |
+| 全量测试基线 | 2145 pass / 2 skip / **7 fail**（system-load timeout） | `bun test` |
+| docs/ tracked 文件 | 59 | `git ls-files docs/ \| wc -l` |
+| 根目录 `.md` | 17 | `ls *.md` |
+| Markdown 死链 | **30** | 见 §5.2 脚本 |
 
 ---
 
-## 2. 关键差距(Gaps)— 对照 Claude Code / loucode + 投研实战
+## 1. 维度一：代码（Code）
 
-### 2.1 ❌ **差距 1:CLI 命令稀少(最高优)**
+### 1.1 规模与信号
 
-**现状**:`src/commands/` 只有 9 个文件(config / doctor / executor / index / mcp / onboarding / plugin / sandbox / unified-registry),**0 个投资研究高优命令**。
+```bash
+find src packages/*/src -name "*.ts" -o -name "*.tsx" | xargs wc -l | tail -1
+#  109856 total
+find packages/*/extensions -name "*.ts" | xargs wc -l | tail -1
+#    7694 total
 
-**v3 spec 要求**(tasks.md):
-- Sprint 1.4(5 个高优):morning-brief / earnings-preview / risk-dashboard / portfolio-review / watchlist-edit
-- Sprint 2.3(6 个):rebalance-now / alert-add / alert-remove / screen / compare / doctor
-- Sprint 4 提到 11 个 CLI 隐藏命令
-
-**v4-6(5 个):** /competitive-scan / /code-review / /archaeology / /refactor-suggest / /test-coverage
-
-**用户故事痛点**:投研 Claude 启动后,用户键入 `/morning-brief` 应该 1 句话看到今日盘前报告,但**实际不识别这个命令**(只能自然语言问)。这与 Claude Code 的 `/init` `/clear` `/compact` 等高频命令体验**差距巨大**。
-
-**影响**:用户必须每次用自然语言解释"给我看今天早上 9 点的盘前报告,包括我持仓异动、关注股新闻、财报日提醒"。每次 30+ 字符,不如 `/morning-brief` 1 个 token。
-
-**优先级**:**P0**。
-
-### 2.2 ❌ **差距 2:Plan Mode 投资研究工作流缺位**
-
-**现状**:`src/plan/plan-context.ts` 实现了 plan 持久化 / 步骤状态机,但**没有"主对话集成"**(用户问"分析 NVDA",agent 不会先输出研究计划等用户确认)。
-
-**Claude Code 核心能力**:Plan Mode(进入计划模式 → LLM 输出研究计划 → 用户审阅 / 修改 / 确认 → exit plan mode → 执行)。这是 Claude Code 与其他 AI 工具的**最大差异**。
-
-**投研场景特别需要**:
-- 用户:"给我深度分析 NVDA"
-- 当前 UpUp 行为:直接调 analyze_symbol,4 worker 并行分析,一次性出报告
-- Plan Mode 行为:先输出 1 份研究计划(数据 / 工具 / 输出 / 时间 / 风险),用户可"加上 A 股比亚迪对比" / "跳过新闻情绪" / "改用 5 天数据" 等,确认后执行
-
-**为什么投研更需要**:
-- 投资决策成本高(动辄几百万),不能 LLM 单方面决定
-- 投研计划可以审计(投决会引用"上次计划是什么")
-- 投研 plan 可重放(同一计划 → 同一输出,验证 LLM 稳定性)
-
-**影响**:与 Claude Code 体验差距最大的一环,也是投研审计/合规所需。
-
-**优先级**:**P0**。
-
-### 2.3 ❌ **差距 3:研究 → 计划 → 回测 → 交易 → 复盘 闭环未编排**
-
-**现状**:各模块独立,缺统一编排层。用户想走完"研究 NVDA → 写计划 → 跑回测 → 模拟交易 → 复盘",必须手动串 5 个命令。
-
-**理想闭环**:
-```
-用户: "我想投资 NVDA,给我一个完整流程"
-  → Plan Mode: 自动生成 5 步研究计划
-  → 用户确认
-  → Step 1: research NVDA(analyze_symbol + research_deep_search)
-  → Step 2: 估值(DCF skill + 3 个对比)
-  → Step 3: 回测(VWAP 策略 + 5 年数据)
-  → Step 4: 模拟交易(sandbox broker,基于 Step 3 信号)
-  → Step 5: 复盘(Brinson + 周报)
-  → 输出 1 份"NVDA 投决会摘要"
+grep -rn ': any\b' --include='*.ts' --include='*.tsx' src packages/*/src packages/*/extensions | wc -l   # 59
+grep -rn '@ts-ignore\|@ts-expect-error' --include='*.ts' --include='*.tsx' src packages/*/src | wc -l    # 0
+grep -rn 'TODO\|FIXME\|XXX\|HACK' --include='*.ts' --include='*.tsx' src packages/*/src | wc -l         # 10
+grep -rn 'console\.log' --include='*.ts' --include='*.tsx' src packages/*/src | wc -l                   # 111
 ```
 
-**当前痛点**:用户在主对话中必须"先问研究 → 再问估值 → 再问回测 → 再问交易 → 再问复盘",5 轮对话,LLM 上下文已膨胀,可能丢失早期偏好。
+| 等级 | 问题 | 证据 | 判定 |
+|---|---|---|---|
+| **P1** | `any` 用法集中在 extension 层（40 处）与 package src（21 处），违反 AGENTS.md「避免 `any`」 | `grep ': any\b'` 实测：`src/`=0，`packages/*/src`=21，`packages/*/extensions`=40 | UpUp 代码问题 |
+| **P2** | `console.log` 111 处，其中 73 处疑似 CLI/工具合法输出，剩余 ~38 处未分类 | 按路径含 `cli\|command\|doctor\|print\|report\|index` 过滤得 73 | UpUp 代码问题（需分类，非一律删除） |
+| **P2** | 10 处 TODO/FIXME 无 issue 关联 | `grep 'TODO\|FIXME'` | UpUp 代码问题 |
 
-**优先级**:**P0**(与 2.2 Plan Mode 强联动)。
-
-### 2.4 ❌ **差距 4:文档 4 唯一故事 + README 不完整**
-
-**现状**:
-- ✅ `docs/COMPETITIVE.md`(14,973 字,5K-15K 范围)
-- ✅ `docs/CODE-MAP.md`(自动生成)
-- ❌ `README.md` 顶部没 sologan
-- ❌ `docs/positioning.md` 没写(v3 2.4.4)
-- ❌ `docs/deployment.md` 没写(v3 2.4.5,Docker 部署指南分散在 Dockerfile + docker-compose.yml)
-
-**影响**:新用户 git clone 后看 README,不知道 UpUp 是什么、4 唯一是什么、怎么 1 步启动。
-
-**优先级**:**P1**。
-
-### 2.5 ⚠️ 差距 5:Code-archaeology 可执行单文件扫描(增量缓存可改进)
-
-**现状**:`code-archaeology.ts` 全量扫 970 文件 648ms,已可接受。但缺:
-- `--stale` 模式(只扫 git diff 文件)— 配合 coach 推送"今日代码晨报"
-- `--json` 模式输出给其他工具消费
-
-**优先级**:**P2**。
-
-### 2.6 ⚠️ 差距 6:v3 plan tasks.md 143/0 未更新(只是治理问题,不影响功能)
-
-**现状**:Sprint 1.1/1.2/1.3 已 push,但 v3 tasks.md checkbox 0/143。代码已落地,plan 没标注。
-
-**影响**:plan 治理混乱,后人接手 v3 不知进度。
-
-**优先级**:**P1**(归档前必须 fix)。
-
-### 2.7 v4 plan 现状(目录已删,代码已 push)
-
-`openspec/changes/top-tier-investment-claude-code-v4/` 整个目录被删除(可能是 comet 流程重置)。但 v4-1 (code-archaeology) + v4-2 (competitive-positioning) 代码已 push 到 upstream main(commit edd2ea17 + 3348fb70),**功能 100% 保留**。
-
-v4-3 (code-review) 文件曾部分写入但**目录被 reset,代码未 push**,任务作废。
-
-**v4-4 (refactor + test-coverage) / v4-5 (kairos-code-dream) / v4-6 (cli-extension v4) / v4-7 (manifest 深化) / v4-8 (archive)**:**未开始**。
-
-**v4 中应保留**(与投资研究 AI Agent 强相关):
-- ✅ v4-1 code-archaeology(已 push)
-- ✅ v4-2 competitive-positioning(已 push)
-- ⚠️ v4-5 kairos-code-dream(KAIROS 集成,可与新 v5 合并)
-- ⚠️ v4-6 cli-extension v4(与差距 1 重叠,合并到 v5)
-
-**v4 中可跳过**(与"upup 不需要编码能力"冲突):
-- ❌ v4-3 code-review(代码评审,编码辅助)
-- ❌ v4-4 refactor + test-coverage(代码重构,编码辅助)
+**亮点（无需改进）**：`@ts-ignore` / `@ts-expect-error` **0 处** —— 顶级项目少见，值得保持。
 
 ---
 
-## 3. 优先补什么(优先级排序)
+## 2. 维度二：架构（Architecture）
 
-按"对投资研究 AI Agent 闭环的边际收益 / 实现成本"排序:
+### 2.1 已验证的强项
 
-| # | 差距 | 边际收益 | 实现成本 | 优先级 |
-|---|------|----------|----------|--------|
-| 1 | 5-10 个高优投资 CLI 命令 | **极高**(用户故事直接入口) | 中(1 turn) | **P0** |
-| 2 | Plan Mode 投资研究工作流(主对话集成) | **极高**(Claude Code 核心差异) | 中(1 turn) | **P0** |
-| 3 | 研究 → 计划 → 回测 → 交易 → 复盘 闭环编排 | **高**(整合现有能力) | 中(0.5 turn,需在 Plan Mode 上叠加) | **P0** |
-| 4 | 投资 plan 持久化 + 审计 + 重放 | **高**(投决会/合规) | 中(0.5 turn) | **P1** |
-| 5 | README + positioning + deployment 文档 | 中(曝光) | 小(0.3 turn) | **P1** |
-| 6 | 归档 v3 plan + tasks.md checkbox 同步 | 中(治理) | 小(0.2 turn) | **P1** |
-| 7 | KAIROS code-dream(自动每日 code-archaeology + 推送) | 中(差异化) | 中(0.5 turn) | **P2** |
-| 8 | 跳过 v4-3 / v4-4(编码辅助) | — | — | — |
+```bash
+bun run check:module-boundaries   # PASS: 41 workspace / root allowlist 2 / 0 cycle
+bun run check:pi7                 # PASS: 单 factory / 0 生产 global registry
+bun run check:no-self-impl        # PASS: 25 upstream canonical exports / 0 self-impl collision
+```
 
-**3 件 P0**:**CLI + Plan Mode + 完整闭环**。这 3 个是 v5 核心。
+- **单一 Agent 内核**：`PiAgentSessionFactory.create()` 是唯一生产入口，`check:pi7` 守门。
+- **单一事件适配点**：`@upup/pi-event-adapter`。
+- **fail-closed 高风险工具**：5 个（`config_set`/`write_file`/`mcp_auth_get`/`notify`/`place_trade_order`）默认 deny。
+- **根 `src` 仅 2 个生产文件 / 7 行** —— 微内核边界干净。
 
----
+### 2.2 问题清单
 
-## 4. v5 行动方案(top-tier-investment-claude-code-v5)
-
-### 4.1 命名 + 范围
-
-- **Change name**:`top-tier-investment-claude-code-v5`
-- **范围**:3 个 P0 sprint + 2 个 P1 sprint(5 sprint 1 turn 落地)
-- **方法**:openspec change + 逐 sprint 推进,每个 task 完成需 typecheck + 测试全绿
-
-### 4.2 Sprint 1 — Plan Mode 投资研究工作流(0.4 turn)
-
-**目标**:在主对话中实现 Claude Code 风格的 Plan Mode。
-
-**任务**:
-- [ ] 1.1 扩展 `src/plan/plan-context.ts` 加 `enterPlanMode()` / `exitPlanMode()` / `isInPlanMode()` API
-- [ ] 1.2 新增 `src/plan/plan-builder.ts`:`buildResearchPlan(intent, context)` 根据用户意图生成结构化研究计划(数据 / 工具 / 输出 / 风险 / 时间)
-- [ ] 1.3 新增 `src/plan/plan-executor.ts`:`executePlan(plan, ctx)` 顺序执行 plan 步骤,产出中间结果 + 最终报告
-- [ ] 1.4 集成到 `src/agent/agent.ts` 主循环:用户输入触发后,识别"研究类"意图自动 enter plan mode,生成计划 → 等待用户确认 → 执行
-- [ ] 1.5 新增 plan 持久化:`.upup/plans/<planId>.json`(可重放,可审计)
-- [ ] 1.6 写 `src/plan/plan.test.ts`(10+ tests:enter/exit/build/execute/persist/audit)
-
-### 4.3 Sprint 2 — 5 个高优投资 CLI 命令(0.3 turn)
-
-**目标**:实现 v3 1.4 5 个高优隐藏命令。
-
-**任务**:
-- [ ] 2.1 `src/commands/morning-brief.tsx`:盘前 9:00 报告(持仓异动 + 关注股新闻 + 财报日提醒)
-- [ ] 2.2 `src/commands/earnings-preview.tsx`:财报日 T-1 提醒(持仓 + 关注股)
-- [ ] 2.3 `src/commands/risk-dashboard.tsx`:实时风险仪表板(VaR / 行业暴露 / 集中度)
-- [ ] 2.4 `src/commands/portfolio-review.tsx`:组合复盘(Brinson 归因 + 周报)
-- [ ] 2.5 `src/commands/watchlist-edit.tsx`:自选股增删改
-- [ ] 2.6 集成到 `src/commands/index.ts` 中央注册表
-- [ ] 2.7 写 `src/commands/cli-extension-p0.test.ts`(5+ tests per command)
-
-### 4.4 Sprint 3 — 完整研究 → 计划 → 回测 → 交易 → 复盘 闭环(0.3 turn)
-
-**目标**:在主对话中,1 条用户输入触发 5 步闭环。
-
-**任务**:
-- [ ] 3.1 `src/agent/investment-workflow.ts`:定义 5 步 workflow 类型 + 编排器
-- [ ] 3.2 集成 Plan Builder:用户输入 → 自动生成 5 步 plan → 用户确认
-- [ ] 3.3 步骤 1: research(analyze_symbol + research_deep_search)
-- [ ] 3.4 步骤 2: valuation(DCF skill + 多倍对比)
-- [ ] 3.5 步骤 3: backtest(strategy_backtest + 5 年数据)
-- [ ] 3.6 步骤 4: trade(sandbox broker 模拟,基于 backtest 信号)
-- [ ] 3.7 步骤 5: review(Brinson + 周报)
-- [ ] 3.8 写 `src/agent/investment-workflow.test.ts`(8+ tests)
-
-### 4.5 Sprint 4 — 文档 + 投资 plan 持久化审计(0.2 turn)
-
-**任务**:
-- [ ] 4.1 `README.md` 顶部 sologan + 1 段话 + 4 唯一链接
-- [ ] 4.2 `docs/positioning.md` 写 4 唯一详细故事(从 COMPETITIVE.md 抽出)
-- [ ] 4.3 `docs/deployment.md` 写 Docker / 自托管指南
-- [ ] 4.4 plan audit log:`.upup/plans/audit.log` JSONL,记录每条 plan 的创建 / 修改 / 执行 / 失败
-
-### 4.6 Sprint 5 — 归档 v3 + 收尾(0.1 turn)
-
-**任务**:
-- [ ] 5.1 同步 v3 tasks.md checkbox(143 tasks 按实际落地情况勾选)
-- [ ] 5.2 `openspec archive top-tier-investment-claude-code`
-- [ ] 5.3 v3 specs sync 到 `openspec/specs/`
-- [ ] 5.4 更新根 `openspec/CHANGELOG.md`
-
-### 4.7 v5 完成标志
-
-- [ ] 5-10 个高优投资 CLI 可用(`/morning-brief` 等)
-- [ ] Plan Mode 在主对话中可触发(用户问"分析 NVDA"自动进入)
-- [ ] 5 步完整闭环 1 句话触发
-- [ ] 投研 plan 可持久化 + 审计 + 重放
-- [ ] README / positioning / deployment 文档完整
-- [ ] v3 plan 归档
-- [ ] `bun test` + `bun run typecheck` 全绿
-- [ ] v4-1 + v4-2 维护(不破坏)
-- [ ] commit + push upstream main
+| 等级 | 问题 | 证据 | 判定 |
+|---|---|---|---|
+| **P1** | `resolvePiModel` 只查 `getBuiltinModel` + ollama，**不查 `modelRuntime`**，自定义 `models.json` provider 可能静默 fallback 到 Pi 默认 | `packages/pi-event-adapter/src/pi-model-bridge.ts:148`（`export function resolvePiModel`）；`packages/pi-runtime/src/default-model-runtime.ts:31` 注释显式承认此缺口 | UpUp 代码问题 |
+| **P1** | 20/37 package 的 `pi` block 未声明 `tools`/`resources`/`capabilities` | `bun run report:pi7` → `hostCapabilities 7/41`、`sideEffects 6/41 packages` | UpUp 代码问题 |
+| **P2** | skill 作用域过宽：一次 session 加载 222 个 skill（仓库 47 + 用户全局 `~/.agents/skills` 175），除白名单外全部进 system prompt | `src/runtime/pi/skill-reachability.contract.test.ts` 守门 | UpUp 代码问题（Pi 集成口径） |
+| **P2** | 2 处走 raw `fetch` 绕过 Pi provider registry | `packages/memory/src/embeddings.ts`、`packages/pi-research/src/search.ts#searchPerplexity`（后者是真 LLM 推理） | UpUp 代码问题 |
+| **P2** | `tsconfig.typecheck.json` 未覆盖 `packages/*/extensions`（extension 目录依赖各自 tsconfig） | `tsconfig.typecheck.json` 只 include `packages/*/src/**/*` | UpUp 代码问题 |
 
 ---
 
-## 5. 不做的事(Non-Goals)
+## 3. 维度三：测试（Testing）
 
-- ❌ **不实现编码能力**(用户明确):跳过 v4-3 code-review + v4-4 refactor + test-coverage
-- ❌ **不重写 v3 已落地能力**:Sprint 1.1-1.3 / 2.4 / 4.1-4.5 等已 push,只补缺口
-- ❌ **不引入新外部依赖**(保持 Bun + TypeScript + LangChain 现状)
-- ❌ **不破坏向后兼容**:capability-manifest `competitorRefs` 字段已用 `?? []` 兜底,v5 plan 持久化也用 `?? null` 兜底
-- ❌ **不商业化预备**(v3 Sprint 7,本 v5 不做)
+### 3.1 规模
 
----
+```bash
+find src packages/*/src -name '*.test.ts' | wc -l      # 208
+find src packages/*/src -name '*.test.ts' | xargs wc -l | tail -1   # 27143
+grep -rn 'test\.skip\|it\.skip\|describe\.skip' --include='*.test.ts' src packages/*/src | wc -l  # 4
+bun test   # 2145 pass / 2 skip / 7 fail
+```
 
-## 6. 风险
+### 3.2 问题清单
 
-- **Plan Mode 触发判定**:用户说"今天天气"也会误判为"研究类"。需要 intent 阈值 + 用户确认机制。
-- **5 步闭环耗时**:5 步顺序执行可能 5-10 分钟。需要 step-level checkpoint + resume。
-- **CLI 命令注册冲突**:已 9 个命令 + 加 5 个 = 14 个,中央注册表需要 stable id 防止冲突。
-- **plan 持久化体积**:每条 plan 1-10KB,长期 1000+ plans → 需要 LRU + 压缩。
+| 等级 | 问题 | 证据 | 判定 |
+|---|---|---|---|
+| **P1** | 7 个测试在**全量跑**时 5000ms timeout 失败，**单跑全部 PASS**（0.07–2.24s） | `packages/gateway/src/agent-runner.pi.test.ts:16`、`src/runtime/pi/investment-workflow-package.test.ts:7`、`src/runtime/pi/ollama-provider.contract.test.ts:66`、`src/runtime/pi/finance-context.test.ts:9`、`src/runtime/pi/performance.test.ts:34`、`src/runtime/pi/investment-workflow-evidence.test.ts`、`src/runtime/pi/agent-session-factory.test.ts` | UpUp 代码问题（测试隔离/并发预算），非上游 |
+| **P1** | CI **无覆盖率上报**，无覆盖率门槛 | `.github/workflows/ci.yml` 20 个 matrix task 中无 coverage | UpUp 代码问题 |
+| **P2** | 4 处 `test.skip` 无跟踪 issue | `grep 'test\.skip'` → 4 | UpUp 代码问题（本 goal 范围内不改测试逻辑，见 §11） |
+| **P2** | 无 mutation testing / property-based testing | 仓库无相关依赖 | 增强项，非阻断 |
 
----
-
-## 7. 总结
-
-UpUp 现状:**功能丰富但缺闭环**。最大 3 个 P0 差距是 CLI 命令 / Plan Mode / 5 步编排。这 3 个补完,UpUp 就能从"工具集"升级为"AI Agent 投决会伙伴"。
-
-v5 用 1 turn 落地 3 P0 + 2 P1 = 5 sprint,推送后即可对外宣称"投研 Claude Code 完整版"。
-
-**下一步**:开新 comet change `top-tier-investment-claude-code-v5`,逐 sprint 推进。
+> **诚实说明**：7 个 timeout 是**预存**问题（`git blame` 早于 2026-09-18/19 两轮 goal 的改动），且**单跑必过** —— 属于测试并发预算不足，不是功能缺陷。本 goal 明确将其列为 out of scope（见 §11）。
 
 ---
 
-> **本报告生成于 2026-06-04**,数据源:`code-archaeology` 真实扫 + `competitive-positioning` 矩阵 + `git log` 落地追踪 + `src/commands/` 现状盘点
-> **下次更新**:Sprint v5 全部落地后,产出"v5 落地报告" + "v6 路线图"
+## 4. 维度四：CI
+
+### 4.1 现状
+
+`.github/workflows/ci.yml` 含 **20 个 matrix task**：
+`lint-scc`、`pi-runtime`、`pi7-architecture`、`module-boundaries`、`workspace-exports`、`pi-packages`、`js-suffix`、`pi-deletion-audit`、`pi-package-audit`、`upup-home`、`pi-extension-coverage`、`pi-ecosystem-deps`、`sop-coverage`、`cross-platform-exposure`、`no-self-impl`、`tui-bridge-cleanup`、`upup-clean-loading`、`pi-event-coverage`、`typecheck`、`test`
+外加独立 `pi7-acceptance` job（`verify:pi7-final` + `verify:pi-cbor`）与 `rebase-on-label.yml`。
+
+### 4.2 问题清单
+
+| 等级 | 问题 | 证据 | 判定 |
+|---|---|---|---|
+| **P1** | **无 Dependabot**（依赖漂移无自动 PR） | 无 `.github/dependabot.yml`；`bun outdated` 实测 6 个包落后：`@arhen/pi-core-subagent` 1.3.54→1.3.55、`@duckdb/duckdb-wasm` 1.33.1-dev45→dev64、`@modelcontextprotocol/sdk` 1.29.0→1.30.0、`@plannotator/pi-extension` 0.27.15→0.27.16、`@whiskeysockets/baileys` 7.0.0-rc.9→rc14 | UpUp 工程配置问题 |
+| **P1** | 无覆盖率门禁 | 同 §3.2 | UpUp 工程配置问题 |
+| **P2** | 仅 `ubuntu-latest` + `bun-version: latest`；`engines.node: >=22.19.0` 声明但 CI 从不测 Node | `.github/workflows/ci.yml` `runs-on` / `setup-bun` 配置 | UpUp 工程配置问题 |
+| **P2** | 无 release 自动化 → GitHub releases = 0 | `gh api repos/louloulin/upup/releases --jq 'length'` → `0` | UpUp 工程配置问题 |
+| **P2** | `bun-version: latest` 非固定 → 上游 Bun 行为变化会静默影响 CI 结果（历史上已发生：`Bun.build` 的 `target: 'node22'` 在 Bun 1.4.1 失效） | `scripts/build-node.ts:78` 曾用 `target: 'node22'`，Bun 1.4.1 抛 `ERR_INVALID_ARG_TYPE` | 上游行为变化 + UpUp 配置问题 |
+| **P1** | **8 个 `package.json` script 引用 Pi 迁移时已删除的路径**（陈旧死代码，非本 goal 引入） | `build:hooks`→`packages/hooks`(已删)；`build:memory`/`build:types`→包内 `src/index.ts`（被 `cd` 后相对路径解析）；`migrate:sessions`→`packages/pi-session/src/migrate.ts`(缺)；`session:migrate-to-pi`→`packages/pi-session/src/migrate-to-pi.ts`(缺)；`test:pi-contracts`→`packages/pi-bridge`(已删)+`src/controllers/agent-runner.pi.test.ts`(缺)；`smoke:cli`/`verify:upup-cli`→`scripts/verify-upup-cli-smoke.sh`(缺)。核实：均 `git cat-file -e HEAD:<path>` = NO（`db655b41` 时点已缺失），且**均不在 CI 的 21 个调用名内**（CI 调用名全部已定义✅），故不影响 CI | UpUp 元数据陈旧（建议在 S1 清理，本文档记录不代改） |
+
+---
+
+## 5. 维度五：文档（Docs）
+
+### 5.1 体量
+
+```bash
+git ls-files docs/ | wc -l     # 59
+ls *.md | wc -l                # 17
+git ls-files 'packages/**/*.md' | wc -l   # 85
+```
+
+### 5.2 死链（P0）
+
+复现脚本（对全部 tracked `.md` 做本地相对链接存在性检查）：
+
+```bash
+python3 - <<'PY'
+import os, re, subprocess
+files = subprocess.run(['git','ls-files','*.md'],capture_output=True,text=True).stdout.split()
+bad = []
+for f in files:
+    try: txt = open(f, encoding='utf-8').read()
+    except: continue
+    for m in re.finditer(r'\]\((\.[^)#]*?)(#[^)]*)?\)', txt):
+        target = os.path.normpath(os.path.join(os.path.dirname(f), m.group(1)))
+        if not os.path.exists(target): bad.append((f, m.group(1)))
+print(len(bad)); [print(f"  {f} -> {r}") for f,r in dict.fromkeys(bad)]
+PY
+```
+
+实测输出：**死链总数 30**，其中：
+
+| 死链类别 | 示例 | 根因 |
+|---|---|---|
+| **幽灵 `openspec/` 引用**（5 处） | `docs/GAP-ANALYSIS.md -> ./openspec/changes/upup-vs-dexter-comprehensive-audit-and-doc-refresh/docs/upup-vs-dexter-audit.md`；`CHANGELOG.md -> ./openspec/CHANGELOG.md`；`docs/comparison.md`、`docs/positioning.md`、`docs/AI-AGENT-GAP-ANALYSIS.md` 同 | `openspec/` 目录**不存在**（`ls -d openspec` → No such file or directory），`git ls-files \| grep -c '^openspec/'` → `0` |
+| **`docs/index.md` 7 条越级路径** | `docs/index.md -> ../CODE-MAP.md`、`../ARCHITECTURE.md`、`../COMPETITIVE.md`、`../GAP-ANALYSIS.md`、`../AI-AGENT-GAP-ANALYSIS.md`、`../deployment.md`、`../positioning.md` | 这些文件都在 `docs/` 内，应为 `./CODE-MAP.md`，写成 `../` 解析到仓库根 |
+| **`.github/` 内相对路径错误** | `.github/ISSUE_TEMPLATE/question.md -> ./docs/`、`./README.md`；`.github/PULL_REQUEST_TEMPLATE.md -> ./AGENTS.md`、`./docs/skills.md` 等 5 条 | 从 `.github/` 出发应为 `../`，用 `./` 解析到 `.github/` 自身 |
+| **引用了不存在的文件** | `CONTRIBUTING.md -> ./.github/CODEOWNERS`（文件不存在）；`docs/faq.md -> ./sync-plan.md`（不存在）；`docs/benchmarks.md -> ../../src/evals/dataset/`、`../../src/evals/run.ts`、`../../src/evals/citation-density.ts`（`src/evals` 不存在）；`docs/roadmap.md -> ./pi11.md`（pi11.md 在仓库根，应为 `../pi11.md`） | 重构后未同步链接 |
+
+### 5.3 冗余与结构问题
+
+| 等级 | 问题 | 证据 | 判定 |
+|---|---|---|---|
+| **P0** | `README.md` 与 `README_CN.md` **都是中文**，且**循环互指**：`README.md:12` 写 `[中文](./README_CN.md)`，`README_CN.md:12` 写 `[English](./README.md)`；仓库**无英文 README** | `diff README.md README_CN.md \| wc -l` → 59（近乎重复）；`git ls-files \| grep -iE 'readme'` 无英文版 | UpUp 文档问题 |
+| **P1** | ARCHITECTURE 三处重叠 | `docs/ARCHITECTURE.md`(130 行) vs `docs/architecture-overview.md`(213 行) vs `docs/architecture/*.md`（6 篇合计 609 行） | UpUp 文档问题 |
+| **P1** | GAP-ANALYSIS 双份，且**双双标注 Superseded 并指向不存在的 `openspec/`** | `docs/GAP-ANALYSIS.md`(309 行) vs `docs/AI-AGENT-GAP-ANALYSIS.md`(310 行)，两者首段均含 `> ⚠️ **Superseded** (2026-06-12)` | UpUp 文档问题 |
+| **P1** | 竞品分析双份 | `docs/comparison.md`(182 行) vs `docs/COMPETITIVE.md`(273 行) | UpUp 文档问题 |
+| **P1** | 定位文档三份 | `docs/positioning.md`(133 行) vs `docs/pi-native-positioning.md`(119 行) vs `docs/pi-native-invest-assistant-analysis.md`(173 行) | UpUp 文档问题 |
+| **P1** | 迁移阶段日志占用主树 **~1.1MB** | ✅ **已修复（task-3）**：`pi6/pi7/pi8/pi10/pi11.md` 已 `git mv` 至 `docs/internal/migrations/`；`pi5.md` 因被 `scripts/verify-pi5.ts:52` 真实读取而按 objective 硬约束保留原位 | UpUp 文档问题 |
+| **P1** | 一次性审计文档残留 4 篇（972 行） | `docs/pi7-final-summary.md`(109) + `docs/pi-ecosystem-audit-2026-09-15.md`(444) + `docs/pi7-pi-llm-config-audit.md`(333) + `docs/pi7-pi-llm-provider-migration-plan.md`(86) —— **不在 objective 的 4 类归档范围内**，由 task-6 冗余合并处理 | UpUp 文档问题 |
+| **P2** | `docs/index.md`（唯一导航入口）为**英文**，与中文优先定位不一致 | `docs/index.md` 82 行，标题 `# UpUp Documentation` | UpUp 文档问题 |
+| **P2** | `docs/faq.md` 引用 `./sync-plan.md` 但文件不存在 | 死链扫描 | UpUp 文档问题 |
+
+---
+
+## 6. 维度六：元数据（Metadata）
+
+### 6.1 已具备（顶级项目要素盘点）
+
+```bash
+for f in LICENSE CONTRIBUTING.md CODE_OF_CONDUCT.md SECURITY.md CHANGELOG.md \
+         .github/workflows .github/ISSUE_TEMPLATE .github/PULL_REQUEST_TEMPLATE.md .gitignore; do
+  [ -e "$f" ] && echo "✅ $f" || echo "❌ $f"
+done
+```
+
+| 具备 | 缺失 |
+|---|---|
+| ✅ `LICENSE`（MIT） | ❌ `.github/dependabot.yml` |
+| ✅ `CONTRIBUTING.md` | ❌ `.editorconfig` |
+| ✅ `CODE_OF_CONDUCT.md` | ❌ `.nvmrc` |
+| ✅ `SECURITY.md` | ❌ `.github/CODEOWNERS`（**被 `CONTRIBUTING.md` 引用 → 死链**） |
+| ✅ `CHANGELOG.md` | ❌ `.github/FUNDING.yml`（可选） |
+| ✅ `.github/ISSUE_TEMPLATE/`（bug/feature/question 三模板） | |
+| ✅ `.github/PULL_REQUEST_TEMPLATE.md` | |
+| ✅ `.gitignore` | |
+| ✅ CI workflows（2 个） | |
+
+### 6.2 package.json 元数据
+
+```bash
+python3 -c "import json;d=json.load(open('package.json'));[print(k,'=',json.dumps(d.get(k),ensure_ascii=False)) for k in ['name','version','license','author','repository','homepage','bugs','keywords','funding']]"
+```
+
+| 字段 | 值 | 判定 |
+|---|---|---|
+| `name` | `upup` | ⚠️ npm 上**已被占用**（见 §7.3） |
+| `version` | `2026.9.18` | ✅ CalVer |
+| `license` | `MIT` | ✅ |
+| `author` | `"UpUp Team"` | ⚠️ 无邮箱/URL（npm 页面显示不完整） |
+| `repository` / `homepage` / `bugs` | 已填 GitHub URL | ✅ |
+| `keywords` | 15 个 | ✅ |
+| `funding` | `null` | P2（可选） |
+
+| 等级 | 问题 | 判定 |
+|---|---|---|
+| **P1** | 缺 `dependabot.yml` / `.editorconfig` / `.nvmrc` | UpUp 工程配置问题 |
+| **P2** | 缺 `.github/CODEOWNERS`（且被 CONTRIBUTING.md 引用为死链） | UpUp 工程配置问题 |
+| **P2** | `author` 无联系方式 | UpUp 元数据问题 |
+
+---
+
+## 7. 维度七：社区健康（Community）
+
+### 7.1 GitHub 指标
+
+```bash
+gh api repos/louloulin/upup --jq '{stars:.stargazers_count,forks:.forks_count,watchers:.subscribers_count,open_issues:.open_issues_count,license:.license.spdx_id,description:.description}'
+# {"forks":1,"open_issues":0,"license":"MIT","stars":2,"watchers":0,"description":null}
+gh api repos/louloulin/upup/contributors --jq 'length'   # 21
+gh api repos/louloulin/upup/releases --jq 'length'       # 0
+```
+
+| 指标 | 值 | 判定 |
+|---|---|---|
+| stars | 2 | 推广问题（非代码） |
+| forks | 1 | 同上 |
+| watchers | 0 | 同上 |
+| contributors | 21 | ✅ 有外部贡献者 |
+| open issues | 0 | 中性 |
+| license | MIT | ✅ |
+| **description** | **`null`** | **P1 —— GitHub 仓库无描述，直接影响搜索引擎与目录发现** |
+| **releases** | **0** | **P1 —— 无任何版本发布记录** |
+| **topics** | **无**（API 调用 EOF，仓库页无 topics 标签） | **P1 —— 无 topic 标签，影响 GitHub 搜索发现** |
+| wiki | 禁用 | P2（可接受） |
+
+### 7.2 分发渠道
+
+| 等级 | 问题 | 证据 | 判定 |
+|---|---|---|---|
+| **P1** | 无 npm 发布记录 | `npm view upup` 返回的是**别人的包**（见 7.3） | UpUp 分发问题 |
+| **P2** | 无 GitHub Release / 无 CHANGELOG 自动生成 | `gh api .../releases --jq length` → 0 | UpUp 分发问题 |
+
+### 7.3 ⚠️ npm 包名冲突（关键阻塞）
+
+```bash
+npm view upup name version description repository maintainers
+# name = 'upup'
+# version = '1.1.0'
+# description = "Control the content users see, even when they're offline"
+# repository = { type: 'git', url: 'git+https://github.com/TalAter/UpUp.git' }
+# maintainers = 'talater <tal@talater.com>'
+```
+
+**`upup` 在 npm 上已被 `TalAter/UpUp`（PWA 离线内容控制库）占用**，`latest=1.1.0`。直接 `npm publish` 会被服务端拒绝（`E403 Package name already exists`）。
+
+**可行路径**（择一）：
+
+| 方案 | 可行性 | 代价 |
+|---|---|---|
+| 改 unscoped 名（`upup-cli` / `upup-finance` / `upup-zhangzhang` / `upup-invest` —— 均已验证 404 可用） | 高 | 失去 `upup` 标识符 |
+| scoped 名 `@louloulin/upup`（已验证 404 可用） | 高 | 需要 npm `louloulin` org 成员资格 |
+| scoped 名 `@upup/cli` | 低 | 需要 npm `upup` org 成员资格（现由 TalAter 持有） |
+| 向 TalAter 申请转让 | 极低 | 对方无义务 |
+
+**判定**：UpUp 侧（工程/文档/元数据）可推进；**发布阻塞点在上游 name 归属，非 UpUp 代码问题**。
+
+---
+
+## 8. 汇总优先级矩阵
+
+| 等级 | 数量 | 项目 | 归属维度 |
+|---|---|---|---|
+| **P0** | 2 | 30 条 Markdown 死链（含幽灵 `openspec/`） | 文档 |
+| **P0** | — | README 双语混乱（两文件皆中文且循环互指、无英文版） | 文档 |
+| **P1** | 12 | `resolvePiModel` 不查 modelRuntime | 架构 |
+| | | 20/37 package 未声明 tools/resources/capabilities | 架构 |
+| | | 7 个全量跑 timeout 测试 | 测试 |
+| | | CI 无覆盖率上报与门禁 | 测试/CI |
+| | | 无 Dependabot（6 包落后） | CI |
+| | | ARCHITECTURE / GAP-ANALYSIS / comparison / positioning 四组冗余 | 文档 |
+| | | ✅ 1.1MB 迁移日志已归档至 `docs/internal/migrations/`（task-3） | 文档 |
+| | | 4 篇一次性审计文档残留（task-6） | 文档 |
+| | | 缺 dependabot.yml / .editorconfig / .nvmrc | 元数据 |
+| | | GitHub description = null | 社区健康 |
+| | | GitHub releases = 0 | 社区健康 |
+| | | GitHub topics 缺失 | 社区健康 |
+| **P2** | 12 | `any` 40 处（extensions）+ 21 处（src） | 代码 |
+| | | `console.log` ~38 处未分类 | 代码 |
+| | | 10 处 TODO/FIXME 无 issue | 代码 |
+| | | skill 作用域 222 个 | 架构 |
+| | | 2 处 raw fetch 绕过 provider registry | 架构 |
+| | | tsconfig 未覆盖 extensions | 架构 |
+| | | 4 处 test.skip 无跟踪 | 测试 |
+| | | CI 无 Node 版本矩阵 | CI |
+| | | CI 用 `bun-version: latest` 非固定 | CI |
+| | | `docs/index.md` 为英文 | 文档 |
+| | | 缺 `.github/CODEOWNERS`；`author` 无邮箱；`funding: null` | 元数据 |
+| | | npm 包名冲突 | 社区健康 / 分发 |
+
+---
+
+## 9. 「上游/环境问题」vs「UpUp 代码问题」
+
+| 现象 | 归属 | 依据 |
+|---|---|---|
+| 7 个全量跑 timeout | **UpUp 代码问题**（测试并发预算） | 单跑 0.07–2.24s 必过；`git blame` 早于本仓库近期改动 |
+| `Bun.build({target:'node22'})` 抛 `ERR_INVALID_ARG_TYPE` | **上游行为变化**（Bun 1.4.1 收紧 target 取值） | Bun 只接受 `browser\|node\|bun\|macro\|bun-<target>` |
+| `miniMax` 端点 429「Token Plan 用量上限」/ 401 | **上游/凭证环境问题** | 非 UpUp 代码缺陷 |
+| npm `upup` name 冲突 | **上游 name 归属问题** | TalAter/UpUp 先注册，无技术解法 |
+| GitHub stars / watchers 偏低 | **推广问题** | 非工程质量缺陷 |
+| skill 作用域 222 个 | **UpUp + Pi 集成口径** | Pi 从三处解析 skill，UpUp 未收窄白名单 |
+
+---
+
+## 10. 本轮未覆盖项（处置建议）
+
+objective 明确的 out-of-scope 文件：`yh.md` / `native1.md` / `SOUL.md` / `CLAUDE.md`。现状与建议：
+
+| 文件 | 体量 | 性质（读自文件头） | 建议 |
+|---|---|---|---|
+| `yh.md` | 818 行 / 45KB | 「UpUp 性能问题分析与优化方案」，分析日期 2026-09-18，含实测数字，结论引用 `scripts/perf/` | **中间过程产物**。建议移入 `docs/internal/`，把可复用的性能基线结论提炼到 `docs/benchmarks.md` |
+| `native1.md` | 517 行 / 29KB | 「LumosAI invest 代码复用与 Rust 加速开发计划」，状态**待实施** | **未来计划**。建议移入 `docs/internal/`，在 `docs/roadmap.md` 保留一条引用 |
+| `SOUL.md` | 83 行 / 7KB | Agent 人格设定（「I'm UpUp. A financial research agent who lives in a terminal.」） | **产品资产**，建议保留；可作为 system prompt 品牌化的可读说明，或并入 `README.md` 段落 |
+| `CLAUDE.md` | 137 行 / 6.2KB | Claude Code 项目指南，内容与 `AGENTS.md` 高度重叠（同为 agent 指南） | **重复**。建议保留 `AGENTS.md` 为唯一真源，`CLAUDE.md` 改为指向 `AGENTS.md` 的短指针（Claude Code 自动读取该文件名，删除会损失兼容性） |
+
+---
+
+## 11. 与既有文档的关系
+
+| 文档 | 状态 | 说明 |
+|---|---|---|
+| `docs/GAP-ANALYSIS.md`（本文） | ✅ **canonical** | 生产级就绪度差距分析 v2 |
+| `docs/GAP-ANALYSIS.md` v1（2026-06-04） | 已取代 | 「投研 Claude Code 差距分析」，内容见 `git log -- docs/GAP-ANALYSIS.md` |
+| `docs/AI-AGENT-GAP-ANALYSIS.md` | 已取代 | 与本文 §1–§2 维度重叠；其 `openspec/` 引用为死链 |
+| `docs/roadmap.md` | ✅ canonical | 后续路线图（S1/S2/S3/S4 优先级矩阵） |
+| `docs/ARCHITECTURE.md` + `docs/architecture-overview.md` + `docs/architecture/*` | 待合并 | 见 §5.3，由文档治理任务处理 |
+
+---
+
+## 12. 本 goal 的执行边界（对照本文）
+
+| 本文条目 | 是否在本 goal 修复 |
+|---|---|
+| §5.2 死链（P0） | ✅ 修复（task-6 导航真源 + task-4 README 互链） |
+| §5.3 冗余合并（P1） | ✅ 合并（task-6） |
+| §5.3 1.1MB 迁移日志（P1） | ✅ 归档（task-3 完成：`docs/internal/migrations/` ×5，`pi5.md` 因硬约束保留） |
+| §5.3 一次性审计文档（P1） | ⏳ task-6 处理（4 篇审计文档不在 4 类归档范围，改为并入 `docs/internal/audits/` 或降为交叉引用） |
+| §6.1 缺 3 项元数据（P1） | ✅ 补齐（task-5） |
+| §3.2 7 个 timeout（P1） | ❌ out of scope（用户明确选择「文档+元数据+缺失 3 项」，不含测试逻辑改动） |
+| §4.2 CI 覆盖率 / Node 矩阵（P1/P2） | ❌ out of scope（不做 CI 硬化） |
+| §1 `any` / `console.log`（P1/P2） | ❌ out of scope（不碰代码逻辑） |
+| §7.3 npm name 冲突 | ❌ out of scope（上游归属问题） |
+| §10 四个根 md 文件 | ❌ out of scope（已在本文给出建议） |

@@ -1,7 +1,7 @@
 # 实施计划：simplify-cmd-autocomplete-pi-tui
 
 > **关联 change**：`openspec/changes/simplify-cmd-autocomplete-pi-tui/`
-> **设计文档**：[docs/superpowers/specs/2026-06-04-simplify-cmd-autocomplete-pi-tui-design.md](/Users/louloulin/Documents/linchong/touzhi/upup/docs/superpowers/specs/2026-06-04-simplify-cmd-autocomplete-pi-tui-design.md)
+> **设计文档**：[../specs/2026-06-04-simplify-cmd-autocomplete-pi-tui-design.md](../specs/2026-06-04-simplify-cmd-autocomplete-pi-tui-design.md)
 > **base-ref**：`7dce0a1a82ef99c6ae1635c28de8c8aa1b1b9ef1`（实施前 HEAD）
 > **方法**：TDD，每任务 2-5 分钟，红 → 绿 → 重构 → 提交
 > **范围**：Sprint 1（Provider + 状态清理，~0.5 turn）+ Sprint 2（验证 + 收尾，~0.2 turn）

@@ -372,7 +372,7 @@ CLI 字符串、prompt、skill 描述均为 EN + zh-CN 双语；缺失翻译会�
 - [docs/skills.md](./docs/skills.md) —— skill 体系
 - [docs/quickstart.md](./docs/quickstart.md) —— 快速上手
 - [docs/faq.md](./docs/faq.md) —— 常见问题
-- [pi7.md](./pi7.md) —— Pi Native 迁移计划与定型记录
+- [Pi Native 迁移记录](./docs/internal/migrations/pi7.md) —— Pi Native 迁移计划与定型记录（已归档）
 - [AGENTS.md](./AGENTS.md) —— 仓库工程约束（贡献者 / agent 必读）
 
 ---
