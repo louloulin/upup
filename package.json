@@ -115,7 +115,7 @@
     "@whiskeysockets/baileys": "7.0.0-rc.9",
     "better-sqlite3": "^12.11.1",
     "context-mode": "^1.0.169",
-    "croner": "^9.1.0",
+    "croner": "^10.0.1",
     "diff": "^8.0.4",
     "dotenv": "^17.4.2",
     "fuse.js": "^7.5.0",
