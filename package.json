@@ -120,7 +120,7 @@
     "dotenv": "^17.3.1",
     "fuse.js": "^7.3.0",
     "gray-matter": "^4.0.3",
-    "linkedom": "^0.18.12",
+    "linkedom": "^0.18.13",
     "pi-advisor-flow": "0.6.0",
     "pi-brainstorm": "0.4.3",
     "pi-cache-optimizer": "2.8.10",
@@ -142,9 +142,9 @@
     "rolebox": "1.9.0",
     "shell-quote": "^1.8.3",
     "toolflow": "3.1.4",
-    "typebox": "1.3.7",
+    "typebox": "1.3.31",
     "zod": "^3.23.8",
-    "zod-to-json-schema": "3.25.0",
+    "zod-to-json-schema": "3.25.2",
     "zod-v4": "npm:zod@4.3.6"
   },
   "pkg": {
