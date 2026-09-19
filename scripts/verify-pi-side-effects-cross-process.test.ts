@@ -18,6 +18,7 @@ import { spawn } from 'node:child_process';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { extractStdoutJson } from './extract-stdout-json.ts';
 
 interface CaseResult {
   tool: string;
@@ -62,13 +63,9 @@ function runWorker(): Promise<{ stdout: string; stderr: string; code: number | n
 }
 
 function extractSummary(stdout: string): CrossProcessSummary {
-  const trimmed = stdout.trim();
-  const firstBrace = trimmed.indexOf('{');
-  const lastBrace = trimmed.lastIndexOf('}');
-  if (firstBrace < 0 || lastBrace <= firstBrace) {
-    throw new Error(`cross-process worker produced no JSON object: ${trimmed.slice(0, 400)}`);
-  }
-  return JSON.parse(trimmed.slice(firstBrace, lastBrace + 1)) as CrossProcessSummary;
+  // The worker's stdout carries the dotenv banner before the payload, and that
+  // banner's random tip may contain braces — hence the anchored extractor.
+  return extractStdoutJson<CrossProcessSummary>(stdout, 'cross-process worker');
 }
 
 describe('cross-process policy audit smoke', () => {

@@ -15,10 +15,12 @@
  *
  * Exit code 0 on success, non-zero with a JSON failure summary on stderr.
  */
-import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
+import { spawn, type ChildProcessByStdio } from 'node:child_process';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import type { Readable } from 'node:stream';
+import { extractStdoutJson } from './extract-stdout-json.ts';
 
 interface CaseResult {
   tool: string;
@@ -56,7 +58,15 @@ interface SpawnSpec {
   cwd: string;
 }
 
-function spawnSideEffects({ label, cwd }: SpawnSpec): Promise<{ child: ChildProcessWithoutNullStreams }> {
+/**
+ * The worker is spawned with `stdio: ['ignore', 'pipe', 'pipe']`, so its stdin
+ * is `null`. `ChildProcessWithoutNullStreams` expects a writable stdin and was
+ * therefore inaccurate — invisible until now because `scripts/**` sits outside
+ * `tsconfig.typecheck.json`.
+ */
+type WorkerChild = ChildProcessByStdio<null, Readable, Readable>;
+
+function spawnSideEffects({ label, cwd }: SpawnSpec): Promise<{ child: WorkerChild }> {
   // Use a private working directory per process so that any accidental
   // write to blocked.txt or mcp-auth stays isolated and never leaks
   // across the cross-process boundary.
@@ -81,7 +91,7 @@ function spawnSideEffects({ label, cwd }: SpawnSpec): Promise<{ child: ChildProc
   return Promise.resolve({ child });
 }
 
-function collectOutput(child: ChildProcessWithoutNullStreams): Promise<{ code: number | null; stdout: string; stderr: string }> {
+function collectOutput(child: WorkerChild): Promise<{ code: number | null; stdout: string; stderr: string }> {
   return new Promise((resolve) => {
     let stdout = '';
     let stderr = '';
@@ -92,18 +102,11 @@ function collectOutput(child: ChildProcessWithoutNullStreams): Promise<{ code: n
 }
 
 function extractSummary(stdout: string): SideEffectsSummary {
-  const trimmed = stdout.trim();
-  if (!trimmed) throw new Error('side-effects worker produced empty stdout');
-  // The runtime script prints a single indented JSON object as the
-  // last (and only) top-level block. Scan from the end to skip any
-  // upstream logging and parse the JSON blob.
-  const firstBrace = trimmed.indexOf('{');
-  const lastBrace = trimmed.lastIndexOf('}');
-  if (firstBrace < 0 || lastBrace <= firstBrace) {
-    throw new Error(`side-effects worker produced no JSON object: ${trimmed.slice(0, 200)}`);
-  }
-  const jsonBlob = trimmed.slice(firstBrace, lastBrace + 1);
-  const parsed = JSON.parse(jsonBlob) as Partial<SideEffectsSummary>;
+  // The runtime script prints a single indented JSON object, but its stdout is
+  // not brace-free: the dotenv banner from `@upup/utils` ends in a randomly
+  // drawn tip and 6 of the 16 tips embed braces. Slicing on the first `{`
+  // therefore used to swallow part of that banner (see `extract-stdout-json.ts`).
+  const parsed = extractStdoutJson<Partial<SideEffectsSummary>>(stdout, 'side-effects worker');
   if (parsed.schema !== 'upup.pi.side-effects-runtime.v1') throw new Error(`unexpected side-effects schema: ${parsed.schema}`);
   if (parsed.status !== 'passed' && parsed.status !== 'failed') throw new Error(`unexpected side-effects status: ${parsed.status}`);
   if (!Array.isArray(parsed.results)) throw new Error('side-effects results are missing');
