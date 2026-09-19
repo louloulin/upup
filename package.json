@@ -116,7 +116,7 @@
     "better-sqlite3": "^12.11.1",
     "context-mode": "^1.0.169",
     "croner": "^9.1.0",
-    "diff": "^8.0.4",
+    "diff": "^9.0.0",
     "dotenv": "^17.4.2",
     "fuse.js": "^7.5.0",
     "gray-matter": "^4.0.3",
