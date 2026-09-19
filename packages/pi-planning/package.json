@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "@upup/utils": "0.2.0",
-    "zod": "3.25.76"
+    "zod": "4.6.5"
   },
   "files": ["dist", "package.json"],
   "private": false,
