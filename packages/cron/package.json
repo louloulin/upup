@@ -25,7 +25,7 @@
     "@earendil-works/pi-coding-agent": "0.85.1",
     "@upup/gateway": "0.2.0",
     "@upup/utils": "0.2.0",
-    "croner": "9.1.0"
+    "croner": "10.0.1"
   },
   "peerDependencies": {},
   "devDependencies": {
