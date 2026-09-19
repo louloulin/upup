@@ -53,7 +53,7 @@ jobs:
           - task: typecheck
             command: bun run typecheck
           - task: test
-            command: bun test
+            command: bun run test
     steps:
       - uses: actions/checkout@v4
 
