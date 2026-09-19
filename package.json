@@ -113,7 +113,7 @@
     "@plannotator/pi-extension": "0.27.15",
     "@quintinshaw/pi-dynamic-workflows": "3.12.0",
     "@whiskeysockets/baileys": "7.0.0-rc.9",
-    "better-sqlite3": "^12.11.1",
+    "better-sqlite3": "^13.0.3",
     "context-mode": "^1.0.169",
     "croner": "^9.1.0",
     "diff": "^8.0.4",
