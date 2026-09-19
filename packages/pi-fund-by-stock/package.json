@@ -10,13 +10,13 @@
     "reverse-search"
   ],
   "type": "module",
-  "main": "./dist/src/index.js",
-  "types": "./dist/src/index.d.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/src/index.d.ts",
+      "types": "./dist/index.d.ts",
       "bun": "./src/index.ts",
-      "default": "./dist/src/index.js"
+      "default": "./dist/index.js"
     },
     "./extensions": {
       "types": "./dist/extensions/index.d.ts",
@@ -26,7 +26,7 @@
   },
   "scripts": {
     "prebuild": "bun run ../../scripts/clean-pi-package-dist.ts",
-    "build": "bun build src/index.ts --outdir=dist/src --target=node && bun build extensions/index.ts --outdir=dist/extensions --target=node && tsc --emitDeclarationOnly --project tsconfig.json && tsc --emitDeclarationOnly --project tsconfig.extensions.json",
+    "build": "bun build src/index.ts --outdir=dist --target=node && bun build extensions/index.ts --outdir=dist/extensions --target=node && tsc --emitDeclarationOnly --project tsconfig.json && tsc --emitDeclarationOnly --project tsconfig.extensions.json",
     "test": "bun test ./src/index.test.ts ./extensions/index.test.ts"
   },
   "files": [

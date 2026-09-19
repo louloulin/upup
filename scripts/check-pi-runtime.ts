@@ -13,11 +13,20 @@ if (packageJson.engines?.node !== '>=22.19.0') {
 }
 /**
  * `build:node` may be either an inline bundler invocation carrying
- * `--target=node22`, or a `bun run <script>.ts` wrapper whose target lives in
+ * `--target=node`, or a `bun run <script>.ts` wrapper whose target lives in
  * the referenced file. Reading the effective target keeps the gate about the
  * artifact we ship instead of the spelling of the npm script (the wrapper
  * exists because the previous one-liner depended on throwaway `/tmp` shims).
+ *
+ * Both spellings are accepted because the two supported bundlers disagree:
+ * esbuild understands `--target=node22`, while `Bun.build` (the current
+ * implementation) rejects the version suffix outright —
+ * `Expected target to be one of 'browser', 'node', 'bun', 'macro', or
+ * 'bun-<target>', got node22`. The Node 22 floor itself is still enforced by
+ * the `engines.node` and running-Node checks below.
  */
+const NODE_TARGET_PATTERN = /target:\s*['"](?:node22|node)['"]|--target=(?:node22|node)\b/;
+
 function resolveDeclaredNodeTargets(): { file: string; source: string } {
   const script = packageJson.scripts?.['build:node'] ?? '';
   const referenced = /(?:^|\s)([\w./-]+\.(?:ts|mts|js|mjs))(?=\s|$)/.exec(script.replace(/^bun run /, ''))?.[1];
@@ -29,12 +38,12 @@ function resolveDeclaredNodeTargets(): { file: string; source: string } {
     if (!existsSync(path)) continue;
     sources.push({ file: candidate, source: readFileSync(path, 'utf8') });
   }
-  return sources.find(({ source }) => /target:\s*['\"]node22['\"]|--target=node22/.test(source)) ?? sources[0]!;
+  return sources.find(({ source }) => NODE_TARGET_PATTERN.test(source)) ?? sources[0]!;
 }
 
 const nodeTargets = resolveDeclaredNodeTargets();
-if (!/target:\s*['\"]node22['\"]|--target=node22/.test(nodeTargets.source)) {
-  failures.push(`build:node must target node22 (checked ${nodeTargets.file})`);
+if (!NODE_TARGET_PATTERN.test(nodeTargets.source)) {
+  failures.push(`build:node must target node (checked ${nodeTargets.file})`);
 }
 if (!packageJson.scripts?.['build:pkg']?.includes('node22-')) {
   failures.push('build:pkg must emit only node22 targets');
@@ -58,4 +67,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log(`Pi runtime checks passed: Bun ${bunVersion}, Node ${process.versions.node}, Node22 build targets declared (${nodeTargets.file}).`);
+console.log(`Pi runtime checks passed: Bun ${bunVersion}, Node ${process.versions.node}, Node build targets declared (${nodeTargets.file}).`);
