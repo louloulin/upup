@@ -27,7 +27,7 @@ jobs:
             core.setOutput("can_maintainer_modify", String(pr.maintainer_can_modify));
 
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
