@@ -1,7 +1,7 @@
 /**
  * 风控参数对比测试
  *
- * 对比：默认放宽（5~5000） vs 严格（10~2000） vs 极宽（1~10000）
+ * 对比：默认放宽（5~5000） vs 极宽（1~10000）
  */
 import { describe, it, expect } from "bun:test";
 import { readFileSync } from "node:fs";
@@ -20,7 +20,6 @@ interface RiskPreset {
 
 const PRESETS: RiskPreset[] = [
   { name: "放宽(5~5000)", minLoss: 5, maxLoss: 5000 },
-  { name: "严格(10~2000)", minLoss: 10, maxLoss: 2000 },
   { name: "极宽(1~10000)", minLoss: 1, maxLoss: 10000 },
 ];
 
