@@ -48,7 +48,7 @@ UpUp       = 中国金融投资 Data + Tools + Skills + Workflow + Risk Product
 
 ### Source coverage (扩展)
 
-新增来源：`/Users/louloulin/.codex/attachments/b65430a3-c385-4b32-9d7a-f536973af815/pasted-text-1.txt`（用户粘贴的 Pi Native 迁移计划），`/Users/louloulin/appx/upup/docs/pi-ecosystem-audit-2026-09-15.md`（既有 Pi 生态审计），`/Users/louloulin/appx/upup/pi7.md` + `pi8.md` + `pi10.md` + `pi11.md`（Pi7-Pi11 实施记录）。
+新增来源：`/Users/louloulin/.codex/attachments/b65430a3-c385-4b32-9d7a-f536973af815/pasted-text-1.txt`（用户粘贴的 Pi Native 迁移计划），`/Users/louloulin/appx/upup/docs/internal/audits/pi-ecosystem-audit-2026-09-15.md`（既有 Pi 生态审计），`/Users/louloulin/appx/upup/pi7.md` + `pi8.md` + `pi10.md` + `pi11.md`（Pi7-Pi11 实施记录）。
 
 | 来源单元 | 状态 | 保留语义 | Spec 位置 | 验收 |
 |---|---|---|---|---|

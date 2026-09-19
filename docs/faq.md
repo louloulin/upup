@@ -32,7 +32,7 @@ Both, symmetrically. The default locale is auto-detected from `LANG`/`LC_ALL`. O
 
 ### What's the relationship to the upstream dexter project?
 
-We respect the MIT license and the upstream author's work. We do not take credit for dexter's code — when modifying code originally from dexter, we preserve the attribution. We will consider cherry-picking new features from dexter when they land upstream. See [`docs/sync-plan.md`](./sync-plan.md) (planned).
+We respect the MIT license and the upstream author's work. We do not take credit for dexter's code — when modifying code originally from dexter, we preserve the attribution. We will consider cherry-picking new features from dexter when they land upstream. See `docs/sync-plan.md` (planned; not yet written).
 
 ---
 

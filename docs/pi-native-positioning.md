@@ -2,6 +2,8 @@
 
 > **本文件是 UpUp 定位的权威表述。** 任何与本文件冲突的其他描述，以本文件为准。
 > 最近复核：2026-09-16（Pi Native 迁移定型后）。
+>
+> **文档关系**：早期 `docs/positioning.md`（v5.6 中文定位）已归档至 [`internal/positioning/positioning.md`](./internal/positioning/positioning.md)，`docs/pi-native-invest-assistant-analysis.md` 已归档至 [`internal/audits/pi-native-invest-assistant-analysis.md`](./internal/audits/pi-native-invest-assistant-analysis.md)；冲突以本文件为准。
 
 ---
 

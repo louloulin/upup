@@ -203,7 +203,7 @@ function checkConfigSources(): CheckResult[] {
  * UpUp does not own Pi's agent dir contract, but it *does* seed
  * `~/.upup/agent/settings.json` from a previous `~/.pi/agent` install. A
  * historical Pi home carried `compaction.enabled: false` (see
- * `docs/pi7-pi-llm-config-audit.md`), and that value silently disables Pi's
+ * `docs/internal/audits/pi7-pi-llm-config-audit.md`), and that value silently disables Pi's
  * entire overflow/length-stop recovery path (`AgentSession._checkCompaction`
  * returns early). The practical effect: once a model truncates an answer
  * (`Response was truncated before completion.`) or overflows the context

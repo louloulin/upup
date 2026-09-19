@@ -4,7 +4,7 @@
 > LangChain runtime are removed; use `docs/architecture/pi5-runtime.md` as the
 > canonical migration architecture and `pi5.md` for acceptance evidence.
 
-> **The full architecture is in [ARCHITECTURE.md](./ARCHITECTURE.md)** (the canonical document, 334 lines, layers + boundaries). This page is the user-facing overview.
+> **The full architecture is in [ARCHITECTURE.md](../../ARCHITECTURE.md)** (the canonical document, 334 lines, layers + boundaries). This page is the user-facing overview.
 
 ---
 
@@ -47,7 +47,7 @@
 
 ## The 8 Layers
 
-The architecture follows a strict 8-layer pattern (see [ARCHITECTURE.md](./ARCHITECTURE.md) for the full rule set):
+The architecture follows a strict 8-layer pattern (see [ARCHITECTURE.md](../../ARCHITECTURE.md) for the full rule set):
 
 | Layer | Module(s) | Purpose |
 |---|---|---|
@@ -96,7 +96,7 @@ This is more deterministic than rolling-window truncation.
 
 ## Investment Workflow (5-Phase)
 
-See [docs/investment-workflow.md](./investment-workflow.md) for the deep dive. The TL;DR:
+See [docs/investment-workflow.md](../../investment-workflow.md) for the deep dive. The TL;DR:
 
 ```
 detect → plan → execute → verify → report
@@ -111,7 +111,7 @@ Implemented in `src/commands/investment/invest.ts` as a state machine. Each phas
 
 ## Plugin System
 
-See [docs/plugins.md](./plugins.md). 4 runtime adapters:
+See [docs/plugins.md](../../plugins.md). 4 runtime adapters:
 
 | Runtime | Speed | Isolation | File |
 |---|---|---|---|
@@ -126,13 +126,13 @@ Plugins register via `ctx.registerTool / Skill / Hook / Command / DataSource`.
 
 ## i18n
 
-See [docs/i18n.md](./i18n.md). `src/i18n/strings.ts` — EN + zh-CN, strongly-typed, symmetry enforced by tests.
+See [docs/i18n.md](../../i18n.md). `src/i18n/strings.ts` — EN + zh-CN, strongly-typed, symmetry enforced by tests.
 
 ---
 
 ## Session & Permission
 
-See [docs/session-and-permissions.md](./session-and-permissions.md). 3-layer defense:
+See [docs/session-and-permissions.md](../../session-and-permissions.md). 3-layer defense:
 
 1. Static bypass rules
 2. Per-tool mode (bypass / allow / ask / deny)
@@ -201,12 +201,12 @@ Each phase yields events that the CLI renders in real-time.
 
 ## See Also
 
-- **[ARCHITECTURE.md](./ARCHITECTURE.md)** — the canonical 334-line architecture doc
-- **[CODE-MAP.md](./CODE-MAP.md)** — every file in 151 lines
-- [docs/quickstart.md](./quickstart.md) — getting started
-- [docs/investment-workflow.md](./investment-workflow.md) — 5-phase workflow
-- [docs/skills.md](./skills.md) — skills
-- [docs/plugins.md](./plugins.md) — plugins
+- **[ARCHITECTURE.md](../../ARCHITECTURE.md)** — the canonical 334-line architecture doc
+- **[CODE-MAP.md](../../CODE-MAP.md)** — every file in 151 lines
+- [docs/quickstart.md](../../quickstart.md) — getting started
+- [docs/investment-workflow.md](../../investment-workflow.md) — 5-phase workflow
+- [docs/skills.md](../../skills.md) — skills
+- [docs/plugins.md](../../plugins.md) — plugins
 
 ---
 

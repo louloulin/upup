@@ -152,7 +152,7 @@ Things we will **not** do, on purpose:
 
 - [README.md](../README.md) — overview
 - [docs/architecture.md](./architecture.md) — under the hood
-- [docs/comparison.md](./comparison.md) — vs alternatives
+- [docs/COMPETITIVE.md](./COMPETITIVE.md) — 投研域 13 竞品 7 维度矩阵与 4 项唯一差异化
 - [CHANGELOG.md](../CHANGELOG.md) — what shipped
 
 ---

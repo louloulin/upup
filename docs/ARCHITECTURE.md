@@ -128,3 +128,14 @@ git diff --check
 旧 `src/agent/`、`src/model/llm.ts`、`packages/agent-core`、`packages/llm`、`upup-agent`、Paperclip 适配层和旧 bundled runner 已删除。旧路径只允许在迁移计划、审计报告或防回流检查中作为历史字符串出现，不得重新创建目录、导入或实例化。
 
 完整迁移计划、A1–A20 证据矩阵和当前正式进度见 [`pi5.md`](../pi5.md)；Runtime、插件、金融数据流、Session、多 Agent 和 `/invest` 细节见 `docs/architecture/` 下的专题文档。
+
+## 10. 文档关系（canonical 与归档）
+
+> **本文件是主树唯一的架构文档（canonical）。** 合并决策与证据见 [`GAP-ANALYSIS.md`](./GAP-ANALYSIS.md) §5.3。
+
+| 文档 | 处置 | 说明 |
+|---|---|---|
+| [`architecture-overview.md`](./internal/architecture/architecture-overview.md) | **已归档** | Pi5 期架构概览（213 行），仍描述已删除的 `src/cli.tsx` 与 Ink TUI，仅作历史记录 |
+| `docs/architecture/*.md`（6 篇） | **保留原位** | Pi5 期专题（runtime / plugin-ecosystem / finance-dataflow / session-lifecycle / multi-agent-dataflow / invest-workflow）。`scripts/verify-pi5.ts#verifyArchitectureDocs()` 用 `existsSync` 硬断言其存在（挂在 `bun run verify:pi5`），移动会使验证器失败 |
+
+**冲突时的优先级**：本文件 > `docs/architecture/*.md`（Pi5 期语义）> 已归档的 `architecture-overview.md`。

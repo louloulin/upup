@@ -112,8 +112,8 @@ pi.sendUserMessage(`${intent} Use the Pi finance tools, preserve evidence, ...`)
 ### 3.3 其他已识别但未在本轮处理
 
 - **真实 provider dossier（C15）**：依赖 `TUSHARE_TOKEN` / `FINANCIAL_DATASETS_API_KEY` 凭证到位；凭证未到时 `verify:pi-real-invest.ts` 自动 skip，状态 `skipped`。
-- **第三方 Pi Package marketplace**：规划见 [`pi11.md`](./internal/migrations/pi11.md) 阶段 C。
-- **Session 2.0 SQLite/WASM-backed snapshot**：规划见 [`pi11.md`](./internal/migrations/pi11.md) 阶段 C。
+- **第三方 Pi Package marketplace**：规划见 [`pi11.md`](../migrations/pi11.md) 阶段 C。
+- **Session 2.0 SQLite/WASM-backed snapshot**：规划见 [`pi11.md`](../migrations/pi11.md) 阶段 C。
 
 ---
 
@@ -170,4 +170,4 @@ result render → TUI 文本输出 + plan 落 .upup/plans/{planId}.json
 - **Pi 复用度**：98%+（5 周期修复后零绕路；投资命令真接线后 100% 走 Pi workflow）
 - **投资助手功能**：detect → plan → execute → verify → report 五阶段 + 7 Profile + 14 命令（5 旧 stub 命令 + 9 新命令通过 ALL_COMMANDS 暴露）
 
-剩余路径见 [`pi11.md`](./internal/migrations/pi11.md) 阶段 A/B/C。
+剩余路径见 [`pi11.md`](../migrations/pi11.md) 阶段 A/B/C。

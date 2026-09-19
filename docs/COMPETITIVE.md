@@ -3,6 +3,7 @@
 > **面向**:中文圈 4 类投资者决策者(散户 / 活跃 / 私募 / 企业)
 > **目的**:用 1 份文档讲清"投研 AI Agent"赛道格局 + UpUp 定位 + 4 个可量化、可证伪的差异化
 > **状态**:Sprint v4-2 落地,数据源 `src/competitive-positioning/`,所有数字可在仓库 HEAD 复现
+> **文档关系**:本文件是投研域竞品定位的 **canonical** 版本。早期英文版 `docs/comparison.md` 已归档至 [`internal/positioning/comparison.md`](./internal/positioning/comparison.md);两处冲突以本文件为准。
 
 ---
 

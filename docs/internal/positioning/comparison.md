@@ -166,9 +166,9 @@ Aider is the gold standard for AI pair programming in the terminal.
 
 ## See Also
 
-- [docs/roadmap.md](./roadmap.md) — what's coming
-- [docs/showcase.md](./showcase.md) — real example outputs
-- [docs/architecture.md](./architecture.md) — under the hood
+- [docs/roadmap.md](../../roadmap.md) — what's coming
+- [docs/showcase.md](../../showcase.md) — real example outputs
+- [docs/architecture.md](../../architecture.md) — under the hood
 
 ---
 
@@ -177,6 +177,6 @@ Aider is the gold standard for AI pair programming in the terminal.
 ---
 
 > 📊 **数据来源 (2026-06-12 更新)**: 本页所有 "vs virattt/dexter" 数字均以
-> [`upup-vs-dexter-audit.md`](./openspec/changes/upup-vs-dexter-comprehensive-audit-and-doc-refresh/docs/upup-vs-dexter-audit.md) 为准。
+> `upup-vs-dexter-audit.md`（原始 `openspec/` 快照，**不在本仓库内**）为准。
 > 完整可复现 shell 命令 + 提交 SHA pin 见该文档。
-> 中国版定位的权威表述见 [`pi-native-positioning.md`](./pi-native-positioning.md)。
+> 中国版定位的权威表述见 [`pi-native-positioning.md`](../../pi-native-positioning.md)。

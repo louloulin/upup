@@ -16,7 +16,7 @@ Chat with Dexter through WhatsApp by linking your phone to the gateway. Messages
 
 ## ✅ Prerequisites
 
-- Dexter installed and working (see main [README](../../../../README.md))
+- Dexter installed and working (see main [README](../../../../../README.md))
 - WhatsApp installed on your phone
 - Your phone connected to the internet
 

@@ -5,7 +5,7 @@
 > adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 > (in spirit — version format is CalVer `YYYY.M.D`).
 >
-> For the granular, commit-level changelog see [`openspec/CHANGELOG.md`](./openspec/CHANGELOG.md).
+> For the granular, commit-level changelog see the git history (`git log`).
 
 ## [Unreleased]
 
@@ -70,7 +70,7 @@
 
 ## [2026.04.x] — earlier rounds
 
-> See [`openspec/CHANGELOG.md`](./openspec/CHANGELOG.md) for the full commit-level history.
+> See the git history (`git log`) for the full commit-level history.
 > Headline milestones (oldest → newest):
 >
 > - **Fork from [virattt/dexter](https://github.com/virattt/dexter)** — initial codebase import

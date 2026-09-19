@@ -6,22 +6,22 @@
 
 ## Evaluation Framework
 
-We use the Pi-backed evaluation runner with a custom Ink UI (`src/evals/`). The runner evaluates Pi session events, tool calls, evidence metadata and final investment reports:
+We use the Pi-backed evaluation runner with the Pi TUI (`packages/pi-evals/src/`). The runner evaluates Pi session events, tool calls, evidence metadata and final investment reports:
 
 ```bash
 # Run full eval suite (200+ questions, takes ~30 min)
-bun run src/evals/run.ts
+bun run eval
 
 # Run a sample
-bun run src/evals/run.ts --sample 10
+bun run eval --sample 10
 
 # Run a specific question type
-bun run src/evals/run.ts --type "财务分析"
+bun run eval --type "财务分析"
 ```
 
 Each eval:
 
-1. Loads a question from `src/evals/dataset/finance_agent.csv`
+1. Loads a question from `packages/pi-evals/src/dataset/finance_agent.csv`
 2. Runs the agent with the question as the only input
 3. Captures the final answer + intermediate tool calls
 4. Scores against a rubric (correctness, contradiction, citation density, …)
@@ -31,7 +31,7 @@ Each eval:
 
 ## Dataset
 
-`src/evals/dataset/finance_agent.csv` has **240+ questions** spanning:
+`packages/pi-evals/src/dataset/finance_agent.csv` has **240+ questions** spanning:
 
 | Type | Count | Example |
 |---|---:|---|
@@ -125,7 +125,7 @@ export LANGSMITH_TRACING=true
 export LANGSMITH_PROJECT=upup-evals
 
 # 2. Run
-bun run src/evals/run.ts
+bun run eval
 
 # 3. View results
 # LangSmith UI will show all runs + scores
@@ -135,7 +135,7 @@ bun run src/evals/run.ts
 The Ink UI shows live progress:
 
 ```
-$ bun run src/evals/run.ts --sample 10
+$ bun run eval --sample 10
 
   涨涨 · Evaluation Runner
   
@@ -154,7 +154,7 @@ $ bun run src/evals/run.ts --sample 10
 
 ## Citation Density Counter
 
-`src/evals/citation-density.ts` measures the quality of the agent's citations:
+`packages/pi-evals/src/citation-density.ts` measures the quality of the agent's citations:
 
 ```ts
 // Counts: "Tushare 2025-10-25", "[1]", "https://...", etc.
@@ -177,7 +177,7 @@ Higher is better. Target: ≥ 3.0 citations per 100 words. This is enforced in t
 - **No real-time test** — all questions are about historical data
 - **No user satisfaction** — automated metrics ≠ human usefulness
 
-We welcome community-contributed questions, especially for A-share. See [`src/evals/dataset/`](../../src/evals/dataset/).
+We welcome community-contributed questions, especially for A-share. See [`packages/pi-evals/src/dataset/`](../packages/pi-evals/src/dataset/).
 
 ---
 
@@ -194,9 +194,9 @@ We welcome community-contributed questions, especially for A-share. See [`src/ev
 
 ## See Also
 
-- [src/evals/run.ts](../../src/evals/run.ts) — eval runner
-- [src/evals/citation-density.ts](../../src/evals/citation-density.ts) — citation metric
-- [src/evals/dataset/](../../src/evals/dataset/) — question bank
+- [`packages/pi-evals/src/run.ts`](../packages/pi-evals/src/run.ts) — eval runner
+- [`packages/pi-evals/src/citation-density.ts`](../packages/pi-evals/src/citation-density.ts) — citation metric
+- [`packages/pi-evals/src/dataset/`](../packages/pi-evals/src/dataset/) — question bank
 - [docs/showcase.md](./showcase.md) — real output samples
 
 ---

@@ -1,0 +1,25 @@
+# UpUp (涨涨) — code ownership
+#
+# Format: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+# Referenced from CONTRIBUTING.md → "Maintainers".
+#
+# GitHub evaluates patterns in order and the LAST match wins, so the catch-all
+# goes first and the specific boundaries below override it.
+
+# Default owner for everything in the repository.
+*                       @louloulin
+
+# Pi runtime boundary — highest blast radius: the single AgentSession factory,
+# the Pi Package catalog and the canonical event adapter. A change here affects
+# every entry point (CLI / Gateway / Cron / Daemon / Eval).
+/packages/pi-runtime/   @louloulin
+/packages/pi-session/   @louloulin
+/packages/pi-app/       @louloulin
+
+# Static gates, verification orchestrator and CI definitions: weakening these
+# weakens every other guarantee in the repo.
+/scripts/               @louloulin
+/.github/               @louloulin
+
+# Documentation and community health.
+/docs/                  @louloulin

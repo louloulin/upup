@@ -170,19 +170,34 @@ PY
 | **`.github/` 内相对路径错误** | `.github/ISSUE_TEMPLATE/question.md -> ./docs/`、`./README.md`；`.github/PULL_REQUEST_TEMPLATE.md -> ./AGENTS.md`、`./docs/skills.md` 等 5 条 | 从 `.github/` 出发应为 `../`，用 `./` 解析到 `.github/` 自身 |
 | **引用了不存在的文件** | `CONTRIBUTING.md -> ./.github/CODEOWNERS`（文件不存在）；`docs/faq.md -> ./sync-plan.md`（不存在）；`docs/benchmarks.md -> ../../src/evals/dataset/`、`../../src/evals/run.ts`、`../../src/evals/citation-density.ts`（`src/evals` 不存在）；`docs/roadmap.md -> ./pi11.md`（pi11.md 在仓库根，应为 `../pi11.md`） | 重构后未同步链接 |
 
+**修复结果（task-6，2026-09-19）**：上述 30 条已降为 **5 条已验证误报 + 0 条真死链**——
+
+| 类别 | 处置 | 结果 |
+|---|---|---|
+| **幽灵 `openspec/` 引用**（5 处） | 归档文件内 3 处（`docs/internal/audits/AI-AGENT-GAP-ANALYSIS.md`、`docs/internal/positioning/{comparison,positioning}.md`）改为纯文本说明（`openspec/` 快照不在本仓库）；`CHANGELOG.md` 2 处改为「见 `git log`」 | ✅ 0 |
+| **`docs/index.md` 越级路径 + 指向已归档文件**（9 处） | `docs/index.md` **整篇重写**为中文「唯一导航真源」，全部内链为 `./` 或 `../` 正确前缀且只指向存在文件 | ✅ 0 |
+| **`.github/` 内相对路径**（5 处） | **已验证为误报**：issue / PR 模板渲染为 issue / PR **正文**，相对链接按**仓库根**解析，故 `./AGENTS.md`、`./docs/` 在 GitHub 上正确（改为 `../` 反而 404）。仅本地扫描器按文件目录解析才报错 → 保留原样 | ✅ 误报 |
+| **`CONTRIBUTING.md -> .github/CODEOWNERS`**（1 处） | 新增 [`.github/CODEOWNERS`](../.github/CODEOWNERS)（声明 Pi runtime 边界 / scripts / docs 的 owner） | ✅ 0 |
+| **`docs/faq.md -> ./sync-plan.md`**（1 处） | 改为纯文本 `docs/sync-plan.md`（planned; not yet written） | ✅ 0 |
+| **`docs/benchmarks.md -> ../../src/evals/*`**（3 处） | 修正为真实路径 `packages/pi-evals/src/*`（eval runner 现址），命令改为 `bun run eval`；同时修正原有 `../../` 深度错误 → `../` | ✅ 0 |
+| **`docs/roadmap.md -> ./pi11.md`**（1 处） | 归档后重定向到 `./COMPETITIVE.md` | ✅ 0 |
+| **`packages/gateway/src/channels/whatsapp/README.md -> ../../../../README.md`**（1 处） | 深度修正为 `../../../../../README.md`（whatsapp → channels → src → gateway → packages → 根） | ✅ 0 |
+
+---
+
 ### 5.3 冗余与结构问题
 
 | 等级 | 问题 | 证据 | 判定 |
 |---|---|---|---|
 | **P0** | ✅ **已修复（task-4）**：`README.md` 与 `README_CN.md` **都是中文**且**循环互指**、仓库**无英文 README** | 修复前：`diff README.md README_CN.md \| wc -l` → 59（近乎重复）；`README.md:12` 写 `[中文](./README_CN.md)`，`README_CN.md:12` 写 `[English](./README.md)`。修复后：`README.md`（中文，GitHub 默认入口）+ `README_EN.md`（英文，对等重写）+ `README_CN.md` 已 `git rm`；双向互链可达、零死链；`README_CN.md` 独有的 gitcode 镜像 clone 命令已并入 README.md | UpUp 文档问题 |
-| **P1** | ARCHITECTURE 三处重叠 | `docs/ARCHITECTURE.md`(130 行) vs `docs/architecture-overview.md`(213 行) vs `docs/architecture/*.md`（6 篇合计 609 行） | UpUp 文档问题 |
-| **P1** | GAP-ANALYSIS 双份，且**双双标注 Superseded 并指向不存在的 `openspec/`** | `docs/GAP-ANALYSIS.md`(309 行) vs `docs/AI-AGENT-GAP-ANALYSIS.md`(310 行)，两者首段均含 `> ⚠️ **Superseded** (2026-06-12)` | UpUp 文档问题 |
-| **P1** | 竞品分析双份 | `docs/comparison.md`(182 行) vs `docs/COMPETITIVE.md`(273 行) | UpUp 文档问题 |
-| **P1** | 定位文档三份 | `docs/positioning.md`(133 行) vs `docs/pi-native-positioning.md`(119 行) vs `docs/pi-native-invest-assistant-analysis.md`(173 行) | UpUp 文档问题 |
+| **P1** | ✅ **已修复（task-6）**：ARCHITECTURE 三处重叠 | `docs/ARCHITECTURE.md`(130 行) vs `docs/architecture-overview.md`(213 行) vs `docs/architecture/*.md`（6 篇合计 609 行）。处置：`architecture-overview.md` → `docs/internal/architecture/`（内容陈旧，仍描述已删除的 `src/cli.tsx` + Ink TUI）；`ARCHITECTURE.md` 新增 §10「文档关系」声明 canonical 与优先级；`docs/architecture/*.md` **保留原位**（`scripts/verify-pi5.ts:41-50` 以 `existsSync` 硬断言，挂 `package.json:77 verify:pi5`） | UpUp 文档问题 |
+| **P1** | ✅ **已修复（task-6）**：GAP-ANALYSIS 双份 | `docs/GAP-ANALYSIS.md`(309 行) vs `docs/AI-AGENT-GAP-ANALYSIS.md`(310 行)，两者首段均含 `> ⚠️ **Superseded** (2026-06-12)`。处置：`AI-AGENT-GAP-ANALYSIS.md` → `docs/internal/audits/`；本文 §11 标为「已取代」；其 `openspec/` 死链改为纯文本说明 | UpUp 文档问题 |
+| **P1** | ✅ **已修复（task-6）**：竞品分析双份 | `docs/comparison.md`(182 行) vs `docs/COMPETITIVE.md`(273 行)。处置：英文早期版 `comparison.md` → `docs/internal/positioning/`；`COMPETITIVE.md` 头部新增交叉引用声明 canonical | UpUp 文档问题 |
+| **P1** | ✅ **已修复（task-6）**：定位文档三份 | `docs/positioning.md`(133 行) vs `docs/pi-native-positioning.md`(119 行) vs `docs/pi-native-invest-assistant-analysis.md`(173 行)。处置：`positioning.md` → `docs/internal/positioning/`；`pi-native-invest-assistant-analysis.md` → `docs/internal/audits/`；`pi-native-positioning.md` 头部新增交叉引用声明 canonical | UpUp 文档问题 |
 | **P1** | 迁移阶段日志占用主树 **~1.1MB** | ✅ **已修复（task-3）**：`pi6/pi7/pi8/pi10/pi11.md` 已 `git mv` 至 `docs/internal/migrations/`；`pi5.md` 因被 `scripts/verify-pi5.ts:52` 真实读取而按 objective 硬约束保留原位 | UpUp 文档问题 |
-| **P1** | 一次性审计文档残留 4 篇（972 行） | `docs/pi7-final-summary.md`(109) + `docs/pi-ecosystem-audit-2026-09-15.md`(444) + `docs/pi7-pi-llm-config-audit.md`(333) + `docs/pi7-pi-llm-provider-migration-plan.md`(86) —— **不在 objective 的 4 类归档范围内**，由 task-6 冗余合并处理 | UpUp 文档问题 |
-| **P2** | `docs/index.md`（唯一导航入口）为**英文**，与中文优先定位不一致 | `docs/index.md` 82 行，标题 `# UpUp Documentation` | UpUp 文档问题 |
-| **P2** | `docs/faq.md` 引用 `./sync-plan.md` 但文件不存在 | 死链扫描 | UpUp 文档问题 |
+| **P1** | ✅ **已修复（task-6）**：一次性审计文档残留 4 篇（972 行） | `docs/pi7-final-summary.md`(109) + `docs/pi-ecosystem-audit-2026-09-15.md`(444) + `docs/pi7-pi-llm-config-audit.md`(333) + `docs/pi7-pi-llm-provider-migration-plan.md`(86) → 均已 `git mv` 至 `docs/internal/audits/`；外部引用方（`pi11.md`、comet brief、`doctor.ts` 注释）已同步更新 | UpUp 文档问题 |
+| **P2** | ✅ **已修复（task-6）**：`docs/index.md`（唯一导航入口）为**英文**，与中文优先定位不一致 | 修复前 82 行，标题 `# UpUp Documentation`。修复后整篇重写为中文 `# UpUp 文档导航`，显式声明「唯一导航真源」，含归档区（`internal/`）与根文件区，零死链 | UpUp 文档问题 |
+| **P2** | ✅ **已修复（task-6）**：`docs/faq.md` 引用 `./sync-plan.md` 但文件不存在 | 改为纯文本 `docs/sync-plan.md`（planned; not yet written），不再产生死链 | UpUp 文档问题 |
 
 ---
 
@@ -355,9 +370,9 @@ objective 明确的 out-of-scope 文件：`yh.md` / `native1.md` / `SOUL.md` / `
 |---|---|---|
 | `docs/GAP-ANALYSIS.md`（本文） | ✅ **canonical** | 生产级就绪度差距分析 v2 |
 | `docs/GAP-ANALYSIS.md` v1（2026-06-04） | 已取代 | 「投研 Claude Code 差距分析」，内容见 `git log -- docs/GAP-ANALYSIS.md` |
-| `docs/AI-AGENT-GAP-ANALYSIS.md` | 已取代 | 与本文 §1–§2 维度重叠；其 `openspec/` 引用为死链 |
+| `docs/internal/audits/AI-AGENT-GAP-ANALYSIS.md` | 已取代（task-6 归档） | 与本文 §1–§2 维度重叠；其 `openspec/` 引用已改为纯文本说明（`openspec/` 快照不在本仓库） |
 | `docs/roadmap.md` | ✅ canonical | 后续路线图（S1/S2/S3/S4 优先级矩阵） |
-| `docs/ARCHITECTURE.md` + `docs/architecture-overview.md` + `docs/architecture/*` | 待合并 | 见 §5.3，由文档治理任务处理 |
+| `docs/ARCHITECTURE.md` | ✅ canonical（task-6） | 已新增 §10「文档关系」；`architecture-overview.md` 归档至 `docs/internal/architecture/`；`docs/architecture/*`（6 篇）保留原位（`scripts/verify-pi5.ts` 硬断言） |
 
 ---
 
@@ -368,7 +383,7 @@ objective 明确的 out-of-scope 文件：`yh.md` / `native1.md` / `SOUL.md` / `
 | §5.2 死链（P0） | ✅ 修复（task-6 导航真源 + task-4 README 互链） |
 | §5.3 冗余合并（P1） | ✅ 合并（task-6） |
 | §5.3 1.1MB 迁移日志（P1） | ✅ 归档（task-3 完成：`docs/internal/migrations/` ×5，`pi5.md` 因硬约束保留） |
-| §5.3 一次性审计文档（P1） | ⏳ task-6 处理（4 篇审计文档不在 4 类归档范围，改为并入 `docs/internal/audits/` 或降为交叉引用） |
+| §5.3 一次性审计文档（P1） | ✅ 归档（task-6）→ `docs/internal/audits/` ×4 |
 | §6.1 缺 3 项元数据（P1） | ✅ 补齐（task-5） |
 | §3.2 7 个 timeout（P1） | ❌ out of scope（用户明确选择「文档+元数据+缺失 3 项」，不含测试逻辑改动） |
 | §4.2 CI 覆盖率 / Node 矩阵（P1/P2） | ❌ out of scope（不做 CI 硬化） |

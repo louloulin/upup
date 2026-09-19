@@ -215,5 +215,5 @@ bun test
 | **v5 Sprint 1** | ✅ | Plan Mode 投资研究工作流(plan-builder + plan-executor + audit) |
 | **v5 Sprint 2** | ✅ | 5 个 fast lane 投资 CLI(零跨包、零循环) |
 | **v5 Sprint 3** | ✅ | 5 步研究闭环 + /invest CLI |
-| **v5 Sprint 4** | ✅ | docs/positioning.md + docs/deployment.md |
+| **v5 Sprint 4** | ✅ | docs/pi-native-positioning.md + docs/deployment.md |
 | **v5 Sprint 5** | ✅ | CHANGELOG + v3/v4 归档验证 |

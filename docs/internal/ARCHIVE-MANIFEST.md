@@ -199,7 +199,57 @@ if (!plan.includes(marker)) throw new Error(`pi5.md is missing required marker: 
 
 ## 6. 汇总
 
-- 白名单：**77** 个文件可归档
+- 白名单：**77** 个文件可归档（task-3 执行，77 R / 0 失败）
 - 黑名单：**1** 个文件保留原位（`pi5.md`）
 - 引用方需同步更新：**12** 处（其中 2 处仅注释文案；另有 2 处因 `pi5.md` 不归档而无需改动）
 - 归档后**零死链**为目标：所有 Markdown 链接在同一次变更中修正
+
+---
+
+## 7. task-6 追加归档（docs 冗余合并）
+
+§5 的 4 类范围之外，另有 **9 份** `docs/` 冗余 / 一次性文档，在 task-6（docs 冗余合并 + 单一导航真源）中按同一原则归档：
+
+| 原路径 | 新路径 | 归档理由 | canonical 替代 |
+|---|---|---|---|
+| `docs/architecture-overview.md` | `docs/internal/architecture/architecture-overview.md` | Pi5 期概览；仍描述已删除的 `src/cli.tsx` + Ink TUI；自称 ARCHITECTURE.md 为「334 行」实为 130 行 | `docs/ARCHITECTURE.md` |
+| `docs/AI-AGENT-GAP-ANALYSIS.md` | `docs/internal/audits/AI-AGENT-GAP-ANALYSIS.md` | 与 `docs/GAP-ANALYSIS.md` 维度重叠；自标 Superseded；含 `openspec/` 死链 | `docs/GAP-ANALYSIS.md` |
+| `docs/pi-native-invest-assistant-analysis.md` | `docs/internal/audits/…` | 一次性分析 | `docs/pi-native-positioning.md` |
+| `docs/pi7-final-summary.md` | `docs/internal/audits/…` | 一次性迁移摘要 | `docs/internal/migrations/pi*.md` |
+| `docs/pi-ecosystem-audit-2026-09-15.md` | `docs/internal/audits/…` | 时点审计 | `docs/GAP-ANALYSIS.md` §2 |
+| `docs/pi7-pi-llm-config-audit.md` | `docs/internal/audits/…` | 时点审计 | `docs/pi-native-positioning.md` §5 |
+| `docs/pi7-pi-llm-provider-migration-plan.md` | `docs/internal/audits/…` | 已完成的一次性计划 | 同上 |
+| `docs/comparison.md` | `docs/internal/positioning/comparison.md` | 与 `COMPETITIVE.md` 重复（英文早期版） | `docs/COMPETITIVE.md` |
+| `docs/positioning.md` | `docs/internal/positioning/positioning.md` | 与 `pi-native-positioning.md` 重复（自述被其取代） | `docs/pi-native-positioning.md` |
+
+### 7.1 ❌ task-6 硬黑名单（不归档）
+
+| 路径 | 消费者 | 断言类型 |
+|---|---|---|
+| `docs/architecture/*.md` ×6 | `scripts/verify-pi5.ts#verifyArchitectureDocs()`（挂 `package.json:77 verify:pi5`） | `existsSync` **硬断言存在**，移动即失败 |
+
+### 7.2 task-6 引用修正
+
+| 引用方 | 处理 |
+|---|---|
+| `docs/index.md` | **整篇重写**为中文「唯一导航真源」（含 canonical 区 + 归档区 + 根文件区） |
+| `docs/ARCHITECTURE.md` | 新增 §10「文档关系（canonical 与归档）」+ 优先级声明 |
+| `docs/COMPETITIVE.md` / `docs/pi-native-positioning.md` | 头部新增「文档关系」交叉引用 |
+| `docs/GAP-ANALYSIS.md` | §5.2 修复结果表 + §5.3 四行状态 + §11 + §12 |
+| `docs/roadmap.md` | `./comparison.md` → `./COMPETITIVE.md` |
+| `docs/deployment.md` | `docs/positioning.md` → `docs/pi-native-positioning.md` |
+| `docs/internal/migrations/pi11.md` | `docs/pi7-final-summary.md` → `docs/internal/audits/pi7-final-summary.md` |
+| `docs/internal/comet/archive/2026-09-16-pi5-core-agent-migration/brief.md` | `docs/pi-ecosystem-audit-2026-09-15.md` → `docs/internal/audits/…` |
+| `packages/pi-cli-bootstrap/src/doctor.ts:206` | JSDoc 注释路径 → `docs/internal/audits/pi7-pi-llm-config-audit.md` |
+| 9 个归档文件内部相对链接 | 按「原目录解析 → 相对新目录重写」，共重写 **27 条** |
+| `docs/benchmarks.md` | `src/evals/*` → `packages/pi-evals/src/*`（含 4 条 `../../` → `../` 深度修正）；命令改为 `bun run eval` |
+| `docs/faq.md` | `./sync-plan.md` 死链改为纯文本 |
+| `CHANGELOG.md` | `openspec/CHANGELOG.md` ×2 → 「见 `git log`」 |
+| `.github/CODEOWNERS` | **新增**（关闭 `CONTRIBUTING.md:251` 死链；声明 Pi runtime / scripts / docs owner） |
+
+### 7.3 task-6 验证结果
+
+- `git status -M`：**9 R**（全部 rename 检测通过，history 保留）
+- 全仓死链：**28 → 5**，且 5 条均为**已验证误报**（`.github/` issue / PR 模板按仓库根解析）
+- `docs/` 导航面（排除 `internal/`）：**0 条死链**；`docs/index.md` 内链 **100% 可达**
+- `docs/` 主树跨文件重复段落（>200 字符）：**0**

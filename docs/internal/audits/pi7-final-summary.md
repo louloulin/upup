@@ -89,13 +89,13 @@ bun run verify:pi7-final
 
 ## 六、可发布证据链
 
-> 以下迁移日志已归档至 [`docs/internal/migrations/`](./internal/migrations/)。
+> 以下迁移日志已归档至 [`docs/internal/migrations/`](../migrations)。
 
-- [`pi6.md`](./internal/migrations/pi6.md)（5129 行）— 阶段 1-7 增量审计（pi81 → pi130）
-- [`pi7.md`](./internal/migrations/pi7.md)（6672 行）— 实施执行与详细验证（pi114 → pi130）
-- [`pi8.md`](./internal/migrations/pi8.md)（631 行）— Pi Native 投研闭环产品验收
-- [`pi10.md`](./internal/migrations/pi10.md)（335 行）— 最终收口计划与实施报告
-- [`pi11.md`](./internal/migrations/pi11.md)（191 行）— Pi Native 投资助手定型与发布收尾
+- [`pi6.md`](../migrations/pi6.md)（5129 行）— 阶段 1-7 增量审计（pi81 → pi130）
+- [`pi7.md`](../migrations/pi7.md)（6672 行）— 实施执行与详细验证（pi114 → pi130）
+- [`pi8.md`](../migrations/pi8.md)（631 行）— Pi Native 投研闭环产品验收
+- [`pi10.md`](../migrations/pi10.md)（335 行）— 最终收口计划与实施报告
+- [`pi11.md`](../migrations/pi11.md)（191 行）— Pi Native 投资助手定型与发布收尾
 - `pi7-final-summary.md`（本文件）— 可发布结构化摘要
 
 ## 七、未完成项与后续方向

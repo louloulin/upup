@@ -1,10 +1,10 @@
 ---
 > ⚠️ **Superseded** (2026-06-12): this document is kept for historical reference.
 > The canonical "upup vs upstream" comparison now lives in
-> [`openspec/changes/upup-vs-dexter-comprehensive-audit-and-doc-refresh/docs/upup-vs-dexter-audit.md`](./openspec/changes/upup-vs-dexter-comprehensive-audit-and-doc-refresh/docs/upup-vs-dexter-audit.md)
+> `upup-vs-dexter-audit.md`（原始 `openspec/` 快照，**不在本仓库内**）
 > with reproducible shell commands and pinned commit SHAs.
 > The canonical "中国版" positioning lives in
-> [`docs/pi-native-positioning.md`](./pi-native-positioning.md).
+> [`docs/pi-native-positioning.md`](../../pi-native-positioning.md).
 > When in doubt, those two docs win.
 ---
 
