@@ -1,14 +1,23 @@
 import { afterEach, describe, expect, test } from 'bun:test';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { searchWeb, searchX } from './search';
 
 const originalFetch = globalThis.fetch;
 
+const tempDirs: string[] = [];
 afterEach(() => {
+  for (const dir of tempDirs.splice(0)) {
+    try { rmSync(dir, { recursive: true, force: true }); } catch { /* ignore */ }
+  }
   globalThis.fetch = originalFetch;
   delete process.env.EXASEARCH_API_KEY;
   delete process.env.PERPLEXITY_API_KEY;
   delete process.env.TAVILY_API_KEY;
   delete process.env.X_BEARER_TOKEN;
+  delete process.env.UPUP_CODING_AGENT_DIR;
+  delete process.env.UPUP_HOME;
 });
 
 describe('Pi research search providers', () => {
@@ -99,6 +108,88 @@ describe('Pi research search providers', () => {
       expect(observed.url).toBe('https://proxy.example.com/v1/chat/completions');
     } finally {
       if (previous !== undefined) process.env.PERPLEXITY_API_KEY = previous;
+    }
+  });
+
+  test('reads Perplexity credential from ~/.upup/agent/auth.json when no resolver is injected', async () => {
+    const previous = process.env.PERPLEXITY_API_KEY;
+    delete process.env.PERPLEXITY_API_KEY;
+    const prevAgentDir = process.env.UPUP_CODING_AGENT_DIR;
+    const prevHome = process.env.UPUP_HOME;
+    const tmp = mkdtempSync(join(tmpdir(), 'upup-authjson-'));
+    tempDirs.push(tmp);
+    const agentDir = join(tmp, 'agent');
+    mkdirSync(agentDir, { recursive: true });
+    writeFileSync(join(agentDir, 'auth.json'), JSON.stringify({ perplexity: { type: 'api_key', key: 'pplx-from-authjson' } }, null, 2));
+    process.env.UPUP_CODING_AGENT_DIR = agentDir;
+    try {
+      const observed: { url?: string; authHeader?: string } = {};
+      globalThis.fetch = (async (input, init) => {
+        observed.url = String(input);
+        const headers = init && (init.headers as Record<string, string> | undefined);
+        observed.authHeader = headers?.['Authorization'];
+        return new Response(JSON.stringify({ choices: [{ message: { content: 'auth.json answer' } }] }), { status: 200 });
+      }) as typeof fetch;
+      const result = await searchWeb('test', 'search-perplexity-authjson', undefined, { preferPiWebAccess: false });
+      expect(result.value.provider).toBe('perplexity');
+      expect(result.value.answer).toBe('auth.json answer');
+      expect(observed.authHeader).toBe('Bearer pplx-from-authjson');
+      expect(observed.url).toBe('https://api.perplexity.ai/chat/completions');
+    } finally {
+      if (previous !== undefined) process.env.PERPLEXITY_API_KEY = previous;
+      if (prevAgentDir !== undefined) process.env.UPUP_CODING_AGENT_DIR = prevAgentDir; else delete process.env.UPUP_CODING_AGENT_DIR;
+      if (prevHome !== undefined) process.env.UPUP_HOME = prevHome; else delete process.env.UPUP_HOME;
+    }
+  });
+
+  test('honours PERPLEXITY_BASE_URL env over default when reading auth.json', async () => {
+    const previous = process.env.PERPLEXITY_API_KEY;
+    const previousBase = process.env.PERPLEXITY_BASE_URL;
+    delete process.env.PERPLEXITY_API_KEY;
+    const prevAgentDir = process.env.UPUP_CODING_AGENT_DIR;
+    const prevHome = process.env.UPUP_HOME;
+    const tmp = mkdtempSync(join(tmpdir(), 'upup-authjson-'));
+    tempDirs.push(tmp);
+    const agentDir = join(tmp, 'agent');
+    mkdirSync(agentDir, { recursive: true });
+    writeFileSync(join(agentDir, 'auth.json'), JSON.stringify({ perplexity: { type: 'api_key', key: 'pplx-base-url' } }, null, 2));
+    process.env.UPUP_CODING_AGENT_DIR = agentDir;
+    process.env.PERPLEXITY_BASE_URL = 'https://proxy.example.com/v1';
+    try {
+      const observed: { url?: string } = {};
+      globalThis.fetch = (async (input) => {
+        observed.url = String(input);
+        return new Response(JSON.stringify({ choices: [{ message: { content: 'ok' } }] }), { status: 200 });
+      }) as typeof fetch;
+      await searchWeb('test', 'search-perplexity-baseurl', undefined, { preferPiWebAccess: false });
+      expect(observed.url).toBe('https://proxy.example.com/v1/chat/completions');
+    } finally {
+      if (previous !== undefined) process.env.PERPLEXITY_API_KEY = previous; else delete process.env.PERPLEXITY_API_KEY;
+      if (previousBase !== undefined) process.env.PERPLEXITY_BASE_URL = previousBase; else delete process.env.PERPLEXITY_BASE_URL;
+      if (prevAgentDir !== undefined) process.env.UPUP_CODING_AGENT_DIR = prevAgentDir; else delete process.env.UPUP_CODING_AGENT_DIR;
+      if (prevHome !== undefined) process.env.UPUP_HOME = prevHome; else delete process.env.UPUP_HOME;
+    }
+  });
+
+  test('skips OAuth-only Perplexity entry in auth.json (Pi runtime owns the OAuth client)', async () => {
+    const previous = process.env.PERPLEXITY_API_KEY;
+    delete process.env.PERPLEXITY_API_KEY;
+    const prevAgentDir = process.env.UPUP_CODING_AGENT_DIR;
+    const prevHome = process.env.UPUP_HOME;
+    const tmp = mkdtempSync(join(tmpdir(), 'upup-authjson-'));
+    tempDirs.push(tmp);
+    const agentDir = join(tmp, 'agent');
+    mkdirSync(agentDir, { recursive: true });
+    writeFileSync(join(agentDir, 'auth.json'), JSON.stringify({ perplexity: { type: 'oauth', refresh_token: 'r' } }, null, 2));
+    process.env.UPUP_CODING_AGENT_DIR = agentDir;
+    try {
+      await expect(
+        searchWeb('test', 'search-perplexity-oauth', undefined, { preferPiWebAccess: false }),
+      ).rejects.toThrow('PERPLEXITY_API_KEY');
+    } finally {
+      if (previous !== undefined) process.env.PERPLEXITY_API_KEY = previous;
+      if (prevAgentDir !== undefined) process.env.UPUP_CODING_AGENT_DIR = prevAgentDir; else delete process.env.UPUP_CODING_AGENT_DIR;
+      if (prevHome !== undefined) process.env.UPUP_HOME = prevHome; else delete process.env.UPUP_HOME;
     }
   });
 

@@ -87,3 +87,5 @@ packages/sdk/.upup
 !/.comet/config.yaml
 # <<< Comet managed project state <<<
 upup-2026.6.12.tgz
+.pi/*
+.pi/goal

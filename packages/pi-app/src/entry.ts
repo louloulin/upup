@@ -245,6 +245,29 @@ async function main() {
       process.exit(sopResult.exitCode);
       break;
 
+    case 'skill':
+      // Sprint F4: visualise UpUp-owned skills vs Pi's ambient ~/.agents/skills
+      // library that AmbientSkillFilter blocks by default. Lets the user
+      // audit which 175 ambient entries are dropped and persist the policy
+      // choice in ~/.upup/settings.json so the next session honours it.
+      const { runSkillCommand } = await import('@upup/pi-cli-bootstrap');
+      const skArgs = args.slice(1);
+      const skSub = skArgs[0] || 'help';
+      const skSubArgs = skArgs.slice(1);
+      const allowedSkillSubs = ['list', 'scope', 'set-policy', 'enable-all', 'disable-all', 'help'] as const;
+      if (!(allowedSkillSubs as readonly string[]).includes(skSub)) {
+        process.stderr.write(`upup skill: unknown subcommand: ${skSub}\n`);
+        const helpResult = await runSkillCommand({ command: 'help', args: [] });
+        process.stdout.write(`${helpResult.message}\n`);
+        process.exit(1);
+      }
+      const skResult = await runSkillCommand({
+        command: skSub as typeof allowedSkillSubs[number],
+        args: skSubArgs,
+      });
+      process.exit(skResult.exitCode);
+      break;
+
     case 'bridge':
       // Phase 0.1c: forward a reload signal to a running bridge server (the
       // long-running TUI/CLI/SDK session picks it up via the onReloadRequest
@@ -528,6 +551,9 @@ Usage:
   upup sop <list|show|install|uninstall|new>
                          Headless SOP (投资方法论) management. Installs land in
                          $UPUP_HOME/sops (default ~/.upup/sops).
+  upup skill <list|scope|set-policy|enable-all|disable-all|help>
+                         Audit AmbientSkillFilter: list UpUp-owned vs ~/.agents/skills
+                         ambient skills; persist the userSkills policy (default: exclude).
   upup config             Manage configuration (~/.upup/settings.json)
   upup openbuddy          Migrate Pi state into ~/.upup/agent
   upup plugin             Manage Pi packages (install/list/uninstall/update)

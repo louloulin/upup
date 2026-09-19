@@ -15,12 +15,12 @@
 import { afterEach, describe, expect, test } from 'bun:test';
 import { bindSessionProvidersAccessor, definePiCapabilityHost, resolvePiCapabilityHost } from './src/index';
 import { createEventBus } from '@earendil-works/pi-coding-agent';
-import { __resetSessionProvidersForTests, getSessionProviders, setSessionProviders } from '@upup/pi-runtime';
+import { __resetSessionProvidersForTests, getSessionProviders, listSessionProvidersKeys, setSessionProviders } from '@upup/pi-runtime';
 
 // Helper for tests: bind the accessor so definePiCapabilityHost reads from
 // the real session store.
 function wireAccessor(): void {
-  bindSessionProvidersAccessor({ getSessionProviders });
+  bindSessionProvidersAccessor({ getSessionProviders, listSessionProvidersKeys });
 }
 
 afterEach(() => {

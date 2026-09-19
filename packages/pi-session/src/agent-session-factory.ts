@@ -43,7 +43,7 @@ import {
   toPiTool,
 } from '@upup/pi-event-adapter';
 import { isPiCustomProviderSpec, resolvePiModel } from '@upup/pi-event-adapter/pi-model-bridge';
-import { createOllamaProviderExtension } from '@upup/pi-runtime/custom-providers';
+import { createOllamaProviderExtension, createPerplexityProviderExtension, isOllamaModelSpec, isPerplexityModelSpec } from '@upup/pi-runtime/custom-providers';
 import { createUpUpInvestmentEventExtension } from './investment-event-surface';
 import { PiSessionAdapter } from './session-adapter';
 import { withSerializedPiResourceReload } from '@upup/pi-resource-composition';
@@ -480,7 +480,13 @@ export class PiAgentSessionFactory implements UpUpAgentRuntime {
         // rebranding is exactly what `before_agent_start` is for.
         createUpUpBrandExtension(),
         ...(isPiCustomProviderSpec(spec.model ?? process.env.DEFAULT_MODEL)
-          ? [createOllamaProviderExtension()]
+          ? (() => {
+              const modelSpec = (spec.model ?? process.env.DEFAULT_MODEL) ?? '';
+              const extensions = [];
+              if (isOllamaModelSpec(modelSpec)) extensions.push(createOllamaProviderExtension());
+              if (isPerplexityModelSpec(modelSpec)) extensions.push(createPerplexityProviderExtension());
+              return extensions;
+            })()
           : []),
         createFinanceSessionExtension(financeContext),
         // Full Pi event surface (all 36 events) + UpUp's investment behaviors:

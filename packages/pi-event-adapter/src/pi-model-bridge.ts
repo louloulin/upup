@@ -23,6 +23,7 @@ import {
 } from '@upup/pi-runtime/model-registry';
 import {
   OLLAMA_PROVIDER_ID,
+  isPerplexityModelSpec,
   createOllamaModel,
   isOllamaModelSpec,
 } from '@upup/pi-runtime/custom-providers';
@@ -152,7 +153,7 @@ export function resolvePiModel(options: ResolvePiModelOptions = {}): Model<any> 
 
 /** Whether a model spec targets a provider UpUp registers into Pi itself. */
 export function isPiCustomProviderSpec(modelSpec: string | undefined): boolean {
-  return typeof modelSpec === 'string' && isOllamaModelSpec(modelSpec);
+  return typeof modelSpec === 'string' && (isOllamaModelSpec(modelSpec) || isPerplexityModelSpec(modelSpec));
 }
 
 /** Explain how a model id resolves against the Pi catalog. */

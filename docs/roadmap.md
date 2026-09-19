@@ -161,7 +161,20 @@ Things we will **not** do, on purpose:
 
 ## 中文路线图（Pi Native 迁移后 · 2026 Q3+）
 
-> 与上方英文季度规划互补，本节按 **Sprint** 划分而非季度，回答「迁完后做什么」。与 [`pi11.md`](./internal/migrations/pi11.md)（回答「怎么迁」）、[`docs/analysis/2026-09-18-pi-native-invest-status-and-plan.md`](./internal/analysis/2026-09-18-pi-native-invest-status-and-plan.md)（回答「现状与问题分级」）三者口径一致。
+> 与上方英文季度规划互补，本节按 **Sprint** 划分而非季度，回答「迁完后做什么」。与 [`pi11.md`](./internal/migrations/pi11.md)（回答「怎么迁」）、[`2026-09-19-pi-native-sprint-f3-f4-i.md`](./internal/analysis/2026-09-19-pi-native-sprint-f3-f4-i.md)（回答「Sprint F3/F4/I 收口证据」）三者口径一致。已完成的 Sprint 不再列入本路线图。
+
+### 已完成 Sprint（2026-09-19 收口）
+
+| Sprint | 范围 | 状态 | 证据 |
+|---|---|---|---|
+| **F1** | AmbientSkillFilter 屏蔽 175 个 ambient skill | ✅ | [`brand-extension.test.ts`](../../packages/pi-runtime/src/brand-extension.test.ts) 14 pass |
+| **F2** | `resolvePiModel` 集成 Pi `ModelRuntime`（修 `~/.upup/agent/models.json` 静默 fallback） | ✅ | `default-model-runtime.test.ts` 4 pass |
+| **F3** | Perplexity provider extension boot 注册 + `searchPerplexity` 走 `auth.json` | ✅ | `search.test.ts` 12 pass / [Sprint F3+F4+I 收口报告](./internal/analysis/2026-09-19-pi-native-sprint-f3-f4-i.md#二sprint-f3--provider-registry-一致性) |
+| **F4** | `upup skill list/scope/set-policy/enable-all/disable-all` 6 个子命令 | ✅ | `skill.test.ts` 12 pass / [收口报告](./internal/analysis/2026-09-19-pi-native-sprint-f3-f4-i.md#三sprint-f4--skill-作用域透明化) |
+| **I** | Pi web overlay sidecar fail-closed + `/api/upup/health` | ✅ | `proxy-server.test.ts` 5 pass + `check:pi-web-overlay` 26/26 / [收口报告](./internal/analysis/2026-09-19-pi-native-sprint-f3-f4-i.md#四sprint-i--pi-web-overlay-sidecar-fail-closed) |
+| **A–E + H** | TUI / Bash / Session / Settings / plugin UX / Settings 持久化 | ✅ | 累计多轮实现；`verify:pi7-final` 24/24 PASS |
+
+**AGENTS.md "Known Pi-Integration Gaps" 关闭率：4/5（80%）**；剩余 1 项是 `tsconfig.typecheck.json` 未覆盖 `extensions`（基础设施改进，非 Pi 集成缺口）。
 
 ### Sprint 划分
 

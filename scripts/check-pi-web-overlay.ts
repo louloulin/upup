@@ -92,6 +92,15 @@ if (existsSync(sidecar)) {
   check('sidecar bundle >= 1KB', size >= 1024, `${size} bytes`);
 }
 
+// (8) Sprint I fail-closed: proxy probes sidecar at startup, skips injection
+//     when missing, and reports status on /api/upup/health. Without these
+//     the page silently loads a 500 stub script in the browser.
+const proxySrc = readFileSync(resolve(upupWebDir, 'src/proxy-server.ts'), 'utf8');
+check('proxy-server.ts probes sidecar at startup', /probeSidecarBundle\(\)/.test(proxySrc));
+check('proxy-server.ts warns on missing sidecar', /console\.warn.*sidecar/i.test(proxySrc));
+check('proxy-server.ts skips injection when probe fails', /sidecar\.ok\s*\?\s*injectIntoHtml/.test(proxySrc));
+check('proxy-server.ts exposes /api/upup/health', /\/api\/upup\/health/.test(proxySrc));
+
 // Report
 let pass = 0;
 let fail = 0;

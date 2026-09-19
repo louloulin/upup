@@ -7,6 +7,7 @@
  * - `runOpenBuddyCommand`    — `upup openbuddy` Pi 状态迁移到 ~/.upup/agent
  * - `runPluginCommand`       — `upup plugin` Pi DefaultPackageManager 包装（install/list/uninstall/update）
  * - `runEcosystemCommand`    — `upup ecosystem` 双 scope 解析诊断 + 把 UPUP_ECOSYSTEM_PACKAGES 装入 ~/.upup/agent/npm
+ * - `runSkillCommand`        — `upup skill` 可视化 AmbientSkillFilter 屏蔽的 ~/.agents/skills ambient 库 + 持久化 userSkills
  *
  * Authentication lives entirely inside the Pi TUI's `/login` slash command,
  * which writes to `~/.upup/agent/auth.json`. There is no UpUp-side
@@ -24,6 +25,7 @@ export { runPluginCommand, type PluginCommandOptions, type PluginRunResult } fro
 export { runEcosystemCommand, type EcosystemCommandOptions, type EcosystemRunResult, type EcosystemSubCommand } from './ecosystem';
 export { runInvestCommand, type InvestCommandOptions, type InvestCommandResult } from './invest';
 export { runSopCommandCli, type SopCommandOptions, type SopCommandResult } from './sop';
+export { runSkillCommand, type SkillCommandOptions, type SkillRunResult, type SkillSubCommand } from './skill';
 export { runBridgeNotifyReloadCommand, type BridgeNotifyReloadOptions, type BridgeNotifyReloadResult } from './bridge';
 export {
   UPUP_RECOMMENDED_PLUGINS,

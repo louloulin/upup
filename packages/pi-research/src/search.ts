@@ -1,3 +1,6 @@
+import { existsSync, readFileSync } from 'node:fs';
+import { homedir as osHomedir } from 'node:os';
+import { join } from 'node:path';
 import { searchWebViaPiWebAccess } from './web-access-bridge';
 
 export interface SearchResult {
@@ -155,16 +158,53 @@ export interface XAuthResolver {
   resolveXAuth(): PiXAuthLike | undefined;
 }
 
+/**
+ * Read the canonical UpUp auth.json (`~/.upup/agent/auth.json`) and look up
+ * the Perplexity credential. This is the only place in the package that
+ * reads provider secrets from disk; Pi's runtime owns the rest via
+ * `ModelRuntime#getAuth('perplexity')`, but that path is only reachable when
+ * the consumer wired up `authResolver`. Keeping the on-disk fallback here
+ * means `web_search` works for direct callers of `searchWeb()` (cron, gateway,
+ * eval) without forcing every site to thread a resolver through.
+ *
+ * Returned only when the file parses and contains an api_key entry for
+ * Perplexity. OAuth tokens are intentionally not surfaced: Pi's runtime is the
+ * authoritative OAuth client.
+ */
+function readPerplexityAuthFromAuthJson(): PiPerplexityAuthLike | undefined {
+  const envAgentDir = process.env.UPUP_CODING_AGENT_DIR?.trim() || process.env.PI_CODING_AGENT_DIR?.trim();
+  const home = process.env.UPUP_HOME?.trim() || osHomedir();
+  const baseDir = envAgentDir || join(home, '.upup', 'agent');
+  const authPath = join(baseDir, 'auth.json');
+  if (!existsSync(authPath)) return undefined;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(readFileSync(authPath, 'utf8'));
+  } catch {
+    return undefined;
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return undefined;
+  const entry = (parsed as Record<string, { type?: string; key?: string } | undefined>)['perplexity'];
+  if (!entry || (entry.type ?? 'api_key') !== 'api_key') return undefined;
+  const key = typeof entry.key === 'string' && entry.key.trim().length > 0 ? entry.key : undefined;
+  if (!key) return undefined;
+  return { apiKey: key };
+}
+
 async function searchPerplexity(
   query: string,
   signal?: AbortSignal,
   options?: { authResolver?: PerplexityAuthResolver },
 ): Promise<{ value: WebSearchValue; source: string }> {
   const fromRuntime = options?.authResolver?.resolvePerplexityAuth();
-  const apiKey = fromRuntime?.apiKey ?? process.env.PERPLEXITY_API_KEY;
+  const fromAuthJson = fromRuntime ? undefined : readPerplexityAuthFromAuthJson();
+  const apiKey = fromRuntime?.apiKey ?? fromAuthJson?.apiKey ?? process.env.PERPLEXITY_API_KEY;
   if (!apiKey) throw new Error('PERPLEXITY_API_KEY is not set (and no Pi runtime credential resolver was supplied)');
-  const endpoint = fromRuntime?.baseUrl
-    ? `${fromRuntime.baseUrl.replace(/\/+$/, '')}/chat/completions`
+  const baseUrl = fromRuntime?.baseUrl
+    ?? fromAuthJson?.baseUrl
+    ?? process.env.PERPLEXITY_BASE_URL?.trim();
+  const endpoint = baseUrl
+    ? `${baseUrl.replace(/\/+$/, '')}/chat/completions`
     : 'https://api.perplexity.ai/chat/completions';
   const raw = await requestJson(endpoint, {
     method: 'POST',
@@ -242,14 +282,19 @@ export async function searchWeb(
     }
   }
 
+  const perplexityAvailable = Boolean(
+    process.env.PERPLEXITY_API_KEY
+    || options?.authResolver
+    || readPerplexityAuthFromAuthJson(),
+  );
   const provider = process.env.EXASEARCH_API_KEY
     ? searchExa
-    : process.env.PERPLEXITY_API_KEY || options?.authResolver
+    : perplexityAvailable
       ? (q: string, sig?: AbortSignal) => searchPerplexity(q, sig, options)
       : process.env.TAVILY_API_KEY
         ? searchTavily
         : undefined;
-  if (!provider) throw new Error('web_search requires EXASEARCH_API_KEY, PERPLEXITY_API_KEY, a Pi runtime credential resolver, or TAVILY_API_KEY');
+  if (!provider) throw new Error('web_search requires EXASEARCH_API_KEY, PERPLEXITY_API_KEY, a Pi runtime credential resolver, a ~/.upup/agent/auth.json perplexity entry, or TAVILY_API_KEY');
   const result = await provider(normalized, signal);
   const retrievedAt = new Date().toISOString();
   return { ...result, evidence: { id: `pi-research:web-search:${auditId || retrievedAt}`, source: result.source, retrievedAt, asOf: retrievedAt.slice(0, 10), query: normalized, dataFreshness: 'live', auditId } };
