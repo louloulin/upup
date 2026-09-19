@@ -123,7 +123,7 @@ bun test   # 2145 pass / 2 skip / 7 fail
 
 | 等级 | 问题 | 证据 | 判定 |
 |---|---|---|---|
-| **P1** | **无 Dependabot**（依赖漂移无自动 PR） | 无 `.github/dependabot.yml`；`bun outdated` 实测 6 个包落后：`@arhen/pi-core-subagent` 1.3.54→1.3.55、`@duckdb/duckdb-wasm` 1.33.1-dev45→dev64、`@modelcontextprotocol/sdk` 1.29.0→1.30.0、`@plannotator/pi-extension` 0.27.15→0.27.16、`@whiskeysockets/baileys` 7.0.0-rc.9→rc14 | UpUp 工程配置问题 |
+| **P1** | ✅ **已修复（task-5）**：原「无 Dependabot」（依赖漂移无自动 PR） | 已新增 `.github/dependabot.yml`（YAML 可解析，`version: 2`；`bun` 主 manager + `npm` 生态覆盖 + `github-actions`；weekly×2 / monthly×1 调度；含 `pi-runtime` / `dev-tooling` / `production-patches` 分组）。原缺口证据（`bun outdated` 实测 6 个包落后）：`@arhen/pi-core-subagent` 1.3.54→1.3.55、`@duckdb/duckdb-wasm` 1.33.1-dev45→dev64、`@modelcontextprotocol/sdk` 1.29.0→1.30.0、`@plannotator/pi-extension` 0.27.15→0.27.16、`@whiskeysockets/baileys` 7.0.0-rc.9→rc14 | UpUp 工程配置问题 |
 | **P1** | 无覆盖率门禁 | 同 §3.2 | UpUp 工程配置问题 |
 | **P2** | 仅 `ubuntu-latest` + `bun-version: latest`；`engines.node: >=22.19.0` 声明但 CI 从不测 Node | `.github/workflows/ci.yml` `runs-on` / `setup-bun` 配置 | UpUp 工程配置问题 |
 | **P2** | 无 release 自动化 → GitHub releases = 0 | `gh api repos/louloulin/upup/releases --jq 'length'` → `0` | UpUp 工程配置问题 |
@@ -199,10 +199,10 @@ done
 
 | 具备 | 缺失 |
 |---|---|
-| ✅ `LICENSE`（MIT） | ❌ `.github/dependabot.yml` |
-| ✅ `CONTRIBUTING.md` | ❌ `.editorconfig` |
-| ✅ `CODE_OF_CONDUCT.md` | ❌ `.nvmrc` |
-| ✅ `SECURITY.md` | ❌ `.github/CODEOWNERS`（**被 `CONTRIBUTING.md` 引用 → 死链**） |
+| ✅ `LICENSE`（MIT） | ✅ ~~`.github/dependabot.yml`~~ **已补齐（task-5）** |
+| ✅ `CONTRIBUTING.md` | ✅ ~~`.editorconfig`~~ **已补齐（task-5）** |
+| ✅ `CODE_OF_CONDUCT.md` | ✅ ~~`.nvmrc`~~ **已补齐（task-5）** |
+| ✅ `SECURITY.md` | ❌ `.github/CODEOWNERS`（**被 `CONTRIBUTING.md` 引用 → 死链**；task-6 处理） |
 | ✅ `CHANGELOG.md` | ❌ `.github/FUNDING.yml`（可选） |
 | ✅ `.github/ISSUE_TEMPLATE/`（bug/feature/question 三模板） | |
 | ✅ `.github/PULL_REQUEST_TEMPLATE.md` | |
@@ -227,7 +227,7 @@ python3 -c "import json;d=json.load(open('package.json'));[print(k,'=',json.dump
 
 | 等级 | 问题 | 判定 |
 |---|---|---|
-| **P1** | 缺 `dependabot.yml` / `.editorconfig` / `.nvmrc` | UpUp 工程配置问题 |
+| **P1** | ✅ **已修复（task-5）**：原缺 `dependabot.yml` / `.editorconfig` / `.nvmrc` | ✅ 已修复（证据：dependabot.yml YAML 解析 OK、ecosystems=`[bun, npm, github-actions]`；`.nvmrc`=`22.19.0` 与 `engines.node: >=22.19.0` 一致；`.editorconfig` 段落覆盖 ts/tsx/json/md，`root = true`） |
 | **P2** | 缺 `.github/CODEOWNERS`（且被 CONTRIBUTING.md 引用为死链） | UpUp 工程配置问题 |
 | **P2** | `author` 无联系方式 | UpUp 元数据问题 |
 

@@ -1,0 +1,44 @@
+# EditorConfig — https://editorconfig.org
+# 让不同编辑器 / IDE 对 UpUp 仓库产生一致的空白与换行风格。
+# 与 `bun run lint:scc` 及仓库既有风格（LF、2 空格、UTF-8）保持一致。
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+# ---- TypeScript / JavaScript ----
+[*.{ts,tsx,js,jsx,mjs,cjs,mts,cts}]
+indent_size = 2
+quote_type = single
+
+# ---- JSON / JSONC（package.json、tsconfig、pi manifest）----
+[*.{json,jsonc}]
+indent_size = 2
+
+# ---- Markdown：保留行尾空格（Markdown 硬换行语义）----
+[*.md]
+indent_size = 2
+trim_trailing_whitespace = false
+
+# ---- YAML / CI 配置 ----
+[*.{yml,yaml}]
+indent_size = 2
+
+# ---- Shell 脚本 ----
+[*.sh]
+indent_size = 2
+
+# ---- Makefile 必须用 tab ----
+[Makefile]
+indent_style = tab
+
+# ---- 生成的构建产物 / 锁文件：不参与格式化 ----
+[{dist/**,bun.lock,*.tgz}]
+insert_final_newline = false
+trim_trailing_whitespace = false

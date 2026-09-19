@@ -1,0 +1,73 @@
+# Dependabot configuration — UpUp (涨涨)
+# https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+#
+# UpUp 是 Bun-first 仓库（`bun.lock`，无 `package-lock.json`），因此 `bun` 生态是
+# 主 manager，负责 `package.json` + `bun.lock`（含 37 个 workspace package 的依赖）。
+# `npm` 生态一并声明以满足 JS 生态覆盖（在无 `package-lock.json` 时它不会产生重复的
+# 版本更新 PR；一旦将来引入 npm/yarn lockfile 即可接管）。
+# 另单独跟踪 GitHub Actions。
+
+version: 2
+
+updates:
+  # ---- Bun：主包管理器（bun.lock）----
+  - package-ecosystem: bun
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "02:00"
+      timezone: Asia/Shanghai
+    open-pull-requests-limit: 10
+    labels:
+      - dependencies
+    commit-message:
+      prefix: "chore(deps)"
+      prefix-development: "chore(dev-deps)"
+      include: scope
+    groups:
+      # Pi runtime 与官方扩展：必须整体同版本升级（仓库锁定 0.85.1）
+      pi-runtime:
+        patterns:
+          - "@earendil-works/*"
+        update-types:
+          - minor
+          - patch
+      # 开发工具链：批量成组，减少 PR 噪音
+      dev-tooling:
+        dependency-type: development
+        update-types:
+          - minor
+          - patch
+      # 生产依赖的补丁级更新
+      production-patches:
+        dependency-type: production
+        update-types:
+          - patch
+
+  # ---- npm：JS 生态覆盖（无 package-lock.json，故与 bun 条目无重复 PR）----
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "02:00"
+      timezone: Asia/Shanghai
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+    commit-message:
+      prefix: "chore(deps)"
+      prefix-development: "chore(dev-deps)"
+
+  # ---- GitHub Actions ----
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - ci
+    commit-message:
+      prefix: "chore(ci)"
