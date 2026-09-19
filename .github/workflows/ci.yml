@@ -55,7 +55,7 @@ jobs:
           - task: test
             command: bun run test
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -71,7 +71,7 @@ jobs:
     if: github.event.action != 'labeled' || github.event.label.name == 'run-ci'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: oven-sh/setup-bun@v2
         with:
