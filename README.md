@@ -9,7 +9,9 @@
 [![i18n: EN | zh-CN](https://img.shields.io/badge/i18n-EN%20%7C%20zh--CN-ff69b4.svg)](#i18n)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](./CONTRIBUTING.md)
 
-[中文](./README_CN.md) · [Changelog](./CHANGELOG.md) · [Contributing](./CONTRIBUTING.md) · [架构文档](./docs/ARCHITECTURE.md)
+[English](./README_EN.md) · [变更日志](./CHANGELOG.md) · [贡献指南](./CONTRIBUTING.md) · [架构文档](./docs/ARCHITECTURE.md)
+
+> 🇨🇳 **本文件是中文用户默认入口（GitHub 默认展示）。英文版见 [README_EN.md](./README_EN.md)。**
 
 ![UpUp CLI welcome screen](./docs/images/upup-welcome.png)
 
@@ -82,6 +84,7 @@ UpUp 只贡献 Pi 侧没有的东西：
 
 ```bash
 git clone https://github.com/louloulin/upup.git
+# 镜像：git clone https://gitcode.com/lumosaigroup/upup.git
 cd upup
 bun install
 bun run start          # 交互式 CLI（进入 Pi InteractiveMode）

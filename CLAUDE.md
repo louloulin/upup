@@ -26,8 +26,8 @@
 
 | Document | Description |
 |---------|-------------|
-| [README.md](README.md) | English documentation |
-| [README_CN.md](README_CN.md) | 中文文档 |
+| [README.md](README.md) | 中文文档（GitHub 默认入口） |
+| [README_EN.md](README_EN.md) | English documentation |
 | [SOUL.md](SOUL.md) | Design philosophy and soul |
 | [AGENTS.md](AGENTS.md) | Agent system design |
 

@@ -174,7 +174,7 @@ PY
 
 | 等级 | 问题 | 证据 | 判定 |
 |---|---|---|---|
-| **P0** | `README.md` 与 `README_CN.md` **都是中文**，且**循环互指**：`README.md:12` 写 `[中文](./README_CN.md)`，`README_CN.md:12` 写 `[English](./README.md)`；仓库**无英文 README** | `diff README.md README_CN.md \| wc -l` → 59（近乎重复）；`git ls-files \| grep -iE 'readme'` 无英文版 | UpUp 文档问题 |
+| **P0** | ✅ **已修复（task-4）**：`README.md` 与 `README_CN.md` **都是中文**且**循环互指**、仓库**无英文 README** | 修复前：`diff README.md README_CN.md \| wc -l` → 59（近乎重复）；`README.md:12` 写 `[中文](./README_CN.md)`，`README_CN.md:12` 写 `[English](./README.md)`。修复后：`README.md`（中文，GitHub 默认入口）+ `README_EN.md`（英文，对等重写）+ `README_CN.md` 已 `git rm`；双向互链可达、零死链；`README_CN.md` 独有的 gitcode 镜像 clone 命令已并入 README.md | UpUp 文档问题 |
 | **P1** | ARCHITECTURE 三处重叠 | `docs/ARCHITECTURE.md`(130 行) vs `docs/architecture-overview.md`(213 行) vs `docs/architecture/*.md`（6 篇合计 609 行） | UpUp 文档问题 |
 | **P1** | GAP-ANALYSIS 双份，且**双双标注 Superseded 并指向不存在的 `openspec/`** | `docs/GAP-ANALYSIS.md`(309 行) vs `docs/AI-AGENT-GAP-ANALYSIS.md`(310 行)，两者首段均含 `> ⚠️ **Superseded** (2026-06-12)` | UpUp 文档问题 |
 | **P1** | 竞品分析双份 | `docs/comparison.md`(182 行) vs `docs/COMPETITIVE.md`(273 行) | UpUp 文档问题 |

@@ -73,8 +73,8 @@
 
 ## Quick links
 
-- [README.md](../README.md) — main readme
-- [README_CN.md](../README_CN.md) — 中文主文档
+- [README.md](../README.md) — 中文主文档（GitHub 默认入口）
+- [README_EN.md](../README_EN.md) — English readme
 - [LICENSE](../LICENSE) — MIT
 
 ---
