@@ -88,7 +88,7 @@ function scan(): readonly Violation[] {
     if (ALLOWLIST.has(rel)) continue;
 
     const content = readFileSync(file, 'utf-8');
-    let match: RegExpExecArray | | null;
+    let match: RegExpExecArray | null;
     while ((match = exportRegex.exec(content)) !== null) {
       const name = match[1];
       if (!name) continue;
